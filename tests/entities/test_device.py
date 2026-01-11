@@ -37,7 +37,7 @@ class TestGetOrCreateElementDevice:
         hass: HomeAssistant,
         mock_config_entry: MockConfigEntry,
     ) -> None:
-        """Test main device uses v0.1.0 {entry_id}_{subentry_id}_{device_name} identifier pattern."""
+        """Test main device uses {entry_id}_{subentry_id}_{device_name} identifier pattern."""
         subentry = ConfigSubentry(
             data=MappingProxyType({"name": "My Battery", "element_type": "battery"}),
             subentry_type="battery",
@@ -49,7 +49,6 @@ class TestGetOrCreateElementDevice:
         # Create main device (device_name == element_type)
         device = get_or_create_element_device(hass, mock_config_entry, subentry, "battery")
 
-        # v0.1.0 pattern always includes device_name
         expected_identifier = (DOMAIN, f"{mock_config_entry.entry_id}_{subentry.subentry_id}_battery")
         assert expected_identifier in device.identifiers
 
@@ -104,7 +103,7 @@ class TestGetOrCreateNetworkDevice:
         hass: HomeAssistant,
         mock_config_entry: MockConfigEntry,
     ) -> None:
-        """Test network device uses v0.1.0 {entry_id}_{subentry_id}_{network} identifier pattern."""
+        """Test network device uses {entry_id}_{subentry_id}_{network} identifier pattern."""
         network_subentry = ConfigSubentry(
             data=MappingProxyType({"name": "System", "element_type": ELEMENT_TYPE_NETWORK}),
             subentry_type=ELEMENT_TYPE_NETWORK,
@@ -115,7 +114,6 @@ class TestGetOrCreateNetworkDevice:
 
         device = get_or_create_network_device(hass, mock_config_entry, network_subentry)
 
-        # v0.1.0 pattern always includes device type
         expected_identifier = (
             DOMAIN,
             f"{mock_config_entry.entry_id}_{network_subentry.subentry_id}_{ELEMENT_TYPE_NETWORK}",
@@ -131,7 +129,7 @@ class TestBuildDeviceIdentifier:
         hass: HomeAssistant,
         mock_config_entry: MockConfigEntry,
     ) -> None:
-        """Test building identifier for main device uses v0.1.0 pattern."""
+        """Test building identifier for main device."""
         subentry = ConfigSubentry(
             data=MappingProxyType({"name": "Battery", "element_type": "battery"}),
             subentry_type="battery",
@@ -140,7 +138,6 @@ class TestBuildDeviceIdentifier:
         )
         hass.config_entries.async_add_subentry(mock_config_entry, subentry)
 
-        # Main device always includes device_name in v0.1.0 pattern
         identifier = build_device_identifier(mock_config_entry, subentry, "battery")
 
         expected = (DOMAIN, f"{mock_config_entry.entry_id}_{subentry.subentry_id}_battery")

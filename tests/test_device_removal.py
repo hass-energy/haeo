@@ -1,6 +1,6 @@
 """Tests for stale device removal functionality.
 
-Device identifiers follow this pattern (v0.1.0 compatible):
+Device identifiers follow this pattern:
 (DOMAIN, f"{entry_id}_{subentry_id}_{device_name}")
 """
 
@@ -51,7 +51,7 @@ async def test_keep_device_for_existing_element(
     )
     hass.config_entries.async_add_subentry(mock_config_entry, subentry)
 
-    # Create a device using the v0.1.0 pattern: {entry_id}_{subentry_id}_{device_name}
+    # Create a device using the pattern: {entry_id}_{subentry_id}_{device_name}
     device = mock_device_registry.async_get_or_create(
         config_entry_id=mock_config_entry.entry_id,
         identifiers={(DOMAIN, f"{mock_config_entry.entry_id}_{subentry.subentry_id}_battery")},
@@ -110,7 +110,7 @@ async def test_remove_device_for_deleted_element(
     mock_device_registry: dr.DeviceRegistry,
 ) -> None:
     """Test that devices for deleted elements are removed."""
-    # Create a device with a non-existent subentry_id using v0.1.0 pattern
+    # Create a device with a non-existent subentry_id
     device = mock_device_registry.async_get_or_create(
         config_entry_id=mock_config_entry.entry_id,
         identifiers={(DOMAIN, f"{mock_config_entry.entry_id}_deleted_subentry_id_battery")},
@@ -199,7 +199,7 @@ async def test_multiple_elements_device_cleanup(
         hass.config_entries.async_add_subentry(mock_config_entry, subentry)
         subentries.append(subentry)
 
-    # Create devices for existing and non-existing elements using v0.1.0 pattern
+    # Create devices for existing and non-existing elements
     existing_device = mock_device_registry.async_get_or_create(
         config_entry_id=mock_config_entry.entry_id,
         identifiers={(DOMAIN, f"{mock_config_entry.entry_id}_{subentries[0].subentry_id}_battery")},

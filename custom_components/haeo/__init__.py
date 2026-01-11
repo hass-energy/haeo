@@ -239,7 +239,7 @@ async def async_remove_config_entry_device(
 
     Returns True if device can be removed, False if it should be kept.
 
-    Device identifiers follow this pattern (v0.1.0 compatible):
+    Device identifiers follow this pattern:
     (DOMAIN, f"{entry_id}_{subentry_id}_{device_name}")
     """
     device_registry = dr.async_get(hass)

@@ -25,12 +25,7 @@ def get_or_create_element_device(
 ) -> DeviceEntry:
     """Get or create a device for an element.
 
-    Uses consistent identifier pattern (v0.1.0 compatible):
-    {entry_id}_{subentry_id}_{device_name}
-
-    This pattern is used for all devices including main devices and sub-devices.
-    The device_name is always included in the identifier to maintain backwards
-    compatibility with v0.1.0 configurations.
+    Uses identifier pattern: {entry_id}_{subentry_id}_{device_name}
 
     Args:
         hass: Home Assistant instance
@@ -43,8 +38,6 @@ def get_or_create_element_device(
 
     """
     device_registry = dr.async_get(hass)
-
-    # Always include device_name in identifier for v0.1.0 compatibility
     device_id_suffix = f"{subentry.subentry_id}_{device_name}"
 
     return device_registry.async_get_or_create(
@@ -63,8 +56,7 @@ def get_or_create_network_device(
 ) -> DeviceEntry:
     """Get or create the network device for optimization outputs.
 
-    The network device uses a consistent identifier pattern (v0.1.0 compatible):
-    {entry_id}_{subentry_id}_{network}
+    Uses identifier pattern: {entry_id}_{subentry_id}_{network}
 
     Args:
         hass: Home Assistant instance
@@ -76,8 +68,6 @@ def get_or_create_network_device(
 
     """
     device_registry = dr.async_get(hass)
-
-    # Always include device type in identifier for v0.1.0 compatibility
     device_id_suffix = f"{network_subentry.subentry_id}_{ELEMENT_TYPE_NETWORK}"
 
     return device_registry.async_get_or_create(
@@ -96,8 +86,7 @@ def build_device_identifier(
 ) -> tuple[str, str]:
     """Build a device identifier tuple for matching purposes.
 
-    Uses consistent identifier pattern (v0.1.0 compatible):
-    {entry_id}_{subentry_id}_{device_name}
+    Uses identifier pattern: {entry_id}_{subentry_id}_{device_name}
 
     This is useful for async_remove_config_entry_device to check if a device
     belongs to a current element.
@@ -105,13 +94,12 @@ def build_device_identifier(
     Args:
         config_entry: The config entry for the integration
         subentry: The subentry for the element
-        device_name: The device name (required)
+        device_name: The device name
 
     Returns:
         Identifier tuple (DOMAIN, identifier_string)
 
     """
-    # Always include device_name in identifier for v0.1.0 compatibility
     device_id_suffix = f"{subentry.subentry_id}_{device_name}"
 
     return (DOMAIN, f"{config_entry.entry_id}_{device_id_suffix}")
