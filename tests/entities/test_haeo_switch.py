@@ -1,5 +1,6 @@
 """Tests for the HAEO switch input entity."""
 
+import asyncio
 from types import MappingProxyType
 from typing import Any
 from unittest.mock import Mock
@@ -983,8 +984,6 @@ async def test_wait_ready_blocks_until_data_loaded(
     horizon_manager: Mock,
 ) -> None:
     """wait_ready() blocks until data is loaded."""
-    import asyncio
-
     # Use DRIVEN mode so data isn't loaded immediately
     hass.states.async_set("input_boolean.curtail", STATE_ON)
     subentry = _create_subentry("Test Solar", {"allow_curtailment": "input_boolean.curtail"})

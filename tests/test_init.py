@@ -1,11 +1,13 @@
 """Test the HAEO integration."""
 
+import asyncio
 from contextlib import suppress
 from types import MappingProxyType
 from unittest.mock import AsyncMock, Mock
 
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import device_registry as dr
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
@@ -592,9 +594,6 @@ async def test_async_setup_entry_raises_config_entry_not_ready_on_timeout(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Setup raises ConfigEntryNotReady when input entities don't become ready in time."""
-    import asyncio
-
-    from homeassistant.exceptions import ConfigEntryNotReady
 
     # Create a mock input entity that never becomes ready
     class NeverReadyEntity:
@@ -617,7 +616,6 @@ async def test_async_setup_entry_raises_config_entry_not_ready_on_timeout(
             self.value_update_in_progress = False
 
     # Patch HaeoRuntimeData to return our mock
-    original_runtime_data_class = None
 
     def create_mock_runtime_data(horizon_manager: object) -> MockRuntimeData:
         return MockRuntimeData()
@@ -651,6 +649,7 @@ async def test_async_setup_entry_returns_false_when_network_subentry_missing(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Setup returns False when network subentry cannot be found."""
+
     # Patch _ensure_required_subentries to NOT create network subentry
     async def mock_ensure(hass_arg: HomeAssistant, entry_arg: ConfigEntry) -> None:
         # Do nothing - don't create network subentry

@@ -1,5 +1,6 @@
 """Tests for the HAEO number input entity."""
 
+import asyncio
 from types import MappingProxyType
 from typing import Any
 from unittest.mock import AsyncMock, Mock
@@ -991,8 +992,6 @@ async def test_wait_ready_blocks_until_data_loaded(
     horizon_manager: Mock,
 ) -> None:
     """wait_ready() blocks until data is loaded."""
-    import asyncio
-
     subentry = _create_subentry("Test Battery", {"power_limit": 10.0})
     config_entry.runtime_data = None
 
