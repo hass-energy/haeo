@@ -318,12 +318,8 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         # Load the updated config for just this element
         try:
             element_config = self._load_element_config(element_name)
-        except ValueError as err:
-            _LOGGER.exception(
-                "Failed to load config for element %s due to invalid input entities: %s",
-                element_name,
-                err,
-            )
+        except ValueError:
+            _LOGGER.exception("Failed to load config for element %s due to invalid input entities", element_name)
             return
 
         # Update just this element's TrackedParams
