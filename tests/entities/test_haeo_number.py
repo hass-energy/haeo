@@ -920,3 +920,64 @@ async def test_async_load_data_with_empty_values_list(
 
     # State should not have changed
     assert entity.native_value == initial_value
+
+
+async def test_is_ready_returns_true_after_data_loaded(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    device_entry: Mock,
+    power_field_info: InputFieldInfo[NumberEntityDescription],
+    horizon_manager: Mock,
+) -> None:
+    """is_ready() returns True after data has been loaded."""
+    subentry = _create_subentry("Test Battery", {"power_limit": 10.0})
+    config_entry.runtime_data = None
+
+    entity = HaeoInputNumber(
+        hass=hass,
+        config_entry=config_entry,
+        subentry=subentry,
+        field_info=power_field_info,
+        device_entry=device_entry,
+        horizon_manager=horizon_manager,
+    )
+
+    # Before adding to hass, not ready
+    assert entity.is_ready() is False
+
+    # Update forecast to simulate loaded state
+    entity._update_editable_forecast()
+
+    # Now ready
+    assert entity.is_ready() is True
+
+
+async def test_driven_mode_with_v01_single_entity_string(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    device_entry: Mock,
+    power_field_info: InputFieldInfo[NumberEntityDescription],
+    horizon_manager: Mock,
+) -> None:
+    """Number entity in DRIVEN mode handles v0.1 single entity ID string format."""
+    # v0.1 format stored entity ID as plain string, not list
+    subentry = _create_subentry("Test Battery", {"power_limit": "sensor.power_limit"})
+    config_entry.runtime_data = None
+
+    entity = HaeoInputNumber(
+        hass=hass,
+        config_entry=config_entry,
+        subentry=subentry,
+        field_info=power_field_info,
+        device_entry=device_entry,
+        horizon_manager=horizon_manager,
+    )
+
+    assert entity._entity_mode == ConfigEntityMode.DRIVEN
+    assert entity._source_entity_ids == ["sensor.power_limit"]
+    assert entity.native_value is None  # Not loaded yet
+
+    attrs = entity.extra_state_attributes
+    assert attrs is not None
+    assert attrs["config_mode"] == "driven"
+    assert attrs["source_entities"] == ["sensor.power_limit"]

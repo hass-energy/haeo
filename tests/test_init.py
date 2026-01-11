@@ -553,3 +553,34 @@ async def test_async_remove_config_entry_device(hass: HomeAssistant, mock_hub_en
     # Try to remove again - device already gone, should return False
     result = await async_remove_config_entry_device(hass, mock_hub_entry, device)
     assert result is False
+
+
+async def test_async_update_listener_value_update_skips_refresh_without_coordinator(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Test async_update_listener skips coordinator refresh when coordinator is None."""
+    # Set up runtime_data with value_update_in_progress=True but NO coordinator
+    mock_hub_entry.runtime_data = HaeoRuntimeData(
+        horizon_manager=_create_mock_horizon_manager(),
+        coordinator=None,  # No coordinator
+        value_update_in_progress=True,
+    )
+
+    # Mock the reload function to track if it's called
+    reload_called = False
+
+    async def mock_reload(entry_id: str) -> bool:
+        nonlocal reload_called
+        reload_called = True
+        return True
+
+    hass.config_entries.async_reload = mock_reload
+
+    # Call update listener
+    await async_update_listener(hass, mock_hub_entry)
+
+    # Verify: flag should be cleared, NO reload
+    assert mock_hub_entry.runtime_data.value_update_in_progress is False
+    assert not reload_called

@@ -1079,3 +1079,16 @@ def test_load_from_input_entities_raises_for_invalid_element_type(
     # Should raise for invalid element type
     with pytest.raises(ValueError, match="Invalid element type 'invalid_type' for element 'Invalid Element'"):
         coordinator._load_from_input_entities()
+
+
+@pytest.mark.usefixtures("mock_battery_subentry")
+async def test_async_initialize_raises_without_runtime_data(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+) -> None:
+    """async_initialize raises RuntimeError when runtime data is unavailable."""
+    # Don't use mock_runtime_data fixture - no runtime data set
+    coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
+
+    with pytest.raises(RuntimeError, match="Runtime data not available"):
+        await coordinator.async_initialize()
