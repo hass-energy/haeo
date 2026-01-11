@@ -151,7 +151,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> bool
     # Create network device
     device_registry = dr.async_get(hass)
     device_registry.async_get_or_create(
-        identifiers={(DOMAIN, f"{entry.entry_id}_{network_subentry.subentry_id}")},
+        identifiers={(DOMAIN, f"{entry.entry_id}_{network_subentry.subentry_id}_{ELEMENT_TYPE_NETWORK}")},
         config_entry_id=entry.entry_id,
         config_subentry_id=network_subentry.subentry_id,
         translation_key=ELEMENT_TYPE_NETWORK,

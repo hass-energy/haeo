@@ -52,7 +52,7 @@ async def async_setup_entry(
 
     # Get the network device (created in __init__.py)
     network_device_entry = dr.async_get_or_create(
-        identifiers={(DOMAIN, f"{config_entry.entry_id}_{network_subentry.subentry_id}")},
+        identifiers={(DOMAIN, f"{config_entry.entry_id}_{network_subentry.subentry_id}_{ELEMENT_TYPE_NETWORK}")},
         config_entry_id=config_entry.entry_id,
         config_subentry_id=network_subentry.subentry_id,
         translation_key=ELEMENT_TYPE_NETWORK,

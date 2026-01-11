@@ -54,7 +54,7 @@ async def async_setup_entry(
         # Get or create device for this subentry
         # Use the same identifier pattern as sensors for consistency
         device_entry = dr.async_get_or_create(
-            identifiers={(DOMAIN, f"{config_entry.entry_id}_{subentry.subentry_id}")},
+            identifiers={(DOMAIN, f"{config_entry.entry_id}_{subentry.subentry_id}_{subentry.subentry_type}")},
             config_entry_id=config_entry.entry_id,
             config_subentry_id=subentry.subentry_id,
             translation_key=subentry.subentry_type,
