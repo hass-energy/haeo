@@ -4,7 +4,6 @@ from types import MappingProxyType
 
 from homeassistant.config_entries import ConfigSubentry
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers import device_registry as dr
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
@@ -69,9 +68,7 @@ class TestGetOrCreateElementDevice:
         hass.config_entries.async_add_subentry(mock_config_entry, subentry)
 
         # Create sub-device (device_name != element_type)
-        device = get_or_create_element_device(
-            hass, mock_config_entry, subentry, "battery_device_normal"
-        )
+        device = get_or_create_element_device(hass, mock_config_entry, subentry, "battery_device_normal")
 
         expected_identifier = (
             DOMAIN,
@@ -119,7 +116,10 @@ class TestGetOrCreateNetworkDevice:
         device = get_or_create_network_device(hass, mock_config_entry, network_subentry)
 
         # v0.1.0 pattern always includes device type
-        expected_identifier = (DOMAIN, f"{mock_config_entry.entry_id}_{network_subentry.subentry_id}_{ELEMENT_TYPE_NETWORK}")
+        expected_identifier = (
+            DOMAIN,
+            f"{mock_config_entry.entry_id}_{network_subentry.subentry_id}_{ELEMENT_TYPE_NETWORK}",
+        )
         assert expected_identifier in device.identifiers
 
 
@@ -160,9 +160,7 @@ class TestBuildDeviceIdentifier:
         )
         hass.config_entries.async_add_subentry(mock_config_entry, subentry)
 
-        identifier = build_device_identifier(
-            mock_config_entry, subentry, "battery_device_normal"
-        )
+        identifier = build_device_identifier(mock_config_entry, subentry, "battery_device_normal")
 
         expected = (
             DOMAIN,
@@ -234,12 +232,8 @@ class TestDeviceConsistency:
         )
         hass.config_entries.async_add_subentry(mock_config_entry, subentry)
 
-        device = get_or_create_element_device(
-            hass, mock_config_entry, subentry, "battery_device_overcharge"
-        )
-        expected_identifier = build_device_identifier(
-            mock_config_entry, subentry, "battery_device_overcharge"
-        )
+        device = get_or_create_element_device(hass, mock_config_entry, subentry, "battery_device_overcharge")
+        expected_identifier = build_device_identifier(mock_config_entry, subentry, "battery_device_overcharge")
 
         assert expected_identifier in device.identifiers
 
@@ -264,12 +258,8 @@ class TestDeviceConsistency:
         hass.config_entries.async_add_subentry(mock_config_entry, battery_subentry)
         hass.config_entries.async_add_subentry(mock_config_entry, grid_subentry)
 
-        battery_device = get_or_create_element_device(
-            hass, mock_config_entry, battery_subentry, "battery"
-        )
-        grid_device = get_or_create_element_device(
-            hass, mock_config_entry, grid_subentry, "grid"
-        )
+        battery_device = get_or_create_element_device(hass, mock_config_entry, battery_subentry, "battery")
+        grid_device = get_or_create_element_device(hass, mock_config_entry, grid_subentry, "grid")
 
         assert battery_device.id != grid_device.id
 
@@ -295,8 +285,6 @@ class TestDeviceConsistency:
         hass.config_entries.async_add_subentry(mock_config_entry, battery_subentry)
 
         network_device = get_or_create_network_device(hass, mock_config_entry, network_subentry)
-        battery_device = get_or_create_element_device(
-            hass, mock_config_entry, battery_subentry, "battery"
-        )
+        battery_device = get_or_create_element_device(hass, mock_config_entry, battery_subentry, "battery")
 
         assert network_device.id != battery_device.id
