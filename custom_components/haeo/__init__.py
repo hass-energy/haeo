@@ -217,14 +217,18 @@ async def async_unload_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> boo
     """Unload a config entry."""
     _LOGGER.info("Unloading HAEO integration")
 
+    # Clean up coordinator resources and input entity references before unloading platforms
+    runtime_data = entry.runtime_data
+    if runtime_data is not None:
+        # Clear input entity references to prevent stale references during reload
+        runtime_data.input_entities.clear()
+        if runtime_data.coordinator is not None:
+            runtime_data.coordinator.cleanup()
+
     # Unload platforms
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
 
     if unload_ok:
-        # Clean up coordinator resources
-        runtime_data = entry.runtime_data
-        if runtime_data is not None and runtime_data.coordinator is not None:
-            runtime_data.coordinator.cleanup()
         entry.runtime_data = None
 
         # Clean up sentinel entities if this is the last HAEO config entry

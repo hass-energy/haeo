@@ -1,7 +1,6 @@
 """Switch entity for HAEO boolean input configuration."""
 
 import asyncio
-from collections.abc import Callable
 from datetime import datetime
 from typing import Any
 
@@ -95,11 +94,12 @@ class HaeoInputSwitch(SwitchEntity):
             self._base_extra_attrs["source_entity"] = self._source_entity_id
         self._attr_extra_state_attributes = dict(self._base_extra_attrs)
 
-        self._state_unsub: Callable[[], None] | None = None
-        self._horizon_unsub: Callable[[], None] | None = None
+        # Event that signals entity has been added to HA (for coordinator to watch)
+        self._entity_added = asyncio.Event()
 
-        # Event that signals data is ready for coordinator access
-        self._data_ready = asyncio.Event()
+        # DRIVEN mode entities start unavailable until source data loads successfully
+        if self._entity_mode == ConfigEntityMode.DRIVEN:
+            self._attr_available = False
 
         # Initialize forecast immediately for EDITABLE mode entities
         # This ensures get_values() returns data before async_added_to_hass() is called
@@ -123,7 +123,7 @@ class HaeoInputSwitch(SwitchEntity):
         await super().async_added_to_hass()
 
         # Subscribe to horizon manager for time window changes
-        self._horizon_unsub = self._horizon_manager.subscribe(self._handle_horizon_change)
+        self.async_on_remove(self._horizon_manager.subscribe(self._handle_horizon_change))
 
         if self._entity_mode == ConfigEntityMode.EDITABLE:
             # Use defaults.value if no config value
@@ -135,23 +135,18 @@ class HaeoInputSwitch(SwitchEntity):
         else:
             # Subscribe to source entity changes for DRIVEN mode
             if self._source_entity_id is not None:
-                self._state_unsub = async_track_state_change_event(
-                    self._hass,
-                    [self._source_entity_id],
-                    self._handle_source_state_change,
+                self.async_on_remove(
+                    async_track_state_change_event(
+                        self._hass,
+                        [self._source_entity_id],
+                        self._handle_source_state_change,
+                    )
                 )
-            # Load initial state from source
+            # Load initial state from source - may set available=True if source exists
             self._load_source_state()
 
-    async def async_will_remove_from_hass(self) -> None:
-        """Clean up state tracking."""
-        if self._state_unsub is not None:
-            self._state_unsub()
-            self._state_unsub = None
-        if self._horizon_unsub is not None:
-            self._horizon_unsub()
-            self._horizon_unsub = None
-        await super().async_will_remove_from_hass()
+        # Signal entity is added to HA - coordinator can now watch this entity
+        self._entity_added.set()
 
     @callback
     def _handle_horizon_change(self) -> None:
@@ -171,6 +166,11 @@ class HaeoInputSwitch(SwitchEntity):
         if new_state is not None:
             self._attr_is_on = new_state.state == STATE_ON
             self._update_forecast()
+            self._attr_available = True
+            self.async_write_ha_state()
+        else:
+            # Source entity removed - mark unavailable
+            self._attr_available = False
             self.async_write_ha_state()
 
     def _load_source_state(self) -> None:
@@ -182,6 +182,10 @@ class HaeoInputSwitch(SwitchEntity):
         if state is not None:
             self._attr_is_on = state.state == STATE_ON
             self._update_forecast()
+            self._attr_available = True
+        else:
+            # Source entity doesn't exist yet - stay unavailable
+            self._attr_available = False
 
     def _update_forecast(self) -> None:
         """Update forecast attribute with constant value across horizon."""
@@ -200,16 +204,13 @@ class HaeoInputSwitch(SwitchEntity):
 
         self._attr_extra_state_attributes = extra_attrs
 
-        # Signal that data is ready
-        self._data_ready.set()
-
     def is_ready(self) -> bool:
-        """Return True if data has been loaded and entity is ready."""
-        return self._data_ready.is_set()
+        """Return True if entity has been added to Home Assistant."""
+        return self._entity_added.is_set()
 
     async def wait_ready(self) -> None:
-        """Wait for data to be ready."""
-        await self._data_ready.wait()
+        """Wait for entity to be added to Home Assistant."""
+        await self._entity_added.wait()
 
     @property
     def entity_mode(self) -> ConfigEntityMode:

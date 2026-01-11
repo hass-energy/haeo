@@ -976,14 +976,16 @@ def test_load_from_input_entities_raises_when_required_input_missing(
     mock_hub_entry: MockConfigEntry,
     mock_runtime_data: HaeoRuntimeData,
 ) -> None:
-    """Loading raises error when required input entities are missing."""
+    """Loading raises UpdateFailed when required input entities are missing."""
+    from homeassistant.helpers.update_coordinator import UpdateFailed  # noqa: PLC0415
+
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
 
     # runtime_data exists but input_entities is empty
     mock_runtime_data.input_entities = {}
 
-    # Should raise when required fields are missing
-    with pytest.raises(ValueError, match="Missing required field 'capacity' for element 'Test Battery'"):
+    # Should raise UpdateFailed when required fields are missing
+    with pytest.raises(UpdateFailed, match="Missing required field 'capacity' for element 'Test Battery'"):
         coordinator._load_from_input_entities()
 
 
@@ -1019,16 +1021,19 @@ def test_load_from_input_entities_raises_when_required_field_returns_none(
     mock_hub_entry: MockConfigEntry,
     mock_runtime_data: HaeoRuntimeData,
 ) -> None:
-    """Loading raises error when required input entity returns None values."""
+    """Loading raises UpdateFailed when required input entity returns None values."""
+    from homeassistant.helpers.update_coordinator import UpdateFailed  # noqa: PLC0415
+
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
 
     # Create mock input entity that returns None for required field (capacity)
     mock_entity = MagicMock()
     mock_entity.get_values.return_value = None
+    mock_entity.available = True  # Entity is available but has no data
     mock_runtime_data.input_entities[("Test Battery", "capacity")] = mock_entity
 
     # Should raise since required field (capacity) returned None
-    with pytest.raises(ValueError, match="Missing required field 'capacity' for element 'Test Battery'"):
+    with pytest.raises(UpdateFailed, match="has no data"):
         coordinator._load_from_input_entities()
 
 
@@ -1050,7 +1055,9 @@ def test_load_from_input_entities_raises_for_invalid_element_type(
     mock_hub_entry: MockConfigEntry,
     mock_runtime_data: HaeoRuntimeData,
 ) -> None:
-    """Loading raises error for elements with invalid element types."""
+    """Loading raises UpdateFailed for elements with invalid element types."""
+    from homeassistant.helpers.update_coordinator import UpdateFailed  # noqa: PLC0415
+
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
 
     # Inject an invalid element type into participant configs
@@ -1062,8 +1069,8 @@ def test_load_from_input_entities_raises_for_invalid_element_type(
     }
     coordinator._participant_configs = invalid_config
 
-    # Should raise for invalid element type
-    with pytest.raises(ValueError, match="Invalid element type 'invalid_type' for element 'Invalid Element'"):
+    # Should raise UpdateFailed for invalid element type
+    with pytest.raises(UpdateFailed, match="Invalid element type 'invalid_type' for element 'Invalid Element'"):
         coordinator._load_from_input_entities()
 
 

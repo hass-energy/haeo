@@ -449,10 +449,19 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
                 continue
 
             entity = runtime_data.input_entities[key]
+
+            # Check if entity is available - if not, fail optimization
+            if not entity.available:
+                msg = f"Input entity '{entity.entity_id}' for '{element_name}.{field_name}' is unavailable"
+                raise ValueError(msg)
+
             values = entity.get_values()
 
             if values is None:
-                continue
+                # Entity is available but has no data - this shouldn't happen
+                # but treat it as unavailable to be safe
+                msg = f"Input entity '{entity.entity_id}' for '{element_name}.{field_name}' has no data"
+                raise ValueError(msg)
 
             if field_info.time_series:
                 loaded_values[field_name] = list(values)
@@ -473,6 +482,10 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
 
         Reads forecast values from input entities and constructs ElementConfigData
         for each element, ready for the optimization model.
+
+        Raises:
+            UpdateFailed: If any input entity is unavailable or data cannot be loaded.
+
         """
         runtime_data = self._get_runtime_data()
         if runtime_data is None:
@@ -486,7 +499,12 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         loaded_configs: dict[str, ElementConfigData] = {}
 
         for element_name in self._participant_configs:
-            element_config = self._load_element_config(element_name)
+            try:
+                element_config = self._load_element_config(element_name)
+            except ValueError as e:
+                # Convert ValueError to UpdateFailed - this happens when input entity
+                # is unavailable or has no data
+                raise UpdateFailed(str(e)) from e
             loaded_configs[element_name] = element_config
 
         return loaded_configs
