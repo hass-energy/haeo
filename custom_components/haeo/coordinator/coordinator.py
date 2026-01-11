@@ -231,28 +231,16 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         self._state_change_unsubs: list[Callable[[], None]] = []
 
     async def async_initialize(self) -> None:
-        """Initialize the network and set up subscriptions.
+        """Initialize subscriptions for input entity changes.
 
         Must be called after the coordinator is created but before any optimizations.
-        This is called from async_setup_entry after all input entities are loaded.
+        This is called from async_setup_entry after input platforms are set up.
+
+        Note: Network creation is deferred to _async_update_data() to handle the race
+        condition where input entities may not have loaded their data yet. Input entities
+        load data asynchronously in async_added_to_hass(), which may not complete before
+        this method runs.
         """
-        # Create network with loaded configurations
-        runtime_data = self._get_runtime_data()
-        if runtime_data is None:
-            msg = "Runtime data not available"
-            raise RuntimeError(msg)
-
-        periods_seconds = tiers_to_periods_seconds(self.config_entry.data)
-        loaded_configs = self._load_from_input_entities()
-
-        _LOGGER.debug("Initializing network with %d participants", len(loaded_configs))
-
-        self.network = await network_module.create_network(
-            self.config_entry,
-            periods_seconds=periods_seconds,
-            participants=loaded_configs,
-        )
-
         # Subscribe to input entity changes
         self._subscribe_to_input_entities()
 
@@ -309,19 +297,22 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
     def _handle_element_update(self, element_name: str) -> None:
         """Handle an update to a specific element's input entities.
 
-        Updates only that element's TrackedParams in the network, then triggers
-        optimization with debouncing.
+        Updates that element's TrackedParams in the network (if it exists),
+        then triggers optimization with debouncing.
 
-        The network is guaranteed to exist because it's created in async_initialize()
-        before this handler is registered.
+        Note: Network may not exist yet if this is called before the first
+        optimization run. In that case, just trigger optimization which will
+        create the network with all current data.
         """
         # Load the updated config for just this element
         element_config = self._load_element_config(element_name)
         if element_config is None:
             return
 
-        # Update just this element's TrackedParams
-        network_module.update_element(self.network, element_config)
+        # Update element's TrackedParams if network exists
+        # If network doesn't exist yet, the optimization will create it with fresh data
+        if self.network is not None:
+            network_module.update_element(self.network, element_config)
 
         # Trigger optimization (with debouncing)
         self._trigger_optimization()
@@ -540,11 +531,55 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             # All input entities are guaranteed to be fully loaded by the time we get here
             loaded_configs = self._load_from_input_entities()
 
+            # Check if all configured elements are loaded
+            # Skip optimization if some elements haven't loaded their data yet
+            configured_element_names = {
+                subentry.title
+                for subentry in self.config_entry.subentries.values()
+                if subentry.subentry_type in ELEMENT_TYPES
+            }
+            loaded_element_names = set(loaded_configs.keys())
+            missing_elements = configured_element_names - loaded_element_names
+
+            if missing_elements:
+                _LOGGER.debug(
+                    "Waiting for elements to load: %s (loaded: %d/%d)",
+                    sorted(missing_elements),
+                    len(loaded_element_names),
+                    len(configured_element_names),
+                )
+                # Return existing data if available, otherwise raise to indicate not ready
+                if self.data is not None:
+                    return self.data
+                msg = f"Elements not yet loaded: {sorted(missing_elements)}"
+                raise UpdateFailed(msg)
+
             _LOGGER.debug("Running optimization with %d participants", len(loaded_configs))
 
-            # Network should have been created in async_initialize()
-            # or set manually in tests - create lazily if needed (for test compatibility)
-            if not self.network:  # type: ignore[truthy-bool]
+            # Create network on first run, or recreate if participant set has changed
+            # (e.g., when an element's data becomes available after initial creation)
+            needs_network_creation = not self.network  # type: ignore[truthy-bool]
+
+            if not needs_network_creation:
+                # Check if loaded participants match what network was built with
+                # Compare element names from loaded_configs with participant names used to build network
+                # Network stores elements by model element name (e.g., "Grid", "Grid:connection")
+                # We need to check if all config elements have their model elements in the network
+                for element_name, config in loaded_configs.items():
+                    element_type = config[CONF_ELEMENT_TYPE]
+                    model_elements = ELEMENT_TYPES[element_type].model_elements(config)
+                    for model_elem in model_elements:
+                        if model_elem.get("name") not in self.network.elements:
+                            _LOGGER.info(
+                                "Recreating network: element '%s' not in existing network",
+                                model_elem.get("name"),
+                            )
+                            needs_network_creation = True
+                            break
+                    if needs_network_creation:
+                        break
+
+            if needs_network_creation:
                 network = await network_module.create_network(
                     self.config_entry,
                     periods_seconds=periods_seconds,

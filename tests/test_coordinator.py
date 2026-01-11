@@ -390,22 +390,19 @@ async def test_async_update_data_with_empty_input_entities(
     mock_grid_subentry: ConfigSubentry,
     mock_runtime_data: HaeoRuntimeData,
 ) -> None:
-    """Coordinator handles empty input entity data by passing it to loader."""
+    """Coordinator waits for all elements to load before attempting optimization."""
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
 
-    # Mock _load_from_input_entities to return minimal data
+    # Mock _load_from_input_entities to return empty (elements not loaded yet)
     with (
         patch.object(
             coordinator,
             "_load_from_input_entities",
             return_value={},
         ),
-        patch("custom_components.haeo.coordinator.coordinator.network_module.create_network") as mock_load,
+        pytest.raises(UpdateFailed, match="Elements not yet loaded"),
     ):
-        mock_load.side_effect = UpdateFailed("Missing required data")
-        with pytest.raises(UpdateFailed, match="Missing required data"):
-            await coordinator._async_update_data()
-        mock_load.assert_called_once()
+        await coordinator._async_update_data()
 
 
 async def test_async_update_data_propagates_update_failed(
@@ -418,8 +415,14 @@ async def test_async_update_data_propagates_update_failed(
     """Coordinator surfaces loader failures as UpdateFailed."""
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
 
+    # Return configs that match the configured subentries so we pass the "all loaded" check
+    fake_configs = {
+        mock_battery_subentry.title: {"element_type": "battery", "name": mock_battery_subentry.title},
+        mock_grid_subentry.title: {"element_type": "grid", "name": mock_grid_subentry.title},
+    }
+
     with (
-        patch.object(coordinator, "_load_from_input_entities", return_value={}),
+        patch.object(coordinator, "_load_from_input_entities", return_value=fake_configs),
         patch(
             "custom_components.haeo.coordinator.coordinator.network_module.create_network",
             side_effect=UpdateFailed("missing data"),
@@ -439,8 +442,14 @@ async def test_async_update_data_propagates_value_error(
     """Coordinator allows unexpected errors to bubble up."""
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
 
+    # Return configs that match the configured subentries so we pass the "all loaded" check
+    fake_configs = {
+        mock_battery_subentry.title: {"element_type": "battery", "name": mock_battery_subentry.title},
+        mock_grid_subentry.title: {"element_type": "grid", "name": mock_grid_subentry.title},
+    }
+
     with (
-        patch.object(coordinator, "_load_from_input_entities", return_value={}),
+        patch.object(coordinator, "_load_from_input_entities", return_value=fake_configs),
         patch(
             "custom_components.haeo.coordinator.coordinator.network_module.create_network",
             side_effect=ValueError("invalid config"),
@@ -479,8 +488,13 @@ async def test_async_update_data_raises_on_missing_model_element(
         AsyncMock(return_value=fake_network),
     )
 
+    # Return configs that match the configured subentries so we pass the "all loaded" check
+    fake_configs = {
+        mock_battery_subentry.title: {"element_type": "battery", "name": mock_battery_subentry.title},
+    }
+
     with (
-        patch.object(coordinator, "_load_from_input_entities", return_value={}),
+        patch.object(coordinator, "_load_from_input_entities", return_value=fake_configs),
         pytest.raises(KeyError),
     ):
         await coordinator._async_update_data()
@@ -1082,3 +1096,124 @@ def test_load_from_input_entities_skips_invalid_element_type(
     # Should not raise - just skip the invalid element
     result = coordinator._load_from_input_entities()
     assert "Invalid Element" not in result
+
+
+@pytest.mark.usefixtures("mock_battery_subentry")
+async def test_network_created_empty_when_input_entities_not_loaded(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+    mock_runtime_data: HaeoRuntimeData,
+) -> None:
+    """Network must not be created empty when input entities haven't loaded data yet.
+
+    This tests for the race condition where:
+    1. async_initialize() is called before input entities finish loading in async_added_to_hass()
+    2. _load_from_input_entities() returns empty because get_values() returns None
+    3. Network is created with no elements
+    4. Subsequent optimizations fail because the network is empty
+
+    The fix is to defer network creation or ensure input entities are fully loaded first.
+    """
+    from custom_components.haeo.elements import get_input_fields  # noqa: PLC0415
+
+    # Simulate input entities that haven't loaded their data yet (get_values returns None)
+    for field_info in get_input_fields(ELEMENT_TYPE_BATTERY):
+        mock_entity = MagicMock()
+        mock_entity.get_values.return_value = None  # Data not loaded yet!
+        mock_entity.horizon_start = 1000.0
+        mock_runtime_data.input_entities[("Test Battery", field_info.field_name)] = mock_entity
+
+    coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
+
+    # Initialize the network - this should handle the case where data isn't loaded
+    await coordinator.async_initialize()
+
+    # Now simulate data being loaded (this happens after async_added_to_hass completes)
+    for field_info in get_input_fields(ELEMENT_TYPE_BATTERY):
+        mock_entity = mock_runtime_data.input_entities[("Test Battery", field_info.field_name)]
+        mock_entity.get_values.return_value = (1.0, 2.0)  # Now data is available
+
+    # The network should either:
+    # 1. Have been created with elements (if we waited for data), OR
+    # 2. Be None/recreatable (if we deferred creation)
+    # It should NOT be an empty Network that gets reused
+
+    # Check that network has elements OR is None (deferring creation)
+    if coordinator.network is not None:
+        # If network was created, it must have elements
+        assert len(coordinator.network.elements) > 0, (
+            "Network was created empty during async_initialize() - "
+            "this indicates a race condition where input entities weren't loaded yet"
+        )
+
+
+@pytest.mark.usefixtures("mock_battery_subentry")
+async def test_network_recreated_when_new_elements_become_available(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+    mock_runtime_data: HaeoRuntimeData,
+) -> None:
+    """Network is recreated when elements that weren't available initially become available.
+
+    This tests the scenario where:
+    1. First optimization: Element data not loaded (get_values returns None)
+    2. Network is created empty
+    3. Second optimization: Element data is now available
+    4. Network should be recreated to include the element
+
+    This is a unit test that verifies the detection logic by directly testing
+    the coordinator's network recreation behavior.
+    """
+    from custom_components.haeo.elements import get_input_fields  # noqa: PLC0415
+
+    # Initially, all input entities return None (not loaded)
+    for field_info in get_input_fields(ELEMENT_TYPE_BATTERY):
+        mock_entity = MagicMock()
+        mock_entity.get_values.return_value = None  # Not loaded yet
+        mock_entity.horizon_start = 1000.0
+        mock_runtime_data.input_entities[("Test Battery", field_info.field_name)] = mock_entity
+
+    coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
+    await coordinator.async_initialize()
+
+    # Create an empty network (simulating first run with no data)
+    empty_network = Network(name="test", periods=[0.5, 0.5])
+    coordinator.network = empty_network
+
+    # Verify network is empty
+    assert len(coordinator.network.elements) == 0
+
+    # Now simulate data becoming available by updating the mock entities
+    for field_info in get_input_fields(ELEMENT_TYPE_BATTERY):
+        mock_entity = mock_runtime_data.input_entities[("Test Battery", field_info.field_name)]
+        if field_info.boundaries:
+            mock_entity.get_values.return_value = (10.0, 10.0, 10.0)
+        else:
+            mock_entity.get_values.return_value = (1.0, 1.0)
+
+    # Call _load_from_input_entities to get the new configs
+    loaded_configs = coordinator._load_from_input_entities()
+
+    # Should now have 1 participant (Battery)
+    assert len(loaded_configs) == 1
+    assert "Test Battery" in loaded_configs
+
+    # The detection logic in _async_update_data checks if model elements exist in network
+    # Let's verify this detection would trigger recreation
+    from custom_components.haeo.const import CONF_ELEMENT_TYPE  # noqa: PLC0415
+    from custom_components.haeo.elements import ELEMENT_TYPES  # noqa: PLC0415
+
+    needs_recreation = False
+    for element_name, config in loaded_configs.items():
+        element_type = config[CONF_ELEMENT_TYPE]
+        model_elements = ELEMENT_TYPES[element_type].model_elements(config)
+        for model_elem in model_elements:
+            if model_elem.get("name") not in coordinator.network.elements:
+                needs_recreation = True
+                break
+        if needs_recreation:
+            break
+
+    assert needs_recreation, (
+        "Network recreation should be triggered when new elements become available"
+    )

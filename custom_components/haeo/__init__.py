@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from dataclasses import dataclass, field
 import logging
 from types import MappingProxyType
@@ -176,24 +177,38 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> bool
     entry.async_on_unload(horizon_manager.stop)
 
     # Set up input platforms first - they populate runtime_data.input_entities
-    # Input entities register themselves synchronously and load their data asynchronously
-    # The platform setup functions wait for all data to load before returning
+    # Input entities register themselves synchronously but load data in async_added_to_hass()
     await hass.config_entries.async_forward_entry_setups(entry, INPUT_PLATFORMS)
 
-    # Create coordinator after input entities are fully loaded - it reads from them
-    # All input entity data is now guaranteed to be loaded
+    # Create coordinator - network creation is deferred to first optimization
+    # to ensure input entities have fully loaded their data
     coordinator = HaeoDataUpdateCoordinator(hass, entry)
     runtime_data.coordinator = coordinator
 
-    # Initialize the network and set up subscriptions
-    # This must happen before the first refresh
+    # Set up subscriptions for input entity changes
     await coordinator.async_initialize()
 
     # Trigger initial optimization before output platform setup
     # This populates coordinator.data so sensor platform can create output entities
-    # Use async_refresh() instead of async_config_entry_first_refresh() to avoid
-    # retrying setup if optimization fails (e.g., missing sensor data)
-    await coordinator.async_refresh()
+    # Retry until all input entities have loaded their data (race condition with async_added_to_hass)
+    max_retries = 10
+    retry_delay = 0.5  # seconds
+    for attempt in range(max_retries):
+        await coordinator.async_refresh()
+        if coordinator.data is not None:
+            break
+        if attempt < max_retries - 1:
+            _LOGGER.debug(
+                "Waiting for input entities to load (attempt %d/%d)",
+                attempt + 1,
+                max_retries,
+            )
+            await asyncio.sleep(retry_delay)
+    else:
+        _LOGGER.warning(
+            "Initial optimization did not complete after %d attempts - sensors may be unavailable",
+            max_retries,
+        )
 
     # Set up output platforms after coordinator has data
     await hass.config_entries.async_forward_entry_setups(entry, OUTPUT_PLATFORMS)

@@ -275,8 +275,14 @@ async def test_async_setup_entry_initializes_coordinator(
             self.hass = hass_param
             self.config_entry = entry_param
             self.async_initialize = AsyncMock()
-            self.async_refresh = AsyncMock()
+            self.data: object = None
             self.cleanup = Mock()
+
+            # async_refresh sets data when called (simulates successful refresh)
+            async def set_data() -> None:
+                self.data = {}
+
+            self.async_refresh = AsyncMock(side_effect=set_data)
 
     created: list[DummyCoordinator] = []
 

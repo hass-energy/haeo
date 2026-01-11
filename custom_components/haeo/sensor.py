@@ -78,11 +78,11 @@ async def async_setup_entry(
             translation_placeholders = {k: str(v) for k, v in subentry.data.items()}
 
             for device_name, device_outputs in subentry_devices.items():
-                # Create a unique device identifier that includes device name for sub-devices
-                # Sub-devices are battery partitions, etc. that have a different device_name
-                # than the element type (e.g., "battery_device_normal" vs "battery")
-                is_sub_device = device_name != subentry.subentry_type
-                device_id_suffix = f"{subentry.subentry_id}_{device_name}" if is_sub_device else subentry.subentry_id
+                # Create a unique device identifier matching number.py and switch.py format:
+                # {entry_id}_{subentry_id}_{device_name}
+                # For main devices, device_name == subentry_type (e.g., "battery")
+                # For sub-devices, device_name differs (e.g., "battery_device_normal")
+                device_id_suffix = f"{subentry.subentry_id}_{device_name}"
 
                 # Get or create the device for this element
                 # Device name is already constrained to ElementDeviceName type, so use it directly as translation key
