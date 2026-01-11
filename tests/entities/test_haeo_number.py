@@ -330,6 +330,55 @@ async def test_driven_mode_ignores_user_set_value(
     entity.async_write_ha_state.assert_called_once()
 
 
+# --- Tests for availability ---
+
+
+async def test_driven_mode_starts_unavailable(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    device_entry: Mock,
+    power_field_info: InputFieldInfo[NumberEntityDescription],
+    horizon_manager: Mock,
+) -> None:
+    """DRIVEN mode entity starts unavailable before data loads."""
+    subentry = _create_subentry("Test Battery", {"power_limit": ["sensor.power"]})
+    config_entry.runtime_data = None
+
+    entity = HaeoInputNumber(
+        hass=hass,
+        config_entry=config_entry,
+        subentry=subentry,
+        field_info=power_field_info,
+        device_entry=device_entry,
+        horizon_manager=horizon_manager,
+    )
+
+    assert entity.available is False
+
+
+async def test_editable_mode_starts_available(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    device_entry: Mock,
+    power_field_info: InputFieldInfo[NumberEntityDescription],
+    horizon_manager: Mock,
+) -> None:
+    """EDITABLE mode entity starts available immediately."""
+    subentry = _create_subentry("Test Battery", {"power_limit": 10.0})
+    config_entry.runtime_data = None
+
+    entity = HaeoInputNumber(
+        hass=hass,
+        config_entry=config_entry,
+        subentry=subentry,
+        field_info=power_field_info,
+        device_entry=device_entry,
+        horizon_manager=horizon_manager,
+    )
+
+    assert entity.available is True
+
+
 # --- Tests for unique ID generation ---
 
 
@@ -923,14 +972,14 @@ async def test_async_load_data_with_empty_values_list(
     assert entity.native_value == initial_value
 
 
-async def test_is_ready_returns_true_after_data_loaded(
+async def test_is_ready_returns_true_after_entity_added(
     hass: HomeAssistant,
     config_entry: MockConfigEntry,
     device_entry: Mock,
     power_field_info: InputFieldInfo[NumberEntityDescription],
     horizon_manager: Mock,
 ) -> None:
-    """is_ready() returns True after data has been loaded."""
+    """is_ready() returns True after entity has been added to Home Assistant."""
     subentry = _create_subentry("Test Battery", {"power_limit": 10.0})
     config_entry.runtime_data = None
 
@@ -946,8 +995,8 @@ async def test_is_ready_returns_true_after_data_loaded(
     # Before adding to hass, not ready
     assert entity.is_ready() is False
 
-    # Update forecast to simulate loaded state
-    entity._update_editable_forecast()
+    # Simulate adding entity to hass
+    entity._entity_added.set()
 
     # Now ready
     assert entity.is_ready() is True
@@ -984,14 +1033,14 @@ async def test_driven_mode_with_v01_single_entity_string(
     assert attrs["source_entities"] == ["sensor.power_limit"]
 
 
-async def test_wait_ready_blocks_until_data_loaded(
+async def test_wait_ready_blocks_until_entity_added(
     hass: HomeAssistant,
     config_entry: MockConfigEntry,
     device_entry: Mock,
     power_field_info: InputFieldInfo[NumberEntityDescription],
     horizon_manager: Mock,
 ) -> None:
-    """wait_ready() blocks until data is loaded."""
+    """wait_ready() blocks until entity is added to Home Assistant."""
     subentry = _create_subentry("Test Battery", {"power_limit": 10.0})
     config_entry.runtime_data = None
 
@@ -1004,7 +1053,7 @@ async def test_wait_ready_blocks_until_data_loaded(
         horizon_manager=horizon_manager,
     )
 
-    # Before data is loaded, is_ready is False
+    # Before entity is added, is_ready is False
     assert entity.is_ready() is False
 
     # Start wait_ready in background
@@ -1016,8 +1065,8 @@ async def test_wait_ready_blocks_until_data_loaded(
     # Task should not complete yet
     assert not wait_task.done()
 
-    # Load data (sets the event)
-    entity._update_editable_forecast()
+    # Simulate entity added (sets the event)
+    entity._entity_added.set()
 
     # Now wait_ready should complete
     await asyncio.wait_for(wait_task, timeout=1.0)
