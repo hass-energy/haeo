@@ -17,6 +17,27 @@ if TYPE_CHECKING:
     from custom_components.haeo.elements import ElementDeviceName
 
 
+def build_device_identifier(
+    config_entry: ConfigEntry,
+    subentry: ConfigSubentry,
+    device_name: str,
+) -> tuple[str, str]:
+    """Build a device identifier tuple.
+
+    Uses identifier pattern: {entry_id}_{subentry_id}_{device_name}
+
+    Args:
+        config_entry: The config entry for the integration
+        subentry: The subentry for the element
+        device_name: The device name
+
+    Returns:
+        Identifier tuple (DOMAIN, identifier_string)
+
+    """
+    return (DOMAIN, f"{config_entry.entry_id}_{subentry.subentry_id}_{device_name}")
+
+
 def get_or_create_element_device(
     hass: HomeAssistant,
     config_entry: ConfigEntry,
@@ -24,8 +45,6 @@ def get_or_create_element_device(
     device_name: "ElementDeviceName",
 ) -> DeviceEntry:
     """Get or create a device for an element.
-
-    Uses identifier pattern: {entry_id}_{subentry_id}_{device_name}
 
     Args:
         hass: Home Assistant instance
@@ -38,10 +57,9 @@ def get_or_create_element_device(
 
     """
     device_registry = dr.async_get(hass)
-    device_id_suffix = f"{subentry.subentry_id}_{device_name}"
 
     return device_registry.async_get_or_create(
-        identifiers={(DOMAIN, f"{config_entry.entry_id}_{device_id_suffix}")},
+        identifiers={build_device_identifier(config_entry, subentry, device_name)},
         config_entry_id=config_entry.entry_id,
         config_subentry_id=subentry.subentry_id,
         translation_key=device_name,
@@ -56,8 +74,6 @@ def get_or_create_network_device(
 ) -> DeviceEntry:
     """Get or create the network device for optimization outputs.
 
-    Uses identifier pattern: {entry_id}_{subentry_id}_{network}
-
     Args:
         hass: Home Assistant instance
         config_entry: The config entry for the integration
@@ -68,41 +84,14 @@ def get_or_create_network_device(
 
     """
     device_registry = dr.async_get(hass)
-    device_id_suffix = f"{network_subentry.subentry_id}_{ELEMENT_TYPE_NETWORK}"
 
     return device_registry.async_get_or_create(
-        identifiers={(DOMAIN, f"{config_entry.entry_id}_{device_id_suffix}")},
+        identifiers={build_device_identifier(config_entry, network_subentry, ELEMENT_TYPE_NETWORK)},
         config_entry_id=config_entry.entry_id,
         config_subentry_id=network_subentry.subentry_id,
         translation_key=ELEMENT_TYPE_NETWORK,
         translation_placeholders={"name": network_subentry.title},
     )
-
-
-def build_device_identifier(
-    config_entry: ConfigEntry,
-    subentry: ConfigSubentry,
-    device_name: str,
-) -> tuple[str, str]:
-    """Build a device identifier tuple for matching purposes.
-
-    Uses identifier pattern: {entry_id}_{subentry_id}_{device_name}
-
-    This is useful for async_remove_config_entry_device to check if a device
-    belongs to a current element.
-
-    Args:
-        config_entry: The config entry for the integration
-        subentry: The subentry for the element
-        device_name: The device name
-
-    Returns:
-        Identifier tuple (DOMAIN, identifier_string)
-
-    """
-    device_id_suffix = f"{subentry.subentry_id}_{device_name}"
-
-    return (DOMAIN, f"{config_entry.entry_id}_{device_id_suffix}")
 
 
 __all__ = [
