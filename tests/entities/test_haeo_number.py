@@ -650,39 +650,8 @@ async def test_async_added_to_hass_driven_subscribes_to_source(
 
     await entity.async_added_to_hass()
 
-    # Subscription should be set up
-    assert entity._state_unsub is not None
-    assert entity._horizon_unsub is not None
-
-
-async def test_async_will_remove_from_hass_cleans_up(
-    hass: HomeAssistant,
-    config_entry: MockConfigEntry,
-    device_entry: Mock,
-    power_field_info: InputFieldInfo[NumberEntityDescription],
-    horizon_manager: Mock,
-) -> None:
-    """async_will_remove_from_hass cleans up subscriptions."""
-    hass.states.async_set("sensor.power", "10.0")
-    subentry = _create_subentry("Test Battery", {"power_limit": ["sensor.power"]})
-    config_entry.runtime_data = None
-
-    entity = HaeoInputNumber(
-        hass=hass,
-        config_entry=config_entry,
-        subentry=subentry,
-        field_info=power_field_info,
-        device_entry=device_entry,
-        horizon_manager=horizon_manager,
-    )
-
-    await entity.async_added_to_hass()
-    assert entity._state_unsub is not None
-
-    await entity.async_will_remove_from_hass()
-
-    assert entity._state_unsub is None
-    assert entity._horizon_unsub is None
+    # Entity should have loaded data from source
+    assert entity.native_value == 10.0
 
 
 # --- Tests for horizon and source state change handlers ---
@@ -995,8 +964,8 @@ async def test_is_ready_returns_true_after_entity_added(
     # Before adding to hass, not ready
     assert entity.is_ready() is False
 
-    # Simulate adding entity to hass
-    entity._entity_added.set()
+    # Simulate data ready
+    entity._data_ready.set()
 
     # Now ready
     assert entity.is_ready() is True
@@ -1065,8 +1034,8 @@ async def test_wait_ready_blocks_until_entity_added(
     # Task should not complete yet
     assert not wait_task.done()
 
-    # Simulate entity added (sets the event)
-    entity._entity_added.set()
+    # Simulate data ready (sets the event)
+    entity._data_ready.set()
 
     # Now wait_ready should complete
     await asyncio.wait_for(wait_task, timeout=1.0)
