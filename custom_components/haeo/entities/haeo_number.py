@@ -1,5 +1,6 @@
 """Number entity for HAEO input configuration."""
 
+import asyncio
 from collections.abc import Callable
 from datetime import datetime
 from enum import Enum
@@ -115,6 +116,9 @@ class HaeoInputNumber(NumberEntity):
         self._loader = TimeSeriesLoader()
         self._state_unsub: Callable[[], None] | None = None
         self._horizon_unsub: Callable[[], None] | None = None
+
+        # Event that signals data is ready for coordinator access
+        self._data_ready = asyncio.Event()
 
     def _get_forecast_timestamps(self) -> tuple[float, ...]:
         """Get forecast timestamps from horizon manager."""
@@ -235,6 +239,9 @@ class HaeoInputNumber(NumberEntity):
         self._attr_native_value = values[0]
         self._attr_extra_state_attributes = extra_attrs
 
+        # Signal that data is ready
+        self._data_ready.set()
+
     def _update_editable_forecast(self) -> None:
         """Update forecast attribute for editable mode with constant value."""
         forecast_timestamps = self._get_forecast_timestamps()
@@ -259,6 +266,17 @@ class HaeoInputNumber(NumberEntity):
             extra_attrs["forecast"] = forecast
 
         self._attr_extra_state_attributes = extra_attrs
+
+        # Signal that data is ready
+        self._data_ready.set()
+
+    def is_ready(self) -> bool:
+        """Return True if data has been loaded and entity is ready."""
+        return self._data_ready.is_set()
+
+    async def wait_ready(self) -> None:
+        """Wait for data to be ready."""
+        await self._data_ready.wait()
 
     @property
     def entity_mode(self) -> ConfigEntityMode:

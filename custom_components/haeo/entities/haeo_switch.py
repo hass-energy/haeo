@@ -1,5 +1,6 @@
 """Switch entity for HAEO boolean input configuration."""
 
+import asyncio
 from collections.abc import Callable
 from datetime import datetime
 from typing import Any
@@ -97,8 +98,8 @@ class HaeoInputSwitch(SwitchEntity):
         self._state_unsub: Callable[[], None] | None = None
         self._horizon_unsub: Callable[[], None] | None = None
 
-        # Track whether entity has been added to HA
-        self._added_to_hass = False
+        # Event that signals data is ready for coordinator access
+        self._data_ready = asyncio.Event()
 
         # Initialize forecast immediately for EDITABLE mode entities
         # This ensures get_values() returns data before async_added_to_hass() is called
@@ -198,6 +199,17 @@ class HaeoInputSwitch(SwitchEntity):
             extra_attrs["forecast"] = forecast
 
         self._attr_extra_state_attributes = extra_attrs
+
+        # Signal that data is ready
+        self._data_ready.set()
+
+    def is_ready(self) -> bool:
+        """Return True if data has been loaded and entity is ready."""
+        return self._data_ready.is_set()
+
+    async def wait_ready(self) -> None:
+        """Wait for data to be ready."""
+        await self._data_ready.wait()
 
     @property
     def entity_mode(self) -> ConfigEntityMode:

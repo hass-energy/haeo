@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from dataclasses import dataclass, field
 import logging
 from types import MappingProxyType
@@ -172,12 +173,20 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> bool
     entry.async_on_unload(horizon_manager.stop)
 
     # Set up input platforms first - they populate runtime_data.input_entities
-    # Input entities register themselves synchronously and load their data asynchronously
-    # The platform setup functions wait for all data to load before returning
     await hass.config_entries.async_forward_entry_setups(entry, INPUT_PLATFORMS)
 
-    # Create coordinator after input entities are fully loaded - it reads from them
-    # All input entity data is now guaranteed to be loaded
+    # Wait for all input entities to have their data ready
+    # Each entity signals via asyncio.Event when its forecast data is loaded
+    _LOGGER.debug("Waiting for %d input entities to be ready", len(runtime_data.input_entities))
+    try:
+        async with asyncio.timeout(30):
+            await asyncio.gather(*[entity.wait_ready() for entity in runtime_data.input_entities.values()])
+        _LOGGER.debug("All input entities ready")
+    except TimeoutError:
+        not_ready = [key for key, entity in runtime_data.input_entities.items() if not entity.is_ready()]
+        _LOGGER.warning("Input entities not ready after 30s: %s", not_ready)
+
+    # Create coordinator after input entities are ready - it reads from them
     coordinator = HaeoDataUpdateCoordinator(hass, entry)
     runtime_data.coordinator = coordinator
 
