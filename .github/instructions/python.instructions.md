@@ -54,7 +54,7 @@ See [typing philosophy](../../docs/developer-guide/typing.md) for detailed patte
 ## Error handling
 
 - **Fail loudly**: Never log an error/warning and continue as if nothing happened.
-  If something fails that should succeed, raise an exception. Silent failures hide bugs.
+    If something fails that should succeed, raise an exception. Silent failures hide bugs.
 - **Use HA-specific exceptions** in setup flows instead of generic Python exceptions:
     - `ConfigEntryNotReady` - Transient error (network timeout, service unavailable). HA will retry setup.
     - `ConfigEntryError` - Permanent failure (invalid config). User must fix configuration.
