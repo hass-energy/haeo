@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.translation import async_get_translations
 
@@ -184,7 +185,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> bool
         _LOGGER.debug("All input entities ready")
     except TimeoutError:
         not_ready = [key for key, entity in runtime_data.input_entities.items() if not entity.is_ready()]
-        _LOGGER.warning("Input entities not ready after 30s: %s", not_ready)
+        msg = f"Input entities not ready after 30s: {not_ready}"
+        raise ConfigEntryNotReady(msg) from None
 
     # Create coordinator after input entities are ready - it reads from them
     coordinator = HaeoDataUpdateCoordinator(hass, entry)
