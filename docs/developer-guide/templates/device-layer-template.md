@@ -3,6 +3,10 @@
 Brief description of this device element's purpose and what it models (1-2 sentences).
 Focus on the user-facing functionality and the physical system being represented.
 
+<!-- When creating a new element, replace {element} with the actual element type name -->
+
+<!-- Link to user guide: [User guide](../../user-guide/elements/{element}.md) -->
+
 ## Model Elements Created
 
 ```mermaid
@@ -61,7 +65,9 @@ List all sensors this device creates, organized by device.
 | `sensor_name`    | kW   | Real-time | Description of sensor purpose |
 | `another_sensor` | kWh  | Real-time | Description of sensor purpose |
 
-See [Element Configuration](../../user-guide/elements/%7Belement%7D.md) for detailed sensor and configuration documentation.
+<!-- Replace {element} with the actual element type name when using this template -->
+
+<!-- See [Element Configuration](../../user-guide/elements/{element}.md) for detailed sensor and configuration documentation. -->
 
 ## Configuration Example
 

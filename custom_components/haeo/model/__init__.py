@@ -8,6 +8,7 @@ from .elements import battery_balance_connection as battery_balance_connection
 from .elements import connection as connection
 from .elements import node as node
 from .elements import power_connection as power_connection
+from .elements import schedulable_load as schedulable_load
 from .elements.battery import BATTERY_OUTPUT_NAMES as BATTERY_OUTPUT_NAMES
 from .elements.battery import BATTERY_POWER_CONSTRAINTS as BATTERY_POWER_CONSTRAINTS
 from .elements.battery import Battery as Battery
@@ -27,6 +28,10 @@ from .elements.node import NodeOutputName as NodeOutputName
 from .elements.power_connection import POWER_CONNECTION_OUTPUT_NAMES as POWER_CONNECTION_OUTPUT_NAMES
 from .elements.power_connection import PowerConnection as PowerConnection
 from .elements.power_connection import PowerConnectionOutputName as PowerConnectionOutputName
+from .elements.schedulable_load import SCHEDULABLE_LOAD_OUTPUT_NAMES as SCHEDULABLE_LOAD_OUTPUT_NAMES
+from .elements.schedulable_load import IntegerMode as IntegerMode
+from .elements.schedulable_load import SchedulableLoad as SchedulableLoad
+from .elements.schedulable_load import SchedulableLoadOutputName as SchedulableLoadOutputName
 from .network import Network as Network
 from .output_data import OutputData
 from .output_names import ModelOutputName
@@ -40,6 +45,7 @@ __all__ = [
     "CONNECTION_TIME_SLICE",
     "MODEL_ELEMENT_BATTERY_BALANCE_CONNECTION",
     "POWER_CONNECTION_OUTPUT_NAMES",
+    "SCHEDULABLE_LOAD_OUTPUT_NAMES",
     "Battery",
     "BatteryBalanceConnection",
     "BatteryConstraintName",
@@ -48,6 +54,7 @@ __all__ = [
     "ConnectionConstraintName",
     "ConnectionOutputName",
     "Element",
+    "IntegerMode",
     "ModelOutputName",
     "Network",
     "Node",
@@ -56,4 +63,6 @@ __all__ = [
     "OutputType",
     "PowerConnection",
     "PowerConnectionOutputName",
+    "SchedulableLoad",
+    "SchedulableLoadOutputName",
 ]

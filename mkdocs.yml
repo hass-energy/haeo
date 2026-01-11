@@ -157,12 +157,14 @@ nav:
 
   - Mathematical Modeling:
       - modeling/index.md
+      - Solver Philosophy: modeling/solver-philosophy.md
       - Model Layer:
           - modeling/model-layer/index.md
           - Elements:
               - modeling/model-layer/elements/index.md
               - Battery: modeling/model-layer/elements/battery.md
               - Node: modeling/model-layer/elements/node.md
+              - Schedulable Load: modeling/model-layer/elements/schedulable-load.md
           - Connections:
               - modeling/model-layer/connections/index.md
               - Connection: modeling/model-layer/connections/connection.md

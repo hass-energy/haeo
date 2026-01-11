@@ -14,7 +14,7 @@ This page provides a fair, technical comparison to help you choose the solution 
 | **HA requirements**       | Any installation method         | Home Assistant OS or Supervised         |
 | **Configuration**         | UI-based                        | Web UI + Configuration files            |
 | **Network topology**      | Flexible graph                  | Fixed structure                         |
-| **Optimization**          | Linear programming (LP)         | Mixed integer linear programming (MILP) |
+| **Optimization**          | LP-first (MILP when needed)     | Mixed integer linear programming (MILP) |
 | **Forecasting**           | Via other HA integrations       | Built-in ML and solar forecasting       |
 | **Primary use case**      | Battery/solar optimization      | Appliance scheduling + battery/solar    |
 | **Multi-element support** | Multiple batteries/arrays/grids | Limited                                 |
@@ -97,7 +97,7 @@ Its key innovation is the ability to model any network structure through connect
 
 ### Limitations
 
-- **Continuous optimization**: Linear programming only (MILP intentionally avoided for simplicity and solve speed), cannot optimize discrete appliance on/off decisions
+- **LP-first approach**: Prioritizes pure LP for speed, using MILP only when needed. This trades some discrete optimization capability for predictable sub-second solve times
 - **Graph complexity**: Requires understanding topology and connection concepts, which adds initial learning curve
 - **Newer project**: Smaller community, less proven track record compared to EMHASS
 - **Requires HACS**: Additional step before installation (though HACS is very common)
@@ -105,7 +105,7 @@ Its key innovation is the ability to model any network structure through connect
 - **External forecasting dependency**: Relies entirely on other HA integrations for forecast data
 - **Missing features**: Thermal loads and deferrable load scheduling are planned future additions
 
-**Tradeoffs**: HAEO trades appliance scheduling capability for simpler configuration, faster solve times, and more flexible network topology modeling.
+**Tradeoffs**: HAEO uses an LP-first approach, preferring continuous optimization for speed while supporting MILP with minimal integer variables when discrete decisions are needed.
 The linear programming approach ensures reliable sub-second optimization even on resource-constrained hardware.
 
 ### Best for
@@ -135,15 +135,15 @@ The linear programming approach ensures reliable sub-second optimization even on
 
 ### Optimization
 
-| Feature                        | HAEO                    | EMHASS               |
-| ------------------------------ | ----------------------- | -------------------- |
-| Algorithm                      | Linear programming (LP) | Mixed integer LP     |
-| Solver                         | HiGHS                   | Configurable         |
-| Discrete decisions             | No (continuous only)    | Yes (on/off control) |
-| Time horizon                   | Configurable            | Configurable         |
-| Time resolution                | Configurable (1-60 min) | Configurable         |
-| Battery management             | Charge/discharge rates  | Charge/discharge     |
-| Overcharge/undercharge pricing | Yes (economic)          | No                   |
+| Feature                        | HAEO                        | EMHASS               |
+| ------------------------------ | --------------------------- | -------------------- |
+| Algorithm                      | LP-first (MILP when needed) | Mixed integer LP     |
+| Solver                         | HiGHS                       | Configurable         |
+| Discrete decisions             | Minimal (LP-first approach) | Yes (on/off control) |
+| Time horizon                   | Configurable                | Configurable         |
+| Time resolution                | Configurable (1-60 min)     | Configurable         |
+| Battery management             | Charge/discharge rates      | Charge/discharge     |
+| Overcharge/undercharge pricing | Yes (economic)              | No                   |
 
 ### Integration and setup
 
@@ -163,9 +163,9 @@ The linear programming approach ensures reliable sub-second optimization even on
 | -------------------- | ----------------------------- | ------------------------------- |
 | Forecasting          | Via HA integrations (modular) | Built-in ML + solar forecasting |
 | Sensor integration   | Native HA devices and sensors | Published sensors + REST API    |
-| Deferrable loads     | Not yet (planned)             | Yes (core feature)              |
+| Deferrable loads     | Yes (schedulable loads)       | Yes (core feature)              |
 | Thermal loads        | Planned                       | Yes (built-in)                  |
-| Appliance scheduling | Not yet (planned)             | Yes (MILP-based)                |
+| Appliance scheduling | Yes (LP-first with MILP)      | Yes (MILP-based)                |
 | Battery optimization | Yes (core feature)            | Yes (core feature)              |
 | Solar optimization   | Yes (core feature)            | Yes (core feature)              |
 | Control method       | HA automations with sensors   | Shell commands, REST, sensors   |

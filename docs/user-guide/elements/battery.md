@@ -25,7 +25,7 @@ A battery in HAEO represents:
 
 ### Configuration process
 
-Battery configuration uses a two-step flow (see [Configuration](../configuration.md#two-step-element-configuration) for details):
+Battery configuration uses a two-step flow (see [Configuration](../configuration.md#element-configuration) for details):
 
 1. **Step 1**: Enter name, connection, and select entities for each field (or "Configurable Entity" to enter a constant value)
 2. **Step 2**: Enter constant values for any fields where you selected "Configurable Entity"
