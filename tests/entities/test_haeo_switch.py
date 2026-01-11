@@ -674,39 +674,8 @@ async def test_async_added_to_hass_driven_subscribes_to_source(
 
     await entity.async_added_to_hass()
 
-    # Subscription should be set up
-    assert entity._state_unsub is not None
-    assert entity._horizon_unsub is not None
-
-
-async def test_async_will_remove_from_hass_cleans_up(
-    hass: HomeAssistant,
-    config_entry: MockConfigEntry,
-    device_entry: Mock,
-    curtailment_field_info: InputFieldInfo[SwitchEntityDescription],
-    horizon_manager: Mock,
-) -> None:
-    """async_will_remove_from_hass cleans up subscriptions."""
-    hass.states.async_set("input_boolean.curtail", STATE_ON)
-    subentry = _create_subentry("Test Solar", {"allow_curtailment": "input_boolean.curtail"})
-    config_entry.runtime_data = None
-
-    entity = HaeoInputSwitch(
-        hass=hass,
-        config_entry=config_entry,
-        subentry=subentry,
-        field_info=curtailment_field_info,
-        device_entry=device_entry,
-        horizon_manager=horizon_manager,
-    )
-
-    await entity.async_added_to_hass()
-    assert entity._state_unsub is not None
-
-    await entity.async_will_remove_from_hass()
-
-    assert entity._state_unsub is None
-    assert entity._horizon_unsub is None
+    # Entity should have loaded state from source
+    assert entity.is_on is True
 
 
 # --- Tests for horizon and source state change handlers ---

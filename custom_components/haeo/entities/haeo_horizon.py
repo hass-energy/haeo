@@ -4,7 +4,6 @@ This entity displays the current horizon state from the HorizonManager.
 It is a read-only sensor that provides visibility into the forecast time window.
 """
 
-from collections.abc import Callable
 from datetime import datetime
 
 from homeassistant.components.sensor import SensorEntity
@@ -52,9 +51,6 @@ class HaeoHorizonEntity(SensorEntity):
         # Unique ID for multi-hub safety
         self._attr_unique_id = f"{config_entry.entry_id}_horizon"
 
-        # Unsubscribe callback
-        self._unsub_horizon: Callable[[], None] | None = None
-
         # Initialize state from manager
         self._update_state()
 
@@ -87,14 +83,7 @@ class HaeoHorizonEntity(SensorEntity):
     async def async_added_to_hass(self) -> None:
         """Subscribe to horizon manager when entity is added."""
         await super().async_added_to_hass()
-        self._unsub_horizon = self._horizon_manager.subscribe(self._async_horizon_changed)
-
-    async def async_will_remove_from_hass(self) -> None:
-        """Unsubscribe from horizon manager when entity is removed."""
-        if self._unsub_horizon is not None:
-            self._unsub_horizon()
-            self._unsub_horizon = None
-        await super().async_will_remove_from_hass()
+        self.async_on_remove(self._horizon_manager.subscribe(self._async_horizon_changed))
 
 
 __all__ = ["HaeoHorizonEntity"]
