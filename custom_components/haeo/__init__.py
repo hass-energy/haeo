@@ -136,6 +136,9 @@ async def async_update_listener(hass: HomeAssistant, entry: HaeoConfigEntry) -> 
 
 async def async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> bool:
     """Set up Home Assistant Energy Optimizer from a config entry."""
+    # Import here to avoid circular imports at module level
+    from custom_components.haeo.entities.device import get_or_create_network_device  # noqa: PLC0415
+
     # Ensure required subentries exist (auto-create if missing)
     await _ensure_required_subentries(hass, entry)
 
@@ -148,15 +151,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> bool
         _LOGGER.error("No network subentry found - cannot create network device")
         return False
 
-    # Create network device
-    device_registry = dr.async_get(hass)
-    device_registry.async_get_or_create(
-        identifiers={(DOMAIN, f"{entry.entry_id}_{network_subentry.subentry_id}_{ELEMENT_TYPE_NETWORK}")},
-        config_entry_id=entry.entry_id,
-        config_subentry_id=network_subentry.subentry_id,
-        translation_key=ELEMENT_TYPE_NETWORK,
-        translation_placeholders={"name": network_subentry.title},
-    )
+    # Create network device using centralized device creation
+    get_or_create_network_device(hass, entry, network_subentry)
 
     # Create horizon manager first - input entities and coordinator depend on it
     # This is a pure Python object, not an entity
@@ -242,42 +238,46 @@ async def async_remove_config_entry_device(
     """Handle cleanup of stale devices when elements are removed from the HAEO network.
 
     Returns True if device can be removed, False if it should be kept.
+
+    Device identifiers follow this pattern (v0.1.0 compatible):
+    (DOMAIN, f"{entry_id}_{subentry_id}_{device_name}")
     """
     device_registry = dr.async_get(hass)
     if device_registry.async_get(device_entry.id) is None:
         # Device already removed or does not exist; nothing to clean up
         return False
 
-    # Get all current element names from subentries
-    current_element_names = {
-        name for subentry in config_entry.subentries.values() if isinstance((name := subentry.data.get(CONF_NAME)), str)
-    }
+    # Get all current subentry IDs (devices are keyed by subentry_id, not element name)
+    current_subentry_ids = {subentry.subentry_id for subentry in config_entry.subentries.values()}
 
-    # Check if this device's identifier matches any current element
-    # Device identifiers are (DOMAIN, f"{config_entry.entry_id}_{element_name}")
+    # Check if this device's identifier matches any current subentry
     has_haeo_identifier = False
     for identifier in device_entry.identifiers:
-        if identifier[0] == config_entry.domain:
+        if identifier[0] == DOMAIN:
             has_haeo_identifier = True
-            # Extract element name from identifier
             identifier_str = identifier[1]
 
-            # Hub device has identifier (DOMAIN, entry_id) without element suffix - always keep
+            # Hub device has identifier (DOMAIN, entry_id) without subentry suffix - always keep
             if identifier_str == config_entry.entry_id:
                 return False
 
             if identifier_str.startswith(f"{config_entry.entry_id}_"):
-                element_name = identifier_str.replace(f"{config_entry.entry_id}_", "", 1)
+                # Extract suffix from identifier
+                # Pattern: {entry_id}_{subentry_id}_{device_name}
+                suffix = identifier_str.replace(f"{config_entry.entry_id}_", "", 1)
 
-                # If element still exists, keep the device
-                if element_name in current_element_names:
-                    return False
+                # Check if any current subentry_id is a prefix of the suffix
+                # The suffix is subentry_id_device_name, so we check for subentry_id_
+                for subentry_id in current_subentry_ids:
+                    if suffix.startswith(f"{subentry_id}_"):
+                        # Device belongs to an existing subentry - keep it
+                        return False
 
     # If device has no HAEO identifiers, it's not managed by us - keep it
     if not has_haeo_identifier:
         return False
 
-    # Device doesn't match any current element - allow removal
+    # Device doesn't match any current subentry - allow removal
     _LOGGER.info(
         "Removing stale device %s (was associated with removed element)",
         device_entry.name,

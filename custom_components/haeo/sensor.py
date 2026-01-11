@@ -5,12 +5,16 @@ import logging
 from homeassistant.components.sensor import SensorEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers import device_registry
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from custom_components.haeo import HaeoRuntimeData
-from custom_components.haeo.const import DOMAIN, ELEMENT_TYPE_NETWORK
+from custom_components.haeo.const import ELEMENT_TYPE_NETWORK
 from custom_components.haeo.entities import HaeoSensor
+from custom_components.haeo.entities.device import (
+    build_device_identifier,
+    get_or_create_element_device,
+    get_or_create_network_device,
+)
 from custom_components.haeo.entities.haeo_horizon import HaeoHorizonEntity
 
 _LOGGER = logging.getLogger(__name__)
@@ -38,9 +42,6 @@ async def async_setup_entry(
 
     horizon_manager = runtime_data.horizon_manager
 
-    # Get the device registry
-    dr = device_registry.async_get(hass)
-
     # Find network subentry for horizon entity's device
     network_subentry = next(
         (s for s in config_entry.subentries.values() if s.subentry_type == ELEMENT_TYPE_NETWORK),
@@ -50,14 +51,8 @@ async def async_setup_entry(
         msg = "No network subentry found - integration setup incomplete"
         raise RuntimeError(msg)
 
-    # Get the network device (created in __init__.py)
-    network_device_entry = dr.async_get_or_create(
-        identifiers={(DOMAIN, f"{config_entry.entry_id}_{network_subentry.subentry_id}_{ELEMENT_TYPE_NETWORK}")},
-        config_entry_id=config_entry.entry_id,
-        config_subentry_id=network_subentry.subentry_id,
-        translation_key=ELEMENT_TYPE_NETWORK,
-        translation_placeholders={"name": network_subentry.title},
-    )
+    # Get the network device using centralized device creation
+    network_device_entry = get_or_create_network_device(hass, config_entry, network_subentry)
 
     # Create horizon entity that displays horizon manager state
     horizon_entity = HaeoHorizonEntity(
@@ -78,21 +73,11 @@ async def async_setup_entry(
             translation_placeholders = {k: str(v) for k, v in subentry.data.items()}
 
             for device_name, device_outputs in subentry_devices.items():
-                # Create a unique device identifier that includes device name for sub-devices
-                # Sub-devices are battery partitions, etc. that have a different device_name
-                # than the element type (e.g., "battery_device_normal" vs "battery")
-                is_sub_device = device_name != subentry.subentry_type
-                device_id_suffix = f"{subentry.subentry_id}_{device_name}" if is_sub_device else subentry.subentry_id
+                # Get or create the device using centralized device creation
+                device_entry = get_or_create_element_device(hass, config_entry, subentry, device_name)
 
-                # Get or create the device for this element
-                # Device name is already constrained to ElementDeviceName type, so use it directly as translation key
-                device_entry = dr.async_get_or_create(
-                    identifiers={(DOMAIN, f"{config_entry.entry_id}_{device_id_suffix}")},
-                    config_entry_id=config_entry.entry_id,
-                    config_subentry_id=subentry.subentry_id,
-                    translation_key=device_name,
-                    translation_placeholders={"name": subentry.title},
-                )
+                # Build unique ID using consistent identifier pattern
+                device_identifier = build_device_identifier(config_entry, subentry, device_name)
 
                 for output_name, output_data in device_outputs.items():
                     entities.append(
@@ -105,7 +90,7 @@ async def async_setup_entry(
                             element_type=subentry.subentry_type,
                             output_name=output_name,
                             output_data=output_data,
-                            unique_id=f"{config_entry.entry_id}_{device_id_suffix}_{output_name}",
+                            unique_id=f"{device_identifier[1]}_{output_name}",
                             translation_placeholders=translation_placeholders,
                         )
                     )
