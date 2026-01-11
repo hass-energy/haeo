@@ -973,3 +973,48 @@ async def test_editable_mode_uses_defaults_value_when_none(
     await entity.async_added_to_hass()
 
     assert entity.is_on is True
+
+
+async def test_wait_ready_blocks_until_data_loaded(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    device_entry: Mock,
+    curtailment_field_info: InputFieldInfo[SwitchEntityDescription],
+    horizon_manager: Mock,
+) -> None:
+    """wait_ready() blocks until data is loaded."""
+    import asyncio
+
+    # Use DRIVEN mode so data isn't loaded immediately
+    hass.states.async_set("input_boolean.curtail", STATE_ON)
+    subentry = _create_subentry("Test Solar", {"allow_curtailment": "input_boolean.curtail"})
+    config_entry.runtime_data = None
+
+    entity = HaeoInputSwitch(
+        hass=hass,
+        config_entry=config_entry,
+        subentry=subentry,
+        field_info=curtailment_field_info,
+        device_entry=device_entry,
+        horizon_manager=horizon_manager,
+    )
+
+    # Before data is loaded, is_ready is False (DRIVEN mode, data loads in async_added_to_hass)
+    assert entity.is_ready() is False
+
+    # Start wait_ready in background
+    wait_task = asyncio.create_task(entity.wait_ready())
+
+    # Give task a chance to start
+    await asyncio.sleep(0)
+
+    # Task should not complete yet
+    assert not wait_task.done()
+
+    # Load source state (sets the event via _update_forecast)
+    entity._load_source_state()
+
+    # Now wait_ready should complete
+    await asyncio.wait_for(wait_task, timeout=1.0)
+
+    assert entity.is_ready() is True

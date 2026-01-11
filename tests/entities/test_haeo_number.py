@@ -981,3 +981,46 @@ async def test_driven_mode_with_v01_single_entity_string(
     assert attrs is not None
     assert attrs["config_mode"] == "driven"
     assert attrs["source_entities"] == ["sensor.power_limit"]
+
+
+async def test_wait_ready_blocks_until_data_loaded(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    device_entry: Mock,
+    power_field_info: InputFieldInfo[NumberEntityDescription],
+    horizon_manager: Mock,
+) -> None:
+    """wait_ready() blocks until data is loaded."""
+    import asyncio
+
+    subentry = _create_subentry("Test Battery", {"power_limit": 10.0})
+    config_entry.runtime_data = None
+
+    entity = HaeoInputNumber(
+        hass=hass,
+        config_entry=config_entry,
+        subentry=subentry,
+        field_info=power_field_info,
+        device_entry=device_entry,
+        horizon_manager=horizon_manager,
+    )
+
+    # Before data is loaded, is_ready is False
+    assert entity.is_ready() is False
+
+    # Start wait_ready in background
+    wait_task = asyncio.create_task(entity.wait_ready())
+
+    # Give task a chance to start
+    await asyncio.sleep(0)
+
+    # Task should not complete yet
+    assert not wait_task.done()
+
+    # Load data (sets the event)
+    entity._update_editable_forecast()
+
+    # Now wait_ready should complete
+    await asyncio.wait_for(wait_task, timeout=1.0)
+
+    assert entity.is_ready() is True

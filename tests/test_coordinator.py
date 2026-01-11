@@ -1036,26 +1036,12 @@ def test_load_from_input_entities_raises_when_required_field_returns_none(
 async def test_async_update_data_raises_when_runtime_data_none_in_body(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
-    mock_runtime_data: HaeoRuntimeData,
 ) -> None:
     """Optimization raises when runtime data becomes None during execution."""
+    # Don't use mock_runtime_data fixture so _get_runtime_data returns None
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
 
-    # Mock _get_runtime_data to return None on second call (after in_progress check)
-    call_count = 0
-    original_get = coordinator._get_runtime_data
-
-    def get_runtime_data_side_effect() -> Any:
-        nonlocal call_count
-        call_count += 1
-        if call_count > 1:
-            return None
-        return original_get()
-
-    with (
-        patch.object(coordinator, "_get_runtime_data", side_effect=get_runtime_data_side_effect),
-        pytest.raises(UpdateFailed, match="Runtime data not available"),
-    ):
+    with pytest.raises(UpdateFailed, match="Runtime data not available"):
         await coordinator._async_update_data()
 
 
@@ -1092,3 +1078,84 @@ async def test_async_initialize_raises_without_runtime_data(
 
     with pytest.raises(RuntimeError, match="Runtime data not available"):
         await coordinator.async_initialize()
+
+
+@pytest.mark.usefixtures("mock_battery_subentry", "mock_grid_subentry")
+def test_handle_element_update_logs_and_returns_on_load_error(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+    mock_runtime_data: HaeoRuntimeData,
+) -> None:
+    """_handle_element_update logs exception and returns when load fails."""
+    coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
+    coordinator.network = MagicMock()
+
+    # Mock _load_element_config to raise ValueError
+    with (
+        patch.object(
+            coordinator,
+            "_load_element_config",
+            side_effect=ValueError("Missing required field"),
+        ),
+        patch.object(coordinator, "_trigger_optimization") as trigger_mock,
+        patch("custom_components.haeo.coordinator.coordinator._LOGGER") as mock_logger,
+    ):
+        # Should not raise - logs and returns
+        coordinator._handle_element_update("Test Battery")
+
+    # Trigger should NOT be called since we returned early
+    trigger_mock.assert_not_called()
+
+    # Should have logged the exception
+    mock_logger.exception.assert_called_once()
+    call_args = mock_logger.exception.call_args
+    assert "Failed to load config for element" in call_args[0][0]
+    assert "Test Battery" in call_args[0][1]
+
+
+@pytest.mark.usefixtures("mock_battery_subentry")
+def test_load_element_config_raises_for_unknown_element(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+    mock_runtime_data: HaeoRuntimeData,
+) -> None:
+    """_load_element_config raises ValueError for unknown element name."""
+    coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
+
+    with pytest.raises(ValueError, match="Element 'NonExistent' not found in participant configs"):
+        coordinator._load_element_config("NonExistent")
+
+
+@pytest.mark.usefixtures("mock_battery_subentry")
+def test_load_element_config_raises_without_runtime_data(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+) -> None:
+    """_load_element_config raises ValueError when runtime data is unavailable."""
+    # Don't use mock_runtime_data fixture
+    coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
+
+    with pytest.raises(ValueError, match="Runtime data not available when loading element 'Test Battery'"):
+        coordinator._load_element_config("Test Battery")
+
+
+@pytest.mark.usefixtures("mock_battery_subentry", "mock_grid_subentry")
+def test_element_update_callback_calls_handle_element_update(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+    mock_runtime_data: HaeoRuntimeData,
+) -> None:
+    """Created callback should call _handle_element_update with element name."""
+    coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
+
+    # Create a callback for "Test Battery"
+    callback_fn = coordinator._create_element_update_callback("Test Battery")
+
+    # Mock _handle_element_update
+    with patch.object(coordinator, "_handle_element_update") as handle_mock:
+        # Call the callback with a mock event
+        mock_event = MagicMock()
+        callback_fn(mock_event)
+
+    # Verify _handle_element_update was called with correct element name
+    handle_mock.assert_called_once_with("Test Battery")
