@@ -31,4 +31,3 @@ site/
 
 # Node modules
 node_modules/
-.playwright-mcp/

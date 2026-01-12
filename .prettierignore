@@ -6,7 +6,6 @@
 !*.yaml
 !*.yml
 !*.css
-!*.html
 !.prettierrc
 # .md files are handled by mdformat
 
