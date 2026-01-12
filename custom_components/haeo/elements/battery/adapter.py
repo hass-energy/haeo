@@ -14,6 +14,12 @@ from custom_components.haeo.model import battery as model_battery
 from custom_components.haeo.model import battery_balance_connection as model_balance
 from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.elements.node import NODE_POWER_BALANCE
+from custom_components.haeo.model.elements.power_connection import (
+    CONNECTION_POWER_SOURCE_TARGET,
+    CONNECTION_POWER_TARGET_SOURCE,
+    CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET,
+    CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE,
+)
 from custom_components.haeo.model.output_data import OutputData
 
 from .flow import BatterySubentryFlowHandler
@@ -56,6 +62,10 @@ type BatteryOutputName = Literal[
     "battery_soc_min",
     "battery_balance_power_down",
     "battery_balance_power_up",
+    "battery_power_max_charge_price",
+    "battery_power_max_discharge_price",
+    "battery_charge_limit_recommendation",
+    "battery_discharge_limit_recommendation",
 ]
 
 BATTERY_OUTPUT_NAMES: Final[frozenset[BatteryOutputName]] = frozenset(
@@ -72,6 +82,12 @@ BATTERY_OUTPUT_NAMES: Final[frozenset[BatteryOutputName]] = frozenset(
         BATTERY_SOC_MIN := "battery_soc_min",
         BATTERY_BALANCE_POWER_DOWN := "battery_balance_power_down",
         BATTERY_BALANCE_POWER_UP := "battery_balance_power_up",
+        # Shadow prices
+        BATTERY_POWER_MAX_CHARGE_PRICE := "battery_power_max_charge_price",
+        BATTERY_POWER_MAX_DISCHARGE_PRICE := "battery_power_max_discharge_price",
+        # Control limit recommendations
+        BATTERY_CHARGE_LIMIT_RECOMMENDATION := "battery_charge_limit_recommendation",
+        BATTERY_DISCHARGE_LIMIT_RECOMMENDATION := "battery_discharge_limit_recommendation",
     )
 )
 
@@ -567,6 +583,57 @@ class BatteryAdapter:
         if NODE_POWER_BALANCE in node_outputs:
             aggregate_outputs[BATTERY_POWER_BALANCE] = node_outputs[NODE_POWER_BALANCE]
 
+        # Get connection outputs for shadow prices and control limits
+        connection_name = f"{name}:connection"
+        connection_outputs = model_outputs.get(connection_name, {})
+
+        # Add shadow prices from battery connection (if limits are configured)
+        if CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE in connection_outputs:
+            aggregate_outputs[BATTERY_POWER_MAX_CHARGE_PRICE] = connection_outputs[
+                CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE
+            ]
+        if CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET in connection_outputs:
+            aggregate_outputs[BATTERY_POWER_MAX_DISCHARGE_PRICE] = connection_outputs[
+                CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET
+            ]
+
+        # Synthesize control limit recommendations
+        # Charge recommendation: uses charge power, charge shadow price, and charge limit
+        max_charge_power = _config.get("max_charge_power")
+        if max_charge_power is not None and CONNECTION_POWER_TARGET_SOURCE in connection_outputs:
+            charge_recommendation = _synthesize_control_limit(
+                power_values=connection_outputs[CONNECTION_POWER_TARGET_SOURCE].values,
+                shadow_values=(
+                    connection_outputs[CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE].values
+                    if CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE in connection_outputs
+                    else None
+                ),
+                max_limit=tuple(max_charge_power),
+            )
+            aggregate_outputs[BATTERY_CHARGE_LIMIT_RECOMMENDATION] = OutputData(
+                type=OutputType.CONTROL_LIMIT,
+                unit="kW",
+                values=charge_recommendation,
+            )
+
+        # Discharge recommendation: uses discharge power, discharge shadow price, and discharge limit
+        max_discharge_power = _config.get("max_discharge_power")
+        if max_discharge_power is not None and CONNECTION_POWER_SOURCE_TARGET in connection_outputs:
+            discharge_recommendation = _synthesize_control_limit(
+                power_values=connection_outputs[CONNECTION_POWER_SOURCE_TARGET].values,
+                shadow_values=(
+                    connection_outputs[CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET].values
+                    if CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET in connection_outputs
+                    else None
+                ),
+                max_limit=tuple(max_discharge_power),
+            )
+            aggregate_outputs[BATTERY_DISCHARGE_LIMIT_RECOMMENDATION] = OutputData(
+                type=OutputType.CONTROL_LIMIT,
+                unit="kW",
+                values=discharge_recommendation,
+            )
+
         result: dict[BatteryDeviceName, dict[BatteryOutputName, OutputData]] = {
             BATTERY_DEVICE_BATTERY: aggregate_outputs
         }
@@ -722,3 +789,38 @@ def _calculate_soc(total_energy: OutputData, config: BatteryConfigData) -> Outpu
         unit="%",
         values=tuple(soc_values.tolist()),
     )
+
+
+def _synthesize_control_limit(
+    power_values: tuple[float, ...],
+    shadow_values: tuple[float, ...] | None,
+    max_limit: tuple[float, ...],
+) -> tuple[float, ...]:
+    """Synthesize control limit recommendation from power, shadow price, and max limit.
+
+    The recommendation logic per period:
+    - If power = 0: recommend 0 (optimizer doesn't want flow in this direction)
+    - If power > 0 and shadow = 0: recommend max_limit (has headroom, allow flexibility)
+    - If power > 0 and shadow > 0: recommend power (at binding limit)
+
+    Args:
+        power_values: Optimized power flow per period (kW)
+        shadow_values: Shadow price per period ($/kW), or None if no constraint
+        max_limit: Maximum power limit per period (kW)
+
+    Returns:
+        Recommended power limit per period (kW)
+
+    """
+    result: list[float] = []
+    for i, power in enumerate(power_values):
+        if power <= 0:
+            # No flow desired in this direction
+            result.append(0.0)
+        elif shadow_values is None or shadow_values[i] <= 0:
+            # Flow exists but constraint is not binding - allow max
+            result.append(max_limit[i])
+        else:
+            # Flow exists and constraint is binding - use optimal value
+            result.append(power)
+    return tuple(result)

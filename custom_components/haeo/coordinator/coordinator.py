@@ -86,6 +86,7 @@ DEVICE_CLASS_MAP: dict[OutputType, SensorDeviceClass] = {
     OutputType.POWER: SensorDeviceClass.POWER,
     OutputType.POWER_FLOW: SensorDeviceClass.POWER,
     OutputType.POWER_LIMIT: SensorDeviceClass.POWER,
+    OutputType.CONTROL_LIMIT: SensorDeviceClass.POWER,
     OutputType.ENERGY: SensorDeviceClass.ENERGY,
     OutputType.STATE_OF_CHARGE: SensorDeviceClass.BATTERY,
     OutputType.COST: SensorDeviceClass.MONETARY,
@@ -99,6 +100,7 @@ STATE_CLASS_MAP: dict[OutputType, SensorStateClass | None] = {
     OutputType.POWER: SensorStateClass.MEASUREMENT,
     OutputType.POWER_FLOW: SensorStateClass.MEASUREMENT,
     OutputType.POWER_LIMIT: SensorStateClass.MEASUREMENT,
+    OutputType.CONTROL_LIMIT: SensorStateClass.MEASUREMENT,
     OutputType.STATE_OF_CHARGE: SensorStateClass.MEASUREMENT,
     OutputType.DURATION: SensorStateClass.MEASUREMENT,
 }

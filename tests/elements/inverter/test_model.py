@@ -28,6 +28,7 @@ class OutputsCase(TypedDict):
 
     description: str
     name: str
+    config: InverterConfigData
     model_outputs: Mapping[str, Mapping[ModelOutputName, OutputData]]
     outputs: Mapping[str, Mapping[str, OutputData]]
 
@@ -90,6 +91,13 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
     {
         "description": "Inverter with all outputs",
         "name": "inverter_main",
+        "config": InverterConfigData(
+            element_type="inverter",
+            name="inverter_main",
+            connection="network",
+            max_power_dc_to_ac=[10.0],
+            max_power_ac_to_dc=[10.0],
+        ),
         "model_outputs": {
             "inverter_main": {
                 NODE_POWER_BALANCE: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.0,)),
@@ -109,6 +117,9 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
                 inverter_element.INVERTER_POWER_ACTIVE: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(2.0,), direction=None),
                 inverter_element.INVERTER_MAX_POWER_DC_TO_AC_PRICE: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.01,)),
                 inverter_element.INVERTER_MAX_POWER_AC_TO_DC_PRICE: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.02,)),
+                # Control limit recommendations: shadow > 0 means binding, use power value
+                inverter_element.INVERTER_DISCHARGE_LIMIT_RECOMMENDATION: OutputData(type=OutputType.CONTROL_LIMIT, unit="kW", values=(5.0,)),
+                inverter_element.INVERTER_CHARGE_LIMIT_RECOMMENDATION: OutputData(type=OutputType.CONTROL_LIMIT, unit="kW", values=(3.0,)),
             }
         },
     },
@@ -127,5 +138,5 @@ def test_model_elements(case: CreateCase) -> None:
 def test_outputs_mapping(case: OutputsCase) -> None:
     """Verify adapter maps model outputs to device outputs."""
     entry = ELEMENT_TYPES["inverter"]
-    result = entry.outputs(case["name"], case["model_outputs"], {})
+    result = entry.outputs(case["name"], case["model_outputs"], case["config"])
     assert result == case["outputs"]
