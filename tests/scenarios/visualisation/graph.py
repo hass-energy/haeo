@@ -15,7 +15,6 @@ import matplotlib as mpl
 import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
 import networkx as nx
-import numpy as np
 
 # Use non-GUI backend
 mpl.use("Agg")
@@ -495,9 +494,6 @@ def create_graph_visualization(
         style: Optional custom styling configuration.
 
     """
-    # Seed numpy RNG for deterministic layout algorithms
-    np.random.seed(42)
-
     style = style or DEFAULT_STYLE
 
     # Build graph
