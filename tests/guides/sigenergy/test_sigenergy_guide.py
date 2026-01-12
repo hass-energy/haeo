@@ -11,27 +11,28 @@ Run with:
 from __future__ import annotations
 
 import datetime
+import logging
+from pathlib import Path
 import shutil
 import sys
-from pathlib import Path
+from collections.abc import Generator
 
-import pytest
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.util import dt as dt_util
+import pytest
 
 # Add project root to path for imports
 PROJECT_ROOT = Path(__file__).parent.parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from tests.guides.ha_runner import live_home_assistant
-from tests.guides.sigenergy.run_guide import (
-    INPUTS_FILE,
-    SCREENSHOTS_DIR,
-    run_guide,
-)
+from tests.guides.sigenergy.run_guide import INPUTS_FILE, SCREENSHOTS_DIR, run_guide
+
+_LOGGER = logging.getLogger(__name__)
 
 
 @pytest.fixture(autouse=True)
-def _restore_timezone() -> None:
+def _restore_timezone() -> Generator[None]:  # pyright: ignore[reportUnusedFunction]
     """Restore dt_util.DEFAULT_TIME_ZONE after test.
 
     The live HA instance sets the timezone to ZoneInfo('UTC') via
@@ -79,7 +80,7 @@ def test_sigenergy_guide(dark_mode: bool) -> None:
         # Verify expected elements were created by checking config entries
         # Note: async_entries is synchronous despite its name (HA convention for callback methods)
 
-        async def get_entries() -> list:
+        async def get_entries() -> list[ConfigEntry]:
             return hass.hass.config_entries.async_entries("haeo")
 
         config_entries = hass.run_coro(get_entries())
@@ -93,8 +94,21 @@ def test_sigenergy_guide(dark_mode: bool) -> None:
         subentries = list(hub_entry.subentries.values())
         element_names = {se.title for se in subentries}
 
-        expected_elements = {"Switchboard", "Inverter", "Battery", "Solar", "Grid", "Constant Load"}
-        assert expected_elements <= element_names, f"Missing elements: {expected_elements - element_names}"
+        expected_elements = {
+            "Switchboard",
+            "Inverter",
+            "Battery",
+            "Solar",
+            "Grid",
+            "Constant Load",
+        }
+        assert expected_elements <= element_names, (
+            f"Missing elements: {expected_elements - element_names}"
+        )
 
-        print(f"\n✅ Guide test passed ({mode_suffix} mode)! {len(results)} screenshots captured")
-        print(f"📁 Screenshots saved to: {output_dir}")
+        _LOGGER.info(
+            "Guide test passed (%s mode): %d screenshots saved to %s",
+            mode_suffix,
+            len(results),
+            output_dir,
+        )

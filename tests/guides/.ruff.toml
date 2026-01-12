@@ -1,0 +1,13 @@
+# Ruff configuration for guide tests
+# These tests run Home Assistant in-process with browser automation
+# and require patterns that differ from typical test code
+
+[lint]
+ignore = [
+    # Late imports are intentional for conditional/runtime loading
+    "PLC0415",
+    # Import after sys.path modification is necessary
+    "E402",
+    # asyncio.sleep in loop is intentional for signal wait pattern
+    "ASYNC110",
+]

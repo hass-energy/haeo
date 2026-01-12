@@ -146,9 +146,7 @@ class LiveHomeAssistant:
         future = asyncio.run_coroutine_threadsafe(coro, self.loop)
         return future.result(timeout=timeout)
 
-    def inject_auth(
-        self, context: BrowserContext, *, dark_mode: bool = False
-    ) -> None:
+    def inject_auth(self, context: BrowserContext, *, dark_mode: bool = False) -> None:
         """Inject authentication into a Playwright browser context.
 
         Sets up the Authorization header for all requests so HA frontend
@@ -165,7 +163,10 @@ class LiveHomeAssistant:
         # Add Authorization header to all API requests
         # HA frontend uses websocket for most communication but REST for some
         def add_auth_header(route: Route, request: Request) -> None:
-            headers = {**request.headers, "Authorization": f"Bearer {self.access_token}"}
+            headers = {
+                **request.headers,
+                "Authorization": f"Bearer {self.access_token}",
+            }
             route.continue_(headers=headers)
 
         context.route("**/*", add_auth_header)
@@ -202,6 +203,7 @@ class LiveHomeAssistant:
         domain: str,
         service: str,
         service_data: dict[str, Any] | None = None,
+        *,
         blocking: bool = True,
     ) -> None:
         """Call a Home Assistant service.
@@ -233,7 +235,7 @@ class LiveHomeAssistant:
 async def _setup_home_assistant_async(
     port: int,
     config_dir: str,
-) -> tuple[HomeAssistant, str]:
+) -> tuple[HomeAssistant, str, str]:
     """Set up a Home Assistant instance with HTTP server and pre-authenticated user.
 
     This creates a minimal HA instance with just the components needed
@@ -241,7 +243,7 @@ async def _setup_home_assistant_async(
     Onboarding is bypassed by creating an owner user programmatically.
 
     Returns:
-        Tuple of (HomeAssistant instance, access_token for authentication)
+        Tuple of (HomeAssistant instance, access_token, refresh_token_id)
 
     """
     # Pre-populate onboarding storage to mark all steps complete
@@ -285,7 +287,9 @@ async def _setup_home_assistant_async(
     entity.async_setup(hass)
 
     # Translation cache
-    hass.data[translation.TRANSLATION_FLATTEN_CACHE] = translation._TranslationCache(hass)
+    hass.data[translation.TRANSLATION_FLATTEN_CACHE] = translation._TranslationCache(
+        hass
+    )
 
     # Load registries
     await ar.async_load(hass)
@@ -307,7 +311,8 @@ async def _setup_home_assistant_async(
     # Get the homeassistant auth provider to add a user with password
     provider = hass.auth.auth_providers[0]
     # Add user credentials to the provider's storage
-    await provider.async_add_auth("testuser", "testpass")
+    # This is an internal API that's not typed in the stubs
+    await provider.async_add_auth("testuser", "testpass")  # type: ignore[attr-defined]
 
     # Create owner user to bypass onboarding
     # First non-system user automatically becomes owner
@@ -373,8 +378,7 @@ async def _setup_home_assistant_async(
     hass.set_state(CoreState.running)
 
     # Start the HTTP server
-    if hass.http is not None:
-        await hass.http.start()
+    await hass.http.start()
 
     return hass, access_token, refresh_token_id
 
@@ -396,7 +400,9 @@ def _run_hass_thread(
 
     async def _run() -> None:
         try:
-            hass, access_token, refresh_token_id = await _setup_home_assistant_async(port, config_dir)
+            hass, access_token, refresh_token_id = await _setup_home_assistant_async(
+                port, config_dir
+            )
             hass_holder.append(hass)
             token_holder.append((access_token, refresh_token_id))
             ready_event.set()
@@ -460,7 +466,13 @@ def live_home_assistant(
         # Copy SingleFile bundle to www directory for HTML captures
         www_dir = Path(temp_dir) / "www"
         www_dir.mkdir()
-        singlefile_bundle = PROJECT_ROOT / "node_modules" / "single-file-cli" / "lib" / "single-file-bundle.js"
+        singlefile_bundle = (
+            PROJECT_ROOT
+            / "node_modules"
+            / "single-file-cli"
+            / "lib"
+            / "single-file-bundle.js"
+        )
         if singlefile_bundle.exists():
             shutil.copy2(singlefile_bundle, www_dir / "single-file-bundle.js")
 

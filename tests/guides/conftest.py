@@ -11,8 +11,10 @@ Or via pytest with explicit socket enabling:
     uv run pytest tests/guides/ --force-enable-socket -m guide
 """
 
+import pytest
 
-def pytest_configure(config):
+
+def pytest_configure(config: pytest.Config) -> None:
     """Register guide marker."""
     config.addinivalue_line(
         "markers",
