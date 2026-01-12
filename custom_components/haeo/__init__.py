@@ -217,8 +217,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> bool
         await hass.config_entries.async_unload_platforms(entry, INPUT_PLATFORMS)
 
         not_ready = [key for key, entity in runtime_data.input_entities.items() if not entity.is_ready()]
-        msg = f"Input entities not ready after 30s: {not_ready}"
-        raise ConfigEntryNotReady(msg) from None
+        raise ConfigEntryNotReady(
+            translation_domain=DOMAIN,
+            translation_key="input_entities_not_ready",
+            translation_placeholders={"not_ready": str(not_ready)},
+        ) from None
 
     except Exception as err:
         # Unload any platforms that were set up before re-raising
@@ -227,12 +230,19 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> bool
         await hass.config_entries.async_unload_platforms(entry, OUTPUT_PLATFORMS)
 
         # Wrap in ConfigEntryError for permanent failures, ConfigEntryNotReady for transient
-        msg = f"Setup failed: {err}"
         if isinstance(err, (ValueError, TypeError, KeyError)):
             # Configuration or programming errors - permanent failure
-            raise ConfigEntryError(msg) from err
+            raise ConfigEntryError(
+                translation_domain=DOMAIN,
+                translation_key="setup_failed_permanent",
+                translation_placeholders={"error": str(err)},
+            ) from err
         # Transient errors (network, sensor availability) - retry
-        raise ConfigEntryNotReady(msg) from err
+        raise ConfigEntryNotReady(
+            translation_domain=DOMAIN,
+            translation_key="setup_failed_transient",
+            translation_placeholders={"error": str(err)},
+        ) from err
 
     # Register update listener LAST - after all setup is complete
     # This prevents reload loops from subentry additions during initial setup

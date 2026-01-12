@@ -691,8 +691,11 @@ async def test_async_setup_entry_raises_config_entry_not_ready_on_timeout(
     monkeypatch.setattr("asyncio.timeout", short_timeout)
 
     # Run setup - should raise ConfigEntryNotReady
-    with pytest.raises(ConfigEntryNotReady, match="Input entities not ready after 30s"):
+    with pytest.raises(ConfigEntryNotReady) as exc_info:
         await async_setup_entry(hass, mock_hub_entry)
+
+    # Verify the exception has the correct translation key
+    assert exc_info.value.translation_key == "input_entities_not_ready"
 
     # Verify async_unload_platforms was called to clean up input platforms
     assert len(unload_platforms_calls) >= 1, "async_unload_platforms should be called on timeout"
@@ -785,8 +788,11 @@ async def test_setup_reentry_after_timeout_failure(
 
     # First attempt - should fail with timeout
     attempt_count = 1
-    with pytest.raises(ConfigEntryNotReady, match="Input entities not ready after 30s"):
+    with pytest.raises(ConfigEntryNotReady) as exc_info:
         await async_setup_entry(hass, mock_hub_entry)
+
+    # Verify the exception has the correct translation key
+    assert exc_info.value.translation_key == "input_entities_not_ready"
 
     # Restore normal timeout for second attempt
     monkeypatch.setattr("asyncio.timeout", original_timeout)
@@ -860,8 +866,11 @@ async def test_setup_cleanup_on_coordinator_error(
     monkeypatch.setattr("custom_components.haeo.HaeoDataUpdateCoordinator", FailingCoordinator)
 
     # Run setup - should raise ConfigEntryNotReady (transient error)
-    with pytest.raises(ConfigEntryNotReady, match="Setup failed"):
+    with pytest.raises(ConfigEntryNotReady) as exc_info:
         await async_setup_entry(hass, mock_hub_entry)
+
+    # Verify the exception has the correct translation key
+    assert exc_info.value.translation_key == "setup_failed_transient"
 
     # Verify both INPUT_PLATFORMS and OUTPUT_PLATFORMS were unloaded
     assert len(unload_platforms_calls) >= 2, "Both platform types should be unloaded on error"
