@@ -256,9 +256,12 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             value = subentry_data.get(field.field_name) if subentry_data else None
 
             if isinstance(value, list):
-                # Entity link: use stored entity IDs
+                # Entity link (multi-select): use stored entity IDs
                 defaults[field.field_name] = value
-            elif subentry_data is not None and field.field_name in subentry_data:
+            elif isinstance(value, str):
+                # Entity ID (single-select from v0.1.0): use as-is
+                defaults[field.field_name] = [value]
+            elif isinstance(value, (float, int, bool)):
                 # Scalar value: resolve to the HAEO-created entity
                 resolved = resolve_configurable_entity_id(entry_id, subentry_id, field.field_name)
                 defaults[field.field_name] = [resolved or configurable_entity_id]
@@ -315,16 +318,30 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         """Build final config dict from step data."""
         name = self._step1_data.get(CONF_NAME)
         connection = self._step1_data.get(CONF_CONNECTION)
+        entry = self._get_entry()
+        subentry = self._get_subentry()
+        entry_id = entry.entry_id
+        subentry_id = subentry.subentry_id if subentry else None
 
         # Main fields
         config_dict = convert_entity_selections_to_config(
-            entity_selections, configurable_values, INPUT_FIELDS, current_data
+            entity_selections,
+            configurable_values,
+            INPUT_FIELDS,
+            current_data,
+            entry_id=entry_id,
+            subentry_id=subentry_id,
         )
 
         # Partition fields (only if enabled)
         if self._step1_data.get(CONF_CONFIGURE_PARTITIONS):
             partition_config = convert_entity_selections_to_config(
-                partition_entity_selections, partition_configurable_values, PARTITION_FIELDS, current_data
+                partition_entity_selections,
+                partition_configurable_values,
+                PARTITION_FIELDS,
+                current_data,
+                entry_id=entry_id,
+                subentry_id=subentry_id,
             )
             config_dict.update(partition_config)
 

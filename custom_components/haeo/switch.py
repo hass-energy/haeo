@@ -3,12 +3,11 @@
 import logging
 
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers import device_registry
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from custom_components.haeo import HaeoConfigEntry
-from custom_components.haeo.const import DOMAIN
 from custom_components.haeo.elements import get_input_fields, is_element_type
+from custom_components.haeo.entities.device import get_or_create_element_device
 from custom_components.haeo.entities.haeo_switch import HaeoInputSwitch
 
 _LOGGER = logging.getLogger(__name__)
@@ -33,7 +32,6 @@ async def async_setup_entry(
     horizon_manager = runtime_data.horizon_manager
 
     entities: list[HaeoInputSwitch] = []
-    dr = device_registry.async_get(hass)
 
     for subentry in config_entry.subentries.values():
         # Skip non-element subentries (e.g., network)
@@ -51,15 +49,9 @@ async def async_setup_entry(
         if not switch_fields:
             continue
 
-        # Get or create device for this subentry
-        # Use the same identifier pattern as sensors for consistency
-        device_entry = dr.async_get_or_create(
-            identifiers={(DOMAIN, f"{config_entry.entry_id}_{subentry.subentry_id}")},
-            config_entry_id=config_entry.entry_id,
-            config_subentry_id=subentry.subentry_id,
-            translation_key=subentry.subentry_type,
-            translation_placeholders={"name": subentry.title},
-        )
+        # Get or create device using centralized device creation
+        # Input entities go on the main device (element_type matches device_name)
+        device_entry = get_or_create_element_device(hass, config_entry, subentry, element_type)
 
         for field_info in switch_fields:
             # Only create entities for configured fields

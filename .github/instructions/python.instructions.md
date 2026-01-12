@@ -53,6 +53,23 @@ See [typing philosophy](../../docs/developer-guide/typing.md) for detailed patte
 
 ## Error handling
 
+- **Fail loudly**: Never log an error/warning and continue as if nothing happened.
+    If something fails that should succeed, raise an exception. Silent failures hide bugs.
+- **Use HA-specific exceptions** in setup flows instead of generic Python exceptions:
+    - `ConfigEntryNotReady` - Transient error (network timeout, service unavailable). HA will retry setup.
+    - `ConfigEntryError` - Permanent failure (invalid config). User must fix configuration.
+    - `ConfigEntryAuthFailed` - Authentication failure. User must re-authenticate.
+    - `UpdateFailed` - Coordinator refresh failed. Used in `_async_update_data`.
+    ```python
+    # ❌ Bad - generic exception in async_setup_entry
+    except TimeoutError:
+        raise TimeoutError("Setup timed out")
+
+    # ✅ Good - HA-specific exception enables proper retry behavior
+    from homeassistant.exceptions import ConfigEntryNotReady
+    except TimeoutError:
+        raise ConfigEntryNotReady("Setup timed out") from None
+    ```
 - Keep try blocks minimal - only wrap code that can throw:
     ```python
     # ✅ Good

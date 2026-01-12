@@ -83,7 +83,7 @@ class InverterConfigSchema(TypedDict):
 
     Schema mode contains entity IDs and constant values from the config flow.
     Values can be:
-    - list[str]: Entity IDs when linking to sensors
+    - str: Entity ID when linking to a sensor
     - float: Constant value when using HAEO Configurable
     - NotRequired: Field not present when using default
     """
@@ -93,12 +93,12 @@ class InverterConfigSchema(TypedDict):
     connection: str  # AC side node to connect to
 
     # Power limit fields: required (user must select an entity or enter a value)
-    max_power_dc_to_ac: list[str] | float  # Entity IDs or constant kW
-    max_power_ac_to_dc: list[str] | float  # Entity IDs or constant kW
+    max_power_dc_to_ac: str | float  # Entity ID or constant kW
+    max_power_ac_to_dc: str | float  # Entity ID or constant kW
 
     # Efficiency fields (optional)
-    efficiency_dc_to_ac: NotRequired[list[str] | float]  # Entity IDs or constant %
-    efficiency_ac_to_dc: NotRequired[list[str] | float]  # Entity IDs or constant %
+    efficiency_dc_to_ac: NotRequired[str | float]  # Entity ID or constant %
+    efficiency_ac_to_dc: NotRequired[str | float]  # Entity ID or constant %
 
 
 class InverterConfigData(TypedDict):

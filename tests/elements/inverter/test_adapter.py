@@ -24,8 +24,8 @@ async def test_available_returns_true_when_sensors_exist(hass: HomeAssistant) ->
         "element_type": "inverter",
         "name": "test_inverter",
         "connection": "ac_bus",
-        "max_power_dc_to_ac": ["sensor.max_dc_to_ac"],
-        "max_power_ac_to_dc": ["sensor.max_ac_to_dc"],
+        "max_power_dc_to_ac": "sensor.max_dc_to_ac",
+        "max_power_ac_to_dc": "sensor.max_ac_to_dc",
     }
 
     result = inverter.adapter.available(config, hass=hass)
@@ -41,8 +41,8 @@ async def test_available_returns_false_when_first_sensor_missing(hass: HomeAssis
         "element_type": "inverter",
         "name": "test_inverter",
         "connection": "ac_bus",
-        "max_power_dc_to_ac": ["sensor.missing"],
-        "max_power_ac_to_dc": ["sensor.max_ac_to_dc"],
+        "max_power_dc_to_ac": "sensor.missing",
+        "max_power_ac_to_dc": "sensor.max_ac_to_dc",
     }
 
     result = inverter.adapter.available(config, hass=hass)
@@ -58,8 +58,8 @@ async def test_available_returns_false_when_second_sensor_missing(hass: HomeAssi
         "element_type": "inverter",
         "name": "test_inverter",
         "connection": "ac_bus",
-        "max_power_dc_to_ac": ["sensor.max_dc_to_ac"],
-        "max_power_ac_to_dc": ["sensor.missing"],
+        "max_power_dc_to_ac": "sensor.max_dc_to_ac",
+        "max_power_ac_to_dc": "sensor.missing",
     }
 
     result = inverter.adapter.available(config, hass=hass)
@@ -75,8 +75,8 @@ async def test_load_returns_config_data(hass: HomeAssistant) -> None:
         "element_type": "inverter",
         "name": "test_inverter",
         "connection": "ac_bus",
-        "max_power_dc_to_ac": ["sensor.max_dc_to_ac"],
-        "max_power_ac_to_dc": ["sensor.max_ac_to_dc"],
+        "max_power_dc_to_ac": "sensor.max_dc_to_ac",
+        "max_power_ac_to_dc": "sensor.max_ac_to_dc",
     }
 
     result = await inverter.adapter.load(config, hass=hass, forecast_times=FORECAST_TIMES)
@@ -96,8 +96,8 @@ async def test_load_with_optional_efficiency(hass: HomeAssistant) -> None:
         "element_type": "inverter",
         "name": "test_inverter",
         "connection": "ac_bus",
-        "max_power_dc_to_ac": ["sensor.max_dc_to_ac"],
-        "max_power_ac_to_dc": ["sensor.max_ac_to_dc"],
+        "max_power_dc_to_ac": "sensor.max_dc_to_ac",
+        "max_power_ac_to_dc": "sensor.max_ac_to_dc",
         "efficiency_dc_to_ac": 97.0,
         "efficiency_ac_to_dc": 95.0,
     }

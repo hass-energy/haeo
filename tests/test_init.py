@@ -1,11 +1,13 @@
 """Test the HAEO integration."""
 
+import asyncio
 from contextlib import suppress
 from types import MappingProxyType
 from unittest.mock import AsyncMock, Mock
 
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import device_registry as dr
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
@@ -552,4 +554,110 @@ async def test_async_remove_config_entry_device(hass: HomeAssistant, mock_hub_en
 
     # Try to remove again - device already gone, should return False
     result = await async_remove_config_entry_device(hass, mock_hub_entry, device)
+    assert result is False
+
+
+async def test_async_update_listener_value_update_skips_refresh_without_coordinator(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Test async_update_listener skips coordinator refresh when coordinator is None."""
+    # Set up runtime_data with value_update_in_progress=True but NO coordinator
+    mock_hub_entry.runtime_data = HaeoRuntimeData(
+        horizon_manager=_create_mock_horizon_manager(),
+        coordinator=None,  # No coordinator
+        value_update_in_progress=True,
+    )
+
+    # Mock the reload function to track if it's called
+    reload_called = False
+
+    async def mock_reload(entry_id: str) -> bool:
+        nonlocal reload_called
+        reload_called = True
+        return True
+
+    hass.config_entries.async_reload = mock_reload
+
+    # Call update listener
+    await async_update_listener(hass, mock_hub_entry)
+
+    # Verify: flag should be cleared, NO reload
+    assert mock_hub_entry.runtime_data.value_update_in_progress is False
+    assert not reload_called
+
+
+async def test_async_setup_entry_raises_config_entry_not_ready_on_timeout(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Setup raises ConfigEntryNotReady when input entities don't become ready in time."""
+
+    # Create a mock input entity that never becomes ready
+    class NeverReadyEntity:
+        async def wait_ready(self) -> None:
+            # Wait forever - will timeout
+            await asyncio.sleep(100)
+
+        def is_ready(self) -> bool:
+            return False
+
+    # Create mock runtime data with input entity that never becomes ready
+    mock_horizon = _create_mock_horizon_manager()
+    never_ready_entity = NeverReadyEntity()
+
+    class MockRuntimeData:
+        def __init__(self) -> None:
+            self.horizon_manager = mock_horizon
+            self.input_entities = {("Test Element", "field"): never_ready_entity}
+            self.coordinator = None
+            self.value_update_in_progress = False
+
+    # Patch HaeoRuntimeData to return our mock
+
+    def create_mock_runtime_data(horizon_manager: object) -> MockRuntimeData:
+        return MockRuntimeData()
+
+    # Patch the module-level imports to bypass normal setup
+    monkeypatch.setattr("custom_components.haeo.HaeoRuntimeData", create_mock_runtime_data)
+
+    # Patch forward_entry_setups to populate the mock input entities
+    async def mock_forward_setups(entry: object, platforms: list[object]) -> None:
+        # After input platform setup, entry should have mock runtime_data
+        pass
+
+    monkeypatch.setattr(hass.config_entries, "async_forward_entry_setups", mock_forward_setups)
+
+    # Patch asyncio.timeout to use a very short timeout
+    original_timeout = asyncio.timeout
+
+    def short_timeout(seconds: float) -> asyncio.Timeout:
+        return original_timeout(0.01)  # 10ms timeout
+
+    monkeypatch.setattr("asyncio.timeout", short_timeout)
+
+    # Run setup - should raise ConfigEntryNotReady
+    with pytest.raises(ConfigEntryNotReady, match="Input entities not ready after 30s"):
+        await async_setup_entry(hass, mock_hub_entry)
+
+
+async def test_async_setup_entry_returns_false_when_network_subentry_missing(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Setup returns False when network subentry cannot be found."""
+
+    # Patch _ensure_required_subentries to NOT create network subentry
+    async def mock_ensure(hass_arg: HomeAssistant, entry_arg: ConfigEntry) -> None:
+        # Do nothing - don't create network subentry
+        pass
+
+    monkeypatch.setattr("custom_components.haeo._ensure_required_subentries", mock_ensure)
+
+    # Run setup - should return False
+    result = await async_setup_entry(hass, mock_hub_entry)
+
     assert result is False

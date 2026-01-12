@@ -178,9 +178,12 @@ class ConnectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         for field in INPUT_FIELDS:
             value = subentry_data.get(field.field_name)
             if isinstance(value, list):
-                # Entity link: use stored entity IDs
+                # Entity link (multi-select): use stored entity IDs
                 entity_defaults[field.field_name] = value
-            elif field.field_name in subentry_data:
+            elif isinstance(value, str):
+                # Entity ID (single-select from v0.1.0): use as-is
+                entity_defaults[field.field_name] = [value]
+            elif isinstance(value, (float, int, bool)):
                 # Scalar value: resolve to the HAEO-created entity
                 resolved = resolve_configurable_entity_id(entry_id, subentry_id, field.field_name)
                 entity_defaults[field.field_name] = [resolved or configurable_entity_id]
@@ -205,8 +208,15 @@ class ConnectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         name = self._step1_data.get(CONF_NAME)
         source = self._step1_data.get(CONF_SOURCE)
         target = self._step1_data.get(CONF_TARGET)
+        entry = self._get_entry()
+        subentry = self._get_subentry()
         config_dict = convert_entity_selections_to_config(
-            entity_selections, configurable_values, INPUT_FIELDS, current_data
+            entity_selections,
+            configurable_values,
+            INPUT_FIELDS,
+            current_data,
+            entry_id=entry.entry_id,
+            subentry_id=subentry.subentry_id if subentry else None,
         )
         return cast(
             "ConnectionConfigSchema",

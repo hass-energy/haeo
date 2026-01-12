@@ -318,8 +318,10 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         before this handler is registered.
         """
         # Load the updated config for just this element
-        element_config = self._load_element_config(element_name)
-        if element_config is None:
+        try:
+            element_config = self._load_element_config(element_name)
+        except ValueError:
+            _LOGGER.exception("Failed to load config for element %s due to invalid input entities", element_name)
             return
 
         # Update just this element's TrackedParams
@@ -404,7 +406,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
 
         return True
 
-    def _load_element_config(self, element_name: str) -> ElementConfigData | None:
+    def _load_element_config(self, element_name: str) -> ElementConfigData:
         """Load configuration for a single element from its input entities.
 
         Collects loaded values from input entities and delegates to the adapter's
@@ -414,21 +416,27 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             element_name: Name of the element to load
 
         Returns:
-            Loaded configuration, or None if element not found or data unavailable
+            Loaded configuration
+
+        Raises:
+            ValueError: If element not found, data unavailable, or required field missing
 
         """
         if element_name not in self._participant_configs:
-            return None
+            msg = f"Element '{element_name}' not found in participant configs"
+            raise ValueError(msg)
 
         runtime_data = self._get_runtime_data()
         if runtime_data is None:
-            return None
+            msg = f"Runtime data not available when loading element '{element_name}'"
+            raise ValueError(msg)
 
         element_config = self._participant_configs[element_name]
         element_type = element_config[CONF_ELEMENT_TYPE]
 
         if not is_element_type(element_type):
-            return None
+            msg = f"Invalid element type '{element_type}' for element '{element_name}'"
+            raise ValueError(msg)
 
         # Get input field definitions for this element type
         input_field_infos = get_input_fields(element_type)
@@ -454,18 +462,13 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
                 loaded_values[field_name] = values[0] if values else None
 
         # Delegate to adapter's build_config_data() - single source of truth
-        # If required fields are missing, build_config_data will raise KeyError
-        # In that case, we return None to skip this element
         adapter = ELEMENT_TYPES[element_type]
         try:
             return adapter.build_config_data(loaded_values, element_config)
         except KeyError as e:
-            _LOGGER.warning(
-                "Missing required field %s for element '%s' - skipping",
-                e.args[0] if e.args else "unknown",
-                element_name,
-            )
-            return None
+            field_name = e.args[0] if e.args else "unknown"
+            msg = f"Missing required field '{field_name}' for element '{element_name}'"
+            raise ValueError(msg) from e
 
     def _load_from_input_entities(self) -> dict[str, ElementConfigData]:
         """Load element configurations from input entities.
@@ -486,8 +489,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
 
         for element_name in self._participant_configs:
             element_config = self._load_element_config(element_name)
-            if element_config is not None:
-                loaded_configs[element_name] = element_config
+            loaded_configs[element_name] = element_config
 
         return loaded_configs
 

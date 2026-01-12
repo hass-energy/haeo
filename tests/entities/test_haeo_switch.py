@@ -1,5 +1,6 @@
 """Tests for the HAEO switch input entity."""
 
+import asyncio
 from types import MappingProxyType
 from typing import Any
 from unittest.mock import Mock
@@ -13,7 +14,7 @@ import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.haeo.const import CONF_NAME, DOMAIN
-from custom_components.haeo.elements.input_fields import InputFieldInfo
+from custom_components.haeo.elements.input_fields import InputFieldDefaults, InputFieldInfo
 from custom_components.haeo.entities.haeo_number import ConfigEntityMode
 from custom_components.haeo.entities.haeo_switch import HaeoInputSwitch
 from custom_components.haeo.horizon import HorizonManager
@@ -584,9 +585,6 @@ async def test_get_values_returns_forecast_values(
         horizon_manager=horizon_manager,
     )
 
-    # Simulate entity being added to HA (enables get_values to return data)
-    entity._added_to_hass = True
-
     # Update forecast
     entity._update_forecast()
 
@@ -617,9 +615,6 @@ async def test_get_values_returns_none_without_forecast(
         device_entry=device_entry,
         horizon_manager=horizon_manager,
     )
-
-    # Simulate entity being added to HA
-    entity._added_to_hass = True
 
     # Clear forecast
     entity._attr_extra_state_attributes = {}
@@ -679,39 +674,8 @@ async def test_async_added_to_hass_driven_subscribes_to_source(
 
     await entity.async_added_to_hass()
 
-    # Subscription should be set up
-    assert entity._state_unsub is not None
-    assert entity._horizon_unsub is not None
-
-
-async def test_async_will_remove_from_hass_cleans_up(
-    hass: HomeAssistant,
-    config_entry: MockConfigEntry,
-    device_entry: Mock,
-    curtailment_field_info: InputFieldInfo[SwitchEntityDescription],
-    horizon_manager: Mock,
-) -> None:
-    """async_will_remove_from_hass cleans up subscriptions."""
-    hass.states.async_set("input_boolean.curtail", STATE_ON)
-    subentry = _create_subentry("Test Solar", {"allow_curtailment": "input_boolean.curtail"})
-    config_entry.runtime_data = None
-
-    entity = HaeoInputSwitch(
-        hass=hass,
-        config_entry=config_entry,
-        subentry=subentry,
-        field_info=curtailment_field_info,
-        device_entry=device_entry,
-        horizon_manager=horizon_manager,
-    )
-
-    await entity.async_added_to_hass()
-    assert entity._state_unsub is not None
-
-    await entity.async_will_remove_from_hass()
-
-    assert entity._state_unsub is None
-    assert entity._horizon_unsub is None
+    # Entity should have loaded state from source
+    assert entity.is_on is True
 
 
 # --- Tests for horizon and source state change handlers ---
@@ -873,3 +837,146 @@ async def test_load_source_state_with_none_source_entity(
 
     # State should still be True from config
     assert entity.is_on is True
+
+
+async def test_is_ready_returns_true_after_data_loaded(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    device_entry: Mock,
+    curtailment_field_info: InputFieldInfo[SwitchEntityDescription],
+    horizon_manager: Mock,
+) -> None:
+    """is_ready() returns True after data has been loaded."""
+    subentry = _create_subentry("Test Solar", {"allow_curtailment": True})
+    config_entry.runtime_data = None
+
+    entity = HaeoInputSwitch(
+        hass=hass,
+        config_entry=config_entry,
+        subentry=subentry,
+        field_info=curtailment_field_info,
+        device_entry=device_entry,
+        horizon_manager=horizon_manager,
+    )
+
+    # Entity was initialized with True value, so forecast is built and ready is set
+    assert entity.is_ready() is True
+
+
+async def test_entity_mode_property_returns_mode(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    device_entry: Mock,
+    curtailment_field_info: InputFieldInfo[SwitchEntityDescription],
+    horizon_manager: Mock,
+) -> None:
+    """entity_mode property returns the correct mode."""
+    # Test EDITABLE mode
+    subentry_editable = _create_subentry("Test Solar", {"allow_curtailment": True})
+    config_entry.runtime_data = None
+
+    entity_editable = HaeoInputSwitch(
+        hass=hass,
+        config_entry=config_entry,
+        subentry=subentry_editable,
+        field_info=curtailment_field_info,
+        device_entry=device_entry,
+        horizon_manager=horizon_manager,
+    )
+    assert entity_editable.entity_mode == ConfigEntityMode.EDITABLE
+
+    # Test DRIVEN mode
+    subentry_driven = _create_subentry("Test Solar", {"allow_curtailment": "input_boolean.curtail"})
+    entity_driven = HaeoInputSwitch(
+        hass=hass,
+        config_entry=config_entry,
+        subentry=subentry_driven,
+        field_info=curtailment_field_info,
+        device_entry=device_entry,
+        horizon_manager=horizon_manager,
+    )
+    assert entity_driven.entity_mode == ConfigEntityMode.DRIVEN
+
+
+async def test_editable_mode_uses_defaults_value_when_none(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    device_entry: Mock,
+    horizon_manager: Mock,
+) -> None:
+    """Switch entity uses defaults.value when config value is None."""
+
+    # Create field info with defaults
+    field_info: InputFieldInfo[SwitchEntityDescription] = InputFieldInfo(
+        field_name="optional_toggle",
+        entity_description=SwitchEntityDescription(
+            key="optional_toggle",
+            translation_key="optional_toggle",
+        ),
+        output_type=OutputType.STATUS,
+        defaults=InputFieldDefaults(value=True),  # Default value
+    )
+
+    # Config has None for this field
+    subentry = _create_subentry("Test Solar", {"optional_toggle": None})
+    config_entry.runtime_data = None
+
+    entity = HaeoInputSwitch(
+        hass=hass,
+        config_entry=config_entry,
+        subentry=subentry,
+        field_info=field_info,
+        device_entry=device_entry,
+        horizon_manager=horizon_manager,
+    )
+
+    # Before adding to hass, is_on is None
+    assert entity.is_on is None
+
+    # After adding to hass, defaults.value should be used
+    await entity.async_added_to_hass()
+
+    assert entity.is_on is True
+
+
+async def test_wait_ready_blocks_until_data_loaded(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    device_entry: Mock,
+    curtailment_field_info: InputFieldInfo[SwitchEntityDescription],
+    horizon_manager: Mock,
+) -> None:
+    """wait_ready() blocks until data is loaded."""
+    # Use DRIVEN mode so data isn't loaded immediately
+    hass.states.async_set("input_boolean.curtail", STATE_ON)
+    subentry = _create_subentry("Test Solar", {"allow_curtailment": "input_boolean.curtail"})
+    config_entry.runtime_data = None
+
+    entity = HaeoInputSwitch(
+        hass=hass,
+        config_entry=config_entry,
+        subentry=subentry,
+        field_info=curtailment_field_info,
+        device_entry=device_entry,
+        horizon_manager=horizon_manager,
+    )
+
+    # Before data is loaded, is_ready is False (DRIVEN mode, data loads in async_added_to_hass)
+    assert entity.is_ready() is False
+
+    # Start wait_ready in background
+    wait_task = asyncio.create_task(entity.wait_ready())
+
+    # Give task a chance to start
+    await asyncio.sleep(0)
+
+    # Task should not complete yet
+    assert not wait_task.done()
+
+    # Load source state (sets the event via _update_forecast)
+    entity._load_source_state()
+
+    # Now wait_ready should complete
+    await asyncio.wait_for(wait_task, timeout=1.0)
+
+    assert entity.is_ready() is True

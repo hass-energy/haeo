@@ -43,7 +43,7 @@ class LoadConfigSchema(TypedDict):
     element_type: Literal["load"]
     name: str
     connection: str  # Element name to connect to
-    forecast: list[str] | float  # Entity IDs for power forecast sensors or constant value (kW)
+    forecast: list[str] | str | float  # Entity ID(s) or constant kW - list for chaining
 
 
 class LoadConfigData(TypedDict):

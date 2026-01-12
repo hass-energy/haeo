@@ -57,7 +57,7 @@ class BatterySectionConfigSchema(TypedDict):
 
     Schema mode contains entity IDs and constant values from the config flow.
     Values can be:
-    - list[str]: Entity IDs when linking to sensors
+    - str: Entity ID when linking to a sensor
     - float: Constant value when using HAEO Configurable
 
     A single battery section with capacity and initial charge. Unlike the standard Battery
@@ -67,8 +67,8 @@ class BatterySectionConfigSchema(TypedDict):
 
     element_type: Literal["battery_section"]
     name: str
-    capacity: list[str] | float  # Entity IDs or constant kWh
-    initial_charge: list[str] | float  # Entity IDs or constant kWh
+    capacity: str | float  # Entity ID or constant kWh
+    initial_charge: str | float  # Entity ID or constant kWh
 
 
 class BatterySectionConfigData(TypedDict):
