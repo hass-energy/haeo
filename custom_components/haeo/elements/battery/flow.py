@@ -256,9 +256,12 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             value = subentry_data.get(field.field_name) if subentry_data else None
 
             if isinstance(value, list):
-                # Entity link: use stored entity IDs
+                # Entity link (multi-select): use stored entity IDs
                 defaults[field.field_name] = value
-            elif subentry_data is not None and field.field_name in subentry_data:
+            elif isinstance(value, str):
+                # Entity ID (single-select from v0.1.0): use as-is
+                defaults[field.field_name] = [value]
+            elif isinstance(value, (float, int, bool)):
                 # Scalar value: resolve to the HAEO-created entity
                 resolved = resolve_configurable_entity_id(entry_id, subentry_id, field.field_name)
                 defaults[field.field_name] = [resolved or configurable_entity_id]
