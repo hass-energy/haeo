@@ -19,7 +19,7 @@ from __future__ import annotations
 import asyncio
 from collections.abc import Generator
 from contextlib import closing, contextmanager
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 import json
 from pathlib import Path
 import shutil
@@ -78,7 +78,7 @@ class LiveHomeAssistant:
     loop: asyncio.AbstractEventLoop
     access_token: str
     refresh_token_id: str
-    _stop_event: threading.Event = field(default_factory=threading.Event)
+    _stop_event: asyncio.Event
 
     def set_state(
         self,
@@ -157,8 +157,8 @@ class LiveHomeAssistant:
             dark_mode: Whether to set dark mode theme preference
 
         """
-
-        from playwright.sync_api import Request, Route
+        # Import here to avoid requiring playwright for non-browser usage
+        from playwright.sync_api import Request, Route  # noqa: PLC0415
 
         # Add Authorization header to all API requests
         # HA frontend uses websocket for most communication but REST for some
@@ -228,8 +228,8 @@ class LiveHomeAssistant:
         future.result(timeout=10)
 
     def stop(self) -> None:
-        """Signal the HA instance to stop."""
-        self._stop_event.set()
+        """Signal the HA instance to stop via thread-safe call."""
+        self.loop.call_soon_threadsafe(self._stop_event.set)
 
 
 async def _setup_home_assistant_async(
@@ -308,11 +308,12 @@ async def _setup_home_assistant_async(
         module_configs=[],
     )
 
-    # Get the homeassistant auth provider to add a user with password
+    # Get the homeassistant auth provider to add a user with password.
+    # We configure the provider as "homeassistant" type above, so index 0 is always HassAuthProvider.
+    # Pyright can't narrow AuthProvider to HassAuthProvider due to incomplete type stubs
+    # in Home Assistant - async_add_auth exists on HassAuthProvider but not AuthProvider.
     provider = hass.auth.auth_providers[0]
-    # Add user credentials to the provider's storage
-    # This is an internal API that's not typed in the stubs
-    await provider.async_add_auth("testuser", "testpass")  # type: ignore[attr-defined]
+    await provider.async_add_auth("testuser", "testpass")  # pyright: ignore[reportAttributeAccessIssue]
 
     # Create owner user to bypass onboarding
     # First non-system user automatically becomes owner
@@ -351,7 +352,8 @@ async def _setup_home_assistant_async(
     # This is a compatibility issue between HA and newer aiohttp versions
     warnings.filterwarnings("ignore", category=DeprecationWarning, module="aiohttp")
     try:
-        from aiohttp.web_exceptions import NotAppKeyWarning
+        # NotAppKeyWarning only exists in newer aiohttp versions
+        from aiohttp.web_exceptions import NotAppKeyWarning  # noqa: PLC0415
 
         warnings.filterwarnings("ignore", category=NotAppKeyWarning)
     except ImportError:
@@ -365,7 +367,8 @@ async def _setup_home_assistant_async(
     assert await async_setup_component(hass, "onboarding", {})
 
     # Verify onboarding is bypassed
-    from homeassistant.components.onboarding import async_is_onboarded
+    # Import here because component must be set up first
+    from homeassistant.components.onboarding import async_is_onboarded  # noqa: PLC0415
 
     if not async_is_onboarded(hass):
         msg = "Onboarding bypass failed - check storage file format and timing"
@@ -390,7 +393,7 @@ def _run_hass_thread(
     token_holder: list[tuple[str, str]],
     loop_holder: list[asyncio.AbstractEventLoop],
     ready_event: threading.Event,
-    stop_event: threading.Event,
+    async_stop_event_holder: list[asyncio.Event],
     error_holder: list[Exception],
 ) -> None:
     """Run Home Assistant in a thread with its own event loop."""
@@ -399,6 +402,10 @@ def _run_hass_thread(
     loop_holder.append(loop)
 
     async def _run() -> None:
+        # Create asyncio.Event for clean shutdown signaling
+        async_stop_event = asyncio.Event()
+        async_stop_event_holder.append(async_stop_event)
+
         try:
             hass, access_token, refresh_token_id = await _setup_home_assistant_async(
                 port, config_dir
@@ -407,9 +414,8 @@ def _run_hass_thread(
             token_holder.append((access_token, refresh_token_id))
             ready_event.set()
 
-            # Wait for stop signal
-            while not stop_event.is_set():
-                await asyncio.sleep(0.1)
+            # Wait for stop signal from main thread
+            await async_stop_event.wait()
 
             # Shutdown - async_stop will handle HTTP server via event handler
             await hass.async_stop(force=True)
@@ -480,8 +486,8 @@ def live_home_assistant(
         token_holder: list[tuple[str, str]] = []
         loop_holder: list[asyncio.AbstractEventLoop] = []
         error_holder: list[Exception] = []
+        async_stop_event_holder: list[asyncio.Event] = []
         ready_event = threading.Event()
-        stop_event = threading.Event()
 
         thread = threading.Thread(
             target=_run_hass_thread,
@@ -492,7 +498,7 @@ def live_home_assistant(
                 token_holder,
                 loop_holder,
                 ready_event,
-                stop_event,
+                async_stop_event_holder,
                 error_holder,
             ),
             daemon=True,
@@ -501,20 +507,24 @@ def live_home_assistant(
 
         # Wait for HA to be ready
         if not ready_event.wait(timeout=timeout):
-            stop_event.set()
+            # Signal stop via thread-safe call if loop exists
+            if loop_holder and async_stop_event_holder:
+                loop_holder[0].call_soon_threadsafe(async_stop_event_holder[0].set)
             thread.join(timeout=5)
             msg = f"Home Assistant did not start within {timeout}s"
             raise TimeoutError(msg)
 
         # Check for errors during startup
         if error_holder:
-            stop_event.set()
+            if loop_holder and async_stop_event_holder:
+                loop_holder[0].call_soon_threadsafe(async_stop_event_holder[0].set)
             thread.join(timeout=5)
             raise error_holder[0]
 
         hass = hass_holder[0]
         access_token, refresh_token_id = token_holder[0]
         loop = loop_holder[0]
+        async_stop_event = async_stop_event_holder[0]
 
         instance = LiveHomeAssistant(
             hass=hass,
@@ -523,13 +533,14 @@ def live_home_assistant(
             loop=loop,
             access_token=access_token,
             refresh_token_id=refresh_token_id,
-            _stop_event=stop_event,
+            _stop_event=async_stop_event,
         )
 
         try:
             yield instance
         finally:
-            stop_event.set()
+            # Signal stop via thread-safe call to the async event loop
+            loop.call_soon_threadsafe(async_stop_event.set)
             thread.join(timeout=10)
 
 

@@ -10,20 +10,14 @@ Run with:
 
 from __future__ import annotations
 
+from collections.abc import Generator
 import datetime
 import logging
-from pathlib import Path
 import shutil
-import sys
-from collections.abc import Generator
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.util import dt as dt_util
 import pytest
-
-# Add project root to path for imports
-PROJECT_ROOT = Path(__file__).parent.parent.parent.parent
-sys.path.insert(0, str(PROJECT_ROOT))
 
 from tests.guides.ha_runner import live_home_assistant
 from tests.guides.sigenergy.run_guide import INPUTS_FILE, SCREENSHOTS_DIR, run_guide
