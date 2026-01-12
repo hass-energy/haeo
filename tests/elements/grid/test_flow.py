@@ -496,6 +496,47 @@ async def test_reconfigure_with_scalar_selecting_configurable_triggers_step2(
     assert result.get("step_id") == "values"
 
 
+async def test_reconfigure_with_string_entity_id_v010_format(
+    hass: HomeAssistant,
+    hub_entry: MockConfigEntry,
+) -> None:
+    """Reconfigure with v0.1.0 string entity ID should show entity in defaults."""
+    add_participant(hass, hub_entry, "TestNode", node.ELEMENT_TYPE)
+
+    # Create existing entry with v0.1.0 format: string entity IDs (not list, not scalar)
+    existing_config = {
+        CONF_ELEMENT_TYPE: ELEMENT_TYPE,
+        CONF_NAME: "Test Grid",
+        CONF_CONNECTION: "TestNode",
+        CONF_IMPORT_PRICE: "sensor.import_price",  # v0.1.0: single string entity ID
+        CONF_EXPORT_PRICE: "sensor.export_price",  # v0.1.0: single string entity ID
+    }
+    existing_subentry = ConfigSubentry(
+        data=MappingProxyType(existing_config),
+        subentry_type=ELEMENT_TYPE,
+        title="Test Grid",
+        unique_id=None,
+    )
+    hass.config_entries.async_add_subentry(hub_entry, existing_subentry)
+
+    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
+    flow.context = {"subentry_id": existing_subentry.subentry_id, "source": SOURCE_RECONFIGURE}
+    flow._get_reconfigure_subentry = Mock(return_value=existing_subentry)
+
+    # Show reconfigure form (user_input=None)
+    result = await flow.async_step_reconfigure(user_input=None)
+
+    assert result.get("type") == FlowResultType.FORM
+    assert result.get("step_id") == "user"
+
+    # Check defaults - should have the string entity IDs wrapped in lists
+    defaults = flow._build_step1_defaults("Test Grid", dict(existing_subentry.data))
+
+    # Defaults should contain the original entity IDs as lists
+    assert defaults[CONF_IMPORT_PRICE] == ["sensor.import_price"]
+    assert defaults[CONF_EXPORT_PRICE] == ["sensor.export_price"]
+
+
 async def test_reconfigure_keeping_resolved_entity_preserves_scalar(
     hass: HomeAssistant,
     hub_entry: MockConfigEntry,

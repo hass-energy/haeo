@@ -673,6 +673,54 @@ async def test_partition_values_step_completes_flow(hass: HomeAssistant, hub_ent
     assert created_data[CONF_OVERCHARGE_PERCENTAGE] == "sensor.overcharge_pct"
 
 
+async def test_reconfigure_with_string_entity_id_v010_format(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
+    """Reconfigure with v0.1.0 string entity ID should show entity in defaults."""
+    add_participant(hass, hub_entry, "main_bus", node.ELEMENT_TYPE)
+
+    # Create existing entry with v0.1.0 format: string entity IDs (not list, not scalar)
+    existing_config = {
+        CONF_ELEMENT_TYPE: ELEMENT_TYPE,
+        CONF_NAME: "Test Battery",
+        CONF_CONNECTION: "main_bus",
+        CONF_CAPACITY: "sensor.battery_capacity",  # v0.1.0: single string entity ID
+        CONF_INITIAL_CHARGE_PERCENTAGE: "sensor.battery_soc",  # v0.1.0: single string entity ID
+        CONF_MAX_CHARGE_POWER: "sensor.charge_power",  # v0.1.0: single string entity ID
+        CONF_MAX_DISCHARGE_POWER: "sensor.discharge_power",  # v0.1.0: single string entity ID
+    }
+    existing_subentry = ConfigSubentry(
+        data=MappingProxyType(existing_config),
+        subentry_type=ELEMENT_TYPE,
+        title="Test Battery",
+        unique_id=None,
+    )
+    hass.config_entries.async_add_subentry(hub_entry, existing_subentry)
+
+    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
+    flow.context = {"subentry_id": existing_subentry.subentry_id}
+    flow._get_reconfigure_subentry = Mock(return_value=existing_subentry)
+
+    # Show reconfigure form (user_input=None)
+    result = await flow.async_step_reconfigure(user_input=None)
+
+    assert result.get("type") == FlowResultType.FORM
+    assert result.get("step_id") == "user"
+
+    # Check defaults via _build_field_entity_defaults - should have the string entity IDs wrapped in lists
+    from custom_components.haeo.elements.battery.schema import INPUT_FIELDS, PARTITION_FIELD_NAMES
+
+    step1_fields = [f for f in INPUT_FIELDS if f.field_name not in PARTITION_FIELD_NAMES]
+    entry = flow._get_entry()
+    defaults = flow._build_field_entity_defaults(
+        step1_fields, dict(existing_subentry.data), entry.entry_id, existing_subentry.subentry_id
+    )
+
+    # Defaults should contain the original entity IDs as lists
+    assert defaults[CONF_CAPACITY] == ["sensor.battery_capacity"]
+    assert defaults[CONF_INITIAL_CHARGE_PERCENTAGE] == ["sensor.battery_soc"]
+    assert defaults[CONF_MAX_CHARGE_POWER] == ["sensor.charge_power"]
+    assert defaults[CONF_MAX_DISCHARGE_POWER] == ["sensor.discharge_power"]
+
+
 async def test_reconfigure_updates_existing_battery(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
     """Reconfigure flow completes and updates existing battery."""
     add_participant(hass, hub_entry, "main_bus", node.ELEMENT_TYPE)
