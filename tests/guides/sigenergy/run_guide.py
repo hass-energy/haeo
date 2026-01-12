@@ -34,7 +34,6 @@ PROJECT_ROOT = Path(__file__).parent.parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from tests.guides.ha_runner import LiveHomeAssistant, live_home_assistant  # noqa: E402
-from tests.guides.singlefile_capture import capture_html  # noqa: E402
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -61,18 +60,51 @@ class SigenergyGuide:
     output_dir: Path
     step_number: int = 0
     results: list[dict[str, Any]] = field(default_factory=list)
-    debug_indicators: bool = True  # Enable full-screen crosshairs for debugging
+    debug_indicators: bool = False  # Full-screen crosshairs for debugging
+    dark_mode: bool = False  # Use dark theme for screenshots
 
     @property
     def url(self) -> str:
         """Get the Home Assistant URL."""
         return self.hass.url
 
+    def apply_dark_theme(self) -> None:
+        """Apply dark theme to Home Assistant.
+
+        Uses JavaScript to set the theme mode via localStorage.
+        Home Assistant stores user theme preferences in localStorage.
+        """
+        _LOGGER.info("Applying dark theme...")
+
+        # Set the theme preference via localStorage
+        # HA frontend uses 'selectedTheme' to store the user's theme choice
+        self.page.evaluate("""
+            // Set dark mode preference in localStorage
+            // This matches how HA frontend stores theme preferences
+            const themeData = {
+                theme: 'default',
+                dark: true  // Force dark mode
+            };
+            localStorage.setItem('selectedTheme', JSON.stringify(themeData));
+
+            // Also try to trigger theme reload by dispatching event
+            window.dispatchEvent(new CustomEvent('settheme', { detail: themeData }));
+        """)
+
+        # Reload the page to apply the theme
+        self.page.reload()
+        self.page.wait_for_load_state("networkidle")
+        self.page.wait_for_timeout(MEDIUM_WAIT * 1000)
+
     def _ensure_click_indicator_styles(self) -> None:
         """Inject the click indicator stylesheet if not already present.
 
         Uses a class-based approach so the indicator styling can be toggled
         off later by removing or disabling the stylesheet.
+
+        Note: This CSS only affects elements in the light DOM.
+        For Shadow DOM elements, we apply inline styles directly in
+        _show_click_indicator().
         """
         self.page.evaluate("""
             if (!document.getElementById('click-indicator-styles')) {
@@ -93,12 +125,21 @@ class SigenergyGuide:
             }
         """)
 
-    def _show_click_indicator(self, locator: Any) -> None:
-        """Mark the target element as a click target using a data attribute.
+    # Box-shadow CSS value for click indicator (used for inline styles on Shadow DOM elements)
+    _CLICK_INDICATOR_STYLE = (
+        "0 0 0 3px rgba(255, 0, 0, 0.9), "
+        "0 0 0 5px white, "
+        "0 0 0 7px rgba(255, 0, 0, 0.9), "
+        "0 0 15px 5px rgba(255, 0, 0, 0.4)"
+    )
 
-        The indicator styling is applied via CSS using [data-click-target].
-        This approach doesn't modify ancestor elements and works regardless
-        of overflow settings since box-shadow is drawn outside the element.
+    def _show_click_indicator(self, locator: Any) -> None:
+        """Mark the target element as a click target using a data attribute and inline styles.
+
+        The indicator styling is applied both via CSS (for light DOM elements)
+        and inline styles (for Shadow DOM elements where external CSS doesn't apply).
+        Box-shadow is used because it's drawn outside the element and isn't affected
+        by overflow settings.
 
         When debug_indicators is True, also draws full-screen crosshairs in a
         separate top-layer dialog.
@@ -106,89 +147,154 @@ class SigenergyGuide:
         # Remove any existing indicators first
         self._remove_click_indicator()
 
-        # Ensure stylesheet is present
+        # Ensure stylesheet is present (for light DOM elements)
         self._ensure_click_indicator_styles()
 
-        # Get the element handle and add the data attribute
+        # Get the element handle and add the data attribute + inline styles
         element = locator.element_handle(timeout=1000)
         if not element:
             return
 
-        # Mark the element as a click target
-        element.evaluate("(el) => el.setAttribute('data-click-target', 'true')")
+        # Find a more visually meaningful element to highlight
+        # Sometimes locators resolve to tiny inner elements; we want the visual container
+        box_shadow = self._CLICK_INDICATOR_STYLE
+        element.evaluate(
+            """(el, boxShadow) => {
+                // Try to find a better element to highlight
+                // Walk up the DOM to find a semantically meaningful clickable element
+                let target = el;
+                
+                // Minimum size for a meaningful indicator (e.g., not just text content)
+                const minSize = 20;
+                const rect = el.getBoundingClientRect();
+                
+                // If the element is very small, look for a better parent
+                if (rect.width < minSize || rect.height < minSize) {
+                    // Look for common clickable parent patterns
+                    const clickableParent = el.closest('button, [role="button"], [role="option"], [role="listitem"], a, ha-list-item, ha-combo-box-item, mwc-list-item, md-item, ha-button, ha-icon-button, .mdc-text-field, ha-textfield, input, select, ha-select');
+                    if (clickableParent) {
+                        target = clickableParent;
+                    }
+                }
+                
+                // Always prefer md-item if we're inside one (Material Design list items)
+                const mdItem = el.closest('md-item');
+                if (mdItem) {
+                    target = mdItem;
+                }
+                
+                // Also check if we're inside a form field and should highlight the field container
+                const textField = el.closest('.mdc-text-field, ha-textfield, ha-select, ha-combo-box');
+                if (textField) {
+                    const fieldRect = textField.getBoundingClientRect();
+                    const elRect = el.getBoundingClientRect();
+                    // If the text field is reasonably sized and contains our element, use it
+                    if (fieldRect.width > elRect.width * 1.5 || fieldRect.height > elRect.height * 1.5) {
+                        target = textField;
+                    }
+                }
+                
+                target.setAttribute('data-click-target', 'true');
+                target.dataset.originalBoxShadow = target.style.boxShadow || '';
+                target.style.boxShadow = boxShadow;
+                target.style.outline = 'none';
+            }""",
+            box_shadow,
+        )
 
-        # Add crosshairs in debug mode using a separate top-layer dialog
+        # Add crosshairs in debug mode
+        # Use absolute positioning within the document body which has min-width 1280px
+        # This ensures crosshairs stay aligned even when viewport is smaller
         if self.debug_indicators:
             pos = self._get_element_center(locator)
             if pos:
                 x, y = pos
                 self.page.evaluate(
                     """([x, y]) => {
-                    const dialog = document.createElement('dialog');
-                    dialog.id = 'click-indicator-crosshairs';
-                    dialog.style.cssText = `
-                        position: fixed;
-                        inset: 0;
-                        width: 100vw;
-                        height: 100vh;
-                        max-width: 100vw;
-                        max-height: 100vh;
-                        margin: 0;
-                        padding: 0;
-                        border: none;
-                        background: transparent;
+                    // Create crosshairs container as a regular div (not dialog)
+                    // This allows it to be positioned relative to the document body
+                    const container = document.createElement('div');
+                    container.id = 'click-indicator-crosshairs';
+                    container.style.cssText = `
+                        position: absolute;
+                        top: 0;
+                        left: 0;
+                        width: 100%;
+                        height: 100%;
                         pointer-events: none;
+                        z-index: 99999;
                         overflow: visible;
                     `;
 
-                    // Remove the default ::backdrop styling
-                    const style = document.createElement('style');
-                    style.textContent = '#click-indicator-crosshairs::backdrop { background: transparent; }';
-                    dialog.appendChild(style);
-
                     const hLine = document.createElement('div');
                     hLine.style.cssText = `
-                        position: fixed;
+                        position: absolute;
                         left: 0;
                         top: ${y}px;
-                        width: 100vw;
+                        width: 100%;
                         height: 2px;
                         background: rgba(255, 0, 0, 0.7);
                         pointer-events: none;
                     `;
-                    dialog.appendChild(hLine);
+                    container.appendChild(hLine);
 
                     const vLine = document.createElement('div');
                     vLine.style.cssText = `
-                        position: fixed;
+                        position: absolute;
                         left: ${x}px;
                         top: 0;
                         width: 2px;
-                        height: 100vh;
+                        height: 100%;
                         background: rgba(255, 0, 0, 0.7);
                         pointer-events: none;
                     `;
-                    dialog.appendChild(vLine);
+                    container.appendChild(vLine);
 
-                    document.body.appendChild(dialog);
-                    dialog.showModal();
+                    document.body.appendChild(container);
                 }""",
                     [x, y],
                 )
 
     def _remove_click_indicator(self) -> None:
-        """Remove click indicator from any marked elements."""
+        """Remove click indicator from any marked elements and restore original styles."""
         self.page.evaluate("""
-            // Remove the data attribute from any marked elements
+            // Remove the data attribute and restore original styles from any marked elements
             const marked = document.querySelectorAll('[data-click-target]');
             for (const el of marked) {
                 el.removeAttribute('data-click-target');
+                // Restore original box-shadow if it was saved
+                if (el.dataset.originalBoxShadow !== undefined) {
+                    el.style.boxShadow = el.dataset.originalBoxShadow;
+                    delete el.dataset.originalBoxShadow;
+                } else {
+                    el.style.boxShadow = '';
+                }
+                el.style.outline = '';
             }
 
-            // Remove crosshairs dialog
+            // Also traverse shadow roots to find any marked elements there
+            function walkShadowRoots(root) {
+                root.querySelectorAll('*').forEach(el => {
+                    if (el.hasAttribute('data-click-target')) {
+                        el.removeAttribute('data-click-target');
+                        if (el.dataset.originalBoxShadow !== undefined) {
+                            el.style.boxShadow = el.dataset.originalBoxShadow;
+                            delete el.dataset.originalBoxShadow;
+                        } else {
+                            el.style.boxShadow = '';
+                        }
+                        el.style.outline = '';
+                    }
+                    if (el.shadowRoot) {
+                        walkShadowRoots(el.shadowRoot);
+                    }
+                });
+            }
+            walkShadowRoots(document);
+
+            // Remove crosshairs container
             const crosshairs = document.getElementById('click-indicator-crosshairs');
             if (crosshairs) {
-                crosshairs.close();
                 crosshairs.remove();
             }
         """)
@@ -220,11 +326,6 @@ class SigenergyGuide:
         self._show_click_indicator(locator)
         png_path = self.output_dir / f"{filename}.png"
         self.page.screenshot(path=str(png_path))
-
-        # Also capture HTML snapshot
-        html_path = self.output_dir / f"{filename}.html"
-        self._capture_html(html_path)
-
         self._remove_click_indicator()
 
         self.results.append(
@@ -232,12 +333,11 @@ class SigenergyGuide:
                 "step": self.step_number,
                 "name": name,
                 "png": str(png_path),
-                "html": str(html_path),
             }
         )
 
     def capture(self, name: str) -> None:
-        """Capture PNG screenshot and HTML snapshot of current page state."""
+        """Capture PNG screenshot of current page state."""
         self.step_number += 1
         filename = f"{self.step_number:02d}_{name}"
         _LOGGER.info("Capturing: %s", filename)
@@ -245,31 +345,13 @@ class SigenergyGuide:
         png_path = self.output_dir / f"{filename}.png"
         self.page.screenshot(path=str(png_path))
 
-        # Also capture HTML snapshot
-        html_path = self.output_dir / f"{filename}.html"
-        self._capture_html(html_path)
-
         self.results.append(
             {
                 "step": self.step_number,
                 "name": name,
                 "png": str(png_path),
-                "html": str(html_path),
             }
         )
-
-    def _capture_html(self, path: Path) -> None:
-        """Capture static HTML snapshot using SingleFile JavaScript injection.
-
-        SingleFile creates a self-contained HTML file with all resources
-        (styles, images, fonts) embedded inline. We inject the SingleFile
-        JavaScript directly into the current page context to capture the
-        authenticated state (unlike CLI which opens a new unauthenticated tab).
-
-        The HTML captures the current DOM state including any open dialogs
-        or form inputs. The PNG screenshot captures exact visual state.
-        """
-        capture_html(self.page, path)
 
     def click_button(self, name: str, *, timeout: int = DEFAULT_TIMEOUT, capture_name: str | None = None) -> None:
         """Click a button by its accessible name.
@@ -731,13 +813,20 @@ def login_to_ha(guide: SigenergyGuide) -> None:
         _LOGGER.info("Already authenticated")
 
 
-def run_guide(hass: LiveHomeAssistant, output_dir: Path, *, headless: bool = True) -> list[dict[str, Any]]:
+def run_guide(
+    hass: LiveHomeAssistant,
+    output_dir: Path,
+    *,
+    headless: bool = True,
+    dark_mode: bool = False,
+) -> list[dict[str, Any]]:
     """Run the complete Sigenergy guide.
 
     Args:
         hass: LiveHomeAssistant instance
         output_dir: Directory to save screenshots
         headless: Whether to run browser headlessly
+        dark_mode: Whether to use dark theme
 
     Returns:
         List of captured screenshot results
@@ -753,7 +842,7 @@ def run_guide(hass: LiveHomeAssistant, output_dir: Path, *, headless: bool = Tru
 
         # Note: inject_auth sets up localStorage but HA may still redirect to login
         # since the frontend validates tokens via websocket
-        hass.inject_auth(context)
+        hass.inject_auth(context, dark_mode=dark_mode)
 
         page = context.new_page()
         page.set_default_timeout(DEFAULT_TIMEOUT)
@@ -763,6 +852,7 @@ def run_guide(hass: LiveHomeAssistant, output_dir: Path, *, headless: bool = Tru
                 page=page,
                 hass=hass,
                 output_dir=output_dir,
+                dark_mode=dark_mode,
             )
 
             # Login first (handles redirect to login page)

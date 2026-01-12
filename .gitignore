@@ -32,4 +32,3 @@ site/
 # Node modules
 node_modules/
 .playwright-mcp/
-tests/guides/*/screenshots/*
