@@ -710,9 +710,7 @@ async def test_reconfigure_with_string_entity_id_v010_format(hass: HomeAssistant
 
     step1_fields = [f for f in INPUT_FIELDS if f.field_name not in PARTITION_FIELD_NAMES]
     entry = flow._get_entry()
-    defaults = flow._build_field_entity_defaults(
-        step1_fields, dict(existing_subentry.data), entry.entry_id, existing_subentry.subentry_id
-    )
+    defaults = flow._build_field_entity_defaults(step1_fields, dict(existing_subentry.data), entry.entry_id, existing_subentry.subentry_id)
 
     # Defaults should contain the original entity IDs as lists
     assert defaults[CONF_CAPACITY] == ["sensor.battery_capacity"]
