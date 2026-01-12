@@ -153,7 +153,7 @@ def build_graph(
 # =============================================================================
 
 
-def _compute_spring_or_spectral_layout(
+def _compute_spring_layout(
     graph: "nx.Graph[str] | nx.DiGraph[str]",
     scale: float = 1.0,
 ) -> dict[str, tuple[float, float]]:
@@ -163,9 +163,6 @@ def _compute_spring_or_spectral_layout(
     if len(graph) == 1:
         return {next(iter(graph.nodes())): (0.0, 0.0)}
 
-    # Use spring layout with fixed seed for deterministic output
-    # Note: spectral_layout can be non-deterministic due to numerical precision
-    # in eigenvalue decomposition, so we use spring_layout exclusively
     return nx.spring_layout(graph, k=scale * 0.5, iterations=100, seed=42)  # type: ignore[no-untyped-call]
 
 
@@ -195,7 +192,7 @@ def _compute_group_internal_layout(
 
     if subgraph.number_of_edges() > 0:
         # Has internal structure - use spring layout
-        pos = _compute_spring_or_spectral_layout(subgraph, scale=1.0)
+        pos = _compute_spring_layout(subgraph, scale=1.0)
     else:
         # No internal edges - arrange in a circle
         pos = {}
@@ -243,7 +240,7 @@ def compute_positions(
                 group_graph.add_edge(src_group, dst_group, weight=1)
 
     # Compute group positions and scale to prevent overlap
-    raw_group_pos = _compute_spring_or_spectral_layout(group_graph, scale=1.0)
+    raw_group_pos = _compute_spring_layout(group_graph, scale=1.0)
     max_radius = max(group_radii.values()) if group_radii else 0.5
     spacing = max_radius * 3.5
 
