@@ -19,6 +19,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 import logging
+import os
 from pathlib import Path
 import shutil
 import sys
@@ -45,10 +46,8 @@ SCREENSHOTS_DIR = GUIDE_DIR / "screenshots"
 NETWORK_NAME = "Sigenergy System"
 
 # Short timeouts for fast iteration (most UI actions complete in <1s)
-DEFAULT_TIMEOUT = 3000  # 3 seconds max
-SHORT_WAIT = 0.1  # 100ms for UI stabilization
-MEDIUM_WAIT = 0.2  # 200ms for animations
-LONG_WAIT = 0.5  # 500ms for search results to populate
+DEFAULT_TIMEOUT = 5000  # 5 seconds max
+SEARCH_TIMEOUT = 10000  # 10 seconds for search results to populate
 
 
 @dataclass
@@ -62,11 +61,32 @@ class SigenergyGuide:
     results: list[dict[str, Any]] = field(default_factory=list)
     debug_indicators: bool = False  # Full-screen crosshairs for debugging
     dark_mode: bool = False  # Use dark theme for screenshots
+    pause_mode: bool = False  # Pause after each step for debugging
 
     @property
     def url(self) -> str:
         """Get the Home Assistant URL."""
         return self.hass.url
+
+    @property
+    def port(self) -> int:
+        """Get the Home Assistant port."""
+        return self.hass.port
+
+    def pause(self, message: str = "Paused") -> None:
+        """Pause execution and wait for user input.
+
+        Useful for debugging - allows inspection of the browser state.
+        The HA server continues running so you can connect via Playwright MCP.
+        """
+        _LOGGER.info("\n%s", "=" * 60)
+        _LOGGER.info("PAUSED: %s", message)
+        _LOGGER.info("Home Assistant URL: %s", self.url)
+        _LOGGER.info("Port: %s", self.port)
+        _LOGGER.info("You can connect via Playwright MCP to inspect the page.")
+        _LOGGER.info("Press Enter to continue...")
+        _LOGGER.info("=" * 60)
+        input()
 
     def apply_dark_theme(self) -> None:
         """Apply dark theme to Home Assistant.
@@ -94,139 +114,151 @@ class SigenergyGuide:
         # Reload the page to apply the theme
         self.page.reload()
         self.page.wait_for_load_state("networkidle")
-        self.page.wait_for_timeout(MEDIUM_WAIT * 1000)
-
-    def _ensure_click_indicator_styles(self) -> None:
-        """Inject the click indicator stylesheet if not already present.
-
-        Uses a class-based approach so the indicator styling can be toggled
-        off later by removing or disabling the stylesheet.
-
-        Note: This CSS only affects elements in the light DOM.
-        For Shadow DOM elements, we apply inline styles directly in
-        _show_click_indicator().
-        """
-        self.page.evaluate("""
-            if (!document.getElementById('click-indicator-styles')) {
-                const style = document.createElement('style');
-                style.id = 'click-indicator-styles';
-                style.textContent = `
-                    /* Click target indicator - applied via data-click-target attribute */
-                    [data-click-target] {
-                        box-shadow:
-                            0 0 0 3px rgba(255, 0, 0, 0.9),
-                            0 0 0 5px white,
-                            0 0 0 7px rgba(255, 0, 0, 0.9),
-                            0 0 15px 5px rgba(255, 0, 0, 0.4) !important;
-                        outline: none !important;
-                    }
-                `;
-                document.head.appendChild(style);
-            }
-        """)
-
-    # Box-shadow CSS value for click indicator (used for inline styles on Shadow DOM elements)
-    _CLICK_INDICATOR_STYLE = (
-        "0 0 0 3px rgba(255, 0, 0, 0.9), "
-        "0 0 0 5px white, "
-        "0 0 0 7px rgba(255, 0, 0, 0.9), "
-        "0 0 15px 5px rgba(255, 0, 0, 0.4)"
-    )
 
     def _show_click_indicator(self, locator: Any) -> None:
-        """Mark the target element as a click target using a data attribute and inline styles.
+        """Show click indicator as an overlay positioned at the target element.
 
-        The indicator styling is applied both via CSS (for light DOM elements)
-        and inline styles (for Shadow DOM elements where external CSS doesn't apply).
-        Box-shadow is used because it's drawn outside the element and isn't affected
-        by overflow settings.
+        Creates a separate overlay element on the popover layer that matches
+        the target element's bounding box and border-radius. This approach
+        avoids clipping issues from parent overflow:hidden.
 
-        When debug_indicators is True, also draws full-screen crosshairs in a
-        separate top-layer dialog.
+        When debug_indicators is True, also draws full-screen crosshairs.
         """
         # Remove any existing indicators first
         self._remove_click_indicator()
 
-        # Ensure stylesheet is present (for light DOM elements)
-        self._ensure_click_indicator_styles()
-
-        # Get the element handle and add the data attribute + inline styles
+        # Get the element handle
         element = locator.element_handle(timeout=1000)
         if not element:
             return
 
-        # Find a more visually meaningful element to highlight
-        # Sometimes locators resolve to tiny inner elements; we want the visual container
-        box_shadow = self._CLICK_INDICATOR_STYLE
+        # Build selector for finding the best visual target element
+        clickable_selector = (
+            "button, [role='button'], [role='option'], [role='listitem'], a, "
+            "ha-list-item, ha-combo-box-item, mwc-list-item, md-item, "
+            "ha-button, ha-icon-button, .mdc-text-field, ha-textfield, "
+            "input, select, ha-select, ha-integration-list-item"
+        )
+
+        # Get element info and create overlay
         element.evaluate(
-            """(el, boxShadow) => {
-                // Try to find a better element to highlight
-                // Walk up the DOM to find a semantically meaningful clickable element
+            """(el, clickableSelector) => {
+                // Focus the element first to update UI state (removes hover from previous)
+                if (el.focus) {
+                    try {
+                        el.focus();
+                    } catch (e) {
+                        // Some elements can't be focused
+                    }
+                }
+
+                // Find the best visual target to highlight
                 let target = el;
-                
-                // Minimum size for a meaningful indicator (e.g., not just text content)
+
+                // Minimum size for a meaningful indicator
                 const minSize = 20;
                 const rect = el.getBoundingClientRect();
-                
+
                 // If the element is very small, look for a better parent
                 if (rect.width < minSize || rect.height < minSize) {
-                    // Look for common clickable parent patterns
-                    const clickableParent = el.closest('button, [role="button"], [role="option"], [role="listitem"], a, ha-list-item, ha-combo-box-item, mwc-list-item, md-item, ha-button, ha-icon-button, .mdc-text-field, ha-textfield, input, select, ha-select, ha-integration-list-item');
+                    const clickableParent = el.closest(clickableSelector);
                     if (clickableParent) {
                         target = clickableParent;
                     }
                 }
-                
-                // Always prefer ha-integration-list-item, md-item, or similar list items
-                const integrationItem = el.closest('ha-integration-list-item');
-                if (integrationItem) {
-                    target = integrationItem;
+
+                // For text fields: find the label.mdc-text-field container
+                const mdcTextField = el.closest('label.mdc-text-field');
+                if (mdcTextField) {
+                    target = mdcTextField;
+                }
+
+                // For entity picker combo box items: find the combo-box-row or item
+                const comboBoxRow = el.closest('.combo-box-row');
+                if (comboBoxRow) {
+                    target = comboBoxRow;
                 }
                 
+                const comboBoxItem = el.closest('ha-combo-box-item');
+                if (comboBoxItem) {
+                    // Prefer the row container if available
+                    const row = comboBoxItem.closest('.combo-box-row');
+                    target = row || comboBoxItem;
+                }
+
+                // For entity pickers and list items in dialogs
+                const entityListItem = el.closest(
+                    'ha-list-item, mwc-list-item, md-list-item, ' +
+                    '[role="listitem"], [role="option"]'
+                );
+                if (entityListItem) {
+                    // Check if there's a larger list item container
+                    const listItemParent = entityListItem.closest(
+                        'ha-list-item, mwc-list-item, md-list-item, md-item'
+                    );
+                    target = listItemParent || entityListItem;
+                }
+
+                // Prefer specific HA components for highlighting
+                const haListItem = el.closest('ha-list-item');
+                if (haListItem) target = haListItem;
+
                 const mdItem = el.closest('md-item');
-                if (mdItem) {
-                    target = mdItem;
+                if (mdItem) target = mdItem;
+
+                const integrationItem = el.closest('ha-integration-list-item');
+                if (integrationItem) target = integrationItem;
+
+                // For role-based items (dropdown options, list items)
+                const roleItem = el.closest('[role="listitem"], [role="option"]');
+                if (roleItem) {
+                    // But prefer the HA component wrapper if available
+                    const haWrapper = roleItem.closest(
+                        'ha-list-item, md-item, mwc-list-item, .combo-box-row'
+                    );
+                    target = haWrapper || roleItem;
                 }
-                
-                // For list items and options, prefer the item element itself
-                const listItem = el.closest('[role="listitem"], [role="option"]');
-                if (listItem) {
-                    target = listItem;
+
+                // Get target's bounding box and computed styles
+                const targetRect = target.getBoundingClientRect();
+                const computedStyle = getComputedStyle(target);
+                const borderRadius = computedStyle.borderRadius || '0px';
+
+                // Create overlay container using popover API for top-layer placement
+                const overlay = document.createElement('div');
+                overlay.id = 'click-indicator-overlay';
+
+                // Use popover attribute to put it on the top layer
+                overlay.setAttribute('popover', 'manual');
+
+                // Style the overlay to match the target element
+                overlay.style.cssText = `
+                    position: fixed;
+                    left: ${targetRect.left - 3}px;
+                    top: ${targetRect.top - 3}px;
+                    width: ${targetRect.width + 6}px;
+                    height: ${targetRect.height + 6}px;
+                    border: 3px solid rgba(255, 0, 0, 0.9);
+                    border-radius: ${borderRadius};
+                    box-shadow: 0 0 15px 5px rgba(255, 0, 0, 0.4);
+                    pointer-events: none;
+                    z-index: 2147483647;
+                    margin: 0;
+                    padding: 0;
+                    background: transparent;
+                    box-sizing: border-box;
+                `;
+
+                document.body.appendChild(overlay);
+
+                // Show the popover to put it on top layer
+                try {
+                    overlay.showPopover();
+                } catch (e) {
+                    // Fallback if popover API not supported - still works with high z-index
                 }
-                
-                // Also check if we're inside a form field and should highlight the field container
-                const textField = el.closest('.mdc-text-field, ha-textfield, ha-select, ha-combo-box');
-                if (textField) {
-                    const fieldRect = textField.getBoundingClientRect();
-                    const elRect = el.getBoundingClientRect();
-                    // If the text field is reasonably sized and contains our element, use it
-                    if (fieldRect.width > elRect.width * 1.5 || fieldRect.height > elRect.height * 1.5) {
-                        target = textField;
-                    }
-                }
-                
-                // Apply box-shadow indicator
-                target.setAttribute('data-click-target', 'true');
-                target.dataset.originalBoxShadow = target.style.boxShadow || '';
-                target.dataset.originalOutline = target.style.outline || '';
-                target.dataset.originalPosition = target.style.position || '';
-                target.dataset.originalZIndex = target.style.zIndex || '';
-                target.dataset.originalOverflow = target.style.overflow || '';
-                
-                // Use outline instead of box-shadow for better visibility on list items
-                // Outline is not clipped by parent overflow:hidden
-                target.style.outline = '3px solid rgba(255, 0, 0, 0.9)';
-                target.style.outlineOffset = '2px';
-                target.style.boxShadow = '0 0 15px 5px rgba(255, 0, 0, 0.4)';
-                
-                // Ensure the element is visible above siblings
-                const currentPosition = getComputedStyle(target).position;
-                if (currentPosition === 'static') {
-                    target.style.position = 'relative';
-                }
-                target.style.zIndex = '9999';
             }""",
-            box_shadow,
+            clickable_selector,
         )
 
         # Add crosshairs in debug mode
@@ -283,53 +315,18 @@ class SigenergyGuide:
                 )
 
     def _remove_click_indicator(self) -> None:
-        """Remove click indicator from any marked elements and restore original styles."""
+        """Remove click indicator overlay and crosshairs."""
         self.page.evaluate("""
-            // Remove the data attribute and restore original styles from any marked elements
-            function restoreElement(el) {
-                el.removeAttribute('data-click-target');
-                // Restore all saved styles
-                if (el.dataset.originalBoxShadow !== undefined) {
-                    el.style.boxShadow = el.dataset.originalBoxShadow;
-                    delete el.dataset.originalBoxShadow;
-                } else {
-                    el.style.boxShadow = '';
+            // Remove overlay
+            const overlay = document.getElementById('click-indicator-overlay');
+            if (overlay) {
+                try {
+                    overlay.hidePopover();
+                } catch (e) {
+                    // Ignore if popover API not supported
                 }
-                if (el.dataset.originalOutline !== undefined) {
-                    el.style.outline = el.dataset.originalOutline;
-                    el.style.outlineOffset = '';
-                    delete el.dataset.originalOutline;
-                } else {
-                    el.style.outline = '';
-                    el.style.outlineOffset = '';
-                }
-                if (el.dataset.originalPosition !== undefined) {
-                    el.style.position = el.dataset.originalPosition;
-                    delete el.dataset.originalPosition;
-                }
-                if (el.dataset.originalZIndex !== undefined) {
-                    el.style.zIndex = el.dataset.originalZIndex;
-                    delete el.dataset.originalZIndex;
-                }
+                overlay.remove();
             }
-            
-            const marked = document.querySelectorAll('[data-click-target]');
-            for (const el of marked) {
-                restoreElement(el);
-            }
-
-            // Also traverse shadow roots to find any marked elements there
-            function walkShadowRoots(root) {
-                root.querySelectorAll('*').forEach(el => {
-                    if (el.hasAttribute('data-click-target')) {
-                        restoreElement(el);
-                    }
-                    if (el.shadowRoot) {
-                        walkShadowRoots(el.shadowRoot);
-                    }
-                });
-            }
-            walkShadowRoots(document);
 
             // Remove crosshairs container
             const crosshairs = document.getElementById('click-indicator-crosshairs');
@@ -350,11 +347,7 @@ class SigenergyGuide:
 
     def _scroll_into_view(self, locator: Any) -> None:
         """Scroll element into view, centered in viewport."""
-        try:
-            locator.scroll_into_view_if_needed(timeout=1000)
-            self.page.wait_for_timeout(100)  # Brief pause after scroll
-        except Exception:
-            pass
+        locator.scroll_into_view_if_needed(timeout=DEFAULT_TIMEOUT)
 
     def _capture_with_indicator(self, name: str, locator: Any) -> None:
         """Capture screenshot with click indicator attached to the target element."""
@@ -364,7 +357,7 @@ class SigenergyGuide:
 
         self._show_click_indicator(locator)
         png_path = self.output_dir / f"{filename}.png"
-        self.page.screenshot(path=str(png_path))
+        self.page.screenshot(path=str(png_path), animations="disabled")
         self._remove_click_indicator()
 
         self.results.append(
@@ -379,10 +372,15 @@ class SigenergyGuide:
         """Capture PNG screenshot of current page state."""
         self.step_number += 1
         filename = f"{self.step_number:02d}_{name}"
-        _LOGGER.info("Capturing: %s", filename)
+
+        # Log visible text for debugging
+        visible_text = self.page.locator("body").inner_text(timeout=1000)
+        # Truncate and clean up for logging
+        text_preview = " ".join(visible_text.split())[:200]
+        _LOGGER.info("Capturing: %s | Text: %s...", filename, text_preview)
 
         png_path = self.output_dir / f"{filename}.png"
-        self.page.screenshot(path=str(png_path))
+        self.page.screenshot(path=str(png_path), animations="disabled")
 
         self.results.append(
             {
@@ -398,6 +396,7 @@ class SigenergyGuide:
         If capture_name is provided, captures before (with indicator) and after (result).
         """
         button = self.page.get_by_role("button", name=name)
+        button.wait_for(state="visible", timeout=timeout)
 
         if capture_name:
             self._scroll_into_view(button)
@@ -405,10 +404,10 @@ class SigenergyGuide:
             self._capture_with_indicator(f"{capture_name}_click", button)
 
         button.click(timeout=timeout)
-        self.page.wait_for_timeout(SHORT_WAIT * 1000)
 
         if capture_name:
-            self.page.wait_for_timeout(MEDIUM_WAIT * 1000)
+            # Wait for any navigation or UI update to complete
+            self.page.wait_for_load_state("domcontentloaded")
             self.capture(f"{capture_name}_result")
 
     def fill_textbox(self, name: str, value: str, *, capture_name: str | None = None) -> None:
@@ -461,6 +460,7 @@ class SigenergyGuide:
         """
         # Click to open the dropdown
         combobox = self.page.get_by_role("combobox", name=combobox_name)
+        combobox.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
 
         if capture_name:
             self._scroll_into_view(combobox)
@@ -468,17 +468,19 @@ class SigenergyGuide:
             self._capture_with_indicator(f"{capture_name}_dropdown", combobox)
 
         combobox.click()
-        self.page.wait_for_timeout(SHORT_WAIT * 1000)
 
-        # Click the option
+        # Wait for the option to appear in the dropdown
         option = self.page.get_by_role("option", name=option_text)
+        option.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
 
         if capture_name:
             self._scroll_into_view(option)
             self._capture_with_indicator(f"{capture_name}_option", option)
 
         option.click()
-        self.page.wait_for_timeout(SHORT_WAIT * 1000)
+
+        # Wait for dropdown to close by checking option is no longer visible
+        option.wait_for(state="hidden", timeout=DEFAULT_TIMEOUT)
 
         if capture_name:
             self.capture(f"{capture_name}_selected")
@@ -502,6 +504,7 @@ class SigenergyGuide:
 
         # Click the ha-combo-box-item inside (which shows "Select an entity")
         picker = selector.locator("ha-combo-box-item").first
+        picker.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
 
         if capture_name:
             self._scroll_into_view(picker)
@@ -509,44 +512,35 @@ class SigenergyGuide:
             self._capture_with_indicator(f"{capture_name}_picker", picker)
 
         picker.click()
-        self.page.wait_for_timeout(MEDIUM_WAIT * 1000)
 
-        # Wait for a dialog to appear - HA uses either field-named dialogs or "Select option"
-        # Try field-specific name first, fall back to generic "Select option"
-        entity_dialog = self.page.get_by_role("dialog", name=field_label)
-        try:
-            entity_dialog.wait_for(timeout=500)
-        except Exception:
-            # Fall back to generic dialog name
-            entity_dialog = self.page.get_by_role("dialog", name="Select option")
-            entity_dialog.wait_for(timeout=DEFAULT_TIMEOUT)
+        # Wait for the "Select option" dialog to appear
+        entity_dialog = self.page.get_by_role("dialog", name="Select option")
+        entity_dialog.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
 
         # Fill the search textbox within the dialog
         search_input = entity_dialog.get_by_role("textbox", name="Search")
+        search_input.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
+
+        if capture_name:
+            self._capture_with_indicator(f"{capture_name}_search_box", search_input)
+
         search_input.fill(search_term)
-        self.page.wait_for_timeout(1000)  # Wait 1s for search results to populate
+
+        # Wait for the matching result item to appear
+        # Use text content matching - the item should be visible after search completes
+        result_item = entity_dialog.locator(f":text('{entity_name}')").first
+        result_item.wait_for(state="visible", timeout=SEARCH_TIMEOUT)
 
         if capture_name:
             self.capture(f"{capture_name}_search")
+            self._scroll_into_view(result_item)
+            self.capture(f"{capture_name}_select_before")
+            self._capture_with_indicator(f"{capture_name}_select", result_item)
 
-        # Click the matching item in the dialog's results
-        # HA uses different selectors: listitem in some dialogs, ha-combo-box-item in others
-        try:
-            result_item = entity_dialog.get_by_role("listitem").filter(has_text=entity_name).first
-            if capture_name:
-                self._scroll_into_view(result_item)
-                self.capture(f"{capture_name}_select_before")
-                self._capture_with_indicator(f"{capture_name}_select", result_item)
-            result_item.click(timeout=1000)
-        except Exception:
-            # Fall back to ha-combo-box-item
-            result_item = entity_dialog.locator("ha-combo-box-item").filter(has_text=entity_name).first
-            if capture_name:
-                self._scroll_into_view(result_item)
-                self.capture(f"{capture_name}_select_before")
-                self._capture_with_indicator(f"{capture_name}_select", result_item)
-            result_item.click(timeout=DEFAULT_TIMEOUT)
-        self.page.wait_for_timeout(SHORT_WAIT * 1000)
+        result_item.click(timeout=DEFAULT_TIMEOUT)
+
+        # Wait for dialog to close
+        entity_dialog.wait_for(state="hidden", timeout=DEFAULT_TIMEOUT)
 
         if capture_name:
             self.capture(f"{capture_name}_result")
@@ -564,6 +558,7 @@ class SigenergyGuide:
 
         # Click the "Add entity" button within the selector
         add_btn = selector.get_by_role("button", name="Add entity")
+        add_btn.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
 
         if capture_name:
             self._scroll_into_view(add_btn)
@@ -571,41 +566,38 @@ class SigenergyGuide:
             self._capture_with_indicator(f"{capture_name}_add_btn", add_btn)
 
         add_btn.click(timeout=DEFAULT_TIMEOUT)
-        self.page.wait_for_timeout(MEDIUM_WAIT * 1000)
 
-        # Wait for a dialog to appear - HA uses "Select option" as the dialog name
+        # Wait for the "Select option" dialog to appear
         dialog = self.page.get_by_role("dialog", name="Select option")
-        dialog.wait_for(timeout=DEFAULT_TIMEOUT)
+        dialog.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
 
         if capture_name:
             self.capture(f"{capture_name}_dialog")
 
         # Fill the search textbox within the dialog
         search_input = dialog.get_by_role("textbox", name="Search")
+        search_input.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
+
+        if capture_name:
+            self._capture_with_indicator(f"{capture_name}_search_box", search_input)
+
         search_input.fill(search_term)
-        self.page.wait_for_timeout(1000)  # Wait 1s for search results to populate
+
+        # Wait for the matching result item to appear
+        # Use text content matching - the item should be visible after search completes
+        result_item = dialog.locator(f":text('{entity_name}')").first
+        result_item.wait_for(state="visible", timeout=SEARCH_TIMEOUT)
 
         if capture_name:
             self.capture(f"{capture_name}_search")
+            self._scroll_into_view(result_item)
+            self.capture(f"{capture_name}_select_before")
+            self._capture_with_indicator(f"{capture_name}_select", result_item)
 
-        # Click the matching item in the dialog's results
-        # HA uses different selectors: listitem in some dialogs, ha-combo-box-item in others
-        try:
-            result_item = dialog.get_by_role("listitem").filter(has_text=entity_name).first
-            if capture_name:
-                self._scroll_into_view(result_item)
-                self.capture(f"{capture_name}_select_before")
-                self._capture_with_indicator(f"{capture_name}_select", result_item)
-            result_item.click(timeout=1000)
-        except Exception:
-            # Fall back to ha-combo-box-item
-            result_item = dialog.locator("ha-combo-box-item").filter(has_text=entity_name).first
-            if capture_name:
-                self._scroll_into_view(result_item)
-                self.capture(f"{capture_name}_select_before")
-                self._capture_with_indicator(f"{capture_name}_select", result_item)
-            result_item.click(timeout=DEFAULT_TIMEOUT)
-        self.page.wait_for_timeout(SHORT_WAIT * 1000)
+        result_item.click(timeout=DEFAULT_TIMEOUT)
+
+        # Wait for dialog to close
+        dialog.wait_for(state="hidden", timeout=DEFAULT_TIMEOUT)
 
         if capture_name:
             self.capture(f"{capture_name}_result")
@@ -613,6 +605,7 @@ class SigenergyGuide:
     def close_network_dialog(self, *, capture_name: str | None = None) -> None:
         """Close the network creation dialog (has 'Skip and finish' button)."""
         button = self.page.get_by_role("button", name="Skip and finish")
+        button.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
 
         if capture_name:
             self._scroll_into_view(button)
@@ -620,45 +613,31 @@ class SigenergyGuide:
             self._capture_with_indicator(f"{capture_name}_click", button)
 
         button.click(timeout=DEFAULT_TIMEOUT)
-        self.page.wait_for_timeout(MEDIUM_WAIT * 1000)
+
+        # Wait for dialog to close
+        button.wait_for(state="hidden", timeout=DEFAULT_TIMEOUT)
 
     def close_element_dialog(self, *, capture_name: str | None = None) -> None:
         """Close the element creation dialog.
 
-        Home Assistant subentry flows typically show a success dialog after creation.
-        We need to wait for the dialog to appear and then close it.
+        Home Assistant subentry flows show a success dialog after creation with a Finish button.
         """
-        # Wait longer for the success dialog to appear after submit
-        self.page.wait_for_timeout(MEDIUM_WAIT * 1000)
+        # Wait for the Finish button to appear (success dialog)
+        # This may take longer as the backend processes the creation
+        button = self.page.get_by_role("button", name="Finish")
+        button.wait_for(state="visible", timeout=SEARCH_TIMEOUT)
 
-        # Try various button names that might appear
-        for button_name in ["Finish", "OK", "Close", "Done"]:
-            button = self.page.get_by_role("button", name=button_name)
-            if button.count() > 0:
-                _LOGGER.info("Found '%s' button - clicking to close dialog", button_name)
-                if capture_name:
-                    self._scroll_into_view(button)
-                    self.capture(f"{capture_name}_before")
-                    self._capture_with_indicator(f"{capture_name}_click", button)
-                button.click(timeout=DEFAULT_TIMEOUT)
-                break
-        else:
-            _LOGGER.info("No close button found - waiting for dialog to auto-close")
-            if capture_name:
-                self.capture(f"{capture_name}_auto_closed")
+        if capture_name:
+            self._scroll_into_view(button)
+            self.capture(f"{capture_name}_before")
+            self._capture_with_indicator(f"{capture_name}_click", button)
 
-        # Wait for dialog to actually close
-        try:
-            self.page.wait_for_selector("dialog-data-entry-flow", state="hidden", timeout=5000)
-            _LOGGER.info("Dialog closed successfully")
-        except Exception:
-            _LOGGER.warning("Dialog may still be open after timeout")
-            # Take a screenshot to debug
-            if capture_name:
-                self.capture(f"{capture_name}_dialog_stuck")
+        button.click(timeout=DEFAULT_TIMEOUT)
 
-        # Wait for Home Assistant to process the creation and update the UI
-        self.page.wait_for_timeout(LONG_WAIT * 1000)
+        # Wait for dialog to close
+        button.wait_for(state="hidden", timeout=DEFAULT_TIMEOUT)
+
+        _LOGGER.info("Dialog closed successfully")
 
 
 def add_haeo_integration(guide: SigenergyGuide) -> None:
@@ -668,35 +647,43 @@ def add_haeo_integration(guide: SigenergyGuide) -> None:
     # Navigate to integrations
     guide.page.goto(f"{guide.url}/config/integrations")
     guide.page.wait_for_load_state("networkidle")
-    guide.page.wait_for_selector("button:has-text('Add integration')", timeout=DEFAULT_TIMEOUT)
-    guide.page.wait_for_timeout(MEDIUM_WAIT * 1000)
+
+    # Wait for the Add integration button to be visible
+    add_btn = guide.page.locator("ha-button").get_by_role("button", name="Add integration")
+    add_btn.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
 
     guide.capture("integrations_page")
 
-    # Click the first "Add integration" button (inside ha-button, not the FAB)
-    add_btn = guide.page.locator("ha-button").get_by_role("button", name="Add integration")
+    # Click the "Add integration" button
     guide._capture_with_indicator("add_integration_click", add_btn)
     add_btn.click()
-    guide.page.wait_for_timeout(MEDIUM_WAIT * 1000)
 
     # Wait for the dialog search box to appear
-    guide.page.wait_for_selector("text=Search for a brand name", timeout=DEFAULT_TIMEOUT)
-
-    # Search for our integration
     search_box = guide.page.get_by_role("textbox", name="Search for a brand name")
+    search_box.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
+
+    guide.capture("add_integration_dialog")
+
+    # Click and capture the search box
+    guide._capture_with_indicator("search_box_click", search_box)
+    search_box.click()
+
+    # Type the search term with capture
     search_box.fill("HAEO")
-    guide.page.wait_for_timeout(LONG_WAIT * 1000)
+
+    # Wait for search results to appear - HAEO item should be visible
+    haeo_item = guide.page.locator("ha-integration-list-item", has_text="HAEO")
+    haeo_item.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
 
     guide.capture("search_haeo")
 
     # Click on the HAEO integration result
-    haeo_item = guide.page.locator("ha-integration-list-item", has_text="HAEO")
     guide._capture_with_indicator("select_haeo_click", haeo_item)
     haeo_item.click(timeout=DEFAULT_TIMEOUT)
 
-    # Wait for the HAEO Setup dialog
-    guide.page.wait_for_selector("text=HAEO Setup", timeout=DEFAULT_TIMEOUT)
-    guide.page.wait_for_timeout(MEDIUM_WAIT * 1000)
+    # Wait for the HAEO Setup dialog - use the dialog title which is more specific
+    setup_heading = guide.page.get_by_title("HAEO Setup")
+    setup_heading.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
 
     guide.capture("network_form")
 
@@ -706,14 +693,15 @@ def add_haeo_integration(guide: SigenergyGuide) -> None:
     # Submit with capture
     guide.click_button("Submit", capture_name="network_submit")
 
-    # Wait for the integration to be set up and navigate to the integration page
-    guide.page.wait_for_timeout(LONG_WAIT * 1000)
+    # Wait for the integration to be set up - wait for network idle and page load
     guide.page.wait_for_load_state("networkidle")
 
     # Navigate to the HAEO integration page to add elements
     guide.page.goto(f"{guide.url}/config/integrations/integration/haeo")
     guide.page.wait_for_load_state("networkidle")
-    guide.page.wait_for_timeout(MEDIUM_WAIT * 1000)
+
+    # Wait for the integration page to be ready - look for an element button
+    guide.page.get_by_role("button", name="Inverter").wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
 
     guide.capture("haeo_integration_page")
 
@@ -728,7 +716,8 @@ def add_inverter(guide: SigenergyGuide) -> None:
     guide.click_button("Inverter", capture_name="inverter_add")
 
     # Wait for the dialog to appear
-    guide.page.wait_for_selector("text=Inverter Configuration", timeout=DEFAULT_TIMEOUT)
+    dialog_title = guide.page.get_by_title("Inverter Configuration")
+    dialog_title.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
 
     # Fill inverter name
     guide.fill_textbox("Inverter Name", "Inverter", capture_name="inverter_name")
@@ -758,8 +747,8 @@ def add_battery(guide: SigenergyGuide) -> None:
     guide.click_button("Battery", capture_name="battery_add")
 
     # Wait for the dialog to fully load
-    guide.page.wait_for_selector("text=Battery Configuration", timeout=DEFAULT_TIMEOUT)
-    guide.page.wait_for_timeout(MEDIUM_WAIT * 1000)
+    dialog_title = guide.page.get_by_title("Battery Configuration")
+    dialog_title.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
 
     # Fill name with capture
     guide.fill_textbox("Battery Name", "Battery", capture_name="battery_name")
@@ -777,27 +766,26 @@ def add_battery(guide: SigenergyGuide) -> None:
         "Max Discharging Power", "rated discharging", "Rated Discharging Power", capture_name="battery_discharge"
     )
 
-    # Optional fields (min/max charge, efficiency, early charge incentive) use defaults.
-    # These only appear in step 2 if "HAEO Configurable" is selected in the entity picker.
-    # Since we're using entity sensors, step 2 is skipped and defaults are applied.
-
-    # Submit step 1
+    # Submit step 1 - entity selection
     guide.click_button("Submit", capture_name="battery_submit")
 
-    # Wait for the async processing to complete - battery might auto-close
-    guide.page.wait_for_timeout(LONG_WAIT * 1000)
+    # Step 2: Values page - battery may show configurable values for min/max charge
+    # Check if there's a Submit button (meaning we're on step 2) or Finish button (success dialog)
+    submit_button = guide.page.get_by_role("button", name="Submit")
+    if submit_button.count() > 0 and submit_button.is_visible(timeout=1000):
+        # We're on step 2 - fill in any visible spinbuttons and submit
+        min_charge = guide.page.get_by_role("spinbutton", name="Min Charge Level")
+        if min_charge.count() > 0 and min_charge.is_visible(timeout=1000):
+            guide.fill_spinbutton("Min Charge Level", "10", capture_name="battery_min_soc")
 
-    # Check if there's a step 2 "Battery Values" form or if we went straight to finish
-    try:
-        values_title = guide.page.locator("text=Battery Values")
-        if values_title.count() > 0:
-            _LOGGER.info("Battery step 2 (Values) detected - submitting")
-            guide.capture("battery_values_form")
-            guide.click_button("Submit", capture_name="battery_submit_step2")
-            guide.page.wait_for_timeout(MEDIUM_WAIT * 1000)
-    except Exception:
-        _LOGGER.info("No Battery Values step - proceeding to close")
+        max_charge = guide.page.get_by_role("spinbutton", name="Max Charge Level")
+        if max_charge.count() > 0 and max_charge.is_visible(timeout=1000):
+            guide.fill_spinbutton("Max Charge Level", "100", capture_name="battery_max_soc")
 
+        # Submit step 2
+        guide.click_button("Submit", capture_name="battery_values_submit")
+
+    # Close the success dialog
     guide.close_element_dialog(capture_name="battery_close")
 
     _LOGGER.info("Battery added")
@@ -809,7 +797,8 @@ def add_solar(guide: SigenergyGuide) -> None:
 
     guide.click_button("Solar", capture_name="solar_add")
 
-    guide.page.wait_for_selector("text=Solar Configuration", timeout=DEFAULT_TIMEOUT)
+    dialog_title = guide.page.get_by_title("Solar Configuration")
+    dialog_title.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
 
     guide.fill_textbox("Solar Name", "Solar", capture_name="solar_name")
     guide.select_combobox_option("Connection", "Inverter", capture_name="solar_connection")
@@ -842,10 +831,15 @@ def add_grid(guide: SigenergyGuide) -> None:
 
     guide.click_button("Grid", capture_name="grid_add")
 
-    guide.page.wait_for_selector("text=Grid Configuration", timeout=DEFAULT_TIMEOUT)
+    dialog_title = guide.page.get_by_title("Grid Configuration")
+    dialog_title.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
 
     guide.fill_textbox("Grid Name", "Grid", capture_name="grid_name")
     guide.select_combobox_option("Connection", "Switchboard", capture_name="grid_connection")
+
+    # Pause here to debug entity selection highlighting
+    if guide.pause_mode:
+        guide.pause("Before grid entity selection - inspect the dialog")
 
     # Import price with capture
     guide.select_entity(
@@ -866,8 +860,10 @@ def add_grid(guide: SigenergyGuide) -> None:
     # Submit step 1 → moves to step 2 (values) for limit spinbuttons
     guide.click_button("Submit", capture_name="grid_step1_submit")
 
-    # Step 2: Fill spinbuttons for import/export limits (pre-selected as configurable)
-    guide.page.wait_for_timeout(MEDIUM_WAIT * 1000)
+    # Step 2: Wait for Import Limit spinbutton to appear, then fill values
+    import_limit = guide.page.get_by_role("spinbutton", name="Import Limit")
+    import_limit.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
+
     guide.fill_spinbutton("Import Limit", "55", capture_name="grid_import_limit")
     guide.fill_spinbutton("Export Limit", "30", capture_name="grid_export_limit")
 
@@ -889,7 +885,8 @@ def add_load(guide: SigenergyGuide) -> None:
 
     guide.click_button("Load", capture_name="load_add")
 
-    guide.page.wait_for_selector("text=Load Configuration", timeout=DEFAULT_TIMEOUT)
+    dialog_title = guide.page.get_by_title("Load Configuration")
+    dialog_title.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
 
     guide.fill_textbox("Load Name", "Constant Load", capture_name="load_name")
     guide.select_combobox_option("Connection", "Switchboard", capture_name="load_connection")
@@ -899,9 +896,11 @@ def add_load(guide: SigenergyGuide) -> None:
 
     # Step 1 submit - triggers step 2 for configurable values
     guide.click_button("Submit", capture_name="load_submit_step1")
-    guide.page.wait_for_timeout(MEDIUM_WAIT * 1000)
 
-    # Step 2: Enter the constant load value
+    # Step 2: Wait for Forecast spinbutton to appear, then enter the constant load value
+    forecast_spinbutton = guide.page.get_by_role("spinbutton", name="Forecast")
+    forecast_spinbutton.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
+
     guide.fill_spinbutton("Forecast", "1", capture_name="load_forecast_value")
 
     # Step 2 submit
@@ -918,7 +917,10 @@ def verify_setup(guide: SigenergyGuide) -> None:
     # Navigate to HAEO integration page
     guide.page.goto(f"{guide.url}/config/integrations/integration/haeo")
     guide.page.wait_for_load_state("networkidle")
-    guide.page.wait_for_timeout(MEDIUM_WAIT * 1000)
+
+    # Wait for page to be ready - look for an element that indicates the page is loaded
+    # Use .first because there may be multiple elements with same name (toolbar + card)
+    guide.page.get_by_role("button", name="Inverter").first.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
 
     guide.capture("final_overview")
 
@@ -945,16 +947,17 @@ def login_to_ha(guide: SigenergyGuide) -> None:
     # Check if we're on the login page
     if "/auth/authorize" in guide.page.url:
         # Wait for login form
-        guide.page.wait_for_selector("text=Username", timeout=DEFAULT_TIMEOUT)
+        username_field = guide.page.get_by_role("textbox", name="Username")
+        username_field.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
 
         # Fill credentials (hardcoded for test environment)
-        guide.page.get_by_role("textbox", name="Username").fill("testuser")
+        username_field.fill("testuser")
         guide.page.get_by_role("textbox", name="Password").fill("testpass")
         guide.page.get_by_role("button", name="Log in").click()
 
         # Wait for redirect to complete
         guide.page.wait_for_url("**/lovelace/**", timeout=DEFAULT_TIMEOUT * 2)
-        guide.page.wait_for_timeout(MEDIUM_WAIT * 1000)
+        guide.page.wait_for_load_state("networkidle")
 
         _LOGGER.info("Logged in successfully")
     else:
@@ -967,6 +970,7 @@ def run_guide(
     *,
     headless: bool = True,
     dark_mode: bool = False,
+    pause_mode: bool | None = None,
 ) -> list[dict[str, Any]]:
     """Run the complete Sigenergy guide.
 
@@ -975,11 +979,24 @@ def run_guide(
         output_dir: Directory to save screenshots
         headless: Whether to run browser headlessly
         dark_mode: Whether to use dark theme
+        pause_mode: Whether to pause after each step (default: from GUIDE_PAUSE env var)
 
     Returns:
         List of captured screenshot results
 
     """
+    # Check environment variable for pause mode if not explicitly set
+    if pause_mode is None:
+        pause_mode = os.environ.get("GUIDE_PAUSE", "").lower() in ("1", "true", "yes")
+
+    # Log connection info for debugging
+    _LOGGER.info("\n%s", "=" * 60)
+    _LOGGER.info("Home Assistant URL: %s", hass.url)
+    _LOGGER.info("Port: %s", hass.port)
+    if pause_mode:
+        _LOGGER.info("PAUSE MODE ENABLED - will pause after each step")
+    _LOGGER.info("%s\n", "=" * 60)
+
     with sync_playwright() as p:
         # Use remote debugging port so SingleFile CLI can capture HTML snapshots
         browser = p.chromium.launch(
@@ -1001,6 +1018,7 @@ def run_guide(
                 hass=hass,
                 output_dir=output_dir,
                 dark_mode=dark_mode,
+                pause_mode=pause_mode,
             )
 
             # Login first (handles redirect to login page)
@@ -1032,7 +1050,15 @@ def run_guide(
 
 
 def main() -> None:
-    """Run the complete Sigenergy guide as a standalone script."""
+    """Run the complete Sigenergy guide as a standalone script.
+
+    Usage:
+        python run_guide.py           # Normal headless run
+        python run_guide.py --pause   # Non-headless with pause for debugging
+    """
+    pause_mode = "--pause" in sys.argv
+    headless = not pause_mode  # Non-headless when pausing
+
     # Configure logging for CLI output
     logging.basicConfig(
         level=logging.INFO,
@@ -1042,13 +1068,15 @@ def main() -> None:
     _LOGGER.info("Sigenergy System Setup Guide")
     _LOGGER.info("=" * 50)
     _LOGGER.info("Output directory: %s", SCREENSHOTS_DIR)
+    if pause_mode:
+        _LOGGER.info("PAUSE MODE: Browser will be visible, pauses enabled")
 
     # Clean and create output directory
     if SCREENSHOTS_DIR.exists():
         shutil.rmtree(SCREENSHOTS_DIR)
     SCREENSHOTS_DIR.mkdir(parents=True)
 
-    with live_home_assistant(timeout=60) as hass:
+    with live_home_assistant(timeout=120) as hass:
         _LOGGER.info("Home Assistant running at %s", hass.url)
 
         # Load entity states from scenario1
@@ -1057,7 +1085,7 @@ def main() -> None:
         _LOGGER.info("Loaded states from %s", INPUTS_FILE.name)
 
         # Run guide
-        results = run_guide(hass, SCREENSHOTS_DIR, headless=True)
+        results = run_guide(hass, SCREENSHOTS_DIR, headless=headless, pause_mode=pause_mode)
 
         _LOGGER.info("=" * 50)
         _LOGGER.info("Guide complete! %d screenshots captured", len(results))
