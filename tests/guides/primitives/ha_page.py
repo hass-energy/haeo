@@ -5,14 +5,18 @@ These may need updates when Home Assistant changes its frontend.
 
 The HAPage class wraps a Playwright Page with HA-specific interactions
 like entity pickers, dialogs, and screenshot capture with indicators.
+
+Screenshots are automatically collected using the ScreenshotContext.
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 import logging
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
+
+from .capture import ScreenshotContext
 
 if TYPE_CHECKING:
     from playwright.sync_api import Page
@@ -23,141 +27,35 @@ _LOGGER = logging.getLogger(__name__)
 DEFAULT_TIMEOUT = 5000  # 5 seconds max
 SEARCH_TIMEOUT = 10000  # 10 seconds for search results
 
-# JavaScript for click indicator overlay (inline to avoid file loading)
-_CLICK_INDICATOR_JS = """
-(el, clickableSelector) => {
-  if (el.focus) { try { el.focus(); } catch (e) {} }
-
-  let target = el;
-  const minSize = 20;
-  const rect = el.getBoundingClientRect();
-
-  if (rect.width < minSize || rect.height < minSize) {
-    const clickableParent = el.closest(clickableSelector);
-    if (clickableParent) target = clickableParent;
-  }
-
-  const mdcTextField = el.closest("label.mdc-text-field");
-  if (mdcTextField) target = mdcTextField;
-
-  const comboBoxRow = el.closest(".combo-box-row");
-  if (comboBoxRow) target = comboBoxRow;
-
-  const comboBoxItem = el.closest("ha-combo-box-item");
-  if (comboBoxItem) {
-    const row = comboBoxItem.closest(".combo-box-row");
-    target = row || comboBoxItem;
-  }
-
-  const entityListItem = el.closest(
-    "ha-list-item, mwc-list-item, md-list-item, " + '[role="listitem"], [role="option"]'
-  );
-  if (entityListItem) {
-    const listItemParent = entityListItem.closest("ha-list-item, mwc-list-item, md-list-item, md-item");
-    target = listItemParent || entityListItem;
-  }
-
-  const haListItem = el.closest("ha-list-item");
-  if (haListItem) target = haListItem;
-
-  const mdItem = el.closest("md-item");
-  if (mdItem) target = mdItem;
-
-  const integrationItem = el.closest("ha-integration-list-item");
-  if (integrationItem) target = integrationItem;
-
-  const roleItem = el.closest('[role="listitem"], [role="option"]');
-  if (roleItem) {
-    const haWrapper = roleItem.closest("ha-list-item, md-item, mwc-list-item, .combo-box-row");
-    target = haWrapper || roleItem;
-  }
-
-  const targetRect = target.getBoundingClientRect();
-  const computedStyle = getComputedStyle(target);
-  const borderRadius = computedStyle.borderRadius || "0px";
-
-  const overlay = document.createElement("div");
-  overlay.id = "click-indicator-overlay";
-  overlay.setAttribute("popover", "manual");
-  overlay.style.cssText = `
-    position: fixed;
-    left: ${targetRect.left - 3}px;
-    top: ${targetRect.top - 3}px;
-    width: ${targetRect.width + 6}px;
-    height: ${targetRect.height + 6}px;
-    border: 3px solid rgba(255, 0, 0, 0.9);
-    border-radius: ${borderRadius};
-    box-shadow: 0 0 15px 5px rgba(255, 0, 0, 0.4);
-    pointer-events: none;
-    z-index: 2147483647;
-    margin: 0; padding: 0;
-    background: transparent;
-    box-sizing: border-box;
-  `;
-  document.body.appendChild(overlay);
-  try { overlay.showPopover(); } catch (e) {}
-}
-"""
+# Load JavaScript from external file
+_JS_DIR = Path(__file__).parent / "js"
+_CLICK_INDICATOR_JS = (_JS_DIR / "click_indicator.js").read_text()
 
 
 @dataclass
 class HAPage:
     """Low-level Home Assistant page interactions.
 
-    Wraps a Playwright Page with HA-specific UI primitives for:
-    - Screenshot capture with click indicators
-    - Form interactions (textbox, spinbutton, combobox)
-    - Entity picker dialogs
-    - Dialog management
+    All methods automatically capture screenshots using the active ScreenshotContext.
+    Screenshot names are built hierarchically from the context stack.
     """
 
     page: Page
     url: str
-    output_dir: Path
-    step_number: int = 0
-    results: list[dict[str, Any]] = field(default_factory=list)
 
     # region: Screenshot Capture
 
-    def capture(self, name: str) -> None:
-        """Capture PNG screenshot of current page state."""
-        self.step_number += 1
-        filename = f"{self.step_number:02d}_{name}"
+    def _capture(self, step: str) -> None:
+        """Capture screenshot with current context naming."""
+        ctx = ScreenshotContext.current()
+        if ctx:
+            ctx.capture(self.page, step)
 
-        # Log visible text for debugging
-        visible_text = self.page.locator("body").inner_text(timeout=1000)
-        text_preview = " ".join(visible_text.split())[:200]
-        _LOGGER.info("Capturing: %s | Text: %s...", filename, text_preview)
-
-        png_path = self.output_dir / f"{filename}.png"
-        self.page.screenshot(path=str(png_path), animations="disabled")
-
-        self.results.append(
-            {
-                "step": self.step_number,
-                "name": name,
-                "png": str(png_path),
-            }
-        )
-
-    def capture_with_indicator(self, name: str, locator: Any) -> None:
+    def _capture_with_indicator(self, step: str, locator: Any) -> None:
         """Capture screenshot with click indicator on target element."""
-        self.step_number += 1
-        filename = f"{self.step_number:02d}_{name}"
-        _LOGGER.info("Capturing: %s", filename)
-
         self._show_click_indicator(locator)
-        png_path = self.output_dir / f"{filename}.png"
-        self.page.screenshot(path=str(png_path), animations="disabled")
+        self._capture(step)
         self._remove_click_indicator()
-
-        self.results.append(
-            {
-                "step": self.step_number,
-                "name": name,
-                "png": str(png_path),
-            }
-        )
 
     def _show_click_indicator(self, locator: Any) -> None:
         """Show click indicator overlay at target element."""
@@ -208,23 +106,24 @@ class HAPage:
 
     # region: Form Interactions
 
-    def click_button(self, name: str, *, capture: bool = False) -> None:
+    def click_button(self, name: str) -> None:
         """Click a button by accessible name."""
+        ctx = ScreenshotContext.current()
+
         button = self.page.get_by_role("button", name=name)
         button.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
 
-        if capture:
-            self._scroll_into_view(button)
-            self.capture(f"{name}_before")
-            self.capture_with_indicator(f"{name}_click", button)
+        if ctx:
+            with ctx.scope(f"click_{name}"):
+                self._scroll_into_view(button)
+                self._capture_with_indicator("target", button)
+                button.click(timeout=DEFAULT_TIMEOUT)
+                self.page.wait_for_load_state("domcontentloaded")
+                self._capture("result")
+        else:
+            button.click(timeout=DEFAULT_TIMEOUT)
 
-        button.click(timeout=DEFAULT_TIMEOUT)
-
-        if capture:
-            self.page.wait_for_load_state("domcontentloaded")
-            self.capture(f"{name}_result")
-
-    def fill_textbox(self, name: str, value: str, *, capture: bool = False) -> None:
+    def fill_textbox(self, name: str, value: str) -> None:
         """Fill a textbox by accessible name."""
         textbox = self.page.get_by_role("textbox", name=name)
 
@@ -232,211 +131,242 @@ class HAPage:
         if current_value == value:
             return
 
-        if capture:
-            self._scroll_into_view(textbox)
-            self.capture(f"{name}_before")
-            self.capture_with_indicator(f"{name}_field", textbox)
+        ctx = ScreenshotContext.current()
+        if ctx:
+            with ctx.scope(f"fill_{name}"):
+                self._scroll_into_view(textbox)
+                self._capture_with_indicator("field", textbox)
+                textbox.fill(value)
+                self._capture("filled")
+        else:
+            textbox.fill(value)
 
-        textbox.fill(value)
-
-        if capture:
-            self.capture(f"{name}_filled")
-
-    def fill_spinbutton(self, name: str, value: str, *, capture: bool = False) -> None:
+    def fill_spinbutton(self, name: str, value: str) -> None:
         """Fill a spinbutton by accessible name."""
         spinbutton = self.page.get_by_role("spinbutton", name=name)
 
-        if capture:
-            self._scroll_into_view(spinbutton)
-            self.capture(f"{name}_before")
-            self.capture_with_indicator(f"{name}_field", spinbutton)
+        ctx = ScreenshotContext.current()
+        if ctx:
+            with ctx.scope(f"fill_{name}"):
+                self._scroll_into_view(spinbutton)
+                self._capture_with_indicator("field", spinbutton)
+                spinbutton.clear()
+                spinbutton.fill(value)
+                self._capture("filled")
+        else:
+            spinbutton.clear()
+            spinbutton.fill(value)
 
-        spinbutton.clear()
-        spinbutton.fill(value)
-
-        if capture:
-            self.capture(f"{name}_filled")
-
-    def select_combobox(self, combobox_name: str, option_text: str, *, capture: bool = False) -> None:
+    def select_combobox(self, combobox_name: str, option_text: str) -> None:
         """Select option from combobox dropdown."""
         combobox = self.page.get_by_role("combobox", name=combobox_name)
         combobox.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
 
-        if capture:
-            self._scroll_into_view(combobox)
-            self.capture(f"{combobox_name}_before")
-            self.capture_with_indicator(f"{combobox_name}_dropdown", combobox)
+        ctx = ScreenshotContext.current()
+        if ctx:
+            with ctx.scope(f"select_{combobox_name}"):
+                self._scroll_into_view(combobox)
+                self._capture_with_indicator("dropdown", combobox)
+                combobox.click()
 
-        combobox.click()
+                option = self.page.get_by_role("option", name=option_text)
+                option.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
+                self._scroll_into_view(option)
+                self._capture_with_indicator("option", option)
 
-        option = self.page.get_by_role("option", name=option_text)
-        option.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
-
-        if capture:
-            self._scroll_into_view(option)
-            self.capture_with_indicator(f"{combobox_name}_option", option)
-
-        option.click()
-        option.wait_for(state="hidden", timeout=DEFAULT_TIMEOUT)
-
-        if capture:
-            self.capture(f"{combobox_name}_selected")
+                option.click()
+                option.wait_for(state="hidden", timeout=DEFAULT_TIMEOUT)
+                self._capture("selected")
+        else:
+            combobox.click()
+            option = self.page.get_by_role("option", name=option_text)
+            option.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
+            option.click()
+            option.wait_for(state="hidden", timeout=DEFAULT_TIMEOUT)
 
     # endregion
 
     # region: Entity Picker
 
-    def select_entity(
-        self,
-        field_label: str,
-        search_term: str,
-        entity_name: str,
-        *,
-        capture: bool = False,
-    ) -> None:
+    def select_entity(self, field_label: str, search_term: str, entity_name: str) -> None:
         """Select entity from HA entity picker dialog."""
         selector = self.page.locator(f"ha-selector:has-text('{field_label}')")
         picker = selector.locator("ha-combo-box-item").first
         picker.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
 
-        if capture:
-            self._scroll_into_view(picker)
-            self.capture(f"{field_label}_before")
-            self.capture_with_indicator(f"{field_label}_picker", picker)
+        ctx = ScreenshotContext.current()
+        if ctx:
+            with ctx.scope(f"entity_{field_label}"):
+                self._scroll_into_view(picker)
+                self._capture_with_indicator("picker", picker)
 
-        picker.click()
+                picker.click()
 
-        dialog = self.page.get_by_role("dialog", name="Select option")
-        dialog.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
+                dialog = self.page.get_by_role("dialog", name="Select option")
+                dialog.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
 
-        search_input = dialog.get_by_role("textbox", name="Search")
-        search_input.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
+                search_input = dialog.get_by_role("textbox", name="Search")
+                search_input.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
+                self._capture_with_indicator("search_box", search_input)
 
-        if capture:
-            self.capture_with_indicator(f"{field_label}_search_box", search_input)
+                search_input.fill(search_term)
 
-        search_input.fill(search_term)
+                result_item = dialog.locator(f":text('{entity_name}')").first
+                result_item.wait_for(state="visible", timeout=SEARCH_TIMEOUT)
+                self._capture("search_results")
+                self._scroll_into_view(result_item)
+                self._capture_with_indicator("select", result_item)
 
-        result_item = dialog.locator(f":text('{entity_name}')").first
-        result_item.wait_for(state="visible", timeout=SEARCH_TIMEOUT)
+                result_item.click(timeout=DEFAULT_TIMEOUT)
+                dialog.wait_for(state="hidden", timeout=DEFAULT_TIMEOUT)
+                self._capture("selected")
+        else:
+            self._select_entity_no_capture(picker, search_term, entity_name)
 
-        if capture:
-            self.capture(f"{field_label}_search")
-            self._scroll_into_view(result_item)
-            self.capture_with_indicator(f"{field_label}_select", result_item)
-
-        result_item.click(timeout=DEFAULT_TIMEOUT)
-        dialog.wait_for(state="hidden", timeout=DEFAULT_TIMEOUT)
-
-        if capture:
-            self.capture(f"{field_label}_result")
-
-    def add_another_entity(
-        self,
-        field_label: str,
-        search_term: str,
-        entity_name: str,
-        *,
-        capture: bool = False,
-    ) -> None:
+    def add_another_entity(self, field_label: str, search_term: str, entity_name: str) -> None:
         """Add another entity to multi-select field."""
         selector = self.page.locator(f"ha-selector:has-text('{field_label}')")
         add_btn = selector.get_by_role("button", name="Add entity")
         add_btn.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
 
-        if capture:
-            self._scroll_into_view(add_btn)
-            self.capture(f"{field_label}_add_before")
-            self.capture_with_indicator(f"{field_label}_add_btn", add_btn)
+        ctx = ScreenshotContext.current()
+        if ctx:
+            with ctx.scope(f"add_entity_{field_label}"):
+                self._scroll_into_view(add_btn)
+                self._capture_with_indicator("add_button", add_btn)
 
-        add_btn.click(timeout=DEFAULT_TIMEOUT)
+                add_btn.click(timeout=DEFAULT_TIMEOUT)
 
-        dialog = self.page.get_by_role("dialog", name="Select option")
-        dialog.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
+                dialog = self.page.get_by_role("dialog", name="Select option")
+                dialog.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
 
-        search_input = dialog.get_by_role("textbox", name="Search")
+                search_input = dialog.get_by_role("textbox", name="Search")
+                search_input.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
+                self._capture_with_indicator("search_box", search_input)
+
+                search_input.fill(search_term)
+
+                result_item = dialog.locator(f":text('{entity_name}')").first
+                result_item.wait_for(state="visible", timeout=SEARCH_TIMEOUT)
+                self._capture("search_results")
+                self._scroll_into_view(result_item)
+                self._capture_with_indicator("select", result_item)
+
+                result_item.click(timeout=DEFAULT_TIMEOUT)
+                dialog.wait_for(state="hidden", timeout=DEFAULT_TIMEOUT)
+                self._capture("selected")
+        else:
+            add_btn.click(timeout=DEFAULT_TIMEOUT)
+            dialog = self.page.get_by_role("dialog", name="Select option")
+            dialog.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
+            self._select_entity_no_capture(
+                dialog.get_by_role("textbox", name="Search"),
+                search_term,
+                entity_name,
+                already_in_dialog=True,
+            )
+
+    def _select_entity_no_capture(
+        self,
+        picker_or_search: Any,
+        search_term: str,
+        entity_name: str,
+        *,
+        already_in_dialog: bool = False,
+    ) -> None:
+        """Entity selection without screenshots."""
+        if not already_in_dialog:
+            picker_or_search.click()
+            dialog = self.page.get_by_role("dialog", name="Select option")
+            dialog.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
+            search_input = dialog.get_by_role("textbox", name="Search")
+        else:
+            search_input = picker_or_search
+            dialog = self.page.get_by_role("dialog", name="Select option")
+
         search_input.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
-
-        if capture:
-            self.capture_with_indicator(f"{field_label}_add_search", search_input)
-
         search_input.fill(search_term)
 
         result_item = dialog.locator(f":text('{entity_name}')").first
         result_item.wait_for(state="visible", timeout=SEARCH_TIMEOUT)
-
-        if capture:
-            self.capture(f"{field_label}_add_search_results")
-            self._scroll_into_view(result_item)
-            self.capture_with_indicator(f"{field_label}_add_select", result_item)
-
         result_item.click(timeout=DEFAULT_TIMEOUT)
         dialog.wait_for(state="hidden", timeout=DEFAULT_TIMEOUT)
-
-        if capture:
-            self.capture(f"{field_label}_add_result")
 
     # endregion
 
     # region: Dialogs
 
-    def close_element_dialog(self, *, capture: bool = False) -> None:
+    def close_element_dialog(self) -> None:
         """Close element creation success dialog."""
         button = self.page.get_by_role("button", name="Finish")
         button.wait_for(state="visible", timeout=SEARCH_TIMEOUT)
 
-        if capture:
-            self._scroll_into_view(button)
-            self.capture("dialog_finish_before")
-            self.capture_with_indicator("dialog_finish_click", button)
+        ctx = ScreenshotContext.current()
+        if ctx:
+            with ctx.scope("finish_dialog"):
+                self._scroll_into_view(button)
+                self._capture_with_indicator("button", button)
+                button.click(timeout=DEFAULT_TIMEOUT)
+                button.wait_for(state="hidden", timeout=DEFAULT_TIMEOUT)
+        else:
+            button.click(timeout=DEFAULT_TIMEOUT)
+            button.wait_for(state="hidden", timeout=DEFAULT_TIMEOUT)
 
-        button.click(timeout=DEFAULT_TIMEOUT)
-        button.wait_for(state="hidden", timeout=DEFAULT_TIMEOUT)
         _LOGGER.info("Dialog closed successfully")
 
     def wait_for_dialog(self, title: str) -> None:
         """Wait for dialog with given title to appear."""
         dialog = self.page.get_by_title(title)
         dialog.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
+        self._capture("dialog_opened")
 
-    def submit(self, *, capture: bool = False) -> None:
+    def submit(self) -> None:
         """Click Submit button."""
-        self.click_button("Submit", capture=capture)
+        self.click_button("Submit")
 
     # endregion
 
     # region: Integration Search
 
-    def search_integration(self, integration_name: str, *, capture: bool = False) -> None:
+    def search_integration(self, integration_name: str) -> None:
         """Search for and select integration from add dialog."""
         search_box = self.page.get_by_role("textbox", name="Search for a brand name")
         search_box.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
 
-        if capture:
-            self.capture("add_integration_dialog")
-            self.capture_with_indicator("search_box_click", search_box)
+        ctx = ScreenshotContext.current()
+        if ctx:
+            with ctx.scope("search_integration"):
+                self._capture("dialog")
+                self._capture_with_indicator("search_box", search_box)
 
-        search_box.click()
-        search_box.fill(integration_name)
+                search_box.click()
+                search_box.fill(integration_name)
 
-        item = self.page.locator("ha-integration-list-item", has_text=integration_name)
-        item.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
+                item = self.page.locator("ha-integration-list-item", has_text=integration_name)
+                item.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
+                self._capture("results")
+                self._capture_with_indicator("select", item)
 
-        if capture:
-            self.capture(f"search_{integration_name.lower()}")
-            self.capture_with_indicator(f"select_{integration_name.lower()}", item)
+                item.click(timeout=DEFAULT_TIMEOUT)
+        else:
+            search_box.click()
+            search_box.fill(integration_name)
+            item = self.page.locator("ha-integration-list-item", has_text=integration_name)
+            item.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
+            item.click(timeout=DEFAULT_TIMEOUT)
 
-        item.click(timeout=DEFAULT_TIMEOUT)
-
-    def click_add_integration(self, *, capture: bool = False) -> None:
+    def click_add_integration(self) -> None:
         """Click the Add integration button."""
         add_btn = self.page.locator("ha-button").get_by_role("button", name="Add integration")
         add_btn.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
 
-        if capture:
-            self.capture("integrations_page")
-            self.capture_with_indicator("add_integration_click", add_btn)
-
-        add_btn.click()
+        ctx = ScreenshotContext.current()
+        if ctx:
+            with ctx.scope("add_integration"):
+                self._capture("page")
+                self._capture_with_indicator("button", add_btn)
+                add_btn.click()
+        else:
+            add_btn.click()
 
     # endregion
