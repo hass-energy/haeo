@@ -20,7 +20,7 @@ from homeassistant.util import dt as dt_util
 import pytest
 
 from tests.guides.ha_runner import live_home_assistant
-from tests.guides.sigenergy.run_guide import INPUTS_FILE, SCREENSHOTS_DIR, run_guide
+from tests.guides.sigenergy.guide import INPUTS_FILE, SCREENSHOTS_DIR, run_guide
 
 _LOGGER = logging.getLogger(__name__)
 
