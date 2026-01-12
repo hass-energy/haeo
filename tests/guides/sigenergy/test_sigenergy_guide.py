@@ -46,7 +46,8 @@ def _restore_timezone() -> None:
 @pytest.mark.guide
 @pytest.mark.enable_socket
 @pytest.mark.timeout(300)  # 5 minutes for full guide run
-def test_sigenergy_guide() -> None:
+@pytest.mark.parametrize("dark_mode", [False, True], ids=["light", "dark"])
+def test_sigenergy_guide(dark_mode: bool) -> None:
     """Test the complete Sigenergy setup guide.
 
     This test:
@@ -56,17 +57,21 @@ def test_sigenergy_guide() -> None:
     4. Captures screenshots at each step
     5. Validates that all elements were created successfully
     """
+    # Use separate directories for light and dark mode screenshots
+    mode_suffix = "dark" if dark_mode else "light"
+    output_dir = SCREENSHOTS_DIR.parent / f"screenshots_{mode_suffix}"
+
     # Clean and create output directory
-    if SCREENSHOTS_DIR.exists():
-        shutil.rmtree(SCREENSHOTS_DIR)
-    SCREENSHOTS_DIR.mkdir(parents=True)
+    if output_dir.exists():
+        shutil.rmtree(output_dir)
+    output_dir.mkdir(parents=True)
 
     with live_home_assistant(timeout=120) as hass:
         # Load entity states from scenario1
         hass.load_states_from_file(INPUTS_FILE)
 
         # Run the guide
-        results = run_guide(hass, SCREENSHOTS_DIR, headless=True)
+        results = run_guide(hass, output_dir, headless=True, dark_mode=dark_mode)
 
         # Validate results
         assert len(results) > 0, "No screenshots captured"
@@ -91,5 +96,5 @@ def test_sigenergy_guide() -> None:
         expected_elements = {"Switchboard", "Inverter", "Battery", "Solar", "Grid", "Constant Load"}
         assert expected_elements <= element_names, f"Missing elements: {expected_elements - element_names}"
 
-        print(f"\n✅ Guide test passed! {len(results)} screenshots captured")
-        print(f"📁 Screenshots saved to: {SCREENSHOTS_DIR}")
+        print(f"\n✅ Guide test passed ({mode_suffix} mode)! {len(results)} screenshots captured")
+        print(f"📁 Screenshots saved to: {output_dir}")

@@ -552,16 +552,42 @@ class SigenergyGuide:
         self.page.wait_for_timeout(MEDIUM_WAIT * 1000)
 
     def close_element_dialog(self, *, capture_name: str | None = None) -> None:
-        """Close the element creation dialog (has 'Finish' button)."""
-        button = self.page.get_by_role("button", name="Finish")
+        """Close the element creation dialog.
 
-        if capture_name:
-            self._scroll_into_view(button)
-            self.capture(f"{capture_name}_before")
-            self._capture_with_indicator(f"{capture_name}_click", button)
-
-        button.click(timeout=DEFAULT_TIMEOUT)
+        Home Assistant subentry flows typically show a success dialog after creation.
+        We need to wait for the dialog to appear and then close it.
+        """
+        # Wait longer for the success dialog to appear after submit
         self.page.wait_for_timeout(MEDIUM_WAIT * 1000)
+
+        # Try various button names that might appear
+        for button_name in ["Finish", "OK", "Close", "Done"]:
+            button = self.page.get_by_role("button", name=button_name)
+            if button.count() > 0:
+                _LOGGER.info("Found '%s' button - clicking to close dialog", button_name)
+                if capture_name:
+                    self._scroll_into_view(button)
+                    self.capture(f"{capture_name}_before")
+                    self._capture_with_indicator(f"{capture_name}_click", button)
+                button.click(timeout=DEFAULT_TIMEOUT)
+                break
+        else:
+            _LOGGER.info("No close button found - waiting for dialog to auto-close")
+            if capture_name:
+                self.capture(f"{capture_name}_auto_closed")
+
+        # Wait for dialog to actually close
+        try:
+            self.page.wait_for_selector("dialog-data-entry-flow", state="hidden", timeout=5000)
+            _LOGGER.info("Dialog closed successfully")
+        except Exception:
+            _LOGGER.warning("Dialog may still be open after timeout")
+            # Take a screenshot to debug
+            if capture_name:
+                self.capture(f"{capture_name}_dialog_stuck")
+
+        # Wait for Home Assistant to process the creation and update the UI
+        self.page.wait_for_timeout(LONG_WAIT * 1000)
 
 
 def add_haeo_integration(guide: SigenergyGuide) -> None:
@@ -585,31 +611,40 @@ def add_haeo_integration(guide: SigenergyGuide) -> None:
     # Wait for the dialog search box to appear
     guide.page.wait_for_selector("text=Search for a brand name", timeout=DEFAULT_TIMEOUT)
 
-    # Search for our integration by its full name
+    # Search for our integration
     search_box = guide.page.get_by_role("textbox", name="Search for a brand name")
-    search_box.fill("Home Assistant Energy")
+    search_box.fill("HAEO")
     guide.page.wait_for_timeout(LONG_WAIT * 1000)
 
     guide.capture("search_haeo")
 
     # Click on the HAEO integration result
-    haeo_item = guide.page.locator("ha-integration-list-item", has_text="Home Assistant Energy Optimizer")
+    haeo_item = guide.page.locator("ha-integration-list-item", has_text="HAEO")
     guide._capture_with_indicator("select_haeo_click", haeo_item)
     haeo_item.click(timeout=DEFAULT_TIMEOUT)
 
-    # Wait for the HAEO Network Setup dialog
-    guide.page.wait_for_selector("text=HAEO Network Setup", timeout=DEFAULT_TIMEOUT)
+    # Wait for the HAEO Setup dialog
+    guide.page.wait_for_selector("text=HAEO Setup", timeout=DEFAULT_TIMEOUT)
     guide.page.wait_for_timeout(MEDIUM_WAIT * 1000)
 
     guide.capture("network_form")
 
-    # Fill network name with capture
-    guide.fill_textbox("Network Name*", NETWORK_NAME, capture_name="network_name")
+    # Fill system name with capture
+    guide.fill_textbox("System Name", NETWORK_NAME, capture_name="network_name")
 
     # Submit with capture
     guide.click_button("Submit", capture_name="network_submit")
 
-    guide.close_network_dialog(capture_name="network_close")
+    # Wait for the integration to be set up and navigate to the integration page
+    guide.page.wait_for_timeout(LONG_WAIT * 1000)
+    guide.page.wait_for_load_state("networkidle")
+
+    # Navigate to the HAEO integration page to add elements
+    guide.page.goto(f"{guide.url}/config/integrations/integration/haeo")
+    guide.page.wait_for_load_state("networkidle")
+    guide.page.wait_for_timeout(MEDIUM_WAIT * 1000)
+
+    guide.capture("haeo_integration_page")
 
     _LOGGER.info("HAEO integration added")
 
@@ -622,20 +657,20 @@ def add_inverter(guide: SigenergyGuide) -> None:
     guide.click_button("Inverter", capture_name="inverter_add")
 
     # Wait for the dialog to appear
-    guide.page.wait_for_selector("text=Add Inverter", timeout=DEFAULT_TIMEOUT)
+    guide.page.wait_for_selector("text=Inverter Configuration", timeout=DEFAULT_TIMEOUT)
 
     # Fill inverter name
-    guide.fill_textbox("Inverter Name*", "Inverter", capture_name="inverter_name")
+    guide.fill_textbox("Inverter Name", "Inverter", capture_name="inverter_name")
 
     # Select AC Connection with capture
-    guide.select_combobox_option("AC Connection*", "Switchboard", capture_name="inverter_connection")
+    guide.select_combobox_option("AC Connection", "Switchboard", capture_name="inverter_connection")
 
     # Select power sensors with capture
     guide.select_entity(
-        "Max DC to AC power", "max active power", "Sigen Plant Max Active Power", capture_name="inverter_dc_ac"
+        "Max DC to AC Power", "max active power", "Sigen Plant Max Active Power", capture_name="inverter_dc_ac"
     )
     guide.select_entity(
-        "Max AC to DC power", "max active power", "Sigen Plant Max Active Power", capture_name="inverter_ac_dc"
+        "Max AC to DC Power", "max active power", "Sigen Plant Max Active Power", capture_name="inverter_ac_dc"
     )
 
     # Submit with capture
@@ -652,33 +687,46 @@ def add_battery(guide: SigenergyGuide) -> None:
     guide.click_button("Battery", capture_name="battery_add")
 
     # Wait for the dialog to fully load
-    guide.page.wait_for_selector("text=Add Battery", timeout=DEFAULT_TIMEOUT)
+    guide.page.wait_for_selector("text=Battery Configuration", timeout=DEFAULT_TIMEOUT)
     guide.page.wait_for_timeout(MEDIUM_WAIT * 1000)
 
     # Fill name with capture
-    guide.fill_textbox("Battery Name*", "Battery", capture_name="battery_name")
+    guide.fill_textbox("Battery Name", "Battery", capture_name="battery_name")
 
     # Select connection
-    guide.select_combobox_option("Connection*", "Inverter", capture_name="battery_connection")
+    guide.select_combobox_option("Connection", "Inverter", capture_name="battery_connection")
 
     # Entity selections with captures
     guide.select_entity("Capacity", "rated energy", "Rated Energy Capacity", capture_name="battery_capacity")
     guide.select_entity(
-        "State of Charge Charge Sensor", "state of charge", "Battery State of Charge", capture_name="battery_soc"
+        "State of Charge", "state of charge", "Battery State of Charge", capture_name="battery_soc"
     )
     guide.select_entity("Max Charging Power", "rated charging", "Rated Charging Power", capture_name="battery_charge")
     guide.select_entity(
         "Max Discharging Power", "rated discharging", "Rated Discharging Power", capture_name="battery_discharge"
     )
 
-    # Fill numeric fields with capture
-    guide.fill_spinbutton("Min Charge Level*", "10", capture_name="battery_min_soc")
-    guide.fill_spinbutton("Max Charge Level*", "100", capture_name="battery_max_soc")
-    guide.fill_spinbutton("Round-trip Efficiency*", "99", capture_name="battery_efficiency")
-    guide.fill_spinbutton("Early Charge Incentive", "0.001", capture_name="battery_incentive")
+    # Optional fields (min/max charge, efficiency, early charge incentive) use defaults.
+    # These only appear in step 2 if "HAEO Configurable" is selected in the entity picker.
+    # Since we're using entity sensors, step 2 is skipped and defaults are applied.
 
-    # Submit
+    # Submit step 1
     guide.click_button("Submit", capture_name="battery_submit")
+
+    # Wait for the async processing to complete - battery might auto-close
+    guide.page.wait_for_timeout(LONG_WAIT * 1000)
+
+    # Check if there's a step 2 "Battery Values" form or if we went straight to finish
+    try:
+        values_title = guide.page.locator("text=Battery Values")
+        if values_title.count() > 0:
+            _LOGGER.info("Battery step 2 (Values) detected - submitting")
+            guide.capture("battery_values_form")
+            guide.click_button("Submit", capture_name="battery_submit_step2")
+            guide.page.wait_for_timeout(MEDIUM_WAIT * 1000)
+    except Exception:
+        _LOGGER.info("No Battery Values step - proceeding to close")
+
     guide.close_element_dialog(capture_name="battery_close")
 
     _LOGGER.info("Battery added")
@@ -690,20 +738,20 @@ def add_solar(guide: SigenergyGuide) -> None:
 
     guide.click_button("Solar", capture_name="solar_add")
 
-    guide.page.wait_for_selector("text=Add Solar", timeout=DEFAULT_TIMEOUT)
+    guide.page.wait_for_selector("text=Solar Configuration", timeout=DEFAULT_TIMEOUT)
 
-    guide.fill_textbox("Solar Name*", "Solar", capture_name="solar_name")
-    guide.select_combobox_option("Connection*", "Inverter", capture_name="solar_connection")
+    guide.fill_textbox("Solar Name", "Solar", capture_name="solar_name")
+    guide.select_combobox_option("Connection", "Inverter", capture_name="solar_connection")
 
     # First forecast sensor
     guide.select_entity(
-        "Forecast Sensors", "east solar today", "East solar production forecast", capture_name="solar_forecast"
+        "Forecast", "east solar today", "East solar production forecast", capture_name="solar_forecast"
     )
 
     # Add the other three array forecasts (no extra captures - too many screenshots)
-    guide.add_another_entity("Forecast Sensors", "north solar today", "North solar production forecast")
-    guide.add_another_entity("Forecast Sensors", "south solar today", "South solar prediction forecast")
-    guide.add_another_entity("Forecast Sensors", "west solar today", "West solar production forecast")
+    guide.add_another_entity("Forecast", "north solar today", "North solar production forecast")
+    guide.add_another_entity("Forecast", "south solar today", "South solar prediction forecast")
+    guide.add_another_entity("Forecast", "west solar today", "West solar production forecast")
 
     guide.click_button("Submit", capture_name="solar_submit")
     guide.close_element_dialog(capture_name="solar_close")
@@ -717,27 +765,32 @@ def add_grid(guide: SigenergyGuide) -> None:
 
     guide.click_button("Grid", capture_name="grid_add")
 
-    guide.page.wait_for_selector("text=Add Grid", timeout=DEFAULT_TIMEOUT)
+    guide.page.wait_for_selector("text=Grid Configuration", timeout=DEFAULT_TIMEOUT)
 
-    guide.fill_textbox("Grid Name*", "Grid", capture_name="grid_name")
-    guide.select_combobox_option("Connection*", "Switchboard", capture_name="grid_connection")
+    guide.fill_textbox("Grid Name", "Grid", capture_name="grid_name")
+    guide.select_combobox_option("Connection", "Switchboard", capture_name="grid_connection")
 
     # Import price with capture
     guide.select_entity(
-        "Import Price Sensors", "general price", "Home - General Price", capture_name="grid_import_price"
+        "Import Price", "general price", "Home - General Price", capture_name="grid_import_price"
     )
-    guide.add_another_entity("Import Price Sensors", "general forecast", "Home - General Forecast")
+    guide.add_another_entity("Import Price", "general forecast", "Home - General Forecast")
 
     # Export price
     guide.select_entity(
-        "Export Price Sensors", "feed in price", "Home - Feed In Price", capture_name="grid_export_price"
+        "Export Price", "feed in price", "Home - Feed In Price", capture_name="grid_export_price"
     )
-    guide.add_another_entity("Export Price Sensors", "feed in forecast", "Home - Feed In Forecast")
+    guide.add_another_entity("Export Price", "feed in forecast", "Home - Feed In Forecast")
 
-    # Fill limits
-    guide.fill_spinbutton("Import Limit (Optional)", "55", capture_name="grid_import_limit")
-    guide.fill_spinbutton("Export Limit (Optional)", "30", capture_name="grid_export_limit")
+    # Submit step 1 → moves to step 2 (values) for limit spinbuttons
+    guide.click_button("Submit", capture_name="grid_step1_submit")
 
+    # Step 2: Fill spinbuttons for import/export limits (pre-selected as configurable)
+    guide.page.wait_for_timeout(MEDIUM_WAIT * 1000)
+    guide.fill_spinbutton("Import Limit", "55", capture_name="grid_import_limit")
+    guide.fill_spinbutton("Export Limit", "30", capture_name="grid_export_limit")
+
+    # Submit step 2
     guide.click_button("Submit", capture_name="grid_submit")
     guide.close_element_dialog(capture_name="grid_close")
 
@@ -745,19 +798,33 @@ def add_grid(guide: SigenergyGuide) -> None:
 
 
 def add_load(guide: SigenergyGuide) -> None:
-    """Add Load element."""
+    """Add Load element.
+
+    For a constant load, we use "HAEO Configurable" which requires a two-step flow:
+    1. Select the configurable entity in step 1
+    2. Enter the constant value in step 2
+    """
     _LOGGER.info("Adding Load...")
 
     guide.click_button("Load", capture_name="load_add")
 
-    guide.page.wait_for_selector("text=Add Load", timeout=DEFAULT_TIMEOUT)
+    guide.page.wait_for_selector("text=Load Configuration", timeout=DEFAULT_TIMEOUT)
 
-    guide.fill_textbox("Load Name*", "Constant Load", capture_name="load_name")
-    guide.select_combobox_option("Connection*", "Switchboard", capture_name="load_connection")
+    guide.fill_textbox("Load Name", "Constant Load", capture_name="load_name")
+    guide.select_combobox_option("Connection", "Switchboard", capture_name="load_connection")
 
-    guide.select_entity("Forecast Sensors", "constant load", "Constant Load Power", capture_name="load_forecast")
+    # For constant load, select the HAEO Configurable entity
+    guide.select_entity("Forecast", "configurable", "Configurable Entity", capture_name="load_forecast")
 
-    guide.click_button("Submit", capture_name="load_submit")
+    # Step 1 submit - triggers step 2 for configurable values
+    guide.click_button("Submit", capture_name="load_submit_step1")
+    guide.page.wait_for_timeout(MEDIUM_WAIT * 1000)
+
+    # Step 2: Enter the constant load value
+    guide.fill_spinbutton("Forecast", "1", capture_name="load_forecast_value")
+
+    # Step 2 submit
+    guide.click_button("Submit", capture_name="load_submit_step2")
     guide.close_element_dialog(capture_name="load_close")
 
     _LOGGER.info("Load added")

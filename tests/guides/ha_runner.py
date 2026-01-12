@@ -27,6 +27,7 @@ import socket
 import tempfile
 import threading
 from typing import TYPE_CHECKING, Any
+import warnings
 
 from homeassistant import loader
 from homeassistant.auth import auth_manager_from_config
@@ -145,7 +146,9 @@ class LiveHomeAssistant:
         future = asyncio.run_coroutine_threadsafe(coro, self.loop)
         return future.result(timeout=timeout)
 
-    def inject_auth(self, context: BrowserContext) -> None:
+    def inject_auth(
+        self, context: BrowserContext, *, dark_mode: bool = False
+    ) -> None:
         """Inject authentication into a Playwright browser context.
 
         Sets up the Authorization header for all requests so HA frontend
@@ -153,6 +156,7 @@ class LiveHomeAssistant:
 
         Args:
             context: Playwright BrowserContext to inject auth into
+            dark_mode: Whether to set dark mode theme preference
 
         """
 
@@ -178,10 +182,48 @@ class LiveHomeAssistant:
             "expires_in": 1800,  # 30 minutes
         }
 
+        # Build localStorage init script
+        theme_js = ""
+        if dark_mode:
+            # HA stores theme preference in localStorage as { theme: string, dark: boolean }
+            theme_data = {"theme": "default", "dark": True}
+            theme_js = f"""
+            localStorage.setItem('selectedTheme', JSON.stringify({json.dumps(theme_data)}));
+            """
+
         init_script = f"""
             localStorage.setItem('hassTokens', JSON.stringify({json.dumps(token_data)}));
+            {theme_js}
         """
         context.add_init_script(init_script)
+
+    def call_service(
+        self,
+        domain: str,
+        service: str,
+        service_data: dict[str, Any] | None = None,
+        blocking: bool = True,
+    ) -> None:
+        """Call a Home Assistant service.
+
+        Args:
+            domain: Service domain (e.g., "frontend")
+            service: Service name (e.g., "set_theme")
+            service_data: Optional service data dict
+            blocking: Whether to wait for service completion
+
+        """
+
+        async def _call() -> None:
+            await self.hass.services.async_call(
+                domain,
+                service,
+                service_data or {},
+                blocking=blocking,
+            )
+
+        future = asyncio.run_coroutine_threadsafe(_call(), self.loop)
+        future.result(timeout=10)
 
     def stop(self) -> None:
         """Signal the HA instance to stop."""
@@ -298,6 +340,17 @@ async def _setup_home_assistant_async(
     http_config = {
         "server_port": port,
     }
+
+    # Suppress aiohttp.web_exceptions.NotAppKeyWarning which is raised as an error
+    # in newer versions of aiohttp when HA sets app["hass"] = hass
+    # This is a compatibility issue between HA and newer aiohttp versions
+    warnings.filterwarnings("ignore", category=DeprecationWarning, module="aiohttp")
+    try:
+        from aiohttp.web_exceptions import NotAppKeyWarning
+
+        warnings.filterwarnings("ignore", category=NotAppKeyWarning)
+    except ImportError:
+        pass  # Older aiohttp doesn't have this
 
     # Set up components in order (onboarding will see all steps done and skip
     # because we pre-populated the storage file)
