@@ -331,7 +331,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
     @callback
     def _handle_horizon_change(self) -> None:
         """Handle horizon manager changes."""
-        # Just trigger optimization - _are_inputs_aligned will gate until all elements update
+        # Just trigger optimization - _are_inputs_ready will gate until all elements update
         self._trigger_optimization()
 
     @callback
@@ -369,19 +369,22 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
 
     @callback
     def _maybe_trigger_refresh(self) -> None:
-        """Trigger a coordinator refresh if inputs are aligned."""
-        if not self._are_inputs_aligned():
-            _LOGGER.debug("Inputs not aligned, skipping optimization")
+        """Trigger a coordinator refresh if inputs are ready."""
+        if not self._are_inputs_ready():
+            _LOGGER.debug("Inputs not ready, skipping optimization")
             return
 
         # Use create_task to run the async refresh
         self.hass.async_create_task(self.async_refresh())
 
-    def _are_inputs_aligned(self) -> bool:
-        """Check if all input entities have the same horizon start time.
+    def _are_inputs_ready(self) -> bool:
+        """Check if all input entities are available and horizon-aligned.
 
-        Returns True if all inputs are loaded and aligned to the same horizon.
-        Returns False if any input is missing data or horizons don't match.
+        Returns True if all inputs are:
+        - Available (source sensors exist and have data)
+        - Aligned to the expected horizon start time
+
+        Returns False if any input is unavailable or horizons don't match.
         """
         runtime_data = self._get_runtime_data()
         if runtime_data is None:
@@ -393,8 +396,11 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             return False
         expected_start = expected_horizon[0]
 
-        # Check all input entities have values and matching horizon
+        # Check all input entities are available and have matching horizon
         for entity in runtime_data.input_entities.values():
+            # Check availability (DRIVEN mode entities start unavailable until data loads)
+            if not entity.available:
+                return False
             entity_horizon = entity.horizon_start
             if entity_horizon is None:
                 return False
@@ -538,6 +544,12 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
 
             forecast_timestamps = runtime_data.horizon_manager.get_forecast_timestamps()
 
+            # Check if all inputs are ready (available and horizon-aligned)
+            # If not, return a pending result instead of failing
+            if not self._are_inputs_ready():
+                _LOGGER.debug("Inputs not ready, returning pending status")
+                return await self._build_pending_result()
+
             # Load element configurations from input entities
             # All input entities are guaranteed to be fully loaded by the time we get here
             loaded_configs = self._load_from_input_entities()
@@ -646,6 +658,41 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             self._optimization_in_progress = False
             # Clear pending flag - the next state change will trigger a new optimization
             self._pending_refresh = False
+
+    async def _build_pending_result(self) -> CoordinatorData:
+        """Build a pending result when inputs are not yet ready.
+
+        Returns a CoordinatorData with only network-level outputs showing
+        pending status. Element outputs are omitted since we can't run
+        optimization without all inputs being available.
+        """
+        # Load the network subentry name from translations
+        translations = await async_get_translations(
+            self.hass, self.hass.config.language, "common", integrations=[DOMAIN]
+        )
+        network_subentry_name = translations[f"component.{DOMAIN}.common.network_subentry_name"]
+
+        # Create pending status output - cost and duration are None since we didn't run
+        network_output_data: dict[NetworkOutputName, OutputData] = {
+            OUTPUT_NAME_OPTIMIZATION_COST: OutputData(
+                type=OutputType.COST, unit=self.hass.config.currency, values=(None,)
+            ),
+            OUTPUT_NAME_OPTIMIZATION_STATUS: OutputData(
+                type=OutputType.STATUS, unit=None, values=(OPTIMIZATION_STATUS_PENDING,)
+            ),
+            OUTPUT_NAME_OPTIMIZATION_DURATION: OutputData(
+                type=OutputType.DURATION, unit=UnitOfTime.SECONDS, values=(None,)
+            ),
+        }
+
+        return {
+            network_subentry_name: {
+                ELEMENT_TYPE_NETWORK: {
+                    name: _build_coordinator_output(name, output, forecast_times=None)
+                    for name, output in network_output_data.items()
+                }
+            }
+        }
 
 
 __all__ = [

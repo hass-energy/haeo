@@ -721,7 +721,7 @@ def test_maybe_trigger_refresh_skips_when_not_aligned(
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
 
     with (
-        patch.object(coordinator, "_are_inputs_aligned", return_value=False),
+        patch.object(coordinator, "_are_inputs_ready", return_value=False),
         patch.object(hass, "async_create_task") as mock_task,
     ):
         coordinator._maybe_trigger_refresh()
@@ -740,7 +740,7 @@ def test_maybe_trigger_refresh_creates_task_when_aligned(
 
     # Need to properly handle the coroutine created by async_refresh mock
     with (
-        patch.object(coordinator, "_are_inputs_aligned", return_value=True),
+        patch.object(coordinator, "_are_inputs_ready", return_value=True),
         patch.object(coordinator, "async_refresh", return_value=None),
         patch.object(hass, "async_create_task") as mock_task,
     ):
@@ -756,7 +756,7 @@ def test_maybe_trigger_refresh_creates_task_when_aligned(
 
 
 @pytest.mark.usefixtures("mock_battery_subentry", "mock_grid_subentry")
-def test_are_inputs_aligned_returns_false_without_runtime_data(
+def test_are_inputs_ready_returns_false_without_runtime_data(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
 ) -> None:
@@ -764,13 +764,13 @@ def test_are_inputs_aligned_returns_false_without_runtime_data(
     # Don't use mock_runtime_data fixture - no runtime data set
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
 
-    result = coordinator._are_inputs_aligned()
+    result = coordinator._are_inputs_ready()
 
     assert result is False
 
 
 @pytest.mark.usefixtures("mock_battery_subentry", "mock_grid_subentry")
-def test_are_inputs_aligned_returns_false_without_horizon(
+def test_are_inputs_ready_returns_false_without_horizon(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
     mock_runtime_data: HaeoRuntimeData,
@@ -779,72 +779,98 @@ def test_are_inputs_aligned_returns_false_without_horizon(
     _get_mock_horizon(mock_runtime_data).get_forecast_timestamps.return_value = ()
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
 
-    result = coordinator._are_inputs_aligned()
+    result = coordinator._are_inputs_ready()
 
     assert result is False
 
 
 @pytest.mark.usefixtures("mock_battery_subentry", "mock_grid_subentry")
-def test_are_inputs_aligned_returns_false_with_none_horizon_start(
+def test_are_inputs_ready_returns_false_when_entity_unavailable(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
     mock_runtime_data: HaeoRuntimeData,
 ) -> None:
-    """Input alignment check returns False when entity has None horizon_start."""
+    """Input readiness check returns False when any entity is unavailable."""
+    expected_start = 1000.0
+    _get_mock_horizon(mock_runtime_data).get_forecast_timestamps.return_value = (expected_start, 2000.0)
+
+    # Add mock input entity that is unavailable (DRIVEN mode entity with missing source)
+    mock_entity = MagicMock()
+    mock_entity.available = False
+    mock_entity.horizon_start = expected_start
+    mock_runtime_data.input_entities[("Test Battery", "capacity")] = mock_entity
+
+    coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
+
+    result = coordinator._are_inputs_ready()
+
+    assert result is False
+
+
+@pytest.mark.usefixtures("mock_battery_subentry", "mock_grid_subentry")
+def test_are_inputs_ready_returns_false_with_none_horizon_start(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+    mock_runtime_data: HaeoRuntimeData,
+) -> None:
+    """Input readiness check returns False when entity has None horizon_start."""
     _get_mock_horizon(mock_runtime_data).get_forecast_timestamps.return_value = (1000.0, 2000.0)
 
     # Add mock input entity with None horizon_start
     mock_entity = MagicMock()
+    mock_entity.available = True
     mock_entity.horizon_start = None
     mock_runtime_data.input_entities[("Test Battery", "capacity")] = mock_entity
 
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
 
-    result = coordinator._are_inputs_aligned()
+    result = coordinator._are_inputs_ready()
 
     assert result is False
 
 
 @pytest.mark.usefixtures("mock_battery_subentry", "mock_grid_subentry")
-def test_are_inputs_aligned_returns_false_with_misaligned_horizon(
+def test_are_inputs_ready_returns_false_with_misaligned_horizon(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
     mock_runtime_data: HaeoRuntimeData,
 ) -> None:
-    """Input alignment check returns False when horizons differ by more than tolerance."""
+    """Input readiness check returns False when horizons differ by more than tolerance."""
     expected_start = 1000.0
     _get_mock_horizon(mock_runtime_data).get_forecast_timestamps.return_value = (expected_start, 2000.0)
 
     # Add mock input entity with misaligned horizon (more than 1.0 seconds off)
     mock_entity = MagicMock()
+    mock_entity.available = True
     mock_entity.horizon_start = expected_start + 5.0  # 5 seconds off > 1.0 tolerance
     mock_runtime_data.input_entities[("Test Battery", "capacity")] = mock_entity
 
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
 
-    result = coordinator._are_inputs_aligned()
+    result = coordinator._are_inputs_ready()
 
     assert result is False
 
 
 @pytest.mark.usefixtures("mock_battery_subentry", "mock_grid_subentry")
-def test_are_inputs_aligned_returns_true_when_aligned(
+def test_are_inputs_ready_returns_true_when_aligned(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
     mock_runtime_data: HaeoRuntimeData,
 ) -> None:
-    """Input alignment check returns True when all horizons match."""
+    """Input readiness check returns True when all entities are available and horizons match."""
     expected_start = 1000.0
     _get_mock_horizon(mock_runtime_data).get_forecast_timestamps.return_value = (expected_start, 2000.0)
 
-    # Add mock input entity with aligned horizon (within tolerance)
+    # Add mock input entity with aligned horizon (within tolerance) and available
     mock_entity = MagicMock()
+    mock_entity.available = True
     mock_entity.horizon_start = expected_start + 0.5  # Within 1.0 tolerance
     mock_runtime_data.input_entities[("Test Battery", "capacity")] = mock_entity
 
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
 
-    result = coordinator._are_inputs_aligned()
+    result = coordinator._are_inputs_ready()
 
     assert result is True
 
