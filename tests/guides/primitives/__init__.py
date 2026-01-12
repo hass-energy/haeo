@@ -6,17 +6,24 @@ This package provides two layers of primitives:
 2. HAEO element functions - High-level HAEO element configuration
 
 Example usage:
-    from tests.guides.primitives import GuideContext, add_battery, add_grid
+    from tests.guides.primitives import GuideContext, BatteryConfig, GridConfig
 
     with guide_context(hass, output_dir) as ctx:
         add_integration(ctx, network_name="My System")
-        add_battery(ctx, BatteryConfigSchema(...))
-        add_grid(ctx, GridConfigSchema(...))
+        add_battery(ctx, BatteryConfig(name="Battery", ...))
+        add_grid(ctx, GridConfig(name="Grid", ...))
 """
 
 from tests.guides.primitives.context import GuideContext, guide_context
 from tests.guides.primitives.ha_page import HAPage
 from tests.guides.primitives.haeo import (
+    BatteryConfig,
+    Entity,
+    GridConfig,
+    InverterConfig,
+    LoadConfig,
+    NodeConfig,
+    SolarConfig,
     add_battery,
     add_grid,
     add_integration,
@@ -24,13 +31,24 @@ from tests.guides.primitives.haeo import (
     add_load,
     add_node,
     add_solar,
+    login,
+    verify_setup,
 )
 
 __all__ = [
     # Context
     "GuideContext",
+    "guide_context",
     # Low-level primitives
     "HAPage",
+    # Config types
+    "BatteryConfig",
+    "Entity",
+    "GridConfig",
+    "InverterConfig",
+    "LoadConfig",
+    "NodeConfig",
+    "SolarConfig",
     # HAEO element primitives
     "add_battery",
     "add_grid",
@@ -39,5 +57,6 @@ __all__ = [
     "add_load",
     "add_node",
     "add_solar",
-    "guide_context",
+    "login",
+    "verify_setup",
 ]

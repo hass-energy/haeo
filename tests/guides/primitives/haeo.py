@@ -3,469 +3,350 @@
 High-level functions that add elements to an HAEO network, handling
 navigation, form filling, and screenshot capture.
 
-These primitives accept ElementSchema TypedDicts and translate them
-to the appropriate HA config flow interactions.
+These primitives accept guide-specific configuration with entity selections
+that include search terms and display names for the HA entity picker.
 """
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from dataclasses import dataclass
 import logging
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from custom_components.haeo.elements.battery.schema import BatteryConfigSchema
-    from custom_components.haeo.elements.grid.schema import GridConfigSchema
-    from custom_components.haeo.elements.inverter.schema import InverterConfigSchema
-    from custom_components.haeo.elements.load.schema import LoadConfigSchema
-    from custom_components.haeo.elements.node.schema import NodeConfigSchema
-    from custom_components.haeo.elements.solar.schema import SolarConfigSchema
-
     from .context import GuideContext
+    from .ha_page import HAPage
 
 _LOGGER = logging.getLogger(__name__)
 
-# Default timeout for UI interactions
-DEFAULT_TIMEOUT = 5000
+
+# Type for entity selection: (search_term, display_name)
+# Example: ("rated energy", "Rated Energy Capacity")
+Entity = tuple[str, str]
+
+
+@dataclass
+class InverterConfig:
+    """Inverter element configuration for guides."""
+
+    name: str
+    connection: str
+    max_power_dc_to_ac: Entity
+    max_power_ac_to_dc: Entity
+
+
+@dataclass
+class BatteryConfig:
+    """Battery element configuration for guides."""
+
+    name: str
+    connection: str
+    capacity: Entity
+    initial_soc: Entity
+    max_charge_power: Entity | None = None
+    max_discharge_power: Entity | None = None
+    min_charge_level: int | None = None
+    max_charge_level: int | None = None
+
+
+@dataclass
+class SolarConfig:
+    """Solar element configuration for guides."""
+
+    name: str
+    connection: str
+    forecasts: list[Entity]
+
+
+@dataclass
+class GridConfig:
+    """Grid element configuration for guides."""
+
+    name: str
+    connection: str
+    import_prices: list[Entity]
+    export_prices: list[Entity]
+    import_limit: float | None = None
+    export_limit: float | None = None
+
+
+@dataclass
+class LoadConfig:
+    """Load element configuration for guides."""
+
+    name: str
+    connection: str
+    forecast: Entity | None = None
+    constant_value: float | None = None
+
+
+@dataclass
+class NodeConfig:
+    """Node element configuration for guides."""
+
+    name: str
 
 
 def add_integration(ctx: GuideContext, network_name: str) -> None:
-    """Add HAEO integration to Home Assistant.
-
-    Navigates to integrations page, adds HAEO, and configures the network name.
-    """
-    _LOGGER.info("Adding HAEO integration with network: %s", network_name)
+    """Add HAEO integration to Home Assistant."""
+    _LOGGER.info("Adding HAEO integration: %s", network_name)
     page = ctx.page
 
-    # Navigate to integrations page
     page.goto("/config/integrations")
-
-    # Click "Add integration" button
     page.click_add_integration(capture=True)
-
-    # Search for and select HAEO
     page.search_integration("HAEO", capture=True)
 
-    # Wait for setup dialog
     page.wait_for_dialog("HAEO Setup")
     page.capture("network_form")
 
-    # Fill system name
     page.fill_textbox("System Name", network_name, capture=True)
-
-    # Submit
     page.submit(capture=True)
     page.wait_for_load()
 
-    # Navigate to HAEO integration page
     page.goto("/config/integrations/integration/haeo")
     page.capture("haeo_integration_page")
 
     _LOGGER.info("HAEO integration added")
 
 
-def add_inverter(ctx: GuideContext, config: InverterConfigSchema) -> None:
-    """Add inverter element to HAEO network.
-
-    Args:
-        ctx: Guide execution context
-        config: Inverter configuration with fields:
-            - name: Display name
-            - connection: AC node to connect to
-            - max_power_dc_to_ac: Entity ID or constant
-            - max_power_ac_to_dc: Entity ID or constant
-
-    """
-    _LOGGER.info("Adding Inverter: %s", config["name"])
+def add_inverter(ctx: GuideContext, config: InverterConfig) -> None:
+    """Add inverter element to HAEO network."""
+    _LOGGER.info("Adding Inverter: %s", config.name)
     page = ctx.page
 
-    # Navigate to HAEO integration page
     page.goto("/config/integrations/integration/haeo")
-
-    # Click Inverter button
     page.click_button("Inverter", capture=True)
     page.wait_for_dialog("Inverter Configuration")
 
-    # Fill name
-    page.fill_textbox("Inverter Name", config["name"], capture=True)
+    page.fill_textbox("Inverter Name", config.name, capture=True)
+    page.select_combobox("AC Connection", config.connection, capture=True)
 
-    # Select connection
-    page.select_combobox("AC Connection", config["connection"], capture=True)
+    page.select_entity(
+        "Max DC to AC Power",
+        config.max_power_dc_to_ac[0],
+        config.max_power_dc_to_ac[1],
+        capture=True,
+    )
+    page.select_entity(
+        "Max AC to DC Power",
+        config.max_power_ac_to_dc[0],
+        config.max_power_ac_to_dc[1],
+        capture=True,
+    )
 
-    # Select power sensors - these are the required fields
-    dc_to_ac = config["max_power_dc_to_ac"]
-    ac_to_dc = config["max_power_ac_to_dc"]
-
-    if isinstance(dc_to_ac, str):
-        # Entity selection - use search terms from entity ID
-        page.select_entity(
-            "Max DC to AC Power",
-            _entity_search_term(dc_to_ac),
-            _entity_display_name(dc_to_ac),
-            capture=True,
-        )
-    # For float values, the field would be a spinbutton instead
-
-    if isinstance(ac_to_dc, str):
-        page.select_entity(
-            "Max AC to DC Power",
-            _entity_search_term(ac_to_dc),
-            _entity_display_name(ac_to_dc),
-            capture=True,
-        )
-
-    # Submit and close
     page.submit(capture=True)
     page.close_element_dialog(capture=True)
 
-    _LOGGER.info("Inverter added: %s", config["name"])
+    _LOGGER.info("Inverter added: %s", config.name)
 
 
-def add_battery(ctx: GuideContext, config: BatteryConfigSchema) -> None:
-    """Add battery element to HAEO network.
-
-    Args:
-        ctx: Guide execution context
-        config: Battery configuration with fields:
-            - name: Display name
-            - connection: Element to connect to
-            - capacity: Entity ID or constant (kWh)
-            - initial_charge_percentage: Entity ID or constant (%)
-            - min_charge_percentage: Optional min SOC (%)
-            - max_charge_percentage: Optional max SOC (%)
-            - max_charge_power: Optional entity ID or constant (kW)
-            - max_discharge_power: Optional entity ID or constant (kW)
-
-    """
-    _LOGGER.info("Adding Battery: %s", config["name"])
+def add_battery(ctx: GuideContext, config: BatteryConfig) -> None:
+    """Add battery element to HAEO network."""
+    _LOGGER.info("Adding Battery: %s", config.name)
     page = ctx.page
 
-    # Navigate to HAEO integration page
     page.goto("/config/integrations/integration/haeo")
-
-    # Click Battery button
     page.click_button("Battery", capture=True)
     page.wait_for_dialog("Battery Configuration")
 
-    # Fill name
-    page.fill_textbox("Battery Name", config["name"], capture=True)
+    page.fill_textbox("Battery Name", config.name, capture=True)
+    page.select_combobox("Connection", config.connection, capture=True)
 
-    # Select connection
-    page.select_combobox("Connection", config["connection"], capture=True)
+    page.select_entity("Capacity", config.capacity[0], config.capacity[1], capture=True)
+    page.select_entity("State of Charge", config.initial_soc[0], config.initial_soc[1], capture=True)
 
-    # Entity selections for required fields
-    capacity = config["capacity"]
-    if isinstance(capacity, str):
+    if config.max_charge_power:
         page.select_entity(
-            "Capacity",
-            _entity_search_term(capacity),
-            _entity_display_name(capacity),
+            "Max Charging Power",
+            config.max_charge_power[0],
+            config.max_charge_power[1],
             capture=True,
         )
 
-    soc = config["initial_charge_percentage"]
-    if isinstance(soc, str):
+    if config.max_discharge_power:
         page.select_entity(
-            "State of Charge",
-            _entity_search_term(soc),
-            _entity_display_name(soc),
+            "Max Discharging Power",
+            config.max_discharge_power[0],
+            config.max_discharge_power[1],
             capture=True,
         )
 
-    # Optional power limits
-    if "max_charge_power" in config:
-        charge_power = config["max_charge_power"]
-        if isinstance(charge_power, str):
-            page.select_entity(
-                "Max Charging Power",
-                _entity_search_term(charge_power),
-                _entity_display_name(charge_power),
-                capture=True,
-            )
-
-    if "max_discharge_power" in config:
-        discharge_power = config["max_discharge_power"]
-        if isinstance(discharge_power, str):
-            page.select_entity(
-                "Max Discharging Power",
-                _entity_search_term(discharge_power),
-                _entity_display_name(discharge_power),
-                capture=True,
-            )
-
-    # Submit step 1
     page.submit(capture=True)
 
-    # Check if step 2 exists (spinbuttons for configurable values)
-    _handle_step2_spinbuttons(page, config)
+    # Step 2: min/max charge levels if present
+    _handle_step2(page, config)
 
-    # Close dialog
     page.close_element_dialog(capture=True)
 
-    _LOGGER.info("Battery added: %s", config["name"])
+    _LOGGER.info("Battery added: %s", config.name)
 
 
-def add_solar(ctx: GuideContext, config: SolarConfigSchema) -> None:
-    """Add solar element to HAEO network.
-
-    Args:
-        ctx: Guide execution context
-        config: Solar configuration with fields:
-            - name: Display name
-            - connection: Element to connect to
-            - forecast: Entity ID(s) or constant (kW)
-
-    """
-    _LOGGER.info("Adding Solar: %s", config["name"])
+def add_solar(ctx: GuideContext, config: SolarConfig) -> None:
+    """Add solar element to HAEO network."""
+    _LOGGER.info("Adding Solar: %s", config.name)
     page = ctx.page
 
-    # Navigate to HAEO integration page
     page.goto("/config/integrations/integration/haeo")
-
-    # Click Solar button
     page.click_button("Solar", capture=True)
     page.wait_for_dialog("Solar Configuration")
 
-    # Fill name
-    page.fill_textbox("Solar Name", config["name"], capture=True)
+    page.fill_textbox("Solar Name", config.name, capture=True)
+    page.select_combobox("Connection", config.connection, capture=True)
 
-    # Select connection
-    page.select_combobox("Connection", config["connection"], capture=True)
+    # First forecast
+    if config.forecasts:
+        first = config.forecasts[0]
+        page.select_entity("Forecast", first[0], first[1], capture=True)
 
-    # Handle forecast field - can be list of entity IDs
-    _select_entity_field(page, "Forecast", config["forecast"])
+        # Additional forecasts
+        for forecast in config.forecasts[1:]:
+            page.add_another_entity("Forecast", forecast[0], forecast[1], capture=True)
 
-    # Submit and close
     page.submit(capture=True)
     page.close_element_dialog(capture=True)
 
-    _LOGGER.info("Solar added: %s", config["name"])
+    _LOGGER.info("Solar added: %s", config.name)
 
 
-def add_grid(ctx: GuideContext, config: GridConfigSchema) -> None:
-    """Add grid element to HAEO network.
-
-    Args:
-        ctx: Guide execution context
-        config: Grid configuration with fields:
-            - name: Display name
-            - connection: Element to connect to
-            - import_price: Entity ID(s) or constant ($/kWh)
-            - export_price: Entity ID(s) or constant ($/kWh)
-            - import_limit: Optional limit (kW)
-            - export_limit: Optional limit (kW)
-
-    """
-    _LOGGER.info("Adding Grid: %s", config["name"])
+def add_grid(ctx: GuideContext, config: GridConfig) -> None:
+    """Add grid element to HAEO network."""
+    _LOGGER.info("Adding Grid: %s", config.name)
     page = ctx.page
 
-    # Navigate to HAEO integration page
     page.goto("/config/integrations/integration/haeo")
-
-    # Click Grid button
     page.click_button("Grid", capture=True)
     page.wait_for_dialog("Grid Configuration")
 
-    # Fill name
-    page.fill_textbox("Grid Name", config["name"], capture=True)
+    page.fill_textbox("Grid Name", config.name, capture=True)
+    page.select_combobox("Connection", config.connection, capture=True)
 
-    # Select connection
-    page.select_combobox("Connection", config["connection"], capture=True)
+    # Import prices
+    if config.import_prices:
+        first = config.import_prices[0]
+        page.select_entity("Import Price", first[0], first[1], capture=True)
+        for price in config.import_prices[1:]:
+            page.add_another_entity("Import Price", price[0], price[1], capture=True)
 
-    # Import price - can be list of entities
-    _select_entity_field(page, "Import Price", config["import_price"])
+    # Export prices
+    if config.export_prices:
+        first = config.export_prices[0]
+        page.select_entity("Export Price", first[0], first[1], capture=True)
+        for price in config.export_prices[1:]:
+            page.add_another_entity("Export Price", price[0], price[1], capture=True)
 
-    # Export price - can be list of entities
-    _select_entity_field(page, "Export Price", config["export_price"])
-
-    # Submit step 1 (entities)
     page.submit(capture=True)
 
-    # Step 2: Handle limits if present
-    _handle_step2_spinbuttons(page, config)
+    # Step 2: import/export limits
+    _handle_step2(page, config)
 
-    # Close dialog
     page.close_element_dialog(capture=True)
 
-    _LOGGER.info("Grid added: %s", config["name"])
+    _LOGGER.info("Grid added: %s", config.name)
 
 
-def add_load(ctx: GuideContext, config: LoadConfigSchema) -> None:
-    """Add load element to HAEO network.
-
-    Args:
-        ctx: Guide execution context
-        config: Load configuration with fields:
-            - name: Display name
-            - connection: Element to connect to
-            - forecast: Entity ID(s) or constant (kW)
-
-    """
-    _LOGGER.info("Adding Load: %s", config["name"])
+def add_load(ctx: GuideContext, config: LoadConfig) -> None:
+    """Add load element to HAEO network."""
+    _LOGGER.info("Adding Load: %s", config.name)
     page = ctx.page
 
-    # Navigate to HAEO integration page
     page.goto("/config/integrations/integration/haeo")
-
-    # Click Load button
     page.click_button("Load", capture=True)
     page.wait_for_dialog("Load Configuration")
 
-    # Fill name
-    page.fill_textbox("Load Name", config["name"], capture=True)
+    page.fill_textbox("Load Name", config.name, capture=True)
+    page.select_combobox("Connection", config.connection, capture=True)
 
-    # Select connection
-    page.select_combobox("Connection", config["connection"], capture=True)
+    if config.forecast:
+        page.select_entity("Forecast", config.forecast[0], config.forecast[1], capture=True)
 
-    # Handle forecast field
-    _select_entity_field(page, "Forecast", config["forecast"])
-
-    # Submit step 1
     page.submit(capture=True)
 
-    # Check if step 2 exists (spinbuttons for configurable values)
-    _handle_step2_spinbuttons(page, config)
+    # Step 2: constant value if configurable entity was selected
+    _handle_step2(page, config)
 
-    # Close dialog
     page.close_element_dialog(capture=True)
 
-    _LOGGER.info("Load added: %s", config["name"])
+    _LOGGER.info("Load added: %s", config.name)
 
 
-def add_node(ctx: GuideContext, config: NodeConfigSchema) -> None:
-    """Add node element to HAEO network.
-
-    Args:
-        ctx: Guide execution context
-        config: Node configuration with fields:
-            - name: Display name
-            - is_source: Optional bool (default False)
-            - is_sink: Optional bool (default False)
-
-    """
-    _LOGGER.info("Adding Node: %s", config["name"])
+def add_node(ctx: GuideContext, config: NodeConfig) -> None:
+    """Add node element to HAEO network."""
+    _LOGGER.info("Adding Node: %s", config.name)
     page = ctx.page
 
-    # Navigate to HAEO integration page
     page.goto("/config/integrations/integration/haeo")
-
-    # Click Node button
     page.click_button("Node", capture=True)
     page.wait_for_dialog("Node Configuration")
 
-    # Fill name
-    page.fill_textbox("Node Name", config["name"], capture=True)
+    page.fill_textbox("Node Name", config.name, capture=True)
 
-    # Note: is_source and is_sink would need checkbox handling if present
-
-    # Submit and close
     page.submit(capture=True)
     page.close_element_dialog(capture=True)
 
-    _LOGGER.info("Node added: %s", config["name"])
+    _LOGGER.info("Node added: %s", config.name)
 
 
-# region: Helper Functions
+def login(ctx: GuideContext) -> None:
+    """Log in to Home Assistant."""
+    _LOGGER.info("Logging in...")
+    page = ctx.page
+
+    page.goto("/")
+
+    if "/auth/authorize" in page.page.url:
+        page.fill_textbox("Username", "testuser")
+        page.fill_textbox("Password", "testpass")
+        page.click_button("Log in")
+        page.page.wait_for_url("**/lovelace/**", timeout=10000)
+
+    _LOGGER.info("Logged in")
 
 
-def _entity_search_term(entity_id: str) -> str:
-    """Extract search term from entity ID.
+def verify_setup(ctx: GuideContext) -> None:
+    """Verify the HAEO setup is complete."""
+    _LOGGER.info("Verifying setup...")
+    page = ctx.page
 
-    Takes an entity ID like 'sensor.battery_soc' and returns
-    a search term like 'battery soc'.
-    """
-    # Remove domain prefix and convert to search term
-    if "." in entity_id:
-        entity_id = entity_id.split(".", 1)[1]
-    return entity_id.replace("_", " ")
+    page.goto("/config/integrations/integration/haeo")
+    page.page.get_by_role("button", name="Inverter").first.wait_for(state="visible", timeout=5000)
+    page.capture("final_overview")
 
-
-def _entity_display_name(entity_id: str) -> str:
-    """Extract expected display name from entity ID.
-
-    Takes an entity ID like 'sensor.battery_soc' and returns
-    a title-cased display name like 'Battery Soc'.
-
-    Note: This is an approximation - actual display names may differ.
-    Guides should specify explicit display names in their config.
-    """
-    if "." in entity_id:
-        entity_id = entity_id.split(".", 1)[1]
-    return entity_id.replace("_", " ").title()
+    _LOGGER.info("Setup verified")
 
 
-def _select_entity_field(page: Any, field_label: str, value: list[str] | str | float) -> None:
-    """Select one or more entities for a field.
-
-    Handles entity ID strings, lists of entity IDs, and skips float constants.
-    """
-    if isinstance(value, list):
-        # First entity
-        if len(value) > 0:
-            page.select_entity(
-                field_label,
-                _entity_search_term(value[0]),
-                _entity_display_name(value[0]),
-                capture=True,
-            )
-        # Additional entities
-        for entity_id in value[1:]:
-            page.add_another_entity(
-                field_label,
-                _entity_search_term(entity_id),
-                _entity_display_name(entity_id),
-                capture=True,
-            )
-    elif isinstance(value, str):
-        page.select_entity(
-            field_label,
-            _entity_search_term(value),
-            _entity_display_name(value),
-            capture=True,
-        )
-    # Skip float constants - those are handled in step 2
+# Helper functions
 
 
-def _handle_step2_spinbuttons(page: Any, config: Mapping[str, Any]) -> None:
-    """Handle step 2 spinbuttons if present.
-
-    Some config flows have a second step for entering constant values.
-    This handles common fields like min/max charge, import/export limits.
-    """
-    # Check if Submit button exists (meaning we're on step 2)
-    submit_button = page.page.get_by_role("button", name="Submit")
-    if submit_button.count() == 0:
+def _handle_step2(page: HAPage, config: Any) -> None:
+    """Handle step 2 spinbuttons if present."""
+    submit = page.page.get_by_role("button", name="Submit")
+    if submit.count() == 0:
         return
 
     try:
-        if not submit_button.is_visible(timeout=1000):
+        if not submit.is_visible(timeout=1000):
             return
     except Exception:
         return
 
-    # Map of config field names to form field labels
-    spinbutton_mappings = {
-        "min_charge_percentage": "Min Charge Level",
-        "max_charge_percentage": "Max Charge Level",
+    # Map config attributes to form labels
+    field_mappings = {
+        "min_charge_level": "Min Charge Level",
+        "max_charge_level": "Max Charge Level",
         "import_limit": "Import Limit",
         "export_limit": "Export Limit",
-        "forecast": "Forecast",  # For configurable loads
+        "constant_value": "Forecast",
     }
 
-    for config_key, form_label in spinbutton_mappings.items():
-        if config_key in config:
-            value = config[config_key]
-            if isinstance(value, int | float):
-                spinbutton = page.page.get_by_role("spinbutton", name=form_label)
-                if spinbutton.count() > 0:
-                    try:
-                        if spinbutton.is_visible(timeout=1000):
-                            page.fill_spinbutton(form_label, str(value), capture=True)
-                    except Exception:
-                        pass
+    for attr, label in field_mappings.items():
+        value = getattr(config, attr, None)
+        if value is not None:
+            spinbutton = page.page.get_by_role("spinbutton", name=label)
+            if spinbutton.count() > 0:
+                try:
+                    if spinbutton.is_visible(timeout=1000):
+                        page.fill_spinbutton(label, str(value), capture=True)
+                except Exception:
+                    pass
 
-    # Submit step 2
     page.submit(capture=True)
-
-
-# endregion
