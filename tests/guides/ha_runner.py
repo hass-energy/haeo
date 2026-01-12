@@ -287,9 +287,7 @@ async def _setup_home_assistant_async(
     entity.async_setup(hass)
 
     # Translation cache
-    hass.data[translation.TRANSLATION_FLATTEN_CACHE] = translation._TranslationCache(
-        hass
-    )
+    hass.data[translation.TRANSLATION_FLATTEN_CACHE] = translation._TranslationCache(hass)
 
     # Load registries
     await ar.async_load(hass)
@@ -407,9 +405,7 @@ def _run_hass_thread(
         async_stop_event_holder.append(async_stop_event)
 
         try:
-            hass, access_token, refresh_token_id = await _setup_home_assistant_async(
-                port, config_dir
-            )
+            hass, access_token, refresh_token_id = await _setup_home_assistant_async(port, config_dir)
             hass_holder.append(hass)
             token_holder.append((access_token, refresh_token_id))
             ready_event.set()
@@ -472,13 +468,7 @@ def live_home_assistant(
         # Copy SingleFile bundle to www directory for HTML captures
         www_dir = Path(temp_dir) / "www"
         www_dir.mkdir()
-        singlefile_bundle = (
-            PROJECT_ROOT
-            / "node_modules"
-            / "single-file-cli"
-            / "lib"
-            / "single-file-bundle.js"
-        )
+        singlefile_bundle = PROJECT_ROOT / "node_modules" / "single-file-cli" / "lib" / "single-file-bundle.js"
         if singlefile_bundle.exists():
             shutil.copy2(singlefile_bundle, www_dir / "single-file-bundle.js")
 

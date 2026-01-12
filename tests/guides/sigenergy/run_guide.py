@@ -299,9 +299,7 @@ class SigenergyGuide:
             self.page.wait_for_load_state("domcontentloaded")
             self.capture(f"{capture_name}_result")
 
-    def fill_textbox(
-        self, name: str, value: str, *, capture_name: str | None = None
-    ) -> None:
+    def fill_textbox(self, name: str, value: str, *, capture_name: str | None = None) -> None:
         """Fill a textbox by its accessible name.
 
         If the textbox already contains the target value, skips filling.
@@ -325,9 +323,7 @@ class SigenergyGuide:
         if capture_name:
             self.capture(f"{capture_name}_filled")
 
-    def fill_spinbutton(
-        self, name: str, value: str, *, capture_name: str | None = None
-    ) -> None:
+    def fill_spinbutton(self, name: str, value: str, *, capture_name: str | None = None) -> None:
         """Fill a spinbutton (numeric input) by its accessible name.
 
         If capture_name is provided, captures before (with indicator) and after (filled).
@@ -345,9 +341,7 @@ class SigenergyGuide:
         if capture_name:
             self.capture(f"{capture_name}_filled")
 
-    def select_combobox_option(
-        self, combobox_name: str, option_text: str, *, capture_name: str | None = None
-    ) -> None:
+    def select_combobox_option(self, combobox_name: str, option_text: str, *, capture_name: str | None = None) -> None:
         """Select an option from a combobox dropdown.
 
         Comboboxes in HA need to be clicked to open, then an option selected.
@@ -554,9 +548,7 @@ def add_haeo_integration(guide: SigenergyGuide) -> None:
     guide.page.wait_for_load_state("networkidle")
 
     # Wait for the Add integration button to be visible
-    add_btn = guide.page.locator("ha-button").get_by_role(
-        "button", name="Add integration"
-    )
+    add_btn = guide.page.locator("ha-button").get_by_role("button", name="Add integration")
     add_btn.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
 
     guide.capture("integrations_page")
@@ -608,9 +600,7 @@ def add_haeo_integration(guide: SigenergyGuide) -> None:
     guide.page.wait_for_load_state("networkidle")
 
     # Wait for the integration page to be ready - look for an element button
-    guide.page.get_by_role("button", name="Inverter").wait_for(
-        state="visible", timeout=DEFAULT_TIMEOUT
-    )
+    guide.page.get_by_role("button", name="Inverter").wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
 
     guide.capture("haeo_integration_page")
 
@@ -632,9 +622,7 @@ def add_inverter(guide: SigenergyGuide) -> None:
     guide.fill_textbox("Inverter Name", "Inverter", capture_name="inverter_name")
 
     # Select AC Connection with capture
-    guide.select_combobox_option(
-        "AC Connection", "Switchboard", capture_name="inverter_connection"
-    )
+    guide.select_combobox_option("AC Connection", "Switchboard", capture_name="inverter_connection")
 
     # Select power sensors with capture
     guide.select_entity(
@@ -671,9 +659,7 @@ def add_battery(guide: SigenergyGuide) -> None:
     guide.fill_textbox("Battery Name", "Battery", capture_name="battery_name")
 
     # Select connection
-    guide.select_combobox_option(
-        "Connection", "Inverter", capture_name="battery_connection"
-    )
+    guide.select_combobox_option("Connection", "Inverter", capture_name="battery_connection")
 
     # Entity selections with captures
     guide.select_entity(
@@ -711,15 +697,11 @@ def add_battery(guide: SigenergyGuide) -> None:
         # We're on step 2 - fill in any visible spinbuttons and submit
         min_charge = guide.page.get_by_role("spinbutton", name="Min Charge Level")
         if min_charge.count() > 0 and min_charge.is_visible(timeout=1000):
-            guide.fill_spinbutton(
-                "Min Charge Level", "10", capture_name="battery_min_soc"
-            )
+            guide.fill_spinbutton("Min Charge Level", "10", capture_name="battery_min_soc")
 
         max_charge = guide.page.get_by_role("spinbutton", name="Max Charge Level")
         if max_charge.count() > 0 and max_charge.is_visible(timeout=1000):
-            guide.fill_spinbutton(
-                "Max Charge Level", "100", capture_name="battery_max_soc"
-            )
+            guide.fill_spinbutton("Max Charge Level", "100", capture_name="battery_max_soc")
 
         # Submit step 2
         guide.click_button("Submit", capture_name="battery_values_submit")
@@ -740,9 +722,7 @@ def add_solar(guide: SigenergyGuide) -> None:
     dialog_title.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
 
     guide.fill_textbox("Solar Name", "Solar", capture_name="solar_name")
-    guide.select_combobox_option(
-        "Connection", "Inverter", capture_name="solar_connection"
-    )
+    guide.select_combobox_option("Connection", "Inverter", capture_name="solar_connection")
 
     # First forecast sensor
     guide.select_entity(
@@ -788,9 +768,7 @@ def add_grid(guide: SigenergyGuide) -> None:
     dialog_title.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
 
     guide.fill_textbox("Grid Name", "Grid", capture_name="grid_name")
-    guide.select_combobox_option(
-        "Connection", "Switchboard", capture_name="grid_connection"
-    )
+    guide.select_combobox_option("Connection", "Switchboard", capture_name="grid_connection")
 
     # Pause here to debug entity selection highlighting
     if guide.pause_mode:
@@ -856,14 +834,10 @@ def add_load(guide: SigenergyGuide) -> None:
     dialog_title.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
 
     guide.fill_textbox("Load Name", "Constant Load", capture_name="load_name")
-    guide.select_combobox_option(
-        "Connection", "Switchboard", capture_name="load_connection"
-    )
+    guide.select_combobox_option("Connection", "Switchboard", capture_name="load_connection")
 
     # For constant load, select the HAEO Configurable entity
-    guide.select_entity(
-        "Forecast", "configurable", "Configurable Entity", capture_name="load_forecast"
-    )
+    guide.select_entity("Forecast", "configurable", "Configurable Entity", capture_name="load_forecast")
 
     # Step 1 submit - triggers step 2 for configurable values
     guide.click_button("Submit", capture_name="load_submit_step1")
@@ -891,9 +865,7 @@ def verify_setup(guide: SigenergyGuide) -> None:
 
     # Wait for page to be ready - look for an element that indicates the page is loaded
     # Use .first because there may be multiple elements with same name (toolbar + card)
-    guide.page.get_by_role("button", name="Inverter").first.wait_for(
-        state="visible", timeout=DEFAULT_TIMEOUT
-    )
+    guide.page.get_by_role("button", name="Inverter").first.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
 
     guide.capture("final_overview")
 
@@ -913,8 +885,7 @@ def login_to_ha(guide: SigenergyGuide) -> None:
     # Check if we're in onboarding - handle onboarding redirect first
     if "/onboarding" in guide.page.url:
         msg = (
-            f"Home Assistant is in onboarding mode (URL: {guide.page.url}). "
-            "Onboarding should be bypassed by ha_runner."
+            f"Home Assistant is in onboarding mode (URL: {guide.page.url}). Onboarding should be bypassed by ha_runner."
         )
         raise RuntimeError(msg)
 
@@ -1059,9 +1030,7 @@ def main() -> None:
         _LOGGER.info("Loaded states from %s", INPUTS_FILE.name)
 
         # Run guide
-        results = run_guide(
-            hass, SCREENSHOTS_DIR, headless=headless, pause_mode=pause_mode
-        )
+        results = run_guide(hass, SCREENSHOTS_DIR, headless=headless, pause_mode=pause_mode)
 
         _LOGGER.info("=" * 50)
         _LOGGER.info("Guide complete! %d screenshots captured", len(results))

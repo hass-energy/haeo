@@ -96,9 +96,7 @@ def test_sigenergy_guide(dark_mode: bool) -> None:
             "Grid",
             "Constant Load",
         }
-        assert expected_elements <= element_names, (
-            f"Missing elements: {expected_elements - element_names}"
-        )
+        assert expected_elements <= element_names, f"Missing elements: {expected_elements - element_names}"
 
         _LOGGER.info(
             "Guide test passed (%s mode): %d screenshots saved to %s",
