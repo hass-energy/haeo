@@ -186,6 +186,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> bool
     except TimeoutError:
         not_ready = [key for key, entity in runtime_data.input_entities.items() if not entity.is_ready()]
         msg = f"Input entities not ready after 30s: {not_ready}"
+        await async_unload_entry(hass, entry)
         raise ConfigEntryNotReady(msg) from None
 
     # Create coordinator after input entities are ready - it reads from them
