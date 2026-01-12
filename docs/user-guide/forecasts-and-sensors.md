@@ -45,8 +45,10 @@ Custom template sensors that match these formats will also work.
 
 **Supported formats** (see [Supported Forecast Formats](#supported-forecast-formats) for complete details):
 
+- [HAFO](https://hafo.haeo.io)
 - [Amber Electric](https://www.home-assistant.io/integrations/amberelectric/) (electricity pricing)
-- [AEMO NEM](https://www.home-assistant.io/integrations/aemo/) (Australian electricity pricing)
+- [AEMO NEM](https://github.com/cabberley/HA_AemoNemData) (Australian electricity pricing)
+- [EMHASS](https://github.com/davidusb-geern/emhass) (energy management forecasts)
 - [Solcast Solar](https://github.com/BJReplay/ha-solcast-solar) (solar generation)
 - [Open-Meteo Solar Forecast](https://github.com/rany2/ha-open-meteo-solar-forecast) (solar generation)
 - HAEO sensors (chain HAEO outputs as inputs to other elements)
@@ -275,7 +277,9 @@ HAEO automatically detects and parses these forecast formats:
 | -------------------------------------------------------------------------------------------------- | --------------------------- | ------------------------------- | ------------------- |
 | [Amber Electric](https://www.home-assistant.io/integrations/amberelectric/)                        | `amberelectric`             | Electricity pricing (Australia) | 30-minute intervals |
 | [AEMO NEM](https://www.home-assistant.io/integrations/aemo/)                                       | `aemo`                      | Wholesale pricing (Australia)   | 30-minute intervals |
+| [EMHASS](https://github.com/davidusb-geern/emhass)                                                 | `emhass`                    | Energy management forecasts     | Variable intervals  |
 | HAEO                                                                                               | `haeo`                      | Chain HAEO outputs as inputs    | Variable intervals  |
+| [HAFO](https://hafo.haeo.io)                                                                       | `hafo`                      | Historical load forecasting     | Hourly intervals    |
 | [Solcast Solar](https://github.com/BJReplay/ha-solcast-solar)                                      | `solcast_pv_forecast`       | Solar generation                | 30-minute intervals |
 | [Open-Meteo Solar Forecast](https://www.home-assistant.io/integrations/open_meteo_solar_forecast/) | `open_meteo_solar_forecast` | Solar generation                | Hourly intervals    |
 
@@ -316,9 +320,24 @@ template:
 
 HAEO will detect this as a simple forecast format and extract the data.
 
-## Using Input Numbers for Constants
+## Using Constants vs Sensors
 
-For constant values that don't change over time (fixed prices, baseline loads, power limits), use [input_number helpers](https://www.home-assistant.io/integrations/input_number/) instead of creating custom sensors.
+For values that don't change over time (fixed prices, baseline loads, power limits), you have two options:
+
+### Direct constant entry
+
+During element configuration, select **Configurable Entity** for the field and enter your value in step 2.
+This is the simplest approach for truly static values.
+
+| Step 1 Selection    | Step 2 Entry | Use Case             |
+| ------------------- | ------------ | -------------------- |
+| Configurable Entity | 0.25         | Fixed import price   |
+| Configurable Entity | 15           | Static power limit   |
+| Configurable Entity | 90           | Fixed SOC percentage |
+
+### Input number helpers
+
+For values you want to adjust through the Home Assistant UI without reconfiguring HAEO, use [input_number helpers](https://www.home-assistant.io/integrations/input_number/).
 
 **Creating an input_number**:
 
@@ -334,22 +353,26 @@ For constant values that don't change over time (fixed prices, baseline loads, p
 
 **Using in HAEO configuration**:
 
-Reference the input_number entity ID anywhere HAEO accepts a sensor:
+During element configuration, select the input_number entity in the entity selector:
 
-| Field                       | Value                           |
-| --------------------------- | ------------------------------- |
-| **Forecast**                | input_number.base_load_power    |
-| **Import Price**            | input_number.fixed_import_price |
-| **Max Power Source→Target** | input_number.inverter_rating    |
+| Field            | Value                           |
+| ---------------- | ------------------------------- |
+| **Import Price** | input_number.fixed_import_price |
+| **Import Limit** | input_number.inverter_rating    |
 
 HAEO treats input_number helpers like any other sensor, reading the current value and repeating it across the optimization horizon.
 
-**Benefits**:
+**Benefits of input_number helpers**:
 
-- Easy to adjust through Home Assistant UI
-- No template sensor configuration required
-- Clear, simple configuration
+- Adjustable through Home Assistant UI without reconfiguring HAEO
 - Can be controlled via automations or scripts
+- Value changes take effect on next optimization cycle
+
+**When to use each approach**:
+
+- **Configurable Entity**: Values that rarely change (capacity, efficiency) - enter a constant value in step 2
+- **Input_number helper**: Values you adjust regularly (target SOC, temporary overrides) - select in entity selector
+- **Forecast sensor**: Values that vary over time (prices, solar generation) - select in entity selector
 
 ## Troubleshooting
 

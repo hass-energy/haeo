@@ -13,7 +13,7 @@
       "element_type": "battery",
       "capacity": "sensor.sigen_plant_rated_energy_capacity",
       "connection": "Inverter",
-      "discharge_cost": ["input_number.battery_discharge_cost"],
+      "discharge_cost": 0.02,
       "early_charge_incentive": 0.001,
       "efficiency": 99.0,
       "initial_charge_percentage": "sensor.sigen_plant_battery_state_of_charge",
@@ -26,7 +26,7 @@
       "name": "Constant Load",
       "element_type": "load",
       "connection": "Switchboard",
-      "forecast": ["input_number.constant_load_power"]
+      "forecast": 1.0
     },
     "Grid": {
       "name": "Grid",
@@ -86,7 +86,9 @@
     },
     "Switchboard": {
       "name": "Switchboard",
-      "element_type": "node"
+      "element_type": "node",
+      "is_sink": false,
+      "is_source": false
     }
   }
 }

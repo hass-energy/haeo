@@ -29,15 +29,17 @@ See [architecture guide](../docs/developer-guide/architecture.md) for detailed c
 ```
 custom_components/haeo/     # Home Assistant integration
 ├── model/                  # LP model (constraints, variables, optimization)
-├── elements/               # Element adapters (schema, data, adapter, extractor)
-├── schema/                 # Field metadata and schema generation
-├── flows/                  # Config flow implementations
+├── elements/               # Element adapters (one subfolder per element type)
+├── schema/                 # Shared utilities (UnitSpec, matches_unit_spec)
+├── flows/                  # Hub and options config flows
 ├── sensors/                # Sensor implementations
 ├── data/                   # Data loading utilities
 └── translations/           # i18n strings (en.json)
 tests/                      # Test suite
-├── model/                  # Model layer tests with test_data
-├── scenarios/              # End-to-end scenario tests
+├── flows/                  # Config flow tests with shared test_data/
+├── elements/               # Element-specific tests (adapter, flow, model)
+├── model/                  # Model layer tests
+└── scenarios/              # End-to-end scenario tests
 docs/                       # Documentation
 ```
 
@@ -51,6 +53,27 @@ docs/                       # Documentation
 ## Agent behavioral rules
 
 These rules apply to all AI agent interactions with this codebase:
+
+### Design principles
+
+**Convention over configuration**: Prefer uniform patterns that work the same everywhere over configurable options that require case-by-case logic.
+When code paths diverge based on metadata flags or configuration, ask whether the divergence is necessary.
+Often, a single convention that handles all cases uniformly is simpler and more maintainable.
+
+- Derive behavior from existing structure rather than adding metadata flags
+- Make all instances of a pattern work the same way - no special cases
+- Let upstream validation (e.g., config flows) enforce constraints so downstream code can assume valid data
+- Config flows use `vol.Required()` and `vol.Optional()` to enforce required fields at entry time
+- Downstream code (coordinator, adapters) can assume required fields are present because config flow guarantees it
+- For optional values, if they are missing or None, skip them uniformly throughout processing
+
+**Composition over complexity**: Build features by composing simple, focused components rather than adding conditional logic to existing code.
+Each component should do one thing well without needing to know about the internals of other components.
+
+- Separate concerns: validation happens at config flow boundaries, processing assumes valid input
+- Avoid "check if X then do Y else do Z" patterns - instead, make X and Y go through the same code path
+- When adding a feature, prefer creating new simple components over adding branches to existing ones
+- Runtime code uses the result of schema validation, not the schema itself - the schema's job is done at configuration time
 
 ### Clean changes
 
@@ -74,6 +97,28 @@ Always assume that accessed properties/fields which should exist do exist direct
 Rely on errors occurring if they do not when they indicate a coding error and not a possibly None value.
 This is especially true in tests where you have added entities and then must access them later.
 Having None checks there reduces readability and makes the test more fragile to passing unexpectedly.
+
+### Code review guidelines
+
+When reviewing code, rely on linting tools (Ruff and Pyright) to identify issues that they can detect.
+Do not report on issues that these tools already catch, such as:
+
+- Unused imports
+- Type errors
+- Style violations
+- Formatting issues
+- Other issues detectable by static analysis tools
+
+Focus review comments on:
+
+- Logic errors and bugs
+- Architectural concerns
+- Performance issues
+- Security vulnerabilities
+- Code clarity and maintainability
+- Missing tests or documentation
+
+This avoids false positives and redundant feedback that linting tools already provide.
 
 ## Universal code standards
 
@@ -136,7 +181,23 @@ Avoid special characters in translation display names as they are used in entity
 ## Path-specific instructions
 
 This repository uses path-specific instruction files in `.github/instructions/` that apply additional context based on the files being edited.
-See that directory for domain-specific guidelines.
+
+| Instruction File                                                                    | Applies To                                    | When To Use                                                                                    |
+| ----------------------------------------------------------------------------------- | --------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| [config-flow.instructions.md](.github/instructions/config-flow.instructions.md)     | `**/config_flow.py`, `**/flows/**`            | Developing config flows, element configuration UI, schema generation, validation logic         |
+| [documentation.instructions.md](.github/instructions/documentation.instructions.md) | `docs/**`                                     | Writing or updating user guides, developer documentation, modeling docs, adding examples       |
+| [elements.instructions.md](.github/instructions/elements.instructions.md)           | `custom_components/haeo/elements/**`          | Creating or modifying element adapters, schema/data types, field metadata                      |
+| [integration.instructions.md](.github/instructions/integration.instructions.md)     | `custom_components/haeo/**`                   | Home Assistant integration patterns, coordinator usage, entity development, exception handling |
+| [manifest.instructions.md](.github/instructions/manifest.instructions.md)           | `**/manifest.json`                            | Updating integration metadata, dependencies, version requirements                              |
+| [meta.instructions.md](.github/instructions/meta.instructions.md)                   | `.github/instructions/**`, `.cursor/rules/**` | Maintaining instruction files themselves, updating rules based on feedback                     |
+| [model.instructions.md](.github/instructions/model.instructions.md)                 | `custom_components/haeo/model/**`             | Developing LP model elements, constraints, cost functions, optimization logic                  |
+| [python.instructions.md](.github/instructions/python.instructions.md)               | `**/*.py`                                     | All Python code - type hints, async patterns, error handling, code style                       |
+| [scenarios.instructions.md](.github/instructions/scenarios.instructions.md)         | `tests/scenarios/**`                          | Creating or maintaining end-to-end scenario tests with realistic data                          |
+| [tests.instructions.md](.github/instructions/tests.instructions.md)                 | `tests/**`                                    | Writing unit tests, integration tests, test fixtures, coverage requirements                    |
+| [translations.instructions.md](.github/instructions/translations.instructions.md)   | `**/translations/**`                          | Adding or updating user-facing strings, sensor names, error messages                           |
+
+**Note**: The `python.instructions.md` file applies to all Python files and provides universal Python coding standards.
+Other instruction files provide domain-specific guidance that builds upon these universal standards.
 
 ## Documentation
 

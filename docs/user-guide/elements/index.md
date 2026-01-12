@@ -52,6 +52,22 @@ When configuring elements:
 3. **Verify each step**: Check that optimization produces reasonable results
 4. **Use realistic values**: Base constraints on actual device specifications
 
+## Advanced Elements
+
+Some elements are only available when **Advanced Mode** is enabled on your hub.
+These elements provide direct access to raw modeling components for advanced users who need fine-grained control.
+
+Advanced elements include:
+
+- **Connection**: Explicit power flow paths between elements
+- **Node**: Virtual power balance points (with advanced source/sink configuration)
+- **Battery Section**: Direct access to model layer Battery element
+
+Most users should use the standard elements which provide automatic connections and optimized behavior.
+Advanced elements require manual connection configuration and are intended for users who understand the underlying model layer.
+
+See the [Configuration guide](../configuration.md#advanced-mode) for details on enabling Advanced Mode.
+
 ## Next Steps
 
 Explore detailed configuration for each element type:
@@ -87,5 +103,17 @@ Explore detailed configuration for each element type:
     Virtual power balance nodes.
 
     [:material-arrow-right: Node guide](node.md)
+
+- :material-battery-charging:{ .lg .middle } __Battery Section configuration__ (Advanced)
+
+    Direct access to model layer Battery element.
+
+    [:material-arrow-right: Battery Section guide](battery_section.md)
+
+- :material-connection:{ .lg .middle } __Connection configuration__ (Advanced)
+
+    Explicit power flow paths between elements.
+
+    [:material-arrow-right: Connections guide](connections.md)
 
 </div>

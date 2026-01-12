@@ -1,14 +1,14 @@
 # Solar Modeling
 
-The Solar device composes a [SourceSink](../model-layer/source-sink.md) (power source only) with an implicit [Connection](../model-layer/connection.md) to model solar generation with optional curtailment.
+The Solar device composes a [Node](../model-layer/elements/node.md) (power source only) with an implicit [PowerConnection](../model-layer/connections/power-connection.md) to model solar generation with optional curtailment.
 
 ## Model Elements Created
 
 ```mermaid
 graph LR
     subgraph "Device"
-        SS["SourceSink<br/>(is_source=true, is_sink=false)"]
-        Conn["Connection<br/>{name}:connection"]
+        SS["Node<br/>(is_source=true, is_sink=false)"]
+        Conn["PowerConnection<br/>{name}:connection"]
     end
 
     Node[Connection Target]
@@ -17,10 +17,10 @@ graph LR
     Conn -->|connects to| Node
 ```
 
-| Model Element                               | Name                | Parameters From Configuration           |
-| ------------------------------------------- | ------------------- | --------------------------------------- |
-| [SourceSink](../model-layer/source-sink.md) | `{name}`            | is_source=true, is_sink=false           |
-| [Connection](../model-layer/connection.md)  | `{name}:connection` | forecast as max_power, production price |
+| Model Element                                                     | Name                | Parameters From Configuration           |
+| ----------------------------------------------------------------- | ------------------- | --------------------------------------- |
+| [Node](../model-layer/elements/node.md)                           | `{name}`            | is_source=true, is_sink=false           |
+| [PowerConnection](../model-layer/connections/power-connection.md) | `{name}:connection` | forecast as max_power, production price |
 
 ## Devices Created
 
@@ -34,14 +34,14 @@ Solar creates 1 device in Home Assistant:
 
 The adapter transforms user configuration into model parameters:
 
-| User Configuration   | Model Element | Model Parameter           | Notes                                        |
-| -------------------- | ------------- | ------------------------- | -------------------------------------------- |
-| `forecast`           | Connection    | `max_power_source_target` | Upper bound on generation                    |
-| `production_price`   | Connection    | `price_source_target`     | Cost/revenue per kWh generated (default: 0)  |
-| `enable_curtailment` | Connection    | `fixed_power`             | false if curtailment enabled, true otherwise |
-| `connection`         | Connection    | `target`                  | Node to connect to                           |
-| —                    | SourceSink    | `is_source=true`          | Solar provides power                         |
-| —                    | SourceSink    | `is_sink=false`           | Solar cannot consume power                   |
+| User Configuration   | Model Element   | Model Parameter           | Notes                                        |
+| -------------------- | --------------- | ------------------------- | -------------------------------------------- |
+| `forecast`           | PowerConnection | `max_power_source_target` | Upper bound on generation                    |
+| `production_price`   | PowerConnection | `price_source_target`     | Cost/revenue per kWh generated (default: 0)  |
+| `enable_curtailment` | PowerConnection | `fixed_power`             | false if curtailment enabled, true otherwise |
+| `connection`         | PowerConnection | `target`                  | Node to connect to                           |
+| —                    | Node            | `is_source=true`          | Solar provides power                         |
+| —                    | Node            | `is_sink=false`           | Solar cannot consume power                   |
 
 ## Sensors Created
 
@@ -53,7 +53,7 @@ The adapter transforms user configuration into model parameters:
 | `power_available` | kW    | Real-time | Maximum available solar power           |
 | `forecast_limit`  | \$/kW | Real-time | Value of additional generation capacity |
 
-See [Solar Configuration](../../user-guide/elements/solar.md#sensors-created) for detailed sensor documentation.
+See [Solar Configuration](../../user-guide/elements/solar.md) for detailed sensor and configuration documentation.
 
 ## Configuration Examples
 
@@ -122,13 +122,13 @@ Solar represents a solar generation system that produces power based on weather 
 
     [:material-arrow-right: Solar configuration](../../user-guide/elements/solar.md)
 
-- :material-power-plug:{ .lg .middle } **SourceSink model**
+- :material-power-plug:{ .lg .middle } **Node model**
 
     ---
 
     Underlying model element for Solar.
 
-    [:material-arrow-right: SourceSink formulation](../model-layer/source-sink.md)
+    [:material-arrow-right: Node formulation](../model-layer/elements/node.md)
 
 - :material-connection:{ .lg .middle } **Connection model**
 
@@ -136,6 +136,6 @@ Solar represents a solar generation system that produces power based on weather 
 
     How generation limits are applied.
 
-    [:material-arrow-right: Connection formulation](../model-layer/connection.md)
+    [:material-arrow-right: PowerConnection formulation](../model-layer/connections/power-connection.md)
 
 </div>

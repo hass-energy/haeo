@@ -25,6 +25,8 @@ from custom_components.haeo.elements.battery import (
     CONF_EFFICIENCY,
     CONF_INITIAL_CHARGE_PERCENTAGE,
     CONF_MAX_CHARGE_PERCENTAGE,
+    CONF_MAX_CHARGE_POWER,
+    CONF_MAX_DISCHARGE_POWER,
     CONF_MIN_CHARGE_PERCENTAGE,
     CONF_OVERCHARGE_COST,
     CONF_OVERCHARGE_PERCENTAGE,
@@ -34,6 +36,7 @@ from custom_components.haeo.elements.battery import (
 from custom_components.haeo.elements.battery import CONF_CONNECTION as BATTERY_CONF_CONNECTION
 from custom_components.haeo.elements.grid import CONF_CONNECTION as GRID_CONF_CONNECTION
 from custom_components.haeo.elements.grid import CONF_EXPORT_PRICE, CONF_IMPORT_PRICE
+from custom_components.haeo.elements.node import CONF_IS_SINK, CONF_IS_SOURCE
 from custom_components.haeo.validation import format_component_summary, validate_network_topology
 
 
@@ -107,13 +110,15 @@ async def test_validate_network_topology_with_implicit_connection(
         "main_node": {
             CONF_ELEMENT_TYPE: "node",
             CONF_NAME: "main",
+            CONF_IS_SOURCE: False,
+            CONF_IS_SINK: False,
         },
         "grid": {
             CONF_ELEMENT_TYPE: "grid",
             CONF_NAME: "grid",
             GRID_CONF_CONNECTION: "main",
-            CONF_IMPORT_PRICE: ["sensor.import_price"],
-            CONF_EXPORT_PRICE: ["sensor.export_price"],
+            CONF_IMPORT_PRICE: "sensor.import_price",
+            CONF_EXPORT_PRICE: "sensor.export_price",
         },
     }
 
@@ -144,24 +149,28 @@ async def test_validate_network_topology_detects_disconnected(
         "node_a": {
             CONF_ELEMENT_TYPE: "node",
             CONF_NAME: "a",
+            CONF_IS_SOURCE: False,
+            CONF_IS_SINK: False,
         },
         "node_b": {
             CONF_ELEMENT_TYPE: "node",
             CONF_NAME: "b",
+            CONF_IS_SOURCE: False,
+            CONF_IS_SINK: False,
         },
         "grid_a": {
             CONF_ELEMENT_TYPE: "grid",
             CONF_NAME: "grid_a",
             GRID_CONF_CONNECTION: "a",
-            CONF_IMPORT_PRICE: ["sensor.import_price"],
-            CONF_EXPORT_PRICE: ["sensor.export_price"],
+            CONF_IMPORT_PRICE: "sensor.import_price",
+            CONF_EXPORT_PRICE: "sensor.export_price",
         },
         "grid_b": {
             CONF_ELEMENT_TYPE: "grid",
             CONF_NAME: "grid_b",
             GRID_CONF_CONNECTION: "b",
-            CONF_IMPORT_PRICE: ["sensor.import_price"],
-            CONF_EXPORT_PRICE: ["sensor.export_price"],
+            CONF_IMPORT_PRICE: "sensor.import_price",
+            CONF_EXPORT_PRICE: "sensor.export_price",
         },
     }
 
@@ -199,13 +208,15 @@ async def test_validate_network_topology_with_battery(
         "main_node": {
             CONF_ELEMENT_TYPE: "node",
             CONF_NAME: "main",
+            CONF_IS_SOURCE: False,
+            CONF_IS_SINK: False,
         },
         "grid": {
             CONF_ELEMENT_TYPE: "grid",
             CONF_NAME: "grid",
             GRID_CONF_CONNECTION: "main",
-            CONF_IMPORT_PRICE: ["sensor.import_price"],
-            CONF_EXPORT_PRICE: ["sensor.export_price"],
+            CONF_IMPORT_PRICE: "sensor.import_price",
+            CONF_EXPORT_PRICE: "sensor.export_price",
         },
         "battery": {
             CONF_ELEMENT_TYPE: "battery",
@@ -213,6 +224,8 @@ async def test_validate_network_topology_with_battery(
             BATTERY_CONF_CONNECTION: "main",
             CONF_CAPACITY: "sensor.battery_capacity",
             CONF_INITIAL_CHARGE_PERCENTAGE: "sensor.battery_soc",
+            CONF_MAX_CHARGE_POWER: 5.0,
+            CONF_MAX_DISCHARGE_POWER: 5.0,
             CONF_MIN_CHARGE_PERCENTAGE: 10.0,
             CONF_MAX_CHARGE_PERCENTAGE: 90.0,
             CONF_EFFICIENCY: 95.0,
@@ -254,6 +267,8 @@ async def test_validate_network_topology_with_battery_all_sections(
         "main_node": {
             CONF_ELEMENT_TYPE: "node",
             CONF_NAME: "main",
+            CONF_IS_SOURCE: False,
+            CONF_IS_SINK: False,
         },
         "battery": {
             CONF_ELEMENT_TYPE: "battery",
@@ -261,13 +276,15 @@ async def test_validate_network_topology_with_battery_all_sections(
             BATTERY_CONF_CONNECTION: "main",
             CONF_CAPACITY: "sensor.battery_capacity",
             CONF_INITIAL_CHARGE_PERCENTAGE: "sensor.battery_soc",
+            CONF_MAX_CHARGE_POWER: 5.0,
+            CONF_MAX_DISCHARGE_POWER: 5.0,
             CONF_MIN_CHARGE_PERCENTAGE: 10.0,
             CONF_MAX_CHARGE_PERCENTAGE: 90.0,
             CONF_EFFICIENCY: 95.0,
             CONF_UNDERCHARGE_PERCENTAGE: 5.0,
             CONF_OVERCHARGE_PERCENTAGE: 95.0,
-            CONF_UNDERCHARGE_COST: ["sensor.undercharge_cost"],
-            CONF_OVERCHARGE_COST: ["sensor.overcharge_cost"],
+            CONF_UNDERCHARGE_COST: "sensor.undercharge_cost",
+            CONF_OVERCHARGE_COST: "sensor.overcharge_cost",
         },
     }
 

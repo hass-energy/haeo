@@ -68,6 +68,21 @@ Distant periods can use coarser resolution since forecasts become less reliable 
 HAEO uses intelligent forecast cycling to extend partial forecast data across the full horizon.
 A 24-hour solar forecast automatically cycles to cover longer horizons with time-of-day alignment preserved.
 
+#### Advanced Mode
+
+Advanced Mode is a hub-level setting that enables access to raw modeling elements for advanced users.
+
+**When enabled**, Advanced Mode makes additional element types available that provide direct access to model layer components.
+These advanced elements require manual connection configuration and are intended for users who understand the underlying optimization model.
+
+**When disabled** (default), only standard elements are available.
+Standard elements provide automatic connections and optimized behavior suitable for most use cases.
+
+Most users should leave Advanced Mode disabled.
+Enable Advanced Mode only if you need direct control over the underlying model layer components.
+
+See the [elements overview](elements/index.md) for details on which elements require Advanced Mode.
+
 Click **Submit** to create your hub.
 
 ## Adding Elements
@@ -80,10 +95,25 @@ After creating your hub, add elements to represent your devices through the Home
 4. Click the **`:` menu button** (three vertical dots in top right)
 5. Select **Add Entry** from the dropdown menu
 6. Choose the element type you want to add from the list
-7. Fill in the configuration fields for that element type
+7. Complete the configuration
 8. Click **Submit** to create the element
 
 **Editing existing elements**: Click the :material-cog: **cog icon** next to each element entry to modify its configuration.
+
+### Element configuration
+
+Most elements use a two-step configuration process:
+
+**Step 1 - Entity selection**: Enter the element name, select connection targets, and choose entities for each field.
+Select "Configurable Entity" if you want to enter a constant value instead of linking to a sensor.
+
+**Step 2 - Configurable values**: Enter constant values for any fields where you selected "Configurable Entity".
+This step is skipped if all fields are linked to sensors.
+
+!!! tip "Optional fields"
+
+    For optional fields like power limits, leave the field empty if you don't need that constraint.
+    The optimization will run without that limit applied.
 
 !!! note "Network entry"
 
@@ -92,15 +122,13 @@ After creating your hub, add elements to represent your devices through the Home
 
 ### Available element types
 
-| Element Type | Description                              | Use Case                      |
-| ------------ | ---------------------------------------- | ----------------------------- |
-| **Battery**  | Energy storage with SOC tracking         | Home batteries, EV as storage |
-| **Grid**     | Bi-directional grid                      | Main grid, separate meters    |
-| **Solar**    | Solar generation                         | Rooftop solar, ground-mount   |
-| **Load**     | Power consumption (constant or variable) | All consumption patterns      |
-| **Net**      | Virtual power balance node               | Grouping connection points    |
+HAEO provides element types for modeling different aspects of energy systems:
+energy storage, power generation, consumption, grid connections, and network topology.
 
-See the [elements overview](elements/index.md) for detailed configuration guides for each type.
+Most elements create automatic connections to simplify configuration.
+Some advanced elements provide direct access to model layer components and require manual connection setup.
+
+See the [elements overview](elements/index.md) for detailed configuration guides for each element type.
 
 ## Defining Connections
 
@@ -111,18 +139,15 @@ Add them from the same hub page as elements by selecting **Connection** from the
 
 ```mermaid
 graph LR
-    Grid[Grid] <--> Net[Main Node]
-    Net <--> Battery[Battery]
-    Solar[Solar] --> Net
-    Net --> Load[Load]
+    Source1[Source] <--> Net[Main Node]
+    Net <--> Storage[Storage]
+    Source2[Source] --> Net
+    Net --> Sink[Sink]
 ```
 
-This network requires four connections:
-
-1. Grid ↔ Main Node (bidirectional: import and export)
-2. Battery ↔ Main Node (bidirectional: charge and discharge)
-3. Solar → Main Node (unidirectional: generation only)
-4. Main Node → Load (unidirectional: consumption only)
+This network requires connections between elements and the central node.
+Most elements create these connections automatically.
+You only need explicit Connection elements when you need custom power flow paths, efficiency losses, or transmission costs.
 
 See the [Connections guide](elements/connections.md) for detailed information and examples.
 
@@ -168,12 +193,12 @@ Begin with a minimal configuration to verify optimization works, then add comple
 
 **Recommended first configuration**:
 
-- 1 Grid element (import/export prices)
-- 1 Battery element (with current SOC sensor)
-- 1 Load element (constant or forecast)
-- 3 Connections (Grid↔Node, Battery↔Node, Node→Load)
+- One grid connection element with import/export pricing
+- One energy storage element with current state tracking
+- One consumption element (constant or forecast-based)
+- Connections linking these elements through a central node
 
-This simple network is enough to test optimization behavior before adding solar, additional loads, or complex connection patterns.
+This simple network is enough to test optimization behavior before adding generation sources, additional loads, or complex connection patterns.
 
 ### Use meaningful names
 
@@ -196,7 +221,7 @@ Use these resources to expand your configuration and understand the results.
 
 - :material-cog-transfer-outline:{ .lg .middle } __Configure individual elements__
 
-    Set up batteries, grids, solar, and loads with detailed guidance.
+    Set up elements for your energy system with detailed guidance.
 
     [:material-arrow-right: Element guides](elements/index.md)
 

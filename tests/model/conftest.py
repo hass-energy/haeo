@@ -11,6 +11,6 @@ def solver() -> Highs:
     The solver is configured to suppress console output.
     """
     h = Highs()
-    h.setOptionValue("output_flag", False)  # noqa: FBT003
-    h.setOptionValue("log_to_console", False)  # noqa: FBT003
+    h.setOptionValue("output_flag", False)
+    h.setOptionValue("log_to_console", False)
     return h

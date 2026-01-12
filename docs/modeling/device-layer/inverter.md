@@ -1,13 +1,13 @@
 # Inverter Modeling
 
-The Inverter device composes a [SourceSink](../model-layer/source-sink.md) (as a DC bus junction) with an implicit [Connection](../model-layer/connection.md) to model bidirectional DC/AC power conversion with separate efficiency and power limits per direction.
+The Inverter device composes a [Node](../model-layer/elements/node.md) (as a DC bus junction) with an implicit [Connection](../model-layer/connections/power-connection.md) to model bidirectional DC/AC power conversion with separate efficiency and power limits per direction.
 
 ## Model Elements Created
 
 ```mermaid
 graph LR
     subgraph "Device"
-        SS["SourceSink<br/>(DC Bus Junction)"]
+        SS["Node<br/>(is_source=false, is_sink=false)"]
         Conn["Connection<br/>{name}:connection"]
     end
 
@@ -19,10 +19,10 @@ graph LR
     Conn <-->|connects to| ACNode
 ```
 
-| Model Element                               | Name                | Parameters From Configuration                  |
-| ------------------------------------------- | ------------------- | ---------------------------------------------- |
-| [SourceSink](../model-layer/source-sink.md) | `{name}`            | is_source=false, is_sink=false (pure junction) |
-| [Connection](../model-layer/connection.md)  | `{name}:connection` | efficiency, power limits per direction         |
+| Model Element                                                | Name                | Parameters From Configuration                  |
+| ------------------------------------------------------------ | ------------------- | ---------------------------------------------- |
+| [Node](../model-layer/elements/node.md)                      | `{name}`            | is_source=false, is_sink=false (pure junction) |
+| [Connection](../model-layer/connections/power-connection.md) | `{name}:connection` | efficiency, power limits per direction         |
 
 ## Devices Created
 
@@ -36,15 +36,15 @@ Inverter creates 1 device in Home Assistant:
 
 The adapter transforms user configuration into model parameters:
 
-| User Configuration    | Model Element | Model Parameter            | Notes                                 |
-| --------------------- | ------------- | -------------------------- | ------------------------------------- |
-| `efficiency_dc_to_ac` | Connection    | `efficiency_source_target` | Efficiency when inverting (DC to AC)  |
-| `efficiency_ac_to_dc` | Connection    | `efficiency_target_source` | Efficiency when rectifying (AC to DC) |
-| `max_power_dc_to_ac`  | Connection    | `max_power_source_target`  | Maximum inverting power (optional)    |
-| `max_power_ac_to_dc`  | Connection    | `max_power_target_source`  | Maximum rectifying power (optional)   |
-| `connection`          | Connection    | `target`                   | AC side node to connect to            |
-| —                     | SourceSink    | `is_source=false`          | DC bus is not a power source          |
-| —                     | SourceSink    | `is_sink=false`            | DC bus is not a power sink            |
+| User Configuration    | Model Element   | Model Parameter            | Notes                                 |
+| --------------------- | --------------- | -------------------------- | ------------------------------------- |
+| `efficiency_dc_to_ac` | PowerConnection | `efficiency_source_target` | Efficiency when inverting (DC to AC)  |
+| `efficiency_ac_to_dc` | PowerConnection | `efficiency_target_source` | Efficiency when rectifying (AC to DC) |
+| `max_power_dc_to_ac`  | PowerConnection | `max_power_source_target`  | Maximum inverting power (optional)    |
+| `max_power_ac_to_dc`  | PowerConnection | `max_power_target_source`  | Maximum rectifying power (optional)   |
+| `connection`          | PowerConnection | `target`                   | AC side node to connect to            |
+| —                     | Node            | `is_source=false`          | DC bus is not a power source          |
+| —                     | Node            | `is_sink=false`            | DC bus is not a power sink            |
 
 ## Sensors Created
 
@@ -56,12 +56,12 @@ The adapter transforms user configuration into model parameters:
 | `power_ac_to_dc`           | kW    | Real-time | Power flowing from AC to DC (rectifying) |
 | `power_active`             | kW    | Real-time | Net power (DC to AC - AC to DC)          |
 | `dc_bus_power_balance`     | \$/kW | Real-time | DC bus power balance shadow price        |
-| `max_power_dc_to_ac`       | kW    | Real-time | Max DC to AC power (when limited)        |
-| `max_power_ac_to_dc`       | kW    | Real-time | Max AC to DC power (when limited)        |
 | `max_power_dc_to_ac_price` | \$/kW | Real-time | Max DC to AC power shadow price          |
 | `max_power_ac_to_dc_price` | \$/kW | Real-time | Max AC to DC power shadow price          |
 
-The `max_power_*` sensors are only created when the corresponding limit is configured.
+The `max_power_*_price` sensors are only created when the corresponding limit is configured.
+
+See [Inverter Configuration](../../user-guide/elements/inverter.md) for detailed sensor and configuration documentation.
 
 ## Configuration Examples
 
@@ -118,13 +118,13 @@ while the AC side connects to your home's AC network.
 
 <div class="grid cards" markdown>
 
-- :material-power-plug:{ .lg .middle } **SourceSink model**
+- :material-power-plug:{ .lg .middle } **Node model**
 
     ---
 
     Underlying model element for the DC bus.
 
-    [:material-arrow-right: SourceSink formulation](../model-layer/source-sink.md)
+    [:material-arrow-right: Node formulation](../model-layer/elements/node.md)
 
 - :material-connection:{ .lg .middle } **Connection model**
 
@@ -132,7 +132,7 @@ while the AC side connects to your home's AC network.
 
     How power limits and efficiency are applied.
 
-    [:material-arrow-right: Connection formulation](../model-layer/connection.md)
+    [:material-arrow-right: PowerConnection formulation](../model-layer/connections/power-connection.md)
 
 - :material-battery-charging:{ .lg .middle } **Battery modeling**
 

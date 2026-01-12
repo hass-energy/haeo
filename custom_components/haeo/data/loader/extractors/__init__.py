@@ -7,18 +7,32 @@ from typing import NamedTuple
 from homeassistant.components.sensor import SensorDeviceClass
 from homeassistant.core import State
 
-from . import aemo_nem, amberelectric, haeo, open_meteo_solar_forecast, solcast_solar
-from .utils import EntityMetadata, base_unit_for_device_class, convert_to_base_unit, extract_entity_metadata
+from . import aemo_nem, amber2mqtt, amberelectric, emhass, haeo, open_meteo_solar_forecast, solcast_solar
+from .utils import (
+    EntityMetadata,
+    base_unit_for_device_class,
+    convert_to_base_unit,
+    extract_entity_metadata,
+    separate_duplicate_timestamps,
+)
 
 # Union of all domain literal types from the extractor modules
 ExtractorFormat = (
-    aemo_nem.Format | amberelectric.Format | haeo.Format | open_meteo_solar_forecast.Format | solcast_solar.Format
+    aemo_nem.Format
+    | amber2mqtt.Format
+    | amberelectric.Format
+    | emhass.Format
+    | haeo.Format
+    | open_meteo_solar_forecast.Format
+    | solcast_solar.Format
 )
 
 # Union of all Extractor class types
 DataExtractor = (
     type[aemo_nem.Parser]
+    | type[amber2mqtt.Parser]
     | type[amberelectric.Parser]
+    | type[emhass.Parser]
     | type[haeo.Parser]
     | type[open_meteo_solar_forecast.Parser]
     | type[solcast_solar.Parser]
@@ -28,7 +42,9 @@ DataExtractor = (
 # Dictionary mapping domain strings to their extractor classes
 FORMATS: dict[ExtractorFormat, DataExtractor] = {
     aemo_nem.DOMAIN: aemo_nem.Parser,
+    amber2mqtt.DOMAIN: amber2mqtt.Parser,
     amberelectric.DOMAIN: amberelectric.Parser,
+    emhass.DOMAIN: emhass.Parser,
     haeo.DOMAIN: haeo.Parser,
     open_meteo_solar_forecast.DOMAIN: open_meteo_solar_forecast.Parser,
     solcast_solar.DOMAIN: solcast_solar.Parser,
@@ -48,14 +64,18 @@ def extract(state: State) -> ExtractedData:
     """Extract data from a State object and convert to base units."""
 
     # Extract raw data and unit
-    data: Sequence[tuple[float, float]] | float
+    data: Sequence[tuple[int, float]] | float
     unit: str | StrEnum | None
     device_class: SensorDeviceClass | None
 
     if aemo_nem.Parser.detect(state):
         data, unit, device_class = aemo_nem.Parser.extract(state)
+    elif amber2mqtt.Parser.detect(state):
+        data, unit, device_class = amber2mqtt.Parser.extract(state)
     elif amberelectric.Parser.detect(state):
         data, unit, device_class = amberelectric.Parser.extract(state)
+    elif emhass.Parser.detect(state):
+        data, unit, device_class = emhass.Parser.extract(state)
     elif haeo.Parser.detect(state):
         data, unit, device_class = haeo.Parser.extract(state)
     elif open_meteo_solar_forecast.Parser.detect(state):
@@ -78,8 +98,12 @@ def extract(state: State) -> ExtractedData:
     # Convert values to base units
     if isinstance(data, Sequence):
         # Convert each value in the forecast series
-        converted_data = [(ts, convert_to_base_unit(value, unit_str, device_class)) for ts, value in data]
-        return ExtractedData(converted_data, base_unit)
+        converted_data: list[tuple[int, float]] = [
+            (ts, convert_to_base_unit(value, unit_str, device_class)) for ts, value in data
+        ]
+        # Separate duplicate timestamps to prevent interpolation (also converts int timestamps to float)
+        separated_data = separate_duplicate_timestamps(converted_data)
+        return ExtractedData(separated_data, base_unit)
 
     # Convert single value
     converted_value = convert_to_base_unit(data, unit_str, device_class)

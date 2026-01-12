@@ -114,6 +114,22 @@ All element flows extend `ElementConfigFlow` which provides:
 
 The element flow base class is in `custom_components/haeo/flows/element.py`.
 
+### Connection endpoint filtering
+
+Connection elements require selecting source and target endpoints from other configured elements.
+The element flow filters available elements based on connectivity level and Advanced Mode setting.
+
+Each element type in the `ELEMENT_TYPES` registry defines a connectivity level that controls when it appears in connection selectors.
+The `ConnectivityLevel` enum has three values:
+
+- **`ALWAYS`**: Always shown in connection selectors
+- **`ADVANCED`**: Only shown when Advanced Mode is enabled
+- **`NEVER`**: Never shown in connection selectors
+
+This filtering ensures connection endpoints are appropriate for the user's configuration level.
+It prevents invalid connection topologies by excluding elements that shouldn't be connection endpoints.
+See [`custom_components/haeo/elements/__init__.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/elements/__init__.py) for the connectivity level assigned to each element type.
+
 ### Element-specific implementations
 
 Each element type has its own flow class in `custom_components/haeo/flows/`:
@@ -126,6 +142,51 @@ Each element type has its own flow class in `custom_components/haeo/flows/`:
 - `NodeConfigFlow` - Network node configuration
 
 Each flow defines element-specific schema fields, defaults, and validation logic.
+
+## Entity-First Two-Step Config Flow Pattern
+
+Most element types use a two-step configuration flow that provides a streamlined user experience.
+Users select entities or "Configurable Entity" for each field, then enter constant values only where needed.
+
+### Flow Steps
+
+**Step 1 (user)**: User enters the element name, connection target, and selects entities for each configurable field.
+Each entity selector includes a special "Configurable Entity" option that signals a constant value will be entered.
+
+**Step 2 (values)**: Only shown if the user selected "Configurable Entity" for any field.
+The user enters constant values for those fields. Step 2 is skipped if no configurable fields were selected.
+
+### Entity Selection Options
+
+Each entity field supports three types of selections:
+
+| Selection Type      | Description                                  | Step 2 Behavior      |
+| ------------------- | -------------------------------------------- | -------------------- |
+| External Entity     | Value comes from Home Assistant sensors      | No input shown       |
+| Configurable Entity | User enters a constant value                 | Shows NumberSelector |
+| Empty (optional)    | Field is disabled (only for optional fields) | No input shown       |
+
+Required fields must have at least one entity selected (either external or Configurable Entity).
+Optional fields can be left empty to use default values.
+
+### Implementation Pattern
+
+The entity-first flow utilities are in `custom_components/haeo/flows/field_schema.py`:
+
+- `build_entity_schema_entry()`: Creates the entity selector for step 1 (includes Configurable Entity)
+- `build_configurable_value_schema()`: Builds step 2 schema for fields with Configurable Entity selected
+- `extract_entity_selections()`: Extracts entity selections from step 1 data
+- `convert_entity_selections_to_config()`: Converts selections to final config format
+- `get_configurable_value_defaults()`: Provides defaults for configurable value entry
+
+Flow handlers store step 1 data (`_step1_data`) and use it to determine which fields need value entry in step 2.
+The `has_configurable_selection()` helper checks if any field needs a constant value.
+
+### Entity Creation
+
+HAEO creates input entities (number/switch) for fields configured with "Configurable Entity".
+These entities allow runtime adjustment of constant values without reconfiguring the element.
+Fields linked to external entities use those entities directly without creating HAEO input entities.
 
 ## Field Schema System
 
@@ -174,49 +235,55 @@ Each element type has two TypedDict definitions:
 ```python
 # Schema mode: entity IDs with Annotated metadata
 class BatteryConfigSchema(TypedDict):
-    capacity: EnergySensorFieldSchema  # Annotated[str | list[str], SensorFieldMeta(...)]
+    capacity: EnergySensorFieldSchema  # Annotated[str, EntitySelect(...), TimeSeries(...)]
 
 
 # Data mode: loaded values
 class BatteryConfigData(TypedDict):
-    capacity: EnergySensorFieldData  # Annotated[TimeSeries | float, ...]
+    capacity: EnergySensorFieldData  # Annotated[list[float], ...]
 ```
 
 ### Field Metadata with Annotated
 
-Fields use `Annotated` types to attach metadata without changing the base type:
+Fields use `Annotated` types with composable metadata markers:
 
 ```python
 from typing import Annotated
 
-# Define field type with metadata
-EnergySensorFieldSchema = Annotated[str | list[str], SensorFieldMeta(accepted_units=[UnitSpec(...)], multiple=True)]
+# Define field type with composed metadata
+EnergySensorFieldSchema = Annotated[
+    str,
+    EntitySelect(accepted_units=ENERGY_UNITS),
+    TimeSeries(accepted_units=ENERGY_UNITS),
+]
 
 
 class BatteryConfigSchema(TypedDict):
     capacity: EnergySensorFieldSchema  # Entity ID with attached metadata
 ```
 
-The `FieldMeta` subclasses provide:
+The composable metadata types are:
 
-- **`field_type`**: "constant" or "sensor" for loader selection
-- **`loader`**: Instance that loads data from entities
-- **`create_schema()`**: Returns Voluptuous validators for the config flow
+- **Validator subclasses**: Define schema validation and UI selectors (e.g., `PositiveKW`, `Percentage`, `EntitySelect`)
+- **LoaderMeta subclasses**: Specify how values are loaded at runtime (e.g., `ConstantFloat`, `TimeSeries`)
+- **Default**: Provides default values for config flow UI forms
 
 ### Available Field Types
 
 Field types are defined in `custom_components/haeo/schema/fields.py`:
 
-| Field Meta Class       | Purpose                      | Base Type          |
-| ---------------------- | ---------------------------- | ------------------ |
-| `PowerFieldMeta`       | Constant power values        | `float`            |
-| `EnergyFieldMeta`      | Constant energy values       | `float`            |
-| `PriceFieldMeta`       | Constant price values        | `float`            |
-| `PercentageFieldMeta`  | Percentage values (0-100)    | `float`            |
-| `BooleanFieldMeta`     | Boolean flags                | `bool`             |
-| `NameFieldMeta`        | Free-form text names         | `str`              |
-| `ElementNameFieldMeta` | References to other elements | `str`              |
-| `SensorFieldMeta`      | Entity sensor references     | `str \| list[str]` |
+| Validator Class | Purpose                       | Base Type |
+| --------------- | ----------------------------- | --------- |
+| `PositiveKW`    | Positive power values in kW   | `float`   |
+| `AnyKW`         | Power flow (pos or neg) in kW | `float`   |
+| `PositiveKWH`   | Positive energy values in kWh | `float`   |
+| `Price`         | Price values in \$/kWh        | `float`   |
+| `Percentage`    | Percentage values (0-100)     | `float`   |
+| `BatterySOC`    | Battery SOC percentage        | `float`   |
+| `Boolean`       | Boolean flags                 | `bool`    |
+| `Name`          | Free-form text names          | `str`     |
+| `ElementName`   | References to other elements  | `str`     |
+| `EntitySelect`  | Entity sensor references      | `str`     |
 
 ### Data Loading Flow
 
@@ -225,7 +292,7 @@ The schema system integrates with data loading:
 1. User enters entity IDs in config flow (Schema mode)
 2. Voluptuous validators ensure valid entity selection
 3. On coordinator update, `load()` converts Schema → Data mode
-4. Each field's loader extracts values from Home Assistant entities
+4. LoaderMeta markers determine which loader extracts values from Home Assistant
 5. Adapter functions receive Data mode config to create model elements
 
 For details on loaders, see [Data Loading](data-loading.md).

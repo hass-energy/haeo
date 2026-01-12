@@ -1,29 +1,35 @@
 # Data Update Coordinator
 
-The coordinator manages optimization cycles, sensor monitoring, and data distribution.
+The coordinator manages optimization cycles and result distribution using an event-driven model.
 
 ## Purpose
 
 HAEO's coordinator implements Home Assistant's [DataUpdateCoordinator pattern](https://developers.home-assistant.io/docs/integration_fetching_data/#coordinated-single-api-poll-for-data-for-all-entities) to orchestrate optimization cycles.
-The implementation is in `custom_components/haeo/coordinator.py`.
+The implementation is in `custom_components/haeo/coordinator/coordinator.py`.
+Network building functions are in `custom_components/haeo/coordinator/network.py`.
 
 The coordinator performs these core responsibilities:
 
-- Schedules regular optimization cycles (default: 5 minutes)
-- Monitors sensor state changes for immediate re-optimization
-- Validates sensor availability before optimization attempts
-- Loads sensor data and forecasts via data loaders
-- Builds network model from configuration
+- Reads pre-loaded data from [input entities](inputs.md)
+- Validates input alignment before optimization
+- Builds network model from configuration and loaded data
 - Runs LP solver in executor thread (non-blocking)
+- Updates network parameters for warm start optimization
 - Distributes results to sensors
+- Triggers re-optimization on input changes or horizon boundaries
 - Handles errors gracefully with [UpdateFailed](https://developers.home-assistant.io/docs/integration_fetching_data/) exceptions
+
+**Event-driven updates**:
+
+Unlike traditional coordinators with fixed polling intervals, HAEO uses event-driven triggers.
+Optimization runs when input entity states change or when the [HorizonManager](horizon-manager.md) signals a period boundary crossing.
+This ensures optimization uses the latest data without unnecessary polling.
 
 **Subentry discovery**:
 
 The coordinator is created only for hub entries (identified by `integration_type: "hub"`).
 It discovers element subentries by querying the config entry registry for entries where `parent_entry_id` matches the hub's `entry_id`.
 This discovery happens on each update cycle, supporting dynamic element addition and removal without integration reload.
-State change listeners monitor sensors from all discovered child elements.
 
 ## Update Cycle
 
@@ -31,52 +37,66 @@ The coordinator follows this sequence for each optimization cycle:
 
 ```mermaid
 sequenceDiagram
-    participant T as Timer/StateChange
+    participant Trigger as Event Trigger
     participant C as Coordinator
-    participant S as Sensors
-    participant L as Loaders
+    participant RD as RuntimeData
     participant N as Network
     participant LP as LP Solver
 
-    T->>C: Trigger update
-    C->>S: Check availability
-    alt Sensors unavailable
-        C-->>T: Return PENDING status
-    else Sensors ready
-        C->>L: Load data (load_network)
-        L->>S: Get sensor states
-        S-->>L: Current values
-        L->>S: Get forecasts
-        S-->>L: Forecast arrays
-        L-->>C: Network model
-        C->>N: Build constraints
-        N-->>C: LP problem
+    Trigger->>C: Input change / Horizon boundary
+    C->>RD: Read runtime_data.inputs
+    C->>C: Check input alignment
+    alt Inputs not aligned
+        C-->>Trigger: Skip (wait for alignment)
+    else Inputs aligned
+        alt First optimization
+            C->>N: create_network() from inputs
+            N-->>C: New network
+        else Subsequent optimization
+            C->>N: update_element() with new parameters
+            Note over N: Only invalidated constraints rebuilt
+        end
         C->>LP: Optimize (executor)
         LP-->>C: Optimal solution
         C->>C: Extract results
-        C-->>T: Return results
+        C-->>Trigger: Return results
     end
 ```
 
 ### Update phases
 
-**1. Sensor availability check**
+**1. Input alignment check**
 
-On first refresh after Home Assistant startup, the coordinator validates all configured entity IDs.
-If sensors are unavailable, it returns `OPTIMIZATION_STATUS_PENDING` and logs an informative message.
-State change monitoring automatically retries when sensors become available.
+Before optimization, the coordinator verifies all input entities have matching `horizon_id` values.
+This ensures temporal consistency—all inputs represent the same forecast horizon.
+If inputs are misaligned (some entities haven't refreshed after a horizon change), the coordinator skips optimization and waits.
 
-**2. Data loading**
+**2. Data reading**
 
-The coordinator calls `load_network()` (defined in `custom_components/haeo/data/__init__.py`) to build a populated network model.
-This function uses field metadata to determine required loaders, loads sensor states and forecasts, aligns all data to the time grid, and raises `ValueError` if required data is missing.
-See [data loading](data-loading.md) for details on how loaders work.
+The coordinator reads pre-loaded values from `runtime_data.inputs`, a dictionary keyed by `(element_name, field_name)`.
+Input entities populate this dictionary during their refresh cycles.
+See [Input Entities](inputs.md) for details on how data loading works.
 
 **3. Optimization**
 
 The network optimization runs in an executor thread via `hass.async_add_executor_job()` to avoid blocking the event loop.
 The coordinator extracts the solver name from configuration and passes it to `network.optimize()`.
 This blocking operation is tracked for diagnostics timing.
+
+**Network building and warm start**:
+
+On the first optimization cycle, the coordinator calls `create_network()` from `coordinator/network.py` to build the complete network from configuration.
+On subsequent cycles, it calls `update_element()` to update element parameters without recreating the network.
+
+The warm start pattern works by:
+
+1. Elements declare parameters using `TrackedParam` descriptors
+2. `update_element()` modifies these parameters directly
+3. Changed parameters automatically invalidate dependent constraints
+4. Only invalidated constraints are rebuilt during optimization
+5. Unchanged constraints are reused from the previous solve
+
+This selective rebuilding is more efficient than recreating the entire problem, particularly when only forecasts change between cycles.
 
 **4. Result extraction**
 
@@ -93,7 +113,7 @@ The coordinator implements comprehensive error handling using Home Assistant's [
 **Sensor unavailability (startup)**
 
 When configured sensors are not yet available, the coordinator returns `PENDING` status without logging an error (this is expected during startup).
-Sensors show "Unavailable" state in the UI, and the coordinator retries on the next update interval.
+Sensors show "Unavailable" state in the UI, and the coordinator retries on the next input entity update or horizon boundary.
 
 **Data loading errors**
 
@@ -114,33 +134,66 @@ All coordinator errors raise `UpdateFailed`, which:
 
 State change triggers use the same error handling through the coordinator framework and don't crash the integration.
 
-## State Change Listeners
+## Event-Driven Triggers
 
-The coordinator monitors configured sensors and triggers immediate re-optimization when their state changes.
+The coordinator uses event-driven triggers instead of a fixed polling interval.
 
-### Implementation approach
+### Trigger sources
 
-During setup, the coordinator:
+**Input entity state changes**
 
-1. Collects all sensor entity IDs from child element subentries (looking for fields ending in `_sensor`)
-2. Subscribes to state change events for each sensor using `async_track_state_change_event()`
-3. Registers cleanup callbacks with `async_on_remove()` to unsubscribe on coordinator teardown
+When any input entity updates its state (due to external sensor changes or user modification), the coordinator receives a state change event and schedules optimization.
 
-When a state changes:
+**Horizon boundary crossings**
 
-1. The `_handle_state_change()` callback is invoked (marked with `@callback` for event loop safety)
-2. It calls `async_request_refresh()` asynchronously
-3. The coordinator debounces overlapping updates automatically
-4. The full update cycle runs with the latest sensor data
+The coordinator subscribes to the [HorizonManager](horizon-manager.md).
+When the forecast horizon advances (at period boundaries like every 1 minute for the finest tier), the manager notifies the coordinator to refresh.
 
-The state change listener implementation is in `custom_components/haeo/coordinator.py`.
+**Manual refresh**
 
-### Performance considerations
+Users can trigger optimization via the standard Home Assistant update service or entity refresh action.
+Manual refreshes bypass the cooldown period.
 
-- **Debouncing**: Coordinator prevents overlapping updates automatically
-- **Event loop friendly**: All operations use `@callback` or async patterns
-- **No polling overhead**: Only updates when data changes
-- **Dynamic discovery**: Sensor list updates when elements are added/removed
+### Custom debouncing
+
+The coordinator implements custom debouncing to prevent excessive optimization runs:
+
+```mermaid
+sequenceDiagram
+    participant E as Event
+    participant C as Coordinator
+    participant Timer
+
+    E->>C: State change
+    alt Outside cooldown
+        C->>C: Run optimization immediately
+        C->>C: Record _last_optimize_time
+    else Within cooldown
+        C->>C: Set _optimize_pending = True
+        Note over C: Wait for cooldown
+    end
+
+    Timer->>C: Cooldown expires
+    alt _optimize_pending
+        C->>C: Run optimization
+        C->>C: Clear _optimize_pending
+    end
+```
+
+**Debouncing parameters**:
+
+- **Cooldown period**: Minimum time between optimizations (prevents rapid re-runs)
+- **Pending flag**: Tracks whether optimization was requested during cooldown
+- **Timer**: Schedules retry when cooldown expires with pending request
+
+This approach batches rapid updates while ensuring eventual consistency.
+
+### Subscription lifecycle
+
+1. **Initialization**: Coordinator created without active subscriptions
+2. **First refresh**: Initial optimization runs, subscriptions enabled on success
+3. **Runtime**: Subscriptions active, coordinator responds to events
+4. **Shutdown**: Subscriptions cancelled via cleanup callbacks
 
 ## Testing
 
@@ -148,10 +201,10 @@ Coordinator testing uses Home Assistant's [test fixtures](https://developers.hom
 Comprehensive test coverage is in `tests/test_coordinator.py`, including:
 
 - Successful coordinator updates
-- Sensor unavailability handling
-- Data loading error scenarios
+- Input alignment verification
+- Debouncing behavior
 - Optimization failure cases
-- State change trigger behavior
+- Event-driven trigger behavior
 
 Example test pattern:
 
@@ -169,6 +222,22 @@ async def coordinator(hass: HomeAssistant, mock_config_entry: MockConfigEntry) -
 
 <div class="grid cards" markdown>
 
+- :material-timer-outline:{ .lg .middle } **Horizon Manager**
+
+    ---
+
+    Synchronized forecast time windows.
+
+    [:material-arrow-right: Horizon manager guide](horizon-manager.md)
+
+- :material-import:{ .lg .middle } **Input Entities**
+
+    ---
+
+    How input entities load and expose data.
+
+    [:material-arrow-right: Input entities guide](inputs.md)
+
 - :material-sitemap:{ .lg .middle } **Architecture**
 
     ---
@@ -181,7 +250,7 @@ async def coordinator(hass: HomeAssistant, mock_config_entry: MockConfigEntry) -
 
     ---
 
-    How coordinator loads data from sensors.
+    How data is extracted and aligned.
 
     [:material-arrow-right: Data loading guide](data-loading.md)
 
@@ -192,22 +261,6 @@ async def coordinator(hass: HomeAssistant, mock_config_entry: MockConfigEntry) -
     Network entities and constraints.
 
     [:material-arrow-right: Energy models](energy-models.md)
-
-- :material-chart-line:{ .lg .middle } **Sensor Reference**
-
-    ---
-
-    Exposed sensor entities and their meanings.
-
-    [:material-arrow-right: Understanding Results](../user-guide/optimization.md)
-
-- :material-test-tube:{ .lg .middle } **Testing Guide**
-
-    ---
-
-    Testing patterns and fixtures.
-
-    [:material-arrow-right: Testing guide](testing.md)
 
 - :material-home-assistant:{ .lg .middle } **Home Assistant DataUpdateCoordinator**
 

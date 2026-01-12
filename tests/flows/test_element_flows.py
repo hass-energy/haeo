@@ -5,9 +5,9 @@ from copy import deepcopy
 from dataclasses import dataclass
 from types import MappingProxyType
 from typing import Any, Literal, TypedDict, cast
-from unittest.mock import AsyncMock, MagicMock, Mock
+from unittest.mock import Mock
 
-from homeassistant.config_entries import ConfigSubentry
+from homeassistant.config_entries import ConfigSubentry, ConfigSubentryFlow, SubentryFlowResult
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
 import pytest
@@ -34,25 +34,30 @@ from custom_components.haeo.const import (
     DEFAULT_TIER_4_COUNT,
     DEFAULT_TIER_4_DURATION,
     DOMAIN,
-    ELEMENT_TYPE_NETWORK,
     INTEGRATION_TYPE_HUB,
 )
 from custom_components.haeo.elements import (
     ELEMENT_TYPES,
+    ConnectivityLevel,
     ElementOutputName,
-    ElementRegistryEntry,
     ElementType,
     battery,
     connection,
     grid,
     node,
 )
-from custom_components.haeo.flows.element import ElementSubentryFlow, create_subentry_flow_class
 from custom_components.haeo.model import OutputData
-from custom_components.haeo.schema.fields import NameFieldData, NameFieldSchema
 from tests.conftest import ElementTestData
 
 ALL_ELEMENT_TYPES: tuple[ElementType, ...] = tuple(ELEMENT_TYPES)
+
+# Element types that use two-step flows (have has_value_source_step = True on flow handler)
+TWO_STEP_FLOW_ELEMENTS: frozenset[ElementType] = frozenset(
+    element_type
+    for element_type, entry in ELEMENT_TYPES.items()
+    if getattr(entry.flow_class, "has_value_source_step", False)
+)
+
 
 TEST_ELEMENT_TYPE = "flow_test_element"
 
@@ -61,26 +66,26 @@ class FlowTestElementConfigSchema(TypedDict):
     """Schema representation for synthetic flow test elements."""
 
     element_type: Literal["flow_test_element"]
-    name: NameFieldSchema
+    name: str
 
 
 class FlowTestElementConfigData(TypedDict):
     """Data representation for synthetic flow test elements."""
 
     element_type: Literal["flow_test_element"]
-    name: NameFieldData
+    name: str
 
 
 def _create_flow(
     hass: HomeAssistant,
     hub_entry: MockConfigEntry,
     element_type: ElementType,
-) -> ElementSubentryFlow:
+) -> Any:
     """Create a configured subentry flow instance for an element type."""
 
     registry_entry = ELEMENT_TYPES[element_type]
-    flow_class = create_subentry_flow_class(element_type, registry_entry.schema, registry_entry.defaults)
-    flow = flow_class()  # type: ignore[call-arg]
+    flow_class = registry_entry.flow_class
+    flow = flow_class()
     flow.hass = hass
     flow.handler = (hub_entry.entry_id, element_type)
     return flow
@@ -158,26 +163,55 @@ class FlowTestElementFactory:
         return cast("ElementType", self.element_type)
 
 
+class FlowTestSubentryFlowHandler(ConfigSubentryFlow):
+    """Mock flow handler for synthetic test element."""
+
+    async def async_step_user(
+        self,
+        user_input: dict[str, Any] | None = None,  # noqa: ARG002
+    ) -> SubentryFlowResult:
+        """Handle user step for mock element."""
+        return self.async_create_entry(title="Test", data={})
+
+    async def async_step_reconfigure(
+        self,
+        user_input: dict[str, Any] | None = None,  # noqa: ARG002
+    ) -> SubentryFlowResult:
+        """Handle reconfigure step for mock element."""
+        return self.async_update_and_abort(self._get_entry(), self._get_reconfigure_subentry(), data={})
+
+
 @pytest.fixture
 def flow_test_element_factory(monkeypatch: pytest.MonkeyPatch) -> FlowTestElementFactory:
     """Register and return a synthetic element factory for flow testing."""
 
-    def mock_create_model_elements(config: Any) -> list[dict[str, Any]]:
-        return []
+    class FlowTestAdapter:
+        """Mock adapter for synthetic test element."""
 
-    def mock_outputs(
-        name: str, outputs: Mapping[str, Mapping[Any, OutputData]]
-    ) -> Mapping[str, Mapping[ElementOutputName, OutputData]]:
-        return {}
+        element_type: str = TEST_ELEMENT_TYPE
+        flow_class: type = FlowTestSubentryFlowHandler
+        advanced: bool = False
+        connectivity: str = ConnectivityLevel.ALWAYS.value
 
-    entry = ElementRegistryEntry(
-        schema=FlowTestElementConfigSchema,
-        data=FlowTestElementConfigData,
-        defaults={},
-        translation_key=cast("ElementType", TEST_ELEMENT_TYPE),
-        create_model_elements=mock_create_model_elements,
-        outputs=mock_outputs,  # type: ignore[arg-type]
-    )
+        def available(self, config: Any, **_kwargs: Any) -> bool:
+            _ = config  # Unused but required by protocol
+            return True
+
+        async def load(self, config: Any, **_kwargs: Any) -> Any:
+            return config
+
+        def model_elements(self, config: Any) -> list[dict[str, Any]]:  # noqa: ARG002
+            return []
+
+        def outputs(
+            self,
+            name: str,  # noqa: ARG002
+            outputs: Mapping[str, Mapping[Any, OutputData]],  # noqa: ARG002
+            _config: Any,
+        ) -> Mapping[str, Mapping[ElementOutputName, OutputData]]:
+            return {}
+
+    entry = FlowTestAdapter()
     monkeypatch.setitem(ELEMENT_TYPES, cast("ElementType", TEST_ELEMENT_TYPE), entry)
     return FlowTestElementFactory()
 
@@ -204,18 +238,6 @@ def hub_entry(hass: HomeAssistant) -> MockConfigEntry:
     )
     entry.add_to_hass(hass)
     return entry
-
-
-@pytest.fixture(autouse=True)
-def connectivity_mock(monkeypatch: pytest.MonkeyPatch) -> MagicMock:
-    """Patch connectivity evaluation during flow tests."""
-
-    mock = AsyncMock()
-    monkeypatch.setattr(
-        "custom_components.haeo.flows.element.evaluate_network_connectivity",
-        mock,
-    )
-    return mock
 
 
 @pytest.mark.parametrize("element_type", ALL_ELEMENT_TYPES)
@@ -247,7 +269,20 @@ async def test_element_flow_user_step_success(
     assert result.get("step_id") == "user"
     assert not result.get("errors")
 
-    result = await flow.async_step_user(user_input=user_input)
+    if element_type in TWO_STEP_FLOW_ELEMENTS:
+        # Two-step flow: submit mode selection, then optionally values
+        mode_input = cases.valid[0].mode_input
+        assert mode_input is not None, f"mode_input required for two-step element {element_type}"
+        result = await flow.async_step_user(user_input=mode_input)
+
+        # Step 2 is only shown if configurable entity was selected
+        # If no configurable fields, flow skips directly to create_entry
+        if result.get("type") == FlowResultType.FORM and result.get("step_id") == "values":
+            result = await flow.async_step_values(user_input=user_input)
+    else:
+        # One-step flow: submit values directly
+        result = await flow.async_step_user(user_input=user_input)
+
     assert result.get("type") == FlowResultType.CREATE_ENTRY
 
     created_kwargs = flow.async_create_entry.call_args.kwargs
@@ -265,12 +300,18 @@ async def test_element_flow_user_step_missing_name(
     """Ensure missing names are rejected for all element types."""
 
     flow = _create_flow(hass, hub_entry, element_type)
-    base_config = deepcopy(element_test_data[element_type].valid[0].config)
-    base_config[CONF_NAME] = ""
+    # Two-step flows use mode_input for step 1, one-step flows use config
+    if element_type in TWO_STEP_FLOW_ELEMENTS:
+        mode_input = element_test_data[element_type].valid[0].mode_input
+        assert mode_input is not None
+        base_input = deepcopy(mode_input)
+    else:
+        base_input = deepcopy(element_test_data[element_type].valid[0].config)
+    base_input[CONF_NAME] = ""
 
-    _prepare_flow_context(hass, hub_entry, element_type, base_config)
+    _prepare_flow_context(hass, hub_entry, element_type, base_input)
 
-    result = await flow.async_step_user(user_input=base_config)
+    result = await flow.async_step_user(user_input=base_input)
     assert result.get("type") == FlowResultType.FORM
     assert result.get("errors") == {CONF_NAME: "missing_name"}
 
@@ -293,7 +334,13 @@ async def test_element_flow_user_step_duplicate_name(
 
     flow = _create_flow(hass, hub_entry, element_type)
 
-    result = await flow.async_step_user(user_input=existing_config)
+    # Two-step flows use mode_input for step 1, one-step flows use config
+    if element_type in TWO_STEP_FLOW_ELEMENTS:
+        mode_input = element_test_data[element_type].valid[0].mode_input
+        assert mode_input is not None
+        result = await flow.async_step_user(user_input=mode_input)
+    else:
+        result = await flow.async_step_user(user_input=existing_config)
     assert result.get("type") == FlowResultType.FORM
     assert result.get("errors") == {CONF_NAME: "name_exists"}
 
@@ -306,6 +353,10 @@ async def test_element_flow_reconfigure_success(
     element_test_data: dict[ElementType, ElementTestData],
 ) -> None:
     """Verify reconfigure submissions succeed for unchanged data."""
+    # Entity-first elements use shared step 1 (step_id="user") for both new and reconfigure
+    # They are tested separately in tests/elements/*/test_flow.py
+    if element_type in TWO_STEP_FLOW_ELEMENTS:
+        pytest.skip("Entity-first flow pattern tested separately")
 
     existing_config = deepcopy(element_test_data[element_type].valid[0].config)
 
@@ -315,15 +366,29 @@ async def test_element_flow_reconfigure_success(
     hass.config_entries.async_add_subentry(hub_entry, existing_subentry)
 
     flow = _create_flow(hass, hub_entry, element_type)
+    flow.context = {"subentry_id": existing_subentry.subentry_id}
     flow._get_reconfigure_subentry = Mock(return_value=existing_subentry)
     flow.async_update_and_abort = Mock(return_value={"type": FlowResultType.ABORT, "reason": "reconfigure_successful"})
 
     result = await flow.async_step_reconfigure(user_input=None)
     assert result.get("type") == FlowResultType.FORM
-    assert result.get("step_id") == "reconfigure"
+    # Some flows reuse "user" step_id for reconfigure, others use "reconfigure"
+    assert result.get("step_id") in ("reconfigure", "user")
 
     reconfigure_input = deepcopy(existing_config)
-    result = await flow.async_step_reconfigure(user_input=reconfigure_input)
+
+    if element_type in TWO_STEP_FLOW_ELEMENTS:
+        # Two-step flow: submit mode selection, then values
+        mode_input = element_test_data[element_type].valid[0].mode_input
+        assert mode_input is not None, f"mode_input required for two-step element {element_type}"
+        result = await flow.async_step_reconfigure(user_input=mode_input)
+        assert result.get("type") == FlowResultType.FORM
+        assert result.get("step_id") == "reconfigure_values"
+        result = await flow.async_step_reconfigure_values(user_input=reconfigure_input)
+    else:
+        # One-step flow: submit values directly
+        result = await flow.async_step_reconfigure(user_input=reconfigure_input)
+
     assert result.get("type") == FlowResultType.ABORT
     assert result.get("reason") == "reconfigure_successful"
 
@@ -339,6 +404,10 @@ async def test_element_flow_reconfigure_rename(
     element_test_data: dict[ElementType, ElementTestData],
 ) -> None:
     """Verify reconfigure handles renaming across element types."""
+    # Entity-first elements use shared step 1 (step_id="user") for both new and reconfigure
+    # They are tested separately in tests/elements/*/test_flow.py
+    if element_type in TWO_STEP_FLOW_ELEMENTS:
+        pytest.skip("Entity-first flow pattern tested separately")
 
     existing_config = deepcopy(element_test_data[element_type].valid[0].config)
 
@@ -348,6 +417,7 @@ async def test_element_flow_reconfigure_rename(
     hass.config_entries.async_add_subentry(hub_entry, existing_subentry)
 
     flow = _create_flow(hass, hub_entry, element_type)
+    flow.context = {"subentry_id": existing_subentry.subentry_id}
     flow._get_reconfigure_subentry = Mock(return_value=existing_subentry)
     flow.async_update_and_abort = Mock(return_value={"type": FlowResultType.ABORT, "reason": "reconfigure_successful"})
 
@@ -355,7 +425,19 @@ async def test_element_flow_reconfigure_rename(
     original_name = renamed_input[CONF_NAME]
     renamed_input[CONF_NAME] = f"{original_name} Updated"
 
-    result = await flow.async_step_reconfigure(user_input=renamed_input)
+    if element_type in TWO_STEP_FLOW_ELEMENTS:
+        # Two-step flow: submit mode selection with updated name, then values
+        mode_input = deepcopy(element_test_data[element_type].valid[0].mode_input)
+        assert mode_input is not None, f"mode_input required for two-step element {element_type}"
+        mode_input[CONF_NAME] = renamed_input[CONF_NAME]
+        result = await flow.async_step_reconfigure(user_input=mode_input)
+        assert result.get("type") == FlowResultType.FORM
+        assert result.get("step_id") == "reconfigure_values"
+        result = await flow.async_step_reconfigure_values(user_input=renamed_input)
+    else:
+        # One-step flow: submit values directly
+        result = await flow.async_step_reconfigure(user_input=renamed_input)
+
     assert result.get("type") == FlowResultType.ABORT
     assert result.get("reason") == "reconfigure_successful"
 
@@ -380,9 +462,16 @@ async def test_element_flow_reconfigure_missing_name(
     hass.config_entries.async_add_subentry(hub_entry, existing_subentry)
 
     flow = _create_flow(hass, hub_entry, element_type)
+    flow.context = {"subentry_id": existing_subentry.subentry_id}
     flow._get_reconfigure_subentry = Mock(return_value=existing_subentry)
 
-    invalid_input = deepcopy(existing_config)
+    # Two-step flows use mode_input for step 1, one-step flows use config
+    if element_type in TWO_STEP_FLOW_ELEMENTS:
+        mode_input = element_test_data[element_type].valid[0].mode_input
+        assert mode_input is not None
+        invalid_input = deepcopy(mode_input)
+    else:
+        invalid_input = deepcopy(existing_config)
     invalid_input[CONF_NAME] = ""
 
     result = await flow.async_step_reconfigure(user_input=invalid_input)
@@ -418,112 +507,21 @@ async def test_element_flow_reconfigure_duplicate_name(
     hass.config_entries.async_add_subentry(hub_entry, secondary_subentry)
 
     flow = _create_flow(hass, hub_entry, element_type)
+    flow.context = {"subentry_id": secondary_subentry.subentry_id}
     flow._get_reconfigure_subentry = Mock(return_value=secondary_subentry)
 
-    duplicate_input = deepcopy(secondary_config)
+    # Two-step flows use mode_input for step 1, one-step flows use config
+    if element_type in TWO_STEP_FLOW_ELEMENTS:
+        # Get mode_input for secondary and set name to duplicate
+        secondary_mode_input = element_test_data[element_type].valid[0].mode_input
+        if len(element_test_data[element_type].valid) > 1:
+            secondary_mode_input = element_test_data[element_type].valid[1].mode_input
+        assert secondary_mode_input is not None
+        duplicate_input = deepcopy(secondary_mode_input)
+    else:
+        duplicate_input = deepcopy(secondary_config)
     duplicate_input[CONF_NAME] = primary_config[CONF_NAME]
 
     result = await flow.async_step_reconfigure(user_input=duplicate_input)
     assert result.get("type") == FlowResultType.FORM
     assert result.get("errors") == {CONF_NAME: "name_exists"}
-
-
-async def test_element_flow_user_step_invokes_connectivity_validation(
-    hass: HomeAssistant,
-    hub_entry: MockConfigEntry,
-    element_test_data: dict[ElementType, ElementTestData],
-    connectivity_mock: MagicMock,
-) -> None:
-    """Ensure user step validates connectivity with updated participants."""
-
-    element_type: ElementType = node.ELEMENT_TYPE
-    flow = _create_flow(hass, hub_entry, element_type)
-    user_input = deepcopy(element_test_data[element_type].valid[0].config)
-
-    _prepare_flow_context(hass, hub_entry, element_type, user_input)
-
-    flow.async_create_entry = Mock(
-        return_value={
-            "type": FlowResultType.CREATE_ENTRY,
-            "title": user_input.get(CONF_NAME, element_type),
-            "data": {},
-        }
-    )
-
-    await flow.async_step_user(user_input=user_input)
-
-    connectivity_mock.assert_called_once()
-    args, kwargs = connectivity_mock.call_args
-    assert args[0] is hass
-    assert args[1] is hub_entry
-    participant_configs = kwargs["participant_configs"]
-    assert user_input[CONF_NAME] in participant_configs
-
-
-async def test_element_flow_reconfigure_invokes_connectivity_validation(
-    hass: HomeAssistant,
-    hub_entry: MockConfigEntry,
-    element_test_data: dict[ElementType, ElementTestData],
-    connectivity_mock: MagicMock,
-) -> None:
-    """Ensure reconfigure step validates connectivity with updated participants."""
-
-    element_type: ElementType = node.ELEMENT_TYPE
-    existing_config = deepcopy(element_test_data[element_type].valid[0].config)
-
-    _prepare_flow_context(hass, hub_entry, element_type, existing_config)
-
-    subentry = _make_subentry(element_type, existing_config)
-    hass.config_entries.async_add_subentry(hub_entry, subentry)
-
-    flow = _create_flow(hass, hub_entry, element_type)
-    flow._get_reconfigure_subentry = Mock(return_value=subentry)
-    flow.async_update_and_abort = Mock(return_value={"type": FlowResultType.ABORT, "reason": "reconfigure_successful"})
-
-    await flow.async_step_reconfigure(user_input=existing_config)
-
-    connectivity_mock.assert_called_once()
-    args, kwargs = connectivity_mock.call_args
-    assert args[0] is hass
-    assert args[1] is hub_entry
-    participant_configs = kwargs["participant_configs"]
-    assert existing_config[CONF_NAME] in participant_configs
-
-
-async def test_get_other_element_entries_filters_correctly(
-    hass: HomeAssistant,
-    hub_entry: MockConfigEntry,
-    flow_test_element_factory: FlowTestElementFactory,
-) -> None:
-    """Verify participant filtering excludes non-endpoint subentries."""
-
-    endpoint_one = flow_test_element_factory.create_subentry(name="Endpoint One")
-    endpoint_two = flow_test_element_factory.create_subentry(name="Endpoint Two")
-    hass.config_entries.async_add_subentry(hub_entry, endpoint_one)
-    hass.config_entries.async_add_subentry(hub_entry, endpoint_two)
-
-    network_subentry = ConfigSubentry(
-        data=MappingProxyType({CONF_NAME: "Network", CONF_ELEMENT_TYPE: ELEMENT_TYPE_NETWORK}),
-        subentry_type=ELEMENT_TYPE_NETWORK,
-        title="Network",
-        unique_id=None,
-    )
-    hass.config_entries.async_add_subentry(hub_entry, network_subentry)
-
-    connection_subentry = _make_subentry(
-        connection.ELEMENT_TYPE,
-        {
-            CONF_NAME: "Connection 1",
-            connection.CONF_SOURCE: "Endpoint One",
-            connection.CONF_TARGET: "Endpoint Two",
-        },
-    )
-    hass.config_entries.async_add_subentry(hub_entry, connection_subentry)
-
-    flow = _create_flow(hass, hub_entry, flow_test_element_factory.element_type_for_flow())
-
-    participants = flow._get_non_connection_element_names()
-
-    assert set(participants) == {"Endpoint One", "Endpoint Two"}
-    assert "Network" not in participants
-    assert "Connection 1" not in participants

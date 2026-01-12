@@ -5,7 +5,9 @@ Technical guide to HAEO's unified time series loading architecture.
 ## Overview
 
 The data loading system transforms Home Assistant sensor data into time series aligned with optimization horizons.
-It addresses three core challenges:
+[Input entities](inputs.md) call this system to load and expose forecast data.
+
+The system addresses three core challenges:
 
 1. **Heterogeneous data sources**: Sensors provide different formats (simple values vs forecasts from various integrations)
 2. **Temporal alignment**: Forecast timestamps rarely match optimization periods
@@ -27,6 +29,34 @@ The data loading pipeline consists of four stages:
 3. **Combination** ([`forecast_combiner.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/data/util/forecast_combiner.py)) - Merges multiple sensors into unified data
 4. **Fusion** ([`forecast_fuser.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/data/util/forecast_fuser.py)) - Aligns data to optimization horizon using interpolation
 
+Input entities call `TimeSeriesLoader.load_intervals() or load_boundaries()` when they need to refresh their data.
+The coordinator reads the already-loaded values from input entities.
+
+```mermaid
+graph LR
+    subgraph "Input Entity"
+        IE[HaeoInputNumber]
+    end
+
+    subgraph "Loading Pipeline"
+        TSL[TimeSeriesLoader]
+        Ext[Extraction]
+        Comb[Combination]
+        Fuse[Fusion]
+    end
+
+    subgraph "Runtime Data"
+        RD[runtime_data.inputs]
+    end
+
+    IE --> TSL
+    TSL --> Ext
+    Ext --> Comb
+    Comb --> Fuse
+    Fuse --> IE
+    IE --> RD
+```
+
 Each stage has a single responsibility and clear interfaces, making the system testable and extensible.
 
 ### Design Decisions
@@ -46,7 +76,7 @@ This matches real-world energy network behavior.
 ## TimeSeriesLoader
 
 The [`TimeSeriesLoader`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/data/loader/time_series_loader.py) orchestrates the complete loading pipeline.
-It provides the main interface used by configuration fields.
+[Input entities](inputs.md) instantiate and call this loader to refresh their forecast data.
 
 ### Responsibilities
 
@@ -57,16 +87,31 @@ It provides the main interface used by configuration fields.
 
 ### Interface Design
 
-The loader has two methods:
+The loader provides methods for two types of data loading:
 
 - `available()` - Checks if sensors exist without loading data (used during config validation)
-- `load()` - Performs full pipeline and returns horizon-aligned values
+- `load_intervals()` - Returns n interval averages for n+1 fence post timestamps
+- `load_boundaries()` - Returns n+1 point-in-time values at each fence post timestamp
 
-Both methods accept flexible `value` parameters (single sensor string or list) to support different configuration field types.
+**Intervals vs Fence Posts**:
+Optimization horizons are defined by n+1 timestamps (fence posts) creating n periods (intervals).
+Different physical quantities require different loading approaches:
+
+- **Interval values** (n values): Power, efficiency, costs - values that represent averages over time periods
+- **Fence post values** (n+1 values): Capacity, SOC limits - values that represent states at specific points in time
+
+All methods accept flexible `value` parameters (single sensor string, list, or constant) to support different configuration field types.
 
 ### Return Behavior
 
-The `load()` method always returns a list of floats matching the requested horizon length.
+The loading methods return lists of floats:
+
+- `load_intervals()` returns n values (one per optimization period)
+- `load_boundaries()` returns n+1 values (one per fence post timestamp)
+
+Both handle constant values by broadcasting to the appropriate length.
+Both support a `default` parameter for optional fields with fallback values.
+
 Values use HAEO base units: kilowatts (kW) for power, kilowatt-hours (kWh) for energy, \$/kWh for prices.
 See [Units documentation](units.md) for conversion details.
 
@@ -107,6 +152,7 @@ The extractor system ([`extractors/`](https://github.com/hass-energy/haeo/tree/m
 | ------------------------- | ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Amber Electric            | Electricity pricing          | [`amberelectric.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/data/loader/extractors/amberelectric.py)                         |
 | AEMO NEM                  | Wholesale pricing            | [`aemo_nem.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/data/loader/extractors/aemo_nem.py)                                   |
+| EMHASS                    | Energy management forecasts  | [`emhass.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/data/loader/extractors/emhass.py)                                       |
 | HAEO                      | Chaining HAEO sensor outputs | [`haeo.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/data/loader/extractors/haeo.py)                                           |
 | Solcast Solar             | Solar forecasting            | [`solcast_solar.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/data/loader/extractors/solcast_solar.py)                         |
 | Open-Meteo Solar Forecast | Solar forecasting            | [`open_meteo_solar_forecast.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/data/loader/extractors/open_meteo_solar_forecast.py) |
@@ -164,14 +210,30 @@ The combination then proceeds as pure forecast series merging.
 
 The [`forecast_fuser.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/data/util/forecast_fuser.py) module aligns combined forecasts to optimization horizons.
 
-### Fusion Strategy
+### Fusion Functions
 
-The fusion process produces values for each horizon timestamp:
+The fuser provides two functions for different data types:
 
-- **Position 0**: Present value at horizon start
-- **Subsequent positions**: Average value over each optimization period
+- `fuse_to_intervals()` - Produces n interval averages using trapezoidal integration
+- `fuse_to_boundaries()` - Produces n+1 point-in-time values via interpolation
 
-This matches optimization requirements: linear programming needs interval averages, not point samples.
+### Interval Fusion Strategy
+
+The `fuse_to_intervals()` function produces values for each optimization period:
+
+- Uses trapezoidal integration to compute accurate period averages
+- Accounts for value changes within periods
+
+This matches optimization requirements: linear programming operates on energy quantities (power × time), not instantaneous values.
+
+### Fence Post Fusion Strategy
+
+The `fuse_to_boundaries()` function produces values at each timestamp boundary:
+
+- Uses linear interpolation to get values at exact fence post times
+- Preserves point-in-time nature of quantities like capacity and SOC limits
+
+This is appropriate for energy storage values that represent states at specific moments, not averages over periods.
 
 ### Interval Averaging
 
@@ -270,6 +332,14 @@ uv run pytest tests/data/ --cov=custom_components.haeo.data
 
 <div class="grid cards" markdown>
 
+- :material-import:{ .lg .middle } **Input Entities**
+
+    ---
+
+    How input entities use the loading system.
+
+    [:material-arrow-right: Input entities guide](inputs.md)
+
 - :material-file-document:{ .lg .middle } **Forecasts and Sensors guide**
 
     ---
@@ -290,16 +360,8 @@ uv run pytest tests/data/ --cov=custom_components.haeo.data
 
     ---
 
-    How coordinators use the loading system.
+    How coordinator reads loaded data.
 
     [:material-arrow-right: Coordinator guide](coordinator.md)
-
-- :material-cog:{ .lg .middle } **Element Configuration**
-
-    ---
-
-    Configuration field references for elements.
-
-    [:material-arrow-right: Element pages](../user-guide/elements/index.md)
 
 </div>

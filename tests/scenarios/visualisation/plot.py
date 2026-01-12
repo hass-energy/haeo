@@ -16,15 +16,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from custom_components.haeo.elements import ELEMENT_TYPE_SOLAR, ElementType
-from custom_components.haeo.model.const import (
-    OUTPUT_TYPE_POWER,
-    OUTPUT_TYPE_POWER_LIMIT,
-    OUTPUT_TYPE_PRICE,
-    OUTPUT_TYPE_SHADOW_PRICE,
-    OUTPUT_TYPE_SOC,
-)
+from custom_components.haeo.model import Network
+from custom_components.haeo.model.const import OutputType
 
 from .colors import ColorMapper
+from .graph import create_graph_visualization
 
 # Use non-GUI backend
 mpl.use("Agg")
@@ -49,6 +45,8 @@ class ForecastData(TypedDict, total=False):
     consumption_price: Sequence[tuple[float, float]]
     soc: Sequence[tuple[float, float]]
     shadow_prices: dict[str, Sequence[tuple[float, float]]]
+    connection_flow_forward: Sequence[tuple[float, float]]
+    connection_flow_reverse: Sequence[tuple[float, float]]
 
 
 ForecastKey = Literal[
@@ -74,8 +72,8 @@ def extract_forecast_data(output_sensors: Mapping[str, Mapping[str, Any]]) -> di
     for sensor_data in output_sensors.values():
         attrs = sensor_data.get("attributes", {})
 
-        # Skip if not a proper HAEO sensor with forecast
-        if not {"element_name", "element_type", "output_type"} <= attrs.keys():
+        # Must have element_name and element_type
+        if "element_name" not in attrs or "element_type" not in attrs:
             continue
 
         # Skip advanced sensors
@@ -88,9 +86,6 @@ def extract_forecast_data(output_sensors: Mapping[str, Mapping[str, Any]]) -> di
 
         element_name = attrs["element_name"]
         element_type = attrs["element_type"]
-        output_type = attrs["output_type"]
-        output_name = attrs.get("output_name", "")
-        direction = attrs.get("direction")
 
         # Parse forecast: list of {"time": ISO string or datetime, "value": number}
         forecast: Sequence[tuple[float, float]] = sorted(_parse_forecast_items(forecast_attr))
@@ -103,25 +98,70 @@ def extract_forecast_data(output_sensors: Mapping[str, Mapping[str, Any]]) -> di
             },
         )
 
-        # Use type+direction to categorize outputs
-        # "+" = adding power to graph (production/supply)
-        # "-" = taking power away (consumption)
-        if output_type == OUTPUT_TYPE_POWER and direction == "+":
-            entry["production"] = forecast
-        elif output_type == OUTPUT_TYPE_POWER and direction == "-":
-            entry["consumption"] = forecast
-        elif output_type == OUTPUT_TYPE_POWER_LIMIT and direction == "+" and element_type == ELEMENT_TYPE_SOLAR:
-            entry["available"] = forecast
-        elif output_type == OUTPUT_TYPE_SOC:
-            entry["soc"] = forecast
-        elif output_type == OUTPUT_TYPE_PRICE and direction == "+":
-            entry["production_price"] = forecast
-        elif output_type == OUTPUT_TYPE_PRICE and direction == "-":
-            entry["consumption_price"] = forecast
-        elif output_type == OUTPUT_TYPE_SHADOW_PRICE:
-            shadow_prices = entry.setdefault("shadow_prices", {})
-            # Use output_name as the key (matches translation_key)
-            shadow_prices[output_name] = forecast
+        # Both output sensors and input entities use output_name and output_type
+        output_type = attrs.get("output_type")
+        output_name = attrs.get("output_name", "")
+        direction = attrs.get("direction")
+        config_mode = attrs.get("config_mode")
+
+        # Handle input entities first (have config_mode) - they take priority
+        if config_mode is not None:
+            # Skip constant inputs (all values the same) - they're not interesting to plot
+            values = [v for _, v in forecast]
+            if values and all(v == values[0] for v in values):
+                continue
+
+            # Input entities now have direction from schema field metadata
+            if output_type == OutputType.POWER:
+                # Solar power inputs are forecasts of available power (limits)
+                if element_type == ELEMENT_TYPE_SOLAR:
+                    entry["available"] = forecast
+                elif direction == "+":
+                    # Power production inputs → available power
+                    entry["available"] = forecast
+                elif direction == "-":
+                    # Power consumption inputs (load forecast) → consumption
+                    entry["consumption"] = forecast
+                else:
+                    # No direction specified, default to available for power inputs
+                    entry["available"] = forecast
+            elif output_type == OutputType.PRICE:
+                if direction == "+":
+                    entry["production_price"] = forecast
+                elif direction == "-":
+                    entry["consumption_price"] = forecast
+                else:
+                    # No direction specified, default to consumption price
+                    entry["consumption_price"] = forecast
+            continue
+
+        # Handle output sensors (have output_type but no config_mode)
+        if output_type is not None:
+            # SOC doesn't need direction
+            if output_type == OutputType.STATE_OF_CHARGE:
+                entry["soc"] = forecast
+                continue
+
+            # Power-related types need direction
+            if direction is not None:
+                # Use type+direction to categorize outputs
+                # "+" = adding power to graph (production/supply)
+                # "-" = taking power away (consumption)
+                if output_type == OutputType.POWER and direction == "+":
+                    entry["production"] = forecast
+                elif output_type == OutputType.POWER and direction == "-":
+                    entry["consumption"] = forecast
+                elif output_type == OutputType.POWER_LIMIT and direction == "+" and element_type == ELEMENT_TYPE_SOLAR:
+                    entry["available"] = forecast
+                elif output_type == OutputType.PRICE and direction == "+":
+                    entry["production_price"] = forecast
+                elif output_type == OutputType.PRICE and direction == "-":
+                    entry["consumption_price"] = forecast
+                elif output_type == OutputType.SHADOW_PRICE:
+                    shadow_prices = entry.setdefault("shadow_prices", {})
+                    # Use output_name as the key (matches translation_key)
+                    shadow_prices[output_name] = forecast
+                continue
 
     return forecast_data
 
@@ -270,7 +310,7 @@ def plot_price_series(ax: Any, forecast_data: Sequence[tuple[str, str, Sequence[
 def plot_soc(ax: Any, forecast_data: Sequence[tuple[str, Sequence[tuple[float, float]]]]) -> None:
     """Plot state of charge (SOC) data on a secondary y-axis.
 
-    SOC represents instantaneous battery state at time boundaries (fence posts),
+    SOC represents instantaneous battery state at time boundaries,
     not average values over intervals. Uses linear interpolation between points
     to show continuous state transitions.
     """
@@ -481,18 +521,22 @@ def create_shadow_price_visualization(
 
 
 def visualize_scenario_results(
-    output_sensors: Mapping[str, Mapping[str, Any]], scenario_name: str, output_dir: Path
+    output_sensors: Mapping[str, Mapping[str, Any]],
+    scenario_name: str,
+    output_dir: Path,
+    network: Network,
 ) -> None:
     """Create comprehensive visualizations for HAEO scenario test results.
 
-    Creates both detailed optimization results visualization and summary metrics
-    for a given scenario test. Files are saved with the scenario name prefix.
+    Creates stacked area plots for optimization results, shadow price visualization,
+    and a network topology graph. Files are saved with the scenario name prefix.
 
     Args:
         output_sensors: Dict mapping entity_id to sensor state dict (from get_output_sensors
             or loaded from outputs.json).
         scenario_name: Name identifier for the scenario (used in output filenames)
         output_dir: Directory path where visualization files will be saved
+        network: Network object containing model elements for graph visualization
 
     """
     output_dir_path = Path(output_dir)
@@ -504,3 +548,7 @@ def visualize_scenario_results(
 
     shadow_plot_path = output_dir_path / f"{scenario_name}_shadow_prices.svg"
     create_shadow_price_visualization(output_sensors, str(shadow_plot_path), f"{scenario_name.title()} Shadow Prices")
+
+    # Create network topology graph visualization
+    graph_plot_path = output_dir_path / f"{scenario_name}_network_topology.svg"
+    create_graph_visualization(network, str(graph_plot_path), f"{scenario_name.title()} Network Topology")

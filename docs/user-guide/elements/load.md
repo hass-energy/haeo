@@ -3,6 +3,10 @@
 Loads represent power consumption in your system.
 The Load element uses forecast data to model any type of consumption pattern from fixed baseline loads to variable time-varying consumption.
 
+!!! note "Connection endpoints"
+
+    Load elements appear in connection selectors only when Advanced Mode is enabled on your hub.
+
 ## Configuration
 
 | Field                     | Type                                     | Required | Default | Description                               |
@@ -193,7 +197,21 @@ Combine multiple consumption sources:
 | **Name**     | All Loads                                                                                 |
 | **Forecast** | sensor.base_consumption, sensor.ev_charger, sensor.pool_pump_schedule, sensor.hvac_system |
 
+### Input Entities
+
+Each configuration field creates a corresponding input entity in Home Assistant.
+Input entities appear as Number entities with the `config` entity category.
+
+| Input                    | Unit | Description                                   |
+| ------------------------ | ---- | --------------------------------------------- |
+| `number.{name}_forecast` | kW   | Load power forecast from configured sensor(s) |
+
+Input entities include a `forecast` attribute showing values for each optimization period.
+See the [Input Entities developer guide](../../developer-guide/inputs.md) for details on input entity behavior.
+
 ## Sensors Created
+
+### Sensor Summary
 
 A Load element creates 1 device in Home Assistant with the following sensors.
 

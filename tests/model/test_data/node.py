@@ -1,6 +1,6 @@
 """Test data and factories for Node element."""
 
-from custom_components.haeo.model.node import Node
+from custom_components.haeo.model.elements.node import Node
 
 from .element_types import ElementTestCase
 
@@ -20,6 +20,8 @@ VALID_CASES: list[ElementTestCase] = [
         "data": {
             "name": "hub_node",
             "periods": [1.0] * 3,
+            "is_source": False,
+            "is_sink": False,
         },
         "inputs": {
             "power": [0.0, 0.0, 0.0],  # Balanced power at node

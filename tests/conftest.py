@@ -8,10 +8,14 @@ from typing import Any
 
 import pytest
 
+from custom_components.haeo.const import DOMAIN
 from custom_components.haeo.elements import ELEMENT_TYPES
 
 # Enable custom component for testing
 pytest_plugins = ["pytest_homeassistant_custom_component"]
+
+# Entity ID for the configurable sentinel entity (domain.suggested_object_id)
+TEST_CONFIGURABLE_ENTITY_ID = f"{DOMAIN}.configurable_entity"
 
 
 @dataclass(frozen=True, slots=True)
@@ -21,6 +25,7 @@ class FlowTestCase:
     description: str
     config: dict[str, Any]
     error: str | None = None
+    mode_input: dict[str, Any] | None = None  # For two-step flows (mode selection input)
 
 
 @dataclass(frozen=True, slots=True)
@@ -39,7 +44,15 @@ def _load_flow_cases(cases: Iterable[dict[str, Any]], *, include_error: bool) ->
         description = case.get("description", "")
         config = case.get("config", {})
         error = case.get("error") if include_error else None
-        structured_cases.append(FlowTestCase(description=description, config=dict(config), error=error))
+        mode_input = case.get("mode_input")
+        structured_cases.append(
+            FlowTestCase(
+                description=description,
+                config=dict(config),
+                error=error,
+                mode_input=dict(mode_input) if mode_input else None,
+            )
+        )
     return tuple(structured_cases)
 
 

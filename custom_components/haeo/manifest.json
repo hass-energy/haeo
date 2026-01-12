@@ -1,7 +1,7 @@
 {
   "domain": "haeo",
-  "name": "Home Assistant Energy Optimizer",
-  "codeowners": ["@TrentHouliston"],
+  "name": "HAEO",
+  "codeowners": ["@TrentHouliston", "@BrendanAnnable"],
   "config_flow": true,
   "dependencies": [],
   "documentation": "https://github.com/hass-energy/haeo",

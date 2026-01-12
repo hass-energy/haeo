@@ -8,7 +8,7 @@ This separation enables composition flexibility where a single configuration cre
 HAEO separates user configuration from optimization modeling through distinct layers:
 
 - **Device Layer**: User-configured elements (Battery, Grid, Solar, Load, Node, Connection) with Home Assistant sensor integration
-- **Model Layer**: Mathematical building blocks (battery, source_sink, connection) forming the linear programming problem
+- **Model Layer**: Mathematical building blocks forming the linear programming problem
 - **Adapter Layer**: Transformation logic connecting these layers
 
 This architecture enables:
@@ -60,14 +60,14 @@ Called after optimization to populate sensors.
 
 Most Device Layer elements create multiple Model Layer elements:
 
-| Device Element | Model Elements Created       |
-| -------------- | ---------------------------- |
-| Battery        | `battery` + `connection`     |
-| Grid           | `source_sink` + `connection` |
-| Solar          | `source_sink` + `connection` |
-| Load           | `source_sink` + `connection` |
-| Node           | `source_sink` only           |
-| Connection     | `connection` only            |
+| Device Element | Model Elements Created   |
+| -------------- | ------------------------ |
+| Battery        | `battery` + `connection` |
+| Grid           | `node` + `connection`    |
+| Solar          | `node` + `connection`    |
+| Load           | `node` + `connection`    |
+| Node           | `node` only              |
+| Connection     | `connection` only        |
 
 Implicit connections (created by Battery, Grid, PV, Load) link the element to its configured target node.
 The connection carries operational parameters (power limits, efficiency, pricing) from the device configuration.
@@ -98,11 +98,13 @@ This prevents naming collisions and groups related components visually.
 
 To add a new Device Layer element:
 
-1. Define configuration schema in `elements/{element}.py`
-2. Implement `create_model_elements()` returning model element specifications
-3. Implement `outputs()` mapping model results to device outputs
-4. Register in `elements/__init__.py` `ELEMENT_TYPES` dictionary
-5. Add translations in `translations/en.json`
+1. Create element subfolder `elements/{element_type}/` with:
+    - `schema.py`: Define `ConfigSchema` and `ConfigData` TypedDicts
+    - `flow.py`: Implement config flow with voluptuous schemas
+    - `adapter.py`: Implement `available()`, `load()`, `create_model_elements()`, `outputs()`
+2. Register `ElementRegistryEntry` in `elements/__init__.py` `ELEMENT_TYPES` dictionary
+3. Add translations in `translations/en.json`
+4. Write tests in `tests/elements/{element_type}/`
 
 See existing element modules in [`custom_components/haeo/elements/`](https://github.com/hass-energy/haeo/tree/main/custom_components/haeo/elements) for implementation patterns.
 
@@ -110,9 +112,10 @@ See existing element modules in [`custom_components/haeo/elements/`](https://git
 
 The adapter layer integrates at two points in HAEO's execution:
 
-**Network construction**: [`data/__init__.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/data/__init__.py) calls `create_model_elements()` for each configured element to build the optimization network.
+**Network construction**: [`coordinator/network.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/coordinator/network.py) calls `create_model_elements()` for each configured element to build the optimization network.
+The `create_network()` function assembles all element specifications and adds them to the network.
 
-**Output processing**: [`coordinator.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/coordinator.py) calls `outputs()` after optimization to transform results into device sensor values.
+**Output processing**: [`coordinator/coordinator.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/coordinator/coordinator.py) calls `outputs()` after optimization to transform results into device sensor values.
 
 ## Future: Composite Elements
 

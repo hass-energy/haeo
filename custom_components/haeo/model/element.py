@@ -4,23 +4,18 @@ from collections.abc import Mapping, Sequence
 from typing import TYPE_CHECKING, Any, Literal
 
 from highspy import Highs
-from highspy.highs import HighspyArray, highs_cons, highs_linear_expression, highs_var
+from highspy.highs import HighspyArray, highs_cons
 import numpy as np
 from numpy.typing import NDArray
 
 from .output_data import OutputData
+from .reactive import OutputMethod, ReactiveConstraint, ReactiveCost, TrackedParam, cost
 
 if TYPE_CHECKING:
-    from .connection import Connection  # Circular import
-
-# Type alias for values that can be in constraint storage
-type ConstraintValue = highs_cons | Sequence[highs_cons]
-
-# Type alias for expression types (variables or expressions)
-type ExpressionValue = highs_var | highs_linear_expression | float
+    from .elements.connection import Connection
 
 
-class Element[OutputNameT: str, ConstraintNameT: str]:
+class Element[OutputNameT: str]:
     """Base class for electrical entities in energy system modeling.
 
     All values use kW-based units:
@@ -28,34 +23,85 @@ class Element[OutputNameT: str, ConstraintNameT: str]:
     - Energy: kWh
     - Time (periods): hours (variable-width intervals)
     - Price: $/kWh
+
+    This class integrates reactive parameter and constraint caching infrastructure.
+    Elements can use TrackedParam for parameters and @constraint/@cost for methods.
+    Dependency tracking is automatic.
     """
 
-    def __init__(self, name: str, periods: Sequence[float], *, solver: Highs) -> None:
+    def __init__(
+        self,
+        name: str,
+        periods: Sequence[float],
+        *,
+        solver: Highs,
+        output_names: frozenset[OutputNameT],
+    ) -> None:
         """Initialize an element.
 
         Args:
             name: Name of the entity
             periods: Sequence of time period durations in hours (one per optimization interval)
             solver: The HiGHS solver instance for creating variables and constraints
+            output_names: Frozenset of valid output names for this element type (used for type narrowing)
 
         """
-        super().__init__()
         self.name = name
         self.periods = np.asarray(periods)
         self._solver = solver
-
-        # Constraint storage - dictionary allows re-entrancy
-        self._constraints: dict[ConstraintNameT, ConstraintValue] = {}
+        self._output_names = output_names
 
         # Track connections for power balance
-        self._connections: list[tuple[Connection, Literal["source", "target"]]] = []
+        self._connections: list[tuple[Connection[Any], Literal["source", "target"]]] = []
+
+    def __getitem__(self, key: str) -> Any:
+        """Get a TrackedParam value by name.
+
+        Args:
+            key: Name of the TrackedParam
+
+        Returns:
+            The current value of the parameter
+
+        Raises:
+            KeyError: If no TrackedParam with this name exists
+
+        """
+        # Look up the descriptor on the class
+        descriptor = getattr(type(self), key, None)
+        if not isinstance(descriptor, TrackedParam):
+            msg = f"{type(self).__name__!r} has no TrackedParam {key!r}"
+            raise KeyError(msg)
+        # Use normal attribute access to trigger the descriptor
+        return getattr(self, key)
+
+    def __setitem__(self, key: str, value: Any) -> None:
+        """Set a TrackedParam value by name.
+
+        Setting a value triggers invalidation of dependent constraints/costs.
+
+        Args:
+            key: Name of the TrackedParam
+            value: New value to set
+
+        Raises:
+            KeyError: If no TrackedParam with this name exists
+
+        """
+        # Look up the descriptor on the class
+        descriptor = getattr(type(self), key, None)
+        if not isinstance(descriptor, TrackedParam):
+            msg = f"{type(self).__name__!r} has no TrackedParam {key!r}"
+            raise KeyError(msg)
+        # Use normal attribute access to trigger the descriptor
+        setattr(self, key, value)
 
     @property
     def n_periods(self) -> int:
         """Return the number of optimization periods."""
         return len(self.periods)
 
-    def register_connection(self, connection: "Connection", end: Literal["source", "target"]) -> None:
+    def register_connection(self, connection: "Connection[Any]", end: Literal["source", "target"]) -> None:
         """Register a connection to this element.
 
         Args:
@@ -87,61 +133,13 @@ class Element[OutputNameT: str, ConstraintNameT: str]:
 
         for conn, end in self._connections:
             if end == "source":
-                # Power leaving source (negative)
-                total_power = total_power - conn.power_source_target
-                # Power entering source from target (positive, with efficiency applied)
-                total_power = total_power + conn.power_target_source * conn.efficiency_target_source
+                # Power flowing into this element (as source)
+                total_power = total_power + conn.power_into_source
             elif end == "target":
-                # Power entering target from source (positive, with efficiency applied)
-                total_power = total_power + conn.power_source_target * conn.efficiency_source_target
-                # Power leaving target (negative)
-                total_power = total_power - conn.power_target_source
+                # Power flowing into this element (as target)
+                total_power = total_power + conn.power_into_target
 
         return total_power
-
-    def build_constraints(self) -> None:
-        """Build network-dependent constraints (e.g., power balance).
-
-        This method is called after all connections are registered and should
-        create and store constraints in self._constraints dictionary.
-
-        Elements should use connection_power() to get the net power from
-        connections when building their power balance constraints.
-
-        The solver is available via self._solver (set in __init__).
-
-        Default implementation does nothing. Subclasses should override as needed.
-        """
-
-    def constraints(self) -> list[highs_cons]:
-        """Return all constraints from this element.
-
-        Returns:
-            A flat list of all constraints stored in this element.
-
-        """
-        result: list[highs_cons] = []
-        for value in self._constraints.values():
-            if isinstance(value, Sequence):
-                result.extend(value)
-            else:
-                result.append(value)
-        return result
-
-    def cost(self) -> Sequence[ExpressionValue]:
-        """Return the cost expressions of the entity.
-
-        Returns a sequence of cost expressions for aggregation at the network level.
-
-        Units: $ = ($/kWh) * kW * period_hours
-
-        Returns:
-            Sequence of cost expressions (empty if no cost)
-
-        Default implementation returns empty list. Subclasses should override as needed.
-
-        """
-        return []
 
     def extract_values(
         self, sequence: Sequence[Any] | HighspyArray | NDArray[Any] | highs_cons | None
@@ -165,8 +163,85 @@ class Element[OutputNameT: str, ConstraintNameT: str]:
     def outputs(self) -> Mapping[OutputNameT, OutputData]:
         """Return output specifications for the element.
 
-        Each element should provide its own specific outputs.
-
-        Default implementation returns empty dict. Subclasses should override as needed.
+        Discovers all @output and @constraint(output=True) decorated methods via
+        reflection and calls their get_output() method to retrieve OutputData.
+        The method name is used as the output name (dictionary key).
         """
-        return {}
+        result: dict[OutputNameT, OutputData] = {}
+        for name in dir(type(self)):
+            attr = getattr(type(self), name, None)
+            # Check for decorators that support get_output()
+            if (
+                isinstance(attr, (OutputMethod, ReactiveConstraint))
+                and name in self._output_names
+                and (output_data := attr.get_output(self)) is not None
+            ):
+                result[name] = output_data  # type: ignore[assignment]  # name validated by `in` check at runtime
+        return result
+
+    def constraints(self) -> dict[str, highs_cons | list[highs_cons]]:
+        """Return all constraints from this element.
+
+        Discovers and calls all @constraint decorated methods. Calling the methods
+        triggers automatic constraint creation/updating in the solver via decorators.
+
+        Returns:
+            Dictionary mapping constraint method names to constraint objects
+
+        """
+        result: dict[str, highs_cons | list[highs_cons]] = {}
+        for name in dir(type(self)):
+            attr = getattr(type(self), name, None)
+            if isinstance(attr, ReactiveConstraint):
+                # Call the constraint method to trigger decorator lifecycle
+                method = getattr(self, name)
+                method()
+
+                # Get the state after calling to collect constraints
+                state_attr = f"_reactive_state_{name}"
+                state = getattr(self, state_attr, None)
+                if state is not None and "constraint" in state:
+                    cons = state["constraint"]
+                    result[name] = cons
+        return result
+
+    @cost
+    def cost(self) -> Any:
+        """Return aggregated cost expression from this element.
+
+        Discovers and calls all @cost decorated methods, summing their results into
+        a single expression. The result is cached by the @cost decorator, which
+        automatically tracks dependencies on all underlying @cost methods.
+
+        Returns:
+            Single aggregated cost expression (highs_linear_expression) or None if no costs
+
+        """
+        # Get this method's name from the decorator to avoid hardcoding
+        this_method_name = type(self).cost._name  # type: ignore[attr-defined]  # noqa: SLF001 (intentional access to decorator's name)
+
+        # Collect all cost expressions from @cost methods (excluding this one)
+        costs: list[Any] = []
+        for name in dir(type(self)):
+            # Skip self to avoid infinite recursion
+            if name == this_method_name:
+                continue
+            attr = getattr(type(self), name, None)
+            if not isinstance(attr, ReactiveCost):
+                continue
+
+            # Call the cost method - this establishes dependency tracking
+            method = getattr(self, name)
+            if (cost_value := method()) is not None:
+                if isinstance(cost_value, list):
+                    costs.extend(cost_value)
+                else:
+                    costs.append(cost_value)
+
+        # Aggregate costs into a single expression
+        if not costs:
+            return None
+        if len(costs) == 1:
+            return costs[0]
+        # Sum all cost expressions
+        return sum(costs[1:], costs[0])

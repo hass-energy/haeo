@@ -2,11 +2,26 @@
 
 Virtual balance points enforcing power conservation (Kirchhoff's law).
 
+!!! warning "Advanced Element"
+
+    A switchboard node is created automatically when you set up a HAEO hub.
+    Creating **additional** nodes requires **Advanced Mode** to be enabled on your hub.
+    In standard mode, the automatic switchboard node is sufficient for most residential systems.
+
+    Advanced source/sink configuration (`is_source` and `is_sink` fields) is only available when Advanced Mode is enabled.
+    In standard mode, nodes are pure junctions with no generation or consumption capability.
+
+!!! note "Connection endpoints"
+
+    Node elements always appear in connection selectors regardless of Advanced Mode setting.
+
 ## Configuration
 
-| Field             | Type   | Required | Default | Description                     |
-| ----------------- | ------ | -------- | ------- | ------------------------------- |
-| **[Name](#name)** | String | Yes      | -       | Unique identifier for this node |
+| Field                       | Type    | Required | Default | Description                                         |
+| --------------------------- | ------- | -------- | ------- | --------------------------------------------------- |
+| **[Name](#name)**           | String  | Yes      | -       | Unique identifier for this node                     |
+| **[Is Source](#is-source)** | Boolean | No       | false   | Whether node can produce power (Advanced Mode only) |
+| **[Is Sink](#is-sink)**     | Boolean | No       | false   | Whether node can consume power (Advanced Mode only) |
 
 ## Name
 
@@ -14,6 +29,53 @@ Unique identifier for this node within your HAEO configuration.
 Used to identify the node in connection endpoints.
 
 Choose descriptive names based on electrical location: "Main Node", "AC Panel", "DC Bus", "Home Circuit"
+
+## Is Source
+
+Whether this node can produce power (act as a power source).
+When `true`, the node can generate power that flows out through connections.
+
+**Default**: `false` (node cannot produce power)
+
+**Available only when Advanced Mode is enabled**.
+
+## Is Sink
+
+Whether this node can consume power (act as a power sink).
+When `true`, the node can accept power that flows in through connections.
+
+**Default**: `false` (node cannot consume power)
+
+**Available only when Advanced Mode is enabled**.
+
+### Source and Sink Combinations
+
+The combination of `is_source` and `is_sink` determines the node's behavior:
+
+**Pure Junction** (`is_source=false, is_sink=false` - default):
+
+- Power must balance: all power flowing in equals all power flowing out
+- No power generation or consumption at the node itself
+- Most common configuration for standard nodes
+- Available in standard mode (Advanced Mode not required)
+
+**Source Only** (`is_source=true, is_sink=false`):
+
+- Node can produce power that flows out through connections
+- Cannot accept power from connections
+- Useful for modeling power sources without using dedicated generation or grid elements
+
+**Sink Only** (`is_source=false, is_sink=true`):
+
+- Node can accept power that flows in through connections
+- Cannot produce power
+- Useful for modeling power sinks without using dedicated consumption elements
+
+**Bidirectional** (`is_source=true, is_sink=true`):
+
+- Node can both produce and consume power
+- Useful for modeling bidirectional power sources or flexible power exchange points
+- Similar to bidirectional grid elements but without automatic connection creation
 
 ## Purpose
 
@@ -25,9 +87,17 @@ $$
 
 Nodes are not physical devices - they represent electrical junctions where Kirchhoff's current law applies.
 
+!!! tip "Automatic switchboard"
+
+    HAEO creates a switchboard node automatically when you set up a hub.
+    This central connection point is sufficient for most residential energy systems.
+    You only need to create additional nodes if you have complex multi-bus topologies (e.g., separate AC/DC buses).
+
+    If the switchboard node is accidentally deleted in non-advanced mode, HAEO will automatically recreate it on the next integration reload to maintain network connectivity.
+
 !!! tip "Key insight"
 
-    All elements (batteries, grids, loads, etc.) function as nodes in the network.
+    All elements function as nodes in the network.
     Explicit Node elements are only needed when you want an additional connection point without any associated device.
 
 ## Use Cases
@@ -36,25 +106,26 @@ Nodes are not physical devices - they represent electrical junctions where Kirch
 
 ```mermaid
 graph LR
-    Grid<-->Node[Node]
-    Solar-->Node
-    Battery<-->Node
-    Node-->Load
+    Source1[Source] <--> Node[Switchboard]
+    Source2[Source] --> Node
+    Storage[Storage] <--> Node
+    Node --> Sink[Sink]
 
     class Node emphasis
 ```
 
-Most residential systems use one node.
+Most residential systems use the automatic switchboard node only.
+Additional nodes are not needed unless you have complex multi-bus topologies.
 
 **Multiple nodes (complex)**: Separate AC/DC or hierarchical distribution.
 
 ```mermaid
 graph LR
-    Solar-->DC[DC Node]
-    Battery<-->DC
+    Source[Source] --> DC[DC Node]
+    Storage[Storage] <--> DC
     DC<-->|Inverter|AC[AC Node]
-    Grid<-->AC
-    AC-->Load
+    Bidirectional[Bidirectional] <--> AC
+    AC-->Sink[Sink]
 
     class DC dc
     class AC ac
@@ -77,7 +148,25 @@ Then connect elements to "Main Node" via connections.
     If you delete a node element, you must update all connections that reference it.
     Connections cannot have endpoints that don't exist.
 
+    **In non-advanced mode**: If you delete the switchboard node, HAEO will automatically recreate it the next time the integration reloads (on restart or configuration change) to ensure network connectivity is maintained.
+
+### Input Entities
+
+Each configuration option creates a corresponding input entity in Home Assistant.
+Input entities appear as Switch entities with the `config` entity category.
+
+| Input                     | Description                    |
+| ------------------------- | ------------------------------ |
+| `switch.{name}_is_source` | Whether node can produce power |
+| `switch.{name}_is_sink`   | Whether node can consume power |
+
+These switch inputs are only created when Advanced Mode is enabled.
+Input entities include a `forecast` attribute showing values for each optimization period.
+See the [Input Entities developer guide](../../developer-guide/inputs.md) for details on input entity behavior.
+
 ## Sensors Created
+
+### Sensor Summary
 
 A Node element creates 1 device in Home Assistant with the following sensors.
 
@@ -128,7 +217,7 @@ All sensors include a `forecast` attribute containing future optimized values fo
 - Intermediate limits (inverter capacity, feeder constraints)
 - Hierarchical distribution (main panel and sub-panels)
 
-**Configuration**: Create multiple node elements, link them with connections.
+**Configuration**: Enable Advanced Mode on your hub, then create additional node elements and link them with connections.
 
 **Complexity**: Requires more configuration and adds more constraints, but accurately models real system architecture.
 
@@ -138,11 +227,11 @@ For hybrid (AC/DC) inverter systems, use separate AC and DC nodes with a connect
 
 ```mermaid
 graph LR
-    Battery[Battery] <--> DC[DC Node]
-    Solar[Solar] --> DC
+    Storage[Storage] <--> DC[DC Node]
+    Source[Source] --> DC
     DC <-->|Inverter| AC[AC Node]
-    Grid[Grid] <--> AC
-    AC --> Load[Load]
+    Bidirectional[Bidirectional] <--> AC
+    AC --> Sink[Sink]
 ```
 
 The **connection** between DC and AC nodes represents the inverter.
