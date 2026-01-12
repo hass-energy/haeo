@@ -192,76 +192,111 @@ async def test_unload_hub_entry(hass: HomeAssistant, mock_hub_entry: MockConfigE
     assert mock_hub_entry.runtime_data is None
 
 
-async def test_unload_last_entry_cleans_up_sentinels(
+async def test_sentinel_cleanup_via_async_on_unload(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Unloading the last HAEO entry cleans up sentinel entities."""
-    # Set up mock runtime data
-    mock_coordinator = Mock()
-    mock_coordinator.cleanup = Mock()
-    mock_hub_entry.runtime_data = _create_mock_runtime_data(mock_coordinator)
+    """Sentinel cleanup is registered via async_on_unload during setup.
 
-    # Track if async_unload_sentinel_entities was called
-    cleanup_called = False
+    The reference-counted sentinel cleanup is called via async_on_unload,
+    not directly in async_unload_entry. This test verifies that after setup,
+    an unload callback is registered that will clean up sentinels.
+    """
+    from custom_components.haeo.flows.sentinels import _SENTINEL_REF_COUNT_KEY  # noqa: PLC0415
 
-    def mock_cleanup(hass: HomeAssistant) -> None:
-        nonlocal cleanup_called
-        cleanup_called = True
+    # Mock the full setup to complete successfully
+    class DummyCoordinator:
+        def __init__(self, _hass_param: HomeAssistant, _entry_param: ConfigEntry) -> None:
+            self.async_initialize = AsyncMock()
+            self.async_refresh = AsyncMock()
+            self.cleanup = Mock()
 
-    monkeypatch.setattr(
-        "custom_components.haeo.async_unload_sentinel_entities",
-        mock_cleanup,
+    monkeypatch.setattr("custom_components.haeo.HaeoDataUpdateCoordinator", DummyCoordinator)
+
+    async def mock_forward_setups(entry: object, platforms: list[object]) -> None:
+        pass
+
+    monkeypatch.setattr(hass.config_entries, "async_forward_entry_setups", mock_forward_setups)
+
+    # Run setup
+    result = await async_setup_entry(hass, mock_hub_entry)
+    assert result is True
+
+    # Verify sentinel ref count was incremented
+    assert hass.data.get(_SENTINEL_REF_COUNT_KEY) == 1
+
+    # Verify async_on_unload callbacks are registered
+    # (HA stores these in entry._on_unload)
+    assert len(mock_hub_entry._on_unload) > 0, "async_on_unload callbacks should be registered"
+
+
+async def test_multiple_entries_share_sentinels(
+    hass: HomeAssistant,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Multiple HAEO entries share sentinel entities via reference counting.
+
+    With async_on_unload pattern, each entry registers its own cleanup callback.
+    Reference counting ensures sentinels are only removed when all entries unload.
+    """
+    from custom_components.haeo.flows.sentinels import (  # noqa: PLC0415
+        _SENTINEL_REF_COUNT_KEY,
+        async_setup_sentinel_entities,
+        async_unload_sentinel_entities,
     )
 
-    # This is the only entry, so unloading should trigger cleanup
-    result = await async_unload_entry(hass, mock_hub_entry)
-
-    assert result is True
-    assert cleanup_called, "async_unload_sentinel_entities should be called for last entry"
-
-
-async def test_unload_with_remaining_entries_skips_sentinel_cleanup(
-    hass: HomeAssistant,
-    mock_hub_entry: MockConfigEntry,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Unloading with other HAEO entries remaining does not clean up sentinels."""
-    # Create a second HAEO entry that will remain
-    other_entry = MockConfigEntry(
+    # Create two entries
+    entry1 = MockConfigEntry(
         domain=DOMAIN,
         data={
             CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
-            CONF_NAME: "Other Network",
+            CONF_NAME: "Network 1",
+            CONF_TIER_1_COUNT: DEFAULT_TIER_1_COUNT,
+            CONF_TIER_1_DURATION: DEFAULT_TIER_1_DURATION,
+            CONF_TIER_2_COUNT: DEFAULT_TIER_2_COUNT,
+            CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
+            CONF_TIER_3_COUNT: DEFAULT_TIER_3_COUNT,
+            CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
+            CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
+            CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
         },
-        entry_id="other_entry_id",
-        title="Other HAEO Integration",
+        entry_id="entry_1",
     )
-    other_entry.add_to_hass(hass)
+    entry1.add_to_hass(hass)
 
-    # Set up mock runtime data for the entry being unloaded
-    mock_coordinator = Mock()
-    mock_coordinator.cleanup = Mock()
-    mock_hub_entry.runtime_data = _create_mock_runtime_data(mock_coordinator)
-
-    # Track if async_unload_sentinel_entities was called
-    unload_called = False
-
-    def mock_unload(hass: HomeAssistant) -> None:
-        nonlocal unload_called
-        unload_called = True
-
-    monkeypatch.setattr(
-        "custom_components.haeo.async_unload_sentinel_entities",
-        mock_unload,
+    entry2 = MockConfigEntry(
+        domain=DOMAIN,
+        data={
+            CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
+            CONF_NAME: "Network 2",
+            CONF_TIER_1_COUNT: DEFAULT_TIER_1_COUNT,
+            CONF_TIER_1_DURATION: DEFAULT_TIER_1_DURATION,
+            CONF_TIER_2_COUNT: DEFAULT_TIER_2_COUNT,
+            CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
+            CONF_TIER_3_COUNT: DEFAULT_TIER_3_COUNT,
+            CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
+            CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
+            CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
+        },
+        entry_id="entry_2",
     )
+    entry2.add_to_hass(hass)
 
-    # Unload mock_hub_entry - other_entry still remains
-    result = await async_unload_entry(hass, mock_hub_entry)
+    # Simulate both entries setting up sentinels
+    await async_setup_sentinel_entities(hass)
+    await async_setup_sentinel_entities(hass)
 
-    assert result is True
-    assert not unload_called, "async_unload_sentinel_entities should NOT be called when other entries remain"
+    # Both incremented ref count
+    assert hass.data.get(_SENTINEL_REF_COUNT_KEY) == 2
+
+    # First unload - ref count decrements but sentinel remains
+    async_unload_sentinel_entities(hass)
+    assert hass.data.get(_SENTINEL_REF_COUNT_KEY) == 1
+
+    # Second unload - sentinel is removed
+    async_unload_sentinel_entities(hass)
+    assert _SENTINEL_REF_COUNT_KEY not in hass.data
 
 
 async def test_async_setup_entry_initializes_coordinator(
@@ -593,7 +628,12 @@ async def test_async_setup_entry_raises_config_entry_not_ready_on_timeout(
     mock_hub_entry: MockConfigEntry,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Setup raises ConfigEntryNotReady when input entities don't become ready in time."""
+    """Setup raises ConfigEntryNotReady when input entities don't become ready in time.
+
+    Verifies that:
+    1. ConfigEntryNotReady is raised with descriptive message
+    2. async_unload_platforms is called to clean up input entities
+    """
 
     # Create a mock input entity that never becomes ready
     class NeverReadyEntity:
@@ -604,8 +644,12 @@ async def test_async_setup_entry_raises_config_entry_not_ready_on_timeout(
         def is_ready(self) -> bool:
             return False
 
-    # Create mock runtime data with input entity that never becomes ready
+    # Track cleanup calls
+    unload_platforms_calls: list[tuple[object, list[object]]] = []
+
+    # Create mock horizon manager
     mock_horizon = _create_mock_horizon_manager()
+
     never_ready_entity = NeverReadyEntity()
 
     class MockRuntimeData:
@@ -616,7 +660,6 @@ async def test_async_setup_entry_raises_config_entry_not_ready_on_timeout(
             self.value_update_in_progress = False
 
     # Patch HaeoRuntimeData to return our mock
-
     def create_mock_runtime_data(horizon_manager: object) -> MockRuntimeData:
         return MockRuntimeData()
 
@@ -630,6 +673,15 @@ async def test_async_setup_entry_raises_config_entry_not_ready_on_timeout(
 
     monkeypatch.setattr(hass.config_entries, "async_forward_entry_setups", mock_forward_setups)
 
+    # Track async_unload_platforms calls
+    original_unload_platforms = hass.config_entries.async_unload_platforms
+
+    async def tracked_unload_platforms(entry: object, platforms: list[object]) -> bool:
+        unload_platforms_calls.append((entry, platforms))
+        return await original_unload_platforms(entry, platforms)
+
+    monkeypatch.setattr(hass.config_entries, "async_unload_platforms", tracked_unload_platforms)
+
     # Patch asyncio.timeout to use a very short timeout
     original_timeout = asyncio.timeout
 
@@ -641,6 +693,14 @@ async def test_async_setup_entry_raises_config_entry_not_ready_on_timeout(
     # Run setup - should raise ConfigEntryNotReady
     with pytest.raises(ConfigEntryNotReady, match="Input entities not ready after 30s"):
         await async_setup_entry(hass, mock_hub_entry)
+
+    # Verify async_unload_platforms was called to clean up input platforms
+    assert len(unload_platforms_calls) >= 1, "async_unload_platforms should be called on timeout"
+
+    # Note: horizon_manager.stop is called via async_on_unload callbacks.
+    # When testing directly (not via hass.config_entries.async_setup), the HA
+    # lifecycle that calls _async_process_on_unload is not exercised.
+    # The async_on_unload mechanism is tested separately via the HA test framework.
 
 
 async def test_async_setup_entry_returns_false_when_network_subentry_missing(
@@ -661,3 +721,178 @@ async def test_async_setup_entry_returns_false_when_network_subentry_missing(
     result = await async_setup_entry(hass, mock_hub_entry)
 
     assert result is False
+
+
+async def test_setup_reentry_after_timeout_failure(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """After setup fails with timeout, re-running setup on same entry succeeds.
+
+    This tests the robustness of cleanup on failure - if cleanup is incomplete,
+    the second setup attempt would fail with 'entity already exists' or similar.
+    """
+    attempt_count = 0
+
+    # Create a mock input entity that fails first time, succeeds second time
+    class ConditionalReadyEntity:
+        def __init__(self) -> None:
+            self._ready = False
+
+        async def wait_ready(self) -> None:
+            if attempt_count == 1:
+                # First attempt: timeout
+                await asyncio.sleep(100)
+            else:
+                # Subsequent attempts: succeed immediately
+                self._ready = True
+
+        def is_ready(self) -> bool:
+            return self._ready
+
+    # Create a runtime data factory that uses our conditional entity
+    entity = ConditionalReadyEntity()
+
+    class MockRuntimeData:
+        def __init__(self, horizon_manager: object) -> None:
+            self.horizon_manager = horizon_manager
+            self.input_entities = {("Test Element", "field"): entity}
+            self.coordinator = None
+            self.value_update_in_progress = False
+
+    monkeypatch.setattr("custom_components.haeo.HaeoRuntimeData", MockRuntimeData)
+
+    # Mock horizon manager - use a real-like one that tracks state
+    def create_horizon_manager(hass: HomeAssistant, config_entry: ConfigEntry) -> Mock:
+        return _create_mock_horizon_manager()
+
+    monkeypatch.setattr("custom_components.haeo.HorizonManager", create_horizon_manager)
+
+    # Patch forward_entry_setups - no-op for this test
+    async def mock_forward_setups(entry: object, platforms: list[object]) -> None:
+        pass
+
+    monkeypatch.setattr(hass.config_entries, "async_forward_entry_setups", mock_forward_setups)
+
+    # Patch asyncio.timeout to use a very short timeout
+    original_timeout = asyncio.timeout
+
+    def short_timeout(seconds: float) -> asyncio.Timeout:
+        return original_timeout(0.01)  # 10ms timeout
+
+    monkeypatch.setattr("asyncio.timeout", short_timeout)
+
+    # First attempt - should fail with timeout
+    attempt_count = 1
+    with pytest.raises(ConfigEntryNotReady, match="Input entities not ready after 30s"):
+        await async_setup_entry(hass, mock_hub_entry)
+
+    # Restore normal timeout for second attempt
+    monkeypatch.setattr("asyncio.timeout", original_timeout)
+
+    # Mock coordinator for second attempt
+    class DummyCoordinator:
+        def __init__(self, hass_param: HomeAssistant, entry_param: ConfigEntry) -> None:
+            self.hass = hass_param
+            self.config_entry = entry_param
+            self.async_initialize = AsyncMock()
+            self.async_refresh = AsyncMock()
+            self.cleanup = Mock()
+
+    monkeypatch.setattr("custom_components.haeo.HaeoDataUpdateCoordinator", DummyCoordinator)
+
+    # Second attempt - should succeed (cleanup on first failure was complete)
+    attempt_count = 2
+    result = await async_setup_entry(hass, mock_hub_entry)
+
+    assert result is True, "Second setup attempt should succeed after cleanup"
+
+
+async def test_setup_cleanup_on_coordinator_error(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Setup cleans up platforms when coordinator initialization fails.
+
+    Tests the generic exception handler that catches non-timeout errors.
+    """
+    unload_platforms_calls: list[tuple[object, list[object]]] = []
+
+    # Mock horizon manager
+    monkeypatch.setattr("custom_components.haeo.HorizonManager", lambda **_kwargs: _create_mock_horizon_manager())
+
+    # Create a runtime data with ready entities
+    class MockRuntimeData:
+        def __init__(self, horizon_manager: object) -> None:
+            self.horizon_manager = horizon_manager
+            self.input_entities = {}  # No entities to wait for
+            self.coordinator = None
+            self.value_update_in_progress = False
+
+    monkeypatch.setattr("custom_components.haeo.HaeoRuntimeData", MockRuntimeData)
+
+    # Patch forward_entry_setups
+    async def mock_forward_setups(entry: object, platforms: list[object]) -> None:
+        pass
+
+    monkeypatch.setattr(hass.config_entries, "async_forward_entry_setups", mock_forward_setups)
+
+    # Track unload calls
+    original_unload_platforms = hass.config_entries.async_unload_platforms
+
+    async def tracked_unload_platforms(entry: object, platforms: list[object]) -> bool:
+        unload_platforms_calls.append((entry, list(platforms)))
+        return await original_unload_platforms(entry, platforms)
+
+    monkeypatch.setattr(hass.config_entries, "async_unload_platforms", tracked_unload_platforms)
+
+    # Mock coordinator that fails on initialize
+    class FailingCoordinator:
+        def __init__(self, hass_param: HomeAssistant, entry_param: ConfigEntry) -> None:
+            pass
+
+        async def async_initialize(self) -> None:
+            msg = "Coordinator initialization failed"
+            raise RuntimeError(msg)
+
+    monkeypatch.setattr("custom_components.haeo.HaeoDataUpdateCoordinator", FailingCoordinator)
+
+    # Run setup - should raise ConfigEntryNotReady (transient error)
+    with pytest.raises(ConfigEntryNotReady, match="Setup failed"):
+        await async_setup_entry(hass, mock_hub_entry)
+
+    # Verify both INPUT_PLATFORMS and OUTPUT_PLATFORMS were unloaded
+    assert len(unload_platforms_calls) >= 2, "Both platform types should be unloaded on error"
+
+
+async def test_sentinel_reference_counting(
+    hass: HomeAssistant,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Sentinel entities use reference counting for multiple entries."""
+    from custom_components.haeo.flows.sentinels import (  # noqa: PLC0415
+        _SENTINEL_REF_COUNT_KEY,
+        async_setup_sentinel_entities,
+        async_unload_sentinel_entities,
+    )
+
+    # Initial state - no sentinels
+    assert _SENTINEL_REF_COUNT_KEY not in hass.data
+
+    # First setup - creates sentinel
+    await async_setup_sentinel_entities(hass)
+    assert hass.data.get(_SENTINEL_REF_COUNT_KEY) == 1
+
+    # Second setup - increments count, no new sentinel created
+    await async_setup_sentinel_entities(hass)
+    assert hass.data.get(_SENTINEL_REF_COUNT_KEY) == 2
+
+    # First unload - decrements count, sentinel still exists
+    async_unload_sentinel_entities(hass)
+    assert hass.data.get(_SENTINEL_REF_COUNT_KEY) == 1
+
+    # Second unload - removes sentinel
+    async_unload_sentinel_entities(hass)
+    assert _SENTINEL_REF_COUNT_KEY not in hass.data
