@@ -177,3 +177,41 @@ async def test_reconfigure_with_string_entity_id_v010_format(hass: HomeAssistant
     # Defaults should contain the original entity IDs as lists
     assert defaults[CONF_MAX_POWER_SOURCE_TARGET] == ["sensor.max_power_st"]
     assert defaults[CONF_MAX_POWER_TARGET_SOURCE] == ["sensor.max_power_ts"]
+
+
+async def test_reconfigure_with_scalar_value_shows_configurable_entity(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
+    """Reconfigure with scalar value should show configurable entity in defaults."""
+    from custom_components.haeo.elements.connection import CONF_MAX_POWER_SOURCE_TARGET, CONF_MAX_POWER_TARGET_SOURCE
+    from custom_components.haeo.flows.field_schema import get_configurable_entity_id
+
+    add_participant(hass, hub_entry, "Battery1", battery.ELEMENT_TYPE)
+    add_participant(hass, hub_entry, "Grid1", grid.ELEMENT_TYPE)
+
+    # Create existing entry with scalar values (from configurable entity setup)
+    existing_config = {
+        CONF_ELEMENT_TYPE: ELEMENT_TYPE,
+        CONF_NAME: "Test Connection",
+        CONF_SOURCE: "Battery1",
+        CONF_TARGET: "Grid1",
+        CONF_MAX_POWER_SOURCE_TARGET: 10.0,  # Scalar value
+        CONF_MAX_POWER_TARGET_SOURCE: 10.0,  # Scalar value
+    }
+    existing_subentry = ConfigSubentry(
+        data=MappingProxyType(existing_config),
+        subentry_type=ELEMENT_TYPE,
+        title="Test Connection",
+        unique_id=None,
+    )
+    hass.config_entries.async_add_subentry(hub_entry, existing_subentry)
+
+    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
+    flow.context = {"subentry_id": existing_subentry.subentry_id}
+    flow._get_reconfigure_subentry = Mock(return_value=existing_subentry)
+
+    # Check defaults - should resolve to configurable entity since no HAEO entity exists
+    defaults = flow._build_step1_defaults("Test Connection", dict(existing_subentry.data))
+
+    # Without a registered HAEO entity, resolves to configurable entity
+    configurable_entity_id = get_configurable_entity_id()
+    assert defaults[CONF_MAX_POWER_SOURCE_TARGET] == [configurable_entity_id]
+    assert defaults[CONF_MAX_POWER_TARGET_SOURCE] == [configurable_entity_id]
