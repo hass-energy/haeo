@@ -171,16 +171,27 @@ class SigenergyGuide:
                 // If the element is very small, look for a better parent
                 if (rect.width < minSize || rect.height < minSize) {
                     // Look for common clickable parent patterns
-                    const clickableParent = el.closest('button, [role="button"], [role="option"], [role="listitem"], a, ha-list-item, ha-combo-box-item, mwc-list-item, md-item, ha-button, ha-icon-button, .mdc-text-field, ha-textfield, input, select, ha-select');
+                    const clickableParent = el.closest('button, [role="button"], [role="option"], [role="listitem"], a, ha-list-item, ha-combo-box-item, mwc-list-item, md-item, ha-button, ha-icon-button, .mdc-text-field, ha-textfield, input, select, ha-select, ha-integration-list-item');
                     if (clickableParent) {
                         target = clickableParent;
                     }
                 }
                 
-                // Always prefer md-item if we're inside one (Material Design list items)
+                // Always prefer ha-integration-list-item, md-item, or similar list items
+                const integrationItem = el.closest('ha-integration-list-item');
+                if (integrationItem) {
+                    target = integrationItem;
+                }
+                
                 const mdItem = el.closest('md-item');
                 if (mdItem) {
                     target = mdItem;
+                }
+                
+                // For list items and options, prefer the item element itself
+                const listItem = el.closest('[role="listitem"], [role="option"]');
+                if (listItem) {
+                    target = listItem;
                 }
                 
                 // Also check if we're inside a form field and should highlight the field container
@@ -194,10 +205,26 @@ class SigenergyGuide:
                     }
                 }
                 
+                // Apply box-shadow indicator
                 target.setAttribute('data-click-target', 'true');
                 target.dataset.originalBoxShadow = target.style.boxShadow || '';
-                target.style.boxShadow = boxShadow;
-                target.style.outline = 'none';
+                target.dataset.originalOutline = target.style.outline || '';
+                target.dataset.originalPosition = target.style.position || '';
+                target.dataset.originalZIndex = target.style.zIndex || '';
+                target.dataset.originalOverflow = target.style.overflow || '';
+                
+                // Use outline instead of box-shadow for better visibility on list items
+                // Outline is not clipped by parent overflow:hidden
+                target.style.outline = '3px solid rgba(255, 0, 0, 0.9)';
+                target.style.outlineOffset = '2px';
+                target.style.boxShadow = '0 0 15px 5px rgba(255, 0, 0, 0.4)';
+                
+                // Ensure the element is visible above siblings
+                const currentPosition = getComputedStyle(target).position;
+                if (currentPosition === 'static') {
+                    target.style.position = 'relative';
+                }
+                target.style.zIndex = '9999';
             }""",
             box_shadow,
         )
@@ -259,31 +286,43 @@ class SigenergyGuide:
         """Remove click indicator from any marked elements and restore original styles."""
         self.page.evaluate("""
             // Remove the data attribute and restore original styles from any marked elements
-            const marked = document.querySelectorAll('[data-click-target]');
-            for (const el of marked) {
+            function restoreElement(el) {
                 el.removeAttribute('data-click-target');
-                // Restore original box-shadow if it was saved
+                // Restore all saved styles
                 if (el.dataset.originalBoxShadow !== undefined) {
                     el.style.boxShadow = el.dataset.originalBoxShadow;
                     delete el.dataset.originalBoxShadow;
                 } else {
                     el.style.boxShadow = '';
                 }
-                el.style.outline = '';
+                if (el.dataset.originalOutline !== undefined) {
+                    el.style.outline = el.dataset.originalOutline;
+                    el.style.outlineOffset = '';
+                    delete el.dataset.originalOutline;
+                } else {
+                    el.style.outline = '';
+                    el.style.outlineOffset = '';
+                }
+                if (el.dataset.originalPosition !== undefined) {
+                    el.style.position = el.dataset.originalPosition;
+                    delete el.dataset.originalPosition;
+                }
+                if (el.dataset.originalZIndex !== undefined) {
+                    el.style.zIndex = el.dataset.originalZIndex;
+                    delete el.dataset.originalZIndex;
+                }
+            }
+            
+            const marked = document.querySelectorAll('[data-click-target]');
+            for (const el of marked) {
+                restoreElement(el);
             }
 
             // Also traverse shadow roots to find any marked elements there
             function walkShadowRoots(root) {
                 root.querySelectorAll('*').forEach(el => {
                     if (el.hasAttribute('data-click-target')) {
-                        el.removeAttribute('data-click-target');
-                        if (el.dataset.originalBoxShadow !== undefined) {
-                            el.style.boxShadow = el.dataset.originalBoxShadow;
-                            delete el.dataset.originalBoxShadow;
-                        } else {
-                            el.style.boxShadow = '';
-                        }
-                        el.style.outline = '';
+                        restoreElement(el);
                     }
                     if (el.shadowRoot) {
                         walkShadowRoots(el.shadowRoot);
@@ -375,9 +414,16 @@ class SigenergyGuide:
     def fill_textbox(self, name: str, value: str, *, capture_name: str | None = None) -> None:
         """Fill a textbox by its accessible name.
 
+        If the textbox already contains the target value, skips filling.
         If capture_name is provided, captures before (with indicator) and after (filled).
         """
         textbox = self.page.get_by_role("textbox", name=name)
+
+        # Check if field is already filled with the target value
+        current_value = textbox.input_value(timeout=DEFAULT_TIMEOUT)
+        if current_value == value:
+            # Field is already correctly filled, skip
+            return
 
         if capture_name:
             self._scroll_into_view(textbox)
@@ -505,7 +551,9 @@ class SigenergyGuide:
         if capture_name:
             self.capture(f"{capture_name}_result")
 
-    def add_another_entity(self, field_label: str, search_term: str, entity_name: str) -> None:
+    def add_another_entity(
+        self, field_label: str, search_term: str, entity_name: str, *, capture_name: str | None = None
+    ) -> None:
         """Add another entity to a multi-select field.
 
         For fields that accept multiple entities, an "Add entity" button appears after first selection.
@@ -516,6 +564,12 @@ class SigenergyGuide:
 
         # Click the "Add entity" button within the selector
         add_btn = selector.get_by_role("button", name="Add entity")
+
+        if capture_name:
+            self._scroll_into_view(add_btn)
+            self.capture(f"{capture_name}_before")
+            self._capture_with_indicator(f"{capture_name}_add_btn", add_btn)
+
         add_btn.click(timeout=DEFAULT_TIMEOUT)
         self.page.wait_for_timeout(MEDIUM_WAIT * 1000)
 
@@ -523,21 +577,38 @@ class SigenergyGuide:
         dialog = self.page.get_by_role("dialog", name="Select option")
         dialog.wait_for(timeout=DEFAULT_TIMEOUT)
 
+        if capture_name:
+            self.capture(f"{capture_name}_dialog")
+
         # Fill the search textbox within the dialog
         search_input = dialog.get_by_role("textbox", name="Search")
         search_input.fill(search_term)
         self.page.wait_for_timeout(1000)  # Wait 1s for search results to populate
 
+        if capture_name:
+            self.capture(f"{capture_name}_search")
+
         # Click the matching item in the dialog's results
         # HA uses different selectors: listitem in some dialogs, ha-combo-box-item in others
         try:
             result_item = dialog.get_by_role("listitem").filter(has_text=entity_name).first
+            if capture_name:
+                self._scroll_into_view(result_item)
+                self.capture(f"{capture_name}_select_before")
+                self._capture_with_indicator(f"{capture_name}_select", result_item)
             result_item.click(timeout=1000)
         except Exception:
             # Fall back to ha-combo-box-item
             result_item = dialog.locator("ha-combo-box-item").filter(has_text=entity_name).first
+            if capture_name:
+                self._scroll_into_view(result_item)
+                self.capture(f"{capture_name}_select_before")
+                self._capture_with_indicator(f"{capture_name}_select", result_item)
             result_item.click(timeout=DEFAULT_TIMEOUT)
         self.page.wait_for_timeout(SHORT_WAIT * 1000)
+
+        if capture_name:
+            self.capture(f"{capture_name}_result")
 
     def close_network_dialog(self, *, capture_name: str | None = None) -> None:
         """Close the network creation dialog (has 'Skip and finish' button)."""
@@ -748,10 +819,16 @@ def add_solar(guide: SigenergyGuide) -> None:
         "Forecast", "east solar today", "East solar production forecast", capture_name="solar_forecast"
     )
 
-    # Add the other three array forecasts (no extra captures - too many screenshots)
-    guide.add_another_entity("Forecast", "north solar today", "North solar production forecast")
-    guide.add_another_entity("Forecast", "south solar today", "South solar prediction forecast")
-    guide.add_another_entity("Forecast", "west solar today", "West solar production forecast")
+    # Add the other three array forecasts
+    guide.add_another_entity(
+        "Forecast", "north solar today", "North solar production forecast", capture_name="solar_forecast2"
+    )
+    guide.add_another_entity(
+        "Forecast", "south solar today", "South solar prediction forecast", capture_name="solar_forecast3"
+    )
+    guide.add_another_entity(
+        "Forecast", "west solar today", "West solar production forecast", capture_name="solar_forecast4"
+    )
 
     guide.click_button("Submit", capture_name="solar_submit")
     guide.close_element_dialog(capture_name="solar_close")
@@ -774,13 +851,17 @@ def add_grid(guide: SigenergyGuide) -> None:
     guide.select_entity(
         "Import Price", "general price", "Home - General Price", capture_name="grid_import_price"
     )
-    guide.add_another_entity("Import Price", "general forecast", "Home - General Forecast")
+    guide.add_another_entity(
+        "Import Price", "general forecast", "Home - General Forecast", capture_name="grid_import_price2"
+    )
 
     # Export price
     guide.select_entity(
         "Export Price", "feed in price", "Home - Feed In Price", capture_name="grid_export_price"
     )
-    guide.add_another_entity("Export Price", "feed in forecast", "Home - Feed In Forecast")
+    guide.add_another_entity(
+        "Export Price", "feed in forecast", "Home - Feed In Forecast", capture_name="grid_export_price2"
+    )
 
     # Submit step 1 → moves to step 2 (values) for limit spinbuttons
     guide.click_button("Submit", capture_name="grid_step1_submit")
