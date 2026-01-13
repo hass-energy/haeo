@@ -456,9 +456,7 @@
     "setup_failed_permanent": {
       "message": "Setup failed due to configuration error: {error}. Please check your configuration."
     },
-    "setup_failed_transient": {
-      "message": "Setup failed: {error}. Home Assistant will retry automatically."
-    }
+    "setup_failed_transient": { "message": "Setup failed: {error}. Home Assistant will retry automatically." }
   },
   "issues": {
     "disconnected_network": {
