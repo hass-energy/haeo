@@ -177,28 +177,41 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> bool
     # Register cleanup - will be called on failure or unload
     entry.async_on_unload(lambda: async_unload_sentinel_entities(hass))
 
-    # Start horizon manager's scheduled updates
-    horizon_manager.start()
-    # Register cleanup - will be called on failure or unload
-    entry.async_on_unload(horizon_manager.stop)
+    # Start horizon manager's scheduled updates - returns stop function
+    entry.async_on_unload(horizon_manager.start())
 
     # Set up input platforms first - they populate runtime_data.input_entities
     await hass.config_entries.async_forward_entry_setups(entry, INPUT_PLATFORMS)
+    # Register cleanup - will be called on failure or unload
+    # Return the coroutine directly - HA will wrap it in async_create_task
+    entry.async_on_unload(
+        lambda: hass.config_entries.async_unload_platforms(entry, INPUT_PLATFORMS)  # type: ignore[arg-type]
+    )
 
-    # Wrap remaining setup in try/except to ensure platform cleanup on failure
-    # Platforms require explicit unload via async_unload_platforms
+    # Wait for all input entities to have their data ready
+    # Each entity signals via asyncio.Event when its forecast data is loaded
+    _LOGGER.debug("Waiting for %d input entities to be ready", len(runtime_data.input_entities))
     try:
-        # Wait for all input entities to have their data ready
-        # Each entity signals via asyncio.Event when its forecast data is loaded
-        _LOGGER.debug("Waiting for %d input entities to be ready", len(runtime_data.input_entities))
         async with asyncio.timeout(30):
             await asyncio.gather(*[entity.wait_ready() for entity in runtime_data.input_entities.values()])
-        _LOGGER.debug("All input entities ready")
+    except TimeoutError:
+        not_ready = [key for key, entity in runtime_data.input_entities.items() if not entity.is_ready()]
+        raise ConfigEntryNotReady(
+            translation_domain=DOMAIN,
+            translation_key="input_entities_not_ready",
+            translation_placeholders={"not_ready": str(not_ready)},
+        ) from None
+    _LOGGER.debug("All input entities ready")
 
-        # Create coordinator after input entities are ready - it reads from them
-        coordinator = HaeoDataUpdateCoordinator(hass, entry)
-        runtime_data.coordinator = coordinator
+    # Create coordinator after input entities are ready - it reads from them
+    coordinator = HaeoDataUpdateCoordinator(hass, entry)
+    runtime_data.coordinator = coordinator
+    # Register coordinator cleanup
+    entry.async_on_unload(coordinator.cleanup)
 
+    # Wrap coordinator operations to provide meaningful HA error messages
+    # Cleanup is handled via async_on_unload callbacks - no explicit cleanup needed here
+    try:
         # Initialize the network and set up subscriptions
         # This must happen before the first refresh
         await coordinator.async_initialize()
@@ -208,41 +221,31 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> bool
         # Use async_refresh() instead of async_config_entry_first_refresh() to avoid
         # retrying setup if optimization fails (e.g., missing sensor data)
         await coordinator.async_refresh()
-
-        # Set up output platforms after coordinator has data
-        await hass.config_entries.async_forward_entry_setups(entry, OUTPUT_PLATFORMS)
-
-    except TimeoutError:
-        # Unload input platforms before raising - platforms need explicit unload
-        await hass.config_entries.async_unload_platforms(entry, INPUT_PLATFORMS)
-
-        not_ready = [key for key, entity in runtime_data.input_entities.items() if not entity.is_ready()]
-        raise ConfigEntryNotReady(
+    except (ConfigEntryNotReady, ConfigEntryError):
+        # Re-raise HA exceptions as-is to preserve translation keys
+        raise
+    except (ValueError, TypeError, KeyError) as err:
+        # Configuration or programming errors - permanent failure
+        raise ConfigEntryError(
             translation_domain=DOMAIN,
-            translation_key="input_entities_not_ready",
-            translation_placeholders={"not_ready": str(not_ready)},
-        ) from None
-
+            translation_key="setup_failed_permanent",
+            translation_placeholders={"error": str(err)},
+        ) from err
     except Exception as err:
-        # Unload any platforms that were set up before re-raising
-        # OUTPUT_PLATFORMS may or may not be set up depending on where failure occurred
-        await hass.config_entries.async_unload_platforms(entry, INPUT_PLATFORMS)
-        await hass.config_entries.async_unload_platforms(entry, OUTPUT_PLATFORMS)
-
-        # Wrap in ConfigEntryError for permanent failures, ConfigEntryNotReady for transient
-        if isinstance(err, (ValueError, TypeError, KeyError)):
-            # Configuration or programming errors - permanent failure
-            raise ConfigEntryError(
-                translation_domain=DOMAIN,
-                translation_key="setup_failed_permanent",
-                translation_placeholders={"error": str(err)},
-            ) from err
         # Transient errors (network, sensor availability) - retry
         raise ConfigEntryNotReady(
             translation_domain=DOMAIN,
             translation_key="setup_failed_transient",
             translation_placeholders={"error": str(err)},
         ) from err
+
+    # Set up output platforms after coordinator has data
+    await hass.config_entries.async_forward_entry_setups(entry, OUTPUT_PLATFORMS)
+    # Register cleanup - will be called on failure or unload
+    # Return the coroutine directly - HA will wrap it in async_create_task
+    entry.async_on_unload(
+        lambda: hass.config_entries.async_unload_platforms(entry, OUTPUT_PLATFORMS)  # type: ignore[arg-type]
+    )
 
     # Register update listener LAST - after all setup is complete
     # This prevents reload loops from subentry additions during initial setup
@@ -252,26 +255,23 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> bool
     return True
 
 
-async def async_unload_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> bool:
+async def async_unload_entry(_hass: HomeAssistant, entry: HaeoConfigEntry) -> bool:
     """Unload a config entry.
 
-    Platforms are unloaded via async_unload_platforms.
-    Other cleanup (horizon_manager.stop, sentinel cleanup, coordinator cleanup)
-    is handled via async_on_unload callbacks registered during setup.
+    All cleanup is handled via async_on_unload callbacks registered during setup:
+    - Platform unloading (INPUT_PLATFORMS, OUTPUT_PLATFORMS)
+    - Sentinel entities (reference counted)
+    - Horizon manager timer
+    - Coordinator resources
+    - Update listener
     """
     _LOGGER.info("Unloading HAEO integration")
 
-    # Unload platforms
-    unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+    # Clear runtime data reference
+    entry.runtime_data = None
 
-    if unload_ok:
-        # Clean up coordinator resources (sync method, not registered via async_on_unload)
-        runtime_data = entry.runtime_data
-        if runtime_data is not None and runtime_data.coordinator is not None:
-            runtime_data.coordinator.cleanup()
-        entry.runtime_data = None
-
-    return unload_ok
+    # All cleanup is handled by async_on_unload callbacks
+    return True
 
 
 async def async_reload_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> None:

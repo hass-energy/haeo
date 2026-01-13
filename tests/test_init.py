@@ -175,7 +175,12 @@ async def test_setup_hub_entry(hass: HomeAssistant, mock_hub_entry: MockConfigEn
 
 
 async def test_unload_hub_entry(hass: HomeAssistant, mock_hub_entry: MockConfigEntry) -> None:
-    """Test unloading a hub entry."""
+    """Test unloading a hub entry.
+
+    All cleanup is handled via async_on_unload callbacks which are triggered
+    by the Home Assistant config entry lifecycle, not by our async_unload_entry function.
+    This test verifies async_unload_entry returns True and clears runtime_data.
+    """
 
     # Set up a mock runtime data with proper structure
     mock_coordinator = Mock()
@@ -186,10 +191,9 @@ async def test_unload_hub_entry(hass: HomeAssistant, mock_hub_entry: MockConfigE
     result = await async_unload_entry(hass, mock_hub_entry)
 
     assert result is True
-    # Coordinator cleanup should be called
-    mock_coordinator.cleanup.assert_called_once()
     # runtime_data should be cleared
     assert mock_hub_entry.runtime_data is None
+    # Note: coordinator.cleanup is now called via async_on_unload, not directly in async_unload_entry
 
 
 async def test_sentinel_cleanup_via_async_on_unload(
@@ -630,9 +634,8 @@ async def test_async_setup_entry_raises_config_entry_not_ready_on_timeout(
 ) -> None:
     """Setup raises ConfigEntryNotReady when input entities don't become ready in time.
 
-    Verifies that:
-    1. ConfigEntryNotReady is raised with descriptive message
-    2. async_unload_platforms is called to clean up input entities
+    Verifies that ConfigEntryNotReady is raised with descriptive translation key.
+    Cleanup is handled via async_on_unload callbacks registered during setup.
     """
 
     # Create a mock input entity that never becomes ready
@@ -643,9 +646,6 @@ async def test_async_setup_entry_raises_config_entry_not_ready_on_timeout(
 
         def is_ready(self) -> bool:
             return False
-
-    # Track cleanup calls
-    unload_platforms_calls: list[tuple[object, list[object]]] = []
 
     # Create mock horizon manager
     mock_horizon = _create_mock_horizon_manager()
@@ -673,15 +673,6 @@ async def test_async_setup_entry_raises_config_entry_not_ready_on_timeout(
 
     monkeypatch.setattr(hass.config_entries, "async_forward_entry_setups", mock_forward_setups)
 
-    # Track async_unload_platforms calls
-    original_unload_platforms = hass.config_entries.async_unload_platforms
-
-    async def tracked_unload_platforms(entry: object, platforms: list[object]) -> bool:
-        unload_platforms_calls.append((entry, platforms))
-        return await original_unload_platforms(entry, platforms)
-
-    monkeypatch.setattr(hass.config_entries, "async_unload_platforms", tracked_unload_platforms)
-
     # Patch asyncio.timeout to use a very short timeout
     original_timeout = asyncio.timeout
 
@@ -697,10 +688,7 @@ async def test_async_setup_entry_raises_config_entry_not_ready_on_timeout(
     # Verify the exception has the correct translation key
     assert exc_info.value.translation_key == "input_entities_not_ready"
 
-    # Verify async_unload_platforms was called to clean up input platforms
-    assert len(unload_platforms_calls) >= 1, "async_unload_platforms should be called on timeout"
-
-    # Note: horizon_manager.stop is called via async_on_unload callbacks.
+    # Note: Platform cleanup is handled via async_on_unload callbacks.
     # When testing directly (not via hass.config_entries.async_setup), the HA
     # lifecycle that calls _async_process_on_unload is not exercised.
     # The async_on_unload mechanism is tested separately via the HA test framework.
@@ -820,12 +808,12 @@ async def test_setup_cleanup_on_coordinator_error(
     mock_hub_entry: MockConfigEntry,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Setup cleans up platforms when coordinator initialization fails.
+    """Setup wraps coordinator exceptions in HA exceptions.
 
-    Tests the generic exception handler that catches non-timeout errors.
+    Exceptions from coordinator initialization are wrapped in ConfigEntryNotReady
+    or ConfigEntryError for proper HA error display. Cleanup is handled via
+    async_on_unload callbacks registered during setup.
     """
-    unload_platforms_calls: list[tuple[object, list[object]]] = []
-
     # Mock horizon manager
     monkeypatch.setattr("custom_components.haeo.HorizonManager", lambda **_kwargs: _create_mock_horizon_manager())
 
@@ -845,18 +833,12 @@ async def test_setup_cleanup_on_coordinator_error(
 
     monkeypatch.setattr(hass.config_entries, "async_forward_entry_setups", mock_forward_setups)
 
-    # Track unload calls
-    original_unload_platforms = hass.config_entries.async_unload_platforms
-
-    async def tracked_unload_platforms(entry: object, platforms: list[object]) -> bool:
-        unload_platforms_calls.append((entry, list(platforms)))
-        return await original_unload_platforms(entry, platforms)
-
-    monkeypatch.setattr(hass.config_entries, "async_unload_platforms", tracked_unload_platforms)
-
     # Mock coordinator that fails on initialize
     class FailingCoordinator:
         def __init__(self, hass_param: HomeAssistant, entry_param: ConfigEntry) -> None:
+            pass
+
+        def cleanup(self) -> None:
             pass
 
         async def async_initialize(self) -> None:
@@ -865,15 +847,12 @@ async def test_setup_cleanup_on_coordinator_error(
 
     monkeypatch.setattr("custom_components.haeo.HaeoDataUpdateCoordinator", FailingCoordinator)
 
-    # Run setup - should raise ConfigEntryNotReady (transient error)
+    # Run setup - RuntimeError is wrapped in ConfigEntryNotReady (transient error)
     with pytest.raises(ConfigEntryNotReady) as exc_info:
         await async_setup_entry(hass, mock_hub_entry)
 
     # Verify the exception has the correct translation key
     assert exc_info.value.translation_key == "setup_failed_transient"
-
-    # Verify both INPUT_PLATFORMS and OUTPUT_PLATFORMS were unloaded
-    assert len(unload_platforms_calls) >= 2, "Both platform types should be unloaded on error"
 
 
 async def test_sentinel_reference_counting(
@@ -915,10 +894,8 @@ async def test_async_setup_entry_raises_config_entry_error_on_permanent_failure(
     """Setup raises ConfigEntryError for permanent failures (ValueError/TypeError/KeyError).
 
     Tests that configuration or programming errors result in permanent failure
-    rather than retry behavior.
+    rather than retry behavior. Cleanup is handled via async_on_unload callbacks.
     """
-    unload_platforms_calls: list[tuple[object, list[object]]] = []
-
     # Mock horizon manager
     monkeypatch.setattr("custom_components.haeo.HorizonManager", lambda **_kwargs: _create_mock_horizon_manager())
 
@@ -938,18 +915,12 @@ async def test_async_setup_entry_raises_config_entry_error_on_permanent_failure(
 
     monkeypatch.setattr(hass.config_entries, "async_forward_entry_setups", mock_forward_setups)
 
-    # Track unload calls
-    original_unload_platforms = hass.config_entries.async_unload_platforms
-
-    async def tracked_unload_platforms(entry: object, platforms: list[object]) -> bool:
-        unload_platforms_calls.append((entry, list(platforms)))
-        return await original_unload_platforms(entry, platforms)
-
-    monkeypatch.setattr(hass.config_entries, "async_unload_platforms", tracked_unload_platforms)
-
     # Mock coordinator that fails with ValueError (permanent failure)
     class FailingCoordinator:
         def __init__(self, hass_param: HomeAssistant, entry_param: ConfigEntry) -> None:
+            pass
+
+        def cleanup(self) -> None:
             pass
 
         async def async_initialize(self) -> None:
@@ -964,9 +935,6 @@ async def test_async_setup_entry_raises_config_entry_error_on_permanent_failure(
 
     # Verify the exception has the correct translation key
     assert exc_info.value.translation_key == "setup_failed_permanent"
-
-    # Verify both INPUT_PLATFORMS and OUTPUT_PLATFORMS were unloaded
-    assert len(unload_platforms_calls) >= 2, "Both platform types should be unloaded on error"
 
 
 async def test_sentinel_entity_already_exists(
@@ -998,3 +966,127 @@ async def test_sentinel_entity_already_exists(
     # Clean up
     async_unload_sentinel_entities(hass)
     assert _SENTINEL_REF_COUNT_KEY not in hass.data
+
+
+async def test_setup_preserves_config_entry_not_ready_exception(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Setup preserves ConfigEntryNotReady with original translation keys.
+
+    When coordinator raises ConfigEntryNotReady with specific translation keys,
+    the exception should be re-raised as-is rather than being wrapped.
+    """
+    # Mock horizon manager
+    monkeypatch.setattr("custom_components.haeo.HorizonManager", lambda **_kwargs: _create_mock_horizon_manager())
+
+    # Create a runtime data with ready entities
+    class MockRuntimeData:
+        def __init__(self, horizon_manager: object) -> None:
+            self.horizon_manager = horizon_manager
+            self.input_entities = {}  # No entities to wait for
+            self.coordinator = None
+            self.value_update_in_progress = False
+
+    monkeypatch.setattr("custom_components.haeo.HaeoRuntimeData", MockRuntimeData)
+
+    # Patch forward_entry_setups
+    async def mock_forward_setups(entry: object, platforms: list[object]) -> None:
+        pass
+
+    monkeypatch.setattr(hass.config_entries, "async_forward_entry_setups", mock_forward_setups)
+
+    # Track unload calls
+    original_unload_platforms = hass.config_entries.async_unload_platforms
+
+    async def tracked_unload_platforms(entry: object, platforms: list[object]) -> bool:
+        return await original_unload_platforms(entry, platforms)
+
+    monkeypatch.setattr(hass.config_entries, "async_unload_platforms", tracked_unload_platforms)
+
+    # Mock coordinator that raises ConfigEntryNotReady with custom translation key
+    class FailingCoordinator:
+        def __init__(self, hass_param: HomeAssistant, entry_param: ConfigEntry) -> None:
+            pass
+
+        def cleanup(self) -> None:
+            pass
+
+        async def async_initialize(self) -> None:
+            raise ConfigEntryNotReady(
+                translation_domain=DOMAIN,
+                translation_key="custom_coordinator_error",
+                translation_placeholders={"detail": "sensor unavailable"},
+            )
+
+    monkeypatch.setattr("custom_components.haeo.HaeoDataUpdateCoordinator", FailingCoordinator)
+
+    # Run setup - should raise the original ConfigEntryNotReady with preserved translation key
+    with pytest.raises(ConfigEntryNotReady) as exc_info:
+        await async_setup_entry(hass, mock_hub_entry)
+
+    # Verify the original translation key is preserved (not wrapped in setup_failed_transient)
+    assert exc_info.value.translation_key == "custom_coordinator_error"
+
+
+async def test_setup_preserves_config_entry_error_exception(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Setup preserves ConfigEntryError with original translation keys.
+
+    When coordinator raises ConfigEntryError with specific translation keys,
+    the exception should be re-raised as-is rather than being wrapped.
+    """
+    # Mock horizon manager
+    monkeypatch.setattr("custom_components.haeo.HorizonManager", lambda **_kwargs: _create_mock_horizon_manager())
+
+    # Create a runtime data with ready entities
+    class MockRuntimeData:
+        def __init__(self, horizon_manager: object) -> None:
+            self.horizon_manager = horizon_manager
+            self.input_entities = {}  # No entities to wait for
+            self.coordinator = None
+            self.value_update_in_progress = False
+
+    monkeypatch.setattr("custom_components.haeo.HaeoRuntimeData", MockRuntimeData)
+
+    # Patch forward_entry_setups
+    async def mock_forward_setups(entry: object, platforms: list[object]) -> None:
+        pass
+
+    monkeypatch.setattr(hass.config_entries, "async_forward_entry_setups", mock_forward_setups)
+
+    # Track unload calls
+    original_unload_platforms = hass.config_entries.async_unload_platforms
+
+    async def tracked_unload_platforms(entry: object, platforms: list[object]) -> bool:
+        return await original_unload_platforms(entry, platforms)
+
+    monkeypatch.setattr(hass.config_entries, "async_unload_platforms", tracked_unload_platforms)
+
+    # Mock coordinator that raises ConfigEntryError with custom translation key
+    class FailingCoordinator:
+        def __init__(self, hass_param: HomeAssistant, entry_param: ConfigEntry) -> None:
+            pass
+
+        def cleanup(self) -> None:
+            pass
+
+        async def async_initialize(self) -> None:
+            raise ConfigEntryError(
+                translation_domain=DOMAIN,
+                translation_key="custom_config_error",
+                translation_placeholders={"detail": "invalid configuration"},
+            )
+
+    monkeypatch.setattr("custom_components.haeo.HaeoDataUpdateCoordinator", FailingCoordinator)
+
+    # Run setup - should raise the original ConfigEntryError with preserved translation key
+    with pytest.raises(ConfigEntryError) as exc_info:
+        await async_setup_entry(hass, mock_hub_entry)
+
+    # Verify the original translation key is preserved (not wrapped in setup_failed_permanent)
+    assert exc_info.value.translation_key == "custom_config_error"
