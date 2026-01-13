@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, Mock
 
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry
 from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import ConfigEntryNotReady
+from homeassistant.exceptions import ConfigEntryError, ConfigEntryNotReady
 from homeassistant.helpers import device_registry as dr
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
@@ -903,5 +903,98 @@ async def test_sentinel_reference_counting(
     assert hass.data.get(_SENTINEL_REF_COUNT_KEY) == 1
 
     # Second unload - removes sentinel
+    async_unload_sentinel_entities(hass)
+    assert _SENTINEL_REF_COUNT_KEY not in hass.data
+
+
+async def test_async_setup_entry_raises_config_entry_error_on_permanent_failure(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Setup raises ConfigEntryError for permanent failures (ValueError/TypeError/KeyError).
+
+    Tests that configuration or programming errors result in permanent failure
+    rather than retry behavior.
+    """
+    unload_platforms_calls: list[tuple[object, list[object]]] = []
+
+    # Mock horizon manager
+    monkeypatch.setattr("custom_components.haeo.HorizonManager", lambda **_kwargs: _create_mock_horizon_manager())
+
+    # Create a runtime data with ready entities
+    class MockRuntimeData:
+        def __init__(self, horizon_manager: object) -> None:
+            self.horizon_manager = horizon_manager
+            self.input_entities = {}  # No entities to wait for
+            self.coordinator = None
+            self.value_update_in_progress = False
+
+    monkeypatch.setattr("custom_components.haeo.HaeoRuntimeData", MockRuntimeData)
+
+    # Patch forward_entry_setups
+    async def mock_forward_setups(entry: object, platforms: list[object]) -> None:
+        pass
+
+    monkeypatch.setattr(hass.config_entries, "async_forward_entry_setups", mock_forward_setups)
+
+    # Track unload calls
+    original_unload_platforms = hass.config_entries.async_unload_platforms
+
+    async def tracked_unload_platforms(entry: object, platforms: list[object]) -> bool:
+        unload_platforms_calls.append((entry, list(platforms)))
+        return await original_unload_platforms(entry, platforms)
+
+    monkeypatch.setattr(hass.config_entries, "async_unload_platforms", tracked_unload_platforms)
+
+    # Mock coordinator that fails with ValueError (permanent failure)
+    class FailingCoordinator:
+        def __init__(self, hass_param: HomeAssistant, entry_param: ConfigEntry) -> None:
+            pass
+
+        async def async_initialize(self) -> None:
+            msg = "Invalid configuration value"
+            raise ValueError(msg)
+
+    monkeypatch.setattr("custom_components.haeo.HaeoDataUpdateCoordinator", FailingCoordinator)
+
+    # Run setup - should raise ConfigEntryError (permanent failure)
+    with pytest.raises(ConfigEntryError) as exc_info:
+        await async_setup_entry(hass, mock_hub_entry)
+
+    # Verify the exception has the correct translation key
+    assert exc_info.value.translation_key == "setup_failed_permanent"
+
+    # Verify both INPUT_PLATFORMS and OUTPUT_PLATFORMS were unloaded
+    assert len(unload_platforms_calls) >= 2, "Both platform types should be unloaded on error"
+
+
+async def test_sentinel_entity_already_exists(
+    hass: HomeAssistant,
+) -> None:
+    """Sentinel setup reuses existing entity when already registered.
+
+    Tests the branch where entity_id is not None (entity already exists),
+    skipping async_get_or_create and going straight to async_set.
+    """
+    from custom_components.haeo.flows.sentinels import (  # noqa: PLC0415
+        _SENTINEL_REF_COUNT_KEY,
+        async_setup_sentinel_entities,
+        async_unload_sentinel_entities,
+    )
+
+    # First setup - creates the sentinel entity
+    await async_setup_sentinel_entities(hass)
+    assert hass.data.get(_SENTINEL_REF_COUNT_KEY) == 1
+
+    # Clear the reference count to force re-setup but keep the entity
+    hass.data.pop(_SENTINEL_REF_COUNT_KEY, None)
+
+    # Second setup with ref_count reset - exercises the entity_id is not None branch
+    # because the entity still exists in the registry
+    await async_setup_sentinel_entities(hass)
+    assert hass.data.get(_SENTINEL_REF_COUNT_KEY) == 1
+
+    # Clean up
     async_unload_sentinel_entities(hass)
     assert _SENTINEL_REF_COUNT_KEY not in hass.data
