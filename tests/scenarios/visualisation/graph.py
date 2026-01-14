@@ -16,12 +16,15 @@ import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
 import networkx as nx
 
-# Use non-GUI backend
-mpl.use("Agg")
-
 from custom_components.haeo.model import Network
 from custom_components.haeo.model.element import Element
 from custom_components.haeo.model.elements import Battery, BatteryBalanceConnection, Connection, Node
+
+# Use non-GUI backend
+mpl.use("Agg")
+
+# Fix SVG hash salt for consistent output
+mpl.rcParams["svg.hashsalt"] = "42"
 
 if TYPE_CHECKING:
     from matplotlib.axes import Axes
@@ -527,8 +530,6 @@ def create_graph_visualization(
     output_dir = Path(output_path).parent
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    # Ensure hashsalt is set for deterministic SVG IDs (clip-paths, etc.)
-    mpl.rcParams["svg.hashsalt"] = "42"
     plt.savefig(output_path, format="svg", bbox_inches="tight", dpi=300, metadata={"Date": None})
     _LOGGER.info("Graph visualization saved to %s", output_path)
 
