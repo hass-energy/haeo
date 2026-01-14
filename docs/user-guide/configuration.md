@@ -116,11 +116,11 @@ Each input field provides a dropdown with these choices:
 | ------------ | ------------------------------------------------ |
 | **Entity**   | Value should come from a Home Assistant sensor   |
 | **Constant** | Value is fixed (enter it directly in the form)   |
-| **Disabled** | Don't use this constraint (optional fields only) |
+| **None**     | Don't use this constraint (optional fields only) |
 
 - Select **Entity** to link the field to one or more sensors (for example, a price forecast sensor)
 - Select **Constant** to enter a fixed value directly (for example, a battery capacity of 10 kWh)
-- Select **Disabled** for optional fields you don't need (for example, no export limit)
+- Select **None** for optional fields you don't need (for example, no export limit)
 
 !!! tip "Constant values are adjustable"
 

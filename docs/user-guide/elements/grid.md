@@ -10,7 +10,7 @@ It allows bidirectional power flow: importing (buying) and exporting (selling) e
 ## Configuration
 
 Grid configuration uses a single-step flow where you enter the name and configure each input field.
-For each field, select "Entity" to link to a sensor, "Constant" to enter a fixed value, or "Disabled" for optional fields you don't need.
+For each field, select "Entity" to link to a sensor, "Constant" to enter a fixed value, or "None" for optional fields you don't need.
 
 | Field                             | Type   | Required | Default | Description                                                |
 | --------------------------------- | ------ | -------- | ------- | ---------------------------------------------------------- |
@@ -79,7 +79,7 @@ For example, `-0.05` means you pay \$0.05 per kWh to export.
 
 Maximum power that can be imported from the grid (kW).
 
-**Optional**: Select "Disabled" to leave import unlimited.
+**Optional**: Select "None" to leave import unlimited.
 You can also select "Constant" to enter a fixed limit, or "Entity" to link to sensors for dynamic limits.
 
 Use this to model:
@@ -95,7 +95,7 @@ Use this to model:
 
 Maximum power that can be exported to the grid (kW).
 
-**Optional**: Select "Disabled" to leave export unlimited.
+**Optional**: Select "None" to leave export unlimited.
 You can also select "Constant" to enter a fixed limit, or "Entity" to link to sensors for dynamic limits.
 
 Use this to model:
@@ -150,7 +150,7 @@ Input entities appear as Number entities with the `config` entity category.
 | `number.{name}_max_export_power` | kW     | Maximum export power (if configured)      |
 
 Input entities are only created for fields you configure with "Constant".
-If you set an optional field to "Disabled", no input entity is created for that field.
+If you set an optional field to "None", no input entity is created for that field.
 
 Input entities include a `forecast` attribute showing values for each optimization period.
 See the [Input Entities developer guide](../../developer-guide/inputs.md) for details on input entity behavior.

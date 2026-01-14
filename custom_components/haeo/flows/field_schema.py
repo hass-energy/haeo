@@ -32,7 +32,7 @@ from custom_components.haeo.elements.input_fields import InputFieldInfo
 # Choose selector choice keys (used for config flow data and translations)
 CHOICE_ENTITY = "entity"
 CHOICE_CONSTANT = "constant"
-CHOICE_DISABLED = "disabled"
+CHOICE_NONE = "none"
 
 
 def number_selector_from_field(
@@ -168,10 +168,10 @@ def get_preferred_choice(
     Args:
         field_info: Input field metadata.
         current_data: Current configuration data (for reconfigure).
-        is_optional: Whether the field is optional (enables "disabled" choice).
+        is_optional: Whether the field is optional (enables "none" choice).
 
     Returns:
-        CHOICE_ENTITY, CHOICE_CONSTANT, or CHOICE_DISABLED based on context.
+        CHOICE_ENTITY, CHOICE_CONSTANT, or CHOICE_NONE based on context.
 
     """
     field_name = field_info.field_name
@@ -184,9 +184,9 @@ def get_preferred_choice(
             if isinstance(current_value, str):
                 return CHOICE_ENTITY
             return CHOICE_CONSTANT
-        # Field not in current_data means it was disabled (for optional fields)
+        # Field not in current_data means it was set to none (for optional fields)
         if is_optional:
-            return CHOICE_DISABLED
+            return CHOICE_NONE
 
     # For new entries, use field defaults
     if field_info.defaults is not None:
@@ -194,13 +194,13 @@ def get_preferred_choice(
             return CHOICE_CONSTANT
         if field_info.defaults.mode == "entity":
             return CHOICE_ENTITY
-        # mode is None means default to disabled for optional fields
+        # mode is None means default to none for optional fields
         if is_optional and field_info.defaults.mode is None:
-            return CHOICE_DISABLED
+            return CHOICE_NONE
 
-    # For optional fields with no defaults, default to disabled
+    # For optional fields with no defaults, default to none
     if is_optional and field_info.defaults is None:
-        return CHOICE_DISABLED
+        return CHOICE_NONE
 
     # Default to entity
     return CHOICE_ENTITY
@@ -218,7 +218,7 @@ def build_choose_selector(
 
     Args:
         field_info: Input field metadata.
-        is_optional: Whether the field is optional (adds "disabled" choice).
+        is_optional: Whether the field is optional (adds "none" choice).
         include_entities: Entity IDs to include (compatible entities from unit filtering).
         multiple: Whether to allow multiple entity selection (for chaining).
         preferred_choice: Which choice should appear first (will be pre-selected).
@@ -250,13 +250,13 @@ def build_choose_selector(
     # Build ordered choices dict with preferred choice first
     # (ChooseSelector always selects the first option)
     choices: dict[str, ChooseSelectorChoiceConfig]
-    disabled_selector = ConstantSelector(ConstantSelectorConfig(value="", label="Field is disabled"))
-    disabled_choice = ChooseSelectorChoiceConfig(selector=disabled_selector.serialize()["selector"])
+    none_selector = ConstantSelector(ConstantSelectorConfig(value="", label="Field is not used"))
+    none_choice = ChooseSelectorChoiceConfig(selector=none_selector.serialize()["selector"])
 
-    if is_optional and preferred_choice == CHOICE_DISABLED:
-        # Optional field with disabled preferred
+    if is_optional and preferred_choice == CHOICE_NONE:
+        # Optional field with none preferred
         choices = {
-            CHOICE_DISABLED: disabled_choice,
+            CHOICE_NONE: none_choice,
             CHOICE_ENTITY: entity_choice,
             CHOICE_CONSTANT: constant_choice,
         }
@@ -265,14 +265,14 @@ def build_choose_selector(
         choices = {
             CHOICE_CONSTANT: constant_choice,
             CHOICE_ENTITY: entity_choice,
-            CHOICE_DISABLED: disabled_choice,
+            CHOICE_NONE: none_choice,
         }
     elif is_optional:
         # Optional field with entity preferred
         choices = {
             CHOICE_ENTITY: entity_choice,
             CHOICE_CONSTANT: constant_choice,
-            CHOICE_DISABLED: disabled_choice,
+            CHOICE_NONE: none_choice,
         }
     elif preferred_choice == CHOICE_CONSTANT:
         # Required field with constant preferred
@@ -307,7 +307,7 @@ def build_choose_schema_entry(
 
     Args:
         field_info: Input field metadata.
-        is_optional: Whether the field is optional (adds "disabled" choice).
+        is_optional: Whether the field is optional (adds "none" choice).
         include_entities: Entity IDs to include (compatible entities from unit filtering).
         multiple: Whether to allow multiple entity selection.
         preferred_choice: Which choice should appear first (will be pre-selected).
@@ -449,8 +449,8 @@ def _normalize_entity_selection(entities: list[str] | str) -> str | list[str]:
 
 __all__ = [
     "CHOICE_CONSTANT",
-    "CHOICE_DISABLED",
     "CHOICE_ENTITY",
+    "CHOICE_NONE",
     "boolean_selector_from_field",
     "build_choose_schema_entry",
     "build_choose_selector",

@@ -12,8 +12,8 @@ from custom_components.haeo.const import DOMAIN
 from custom_components.haeo.elements.input_fields import InputFieldDefaults, InputFieldInfo
 from custom_components.haeo.flows.field_schema import (
     CHOICE_CONSTANT,
-    CHOICE_DISABLED,
     CHOICE_ENTITY,
+    CHOICE_NONE,
     _normalize_entity_selection,
     boolean_selector_from_field,
     build_choose_selector,
@@ -530,61 +530,61 @@ def test_convert_choose_data_boolean_constant() -> None:
     assert result["enabled"] is True
 
 
-def test_convert_choose_data_disabled_omits_field(
+def test_convert_choose_data_none_omits_field(
     number_field: InputFieldInfo[NumberEntityDescription],
 ) -> None:
-    """Disabled choice (empty string) omits field from config.
+    """None choice (empty string) omits field from config.
 
     After schema validation, ChooseSelector with ConstantSelector(value="")
-    returns an empty string for the disabled choice.
+    returns an empty string for the none choice.
     """
     user_input: dict[str, Any] = {
-        "test_field": "",  # Empty string from disabled ConstantSelector
+        "test_field": "",  # Empty string from none ConstantSelector
     }
     result = convert_choose_data_to_config(user_input, (number_field,))
     assert "test_field" not in result
 
 
-# --- Tests for disabled choice in build_choose_selector ---
+# --- Tests for none choice in build_choose_selector ---
 
 
-def test_build_choose_selector_optional_has_disabled_choice(
+def test_build_choose_selector_optional_has_none_choice(
     number_field: InputFieldInfo[NumberEntityDescription],
 ) -> None:
-    """Optional field selector includes disabled choice."""
+    """Optional field selector includes none choice."""
     selector = build_choose_selector(number_field, is_optional=True)
     config = selector.config
-    assert CHOICE_DISABLED in config["choices"]
+    assert CHOICE_NONE in config["choices"]
     assert CHOICE_ENTITY in config["choices"]
     assert CHOICE_CONSTANT in config["choices"]
 
 
-def test_build_choose_selector_required_has_no_disabled_choice(
+def test_build_choose_selector_required_has_no_none_choice(
     number_field: InputFieldInfo[NumberEntityDescription],
 ) -> None:
-    """Required field selector does not include disabled choice."""
+    """Required field selector does not include none choice."""
     selector = build_choose_selector(number_field, is_optional=False)
     config = selector.config
-    assert CHOICE_DISABLED not in config["choices"]
+    assert CHOICE_NONE not in config["choices"]
     assert CHOICE_ENTITY in config["choices"]
     assert CHOICE_CONSTANT in config["choices"]
 
 
-def test_build_choose_selector_disabled_first_when_preferred(
+def test_build_choose_selector_none_first_when_preferred(
     number_field: InputFieldInfo[NumberEntityDescription],
 ) -> None:
-    """Disabled choice appears first when preferred_choice is disabled."""
-    selector = build_choose_selector(number_field, is_optional=True, preferred_choice=CHOICE_DISABLED)
+    """None choice appears first when preferred_choice is none."""
+    selector = build_choose_selector(number_field, is_optional=True, preferred_choice=CHOICE_NONE)
     config = selector.config
     choices_keys = list(config["choices"].keys())
-    assert choices_keys[0] == CHOICE_DISABLED
+    assert choices_keys[0] == CHOICE_NONE
 
 
-# --- Tests for disabled choice in get_preferred_choice ---
+# --- Tests for none choice in get_preferred_choice ---
 
 
-def test_get_preferred_choice_returns_disabled_for_optional_without_data() -> None:
-    """get_preferred_choice returns disabled for optional field not in current_data."""
+def test_get_preferred_choice_returns_none_for_optional_without_data() -> None:
+    """get_preferred_choice returns none for optional field not in current_data."""
     field = InputFieldInfo(
         field_name="power",
         entity_description=NumberEntityDescription(
@@ -594,14 +594,14 @@ def test_get_preferred_choice_returns_disabled_for_optional_without_data() -> No
         output_type=OutputType.POWER,
         defaults=None,
     )
-    # current_data exists but field is not in it (meaning it was disabled)
+    # current_data exists but field is not in it (meaning it was set to none)
     current_data = {"other_field": 10.0}
     result = get_preferred_choice(field, current_data, is_optional=True)
-    assert result == CHOICE_DISABLED
+    assert result == CHOICE_NONE
 
 
-def test_get_preferred_choice_returns_disabled_for_optional_new_entry_no_defaults() -> None:
-    """get_preferred_choice returns disabled for optional field with no defaults in new entry."""
+def test_get_preferred_choice_returns_none_for_optional_new_entry_no_defaults() -> None:
+    """get_preferred_choice returns none for optional field with no defaults in new entry."""
     field = InputFieldInfo(
         field_name="power",
         entity_description=NumberEntityDescription(
@@ -613,7 +613,7 @@ def test_get_preferred_choice_returns_disabled_for_optional_new_entry_no_default
     )
     # No current_data (new entry)
     result = get_preferred_choice(field, None, is_optional=True)
-    assert result == CHOICE_DISABLED
+    assert result == CHOICE_NONE
 
 
 def test_get_preferred_choice_returns_value_for_optional_with_value_defaults() -> None:
@@ -645,12 +645,12 @@ def test_get_preferred_choice_required_field_ignores_is_optional_false() -> None
     # current_data exists but field is not in it
     current_data = {"other_field": 10.0}
     result = get_preferred_choice(field, current_data, is_optional=False)
-    # Required field should NOT return disabled, should return entity
+    # Required field should NOT return none, should return entity
     assert result == CHOICE_ENTITY
 
 
-def test_get_preferred_choice_returns_disabled_for_defaults_mode_none() -> None:
-    """get_preferred_choice returns disabled when defaults.mode is None for optional field."""
+def test_get_preferred_choice_returns_none_for_defaults_mode_none() -> None:
+    """get_preferred_choice returns none when defaults.mode is None for optional field."""
     field = InputFieldInfo(
         field_name="efficiency",
         entity_description=NumberEntityDescription(
@@ -658,12 +658,12 @@ def test_get_preferred_choice_returns_disabled_for_defaults_mode_none() -> None:
             name="Efficiency",
         ),
         output_type=OutputType.EFFICIENCY,
-        # mode=None with a value means "default to disabled, but use this value if user enables"
+        # mode=None with a value means "default to none, but use this value if user enables"
         defaults=InputFieldDefaults(mode=None, value=100.0),
     )
     # No current_data (new entry)
     result = get_preferred_choice(field, None, is_optional=True)
-    assert result == CHOICE_DISABLED
+    assert result == CHOICE_NONE
 
 
 def test_get_preferred_choice_returns_entity_for_defaults_mode_entity() -> None:

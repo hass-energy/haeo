@@ -52,14 +52,14 @@ See the element adapter modules for specific registrations.
 ## Entity Creation
 
 Input entities are only created for fields configured with "Constant" during element setup.
-When a user links to external sensors or selects "Disabled" for optional fields, no HAEO input entity is created for that field.
+When a user links to external sensors or selects "None" for optional fields, no HAEO input entity is created for that field.
 This keeps the entity list focused on functionality the user has enabled.
 
 **Constant fields**: An entity is created in EDITABLE mode, allowing runtime adjustment of the value.
 
 **Entity-linked fields**: The external sensor is used directly; no HAEO input entity is created.
 
-**Disabled fields**: No entity is created.
+**None fields**: No entity is created.
 The field is omitted from the optimization model entirely.
 
 This behavior is controlled by the ChooseSelector config flow pattern documented in [Config Flow Development](config-flow.md#chooseselector-config-flow-pattern).

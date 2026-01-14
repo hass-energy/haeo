@@ -156,17 +156,17 @@ Each configurable field uses a `ChooseSelector` with these options:
 | -------- | ---------------------------------------- | ------------------------- |
 | Entity   | Value comes from Home Assistant sensors  | Entity ID string or list  |
 | Constant | User enters a fixed value directly       | Numeric value or boolean  |
-| Disabled | Field is not used (optional fields only) | Field omitted from config |
+| None     | Field is not used (optional fields only) | Field omitted from config |
 
 Required fields offer "Entity" and "Constant" choices.
-Optional fields also include "Disabled" to skip the constraint entirely.
+Optional fields also include "None" to skip the constraint entirely.
 
 ### Single-Step Flow
 
 All element configuration happens in a single step:
 
 1. User enters element name and connection target
-2. For each input field, user selects "Entity", "Constant", or "Disabled"
+2. For each input field, user selects "Entity", "Constant", or "None"
 3. Based on selection, user either picks entities from a dropdown or enters a constant value inline
 4. Submit creates the element with all configuration
 
@@ -176,7 +176,7 @@ This replaces the previous two-step pattern where constant values were entered i
 
 The ChooseSelector utilities are in `custom_components/haeo/flows/field_schema.py`:
 
-- `build_choose_schema_entry()`: Creates the ChooseSelector with entity/constant/disabled options
+- `build_choose_schema_entry()`: Creates the ChooseSelector with entity/constant/none options
 - `build_choose_selector()`: Builds the selector with proper choice ordering
 - `get_preferred_choice()`: Determines which choice should be pre-selected based on defaults or current config
 - `get_choose_default()`: Provides default values for the nested selector

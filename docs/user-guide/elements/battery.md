@@ -26,10 +26,10 @@ A battery in HAEO represents:
 ### Configuration process
 
 Battery configuration uses a single-step flow where you enter the name, connection, and configure each input field.
-For each field, select "Entity" to link to a sensor, "Constant" to enter a fixed value, or "Disabled" for optional fields you don't need.
+For each field, select "Entity" to link to a sensor, "Constant" to enter a fixed value, or "None" for optional fields you don't need.
 
 Fields configured with "Constant" create input entities that you can adjust at runtime without reconfiguring.
-Optional fields set to "Disabled" are omitted from the optimization entirely.
+Optional fields set to "None" are omitted from the optimization entirely.
 
 ## Configuration Fields
 
