@@ -13,6 +13,8 @@ if TYPE_CHECKING:
     from custom_components.haeo.model.element import Element
     from custom_components.haeo.model.output_data import OutputData
 
+    from .protocols import ReactiveHost
+
 # Type variable for generic return types
 R = TypeVar("R")
 
@@ -37,15 +39,15 @@ class ReactiveMethod[R]:
     def __get__(self, obj: None, objtype: type) -> "ReactiveMethod[R]": ...
 
     @overload
-    def __get__(self, obj: "Element[Any]", objtype: type) -> Callable[[], R]: ...
+    def __get__(self, obj: "ReactiveHost", objtype: type) -> Callable[[], R]: ...
 
-    def __get__(self, obj: "Element[Any] | None", objtype: type) -> "ReactiveMethod[R] | Callable[[], R]":
+    def __get__(self, obj: "ReactiveHost | None", objtype: type) -> "ReactiveMethod[R] | Callable[[], R]":
         """Return bound method that uses caching."""
         if obj is None:
             return self
         return partial(self._call, obj)
 
-    def _call(self, obj: "Element[Any]") -> R:
+    def _call(self, obj: "ReactiveHost") -> R:
         """Execute with caching and dependency tracking."""
         state = ensure_decorator_state(obj, self._name)
 
@@ -68,7 +70,7 @@ class ReactiveMethod[R]:
 
         return result
 
-    def _record_access(self, obj: "Element[Any]") -> None:  # noqa: ARG002 (obj not used but part of method signature)
+    def _record_access(self, obj: "ReactiveHost") -> None:  # noqa: ARG002 (obj not used but part of method signature)
         """Record this method's access in the current tracking context.
 
         When another cached method calls this one, this establishes a dependency.
@@ -111,11 +113,11 @@ class ReactiveConstraint[R](ReactiveMethod[R]):
         self.output = output
         self.unit = unit
 
-    def get_output(self, obj: "Element[Any]") -> "OutputData | None":
+    def get_output(self, obj: "ReactiveHost") -> "OutputData | None":
         """Get output data for this constraint (shadow prices if output=True).
 
         Args:
-            obj: The element instance
+            obj: The reactive host instance (Element or Segment)
 
         Returns:
             OutputData with shadow prices, or None if output=False or constraint not yet applied
@@ -125,6 +127,8 @@ class ReactiveConstraint[R](ReactiveMethod[R]):
             return None
 
         # Import here to avoid circular dependency
+        import numpy as np  # noqa: PLC0415
+
         from custom_components.haeo.model.const import OutputType  # noqa: PLC0415
         from custom_components.haeo.model.output_data import OutputData  # noqa: PLC0415
 
@@ -134,15 +138,17 @@ class ReactiveConstraint[R](ReactiveMethod[R]):
         if state is None or "constraint" not in state:
             return None
 
-        # Extract shadow prices from the constraint
+        # Extract shadow prices from the constraint using the solver
         cons = state["constraint"]
+        arr = np.asarray(cons, dtype=object)
+        values = tuple(obj._solver.constrDuals(arr).flat)  # noqa: SLF001 # pyright: ignore[reportPrivateUsage]
         return OutputData(
             type=OutputType.SHADOW_PRICE,
             unit=self.unit,
-            values=obj.extract_values(cons),
+            values=values,
         )
 
-    def _call(self, obj: "Element[Any]") -> R:
+    def _call(self, obj: "ReactiveHost") -> R:
         """Execute with caching, dependency tracking, and solver lifecycle management."""
         # Record access if being tracked by another method
         self._record_access(obj)
@@ -261,7 +267,7 @@ class ReactiveCost[R](ReactiveMethod[R]):
     When called by another cached method, records access to establish dependency.
     """
 
-    def _call(self, obj: "Element[Any]") -> R:
+    def _call(self, obj: "ReactiveHost") -> R:
         """Execute with caching and dependency tracking."""
         # Record access if being tracked by another method
         self._record_access(obj)

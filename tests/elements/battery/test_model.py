@@ -8,7 +8,7 @@ import pytest
 from custom_components.haeo.elements import ELEMENT_TYPES
 from custom_components.haeo.elements import battery as battery_element
 from custom_components.haeo.elements.battery import BatteryConfigData
-from custom_components.haeo.model import ModelOutputName, power_connection
+from custom_components.haeo.model import ModelOutputName, composite_connection
 from custom_components.haeo.model import battery as battery_model
 from custom_components.haeo.model import battery_balance_connection as balance_model
 from custom_components.haeo.model import node as node_model
@@ -218,8 +218,8 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
             },
             "battery_no_balance:node": {},
             "battery_no_balance:normal:to_node": {
-                power_connection.CONNECTION_POWER_SOURCE_TARGET: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(0.5,), direction="+"),
-                power_connection.CONNECTION_POWER_TARGET_SOURCE: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(1.0,), direction="-"),
+                composite_connection.CONNECTION_POWER_SOURCE_TARGET: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(0.5,), direction="+"),
+                composite_connection.CONNECTION_POWER_TARGET_SOURCE: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(1.0,), direction="-"),
             },
         },
         "outputs": {
@@ -274,8 +274,8 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
                 battery_model.BATTERY_SOC_MIN: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.0,)),
             },
             "battery_all_sections:undercharge:to_node": {
-                power_connection.CONNECTION_POWER_SOURCE_TARGET: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(0.1,), direction="+"),
-                power_connection.CONNECTION_POWER_TARGET_SOURCE: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(0.2,), direction="-"),
+                composite_connection.CONNECTION_POWER_SOURCE_TARGET: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(0.1,), direction="+"),
+                composite_connection.CONNECTION_POWER_TARGET_SOURCE: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(0.2,), direction="-"),
             },
             # Normal section
             "battery_all_sections:normal": {
@@ -288,8 +288,8 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
                 battery_model.BATTERY_SOC_MIN: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.0,)),
             },
             "battery_all_sections:normal:to_node": {
-                power_connection.CONNECTION_POWER_SOURCE_TARGET: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(0.3,), direction="+"),
-                power_connection.CONNECTION_POWER_TARGET_SOURCE: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(0.5,), direction="-"),
+                composite_connection.CONNECTION_POWER_SOURCE_TARGET: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(0.3,), direction="+"),
+                composite_connection.CONNECTION_POWER_TARGET_SOURCE: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(0.5,), direction="-"),
             },
             # Overcharge section
             "battery_all_sections:overcharge": {
@@ -302,8 +302,8 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
                 battery_model.BATTERY_SOC_MIN: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.0,)),
             },
             "battery_all_sections:overcharge:to_node": {
-                power_connection.CONNECTION_POWER_SOURCE_TARGET: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(0.1,), direction="+"),
-                power_connection.CONNECTION_POWER_TARGET_SOURCE: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(0.3,), direction="-"),
+                composite_connection.CONNECTION_POWER_SOURCE_TARGET: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(0.1,), direction="+"),
+                composite_connection.CONNECTION_POWER_TARGET_SOURCE: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(0.3,), direction="-"),
             },
             # Node with power balance
             "battery_all_sections:node": {

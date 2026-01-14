@@ -12,7 +12,7 @@ from .element import Element
 from .elements import ELEMENTS
 from .elements.battery import Battery
 from .elements.battery_balance_connection import BatteryBalanceConnection
-from .elements.connection import Connection
+from .elements.composite_connection import CompositeConnection
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -78,9 +78,9 @@ class Network:
         element = element_spec.factory(name=name, periods=self.periods, solver=self._solver, **kwargs)
         self.elements[name] = element
 
-        # Register connections immediately when adding Connection elements
+        # Register connections immediately when adding CompositeConnection elements
         # (but not BatteryBalanceConnection - those register themselves via set_battery_references)
-        if isinstance(element, Connection) and not isinstance(element, BatteryBalanceConnection):
+        if isinstance(element, CompositeConnection) and not isinstance(element, BatteryBalanceConnection):
             # Get source and target elements
             source_element = self.elements.get(element.source)
             target_element = self.elements.get(element.target)
@@ -182,17 +182,17 @@ class Network:
         """Validate the network."""
         # Check that all connection elements have valid source and target elements
         for element in self.elements.values():
-            if isinstance(element, Connection):
+            if isinstance(element, CompositeConnection):
                 if element.source not in self.elements:
                     msg = f"Source element '{element.source}' not found"
                     raise ValueError(msg)
                 if element.target not in self.elements:
                     msg = f"Target element '{element.target}' not found"
                     raise ValueError(msg)
-                if isinstance(self.elements[element.source], Connection):
+                if isinstance(self.elements[element.source], CompositeConnection):
                     msg = f"Source element '{element.source}' is a connection"
                     raise ValueError(msg)  # noqa: TRY004 value error is appropriate here
-                if isinstance(self.elements[element.target], Connection):
+                if isinstance(self.elements[element.target], CompositeConnection):
                     msg = f"Target element '{element.target}' is a connection"
                     raise ValueError(msg)  # noqa: TRY004 value error is appropriate here
 

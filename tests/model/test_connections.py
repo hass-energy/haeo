@@ -6,15 +6,15 @@ from highspy import Highs
 from highspy.highs import highs_linear_expression, highs_var
 import pytest
 
+from custom_components.haeo.model.elements.composite_connection import CompositeConnection
 from custom_components.haeo.model.elements.connection import Connection
-from custom_components.haeo.model.elements.power_connection import PowerConnection
 
 from . import test_data
 from .test_data.connection_types import ConnectionTestCase, ConnectionTestCaseInputs
 
 
 def _solve_connection_scenario(
-    element: PowerConnection, inputs: ConnectionTestCaseInputs | None
+    element: CompositeConnection, inputs: ConnectionTestCaseInputs | None
 ) -> dict[str, dict[str, Any]]:
     """Set up and solve an optimization scenario for a connection.
 

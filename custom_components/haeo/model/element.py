@@ -1,7 +1,7 @@
 """Generic electrical entity for energy system modeling."""
 
 from collections.abc import Mapping, Sequence
-from typing import TYPE_CHECKING, Any, Literal
+from typing import Any, Literal, Protocol
 
 from highspy import Highs
 from highspy.highs import HighspyArray, highs_cons
@@ -11,8 +11,19 @@ from numpy.typing import NDArray
 from .output_data import OutputData
 from .reactive import OutputMethod, ReactiveConstraint, ReactiveCost, TrackedParam, cost
 
-if TYPE_CHECKING:
-    from .elements.connection import Connection
+
+class ConnectionProtocol(Protocol):
+    """Protocol for connection objects that can be registered with elements."""
+
+    @property
+    def power_into_source(self) -> HighspyArray:
+        """Return effective power flowing into the source element."""
+        ...
+
+    @property
+    def power_into_target(self) -> HighspyArray:
+        """Return effective power flowing into the target element."""
+        ...
 
 
 class Element[OutputNameT: str]:
@@ -52,7 +63,7 @@ class Element[OutputNameT: str]:
         self._output_names = output_names
 
         # Track connections for power balance
-        self._connections: list[tuple[Connection[Any], Literal["source", "target"]]] = []
+        self._connections: list[tuple[ConnectionProtocol, Literal["source", "target"]]] = []
 
     def __getitem__(self, key: str) -> Any:
         """Get a TrackedParam value by name.
@@ -101,7 +112,7 @@ class Element[OutputNameT: str]:
         """Return the number of optimization periods."""
         return len(self.periods)
 
-    def register_connection(self, connection: "Connection[Any]", end: Literal["source", "target"]) -> None:
+    def register_connection(self, connection: ConnectionProtocol, end: Literal["source", "target"]) -> None:
         """Register a connection to this element.
 
         Args:

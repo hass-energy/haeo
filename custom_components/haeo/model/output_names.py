@@ -11,13 +11,13 @@ from .elements.battery_balance_connection import (
     BATTERY_BALANCE_CONNECTION_OUTPUT_NAMES,
     BatteryBalanceConnectionOutputName,
 )
+from .elements.composite_connection import COMPOSITE_CONNECTION_OUTPUT_NAMES, CompositeConnectionOutputName
 from .elements.connection import CONNECTION_OUTPUT_NAMES, ConnectionOutputName
 from .elements.node import NODE_OUTPUT_NAMES, NodeOutputName
-from .elements.power_connection import POWER_CONNECTION_OUTPUT_NAMES, PowerConnectionOutputName
 
 # Combined type for all possible output names
 type ModelOutputName = (
-    BatteryOutputName | PowerConnectionOutputName | NodeOutputName | BatteryBalanceConnectionOutputName
+    BatteryOutputName | CompositeConnectionOutputName | NodeOutputName | BatteryBalanceConnectionOutputName
 )
 
 # Model-level output names
@@ -25,7 +25,7 @@ MODEL_OUTPUT_NAMES: Final[frozenset[str]] = frozenset(
     {
         *BATTERY_OUTPUT_NAMES,
         *BATTERY_BALANCE_CONNECTION_OUTPUT_NAMES,
-        *POWER_CONNECTION_OUTPUT_NAMES,
+        *COMPOSITE_CONNECTION_OUTPUT_NAMES,
         *NODE_OUTPUT_NAMES,
     }
 )
@@ -33,14 +33,14 @@ MODEL_OUTPUT_NAMES: Final[frozenset[str]] = frozenset(
 __all__ = [
     "BATTERY_BALANCE_CONNECTION_OUTPUT_NAMES",
     "BATTERY_OUTPUT_NAMES",
+    "COMPOSITE_CONNECTION_OUTPUT_NAMES",
     "CONNECTION_OUTPUT_NAMES",
     "MODEL_OUTPUT_NAMES",
     "NODE_OUTPUT_NAMES",
-    "POWER_CONNECTION_OUTPUT_NAMES",
     "BatteryBalanceConnectionOutputName",
     "BatteryOutputName",
+    "CompositeConnectionOutputName",
     "ConnectionOutputName",
     "ModelOutputName",
     "NodeOutputName",
-    "PowerConnectionOutputName",
 ]

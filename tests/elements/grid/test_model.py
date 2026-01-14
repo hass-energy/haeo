@@ -10,7 +10,7 @@ from custom_components.haeo.elements import grid as grid_element
 from custom_components.haeo.elements.grid import GridConfigData
 from custom_components.haeo.model import ModelOutputName
 from custom_components.haeo.model.const import OutputType
-from custom_components.haeo.model.elements import power_connection
+from custom_components.haeo.model.elements import composite_connection
 from custom_components.haeo.model.output_data import OutputData
 
 
@@ -69,10 +69,10 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
         "config": GridConfigData(element_type="grid", name="grid_main", connection="network", import_price=[0.10], export_price=[0.05]),
         "model_outputs": {
             "grid_main:connection": {
-                power_connection.CONNECTION_POWER_TARGET_SOURCE: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(2.0,), direction="-"),
-                power_connection.CONNECTION_POWER_SOURCE_TARGET: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(5.0,), direction="+"),
-                power_connection.CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.01,)),
-                power_connection.CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.02,)),
+                composite_connection.CONNECTION_POWER_TARGET_SOURCE: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(2.0,), direction="-"),
+                composite_connection.CONNECTION_POWER_SOURCE_TARGET: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(5.0,), direction="+"),
+                composite_connection.CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.01,)),
+                composite_connection.CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.02,)),
             }
         },
         "periods": [1.0],  # 1 hour period
@@ -100,8 +100,8 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
         "config": GridConfigData(element_type="grid", name="grid_multi", connection="network", import_price=[0.10, 0.20], export_price=[0.05, 0.05]),
         "model_outputs": {
             "grid_multi:connection": {
-                power_connection.CONNECTION_POWER_TARGET_SOURCE: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(0.0, 0.0), direction="-"),
-                power_connection.CONNECTION_POWER_SOURCE_TARGET: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(5.0, 3.0), direction="+"),
+                composite_connection.CONNECTION_POWER_TARGET_SOURCE: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(0.0, 0.0), direction="-"),
+                composite_connection.CONNECTION_POWER_SOURCE_TARGET: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(5.0, 3.0), direction="+"),
             }
         },
         "periods": [0.5, 0.5],  # 30 min periods
