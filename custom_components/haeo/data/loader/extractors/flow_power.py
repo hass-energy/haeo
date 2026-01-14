@@ -79,9 +79,6 @@ class Parser:
         ]
         entries.sort(key=lambda x: x[0])
 
-        if not entries:
-            return [], Parser.UNIT, Parser.DEVICE_CLASS
-
         # Create step function with start and end points for each period
         parsed: list[tuple[int, float]] = []
 
