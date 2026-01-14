@@ -189,8 +189,14 @@ def get_preferred_choice(
             return CHOICE_DISABLED
 
     # For new entries, use field defaults
-    if field_info.defaults is not None and field_info.defaults.mode == "value":
-        return CHOICE_CONSTANT
+    if field_info.defaults is not None:
+        if field_info.defaults.mode == "value":
+            return CHOICE_CONSTANT
+        if field_info.defaults.mode == "entity":
+            return CHOICE_ENTITY
+        # mode is None means default to disabled for optional fields
+        if is_optional and field_info.defaults.mode is None:
+            return CHOICE_DISABLED
 
     # For optional fields with no defaults, default to disabled
     if is_optional and field_info.defaults is None:

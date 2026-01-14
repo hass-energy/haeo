@@ -628,3 +628,35 @@ def test_get_preferred_choice_required_field_ignores_is_optional_false() -> None
     result = get_preferred_choice(field, current_data, is_optional=False)
     # Required field should NOT return disabled, should return entity
     assert result == CHOICE_ENTITY
+
+
+def test_get_preferred_choice_returns_disabled_for_defaults_mode_none() -> None:
+    """get_preferred_choice returns disabled when defaults.mode is None for optional field."""
+    field = InputFieldInfo(
+        field_name="efficiency",
+        entity_description=NumberEntityDescription(
+            key="efficiency",
+            name="Efficiency",
+        ),
+        output_type=OutputType.EFFICIENCY,
+        # mode=None with a value means "default to disabled, but use this value if user enables"
+        defaults=InputFieldDefaults(mode=None, value=100.0),
+    )
+    # No current_data (new entry)
+    result = get_preferred_choice(field, None, is_optional=True)
+    assert result == CHOICE_DISABLED
+
+
+def test_get_preferred_choice_returns_entity_for_defaults_mode_entity() -> None:
+    """get_preferred_choice returns entity when defaults.mode is entity."""
+    field = InputFieldInfo(
+        field_name="power",
+        entity_description=NumberEntityDescription(
+            key="power",
+            name="Power",
+        ),
+        output_type=OutputType.POWER,
+        defaults=InputFieldDefaults(mode="entity"),
+    )
+    result = get_preferred_choice(field, None, is_optional=True)
+    assert result == CHOICE_ENTITY
