@@ -11,6 +11,7 @@ Example:
 
     Forward: source_power → efficiency.in → efficiency.out → limit.in → limit.out → target_power
     Reverse: target_power → limit.in → limit.out → efficiency.in → efficiency.out → source_power
+
 """
 
 from collections.abc import Mapping, Sequence
@@ -25,6 +26,9 @@ from custom_components.haeo.model.output_data import OutputData
 from custom_components.haeo.model.reactive import constraint, cost, output
 
 from .segments import ConnectionSegment
+
+# Minimum number of segments needed to create chain constraints
+_MIN_SEGMENTS_FOR_CHAIN: int = 2
 
 type CompositeConnectionOutputName = Literal[
     "connection_power_source_target",
@@ -144,7 +148,7 @@ class CompositeConnection(Element[CompositeConnectionOutputName]):
 
         Creates equality constraints: seg[i].power_out_st == seg[i+1].power_in_st
         """
-        if len(self._segments) < 2:
+        if len(self._segments) < _MIN_SEGMENTS_FOR_CHAIN:
             return None
 
         chain_constraints: list[highs_linear_expression] = []
@@ -162,7 +166,7 @@ class CompositeConnection(Element[CompositeConnectionOutputName]):
         Creates equality constraints: seg[i].power_out_ts == seg[i-1].power_in_ts
         (traversing in reverse order)
         """
-        if len(self._segments) < 2:
+        if len(self._segments) < _MIN_SEGMENTS_FOR_CHAIN:
             return None
 
         chain_constraints: list[highs_linear_expression] = []
@@ -188,10 +192,11 @@ class CompositeConnection(Element[CompositeConnectionOutputName]):
     @cost
     def segment_costs(self) -> highs_linear_expression | None:
         """Aggregate costs from all segments."""
-        cost_terms: list[highs_linear_expression] = []
-        for segment in self._segments:
-            if (segment_cost := segment.costs()) is not None:
-                cost_terms.append(segment_cost)
+        cost_terms = [
+            segment_cost
+            for segment in self._segments
+            if (segment_cost := segment.costs()) is not None
+        ]
 
         if not cost_terms:
             return None
