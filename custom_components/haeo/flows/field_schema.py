@@ -281,20 +281,19 @@ def build_choose_schema_entry(
 def get_choose_default(
     field_info: InputFieldInfo[Any],
     current_data: dict[str, Any] | None = None,
-    *,
-    entry_id: str | None = None,
-    subentry_id: str | None = None,
-) -> dict[str, Any] | None:
+) -> Any:
     """Get the default value for a choose selector field.
+
+    Since ChooseSelector always selects the first choice (which we order
+    based on get_preferred_choice), we only need to return the raw value
+    for the nested selector - not a {"choice": ..., "value": ...} object.
 
     Args:
         field_info: Input field metadata.
         current_data: Current configuration data (for reconfigure).
-        entry_id: Config entry ID (for resolving HAEO entities).
-        subentry_id: Subentry ID (for resolving HAEO entities).
 
     Returns:
-        Dict with "choice" and "value" keys for the ChooseSelector,
+        The value for the nested selector (entity list or constant value),
         or None if no default should be set.
 
     """
@@ -306,32 +305,24 @@ def get_choose_default(
 
         if isinstance(current_value, (float, int)) and not isinstance(current_value, bool):
             # Constant numeric value
-            return {"choice": CHOICE_CONSTANT, "value": current_value}
+            return current_value
         if isinstance(current_value, bool):
             # Boolean constant
-            return {"choice": CHOICE_CONSTANT, "value": current_value}
+            return current_value
         if isinstance(current_value, str):
             # Single entity ID - wrap in list for entity selector
-            # But check if this is the self-referential entity (meaning constant mode)
-            if entry_id and subentry_id:
-                self_entity_id = resolve_haeo_input_entity_id(entry_id, subentry_id, field_name)
-                if self_entity_id == current_value:
-                    # This is the HAEO-created entity for this field
-                    # The actual value is stored as a constant, but we show entity mode
-                    # with this entity selected so user can edit it
-                    return {"choice": CHOICE_ENTITY, "value": [current_value]}
-            return {"choice": CHOICE_ENTITY, "value": [current_value]}
+            return [current_value]
         if isinstance(current_value, list):
             # Multiple entity IDs
-            return {"choice": CHOICE_ENTITY, "value": current_value}
+            return current_value
 
     # No current data - check defaults
     if field_info.defaults is not None:
         if field_info.defaults.mode == "value" and field_info.defaults.value is not None:
-            return {"choice": CHOICE_CONSTANT, "value": field_info.defaults.value}
+            return field_info.defaults.value
         if field_info.defaults.mode == "entity":
             # Entity mode default - leave empty for user to select
-            return {"choice": CHOICE_ENTITY, "value": []}
+            return []
 
     # No default
     return None

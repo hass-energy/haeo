@@ -180,8 +180,8 @@ async def test_reconfigure_with_string_entity_id_v010_format(hass: HomeAssistant
     defaults = flow._build_defaults("Test Connection", dict(existing_subentry.data))
 
     # Defaults should contain entity choice with the original entity IDs as lists
-    assert defaults[CONF_MAX_POWER_SOURCE_TARGET] == {"choice": CHOICE_ENTITY, "value": ["sensor.max_power_st"]}
-    assert defaults[CONF_MAX_POWER_TARGET_SOURCE] == {"choice": CHOICE_ENTITY, "value": ["sensor.max_power_ts"]}
+    assert defaults[CONF_MAX_POWER_SOURCE_TARGET] == ["sensor.max_power_st"]
+    assert defaults[CONF_MAX_POWER_TARGET_SOURCE] == ["sensor.max_power_ts"]
 
 
 async def test_reconfigure_with_scalar_shows_constant_defaults(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
@@ -214,8 +214,8 @@ async def test_reconfigure_with_scalar_shows_constant_defaults(hass: HomeAssista
     defaults = flow._build_defaults("Test Connection", dict(existing_subentry.data))
 
     # Defaults should contain constant choice with scalar values
-    assert defaults[CONF_MAX_POWER_SOURCE_TARGET] == {"choice": CHOICE_CONSTANT, "value": 10.0}
-    assert defaults[CONF_MAX_POWER_TARGET_SOURCE] == {"choice": CHOICE_CONSTANT, "value": 10.0}
+    assert defaults[CONF_MAX_POWER_SOURCE_TARGET] == 10.0
+    assert defaults[CONF_MAX_POWER_TARGET_SOURCE] == 10.0
 
 
 async def test_user_step_with_constant_creates_entry(

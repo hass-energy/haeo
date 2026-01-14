@@ -93,21 +93,8 @@ class BatterySectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             CONF_NAME: default_name if subentry_data is None else subentry_data.get(CONF_NAME),
         }
 
-        entry_id: str | None = None
-        subentry_id: str | None = None
-        if subentry_data is not None:
-            entry = self._get_entry()
-            subentry = self._get_subentry()
-            entry_id = entry.entry_id
-            subentry_id = subentry.subentry_id if subentry else None
-
         for field_info in INPUT_FIELDS:
-            choose_default = get_choose_default(
-                field_info,
-                current_data=subentry_data,
-                entry_id=entry_id,
-                subentry_id=subentry_id,
-            )
+            choose_default = get_choose_default(field_info, subentry_data)
             if choose_default is not None:
                 defaults[field_info.field_name] = choose_default
 

@@ -313,8 +313,8 @@ async def test_reconfigure_with_scalar_shows_constant_defaults(
     defaults = flow._build_defaults("Test Grid", dict(existing_subentry.data))
 
     # Defaults should contain constant choice with values
-    assert defaults[CONF_IMPORT_PRICE] == {"choice": CHOICE_CONSTANT, "value": 0.30}
-    assert defaults[CONF_EXPORT_PRICE] == {"choice": CHOICE_CONSTANT, "value": 0.08}
+    assert defaults[CONF_IMPORT_PRICE] == 0.30
+    assert defaults[CONF_EXPORT_PRICE] == 0.08
 
 
 async def test_reconfigure_with_string_entity_id_v010_format(
@@ -354,8 +354,8 @@ async def test_reconfigure_with_string_entity_id_v010_format(
     defaults = flow._build_defaults("Test Grid", dict(existing_subentry.data))
 
     # Defaults should contain entity choice with the original entity IDs as lists
-    assert defaults[CONF_IMPORT_PRICE] == {"choice": CHOICE_ENTITY, "value": ["sensor.import_price"]}
-    assert defaults[CONF_EXPORT_PRICE] == {"choice": CHOICE_ENTITY, "value": ["sensor.export_price"]}
+    assert defaults[CONF_IMPORT_PRICE] == ["sensor.import_price"]
+    assert defaults[CONF_EXPORT_PRICE] == ["sensor.export_price"]
 
 
 async def test_reconfigure_with_entity_list(
@@ -389,5 +389,5 @@ async def test_reconfigure_with_entity_list(
     defaults = flow._build_defaults("Test Grid", dict(existing_subentry.data))
 
     # Defaults should contain entity choice with the entity lists
-    assert defaults[CONF_IMPORT_PRICE] == {"choice": CHOICE_ENTITY, "value": ["sensor.import1", "sensor.import2"]}
-    assert defaults[CONF_EXPORT_PRICE] == {"choice": CHOICE_ENTITY, "value": ["sensor.export"]}
+    assert defaults[CONF_IMPORT_PRICE] == ["sensor.import1", "sensor.import2"]
+    assert defaults[CONF_EXPORT_PRICE] == ["sensor.export"]

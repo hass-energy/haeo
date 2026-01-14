@@ -114,8 +114,8 @@ async def test_reconfigure_with_string_entity_id_v010_format(hass: HomeAssistant
     defaults = flow._build_defaults("Test Battery Section", dict(existing_subentry.data))
 
     # Defaults should contain entity choice with the original entity IDs as lists
-    assert defaults[CONF_CAPACITY] == {"choice": CHOICE_ENTITY, "value": ["sensor.section_capacity"]}
-    assert defaults[CONF_INITIAL_CHARGE] == {"choice": CHOICE_ENTITY, "value": ["sensor.section_charge"]}
+    assert defaults[CONF_CAPACITY] == ["sensor.section_capacity"]
+    assert defaults[CONF_INITIAL_CHARGE] == ["sensor.section_charge"]
 
 
 async def test_reconfigure_with_scalar_shows_constant_defaults(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
@@ -143,8 +143,8 @@ async def test_reconfigure_with_scalar_shows_constant_defaults(hass: HomeAssista
     defaults = flow._build_defaults("Test Battery Section", dict(existing_subentry.data))
 
     # Defaults should contain constant choice with the scalar values
-    assert defaults[CONF_CAPACITY] == {"choice": CHOICE_CONSTANT, "value": 10.0}
-    assert defaults[CONF_INITIAL_CHARGE] == {"choice": CHOICE_CONSTANT, "value": 5.0}
+    assert defaults[CONF_CAPACITY] == 10.0
+    assert defaults[CONF_INITIAL_CHARGE] == 5.0
 
 
 async def test_reconfigure_with_missing_field_shows_none_default(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:

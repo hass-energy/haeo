@@ -314,7 +314,7 @@ def test_get_choose_default_returns_none_when_no_defaults(
 def test_get_choose_default_returns_constant_for_value_mode(
     hass: HomeAssistant,
 ) -> None:
-    """get_choose_default returns constant choice for value mode defaults."""
+    """get_choose_default returns constant value for value mode defaults."""
     field = InputFieldInfo(
         field_name="power",
         entity_description=NumberEntityDescription(
@@ -325,13 +325,13 @@ def test_get_choose_default_returns_constant_for_value_mode(
         defaults=InputFieldDefaults(mode="value", value=10.0),
     )
     result = get_choose_default(field)
-    assert result == {"choice": CHOICE_CONSTANT, "value": 10.0}
+    assert result == 10.0
 
 
-def test_get_choose_default_returns_entity_for_entity_mode(
+def test_get_choose_default_returns_empty_list_for_entity_mode(
     hass: HomeAssistant,
 ) -> None:
-    """get_choose_default returns entity choice for entity mode defaults."""
+    """get_choose_default returns empty list for entity mode defaults."""
     field = InputFieldInfo(
         field_name="power",
         entity_description=NumberEntityDescription(
@@ -342,13 +342,13 @@ def test_get_choose_default_returns_entity_for_entity_mode(
         defaults=InputFieldDefaults(mode="entity"),
     )
     result = get_choose_default(field)
-    assert result == {"choice": CHOICE_ENTITY, "value": []}
+    assert result == []
 
 
 def test_get_choose_default_uses_current_data_constant(
     hass: HomeAssistant,
 ) -> None:
-    """get_choose_default uses current_data constant value."""
+    """get_choose_default returns constant value from current_data."""
     field = InputFieldInfo(
         field_name="power",
         entity_description=NumberEntityDescription(
@@ -359,13 +359,13 @@ def test_get_choose_default_uses_current_data_constant(
     )
     current_data = {"power": 25.5}
     result = get_choose_default(field, current_data=current_data)
-    assert result == {"choice": CHOICE_CONSTANT, "value": 25.5}
+    assert result == 25.5
 
 
 def test_get_choose_default_uses_current_data_entity(
     hass: HomeAssistant,
 ) -> None:
-    """get_choose_default uses current_data entity value."""
+    """get_choose_default returns entity list from current_data string."""
     field = InputFieldInfo(
         field_name="power",
         entity_description=NumberEntityDescription(
@@ -376,13 +376,13 @@ def test_get_choose_default_uses_current_data_entity(
     )
     current_data = {"power": "sensor.power"}
     result = get_choose_default(field, current_data=current_data)
-    assert result == {"choice": CHOICE_ENTITY, "value": ["sensor.power"]}
+    assert result == ["sensor.power"]
 
 
 def test_get_choose_default_uses_current_data_entity_list(
     hass: HomeAssistant,
 ) -> None:
-    """get_choose_default uses current_data entity list value."""
+    """get_choose_default returns entity list from current_data list."""
     field = InputFieldInfo(
         field_name="power",
         entity_description=NumberEntityDescription(
@@ -393,13 +393,13 @@ def test_get_choose_default_uses_current_data_entity_list(
     )
     current_data = {"power": ["sensor.power1", "sensor.power2"]}
     result = get_choose_default(field, current_data=current_data)
-    assert result == {"choice": CHOICE_ENTITY, "value": ["sensor.power1", "sensor.power2"]}
+    assert result == ["sensor.power1", "sensor.power2"]
 
 
 def test_get_choose_default_uses_current_data_boolean(
     hass: HomeAssistant,
 ) -> None:
-    """get_choose_default uses current_data boolean value."""
+    """get_choose_default returns boolean value from current_data."""
     field = InputFieldInfo(
         field_name="enabled",
         entity_description=NumberEntityDescription(
@@ -410,7 +410,7 @@ def test_get_choose_default_uses_current_data_boolean(
     )
     current_data = {"enabled": True}
     result = get_choose_default(field, current_data=current_data)
-    assert result == {"choice": CHOICE_CONSTANT, "value": True}
+    assert result is True
 
 
 # --- Tests for convert_choose_data_to_config ---

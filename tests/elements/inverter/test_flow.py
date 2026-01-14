@@ -308,8 +308,8 @@ async def test_reconfigure_with_scalar_shows_constant_defaults(
     defaults = flow._build_defaults("Test Inverter", dict(existing_subentry.data))
 
     # Defaults should contain constant choice with values
-    assert defaults[CONF_MAX_POWER_DC_TO_AC] == {"choice": CHOICE_CONSTANT, "value": 10.0}
-    assert defaults[CONF_MAX_POWER_AC_TO_DC] == {"choice": CHOICE_CONSTANT, "value": 8.0}
+    assert defaults[CONF_MAX_POWER_DC_TO_AC] == 10.0
+    assert defaults[CONF_MAX_POWER_AC_TO_DC] == 8.0
 
 
 async def test_reconfigure_with_string_entity_id_v010_format(
@@ -349,8 +349,8 @@ async def test_reconfigure_with_string_entity_id_v010_format(
     defaults = flow._build_defaults("Test Inverter", dict(existing_subentry.data))
 
     # Defaults should contain entity choice with the original entity IDs as lists
-    assert defaults[CONF_MAX_POWER_DC_TO_AC] == {"choice": CHOICE_ENTITY, "value": ["sensor.dc_to_ac_power"]}
-    assert defaults[CONF_MAX_POWER_AC_TO_DC] == {"choice": CHOICE_ENTITY, "value": ["sensor.ac_to_dc_power"]}
+    assert defaults[CONF_MAX_POWER_DC_TO_AC] == ["sensor.dc_to_ac_power"]
+    assert defaults[CONF_MAX_POWER_AC_TO_DC] == ["sensor.ac_to_dc_power"]
 
 
 async def test_reconfigure_with_entity_list(
@@ -384,8 +384,8 @@ async def test_reconfigure_with_entity_list(
     defaults = flow._build_defaults("Test Inverter", dict(existing_subentry.data))
 
     # Defaults should contain entity choice with the entity lists
-    assert defaults[CONF_MAX_POWER_DC_TO_AC] == {"choice": CHOICE_ENTITY, "value": ["sensor.dc1", "sensor.dc2"]}
-    assert defaults[CONF_MAX_POWER_AC_TO_DC] == {"choice": CHOICE_ENTITY, "value": ["sensor.ac"]}
+    assert defaults[CONF_MAX_POWER_DC_TO_AC] == ["sensor.dc1", "sensor.dc2"]
+    assert defaults[CONF_MAX_POWER_AC_TO_DC] == ["sensor.ac"]
 
 
 async def test_reconfigure_selecting_entity_stores_entity_id(

@@ -33,9 +33,7 @@ from custom_components.haeo.flows.field_schema import CHOICE_CONSTANT, CHOICE_EN
 from ..conftest import add_participant, create_flow
 
 
-async def test_reconfigure_with_deleted_connection_target(
-    hass: HomeAssistant, hub_entry: MockConfigEntry
-) -> None:
+async def test_reconfigure_with_deleted_connection_target(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
     """Battery reconfigure should include deleted connection target in options."""
     existing_config = {
         CONF_ELEMENT_TYPE: ELEMENT_TYPE,
@@ -65,15 +63,11 @@ async def test_reconfigure_with_deleted_connection_target(
     assert result.get("step_id") == "user"
 
 
-async def test_get_participant_names_skips_unknown_element_types(
-    hass: HomeAssistant, hub_entry: MockConfigEntry
-) -> None:
+async def test_get_participant_names_skips_unknown_element_types(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
     """_get_participant_names should skip subentries with unknown element types."""
     add_participant(hass, hub_entry, "ValidNode", node.ELEMENT_TYPE)
 
-    unknown_data = MappingProxyType(
-        {CONF_ELEMENT_TYPE: "unknown_type", CONF_NAME: "Unknown"}
-    )
+    unknown_data = MappingProxyType({CONF_ELEMENT_TYPE: "unknown_type", CONF_NAME: "Unknown"})
     unknown_subentry = ConfigSubentry(
         data=unknown_data,
         subentry_type="unknown_type",
@@ -90,9 +84,7 @@ async def test_get_participant_names_skips_unknown_element_types(
     assert "Unknown" not in participants
 
 
-async def test_get_subentry_returns_none_for_user_flow(
-    hass: HomeAssistant, hub_entry: MockConfigEntry
-) -> None:
+async def test_get_subentry_returns_none_for_user_flow(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
     """_get_subentry should return None during user flow (not reconfigure)."""
     flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
 
@@ -101,9 +93,7 @@ async def test_get_subentry_returns_none_for_user_flow(
     assert subentry is None
 
 
-async def test_user_step_with_constant_values_creates_entry(
-    hass: HomeAssistant, hub_entry: MockConfigEntry
-) -> None:
+async def test_user_step_with_constant_values_creates_entry(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
     """Submitting with constant values should create entry directly."""
     add_participant(hass, hub_entry, "main_bus", node.ELEMENT_TYPE)
     flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
@@ -143,9 +133,7 @@ async def test_user_step_with_constant_values_creates_entry(
     assert created_data[CONF_MAX_CHARGE_POWER] == 5.0
 
 
-async def test_user_step_with_entity_values_creates_entry(
-    hass: HomeAssistant, hub_entry: MockConfigEntry
-) -> None:
+async def test_user_step_with_entity_values_creates_entry(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
     """Submitting with entity selections should create entry with entity IDs."""
     add_participant(hass, hub_entry, "main_bus", node.ELEMENT_TYPE)
     flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
@@ -188,9 +176,7 @@ async def test_user_step_with_entity_values_creates_entry(
     assert created_data[CONF_MAX_CHARGE_POWER] == "sensor.max_charge"
 
 
-async def test_user_step_empty_required_field_shows_error(
-    hass: HomeAssistant, hub_entry: MockConfigEntry
-) -> None:
+async def test_user_step_empty_required_field_shows_error(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
     """Submitting with empty required choose field should show required error."""
     add_participant(hass, hub_entry, "main_bus", node.ELEMENT_TYPE)
     flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
@@ -220,9 +206,7 @@ async def test_user_step_empty_required_field_shows_error(
     assert CONF_CAPACITY in result.get("errors", {})
 
 
-async def test_partition_flow_enabled_shows_partition_step(
-    hass: HomeAssistant, hub_entry: MockConfigEntry
-) -> None:
+async def test_partition_flow_enabled_shows_partition_step(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
     """When configure_partitions is True, flow proceeds to partitions step."""
     add_participant(hass, hub_entry, "main_bus", node.ELEMENT_TYPE)
     flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
@@ -254,9 +238,7 @@ async def test_partition_flow_enabled_shows_partition_step(
     assert result.get("step_id") == "partitions"
 
 
-async def test_partition_flow_with_entity_links_creates_entry(
-    hass: HomeAssistant, hub_entry: MockConfigEntry
-) -> None:
+async def test_partition_flow_with_entity_links_creates_entry(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
     """Complete flow with entity link partition values creates entry."""
     add_participant(hass, hub_entry, "main_bus", node.ELEMENT_TYPE)
     flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
@@ -310,9 +292,7 @@ async def test_partition_flow_with_entity_links_creates_entry(
     assert created_data[CONF_OVERCHARGE_PERCENTAGE] == "sensor.overcharge_pct"
 
 
-async def test_partition_flow_with_constant_values_creates_entry(
-    hass: HomeAssistant, hub_entry: MockConfigEntry
-) -> None:
+async def test_partition_flow_with_constant_values_creates_entry(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
     """Complete flow with constant partition values creates entry."""
     add_participant(hass, hub_entry, "main_bus", node.ELEMENT_TYPE)
     flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
@@ -361,9 +341,7 @@ async def test_partition_flow_with_constant_values_creates_entry(
     assert created_data[CONF_OVERCHARGE_COST] == 0.10
 
 
-async def test_partition_disabled_skips_partition_step(
-    hass: HomeAssistant, hub_entry: MockConfigEntry
-) -> None:
+async def test_partition_disabled_skips_partition_step(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
     """When configure_partitions is False, flow skips directly to create_entry."""
     add_participant(hass, hub_entry, "main_bus", node.ELEMENT_TYPE)
     flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
@@ -402,9 +380,7 @@ async def test_partition_disabled_skips_partition_step(
     assert CONF_OVERCHARGE_PERCENTAGE not in created_data
 
 
-async def test_reconfigure_with_existing_partitions_shows_form(
-    hass: HomeAssistant, hub_entry: MockConfigEntry
-) -> None:
+async def test_reconfigure_with_existing_partitions_shows_form(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
     """Reconfigure with existing partition data shows form."""
     add_participant(hass, hub_entry, "main_bus", node.ELEMENT_TYPE)
 
@@ -441,9 +417,7 @@ async def test_reconfigure_with_existing_partitions_shows_form(
     assert result.get("type") == FlowResultType.FORM
 
 
-async def test_reconfigure_partition_defaults_entity_links(
-    hass: HomeAssistant, hub_entry: MockConfigEntry
-) -> None:
+async def test_reconfigure_partition_defaults_entity_links(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
     """Reconfigure with entity link partition values shows entity choice."""
     add_participant(hass, hub_entry, "main_bus", node.ELEMENT_TYPE)
 
@@ -475,19 +449,11 @@ async def test_reconfigure_partition_defaults_entity_links(
 
     defaults = flow._build_partition_defaults(dict(existing_config))
 
-    assert defaults[CONF_UNDERCHARGE_PERCENTAGE] == {
-        "choice": CHOICE_ENTITY,
-        "value": ["sensor.undercharge"],
-    }
-    assert defaults[CONF_OVERCHARGE_PERCENTAGE] == {
-        "choice": CHOICE_ENTITY,
-        "value": ["sensor.overcharge"],
-    }
+    assert defaults[CONF_UNDERCHARGE_PERCENTAGE] == ["sensor.undercharge"]
+    assert defaults[CONF_OVERCHARGE_PERCENTAGE] == ["sensor.overcharge"]
 
 
-async def test_reconfigure_partition_defaults_scalar_values(
-    hass: HomeAssistant, hub_entry: MockConfigEntry
-) -> None:
+async def test_reconfigure_partition_defaults_scalar_values(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
     """Reconfigure with scalar partition values shows constant choice."""
     add_participant(hass, hub_entry, "main_bus", node.ELEMENT_TYPE)
 
@@ -519,34 +485,24 @@ async def test_reconfigure_partition_defaults_scalar_values(
 
     defaults = flow._build_partition_defaults(dict(existing_config))
 
-    assert defaults[CONF_UNDERCHARGE_PERCENTAGE] == {
-        "choice": CHOICE_CONSTANT,
-        "value": 5.0,
-    }
-    assert defaults[CONF_OVERCHARGE_PERCENTAGE] == {
-        "choice": CHOICE_CONSTANT,
-        "value": 95.0,
-    }
+    assert defaults[CONF_UNDERCHARGE_PERCENTAGE] == 5.0
+    assert defaults[CONF_OVERCHARGE_PERCENTAGE] == 95.0
 
 
-async def test_build_partition_defaults_no_existing_data(
-    hass: HomeAssistant, hub_entry: MockConfigEntry
-) -> None:
+async def test_build_partition_defaults_no_existing_data(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
     """_build_partition_defaults with no existing data uses field defaults."""
     flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
 
     defaults = flow._build_partition_defaults(None)
 
     # Partition fields have defaults (mode="value", value=0 or value=100)
-    assert defaults.get(CONF_UNDERCHARGE_PERCENTAGE) == {"choice": CHOICE_CONSTANT, "value": 0}
-    assert defaults.get(CONF_OVERCHARGE_PERCENTAGE) == {"choice": CHOICE_CONSTANT, "value": 100}
-    assert defaults.get(CONF_UNDERCHARGE_COST) == {"choice": CHOICE_CONSTANT, "value": 0}
-    assert defaults.get(CONF_OVERCHARGE_COST) == {"choice": CHOICE_CONSTANT, "value": 0}
+    assert defaults.get(CONF_UNDERCHARGE_PERCENTAGE) == 0
+    assert defaults.get(CONF_OVERCHARGE_PERCENTAGE) == 100
+    assert defaults.get(CONF_UNDERCHARGE_COST) == 0
+    assert defaults.get(CONF_OVERCHARGE_COST) == 0
 
 
-async def test_defaults_with_scalar_values_shows_constant_choice(
-    hass: HomeAssistant, hub_entry: MockConfigEntry
-) -> None:
+async def test_defaults_with_scalar_values_shows_constant_choice(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
     """_build_defaults with scalar values should show constant choice."""
     flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
 
@@ -557,14 +513,12 @@ async def test_defaults_with_scalar_values_shows_constant_choice(
     }
     defaults = flow._build_defaults("Test Battery", existing_data)
 
-    assert defaults[CONF_CAPACITY] == {"choice": CHOICE_CONSTANT, "value": 10.0}
-    assert defaults[CONF_MAX_CHARGE_POWER] == {"choice": CHOICE_CONSTANT, "value": 5.0}
-    assert defaults[CONF_EFFICIENCY] == {"choice": CHOICE_CONSTANT, "value": 0.95}
+    assert defaults[CONF_CAPACITY] == 10.0
+    assert defaults[CONF_MAX_CHARGE_POWER] == 5.0
+    assert defaults[CONF_EFFICIENCY] == 0.95
 
 
-async def test_defaults_with_entity_strings_shows_entity_choice(
-    hass: HomeAssistant, hub_entry: MockConfigEntry
-) -> None:
+async def test_defaults_with_entity_strings_shows_entity_choice(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
     """_build_defaults with entity strings should show entity choice."""
     flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
 
@@ -574,19 +528,11 @@ async def test_defaults_with_entity_strings_shows_entity_choice(
     }
     defaults = flow._build_defaults("Test Battery", existing_data)
 
-    assert defaults[CONF_CAPACITY] == {
-        "choice": CHOICE_ENTITY,
-        "value": ["sensor.capacity"],
-    }
-    assert defaults[CONF_INITIAL_CHARGE_PERCENTAGE] == {
-        "choice": CHOICE_ENTITY,
-        "value": ["sensor.soc"],
-    }
+    assert defaults[CONF_CAPACITY] == ["sensor.capacity"]
+    assert defaults[CONF_INITIAL_CHARGE_PERCENTAGE] == ["sensor.soc"]
 
 
-async def test_reconfigure_with_string_entity_id_v010_format(
-    hass: HomeAssistant, hub_entry: MockConfigEntry
-) -> None:
+async def test_reconfigure_with_string_entity_id_v010_format(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
     """Reconfigure with v0.1.0 string entity ID shows entity choice."""
     add_participant(hass, hub_entry, "main_bus", node.ELEMENT_TYPE)
 
@@ -621,27 +567,13 @@ async def test_reconfigure_with_string_entity_id_v010_format(
 
     defaults = flow._build_defaults("Test Battery", dict(existing_subentry.data))
 
-    assert defaults[CONF_CAPACITY] == {
-        "choice": CHOICE_ENTITY,
-        "value": ["sensor.battery_capacity"],
-    }
-    assert defaults[CONF_INITIAL_CHARGE_PERCENTAGE] == {
-        "choice": CHOICE_ENTITY,
-        "value": ["sensor.battery_soc"],
-    }
-    assert defaults[CONF_MAX_CHARGE_POWER] == {
-        "choice": CHOICE_ENTITY,
-        "value": ["sensor.charge_power"],
-    }
-    assert defaults[CONF_MAX_DISCHARGE_POWER] == {
-        "choice": CHOICE_ENTITY,
-        "value": ["sensor.discharge_power"],
-    }
+    assert defaults[CONF_CAPACITY] == ["sensor.battery_capacity"]
+    assert defaults[CONF_INITIAL_CHARGE_PERCENTAGE] == ["sensor.battery_soc"]
+    assert defaults[CONF_MAX_CHARGE_POWER] == ["sensor.charge_power"]
+    assert defaults[CONF_MAX_DISCHARGE_POWER] == ["sensor.discharge_power"]
 
 
-async def test_reconfigure_updates_existing_battery(
-    hass: HomeAssistant, hub_entry: MockConfigEntry
-) -> None:
+async def test_reconfigure_updates_existing_battery(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
     """Reconfigure flow completes and updates existing battery."""
     add_participant(hass, hub_entry, "main_bus", node.ELEMENT_TYPE)
 
@@ -668,9 +600,7 @@ async def test_reconfigure_updates_existing_battery(
         "source": SOURCE_RECONFIGURE,
     }
     flow._get_reconfigure_subentry = Mock(return_value=existing_subentry)
-    flow.async_update_and_abort = Mock(
-        return_value={"type": FlowResultType.ABORT, "reason": "reconfigure_successful"}
-    )
+    flow.async_update_and_abort = Mock(return_value={"type": FlowResultType.ABORT, "reason": "reconfigure_successful"})
 
     await flow.async_step_reconfigure(user_input=None)
 

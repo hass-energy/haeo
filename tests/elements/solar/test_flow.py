@@ -113,7 +113,7 @@ async def test_reconfigure_with_string_entity_id_v010_format(hass: HomeAssistant
     defaults = flow._build_defaults("Test Solar", dict(existing_subentry.data))
 
     # Defaults should contain entity choice with original entity ID as list
-    assert defaults[CONF_FORECAST] == {"choice": CHOICE_ENTITY, "value": ["sensor.solar_forecast"]}
+    assert defaults[CONF_FORECAST] == ["sensor.solar_forecast"]
 
 
 async def test_reconfigure_with_scalar_shows_constant_defaults(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
@@ -143,7 +143,7 @@ async def test_reconfigure_with_scalar_shows_constant_defaults(hass: HomeAssista
     defaults = flow._build_defaults("Test Solar", dict(existing_subentry.data))
 
     # Defaults should contain constant choice with the scalar value
-    assert defaults[CONF_FORECAST] == {"choice": CHOICE_CONSTANT, "value": 100.0}
+    assert defaults[CONF_FORECAST] == 100.0
 
 
 async def test_user_step_with_entity_creates_entry(
