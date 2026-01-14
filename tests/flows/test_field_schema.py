@@ -114,36 +114,49 @@ def test_is_haeo_input_entity_returns_false_for_non_haeo_platform(hass: HomeAssi
     """is_haeo_input_entity returns False for entity from different platform."""
     registry = er.async_get(hass)
     registry.async_get_or_create(
-        domain="sensor",
+        domain="number",
         platform="other_integration",
-        unique_id="test_sensor_123",
-        suggested_object_id="other_sensor",
+        unique_id="test_number_123",
+        suggested_object_id="other_number",
     )
-    result = is_haeo_input_entity("sensor.other_sensor")
+    result = is_haeo_input_entity("number.other_number")
     assert result is False
 
 
-def test_is_haeo_input_entity_returns_true_for_haeo_input_entity(hass: HomeAssistant) -> None:
-    """is_haeo_input_entity returns True for HAEO input entity with correct unique_id pattern."""
+def test_is_haeo_input_entity_returns_true_for_haeo_number(hass: HomeAssistant) -> None:
+    """is_haeo_input_entity returns True for HAEO number entity."""
     registry = er.async_get(hass)
     entity = registry.async_get_or_create(
         domain="number",
         platform=DOMAIN,
-        unique_id="entry_id_subentry_id_field_name",  # Pattern: entry_id_subentry_id_field_name
-        suggested_object_id="haeo_test_entity",
+        unique_id="test_number",
+        suggested_object_id="haeo_number",
     )
     result = is_haeo_input_entity(entity.entity_id)
     assert result is True
 
 
-def test_is_haeo_input_entity_returns_false_for_haeo_without_underscores(hass: HomeAssistant) -> None:
-    """is_haeo_input_entity returns False for HAEO entity without enough underscores."""
+def test_is_haeo_input_entity_returns_true_for_haeo_switch(hass: HomeAssistant) -> None:
+    """is_haeo_input_entity returns True for HAEO switch entity."""
     registry = er.async_get(hass)
     entity = registry.async_get_or_create(
-        domain="number",
+        domain="switch",
         platform=DOMAIN,
-        unique_id="simple",  # No underscores
-        suggested_object_id="haeo_simple",
+        unique_id="test_switch",
+        suggested_object_id="haeo_switch",
+    )
+    result = is_haeo_input_entity(entity.entity_id)
+    assert result is True
+
+
+def test_is_haeo_input_entity_returns_false_for_haeo_sensor(hass: HomeAssistant) -> None:
+    """is_haeo_input_entity returns False for HAEO sensor (not an input entity)."""
+    registry = er.async_get(hass)
+    entity = registry.async_get_or_create(
+        domain="sensor",
+        platform=DOMAIN,
+        unique_id="test_sensor",
+        suggested_object_id="haeo_sensor",
     )
     result = is_haeo_input_entity(entity.entity_id)
     assert result is False
@@ -157,50 +170,58 @@ def test_get_haeo_input_entity_ids_returns_empty_for_no_haeo_entities(hass: Home
     registry = er.async_get(hass)
     # Create non-HAEO entities only
     registry.async_get_or_create(
-        domain="sensor",
+        domain="number",
         platform="other_integration",
-        unique_id="external_sensor",
+        unique_id="external_number",
         suggested_object_id="external",
     )
     result = get_haeo_input_entity_ids()
     # Result should not include non-HAEO entities
-    assert "sensor.external" not in result
+    assert "number.external" not in result
 
 
-def test_get_haeo_input_entity_ids_includes_haeo_input_entities(hass: HomeAssistant) -> None:
-    """get_haeo_input_entity_ids includes HAEO input entities with correct pattern."""
+def test_get_haeo_input_entity_ids_includes_haeo_number_and_switch(hass: HomeAssistant) -> None:
+    """get_haeo_input_entity_ids includes HAEO number and switch entities."""
     registry = er.async_get(hass)
-    # Create HAEO input entity with proper pattern
-    haeo_entity = registry.async_get_or_create(
+    # Create HAEO number entity
+    number_entity = registry.async_get_or_create(
         domain="number",
         platform=DOMAIN,
-        unique_id="entry_id_subentry_id_capacity",
-        suggested_object_id="haeo_battery_capacity",
+        unique_id="test_number",
+        suggested_object_id="haeo_number",
+    )
+    # Create HAEO switch entity
+    switch_entity = registry.async_get_or_create(
+        domain="switch",
+        platform=DOMAIN,
+        unique_id="test_switch",
+        suggested_object_id="haeo_switch",
     )
     # Create non-HAEO entity
     registry.async_get_or_create(
-        domain="sensor",
+        domain="number",
         platform="other_integration",
         unique_id="external",
-        suggested_object_id="external_sensor",
+        suggested_object_id="external_number",
     )
     result = get_haeo_input_entity_ids()
-    assert haeo_entity.entity_id in result
-    assert "sensor.external_sensor" not in result
+    assert number_entity.entity_id in result
+    assert switch_entity.entity_id in result
+    assert "number.external_number" not in result
 
 
-def test_get_haeo_input_entity_ids_excludes_haeo_without_pattern(hass: HomeAssistant) -> None:
-    """get_haeo_input_entity_ids excludes HAEO entities without input pattern."""
+def test_get_haeo_input_entity_ids_excludes_haeo_sensors(hass: HomeAssistant) -> None:
+    """get_haeo_input_entity_ids excludes HAEO sensor entities."""
     registry = er.async_get(hass)
-    # Create HAEO entity without proper pattern (like configurable sentinel)
-    haeo_entity = registry.async_get_or_create(
-        domain=DOMAIN,
+    # Create HAEO sensor (not an input entity)
+    sensor_entity = registry.async_get_or_create(
+        domain="sensor",
         platform=DOMAIN,
-        unique_id="simple",  # Single component, not entry_id_subentry_id_field
-        suggested_object_id="haeo_simple",
+        unique_id="test_sensor",
+        suggested_object_id="haeo_sensor",
     )
     result = get_haeo_input_entity_ids()
-    assert haeo_entity.entity_id not in result
+    assert sensor_entity.entity_id not in result
 
 
 # --- Tests for extract_non_entity_fields ---
