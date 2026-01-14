@@ -1,4 +1,4 @@
-"""Test inverter config flow data for entity-first approach."""
+"""Test inverter config flow data for choose selector approach."""
 
 from custom_components.haeo.const import CONF_NAME
 from custom_components.haeo.elements.inverter import (
@@ -9,27 +9,18 @@ from custom_components.haeo.elements.inverter import (
     CONF_MAX_POWER_DC_TO_AC,
 )
 
-# Test data for inverter flow - entity-first approach
-# Step 1 (mode_input): Select entities (including constant entities) for each field
-# Step 2 (config): Enter constant values for fields with constant entities selected
+# Test data for inverter flow - single-step with choose selector
+# config: Contains all field values in choose selector format
 VALID_DATA = [
     {
         "description": "Basic inverter with all constant values",
-        "mode_input": {
-            CONF_NAME: "Test Inverter",
-            CONF_CONNECTION: "main_bus",
-            CONF_MAX_POWER_DC_TO_AC: ["haeo.configurable_entity"],
-            CONF_MAX_POWER_AC_TO_DC: ["haeo.configurable_entity"],
-            CONF_EFFICIENCY_DC_TO_AC: ["haeo.configurable_entity"],
-            CONF_EFFICIENCY_AC_TO_DC: ["haeo.configurable_entity"],
-        },
         "config": {
             CONF_NAME: "Test Inverter",
             CONF_CONNECTION: "main_bus",
-            CONF_MAX_POWER_DC_TO_AC: 5.0,
-            CONF_MAX_POWER_AC_TO_DC: 5.0,
-            CONF_EFFICIENCY_DC_TO_AC: 95.0,
-            CONF_EFFICIENCY_AC_TO_DC: 95.0,
+            CONF_MAX_POWER_DC_TO_AC: {"choice": "constant", "value": 5.0},
+            CONF_MAX_POWER_AC_TO_DC: {"choice": "constant", "value": 5.0},
+            CONF_EFFICIENCY_DC_TO_AC: {"choice": "constant", "value": 95.0},
+            CONF_EFFICIENCY_AC_TO_DC: {"choice": "constant", "value": 95.0},
         },
     },
 ]

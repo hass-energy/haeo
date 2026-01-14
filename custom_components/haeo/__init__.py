@@ -17,7 +17,6 @@ from homeassistant.helpers.translation import async_get_translations
 
 from custom_components.haeo.const import CONF_ADVANCED_MODE, CONF_ELEMENT_TYPE, CONF_NAME, DOMAIN, ELEMENT_TYPE_NETWORK
 from custom_components.haeo.coordinator import HaeoDataUpdateCoordinator
-from custom_components.haeo.flows.sentinels import async_setup_sentinel_entities, async_unload_sentinel_entities
 from custom_components.haeo.horizon import HorizonManager
 
 if TYPE_CHECKING:
@@ -172,11 +171,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> bool
     runtime_data = HaeoRuntimeData(horizon_manager=horizon_manager)
     entry.runtime_data = runtime_data
 
-    # Set up sentinel entities (reference counted - safe to call multiple times)
-    await async_setup_sentinel_entities(hass)
-    # Register cleanup - will be called on failure or unload
-    entry.async_on_unload(lambda: async_unload_sentinel_entities(hass))
-
     # Start horizon manager's scheduled updates - returns stop function
     entry.async_on_unload(horizon_manager.start())
 
@@ -260,7 +254,6 @@ async def async_unload_entry(_hass: HomeAssistant, entry: HaeoConfigEntry) -> bo
 
     All cleanup is handled via async_on_unload callbacks registered during setup:
     - Platform unloading (INPUT_PLATFORMS, OUTPUT_PLATFORMS)
-    - Sentinel entities (reference counted)
     - Horizon manager timer
     - Coordinator resources
     - Update listener

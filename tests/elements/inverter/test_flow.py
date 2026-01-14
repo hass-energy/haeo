@@ -17,8 +17,7 @@ from custom_components.haeo.elements.inverter import (
     CONF_MAX_POWER_DC_TO_AC,
     ELEMENT_TYPE,
 )
-
-from tests.conftest import TEST_CONFIGURABLE_ENTITY_ID
+from custom_components.haeo.flows.field_schema import CHOICE_CONSTANT, CHOICE_ENTITY
 
 from ..conftest import add_participant, create_flow
 
@@ -30,8 +29,8 @@ async def test_reconfigure_with_deleted_connection_target(hass: HomeAssistant, h
         CONF_ELEMENT_TYPE: ELEMENT_TYPE,
         CONF_NAME: "Test Inverter",
         CONF_CONNECTION: "DeletedNode",  # This node no longer exists
-        CONF_MAX_POWER_DC_TO_AC: ["sensor.dc_to_ac"],
-        CONF_MAX_POWER_AC_TO_DC: ["sensor.ac_to_dc"],
+        CONF_MAX_POWER_DC_TO_AC: 10.0,
+        CONF_MAX_POWER_AC_TO_DC: 8.0,
     }
     existing_subentry = ConfigSubentry(
         data=MappingProxyType(existing_config),
@@ -93,17 +92,17 @@ async def test_user_step_empty_required_field_shows_error(
     hass: HomeAssistant,
     hub_entry: MockConfigEntry,
 ) -> None:
-    """Submitting step 1 with empty required field should show required error."""
+    """Submitting with empty required choose field should show required error."""
     add_participant(hass, hub_entry, "TestNode", node.ELEMENT_TYPE)
 
     flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
 
-    # Submit with empty max_power_dc_to_ac (required field)
+    # Submit with empty max_power_dc_to_ac (required field) - entity choice with empty list
     user_input = {
         CONF_NAME: "Test Inverter",
         CONF_CONNECTION: "TestNode",
-        CONF_MAX_POWER_DC_TO_AC: [],
-        CONF_MAX_POWER_AC_TO_DC: [TEST_CONFIGURABLE_ENTITY_ID],
+        CONF_MAX_POWER_DC_TO_AC: {"choice": CHOICE_ENTITY, "value": []},
+        CONF_MAX_POWER_AC_TO_DC: {"choice": CHOICE_CONSTANT, "value": 8.0},
     }
     result = await flow.async_step_user(user_input=user_input)
 
@@ -112,37 +111,14 @@ async def test_user_step_empty_required_field_shows_error(
     assert CONF_MAX_POWER_DC_TO_AC in result.get("errors", {})
 
 
-# --- Tests for two-step flow with configurable values ---
+# --- Tests for single-step flow with choose selector ---
 
 
-async def test_user_step_with_configurable_shows_values_form(
+async def test_user_step_with_constant_creates_entry(
     hass: HomeAssistant,
     hub_entry: MockConfigEntry,
 ) -> None:
-    """Selecting configurable entity should show values form (step 2)."""
-    add_participant(hass, hub_entry, "TestNode", node.ELEMENT_TYPE)
-
-    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
-
-    # Submit step 1 with configurable entities selected
-    step1_input = {
-        CONF_NAME: "Test Inverter",
-        CONF_CONNECTION: "TestNode",
-        CONF_MAX_POWER_DC_TO_AC: [TEST_CONFIGURABLE_ENTITY_ID],
-        CONF_MAX_POWER_AC_TO_DC: [TEST_CONFIGURABLE_ENTITY_ID],
-    }
-    result = await flow.async_step_user(user_input=step1_input)
-
-    # Should show values form (step 2)
-    assert result.get("type") == FlowResultType.FORM
-    assert result.get("step_id") == "values"
-
-
-async def test_values_step_creates_entry_with_constant(
-    hass: HomeAssistant,
-    hub_entry: MockConfigEntry,
-) -> None:
-    """Submitting values step should create entry with constant values."""
+    """Submitting with constant values should create entry directly."""
     add_participant(hass, hub_entry, "TestNode", node.ELEMENT_TYPE)
 
     flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
@@ -154,60 +130,54 @@ async def test_values_step_creates_entry_with_constant(
         }
     )
 
-    # Step 1: select configurable entities
-    step1_input = {
+    # Submit with constant values using choose selector format
+    user_input = {
         CONF_NAME: "Test Inverter",
         CONF_CONNECTION: "TestNode",
-        CONF_MAX_POWER_DC_TO_AC: [TEST_CONFIGURABLE_ENTITY_ID],
-        CONF_MAX_POWER_AC_TO_DC: [TEST_CONFIGURABLE_ENTITY_ID],
+        CONF_MAX_POWER_DC_TO_AC: {"choice": CHOICE_CONSTANT, "value": 10.0},
+        CONF_MAX_POWER_AC_TO_DC: {"choice": CHOICE_CONSTANT, "value": 8.0},
     }
-    result = await flow.async_step_user(user_input=step1_input)
-    assert result.get("step_id") == "values"
-
-    # Step 2: provide constant values
-    step2_input = {
-        CONF_MAX_POWER_DC_TO_AC: 5.0,
-        CONF_MAX_POWER_AC_TO_DC: 5.0,
-    }
-    result = await flow.async_step_values(user_input=step2_input)
+    result = await flow.async_step_user(user_input=user_input)
 
     assert result.get("type") == FlowResultType.CREATE_ENTRY
 
     # Verify the config contains the constant values
     create_kwargs = flow.async_create_entry.call_args.kwargs
-    assert create_kwargs["data"][CONF_MAX_POWER_DC_TO_AC] == 5.0
-    assert create_kwargs["data"][CONF_MAX_POWER_AC_TO_DC] == 5.0
+    assert create_kwargs["data"][CONF_MAX_POWER_DC_TO_AC] == 10.0
+    assert create_kwargs["data"][CONF_MAX_POWER_AC_TO_DC] == 8.0
 
 
-async def test_values_step_missing_required_shows_error(
+async def test_user_step_with_entity_creates_entry(
     hass: HomeAssistant,
     hub_entry: MockConfigEntry,
 ) -> None:
-    """Submitting values step with missing required configurable value should show error."""
+    """Submitting with entity selections should create entry with entity IDs."""
     add_participant(hass, hub_entry, "TestNode", node.ELEMENT_TYPE)
 
     flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
+    flow.async_create_entry = Mock(
+        return_value={
+            "type": FlowResultType.CREATE_ENTRY,
+            "title": "Test Inverter",
+            "data": {},
+        }
+    )
 
-    # Step 1: select configurable entities
-    step1_input = {
+    # Submit with entity selections
+    user_input = {
         CONF_NAME: "Test Inverter",
         CONF_CONNECTION: "TestNode",
-        CONF_MAX_POWER_DC_TO_AC: [TEST_CONFIGURABLE_ENTITY_ID],
-        CONF_MAX_POWER_AC_TO_DC: [TEST_CONFIGURABLE_ENTITY_ID],
+        CONF_MAX_POWER_DC_TO_AC: {"choice": CHOICE_ENTITY, "value": ["sensor.dc_power"]},
+        CONF_MAX_POWER_AC_TO_DC: {"choice": CHOICE_ENTITY, "value": ["sensor.ac_power"]},
     }
-    result = await flow.async_step_user(user_input=step1_input)
-    assert result.get("step_id") == "values"
+    result = await flow.async_step_user(user_input=user_input)
 
-    # Step 2: submit without providing max_power_dc_to_ac (required configurable value)
-    step2_input = {
-        CONF_MAX_POWER_AC_TO_DC: 5.0,
-    }
-    result = await flow.async_step_values(user_input=step2_input)
+    assert result.get("type") == FlowResultType.CREATE_ENTRY
 
-    # Should show values form again with error
-    assert result.get("type") == FlowResultType.FORM
-    assert result.get("step_id") == "values"
-    assert CONF_MAX_POWER_DC_TO_AC in result.get("errors", {})
+    # Verify the config contains the entity IDs as strings (single entity)
+    create_kwargs = flow.async_create_entry.call_args.kwargs
+    assert create_kwargs["data"][CONF_MAX_POWER_DC_TO_AC] == "sensor.dc_power"
+    assert create_kwargs["data"][CONF_MAX_POWER_AC_TO_DC] == "sensor.ac_power"
 
 
 # --- Tests for reconfigure flow ---
@@ -225,8 +195,8 @@ async def test_reconfigure_empty_required_field_shows_error(
         CONF_ELEMENT_TYPE: ELEMENT_TYPE,
         CONF_NAME: "Test Inverter",
         CONF_CONNECTION: "TestNode",
-        CONF_MAX_POWER_DC_TO_AC: ["sensor.dc_power"],
-        CONF_MAX_POWER_AC_TO_DC: ["sensor.ac_power"],
+        CONF_MAX_POWER_DC_TO_AC: "sensor.dc_power",
+        CONF_MAX_POWER_AC_TO_DC: "sensor.ac_power",
     }
     existing_subentry = ConfigSubentry(
         data=MappingProxyType(existing_config),
@@ -241,13 +211,13 @@ async def test_reconfigure_empty_required_field_shows_error(
     flow._get_reconfigure_subentry = Mock(return_value=existing_subentry)
 
     # Submit with empty max_power_dc_to_ac (required field)
-    step1_input = {
+    user_input = {
         CONF_NAME: "Test Inverter",
         CONF_CONNECTION: "TestNode",
-        CONF_MAX_POWER_DC_TO_AC: [],
-        CONF_MAX_POWER_AC_TO_DC: ["sensor.ac_power"],
+        CONF_MAX_POWER_DC_TO_AC: {"choice": CHOICE_ENTITY, "value": []},
+        CONF_MAX_POWER_AC_TO_DC: {"choice": CHOICE_ENTITY, "value": ["sensor.ac_power"]},
     }
-    result = await flow.async_step_reconfigure(user_input=step1_input)
+    result = await flow.async_step_reconfigure(user_input=user_input)
 
     # Should show reconfigure form again with error
     assert result.get("type") == FlowResultType.FORM
@@ -255,11 +225,11 @@ async def test_reconfigure_empty_required_field_shows_error(
     assert CONF_MAX_POWER_DC_TO_AC in result.get("errors", {})
 
 
-async def test_reconfigure_with_configurable_shows_values_form(
+async def test_reconfigure_with_constant_updates_entry(
     hass: HomeAssistant,
     hub_entry: MockConfigEntry,
 ) -> None:
-    """Reconfigure with configurable entity should show values form."""
+    """Reconfigure with constant values should update entry."""
     add_participant(hass, hub_entry, "TestNode", node.ELEMENT_TYPE)
 
     # Create existing entry with sensor links
@@ -267,49 +237,8 @@ async def test_reconfigure_with_configurable_shows_values_form(
         CONF_ELEMENT_TYPE: ELEMENT_TYPE,
         CONF_NAME: "Test Inverter",
         CONF_CONNECTION: "TestNode",
-        CONF_MAX_POWER_DC_TO_AC: ["sensor.dc_power"],
-        CONF_MAX_POWER_AC_TO_DC: ["sensor.ac_power"],
-    }
-    existing_subentry = ConfigSubentry(
-        data=MappingProxyType(existing_config),
-        subentry_type=ELEMENT_TYPE,
-        title="Test Inverter",
-        unique_id=None,
-    )
-    hass.config_entries.async_add_subentry(hub_entry, existing_subentry)
-
-    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
-    flow.context = {"subentry_id": existing_subentry.subentry_id, "source": SOURCE_RECONFIGURE}
-    flow._get_reconfigure_subentry = Mock(return_value=existing_subentry)
-
-    # Step 1: change to configurable entities
-    step1_input = {
-        CONF_NAME: "Test Inverter",
-        CONF_CONNECTION: "TestNode",
-        CONF_MAX_POWER_DC_TO_AC: [TEST_CONFIGURABLE_ENTITY_ID],
-        CONF_MAX_POWER_AC_TO_DC: [TEST_CONFIGURABLE_ENTITY_ID],
-    }
-    result = await flow.async_step_reconfigure(user_input=step1_input)
-
-    # Should show values form (step 2)
-    assert result.get("type") == FlowResultType.FORM
-    assert result.get("step_id") == "values"
-
-
-async def test_reconfigure_values_step_updates_entry(
-    hass: HomeAssistant,
-    hub_entry: MockConfigEntry,
-) -> None:
-    """Submitting reconfigure values step should update entry."""
-    add_participant(hass, hub_entry, "TestNode", node.ELEMENT_TYPE)
-
-    # Create existing entry with sensor links
-    existing_config = {
-        CONF_ELEMENT_TYPE: ELEMENT_TYPE,
-        CONF_NAME: "Test Inverter",
-        CONF_CONNECTION: "TestNode",
-        CONF_MAX_POWER_DC_TO_AC: ["sensor.dc_power"],
-        CONF_MAX_POWER_AC_TO_DC: ["sensor.ac_power"],
+        CONF_MAX_POWER_DC_TO_AC: "sensor.dc_power",
+        CONF_MAX_POWER_AC_TO_DC: "sensor.ac_power",
     }
     existing_subentry = ConfigSubentry(
         data=MappingProxyType(existing_config),
@@ -324,22 +253,14 @@ async def test_reconfigure_values_step_updates_entry(
     flow._get_reconfigure_subentry = Mock(return_value=existing_subentry)
     flow.async_update_and_abort = Mock(return_value={"type": FlowResultType.ABORT, "reason": "reconfigure_successful"})
 
-    # Step 1: change to configurable entities
-    step1_input = {
+    # Change to constant values
+    user_input = {
         CONF_NAME: "Test Inverter",
         CONF_CONNECTION: "TestNode",
-        CONF_MAX_POWER_DC_TO_AC: [TEST_CONFIGURABLE_ENTITY_ID],
-        CONF_MAX_POWER_AC_TO_DC: [TEST_CONFIGURABLE_ENTITY_ID],
+        CONF_MAX_POWER_DC_TO_AC: {"choice": CHOICE_CONSTANT, "value": 10.0},
+        CONF_MAX_POWER_AC_TO_DC: {"choice": CHOICE_CONSTANT, "value": 8.0},
     }
-    result = await flow.async_step_reconfigure(user_input=step1_input)
-    assert result.get("step_id") == "values"
-
-    # Step 2: provide constant values
-    step2_input = {
-        CONF_MAX_POWER_DC_TO_AC: 10.0,
-        CONF_MAX_POWER_AC_TO_DC: 8.0,
-    }
-    result = await flow.async_step_values(user_input=step2_input)
+    result = await flow.async_step_reconfigure(user_input=user_input)
 
     assert result.get("type") == FlowResultType.ABORT
     assert result.get("reason") == "reconfigure_successful"
@@ -350,20 +271,20 @@ async def test_reconfigure_values_step_updates_entry(
     assert update_kwargs["data"][CONF_MAX_POWER_AC_TO_DC] == 8.0
 
 
-async def test_reconfigure_values_step_missing_required_shows_error(
+async def test_reconfigure_with_scalar_shows_constant_defaults(
     hass: HomeAssistant,
     hub_entry: MockConfigEntry,
 ) -> None:
-    """Reconfigure values step with missing required configurable value should show error."""
+    """Reconfigure with scalar values should show constant choice in defaults."""
     add_participant(hass, hub_entry, "TestNode", node.ELEMENT_TYPE)
 
-    # Create existing entry with sensor links
+    # Create existing entry with scalar values (from prior constant config)
     existing_config = {
         CONF_ELEMENT_TYPE: ELEMENT_TYPE,
         CONF_NAME: "Test Inverter",
         CONF_CONNECTION: "TestNode",
-        CONF_MAX_POWER_DC_TO_AC: ["sensor.dc_power"],
-        CONF_MAX_POWER_AC_TO_DC: ["sensor.ac_power"],
+        CONF_MAX_POWER_DC_TO_AC: 10.0,  # Scalar value
+        CONF_MAX_POWER_AC_TO_DC: 8.0,  # Scalar value
     }
     existing_subentry = ConfigSubentry(
         data=MappingProxyType(existing_config),
@@ -372,70 +293,6 @@ async def test_reconfigure_values_step_missing_required_shows_error(
         unique_id=None,
     )
     hass.config_entries.async_add_subentry(hub_entry, existing_subentry)
-
-    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
-    flow.context = {"subentry_id": existing_subentry.subentry_id, "source": SOURCE_RECONFIGURE}
-    flow._get_reconfigure_subentry = Mock(return_value=existing_subentry)
-
-    # Step 1: change to configurable entities
-    step1_input = {
-        CONF_NAME: "Test Inverter",
-        CONF_CONNECTION: "TestNode",
-        CONF_MAX_POWER_DC_TO_AC: [TEST_CONFIGURABLE_ENTITY_ID],
-        CONF_MAX_POWER_AC_TO_DC: [TEST_CONFIGURABLE_ENTITY_ID],
-    }
-    result = await flow.async_step_reconfigure(user_input=step1_input)
-    assert result.get("step_id") == "values"
-
-    # Step 2: submit without providing max_power_dc_to_ac (required configurable value)
-    step2_input = {
-        CONF_MAX_POWER_AC_TO_DC: 8.0,
-    }
-    result = await flow.async_step_values(user_input=step2_input)
-
-    # Should show reconfigure_values form again with error
-    assert result.get("type") == FlowResultType.FORM
-    assert result.get("step_id") == "values"
-    assert CONF_MAX_POWER_DC_TO_AC in result.get("errors", {})
-
-
-async def test_reconfigure_with_scalar_shows_resolved_entity(
-    hass: HomeAssistant,
-    hub_entry: MockConfigEntry,
-) -> None:
-    """Reconfigure with scalar values should show resolved HAEO entity in defaults."""
-    add_participant(hass, hub_entry, "TestNode", node.ELEMENT_TYPE)
-
-    # Create existing entry with scalar values (from prior configurable entity setup)
-    existing_config = {
-        CONF_ELEMENT_TYPE: ELEMENT_TYPE,
-        CONF_NAME: "Test Inverter",
-        CONF_CONNECTION: "TestNode",
-        CONF_MAX_POWER_DC_TO_AC: 10.0,  # Scalar value, not entity link
-        CONF_MAX_POWER_AC_TO_DC: 8.0,  # Scalar value, not entity link
-    }
-    existing_subentry = ConfigSubentry(
-        data=MappingProxyType(existing_config),
-        subentry_type=ELEMENT_TYPE,
-        title="Test Inverter",
-        unique_id=None,
-    )
-    hass.config_entries.async_add_subentry(hub_entry, existing_subentry)
-
-    # Register HAEO number entities in entity registry (simulating what number.py does)
-    registry = er.async_get(hass)
-    dc_to_ac_entity = registry.async_get_or_create(
-        domain="number",
-        platform=DOMAIN,
-        unique_id=f"{hub_entry.entry_id}_{existing_subentry.subentry_id}_{CONF_MAX_POWER_DC_TO_AC}",
-        suggested_object_id="test_inverter_max_power_dc_to_ac",
-    )
-    ac_to_dc_entity = registry.async_get_or_create(
-        domain="number",
-        platform=DOMAIN,
-        unique_id=f"{hub_entry.entry_id}_{existing_subentry.subentry_id}_{CONF_MAX_POWER_AC_TO_DC}",
-        suggested_object_id="test_inverter_max_power_ac_to_dc",
-    )
 
     flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
     flow.context = {"subentry_id": existing_subentry.subentry_id, "source": SOURCE_RECONFIGURE}
@@ -447,65 +304,19 @@ async def test_reconfigure_with_scalar_shows_resolved_entity(
     assert result.get("type") == FlowResultType.FORM
     assert result.get("step_id") == "user"
 
-    # Find the suggested values for max_power fields
-    # The schema keys are vol.Required/Optional markers, values are selectors
-    # We need to check what _build_step1_defaults returned
-    defaults = flow._build_step1_defaults("Test Inverter", dict(existing_subentry.data))
+    # Check defaults - should have constant choice with scalar values
+    defaults = flow._build_defaults("Test Inverter", dict(existing_subentry.data))
 
-    # Defaults should contain the resolved entity IDs
-    assert defaults[CONF_MAX_POWER_DC_TO_AC] == [dc_to_ac_entity.entity_id]
-    assert defaults[CONF_MAX_POWER_AC_TO_DC] == [ac_to_dc_entity.entity_id]
-    # Should NOT be the configurable sentinel
-    assert defaults[CONF_MAX_POWER_DC_TO_AC] != [TEST_CONFIGURABLE_ENTITY_ID]
-    assert defaults[CONF_MAX_POWER_AC_TO_DC] != [TEST_CONFIGURABLE_ENTITY_ID]
-
-
-async def test_reconfigure_with_scalar_selecting_configurable_triggers_step2(
-    hass: HomeAssistant,
-    hub_entry: MockConfigEntry,
-) -> None:
-    """Selecting configurable entity during reconfigure should trigger step 2."""
-    add_participant(hass, hub_entry, "TestNode", node.ELEMENT_TYPE)
-
-    # Create existing entry with scalar values
-    existing_config = {
-        CONF_ELEMENT_TYPE: ELEMENT_TYPE,
-        CONF_NAME: "Test Inverter",
-        CONF_CONNECTION: "TestNode",
-        CONF_MAX_POWER_DC_TO_AC: 10.0,
-        CONF_MAX_POWER_AC_TO_DC: 8.0,
-    }
-    existing_subentry = ConfigSubentry(
-        data=MappingProxyType(existing_config),
-        subentry_type=ELEMENT_TYPE,
-        title="Test Inverter",
-        unique_id=None,
-    )
-    hass.config_entries.async_add_subentry(hub_entry, existing_subentry)
-
-    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
-    flow.context = {"subentry_id": existing_subentry.subentry_id, "source": SOURCE_RECONFIGURE}
-    flow._get_reconfigure_subentry = Mock(return_value=existing_subentry)
-
-    # User selects configurable entity to change the value
-    step1_input = {
-        CONF_NAME: "Test Inverter",
-        CONF_CONNECTION: "TestNode",
-        CONF_MAX_POWER_DC_TO_AC: [TEST_CONFIGURABLE_ENTITY_ID],  # Want to change this
-        CONF_MAX_POWER_AC_TO_DC: [TEST_CONFIGURABLE_ENTITY_ID],  # Want to change this
-    }
-    result = await flow.async_step_reconfigure(user_input=step1_input)
-
-    # Should show values form (step 2) to enter new values
-    assert result.get("type") == FlowResultType.FORM
-    assert result.get("step_id") == "values"
+    # Defaults should contain constant choice with values
+    assert defaults[CONF_MAX_POWER_DC_TO_AC] == {"choice": CHOICE_CONSTANT, "value": 10.0}
+    assert defaults[CONF_MAX_POWER_AC_TO_DC] == {"choice": CHOICE_CONSTANT, "value": 8.0}
 
 
 async def test_reconfigure_with_string_entity_id_v010_format(
     hass: HomeAssistant,
     hub_entry: MockConfigEntry,
 ) -> None:
-    """Reconfigure with v0.1.0 string entity ID should show entity in defaults."""
+    """Reconfigure with v0.1.0 string entity ID should show entity choice in defaults."""
     add_participant(hass, hub_entry, "TestNode", node.ELEMENT_TYPE)
 
     # Create existing entry with v0.1.0 format: string entity IDs (not list, not scalar)
@@ -534,19 +345,54 @@ async def test_reconfigure_with_string_entity_id_v010_format(
     assert result.get("type") == FlowResultType.FORM
     assert result.get("step_id") == "user"
 
-    # Check defaults - should have the string entity IDs wrapped in lists
-    defaults = flow._build_step1_defaults("Test Inverter", dict(existing_subentry.data))
+    # Check defaults - should have entity choice with the string entity IDs wrapped in lists
+    defaults = flow._build_defaults("Test Inverter", dict(existing_subentry.data))
 
-    # Defaults should contain the original entity IDs as lists
-    assert defaults[CONF_MAX_POWER_DC_TO_AC] == ["sensor.dc_to_ac_power"]
-    assert defaults[CONF_MAX_POWER_AC_TO_DC] == ["sensor.ac_to_dc_power"]
+    # Defaults should contain entity choice with the original entity IDs as lists
+    assert defaults[CONF_MAX_POWER_DC_TO_AC] == {"choice": CHOICE_ENTITY, "value": ["sensor.dc_to_ac_power"]}
+    assert defaults[CONF_MAX_POWER_AC_TO_DC] == {"choice": CHOICE_ENTITY, "value": ["sensor.ac_to_dc_power"]}
 
 
-async def test_reconfigure_keeping_resolved_entity_preserves_scalar(
+async def test_reconfigure_with_entity_list(
     hass: HomeAssistant,
     hub_entry: MockConfigEntry,
 ) -> None:
-    """Keeping resolved entity selected should preserve original scalar value."""
+    """Reconfigure with entity list should show entity choice in defaults."""
+    add_participant(hass, hub_entry, "TestNode", node.ELEMENT_TYPE)
+
+    # Create existing entry with entity list format
+    existing_config = {
+        CONF_ELEMENT_TYPE: ELEMENT_TYPE,
+        CONF_NAME: "Test Inverter",
+        CONF_CONNECTION: "TestNode",
+        CONF_MAX_POWER_DC_TO_AC: ["sensor.dc1", "sensor.dc2"],  # List of entities
+        CONF_MAX_POWER_AC_TO_DC: ["sensor.ac"],  # Single entity in list
+    }
+    existing_subentry = ConfigSubentry(
+        data=MappingProxyType(existing_config),
+        subentry_type=ELEMENT_TYPE,
+        title="Test Inverter",
+        unique_id=None,
+    )
+    hass.config_entries.async_add_subentry(hub_entry, existing_subentry)
+
+    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
+    flow.context = {"subentry_id": existing_subentry.subentry_id, "source": SOURCE_RECONFIGURE}
+    flow._get_reconfigure_subentry = Mock(return_value=existing_subentry)
+
+    # Check defaults
+    defaults = flow._build_defaults("Test Inverter", dict(existing_subentry.data))
+
+    # Defaults should contain entity choice with the entity lists
+    assert defaults[CONF_MAX_POWER_DC_TO_AC] == {"choice": CHOICE_ENTITY, "value": ["sensor.dc1", "sensor.dc2"]}
+    assert defaults[CONF_MAX_POWER_AC_TO_DC] == {"choice": CHOICE_ENTITY, "value": ["sensor.ac"]}
+
+
+async def test_reconfigure_selecting_entity_stores_entity_id(
+    hass: HomeAssistant,
+    hub_entry: MockConfigEntry,
+) -> None:
+    """Selecting entity in reconfigure stores the entity ID."""
     add_participant(hass, hub_entry, "TestNode", node.ELEMENT_TYPE)
 
     # Create existing entry with scalar values
@@ -585,20 +431,20 @@ async def test_reconfigure_keeping_resolved_entity_preserves_scalar(
     flow._get_reconfigure_subentry = Mock(return_value=existing_subentry)
     flow.async_update_and_abort = Mock(return_value={"type": FlowResultType.ABORT, "reason": "reconfigure_successful"})
 
-    # User keeps the resolved entities selected (no change)
-    step1_input = {
+    # User selects entities using choose selector format
+    user_input = {
         CONF_NAME: "Test Inverter",
         CONF_CONNECTION: "TestNode",
-        CONF_MAX_POWER_DC_TO_AC: [dc_to_ac_entity.entity_id],  # Keep resolved entity
-        CONF_MAX_POWER_AC_TO_DC: [ac_to_dc_entity.entity_id],  # Keep resolved entity
+        CONF_MAX_POWER_DC_TO_AC: {"choice": CHOICE_ENTITY, "value": [dc_to_ac_entity.entity_id]},
+        CONF_MAX_POWER_AC_TO_DC: {"choice": CHOICE_ENTITY, "value": [ac_to_dc_entity.entity_id]},
     }
-    result = await flow.async_step_reconfigure(user_input=step1_input)
+    result = await flow.async_step_reconfigure(user_input=user_input)
 
-    # Should skip step 2 and complete (no configurable entity selected)
+    # Should complete
     assert result.get("type") == FlowResultType.ABORT
     assert result.get("reason") == "reconfigure_successful"
 
-    # Verify the config preserves the original scalar values
+    # When entity mode is selected, the entity ID is stored
     update_kwargs = flow.async_update_and_abort.call_args.kwargs
-    assert update_kwargs["data"][CONF_MAX_POWER_DC_TO_AC] == 10.0  # Original scalar preserved
-    assert update_kwargs["data"][CONF_MAX_POWER_AC_TO_DC] == 8.0  # Original scalar preserved
+    assert update_kwargs["data"][CONF_MAX_POWER_DC_TO_AC] == dc_to_ac_entity.entity_id
+    assert update_kwargs["data"][CONF_MAX_POWER_AC_TO_DC] == ac_to_dc_entity.entity_id

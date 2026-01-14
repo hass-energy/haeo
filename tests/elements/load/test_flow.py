@@ -3,7 +3,7 @@
 from types import MappingProxyType
 from unittest.mock import Mock
 
-from homeassistant.config_entries import ConfigSubentry
+from homeassistant.config_entries import SOURCE_RECONFIGURE, ConfigSubentry
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
 from pytest_homeassistant_custom_component.common import MockConfigEntry
@@ -11,6 +11,7 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.elements import node
 from custom_components.haeo.elements.load import CONF_CONNECTION, CONF_FORECAST, ELEMENT_TYPE
+from custom_components.haeo.flows.field_schema import CHOICE_CONSTANT, CHOICE_ENTITY
 
 from ..conftest import add_participant, create_flow
 
@@ -33,7 +34,7 @@ async def test_reconfigure_with_deleted_connection_target(hass: HomeAssistant, h
     hass.config_entries.async_add_subentry(hub_entry, existing_subentry)
 
     flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
-    flow.context = {"subentry_id": existing_subentry.subentry_id}
+    flow.context = {"subentry_id": existing_subentry.subentry_id, "source": SOURCE_RECONFIGURE}
     flow._get_reconfigure_subentry = Mock(return_value=existing_subentry)
 
     # Show reconfigure form - should not error
@@ -98,7 +99,7 @@ async def test_reconfigure_with_string_entity_id_v010_format(hass: HomeAssistant
     hass.config_entries.async_add_subentry(hub_entry, existing_subentry)
 
     flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
-    flow.context = {"subentry_id": existing_subentry.subentry_id}
+    flow.context = {"subentry_id": existing_subentry.subentry_id, "source": SOURCE_RECONFIGURE}
     flow._get_reconfigure_subentry = Mock(return_value=existing_subentry)
 
     # Show reconfigure form (user_input=None)
@@ -107,20 +108,18 @@ async def test_reconfigure_with_string_entity_id_v010_format(hass: HomeAssistant
     assert result.get("type") == FlowResultType.FORM
     assert result.get("step_id") == "user"
 
-    # Check defaults - should have the string entity ID wrapped in a list
-    defaults = flow._build_step1_defaults("Test Load", dict(existing_subentry.data))
+    # Check defaults - should have entity choice with the string entity ID wrapped in a list
+    defaults = flow._build_defaults("Test Load", dict(existing_subentry.data))
 
-    # Defaults should contain the original entity ID as a list
-    assert defaults[CONF_FORECAST] == ["sensor.load_forecast"]
+    # Defaults should contain entity choice with original entity ID as list
+    assert defaults[CONF_FORECAST] == {"choice": CHOICE_ENTITY, "value": ["sensor.load_forecast"]}
 
 
-async def test_reconfigure_with_scalar_value_shows_configurable_entity(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
-    """Reconfigure with scalar value should show configurable entity in defaults."""
-    from custom_components.haeo.flows.field_schema import get_configurable_entity_id
-
+async def test_reconfigure_with_scalar_shows_constant_defaults(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
+    """Reconfigure with scalar value should show constant choice in defaults."""
     add_participant(hass, hub_entry, "TestNode", node.ELEMENT_TYPE)
 
-    # Create existing entry with scalar value (from configurable entity setup)
+    # Create existing entry with scalar value (from constant config)
     existing_config = {
         CONF_ELEMENT_TYPE: ELEMENT_TYPE,
         CONF_NAME: "Test Load",
@@ -136,19 +135,18 @@ async def test_reconfigure_with_scalar_value_shows_configurable_entity(hass: Hom
     hass.config_entries.async_add_subentry(hub_entry, existing_subentry)
 
     flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
-    flow.context = {"subentry_id": existing_subentry.subentry_id}
+    flow.context = {"subentry_id": existing_subentry.subentry_id, "source": SOURCE_RECONFIGURE}
     flow._get_reconfigure_subentry = Mock(return_value=existing_subentry)
 
-    # Check defaults - should resolve to configurable entity since no HAEO entity exists
-    defaults = flow._build_step1_defaults("Test Load", dict(existing_subentry.data))
+    # Check defaults - should resolve to constant choice with the scalar value
+    defaults = flow._build_defaults("Test Load", dict(existing_subentry.data))
 
-    # Without a registered HAEO entity, resolves to configurable entity
-    configurable_entity_id = get_configurable_entity_id()
-    assert defaults[CONF_FORECAST] == [configurable_entity_id]
+    # Defaults should contain constant choice with the scalar value
+    assert defaults[CONF_FORECAST] == {"choice": CHOICE_CONSTANT, "value": 100.0}
 
 
-async def test_reconfigure_with_missing_field_shows_empty_selection(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
-    """Reconfigure with missing field should show empty selection in defaults."""
+async def test_reconfigure_with_missing_field_shows_none_default(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
+    """Reconfigure with missing field should show None in defaults."""
     add_participant(hass, hub_entry, "TestNode", node.ELEMENT_TYPE)
 
     # Create existing entry without forecast field (simulating missing optional field)
@@ -167,11 +165,73 @@ async def test_reconfigure_with_missing_field_shows_empty_selection(hass: HomeAs
     hass.config_entries.async_add_subentry(hub_entry, existing_subentry)
 
     flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
-    flow.context = {"subentry_id": existing_subentry.subentry_id}
+    flow.context = {"subentry_id": existing_subentry.subentry_id, "source": SOURCE_RECONFIGURE}
     flow._get_reconfigure_subentry = Mock(return_value=existing_subentry)
 
-    # Check defaults - missing field should show empty selection
-    defaults = flow._build_step1_defaults("Test Load", dict(existing_subentry.data))
+    # Check defaults - missing field should show None
+    defaults = flow._build_defaults("Test Load", dict(existing_subentry.data))
 
-    # Missing field should result in empty selection
-    assert defaults[CONF_FORECAST] == []
+    # Missing field should result in None default
+    assert defaults.get(CONF_FORECAST) is None
+
+
+async def test_user_step_with_entity_creates_entry(
+    hass: HomeAssistant,
+    hub_entry: MockConfigEntry,
+) -> None:
+    """Submitting with entity selection should create entry with entity ID."""
+    add_participant(hass, hub_entry, "TestNode", node.ELEMENT_TYPE)
+
+    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
+    flow.async_create_entry = Mock(
+        return_value={
+            "type": FlowResultType.CREATE_ENTRY,
+            "title": "Test Load",
+            "data": {},
+        }
+    )
+
+    # Submit with entity selection using choose selector format
+    user_input = {
+        CONF_NAME: "Test Load",
+        CONF_CONNECTION: "TestNode",
+        CONF_FORECAST: {"choice": CHOICE_ENTITY, "value": ["sensor.load_forecast"]},
+    }
+    result = await flow.async_step_user(user_input=user_input)
+
+    assert result.get("type") == FlowResultType.CREATE_ENTRY
+
+    # Verify the config contains the entity ID as string
+    create_kwargs = flow.async_create_entry.call_args.kwargs
+    assert create_kwargs["data"][CONF_FORECAST] == "sensor.load_forecast"
+
+
+async def test_user_step_with_constant_creates_entry(
+    hass: HomeAssistant,
+    hub_entry: MockConfigEntry,
+) -> None:
+    """Submitting with constant value should create entry with value."""
+    add_participant(hass, hub_entry, "TestNode", node.ELEMENT_TYPE)
+
+    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
+    flow.async_create_entry = Mock(
+        return_value={
+            "type": FlowResultType.CREATE_ENTRY,
+            "title": "Test Load",
+            "data": {},
+        }
+    )
+
+    # Submit with constant value using choose selector format
+    user_input = {
+        CONF_NAME: "Test Load",
+        CONF_CONNECTION: "TestNode",
+        CONF_FORECAST: {"choice": CHOICE_CONSTANT, "value": 5.0},
+    }
+    result = await flow.async_step_user(user_input=user_input)
+
+    assert result.get("type") == FlowResultType.CREATE_ENTRY
+
+    # Verify the config contains the constant value
+    create_kwargs = flow.async_create_entry.call_args.kwargs
+    assert create_kwargs["data"][CONF_FORECAST] == 5.0

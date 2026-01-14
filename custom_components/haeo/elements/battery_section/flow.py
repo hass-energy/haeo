@@ -1,6 +1,6 @@
 """Battery section element configuration flows."""
 
-from typing import Any, ClassVar, cast
+from typing import Any, cast
 
 from homeassistant.config_entries import ConfigSubentry, ConfigSubentryFlow, SubentryFlowResult, UnknownSubEntry
 from homeassistant.helpers.selector import TextSelector, TextSelectorConfig
@@ -11,49 +11,37 @@ from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME, DOMAIN
 from custom_components.haeo.data.loader.extractors import extract_entity_metadata
 from custom_components.haeo.flows.element_flow import ElementFlowMixin, build_inclusion_map
 from custom_components.haeo.flows.field_schema import (
-    build_configurable_value_schema,
-    build_entity_schema_entry,
-    convert_entity_selections_to_config,
-    extract_entity_selections,
-    get_configurable_entity_id,
-    get_configurable_value_defaults,
-    has_configurable_selection,
-    resolve_configurable_entity_id,
+    build_choose_schema_entry,
+    convert_choose_data_to_config,
+    get_choose_default,
 )
 
 from .schema import ELEMENT_TYPE, INPUT_FIELDS, BatterySectionConfigSchema
 
-# Keys to exclude when extracting entity selections
+# Keys to exclude when converting choose data to config
 _EXCLUDE_KEYS = (CONF_NAME,)
 
 
 class BatterySectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
     """Handle battery section element configuration flows."""
 
-    has_value_source_step: ClassVar[bool] = True
-
-    def __init__(self) -> None:
-        """Initialize the flow handler."""
-        super().__init__()
-        self._step1_data: dict[str, Any] = {}
-
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> SubentryFlowResult:
-        """Handle step 1: name and entity selection."""
-        return await self._async_step1(user_input)
+        """Handle user step: name and input configuration."""
+        return await self._async_step_user(user_input)
 
     async def async_step_reconfigure(self, user_input: dict[str, Any] | None = None) -> SubentryFlowResult:
-        """Handle reconfigure step 1: name and entity selection."""
-        return await self._async_step1(user_input)
+        """Handle reconfigure step: name and input configuration."""
+        return await self._async_step_user(user_input)
 
-    async def _async_step1(self, user_input: dict[str, Any] | None) -> SubentryFlowResult:
-        """Shared logic for step 1: name and entity selection."""
+    async def _async_step_user(self, user_input: dict[str, Any] | None) -> SubentryFlowResult:
+        """Shared logic for user and reconfigure steps."""
         errors = self._validate_user_input(user_input)
         subentry = self._get_subentry()
         subentry_data = dict(subentry.data) if subentry else None
 
         if user_input is not None and not errors:
-            self._step1_data = user_input
-            return await self.async_step_values()
+            config = self._build_config(user_input)
+            return self._finalize(config, user_input)
 
         translations = await async_get_translations(
             self.hass, self.hass.config.language, "config_subentries", integrations=[DOMAIN]
@@ -62,17 +50,15 @@ class BatterySectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
 
         entity_metadata = extract_entity_metadata(self.hass)
         inclusion_map = build_inclusion_map(INPUT_FIELDS, entity_metadata)
-        schema = self._build_step1_schema(inclusion_map)
-        defaults = user_input if user_input is not None else self._build_step1_defaults(default_name, subentry_data)
+
+        schema = self._build_schema(inclusion_map)
+        defaults = user_input if user_input is not None else self._build_defaults(default_name, subentry_data)
         schema = self.add_suggested_values_to_schema(schema, defaults)
 
         return self.async_show_form(step_id="user", data_schema=schema, errors=errors)
 
-    def _build_step1_schema(
-        self,
-        inclusion_map: dict[str, list[str]],
-    ) -> vol.Schema:
-        """Build the schema for step 1: name and entity selections."""
+    def _build_schema(self, inclusion_map: dict[str, list[str]]) -> vol.Schema:
+        """Build the schema with name and choose selectors for inputs."""
         schema_dict: dict[vol.Marker, Any] = {
             vol.Required(CONF_NAME): vol.All(
                 vol.Coerce(str),
@@ -83,115 +69,83 @@ class BatterySectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         }
 
         for field_info in INPUT_FIELDS:
+            is_optional = field_info.field_name in BatterySectionConfigSchema.__optional_keys__
             include_entities = inclusion_map.get(field_info.field_name)
-            marker, selector = build_entity_schema_entry(
+            marker, selector = build_choose_schema_entry(
                 field_info,
-                config_schema=BatterySectionConfigSchema,
+                is_optional=is_optional,
                 include_entities=include_entities,
             )
             schema_dict[marker] = selector
 
         return vol.Schema(schema_dict)
 
+    def _build_defaults(self, default_name: str, subentry_data: dict[str, Any] | None = None) -> dict[str, Any]:
+        """Build default values for the form."""
+        defaults: dict[str, Any] = {
+            CONF_NAME: default_name if subentry_data is None else subentry_data.get(CONF_NAME),
+        }
+
+        entry_id: str | None = None
+        subentry_id: str | None = None
+        if subentry_data is not None:
+            entry = self._get_entry()
+            subentry = self._get_subentry()
+            entry_id = entry.entry_id
+            subentry_id = subentry.subentry_id if subentry else None
+
+        for field_info in INPUT_FIELDS:
+            choose_default = get_choose_default(
+                field_info,
+                current_data=subentry_data,
+                entry_id=entry_id,
+                subentry_id=subentry_id,
+            )
+            if choose_default is not None:
+                defaults[field_info.field_name] = choose_default
+
+        return defaults
+
     def _validate_user_input(self, user_input: dict[str, Any] | None) -> dict[str, str] | None:
+        """Validate user input and return errors dict if any."""
         if user_input is None:
             return None
         errors: dict[str, str] = {}
         self._validate_name(user_input.get(CONF_NAME), errors)
-        self._validate_entity_selections(user_input, errors)
+        self._validate_choose_fields(user_input, errors)
         return errors if errors else None
 
-    async def async_step_values(self, user_input: dict[str, Any] | None = None) -> SubentryFlowResult:
-        """Handle step 2: configurable value entry."""
-        errors: dict[str, str] = {}
-        subentry = self._get_subentry()
-        current_data = dict(subentry.data) if subentry else None
-        entity_selections = extract_entity_selections(self._step1_data, _EXCLUDE_KEYS)
+    def _validate_choose_fields(self, user_input: dict[str, Any], errors: dict[str, str]) -> None:
+        """Validate that required choose fields have valid selections."""
+        for field_info in INPUT_FIELDS:
+            field_name = field_info.field_name
+            is_optional = field_name in BatterySectionConfigSchema.__optional_keys__
 
-        if user_input is not None and self._validate_configurable_values(entity_selections, user_input, errors):
-            config = self._build_config(entity_selections, user_input, current_data)
-            return self._finalize(config)
+            if is_optional:
+                continue
 
-        schema = build_configurable_value_schema(INPUT_FIELDS, entity_selections, current_data)
+            value = user_input.get(field_name)
+            if not self._is_valid_choose_value(value):
+                errors[field_name] = "required"
 
-        # Skip step 2 if no configurable fields need input
-        if not schema.schema:
-            configurable_values = get_configurable_value_defaults(INPUT_FIELDS, entity_selections, current_data)
-            config = self._build_config(entity_selections, configurable_values, current_data)
-            return self._finalize(config)
+    def _is_valid_choose_value(self, value: Any) -> bool:
+        """Check if a choose selector value is valid (has a selection)."""
+        if not isinstance(value, dict):
+            return False
+        choice = value.get("choice")
+        inner_value = value.get("value")
+        if choice == "constant":
+            return inner_value is not None
+        if choice == "entity":
+            return bool(inner_value)
+        return False
 
-        defaults = get_configurable_value_defaults(INPUT_FIELDS, entity_selections, current_data)
-        schema = self.add_suggested_values_to_schema(schema, defaults)
+    def _build_config(self, user_input: dict[str, Any]) -> BatterySectionConfigSchema:
+        """Build final config dict from user input."""
+        name = user_input.get(CONF_NAME)
 
-        return self.async_show_form(step_id="values", data_schema=schema, errors=errors)
+        config_dict = convert_choose_data_to_config(user_input, INPUT_FIELDS, _EXCLUDE_KEYS)
 
-    def _build_step1_defaults(self, default_name: str, subentry_data: dict[str, Any] | None = None) -> dict[str, Any]:
-        """Build default values for step 1 form.
-
-        Uses the InputFieldDefaults.mode to determine pre-selection:
-        - mode='value': Pre-select the configurable entity
-        - mode='entity': Pre-select the specified entity
-        - mode=None: No pre-selection (empty list)
-        """
-        configurable_entity_id = get_configurable_entity_id()
-
-        if subentry_data is None:
-            # First setup: pre-select configurable entity when defaults.mode == "value"
-            defaults: dict[str, Any] = {}
-            for field in INPUT_FIELDS:
-                if field.defaults is not None and field.defaults.mode == "value":
-                    defaults[field.field_name] = [configurable_entity_id]
-                else:
-                    defaults[field.field_name] = []
-            defaults[CONF_NAME] = default_name
-            return defaults
-
-        # Reconfigure: get entry/subentry IDs for resolving created entities
-        subentry = self._get_subentry()
-        entry = self._get_entry()
-        entry_id = entry.entry_id
-        subentry_id = subentry.subentry_id if subentry else ""
-
-        entity_defaults: dict[str, Any] = {}
-        for field in INPUT_FIELDS:
-            value = subentry_data.get(field.field_name)
-            if isinstance(value, list):
-                # Entity link (multi-select): use stored entity IDs
-                entity_defaults[field.field_name] = value
-            elif isinstance(value, str):
-                # Entity ID (single-select from v0.1.0): use as-is
-                entity_defaults[field.field_name] = [value]
-            elif isinstance(value, (float, int, bool)):
-                # Scalar value: resolve to the HAEO-created entity
-                resolved = resolve_configurable_entity_id(entry_id, subentry_id, field.field_name)
-                entity_defaults[field.field_name] = [resolved or configurable_entity_id]
-            else:
-                # Field not in stored data: empty selection (user cleared it)
-                entity_defaults[field.field_name] = []
-
-        return {
-            CONF_NAME: subentry_data.get(CONF_NAME),
-            **entity_defaults,
-        }
-
-    def _build_config(
-        self,
-        entity_selections: dict[str, list[str]],
-        configurable_values: dict[str, Any],
-        current_data: dict[str, Any] | None = None,
-    ) -> BatterySectionConfigSchema:
-        """Build final config dict from step data."""
-        name = self._step1_data.get(CONF_NAME)
-        entry = self._get_entry()
-        subentry = self._get_subentry()
-        config_dict = convert_entity_selections_to_config(
-            entity_selections,
-            configurable_values,
-            INPUT_FIELDS,
-            current_data,
-            entry_id=entry.entry_id,
-            subentry_id=subentry.subentry_id if subentry else None,
-        )
         return cast(
             "BatterySectionConfigSchema",
             {
@@ -201,48 +155,17 @@ class BatterySectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             },
         )
 
-    def _finalize(self, config: BatterySectionConfigSchema) -> SubentryFlowResult:
+    def _finalize(self, config: BatterySectionConfigSchema, user_input: dict[str, Any]) -> SubentryFlowResult:
         """Finalize the flow by creating or updating the entry."""
-        name = str(self._step1_data.get(CONF_NAME))
+        name = str(user_input.get(CONF_NAME))
         subentry = self._get_subentry()
         if subentry is not None:
             return self.async_update_and_abort(self._get_entry(), subentry, title=name, data=config)
         return self.async_create_entry(title=name, data=config)
 
     def _get_subentry(self) -> ConfigSubentry | None:
+        """Get the subentry being reconfigured, or None for new entries."""
         try:
             return self._get_reconfigure_subentry()
         except (ValueError, UnknownSubEntry):
             return None
-
-    def _validate_entity_selections(self, user_input: dict[str, Any], errors: dict[str, str]) -> bool:
-        """Validate that required entity fields have at least one selection."""
-        for field_info in INPUT_FIELDS:
-            field_name = field_info.field_name
-            entities = user_input.get(field_name, [])
-            is_optional = field_name in BatterySectionConfigSchema.__optional_keys__
-
-            if not is_optional and not entities:
-                errors[field_name] = "required"
-
-        return not errors
-
-    def _validate_configurable_values(
-        self,
-        entity_selections: dict[str, list[str]],
-        user_input: dict[str, Any],
-        errors: dict[str, str],
-    ) -> bool:
-        """Validate that configurable values were provided where needed.
-
-        Step 2 values are always required when configurable entity is selected.
-        """
-        for field_info in INPUT_FIELDS:
-            field_name = field_info.field_name
-            is_configurable = has_configurable_selection(entity_selections.get(field_name, []))
-            is_missing = field_name not in user_input
-            # Always require a value when configurable is selected
-            if is_configurable and is_missing:
-                errors[field_name] = "required"
-
-        return not errors

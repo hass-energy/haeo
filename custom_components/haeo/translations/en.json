@@ -344,7 +344,6 @@
     "solar": { "name": "{name}" }
   },
   "entity": {
-    "haeo": { "configurable_entity": { "name": "Configurable Entity" } },
     "number": {
       "battery_capacity": { "name": "Capacity" },
       "battery_discharge_cost": { "name": "Discharge cost" },
@@ -479,6 +478,7 @@
   "selector": {
     "horizon_preset": {
       "options": { "2_days": "2 days", "3_days": "3 days", "5_days": "5 days", "7_days": "7 days", "custom": "Custom" }
-    }
+    },
+    "input_source": { "choices": { "entity": "Entity", "constant": "Constant" } }
   }
 }

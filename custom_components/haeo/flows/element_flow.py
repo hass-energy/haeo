@@ -8,7 +8,7 @@ This module provides:
 - ElementFlowMixin: Mixin providing common subentry flow functionality
 """
 
-from typing import Any, ClassVar, Final
+from typing import Any, Final
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import PERCENTAGE, UnitOfEnergy, UnitOfPower
@@ -136,13 +136,7 @@ class ElementFlowMixin:
     - _get_reconfigure_subentry(): Returns the subentry being reconfigured
     - context: Flow context dict (from ConfigSubentryFlow)
 
-    Class variables that can be set by subclasses:
-    - has_value_source_step: Whether the flow uses a separate step for value sources
-
     """
-
-    # Class variable indicating whether this flow uses a separate value source step
-    has_value_source_step: ClassVar[bool] = False
 
     def _get_used_names(self) -> set[str]:
         """Return all configured element names excluding the current subentry.
