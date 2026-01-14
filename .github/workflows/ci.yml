@@ -18,6 +18,7 @@ permissions:
   checks: write
 
 jobs:
+  #region Linting and formatting
   # =============================================================================
   # Linting and formatting checks
   # =============================================================================
@@ -105,8 +106,25 @@ jobs:
       - name: Pyright (reviewdog)
         if: github.event_name == 'pull_request'
         run: |
-          uv run pyright \
-            | reviewdog -efm="%f:%l:%c - %t%*[^:]: %m" -name="pyright type check" -reporter=github-pr-review -filter-mode=nofilter -fail-level=any
+          # Run pyright with JSON output, capturing regardless of exit code
+          uv run pyright --outputjson > pyright_output.json || true
+          # Convert to rdjson format and pipe to reviewdog
+          jq '{
+            source: {name: "pyright", url: "https://github.com/Microsoft/pyright"},
+            severity: "ERROR",
+            diagnostics: [.generalDiagnostics[]? | {
+              message: (if .rule then "\(.message) (\(.rule))" else .message end),
+              severity: (.severity | ascii_upcase),
+              location: {
+                path: .file,
+                range: {
+                  start: {line: (.range.start.line + 1), column: (.range.start.character + 1)},
+                  end: {line: (.range.end.line + 1), column: (.range.end.character + 1)}
+                }
+              }
+            }]
+          }' pyright_output.json \
+            | reviewdog -f=rdjson -name="pyright" -reporter=github-pr-review -filter-mode=nofilter -fail-level=any
 
       - name: Pyright (check)
         if: github.event_name != 'pull_request'
@@ -173,7 +191,9 @@ jobs:
       - name: Markdown format (check)
         if: github.event_name != 'pull_request'
         run: uv run mdformat --check $(git ls-files '*.md' '*.mdx')
+  #endregion
 
+  #region Tests
   # =============================================================================
   # Tests
   # =============================================================================
@@ -209,7 +229,9 @@ jobs:
         with:
           fail_ci_if_error: true
           token: ${{ secrets.CODECOV_TOKEN }}
+  #endregion
 
+  #region Validation
   # =============================================================================
   # Validation checks
   # =============================================================================
@@ -276,7 +298,9 @@ jobs:
 
       - name: Build documentation
         run: uv run zensical build
+  #endregion
 
+  #region CI passed
   # =============================================================================
   # CI passed (single required check)
   # =============================================================================
@@ -308,3 +332,4 @@ jobs:
             exit 1
           fi
           echo "All required jobs passed!"
+  #endregion
