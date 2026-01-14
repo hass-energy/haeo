@@ -35,32 +35,6 @@ VALID: list[dict[str, Any]] = [
         ],
         "description": "Flow Power export price with two periods",
     },
-    {
-        "entity_id": "sensor.flow_power_import_price",
-        "state": "0.35",
-        "attributes": {
-            "region": "NSW1",
-            "unit": "$/kWh",
-            "forecast_dict": {
-                "2026-01-14 17:30:00+1100": 0.45,
-            },
-            "price_cents": 35,
-            "is_happy_hour": True,
-            "happy_hour_rate": 0.45,
-            "happy_hour_start": "17:30",
-            "happy_hour_end": "19:30",
-            "unit_of_measurement": "$/kWh",
-            "device_class": "monetary",
-            "friendly_name": "Flow Power (NSW1) Import Price",
-        },
-        "expected_format": "flow_power",
-        "expected_unit": "$/kWh",
-        # Single entry: no way to determine period length, just emit start point
-        "expected_data": [
-            (1768372200.0, 0.45),  # Start of period (17:30)
-        ],
-        "description": "Flow Power import price single period (Happy Hour)",
-    },
 ]
 
 # Invalid Flow Power sensor configurations
@@ -88,6 +62,13 @@ INVALID: list[dict[str, Any]] = [
         "attributes": {"forecast_dict": {}},
         "expected_format": None,
         "description": "Flow Power sensor with empty forecast_dict",
+    },
+    {
+        "entity_id": "sensor.flow_power_single_entry",
+        "state": "0",
+        "attributes": {"forecast_dict": {"2026-01-14 12:00:00+1100": 0.45}},
+        "expected_format": None,
+        "description": "Flow Power sensor with single entry (requires at least 2)",
     },
     {
         "entity_id": "sensor.flow_power_bad_timestamp",

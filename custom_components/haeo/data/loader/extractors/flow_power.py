@@ -5,6 +5,7 @@ Adjustment (PEA) and Happy Hour export pricing. See: https://github.com/bolagnai
 """
 
 from collections.abc import Mapping, Sequence
+from itertools import pairwise
 import logging
 from typing import Literal, Protocol, TypedDict, TypeGuard
 
@@ -44,13 +45,16 @@ class Parser:
 
     @staticmethod
     def detect(state: State) -> TypeGuard[FlowPowerState]:
-        """Check if data matches Flow Power format and narrow type."""
+        """Check if data matches Flow Power format and narrow type.
+
+        Requires at least 2 entries to determine period length.
+        """
 
         if "forecast_dict" not in state.attributes:
             return False
 
         forecast_dict = state.attributes["forecast_dict"]
-        if not isinstance(forecast_dict, Mapping) or not forecast_dict:
+        if not isinstance(forecast_dict, Mapping) or len(forecast_dict) < 2:  # noqa: PLR2004
             return False
 
         return all(
@@ -80,23 +84,17 @@ class Parser:
         entries.sort(key=lambda x: x[0])
 
         # Create step function with start and end points for each period
+        # Use pairwise to get (current, next) pairs for all but last entry
         parsed: list[tuple[int, float]] = []
-
-        for i, (start_ts, price) in enumerate(entries):
-            if i < len(entries) - 1:
-                # Use next timestamp as end of this period
-                end_ts = entries[i + 1][0]
-            elif len(entries) >= 2:  # noqa: PLR2004
-                # Last entry: use same period length as previous
-                prev_period = entries[-1][0] - entries[-2][0]
-                end_ts = start_ts + prev_period
-            else:
-                # Single entry: no way to determine period, just emit start point
-                parsed.append((start_ts, price))
-                continue
-
+        for (start_ts, price), (end_ts, _) in pairwise(entries):
             parsed.append((start_ts, price))
             parsed.append((end_ts, price))
+
+        # Handle last entry: repeat previous period length
+        last_ts, last_price = entries[-1]
+        prev_period = entries[-1][0] - entries[-2][0]
+        parsed.append((last_ts, last_price))
+        parsed.append((last_ts + prev_period, last_price))
 
         parsed.sort(key=lambda x: x[0])
         return parsed, Parser.UNIT, Parser.DEVICE_CLASS
