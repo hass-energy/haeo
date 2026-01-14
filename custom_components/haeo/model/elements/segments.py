@@ -44,7 +44,7 @@ class ConnectionSegment(ABC):
     def __init__(
         self,
         segment_id: str,
-        periods: NDArray[np.floating[Any]],
+        periods: Sequence[float] | NDArray[np.floating[Any]],
         solver: Highs,
     ) -> None:
         """Initialize a segment with LP variables.
@@ -56,9 +56,9 @@ class ConnectionSegment(ABC):
 
         """
         self._segment_id = segment_id
-        self._periods = periods
+        self._periods: NDArray[np.floating[Any]] = np.asarray(periods)
         self._solver = solver
-        n_periods = len(periods)
+        n_periods = len(self._periods)
 
         # Create power variables for both directions
         # Source→Target direction
@@ -455,6 +455,7 @@ class TimeSliceSegment(ConnectionSegment):
 __all__ = [
     "ConnectionSegment",
     "EfficiencySegment",
+    "NumericParam",
     "PassthroughSegment",
     "PowerLimitSegment",
     "PricingSegment",

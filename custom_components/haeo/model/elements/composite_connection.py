@@ -15,10 +15,12 @@ Example:
 """
 
 from collections.abc import Mapping, Sequence
-from typing import Final, Literal
+from typing import Any, Final, Literal
 
 from highspy import Highs
 from highspy.highs import HighspyArray, highs_cons, highs_linear_expression
+import numpy as np
+from numpy.typing import NDArray
 
 from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.element import Element
@@ -57,7 +59,7 @@ class CompositeConnection(Element[CompositeConnectionOutputName]):
     def __init__(
         self,
         name: str,
-        periods: Sequence[float],
+        periods: Sequence[float] | NDArray[np.floating[Any]],
         *,
         solver: Highs,
         source: str,

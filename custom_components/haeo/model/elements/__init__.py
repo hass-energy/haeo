@@ -33,6 +33,7 @@ from .power_connection import PowerConnection as PowerConnection
 from .power_connection import PowerConnectionOutputName as PowerConnectionOutputName
 from .segments import ConnectionSegment as ConnectionSegment
 from .segments import EfficiencySegment as EfficiencySegment
+from .segments import NumericParam as NumericParam
 from .segments import PassthroughSegment as PassthroughSegment
 from .segments import PowerLimitSegment as PowerLimitSegment
 from .segments import PricingSegment as PricingSegment
@@ -112,6 +113,7 @@ __all__ = [
     "ModelElementType",
     "Node",
     "NodeOutputName",
+    "NumericParam",
     "PassthroughSegment",
     "PowerConnection",
     "PowerConnectionOutputName",

@@ -7,6 +7,7 @@ constraints doesn't degrade solver performance.
 import time
 
 from highspy import Highs
+from highspy.highs import HighspyArray
 
 
 def test_equality_chain_solve_time_scaling() -> None:
@@ -21,9 +22,10 @@ def test_equality_chain_solve_time_scaling() -> None:
     def solve_chain(chain_length: int) -> float:
         """Create and solve a chain, return solve time."""
         h = Highs()
-        h.silent()
+        h.setOptionValue("output_flag", False)
+        h.setOptionValue("log_to_console", False)
 
-        segments: list[tuple[object, object]] = []
+        segments: list[tuple[HighspyArray, HighspyArray]] = []
         for i in range(chain_length):
             power_in = h.addVariables(n_periods, lb=0, ub=10.0, name_prefix=f"seg{i}_in_", out_array=True)
             power_out = h.addVariables(n_periods, lb=0, ub=10.0, name_prefix=f"seg{i}_out_", out_array=True)

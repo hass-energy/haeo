@@ -1,9 +1,8 @@
 """Tests for composed connection segments."""
 
-import pytest
 from highspy import Highs
 import numpy as np
-from numpy.typing import NDArray
+import pytest
 
 from custom_components.haeo.model.elements.composite_connection import CompositeConnection
 from custom_components.haeo.model.elements.connection_factory import create_power_connection
@@ -20,7 +19,8 @@ from custom_components.haeo.model.elements.segments import (
 def create_solver() -> Highs:
     """Create a silent HiGHS solver."""
     h = Highs()
-    h.silent()
+    h.setOptionValue("output_flag", False)
+    h.setOptionValue("log_to_console", False)
     return h
 
 
@@ -127,7 +127,7 @@ class TestPricingSegment:
         # Expected cost: (10 * 0.1 * 1.0) + (10 * 0.1 * 0.5) + (5 * 0.2 * 1.0) + (5 * 0.2 * 0.5)
         # = 1.0 + 0.5 + 1.0 + 0.5 = 3.0
         expected_cost = (10 * 0.1 * 1.0) + (10 * 0.1 * 0.5) + (5 * 0.2 * 1.0) + (5 * 0.2 * 0.5)
-        assert abs(h.getInfo().objective_function_value - expected_cost) < 0.001
+        assert abs(h.getObjectiveValue() - expected_cost) < 0.001
 
 
 class TestTimeSliceSegment:
@@ -216,7 +216,7 @@ class TestCompositeConnection:
         h = create_solver()
         periods = np.array([1.0])
 
-        # 90% efficiency
+        # Segment with ninety percent efficiency
         eff = EfficiencySegment("eff", periods, h, efficiency_st=0.9, efficiency_ts=0.9)
 
         conn = CompositeConnection(
@@ -270,8 +270,8 @@ class TestCompositeConnection:
         h.minimize(cost_expr)
         h.run()
 
-        # Expected: 10 * 0.1 * 1.0 = 1.0
-        assert abs(h.getInfo().objective_function_value - 1.0) < 0.001
+        # Expected cost: 10 kW * 0.1 $/kWh * 1.0 hours = 1.0
+        assert abs(h.getObjectiveValue() - 1.0) < 0.001
 
     def test_requires_at_least_one_segment(self) -> None:
         """CompositeConnection should require at least one segment."""

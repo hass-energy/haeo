@@ -14,6 +14,7 @@ from .composite_connection import CompositeConnection
 from .segments import (
     ConnectionSegment,
     EfficiencySegment,
+    NumericParam,
     PassthroughSegment,
     PowerLimitSegment,
     PricingSegment,
@@ -23,18 +24,18 @@ from .segments import (
 
 def create_power_connection(
     name: str,
-    periods: Sequence[float],
+    periods: Sequence[float] | NDArray[np.floating],
     *,
     solver: Highs,
     source: str,
     target: str,
-    max_power_source_target: float | Sequence[float] | None = None,
-    max_power_target_source: float | Sequence[float] | None = None,
+    max_power_source_target: NumericParam | None = None,
+    max_power_target_source: NumericParam | None = None,
     fixed_power: bool = False,
-    efficiency_source_target: float | Sequence[float] | None = None,
-    efficiency_target_source: float | Sequence[float] | None = None,
-    price_source_target: float | Sequence[float] | None = None,
-    price_target_source: float | Sequence[float] | None = None,
+    efficiency_source_target: NumericParam | None = None,
+    efficiency_target_source: NumericParam | None = None,
+    price_source_target: NumericParam | None = None,
+    price_target_source: NumericParam | None = None,
 ) -> CompositeConnection:
     """Create a CompositeConnection with PowerConnection-equivalent behavior.
 
@@ -153,7 +154,7 @@ def create_power_connection(
 
 
 def _to_fraction(
-    efficiency: float | Sequence[float] | None,
+    efficiency: NumericParam | None,
     n_periods: int,
 ) -> NDArray[np.floating]:
     """Convert efficiency percentage to fraction, defaulting to 100%."""

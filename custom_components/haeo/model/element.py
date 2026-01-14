@@ -32,7 +32,7 @@ class Element[OutputNameT: str]:
     def __init__(
         self,
         name: str,
-        periods: Sequence[float],
+        periods: Sequence[float] | NDArray[np.floating[Any]],
         *,
         solver: Highs,
         output_names: frozenset[OutputNameT],
