@@ -16,6 +16,8 @@ from homeassistant.helpers.selector import (
     ChooseSelector,
     ChooseSelectorChoiceConfig,
     ChooseSelectorConfig,
+    ConstantSelector,
+    ConstantSelectorConfig,
     EntitySelector,
     EntitySelectorConfig,
     NumberSelector,
@@ -30,6 +32,7 @@ from custom_components.haeo.elements.input_fields import InputFieldInfo
 # Choose selector choice keys (used for config flow data and translations)
 CHOICE_ENTITY = "entity"
 CHOICE_CONSTANT = "constant"
+CHOICE_DISABLED = "disabled"
 
 
 def number_selector_from_field(
@@ -154,6 +157,8 @@ def build_entity_selector(
 def get_preferred_choice(
     field_info: InputFieldInfo[Any],
     current_data: dict[str, Any] | None = None,
+    *,
+    is_optional: bool = False,
 ) -> str:
     """Determine which choice should be first in the ChooseSelector.
 
@@ -163,24 +168,33 @@ def get_preferred_choice(
     Args:
         field_info: Input field metadata.
         current_data: Current configuration data (for reconfigure).
+        is_optional: Whether the field is optional (enables "disabled" choice).
 
     Returns:
-        CHOICE_ENTITY or CHOICE_CONSTANT based on context.
+        CHOICE_ENTITY, CHOICE_CONSTANT, or CHOICE_DISABLED based on context.
 
     """
     field_name = field_info.field_name
 
     # Check current stored data first (for reconfigure)
-    if current_data is not None and field_name in current_data:
-        current_value = current_data[field_name]
-        # String = entity ID, number/bool = constant
-        if isinstance(current_value, str):
-            return CHOICE_ENTITY
-        return CHOICE_CONSTANT
+    if current_data is not None:
+        if field_name in current_data:
+            current_value = current_data[field_name]
+            # String = entity ID, number/bool = constant
+            if isinstance(current_value, str):
+                return CHOICE_ENTITY
+            return CHOICE_CONSTANT
+        # Field not in current_data means it was disabled (for optional fields)
+        if is_optional:
+            return CHOICE_DISABLED
 
     # For new entries, use field defaults
     if field_info.defaults is not None and field_info.defaults.mode == "value":
         return CHOICE_CONSTANT
+
+    # For optional fields with no defaults, default to disabled
+    if is_optional and field_info.defaults is None:
+        return CHOICE_DISABLED
 
     # Default to entity
     return CHOICE_ENTITY
@@ -189,20 +203,22 @@ def get_preferred_choice(
 def build_choose_selector(
     field_info: InputFieldInfo[Any],
     *,
+    is_optional: bool = False,
     include_entities: list[str] | None = None,
     multiple: bool = True,
     preferred_choice: str = CHOICE_ENTITY,
 ) -> Any:
-    """Build a ChooseSelector allowing user to pick Entity or Constant.
+    """Build a ChooseSelector allowing user to pick Entity, Constant, or Disabled.
 
     Args:
         field_info: Input field metadata.
+        is_optional: Whether the field is optional (adds "disabled" choice).
         include_entities: Entity IDs to include (compatible entities from unit filtering).
         multiple: Whether to allow multiple entity selection (for chaining).
         preferred_choice: Which choice should appear first (will be pre-selected).
 
     Returns:
-        ChooseSelector with Entity and Constant options.
+        ChooseSelector with Entity and Constant options (and Disabled for optional fields).
 
     Raises:
         RuntimeError: If ChooseSelector is not available (requires HA 2026.1+).
@@ -220,17 +236,45 @@ def build_choose_selector(
     else:
         value_selector = number_selector_from_field(field_info)  # type: ignore[arg-type]
 
-    # Build the choose selector with preferred choice first
-    # (ChooseSelector always selects the first option)
+    # Build choice configs
     entity_choice = ChooseSelectorChoiceConfig(selector=entity_selector)
     constant_choice = ChooseSelectorChoiceConfig(selector=value_selector)
 
-    if preferred_choice == CHOICE_CONSTANT:
-        choices: dict[str, ChooseSelectorChoiceConfig] = {
+    # Build ordered choices dict with preferred choice first
+    # (ChooseSelector always selects the first option)
+    choices: dict[str, ChooseSelectorChoiceConfig]
+    disabled_selector = ConstantSelector(ConstantSelectorConfig(value="", translation_key="disabled_label"))
+    disabled_choice = ChooseSelectorChoiceConfig(selector=disabled_selector)
+
+    if is_optional and preferred_choice == CHOICE_DISABLED:
+        # Optional field with disabled preferred
+        choices = {
+            CHOICE_DISABLED: disabled_choice,
+            CHOICE_ENTITY: entity_choice,
+            CHOICE_CONSTANT: constant_choice,
+        }
+    elif is_optional and preferred_choice == CHOICE_CONSTANT:
+        # Optional field with constant preferred
+        choices = {
+            CHOICE_CONSTANT: constant_choice,
+            CHOICE_ENTITY: entity_choice,
+            CHOICE_DISABLED: disabled_choice,
+        }
+    elif is_optional:
+        # Optional field with entity preferred
+        choices = {
+            CHOICE_ENTITY: entity_choice,
+            CHOICE_CONSTANT: constant_choice,
+            CHOICE_DISABLED: disabled_choice,
+        }
+    elif preferred_choice == CHOICE_CONSTANT:
+        # Required field with constant preferred
+        choices = {
             CHOICE_CONSTANT: constant_choice,
             CHOICE_ENTITY: entity_choice,
         }
     else:
+        # Required field with entity preferred (default)
         choices = {
             CHOICE_ENTITY: entity_choice,
             CHOICE_CONSTANT: constant_choice,
@@ -256,7 +300,7 @@ def build_choose_schema_entry(
 
     Args:
         field_info: Input field metadata.
-        is_optional: Whether the field is optional.
+        is_optional: Whether the field is optional (adds "disabled" choice).
         include_entities: Entity IDs to include (compatible entities from unit filtering).
         multiple: Whether to allow multiple entity selection.
         preferred_choice: Which choice should appear first (will be pre-selected).
@@ -268,6 +312,7 @@ def build_choose_schema_entry(
     field_name = field_info.field_name
     selector = build_choose_selector(
         field_info,
+        is_optional=is_optional,
         include_entities=include_entities,
         multiple=multiple,
         preferred_choice=preferred_choice,
@@ -357,11 +402,14 @@ def convert_choose_data_to_config(
         if field_name not in field_names:
             continue
 
-        # Handle choose selector output format: {"choice": "entity"|"constant", "value": ...}
+        # Handle choose selector output format: {"choice": "entity"|"constant"|"disabled", "value": ...}
         if isinstance(value, dict) and "choice" in value:
             choice = value.get("choice")
             inner_value = value.get("value")
 
+            if choice == CHOICE_DISABLED:
+                # Disabled choice - omit field from config
+                continue
             if choice == CHOICE_CONSTANT and inner_value is not None:
                 # Store constant value directly
                 config[field_name] = inner_value
@@ -390,6 +438,7 @@ def _normalize_entity_selection(entities: list[str] | str) -> str | list[str]:
 
 __all__ = [
     "CHOICE_CONSTANT",
+    "CHOICE_DISABLED",
     "CHOICE_ENTITY",
     "boolean_selector_from_field",
     "build_choose_schema_entry",
@@ -398,6 +447,7 @@ __all__ = [
     "convert_choose_data_to_config",
     "get_choose_default",
     "get_haeo_input_entity_ids",
+    "get_preferred_choice",
     "number_selector_from_field",
     "resolve_haeo_input_entity_id",
 ]

@@ -123,7 +123,7 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                 continue
             is_optional = field_info.field_name in BatteryConfigSchema.__optional_keys__
             include_entities = inclusion_map.get(field_info.field_name)
-            preferred = get_preferred_choice(field_info, subentry_data)
+            preferred = get_preferred_choice(field_info, subentry_data, is_optional=is_optional)
             marker, selector = build_choose_schema_entry(
                 field_info,
                 is_optional=is_optional,
@@ -148,7 +148,7 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         for field_info in PARTITION_FIELDS:
             is_optional = field_info.field_name in BatteryConfigSchema.__optional_keys__
             include_entities = inclusion_map.get(field_info.field_name)
-            preferred = get_preferred_choice(field_info, subentry_data)
+            preferred = get_preferred_choice(field_info, subentry_data, is_optional=is_optional)
             marker, selector = build_choose_schema_entry(
                 field_info,
                 is_optional=is_optional,
