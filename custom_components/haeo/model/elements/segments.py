@@ -14,7 +14,7 @@ HiGHS presolve efficiently eliminates redundant variables from these chains.
 
 from abc import ABC, abstractmethod
 from collections.abc import Mapping, Sequence
-from typing import Any, Literal
+from typing import Any
 
 from highspy import Highs
 from highspy.highs import HighspyArray, highs_cons, highs_linear_expression
@@ -22,6 +22,9 @@ import numpy as np
 from numpy.typing import NDArray
 
 from custom_components.haeo.model.output_data import OutputData
+
+# Type alias for numeric values that can be broadcast to per-period arrays
+type NumericParam = float | Sequence[float] | NDArray[np.floating[Any]]
 
 
 class ConnectionSegment(ABC):
@@ -105,7 +108,7 @@ class ConnectionSegment(ABC):
         """Return the type name for this segment (e.g., 'efficiency', 'limit')."""
 
     @abstractmethod
-    def add_constraints(self) -> dict[str, highs_cons | list[highs_cons]]:
+    def add_constraints(self) -> dict[str, list[highs_cons]]:
         """Add segment-specific constraints to the solver.
 
         Returns:
@@ -163,8 +166,8 @@ class EfficiencySegment(ConnectionSegment):
         periods: NDArray[np.floating[Any]],
         solver: Highs,
         *,
-        efficiency_st: float | Sequence[float],
-        efficiency_ts: float | Sequence[float] | None = None,
+        efficiency_st: NumericParam,
+        efficiency_ts: NumericParam | None = None,
     ) -> None:
         """Initialize efficiency segment.
 
@@ -226,8 +229,8 @@ class PowerLimitSegment(ConnectionSegment):
         periods: NDArray[np.floating[Any]],
         solver: Highs,
         *,
-        max_power_st: float | Sequence[float] | None = None,
-        max_power_ts: float | Sequence[float] | None = None,
+        max_power_st: NumericParam | None = None,
+        max_power_ts: NumericParam | None = None,
         fixed_power: bool = False,
     ) -> None:
         """Initialize power limit segment.
@@ -307,8 +310,8 @@ class PricingSegment(ConnectionSegment):
         periods: NDArray[np.floating[Any]],
         solver: Highs,
         *,
-        price_st: float | Sequence[float] | None = None,
-        price_ts: float | Sequence[float] | None = None,
+        price_st: NumericParam | None = None,
+        price_ts: NumericParam | None = None,
     ) -> None:
         """Initialize pricing segment.
 
@@ -359,7 +362,7 @@ class PricingSegment(ConnectionSegment):
 
     def costs(self) -> highs_linear_expression | None:
         """Return cost expression for transfer pricing."""
-        cost_terms: list[Any] = []
+        cost_terms: list[highs_linear_expression] = []
 
         if self._price_st is not None:
             cost_terms.append(Highs.qsum(self._power_in_st * self._price_st * self._periods))
@@ -369,9 +372,7 @@ class PricingSegment(ConnectionSegment):
 
         if not cost_terms:
             return None
-        if len(cost_terms) == 1:
-            return cost_terms[0]
-        return sum(cost_terms[1:], cost_terms[0])
+        return Highs.qsum(cost_terms)
 
 
 class TimeSliceSegment(ConnectionSegment):
@@ -388,8 +389,8 @@ class TimeSliceSegment(ConnectionSegment):
         periods: NDArray[np.floating[Any]],
         solver: Highs,
         *,
-        capacity_st: float | Sequence[float],
-        capacity_ts: float | Sequence[float],
+        capacity_st: NumericParam,
+        capacity_ts: NumericParam,
     ) -> None:
         """Initialize time slice segment.
 

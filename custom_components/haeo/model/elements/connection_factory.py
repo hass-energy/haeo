@@ -126,8 +126,7 @@ def create_power_connection(
         )
 
     # Time slice segment (only if both directions have limits)
-    has_bidirectional_limits = max_power_source_target is not None and max_power_target_source is not None
-    if has_bidirectional_limits:
+    if max_power_source_target is not None and max_power_target_source is not None:
         # Use the power limits as capacities for normalization
         segments.append(
             TimeSliceSegment(

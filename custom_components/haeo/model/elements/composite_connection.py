@@ -14,11 +14,10 @@ Example:
 """
 
 from collections.abc import Mapping, Sequence
-from typing import Any, Final, Literal
+from typing import Final, Literal
 
 from highspy import Highs
 from highspy.highs import HighspyArray, highs_cons, highs_linear_expression
-import numpy as np
 
 from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.element import Element
@@ -189,16 +188,14 @@ class CompositeConnection(Element[CompositeConnectionOutputName]):
     @cost
     def segment_costs(self) -> highs_linear_expression | None:
         """Aggregate costs from all segments."""
-        cost_terms: list[Any] = []
+        cost_terms: list[highs_linear_expression] = []
         for segment in self._segments:
             if (segment_cost := segment.costs()) is not None:
                 cost_terms.append(segment_cost)
 
         if not cost_terms:
             return None
-        if len(cost_terms) == 1:
-            return cost_terms[0]
-        return sum(cost_terms[1:], cost_terms[0])
+        return Highs.qsum(cost_terms)
 
     @output
     def connection_power_source_target(self) -> OutputData:
