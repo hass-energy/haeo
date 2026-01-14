@@ -169,54 +169,67 @@ def is_haeo_input_entity(entity_id: str) -> bool:
     return entry.unique_id.count("_") >= min_underscores
 
 
+def get_haeo_input_entity_ids() -> list[str]:
+    """Get all HAEO-created input entity IDs.
+
+    Returns all entity IDs for HAEO input entities (number/switch) that were
+    created for configurable fields. These should always be included in entity
+    pickers so they can be re-selected during reconfiguration.
+
+    Returns:
+        List of entity IDs for HAEO input entities.
+
+    """
+    hass = async_get_hass()
+    registry = er.async_get(hass)
+    result: list[str] = []
+    min_underscores = 2
+    for entry in registry.entities.values():
+        if entry.platform != DOMAIN:
+            continue
+        # HAEO input entities have unique_ids with the pattern: entry_id_subentry_id_field_name
+        if entry.unique_id.count("_") >= min_underscores:
+            result.append(entry.entity_id)
+    return result
+
+
 def build_entity_selector_with_configurable(
     field_info: InputFieldInfo[Any],  # noqa: ARG001
     *,
-    exclude_entities: list[str] | None = None,
+    include_entities: list[str] | None = None,
 ) -> EntitySelector:  # type: ignore[type-arg]
     """Build an EntitySelector with compatible entities plus the HAEO Configurable entity.
 
-    Does not filter by device_class because:
-    1. Unit-based exclusion already narrows down compatible entities
-    2. Device class filtering would exclude the configurable sentinel entity
-    3. Many real-world sensors lack proper device_class but have correct units
-
-    The configurable entity is always included via the 'haeo' domain.
+    Uses an inclusion list for better performance - only compatible entities are
+    included rather than excluding all incompatible ones.
 
     Args:
         field_info: Input field metadata (kept for API consistency, may be used for
             device_class filtering in future).
-        exclude_entities: Entity IDs to exclude from selection (already filtered by unit compatibility).
+        include_entities: Entity IDs to include (compatible entities from unit filtering).
 
     Returns:
-        EntitySelector configured for sensor/input_number/haeo domains.
+        EntitySelector configured with include_entities list.
 
     """
-    # WORKAROUND: Remove configurable entity and HAEO input entities from exclude list.
-    # These entities fail unit filtering because:
-    # - Configurable sentinel has unit_of_measurement=None
-    # - HAEO input entities for price/cost fields lack units (monetary units are user-specific
-    #   and HA doesn't provide a standardized way to determine currency at entity definition time)
-    #
-    # A better approach would be to:
-    # - Derive the user's currency from HA core settings and assign proper units to price fields
-    # - Or use a custom unit matching strategy that handles currency-per-energy patterns
-    #
-    # For now, we bypass unit filtering for all HAEO-created entities since they should
-    # always be re-selectable for their original fields during reconfiguration.
-    filtered_exclude = [
-        entity_id
-        for entity_id in (exclude_entities or [])
-        if not is_configurable_entity(entity_id) and not is_haeo_input_entity(entity_id)
-    ]
+    # Start with compatible entities from unit filtering
+    entities_to_include = list(include_entities or [])
 
-    # Build config - no device_class filter, rely on unit-based exclusion
-    # Include 'number' and 'switch' so HAEO input entities can be re-selected during reconfigure
-    # The configurable sentinel is a sensor entity, so it's included via 'sensor' domain
+    # Always include configurable sentinel entity
+    entities_to_include.append(get_configurable_entity_id())
+
+    # Include all HAEO input entities so they can be re-selected during reconfigure
+    # These entities may not pass unit filtering (e.g., price fields lack currency units)
+    # but should always be available for their original fields
+    entities_to_include.extend(get_haeo_input_entity_ids())
+
+    # Use include_entities for better performance with large HA installations
+    # Domain filter ensures we only show entities from relevant domains even if
+    # entities from other domains happen to have matching units
     config_kwargs: dict[str, Any] = {
         "domain": [DOMAIN, "sensor", "input_number", "number", "switch"],
         "multiple": True,
-        "exclude_entities": filtered_exclude,
+        "include_entities": entities_to_include,
     }
 
     return EntitySelector(EntitySelectorConfig(**config_kwargs))
@@ -226,14 +239,14 @@ def build_entity_schema_entry(
     field_info: InputFieldInfo[Any],
     *,
     config_schema: ConfigSchemaType,
-    exclude_entities: list[str] | None = None,
+    include_entities: list[str] | None = None,
 ) -> tuple[vol.Marker, Any]:
     """Build a schema entry for entity selection (step 1).
 
     Args:
         field_info: Input field metadata.
         config_schema: The TypedDict class defining the element's configuration.
-        exclude_entities: Entity IDs to exclude from selection.
+        include_entities: Entity IDs to include (compatible entities from unit filtering).
 
     Returns:
         Tuple of (vol.Required/Optional marker, EntitySelector).
@@ -246,7 +259,7 @@ def build_entity_schema_entry(
 
     selector = build_entity_selector_with_configurable(
         field_info,
-        exclude_entities=exclude_entities,
+        include_entities=include_entities,
     )
 
     # Don't set defaults in schema - EntitySelector doesn't respect them
@@ -534,6 +547,7 @@ __all__ = [
     "extract_non_entity_fields",
     "get_configurable_entity_id",
     "get_configurable_value_defaults",
+    "get_haeo_input_entity_ids",
     "has_configurable_selection",
     "is_configurable_entity",
     "is_haeo_input_entity",
