@@ -18,7 +18,6 @@ from custom_components.haeo.elements.grid import (
     CONF_IMPORT_PRICE,
     ELEMENT_TYPE,
 )
-from custom_components.haeo.flows.field_schema import CHOICE_CONSTANT, CHOICE_ENTITY
 
 from ..conftest import add_participant, create_flow
 
@@ -102,8 +101,8 @@ async def test_user_step_empty_required_field_shows_error(
     user_input = {
         CONF_NAME: "Test Grid",
         CONF_CONNECTION: "TestNode",
-        CONF_IMPORT_PRICE: {"choice": CHOICE_ENTITY, "value": []},
-        CONF_EXPORT_PRICE: {"choice": CHOICE_CONSTANT, "value": 0.05},
+        CONF_IMPORT_PRICE: [],
+        CONF_EXPORT_PRICE: 0.05,
     }
     result = await flow.async_step_user(user_input=user_input)
 
@@ -135,10 +134,10 @@ async def test_user_step_with_constant_creates_entry(
     user_input = {
         CONF_NAME: "Test Grid",
         CONF_CONNECTION: "TestNode",
-        CONF_IMPORT_PRICE: {"choice": CHOICE_CONSTANT, "value": 0.25},
-        CONF_EXPORT_PRICE: {"choice": CHOICE_CONSTANT, "value": 0.05},
-        CONF_IMPORT_LIMIT: {"choice": CHOICE_CONSTANT, "value": 10.0},
-        CONF_EXPORT_LIMIT: {"choice": CHOICE_CONSTANT, "value": 10.0},
+        CONF_IMPORT_PRICE: 0.25,
+        CONF_EXPORT_PRICE: 0.05,
+        CONF_IMPORT_LIMIT: 10.0,
+        CONF_EXPORT_LIMIT: 10.0,
     }
     result = await flow.async_step_user(user_input=user_input)
 
@@ -170,10 +169,10 @@ async def test_user_step_with_entity_creates_entry(
     user_input = {
         CONF_NAME: "Test Grid",
         CONF_CONNECTION: "TestNode",
-        CONF_IMPORT_PRICE: {"choice": CHOICE_ENTITY, "value": ["sensor.import_price"]},
-        CONF_EXPORT_PRICE: {"choice": CHOICE_ENTITY, "value": ["sensor.export_price"]},
-        CONF_IMPORT_LIMIT: {"choice": CHOICE_CONSTANT, "value": 10.0},
-        CONF_EXPORT_LIMIT: {"choice": CHOICE_CONSTANT, "value": 10.0},
+        CONF_IMPORT_PRICE: ["sensor.import_price"],
+        CONF_EXPORT_PRICE: ["sensor.export_price"],
+        CONF_IMPORT_LIMIT: 10.0,
+        CONF_EXPORT_LIMIT: 10.0,
     }
     result = await flow.async_step_user(user_input=user_input)
 
@@ -219,8 +218,8 @@ async def test_reconfigure_empty_required_field_shows_error(
     user_input = {
         CONF_NAME: "Test Grid",
         CONF_CONNECTION: "TestNode",
-        CONF_IMPORT_PRICE: {"choice": CHOICE_ENTITY, "value": []},
-        CONF_EXPORT_PRICE: {"choice": CHOICE_CONSTANT, "value": 0.05},
+        CONF_IMPORT_PRICE: [],
+        CONF_EXPORT_PRICE: 0.05,
     }
     result = await flow.async_step_reconfigure(user_input=user_input)
 
@@ -262,8 +261,8 @@ async def test_reconfigure_with_constant_updates_entry(
     user_input = {
         CONF_NAME: "Test Grid",
         CONF_CONNECTION: "TestNode",
-        CONF_IMPORT_PRICE: {"choice": CHOICE_CONSTANT, "value": 0.30},
-        CONF_EXPORT_PRICE: {"choice": CHOICE_CONSTANT, "value": 0.08},
+        CONF_IMPORT_PRICE: 0.30,
+        CONF_EXPORT_PRICE: 0.08,
     }
     result = await flow.async_step_reconfigure(user_input=user_input)
 

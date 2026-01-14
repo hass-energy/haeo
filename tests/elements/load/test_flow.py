@@ -11,7 +11,6 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.elements import node
 from custom_components.haeo.elements.load import CONF_CONNECTION, CONF_FORECAST, ELEMENT_TYPE
-from custom_components.haeo.flows.field_schema import CHOICE_CONSTANT, CHOICE_ENTITY
 
 from ..conftest import add_participant, create_flow
 
@@ -195,7 +194,7 @@ async def test_user_step_with_entity_creates_entry(
     user_input = {
         CONF_NAME: "Test Load",
         CONF_CONNECTION: "TestNode",
-        CONF_FORECAST: {"choice": CHOICE_ENTITY, "value": ["sensor.load_forecast"]},
+        CONF_FORECAST: ["sensor.load_forecast"],
     }
     result = await flow.async_step_user(user_input=user_input)
 
@@ -226,7 +225,7 @@ async def test_user_step_with_constant_creates_entry(
     user_input = {
         CONF_NAME: "Test Load",
         CONF_CONNECTION: "TestNode",
-        CONF_FORECAST: {"choice": CHOICE_CONSTANT, "value": 5.0},
+        CONF_FORECAST: 5.0,
     }
     result = await flow.async_step_user(user_input=user_input)
 

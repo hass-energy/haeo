@@ -140,15 +140,22 @@ class ConnectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                 errors[field_name] = "required"
 
     def _is_valid_choose_value(self, value: Any) -> bool:
-        """Check if a choose selector value is valid (has a selection)."""
-        if not isinstance(value, dict):
+        """Check if a choose selector value is valid (has a selection).
+
+        After schema validation, ChooseSelector returns the inner value directly
+        (list for entities, scalar for constants), not the full dict structure.
+        """
+        if value is None:
             return False
-        choice = value.get("choice")
-        inner_value = value.get("value")
-        if choice == "constant":
-            return inner_value is not None
-        if choice == "entity":
-            return bool(inner_value)
+        # Entity selection: list of entity IDs
+        if isinstance(value, list):
+            return bool(value)
+        # Constant value: number or boolean
+        if isinstance(value, (int, float, bool)):
+            return True
+        # String value (single entity or other)
+        if isinstance(value, str):
+            return bool(value)
         return False
 
     def _build_config(self, user_input: dict[str, Any]) -> ConnectionConfigSchema:

@@ -28,7 +28,6 @@ from custom_components.haeo.elements.battery import (
     CONF_UNDERCHARGE_PERCENTAGE,
     ELEMENT_TYPE,
 )
-from custom_components.haeo.flows.field_schema import CHOICE_CONSTANT, CHOICE_ENTITY
 
 from ..conftest import add_participant, create_flow
 
@@ -109,17 +108,14 @@ async def test_user_step_with_constant_values_creates_entry(hass: HomeAssistant,
     user_input = {
         CONF_NAME: "Test Battery",
         CONF_CONNECTION: "main_bus",
-        CONF_CAPACITY: {"choice": CHOICE_CONSTANT, "value": 10.0},
-        CONF_INITIAL_CHARGE_PERCENTAGE: {
-            "choice": CHOICE_ENTITY,
-            "value": ["sensor.battery_soc"],
-        },
+        CONF_CAPACITY: 10.0,
+        CONF_INITIAL_CHARGE_PERCENTAGE: ["sensor.battery_soc"],
         CONF_MIN_CHARGE_PERCENTAGE: None,
         CONF_MAX_CHARGE_PERCENTAGE: None,
-        CONF_EFFICIENCY: {"choice": CHOICE_CONSTANT, "value": 0.95},
-        CONF_MAX_CHARGE_POWER: {"choice": CHOICE_CONSTANT, "value": 5.0},
-        CONF_MAX_DISCHARGE_POWER: {"choice": CHOICE_CONSTANT, "value": 5.0},
-        CONF_EARLY_CHARGE_INCENTIVE: {"choice": CHOICE_CONSTANT, "value": 0.001},
+        CONF_EFFICIENCY: 0.95,
+        CONF_MAX_CHARGE_POWER: 5.0,
+        CONF_MAX_DISCHARGE_POWER: 5.0,
+        CONF_EARLY_CHARGE_INCENTIVE: 0.001,
         CONF_DISCHARGE_COST: None,
         CONF_CONFIGURE_PARTITIONS: False,
     }
@@ -149,19 +145,13 @@ async def test_user_step_with_entity_values_creates_entry(hass: HomeAssistant, h
     user_input = {
         CONF_NAME: "Test Battery",
         CONF_CONNECTION: "main_bus",
-        CONF_CAPACITY: {"choice": CHOICE_ENTITY, "value": ["sensor.capacity"]},
-        CONF_INITIAL_CHARGE_PERCENTAGE: {
-            "choice": CHOICE_ENTITY,
-            "value": ["sensor.battery_soc"],
-        },
+        CONF_CAPACITY: ["sensor.capacity"],
+        CONF_INITIAL_CHARGE_PERCENTAGE: ["sensor.battery_soc"],
         CONF_MIN_CHARGE_PERCENTAGE: None,
         CONF_MAX_CHARGE_PERCENTAGE: None,
         CONF_EFFICIENCY: None,
-        CONF_MAX_CHARGE_POWER: {"choice": CHOICE_ENTITY, "value": ["sensor.max_charge"]},
-        CONF_MAX_DISCHARGE_POWER: {
-            "choice": CHOICE_ENTITY,
-            "value": ["sensor.max_discharge"],
-        },
+        CONF_MAX_CHARGE_POWER: ["sensor.max_charge"],
+        CONF_MAX_DISCHARGE_POWER: ["sensor.max_discharge"],
         CONF_EARLY_CHARGE_INCENTIVE: None,
         CONF_DISCHARGE_COST: None,
         CONF_CONFIGURE_PARTITIONS: False,
@@ -184,16 +174,13 @@ async def test_user_step_empty_required_field_shows_error(hass: HomeAssistant, h
     user_input = {
         CONF_NAME: "Test Battery",
         CONF_CONNECTION: "main_bus",
-        CONF_CAPACITY: {"choice": CHOICE_ENTITY, "value": []},
-        CONF_INITIAL_CHARGE_PERCENTAGE: {
-            "choice": CHOICE_ENTITY,
-            "value": ["sensor.battery_soc"],
-        },
+        CONF_CAPACITY: [],
+        CONF_INITIAL_CHARGE_PERCENTAGE: ["sensor.battery_soc"],
         CONF_MIN_CHARGE_PERCENTAGE: None,
         CONF_MAX_CHARGE_PERCENTAGE: None,
         CONF_EFFICIENCY: None,
-        CONF_MAX_CHARGE_POWER: {"choice": CHOICE_CONSTANT, "value": 5.0},
-        CONF_MAX_DISCHARGE_POWER: {"choice": CHOICE_CONSTANT, "value": 5.0},
+        CONF_MAX_CHARGE_POWER: 5.0,
+        CONF_MAX_DISCHARGE_POWER: 5.0,
         CONF_EARLY_CHARGE_INCENTIVE: None,
         CONF_DISCHARGE_COST: None,
         CONF_CONFIGURE_PARTITIONS: False,
@@ -214,16 +201,13 @@ async def test_partition_flow_enabled_shows_partition_step(hass: HomeAssistant, 
     step1_input = {
         CONF_NAME: "Test Battery",
         CONF_CONNECTION: "main_bus",
-        CONF_CAPACITY: {"choice": CHOICE_CONSTANT, "value": 10.0},
-        CONF_INITIAL_CHARGE_PERCENTAGE: {
-            "choice": CHOICE_ENTITY,
-            "value": ["sensor.battery_soc"],
-        },
+        CONF_CAPACITY: 10.0,
+        CONF_INITIAL_CHARGE_PERCENTAGE: ["sensor.battery_soc"],
         CONF_MIN_CHARGE_PERCENTAGE: None,
         CONF_MAX_CHARGE_PERCENTAGE: None,
-        CONF_EFFICIENCY: {"choice": CHOICE_CONSTANT, "value": 0.95},
-        CONF_MAX_CHARGE_POWER: {"choice": CHOICE_CONSTANT, "value": 5.0},
-        CONF_MAX_DISCHARGE_POWER: {"choice": CHOICE_CONSTANT, "value": 5.0},
+        CONF_EFFICIENCY: 0.95,
+        CONF_MAX_CHARGE_POWER: 5.0,
+        CONF_MAX_DISCHARGE_POWER: 5.0,
         CONF_EARLY_CHARGE_INCENTIVE: None,
         CONF_DISCHARGE_COST: None,
         CONF_CONFIGURE_PARTITIONS: True,
@@ -254,16 +238,13 @@ async def test_partition_flow_with_entity_links_creates_entry(hass: HomeAssistan
     step1_input = {
         CONF_NAME: "Test Battery",
         CONF_CONNECTION: "main_bus",
-        CONF_CAPACITY: {"choice": CHOICE_CONSTANT, "value": 10.0},
-        CONF_INITIAL_CHARGE_PERCENTAGE: {
-            "choice": CHOICE_ENTITY,
-            "value": ["sensor.battery_soc"],
-        },
+        CONF_CAPACITY: 10.0,
+        CONF_INITIAL_CHARGE_PERCENTAGE: ["sensor.battery_soc"],
         CONF_MIN_CHARGE_PERCENTAGE: None,
         CONF_MAX_CHARGE_PERCENTAGE: None,
         CONF_EFFICIENCY: None,
-        CONF_MAX_CHARGE_POWER: {"choice": CHOICE_CONSTANT, "value": 5.0},
-        CONF_MAX_DISCHARGE_POWER: {"choice": CHOICE_CONSTANT, "value": 5.0},
+        CONF_MAX_CHARGE_POWER: 5.0,
+        CONF_MAX_DISCHARGE_POWER: 5.0,
         CONF_EARLY_CHARGE_INCENTIVE: None,
         CONF_DISCHARGE_COST: None,
         CONF_CONFIGURE_PARTITIONS: True,
@@ -272,14 +253,8 @@ async def test_partition_flow_with_entity_links_creates_entry(hass: HomeAssistan
     await flow.async_step_user(user_input=step1_input)
 
     partition_input = {
-        CONF_UNDERCHARGE_PERCENTAGE: {
-            "choice": CHOICE_ENTITY,
-            "value": ["sensor.undercharge_pct"],
-        },
-        CONF_OVERCHARGE_PERCENTAGE: {
-            "choice": CHOICE_ENTITY,
-            "value": ["sensor.overcharge_pct"],
-        },
+        CONF_UNDERCHARGE_PERCENTAGE: ["sensor.undercharge_pct"],
+        CONF_OVERCHARGE_PERCENTAGE: ["sensor.overcharge_pct"],
         CONF_UNDERCHARGE_COST: None,
         CONF_OVERCHARGE_COST: None,
     }
@@ -308,16 +283,13 @@ async def test_partition_flow_with_constant_values_creates_entry(hass: HomeAssis
     step1_input = {
         CONF_NAME: "Test Battery",
         CONF_CONNECTION: "main_bus",
-        CONF_CAPACITY: {"choice": CHOICE_CONSTANT, "value": 10.0},
-        CONF_INITIAL_CHARGE_PERCENTAGE: {
-            "choice": CHOICE_ENTITY,
-            "value": ["sensor.battery_soc"],
-        },
+        CONF_CAPACITY: 10.0,
+        CONF_INITIAL_CHARGE_PERCENTAGE: ["sensor.battery_soc"],
         CONF_MIN_CHARGE_PERCENTAGE: None,
         CONF_MAX_CHARGE_PERCENTAGE: None,
         CONF_EFFICIENCY: None,
-        CONF_MAX_CHARGE_POWER: {"choice": CHOICE_CONSTANT, "value": 5.0},
-        CONF_MAX_DISCHARGE_POWER: {"choice": CHOICE_CONSTANT, "value": 5.0},
+        CONF_MAX_CHARGE_POWER: 5.0,
+        CONF_MAX_DISCHARGE_POWER: 5.0,
         CONF_EARLY_CHARGE_INCENTIVE: None,
         CONF_DISCHARGE_COST: None,
         CONF_CONFIGURE_PARTITIONS: True,
@@ -325,10 +297,10 @@ async def test_partition_flow_with_constant_values_creates_entry(hass: HomeAssis
     await flow.async_step_user(user_input=step1_input)
 
     partition_input = {
-        CONF_UNDERCHARGE_PERCENTAGE: {"choice": CHOICE_CONSTANT, "value": 5.0},
-        CONF_OVERCHARGE_PERCENTAGE: {"choice": CHOICE_CONSTANT, "value": 95.0},
-        CONF_UNDERCHARGE_COST: {"choice": CHOICE_CONSTANT, "value": 0.10},
-        CONF_OVERCHARGE_COST: {"choice": CHOICE_CONSTANT, "value": 0.10},
+        CONF_UNDERCHARGE_PERCENTAGE: 5.0,
+        CONF_OVERCHARGE_PERCENTAGE: 95.0,
+        CONF_UNDERCHARGE_COST: 0.10,
+        CONF_OVERCHARGE_COST: 0.10,
     }
 
     result = await flow.async_step_partitions(user_input=partition_input)
@@ -357,16 +329,13 @@ async def test_partition_disabled_skips_partition_step(hass: HomeAssistant, hub_
     step1_input = {
         CONF_NAME: "Test Battery",
         CONF_CONNECTION: "main_bus",
-        CONF_CAPACITY: {"choice": CHOICE_CONSTANT, "value": 10.0},
-        CONF_INITIAL_CHARGE_PERCENTAGE: {
-            "choice": CHOICE_ENTITY,
-            "value": ["sensor.battery_soc"],
-        },
+        CONF_CAPACITY: 10.0,
+        CONF_INITIAL_CHARGE_PERCENTAGE: ["sensor.battery_soc"],
         CONF_MIN_CHARGE_PERCENTAGE: None,
         CONF_MAX_CHARGE_PERCENTAGE: None,
         CONF_EFFICIENCY: None,
-        CONF_MAX_CHARGE_POWER: {"choice": CHOICE_CONSTANT, "value": 5.0},
-        CONF_MAX_DISCHARGE_POWER: {"choice": CHOICE_CONSTANT, "value": 5.0},
+        CONF_MAX_CHARGE_POWER: 5.0,
+        CONF_MAX_DISCHARGE_POWER: 5.0,
         CONF_EARLY_CHARGE_INCENTIVE: None,
         CONF_DISCHARGE_COST: None,
         CONF_CONFIGURE_PARTITIONS: False,
@@ -607,16 +576,13 @@ async def test_reconfigure_updates_existing_battery(hass: HomeAssistant, hub_ent
     user_input = {
         CONF_NAME: "Test Battery Updated",
         CONF_CONNECTION: "main_bus",
-        CONF_CAPACITY: {"choice": CHOICE_CONSTANT, "value": 15.0},
-        CONF_INITIAL_CHARGE_PERCENTAGE: {
-            "choice": CHOICE_ENTITY,
-            "value": ["sensor.battery_soc"],
-        },
+        CONF_CAPACITY: 15.0,
+        CONF_INITIAL_CHARGE_PERCENTAGE: ["sensor.battery_soc"],
         CONF_MIN_CHARGE_PERCENTAGE: None,
         CONF_MAX_CHARGE_PERCENTAGE: None,
         CONF_EFFICIENCY: None,
-        CONF_MAX_CHARGE_POWER: {"choice": CHOICE_CONSTANT, "value": 7.5},
-        CONF_MAX_DISCHARGE_POWER: {"choice": CHOICE_CONSTANT, "value": 7.5},
+        CONF_MAX_CHARGE_POWER: 7.5,
+        CONF_MAX_DISCHARGE_POWER: 7.5,
         CONF_EARLY_CHARGE_INCENTIVE: None,
         CONF_DISCHARGE_COST: None,
         CONF_CONFIGURE_PARTITIONS: False,

@@ -17,10 +17,10 @@ VALID_DATA = [
         "config": {
             CONF_NAME: "Test Inverter",
             CONF_CONNECTION: "main_bus",
-            CONF_MAX_POWER_DC_TO_AC: {"choice": "constant", "value": 5.0},
-            CONF_MAX_POWER_AC_TO_DC: {"choice": "constant", "value": 5.0},
-            CONF_EFFICIENCY_DC_TO_AC: {"choice": "constant", "value": 95.0},
-            CONF_EFFICIENCY_AC_TO_DC: {"choice": "constant", "value": 95.0},
+            CONF_MAX_POWER_DC_TO_AC: 5.0,
+            CONF_MAX_POWER_AC_TO_DC: 5.0,
+            CONF_EFFICIENCY_DC_TO_AC: 95.0,
+            CONF_EFFICIENCY_AC_TO_DC: 95.0,
         },
     },
 ]

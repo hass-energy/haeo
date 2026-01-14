@@ -242,15 +242,16 @@ def build_choose_selector(
     else:
         value_selector = number_selector_from_field(field_info)  # type: ignore[arg-type]
 
-    # Build choice configs
-    entity_choice = ChooseSelectorChoiceConfig(selector=entity_selector)
-    constant_choice = ChooseSelectorChoiceConfig(selector=value_selector)
+    # Build choice configs - must use serialized dict format for ChooseSelector validation
+    # The ChooseSelector's __call__ uses selector() which expects a dict, not Selector object
+    entity_choice = ChooseSelectorChoiceConfig(selector=entity_selector.serialize()["selector"])
+    constant_choice = ChooseSelectorChoiceConfig(selector=value_selector.serialize()["selector"])
 
     # Build ordered choices dict with preferred choice first
     # (ChooseSelector always selects the first option)
     choices: dict[str, ChooseSelectorChoiceConfig]
     disabled_selector = ConstantSelector(ConstantSelectorConfig(value="", translation_key="disabled_label"))
-    disabled_choice = ChooseSelectorChoiceConfig(selector=disabled_selector)
+    disabled_choice = ChooseSelectorChoiceConfig(selector=disabled_selector.serialize()["selector"])
 
     if is_optional and preferred_choice == CHOICE_DISABLED:
         # Optional field with disabled preferred
@@ -386,8 +387,13 @@ def convert_choose_data_to_config(
 ) -> dict[str, Any]:
     """Convert choose selector user input to final config format.
 
+    After schema validation, the ChooseSelector returns the inner value directly:
+    - Entity selection: list of entity IDs (e.g., ["sensor.x"])
+    - Constant: scalar value (e.g., 10.0 or True)
+    - Disabled: empty string ("")
+
     Args:
-        user_input: User input from the form.
+        user_input: User input from the form (after schema validation).
         input_fields: Tuple of input field metadata.
         exclude_keys: Keys to exclude from processing (e.g., name, connection).
 
@@ -396,7 +402,7 @@ def convert_choose_data_to_config(
         - Constant fields: stored as float/bool
         - Entity fields with single entity: stored as str
         - Entity fields with multiple entities: stored as list[str]
-        - Empty/None fields: omitted
+        - Empty/None/Disabled fields: omitted
 
     """
     config: dict[str, Any] = {}
@@ -408,22 +414,21 @@ def convert_choose_data_to_config(
         if field_name not in field_names:
             continue
 
-        # Handle choose selector output format: {"choice": "entity"|"constant"|"disabled", "value": ...}
-        if isinstance(value, dict) and "choice" in value:
-            choice = value.get("choice")
-            inner_value = value.get("value")
+        # Skip None values
+        if value is None:
+            continue
 
-            if choice == CHOICE_DISABLED:
-                # Disabled choice - omit field from config
-                continue
-            if choice == CHOICE_CONSTANT and inner_value is not None:
-                # Store constant value directly
-                config[field_name] = inner_value
-            elif choice == CHOICE_ENTITY and inner_value:
-                # Store entity ID(s)
-                config[field_name] = _normalize_entity_selection(inner_value)
-        elif value is not None:
-            # Direct value (shouldn't happen with choose selector, but handle gracefully)
+        # Disabled choice returns empty string - skip
+        if value == "":
+            continue
+
+        # Entity selection: list of entity IDs
+        if isinstance(value, list):
+            if not value:
+                continue  # Empty list - skip
+            config[field_name] = _normalize_entity_selection(value)
+        # Constant: scalar value (number, boolean, or string)
+        elif isinstance(value, (int, float, bool, str)):
             config[field_name] = value
 
     return config

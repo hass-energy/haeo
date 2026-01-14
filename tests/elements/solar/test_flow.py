@@ -17,7 +17,6 @@ from custom_components.haeo.elements.solar import (
     CONF_PRICE_PRODUCTION,
     ELEMENT_TYPE,
 )
-from custom_components.haeo.flows.field_schema import CHOICE_CONSTANT, CHOICE_ENTITY
 
 from ..conftest import add_participant, create_flow
 
@@ -173,9 +172,9 @@ async def test_user_step_with_entity_creates_entry(
     user_input = {
         CONF_NAME: "Test Solar",
         CONF_CONNECTION: "TestNode",
-        CONF_FORECAST: {"choice": CHOICE_ENTITY, "value": ["sensor.solar_forecast"]},
-        CONF_PRICE_PRODUCTION: {"choice": CHOICE_CONSTANT, "value": 0.0},
-        CONF_CURTAILMENT: {"choice": CHOICE_CONSTANT, "value": True},
+        CONF_FORECAST: ["sensor.solar_forecast"],
+        CONF_PRICE_PRODUCTION: 0.0,
+        CONF_CURTAILMENT: True,
     }
     result = await flow.async_step_user(user_input=user_input)
 
@@ -207,9 +206,9 @@ async def test_user_step_with_constant_creates_entry(
     user_input = {
         CONF_NAME: "Test Solar",
         CONF_CONNECTION: "TestNode",
-        CONF_FORECAST: {"choice": CHOICE_CONSTANT, "value": 5.0},
-        CONF_PRICE_PRODUCTION: {"choice": CHOICE_CONSTANT, "value": 0.0},
-        CONF_CURTAILMENT: {"choice": CHOICE_CONSTANT, "value": True},
+        CONF_FORECAST: 5.0,
+        CONF_PRICE_PRODUCTION: 0.0,
+        CONF_CURTAILMENT: True,
     }
     result = await flow.async_step_user(user_input=user_input)
 

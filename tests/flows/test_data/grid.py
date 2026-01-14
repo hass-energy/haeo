@@ -17,10 +17,10 @@ VALID_DATA = [
         "config": {
             CONF_NAME: "Test Grid",
             CONF_CONNECTION: "main_bus",
-            CONF_IMPORT_PRICE: {"choice": "constant", "value": 0.30},
-            CONF_EXPORT_PRICE: {"choice": "constant", "value": 0.05},
-            CONF_IMPORT_LIMIT: {"choice": "constant", "value": 10.0},
-            CONF_EXPORT_LIMIT: {"choice": "constant", "value": 10.0},
+            CONF_IMPORT_PRICE: 0.30,
+            CONF_EXPORT_PRICE: 0.05,
+            CONF_IMPORT_LIMIT: 10.0,
+            CONF_EXPORT_LIMIT: 10.0,
         },
     },
 ]

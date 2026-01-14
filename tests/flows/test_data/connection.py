@@ -26,9 +26,9 @@ VALID_DATA = [
             CONF_NAME: "Battery to Grid",
             CONF_SOURCE: "Battery1",
             CONF_TARGET: "Grid1",
-            CONF_MAX_POWER_SOURCE_TARGET: {"choice": "constant", "value": 10.0},
-            CONF_MAX_POWER_TARGET_SOURCE: {"choice": "constant", "value": 10.0},
-            CONF_EFFICIENCY_SOURCE_TARGET: {"choice": "constant", "value": 95.0},
+            CONF_MAX_POWER_SOURCE_TARGET: 10.0,
+            CONF_MAX_POWER_TARGET_SOURCE: 10.0,
+            CONF_EFFICIENCY_SOURCE_TARGET: 95.0,
         },
     },
 ]

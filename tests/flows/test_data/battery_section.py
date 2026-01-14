@@ -10,16 +10,16 @@ VALID_DATA = [
         "description": "Battery section with sensor entities",
         "config": {
             CONF_NAME: "Test Section",
-            CONF_CAPACITY: {"choice": "entity", "value": ["sensor.battery_capacity"]},
-            CONF_INITIAL_CHARGE: {"choice": "entity", "value": ["sensor.battery_charge"]},
+            CONF_CAPACITY: ["sensor.battery_capacity"],
+            CONF_INITIAL_CHARGE: ["sensor.battery_charge"],
         },
     },
     {
         "description": "Battery section with constant values",
         "config": {
             CONF_NAME: "Constant Section",
-            CONF_CAPACITY: {"choice": "constant", "value": 10.0},
-            CONF_INITIAL_CHARGE: {"choice": "constant", "value": 5.0},
+            CONF_CAPACITY: 10.0,
+            CONF_INITIAL_CHARGE: 5.0,
         },
     },
 ]

@@ -17,9 +17,9 @@ VALID_DATA = [
         "config": {
             CONF_NAME: "Test Solar",
             CONF_CONNECTION: "main_bus",
-            CONF_FORECAST: {"choice": "constant", "value": 5.0},
-            CONF_PRICE_PRODUCTION: {"choice": "constant", "value": 0.0},
-            CONF_CURTAILMENT: {"choice": "constant", "value": False},
+            CONF_FORECAST: 5.0,
+            CONF_PRICE_PRODUCTION: 0.0,
+            CONF_CURTAILMENT: False,
         },
     },
     {
@@ -27,9 +27,9 @@ VALID_DATA = [
         "config": {
             CONF_NAME: "Rooftop Solar",
             CONF_CONNECTION: "main_bus",
-            CONF_FORECAST: {"choice": "entity", "value": ["sensor.solar_power"]},
-            CONF_PRICE_PRODUCTION: {"choice": "constant", "value": 0.04},
-            CONF_CURTAILMENT: {"choice": "constant", "value": True},
+            CONF_FORECAST: ["sensor.solar_power"],
+            CONF_PRICE_PRODUCTION: 0.04,
+            CONF_CURTAILMENT: True,
         },
     },
 ]

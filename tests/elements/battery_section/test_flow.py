@@ -14,7 +14,6 @@ from custom_components.haeo.elements.battery_section import (
     CONF_INITIAL_CHARGE,
     ELEMENT_TYPE,
 )
-from custom_components.haeo.flows.field_schema import CHOICE_CONSTANT, CHOICE_ENTITY
 
 from ..conftest import create_flow
 
@@ -192,8 +191,8 @@ async def test_user_step_with_constant_creates_entry(
     # Submit with constant values using choose selector format
     user_input = {
         CONF_NAME: "Test Battery Section",
-        CONF_CAPACITY: {"choice": CHOICE_CONSTANT, "value": 10.0},
-        CONF_INITIAL_CHARGE: {"choice": CHOICE_CONSTANT, "value": 5.0},
+        CONF_CAPACITY: 10.0,
+        CONF_INITIAL_CHARGE: 5.0,
     }
     result = await flow.async_step_user(user_input=user_input)
 
@@ -222,8 +221,8 @@ async def test_user_step_with_entity_creates_entry(
     # Submit with entity selections
     user_input = {
         CONF_NAME: "Test Battery Section",
-        CONF_CAPACITY: {"choice": CHOICE_ENTITY, "value": ["sensor.capacity"]},
-        CONF_INITIAL_CHARGE: {"choice": CHOICE_ENTITY, "value": ["sensor.charge"]},
+        CONF_CAPACITY: ["sensor.capacity"],
+        CONF_INITIAL_CHARGE: ["sensor.charge"],
     }
     result = await flow.async_step_user(user_input=user_input)
 

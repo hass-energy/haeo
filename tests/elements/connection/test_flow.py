@@ -17,7 +17,6 @@ from custom_components.haeo.elements.connection import (
     CONF_TARGET,
     ELEMENT_TYPE,
 )
-from custom_components.haeo.flows.field_schema import CHOICE_CONSTANT, CHOICE_ENTITY
 
 from ..conftest import add_participant, create_flow
 
@@ -240,8 +239,8 @@ async def test_user_step_with_constant_creates_entry(
         CONF_NAME: "Test Connection",
         CONF_SOURCE: "Battery1",
         CONF_TARGET: "Grid1",
-        CONF_MAX_POWER_SOURCE_TARGET: {"choice": CHOICE_CONSTANT, "value": 10.0},
-        CONF_MAX_POWER_TARGET_SOURCE: {"choice": CHOICE_CONSTANT, "value": 10.0},
+        CONF_MAX_POWER_SOURCE_TARGET: 10.0,
+        CONF_MAX_POWER_TARGET_SOURCE: 10.0,
     }
     result = await flow.async_step_user(user_input=user_input)
 
@@ -275,8 +274,8 @@ async def test_user_step_with_entity_creates_entry(
         CONF_NAME: "Test Connection",
         CONF_SOURCE: "Battery1",
         CONF_TARGET: "Grid1",
-        CONF_MAX_POWER_SOURCE_TARGET: {"choice": CHOICE_ENTITY, "value": ["sensor.power_st"]},
-        CONF_MAX_POWER_TARGET_SOURCE: {"choice": CHOICE_ENTITY, "value": ["sensor.power_ts"]},
+        CONF_MAX_POWER_SOURCE_TARGET: ["sensor.power_st"],
+        CONF_MAX_POWER_TARGET_SOURCE: ["sensor.power_ts"],
     }
     result = await flow.async_step_user(user_input=user_input)
 

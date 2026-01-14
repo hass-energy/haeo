@@ -420,9 +420,12 @@ def test_get_choose_default_uses_current_data_boolean(
 def test_convert_choose_data_constant_stored_directly(
     number_field: InputFieldInfo[NumberEntityDescription],
 ) -> None:
-    """Constant choice value is stored directly."""
+    """Constant choice value is stored directly.
+
+    After schema validation, ChooseSelector returns the raw value.
+    """
     user_input: dict[str, Any] = {
-        "test_field": {"choice": CHOICE_CONSTANT, "value": 42.0},
+        "test_field": 42.0,  # Raw value after ChooseSelector validation
     }
     result = convert_choose_data_to_config(user_input, (number_field,))
     assert result["test_field"] == 42.0
@@ -431,9 +434,12 @@ def test_convert_choose_data_constant_stored_directly(
 def test_convert_choose_data_entity_single_stored_as_string(
     number_field: InputFieldInfo[NumberEntityDescription],
 ) -> None:
-    """Single entity is stored as string."""
+    """Single entity is stored as string.
+
+    After schema validation, ChooseSelector returns the entity list.
+    """
     user_input: dict[str, Any] = {
-        "test_field": {"choice": CHOICE_ENTITY, "value": ["sensor.power"]},
+        "test_field": ["sensor.power"],  # Raw list after ChooseSelector validation
     }
     result = convert_choose_data_to_config(user_input, (number_field,))
     assert result["test_field"] == "sensor.power"
@@ -442,9 +448,12 @@ def test_convert_choose_data_entity_single_stored_as_string(
 def test_convert_choose_data_entity_multiple_stored_as_list(
     number_field: InputFieldInfo[NumberEntityDescription],
 ) -> None:
-    """Multiple entities are stored as list."""
+    """Multiple entities are stored as list.
+
+    After schema validation, ChooseSelector returns the entity list.
+    """
     user_input: dict[str, Any] = {
-        "test_field": {"choice": CHOICE_ENTITY, "value": ["sensor.power1", "sensor.power2"]},
+        "test_field": ["sensor.power1", "sensor.power2"],  # Raw list
     }
     result = convert_choose_data_to_config(user_input, (number_field,))
     assert result["test_field"] == ["sensor.power1", "sensor.power2"]
@@ -453,9 +462,9 @@ def test_convert_choose_data_entity_multiple_stored_as_list(
 def test_convert_choose_data_empty_value_omitted(
     number_field: InputFieldInfo[NumberEntityDescription],
 ) -> None:
-    """Empty entity value is omitted from config."""
+    """Empty entity list is omitted from config."""
     user_input: dict[str, Any] = {
-        "test_field": {"choice": CHOICE_ENTITY, "value": []},
+        "test_field": [],  # Empty list after ChooseSelector validation
     }
     result = convert_choose_data_to_config(user_input, (number_field,))
     assert "test_field" not in result
@@ -464,9 +473,9 @@ def test_convert_choose_data_empty_value_omitted(
 def test_convert_choose_data_none_constant_omitted(
     number_field: InputFieldInfo[NumberEntityDescription],
 ) -> None:
-    """None constant value is omitted from config."""
+    """None value is omitted from config."""
     user_input: dict[str, Any] = {
-        "test_field": {"choice": CHOICE_CONSTANT, "value": None},
+        "test_field": None,
     }
     result = convert_choose_data_to_config(user_input, (number_field,))
     assert "test_field" not in result
@@ -478,7 +487,7 @@ def test_convert_choose_data_respects_exclude_keys(
     """Excluded keys are not processed."""
     user_input: dict[str, Any] = {
         "name": "Test",
-        "test_field": {"choice": CHOICE_CONSTANT, "value": 42.0},
+        "test_field": 42.0,  # Raw value
     }
     result = convert_choose_data_to_config(user_input, (number_field,), exclude_keys=("name",))
     assert "name" not in result
@@ -490,8 +499,8 @@ def test_convert_choose_data_ignores_unknown_fields(
 ) -> None:
     """Unknown fields (not in input_fields) are ignored."""
     user_input: dict[str, Any] = {
-        "test_field": {"choice": CHOICE_CONSTANT, "value": 42.0},
-        "unknown_field": {"choice": CHOICE_CONSTANT, "value": 99.0},
+        "test_field": 42.0,  # Raw value
+        "unknown_field": 99.0,  # Not in input_fields
     }
     result = convert_choose_data_to_config(user_input, (number_field,))
     assert "test_field" in result
@@ -499,7 +508,10 @@ def test_convert_choose_data_ignores_unknown_fields(
 
 
 def test_convert_choose_data_boolean_constant() -> None:
-    """Boolean constant is stored correctly."""
+    """Boolean constant is stored correctly.
+
+    After schema validation, ChooseSelector returns the raw boolean.
+    """
     field = InputFieldInfo(
         field_name="enabled",
         entity_description=NumberEntityDescription(
@@ -509,7 +521,7 @@ def test_convert_choose_data_boolean_constant() -> None:
         output_type=OutputType.STATUS,
     )
     user_input: dict[str, Any] = {
-        "enabled": {"choice": CHOICE_CONSTANT, "value": True},
+        "enabled": True,  # Raw boolean
     }
     result = convert_choose_data_to_config(user_input, (field,))
     assert result["enabled"] is True
@@ -518,9 +530,13 @@ def test_convert_choose_data_boolean_constant() -> None:
 def test_convert_choose_data_disabled_omits_field(
     number_field: InputFieldInfo[NumberEntityDescription],
 ) -> None:
-    """Disabled choice omits field from config."""
+    """Disabled choice (empty string) omits field from config.
+
+    After schema validation, ChooseSelector with ConstantSelector(value="")
+    returns an empty string for the disabled choice.
+    """
     user_input: dict[str, Any] = {
-        "test_field": {"choice": CHOICE_DISABLED, "value": False},
+        "test_field": "",  # Empty string from disabled ConstantSelector
     }
     result = convert_choose_data_to_config(user_input, (number_field,))
     assert "test_field" not in result

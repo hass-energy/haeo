@@ -11,7 +11,7 @@ VALID_DATA = [
         "config": {
             CONF_NAME: "Test Load",
             CONF_CONNECTION: "main_bus",
-            CONF_FORECAST: {"choice": "entity", "value": ["sensor.forecast1", "sensor.forecast2"]},
+            CONF_FORECAST: ["sensor.forecast1", "sensor.forecast2"],
         },
     },
     {
@@ -19,7 +19,7 @@ VALID_DATA = [
         "config": {
             CONF_NAME: "Constant Load",
             CONF_CONNECTION: "main_bus",
-            CONF_FORECAST: {"choice": "constant", "value": 1.5},
+            CONF_FORECAST: 1.5,
         },
     },
 ]
