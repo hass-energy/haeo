@@ -1,216 +1,477 @@
 # Automation examples
 
-This guide provides practical automation examples for the HAEO integration.
-These automations help you respond to optimization events, manage energy systems, and create custom workflows based on optimization results.
+This guide explains how to control your battery and inverter systems using HAEO's optimization results.
 
 ## Overview
 
-HAEO provides real-time optimization of your energy network.
-You can create automations that:
+HAEO solves the optimization problem and produces **control limit recommendations** that you can apply directly to your hardware.
+These sensors synthesize the optimal power flows, constraint shadow prices, and configured limits into a single value (in kW) that can be used as a hardware setpoint.
 
-- Respond to optimization completion or failure
-- Apply HAEO's power recommendations to real hardware
-- Curtail solar or flexible loads when optimization suggests
-- Notify you when optimization outputs change significantly
-- Stage safe hand-offs between optimization and manual control
+## Control Limit Recommendations
 
-## Example 1: Notification on optimization failure
+HAEO provides recommendation sensors for each controllable limit in your system.
+Each sensor provides:
 
-This automation sends a notification when the optimization fails, helping you quickly identify and resolve issues.
+- **Current value**: The recommended limit right now (kW)
+- **Forecast attribute**: Recommended limits for future time periods
+
+### Available Recommendation Sensors
+
+| Sensor | Unit | Description |
+|--------|------|-------------|
+| `sensor.{battery}_charge_limit_recommendation` | kW | Recommended battery charging power limit |
+| `sensor.{battery}_discharge_limit_recommendation` | kW | Recommended battery discharging power limit |
+| `sensor.{inverter}_charge_limit_recommendation` | kW | Recommended inverter AC→DC power limit |
+| `sensor.{inverter}_discharge_limit_recommendation` | kW | Recommended inverter DC→AC power limit |
+| `sensor.{grid}_import_limit_recommendation` | kW | Recommended grid import power limit |
+| `sensor.{grid}_export_limit_recommendation` | kW | Recommended grid export power limit |
+
+!!! note "Conditional availability"
+
+    Grid recommendation sensors only appear when you have configured import/export limits.
+    Battery and inverter recommendations are always available.
+
+### How Recommendations Are Calculated
+
+Each recommendation combines three pieces of information:
+
+1. **Optimal power flow**: What power the optimizer wants to flow
+2. **Shadow price**: Whether the configured limit is constraining the solution
+3. **Configured limit**: Your hardware's maximum capacity
+
+The synthesis logic:
+
+| Optimal Power | Shadow Price | Recommendation |
+|--------------|--------------|----------------|
+| 0 | (any) | 0 kW — No flow desired, block this direction |
+| > 0 | 0 | Max limit — Flow desired with headroom available |
+| > 0 | > 0 | Power value — At binding constraint, use exact rate |
+
+This means:
+
+- **Zero recommendation**: HAEO doesn't want any power flowing in this direction right now
+- **Maximum recommendation**: HAEO wants power to flow and you have headroom
+- **Intermediate recommendation**: You're at the constraint limit; use the exact optimal rate
+
+## Basic Automation Pattern
+
+The simplest automation directly applies the recommendation to your hardware:
 
 ```yaml
 automation:
-  - alias: 'HAEO: Notify on optimization failure'
-    description: Send notification when energy optimization fails
+  - alias: "HAEO: Apply Battery Charge Limit"
     trigger:
       - platform: state
-        entity_id: sensor.{network_name}_optimization_status
-        to: failed
+        entity_id: sensor.main_battery_charge_limit_recommendation
     action:
-      - service: notify.persistent_notification
+      - service: number.set_value
+        target:
+          entity_id: number.battery_max_charging_limit
         data:
-          title: Energy optimization failed
+          value: "{{ states('sensor.main_battery_charge_limit_recommendation') | float(0) }}"
+```
+
+This pattern works for any recommendation sensor paired with its corresponding hardware control.
+
+## Complete Battery Control
+
+Apply both charge and discharge limits:
+
+```yaml
+automation:
+  - alias: "HAEO: Apply Battery Limits"
+    trigger:
+      - platform: state
+        entity_id:
+          - sensor.main_battery_charge_limit_recommendation
+          - sensor.main_battery_discharge_limit_recommendation
+    action:
+      - service: number.set_value
+        target:
+          entity_id: number.battery_max_charging_limit
+        data:
+          value: "{{ states('sensor.main_battery_charge_limit_recommendation') | float(0) }}"
+      - service: number.set_value
+        target:
+          entity_id: number.battery_max_discharging_limit
+        data:
+          value: "{{ states('sensor.main_battery_discharge_limit_recommendation') | float(0) }}"
+```
+
+## Grid Export Control
+
+When you have a grid export limit configured, HAEO provides an export limit recommendation:
+
+```yaml
+automation:
+  - alias: "HAEO: Apply Grid Export Limit"
+    trigger:
+      - platform: state
+        entity_id: sensor.main_grid_export_limit_recommendation
+    action:
+      - service: number.set_value
+        target:
+          entity_id: number.grid_export_limitation
+        data:
+          value: "{{ states('sensor.main_grid_export_limit_recommendation') | float(0) }}"
+```
+
+!!! tip "Negative export prices"
+
+    When export prices go negative, the recommendation will be 0 kW—HAEO handles the price signal automatically.
+    You don't need separate curtailment logic.
+
+## Inverter Power Limits
+
+For hybrid inverters, apply both direction limits:
+
+```yaml
+automation:
+  - alias: "HAEO: Apply Inverter Limits"
+    trigger:
+      - platform: state
+        entity_id:
+          - sensor.main_inverter_charge_limit_recommendation
+          - sensor.main_inverter_discharge_limit_recommendation
+    action:
+      - service: number.set_value
+        target:
+          entity_id: number.inverter_ac_to_dc_limit
+        data:
+          value: "{{ states('sensor.main_inverter_charge_limit_recommendation') | float(0) }}"
+      - service: number.set_value
+        target:
+          entity_id: number.inverter_dc_to_ac_limit
+        data:
+          value: "{{ states('sensor.main_inverter_discharge_limit_recommendation') | float(0) }}"
+```
+
+## Complete System Example
+
+A complete automation for a system with battery, inverter, and grid export control:
+
+```yaml
+automation:
+  - alias: "HAEO: Complete System Control"
+    description: Apply all HAEO recommendations to hardware
+    trigger:
+      - platform: state
+        entity_id:
+          - sensor.main_battery_charge_limit_recommendation
+          - sensor.main_battery_discharge_limit_recommendation
+          - sensor.main_inverter_charge_limit_recommendation
+          - sensor.main_inverter_discharge_limit_recommendation
+          - sensor.main_grid_export_limit_recommendation
+    condition:
+      - condition: state
+        entity_id: input_boolean.haeo_auto_control
+        state: "on"
+    action:
+      # Battery limits
+      - service: number.set_value
+        target:
+          entity_id: number.battery_max_charging_limit
+        data:
+          value: "{{ states('sensor.main_battery_charge_limit_recommendation') | float(0) }}"
+      - service: number.set_value
+        target:
+          entity_id: number.battery_max_discharging_limit
+        data:
+          value: "{{ states('sensor.main_battery_discharge_limit_recommendation') | float(0) }}"
+      # Inverter limits
+      - service: number.set_value
+        target:
+          entity_id: number.inverter_ac_to_dc_limit
+        data:
+          value: "{{ states('sensor.main_inverter_charge_limit_recommendation') | float(0) }}"
+      - service: number.set_value
+        target:
+          entity_id: number.inverter_dc_to_ac_limit
+        data:
+          value: "{{ states('sensor.main_inverter_discharge_limit_recommendation') | float(0) }}"
+      # Grid export limit
+      - service: number.set_value
+        target:
+          entity_id: number.grid_export_limitation
+        data:
+          value: "{{ states('sensor.main_grid_export_limit_recommendation') | float(0) }}"
+    mode: single
+```
+
+## Sigenergy Example
+
+For Sigenergy systems:
+
+```yaml
+automation:
+  - alias: "HAEO: Sigenergy Control"
+    description: Apply HAEO recommendations to Sigenergy system
+    trigger:
+      - platform: state
+        entity_id:
+          - sensor.main_battery_charge_limit_recommendation
+          - sensor.main_battery_discharge_limit_recommendation
+          - sensor.main_grid_export_limit_recommendation
+    action:
+      - service: number.set_value
+        target:
+          entity_id: number.sigen_plant_ess_max_charging_limit
+        data:
+          value: "{{ states('sensor.main_battery_charge_limit_recommendation') | float(0) }}"
+      - service: number.set_value
+        target:
+          entity_id: number.sigen_plant_ess_max_discharging_limit
+        data:
+          value: "{{ states('sensor.main_battery_discharge_limit_recommendation') | float(0) }}"
+      - service: number.set_value
+        target:
+          entity_id: number.sigen_plant_grid_export_limitation
+        data:
+          value: "{{ states('sensor.main_grid_export_limit_recommendation') | float(0) }}"
+    mode: single
+```
+
+## Operating Modes
+
+Some systems require setting an operating mode in addition to power limits.
+The combination of charge and discharge recommendations determines the appropriate mode:
+
+| Charge Recommendation | Discharge Recommendation | Mode |
+|----------------------|-------------------------|------|
+| > 0 | 0 | Forced Charging |
+| 0 | > 0 | Forced Discharging |
+| > 0 | > 0 | Self-Consumption |
+| 0 | 0 | Standby |
+
+```yaml
+automation:
+  - alias: "HAEO: Battery Mode Selection"
+    trigger:
+      - platform: state
+        entity_id:
+          - sensor.main_battery_charge_limit_recommendation
+          - sensor.main_battery_discharge_limit_recommendation
+    variables:
+      charge: "{{ states('sensor.main_battery_charge_limit_recommendation') | float(0) }}"
+      discharge: "{{ states('sensor.main_battery_discharge_limit_recommendation') | float(0) }}"
+    action:
+      - choose:
+          # Self-consumption: both directions allowed
+          - conditions:
+              - condition: template
+                value_template: "{{ charge > 0 and discharge > 0 }}"
+            sequence:
+              - service: select.select_option
+                target:
+                  entity_id: select.battery_mode
+                data:
+                  option: "Maximum Self Consumption"
+          # Forced charging: only charge allowed
+          - conditions:
+              - condition: template
+                value_template: "{{ charge > 0 and discharge == 0 }}"
+            sequence:
+              - service: select.select_option
+                target:
+                  entity_id: select.battery_mode
+                data:
+                  option: "Command Charging (PV First)"
+          # Forced discharging: only discharge allowed
+          - conditions:
+              - condition: template
+                value_template: "{{ charge == 0 and discharge > 0 }}"
+            sequence:
+              - service: select.select_option
+                target:
+                  entity_id: select.battery_mode
+                data:
+                  option: "Command Discharging (PV First)"
+          # Standby: neither direction allowed
+          - conditions:
+              - condition: template
+                value_template: "{{ charge == 0 and discharge == 0 }}"
+            sequence:
+              - service: select.select_option
+                target:
+                  entity_id: select.battery_mode
+                data:
+                  option: "Standby"
+```
+
+## Optimization Status Monitoring
+
+Monitor for optimization failures:
+
+```yaml
+automation:
+  - alias: "HAEO: Optimization Status Monitor"
+    trigger:
+      - platform: state
+        entity_id: sensor.main_network_optimization_status
+        to: "error"
+    action:
+      - service: notify.notify
+        data:
+          title: "HAEO Optimization Failed"
           message: >
-            The HAEO energy optimization has failed.
-            Please check the system logs for details.
+            HAEO optimization encountered an error at {{ now().strftime('%H:%M') }}.
+            Check logs for details.
 ```
 
-### What this automation does
+## Best Practices
 
-1. **Trigger**: Monitors the optimization status sensor
-2. **Condition**: Activates when status changes to "failed"
-3. **Action**: Creates a persistent notification in Home Assistant
+### Safety Controls
 
-### Customization options
+Add a manual override switch to disable automations:
 
-- Add conditions to only notify during certain hours
-- Add mobile app notifications using your configured notify service
-- Create a counter to track failure frequency over time
+```yaml
+input_boolean:
+  haeo_auto_control:
+    name: "HAEO Auto Control"
+    icon: mdi:robot
+```
 
-## Example 2: Apply battery power recommendation
+Use this in your automation conditions (shown in the complete system example above).
 
-This automation writes HAEO's recommended battery power directly to a controllable setpoint entity when the optimization completes successfully.
+### Debouncing
+
+Add a `for:` duration to avoid rapid changes:
+
+```yaml
+trigger:
+  - platform: state
+    entity_id: sensor.main_battery_charge_limit_recommendation
+    for:
+      seconds: 30
+```
+
+### Validation
+
+Check that sensors are available before applying values:
+
+```yaml
+condition:
+  - condition: template
+    value_template: >
+      {{ states('sensor.main_battery_charge_limit_recommendation') not in ['unavailable', 'unknown'] }}
+```
+
+### Rate Limiting
+
+Use `mode: single` to prevent overlapping automation runs.
+
+### Logging
+
+Track changes with logbook entries:
+
+```yaml
+action:
+  - service: logbook.log
+    data:
+      name: "HAEO"
+      message: >
+        Applied charge limit: {{ states('sensor.main_battery_charge_limit_recommendation') }} kW
+```
+
+## Understanding Shadow Prices
+
+For advanced diagnostics, HAEO also provides shadow price sensors.
+Shadow prices indicate whether a constraint is limiting the optimal solution.
+
+See [Shadow Prices](../modeling/shadow-prices.md) for detailed documentation.
+
+### Key Shadow Price Sensors
+
+| Sensor | Interpretation |
+|--------|---------------|
+| `sensor.{battery}_power_max_charge_price` | Battery charging is constrained |
+| `sensor.{battery}_power_max_discharge_price` | Battery discharging is constrained |
+| `sensor.{grid}_import_limit_shadow_price` | Grid import is constrained |
+| `sensor.{grid}_export_limit_shadow_price` | Grid export is constrained |
+
+A **non-zero** shadow price means the constraint is binding—the optimizer wants more capacity than configured.
+
+### Constraint Alerting
+
+Get notified when constraints consistently limit optimization:
 
 ```yaml
 automation:
-  - alias: 'HAEO: Apply battery charge power'
-    description: Set battery charge power from HAEO recommendation
+  - alias: "HAEO: Binding Constraint Alert"
     trigger:
-      - platform: state
-        entity_id: sensor.{battery_name}_power_consumed
-    condition:
-      - condition: template
-        value_template: >
-          {{ trigger.to_state.state not in ['unavailable', 'unknown'] }}
-      - condition: template
-        value_template: >
-          {{ trigger.to_state.state | float(0) > 0 }}
+      - platform: numeric_state
+        entity_id:
+          - sensor.main_battery_power_max_charge_price
+          - sensor.main_battery_power_max_discharge_price
+        above: 0.10
+        for:
+          hours: 1
     action:
-      - service: number.set_value
-        target:
-          entity_id: number.battery_charge_power_setpoint
+      - service: notify.notify
         data:
-          value: '{{ trigger.to_state.state | float(0) }}'
-
-  - alias: 'HAEO: Apply battery discharge power'
-    description: Set battery discharge power from HAEO recommendation
-    trigger:
-      - platform: state
-        entity_id: sensor.{battery_name}_power_produced
-    condition:
-      - condition: template
-        value_template: >
-          {{ trigger.to_state.state not in ['unavailable', 'unknown'] }}
-      - condition: template
-        value_template: >
-          {{ trigger.to_state.state | float(0) > 0 }}
-    action:
-      - service: number.set_value
-        target:
-          entity_id: number.battery_discharge_power_setpoint
-        data:
-          value: '{{ trigger.to_state.state | float(0) }}'
+          title: "HAEO: Constraint Binding"
+          message: >
+            {{ trigger.to_state.attributes.friendly_name }}
+            has been limiting optimization for 1 hour.
+            Shadow price: ${{ trigger.to_state.state | round(2) }}/kW
 ```
-
-### What this automation does
-
-1. **Triggers**: Separate automations for charge (`power_consumed`) and discharge (`power_produced`) sensors
-2. **Safety checks**: Ensures sensor is available and value is positive (non-zero operation)
-3. **Actions**: Writes the appropriate setpoint to battery control entities
-
-### Customization options
-
-- Replace `number.battery_charge_power_setpoint` and `number.battery_discharge_power_setpoint` with your battery's control entities
-- Use [`numeric_state` triggers](https://www.home-assistant.io/docs/automation/trigger/#numeric-state-trigger) to only react to significant changes
-- Add rate limiting with `for:` duration to debounce rapid updates
-- Include logbook.log service for audit trail of applied changes
-
-## Example 3: Curtail solar generation based on forecast
-
-This automation caps inverter output when HAEO predicts excess solar that would force grid export at high prices.
-
-```yaml
-automation:
-  - alias: 'HAEO: Solar curtailment'
-    description: Limit inverter output when HAEO recommends curtailment
-    trigger:
-      - platform: state
-        entity_id: sensor.{solar_name}_power_produced
-    condition:
-      - condition: template
-        value_template: >
-          {{ trigger.to_state.state not in ['unavailable', 'unknown'] }}
-      - condition: template
-        value_template: >
-          {{
-            trigger.to_state.state | float(0)
-            < states('sensor.{solar_name}_power_available') | float(0)
-          }}
-    action:
-      - service: number.set_value
-        target:
-          entity_id: number.solar_inverter_limit_kw
-        data:
-          value: '{{ trigger.to_state.state | float(0) }}'
-```
-
-### What this automation does
-
-1. **Trigger**: Monitors `power_produced` (optimal generation after curtailment)
-2. **Conditions**: Validates sensor availability and checks if curtailment is active (produced < available)
-3. **Action**: Sets inverter power limit to match HAEO's curtailment recommendation
-
-### Customization options
-
-- Replace `number.solar_inverter_limit_kw` with your inverter's power limit control entity
-- Add [`for:` duration on the trigger](https://www.home-assistant.io/docs/automation/trigger/#state-trigger) to debounce brief fluctuations
-- Use `choose` action with multiple conditions for different curtailment levels (e.g., block export vs reduce power)
-
-## Best practices
-
-### Safely apply optimization recommendations
-
-- Check sensor availability using `not in ['unavailable', 'unknown']` template conditions
-- Compare recommendations against hardware limits and sensor feedback to detect drift
-- Use [`choose`](https://www.home-assistant.io/docs/scripts/conditions/#choose-a-group-of-actions) blocks for fallback behaviors when values exceed safety thresholds
-- Keep a manual override helper (e.g., `input_boolean.haeo_manual_override`) to skip automations when you need direct control
-
-### Handle frequent optimization result changes
-
-- Add `for:` options to state triggers or use templates that ignore small deltas to avoid thrashing hardware.
-- Persist the last applied value in an [`input_number`](https://www.home-assistant.io/integrations/input_number/) and only write a new setpoint when the change is meaningful.
-- Rate-limit notifications with [automation trace](https://www.home-assistant.io/docs/automation/trace/) insights to make sure informative alerts are not muted by constant updates.
-- Group related actions with the [`script.turn_on`](https://www.home-assistant.io/integrations/script/) service so multiple automations share the same debounce logic.
-
-### Protect real hardware
-
-- Enforce min and max limits using dedicated `number` entities exposed by your inverter or charger.
-- Add a final verification step that confirms the actuator accepted the change (for example, compare `sensor.{battery_name}_power_charge` after a short delay).
-- Log every applied recommendation to the Logbook so you can audit changes if the device misbehaves.
-- During commissioning, keep automations in "monitor only" mode by replacing actuator calls with notifications until you are confident in the behavior.
 
 ## Troubleshooting
 
-### Automation not triggering
+### Automation Not Triggering
 
-**Check these common issues:**
+1. Verify entity IDs in Developer Tools → States
+2. Check that sensors have numeric states
+3. Ensure the automation is enabled
+4. Review automation traces for errors
 
-1. **Entity ID typo**: Verify exact sensor entity IDs in Developer Tools → States
-2. **State format**: Some sensors use strings ("success"), others use numbers (50.5)
-3. **Trigger conditions**: Ensure the trigger actually changes to the specified value
-4. **Automation disabled**: Check that the automation toggle is on
+### Unexpected Recommendations
 
-### Getting the current state value
+1. Check that input sensors (prices, forecasts) have valid values
+2. Verify optimization status is "success"
+3. Review shadow prices to understand constraints
+4. Check the forecast attribute for future recommendations
 
-Use Developer Tools → States to inspect sensor values:
+### Hardware Not Responding
 
-```
-sensor.{network_name}_optimization_status: "success"
-sensor.{battery_name}_power_consumed: 3.2
-sensor.{battery_name}_power_produced: 0.0
-sensor.{solar_name}_power_produced: 4.5
-sensor.{solar_name}_power_available: 5.0
-```
+1. Test manual control via Developer Tools → Services
+2. Verify remote control is enabled on the physical device
+3. Check that values are within hardware limits
 
-### Debugging with traces
+## Next Steps
 
-Enable automation traces to see execution history:
+<div class="grid cards" markdown>
 
-1. Go to Settings → Automations & Scenes
-2. Click on your automation
-3. Click the three dots → "Traces"
-4. Review the execution path and variable values
+-   :material-chart-line:{ .lg .middle } **Shadow Prices**
 
-## Additional resources
+    ---
 
-- [Home Assistant Automation Documentation](https://www.home-assistant.io/docs/automation/)
-- [Template Documentation](https://www.home-assistant.io/docs/configuration/templating/)
-- [Understanding Results](optimization.md)
+    Understand constraint shadow prices and marginal values.
 
-## Need help?
+    [:material-arrow-right: Shadow prices](../modeling/shadow-prices.md)
 
-If you have questions or need help creating automations:
+-   :material-battery-charging:{ .lg .middle } **Battery Configuration**
 
-- Check the [HAEO GitHub Discussions](https://github.com/hass-energy/haeo/discussions)
-- Review existing automation examples from the community
-- Ask in the Home Assistant Community forums with the `haeo` tag
+    ---
+
+    Configure battery elements for optimization.
+
+    [:material-arrow-right: Battery configuration](elements/battery.md)
+
+-   :material-transmission-tower:{ .lg .middle } **Grid Configuration**
+
+    ---
+
+    Configure grid connections and limits.
+
+    [:material-arrow-right: Grid configuration](elements/grid.md)
+
+-   :material-help-circle:{ .lg .middle } **Understanding Results**
+
+    ---
+
+    Learn how to interpret optimization outputs.
+
+    [:material-arrow-right: Understanding results](optimization.md)
+
+</div>

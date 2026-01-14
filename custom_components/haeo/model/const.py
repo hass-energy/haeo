@@ -29,6 +29,7 @@ class OutputType(StrEnum):
         STATUS: Boolean or categorical status
         DURATION: Time duration
         SHADOW_PRICE: Shadow prices from LP constraints
+        CONTROL_LIMIT: Recommended power limit for automation control (kW)
 
     """
 
@@ -43,3 +44,4 @@ class OutputType(StrEnum):
     STATUS = auto()
     DURATION = auto()
     SHADOW_PRICE = auto()
+    CONTROL_LIMIT = auto()

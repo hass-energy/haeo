@@ -33,6 +33,8 @@ type GridOutputName = Literal[
     "grid_cost_net",
     "grid_power_max_import_price",
     "grid_power_max_export_price",
+    "grid_import_limit_recommendation",
+    "grid_export_limit_recommendation",
 ]
 
 GRID_OUTPUT_NAMES: Final[frozenset[GridOutputName]] = frozenset(
@@ -47,6 +49,9 @@ GRID_OUTPUT_NAMES: Final[frozenset[GridOutputName]] = frozenset(
         # Shadow prices
         GRID_POWER_MAX_IMPORT_PRICE := "grid_power_max_import_price",
         GRID_POWER_MAX_EXPORT_PRICE := "grid_power_max_export_price",
+        # Control limit recommendations
+        GRID_IMPORT_LIMIT_RECOMMENDATION := "grid_import_limit_recommendation",
+        GRID_EXPORT_LIMIT_RECOMMENDATION := "grid_export_limit_recommendation",
     )
 )
 
@@ -270,7 +275,79 @@ class GridAdapter:
         if CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET in connection:
             grid_outputs[GRID_POWER_MAX_IMPORT_PRICE] = connection[CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET]
 
+        # Synthesize control limit recommendations
+        # Import recommendation: uses import power, import shadow price, and import limit
+        import_limit = _config.get("import_limit")
+        if import_limit is not None:
+            import_recommendation = _synthesize_control_limit(
+                power_values=connection[CONNECTION_POWER_SOURCE_TARGET].values,
+                shadow_values=(
+                    connection[CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET].values
+                    if CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET in connection
+                    else None
+                ),
+                max_limit=tuple(import_limit),
+            )
+            grid_outputs[GRID_IMPORT_LIMIT_RECOMMENDATION] = OutputData(
+                type=OutputType.CONTROL_LIMIT,
+                unit="kW",
+                values=import_recommendation,
+            )
+
+        # Export recommendation: uses export power, export shadow price, and export limit
+        export_limit = _config.get("export_limit")
+        if export_limit is not None:
+            export_recommendation = _synthesize_control_limit(
+                power_values=connection[CONNECTION_POWER_TARGET_SOURCE].values,
+                shadow_values=(
+                    connection[CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE].values
+                    if CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE in connection
+                    else None
+                ),
+                max_limit=tuple(export_limit),
+            )
+            grid_outputs[GRID_EXPORT_LIMIT_RECOMMENDATION] = OutputData(
+                type=OutputType.CONTROL_LIMIT,
+                unit="kW",
+                values=export_recommendation,
+            )
+
         return {GRID_DEVICE_GRID: grid_outputs}
 
 
 adapter = GridAdapter()
+
+
+def _synthesize_control_limit(
+    power_values: tuple[float, ...],
+    shadow_values: tuple[float, ...] | None,
+    max_limit: tuple[float, ...],
+) -> tuple[float, ...]:
+    """Synthesize control limit recommendation from power, shadow price, and max limit.
+
+    The recommendation logic per period:
+    - If power = 0: recommend 0 (optimizer doesn't want flow in this direction)
+    - If power > 0 and shadow = 0: recommend max_limit (has headroom, allow flexibility)
+    - If power > 0 and shadow > 0: recommend power (at binding limit)
+
+    Args:
+        power_values: Optimized power flow per period (kW)
+        shadow_values: Shadow price per period ($/kW), or None if no constraint
+        max_limit: Maximum power limit per period (kW)
+
+    Returns:
+        Recommended power limit per period (kW)
+
+    """
+    result: list[float] = []
+    for i, power in enumerate(power_values):
+        if power <= 0:
+            # No flow desired in this direction
+            result.append(0.0)
+        elif shadow_values is None or shadow_values[i] <= 0:
+            # Flow exists but constraint is not binding - allow max
+            result.append(max_limit[i])
+        else:
+            # Flow exists and constraint is binding - use optimal value
+            result.append(power)
+    return tuple(result)

@@ -39,6 +39,8 @@ type InverterOutputName = Literal[
     "inverter_dc_bus_power_balance",
     "inverter_max_power_dc_to_ac_price",
     "inverter_max_power_ac_to_dc_price",
+    "inverter_discharge_limit_recommendation",
+    "inverter_charge_limit_recommendation",
 ]
 
 INVERTER_OUTPUT_NAMES: Final[frozenset[InverterOutputName]] = frozenset(
@@ -50,6 +52,9 @@ INVERTER_OUTPUT_NAMES: Final[frozenset[InverterOutputName]] = frozenset(
         # Shadow prices
         INVERTER_MAX_POWER_DC_TO_AC_PRICE := "inverter_max_power_dc_to_ac_price",
         INVERTER_MAX_POWER_AC_TO_DC_PRICE := "inverter_max_power_ac_to_dc_price",
+        # Control limit recommendations (DC→AC = discharge, AC→DC = charge)
+        INVERTER_DISCHARGE_LIMIT_RECOMMENDATION := "inverter_discharge_limit_recommendation",
+        INVERTER_CHARGE_LIMIT_RECOMMENDATION := "inverter_charge_limit_recommendation",
     )
 )
 
@@ -205,7 +210,67 @@ class InverterAdapter:
         inverter_outputs[INVERTER_MAX_POWER_DC_TO_AC_PRICE] = connection[CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET]
         inverter_outputs[INVERTER_MAX_POWER_AC_TO_DC_PRICE] = connection[CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE]
 
+        # Synthesize control limit recommendations
+        # DC to AC (discharge) recommendation
+        discharge_recommendation = _synthesize_control_limit(
+            power_values=connection[CONNECTION_POWER_SOURCE_TARGET].values,
+            shadow_values=connection[CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET].values,
+            max_limit=tuple(_config["max_power_dc_to_ac"]),
+        )
+        inverter_outputs[INVERTER_DISCHARGE_LIMIT_RECOMMENDATION] = OutputData(
+            type=OutputType.CONTROL_LIMIT,
+            unit="kW",
+            values=discharge_recommendation,
+        )
+
+        # AC to DC (charge) recommendation
+        charge_recommendation = _synthesize_control_limit(
+            power_values=connection[CONNECTION_POWER_TARGET_SOURCE].values,
+            shadow_values=connection[CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE].values,
+            max_limit=tuple(_config["max_power_ac_to_dc"]),
+        )
+        inverter_outputs[INVERTER_CHARGE_LIMIT_RECOMMENDATION] = OutputData(
+            type=OutputType.CONTROL_LIMIT,
+            unit="kW",
+            values=charge_recommendation,
+        )
+
         return {INVERTER_DEVICE_INVERTER: inverter_outputs}
 
 
 adapter = InverterAdapter()
+
+
+def _synthesize_control_limit(
+    power_values: tuple[float, ...],
+    shadow_values: tuple[float, ...] | None,
+    max_limit: tuple[float, ...],
+) -> tuple[float, ...]:
+    """Synthesize control limit recommendation from power, shadow price, and max limit.
+
+    The recommendation logic per period:
+    - If power = 0: recommend 0 (optimizer doesn't want flow in this direction)
+    - If power > 0 and shadow = 0: recommend max_limit (has headroom, allow flexibility)
+    - If power > 0 and shadow > 0: recommend power (at binding limit)
+
+    Args:
+        power_values: Optimized power flow per period (kW)
+        shadow_values: Shadow price per period ($/kW), or None if no constraint
+        max_limit: Maximum power limit per period (kW)
+
+    Returns:
+        Recommended power limit per period (kW)
+
+    """
+    result: list[float] = []
+    for i, power in enumerate(power_values):
+        if power <= 0:
+            # No flow desired in this direction
+            result.append(0.0)
+        elif shadow_values is None or shadow_values[i] <= 0:
+            # Flow exists but constraint is not binding - allow max
+            result.append(max_limit[i])
+        else:
+            # Flow exists and constraint is binding - use optimal value
+            result.append(power)
+    return tuple(result)

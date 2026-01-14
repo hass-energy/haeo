@@ -61,6 +61,53 @@ The optimizer has headroom, so relaxing the limit would not change its decisions
 **Non-zero values**: When a shadow price is non-zero, the constraint is binding.
 The magnitude indicates how valuable additional capacity would be at that point.
 
+## Control limit recommendations
+
+HAEO synthesizes shadow prices with optimal power flows to produce **control limit recommendation** sensors.
+These sensors provide a single kW value that can be directly applied to hardware limits.
+
+The synthesis combines three inputs:
+
+1. **Optimal power value**: The power the optimizer wants to flow
+2. **Constraint shadow price**: Whether the limit is binding
+3. **Configured limit**: The maximum capacity you specified
+
+### Synthesis logic
+
+| Optimal Power | Shadow Price | Recommendation |
+|---------------|--------------|----------------|
+| 0 | (any) | 0 kW |
+| > 0 | 0 | Configured limit |
+| > 0 | > 0 | Optimal power value |
+
+**Interpretation**:
+
+- **Zero power**: The optimizer doesn't want flow in this direction. Recommend blocking it (0 kW limit).
+- **Positive power, zero shadow price**: Flow is desired and headroom exists. Recommend maximum capacity.
+- **Positive power, non-zero shadow price**: The constraint is binding. Recommend the exact optimal rate.
+
+### Why this works
+
+The key insight is that **lower bounds (≥ 0) don't need separate shadow prices** for automation purposes.
+When power is zero, the optimizer has decided not to use that flow direction—the reason (no value, or constraint) doesn't matter for control.
+When power is positive, the upper-bound shadow price tells you whether the limit is binding.
+
+This avoids exposing the mathematically correct but practically redundant "reduced costs" on non-negativity constraints.
+The recommendation sensors provide everything needed for hardware control.
+
+### Available sensors
+
+| Sensor | Description |
+|--------|-------------|
+| `sensor.{battery}_charge_limit_recommendation` | Battery charging limit |
+| `sensor.{battery}_discharge_limit_recommendation` | Battery discharging limit |
+| `sensor.{inverter}_charge_limit_recommendation` | Inverter AC→DC limit |
+| `sensor.{inverter}_discharge_limit_recommendation` | Inverter DC→AC limit |
+| `sensor.{grid}_import_limit_recommendation` | Grid import limit (when configured) |
+| `sensor.{grid}_export_limit_recommendation` | Grid export limit (when configured) |
+
+See [Automation Examples](../user-guide/automations.md) for how to use these sensors.
+
 ## Next Steps
 
 <div class="grid cards" markdown>
