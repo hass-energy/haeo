@@ -9,7 +9,7 @@ import voluptuous as vol
 
 from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME, DOMAIN
 from custom_components.haeo.data.loader.extractors import extract_entity_metadata
-from custom_components.haeo.flows.element_flow import ElementFlowMixin, build_exclusion_map
+from custom_components.haeo.flows.element_flow import ElementFlowMixin, build_inclusion_map
 from custom_components.haeo.flows.field_schema import (
     build_configurable_value_schema,
     build_entity_schema_entry,
@@ -61,8 +61,8 @@ class BatterySectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         default_name = translations[f"component.{DOMAIN}.config_subentries.{ELEMENT_TYPE}.flow_title"]
 
         entity_metadata = extract_entity_metadata(self.hass)
-        exclusion_map = build_exclusion_map(INPUT_FIELDS, entity_metadata)
-        schema = self._build_step1_schema(exclusion_map)
+        inclusion_map = build_inclusion_map(INPUT_FIELDS, entity_metadata)
+        schema = self._build_step1_schema(inclusion_map)
         defaults = user_input if user_input is not None else self._build_step1_defaults(default_name, subentry_data)
         schema = self.add_suggested_values_to_schema(schema, defaults)
 
@@ -70,7 +70,7 @@ class BatterySectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
 
     def _build_step1_schema(
         self,
-        exclusion_map: dict[str, list[str]],
+        inclusion_map: dict[str, list[str]],
     ) -> vol.Schema:
         """Build the schema for step 1: name and entity selections."""
         schema_dict: dict[vol.Marker, Any] = {
@@ -83,11 +83,11 @@ class BatterySectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         }
 
         for field_info in INPUT_FIELDS:
-            exclude_entities = exclusion_map[field_info.field_name]
+            include_entities = inclusion_map.get(field_info.field_name)
             marker, selector = build_entity_schema_entry(
                 field_info,
                 config_schema=BatterySectionConfigSchema,
-                exclude_entities=exclude_entities,
+                include_entities=include_entities,
             )
             schema_dict[marker] = selector
 
@@ -136,13 +136,11 @@ class BatterySectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         configurable_entity_id = get_configurable_entity_id()
 
         if subentry_data is None:
-            # First setup: pre-select based on defaults.mode
+            # First setup: pre-select configurable entity when defaults.mode == "value"
             defaults: dict[str, Any] = {}
             for field in INPUT_FIELDS:
                 if field.defaults is not None and field.defaults.mode == "value":
                     defaults[field.field_name] = [configurable_entity_id]
-                elif field.defaults is not None and field.defaults.mode == "entity" and field.defaults.entity:
-                    defaults[field.field_name] = [field.defaults.entity]
                 else:
                     defaults[field.field_name] = []
             defaults[CONF_NAME] = default_name

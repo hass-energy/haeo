@@ -9,7 +9,7 @@ import voluptuous as vol
 
 from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME, DOMAIN
 from custom_components.haeo.data.loader.extractors import extract_entity_metadata
-from custom_components.haeo.flows.element_flow import ElementFlowMixin, build_exclusion_map, build_participant_selector
+from custom_components.haeo.flows.element_flow import ElementFlowMixin, build_inclusion_map, build_participant_selector
 from custom_components.haeo.flows.field_schema import (
     build_configurable_value_schema,
     build_entity_schema_entry,
@@ -63,11 +63,11 @@ class ConnectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         current_source = subentry_data.get(CONF_SOURCE) if subentry_data else None
         current_target = subentry_data.get(CONF_TARGET) if subentry_data else None
         entity_metadata = extract_entity_metadata(self.hass)
-        exclusion_map = build_exclusion_map(INPUT_FIELDS, entity_metadata)
+        inclusion_map = build_inclusion_map(INPUT_FIELDS, entity_metadata)
         participants = self._get_participant_names()
         schema = self._build_step1_schema(
             participants,
-            exclusion_map,
+            inclusion_map,
             current_source,
             current_target,
         )
@@ -79,7 +79,7 @@ class ConnectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
     def _build_step1_schema(
         self,
         participants: list[str],
-        exclusion_map: dict[str, list[str]],
+        inclusion_map: dict[str, list[str]],
         current_source: str | None = None,
         current_target: str | None = None,
     ) -> vol.Schema:
@@ -96,11 +96,11 @@ class ConnectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         }
 
         for field_info in INPUT_FIELDS:
-            exclude_entities = exclusion_map[field_info.field_name]
+            include_entities = inclusion_map.get(field_info.field_name)
             marker, selector = build_entity_schema_entry(
                 field_info,
                 config_schema=ConnectionConfigSchema,
-                exclude_entities=exclude_entities,
+                include_entities=include_entities,
             )
             schema_dict[marker] = selector
 
@@ -154,13 +154,11 @@ class ConnectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         configurable_entity_id = get_configurable_entity_id()
 
         if subentry_data is None:
-            # First setup: pre-select based on defaults.mode
+            # First setup: pre-select configurable entity when defaults.mode == "value"
             defaults: dict[str, Any] = {}
             for field in INPUT_FIELDS:
                 if field.defaults is not None and field.defaults.mode == "value":
                     defaults[field.field_name] = [configurable_entity_id]
-                elif field.defaults is not None and field.defaults.mode == "entity" and field.defaults.entity:
-                    defaults[field.field_name] = [field.defaults.entity]
                 else:
                     defaults[field.field_name] = []
             defaults[CONF_NAME] = default_name
