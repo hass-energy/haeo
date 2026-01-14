@@ -182,12 +182,14 @@ class CompositeConnection(Element[CompositeConnectionOutputName]):
         self._last = self._segments[-1]
 
     # Parameter names that are delegated to segments
-    _DELEGATED_PARAMS: frozenset[str] = frozenset({
-        "max_power_source_target",
-        "max_power_target_source",
-        "price_source_target",
-        "price_target_source",
-    })
+    _DELEGATED_PARAMS: frozenset[str] = frozenset(
+        {
+            "max_power_source_target",
+            "max_power_target_source",
+            "price_source_target",
+            "price_target_source",
+        }
+    )
 
     def __setitem__(self, key: str, value: Any) -> None:
         """Set a TrackedParam value by name.
@@ -338,7 +340,7 @@ class CompositeConnection(Element[CompositeConnectionOutputName]):
 
         return result
 
-    def cost(self) -> Any:
+    def cost(self) -> Any:  # type: ignore[override]  # Intentionally override Element's @cost with segment delegation
         """Return aggregated cost expression from this connection's segments.
 
         Collects costs from all segments and aggregates them.
@@ -350,11 +352,7 @@ class CompositeConnection(Element[CompositeConnectionOutputName]):
 
         """
         # Collect costs from all segments
-        costs = [
-            segment_cost
-            for segment in self._segments
-            if (segment_cost := segment.cost()) is not None
-        ]
+        costs = [segment_cost for segment in self._segments if (segment_cost := segment.cost()) is not None]
 
         if not costs:
             return None

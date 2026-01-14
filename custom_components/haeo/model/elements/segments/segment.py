@@ -56,19 +56,11 @@ class Segment:
 
         # Create power variables for both directions
         # Source→Target direction
-        self._power_in_st = solver.addVariables(
-            n_periods, lb=0, name_prefix=f"{segment_id}_in_st_", out_array=True
-        )
-        self._power_out_st = solver.addVariables(
-            n_periods, lb=0, name_prefix=f"{segment_id}_out_st_", out_array=True
-        )
+        self._power_in_st = solver.addVariables(n_periods, lb=0, name_prefix=f"{segment_id}_in_st_", out_array=True)
+        self._power_out_st = solver.addVariables(n_periods, lb=0, name_prefix=f"{segment_id}_out_st_", out_array=True)
         # Target→Source direction
-        self._power_in_ts = solver.addVariables(
-            n_periods, lb=0, name_prefix=f"{segment_id}_in_ts_", out_array=True
-        )
-        self._power_out_ts = solver.addVariables(
-            n_periods, lb=0, name_prefix=f"{segment_id}_out_ts_", out_array=True
-        )
+        self._power_in_ts = solver.addVariables(n_periods, lb=0, name_prefix=f"{segment_id}_in_ts_", out_array=True)
+        self._power_out_ts = solver.addVariables(n_periods, lb=0, name_prefix=f"{segment_id}_out_ts_", out_array=True)
 
     @property
     def segment_id(self) -> str:
