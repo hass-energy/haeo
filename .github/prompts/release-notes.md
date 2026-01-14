@@ -3,6 +3,7 @@ name: generateReleaseNotes
 description: Generate structured release notes from GitHub PRs between two versions
 argument-hint: The version being released (e.g., "v0.2.0") and optionally the previous version
 ---
+
 Generate comprehensive release notes for a software release.
 
 ## Process
@@ -17,12 +18,14 @@ Generate comprehensive release notes for a software release.
 Use this structure for the release notes:
 
 ### Highlights (User-Facing)
+
 - 2-4 bullet points with emoji icons summarizing the most impactful changes
 - Focus on what users will experience and benefit from
 - Describe outcomes, not implementation details (e.g., "5x faster" not "refactored to declarative architecture")
 - If there are significant developer-facing changes, add a separate **Developer Highlights** subsection within Developer-Facing Changes
 
 ### Breaking Changes (if any)
+
 - Place immediately after Highlights, before User-Facing Changes
 - Use ⚠️ emoji in section header for visibility
 - Clearly describe what changed and why it might affect users
@@ -30,21 +33,25 @@ Use this structure for the release notes:
 - Be specific about entity names, API changes, or configuration format changes
 
 ### User-Facing Changes
+
 - **New Features**: Visible functionality users can interact with
 - **Configuration Improvements**: UX/workflow improvements
 - **Bug Fixes**: Issues that affected users
 
 ### Developer-Facing Changes
+
 - **Developer Highlights**: Major architectural achievements that developers will appreciate (optional, only for significant changes)
 - **Architecture**: Internal refactors, performance improvements, structural changes
 - **Schema/API Changes**: Changes to internal systems developers work with
 - **Testing & Documentation**: Improvements to developer experience
 
 ### Contributors
+
 - List all contributors with GitHub handles
 - Highlight first-time contributors with 🎉
 
 ### Full Changelog
+
 - Include the complete list of PRs with links
 - Use GitHub's auto-generated format with PR numbers and author attributions
 
