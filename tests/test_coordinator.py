@@ -547,6 +547,32 @@ def test_build_coordinator_output_skips_forecast_for_single_value() -> None:
     assert output.forecast is None
 
 
+def test_build_coordinator_output_uses_last_value_when_state_last() -> None:
+    """Cumulative outputs with state_last=True should use the last value as state."""
+
+    output = _build_coordinator_output(
+        SOLAR_POWER,
+        OutputData(type=OutputType.POWER, unit="kW", values=(1.0, 2.0, 3.0), state_last=True),
+        forecast_times=(1, 2, 3),
+    )
+
+    assert output.state == 3.0  # Last value, not first
+    assert output.forecast is not None
+
+
+def test_build_coordinator_output_handles_empty_values() -> None:
+    """Empty values should result in None state."""
+
+    output = _build_coordinator_output(
+        SOLAR_POWER,
+        OutputData(type=OutputType.POWER, unit="kW", values=()),
+        forecast_times=(1, 2),
+    )
+
+    assert output.state is None
+    assert output.forecast is None
+
+
 def test_coordinator_cleanup_invokes_listener(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
