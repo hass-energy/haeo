@@ -255,10 +255,10 @@
           "description": "Configure solar forecasting and parameters",
           "data": {
             "connection": "Connection",
-            "curtailment": "Allow Curtailment (Default: On)",
+            "curtailment": "Allow Curtailment",
             "forecast": "Forecast",
             "name": "Solar Name",
-            "price_production": "Production Price (Default: 0)"
+            "price_production": "Production Price"
           }
         }
       },
@@ -417,7 +417,7 @@
     "horizon_preset": {
       "options": { "2_days": "2 days", "3_days": "3 days", "5_days": "5 days", "7_days": "7 days", "custom": "Custom" }
     },
-    "input_source": { "choices": { "entity": "Entity", "constant": "Constant", "disabled": "Disabled" } },
+    "input_source": { "choices": { "entity": "Entity", "constant": "Constant", "disabled": "None" } },
     "disabled_label": { "label": "Field is disabled" }
   }
 }

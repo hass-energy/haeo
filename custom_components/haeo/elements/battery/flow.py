@@ -121,7 +121,9 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         for field_info in INPUT_FIELDS:
             if field_info.field_name in PARTITION_FIELD_NAMES:
                 continue
-            is_optional = field_info.field_name in BatteryConfigSchema.__optional_keys__
+            is_optional = (
+                field_info.field_name in BatteryConfigSchema.__optional_keys__ and not field_info.force_required
+            )
             include_entities = inclusion_map.get(field_info.field_name)
             preferred = get_preferred_choice(field_info, subentry_data, is_optional=is_optional)
             marker, selector = build_choose_schema_entry(
@@ -146,7 +148,9 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         schema_dict: dict[vol.Marker, Any] = {}
 
         for field_info in PARTITION_FIELDS:
-            is_optional = field_info.field_name in BatteryConfigSchema.__optional_keys__
+            is_optional = (
+                field_info.field_name in BatteryConfigSchema.__optional_keys__ and not field_info.force_required
+            )
             include_entities = inclusion_map.get(field_info.field_name)
             preferred = get_preferred_choice(field_info, subentry_data, is_optional=is_optional)
             marker, selector = build_choose_schema_entry(
@@ -218,7 +222,7 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             field_name = field_info.field_name
             if exclude_partition and field_name in PARTITION_FIELD_NAMES:
                 continue
-            is_optional = field_name in BatteryConfigSchema.__optional_keys__
+            is_optional = field_name in BatteryConfigSchema.__optional_keys__ and not field_info.force_required
 
             if is_optional:
                 continue
@@ -231,7 +235,7 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         """Validate that required partition fields have valid selections."""
         for field_info in PARTITION_FIELDS:
             field_name = field_info.field_name
-            is_optional = field_name in BatteryConfigSchema.__optional_keys__
+            is_optional = field_name in BatteryConfigSchema.__optional_keys__ and not field_info.force_required
 
             if is_optional:
                 continue

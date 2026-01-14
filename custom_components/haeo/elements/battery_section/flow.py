@@ -74,7 +74,9 @@ class BatterySectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         }
 
         for field_info in INPUT_FIELDS:
-            is_optional = field_info.field_name in BatterySectionConfigSchema.__optional_keys__
+            is_optional = (
+                field_info.field_name in BatterySectionConfigSchema.__optional_keys__ and not field_info.force_required
+            )
             include_entities = inclusion_map.get(field_info.field_name)
             preferred = get_preferred_choice(field_info, subentry_data, is_optional=is_optional)
             marker, selector = build_choose_schema_entry(
@@ -113,7 +115,7 @@ class BatterySectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         """Validate that required choose fields have valid selections."""
         for field_info in INPUT_FIELDS:
             field_name = field_info.field_name
-            is_optional = field_name in BatterySectionConfigSchema.__optional_keys__
+            is_optional = field_name in BatterySectionConfigSchema.__optional_keys__ and not field_info.force_required
 
             if is_optional:
                 continue

@@ -10,6 +10,7 @@ from custom_components.haeo.elements.solar import (
 
 # Test data for solar flow - single-step with choose selector
 # config: Contains all field values in choose selector format
+# Note: price_production and curtailment have force_required=True, so they must be included
 VALID_DATA = [
     {
         "description": "Basic solar configuration with constant forecast",
@@ -17,6 +18,7 @@ VALID_DATA = [
             CONF_NAME: "Test Solar",
             CONF_CONNECTION: "main_bus",
             CONF_FORECAST: {"choice": "constant", "value": 5.0},
+            CONF_PRICE_PRODUCTION: {"choice": "constant", "value": 0.0},
             CONF_CURTAILMENT: {"choice": "constant", "value": False},
         },
     },

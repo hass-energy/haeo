@@ -64,6 +64,8 @@ class InputFieldInfo[T: (NumberEntityDescription, SwitchEntityDescription)]:
     time_series: bool = False
     boundaries: bool = False
     defaults: InputFieldDefaults | None = None
+    # Force value to be required, even if its optional in the schema
+    force_required: bool | None = None
 
 
 __all__ = [

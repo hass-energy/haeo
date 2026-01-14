@@ -10,7 +10,13 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.elements import node
-from custom_components.haeo.elements.solar import CONF_CONNECTION, CONF_FORECAST, ELEMENT_TYPE
+from custom_components.haeo.elements.solar import (
+    CONF_CONNECTION,
+    CONF_CURTAILMENT,
+    CONF_FORECAST,
+    CONF_PRICE_PRODUCTION,
+    ELEMENT_TYPE,
+)
 from custom_components.haeo.flows.field_schema import CHOICE_CONSTANT, CHOICE_ENTITY
 
 from ..conftest import add_participant, create_flow
@@ -163,10 +169,13 @@ async def test_user_step_with_entity_creates_entry(
     )
 
     # Submit with entity selection using choose selector format
+    # price_production and curtailment are force_required, so must be included
     user_input = {
         CONF_NAME: "Test Solar",
         CONF_CONNECTION: "TestNode",
         CONF_FORECAST: {"choice": CHOICE_ENTITY, "value": ["sensor.solar_forecast"]},
+        CONF_PRICE_PRODUCTION: {"choice": CHOICE_CONSTANT, "value": 0.0},
+        CONF_CURTAILMENT: {"choice": CHOICE_CONSTANT, "value": True},
     }
     result = await flow.async_step_user(user_input=user_input)
 
@@ -194,10 +203,13 @@ async def test_user_step_with_constant_creates_entry(
     )
 
     # Submit with constant value using choose selector format
+    # price_production and curtailment are force_required, so must be included
     user_input = {
         CONF_NAME: "Test Solar",
         CONF_CONNECTION: "TestNode",
         CONF_FORECAST: {"choice": CHOICE_CONSTANT, "value": 5.0},
+        CONF_PRICE_PRODUCTION: {"choice": CHOICE_CONSTANT, "value": 0.0},
+        CONF_CURTAILMENT: {"choice": CHOICE_CONSTANT, "value": True},
     }
     result = await flow.async_step_user(user_input=user_input)
 
