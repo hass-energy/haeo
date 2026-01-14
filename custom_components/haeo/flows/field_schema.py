@@ -250,7 +250,7 @@ def build_choose_selector(
     # Build ordered choices dict with preferred choice first
     # (ChooseSelector always selects the first option)
     choices: dict[str, ChooseSelectorChoiceConfig]
-    disabled_selector = ConstantSelector(ConstantSelectorConfig(value="", translation_key="disabled_label"))
+    disabled_selector = ConstantSelector(ConstantSelectorConfig(value="", label="Field is disabled"))
     disabled_choice = ChooseSelectorChoiceConfig(selector=disabled_selector.serialize()["selector"])
 
     if is_optional and preferred_choice == CHOICE_DISABLED:

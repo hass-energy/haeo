@@ -414,7 +414,6 @@
     }
   },
   "selector": {
-    "disabled_label": { "label": "Field is disabled" },
     "horizon_preset": {
       "options": { "2_days": "2 days", "3_days": "3 days", "5_days": "5 days", "7_days": "7 days", "custom": "Custom" }
     },
