@@ -143,48 +143,51 @@ Each element type has its own flow class in `custom_components/haeo/flows/`:
 
 Each flow defines element-specific schema fields, defaults, and validation logic.
 
-## Entity-First Two-Step Config Flow Pattern
+## ChooseSelector Config Flow Pattern
 
-Most element types use a two-step configuration flow that provides a streamlined user experience.
-Users select entities or "Configurable Entity" for each field, then enter constant values only where needed.
+Element types use a single-step configuration flow with Home Assistant's `ChooseSelector`.
+This selector provides a dropdown letting users pick between different input methods for each field.
 
-### Flow Steps
+### Input Options
 
-**Step 1 (user)**: User enters the element name, connection target, and selects entities for each configurable field.
-Each entity selector includes a special "Configurable Entity" option that signals a constant value will be entered.
+Each configurable field uses a `ChooseSelector` with these options:
 
-**Step 2 (values)**: Only shown if the user selected "Configurable Entity" for any field.
-The user enters constant values for those fields. Step 2 is skipped if no configurable fields were selected.
+| Choice   | Description                              | Storage Format            |
+| -------- | ---------------------------------------- | ------------------------- |
+| Entity   | Value comes from Home Assistant sensors  | Entity ID string or list  |
+| Constant | User enters a fixed value directly       | Numeric value or boolean  |
+| Disabled | Field is not used (optional fields only) | Field omitted from config |
 
-### Entity Selection Options
+Required fields offer "Entity" and "Constant" choices.
+Optional fields also include "Disabled" to skip the constraint entirely.
 
-Each entity field supports three types of selections:
+### Single-Step Flow
 
-| Selection Type      | Description                                  | Step 2 Behavior      |
-| ------------------- | -------------------------------------------- | -------------------- |
-| External Entity     | Value comes from Home Assistant sensors      | No input shown       |
-| Configurable Entity | User enters a constant value                 | Shows NumberSelector |
-| Empty (optional)    | Field is disabled (only for optional fields) | No input shown       |
+All element configuration happens in a single step:
 
-Required fields must have at least one entity selected (either external or Configurable Entity).
-Optional fields can be left empty to use default values.
+1. User enters element name and connection target
+2. For each input field, user selects "Entity", "Constant", or "Disabled"
+3. Based on selection, user either picks entities from a dropdown or enters a constant value inline
+4. Submit creates the element with all configuration
+
+This replaces the previous two-step pattern where constant values were entered in a separate step.
 
 ### Implementation Pattern
 
-The entity-first flow utilities are in `custom_components/haeo/flows/field_schema.py`:
+The ChooseSelector utilities are in `custom_components/haeo/flows/field_schema.py`:
 
-- `build_entity_schema_entry()`: Creates the entity selector for step 1 (includes Configurable Entity)
-- `build_configurable_value_schema()`: Builds step 2 schema for fields with Configurable Entity selected
-- `extract_entity_selections()`: Extracts entity selections from step 1 data
-- `convert_entity_selections_to_config()`: Converts selections to final config format
-- `get_configurable_value_defaults()`: Provides defaults for configurable value entry
+- `build_choose_schema_entry()`: Creates the ChooseSelector with entity/constant/disabled options
+- `build_choose_selector()`: Builds the selector with proper choice ordering
+- `get_preferred_choice()`: Determines which choice should be pre-selected based on defaults or current config
+- `get_choose_default()`: Provides default values for the nested selector
+- `convert_choose_data_to_config()`: Converts ChooseSelector output to final config format
 
-Flow handlers store step 1 data (`_step1_data`) and use it to determine which fields need value entry in step 2.
-The `has_configurable_selection()` helper checks if any field needs a constant value.
+The choice ordering in `ChooseSelector` determines the pre-selected option.
+The `get_preferred_choice()` function examines field defaults and current configuration to order choices appropriately.
 
 ### Entity Creation
 
-HAEO creates input entities (number/switch) for fields configured with "Configurable Entity".
+HAEO creates input entities (number/switch) for fields configured with "Constant".
 These entities allow runtime adjustment of constant values without reconfiguring the element.
 Fields linked to external entities use those entities directly without creating HAEO input entities.
 

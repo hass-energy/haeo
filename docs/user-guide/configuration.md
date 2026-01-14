@@ -102,18 +102,30 @@ After creating your hub, add elements to represent your devices through the Home
 
 ### Element configuration
 
-Most elements use a two-step configuration process:
+Each element is configured in a single step where you enter:
 
-**Step 1 - Entity selection**: Enter the element name, select connection targets, and choose entities for each field.
-Select "Configurable Entity" if you want to enter a constant value instead of linking to a sensor.
+1. **Element name**: A unique, descriptive name for the element
+2. **Connection target**: Which element this connects to (for elements that require connections)
+3. **Input fields**: For each field, choose how to provide the value
 
-**Step 2 - Configurable values**: Enter constant values for any fields where you selected "Configurable Entity".
-This step is skipped if all fields are linked to sensors.
+#### Input field options
 
-!!! tip "Optional fields"
+Each input field provides a dropdown with these choices:
 
-    For optional fields like power limits, leave the field empty if you don't need that constraint.
-    The optimization will run without that limit applied.
+| Choice       | Use When                                         |
+| ------------ | ------------------------------------------------ |
+| **Entity**   | Value should come from a Home Assistant sensor   |
+| **Constant** | Value is fixed (enter it directly in the form)   |
+| **Disabled** | Don't use this constraint (optional fields only) |
+
+- Select **Entity** to link the field to one or more sensors (for example, a price forecast sensor)
+- Select **Constant** to enter a fixed value directly (for example, a battery capacity of 10 kWh)
+- Select **Disabled** for optional fields you don't need (for example, no export limit)
+
+!!! tip "Constant values are adjustable"
+
+    Fields configured with "Constant" create input entities in Home Assistant.
+    You can adjust these values at runtime without reconfiguring the element.
 
 !!! note "Network entry"
 

@@ -326,14 +326,14 @@ For values that don't change over time (fixed prices, baseline loads, power limi
 
 ### Direct constant entry
 
-During element configuration, select **Configurable Entity** for the field and enter your value in step 2.
+During element configuration, select **Constant** for the field and enter your value directly in the form.
 This is the simplest approach for truly static values.
 
-| Step 1 Selection    | Step 2 Entry | Use Case             |
-| ------------------- | ------------ | -------------------- |
-| Configurable Entity | 0.25         | Fixed import price   |
-| Configurable Entity | 15           | Static power limit   |
-| Configurable Entity | 90           | Fixed SOC percentage |
+| Selection | Value | Use Case             |
+| --------- | ----- | -------------------- |
+| Constant  | 0.25  | Fixed import price   |
+| Constant  | 15    | Static power limit   |
+| Constant  | 90    | Fixed SOC percentage |
 
 ### Input number helpers
 
@@ -370,9 +370,9 @@ HAEO treats input_number helpers like any other sensor, reading the current valu
 
 **When to use each approach**:
 
-- **Configurable Entity**: Values that rarely change (capacity, efficiency) - enter a constant value in step 2
-- **Input_number helper**: Values you adjust regularly (target SOC, temporary overrides) - select in entity selector
-- **Forecast sensor**: Values that vary over time (prices, solar generation) - select in entity selector
+- **Constant**: Values that rarely change (capacity, efficiency) - enter a fixed value directly
+- **Entity with input_number**: Values you adjust regularly (target SOC, temporary overrides) - select the input_number helper
+- **Entity with forecast sensor**: Values that vary over time (prices, solar generation) - select the forecast sensor
 
 ## Troubleshooting
 
