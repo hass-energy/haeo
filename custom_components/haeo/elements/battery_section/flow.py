@@ -112,14 +112,12 @@ class BatterySectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         return errors if errors else None
 
     def _validate_choose_fields(self, user_input: dict[str, Any], errors: dict[str, str]) -> None:
-        """Validate that required choose fields have valid selections."""
+        """Validate that required choose fields have valid selections.
+
+        All battery section input fields are required, so we validate each one.
+        """
         for field_info in INPUT_FIELDS:
             field_name = field_info.field_name
-            is_optional = field_name in BatterySectionConfigSchema.__optional_keys__ and not field_info.force_required
-
-            if is_optional:
-                continue
-
             value = user_input.get(field_name)
             if not self._is_valid_choose_value(value):
                 errors[field_name] = "required"

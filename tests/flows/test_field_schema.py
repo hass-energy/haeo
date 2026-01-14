@@ -14,13 +14,16 @@ from custom_components.haeo.flows.field_schema import (
     CHOICE_CONSTANT,
     CHOICE_DISABLED,
     CHOICE_ENTITY,
+    _normalize_entity_selection,
     boolean_selector_from_field,
     build_choose_selector,
+    build_entity_selector,
     convert_choose_data_to_config,
     get_choose_default,
     get_haeo_input_entity_ids,
     get_preferred_choice,
     number_selector_from_field,
+    resolve_haeo_input_entity_id,
 )
 from custom_components.haeo.model.const import OutputType
 
@@ -676,3 +679,53 @@ def test_get_preferred_choice_returns_entity_for_defaults_mode_entity() -> None:
     )
     result = get_preferred_choice(field, None, is_optional=True)
     assert result == CHOICE_ENTITY
+
+
+# --- Tests for resolve_haeo_input_entity_id ---
+
+
+def test_resolve_haeo_input_entity_id_returns_none_when_not_found(hass: HomeAssistant) -> None:
+    """resolve_haeo_input_entity_id returns None when entity doesn't exist."""
+    result = resolve_haeo_input_entity_id("entry123", "subentry456", "test_field")
+    assert result is None
+
+
+# --- Tests for build_entity_selector ---
+
+
+def test_build_entity_selector_with_include_entities(hass: HomeAssistant) -> None:
+    """build_entity_selector includes entities in config when provided."""
+    selector = build_entity_selector(include_entities=["sensor.power", "sensor.voltage"])
+    config = selector.config
+    assert "include_entities" in config
+    assert "sensor.power" in config["include_entities"]
+    assert "sensor.voltage" in config["include_entities"]
+
+
+def test_build_entity_selector_without_include_entities(hass: HomeAssistant) -> None:
+    """build_entity_selector with no include_entities still includes HAEO entities."""
+    selector = build_entity_selector(include_entities=None)
+    config = selector.config
+    # Even with None, HAEO input entities are added (if any exist)
+    assert config["domain"] == [DOMAIN, "sensor", "input_number", "number", "switch"]
+
+
+# --- Tests for _normalize_entity_selection ---
+
+
+def test_normalize_entity_selection_with_string_returns_string() -> None:
+    """_normalize_entity_selection returns string unchanged when passed a string."""
+    result = _normalize_entity_selection("sensor.power")
+    assert result == "sensor.power"
+
+
+def test_normalize_entity_selection_single_element_list_returns_string() -> None:
+    """_normalize_entity_selection extracts single element from list."""
+    result = _normalize_entity_selection(["sensor.power"])
+    assert result == "sensor.power"
+
+
+def test_normalize_entity_selection_multi_element_list_returns_list() -> None:
+    """_normalize_entity_selection keeps multi-element list as list."""
+    result = _normalize_entity_selection(["sensor.power1", "sensor.power2"])
+    assert result == ["sensor.power1", "sensor.power2"]

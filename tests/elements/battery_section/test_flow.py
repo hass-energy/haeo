@@ -232,3 +232,46 @@ async def test_user_step_with_entity_creates_entry(
     create_kwargs = flow.async_create_entry.call_args.kwargs
     assert create_kwargs["data"][CONF_CAPACITY] == "sensor.capacity"
     assert create_kwargs["data"][CONF_INITIAL_CHARGE] == "sensor.charge"
+
+
+async def test_user_step_empty_required_field_shows_error(
+    hass: HomeAssistant,
+    hub_entry: MockConfigEntry,
+) -> None:
+    """Submitting with empty required field should show validation error."""
+    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
+
+    # Submit with empty capacity (required field)
+    user_input = {
+        CONF_NAME: "Test Battery Section",
+        CONF_CAPACITY: [],  # Empty list = invalid
+        CONF_INITIAL_CHARGE: 5.0,
+    }
+    result = await flow.async_step_user(user_input=user_input)
+
+    assert result.get("type") == FlowResultType.FORM
+    assert CONF_CAPACITY in result.get("errors", {})
+
+
+# --- Tests for _is_valid_choose_value ---
+
+
+async def test_is_valid_choose_value_with_string_entity_id(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
+    """_is_valid_choose_value accepts string entity IDs as valid."""
+    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
+
+    # String entity ID is valid
+    assert flow._is_valid_choose_value("sensor.capacity") is True
+    # Empty string is invalid
+    assert flow._is_valid_choose_value("") is False
+    # None is invalid
+    assert flow._is_valid_choose_value(None) is False
+
+
+async def test_is_valid_choose_value_with_unexpected_type(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
+    """_is_valid_choose_value returns False for unexpected types."""
+    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
+
+    # Unexpected types should return False
+    assert flow._is_valid_choose_value({"key": "value"}) is False
+    assert flow._is_valid_choose_value(object()) is False

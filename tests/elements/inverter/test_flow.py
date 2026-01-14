@@ -447,3 +447,27 @@ async def test_reconfigure_selecting_entity_stores_entity_id(
     update_kwargs = flow.async_update_and_abort.call_args.kwargs
     assert update_kwargs["data"][CONF_MAX_POWER_DC_TO_AC] == dc_to_ac_entity.entity_id
     assert update_kwargs["data"][CONF_MAX_POWER_AC_TO_DC] == ac_to_dc_entity.entity_id
+
+
+# --- Tests for _is_valid_choose_value ---
+
+
+async def test_is_valid_choose_value_with_string_entity_id(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
+    """_is_valid_choose_value accepts string entity IDs as valid."""
+    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
+
+    # String entity ID is valid
+    assert flow._is_valid_choose_value("sensor.power") is True
+    # Empty string is invalid
+    assert flow._is_valid_choose_value("") is False
+    # None is invalid
+    assert flow._is_valid_choose_value(None) is False
+
+
+async def test_is_valid_choose_value_with_unexpected_type(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
+    """_is_valid_choose_value returns False for unexpected types."""
+    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
+
+    # Unexpected types should return False
+    assert flow._is_valid_choose_value({"key": "value"}) is False
+    assert flow._is_valid_choose_value(object()) is False

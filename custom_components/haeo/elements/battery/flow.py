@@ -231,18 +231,17 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             if not self._is_valid_choose_value(value):
                 errors[field_name] = "required"
 
-    def _validate_partition_fields(self, user_input: dict[str, Any], errors: dict[str, str]) -> None:
-        """Validate that required partition fields have valid selections."""
-        for field_info in PARTITION_FIELDS:
-            field_name = field_info.field_name
-            is_optional = field_name in BatteryConfigSchema.__optional_keys__ and not field_info.force_required
+    def _validate_partition_fields(
+        self,
+        user_input: dict[str, Any],
+        errors: dict[str, str],
+    ) -> None:
+        """Validate partition fields.
 
-            if is_optional:
-                continue
-
-            value = user_input.get(field_name)
-            if not self._is_valid_choose_value(value):
-                errors[field_name] = "required"
+        All partition fields are optional, so no validation is needed.
+        This method exists for consistency with the validation pattern and
+        can be extended if required partition fields are added in the future.
+        """
 
     def _is_valid_choose_value(self, value: Any) -> bool:
         """Check if a choose selector value is valid (has a selection).

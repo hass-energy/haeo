@@ -285,3 +285,36 @@ async def test_user_step_with_entity_creates_entry(
     create_kwargs = flow.async_create_entry.call_args.kwargs
     assert create_kwargs["data"][CONF_MAX_POWER_SOURCE_TARGET] == "sensor.power_st"
     assert create_kwargs["data"][CONF_MAX_POWER_TARGET_SOURCE] == "sensor.power_ts"
+
+
+# --- Tests for _is_valid_choose_value ---
+
+
+async def test_is_valid_choose_value_with_various_types(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
+    """_is_valid_choose_value handles all value types correctly."""
+    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
+
+    # String entity ID is valid
+    assert flow._is_valid_choose_value("sensor.power") is True
+    # Empty string is invalid
+    assert flow._is_valid_choose_value("") is False
+    # None is invalid
+    assert flow._is_valid_choose_value(None) is False
+    # List of entities is valid
+    assert flow._is_valid_choose_value(["sensor.power"]) is True
+    # Empty list is invalid
+    assert flow._is_valid_choose_value([]) is False
+    # Number is valid
+    assert flow._is_valid_choose_value(10.0) is True
+    assert flow._is_valid_choose_value(0) is True
+    # Boolean is valid
+    assert flow._is_valid_choose_value(True) is True
+
+
+async def test_is_valid_choose_value_with_unexpected_type(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
+    """_is_valid_choose_value returns False for unexpected types."""
+    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
+
+    # Unexpected types should return False
+    assert flow._is_valid_choose_value({"key": "value"}) is False
+    assert flow._is_valid_choose_value(object()) is False
