@@ -233,12 +233,12 @@ class GridAdapter:
             type=OutputType.POWER,
         )
 
-        # Calculate cost outputs in adapter layer: cost = power × price × period
+        # Calculate cost outputs in adapter layer: cost = power * price * period
         # This is a derived calculation, not from model layer outputs
         import_prices = config["import_price"]
         export_prices = config["export_price"]
 
-        # Import cost: positive = money spent (power from grid × price × period)
+        # Import cost: positive = money spent (power from grid * price * period)
         import_cost_values = tuple(
             power * price * period
             for power, price, period in zip(power_import.values, import_prices, periods, strict=True)
@@ -248,7 +248,7 @@ class GridAdapter:
             type=OutputType.COST, unit="$", values=import_cumsum, direction="-", state_last=True
         )
 
-        # Export revenue: positive = money earned (power to grid × price × period)
+        # Export revenue: positive = money earned (power to grid * price * period)
         export_revenue_values = tuple(
             power * price * period
             for power, price, period in zip(power_export.values, export_prices, periods, strict=True)
