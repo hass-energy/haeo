@@ -148,8 +148,7 @@ def resolve_configurable_entity_id(
 def is_haeo_input_entity(entity_id: str) -> bool:
     """Check if an entity is a HAEO-created input entity.
 
-    HAEO input entities (number/switch) have unique_ids in the pattern:
-    {entry_id}_{subentry_id}_{field_name}
+    HAEO input entities are number/switch entities created by the haeo platform.
 
     Args:
         entity_id: Entity ID to check.
@@ -161,12 +160,9 @@ def is_haeo_input_entity(entity_id: str) -> bool:
     hass = async_get_hass()
     registry = er.async_get(hass)
     entry = registry.async_get(entity_id)
-    if entry is None or entry.platform != DOMAIN:
+    if entry is None:
         return False
-    # HAEO input entities have unique_ids with the pattern: entry_id_subentry_id_field_name
-    # They have at least 2 underscores separating 3 parts (minimum for entry_id_subentry_id_field)
-    min_underscores = 2
-    return entry.unique_id.count("_") >= min_underscores
+    return entry.platform == DOMAIN and entry.domain in ("number", "switch")
 
 
 def get_haeo_input_entity_ids() -> list[str]:
@@ -182,15 +178,11 @@ def get_haeo_input_entity_ids() -> list[str]:
     """
     hass = async_get_hass()
     registry = er.async_get(hass)
-    result: list[str] = []
-    min_underscores = 2
-    for entry in registry.entities.values():
-        if entry.platform != DOMAIN:
-            continue
-        # HAEO input entities have unique_ids with the pattern: entry_id_subentry_id_field_name
-        if entry.unique_id.count("_") >= min_underscores:
-            result.append(entry.entity_id)
-    return result
+    return [
+        entry.entity_id
+        for entry in registry.entities.values()
+        if entry.platform == DOMAIN and entry.domain in ("number", "switch")
+    ]
 
 
 def build_entity_selector_with_configurable(
