@@ -154,13 +154,11 @@ class ConnectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         configurable_entity_id = get_configurable_entity_id()
 
         if subentry_data is None:
-            # First setup: pre-select based on defaults.mode
+            # First setup: pre-select configurable entity when defaults.mode == "value"
             defaults: dict[str, Any] = {}
             for field in INPUT_FIELDS:
                 if field.defaults is not None and field.defaults.mode == "value":
                     defaults[field.field_name] = [configurable_entity_id]
-                elif field.defaults is not None and field.defaults.mode == "entity" and field.defaults.entity:
-                    defaults[field.field_name] = [field.defaults.entity]
                 else:
                     defaults[field.field_name] = []
             defaults[CONF_NAME] = default_name

@@ -241,11 +241,7 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
     ) -> dict[str, list[str]]:
         """Build entity selection defaults for a list of fields.
 
-        Uses the InputFieldDefaults.mode to determine pre-selection:
-        - mode='value': Pre-select the configurable entity
-        - mode='entity': Pre-select the specified entity
-        - mode=None: No pre-selection (empty list)
-
+        Uses defaults.mode == "value" to pre-select the configurable entity.
         For reconfigure, entity links are preserved and scalar values resolve
         to created HAEO entities.
         """
@@ -266,10 +262,8 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                 resolved = resolve_configurable_entity_id(entry_id, subentry_id, field.field_name)
                 defaults[field.field_name] = [resolved or configurable_entity_id]
             elif field.defaults is not None and field.defaults.mode == "value":
-                # Field not in stored data or first setup: use defaults.mode
+                # Field not in stored data or first setup: pre-select configurable entity
                 defaults[field.field_name] = [configurable_entity_id]
-            elif field.defaults is not None and field.defaults.mode == "entity" and field.defaults.entity:
-                defaults[field.field_name] = [field.defaults.entity]
             else:
                 defaults[field.field_name] = []
 
