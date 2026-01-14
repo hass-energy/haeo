@@ -1,7 +1,5 @@
 ---
-name: generateReleaseNotes
 description: Generate structured release notes from GitHub PRs between two versions
-argument-hint: The version being released (e.g., "v0.2.0") and optionally the previous version
 ---
 
 Generate comprehensive release notes for a software release.
@@ -63,7 +61,5 @@ Use this structure for the release notes:
 - Be specific about what changed, not just that something changed
 - **Highlights must describe user benefits, not implementation**: Users care that optimization is faster, not that it uses warm start or declarative patterns
 - **Breaking changes go at the top**: If there are breaking changes, they must appear immediately after Highlights so users see them first
-- Always include migration steps for breaking changes
 - Implementation details belong in Developer-Facing Changes where developers can appreciate them
-- For breaking changes, add a dedicated section at the top with migration instructions
 - Output as a markdown file ready to paste into GitHub releases
