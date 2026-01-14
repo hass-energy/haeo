@@ -143,7 +143,12 @@ def _build_coordinator_output(
     """
 
     values = tuple(output_data.values)
-    state: Any | None = values[0] if values else None
+    if not values:
+        state = None
+    elif output_data.state_last:
+        state = values[-1]
+    else:
+        state = values[0]
     forecast: list[ForecastPoint] | None = None
 
     if forecast_times and len(values) > 1:
@@ -610,7 +615,10 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
                 # May return multiple devices per config element (e.g., battery regions)
                 try:
                     adapter_outputs: Mapping[ElementDeviceName, Mapping[ElementOutputName, OutputData]] = outputs_fn(
-                        element_name, model_outputs, loaded_configs[element_name]
+                        name=element_name,
+                        model_outputs=model_outputs,
+                        config=loaded_configs[element_name],
+                        periods=network.periods,
                     )
                 except KeyError:
                     _LOGGER.exception(

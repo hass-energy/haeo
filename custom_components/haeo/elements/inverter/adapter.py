@@ -170,7 +170,7 @@ class InverterAdapter:
         self,
         name: str,
         model_outputs: Mapping[str, Mapping[ModelOutputName, OutputData]],
-        _config: InverterConfigData,
+        **_kwargs: Any,
     ) -> Mapping[InverterDeviceName, Mapping[InverterOutputName, OutputData]]:
         """Map model outputs to inverter-specific output names."""
         connection = model_outputs[f"{name}:connection"]

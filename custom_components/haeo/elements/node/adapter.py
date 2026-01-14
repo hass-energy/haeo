@@ -98,7 +98,7 @@ class NodeAdapter:
         self,
         name: str,
         model_outputs: Mapping[str, Mapping[ModelOutputName, OutputData]],
-        _config: NodeConfigData,
+        **_kwargs: Any,
     ) -> Mapping[NodeDeviceName, Mapping[NodeOutputName, OutputData]]:
         """Convert model element outputs to node adapter outputs."""
         node_model = model_outputs[name]

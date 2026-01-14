@@ -222,7 +222,7 @@ class ElementAdapter(Protocol):
         self,
         name: str,
         model_outputs: Mapping[str, Mapping[ModelOutputName, OutputData]],
-        _config: Any,
+        **_kwargs: Any,
     ) -> Mapping[Any, Mapping[Any, OutputData]]:
         """Map model outputs to device-specific outputs."""
         ...

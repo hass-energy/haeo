@@ -188,7 +188,7 @@ class ConnectionAdapter:
         self,
         name: str,
         model_outputs: Mapping[str, Mapping[ModelOutputName, OutputData]],
-        _config: ConnectionConfigData,
+        **_kwargs: Any,
     ) -> Mapping[ConnectionDeviceName, Mapping[ConnectionOutputName, OutputData]]:
         """Map model outputs to connection-specific output names."""
         connection = model_outputs[name]

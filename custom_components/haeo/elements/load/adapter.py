@@ -119,7 +119,7 @@ class LoadAdapter:
         self,
         name: str,
         model_outputs: Mapping[str, Mapping[ModelOutputName, OutputData]],
-        _config: LoadConfigData,
+        **_kwargs: Any,
     ) -> Mapping[LoadDeviceName, Mapping[LoadOutputName, OutputData]]:
         """Map model outputs to load-specific output names."""
         connection = model_outputs[f"{name}:connection"]

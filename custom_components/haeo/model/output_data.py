@@ -22,6 +22,8 @@ class OutputData:
             "-" = power flowing out of element (discharge, export, production) or toward source (connections).
             None = non-directional output (SOC, prices, energy, shadow prices).
         advanced: Whether the output is intended for advanced diagnostics only.
+        state_last: If True, the sensor state uses the last value instead of the first.
+            Use for cumulative values where the total is the meaningful current state.
 
     """
 
@@ -30,6 +32,7 @@ class OutputData:
     values: Sequence[Any]
     direction: Literal["+", "-"] | None = None
     advanced: bool = False
+    state_last: bool = False
 
     def __init__(
         self,
@@ -39,6 +42,7 @@ class OutputData:
         direction: Literal["+", "-"] | None = None,
         *,
         advanced: bool = False,
+        state_last: bool = False,
     ) -> None:
         """Initialize OutputData.
 
@@ -48,12 +52,14 @@ class OutputData:
             values: A single value or sequence of values (already extracted from HiGHS types).
             direction: Power flow direction relative to the element.
             advanced: Whether the output is intended for advanced diagnostics only.
+            state_last: If True, the sensor state uses the last value instead of the first.
 
         """
         self.type = type
         self.unit = unit
         self.direction = direction
         self.advanced = advanced
+        self.state_last = state_last
 
         # Normalize to a tuple
         if isinstance(values, np.ndarray):

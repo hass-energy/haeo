@@ -8,9 +8,7 @@ from highspy.highs import HighspyArray, highs_linear_expression
 import numpy as np
 from numpy.typing import NDArray
 
-from custom_components.haeo.model.const import OutputType
-from custom_components.haeo.model.output_data import OutputData
-from custom_components.haeo.model.reactive import TrackedParam, constraint, cost, output
+from custom_components.haeo.model.reactive import TrackedParam, constraint, cost
 from custom_components.haeo.model.util import broadcast_to_sequence
 
 from .connection import (
@@ -31,20 +29,10 @@ type PowerConnectionConstraintName = (
     | ConnectionConstraintName
 )
 
-type PowerConnectionOutputName = (
-    Literal[
-        "connection_cost_source_target",
-        "connection_cost_target_source",
-    ]
-    | PowerConnectionConstraintName
-    | ConnectionOutputName
-)
+type PowerConnectionOutputName = PowerConnectionConstraintName | ConnectionOutputName
 
 POWER_CONNECTION_OUTPUT_NAMES: Final[frozenset[PowerConnectionOutputName]] = frozenset(
     (
-        # Cost outputs
-        CONNECTION_COST_SOURCE_TARGET := "connection_cost_source_target",
-        CONNECTION_COST_TARGET_SOURCE := "connection_cost_target_source",
         # Constraints
         CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET := "connection_shadow_power_max_source_target",
         CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE := "connection_shadow_power_max_target_source",
@@ -221,24 +209,6 @@ class PowerConnection(Connection[PowerConnectionOutputName]):
             return None
         # Multiply power array by price tuple and period tuple
         return Highs.qsum(self.power_target_source * self.price_target_source * self.periods)
-
-    @output
-    def connection_cost_source_target(self) -> OutputData | None:
-        """Cost for power flow from source to target."""
-        if self.price_source_target is None:
-            return None
-        power_st = self.extract_values(self.power_source_target)
-        cost_st = tuple(p * pw * t for p, pw, t in zip(self.price_source_target, power_st, self.periods, strict=True))
-        return OutputData(type=OutputType.COST, unit="$", values=cost_st, direction="+")
-
-    @output
-    def connection_cost_target_source(self) -> OutputData | None:
-        """Cost for power flow from target to source."""
-        if self.price_target_source is None:
-            return None
-        power_ts = self.extract_values(self.power_target_source)
-        cost_ts = tuple(p * pw * t for p, pw, t in zip(self.price_target_source, power_ts, self.periods, strict=True))
-        return OutputData(type=OutputType.COST, unit="$", values=cost_ts, direction="-")
 
 
 # Re-export connection constants for consumers that import from power_connection
