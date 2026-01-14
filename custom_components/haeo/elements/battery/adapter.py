@@ -491,7 +491,8 @@ class BatteryAdapter:
         self,
         name: str,
         model_outputs: Mapping[str, Mapping[ModelOutputName, OutputData]],
-        _config: BatteryConfigData,
+        config: BatteryConfigData,
+        **_kwargs: Any,
     ) -> Mapping[BatteryDeviceName, Mapping[BatteryOutputName, OutputData]]:
         """Map model outputs to battery-specific output names.
 
@@ -538,10 +539,10 @@ class BatteryAdapter:
         aggregate_energy_stored = sum_output_data(all_energy_stored)
 
         # Calculate total energy stored (including inaccessible energy below min SOC)
-        total_energy_stored = _calculate_total_energy(aggregate_energy_stored, _config)
+        total_energy_stored = _calculate_total_energy(aggregate_energy_stored, config)
 
         # Calculate SOC from aggregate energy using capacity from config
-        aggregate_soc = _calculate_soc(total_energy_stored, _config)
+        aggregate_soc = _calculate_soc(total_energy_stored, config)
 
         # Build aggregate device outputs
         aggregate_outputs: dict[BatteryOutputName, OutputData] = {

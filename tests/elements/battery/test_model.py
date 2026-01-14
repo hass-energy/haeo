@@ -392,5 +392,5 @@ def test_model_elements(case: CreateCase) -> None:
 def test_outputs_mapping(case: OutputsCase) -> None:
     """Verify adapter maps model outputs to device outputs."""
     entry = ELEMENT_TYPES["battery"]
-    result = entry.outputs(case["name"], case["model_outputs"], case["data"])
+    result = entry.outputs(case["name"], case["model_outputs"], config=case["data"])
     assert result == case["outputs"]
