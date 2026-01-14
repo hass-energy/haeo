@@ -151,11 +151,47 @@ def build_entity_selector(
     return EntitySelector(EntitySelectorConfig(**config_kwargs))
 
 
+def get_preferred_choice(
+    field_info: InputFieldInfo[Any],
+    current_data: dict[str, Any] | None = None,
+) -> str:
+    """Determine which choice should be first in the ChooseSelector.
+
+    The ChooseSelector always selects the first choice, so we order
+    choices based on what should be pre-selected.
+
+    Args:
+        field_info: Input field metadata.
+        current_data: Current configuration data (for reconfigure).
+
+    Returns:
+        CHOICE_ENTITY or CHOICE_CONSTANT based on context.
+
+    """
+    field_name = field_info.field_name
+
+    # Check current stored data first (for reconfigure)
+    if current_data is not None and field_name in current_data:
+        current_value = current_data[field_name]
+        # String = entity ID, number/bool = constant
+        if isinstance(current_value, str):
+            return CHOICE_ENTITY
+        return CHOICE_CONSTANT
+
+    # For new entries, use field defaults
+    if field_info.defaults is not None and field_info.defaults.mode == "value":
+        return CHOICE_CONSTANT
+
+    # Default to entity
+    return CHOICE_ENTITY
+
+
 def build_choose_selector(
     field_info: InputFieldInfo[Any],
     *,
     include_entities: list[str] | None = None,
     multiple: bool = True,
+    preferred_choice: str = CHOICE_ENTITY,
 ) -> Any:
     """Build a ChooseSelector allowing user to pick Entity or Constant.
 
@@ -163,6 +199,7 @@ def build_choose_selector(
         field_info: Input field metadata.
         include_entities: Entity IDs to include (compatible entities from unit filtering).
         multiple: Whether to allow multiple entity selection (for chaining).
+        preferred_choice: Which choice should appear first (will be pre-selected).
 
     Returns:
         ChooseSelector with Entity and Constant options.
@@ -183,11 +220,21 @@ def build_choose_selector(
     else:
         value_selector = number_selector_from_field(field_info)  # type: ignore[arg-type]
 
-    # Build the choose selector with both options
-    choices: dict[str, ChooseSelectorChoiceConfig] = {
-        CHOICE_ENTITY: ChooseSelectorChoiceConfig(selector=entity_selector),
-        CHOICE_CONSTANT: ChooseSelectorChoiceConfig(selector=value_selector),
-    }
+    # Build the choose selector with preferred choice first
+    # (ChooseSelector always selects the first option)
+    entity_choice = ChooseSelectorChoiceConfig(selector=entity_selector)
+    constant_choice = ChooseSelectorChoiceConfig(selector=value_selector)
+
+    if preferred_choice == CHOICE_CONSTANT:
+        choices: dict[str, ChooseSelectorChoiceConfig] = {
+            CHOICE_CONSTANT: constant_choice,
+            CHOICE_ENTITY: entity_choice,
+        }
+    else:
+        choices = {
+            CHOICE_ENTITY: entity_choice,
+            CHOICE_CONSTANT: constant_choice,
+        }
 
     return ChooseSelector(
         ChooseSelectorConfig(
@@ -203,6 +250,7 @@ def build_choose_schema_entry(
     is_optional: bool,
     include_entities: list[str] | None = None,
     multiple: bool = True,
+    preferred_choice: str = CHOICE_ENTITY,
 ) -> tuple[vol.Marker, Any]:
     """Build a schema entry using ChooseSelector.
 
@@ -211,6 +259,7 @@ def build_choose_schema_entry(
         is_optional: Whether the field is optional.
         include_entities: Entity IDs to include (compatible entities from unit filtering).
         multiple: Whether to allow multiple entity selection.
+        preferred_choice: Which choice should appear first (will be pre-selected).
 
     Returns:
         Tuple of (vol.Required/Optional marker, ChooseSelector).
@@ -221,6 +270,7 @@ def build_choose_schema_entry(
         field_info,
         include_entities=include_entities,
         multiple=multiple,
+        preferred_choice=preferred_choice,
     )
 
     if is_optional:

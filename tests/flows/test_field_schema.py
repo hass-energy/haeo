@@ -18,6 +18,7 @@ from custom_components.haeo.flows.field_schema import (
     convert_choose_data_to_config,
     get_choose_default,
     get_haeo_input_entity_ids,
+    get_preferred_choice,
     number_selector_from_field,
 )
 from custom_components.haeo.model.const import OutputType
@@ -111,6 +112,121 @@ def test_build_choose_selector_creates_choose_selector(
     """Choose selector is created with entity and constant choices."""
     selector = build_choose_selector(number_field)
     assert isinstance(selector, ChooseSelector)
+
+
+def test_build_choose_selector_entity_first_by_default(
+    number_field: InputFieldInfo[NumberEntityDescription],
+) -> None:
+    """Entity choice appears first when preferred_choice is entity."""
+    selector = build_choose_selector(number_field, preferred_choice=CHOICE_ENTITY)
+    config = selector.config
+    choices_keys = list(config["choices"].keys())
+    assert choices_keys[0] == CHOICE_ENTITY
+    assert choices_keys[1] == CHOICE_CONSTANT
+
+
+def test_build_choose_selector_constant_first_when_preferred(
+    number_field: InputFieldInfo[NumberEntityDescription],
+) -> None:
+    """Constant choice appears first when preferred_choice is constant."""
+    selector = build_choose_selector(number_field, preferred_choice=CHOICE_CONSTANT)
+    config = selector.config
+    choices_keys = list(config["choices"].keys())
+    assert choices_keys[0] == CHOICE_CONSTANT
+    assert choices_keys[1] == CHOICE_ENTITY
+
+
+# --- Tests for get_preferred_choice ---
+
+
+def test_get_preferred_choice_returns_entity_by_default() -> None:
+    """get_preferred_choice returns entity when no current_data or defaults."""
+    field = InputFieldInfo(
+        field_name="power",
+        entity_description=NumberEntityDescription(
+            key="power",
+            name="Power",
+        ),
+        output_type=OutputType.POWER,
+        defaults=None,
+    )
+    result = get_preferred_choice(field)
+    assert result == CHOICE_ENTITY
+
+
+def test_get_preferred_choice_returns_constant_for_value_defaults() -> None:
+    """get_preferred_choice returns constant when defaults.mode is value."""
+    field = InputFieldInfo(
+        field_name="power",
+        entity_description=NumberEntityDescription(
+            key="power",
+            name="Power",
+        ),
+        output_type=OutputType.POWER,
+        defaults=InputFieldDefaults(mode="value", value=10.0),
+    )
+    result = get_preferred_choice(field)
+    assert result == CHOICE_CONSTANT
+
+
+def test_get_preferred_choice_returns_entity_for_entity_defaults() -> None:
+    """get_preferred_choice returns entity when defaults.mode is entity."""
+    field = InputFieldInfo(
+        field_name="power",
+        entity_description=NumberEntityDescription(
+            key="power",
+            name="Power",
+        ),
+        output_type=OutputType.POWER,
+        defaults=InputFieldDefaults(mode="entity"),
+    )
+    result = get_preferred_choice(field)
+    assert result == CHOICE_ENTITY
+
+
+def test_get_preferred_choice_uses_current_data_string_as_entity() -> None:
+    """get_preferred_choice returns entity when current_data has string value."""
+    field = InputFieldInfo(
+        field_name="power",
+        entity_description=NumberEntityDescription(
+            key="power",
+            name="Power",
+        ),
+        output_type=OutputType.POWER,
+    )
+    current_data = {"power": "sensor.power"}
+    result = get_preferred_choice(field, current_data)
+    assert result == CHOICE_ENTITY
+
+
+def test_get_preferred_choice_uses_current_data_number_as_constant() -> None:
+    """get_preferred_choice returns constant when current_data has number value."""
+    field = InputFieldInfo(
+        field_name="power",
+        entity_description=NumberEntityDescription(
+            key="power",
+            name="Power",
+        ),
+        output_type=OutputType.POWER,
+    )
+    current_data = {"power": 25.5}
+    result = get_preferred_choice(field, current_data)
+    assert result == CHOICE_CONSTANT
+
+
+def test_get_preferred_choice_uses_current_data_boolean_as_constant() -> None:
+    """get_preferred_choice returns constant when current_data has boolean value."""
+    field = InputFieldInfo(
+        field_name="enabled",
+        entity_description=NumberEntityDescription(
+            key="enabled",
+            name="Enabled",
+        ),
+        output_type=OutputType.STATUS,
+    )
+    current_data = {"enabled": True}
+    result = get_preferred_choice(field, current_data)
+    assert result == CHOICE_CONSTANT
 
 
 # --- Tests for get_haeo_input_entity_ids ---

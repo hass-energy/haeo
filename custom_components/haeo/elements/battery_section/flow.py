@@ -14,6 +14,7 @@ from custom_components.haeo.flows.field_schema import (
     build_choose_schema_entry,
     convert_choose_data_to_config,
     get_choose_default,
+    get_preferred_choice,
 )
 
 from .schema import ELEMENT_TYPE, INPUT_FIELDS, BatterySectionConfigSchema
@@ -51,13 +52,17 @@ class BatterySectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         entity_metadata = extract_entity_metadata(self.hass)
         inclusion_map = build_inclusion_map(INPUT_FIELDS, entity_metadata)
 
-        schema = self._build_schema(inclusion_map)
+        schema = self._build_schema(inclusion_map, subentry_data)
         defaults = user_input if user_input is not None else self._build_defaults(default_name, subentry_data)
         schema = self.add_suggested_values_to_schema(schema, defaults)
 
         return self.async_show_form(step_id="user", data_schema=schema, errors=errors)
 
-    def _build_schema(self, inclusion_map: dict[str, list[str]]) -> vol.Schema:
+    def _build_schema(
+        self,
+        inclusion_map: dict[str, list[str]],
+        subentry_data: dict[str, Any] | None = None,
+    ) -> vol.Schema:
         """Build the schema with name and choose selectors for inputs."""
         schema_dict: dict[vol.Marker, Any] = {
             vol.Required(CONF_NAME): vol.All(
@@ -71,10 +76,12 @@ class BatterySectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         for field_info in INPUT_FIELDS:
             is_optional = field_info.field_name in BatterySectionConfigSchema.__optional_keys__
             include_entities = inclusion_map.get(field_info.field_name)
+            preferred = get_preferred_choice(field_info, subentry_data)
             marker, selector = build_choose_schema_entry(
                 field_info,
                 is_optional=is_optional,
                 include_entities=include_entities,
+                preferred_choice=preferred,
             )
             schema_dict[marker] = selector
 
