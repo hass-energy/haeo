@@ -84,14 +84,14 @@
             "capacity": "Capacity",
             "configure_partitions": "Configure battery partitions",
             "connection": "Connection",
-            "discharge_cost": "Discharge Cost (Optional)",
-            "early_charge_incentive": "Early Charge Incentive (Optional)",
-            "efficiency": "Round-trip Efficiency (Optional)",
+            "discharge_cost": "Discharge Cost",
+            "early_charge_incentive": "Early Charge Incentive",
+            "efficiency": "Round-trip Efficiency",
             "initial_charge_percentage": "State of Charge",
-            "max_charge_percentage": "Max Charge Level (Optional)",
+            "max_charge_percentage": "Max Charge Level",
             "max_charge_power": "Max Charging Power",
             "max_discharge_power": "Max Discharging Power",
-            "min_charge_percentage": "Min Charge Level (Optional)",
+            "min_charge_percentage": "Min Charge Level",
             "name": "Battery Name"
           }
         },
@@ -237,8 +237,8 @@
           "description": "Configure bidirectional inverter with DC bus for battery and solar connections",
           "data": {
             "connection": "AC Connection",
-            "efficiency_ac_to_dc": "AC to DC Efficiency (Optional)",
-            "efficiency_dc_to_ac": "DC to AC Efficiency (Optional)",
+            "efficiency_ac_to_dc": "AC to DC Efficiency",
+            "efficiency_dc_to_ac": "DC to AC Efficiency",
             "max_power_ac_to_dc": "Max AC to DC Power",
             "max_power_dc_to_ac": "Max DC to AC Power",
             "name": "Inverter Name"
