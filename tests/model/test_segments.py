@@ -6,6 +6,8 @@ import numpy as np
 from numpy.typing import NDArray
 
 from custom_components.haeo.model.elements.composite_connection import CompositeConnection
+from custom_components.haeo.model.elements.connection_factory import create_power_connection
+from custom_components.haeo.model.elements.power_connection import PowerConnection
 from custom_components.haeo.model.elements.segments import (
     EfficiencySegment,
     PassthroughSegment,
@@ -285,3 +287,170 @@ class TestCompositeConnection:
                 target="tgt",
                 segments=[],
             )
+
+
+class TestConnectionFactory:
+    """Tests for create_power_connection factory function."""
+
+    def test_factory_creates_passthrough_for_no_modifiers(self) -> None:
+        """Factory with no modifiers should create a passthrough segment."""
+        h = create_solver()
+        periods = np.array([1.0, 1.0])
+
+        conn = create_power_connection(
+            name="conn",
+            periods=periods,
+            solver=h,
+            source="src",
+            target="tgt",
+        )
+
+        assert len(conn.segments) == 1
+        assert conn.segments[0].segment_type() == "passthrough"
+
+    def test_factory_creates_efficiency_segment(self) -> None:
+        """Factory with efficiency should create an efficiency segment."""
+        h = create_solver()
+        periods = np.array([1.0])
+
+        conn = create_power_connection(
+            name="conn",
+            periods=periods,
+            solver=h,
+            source="src",
+            target="tgt",
+            efficiency_source_target=90.0,
+        )
+
+        segment_types = [s.segment_type() for s in conn.segments]
+        assert "efficiency" in segment_types
+
+    def test_factory_creates_limit_segment(self) -> None:
+        """Factory with max_power should create a limit segment."""
+        h = create_solver()
+        periods = np.array([1.0])
+
+        conn = create_power_connection(
+            name="conn",
+            periods=periods,
+            solver=h,
+            source="src",
+            target="tgt",
+            max_power_source_target=5.0,
+        )
+
+        segment_types = [s.segment_type() for s in conn.segments]
+        assert "limit" in segment_types
+
+    def test_factory_creates_pricing_segment(self) -> None:
+        """Factory with price should create a pricing segment."""
+        h = create_solver()
+        periods = np.array([1.0])
+
+        conn = create_power_connection(
+            name="conn",
+            periods=periods,
+            solver=h,
+            source="src",
+            target="tgt",
+            price_source_target=0.1,
+        )
+
+        segment_types = [s.segment_type() for s in conn.segments]
+        assert "pricing" in segment_types
+
+    def test_factory_creates_time_slice_for_bidirectional_limits(self) -> None:
+        """Factory with bidirectional limits should create a time slice segment."""
+        h = create_solver()
+        periods = np.array([1.0])
+
+        conn = create_power_connection(
+            name="conn",
+            periods=periods,
+            solver=h,
+            source="src",
+            target="tgt",
+            max_power_source_target=5.0,
+            max_power_target_source=3.0,
+        )
+
+        segment_types = [s.segment_type() for s in conn.segments]
+        assert "time_slice" in segment_types
+        assert "limit" in segment_types
+
+    def test_factory_matches_power_connection_forward_limit(self) -> None:
+        """Factory should produce same result as PowerConnection for forward limit."""
+        periods = [1.0, 1.0]
+
+        # Create with factory
+        h1 = create_solver()
+        comp_conn = create_power_connection(
+            name="conn",
+            periods=periods,
+            solver=h1,
+            source="src",
+            target="tgt",
+            max_power_source_target=5.0,
+        )
+        comp_conn.constraints()
+        h1.minimize(-Highs.qsum(comp_conn.power_source_target))
+        h1.run()
+        comp_values = h1.vals(comp_conn.power_source_target)
+
+        # Create with PowerConnection
+        h2 = create_solver()
+        power_conn = PowerConnection(
+            name="conn",
+            periods=periods,
+            solver=h2,
+            source="src",
+            target="tgt",
+            max_power_source_target=5.0,
+        )
+        power_conn.constraints()
+        h2.minimize(-Highs.qsum(power_conn.power_source_target))
+        h2.run()
+        power_values = h2.vals(power_conn.power_source_target)
+
+        np.testing.assert_array_almost_equal(comp_values, power_values)
+
+    def test_factory_matches_power_connection_efficiency(self) -> None:
+        """Factory should produce same efficiency behavior as PowerConnection."""
+        periods = [1.0]
+
+        # Create with factory - 90% efficiency
+        h1 = create_solver()
+        comp_conn = create_power_connection(
+            name="conn",
+            periods=periods,
+            solver=h1,
+            source="src",
+            target="tgt",
+            efficiency_source_target=90.0,
+            max_power_source_target=10.0,
+        )
+        comp_conn.constraints()
+        # Fix input power
+        h1.addConstrs(comp_conn.power_source_target == 10.0)
+        h1.run()
+        comp_into_target = h1.vals(comp_conn.power_into_target)
+
+        # Create with PowerConnection
+        h2 = create_solver()
+        power_conn = PowerConnection(
+            name="conn",
+            periods=periods,
+            solver=h2,
+            source="src",
+            target="tgt",
+            efficiency_source_target=90.0,
+            max_power_source_target=10.0,
+        )
+        power_conn.constraints()
+        h2.addConstrs(power_conn.power_source_target == 10.0)
+        h2.run()
+        power_into_target = h2.vals(power_conn.power_into_target)
+
+        # Both should show 9.0 kW at target (10 * 0.9)
+        np.testing.assert_array_almost_equal(comp_into_target, power_into_target)
+        assert abs(comp_into_target[0] - 9.0) < 0.01
