@@ -15,9 +15,7 @@ VALID_CASES: list[ConnectionTestCase] = [
             "periods": [1.0] * 3,
             "source": "battery",
             "target": "load",
-            "segments": [
-                {"segment_type": "power_limit", "max_power_source_target": np.array([5.0, 5.0, 5.0])}
-            ],
+            "segments": [{"segment_type": "power_limit", "max_power_source_target": np.array([5.0, 5.0, 5.0])}],
         },
         "inputs": {
             "source_power": [None, None, None],  # Infinite source
@@ -29,11 +27,7 @@ VALID_CASES: list[ConnectionTestCase] = [
             "connection_power_source_target": {"type": "power_flow", "unit": "kW", "values": (5.0, 5.0, 5.0)},
             "connection_power_target_source": {"type": "power_flow", "unit": "kW", "values": (0.0, 0.0, 0.0)},
             "connection_shadow_power_max_source_target": {"type": "shadow_price", "unit": "$/kW", "values": (-0.1, -0.1, -0.1)},
-            "segments": {
-                "power_limit": {
-                    "source_target": {"type": "shadow_price", "unit": "$/kW", "values": (-0.1, -0.1, -0.1)}
-                }
-            },
+            "segments": {"power_limit": {"source_target": {"type": "shadow_price", "unit": "$/kW", "values": (-0.1, -0.1, -0.1)}}},
         },
     },
     {
@@ -44,9 +38,7 @@ VALID_CASES: list[ConnectionTestCase] = [
             "periods": [1.0] * 3,
             "source": "grid",
             "target": "solar",
-            "segments": [
-                {"segment_type": "power_limit", "max_power_target_source": np.array([3.0, 3.0, 3.0])}
-            ],
+            "segments": [{"segment_type": "power_limit", "max_power_target_source": np.array([3.0, 3.0, 3.0])}],
         },
         "inputs": {
             "source_power": [None, None, None],  # Infinite
@@ -58,11 +50,7 @@ VALID_CASES: list[ConnectionTestCase] = [
             "connection_power_source_target": {"type": "power_flow", "unit": "kW", "values": (0.0, 0.0, 0.0)},
             "connection_power_target_source": {"type": "power_flow", "unit": "kW", "values": (3.0, 3.0, 3.0)},
             "connection_shadow_power_max_target_source": {"type": "shadow_price", "unit": "$/kW", "values": (-0.1, -0.1, -0.1)},
-            "segments": {
-                "power_limit": {
-                    "target_source": {"type": "shadow_price", "unit": "$/kW", "values": (-0.1, -0.1, -0.1)}
-                }
-            },
+            "segments": {"power_limit": {"target_source": {"type": "shadow_price", "unit": "$/kW", "values": (-0.1, -0.1, -0.1)}}},
         },
     },
     {
@@ -85,11 +73,7 @@ VALID_CASES: list[ConnectionTestCase] = [
             "connection_power_source_target": {"type": "power_flow", "unit": "kW", "values": (4.0, 4.0)},
             "connection_power_target_source": {"type": "power_flow", "unit": "kW", "values": (0.0, 0.0)},
             "connection_shadow_power_max_source_target": {"type": "shadow_price", "unit": "$/kW", "values": (-0.1, -0.1)},
-            "segments": {
-                "power_limit": {
-                    "source_target": {"type": "shadow_price", "unit": "$/kW", "values": (-0.1, -0.1)}
-                }
-            },
+            "segments": {"power_limit": {"source_target": {"type": "shadow_price", "unit": "$/kW", "values": (-0.1, -0.1)}}},
         },
     },
     {
@@ -115,9 +99,7 @@ VALID_CASES: list[ConnectionTestCase] = [
             "connection_power_source_target": {"type": "power_flow", "unit": "kW", "values": (5.0, 5.0)},
             "connection_power_target_source": {"type": "power_flow", "unit": "kW", "values": (0.0, 0.0)},
             "connection_shadow_power_max_source_target": {"type": "shadow_price", "unit": "$/kW", "values": (0.0, 0.0)},
-            "segments": {
-                "power_limit": {"source_target": {"type": "shadow_price", "unit": "$/kW", "values": (0.0, 0.0)}}
-            },
+            "segments": {"power_limit": {"source_target": {"type": "shadow_price", "unit": "$/kW", "values": (0.0, 0.0)}}},
         },
     },
     {
@@ -143,9 +125,7 @@ VALID_CASES: list[ConnectionTestCase] = [
             "connection_power_source_target": {"type": "power_flow", "unit": "kW", "values": (5.0, 5.0)},
             "connection_power_target_source": {"type": "power_flow", "unit": "kW", "values": (0.0, 0.0)},
             "connection_shadow_power_max_source_target": {"type": "shadow_price", "unit": "$/kW", "values": (-0.9, -0.4)},
-            "segments": {
-                "power_limit": {"source_target": {"type": "shadow_price", "unit": "$/kW", "values": (-0.9, -0.4)}}
-            },
+            "segments": {"power_limit": {"source_target": {"type": "shadow_price", "unit": "$/kW", "values": (-0.9, -0.4)}}},
         },
     },
     {
@@ -156,9 +136,7 @@ VALID_CASES: list[ConnectionTestCase] = [
             "periods": [1.0] * 3,
             "source": "grid",
             "target": "net",
-            "segments": [
-                {"segment_type": "power_limit", "max_power_source_target": np.array([10.0, 5.0, 8.0])}
-            ],
+            "segments": [{"segment_type": "power_limit", "max_power_source_target": np.array([10.0, 5.0, 8.0])}],
         },
         "inputs": {
             "source_power": [None, None, None],
@@ -170,11 +148,7 @@ VALID_CASES: list[ConnectionTestCase] = [
             "connection_power_source_target": {"type": "power_flow", "unit": "kW", "values": (10.0, 5.0, 8.0)},
             "connection_power_target_source": {"type": "power_flow", "unit": "kW", "values": (0.0, 0.0, 0.0)},
             "connection_shadow_power_max_source_target": {"type": "shadow_price", "unit": "$/kW", "values": (-0.1, -0.1, -0.1)},
-            "segments": {
-                "power_limit": {
-                    "source_target": {"type": "shadow_price", "unit": "$/kW", "values": (-0.1, -0.1, -0.1)}
-                }
-            },
+            "segments": {"power_limit": {"source_target": {"type": "shadow_price", "unit": "$/kW", "values": (-0.1, -0.1, -0.1)}}},
         },
     },
     {
@@ -287,11 +261,7 @@ VALID_CASES: list[ConnectionTestCase] = [
             "connection_power_source_target": {"type": "power_flow", "unit": "kW", "values": (0.0, 0.0)},
             "connection_power_target_source": {"type": "power_flow", "unit": "kW", "values": (4.0, 4.0)},
             "connection_shadow_power_max_target_source": {"type": "shadow_price", "unit": "$/kW", "values": (0.0, 0.0)},
-            "segments": {
-                "power_limit": {
-                    "target_source": {"type": "shadow_price", "unit": "$/kW", "values": (0.0, 0.0)}
-                }
-            },
+            "segments": {"power_limit": {"target_source": {"type": "shadow_price", "unit": "$/kW", "values": (0.0, 0.0)}}},
         },
     },
 ]

@@ -73,11 +73,7 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
         "model_outputs": {
             "pv_main:connection": {
                 connection.CONNECTION_POWER_SOURCE_TARGET: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(2.0,), direction="+"),
-                connection.CONNECTION_SEGMENTS: {
-                    "power_limit": {
-                        "source_target": OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.02,))
-                    }
-                },
+                connection.CONNECTION_SEGMENTS: {"power_limit": {"source_target": OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.02,))}},
             }
         },
         "outputs": {
@@ -93,11 +89,7 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
         "model_outputs": {
             "pv_with_price:connection": {
                 connection.CONNECTION_POWER_SOURCE_TARGET: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(1.5,), direction="+"),
-                connection.CONNECTION_SEGMENTS: {
-                    "power_limit": {
-                        "source_target": OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.0,))
-                    }
-                },
+                connection.CONNECTION_SEGMENTS: {"power_limit": {"source_target": OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.0,))}},
             }
         },
         "outputs": {
