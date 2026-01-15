@@ -3,7 +3,6 @@
 from collections.abc import Mapping, Sequence
 import contextlib
 import logging
-from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -16,6 +15,7 @@ from custom_components.haeo.elements import (
     ElementConfigSchema,
 )
 from custom_components.haeo.model import Connection, Network
+from custom_components.haeo.model.elements import ModelElementConfig
 from custom_components.haeo.repairs import create_disconnected_network_issue, dismiss_disconnected_network_issue
 from custom_components.haeo.validation import (
     collect_participant_configs,
@@ -28,9 +28,9 @@ _LOGGER = logging.getLogger(__name__)
 
 def _collect_model_elements(
     participants: Mapping[str, ElementConfigData],
-) -> list[dict[str, Any]]:
+) -> list[ModelElementConfig]:
     """Collect and sort model elements from all participants."""
-    all_model_elements: list[dict[str, Any]] = []
+    all_model_elements: list[ModelElementConfig] = []
     for loaded_params in participants.values():
         element_type = loaded_params[CONF_ELEMENT_TYPE]
         model_elements = ELEMENT_TYPES[element_type].model_elements(loaded_params)

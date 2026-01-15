@@ -1,13 +1,17 @@
 """Node entity for electrical system modeling."""
 
 from collections.abc import Sequence
-from typing import Final, Literal
+from typing import Final, Literal, NotRequired, TypedDict
 
 from highspy import Highs
 from highspy.highs import highs_linear_expression
 
 from custom_components.haeo.model.element import Element
 from custom_components.haeo.model.reactive import constraint
+
+# Model element type for nodes
+ELEMENT_TYPE: Final = "node"
+type NodeElementTypeName = Literal["node"]
 
 type NodeConstraintName = Literal["node_power_balance"]
 
@@ -16,6 +20,15 @@ type NodeOutputName = NodeConstraintName
 NODE_POWER_BALANCE: Final[NodeOutputName] = "node_power_balance"
 
 NODE_OUTPUT_NAMES: Final[frozenset[NodeOutputName]] = frozenset((NODE_POWER_BALANCE,))
+
+
+class NodeElementConfig(TypedDict):
+    """Configuration for Node model elements."""
+
+    element_type: NodeElementTypeName
+    name: str
+    is_source: NotRequired[bool]
+    is_sink: NotRequired[bool]
 
 
 class Node(Element[NodeOutputName]):

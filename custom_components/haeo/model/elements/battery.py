@@ -1,7 +1,7 @@
 """Battery entity for electrical system modeling."""
 
 from collections.abc import Sequence
-from typing import Final, Literal
+from typing import Final, Literal, TypedDict
 
 from highspy import Highs
 from highspy.highs import highs_linear_expression
@@ -13,6 +13,10 @@ from custom_components.haeo.model.element import Element
 from custom_components.haeo.model.output_data import OutputData
 from custom_components.haeo.model.reactive import TrackedParam, constraint, output
 from custom_components.haeo.model.util import broadcast_to_sequence
+
+# Model element type for batteries
+ELEMENT_TYPE: Final = "battery"
+type BatteryElementTypeName = Literal["battery"]
 
 # Type for battery constraint names (shadow prices exposed as outputs)
 type BatteryConstraintName = Literal[
@@ -51,6 +55,15 @@ BATTERY_OUTPUT_NAMES: Final[frozenset[BatteryOutputName]] = frozenset(
 
 # Battery power constraints (subset of outputs that relate to power balance)
 BATTERY_POWER_CONSTRAINTS: Final[frozenset[BatteryConstraintName]] = frozenset((BATTERY_POWER_BALANCE,))
+
+
+class BatteryElementConfig(TypedDict):
+    """Configuration for Battery model elements."""
+
+    element_type: BatteryElementTypeName
+    name: str
+    capacity: Sequence[float] | float
+    initial_charge: float
 
 
 class Battery(Element[BatteryOutputName]):

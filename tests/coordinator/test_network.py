@@ -20,15 +20,17 @@ def test_update_element_updates_tracked_params() -> None:
     """Test update_element updates TrackedParams on existing elements."""
     # Create network with nodes and connection
     network = Network(name="test", periods=[1.0, 1.0])
-    network.add(MODEL_ELEMENT_TYPE_NODE, "source", is_source=True, is_sink=False)
-    network.add(MODEL_ELEMENT_TYPE_NODE, "target", is_source=False, is_sink=True)
+    network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "source", "is_source": True, "is_sink": False})
+    network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "target", "is_source": False, "is_sink": True})
     network.add(
-        MODEL_ELEMENT_TYPE_CONNECTION,
-        "conn",
-        source="source",
-        target="target",
-        max_power_source_target=10.0,
-        max_power_target_source=5.0,
+        {
+            "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
+            "name": "conn",
+            "source": "source",
+            "target": "target",
+            "max_power_source_target": 10.0,
+            "max_power_target_source": 5.0,
+        }
     )
 
     # Verify initial state with type narrowing
@@ -60,8 +62,8 @@ def test_update_element_raises_for_missing_model_element() -> None:
     """Test update_element raises ValueError when model element is not found."""
     # Create network with only nodes
     network = Network(name="test", periods=[1.0, 1.0])
-    network.add(MODEL_ELEMENT_TYPE_NODE, "source", is_source=True, is_sink=False)
-    network.add(MODEL_ELEMENT_TYPE_NODE, "target", is_source=False, is_sink=True)
+    network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "source", "is_source": True, "is_sink": False})
+    network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "target", "is_source": False, "is_sink": True})
     # Connection "nonexistent_conn" does NOT exist
 
     # Try to update a nonexistent element

@@ -10,6 +10,7 @@ from custom_components.haeo.elements import inverter as inverter_element
 from custom_components.haeo.elements.inverter import InverterConfigData
 from custom_components.haeo.model import ModelOutputName
 from custom_components.haeo.model.const import OutputType
+from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE
 from custom_components.haeo.model.elements import connection
 from custom_components.haeo.model.elements.node import NODE_POWER_BALANCE
 from custom_components.haeo.model.output_data import OutputData
@@ -45,9 +46,9 @@ CREATE_CASES: Sequence[CreateCase] = [
             efficiency_ac_to_dc=100.0,
         ),
         "model": [
-            {"element_type": "node", "name": "inverter_main", "is_source": False, "is_sink": False},
+            {"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "inverter_main", "is_source": False, "is_sink": False},
             {
-                "element_type": "connection",
+                "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
                 "name": "inverter_main:connection",
                 "source": "inverter_main",
                 "target": "network",
@@ -70,9 +71,9 @@ CREATE_CASES: Sequence[CreateCase] = [
             efficiency_ac_to_dc=100.0,
         ),
         "model": [
-            {"element_type": "node", "name": "inverter_simple", "is_source": False, "is_sink": False},
+            {"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "inverter_simple", "is_source": False, "is_sink": False},
             {
-                "element_type": "connection",
+                "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
                 "name": "inverter_simple:connection",
                 "source": "inverter_simple",
                 "target": "network",

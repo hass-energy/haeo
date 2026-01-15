@@ -13,6 +13,12 @@ from custom_components.haeo.model import battery as battery_model
 from custom_components.haeo.model import battery_balance_connection as balance_model
 from custom_components.haeo.model import node as node_model
 from custom_components.haeo.model.const import OutputType
+from custom_components.haeo.model.elements import (
+    MODEL_ELEMENT_TYPE_BATTERY,
+    MODEL_ELEMENT_TYPE_BATTERY_BALANCE_CONNECTION,
+    MODEL_ELEMENT_TYPE_CONNECTION,
+    MODEL_ELEMENT_TYPE_NODE,
+)
 from custom_components.haeo.model.output_data import OutputData
 
 
@@ -57,32 +63,32 @@ CREATE_CASES: Sequence[CreateCase] = [
         ),
         "model": [
             {
-                "element_type": "battery",
+                "element_type": MODEL_ELEMENT_TYPE_BATTERY,
                 "name": "battery_main:undercharge",
                 "capacity": [0.5, 0.5],
                 "initial_charge": 0.5,
             },
             {
-                "element_type": "battery",
+                "element_type": MODEL_ELEMENT_TYPE_BATTERY,
                 "name": "battery_main:normal",
                 "capacity": [8.0, 8.0],
                 "initial_charge": 4.0,
             },
             {
-                "element_type": "battery",
+                "element_type": MODEL_ELEMENT_TYPE_BATTERY,
                 "name": "battery_main:overcharge",
                 "capacity": [0.49999999999999933, 0.49999999999999933],
                 "initial_charge": 0.0,
             },
             {
-                "element_type": "node",
+                "element_type": MODEL_ELEMENT_TYPE_NODE,
                 "name": "battery_main:node",
                 "is_source": False,
                 "is_sink": False,
             },
             # Undercharge connection: penalty on discharge (price_source_target)
             {
-                "element_type": "connection",
+                "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
                 "name": "battery_main:undercharge:to_node",
                 "source": "battery_main:undercharge",
                 "target": "battery_main:node",
@@ -90,7 +96,7 @@ CREATE_CASES: Sequence[CreateCase] = [
             },
             # Normal connection: no penalty
             {
-                "element_type": "connection",
+                "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
                 "name": "battery_main:normal:to_node",
                 "source": "battery_main:normal",
                 "target": "battery_main:node",
@@ -98,7 +104,7 @@ CREATE_CASES: Sequence[CreateCase] = [
             },
             # Overcharge connection: penalty on charge (price_target_source)
             {
-                "element_type": "connection",
+                "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
                 "name": "battery_main:overcharge:to_node",
                 "source": "battery_main:overcharge",
                 "target": "battery_main:node",
@@ -106,21 +112,21 @@ CREATE_CASES: Sequence[CreateCase] = [
             },
             # Balance connection: undercharge -> normal
             {
-                "element_type": "battery_balance_connection",
+                "element_type": MODEL_ELEMENT_TYPE_BATTERY_BALANCE_CONNECTION,
                 "name": "battery_main:balance:undercharge:normal",
                 "upper": "battery_main:normal",
                 "lower": "battery_main:undercharge",
             },
             # Balance connection: normal -> overcharge
             {
-                "element_type": "battery_balance_connection",
+                "element_type": MODEL_ELEMENT_TYPE_BATTERY_BALANCE_CONNECTION,
                 "name": "battery_main:balance:normal:overcharge",
                 "upper": "battery_main:overcharge",
                 "lower": "battery_main:normal",
             },
             # Main connection to network
             {
-                "element_type": "connection",
+                "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
                 "name": "battery_main:connection",
                 "source": "battery_main:node",
                 "target": "network",
@@ -151,20 +157,20 @@ CREATE_CASES: Sequence[CreateCase] = [
         ),
         "model": [
             {
-                "element_type": "battery",
+                "element_type": MODEL_ELEMENT_TYPE_BATTERY,
                 "name": "battery_normal:normal",
                 "capacity": [10.0, 10.0],
                 "initial_charge": 5.0,
             },
             {
-                "element_type": "node",
+                "element_type": MODEL_ELEMENT_TYPE_NODE,
                 "name": "battery_normal:node",
                 "is_source": False,
                 "is_sink": False,
             },
             # Normal connection: no penalty
             {
-                "element_type": "connection",
+                "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
                 "name": "battery_normal:normal:to_node",
                 "source": "battery_normal:normal",
                 "target": "battery_normal:node",
@@ -172,7 +178,7 @@ CREATE_CASES: Sequence[CreateCase] = [
             },
             # Main connection to network
             {
-                "element_type": "connection",
+                "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
                 "name": "battery_normal:connection",
                 "source": "battery_normal:node",
                 "target": "network",

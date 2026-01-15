@@ -6,7 +6,7 @@ to model various connection behaviors.
 
 from collections import OrderedDict
 from collections.abc import Mapping, Sequence
-from typing import Any, Final, Literal, cast
+from typing import Any, Final, Literal, NotRequired, TypedDict, cast
 
 from highspy import Highs
 from highspy.highs import HighspyArray, highs_cons, highs_linear_expression
@@ -19,6 +19,27 @@ from custom_components.haeo.model.output_data import OutputData
 from custom_components.haeo.model.reactive import ReactiveConstraint, constraint, output
 
 from .segments import SEGMENT_TYPES, PassthroughSegment, PowerLimitSegment, PricingSegment, Segment, SegmentSpec
+
+# Model element type for connections
+ELEMENT_TYPE: Final = "connection"
+type ConnectionElementTypeName = Literal["connection"]
+
+
+class ConnectionElementConfig(TypedDict):
+    """Configuration for Connection model elements."""
+
+    element_type: ConnectionElementTypeName
+    name: str
+    source: str
+    target: str
+    segments: NotRequired[Sequence[SegmentSpec]]
+    fixed_power: NotRequired[bool]
+    max_power_source_target: NotRequired[Sequence[float] | float | None]
+    max_power_target_source: NotRequired[Sequence[float] | float | None]
+    efficiency_source_target: NotRequired[Sequence[float] | float | None]
+    efficiency_target_source: NotRequired[Sequence[float] | float | None]
+    price_source_target: NotRequired[Sequence[float] | float | None]
+    price_target_source: NotRequired[Sequence[float] | float | None]
 
 # Minimum segments needed before linking is required
 MIN_SEGMENTS_FOR_LINKING = 2
@@ -593,5 +614,8 @@ __all__ = [
     "CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE",
     "CONNECTION_TIME_SLICE",
     "Connection",
+    "ConnectionElementConfig",
+    "ConnectionElementTypeName",
     "ConnectionOutputName",
+    "ELEMENT_TYPE",
 ]

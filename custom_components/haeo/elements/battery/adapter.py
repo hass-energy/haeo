@@ -9,10 +9,16 @@ import numpy as np
 
 from custom_components.haeo.const import ConnectivityLevel
 from custom_components.haeo.data.loader import TimeSeriesLoader
-from custom_components.haeo.model import ModelOutputName
+from custom_components.haeo.model import ModelElementConfig, ModelOutputName
 from custom_components.haeo.model import battery as model_battery
 from custom_components.haeo.model import battery_balance_connection as model_balance
 from custom_components.haeo.model.const import OutputType
+from custom_components.haeo.model.elements import (
+    MODEL_ELEMENT_TYPE_BATTERY,
+    MODEL_ELEMENT_TYPE_BATTERY_BALANCE_CONNECTION,
+    MODEL_ELEMENT_TYPE_CONNECTION,
+    MODEL_ELEMENT_TYPE_NODE,
+)
 from custom_components.haeo.model.elements.node import NODE_POWER_BALANCE
 from custom_components.haeo.model.output_data import OutputData
 
@@ -283,14 +289,14 @@ class BatteryAdapter:
 
         return self.build_config_data(loaded_values, config)
 
-    def model_elements(self, config: BatteryConfigData) -> list[dict[str, Any]]:
+    def model_elements(self, config: BatteryConfigData) -> list[ModelElementConfig]:
         """Create model elements for Battery configuration.
 
         Creates 1-3 battery sections, an internal node, connections from sections to node,
         and a connection from node to target.
         """
         name = config["name"]
-        elements: list[dict[str, Any]] = []
+        elements: list[ModelElementConfig] = []
         # capacity is boundaries (n+1 values), so n_periods = len - 1
         n_boundaries = len(config["capacity"])
         n_periods = n_boundaries - 1
@@ -342,7 +348,7 @@ class BatteryAdapter:
 
             elements.append(
                 {
-                    "element_type": "battery",
+                    "element_type": MODEL_ELEMENT_TYPE_BATTERY,
                     "name": section_name,
                     "capacity": undercharge_capacity.tolist(),
                     "initial_charge": section_initial_charge,
@@ -362,7 +368,7 @@ class BatteryAdapter:
 
         elements.append(
             {
-                "element_type": "battery",
+                "element_type": MODEL_ELEMENT_TYPE_BATTERY,
                 "name": section_name,
                 "capacity": normal_capacity.tolist(),
                 "initial_charge": section_initial_charge,
@@ -383,7 +389,7 @@ class BatteryAdapter:
 
             elements.append(
                 {
-                    "element_type": "battery",
+                    "element_type": MODEL_ELEMENT_TYPE_BATTERY,
                     "name": section_name,
                     "capacity": overcharge_capacity.tolist(),
                     "initial_charge": section_initial_charge,
@@ -394,7 +400,7 @@ class BatteryAdapter:
         node_name = f"{name}:node"
         elements.append(
             {
-                "element_type": "node",
+                "element_type": MODEL_ELEMENT_TYPE_NODE,
                 "name": node_name,
                 "is_source": False,
                 "is_sink": False,
@@ -420,7 +426,7 @@ class BatteryAdapter:
                 charge_price: list[float] = overcharge_cost_array
                 elements.append(
                     {
-                        "element_type": "connection",
+                        "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
                         "name": f"{section_name}:to_node",
                         "source": section_name,
                         "target": node_name,
@@ -433,7 +439,7 @@ class BatteryAdapter:
 
             elements.append(
                 {
-                    "element_type": "connection",
+                    "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
                     "name": f"{section_name}:to_node",
                     "source": section_name,
                     "target": node_name,
@@ -450,7 +456,7 @@ class BatteryAdapter:
 
             elements.append(
                 {
-                    "element_type": "battery_balance_connection",
+                    "element_type": MODEL_ELEMENT_TYPE_BATTERY_BALANCE_CONNECTION,
                     "name": f"{name}:balance:{lower_section.split(':')[-1]}:{upper_section.split(':')[-1]}",
                     "upper": upper_section,
                     "lower": lower_section,
@@ -468,7 +474,7 @@ class BatteryAdapter:
 
         elements.append(
             {
-                "element_type": "connection",
+                "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
                 "name": f"{name}:connection",
                 "source": node_name,
                 "target": config["connection"],

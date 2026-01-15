@@ -1,7 +1,7 @@
 """Integration tests for Network optimization scenarios."""
 
-from custom_components.haeo.elements import ELEMENT_TYPE_CONNECTION
 from custom_components.haeo.model import Network
+from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE
 
 
 def test_simple_optimization() -> None:
@@ -9,26 +9,30 @@ def test_simple_optimization() -> None:
     network = Network(name="test_network", periods=[1.0] * 3)
 
     # Add a simple grid and load
-    network.add("node", "grid", is_source=True, is_sink=True)
-    network.add("node", "net", is_source=False, is_sink=False)
+    network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "grid", "is_source": True, "is_sink": True})
+    network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "net", "is_source": False, "is_sink": False})
     network.add(
-        ELEMENT_TYPE_CONNECTION,
-        "grid_connection",
-        source="grid",
-        target="net",
-        max_power_source_target=10000,
-        max_power_target_source=5000,
-        price_source_target=[0.1, 0.2, 0.15],
-        price_target_source=[0.05, 0.08, 0.06],
+        {
+            "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
+            "name": "grid_connection",
+            "source": "grid",
+            "target": "net",
+            "max_power_source_target": 10000,
+            "max_power_target_source": 5000,
+            "price_source_target": [0.1, 0.2, 0.15],
+            "price_target_source": [0.05, 0.08, 0.06],
+        }
     )
-    network.add("node", "load", is_source=False, is_sink=True)
+    network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "load", "is_source": False, "is_sink": True})
     network.add(
-        ELEMENT_TYPE_CONNECTION,
-        "load_connection",
-        source="net",
-        target="load",
-        max_power_source_target=[1000, 1500, 2000],
-        fixed_power=True,
+        {
+            "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
+            "name": "load_connection",
+            "source": "net",
+            "target": "load",
+            "max_power_source_target": [1000, 1500, 2000],
+            "fixed_power": True,
+        }
     )
 
     # Run optimization
@@ -42,16 +46,18 @@ def test_network_validation() -> None:
     network = Network(name="test_network", periods=[1.0] * 3)
 
     # Add entities
-    network.add("node", "source", is_source=True, is_sink=False)
-    network.add("node", "sink", is_source=False, is_sink=True)
+    network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "source", "is_source": True, "is_sink": False})
+    network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "sink", "is_source": False, "is_sink": True})
 
     # Create valid connection
     network.add(
-        ELEMENT_TYPE_CONNECTION,
-        "valid_connection",
-        source="source",
-        target="sink",
-        max_power_source_target=1000,
+        {
+            "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
+            "name": "valid_connection",
+            "source": "source",
+            "target": "sink",
+            "max_power_source_target": 1000,
+        }
     )
 
     # Should validate successfully

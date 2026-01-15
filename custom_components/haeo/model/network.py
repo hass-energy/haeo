@@ -1,18 +1,19 @@
 """Network class for electrical system modeling and optimization."""
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 import logging
-from typing import Any, cast
+from typing import Any, overload
 
 from highspy import Highs, HighsModelStatus
 from highspy.highs import highs_cons, highs_linear_expression
 
 from .element import Element
-from .elements import ELEMENTS, ModelElementType
-from .elements.battery import Battery
-from .elements.battery_balance_connection import BatteryBalanceConnection
-from .elements.connection import Connection
+from .elements import ELEMENTS, ModelElementConfig
+from .elements.battery import Battery, BatteryElementConfig
+from .elements.battery_balance_connection import BatteryBalanceConnection, BatteryBalanceConnectionElementConfig
+from .elements.connection import Connection, ConnectionElementConfig
+from .elements.node import Node, NodeElementConfig
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -56,84 +57,83 @@ class Network:
         """Return the number of optimization periods."""
         return len(self.periods)
 
-    def add(self, spec: Mapping[str, Any] | str, name: str | None = None, **kwargs: Any) -> Element[Any]:
+    @overload
+    def add(self, element_config: BatteryElementConfig) -> Battery: ...
+
+    @overload
+    def add(self, element_config: NodeElementConfig) -> Node: ...
+
+    @overload
+    def add(self, element_config: ConnectionElementConfig) -> Connection: ...
+
+    @overload
+    def add(self, element_config: BatteryBalanceConnectionElementConfig) -> BatteryBalanceConnection: ...
+
+    def add(self, element_config: ModelElementConfig) -> Element[Any]:
         """Add a new element to the network.
 
-        Accepts either a spec mapping (preferred) or the legacy positional form:
-        - add(spec)
-        - add(element_type, name, **kwargs)
+        Creates the element and registers connections. For parameter updates,
+        modify the element's TrackedParam attributes directly - this will
+        automatically invalidate dependent constraints for the next optimization.
+
+        Args:
+            element_config: Typed model element configuration dictionary
+
+        Returns:
+            The created element
+
         """
-        # Normalize to spec dict
-        if isinstance(spec, Mapping):
-            element_type = spec["element_type"]
-            elem_name = spec["name"]
-            element_kwargs = {k: v for k, v in spec.items() if k not in ("element_type", "name")}
-        else:
-            # Legacy signature: add(element_type, name, **kwargs)
-            element_type = cast("ModelElementType", spec)
-            if name is None:
-                msg = "Name is required when using legacy add(element_type, name, **kwargs) signature"
-                raise ValueError(msg)
-            elem_name = name
-            element_kwargs = dict(kwargs)
+        element_type = element_config["element_type"]
+        name = element_config["name"]
+        kwargs = {key: value for key, value in element_config.items() if key not in ("element_type", "name")}
 
-        element_registry = ELEMENTS[element_type]
-
-        if elem_name in self.elements:
-            element = self.elements[elem_name]
-            if not isinstance(element, element_registry.factory):
-                msg = (
-                    f"Existing element '{elem_name}' is type {type(element).__name__}, "
-                    f"cannot update with type {element_registry.factory.__name__}"
-                )
-                raise TypeError(msg)
-
-            for param_name, param_value in element_kwargs.items():
-                if param_name in {"source", "target", "segments", "fixed_power"}:
-                    continue
-                # Delegate updates to element's __setitem__ to trigger reactive invalidation
-                element[param_name] = param_value
-            return element
-
-        element = element_registry.factory(name=elem_name, periods=self.periods, solver=self._solver, **element_kwargs)
-        self.elements[elem_name] = element
+        # Create new element using registry
+        element_spec = ELEMENTS[element_type]
+        element_instance: Element[Any] = element_spec.factory(
+            name=name, periods=self.periods, solver=self._solver, **kwargs
+        )
+        self.elements[name] = element_instance
 
         # Register connections immediately when adding Connection elements
         # (but not BatteryBalanceConnection - those register themselves via set_battery_references)
-        if isinstance(element, Connection) and not isinstance(element, BatteryBalanceConnection):
+        if isinstance(element_instance, Connection) and not isinstance(element_instance, BatteryBalanceConnection):
             # Get source and target elements
-            source_element = self.elements.get(element.source)
-            target_element = self.elements.get(element.target)
+            source_element = self.elements.get(element_instance.source)
+            target_element = self.elements.get(element_instance.target)
 
             if source_element is not None:
-                source_element.register_connection(element, "source")
+                source_element.register_connection(element_instance, "source")
             else:
-                msg = f"Failed to register connection {name} with source {element.source}: Not found or invalid"
+                msg = (
+                    f"Failed to register connection {name} with source {element_instance.source}: Not found or invalid"
+                )
                 raise ValueError(msg)
 
             if target_element is not None:
-                target_element.register_connection(element, "target")
+                target_element.register_connection(element_instance, "target")
             else:
-                msg = f"Failed to register connection {name} with target {element.target}: Not found or invalid"
+                msg = (
+                    f"Failed to register connection {name} with target {element_instance.target}: Not found or invalid"
+                )
                 raise ValueError(msg)
 
         # Register battery balance connections with their battery sections
-        if isinstance(element, BatteryBalanceConnection):
+        if isinstance(element_instance, BatteryBalanceConnection):
             # BatteryBalanceConnection uses source=upper, target=lower
-            upper_element = self.elements.get(element.source)
-            lower_element = self.elements.get(element.target)
+            upper_element = self.elements.get(element_instance.source)
+            lower_element = self.elements.get(element_instance.target)
 
             if not isinstance(upper_element, Battery):
-                msg = f"Upper element '{element.source}' is not a battery"
+                msg = f"Upper element '{element_instance.source}' is not a battery"
                 raise TypeError(msg)
 
             if not isinstance(lower_element, Battery):
-                msg = f"Lower element '{element.target}' is not a battery"
+                msg = f"Lower element '{element_instance.target}' is not a battery"
                 raise TypeError(msg)
 
-            element.set_battery_references(upper_element, lower_element)
+            element_instance.set_battery_references(upper_element, lower_element)
 
-        return element
+        return element_instance
 
     def cost(self) -> highs_linear_expression | None:
         """Return aggregated cost expression from all elements in the network.

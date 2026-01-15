@@ -9,9 +9,9 @@ import numpy as np
 
 from custom_components.haeo.const import ConnectivityLevel
 from custom_components.haeo.data.loader import TimeSeriesLoader
-from custom_components.haeo.model import ModelOutputName
+from custom_components.haeo.model import ModelElementConfig, ModelOutputName
 from custom_components.haeo.model.const import OutputType
-from custom_components.haeo.model.elements import SegmentSpec
+from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, SegmentSpec
 from custom_components.haeo.model.elements.connection import CONNECTION_OUTPUT_NAMES as MODEL_CONNECTION_OUTPUT_NAMES
 from custom_components.haeo.model.elements.connection import (
     CONNECTION_POWER_SOURCE_TARGET,
@@ -182,7 +182,7 @@ class ConnectionAdapter:
 
         return self.build_config_data(loaded_values, config)
 
-    def model_elements(self, config: ConnectionConfigData) -> list[dict[str, Any]]:
+    def model_elements(self, config: ConnectionConfigData) -> list[ModelElementConfig]:
         """Return model element parameters for Connection configuration.
 
         Builds the segments list for the Connection model element based on
@@ -225,8 +225,8 @@ class ConnectionAdapter:
                 pricing_spec["price_ts"] = np.array(price_ts)
             segments.append(pricing_spec)
 
-        element_data: dict[str, Any] = {
-            "element_type": "connection",
+        element_data: ModelElementConfig = {
+            "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
             "name": config["name"],
             "source": config["source"],
             "target": config["target"],

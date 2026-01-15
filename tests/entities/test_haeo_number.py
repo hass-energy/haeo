@@ -10,6 +10,8 @@ from homeassistant.config_entries import ConfigSubentry
 from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceEntry
+from homeassistant.helpers.entity import Entity
+from homeassistant.helpers.entity_platform import PlatformData
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
@@ -128,6 +130,21 @@ def _create_subentry(name: str, data: dict[str, Any]) -> ConfigSubentry:
         title=name,
         unique_id=None,
     )
+
+
+def _attach_platform(
+    entity: Entity,
+    hass: HomeAssistant,
+    *,
+    entity_id: str,
+    platform_domain: str,
+) -> None:
+    """Attach minimal platform data so async_write_ha_state can run."""
+    platform_data = PlatformData(hass, domain=platform_domain, platform_name=DOMAIN)
+    entity.hass = hass
+    entity.entity_id = entity_id
+    entity.platform_data = platform_data
+    entity.platform = Mock(platform_data=platform_data)
 
 
 # --- Tests for EDITABLE mode ---
@@ -627,12 +644,77 @@ async def test_handle_horizon_change_editable_updates_forecast(
         device_entry=device_entry,
         horizon_manager=horizon_manager,
     )
-    entity.async_write_ha_state = Mock()
+    _attach_platform(
+        entity,
+        hass,
+        entity_id="number.test_power_limit",
+        platform_domain="number",
+    )
 
     # Call horizon change handler
     entity._handle_horizon_change()
 
-    entity.async_write_ha_state.assert_called_once()
+    assert entity.horizon_start == 0.0
+    values = entity.get_values()
+    assert values is not None
+    assert len(values) == 2
+
+
+async def test_horizon_change_updates_forecast_timestamps_editable(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    device_entry: Mock,
+    power_field_info: InputFieldInfo[NumberEntityDescription],
+    horizon_manager: Mock,
+) -> None:
+    """Horizon change updates forecast timestamps in EDITABLE mode.
+
+    This test verifies that when the horizon changes, EDITABLE mode entities
+    write their updated state to Home Assistant (not just update internal attributes).
+    """
+    subentry = _create_subentry("Test Battery", {"power_limit": 10.0})
+    config_entry.runtime_data = None
+
+    entity = HaeoInputNumber(
+        hass=hass,
+        config_entry=config_entry,
+        subentry=subentry,
+        field_info=power_field_info,
+        device_entry=device_entry,
+        horizon_manager=horizon_manager,
+    )
+    _attach_platform(
+        entity,
+        hass,
+        entity_id="number.test_power_limit",
+        platform_domain="number",
+    )
+
+    # Build initial forecast
+    entity._update_editable_forecast()
+    assert entity.horizon_start == 0.0
+
+    # Track state writes by wrapping async_write_ha_state
+    state_writes: list[dict[str, Any]] = []
+    original_write = entity.async_write_ha_state
+
+    def capturing_write() -> None:
+        attrs = entity.extra_state_attributes
+        state_writes.append({"forecast": attrs.get("forecast") if attrs else None})
+        original_write()
+
+    entity.async_write_ha_state = capturing_write  # type: ignore[method-assign]
+
+    # Change horizon and trigger update
+    horizon_manager.get_forecast_timestamps.return_value = (100.0, 400.0, 700.0)
+    entity._handle_horizon_change()
+
+    # Verify state was written with new forecast timestamps
+    assert len(state_writes) == 1, "Horizon change should trigger state write"
+    written_forecast = state_writes[0]["forecast"]
+    assert written_forecast is not None
+    assert len(written_forecast) == 2
+    assert [point["time"].timestamp() for point in written_forecast] == [100.0, 400.0]
 
 
 async def test_handle_horizon_change_driven_triggers_reload(
@@ -661,6 +743,69 @@ async def test_handle_horizon_change_driven_triggers_reload(
     await hass.async_block_till_done()
 
     # Task should have been created (test doesn't fail means task was created)
+
+
+async def test_horizon_change_updates_forecast_timestamps_driven(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    device_entry: Mock,
+    power_field_info: InputFieldInfo[NumberEntityDescription],
+    horizon_manager: Mock,
+) -> None:
+    """Horizon change updates forecast timestamps in DRIVEN mode.
+
+    This test verifies that when the horizon changes, DRIVEN mode entities
+    write their updated state to Home Assistant (not just update internal attributes).
+    The regression being tested: calling _async_load_data() instead of
+    _async_load_data_and_update() would update internal state but NOT write to HA.
+    """
+    hass.states.async_set("sensor.power", "10.0")
+    subentry = _create_subentry("Test Battery", {"power_limit": ["sensor.power"]})
+    config_entry.runtime_data = None
+
+    entity = HaeoInputNumber(
+        hass=hass,
+        config_entry=config_entry,
+        subentry=subentry,
+        field_info=power_field_info,
+        device_entry=device_entry,
+        horizon_manager=horizon_manager,
+    )
+    _attach_platform(
+        entity,
+        hass,
+        entity_id="number.test_power_limit",
+        platform_domain="number",
+    )
+
+    # Load initial data
+    entity._loader.load_intervals = AsyncMock(return_value=[1.0, 2.0])
+    await entity._async_load_data()
+    assert entity.horizon_start == 0.0
+
+    # Track state writes by wrapping async_write_ha_state
+    state_writes: list[dict[str, Any]] = []
+    original_write = entity.async_write_ha_state
+
+    def capturing_write() -> None:
+        attrs = entity.extra_state_attributes
+        state_writes.append({"forecast": attrs.get("forecast") if attrs else None})
+        original_write()
+
+    entity.async_write_ha_state = capturing_write  # type: ignore[method-assign]
+
+    # Change horizon and trigger update
+    horizon_manager.get_forecast_timestamps.return_value = (100.0, 400.0, 700.0)
+    entity._loader.load_intervals = AsyncMock(return_value=[3.0, 4.0])
+    entity._handle_horizon_change()
+    await hass.async_block_till_done()
+
+    # Verify state was written with new forecast timestamps
+    assert len(state_writes) == 1, "Horizon change should trigger state write"
+    written_forecast = state_writes[0]["forecast"]
+    assert written_forecast is not None
+    assert len(written_forecast) == 2
+    assert [point["time"].timestamp() for point in written_forecast] == [100.0, 400.0]
 
 
 async def test_handle_source_state_change_triggers_reload(

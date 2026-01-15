@@ -10,6 +10,7 @@ from custom_components.haeo.elements import grid as grid_element
 from custom_components.haeo.elements.grid import GridConfigData
 from custom_components.haeo.model import ModelOutputName
 from custom_components.haeo.model.const import OutputType
+from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE
 from custom_components.haeo.model.elements import connection
 from custom_components.haeo.model.output_data import OutputData
 
@@ -46,9 +47,9 @@ CREATE_CASES: Sequence[CreateCase] = [
             export_limit=[3.0],
         ),
         "model": [
-            {"element_type": "node", "name": "grid_main", "is_source": True, "is_sink": True},
+            {"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "grid_main", "is_source": True, "is_sink": True},
             {
-                "element_type": "connection",
+                "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
                 "name": "grid_main:connection",
                 "source": "grid_main",
                 "target": "network",

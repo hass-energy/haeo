@@ -181,7 +181,7 @@ Keeping the output contract consistent means new model components immediately su
 See existing implementations in `custom_components/haeo/model/elements/` for examples:
 
 - `battery.py` - Energy storage with SOC tracking
-- `power_connection.py` - Power flow with limits and pricing
+- `connection.py` - Composable connection segments for flow and pricing
 - `node.py` - Power balance points
 
 ## Connections and nodes
@@ -189,7 +189,7 @@ See existing implementations in `custom_components/haeo/model/elements/` for exa
 Connections remain responsible for enforcing flow limits and tying elements together through node balance constraints.
 When introducing a new element, ensure it connects through existing nodes or provide a clear reason to add a specialised node variant.
 
-The current implementations are in `custom_components/haeo/model/elements/connection.py`, `custom_components/haeo/model/elements/power_connection.py`, and `custom_components/haeo/model/elements/node.py`.
+The current implementations are in `custom_components/haeo/model/elements/connection.py` and `custom_components/haeo/model/elements/node.py`.
 
 ## Cost modelling
 

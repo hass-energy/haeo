@@ -3,6 +3,7 @@
 from collections.abc import Mapping, Sequence
 from typing import Any, TypedDict
 
+import numpy as np
 import pytest
 
 from custom_components.haeo.elements import ELEMENT_TYPES
@@ -10,6 +11,7 @@ from custom_components.haeo.elements import connection as connection_element
 from custom_components.haeo.elements.connection import ConnectionConfigData
 from custom_components.haeo.model import ModelOutputName
 from custom_components.haeo.model.const import OutputType
+from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION
 from custom_components.haeo.model.elements import connection as model_connection
 from custom_components.haeo.model.output_data import OutputData
 
@@ -48,14 +50,14 @@ CREATE_CASES: Sequence[CreateCase] = [
         ),
         "model": [
             {
-                "element_type": "connection",
+                "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
                 "name": "c1",
                 "source": "s",
                 "target": "t",
                 "segments": [
-                    {"segment_type": "efficiency", "efficiency_st": 0.95, "efficiency_ts": 0.90},
-                    {"segment_type": "power_limit", "max_power_st": 4.0, "max_power_ts": 2.0},
-                    {"segment_type": "pricing", "price_st": 0.1, "price_ts": 0.05},
+                    {"segment_type": "efficiency", "efficiency_st": [0.95], "efficiency_ts": [0.90]},
+                    {"segment_type": "power_limit", "max_power_st": [4.0], "max_power_ts": [2.0]},
+                    {"segment_type": "pricing", "price_st": [0.1], "price_ts": [0.05]},
                 ],
             }
         ],
@@ -70,7 +72,7 @@ CREATE_CASES: Sequence[CreateCase] = [
         ),
         "model": [
             {
-                "element_type": "connection",
+                "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
                 "name": "c_min",
                 "source": "s",
                 "target": "t",
@@ -78,6 +80,17 @@ CREATE_CASES: Sequence[CreateCase] = [
         ],
     },
 ]
+
+
+def _normalize_for_compare(value: Any) -> Any:
+    """Normalize numpy arrays to lists for equality checks."""
+    if isinstance(value, np.ndarray):
+        return value.tolist()
+    if isinstance(value, dict):
+        return {key: _normalize_for_compare(val) for key, val in value.items()}
+    if isinstance(value, list):
+        return [_normalize_for_compare(item) for item in value]
+    return value
 
 
 OUTPUTS_CASES: Sequence[OutputsCase] = [
@@ -129,7 +142,7 @@ def test_model_elements(case: CreateCase) -> None:
     """Verify adapter transforms ConfigData into expected model elements."""
     entry = ELEMENT_TYPES["connection"]
     result = entry.model_elements(case["data"])
-    assert result == case["model"]
+    assert _normalize_for_compare(result) == _normalize_for_compare(case["model"])
 
 
 @pytest.mark.parametrize("case", OUTPUTS_CASES, ids=lambda c: c["description"])
