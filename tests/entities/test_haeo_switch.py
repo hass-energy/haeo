@@ -10,6 +10,8 @@ from homeassistant.config_entries import ConfigSubentry
 from homeassistant.const import STATE_OFF, STATE_ON, EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceEntry
+from homeassistant.helpers.entity import Entity
+from homeassistant.helpers.entity_platform import PlatformData
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
@@ -86,6 +88,21 @@ def _create_subentry(name: str, data: dict[str, Any]) -> ConfigSubentry:
         title=name,
         unique_id=None,
     )
+
+
+def _attach_platform(
+    entity: Entity,
+    hass: HomeAssistant,
+    *,
+    entity_id: str,
+    platform_domain: str,
+) -> None:
+    """Attach minimal platform data so async_write_ha_state can run."""
+    platform_data = PlatformData(hass, domain=platform_domain, platform_name=DOMAIN)
+    entity.hass = hass
+    entity.entity_id = entity_id
+    entity.platform_data = platform_data
+    entity.platform = Mock(platform_data=platform_data)
 
 
 # --- Tests for EDITABLE mode ---
@@ -190,13 +207,20 @@ async def test_editable_mode_turn_on(
         device_entry=device_entry,
         horizon_manager=horizon_manager,
     )
-    entity.async_write_ha_state = Mock()
+    _attach_platform(
+        entity,
+        hass,
+        entity_id="switch.test_allow_curtailment",
+        platform_domain="switch",
+    )
     hass.config_entries.async_update_subentry = Mock()
 
     await entity.async_turn_on()
 
     assert entity.is_on is True
-    entity.async_write_ha_state.assert_called_once()
+    values = entity.get_values()
+    assert values is not None
+    assert all(value is True for value in values)
     # Value should be persisted to config entry
     hass.config_entries.async_update_subentry.assert_called_once()
 
@@ -220,13 +244,20 @@ async def test_editable_mode_turn_off(
         device_entry=device_entry,
         horizon_manager=horizon_manager,
     )
-    entity.async_write_ha_state = Mock()
+    _attach_platform(
+        entity,
+        hass,
+        entity_id="switch.test_allow_curtailment",
+        platform_domain="switch",
+    )
     hass.config_entries.async_update_subentry = Mock()
 
     await entity.async_turn_off()
 
     assert entity.is_on is False
-    entity.async_write_ha_state.assert_called_once()
+    values = entity.get_values()
+    assert values is not None
+    assert all(value is False for value in values)
     # Value should be persisted to config entry
     hass.config_entries.async_update_subentry.assert_called_once()
 
@@ -700,12 +731,77 @@ async def test_handle_horizon_change_editable_updates_forecast(
         device_entry=device_entry,
         horizon_manager=horizon_manager,
     )
-    entity.async_write_ha_state = Mock()
+    _attach_platform(
+        entity,
+        hass,
+        entity_id="switch.test_allow_curtailment",
+        platform_domain="switch",
+    )
 
     # Call horizon change handler
     entity._handle_horizon_change()
 
-    entity.async_write_ha_state.assert_called_once()
+    assert entity.horizon_start == 0.0
+    values = entity.get_values()
+    assert values is not None
+    assert len(values) == 3
+
+
+async def test_horizon_change_updates_forecast_timestamps_editable(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    device_entry: Mock,
+    curtailment_field_info: InputFieldInfo[SwitchEntityDescription],
+    horizon_manager: Mock,
+) -> None:
+    """Horizon change updates forecast timestamps in EDITABLE mode.
+
+    This test verifies that when the horizon changes, EDITABLE mode entities
+    write their updated state to Home Assistant (not just update internal attributes).
+    """
+    subentry = _create_subentry("Test Solar", {"allow_curtailment": True})
+    config_entry.runtime_data = None
+
+    entity = HaeoInputSwitch(
+        hass=hass,
+        config_entry=config_entry,
+        subentry=subentry,
+        field_info=curtailment_field_info,
+        device_entry=device_entry,
+        horizon_manager=horizon_manager,
+    )
+    _attach_platform(
+        entity,
+        hass,
+        entity_id="switch.test_allow_curtailment",
+        platform_domain="switch",
+    )
+
+    # Build initial forecast
+    entity._update_forecast()
+    assert entity.horizon_start == 0.0
+
+    # Track state writes by wrapping async_write_ha_state
+    state_writes: list[dict[str, Any]] = []
+    original_write = entity.async_write_ha_state
+
+    def capturing_write() -> None:
+        attrs = entity.extra_state_attributes
+        state_writes.append({"forecast": attrs.get("forecast") if attrs else None})
+        original_write()
+
+    entity.async_write_ha_state = capturing_write  # type: ignore[method-assign]
+
+    # Change horizon and trigger update
+    horizon_manager.get_forecast_timestamps.return_value = (100.0, 400.0, 700.0)
+    entity._handle_horizon_change()
+
+    # Verify state was written with new forecast timestamps
+    assert len(state_writes) == 1, "Horizon change should trigger state write"
+    written_forecast = state_writes[0]["forecast"]
+    assert written_forecast is not None
+    assert len(written_forecast) == 3
+    assert [point["time"].timestamp() for point in written_forecast] == [100.0, 400.0, 700.0]
 
 
 async def test_handle_horizon_change_driven_reloads_source(
@@ -728,14 +824,77 @@ async def test_handle_horizon_change_driven_reloads_source(
         device_entry=device_entry,
         horizon_manager=horizon_manager,
     )
-    entity.async_write_ha_state = Mock()
+    _attach_platform(
+        entity,
+        hass,
+        entity_id="switch.test_allow_curtailment",
+        platform_domain="switch",
+    )
 
     # Call horizon change handler
     entity._handle_horizon_change()
 
     # Should have loaded source state
     assert entity.is_on is True
-    entity.async_write_ha_state.assert_called_once()
+    assert entity.horizon_start == 0.0
+
+
+async def test_horizon_change_updates_forecast_timestamps_driven(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    device_entry: Mock,
+    curtailment_field_info: InputFieldInfo[SwitchEntityDescription],
+    horizon_manager: Mock,
+) -> None:
+    """Horizon change updates forecast timestamps in DRIVEN mode.
+
+    This test verifies that when the horizon changes, DRIVEN mode entities
+    write their updated state to Home Assistant (not just update internal attributes).
+    """
+    hass.states.async_set("input_boolean.curtail", STATE_ON)
+    subentry = _create_subentry("Test Solar", {"allow_curtailment": "input_boolean.curtail"})
+    config_entry.runtime_data = None
+
+    entity = HaeoInputSwitch(
+        hass=hass,
+        config_entry=config_entry,
+        subentry=subentry,
+        field_info=curtailment_field_info,
+        device_entry=device_entry,
+        horizon_manager=horizon_manager,
+    )
+    _attach_platform(
+        entity,
+        hass,
+        entity_id="switch.test_allow_curtailment",
+        platform_domain="switch",
+    )
+
+    # Load initial state
+    entity._load_source_state()
+    assert entity.horizon_start == 0.0
+
+    # Track state writes by wrapping async_write_ha_state
+    state_writes: list[dict[str, Any]] = []
+    original_write = entity.async_write_ha_state
+
+    def capturing_write() -> None:
+        attrs = entity.extra_state_attributes
+        state_writes.append({"forecast": attrs.get("forecast") if attrs else None})
+        original_write()
+
+    entity.async_write_ha_state = capturing_write  # type: ignore[method-assign]
+
+    # Change horizon and trigger update
+    horizon_manager.get_forecast_timestamps.return_value = (100.0, 400.0, 700.0)
+    entity._handle_horizon_change()
+
+    # Verify state was written with new forecast timestamps
+    assert len(state_writes) == 1, "Horizon change should trigger state write"
+    written_forecast = state_writes[0]["forecast"]
+    assert written_forecast is not None
+    assert len(written_forecast) == 3
+    assert [point["time"].timestamp() for point in written_forecast] == [100.0, 400.0, 700.0]
 
 
 async def test_handle_source_state_change_updates_switch(

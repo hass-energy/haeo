@@ -156,8 +156,8 @@ class HaeoInputNumber(NumberEntity):
             self._update_editable_forecast()
             self.async_write_ha_state()
         else:
-            # Re-load data for driven mode
-            self._hass.async_create_task(self._async_load_data())
+            # Re-load data and push state for driven mode
+            self._hass.async_create_task(self._async_load_data_and_update())
 
     @callback
     def _handle_source_state_change(self, _event: Event[EventStateChangedData]) -> None:
