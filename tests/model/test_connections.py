@@ -7,14 +7,25 @@ from highspy.highs import highs_linear_expression, highs_var
 import pytest
 
 from custom_components.haeo.model.elements.connection import Connection
+from custom_components.haeo.model.output_data import OutputData
 
 from . import test_data
 from .test_data.connection_types import ConnectionTestCase, ConnectionTestCaseInputs
 
 
+def _serialize_output_value(output_value: OutputData | dict[str, Any]) -> dict[str, Any]:
+    if isinstance(output_value, OutputData):
+        return {
+            "type": output_value.type,
+            "unit": output_value.unit,
+            "values": output_value.values,
+        }
+    return {name: _serialize_output_value(child) for name, child in output_value.items()}
+
+
 def _solve_connection_scenario(
     element: Connection[str], inputs: ConnectionTestCaseInputs | None
-) -> dict[str, dict[str, Any]]:
+) -> dict[str, Any]:
     """Set up and solve an optimization scenario for a connection.
 
     Args:
@@ -35,14 +46,7 @@ def _solve_connection_scenario(
         # No optimization - just solve with no objective and get outputs directly
         h.run()
         outputs = element.outputs()
-        return {
-            name: {
-                "type": output_data.type,
-                "unit": output_data.unit,
-                "values": output_data.values,
-            }
-            for name, output_data in outputs.items()
-        }
+        return {name: _serialize_output_value(output_data) for name, output_data in outputs.items()}
 
     # Get n_periods and periods from element
     n_periods = element.n_periods
@@ -94,14 +98,21 @@ def _solve_connection_scenario(
 
     # Extract and return outputs
     outputs = element.outputs()
-    return {
-        name: {
-            "type": output_data.type,
-            "unit": output_data.unit,
-            "values": output_data.values,
-        }
-        for name, output_data in outputs.items()
-    }
+    return {name: _serialize_output_value(output_data) for name, output_data in outputs.items()}
+
+
+def _assert_outputs_match(actual: dict[str, Any], expected: dict[str, Any]) -> None:
+    assert set(actual.keys()) == set(expected.keys())
+
+    for output_name, expected_value in expected.items():
+        output_value = actual[output_name]
+        if isinstance(expected_value, dict) and {"type", "unit", "values"}.issubset(expected_value.keys()):
+            assert output_value["type"] == expected_value["type"]
+            assert output_value["unit"] == expected_value["unit"]
+            assert output_value["values"] == pytest.approx(expected_value["values"], rel=1e-9, abs=1e-9)
+        else:
+            assert isinstance(output_value, dict)
+            _assert_outputs_match(output_value, expected_value)
 
 
 @pytest.mark.parametrize(
@@ -124,13 +135,7 @@ def test_connection_outputs(case: ConnectionTestCase, solver: Highs) -> None:
     # Validate outputs match expected
     expected_outputs = case.get("expected_outputs")
     assert expected_outputs is not None
-    assert set(outputs.keys()) == set(expected_outputs.keys())
-
-    for output_name, expected in expected_outputs.items():
-        output = outputs[output_name]
-        assert output["type"] == expected["type"]
-        assert output["unit"] == expected["unit"]
-        assert output["values"] == pytest.approx(expected["values"], rel=1e-9, abs=1e-9)
+    _assert_outputs_match(outputs, expected_outputs)
 
 
 @pytest.mark.parametrize(

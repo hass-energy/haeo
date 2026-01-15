@@ -9,7 +9,7 @@ import pytest
 from custom_components.haeo.elements import ELEMENT_TYPES
 from custom_components.haeo.elements import battery as battery_element
 from custom_components.haeo.elements.battery import BatteryConfigData
-from custom_components.haeo.model import ModelOutputName, connection
+from custom_components.haeo.model import ModelOutputName, ModelOutputValue, connection
 from custom_components.haeo.model import battery as battery_model
 from custom_components.haeo.model import battery_balance_connection as balance_model
 from custom_components.haeo.model import node as node_model
@@ -37,7 +37,7 @@ class OutputsCase(TypedDict):
     description: str
     name: str
     data: BatteryConfigData
-    model_outputs: Mapping[str, Mapping[ModelOutputName, OutputData]]
+    model_outputs: Mapping[str, Mapping[ModelOutputName, ModelOutputValue]]
     outputs: Mapping[str, Mapping[str, OutputData]]
 
 
@@ -94,7 +94,7 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "source": "battery_main:undercharge",
                 "target": "battery_main:node",
                 "segments": [
-                    {"segment_type": "pricing", "price_st": [0.03]},
+                    {"segment_type": "pricing", "price_source_target": [0.03]},
                 ],
             },
             # Normal connection: no penalty
@@ -111,7 +111,7 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "source": "battery_main:overcharge",
                 "target": "battery_main:node",
                 "segments": [
-                    {"segment_type": "pricing", "price_ts": [0.04]},
+                    {"segment_type": "pricing", "price_target_source": [0.04]},
                 ],
             },
             # Balance connection: undercharge -> normal
@@ -135,12 +135,20 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "source": "battery_main:node",
                 "target": "network",
                 "segments": [
-                    {"segment_type": "efficiency", "efficiency_st": [0.95], "efficiency_ts": [0.95]},
-                    {"segment_type": "power_limit", "max_power_st": [5.0], "max_power_ts": [5.0]},
+                    {
+                        "segment_type": "efficiency",
+                        "efficiency_source_target": [0.95],
+                        "efficiency_target_source": [0.95],
+                    },
+                    {
+                        "segment_type": "power_limit",
+                        "max_power_source_target": [5.0],
+                        "max_power_target_source": [5.0],
+                    },
                     {
                         "segment_type": "pricing",
-                        "price_st": [0.03],  # early_discharge_incentive + discharge_cost
-                        "price_ts": [-0.01],
+                        "price_source_target": [0.03],  # early_discharge_incentive + discharge_cost
+                        "price_target_source": [-0.01],
                     },
                 ],
             },
@@ -189,12 +197,20 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "source": "battery_normal:node",
                 "target": "network",
                 "segments": [
-                    {"segment_type": "efficiency", "efficiency_st": [0.95], "efficiency_ts": [0.95]},
-                    {"segment_type": "power_limit", "max_power_st": [5.0], "max_power_ts": [5.0]},
+                    {
+                        "segment_type": "efficiency",
+                        "efficiency_source_target": [0.95],
+                        "efficiency_target_source": [0.95],
+                    },
+                    {
+                        "segment_type": "power_limit",
+                        "max_power_source_target": [5.0],
+                        "max_power_target_source": [5.0],
+                    },
                     {
                         "segment_type": "pricing",
-                        "price_st": [0.003],  # early_discharge_incentive + discharge_cost
-                        "price_ts": [-0.001],
+                        "price_source_target": [0.003],  # early_discharge_incentive + discharge_cost
+                        "price_target_source": [-0.001],
                     },
                 ],
             },

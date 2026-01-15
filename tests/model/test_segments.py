@@ -43,7 +43,7 @@ class TestEfficiencySegment:
         h = create_solver()
         periods = np.array([1.0, 1.0])
 
-        seg = EfficiencySegment("eff", 2, periods, h, efficiency_st=np.array([0.9, 0.9]))
+        seg = EfficiencySegment("eff", 2, periods, h, efficiency_source_target=np.array([0.9, 0.9]))
 
         # In and out should be different variables
         assert seg.power_in_st is not seg.power_out_st
@@ -59,8 +59,8 @@ class TestEfficiencySegment:
             2,
             periods,
             h,
-            efficiency_st=np.array([0.9, 0.9]),
-            efficiency_ts=np.array([0.95, 0.95]),
+            efficiency_source_target=np.array([0.9, 0.9]),
+            efficiency_target_source=np.array([0.95, 0.95]),
         )
 
         # Add efficiency constraints (calling constraints() adds them to solver)
@@ -86,14 +86,14 @@ class TestPowerLimitSegment:
         h = create_solver()
         periods = np.array([1.0, 1.0])
 
-        seg = PowerLimitSegment("limit", 2, periods, h, max_power_st=np.array([5.0, 5.0]))
+        seg = PowerLimitSegment("limit", 2, periods, h, max_power_source_target=np.array([5.0, 5.0]))
 
         # In and out should be the same variable
         assert seg.power_in_st is seg.power_out_st
         assert seg.power_in_ts is seg.power_out_ts
 
     def test_power_limit_caps_source_target_flow(self) -> None:
-        """Power should be capped at max_power_st."""
+        """Power should be capped at max_power_source_target."""
         h = create_solver()
         periods = np.array([1.0, 1.0])
 
@@ -102,7 +102,7 @@ class TestPowerLimitSegment:
             2,
             periods,
             h,
-            max_power_st=np.array([5.0, 5.0]),
+            max_power_source_target=np.array([5.0, 5.0]),
             # Only set one direction to avoid time-slice constraint
         )
 
@@ -117,7 +117,7 @@ class TestPowerLimitSegment:
         np.testing.assert_array_almost_equal(in_st, [5.0, 5.0])
 
     def test_power_limit_caps_target_source_flow(self) -> None:
-        """Power should be capped at max_power_ts."""
+        """Power should be capped at max_power_target_source."""
         h = create_solver()
         periods = np.array([1.0, 1.0])
 
@@ -126,7 +126,7 @@ class TestPowerLimitSegment:
             2,
             periods,
             h,
-            max_power_ts=np.array([3.0, 3.0]),
+            max_power_target_source=np.array([3.0, 3.0]),
             # Only set one direction to avoid time-slice constraint
         )
 
@@ -150,7 +150,7 @@ class TestPowerLimitSegment:
             2,
             periods,
             h,
-            max_power_st=np.array([5.0, 5.0]),
+            max_power_source_target=np.array([5.0, 5.0]),
             fixed=True,
         )
 
@@ -172,8 +172,8 @@ class TestPowerLimitSegment:
             1,
             periods,
             h,
-            max_power_st=np.array([10.0]),
-            max_power_ts=np.array([10.0]),
+            max_power_source_target=np.array([10.0]),
+            max_power_target_source=np.array([10.0]),
         )
 
         # Add constraints (calling constraints() adds them to solver)
@@ -199,7 +199,7 @@ class TestPricingSegment:
         h = create_solver()
         periods = np.array([1.0, 1.0])
 
-        seg = PricingSegment("price", 2, periods, h, price_st=np.array([0.1, 0.1]))
+        seg = PricingSegment("price", 2, periods, h, price_source_target=np.array([0.1, 0.1]))
 
         # In and out should be the same variable
         assert seg.power_in_st is seg.power_out_st
@@ -215,8 +215,8 @@ class TestPricingSegment:
             2,
             periods,
             h,
-            price_st=np.array([0.1, 0.1]),
-            price_ts=np.array([0.2, 0.2]),
+            price_source_target=np.array([0.1, 0.1]),
+            price_target_source=np.array([0.2, 0.2]),
         )
 
         # Fix power flows
@@ -266,7 +266,7 @@ class TestConnection:
             solver=h,
             source="src",
             target="tgt",
-            segments=[{"segment_type": "efficiency", "efficiency_st": np.array([0.90])}],
+            segments=[{"segment_type": "efficiency", "efficiency_source_target": np.array([0.90])}],
         )
 
         # Should have efficiency segment
@@ -284,7 +284,7 @@ class TestConnection:
             solver=h,
             source="src",
             target="tgt",
-            segments=[{"segment_type": "power_limit", "max_power_st": np.array([5.0])}],
+            segments=[{"segment_type": "power_limit", "max_power_source_target": np.array([5.0])}],
         )
 
         # Should have power limit segment
@@ -302,7 +302,7 @@ class TestConnection:
             solver=h,
             source="src",
             target="tgt",
-            segments=[{"segment_type": "pricing", "price_st": np.array([0.1])}],
+            segments=[{"segment_type": "pricing", "price_source_target": np.array([0.1])}],
         )
 
         # Should have pricing segment
@@ -310,7 +310,7 @@ class TestConnection:
         assert "PricingSegment" in segment_types
 
     def test_connection_power_limit_caps_source_target_flow(self) -> None:
-        """Source→target power should be capped at max_power_st."""
+        """Source→target power should be capped at max_power_source_target."""
         h = create_solver()
         periods = [1.0, 1.0]
 
@@ -320,7 +320,7 @@ class TestConnection:
             solver=h,
             source="src",
             target="tgt",
-            segments=[{"segment_type": "power_limit", "max_power_st": np.array([5.0, 5.0])}],
+            segments=[{"segment_type": "power_limit", "max_power_source_target": np.array([5.0, 5.0])}],
         )
 
         # Add all constraints (calling constraints() adds them to solver)
@@ -334,7 +334,7 @@ class TestConnection:
         np.testing.assert_array_almost_equal(st, [5.0, 5.0])
 
     def test_connection_power_limit_caps_target_source_flow(self) -> None:
-        """Target→source power should be capped at max_power_ts."""
+        """Target→source power should be capped at max_power_target_source."""
         h = create_solver()
         periods = [1.0, 1.0]
 
@@ -344,7 +344,7 @@ class TestConnection:
             solver=h,
             source="src",
             target="tgt",
-            segments=[{"segment_type": "power_limit", "max_power_ts": np.array([3.0, 3.0])}],
+            segments=[{"segment_type": "power_limit", "max_power_target_source": np.array([3.0, 3.0])}],
         )
 
         # Add all constraints (calling constraints() adds them to solver)
@@ -368,7 +368,7 @@ class TestConnection:
             solver=h,
             source="src",
             target="tgt",
-            segments=[{"segment_type": "efficiency", "efficiency_st": np.array([0.90])}],
+            segments=[{"segment_type": "efficiency", "efficiency_source_target": np.array([0.90])}],
         )
 
         # Add all constraints (calling constraints() adds them to solver)
@@ -393,7 +393,7 @@ class TestConnection:
             solver=h,
             source="src",
             target="tgt",
-            segments=[{"segment_type": "pricing", "price_st": np.array([0.1])}],
+            segments=[{"segment_type": "pricing", "price_source_target": np.array([0.1])}],
         )
 
         # Add all constraints (calling constraints() adds them to solver)
@@ -424,8 +424,8 @@ class TestConnection:
             source="src",
             target="tgt",
             segments=[
-                {"segment_type": "power_limit", "max_power_st": np.array([5.0, 5.0])},
-                {"segment_type": "pricing", "price_st": np.array([0.1, 0.1])},
+                {"segment_type": "power_limit", "max_power_source_target": np.array([5.0, 5.0])},
+                {"segment_type": "pricing", "price_source_target": np.array([0.1, 0.1])},
             ],
         )
 
@@ -441,11 +441,11 @@ class TestConnection:
         power_limit = conn["power_limit"]
         assert isinstance(power_limit, PowerLimitSegment)
         new_max_power = np.array([10.0, 10.0])
-        power_limit.max_power_st = new_max_power
-        np.testing.assert_array_equal(power_limit.max_power_st, new_max_power)
+        power_limit.max_power_source_target = new_max_power
+        np.testing.assert_array_equal(power_limit.max_power_source_target, new_max_power)
 
         pricing = conn["pricing"]
         assert isinstance(pricing, PricingSegment)
         new_price = np.array([0.2, 0.2])
-        pricing.price_st = new_price
-        np.testing.assert_array_equal(pricing.price_st, new_price)
+        pricing.price_source_target = new_price
+        np.testing.assert_array_equal(pricing.price_source_target, new_price)

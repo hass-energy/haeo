@@ -22,13 +22,13 @@ def test_simple_optimization() -> None:
             "segments": [
                 {
                     "segment_type": "power_limit",
-                    "max_power_st": np.array([10000.0, 10000.0, 10000.0]),
-                    "max_power_ts": np.array([5000.0, 5000.0, 5000.0]),
+                    "max_power_source_target": np.array([10000.0, 10000.0, 10000.0]),
+                    "max_power_target_source": np.array([5000.0, 5000.0, 5000.0]),
                 },
                 {
                     "segment_type": "pricing",
-                    "price_st": np.array([0.1, 0.2, 0.15]),
-                    "price_ts": np.array([0.05, 0.08, 0.06]),
+                    "price_source_target": np.array([0.1, 0.2, 0.15]),
+                    "price_target_source": np.array([0.05, 0.08, 0.06]),
                 },
             ],
         }
@@ -43,7 +43,7 @@ def test_simple_optimization() -> None:
             "segments": [
                 {
                     "segment_type": "power_limit",
-                    "max_power_st": np.array([1000.0, 1500.0, 2000.0]),
+                    "max_power_source_target": np.array([1000.0, 1500.0, 2000.0]),
                     "fixed": True,
                 }
             ],
@@ -71,7 +71,12 @@ def test_network_validation() -> None:
             "name": "valid_connection",
             "source": "source",
             "target": "sink",
-            "segments": [{"segment_type": "power_limit", "max_power_st": np.array([1000.0, 1000.0, 1000.0])}],
+            "segments": [
+                {
+                    "segment_type": "power_limit",
+                    "max_power_source_target": np.array([1000.0, 1000.0, 1000.0]),
+                }
+            ],
         }
     )
 

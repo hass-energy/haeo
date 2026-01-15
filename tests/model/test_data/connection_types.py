@@ -28,5 +28,5 @@ class ConnectionTestCase(TypedDict):
     factory: Callable[..., Any]
     data: dict[str, Any]
     inputs: NotRequired[ConnectionTestCaseInputs]
-    expected_outputs: NotRequired[dict[str, ExpectedOutput]]
+    expected_outputs: NotRequired[dict[str, Any]]
     expected_error: NotRequired[str]

@@ -9,7 +9,7 @@ import pytest
 from custom_components.haeo.elements import ELEMENT_TYPES
 from custom_components.haeo.elements import connection as connection_element
 from custom_components.haeo.elements.connection import ConnectionConfigData
-from custom_components.haeo.model import ModelOutputName
+from custom_components.haeo.model import ModelOutputName, ModelOutputValue
 from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION
 from custom_components.haeo.model.elements import connection as model_connection
@@ -29,7 +29,7 @@ class OutputsCase(TypedDict):
 
     description: str
     name: str
-    model_outputs: Mapping[str, Mapping[ModelOutputName, OutputData]]
+    model_outputs: Mapping[str, Mapping[ModelOutputName, ModelOutputValue]]
     outputs: Mapping[str, Mapping[str, OutputData]]
 
 
@@ -55,9 +55,17 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "source": "s",
                 "target": "t",
                 "segments": [
-                    {"segment_type": "efficiency", "efficiency_st": [0.95], "efficiency_ts": [0.90]},
-                    {"segment_type": "power_limit", "max_power_st": [4.0], "max_power_ts": [2.0]},
-                    {"segment_type": "pricing", "price_st": [0.1], "price_ts": [0.05]},
+                    {
+                        "segment_type": "efficiency",
+                        "efficiency_source_target": [0.95],
+                        "efficiency_target_source": [0.90],
+                    },
+                    {
+                        "segment_type": "power_limit",
+                        "max_power_source_target": [4.0],
+                        "max_power_target_source": [2.0],
+                    },
+                    {"segment_type": "pricing", "price_source_target": [0.1], "price_target_source": [0.05]},
                 ],
             }
         ],

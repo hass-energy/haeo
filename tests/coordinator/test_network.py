@@ -32,8 +32,8 @@ def test_update_element_updates_tracked_params() -> None:
             "segments": [
                 {
                     "segment_type": "power_limit",
-                    "max_power_st": np.array([10.0, 10.0]),
-                    "max_power_ts": np.array([5.0, 5.0]),
+                    "max_power_source_target": np.array([10.0, 10.0]),
+                    "max_power_target_source": np.array([5.0, 5.0]),
                 }
             ],
         }
@@ -44,10 +44,10 @@ def test_update_element_updates_tracked_params() -> None:
     assert isinstance(conn, Connection)
     # Check initial TrackedParam values
     power_limit = conn.segments["power_limit"]
-    assert power_limit.max_power_st is not None
-    assert power_limit.max_power_ts is not None
-    assert power_limit.max_power_st[0] == 10.0
-    assert power_limit.max_power_ts[0] == 5.0
+    assert power_limit.max_power_source_target is not None
+    assert power_limit.max_power_target_source is not None
+    assert power_limit.max_power_source_target[0] == 10.0
+    assert power_limit.max_power_target_source[0] == 5.0
 
     # Update via element config
     config: ElementConfigData = {
@@ -61,8 +61,8 @@ def test_update_element_updates_tracked_params() -> None:
     update_element(network, config)
 
     # Verify updated state - TrackedParams should be updated
-    assert power_limit.max_power_st[0] == 20.0
-    assert power_limit.max_power_ts[0] == 15.0
+    assert power_limit.max_power_source_target[0] == 20.0
+    assert power_limit.max_power_target_source[0] == 15.0
 
 
 def test_update_element_raises_for_missing_model_element() -> None:
