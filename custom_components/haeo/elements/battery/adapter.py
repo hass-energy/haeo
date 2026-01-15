@@ -9,7 +9,7 @@ import numpy as np
 
 from custom_components.haeo.const import ConnectivityLevel
 from custom_components.haeo.data.loader import TimeSeriesLoader
-from custom_components.haeo.model import ModelElementConfig, ModelOutputName
+from custom_components.haeo.model import ModelElementConfig, ModelOutputName, ModelOutputValue
 from custom_components.haeo.model import battery as model_battery
 from custom_components.haeo.model import battery_balance_connection as model_balance
 from custom_components.haeo.model.const import OutputType
@@ -433,7 +433,7 @@ class BatteryAdapter:
                 segments: list[SegmentSpec] = [
                     {
                         "segment_type": "pricing",
-                        "price_ts": np.array(charge_price),  # Overcharge penalty when charging
+                        "price_target_source": np.array(charge_price),  # Overcharge penalty when charging
                     }
                 ]
                 elements.append(
@@ -454,7 +454,7 @@ class BatteryAdapter:
                 segments.append(
                     {
                         "segment_type": "pricing",
-                        "price_st": np.array(discharge_price),  # Undercharge penalty when discharging
+                        "price_source_target": np.array(discharge_price),  # Undercharge penalty when discharging
                     }
                 )
             section_connection: ModelElementConfig = {
@@ -502,8 +502,8 @@ class BatteryAdapter:
         if efficiency_values is not None:
             efficiency_spec: EfficiencySegmentSpec = {
                 "segment_type": "efficiency",
-                "efficiency_st": np.array(efficiency_values) / 100.0,  # Node to network (discharge)
-                "efficiency_ts": np.array(efficiency_values) / 100.0,  # Network to node (charge)
+                "efficiency_source_target": np.array(efficiency_values) / 100.0,  # Node to network (discharge)
+                "efficiency_target_source": np.array(efficiency_values) / 100.0,  # Network to node (charge)
             }
             segments.append(efficiency_spec)
 
@@ -512,15 +512,15 @@ class BatteryAdapter:
         if max_discharge is not None or max_charge is not None:
             power_limit_spec: PowerLimitSegmentSpec = {"segment_type": "power_limit"}
             if max_discharge is not None:
-                power_limit_spec["max_power_st"] = np.array(max_discharge)
+                power_limit_spec["max_power_source_target"] = np.array(max_discharge)
             if max_charge is not None:
-                power_limit_spec["max_power_ts"] = np.array(max_charge)
+                power_limit_spec["max_power_target_source"] = np.array(max_charge)
             segments.append(power_limit_spec)
 
         pricing_spec: PricingSegmentSpec = {
             "segment_type": "pricing",
-            "price_st": np.array(discharge_costs),
-            "price_ts": np.array(charge_early_incentive),
+            "price_source_target": np.array(discharge_costs),
+            "price_target_source": np.array(charge_early_incentive),
         }
         segments.append(pricing_spec)
 
@@ -539,7 +539,7 @@ class BatteryAdapter:
     def outputs(
         self,
         name: str,
-        model_outputs: Mapping[str, Mapping[ModelOutputName, OutputData]],
+        model_outputs: Mapping[str, Mapping[ModelOutputName, ModelOutputValue]],
         config: BatteryConfigData,
         **_kwargs: Any,
     ) -> Mapping[BatteryDeviceName, Mapping[BatteryOutputName, OutputData]]:

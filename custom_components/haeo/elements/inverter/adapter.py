@@ -9,17 +9,23 @@ import numpy as np
 
 from custom_components.haeo.const import ConnectivityLevel
 from custom_components.haeo.data.loader import ConstantLoader, TimeSeriesLoader
-from custom_components.haeo.model import ModelElementConfig, ModelOutputName
+from custom_components.haeo.model import ModelElementConfig, ModelOutputName, ModelOutputValue
 from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE, SegmentSpec
 from custom_components.haeo.model.elements.connection import (
     CONNECTION_POWER_SOURCE_TARGET,
     CONNECTION_POWER_TARGET_SOURCE,
+    CONNECTION_SEGMENTS,
     CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET,
     CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE,
 )
 from custom_components.haeo.model.elements.node import NODE_POWER_BALANCE
-from custom_components.haeo.model.elements.segments import EfficiencySegmentSpec, PowerLimitSegmentSpec
+from custom_components.haeo.model.elements.segments import (
+    POWER_LIMIT_SOURCE_TARGET,
+    POWER_LIMIT_TARGET_SOURCE,
+    EfficiencySegmentSpec,
+    PowerLimitSegmentSpec,
+)
 from custom_components.haeo.model.output_data import OutputData
 
 from .flow import InverterSubentryFlowHandler
@@ -33,11 +39,6 @@ from .schema import (
     InverterConfigData,
     InverterConfigSchema,
 )
-
-# Segment output names for power limit shadow prices
-# Format is {segment_name}_{constraint_name}
-POWER_LIMIT_SHADOW_ST: Final = "power_limit_power_limit_st"
-POWER_LIMIT_SHADOW_TS: Final = "power_limit_power_limit_ts"
 
 # Inverter output names
 type InverterOutputName = Literal[
@@ -66,6 +67,15 @@ type InverterDeviceName = Literal["inverter"]
 INVERTER_DEVICE_NAMES: Final[frozenset[InverterDeviceName]] = frozenset(
     (INVERTER_DEVICE_INVERTER := "inverter",),
 )
+
+
+def _get_segment_outputs(
+    connection: Mapping[ModelOutputName, ModelOutputValue],
+) -> Mapping[str, Mapping[str, OutputData]]:
+    segments = connection.get(CONNECTION_SEGMENTS)
+    if not isinstance(segments, Mapping):
+        return {}
+    return {segment_name: outputs for segment_name, outputs in segments.items() if isinstance(outputs, Mapping)}
 
 
 class InverterAdapter:
@@ -156,20 +166,20 @@ class InverterAdapter:
         """
         name = config["name"]
         segments: list[SegmentSpec] = []
-        efficiency_st = config.get("efficiency_dc_to_ac")
-        efficiency_ts = config.get("efficiency_ac_to_dc")
-        if efficiency_st is not None or efficiency_ts is not None:
+        efficiency_source_target = config.get("efficiency_dc_to_ac")
+        efficiency_target_source = config.get("efficiency_ac_to_dc")
+        if efficiency_source_target is not None or efficiency_target_source is not None:
             efficiency: EfficiencySegmentSpec = {"segment_type": "efficiency"}
-            if efficiency_st is not None:
-                efficiency["efficiency_st"] = np.array(efficiency_st) / 100.0
-            if efficiency_ts is not None:
-                efficiency["efficiency_ts"] = np.array(efficiency_ts) / 100.0
+            if efficiency_source_target is not None:
+                efficiency["efficiency_source_target"] = np.array(efficiency_source_target) / 100.0
+            if efficiency_target_source is not None:
+                efficiency["efficiency_target_source"] = np.array(efficiency_target_source) / 100.0
             segments.append(efficiency)
 
         power_limit: PowerLimitSegmentSpec = {
             "segment_type": "power_limit",
-            "max_power_st": np.array(config["max_power_dc_to_ac"]),
-            "max_power_ts": np.array(config["max_power_ac_to_dc"]),
+            "max_power_source_target": np.array(config["max_power_dc_to_ac"]),
+            "max_power_target_source": np.array(config["max_power_ac_to_dc"]),
         }
         segments.append(power_limit)
 
@@ -191,7 +201,7 @@ class InverterAdapter:
     def outputs(
         self,
         name: str,
-        model_outputs: Mapping[str, Mapping[ModelOutputName, OutputData]],
+        model_outputs: Mapping[str, Mapping[ModelOutputName, ModelOutputValue]],
         **_kwargs: Any,
     ) -> Mapping[InverterDeviceName, Mapping[InverterOutputName, OutputData]]:
         """Map model outputs to inverter-specific output names."""
@@ -224,21 +234,21 @@ class InverterAdapter:
         inverter_outputs[INVERTER_DC_BUS_POWER_BALANCE] = dc_bus[NODE_POWER_BALANCE]
 
         # Shadow prices from power_limit segment
-        # DC→AC is source→target, so uses POWER_LIMIT_SHADOW_ST
-        dc_to_ac_shadow_key = (
-            POWER_LIMIT_SHADOW_ST if POWER_LIMIT_SHADOW_ST in connection else CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET
-        )
-        # AC→DC is target→source, so uses POWER_LIMIT_SHADOW_TS
-        ac_to_dc_shadow_key = (
-            POWER_LIMIT_SHADOW_TS if POWER_LIMIT_SHADOW_TS in connection else CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE
-        )
-        if dc_to_ac_shadow_key in connection:
+        power_limit_outputs = _get_segment_outputs(connection).get("power_limit", {})
+        # DC→AC is source→target
+        if POWER_LIMIT_SOURCE_TARGET in power_limit_outputs:
+            inverter_outputs[INVERTER_MAX_POWER_DC_TO_AC_PRICE] = power_limit_outputs[POWER_LIMIT_SOURCE_TARGET]
+        elif CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET in connection:
             inverter_outputs[INVERTER_MAX_POWER_DC_TO_AC_PRICE] = connection[
-                cast("ModelOutputName", dc_to_ac_shadow_key)
+                cast("ModelOutputName", CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET)
             ]
-        if ac_to_dc_shadow_key in connection:
+
+        # AC→DC is target→source
+        if POWER_LIMIT_TARGET_SOURCE in power_limit_outputs:
+            inverter_outputs[INVERTER_MAX_POWER_AC_TO_DC_PRICE] = power_limit_outputs[POWER_LIMIT_TARGET_SOURCE]
+        elif CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE in connection:
             inverter_outputs[INVERTER_MAX_POWER_AC_TO_DC_PRICE] = connection[
-                cast("ModelOutputName", ac_to_dc_shadow_key)
+                cast("ModelOutputName", CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE)
             ]
 
         return {INVERTER_DEVICE_INVERTER: inverter_outputs}

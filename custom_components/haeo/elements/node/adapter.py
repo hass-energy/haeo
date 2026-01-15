@@ -5,7 +5,7 @@ from typing import Any, Final, Literal
 
 from custom_components.haeo.const import ConnectivityLevel
 from custom_components.haeo.data.loader import ConstantLoader
-from custom_components.haeo.model import ModelElementConfig, ModelOutputName
+from custom_components.haeo.model import ModelElementConfig, ModelOutputName, ModelOutputValue
 from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_NODE
 from custom_components.haeo.model.elements.node import NODE_POWER_BALANCE
 from custom_components.haeo.model.output_data import OutputData
@@ -98,7 +98,7 @@ class NodeAdapter:
     def outputs(
         self,
         name: str,
-        model_outputs: Mapping[str, Mapping[ModelOutputName, OutputData]],
+        model_outputs: Mapping[str, Mapping[ModelOutputName, ModelOutputValue]],
         **_kwargs: Any,
     ) -> Mapping[NodeDeviceName, Mapping[NodeOutputName, OutputData]]:
         """Convert model element outputs to node adapter outputs."""

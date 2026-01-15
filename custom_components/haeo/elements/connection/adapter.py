@@ -9,7 +9,7 @@ import numpy as np
 
 from custom_components.haeo.const import ConnectivityLevel
 from custom_components.haeo.data.loader import TimeSeriesLoader
-from custom_components.haeo.model import ModelElementConfig, ModelOutputName
+from custom_components.haeo.model import ModelElementConfig, ModelOutputName, ModelOutputValue
 from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, SegmentSpec
 from custom_components.haeo.model.elements.connection import CONNECTION_OUTPUT_NAMES as MODEL_CONNECTION_OUTPUT_NAMES
@@ -191,38 +191,38 @@ class ConnectionAdapter:
         segments: list[SegmentSpec] = []
 
         # Add efficiency segment if efficiency values are provided
-        # Note: Segment uses efficiency_st/efficiency_ts, values are fractions (0-1)
-        efficiency_st = config.get("efficiency_source_target")
-        efficiency_ts = config.get("efficiency_target_source")
-        if efficiency_st is not None or efficiency_ts is not None:
+        # Note: Segment uses efficiency_source_target/efficiency_target_source, values are fractions (0-1)
+        efficiency_source_target = config.get("efficiency_source_target")
+        efficiency_target_source = config.get("efficiency_target_source")
+        if efficiency_source_target is not None or efficiency_target_source is not None:
             # Efficiency values from config are percentages, convert to fractions
             efficiency_spec: EfficiencySegmentSpec = {"segment_type": "efficiency"}
-            if efficiency_st is not None:
-                efficiency_spec["efficiency_st"] = np.array(efficiency_st) / 100.0
-            if efficiency_ts is not None:
-                efficiency_spec["efficiency_ts"] = np.array(efficiency_ts) / 100.0
+            if efficiency_source_target is not None:
+                efficiency_spec["efficiency_source_target"] = np.array(efficiency_source_target) / 100.0
+            if efficiency_target_source is not None:
+                efficiency_spec["efficiency_target_source"] = np.array(efficiency_target_source) / 100.0
             segments.append(efficiency_spec)
 
         # Add power limit segment if power limits are provided
-        max_power_st = config.get("max_power_source_target")
-        max_power_ts = config.get("max_power_target_source")
-        if max_power_st is not None or max_power_ts is not None:
+        max_power_source_target = config.get("max_power_source_target")
+        max_power_target_source = config.get("max_power_target_source")
+        if max_power_source_target is not None or max_power_target_source is not None:
             power_limit_spec: PowerLimitSegmentSpec = {"segment_type": "power_limit"}
-            if max_power_st is not None:
-                power_limit_spec["max_power_st"] = np.array(max_power_st)
-            if max_power_ts is not None:
-                power_limit_spec["max_power_ts"] = np.array(max_power_ts)
+            if max_power_source_target is not None:
+                power_limit_spec["max_power_source_target"] = np.array(max_power_source_target)
+            if max_power_target_source is not None:
+                power_limit_spec["max_power_target_source"] = np.array(max_power_target_source)
             segments.append(power_limit_spec)
 
         # Add pricing segment if prices are provided
-        price_st = config.get("price_source_target")
-        price_ts = config.get("price_target_source")
-        if price_st is not None or price_ts is not None:
+        price_source_target = config.get("price_source_target")
+        price_target_source = config.get("price_target_source")
+        if price_source_target is not None or price_target_source is not None:
             pricing_spec: PricingSegmentSpec = {"segment_type": "pricing"}
-            if price_st is not None:
-                pricing_spec["price_st"] = np.array(price_st)
-            if price_ts is not None:
-                pricing_spec["price_ts"] = np.array(price_ts)
+            if price_source_target is not None:
+                pricing_spec["price_source_target"] = np.array(price_source_target)
+            if price_target_source is not None:
+                pricing_spec["price_target_source"] = np.array(price_target_source)
             segments.append(pricing_spec)
 
         element_data: ModelElementConfig = {
@@ -239,7 +239,7 @@ class ConnectionAdapter:
     def outputs(
         self,
         name: str,
-        model_outputs: Mapping[str, Mapping[ModelOutputName, OutputData]],
+        model_outputs: Mapping[str, Mapping[ModelOutputName, ModelOutputValue]],
         **_kwargs: Any,
     ) -> Mapping[ConnectionDeviceName, Mapping[ConnectionOutputName, OutputData]]:
         """Map model outputs to connection-specific output names."""
@@ -277,9 +277,8 @@ class ConnectionAdapter:
         if CONNECTION_TIME_SLICE in connection:
             connection_outputs[CONNECTION_TIME_SLICE] = connection[CONNECTION_TIME_SLICE]
 
-        # Note: Segment shadow prices (power_limit_power_limit_st, etc.) are exposed
-        # directly through the model's generic outputs() method. Specific adapters
-        # (grid, solar, etc.) map these to their own element-specific output names.
+        # Note: Segment shadow prices are exposed under the model's `segments` output
+        # map. Specific adapters (grid, solar, etc.) map these to their own outputs.
 
         return {CONNECTION_DEVICE_CONNECTION: connection_outputs}
 

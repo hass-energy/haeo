@@ -22,8 +22,8 @@ class PricingSegmentSpec(TypedDict):
 
     segment_type: Literal["pricing"]
     name: NotRequired[str]
-    price_st: NotRequired[NDArray[np.floating[Any]]]
-    price_ts: NotRequired[NDArray[np.floating[Any]]]
+    price_source_target: NotRequired[NDArray[np.floating[Any]]]
+    price_target_source: NotRequired[NDArray[np.floating[Any]]]
 
 
 class PricingSegment(Segment):
@@ -32,8 +32,8 @@ class PricingSegment(Segment):
     Creates single power variables for each direction (lossless, in == out).
 
     Cost contribution:
-        cost_st = sum(power_st * price_st * periods)
-        cost_ts = sum(power_ts * price_ts * periods)
+        cost_st = sum(power_st * price_source_target * periods)
+        cost_ts = sum(power_ts * price_target_source * periods)
 
     Prices are in $/kWh, power in kW, periods in hours.
 
@@ -41,8 +41,8 @@ class PricingSegment(Segment):
     """
 
     # TrackedParams for warm-start support
-    price_st: TrackedParam[NDArray[np.float64] | None] = TrackedParam()
-    price_ts: TrackedParam[NDArray[np.float64] | None] = TrackedParam()
+    price_source_target: TrackedParam[NDArray[np.float64] | None] = TrackedParam()
+    price_target_source: TrackedParam[NDArray[np.float64] | None] = TrackedParam()
 
     def __init__(
         self,
@@ -51,8 +51,8 @@ class PricingSegment(Segment):
         periods: NDArray[np.floating[Any]],
         solver: Highs,
         *,
-        price_st: NDArray[np.floating[Any]] | None = None,
-        price_ts: NDArray[np.floating[Any]] | None = None,
+        price_source_target: NDArray[np.floating[Any]] | None = None,
+        price_target_source: NDArray[np.floating[Any]] | None = None,
     ) -> None:
         """Initialize pricing segment.
 
@@ -61,8 +61,8 @@ class PricingSegment(Segment):
             n_periods: Number of optimization periods
             periods: Time period durations in hours
             solver: HiGHS solver instance
-            price_st: Price for source→target flow ($/kWh per period)
-            price_ts: Price for target→source flow ($/kWh per period)
+            price_source_target: Price for source→target flow ($/kWh per period)
+            price_target_source: Price for target→source flow ($/kWh per period)
 
         """
         super().__init__(segment_id, n_periods, periods, solver)
@@ -72,8 +72,12 @@ class PricingSegment(Segment):
         self._power_ts = solver.addVariables(n_periods, lb=0, name_prefix=f"{segment_id}_ts_", out_array=True)
 
         # Set tracked params (these trigger reactive infrastructure)
-        self.price_st = price_st.astype(np.float64) if price_st is not None else None
-        self.price_ts = price_ts.astype(np.float64) if price_ts is not None else None
+        self.price_source_target = (
+            price_source_target.astype(np.float64) if price_source_target is not None else None
+        )
+        self.price_target_source = (
+            price_target_source.astype(np.float64) if price_target_source is not None else None
+        )
 
     @property
     def power_in_st(self) -> HighspyArray:
@@ -100,12 +104,12 @@ class PricingSegment(Segment):
         """Return cost expression for transfer pricing."""
         cost_terms = []
 
-        if self.price_st is not None:
+        if self.price_source_target is not None:
             # Cost = power * price * period duration
-            cost_terms.append(Highs.qsum(self._power_st * self.price_st * self._periods))
+            cost_terms.append(Highs.qsum(self._power_st * self.price_source_target * self._periods))
 
-        if self.price_ts is not None:
-            cost_terms.append(Highs.qsum(self._power_ts * self.price_ts * self._periods))
+        if self.price_target_source is not None:
+            cost_terms.append(Highs.qsum(self._power_ts * self.price_target_source * self._periods))
 
         if not cost_terms:
             return None

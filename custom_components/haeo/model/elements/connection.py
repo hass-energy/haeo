@@ -43,6 +43,7 @@ type ConnectionOutputName = Literal[
     "connection_shadow_power_max_source_target",
     "connection_shadow_power_max_target_source",
     "connection_time_slice",
+    "segments",
 ]
 
 CONNECTION_POWER_SOURCE_TARGET: Final = "connection_power_source_target"
@@ -50,6 +51,10 @@ CONNECTION_POWER_TARGET_SOURCE: Final = "connection_power_target_source"
 CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET: Final = "connection_shadow_power_max_source_target"
 CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE: Final = "connection_shadow_power_max_target_source"
 CONNECTION_TIME_SLICE: Final = "connection_time_slice"
+CONNECTION_SEGMENTS: Final = "segments"
+
+type ConnectionSegmentOutputs = dict[str, dict[str, OutputData]]
+type ConnectionOutputValue = OutputData | ConnectionSegmentOutputs
 
 CONNECTION_OUTPUT_NAMES: Final[frozenset[ConnectionOutputName]] = frozenset(
     (
@@ -70,8 +75,8 @@ class Connection[TOutputName: str](Element[TOutputName]):
     segments by constraining their output to the next segment's input.
 
     For parameter updates, access segments via indexing:
-        connection["power_limit"].max_power_st = new_value
-        connection[0].max_power_st = new_value  # by index
+        connection["power_limit"].max_power_source_target = new_value
+        connection[0].max_power_source_target = new_value  # by index
 
     """
 
@@ -356,17 +361,20 @@ class Connection[TOutputName: str](Element[TOutputName]):
             direction="-",
         )
 
-    def outputs(self) -> Mapping[str, OutputData]:  # type: ignore[override]
+    def outputs(self) -> Mapping[str, ConnectionOutputValue]:  # type: ignore[override]
         """Return output specifications including segment outputs.
 
         Collects:
         1. Connection's own @output decorated methods (power flows)
         2. Shadow prices from segment @constraint(output=True) methods
 
-        Segment outputs are prefixed with segment name for unique identification.
+        Segment outputs are grouped under the `segments` key to avoid name collisions.
         """
         # Get connection's own outputs (power_source_target, power_target_source)
-        result: dict[str, OutputData] = cast("dict[str, OutputData]", dict(super().outputs()))
+        result: dict[str, ConnectionOutputValue] = cast(
+            "dict[str, ConnectionOutputValue]", dict(super().outputs())
+        )
+        segment_outputs: ConnectionSegmentOutputs = {}
 
         # Aggregate outputs from all segments
         for segment_name, segment in self._segments.items():
@@ -384,23 +392,25 @@ class Connection[TOutputName: str](Element[TOutputName]):
                 if state is None or "constraint" not in state:
                     continue
 
-                # Create output with prefixed name
-                output_name = f"{segment_name}_{name}"
+                # Create output with the constraint name
                 output_data = OutputData(
                     type=OutputType.SHADOW_PRICE,
                     unit=attr.unit or "$/kW",
                     values=self.extract_values(state["constraint"]),
                 )
-                result[output_name] = output_data
+                segment_outputs.setdefault(segment_name, {})[name] = output_data
 
                 # Backward-compatible aliases for legacy connection shadow price names
                 if segment_name == "power_limit":
-                    if name == "power_limit_st":
+                    if name == "source_target":
                         result[CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET] = output_data
-                    if name == "power_limit_ts":
+                    if name == "target_source":
                         result[CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE] = output_data
                     if name == "time_slice":
                         result[CONNECTION_TIME_SLICE] = output_data
+
+        if segment_outputs:
+            result[CONNECTION_SEGMENTS] = segment_outputs
 
         return result
 
@@ -411,10 +421,13 @@ __all__ = [
     "CONNECTION_POWER_TARGET_SOURCE",
     "CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET",
     "CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE",
+    "CONNECTION_SEGMENTS",
     "CONNECTION_TIME_SLICE",
     "ELEMENT_TYPE",
     "Connection",
     "ConnectionElementConfig",
     "ConnectionElementTypeName",
+    "ConnectionOutputValue",
     "ConnectionOutputName",
+    "ConnectionSegmentOutputs",
 ]

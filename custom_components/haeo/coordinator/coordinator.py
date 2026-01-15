@@ -41,7 +41,7 @@ from custom_components.haeo.elements import (
     get_input_fields,
     is_element_type,
 )
-from custom_components.haeo.model import ModelOutputName, Network, OutputData, OutputType
+from custom_components.haeo.model import ModelOutputName, ModelOutputValue, Network, OutputData, OutputType
 from custom_components.haeo.repairs import dismiss_optimization_failure_issue
 from custom_components.haeo.util.forecast_times import tiers_to_periods_seconds
 
@@ -602,7 +602,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             }
 
             # Build nested outputs structure from all network model elements
-            model_outputs: dict[str, Mapping[ModelOutputName, OutputData]] = {
+            model_outputs: dict[str, Mapping[ModelOutputName, ModelOutputValue]] = {
                 element_name: element.outputs() for element_name, element in network.elements.items()
             }
 

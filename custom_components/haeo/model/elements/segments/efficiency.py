@@ -25,16 +25,16 @@ class EfficiencySegmentSpec(TypedDict):
 
     segment_type: Literal["efficiency"]
     name: NotRequired[str]
-    efficiency_st: NotRequired[NDArray[np.floating[Any]]]
-    efficiency_ts: NotRequired[NDArray[np.floating[Any]]]
+    efficiency_source_target: NotRequired[NDArray[np.floating[Any]]]
+    efficiency_target_source: NotRequired[NDArray[np.floating[Any]]]
 
 
 class EfficiencySegment(Segment):
     """Segment that applies efficiency losses to power flow.
 
     Uses a single variable per direction with efficiency applied via properties:
-        power_out_st = power_in_st * efficiency_st
-        power_out_ts = power_in_ts * efficiency_ts
+        power_out_st = power_in_st * efficiency_source_target
+        power_out_ts = power_in_ts * efficiency_target_source
 
     Efficiency values are fractions in range (0, 1].
     """
@@ -46,8 +46,8 @@ class EfficiencySegment(Segment):
         periods: NDArray[np.floating[Any]],
         solver: Highs,
         *,
-        efficiency_st: NDArray[np.floating[Any]] | None = None,
-        efficiency_ts: NDArray[np.floating[Any]] | None = None,
+        efficiency_source_target: NDArray[np.floating[Any]] | None = None,
+        efficiency_target_source: NDArray[np.floating[Any]] | None = None,
     ) -> None:
         """Initialize efficiency segment.
 
@@ -56,17 +56,17 @@ class EfficiencySegment(Segment):
             n_periods: Number of optimization periods
             periods: Time period durations in hours
             solver: HiGHS solver instance
-            efficiency_st: Efficiency for source→target direction (fraction 0-1).
+            efficiency_source_target: Efficiency for source→target direction (fraction 0-1).
                           If None, defaults to 1.0 (lossless).
-            efficiency_ts: Efficiency for target→source direction (fraction 0-1).
+            efficiency_target_source: Efficiency for target→source direction (fraction 0-1).
                           If None, defaults to 1.0 (lossless).
 
         """
         super().__init__(segment_id, n_periods, periods, solver)
 
         # Store efficiency values
-        self._efficiency_st = self._normalize_efficiency(efficiency_st)
-        self._efficiency_ts = self._normalize_efficiency(efficiency_ts)
+        self._efficiency_source_target = self._normalize_efficiency(efficiency_source_target)
+        self._efficiency_target_source = self._normalize_efficiency(efficiency_target_source)
 
         # Single variable per direction - efficiency applied via properties
         self._power_st = solver.addVariables(n_periods, lb=0, name_prefix=f"{segment_id}_st_", out_array=True)
@@ -78,18 +78,18 @@ class EfficiencySegment(Segment):
         return self._power_st
 
     @property
-    def efficiency_st(self) -> NDArray[np.floating[Any]]:
+    def efficiency_source_target(self) -> NDArray[np.floating[Any]]:
         """Efficiency for source→target direction."""
-        return self._efficiency_st
+        return self._efficiency_source_target
 
-    @efficiency_st.setter
-    def efficiency_st(self, value: NDArray[np.floating[Any]] | float | None) -> None:
-        self._efficiency_st = self._normalize_efficiency(value)
+    @efficiency_source_target.setter
+    def efficiency_source_target(self, value: NDArray[np.floating[Any]] | float | None) -> None:
+        self._efficiency_source_target = self._normalize_efficiency(value)
 
     @property
     def power_out_st(self) -> HighspyArray:
         """Power leaving segment in source→target direction (after efficiency loss)."""
-        return self._power_st * self._efficiency_st
+        return self._power_st * self._efficiency_source_target
 
     @property
     def power_in_ts(self) -> HighspyArray:
@@ -97,18 +97,18 @@ class EfficiencySegment(Segment):
         return self._power_ts
 
     @property
-    def efficiency_ts(self) -> NDArray[np.floating[Any]]:
+    def efficiency_target_source(self) -> NDArray[np.floating[Any]]:
         """Efficiency for target→source direction."""
-        return self._efficiency_ts
+        return self._efficiency_target_source
 
-    @efficiency_ts.setter
-    def efficiency_ts(self, value: NDArray[np.floating[Any]] | float | None) -> None:
-        self._efficiency_ts = self._normalize_efficiency(value)
+    @efficiency_target_source.setter
+    def efficiency_target_source(self, value: NDArray[np.floating[Any]] | float | None) -> None:
+        self._efficiency_target_source = self._normalize_efficiency(value)
 
     @property
     def power_out_ts(self) -> HighspyArray:
         """Power leaving segment in target→source direction (after efficiency loss)."""
-        return self._power_ts * self._efficiency_ts
+        return self._power_ts * self._efficiency_target_source
 
     def _normalize_efficiency(self, value: NDArray[np.floating[Any]] | float | None) -> NDArray[np.float64]:
         """Normalize efficiency to a period-length float array."""

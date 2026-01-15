@@ -53,7 +53,7 @@ from custom_components.haeo.const import (
     NetworkOutputName,
 )
 from custom_components.haeo.model import ModelElementConfig, ModelOutputName
-from custom_components.haeo.model.output_data import OutputData
+from custom_components.haeo.model.output_data import ModelOutputValue, OutputData
 
 from . import battery, battery_section, connection, grid, inverter, load, node, solar
 from .input_fields import InputFieldInfo
@@ -221,7 +221,7 @@ class ElementAdapter(Protocol):
     def outputs(
         self,
         name: str,
-        model_outputs: Mapping[str, Mapping[ModelOutputName, OutputData]],
+        model_outputs: Mapping[str, Mapping[ModelOutputName, ModelOutputValue]],
         **_kwargs: Any,
     ) -> Mapping[Any, Mapping[Any, OutputData]]:
         """Map model outputs to device-specific outputs."""

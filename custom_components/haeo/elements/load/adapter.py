@@ -9,22 +9,19 @@ import numpy as np
 
 from custom_components.haeo.const import ConnectivityLevel
 from custom_components.haeo.data.loader import TimeSeriesLoader
-from custom_components.haeo.model import ModelElementConfig, ModelOutputName
+from custom_components.haeo.model import ModelElementConfig, ModelOutputName, ModelOutputValue
 from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE, SegmentSpec
 from custom_components.haeo.model.elements.connection import (
     CONNECTION_POWER_TARGET_SOURCE,
+    CONNECTION_SEGMENTS,
     CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE,
 )
-from custom_components.haeo.model.elements.segments import PowerLimitSegmentSpec
+from custom_components.haeo.model.elements.segments import POWER_LIMIT_TARGET_SOURCE, PowerLimitSegmentSpec
 from custom_components.haeo.model.output_data import OutputData
 
 from .flow import LoadSubentryFlowHandler
 from .schema import CONF_CONNECTION, CONF_FORECAST, ELEMENT_TYPE, LoadConfigData, LoadConfigSchema
-
-# Segment output names for power limit shadow prices
-# Format is {segment_name}_{constraint_name}
-POWER_LIMIT_SHADOW_TS: Final = "power_limit_power_limit_ts"
 
 # Load output names
 type LoadOutputName = Literal[
@@ -45,6 +42,15 @@ type LoadDeviceName = Literal["load"]
 LOAD_DEVICE_NAMES: Final[frozenset[LoadDeviceName]] = frozenset(
     (LOAD_DEVICE_LOAD := "load",),
 )
+
+
+def _get_segment_outputs(
+    connection: Mapping[ModelOutputName, ModelOutputValue],
+) -> Mapping[str, Mapping[str, OutputData]]:
+    segments = connection.get(CONNECTION_SEGMENTS)
+    if not isinstance(segments, Mapping):
+        return {}
+    return {segment_name: outputs for segment_name, outputs in segments.items() if isinstance(outputs, Mapping)}
 
 
 class LoadAdapter:
@@ -110,8 +116,8 @@ class LoadAdapter:
         n_periods = len(config["forecast"])
         power_limit: PowerLimitSegmentSpec = {
             "segment_type": "power_limit",
-            "max_power_st": np.zeros(n_periods),
-            "max_power_ts": np.array(config["forecast"]),
+            "max_power_source_target": np.zeros(n_periods),
+            "max_power_target_source": np.array(config["forecast"]),
             "fixed": True,
         }
         segments: list[SegmentSpec] = [power_limit]
@@ -132,7 +138,7 @@ class LoadAdapter:
     def outputs(
         self,
         name: str,
-        model_outputs: Mapping[str, Mapping[ModelOutputName, OutputData]],
+        model_outputs: Mapping[str, Mapping[ModelOutputName, ModelOutputValue]],
         **_kwargs: Any,
     ) -> Mapping[LoadDeviceName, Mapping[LoadOutputName, OutputData]]:
         """Map model outputs to load-specific output names."""
@@ -143,11 +149,13 @@ class LoadAdapter:
         }
 
         # Shadow price from power_limit segment (if present)
-        shadow_key = (
-            POWER_LIMIT_SHADOW_TS if POWER_LIMIT_SHADOW_TS in connection else CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE
-        )
-        if shadow_key in connection:
-            load_outputs[LOAD_FORECAST_LIMIT_PRICE] = connection[cast("ModelOutputName", shadow_key)]
+        power_limit_outputs = _get_segment_outputs(connection).get("power_limit", {})
+        if POWER_LIMIT_TARGET_SOURCE in power_limit_outputs:
+            load_outputs[LOAD_FORECAST_LIMIT_PRICE] = power_limit_outputs[POWER_LIMIT_TARGET_SOURCE]
+        elif CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE in connection:
+            load_outputs[LOAD_FORECAST_LIMIT_PRICE] = connection[
+                cast("ModelOutputName", CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE)
+            ]
 
         return {LOAD_DEVICE_LOAD: load_outputs}
 

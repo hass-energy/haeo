@@ -11,7 +11,14 @@ from typing import Final, Literal
 
 from .efficiency import EFFICIENCY_PERCENT, EfficiencySegment, EfficiencySegmentSpec
 from .passthrough import PassthroughSegment, PassthroughSegmentSpec
-from .power_limit import PowerLimitSegment, PowerLimitSegmentSpec
+from .power_limit import (
+    POWER_LIMIT_SOURCE_TARGET,
+    POWER_LIMIT_TARGET_SOURCE,
+    POWER_LIMIT_TIME_SLICE,
+    PowerLimitOutputName,
+    PowerLimitSegment,
+    PowerLimitSegmentSpec,
+)
 from .pricing import PricingSegment, PricingSegmentSpec
 from .segment import Segment
 
@@ -31,15 +38,19 @@ SEGMENT_TYPES: Final[dict[SegmentType, type[Segment]]] = {
 
 __all__ = [
     "EFFICIENCY_PERCENT",
-    "SEGMENT_TYPES",
     "EfficiencySegment",
     "EfficiencySegmentSpec",
+    "POWER_LIMIT_SOURCE_TARGET",
+    "POWER_LIMIT_TARGET_SOURCE",
+    "POWER_LIMIT_TIME_SLICE",
     "PassthroughSegment",
     "PassthroughSegmentSpec",
+    "PowerLimitOutputName",
     "PowerLimitSegment",
     "PowerLimitSegmentSpec",
     "PricingSegment",
     "PricingSegmentSpec",
+    "SEGMENT_TYPES",
     "Segment",
     "SegmentSpec",
     "SegmentType",
