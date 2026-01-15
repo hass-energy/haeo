@@ -52,8 +52,7 @@ from custom_components.haeo.const import (
     NetworkDeviceName,
     NetworkOutputName,
 )
-from custom_components.haeo.model import ModelOutputName
-from custom_components.haeo.model import ModelElementConfig
+from custom_components.haeo.model import ModelElementConfig, ModelOutputName
 from custom_components.haeo.model.output_data import OutputData
 
 from . import battery, battery_section, connection, grid, inverter, load, node, solar

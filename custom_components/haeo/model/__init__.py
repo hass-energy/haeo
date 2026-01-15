@@ -3,6 +3,8 @@
 # Re-export submodules for backwards compatibility with adapters
 from .const import OutputType
 from .element import Element as Element
+from .elements import ModelElementConfig as ModelElementConfig
+from .elements import ModelElementType as ModelElementType
 from .elements import battery as battery
 from .elements import battery_balance_connection as battery_balance_connection
 from .elements import connection as connection
@@ -22,8 +24,6 @@ from .elements.connection import CONNECTION_TIME_SLICE as CONNECTION_TIME_SLICE
 from .elements.connection import Connection as Connection
 from .elements.connection import ConnectionConstraintName as ConnectionConstraintName
 from .elements.connection import ConnectionOutputName as ConnectionOutputName
-from .elements import ModelElementConfig as ModelElementConfig
-from .elements import ModelElementType as ModelElementType
 from .elements.node import Node as Node
 from .elements.node import NodeOutputName as NodeOutputName
 from .elements.power_connection import POWER_CONNECTION_OUTPUT_NAMES as POWER_CONNECTION_OUTPUT_NAMES
@@ -51,8 +51,8 @@ __all__ = [
     "ConnectionOutputName",
     "Element",
     "ModelElementConfig",
-    "ModelOutputName",
     "ModelElementType",
+    "ModelOutputName",
     "Network",
     "Node",
     "NodeOutputName",

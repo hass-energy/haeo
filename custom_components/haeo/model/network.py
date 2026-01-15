@@ -9,17 +9,12 @@ from highspy import Highs, HighsModelStatus
 from highspy.highs import highs_cons, highs_linear_expression
 
 from .element import Element
-from .elements import ELEMENTS
-from .elements.battery import Battery
-from .elements.battery import BatteryElementConfig
-from .elements.battery_balance_connection import BatteryBalanceConnection
-from .elements.battery_balance_connection import BatteryBalanceConnectionElementConfig
+from .elements import ELEMENTS, ModelElementConfig
+from .elements.battery import Battery, BatteryElementConfig
+from .elements.battery_balance_connection import BatteryBalanceConnection, BatteryBalanceConnectionElementConfig
 from .elements.connection import Connection
-from .elements.node import NodeElementConfig
-from .elements.node import Node
-from .elements.power_connection import ConnectionElementConfig
-from .elements.power_connection import PowerConnection
-from .elements import ModelElementConfig
+from .elements.node import Node, NodeElementConfig
+from .elements.power_connection import ConnectionElementConfig, PowerConnection
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -64,18 +59,18 @@ class Network:
         return len(self.periods)
 
     @overload
-    def add(self, element: BatteryElementConfig) -> Battery: ...
+    def add(self, element_config: BatteryElementConfig) -> Battery: ...
 
     @overload
-    def add(self, element: NodeElementConfig) -> Node: ...
+    def add(self, element_config: NodeElementConfig) -> Node: ...
 
     @overload
-    def add(self, element: ConnectionElementConfig) -> PowerConnection: ...
+    def add(self, element_config: ConnectionElementConfig) -> PowerConnection: ...
 
     @overload
-    def add(self, element: BatteryBalanceConnectionElementConfig) -> BatteryBalanceConnection: ...
+    def add(self, element_config: BatteryBalanceConnectionElementConfig) -> BatteryBalanceConnection: ...
 
-    def add(self, element: ModelElementConfig) -> Element[Any]:
+    def add(self, element_config: ModelElementConfig) -> Element[Any]:
         """Add a new element to the network.
 
         Creates the element and registers connections. For parameter updates,
@@ -83,57 +78,63 @@ class Network:
         automatically invalidate dependent constraints for the next optimization.
 
         Args:
-            element: Typed model element configuration dictionary
+            element_config: Typed model element configuration dictionary
 
         Returns:
             The created element
 
         """
-        element_type = element["element_type"]
-        name = element["name"]
-        kwargs = {key: value for key, value in element.items() if key not in ("element_type", "name")}
+        element_type = element_config["element_type"]
+        name = element_config["name"]
+        kwargs = {key: value for key, value in element_config.items() if key not in ("element_type", "name")}
 
         # Create new element using registry
         element_spec = ELEMENTS[element_type]
-        element = element_spec.factory(name=name, periods=self.periods, solver=self._solver, **kwargs)
-        self.elements[name] = element
+        element_instance: Element[Any] = element_spec.factory(
+            name=name, periods=self.periods, solver=self._solver, **kwargs
+        )
+        self.elements[name] = element_instance
 
         # Register connections immediately when adding Connection elements
         # (but not BatteryBalanceConnection - those register themselves via set_battery_references)
-        if isinstance(element, Connection) and not isinstance(element, BatteryBalanceConnection):
+        if isinstance(element_instance, Connection) and not isinstance(element_instance, BatteryBalanceConnection):
             # Get source and target elements
-            source_element = self.elements.get(element.source)
-            target_element = self.elements.get(element.target)
+            source_element = self.elements.get(element_instance.source)
+            target_element = self.elements.get(element_instance.target)
 
             if source_element is not None:
-                source_element.register_connection(element, "source")
+                source_element.register_connection(element_instance, "source")
             else:
-                msg = f"Failed to register connection {name} with source {element.source}: Not found or invalid"
+                msg = (
+                    f"Failed to register connection {name} with source {element_instance.source}: Not found or invalid"
+                )
                 raise ValueError(msg)
 
             if target_element is not None:
-                target_element.register_connection(element, "target")
+                target_element.register_connection(element_instance, "target")
             else:
-                msg = f"Failed to register connection {name} with target {element.target}: Not found or invalid"
+                msg = (
+                    f"Failed to register connection {name} with target {element_instance.target}: Not found or invalid"
+                )
                 raise ValueError(msg)
 
         # Register battery balance connections with their battery sections
-        if isinstance(element, BatteryBalanceConnection):
+        if isinstance(element_instance, BatteryBalanceConnection):
             # BatteryBalanceConnection uses source=upper, target=lower
-            upper_element = self.elements.get(element.source)
-            lower_element = self.elements.get(element.target)
+            upper_element = self.elements.get(element_instance.source)
+            lower_element = self.elements.get(element_instance.target)
 
             if not isinstance(upper_element, Battery):
-                msg = f"Upper element '{element.source}' is not a battery"
+                msg = f"Upper element '{element_instance.source}' is not a battery"
                 raise TypeError(msg)
 
             if not isinstance(lower_element, Battery):
-                msg = f"Lower element '{element.target}' is not a battery"
+                msg = f"Lower element '{element_instance.target}' is not a battery"
                 raise TypeError(msg)
 
-            element.set_battery_references(upper_element, lower_element)
+            element_instance.set_battery_references(upper_element, lower_element)
 
-        return element
+        return element_instance
 
     def cost(self) -> highs_linear_expression | None:
         """Return aggregated cost expression from all elements in the network.

@@ -1,7 +1,6 @@
 """Unit tests for Network class."""
 
 import logging
-from typing import cast
 from unittest.mock import Mock
 
 from highspy import HighsModelStatus
@@ -10,12 +9,12 @@ import pytest
 from custom_components.haeo.model import Network
 from custom_components.haeo.model import network as network_module
 from custom_components.haeo.model.element import Element
+from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_BATTERY as ELEMENT_TYPE_BATTERY
 from custom_components.haeo.model.elements import (
-    MODEL_ELEMENT_TYPE_BATTERY as ELEMENT_TYPE_BATTERY,
     MODEL_ELEMENT_TYPE_BATTERY_BALANCE_CONNECTION as ELEMENT_TYPE_BATTERY_BALANCE_CONNECTION,
-    MODEL_ELEMENT_TYPE_CONNECTION as ELEMENT_TYPE_CONNECTION,
-    MODEL_ELEMENT_TYPE_NODE as ELEMENT_TYPE_NODE,
 )
+from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION as ELEMENT_TYPE_CONNECTION
+from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_NODE as ELEMENT_TYPE_NODE
 from custom_components.haeo.model.elements.node import Node
 from custom_components.haeo.model.elements.power_connection import PowerConnection
 
@@ -23,6 +22,7 @@ from custom_components.haeo.model.elements.power_connection import PowerConnecti
 HOURS_PER_DAY = 24
 DEFAULT_PERIODS = 24
 CONNECTION_PERIODS = 3
+
 
 def test_network_initialization() -> None:
     """Test network initialization."""
@@ -71,17 +71,14 @@ def test_connect_entities() -> None:
     network.add({"element_type": ELEMENT_TYPE_NODE, "name": "grid1", "is_sink": False, "is_source": True})
 
     # Connect them
-    connection = cast(
-        "PowerConnection",
-        network.add(
-            {
-                "element_type": ELEMENT_TYPE_CONNECTION,
-                "name": "battery1_to_grid1",
-                "source": "battery1",
-                "target": "grid1",
-                "max_power_source_target": 5000,
-            }
-        ),
+    connection = network.add(
+        {
+            "element_type": ELEMENT_TYPE_CONNECTION,
+            "name": "battery1_to_grid1",
+            "source": "battery1",
+            "target": "grid1",
+            "max_power_source_target": 5000,
+        }
     )
 
     assert connection is not None
@@ -144,9 +141,7 @@ def test_connect_source_is_connection() -> None:
     # Add entities and a connection
     network.add({"element_type": ELEMENT_TYPE_BATTERY, "name": "battery1", "capacity": 10000, "initial_charge": 5000})
     network.add({"element_type": ELEMENT_TYPE_NODE, "name": "grid1", "is_sink": False, "is_source": True})
-    network.add(
-        {"element_type": ELEMENT_TYPE_CONNECTION, "name": "conn1", "source": "battery1", "target": "grid1"}
-    )
+    network.add({"element_type": ELEMENT_TYPE_CONNECTION, "name": "conn1", "source": "battery1", "target": "grid1"})
 
     # Try to create another connection using the connection as source
     network.add(
@@ -166,9 +161,7 @@ def test_connect_target_is_connection() -> None:
     # Add entities and a connection
     network.add({"element_type": ELEMENT_TYPE_BATTERY, "name": "battery1", "capacity": 10000, "initial_charge": 5000})
     network.add({"element_type": ELEMENT_TYPE_NODE, "name": "grid1", "is_sink": False, "is_source": True})
-    network.add(
-        {"element_type": ELEMENT_TYPE_CONNECTION, "name": "conn1", "source": "battery1", "target": "grid1"}
-    )
+    network.add({"element_type": ELEMENT_TYPE_CONNECTION, "name": "conn1", "source": "battery1", "target": "grid1"})
 
     # Try to create another connection using the connection as target
     network.add(
@@ -282,14 +275,10 @@ def test_network_optimize_validates_before_running() -> None:
     # Add elements but create an invalid connection (connection to connection)
     network.add({"element_type": ELEMENT_TYPE_NODE, "name": "node1", "is_sink": True, "is_source": True})
     network.add({"element_type": ELEMENT_TYPE_NODE, "name": "node2", "is_sink": True, "is_source": True})
-    network.add(
-        {"element_type": ELEMENT_TYPE_CONNECTION, "name": "conn1", "source": "node1", "target": "node2"}
-    )
+    network.add({"element_type": ELEMENT_TYPE_CONNECTION, "name": "conn1", "source": "node1", "target": "node2"})
 
     # Connect conn2 to conn1 (invalid)
-    network.add(
-        {"element_type": ELEMENT_TYPE_CONNECTION, "name": "conn2", "source": "conn1", "target": "node2"}
-    )
+    network.add({"element_type": ELEMENT_TYPE_CONNECTION, "name": "conn2", "source": "conn1", "target": "node2"})
 
     # Should raise validation error when trying to optimize
     with pytest.raises(ValueError, match="Source element 'conn1' is a connection"):
@@ -402,8 +391,12 @@ def test_add_battery_balance_connection() -> None:
     network = Network(name="test_network", periods=[1.0] * 3)
 
     # Add two battery sections
-    network.add({"element_type": ELEMENT_TYPE_BATTERY, "name": "upper_section", "capacity": 10.0, "initial_charge": 5.0})
-    network.add({"element_type": ELEMENT_TYPE_BATTERY, "name": "lower_section", "capacity": 10.0, "initial_charge": 5.0})
+    network.add(
+        {"element_type": ELEMENT_TYPE_BATTERY, "name": "upper_section", "capacity": 10.0, "initial_charge": 5.0}
+    )
+    network.add(
+        {"element_type": ELEMENT_TYPE_BATTERY, "name": "lower_section", "capacity": 10.0, "initial_charge": 5.0}
+    )
 
     # Add battery balance connection
     balance = network.add(
@@ -426,7 +419,9 @@ def test_add_battery_balance_connection_upper_not_battery() -> None:
 
     # Add a node (not a battery) as upper
     network.add({"element_type": ELEMENT_TYPE_NODE, "name": "not_a_battery", "is_sink": True, "is_source": True})
-    network.add({"element_type": ELEMENT_TYPE_BATTERY, "name": "lower_section", "capacity": 10.0, "initial_charge": 5.0})
+    network.add(
+        {"element_type": ELEMENT_TYPE_BATTERY, "name": "lower_section", "capacity": 10.0, "initial_charge": 5.0}
+    )
 
     with pytest.raises(TypeError, match="Upper element 'not_a_battery' is not a battery"):
         network.add(
@@ -444,7 +439,9 @@ def test_add_battery_balance_connection_lower_not_battery() -> None:
     network = Network(name="test_network", periods=[1.0] * 3)
 
     # Add battery as upper, node as lower
-    network.add({"element_type": ELEMENT_TYPE_BATTERY, "name": "upper_section", "capacity": 10.0, "initial_charge": 5.0})
+    network.add(
+        {"element_type": ELEMENT_TYPE_BATTERY, "name": "upper_section", "capacity": 10.0, "initial_charge": 5.0}
+    )
     network.add({"element_type": ELEMENT_TYPE_NODE, "name": "not_a_battery", "is_sink": True, "is_source": True})
 
     with pytest.raises(TypeError, match="Lower element 'not_a_battery' is not a battery"):
