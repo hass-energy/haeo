@@ -59,13 +59,15 @@ CREATE_CASES: Sequence[CreateCase] = [
         ],
     },
     {
-        "description": "Inverter without efficiency",
+        "description": "Inverter with default efficiency (100%)",
         "data": InverterConfigData(
             element_type="inverter",
             name="inverter_simple",
             connection="network",
             max_power_dc_to_ac=[10.0],
             max_power_ac_to_dc=[10.0],
+            efficiency_dc_to_ac=100.0,
+            efficiency_ac_to_dc=100.0,
         ),
         "model": [
             {"element_type": "node", "name": "inverter_simple", "is_source": False, "is_sink": False},
@@ -76,8 +78,8 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "target": "network",
                 "max_power_source_target": [10.0],
                 "max_power_target_source": [10.0],
-                "efficiency_source_target": None,
-                "efficiency_target_source": None,
+                "efficiency_source_target": 100.0,
+                "efficiency_target_source": 100.0,
             },
         ],
     },
@@ -125,5 +127,5 @@ def test_model_elements(case: CreateCase) -> None:
 def test_outputs_mapping(case: OutputsCase) -> None:
     """Verify adapter maps model outputs to device outputs."""
     entry = ELEMENT_TYPES["inverter"]
-    result = entry.outputs(case["name"], case["model_outputs"], {})
+    result = entry.outputs(case["name"], case["model_outputs"])
     assert result == case["outputs"]

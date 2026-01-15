@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from dataclasses import dataclass, field
 import logging
 from types import MappingProxyType
@@ -10,6 +11,7 @@ from typing import TYPE_CHECKING
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import ConfigEntryError, ConfigEntryNotReady
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.translation import async_get_translations
 
@@ -135,7 +137,18 @@ async def async_update_listener(hass: HomeAssistant, entry: HaeoConfigEntry) -> 
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> bool:
-    """Set up Home Assistant Energy Optimizer from a config entry."""
+    """Set up Home Assistant Energy Optimizer from a config entry.
+
+    Uses async_on_unload pattern for cleanup registration. Home Assistant
+    automatically calls all registered async_on_unload callbacks when setup
+    fails (returns False, raises ConfigEntryNotReady, or raises any exception).
+
+    For platform cleanup (async_unload_platforms), we must call it explicitly
+    in exception handlers since platforms use async_forward_entry_setups.
+    """
+    # Import here to avoid circular imports at module level
+    from custom_components.haeo.entities.device import get_or_create_network_device  # noqa: PLC0415
+
     # Ensure required subentries exist (auto-create if missing)
     await _ensure_required_subentries(hass, entry)
 
@@ -148,15 +161,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> bool
         _LOGGER.error("No network subentry found - cannot create network device")
         return False
 
-    # Create network device
-    device_registry = dr.async_get(hass)
-    device_registry.async_get_or_create(
-        identifiers={(DOMAIN, f"{entry.entry_id}_{network_subentry.subentry_id}")},
-        config_entry_id=entry.entry_id,
-        config_subentry_id=network_subentry.subentry_id,
-        translation_key=ELEMENT_TYPE_NETWORK,
-        translation_placeholders={"name": network_subentry.title},
-    )
+    # Create network device using centralized device creation
+    get_or_create_network_device(hass, entry, network_subentry)
 
     # Create horizon manager first - input entities and coordinator depend on it
     # This is a pure Python object, not an entity
@@ -166,37 +172,80 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> bool
     runtime_data = HaeoRuntimeData(horizon_manager=horizon_manager)
     entry.runtime_data = runtime_data
 
-    # Set up sentinel entities for config flows
+    # Set up sentinel entities (reference counted - safe to call multiple times)
     await async_setup_sentinel_entities(hass)
+    # Register cleanup - will be called on failure or unload
+    entry.async_on_unload(lambda: async_unload_sentinel_entities(hass))
 
-    # Start horizon manager's scheduled updates
-    horizon_manager.start()
-
-    # Register cleanup on unload
-    entry.async_on_unload(horizon_manager.stop)
+    # Start horizon manager's scheduled updates - returns stop function
+    entry.async_on_unload(horizon_manager.start())
 
     # Set up input platforms first - they populate runtime_data.input_entities
-    # Input entities register themselves synchronously and load their data asynchronously
-    # The platform setup functions wait for all data to load before returning
     await hass.config_entries.async_forward_entry_setups(entry, INPUT_PLATFORMS)
+    # Register cleanup - will be called on failure or unload
+    # Return the coroutine directly - HA will wrap it in async_create_task
+    entry.async_on_unload(
+        lambda: hass.config_entries.async_unload_platforms(entry, INPUT_PLATFORMS)  # type: ignore[arg-type]
+    )
 
-    # Create coordinator after input entities are fully loaded - it reads from them
-    # All input entity data is now guaranteed to be loaded
+    # Wait for all input entities to have their data ready
+    # Each entity signals via asyncio.Event when its forecast data is loaded
+    _LOGGER.debug("Waiting for %d input entities to be ready", len(runtime_data.input_entities))
+    try:
+        async with asyncio.timeout(30):
+            await asyncio.gather(*[entity.wait_ready() for entity in runtime_data.input_entities.values()])
+    except TimeoutError:
+        not_ready = [key for key, entity in runtime_data.input_entities.items() if not entity.is_ready()]
+        raise ConfigEntryNotReady(
+            translation_domain=DOMAIN,
+            translation_key="input_entities_not_ready",
+            translation_placeholders={"not_ready": str(not_ready)},
+        ) from None
+    _LOGGER.debug("All input entities ready")
+
+    # Create coordinator after input entities are ready - it reads from them
     coordinator = HaeoDataUpdateCoordinator(hass, entry)
     runtime_data.coordinator = coordinator
+    # Register coordinator cleanup
+    entry.async_on_unload(coordinator.cleanup)
 
-    # Initialize the network and set up subscriptions
-    # This must happen before the first refresh
-    await coordinator.async_initialize()
+    # Wrap coordinator operations to provide meaningful HA error messages
+    # Cleanup is handled via async_on_unload callbacks - no explicit cleanup needed here
+    try:
+        # Initialize the network and set up subscriptions
+        # This must happen before the first refresh
+        await coordinator.async_initialize()
 
-    # Trigger initial optimization before output platform setup
-    # This populates coordinator.data so sensor platform can create output entities
-    # Use async_refresh() instead of async_config_entry_first_refresh() to avoid
-    # retrying setup if optimization fails (e.g., missing sensor data)
-    await coordinator.async_refresh()
+        # Trigger initial optimization before output platform setup
+        # This populates coordinator.data so sensor platform can create output entities
+        # Use async_refresh() instead of async_config_entry_first_refresh() to avoid
+        # retrying setup if optimization fails (e.g., missing sensor data)
+        await coordinator.async_refresh()
+    except (ConfigEntryNotReady, ConfigEntryError):
+        # Re-raise HA exceptions as-is to preserve translation keys
+        raise
+    except (ValueError, TypeError, KeyError) as err:
+        # Configuration or programming errors - permanent failure
+        raise ConfigEntryError(
+            translation_domain=DOMAIN,
+            translation_key="setup_failed_permanent",
+            translation_placeholders={"error": str(err)},
+        ) from err
+    except Exception as err:
+        # Transient errors (network, sensor availability) - retry
+        raise ConfigEntryNotReady(
+            translation_domain=DOMAIN,
+            translation_key="setup_failed_transient",
+            translation_placeholders={"error": str(err)},
+        ) from err
 
     # Set up output platforms after coordinator has data
     await hass.config_entries.async_forward_entry_setups(entry, OUTPUT_PLATFORMS)
+    # Register cleanup - will be called on failure or unload
+    # Return the coroutine directly - HA will wrap it in async_create_task
+    entry.async_on_unload(
+        lambda: hass.config_entries.async_unload_platforms(entry, OUTPUT_PLATFORMS)  # type: ignore[arg-type]
+    )
 
     # Register update listener LAST - after all setup is complete
     # This prevents reload loops from subentry additions during initial setup
@@ -206,26 +255,23 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> bool
     return True
 
 
-async def async_unload_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> bool:
-    """Unload a config entry."""
+async def async_unload_entry(_hass: HomeAssistant, entry: HaeoConfigEntry) -> bool:
+    """Unload a config entry.
+
+    All cleanup is handled via async_on_unload callbacks registered during setup:
+    - Platform unloading (INPUT_PLATFORMS, OUTPUT_PLATFORMS)
+    - Sentinel entities (reference counted)
+    - Horizon manager timer
+    - Coordinator resources
+    - Update listener
+    """
     _LOGGER.info("Unloading HAEO integration")
 
-    # Unload platforms
-    unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+    # Clear runtime data reference
+    entry.runtime_data = None
 
-    if unload_ok:
-        # Clean up coordinator resources
-        runtime_data = entry.runtime_data
-        if runtime_data is not None and runtime_data.coordinator is not None:
-            runtime_data.coordinator.cleanup()
-        entry.runtime_data = None
-
-        # Clean up sentinel entities if this is the last HAEO config entry
-        remaining_entries = [e for e in hass.config_entries.async_entries(DOMAIN) if e.entry_id != entry.entry_id]
-        if not remaining_entries:
-            async_unload_sentinel_entities(hass)
-
-    return unload_ok
+    # All cleanup is handled by async_on_unload callbacks
+    return True
 
 
 async def async_reload_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> None:
@@ -248,36 +294,37 @@ async def async_remove_config_entry_device(
         # Device already removed or does not exist; nothing to clean up
         return False
 
-    # Get all current element names from subentries
-    current_element_names = {
-        name for subentry in config_entry.subentries.values() if isinstance((name := subentry.data.get(CONF_NAME)), str)
-    }
+    # Get all current subentry IDs (devices are keyed by subentry_id, not element name)
+    current_subentry_ids = {subentry.subentry_id for subentry in config_entry.subentries.values()}
 
-    # Check if this device's identifier matches any current element
-    # Device identifiers are (DOMAIN, f"{config_entry.entry_id}_{element_name}")
+    # Check if this device's identifier matches any current subentry
     has_haeo_identifier = False
     for identifier in device_entry.identifiers:
-        if identifier[0] == config_entry.domain:
+        if identifier[0] == DOMAIN:
             has_haeo_identifier = True
-            # Extract element name from identifier
             identifier_str = identifier[1]
 
-            # Hub device has identifier (DOMAIN, entry_id) without element suffix - always keep
+            # Hub device has identifier (DOMAIN, entry_id) without subentry suffix - always keep
             if identifier_str == config_entry.entry_id:
                 return False
 
             if identifier_str.startswith(f"{config_entry.entry_id}_"):
-                element_name = identifier_str.replace(f"{config_entry.entry_id}_", "", 1)
+                # Extract suffix from identifier
+                # Pattern: {entry_id}_{subentry_id}_{device_name}
+                suffix = identifier_str.replace(f"{config_entry.entry_id}_", "", 1)
 
-                # If element still exists, keep the device
-                if element_name in current_element_names:
-                    return False
+                # Check if any current subentry_id is a prefix of the suffix
+                # The suffix is subentry_id_device_name, so we check for subentry_id_
+                for subentry_id in current_subentry_ids:
+                    if suffix.startswith(f"{subentry_id}_"):
+                        # Device belongs to an existing subentry - keep it
+                        return False
 
     # If device has no HAEO identifiers, it's not managed by us - keep it
     if not has_haeo_identifier:
         return False
 
-    # Device doesn't match any current element - allow removal
+    # Device doesn't match any current subentry - allow removal
     _LOGGER.info(
         "Removing stale device %s (was associated with removed element)",
         device_entry.name,

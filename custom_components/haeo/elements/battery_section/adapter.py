@@ -71,6 +71,31 @@ class BatterySectionAdapter:
         required_fields = [CONF_CAPACITY, CONF_INITIAL_CHARGE]
         return all(ts_loader.available(hass=hass, value=config[field]) for field in required_fields)
 
+    def build_config_data(
+        self,
+        loaded_values: Mapping[str, Any],
+        config: BatterySectionConfigSchema,
+    ) -> BatterySectionConfigData:
+        """Build ConfigData from pre-loaded values.
+
+        This is the single source of truth for ConfigData construction.
+        Both load() and the coordinator use this method.
+
+        Args:
+            loaded_values: Dict of field names to loaded values (from input entities or TimeSeriesLoader)
+            config: Original ConfigSchema for non-input fields (element_type, name)
+
+        Returns:
+            BatterySectionConfigData with all fields populated
+
+        """
+        return {
+            "element_type": config["element_type"],
+            "name": config["name"],
+            "capacity": list(loaded_values[CONF_CAPACITY]),
+            "initial_charge": list(loaded_values[CONF_INITIAL_CHARGE]),
+        }
+
     async def load(
         self,
         config: BatterySectionConfigSchema,
@@ -78,22 +103,21 @@ class BatterySectionAdapter:
         hass: HomeAssistant,
         forecast_times: Sequence[float],
     ) -> BatterySectionConfigData:
-        """Load battery section configuration values from sensors."""
-        ts_loader = TimeSeriesLoader()
+        """Load battery section configuration values from sensors.
 
-        capacity = await ts_loader.load_boundaries(
+        Uses TimeSeriesLoader to load values, then delegates to build_config_data().
+        """
+        ts_loader = TimeSeriesLoader()
+        loaded_values: dict[str, list[float]] = {}
+
+        loaded_values[CONF_CAPACITY] = await ts_loader.load_boundaries(
             hass=hass, value=config[CONF_CAPACITY], forecast_times=forecast_times
         )
-        initial_charge = await ts_loader.load_intervals(
+        loaded_values[CONF_INITIAL_CHARGE] = await ts_loader.load_intervals(
             hass=hass, value=config[CONF_INITIAL_CHARGE], forecast_times=forecast_times
         )
 
-        return {
-            "element_type": config["element_type"],
-            "name": config["name"],
-            "capacity": capacity,
-            "initial_charge": initial_charge,
-        }
+        return self.build_config_data(loaded_values, config)
 
     def model_elements(self, config: BatterySectionConfigData) -> list[dict[str, Any]]:
         """Create model elements for BatterySection configuration.
@@ -113,7 +137,7 @@ class BatterySectionAdapter:
         self,
         name: str,
         model_outputs: Mapping[str, Mapping[ModelOutputName, OutputData]],
-        _config: BatterySectionConfigData,
+        **_kwargs: Any,
     ) -> Mapping[BatterySectionDeviceName, Mapping[BatterySectionOutputName, OutputData]]:
         """Map model outputs to battery section output names."""
         battery_data = model_outputs[name]

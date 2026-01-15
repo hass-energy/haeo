@@ -5,14 +5,13 @@ from dataclasses import replace
 from typing import Any, Final, Literal
 
 from homeassistant.core import HomeAssistant
+import numpy as np
 
 from custom_components.haeo.const import ConnectivityLevel
 from custom_components.haeo.data.loader import TimeSeriesLoader
 from custom_components.haeo.model import ModelOutputName
 from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.elements.power_connection import (
-    CONNECTION_COST_SOURCE_TARGET,
-    CONNECTION_COST_TARGET_SOURCE,
     CONNECTION_POWER_SOURCE_TARGET,
     CONNECTION_POWER_TARGET_SOURCE,
     CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET,
@@ -21,14 +20,7 @@ from custom_components.haeo.model.elements.power_connection import (
 from custom_components.haeo.model.output_data import OutputData
 
 from .flow import GridSubentryFlowHandler
-from .schema import (
-    CONF_CONNECTION,
-    DEFAULT_EXPORT_PRICE,
-    DEFAULT_IMPORT_PRICE,
-    ELEMENT_TYPE,
-    GridConfigData,
-    GridConfigSchema,
-)
+from .schema import CONF_CONNECTION, ELEMENT_TYPE, GridConfigData, GridConfigSchema
 
 # Grid-specific output names for translation/sensor mapping
 type GridOutputName = Literal[
@@ -36,7 +28,7 @@ type GridOutputName = Literal[
     "grid_power_export",
     "grid_power_active",
     "grid_cost_import",
-    "grid_cost_export",
+    "grid_revenue_export",
     "grid_cost_net",
     "grid_power_max_import_price",
     "grid_power_max_export_price",
@@ -47,9 +39,9 @@ GRID_OUTPUT_NAMES: Final[frozenset[GridOutputName]] = frozenset(
         GRID_POWER_IMPORT := "grid_power_import",
         GRID_POWER_EXPORT := "grid_power_export",
         GRID_POWER_ACTIVE := "grid_power_active",
-        # Cost outputs
+        # Cost/revenue outputs
         GRID_COST_IMPORT := "grid_cost_import",
-        GRID_COST_EXPORT := "grid_cost_export",
+        GRID_REVENUE_EXPORT := "grid_revenue_export",
         GRID_COST_NET := "grid_cost_net",
         # Shadow prices
         GRID_POWER_MAX_IMPORT_PRICE := "grid_power_max_import_price",
@@ -76,13 +68,52 @@ class GridAdapter:
         """Check if grid configuration can be loaded."""
         ts_loader = TimeSeriesLoader()
 
-        # Helper to check entity list availability
-        def entities_available(value: list[str] | float | None) -> bool:
-            if not isinstance(value, list) or not value:
+        # Helper to check entity availability
+        def entities_available(value: list[str] | str | float | None) -> bool:
+            if value is None or isinstance(value, float | int):
                 return True  # Constants and missing values are always available
-            return ts_loader.available(hass=hass, value=value)
+            if isinstance(value, str):
+                return ts_loader.available(hass=hass, value=[value])
+            # At this point value is a list of strings
+            return ts_loader.available(hass=hass, value=value) if value else True
 
         return entities_available(config.get("import_price")) and entities_available(config.get("export_price"))
+
+    def build_config_data(
+        self,
+        loaded_values: Mapping[str, Any],
+        config: GridConfigSchema,
+    ) -> GridConfigData:
+        """Build ConfigData from pre-loaded values.
+
+        This is the single source of truth for ConfigData construction.
+        Both load() and the coordinator use this method.
+
+        Args:
+            loaded_values: Dict of field names to loaded values (from input entities or TimeSeriesLoader)
+            config: Original ConfigSchema for non-input fields (element_type, name, connection)
+
+        Returns:
+            GridConfigData with all fields populated and defaults applied
+
+        """
+        # Build data with required fields (prices must be present in loaded_values)
+        data: GridConfigData = {
+            "element_type": config["element_type"],
+            "name": config["name"],
+            "connection": config[CONF_CONNECTION],
+            "import_price": list(loaded_values["import_price"]),
+            "export_price": list(loaded_values["export_price"]),
+        }
+
+        # Optional limit fields - only include if present
+        if "import_limit" in loaded_values:
+            data["import_limit"] = list(loaded_values["import_limit"])
+
+        if "export_limit" in loaded_values:
+            data["export_limit"] = list(loaded_values["export_limit"])
+
+        return data
 
     async def load(
         self,
@@ -91,69 +122,68 @@ class GridAdapter:
         hass: HomeAssistant,
         forecast_times: Sequence[float],
     ) -> GridConfigData:
-        """Load grid configuration values from sensors."""
+        """Load grid configuration values from sensors.
+
+        Uses TimeSeriesLoader to load values, then delegates to build_config_data().
+        """
         ts_loader = TimeSeriesLoader()
-        # forecast_times are boundaries, so n_periods = len(forecast_times) - 1
         n_periods = max(0, len(forecast_times) - 1)
+        loaded_values: dict[str, list[float]] = {}
 
-        # Load import_price: entity list, constant, or use default
-        import_value = config.get("import_price")
-        if isinstance(import_value, list) and import_value:
-            import_price = await ts_loader.load_intervals(
-                hass=hass,
-                value=import_value,
-                forecast_times=forecast_times,
+        # Load import_price: entity ID, entity list, or constant (required field)
+        import_value = config["import_price"]
+        if isinstance(import_value, list):
+            loaded_values["import_price"] = await ts_loader.load_intervals(
+                hass=hass, value=import_value, forecast_times=forecast_times
             )
-        elif isinstance(import_value, (int, float)):
-            import_price = [float(import_value)] * n_periods
-        else:
-            import_price = [DEFAULT_IMPORT_PRICE] * n_periods
-
-        # Load export_price: entity list, constant, or use default
-        export_value = config.get("export_price")
-        if isinstance(export_value, list) and export_value:
-            export_price = await ts_loader.load_intervals(
-                hass=hass,
-                value=export_value,
-                forecast_times=forecast_times,
+        elif isinstance(import_value, str):
+            loaded_values["import_price"] = await ts_loader.load_intervals(
+                hass=hass, value=[import_value], forecast_times=forecast_times
             )
-        elif isinstance(export_value, (int, float)):
-            export_price = [float(export_value)] * n_periods
         else:
-            export_price = [DEFAULT_EXPORT_PRICE] * n_periods
+            loaded_values["import_price"] = [float(import_value)] * n_periods
 
-        data: GridConfigData = {
-            "element_type": config["element_type"],
-            "name": config["name"],
-            "connection": config[CONF_CONNECTION],
-            "import_price": import_price,
-            "export_price": export_price,
-        }
+        # Load export_price: entity ID, entity list, or constant (required field)
+        export_value = config["export_price"]
+        if isinstance(export_value, list):
+            loaded_values["export_price"] = await ts_loader.load_intervals(
+                hass=hass, value=export_value, forecast_times=forecast_times
+            )
+        elif isinstance(export_value, str):
+            loaded_values["export_price"] = await ts_loader.load_intervals(
+                hass=hass, value=[export_value], forecast_times=forecast_times
+            )
+        else:
+            loaded_values["export_price"] = [float(export_value)] * n_periods
 
-        # Load optional power limit fields
+        # Load optional limit fields
         import_limit = config.get("import_limit")
         if import_limit is not None:
             if isinstance(import_limit, list) and import_limit:
-                data["import_limit"] = await ts_loader.load_intervals(
-                    hass=hass,
-                    value=import_limit,
-                    forecast_times=forecast_times,
+                loaded_values["import_limit"] = await ts_loader.load_intervals(
+                    hass=hass, value=import_limit, forecast_times=forecast_times
                 )
-            elif isinstance(import_limit, (int, float)):
-                data["import_limit"] = [float(import_limit)] * n_periods
+            elif isinstance(import_limit, str):
+                loaded_values["import_limit"] = await ts_loader.load_intervals(
+                    hass=hass, value=[import_limit], forecast_times=forecast_times
+                )
+            else:
+                loaded_values["import_limit"] = [float(import_limit)] * n_periods
 
         export_limit = config.get("export_limit")
         if export_limit is not None:
             if isinstance(export_limit, list) and export_limit:
-                data["export_limit"] = await ts_loader.load_intervals(
-                    hass=hass,
-                    value=export_limit,
-                    forecast_times=forecast_times,
+                loaded_values["export_limit"] = await ts_loader.load_intervals(
+                    hass=hass, value=export_limit, forecast_times=forecast_times
                 )
-            elif isinstance(export_limit, (int, float)):
-                data["export_limit"] = [float(export_limit)] * n_periods
+            elif isinstance(export_limit, str):
+                loaded_values["export_limit"] = await ts_loader.load_intervals(
+                    hass=hass, value=[export_limit], forecast_times=forecast_times
+                )
+            else:
+                loaded_values["export_limit"] = [float(export_limit)] * n_periods
 
-        return data
+        return self.build_config_data(loaded_values, config)
 
     def model_elements(self, config: GridConfigData) -> list[dict[str, Any]]:
         """Create model elements for Grid configuration."""
@@ -177,7 +207,10 @@ class GridAdapter:
         self,
         name: str,
         model_outputs: Mapping[str, Mapping[ModelOutputName, OutputData]],
-        _config: GridConfigData,
+        *,
+        config: GridConfigData,
+        periods: Sequence[float],
+        **_kwargs: Any,
     ) -> Mapping[GridDeviceName, Mapping[GridOutputName, OutputData]]:
         """Map model outputs to grid-specific output names."""
         connection = model_outputs[f"{name}:connection"]
@@ -186,54 +219,53 @@ class GridAdapter:
 
         # source_target = grid to system = IMPORT
         # target_source = system to grid = EXPORT
-        grid_outputs[GRID_POWER_EXPORT] = replace(connection[CONNECTION_POWER_TARGET_SOURCE], type=OutputType.POWER)
-        grid_outputs[GRID_POWER_IMPORT] = replace(connection[CONNECTION_POWER_SOURCE_TARGET], type=OutputType.POWER)
+        power_import = connection[CONNECTION_POWER_SOURCE_TARGET]
+        power_export = connection[CONNECTION_POWER_TARGET_SOURCE]
+
+        grid_outputs[GRID_POWER_EXPORT] = replace(power_export, type=OutputType.POWER)
+        grid_outputs[GRID_POWER_IMPORT] = replace(power_import, type=OutputType.POWER)
 
         # Active grid power (export - import)
         grid_outputs[GRID_POWER_ACTIVE] = replace(
-            connection[CONNECTION_POWER_TARGET_SOURCE],
-            values=[
-                i - e
-                for i, e in zip(
-                    connection[CONNECTION_POWER_SOURCE_TARGET].values,
-                    connection[CONNECTION_POWER_TARGET_SOURCE].values,
-                    strict=True,
-                )
-            ],
+            power_export,
+            values=[i - e for i, e in zip(power_import.values, power_export.values, strict=True)],
             direction=None,
             type=OutputType.POWER,
         )
 
-        # Cost outputs: only include if the connection has pricing configured
-        # Import cost: positive value = money spent
-        import_cost_data: OutputData | None = None
-        export_cost_data: OutputData | None = None
+        # Calculate cost outputs in adapter layer: cost = power * price * period
+        # This is a derived calculation, not from model layer outputs
+        import_prices = config["import_price"]
+        export_prices = config["export_price"]
 
-        if CONNECTION_COST_SOURCE_TARGET in connection:
-            import_cost_data = connection[CONNECTION_COST_SOURCE_TARGET]
-            grid_outputs[GRID_COST_IMPORT] = replace(import_cost_data, direction="-")
+        # Import cost: positive = money spent (power from grid * price * period)
+        import_cost_values = tuple(
+            power * price * period
+            for power, price, period in zip(power_import.values, import_prices, periods, strict=True)
+        )
+        import_cumsum = tuple(np.cumsum(import_cost_values))
+        grid_outputs[GRID_COST_IMPORT] = OutputData(
+            type=OutputType.COST, unit="$", values=import_cumsum, direction="-", state_last=True
+        )
 
-        # Export cost: negative value = money earned (revenue)
-        # The price_target_source is already negated in create_model_elements, so cost is negative
-        if CONNECTION_COST_TARGET_SOURCE in connection:
-            export_cost_data = connection[CONNECTION_COST_TARGET_SOURCE]
-            grid_outputs[GRID_COST_EXPORT] = replace(export_cost_data, direction="+")
+        # Export revenue: positive = money earned (power to grid * price * period)
+        export_revenue_values = tuple(
+            power * price * period
+            for power, price, period in zip(power_export.values, export_prices, periods, strict=True)
+        )
+        export_cumsum = tuple(np.cumsum(export_revenue_values))
+        grid_outputs[GRID_REVENUE_EXPORT] = OutputData(
+            type=OutputType.COST, unit="$", values=export_cumsum, direction="+", state_last=True
+        )
 
-        # Net cost = import cost + export cost (where export cost is negative = revenue)
-        # Only output if at least one cost exists
-        if import_cost_data is not None and export_cost_data is not None:
-            net_cost_values = tuple(
-                i + e for i, e in zip(import_cost_data.values, export_cost_data.values, strict=True)
-            )
-            grid_outputs[GRID_COST_NET] = OutputData(
-                type=OutputType.COST, unit="$", values=net_cost_values, direction=None
-            )
-        elif import_cost_data is not None:
-            grid_outputs[GRID_COST_NET] = replace(import_cost_data, direction=None)
-        elif export_cost_data is not None:
-            grid_outputs[GRID_COST_NET] = replace(export_cost_data, direction=None)
+        # Net cost = import cost - export revenue (positive = net spending, negative = net earning)
+        net_cost_values = tuple(ic - er for ic, er in zip(import_cost_values, export_revenue_values, strict=True))
+        net_cumsum = tuple(np.cumsum(net_cost_values))
+        grid_outputs[GRID_COST_NET] = OutputData(
+            type=OutputType.COST, unit="$", values=net_cumsum, direction=None, state_last=True
+        )
 
-        # Output the given inputs if they exist
+        # Output the shadow prices if they exist
         if CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE in connection:
             grid_outputs[GRID_POWER_MAX_EXPORT_PRICE] = connection[CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE]
         if CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET in connection:

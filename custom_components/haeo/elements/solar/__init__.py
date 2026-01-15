@@ -17,7 +17,6 @@ from .schema import (
     CONF_CURTAILMENT,
     CONF_FORECAST,
     CONF_PRICE_PRODUCTION,
-    DEFAULTS,
     ELEMENT_TYPE,
     INPUT_FIELDS,
     SolarConfigData,
@@ -30,7 +29,6 @@ __all__ = [
     "CONF_CURTAILMENT",
     "CONF_FORECAST",
     "CONF_PRICE_PRODUCTION",
-    "DEFAULTS",
     "ELEMENT_TYPE",
     "INPUT_FIELDS",
     # Adapter

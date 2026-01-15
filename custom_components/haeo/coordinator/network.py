@@ -84,11 +84,8 @@ def update_element(
         element_name = model_element_config.get("name")
 
         if element_name not in network.elements:
-            _LOGGER.warning(
-                "Model element '%s' not found in network during update - skipping",
-                element_name,
-            )
-            continue
+            msg = f"Model element '{element_name}' not found in network during update"
+            raise ValueError(msg)
 
         element = network.elements[element_name]
         for param_name, param_value in model_element_config.items():

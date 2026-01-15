@@ -1,4 +1,8 @@
-"""Tests for stale device removal functionality."""
+"""Tests for stale device removal functionality.
+
+Device identifiers follow this pattern:
+(DOMAIN, f"{entry_id}_{subentry_id}_{device_name}")
+"""
 
 from types import MappingProxyType
 
@@ -47,10 +51,10 @@ async def test_keep_device_for_existing_element(
     )
     hass.config_entries.async_add_subentry(mock_config_entry, subentry)
 
-    # Create a device for this element
+    # Create a device using the pattern: {entry_id}_{subentry_id}_{device_name}
     device = mock_device_registry.async_get_or_create(
         config_entry_id=mock_config_entry.entry_id,
-        identifiers={(DOMAIN, f"{mock_config_entry.entry_id}_Battery")},
+        identifiers={(DOMAIN, f"{mock_config_entry.entry_id}_{subentry.subentry_id}_battery")},
         name="Battery",
         manufacturer="HAEO",
         model="Battery",
@@ -66,16 +70,50 @@ async def test_keep_device_for_existing_element(
     assert not result, "Device should be kept for existing element"
 
 
+async def test_keep_sub_device_for_existing_element(
+    hass: HomeAssistant,
+    mock_config_entry: HaeoConfigEntry,
+    mock_device_registry: dr.DeviceRegistry,
+) -> None:
+    """Test that sub-devices for existing elements are kept."""
+    # Add a battery subentry (batteries can have sub-devices like partitions)
+    subentry = ConfigSubentry(
+        data=MappingProxyType({"name": "Battery", "element_type": "battery"}),
+        subentry_type="battery",
+        title="Battery",
+        unique_id=None,
+    )
+    hass.config_entries.async_add_subentry(mock_config_entry, subentry)
+
+    # Create a sub-device using the subentry_id_device_name pattern
+    device = mock_device_registry.async_get_or_create(
+        config_entry_id=mock_config_entry.entry_id,
+        identifiers={(DOMAIN, f"{mock_config_entry.entry_id}_{subentry.subentry_id}_battery_device_normal")},
+        name="Battery Normal Partition",
+        manufacturer="HAEO",
+        model="Battery Partition",
+    )
+
+    # Sub-device should be kept (parent element still exists)
+    result = await async_remove_config_entry_device(
+        hass,
+        mock_config_entry,
+        device,
+    )
+
+    assert not result, "Sub-device should be kept for existing element"
+
+
 async def test_remove_device_for_deleted_element(
     hass: HomeAssistant,
     mock_config_entry: HaeoConfigEntry,
     mock_device_registry: dr.DeviceRegistry,
 ) -> None:
     """Test that devices for deleted elements are removed."""
-    # Create a device for a non-existent element
+    # Create a device with a non-existent subentry_id
     device = mock_device_registry.async_get_or_create(
         config_entry_id=mock_config_entry.entry_id,
-        identifiers={(DOMAIN, f"{mock_config_entry.entry_id}_DeletedBattery")},
+        identifiers={(DOMAIN, f"{mock_config_entry.entry_id}_deleted_subentry_id_battery")},
         name="Deleted Battery",
         manufacturer="HAEO",
         model="Battery",
@@ -91,13 +129,38 @@ async def test_remove_device_for_deleted_element(
     assert result, "Device should be removed for non-existent element"
 
 
+async def test_remove_sub_device_for_deleted_element(
+    hass: HomeAssistant,
+    mock_config_entry: HaeoConfigEntry,
+    mock_device_registry: dr.DeviceRegistry,
+) -> None:
+    """Test that sub-devices for deleted elements are removed."""
+    # Create a sub-device with a non-existent subentry_id
+    device = mock_device_registry.async_get_or_create(
+        config_entry_id=mock_config_entry.entry_id,
+        identifiers={(DOMAIN, f"{mock_config_entry.entry_id}_deleted_subentry_id_battery_device_normal")},
+        name="Deleted Battery Partition",
+        manufacturer="HAEO",
+        model="Battery Partition",
+    )
+
+    # Sub-device should be removed (parent element doesn't exist)
+    result = await async_remove_config_entry_device(
+        hass,
+        mock_config_entry,
+        device,
+    )
+
+    assert result, "Sub-device should be removed for non-existent element"
+
+
 async def test_keep_hub_device(
     hass: HomeAssistant,
     mock_config_entry: HaeoConfigEntry,
     mock_device_registry: dr.DeviceRegistry,
 ) -> None:
     """Test that the hub device itself is always kept."""
-    # Create the hub device (no element name suffix)
+    # Create the hub device (no subentry suffix)
     device = mock_device_registry.async_get_or_create(
         config_entry_id=mock_config_entry.entry_id,
         identifiers={(DOMAIN, mock_config_entry.entry_id)},
@@ -123,6 +186,7 @@ async def test_multiple_elements_device_cleanup(
 ) -> None:
     """Test device cleanup with multiple elements."""
     # Add multiple subentries
+    subentries: list[ConfigSubentry] = []
     elements = ["Battery1", "Battery2", "Grid"]
     for element_name in elements:
         element_type = "battery" if "Battery" in element_name else "grid"
@@ -133,17 +197,18 @@ async def test_multiple_elements_device_cleanup(
             unique_id=None,
         )
         hass.config_entries.async_add_subentry(mock_config_entry, subentry)
+        subentries.append(subentry)
 
     # Create devices for existing and non-existing elements
     existing_device = mock_device_registry.async_get_or_create(
         config_entry_id=mock_config_entry.entry_id,
-        identifiers={(DOMAIN, f"{mock_config_entry.entry_id}_Battery1")},
+        identifiers={(DOMAIN, f"{mock_config_entry.entry_id}_{subentries[0].subentry_id}_battery")},
         name="Battery1",
     )
 
     deleted_device = mock_device_registry.async_get_or_create(
         config_entry_id=mock_config_entry.entry_id,
-        identifiers={(DOMAIN, f"{mock_config_entry.entry_id}_OldElement")},
+        identifiers={(DOMAIN, f"{mock_config_entry.entry_id}_old_deleted_subentry_id_battery")},
         name="OldElement",
     )
 

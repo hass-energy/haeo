@@ -11,3 +11,5 @@
 
 # Ignore generated coverage reports
 htmlcov/
+# Ignore hacs, if installed.
+hacs/

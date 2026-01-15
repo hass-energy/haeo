@@ -134,4 +134,4 @@ async def test_reconfigure_step_shows_form_initially(hass: HomeAssistant, hub_en
     result = await flow.async_step_reconfigure(user_input=None)
 
     assert result.get("type") == FlowResultType.FORM
-    assert result.get("step_id") == "reconfigure"
+    assert result.get("step_id") == "user"

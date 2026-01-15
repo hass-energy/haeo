@@ -7,7 +7,7 @@ from typing import NamedTuple
 from homeassistant.components.sensor import SensorDeviceClass
 from homeassistant.core import State
 
-from . import aemo_nem, amber2mqtt, amberelectric, haeo, open_meteo_solar_forecast, solcast_solar
+from . import aemo_nem, amber2mqtt, amberelectric, emhass, flow_power, haeo, open_meteo_solar_forecast, solcast_solar
 from .utils import (
     EntityMetadata,
     base_unit_for_device_class,
@@ -21,6 +21,8 @@ ExtractorFormat = (
     aemo_nem.Format
     | amber2mqtt.Format
     | amberelectric.Format
+    | emhass.Format
+    | flow_power.Format
     | haeo.Format
     | open_meteo_solar_forecast.Format
     | solcast_solar.Format
@@ -31,6 +33,8 @@ DataExtractor = (
     type[aemo_nem.Parser]
     | type[amber2mqtt.Parser]
     | type[amberelectric.Parser]
+    | type[emhass.Parser]
+    | type[flow_power.Parser]
     | type[haeo.Parser]
     | type[open_meteo_solar_forecast.Parser]
     | type[solcast_solar.Parser]
@@ -42,6 +46,8 @@ FORMATS: dict[ExtractorFormat, DataExtractor] = {
     aemo_nem.DOMAIN: aemo_nem.Parser,
     amber2mqtt.DOMAIN: amber2mqtt.Parser,
     amberelectric.DOMAIN: amberelectric.Parser,
+    emhass.DOMAIN: emhass.Parser,
+    flow_power.DOMAIN: flow_power.Parser,
     haeo.DOMAIN: haeo.Parser,
     open_meteo_solar_forecast.DOMAIN: open_meteo_solar_forecast.Parser,
     solcast_solar.DOMAIN: solcast_solar.Parser,
@@ -71,6 +77,10 @@ def extract(state: State) -> ExtractedData:
         data, unit, device_class = amber2mqtt.Parser.extract(state)
     elif amberelectric.Parser.detect(state):
         data, unit, device_class = amberelectric.Parser.extract(state)
+    elif emhass.Parser.detect(state):
+        data, unit, device_class = emhass.Parser.extract(state)
+    elif flow_power.Parser.detect(state):
+        data, unit, device_class = flow_power.Parser.extract(state)
     elif haeo.Parser.detect(state):
         data, unit, device_class = haeo.Parser.extract(state)
     elif open_meteo_solar_forecast.Parser.detect(state):

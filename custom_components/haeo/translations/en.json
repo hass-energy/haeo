@@ -78,60 +78,37 @@
       "initiate_flow": { "user": "Battery", "reconfigure": "Battery" },
       "step": {
         "user": {
-          "title": "Add Battery",
-          "description": "Set up battery parameters for energy optimization",
-          "data": {
-            "capacity_mode": "Capacity Source",
-            "connection": "Connection",
-            "discharge_cost_mode": "Discharge Cost Source",
-            "early_charge_incentive_mode": "Early Charge Incentive Source",
-            "efficiency_mode": "Efficiency Source",
-            "initial_charge_percentage_mode": "State of Charge Source",
-            "max_charge_percentage_mode": "Max Charge Level Source",
-            "max_charge_power_mode": "Max Charging Power Source",
-            "max_discharge_power_mode": "Max Discharging Power Source",
-            "min_charge_percentage_mode": "Min Charge Level Source",
-            "name": "Battery Name",
-            "overcharge_cost_mode": "Overcharge Cost Source",
-            "overcharge_percentage_mode": "Overcharge Percentage Source",
-            "undercharge_cost_mode": "Undercharge Cost Source",
-            "undercharge_percentage_mode": "Undercharge Percentage Source"
-          }
-        },
-        "reconfigure": {
-          "title": "Edit Battery",
-          "description": "Update battery configuration",
-          "data": {
-            "capacity_mode": "Capacity Source",
-            "connection": "Connection",
-            "discharge_cost_mode": "Discharge Cost Source",
-            "early_charge_incentive_mode": "Early Charge Incentive Source",
-            "efficiency_mode": "Efficiency Source",
-            "initial_charge_percentage_mode": "State of Charge Source",
-            "max_charge_percentage_mode": "Max Charge Level Source",
-            "max_charge_power_mode": "Max Charging Power Source",
-            "max_discharge_power_mode": "Max Discharging Power Source",
-            "min_charge_percentage_mode": "Min Charge Level Source",
-            "name": "Battery Name",
-            "overcharge_cost_mode": "Overcharge Cost Source",
-            "overcharge_percentage_mode": "Overcharge Percentage Source",
-            "undercharge_cost_mode": "Undercharge Cost Source",
-            "undercharge_percentage_mode": "Undercharge Percentage Source"
-          }
-        },
-        "reconfigure_values": {
-          "title": "Edit Battery Values",
-          "description": "Update values for the selected input sources",
+          "title": "Battery Configuration",
+          "description": "Configure battery parameters for energy optimization",
           "data": {
             "capacity": "Capacity",
-            "discharge_cost": "Discharge Cost",
-            "early_charge_incentive": "Early Charge Incentive",
-            "efficiency": "Round-trip Efficiency",
+            "configure_partitions": "Configure battery partitions",
+            "connection": "Connection",
+            "discharge_cost": "Discharge Cost (Optional)",
+            "early_charge_incentive": "Early Charge Incentive (Optional)",
+            "efficiency": "Round-trip Efficiency (Optional)",
             "initial_charge_percentage": "State of Charge",
-            "max_charge_percentage": "Max Charge Level",
+            "max_charge_percentage": "Max Charge Level (Optional)",
             "max_charge_power": "Max Charging Power",
             "max_discharge_power": "Max Discharging Power",
-            "min_charge_percentage": "Min Charge Level",
+            "min_charge_percentage": "Min Charge Level (Optional)",
+            "name": "Battery Name"
+          }
+        },
+        "partition_values": {
+          "title": "Battery Partition Values",
+          "description": "Enter values for the partition input sources",
+          "data": {
+            "overcharge_cost": "Overcharge Cost",
+            "overcharge_percentage": "Overcharge Percentage",
+            "undercharge_cost": "Undercharge Cost",
+            "undercharge_percentage": "Undercharge Percentage"
+          }
+        },
+        "partitions": {
+          "title": "Battery Partitions",
+          "description": "Select entities for undercharge and overcharge regions",
+          "data": {
             "overcharge_cost": "Overcharge Cost",
             "overcharge_percentage": "Overcharge Percentage",
             "undercharge_cost": "Undercharge Cost",
@@ -150,11 +127,7 @@
             "max_charge_percentage": "Max Charge Level",
             "max_charge_power": "Max Charging Power",
             "max_discharge_power": "Max Discharging Power",
-            "min_charge_percentage": "Min Charge Level",
-            "overcharge_cost": "Overcharge Cost",
-            "overcharge_percentage": "Overcharge Percentage",
-            "undercharge_cost": "Undercharge Cost",
-            "undercharge_percentage": "Undercharge Percentage"
+            "min_charge_percentage": "Min Charge Level"
           }
         }
       },
@@ -167,14 +140,14 @@
       "initiate_flow": { "user": "Battery Section", "reconfigure": "Battery Section" },
       "step": {
         "user": {
-          "title": "Add Battery Section",
-          "description": "Add a single battery section with explicit capacity and initial charge. Connect to other elements using Connection elements.",
+          "title": "Battery Section Configuration",
+          "description": "Configure a single battery section with explicit capacity and initial charge. Connect to other elements using Connection elements.",
           "data": { "capacity": "Capacity", "initial_charge": "Initial Charge", "name": "Battery Section Name" }
         },
-        "reconfigure": {
-          "title": "Edit Battery Section",
-          "description": "Update battery section configuration",
-          "data": { "capacity": "Capacity", "initial_charge": "Initial Charge", "name": "Battery Section Name" }
+        "values": {
+          "title": "Battery Section Values",
+          "description": "Enter values for the selected input sources",
+          "data": { "capacity": "Capacity", "initial_charge": "Initial Charge" }
         }
       },
       "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" },
@@ -186,13 +159,13 @@
       "initiate_flow": { "user": "Connection", "reconfigure": "Connection" },
       "step": {
         "user": {
-          "title": "Add Connection",
-          "description": "Set up connection parameters between devices",
+          "title": "Connection Configuration",
+          "description": "Configure connection parameters between devices",
           "data": {
-            "efficiency_source_target": "Efficiency Source to Target (%)",
-            "efficiency_target_source": "Efficiency Target to Source (%)",
-            "max_power_source_target": "Maximum Power Source to Target",
-            "max_power_target_source": "Maximum Power Target to Source",
+            "efficiency_source_target": "Efficiency Source to Target",
+            "efficiency_target_source": "Efficiency Target to Source",
+            "max_power_source_target": "Max Power Source to Target",
+            "max_power_target_source": "Max Power Target to Source",
             "name": "Connection Name",
             "price_source_target": "Price Source to Target",
             "price_target_source": "Price Target to Source",
@@ -200,19 +173,16 @@
             "target": "Target Device"
           }
         },
-        "reconfigure": {
-          "title": "Edit Connection",
-          "description": "Update connection configuration",
+        "values": {
+          "title": "Connection Values",
+          "description": "Enter values for the selected input sources",
           "data": {
-            "efficiency_source_target": "Efficiency Source to Target (%)",
-            "efficiency_target_source": "Efficiency Target to Source (%)",
-            "max_power_source_target": "Maximum Power Source to Target",
-            "max_power_target_source": "Maximum Power Target to Source",
-            "name": "Connection Name",
+            "efficiency_source_target": "Efficiency Source to Target",
+            "efficiency_target_source": "Efficiency Target to Source",
+            "max_power_source_target": "Max Power Source to Target",
+            "max_power_target_source": "Max Power Target to Source",
             "price_source_target": "Price Source to Target",
-            "price_target_source": "Price Target to Source",
-            "source": "Source Device",
-            "target": "Target Device"
+            "price_target_source": "Price Target to Source"
           }
         }
       },
@@ -263,27 +233,25 @@
       "initiate_flow": { "user": "Inverter", "reconfigure": "Inverter" },
       "step": {
         "user": {
-          "title": "Add Inverter",
-          "description": "Set up a bidirectional inverter with DC bus for battery and solar connections",
+          "title": "Inverter Configuration",
+          "description": "Configure bidirectional inverter with DC bus for battery and solar connections",
           "data": {
             "connection": "AC Connection",
-            "efficiency_ac_to_dc": "AC to DC efficiency (Optional)",
-            "efficiency_dc_to_ac": "DC to AC efficiency (Optional)",
-            "max_power_ac_to_dc": "Max AC to DC power",
-            "max_power_dc_to_ac": "Max DC to AC power",
+            "efficiency_ac_to_dc": "AC to DC Efficiency (Optional)",
+            "efficiency_dc_to_ac": "DC to AC Efficiency (Optional)",
+            "max_power_ac_to_dc": "Max AC to DC Power",
+            "max_power_dc_to_ac": "Max DC to AC Power",
             "name": "Inverter Name"
           }
         },
-        "reconfigure": {
-          "title": "Edit Inverter",
-          "description": "Update inverter configuration",
+        "values": {
+          "title": "Inverter Values",
+          "description": "Enter values for the selected input sources",
           "data": {
-            "connection": "AC Connection",
-            "efficiency_ac_to_dc": "AC to DC efficiency (Optional)",
-            "efficiency_dc_to_ac": "DC to AC efficiency (Optional)",
-            "max_power_ac_to_dc": "Max AC to DC power",
-            "max_power_dc_to_ac": "Max DC to AC power",
-            "name": "Inverter Name"
+            "efficiency_ac_to_dc": "AC to DC Efficiency",
+            "efficiency_dc_to_ac": "DC to AC Efficiency",
+            "max_power_ac_to_dc": "Max AC to DC Power",
+            "max_power_dc_to_ac": "Max DC to AC Power"
           }
         }
       },
@@ -296,14 +264,14 @@
       "initiate_flow": { "user": "Load", "reconfigure": "Load" },
       "step": {
         "user": {
-          "title": "Add Load",
-          "description": "Set up a load with forecast or constant power.\n\n[HAFO]({hafo_url}) can be used to generate forecast sensors.",
-          "data": { "connection": "Connection", "forecast": "Forecast Sensors", "name": "Load Name" }
+          "title": "Load Configuration",
+          "description": "Configure a load with forecast or constant power.\n\n[HAFO]({hafo_url}) can be used to generate forecast sensors.",
+          "data": { "connection": "Connection", "forecast": "Forecast", "name": "Load Name" }
         },
-        "reconfigure": {
-          "title": "Edit Load",
-          "description": "Update load configuration.\n\n[HAFO]({hafo_url}) can be used to generate forecast sensors.",
-          "data": { "connection": "Connection", "forecast": "Forecast Sensors", "name": "Load Name" }
+        "values": {
+          "title": "Load Values",
+          "description": "Enter values for the selected input sources",
+          "data": { "forecast": "Forecast" }
         }
       },
       "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" },
@@ -322,17 +290,8 @@
       "initiate_flow": { "user": "Node", "reconfigure": "Node" },
       "step": {
         "user": {
-          "title": "Add Node",
+          "title": "Node Configuration",
           "description": "Add a node for power balance calculations or to source/sink unlimited power.",
-          "data": {
-            "is_sink": "Can consume unlimited power (Sink)",
-            "is_source": "Can produce unlimited power (Source)",
-            "name": "Node Name"
-          }
-        },
-        "reconfigure": {
-          "title": "Edit Node",
-          "description": "Update node configuration",
           "data": {
             "is_sink": "Can consume unlimited power (Sink)",
             "is_source": "Can produce unlimited power (Source)",
@@ -349,26 +308,20 @@
       "initiate_flow": { "user": "Solar", "reconfigure": "Solar" },
       "step": {
         "user": {
-          "title": "Add Solar",
-          "description": "Set up solar forecasting and parameters",
+          "title": "Solar Configuration",
+          "description": "Configure solar forecasting and parameters",
           "data": {
             "connection": "Connection",
-            "curtailment": "Allow Curtailment (Optional)",
-            "forecast": "Forecast Sensors",
+            "curtailment": "Allow Curtailment (Default: On)",
+            "forecast": "Forecast",
             "name": "Solar Name",
-            "price_production": "Production Price (Optional)"
+            "price_production": "Production Price (Default: 0)"
           }
         },
-        "reconfigure": {
-          "title": "Edit Solar",
-          "description": "Update solar configuration",
-          "data": {
-            "connection": "Connection",
-            "curtailment": "Allow Curtailment (Optional)",
-            "forecast": "Forecast Sensors",
-            "name": "Solar Name",
-            "price_production": "Production Price (Optional)"
-          }
+        "values": {
+          "title": "Solar Values",
+          "description": "Enter values for the selected input sources",
+          "data": { "curtailment": "Allow Curtailment", "forecast": "Forecast", "price_production": "Production Price" }
         }
       },
       "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" },
@@ -446,15 +399,12 @@
       "battery_soc_max": { "name": "SOC max shadow price" },
       "battery_soc_min": { "name": "SOC min shadow price" },
       "battery_state_of_charge": { "name": "State of charge" },
-      "connection_cost_source_target": { "name": "{source} to {target} cost" },
-      "connection_cost_target_source": { "name": "{target} to {source} cost" },
       "connection_power_active": { "name": "{source} to {target} active power" },
       "connection_power_source_target": { "name": "{source} to {target} power" },
       "connection_power_target_source": { "name": "{target} to {source} power" },
       "connection_shadow_power_max_source_target": { "name": "Max {source} to {target} power shadow price" },
       "connection_shadow_power_max_target_source": { "name": "Max {target} to {source} power shadow price" },
       "connection_time_slice": { "name": "Time slice shadow price" },
-      "grid_cost_export": { "name": "Export cost" },
       "grid_cost_import": { "name": "Import cost" },
       "grid_cost_net": { "name": "Net cost" },
       "grid_power_active": { "name": "Active power" },
@@ -462,6 +412,7 @@
       "grid_power_import": { "name": "Import power" },
       "grid_power_max_export_price": { "name": "Max export power shadow price" },
       "grid_power_max_import_price": { "name": "Max import power shadow price" },
+      "grid_revenue_export": { "name": "Export revenue" },
       "horizon": { "name": "Forecast horizon" },
       "inverter_dc_bus_power_balance": { "name": "DC bus power balance shadow price" },
       "inverter_max_power_ac_to_dc_price": { "name": "Max AC to DC power shadow price" },
@@ -485,9 +436,25 @@
     }
   },
   "exceptions": {
+    "input_entities_not_ready": {
+      "message": "Input entities not ready after 30 seconds: {not_ready}. Some sensors may not be available yet."
+    },
     "missing_sensors": {
       "message": "HAEO cannot load data for {unavailable_sensors}. Verify each referenced sensor exists and is reporting data."
-    }
+    },
+    "self_referential_field_missing": {
+      "message": "Configuration error for field {field}: The entity created by this field was selected, but the field is missing from the stored configuration. This may indicate corrupted configuration data. Please recreate the element."
+    },
+    "self_referential_invalid_value": {
+      "message": "Configuration error for field {field}: The entity created by this field was selected, but the stored value is not a valid scalar (found {value_type}). This may indicate corrupted configuration data. Please recreate the element."
+    },
+    "self_referential_no_current_data": {
+      "message": "Configuration error for field {field}: The entity created by this field was selected, but no previous configuration exists. This may indicate corrupted configuration data. Please recreate the element."
+    },
+    "setup_failed_permanent": {
+      "message": "Setup failed due to configuration error: {error}. Please check your configuration."
+    },
+    "setup_failed_transient": { "message": "Setup failed: {error}. Home Assistant will retry automatically." }
   },
   "issues": {
     "disconnected_network": {
@@ -510,7 +477,6 @@
   "selector": {
     "horizon_preset": {
       "options": { "2_days": "2 days", "3_days": "3 days", "5_days": "5 days", "7_days": "7 days", "custom": "Custom" }
-    },
-    "input_mode": { "options": { "constant": "Constant", "entity_link": "Sensor", "none": "Not configured" } }
+    }
   }
 }

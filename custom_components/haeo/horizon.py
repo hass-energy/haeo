@@ -62,19 +62,26 @@ class HorizonManager:
         """Update the cached forecast timestamps."""
         self._forecast_timestamps = generate_forecast_timestamps(self._periods_seconds)
 
-    def start(self) -> None:
+    def start(self) -> Callable[[], None]:
         """Start the scheduled updates.
 
         Call this after the manager is fully initialized and ready to
         receive timer callbacks.
+
+        Returns:
+            A stop function that can be passed to async_on_unload.
+
         """
         self._schedule_next_update()
+        return self.stop
 
     def stop(self) -> None:
         """Stop scheduled updates and clean up resources."""
         if self._unsub_timer is not None:
             self._unsub_timer()
             self._unsub_timer = None
+        # Clear all subscribers to prevent stale callbacks during reload
+        self._subscribers.clear()
 
     def _schedule_next_update(self) -> None:
         """Schedule the next horizon update at the next period boundary."""

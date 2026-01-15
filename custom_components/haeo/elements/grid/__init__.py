@@ -1,7 +1,6 @@
 """Grid element for HAEO integration."""
 
 from .adapter import (
-    GRID_COST_EXPORT,
     GRID_COST_IMPORT,
     GRID_COST_NET,
     GRID_DEVICE_GRID,
@@ -12,6 +11,7 @@ from .adapter import (
     GRID_POWER_IMPORT,
     GRID_POWER_MAX_EXPORT_PRICE,
     GRID_POWER_MAX_IMPORT_PRICE,
+    GRID_REVENUE_EXPORT,
     GridAdapter,
     GridDeviceName,
     GridOutputName,
@@ -39,7 +39,6 @@ __all__ = [
     "CONF_IMPORT_PRICE",
     "ELEMENT_TYPE",
     # Adapter
-    "GRID_COST_EXPORT",
     "GRID_COST_IMPORT",
     "GRID_COST_NET",
     "GRID_DEVICE_GRID",
@@ -50,6 +49,7 @@ __all__ = [
     "GRID_POWER_IMPORT",
     "GRID_POWER_MAX_EXPORT_PRICE",
     "GRID_POWER_MAX_IMPORT_PRICE",
+    "GRID_REVENUE_EXPORT",
     "INPUT_FIELDS",
     "GridAdapter",
     "GridConfigData",

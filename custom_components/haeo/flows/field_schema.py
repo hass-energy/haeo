@@ -1,22 +1,16 @@
-"""Shared utilities for building two-step element config flows.
+"""Shared utilities for building entity-first two-step element config flows.
 
-This module provides utilities for two config flow patterns:
+This module provides utilities for the entity-first config flow pattern:
 
-1. Mode-based pattern (InputMode): Used by battery, load, solar, inverter, etc.
-   - Step 1: Select name, connections, and input mode for each field
-   - Step 2: Enter values based on selected modes (constant or entity link)
-   - Input modes: CONSTANT, ENTITY_LINK, NONE
-
-2. Entity-first pattern (configurable entity): Used by grid
-   - Step 1: Select name, connections, and entities (with HAEO Configurable option)
-   - Step 2: Enter configurable values for fields where HAEO Configurable was selected
+- Step 1: Select name, connections, and entities (with HAEO Configurable option)
+- Step 2: Enter configurable values for fields where HAEO Configurable was selected
 """
 
-from enum import StrEnum
-from typing import Any, Final, Protocol
+from typing import Any, Protocol
 
 from homeassistant.components.number import NumberEntityDescription
 from homeassistant.core import async_get_hass
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.selector import (
     BooleanSelector,
@@ -26,27 +20,11 @@ from homeassistant.helpers.selector import (
     NumberSelector,
     NumberSelectorConfig,
     NumberSelectorMode,
-    SelectOptionDict,
-    SelectSelector,
-    SelectSelectorConfig,
-    SelectSelectorMode,
 )
 import voluptuous as vol
 
 from custom_components.haeo.const import CONFIGURABLE_ENTITY_UNIQUE_ID, DOMAIN
 from custom_components.haeo.elements.input_fields import InputFieldInfo
-
-# =============================================================================
-# Mode-based pattern (InputMode) - used by battery, load, solar, inverter, etc.
-# =============================================================================
-
-
-class InputMode(StrEnum):
-    """Input mode for configurable fields."""
-
-    CONSTANT = "constant"
-    ENTITY_LINK = "entity_link"
-    NONE = "none"
 
 
 class ConfigSchemaType(Protocol):
@@ -57,37 +35,6 @@ class ConfigSchemaType(Protocol):
     """
 
     __optional_keys__: frozenset[str]
-
-
-# Mode suffix appended to field names for mode selectors
-MODE_SUFFIX: Final = "_mode"
-
-
-def build_mode_selector(*, has_default: bool) -> SelectSelector:  # type: ignore[type-arg]
-    """Build a mode selector for a configurable field.
-
-    Args:
-        has_default: If True, include NONE option (field can be disabled).
-                    Required fields should pass False to only show CONSTANT and ENTITY_LINK.
-
-    Returns:
-        SelectSelector with appropriate mode options.
-
-    """
-    options: list[SelectOptionDict] = [
-        SelectOptionDict(value=InputMode.CONSTANT, label=InputMode.CONSTANT),
-        SelectOptionDict(value=InputMode.ENTITY_LINK, label=InputMode.ENTITY_LINK),
-    ]
-    if has_default:
-        options.append(SelectOptionDict(value=InputMode.NONE, label=InputMode.NONE))
-
-    return SelectSelector(
-        SelectSelectorConfig(
-            options=options,
-            mode=SelectSelectorMode.DROPDOWN,
-            translation_key="input_mode",
-        )
-    )
 
 
 def number_selector_from_field(
@@ -130,234 +77,6 @@ def boolean_selector_from_field() -> BooleanSelector:  # type: ignore[type-arg]
 
     """
     return BooleanSelector(BooleanSelectorConfig())
-
-
-def entity_selector_from_field(
-    field_info: InputFieldInfo[Any],
-    *,
-    exclude_entities: list[str] | None = None,
-) -> EntitySelector:  # type: ignore[type-arg]
-    """Build an EntitySelector from InputFieldInfo.
-
-    Uses device_class from entity description for filtering when available.
-
-    Args:
-        field_info: Input field metadata.
-        exclude_entities: Entity IDs to exclude from selection.
-
-    Returns:
-        EntitySelector configured for sensor/input_number domains.
-
-    """
-    desc = field_info.entity_description
-
-    # Build config kwargs, omitting device_class if not available
-    config_kwargs: dict[str, Any] = {
-        "domain": ["sensor", "input_number"],
-        "multiple": True,
-        "exclude_entities": exclude_entities or [],
-    }
-
-    # Add device_class filter if available
-    if hasattr(desc, "device_class") and desc.device_class is not None:
-        config_kwargs["device_class"] = [str(desc.device_class)]
-
-    return EntitySelector(EntitySelectorConfig(**config_kwargs))
-
-
-def infer_mode_from_value(value: Any) -> InputMode:
-    """Infer input mode from a stored config value.
-
-    Used during reconfigure to determine which mode was selected.
-
-    Args:
-        value: The stored configuration value.
-
-    Returns:
-        InputMode based on value type:
-        - list[str] with items → ENTITY_LINK
-        - float/int/bool → CONSTANT (note: bool is subclass of int in Python)
-        - None or empty list or missing → NONE
-
-    """
-    if value is None:
-        return InputMode.NONE
-
-    if isinstance(value, list):
-        # Non-empty list of entity IDs
-        if value and all(isinstance(v, str) for v in value):
-            return InputMode.ENTITY_LINK
-        # Empty list means disabled
-        return InputMode.NONE
-
-    # Scalar value (float, int, bool) means constant
-    if isinstance(value, (float, int, bool)):
-        return InputMode.CONSTANT
-
-    return InputMode.NONE
-
-
-def build_mode_schema_entry(
-    field_info: InputFieldInfo[Any],
-    *,
-    config_schema: ConfigSchemaType,
-) -> tuple[vol.Marker, Any]:
-    """Build a schema entry for mode selection.
-
-    Args:
-        field_info: Input field metadata.
-        config_schema: The TypedDict class defining the element's configuration.
-
-    Returns:
-        Tuple of (vol.Required marker, SelectSelector).
-        For optional fields, defaults to NONE.
-        For required fields, no default (user must choose CONSTANT or ENTITY_LINK).
-
-    """
-    mode_key = f"{field_info.field_name}{MODE_SUFFIX}"
-    is_optional = field_info.field_name in config_schema.__optional_keys__
-
-    selector = build_mode_selector(has_default=is_optional)
-
-    # Always required, but optional fields get a default of NONE
-    if is_optional:
-        return vol.Required(mode_key, default=InputMode.NONE), selector
-    return vol.Required(mode_key), selector
-
-
-def build_value_schema_entry(
-    field_info: InputFieldInfo[Any],
-    mode: InputMode,
-    *,
-    exclude_entities: list[str] | None = None,
-) -> tuple[vol.Marker, Any] | None:
-    """Build a schema entry for value input based on mode.
-
-    Args:
-        field_info: Input field metadata.
-        mode: Selected input mode.
-        exclude_entities: Entity IDs to exclude from entity selector.
-
-    Returns:
-        Tuple of (vol.Required/Optional marker, Selector) or None if mode is NONE.
-
-    """
-    if mode == InputMode.NONE:
-        return None
-
-    field_name = field_info.field_name
-    has_default = field_info.default is not None
-
-    if mode == InputMode.CONSTANT:
-        # Build appropriate selector based on entity description type
-        # Note: isinstance doesn't work due to Home Assistant's frozen_dataclass_compat wrapper
-        if type(field_info.entity_description).__name__ == "SwitchEntityDescription":
-            selector = boolean_selector_from_field()
-        else:
-            selector = number_selector_from_field(field_info)  # type: ignore[arg-type]
-
-        # Optional if has default, required otherwise
-        if has_default:
-            return vol.Optional(field_name), selector
-        return vol.Required(field_name), selector
-
-    if mode == InputMode.ENTITY_LINK:
-        entity_selector = entity_selector_from_field(field_info, exclude_entities=exclude_entities)
-        # Entity links require at least one entity
-        validated_selector = vol.All(
-            entity_selector,
-            vol.Length(min=1, msg="At least one entity is required"),
-        )
-
-        if has_default:
-            return vol.Optional(field_name), validated_selector
-        return vol.Required(field_name), validated_selector
-
-    return None
-
-
-def get_mode_defaults(
-    input_fields: tuple[InputFieldInfo[Any], ...],
-    config_schema: ConfigSchemaType,
-    current_data: dict[str, Any] | None = None,
-) -> dict[str, str]:
-    """Get default mode selections for all fields.
-
-    Args:
-        input_fields: Tuple of input field metadata.
-        config_schema: The TypedDict class defining the element's configuration.
-        current_data: Current configuration data (for reconfigure).
-
-    Returns:
-        Dict mapping mode field names to default InputMode values.
-
-    """
-    defaults: dict[str, str] = {}
-
-    for field_info in input_fields:
-        mode_key = f"{field_info.field_name}{MODE_SUFFIX}"
-
-        if current_data is not None:
-            # Infer mode from stored value
-            value = current_data.get(field_info.field_name)
-            defaults[mode_key] = infer_mode_from_value(value)
-        elif field_info.field_name in config_schema.__optional_keys__:
-            # Default to NONE for optional fields
-            defaults[mode_key] = InputMode.NONE
-        else:
-            # Required fields default to CONSTANT
-            defaults[mode_key] = InputMode.CONSTANT
-
-    return defaults
-
-
-def get_value_defaults(
-    input_fields: tuple[InputFieldInfo[Any], ...],
-    mode_selections: dict[str, str],
-    current_data: dict[str, Any] | None = None,
-) -> dict[str, Any]:
-    """Get default values for the values step based on mode selections.
-
-    Args:
-        input_fields: Tuple of input field metadata.
-        mode_selections: Mode selections from step 1.
-        current_data: Current configuration data (for reconfigure).
-
-    Returns:
-        Dict mapping field names to default values.
-
-    """
-    defaults: dict[str, Any] = {}
-
-    for field_info in input_fields:
-        mode_key = f"{field_info.field_name}{MODE_SUFFIX}"
-        mode = InputMode(mode_selections.get(mode_key, InputMode.NONE))
-
-        if mode == InputMode.NONE:
-            continue
-
-        field_name = field_info.field_name
-
-        if current_data is not None and field_name in current_data:
-            current_value = current_data[field_name]
-            current_mode = infer_mode_from_value(current_value)
-
-            # Only use current value if mode matches
-            if current_mode == mode:
-                defaults[field_name] = current_value
-            elif mode == InputMode.CONSTANT and field_info.default is not None:
-                # Switching to constant mode, use default
-                defaults[field_name] = field_info.default
-        elif mode == InputMode.CONSTANT and field_info.default is not None:
-            # New entry with constant mode, use default
-            defaults[field_name] = field_info.default
-
-    return defaults
-
-
-# =============================================================================
-# Entity-first pattern (configurable entity) - used by grid
-# =============================================================================
 
 
 def is_configurable_entity(entity_id: str) -> bool:
@@ -429,8 +148,7 @@ def resolve_configurable_entity_id(
 def is_haeo_input_entity(entity_id: str) -> bool:
     """Check if an entity is a HAEO-created input entity.
 
-    HAEO input entities (number/switch) have unique_ids in the pattern:
-    {entry_id}_{subentry_id}_{field_name}
+    HAEO input entities are number/switch entities created by the haeo platform.
 
     Args:
         entity_id: Entity ID to check.
@@ -442,48 +160,68 @@ def is_haeo_input_entity(entity_id: str) -> bool:
     hass = async_get_hass()
     registry = er.async_get(hass)
     entry = registry.async_get(entity_id)
-    if entry is None or entry.platform != DOMAIN:
+    if entry is None:
         return False
-    # HAEO input entities have unique_ids with the pattern: entry_id_subentry_id_field_name
-    # They have at least 2 underscores separating 3 parts (minimum for entry_id_subentry_id_field)
-    min_underscores = 2
-    return entry.unique_id.count("_") >= min_underscores
+    return entry.platform == DOMAIN and entry.domain in ("number", "switch")
+
+
+def get_haeo_input_entity_ids() -> list[str]:
+    """Get all HAEO-created input entity IDs.
+
+    Returns all entity IDs for HAEO input entities (number/switch) that were
+    created for configurable fields. These should always be included in entity
+    pickers so they can be re-selected during reconfiguration.
+
+    Returns:
+        List of entity IDs for HAEO input entities.
+
+    """
+    hass = async_get_hass()
+    registry = er.async_get(hass)
+    return [
+        entry.entity_id
+        for entry in registry.entities.values()
+        if entry.platform == DOMAIN and entry.domain in ("number", "switch")
+    ]
 
 
 def build_entity_selector_with_configurable(
     field_info: InputFieldInfo[Any],  # noqa: ARG001
     *,
-    exclude_entities: list[str] | None = None,
+    include_entities: list[str] | None = None,
 ) -> EntitySelector:  # type: ignore[type-arg]
     """Build an EntitySelector with compatible entities plus the HAEO Configurable entity.
 
-    Does not filter by device_class because:
-    1. Unit-based exclusion already narrows down compatible entities
-    2. Device class filtering would exclude the configurable sentinel entity
-    3. Many real-world sensors lack proper device_class but have correct units
-
-    The configurable entity is always included via the 'haeo' domain.
+    Uses an inclusion list for better performance - only compatible entities are
+    included rather than excluding all incompatible ones.
 
     Args:
         field_info: Input field metadata (kept for API consistency, may be used for
             device_class filtering in future).
-        exclude_entities: Entity IDs to exclude from selection (already filtered by unit compatibility).
+        include_entities: Entity IDs to include (compatible entities from unit filtering).
 
     Returns:
-        EntitySelector configured for sensor/input_number/haeo domains.
+        EntitySelector configured with include_entities list.
 
     """
-    # Remove configurable entity from exclude list (it has unit_of_measurement=None
-    # which fails unit filtering, but we always want it available)
-    filtered_exclude = [entity_id for entity_id in (exclude_entities or []) if not is_configurable_entity(entity_id)]
+    # Start with compatible entities from unit filtering
+    entities_to_include = list(include_entities or [])
 
-    # Build config - no device_class filter, rely on unit-based exclusion
-    # Include 'number' and 'switch' so HAEO input entities can be re-selected during reconfigure
-    # The configurable sentinel is a sensor entity, so it's included via 'sensor' domain
+    # Always include configurable sentinel entity
+    entities_to_include.append(get_configurable_entity_id())
+
+    # Include all HAEO input entities so they can be re-selected during reconfigure
+    # These entities may not pass unit filtering (e.g., price fields lack currency units)
+    # but should always be available for their original fields
+    entities_to_include.extend(get_haeo_input_entity_ids())
+
+    # Use include_entities for better performance with large HA installations
+    # Domain filter ensures we only show entities from relevant domains even if
+    # entities from other domains happen to have matching units
     config_kwargs: dict[str, Any] = {
         "domain": [DOMAIN, "sensor", "input_number", "number", "switch"],
         "multiple": True,
-        "exclude_entities": filtered_exclude,
+        "include_entities": entities_to_include,
     }
 
     return EntitySelector(EntitySelectorConfig(**config_kwargs))
@@ -493,14 +231,14 @@ def build_entity_schema_entry(
     field_info: InputFieldInfo[Any],
     *,
     config_schema: ConfigSchemaType,
-    exclude_entities: list[str] | None = None,
+    include_entities: list[str] | None = None,
 ) -> tuple[vol.Marker, Any]:
     """Build a schema entry for entity selection (step 1).
 
     Args:
         field_info: Input field metadata.
         config_schema: The TypedDict class defining the element's configuration.
-        exclude_entities: Entity IDs to exclude from selection.
+        include_entities: Entity IDs to include (compatible entities from unit filtering).
 
     Returns:
         Tuple of (vol.Required/Optional marker, EntitySelector).
@@ -513,7 +251,7 @@ def build_entity_schema_entry(
 
     selector = build_entity_selector_with_configurable(
         field_info,
-        exclude_entities=exclude_entities,
+        include_entities=include_entities,
     )
 
     # Don't set defaults in schema - EntitySelector doesn't respect them
@@ -529,15 +267,17 @@ def build_configurable_value_schema_entry(
 ) -> tuple[vol.Marker, Any]:
     """Build a schema entry for configurable value input (step 2).
 
+    Step 2 fields are always Required. The defaults.value is only used
+    for pre-filling the form, not as a fallback.
+
     Args:
         field_info: Input field metadata.
 
     Returns:
-        Tuple of (vol.Required/Optional marker, Selector) for configurable value input.
+        Tuple of (vol.Required marker, Selector) for configurable value input.
 
     """
     field_name = field_info.field_name
-    has_default = field_info.default is not None
 
     # Build appropriate selector based on entity description type
     # Note: isinstance doesn't work due to Home Assistant's frozen_dataclass_compat wrapper
@@ -546,9 +286,7 @@ def build_configurable_value_schema_entry(
     else:
         selector = number_selector_from_field(field_info)  # type: ignore[arg-type]
 
-    # Optional if has default, required otherwise
-    if has_default:
-        return vol.Optional(field_name), selector
+    # Always required - user must provide a value when configurable is selected
     return vol.Required(field_name), selector
 
 
@@ -601,37 +339,42 @@ def get_configurable_value_defaults(
 ) -> dict[str, Any]:
     """Get default configurable values for step 2.
 
+    These values are used to pre-fill the form, not as fallbacks.
+    Step 2 fields are always Required.
+
     Args:
         input_fields: Tuple of input field metadata.
         entity_selections: Entity selections from step 1.
         current_data: Current configuration data (for reconfigure).
 
     Returns:
-        Dict mapping field names to default configurable values.
+        Dict mapping field names to suggested values for pre-filling.
         Only includes fields where HAEO Configurable is selected.
 
     """
-    defaults: dict[str, Any] = {}
+    suggested: dict[str, Any] = {}
 
     for field_info in input_fields:
         field_name = field_info.field_name
         selected_entities = entity_selections.get(field_name, [])
 
-        # Only provide defaults for fields with configurable entity
+        # Only provide suggestions for fields with configurable entity
         if not any(is_configurable_entity(entity_id) for entity_id in selected_entities):
             continue
 
+        # Priority: current stored value > defaults.value
         if current_data is not None and field_name in current_data:
             current_value = current_data[field_name]
             # If current value is a scalar (float/int/bool), use it
             if isinstance(current_value, (float, int, bool)):
-                defaults[field_name] = current_value
-            elif field_info.default is not None:
-                defaults[field_name] = field_info.default
-        elif field_info.default is not None:
-            defaults[field_name] = field_info.default
+                suggested[field_name] = current_value
+                continue
 
-    return defaults
+        # Use defaults.value if available
+        if field_info.defaults is not None and field_info.defaults.value is not None:
+            suggested[field_name] = field_info.defaults.value
+
+    return suggested
 
 
 def has_configurable_selection(entity_selection: list[str]) -> bool:
@@ -684,43 +427,38 @@ def extract_non_entity_fields(
 def convert_entity_selections_to_config(
     entity_selections: dict[str, list[str]],
     configurable_values: dict[str, Any],
-    input_fields: tuple[InputFieldInfo[Any], ...] | None = None,
+    input_fields: tuple[InputFieldInfo[Any], ...] | None = None,  # noqa: ARG001
     current_data: dict[str, Any] | None = None,
+    *,
+    entry_id: str | None = None,
+    subentry_id: str | None = None,
 ) -> dict[str, Any]:
     """Convert entity selections and configurable values to final config format.
 
     Args:
         entity_selections: Entity selections from step 1.
         configurable_values: Configurable values from step 2.
-        input_fields: Optional tuple of input field metadata. If provided, applies
-            defaults for optional fields with no selection.
+        input_fields: Unused, kept for API compatibility.
         current_data: Current stored config (for reconfigure). Used to preserve
-            scalar values when HAEO input entities are kept selected.
+            scalar values when self-referential entities are selected.
+        entry_id: Config entry ID (for detecting self-referential selections).
+        subentry_id: Subentry ID (for detecting self-referential selections).
 
     Returns:
         Config dict with:
         - Fields with configurable entity: converted to float (from configurable_values)
-        - Fields with HAEO input entity kept: preserved scalar value from current_data
-        - Fields with real external entities: kept as list[str]
-        - Fields with empty selection but default: set to default value
-        - Fields with empty selection and no default: omitted
+        - Fields with self-referential entity: preserved scalar value from current_data
+        - Fields with single entity: stored as str (single entity ID)
+        - Fields with multiple entities: stored as list[str] (for chaining)
+        - Fields with empty selection: omitted (no default fallback)
 
     """
     config: dict[str, Any] = {}
 
-    # Build a map of field defaults
-    field_defaults: dict[str, Any] = {}
-    if input_fields:
-        for field_info in input_fields:
-            if field_info.default is not None:
-                field_defaults[field_info.field_name] = field_info.default
-
     for field_name, entities in entity_selections.items():
         if not entities:
-            # Empty selection - apply default if available
-            if field_name in field_defaults:
-                config[field_name] = field_defaults[field_name]
-            # Otherwise omit from config (truly optional with no default)
+            # Empty selection - always omit from config
+            # Requiredness is enforced by schema validation, not here
             continue
 
         if any(is_configurable_entity(entity_id) for entity_id in entities):
@@ -728,46 +466,81 @@ def convert_entity_selections_to_config(
             if field_name in configurable_values:
                 config[field_name] = configurable_values[field_name]
             # If configurable entity is selected but no value provided, skip (validation should catch this)
-        elif any(is_haeo_input_entity(entity_id) for entity_id in entities):
-            # HAEO input entity kept selected - preserve original scalar value
-            if current_data is not None and field_name in current_data:
-                current_value = current_data[field_name]
-                if isinstance(current_value, (float, int, bool)):
-                    config[field_name] = current_value
-                else:
-                    # Unexpected: HAEO input entity but no scalar in current_data
-                    config[field_name] = entities
-            else:
-                # No current_data - shouldn't happen but fall back to entity list
-                config[field_name] = entities
+        elif entry_id and subentry_id and _is_self_referential(entities, entry_id, subentry_id, field_name):
+            # Self-referential selection (this field's own entity is selected)
+            # Preserve the original scalar value from current_data
+            if current_data is None:
+                raise HomeAssistantError(
+                    translation_domain=DOMAIN,
+                    translation_key="self_referential_no_current_data",
+                    translation_placeholders={"field": field_name},
+                )
+            if field_name not in current_data:
+                raise HomeAssistantError(
+                    translation_domain=DOMAIN,
+                    translation_key="self_referential_field_missing",
+                    translation_placeholders={"field": field_name},
+                )
+            current_value = current_data[field_name]
+            if not isinstance(current_value, (float, int, bool)):
+                raise HomeAssistantError(
+                    translation_domain=DOMAIN,
+                    translation_key="self_referential_invalid_value",
+                    translation_placeholders={
+                        "field": field_name,
+                        "value_type": type(current_value).__name__,
+                    },
+                )
+            config[field_name] = current_value
         else:
-            # Real external entities - keep as list
-            config[field_name] = entities
+            # Real external entities (including other HAEO entities) - store as entity reference
+            config[field_name] = _normalize_entity_selection(entities)
 
     return config
 
 
+def _is_self_referential(
+    entities: list[str],
+    entry_id: str,
+    subentry_id: str,
+    field_name: str,
+) -> bool:
+    """Check if any selected entity is the self-referential entity for this field.
+
+    Returns True if the entity list contains the entity that would be created
+    from this exact entry_id/subentry_id/field_name combination.
+    """
+    self_entity_id = resolve_configurable_entity_id(entry_id, subentry_id, field_name)
+    if self_entity_id is None:
+        return False
+    return self_entity_id in entities
+
+
+def _normalize_entity_selection(entities: list[str]) -> str | list[str]:
+    """Normalize entity selection to str (single) or list[str] (multiple).
+
+    Single entity selections are stored as strings for v0.1 format compatibility.
+    Multiple entity selections are stored as lists for chaining support.
+    """
+    if len(entities) == 1:
+        return entities[0]
+    return entities
+
+
 __all__ = [
-    "MODE_SUFFIX",
-    "InputMode",
+    "ConfigSchemaType",
     "boolean_selector_from_field",
     "build_configurable_value_schema",
     "build_configurable_value_schema_entry",
     "build_entity_schema_entry",
     "build_entity_selector_with_configurable",
-    "build_mode_schema_entry",
-    "build_mode_selector",
-    "build_value_schema_entry",
     "convert_entity_selections_to_config",
-    "entity_selector_from_field",
     "extract_entity_selections",
     "extract_non_entity_fields",
     "get_configurable_entity_id",
     "get_configurable_value_defaults",
-    "get_mode_defaults",
-    "get_value_defaults",
+    "get_haeo_input_entity_ids",
     "has_configurable_selection",
-    "infer_mode_from_value",
     "is_configurable_entity",
     "is_haeo_input_entity",
     "number_selector_from_field",

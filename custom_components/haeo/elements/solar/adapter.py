@@ -22,11 +22,16 @@ from .schema import (
     CONF_CURTAILMENT,
     CONF_FORECAST,
     CONF_PRICE_PRODUCTION,
-    DEFAULTS,
     ELEMENT_TYPE,
     SolarConfigData,
     SolarConfigSchema,
 )
+
+# Default values for optional fields applied by adapter
+DEFAULTS: Final[dict[str, bool | float]] = {
+    CONF_CURTAILMENT: True,  # Allow curtailment by default
+    CONF_PRICE_PRODUCTION: 0.0,  # No production incentive
+}
 
 # Solar output names
 type SolarOutputName = Literal[
@@ -60,6 +65,39 @@ class SolarAdapter:
         ts_loader = TimeSeriesLoader()
         return ts_loader.available(hass=hass, value=config[CONF_FORECAST])
 
+    def build_config_data(
+        self,
+        loaded_values: Mapping[str, Any],
+        config: SolarConfigSchema,
+    ) -> SolarConfigData:
+        """Build ConfigData from pre-loaded values.
+
+        This is the single source of truth for ConfigData construction.
+        Both load() and the coordinator use this method.
+
+        Args:
+            loaded_values: Dict of field names to loaded values (from input entities or TimeSeriesLoader)
+            config: Original ConfigSchema for non-input fields (element_type, name, connection)
+
+        Returns:
+            SolarConfigData with all fields populated
+
+        """
+        data: SolarConfigData = {
+            "element_type": config["element_type"],
+            "name": config["name"],
+            "connection": config[CONF_CONNECTION],
+            "forecast": list(loaded_values[CONF_FORECAST]),
+        }
+
+        # Optional scalar fields
+        if CONF_PRICE_PRODUCTION in loaded_values:
+            data["price_production"] = float(loaded_values[CONF_PRICE_PRODUCTION])
+        if CONF_CURTAILMENT in loaded_values:
+            data["curtailment"] = bool(loaded_values[CONF_CURTAILMENT])
+
+        return data
+
     async def load(
         self,
         config: SolarConfigSchema,
@@ -67,31 +105,27 @@ class SolarAdapter:
         hass: HomeAssistant,
         forecast_times: Sequence[float],
     ) -> SolarConfigData:
-        """Load solar configuration values from sensors."""
+        """Load solar configuration values from sensors.
+
+        Uses TimeSeriesLoader to load values, then delegates to build_config_data().
+        """
         ts_loader = TimeSeriesLoader()
         const_loader_float = ConstantLoader[float](float)
         const_loader_bool = ConstantLoader[bool](bool)
+        loaded_values: dict[str, list[float] | float | bool] = {}
 
-        forecast = await ts_loader.load_intervals(
-            hass=hass,
-            value=config[CONF_FORECAST],
-            forecast_times=forecast_times,
+        # Load required time series field
+        loaded_values[CONF_FORECAST] = await ts_loader.load_intervals(
+            hass=hass, value=config[CONF_FORECAST], forecast_times=forecast_times
         )
 
-        data: SolarConfigData = {
-            "element_type": config["element_type"],
-            "name": config["name"],
-            "connection": config[CONF_CONNECTION],
-            "forecast": forecast,
-        }
-
-        # Load optional fields
+        # Load optional scalar fields
         if CONF_PRICE_PRODUCTION in config:
-            data["price_production"] = await const_loader_float.load(value=config[CONF_PRICE_PRODUCTION])
+            loaded_values[CONF_PRICE_PRODUCTION] = await const_loader_float.load(value=config[CONF_PRICE_PRODUCTION])
         if CONF_CURTAILMENT in config:
-            data["curtailment"] = await const_loader_bool.load(value=config[CONF_CURTAILMENT])
+            loaded_values[CONF_CURTAILMENT] = await const_loader_bool.load(value=config[CONF_CURTAILMENT])
 
-        return data
+        return self.build_config_data(loaded_values, config)
 
     def model_elements(self, config: SolarConfigData) -> list[dict[str, Any]]:
         """Return model element parameters for Solar configuration."""
@@ -113,7 +147,7 @@ class SolarAdapter:
         self,
         name: str,
         model_outputs: Mapping[str, Mapping[ModelOutputName, OutputData]],
-        _config: SolarConfigData,
+        **_kwargs: Any,
     ) -> Mapping[SolarDeviceName, Mapping[SolarOutputName, OutputData]]:
         """Map model outputs to solar-specific output names."""
         connection = model_outputs[f"{name}:connection"]

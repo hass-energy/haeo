@@ -1,6 +1,6 @@
 """Number entity for HAEO input configuration."""
 
-from collections.abc import Callable
+import asyncio
 from datetime import datetime
 from enum import Enum
 from typing import Any
@@ -66,25 +66,26 @@ class HaeoInputNumber(NumberEntity):
         self.device_entry = device_entry
 
         # Determine mode from config value type
-        # Entity IDs are stored as list[str] from EntitySelector
+        # Entity IDs can be list[str] (new format) or str (v0.1 format)
         # Constants are stored as float from NumberSelector
         config_value = subentry.data.get(field_info.field_name)
 
         if isinstance(config_value, list) and config_value:
-            # DRIVEN mode: value comes from external sensors (non-empty list)
+            # DRIVEN mode: value comes from external sensors (list format)
             self._entity_mode = ConfigEntityMode.DRIVEN
             self._source_entity_ids: list[str] = config_value
             self._attr_native_value = None  # Will be set when data loads
-        elif isinstance(config_value, int | float):
-            # EDITABLE mode: value is a constant
-            self._entity_mode = ConfigEntityMode.EDITABLE
-            self._source_entity_ids = []
-            self._attr_native_value = float(config_value)
+        elif isinstance(config_value, str):
+            # DRIVEN mode: v0.1 format - single entity ID string
+            self._entity_mode = ConfigEntityMode.DRIVEN
+            self._source_entity_ids = [config_value]
+            self._attr_native_value = None  # Will be set when data loads
         else:
-            # EDITABLE mode: no value configured, use default
+            # EDITABLE mode: value is a constant
+            # Config flow ensures fields in subentry.data are either entity IDs or scalars
             self._entity_mode = ConfigEntityMode.EDITABLE
             self._source_entity_ids = []
-            self._attr_native_value = None
+            self._attr_native_value = float(config_value)  # type: ignore[arg-type]
 
         # Unique ID for multi-hub safety: entry_id + subentry_id + field_name
         self._attr_unique_id = f"{config_entry.entry_id}_{subentry.subentry_id}_{field_info.field_name}"
@@ -112,8 +113,9 @@ class HaeoInputNumber(NumberEntity):
 
         # Loader for time series data
         self._loader = TimeSeriesLoader()
-        self._state_unsub: Callable[[], None] | None = None
-        self._horizon_unsub: Callable[[], None] | None = None
+
+        # Event that signals data is ready for coordinator access
+        self._data_ready = asyncio.Event()
 
     def _get_forecast_timestamps(self) -> tuple[float, ...]:
         """Get forecast timestamps from horizon manager."""
@@ -130,33 +132,22 @@ class HaeoInputNumber(NumberEntity):
         await super().async_added_to_hass()
 
         # Subscribe to horizon manager for consistent time windows
-        self._horizon_unsub = self._horizon_manager.subscribe(self._handle_horizon_change)
+        self.async_on_remove(self._horizon_manager.subscribe(self._handle_horizon_change))
 
         if self._entity_mode == ConfigEntityMode.EDITABLE:
-            # Use field default if no config value
-            if self._attr_native_value is None and self._field_info.default is not None:
-                self._attr_native_value = float(self._field_info.default)
             # Update forecast for initial value
             self._update_editable_forecast()
         else:
             # Subscribe to source entity changes for DRIVEN mode
-            self._state_unsub = async_track_state_change_event(
-                self._hass,
-                self._source_entity_ids,
-                self._handle_source_state_change,
+            self.async_on_remove(
+                async_track_state_change_event(
+                    self._hass,
+                    self._source_entity_ids,
+                    self._handle_source_state_change,
+                )
             )
             # Load initial data - await ensures entity is ready when added_to_hass completes
             await self._async_load_data()
-
-    async def async_will_remove_from_hass(self) -> None:
-        """Clean up state tracking."""
-        if self._state_unsub is not None:
-            self._state_unsub()
-            self._state_unsub = None
-        if self._horizon_unsub is not None:
-            self._horizon_unsub()
-            self._horizon_unsub = None
-        await super().async_will_remove_from_hass()
 
     @callback
     def _handle_horizon_change(self) -> None:
@@ -165,8 +156,8 @@ class HaeoInputNumber(NumberEntity):
             self._update_editable_forecast()
             self.async_write_ha_state()
         else:
-            # Re-load data for driven mode
-            self._hass.async_create_task(self._async_load_data())
+            # Re-load data and push state for driven mode
+            self._hass.async_create_task(self._async_load_data_and_update())
 
     @callback
     def _handle_source_state_change(self, _event: Event[EventStateChangedData]) -> None:
@@ -237,6 +228,9 @@ class HaeoInputNumber(NumberEntity):
         self._attr_native_value = values[0]
         self._attr_extra_state_attributes = extra_attrs
 
+        # Signal that data is ready
+        self._data_ready.set()
+
     def _update_editable_forecast(self) -> None:
         """Update forecast attribute for editable mode with constant value."""
         forecast_timestamps = self._get_forecast_timestamps()
@@ -261,6 +255,17 @@ class HaeoInputNumber(NumberEntity):
             extra_attrs["forecast"] = forecast
 
         self._attr_extra_state_attributes = extra_attrs
+
+        # Signal that data is ready
+        self._data_ready.set()
+
+    def is_ready(self) -> bool:
+        """Return True if data has been loaded and entity is ready."""
+        return self._data_ready.is_set()
+
+    async def wait_ready(self) -> None:
+        """Wait for data to be ready."""
+        await self._data_ready.wait()
 
     @property
     def entity_mode(self) -> ConfigEntityMode:

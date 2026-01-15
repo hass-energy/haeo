@@ -20,7 +20,6 @@ from homeassistant.util import dt as dt_util
 from custom_components.haeo.const import (
     CONF_DEBOUNCE_SECONDS,
     CONF_ELEMENT_TYPE,
-    CONF_NAME,
     DEFAULT_DEBOUNCE_SECONDS,
     DOMAIN,
     ELEMENT_TYPE_NETWORK,
@@ -144,7 +143,12 @@ def _build_coordinator_output(
     """
 
     values = tuple(output_data.values)
-    state: Any | None = values[0] if values else None
+    if not values:
+        state = None
+    elif output_data.state_last:
+        state = values[-1]
+    else:
+        state = values[0]
     forecast: list[ForecastPoint] | None = None
 
     if forecast_times and len(values) > 1:
@@ -317,8 +321,10 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         before this handler is registered.
         """
         # Load the updated config for just this element
-        element_config = self._load_element_config(element_name)
-        if element_config is None:
+        try:
+            element_config = self._load_element_config(element_name)
+        except ValueError:
+            _LOGGER.exception("Failed to load config for element %s due to invalid input entities", element_name)
             return
 
         # Update just this element's TrackedParams
@@ -403,49 +409,43 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
 
         return True
 
-    def _load_element_config(self, element_name: str) -> ElementConfigData | None:
+    def _load_element_config(self, element_name: str) -> ElementConfigData:
         """Load configuration for a single element from its input entities.
+
+        Collects loaded values from input entities and delegates to the adapter's
+        build_config_data() method - the single source of truth for ConfigData construction.
 
         Args:
             element_name: Name of the element to load
 
         Returns:
-            Loaded configuration, or None if element not found or data unavailable
+            Loaded configuration
+
+        Raises:
+            ValueError: If element not found, data unavailable, or required field missing
 
         """
         if element_name not in self._participant_configs:
-            return None
+            msg = f"Element '{element_name}' not found in participant configs"
+            raise ValueError(msg)
 
         runtime_data = self._get_runtime_data()
         if runtime_data is None:
-            return None
+            msg = f"Runtime data not available when loading element '{element_name}'"
+            raise ValueError(msg)
 
         element_config = self._participant_configs[element_name]
         element_type = element_config[CONF_ELEMENT_TYPE]
 
         if not is_element_type(element_type):
-            return None
-
-        # Start with the base config (element_type, name)
-        loaded_data: dict[str, Any] = {
-            CONF_ELEMENT_TYPE: element_type,
-            CONF_NAME: element_name,
-        }
+            msg = f"Invalid element type '{element_type}' for element '{element_name}'"
+            raise ValueError(msg)
 
         # Get input field definitions for this element type
         input_field_infos = get_input_fields(element_type)
-        input_field_map = {f.field_name: f for f in input_field_infos}
-        input_field_names = set(input_field_map.keys())
 
-        # Process non-input fields from config first
-        for field_name in element_config:
-            if field_name in (CONF_ELEMENT_TYPE, CONF_NAME):
-                continue
-            if field_name in input_field_names:
-                continue
-            loaded_data[field_name] = element_config[field_name]
-
-        # Load values from input entities
+        # Collect loaded values from input entities
+        loaded_values: dict[str, Any] = {}
         for field_info in input_field_infos:
             field_name = field_info.field_name
             key = (element_name, field_name)
@@ -460,11 +460,18 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
                 continue
 
             if field_info.time_series:
-                loaded_data[field_name] = list(values)
+                loaded_values[field_name] = list(values)
             else:
-                loaded_data[field_name] = values[0] if values else None
+                loaded_values[field_name] = values[0] if values else None
 
-        return loaded_data  # type: ignore[return-value]
+        # Delegate to adapter's build_config_data() - single source of truth
+        adapter = ELEMENT_TYPES[element_type]
+        try:
+            return adapter.build_config_data(loaded_values, element_config)
+        except KeyError as e:
+            field_name = e.args[0] if e.args else "unknown"
+            msg = f"Missing required field '{field_name}' for element '{element_name}'"
+            raise ValueError(msg) from e
 
     def _load_from_input_entities(self) -> dict[str, ElementConfigData]:
         """Load element configurations from input entities.
@@ -485,8 +492,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
 
         for element_name in self._participant_configs:
             element_config = self._load_element_config(element_name)
-            if element_config is not None:
-                loaded_configs[element_name] = element_config
+            loaded_configs[element_name] = element_config
 
         return loaded_configs
 
@@ -609,7 +615,10 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
                 # May return multiple devices per config element (e.g., battery regions)
                 try:
                     adapter_outputs: Mapping[ElementDeviceName, Mapping[ElementOutputName, OutputData]] = outputs_fn(
-                        element_name, model_outputs, loaded_configs[element_name]
+                        name=element_name,
+                        model_outputs=model_outputs,
+                        config=loaded_configs[element_name],
+                        periods=network.periods,
                     )
                 except KeyError:
                     _LOGGER.exception(

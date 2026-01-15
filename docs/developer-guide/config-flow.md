@@ -143,47 +143,50 @@ Each element type has its own flow class in `custom_components/haeo/flows/`:
 
 Each flow defines element-specific schema fields, defaults, and validation logic.
 
-## Two-Step Config Flow Pattern
+## Entity-First Two-Step Config Flow Pattern
 
-Some element types use a two-step configuration flow that separates mode selection from value entry.
-This pattern provides a cleaner user experience when fields can be configured in different ways.
+Most element types use a two-step configuration flow that provides a streamlined user experience.
+Users select entities or "Configurable Entity" for each field, then enter constant values only where needed.
 
 ### Flow Steps
 
-**Step 1 (user)**: User enters the element name, connection target, and selects an **input mode** for each configurable field.
+**Step 1 (user)**: User enters the element name, connection target, and selects entities for each configurable field.
+Each entity selector includes a special "Configurable Entity" option that signals a constant value will be entered.
 
-**Step 2 (values)**: Based on the mode selections, the UI shows appropriate inputs for each field.
+**Step 2 (values)**: Only shown if the user selected "Configurable Entity" for any field.
+The user enters constant values for those fields. Step 2 is skipped if no configurable fields were selected.
 
-### Input Modes
+### Entity Selection Options
 
-The `InputMode` enum defines how each field receives its value:
+Each entity field supports three types of selections:
 
-| Mode          | Description                                            | UI Widget              |
-| ------------- | ------------------------------------------------------ | ---------------------- |
-| `CONSTANT`    | User enters a fixed numeric value                      | NumberSelector         |
-| `ENTITY_LINK` | Value comes from one or more Home Assistant sensors    | EntitySelector (multi) |
-| `NONE`        | Field is disabled (only available for optional fields) | No input shown         |
+| Selection Type      | Description                                  | Step 2 Behavior      |
+| ------------------- | -------------------------------------------- | -------------------- |
+| External Entity     | Value comes from Home Assistant sensors      | No input shown       |
+| Configurable Entity | User enters a constant value                 | Shows NumberSelector |
+| Empty (optional)    | Field is disabled (only for optional fields) | No input shown       |
 
-The `NONE` option only appears for optional fields (those marked with `NotRequired` in the TypedDict schema).
-Required fields only show `CONSTANT` and `ENTITY_LINK` options.
+Required fields must have at least one entity selected (either external or Configurable Entity).
+Optional fields can be left empty to use default values.
 
 ### Implementation Pattern
 
-The two-step flow utilities are in `custom_components/haeo/flows/field_schema.py`:
+The entity-first flow utilities are in `custom_components/haeo/flows/field_schema.py`:
 
-- `build_mode_schema_entry()`: Creates the mode selector for step 1
-- `build_value_schema_entry()`: Creates the value input for step 2 based on selected mode
-- `get_mode_defaults()`: Provides default mode selections based on field types
-- `get_value_defaults()`: Extracts current values for reconfigure flows
+- `build_entity_schema_entry()`: Creates the entity selector for step 1 (includes Configurable Entity)
+- `build_configurable_value_schema()`: Builds step 2 schema for fields with Configurable Entity selected
+- `extract_entity_selections()`: Extracts entity selections from step 1 data
+- `convert_entity_selections_to_config()`: Converts selections to final config format
+- `get_configurable_value_defaults()`: Provides defaults for configurable value entry
 
-Flow handlers store step 1 data and use it to build the step 2 schema dynamically.
-When mode is `NONE`, no value entry is shown and no input entity is created for that field.
+Flow handlers store step 1 data (`_step1_data`) and use it to determine which fields need value entry in step 2.
+The `has_configurable_selection()` helper checks if any field needs a constant value.
 
 ### Entity Creation
 
-Input entities are only created for fields that are actually configured.
-If a user selects `NONE` for an optional field, no entity is created for that field.
-This keeps the entity list clean and focused on configured functionality.
+HAEO creates input entities (number/switch) for fields configured with "Configurable Entity".
+These entities allow runtime adjustment of constant values without reconfiguring the element.
+Fields linked to external entities use those entities directly without creating HAEO input entities.
 
 ## Field Schema System
 

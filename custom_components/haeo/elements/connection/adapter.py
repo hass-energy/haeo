@@ -84,16 +84,24 @@ class ConnectionAdapter:
 
         return True
 
-    async def load(
+    def build_config_data(
         self,
+        loaded_values: Mapping[str, Any],
         config: ConnectionConfigSchema,
-        *,
-        hass: HomeAssistant,
-        forecast_times: Sequence[float],
     ) -> ConnectionConfigData:
-        """Load connection configuration values from sensors."""
-        ts_loader = TimeSeriesLoader()
+        """Build ConfigData from pre-loaded values.
 
+        This is the single source of truth for ConfigData construction.
+        Both load() and the coordinator use this method.
+
+        Args:
+            loaded_values: Dict of field names to loaded values (from input entities or TimeSeriesLoader)
+            config: Original ConfigSchema for non-input fields (element_type, name, source, target)
+
+        Returns:
+            ConnectionConfigData with all fields populated
+
+        """
         data: ConnectionConfigData = {
             "element_type": config["element_type"],
             "name": config["name"],
@@ -101,33 +109,63 @@ class ConnectionAdapter:
             "target": config[CONF_TARGET],
         }
 
+        # Optional time series fields
+        if CONF_MAX_POWER_SOURCE_TARGET in loaded_values:
+            data["max_power_source_target"] = list(loaded_values[CONF_MAX_POWER_SOURCE_TARGET])
+        if CONF_MAX_POWER_TARGET_SOURCE in loaded_values:
+            data["max_power_target_source"] = list(loaded_values[CONF_MAX_POWER_TARGET_SOURCE])
+        if CONF_EFFICIENCY_SOURCE_TARGET in loaded_values:
+            data["efficiency_source_target"] = list(loaded_values[CONF_EFFICIENCY_SOURCE_TARGET])
+        if CONF_EFFICIENCY_TARGET_SOURCE in loaded_values:
+            data["efficiency_target_source"] = list(loaded_values[CONF_EFFICIENCY_TARGET_SOURCE])
+        if CONF_PRICE_SOURCE_TARGET in loaded_values:
+            data["price_source_target"] = list(loaded_values[CONF_PRICE_SOURCE_TARGET])
+        if CONF_PRICE_TARGET_SOURCE in loaded_values:
+            data["price_target_source"] = list(loaded_values[CONF_PRICE_TARGET_SOURCE])
+
+        return data
+
+    async def load(
+        self,
+        config: ConnectionConfigSchema,
+        *,
+        hass: HomeAssistant,
+        forecast_times: Sequence[float],
+    ) -> ConnectionConfigData:
+        """Load connection configuration values from sensors.
+
+        Uses TimeSeriesLoader to load values, then delegates to build_config_data().
+        """
+        ts_loader = TimeSeriesLoader()
+        loaded_values: dict[str, list[float]] = {}
+
         # Load optional time series fields
         if CONF_MAX_POWER_SOURCE_TARGET in config:
-            data["max_power_source_target"] = await ts_loader.load_intervals(
+            loaded_values[CONF_MAX_POWER_SOURCE_TARGET] = await ts_loader.load_intervals(
                 hass=hass, value=config[CONF_MAX_POWER_SOURCE_TARGET], forecast_times=forecast_times
             )
         if CONF_MAX_POWER_TARGET_SOURCE in config:
-            data["max_power_target_source"] = await ts_loader.load_intervals(
+            loaded_values[CONF_MAX_POWER_TARGET_SOURCE] = await ts_loader.load_intervals(
                 hass=hass, value=config[CONF_MAX_POWER_TARGET_SOURCE], forecast_times=forecast_times
             )
         if CONF_EFFICIENCY_SOURCE_TARGET in config:
-            data["efficiency_source_target"] = await ts_loader.load_intervals(
+            loaded_values[CONF_EFFICIENCY_SOURCE_TARGET] = await ts_loader.load_intervals(
                 hass=hass, value=config[CONF_EFFICIENCY_SOURCE_TARGET], forecast_times=forecast_times
             )
         if CONF_EFFICIENCY_TARGET_SOURCE in config:
-            data["efficiency_target_source"] = await ts_loader.load_intervals(
+            loaded_values[CONF_EFFICIENCY_TARGET_SOURCE] = await ts_loader.load_intervals(
                 hass=hass, value=config[CONF_EFFICIENCY_TARGET_SOURCE], forecast_times=forecast_times
             )
         if CONF_PRICE_SOURCE_TARGET in config:
-            data["price_source_target"] = await ts_loader.load_intervals(
+            loaded_values[CONF_PRICE_SOURCE_TARGET] = await ts_loader.load_intervals(
                 hass=hass, value=config[CONF_PRICE_SOURCE_TARGET], forecast_times=forecast_times
             )
         if CONF_PRICE_TARGET_SOURCE in config:
-            data["price_target_source"] = await ts_loader.load_intervals(
+            loaded_values[CONF_PRICE_TARGET_SOURCE] = await ts_loader.load_intervals(
                 hass=hass, value=config[CONF_PRICE_TARGET_SOURCE], forecast_times=forecast_times
             )
 
-        return data
+        return self.build_config_data(loaded_values, config)
 
     def model_elements(self, config: ConnectionConfigData) -> list[dict[str, Any]]:
         """Return model element parameters for Connection configuration."""
@@ -150,7 +188,7 @@ class ConnectionAdapter:
         self,
         name: str,
         model_outputs: Mapping[str, Mapping[ModelOutputName, OutputData]],
-        _config: ConnectionConfigData,
+        **_kwargs: Any,
     ) -> Mapping[ConnectionDeviceName, Mapping[ConnectionOutputName, OutputData]]:
         """Map model outputs to connection-specific output names."""
         connection = model_outputs[name]

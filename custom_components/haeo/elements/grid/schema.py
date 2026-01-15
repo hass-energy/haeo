@@ -5,7 +5,7 @@ from typing import Final, Literal, NotRequired, TypedDict
 from homeassistant.components.number import NumberDeviceClass, NumberEntityDescription
 from homeassistant.const import UnitOfPower
 
-from custom_components.haeo.elements.input_fields import InputFieldInfo
+from custom_components.haeo.elements.input_fields import InputFieldDefaults, InputFieldInfo
 from custom_components.haeo.model.const import OutputType
 
 ELEMENT_TYPE: Final = "grid"
@@ -16,12 +16,6 @@ CONF_EXPORT_PRICE: Final = "export_price"
 CONF_IMPORT_LIMIT: Final = "import_limit"
 CONF_EXPORT_LIMIT: Final = "export_limit"
 CONF_CONNECTION: Final = "connection"
-
-# Default values for optional fields ($/kWh for prices, kW for limits)
-DEFAULT_IMPORT_PRICE: Final[float] = 0.1
-DEFAULT_EXPORT_PRICE: Final[float] = 0.01
-DEFAULT_IMPORT_LIMIT: Final[float] = 30.0
-DEFAULT_EXPORT_LIMIT: Final[float] = 30.0
 
 # Input field definitions for creating input entities
 INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
@@ -65,7 +59,7 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
         output_type=OutputType.POWER_LIMIT,
         time_series=True,
         direction="+",
-        default=DEFAULT_IMPORT_LIMIT,
+        defaults=InputFieldDefaults(mode="value", value=100.0),
     ),
     InputFieldInfo(
         field_name=CONF_EXPORT_LIMIT,
@@ -81,7 +75,7 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
         output_type=OutputType.POWER_LIMIT,
         time_series=True,
         direction="-",
-        default=DEFAULT_EXPORT_LIMIT,
+        defaults=InputFieldDefaults(mode="value", value=100.0),
     ),
 )
 
@@ -91,7 +85,8 @@ class GridConfigSchema(TypedDict):
 
     Schema mode contains entity IDs and constant values from the config flow.
     Values can be:
-    - list[str]: Entity IDs when mode is ENTITY_LINK
+    - list[str]: Entity IDs for chained price forecasts
+    - str: Single entity ID
     - float: Constant value when mode is CONSTANT
     - NotRequired: Field not present when mode is NONE
     """
@@ -101,12 +96,13 @@ class GridConfigSchema(TypedDict):
     connection: str  # Element name to connect to
 
     # Price fields: required (user must select an entity or enter a value)
-    import_price: list[str] | float  # Entity IDs or constant $/kWh
-    export_price: list[str] | float  # Entity IDs or constant $/kWh
+    # Lists supported for chaining current + forecast sensors
+    import_price: list[str] | str | float  # Entity ID(s) or constant $/kWh - list for chaining
+    export_price: list[str] | str | float  # Entity ID(s) or constant $/kWh - list for chaining
 
     # Power limit fields (optional)
-    import_limit: NotRequired[list[str] | float]  # Entity IDs or constant kW
-    export_limit: NotRequired[list[str] | float]  # Entity IDs or constant kW
+    import_limit: NotRequired[str | float]  # Entity ID or constant kW
+    export_limit: NotRequired[str | float]  # Entity ID or constant kW
 
 
 class GridConfigData(TypedDict):

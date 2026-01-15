@@ -1,35 +1,25 @@
 """Tests for flows/field_schema.py utilities."""
 
-from homeassistant.components.number import NumberEntityDescription
-from homeassistant.components.switch import SwitchEntityDescription
-from homeassistant.helpers.selector import BooleanSelector, EntitySelector, NumberSelector
-import pytest
-import voluptuous as vol
+from typing import Any
 
-from custom_components.haeo.elements.input_fields import InputFieldInfo
+from homeassistant.components.number import NumberEntityDescription
+from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
+from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers.selector import BooleanSelector, NumberSelector
+import pytest
+
+from custom_components.haeo.const import DOMAIN
+from custom_components.haeo.elements.input_fields import InputFieldDefaults, InputFieldInfo
 from custom_components.haeo.flows.field_schema import (
-    ConfigSchemaType,
-    InputMode,
     boolean_selector_from_field,
-    build_mode_schema_entry,
-    build_mode_selector,
-    build_value_schema_entry,
-    entity_selector_from_field,
-    get_mode_defaults,
-    get_value_defaults,
-    infer_mode_from_value,
+    convert_entity_selections_to_config,
+    extract_non_entity_fields,
+    get_haeo_input_entity_ids,
+    is_haeo_input_entity,
     number_selector_from_field,
 )
 from custom_components.haeo.model.const import OutputType
-
-# --- Mock types ---
-
-
-class MockConfigSchema(ConfigSchemaType):
-    """Mock config schema for testing."""
-
-    __optional_keys__: frozenset[str] = frozenset({"optional_field"})
-
 
 # --- Fixtures ---
 
@@ -48,37 +38,7 @@ def number_field() -> InputFieldInfo[NumberEntityDescription]:
             native_unit_of_measurement="kW",
         ),
         output_type=OutputType.POWER,
-        default=50.0,
-    )
-
-
-@pytest.fixture
-def switch_field() -> InputFieldInfo[SwitchEntityDescription]:
-    """Create a switch input field for testing."""
-    return InputFieldInfo(
-        field_name="test_switch",
-        entity_description=SwitchEntityDescription(
-            key="test_switch",
-            name="Test Switch",
-        ),
-        output_type=OutputType.STATUS,
-        default=True,
-    )
-
-
-@pytest.fixture
-def required_field() -> InputFieldInfo[NumberEntityDescription]:
-    """Create a required input field (no default) for testing."""
-    return InputFieldInfo(
-        field_name="required_field",
-        entity_description=NumberEntityDescription(
-            key="required_field",
-            name="Required Field",
-            native_min_value=0.0,
-            native_max_value=100.0,
-        ),
-        output_type=OutputType.POWER,
-        default=None,
+        defaults=InputFieldDefaults(mode="value", value=50.0),
     )
 
 
@@ -102,265 +62,431 @@ def test_number_selector_from_field_creates_selector(
     assert isinstance(selector, NumberSelector)
 
 
-# --- Tests for entity_selector_from_field ---
+def test_number_selector_from_field_without_min_max_values() -> None:
+    """Number selector is created when min/max values are None."""
+    field = InputFieldInfo(
+        field_name="price_field",
+        entity_description=NumberEntityDescription(
+            key="price_field",
+            name="Price Field",
+            native_min_value=None,
+            native_max_value=None,
+            native_step=0.01,
+        ),
+        output_type=OutputType.PRICE,
+    )
+    selector = number_selector_from_field(field)
+    assert isinstance(selector, NumberSelector)
+    # Config should not include min/max when None
+    config = selector.config
+    assert "min" not in config
+    assert "max" not in config
 
 
-def test_entity_selector_from_field_creates_selector(
-    number_field: InputFieldInfo[NumberEntityDescription],
-) -> None:
-    """Entity selector is created."""
-    selector = entity_selector_from_field(number_field)
-    assert isinstance(selector, EntitySelector)
-
-
-def test_entity_selector_from_field_with_exclusions(
-    number_field: InputFieldInfo[NumberEntityDescription],
-) -> None:
-    """Entity selector excludes specified entities."""
-    selector = entity_selector_from_field(number_field, exclude_entities=["sensor.excluded"])
-    assert isinstance(selector, EntitySelector)
-
-
-# --- Tests for infer_mode_from_value ---
-
-
-def test_infer_mode_from_value_none_returns_none_mode() -> None:
-    """None value infers NONE mode."""
-    assert infer_mode_from_value(None) == InputMode.NONE
-
-
-def test_infer_mode_from_value_empty_list_returns_none_mode() -> None:
-    """Empty list infers NONE mode."""
-    assert infer_mode_from_value([]) == InputMode.NONE
-
-
-def test_infer_mode_from_value_entity_list_returns_entity_link_mode() -> None:
-    """List of entity IDs infers ENTITY_LINK mode."""
-    assert infer_mode_from_value(["sensor.test"]) == InputMode.ENTITY_LINK
-
-
-def test_infer_mode_from_value_float_returns_constant_mode() -> None:
-    """Float value infers CONSTANT mode."""
-    assert infer_mode_from_value(3.14) == InputMode.CONSTANT
-
-
-def test_infer_mode_from_value_int_returns_constant_mode() -> None:
-    """Int value infers CONSTANT mode."""
-    assert infer_mode_from_value(42) == InputMode.CONSTANT
-
-
-def test_infer_mode_from_value_bool_returns_constant_mode() -> None:
-    """Bool value infers CONSTANT mode."""
-    assert infer_mode_from_value(True) == InputMode.CONSTANT
-    assert infer_mode_from_value(False) == InputMode.CONSTANT
-
-
-def test_infer_mode_from_value_unknown_type_returns_none_mode() -> None:
-    """Unknown type returns NONE mode."""
-    assert infer_mode_from_value({"unknown": "dict"}) == InputMode.NONE
-
-
-# --- Tests for build_mode_selector ---
-
-
-def test_build_mode_selector_with_default_includes_none_option() -> None:
-    """Mode selector with default includes NONE option."""
-    selector = build_mode_selector(has_default=True)
-    assert selector is not None
-
-
-def test_build_mode_selector_without_default_excludes_none_option() -> None:
-    """Mode selector without default excludes NONE option."""
-    selector = build_mode_selector(has_default=False)
-    assert selector is not None
-
-
-# --- Tests for build_mode_schema_entry ---
-
-
-def test_build_mode_schema_entry_optional_field_has_default(
-    number_field: InputFieldInfo[NumberEntityDescription],
-) -> None:
-    """Optional field creates Required schema entry with default of NONE."""
-    schema = MockConfigSchema()
-    schema.__optional_keys__ = frozenset({"test_field"})
-
-    marker, _selector = build_mode_schema_entry(number_field, config_schema=schema)
-
-    assert isinstance(marker, vol.Required)
-    assert marker.schema == "test_field_mode"
-    assert callable(marker.default)
-    assert marker.default() == InputMode.NONE
-
-
-def test_build_mode_schema_entry_required_field_no_default(
-    required_field: InputFieldInfo[NumberEntityDescription],
-) -> None:
-    """Required field creates Required schema entry without default."""
-    schema = MockConfigSchema()
-    schema.__optional_keys__ = frozenset()
-
-    marker, _selector = build_mode_schema_entry(required_field, config_schema=schema)
-
-    assert isinstance(marker, vol.Required)
-    assert marker.schema == "required_field_mode"
-    assert marker.default is vol.UNDEFINED
-
-
-# --- Tests for build_value_schema_entry ---
-
-
-def test_build_value_schema_entry_none_mode_returns_none(
-    number_field: InputFieldInfo[NumberEntityDescription],
-) -> None:
-    """NONE mode returns None schema entry."""
-    result = build_value_schema_entry(number_field, mode=InputMode.NONE)
-    assert result is None
-
-
-def test_build_value_schema_entry_constant_mode_number_field(
-    number_field: InputFieldInfo[NumberEntityDescription],
-) -> None:
-    """CONSTANT mode for number field creates number selector."""
-    result = build_value_schema_entry(number_field, mode=InputMode.CONSTANT)
-    assert result is not None
-    marker, selector = result
-    assert isinstance(marker, vol.Optional)
+def test_number_selector_from_field_without_unit() -> None:
+    """Number selector is created without unit of measurement."""
+    field = InputFieldInfo(
+        field_name="efficiency",
+        entity_description=NumberEntityDescription(
+            key="efficiency",
+            name="Efficiency",
+            native_min_value=0.0,
+            native_max_value=100.0,
+            native_step=1.0,
+            native_unit_of_measurement=None,
+        ),
+        output_type=OutputType.EFFICIENCY,
+    )
+    selector = number_selector_from_field(field)
     assert isinstance(selector, NumberSelector)
 
 
-def test_build_value_schema_entry_constant_mode_switch_field(
-    switch_field: InputFieldInfo[SwitchEntityDescription],
-) -> None:
-    """CONSTANT mode for switch field creates boolean selector."""
-    result = build_value_schema_entry(switch_field, mode=InputMode.CONSTANT)
-    assert result is not None
-    marker, selector = result
-    assert isinstance(marker, vol.Optional)
-    assert isinstance(selector, BooleanSelector)
+# --- Tests for is_haeo_input_entity ---
 
 
-def test_build_value_schema_entry_constant_mode_required_field(
-    required_field: InputFieldInfo[NumberEntityDescription],
-) -> None:
-    """CONSTANT mode for required field creates Required marker."""
-    result = build_value_schema_entry(required_field, mode=InputMode.CONSTANT)
-    assert result is not None
-    marker, _selector = result
-    assert isinstance(marker, vol.Required)
+def test_is_haeo_input_entity_returns_false_for_nonexistent(hass: HomeAssistant) -> None:
+    """is_haeo_input_entity returns False for non-existent entity."""
+    result = is_haeo_input_entity("sensor.does_not_exist")
+    assert result is False
 
 
-def test_build_value_schema_entry_entity_link_mode(
-    number_field: InputFieldInfo[NumberEntityDescription],
-) -> None:
-    """ENTITY_LINK mode creates entity selector."""
-    result = build_value_schema_entry(number_field, mode=InputMode.ENTITY_LINK)
-    assert result is not None
-    marker, _selector = result
-    assert isinstance(marker, vol.Optional)
+def test_is_haeo_input_entity_returns_false_for_non_haeo_platform(hass: HomeAssistant) -> None:
+    """is_haeo_input_entity returns False for entity from different platform."""
+    registry = er.async_get(hass)
+    registry.async_get_or_create(
+        domain="number",
+        platform="other_integration",
+        unique_id="test_number_123",
+        suggested_object_id="other_number",
+    )
+    result = is_haeo_input_entity("number.other_number")
+    assert result is False
 
 
-def test_build_value_schema_entry_entity_link_mode_required(
-    required_field: InputFieldInfo[NumberEntityDescription],
-) -> None:
-    """ENTITY_LINK mode for required field creates Required marker."""
-    result = build_value_schema_entry(required_field, mode=InputMode.ENTITY_LINK)
-    assert result is not None
-    marker, _selector = result
-    assert isinstance(marker, vol.Required)
+def test_is_haeo_input_entity_returns_true_for_haeo_number(hass: HomeAssistant) -> None:
+    """is_haeo_input_entity returns True for HAEO number entity."""
+    registry = er.async_get(hass)
+    entity = registry.async_get_or_create(
+        domain="number",
+        platform=DOMAIN,
+        unique_id="test_number",
+        suggested_object_id="haeo_number",
+    )
+    result = is_haeo_input_entity(entity.entity_id)
+    assert result is True
 
 
-def test_build_value_schema_entry_entity_link_with_exclusions(
-    number_field: InputFieldInfo[NumberEntityDescription],
-) -> None:
-    """ENTITY_LINK mode respects exclude_entities."""
-    result = build_value_schema_entry(number_field, mode=InputMode.ENTITY_LINK, exclude_entities=["sensor.excluded"])
-    assert result is not None
+def test_is_haeo_input_entity_returns_true_for_haeo_switch(hass: HomeAssistant) -> None:
+    """is_haeo_input_entity returns True for HAEO switch entity."""
+    registry = er.async_get(hass)
+    entity = registry.async_get_or_create(
+        domain="switch",
+        platform=DOMAIN,
+        unique_id="test_switch",
+        suggested_object_id="haeo_switch",
+    )
+    result = is_haeo_input_entity(entity.entity_id)
+    assert result is True
 
 
-# --- Tests for get_mode_defaults ---
+def test_is_haeo_input_entity_returns_false_for_haeo_sensor(hass: HomeAssistant) -> None:
+    """is_haeo_input_entity returns False for HAEO sensor (not an input entity)."""
+    registry = er.async_get(hass)
+    entity = registry.async_get_or_create(
+        domain="sensor",
+        platform=DOMAIN,
+        unique_id="test_sensor",
+        suggested_object_id="haeo_sensor",
+    )
+    result = is_haeo_input_entity(entity.entity_id)
+    assert result is False
 
 
-def test_get_mode_defaults_new_entry_optional_field(
-    number_field: InputFieldInfo[NumberEntityDescription],
-) -> None:
-    """New entry optional field defaults to NONE."""
-    schema = MockConfigSchema()
-    schema.__optional_keys__ = frozenset({"test_field"})
-
-    defaults = get_mode_defaults((number_field,), schema)
-
-    assert defaults["test_field_mode"] == InputMode.NONE
+# --- Tests for get_haeo_input_entity_ids ---
 
 
-def test_get_mode_defaults_new_entry_required_field(
-    required_field: InputFieldInfo[NumberEntityDescription],
-) -> None:
-    """New entry required field defaults to CONSTANT."""
-    schema = MockConfigSchema()
-    schema.__optional_keys__ = frozenset()
-
-    defaults = get_mode_defaults((required_field,), schema)
-
-    assert defaults["required_field_mode"] == InputMode.CONSTANT
-
-
-def test_get_mode_defaults_reconfigure_preserves_mode(
-    number_field: InputFieldInfo[NumberEntityDescription],
-) -> None:
-    """Reconfigure preserves existing mode."""
-    schema = MockConfigSchema()
-    current_data = {"test_field": ["sensor.test"]}
-
-    defaults = get_mode_defaults((number_field,), schema, current_data)
-
-    assert defaults["test_field_mode"] == InputMode.ENTITY_LINK
+def test_get_haeo_input_entity_ids_returns_empty_for_no_haeo_entities(hass: HomeAssistant) -> None:
+    """get_haeo_input_entity_ids returns empty list when no HAEO input entities exist."""
+    registry = er.async_get(hass)
+    # Create non-HAEO entities only
+    registry.async_get_or_create(
+        domain="number",
+        platform="other_integration",
+        unique_id="external_number",
+        suggested_object_id="external",
+    )
+    result = get_haeo_input_entity_ids()
+    # Result should not include non-HAEO entities
+    assert "number.external" not in result
 
 
-# --- Tests for get_value_defaults ---
+def test_get_haeo_input_entity_ids_includes_haeo_number_and_switch(hass: HomeAssistant) -> None:
+    """get_haeo_input_entity_ids includes HAEO number and switch entities."""
+    registry = er.async_get(hass)
+    # Create HAEO number entity
+    number_entity = registry.async_get_or_create(
+        domain="number",
+        platform=DOMAIN,
+        unique_id="test_number",
+        suggested_object_id="haeo_number",
+    )
+    # Create HAEO switch entity
+    switch_entity = registry.async_get_or_create(
+        domain="switch",
+        platform=DOMAIN,
+        unique_id="test_switch",
+        suggested_object_id="haeo_switch",
+    )
+    # Create non-HAEO entity
+    registry.async_get_or_create(
+        domain="number",
+        platform="other_integration",
+        unique_id="external",
+        suggested_object_id="external_number",
+    )
+    result = get_haeo_input_entity_ids()
+    assert number_entity.entity_id in result
+    assert switch_entity.entity_id in result
+    assert "number.external_number" not in result
 
 
-def test_get_value_defaults_new_entry_uses_default(
-    number_field: InputFieldInfo[NumberEntityDescription],
-) -> None:
-    """New entry uses field default for constant mode."""
-    modes: dict[str, str] = {"test_field_mode": InputMode.CONSTANT}
-
-    defaults = get_value_defaults((number_field,), modes)
-
-    assert defaults["test_field"] == 50.0
-
-
-def test_get_value_defaults_reconfigure_preserves_value(
-    number_field: InputFieldInfo[NumberEntityDescription],
-) -> None:
-    """Reconfigure preserves current value when mode matches."""
-    modes: dict[str, str] = {"test_field_mode": InputMode.CONSTANT}
-    current_data = {"test_field": 75.0}
-
-    defaults = get_value_defaults((number_field,), modes, current_data)
-
-    assert defaults["test_field"] == 75.0
+def test_get_haeo_input_entity_ids_excludes_haeo_sensors(hass: HomeAssistant) -> None:
+    """get_haeo_input_entity_ids excludes HAEO sensor entities."""
+    registry = er.async_get(hass)
+    # Create HAEO sensor (not an input entity)
+    sensor_entity = registry.async_get_or_create(
+        domain="sensor",
+        platform=DOMAIN,
+        unique_id="test_sensor",
+        suggested_object_id="haeo_sensor",
+    )
+    result = get_haeo_input_entity_ids()
+    assert sensor_entity.entity_id not in result
 
 
-def test_get_value_defaults_mode_change_uses_default(
-    number_field: InputFieldInfo[NumberEntityDescription],
-) -> None:
-    """Mode change from ENTITY_LINK to CONSTANT uses default."""
-    modes: dict[str, str] = {"test_field_mode": InputMode.CONSTANT}
-    current_data = {"test_field": ["sensor.test"]}
-
-    defaults = get_value_defaults((number_field,), modes, current_data)
-
-    assert defaults["test_field"] == 50.0
+# --- Tests for extract_non_entity_fields ---
 
 
-def test_get_value_defaults_none_mode_excluded(
-    number_field: InputFieldInfo[NumberEntityDescription],
-) -> None:
-    """NONE mode fields are not included in defaults."""
-    modes: dict[str, str] = {"test_field_mode": InputMode.NONE}
+def test_extract_non_entity_fields_extracts_non_list_values() -> None:
+    """extract_non_entity_fields extracts non-list values from step data."""
+    step1_data = {
+        "name": "Test Element",
+        "connection": "main_bus",
+        "import_price": ["sensor.price"],  # List - should be excluded
+        "export_price": ["sensor.export"],  # List - should be excluded
+    }
+    result = extract_non_entity_fields(step1_data)
+    assert result == {"name": "Test Element", "connection": "main_bus"}
 
-    defaults = get_value_defaults((number_field,), modes)
 
-    assert "test_field" not in defaults
+def test_extract_non_entity_fields_respects_exclude_keys() -> None:
+    """extract_non_entity_fields excludes specified keys."""
+    step1_data = {
+        "name": "Test Element",
+        "connection": "main_bus",
+        "capacity": 10.5,
+    }
+    result = extract_non_entity_fields(step1_data, exclude_keys=("name", "connection"))
+    assert result == {"capacity": 10.5}
+
+
+def test_extract_non_entity_fields_returns_empty_for_all_lists() -> None:
+    """extract_non_entity_fields returns empty dict when all values are lists."""
+    step1_data = {
+        "import_price": ["sensor.price"],
+        "export_price": ["sensor.export"],
+    }
+    result = extract_non_entity_fields(step1_data)
+    assert result == {}
+
+
+# --- Tests for convert_entity_selections_to_config ---
+
+
+def test_convert_empty_selection_omitted() -> None:
+    """Empty entity selection is omitted from config."""
+    entity_selections: dict[str, list[str]] = {"field1": []}
+    configurable_values: dict[str, Any] = {}
+
+    result = convert_entity_selections_to_config(entity_selections, configurable_values)
+
+    assert "field1" not in result
+
+
+def test_convert_configurable_entity_uses_configurable_value(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Configurable entity selection uses value from configurable_values."""
+    monkeypatch.setattr(
+        "custom_components.haeo.flows.field_schema.is_configurable_entity",
+        lambda entity_id: entity_id == "number.haeo_configure_power",
+    )
+    entity_selections = {"power": ["number.haeo_configure_power"]}
+    configurable_values: dict[str, Any] = {"power": 10.5}
+
+    result = convert_entity_selections_to_config(entity_selections, configurable_values)
+
+    assert result["power"] == 10.5
+
+
+def test_convert_configurable_entity_without_value_omitted(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Configurable entity without value in configurable_values is omitted."""
+    monkeypatch.setattr(
+        "custom_components.haeo.flows.field_schema.is_configurable_entity",
+        lambda entity_id: entity_id == "number.haeo_configure_power",
+    )
+    entity_selections = {"power": ["number.haeo_configure_power"]}
+    configurable_values: dict[str, Any] = {}
+
+    result = convert_entity_selections_to_config(entity_selections, configurable_values)
+
+    assert "power" not in result
+
+
+def test_convert_external_entity_single_stored_as_string() -> None:
+    """Single external entity is stored as string."""
+    entity_selections = {"power": ["sensor.grid_power"]}
+    configurable_values: dict[str, Any] = {}
+
+    result = convert_entity_selections_to_config(entity_selections, configurable_values)
+
+    assert result["power"] == "sensor.grid_power"
+
+
+def test_convert_external_entity_multiple_stored_as_list() -> None:
+    """Multiple external entities are stored as list."""
+    entity_selections = {"power": ["sensor.power1", "sensor.power2"]}
+    configurable_values: dict[str, Any] = {}
+
+    result = convert_entity_selections_to_config(entity_selections, configurable_values)
+
+    assert result["power"] == ["sensor.power1", "sensor.power2"]
+
+
+def test_convert_self_referential_entity_preserves_float(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Self-referential entity selection preserves float from current_data."""
+    monkeypatch.setattr(
+        "custom_components.haeo.flows.field_schema.resolve_configurable_entity_id",
+        lambda _entry_id, _subentry_id, _field_name: "number.haeo_entry1_sub1_capacity",
+    )
+    entity_selections = {"capacity": ["number.haeo_entry1_sub1_capacity"]}
+    configurable_values: dict[str, Any] = {}
+    current_data: dict[str, Any] = {"capacity": 13.5}
+
+    result = convert_entity_selections_to_config(
+        entity_selections,
+        configurable_values,
+        current_data=current_data,
+        entry_id="entry1",
+        subentry_id="sub1",
+    )
+
+    assert result["capacity"] == 13.5
+
+
+def test_convert_self_referential_entity_preserves_int(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Self-referential entity selection preserves int from current_data."""
+    monkeypatch.setattr(
+        "custom_components.haeo.flows.field_schema.resolve_configurable_entity_id",
+        lambda _entry_id, _subentry_id, _field_name: "number.haeo_entry1_sub1_capacity",
+    )
+    entity_selections = {"capacity": ["number.haeo_entry1_sub1_capacity"]}
+    configurable_values: dict[str, Any] = {}
+    current_data: dict[str, Any] = {"capacity": 10}
+
+    result = convert_entity_selections_to_config(
+        entity_selections,
+        configurable_values,
+        current_data=current_data,
+        entry_id="entry1",
+        subentry_id="sub1",
+    )
+
+    assert result["capacity"] == 10
+
+
+def test_convert_self_referential_entity_preserves_bool(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Self-referential entity selection preserves boolean from current_data."""
+    monkeypatch.setattr(
+        "custom_components.haeo.flows.field_schema.resolve_configurable_entity_id",
+        lambda _entry_id, _subentry_id, _field_name: "switch.haeo_entry1_sub1_enabled",
+    )
+    entity_selections = {"enabled": ["switch.haeo_entry1_sub1_enabled"]}
+    configurable_values: dict[str, Any] = {}
+    current_data: dict[str, Any] = {"enabled": True}
+
+    result = convert_entity_selections_to_config(
+        entity_selections,
+        configurable_values,
+        current_data=current_data,
+        entry_id="entry1",
+        subentry_id="sub1",
+    )
+
+    assert result["enabled"] is True
+
+
+def test_convert_self_referential_without_current_data_raises_error(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Self-referential entity without current_data raises HomeAssistantError."""
+    monkeypatch.setattr(
+        "custom_components.haeo.flows.field_schema.resolve_configurable_entity_id",
+        lambda _entry_id, _subentry_id, _field_name: "number.haeo_entry1_sub1_capacity",
+    )
+    entity_selections = {"capacity": ["number.haeo_entry1_sub1_capacity"]}
+    configurable_values: dict[str, Any] = {}
+
+    with pytest.raises(HomeAssistantError) as exc_info:
+        convert_entity_selections_to_config(
+            entity_selections,
+            configurable_values,
+            current_data=None,
+            entry_id="entry1",
+            subentry_id="sub1",
+        )
+
+    assert exc_info.value.translation_key == "self_referential_no_current_data"
+    assert exc_info.value.translation_placeholders == {"field": "capacity"}
+
+
+def test_convert_self_referential_with_non_scalar_raises_error(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Self-referential entity with non-scalar value raises HomeAssistantError."""
+    monkeypatch.setattr(
+        "custom_components.haeo.flows.field_schema.resolve_configurable_entity_id",
+        lambda _entry_id, _subentry_id, _field_name: "number.haeo_entry1_sub1_capacity",
+    )
+    entity_selections = {"capacity": ["number.haeo_entry1_sub1_capacity"]}
+    configurable_values: dict[str, Any] = {}
+    current_data: dict[str, Any] = {"capacity": ["sensor.external"]}  # List, not scalar
+
+    with pytest.raises(HomeAssistantError) as exc_info:
+        convert_entity_selections_to_config(
+            entity_selections,
+            configurable_values,
+            current_data=current_data,
+            entry_id="entry1",
+            subentry_id="sub1",
+        )
+
+    assert exc_info.value.translation_key == "self_referential_invalid_value"
+    assert exc_info.value.translation_placeholders == {"field": "capacity", "value_type": "list"}
+
+
+def test_convert_other_haeo_entity_stored_as_reference(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Other HAEO entity (not self-referential) is stored as entity reference."""
+    monkeypatch.setattr(
+        "custom_components.haeo.flows.field_schema.resolve_configurable_entity_id",
+        lambda _entry_id, _subentry_id, _field_name: "number.haeo_entry1_sub1_capacity",
+    )
+    # This is a DIFFERENT HAEO entity (from another element)
+    entity_selections = {"capacity": ["number.haeo_entry1_other_sub_capacity"]}
+    configurable_values: dict[str, Any] = {}
+    current_data: dict[str, Any] = {"capacity": 13.5}
+
+    result = convert_entity_selections_to_config(
+        entity_selections,
+        configurable_values,
+        current_data=current_data,
+        entry_id="entry1",
+        subentry_id="sub1",
+    )
+
+    # Should be stored as entity reference, NOT preserve scalar
+    assert result["capacity"] == "number.haeo_entry1_other_sub_capacity"
+
+
+def test_convert_no_entry_id_treats_as_external() -> None:
+    """Without entry_id, any entity is treated as external (stored as reference)."""
+    entity_selections = {"capacity": ["number.haeo_battery_capacity"]}
+    configurable_values: dict[str, Any] = {}
+    current_data: dict[str, Any] = {"capacity": 13.5}
+
+    result = convert_entity_selections_to_config(
+        entity_selections,
+        configurable_values,
+        current_data=current_data,
+        # No entry_id or subentry_id
+    )
+
+    # Without entry_id, can't determine self-reference, so store as entity
+    assert result["capacity"] == "number.haeo_battery_capacity"
+
+
+def test_convert_self_referential_field_not_in_current_data_raises_error(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Self-referential entity with field not in current_data raises HomeAssistantError."""
+    monkeypatch.setattr(
+        "custom_components.haeo.flows.field_schema.resolve_configurable_entity_id",
+        lambda _entry_id, _subentry_id, _field_name: "number.haeo_entry1_sub1_capacity",
+    )
+    entity_selections = {"capacity": ["number.haeo_entry1_sub1_capacity"]}
+    configurable_values: dict[str, Any] = {}
+    current_data: dict[str, Any] = {"other_field": 10.0}
+
+    with pytest.raises(HomeAssistantError) as exc_info:
+        convert_entity_selections_to_config(
+            entity_selections,
+            configurable_values,
+            current_data=current_data,
+            entry_id="entry1",
+            subentry_id="sub1",
+        )
+
+    assert exc_info.value.translation_key == "self_referential_field_missing"
+    assert exc_info.value.translation_placeholders == {"field": "capacity"}

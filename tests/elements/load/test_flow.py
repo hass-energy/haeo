@@ -37,10 +37,11 @@ async def test_reconfigure_with_deleted_connection_target(hass: HomeAssistant, h
     flow._get_reconfigure_subentry = Mock(return_value=existing_subentry)
 
     # Show reconfigure form - should not error
+    # Entity-first pattern uses step_id="user" for both new and reconfigure
     result = await flow.async_step_reconfigure(user_input=None)
 
     assert result.get("type") == FlowResultType.FORM
-    assert result.get("step_id") == "reconfigure"
+    assert result.get("step_id") == "user"
 
 
 async def test_get_participant_names_skips_unknown_element_types(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
@@ -67,26 +68,110 @@ async def test_get_participant_names_skips_unknown_element_types(hass: HomeAssis
     assert "Unknown" not in participants
 
 
-async def test_get_current_subentry_id_returns_none_for_user_flow(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
-    """_get_current_subentry_id should return None during user flow (not reconfigure)."""
+async def test_get_subentry_returns_none_for_user_flow(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
+    """_get_subentry should return None during user flow (not reconfigure)."""
     flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
 
     # During user flow, _get_reconfigure_subentry will raise
-    subentry_id = flow._get_current_subentry_id()
+    subentry = flow._get_subentry()
 
-    assert subentry_id is None
+    assert subentry is None
 
 
-async def test_schema_accepts_empty_forecast_list(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
-    """Schema validation should accept empty forecast entity list (defaults to 0 power)."""
+async def test_reconfigure_with_string_entity_id_v010_format(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
+    """Reconfigure with v0.1.0 string entity ID should show entity in defaults."""
     add_participant(hass, hub_entry, "TestNode", node.ELEMENT_TYPE)
 
+    # Create existing entry with v0.1.0 format: string entity ID (not list, not scalar)
+    existing_config = {
+        CONF_ELEMENT_TYPE: ELEMENT_TYPE,
+        CONF_NAME: "Test Load",
+        CONF_CONNECTION: "TestNode",
+        CONF_FORECAST: "sensor.load_forecast",  # Simulating v0.1.0 single string entity ID
+    }
+    existing_subentry = ConfigSubentry(
+        data=MappingProxyType(existing_config),
+        subentry_type=ELEMENT_TYPE,
+        title="Test Load",
+        unique_id=None,
+    )
+    hass.config_entries.async_add_subentry(hub_entry, existing_subentry)
+
     flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
+    flow.context = {"subentry_id": existing_subentry.subentry_id}
+    flow._get_reconfigure_subentry = Mock(return_value=existing_subentry)
 
-    # Get form to obtain the schema
-    result = await flow.async_step_user(user_input=None)
-    schema = result.get("data_schema")
+    # Show reconfigure form (user_input=None)
+    result = await flow.async_step_reconfigure(user_input=None)
 
-    # Empty forecast list should be valid
-    validated = schema({CONF_NAME: "Test Load", CONF_CONNECTION: "TestNode", CONF_FORECAST: []})
-    assert validated[CONF_FORECAST] == []
+    assert result.get("type") == FlowResultType.FORM
+    assert result.get("step_id") == "user"
+
+    # Check defaults - should have the string entity ID wrapped in a list
+    defaults = flow._build_step1_defaults("Test Load", dict(existing_subentry.data))
+
+    # Defaults should contain the original entity ID as a list
+    assert defaults[CONF_FORECAST] == ["sensor.load_forecast"]
+
+
+async def test_reconfigure_with_scalar_value_shows_configurable_entity(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
+    """Reconfigure with scalar value should show configurable entity in defaults."""
+    from custom_components.haeo.flows.field_schema import get_configurable_entity_id
+
+    add_participant(hass, hub_entry, "TestNode", node.ELEMENT_TYPE)
+
+    # Create existing entry with scalar value (from configurable entity setup)
+    existing_config = {
+        CONF_ELEMENT_TYPE: ELEMENT_TYPE,
+        CONF_NAME: "Test Load",
+        CONF_CONNECTION: "TestNode",
+        CONF_FORECAST: 100.0,  # Scalar value, not entity link
+    }
+    existing_subentry = ConfigSubentry(
+        data=MappingProxyType(existing_config),
+        subentry_type=ELEMENT_TYPE,
+        title="Test Load",
+        unique_id=None,
+    )
+    hass.config_entries.async_add_subentry(hub_entry, existing_subentry)
+
+    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
+    flow.context = {"subentry_id": existing_subentry.subentry_id}
+    flow._get_reconfigure_subentry = Mock(return_value=existing_subentry)
+
+    # Check defaults - should resolve to configurable entity since no HAEO entity exists
+    defaults = flow._build_step1_defaults("Test Load", dict(existing_subentry.data))
+
+    # Without a registered HAEO entity, resolves to configurable entity
+    configurable_entity_id = get_configurable_entity_id()
+    assert defaults[CONF_FORECAST] == [configurable_entity_id]
+
+
+async def test_reconfigure_with_missing_field_shows_empty_selection(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
+    """Reconfigure with missing field should show empty selection in defaults."""
+    add_participant(hass, hub_entry, "TestNode", node.ELEMENT_TYPE)
+
+    # Create existing entry without forecast field (simulating missing optional field)
+    existing_config = {
+        CONF_ELEMENT_TYPE: ELEMENT_TYPE,
+        CONF_NAME: "Test Load",
+        CONF_CONNECTION: "TestNode",
+        # CONF_FORECAST intentionally missing to test else branch
+    }
+    existing_subentry = ConfigSubentry(
+        data=MappingProxyType(existing_config),
+        subentry_type=ELEMENT_TYPE,
+        title="Test Load",
+        unique_id=None,
+    )
+    hass.config_entries.async_add_subentry(hub_entry, existing_subentry)
+
+    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
+    flow.context = {"subentry_id": existing_subentry.subentry_id}
+    flow._get_reconfigure_subentry = Mock(return_value=existing_subentry)
+
+    # Check defaults - missing field should show empty selection
+    defaults = flow._build_step1_defaults("Test Load", dict(existing_subentry.data))
+
+    # Missing field should result in empty selection
+    assert defaults[CONF_FORECAST] == []

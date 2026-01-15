@@ -53,6 +53,31 @@ class LoadAdapter:
         ts_loader = TimeSeriesLoader()
         return ts_loader.available(hass=hass, value=config[CONF_FORECAST])
 
+    def build_config_data(
+        self,
+        loaded_values: Mapping[str, Any],
+        config: LoadConfigSchema,
+    ) -> LoadConfigData:
+        """Build ConfigData from pre-loaded values.
+
+        This is the single source of truth for ConfigData construction.
+        Both load() and the coordinator use this method.
+
+        Args:
+            loaded_values: Dict of field names to loaded values (from input entities or TimeSeriesLoader)
+            config: Original ConfigSchema for non-input fields (element_type, name, connection)
+
+        Returns:
+            LoadConfigData with all fields populated
+
+        """
+        return {
+            "element_type": config["element_type"],
+            "name": config["name"],
+            "connection": config[CONF_CONNECTION],
+            "forecast": list(loaded_values[CONF_FORECAST]),
+        }
+
     async def load(
         self,
         config: LoadConfigSchema,
@@ -60,20 +85,18 @@ class LoadAdapter:
         hass: HomeAssistant,
         forecast_times: Sequence[float],
     ) -> LoadConfigData:
-        """Load load configuration values from sensors."""
+        """Load load configuration values from sensors.
+
+        Uses TimeSeriesLoader to load values, then delegates to build_config_data().
+        """
         ts_loader = TimeSeriesLoader()
-        forecast = await ts_loader.load_intervals(
-            hass=hass,
-            value=config[CONF_FORECAST],
-            forecast_times=forecast_times,
+        loaded_values: dict[str, list[float]] = {}
+
+        loaded_values[CONF_FORECAST] = await ts_loader.load_intervals(
+            hass=hass, value=config[CONF_FORECAST], forecast_times=forecast_times
         )
 
-        return {
-            "element_type": config["element_type"],
-            "name": config["name"],
-            "connection": config[CONF_CONNECTION],
-            "forecast": forecast,
-        }
+        return self.build_config_data(loaded_values, config)
 
     def model_elements(self, config: LoadConfigData) -> list[dict[str, Any]]:
         """Create model elements for Load configuration."""
@@ -96,7 +119,7 @@ class LoadAdapter:
         self,
         name: str,
         model_outputs: Mapping[str, Mapping[ModelOutputName, OutputData]],
-        _config: LoadConfigData,
+        **_kwargs: Any,
     ) -> Mapping[LoadDeviceName, Mapping[LoadOutputName, OutputData]]:
         """Map model outputs to load-specific output names."""
         connection = model_outputs[f"{name}:connection"]

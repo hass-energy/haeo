@@ -14,7 +14,7 @@ VALID: list[dict[str, Any]] = [
                 {
                     "duration": 5,
                     "date": "2025-10-05",
-                    "per_kwh": 0.13,
+                    "advanced_price_predicted": 0.13,
                     "start_time": "2025-10-05T11:00:01+00:00",
                     "end_time": "2025-10-05T11:05:00+00:00",
                 }
@@ -32,13 +32,13 @@ VALID: list[dict[str, Any]] = [
             "Forecasts": [
                 {
                     "duration": 5,
-                    "per_kwh": 0.13,
+                    "advanced_price_predicted": 0.13,
                     "start_time": "2025-10-05T11:00:01+00:00",
                     "end_time": "2025-10-05T11:05:00+00:00",
                 },
                 {
                     "duration": 5,
-                    "per_kwh": 0.15,
+                    "advanced_price_predicted": 0.15,
                     "start_time": "2025-10-05T11:05:01+00:00",
                     "end_time": "2025-10-05T11:10:00+00:00",
                 },
@@ -56,7 +56,7 @@ VALID: list[dict[str, Any]] = [
             "channel_type": "feedin",
             "Forecasts": [
                 {
-                    "per_kwh": 0.05,
+                    "advanced_price_predicted": 0.05,
                     "start_time": "2025-10-05T11:00:01+00:00",
                     "end_time": "2025-10-05T11:05:00+00:00",
                 }
@@ -65,7 +65,7 @@ VALID: list[dict[str, Any]] = [
         "expected_format": "amber2mqtt",
         "expected_unit": "$/kWh",
         "expected_data": [(1759662000.0, -0.05), (1759662300.0, -0.05)],
-        "description": "Amber2MQTT feed-in sensor (per_kwh should be negated)",
+        "description": "Amber2MQTT feed-in sensor (advanced_price_predicted should be negated)",
     },
     {
         "entity_id": "sensor.amber2mqtt_feedin_tariff",
@@ -74,7 +74,7 @@ VALID: list[dict[str, Any]] = [
             "channel_type": "feedin",
             "Forecasts": [
                 {
-                    "per_kwh": 0.08,
+                    "advanced_price_predicted": 0.08,
                     "start_time": "2025-10-05T11:00:01+00:00",
                     "end_time": "2025-10-05T11:05:00+00:00",
                 }
@@ -83,7 +83,7 @@ VALID: list[dict[str, Any]] = [
         "expected_format": "amber2mqtt",
         "expected_unit": "$/kWh",
         "expected_data": [(1759662000.0, -0.08), (1759662300.0, -0.08)],
-        "description": "Amber2MQTT feedin sensor (alternative naming, per_kwh should be negated)",
+        "description": "Amber2MQTT feedin sensor (alternative naming, advanced_price_predicted should be negated)",
     },
     {
         "entity_id": "sensor.amber2mqtt_datetime_objects",
@@ -91,12 +91,12 @@ VALID: list[dict[str, Any]] = [
         "attributes": {
             "Forecasts": [
                 {
-                    "per_kwh": 0.13,
+                    "advanced_price_predicted": 0.13,
                     "start_time": datetime(2025, 10, 5, 11, 0, 0, tzinfo=UTC),
                     "end_time": datetime(2025, 10, 5, 11, 5, 0, tzinfo=UTC),
                 },
                 {
-                    "per_kwh": 0.16,
+                    "advanced_price_predicted": 0.16,
                     "start_time": datetime(2025, 10, 5, 11, 30, 0, tzinfo=UTC),
                     "end_time": datetime(2025, 10, 5, 11, 35, 0, tzinfo=UTC),
                 },
@@ -115,9 +115,9 @@ INVALID: list[dict[str, Any]] = [
         "state": "0.13",
         "attributes": {
             "Forecasts": [
-                {"per_kwh": 0.13},
+                {"advanced_price_predicted": 0.13},
                 {"start_time": "2025-10-05T11:00:01+00:00"},
-                {"per_kwh": "invalid", "start_time": "2025-10-05T11:00:01+00:00"},
+                {"advanced_price_predicted": "invalid", "start_time": "2025-10-05T11:00:01+00:00"},
             ]
         },
         "expected_format": None,
@@ -126,14 +126,14 @@ INVALID: list[dict[str, Any]] = [
     {
         "entity_id": "sensor.amber2mqtt_missing_end_time",
         "state": "0.13",
-        "attributes": {"Forecasts": [{"start_time": "2025-10-05T11:00:01+00:00", "per_kwh": 0.13}]},
+        "attributes": {"Forecasts": [{"start_time": "2025-10-05T11:00:01+00:00", "advanced_price_predicted": 0.13}]},
         "expected_format": None,
         "description": "Amber2MQTT forecast missing end_time",
     },
     {
         "entity_id": "sensor.amber2mqtt_bad_timestamp",
         "state": "0.13",
-        "attributes": {"Forecasts": [{"start_time": "not a timestamp", "end_time": "2025-10-05T11:05:00+00:00", "per_kwh": 0.1}]},
+        "attributes": {"Forecasts": [{"start_time": "not a timestamp", "end_time": "2025-10-05T11:05:00+00:00", "advanced_price_predicted": 0.1}]},
         "expected_format": None,
         "description": "Amber2MQTT forecast with invalid timestamp",
     },

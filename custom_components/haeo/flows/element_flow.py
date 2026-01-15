@@ -2,8 +2,8 @@
 
 This module provides:
 - get_unit_spec_for_output_type(): Map OutputType to UnitSpec for entity filtering
-- build_exclusion_map(): Generate field → incompatible entities mapping from INPUT_FIELDS
-- filter_incompatible_entities(): Filter entity metadata by unit compatibility
+- build_inclusion_map(): Generate field → compatible entities mapping from INPUT_FIELDS
+- filter_compatible_entities(): Filter entity metadata by unit compatibility
 - build_participant_selector(): Create dropdown selector for element names
 - ElementFlowMixin: Mixin providing common subentry flow functionality
 """
@@ -51,38 +51,38 @@ def get_unit_spec_for_output_type(output_type: OutputType) -> UnitSpec | list[Un
             return None
 
 
-def filter_incompatible_entities(
+def filter_compatible_entities(
     entity_metadata: list[EntityMetadata],
     accepted_units: UnitSpec | list[UnitSpec],
 ) -> list[str]:
-    """Return entity IDs that are NOT compatible with the accepted units.
+    """Return entity IDs that ARE compatible with the accepted units.
 
     Args:
         entity_metadata: List of entity metadata from extract_entity_metadata.
         accepted_units: UnitSpec or list of UnitSpecs to match against.
 
     Returns:
-        List of entity IDs that should be excluded from selection.
+        List of entity IDs that should be included in selection.
 
     """
-    return [v.entity_id for v in entity_metadata if not v.is_compatible_with(accepted_units)]
+    return [v.entity_id for v in entity_metadata if v.is_compatible_with(accepted_units)]
 
 
-def build_exclusion_map(
+def build_inclusion_map(
     input_fields: tuple[InputFieldInfo[Any], ...],
     entity_metadata: list[EntityMetadata],
 ) -> dict[str, list[str]]:
-    """Build field name → incompatible entity IDs mapping from INPUT_FIELDS.
+    """Build field name → compatible entity IDs mapping from INPUT_FIELDS.
 
-    This dynamically generates the exclusion map by looking up each field's
-    output_type and computing which entities are incompatible.
+    This dynamically generates the inclusion map by looking up each field's
+    output_type and computing which entities are compatible.
 
     Args:
         input_fields: Tuple of InputFieldInfo from element's schema.
         entity_metadata: List of entity metadata from extract_entity_metadata.
 
     Returns:
-        Dict mapping field names to lists of entity IDs to exclude.
+        Dict mapping field names to lists of entity IDs to include.
 
     """
     result: dict[str, list[str]] = {}
@@ -90,7 +90,7 @@ def build_exclusion_map(
     for field_info in input_fields:
         unit_spec = get_unit_spec_for_output_type(field_info.output_type)
         if unit_spec is not None:
-            result[field_info.field_name] = filter_incompatible_entities(entity_metadata, unit_spec)
+            result[field_info.field_name] = filter_compatible_entities(entity_metadata, unit_spec)
 
     return result
 
@@ -225,8 +225,8 @@ class ElementFlowMixin:
 
 __all__ = [
     "ElementFlowMixin",
-    "build_exclusion_map",
+    "build_inclusion_map",
     "build_participant_selector",
-    "filter_incompatible_entities",
+    "filter_compatible_entities",
     "get_unit_spec_for_output_type",
 ]

@@ -75,6 +75,40 @@ class InverterAdapter:
             return False
         return ts_loader.available(hass=hass, value=config[CONF_MAX_POWER_AC_TO_DC])
 
+    def build_config_data(
+        self,
+        loaded_values: Mapping[str, Any],
+        config: InverterConfigSchema,
+    ) -> InverterConfigData:
+        """Build ConfigData from pre-loaded values.
+
+        This is the single source of truth for ConfigData construction.
+        Both load() and the coordinator use this method.
+
+        Args:
+            loaded_values: Dict of field names to loaded values (from input entities or TimeSeriesLoader)
+            config: Original ConfigSchema for non-input fields (element_type, name, connection)
+
+        Returns:
+            InverterConfigData with all fields populated
+
+        """
+        data: InverterConfigData = {
+            "element_type": config["element_type"],
+            "name": config["name"],
+            "connection": config[CONF_CONNECTION],
+            "max_power_dc_to_ac": list(loaded_values[CONF_MAX_POWER_DC_TO_AC]),
+            "max_power_ac_to_dc": list(loaded_values[CONF_MAX_POWER_AC_TO_DC]),
+        }
+
+        # Optional scalar efficiency fields
+        if CONF_EFFICIENCY_DC_TO_AC in loaded_values:
+            data["efficiency_dc_to_ac"] = float(loaded_values[CONF_EFFICIENCY_DC_TO_AC])
+        if CONF_EFFICIENCY_AC_TO_DC in loaded_values:
+            data["efficiency_ac_to_dc"] = float(loaded_values[CONF_EFFICIENCY_AC_TO_DC])
+
+        return data
+
     async def load(
         self,
         config: InverterConfigSchema,
@@ -82,36 +116,29 @@ class InverterAdapter:
         hass: HomeAssistant,
         forecast_times: Sequence[float],
     ) -> InverterConfigData:
-        """Load inverter configuration values from sensors."""
+        """Load inverter configuration values from sensors.
+
+        Uses TimeSeriesLoader to load values, then delegates to build_config_data().
+        """
         ts_loader = TimeSeriesLoader()
         const_loader = ConstantLoader[float](float)
+        loaded_values: dict[str, list[float] | float] = {}
 
-        max_power_dc_to_ac = await ts_loader.load_intervals(
-            hass=hass,
-            value=config[CONF_MAX_POWER_DC_TO_AC],
-            forecast_times=forecast_times,
+        # Load required time series fields
+        loaded_values[CONF_MAX_POWER_DC_TO_AC] = await ts_loader.load_intervals(
+            hass=hass, value=config[CONF_MAX_POWER_DC_TO_AC], forecast_times=forecast_times
         )
-        max_power_ac_to_dc = await ts_loader.load_intervals(
-            hass=hass,
-            value=config[CONF_MAX_POWER_AC_TO_DC],
-            forecast_times=forecast_times,
+        loaded_values[CONF_MAX_POWER_AC_TO_DC] = await ts_loader.load_intervals(
+            hass=hass, value=config[CONF_MAX_POWER_AC_TO_DC], forecast_times=forecast_times
         )
 
-        data: InverterConfigData = {
-            "element_type": config["element_type"],
-            "name": config["name"],
-            "connection": config[CONF_CONNECTION],
-            "max_power_dc_to_ac": max_power_dc_to_ac,
-            "max_power_ac_to_dc": max_power_ac_to_dc,
-        }
-
-        # Load optional fields
+        # Load optional scalar fields
         if CONF_EFFICIENCY_DC_TO_AC in config:
-            data["efficiency_dc_to_ac"] = await const_loader.load(value=config[CONF_EFFICIENCY_DC_TO_AC])
+            loaded_values[CONF_EFFICIENCY_DC_TO_AC] = await const_loader.load(value=config[CONF_EFFICIENCY_DC_TO_AC])
         if CONF_EFFICIENCY_AC_TO_DC in config:
-            data["efficiency_ac_to_dc"] = await const_loader.load(value=config[CONF_EFFICIENCY_AC_TO_DC])
+            loaded_values[CONF_EFFICIENCY_AC_TO_DC] = await const_loader.load(value=config[CONF_EFFICIENCY_AC_TO_DC])
 
-        return data
+        return self.build_config_data(loaded_values, config)
 
     def model_elements(self, config: InverterConfigData) -> list[dict[str, Any]]:
         """Return model element parameters for Inverter configuration.
@@ -143,7 +170,7 @@ class InverterAdapter:
         self,
         name: str,
         model_outputs: Mapping[str, Mapping[ModelOutputName, OutputData]],
-        _config: InverterConfigData,
+        **_kwargs: Any,
     ) -> Mapping[InverterDeviceName, Mapping[InverterOutputName, OutputData]]:
         """Map model outputs to inverter-specific output names."""
         connection = model_outputs[f"{name}:connection"]

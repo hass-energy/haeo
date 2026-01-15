@@ -110,7 +110,6 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "name": "battery_main:balance:undercharge:normal",
                 "upper": "battery_main:normal",
                 "lower": "battery_main:undercharge",
-                "capacity_lower": [0.5, 0.5],
             },
             # Balance connection: normal -> overcharge
             {
@@ -118,7 +117,6 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "name": "battery_main:balance:normal:overcharge",
                 "upper": "battery_main:overcharge",
                 "lower": "battery_main:normal",
-                "capacity_lower": [8.0, 8.0],
             },
             # Main connection to network
             {
@@ -394,5 +392,5 @@ def test_model_elements(case: CreateCase) -> None:
 def test_outputs_mapping(case: OutputsCase) -> None:
     """Verify adapter maps model outputs to device outputs."""
     entry = ELEMENT_TYPES["battery"]
-    result = entry.outputs(case["name"], case["model_outputs"], case["data"])
+    result = entry.outputs(case["name"], case["model_outputs"], config=case["data"])
     assert result == case["outputs"]

@@ -9,7 +9,7 @@ import voluptuous as vol
 
 from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME, DOMAIN
 from custom_components.haeo.data.loader.extractors import extract_entity_metadata
-from custom_components.haeo.flows.element_flow import ElementFlowMixin, build_exclusion_map, build_participant_selector
+from custom_components.haeo.flows.element_flow import ElementFlowMixin, build_inclusion_map, build_participant_selector
 from custom_components.haeo.flows.field_schema import (
     build_configurable_value_schema,
     build_entity_schema_entry,
@@ -62,11 +62,11 @@ class GridSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
 
         current_connection = subentry_data.get(CONF_CONNECTION) if subentry_data else None
         entity_metadata = extract_entity_metadata(self.hass)
-        exclusion_map = build_exclusion_map(INPUT_FIELDS, entity_metadata)
+        inclusion_map = build_inclusion_map(INPUT_FIELDS, entity_metadata)
         participants = self._get_participant_names()
         schema = self._build_step1_schema(
             participants,
-            exclusion_map,
+            inclusion_map,
             current_connection,
         )
         defaults = user_input if user_input is not None else self._build_step1_defaults(default_name, subentry_data)
@@ -77,7 +77,7 @@ class GridSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
     def _build_step1_schema(
         self,
         participants: list[str],
-        exclusion_map: dict[str, list[str]],
+        inclusion_map: dict[str, list[str]],
         current_connection: str | None = None,
     ) -> vol.Schema:
         """Build the schema for step 1: name, connection, and entity selections."""
@@ -92,11 +92,11 @@ class GridSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         }
 
         for field_info in INPUT_FIELDS:
-            exclude_entities = exclusion_map[field_info.field_name]
+            include_entities = inclusion_map.get(field_info.field_name)
             marker, selector = build_entity_schema_entry(
                 field_info,
                 config_schema=GridConfigSchema,
-                exclude_entities=exclude_entities,
+                include_entities=include_entities,
             )
             schema_dict[marker] = selector
 
@@ -123,8 +123,8 @@ class GridSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
 
         schema = build_configurable_value_schema(INPUT_FIELDS, entity_selections, current_data)
 
-        # Skip step 2 if no configurable fields need input (reconfigure with existing values)
-        if current_data is not None and not schema.schema:
+        # Skip step 2 if no configurable fields need input
+        if not schema.schema:
             configurable_values = get_configurable_value_defaults(INPUT_FIELDS, entity_selections, current_data)
             config = self._build_config(entity_selections, configurable_values, current_data)
             return self._finalize(config)
@@ -135,14 +135,23 @@ class GridSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         return self.async_show_form(step_id="values", data_schema=schema, errors=errors)
 
     def _build_step1_defaults(self, default_name: str, subentry_data: dict[str, Any] | None = None) -> dict[str, Any]:
-        """Build default values for step 1 form."""
+        """Build default values for step 1 form.
+
+        Uses the InputFieldDefaults.mode to determine pre-selection:
+        - mode='value': Pre-select the configurable entity
+        - mode='entity': Pre-select the specified entity (not yet implemented)
+        - mode=None: No pre-selection (empty list)
+        """
         configurable_entity_id = get_configurable_entity_id()
 
         if subentry_data is None:
-            # First setup: show configurable entity for fields with defaults, empty for required
-            defaults: dict[str, Any] = {
-                field.field_name: [] if field.default is None else [configurable_entity_id] for field in INPUT_FIELDS
-            }
+            # First setup: pre-select configurable entity when defaults.mode == "value"
+            defaults: dict[str, Any] = {}
+            for field in INPUT_FIELDS:
+                if field.defaults is not None and field.defaults.mode == "value":
+                    defaults[field.field_name] = [configurable_entity_id]
+                else:
+                    defaults[field.field_name] = []
             defaults[CONF_NAME] = default_name
             defaults[CONF_CONNECTION] = None
             return defaults
@@ -157,18 +166,18 @@ class GridSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         for field in INPUT_FIELDS:
             value = subentry_data.get(field.field_name)
             if isinstance(value, list):
-                # Entity link: use stored entity IDs
+                # Entity link (multi-select): use stored entity IDs
                 entity_defaults[field.field_name] = value
-            elif field.field_name in subentry_data:
+            elif isinstance(value, str):
+                # Entity ID (single-select from v0.1.0): use as-is
+                entity_defaults[field.field_name] = [value]
+            elif isinstance(value, (float, int, bool)):
                 # Scalar value: resolve to the HAEO-created entity
                 resolved = resolve_configurable_entity_id(entry_id, subentry_id, field.field_name)
                 entity_defaults[field.field_name] = [resolved or configurable_entity_id]
-            elif field.default is None:
-                # Required field with no value: empty selection
-                entity_defaults[field.field_name] = []
             else:
-                # Optional field with default: show configurable entity
-                entity_defaults[field.field_name] = [configurable_entity_id]
+                # Field not in stored data: empty selection (user cleared it)
+                entity_defaults[field.field_name] = []
 
         return {
             CONF_NAME: subentry_data.get(CONF_NAME),
@@ -185,8 +194,15 @@ class GridSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         """Build final config dict from step data."""
         name = self._step1_data.get(CONF_NAME)
         connection = self._step1_data.get(CONF_CONNECTION)
+        entry = self._get_entry()
+        subentry = self._get_subentry()
         config_dict = convert_entity_selections_to_config(
-            entity_selections, configurable_values, INPUT_FIELDS, current_data
+            entity_selections,
+            configurable_values,
+            INPUT_FIELDS,
+            current_data,
+            entry_id=entry.entry_id,
+            subentry_id=subentry.subentry_id if subentry else None,
         )
         return cast(
             "GridConfigSchema",
@@ -230,13 +246,16 @@ class GridSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         user_input: dict[str, Any],
         errors: dict[str, str],
     ) -> bool:
-        """Validate that configurable values were provided where needed."""
+        """Validate that configurable values were provided where needed.
+
+        Step 2 values are always required when configurable entity is selected.
+        """
         for field_info in INPUT_FIELDS:
             field_name = field_info.field_name
             is_configurable = has_configurable_selection(entity_selections.get(field_name, []))
             is_missing = field_name not in user_input
-            is_required = field_name not in GridConfigSchema.__optional_keys__ or field_info.default is None
-            if is_configurable and is_missing and is_required:
+            # Always require a value when configurable is selected
+            if is_configurable and is_missing:
                 errors[field_name] = "required"
 
         return not errors

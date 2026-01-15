@@ -14,9 +14,6 @@ ELEMENT_TYPE: Final = "load"
 CONF_FORECAST: Final = "forecast"
 CONF_CONNECTION: Final = "connection"
 
-# Default value for empty forecast (kW)
-DEFAULT_FORECAST: Final[float] = 0.0
-
 # Input field definitions for creating input entities
 INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
     InputFieldInfo(
@@ -33,7 +30,6 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
         output_type=OutputType.POWER,
         direction="+",
         time_series=True,
-        default=DEFAULT_FORECAST,
     ),
 )
 
@@ -47,7 +43,7 @@ class LoadConfigSchema(TypedDict):
     element_type: Literal["load"]
     name: str
     connection: str  # Element name to connect to
-    forecast: list[str] | float  # Entity IDs for power forecast sensors or constant value (kW)
+    forecast: list[str] | str | float  # Entity ID(s) or constant kW - list for chaining
 
 
 class LoadConfigData(TypedDict):

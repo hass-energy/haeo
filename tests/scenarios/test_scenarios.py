@@ -170,10 +170,12 @@ async def test_scenarios(
 
         # Create visualizations from the output sensors
         _LOGGER.info("Starting visualization process...")
+        coordinator = runtime_data.coordinator
         visualize_scenario_results(
             output_sensors,
             scenario_path.name,
             scenario_path / "visualizations",
+            coordinator.network,
         )
 
         # Compare actual outputs with expected outputs using snapshot
