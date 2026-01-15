@@ -26,7 +26,7 @@ graph LR
     end
 
     subgraph "Adapter Layer"
-        Create["create_model_elements()"]
+        Create["model_elements()"]
         Map["outputs()"]
     end
 
@@ -48,8 +48,10 @@ graph LR
 
 The adapter layer provides two transformation functions per element type:
 
-**Configuration → Model** (`create_model_elements`): Transforms user configuration into model element specifications.
+**Configuration → Model** (`model_elements`): Transforms user configuration into model element specifications.
 Called during network construction before optimization.
+The adapter returns `ModelElementConfig` dictionaries with a discriminated `element_type`.
+Use model-layer element type constants from `custom_components/haeo/model/elements/__init__.py`.
 
 **Model → Devices** (`outputs`): Transforms optimization results into device-specific outputs with user-friendly names.
 Called after optimization to populate sensors.
@@ -101,7 +103,7 @@ To add a new Device Layer element:
 1. Create element subfolder `elements/{element_type}/` with:
     - `schema.py`: Define `ConfigSchema` and `ConfigData` TypedDicts
     - `flow.py`: Implement config flow with voluptuous schemas
-    - `adapter.py`: Implement `available()`, `load()`, `create_model_elements()`, `outputs()`
+    - `adapter.py`: Implement `available()`, `load()`, `model_elements()`, `outputs()`
 2. Register `ElementRegistryEntry` in `elements/__init__.py` `ELEMENT_TYPES` dictionary
 3. Add translations in `translations/en.json`
 4. Write tests in `tests/elements/{element_type}/`
@@ -112,7 +114,7 @@ See existing element modules in [`custom_components/haeo/elements/`](https://git
 
 The adapter layer integrates at two points in HAEO's execution:
 
-**Network construction**: [`coordinator/network.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/coordinator/network.py) calls `create_model_elements()` for each configured element to build the optimization network.
+**Network construction**: [`coordinator/network.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/coordinator/network.py) calls `model_elements()` for each configured element to build the optimization network.
 The `create_network()` function assembles all element specifications and adds them to the network.
 
 **Output processing**: [`coordinator/coordinator.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/coordinator/coordinator.py) calls `outputs()` after optimization to transform results into device sensor values.
