@@ -462,7 +462,7 @@ async def test_async_update_data_raises_on_missing_model_element(
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
     fake_network = Network(name="net", periods=[1.0] * 1)
     # Network must have at least one element for HiGHS to optimize (empty networks are rejected)
-    fake_network.add("node", "dummy_node")
+    fake_network.add({"element_type": "node", "name": "dummy_node"})
 
     def broken_outputs(_name: str, _outputs: object, _config: object) -> dict[str, dict[str, OutputData]]:
         msg = "missing model element"
