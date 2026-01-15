@@ -10,6 +10,7 @@ from custom_components.haeo.elements import solar as solar_element
 from custom_components.haeo.elements.solar import SolarConfigData
 from custom_components.haeo.model import ModelOutputName
 from custom_components.haeo.model.const import OutputType
+from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE
 from custom_components.haeo.model.elements import power_connection
 from custom_components.haeo.model.output_data import OutputData
 
@@ -43,9 +44,9 @@ CREATE_CASES: Sequence[CreateCase] = [
             curtailment=False,
         ),
         "model": [
-            {"element_type": "node", "name": "pv_main", "is_source": True, "is_sink": False},
+            {"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "pv_main", "is_source": True, "is_sink": False},
             {
-                "element_type": "connection",
+                "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
                 "name": "pv_main:connection",
                 "source": "pv_main",
                 "target": "network",

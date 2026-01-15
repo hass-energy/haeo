@@ -8,6 +8,11 @@ import numpy as np
 import pytest
 
 from custom_components.haeo.model import Network
+from custom_components.haeo.model.elements import (
+    MODEL_ELEMENT_TYPE_BATTERY,
+    MODEL_ELEMENT_TYPE_CONNECTION,
+    MODEL_ELEMENT_TYPE_NODE,
+)
 from custom_components.haeo.model.elements.battery import Battery
 from custom_components.haeo.model.elements.power_connection import PowerConnection
 
@@ -19,17 +24,21 @@ def test_battery_update_capacity_modifies_soc_constraints() -> None:
     network = Network(name="test", periods=[1.0, 1.0, 1.0])
 
     # Add battery and run initial optimization
-    network.add("battery", "battery", capacity=10.0, initial_charge=5.0)
-    network.add("node", "grid", is_source=True, is_sink=True)
     network.add(
-        "connection",
-        "battery_grid",
-        source="battery",
-        target="grid",
-        max_power_source_target=5.0,
-        max_power_target_source=5.0,
-        price_source_target=-0.10,  # Export pays
-        price_target_source=0.15,  # Import costs
+        {"element_type": MODEL_ELEMENT_TYPE_BATTERY, "name": "battery", "capacity": 10.0, "initial_charge": 5.0}
+    )
+    network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "grid", "is_source": True, "is_sink": True})
+    network.add(
+        {
+            "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
+            "name": "battery_grid",
+            "source": "battery",
+            "target": "grid",
+            "max_power_source_target": 5.0,
+            "max_power_target_source": 5.0,
+            "price_source_target": -0.10,  # Export pays
+            "price_target_source": 0.15,  # Import costs
+        }
     )
 
     # First optimization
@@ -56,15 +65,19 @@ def test_battery_update_initial_charge_modifies_constraint() -> None:
     """Test that setting initial_charge invalidates the initial state constraint."""
     network = Network(name="test", periods=[1.0])
 
-    network.add("battery", "battery", capacity=10.0, initial_charge=2.0)
-    network.add("node", "grid", is_source=True, is_sink=True)
     network.add(
-        "connection",
-        "battery_grid",
-        source="battery",
-        target="grid",
-        max_power_source_target=10.0,
-        price_source_target=-0.10,
+        {"element_type": MODEL_ELEMENT_TYPE_BATTERY, "name": "battery", "capacity": 10.0, "initial_charge": 2.0}
+    )
+    network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "grid", "is_source": True, "is_sink": True})
+    network.add(
+        {
+            "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
+            "name": "battery_grid",
+            "source": "battery",
+            "target": "grid",
+            "max_power_source_target": 10.0,
+            "price_source_target": -0.10,
+        }
     )
 
     # First optimization
@@ -92,7 +105,9 @@ def test_battery_update_with_sequence_capacity() -> None:
     """Test setting capacity with a sequence value."""
     network = Network(name="test", periods=[1.0, 1.0, 1.0])
 
-    network.add("battery", "battery", capacity=10.0, initial_charge=5.0)
+    network.add(
+        {"element_type": MODEL_ELEMENT_TYPE_BATTERY, "name": "battery", "capacity": 10.0, "initial_charge": 5.0}
+    )
     network.optimize()
 
     battery = network.elements["battery"]
@@ -112,15 +127,17 @@ def test_connection_update_max_power_source_target() -> None:
     """Test setting max_power_source_target invalidates constraint bounds."""
     network = Network(name="test", periods=[1.0, 1.0, 1.0])
 
-    network.add("node", "source", is_source=True, is_sink=False)
-    network.add("node", "sink", is_source=False, is_sink=True)
+    network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "source", "is_source": True, "is_sink": False})
+    network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "sink", "is_source": False, "is_sink": True})
     network.add(
-        "connection",
-        "conn",
-        source="source",
-        target="sink",
-        max_power_source_target=5.0,
-        price_source_target=0.10,
+        {
+            "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
+            "name": "conn",
+            "source": "source",
+            "target": "sink",
+            "max_power_source_target": 5.0,
+            "price_source_target": 0.10,
+        }
     )
 
     # First optimization
@@ -144,16 +161,18 @@ def test_connection_update_price_source_target() -> None:
     """Test setting price_source_target invalidates objective coefficients."""
     network = Network(name="test", periods=[1.0, 1.0, 1.0])
 
-    network.add("node", "source", is_source=True, is_sink=False)
-    network.add("node", "sink", is_source=False, is_sink=True)
+    network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "source", "is_source": True, "is_sink": False})
+    network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "sink", "is_source": False, "is_sink": True})
     network.add(
-        "connection",
-        "conn",
-        source="source",
-        target="sink",
-        max_power_source_target=5.0,
-        fixed_power=True,  # Force flow to happen
-        price_source_target=0.10,
+        {
+            "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
+            "name": "conn",
+            "source": "source",
+            "target": "sink",
+            "max_power_source_target": 5.0,
+            "fixed_power": True,  # Force flow to happen
+            "price_source_target": 0.10,
+        }
     )
 
     # First optimization - cost = 5 kW * 3 hours * $0.10/kWh = $1.50
@@ -176,15 +195,17 @@ def test_connection_update_max_power_target_source() -> None:
     """Test setting max_power_target_source invalidates constraint bounds."""
     network = Network(name="test", periods=[1.0])
 
-    network.add("node", "source", is_source=True, is_sink=True)
-    network.add("node", "sink", is_source=True, is_sink=True)
+    network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "source", "is_source": True, "is_sink": True})
+    network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "sink", "is_source": True, "is_sink": True})
     network.add(
-        "connection",
-        "conn",
-        source="source",
-        target="sink",
-        max_power_source_target=5.0,
-        max_power_target_source=3.0,
+        {
+            "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
+            "name": "conn",
+            "source": "source",
+            "target": "sink",
+            "max_power_source_target": 5.0,
+            "max_power_target_source": 3.0,
+        }
     )
 
     network.optimize()
@@ -201,17 +222,21 @@ def test_connection_update_price_target_source() -> None:
     network = Network(name="test", periods=[1.0])
 
     # Battery starts empty, needs to charge from grid
-    network.add("battery", "battery", capacity=10.0, initial_charge=0.0)
-    network.add("node", "grid", is_source=True, is_sink=True)
     network.add(
-        "connection",
-        "conn",
-        source="battery",
-        target="grid",
-        max_power_source_target=5.0,
-        max_power_target_source=5.0,
-        price_source_target=0.0,
-        price_target_source=0.15,  # Cost to import from grid to battery
+        {"element_type": MODEL_ELEMENT_TYPE_BATTERY, "name": "battery", "capacity": 10.0, "initial_charge": 0.0}
+    )
+    network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "grid", "is_source": True, "is_sink": True})
+    network.add(
+        {
+            "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
+            "name": "conn",
+            "source": "battery",
+            "target": "grid",
+            "max_power_source_target": 5.0,
+            "max_power_target_source": 5.0,
+            "price_source_target": 0.0,
+            "price_target_source": 0.15,  # Cost to import from grid to battery
+        }
     )
 
     # With no incentive to charge and a cost to charge, optimizer won't charge
@@ -237,15 +262,17 @@ def test_connection_update_with_sequence_values() -> None:
     """Test setting connection parameters with sequence values."""
     network = Network(name="test", periods=[1.0, 1.0, 1.0])
 
-    network.add("node", "source", is_source=True, is_sink=False)
-    network.add("node", "sink", is_source=False, is_sink=True)
+    network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "source", "is_source": True, "is_sink": False})
+    network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "sink", "is_source": False, "is_sink": True})
     network.add(
-        "connection",
-        "conn",
-        source="source",
-        target="sink",
-        max_power_source_target=5.0,
-        price_source_target=0.10,
+        {
+            "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
+            "name": "conn",
+            "source": "source",
+            "target": "sink",
+            "max_power_source_target": 5.0,
+            "price_source_target": 0.10,
+        }
     )
 
     network.optimize()
@@ -265,34 +292,42 @@ def test_warm_start_produces_same_result() -> None:
     """Test that warm start optimization produces same result as cold start."""
     # Create first network (cold start)
     network1 = Network(name="test1", periods=[1.0, 1.0, 1.0])
-    network1.add("battery", "battery", capacity=10.0, initial_charge=5.0)
-    network1.add("node", "grid", is_source=True, is_sink=True)
     network1.add(
-        "connection",
-        "conn",
-        source="battery",
-        target="grid",
-        max_power_source_target=5.0,
-        max_power_target_source=5.0,
-        price_source_target=-0.10,
-        price_target_source=0.15,
+        {"element_type": MODEL_ELEMENT_TYPE_BATTERY, "name": "battery", "capacity": 10.0, "initial_charge": 5.0}
+    )
+    network1.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "grid", "is_source": True, "is_sink": True})
+    network1.add(
+        {
+            "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
+            "name": "conn",
+            "source": "battery",
+            "target": "grid",
+            "max_power_source_target": 5.0,
+            "max_power_target_source": 5.0,
+            "price_source_target": -0.10,
+            "price_target_source": 0.15,
+        }
     )
     cost1 = network1.optimize()
 
     # Create second network (warm start simulation)
     network2 = Network(name="test2", periods=[1.0, 1.0, 1.0])
     # First add with initial parameters
-    network2.add("battery", "battery", capacity=5.0, initial_charge=2.0)
-    network2.add("node", "grid", is_source=True, is_sink=True)
     network2.add(
-        "connection",
-        "conn",
-        source="battery",
-        target="grid",
-        max_power_source_target=2.0,
-        max_power_target_source=2.0,
-        price_source_target=-0.05,
-        price_target_source=0.08,
+        {"element_type": MODEL_ELEMENT_TYPE_BATTERY, "name": "battery", "capacity": 5.0, "initial_charge": 2.0}
+    )
+    network2.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "grid", "is_source": True, "is_sink": True})
+    network2.add(
+        {
+            "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
+            "name": "conn",
+            "source": "battery",
+            "target": "grid",
+            "max_power_source_target": 2.0,
+            "max_power_target_source": 2.0,
+            "price_source_target": -0.05,
+            "price_target_source": 0.08,
+        }
     )
     # First optimization
     network2.optimize()
@@ -322,29 +357,33 @@ def test_network_add_connection_updates_prices() -> None:
     """Test that updating connection via network.add updates prices correctly."""
     network = Network(name="test", periods=[1.0])
 
-    network.add("node", "source", is_source=True, is_sink=False)
-    network.add("node", "sink", is_source=False, is_sink=True)
+    network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "source", "is_source": True, "is_sink": False})
+    network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "sink", "is_source": False, "is_sink": True})
     network.add(
-        "connection",
-        "conn",
-        source="source",
-        target="sink",
-        max_power_source_target=5.0,
-        fixed_power=True,
-        price_source_target=0.10,
+        {
+            "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
+            "name": "conn",
+            "source": "source",
+            "target": "sink",
+            "max_power_source_target": 5.0,
+            "fixed_power": True,
+            "price_source_target": 0.10,
+        }
     )
 
     cost1 = network.optimize()
 
     # Update via network.add (simulating coordinator flow)
     network.add(
-        "connection",
-        "conn",
-        source="source",
-        target="sink",
-        max_power_source_target=5.0,
-        fixed_power=True,
-        price_source_target=0.20,
+        {
+            "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
+            "name": "conn",
+            "source": "source",
+            "target": "sink",
+            "max_power_source_target": 5.0,
+            "fixed_power": True,
+            "price_source_target": 0.20,
+        }
     )
 
     cost2 = network.optimize()
@@ -361,17 +400,21 @@ def test_solver_structure_unchanged_after_update() -> None:
     """
     network = Network(name="test", periods=[1.0, 1.0, 1.0])
 
-    network.add("battery", "battery", capacity=10.0, initial_charge=5.0)
-    network.add("node", "grid", is_source=True, is_sink=True)
     network.add(
-        "connection",
-        "conn",
-        source="battery",
-        target="grid",
-        max_power_source_target=5.0,
-        max_power_target_source=5.0,
-        price_source_target=-0.10,
-        price_target_source=0.15,
+        {"element_type": MODEL_ELEMENT_TYPE_BATTERY, "name": "battery", "capacity": 10.0, "initial_charge": 5.0}
+    )
+    network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "grid", "is_source": True, "is_sink": True})
+    network.add(
+        {
+            "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
+            "name": "conn",
+            "source": "battery",
+            "target": "grid",
+            "max_power_source_target": 5.0,
+            "max_power_target_source": 5.0,
+            "price_source_target": -0.10,
+            "price_target_source": 0.15,
+        }
     )
 
     # First optimization - establish baseline structure

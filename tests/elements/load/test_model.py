@@ -10,6 +10,7 @@ from custom_components.haeo.elements import load as load_element
 from custom_components.haeo.elements.load import LoadConfigData
 from custom_components.haeo.model import ModelOutputName
 from custom_components.haeo.model.const import OutputType
+from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE
 from custom_components.haeo.model.elements import power_connection
 from custom_components.haeo.model.output_data import OutputData
 
@@ -41,9 +42,9 @@ CREATE_CASES: Sequence[CreateCase] = [
             forecast=[1.0, 2.0],
         ),
         "model": [
-            {"element_type": "node", "name": "load_main", "is_source": False, "is_sink": True},
+            {"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "load_main", "is_source": False, "is_sink": True},
             {
-                "element_type": "connection",
+                "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
                 "name": "load_main:connection",
                 "source": "load_main",
                 "target": "network",

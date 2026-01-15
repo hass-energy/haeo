@@ -4,16 +4,23 @@ This module re-exports all element classes for convenient imports.
 """
 
 from dataclasses import dataclass
-from typing import Final, Literal
+from typing import Final
 
 from .battery import BATTERY_OUTPUT_NAMES as BATTERY_OUTPUT_NAMES
 from .battery import BATTERY_POWER_CONSTRAINTS as BATTERY_POWER_CONSTRAINTS
+from .battery import ELEMENT_TYPE as MODEL_ELEMENT_TYPE_BATTERY
 from .battery import Battery as Battery
 from .battery import BatteryConstraintName as BatteryConstraintName
+from .battery import BatteryElementConfig as BatteryElementConfig
+from .battery import BatteryElementTypeName as BatteryElementTypeName
 from .battery import BatteryOutputName as BatteryOutputName
 from .battery_balance_connection import BATTERY_BALANCE_CONNECTION_OUTPUT_NAMES
-from .battery_balance_connection import ELEMENT_TYPE as MODEL_ELEMENT_BATTERY_BALANCE_CONNECTION
+from .battery_balance_connection import ELEMENT_TYPE as MODEL_ELEMENT_TYPE_BATTERY_BALANCE_CONNECTION
 from .battery_balance_connection import BatteryBalanceConnection as BatteryBalanceConnection
+from .battery_balance_connection import BatteryBalanceConnectionElementConfig as BatteryBalanceConnectionElementConfig
+from .battery_balance_connection import (
+    BatteryBalanceConnectionElementTypeName as BatteryBalanceConnectionElementTypeName,
+)
 from .connection import CONNECTION_OUTPUT_NAMES as CONNECTION_OUTPUT_NAMES
 from .connection import CONNECTION_POWER_SOURCE_TARGET as CONNECTION_POWER_SOURCE_TARGET
 from .connection import CONNECTION_POWER_TARGET_SOURCE as CONNECTION_POWER_TARGET_SOURCE
@@ -21,26 +28,28 @@ from .connection import CONNECTION_TIME_SLICE as CONNECTION_TIME_SLICE
 from .connection import Connection as Connection
 from .connection import ConnectionConstraintName as ConnectionConstraintName
 from .connection import ConnectionOutputName as ConnectionOutputName
+from .node import ELEMENT_TYPE as MODEL_ELEMENT_TYPE_NODE
 from .node import NODE_OUTPUT_NAMES
 from .node import Node as Node
+from .node import NodeElementConfig as NodeElementConfig
+from .node import NodeElementTypeName as NodeElementTypeName
 from .node import NodeOutputName as NodeOutputName
+from .power_connection import ELEMENT_TYPE as MODEL_ELEMENT_TYPE_CONNECTION
 from .power_connection import POWER_CONNECTION_OUTPUT_NAMES as POWER_CONNECTION_OUTPUT_NAMES
+from .power_connection import ConnectionElementConfig as ConnectionElementConfig
+from .power_connection import ConnectionElementTypeName as ConnectionElementTypeName
 from .power_connection import PowerConnection as PowerConnection
 from .power_connection import PowerConnectionOutputName as PowerConnectionOutputName
 
-# Element type constants for model layer
-MODEL_ELEMENT_TYPE_BATTERY: Final = "battery"
-MODEL_ELEMENT_TYPE_NODE: Final = "node"
-MODEL_ELEMENT_TYPE_CONNECTION: Final = "connection"
-MODEL_ELEMENT_TYPE_BATTERY_BALANCE_CONNECTION: Final = "battery_balance_connection"
-
 # Type for all model element types
-ModelElementType = Literal[
-    "battery",
-    "node",
-    "connection",
-    "battery_balance_connection",
-]
+ModelElementType = (
+    BatteryElementTypeName | NodeElementTypeName | ConnectionElementTypeName | BatteryBalanceConnectionElementTypeName
+)
+
+# Typed configs for all model elements (discriminated by element_type)
+ModelElementConfig = (
+    BatteryElementConfig | NodeElementConfig | ConnectionElementConfig | BatteryBalanceConnectionElementConfig
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -80,7 +89,6 @@ __all__ = [
     "CONNECTION_POWER_TARGET_SOURCE",
     "CONNECTION_TIME_SLICE",
     "ELEMENTS",
-    "MODEL_ELEMENT_BATTERY_BALANCE_CONNECTION",
     "MODEL_ELEMENT_TYPE_BATTERY",
     "MODEL_ELEMENT_TYPE_BATTERY_BALANCE_CONNECTION",
     "MODEL_ELEMENT_TYPE_CONNECTION",
@@ -88,14 +96,19 @@ __all__ = [
     "POWER_CONNECTION_OUTPUT_NAMES",
     "Battery",
     "BatteryBalanceConnection",
+    "BatteryBalanceConnectionElementConfig",
     "BatteryConstraintName",
+    "BatteryElementConfig",
     "BatteryOutputName",
     "Connection",
     "ConnectionConstraintName",
+    "ConnectionElementConfig",
     "ConnectionOutputName",
     "ElementSpec",
+    "ModelElementConfig",
     "ModelElementType",
     "Node",
+    "NodeElementConfig",
     "NodeOutputName",
     "PowerConnection",
     "PowerConnectionOutputName",

@@ -10,6 +10,7 @@ from custom_components.haeo.elements import connection as connection_element
 from custom_components.haeo.elements.connection import ConnectionConfigData
 from custom_components.haeo.model import ModelOutputName
 from custom_components.haeo.model.const import OutputType
+from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION
 from custom_components.haeo.model.elements import power_connection
 from custom_components.haeo.model.output_data import OutputData
 
@@ -48,7 +49,7 @@ CREATE_CASES: Sequence[CreateCase] = [
         ),
         "model": [
             {
-                "element_type": "connection",
+                "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
                 "name": "c1",
                 "source": "s",
                 "target": "t",

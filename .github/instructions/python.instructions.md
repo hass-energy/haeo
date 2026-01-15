@@ -62,11 +62,16 @@ See [typing philosophy](../../docs/developer-guide/typing.md) for detailed patte
     - `UpdateFailed` - Coordinator refresh failed. Used in `_async_update_data`.
     ```python
     # ❌ Bad - generic exception in async_setup_entry
+    try:
+        await client.fetch()
     except TimeoutError:
-        raise TimeoutError("Setup timed out")
+        raise TimeoutError("Setup timed out") from None
 
     # ✅ Good - HA-specific exception enables proper retry behavior
     from homeassistant.exceptions import ConfigEntryNotReady
+
+    try:
+        await client.fetch()
     except TimeoutError:
         raise ConfigEntryNotReady("Setup timed out") from None
     ```

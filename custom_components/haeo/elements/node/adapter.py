@@ -5,7 +5,8 @@ from typing import Any, Final, Literal
 
 from custom_components.haeo.const import ConnectivityLevel
 from custom_components.haeo.data.loader import ConstantLoader
-from custom_components.haeo.model import ModelOutputName
+from custom_components.haeo.model import ModelElementConfig, ModelOutputName
+from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_NODE
 from custom_components.haeo.model.elements.node import NODE_POWER_BALANCE
 from custom_components.haeo.model.output_data import OutputData
 
@@ -83,11 +84,11 @@ class NodeAdapter:
 
         return self.build_config_data(loaded_values, config)
 
-    def model_elements(self, config: NodeConfigData) -> list[dict[str, Any]]:
+    def model_elements(self, config: NodeConfigData) -> list[ModelElementConfig]:
         """Return model element parameters for Node configuration."""
         return [
             {
-                "element_type": "node",
+                "element_type": MODEL_ELEMENT_TYPE_NODE,
                 "name": config["name"],
                 "is_source": config["is_source"],
                 "is_sink": config["is_sink"],

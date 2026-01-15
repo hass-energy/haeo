@@ -10,6 +10,7 @@ from custom_components.haeo.elements import node as node_element
 from custom_components.haeo.elements.node import NodeConfigData
 from custom_components.haeo.model import ModelOutputName
 from custom_components.haeo.model.const import OutputType
+from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_NODE
 from custom_components.haeo.model.elements.node import NODE_POWER_BALANCE
 from custom_components.haeo.model.output_data import OutputData
 
@@ -41,7 +42,7 @@ CREATE_CASES: Sequence[CreateCase] = [
             is_sink=False,
         ),
         "model": [
-            {"element_type": "node", "name": "node_main", "is_source": False, "is_sink": False},
+            {"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "node_main", "is_source": False, "is_sink": False},
         ],
     },
 ]

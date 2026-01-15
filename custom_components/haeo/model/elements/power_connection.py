@@ -1,7 +1,7 @@
 """Power connection class for electrical system modeling."""
 
 from collections.abc import Sequence
-from typing import Final, Literal
+from typing import Final, Literal, NotRequired, TypedDict
 
 from highspy import Highs
 from highspy.highs import HighspyArray, highs_linear_expression
@@ -20,6 +20,10 @@ from .connection import (
     ConnectionConstraintName,
     ConnectionOutputName,
 )
+
+# Model element type for connections
+ELEMENT_TYPE: Final = "connection"
+type ConnectionElementTypeName = Literal["connection"]
 
 type PowerConnectionConstraintName = (
     Literal[
@@ -40,6 +44,22 @@ POWER_CONNECTION_OUTPUT_NAMES: Final[frozenset[PowerConnectionOutputName]] = fro
         *CONNECTION_OUTPUT_NAMES,
     )
 )
+
+
+class ConnectionElementConfig(TypedDict):
+    """Configuration for Connection (PowerConnection) model elements."""
+
+    element_type: ConnectionElementTypeName
+    name: str
+    source: str
+    target: str
+    max_power_source_target: NotRequired[Sequence[float] | float | None]
+    max_power_target_source: NotRequired[Sequence[float] | float | None]
+    fixed_power: NotRequired[bool]
+    efficiency_source_target: NotRequired[Sequence[float] | float | None]
+    efficiency_target_source: NotRequired[Sequence[float] | float | None]
+    price_source_target: NotRequired[Sequence[float] | float | None]
+    price_target_source: NotRequired[Sequence[float] | float | None]
 
 
 class PowerConnection(Connection[PowerConnectionOutputName]):
