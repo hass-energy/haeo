@@ -41,6 +41,6 @@ __all__ = [
     "PricingSegment",
     "PricingSegmentSpec",
     "Segment",
-    "SegmentType",
     "SegmentSpec",
+    "SegmentType",
 ]
