@@ -25,7 +25,7 @@ from custom_components.haeo.model.elements.segments import (
     PowerLimitSegmentSpec,
     PricingSegmentSpec,
 )
-from custom_components.haeo.model.output_data import OutputData
+from custom_components.haeo.model.output_data import OutputData, require_output_data
 
 from .flow import GridSubentryFlowHandler
 from .schema import CONF_CONNECTION, ELEMENT_TYPE, GridConfigData, GridConfigSchema
@@ -205,12 +205,14 @@ class GridAdapter:
     def model_elements(self, config: GridConfigData) -> list[ModelElementConfig]:
         """Create model elements for Grid configuration."""
         segments: list[SegmentSpec] = []
-        if config.get("import_limit") is not None or config.get("export_limit") is not None:
+        import_limit = config.get("import_limit")
+        export_limit = config.get("export_limit")
+        if import_limit is not None or export_limit is not None:
             power_limit: PowerLimitSegmentSpec = {"segment_type": "power_limit"}
-            if config.get("import_limit") is not None:
-                power_limit["max_power_source_target"] = np.array(config["import_limit"])
-            if config.get("export_limit") is not None:
-                power_limit["max_power_target_source"] = np.array(config["export_limit"])
+            if import_limit is not None:
+                power_limit["max_power_source_target"] = np.array(import_limit)
+            if export_limit is not None:
+                power_limit["max_power_target_source"] = np.array(export_limit)
             segments.append(power_limit)
 
         pricing: PricingSegmentSpec = {
@@ -254,8 +256,8 @@ class GridAdapter:
 
         # source_target = grid to system = IMPORT
         # target_source = system to grid = EXPORT
-        power_import = connection[CONNECTION_POWER_SOURCE_TARGET]
-        power_export = connection[CONNECTION_POWER_TARGET_SOURCE]
+        power_import = require_output_data(connection[CONNECTION_POWER_SOURCE_TARGET])
+        power_export = require_output_data(connection[CONNECTION_POWER_TARGET_SOURCE])
 
         grid_outputs[GRID_POWER_EXPORT] = replace(power_export, type=OutputType.POWER)
         grid_outputs[GRID_POWER_IMPORT] = replace(power_import, type=OutputType.POWER)
@@ -305,16 +307,16 @@ class GridAdapter:
         if POWER_LIMIT_TARGET_SOURCE in power_limit_outputs:
             grid_outputs[GRID_POWER_MAX_EXPORT_PRICE] = power_limit_outputs[POWER_LIMIT_TARGET_SOURCE]
         elif CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE in connection:
-            grid_outputs[GRID_POWER_MAX_EXPORT_PRICE] = connection[
-                cast("ModelOutputName", CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE)
-            ]
+            grid_outputs[GRID_POWER_MAX_EXPORT_PRICE] = require_output_data(
+                connection[cast("ModelOutputName", CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE)]
+            )
 
         if POWER_LIMIT_SOURCE_TARGET in power_limit_outputs:
             grid_outputs[GRID_POWER_MAX_IMPORT_PRICE] = power_limit_outputs[POWER_LIMIT_SOURCE_TARGET]
         elif CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET in connection:
-            grid_outputs[GRID_POWER_MAX_IMPORT_PRICE] = connection[
-                cast("ModelOutputName", CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET)
-            ]
+            grid_outputs[GRID_POWER_MAX_IMPORT_PRICE] = require_output_data(
+                connection[cast("ModelOutputName", CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET)]
+            )
 
         return {GRID_DEVICE_GRID: grid_outputs}
 

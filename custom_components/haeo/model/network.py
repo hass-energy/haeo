@@ -12,7 +12,7 @@ from .element import Element
 from .elements import ELEMENTS, ModelElementConfig
 from .elements.battery import Battery, BatteryElementConfig
 from .elements.battery_balance_connection import BatteryBalanceConnection, BatteryBalanceConnectionElementConfig
-from .elements.connection import Connection, ConnectionElementConfig
+from .elements.connection import Connection, ConnectionElementConfig, ConnectionOutputName
 from .elements.node import Node, NodeElementConfig
 
 _LOGGER = logging.getLogger(__name__)
@@ -64,7 +64,7 @@ class Network:
     def add(self, element_config: NodeElementConfig) -> Node: ...
 
     @overload
-    def add(self, element_config: ConnectionElementConfig) -> Connection: ...
+    def add(self, element_config: ConnectionElementConfig) -> Connection[ConnectionOutputName]: ...
 
     @overload
     def add(self, element_config: BatteryBalanceConnectionElementConfig) -> BatteryBalanceConnection: ...

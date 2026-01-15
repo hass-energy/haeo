@@ -16,7 +16,6 @@ from custom_components.haeo.model.reactive import TrackedParam, constraint
 
 from .segment import Segment
 
-
 type PowerLimitOutputName = Literal["source_target", "target_source", "time_slice"]
 
 POWER_LIMIT_SOURCE_TARGET: Final = "source_target"

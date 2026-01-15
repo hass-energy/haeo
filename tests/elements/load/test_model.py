@@ -70,11 +70,7 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
         "model_outputs": {
             "load_main:connection": {
                 connection.CONNECTION_POWER_TARGET_SOURCE: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(1.0,), direction="+"),
-                connection.CONNECTION_SEGMENTS: {
-                    "power_limit": {
-                        "target_source": OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.01,))
-                    }
-                },
+                connection.CONNECTION_SEGMENTS: {"power_limit": {"target_source": OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.01,))}},
             }
         },
         "outputs": {

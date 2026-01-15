@@ -18,7 +18,7 @@ from custom_components.haeo.model.elements.connection import (
     CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE,
 )
 from custom_components.haeo.model.elements.segments import POWER_LIMIT_TARGET_SOURCE, PowerLimitSegmentSpec
-from custom_components.haeo.model.output_data import OutputData
+from custom_components.haeo.model.output_data import OutputData, require_output_data
 
 from .flow import LoadSubentryFlowHandler
 from .schema import CONF_CONNECTION, CONF_FORECAST, ELEMENT_TYPE, LoadConfigData, LoadConfigSchema
@@ -145,7 +145,7 @@ class LoadAdapter:
         connection = model_outputs[f"{name}:connection"]
 
         load_outputs: dict[LoadOutputName, OutputData] = {
-            LOAD_POWER: replace(connection[CONNECTION_POWER_TARGET_SOURCE], type=OutputType.POWER),
+            LOAD_POWER: replace(require_output_data(connection[CONNECTION_POWER_TARGET_SOURCE]), type=OutputType.POWER),
         }
 
         # Shadow price from power_limit segment (if present)
@@ -153,9 +153,9 @@ class LoadAdapter:
         if POWER_LIMIT_TARGET_SOURCE in power_limit_outputs:
             load_outputs[LOAD_FORECAST_LIMIT_PRICE] = power_limit_outputs[POWER_LIMIT_TARGET_SOURCE]
         elif CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE in connection:
-            load_outputs[LOAD_FORECAST_LIMIT_PRICE] = connection[
-                cast("ModelOutputName", CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE)
-            ]
+            load_outputs[LOAD_FORECAST_LIMIT_PRICE] = require_output_data(
+                connection[cast("ModelOutputName", CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE)]
+            )
 
         return {LOAD_DEVICE_LOAD: load_outputs}
 

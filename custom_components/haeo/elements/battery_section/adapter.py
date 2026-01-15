@@ -12,7 +12,7 @@ from custom_components.haeo.model import ModelElementConfig, ModelOutputName, Mo
 from custom_components.haeo.model import battery as model_battery
 from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_BATTERY
-from custom_components.haeo.model.output_data import OutputData
+from custom_components.haeo.model.output_data import OutputData, require_output_map
 
 from .flow import BatterySectionSubentryFlowHandler
 from .schema import (
@@ -141,7 +141,7 @@ class BatterySectionAdapter:
         **_kwargs: Any,
     ) -> Mapping[BatterySectionDeviceName, Mapping[BatterySectionOutputName, OutputData]]:
         """Map model outputs to battery section output names."""
-        battery_data = model_outputs[name]
+        battery_data = require_output_map(model_outputs[name])
 
         section_outputs: dict[BatterySectionOutputName, OutputData] = {}
 

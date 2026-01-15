@@ -26,7 +26,7 @@ from custom_components.haeo.model.elements.segments import (
     PowerLimitSegmentSpec,
     PricingSegmentSpec,
 )
-from custom_components.haeo.model.output_data import OutputData
+from custom_components.haeo.model.output_data import OutputData, require_output_map
 
 from .flow import BatterySubentryFlowHandler
 from .schema import (
@@ -498,14 +498,13 @@ class BatteryAdapter:
             else discharge_early_incentive
         )
         segments: list[SegmentSpec] = []
-        efficiency_values = config.get("efficiency")
-        if efficiency_values is not None:
-            efficiency_spec: EfficiencySegmentSpec = {
-                "segment_type": "efficiency",
-                "efficiency_source_target": np.array(efficiency_values) / 100.0,  # Node to network (discharge)
-                "efficiency_target_source": np.array(efficiency_values) / 100.0,  # Network to node (charge)
-            }
-            segments.append(efficiency_spec)
+        efficiency_values = config["efficiency"]
+        efficiency_spec: EfficiencySegmentSpec = {
+            "segment_type": "efficiency",
+            "efficiency_source_target": np.array(efficiency_values) / 100.0,  # Node to network (discharge)
+            "efficiency_target_source": np.array(efficiency_values) / 100.0,  # Network to node (charge)
+        }
+        segments.append(efficiency_spec)
 
         max_discharge = config.get("max_discharge_power")
         max_charge = config.get("max_charge_power")
@@ -549,30 +548,32 @@ class BatteryAdapter:
         Returns multiple devices for SOC regions based on what's configured.
         """
         # Collect section outputs
-        section_outputs: dict[str, Mapping[ModelOutputName, OutputData]] = {}
+        section_outputs: dict[str, dict[ModelOutputName, OutputData]] = {}
         section_names: list[str] = []
 
         # Check for undercharge section
         undercharge_name = f"{name}:undercharge"
         if undercharge_name in model_outputs:
-            section_outputs["undercharge"] = model_outputs[undercharge_name]
+            section_outputs["undercharge"] = require_output_map(model_outputs[undercharge_name])
             section_names.append("undercharge")
 
         # Normal section (always present)
         normal_name = f"{name}:normal"
         if normal_name in model_outputs:
-            section_outputs["normal"] = model_outputs[normal_name]
+            section_outputs["normal"] = require_output_map(model_outputs[normal_name])
             section_names.append("normal")
 
         # Check for overcharge section
         overcharge_name = f"{name}:overcharge"
         if overcharge_name in model_outputs:
-            section_outputs["overcharge"] = model_outputs[overcharge_name]
+            section_outputs["overcharge"] = require_output_map(model_outputs[overcharge_name])
             section_names.append("overcharge")
 
         # Get node outputs for power balance
         node_name = f"{name}:node"
-        node_outputs = model_outputs.get(node_name, {})
+        node_outputs: dict[ModelOutputName, OutputData] = (
+            require_output_map(model_outputs[node_name]) if node_name in model_outputs else {}
+        )
 
         # Calculate aggregate outputs
         # Sum power charge/discharge across all sections
@@ -670,7 +671,7 @@ class BatteryAdapter:
                 lower_key = section_names[i - 1]
                 balance_name = f"{name}:balance:{lower_key}:{section_key}"
                 if balance_name in model_outputs:
-                    balance_data = model_outputs[balance_name]
+                    balance_data = require_output_map(model_outputs[balance_name])
                     # Power down from this section to lower section (energy leaving downward)
                     if model_balance.BALANCE_POWER_DOWN in balance_data:
                         down_vals = balance_data[model_balance.BALANCE_POWER_DOWN].values
@@ -686,7 +687,7 @@ class BatteryAdapter:
                 upper_key = section_names[i + 1]
                 balance_name = f"{name}:balance:{section_key}:{upper_key}"
                 if balance_name in model_outputs:
-                    balance_data = model_outputs[balance_name]
+                    balance_data = require_output_map(model_outputs[balance_name])
                     # Power down from upper section to this section (energy entering from above)
                     if model_balance.BALANCE_POWER_DOWN in balance_data:
                         down_vals = np.array(balance_data[model_balance.BALANCE_POWER_DOWN].values)

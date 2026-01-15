@@ -15,20 +15,21 @@ from custom_components.haeo.model.elements import (
     MODEL_ELEMENT_TYPE_NODE,
 )
 from custom_components.haeo.model.elements.battery import Battery
-from custom_components.haeo.model.elements.connection import Connection
+from custom_components.haeo.model.elements.connection import Connection, ConnectionOutputName
 from custom_components.haeo.model.elements.segments import PowerLimitSegment, PricingSegment
 
 
-def _get_power_limit(connection: Connection) -> PowerLimitSegment:
+def _get_power_limit(connection: Connection[ConnectionOutputName]) -> PowerLimitSegment:
     segment = connection.segments["power_limit"]
     assert isinstance(segment, PowerLimitSegment)
     return segment
 
 
-def _get_pricing(connection: Connection) -> PricingSegment:
+def _get_pricing(connection: Connection[ConnectionOutputName]) -> PricingSegment:
     segment = connection.segments["pricing"]
     assert isinstance(segment, PricingSegment)
     return segment
+
 
 # Battery reactive update tests
 

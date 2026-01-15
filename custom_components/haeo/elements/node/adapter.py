@@ -8,7 +8,7 @@ from custom_components.haeo.data.loader import ConstantLoader
 from custom_components.haeo.model import ModelElementConfig, ModelOutputName, ModelOutputValue
 from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_NODE
 from custom_components.haeo.model.elements.node import NODE_POWER_BALANCE
-from custom_components.haeo.model.output_data import OutputData
+from custom_components.haeo.model.output_data import OutputData, require_output_data
 
 from .flow import NodeSubentryFlowHandler
 from .schema import CONF_IS_SINK, CONF_IS_SOURCE, ELEMENT_TYPE, NodeConfigData, NodeConfigSchema
@@ -107,7 +107,7 @@ class NodeAdapter:
         # Map Node power_balance to node_power_balance (only present for constrained nodes)
         node_outputs: dict[NodeOutputName, OutputData] = {}
         if NODE_POWER_BALANCE in node_model:
-            node_outputs[NODE_POWER_BALANCE] = node_model[NODE_POWER_BALANCE]
+            node_outputs[NODE_POWER_BALANCE] = require_output_data(node_model[NODE_POWER_BALANCE])
 
         return {NODE_DEVICE_NODE: node_outputs}
 

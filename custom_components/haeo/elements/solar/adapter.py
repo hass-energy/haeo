@@ -22,7 +22,7 @@ from custom_components.haeo.model.elements.segments import (
     PowerLimitSegmentSpec,
     PricingSegmentSpec,
 )
-from custom_components.haeo.model.output_data import OutputData
+from custom_components.haeo.model.output_data import OutputData, require_output_data
 
 from .flow import SolarSubentryFlowHandler
 from .schema import (
@@ -182,7 +182,10 @@ class SolarAdapter:
         connection = model_outputs[f"{name}:connection"]
 
         solar_outputs: dict[SolarOutputName, OutputData] = {
-            SOLAR_POWER: replace(connection[CONNECTION_POWER_SOURCE_TARGET], type=OutputType.POWER),
+            SOLAR_POWER: replace(
+                require_output_data(connection[CONNECTION_POWER_SOURCE_TARGET]),
+                type=OutputType.POWER,
+            ),
         }
 
         # Shadow price from power_limit segment (if present)
@@ -190,9 +193,9 @@ class SolarAdapter:
         if POWER_LIMIT_SOURCE_TARGET in power_limit_outputs:
             solar_outputs[SOLAR_FORECAST_LIMIT] = power_limit_outputs[POWER_LIMIT_SOURCE_TARGET]
         elif CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET in connection:
-            solar_outputs[SOLAR_FORECAST_LIMIT] = connection[
-                cast("ModelOutputName", CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET)
-            ]
+            solar_outputs[SOLAR_FORECAST_LIMIT] = require_output_data(
+                connection[cast("ModelOutputName", CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET)]
+            )
 
         return {SOLAR_DEVICE_SOLAR: solar_outputs}
 

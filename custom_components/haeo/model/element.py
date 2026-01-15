@@ -185,7 +185,7 @@ class Element[OutputNameT: str]:
             if isinstance(attr, OutputMethod):
                 output_name = attr.output_name
                 if output_name in self._output_names and (output_data := attr.get_output(self)) is not None:
-                    result[cast(OutputNameT, output_name)] = output_data
+                    result[cast("OutputNameT", output_name)] = output_data
                 continue
             if (
                 isinstance(attr, ReactiveConstraint)

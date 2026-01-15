@@ -26,7 +26,7 @@ from custom_components.haeo.model.elements.segments import (
     PowerLimitSegmentSpec,
     PricingSegmentSpec,
 )
-from custom_components.haeo.model.output_data import OutputData
+from custom_components.haeo.model.output_data import OutputData, require_output_data
 
 from .flow import ConnectionSubentryFlowHandler
 from .schema import (
@@ -47,12 +47,15 @@ from .schema import (
 CONNECTION_POWER_ACTIVE: Final = "connection_power_active"
 
 # Connection adapter output names include model outputs + adapter-synthesized outputs
-type ConnectionOutputName = ModelConnectionOutputName | Literal[
-    "connection_power_active",
-    "connection_shadow_power_max_source_target",
-    "connection_shadow_power_max_target_source",
-    "connection_time_slice",
-]
+type ConnectionOutputName = (
+    ModelConnectionOutputName
+    | Literal[
+        "connection_power_active",
+        "connection_shadow_power_max_source_target",
+        "connection_shadow_power_max_target_source",
+        "connection_time_slice",
+    ]
+)
 
 CONNECTION_OUTPUT_NAMES: Final[frozenset[ConnectionOutputName]] = frozenset(
     (
@@ -244,20 +247,22 @@ class ConnectionAdapter:
     ) -> Mapping[ConnectionDeviceName, Mapping[ConnectionOutputName, OutputData]]:
         """Map model outputs to connection-specific output names."""
         connection = model_outputs[name]
+        power_source_target = require_output_data(connection[CONNECTION_POWER_SOURCE_TARGET])
+        power_target_source = require_output_data(connection[CONNECTION_POWER_TARGET_SOURCE])
 
         connection_outputs: dict[ConnectionOutputName, OutputData] = {
-            CONNECTION_POWER_SOURCE_TARGET: connection[CONNECTION_POWER_SOURCE_TARGET],
-            CONNECTION_POWER_TARGET_SOURCE: connection[CONNECTION_POWER_TARGET_SOURCE],
+            CONNECTION_POWER_SOURCE_TARGET: power_source_target,
+            CONNECTION_POWER_TARGET_SOURCE: power_target_source,
         }
 
         # Active connection power (source_target - target_source)
         connection_outputs[CONNECTION_POWER_ACTIVE] = replace(
-            connection[CONNECTION_POWER_SOURCE_TARGET],
+            power_source_target,
             values=[
                 st - ts
                 for st, ts in zip(
-                    connection[CONNECTION_POWER_SOURCE_TARGET].values,
-                    connection[CONNECTION_POWER_TARGET_SOURCE].values,
+                    power_source_target.values,
+                    power_target_source.values,
                     strict=True,
                 )
             ],
@@ -267,15 +272,15 @@ class ConnectionAdapter:
 
         # Include legacy shadow prices if present
         if CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET in connection:
-            connection_outputs[CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET] = connection[
-                CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET
-            ]
+            connection_outputs[CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET] = require_output_data(
+                connection[CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET]
+            )
         if CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE in connection:
-            connection_outputs[CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE] = connection[
-                CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE
-            ]
+            connection_outputs[CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE] = require_output_data(
+                connection[CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE]
+            )
         if CONNECTION_TIME_SLICE in connection:
-            connection_outputs[CONNECTION_TIME_SLICE] = connection[CONNECTION_TIME_SLICE]
+            connection_outputs[CONNECTION_TIME_SLICE] = require_output_data(connection[CONNECTION_TIME_SLICE])
 
         # Note: Segment shadow prices are exposed under the model's `segments` output
         # map. Specific adapters (grid, solar, etc.) map these to their own outputs.

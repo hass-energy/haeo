@@ -26,6 +26,7 @@ from numpy.typing import NDArray
 import pytest
 
 from custom_components.haeo.model.elements.battery_balance_connection import BatteryBalanceConnection
+from custom_components.haeo.model.output_data import require_output_data
 
 
 @dataclass
@@ -374,10 +375,12 @@ def test_battery_balance_connection_outputs_structure(solver: Highs) -> None:
     assert "balance_up_slack_bound" in outputs
 
     # Verify output metadata
-    assert outputs["balance_power_down"].unit == "kW"
-    assert outputs["balance_power_up"].unit == "kW"
-    assert outputs["balance_power_down"].direction == "+"
-    assert outputs["balance_power_up"].direction == "-"
+    power_down = require_output_data(outputs["balance_power_down"], name="balance_power_down")
+    power_up = require_output_data(outputs["balance_power_up"], name="balance_power_up")
+    assert power_down.unit == "kW"
+    assert power_up.unit == "kW"
+    assert power_down.direction == "+"
+    assert power_up.direction == "-"
 
 
 def test_battery_balance_connection_raises_without_battery_references() -> None:

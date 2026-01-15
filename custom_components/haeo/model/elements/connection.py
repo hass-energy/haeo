@@ -17,7 +17,18 @@ from custom_components.haeo.model.element import Element
 from custom_components.haeo.model.output_data import OutputData
 from custom_components.haeo.model.reactive import ReactiveConstraint, constraint, output
 
-from .segments import SEGMENT_TYPES, PassthroughSegment, Segment, SegmentSpec
+from .segments import (
+    EfficiencySegment,
+    PassthroughSegment,
+    PowerLimitSegment,
+    PricingSegment,
+    Segment,
+    SegmentSpec,
+    is_efficiency_spec,
+    is_passthrough_spec,
+    is_power_limit_spec,
+    is_pricing_spec,
+)
 
 # Model element type for connections
 ELEMENT_TYPE: Final = "connection"
@@ -32,6 +43,7 @@ class ConnectionElementConfig(TypedDict):
     source: str
     target: str
     segments: NotRequired[Sequence[SegmentSpec]]
+
 
 # Minimum segments needed before linking is required
 MIN_SEGMENTS_FOR_LINKING = 2
@@ -142,18 +154,43 @@ class Connection[TOutputName: str](Element[TOutputName]):
             if segment_name in self._segments:
                 segment_name = f"{segment_name}_{idx}"
 
-            # Get segment class from registry
-            segment_cls = SEGMENT_TYPES[segment_type]
-
-            # Create segment with standard args plus kwargs from spec
+            # Create segment with standard args plus spec
             segment_id = f"{name}_{segment_name}"
-            segment = segment_cls(
-                segment_id,
-                n_periods,
-                periods_array,
-                solver,
-                spec=segment_spec,
-            )
+            if is_efficiency_spec(segment_spec):
+                segment = EfficiencySegment(
+                    segment_id,
+                    n_periods,
+                    periods_array,
+                    solver,
+                    spec=segment_spec,
+                )
+            elif is_passthrough_spec(segment_spec):
+                segment = PassthroughSegment(
+                    segment_id,
+                    n_periods,
+                    periods_array,
+                    solver,
+                    spec=segment_spec,
+                )
+            elif is_power_limit_spec(segment_spec):
+                segment = PowerLimitSegment(
+                    segment_id,
+                    n_periods,
+                    periods_array,
+                    solver,
+                    spec=segment_spec,
+                )
+            elif is_pricing_spec(segment_spec):
+                segment = PricingSegment(
+                    segment_id,
+                    n_periods,
+                    periods_array,
+                    solver,
+                    spec=segment_spec,
+                )
+            else:
+                msg = f"Unknown segment_type {segment_type!r}"
+                raise ValueError(msg)
             self._segments[segment_name] = segment
 
         # If no segments provided, create a passthrough segment
@@ -416,15 +453,15 @@ __all__ = [
     "CONNECTION_OUTPUT_NAMES",
     "CONNECTION_POWER_SOURCE_TARGET",
     "CONNECTION_POWER_TARGET_SOURCE",
+    "CONNECTION_SEGMENTS",
     "CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET",
     "CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE",
-    "CONNECTION_SEGMENTS",
     "CONNECTION_TIME_SLICE",
     "ELEMENT_TYPE",
     "Connection",
     "ConnectionElementConfig",
     "ConnectionElementTypeName",
-    "ConnectionOutputValue",
     "ConnectionOutputName",
+    "ConnectionOutputValue",
     "ConnectionSegmentOutputs",
 ]

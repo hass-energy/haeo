@@ -7,13 +7,13 @@ from highspy.highs import highs_linear_expression, highs_var
 import pytest
 
 from custom_components.haeo.model.elements.connection import Connection
-from custom_components.haeo.model.output_data import OutputData
+from custom_components.haeo.model.output_data import ModelOutputValue, OutputData
 
 from . import test_data
 from .test_data.connection_types import ConnectionTestCase, ConnectionTestCaseInputs
 
 
-def _serialize_output_value(output_value: OutputData | dict[str, Any]) -> dict[str, Any]:
+def _serialize_output_value(output_value: ModelOutputValue) -> dict[str, Any]:
     if isinstance(output_value, OutputData):
         return {
             "type": output_value.type,
@@ -23,9 +23,7 @@ def _serialize_output_value(output_value: OutputData | dict[str, Any]) -> dict[s
     return {name: _serialize_output_value(child) for name, child in output_value.items()}
 
 
-def _solve_connection_scenario(
-    element: Connection[str], inputs: ConnectionTestCaseInputs | None
-) -> dict[str, Any]:
+def _solve_connection_scenario(element: Connection[str], inputs: ConnectionTestCaseInputs | None) -> dict[str, Any]:
     """Set up and solve an optimization scenario for a connection.
 
     Args:
