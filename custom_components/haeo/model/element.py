@@ -1,14 +1,14 @@
 """Generic electrical entity for energy system modeling."""
 
 from collections.abc import Mapping, Sequence
-from typing import Any, Literal, Protocol
+from typing import Any, Literal, Protocol, cast
 
 from highspy import Highs
 from highspy.highs import HighspyArray, highs_cons
 import numpy as np
 from numpy.typing import NDArray
 
-from .output_data import OutputData
+from .output_data import ModelOutputValue
 from .reactive import OutputMethod, ReactiveConstraint, ReactiveCost, TrackedParam, cost
 
 
@@ -171,19 +171,24 @@ class Element[OutputNameT: str]:
         # Default: use batch value extraction (handles highs_var and highs_linear_expression)
         return tuple(self._solver.vals(arr).flat)
 
-    def outputs(self) -> Mapping[OutputNameT, OutputData]:
+    def outputs(self) -> Mapping[OutputNameT, ModelOutputValue]:
         """Return output specifications for the element.
 
         Discovers all @output and @constraint(output=True) decorated methods via
-        reflection and calls their get_output() method to retrieve OutputData.
+        reflection and calls their get_output() method to retrieve output data.
         The method name is used as the output name (dictionary key).
         """
-        result: dict[OutputNameT, OutputData] = {}
+        result: dict[OutputNameT, ModelOutputValue] = {}
         for name in dir(type(self)):
             attr = getattr(type(self), name, None)
             # Check for decorators that support get_output()
+            if isinstance(attr, OutputMethod):
+                output_name = attr.output_name
+                if output_name in self._output_names and (output_data := attr.get_output(self)) is not None:
+                    result[cast(OutputNameT, output_name)] = output_data
+                continue
             if (
-                isinstance(attr, (OutputMethod, ReactiveConstraint))
+                isinstance(attr, ReactiveConstraint)
                 and name in self._output_names
                 and (output_data := attr.get_output(self)) is not None
             ):

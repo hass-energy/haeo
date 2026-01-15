@@ -4,6 +4,8 @@ from collections.abc import Callable
 from functools import partial
 from typing import TYPE_CHECKING, Any, TypeVar, overload
 
+from custom_components.haeo.model.output_data import OutputData
+
 from .tracked_param import ensure_decorator_state, tracking_context
 
 if TYPE_CHECKING:
@@ -11,7 +13,7 @@ if TYPE_CHECKING:
     from highspy.highs import highs_cons, highs_linear_expression
 
     from custom_components.haeo.model.element import Element
-    from custom_components.haeo.model.output_data import OutputData
+    from custom_components.haeo.model.output_data import ModelOutputValue
 
     from .protocols import ReactiveHost
 
@@ -130,7 +132,6 @@ class ReactiveConstraint[R](ReactiveMethod[R]):
         import numpy as np  # noqa: PLC0415
 
         from custom_components.haeo.model.const import OutputType  # noqa: PLC0415
-        from custom_components.haeo.model.output_data import OutputData  # noqa: PLC0415
 
         # Get the state for this constraint
         state_attr = f"_reactive_state_{self._name}"
@@ -290,14 +291,17 @@ class OutputMethod[R]:
                 return OutputData(type=OutputType.POWER, unit="kW", ...)
     """
 
-    def __init__(self, fn: Callable[..., R]) -> None:
+    def __init__(self, fn: Callable[..., R], *, output_name: str | None = None) -> None:
         """Initialize with the method."""
         self._fn = fn
         self._name: str = fn.__name__
+        self._output_name: str | None = output_name
 
     def __set_name__(self, owner: type, name: str) -> None:
         """Store the method name."""
         self._name = name
+        if self._output_name is None:
+            self._output_name = name
 
     @overload
     def __get__(self, obj: None, objtype: type) -> "OutputMethod[R]": ...
@@ -311,14 +315,19 @@ class OutputMethod[R]:
             return self
         return partial(self._fn, obj)
 
-    def get_output(self, obj: "Element[Any]") -> "OutputData | None":
+    @property
+    def output_name(self) -> str:
+        """Return the output name exposed by this method."""
+        return self._output_name or self._name
+
+    def get_output(self, obj: "Element[Any]") -> "ModelOutputValue | None":
         """Get output data for this output method.
 
         Args:
             obj: The element instance
 
         Returns:
-            OutputData from calling the method, or None if method returns None
+            OutputData or nested output mapping from calling the method, or None if method returns None
 
         """
         method = getattr(obj, self._name)
@@ -360,4 +369,20 @@ def constraint[R](
 
 
 cost = ReactiveCost
-output = OutputMethod
+
+
+@overload
+def output[R](fn: Callable[..., R], /) -> OutputMethod[R]: ...
+
+
+@overload
+def output(*, name: str) -> Callable[[Callable[..., R]], OutputMethod[R]]: ...
+
+
+def output[R](
+    fn: Callable[..., R] | None = None, /, *, name: str | None = None
+) -> OutputMethod[R] | Callable[[Callable[..., R]], OutputMethod[R]]:
+    """Decorate methods as outputs, optionally overriding their output name."""
+    if fn is not None:
+        return OutputMethod(fn, output_name=name)
+    return lambda f: OutputMethod(f, output_name=name)

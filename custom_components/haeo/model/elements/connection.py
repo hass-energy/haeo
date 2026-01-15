@@ -5,8 +5,8 @@ to model various connection behaviors.
 """
 
 from collections import OrderedDict
-from collections.abc import Mapping, Sequence
-from typing import Any, Final, Literal, NotRequired, TypedDict, cast
+from collections.abc import Sequence
+from typing import Any, Final, Literal, NotRequired, TypedDict
 
 from highspy import Highs
 from highspy.highs import HighspyArray, highs_cons, highs_linear_expression
@@ -60,6 +60,10 @@ CONNECTION_OUTPUT_NAMES: Final[frozenset[ConnectionOutputName]] = frozenset(
     (
         CONNECTION_POWER_SOURCE_TARGET,
         CONNECTION_POWER_TARGET_SOURCE,
+        CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET,
+        CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE,
+        CONNECTION_TIME_SLICE,
+        CONNECTION_SEGMENTS,
     )
 )
 
@@ -341,6 +345,28 @@ class Connection[TOutputName: str](Element[TOutputName]):
 
     # --- Output methods ---
 
+    def _segment_shadow_outputs(self) -> ConnectionSegmentOutputs:
+        """Collect shadow price outputs from all segments."""
+        segment_outputs: ConnectionSegmentOutputs = {}
+
+        for segment_name, segment in self._segments.items():
+            for name in dir(type(segment)):
+                attr = getattr(type(segment), name, None)
+                if not isinstance(attr, ReactiveConstraint):
+                    continue
+
+                output_data = attr.get_output(segment)
+                if output_data is None:
+                    continue
+
+                segment_outputs.setdefault(segment_name, {})[name] = output_data
+
+        return segment_outputs
+
+    def _get_power_limit_shadow(self, name: str) -> OutputData | None:
+        """Return a power_limit shadow output by name."""
+        return self._segment_shadow_outputs().get("power_limit", {}).get(name)
+
     @output
     def connection_power_source_target(self) -> OutputData:
         """Power flow from source to target."""
@@ -361,58 +387,26 @@ class Connection[TOutputName: str](Element[TOutputName]):
             direction="-",
         )
 
-    def outputs(self) -> Mapping[str, ConnectionOutputValue]:  # type: ignore[override]
-        """Return output specifications including segment outputs.
+    @output(name=CONNECTION_SEGMENTS)
+    def segment_outputs(self) -> ConnectionSegmentOutputs | None:
+        """Return outputs grouped by segment."""
+        segment_outputs = self._segment_shadow_outputs()
+        return segment_outputs or None
 
-        Collects:
-        1. Connection's own @output decorated methods (power flows)
-        2. Shadow prices from segment @constraint(output=True) methods
+    @output
+    def connection_shadow_power_max_source_target(self) -> OutputData | None:
+        """Shadow price for source→target power limit."""
+        return self._get_power_limit_shadow("source_target")
 
-        Segment outputs are grouped under the `segments` key to avoid name collisions.
-        """
-        # Get connection's own outputs (power_source_target, power_target_source)
-        result: dict[str, ConnectionOutputValue] = cast(
-            "dict[str, ConnectionOutputValue]", dict(super().outputs())
-        )
-        segment_outputs: ConnectionSegmentOutputs = {}
+    @output
+    def connection_shadow_power_max_target_source(self) -> OutputData | None:
+        """Shadow price for target→source power limit."""
+        return self._get_power_limit_shadow("target_source")
 
-        # Aggregate outputs from all segments
-        for segment_name, segment in self._segments.items():
-            # Find constraint methods with output=True on this segment
-            for name in dir(type(segment)):
-                attr = getattr(type(segment), name, None)
-                if not isinstance(attr, ReactiveConstraint):
-                    continue
-                if not attr.output:
-                    continue
-
-                # Get the constraint state
-                state_attr = f"_reactive_state_{name}"
-                state = getattr(segment, state_attr, None)
-                if state is None or "constraint" not in state:
-                    continue
-
-                # Create output with the constraint name
-                output_data = OutputData(
-                    type=OutputType.SHADOW_PRICE,
-                    unit=attr.unit or "$/kW",
-                    values=self.extract_values(state["constraint"]),
-                )
-                segment_outputs.setdefault(segment_name, {})[name] = output_data
-
-                # Backward-compatible aliases for legacy connection shadow price names
-                if segment_name == "power_limit":
-                    if name == "source_target":
-                        result[CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET] = output_data
-                    if name == "target_source":
-                        result[CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE] = output_data
-                    if name == "time_slice":
-                        result[CONNECTION_TIME_SLICE] = output_data
-
-        if segment_outputs:
-            result[CONNECTION_SEGMENTS] = segment_outputs
-
-        return result
+    @output
+    def connection_time_slice(self) -> OutputData | None:
+        """Shadow price for power limit time-slice constraint."""
+        return self._get_power_limit_shadow("time_slice")
 
 
 __all__ = [
