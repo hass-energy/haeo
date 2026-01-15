@@ -253,7 +253,7 @@ class TestConnection:
 
         # Should have exactly one segment (passthrough)
         assert len(conn._segments) == 1
-        assert isinstance(conn._segments[0], PassthroughSegment)
+        assert isinstance(conn["passthrough"], PassthroughSegment)
 
     def test_connection_with_efficiency(self) -> None:
         """Connection with efficiency should create an efficiency segment."""
@@ -266,11 +266,11 @@ class TestConnection:
             solver=h,
             source="src",
             target="tgt",
-            efficiency_source_target=90.0,  # 90%
+            segments=[{"segment_type": "efficiency", "efficiency_st": np.array([0.90])}],
         )
 
         # Should have efficiency segment
-        segment_types = [type(s).__name__ for s in conn._segments]
+        segment_types = [type(s).__name__ for s in conn.segments.values()]
         assert "EfficiencySegment" in segment_types
 
     def test_connection_with_power_limit(self) -> None:
@@ -284,11 +284,11 @@ class TestConnection:
             solver=h,
             source="src",
             target="tgt",
-            max_power_source_target=5.0,
+            segments=[{"segment_type": "power_limit", "max_power_st": np.array([5.0])}],
         )
 
         # Should have power limit segment
-        segment_types = [type(s).__name__ for s in conn._segments]
+        segment_types = [type(s).__name__ for s in conn.segments.values()]
         assert "PowerLimitSegment" in segment_types
 
     def test_connection_with_pricing(self) -> None:
@@ -302,15 +302,15 @@ class TestConnection:
             solver=h,
             source="src",
             target="tgt",
-            price_source_target=0.1,
+            segments=[{"segment_type": "pricing", "price_st": np.array([0.1])}],
         )
 
         # Should have pricing segment
-        segment_types = [type(s).__name__ for s in conn._segments]
+        segment_types = [type(s).__name__ for s in conn.segments.values()]
         assert "PricingSegment" in segment_types
 
     def test_connection_power_limit_caps_source_target_flow(self) -> None:
-        """Source→target power should be capped at max_power_source_target."""
+        """Source→target power should be capped at max_power_st."""
         h = create_solver()
         periods = [1.0, 1.0]
 
@@ -320,8 +320,7 @@ class TestConnection:
             solver=h,
             source="src",
             target="tgt",
-            max_power_source_target=5.0,
-            # Only set one direction to avoid time-slice constraint
+            segments=[{"segment_type": "power_limit", "max_power_st": np.array([5.0, 5.0])}],
         )
 
         # Add all constraints (calling constraints() adds them to solver)
@@ -335,7 +334,7 @@ class TestConnection:
         np.testing.assert_array_almost_equal(st, [5.0, 5.0])
 
     def test_connection_power_limit_caps_target_source_flow(self) -> None:
-        """Target→source power should be capped at max_power_target_source."""
+        """Target→source power should be capped at max_power_ts."""
         h = create_solver()
         periods = [1.0, 1.0]
 
@@ -345,8 +344,7 @@ class TestConnection:
             solver=h,
             source="src",
             target="tgt",
-            max_power_target_source=3.0,
-            # Only set one direction to avoid time-slice constraint
+            segments=[{"segment_type": "power_limit", "max_power_ts": np.array([3.0, 3.0])}],
         )
 
         # Add all constraints (calling constraints() adds them to solver)
@@ -370,7 +368,7 @@ class TestConnection:
             solver=h,
             source="src",
             target="tgt",
-            efficiency_source_target=90.0,  # 90%
+            segments=[{"segment_type": "efficiency", "efficiency_st": np.array([0.90])}],
         )
 
         # Add all constraints (calling constraints() adds them to solver)
@@ -395,7 +393,7 @@ class TestConnection:
             solver=h,
             source="src",
             target="tgt",
-            price_source_target=0.1,
+            segments=[{"segment_type": "pricing", "price_st": np.array([0.1])}],
         )
 
         # Add all constraints (calling constraints() adds them to solver)
@@ -414,8 +412,8 @@ class TestConnection:
         # Expected cost: 10 kW * 0.1 $/kWh * 1.0 hours = 1.0
         assert abs(h.getObjectiveValue() - 1.0) < 0.001
 
-    def test_connection_segment_delegation(self) -> None:
-        """Warm-start params should be accessible via connection properties."""
+    def test_connection_segment_access_by_name_and_index(self) -> None:
+        """Segments should be accessible by name and index."""
         h = create_solver()
         periods = [1.0, 1.0]
 
@@ -425,19 +423,29 @@ class TestConnection:
             solver=h,
             source="src",
             target="tgt",
-            max_power_source_target=5.0,
-            price_source_target=0.1,
+            segments=[
+                {"segment_type": "power_limit", "max_power_st": np.array([5.0, 5.0])},
+                {"segment_type": "pricing", "price_st": np.array([0.1, 0.1])},
+            ],
         )
 
-        # Should have accessible segment properties
-        assert conn.power_limit_segment is not None
-        assert conn.pricing_segment is not None
+        # Access by name
+        assert isinstance(conn["power_limit"], PowerLimitSegment)
+        assert isinstance(conn["pricing"], PricingSegment)
 
-        # Should be able to update via properties
+        # Access by index
+        assert isinstance(conn[0], PowerLimitSegment)
+        assert isinstance(conn[1], PricingSegment)
+
+        # Update via segment attribute access
+        power_limit = conn["power_limit"]
+        assert isinstance(power_limit, PowerLimitSegment)
         new_max_power = np.array([10.0, 10.0])
-        conn.max_power_source_target = new_max_power
-        np.testing.assert_array_equal(conn.max_power_source_target, new_max_power)
+        power_limit.max_power_st = new_max_power
+        np.testing.assert_array_equal(power_limit.max_power_st, new_max_power)
 
+        pricing = conn["pricing"]
+        assert isinstance(pricing, PricingSegment)
         new_price = np.array([0.2, 0.2])
-        conn.price_source_target = new_price
-        np.testing.assert_array_equal(conn.price_source_target, new_price)
+        pricing.price_st = new_price
+        np.testing.assert_array_equal(pricing.price_st, new_price)

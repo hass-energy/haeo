@@ -4,14 +4,24 @@ A simple segment that creates power variables but applies no transformations.
 Power in equals power out (lossless).
 """
 
-from typing import Any
+from typing import Any, Literal, NotRequired
+
+__all__ = ["PassthroughSegment", "PassthroughSegmentSpec"]
 
 from highspy import Highs
 from highspy.highs import HighspyArray
 import numpy as np
 from numpy.typing import NDArray
+from typing_extensions import TypedDict
 
 from .segment import Segment
+
+
+class PassthroughSegmentSpec(TypedDict):
+    """Specification for creating a PassthroughSegment."""
+
+    segment_type: Literal["passthrough"]
+    name: NotRequired[str]
 
 
 class PassthroughSegment(Segment):

@@ -15,9 +15,7 @@ from .elements.connection import CONNECTION_OUTPUT_NAMES, ConnectionOutputName
 from .elements.node import NODE_OUTPUT_NAMES, NodeOutputName
 
 # Combined type for all possible output names
-type ModelOutputName = (
-    BatteryOutputName | ConnectionOutputName | NodeOutputName | BatteryBalanceConnectionOutputName
-)
+type ModelOutputName = BatteryOutputName | ConnectionOutputName | NodeOutputName | BatteryBalanceConnectionOutputName
 
 # Model-level output names
 MODEL_OUTPUT_NAMES: Final[frozenset[str]] = frozenset(

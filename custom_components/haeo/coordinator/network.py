@@ -15,7 +15,7 @@ from custom_components.haeo.elements import (
     ElementConfigData,
     ElementConfigSchema,
 )
-from custom_components.haeo.model import Network
+from custom_components.haeo.model import Connection, Network
 from custom_components.haeo.repairs import create_disconnected_network_issue, dismiss_disconnected_network_issue
 from custom_components.haeo.validation import (
     collect_participant_configs,
@@ -63,7 +63,7 @@ async def create_network(
     for model_element_config in sorted_model_elements:
         element_name = model_element_config.get("name")
         try:
-            net.add(**model_element_config)
+            net.add(model_element_config)
         except Exception as e:
             msg = f"Failed to add model element '{element_name}' (type={model_element_config.get('element_type')})"
             _LOGGER.exception(msg)
@@ -88,6 +88,21 @@ def update_element(
             raise ValueError(msg)
 
         element = network.elements[element_name]
+
+        if isinstance(element, Connection) and (segments := model_element_config.get("segments")):
+            for segment_spec in segments:
+                if segment_spec.get("segment_type") == "power_limit":
+                    if (max_power_st := segment_spec.get("max_power_st")) is not None:
+                        element["max_power_source_target"] = max_power_st
+                    if (max_power_ts := segment_spec.get("max_power_ts")) is not None:
+                        element["max_power_target_source"] = max_power_ts
+                if segment_spec.get("segment_type") == "pricing":
+                    if (price_st := segment_spec.get("price_st")) is not None:
+                        element["price_source_target"] = price_st
+                    if (price_ts := segment_spec.get("price_ts")) is not None:
+                        element["price_target_source"] = price_ts
+            continue
+
         for param_name, param_value in model_element_config.items():
             with contextlib.suppress(KeyError):
                 element[param_name] = param_value

@@ -2,7 +2,7 @@
 
 from collections.abc import Mapping, Sequence
 from dataclasses import replace
-from typing import Any, Final, Literal
+from typing import Any, Final, Literal, cast
 
 from homeassistant.core import HomeAssistant
 
@@ -26,6 +26,10 @@ from .schema import (
     SolarConfigData,
     SolarConfigSchema,
 )
+
+# Segment output names for power limit shadow prices
+# Format is {segment_name}_{constraint_name}
+POWER_LIMIT_SHADOW_ST: Final = "power_limit_power_limit_st"
 
 # Default values for optional fields applied by adapter
 DEFAULTS: Final[dict[str, bool | float]] = {
@@ -154,8 +158,14 @@ class SolarAdapter:
 
         solar_outputs: dict[SolarOutputName, OutputData] = {
             SOLAR_POWER: replace(connection[CONNECTION_POWER_SOURCE_TARGET], type=OutputType.POWER),
-            SOLAR_FORECAST_LIMIT: connection[CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET],
         }
+
+        # Shadow price from power_limit segment (if present)
+        shadow_key = (
+            POWER_LIMIT_SHADOW_ST if POWER_LIMIT_SHADOW_ST in connection else CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET
+        )
+        if shadow_key in connection:
+            solar_outputs[SOLAR_FORECAST_LIMIT] = connection[cast("ModelOutputName", shadow_key)]
 
         return {SOLAR_DEVICE_SOLAR: solar_outputs}
 

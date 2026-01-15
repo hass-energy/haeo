@@ -40,7 +40,12 @@ _LOGGER = logging.getLogger(__name__)
 def _discover_scenarios() -> list[Path]:
     """Discover all scenario folders."""
     scenarios_dir = Path(__file__).parent
-    return sorted(scenarios_dir.glob("scenario*/"))
+    required_files = ("config.json", "environment.json", "inputs.json", "outputs.json")
+    return sorted(
+        path
+        for path in scenarios_dir.glob("scenario*/")
+        if all((path / required).exists() for required in required_files)
+    )
 
 
 # Discover scenarios for test parameters

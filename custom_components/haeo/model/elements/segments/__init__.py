@@ -9,11 +9,14 @@ Each segment type applies a specific transformation or constraint to power flow:
 
 from typing import Final
 
-from .efficiency import EFFICIENCY_PERCENT, EfficiencySegment
-from .passthrough import PassthroughSegment
-from .power_limit import PowerLimitSegment
-from .pricing import PricingSegment
+from .efficiency import EFFICIENCY_PERCENT, EfficiencySegment, EfficiencySegmentSpec
+from .passthrough import PassthroughSegment, PassthroughSegmentSpec
+from .power_limit import PowerLimitSegment, PowerLimitSegmentSpec
+from .pricing import PricingSegment, PricingSegmentSpec
 from .segment import Segment
+
+# Union type for all segment specifications
+type SegmentSpec = EfficiencySegmentSpec | PassthroughSegmentSpec | PowerLimitSegmentSpec | PricingSegmentSpec
 
 # Registry mapping segment type strings to segment classes
 SEGMENT_TYPES: Final[dict[str, type[Segment]]] = {
@@ -25,10 +28,15 @@ SEGMENT_TYPES: Final[dict[str, type[Segment]]] = {
 
 __all__ = [
     "EFFICIENCY_PERCENT",
-    "EfficiencySegment",
-    "PassthroughSegment",
-    "PowerLimitSegment",
-    "PricingSegment",
     "SEGMENT_TYPES",
+    "EfficiencySegment",
+    "EfficiencySegmentSpec",
+    "PassthroughSegment",
+    "PassthroughSegmentSpec",
+    "PowerLimitSegment",
+    "PowerLimitSegmentSpec",
+    "PricingSegment",
+    "PricingSegmentSpec",
     "Segment",
+    "SegmentSpec",
 ]

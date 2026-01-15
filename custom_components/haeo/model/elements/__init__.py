@@ -17,7 +17,6 @@ from .battery_balance_connection import BatteryBalanceConnection as BatteryBalan
 from .connection import CONNECTION_OUTPUT_NAMES as CONNECTION_OUTPUT_NAMES
 from .connection import CONNECTION_POWER_SOURCE_TARGET as CONNECTION_POWER_SOURCE_TARGET
 from .connection import CONNECTION_POWER_TARGET_SOURCE as CONNECTION_POWER_TARGET_SOURCE
-from .connection import CONNECTION_TIME_SLICE as CONNECTION_TIME_SLICE
 from .connection import Connection as Connection
 from .connection import ConnectionOutputName as ConnectionOutputName
 from .node import NODE_OUTPUT_NAMES
@@ -28,6 +27,7 @@ from .segments import PassthroughSegment as PassthroughSegment
 from .segments import PowerLimitSegment as PowerLimitSegment
 from .segments import PricingSegment as PricingSegment
 from .segments import Segment as Segment
+from .segments import SegmentSpec as SegmentSpec
 
 # Element type constants for model layer
 MODEL_ELEMENT_TYPE_BATTERY: Final = "battery"
@@ -79,7 +79,6 @@ __all__ = [
     "CONNECTION_OUTPUT_NAMES",
     "CONNECTION_POWER_SOURCE_TARGET",
     "CONNECTION_POWER_TARGET_SOURCE",
-    "CONNECTION_TIME_SLICE",
     "ELEMENTS",
     "MODEL_ELEMENT_BATTERY_BALANCE_CONNECTION",
     "MODEL_ELEMENT_TYPE_BATTERY",
@@ -101,4 +100,5 @@ __all__ = [
     "PowerLimitSegment",
     "PricingSegment",
     "Segment",
+    "SegmentSpec",
 ]

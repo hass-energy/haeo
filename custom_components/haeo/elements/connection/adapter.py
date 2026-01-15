@@ -5,11 +5,13 @@ from dataclasses import replace
 from typing import Any, Final, Literal
 
 from homeassistant.core import HomeAssistant
+import numpy as np
 
 from custom_components.haeo.const import ConnectivityLevel
 from custom_components.haeo.data.loader import TimeSeriesLoader
 from custom_components.haeo.model import ModelOutputName
 from custom_components.haeo.model.const import OutputType
+from custom_components.haeo.model.elements import SegmentSpec
 from custom_components.haeo.model.elements.connection import CONNECTION_OUTPUT_NAMES as MODEL_CONNECTION_OUTPUT_NAMES
 from custom_components.haeo.model.elements.connection import (
     CONNECTION_POWER_SOURCE_TARGET,
@@ -19,6 +21,11 @@ from custom_components.haeo.model.elements.connection import (
     CONNECTION_TIME_SLICE,
 )
 from custom_components.haeo.model.elements.connection import ConnectionOutputName as ModelConnectionOutputName
+from custom_components.haeo.model.elements.segments import (
+    EfficiencySegmentSpec,
+    PowerLimitSegmentSpec,
+    PricingSegmentSpec,
+)
 from custom_components.haeo.model.output_data import OutputData
 
 from .flow import ConnectionSubentryFlowHandler
@@ -40,12 +47,20 @@ from .schema import (
 CONNECTION_POWER_ACTIVE: Final = "connection_power_active"
 
 # Connection adapter output names include model outputs + adapter-synthesized outputs
-type ConnectionOutputName = ModelConnectionOutputName | Literal["connection_power_active"]
+type ConnectionOutputName = ModelConnectionOutputName | Literal[
+    "connection_power_active",
+    "connection_shadow_power_max_source_target",
+    "connection_shadow_power_max_target_source",
+    "connection_time_slice",
+]
 
 CONNECTION_OUTPUT_NAMES: Final[frozenset[ConnectionOutputName]] = frozenset(
     (
         *MODEL_CONNECTION_OUTPUT_NAMES,
         CONNECTION_POWER_ACTIVE,
+        CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET,
+        CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE,
+        CONNECTION_TIME_SLICE,
     )
 )
 
@@ -168,21 +183,58 @@ class ConnectionAdapter:
         return self.build_config_data(loaded_values, config)
 
     def model_elements(self, config: ConnectionConfigData) -> list[dict[str, Any]]:
-        """Return model element parameters for Connection configuration."""
-        return [
-            {
-                "element_type": "connection",
-                "name": config["name"],
-                "source": config["source"],
-                "target": config["target"],
-                "max_power_source_target": config.get("max_power_source_target"),
-                "max_power_target_source": config.get("max_power_target_source"),
-                "efficiency_source_target": config.get("efficiency_source_target"),
-                "efficiency_target_source": config.get("efficiency_target_source"),
-                "price_source_target": config.get("price_source_target"),
-                "price_target_source": config.get("price_target_source"),
-            }
-        ]
+        """Return model element parameters for Connection configuration.
+
+        Builds the segments list for the Connection model element based on
+        which optional configuration fields are present.
+        """
+        segments: list[SegmentSpec] = []
+
+        # Add efficiency segment if efficiency values are provided
+        # Note: Segment uses efficiency_st/efficiency_ts, values are fractions (0-1)
+        efficiency_st = config.get("efficiency_source_target")
+        efficiency_ts = config.get("efficiency_target_source")
+        if efficiency_st is not None or efficiency_ts is not None:
+            # Efficiency values from config are percentages, convert to fractions
+            efficiency_spec: EfficiencySegmentSpec = {"segment_type": "efficiency"}
+            if efficiency_st is not None:
+                efficiency_spec["efficiency_st"] = np.array(efficiency_st) / 100.0
+            if efficiency_ts is not None:
+                efficiency_spec["efficiency_ts"] = np.array(efficiency_ts) / 100.0
+            segments.append(efficiency_spec)
+
+        # Add power limit segment if power limits are provided
+        max_power_st = config.get("max_power_source_target")
+        max_power_ts = config.get("max_power_target_source")
+        if max_power_st is not None or max_power_ts is not None:
+            power_limit_spec: PowerLimitSegmentSpec = {"segment_type": "power_limit"}
+            if max_power_st is not None:
+                power_limit_spec["max_power_st"] = np.array(max_power_st)
+            if max_power_ts is not None:
+                power_limit_spec["max_power_ts"] = np.array(max_power_ts)
+            segments.append(power_limit_spec)
+
+        # Add pricing segment if prices are provided
+        price_st = config.get("price_source_target")
+        price_ts = config.get("price_target_source")
+        if price_st is not None or price_ts is not None:
+            pricing_spec: PricingSegmentSpec = {"segment_type": "pricing"}
+            if price_st is not None:
+                pricing_spec["price_st"] = np.array(price_st)
+            if price_ts is not None:
+                pricing_spec["price_ts"] = np.array(price_ts)
+            segments.append(pricing_spec)
+
+        element_data: dict[str, Any] = {
+            "element_type": "connection",
+            "name": config["name"],
+            "source": config["source"],
+            "target": config["target"],
+        }
+        if segments:
+            element_data["segments"] = segments
+
+        return [element_data]
 
     def outputs(
         self,
@@ -213,19 +265,21 @@ class ConnectionAdapter:
             type=OutputType.POWER_FLOW,
         )
 
-        # Shadow prices (computed by optimization) - only if constraints exist
+        # Include legacy shadow prices if present
         if CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET in connection:
             connection_outputs[CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET] = connection[
                 CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET
             ]
-
         if CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE in connection:
             connection_outputs[CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE] = connection[
                 CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE
             ]
-
         if CONNECTION_TIME_SLICE in connection:
             connection_outputs[CONNECTION_TIME_SLICE] = connection[CONNECTION_TIME_SLICE]
+
+        # Note: Segment shadow prices (power_limit_power_limit_st, etc.) are exposed
+        # directly through the model's generic outputs() method. Specific adapters
+        # (grid, solar, etc.) map these to their own element-specific output names.
 
         return {CONNECTION_DEVICE_CONNECTION: connection_outputs}
 

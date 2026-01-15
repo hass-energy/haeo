@@ -2,7 +2,7 @@
 
 from collections.abc import Mapping, Sequence
 from dataclasses import replace
-from typing import Any, Final, Literal
+from typing import Any, Final, Literal, cast
 
 from homeassistant.core import HomeAssistant
 
@@ -30,6 +30,11 @@ from .schema import (
     InverterConfigData,
     InverterConfigSchema,
 )
+
+# Segment output names for power limit shadow prices
+# Format is {segment_name}_{constraint_name}
+POWER_LIMIT_SHADOW_ST: Final = "power_limit_power_limit_st"
+POWER_LIMIT_SHADOW_TS: Final = "power_limit_power_limit_ts"
 
 # Inverter output names
 type InverterOutputName = Literal[
@@ -201,9 +206,23 @@ class InverterAdapter:
         # DC bus power balance shadow price
         inverter_outputs[INVERTER_DC_BUS_POWER_BALANCE] = dc_bus[NODE_POWER_BALANCE]
 
-        # Shadow prices
-        inverter_outputs[INVERTER_MAX_POWER_DC_TO_AC_PRICE] = connection[CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET]
-        inverter_outputs[INVERTER_MAX_POWER_AC_TO_DC_PRICE] = connection[CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE]
+        # Shadow prices from power_limit segment
+        # DC→AC is source→target, so uses POWER_LIMIT_SHADOW_ST
+        dc_to_ac_shadow_key = (
+            POWER_LIMIT_SHADOW_ST if POWER_LIMIT_SHADOW_ST in connection else CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET
+        )
+        # AC→DC is target→source, so uses POWER_LIMIT_SHADOW_TS
+        ac_to_dc_shadow_key = (
+            POWER_LIMIT_SHADOW_TS if POWER_LIMIT_SHADOW_TS in connection else CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE
+        )
+        if dc_to_ac_shadow_key in connection:
+            inverter_outputs[INVERTER_MAX_POWER_DC_TO_AC_PRICE] = connection[
+                cast("ModelOutputName", dc_to_ac_shadow_key)
+            ]
+        if ac_to_dc_shadow_key in connection:
+            inverter_outputs[INVERTER_MAX_POWER_AC_TO_DC_PRICE] = connection[
+                cast("ModelOutputName", ac_to_dc_shadow_key)
+            ]
 
         return {INVERTER_DEVICE_INVERTER: inverter_outputs}
 

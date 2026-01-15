@@ -2,7 +2,7 @@
 
 from collections.abc import Mapping, Sequence
 from dataclasses import replace
-from typing import Any, Final, Literal
+from typing import Any, Final, Literal, cast
 
 from homeassistant.core import HomeAssistant
 import numpy as np
@@ -21,6 +21,11 @@ from custom_components.haeo.model.output_data import OutputData
 
 from .flow import GridSubentryFlowHandler
 from .schema import CONF_CONNECTION, ELEMENT_TYPE, GridConfigData, GridConfigSchema
+
+# Segment output names for power limit shadow prices
+# Format is {segment_name}_{constraint_name}
+POWER_LIMIT_SHADOW_ST: Final = "power_limit_power_limit_st"
+POWER_LIMIT_SHADOW_TS: Final = "power_limit_power_limit_ts"
 
 # Grid-specific output names for translation/sensor mapping
 type GridOutputName = Literal[
@@ -266,10 +271,16 @@ class GridAdapter:
         )
 
         # Output the shadow prices if they exist
-        if CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE in connection:
-            grid_outputs[GRID_POWER_MAX_EXPORT_PRICE] = connection[CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE]
-        if CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET in connection:
-            grid_outputs[GRID_POWER_MAX_IMPORT_PRICE] = connection[CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET]
+        export_shadow_key = (
+            POWER_LIMIT_SHADOW_TS if POWER_LIMIT_SHADOW_TS in connection else CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE
+        )
+        import_shadow_key = (
+            POWER_LIMIT_SHADOW_ST if POWER_LIMIT_SHADOW_ST in connection else CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET
+        )
+        if export_shadow_key in connection:
+            grid_outputs[GRID_POWER_MAX_EXPORT_PRICE] = connection[cast("ModelOutputName", export_shadow_key)]
+        if import_shadow_key in connection:
+            grid_outputs[GRID_POWER_MAX_IMPORT_PRICE] = connection[cast("ModelOutputName", import_shadow_key)]
 
         return {GRID_DEVICE_GRID: grid_outputs}
 

@@ -4,16 +4,26 @@ Adds cost proportional to power flow:
     cost = power * price * period_duration
 """
 
-from typing import Any
+from typing import Any, Literal, NotRequired
 
 from highspy import Highs
 from highspy.highs import HighspyArray, highs_linear_expression
 import numpy as np
 from numpy.typing import NDArray
+from typing_extensions import TypedDict
 
 from custom_components.haeo.model.reactive import TrackedParam, cost
 
 from .segment import Segment
+
+
+class PricingSegmentSpec(TypedDict):
+    """Specification for creating a PricingSegment."""
+
+    segment_type: Literal["pricing"]
+    name: NotRequired[str]
+    price_st: NotRequired[NDArray[np.floating[Any]]]
+    price_ts: NotRequired[NDArray[np.floating[Any]]]
 
 
 class PricingSegment(Segment):
@@ -106,4 +116,4 @@ class PricingSegment(Segment):
         return Highs.qsum(cost_terms)
 
 
-__all__ = ["PricingSegment"]
+__all__ = ["PricingSegment", "PricingSegmentSpec"]

@@ -17,9 +17,6 @@ from .elements.battery_balance_connection import BatteryBalanceConnection as Bat
 from .elements.connection import CONNECTION_OUTPUT_NAMES as CONNECTION_OUTPUT_NAMES
 from .elements.connection import CONNECTION_POWER_SOURCE_TARGET as CONNECTION_POWER_SOURCE_TARGET
 from .elements.connection import CONNECTION_POWER_TARGET_SOURCE as CONNECTION_POWER_TARGET_SOURCE
-from .elements.connection import CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET as CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET
-from .elements.connection import CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE as CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE
-from .elements.connection import CONNECTION_TIME_SLICE as CONNECTION_TIME_SLICE
 from .elements.connection import Connection as Connection
 from .elements.connection import ConnectionOutputName as ConnectionOutputName
 from .elements.node import Node as Node
@@ -34,9 +31,6 @@ __all__ = [
     "CONNECTION_OUTPUT_NAMES",
     "CONNECTION_POWER_SOURCE_TARGET",
     "CONNECTION_POWER_TARGET_SOURCE",
-    "CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET",
-    "CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE",
-    "CONNECTION_TIME_SLICE",
     "MODEL_ELEMENT_BATTERY_BALANCE_CONNECTION",
     "Battery",
     "BatteryBalanceConnection",

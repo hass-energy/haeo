@@ -6,17 +6,27 @@ Efficiency reduces output power relative to input:
 This models inverter losses, transformer losses, etc.
 """
 
-from typing import Any, Final
-
-# Efficiency is specified as percentage (0-100), convert to fraction
-EFFICIENCY_PERCENT: Final = 100.0
+from typing import Any, Final, Literal, NotRequired
 
 from highspy import Highs
 from highspy.highs import HighspyArray
 import numpy as np
 from numpy.typing import NDArray
+from typing_extensions import TypedDict
 
 from .segment import Segment
+
+# Efficiency is specified as percentage (0-100), convert to fraction
+EFFICIENCY_PERCENT: Final = 100.0
+
+
+class EfficiencySegmentSpec(TypedDict):
+    """Specification for creating an EfficiencySegment."""
+
+    segment_type: Literal["efficiency"]
+    name: NotRequired[str]
+    efficiency_st: NotRequired[NDArray[np.floating[Any]]]
+    efficiency_ts: NotRequired[NDArray[np.floating[Any]]]
 
 
 class EfficiencySegment(Segment):
@@ -83,4 +93,4 @@ class EfficiencySegment(Segment):
         return self._power_ts * self._efficiency_ts
 
 
-__all__ = ["EFFICIENCY_PERCENT", "EfficiencySegment"]
+__all__ = ["EFFICIENCY_PERCENT", "EfficiencySegment", "EfficiencySegmentSpec"]

@@ -4,16 +4,27 @@ Limits power flow in each direction and optionally prevents simultaneous
 bidirectional flow at full capacity (time-slice constraint).
 """
 
-from typing import Any
+from typing import Any, Literal, NotRequired
 
 from highspy import Highs
 from highspy.highs import HighspyArray, highs_linear_expression
 import numpy as np
 from numpy.typing import NDArray
+from typing_extensions import TypedDict
 
 from custom_components.haeo.model.reactive import TrackedParam, constraint
 
 from .segment import Segment
+
+
+class PowerLimitSegmentSpec(TypedDict):
+    """Specification for creating a PowerLimitSegment."""
+
+    segment_type: Literal["power_limit"]
+    name: NotRequired[str]
+    max_power_st: NotRequired[NDArray[np.floating[Any]]]
+    max_power_ts: NotRequired[NDArray[np.floating[Any]]]
+    fixed: NotRequired[bool]
 
 
 class PowerLimitSegment(Segment):
@@ -140,4 +151,4 @@ class PowerLimitSegment(Segment):
         return list(normalized_st + normalized_ts <= 1.0)
 
 
-__all__ = ["PowerLimitSegment"]
+__all__ = ["PowerLimitSegment", "PowerLimitSegmentSpec"]

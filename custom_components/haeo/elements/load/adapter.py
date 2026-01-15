@@ -2,7 +2,7 @@
 
 from collections.abc import Mapping, Sequence
 from dataclasses import replace
-from typing import Any, Final, Literal
+from typing import Any, Final, Literal, cast
 
 from homeassistant.core import HomeAssistant
 
@@ -18,6 +18,10 @@ from custom_components.haeo.model.output_data import OutputData
 
 from .flow import LoadSubentryFlowHandler
 from .schema import CONF_CONNECTION, CONF_FORECAST, ELEMENT_TYPE, LoadConfigData, LoadConfigSchema
+
+# Segment output names for power limit shadow prices
+# Format is {segment_name}_{constraint_name}
+POWER_LIMIT_SHADOW_TS: Final = "power_limit_power_limit_ts"
 
 # Load output names
 type LoadOutputName = Literal[
@@ -126,8 +130,14 @@ class LoadAdapter:
 
         load_outputs: dict[LoadOutputName, OutputData] = {
             LOAD_POWER: replace(connection[CONNECTION_POWER_TARGET_SOURCE], type=OutputType.POWER),
-            LOAD_FORECAST_LIMIT_PRICE: connection[CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE],
         }
+
+        # Shadow price from power_limit segment (if present)
+        shadow_key = (
+            POWER_LIMIT_SHADOW_TS if POWER_LIMIT_SHADOW_TS in connection else CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE
+        )
+        if shadow_key in connection:
+            load_outputs[LOAD_FORECAST_LIMIT_PRICE] = connection[cast("ModelOutputName", shadow_key)]
 
         return {LOAD_DEVICE_LOAD: load_outputs}
 
