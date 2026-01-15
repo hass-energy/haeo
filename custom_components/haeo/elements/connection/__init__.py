@@ -1,14 +1,14 @@
 """Connection element for HAEO integration."""
 
-# Re-export composite connection output names from model
-from custom_components.haeo.model.elements.composite_connection import (
+# Re-export connection output names from model
+from custom_components.haeo.model.elements.connection import (
     CONNECTION_POWER_SOURCE_TARGET,
     CONNECTION_POWER_TARGET_SOURCE,
     CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET,
     CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE,
     CONNECTION_TIME_SLICE,
-    CompositeConnectionOutputName,
 )
+from custom_components.haeo.model.elements.connection import ConnectionOutputName as ModelConnectionOutputName
 
 from .adapter import (
     CONNECTION_DEVICE_CONNECTION,
@@ -58,7 +58,6 @@ __all__ = [
     "CONNECTION_TIME_SLICE",
     "ELEMENT_TYPE",
     "INPUT_FIELDS",
-    "CompositeConnectionOutputName",
     "ConnectionAdapter",
     "ConnectionConfigData",
     "ConnectionConfigSchema",
@@ -66,5 +65,6 @@ __all__ = [
     "ConnectionOutputName",
     # Flow
     "ConnectionSubentryFlowHandler",
+    "ModelConnectionOutputName",
     "adapter",
 ]

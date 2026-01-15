@@ -1,16 +1,21 @@
 """Base class for connection segments.
 
 Segments are modular components that can be chained together to form
-composite connections. Each segment owns LP variables for power flow
-in both directions:
-- power_in_st / power_out_st: Source→Target direction
-- power_in_ts / power_out_ts: Target→Source direction
+connections. Each segment exposes power flow properties that the Connection
+uses to link segments together.
+
+The linking protocol:
+- power_in_st / power_in_ts: Power entering this segment
+- power_out_st / power_out_ts: Power leaving this segment
+
+For simple segments (no losses), in == out (same variable).
+For segments with losses (efficiency), out = in * factor (separate variables with constraint).
 
 Segments are reactive-aware: they can use TrackedParam for parameters and
-@constraint/@cost decorators for methods. This enables warm-start optimization
-where parameter changes automatically invalidate and rebuild affected constraints.
+@constraint/@cost decorators for methods.
 """
 
+from abc import ABC, abstractmethod
 from typing import Any
 
 from highspy import Highs
@@ -21,16 +26,18 @@ from numpy.typing import NDArray
 from custom_components.haeo.model.reactive import ReactiveConstraint, ReactiveCost
 
 
-class Segment:
-    """Base class for connection segments.
+class Segment(ABC):
+    """Abstract base class for connection segments.
 
-    Each segment owns its own LP power variables and can use the reactive
-    infrastructure (TrackedParam, @constraint, @cost) for warm-start support.
+    Defines the interface that all segments must implement. Subclasses create
+    their own variables and implement the power properties as needed.
 
-    Subclasses implement specific modifiers:
-    - EfficiencySegment: applies efficiency losses (power_out = power_in * η)
-    - PowerLimitSegment: limits maximum power flow with optional time-slice
-    - PricingSegment: adds transfer cost to objective
+    Required properties (subclasses must implement):
+    - power_in_st / power_out_st: Power flow in source→target direction
+    - power_in_ts / power_out_ts: Power flow in target→source direction
+
+    For simple segments, power_in and power_out can return the same variable.
+    For segments with losses, power_out = power_in * efficiency (via constraint).
     """
 
     def __init__(
@@ -40,7 +47,7 @@ class Segment:
         periods: NDArray[np.floating[Any]],
         solver: Highs,
     ) -> None:
-        """Initialize a segment with LP variables.
+        """Initialize segment with common attributes.
 
         Args:
             segment_id: Unique identifier for naming LP variables
@@ -53,14 +60,6 @@ class Segment:
         self._n_periods = n_periods
         self._periods = periods
         self._solver = solver
-
-        # Create power variables for both directions
-        # Source→Target direction
-        self._power_in_st = solver.addVariables(n_periods, lb=0, name_prefix=f"{segment_id}_in_st_", out_array=True)
-        self._power_out_st = solver.addVariables(n_periods, lb=0, name_prefix=f"{segment_id}_out_st_", out_array=True)
-        # Target→Source direction
-        self._power_in_ts = solver.addVariables(n_periods, lb=0, name_prefix=f"{segment_id}_in_ts_", out_array=True)
-        self._power_out_ts = solver.addVariables(n_periods, lb=0, name_prefix=f"{segment_id}_out_ts_", out_array=True)
 
     @property
     def segment_id(self) -> str:
@@ -78,24 +77,28 @@ class Segment:
         return self._periods
 
     @property
+    @abstractmethod
     def power_in_st(self) -> HighspyArray:
         """Power entering segment in source→target direction."""
-        return self._power_in_st
+        ...
 
     @property
+    @abstractmethod
     def power_out_st(self) -> HighspyArray:
         """Power leaving segment in source→target direction."""
-        return self._power_out_st
+        ...
 
     @property
+    @abstractmethod
     def power_in_ts(self) -> HighspyArray:
         """Power entering segment in target→source direction."""
-        return self._power_in_ts
+        ...
 
     @property
+    @abstractmethod
     def power_out_ts(self) -> HighspyArray:
         """Power leaving segment in target→source direction."""
-        return self._power_out_ts
+        ...
 
     def constraints(self) -> dict[str, highs_cons | list[highs_cons]]:
         """Return all constraints from this segment.

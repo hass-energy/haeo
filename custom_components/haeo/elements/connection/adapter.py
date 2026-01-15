@@ -10,15 +10,15 @@ from custom_components.haeo.const import ConnectivityLevel
 from custom_components.haeo.data.loader import TimeSeriesLoader
 from custom_components.haeo.model import ModelOutputName
 from custom_components.haeo.model.const import OutputType
-from custom_components.haeo.model.elements.composite_connection import (
-    COMPOSITE_CONNECTION_OUTPUT_NAMES,
+from custom_components.haeo.model.elements.connection import CONNECTION_OUTPUT_NAMES as MODEL_CONNECTION_OUTPUT_NAMES
+from custom_components.haeo.model.elements.connection import (
     CONNECTION_POWER_SOURCE_TARGET,
     CONNECTION_POWER_TARGET_SOURCE,
     CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET,
     CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE,
     CONNECTION_TIME_SLICE,
-    CompositeConnectionOutputName,
 )
+from custom_components.haeo.model.elements.connection import ConnectionOutputName as ModelConnectionOutputName
 from custom_components.haeo.model.output_data import OutputData
 
 from .flow import ConnectionSubentryFlowHandler
@@ -40,11 +40,11 @@ from .schema import (
 CONNECTION_POWER_ACTIVE: Final = "connection_power_active"
 
 # Connection adapter output names include model outputs + adapter-synthesized outputs
-type ConnectionOutputName = CompositeConnectionOutputName | Literal["connection_power_active"]
+type ConnectionOutputName = ModelConnectionOutputName | Literal["connection_power_active"]
 
 CONNECTION_OUTPUT_NAMES: Final[frozenset[ConnectionOutputName]] = frozenset(
     (
-        *COMPOSITE_CONNECTION_OUTPUT_NAMES,
+        *MODEL_CONNECTION_OUTPUT_NAMES,
         CONNECTION_POWER_ACTIVE,
     )
 )

@@ -9,7 +9,7 @@ import numpy as np
 
 from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.output_data import OutputData
-from custom_components.haeo.model.reactive import constraint, cost, output
+from custom_components.haeo.model.reactive import constraint, output
 
 from .connection import CONNECTION_OUTPUT_NAMES, Connection, ConnectionOutputName
 
@@ -101,6 +101,7 @@ class BatteryBalanceConnection(Connection[BatteryBalanceConnectionOutputName]):
             source=upper,
             target=lower,
             output_names=BATTERY_BALANCE_CONNECTION_OUTPUT_NAMES,  # type: ignore[arg-type]  # Parent accepts concrete subclass output names
+            _skip_segments=True,  # BatteryBalanceConnection manages its own power flow
         )
         n_periods = self.n_periods
         h = solver
@@ -121,6 +122,16 @@ class BatteryBalanceConnection(Connection[BatteryBalanceConnectionOutputName]):
         self._lower_battery = lower_battery
         upper_battery.register_connection(self, "source")
         lower_battery.register_connection(self, "target")
+
+    @property
+    def power_source_target(self) -> HighspyArray:
+        """Return power flowing from source to target (upper→lower = power_down)."""
+        return self._power_down
+
+    @property
+    def power_target_source(self) -> HighspyArray:
+        """Return power flowing from target to source (lower→upper = power_up)."""
+        return self._power_up
 
     @property
     def power_into_source(self) -> HighspyArray:
@@ -217,9 +228,11 @@ class BatteryBalanceConnection(Connection[BatteryBalanceConnectionOutputName]):
 
         return list(absorbed_excess_energy >= -excess)
 
-    @cost
-    def slack_penalty_cost(self) -> list[highs_linear_expression]:
-        """Return cost expressions penalizing slack variables.
+    def cost(self) -> highs_linear_expression | None:  # type: ignore[override]  # BatteryBalanceConnection has its own cost aggregation
+        """Return aggregated cost from slack penalty.
+
+        BatteryBalanceConnection uses _skip_segments=True so there are no segment
+        costs to aggregate. This method computes the slack penalty cost directly.
 
         The slack variables allow min/max constraints to be implemented in LP form.
         Without penalties, the solver could set slack arbitrarily, breaking the
@@ -236,7 +249,10 @@ class BatteryBalanceConnection(Connection[BatteryBalanceConnectionOutputName]):
         unmet_cost = self.unmet_demand * periods * self._slack_penalty
         absorbed_cost = self.absorbed_excess * periods * self._slack_penalty
 
-        return [*list(unmet_cost), *list(absorbed_cost)]
+        slack_costs = [*list(unmet_cost), *list(absorbed_cost)]
+        if not slack_costs:
+            return None
+        return Highs.qsum(slack_costs)
 
     @output
     def balance_power_down(self) -> OutputData:

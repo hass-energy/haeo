@@ -10,7 +10,7 @@ import pytest
 from custom_components.haeo.model import Network
 from custom_components.haeo.model import network as network_module
 from custom_components.haeo.model.element import Element
-from custom_components.haeo.model.elements.composite_connection import CompositeConnection
+from custom_components.haeo.model.elements.connection import Connection
 from custom_components.haeo.model.elements.node import Node
 
 # Test constants
@@ -69,7 +69,7 @@ def test_connect_entities() -> None:
 
     # Connect them
     connection = cast(
-        "CompositeConnection",
+        "Connection[str]",
         network.add(
             ELEMENT_TYPE_CONNECTION,
             "battery1_to_grid1",
@@ -90,7 +90,7 @@ def test_connect_entities() -> None:
     # Check that the connection element was added
     connection_name = "battery1_to_grid1"
     assert connection_name in network.elements
-    assert isinstance(network.elements[connection_name], CompositeConnection)
+    assert isinstance(network.elements[connection_name], Connection)
 
 
 def test_connect_nonexistent_entities() -> None:
@@ -155,7 +155,7 @@ def test_connect_target_is_connection() -> None:
 def test_validate_raises_when_source_missing() -> None:
     """Validate should raise when a connection source is missing."""
     net = Network(name="net", periods=[1.0] * 1)
-    net.elements["conn"] = CompositeConnection(
+    net.elements["conn"] = Connection(
         name="conn",
         periods=[1.0] * 1,
         solver=net._solver,
@@ -173,7 +173,7 @@ def test_validate_raises_when_target_missing() -> None:
     net.elements["source_node"] = Node(
         name="source_node", periods=[1.0] * 1, solver=net._solver, is_source=True, is_sink=True
     )
-    net.elements["conn"] = CompositeConnection(
+    net.elements["conn"] = Connection(
         name="conn",
         periods=[1.0] * 1,
         solver=net._solver,
@@ -191,7 +191,7 @@ def test_validate_raises_when_endpoints_are_connections() -> None:
     # Non-connection element to satisfy target for conn2
     net.elements["node"] = Node(name="node", periods=[1.0] * 1, solver=net._solver, is_source=True, is_sink=True)
 
-    net.elements["conn2"] = CompositeConnection(
+    net.elements["conn2"] = Connection(
         name="conn2",
         periods=[1.0] * 1,
         solver=net._solver,
@@ -200,7 +200,7 @@ def test_validate_raises_when_endpoints_are_connections() -> None:
     )
 
     # conn1 references conn2 as source and target to hit both connection checks
-    net.elements["conn1"] = CompositeConnection(
+    net.elements["conn1"] = Connection(
         name="conn1",
         periods=[1.0] * 1,
         solver=net._solver,

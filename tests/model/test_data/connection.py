@@ -1,13 +1,13 @@
 """Test data and factories for Connection element."""
 
-from custom_components.haeo.model.elements.composite_connection import CompositeConnection
+from custom_components.haeo.model.elements.connection import Connection
 
 from .connection_types import ConnectionTestCase
 
 VALID_CASES: list[ConnectionTestCase] = [
     {
         "description": "Connection with forward flow only",
-        "factory": CompositeConnection,
+        "factory": Connection,
         "data": {
             "name": "forward_connection",
             "periods": [1.0] * 3,
@@ -29,7 +29,7 @@ VALID_CASES: list[ConnectionTestCase] = [
     },
     {
         "description": "Connection with reverse flow only",
-        "factory": CompositeConnection,
+        "factory": Connection,
         "data": {
             "name": "reverse_connection",
             "periods": [1.0] * 3,
@@ -51,7 +51,7 @@ VALID_CASES: list[ConnectionTestCase] = [
     },
     {
         "description": "Connection respecting forward power limit",
-        "factory": CompositeConnection,
+        "factory": Connection,
         "data": {
             "name": "limited_forward",
             "periods": [1.0] * 2,
@@ -73,7 +73,7 @@ VALID_CASES: list[ConnectionTestCase] = [
     },
     {
         "description": "Connection with efficiency losses",
-        "factory": CompositeConnection,
+        "factory": Connection,
         "data": {
             "name": "inverter",
             "periods": [1.0] * 2,
@@ -96,7 +96,7 @@ VALID_CASES: list[ConnectionTestCase] = [
     },
     {
         "description": "Connection with transfer pricing and power flow",
-        "factory": CompositeConnection,
+        "factory": Connection,
         "data": {
             "name": "priced_active_link",
             "periods": [1.0, 0.5],
@@ -119,7 +119,7 @@ VALID_CASES: list[ConnectionTestCase] = [
     },
     {
         "description": "Connection with time-varying limits",
-        "factory": CompositeConnection,
+        "factory": Connection,
         "data": {
             "name": "varying_connection",
             "periods": [1.0] * 3,
@@ -141,7 +141,7 @@ VALID_CASES: list[ConnectionTestCase] = [
     },
     {
         "description": "Connection with bidirectional transfer pricing and forward flow",
-        "factory": CompositeConnection,
+        "factory": Connection,
         "data": {
             "name": "bidirectional_priced",
             "periods": [1.0, 1.0],
@@ -168,7 +168,7 @@ VALID_CASES: list[ConnectionTestCase] = [
     },
     {
         "description": "Connection with bidirectional efficiency losses",
-        "factory": CompositeConnection,
+        "factory": Connection,
         "data": {
             "name": "bidirectional_converter",
             "periods": [1.0] * 2,
@@ -195,7 +195,7 @@ VALID_CASES: list[ConnectionTestCase] = [
     },
     {
         "description": "Connection with fixed power in reverse direction",
-        "factory": CompositeConnection,
+        "factory": Connection,
         "data": {
             "name": "fixed_reverse",
             "periods": [1.0] * 2,

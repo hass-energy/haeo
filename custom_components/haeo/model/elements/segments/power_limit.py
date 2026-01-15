@@ -7,7 +7,7 @@ bidirectional flow at full capacity (time-slice constraint).
 from typing import Any
 
 from highspy import Highs
-from highspy.highs import highs_linear_expression
+from highspy.highs import HighspyArray, highs_linear_expression
 import numpy as np
 from numpy.typing import NDArray
 
@@ -19,12 +19,14 @@ from .segment import Segment
 class PowerLimitSegment(Segment):
     """Segment that limits maximum power flow.
 
+    Creates single power variables for each direction (no losses, so in == out).
+
     Constraints:
-        power_in_st <= max_power_st  (or == if fixed)
-        power_in_ts <= max_power_ts  (or == if fixed)
+        power_st <= max_power_st  (or == if fixed)
+        power_ts <= max_power_ts  (or == if fixed)
 
     Time-slice constraint (when both limits set):
-        (power_in_st / max_power_st) + (power_in_ts / max_power_ts) <= 1
+        (power_st / max_power_st) + (power_ts / max_power_ts) <= 1
 
     This prevents simultaneous bidirectional flow at full capacity.
 
@@ -61,9 +63,33 @@ class PowerLimitSegment(Segment):
         super().__init__(segment_id, n_periods, periods, solver)
         self._fixed = fixed
 
+        # Create single power variable per direction (lossless segment, in == out)
+        self._power_st = solver.addVariables(n_periods, lb=0, name_prefix=f"{segment_id}_st_", out_array=True)
+        self._power_ts = solver.addVariables(n_periods, lb=0, name_prefix=f"{segment_id}_ts_", out_array=True)
+
         # Set tracked params (these trigger reactive infrastructure)
         self.max_power_st = max_power_st.astype(np.float64) if max_power_st is not None else None
         self.max_power_ts = max_power_ts.astype(np.float64) if max_power_ts is not None else None
+
+    @property
+    def power_in_st(self) -> HighspyArray:
+        """Power entering segment in source→target direction."""
+        return self._power_st
+
+    @property
+    def power_out_st(self) -> HighspyArray:
+        """Power leaving segment in source→target direction (same as in, lossless)."""
+        return self._power_st
+
+    @property
+    def power_in_ts(self) -> HighspyArray:
+        """Power entering segment in target→source direction."""
+        return self._power_ts
+
+    @property
+    def power_out_ts(self) -> HighspyArray:
+        """Power leaving segment in target→source direction (same as in, lossless)."""
+        return self._power_ts
 
     @constraint(output=True, unit="$/kW")
     def power_limit_st(self) -> list[highs_linear_expression] | None:
@@ -72,8 +98,8 @@ class PowerLimitSegment(Segment):
             return None
 
         if self._fixed:
-            return list(self.power_in_st == self.max_power_st)
-        return list(self.power_in_st <= self.max_power_st)
+            return list(self._power_st == self.max_power_st)
+        return list(self._power_st <= self.max_power_st)
 
     @constraint(output=True, unit="$/kW")
     def power_limit_ts(self) -> list[highs_linear_expression] | None:
@@ -82,28 +108,14 @@ class PowerLimitSegment(Segment):
             return None
 
         if self._fixed:
-            return list(self.power_in_ts == self.max_power_ts)
-        return list(self.power_in_ts <= self.max_power_ts)
-
-    @constraint
-    def passthrough_st(self) -> list[highs_linear_expression] | None:
-        """Passthrough constraint: power_out == power_in (no losses in limit segment)."""
-        if self.max_power_st is None:
-            return None
-        return list(self.power_out_st == self.power_in_st)
-
-    @constraint
-    def passthrough_ts(self) -> list[highs_linear_expression] | None:
-        """Passthrough constraint: power_out == power_in (no losses in limit segment)."""
-        if self.max_power_ts is None:
-            return None
-        return list(self.power_out_ts == self.power_in_ts)
+            return list(self._power_ts == self.max_power_ts)
+        return list(self._power_ts <= self.max_power_ts)
 
     @constraint(output=True, unit="$/kW")
     def time_slice(self) -> list[highs_linear_expression] | None:
         """Time-slice constraint: prevent simultaneous bidirectional flow at capacity.
 
-        Constraint: (power_in_st / max_power_st) + (power_in_ts / max_power_ts) <= 1
+        Constraint: (power_st / max_power_st) + (power_ts / max_power_ts) <= 1
         """
         if self.max_power_st is None or self.max_power_ts is None:
             return None
@@ -123,8 +135,8 @@ class PowerLimitSegment(Segment):
             where=self.max_power_ts > 0,
         )
 
-        normalized_st = self.power_in_st * coeff_st
-        normalized_ts = self.power_in_ts * coeff_ts
+        normalized_st = self._power_st * coeff_st
+        normalized_ts = self._power_ts * coeff_ts
         return list(normalized_st + normalized_ts <= 1.0)
 
 

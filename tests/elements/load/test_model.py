@@ -10,7 +10,7 @@ from custom_components.haeo.elements import load as load_element
 from custom_components.haeo.elements.load import LoadConfigData
 from custom_components.haeo.model import ModelOutputName
 from custom_components.haeo.model.const import OutputType
-from custom_components.haeo.model.elements import composite_connection
+from custom_components.haeo.model.elements import connection
 from custom_components.haeo.model.output_data import OutputData
 
 
@@ -62,8 +62,8 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
         "name": "load_main",
         "model_outputs": {
             "load_main:connection": {
-                composite_connection.CONNECTION_POWER_TARGET_SOURCE: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(1.0,), direction="+"),
-                composite_connection.CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.01,)),
+                connection.CONNECTION_POWER_TARGET_SOURCE: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(1.0,), direction="+"),
+                connection.CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.01,)),
             }
         },
         "outputs": {

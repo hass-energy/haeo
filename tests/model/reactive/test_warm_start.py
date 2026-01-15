@@ -9,7 +9,7 @@ import pytest
 
 from custom_components.haeo.model import Network
 from custom_components.haeo.model.elements.battery import Battery
-from custom_components.haeo.model.elements.composite_connection import CompositeConnection
+from custom_components.haeo.model.elements.connection import Connection
 
 # Battery reactive update tests
 
@@ -127,7 +127,7 @@ def test_connection_update_max_power_source_target() -> None:
     network.optimize()
 
     connection = network.elements["conn"]
-    assert isinstance(connection, CompositeConnection)
+    assert isinstance(connection, Connection)
 
     # Update max power via TrackedParam
     connection.max_power_source_target = np.array([10.0, 10.0, 10.0])
@@ -160,7 +160,7 @@ def test_connection_update_price_source_target() -> None:
     cost1 = network.optimize()
 
     connection = network.elements["conn"]
-    assert isinstance(connection, CompositeConnection)
+    assert isinstance(connection, Connection)
 
     # Update price via TrackedParam
     connection.price_source_target = np.array([0.20, 0.20, 0.20])
@@ -190,7 +190,7 @@ def test_connection_update_max_power_target_source() -> None:
     network.optimize()
 
     connection = network.elements["conn"]
-    assert isinstance(connection, CompositeConnection)
+    assert isinstance(connection, Connection)
 
     connection.max_power_target_source = np.array([7.0])
     np.testing.assert_array_equal(connection.max_power_target_source, [7.0])
@@ -220,7 +220,7 @@ def test_connection_update_price_target_source() -> None:
     assert pytest.approx(cost1) == 0.0
 
     connection = network.elements["conn"]
-    assert isinstance(connection, CompositeConnection)
+    assert isinstance(connection, Connection)
 
     # Double the import price via TrackedParam
     connection.price_target_source = np.array([0.30])
@@ -251,7 +251,7 @@ def test_connection_update_with_sequence_values() -> None:
     network.optimize()
 
     connection = network.elements["conn"]
-    assert isinstance(connection, CompositeConnection)
+    assert isinstance(connection, Connection)
 
     # Update with varying prices per period via TrackedParam
     connection.price_source_target = np.array([0.05, 0.10, 0.15])
@@ -305,7 +305,7 @@ def test_warm_start_produces_same_result() -> None:
     battery.initial_charge = 5.0
 
     connection = network2.elements["conn"]
-    assert isinstance(connection, CompositeConnection)
+    assert isinstance(connection, Connection)
     connection.max_power_source_target = np.array([5.0, 5.0, 5.0])
     connection.max_power_target_source = np.array([5.0, 5.0, 5.0])
     connection.price_source_target = np.array([-0.10, -0.10, -0.10])
@@ -386,7 +386,7 @@ def test_solver_structure_unchanged_after_update() -> None:
     battery.initial_charge = 8.0
 
     connection = network.elements["conn"]
-    assert isinstance(connection, CompositeConnection)
+    assert isinstance(connection, Connection)
     connection.price_source_target = np.array([-0.20, -0.20, -0.20])
 
     network.optimize()

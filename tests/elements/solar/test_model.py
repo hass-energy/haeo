@@ -10,7 +10,7 @@ from custom_components.haeo.elements import solar as solar_element
 from custom_components.haeo.elements.solar import SolarConfigData
 from custom_components.haeo.model import ModelOutputName
 from custom_components.haeo.model.const import OutputType
-from custom_components.haeo.model.elements import composite_connection
+from custom_components.haeo.model.elements import connection
 from custom_components.haeo.model.output_data import OutputData
 
 
@@ -65,8 +65,8 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
         "name": "pv_main",
         "model_outputs": {
             "pv_main:connection": {
-                composite_connection.CONNECTION_POWER_SOURCE_TARGET: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(2.0,), direction="+"),
-                composite_connection.CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.02,)),
+                connection.CONNECTION_POWER_SOURCE_TARGET: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(2.0,), direction="+"),
+                connection.CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.02,)),
             }
         },
         "outputs": {
@@ -81,8 +81,8 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
         "name": "pv_with_price",
         "model_outputs": {
             "pv_with_price:connection": {
-                composite_connection.CONNECTION_POWER_SOURCE_TARGET: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(1.5,), direction="+"),
-                composite_connection.CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.0,)),
+                connection.CONNECTION_POWER_SOURCE_TARGET: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(1.5,), direction="+"),
+                connection.CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.0,)),
             }
         },
         "outputs": {

@@ -18,8 +18,7 @@ import networkx as nx
 
 from custom_components.haeo.model import Network
 from custom_components.haeo.model.element import Element
-from custom_components.haeo.model.elements import Battery, BatteryBalanceConnection, CompositeConnection, Node
-from custom_components.haeo.model.elements.connection import Connection
+from custom_components.haeo.model.elements import Battery, BatteryBalanceConnection, Connection, Node
 
 # Use non-GUI backend
 mpl.use("Agg")
@@ -89,7 +88,7 @@ def _get_element_type(element: Element[str]) -> str:
         return "node"
     if isinstance(element, BatteryBalanceConnection):
         return "balance"
-    if isinstance(element, CompositeConnection):
+    if isinstance(element, Connection):
         return "connection"
     return "unknown"
 
