@@ -5,12 +5,13 @@ from dataclasses import replace
 from typing import Any, Final, Literal, cast
 
 from homeassistant.core import HomeAssistant
+import numpy as np
 
 from custom_components.haeo.const import ConnectivityLevel
 from custom_components.haeo.data.loader import ConstantLoader, TimeSeriesLoader
 from custom_components.haeo.model import ModelElementConfig, ModelOutputName
 from custom_components.haeo.model.const import OutputType
-from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE
+from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE, SegmentSpec
 from custom_components.haeo.model.elements.connection import (
     CONNECTION_POWER_SOURCE_TARGET,
     CONNECTION_POWER_TARGET_SOURCE,
@@ -18,6 +19,7 @@ from custom_components.haeo.model.elements.connection import (
     CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE,
 )
 from custom_components.haeo.model.elements.node import NODE_POWER_BALANCE
+from custom_components.haeo.model.elements.segments import EfficiencySegmentSpec, PowerLimitSegmentSpec
 from custom_components.haeo.model.output_data import OutputData
 
 from .flow import InverterSubentryFlowHandler
@@ -153,6 +155,23 @@ class InverterAdapter:
         efficiency and power limits for bidirectional power conversion.
         """
         name = config["name"]
+        segments: list[SegmentSpec] = []
+        efficiency_st = config.get("efficiency_dc_to_ac")
+        efficiency_ts = config.get("efficiency_ac_to_dc")
+        if efficiency_st is not None or efficiency_ts is not None:
+            efficiency: EfficiencySegmentSpec = {"segment_type": "efficiency"}
+            if efficiency_st is not None:
+                efficiency["efficiency_st"] = np.array(efficiency_st) / 100.0
+            if efficiency_ts is not None:
+                efficiency["efficiency_ts"] = np.array(efficiency_ts) / 100.0
+            segments.append(efficiency)
+
+        power_limit: PowerLimitSegmentSpec = {
+            "segment_type": "power_limit",
+            "max_power_st": np.array(config["max_power_dc_to_ac"]),
+            "max_power_ts": np.array(config["max_power_ac_to_dc"]),
+        }
+        segments.append(power_limit)
 
         return [
             # Create Node for the DC bus (pure junction - neither source nor sink)
@@ -165,10 +184,7 @@ class InverterAdapter:
                 "name": f"{name}:connection",
                 "source": name,
                 "target": config["connection"],
-                "max_power_source_target": config["max_power_dc_to_ac"],
-                "max_power_target_source": config["max_power_ac_to_dc"],
-                "efficiency_source_target": config.get("efficiency_dc_to_ac"),
-                "efficiency_target_source": config.get("efficiency_ac_to_dc"),
+                "segments": segments,
             },
         ]
 

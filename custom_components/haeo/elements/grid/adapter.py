@@ -11,13 +11,14 @@ from custom_components.haeo.const import ConnectivityLevel
 from custom_components.haeo.data.loader import TimeSeriesLoader
 from custom_components.haeo.model import ModelElementConfig, ModelOutputName
 from custom_components.haeo.model.const import OutputType
-from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE
+from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE, SegmentSpec
 from custom_components.haeo.model.elements.connection import (
     CONNECTION_POWER_SOURCE_TARGET,
     CONNECTION_POWER_TARGET_SOURCE,
     CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET,
     CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE,
 )
+from custom_components.haeo.model.elements.segments import PowerLimitSegmentSpec, PricingSegmentSpec
 from custom_components.haeo.model.output_data import OutputData
 
 from .flow import GridSubentryFlowHandler
@@ -193,6 +194,22 @@ class GridAdapter:
 
     def model_elements(self, config: GridConfigData) -> list[ModelElementConfig]:
         """Create model elements for Grid configuration."""
+        segments: list[SegmentSpec] = []
+        if config.get("import_limit") is not None or config.get("export_limit") is not None:
+            power_limit: PowerLimitSegmentSpec = {"segment_type": "power_limit"}
+            if config.get("import_limit") is not None:
+                power_limit["max_power_st"] = np.array(config["import_limit"])
+            if config.get("export_limit") is not None:
+                power_limit["max_power_ts"] = np.array(config["export_limit"])
+            segments.append(power_limit)
+
+        pricing: PricingSegmentSpec = {
+            "segment_type": "pricing",
+            "price_st": np.array(config["import_price"]),
+            "price_ts": np.array([-p for p in config["export_price"]]),
+        }
+        segments.append(pricing)
+
         return [
             # Create Node for the grid (both source and sink - can import and export)
             {
@@ -207,10 +224,7 @@ class GridAdapter:
                 "name": f"{config['name']}:connection",
                 "source": config["name"],
                 "target": config["connection"],
-                "max_power_source_target": config.get("import_limit"),  # source_target is grid to system (IMPORT)
-                "max_power_target_source": config.get("export_limit"),  # target_source is system to grid (EXPORT)
-                "price_source_target": config["import_price"],
-                "price_target_source": [-p for p in config["export_price"]],  # Negate because exporting earns money
+                "segments": segments,
             },
         ]
 

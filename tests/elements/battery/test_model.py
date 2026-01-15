@@ -3,6 +3,7 @@
 from collections.abc import Mapping, Sequence
 from typing import Any, TypedDict
 
+import numpy as np
 import pytest
 
 from custom_components.haeo.elements import ELEMENT_TYPES
@@ -92,7 +93,9 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "name": "battery_main:undercharge:to_node",
                 "source": "battery_main:undercharge",
                 "target": "battery_main:node",
-                "price_source_target": [0.03],
+                "segments": [
+                    {"segment_type": "pricing", "price_st": [0.03]},
+                ],
             },
             # Normal connection: no penalty
             {
@@ -100,7 +103,6 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "name": "battery_main:normal:to_node",
                 "source": "battery_main:normal",
                 "target": "battery_main:node",
-                "price_source_target": None,
             },
             # Overcharge connection: penalty on charge (price_target_source)
             {
@@ -108,7 +110,9 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "name": "battery_main:overcharge:to_node",
                 "source": "battery_main:overcharge",
                 "target": "battery_main:node",
-                "price_target_source": [0.04],
+                "segments": [
+                    {"segment_type": "pricing", "price_ts": [0.04]},
+                ],
             },
             # Balance connection: undercharge -> normal
             {
@@ -130,12 +134,15 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "name": "battery_main:connection",
                 "source": "battery_main:node",
                 "target": "network",
-                "efficiency_source_target": [95.0],
-                "efficiency_target_source": [95.0],
-                "max_power_source_target": [5.0],
-                "max_power_target_source": [5.0],
-                "price_target_source": [-0.01],
-                "price_source_target": [0.03],  # early_discharge_incentive + discharge_cost
+                "segments": [
+                    {"segment_type": "efficiency", "efficiency_st": [0.95], "efficiency_ts": [0.95]},
+                    {"segment_type": "power_limit", "max_power_st": [5.0], "max_power_ts": [5.0]},
+                    {
+                        "segment_type": "pricing",
+                        "price_st": [0.03],  # early_discharge_incentive + discharge_cost
+                        "price_ts": [-0.01],
+                    },
+                ],
             },
         ],
     },
@@ -174,7 +181,6 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "name": "battery_normal:normal:to_node",
                 "source": "battery_normal:normal",
                 "target": "battery_normal:node",
-                "price_source_target": None,
             },
             # Main connection to network
             {
@@ -182,12 +188,15 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "name": "battery_normal:connection",
                 "source": "battery_normal:node",
                 "target": "network",
-                "efficiency_source_target": [95.0],
-                "efficiency_target_source": [95.0],
-                "max_power_source_target": [5.0],
-                "max_power_target_source": [5.0],
-                "price_target_source": [-0.001],
-                "price_source_target": [0.003],  # early_discharge_incentive + discharge_cost
+                "segments": [
+                    {"segment_type": "efficiency", "efficiency_st": [0.95], "efficiency_ts": [0.95]},
+                    {"segment_type": "power_limit", "max_power_st": [5.0], "max_power_ts": [5.0]},
+                    {
+                        "segment_type": "pricing",
+                        "price_st": [0.003],  # early_discharge_incentive + discharge_cost
+                        "price_ts": [-0.001],
+                    },
+                ],
             },
         ],
     },
@@ -391,7 +400,18 @@ def test_model_elements(case: CreateCase) -> None:
     """Verify adapter transforms ConfigData into expected model elements."""
     entry = ELEMENT_TYPES["battery"]
     result = entry.model_elements(case["data"])
-    assert result == case["model"]
+    assert _normalize_for_compare(result) == _normalize_for_compare(case["model"])
+
+
+def _normalize_for_compare(value: Any) -> Any:
+    """Normalize numpy arrays to lists for equality checks."""
+    if isinstance(value, np.ndarray):
+        return value.tolist()
+    if isinstance(value, dict):
+        return {key: _normalize_for_compare(val) for key, val in value.items()}
+    if isinstance(value, list):
+        return [_normalize_for_compare(item) for item in value]
+    return value
 
 
 @pytest.mark.parametrize("case", OUTPUTS_CASES, ids=lambda c: c["description"])

@@ -5,16 +5,18 @@ from dataclasses import replace
 from typing import Any, Final, Literal, cast
 
 from homeassistant.core import HomeAssistant
+import numpy as np
 
 from custom_components.haeo.const import ConnectivityLevel
 from custom_components.haeo.data.loader import TimeSeriesLoader
 from custom_components.haeo.model import ModelElementConfig, ModelOutputName
 from custom_components.haeo.model.const import OutputType
-from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE
+from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE, SegmentSpec
 from custom_components.haeo.model.elements.connection import (
     CONNECTION_POWER_TARGET_SOURCE,
     CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE,
 )
+from custom_components.haeo.model.elements.segments import PowerLimitSegmentSpec
 from custom_components.haeo.model.output_data import OutputData
 
 from .flow import LoadSubentryFlowHandler
@@ -105,6 +107,15 @@ class LoadAdapter:
 
     def model_elements(self, config: LoadConfigData) -> list[ModelElementConfig]:
         """Create model elements for Load configuration."""
+        n_periods = len(config["forecast"])
+        power_limit: PowerLimitSegmentSpec = {
+            "segment_type": "power_limit",
+            "max_power_st": np.zeros(n_periods),
+            "max_power_ts": np.array(config["forecast"]),
+            "fixed": True,
+        }
+        segments: list[SegmentSpec] = [power_limit]
+
         return [
             # Create Node for the load (sink only - consumes power)
             {"element_type": MODEL_ELEMENT_TYPE_NODE, "name": config["name"], "is_source": False, "is_sink": True},
@@ -114,9 +125,7 @@ class LoadAdapter:
                 "name": f"{config['name']}:connection",
                 "source": config["name"],
                 "target": config["connection"],
-                "max_power_source_target": 0.0,
-                "max_power_target_source": config["forecast"],
-                "fixed_power": True,
+                "segments": segments,
             },
         ]
 

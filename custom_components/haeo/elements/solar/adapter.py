@@ -5,16 +5,18 @@ from dataclasses import replace
 from typing import Any, Final, Literal, cast
 
 from homeassistant.core import HomeAssistant
+import numpy as np
 
 from custom_components.haeo.const import ConnectivityLevel
 from custom_components.haeo.data.loader import ConstantLoader, TimeSeriesLoader
 from custom_components.haeo.model import ModelElementConfig, ModelOutputName
 from custom_components.haeo.model.const import OutputType
-from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE
+from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE, SegmentSpec
 from custom_components.haeo.model.elements.connection import (
     CONNECTION_POWER_SOURCE_TARGET,
     CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET,
 )
+from custom_components.haeo.model.elements.segments import PowerLimitSegmentSpec, PricingSegmentSpec
 from custom_components.haeo.model.output_data import OutputData
 
 from .flow import SolarSubentryFlowHandler
@@ -134,6 +136,21 @@ class SolarAdapter:
 
     def model_elements(self, config: SolarConfigData) -> list[ModelElementConfig]:
         """Return model element parameters for Solar configuration."""
+        n_periods = len(config["forecast"])
+        power_limit: PowerLimitSegmentSpec = {
+            "segment_type": "power_limit",
+            "max_power_st": np.array(config["forecast"]),
+            "max_power_ts": np.zeros(n_periods),
+            "fixed": not config.get("curtailment", DEFAULTS[CONF_CURTAILMENT]),
+        }
+        segments: list[SegmentSpec] = [power_limit]
+        if (price_production := config.get("price_production")) is not None:
+            pricing: PricingSegmentSpec = {
+                "segment_type": "pricing",
+                "price_st": np.array(price_production),
+            }
+            segments.append(pricing)
+
         return [
             {"element_type": MODEL_ELEMENT_TYPE_NODE, "name": config["name"], "is_source": True, "is_sink": False},
             {
@@ -141,10 +158,7 @@ class SolarAdapter:
                 "name": f"{config['name']}:connection",
                 "source": config["name"],
                 "target": config["connection"],
-                "max_power_source_target": config["forecast"],
-                "max_power_target_source": 0.0,
-                "fixed_power": not config.get("curtailment", DEFAULTS[CONF_CURTAILMENT]),
-                "price_source_target": config.get("price_production"),
+                "segments": segments,
             },
         ]
 

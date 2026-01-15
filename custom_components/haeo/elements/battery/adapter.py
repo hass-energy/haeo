@@ -18,8 +18,14 @@ from custom_components.haeo.model.elements import (
     MODEL_ELEMENT_TYPE_BATTERY_BALANCE_CONNECTION,
     MODEL_ELEMENT_TYPE_CONNECTION,
     MODEL_ELEMENT_TYPE_NODE,
+    SegmentSpec,
 )
 from custom_components.haeo.model.elements.node import NODE_POWER_BALANCE
+from custom_components.haeo.model.elements.segments import (
+    EfficiencySegmentSpec,
+    PowerLimitSegmentSpec,
+    PricingSegmentSpec,
+)
 from custom_components.haeo.model.output_data import OutputData
 
 from .flow import BatterySubentryFlowHandler
@@ -424,28 +430,42 @@ class BatteryAdapter:
                 discharge_price = undercharge_cost_array
             elif "overcharge" in section_name:
                 charge_price: list[float] = overcharge_cost_array
+                segments: list[SegmentSpec] = [
+                    {
+                        "segment_type": "pricing",
+                        "price_ts": np.array(charge_price),  # Overcharge penalty when charging
+                    }
+                ]
                 elements.append(
                     {
                         "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
                         "name": f"{section_name}:to_node",
                         "source": section_name,
                         "target": node_name,
-                        "price_target_source": charge_price,  # Overcharge penalty when charging
+                        "segments": segments,
                     }
                 )
                 continue
             else:
                 discharge_price = None
 
-            elements.append(
-                {
-                    "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
-                    "name": f"{section_name}:to_node",
-                    "source": section_name,
-                    "target": node_name,
-                    "price_source_target": discharge_price,  # Undercharge penalty when discharging
-                }
-            )
+            segments: list[SegmentSpec] = []
+            if discharge_price is not None:
+                segments.append(
+                    {
+                        "segment_type": "pricing",
+                        "price_st": np.array(discharge_price),  # Undercharge penalty when discharging
+                    }
+                )
+            section_connection: ModelElementConfig = {
+                "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
+                "name": f"{section_name}:to_node",
+                "source": section_name,
+                "target": node_name,
+            }
+            if segments:
+                section_connection["segments"] = segments
+            elements.append(section_connection)
 
         # 6. Create balance connections between adjacent sections (enforces fill ordering)
         # Balance connections ensure lower sections fill before upper sections
@@ -472,22 +492,45 @@ class BatteryAdapter:
             early_charge_incentive + (early_charge_incentive * i / max(n_periods - 1, 1)) for i in range(n_periods)
         ]
 
+        discharge_costs = (
+            [d + dc for d, dc in zip(discharge_early_incentive, config["discharge_cost"], strict=True)]
+            if "discharge_cost" in config
+            else discharge_early_incentive
+        )
+        segments: list[SegmentSpec] = []
+        efficiency_values = config.get("efficiency")
+        if efficiency_values is not None:
+            efficiency_spec: EfficiencySegmentSpec = {
+                "segment_type": "efficiency",
+                "efficiency_st": np.array(efficiency_values) / 100.0,  # Node to network (discharge)
+                "efficiency_ts": np.array(efficiency_values) / 100.0,  # Network to node (charge)
+            }
+            segments.append(efficiency_spec)
+
+        max_discharge = config.get("max_discharge_power")
+        max_charge = config.get("max_charge_power")
+        if max_discharge is not None or max_charge is not None:
+            power_limit_spec: PowerLimitSegmentSpec = {"segment_type": "power_limit"}
+            if max_discharge is not None:
+                power_limit_spec["max_power_st"] = np.array(max_discharge)
+            if max_charge is not None:
+                power_limit_spec["max_power_ts"] = np.array(max_charge)
+            segments.append(power_limit_spec)
+
+        pricing_spec: PricingSegmentSpec = {
+            "segment_type": "pricing",
+            "price_st": np.array(discharge_costs),
+            "price_ts": np.array(charge_early_incentive),
+        }
+        segments.append(pricing_spec)
+
         elements.append(
             {
                 "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
                 "name": f"{name}:connection",
                 "source": node_name,
                 "target": config["connection"],
-                "efficiency_source_target": config["efficiency"],  # Node to network (discharge)
-                "efficiency_target_source": config["efficiency"],  # Network to node (charge)
-                "max_power_source_target": config.get("max_discharge_power"),
-                "max_power_target_source": config.get("max_charge_power"),
-                "price_target_source": charge_early_incentive,  # Charge early incentive
-                "price_source_target": (
-                    [d + dc for d, dc in zip(discharge_early_incentive, config["discharge_cost"], strict=True)]
-                    if "discharge_cost" in config
-                    else discharge_early_incentive
-                ),  # Discharge cost + early incentive
+                "segments": segments,
             }
         )
 
