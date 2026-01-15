@@ -23,7 +23,7 @@ from .connection import (
 
 # Model element type for connections
 ELEMENT_TYPE: Final = "connection"
-type ConnectionElementType = Literal["connection"]
+type ConnectionElementTypeName = Literal["connection"]
 
 type PowerConnectionConstraintName = (
     Literal[
@@ -49,7 +49,7 @@ POWER_CONNECTION_OUTPUT_NAMES: Final[frozenset[PowerConnectionOutputName]] = fro
 class ConnectionElementConfig(TypedDict):
     """Configuration for Connection (PowerConnection) model elements."""
 
-    element_type: ConnectionElementType
+    element_type: ConnectionElementTypeName
     name: str
     source: str
     target: str

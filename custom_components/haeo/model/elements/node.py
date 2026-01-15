@@ -11,7 +11,7 @@ from custom_components.haeo.model.reactive import constraint
 
 # Model element type for nodes
 ELEMENT_TYPE: Final = "node"
-type NodeElementType = Literal["node"]
+type NodeElementTypeName = Literal["node"]
 
 type NodeConstraintName = Literal["node_power_balance"]
 
@@ -25,7 +25,7 @@ NODE_OUTPUT_NAMES: Final[frozenset[NodeOutputName]] = frozenset((NODE_POWER_BALA
 class NodeElementConfig(TypedDict):
     """Configuration for Node model elements."""
 
-    element_type: NodeElementType
+    element_type: NodeElementTypeName
     name: str
     is_source: NotRequired[bool]
     is_sink: NotRequired[bool]

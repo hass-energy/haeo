@@ -12,13 +12,15 @@ from .battery import ELEMENT_TYPE as MODEL_ELEMENT_TYPE_BATTERY
 from .battery import Battery as Battery
 from .battery import BatteryConstraintName as BatteryConstraintName
 from .battery import BatteryElementConfig as BatteryElementConfig
-from .battery import BatteryElementType as BatteryElementType
+from .battery import BatteryElementTypeName as BatteryElementTypeName
 from .battery import BatteryOutputName as BatteryOutputName
 from .battery_balance_connection import BATTERY_BALANCE_CONNECTION_OUTPUT_NAMES
 from .battery_balance_connection import ELEMENT_TYPE as MODEL_ELEMENT_TYPE_BATTERY_BALANCE_CONNECTION
 from .battery_balance_connection import BatteryBalanceConnection as BatteryBalanceConnection
 from .battery_balance_connection import BatteryBalanceConnectionElementConfig as BatteryBalanceConnectionElementConfig
-from .battery_balance_connection import BatteryBalanceConnectionElementType as BatteryBalanceConnectionElementType
+from .battery_balance_connection import (
+    BatteryBalanceConnectionElementTypeName as BatteryBalanceConnectionElementTypeName,
+)
 from .connection import CONNECTION_OUTPUT_NAMES as CONNECTION_OUTPUT_NAMES
 from .connection import CONNECTION_POWER_SOURCE_TARGET as CONNECTION_POWER_SOURCE_TARGET
 from .connection import CONNECTION_POWER_TARGET_SOURCE as CONNECTION_POWER_TARGET_SOURCE
@@ -30,17 +32,19 @@ from .node import ELEMENT_TYPE as MODEL_ELEMENT_TYPE_NODE
 from .node import NODE_OUTPUT_NAMES
 from .node import Node as Node
 from .node import NodeElementConfig as NodeElementConfig
-from .node import NodeElementType as NodeElementType
+from .node import NodeElementTypeName as NodeElementTypeName
 from .node import NodeOutputName as NodeOutputName
 from .power_connection import ELEMENT_TYPE as MODEL_ELEMENT_TYPE_CONNECTION
 from .power_connection import POWER_CONNECTION_OUTPUT_NAMES as POWER_CONNECTION_OUTPUT_NAMES
 from .power_connection import ConnectionElementConfig as ConnectionElementConfig
-from .power_connection import ConnectionElementType as ConnectionElementType
+from .power_connection import ConnectionElementTypeName as ConnectionElementTypeName
 from .power_connection import PowerConnection as PowerConnection
 from .power_connection import PowerConnectionOutputName as PowerConnectionOutputName
 
 # Type for all model element types
-ModelElementType = BatteryElementType | NodeElementType | ConnectionElementType | BatteryBalanceConnectionElementType
+ModelElementType = (
+    BatteryElementTypeName | NodeElementTypeName | ConnectionElementTypeName | BatteryBalanceConnectionElementTypeName
+)
 
 # Typed configs for all model elements (discriminated by element_type)
 ModelElementConfig = (

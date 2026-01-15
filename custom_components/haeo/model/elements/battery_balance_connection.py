@@ -15,7 +15,7 @@ from .connection import CONNECTION_OUTPUT_NAMES, Connection, ConnectionOutputNam
 
 # Model element type for battery balance connections
 ELEMENT_TYPE: Final = "battery_balance_connection"
-type BatteryBalanceConnectionElementType = Literal["battery_balance_connection"]
+type BatteryBalanceConnectionElementTypeName = Literal["battery_balance_connection"]
 
 if TYPE_CHECKING:
     from .battery import Battery
@@ -56,7 +56,7 @@ BATTERY_BALANCE_CONNECTION_OUTPUT_NAMES: Final[frozenset[BatteryBalanceConnectio
 class BatteryBalanceConnectionElementConfig(TypedDict):
     """Configuration for BatteryBalanceConnection model elements."""
 
-    element_type: BatteryBalanceConnectionElementType
+    element_type: BatteryBalanceConnectionElementTypeName
     name: str
     upper: str
     lower: str
