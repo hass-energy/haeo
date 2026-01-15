@@ -148,8 +148,19 @@ class Element[OutputNameT: str]:
         if sequence is None:
             return ()
 
+        # Handle single constraint case
+        if isinstance(sequence, highs_cons):
+            return (self._solver.constrDual(sequence),)
+
         # Convert to numpy array for batch processing
         arr = np.asarray(sequence, dtype=object)
+
+        # Handle 0-dimensional arrays (single item wrapped)
+        if arr.ndim == 0:
+            item = arr.item()
+            if isinstance(item, highs_cons):
+                return (self._solver.constrDual(item),)
+            return (self._solver.val(item),)
 
         # Check first item to determine type and use batch methods
         first_item = arr.flat[0]
