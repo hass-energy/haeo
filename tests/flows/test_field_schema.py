@@ -203,6 +203,43 @@ def test_get_preferred_choice_uses_current_data_string_as_entity() -> None:
     assert result == CHOICE_ENTITY
 
 
+def test_get_preferred_choice_uses_current_data_list_as_entity() -> None:
+    """get_preferred_choice returns entity when current_data has list value.
+
+    This covers the case where multiple=True is used on EntitySelector,
+    which stores entity IDs as a list (e.g., for chained sensors).
+    """
+    field = InputFieldInfo(
+        field_name="import_price",
+        entity_description=NumberEntityDescription(
+            key="import_price",
+            name="Import Price",
+        ),
+        output_type=OutputType.PRICE,
+    )
+    current_data = {"import_price": ["sensor.current_price", "sensor.forecast_price"]}
+    result = get_preferred_choice(field, current_data)
+    assert result == CHOICE_ENTITY
+
+
+def test_get_preferred_choice_uses_current_data_single_item_list_as_entity() -> None:
+    """get_preferred_choice returns entity when current_data has single-item list.
+
+    Even a single entity stored as a list should be recognized as entity mode.
+    """
+    field = InputFieldInfo(
+        field_name="power",
+        entity_description=NumberEntityDescription(
+            key="power",
+            name="Power",
+        ),
+        output_type=OutputType.POWER,
+    )
+    current_data = {"power": ["sensor.power"]}
+    result = get_preferred_choice(field, current_data)
+    assert result == CHOICE_ENTITY
+
+
 def test_get_preferred_choice_uses_current_data_number_as_constant() -> None:
     """get_preferred_choice returns constant when current_data has number value."""
     field = InputFieldInfo(

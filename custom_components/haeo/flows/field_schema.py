@@ -180,8 +180,8 @@ def get_preferred_choice(
     if current_data is not None:
         if field_name in current_data:
             current_value = current_data[field_name]
-            # String = entity ID, number/bool = constant
-            if isinstance(current_value, str):
+            # String or list = entity ID(s), number/bool = constant
+            if isinstance(current_value, (str, list)):
                 return CHOICE_ENTITY
             return CHOICE_CONSTANT
         # Field not in current_data means it was set to none (for optional fields)
