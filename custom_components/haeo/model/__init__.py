@@ -22,6 +22,8 @@ from .elements.connection import CONNECTION_TIME_SLICE as CONNECTION_TIME_SLICE
 from .elements.connection import Connection as Connection
 from .elements.connection import ConnectionConstraintName as ConnectionConstraintName
 from .elements.connection import ConnectionOutputName as ConnectionOutputName
+from .elements import ModelElementConfig as ModelElementConfig
+from .elements import ModelElementType as ModelElementType
 from .elements.node import Node as Node
 from .elements.node import NodeOutputName as NodeOutputName
 from .elements.power_connection import POWER_CONNECTION_OUTPUT_NAMES as POWER_CONNECTION_OUTPUT_NAMES
@@ -48,7 +50,9 @@ __all__ = [
     "ConnectionConstraintName",
     "ConnectionOutputName",
     "Element",
+    "ModelElementConfig",
     "ModelOutputName",
+    "ModelElementType",
     "Network",
     "Node",
     "NodeOutputName",

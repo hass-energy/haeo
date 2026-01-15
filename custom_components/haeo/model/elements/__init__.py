@@ -5,14 +5,15 @@ This module re-exports all element classes for convenient imports.
 
 from dataclasses import dataclass
 from typing import Final, Literal
-
 from .battery import BATTERY_OUTPUT_NAMES as BATTERY_OUTPUT_NAMES
 from .battery import BATTERY_POWER_CONSTRAINTS as BATTERY_POWER_CONSTRAINTS
 from .battery import Battery as Battery
 from .battery import BatteryConstraintName as BatteryConstraintName
+from .battery import BatteryElementConfig as BatteryElementConfig
 from .battery import BatteryOutputName as BatteryOutputName
 from .battery_balance_connection import BATTERY_BALANCE_CONNECTION_OUTPUT_NAMES
 from .battery_balance_connection import ELEMENT_TYPE as MODEL_ELEMENT_BATTERY_BALANCE_CONNECTION
+from .battery_balance_connection import BatteryBalanceConnectionElementConfig as BatteryBalanceConnectionElementConfig
 from .battery_balance_connection import BatteryBalanceConnection as BatteryBalanceConnection
 from .connection import CONNECTION_OUTPUT_NAMES as CONNECTION_OUTPUT_NAMES
 from .connection import CONNECTION_POWER_SOURCE_TARGET as CONNECTION_POWER_SOURCE_TARGET
@@ -22,9 +23,11 @@ from .connection import Connection as Connection
 from .connection import ConnectionConstraintName as ConnectionConstraintName
 from .connection import ConnectionOutputName as ConnectionOutputName
 from .node import NODE_OUTPUT_NAMES
+from .node import NodeElementConfig as NodeElementConfig
 from .node import Node as Node
 from .node import NodeOutputName as NodeOutputName
 from .power_connection import POWER_CONNECTION_OUTPUT_NAMES as POWER_CONNECTION_OUTPUT_NAMES
+from .power_connection import ConnectionElementConfig as ConnectionElementConfig
 from .power_connection import PowerConnection as PowerConnection
 from .power_connection import PowerConnectionOutputName as PowerConnectionOutputName
 
@@ -42,6 +45,13 @@ ModelElementType = Literal[
     "battery_balance_connection",
 ]
 
+# Typed configs for all model elements (discriminated by element_type)
+ModelElementConfig = (
+    BatteryElementConfig
+    | NodeElementConfig
+    | ConnectionElementConfig
+    | BatteryBalanceConnectionElementConfig
+)
 
 @dataclass(frozen=True, slots=True)
 class ElementSpec:
@@ -88,14 +98,19 @@ __all__ = [
     "POWER_CONNECTION_OUTPUT_NAMES",
     "Battery",
     "BatteryBalanceConnection",
+    "BatteryBalanceConnectionElementConfig",
     "BatteryConstraintName",
+    "BatteryElementConfig",
     "BatteryOutputName",
     "Connection",
+    "ConnectionElementConfig",
     "ConnectionConstraintName",
     "ConnectionOutputName",
     "ElementSpec",
+    "ModelElementConfig",
     "ModelElementType",
     "Node",
+    "NodeElementConfig",
     "NodeOutputName",
     "PowerConnection",
     "PowerConnectionOutputName",

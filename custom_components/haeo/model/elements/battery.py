@@ -1,7 +1,7 @@
 """Battery entity for electrical system modeling."""
 
 from collections.abc import Sequence
-from typing import Final, Literal
+from typing import Final, Literal, TypedDict
 
 from highspy import Highs
 from highspy.highs import highs_linear_expression
@@ -51,6 +51,15 @@ BATTERY_OUTPUT_NAMES: Final[frozenset[BatteryOutputName]] = frozenset(
 
 # Battery power constraints (subset of outputs that relate to power balance)
 BATTERY_POWER_CONSTRAINTS: Final[frozenset[BatteryConstraintName]] = frozenset((BATTERY_POWER_BALANCE,))
+
+
+class BatteryElementConfig(TypedDict):
+    """Configuration for Battery model elements."""
+
+    element_type: Literal["battery"]
+    name: str
+    capacity: Sequence[float] | float
+    initial_charge: float
 
 
 class Battery(Element[BatteryOutputName]):

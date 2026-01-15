@@ -1,7 +1,7 @@
 """Battery balance connection for energy redistribution between battery sections."""
 
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Final, Literal
+from typing import TYPE_CHECKING, Final, Literal, NotRequired, TypedDict
 
 from highspy import Highs
 from highspy.highs import HighspyArray, highs_linear_expression
@@ -50,6 +50,16 @@ BATTERY_BALANCE_CONNECTION_OUTPUT_NAMES: Final[frozenset[BatteryBalanceConnectio
         *CONNECTION_OUTPUT_NAMES,
     )
 )
+
+
+class BatteryBalanceConnectionElementConfig(TypedDict):
+    """Configuration for BatteryBalanceConnection model elements."""
+
+    element_type: Literal["battery_balance_connection"]
+    name: str
+    upper: str
+    lower: str
+    slack_penalty: NotRequired[float | None]
 
 
 class BatteryBalanceConnection(Connection[BatteryBalanceConnectionOutputName]):

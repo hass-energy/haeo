@@ -3,7 +3,7 @@
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 import logging
-from typing import Any
+from typing import Any, overload
 
 from highspy import Highs, HighsModelStatus
 from highspy.highs import highs_cons, highs_linear_expression
@@ -11,8 +11,15 @@ from highspy.highs import highs_cons, highs_linear_expression
 from .element import Element
 from .elements import ELEMENTS
 from .elements.battery import Battery
+from .elements.battery import BatteryElementConfig
 from .elements.battery_balance_connection import BatteryBalanceConnection
+from .elements.battery_balance_connection import BatteryBalanceConnectionElementConfig
 from .elements.connection import Connection
+from .elements.node import NodeElementConfig
+from .elements.node import Node
+from .elements.power_connection import ConnectionElementConfig
+from .elements.power_connection import PowerConnection
+from .elements import ModelElementConfig
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -56,7 +63,19 @@ class Network:
         """Return the number of optimization periods."""
         return len(self.periods)
 
-    def add(self, element_type: str, name: str, **kwargs: object) -> Element[Any]:
+    @overload
+    def add(self, element: BatteryElementConfig) -> Battery: ...
+
+    @overload
+    def add(self, element: NodeElementConfig) -> Node: ...
+
+    @overload
+    def add(self, element: ConnectionElementConfig) -> PowerConnection: ...
+
+    @overload
+    def add(self, element: BatteryBalanceConnectionElementConfig) -> BatteryBalanceConnection: ...
+
+    def add(self, element: ModelElementConfig) -> Element[Any]:
         """Add a new element to the network.
 
         Creates the element and registers connections. For parameter updates,
@@ -64,17 +83,18 @@ class Network:
         automatically invalidate dependent constraints for the next optimization.
 
         Args:
-            element_type: Type of element as a string
-            name: Name of the element
-            **kwargs: Additional arguments specific to the element type
+            element: Typed model element configuration dictionary
 
         Returns:
             The created element
 
         """
+        element_type = element["element_type"]
+        name = element["name"]
+        kwargs = {key: value for key, value in element.items() if key not in ("element_type", "name")}
+
         # Create new element using registry
-        # Cast to ModelElementType - validated by ELEMENTS dict lookup
-        element_spec = ELEMENTS[element_type.lower()]  # type: ignore[index]
+        element_spec = ELEMENTS[element_type]
         element = element_spec.factory(name=name, periods=self.periods, solver=self._solver, **kwargs)
         self.elements[name] = element
 

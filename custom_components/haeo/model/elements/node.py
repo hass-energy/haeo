@@ -1,7 +1,7 @@
 """Node entity for electrical system modeling."""
 
 from collections.abc import Sequence
-from typing import Final, Literal
+from typing import Final, Literal, NotRequired, TypedDict
 
 from highspy import Highs
 from highspy.highs import highs_linear_expression
@@ -16,6 +16,15 @@ type NodeOutputName = NodeConstraintName
 NODE_POWER_BALANCE: Final[NodeOutputName] = "node_power_balance"
 
 NODE_OUTPUT_NAMES: Final[frozenset[NodeOutputName]] = frozenset((NODE_POWER_BALANCE,))
+
+
+class NodeElementConfig(TypedDict):
+    """Configuration for Node model elements."""
+
+    element_type: Literal["node"]
+    name: str
+    is_source: NotRequired[bool]
+    is_sink: NotRequired[bool]
 
 
 class Node(Element[NodeOutputName]):
