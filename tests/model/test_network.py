@@ -10,6 +10,12 @@ import pytest
 from custom_components.haeo.model import Network
 from custom_components.haeo.model import network as network_module
 from custom_components.haeo.model.element import Element
+from custom_components.haeo.model.elements import (
+    MODEL_ELEMENT_TYPE_BATTERY as ELEMENT_TYPE_BATTERY,
+    MODEL_ELEMENT_TYPE_BATTERY_BALANCE_CONNECTION as ELEMENT_TYPE_BATTERY_BALANCE_CONNECTION,
+    MODEL_ELEMENT_TYPE_CONNECTION as ELEMENT_TYPE_CONNECTION,
+    MODEL_ELEMENT_TYPE_NODE as ELEMENT_TYPE_NODE,
+)
 from custom_components.haeo.model.elements.node import Node
 from custom_components.haeo.model.elements.power_connection import PowerConnection
 
@@ -17,13 +23,6 @@ from custom_components.haeo.model.elements.power_connection import PowerConnecti
 HOURS_PER_DAY = 24
 DEFAULT_PERIODS = 24
 CONNECTION_PERIODS = 3
-
-# Model element type strings
-ELEMENT_TYPE_BATTERY = "battery"
-ELEMENT_TYPE_BATTERY_BALANCE_CONNECTION = "battery_balance_connection"
-ELEMENT_TYPE_CONNECTION = "connection"
-ELEMENT_TYPE_NODE = "node"
-
 
 def test_network_initialization() -> None:
     """Test network initialization."""

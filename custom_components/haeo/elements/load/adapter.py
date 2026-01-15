@@ -10,6 +10,7 @@ from custom_components.haeo.const import ConnectivityLevel
 from custom_components.haeo.data.loader import TimeSeriesLoader
 from custom_components.haeo.model import ModelElementConfig, ModelOutputName
 from custom_components.haeo.model.const import OutputType
+from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE
 from custom_components.haeo.model.elements.power_connection import (
     CONNECTION_POWER_TARGET_SOURCE,
     CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE,
@@ -102,10 +103,10 @@ class LoadAdapter:
         """Create model elements for Load configuration."""
         return [
             # Create Node for the load (sink only - consumes power)
-            {"element_type": "node", "name": config["name"], "is_source": False, "is_sink": True},
+            {"element_type": MODEL_ELEMENT_TYPE_NODE, "name": config["name"], "is_source": False, "is_sink": True},
             # Create Connection from node to load (power flows TO the load)
             {
-                "element_type": "connection",
+                "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
                 "name": f"{config['name']}:connection",
                 "source": config["name"],
                 "target": config["connection"],

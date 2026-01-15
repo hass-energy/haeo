@@ -1,7 +1,7 @@
 """Integration tests for Network optimization scenarios."""
 
-from custom_components.haeo.elements import ELEMENT_TYPE_CONNECTION
 from custom_components.haeo.model import Network
+from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE
 
 
 def test_simple_optimization() -> None:
@@ -9,11 +9,11 @@ def test_simple_optimization() -> None:
     network = Network(name="test_network", periods=[1.0] * 3)
 
     # Add a simple grid and load
-    network.add({"element_type": "node", "name": "grid", "is_source": True, "is_sink": True})
-    network.add({"element_type": "node", "name": "net", "is_source": False, "is_sink": False})
+    network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "grid", "is_source": True, "is_sink": True})
+    network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "net", "is_source": False, "is_sink": False})
     network.add(
         {
-            "element_type": ELEMENT_TYPE_CONNECTION,
+            "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
             "name": "grid_connection",
             "source": "grid",
             "target": "net",
@@ -23,10 +23,10 @@ def test_simple_optimization() -> None:
             "price_target_source": [0.05, 0.08, 0.06],
         }
     )
-    network.add({"element_type": "node", "name": "load", "is_source": False, "is_sink": True})
+    network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "load", "is_source": False, "is_sink": True})
     network.add(
         {
-            "element_type": ELEMENT_TYPE_CONNECTION,
+            "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
             "name": "load_connection",
             "source": "net",
             "target": "load",
@@ -46,13 +46,13 @@ def test_network_validation() -> None:
     network = Network(name="test_network", periods=[1.0] * 3)
 
     # Add entities
-    network.add({"element_type": "node", "name": "source", "is_source": True, "is_sink": False})
-    network.add({"element_type": "node", "name": "sink", "is_source": False, "is_sink": True})
+    network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "source", "is_source": True, "is_sink": False})
+    network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "sink", "is_source": False, "is_sink": True})
 
     # Create valid connection
     network.add(
         {
-            "element_type": ELEMENT_TYPE_CONNECTION,
+            "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
             "name": "valid_connection",
             "source": "source",
             "target": "sink",

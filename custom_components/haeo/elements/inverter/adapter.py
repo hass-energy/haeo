@@ -10,6 +10,7 @@ from custom_components.haeo.const import ConnectivityLevel
 from custom_components.haeo.data.loader import ConstantLoader, TimeSeriesLoader
 from custom_components.haeo.model import ModelElementConfig, ModelOutputName
 from custom_components.haeo.model.const import OutputType
+from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE
 from custom_components.haeo.model.elements.node import NODE_POWER_BALANCE
 from custom_components.haeo.model.elements.power_connection import (
     CONNECTION_POWER_SOURCE_TARGET,
@@ -150,12 +151,12 @@ class InverterAdapter:
 
         return [
             # Create Node for the DC bus (pure junction - neither source nor sink)
-            {"element_type": "node", "name": name, "is_source": False, "is_sink": False},
+            {"element_type": MODEL_ELEMENT_TYPE_NODE, "name": name, "is_source": False, "is_sink": False},
             # Create a connection from DC bus to AC node
             # source_target = DC to AC (inverting)
             # target_source = AC to DC (rectifying)
             {
-                "element_type": "connection",
+                "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
                 "name": f"{name}:connection",
                 "source": name,
                 "target": config["connection"],

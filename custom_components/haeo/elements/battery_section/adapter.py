@@ -11,6 +11,7 @@ from custom_components.haeo.data.loader import TimeSeriesLoader
 from custom_components.haeo.model import ModelElementConfig, ModelOutputName
 from custom_components.haeo.model import battery as model_battery
 from custom_components.haeo.model.const import OutputType
+from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_BATTERY
 from custom_components.haeo.model.output_data import OutputData
 
 from .flow import BatterySectionSubentryFlowHandler
@@ -126,7 +127,7 @@ class BatterySectionAdapter:
         """
         return [
             {
-                "element_type": "battery",
+                "element_type": MODEL_ELEMENT_TYPE_BATTERY,
                 "name": config["name"],
                 "capacity": config["capacity"],
                 "initial_charge": config["initial_charge"][0],

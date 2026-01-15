@@ -11,6 +11,7 @@ from custom_components.haeo.const import ConnectivityLevel
 from custom_components.haeo.data.loader import TimeSeriesLoader
 from custom_components.haeo.model import ModelElementConfig, ModelOutputName
 from custom_components.haeo.model.const import OutputType
+from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE
 from custom_components.haeo.model.elements.power_connection import (
     CONNECTION_POWER_SOURCE_TARGET,
     CONNECTION_POWER_TARGET_SOURCE,
@@ -189,10 +190,15 @@ class GridAdapter:
         """Create model elements for Grid configuration."""
         return [
             # Create Node for the grid (both source and sink - can import and export)
-            {"element_type": "node", "name": config["name"], "is_source": True, "is_sink": True},
+            {
+                "element_type": MODEL_ELEMENT_TYPE_NODE,
+                "name": config["name"],
+                "is_source": True,
+                "is_sink": True,
+            },
             # Create a connection from system node to grid
             {
-                "element_type": "connection",
+                "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
                 "name": f"{config['name']}:connection",
                 "source": config["name"],
                 "target": config["connection"],

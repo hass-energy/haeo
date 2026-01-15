@@ -11,6 +11,7 @@ from custom_components.haeo.elements.battery_section import BatterySectionConfig
 from custom_components.haeo.model import ModelOutputName
 from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.elements import battery as battery_model
+from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_BATTERY
 from custom_components.haeo.model.output_data import OutputData
 
 
@@ -42,7 +43,7 @@ CREATE_CASES: Sequence[CreateCase] = [
         ),
         "model": [
             {
-                "element_type": "battery",
+                "element_type": MODEL_ELEMENT_TYPE_BATTERY,
                 "name": "test_section",
                 "capacity": [10.0],
                 "initial_charge": 5.0,
