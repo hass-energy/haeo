@@ -9,7 +9,7 @@ import numpy as np
 
 from custom_components.haeo.const import ConnectivityLevel
 from custom_components.haeo.data.loader import TimeSeriesLoader
-from custom_components.haeo.model import ModelOutputName
+from custom_components.haeo.model import ModelElementConfig, ModelOutputName
 from custom_components.haeo.model import battery as model_battery
 from custom_components.haeo.model import battery_balance_connection as model_balance
 from custom_components.haeo.model.const import OutputType
@@ -283,14 +283,14 @@ class BatteryAdapter:
 
         return self.build_config_data(loaded_values, config)
 
-    def model_elements(self, config: BatteryConfigData) -> list[dict[str, Any]]:
+    def model_elements(self, config: BatteryConfigData) -> list[ModelElementConfig]:
         """Create model elements for Battery configuration.
 
         Creates 1-3 battery sections, an internal node, connections from sections to node,
         and a connection from node to target.
         """
         name = config["name"]
-        elements: list[dict[str, Any]] = []
+        elements: list[ModelElementConfig] = []
         # capacity is boundaries (n+1 values), so n_periods = len - 1
         n_boundaries = len(config["capacity"])
         n_periods = n_boundaries - 1

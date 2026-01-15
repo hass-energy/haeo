@@ -8,7 +8,7 @@ from homeassistant.core import HomeAssistant
 
 from custom_components.haeo.const import ConnectivityLevel
 from custom_components.haeo.data.loader import TimeSeriesLoader
-from custom_components.haeo.model import ModelOutputName
+from custom_components.haeo.model import ModelElementConfig, ModelOutputName
 from custom_components.haeo.model import battery as model_battery
 from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.output_data import OutputData
@@ -119,7 +119,7 @@ class BatterySectionAdapter:
 
         return self.build_config_data(loaded_values, config)
 
-    def model_elements(self, config: BatterySectionConfigData) -> list[dict[str, Any]]:
+    def model_elements(self, config: BatterySectionConfigData) -> list[ModelElementConfig]:
         """Create model elements for BatterySection configuration.
 
         Direct pass-through to the model battery element.

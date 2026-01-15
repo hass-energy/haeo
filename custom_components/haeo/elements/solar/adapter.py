@@ -8,7 +8,7 @@ from homeassistant.core import HomeAssistant
 
 from custom_components.haeo.const import ConnectivityLevel
 from custom_components.haeo.data.loader import ConstantLoader, TimeSeriesLoader
-from custom_components.haeo.model import ModelOutputName
+from custom_components.haeo.model import ModelElementConfig, ModelOutputName
 from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.elements.power_connection import (
     CONNECTION_POWER_SOURCE_TARGET,
@@ -127,7 +127,7 @@ class SolarAdapter:
 
         return self.build_config_data(loaded_values, config)
 
-    def model_elements(self, config: SolarConfigData) -> list[dict[str, Any]]:
+    def model_elements(self, config: SolarConfigData) -> list[ModelElementConfig]:
         """Return model element parameters for Solar configuration."""
         return [
             {"element_type": "node", "name": config["name"], "is_source": True, "is_sink": False},

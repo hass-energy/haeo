@@ -8,7 +8,7 @@ from homeassistant.core import HomeAssistant
 
 from custom_components.haeo.const import ConnectivityLevel
 from custom_components.haeo.data.loader import TimeSeriesLoader
-from custom_components.haeo.model import ModelOutputName
+from custom_components.haeo.model import ModelElementConfig, ModelOutputName
 from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.elements.power_connection import (
     CONNECTION_POWER_SOURCE_TARGET,
@@ -167,7 +167,7 @@ class ConnectionAdapter:
 
         return self.build_config_data(loaded_values, config)
 
-    def model_elements(self, config: ConnectionConfigData) -> list[dict[str, Any]]:
+    def model_elements(self, config: ConnectionConfigData) -> list[ModelElementConfig]:
         """Return model element parameters for Connection configuration."""
         return [
             {
