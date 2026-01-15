@@ -11,14 +11,13 @@ from typing import Any, Final, Literal, NotRequired, TypedDict, cast
 from highspy import Highs
 from highspy.highs import HighspyArray, highs_cons, highs_linear_expression
 import numpy as np
-from numpy.typing import NDArray
 
 from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.element import Element
 from custom_components.haeo.model.output_data import OutputData
 from custom_components.haeo.model.reactive import ReactiveConstraint, constraint, output
 
-from .segments import SEGMENT_TYPES, PassthroughSegment, PowerLimitSegment, PricingSegment, Segment, SegmentSpec
+from .segments import SEGMENT_TYPES, PassthroughSegment, Segment, SegmentSpec
 
 # Model element type for connections
 ELEMENT_TYPE: Final = "connection"
@@ -33,13 +32,6 @@ class ConnectionElementConfig(TypedDict):
     source: str
     target: str
     segments: NotRequired[Sequence[SegmentSpec]]
-    fixed_power: NotRequired[bool]
-    max_power_source_target: NotRequired[Sequence[float] | float | None]
-    max_power_target_source: NotRequired[Sequence[float] | float | None]
-    efficiency_source_target: NotRequired[Sequence[float] | float | None]
-    efficiency_target_source: NotRequired[Sequence[float] | float | None]
-    price_source_target: NotRequired[Sequence[float] | float | None]
-    price_target_source: NotRequired[Sequence[float] | float | None]
 
 # Minimum segments needed before linking is required
 MIN_SEGMENTS_FOR_LINKING = 2
@@ -78,8 +70,8 @@ class Connection[TOutputName: str](Element[TOutputName]):
     segments by constraining their output to the next segment's input.
 
     For parameter updates, access segments via indexing:
-        connection["power_limit"]["max_power_st"] = new_value
-        connection[0]["max_power_st"] = new_value  # by index
+        connection["power_limit"].max_power_st = new_value
+        connection[0].max_power_st = new_value  # by index
 
     """
 
@@ -94,7 +86,6 @@ class Connection[TOutputName: str](Element[TOutputName]):
         segments: Sequence[SegmentSpec] | None = None,
         output_names: frozenset[TOutputName] | None = None,
         _skip_segments: bool = False,
-        **legacy_kwargs: Any,
     ) -> None:
         """Initialize a connection.
 
@@ -108,8 +99,6 @@ class Connection[TOutputName: str](Element[TOutputName]):
                 Each spec has segment_type plus segment-specific parameters.
             output_names: Output names for this connection type
             _skip_segments: If True, skip segment creation (for subclasses with custom power flow)
-            **legacy_kwargs: Legacy flat parameters (max_power_source_target, price_source_target,
-                etc.) converted to segments for backward compatibility
 
         """
         # Use provided output_names or default to CONNECTION_OUTPUT_NAMES
@@ -133,49 +122,7 @@ class Connection[TOutputName: str](Element[TOutputName]):
         if _skip_segments:
             return
 
-        # Build segments from specifications; support legacy kwargs by constructing segments
-        segment_specs: list[SegmentSpec] = []
-        if segments:
-            segment_specs.extend(list(segments))
-        else:
-            # Legacy kwargs mapping to segments
-            legacy_efficiency_st = legacy_kwargs.pop("efficiency_source_target", None)
-            legacy_efficiency_ts = legacy_kwargs.pop("efficiency_target_source", None)
-            legacy_max_power_st = legacy_kwargs.pop("max_power_source_target", None)
-            legacy_max_power_ts = legacy_kwargs.pop("max_power_target_source", None)
-            legacy_price_st = legacy_kwargs.pop("price_source_target", None)
-            legacy_price_ts = legacy_kwargs.pop("price_target_source", None)
-            legacy_fixed_power = legacy_kwargs.pop("fixed_power", False)
-
-            if legacy_efficiency_st is not None or legacy_efficiency_ts is not None:
-                eff_spec: dict[str, Any] = {"segment_type": "efficiency"}
-                if legacy_efficiency_st is not None:
-                    normalized_st = self._normalize_period_vector(legacy_efficiency_st)
-                    if normalized_st is not None:  # Always true since input is not None
-                        eff_spec["efficiency_st"] = normalized_st / 100.0
-                if legacy_efficiency_ts is not None:
-                    normalized_ts = self._normalize_period_vector(legacy_efficiency_ts)
-                    if normalized_ts is not None:  # Always true since input is not None
-                        eff_spec["efficiency_ts"] = normalized_ts / 100.0
-                segment_specs.append(eff_spec)  # type: ignore[arg-type]
-
-            if legacy_max_power_st is not None or legacy_max_power_ts is not None:
-                pl_spec: dict[str, Any] = {"segment_type": "power_limit"}
-                if legacy_max_power_st is not None:
-                    pl_spec["max_power_st"] = self._normalize_period_vector(legacy_max_power_st)
-                if legacy_max_power_ts is not None:
-                    pl_spec["max_power_ts"] = self._normalize_period_vector(legacy_max_power_ts)
-                if legacy_fixed_power:
-                    pl_spec["fixed"] = True
-                segment_specs.append(pl_spec)  # type: ignore[arg-type]
-
-            if legacy_price_st is not None or legacy_price_ts is not None:
-                pr_spec: dict[str, Any] = {"segment_type": "pricing"}
-                if legacy_price_st is not None:
-                    pr_spec["price_st"] = self._normalize_period_vector(legacy_price_st)
-                if legacy_price_ts is not None:
-                    pr_spec["price_ts"] = self._normalize_period_vector(legacy_price_ts)
-                segment_specs.append(pr_spec)  # type: ignore[arg-type]
+        segment_specs = list(segments) if segments else []
 
         for idx, segment_spec in enumerate(segment_specs):
             # Extract segment_type (required in all specs)
@@ -213,113 +160,21 @@ class Connection[TOutputName: str](Element[TOutputName]):
         """Return the ordered dict of segments."""
         return self._segments
 
-    def _normalize_period_vector(self, value: Any) -> NDArray[np.float64] | None:
-        """Normalize scalar or sequence inputs to period-length arrays."""
-        if value is None:
-            return None
-
-        arr = np.asarray(value, dtype=np.float64)
-        if arr.shape == ():
-            return np.full(self.n_periods, float(arr), dtype=np.float64)
-
-        if arr.shape == (self.n_periods,):
-            return arr
-
-        msg = f"Expected length {self.n_periods} for {self.name!r} periods, got {arr.shape}"
-        raise ValueError(msg)
-
-    def _power_limit_segment(self) -> PowerLimitSegment | None:
-        """Return the first power limit segment if present."""
-        for segment in self._segments.values():
-            if isinstance(segment, PowerLimitSegment):
-                return segment
-        return None
-
-    def _pricing_segment(self) -> PricingSegment | None:
-        """Return the first pricing segment if present."""
-        for segment in self._segments.values():
-            if isinstance(segment, PricingSegment):
-                return segment
-        return None
-
-    def __getitem__(self, key: str | int) -> Segment | NDArray[np.float64] | None:
-        """Access a segment or legacy parameter by name or index."""
+    def __getitem__(self, key: str | int) -> Segment:
+        """Access a segment by name or index."""
         if isinstance(key, int):
             return list(self._segments.values())[key]
-
-        if key == "max_power_source_target":
-            segment = self._power_limit_segment()
-            if segment is None:
-                msg = f"{self.name!r} has no power_limit segment for {key!r}"
-                raise KeyError(msg)
-            return segment.max_power_st
-
-        if key == "max_power_target_source":
-            segment = self._power_limit_segment()
-            if segment is None:
-                msg = f"{self.name!r} has no power_limit segment for {key!r}"
-                raise KeyError(msg)
-            return segment.max_power_ts
-
-        if key == "price_source_target":
-            segment = self._pricing_segment()
-            if segment is None:
-                msg = f"{self.name!r} has no pricing segment for {key!r}"
-                raise KeyError(msg)
-            return segment.price_st
-
-        if key == "price_target_source":
-            segment = self._pricing_segment()
-            if segment is None:
-                msg = f"{self.name!r} has no pricing segment for {key!r}"
-                raise KeyError(msg)
-            return segment.price_ts
 
         if key in self._segments:
             return self._segments[key]
 
-        msg = f"{type(self).__name__!r} has no parameter {key!r}"
+        msg = f"{type(self).__name__!r} has no segment {key!r}"
         raise KeyError(msg)
 
     def __setitem__(self, key: str | int, value: Any) -> None:
-        """Set a legacy parameter value for warm-start compatibility."""
-        if key == "max_power_source_target":
-            segment = self._power_limit_segment()
-            if segment is None:
-                msg = f"{self.name!r} has no power_limit segment for {key!r}"
-                raise KeyError(msg)
-            segment.max_power_st = self._normalize_period_vector(value)
-            return
-
-        if key == "max_power_target_source":
-            segment = self._power_limit_segment()
-            if segment is None:
-                msg = f"{self.name!r} has no power_limit segment for {key!r}"
-                raise KeyError(msg)
-            segment.max_power_ts = self._normalize_period_vector(value)
-            return
-
-        if key == "price_source_target":
-            segment = self._pricing_segment()
-            if segment is None:
-                msg = f"{self.name!r} has no pricing segment for {key!r}"
-                raise KeyError(msg)
-            segment.price_st = self._normalize_period_vector(value)
-            return
-
-        if key == "price_target_source":
-            segment = self._pricing_segment()
-            if segment is None:
-                msg = f"{self.name!r} has no pricing segment for {key!r}"
-                raise KeyError(msg)
-            segment.price_ts = self._normalize_period_vector(value)
-            return
-
+        """Set a TrackedParam value for connection subclasses."""
         if isinstance(key, int):
-            if key in range(len(self._segments)):
-                msg = "Cannot assign segments via index"
-                raise KeyError(msg)
-            msg = f"Unknown segment index {key!r}"
+            msg = "Cannot assign segments via index"
             raise KeyError(msg)
 
         if key in self._segments:
@@ -327,62 +182,6 @@ class Connection[TOutputName: str](Element[TOutputName]):
             raise KeyError(msg)
 
         super().__setitem__(key, value)
-
-    @property
-    def max_power_source_target(self) -> NDArray[np.float64] | None:
-        """Backward-compatible max power source→target accessor."""
-        segment = self._power_limit_segment()
-        return None if segment is None else segment.max_power_st
-
-    @max_power_source_target.setter
-    def max_power_source_target(self, value: NDArray[np.floating[Any]] | Sequence[float] | float | None) -> None:
-        segment = self._power_limit_segment()
-        if segment is None:
-            msg = f"{self.name!r} has no power_limit segment for 'max_power_source_target'"
-            raise KeyError(msg)
-        segment.max_power_st = self._normalize_period_vector(value)
-
-    @property
-    def max_power_target_source(self) -> NDArray[np.float64] | None:
-        """Backward-compatible max power target→source accessor."""
-        segment = self._power_limit_segment()
-        return None if segment is None else segment.max_power_ts
-
-    @max_power_target_source.setter
-    def max_power_target_source(self, value: NDArray[np.floating[Any]] | Sequence[float] | float | None) -> None:
-        segment = self._power_limit_segment()
-        if segment is None:
-            msg = f"{self.name!r} has no power_limit segment for 'max_power_target_source'"
-            raise KeyError(msg)
-        segment.max_power_ts = self._normalize_period_vector(value)
-
-    @property
-    def price_source_target(self) -> NDArray[np.float64] | None:
-        """Backward-compatible price source→target accessor."""
-        segment = self._pricing_segment()
-        return None if segment is None else segment.price_st
-
-    @price_source_target.setter
-    def price_source_target(self, value: NDArray[np.floating[Any]] | Sequence[float] | float | None) -> None:
-        segment = self._pricing_segment()
-        if segment is None:
-            msg = f"{self.name!r} has no pricing segment for 'price_source_target'"
-            raise KeyError(msg)
-        segment.price_st = self._normalize_period_vector(value)
-
-    @property
-    def price_target_source(self) -> NDArray[np.float64] | None:
-        """Backward-compatible price target→source accessor."""
-        segment = self._pricing_segment()
-        return None if segment is None else segment.price_ts
-
-    @price_target_source.setter
-    def price_target_source(self, value: NDArray[np.floating[Any]] | Sequence[float] | float | None) -> None:
-        segment = self._pricing_segment()
-        if segment is None:
-            msg = f"{self.name!r} has no pricing segment for 'price_target_source'"
-            raise KeyError(msg)
-        segment.price_ts = self._normalize_period_vector(value)
 
     @property
     def _first(self) -> Segment | None:
@@ -613,9 +412,9 @@ __all__ = [
     "CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET",
     "CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE",
     "CONNECTION_TIME_SLICE",
+    "ELEMENT_TYPE",
     "Connection",
     "ConnectionElementConfig",
     "ConnectionElementTypeName",
     "ConnectionOutputName",
-    "ELEMENT_TYPE",
 ]

@@ -65,8 +65,8 @@ class EfficiencySegment(Segment):
         super().__init__(segment_id, n_periods, periods, solver)
 
         # Store efficiency values
-        self._efficiency_st = efficiency_st if efficiency_st is not None else np.ones(n_periods)
-        self._efficiency_ts = efficiency_ts if efficiency_ts is not None else np.ones(n_periods)
+        self._efficiency_st = self._normalize_efficiency(efficiency_st)
+        self._efficiency_ts = self._normalize_efficiency(efficiency_ts)
 
         # Single variable per direction - efficiency applied via properties
         self._power_st = solver.addVariables(n_periods, lb=0, name_prefix=f"{segment_id}_st_", out_array=True)
@@ -76,6 +76,15 @@ class EfficiencySegment(Segment):
     def power_in_st(self) -> HighspyArray:
         """Power entering segment in source→target direction."""
         return self._power_st
+
+    @property
+    def efficiency_st(self) -> NDArray[np.floating[Any]]:
+        """Efficiency for source→target direction."""
+        return self._efficiency_st
+
+    @efficiency_st.setter
+    def efficiency_st(self, value: NDArray[np.floating[Any]] | float | None) -> None:
+        self._efficiency_st = self._normalize_efficiency(value)
 
     @property
     def power_out_st(self) -> HighspyArray:
@@ -88,9 +97,30 @@ class EfficiencySegment(Segment):
         return self._power_ts
 
     @property
+    def efficiency_ts(self) -> NDArray[np.floating[Any]]:
+        """Efficiency for target→source direction."""
+        return self._efficiency_ts
+
+    @efficiency_ts.setter
+    def efficiency_ts(self, value: NDArray[np.floating[Any]] | float | None) -> None:
+        self._efficiency_ts = self._normalize_efficiency(value)
+
+    @property
     def power_out_ts(self) -> HighspyArray:
         """Power leaving segment in target→source direction (after efficiency loss)."""
         return self._power_ts * self._efficiency_ts
+
+    def _normalize_efficiency(self, value: NDArray[np.floating[Any]] | float | None) -> NDArray[np.float64]:
+        """Normalize efficiency to a period-length float array."""
+        if value is None:
+            return np.ones(self._n_periods, dtype=np.float64)
+        arr = np.asarray(value, dtype=np.float64)
+        if arr.shape == ():
+            return np.full(self._n_periods, float(arr), dtype=np.float64)
+        if arr.shape != (self._n_periods,):
+            msg = f"Expected length {self._n_periods} for {self.segment_id!r}, got {arr.shape}"
+            raise ValueError(msg)
+        return arr
 
 
 __all__ = ["EFFICIENCY_PERCENT", "EfficiencySegment", "EfficiencySegmentSpec"]

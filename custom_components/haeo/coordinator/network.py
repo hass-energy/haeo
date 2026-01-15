@@ -77,6 +77,7 @@ def update_element(
     element_config: ElementConfigData,
 ) -> None:
     """Update TrackedParams for a single element in the network."""
+    skip_params = ("element_type", "name", "source", "target", "segments")
     element_type = element_config[CONF_ELEMENT_TYPE]
     model_elements = ELEMENT_TYPES[element_type].model_elements(element_config)
 
@@ -91,19 +92,22 @@ def update_element(
 
         if isinstance(element, Connection) and (segments := model_element_config.get("segments")):
             for segment_spec in segments:
-                if segment_spec.get("segment_type") == "power_limit":
-                    if (max_power_st := segment_spec.get("max_power_st")) is not None:
-                        element["max_power_source_target"] = max_power_st
-                    if (max_power_ts := segment_spec.get("max_power_ts")) is not None:
-                        element["max_power_target_source"] = max_power_ts
-                if segment_spec.get("segment_type") == "pricing":
-                    if (price_st := segment_spec.get("price_st")) is not None:
-                        element["price_source_target"] = price_st
-                    if (price_ts := segment_spec.get("price_ts")) is not None:
-                        element["price_target_source"] = price_ts
-            continue
+                segment_name = segment_spec.get("name", segment_spec["segment_type"])
+                if segment_name not in element.segments:
+                    msg = f"Segment '{segment_name}' not found in connection '{element.name}'"
+                    raise KeyError(msg)
+                segment = element.segments[segment_name]
+                for param_name, param_value in segment_spec.items():
+                    if param_name in ("segment_type", "name"):
+                        continue
+                    if not hasattr(segment, param_name):
+                        msg = f"Segment '{segment_name}' has no parameter '{param_name}'"
+                        raise KeyError(msg)
+                    setattr(segment, param_name, param_value)
 
         for param_name, param_value in model_element_config.items():
+            if param_name in skip_params:
+                continue
             with contextlib.suppress(KeyError):
                 element[param_name] = param_value
 
