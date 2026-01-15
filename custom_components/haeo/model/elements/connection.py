@@ -145,9 +145,6 @@ class Connection[TOutputName: str](Element[TOutputName]):
             # Get segment class from registry
             segment_cls = SEGMENT_TYPES[segment_type]
 
-            # Build kwargs from spec, excluding segment_type and name
-            seg_kwargs: dict[str, Any] = {k: v for k, v in segment_spec.items() if k not in ("segment_type", "name")}
-
             # Create segment with standard args plus kwargs from spec
             segment_id = f"{name}_{segment_name}"
             segment = segment_cls(
@@ -155,7 +152,7 @@ class Connection[TOutputName: str](Element[TOutputName]):
                 n_periods,
                 periods_array,
                 solver,
-                **seg_kwargs,
+                spec=segment_spec,
             )
             self._segments[segment_name] = segment
 

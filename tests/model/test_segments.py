@@ -28,7 +28,7 @@ class TestPassthroughSegment:
         h = create_solver()
         periods = np.array([1.0, 1.0])
 
-        seg = PassthroughSegment("pass", 2, periods, h)
+        seg = PassthroughSegment("pass", 2, periods, h, spec={"segment_type": "passthrough"})
 
         # In and out should be the same variable
         assert seg.power_in_st is seg.power_out_st
@@ -43,7 +43,13 @@ class TestEfficiencySegment:
         h = create_solver()
         periods = np.array([1.0, 1.0])
 
-        seg = EfficiencySegment("eff", 2, periods, h, efficiency_source_target=np.array([0.9, 0.9]))
+        seg = EfficiencySegment(
+            "eff",
+            2,
+            periods,
+            h,
+            spec={"segment_type": "efficiency", "efficiency_source_target": np.array([0.9, 0.9])},
+        )
 
         # In and out should be different variables
         assert seg.power_in_st is not seg.power_out_st
@@ -59,8 +65,11 @@ class TestEfficiencySegment:
             2,
             periods,
             h,
-            efficiency_source_target=np.array([0.9, 0.9]),
-            efficiency_target_source=np.array([0.95, 0.95]),
+            spec={
+                "segment_type": "efficiency",
+                "efficiency_source_target": np.array([0.9, 0.9]),
+                "efficiency_target_source": np.array([0.95, 0.95]),
+            },
         )
 
         # Add efficiency constraints (calling constraints() adds them to solver)
@@ -86,7 +95,13 @@ class TestPowerLimitSegment:
         h = create_solver()
         periods = np.array([1.0, 1.0])
 
-        seg = PowerLimitSegment("limit", 2, periods, h, max_power_source_target=np.array([5.0, 5.0]))
+        seg = PowerLimitSegment(
+            "limit",
+            2,
+            periods,
+            h,
+            spec={"segment_type": "power_limit", "max_power_source_target": np.array([5.0, 5.0])},
+        )
 
         # In and out should be the same variable
         assert seg.power_in_st is seg.power_out_st
@@ -102,8 +117,10 @@ class TestPowerLimitSegment:
             2,
             periods,
             h,
-            max_power_source_target=np.array([5.0, 5.0]),
-            # Only set one direction to avoid time-slice constraint
+            spec={
+                "segment_type": "power_limit",
+                "max_power_source_target": np.array([5.0, 5.0]),
+            },
         )
 
         # Add power limit constraints (calling constraints() adds them to solver)
@@ -126,8 +143,10 @@ class TestPowerLimitSegment:
             2,
             periods,
             h,
-            max_power_target_source=np.array([3.0, 3.0]),
-            # Only set one direction to avoid time-slice constraint
+            spec={
+                "segment_type": "power_limit",
+                "max_power_target_source": np.array([3.0, 3.0]),
+            },
         )
 
         # Add power limit constraints (calling constraints() adds them to solver)
@@ -150,8 +169,11 @@ class TestPowerLimitSegment:
             2,
             periods,
             h,
-            max_power_source_target=np.array([5.0, 5.0]),
-            fixed=True,
+            spec={
+                "segment_type": "power_limit",
+                "max_power_source_target": np.array([5.0, 5.0]),
+                "fixed": True,
+            },
         )
 
         # Add power limit constraints (calling constraints() adds them to solver)
@@ -172,8 +194,11 @@ class TestPowerLimitSegment:
             1,
             periods,
             h,
-            max_power_source_target=np.array([10.0]),
-            max_power_target_source=np.array([10.0]),
+            spec={
+                "segment_type": "power_limit",
+                "max_power_source_target": np.array([10.0]),
+                "max_power_target_source": np.array([10.0]),
+            },
         )
 
         # Add constraints (calling constraints() adds them to solver)
@@ -199,7 +224,13 @@ class TestPricingSegment:
         h = create_solver()
         periods = np.array([1.0, 1.0])
 
-        seg = PricingSegment("price", 2, periods, h, price_source_target=np.array([0.1, 0.1]))
+        seg = PricingSegment(
+            "price",
+            2,
+            periods,
+            h,
+            spec={"segment_type": "pricing", "price_source_target": np.array([0.1, 0.1])},
+        )
 
         # In and out should be the same variable
         assert seg.power_in_st is seg.power_out_st
@@ -215,8 +246,11 @@ class TestPricingSegment:
             2,
             periods,
             h,
-            price_source_target=np.array([0.1, 0.1]),
-            price_target_source=np.array([0.2, 0.2]),
+            spec={
+                "segment_type": "pricing",
+                "price_source_target": np.array([0.1, 0.1]),
+                "price_target_source": np.array([0.2, 0.2]),
+            },
         )
 
         # Fix power flows

@@ -46,8 +46,7 @@ class EfficiencySegment(Segment):
         periods: NDArray[np.floating[Any]],
         solver: Highs,
         *,
-        efficiency_source_target: NDArray[np.floating[Any]] | None = None,
-        efficiency_target_source: NDArray[np.floating[Any]] | None = None,
+        spec: EfficiencySegmentSpec | None = None,
     ) -> None:
         """Initialize efficiency segment.
 
@@ -56,17 +55,16 @@ class EfficiencySegment(Segment):
             n_periods: Number of optimization periods
             periods: Time period durations in hours
             solver: HiGHS solver instance
-            efficiency_source_target: Efficiency for source→target direction (fraction 0-1).
-                          If None, defaults to 1.0 (lossless).
-            efficiency_target_source: Efficiency for target→source direction (fraction 0-1).
-                          If None, defaults to 1.0 (lossless).
+            spec: Efficiency segment specification.
 
         """
         super().__init__(segment_id, n_periods, periods, solver)
 
+        spec = spec or {}
+
         # Store efficiency values
-        self._efficiency_source_target = self._normalize_efficiency(efficiency_source_target)
-        self._efficiency_target_source = self._normalize_efficiency(efficiency_target_source)
+        self._efficiency_source_target = self._normalize_efficiency(spec.get("efficiency_source_target"))
+        self._efficiency_target_source = self._normalize_efficiency(spec.get("efficiency_target_source"))
 
         # Single variable per direction - efficiency applied via properties
         self._power_st = solver.addVariables(n_periods, lb=0, name_prefix=f"{segment_id}_st_", out_array=True)

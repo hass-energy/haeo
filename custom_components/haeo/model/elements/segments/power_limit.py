@@ -62,9 +62,7 @@ class PowerLimitSegment(Segment):
         periods: NDArray[np.floating[Any]],
         solver: Highs,
         *,
-        max_power_source_target: NDArray[np.floating[Any]] | None = None,
-        max_power_target_source: NDArray[np.floating[Any]] | None = None,
-        fixed: bool = False,
+        spec: PowerLimitSegmentSpec | None = None,
     ) -> None:
         """Initialize power limit segment.
 
@@ -73,25 +71,29 @@ class PowerLimitSegment(Segment):
             n_periods: Number of optimization periods
             periods: Time period durations in hours
             solver: HiGHS solver instance
-            max_power_source_target: Maximum power for source→target direction (kW per period)
-            max_power_target_source: Maximum power for target→source direction (kW per period)
-            fixed: If True, power is fixed to max values (== instead of <=)
+            spec: Power limit segment specification.
 
         """
         super().__init__(segment_id, n_periods, periods, solver)
-        self._fixed = fixed
+        spec = spec or {}
+        self._fixed = spec.get("fixed", False)
 
         # Create single power variable per direction (lossless segment, in == out)
         self._power_st = solver.addVariables(n_periods, lb=0, name_prefix=f"{segment_id}_st_", out_array=True)
         self._power_ts = solver.addVariables(n_periods, lb=0, name_prefix=f"{segment_id}_ts_", out_array=True)
 
         # Set tracked params (these trigger reactive infrastructure)
-        self.max_power_source_target = (
-            max_power_source_target.astype(np.float64) if max_power_source_target is not None else None
-        )
-        self.max_power_target_source = (
-            max_power_target_source.astype(np.float64) if max_power_target_source is not None else None
-        )
+        max_power_source_target = spec.get("max_power_source_target")
+        if max_power_source_target is not None:
+            self.max_power_source_target = np.asarray(max_power_source_target, dtype=np.float64)
+        else:
+            self.max_power_source_target = None
+
+        max_power_target_source = spec.get("max_power_target_source")
+        if max_power_target_source is not None:
+            self.max_power_target_source = np.asarray(max_power_target_source, dtype=np.float64)
+        else:
+            self.max_power_target_source = None
 
     @property
     def power_in_st(self) -> HighspyArray:

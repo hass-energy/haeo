@@ -37,6 +37,8 @@ class PassthroughSegment(Segment):
         n_periods: int,
         periods: NDArray[np.floating[Any]],
         solver: Highs,
+        *,
+        spec: PassthroughSegmentSpec | None = None,
     ) -> None:
         """Initialize passthrough segment.
 
@@ -45,8 +47,10 @@ class PassthroughSegment(Segment):
             n_periods: Number of optimization periods
             periods: Time period durations in hours
             solver: HiGHS solver instance
+            spec: Passthrough segment specification (unused).
 
         """
+        _ = spec
         super().__init__(segment_id, n_periods, periods, solver)
 
         # Create single power variable per direction (lossless, in == out)

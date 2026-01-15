@@ -51,8 +51,7 @@ class PricingSegment(Segment):
         periods: NDArray[np.floating[Any]],
         solver: Highs,
         *,
-        price_source_target: NDArray[np.floating[Any]] | None = None,
-        price_target_source: NDArray[np.floating[Any]] | None = None,
+        spec: PricingSegmentSpec | None = None,
     ) -> None:
         """Initialize pricing segment.
 
@@ -61,23 +60,28 @@ class PricingSegment(Segment):
             n_periods: Number of optimization periods
             periods: Time period durations in hours
             solver: HiGHS solver instance
-            price_source_target: Price for source→target flow ($/kWh per period)
-            price_target_source: Price for target→source flow ($/kWh per period)
+            spec: Pricing segment specification.
 
         """
         super().__init__(segment_id, n_periods, periods, solver)
+        spec = spec or {}
 
         # Create single power variable per direction (lossless segment, in == out)
         self._power_st = solver.addVariables(n_periods, lb=0, name_prefix=f"{segment_id}_st_", out_array=True)
         self._power_ts = solver.addVariables(n_periods, lb=0, name_prefix=f"{segment_id}_ts_", out_array=True)
 
         # Set tracked params (these trigger reactive infrastructure)
-        self.price_source_target = (
-            price_source_target.astype(np.float64) if price_source_target is not None else None
-        )
-        self.price_target_source = (
-            price_target_source.astype(np.float64) if price_target_source is not None else None
-        )
+        price_source_target = spec.get("price_source_target")
+        if price_source_target is not None:
+            self.price_source_target = np.asarray(price_source_target, dtype=np.float64)
+        else:
+            self.price_source_target = None
+
+        price_target_source = spec.get("price_target_source")
+        if price_target_source is not None:
+            self.price_target_source = np.asarray(price_target_source, dtype=np.float64)
+        else:
+            self.price_target_source = None
 
     @property
     def power_in_st(self) -> HighspyArray:
