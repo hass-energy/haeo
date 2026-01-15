@@ -4,6 +4,7 @@ import logging
 from unittest.mock import Mock
 
 from highspy import HighsModelStatus
+import numpy as np
 import pytest
 
 from custom_components.haeo.model import Network
@@ -77,7 +78,7 @@ def test_connect_entities() -> None:
             "name": "battery1_to_grid1",
             "source": "battery1",
             "target": "grid1",
-            "max_power_source_target": 5000,
+            "segments": [{"segment_type": "power_limit", "max_power_st": np.array([5000.0, 5000.0, 5000.0])}],
         }
     )
 
@@ -470,7 +471,7 @@ def test_network_cost_with_multiple_elements() -> None:
             "name": "conn1",
             "source": "source",
             "target": "target",
-            "price_source_target": [10.0, 20.0],
+            "segments": [{"segment_type": "pricing", "price_st": np.array([10.0, 20.0])}],
         }
     )
     network.add(
@@ -479,7 +480,7 @@ def test_network_cost_with_multiple_elements() -> None:
             "name": "conn2",
             "source": "target",
             "target": "source",
-            "price_source_target": [5.0, 10.0],
+            "segments": [{"segment_type": "pricing", "price_st": np.array([5.0, 10.0])}],
         }
     )
 

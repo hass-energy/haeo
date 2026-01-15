@@ -1,5 +1,7 @@
 """Integration tests for Network optimization scenarios."""
 
+import numpy as np
+
 from custom_components.haeo.model import Network
 from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE
 
@@ -17,10 +19,18 @@ def test_simple_optimization() -> None:
             "name": "grid_connection",
             "source": "grid",
             "target": "net",
-            "max_power_source_target": 10000,
-            "max_power_target_source": 5000,
-            "price_source_target": [0.1, 0.2, 0.15],
-            "price_target_source": [0.05, 0.08, 0.06],
+            "segments": [
+                {
+                    "segment_type": "power_limit",
+                    "max_power_st": np.array([10000.0, 10000.0, 10000.0]),
+                    "max_power_ts": np.array([5000.0, 5000.0, 5000.0]),
+                },
+                {
+                    "segment_type": "pricing",
+                    "price_st": np.array([0.1, 0.2, 0.15]),
+                    "price_ts": np.array([0.05, 0.08, 0.06]),
+                },
+            ],
         }
     )
     network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "load", "is_source": False, "is_sink": True})
@@ -30,8 +40,13 @@ def test_simple_optimization() -> None:
             "name": "load_connection",
             "source": "net",
             "target": "load",
-            "max_power_source_target": [1000, 1500, 2000],
-            "fixed_power": True,
+            "segments": [
+                {
+                    "segment_type": "power_limit",
+                    "max_power_st": np.array([1000.0, 1500.0, 2000.0]),
+                    "fixed": True,
+                }
+            ],
         }
     )
 
@@ -56,7 +71,7 @@ def test_network_validation() -> None:
             "name": "valid_connection",
             "source": "source",
             "target": "sink",
-            "max_power_source_target": 1000,
+            "segments": [{"segment_type": "power_limit", "max_power_st": np.array([1000.0, 1000.0, 1000.0])}],
         }
     )
 
