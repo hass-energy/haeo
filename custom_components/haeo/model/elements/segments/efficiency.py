@@ -6,7 +6,10 @@ Efficiency reduces output power relative to input:
 This models inverter losses, transformer losses, etc.
 """
 
-from typing import Any
+from typing import Any, Final
+
+# Efficiency is specified as percentage (0-100), convert to fraction
+EFFICIENCY_PERCENT: Final = 100.0
 
 from highspy import Highs
 from highspy.highs import HighspyArray
@@ -80,4 +83,4 @@ class EfficiencySegment(Segment):
         return self._power_ts * self._efficiency_ts
 
 
-__all__ = ["EfficiencySegment"]
+__all__ = ["EFFICIENCY_PERCENT", "EfficiencySegment"]
