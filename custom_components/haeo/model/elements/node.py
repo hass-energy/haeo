@@ -9,6 +9,10 @@ from highspy.highs import highs_linear_expression
 from custom_components.haeo.model.element import Element
 from custom_components.haeo.model.reactive import constraint
 
+# Model element type for nodes
+ELEMENT_TYPE: Final = "node"
+type NodeElementType = Literal["node"]
+
 type NodeConstraintName = Literal["node_power_balance"]
 
 type NodeOutputName = NodeConstraintName
@@ -21,7 +25,7 @@ NODE_OUTPUT_NAMES: Final[frozenset[NodeOutputName]] = frozenset((NODE_POWER_BALA
 class NodeElementConfig(TypedDict):
     """Configuration for Node model elements."""
 
-    element_type: Literal["node"]
+    element_type: NodeElementType
     name: str
     is_source: NotRequired[bool]
     is_sink: NotRequired[bool]

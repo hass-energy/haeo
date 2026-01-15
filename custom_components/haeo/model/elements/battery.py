@@ -14,6 +14,10 @@ from custom_components.haeo.model.output_data import OutputData
 from custom_components.haeo.model.reactive import TrackedParam, constraint, output
 from custom_components.haeo.model.util import broadcast_to_sequence
 
+# Model element type for batteries
+ELEMENT_TYPE: Final = "battery"
+type BatteryElementType = Literal["battery"]
+
 # Type for battery constraint names (shadow prices exposed as outputs)
 type BatteryConstraintName = Literal[
     "battery_power_balance",
@@ -56,7 +60,7 @@ BATTERY_POWER_CONSTRAINTS: Final[frozenset[BatteryConstraintName]] = frozenset((
 class BatteryElementConfig(TypedDict):
     """Configuration for Battery model elements."""
 
-    element_type: Literal["battery"]
+    element_type: BatteryElementType
     name: str
     capacity: Sequence[float] | float
     initial_charge: float
