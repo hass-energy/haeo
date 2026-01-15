@@ -158,7 +158,13 @@ class Connection[TOutputName: str](Element[TOutputName]):
 
         # If no segments provided, create a passthrough segment
         if not self._segments:
-            passthrough = PassthroughSegment(f"{name}_passthrough", n_periods, periods_array, solver)
+            passthrough = PassthroughSegment(
+                f"{name}_passthrough",
+                n_periods,
+                periods_array,
+                solver,
+                spec={"segment_type": "passthrough"},
+            )
             self._segments["passthrough"] = passthrough
 
     @property

@@ -46,7 +46,7 @@ class EfficiencySegment(Segment):
         periods: NDArray[np.floating[Any]],
         solver: Highs,
         *,
-        spec: EfficiencySegmentSpec | None = None,
+        spec: EfficiencySegmentSpec,
     ) -> None:
         """Initialize efficiency segment.
 
@@ -59,8 +59,6 @@ class EfficiencySegment(Segment):
 
         """
         super().__init__(segment_id, n_periods, periods, solver)
-
-        spec = spec or {}
 
         # Store efficiency values
         self._efficiency_source_target = self._normalize_efficiency(spec.get("efficiency_source_target"))

@@ -38,7 +38,7 @@ class PassthroughSegment(Segment):
         periods: NDArray[np.floating[Any]],
         solver: Highs,
         *,
-        spec: PassthroughSegmentSpec | None = None,
+        spec: PassthroughSegmentSpec,
     ) -> None:
         """Initialize passthrough segment.
 

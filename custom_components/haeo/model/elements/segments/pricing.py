@@ -51,7 +51,7 @@ class PricingSegment(Segment):
         periods: NDArray[np.floating[Any]],
         solver: Highs,
         *,
-        spec: PricingSegmentSpec | None = None,
+        spec: PricingSegmentSpec,
     ) -> None:
         """Initialize pricing segment.
 
@@ -64,8 +64,6 @@ class PricingSegment(Segment):
 
         """
         super().__init__(segment_id, n_periods, periods, solver)
-        spec = spec or {}
-
         # Create single power variable per direction (lossless segment, in == out)
         self._power_st = solver.addVariables(n_periods, lb=0, name_prefix=f"{segment_id}_st_", out_array=True)
         self._power_ts = solver.addVariables(n_periods, lb=0, name_prefix=f"{segment_id}_ts_", out_array=True)

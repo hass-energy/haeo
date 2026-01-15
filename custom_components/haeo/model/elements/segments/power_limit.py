@@ -62,7 +62,7 @@ class PowerLimitSegment(Segment):
         periods: NDArray[np.floating[Any]],
         solver: Highs,
         *,
-        spec: PowerLimitSegmentSpec | None = None,
+        spec: PowerLimitSegmentSpec,
     ) -> None:
         """Initialize power limit segment.
 
@@ -75,7 +75,6 @@ class PowerLimitSegment(Segment):
 
         """
         super().__init__(segment_id, n_periods, periods, solver)
-        spec = spec or {}
         self._fixed = spec.get("fixed", False)
 
         # Create single power variable per direction (lossless segment, in == out)
