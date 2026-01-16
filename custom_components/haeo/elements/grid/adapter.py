@@ -17,12 +17,7 @@ from custom_components.haeo.model.elements.connection import (
     CONNECTION_POWER_TARGET_SOURCE,
     CONNECTION_SEGMENTS,
 )
-from custom_components.haeo.model.elements.segments import (
-    POWER_LIMIT_SOURCE_TARGET,
-    POWER_LIMIT_TARGET_SOURCE,
-    PowerLimitSegmentSpec,
-    PricingSegmentSpec,
-)
+from custom_components.haeo.model.elements.segments import POWER_LIMIT_SOURCE_TARGET, POWER_LIMIT_TARGET_SOURCE
 from custom_components.haeo.model.output_data import OutputData
 
 from .flow import GridSubentryFlowHandler
@@ -195,17 +190,6 @@ class GridAdapter:
         """Create model elements for Grid configuration."""
         import_limit = config.get("import_limit")
         export_limit = config.get("export_limit")
-        power_limit: PowerLimitSegmentSpec = {
-            "segment_type": "power_limit",
-            "max_power_source_target": np.array(import_limit) if import_limit is not None else None,
-            "max_power_target_source": np.array(export_limit) if export_limit is not None else None,
-        }
-        pricing: PricingSegmentSpec = {
-            "segment_type": "pricing",
-            "price_source_target": np.array(config["import_price"]),
-            "price_target_source": np.array([-p for p in config["export_price"]]),
-        }
-
         return [
             # Create Node for the grid (both source and sink - can import and export)
             {
@@ -220,7 +204,18 @@ class GridAdapter:
                 "name": f"{config['name']}:connection",
                 "source": config["name"],
                 "target": config["connection"],
-                "segments": {"power_limit": power_limit, "pricing": pricing},
+                "segments": {
+                    "power_limit": {
+                        "segment_type": "power_limit",
+                        "max_power_source_target": np.array(import_limit) if import_limit is not None else None,
+                        "max_power_target_source": np.array(export_limit) if export_limit is not None else None,
+                    },
+                    "pricing": {
+                        "segment_type": "pricing",
+                        "price_source_target": np.array(config["import_price"]),
+                        "price_target_source": np.array([-p for p in config["export_price"]]),
+                    },
+                },
             },
         ]
 

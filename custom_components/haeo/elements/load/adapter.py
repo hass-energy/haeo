@@ -13,7 +13,7 @@ from custom_components.haeo.model import ModelElementConfig, ModelOutputName, Mo
 from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE
 from custom_components.haeo.model.elements.connection import CONNECTION_POWER_TARGET_SOURCE, CONNECTION_SEGMENTS
-from custom_components.haeo.model.elements.segments import POWER_LIMIT_TARGET_SOURCE, PowerLimitSegmentSpec
+from custom_components.haeo.model.elements.segments import POWER_LIMIT_TARGET_SOURCE
 from custom_components.haeo.model.output_data import OutputData
 
 from .flow import LoadSubentryFlowHandler
@@ -101,13 +101,6 @@ class LoadAdapter:
     def model_elements(self, config: LoadConfigData) -> list[ModelElementConfig]:
         """Create model elements for Load configuration."""
         n_periods = len(config["forecast"])
-        power_limit: PowerLimitSegmentSpec = {
-            "segment_type": "power_limit",
-            "max_power_source_target": np.zeros(n_periods),
-            "max_power_target_source": np.array(config["forecast"]),
-            "fixed": True,
-        }
-
         return [
             # Create Node for the load (sink only - consumes power)
             {"element_type": MODEL_ELEMENT_TYPE_NODE, "name": config["name"], "is_source": False, "is_sink": True},
@@ -117,7 +110,14 @@ class LoadAdapter:
                 "name": f"{config['name']}:connection",
                 "source": config["name"],
                 "target": config["connection"],
-                "segments": {"power_limit": power_limit},
+                "segments": {
+                    "power_limit": {
+                        "segment_type": "power_limit",
+                        "max_power_source_target": np.zeros(n_periods),
+                        "max_power_target_source": np.array(config["forecast"]),
+                        "fixed": True,
+                    }
+                },
             },
         ]
 

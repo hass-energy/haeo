@@ -13,11 +13,7 @@ from custom_components.haeo.model import ModelElementConfig, ModelOutputName, Mo
 from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE
 from custom_components.haeo.model.elements.connection import CONNECTION_POWER_SOURCE_TARGET, CONNECTION_SEGMENTS
-from custom_components.haeo.model.elements.segments import (
-    POWER_LIMIT_SOURCE_TARGET,
-    PowerLimitSegmentSpec,
-    PricingSegmentSpec,
-)
+from custom_components.haeo.model.elements.segments import POWER_LIMIT_SOURCE_TARGET
 from custom_components.haeo.model.output_data import OutputData
 
 from .flow import SolarSubentryFlowHandler
@@ -134,18 +130,7 @@ class SolarAdapter:
     def model_elements(self, config: SolarConfigData) -> list[ModelElementConfig]:
         """Return model element parameters for Solar configuration."""
         n_periods = len(config["forecast"])
-        power_limit: PowerLimitSegmentSpec = {
-            "segment_type": "power_limit",
-            "max_power_source_target": np.array(config["forecast"]),
-            "max_power_target_source": np.zeros(n_periods),
-            "fixed": not config.get("curtailment", DEFAULTS[CONF_CURTAILMENT]),
-        }
         price_production = config.get("price_production")
-        pricing: PricingSegmentSpec = {
-            "segment_type": "pricing",
-            "price_source_target": np.array(price_production) if price_production is not None else None,
-            "price_target_source": None,
-        }
 
         return [
             {"element_type": MODEL_ELEMENT_TYPE_NODE, "name": config["name"], "is_source": True, "is_sink": False},
@@ -154,7 +139,19 @@ class SolarAdapter:
                 "name": f"{config['name']}:connection",
                 "source": config["name"],
                 "target": config["connection"],
-                "segments": {"power_limit": power_limit, "pricing": pricing},
+                "segments": {
+                    "power_limit": {
+                        "segment_type": "power_limit",
+                        "max_power_source_target": np.array(config["forecast"]),
+                        "max_power_target_source": np.zeros(n_periods),
+                        "fixed": not config.get("curtailment", DEFAULTS[CONF_CURTAILMENT]),
+                    },
+                    "pricing": {
+                        "segment_type": "pricing",
+                        "price_source_target": np.array(price_production) if price_production is not None else None,
+                        "price_target_source": None,
+                    },
+                },
             },
         ]
 

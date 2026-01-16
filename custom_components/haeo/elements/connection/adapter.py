@@ -26,9 +26,6 @@ from custom_components.haeo.model.elements.segments import (
     POWER_LIMIT_SOURCE_TARGET,
     POWER_LIMIT_TARGET_SOURCE,
     POWER_LIMIT_TIME_SLICE,
-    EfficiencySegmentSpec,
-    PowerLimitSegmentSpec,
-    PricingSegmentSpec,
 )
 from custom_components.haeo.model.output_data import OutputData
 
@@ -204,29 +201,6 @@ class ConnectionAdapter:
         price_source_target = config.get("price_source_target")
         price_target_source = config.get("price_target_source")
 
-        efficiency_spec: EfficiencySegmentSpec = {
-            "segment_type": "efficiency",
-            "efficiency_source_target": (
-                np.array(efficiency_source_target) / 100.0 if efficiency_source_target is not None else None
-            ),
-            "efficiency_target_source": (
-                np.array(efficiency_target_source) / 100.0 if efficiency_target_source is not None else None
-            ),
-        }
-        power_limit_spec: PowerLimitSegmentSpec = {
-            "segment_type": "power_limit",
-            "max_power_source_target": (
-                np.array(max_power_source_target) if max_power_source_target is not None else None
-            ),
-            "max_power_target_source": (
-                np.array(max_power_target_source) if max_power_target_source is not None else None
-            ),
-        }
-        pricing_spec: PricingSegmentSpec = {
-            "segment_type": "pricing",
-            "price_source_target": np.array(price_source_target) if price_source_target is not None else None,
-            "price_target_source": np.array(price_target_source) if price_target_source is not None else None,
-        }
         return [
             {
                 "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
@@ -234,9 +208,33 @@ class ConnectionAdapter:
                 "source": config["source"],
                 "target": config["target"],
                 "segments": {
-                    "efficiency": efficiency_spec,
-                    "power_limit": power_limit_spec,
-                    "pricing": pricing_spec,
+                    "efficiency": {
+                        "segment_type": "efficiency",
+                        "efficiency_source_target": (
+                            np.array(efficiency_source_target) / 100.0 if efficiency_source_target is not None else None
+                        ),
+                        "efficiency_target_source": (
+                            np.array(efficiency_target_source) / 100.0 if efficiency_target_source is not None else None
+                        ),
+                    },
+                    "power_limit": {
+                        "segment_type": "power_limit",
+                        "max_power_source_target": (
+                            np.array(max_power_source_target) if max_power_source_target is not None else None
+                        ),
+                        "max_power_target_source": (
+                            np.array(max_power_target_source) if max_power_target_source is not None else None
+                        ),
+                    },
+                    "pricing": {
+                        "segment_type": "pricing",
+                        "price_source_target": (
+                            np.array(price_source_target) if price_source_target is not None else None
+                        ),
+                        "price_target_source": (
+                            np.array(price_target_source) if price_target_source is not None else None
+                        ),
+                    },
                 },
             }
         ]

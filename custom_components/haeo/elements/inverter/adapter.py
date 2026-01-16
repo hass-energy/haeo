@@ -18,12 +18,7 @@ from custom_components.haeo.model.elements.connection import (
     CONNECTION_SEGMENTS,
 )
 from custom_components.haeo.model.elements.node import NODE_POWER_BALANCE
-from custom_components.haeo.model.elements.segments import (
-    POWER_LIMIT_SOURCE_TARGET,
-    POWER_LIMIT_TARGET_SOURCE,
-    EfficiencySegmentSpec,
-    PowerLimitSegmentSpec,
-)
+from custom_components.haeo.model.elements.segments import POWER_LIMIT_SOURCE_TARGET, POWER_LIMIT_TARGET_SOURCE
 from custom_components.haeo.model.output_data import OutputData
 
 from .flow import InverterSubentryFlowHandler
@@ -156,22 +151,6 @@ class InverterAdapter:
         name = config["name"]
         efficiency_source_target = config.get("efficiency_dc_to_ac")
         efficiency_target_source = config.get("efficiency_ac_to_dc")
-        efficiency: EfficiencySegmentSpec = {
-            "segment_type": "efficiency",
-            "efficiency_source_target": (
-                np.array(efficiency_source_target) / 100.0 if efficiency_source_target is not None else None
-            ),
-            "efficiency_target_source": (
-                np.array(efficiency_target_source) / 100.0 if efficiency_target_source is not None else None
-            ),
-        }
-
-        power_limit: PowerLimitSegmentSpec = {
-            "segment_type": "power_limit",
-            "max_power_source_target": np.array(config["max_power_dc_to_ac"]),
-            "max_power_target_source": np.array(config["max_power_ac_to_dc"]),
-        }
-
         return [
             # Create Node for the DC bus (pure junction - neither source nor sink)
             {"element_type": MODEL_ELEMENT_TYPE_NODE, "name": name, "is_source": False, "is_sink": False},
@@ -183,7 +162,22 @@ class InverterAdapter:
                 "name": f"{name}:connection",
                 "source": name,
                 "target": config["connection"],
-                "segments": {"efficiency": efficiency, "power_limit": power_limit},
+                "segments": {
+                    "efficiency": {
+                        "segment_type": "efficiency",
+                        "efficiency_source_target": (
+                            np.array(efficiency_source_target) / 100.0 if efficiency_source_target is not None else None
+                        ),
+                        "efficiency_target_source": (
+                            np.array(efficiency_target_source) / 100.0 if efficiency_target_source is not None else None
+                        ),
+                    },
+                    "power_limit": {
+                        "segment_type": "power_limit",
+                        "max_power_source_target": np.array(config["max_power_dc_to_ac"]),
+                        "max_power_target_source": np.array(config["max_power_ac_to_dc"]),
+                    },
+                },
             },
         ]
 
