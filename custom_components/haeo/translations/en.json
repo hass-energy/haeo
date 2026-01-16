@@ -405,7 +405,6 @@
       "connection_shadow_power_max_source_target": { "name": "Max {source} to {target} power shadow price" },
       "connection_shadow_power_max_target_source": { "name": "Max {target} to {source} power shadow price" },
       "connection_time_slice": { "name": "Time slice shadow price" },
-      "segments": { "name": "Segments" },
       "grid_cost_import": { "name": "Import cost" },
       "grid_cost_net": { "name": "Net cost" },
       "grid_power_active": { "name": "Active power" },
@@ -427,6 +426,7 @@
       "network_optimization_duration": { "name": "Duration" },
       "network_optimization_status": { "name": "Status" },
       "node_power_balance": { "name": "Power balance shadow price" },
+      "segments": { "name": "Segments" },
       "solar_forecast_limit": { "name": "Forecast limit shadow price" },
       "solar_power": { "name": "Power" }
     },
