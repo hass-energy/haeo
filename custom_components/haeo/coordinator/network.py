@@ -1,8 +1,8 @@
 """Network building and connectivity helpers for the HAEO integration."""
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping, MutableMapping, Sequence
 import logging
-from typing import Any
+from typing import Any, cast
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -84,48 +84,62 @@ def update_element(
     def _iter_updates(
         values: Mapping[object, object],
         prefix: tuple[str, ...] = (),
-    ) -> list[tuple[tuple[str, ...], object]]:
-        updates: list[tuple[tuple[str, ...], object]] = []
+    ) -> list[tuple[tuple[str, ...], object, bool]]:
+        updates: list[tuple[tuple[str, ...], object, bool]] = []
         for key, value in values.items():
             if key in ("element_type", "name"):
                 continue
             if isinstance(key, tuple):
-                updates.append((key, value))
+                if not key or not all(isinstance(part, str) for part in key):
+                    msg = f"Invalid update path {key!r} for element {values.get('name')!r}"
+                    raise ValueError(msg)
+                updates.append((key, value, True))
                 continue
             if not isinstance(key, str):
                 continue
             if isinstance(value, Mapping):
-                updates.extend(_iter_updates(value, prefix + (key,)))
+                updates.extend(_iter_updates(value, (*prefix, key)))
             else:
-                updates.append((prefix + (key,), value))
+                updates.append(((*prefix, key), value, False))
         return updates
 
-    def _resolve_path(obj: Any, path: tuple[str, ...]) -> Any | None:
+    def _resolve_path(obj: Any, path: tuple[str, ...], *, element_name: str | None) -> Any:
         current = obj
         for part in path[:-1]:
             if isinstance(current, Mapping):
                 if part not in current:
-                    return None
+                    msg = f"Invalid update path {path!r} for element {element_name!r}: missing key {part!r}"
+                    raise ValueError(msg)
                 current = current[part]
                 continue
             if hasattr(current, part):
                 current = getattr(current, part)
                 continue
-            return None
+            msg = f"Invalid update path {path!r} for element {element_name!r}: missing attribute {part!r}"
+            raise ValueError(msg)
         return current
 
-    def _set_value(obj: Any, key: str, value: object) -> bool:
+    def _set_value(obj: Any, key: str, value: object, *, path: tuple[str, ...], element_name: str | None) -> None:
+        if isinstance(obj, MutableMapping):
+            if key not in obj:
+                msg = f"Invalid update path {path!r} for element {element_name!r}: missing key {key!r}"
+                raise ValueError(msg)
+            obj[key] = value
+            return
+
         descriptor = getattr(type(obj), key, None)
         if isinstance(descriptor, TrackedParam):
             setattr(obj, key, value)
-            return True
+            return
         if hasattr(obj, key):
             try:
                 setattr(obj, key, value)
-            except (AttributeError, TypeError):
-                return False
-            return True
-        return False
+            except (AttributeError, TypeError) as exc:
+                msg = f"Failed to update {path!r} for element {element_name!r}: {exc}"
+                raise ValueError(msg) from exc
+            return
+        msg = f"Invalid update path {path!r} for element {element_name!r}: missing attribute {key!r}"
+        raise ValueError(msg)
 
     for model_element_config in model_elements:
         element_name = model_element_config.get("name")
@@ -135,12 +149,13 @@ def update_element(
             raise ValueError(msg)
 
         element = network.elements[element_name]
-        for path, value in _iter_updates(model_element_config):
-            target = _resolve_path(element, path)
-            if target is None:
-                continue
-            if not _set_value(target, path[-1], value):
-                continue
+        for path, value, strict in _iter_updates(cast(Mapping[object, object], model_element_config)):
+            try:
+                target = _resolve_path(element, path, element_name=element_name)
+                _set_value(target, path[-1], value, path=path, element_name=element_name)
+            except ValueError:
+                if strict:
+                    raise
 
 
 async def evaluate_network_connectivity(
