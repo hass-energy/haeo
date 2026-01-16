@@ -295,6 +295,33 @@ def build_choose_selector(
     )
 
 
+class NormalizingChooseSelector(ChooseSelector):  # type: ignore[type-arg]
+    """ChooseSelector wrapper that normalizes raw dict format from frontend.
+
+    Handles the case where frontend sends raw dict format like:
+    {"active_choice": "none", "constant": 100}
+
+    Converts to expected format before delegating to ChooseSelector.
+    """
+
+    def __call__(self, data: Any) -> Any:
+        """Normalize data before validation."""
+        normalized = self._normalize(data)
+        return super().__call__(normalized)  # type: ignore[misc]
+
+    def _normalize(self, value: Any) -> Any:
+        """Normalize raw dict format to expected value."""
+        if isinstance(value, dict) and "active_choice" in value:
+            choice = value.get("active_choice")
+            if choice == CHOICE_NONE:
+                return ""  # ConstantSelector expects empty string
+            if choice == CHOICE_ENTITY:
+                return value.get(CHOICE_ENTITY, [])
+            if choice == CHOICE_CONSTANT:
+                return value.get(CHOICE_CONSTANT)
+        return value
+
+
 def build_choose_schema_entry(
     field_info: InputFieldInfo[Any],
     *,
@@ -313,17 +340,22 @@ def build_choose_schema_entry(
         preferred_choice: Which choice should appear first (will be pre-selected).
 
     Returns:
-        Tuple of (vol.Required/Optional marker, ChooseSelector).
+        Tuple of (vol.Required/Optional marker, NormalizingChooseSelector).
 
     """
     field_name = field_info.field_name
-    selector = build_choose_selector(
+
+    # Build the base selector config
+    base_selector = build_choose_selector(
         field_info,
         is_optional=is_optional,
         include_entities=include_entities,
         multiple=multiple,
         preferred_choice=preferred_choice,
     )
+
+    # Create normalizing wrapper with the same config
+    selector = NormalizingChooseSelector(base_selector.config)
 
     if is_optional:
         return vol.Optional(field_name), selector
@@ -447,6 +479,51 @@ def _normalize_entity_selection(entities: list[str] | str) -> str | list[str]:
     return entities
 
 
+def preprocess_choose_selector_input(
+    user_input: dict[str, Any] | None,
+    input_fields: tuple[InputFieldInfo[Any], ...],
+) -> dict[str, Any] | None:
+    """Preprocess user input to normalize ChooseSelector data.
+
+    Handles the case where the frontend sends raw dict format like:
+    {"active_choice": "none", "constant": 100}
+
+    This can occur due to a Home Assistant frontend bug where the previous
+    choice's value is included when submitting a different choice.
+
+    Converts to expected format:
+    - "none" choice -> "" (empty string)
+    - "entity" choice -> extract entity list
+    - "constant" choice -> extract constant value
+
+    Args:
+        user_input: User input from the form submission.
+        input_fields: Tuple of input field metadata.
+
+    Returns:
+        Normalized user input dict, or None if input was None.
+
+    """
+    if user_input is None:
+        return None
+
+    result = dict(user_input)
+    field_names = {f.field_name for f in input_fields}
+
+    for field_name in field_names:
+        value = result.get(field_name)
+        if isinstance(value, dict) and "active_choice" in value:
+            choice = value.get("active_choice")
+            if choice == CHOICE_NONE:
+                result[field_name] = ""  # ConstantSelector expects empty string
+            elif choice == CHOICE_ENTITY:
+                result[field_name] = value.get(CHOICE_ENTITY, [])
+            elif choice == CHOICE_CONSTANT:
+                result[field_name] = value.get(CHOICE_CONSTANT)
+
+    return result
+
+
 __all__ = [
     "CHOICE_CONSTANT",
     "CHOICE_ENTITY",
@@ -460,5 +537,6 @@ __all__ = [
     "get_haeo_input_entity_ids",
     "get_preferred_choice",
     "number_selector_from_field",
+    "preprocess_choose_selector_input",
     "resolve_haeo_input_entity_id",
 ]

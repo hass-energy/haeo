@@ -766,3 +766,116 @@ def test_normalize_entity_selection_multi_element_list_returns_list() -> None:
     """_normalize_entity_selection keeps multi-element list as list."""
     result = _normalize_entity_selection(["sensor.power1", "sensor.power2"])
     assert result == ["sensor.power1", "sensor.power2"]
+
+
+# --- Tests for preprocess_choose_selector_input ---
+
+
+def test_preprocess_choose_selector_input_none_returns_none(
+    number_field: InputFieldInfo[NumberEntityDescription],
+) -> None:
+    """preprocess_choose_selector_input returns None when input is None."""
+    from custom_components.haeo.flows.field_schema import preprocess_choose_selector_input
+
+    result = preprocess_choose_selector_input(None, (number_field,))
+    assert result is None
+
+
+def test_preprocess_choose_selector_input_none_choice_returns_empty_string(
+    number_field: InputFieldInfo[NumberEntityDescription],
+) -> None:
+    """preprocess_choose_selector_input converts none choice to empty string."""
+    from custom_components.haeo.flows.field_schema import preprocess_choose_selector_input
+
+    user_input = {
+        "test_field": {"active_choice": "none", "constant": 100},
+    }
+    result = preprocess_choose_selector_input(user_input, (number_field,))
+    assert result is not None
+    assert result["test_field"] == ""
+
+
+def test_preprocess_choose_selector_input_entity_choice_extracts_entities(
+    number_field: InputFieldInfo[NumberEntityDescription],
+) -> None:
+    """preprocess_choose_selector_input extracts entity list from entity choice."""
+    from custom_components.haeo.flows.field_schema import preprocess_choose_selector_input
+
+    user_input = {
+        "test_field": {"active_choice": "entity", "entity": ["sensor.power"]},
+    }
+    result = preprocess_choose_selector_input(user_input, (number_field,))
+    assert result is not None
+    assert result["test_field"] == ["sensor.power"]
+
+
+def test_preprocess_choose_selector_input_constant_choice_extracts_value(
+    number_field: InputFieldInfo[NumberEntityDescription],
+) -> None:
+    """preprocess_choose_selector_input extracts constant value from constant choice."""
+    from custom_components.haeo.flows.field_schema import preprocess_choose_selector_input
+
+    user_input = {
+        "test_field": {"active_choice": "constant", "constant": 42.5},
+    }
+    result = preprocess_choose_selector_input(user_input, (number_field,))
+    assert result is not None
+    assert result["test_field"] == 42.5
+
+
+def test_preprocess_choose_selector_input_already_normalized_passthrough(
+    number_field: InputFieldInfo[NumberEntityDescription],
+) -> None:
+    """preprocess_choose_selector_input passes through already-normalized data."""
+    from custom_components.haeo.flows.field_schema import preprocess_choose_selector_input
+
+    # Already normalized entity list
+    user_input_entity = {"test_field": ["sensor.power"]}
+    result = preprocess_choose_selector_input(user_input_entity, (number_field,))
+    assert result is not None
+    assert result["test_field"] == ["sensor.power"]
+
+    # Already normalized constant
+    user_input_constant = {"test_field": 50.0}
+    result = preprocess_choose_selector_input(user_input_constant, (number_field,))
+    assert result is not None
+    assert result["test_field"] == 50.0
+
+    # Already normalized empty string (none)
+    user_input_none = {"test_field": ""}
+    result = preprocess_choose_selector_input(user_input_none, (number_field,))
+    assert result is not None
+    assert result["test_field"] == ""
+
+
+def test_preprocess_choose_selector_input_ignores_non_field_keys(
+    number_field: InputFieldInfo[NumberEntityDescription],
+) -> None:
+    """preprocess_choose_selector_input ignores keys not in input_fields."""
+    from custom_components.haeo.flows.field_schema import preprocess_choose_selector_input
+
+    user_input = {
+        "test_field": {"active_choice": "none", "constant": 100},
+        "name": "Test Name",  # Not in input_fields, should pass through unchanged
+        "other_field": {"active_choice": "none"},  # Not in input_fields
+    }
+    result = preprocess_choose_selector_input(user_input, (number_field,))
+    assert result is not None
+    assert result["test_field"] == ""
+    assert result["name"] == "Test Name"
+    # other_field is not in input_fields, so it passes through as-is
+    assert result["other_field"] == {"active_choice": "none"}
+
+
+def test_preprocess_choose_selector_input_entity_choice_empty_list(
+    number_field: InputFieldInfo[NumberEntityDescription],
+) -> None:
+    """preprocess_choose_selector_input handles entity choice with missing entity key."""
+    from custom_components.haeo.flows.field_schema import preprocess_choose_selector_input
+
+    user_input = {
+        "test_field": {"active_choice": "entity"},  # No entity key
+    }
+    result = preprocess_choose_selector_input(user_input, (number_field,))
+    assert result is not None
+    assert result["test_field"] == []
