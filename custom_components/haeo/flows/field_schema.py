@@ -281,39 +281,25 @@ def build_choose_selector(
     none_selector = ConstantSelector(ConstantSelectorConfig(value=""))
     none_choice = ChooseSelectorChoiceConfig(selector=none_selector.serialize()["selector"])
 
-    if is_optional and preferred_choice == CHOICE_NONE:
-        # Optional field with none preferred
-        choices = {
-            CHOICE_NONE: none_choice,
-            CHOICE_ENTITY: entity_choice,
-            CHOICE_CONSTANT: constant_choice,
-        }
-    elif is_optional and preferred_choice == CHOICE_CONSTANT:
-        # Optional field with constant preferred
-        choices = {
-            CHOICE_CONSTANT: constant_choice,
-            CHOICE_ENTITY: entity_choice,
-            CHOICE_NONE: none_choice,
-        }
-    elif is_optional:
-        # Optional field with entity preferred
-        choices = {
-            CHOICE_ENTITY: entity_choice,
-            CHOICE_CONSTANT: constant_choice,
-            CHOICE_NONE: none_choice,
-        }
-    elif preferred_choice == CHOICE_CONSTANT:
-        # Required field with constant preferred
-        choices = {
-            CHOICE_CONSTANT: constant_choice,
-            CHOICE_ENTITY: entity_choice,
-        }
-    else:
-        # Required field with entity preferred (default)
-        choices = {
-            CHOICE_ENTITY: entity_choice,
-            CHOICE_CONSTANT: constant_choice,
-        }
+    # Canonical order and mapping of choices
+    choice_order = [CHOICE_ENTITY, CHOICE_CONSTANT, CHOICE_NONE]
+    choice_map = {
+        CHOICE_ENTITY: entity_choice,
+        CHOICE_CONSTANT: constant_choice,
+        CHOICE_NONE: none_choice,
+    }
+
+    if not is_optional:
+        choice_order.remove(CHOICE_NONE)
+        del choice_map[CHOICE_NONE]
+
+    # Move preferred choice to the start
+    # Needed in HA version 2026.1.1, as it currently only supports providing a suggested value for the first choice.
+    if preferred_choice in choice_order:
+        choice_order.remove(preferred_choice)
+        choice_order.insert(0, preferred_choice)
+
+    choices = {k: choice_map[k] for k in choice_order}
 
     return NormalizingChooseSelector(
         ChooseSelectorConfig(
