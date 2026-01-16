@@ -16,6 +16,7 @@ from custom_components.haeo.flows.field_schema import (
     get_choose_default,
     get_preferred_choice,
     preprocess_choose_selector_input,
+    validate_choose_fields,
 )
 
 from .schema import CONF_CONNECTION, ELEMENT_TYPE, INPUT_FIELDS, InverterConfigSchema
@@ -116,40 +117,8 @@ class InverterSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             return None
         errors: dict[str, str] = {}
         self._validate_name(user_input.get(CONF_NAME), errors)
-        self._validate_choose_fields(user_input, errors)
+        errors.update(validate_choose_fields(user_input, INPUT_FIELDS, InverterConfigSchema.__optional_keys__))
         return errors if errors else None
-
-    def _validate_choose_fields(self, user_input: dict[str, Any], errors: dict[str, str]) -> None:
-        """Validate that required choose fields have valid selections."""
-        for field_info in INPUT_FIELDS:
-            field_name = field_info.field_name
-            is_optional = field_name in InverterConfigSchema.__optional_keys__ and not field_info.force_required
-
-            if is_optional:
-                continue
-
-            value = user_input.get(field_name)
-            if not self._is_valid_choose_value(value):
-                errors[field_name] = "required"
-
-    def _is_valid_choose_value(self, value: Any) -> bool:
-        """Check if a choose selector value is valid (has a selection).
-
-        After schema validation, ChooseSelector returns the inner value directly
-        (list for entities, scalar for constants), not the full dict structure.
-        """
-        if value is None:
-            return False
-        # Entity selection: list of entity IDs
-        if isinstance(value, list):
-            return bool(value)
-        # Constant value: number or boolean
-        if isinstance(value, (int, float, bool)):
-            return True
-        # String value (single entity or other)
-        if isinstance(value, str):
-            return bool(value)
-        return False
 
     def _build_config(self, user_input: dict[str, Any]) -> InverterConfigSchema:
         """Build final config dict from user input."""

@@ -879,3 +879,105 @@ def test_preprocess_choose_selector_input_entity_choice_empty_list(
     result = preprocess_choose_selector_input(user_input, (number_field,))
     assert result is not None
     assert result["test_field"] == []
+
+
+# --- is_valid_choose_value tests ---
+
+
+def test_is_valid_choose_value_with_none() -> None:
+    """is_valid_choose_value returns False for None."""
+    from custom_components.haeo.flows.field_schema import is_valid_choose_value
+
+    assert is_valid_choose_value(None) is False
+
+
+def test_is_valid_choose_value_with_entity_list() -> None:
+    """is_valid_choose_value returns True for non-empty entity lists."""
+    from custom_components.haeo.flows.field_schema import is_valid_choose_value
+
+    assert is_valid_choose_value(["sensor.power"]) is True
+    assert is_valid_choose_value(["sensor.a", "sensor.b"]) is True
+    # Empty list is invalid
+    assert is_valid_choose_value([]) is False
+
+
+def test_is_valid_choose_value_with_string_entity_id() -> None:
+    """is_valid_choose_value accepts string entity IDs as valid."""
+    from custom_components.haeo.flows.field_schema import is_valid_choose_value
+
+    assert is_valid_choose_value("sensor.price") is True
+    # Empty string is invalid
+    assert is_valid_choose_value("") is False
+
+
+def test_is_valid_choose_value_with_numeric_constants() -> None:
+    """is_valid_choose_value returns True for numeric constants."""
+    from custom_components.haeo.flows.field_schema import is_valid_choose_value
+
+    assert is_valid_choose_value(42.0) is True
+    assert is_valid_choose_value(0) is True
+    assert is_valid_choose_value(-10.5) is True
+
+
+def test_is_valid_choose_value_with_boolean() -> None:
+    """is_valid_choose_value returns True for boolean values."""
+    from custom_components.haeo.flows.field_schema import is_valid_choose_value
+
+    assert is_valid_choose_value(True) is True
+    assert is_valid_choose_value(False) is True
+
+
+def test_is_valid_choose_value_with_unexpected_types() -> None:
+    """is_valid_choose_value returns False for unexpected types."""
+    from custom_components.haeo.flows.field_schema import is_valid_choose_value
+
+    assert is_valid_choose_value({"key": "value"}) is False
+    assert is_valid_choose_value(object()) is False
+
+
+# --- validate_choose_fields tests ---
+
+
+def test_validate_choose_fields_returns_empty_for_valid_input(
+    number_field: InputFieldInfo[NumberEntityDescription],
+) -> None:
+    """validate_choose_fields returns empty dict when all required fields are valid."""
+    from custom_components.haeo.flows.field_schema import validate_choose_fields
+
+    user_input = {"test_field": 42.0}
+    result = validate_choose_fields(user_input, (number_field,), frozenset())
+    assert result == {}
+
+
+def test_validate_choose_fields_returns_error_for_invalid_required(
+    number_field: InputFieldInfo[NumberEntityDescription],
+) -> None:
+    """validate_choose_fields returns error for invalid required field."""
+    from custom_components.haeo.flows.field_schema import validate_choose_fields
+
+    user_input = {"test_field": None}
+    result = validate_choose_fields(user_input, (number_field,), frozenset())
+    assert result == {"test_field": "required"}
+
+
+def test_validate_choose_fields_skips_optional_fields(
+    number_field: InputFieldInfo[NumberEntityDescription],
+) -> None:
+    """validate_choose_fields skips fields in optional_keys."""
+    from custom_components.haeo.flows.field_schema import validate_choose_fields
+
+    user_input = {"test_field": None}
+    # Mark test_field as optional
+    result = validate_choose_fields(user_input, (number_field,), frozenset({"test_field"}))
+    assert result == {}
+
+
+def test_validate_choose_fields_skips_excluded_fields(
+    number_field: InputFieldInfo[NumberEntityDescription],
+) -> None:
+    """validate_choose_fields skips fields in exclude_fields."""
+    from custom_components.haeo.flows.field_schema import validate_choose_fields
+
+    user_input = {"test_field": None}
+    result = validate_choose_fields(user_input, (number_field,), frozenset(), exclude_fields=("test_field",))
+    assert result == {}

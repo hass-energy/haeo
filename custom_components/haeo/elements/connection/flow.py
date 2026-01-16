@@ -16,6 +16,7 @@ from custom_components.haeo.flows.field_schema import (
     get_choose_default,
     get_preferred_choice,
     preprocess_choose_selector_input,
+    validate_choose_fields,
 )
 
 from .schema import CONF_SOURCE, CONF_TARGET, ELEMENT_TYPE, INPUT_FIELDS, ConnectionConfigSchema
@@ -120,43 +121,13 @@ class ConnectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             return None
         errors: dict[str, str] = {}
         self._validate_name(user_input.get(CONF_NAME), errors)
-        self._validate_choose_fields(user_input, errors)
+        errors.update(validate_choose_fields(user_input, INPUT_FIELDS, ConnectionConfigSchema.__optional_keys__))
         # Validate source != target
         source = user_input.get(CONF_SOURCE)
         target = user_input.get(CONF_TARGET)
         if source and target and source == target:
             errors[CONF_TARGET] = "cannot_connect_to_self"
         return errors if errors else None
-
-    def _validate_choose_fields(
-        self,
-        user_input: dict[str, Any],
-        errors: dict[str, str],
-    ) -> None:
-        """Validate choose fields.
-
-        All connection input fields (power limits) are optional, so no validation is needed.
-        """
-        del user_input, errors  # Unused - all fields are optional
-
-    def _is_valid_choose_value(self, value: Any) -> bool:
-        """Check if a choose selector value is valid (has a selection).
-
-        After schema validation, ChooseSelector returns the inner value directly
-        (list for entities, scalar for constants), not the full dict structure.
-        """
-        if value is None:
-            return False
-        # Entity selection: list of entity IDs
-        if isinstance(value, list):
-            return bool(value)
-        # Constant value: number or boolean
-        if isinstance(value, (int, float, bool)):
-            return True
-        # String value (single entity or other)
-        if isinstance(value, str):
-            return bool(value)
-        return False
 
     def _build_config(self, user_input: dict[str, Any]) -> ConnectionConfigSchema:
         """Build final config dict from user input."""

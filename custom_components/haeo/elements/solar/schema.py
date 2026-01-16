@@ -35,16 +35,6 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[Any], ...]] = (
         time_series=True,
     ),
     InputFieldInfo(
-        field_name=CONF_CURTAILMENT,
-        entity_description=SwitchEntityDescription(
-            key=CONF_CURTAILMENT,
-            translation_key=f"{ELEMENT_TYPE}_{CONF_CURTAILMENT}",
-        ),
-        output_type=OutputType.STATUS,
-        defaults=InputFieldDefaults(mode="value", value=True),
-        force_required=True,
-    ),
-    InputFieldInfo(
         field_name=CONF_PRICE_PRODUCTION,
         entity_description=NumberEntityDescription(
             key=CONF_PRICE_PRODUCTION,
@@ -56,6 +46,16 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[Any], ...]] = (
         output_type=OutputType.PRICE,
         direction="+",
         defaults=InputFieldDefaults(mode=None, value=0.0),
+    ),
+    InputFieldInfo(
+        field_name=CONF_CURTAILMENT,
+        entity_description=SwitchEntityDescription(
+            key=CONF_CURTAILMENT,
+            translation_key=f"{ELEMENT_TYPE}_{CONF_CURTAILMENT}",
+        ),
+        output_type=OutputType.STATUS,
+        defaults=InputFieldDefaults(mode="value", value=True),
+        force_required=True,
     ),
 )
 

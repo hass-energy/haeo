@@ -523,6 +523,72 @@ def preprocess_choose_selector_input(
     return result
 
 
+def is_valid_choose_value(value: Any) -> bool:
+    """Check if a choose selector value is valid (has a selection).
+
+    After schema validation, ChooseSelector returns the inner value directly
+    (list for entities, scalar for constants), not the full dict structure.
+
+    Args:
+        value: The value to check.
+
+    Returns:
+        True if the value represents a valid selection, False otherwise.
+
+    """
+    if value is None:
+        return False
+    # Entity selection: list of entity IDs
+    if isinstance(value, list):
+        return bool(value)
+    # Constant value: number or boolean
+    if isinstance(value, (int, float, bool)):
+        return True
+    # String value (single entity or other)
+    if isinstance(value, str):
+        return bool(value)
+    return False
+
+
+def validate_choose_fields(
+    user_input: dict[str, Any],
+    input_fields: tuple[InputFieldInfo[Any], ...],
+    optional_keys: frozenset[str],
+    *,
+    exclude_fields: tuple[str, ...] = (),
+) -> dict[str, str]:
+    """Validate that required choose fields have valid selections.
+
+    Args:
+        user_input: User input dictionary from the form.
+        input_fields: Tuple of InputFieldInfo defining the fields.
+        optional_keys: The __optional_keys__ frozenset from the TypedDict schema.
+        exclude_fields: Field names to skip validation for.
+
+    Returns:
+        Dictionary of field_name -> error_key for invalid fields.
+
+    """
+    errors: dict[str, str] = {}
+
+    for field_info in input_fields:
+        field_name = field_info.field_name
+
+        if field_name in exclude_fields:
+            continue
+
+        is_optional = field_name in optional_keys and not field_info.force_required
+
+        if is_optional:
+            continue
+
+        value = user_input.get(field_name)
+        if not is_valid_choose_value(value):
+            errors[field_name] = "required"
+
+    return errors
+
+
 __all__ = [
     "CHOICE_CONSTANT",
     "CHOICE_ENTITY",
@@ -536,7 +602,9 @@ __all__ = [
     "get_choose_default",
     "get_haeo_input_entity_ids",
     "get_preferred_choice",
+    "is_valid_choose_value",
     "number_selector_from_field",
     "preprocess_choose_selector_input",
     "resolve_haeo_input_entity_id",
+    "validate_choose_fields",
 ]

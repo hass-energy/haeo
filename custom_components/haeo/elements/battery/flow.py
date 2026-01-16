@@ -16,6 +16,7 @@ from custom_components.haeo.flows.field_schema import (
     get_choose_default,
     get_preferred_choice,
     preprocess_choose_selector_input,
+    validate_choose_fields,
 )
 
 from .schema import (
@@ -205,64 +206,26 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             return None
         errors: dict[str, str] = {}
         self._validate_name(user_input.get(CONF_NAME), errors)
-        self._validate_choose_fields(user_input, errors, exclude_partition=True)
+        errors.update(
+            validate_choose_fields(
+                user_input,
+                INPUT_FIELDS,
+                BatteryConfigSchema.__optional_keys__,
+                exclude_fields=PARTITION_FIELD_NAMES,
+            )
+        )
         return errors if errors else None
 
     def _validate_partition_input(self, user_input: dict[str, Any] | None) -> dict[str, str] | None:
-        """Validate partition input and return errors dict if any."""
-        if user_input is None:
-            return None
-        errors: dict[str, str] = {}
-        self._validate_partition_fields(user_input, errors)
-        return errors if errors else None
-
-    def _validate_choose_fields(
-        self, user_input: dict[str, Any], errors: dict[str, str], *, exclude_partition: bool = False
-    ) -> None:
-        """Validate that required choose fields have valid selections."""
-        for field_info in INPUT_FIELDS:
-            field_name = field_info.field_name
-            if exclude_partition and field_name in PARTITION_FIELD_NAMES:
-                continue
-            is_optional = field_name in BatteryConfigSchema.__optional_keys__ and not field_info.force_required
-
-            if is_optional:
-                continue
-
-            value = user_input.get(field_name)
-            if not self._is_valid_choose_value(value):
-                errors[field_name] = "required"
-
-    def _validate_partition_fields(
-        self,
-        user_input: dict[str, Any],
-        errors: dict[str, str],
-    ) -> None:
-        """Validate partition fields.
+        """Validate partition input and return errors dict if any.
 
         All partition fields are optional, so no validation is needed.
         This method exists for consistency with the validation pattern and
         can be extended if required partition fields are added in the future.
         """
-
-    def _is_valid_choose_value(self, value: Any) -> bool:
-        """Check if a choose selector value is valid (has a selection).
-
-        After schema validation, ChooseSelector returns the inner value directly
-        (list for entities, scalar for constants), not the full dict structure.
-        """
-        if value is None:
-            return False
-        # Entity selection: list of entity IDs
-        if isinstance(value, list):
-            return bool(value)
-        # Constant value: number or boolean
-        if isinstance(value, (int, float, bool)):
-            return True
-        # String value (single entity or other)
-        if isinstance(value, str):
-            return bool(value)
-        return False
+        if user_input is None:
+            return None
+        return None
 
     def _build_config(
         self,
