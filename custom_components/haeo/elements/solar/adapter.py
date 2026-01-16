@@ -2,7 +2,7 @@
 
 from collections.abc import Mapping, Sequence
 from dataclasses import replace
-from typing import Any, Final, Literal, cast
+from typing import Any, Final, Literal
 
 from homeassistant.core import HomeAssistant
 import numpy as np
@@ -12,17 +12,13 @@ from custom_components.haeo.data.loader import ConstantLoader, TimeSeriesLoader
 from custom_components.haeo.model import ModelElementConfig, ModelOutputName, ModelOutputValue
 from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE, SegmentSpec
-from custom_components.haeo.model.elements.connection import (
-    CONNECTION_POWER_SOURCE_TARGET,
-    CONNECTION_SEGMENTS,
-    CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET,
-)
+from custom_components.haeo.model.elements.connection import CONNECTION_POWER_SOURCE_TARGET, CONNECTION_SEGMENTS
 from custom_components.haeo.model.elements.segments import (
     POWER_LIMIT_SOURCE_TARGET,
     PowerLimitSegmentSpec,
     PricingSegmentSpec,
 )
-from custom_components.haeo.model.output_data import OutputData, require_output_data
+from custom_components.haeo.model.output_data import OutputData
 
 from .flow import SolarSubentryFlowHandler
 from .schema import (
@@ -58,16 +54,6 @@ SOLAR_OUTPUT_NAMES: Final[frozenset[SolarOutputName]] = frozenset(
 type SolarDeviceName = Literal["solar"]
 
 SOLAR_DEVICE_NAMES: Final[frozenset[SolarDeviceName]] = frozenset((SOLAR_DEVICE_SOLAR := "solar",))
-
-
-def _get_segment_outputs(
-    connection: Mapping[ModelOutputName, ModelOutputValue],
-) -> Mapping[str, Mapping[str, OutputData]]:
-    segments = connection.get(CONNECTION_SEGMENTS)
-    if not isinstance(segments, Mapping):
-        return {}
-    return {segment_name: outputs for segment_name, outputs in segments.items() if isinstance(outputs, Mapping)}
-
 
 class SolarAdapter:
     """Adapter for Solar elements."""
@@ -153,13 +139,16 @@ class SolarAdapter:
             "max_power_target_source": np.zeros(n_periods),
             "fixed": not config.get("curtailment", DEFAULTS[CONF_CURTAILMENT]),
         }
-        segments: list[SegmentSpec] = [power_limit]
-        if (price_production := config.get("price_production")) is not None:
-            pricing: PricingSegmentSpec = {
-                "segment_type": "pricing",
-                "price_source_target": np.array(price_production),
-            }
-            segments.append(pricing)
+        price_production = config.get("price_production")
+        pricing: PricingSegmentSpec = {
+            "segment_type": "pricing",
+            "price_source_target": np.array(price_production) if price_production is not None else None,
+            "price_target_source": None,
+        }
+        segments: dict[str, SegmentSpec] = {
+            "power_limit": power_limit,
+            "pricing": pricing,
+        }
 
         return [
             {"element_type": MODEL_ELEMENT_TYPE_NODE, "name": config["name"], "is_source": True, "is_sink": False},
@@ -181,21 +170,20 @@ class SolarAdapter:
         """Map model outputs to solar-specific output names."""
         connection = model_outputs[f"{name}:connection"]
 
+        power_source_target = connection[CONNECTION_POWER_SOURCE_TARGET]
+        assert isinstance(power_source_target, OutputData)
         solar_outputs: dict[SolarOutputName, OutputData] = {
-            SOLAR_POWER: replace(
-                require_output_data(connection[CONNECTION_POWER_SOURCE_TARGET]),
-                type=OutputType.POWER,
-            ),
+            SOLAR_POWER: replace(power_source_target, type=OutputType.POWER),
         }
 
         # Shadow price from power_limit segment (if present)
-        power_limit_outputs = _get_segment_outputs(connection).get("power_limit", {})
-        if POWER_LIMIT_SOURCE_TARGET in power_limit_outputs:
-            solar_outputs[SOLAR_FORECAST_LIMIT] = power_limit_outputs[POWER_LIMIT_SOURCE_TARGET]
-        elif CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET in connection:
-            solar_outputs[SOLAR_FORECAST_LIMIT] = require_output_data(
-                connection[cast("ModelOutputName", CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET)]
-            )
+        segments_output = connection.get(CONNECTION_SEGMENTS)
+        if isinstance(segments_output, Mapping):
+            power_limit_outputs = segments_output.get("power_limit")
+            if isinstance(power_limit_outputs, Mapping):
+                shadow = power_limit_outputs.get(POWER_LIMIT_SOURCE_TARGET)
+                if isinstance(shadow, OutputData):
+                    solar_outputs[SOLAR_FORECAST_LIMIT] = shadow
 
         return {SOLAR_DEVICE_SOLAR: solar_outputs}
 

@@ -5,7 +5,7 @@ to model various connection behaviors.
 """
 
 from collections import OrderedDict
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from typing import Any, Final, Literal, NotRequired, TypedDict
 
 from highspy import Highs
@@ -42,7 +42,7 @@ class ConnectionElementConfig(TypedDict):
     name: str
     source: str
     target: str
-    segments: NotRequired[Sequence[SegmentSpec]]
+    segments: NotRequired[Mapping[str, SegmentSpec]]
 
 
 # Minimum segments needed before linking is required
@@ -104,7 +104,7 @@ class Connection[TOutputName: str](Element[TOutputName]):
         solver: Highs,
         source: str,
         target: str,
-        segments: Sequence[SegmentSpec] | None = None,
+        segments: Mapping[str, SegmentSpec] | None = None,
         output_names: frozenset[TOutputName] | None = None,
         _skip_segments: bool = False,
     ) -> None:
@@ -116,7 +116,7 @@ class Connection[TOutputName: str](Element[TOutputName]):
             solver: The HiGHS solver instance
             source: Name of the source element
             target: Name of the target element
-            segments: List of segment specifications (SegmentSpec TypedDicts).
+            segments: Mapping of segment names to SegmentSpec TypedDicts.
                 Each spec has segment_type plus segment-specific parameters.
             output_names: Output names for this connection type
             _skip_segments: If True, skip segment creation (for subclasses with custom power flow)
@@ -143,12 +143,11 @@ class Connection[TOutputName: str](Element[TOutputName]):
         if _skip_segments:
             return
 
-        segment_specs = list(segments) if segments else []
+        segment_specs = dict(segments) if segments else {}
 
-        for idx, segment_spec in enumerate(segment_specs):
+        for idx, (segment_name, segment_spec) in enumerate(segment_specs.items()):
             # Extract segment_type (required in all specs)
             segment_type = segment_spec["segment_type"]
-            segment_name = segment_spec.get("name", segment_type)
 
             # Ensure unique segment names
             if segment_name in self._segments:

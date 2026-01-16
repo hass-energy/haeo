@@ -28,9 +28,9 @@ class PowerLimitSegmentSpec(TypedDict):
 
     segment_type: Literal["power_limit"]
     name: NotRequired[str]
-    max_power_source_target: NotRequired[NDArray[np.floating[Any]]]
-    max_power_target_source: NotRequired[NDArray[np.floating[Any]]]
-    fixed: NotRequired[bool]
+    max_power_source_target: NotRequired[NDArray[np.floating[Any]] | None]
+    max_power_target_source: NotRequired[NDArray[np.floating[Any]] | None]
+    fixed: NotRequired[bool | None]
 
 
 class PowerLimitSegment(Segment):

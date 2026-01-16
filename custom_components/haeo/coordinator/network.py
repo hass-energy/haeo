@@ -1,8 +1,8 @@
 """Network building and connectivity helpers for the HAEO integration."""
 
 from collections.abc import Mapping, Sequence
-import contextlib
 import logging
+from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -14,8 +14,9 @@ from custom_components.haeo.elements import (
     ElementConfigData,
     ElementConfigSchema,
 )
-from custom_components.haeo.model import Connection, Network
+from custom_components.haeo.model import Network
 from custom_components.haeo.model.elements import ModelElementConfig
+from custom_components.haeo.model.reactive import TrackedParam
 from custom_components.haeo.repairs import create_disconnected_network_issue, dismiss_disconnected_network_issue
 from custom_components.haeo.validation import (
     collect_participant_configs,
@@ -77,9 +78,54 @@ def update_element(
     element_config: ElementConfigData,
 ) -> None:
     """Update TrackedParams for a single element in the network."""
-    skip_params = ("element_type", "name", "source", "target", "segments")
     element_type = element_config[CONF_ELEMENT_TYPE]
     model_elements = ELEMENT_TYPES[element_type].model_elements(element_config)
+
+    def _iter_updates(
+        values: Mapping[object, object],
+        prefix: tuple[str, ...] = (),
+    ) -> list[tuple[tuple[str, ...], object]]:
+        updates: list[tuple[tuple[str, ...], object]] = []
+        for key, value in values.items():
+            if key in ("element_type", "name"):
+                continue
+            if isinstance(key, tuple):
+                updates.append((key, value))
+                continue
+            if not isinstance(key, str):
+                continue
+            if isinstance(value, Mapping):
+                updates.extend(_iter_updates(value, prefix + (key,)))
+            else:
+                updates.append((prefix + (key,), value))
+        return updates
+
+    def _resolve_path(obj: Any, path: tuple[str, ...]) -> Any | None:
+        current = obj
+        for part in path[:-1]:
+            if isinstance(current, Mapping):
+                if part not in current:
+                    return None
+                current = current[part]
+                continue
+            if hasattr(current, part):
+                current = getattr(current, part)
+                continue
+            return None
+        return current
+
+    def _set_value(obj: Any, key: str, value: object) -> bool:
+        descriptor = getattr(type(obj), key, None)
+        if isinstance(descriptor, TrackedParam):
+            setattr(obj, key, value)
+            return True
+        if hasattr(obj, key):
+            try:
+                setattr(obj, key, value)
+            except (AttributeError, TypeError):
+                return False
+            return True
+        return False
 
     for model_element_config in model_elements:
         element_name = model_element_config.get("name")
@@ -89,27 +135,12 @@ def update_element(
             raise ValueError(msg)
 
         element = network.elements[element_name]
-
-        if isinstance(element, Connection) and (segments := model_element_config.get("segments")):
-            for segment_spec in segments:
-                segment_name = segment_spec.get("name", segment_spec["segment_type"])
-                if segment_name not in element.segments:
-                    msg = f"Segment '{segment_name}' not found in connection '{element.name}'"
-                    raise KeyError(msg)
-                segment = element.segments[segment_name]
-                for param_name, param_value in segment_spec.items():
-                    if param_name in ("segment_type", "name"):
-                        continue
-                    if not hasattr(segment, param_name):
-                        msg = f"Segment '{segment_name}' has no parameter '{param_name}'"
-                        raise KeyError(msg)
-                    setattr(segment, param_name, param_value)
-
-        for param_name, param_value in model_element_config.items():
-            if param_name in skip_params:
+        for path, value in _iter_updates(model_element_config):
+            target = _resolve_path(element, path)
+            if target is None:
                 continue
-            with contextlib.suppress(KeyError):
-                element[param_name] = param_value
+            if not _set_value(target, path[-1], value):
+                continue
 
 
 async def evaluate_network_connectivity(

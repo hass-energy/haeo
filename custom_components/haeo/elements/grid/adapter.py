@@ -2,7 +2,7 @@
 
 from collections.abc import Mapping, Sequence
 from dataclasses import replace
-from typing import Any, Final, Literal, cast
+from typing import Any, Final, Literal
 
 from homeassistant.core import HomeAssistant
 import numpy as np
@@ -16,8 +16,6 @@ from custom_components.haeo.model.elements.connection import (
     CONNECTION_POWER_SOURCE_TARGET,
     CONNECTION_POWER_TARGET_SOURCE,
     CONNECTION_SEGMENTS,
-    CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET,
-    CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE,
 )
 from custom_components.haeo.model.elements.segments import (
     POWER_LIMIT_SOURCE_TARGET,
@@ -25,7 +23,7 @@ from custom_components.haeo.model.elements.segments import (
     PowerLimitSegmentSpec,
     PricingSegmentSpec,
 )
-from custom_components.haeo.model.output_data import OutputData, require_output_data
+from custom_components.haeo.model.output_data import OutputData
 
 from .flow import GridSubentryFlowHandler
 from .schema import CONF_CONNECTION, ELEMENT_TYPE, GridConfigData, GridConfigSchema
@@ -62,16 +60,6 @@ type GridDeviceName = Literal["grid"]
 GRID_DEVICE_NAMES: Final[frozenset[GridDeviceName]] = frozenset(
     (GRID_DEVICE_GRID := "grid",),
 )
-
-
-def _get_segment_outputs(
-    connection: Mapping[ModelOutputName, ModelOutputValue],
-) -> Mapping[str, Mapping[str, OutputData]]:
-    segments = connection.get(CONNECTION_SEGMENTS)
-    if not isinstance(segments, Mapping):
-        return {}
-    return {segment_name: outputs for segment_name, outputs in segments.items() if isinstance(outputs, Mapping)}
-
 
 class GridAdapter:
     """Adapter for Grid elements."""
@@ -204,23 +192,22 @@ class GridAdapter:
 
     def model_elements(self, config: GridConfigData) -> list[ModelElementConfig]:
         """Create model elements for Grid configuration."""
-        segments: list[SegmentSpec] = []
         import_limit = config.get("import_limit")
         export_limit = config.get("export_limit")
-        if import_limit is not None or export_limit is not None:
-            power_limit: PowerLimitSegmentSpec = {"segment_type": "power_limit"}
-            if import_limit is not None:
-                power_limit["max_power_source_target"] = np.array(import_limit)
-            if export_limit is not None:
-                power_limit["max_power_target_source"] = np.array(export_limit)
-            segments.append(power_limit)
-
+        power_limit: PowerLimitSegmentSpec = {
+            "segment_type": "power_limit",
+            "max_power_source_target": np.array(import_limit) if import_limit is not None else None,
+            "max_power_target_source": np.array(export_limit) if export_limit is not None else None,
+        }
         pricing: PricingSegmentSpec = {
             "segment_type": "pricing",
             "price_source_target": np.array(config["import_price"]),
             "price_target_source": np.array([-p for p in config["export_price"]]),
         }
-        segments.append(pricing)
+        segments: dict[str, SegmentSpec] = {
+            "power_limit": power_limit,
+            "pricing": pricing,
+        }
 
         return [
             # Create Node for the grid (both source and sink - can import and export)
@@ -256,8 +243,10 @@ class GridAdapter:
 
         # source_target = grid to system = IMPORT
         # target_source = system to grid = EXPORT
-        power_import = require_output_data(connection[CONNECTION_POWER_SOURCE_TARGET])
-        power_export = require_output_data(connection[CONNECTION_POWER_TARGET_SOURCE])
+        power_import = connection[CONNECTION_POWER_SOURCE_TARGET]
+        power_export = connection[CONNECTION_POWER_TARGET_SOURCE]
+        assert isinstance(power_import, OutputData)
+        assert isinstance(power_export, OutputData)
 
         grid_outputs[GRID_POWER_EXPORT] = replace(power_export, type=OutputType.POWER)
         grid_outputs[GRID_POWER_IMPORT] = replace(power_import, type=OutputType.POWER)
@@ -302,21 +291,17 @@ class GridAdapter:
             type=OutputType.COST, unit="$", values=net_cumsum, direction=None, state_last=True
         )
 
-        # Output the shadow prices if they exist
-        power_limit_outputs = _get_segment_outputs(connection).get("power_limit", {})
-        if POWER_LIMIT_TARGET_SOURCE in power_limit_outputs:
-            grid_outputs[GRID_POWER_MAX_EXPORT_PRICE] = power_limit_outputs[POWER_LIMIT_TARGET_SOURCE]
-        elif CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE in connection:
-            grid_outputs[GRID_POWER_MAX_EXPORT_PRICE] = require_output_data(
-                connection[cast("ModelOutputName", CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE)]
-            )
-
-        if POWER_LIMIT_SOURCE_TARGET in power_limit_outputs:
-            grid_outputs[GRID_POWER_MAX_IMPORT_PRICE] = power_limit_outputs[POWER_LIMIT_SOURCE_TARGET]
-        elif CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET in connection:
-            grid_outputs[GRID_POWER_MAX_IMPORT_PRICE] = require_output_data(
-                connection[cast("ModelOutputName", CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET)]
-            )
+        # Output the shadow prices from power_limit segment
+        segments_output = connection.get(CONNECTION_SEGMENTS)
+        if isinstance(segments_output, Mapping):
+            power_limit_outputs = segments_output.get("power_limit")
+            if isinstance(power_limit_outputs, Mapping):
+                export_shadow = power_limit_outputs.get(POWER_LIMIT_TARGET_SOURCE)
+                if isinstance(export_shadow, OutputData):
+                    grid_outputs[GRID_POWER_MAX_EXPORT_PRICE] = export_shadow
+                import_shadow = power_limit_outputs.get(POWER_LIMIT_SOURCE_TARGET)
+                if isinstance(import_shadow, OutputData):
+                    grid_outputs[GRID_POWER_MAX_IMPORT_PRICE] = import_shadow
 
         return {GRID_DEVICE_GRID: grid_outputs}
 

@@ -22,8 +22,8 @@ class PricingSegmentSpec(TypedDict):
 
     segment_type: Literal["pricing"]
     name: NotRequired[str]
-    price_source_target: NotRequired[NDArray[np.floating[Any]]]
-    price_target_source: NotRequired[NDArray[np.floating[Any]]]
+    price_source_target: NotRequired[NDArray[np.floating[Any]] | None]
+    price_target_source: NotRequired[NDArray[np.floating[Any]] | None]
 
 
 class PricingSegment(Segment):

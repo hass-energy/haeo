@@ -26,7 +26,7 @@ from custom_components.haeo.model.elements.segments import (
     PowerLimitSegmentSpec,
     PricingSegmentSpec,
 )
-from custom_components.haeo.model.output_data import OutputData, require_output_map
+from custom_components.haeo.model.output_data import OutputData
 
 from .flow import BatterySubentryFlowHandler
 from .schema import (
@@ -430,12 +430,12 @@ class BatteryAdapter:
                 discharge_price = undercharge_cost_array
             elif "overcharge" in section_name:
                 charge_price: list[float] = overcharge_cost_array
-                segments: list[SegmentSpec] = [
-                    {
-                        "segment_type": "pricing",
-                        "price_target_source": np.array(charge_price),  # Overcharge penalty when charging
-                    }
-                ]
+                pricing_spec: PricingSegmentSpec = {
+                    "segment_type": "pricing",
+                    "price_source_target": None,
+                    "price_target_source": np.array(charge_price),  # Overcharge penalty when charging
+                }
+                segments: dict[str, SegmentSpec] = {"pricing": pricing_spec}
                 elements.append(
                     {
                         "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
@@ -449,22 +449,21 @@ class BatteryAdapter:
             else:
                 discharge_price = None
 
-            segments: list[SegmentSpec] = []
-            if discharge_price is not None:
-                segments.append(
-                    {
-                        "segment_type": "pricing",
-                        "price_source_target": np.array(discharge_price),  # Undercharge penalty when discharging
-                    }
-                )
+            pricing_spec: PricingSegmentSpec = {
+                "segment_type": "pricing",
+                "price_source_target": (
+                    np.array(discharge_price) if discharge_price is not None else None
+                ),  # Undercharge penalty when discharging
+                "price_target_source": None,
+            }
+            segments: dict[str, SegmentSpec] = {"pricing": pricing_spec}
             section_connection: ModelElementConfig = {
                 "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
                 "name": f"{section_name}:to_node",
                 "source": section_name,
                 "target": node_name,
+                "segments": segments,
             }
-            if segments:
-                section_connection["segments"] = segments
             elements.append(section_connection)
 
         # 6. Create balance connections between adjacent sections (enforces fill ordering)
@@ -497,31 +496,30 @@ class BatteryAdapter:
             if "discharge_cost" in config
             else discharge_early_incentive
         )
-        segments: list[SegmentSpec] = []
         efficiency_values = config["efficiency"]
         efficiency_spec: EfficiencySegmentSpec = {
             "segment_type": "efficiency",
             "efficiency_source_target": np.array(efficiency_values) / 100.0,  # Node to network (discharge)
             "efficiency_target_source": np.array(efficiency_values) / 100.0,  # Network to node (charge)
         }
-        segments.append(efficiency_spec)
-
         max_discharge = config.get("max_discharge_power")
         max_charge = config.get("max_charge_power")
-        if max_discharge is not None or max_charge is not None:
-            power_limit_spec: PowerLimitSegmentSpec = {"segment_type": "power_limit"}
-            if max_discharge is not None:
-                power_limit_spec["max_power_source_target"] = np.array(max_discharge)
-            if max_charge is not None:
-                power_limit_spec["max_power_target_source"] = np.array(max_charge)
-            segments.append(power_limit_spec)
+        power_limit_spec: PowerLimitSegmentSpec = {
+            "segment_type": "power_limit",
+            "max_power_source_target": np.array(max_discharge) if max_discharge is not None else None,
+            "max_power_target_source": np.array(max_charge) if max_charge is not None else None,
+        }
 
         pricing_spec: PricingSegmentSpec = {
             "segment_type": "pricing",
             "price_source_target": np.array(discharge_costs),
             "price_target_source": np.array(charge_early_incentive),
         }
-        segments.append(pricing_spec)
+        segments: dict[str, SegmentSpec] = {
+            "efficiency": efficiency_spec,
+            "power_limit": power_limit_spec,
+            "pricing": pricing_spec,
+        }
 
         elements.append(
             {
@@ -547,6 +545,13 @@ class BatteryAdapter:
         Aggregates outputs from multiple battery sections and connections.
         Returns multiple devices for SOC regions based on what's configured.
         """
+        def _as_output_map(values: Mapping[ModelOutputName, ModelOutputValue]) -> dict[ModelOutputName, OutputData]:
+            output_map: dict[ModelOutputName, OutputData] = {}
+            for key, value in values.items():
+                assert isinstance(value, OutputData)
+                output_map[key] = value
+            return output_map
+
         # Collect section outputs
         section_outputs: dict[str, dict[ModelOutputName, OutputData]] = {}
         section_names: list[str] = []
@@ -554,25 +559,25 @@ class BatteryAdapter:
         # Check for undercharge section
         undercharge_name = f"{name}:undercharge"
         if undercharge_name in model_outputs:
-            section_outputs["undercharge"] = require_output_map(model_outputs[undercharge_name])
+            section_outputs["undercharge"] = _as_output_map(model_outputs[undercharge_name])
             section_names.append("undercharge")
 
         # Normal section (always present)
         normal_name = f"{name}:normal"
         if normal_name in model_outputs:
-            section_outputs["normal"] = require_output_map(model_outputs[normal_name])
+            section_outputs["normal"] = _as_output_map(model_outputs[normal_name])
             section_names.append("normal")
 
         # Check for overcharge section
         overcharge_name = f"{name}:overcharge"
         if overcharge_name in model_outputs:
-            section_outputs["overcharge"] = require_output_map(model_outputs[overcharge_name])
+            section_outputs["overcharge"] = _as_output_map(model_outputs[overcharge_name])
             section_names.append("overcharge")
 
         # Get node outputs for power balance
         node_name = f"{name}:node"
         node_outputs: dict[ModelOutputName, OutputData] = (
-            require_output_map(model_outputs[node_name]) if node_name in model_outputs else {}
+            _as_output_map(model_outputs[node_name]) if node_name in model_outputs else {}
         )
 
         # Calculate aggregate outputs
@@ -671,7 +676,7 @@ class BatteryAdapter:
                 lower_key = section_names[i - 1]
                 balance_name = f"{name}:balance:{lower_key}:{section_key}"
                 if balance_name in model_outputs:
-                    balance_data = require_output_map(model_outputs[balance_name])
+                    balance_data = _as_output_map(model_outputs[balance_name])
                     # Power down from this section to lower section (energy leaving downward)
                     if model_balance.BALANCE_POWER_DOWN in balance_data:
                         down_vals = balance_data[model_balance.BALANCE_POWER_DOWN].values
@@ -687,7 +692,7 @@ class BatteryAdapter:
                 upper_key = section_names[i + 1]
                 balance_name = f"{name}:balance:{section_key}:{upper_key}"
                 if balance_name in model_outputs:
-                    balance_data = require_output_map(model_outputs[balance_name])
+                    balance_data = _as_output_map(model_outputs[balance_name])
                     # Power down from upper section to this section (energy entering from above)
                     if model_balance.BALANCE_POWER_DOWN in balance_data:
                         down_vals = np.array(balance_data[model_balance.BALANCE_POWER_DOWN].values)

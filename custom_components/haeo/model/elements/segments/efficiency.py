@@ -25,8 +25,8 @@ class EfficiencySegmentSpec(TypedDict):
 
     segment_type: Literal["efficiency"]
     name: NotRequired[str]
-    efficiency_source_target: NotRequired[NDArray[np.floating[Any]]]
-    efficiency_target_source: NotRequired[NDArray[np.floating[Any]]]
+    efficiency_source_target: NotRequired[NDArray[np.floating[Any]] | None]
+    efficiency_target_source: NotRequired[NDArray[np.floating[Any]] | None]
 
 
 class EfficiencySegment(Segment):

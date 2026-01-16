@@ -74,19 +74,3 @@ class OutputData:
 
 
 type ModelOutputValue = OutputData | Mapping[str, OutputData] | Mapping[str, Mapping[str, OutputData]]
-
-
-def require_output_data(value: ModelOutputValue, *, name: str | None = None) -> OutputData:
-    """Return OutputData or raise if the value is a nested mapping."""
-    if isinstance(value, OutputData):
-        return value
-    if name:
-        msg = f"Expected OutputData for {name!r}, got nested output mapping"
-    else:
-        msg = "Expected OutputData, got nested output mapping"
-    raise TypeError(msg)
-
-
-def require_output_map[K: str](value: Mapping[K, ModelOutputValue]) -> dict[K, OutputData]:
-    """Return a dict of OutputData values or raise on nested mappings."""
-    return {key: require_output_data(output, name=key) for key, output in value.items()}

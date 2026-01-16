@@ -26,7 +26,7 @@ from custom_components.haeo.model.elements.segments import (
     PowerLimitSegmentSpec,
     PricingSegmentSpec,
 )
-from custom_components.haeo.model.output_data import OutputData, require_output_data
+from custom_components.haeo.model.output_data import OutputData
 
 from .flow import ConnectionSubentryFlowHandler
 from .schema import (
@@ -188,45 +188,47 @@ class ConnectionAdapter:
     def model_elements(self, config: ConnectionConfigData) -> list[ModelElementConfig]:
         """Return model element parameters for Connection configuration.
 
-        Builds the segments list for the Connection model element based on
-        which optional configuration fields are present.
+        Builds the segments dictionary for the Connection model element with
+        explicit None values for missing configuration fields.
         """
-        segments: list[SegmentSpec] = []
-
-        # Add efficiency segment if efficiency values are provided
-        # Note: Segment uses efficiency_source_target/efficiency_target_source, values are fractions (0-1)
+        # Build segments using explicit None for missing parameters.
+        # Note: Efficiency values from config are percentages; convert to fractions.
         efficiency_source_target = config.get("efficiency_source_target")
         efficiency_target_source = config.get("efficiency_target_source")
-        if efficiency_source_target is not None or efficiency_target_source is not None:
-            # Efficiency values from config are percentages, convert to fractions
-            efficiency_spec: EfficiencySegmentSpec = {"segment_type": "efficiency"}
-            if efficiency_source_target is not None:
-                efficiency_spec["efficiency_source_target"] = np.array(efficiency_source_target) / 100.0
-            if efficiency_target_source is not None:
-                efficiency_spec["efficiency_target_source"] = np.array(efficiency_target_source) / 100.0
-            segments.append(efficiency_spec)
-
-        # Add power limit segment if power limits are provided
         max_power_source_target = config.get("max_power_source_target")
         max_power_target_source = config.get("max_power_target_source")
-        if max_power_source_target is not None or max_power_target_source is not None:
-            power_limit_spec: PowerLimitSegmentSpec = {"segment_type": "power_limit"}
-            if max_power_source_target is not None:
-                power_limit_spec["max_power_source_target"] = np.array(max_power_source_target)
-            if max_power_target_source is not None:
-                power_limit_spec["max_power_target_source"] = np.array(max_power_target_source)
-            segments.append(power_limit_spec)
-
-        # Add pricing segment if prices are provided
         price_source_target = config.get("price_source_target")
         price_target_source = config.get("price_target_source")
-        if price_source_target is not None or price_target_source is not None:
-            pricing_spec: PricingSegmentSpec = {"segment_type": "pricing"}
-            if price_source_target is not None:
-                pricing_spec["price_source_target"] = np.array(price_source_target)
-            if price_target_source is not None:
-                pricing_spec["price_target_source"] = np.array(price_target_source)
-            segments.append(pricing_spec)
+
+        efficiency_spec: EfficiencySegmentSpec = {
+            "segment_type": "efficiency",
+            "efficiency_source_target": (
+                np.array(efficiency_source_target) / 100.0 if efficiency_source_target is not None else None
+            ),
+            "efficiency_target_source": (
+                np.array(efficiency_target_source) / 100.0 if efficiency_target_source is not None else None
+            ),
+        }
+        power_limit_spec: PowerLimitSegmentSpec = {
+            "segment_type": "power_limit",
+            "max_power_source_target": (
+                np.array(max_power_source_target) if max_power_source_target is not None else None
+            ),
+            "max_power_target_source": (
+                np.array(max_power_target_source) if max_power_target_source is not None else None
+            ),
+        }
+        pricing_spec: PricingSegmentSpec = {
+            "segment_type": "pricing",
+            "price_source_target": np.array(price_source_target) if price_source_target is not None else None,
+            "price_target_source": np.array(price_target_source) if price_target_source is not None else None,
+        }
+
+        segments: dict[str, SegmentSpec] = {
+            "efficiency": efficiency_spec,
+            "power_limit": power_limit_spec,
+            "pricing": pricing_spec,
+        }
 
         element_data: ModelElementConfig = {
             "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
@@ -234,8 +236,7 @@ class ConnectionAdapter:
             "source": config["source"],
             "target": config["target"],
         }
-        if segments:
-            element_data["segments"] = segments
+        element_data["segments"] = segments
 
         return [element_data]
 
@@ -247,8 +248,10 @@ class ConnectionAdapter:
     ) -> Mapping[ConnectionDeviceName, Mapping[ConnectionOutputName, OutputData]]:
         """Map model outputs to connection-specific output names."""
         connection = model_outputs[name]
-        power_source_target = require_output_data(connection[CONNECTION_POWER_SOURCE_TARGET])
-        power_target_source = require_output_data(connection[CONNECTION_POWER_TARGET_SOURCE])
+        power_source_target = connection[CONNECTION_POWER_SOURCE_TARGET]
+        power_target_source = connection[CONNECTION_POWER_TARGET_SOURCE]
+        assert isinstance(power_source_target, OutputData)
+        assert isinstance(power_target_source, OutputData)
 
         connection_outputs: dict[ConnectionOutputName, OutputData] = {
             CONNECTION_POWER_SOURCE_TARGET: power_source_target,
@@ -272,15 +275,17 @@ class ConnectionAdapter:
 
         # Include legacy shadow prices if present
         if CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET in connection:
-            connection_outputs[CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET] = require_output_data(
-                connection[CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET]
-            )
+            shadow = connection[CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET]
+            if isinstance(shadow, OutputData):
+                connection_outputs[CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET] = shadow
         if CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE in connection:
-            connection_outputs[CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE] = require_output_data(
-                connection[CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE]
-            )
+            shadow = connection[CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE]
+            if isinstance(shadow, OutputData):
+                connection_outputs[CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE] = shadow
         if CONNECTION_TIME_SLICE in connection:
-            connection_outputs[CONNECTION_TIME_SLICE] = require_output_data(connection[CONNECTION_TIME_SLICE])
+            shadow = connection[CONNECTION_TIME_SLICE]
+            if isinstance(shadow, OutputData):
+                connection_outputs[CONNECTION_TIME_SLICE] = shadow
 
         # Note: Segment shadow prices are exposed under the model's `segments` output
         # map. Specific adapters (grid, solar, etc.) map these to their own outputs.
