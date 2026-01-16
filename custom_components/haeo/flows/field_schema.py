@@ -177,34 +177,20 @@ def get_preferred_choice(
     """
     field_name = field_info.field_name
 
-    # Check current stored data first (for reconfigure)
+    # Reconfigure: infer from stored value
     if current_data is not None:
         if field_name in current_data:
-            current_value = current_data[field_name]
-            # String or list = entity ID(s), number/bool = constant
-            if isinstance(current_value, (str, list)):
-                return CHOICE_ENTITY
-            return CHOICE_CONSTANT
-        # Field not in current_data means it was set to none (for optional fields)
+            value = current_data[field_name]
+            return CHOICE_ENTITY if isinstance(value, (str, list)) else CHOICE_CONSTANT
         if is_optional:
-            return CHOICE_NONE
+            return CHOICE_NONE  # Field was explicitly omitted
 
-    # For new entries, use field defaults
-    if field_info.defaults is not None:
-        if field_info.defaults.mode == "value":
-            return CHOICE_CONSTANT
-        if field_info.defaults.mode == "entity":
-            return CHOICE_ENTITY
-        # mode is None means default to none for optional fields
-        if is_optional and field_info.defaults.mode is None:
-            return CHOICE_NONE
+    # New entry: check for explicit default mode
+    if field_info.defaults and field_info.defaults.mode:
+        return CHOICE_CONSTANT if field_info.defaults.mode == "value" else CHOICE_ENTITY
 
-    # For optional fields with no defaults, default to none
-    if is_optional and field_info.defaults is None:
-        return CHOICE_NONE
-
-    # Default to entity
-    return CHOICE_ENTITY
+    # Fallback: optional -> none, required -> entity
+    return CHOICE_NONE if is_optional else CHOICE_ENTITY
 
 
 class NormalizingChooseSelector(ChooseSelector):  # type: ignore[type-arg]
