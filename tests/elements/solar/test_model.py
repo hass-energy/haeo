@@ -3,15 +3,16 @@
 from collections.abc import Mapping, Sequence
 from typing import Any, TypedDict
 
+import numpy as np
 import pytest
 
 from custom_components.haeo.elements import ELEMENT_TYPES
 from custom_components.haeo.elements import solar as solar_element
 from custom_components.haeo.elements.solar import SolarConfigData
-from custom_components.haeo.model import ModelOutputName
+from custom_components.haeo.model import ModelOutputName, ModelOutputValue
 from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE
-from custom_components.haeo.model.elements import power_connection
+from custom_components.haeo.model.elements import connection
 from custom_components.haeo.model.output_data import OutputData
 
 
@@ -28,7 +29,7 @@ class OutputsCase(TypedDict):
 
     description: str
     name: str
-    model_outputs: Mapping[str, Mapping[ModelOutputName, OutputData]]
+    model_outputs: Mapping[str, Mapping[ModelOutputName, ModelOutputValue]]
     outputs: Mapping[str, Mapping[str, OutputData]]
 
 
@@ -39,8 +40,8 @@ CREATE_CASES: Sequence[CreateCase] = [
             element_type="solar",
             name="pv_main",
             connection="network",
-            forecast=[2.0, 1.5],
-            price_production=0.15,
+            forecast=np.array([2.0, 1.5]),
+            price_production=np.array([0.15, 0.15]),
             curtailment=False,
         ),
         "model": [
@@ -50,10 +51,19 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "name": "pv_main:connection",
                 "source": "pv_main",
                 "target": "network",
-                "max_power_source_target": [2.0, 1.5],
-                "max_power_target_source": 0.0,
-                "fixed_power": True,
-                "price_source_target": 0.15,
+                "segments": {
+                    "power_limit": {
+                        "segment_type": "power_limit",
+                        "max_power_source_target": [2.0, 1.5],
+                        "max_power_target_source": [0.0, 0.0],
+                        "fixed": True,
+                    },
+                    "pricing": {
+                        "segment_type": "pricing",
+                        "price_source_target": [0.15, 0.15],
+                        "price_target_source": None,
+                    },
+                },
             },
         ],
     },
@@ -66,8 +76,8 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
         "name": "pv_main",
         "model_outputs": {
             "pv_main:connection": {
-                power_connection.CONNECTION_POWER_SOURCE_TARGET: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(2.0,), direction="+"),
-                power_connection.CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.02,)),
+                connection.CONNECTION_POWER_SOURCE_TARGET: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(2.0,), direction="+"),
+                connection.CONNECTION_SEGMENTS: {"power_limit": {"source_target": OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.02,))}},
             }
         },
         "outputs": {
@@ -82,8 +92,8 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
         "name": "pv_with_price",
         "model_outputs": {
             "pv_with_price:connection": {
-                power_connection.CONNECTION_POWER_SOURCE_TARGET: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(1.5,), direction="+"),
-                power_connection.CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.0,)),
+                connection.CONNECTION_POWER_SOURCE_TARGET: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(1.5,), direction="+"),
+                connection.CONNECTION_SEGMENTS: {"power_limit": {"source_target": OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.0,))}},
             }
         },
         "outputs": {
@@ -101,7 +111,18 @@ def test_model_elements(case: CreateCase) -> None:
     """Verify adapter transforms ConfigData into expected model elements."""
     entry = ELEMENT_TYPES["solar"]
     result = entry.model_elements(case["data"])
-    assert result == case["model"]
+    assert _normalize_for_compare(result) == _normalize_for_compare(case["model"])
+
+
+def _normalize_for_compare(value: Any) -> Any:
+    """Normalize numpy arrays to lists for equality checks."""
+    if isinstance(value, np.ndarray):
+        return value.tolist()
+    if isinstance(value, dict):
+        return {key: _normalize_for_compare(val) for key, val in value.items()}
+    if isinstance(value, list):
+        return [_normalize_for_compare(item) for item in value]
+    return value
 
 
 @pytest.mark.parametrize("case", OUTPUTS_CASES, ids=lambda c: c["description"])

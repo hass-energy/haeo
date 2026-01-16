@@ -1,6 +1,9 @@
-"""Tests for grid adapter build_config_data() and available() functions."""
+"""Tests for grid adapter load() and available() functions."""
+
+from collections.abc import Sequence
 
 from homeassistant.core import HomeAssistant
+import numpy as np
 
 from custom_components.haeo.elements import grid
 
@@ -8,6 +11,14 @@ from custom_components.haeo.elements import grid
 def _set_sensor(hass: HomeAssistant, entity_id: str, value: str, unit: str = "kW") -> None:
     """Set a sensor state in hass."""
     hass.states.async_set(entity_id, value, {"unit_of_measurement": unit})
+
+
+def _assert_array_equal(actual: np.ndarray | None, expected: list[float]) -> None:
+    assert actual is not None
+    np.testing.assert_array_equal(actual, expected)
+
+
+FORECAST_TIMES: Sequence[float] = [0.0, 1800.0, 3600.0]  # 3 boundaries = 2 periods
 
 
 async def test_available_returns_true_when_sensors_exist(hass: HomeAssistant) -> None:
@@ -59,8 +70,11 @@ async def test_available_returns_false_when_export_price_missing(hass: HomeAssis
     assert result is False
 
 
-def test_build_config_data_returns_config_data() -> None:
-    """build_config_data() should return ConfigData with loaded values."""
+async def test_load_returns_config_data(hass: HomeAssistant) -> None:
+    """Grid load() should return ConfigData with loaded values."""
+    _set_sensor(hass, "sensor.import_price", "0.30", "$/kWh")
+    _set_sensor(hass, "sensor.export_price", "0.05", "$/kWh")
+
     config: grid.GridConfigSchema = {
         "element_type": "grid",
         "name": "test_grid",
@@ -68,39 +82,89 @@ def test_build_config_data_returns_config_data() -> None:
         "import_price": ["sensor.import_price"],
         "export_price": ["sensor.export_price"],
     }
-    loaded_values = {
-        "import_price": [0.30, 0.30],
-        "export_price": [0.05, 0.05],
-    }
 
-    result = grid.adapter.build_config_data(loaded_values, config)
+    result = await grid.adapter.load(config, hass=hass, forecast_times=FORECAST_TIMES)
 
     assert result["element_type"] == "grid"
     assert result["name"] == "test_grid"
-    assert result["import_price"] == [0.30, 0.30]
-    assert result["export_price"] == [0.05, 0.05]
+    assert len(result["import_price"]) == 2  # 3 boundaries = 2 periods
+    assert result["import_price"][0] == 0.30
 
 
-def test_build_config_data_includes_optional_limits() -> None:
-    """build_config_data() should include optional limit fields when provided."""
+async def test_load_with_optional_limits(hass: HomeAssistant) -> None:
+    """Grid load() should broadcast scalar limit constants to time series."""
+    _set_sensor(hass, "sensor.import_price", "0.30", "$/kWh")
+    _set_sensor(hass, "sensor.export_price", "0.05", "$/kWh")
+
     config: grid.GridConfigSchema = {
         "element_type": "grid",
         "name": "test_grid",
         "connection": "main_bus",
         "import_price": ["sensor.import_price"],
         "export_price": ["sensor.export_price"],
-    }
-    loaded_values = {
-        "import_price": [0.30, 0.30],
-        "export_price": [0.05, 0.05],
-        "import_limit": [10.0, 10.0],
-        "export_limit": [5.0, 5.0],
+        "import_limit": 10.0,
+        "export_limit": 5.0,
     }
 
-    result = grid.adapter.build_config_data(loaded_values, config)
+    result = await grid.adapter.load(config, hass=hass, forecast_times=FORECAST_TIMES)
 
-    assert result.get("import_limit") == [10.0, 10.0]
-    assert result.get("export_limit") == [5.0, 5.0]
+    # Scalar constants are broadcast to time series
+    _assert_array_equal(result.get("import_limit"), [10.0, 10.0])
+    _assert_array_equal(result.get("export_limit"), [5.0, 5.0])
+
+
+async def test_load_with_scalar_import_price(hass: HomeAssistant) -> None:
+    """Grid load() should broadcast scalar import_price constant."""
+    config: grid.GridConfigSchema = {
+        "element_type": "grid",
+        "name": "test_grid",
+        "connection": "main_bus",
+        "import_price": 0.35,
+        "export_price": 0.05,
+    }
+
+    result = await grid.adapter.load(config, hass=hass, forecast_times=FORECAST_TIMES)
+
+    _assert_array_equal(result["import_price"], [0.35, 0.35])
+    _assert_array_equal(result["export_price"], [0.05, 0.05])
+
+
+async def test_load_with_scalar_export_price(hass: HomeAssistant) -> None:
+    """Grid load() should broadcast scalar export_price constant."""
+    config: grid.GridConfigSchema = {
+        "element_type": "grid",
+        "name": "test_grid",
+        "connection": "main_bus",
+        "import_price": 0.30,
+        "export_price": 0.08,
+    }
+
+    result = await grid.adapter.load(config, hass=hass, forecast_times=FORECAST_TIMES)
+
+    _assert_array_equal(result["import_price"], [0.30, 0.30])
+    _assert_array_equal(result["export_price"], [0.08, 0.08])
+
+
+async def test_load_with_limit_entity_lists(hass: HomeAssistant) -> None:
+    """Grid load() should load import_limit and export_limit from entity lists."""
+    _set_sensor(hass, "sensor.import_limit", "15", "kW")
+    _set_sensor(hass, "sensor.export_limit", "8", "kW")
+
+    config: grid.GridConfigSchema = {
+        "element_type": "grid",
+        "name": "test_grid",
+        "connection": "main_bus",
+        "import_price": 0.30,
+        "export_price": 0.05,
+        "import_limit": "sensor.import_limit",
+        "export_limit": "sensor.export_limit",
+    }
+
+    result = await grid.adapter.load(config, hass=hass, forecast_times=FORECAST_TIMES)
+
+    # Limits loaded from sensors
+    _assert_array_equal(result.get("import_limit"), [15.0, 15.0])
+    _assert_array_equal(result.get("export_limit"), [8.0, 8.0])
 
 
 async def test_available_with_constant_prices(hass: HomeAssistant) -> None:

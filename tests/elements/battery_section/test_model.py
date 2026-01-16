@@ -3,6 +3,7 @@
 from collections.abc import Mapping, Sequence
 from typing import Any, TypedDict
 
+import numpy as np
 import pytest
 
 from custom_components.haeo.elements import ELEMENT_TYPES
@@ -38,8 +39,8 @@ CREATE_CASES: Sequence[CreateCase] = [
         "data": BatterySectionConfigData(
             element_type="battery_section",
             name="test_section",
-            capacity=[10.0],
-            initial_charge=[5.0],
+            capacity=np.array([10.0]),
+            initial_charge=np.array([5.0]),
         ),
         "model": [
             {
@@ -110,7 +111,18 @@ def test_model_elements(case: CreateCase) -> None:
     """Verify adapter transforms ConfigData into expected model elements."""
     entry = ELEMENT_TYPES["battery_section"]
     result = entry.model_elements(case["data"])
-    assert result == case["model"]
+    assert _normalize_for_compare(result) == _normalize_for_compare(case["model"])
+
+
+def _normalize_for_compare(value: Any) -> Any:
+    """Normalize numpy arrays to lists for equality checks."""
+    if isinstance(value, np.ndarray):
+        return value.tolist()
+    if isinstance(value, dict):
+        return {key: _normalize_for_compare(val) for key, val in value.items()}
+    if isinstance(value, list):
+        return [_normalize_for_compare(item) for item in value]
+    return value
 
 
 @pytest.mark.parametrize("case", OUTPUTS_CASES, ids=lambda c: c["description"])
