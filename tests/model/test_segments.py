@@ -12,6 +12,7 @@ from custom_components.haeo.model.elements.segments import (
     EfficiencySegment,
     PassthroughSegment,
     PowerLimitSegment,
+    PowerLimitSegmentSpec,
     PricingSegment,
     SegmentSpec,
 )
@@ -111,7 +112,7 @@ class PowerLimitCapCase(TypedDict):
     """Case describing a power limit constraint."""
 
     description: str
-    spec: SegmentSpec
+    spec: PowerLimitSegmentSpec
     attr: Literal["power_in_st", "power_in_ts"]
     expected: list[float]
 

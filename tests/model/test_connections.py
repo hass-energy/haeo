@@ -1,29 +1,39 @@
 """Model connection output tests covering reporting and validation helpers."""
 
-from typing import Any
-
 from highspy import Highs
 from highspy.highs import highs_linear_expression, highs_var
 import pytest
+
+from typing import TypeGuard, cast
 
 from custom_components.haeo.model.elements.connection import Connection
 from custom_components.haeo.model.output_data import ModelOutputValue, OutputData
 
 from . import test_data
-from .test_data.connection_types import ConnectionTestCase, ConnectionTestCaseInputs
+from .test_data.connection_types import (
+    ConnectionTestCase,
+    ConnectionTestCaseInputs,
+    ExpectedOutput,
+    ExpectedOutputFixture,
+    ExpectedOutputs,
+)
 
 
-def _serialize_output_value(output_value: ModelOutputValue) -> dict[str, Any]:
+def _serialize_output_value(output_value: ModelOutputValue) -> ExpectedOutputFixture:
     if isinstance(output_value, OutputData):
-        return {
+        if output_value.unit is None:
+            msg = "Expected unit for connection output"
+            raise ValueError(msg)
+        output: ExpectedOutput = {
             "type": output_value.type,
             "unit": output_value.unit,
-            "values": output_value.values,
+            "values": tuple(float(value) for value in output_value.values),
         }
+        return output
     return {name: _serialize_output_value(child) for name, child in output_value.items()}
 
 
-def _solve_connection_scenario(element: Connection[str], inputs: ConnectionTestCaseInputs | None) -> dict[str, Any]:
+def _solve_connection_scenario(element: Connection[str], inputs: ConnectionTestCaseInputs | None) -> ExpectedOutputs:
     """Set up and solve an optimization scenario for a connection.
 
     Args:
@@ -99,18 +109,24 @@ def _solve_connection_scenario(element: Connection[str], inputs: ConnectionTestC
     return {name: _serialize_output_value(output_data) for name, output_data in outputs.items()}
 
 
-def _assert_outputs_match(actual: dict[str, Any], expected: dict[str, Any]) -> None:
-    assert set(actual.keys()) == set(expected.keys())
+def _is_expected_output(value: ExpectedOutputFixture) -> TypeGuard[ExpectedOutput]:
+    return {"type", "unit", "values"}.issubset(value.keys())
 
-    for output_name, expected_value in expected.items():
-        output_value = actual[output_name]
-        if isinstance(expected_value, dict) and {"type", "unit", "values"}.issubset(expected_value.keys()):
-            assert output_value["type"] == expected_value["type"]
-            assert output_value["unit"] == expected_value["unit"]
-            assert output_value["values"] == pytest.approx(expected_value["values"], rel=1e-9, abs=1e-9)
-        else:
-            assert isinstance(output_value, dict)
-            _assert_outputs_match(output_value, expected_value)
+
+def _assert_outputs_match(actual: ExpectedOutputFixture, expected: ExpectedOutputFixture) -> None:
+    if _is_expected_output(expected):
+        assert _is_expected_output(actual)
+        assert actual["type"] == expected["type"]
+        assert actual["unit"] == expected["unit"]
+        assert actual["values"] == pytest.approx(expected["values"], rel=1e-9, abs=1e-9)
+        return
+
+    assert not _is_expected_output(actual)
+    actual_map = cast(ExpectedOutputs, actual)
+    expected_map = cast(ExpectedOutputs, expected)
+    assert set(actual_map.keys()) == set(expected_map.keys())
+    for output_name, expected_value in expected_map.items():
+        _assert_outputs_match(actual_map[output_name], expected_value)
 
 
 @pytest.mark.parametrize(
@@ -126,13 +142,14 @@ def test_connection_outputs(case: ConnectionTestCase, solver: Highs) -> None:
     data = case["data"].copy()
     data["solver"] = solver
     element = factory(**data)
+    assert isinstance(element, Connection)
 
     # Run optimization scenario (or get outputs directly if no inputs)
     outputs = _solve_connection_scenario(element, case.get("inputs"))
 
     # Validate outputs match expected
-    expected_outputs = case.get("expected_outputs")
-    assert expected_outputs is not None
+    assert "expected_outputs" in case
+    expected_outputs = case["expected_outputs"]
     _assert_outputs_match(outputs, expected_outputs)
 
 

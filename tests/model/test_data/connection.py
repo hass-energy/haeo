@@ -15,9 +15,7 @@ VALID_CASES: list[ConnectionTestCase] = [
             "periods": [1.0] * 3,
             "source": "battery",
             "target": "load",
-            "segments": {
-                "power_limit": {"segment_type": "power_limit", "max_power_source_target": np.array([5.0, 5.0, 5.0])}
-            },
+            "segments": {"power_limit": {"segment_type": "power_limit", "max_power_source_target": np.array([5.0, 5.0, 5.0])}},
         },
         "inputs": {
             "source_power": [None, None, None],  # Infinite source
@@ -40,9 +38,7 @@ VALID_CASES: list[ConnectionTestCase] = [
             "periods": [1.0] * 3,
             "source": "grid",
             "target": "solar",
-            "segments": {
-                "power_limit": {"segment_type": "power_limit", "max_power_target_source": np.array([3.0, 3.0, 3.0])}
-            },
+            "segments": {"power_limit": {"segment_type": "power_limit", "max_power_target_source": np.array([3.0, 3.0, 3.0])}},
         },
         "inputs": {
             "source_power": [None, None, None],  # Infinite
@@ -146,9 +142,7 @@ VALID_CASES: list[ConnectionTestCase] = [
             "periods": [1.0] * 3,
             "source": "grid",
             "target": "net",
-            "segments": {
-                "power_limit": {"segment_type": "power_limit", "max_power_source_target": np.array([10.0, 5.0, 8.0])}
-            },
+            "segments": {"power_limit": {"segment_type": "power_limit", "max_power_source_target": np.array([10.0, 5.0, 8.0])}},
         },
         "inputs": {
             "source_power": [None, None, None],

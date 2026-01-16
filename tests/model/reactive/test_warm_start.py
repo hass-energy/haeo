@@ -18,7 +18,6 @@ from custom_components.haeo.model.elements.battery import Battery
 from custom_components.haeo.model.elements.connection import Connection
 from custom_components.haeo.model.elements.segments import PowerLimitSegment, PricingSegment
 
-
 # Battery reactive update tests
 
 

@@ -12,7 +12,8 @@ class ExpectedOutput(TypedDict):
     values: tuple[float, ...]
 
 
-type ExpectedOutputValue = ExpectedOutput | dict[str, "ExpectedOutputValue"]
+type ExpectedOutputFixture = ExpectedOutput | dict[str, "ExpectedOutputFixture"]
+type ExpectedOutputs = dict[str, ExpectedOutputFixture]
 
 
 class ConnectionTestCaseInputs(TypedDict):
@@ -31,5 +32,5 @@ class ConnectionTestCase(TypedDict):
     factory: Callable[..., object]
     data: dict[str, object]
     inputs: NotRequired[ConnectionTestCaseInputs]
-    expected_outputs: NotRequired[dict[str, ExpectedOutputValue]]
+    expected_outputs: NotRequired[ExpectedOutputs]
     expected_error: NotRequired[str]
