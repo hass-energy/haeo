@@ -8,6 +8,7 @@ from highspy.highs import highs_var
 
 from .connection_types import ConnectionTestCase
 from .element_types import ElementTestCase
+from .segment_types import ConnectionScenario, SegmentScenario
 
 
 def highs_sequence(h: Highs, name: str, length: int) -> tuple[list[highs_var], Highs]:
@@ -29,7 +30,7 @@ def highs_sequence(h: Highs, name: str, length: int) -> tuple[list[highs_var], H
 
 
 # Import modules after defining utilities to avoid circular imports
-from . import battery, connection, node  # noqa: E402
+from . import battery, connection, connection_segments, node, segments  # noqa: E402
 
 
 def _aggregate_element_cases() -> list[ElementTestCase]:
@@ -62,11 +63,27 @@ def _aggregate_invalid_connection_cases() -> list[ConnectionTestCase]:
     ]
 
 
+def _aggregate_segment_scenarios() -> list[SegmentScenario]:
+    """Aggregate segment scenarios."""
+    return [
+        *segments.SEGMENT_SCENARIOS,
+    ]
+
+
+def _aggregate_connection_segment_scenarios() -> list[ConnectionScenario]:
+    """Aggregate connection scenarios focused on segments."""
+    return [
+        *connection_segments.CONNECTION_SCENARIOS,
+    ]
+
+
 # Aggregate cases
 VALID_ELEMENT_CASES = _aggregate_element_cases()
 VALID_CONNECTION_CASES = _aggregate_connection_cases()
 INVALID_ELEMENT_CASES = _aggregate_invalid_element_cases()
 INVALID_CONNECTION_CASES = _aggregate_invalid_connection_cases()
+SEGMENT_SCENARIOS = _aggregate_segment_scenarios()
+CONNECTION_SEGMENT_SCENARIOS = _aggregate_connection_segment_scenarios()
 
 __all__ = [
     "INVALID_CONNECTION_CASES",
@@ -74,7 +91,11 @@ __all__ = [
     "VALID_CONNECTION_CASES",
     "VALID_ELEMENT_CASES",
     "battery",
+    "connection_segments",
     "connection",
+    "CONNECTION_SEGMENT_SCENARIOS",
     "highs_sequence",
     "node",
+    "segments",
+    "SEGMENT_SCENARIOS",
 ]
