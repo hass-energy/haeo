@@ -64,7 +64,7 @@ class Battery(Element[BatteryOutputName]):
         periods: Sequence[float],
         *,
         solver: Highs,
-        capacity: Sequence[float] | float,
+        capacity: NDArray[np.floating[Any]],
         initial_charge: float,
     ):
         super().__init__(name=name, periods=periods, solver=solver, output_names=BATTERY_OUTPUT_NAMES)

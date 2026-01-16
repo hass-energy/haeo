@@ -4,6 +4,7 @@ from typing import Any
 
 from highspy import Highs
 from highspy.highs import HighspyArray
+import numpy as np
 import pytest
 
 from custom_components.haeo.model.elements.node import Node
@@ -64,8 +65,8 @@ def _solve_element_scenario(element: Any, inputs: ElementTestCaseInputs | None) 
         if (element_cost := element.cost()) is not None:
             element_costs.append(element_cost)
 
-        input_cost = broadcast_to_sequence(inputs.get("input_cost", 0.0), n_periods)
-        output_cost = broadcast_to_sequence(inputs.get("output_cost", 0.0), n_periods)
+        input_cost = broadcast_to_sequence(inputs.get("input_cost", np.array(0.0)), n_periods)
+        output_cost = broadcast_to_sequence(inputs.get("output_cost", np.array(0.0)), n_periods)
 
         cost_terms = [
             *element_costs,

@@ -78,7 +78,7 @@ class EfficiencySegment(Segment):
         return self._efficiency_source_target
 
     @efficiency_source_target.setter
-    def efficiency_source_target(self, value: NDArray[np.floating[Any]] | float | None) -> None:
+    def efficiency_source_target(self, value: NDArray[np.floating[Any]] | None) -> None:
         self._efficiency_source_target = self._normalize_efficiency(value)
 
     @property
@@ -97,7 +97,7 @@ class EfficiencySegment(Segment):
         return self._efficiency_target_source
 
     @efficiency_target_source.setter
-    def efficiency_target_source(self, value: NDArray[np.floating[Any]] | float | None) -> None:
+    def efficiency_target_source(self, value: NDArray[np.floating[Any]] | None) -> None:
         self._efficiency_target_source = self._normalize_efficiency(value)
 
     @property
@@ -105,7 +105,7 @@ class EfficiencySegment(Segment):
         """Power leaving segment in target→source direction (after efficiency loss)."""
         return self._power_ts * self._efficiency_target_source
 
-    def _normalize_efficiency(self, value: NDArray[np.floating[Any]] | float | None) -> NDArray[np.float64]:
+    def _normalize_efficiency(self, value: NDArray[np.floating[Any]] | None) -> NDArray[np.float64]:
         """Normalize efficiency to a period-length float array."""
         if value is None:
             return np.ones(self._n_periods, dtype=np.float64)

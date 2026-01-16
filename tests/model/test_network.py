@@ -47,13 +47,23 @@ def test_network_add_duplicate_element() -> None:
 
     # Add first battery
     battery1 = network.add(
-        {"element_type": ELEMENT_TYPE_BATTERY, "name": "test_battery", "capacity": 10000, "initial_charge": 5000}
+        {
+            "element_type": ELEMENT_TYPE_BATTERY,
+            "name": "test_battery",
+            "capacity": np.array([10000.0]),
+            "initial_charge": 5000,
+        }
     )  # 50% of 10000
     assert battery1 is not None
 
     # Try to add another element with same name
     network.add(
-        {"element_type": ELEMENT_TYPE_BATTERY, "name": "test_battery", "capacity": 15000, "initial_charge": 11250}
+        {
+            "element_type": ELEMENT_TYPE_BATTERY,
+            "name": "test_battery",
+            "capacity": np.array([15000.0]),
+            "initial_charge": 11250,
+        }
     )  # 75% of 15000
 
     # Network handles duplicates
@@ -68,7 +78,14 @@ def test_connect_entities() -> None:
     )
 
     # Add entities
-    network.add({"element_type": ELEMENT_TYPE_BATTERY, "name": "battery1", "capacity": 10000, "initial_charge": 5000})
+    network.add(
+        {
+            "element_type": ELEMENT_TYPE_BATTERY,
+            "name": "battery1",
+            "capacity": np.array([10000.0]),
+            "initial_charge": 5000,
+        }
+    )
     network.add({"element_type": ELEMENT_TYPE_NODE, "name": "grid1", "is_sink": False, "is_source": True})
 
     # Connect them
@@ -125,7 +142,14 @@ def test_connect_nonexistent_target_entity() -> None:
         periods=[1.0] * 3,
     )
     # Add only source entity
-    network.add({"element_type": ELEMENT_TYPE_BATTERY, "name": "battery1", "capacity": 10000, "initial_charge": 5000})
+    network.add(
+        {
+            "element_type": ELEMENT_TYPE_BATTERY,
+            "name": "battery1",
+            "capacity": np.array([10000.0]),
+            "initial_charge": 5000,
+        }
+    )
     # Try to connect to nonexistent target
     with pytest.raises(ValueError, match="Failed to register connection bad_connection with target nonexistent"):
         network.add(
@@ -145,7 +169,14 @@ def test_connect_source_is_connection() -> None:
         periods=[1.0] * 3,
     )
     # Add entities and a connection
-    network.add({"element_type": ELEMENT_TYPE_BATTERY, "name": "battery1", "capacity": 10000, "initial_charge": 5000})
+    network.add(
+        {
+            "element_type": ELEMENT_TYPE_BATTERY,
+            "name": "battery1",
+            "capacity": np.array([10000.0]),
+            "initial_charge": 5000,
+        }
+    )
     network.add({"element_type": ELEMENT_TYPE_NODE, "name": "grid1", "is_sink": False, "is_source": True})
     network.add({"element_type": ELEMENT_TYPE_CONNECTION, "name": "conn1", "source": "battery1", "target": "grid1"})
 
@@ -165,7 +196,14 @@ def test_connect_target_is_connection() -> None:
         periods=[1.0] * 3,
     )
     # Add entities and a connection
-    network.add({"element_type": ELEMENT_TYPE_BATTERY, "name": "battery1", "capacity": 10000, "initial_charge": 5000})
+    network.add(
+        {
+            "element_type": ELEMENT_TYPE_BATTERY,
+            "name": "battery1",
+            "capacity": np.array([10000.0]),
+            "initial_charge": 5000,
+        }
+    )
     network.add({"element_type": ELEMENT_TYPE_NODE, "name": "grid1", "is_sink": False, "is_source": True})
     network.add({"element_type": ELEMENT_TYPE_CONNECTION, "name": "conn1", "source": "battery1", "target": "grid1"})
 
@@ -253,7 +291,14 @@ def test_network_constraint_generation_error() -> None:
     )
 
     # Add a regular battery
-    network.add({"element_type": ELEMENT_TYPE_BATTERY, "name": "battery", "capacity": 10000, "initial_charge": 5000})
+    network.add(
+        {
+            "element_type": ELEMENT_TYPE_BATTERY,
+            "name": "battery",
+            "capacity": np.array([10000.0]),
+            "initial_charge": 5000,
+        }
+    )
 
     # Mock an element to raise an exception during constraints
     mock_element = Mock(spec=Element)
@@ -398,10 +443,20 @@ def test_add_battery_balance_connection() -> None:
 
     # Add two battery sections
     network.add(
-        {"element_type": ELEMENT_TYPE_BATTERY, "name": "upper_section", "capacity": 10.0, "initial_charge": 5.0}
+        {
+            "element_type": ELEMENT_TYPE_BATTERY,
+            "name": "upper_section",
+            "capacity": np.array([10.0]),
+            "initial_charge": 5.0,
+        }
     )
     network.add(
-        {"element_type": ELEMENT_TYPE_BATTERY, "name": "lower_section", "capacity": 10.0, "initial_charge": 5.0}
+        {
+            "element_type": ELEMENT_TYPE_BATTERY,
+            "name": "lower_section",
+            "capacity": np.array([10.0]),
+            "initial_charge": 5.0,
+        }
     )
 
     # Add battery balance connection
@@ -426,7 +481,12 @@ def test_add_battery_balance_connection_upper_not_battery() -> None:
     # Add a node (not a battery) as upper
     network.add({"element_type": ELEMENT_TYPE_NODE, "name": "not_a_battery", "is_sink": True, "is_source": True})
     network.add(
-        {"element_type": ELEMENT_TYPE_BATTERY, "name": "lower_section", "capacity": 10.0, "initial_charge": 5.0}
+        {
+            "element_type": ELEMENT_TYPE_BATTERY,
+            "name": "lower_section",
+            "capacity": np.array([10.0]),
+            "initial_charge": 5.0,
+        }
     )
 
     with pytest.raises(TypeError, match="Upper element 'not_a_battery' is not a battery"):
@@ -446,7 +506,12 @@ def test_add_battery_balance_connection_lower_not_battery() -> None:
 
     # Add battery as upper, node as lower
     network.add(
-        {"element_type": ELEMENT_TYPE_BATTERY, "name": "upper_section", "capacity": 10.0, "initial_charge": 5.0}
+        {
+            "element_type": ELEMENT_TYPE_BATTERY,
+            "name": "upper_section",
+            "capacity": np.array([10.0]),
+            "initial_charge": 5.0,
+        }
     )
     network.add({"element_type": ELEMENT_TYPE_NODE, "name": "not_a_battery", "is_sink": True, "is_source": True})
 

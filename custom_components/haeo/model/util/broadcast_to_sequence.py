@@ -1,7 +1,6 @@
 """Utility functions for model elements."""
 
-from collections.abc import Sequence
-from typing import overload
+from typing import Any, overload
 
 import numpy as np
 from numpy.typing import NDArray
@@ -12,18 +11,20 @@ def broadcast_to_sequence(value: None, n_periods: int) -> None: ...
 
 
 @overload
-def broadcast_to_sequence(value: float | Sequence[float], n_periods: int) -> NDArray[np.float64]: ...
+def broadcast_to_sequence(value: NDArray[np.floating[Any]], n_periods: int) -> NDArray[np.float64]: ...
 
 
-def broadcast_to_sequence(value: float | Sequence[float] | None, n_periods: int) -> NDArray[np.float64] | None:
-    """Broadcast a scalar or sequence to match n_periods.
+def broadcast_to_sequence(
+    value: NDArray[np.floating[Any]] | None, n_periods: int
+) -> NDArray[np.float64] | None:
+    """Broadcast an array to match n_periods.
 
     For single values, broadcasts to n_periods length.
-    For sequences that are too short, extends by repeating the last value.
-    For sequences that are too long, truncates to n_periods.
+    For arrays that are too short, extends by repeating the last value.
+    For arrays that are too long, truncates to n_periods.
 
     Args:
-        value: Scalar value, sequence to broadcast, or None
+        value: Array to broadcast, or None
         n_periods: Target number of periods
 
     Returns:
@@ -38,10 +39,10 @@ def broadcast_to_sequence(value: float | Sequence[float] | None, n_periods: int)
         return None
 
     # Convert to array and broadcast
-    value_array: NDArray[np.float64] = np.atleast_1d(value)
+    value_array = np.atleast_1d(np.asarray(value, dtype=np.float64))
 
     if value_array.size == 0:
-        msg = "Sequence cannot be empty"
+        msg = "Array cannot be empty"
         raise ValueError(msg)
 
     # If it's a single value, broadcast it

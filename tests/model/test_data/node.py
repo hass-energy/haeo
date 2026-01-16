@@ -1,5 +1,7 @@
 """Test data and factories for Node element."""
 
+import numpy as np
+
 from custom_components.haeo.model.elements.node import Node
 
 from .element_types import ElementTestCase
@@ -25,8 +27,8 @@ VALID_CASES: list[ElementTestCase] = [
         },
         "inputs": {
             "power": [0.0, 0.0, 0.0],  # Balanced power at node
-            "input_cost": 0.1,
-            "output_cost": 0.1,
+            "input_cost": np.array(0.1),
+            "output_cost": np.array(0.1),
         },
         "expected_outputs": {
             "node_power_balance": {"type": "shadow_price", "unit": "$/kW", "values": (0.0, 0.0, 0.0)},

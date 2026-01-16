@@ -27,7 +27,12 @@ def test_battery_update_capacity_modifies_soc_constraints() -> None:
 
     # Add battery and run initial optimization
     network.add(
-        {"element_type": MODEL_ELEMENT_TYPE_BATTERY, "name": "battery", "capacity": 10.0, "initial_charge": 5.0}
+        {
+            "element_type": MODEL_ELEMENT_TYPE_BATTERY,
+            "name": "battery",
+            "capacity": np.array([10.0]),
+            "initial_charge": 5.0,
+        }
     )
     network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "grid", "is_source": True, "is_sink": True})
     network.add(
@@ -76,7 +81,12 @@ def test_battery_update_initial_charge_modifies_constraint() -> None:
     network = Network(name="test", periods=[1.0])
 
     network.add(
-        {"element_type": MODEL_ELEMENT_TYPE_BATTERY, "name": "battery", "capacity": 10.0, "initial_charge": 2.0}
+        {
+            "element_type": MODEL_ELEMENT_TYPE_BATTERY,
+            "name": "battery",
+            "capacity": np.array([10.0]),
+            "initial_charge": 2.0,
+        }
     )
     network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "grid", "is_source": True, "is_sink": True})
     network.add(
@@ -118,7 +128,12 @@ def test_battery_update_with_sequence_capacity() -> None:
     network = Network(name="test", periods=[1.0, 1.0, 1.0])
 
     network.add(
-        {"element_type": MODEL_ELEMENT_TYPE_BATTERY, "name": "battery", "capacity": 10.0, "initial_charge": 5.0}
+        {
+            "element_type": MODEL_ELEMENT_TYPE_BATTERY,
+            "name": "battery",
+            "capacity": np.array([10.0]),
+            "initial_charge": 5.0,
+        }
     )
     network.optimize()
 
@@ -256,7 +271,12 @@ def test_connection_update_price_target_source() -> None:
 
     # Battery starts empty, needs to charge from grid
     network.add(
-        {"element_type": MODEL_ELEMENT_TYPE_BATTERY, "name": "battery", "capacity": 10.0, "initial_charge": 0.0}
+        {
+            "element_type": MODEL_ELEMENT_TYPE_BATTERY,
+            "name": "battery",
+            "capacity": np.array([10.0]),
+            "initial_charge": 0.0,
+        }
     )
     network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "grid", "is_source": True, "is_sink": True})
     network.add(
@@ -343,7 +363,12 @@ def test_warm_start_produces_same_result() -> None:
     # Create first network (cold start)
     network1 = Network(name="test1", periods=[1.0, 1.0, 1.0])
     network1.add(
-        {"element_type": MODEL_ELEMENT_TYPE_BATTERY, "name": "battery", "capacity": 10.0, "initial_charge": 5.0}
+        {
+            "element_type": MODEL_ELEMENT_TYPE_BATTERY,
+            "name": "battery",
+            "capacity": np.array([10.0]),
+            "initial_charge": 5.0,
+        }
     )
     network1.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "grid", "is_source": True, "is_sink": True})
     network1.add(
@@ -372,7 +397,12 @@ def test_warm_start_produces_same_result() -> None:
     network2 = Network(name="test2", periods=[1.0, 1.0, 1.0])
     # First add with initial parameters
     network2.add(
-        {"element_type": MODEL_ELEMENT_TYPE_BATTERY, "name": "battery", "capacity": 5.0, "initial_charge": 2.0}
+        {
+            "element_type": MODEL_ELEMENT_TYPE_BATTERY,
+            "name": "battery",
+            "capacity": np.array([5.0]),
+            "initial_charge": 2.0,
+        }
     )
     network2.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "grid", "is_source": True, "is_sink": True})
     network2.add(
@@ -472,7 +502,12 @@ def test_solver_structure_unchanged_after_update() -> None:
     network = Network(name="test", periods=[1.0, 1.0, 1.0])
 
     network.add(
-        {"element_type": MODEL_ELEMENT_TYPE_BATTERY, "name": "battery", "capacity": 10.0, "initial_charge": 5.0}
+        {
+            "element_type": MODEL_ELEMENT_TYPE_BATTERY,
+            "name": "battery",
+            "capacity": np.array([10.0]),
+            "initial_charge": 5.0,
+        }
     )
     network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "grid", "is_source": True, "is_sink": True})
     network.add(

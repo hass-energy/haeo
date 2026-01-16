@@ -3,6 +3,9 @@
 from collections.abc import Callable, Sequence
 from typing import Any, NotRequired, TypedDict
 
+import numpy as np
+from numpy.typing import NDArray
+
 
 class ExpectedOutput(TypedDict):
     """Expected output data structure."""
@@ -16,8 +19,8 @@ class ElementTestCaseInputs(TypedDict):
     """Inputs for element optimization scenario."""
 
     power: NotRequired[Sequence[float | None]]
-    input_cost: NotRequired[float | Sequence[float]]
-    output_cost: NotRequired[float | Sequence[float]]
+    input_cost: NotRequired[NDArray[np.floating[Any]]]
+    output_cost: NotRequired[NDArray[np.floating[Any]]]
 
 
 class ElementTestCase(TypedDict):
