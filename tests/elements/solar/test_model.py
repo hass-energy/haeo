@@ -40,8 +40,8 @@ CREATE_CASES: Sequence[CreateCase] = [
             element_type="solar",
             name="pv_main",
             connection="network",
-            forecast=[2.0, 1.5],
-            price_production=0.15,
+            forecast=np.array([2.0, 1.5]),
+            price_production=np.array([0.15, 0.15]),
             curtailment=False,
         ),
         "model": [
@@ -60,7 +60,7 @@ CREATE_CASES: Sequence[CreateCase] = [
                     },
                     "pricing": {
                         "segment_type": "pricing",
-                        "price_source_target": 0.15,
+                        "price_source_target": [0.15, 0.15],
                         "price_target_source": None,
                     },
                 },

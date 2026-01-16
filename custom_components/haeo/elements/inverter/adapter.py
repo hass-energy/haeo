@@ -99,15 +99,15 @@ class InverterAdapter:
             "element_type": config["element_type"],
             "name": config["name"],
             "connection": config[CONF_CONNECTION],
-            "max_power_dc_to_ac": list(loaded_values[CONF_MAX_POWER_DC_TO_AC]),
-            "max_power_ac_to_dc": list(loaded_values[CONF_MAX_POWER_AC_TO_DC]),
+            "max_power_dc_to_ac": np.asarray(loaded_values[CONF_MAX_POWER_DC_TO_AC], dtype=float),
+            "max_power_ac_to_dc": np.asarray(loaded_values[CONF_MAX_POWER_AC_TO_DC], dtype=float),
         }
 
-        # Optional scalar efficiency fields
+        # Optional efficiency fields
         if CONF_EFFICIENCY_DC_TO_AC in loaded_values:
-            data["efficiency_dc_to_ac"] = float(loaded_values[CONF_EFFICIENCY_DC_TO_AC])
+            data["efficiency_dc_to_ac"] = np.asarray(loaded_values[CONF_EFFICIENCY_DC_TO_AC], dtype=float)
         if CONF_EFFICIENCY_AC_TO_DC in loaded_values:
-            data["efficiency_ac_to_dc"] = float(loaded_values[CONF_EFFICIENCY_AC_TO_DC])
+            data["efficiency_ac_to_dc"] = np.asarray(loaded_values[CONF_EFFICIENCY_AC_TO_DC], dtype=float)
 
         return data
 
@@ -134,7 +134,7 @@ class InverterAdapter:
             hass=hass, value=config[CONF_MAX_POWER_AC_TO_DC], forecast_times=forecast_times
         )
 
-        # Load optional scalar fields
+        # Load optional fields
         if CONF_EFFICIENCY_DC_TO_AC in config:
             loaded_values[CONF_EFFICIENCY_DC_TO_AC] = await const_loader.load(value=config[CONF_EFFICIENCY_DC_TO_AC])
         if CONF_EFFICIENCY_AC_TO_DC in config:
@@ -166,16 +166,16 @@ class InverterAdapter:
                     "efficiency": {
                         "segment_type": "efficiency",
                         "efficiency_source_target": (
-                            np.array(efficiency_source_target) / 100.0 if efficiency_source_target is not None else None
+                            efficiency_source_target / 100.0 if efficiency_source_target is not None else None
                         ),
                         "efficiency_target_source": (
-                            np.array(efficiency_target_source) / 100.0 if efficiency_target_source is not None else None
+                            efficiency_target_source / 100.0 if efficiency_target_source is not None else None
                         ),
                     },
                     "power_limit": {
                         "segment_type": "power_limit",
-                        "max_power_source_target": np.array(config["max_power_dc_to_ac"]),
-                        "max_power_target_source": np.array(config["max_power_ac_to_dc"]),
+                        "max_power_source_target": config["max_power_dc_to_ac"],
+                        "max_power_target_source": config["max_power_ac_to_dc"],
                     },
                 },
             },

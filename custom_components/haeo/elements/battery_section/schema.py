@@ -5,10 +5,12 @@ Unlike the standard Battery element which creates multiple sections and an inter
 this element creates a single battery section that must be connected manually via Connection.
 """
 
-from typing import Final, Literal, TypedDict
+from typing import Any, Final, Literal, TypedDict
 
 from homeassistant.components.number import NumberDeviceClass, NumberEntityDescription
 from homeassistant.const import UnitOfEnergy
+import numpy as np
+from numpy.typing import NDArray
 
 from custom_components.haeo.elements.input_fields import InputFieldInfo
 from custom_components.haeo.model.const import OutputType
@@ -19,6 +21,7 @@ ELEMENT_TYPE: Final = "battery_section"
 CONF_CAPACITY: Final = "capacity"
 CONF_INITIAL_CHARGE: Final = "initial_charge"
 
+type FloatArray = NDArray[np.floating[Any]]
 # Input field definitions for creating input entities
 INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
     InputFieldInfo(
@@ -76,5 +79,5 @@ class BatterySectionConfigData(TypedDict):
 
     element_type: Literal["battery_section"]
     name: str
-    capacity: list[float]  # kWh at each time boundary (n+1 values)
-    initial_charge: list[float]  # kWh per period (uses first value)
+    capacity: FloatArray  # kWh at each time boundary (n+1 values)
+    initial_charge: FloatArray  # kWh per period (uses first value)

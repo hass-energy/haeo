@@ -103,16 +103,16 @@ class GridAdapter:
             "element_type": config["element_type"],
             "name": config["name"],
             "connection": config[CONF_CONNECTION],
-            "import_price": list(loaded_values["import_price"]),
-            "export_price": list(loaded_values["export_price"]),
+            "import_price": np.asarray(loaded_values["import_price"], dtype=float),
+            "export_price": np.asarray(loaded_values["export_price"], dtype=float),
         }
 
         # Optional limit fields - only include if present
         if "import_limit" in loaded_values:
-            data["import_limit"] = list(loaded_values["import_limit"])
+            data["import_limit"] = np.asarray(loaded_values["import_limit"], dtype=float)
 
         if "export_limit" in loaded_values:
-            data["export_limit"] = list(loaded_values["export_limit"])
+            data["export_limit"] = np.asarray(loaded_values["export_limit"], dtype=float)
 
         return data
 
@@ -207,13 +207,13 @@ class GridAdapter:
                 "segments": {
                     "power_limit": {
                         "segment_type": "power_limit",
-                        "max_power_source_target": np.array(import_limit) if import_limit is not None else None,
-                        "max_power_target_source": np.array(export_limit) if export_limit is not None else None,
+                        "max_power_source_target": import_limit,
+                        "max_power_target_source": export_limit,
                     },
                     "pricing": {
                         "segment_type": "pricing",
-                        "price_source_target": np.array(config["import_price"]),
-                        "price_target_source": np.array([-p for p in config["export_price"]]),
+                        "price_source_target": config["import_price"],
+                        "price_target_source": -config["export_price"],
                     },
                 },
             },

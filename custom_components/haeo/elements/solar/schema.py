@@ -5,6 +5,8 @@ from typing import Any, Final, Literal, NotRequired, TypedDict
 from homeassistant.components.number import NumberDeviceClass, NumberEntityDescription
 from homeassistant.components.switch import SwitchEntityDescription
 from homeassistant.const import UnitOfPower
+import numpy as np
+from numpy.typing import NDArray
 
 from custom_components.haeo.elements.input_fields import InputFieldInfo
 from custom_components.haeo.model.const import OutputType
@@ -16,6 +18,8 @@ CONF_FORECAST: Final = "forecast"
 CONF_PRICE_PRODUCTION: Final = "price_production"
 CONF_CURTAILMENT: Final = "curtailment"
 CONF_CONNECTION: Final = "connection"
+
+type FloatArray = NDArray[np.floating[Any]]
 
 # Input field definitions for creating input entities (mix of Number and Switch)
 INPUT_FIELDS: Final[tuple[InputFieldInfo[Any], ...]] = (
@@ -87,6 +91,6 @@ class SolarConfigData(TypedDict):
     element_type: Literal["solar"]
     name: str
     connection: str  # Element name to connect to
-    forecast: list[float]  # Loaded power values per period (kW)
+    forecast: FloatArray  # Loaded power values per period (kW)
     curtailment: NotRequired[bool]  # Whether solar can be curtailed (default: True)
-    price_production: NotRequired[float]  # $/kWh production incentive (default: 0.0)
+    price_production: NotRequired[FloatArray]  # $/kWh production incentive (default: 0.0)

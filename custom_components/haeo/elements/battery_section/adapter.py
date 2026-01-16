@@ -5,6 +5,7 @@ from dataclasses import replace
 from typing import Any, Final, Literal
 
 from homeassistant.core import HomeAssistant
+import numpy as np
 
 from custom_components.haeo.const import ConnectivityLevel
 from custom_components.haeo.data.loader import TimeSeriesLoader
@@ -93,8 +94,8 @@ class BatterySectionAdapter:
         return {
             "element_type": config["element_type"],
             "name": config["name"],
-            "capacity": list(loaded_values[CONF_CAPACITY]),
-            "initial_charge": list(loaded_values[CONF_INITIAL_CHARGE]),
+            "capacity": np.asarray(loaded_values[CONF_CAPACITY], dtype=float),
+            "initial_charge": np.asarray(loaded_values[CONF_INITIAL_CHARGE], dtype=float),
         }
 
     async def load(

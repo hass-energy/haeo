@@ -42,10 +42,10 @@ CREATE_CASES: Sequence[CreateCase] = [
             element_type="grid",
             name="grid_main",
             connection="network",
-            import_price=[0.1],
-            export_price=[0.05],
-            import_limit=[5.0],
-            export_limit=[3.0],
+            import_price=np.array([0.1]),
+            export_price=np.array([0.05]),
+            import_limit=np.array([5.0]),
+            export_limit=np.array([3.0]),
         ),
         "model": [
             {"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "grid_main", "is_source": True, "is_sink": True},
@@ -76,7 +76,13 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
     {
         "description": "Grid with import and export - cost/revenue calculated from power × price × period",
         "name": "grid_main",
-        "config": GridConfigData(element_type="grid", name="grid_main", connection="network", import_price=[0.10], export_price=[0.05]),
+        "config": GridConfigData(
+            element_type="grid",
+            name="grid_main",
+            connection="network",
+            import_price=np.array([0.10]),
+            export_price=np.array([0.05]),
+        ),
         "model_outputs": {
             "grid_main:connection": {
                 connection.CONNECTION_POWER_TARGET_SOURCE: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(2.0,), direction="-"),
@@ -111,7 +117,13 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
     {
         "description": "Grid with multiple periods - cumulative cost/revenue",
         "name": "grid_multi",
-        "config": GridConfigData(element_type="grid", name="grid_multi", connection="network", import_price=[0.10, 0.20], export_price=[0.05, 0.05]),
+        "config": GridConfigData(
+            element_type="grid",
+            name="grid_multi",
+            connection="network",
+            import_price=np.array([0.10, 0.20]),
+            export_price=np.array([0.05, 0.05]),
+        ),
         "model_outputs": {
             "grid_multi:connection": {
                 connection.CONNECTION_POWER_TARGET_SOURCE: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(0.0, 0.0), direction="-"),

@@ -1,9 +1,11 @@
 """Inverter element schema definitions."""
 
-from typing import Final, Literal, NotRequired, TypedDict
+from typing import Any, Final, Literal, NotRequired, TypedDict
 
 from homeassistant.components.number import NumberDeviceClass, NumberEntityDescription
 from homeassistant.const import PERCENTAGE, UnitOfPower
+import numpy as np
+from numpy.typing import NDArray
 
 from custom_components.haeo.elements.input_fields import InputFieldDefaults, InputFieldInfo
 from custom_components.haeo.model.const import OutputType
@@ -16,6 +18,8 @@ CONF_EFFICIENCY_DC_TO_AC: Final = "efficiency_dc_to_ac"
 CONF_EFFICIENCY_AC_TO_DC: Final = "efficiency_ac_to_dc"
 CONF_MAX_POWER_DC_TO_AC: Final = "max_power_dc_to_ac"
 CONF_MAX_POWER_AC_TO_DC: Final = "max_power_ac_to_dc"
+
+type FloatArray = NDArray[np.floating[Any]]
 
 # Input field definitions for creating input entities
 INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
@@ -110,7 +114,7 @@ class InverterConfigData(TypedDict):
     element_type: Literal["inverter"]
     name: str
     connection: str  # AC side node to connect to
-    max_power_dc_to_ac: list[float]  # Loaded power limit per period (kW)
-    max_power_ac_to_dc: list[float]  # Loaded power limit per period (kW)
-    efficiency_dc_to_ac: NotRequired[float]  # Percentage (0-100), defaults to 100% (no loss)
-    efficiency_ac_to_dc: NotRequired[float]  # Percentage (0-100), defaults to 100% (no loss)
+    max_power_dc_to_ac: FloatArray  # Loaded power limit per period (kW)
+    max_power_ac_to_dc: FloatArray  # Loaded power limit per period (kW)
+    efficiency_dc_to_ac: NotRequired[FloatArray]  # Percentage (0-100), defaults to 100% (no loss)
+    efficiency_ac_to_dc: NotRequired[FloatArray]  # Percentage (0-100), defaults to 100% (no loss)

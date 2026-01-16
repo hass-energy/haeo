@@ -1,10 +1,16 @@
 """Tests for solar adapter load() and available() functions."""
 
 from homeassistant.core import HomeAssistant
+import numpy as np
 
 from custom_components.haeo.elements import solar
 
 from ..conftest import FORECAST_TIMES, set_forecast_sensor
+
+
+def _assert_array_equal(actual: np.ndarray | None, expected: float | list[float]) -> None:
+    assert actual is not None
+    np.testing.assert_array_equal(actual, expected)
 
 
 async def test_available_returns_true_when_forecast_sensor_exists(hass: HomeAssistant) -> None:
@@ -59,7 +65,7 @@ async def test_load_returns_config_data(hass: HomeAssistant) -> None:
 
 
 async def test_load_with_optional_fields(hass: HomeAssistant) -> None:
-    """Solar load() should include optional constant fields."""
+    """Solar load() should include optional production forecast."""
     set_forecast_sensor(hass, "sensor.forecast", "5.0", [{"datetime": "2024-01-01T00:00:00Z", "value": 5.0}], "kW")
 
     config: solar.SolarConfigSchema = {
@@ -73,5 +79,5 @@ async def test_load_with_optional_fields(hass: HomeAssistant) -> None:
 
     result = await solar.adapter.load(config, hass=hass, forecast_times=FORECAST_TIMES)
 
-    assert result.get("price_production") == 0.02
+    _assert_array_equal(result.get("price_production"), [0.02, 0.02])
     assert result.get("curtailment") is False

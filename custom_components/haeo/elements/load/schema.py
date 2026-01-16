@@ -1,9 +1,11 @@
 """Load element schema definitions."""
 
-from typing import Final, Literal, TypedDict
+from typing import Any, Final, Literal, TypedDict
 
 from homeassistant.components.number import NumberDeviceClass, NumberEntityDescription
 from homeassistant.const import UnitOfPower
+import numpy as np
+from numpy.typing import NDArray
 
 from custom_components.haeo.elements.input_fields import InputFieldInfo
 from custom_components.haeo.model.const import OutputType
@@ -13,6 +15,8 @@ ELEMENT_TYPE: Final = "load"
 # Configuration field names
 CONF_FORECAST: Final = "forecast"
 CONF_CONNECTION: Final = "connection"
+
+type FloatArray = NDArray[np.floating[Any]]
 
 # Input field definitions for creating input entities
 INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
@@ -55,4 +59,4 @@ class LoadConfigData(TypedDict):
     element_type: Literal["load"]
     name: str
     connection: str  # Element name to connect to
-    forecast: list[float]  # Loaded power values per period (kW)
+    forecast: FloatArray  # Loaded power values per period (kW)

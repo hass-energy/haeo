@@ -3,6 +3,7 @@
 from collections.abc import Sequence
 
 from homeassistant.core import HomeAssistant
+import numpy as np
 
 from custom_components.haeo.elements import battery_section
 
@@ -10,6 +11,11 @@ from custom_components.haeo.elements import battery_section
 def _set_sensor(hass: HomeAssistant, entity_id: str, value: str, unit: str = "kW") -> None:
     """Set a sensor state in hass."""
     hass.states.async_set(entity_id, value, {"unit_of_measurement": unit})
+
+
+def _assert_array_equal(actual: np.ndarray | None, expected: list[float]) -> None:
+    assert actual is not None
+    np.testing.assert_array_equal(actual, expected)
 
 
 FORECAST_TIMES: Sequence[float] = [0.0, 1800.0]
@@ -64,6 +70,6 @@ async def test_load_returns_config_data(hass: HomeAssistant) -> None:
     assert result["element_type"] == "battery_section"
     assert result["name"] == "test_section"
     assert len(result["capacity"]) == 2  # Boundaries: n+1 values
-    assert result["capacity"] == [10.0, 10.0]  # Broadcast to all boundaries
+    _assert_array_equal(result["capacity"], [10.0, 10.0])  # Broadcast to all boundaries
     assert len(result["initial_charge"]) == 1
     assert result["initial_charge"][0] == 50.0

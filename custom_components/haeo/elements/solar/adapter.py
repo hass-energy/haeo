@@ -87,12 +87,12 @@ class SolarAdapter:
             "element_type": config["element_type"],
             "name": config["name"],
             "connection": config[CONF_CONNECTION],
-            "forecast": list(loaded_values[CONF_FORECAST]),
+            "forecast": np.asarray(loaded_values[CONF_FORECAST], dtype=float),
         }
 
-        # Optional scalar fields
+        # Optional fields
         if CONF_PRICE_PRODUCTION in loaded_values:
-            data["price_production"] = float(loaded_values[CONF_PRICE_PRODUCTION])
+            data["price_production"] = np.asarray(loaded_values[CONF_PRICE_PRODUCTION], dtype=float)
         if CONF_CURTAILMENT in loaded_values:
             data["curtailment"] = bool(loaded_values[CONF_CURTAILMENT])
 
@@ -110,18 +110,19 @@ class SolarAdapter:
         Uses TimeSeriesLoader to load values, then delegates to build_config_data().
         """
         ts_loader = TimeSeriesLoader()
-        const_loader_float = ConstantLoader[float](float)
         const_loader_bool = ConstantLoader[bool](bool)
-        loaded_values: dict[str, list[float] | float | bool] = {}
+        loaded_values: dict[str, list[float] | bool] = {}
 
         # Load required time series field
         loaded_values[CONF_FORECAST] = await ts_loader.load_intervals(
             hass=hass, value=config[CONF_FORECAST], forecast_times=forecast_times
         )
 
-        # Load optional scalar fields
+        # Load optional fields
         if CONF_PRICE_PRODUCTION in config:
-            loaded_values[CONF_PRICE_PRODUCTION] = await const_loader_float.load(value=config[CONF_PRICE_PRODUCTION])
+            loaded_values[CONF_PRICE_PRODUCTION] = await ts_loader.load_intervals(
+                hass=hass, value=config[CONF_PRICE_PRODUCTION], forecast_times=forecast_times
+            )
         if CONF_CURTAILMENT in config:
             loaded_values[CONF_CURTAILMENT] = await const_loader_bool.load(value=config[CONF_CURTAILMENT])
 
@@ -142,13 +143,13 @@ class SolarAdapter:
                 "segments": {
                     "power_limit": {
                         "segment_type": "power_limit",
-                        "max_power_source_target": np.array(config["forecast"]),
+                        "max_power_source_target": config["forecast"],
                         "max_power_target_source": np.zeros(n_periods),
                         "fixed": not config.get("curtailment", DEFAULTS[CONF_CURTAILMENT]),
                     },
                     "pricing": {
                         "segment_type": "pricing",
-                        "price_source_target": np.array(price_production) if price_production is not None else None,
+                        "price_source_target": price_production,
                         "price_target_source": None,
                     },
                 },

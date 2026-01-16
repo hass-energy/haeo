@@ -1,9 +1,11 @@
 """Battery element schema definitions."""
 
-from typing import Final, Literal, NotRequired, TypedDict
+from typing import Any, Final, Literal, NotRequired, TypedDict
 
 from homeassistant.components.number import NumberDeviceClass, NumberEntityDescription
 from homeassistant.const import PERCENTAGE, UnitOfEnergy, UnitOfPower
+import numpy as np
+from numpy.typing import NDArray
 
 from custom_components.haeo.elements.input_fields import InputFieldDefaults, InputFieldInfo
 from custom_components.haeo.model.const import OutputType
@@ -26,6 +28,8 @@ CONF_UNDERCHARGE_COST: Final = "undercharge_cost"
 CONF_OVERCHARGE_COST: Final = "overcharge_cost"
 CONF_CONNECTION: Final = "connection"
 CONF_CONFIGURE_PARTITIONS: Final = "configure_partitions"
+
+type FloatArray = NDArray[np.floating[Any]]
 
 # Partition field names (hidden behind checkbox)
 PARTITION_FIELD_NAMES: Final[frozenset[str]] = frozenset(
@@ -291,24 +295,24 @@ class BatteryConfigData(TypedDict):
     connection: str  # Element name that battery connects to
 
     # Loaded sensor values (time series)
-    capacity: list[float]  # kWh per period
-    initial_charge_percentage: list[float]  # % per period (uses first value)
+    capacity: FloatArray  # kWh per period
+    initial_charge_percentage: FloatArray  # % per period (uses first value)
 
     # Time series with defaults applied
-    min_charge_percentage: list[float]  # % per period
-    max_charge_percentage: list[float]  # % per period
-    efficiency: list[float]  # % per period
+    min_charge_percentage: FloatArray  # % per period
+    max_charge_percentage: FloatArray  # % per period
+    efficiency: FloatArray  # % per period
 
     # Optional loaded values
-    max_charge_power: NotRequired[list[float]]  # kW per period
-    max_discharge_power: NotRequired[list[float]]  # kW per period
+    max_charge_power: NotRequired[FloatArray]  # kW per period
+    max_discharge_power: NotRequired[FloatArray]  # kW per period
 
     # Optional prices (time series)
-    early_charge_incentive: NotRequired[list[float]]  # $/kWh per period
-    discharge_cost: NotRequired[list[float]]  # $/kWh per period
+    early_charge_incentive: NotRequired[FloatArray]  # $/kWh per period
+    discharge_cost: NotRequired[FloatArray]  # $/kWh per period
 
     # Advanced: undercharge/overcharge regions (time series)
-    undercharge_percentage: NotRequired[list[float]]  # % per period
-    overcharge_percentage: NotRequired[list[float]]  # % per period
-    undercharge_cost: NotRequired[list[float]]  # $/kWh per period
-    overcharge_cost: NotRequired[list[float]]  # $/kWh per period
+    undercharge_percentage: NotRequired[FloatArray]  # % per period
+    overcharge_percentage: NotRequired[FloatArray]  # % per period
+    undercharge_cost: NotRequired[FloatArray]  # $/kWh per period
+    overcharge_cost: NotRequired[FloatArray]  # $/kWh per period

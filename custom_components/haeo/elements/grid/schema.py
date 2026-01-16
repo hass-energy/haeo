@@ -1,9 +1,11 @@
 """Grid element schema definitions."""
 
-from typing import Final, Literal, NotRequired, TypedDict
+from typing import Any, Final, Literal, NotRequired, TypedDict
 
 from homeassistant.components.number import NumberDeviceClass, NumberEntityDescription
 from homeassistant.const import UnitOfPower
+import numpy as np
+from numpy.typing import NDArray
 
 from custom_components.haeo.elements.input_fields import InputFieldDefaults, InputFieldInfo
 from custom_components.haeo.model.const import OutputType
@@ -16,6 +18,8 @@ CONF_EXPORT_PRICE: Final = "export_price"
 CONF_IMPORT_LIMIT: Final = "import_limit"
 CONF_EXPORT_LIMIT: Final = "export_limit"
 CONF_CONNECTION: Final = "connection"
+
+type FloatArray = NDArray[np.floating[Any]]
 
 # Input field definitions for creating input entities
 INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
@@ -114,9 +118,9 @@ class GridConfigData(TypedDict):
     element_type: Literal["grid"]
     name: str
     connection: str  # Element name to connect to
-    import_price: list[float]  # Loaded price values per period ($/kWh)
-    export_price: list[float]  # Loaded price values per period ($/kWh)
+    import_price: FloatArray  # Loaded price values per period ($/kWh)
+    export_price: FloatArray  # Loaded price values per period ($/kWh)
 
     # Optional fields - now time series
-    import_limit: NotRequired[list[float]]  # Loaded values per period (kW)
-    export_limit: NotRequired[list[float]]  # Loaded values per period (kW)
+    import_limit: NotRequired[FloatArray]  # Loaded values per period (kW)
+    export_limit: NotRequired[FloatArray]  # Loaded values per period (kW)

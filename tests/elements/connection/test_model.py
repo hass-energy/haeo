@@ -41,12 +41,12 @@ CREATE_CASES: Sequence[CreateCase] = [
             name="c1",
             source="s",
             target="t",
-            max_power_source_target=[4.0],
-            max_power_target_source=[2.0],
-            efficiency_source_target=[95.0],
-            efficiency_target_source=[90.0],
-            price_source_target=[0.1],
-            price_target_source=[0.05],
+            max_power_source_target=np.array([4.0]),
+            max_power_target_source=np.array([2.0]),
+            efficiency_source_target=np.array([95.0]),
+            efficiency_target_source=np.array([90.0]),
+            price_source_target=np.array([0.1]),
+            price_target_source=np.array([0.05]),
         ),
         "model": [
             {

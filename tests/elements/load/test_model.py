@@ -40,7 +40,7 @@ CREATE_CASES: Sequence[CreateCase] = [
             element_type="load",
             name="load_main",
             connection="network",
-            forecast=[1.0, 2.0],
+            forecast=np.array([1.0, 2.0]),
         ),
         "model": [
             {"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "load_main", "is_source": False, "is_sink": True},

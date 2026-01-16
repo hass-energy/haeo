@@ -3,6 +3,7 @@
 from collections.abc import Sequence
 
 from homeassistant.core import HomeAssistant
+import numpy as np
 
 from custom_components.haeo.elements import inverter
 
@@ -10,6 +11,11 @@ from custom_components.haeo.elements import inverter
 def _set_sensor(hass: HomeAssistant, entity_id: str, value: str, unit: str = "kW") -> None:
     """Set a sensor state in hass."""
     hass.states.async_set(entity_id, value, {"unit_of_measurement": unit})
+
+
+def _assert_array_equal(actual: np.ndarray | None, expected: float | list[float]) -> None:
+    assert actual is not None
+    np.testing.assert_array_equal(actual, expected)
 
 
 FORECAST_TIMES: Sequence[float] = [0.0, 1800.0]
@@ -104,5 +110,5 @@ async def test_load_with_optional_efficiency(hass: HomeAssistant) -> None:
 
     result = await inverter.adapter.load(config, hass=hass, forecast_times=FORECAST_TIMES)
 
-    assert result.get("efficiency_dc_to_ac") == 97.0
-    assert result.get("efficiency_ac_to_dc") == 95.0
+    _assert_array_equal(result.get("efficiency_dc_to_ac"), 97.0)
+    _assert_array_equal(result.get("efficiency_ac_to_dc"), 95.0)

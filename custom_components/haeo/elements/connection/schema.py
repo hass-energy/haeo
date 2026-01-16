@@ -1,9 +1,11 @@
 """Connection element schema definitions."""
 
-from typing import Final, Literal, NotRequired, TypedDict
+from typing import Any, Final, Literal, NotRequired, TypedDict
 
 from homeassistant.components.number import NumberDeviceClass, NumberEntityDescription
 from homeassistant.const import PERCENTAGE, UnitOfPower
+import numpy as np
+from numpy.typing import NDArray
 
 from custom_components.haeo.elements.input_fields import InputFieldInfo
 from custom_components.haeo.model.const import OutputType
@@ -19,6 +21,8 @@ CONF_EFFICIENCY_SOURCE_TARGET: Final = "efficiency_source_target"
 CONF_EFFICIENCY_TARGET_SOURCE: Final = "efficiency_target_source"
 CONF_PRICE_SOURCE_TARGET: Final = "price_source_target"
 CONF_PRICE_TARGET_SOURCE: Final = "price_target_source"
+
+type FloatArray = NDArray[np.floating[Any]]
 
 # Input field definitions for creating input entities
 INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
@@ -143,9 +147,9 @@ class ConnectionConfigData(TypedDict):
     target: str  # Target element name
 
     # Optional fields
-    max_power_source_target: NotRequired[list[float]]  # Loaded power limit per period (kW)
-    max_power_target_source: NotRequired[list[float]]  # Loaded power limit per period (kW)
-    efficiency_source_target: NotRequired[list[float]]  # Loaded efficiency per period (%)
-    efficiency_target_source: NotRequired[list[float]]  # Loaded efficiency per period (%)
-    price_source_target: NotRequired[list[float]]  # Loaded price per period ($/kWh)
-    price_target_source: NotRequired[list[float]]  # Loaded price per period ($/kWh)
+    max_power_source_target: NotRequired[FloatArray]  # Loaded power limit per period (kW)
+    max_power_target_source: NotRequired[FloatArray]  # Loaded power limit per period (kW)
+    efficiency_source_target: NotRequired[FloatArray]  # Loaded efficiency per period (%)
+    efficiency_target_source: NotRequired[FloatArray]  # Loaded efficiency per period (%)
+    price_source_target: NotRequired[FloatArray]  # Loaded price per period ($/kWh)
+    price_target_source: NotRequired[FloatArray]  # Loaded price per period ($/kWh)

@@ -3,6 +3,7 @@
 from collections.abc import Sequence
 
 from homeassistant.core import HomeAssistant
+import numpy as np
 
 from custom_components.haeo.elements import grid
 
@@ -10,6 +11,11 @@ from custom_components.haeo.elements import grid
 def _set_sensor(hass: HomeAssistant, entity_id: str, value: str, unit: str = "kW") -> None:
     """Set a sensor state in hass."""
     hass.states.async_set(entity_id, value, {"unit_of_measurement": unit})
+
+
+def _assert_array_equal(actual: np.ndarray | None, expected: list[float]) -> None:
+    assert actual is not None
+    np.testing.assert_array_equal(actual, expected)
 
 
 FORECAST_TIMES: Sequence[float] = [0.0, 1800.0, 3600.0]  # 3 boundaries = 2 periods
@@ -103,8 +109,8 @@ async def test_load_with_optional_limits(hass: HomeAssistant) -> None:
     result = await grid.adapter.load(config, hass=hass, forecast_times=FORECAST_TIMES)
 
     # Scalar constants are broadcast to time series
-    assert result.get("import_limit") == [10.0, 10.0]
-    assert result.get("export_limit") == [5.0, 5.0]
+    _assert_array_equal(result.get("import_limit"), [10.0, 10.0])
+    _assert_array_equal(result.get("export_limit"), [5.0, 5.0])
 
 
 async def test_load_with_scalar_import_price(hass: HomeAssistant) -> None:
@@ -119,8 +125,8 @@ async def test_load_with_scalar_import_price(hass: HomeAssistant) -> None:
 
     result = await grid.adapter.load(config, hass=hass, forecast_times=FORECAST_TIMES)
 
-    assert result["import_price"] == [0.35, 0.35]
-    assert result["export_price"] == [0.05, 0.05]
+    _assert_array_equal(result["import_price"], [0.35, 0.35])
+    _assert_array_equal(result["export_price"], [0.05, 0.05])
 
 
 async def test_load_with_scalar_export_price(hass: HomeAssistant) -> None:
@@ -135,8 +141,8 @@ async def test_load_with_scalar_export_price(hass: HomeAssistant) -> None:
 
     result = await grid.adapter.load(config, hass=hass, forecast_times=FORECAST_TIMES)
 
-    assert result["import_price"] == [0.30, 0.30]
-    assert result["export_price"] == [0.08, 0.08]
+    _assert_array_equal(result["import_price"], [0.30, 0.30])
+    _assert_array_equal(result["export_price"], [0.08, 0.08])
 
 
 async def test_load_with_limit_entity_lists(hass: HomeAssistant) -> None:
@@ -157,8 +163,8 @@ async def test_load_with_limit_entity_lists(hass: HomeAssistant) -> None:
     result = await grid.adapter.load(config, hass=hass, forecast_times=FORECAST_TIMES)
 
     # Limits loaded from sensors
-    assert result.get("import_limit") == [15.0, 15.0]
-    assert result.get("export_limit") == [8.0, 8.0]
+    _assert_array_equal(result.get("import_limit"), [15.0, 15.0])
+    _assert_array_equal(result.get("export_limit"), [8.0, 8.0])
 
 
 async def test_available_with_constant_prices(hass: HomeAssistant) -> None:

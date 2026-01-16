@@ -75,7 +75,7 @@ class LoadAdapter:
             "element_type": config["element_type"],
             "name": config["name"],
             "connection": config[CONF_CONNECTION],
-            "forecast": list(loaded_values[CONF_FORECAST]),
+            "forecast": np.asarray(loaded_values[CONF_FORECAST], dtype=float),
         }
 
     async def load(
@@ -114,7 +114,7 @@ class LoadAdapter:
                     "power_limit": {
                         "segment_type": "power_limit",
                         "max_power_source_target": np.zeros(n_periods),
-                        "max_power_target_source": np.array(config["forecast"]),
+                        "max_power_target_source": config["forecast"],
                         "fixed": True,
                     }
                 },
