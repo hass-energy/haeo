@@ -7,6 +7,7 @@ import numpy as np
 import pytest
 
 from custom_components.haeo.model.elements.connection import Connection
+from custom_components.haeo.model.elements.segments import PowerLimitSegment, PricingSegment
 
 from . import test_data
 from .test_data.segment_types import ConnectionScenario, ExpectedValue, SegmentScenario
@@ -22,12 +23,20 @@ def create_solver() -> Highs:
 
 def _assert_expected_value(actual: ExpectedValue, expected: ExpectedValue) -> None:
     if isinstance(expected, Sequence) and not isinstance(expected, str):
-        if len(expected) > 0 and all(isinstance(item, str) for item in expected):
+        assert isinstance(actual, Sequence)
+        assert not isinstance(actual, str)
+        if all(isinstance(item, str) for item in expected):
             assert list(actual) == list(expected)
             return
-        np.testing.assert_allclose(actual, expected, rtol=1e-6, atol=1e-6)
+        np.testing.assert_allclose(
+            np.asarray(actual, dtype=np.float64),
+            np.asarray(expected, dtype=np.float64),
+            rtol=1e-6,
+            atol=1e-6,
+        )
         return
     assert isinstance(expected, float | int)
+    assert isinstance(actual, float | int)
     assert actual == pytest.approx(expected, rel=1e-6, abs=1e-6)
 
 
@@ -71,7 +80,7 @@ def _solve_segment_scenario(case: SegmentScenario) -> dict[str, ExpectedValue]:
             outputs[key] = float(h.getObjectiveValue())
             continue
         flow = getattr(seg, key)
-        outputs[key] = h.vals(flow)
+        outputs[key] = tuple(float(value) for value in h.vals(flow))
     return outputs
 
 
@@ -141,14 +150,20 @@ def _solve_connection_scenario(case: ConnectionScenario) -> dict[str, ExpectedVa
             continue
         if key == "power_limit_max_power_source_target":
             power_limit = conn["power_limit"]
-            outputs[key] = np.asarray(power_limit.max_power_source_target, dtype=np.float64)
+            assert isinstance(power_limit, PowerLimitSegment)
+            max_power = power_limit.max_power_source_target
+            assert max_power is not None
+            outputs[key] = tuple(float(value) for value in max_power)
             continue
         if key == "pricing_price_source_target":
             pricing = conn["pricing"]
-            outputs[key] = np.asarray(pricing.price_source_target, dtype=np.float64)
+            assert isinstance(pricing, PricingSegment)
+            prices = pricing.price_source_target
+            assert prices is not None
+            outputs[key] = tuple(float(value) for value in prices)
             continue
         flow = getattr(conn, key)
-        outputs[key] = h.vals(flow)
+        outputs[key] = tuple(float(value) for value in h.vals(flow))
     return outputs
 
 
