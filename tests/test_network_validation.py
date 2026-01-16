@@ -6,6 +6,7 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.haeo.const import (
     CONF_ELEMENT_TYPE,
+    CONF_HORIZON_DURATION_MINUTES,
     CONF_INTEGRATION_TYPE,
     CONF_NAME,
     CONF_TIER_1_COUNT,
@@ -14,7 +15,6 @@ from custom_components.haeo.const import (
     CONF_TIER_2_DURATION,
     CONF_TIER_3_COUNT,
     CONF_TIER_3_DURATION,
-    CONF_TIER_4_COUNT,
     CONF_TIER_4_DURATION,
     DOMAIN,
     INTEGRATION_TYPE_HUB,
@@ -54,8 +54,8 @@ def mock_hub_entry(hass: HomeAssistant) -> MockConfigEntry:
             CONF_TIER_2_DURATION: 60,
             CONF_TIER_3_COUNT: 0,
             CONF_TIER_3_DURATION: 30,
-            CONF_TIER_4_COUNT: 0,
             CONF_TIER_4_DURATION: 60,
+            CONF_HORIZON_DURATION_MINUTES: 60,
         },
         entry_id="test_hub",
     )

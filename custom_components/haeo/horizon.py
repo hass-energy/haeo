@@ -5,7 +5,7 @@ used by all input entities. It is a pure Python class (not an entity) that can b
 created early in the setup process before any platforms are loaded.
 
 The HorizonManager:
-- Computes forecast timestamps based on tier configuration
+- Computes forecast timestamps based on tier configuration with dynamic alignment
 - Schedules updates at period boundaries
 - Provides callbacks for dependent components to subscribe to horizon changes
 """
@@ -18,7 +18,29 @@ from homeassistant.core import CALLBACK_TYPE, HomeAssistant, callback
 from homeassistant.helpers.event import async_track_point_in_time
 from homeassistant.util import dt as dt_util
 
-from custom_components.haeo.util.forecast_times import generate_forecast_timestamps, tiers_to_periods_seconds
+from custom_components.haeo.const import (
+    CONF_HORIZON_DURATION_MINUTES,
+    CONF_TIER_1_COUNT,
+    CONF_TIER_1_DURATION,
+    CONF_TIER_2_COUNT,
+    CONF_TIER_2_DURATION,
+    CONF_TIER_3_COUNT,
+    CONF_TIER_3_DURATION,
+    CONF_TIER_4_DURATION,
+    DEFAULT_HORIZON_DURATION_MINUTES,
+    DEFAULT_TIER_1_COUNT,
+    DEFAULT_TIER_1_DURATION,
+    DEFAULT_TIER_2_COUNT,
+    DEFAULT_TIER_2_DURATION,
+    DEFAULT_TIER_3_COUNT,
+    DEFAULT_TIER_3_DURATION,
+    DEFAULT_TIER_4_DURATION,
+)
+from custom_components.haeo.util.forecast_times import (
+    calculate_aligned_tier_counts,
+    calculate_worst_case_total_steps,
+    generate_forecast_timestamps,
+)
 
 
 class HorizonManager:
@@ -26,7 +48,7 @@ class HorizonManager:
 
     This class:
     - Provides forecast timestamps for all input entities to use
-    - Schedules updates at period boundaries
+    - Schedules updates at period boundaries with dynamic tier alignment
     - Notifies subscribers when the horizon changes
 
     Unlike HaeoHorizonEntity, this is a pure Python object that can be
@@ -42,9 +64,28 @@ class HorizonManager:
         self._hass = hass
         self._config_entry = config_entry
 
-        # Calculate period durations from config
-        self._periods_seconds = tiers_to_periods_seconds(config_entry.data)
-        self._smallest_period = min(self._periods_seconds)
+        # Extract tier configuration from config
+        config = config_entry.data
+        self._tier_durations: tuple[int, int, int, int] = (
+            config.get(CONF_TIER_1_DURATION, DEFAULT_TIER_1_DURATION),
+            config.get(CONF_TIER_2_DURATION, DEFAULT_TIER_2_DURATION),
+            config.get(CONF_TIER_3_DURATION, DEFAULT_TIER_3_DURATION),
+            config.get(CONF_TIER_4_DURATION, DEFAULT_TIER_4_DURATION),
+        )
+        self._min_counts: tuple[int, int, int] = (
+            config.get(CONF_TIER_1_COUNT, DEFAULT_TIER_1_COUNT),
+            config.get(CONF_TIER_2_COUNT, DEFAULT_TIER_2_COUNT),
+            config.get(CONF_TIER_3_COUNT, DEFAULT_TIER_3_COUNT),
+        )
+        self._horizon_minutes: int = config.get(CONF_HORIZON_DURATION_MINUTES, DEFAULT_HORIZON_DURATION_MINUTES)
+
+        # Calculate total steps based on worst-case alignment (consistent solver size)
+        self._total_steps = calculate_worst_case_total_steps(
+            self._min_counts, self._tier_durations, self._horizon_minutes
+        )
+
+        # Smallest period for scheduling (T1 duration in seconds)
+        self._smallest_period = self._tier_durations[0] * 60
 
         # Timer for next update
         self._unsub_timer: CALLBACK_TYPE | None = None
@@ -52,14 +93,26 @@ class HorizonManager:
         # Subscribers to horizon changes
         self._subscribers: list[Callable[[], None]] = []
 
-        # Current forecast timestamps (cached)
+        # Current periods and forecast timestamps (updated dynamically)
+        self._periods_seconds: list[int] = []
         self._forecast_timestamps: tuple[float, ...] = ()
 
-        # Initialize timestamps
+        # Initialize timestamps with aligned periods
         self._update_timestamps()
 
     def _update_timestamps(self) -> None:
-        """Update the cached forecast timestamps."""
+        """Update cached timestamps with aligned tier counts."""
+        now = dt_util.utcnow()
+
+        # Calculate aligned periods based on current time
+        self._periods_seconds, _ = calculate_aligned_tier_counts(
+            start_time=now,
+            tier_durations=self._tier_durations,
+            min_counts=self._min_counts,
+            total_steps=self._total_steps,
+            horizon_minutes=self._horizon_minutes,
+        )
+
         self._forecast_timestamps = generate_forecast_timestamps(self._periods_seconds)
 
     def start(self) -> Callable[[], None]:

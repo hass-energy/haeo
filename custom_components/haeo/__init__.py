@@ -15,7 +15,14 @@ from homeassistant.exceptions import ConfigEntryError, ConfigEntryNotReady
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.translation import async_get_translations
 
-from custom_components.haeo.const import CONF_ADVANCED_MODE, CONF_ELEMENT_TYPE, CONF_NAME, DOMAIN, ELEMENT_TYPE_NETWORK
+from custom_components.haeo.const import (
+    CONF_ADVANCED_MODE,
+    CONF_ELEMENT_TYPE,
+    CONF_HORIZON_DURATION_MINUTES,
+    CONF_NAME,
+    DOMAIN,
+    ELEMENT_TYPE_NETWORK,
+)
 from custom_components.haeo.coordinator import HaeoDataUpdateCoordinator
 from custom_components.haeo.horizon import HorizonManager
 
@@ -53,6 +60,45 @@ class HaeoRuntimeData:
 
 
 type HaeoConfigEntry = ConfigEntry[HaeoRuntimeData | None]
+
+
+async def async_migrate_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> bool:
+    """Migrate config entry to add horizon_duration_minutes.
+
+    Version 1 -> 2: Convert from horizon_preset to horizon_duration_minutes.
+    """
+    if config_entry.version == 1:
+        _LOGGER.info("Migrating HAEO config entry from version 1 to 2")
+        data = dict(config_entry.data)
+
+        # Check if using a preset (format: "{N}_days")
+        horizon_preset = data.get("horizon_preset")
+
+        if horizon_preset and horizon_preset != "custom" and horizon_preset.endswith("_days"):
+            # Parse days from preset string (e.g., "5_days" -> 5)
+            days = int(horizon_preset.split("_")[0])
+            horizon_minutes = days * 24 * 60
+        else:
+            # Custom config: compute total horizon from tier configuration
+            horizon_minutes = (
+                data.get("tier_1_count", 5) * data.get("tier_1_duration", 1)
+                + data.get("tier_2_count", 11) * data.get("tier_2_duration", 5)
+                + data.get("tier_3_count", 46) * data.get("tier_3_duration", 30)
+                + data.get("tier_4_count", 48) * data.get("tier_4_duration", 60)
+            )
+
+        data[CONF_HORIZON_DURATION_MINUTES] = horizon_minutes
+
+        # Remove tier_4_count (now computed at runtime)
+        data.pop("tier_4_count", None)
+
+        # Remove old horizon_preset key (replaced by horizon_duration_minutes)
+        data.pop("horizon_preset", None)
+
+        hass.config_entries.async_update_entry(config_entry, data=data, version=2)
+        _LOGGER.info("Migration to version 2 complete: horizon_duration_minutes=%d", horizon_minutes)
+
+    return True
 
 
 async def _ensure_required_subentries(hass: HomeAssistant, hub_entry: ConfigEntry) -> None:

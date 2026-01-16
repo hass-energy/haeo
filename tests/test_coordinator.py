@@ -19,6 +19,7 @@ from custom_components.haeo import HaeoRuntimeData
 from custom_components.haeo.const import (
     CONF_DEBOUNCE_SECONDS,
     CONF_ELEMENT_TYPE,
+    CONF_HORIZON_DURATION_MINUTES,
     CONF_INTEGRATION_TYPE,
     CONF_NAME,
     CONF_TIER_1_COUNT,
@@ -27,7 +28,6 @@ from custom_components.haeo.const import (
     CONF_TIER_2_DURATION,
     CONF_TIER_3_COUNT,
     CONF_TIER_3_DURATION,
-    CONF_TIER_4_COUNT,
     CONF_TIER_4_DURATION,
     CONF_UPDATE_INTERVAL_MINUTES,
     DEFAULT_DEBOUNCE_SECONDS,
@@ -99,8 +99,8 @@ def mock_hub_entry(hass: HomeAssistant) -> MockConfigEntry:
             CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
             CONF_TIER_3_COUNT: 0,
             CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
-            CONF_TIER_4_COUNT: 0,
             CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
+            CONF_HORIZON_DURATION_MINUTES: 60,  # 1 hour horizon for tests
             CONF_UPDATE_INTERVAL_MINUTES: DEFAULT_UPDATE_INTERVAL_MINUTES,
             CONF_DEBOUNCE_SECONDS: DEFAULT_DEBOUNCE_SECONDS,
         },

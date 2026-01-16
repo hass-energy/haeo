@@ -5,6 +5,7 @@ from homeassistant.helpers import entity_registry as er
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.haeo.const import (
+    CONF_HORIZON_DURATION_MINUTES,
     CONF_INTEGRATION_TYPE,
     CONF_NAME,
     CONF_TIER_1_COUNT,
@@ -13,15 +14,14 @@ from custom_components.haeo.const import (
     CONF_TIER_2_DURATION,
     CONF_TIER_3_COUNT,
     CONF_TIER_3_DURATION,
-    CONF_TIER_4_COUNT,
     CONF_TIER_4_DURATION,
+    DEFAULT_HORIZON_DURATION_MINUTES,
     DEFAULT_TIER_1_COUNT,
     DEFAULT_TIER_1_DURATION,
     DEFAULT_TIER_2_COUNT,
     DEFAULT_TIER_2_DURATION,
     DEFAULT_TIER_3_COUNT,
     DEFAULT_TIER_3_DURATION,
-    DEFAULT_TIER_4_COUNT,
     DEFAULT_TIER_4_DURATION,
     DOMAIN,
     INTEGRATION_TYPE_HUB,
@@ -43,8 +43,8 @@ async def test_get_output_sensors_excludes_other_platforms(hass: HomeAssistant) 
             CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
             CONF_TIER_3_COUNT: DEFAULT_TIER_3_COUNT,
             CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
-            CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
             CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
+            CONF_HORIZON_DURATION_MINUTES: DEFAULT_HORIZON_DURATION_MINUTES,
         },
         entry_id="hub_entry",
     )
@@ -93,8 +93,8 @@ async def test_get_output_sensors_excludes_entities_without_state(hass: HomeAssi
             CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
             CONF_TIER_3_COUNT: DEFAULT_TIER_3_COUNT,
             CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
-            CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
             CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
+            CONF_HORIZON_DURATION_MINUTES: DEFAULT_HORIZON_DURATION_MINUTES,
         },
         entry_id="hub_entry",
     )
@@ -143,8 +143,8 @@ async def test_get_output_sensors_handles_forecast_attributes(hass: HomeAssistan
             CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
             CONF_TIER_3_COUNT: DEFAULT_TIER_3_COUNT,
             CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
-            CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
             CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
+            CONF_HORIZON_DURATION_MINUTES: DEFAULT_HORIZON_DURATION_MINUTES,
         },
         entry_id="hub_entry",
     )
@@ -195,8 +195,8 @@ async def test_get_output_sensors_handles_non_numeric_states(hass: HomeAssistant
             CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
             CONF_TIER_3_COUNT: DEFAULT_TIER_3_COUNT,
             CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
-            CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
             CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
+            CONF_HORIZON_DURATION_MINUTES: DEFAULT_HORIZON_DURATION_MINUTES,
         },
         entry_id="hub_entry",
     )
@@ -239,8 +239,8 @@ async def test_get_output_sensors_handles_zero_values(hass: HomeAssistant) -> No
             CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
             CONF_TIER_3_COUNT: DEFAULT_TIER_3_COUNT,
             CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
-            CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
             CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
+            CONF_HORIZON_DURATION_MINUTES: DEFAULT_HORIZON_DURATION_MINUTES,
         },
         entry_id="hub_entry",
     )
@@ -283,8 +283,8 @@ async def test_get_output_sensors_handles_non_numeric_forecast_values(hass: Home
             CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
             CONF_TIER_3_COUNT: DEFAULT_TIER_3_COUNT,
             CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
-            CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
             CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
+            CONF_HORIZON_DURATION_MINUTES: DEFAULT_HORIZON_DURATION_MINUTES,
         },
         entry_id="hub_entry",
     )

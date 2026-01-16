@@ -12,7 +12,7 @@ from custom_components.haeo.const import (
     CONF_ADVANCED_MODE,
     CONF_DEBOUNCE_SECONDS,
     CONF_ELEMENT_TYPE,
-    CONF_HORIZON_PRESET,
+    CONF_HORIZON_DURATION_MINUTES,
     CONF_INTEGRATION_TYPE,
     CONF_UPDATE_INTERVAL_MINUTES,
     DEFAULT_DEBOUNCE_SECONDS,
@@ -24,7 +24,7 @@ from custom_components.haeo.const import (
 from custom_components.haeo.elements import ELEMENT_TYPE_NODE, ELEMENT_TYPES
 from custom_components.haeo.elements.node import CONF_IS_SINK, CONF_IS_SOURCE
 
-from . import HORIZON_PRESET_CUSTOM, get_custom_tiers_schema, get_hub_setup_schema, get_tier_config
+from . import convert_horizon_days_to_minutes, get_custom_tiers_schema, get_default_tier_config, get_hub_setup_schema
 from .options import HubOptionsFlow
 
 _LOGGER = logging.getLogger(__name__)
@@ -33,7 +33,7 @@ _LOGGER = logging.getLogger(__name__)
 class HubConfigFlow(ConfigFlow, domain=DOMAIN):
     """Handle a config flow for HAEO hub creation."""
 
-    VERSION = 1
+    VERSION = 2
     MINOR_VERSION = 1
 
     def __init__(self) -> None:
@@ -45,6 +45,9 @@ class HubConfigFlow(ConfigFlow, domain=DOMAIN):
         errors: dict[str, str] = {}
 
         if user_input is not None:
+            # Convert horizon_days to horizon_duration_minutes
+            user_input = convert_horizon_days_to_minutes(user_input)
+
             # Validate that the name is unique
             hub_name = user_input[CONF_NAME]
             existing_names = [entry.title for entry in self.hass.config_entries.async_entries(DOMAIN)]
@@ -59,11 +62,7 @@ class HubConfigFlow(ConfigFlow, domain=DOMAIN):
                 # Store user input for later
                 self._user_input = user_input
 
-                # If custom preset selected, go to custom tiers step
-                if user_input[CONF_HORIZON_PRESET] == HORIZON_PRESET_CUSTOM:
-                    return await self.async_step_custom_tiers()
-
-                # Otherwise, create entry with preset values
+                # Create entry with default tier values
                 return await self._create_hub_entry()
 
         # Fetch the default hub name from translations
@@ -72,7 +71,7 @@ class HubConfigFlow(ConfigFlow, domain=DOMAIN):
         )
         default_hub_name = translations.get(f"component.{DOMAIN}.common.default_hub_name", "Home")
 
-        # Show simplified form with horizon preset dropdown
+        # Show simplified form with horizon duration selector
         return self.async_show_form(
             step_id="user",
             data_schema=get_hub_setup_schema(suggested_name=default_hub_name),
@@ -95,7 +94,15 @@ class HubConfigFlow(ConfigFlow, domain=DOMAIN):
     async def _create_hub_entry(self) -> ConfigFlowResult:
         """Create the hub entry with tier configuration."""
         hub_name = self._user_input[CONF_NAME]
-        tier_config, stored_preset = get_tier_config(self._user_input, self._user_input.get(CONF_HORIZON_PRESET))
+
+        # Get tier config - use horizon from user input
+        horizon_minutes = self._user_input.get(CONF_HORIZON_DURATION_MINUTES)
+        tier_config = get_default_tier_config(horizon_minutes)
+
+        # Override with any custom tier values
+        for key in tier_config:
+            if key in self._user_input:
+                tier_config[key] = self._user_input[key]
 
         # Resolve the switchboard node name from translations
         translations = await async_get_translations(
@@ -105,13 +112,11 @@ class HubConfigFlow(ConfigFlow, domain=DOMAIN):
         network_subentry_name = translations[f"component.{DOMAIN}.common.network_subentry_name"]
 
         # Create the hub entry with initial subentries
-        # Update interval and debounce use defaults (can be changed in options/edit)
         return self.async_create_entry(
             title=hub_name,
             data={
                 CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
                 CONF_NAME: hub_name,
-                CONF_HORIZON_PRESET: stored_preset,
                 **tier_config,
                 CONF_UPDATE_INTERVAL_MINUTES: DEFAULT_UPDATE_INTERVAL_MINUTES,
                 CONF_DEBOUNCE_SECONDS: DEFAULT_DEBOUNCE_SECONDS,

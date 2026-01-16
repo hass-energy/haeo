@@ -1,23 +1,16 @@
 """Base classes and utilities for HAEO config flows."""
 
 import logging
-from typing import Any, Final
+from typing import Final
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.helpers.selector import (
-    NumberSelector,
-    NumberSelectorConfig,
-    NumberSelectorMode,
-    SelectSelector,
-    SelectSelectorConfig,
-    SelectSelectorMode,
-)
+from homeassistant.helpers.selector import NumberSelector, NumberSelectorConfig, NumberSelectorMode
 import voluptuous as vol
 
 from custom_components.haeo.const import (
     CONF_ADVANCED_MODE,
     CONF_DEBOUNCE_SECONDS,
-    CONF_HORIZON_PRESET,
+    CONF_HORIZON_DURATION_MINUTES,
     CONF_NAME,
     CONF_TIER_1_COUNT,
     CONF_TIER_1_DURATION,
@@ -25,75 +18,43 @@ from custom_components.haeo.const import (
     CONF_TIER_2_DURATION,
     CONF_TIER_3_COUNT,
     CONF_TIER_3_DURATION,
-    CONF_TIER_4_COUNT,
     CONF_TIER_4_DURATION,
     CONF_UPDATE_INTERVAL_MINUTES,
     DEFAULT_DEBOUNCE_SECONDS,
+    DEFAULT_HORIZON_DURATION_MINUTES,
     DEFAULT_TIER_1_COUNT,
     DEFAULT_TIER_1_DURATION,
     DEFAULT_TIER_2_COUNT,
     DEFAULT_TIER_2_DURATION,
     DEFAULT_TIER_3_COUNT,
     DEFAULT_TIER_3_DURATION,
-    DEFAULT_TIER_4_COUNT,
     DEFAULT_TIER_4_DURATION,
     DEFAULT_UPDATE_INTERVAL_MINUTES,
 )
 
 _LOGGER = logging.getLogger(__name__)
 
-# Horizon preset options
-HORIZON_PRESET_2_DAYS: Final = "2_days"
-HORIZON_PRESET_3_DAYS: Final = "3_days"
-HORIZON_PRESET_5_DAYS: Final = "5_days"  # Default
-HORIZON_PRESET_7_DAYS: Final = "7_days"
-HORIZON_PRESET_CUSTOM: Final = "custom"
+# Configuration key for horizon input in days (UI only, converted to minutes for storage)
+CONF_HORIZON_DAYS: Final = "horizon_days"
 
-HORIZON_PRESET_OPTIONS: Final = [
-    HORIZON_PRESET_2_DAYS,
-    HORIZON_PRESET_3_DAYS,
-    HORIZON_PRESET_5_DAYS,
-    HORIZON_PRESET_7_DAYS,
-    HORIZON_PRESET_CUSTOM,
-]
+# Minimum horizon: 2 days in minutes
+MIN_HORIZON_MINUTES: Final = 2 * 24 * 60
+# Maximum horizon: 14 days in minutes
+MAX_HORIZON_MINUTES: Final = 14 * 24 * 60
 
 
-def _create_horizon_preset(days: int) -> dict[str, int]:
-    """Create tier configuration for a given horizon in days.
+def convert_horizon_days_to_minutes(user_input: dict) -> dict:
+    """Convert horizon_days from user input to horizon_duration_minutes.
 
-    The configuration uses:
-    - Tier 1: 5 x 1-minute intervals (5 minutes)
-    - Tier 2: 11 x 5-minute intervals (55 minutes, cumulative 60 minutes)
-    - Tier 3: 46 x 30-minute intervals (1 day cumulative)
-    - Tier 4: 60-minute intervals for the remainder
-
+    This function should be called after schema validation to convert the
+    UI-friendly days value to the stored minutes value.
     """
-    min_days = 2
-    if days < min_days:
-        msg = f"Horizon must be at least {min_days} days"
-        raise ValueError(msg)
+    if CONF_HORIZON_DAYS in user_input:
+        days = user_input.pop(CONF_HORIZON_DAYS)
+        user_input[CONF_HORIZON_DURATION_MINUTES] = int(days) * 24 * 60
+    return user_input
 
-    total_minutes = days * 24 * 60
-
-    return {
-        CONF_TIER_1_COUNT: 5,
-        CONF_TIER_1_DURATION: 1,
-        CONF_TIER_2_COUNT: 11,
-        CONF_TIER_2_DURATION: 5,
-        CONF_TIER_3_COUNT: 46,
-        CONF_TIER_3_DURATION: 30,
-        CONF_TIER_4_COUNT: (total_minutes - 1440) // 60,
-        CONF_TIER_4_DURATION: 60,
-    }
-
-
-HORIZON_PRESETS: Final[dict[str, dict[str, int]]] = {
-    HORIZON_PRESET_2_DAYS: _create_horizon_preset(2),
-    HORIZON_PRESET_3_DAYS: _create_horizon_preset(3),
-    HORIZON_PRESET_5_DAYS: _create_horizon_preset(5),
-    HORIZON_PRESET_7_DAYS: _create_horizon_preset(7),
-}
-
+# Tier configuration keys (for reference)
 TIER_CONF_KEYS: Final = [
     CONF_TIER_1_COUNT,
     CONF_TIER_1_DURATION,
@@ -101,25 +62,47 @@ TIER_CONF_KEYS: Final = [
     CONF_TIER_2_DURATION,
     CONF_TIER_3_COUNT,
     CONF_TIER_3_DURATION,
-    CONF_TIER_4_COUNT,
     CONF_TIER_4_DURATION,
 ]
 
 
-def get_tier_config(user_input: dict[str, Any], horizon_preset: str | None) -> tuple[dict[str, int], str]:
-    """Get tier config from preset or user input.
+def get_default_tier_config(horizon_minutes: int | None = None) -> dict[str, int]:
+    """Get default tier configuration.
 
     Args:
-        user_input: User input dictionary containing tier values (if custom)
-        horizon_preset: The selected horizon preset or None
+        horizon_minutes: Optional horizon duration in minutes. Defaults to 5 days.
 
     Returns:
-        Tuple of (tier_config dict, stored_preset string)
+        Dictionary with tier configuration keys.
 
     """
-    if horizon_preset and horizon_preset != HORIZON_PRESET_CUSTOM:
-        return HORIZON_PRESETS[horizon_preset], horizon_preset
-    return {key: user_input[key] for key in TIER_CONF_KEYS}, HORIZON_PRESET_CUSTOM
+    return {
+        CONF_TIER_1_COUNT: DEFAULT_TIER_1_COUNT,
+        CONF_TIER_1_DURATION: DEFAULT_TIER_1_DURATION,
+        CONF_TIER_2_COUNT: DEFAULT_TIER_2_COUNT,
+        CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
+        CONF_TIER_3_COUNT: DEFAULT_TIER_3_COUNT,
+        CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
+        CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
+        CONF_HORIZON_DURATION_MINUTES: horizon_minutes or DEFAULT_HORIZON_DURATION_MINUTES,
+    }
+
+
+def horizon_minutes_to_display(horizon_minutes: int) -> tuple[str, int]:
+    """Convert horizon minutes to display unit and value.
+
+    Args:
+        horizon_minutes: Horizon duration in minutes.
+
+    Returns:
+        Tuple of (unit, value) for display.
+
+    """
+    if horizon_minutes % (24 * 60) == 0:
+        return HORIZON_UNIT_DAYS, horizon_minutes // (24 * 60)
+    if horizon_minutes % 60 == 0:
+        return HORIZON_UNIT_HOURS, horizon_minutes // 60
+    return HORIZON_UNIT_MINUTES, horizon_minutes
 
 
 def get_hub_setup_schema(suggested_name: str | None = None) -> vol.Schema:
@@ -129,8 +112,12 @@ def get_hub_setup_schema(suggested_name: str | None = None) -> vol.Schema:
         suggested_name: Optional suggested name for the hub (translatable default)
 
     Returns:
-        Voluptuous schema with name, horizon preset, and basic settings.
+        Voluptuous schema with name, horizon duration (in days), and basic settings.
         Update interval and debounce settings are hidden during add and use defaults.
+
+    Note:
+        The schema uses CONF_HORIZON_DAYS for UI input. Call convert_horizon_days_to_minutes()
+        on user_input after validation to convert to CONF_HORIZON_DURATION_MINUTES.
 
     """
     name_key = (
@@ -138,6 +125,9 @@ def get_hub_setup_schema(suggested_name: str | None = None) -> vol.Schema:
         if suggested_name
         else vol.Required(CONF_NAME)
     )
+
+    # Default: 5 days
+    default_days = DEFAULT_HORIZON_DURATION_MINUTES // (24 * 60)
 
     return vol.Schema(
         {
@@ -147,12 +137,17 @@ def get_hub_setup_schema(suggested_name: str | None = None) -> vol.Schema:
                 vol.Length(min=1, msg="Name cannot be empty"),
                 vol.Length(max=255, msg="Name cannot be longer than 255 characters"),
             ),
-            vol.Required(CONF_HORIZON_PRESET, default=HORIZON_PRESET_5_DAYS): SelectSelector(
-                SelectSelectorConfig(
-                    options=HORIZON_PRESET_OPTIONS,
-                    mode=SelectSelectorMode.DROPDOWN,
-                    translation_key="horizon_preset",
-                )
+            vol.Required(CONF_HORIZON_DAYS, default=default_days): vol.All(
+                NumberSelector(
+                    NumberSelectorConfig(
+                        min=2,
+                        max=14,
+                        step=1,
+                        mode=NumberSelectorMode.SLIDER,
+                        unit_of_measurement="days",
+                    )
+                ),
+                vol.Coerce(int),
             ),
             vol.Required(CONF_ADVANCED_MODE, default=False): bool,
         }
@@ -166,12 +161,12 @@ def get_custom_tiers_schema(config_entry: ConfigEntry | None = None) -> vol.Sche
         config_entry: Optional config entry to get current values from
 
     Returns:
-        Voluptuous schema with all tier configuration fields.
+        Voluptuous schema with tier configuration fields (counts are minimums).
 
     """
     return vol.Schema(
         {
-            # Tier 1: Fine-grained near-term intervals
+            # Tier 1: Fine-grained near-term intervals (minimum count)
             vol.Required(
                 CONF_TIER_1_COUNT,
                 default=config_entry.data.get(CONF_TIER_1_COUNT, DEFAULT_TIER_1_COUNT)
@@ -190,7 +185,7 @@ def get_custom_tiers_schema(config_entry: ConfigEntry | None = None) -> vol.Sche
                 NumberSelector(NumberSelectorConfig(min=1, max=60, step=1, mode=NumberSelectorMode.BOX)),
                 vol.Coerce(int),
             ),
-            # Tier 2: Short-term intervals
+            # Tier 2: Short-term intervals (minimum count)
             vol.Required(
                 CONF_TIER_2_COUNT,
                 default=config_entry.data.get(CONF_TIER_2_COUNT, DEFAULT_TIER_2_COUNT)
@@ -209,7 +204,7 @@ def get_custom_tiers_schema(config_entry: ConfigEntry | None = None) -> vol.Sche
                 NumberSelector(NumberSelectorConfig(min=1, max=60, step=1, mode=NumberSelectorMode.BOX)),
                 vol.Coerce(int),
             ),
-            # Tier 3: Medium-term intervals
+            # Tier 3: Medium-term intervals (minimum count)
             vol.Required(
                 CONF_TIER_3_COUNT,
                 default=config_entry.data.get(CONF_TIER_3_COUNT, DEFAULT_TIER_3_COUNT)
@@ -228,16 +223,7 @@ def get_custom_tiers_schema(config_entry: ConfigEntry | None = None) -> vol.Sche
                 NumberSelector(NumberSelectorConfig(min=1, max=120, step=1, mode=NumberSelectorMode.BOX)),
                 vol.Coerce(int),
             ),
-            # Tier 4: Long-term intervals
-            vol.Required(
-                CONF_TIER_4_COUNT,
-                default=config_entry.data.get(CONF_TIER_4_COUNT, DEFAULT_TIER_4_COUNT)
-                if config_entry
-                else DEFAULT_TIER_4_COUNT,
-            ): vol.All(
-                NumberSelector(NumberSelectorConfig(min=0, max=200, step=1, mode=NumberSelectorMode.BOX)),
-                vol.Coerce(int),
-            ),
+            # Tier 4: Long-term intervals (duration only, count computed at runtime)
             vol.Required(
                 CONF_TIER_4_DURATION,
                 default=config_entry.data.get(CONF_TIER_4_DURATION, DEFAULT_TIER_4_DURATION)
@@ -245,6 +231,24 @@ def get_custom_tiers_schema(config_entry: ConfigEntry | None = None) -> vol.Sche
                 else DEFAULT_TIER_4_DURATION,
             ): vol.All(
                 NumberSelector(NumberSelectorConfig(min=1, max=240, step=1, mode=NumberSelectorMode.BOX)),
+                vol.Coerce(int),
+            ),
+            # Horizon duration in minutes
+            vol.Required(
+                CONF_HORIZON_DURATION_MINUTES,
+                default=config_entry.data.get(CONF_HORIZON_DURATION_MINUTES, DEFAULT_HORIZON_DURATION_MINUTES)
+                if config_entry
+                else DEFAULT_HORIZON_DURATION_MINUTES,
+            ): vol.All(
+                NumberSelector(
+                    NumberSelectorConfig(
+                        min=MIN_HORIZON_MINUTES,
+                        max=MAX_HORIZON_MINUTES,
+                        step=60,
+                        mode=NumberSelectorMode.BOX,
+                        unit_of_measurement="minutes",
+                    )
+                ),
                 vol.Coerce(int),
             ),
         }
@@ -258,20 +262,30 @@ def get_hub_options_schema(config_entry: ConfigEntry) -> vol.Schema:
         config_entry: Config entry to get current values from
 
     Returns:
-        Voluptuous schema with horizon preset dropdown and basic settings.
+        Voluptuous schema with horizon duration (in days) and basic settings.
+
+    Note:
+        The schema uses CONF_HORIZON_DAYS for UI input. Call convert_horizon_days_to_minutes()
+        on user_input after validation to convert to CONF_HORIZON_DURATION_MINUTES.
 
     """
-    # Get stored preset, defaulting to 5_days if not stored
-    current_preset = config_entry.data.get(CONF_HORIZON_PRESET, HORIZON_PRESET_5_DAYS)
+    # Get current horizon in days (rounded)
+    current_horizon_minutes = config_entry.data.get(CONF_HORIZON_DURATION_MINUTES, DEFAULT_HORIZON_DURATION_MINUTES)
+    current_days = current_horizon_minutes // (24 * 60)
 
     return vol.Schema(
         {
-            vol.Required(CONF_HORIZON_PRESET, default=current_preset): SelectSelector(
-                SelectSelectorConfig(
-                    options=HORIZON_PRESET_OPTIONS,
-                    mode=SelectSelectorMode.DROPDOWN,
-                    translation_key="horizon_preset",
-                )
+            vol.Required(CONF_HORIZON_DAYS, default=current_days): vol.All(
+                NumberSelector(
+                    NumberSelectorConfig(
+                        min=2,
+                        max=14,
+                        step=1,
+                        mode=NumberSelectorMode.SLIDER,
+                        unit_of_measurement="days",
+                    )
+                ),
+                vol.Coerce(int),
             ),
             vol.Required(
                 CONF_UPDATE_INTERVAL_MINUTES,

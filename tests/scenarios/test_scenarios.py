@@ -17,6 +17,7 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.haeo.const import (
     CONF_ELEMENT_TYPE,
+    CONF_HORIZON_DURATION_MINUTES,
     CONF_NAME,
     CONF_TIER_1_COUNT,
     CONF_TIER_1_DURATION,
@@ -24,7 +25,6 @@ from custom_components.haeo.const import (
     CONF_TIER_2_DURATION,
     CONF_TIER_3_COUNT,
     CONF_TIER_3_DURATION,
-    CONF_TIER_4_COUNT,
     CONF_TIER_4_DURATION,
     DOMAIN,
     INTEGRATION_TYPE_HUB,
@@ -76,19 +76,32 @@ async def test_scenarios(
 
         # Create hub config entry and add to hass
         scenario_config = scenario_data["config"]
+
+        # Calculate horizon_duration_minutes from legacy tier_4_count if present
+        if "horizon_duration_minutes" in scenario_config:
+            horizon_minutes = scenario_config["horizon_duration_minutes"]
+        else:
+            # Legacy config: calculate from tier counts
+            horizon_minutes = (
+                scenario_config.get("tier_1_count", 5) * scenario_config.get("tier_1_duration", 1)
+                + scenario_config.get("tier_2_count", 11) * scenario_config.get("tier_2_duration", 5)
+                + scenario_config.get("tier_3_count", 46) * scenario_config.get("tier_3_duration", 30)
+                + scenario_config.get("tier_4_count", 48) * scenario_config.get("tier_4_duration", 60)
+            )
+
         mock_config_entry = MockConfigEntry(
             domain=DOMAIN,
             data={
                 "integration_type": INTEGRATION_TYPE_HUB,
                 CONF_NAME: "Test Hub",
-                CONF_TIER_1_COUNT: scenario_config["tier_1_count"],
-                CONF_TIER_1_DURATION: scenario_config["tier_1_duration"],
-                CONF_TIER_2_COUNT: scenario_config.get("tier_2_count", 0),
+                CONF_TIER_1_COUNT: scenario_config.get("tier_1_count", 5),
+                CONF_TIER_1_DURATION: scenario_config.get("tier_1_duration", 1),
+                CONF_TIER_2_COUNT: scenario_config.get("tier_2_count", 6),
                 CONF_TIER_2_DURATION: scenario_config.get("tier_2_duration", 5),
-                CONF_TIER_3_COUNT: scenario_config.get("tier_3_count", 0),
+                CONF_TIER_3_COUNT: scenario_config.get("tier_3_count", 4),
                 CONF_TIER_3_DURATION: scenario_config.get("tier_3_duration", 30),
-                CONF_TIER_4_COUNT: scenario_config.get("tier_4_count", 0),
                 CONF_TIER_4_DURATION: scenario_config.get("tier_4_duration", 60),
+                CONF_HORIZON_DURATION_MINUTES: horizon_minutes,
             },
         )
         mock_config_entry.add_to_hass(hass)
