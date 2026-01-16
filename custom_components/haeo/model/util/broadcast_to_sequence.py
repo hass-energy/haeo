@@ -14,9 +14,7 @@ def broadcast_to_sequence(value: None, n_periods: int) -> None: ...
 def broadcast_to_sequence(value: NDArray[np.floating[Any]], n_periods: int) -> NDArray[np.float64]: ...
 
 
-def broadcast_to_sequence(
-    value: NDArray[np.floating[Any]] | None, n_periods: int
-) -> NDArray[np.float64] | None:
+def broadcast_to_sequence(value: NDArray[np.floating[Any]] | None, n_periods: int) -> NDArray[np.float64] | None:
     """Broadcast an array to match n_periods.
 
     For single values, broadcasts to n_periods length.

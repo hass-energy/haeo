@@ -4,6 +4,7 @@ from collections.abc import Sequence
 
 from highspy import Highs
 from highspy.highs import highs_linear_expression
+import numpy as np
 
 from custom_components.haeo.model.element import Element
 from custom_components.haeo.model.elements.battery import Battery
@@ -393,7 +394,7 @@ def test_constraint_without_output_flag() -> None:
         name="test",
         periods=[1.0, 1.0],
         solver=h,
-        capacity=[10.0, 10.0, 10.0],
+        capacity=np.array([10.0, 10.0, 10.0]),
         initial_charge=5.0,
     )
 

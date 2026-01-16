@@ -482,8 +482,8 @@ def test_network_add_connection_updates_prices() -> None:
             "name": "conn",
             "source": "source",
             "target": "sink",
-            "max_power_source_target": [5.0],
-            "price_source_target": [-0.20],
+            "max_power_source_target": np.array([5.0]),
+            "price_source_target": np.array([-0.20]),
         },
     )
 

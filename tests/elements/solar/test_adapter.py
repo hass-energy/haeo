@@ -79,5 +79,5 @@ async def test_load_with_optional_fields(hass: HomeAssistant) -> None:
 
     result = await solar.adapter.load(config, hass=hass, forecast_times=FORECAST_TIMES)
 
-    _assert_array_equal(result.get("price_production"), [0.02, 0.02])
+    _assert_array_equal(result.get("price_production"), [0.02])
     assert result.get("curtailment") is False

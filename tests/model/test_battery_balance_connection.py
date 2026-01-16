@@ -17,7 +17,7 @@ constraints (E >= 0, E <= C) fully bind the solution to exact values.
 """
 
 from dataclasses import dataclass
-from typing import Self
+from typing import Any, Self
 
 from highspy import Highs
 from highspy.highs import HighspyArray
@@ -345,8 +345,8 @@ def test_battery_balance_connection_missing_references(solver: Highs) -> None:
 
 def test_battery_balance_connection_outputs_structure(solver: Highs) -> None:
     """Verify outputs method returns expected structure before optimization."""
-    upper = MockBattery.create("upper", 2, 10.0, 5.0, solver)
-    lower = MockBattery.create("lower", 2, 10.0, 3.0, solver)
+    upper = MockBattery.create("upper", 2, np.array([10.0]), 5.0, solver)
+    lower = MockBattery.create("lower", 2, np.array([10.0]), 3.0, solver)
 
     connection = BatteryBalanceConnection(
         name="balance",

@@ -57,8 +57,8 @@ def test_update_element_updates_tracked_params() -> None:
         CONF_NAME: "conn",
         CONF_SOURCE: "source",
         CONF_TARGET: "target",
-        CONF_MAX_POWER_SOURCE_TARGET: [20.0, 20.0],
-        CONF_MAX_POWER_TARGET_SOURCE: [15.0, 15.0],
+        CONF_MAX_POWER_SOURCE_TARGET: np.array([20.0, 20.0]),
+        CONF_MAX_POWER_TARGET_SOURCE: np.array([15.0, 15.0]),
     }
     update_element(network, config)
 
@@ -81,8 +81,8 @@ def test_update_element_raises_for_missing_model_element() -> None:
         CONF_NAME: "nonexistent_conn",
         CONF_SOURCE: "source",
         CONF_TARGET: "target",
-        CONF_MAX_POWER_SOURCE_TARGET: [20.0, 20.0],
-        CONF_MAX_POWER_TARGET_SOURCE: [15.0, 15.0],
+        CONF_MAX_POWER_SOURCE_TARGET: np.array([20.0, 20.0]),
+        CONF_MAX_POWER_TARGET_SOURCE: np.array([15.0, 15.0]),
     }
 
     with pytest.raises(ValueError, match="Model element 'nonexistent_conn' not found in network during update"):

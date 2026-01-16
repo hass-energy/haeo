@@ -193,9 +193,7 @@ class BatteryAdapter:
             "name": config["name"],
             "connection": config[CONF_CONNECTION],
             "capacity": capacity,
-            "initial_charge_percentage": np.asarray(
-                loaded_values["initial_charge_percentage"], dtype=float
-            ),
+            "initial_charge_percentage": np.asarray(loaded_values["initial_charge_percentage"], dtype=float),
             "min_charge_percentage": min_charge,
             "max_charge_percentage": max_charge,
             "efficiency": efficiency,
@@ -212,19 +210,13 @@ class BatteryAdapter:
             data["discharge_cost"] = np.asarray(loaded_values[CONF_DISCHARGE_COST], dtype=float)
 
         if CONF_EARLY_CHARGE_INCENTIVE in loaded_values:
-            data["early_charge_incentive"] = np.asarray(
-                loaded_values[CONF_EARLY_CHARGE_INCENTIVE], dtype=float
-            )
+            data["early_charge_incentive"] = np.asarray(loaded_values[CONF_EARLY_CHARGE_INCENTIVE], dtype=float)
 
         if CONF_UNDERCHARGE_PERCENTAGE in loaded_values:
-            data["undercharge_percentage"] = np.asarray(
-                loaded_values[CONF_UNDERCHARGE_PERCENTAGE], dtype=float
-            )
+            data["undercharge_percentage"] = np.asarray(loaded_values[CONF_UNDERCHARGE_PERCENTAGE], dtype=float)
 
         if CONF_OVERCHARGE_PERCENTAGE in loaded_values:
-            data["overcharge_percentage"] = np.asarray(
-                loaded_values[CONF_OVERCHARGE_PERCENTAGE], dtype=float
-            )
+            data["overcharge_percentage"] = np.asarray(loaded_values[CONF_OVERCHARGE_PERCENTAGE], dtype=float)
 
         if CONF_UNDERCHARGE_COST in loaded_values:
             data["undercharge_cost"] = np.asarray(loaded_values[CONF_UNDERCHARGE_COST], dtype=float)
@@ -341,9 +333,7 @@ class BatteryAdapter:
         # Calculate early charge/discharge incentives (use first period if present)
         early_charge_list = config.get("early_charge_incentive")
         early_charge_incentive = (
-            float(early_charge_list[0])
-            if early_charge_list is not None
-            else DEFAULTS[CONF_EARLY_CHARGE_INCENTIVE]
+            float(early_charge_list[0]) if early_charge_list is not None else DEFAULTS[CONF_EARLY_CHARGE_INCENTIVE]
         )
 
         # Determine unusable ratio for initial charge calculation
@@ -498,11 +488,7 @@ class BatteryAdapter:
 
         # 7. Create connection from internal node to target
         # Time-varying early charge incentive applied here (charge earlier in horizon)
-        ramp = (
-            np.arange(n_periods, dtype=float) / max(n_periods - 1, 1)
-            if n_periods
-            else np.array([], dtype=float)
-        )
+        ramp = np.arange(n_periods, dtype=float) / max(n_periods - 1, 1) if n_periods else np.array([], dtype=float)
         charge_early_incentive = -early_charge_incentive + (early_charge_incentive * ramp)
         discharge_early_incentive = early_charge_incentive + (early_charge_incentive * ramp)
 

@@ -130,29 +130,17 @@ class ConnectionAdapter:
 
         # Optional time series fields
         if CONF_MAX_POWER_SOURCE_TARGET in loaded_values:
-            data["max_power_source_target"] = np.asarray(
-                loaded_values[CONF_MAX_POWER_SOURCE_TARGET], dtype=float
-            )
+            data["max_power_source_target"] = np.asarray(loaded_values[CONF_MAX_POWER_SOURCE_TARGET], dtype=float)
         if CONF_MAX_POWER_TARGET_SOURCE in loaded_values:
-            data["max_power_target_source"] = np.asarray(
-                loaded_values[CONF_MAX_POWER_TARGET_SOURCE], dtype=float
-            )
+            data["max_power_target_source"] = np.asarray(loaded_values[CONF_MAX_POWER_TARGET_SOURCE], dtype=float)
         if CONF_EFFICIENCY_SOURCE_TARGET in loaded_values:
-            data["efficiency_source_target"] = np.asarray(
-                loaded_values[CONF_EFFICIENCY_SOURCE_TARGET], dtype=float
-            )
+            data["efficiency_source_target"] = np.asarray(loaded_values[CONF_EFFICIENCY_SOURCE_TARGET], dtype=float)
         if CONF_EFFICIENCY_TARGET_SOURCE in loaded_values:
-            data["efficiency_target_source"] = np.asarray(
-                loaded_values[CONF_EFFICIENCY_TARGET_SOURCE], dtype=float
-            )
+            data["efficiency_target_source"] = np.asarray(loaded_values[CONF_EFFICIENCY_TARGET_SOURCE], dtype=float)
         if CONF_PRICE_SOURCE_TARGET in loaded_values:
-            data["price_source_target"] = np.asarray(
-                loaded_values[CONF_PRICE_SOURCE_TARGET], dtype=float
-            )
+            data["price_source_target"] = np.asarray(loaded_values[CONF_PRICE_SOURCE_TARGET], dtype=float)
         if CONF_PRICE_TARGET_SOURCE in loaded_values:
-            data["price_target_source"] = np.asarray(
-                loaded_values[CONF_PRICE_TARGET_SOURCE], dtype=float
-            )
+            data["price_target_source"] = np.asarray(loaded_values[CONF_PRICE_TARGET_SOURCE], dtype=float)
 
         return data
 
@@ -223,33 +211,21 @@ class ConnectionAdapter:
                     "efficiency": {
                         "segment_type": "efficiency",
                         "efficiency_source_target": (
-                            efficiency_source_target / 100.0
-                            if efficiency_source_target is not None
-                            else None
+                            efficiency_source_target / 100.0 if efficiency_source_target is not None else None
                         ),
                         "efficiency_target_source": (
-                            efficiency_target_source / 100.0
-                            if efficiency_target_source is not None
-                            else None
+                            efficiency_target_source / 100.0 if efficiency_target_source is not None else None
                         ),
                     },
                     "power_limit": {
                         "segment_type": "power_limit",
-                        "max_power_source_target": (
-                            max_power_source_target
-                        ),
-                        "max_power_target_source": (
-                            max_power_target_source
-                        ),
+                        "max_power_source_target": (max_power_source_target),
+                        "max_power_target_source": (max_power_target_source),
                     },
                     "pricing": {
                         "segment_type": "pricing",
-                        "price_source_target": (
-                            price_source_target
-                        ),
-                        "price_target_source": (
-                            price_target_source
-                        ),
+                        "price_source_target": (price_source_target),
+                        "price_target_source": (price_target_source),
                     },
                 },
             }
