@@ -443,22 +443,23 @@ class BatteryAdapter:
             else:
                 discharge_price = None
 
-            section_connection: ModelElementConfig = {
-                "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
-                "name": f"{section_name}:to_node",
-                "source": section_name,
-                "target": node_name,
-                "segments": {
-                    "pricing": {
-                        "segment_type": "pricing",
-                        "price_source_target": (
-                            np.array(discharge_price) if discharge_price is not None else None
-                        ),  # Undercharge penalty when discharging
-                        "price_target_source": None,
-                    }
-                },
-            }
-            elements.append(section_connection)
+            elements.append(
+                {
+                    "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
+                    "name": f"{section_name}:to_node",
+                    "source": section_name,
+                    "target": node_name,
+                    "segments": {
+                        "pricing": {
+                            "segment_type": "pricing",
+                            "price_source_target": (
+                                np.array(discharge_price) if discharge_price is not None else None
+                            ),  # Undercharge penalty when discharging
+                            "price_target_source": None,
+                        }
+                    },
+                }
+            )
 
         # 6. Create balance connections between adjacent sections (enforces fill ordering)
         # Balance connections ensure lower sections fill before upper sections
