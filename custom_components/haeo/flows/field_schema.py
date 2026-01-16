@@ -250,7 +250,7 @@ def build_choose_selector(
     # Build ordered choices dict with preferred choice first
     # (ChooseSelector always selects the first option)
     choices: dict[str, ChooseSelectorChoiceConfig]
-    none_selector = ConstantSelector(ConstantSelectorConfig(value="", label="Field is not used"))
+    none_selector = ConstantSelector(ConstantSelectorConfig(value=""))
     none_choice = ChooseSelectorChoiceConfig(selector=none_selector.serialize()["selector"])
 
     if is_optional and preferred_choice == CHOICE_NONE:
@@ -419,13 +419,13 @@ def convert_choose_data_to_config(
 ) -> dict[str, Any]:
     """Convert choose selector user input to final config format.
 
-    After schema validation, the ChooseSelector returns the inner value directly:
+    After preprocessing, the user input contains:
     - Entity selection: list of entity IDs (e.g., ["sensor.x"])
     - Constant: scalar value (e.g., 10.0 or True)
-    - Disabled: empty string ("")
+    - Disabled/None choice: None
 
     Args:
-        user_input: User input from the form (after schema validation).
+        user_input: User input from the form (after preprocessing).
         input_fields: Tuple of input field metadata.
         exclude_keys: Keys to exclude from processing (e.g., name, connection).
 
@@ -434,7 +434,7 @@ def convert_choose_data_to_config(
         - Constant fields: stored as float/bool
         - Entity fields with single entity: stored as str
         - Entity fields with multiple entities: stored as list[str]
-        - Empty/None/Disabled fields: omitted
+        - None/Disabled fields: omitted
 
     """
     config: dict[str, Any] = {}
@@ -446,12 +446,8 @@ def convert_choose_data_to_config(
         if field_name not in field_names:
             continue
 
-        # Skip None values
+        # Skip None values (disabled/none choice)
         if value is None:
-            continue
-
-        # Disabled choice returns empty string - skip
-        if value == "":
             continue
 
         # Entity selection: list of entity IDs
@@ -492,9 +488,12 @@ def preprocess_choose_selector_input(
     choice's value is included when submitting a different choice.
 
     Converts to expected format:
-    - "none" choice -> "" (empty string)
+    - "none" choice -> None (field will be omitted from config)
     - "entity" choice -> extract entity list
     - "constant" choice -> extract constant value
+
+    Also converts empty strings "" to None for consistency, since HA's
+    ConstantSelector returns "" but we use None internally.
 
     Args:
         user_input: User input from the form submission.
@@ -512,14 +511,19 @@ def preprocess_choose_selector_input(
 
     for field_name in field_names:
         value = result.get(field_name)
+
+        # Handle raw dict format from frontend bug
         if isinstance(value, dict) and "active_choice" in value:
             choice = value.get("active_choice")
             if choice == CHOICE_NONE:
-                result[field_name] = ""  # ConstantSelector expects empty string
+                result[field_name] = None
             elif choice == CHOICE_ENTITY:
                 result[field_name] = value.get(CHOICE_ENTITY, [])
             elif choice == CHOICE_CONSTANT:
                 result[field_name] = value.get(CHOICE_CONSTANT)
+        # Convert empty string (from ConstantSelector) to None
+        elif value == "":
+            result[field_name] = None
 
     return result
 

@@ -570,13 +570,12 @@ def test_convert_choose_data_boolean_constant() -> None:
 def test_convert_choose_data_none_omits_field(
     number_field: InputFieldInfo[NumberEntityDescription],
 ) -> None:
-    """None choice (empty string) omits field from config.
+    """None choice omits field from config.
 
-    After schema validation, ChooseSelector with ConstantSelector(value="")
-    returns an empty string for the none choice.
+    After preprocessing, the none choice is converted to None.
     """
     user_input: dict[str, Any] = {
-        "test_field": "",  # Empty string from none ConstantSelector
+        "test_field": None,  # None from preprocessing (originally "" from ConstantSelector)
     }
     result = convert_choose_data_to_config(user_input, (number_field,))
     assert "test_field" not in result
@@ -781,10 +780,10 @@ def test_preprocess_choose_selector_input_none_returns_none(
     assert result is None
 
 
-def test_preprocess_choose_selector_input_none_choice_returns_empty_string(
+def test_preprocess_choose_selector_input_none_choice_returns_none(
     number_field: InputFieldInfo[NumberEntityDescription],
 ) -> None:
-    """preprocess_choose_selector_input converts none choice to empty string."""
+    """preprocess_choose_selector_input converts none choice to None."""
     from custom_components.haeo.flows.field_schema import preprocess_choose_selector_input
 
     user_input = {
@@ -792,7 +791,7 @@ def test_preprocess_choose_selector_input_none_choice_returns_empty_string(
     }
     result = preprocess_choose_selector_input(user_input, (number_field,))
     assert result is not None
-    assert result["test_field"] == ""
+    assert result["test_field"] is None
 
 
 def test_preprocess_choose_selector_input_entity_choice_extracts_entities(
@@ -841,11 +840,11 @@ def test_preprocess_choose_selector_input_already_normalized_passthrough(
     assert result is not None
     assert result["test_field"] == 50.0
 
-    # Already normalized empty string (none)
+    # Empty string (from ConstantSelector) is converted to None
     user_input_none = {"test_field": ""}
     result = preprocess_choose_selector_input(user_input_none, (number_field,))
     assert result is not None
-    assert result["test_field"] == ""
+    assert result["test_field"] is None
 
 
 def test_preprocess_choose_selector_input_ignores_non_field_keys(
@@ -861,7 +860,7 @@ def test_preprocess_choose_selector_input_ignores_non_field_keys(
     }
     result = preprocess_choose_selector_input(user_input, (number_field,))
     assert result is not None
-    assert result["test_field"] == ""
+    assert result["test_field"] is None  # Converted to None
     assert result["name"] == "Test Name"
     # other_field is not in input_fields, so it passes through as-is
     assert result["other_field"] == {"active_choice": "none"}
