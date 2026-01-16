@@ -5,6 +5,7 @@ Home Assistant's ChooseSelector, allowing users to pick between "Entity"
 (select from compatible sensors) or "Constant" (enter a value directly).
 """
 
+from collections.abc import Collection
 from typing import Any
 
 from homeassistant.components.number import NumberEntityDescription
@@ -555,7 +556,7 @@ def validate_choose_fields(
     input_fields: tuple[InputFieldInfo[Any], ...],
     optional_keys: frozenset[str],
     *,
-    exclude_fields: tuple[str, ...] = (),
+    exclude_fields: Collection[str] = (),
 ) -> dict[str, str]:
     """Validate that required choose fields have valid selections.
 
