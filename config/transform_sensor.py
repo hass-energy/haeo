@@ -140,35 +140,6 @@ def _parse_forecast_times(forecasts: ForecastList) -> list[tuple[datetime, JSOND
     return forecast_times
 
 
-def _find_closest_time_of_day_index(forecast_times: list[tuple[datetime, JSONDict]], now: datetime) -> int:
-    """Find index of forecast closest to current time-of-day.
-
-    Args:
-        forecast_times: Sorted list of (datetime, forecast) tuples
-        now: Current datetime for comparison
-
-    Returns:
-        Index of forecast with closest matching time-of-day
-
-    """
-    now_time_of_day = now.time()
-    now_minutes = now_time_of_day.hour * 60 + now_time_of_day.minute
-
-    closest_idx = 0
-    min_time_diff = float("inf")
-
-    for i, (ts, _) in enumerate(forecast_times):
-        forecast_time_of_day = ts.time()
-        forecast_minutes = forecast_time_of_day.hour * 60 + forecast_time_of_day.minute
-        time_diff = abs(now_minutes - forecast_minutes)
-
-        if time_diff < min_time_diff:
-            min_time_diff = time_diff
-            closest_idx = i
-
-    return closest_idx
-
-
 def _transform_forecast_timestamps(
     forecast: JSONDict,
     time_delta: timedelta,
@@ -217,16 +188,21 @@ def _transform_forecast_timestamps(
 
 
 def wrap_forecasts(data: JSONDict) -> JSONDict:
-    """Create 24-hour forecast window starting from current time-of-day (for Amber sensors).
+    """Shift all forecast timestamps to start from current 5-minute period (for Amber sensors).
 
-    Takes forecasts from the current time onwards and wraps around to show exactly
-    24 hours. Adjusts timestamps to show the 24-hour window starting from now.
+    Amber forecasts have 5-minute resolution for the next hour, then 30-minute
+    resolution further out. This transform shifts all timestamps forward so the
+    first forecast aligns with the current 5-minute period, preserving the original
+    structure and clock alignment.
+
+    Timestamps are snapped to 5-minute boundaries to ensure proper alignment
+    (e.g., if now is 14:57, the first forecast starts at 14:55:00).
 
     Args:
         data: Sensor data with "attributes.forecasts" list
 
     Returns:
-        Data with forecasts reordered and timestamps adjusted to start from now
+        Data with all forecast timestamps shifted to start from current 5-minute period
 
     """
     if "attributes" not in data or "forecasts" not in data["attributes"]:
@@ -238,39 +214,30 @@ def wrap_forecasts(data: JSONDict) -> JSONDict:
         logger.debug("Empty forecasts list")
         return data
 
+    # Round now to the current 5-minute boundary for clock-aligned output
+    # Amber forecasts are at 5-minute boundaries (e.g., 11:00, 11:05, 11:10)
+    # If now is 15:29, the current 5-minute period is 15:25-15:30
     now = datetime.now(UTC)
+    current_5min = now.replace(second=0, microsecond=0)
+    current_5min = current_5min.replace(minute=(current_5min.minute // 5) * 5)
+
     forecast_times = _parse_forecast_times(forecasts)
 
     if not forecast_times:
         logger.warning("No valid forecast times found")
         return data
 
-    closest_idx = _find_closest_time_of_day_index(forecast_times, now)
-    first_forecast_time = forecast_times[closest_idx][0]
-    base_time_delta = now - first_forecast_time
+    # Calculate time delta to shift first forecast to current 5-minute boundary
+    first_forecast_time = forecast_times[0][0]
+    # Also round the source timestamp to the 5-minute boundary
+    first_forecast_5min = first_forecast_time.replace(second=0, microsecond=0)
+    first_forecast_5min = first_forecast_5min.replace(minute=(first_forecast_5min.minute // 5) * 5)
+    time_delta = current_5min - first_forecast_5min
 
-    # Calculate wrap duration (time span of entire forecast period + gap)
-    last_time = forecast_times[-1][0]
-    first_time = forecast_times[0][0]
-    forecast_duration_seconds = (last_time - first_time).total_seconds()
-    gap_seconds = 300  # 5 minute gap between periods
-    wrap_duration = timedelta(seconds=forecast_duration_seconds + gap_seconds)
-
+    # Shift all forecasts by the same delta, preserving original order and spacing
     window_forecasts = []
-    for i in range(len(forecast_times)):
-        idx = (closest_idx + i) % len(forecast_times)
-        original_time, forecast = forecast_times[idx]
-
-        # Calculate position offset within original array
-        position_offset = timedelta(seconds=(original_time - first_forecast_time).total_seconds())
-
-        # Add wrap duration if we've wrapped around
-        if idx < closest_idx:
-            adjusted_delta = base_time_delta + wrap_duration + position_offset
-        else:
-            adjusted_delta = base_time_delta + position_offset
-
-        transformed_forecast = _transform_forecast_timestamps(forecast, adjusted_delta)
+    for _original_time, forecast in forecast_times:
+        transformed_forecast = _transform_forecast_timestamps(forecast, time_delta)
         window_forecasts.append(transformed_forecast)
 
     data["attributes"]["forecasts"] = window_forecasts

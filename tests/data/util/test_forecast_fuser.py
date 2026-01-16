@@ -90,7 +90,7 @@ from custom_components.haeo.data.util.forecast_fuser import fuse_to_boundaries, 
             30.0,
             [(0, 100.0), (2000, 200.0), (4000, 300.0)],
             [0, 500, 1500, 2500, 3500],  # Horizon boundaries don't align with forecast points
-            [30.0, 150.0, 200.0, 250.0],  # present@0, then trapezoidal averages from pure forecast
+            [30.0, 30.0, 200.0, 250.0],  # present until first future forecast (t=2000), then trapezoidal
             id="interpolation_between_forecast_points",
         ),
         pytest.param(
@@ -111,7 +111,7 @@ from custom_components.haeo.data.util.forecast_fuser import fuse_to_boundaries, 
             10.0,
             [(0, 100.0), (3000, 400.0)],  # Sparse forecast requiring interpolation
             [0, 1000, 2000, 3000, 4000],  # Multiple intervals between forecast points
-            [10.0, 250.0, 350.0, 398.2014388489209],  # present@0, then pure forecast averages
+            [10.0, 10.0, 10.0, 398.2014388489209],  # present until first future forecast (t=3000)
             id="sparse_forecast_multiple_interpolations",
         ),
         pytest.param(
@@ -131,13 +131,23 @@ from custom_components.haeo.data.util.forecast_fuser import fuse_to_boundaries, 
             ],
             [0, 500, 1000, 1500, 2000],
             # Interval [0,500]: present value override = 50.0
-            # Interval [500,1000]: trapezoidal from 500 to 1000, includes step at boundary
-            #   - Most of interval at 100, but includes point at t=1000 with value=200
-            #   - Result: ~150 (average of 100 and 200 at the boundary)
-            # Interval [1000,1500]: constant at 200
+            # Interval [500,1000]: present value extends to forecast boundary (t≈1000)
+            # Interval [1000,1500]: constant at 200 (forecast data)
             # Interval [1500,2000]: constant at 200
-            [50.0, 150.0, 200.0, 200.0],
+            [50.0, 50.0, 200.0, 200.0],
             id="step_function_integration",
+        ),
+        pytest.param(
+            0.16,  # Current price (e.g., $/kWh)
+            # Forecast has 5-minute (300s) boundaries: 300, 600, 900
+            [(300, 0.15), (600, 0.14), (900, 0.13)],
+            # T1 intervals: 1-minute (60s) each, starting at t=0
+            # Present value extends to all intervals ending at or before t=300
+            [0, 60, 120, 180, 240, 300, 360, 420],
+            # Intervals 0-4 end at 60,120,180,240,300 <= 300, all use present value
+            # Intervals 5-6 use forecast interpolation between points
+            [0.16, 0.16, 0.16, 0.16, 0.16, 0.149, 0.147],
+            id="t1_alignment_extends_present_to_forecast_boundary",
         ),
     ],
 )
