@@ -53,18 +53,18 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "name": "inverter_main:connection",
                 "source": "inverter_main",
                 "target": "network",
-                "segments": [
-                    {
+                "segments": {
+                    "efficiency": {
                         "segment_type": "efficiency",
                         "efficiency_source_target": 1.0,
                         "efficiency_target_source": 1.0,
                     },
-                    {
+                    "power_limit": {
                         "segment_type": "power_limit",
                         "max_power_source_target": [10.0],
                         "max_power_target_source": [10.0],
                     },
-                ],
+                },
             },
         ],
     },
@@ -86,18 +86,18 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "name": "inverter_simple:connection",
                 "source": "inverter_simple",
                 "target": "network",
-                "segments": [
-                    {
+                "segments": {
+                    "efficiency": {
                         "segment_type": "efficiency",
                         "efficiency_source_target": 1.0,
                         "efficiency_target_source": 1.0,
                     },
-                    {
+                    "power_limit": {
                         "segment_type": "power_limit",
                         "max_power_source_target": [10.0],
                         "max_power_target_source": [10.0],
                     },
-                ],
+                },
             },
         ],
     },

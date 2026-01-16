@@ -93,9 +93,13 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "name": "battery_main:undercharge:to_node",
                 "source": "battery_main:undercharge",
                 "target": "battery_main:node",
-                "segments": [
-                    {"segment_type": "pricing", "price_source_target": [0.03]},
-                ],
+                "segments": {
+                    "pricing": {
+                        "segment_type": "pricing",
+                        "price_source_target": [0.03],
+                        "price_target_source": None,
+                    }
+                },
             },
             # Normal connection: no penalty
             {
@@ -103,6 +107,13 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "name": "battery_main:normal:to_node",
                 "source": "battery_main:normal",
                 "target": "battery_main:node",
+                "segments": {
+                    "pricing": {
+                        "segment_type": "pricing",
+                        "price_source_target": None,
+                        "price_target_source": None,
+                    }
+                },
             },
             # Overcharge connection: penalty on charge (price_target_source)
             {
@@ -110,9 +121,13 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "name": "battery_main:overcharge:to_node",
                 "source": "battery_main:overcharge",
                 "target": "battery_main:node",
-                "segments": [
-                    {"segment_type": "pricing", "price_target_source": [0.04]},
-                ],
+                "segments": {
+                    "pricing": {
+                        "segment_type": "pricing",
+                        "price_source_target": None,
+                        "price_target_source": [0.04],
+                    }
+                },
             },
             # Balance connection: undercharge -> normal
             {
@@ -134,23 +149,23 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "name": "battery_main:connection",
                 "source": "battery_main:node",
                 "target": "network",
-                "segments": [
-                    {
+                "segments": {
+                    "efficiency": {
                         "segment_type": "efficiency",
                         "efficiency_source_target": [0.95],
                         "efficiency_target_source": [0.95],
                     },
-                    {
+                    "power_limit": {
                         "segment_type": "power_limit",
                         "max_power_source_target": [5.0],
                         "max_power_target_source": [5.0],
                     },
-                    {
+                    "pricing": {
                         "segment_type": "pricing",
                         "price_source_target": [0.03],  # early_discharge_incentive + discharge_cost
                         "price_target_source": [-0.01],
                     },
-                ],
+                },
             },
         ],
     },
@@ -189,6 +204,13 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "name": "battery_normal:normal:to_node",
                 "source": "battery_normal:normal",
                 "target": "battery_normal:node",
+                "segments": {
+                    "pricing": {
+                        "segment_type": "pricing",
+                        "price_source_target": None,
+                        "price_target_source": None,
+                    }
+                },
             },
             # Main connection to network
             {
@@ -196,23 +218,23 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "name": "battery_normal:connection",
                 "source": "battery_normal:node",
                 "target": "network",
-                "segments": [
-                    {
+                "segments": {
+                    "efficiency": {
                         "segment_type": "efficiency",
                         "efficiency_source_target": [0.95],
                         "efficiency_target_source": [0.95],
                     },
-                    {
+                    "power_limit": {
                         "segment_type": "power_limit",
                         "max_power_source_target": [5.0],
                         "max_power_target_source": [5.0],
                     },
-                    {
+                    "pricing": {
                         "segment_type": "pricing",
                         "price_source_target": [0.003],  # early_discharge_incentive + discharge_cost
                         "price_target_source": [-0.001],
                     },
-                ],
+                },
             },
         ],
     },

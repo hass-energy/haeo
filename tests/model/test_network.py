@@ -78,12 +78,12 @@ def test_connect_entities() -> None:
             "name": "battery1_to_grid1",
             "source": "battery1",
             "target": "grid1",
-            "segments": [
-                {
+            "segments": {
+                "power_limit": {
                     "segment_type": "power_limit",
                     "max_power_source_target": np.array([5000.0, 5000.0, 5000.0]),
                 }
-            ],
+            },
         }
     )
 
@@ -476,7 +476,7 @@ def test_network_cost_with_multiple_elements() -> None:
             "name": "conn1",
             "source": "source",
             "target": "target",
-            "segments": [{"segment_type": "pricing", "price_source_target": np.array([10.0, 20.0])}],
+            "segments": {"pricing": {"segment_type": "pricing", "price_source_target": np.array([10.0, 20.0])}},
         }
     )
     network.add(
@@ -485,7 +485,7 @@ def test_network_cost_with_multiple_elements() -> None:
             "name": "conn2",
             "source": "target",
             "target": "source",
-            "segments": [{"segment_type": "pricing", "price_source_target": np.array([5.0, 10.0])}],
+            "segments": {"pricing": {"segment_type": "pricing", "price_source_target": np.array([5.0, 10.0])}},
         }
     )
 

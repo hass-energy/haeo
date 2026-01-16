@@ -14,14 +14,8 @@ from custom_components.haeo.elements.connection import (
 )
 from custom_components.haeo.model import Network
 from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE
-from custom_components.haeo.model.elements.connection import Connection, ConnectionOutputName
+from custom_components.haeo.model.elements.connection import Connection
 from custom_components.haeo.model.elements.segments import PowerLimitSegment
-
-
-def _get_power_limit(connection: Connection[ConnectionOutputName]) -> PowerLimitSegment:
-    segment = connection.segments["power_limit"]
-    assert isinstance(segment, PowerLimitSegment)
-    return segment
 
 
 def test_update_element_updates_tracked_params() -> None:
@@ -36,13 +30,13 @@ def test_update_element_updates_tracked_params() -> None:
             "name": "conn",
             "source": "source",
             "target": "target",
-            "segments": [
-                {
+            "segments": {
+                "power_limit": {
                     "segment_type": "power_limit",
                     "max_power_source_target": np.array([10.0, 10.0]),
                     "max_power_target_source": np.array([5.0, 5.0]),
                 }
-            ],
+            },
         }
     )
 
@@ -50,7 +44,8 @@ def test_update_element_updates_tracked_params() -> None:
     conn = network.elements["conn"]
     assert isinstance(conn, Connection)
     # Check initial TrackedParam values
-    power_limit = _get_power_limit(conn)
+    power_limit = conn.segments["power_limit"]
+    assert isinstance(power_limit, PowerLimitSegment)
     assert power_limit.max_power_source_target is not None
     assert power_limit.max_power_target_source is not None
     assert power_limit.max_power_source_target[0] == 10.0

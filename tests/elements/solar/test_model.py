@@ -51,15 +51,19 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "name": "pv_main:connection",
                 "source": "pv_main",
                 "target": "network",
-                "segments": [
-                    {
+                "segments": {
+                    "power_limit": {
                         "segment_type": "power_limit",
                         "max_power_source_target": [2.0, 1.5],
                         "max_power_target_source": [0.0, 0.0],
                         "fixed": True,
                     },
-                    {"segment_type": "pricing", "price_source_target": 0.15},
-                ],
+                    "pricing": {
+                        "segment_type": "pricing",
+                        "price_source_target": 0.15,
+                        "price_target_source": None,
+                    },
+                },
             },
         ],
     },

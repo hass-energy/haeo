@@ -49,14 +49,14 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "name": "load_main:connection",
                 "source": "load_main",
                 "target": "network",
-                "segments": [
-                    {
+                "segments": {
+                    "power_limit": {
                         "segment_type": "power_limit",
                         "max_power_source_target": [0.0, 0.0],
                         "max_power_target_source": [1.0, 2.0],
                         "fixed": True,
                     }
-                ],
+                },
             },
         ],
     },

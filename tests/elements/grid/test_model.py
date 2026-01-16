@@ -54,14 +54,18 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "name": "grid_main:connection",
                 "source": "grid_main",
                 "target": "network",
-                "segments": [
-                    {
+                "segments": {
+                    "power_limit": {
                         "segment_type": "power_limit",
                         "max_power_source_target": [5.0],
                         "max_power_target_source": [3.0],
                     },
-                    {"segment_type": "pricing", "price_source_target": [0.1], "price_target_source": [-0.05]},
-                ],
+                    "pricing": {
+                        "segment_type": "pricing",
+                        "price_source_target": [0.1],
+                        "price_target_source": [-0.05],
+                    },
+                },
             },
         ],
     },

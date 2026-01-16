@@ -54,19 +54,23 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "name": "c1",
                 "source": "s",
                 "target": "t",
-                "segments": [
-                    {
+                "segments": {
+                    "efficiency": {
                         "segment_type": "efficiency",
                         "efficiency_source_target": [0.95],
                         "efficiency_target_source": [0.90],
                     },
-                    {
+                    "power_limit": {
                         "segment_type": "power_limit",
                         "max_power_source_target": [4.0],
                         "max_power_target_source": [2.0],
                     },
-                    {"segment_type": "pricing", "price_source_target": [0.1], "price_target_source": [0.05]},
-                ],
+                    "pricing": {
+                        "segment_type": "pricing",
+                        "price_source_target": [0.1],
+                        "price_target_source": [0.05],
+                    },
+                },
             }
         ],
     },
@@ -84,6 +88,23 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "name": "c_min",
                 "source": "s",
                 "target": "t",
+                "segments": {
+                    "efficiency": {
+                        "segment_type": "efficiency",
+                        "efficiency_source_target": None,
+                        "efficiency_target_source": None,
+                    },
+                    "power_limit": {
+                        "segment_type": "power_limit",
+                        "max_power_source_target": None,
+                        "max_power_target_source": None,
+                    },
+                    "pricing": {
+                        "segment_type": "pricing",
+                        "price_source_target": None,
+                        "price_target_source": None,
+                    },
+                },
             }
         ],
     },
