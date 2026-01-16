@@ -1,10 +1,10 @@
 """Model connection output tests covering reporting and validation helpers."""
 
+from typing import TypeGuard, cast
+
 from highspy import Highs
 from highspy.highs import highs_linear_expression, highs_var
 import pytest
-
-from typing import TypeGuard, cast
 
 from custom_components.haeo.model.elements.connection import Connection
 from custom_components.haeo.model.output_data import ModelOutputValue, OutputData
@@ -122,8 +122,8 @@ def _assert_outputs_match(actual: ExpectedOutputFixture, expected: ExpectedOutpu
         return
 
     assert not _is_expected_output(actual)
-    actual_map = cast(ExpectedOutputs, actual)
-    expected_map = cast(ExpectedOutputs, expected)
+    actual_map = cast("ExpectedOutputs", actual)
+    expected_map = cast("ExpectedOutputs", expected)
     assert set(actual_map.keys()) == set(expected_map.keys())
     for output_name, expected_value in expected_map.items():
         _assert_outputs_match(actual_map[output_name], expected_value)

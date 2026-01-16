@@ -149,7 +149,7 @@ def update_element(
             raise ValueError(msg)
 
         element = network.elements[element_name]
-        for path, value, strict in _iter_updates(cast(Mapping[object, object], model_element_config)):
+        for path, value, strict in _iter_updates(cast("Mapping[object, object]", model_element_config)):
             try:
                 target = _resolve_path(element, path, element_name=element_name)
                 _set_value(target, path[-1], value, path=path, element_name=element_name)
