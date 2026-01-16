@@ -49,7 +49,7 @@ Create new functions for dynamic alignment:
 def calculate_aligned_tier_counts(
     start_time: datetime,
     tier_durations: tuple[int, int, int, int],  # (1, 5, 30, 60) minutes
-    min_counts: tuple[int, int, int],           # (5, 6, 4)
+    min_counts: tuple[int, int, int],  # (5, 6, 4)
     total_steps: int,
     horizon_minutes: int,
 ) -> tuple[list[int], list[int]]:
@@ -65,42 +65,42 @@ The algorithm:
 
 1. **T1 alignment**: Calculate steps from start_time to next 5-minute boundary
 
-   - Example: 14:43 -> 14:50 = 7 steps (minimum 5)
-   - `steps = max(min_count, minutes_to_boundary(start, 5))`
+    - Example: 14:43 -> 14:50 = 7 steps (minimum 5)
+    - `steps = max(min_count, minutes_to_boundary(start, 5))`
 
 2. **T2 alignment**: Calculate steps from T1 end to next 30-minute boundary
 
-   - Example: 14:50 -> 15:30 = 8 steps (minimum 6)
-   - `steps = max(min_count, minutes_to_boundary(t1_end, 30) / 5)`
+    - Example: 14:50 -> 15:30 = 8 steps (minimum 6)
+    - `steps = max(min_count, minutes_to_boundary(t1_end, 30) / 5)`
 
 3. **T3 alignment**: Calculate steps from T2 end to next 60-minute boundary
 
-   - Example: 15:30 -> 16:00 = 1 step (minimum 4)
-   - `steps = max(min_count, minutes_to_boundary(t2_end, 60) / 30)`
+    - Example: 15:30 -> 16:00 = 1 step (minimum 4)
+    - `steps = max(min_count, minutes_to_boundary(t2_end, 60) / 30)`
 
 4. **T4 variance absorption**: Extend T3 and/or add trailing 30-min step to T4
-   ```python
-   remaining_steps = total_steps - (t1 + t2 + t3)
-   remaining_duration = horizon_end - t3_end
-   
-   # How many steps would T4 need if purely 60-min?
-   base_t4_steps = remaining_duration // 60
-   
-   # Extra steps that must be 30-min instead of 60-min
-   extra_steps = remaining_steps - base_t4_steps
-   
-   if extra_steps % 2 == 0:
-       # Even: add all extra steps as 30-min to T3
-       t3 += extra_steps
-       t4 = base_t4_steps  # pure 60-min steps
-       t4_trailing_30 = False
-   else:
-       # Odd: add (extra-1) 30-min steps to T3, one 30-min at end of T4
-       t3 += (extra_steps - 1)
-       t4 = base_t4_steps  # 60-min steps
-       t4_trailing_30 = True  # one 30-min step at end
-   ```
 
+    ```python
+    remaining_steps = total_steps - (t1 + t2 + t3)
+    remaining_duration = horizon_end - t3_end
+
+    # How many steps would T4 need if purely 60-min?
+    base_t4_steps = remaining_duration // 60
+
+    # Extra steps that must be 30-min instead of 60-min
+    extra_steps = remaining_steps - base_t4_steps
+
+    if extra_steps % 2 == 0:
+        # Even: add all extra steps as 30-min to T3
+        t3 += extra_steps
+        t4 = base_t4_steps  # pure 60-min steps
+        t4_trailing_30 = False
+    else:
+        # Odd: add (extra-1) 30-min steps to T3, one 30-min at end of T4
+        t3 += extra_steps - 1
+        t4 = base_t4_steps  # 60-min steps
+        t4_trailing_30 = True  # one 30-min step at end
+    ```
 
 **Why even/odd matters**: Adding an even number of 30-min steps to T3 maintains hour-boundary alignment (2 × 30 = 60 min). The odd case places the leftover 30-min step at the end of T4 to preserve T3's hour alignment.
 
@@ -164,15 +164,16 @@ Key changes:
 def _create_default_tier_config(horizon_minutes: int) -> dict[str, int]:
     """Create default tier configuration for a given horizon."""
     return {
-        CONF_TIER_1_COUNT: 5,        # minimum T1 steps
+        CONF_TIER_1_COUNT: 5,  # minimum T1 steps
         CONF_TIER_1_DURATION: 1,
-        CONF_TIER_2_COUNT: 6,        # minimum T2 steps
+        CONF_TIER_2_COUNT: 6,  # minimum T2 steps
         CONF_TIER_2_DURATION: 5,
-        CONF_TIER_3_COUNT: 4,        # minimum T3 steps
+        CONF_TIER_3_COUNT: 4,  # minimum T3 steps
         CONF_TIER_3_DURATION: 30,
-        CONF_TIER_4_DURATION: 60,    # no count - computed at runtime
+        CONF_TIER_4_DURATION: 60,  # no count - computed at runtime
         CONF_HORIZON_DURATION_MINUTES: horizon_minutes,
     }
+
 
 # Default for new installations: 5 days
 DEFAULT_CONFIG = _create_default_tier_config(5 * 24 * 60)
@@ -250,10 +251,10 @@ async def async_migrate_entry(hass, config_entry) -> bool:
         else:
             # Custom config: compute total horizon from tier configuration
             horizon_minutes = (
-                data["tier_1_count"] * data["tier_1_duration"] +
-                data["tier_2_count"] * data["tier_2_duration"] +
-                data["tier_3_count"] * data["tier_3_duration"] +
-                data["tier_4_count"] * data["tier_4_duration"]
+                data["tier_1_count"] * data["tier_1_duration"]
+                + data["tier_2_count"] * data["tier_2_duration"]
+                + data["tier_3_count"] * data["tier_3_duration"]
+                + data["tier_4_count"] * data["tier_4_duration"]
             )
 
         data[CONF_HORIZON_DURATION_MINUTES] = horizon_minutes
@@ -358,11 +359,11 @@ From the issue document:
 
 | Start Time | T1 Steps | T2 Steps | T1+T2 Total | Duration |
 
-|------------|----------|----------|-------------|----------|
+|\------------|----------|----------|-------------|----------|
 
-| :55 (best) | 5        | 6        | 11 steps    | 35 min   |
+| :55 (best) | 5 | 6 | 11 steps | 35 min |
 
-| :26 (worst)| 9        | 11       | 20 steps    | 64 min   |
+| :26 (worst)| 9 | 11 | 20 steps | 64 min |
 
 - Maximum variance: 9 steps, ~30 minutes
 - **Absorption strategy**: Up to 9 extra 30-min steps added to T3 (or 8 to T3 + 1 trailing in T4 if odd)
