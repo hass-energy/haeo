@@ -545,13 +545,6 @@ class BatteryAdapter:
         Aggregates outputs from multiple battery sections and connections.
         Returns multiple devices for SOC regions based on what's configured.
         """
-        def _as_output_map(values: Mapping[ModelOutputName, ModelOutputValue]) -> dict[ModelOutputName, OutputData]:
-            output_map: dict[ModelOutputName, OutputData] = {}
-            for key, value in values.items():
-                assert isinstance(value, OutputData)
-                output_map[key] = value
-            return output_map
-
         # Collect section outputs
         section_outputs: dict[str, dict[ModelOutputName, OutputData]] = {}
         section_names: list[str] = []
@@ -559,26 +552,48 @@ class BatteryAdapter:
         # Check for undercharge section
         undercharge_name = f"{name}:undercharge"
         if undercharge_name in model_outputs:
-            section_outputs["undercharge"] = _as_output_map(model_outputs[undercharge_name])
+            undercharge_outputs: dict[ModelOutputName, OutputData] = {}
+            for key, value in model_outputs[undercharge_name].items():
+                if not isinstance(value, OutputData):
+                    msg = f"Expected OutputData for {undercharge_name!r} output {key!r}"
+                    raise TypeError(msg)
+                undercharge_outputs[key] = value
+            section_outputs["undercharge"] = undercharge_outputs
             section_names.append("undercharge")
 
         # Normal section (always present)
         normal_name = f"{name}:normal"
         if normal_name in model_outputs:
-            section_outputs["normal"] = _as_output_map(model_outputs[normal_name])
+            normal_outputs: dict[ModelOutputName, OutputData] = {}
+            for key, value in model_outputs[normal_name].items():
+                if not isinstance(value, OutputData):
+                    msg = f"Expected OutputData for {normal_name!r} output {key!r}"
+                    raise TypeError(msg)
+                normal_outputs[key] = value
+            section_outputs["normal"] = normal_outputs
             section_names.append("normal")
 
         # Check for overcharge section
         overcharge_name = f"{name}:overcharge"
         if overcharge_name in model_outputs:
-            section_outputs["overcharge"] = _as_output_map(model_outputs[overcharge_name])
+            overcharge_outputs: dict[ModelOutputName, OutputData] = {}
+            for key, value in model_outputs[overcharge_name].items():
+                if not isinstance(value, OutputData):
+                    msg = f"Expected OutputData for {overcharge_name!r} output {key!r}"
+                    raise TypeError(msg)
+                overcharge_outputs[key] = value
+            section_outputs["overcharge"] = overcharge_outputs
             section_names.append("overcharge")
 
         # Get node outputs for power balance
         node_name = f"{name}:node"
-        node_outputs: dict[ModelOutputName, OutputData] = (
-            _as_output_map(model_outputs[node_name]) if node_name in model_outputs else {}
-        )
+        node_outputs: dict[ModelOutputName, OutputData] = {}
+        if node_name in model_outputs:
+            for key, value in model_outputs[node_name].items():
+                if not isinstance(value, OutputData):
+                    msg = f"Expected OutputData for {node_name!r} output {key!r}"
+                    raise TypeError(msg)
+                node_outputs[key] = value
 
         # Calculate aggregate outputs
         # Sum power charge/discharge across all sections
@@ -676,14 +691,16 @@ class BatteryAdapter:
                 lower_key = section_names[i - 1]
                 balance_name = f"{name}:balance:{lower_key}:{section_key}"
                 if balance_name in model_outputs:
-                    balance_data = _as_output_map(model_outputs[balance_name])
                     # Power down from this section to lower section (energy leaving downward)
-                    if model_balance.BALANCE_POWER_DOWN in balance_data:
-                        down_vals = balance_data[model_balance.BALANCE_POWER_DOWN].values
+                    balance_outputs = model_outputs[balance_name]
+                    down_output = balance_outputs.get(model_balance.BALANCE_POWER_DOWN)
+                    if isinstance(down_output, OutputData):
+                        down_vals = down_output.values
                         power_down_values = list(down_vals)
                     # Power up from lower section to this section (energy entering from below)
-                    if model_balance.BALANCE_POWER_UP in balance_data:
-                        up_vals = balance_data[model_balance.BALANCE_POWER_UP].values
+                    up_output = balance_outputs.get(model_balance.BALANCE_POWER_UP)
+                    if isinstance(up_output, OutputData):
+                        up_vals = up_output.values
                         power_up_values = list(up_vals)
 
             # Check for balance connection with section above (this section is lower)
@@ -692,17 +709,19 @@ class BatteryAdapter:
                 upper_key = section_names[i + 1]
                 balance_name = f"{name}:balance:{section_key}:{upper_key}"
                 if balance_name in model_outputs:
-                    balance_data = _as_output_map(model_outputs[balance_name])
                     # Power down from upper section to this section (energy entering from above)
-                    if model_balance.BALANCE_POWER_DOWN in balance_data:
-                        down_vals = np.array(balance_data[model_balance.BALANCE_POWER_DOWN].values)
+                    balance_outputs = model_outputs[balance_name]
+                    down_output = balance_outputs.get(model_balance.BALANCE_POWER_DOWN)
+                    if isinstance(down_output, OutputData):
+                        down_vals = np.array(down_output.values)
                         if power_down_values is None:
                             power_down_values = list(down_vals)
                         else:
                             power_down_values = list(np.array(power_down_values) + down_vals)
                     # Power up from this section to upper section (energy leaving upward)
-                    if model_balance.BALANCE_POWER_UP in balance_data:
-                        up_vals = np.array(balance_data[model_balance.BALANCE_POWER_UP].values)
+                    up_output = balance_outputs.get(model_balance.BALANCE_POWER_UP)
+                    if isinstance(up_output, OutputData):
+                        up_vals = np.array(up_output.values)
                         if power_up_values is None:
                             power_up_values = list(up_vals)
                         else:

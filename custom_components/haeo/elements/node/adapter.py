@@ -108,7 +108,9 @@ class NodeAdapter:
         node_outputs: dict[NodeOutputName, OutputData] = {}
         if NODE_POWER_BALANCE in node_model:
             power_balance = node_model[NODE_POWER_BALANCE]
-            assert isinstance(power_balance, OutputData)
+            if not isinstance(power_balance, OutputData):
+                msg = f"Expected OutputData for {name!r} {NODE_POWER_BALANCE}"
+                raise TypeError(msg)
             node_outputs[NODE_POWER_BALANCE] = power_balance
 
         return {NODE_DEVICE_NODE: node_outputs}

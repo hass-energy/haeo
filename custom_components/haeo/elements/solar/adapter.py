@@ -55,6 +55,7 @@ type SolarDeviceName = Literal["solar"]
 
 SOLAR_DEVICE_NAMES: Final[frozenset[SolarDeviceName]] = frozenset((SOLAR_DEVICE_SOLAR := "solar",))
 
+
 class SolarAdapter:
     """Adapter for Solar elements."""
 
@@ -171,7 +172,9 @@ class SolarAdapter:
         connection = model_outputs[f"{name}:connection"]
 
         power_source_target = connection[CONNECTION_POWER_SOURCE_TARGET]
-        assert isinstance(power_source_target, OutputData)
+        if not isinstance(power_source_target, OutputData):
+            msg = f"Expected OutputData for {name!r} {CONNECTION_POWER_SOURCE_TARGET}"
+            raise TypeError(msg)
         solar_outputs: dict[SolarOutputName, OutputData] = {
             SOLAR_POWER: replace(power_source_target, type=OutputType.POWER),
         }

@@ -130,9 +130,13 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
             "c1": {
                 model_connection.CONNECTION_POWER_SOURCE_TARGET: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(5.0,), direction="+"),
                 model_connection.CONNECTION_POWER_TARGET_SOURCE: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(7.0,), direction="-"),
-                model_connection.CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.01,)),
-                model_connection.CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.02,)),
-                model_connection.CONNECTION_TIME_SLICE: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.001,)),
+                model_connection.CONNECTION_SEGMENTS: {
+                    "power_limit": {
+                        "source_target": OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.01,)),
+                        "target_source": OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.02,)),
+                        "time_slice": OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.001,)),
+                    }
+                },
             }
         },
         "outputs": {

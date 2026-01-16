@@ -61,6 +61,7 @@ GRID_DEVICE_NAMES: Final[frozenset[GridDeviceName]] = frozenset(
     (GRID_DEVICE_GRID := "grid",),
 )
 
+
 class GridAdapter:
     """Adapter for Grid elements."""
 
@@ -245,8 +246,12 @@ class GridAdapter:
         # target_source = system to grid = EXPORT
         power_import = connection[CONNECTION_POWER_SOURCE_TARGET]
         power_export = connection[CONNECTION_POWER_TARGET_SOURCE]
-        assert isinstance(power_import, OutputData)
-        assert isinstance(power_export, OutputData)
+        if not isinstance(power_import, OutputData):
+            msg = f"Expected OutputData for {name!r} {CONNECTION_POWER_SOURCE_TARGET}"
+            raise TypeError(msg)
+        if not isinstance(power_export, OutputData):
+            msg = f"Expected OutputData for {name!r} {CONNECTION_POWER_TARGET_SOURCE}"
+            raise TypeError(msg)
 
         grid_outputs[GRID_POWER_EXPORT] = replace(power_export, type=OutputType.POWER)
         grid_outputs[GRID_POWER_IMPORT] = replace(power_import, type=OutputType.POWER)

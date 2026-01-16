@@ -66,6 +66,7 @@ INVERTER_DEVICE_NAMES: Final[frozenset[InverterDeviceName]] = frozenset(
     (INVERTER_DEVICE_INVERTER := "inverter",),
 )
 
+
 class InverterAdapter:
     """Adapter for Inverter elements."""
 
@@ -202,8 +203,12 @@ class InverterAdapter:
         dc_bus = model_outputs[name]
         power_source_target = connection[CONNECTION_POWER_SOURCE_TARGET]
         power_target_source = connection[CONNECTION_POWER_TARGET_SOURCE]
-        assert isinstance(power_source_target, OutputData)
-        assert isinstance(power_target_source, OutputData)
+        if not isinstance(power_source_target, OutputData):
+            msg = f"Expected OutputData for {name!r} {CONNECTION_POWER_SOURCE_TARGET}"
+            raise TypeError(msg)
+        if not isinstance(power_target_source, OutputData):
+            msg = f"Expected OutputData for {name!r} {CONNECTION_POWER_TARGET_SOURCE}"
+            raise TypeError(msg)
 
         inverter_outputs: dict[InverterOutputName, OutputData] = {}
 
@@ -229,7 +234,9 @@ class InverterAdapter:
 
         # DC bus power balance shadow price
         dc_bus_balance = dc_bus[NODE_POWER_BALANCE]
-        assert isinstance(dc_bus_balance, OutputData)
+        if not isinstance(dc_bus_balance, OutputData):
+            msg = f"Expected OutputData for {name!r} {NODE_POWER_BALANCE}"
+            raise TypeError(msg)
         inverter_outputs[INVERTER_DC_BUS_POWER_BALANCE] = dc_bus_balance
 
         # Shadow prices from power_limit segment

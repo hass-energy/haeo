@@ -39,6 +39,7 @@ LOAD_DEVICE_NAMES: Final[frozenset[LoadDeviceName]] = frozenset(
     (LOAD_DEVICE_LOAD := "load",),
 )
 
+
 class LoadAdapter:
     """Adapter for Load elements."""
 
@@ -131,7 +132,9 @@ class LoadAdapter:
         connection = model_outputs[f"{name}:connection"]
 
         power_target_source = connection[CONNECTION_POWER_TARGET_SOURCE]
-        assert isinstance(power_target_source, OutputData)
+        if not isinstance(power_target_source, OutputData):
+            msg = f"Expected OutputData for {name!r} {CONNECTION_POWER_TARGET_SOURCE}"
+            raise TypeError(msg)
         load_outputs: dict[LoadOutputName, OutputData] = {
             LOAD_POWER: replace(power_target_source, type=OutputType.POWER),
         }

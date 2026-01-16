@@ -143,7 +143,9 @@ class BatterySectionAdapter:
         """Map model outputs to battery section output names."""
         battery_data: dict[ModelOutputName, OutputData] = {}
         for key, value in model_outputs[name].items():
-            assert isinstance(value, OutputData)
+            if not isinstance(value, OutputData):
+                msg = f"Expected OutputData for {name!r} output {key!r}"
+                raise TypeError(msg)
             battery_data[key] = value
 
         section_outputs: dict[BatterySectionOutputName, OutputData] = {}

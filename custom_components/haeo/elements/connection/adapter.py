@@ -16,12 +16,16 @@ from custom_components.haeo.model.elements.connection import CONNECTION_OUTPUT_N
 from custom_components.haeo.model.elements.connection import (
     CONNECTION_POWER_SOURCE_TARGET,
     CONNECTION_POWER_TARGET_SOURCE,
+    CONNECTION_SEGMENTS,
     CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET,
     CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE,
     CONNECTION_TIME_SLICE,
 )
 from custom_components.haeo.model.elements.connection import ConnectionOutputName as ModelConnectionOutputName
 from custom_components.haeo.model.elements.segments import (
+    POWER_LIMIT_SOURCE_TARGET,
+    POWER_LIMIT_TARGET_SOURCE,
+    POWER_LIMIT_TIME_SLICE,
     EfficiencySegmentSpec,
     PowerLimitSegmentSpec,
     PricingSegmentSpec,
@@ -250,8 +254,12 @@ class ConnectionAdapter:
         connection = model_outputs[name]
         power_source_target = connection[CONNECTION_POWER_SOURCE_TARGET]
         power_target_source = connection[CONNECTION_POWER_TARGET_SOURCE]
-        assert isinstance(power_source_target, OutputData)
-        assert isinstance(power_target_source, OutputData)
+        if not isinstance(power_source_target, OutputData):
+            msg = f"Expected OutputData for {name!r} {CONNECTION_POWER_SOURCE_TARGET}"
+            raise TypeError(msg)
+        if not isinstance(power_target_source, OutputData):
+            msg = f"Expected OutputData for {name!r} {CONNECTION_POWER_TARGET_SOURCE}"
+            raise TypeError(msg)
 
         connection_outputs: dict[ConnectionOutputName, OutputData] = {
             CONNECTION_POWER_SOURCE_TARGET: power_source_target,
@@ -273,22 +281,20 @@ class ConnectionAdapter:
             type=OutputType.POWER_FLOW,
         )
 
-        # Include legacy shadow prices if present
-        if CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET in connection:
-            shadow = connection[CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET]
-            if isinstance(shadow, OutputData):
-                connection_outputs[CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET] = shadow
-        if CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE in connection:
-            shadow = connection[CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE]
-            if isinstance(shadow, OutputData):
-                connection_outputs[CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE] = shadow
-        if CONNECTION_TIME_SLICE in connection:
-            shadow = connection[CONNECTION_TIME_SLICE]
-            if isinstance(shadow, OutputData):
-                connection_outputs[CONNECTION_TIME_SLICE] = shadow
-
-        # Note: Segment shadow prices are exposed under the model's `segments` output
-        # map. Specific adapters (grid, solar, etc.) map these to their own outputs.
+        # Shadow prices are exposed under the model's `segments` output map.
+        segments_output = connection.get(CONNECTION_SEGMENTS)
+        if isinstance(segments_output, Mapping):
+            power_limit_outputs = segments_output.get("power_limit")
+            if isinstance(power_limit_outputs, Mapping):
+                source_target_shadow = power_limit_outputs.get(POWER_LIMIT_SOURCE_TARGET)
+                if isinstance(source_target_shadow, OutputData):
+                    connection_outputs[CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET] = source_target_shadow
+                target_source_shadow = power_limit_outputs.get(POWER_LIMIT_TARGET_SOURCE)
+                if isinstance(target_source_shadow, OutputData):
+                    connection_outputs[CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE] = target_source_shadow
+                time_slice_shadow = power_limit_outputs.get(POWER_LIMIT_TIME_SLICE)
+                if isinstance(time_slice_shadow, OutputData):
+                    connection_outputs[CONNECTION_TIME_SLICE] = time_slice_shadow
 
         return {CONNECTION_DEVICE_CONNECTION: connection_outputs}
 
