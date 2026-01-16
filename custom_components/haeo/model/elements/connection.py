@@ -5,7 +5,7 @@ to model various connection behaviors.
 """
 
 from collections import OrderedDict
-from collections.abc import Mapping, Sequence
+from collections.abc import Sequence
 from typing import Any, Final, Literal, NotRequired, TypedDict
 
 from highspy import Highs
@@ -42,7 +42,7 @@ class ConnectionElementConfig(TypedDict):
     name: str
     source: str
     target: str
-    segments: NotRequired[Mapping[str, SegmentSpec]]
+    segments: NotRequired[dict[str, SegmentSpec]]
 
 
 # Minimum segments needed before linking is required
@@ -83,7 +83,8 @@ CONNECTION_OUTPUT_NAMES: Final[frozenset[ConnectionOutputName]] = frozenset(
 class Connection[TOutputName: str](Element[TOutputName]):
     """Connection element for power flow between nodes.
 
-    Segments are provided as a list of segment specifications, each containing:
+    Segments are provided as a mapping of segment names to specifications:
+    - segment name (dict key): Used to name the segment in the connection
     - segment_type: One of "efficiency", "passthrough", "power_limit", "pricing"
     - Additional kwargs specific to the segment type
 
@@ -104,7 +105,7 @@ class Connection[TOutputName: str](Element[TOutputName]):
         solver: Highs,
         source: str,
         target: str,
-        segments: Mapping[str, SegmentSpec] | None = None,
+        segments: dict[str, SegmentSpec] | None = None,
         output_names: frozenset[TOutputName] | None = None,
         _skip_segments: bool = False,
     ) -> None:
@@ -116,7 +117,7 @@ class Connection[TOutputName: str](Element[TOutputName]):
             solver: The HiGHS solver instance
             source: Name of the source element
             target: Name of the target element
-            segments: Mapping of segment names to SegmentSpec TypedDicts.
+            segments: Dict of segment names to SegmentSpec TypedDicts.
                 Each spec has segment_type plus segment-specific parameters.
             output_names: Output names for this connection type
             _skip_segments: If True, skip segment creation (for subclasses with custom power flow)
@@ -143,18 +144,19 @@ class Connection[TOutputName: str](Element[TOutputName]):
         if _skip_segments:
             return
 
-        segment_specs = dict(segments) if segments else {}
+        segment_specs = segments or {}
 
         for idx, (segment_name, segment_spec) in enumerate(segment_specs.items()):
             # Extract segment_type (required in all specs)
             segment_type = segment_spec["segment_type"]
 
             # Ensure unique segment names
-            if segment_name in self._segments:
-                segment_name = f"{segment_name}_{idx}"
+            resolved_name = segment_name
+            if resolved_name in self._segments:
+                resolved_name = f"{resolved_name}_{idx}"
 
             # Create segment with standard args plus spec
-            segment_id = f"{name}_{segment_name}"
+            segment_id = f"{name}_{resolved_name}"
             if is_efficiency_spec(segment_spec):
                 segment = EfficiencySegment(
                     segment_id,
@@ -190,7 +192,7 @@ class Connection[TOutputName: str](Element[TOutputName]):
             else:
                 msg = f"Unknown segment_type {segment_type!r}"
                 raise ValueError(msg)
-            self._segments[segment_name] = segment
+            self._segments[resolved_name] = segment
 
         # If no segments provided, create a passthrough segment
         if not self._segments:

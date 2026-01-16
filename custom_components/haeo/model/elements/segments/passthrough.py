@@ -4,7 +4,7 @@ A simple segment that creates power variables but applies no transformations.
 Power in equals power out (lossless).
 """
 
-from typing import Any, Literal, NotRequired
+from typing import Any, Literal
 
 __all__ = ["PassthroughSegment", "PassthroughSegmentSpec"]
 
@@ -21,7 +21,6 @@ class PassthroughSegmentSpec(TypedDict):
     """Specification for creating a PassthroughSegment."""
 
     segment_type: Literal["passthrough"]
-    name: NotRequired[str]
 
 
 class PassthroughSegment(Segment):
