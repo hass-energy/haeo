@@ -17,6 +17,7 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 from custom_components.haeo import (
     HaeoRuntimeData,
     _ensure_required_subentries,
+    async_migrate_entry,
     async_reload_entry,
     async_remove_config_entry_device,
     async_setup_entry,
@@ -923,3 +924,33 @@ async def test_setup_preserves_config_entry_error_exception(
 
     # Verify the original translation key is preserved (not wrapped in setup_failed_permanent)
     assert exc_info.value.translation_key == "custom_config_error"
+
+
+async def test_async_migrate_entry_with_horizon_preset(hass: HomeAssistant) -> None:
+    """Test migration from version 1 with horizon_preset in N_days format."""
+    # Create a version 1 entry with horizon_preset
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        version=1,
+        data={
+            CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
+            CONF_NAME: "Test Network",
+            "horizon_preset": "5_days",  # Legacy format
+            # No tier counts - would be computed in migration
+        },
+        entry_id="migrate_test_id",
+        title="Test Migration",
+    )
+    entry.add_to_hass(hass)
+
+    # Run migration
+    result = await async_migrate_entry(hass, entry)
+
+    assert result is True
+    # Verify horizon was computed from preset (5 days = 7200 minutes)
+    assert entry.data[CONF_HORIZON_DURATION_MINUTES] == 5 * 24 * 60
+    # Verify legacy keys removed
+    assert "horizon_preset" not in entry.data
+    assert "tier_4_count" not in entry.data
+    # Verify version was updated
+    assert entry.version == 2

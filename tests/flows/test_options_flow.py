@@ -34,6 +34,7 @@ from custom_components.haeo.const import (
     INTEGRATION_TYPE_HUB,
 )
 from custom_components.haeo.flows import CONF_HORIZON_DAYS
+from custom_components.haeo.flows.options import HubOptionsFlow
 
 type FlowResultDict = dict[str, Any]
 
@@ -155,3 +156,67 @@ async def test_options_flow_update_interval(hass: HomeAssistant) -> None:
 
     assert result["type"] == FlowResultType.CREATE_ENTRY
     assert entry.data[CONF_UPDATE_INTERVAL_MINUTES] == 10
+
+
+async def test_options_flow_custom_tiers_step(hass: HomeAssistant) -> None:
+    """Test the custom_tiers step in options flow overrides tier configuration."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data={
+            CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
+            CONF_NAME: "Test Hub",
+            CONF_HORIZON_DURATION_MINUTES: DEFAULT_HORIZON_DURATION_MINUTES,
+            CONF_TIER_1_COUNT: DEFAULT_TIER_1_COUNT,
+            CONF_TIER_1_DURATION: DEFAULT_TIER_1_DURATION,
+            CONF_TIER_2_COUNT: DEFAULT_TIER_2_COUNT,
+            CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
+            CONF_TIER_3_COUNT: DEFAULT_TIER_3_COUNT,
+            CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
+            CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
+            CONF_UPDATE_INTERVAL_MINUTES: DEFAULT_UPDATE_INTERVAL_MINUTES,
+            CONF_DEBOUNCE_SECONDS: DEFAULT_DEBOUNCE_SECONDS,
+        },
+    )
+    entry.add_to_hass(hass)
+
+    # Create flow via the options flow API
+    flow = HubOptionsFlow()
+    flow.hass = hass
+    # Set the handler to the entry_id so config_entry property works
+    flow.handler = entry.entry_id
+
+    # First, go through init step to store user input
+    flow._user_input = {
+        CONF_HORIZON_DURATION_MINUTES: 7 * 24 * 60,  # 7 days
+        CONF_UPDATE_INTERVAL_MINUTES: 5,
+        CONF_DEBOUNCE_SECONDS: 3,
+        CONF_ADVANCED_MODE: True,
+    }
+
+    # Show the custom_tiers form
+    result = cast("FlowResultDict", await flow.async_step_custom_tiers(user_input=None))
+    assert result["type"] == FlowResultType.FORM
+    assert result["step_id"] == "custom_tiers"
+
+    # Submit custom tier values
+    result = cast(
+        "FlowResultDict",
+        await flow.async_step_custom_tiers(
+            user_input={
+                CONF_TIER_1_COUNT: 10,  # Custom value
+                CONF_TIER_1_DURATION: 2,  # Custom value
+                CONF_TIER_2_COUNT: 8,
+                CONF_TIER_2_DURATION: 10,
+                CONF_TIER_3_COUNT: 6,
+                CONF_TIER_3_DURATION: 15,
+                CONF_TIER_4_DURATION: 120,
+                CONF_HORIZON_DURATION_MINUTES: 7 * 24 * 60,
+            }
+        ),
+    )
+
+    assert result["type"] == FlowResultType.CREATE_ENTRY
+    # Verify custom tier values were saved
+    assert entry.data[CONF_TIER_1_COUNT] == 10
+    assert entry.data[CONF_TIER_1_DURATION] == 2
+    assert entry.data[CONF_TIER_4_DURATION] == 120

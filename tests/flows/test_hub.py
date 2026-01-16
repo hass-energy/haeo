@@ -21,9 +21,14 @@ from custom_components.haeo.const import (
 )
 from custom_components.haeo.flows import (
     CONF_HORIZON_DAYS,
+    HORIZON_UNIT_DAYS,
+    HORIZON_UNIT_HOURS,
+    HORIZON_UNIT_MINUTES,
+    convert_horizon_days_to_minutes,
     get_custom_tiers_schema,
     get_default_tier_config,
     get_hub_setup_schema,
+    horizon_minutes_to_display,
 )
 from custom_components.haeo.flows.hub import HubConfigFlow
 
@@ -197,3 +202,52 @@ def test_get_default_tier_config_with_custom_horizon() -> None:
     config = get_default_tier_config(horizon)
 
     assert config[CONF_HORIZON_DURATION_MINUTES] == horizon
+
+
+def test_horizon_minutes_to_display_days() -> None:
+    """Test horizon_minutes_to_display with value divisible by days."""
+    # 5 days = 7200 minutes
+    unit, value = horizon_minutes_to_display(5 * 24 * 60)
+    assert unit == HORIZON_UNIT_DAYS
+    assert value == 5
+
+
+def test_horizon_minutes_to_display_hours() -> None:
+    """Test horizon_minutes_to_display with value divisible by hours but not days."""
+    # 25 hours = 1500 minutes (not evenly divisible by days)
+    unit, value = horizon_minutes_to_display(25 * 60)
+    assert unit == HORIZON_UNIT_HOURS
+    assert value == 25
+
+
+def test_horizon_minutes_to_display_minutes() -> None:
+    """Test horizon_minutes_to_display with value not divisible by hours."""
+    # 90 minutes (not divisible by 60)
+    unit, value = horizon_minutes_to_display(90)
+    assert unit == HORIZON_UNIT_MINUTES
+    assert value == 90
+
+
+def test_convert_horizon_days_to_minutes_with_days() -> None:
+    """Test convert_horizon_days_to_minutes converts days to minutes."""
+    user_input = {CONF_HORIZON_DAYS: 5, "other_key": "value"}
+    result = convert_horizon_days_to_minutes(user_input)
+
+    # Should convert horizon_days to horizon_duration_minutes
+    assert CONF_HORIZON_DURATION_MINUTES in result
+    assert result[CONF_HORIZON_DURATION_MINUTES] == 5 * 24 * 60
+    # Should remove horizon_days
+    assert CONF_HORIZON_DAYS not in result
+    # Should preserve other keys
+    assert result["other_key"] == "value"
+
+
+def test_convert_horizon_days_to_minutes_without_days() -> None:
+    """Test convert_horizon_days_to_minutes is a no-op without horizon_days."""
+    user_input = {"other_key": "value", CONF_HORIZON_DURATION_MINUTES: 7200}
+    result = convert_horizon_days_to_minutes(user_input)
+
+    # Should return unchanged
+    assert result == user_input
+    assert result[CONF_HORIZON_DURATION_MINUTES] == 7200
+    assert result["other_key"] == "value"
