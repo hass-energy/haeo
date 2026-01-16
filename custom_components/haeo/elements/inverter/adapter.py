@@ -11,7 +11,7 @@ from custom_components.haeo.const import ConnectivityLevel
 from custom_components.haeo.data.loader import ConstantLoader, TimeSeriesLoader
 from custom_components.haeo.model import ModelElementConfig, ModelOutputName, ModelOutputValue
 from custom_components.haeo.model.const import OutputType
-from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE, SegmentSpec
+from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE
 from custom_components.haeo.model.elements.connection import (
     CONNECTION_POWER_SOURCE_TARGET,
     CONNECTION_POWER_TARGET_SOURCE,
@@ -172,11 +172,6 @@ class InverterAdapter:
             "max_power_target_source": np.array(config["max_power_ac_to_dc"]),
         }
 
-        segments: dict[str, SegmentSpec] = {
-            "efficiency": efficiency,
-            "power_limit": power_limit,
-        }
-
         return [
             # Create Node for the DC bus (pure junction - neither source nor sink)
             {"element_type": MODEL_ELEMENT_TYPE_NODE, "name": name, "is_source": False, "is_sink": False},
@@ -188,7 +183,7 @@ class InverterAdapter:
                 "name": f"{name}:connection",
                 "source": name,
                 "target": config["connection"],
-                "segments": segments,
+                "segments": {"efficiency": efficiency, "power_limit": power_limit},
             },
         ]
 

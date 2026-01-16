@@ -18,7 +18,6 @@ from custom_components.haeo.model.elements import (
     MODEL_ELEMENT_TYPE_BATTERY_BALANCE_CONNECTION,
     MODEL_ELEMENT_TYPE_CONNECTION,
     MODEL_ELEMENT_TYPE_NODE,
-    SegmentSpec,
 )
 from custom_components.haeo.model.elements.node import NODE_POWER_BALANCE
 from custom_components.haeo.model.elements.segments import (
@@ -435,14 +434,13 @@ class BatteryAdapter:
                     "price_source_target": None,
                     "price_target_source": np.array(charge_price),  # Overcharge penalty when charging
                 }
-                segments: dict[str, SegmentSpec] = {"pricing": pricing_spec}
                 elements.append(
                     {
                         "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
                         "name": f"{section_name}:to_node",
                         "source": section_name,
                         "target": node_name,
-                        "segments": segments,
+                        "segments": {"pricing": pricing_spec},
                     }
                 )
                 continue
@@ -456,13 +454,12 @@ class BatteryAdapter:
                 ),  # Undercharge penalty when discharging
                 "price_target_source": None,
             }
-            segments: dict[str, SegmentSpec] = {"pricing": pricing_spec}
             section_connection: ModelElementConfig = {
                 "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
                 "name": f"{section_name}:to_node",
                 "source": section_name,
                 "target": node_name,
-                "segments": segments,
+                "segments": {"pricing": pricing_spec},
             }
             elements.append(section_connection)
 
@@ -515,11 +512,6 @@ class BatteryAdapter:
             "price_source_target": np.array(discharge_costs),
             "price_target_source": np.array(charge_early_incentive),
         }
-        segments: dict[str, SegmentSpec] = {
-            "efficiency": efficiency_spec,
-            "power_limit": power_limit_spec,
-            "pricing": pricing_spec,
-        }
 
         elements.append(
             {
@@ -527,7 +519,11 @@ class BatteryAdapter:
                 "name": f"{name}:connection",
                 "source": node_name,
                 "target": config["connection"],
-                "segments": segments,
+                "segments": {
+                    "efficiency": efficiency_spec,
+                    "power_limit": power_limit_spec,
+                    "pricing": pricing_spec,
+                },
             }
         )
 

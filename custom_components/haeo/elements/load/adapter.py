@@ -11,7 +11,7 @@ from custom_components.haeo.const import ConnectivityLevel
 from custom_components.haeo.data.loader import TimeSeriesLoader
 from custom_components.haeo.model import ModelElementConfig, ModelOutputName, ModelOutputValue
 from custom_components.haeo.model.const import OutputType
-from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE, SegmentSpec
+from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE
 from custom_components.haeo.model.elements.connection import CONNECTION_POWER_TARGET_SOURCE, CONNECTION_SEGMENTS
 from custom_components.haeo.model.elements.segments import POWER_LIMIT_TARGET_SOURCE, PowerLimitSegmentSpec
 from custom_components.haeo.model.output_data import OutputData
@@ -107,7 +107,6 @@ class LoadAdapter:
             "max_power_target_source": np.array(config["forecast"]),
             "fixed": True,
         }
-        segments: dict[str, SegmentSpec] = {"power_limit": power_limit}
 
         return [
             # Create Node for the load (sink only - consumes power)
@@ -118,7 +117,7 @@ class LoadAdapter:
                 "name": f"{config['name']}:connection",
                 "source": config["name"],
                 "target": config["connection"],
-                "segments": segments,
+                "segments": {"power_limit": power_limit},
             },
         ]
 

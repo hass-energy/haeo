@@ -11,7 +11,7 @@ from custom_components.haeo.const import ConnectivityLevel
 from custom_components.haeo.data.loader import TimeSeriesLoader
 from custom_components.haeo.model import ModelElementConfig, ModelOutputName, ModelOutputValue
 from custom_components.haeo.model.const import OutputType
-from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE, SegmentSpec
+from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE
 from custom_components.haeo.model.elements.connection import (
     CONNECTION_POWER_SOURCE_TARGET,
     CONNECTION_POWER_TARGET_SOURCE,
@@ -205,10 +205,6 @@ class GridAdapter:
             "price_source_target": np.array(config["import_price"]),
             "price_target_source": np.array([-p for p in config["export_price"]]),
         }
-        segments: dict[str, SegmentSpec] = {
-            "power_limit": power_limit,
-            "pricing": pricing,
-        }
 
         return [
             # Create Node for the grid (both source and sink - can import and export)
@@ -224,7 +220,7 @@ class GridAdapter:
                 "name": f"{config['name']}:connection",
                 "source": config["name"],
                 "target": config["connection"],
-                "segments": segments,
+                "segments": {"power_limit": power_limit, "pricing": pricing},
             },
         ]
 

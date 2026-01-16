@@ -11,7 +11,7 @@ from custom_components.haeo.const import ConnectivityLevel
 from custom_components.haeo.data.loader import TimeSeriesLoader
 from custom_components.haeo.model import ModelElementConfig, ModelOutputName, ModelOutputValue
 from custom_components.haeo.model.const import OutputType
-from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, SegmentSpec
+from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION
 from custom_components.haeo.model.elements.connection import CONNECTION_OUTPUT_NAMES as MODEL_CONNECTION_OUTPUT_NAMES
 from custom_components.haeo.model.elements.connection import (
     CONNECTION_POWER_SOURCE_TARGET,
@@ -227,22 +227,19 @@ class ConnectionAdapter:
             "price_source_target": np.array(price_source_target) if price_source_target is not None else None,
             "price_target_source": np.array(price_target_source) if price_target_source is not None else None,
         }
-
-        segments: dict[str, SegmentSpec] = {
-            "efficiency": efficiency_spec,
-            "power_limit": power_limit_spec,
-            "pricing": pricing_spec,
-        }
-
-        element_data: ModelElementConfig = {
-            "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
-            "name": config["name"],
-            "source": config["source"],
-            "target": config["target"],
-        }
-        element_data["segments"] = segments
-
-        return [element_data]
+        return [
+            {
+                "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
+                "name": config["name"],
+                "source": config["source"],
+                "target": config["target"],
+                "segments": {
+                    "efficiency": efficiency_spec,
+                    "power_limit": power_limit_spec,
+                    "pricing": pricing_spec,
+                },
+            }
+        ]
 
     def outputs(
         self,

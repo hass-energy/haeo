@@ -11,7 +11,7 @@ from custom_components.haeo.const import ConnectivityLevel
 from custom_components.haeo.data.loader import ConstantLoader, TimeSeriesLoader
 from custom_components.haeo.model import ModelElementConfig, ModelOutputName, ModelOutputValue
 from custom_components.haeo.model.const import OutputType
-from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE, SegmentSpec
+from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE
 from custom_components.haeo.model.elements.connection import CONNECTION_POWER_SOURCE_TARGET, CONNECTION_SEGMENTS
 from custom_components.haeo.model.elements.segments import (
     POWER_LIMIT_SOURCE_TARGET,
@@ -146,10 +146,6 @@ class SolarAdapter:
             "price_source_target": np.array(price_production) if price_production is not None else None,
             "price_target_source": None,
         }
-        segments: dict[str, SegmentSpec] = {
-            "power_limit": power_limit,
-            "pricing": pricing,
-        }
 
         return [
             {"element_type": MODEL_ELEMENT_TYPE_NODE, "name": config["name"], "is_source": True, "is_sink": False},
@@ -158,7 +154,7 @@ class SolarAdapter:
                 "name": f"{config['name']}:connection",
                 "source": config["name"],
                 "target": config["connection"],
-                "segments": segments,
+                "segments": {"power_limit": power_limit, "pricing": pricing},
             },
         ]
 
