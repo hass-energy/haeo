@@ -950,3 +950,47 @@ def test_validate_choose_fields_skips_excluded_fields(
     user_input = {"test_field": None}
     result = validate_choose_fields(user_input, (number_field,), frozenset(), exclude_fields=("test_field",))
     assert result == {}
+
+
+# --- Tests for NormalizingChooseSelector.__call__ ---
+
+
+def test_normalizing_choose_selector_call_with_none_choice(
+    number_field: InputFieldInfo[NumberEntityDescription],
+) -> None:
+    """NormalizingChooseSelector normalizes none choice dict to empty string."""
+    selector = build_choose_selector(number_field, is_optional=True, preferred_choice=CHOICE_NONE)
+    # The selector should normalize {"active_choice": "none", ...} to ""
+    # and then validate it (ConstantSelector accepts "")
+    result = selector({"active_choice": "none", "constant": 100})
+    assert result == ""
+
+
+def test_normalizing_choose_selector_call_with_entity_choice(
+    number_field: InputFieldInfo[NumberEntityDescription],
+) -> None:
+    """NormalizingChooseSelector normalizes entity choice dict to entity list."""
+    selector = build_choose_selector(number_field, preferred_choice=CHOICE_ENTITY)
+    # The selector should normalize {"active_choice": "entity", "entity": [...]} to the list
+    result = selector({"active_choice": "entity", "entity": ["sensor.power"]})
+    assert result == ["sensor.power"]
+
+
+def test_normalizing_choose_selector_call_with_constant_choice(
+    number_field: InputFieldInfo[NumberEntityDescription],
+) -> None:
+    """NormalizingChooseSelector normalizes constant choice dict to constant value."""
+    selector = build_choose_selector(number_field, preferred_choice=CHOICE_CONSTANT)
+    # The selector should normalize {"active_choice": "constant", "constant": 42.0} to 42.0
+    result = selector({"active_choice": "constant", "constant": 42.0})
+    assert result == 42.0
+
+
+def test_normalizing_choose_selector_call_passthrough_already_normalized(
+    number_field: InputFieldInfo[NumberEntityDescription],
+) -> None:
+    """NormalizingChooseSelector passes through already-normalized values."""
+    selector = build_choose_selector(number_field, preferred_choice=CHOICE_CONSTANT)
+    # Already normalized constant value should pass through
+    result = selector(50.0)
+    assert result == 50.0
