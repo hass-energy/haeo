@@ -5,7 +5,7 @@ from typing import Any
 from homeassistant.components.number import NumberEntityDescription
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
-from homeassistant.helpers.selector import BooleanSelector, ChooseSelector, NumberSelector
+from homeassistant.helpers.selector import BooleanSelector, NumberSelector
 import pytest
 
 from custom_components.haeo.const import DOMAIN
@@ -23,8 +23,11 @@ from custom_components.haeo.flows.field_schema import (
     get_choose_default,
     get_haeo_input_entity_ids,
     get_preferred_choice,
+    is_valid_choose_value,
     number_selector_from_field,
+    preprocess_choose_selector_input,
     resolve_haeo_input_entity_id,
+    validate_choose_fields,
 )
 from custom_components.haeo.model.const import OutputType
 
@@ -775,8 +778,6 @@ def test_preprocess_choose_selector_input_none_returns_none(
     number_field: InputFieldInfo[NumberEntityDescription],
 ) -> None:
     """preprocess_choose_selector_input returns None when input is None."""
-    from custom_components.haeo.flows.field_schema import preprocess_choose_selector_input
-
     result = preprocess_choose_selector_input(None, (number_field,))
     assert result is None
 
@@ -785,8 +786,6 @@ def test_preprocess_choose_selector_input_none_choice_returns_none(
     number_field: InputFieldInfo[NumberEntityDescription],
 ) -> None:
     """preprocess_choose_selector_input converts none choice to None."""
-    from custom_components.haeo.flows.field_schema import preprocess_choose_selector_input
-
     user_input = {
         "test_field": {"active_choice": "none", "constant": 100},
     }
@@ -799,8 +798,6 @@ def test_preprocess_choose_selector_input_entity_choice_extracts_entities(
     number_field: InputFieldInfo[NumberEntityDescription],
 ) -> None:
     """preprocess_choose_selector_input extracts entity list from entity choice."""
-    from custom_components.haeo.flows.field_schema import preprocess_choose_selector_input
-
     user_input = {
         "test_field": {"active_choice": "entity", "entity": ["sensor.power"]},
     }
@@ -813,8 +810,6 @@ def test_preprocess_choose_selector_input_constant_choice_extracts_value(
     number_field: InputFieldInfo[NumberEntityDescription],
 ) -> None:
     """preprocess_choose_selector_input extracts constant value from constant choice."""
-    from custom_components.haeo.flows.field_schema import preprocess_choose_selector_input
-
     user_input = {
         "test_field": {"active_choice": "constant", "constant": 42.5},
     }
@@ -827,8 +822,6 @@ def test_preprocess_choose_selector_input_already_normalized_passthrough(
     number_field: InputFieldInfo[NumberEntityDescription],
 ) -> None:
     """preprocess_choose_selector_input passes through already-normalized data."""
-    from custom_components.haeo.flows.field_schema import preprocess_choose_selector_input
-
     # Already normalized entity list
     user_input_entity = {"test_field": ["sensor.power"]}
     result = preprocess_choose_selector_input(user_input_entity, (number_field,))
@@ -852,8 +845,6 @@ def test_preprocess_choose_selector_input_ignores_non_field_keys(
     number_field: InputFieldInfo[NumberEntityDescription],
 ) -> None:
     """preprocess_choose_selector_input ignores keys not in input_fields."""
-    from custom_components.haeo.flows.field_schema import preprocess_choose_selector_input
-
     user_input = {
         "test_field": {"active_choice": "none", "constant": 100},
         "name": "Test Name",  # Not in input_fields, should pass through unchanged
@@ -871,8 +862,6 @@ def test_preprocess_choose_selector_input_entity_choice_empty_list(
     number_field: InputFieldInfo[NumberEntityDescription],
 ) -> None:
     """preprocess_choose_selector_input handles entity choice with missing entity key."""
-    from custom_components.haeo.flows.field_schema import preprocess_choose_selector_input
-
     user_input = {
         "test_field": {"active_choice": "entity"},  # No entity key
     }
@@ -886,15 +875,11 @@ def test_preprocess_choose_selector_input_entity_choice_empty_list(
 
 def test_is_valid_choose_value_with_none() -> None:
     """is_valid_choose_value returns False for None."""
-    from custom_components.haeo.flows.field_schema import is_valid_choose_value
-
     assert is_valid_choose_value(None) is False
 
 
 def test_is_valid_choose_value_with_entity_list() -> None:
     """is_valid_choose_value returns True for non-empty entity lists."""
-    from custom_components.haeo.flows.field_schema import is_valid_choose_value
-
     assert is_valid_choose_value(["sensor.power"]) is True
     assert is_valid_choose_value(["sensor.a", "sensor.b"]) is True
     # Empty list is invalid
@@ -903,8 +888,6 @@ def test_is_valid_choose_value_with_entity_list() -> None:
 
 def test_is_valid_choose_value_with_string_entity_id() -> None:
     """is_valid_choose_value accepts string entity IDs as valid."""
-    from custom_components.haeo.flows.field_schema import is_valid_choose_value
-
     assert is_valid_choose_value("sensor.price") is True
     # Empty string is invalid
     assert is_valid_choose_value("") is False
@@ -912,8 +895,6 @@ def test_is_valid_choose_value_with_string_entity_id() -> None:
 
 def test_is_valid_choose_value_with_numeric_constants() -> None:
     """is_valid_choose_value returns True for numeric constants."""
-    from custom_components.haeo.flows.field_schema import is_valid_choose_value
-
     assert is_valid_choose_value(42.0) is True
     assert is_valid_choose_value(0) is True
     assert is_valid_choose_value(-10.5) is True
@@ -921,16 +902,12 @@ def test_is_valid_choose_value_with_numeric_constants() -> None:
 
 def test_is_valid_choose_value_with_boolean() -> None:
     """is_valid_choose_value returns True for boolean values."""
-    from custom_components.haeo.flows.field_schema import is_valid_choose_value
-
     assert is_valid_choose_value(True) is True
     assert is_valid_choose_value(False) is True
 
 
 def test_is_valid_choose_value_with_unexpected_types() -> None:
     """is_valid_choose_value returns False for unexpected types."""
-    from custom_components.haeo.flows.field_schema import is_valid_choose_value
-
     assert is_valid_choose_value({"key": "value"}) is False
     assert is_valid_choose_value(object()) is False
 
@@ -942,8 +919,6 @@ def test_validate_choose_fields_returns_empty_for_valid_input(
     number_field: InputFieldInfo[NumberEntityDescription],
 ) -> None:
     """validate_choose_fields returns empty dict when all required fields are valid."""
-    from custom_components.haeo.flows.field_schema import validate_choose_fields
-
     user_input = {"test_field": 42.0}
     result = validate_choose_fields(user_input, (number_field,), frozenset())
     assert result == {}
@@ -953,8 +928,6 @@ def test_validate_choose_fields_returns_error_for_invalid_required(
     number_field: InputFieldInfo[NumberEntityDescription],
 ) -> None:
     """validate_choose_fields returns error for invalid required field."""
-    from custom_components.haeo.flows.field_schema import validate_choose_fields
-
     user_input = {"test_field": None}
     result = validate_choose_fields(user_input, (number_field,), frozenset())
     assert result == {"test_field": "required"}
@@ -964,8 +937,6 @@ def test_validate_choose_fields_skips_optional_fields(
     number_field: InputFieldInfo[NumberEntityDescription],
 ) -> None:
     """validate_choose_fields skips fields in optional_keys."""
-    from custom_components.haeo.flows.field_schema import validate_choose_fields
-
     user_input = {"test_field": None}
     # Mark test_field as optional
     result = validate_choose_fields(user_input, (number_field,), frozenset({"test_field"}))
@@ -976,8 +947,6 @@ def test_validate_choose_fields_skips_excluded_fields(
     number_field: InputFieldInfo[NumberEntityDescription],
 ) -> None:
     """validate_choose_fields skips fields in exclude_fields."""
-    from custom_components.haeo.flows.field_schema import validate_choose_fields
-
     user_input = {"test_field": None}
     result = validate_choose_fields(user_input, (number_field,), frozenset(), exclude_fields=("test_field",))
     assert result == {}
