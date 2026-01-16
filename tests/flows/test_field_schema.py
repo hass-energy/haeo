@@ -14,6 +14,7 @@ from custom_components.haeo.flows.field_schema import (
     CHOICE_CONSTANT,
     CHOICE_ENTITY,
     CHOICE_NONE,
+    NormalizingChooseSelector,
     _normalize_entity_selection,
     boolean_selector_from_field,
     build_choose_selector,
@@ -110,12 +111,12 @@ def test_number_selector_from_field_without_unit() -> None:
 # --- Tests for build_choose_selector ---
 
 
-def test_build_choose_selector_creates_choose_selector(
+def test_build_choose_selector_creates_normalizing_choose_selector(
     number_field: InputFieldInfo[NumberEntityDescription],
 ) -> None:
-    """Choose selector is created with entity and constant choices."""
+    """NormalizingChooseSelector is created with entity and constant choices."""
     selector = build_choose_selector(number_field)
-    assert isinstance(selector, ChooseSelector)
+    assert isinstance(selector, NormalizingChooseSelector)
 
 
 def test_build_choose_selector_entity_first_by_default(

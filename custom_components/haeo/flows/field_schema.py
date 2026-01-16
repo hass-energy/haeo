@@ -206,6 +206,33 @@ def get_preferred_choice(
     return CHOICE_ENTITY
 
 
+class NormalizingChooseSelector(ChooseSelector):  # type: ignore[type-arg]
+    """ChooseSelector wrapper that normalizes raw dict format from frontend.
+
+    Handles the case where frontend sends raw dict format like:
+    {"active_choice": "none", "constant": 100}
+
+    Converts to expected format before delegating to ChooseSelector.
+    """
+
+    def __call__(self, data: Any) -> Any:
+        """Normalize data before validation."""
+        normalized = self._normalize(data)
+        return super().__call__(normalized)  # type: ignore[misc]
+
+    def _normalize(self, value: Any) -> Any:
+        """Normalize raw dict format to expected value."""
+        if isinstance(value, dict) and "active_choice" in value:
+            choice = value.get("active_choice")
+            if choice == CHOICE_NONE:
+                return ""  # ConstantSelector expects empty string
+            if choice == CHOICE_ENTITY:
+                return value.get(CHOICE_ENTITY, [])
+            if choice == CHOICE_CONSTANT:
+                return value.get(CHOICE_CONSTANT)
+        return value
+
+
 def build_choose_selector(
     field_info: InputFieldInfo[Any],
     *,
@@ -287,39 +314,12 @@ def build_choose_selector(
             CHOICE_CONSTANT: constant_choice,
         }
 
-    return ChooseSelector(
+    return NormalizingChooseSelector(
         ChooseSelectorConfig(
             choices=choices,
             translation_key="input_source",
         )
     )
-
-
-class NormalizingChooseSelector(ChooseSelector):  # type: ignore[type-arg]
-    """ChooseSelector wrapper that normalizes raw dict format from frontend.
-
-    Handles the case where frontend sends raw dict format like:
-    {"active_choice": "none", "constant": 100}
-
-    Converts to expected format before delegating to ChooseSelector.
-    """
-
-    def __call__(self, data: Any) -> Any:
-        """Normalize data before validation."""
-        normalized = self._normalize(data)
-        return super().__call__(normalized)  # type: ignore[misc]
-
-    def _normalize(self, value: Any) -> Any:
-        """Normalize raw dict format to expected value."""
-        if isinstance(value, dict) and "active_choice" in value:
-            choice = value.get("active_choice")
-            if choice == CHOICE_NONE:
-                return ""  # ConstantSelector expects empty string
-            if choice == CHOICE_ENTITY:
-                return value.get(CHOICE_ENTITY, [])
-            if choice == CHOICE_CONSTANT:
-                return value.get(CHOICE_CONSTANT)
-        return value
 
 
 def build_choose_schema_entry(
@@ -330,7 +330,7 @@ def build_choose_schema_entry(
     multiple: bool = True,
     preferred_choice: str = CHOICE_ENTITY,
 ) -> tuple[vol.Marker, Any]:
-    """Build a schema entry using ChooseSelector.
+    """Build a schema entry using NormalizingChooseSelector.
 
     Args:
         field_info: Input field metadata.
@@ -344,18 +344,13 @@ def build_choose_schema_entry(
 
     """
     field_name = field_info.field_name
-
-    # Build the base selector config
-    base_selector = build_choose_selector(
+    selector = build_choose_selector(
         field_info,
         is_optional=is_optional,
         include_entities=include_entities,
         multiple=multiple,
         preferred_choice=preferred_choice,
     )
-
-    # Create normalizing wrapper with the same config
-    selector = NormalizingChooseSelector(base_selector.config)
 
     if is_optional:
         return vol.Optional(field_name), selector
@@ -532,6 +527,7 @@ __all__ = [
     "CHOICE_CONSTANT",
     "CHOICE_ENTITY",
     "CHOICE_NONE",
+    "NormalizingChooseSelector",
     "boolean_selector_from_field",
     "build_choose_schema_entry",
     "build_choose_selector",

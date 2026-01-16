@@ -15,6 +15,7 @@ from custom_components.haeo.flows.field_schema import (
     convert_choose_data_to_config,
     get_choose_default,
     get_preferred_choice,
+    preprocess_choose_selector_input,
 )
 
 from .schema import CONF_CONNECTION, ELEMENT_TYPE, INPUT_FIELDS, LoadConfigSchema
@@ -36,6 +37,7 @@ class LoadSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
 
     async def _async_step_user(self, user_input: dict[str, Any] | None) -> SubentryFlowResult:
         """Shared logic for user and reconfigure steps."""
+        user_input = preprocess_choose_selector_input(user_input, INPUT_FIELDS)
         errors = self._validate_user_input(user_input)
         subentry = self._get_subentry()
         subentry_data = dict(subentry.data) if subentry else None
