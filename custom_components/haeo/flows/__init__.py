@@ -37,6 +37,11 @@ _LOGGER = logging.getLogger(__name__)
 # Configuration key for horizon input in days (UI only, converted to minutes for storage)
 CONF_HORIZON_DAYS: Final = "horizon_days"
 
+# Horizon display units
+HORIZON_UNIT_DAYS: Final = "days"
+HORIZON_UNIT_HOURS: Final = "hours"
+HORIZON_UNIT_MINUTES: Final = "minutes"
+
 # Minimum horizon: 2 days in minutes
 MIN_HORIZON_MINUTES: Final = 2 * 24 * 60
 # Maximum horizon: 14 days in minutes
@@ -53,6 +58,7 @@ def convert_horizon_days_to_minutes(user_input: dict) -> dict:
         days = user_input.pop(CONF_HORIZON_DAYS)
         user_input[CONF_HORIZON_DURATION_MINUTES] = int(days) * 24 * 60
     return user_input
+
 
 # Tier configuration keys (for reference)
 TIER_CONF_KEYS: Final = [

@@ -20,12 +20,7 @@ from custom_components.haeo.const import (
     CONF_UPDATE_INTERVAL_MINUTES,
 )
 
-from . import (
-    convert_horizon_days_to_minutes,
-    get_custom_tiers_schema,
-    get_default_tier_config,
-    get_hub_options_schema,
-)
+from . import convert_horizon_days_to_minutes, get_custom_tiers_schema, get_default_tier_config, get_hub_options_schema
 
 _LOGGER = logging.getLogger(__name__)
 
