@@ -426,7 +426,6 @@
       "network_optimization_duration": { "name": "Duration" },
       "network_optimization_status": { "name": "Status" },
       "node_power_balance": { "name": "Power balance shadow price" },
-      "segments": { "name": "Segments" },
       "solar_forecast_limit": { "name": "Forecast limit shadow price" },
       "solar_power": { "name": "Power" }
     },

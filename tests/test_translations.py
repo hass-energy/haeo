@@ -1,11 +1,52 @@
 """Test that all output names and device names have translation keys."""
 
+from collections.abc import Mapping
 import json
 from pathlib import Path
+import types
+from typing import Union, get_args, get_origin, get_type_hints
 
 import pytest
 
 from custom_components.haeo.elements import ELEMENT_DEVICE_NAMES, ELEMENT_OUTPUT_NAMES
+from custom_components.haeo.model.elements import ELEMENTS
+from custom_components.haeo.model.reactive import OutputMethod
+
+
+def _is_mapping_type(annotation: object) -> bool:
+    if hasattr(annotation, "__value__"):
+        return _is_mapping_type(annotation.__value__)
+    origin = get_origin(annotation)
+    if origin is None:
+        return annotation in (Mapping, dict)
+    if origin in (Mapping, dict):
+        return True
+    if origin in (types.UnionType, Union):
+        return any(_is_mapping_type(arg) for arg in get_args(annotation))
+    return False
+
+
+def _mapping_output_names() -> set[str]:
+    mapping_outputs: set[str] = set()
+    for element_spec in ELEMENTS.values():
+        element_class = element_spec.factory
+        for name in dir(element_class):
+            attr = getattr(element_class, name, None)
+            if not isinstance(attr, OutputMethod):
+                continue
+            output_fn = getattr(attr, "_fn", None)
+            if output_fn is None:
+                continue
+            return_type = get_type_hints(output_fn).get("return")
+            if return_type is None:
+                continue
+            if _is_mapping_type(return_type):
+                mapping_outputs.add(attr.output_name)
+    return mapping_outputs
+
+
+def _sensor_output_names() -> set[str]:
+    return set(ELEMENT_OUTPUT_NAMES) - _mapping_output_names()
 
 
 def test_all_output_names_have_translations() -> None:
@@ -18,7 +59,7 @@ def test_all_output_names_have_translations() -> None:
     sensor_translations = translations.get("entity", {}).get("sensor", {})
 
     # Check each output name using list comprehension
-    missing_translations = [n for n in ELEMENT_OUTPUT_NAMES if n not in sensor_translations]
+    missing_translations = [n for n in _sensor_output_names() if n not in sensor_translations]
 
     if missing_translations:
         pytest.fail(
@@ -40,11 +81,12 @@ def test_no_unused_translations() -> None:
     # Known non-element sensor translation keys (e.g., horizon entity)
     known_non_element_keys = {"horizon"}
 
+    sensor_output_names = _sensor_output_names()
     # Check for unused translations using list comprehension
     unused_translations = [
         k
         for k in sorted(sensor_translations.keys())
-        if k not in ELEMENT_OUTPUT_NAMES and k not in known_non_element_keys
+        if k not in sensor_output_names and k not in known_non_element_keys
     ]
 
     if unused_translations:
