@@ -1,7 +1,7 @@
 """Base classes and utilities for HAEO config flows."""
 
 import logging
-from typing import Final
+from typing import Any, Final
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.helpers.selector import NumberSelector, NumberSelectorConfig, NumberSelectorMode
@@ -48,7 +48,7 @@ MIN_HORIZON_MINUTES: Final = 2 * 24 * 60
 MAX_HORIZON_MINUTES: Final = 14 * 24 * 60
 
 
-def convert_horizon_days_to_minutes(user_input: dict) -> dict:
+def convert_horizon_days_to_minutes(user_input: dict[str, Any]) -> dict[str, Any]:
     """Convert horizon_days from user input to horizon_duration_minutes.
 
     This function should be called after schema validation to convert the
