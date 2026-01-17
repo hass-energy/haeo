@@ -42,25 +42,6 @@ LOAD_DEVICE_NAMES: Final[frozenset[LoadDeviceName]] = frozenset(
     (LOAD_DEVICE_LOAD := "load",),
 )
 
-# Input field definitions for creating input entities
-INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
-    InputFieldInfo(
-        field_name=CONF_FORECAST,
-        entity_description=NumberEntityDescription(
-            key=CONF_FORECAST,
-            translation_key=f"{ELEMENT_TYPE}_{CONF_FORECAST}",
-            native_unit_of_measurement=UnitOfPower.KILO_WATT,
-            device_class=NumberDeviceClass.POWER,
-            native_min_value=0.0,
-            native_max_value=1000.0,
-            native_step=0.01,
-        ),
-        output_type=OutputType.POWER,
-        direction="+",
-        time_series=True,
-    ),
-)
-
 
 class LoadAdapter:
     """Adapter for Load elements."""
@@ -72,7 +53,7 @@ class LoadAdapter:
     @property
     def flow_class(self) -> type:
         """Return the config flow handler class."""
-        # Local import avoids a circular dependency: the flow imports adapter INPUT_FIELDS.
+        # Local import avoids a circular dependency: the flow calls adapter.inputs for field metadata.
         from .flow import LoadSubentryFlowHandler  # noqa: PLC0415
 
         return LoadSubentryFlowHandler
@@ -85,7 +66,23 @@ class LoadAdapter:
     def inputs(self, config: LoadConfigSchema) -> tuple[InputFieldInfo[Any], ...]:
         """Return input field definitions for load elements."""
         _ = config
-        return INPUT_FIELDS
+        return (
+            InputFieldInfo(
+                field_name=CONF_FORECAST,
+                entity_description=NumberEntityDescription(
+                    key=CONF_FORECAST,
+                    translation_key=f"{ELEMENT_TYPE}_{CONF_FORECAST}",
+                    native_unit_of_measurement=UnitOfPower.KILO_WATT,
+                    device_class=NumberDeviceClass.POWER,
+                    native_min_value=0.0,
+                    native_max_value=1000.0,
+                    native_step=0.01,
+                ),
+                output_type=OutputType.POWER,
+                direction="+",
+                time_series=True,
+            ),
+        )
 
     def build_config_data(
         self,

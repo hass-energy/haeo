@@ -19,7 +19,7 @@ from custom_components.haeo.flows.field_schema import (
     validate_choose_fields,
 )
 
-from .adapter import INPUT_FIELDS
+from .adapter import adapter
 from .schema import CONF_SOURCE, CONF_TARGET, ELEMENT_TYPE, ConnectionConfigSchema
 
 # Keys to exclude when converting choose data to config
@@ -39,10 +39,12 @@ class ConnectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
 
     async def _async_step_user(self, user_input: dict[str, Any] | None) -> SubentryFlowResult:
         """Shared logic for user and reconfigure steps."""
-        user_input = preprocess_choose_selector_input(user_input, INPUT_FIELDS)
-        errors = self._validate_user_input(user_input)
         subentry = self._get_subentry()
         subentry_data = dict(subentry.data) if subentry else None
+        input_fields = adapter.inputs(cast("ConnectionConfigSchema", subentry_data or {}))
+
+        user_input = preprocess_choose_selector_input(user_input, input_fields)
+        errors = self._validate_user_input(user_input)
 
         if user_input is not None and not errors:
             config = self._build_config(user_input)
@@ -56,7 +58,7 @@ class ConnectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         current_source = subentry_data.get(CONF_SOURCE) if subentry_data else None
         current_target = subentry_data.get(CONF_TARGET) if subentry_data else None
         entity_metadata = extract_entity_metadata(self.hass)
-        inclusion_map = build_inclusion_map(INPUT_FIELDS, entity_metadata)
+        inclusion_map = build_inclusion_map(input_fields, entity_metadata)
         participants = self._get_participant_names()
 
         schema = self._build_schema(participants, inclusion_map, current_source, current_target, subentry_data)
@@ -74,6 +76,7 @@ class ConnectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         subentry_data: dict[str, Any] | None = None,
     ) -> vol.Schema:
         """Build the schema with name, source, target, and choose selectors for inputs."""
+        input_fields = adapter.inputs(cast("ConnectionConfigSchema", subentry_data or {}))
         schema_dict: dict[vol.Marker, Any] = {
             vol.Required(CONF_NAME): vol.All(
                 vol.Coerce(str),
@@ -85,7 +88,7 @@ class ConnectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             vol.Required(CONF_TARGET): build_participant_selector(participants, current_target),
         }
 
-        for field_info in INPUT_FIELDS:
+        for field_info in input_fields:
             is_optional = (
                 field_info.field_name in ConnectionConfigSchema.__optional_keys__ and not field_info.force_required
             )
@@ -103,13 +106,14 @@ class ConnectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
 
     def _build_defaults(self, default_name: str, subentry_data: dict[str, Any] | None = None) -> dict[str, Any]:
         """Build default values for the form."""
+        input_fields = adapter.inputs(cast("ConnectionConfigSchema", subentry_data or {}))
         defaults: dict[str, Any] = {
             CONF_NAME: default_name if subentry_data is None else subentry_data.get(CONF_NAME),
             CONF_SOURCE: subentry_data.get(CONF_SOURCE) if subentry_data else None,
             CONF_TARGET: subentry_data.get(CONF_TARGET) if subentry_data else None,
         }
 
-        for field_info in INPUT_FIELDS:
+        for field_info in input_fields:
             choose_default = get_choose_default(field_info, subentry_data)
             if choose_default is not None:
                 defaults[field_info.field_name] = choose_default
@@ -122,7 +126,8 @@ class ConnectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             return None
         errors: dict[str, str] = {}
         self._validate_name(user_input.get(CONF_NAME), errors)
-        errors.update(validate_choose_fields(user_input, INPUT_FIELDS, ConnectionConfigSchema.__optional_keys__))
+        input_fields = adapter.inputs(cast("ConnectionConfigSchema", {}))
+        errors.update(validate_choose_fields(user_input, input_fields, ConnectionConfigSchema.__optional_keys__))
         # Validate source != target
         source = user_input.get(CONF_SOURCE)
         target = user_input.get(CONF_TARGET)
@@ -136,7 +141,8 @@ class ConnectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         source = user_input.get(CONF_SOURCE)
         target = user_input.get(CONF_TARGET)
 
-        config_dict = convert_choose_data_to_config(user_input, INPUT_FIELDS, _EXCLUDE_KEYS)
+        input_fields = adapter.inputs(cast("ConnectionConfigSchema", {}))
+        config_dict = convert_choose_data_to_config(user_input, input_fields, _EXCLUDE_KEYS)
 
         return cast(
             "ConnectionConfigSchema",

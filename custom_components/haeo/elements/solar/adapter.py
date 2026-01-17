@@ -55,48 +55,6 @@ type SolarDeviceName = Literal["solar"]
 
 SOLAR_DEVICE_NAMES: Final[frozenset[SolarDeviceName]] = frozenset((SOLAR_DEVICE_SOLAR := "solar",))
 
-# Input field definitions for creating input entities (mix of Number and Switch)
-INPUT_FIELDS: Final[tuple[InputFieldInfo[Any], ...]] = (
-    InputFieldInfo(
-        field_name=CONF_FORECAST,
-        entity_description=NumberEntityDescription(
-            key=CONF_FORECAST,
-            translation_key=f"{ELEMENT_TYPE}_{CONF_FORECAST}",
-            native_unit_of_measurement=UnitOfPower.KILO_WATT,
-            device_class=NumberDeviceClass.POWER,
-            native_min_value=0.0,
-            native_max_value=1000.0,
-            native_step=0.01,
-        ),
-        output_type=OutputType.POWER,
-        direction="-",
-        time_series=True,
-    ),
-    InputFieldInfo(
-        field_name=CONF_PRICE_PRODUCTION,
-        entity_description=NumberEntityDescription(
-            key=CONF_PRICE_PRODUCTION,
-            translation_key=f"{ELEMENT_TYPE}_{CONF_PRICE_PRODUCTION}",
-            native_min_value=-1.0,
-            native_max_value=10.0,
-            native_step=0.001,
-        ),
-        output_type=OutputType.PRICE,
-        direction="+",
-        defaults=InputFieldDefaults(mode=None, value=0.0),
-    ),
-    InputFieldInfo(
-        field_name=CONF_CURTAILMENT,
-        entity_description=SwitchEntityDescription(
-            key=CONF_CURTAILMENT,
-            translation_key=f"{ELEMENT_TYPE}_{CONF_CURTAILMENT}",
-        ),
-        output_type=OutputType.STATUS,
-        defaults=InputFieldDefaults(mode="value", value=True),
-        force_required=True,
-    ),
-)
-
 
 class SolarAdapter:
     """Adapter for Solar elements."""
@@ -108,7 +66,7 @@ class SolarAdapter:
     @property
     def flow_class(self) -> type:
         """Return the config flow handler class."""
-        # Local import avoids a circular dependency: the flow imports adapter INPUT_FIELDS.
+        # Local import avoids a circular dependency: the flow calls adapter.inputs for field metadata.
         from .flow import SolarSubentryFlowHandler  # noqa: PLC0415
 
         return SolarSubentryFlowHandler
@@ -121,7 +79,46 @@ class SolarAdapter:
     def inputs(self, config: SolarConfigSchema) -> tuple[InputFieldInfo[Any], ...]:
         """Return input field definitions for solar elements."""
         _ = config
-        return INPUT_FIELDS
+        return (
+            InputFieldInfo(
+                field_name=CONF_FORECAST,
+                entity_description=NumberEntityDescription(
+                    key=CONF_FORECAST,
+                    translation_key=f"{ELEMENT_TYPE}_{CONF_FORECAST}",
+                    native_unit_of_measurement=UnitOfPower.KILO_WATT,
+                    device_class=NumberDeviceClass.POWER,
+                    native_min_value=0.0,
+                    native_max_value=1000.0,
+                    native_step=0.01,
+                ),
+                output_type=OutputType.POWER,
+                direction="-",
+                time_series=True,
+            ),
+            InputFieldInfo(
+                field_name=CONF_PRICE_PRODUCTION,
+                entity_description=NumberEntityDescription(
+                    key=CONF_PRICE_PRODUCTION,
+                    translation_key=f"{ELEMENT_TYPE}_{CONF_PRICE_PRODUCTION}",
+                    native_min_value=-1.0,
+                    native_max_value=10.0,
+                    native_step=0.001,
+                ),
+                output_type=OutputType.PRICE,
+                direction="+",
+                defaults=InputFieldDefaults(mode=None, value=0.0),
+            ),
+            InputFieldInfo(
+                field_name=CONF_CURTAILMENT,
+                entity_description=SwitchEntityDescription(
+                    key=CONF_CURTAILMENT,
+                    translation_key=f"{ELEMENT_TYPE}_{CONF_CURTAILMENT}",
+                ),
+                output_type=OutputType.STATUS,
+                defaults=InputFieldDefaults(mode="value", value=True),
+                force_required=True,
+            ),
+        )
 
     def build_config_data(
         self,

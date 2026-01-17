@@ -2,7 +2,7 @@
 
 This module provides:
 - get_unit_spec_for_output_type(): Map OutputType to UnitSpec for entity filtering
-- build_inclusion_map(): Generate field → compatible entities mapping from INPUT_FIELDS
+- build_inclusion_map(): Generate field → compatible entities mapping from input fields
 - filter_compatible_entities(): Filter entity metadata by unit compatibility
 - build_participant_selector(): Create dropdown selector for element names
 - ElementFlowMixin: Mixin providing common subentry flow functionality
@@ -72,7 +72,7 @@ def build_inclusion_map(
     input_fields: tuple[InputFieldInfo[Any], ...],
     entity_metadata: list[EntityMetadata],
 ) -> dict[str, list[str]]:
-    """Build field name → compatible entity IDs mapping from INPUT_FIELDS.
+    """Build field name → compatible entity IDs mapping from input fields.
 
     This dynamically generates the inclusion map by looking up each field's
     output_type and computing which entities are compatible.

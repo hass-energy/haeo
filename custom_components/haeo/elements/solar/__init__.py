@@ -1,7 +1,6 @@
 """Solar element for HAEO integration."""
 
 from .adapter import (
-    INPUT_FIELDS,
     SOLAR_DEVICE_NAMES,
     SOLAR_DEVICE_SOLAR,
     SOLAR_FORECAST_LIMIT,
@@ -30,7 +29,6 @@ __all__ = [
     "CONF_FORECAST",
     "CONF_PRICE_PRODUCTION",
     "ELEMENT_TYPE",
-    "INPUT_FIELDS",
     # Adapter
     "SOLAR_DEVICE_NAMES",
     "SOLAR_DEVICE_SOLAR",

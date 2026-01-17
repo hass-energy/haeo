@@ -1,7 +1,6 @@
 """Node element for HAEO integration."""
 
 from .adapter import (
-    INPUT_FIELDS,
     NODE_DEVICE_NAMES,
     NODE_DEVICE_NODE,
     NODE_OUTPUT_NAMES,
@@ -19,7 +18,6 @@ __all__ = [
     "CONF_IS_SINK",
     "CONF_IS_SOURCE",
     "ELEMENT_TYPE",
-    "INPUT_FIELDS",
     # Adapter
     "NODE_DEVICE_NAMES",
     "NODE_DEVICE_NODE",

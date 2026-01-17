@@ -58,92 +58,6 @@ CONNECTION_DEVICE_NAMES: Final[frozenset[ConnectionDeviceName]] = frozenset(
     (CONNECTION_DEVICE_CONNECTION := "connection",),
 )
 
-# Input field definitions for creating input entities
-INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
-    InputFieldInfo(
-        field_name=CONF_MAX_POWER_SOURCE_TARGET,
-        entity_description=NumberEntityDescription(
-            key=CONF_MAX_POWER_SOURCE_TARGET,
-            translation_key=f"{ELEMENT_TYPE}_{CONF_MAX_POWER_SOURCE_TARGET}",
-            native_unit_of_measurement=UnitOfPower.KILO_WATT,
-            device_class=NumberDeviceClass.POWER,
-            native_min_value=0.0,
-            native_max_value=1000.0,
-            native_step=0.1,
-        ),
-        output_type=OutputType.POWER_LIMIT,
-        time_series=True,
-    ),
-    InputFieldInfo(
-        field_name=CONF_MAX_POWER_TARGET_SOURCE,
-        entity_description=NumberEntityDescription(
-            key=CONF_MAX_POWER_TARGET_SOURCE,
-            translation_key=f"{ELEMENT_TYPE}_{CONF_MAX_POWER_TARGET_SOURCE}",
-            native_unit_of_measurement=UnitOfPower.KILO_WATT,
-            device_class=NumberDeviceClass.POWER,
-            native_min_value=0.0,
-            native_max_value=1000.0,
-            native_step=0.1,
-        ),
-        output_type=OutputType.POWER_LIMIT,
-        time_series=True,
-    ),
-    InputFieldInfo(
-        field_name=CONF_EFFICIENCY_SOURCE_TARGET,
-        entity_description=NumberEntityDescription(
-            key=CONF_EFFICIENCY_SOURCE_TARGET,
-            translation_key=f"{ELEMENT_TYPE}_{CONF_EFFICIENCY_SOURCE_TARGET}",
-            native_unit_of_measurement=PERCENTAGE,
-            device_class=NumberDeviceClass.POWER_FACTOR,
-            native_min_value=50.0,
-            native_max_value=100.0,
-            native_step=0.1,
-        ),
-        output_type=OutputType.EFFICIENCY,
-        time_series=True,
-    ),
-    InputFieldInfo(
-        field_name=CONF_EFFICIENCY_TARGET_SOURCE,
-        entity_description=NumberEntityDescription(
-            key=CONF_EFFICIENCY_TARGET_SOURCE,
-            translation_key=f"{ELEMENT_TYPE}_{CONF_EFFICIENCY_TARGET_SOURCE}",
-            native_unit_of_measurement=PERCENTAGE,
-            device_class=NumberDeviceClass.POWER_FACTOR,
-            native_min_value=50.0,
-            native_max_value=100.0,
-            native_step=0.1,
-        ),
-        output_type=OutputType.EFFICIENCY,
-        time_series=True,
-    ),
-    InputFieldInfo(
-        field_name=CONF_PRICE_SOURCE_TARGET,
-        entity_description=NumberEntityDescription(
-            key=CONF_PRICE_SOURCE_TARGET,
-            translation_key=f"{ELEMENT_TYPE}_{CONF_PRICE_SOURCE_TARGET}",
-            native_min_value=-1.0,
-            native_max_value=10.0,
-            native_step=0.001,
-        ),
-        output_type=OutputType.PRICE,
-        direction="-",
-        time_series=True,
-    ),
-    InputFieldInfo(
-        field_name=CONF_PRICE_TARGET_SOURCE,
-        entity_description=NumberEntityDescription(
-            key=CONF_PRICE_TARGET_SOURCE,
-            translation_key=f"{ELEMENT_TYPE}_{CONF_PRICE_TARGET_SOURCE}",
-            native_min_value=-1.0,
-            native_max_value=10.0,
-            native_step=0.001,
-        ),
-        output_type=OutputType.PRICE,
-        direction="-",
-        time_series=True,
-    ),
-)
-
 
 class ConnectionAdapter:
     """Adapter for Connection elements."""
@@ -155,7 +69,7 @@ class ConnectionAdapter:
     @property
     def flow_class(self) -> type:
         """Return the config flow handler class."""
-        # Local import avoids a circular dependency: the flow imports adapter INPUT_FIELDS.
+        # Local import avoids a circular dependency: the flow calls adapter.inputs for field metadata.
         from .flow import ConnectionSubentryFlowHandler  # noqa: PLC0415
 
         return ConnectionSubentryFlowHandler
@@ -183,7 +97,90 @@ class ConnectionAdapter:
     def inputs(self, config: ConnectionConfigSchema) -> tuple[InputFieldInfo[Any], ...]:
         """Return input field definitions for connection elements."""
         _ = config
-        return INPUT_FIELDS
+        return (
+            InputFieldInfo(
+                field_name=CONF_MAX_POWER_SOURCE_TARGET,
+                entity_description=NumberEntityDescription(
+                    key=CONF_MAX_POWER_SOURCE_TARGET,
+                    translation_key=f"{ELEMENT_TYPE}_{CONF_MAX_POWER_SOURCE_TARGET}",
+                    native_unit_of_measurement=UnitOfPower.KILO_WATT,
+                    device_class=NumberDeviceClass.POWER,
+                    native_min_value=0.0,
+                    native_max_value=1000.0,
+                    native_step=0.1,
+                ),
+                output_type=OutputType.POWER_LIMIT,
+                time_series=True,
+            ),
+            InputFieldInfo(
+                field_name=CONF_MAX_POWER_TARGET_SOURCE,
+                entity_description=NumberEntityDescription(
+                    key=CONF_MAX_POWER_TARGET_SOURCE,
+                    translation_key=f"{ELEMENT_TYPE}_{CONF_MAX_POWER_TARGET_SOURCE}",
+                    native_unit_of_measurement=UnitOfPower.KILO_WATT,
+                    device_class=NumberDeviceClass.POWER,
+                    native_min_value=0.0,
+                    native_max_value=1000.0,
+                    native_step=0.1,
+                ),
+                output_type=OutputType.POWER_LIMIT,
+                time_series=True,
+            ),
+            InputFieldInfo(
+                field_name=CONF_EFFICIENCY_SOURCE_TARGET,
+                entity_description=NumberEntityDescription(
+                    key=CONF_EFFICIENCY_SOURCE_TARGET,
+                    translation_key=f"{ELEMENT_TYPE}_{CONF_EFFICIENCY_SOURCE_TARGET}",
+                    native_unit_of_measurement=PERCENTAGE,
+                    device_class=NumberDeviceClass.POWER_FACTOR,
+                    native_min_value=50.0,
+                    native_max_value=100.0,
+                    native_step=0.1,
+                ),
+                output_type=OutputType.EFFICIENCY,
+                time_series=True,
+            ),
+            InputFieldInfo(
+                field_name=CONF_EFFICIENCY_TARGET_SOURCE,
+                entity_description=NumberEntityDescription(
+                    key=CONF_EFFICIENCY_TARGET_SOURCE,
+                    translation_key=f"{ELEMENT_TYPE}_{CONF_EFFICIENCY_TARGET_SOURCE}",
+                    native_unit_of_measurement=PERCENTAGE,
+                    device_class=NumberDeviceClass.POWER_FACTOR,
+                    native_min_value=50.0,
+                    native_max_value=100.0,
+                    native_step=0.1,
+                ),
+                output_type=OutputType.EFFICIENCY,
+                time_series=True,
+            ),
+            InputFieldInfo(
+                field_name=CONF_PRICE_SOURCE_TARGET,
+                entity_description=NumberEntityDescription(
+                    key=CONF_PRICE_SOURCE_TARGET,
+                    translation_key=f"{ELEMENT_TYPE}_{CONF_PRICE_SOURCE_TARGET}",
+                    native_min_value=-1.0,
+                    native_max_value=10.0,
+                    native_step=0.001,
+                ),
+                output_type=OutputType.PRICE,
+                direction="-",
+                time_series=True,
+            ),
+            InputFieldInfo(
+                field_name=CONF_PRICE_TARGET_SOURCE,
+                entity_description=NumberEntityDescription(
+                    key=CONF_PRICE_TARGET_SOURCE,
+                    translation_key=f"{ELEMENT_TYPE}_{CONF_PRICE_TARGET_SOURCE}",
+                    native_min_value=-1.0,
+                    native_max_value=10.0,
+                    native_step=0.001,
+                ),
+                output_type=OutputType.PRICE,
+                direction="-",
+                time_series=True,
+            ),
+        )
 
     def build_config_data(
         self,

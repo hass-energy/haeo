@@ -67,68 +67,6 @@ GRID_DEVICE_NAMES: Final[frozenset[GridDeviceName]] = frozenset(
     (GRID_DEVICE_GRID := "grid",),
 )
 
-# Input field definitions for creating input entities
-INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
-    InputFieldInfo(
-        field_name=CONF_IMPORT_PRICE,
-        entity_description=NumberEntityDescription(
-            key=CONF_IMPORT_PRICE,
-            translation_key=f"{ELEMENT_TYPE}_{CONF_IMPORT_PRICE}",
-            native_min_value=-1.0,
-            native_max_value=10.0,
-            native_step=0.001,
-        ),
-        output_type=OutputType.PRICE,
-        time_series=True,
-        direction="-",  # Import = consuming from grid = cost
-    ),
-    InputFieldInfo(
-        field_name=CONF_EXPORT_PRICE,
-        entity_description=NumberEntityDescription(
-            key=CONF_EXPORT_PRICE,
-            translation_key=f"{ELEMENT_TYPE}_{CONF_EXPORT_PRICE}",
-            native_min_value=-1.0,
-            native_max_value=10.0,
-            native_step=0.001,
-        ),
-        output_type=OutputType.PRICE,
-        time_series=True,
-        direction="+",  # Export = producing to grid = revenue
-    ),
-    InputFieldInfo(
-        field_name=CONF_IMPORT_LIMIT,
-        entity_description=NumberEntityDescription(
-            key=CONF_IMPORT_LIMIT,
-            translation_key=f"{ELEMENT_TYPE}_{CONF_IMPORT_LIMIT}",
-            native_unit_of_measurement=UnitOfPower.KILO_WATT,
-            device_class=NumberDeviceClass.POWER,
-            native_min_value=0.0,
-            native_max_value=1000.0,
-            native_step=0.1,
-        ),
-        output_type=OutputType.POWER_LIMIT,
-        time_series=True,
-        direction="+",
-        defaults=InputFieldDefaults(mode="value", value=100.0),
-    ),
-    InputFieldInfo(
-        field_name=CONF_EXPORT_LIMIT,
-        entity_description=NumberEntityDescription(
-            key=CONF_EXPORT_LIMIT,
-            translation_key=f"{ELEMENT_TYPE}_{CONF_EXPORT_LIMIT}",
-            native_unit_of_measurement=UnitOfPower.KILO_WATT,
-            device_class=NumberDeviceClass.POWER,
-            native_min_value=0.0,
-            native_max_value=1000.0,
-            native_step=0.1,
-        ),
-        output_type=OutputType.POWER_LIMIT,
-        time_series=True,
-        direction="-",
-        defaults=InputFieldDefaults(mode="value", value=100.0),
-    ),
-)
-
 
 class GridAdapter:
     """Adapter for Grid elements."""
@@ -140,7 +78,7 @@ class GridAdapter:
     @property
     def flow_class(self) -> type:
         """Return the config flow handler class."""
-        # Local import avoids a circular dependency: the flow imports adapter INPUT_FIELDS.
+        # Local import avoids a circular dependency: the flow calls adapter.inputs for field metadata.
         from .flow import GridSubentryFlowHandler  # noqa: PLC0415
 
         return GridSubentryFlowHandler
@@ -163,7 +101,66 @@ class GridAdapter:
     def inputs(self, config: GridConfigSchema) -> tuple[InputFieldInfo[Any], ...]:
         """Return input field definitions for grid elements."""
         _ = config
-        return INPUT_FIELDS
+        return (
+            InputFieldInfo(
+                field_name=CONF_IMPORT_PRICE,
+                entity_description=NumberEntityDescription(
+                    key=CONF_IMPORT_PRICE,
+                    translation_key=f"{ELEMENT_TYPE}_{CONF_IMPORT_PRICE}",
+                    native_min_value=-1.0,
+                    native_max_value=10.0,
+                    native_step=0.001,
+                ),
+                output_type=OutputType.PRICE,
+                time_series=True,
+                direction="-",  # Import = consuming from grid = cost
+            ),
+            InputFieldInfo(
+                field_name=CONF_EXPORT_PRICE,
+                entity_description=NumberEntityDescription(
+                    key=CONF_EXPORT_PRICE,
+                    translation_key=f"{ELEMENT_TYPE}_{CONF_EXPORT_PRICE}",
+                    native_min_value=-1.0,
+                    native_max_value=10.0,
+                    native_step=0.001,
+                ),
+                output_type=OutputType.PRICE,
+                time_series=True,
+                direction="+",  # Export = producing to grid = revenue
+            ),
+            InputFieldInfo(
+                field_name=CONF_IMPORT_LIMIT,
+                entity_description=NumberEntityDescription(
+                    key=CONF_IMPORT_LIMIT,
+                    translation_key=f"{ELEMENT_TYPE}_{CONF_IMPORT_LIMIT}",
+                    native_unit_of_measurement=UnitOfPower.KILO_WATT,
+                    device_class=NumberDeviceClass.POWER,
+                    native_min_value=0.0,
+                    native_max_value=1000.0,
+                    native_step=0.1,
+                ),
+                output_type=OutputType.POWER_LIMIT,
+                time_series=True,
+                direction="+",
+                defaults=InputFieldDefaults(mode="value", value=100.0),
+            ),
+            InputFieldInfo(
+                field_name=CONF_EXPORT_LIMIT,
+                entity_description=NumberEntityDescription(
+                    key=CONF_EXPORT_LIMIT,
+                    translation_key=f"{ELEMENT_TYPE}_{CONF_EXPORT_LIMIT}",
+                    native_unit_of_measurement=UnitOfPower.KILO_WATT,
+                    device_class=NumberDeviceClass.POWER,
+                    native_min_value=0.0,
+                    native_max_value=1000.0,
+                    native_step=0.1,
+                ),
+                output_type=OutputType.POWER_LIMIT,
+                time_series=True,
+                direction="-",
+                defaults=InputFieldDefaults(mode="value", value=100.0),
+            ),
+        )
 
     def build_config_data(
         self,

@@ -31,28 +31,6 @@ NODE_DEVICE_NAMES: Final[frozenset[NodeDeviceName]] = frozenset(
     (NODE_DEVICE_NODE := "node",),
 )
 
-# Input field definitions for creating input entities
-INPUT_FIELDS: Final[tuple[InputFieldInfo[SwitchEntityDescription], ...]] = (
-    InputFieldInfo(
-        field_name=CONF_IS_SOURCE,
-        entity_description=SwitchEntityDescription(
-            key=CONF_IS_SOURCE,
-            translation_key=f"{ELEMENT_TYPE}_{CONF_IS_SOURCE}",
-        ),
-        output_type=OutputType.STATUS,
-        defaults=InputFieldDefaults(mode="value", value=False),
-    ),
-    InputFieldInfo(
-        field_name=CONF_IS_SINK,
-        entity_description=SwitchEntityDescription(
-            key=CONF_IS_SINK,
-            translation_key=f"{ELEMENT_TYPE}_{CONF_IS_SINK}",
-        ),
-        output_type=OutputType.STATUS,
-        defaults=InputFieldDefaults(mode="value", value=False),
-    ),
-)
-
 
 class NodeAdapter:
     """Adapter for Node elements."""
@@ -64,7 +42,7 @@ class NodeAdapter:
     @property
     def flow_class(self) -> type:
         """Return the config flow handler class."""
-        # Local import avoids a circular dependency: the flow imports adapter INPUT_FIELDS.
+        # Local import avoids a circular dependency: the flow calls adapter.inputs for field metadata.
         from .flow import NodeSubentryFlowHandler  # noqa: PLC0415
 
         return NodeSubentryFlowHandler
@@ -78,7 +56,26 @@ class NodeAdapter:
     def inputs(self, config: NodeConfigSchema) -> tuple[InputFieldInfo[Any], ...]:
         """Return input field definitions for node elements."""
         _ = config
-        return INPUT_FIELDS
+        return (
+            InputFieldInfo(
+                field_name=CONF_IS_SOURCE,
+                entity_description=SwitchEntityDescription(
+                    key=CONF_IS_SOURCE,
+                    translation_key=f"{ELEMENT_TYPE}_{CONF_IS_SOURCE}",
+                ),
+                output_type=OutputType.STATUS,
+                defaults=InputFieldDefaults(mode="value", value=False),
+            ),
+            InputFieldInfo(
+                field_name=CONF_IS_SINK,
+                entity_description=SwitchEntityDescription(
+                    key=CONF_IS_SINK,
+                    translation_key=f"{ELEMENT_TYPE}_{CONF_IS_SINK}",
+                ),
+                output_type=OutputType.STATUS,
+                defaults=InputFieldDefaults(mode="value", value=False),
+            ),
+        )
 
     def build_config_data(
         self,

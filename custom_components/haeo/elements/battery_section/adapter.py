@@ -57,38 +57,6 @@ BATTERY_SECTION_DEVICE_NAMES: Final[frozenset[BatterySectionDeviceName]] = froze
     (BATTERY_SECTION_DEVICE := "battery_section",),
 )
 
-# Input field definitions for creating input entities
-INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
-    InputFieldInfo(
-        field_name=CONF_CAPACITY,
-        entity_description=NumberEntityDescription(
-            key=CONF_CAPACITY,
-            translation_key=f"{ELEMENT_TYPE}_{CONF_CAPACITY}",
-            native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
-            device_class=NumberDeviceClass.ENERGY_STORAGE,
-            native_min_value=0.1,
-            native_max_value=1000.0,
-            native_step=0.1,
-        ),
-        output_type=OutputType.ENERGY,
-        time_series=True,
-    ),
-    InputFieldInfo(
-        field_name=CONF_INITIAL_CHARGE,
-        entity_description=NumberEntityDescription(
-            key=CONF_INITIAL_CHARGE,
-            translation_key=f"{ELEMENT_TYPE}_{CONF_INITIAL_CHARGE}",
-            native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
-            device_class=NumberDeviceClass.ENERGY_STORAGE,
-            native_min_value=0.0,
-            native_max_value=1000.0,
-            native_step=0.1,
-        ),
-        output_type=OutputType.ENERGY,
-        time_series=True,
-    ),
-)
-
 
 class BatterySectionAdapter:
     """Adapter for Battery Section elements."""
@@ -100,7 +68,7 @@ class BatterySectionAdapter:
     @property
     def flow_class(self) -> type:
         """Return the config flow handler class."""
-        # Local import avoids a circular dependency: the flow imports adapter INPUT_FIELDS.
+        # Local import avoids a circular dependency: the flow calls adapter.inputs for field metadata.
         from .flow import BatterySectionSubentryFlowHandler  # noqa: PLC0415
 
         return BatterySectionSubentryFlowHandler
@@ -116,7 +84,36 @@ class BatterySectionAdapter:
     def inputs(self, config: BatterySectionConfigSchema) -> tuple[InputFieldInfo[Any], ...]:
         """Return input field definitions for battery section elements."""
         _ = config
-        return INPUT_FIELDS
+        return (
+            InputFieldInfo(
+                field_name=CONF_CAPACITY,
+                entity_description=NumberEntityDescription(
+                    key=CONF_CAPACITY,
+                    translation_key=f"{ELEMENT_TYPE}_{CONF_CAPACITY}",
+                    native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
+                    device_class=NumberDeviceClass.ENERGY_STORAGE,
+                    native_min_value=0.1,
+                    native_max_value=1000.0,
+                    native_step=0.1,
+                ),
+                output_type=OutputType.ENERGY,
+                time_series=True,
+            ),
+            InputFieldInfo(
+                field_name=CONF_INITIAL_CHARGE,
+                entity_description=NumberEntityDescription(
+                    key=CONF_INITIAL_CHARGE,
+                    translation_key=f"{ELEMENT_TYPE}_{CONF_INITIAL_CHARGE}",
+                    native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
+                    device_class=NumberDeviceClass.ENERGY_STORAGE,
+                    native_min_value=0.0,
+                    native_max_value=1000.0,
+                    native_step=0.1,
+                ),
+                output_type=OutputType.ENERGY,
+                time_series=True,
+            ),
+        )
 
     def build_config_data(
         self,

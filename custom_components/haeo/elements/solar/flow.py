@@ -19,7 +19,7 @@ from custom_components.haeo.flows.field_schema import (
     validate_choose_fields,
 )
 
-from .adapter import INPUT_FIELDS
+from .adapter import adapter
 from .schema import CONF_CONNECTION, ELEMENT_TYPE, SolarConfigSchema
 
 # Keys to exclude when converting choose data to config
@@ -39,10 +39,12 @@ class SolarSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
 
     async def _async_step_user(self, user_input: dict[str, Any] | None) -> SubentryFlowResult:
         """Shared logic for user and reconfigure steps."""
-        user_input = preprocess_choose_selector_input(user_input, INPUT_FIELDS)
-        errors = self._validate_user_input(user_input)
         subentry = self._get_subentry()
         subentry_data = dict(subentry.data) if subentry else None
+        input_fields = adapter.inputs(cast("SolarConfigSchema", subentry_data or {}))
+
+        user_input = preprocess_choose_selector_input(user_input, input_fields)
+        errors = self._validate_user_input(user_input)
 
         if user_input is not None and not errors:
             config = self._build_config(user_input)
@@ -55,7 +57,7 @@ class SolarSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
 
         current_connection = subentry_data.get(CONF_CONNECTION) if subentry_data else None
         entity_metadata = extract_entity_metadata(self.hass)
-        inclusion_map = build_inclusion_map(INPUT_FIELDS, entity_metadata)
+        inclusion_map = build_inclusion_map(input_fields, entity_metadata)
         participants = self._get_participant_names()
 
         schema = self._build_schema(participants, inclusion_map, current_connection, subentry_data)
@@ -72,6 +74,7 @@ class SolarSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         subentry_data: dict[str, Any] | None = None,
     ) -> vol.Schema:
         """Build the schema with name, connection, and choose selectors for inputs."""
+        input_fields = adapter.inputs(cast("SolarConfigSchema", subentry_data or {}))
         schema_dict: dict[vol.Marker, Any] = {
             vol.Required(CONF_NAME): vol.All(
                 vol.Coerce(str),
@@ -82,7 +85,7 @@ class SolarSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             vol.Required(CONF_CONNECTION): build_participant_selector(participants, current_connection),
         }
 
-        for field_info in INPUT_FIELDS:
+        for field_info in input_fields:
             is_optional = field_info.field_name in SolarConfigSchema.__optional_keys__ and not field_info.force_required
             include_entities = inclusion_map.get(field_info.field_name)
             preferred = get_preferred_choice(field_info, subentry_data, is_optional=is_optional)
@@ -98,12 +101,13 @@ class SolarSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
 
     def _build_defaults(self, default_name: str, subentry_data: dict[str, Any] | None = None) -> dict[str, Any]:
         """Build default values for the form."""
+        input_fields = adapter.inputs(cast("SolarConfigSchema", subentry_data or {}))
         defaults: dict[str, Any] = {
             CONF_NAME: default_name if subentry_data is None else subentry_data.get(CONF_NAME),
             CONF_CONNECTION: subentry_data.get(CONF_CONNECTION) if subentry_data else None,
         }
 
-        for field_info in INPUT_FIELDS:
+        for field_info in input_fields:
             choose_default = get_choose_default(field_info, subentry_data)
             if choose_default is not None:
                 defaults[field_info.field_name] = choose_default
@@ -116,7 +120,8 @@ class SolarSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             return None
         errors: dict[str, str] = {}
         self._validate_name(user_input.get(CONF_NAME), errors)
-        errors.update(validate_choose_fields(user_input, INPUT_FIELDS, SolarConfigSchema.__optional_keys__))
+        input_fields = adapter.inputs(cast("SolarConfigSchema", {}))
+        errors.update(validate_choose_fields(user_input, input_fields, SolarConfigSchema.__optional_keys__))
         return errors if errors else None
 
     def _build_config(self, user_input: dict[str, Any]) -> SolarConfigSchema:
@@ -124,7 +129,8 @@ class SolarSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         name = user_input.get(CONF_NAME)
         connection = user_input.get(CONF_CONNECTION)
 
-        config_dict = convert_choose_data_to_config(user_input, INPUT_FIELDS, _EXCLUDE_KEYS)
+        input_fields = adapter.inputs(cast("SolarConfigSchema", {}))
+        config_dict = convert_choose_data_to_config(user_input, input_fields, _EXCLUDE_KEYS)
 
         return cast(
             "SolarConfigSchema",
