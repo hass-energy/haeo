@@ -53,7 +53,7 @@ class NodeAdapter:
         _ = config  # Unused but required by protocol
         return True
 
-    def inputs(self, config: NodeConfigSchema | None) -> tuple[InputFieldInfo[Any], ...]:
+    def inputs(self, config: NodeConfigSchema) -> tuple[InputFieldInfo[Any], ...]:
         """Return input field definitions for node elements."""
         _ = config
         return (

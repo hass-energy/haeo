@@ -94,7 +94,7 @@ class ConnectionAdapter:
 
         return True
 
-    def inputs(self, config: ConnectionConfigSchema | None) -> tuple[InputFieldInfo[Any], ...]:
+    def inputs(self, config: ConnectionConfigSchema) -> tuple[InputFieldInfo[Any], ...]:
         """Return input field definitions for connection elements."""
         _ = config
         return (

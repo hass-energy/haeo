@@ -81,7 +81,7 @@ class BatterySectionAdapter:
         required_fields = [CONF_CAPACITY, CONF_INITIAL_CHARGE]
         return all(ts_loader.available(hass=hass, value=config[field]) for field in required_fields)
 
-    def inputs(self, config: BatterySectionConfigSchema | None) -> tuple[InputFieldInfo[Any], ...]:
+    def inputs(self, config: BatterySectionConfigSchema) -> tuple[InputFieldInfo[Any], ...]:
         """Return input field definitions for battery section elements."""
         _ = config
         return (

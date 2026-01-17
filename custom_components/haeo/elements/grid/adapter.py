@@ -98,7 +98,7 @@ class GridAdapter:
 
         return entities_available(config.get("import_price")) and entities_available(config.get("export_price"))
 
-    def inputs(self, config: GridConfigSchema | None) -> tuple[InputFieldInfo[Any], ...]:
+    def inputs(self, config: GridConfigSchema) -> tuple[InputFieldInfo[Any], ...]:
         """Return input field definitions for grid elements."""
         _ = config
         return (
