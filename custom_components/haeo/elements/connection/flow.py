@@ -143,11 +143,7 @@ class ConnectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
 
         return vol.Schema(schema_dict)
 
-    def _build_defaults(
-        self,
-        default_name: str,
-        subentry_data: Mapping[str, Any] | None = None,
-    ) -> dict[str, Any]:
+    def _build_defaults(self, default_name: str, subentry_data: Mapping[str, Any] | None = None) -> dict[str, Any]:
         """Build default values for the form."""
         defaults: dict[str, Any] = {
             CONF_NAME: default_name if subentry_data is None else subentry_data.get(CONF_NAME),
