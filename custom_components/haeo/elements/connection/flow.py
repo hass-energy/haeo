@@ -9,6 +9,7 @@ import voluptuous as vol
 
 from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME, DOMAIN
 from custom_components.haeo.data.loader.extractors import extract_entity_metadata
+from custom_components.haeo.elements import is_element_config_schema
 from custom_components.haeo.flows.element_flow import ElementFlowMixin, build_inclusion_map, build_participant_selector
 from custom_components.haeo.flows.field_schema import (
     build_choose_schema_entry,
@@ -41,28 +42,68 @@ class ConnectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         """Shared logic for user and reconfigure steps."""
         subentry = self._get_subentry()
         subentry_data = dict(subentry.data) if subentry else None
-        input_fields = adapter.inputs(cast("ConnectionConfigSchema", subentry_data or {}))
+        participants = self._get_participant_names()
+        current_source = subentry_data.get(CONF_SOURCE) if subentry_data else None
+        current_target = subentry_data.get(CONF_TARGET) if subentry_data else None
+
+        if (
+            subentry_data is not None
+            and is_element_config_schema(subentry_data)
+            and subentry_data["element_type"] == ELEMENT_TYPE
+        ):
+            element_config = subentry_data
+        else:
+            translations = await async_get_translations(
+                self.hass, self.hass.config.language, "config_subentries", integrations=[DOMAIN]
+            )
+            default_name = translations[f"component.{DOMAIN}.config_subentries.{ELEMENT_TYPE}.flow_title"]
+            if not participants:
+                msg = "Connection config requires participants"
+                raise ValueError(msg)
+            if not isinstance(current_source, str):
+                current_source = participants[0]
+            if not isinstance(current_target, str):
+                current_target = participants[min(1, len(participants) - 1)]
+            element_config: ConnectionConfigSchema = {
+                CONF_ELEMENT_TYPE: ELEMENT_TYPE,
+                CONF_NAME: default_name,
+                CONF_SOURCE: current_source,
+                CONF_TARGET: current_target,
+            }
+
+        input_fields = adapter.inputs(element_config)
 
         user_input = preprocess_choose_selector_input(user_input, input_fields)
-        errors = self._validate_user_input(user_input)
+        errors = self._validate_user_input(user_input, input_fields)
 
         if user_input is not None and not errors:
             config = self._build_config(user_input)
             return self._finalize(config, user_input)
 
+        entity_metadata = extract_entity_metadata(self.hass)
+        inclusion_map = build_inclusion_map(input_fields, entity_metadata)
         translations = await async_get_translations(
             self.hass, self.hass.config.language, "config_subentries", integrations=[DOMAIN]
         )
         default_name = translations[f"component.{DOMAIN}.config_subentries.{ELEMENT_TYPE}.flow_title"]
 
-        current_source = subentry_data.get(CONF_SOURCE) if subentry_data else None
-        current_target = subentry_data.get(CONF_TARGET) if subentry_data else None
-        entity_metadata = extract_entity_metadata(self.hass)
-        inclusion_map = build_inclusion_map(input_fields, entity_metadata)
-        participants = self._get_participant_names()
-
-        schema = self._build_schema(participants, inclusion_map, current_source, current_target, subentry_data)
-        defaults = user_input if user_input is not None else self._build_defaults(default_name, subentry_data)
+        schema = self._build_schema(
+            participants,
+            input_fields,
+            inclusion_map,
+            current_source,
+            current_target,
+            dict(subentry_data) if subentry_data is not None else None,
+        )
+        defaults = (
+            user_input
+            if user_input is not None
+            else self._build_defaults(
+                default_name,
+                input_fields,
+                dict(subentry_data) if subentry_data is not None else None,
+            )
+        )
         schema = self.add_suggested_values_to_schema(schema, defaults)
 
         return self.async_show_form(step_id="user", data_schema=schema, errors=errors)
@@ -70,13 +111,13 @@ class ConnectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
     def _build_schema(
         self,
         participants: list[str],
+        input_fields: tuple[Any, ...],
         inclusion_map: dict[str, list[str]],
         current_source: str | None = None,
         current_target: str | None = None,
         subentry_data: dict[str, Any] | None = None,
     ) -> vol.Schema:
         """Build the schema with name, source, target, and choose selectors for inputs."""
-        input_fields = adapter.inputs(cast("ConnectionConfigSchema", subentry_data or {}))
         schema_dict: dict[vol.Marker, Any] = {
             vol.Required(CONF_NAME): vol.All(
                 vol.Coerce(str),
@@ -104,9 +145,13 @@ class ConnectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
 
         return vol.Schema(schema_dict)
 
-    def _build_defaults(self, default_name: str, subentry_data: dict[str, Any] | None = None) -> dict[str, Any]:
+    def _build_defaults(
+        self,
+        default_name: str,
+        input_fields: tuple[Any, ...],
+        subentry_data: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         """Build default values for the form."""
-        input_fields = adapter.inputs(cast("ConnectionConfigSchema", subentry_data or {}))
         defaults: dict[str, Any] = {
             CONF_NAME: default_name if subentry_data is None else subentry_data.get(CONF_NAME),
             CONF_SOURCE: subentry_data.get(CONF_SOURCE) if subentry_data else None,
@@ -120,13 +165,16 @@ class ConnectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
 
         return defaults
 
-    def _validate_user_input(self, user_input: dict[str, Any] | None) -> dict[str, str] | None:
+    def _validate_user_input(
+        self,
+        user_input: dict[str, Any] | None,
+        input_fields: tuple[Any, ...],
+    ) -> dict[str, str] | None:
         """Validate user input and return errors dict if any."""
         if user_input is None:
             return None
         errors: dict[str, str] = {}
         self._validate_name(user_input.get(CONF_NAME), errors)
-        input_fields = adapter.inputs(cast("ConnectionConfigSchema", {}))
         errors.update(validate_choose_fields(user_input, input_fields, ConnectionConfigSchema.__optional_keys__))
         # Validate source != target
         source = user_input.get(CONF_SOURCE)
@@ -141,7 +189,16 @@ class ConnectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         source = user_input.get(CONF_SOURCE)
         target = user_input.get(CONF_TARGET)
 
-        input_fields = adapter.inputs(cast("ConnectionConfigSchema", {}))
+        if not isinstance(name, str) or not isinstance(source, str) or not isinstance(target, str):
+            msg = "Connection config missing name/source/target"
+            raise TypeError(msg)
+        seed_config: ConnectionConfigSchema = {
+            CONF_ELEMENT_TYPE: ELEMENT_TYPE,
+            CONF_NAME: name,
+            CONF_SOURCE: source,
+            CONF_TARGET: target,
+        }
+        input_fields = adapter.inputs(seed_config)
         config_dict = convert_choose_data_to_config(user_input, input_fields, _EXCLUDE_KEYS)
 
         return cast(

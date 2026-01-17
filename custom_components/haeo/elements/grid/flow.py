@@ -1,6 +1,6 @@
 """Grid element configuration flows."""
 
-from typing import Any, cast
+from typing import Any
 
 from homeassistant.config_entries import ConfigSubentry, ConfigSubentryFlow, SubentryFlowResult, UnknownSubEntry
 from homeassistant.helpers.selector import TextSelector, TextSelectorConfig
@@ -9,6 +9,7 @@ import voluptuous as vol
 
 from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME, DOMAIN
 from custom_components.haeo.data.loader.extractors import extract_entity_metadata
+from custom_components.haeo.elements import is_element_config_schema
 from custom_components.haeo.flows.element_flow import ElementFlowMixin, build_inclusion_map, build_participant_selector
 from custom_components.haeo.flows.field_schema import (
     build_choose_schema_entry,
@@ -20,7 +21,7 @@ from custom_components.haeo.flows.field_schema import (
 )
 
 from .adapter import adapter
-from .schema import CONF_CONNECTION, ELEMENT_TYPE, GridConfigSchema
+from .schema import CONF_CONNECTION, CONF_EXPORT_PRICE, CONF_IMPORT_PRICE, ELEMENT_TYPE, GridConfigSchema
 
 # Keys to exclude when converting choose data to config
 _EXCLUDE_KEYS = (CONF_NAME, CONF_CONNECTION)
@@ -41,28 +42,56 @@ class GridSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         """Shared logic for user and reconfigure steps."""
         subentry = self._get_subentry()
         subentry_data = dict(subentry.data) if subentry else None
-        input_fields = adapter.inputs(cast("GridConfigSchema", subentry_data or {}))
+        participants = self._get_participant_names()
+        current_connection = subentry_data.get(CONF_CONNECTION) if subentry_data else None
+
+        if (
+            subentry_data is not None
+            and is_element_config_schema(subentry_data)
+            and subentry_data["element_type"] == ELEMENT_TYPE
+        ):
+            element_config = subentry_data
+        else:
+            translations = await async_get_translations(
+                self.hass, self.hass.config.language, "config_subentries", integrations=[DOMAIN]
+            )
+            default_name = translations[f"component.{DOMAIN}.config_subentries.{ELEMENT_TYPE}.flow_title"]
+            if not isinstance(current_connection, str):
+                if not participants:
+                    msg = "Grid config requires a connection target"
+                    raise ValueError(msg)
+                current_connection = participants[0]
+            element_config: GridConfigSchema = {
+                CONF_ELEMENT_TYPE: ELEMENT_TYPE,
+                CONF_NAME: default_name,
+                CONF_CONNECTION: current_connection,
+                CONF_IMPORT_PRICE: 0.0,
+                CONF_EXPORT_PRICE: 0.0,
+            }
+
+        input_fields = adapter.inputs(element_config)
 
         # Preprocess to normalize ChooseSelector data before validation
         user_input = preprocess_choose_selector_input(user_input, input_fields)
-        errors = self._validate_user_input(user_input)
+        errors = self._validate_user_input(user_input, input_fields)
 
         if user_input is not None and not errors:
             config = self._build_config(user_input, subentry_data)
             return self._finalize(config, user_input)
 
+        entity_metadata = extract_entity_metadata(self.hass)
+        inclusion_map = build_inclusion_map(input_fields, entity_metadata)
         translations = await async_get_translations(
             self.hass, self.hass.config.language, "config_subentries", integrations=[DOMAIN]
         )
         default_name = translations[f"component.{DOMAIN}.config_subentries.{ELEMENT_TYPE}.flow_title"]
 
-        current_connection = subentry_data.get(CONF_CONNECTION) if subentry_data else None
-        entity_metadata = extract_entity_metadata(self.hass)
-        inclusion_map = build_inclusion_map(input_fields, entity_metadata)
-        participants = self._get_participant_names()
-
-        schema = self._build_schema(participants, inclusion_map, current_connection, subentry_data)
-        defaults = user_input if user_input is not None else self._build_defaults(default_name, subentry_data)
+        schema = self._build_schema(participants, input_fields, inclusion_map, current_connection, subentry_data)
+        defaults = (
+            user_input
+            if user_input is not None
+            else self._build_defaults(default_name, input_fields, subentry_data)
+        )
         schema = self.add_suggested_values_to_schema(schema, defaults)
 
         return self.async_show_form(step_id="user", data_schema=schema, errors=errors)
@@ -70,12 +99,12 @@ class GridSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
     def _build_schema(
         self,
         participants: list[str],
+        input_fields: tuple[Any, ...],
         inclusion_map: dict[str, list[str]],
         current_connection: str | None = None,
         subentry_data: dict[str, Any] | None = None,
     ) -> vol.Schema:
         """Build the schema with name, connection, and choose selectors for inputs."""
-        input_fields = adapter.inputs(cast("GridConfigSchema", subentry_data or {}))
         schema_dict: dict[vol.Marker, Any] = {
             vol.Required(CONF_NAME): vol.All(
                 vol.Coerce(str),
@@ -100,9 +129,13 @@ class GridSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
 
         return vol.Schema(schema_dict)
 
-    def _build_defaults(self, default_name: str, subentry_data: dict[str, Any] | None = None) -> dict[str, Any]:
+    def _build_defaults(
+        self,
+        default_name: str,
+        input_fields: tuple[Any, ...],
+        subentry_data: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         """Build default values for the form."""
-        input_fields = adapter.inputs(cast("GridConfigSchema", subentry_data or {}))
         defaults: dict[str, Any] = {
             CONF_NAME: default_name if subentry_data is None else subentry_data.get(CONF_NAME),
             CONF_CONNECTION: subentry_data.get(CONF_CONNECTION) if subentry_data else None,
@@ -115,13 +148,16 @@ class GridSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
 
         return defaults
 
-    def _validate_user_input(self, user_input: dict[str, Any] | None) -> dict[str, str] | None:
+    def _validate_user_input(
+        self,
+        user_input: dict[str, Any] | None,
+        input_fields: tuple[Any, ...],
+    ) -> dict[str, str] | None:
         """Validate user input and return errors dict if any."""
         if user_input is None:
             return None
         errors: dict[str, str] = {}
         self._validate_name(user_input.get(CONF_NAME), errors)
-        input_fields = adapter.inputs(cast("GridConfigSchema", {}))
         errors.update(validate_choose_fields(user_input, input_fields, GridConfigSchema.__optional_keys__))
         return errors if errors else None
 
@@ -134,18 +170,45 @@ class GridSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         name = user_input.get(CONF_NAME)
         connection = user_input.get(CONF_CONNECTION)
 
-        input_fields = adapter.inputs(cast("GridConfigSchema", current_data or {}))
+        if (
+            current_data is not None
+            and is_element_config_schema(current_data)
+            and current_data["element_type"] == ELEMENT_TYPE
+        ):
+            input_fields = adapter.inputs(current_data)
+        else:
+            name_value = user_input.get(CONF_NAME)
+            connection_value = user_input.get(CONF_CONNECTION)
+            import_price = user_input.get(CONF_IMPORT_PRICE)
+            export_price = user_input.get(CONF_EXPORT_PRICE)
+            if not isinstance(name_value, str) or not isinstance(connection_value, str):
+                msg = "Grid config missing name or connection"
+                raise ValueError(msg)
+            if not isinstance(import_price, (str, float, int, list)) or not isinstance(
+                export_price, (str, float, int, list)
+            ):
+                msg = "Grid config missing price values"
+                raise ValueError(msg)
+            seed_config: GridConfigSchema = {
+                CONF_ELEMENT_TYPE: ELEMENT_TYPE,
+                CONF_NAME: name_value,
+                CONF_CONNECTION: connection_value,
+                CONF_IMPORT_PRICE: import_price,
+                CONF_EXPORT_PRICE: export_price,
+            }
+            input_fields = adapter.inputs(seed_config)
         config_dict = convert_choose_data_to_config(user_input, input_fields, _EXCLUDE_KEYS)
 
-        return cast(
-            "GridConfigSchema",
-            {
-                CONF_ELEMENT_TYPE: ELEMENT_TYPE,
-                CONF_NAME: name,
-                CONF_CONNECTION: connection,
-                **config_dict,
-            },
-        )
+        if not isinstance(name, str) or not isinstance(connection, str):
+            msg = "Grid config missing name or connection"
+            raise ValueError(msg)
+        config: GridConfigSchema = {
+            CONF_ELEMENT_TYPE: ELEMENT_TYPE,
+            CONF_NAME: name,
+            CONF_CONNECTION: connection,
+            **config_dict,
+        }
+        return config
 
     def _finalize(self, config: GridConfigSchema, user_input: dict[str, Any]) -> SubentryFlowResult:
         """Finalize the flow by creating or updating the entry."""

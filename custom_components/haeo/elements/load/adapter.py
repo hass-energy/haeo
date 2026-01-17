@@ -63,7 +63,7 @@ class LoadAdapter:
         ts_loader = TimeSeriesLoader()
         return ts_loader.available(hass=hass, value=config[CONF_FORECAST])
 
-    def inputs(self, config: LoadConfigSchema) -> tuple[InputFieldInfo[Any], ...]:
+    def inputs(self, config: LoadConfigSchema | None) -> tuple[InputFieldInfo[Any], ...]:
         """Return input field definitions for load elements."""
         _ = config
         return (

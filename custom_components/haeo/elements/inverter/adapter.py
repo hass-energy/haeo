@@ -85,7 +85,7 @@ class InverterAdapter:
             return False
         return ts_loader.available(hass=hass, value=config[CONF_MAX_POWER_AC_TO_DC])
 
-    def inputs(self, config: InverterConfigSchema) -> tuple[InputFieldInfo[Any], ...]:
+    def inputs(self, config: InverterConfigSchema | None) -> tuple[InputFieldInfo[Any], ...]:
         """Return input field definitions for inverter elements."""
         _ = config
         return (

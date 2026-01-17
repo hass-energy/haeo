@@ -173,7 +173,7 @@ class ElementAdapter(Protocol):
 
     @property
     def flow_class(self) -> type:
-        """The config flow handler class for this element type."""
+    """The config flow handler class for this element type."""
         ...
 
     advanced: bool

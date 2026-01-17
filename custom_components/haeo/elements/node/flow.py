@@ -1,6 +1,6 @@
 """Node element configuration flows."""
 
-from typing import Any, cast
+from typing import Any
 
 from homeassistant.config_entries import ConfigSubentry, ConfigSubentryFlow, SubentryFlowResult, UnknownSubEntry
 from homeassistant.helpers.selector import BooleanSelector, BooleanSelectorConfig, TextSelector, TextSelectorConfig
@@ -59,7 +59,19 @@ class NodeSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         if user_input is not None:
             name = user_input.get(CONF_NAME)
             if self._validate_name(name, errors):
-                config = cast("NodeConfigSchema", {CONF_ELEMENT_TYPE: ELEMENT_TYPE, **user_input})
+                if not isinstance(name, str):
+                    errors[CONF_NAME] = "missing_name"
+                    return self.async_show_form(
+                        step_id="user",
+                        data_schema=_build_schema(),
+                        errors=errors,
+                    )
+                config: NodeConfigSchema = {
+                    CONF_ELEMENT_TYPE: ELEMENT_TYPE,
+                    CONF_NAME: name,
+                    CONF_IS_SOURCE: bool(user_input.get(CONF_IS_SOURCE, False)),
+                    CONF_IS_SINK: bool(user_input.get(CONF_IS_SINK, False)),
+                }
                 if subentry is not None:
                     return self.async_update_and_abort(
                         self._get_entry(),

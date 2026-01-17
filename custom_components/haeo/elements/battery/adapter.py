@@ -152,7 +152,7 @@ class BatteryAdapter:
         ]
         return all(entity_available(config.get(field)) for field in optional_fields)
 
-    def inputs(self, config: BatteryConfigSchema) -> tuple[InputFieldInfo[Any], ...]:
+    def inputs(self, config: BatteryConfigSchema | None) -> tuple[InputFieldInfo[Any], ...]:
         """Return input field definitions for battery elements."""
         _ = config
         return (

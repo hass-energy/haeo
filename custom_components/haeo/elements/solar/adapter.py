@@ -76,7 +76,7 @@ class SolarAdapter:
         ts_loader = TimeSeriesLoader()
         return ts_loader.available(hass=hass, value=config[CONF_FORECAST])
 
-    def inputs(self, config: SolarConfigSchema) -> tuple[InputFieldInfo[Any], ...]:
+    def inputs(self, config: SolarConfigSchema | None) -> tuple[InputFieldInfo[Any], ...]:
         """Return input field definitions for solar elements."""
         _ = config
         return (

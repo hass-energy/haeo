@@ -1,13 +1,11 @@
 """Switch platform for HAEO input entities."""
 
 import logging
-from typing import cast
-
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from custom_components.haeo import HaeoConfigEntry
-from custom_components.haeo.elements import ElementConfigSchema, get_input_fields, is_element_type
+from custom_components.haeo.elements import get_input_fields, is_element_config_schema
 from custom_components.haeo.entities.device import get_or_create_element_device
 from custom_components.haeo.entities.haeo_switch import HaeoInputSwitch
 
@@ -35,13 +33,12 @@ async def async_setup_entry(
     entities: list[HaeoInputSwitch] = []
 
     for subentry in config_entry.subentries.values():
-        # Skip non-element subentries (e.g., network)
-        element_type = subentry.subentry_type
-        if not is_element_type(element_type):
+        if not is_element_config_schema(subentry.data):
             continue
+        element_config = subentry.data
+        element_type = element_config["element_type"]
 
         # Get input field definitions for this element type
-        element_config = cast("ElementConfigSchema", subentry.data)
         input_fields = get_input_fields(element_type, element_config)
 
         # Filter to only switch fields (by entity description class name)
