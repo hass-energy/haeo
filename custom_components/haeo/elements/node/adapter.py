@@ -45,29 +45,32 @@ class NodeAdapter:
         _ = config  # Unused but required by protocol
         return True
 
-    def inputs(self, config: Any) -> tuple[InputFieldInfo[Any], ...]:
+    def inputs(self, config: Any) -> dict[str, InputFieldInfo[Any]]:
         """Return input field definitions for node elements."""
         _ = config
-        return (
-            InputFieldInfo(
-                field_name=CONF_IS_SOURCE,
-                entity_description=SwitchEntityDescription(
-                    key=CONF_IS_SOURCE,
-                    translation_key=f"{ELEMENT_TYPE}_{CONF_IS_SOURCE}",
+        return {
+            field.field_name: field
+            for field in (
+                InputFieldInfo(
+                    field_name=CONF_IS_SOURCE,
+                    entity_description=SwitchEntityDescription(
+                        key=CONF_IS_SOURCE,
+                        translation_key=f"{ELEMENT_TYPE}_{CONF_IS_SOURCE}",
+                    ),
+                    output_type=OutputType.STATUS,
+                    defaults=InputFieldDefaults(mode="value", value=False),
                 ),
-                output_type=OutputType.STATUS,
-                defaults=InputFieldDefaults(mode="value", value=False),
-            ),
-            InputFieldInfo(
-                field_name=CONF_IS_SINK,
-                entity_description=SwitchEntityDescription(
-                    key=CONF_IS_SINK,
-                    translation_key=f"{ELEMENT_TYPE}_{CONF_IS_SINK}",
+                InputFieldInfo(
+                    field_name=CONF_IS_SINK,
+                    entity_description=SwitchEntityDescription(
+                        key=CONF_IS_SINK,
+                        translation_key=f"{ELEMENT_TYPE}_{CONF_IS_SINK}",
+                    ),
+                    output_type=OutputType.STATUS,
+                    defaults=InputFieldDefaults(mode="value", value=False),
                 ),
-                output_type=OutputType.STATUS,
-                defaults=InputFieldDefaults(mode="value", value=False),
-            ),
-        )
+            )
+        }
 
     def build_config_data(
         self,

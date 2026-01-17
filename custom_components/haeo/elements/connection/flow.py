@@ -11,6 +11,7 @@ import voluptuous as vol
 from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME, DOMAIN
 from custom_components.haeo.data.loader.extractors import extract_entity_metadata
 from custom_components.haeo.elements import is_element_config_schema
+from custom_components.haeo.elements.input_fields import InputFieldInfo
 from custom_components.haeo.flows.element_flow import ElementFlowMixin, build_inclusion_map, build_participant_selector
 from custom_components.haeo.flows.field_schema import (
     build_choose_schema_entry,
@@ -108,7 +109,7 @@ class ConnectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
     def _build_schema(
         self,
         participants: list[str],
-        input_fields: tuple[Any, ...],
+        input_fields: Mapping[str, InputFieldInfo[Any]],
         inclusion_map: dict[str, list[str]],
         current_source: str | None = None,
         current_target: str | None = None,
@@ -126,7 +127,7 @@ class ConnectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             vol.Required(CONF_TARGET): build_participant_selector(participants, current_target),
         }
 
-        for field_info in input_fields:
+        for field_info in input_fields.values():
             is_optional = (
                 field_info.field_name in ConnectionConfigSchema.__optional_keys__ and not field_info.force_required
             )
@@ -154,8 +155,8 @@ class ConnectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             CONF_TARGET: subentry_data.get(CONF_TARGET) if subentry_data else None,
         }
 
-        input_fields = adapter.inputs({})
-        for field_info in input_fields:
+        input_fields = adapter.inputs(subentry_data)
+        for field_info in input_fields.values():
             choose_default = get_choose_default(field_info, subentry_data)
             if choose_default is not None:
                 defaults[field_info.field_name] = choose_default
@@ -165,7 +166,7 @@ class ConnectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
     def _validate_user_input(
         self,
         user_input: dict[str, Any] | None,
-        input_fields: tuple[Any, ...],
+        input_fields: Mapping[str, InputFieldInfo[Any]],
     ) -> dict[str, str] | None:
         """Validate user input and return errors dict if any."""
         if user_input is None:

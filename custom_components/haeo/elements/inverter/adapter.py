@@ -77,67 +77,70 @@ class InverterAdapter:
             return False
         return ts_loader.available(hass=hass, value=config[CONF_MAX_POWER_AC_TO_DC])
 
-    def inputs(self, config: Any) -> tuple[InputFieldInfo[Any], ...]:
+    def inputs(self, config: Any) -> dict[str, InputFieldInfo[Any]]:
         """Return input field definitions for inverter elements."""
         _ = config
-        return (
-            InputFieldInfo(
-                field_name=CONF_MAX_POWER_DC_TO_AC,
-                entity_description=NumberEntityDescription(
-                    key=CONF_MAX_POWER_DC_TO_AC,
-                    translation_key=f"{ELEMENT_TYPE}_{CONF_MAX_POWER_DC_TO_AC}",
-                    native_unit_of_measurement=UnitOfPower.KILO_WATT,
-                    device_class=NumberDeviceClass.POWER,
-                    native_min_value=0.0,
-                    native_max_value=1000.0,
-                    native_step=0.1,
+        return {
+            field.field_name: field
+            for field in (
+                InputFieldInfo(
+                    field_name=CONF_MAX_POWER_DC_TO_AC,
+                    entity_description=NumberEntityDescription(
+                        key=CONF_MAX_POWER_DC_TO_AC,
+                        translation_key=f"{ELEMENT_TYPE}_{CONF_MAX_POWER_DC_TO_AC}",
+                        native_unit_of_measurement=UnitOfPower.KILO_WATT,
+                        device_class=NumberDeviceClass.POWER,
+                        native_min_value=0.0,
+                        native_max_value=1000.0,
+                        native_step=0.1,
+                    ),
+                    output_type=OutputType.POWER_LIMIT,
+                    time_series=True,
                 ),
-                output_type=OutputType.POWER_LIMIT,
-                time_series=True,
-            ),
-            InputFieldInfo(
-                field_name=CONF_MAX_POWER_AC_TO_DC,
-                entity_description=NumberEntityDescription(
-                    key=CONF_MAX_POWER_AC_TO_DC,
-                    translation_key=f"{ELEMENT_TYPE}_{CONF_MAX_POWER_AC_TO_DC}",
-                    native_unit_of_measurement=UnitOfPower.KILO_WATT,
-                    device_class=NumberDeviceClass.POWER,
-                    native_min_value=0.0,
-                    native_max_value=1000.0,
-                    native_step=0.1,
+                InputFieldInfo(
+                    field_name=CONF_MAX_POWER_AC_TO_DC,
+                    entity_description=NumberEntityDescription(
+                        key=CONF_MAX_POWER_AC_TO_DC,
+                        translation_key=f"{ELEMENT_TYPE}_{CONF_MAX_POWER_AC_TO_DC}",
+                        native_unit_of_measurement=UnitOfPower.KILO_WATT,
+                        device_class=NumberDeviceClass.POWER,
+                        native_min_value=0.0,
+                        native_max_value=1000.0,
+                        native_step=0.1,
+                    ),
+                    output_type=OutputType.POWER_LIMIT,
+                    time_series=True,
                 ),
-                output_type=OutputType.POWER_LIMIT,
-                time_series=True,
-            ),
-            InputFieldInfo(
-                field_name=CONF_EFFICIENCY_DC_TO_AC,
-                entity_description=NumberEntityDescription(
-                    key=CONF_EFFICIENCY_DC_TO_AC,
-                    translation_key=f"{ELEMENT_TYPE}_{CONF_EFFICIENCY_DC_TO_AC}",
-                    native_unit_of_measurement=PERCENTAGE,
-                    device_class=NumberDeviceClass.POWER_FACTOR,
-                    native_min_value=50.0,
-                    native_max_value=100.0,
-                    native_step=0.1,
+                InputFieldInfo(
+                    field_name=CONF_EFFICIENCY_DC_TO_AC,
+                    entity_description=NumberEntityDescription(
+                        key=CONF_EFFICIENCY_DC_TO_AC,
+                        translation_key=f"{ELEMENT_TYPE}_{CONF_EFFICIENCY_DC_TO_AC}",
+                        native_unit_of_measurement=PERCENTAGE,
+                        device_class=NumberDeviceClass.POWER_FACTOR,
+                        native_min_value=50.0,
+                        native_max_value=100.0,
+                        native_step=0.1,
+                    ),
+                    output_type=OutputType.EFFICIENCY,
+                    defaults=InputFieldDefaults(mode=None, value=100.0),
                 ),
-                output_type=OutputType.EFFICIENCY,
-                defaults=InputFieldDefaults(mode=None, value=100.0),
-            ),
-            InputFieldInfo(
-                field_name=CONF_EFFICIENCY_AC_TO_DC,
-                entity_description=NumberEntityDescription(
-                    key=CONF_EFFICIENCY_AC_TO_DC,
-                    translation_key=f"{ELEMENT_TYPE}_{CONF_EFFICIENCY_AC_TO_DC}",
-                    native_unit_of_measurement=PERCENTAGE,
-                    device_class=NumberDeviceClass.POWER_FACTOR,
-                    native_min_value=50.0,
-                    native_max_value=100.0,
-                    native_step=0.1,
+                InputFieldInfo(
+                    field_name=CONF_EFFICIENCY_AC_TO_DC,
+                    entity_description=NumberEntityDescription(
+                        key=CONF_EFFICIENCY_AC_TO_DC,
+                        translation_key=f"{ELEMENT_TYPE}_{CONF_EFFICIENCY_AC_TO_DC}",
+                        native_unit_of_measurement=PERCENTAGE,
+                        device_class=NumberDeviceClass.POWER_FACTOR,
+                        native_min_value=50.0,
+                        native_max_value=100.0,
+                        native_step=0.1,
+                    ),
+                    output_type=OutputType.EFFICIENCY,
+                    defaults=InputFieldDefaults(mode=None, value=100.0),
                 ),
-                output_type=OutputType.EFFICIENCY,
-                defaults=InputFieldDefaults(mode=None, value=100.0),
-            ),
-        )
+            )
+        }
 
     def build_config_data(
         self,

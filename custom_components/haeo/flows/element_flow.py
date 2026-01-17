@@ -8,6 +8,7 @@ This module provides:
 - ElementFlowMixin: Mixin providing common subentry flow functionality
 """
 
+from collections.abc import Mapping
 from typing import Any, Final
 
 from homeassistant.config_entries import ConfigEntry
@@ -69,7 +70,7 @@ def filter_compatible_entities(
 
 
 def build_inclusion_map(
-    input_fields: tuple[InputFieldInfo[Any], ...],
+    input_fields: Mapping[str, InputFieldInfo[Any]],
     entity_metadata: list[EntityMetadata],
 ) -> dict[str, list[str]]:
     """Build field name → compatible entity IDs mapping from input fields.
@@ -78,7 +79,7 @@ def build_inclusion_map(
     output_type and computing which entities are compatible.
 
     Args:
-        input_fields: Tuple of InputFieldInfo from element's schema.
+        input_fields: Mapping of InputFieldInfo from element's schema.
         entity_metadata: List of entity metadata from extract_entity_metadata.
 
     Returns:
@@ -87,7 +88,7 @@ def build_inclusion_map(
     """
     result: dict[str, list[str]] = {}
 
-    for field_info in input_fields:
+    for field_info in input_fields.values():
         unit_spec = get_unit_spec_for_output_type(field_info.output_type)
         if unit_spec is not None:
             result[field_info.field_name] = filter_compatible_entities(entity_metadata, unit_spec)

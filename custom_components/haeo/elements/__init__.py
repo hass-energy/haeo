@@ -181,7 +181,7 @@ class ElementAdapter(Protocol):
         """Check if element configuration can be loaded."""
         ...
 
-    def inputs(self, config: Any) -> tuple[InputFieldInfo[Any], ...]:
+    def inputs(self, config: Mapping[str, Any] | None) -> dict[str, InputFieldInfo[Any]]:
         """Return input field definitions for this element."""
         ...
 
@@ -395,7 +395,7 @@ def collect_element_subentries(entry: ConfigEntry) -> list[ValidatedElementSuben
     return result
 
 
-def get_input_fields(element_config: ElementConfigSchema) -> tuple[InputFieldInfo[Any], ...]:
+def get_input_fields(element_config: ElementConfigSchema) -> dict[str, InputFieldInfo[Any]]:
     """Return input field definitions for an element config."""
     element_type = element_config[CONF_ELEMENT_TYPE]
     adapter = ELEMENT_TYPES[element_type]

@@ -446,7 +446,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
 
         # Collect loaded values from input entities
         loaded_values: dict[str, Any] = {}
-        for field_info in input_field_infos:
+        for field_info in input_field_infos.values():
             field_name = field_info.field_name
             key = (element_name, field_name)
 

@@ -45,7 +45,9 @@ async def async_setup_entry(
 
         # Filter to only switch fields (by entity description class name)
         # Note: isinstance doesn't work due to Home Assistant's frozen_dataclass_compat wrapper
-        switch_fields = [f for f in input_fields if type(f.entity_description).__name__ == "SwitchEntityDescription"]
+        switch_fields = [
+            f for f in input_fields.values() if type(f.entity_description).__name__ == "SwitchEntityDescription"
+        ]
 
         if not switch_fields:
             continue

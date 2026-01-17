@@ -11,6 +11,7 @@ import voluptuous as vol
 from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME, DOMAIN
 from custom_components.haeo.data.loader.extractors import extract_entity_metadata
 from custom_components.haeo.elements import is_element_config_schema
+from custom_components.haeo.elements.input_fields import InputFieldInfo
 from custom_components.haeo.flows.element_flow import ElementFlowMixin, build_inclusion_map, build_participant_selector
 from custom_components.haeo.flows.field_schema import (
     build_choose_schema_entry,
@@ -109,7 +110,7 @@ class GridSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
     def _build_schema(
         self,
         participants: list[str],
-        input_fields: tuple[Any, ...],
+        input_fields: Mapping[str, InputFieldInfo[Any]],
         inclusion_map: dict[str, list[str]],
         current_connection: str | None = None,
         subentry_data: dict[str, Any] | None = None,
@@ -125,7 +126,7 @@ class GridSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             vol.Required(CONF_CONNECTION): build_participant_selector(participants, current_connection),
         }
 
-        for field_info in input_fields:
+        for field_info in input_fields.values():
             is_optional = field_info.field_name in GridConfigSchema.__optional_keys__ and not field_info.force_required
             include_entities = inclusion_map.get(field_info.field_name)
             preferred = get_preferred_choice(field_info, subentry_data, is_optional=is_optional)
@@ -150,8 +151,8 @@ class GridSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             CONF_CONNECTION: subentry_data.get(CONF_CONNECTION) if subentry_data else None,
         }
 
-        input_fields = adapter.inputs({})
-        for field_info in input_fields:
+        input_fields = adapter.inputs(subentry_data)
+        for field_info in input_fields.values():
             choose_default = get_choose_default(field_info, subentry_data)
             if choose_default is not None:
                 defaults[field_info.field_name] = choose_default
@@ -161,7 +162,7 @@ class GridSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
     def _validate_user_input(
         self,
         user_input: dict[str, Any] | None,
-        input_fields: tuple[Any, ...],
+        input_fields: Mapping[str, InputFieldInfo[Any]],
     ) -> dict[str, str] | None:
         """Validate user input and return errors dict if any."""
         if user_input is None:

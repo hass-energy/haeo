@@ -11,6 +11,7 @@ import voluptuous as vol
 from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME, DOMAIN
 from custom_components.haeo.data.loader.extractors import extract_entity_metadata
 from custom_components.haeo.elements import is_element_config_schema
+from custom_components.haeo.elements.input_fields import InputFieldInfo
 from custom_components.haeo.flows.element_flow import ElementFlowMixin, build_inclusion_map, build_participant_selector
 from custom_components.haeo.flows.field_schema import (
     build_choose_schema_entry,
@@ -96,7 +97,7 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
 
         entity_metadata = extract_entity_metadata(self.hass)
         # Only include main input fields (not partition fields) in step 1
-        main_fields = tuple(f for f in input_fields if f.field_name not in PARTITION_FIELD_NAMES)
+        main_fields = {name: info for name, info in input_fields.items() if name not in PARTITION_FIELD_NAMES}
         inclusion_map = build_inclusion_map(main_fields, entity_metadata)
         translations = await async_get_translations(
             self.hass, self.hass.config.language, "config_subentries", integrations=[DOMAIN]
@@ -132,8 +133,8 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             config = self._build_config(self._step1_data, user_input)
             return self._finalize(config)
 
-        input_fields = adapter.inputs({})
-        partition_fields = tuple(field for field in input_fields if field.field_name in PARTITION_FIELD_NAMES)
+        input_fields = adapter.inputs(subentry_data)
+        partition_fields = {name: info for name, info in input_fields.items() if name in PARTITION_FIELD_NAMES}
         entity_metadata = extract_entity_metadata(self.hass)
         inclusion_map = build_inclusion_map(partition_fields, entity_metadata)
 
@@ -146,7 +147,7 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
     def _build_schema(
         self,
         participants: list[str],
-        input_fields: tuple[Any, ...],
+        input_fields: Mapping[str, InputFieldInfo[Any]],
         inclusion_map: dict[str, list[str]],
         current_connection: str | None = None,
         subentry_data: dict[str, Any] | None = None,
@@ -163,7 +164,7 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         }
 
         # Only include main input fields (not partition fields)
-        for field_info in input_fields:
+        for field_info in input_fields.values():
             if field_info.field_name in PARTITION_FIELD_NAMES:
                 continue
             is_optional = (
@@ -191,10 +192,10 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
     ) -> vol.Schema:
         """Build the schema for partition fields."""
         schema_dict: dict[vol.Marker, Any] = {}
-        input_fields = adapter.inputs({})
-        partition_fields = tuple(field for field in input_fields if field.field_name in PARTITION_FIELD_NAMES)
+        input_fields = adapter.inputs(subentry_data)
+        partition_fields = {name: info for name, info in input_fields.items() if name in PARTITION_FIELD_NAMES}
 
-        for field_info in partition_fields:
+        for field_info in partition_fields.values():
             is_optional = (
                 field_info.field_name in BatteryConfigSchema.__optional_keys__ and not field_info.force_required
             )
@@ -222,8 +223,8 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         }
 
         # Only include main input fields (not partition fields)
-        input_fields = adapter.inputs({})
-        for field_info in input_fields:
+        input_fields = adapter.inputs(subentry_data)
+        for field_info in input_fields.values():
             if field_info.field_name in PARTITION_FIELD_NAMES:
                 continue
             choose_default = get_choose_default(field_info, subentry_data)
@@ -241,10 +242,10 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
     def _build_partition_defaults(self, subentry_data: Mapping[str, Any] | None = None) -> dict[str, Any]:
         """Build default values for the partition form."""
         defaults: dict[str, Any] = {}
-        input_fields = adapter.inputs({})
-        partition_fields = tuple(field for field in input_fields if field.field_name in PARTITION_FIELD_NAMES)
+        input_fields = adapter.inputs(subentry_data)
+        partition_fields = {name: info for name, info in input_fields.items() if name in PARTITION_FIELD_NAMES}
 
-        for field_info in partition_fields:
+        for field_info in partition_fields.values():
             choose_default = get_choose_default(field_info, subentry_data)
             if choose_default is not None:
                 defaults[field_info.field_name] = choose_default
@@ -254,7 +255,7 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
     def _validate_user_input(
         self,
         user_input: dict[str, Any] | None,
-        input_fields: tuple[Any, ...],
+        input_fields: Mapping[str, InputFieldInfo[Any]],
     ) -> dict[str, str] | None:
         """Validate user input and return errors dict if any."""
         if user_input is None:
@@ -309,12 +310,12 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         )
 
         # Convert main fields (excluding partition field names)
-        main_fields = tuple(f for f in input_fields if f.field_name not in PARTITION_FIELD_NAMES)
+        main_fields = {name: info for name, info in input_fields.items() if name not in PARTITION_FIELD_NAMES}
         config_dict = convert_choose_data_to_config(main_input, main_fields, _EXCLUDE_KEYS)
 
         # Convert partition fields if present
         if partition_input:
-            partition_fields = tuple(field for field in input_fields if field.field_name in PARTITION_FIELD_NAMES)
+            partition_fields = {name: info for name, info in input_fields.items() if name in PARTITION_FIELD_NAMES}
             partition_config = convert_choose_data_to_config(partition_input, partition_fields, ())
             config_dict.update(partition_config)
 
