@@ -1,6 +1,7 @@
 """Number platform for HAEO input entities."""
 
 import logging
+
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
