@@ -35,7 +35,6 @@ from .schema import (
 )
 
 __all__ = [
-    # Schema
     "CONF_EFFICIENCY_SOURCE_TARGET",
     "CONF_EFFICIENCY_TARGET_SOURCE",
     "CONF_MAX_POWER_SOURCE_TARGET",
@@ -44,7 +43,6 @@ __all__ = [
     "CONF_PRICE_TARGET_SOURCE",
     "CONF_SOURCE",
     "CONF_TARGET",
-    # Adapter
     "CONNECTION_DEVICE_CONNECTION",
     "CONNECTION_DEVICE_NAMES",
     "CONNECTION_OUTPUT_NAMES",

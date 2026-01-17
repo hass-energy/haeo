@@ -14,11 +14,9 @@ from .adapter import (
 from .schema import CONF_CONNECTION, CONF_FORECAST, ELEMENT_TYPE, LoadConfigData, LoadConfigSchema
 
 __all__ = [
-    # Schema
     "CONF_CONNECTION",
     "CONF_FORECAST",
     "ELEMENT_TYPE",
-    # Adapter
     "LOAD_DEVICE_LOAD",
     "LOAD_DEVICE_NAMES",
     "LOAD_FORECAST_LIMIT_PRICE",

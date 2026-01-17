@@ -29,14 +29,12 @@ from .schema import (
 )
 
 __all__ = [
-    # Schema
     "CONF_CONNECTION",
     "CONF_EXPORT_LIMIT",
     "CONF_EXPORT_PRICE",
     "CONF_IMPORT_LIMIT",
     "CONF_IMPORT_PRICE",
     "ELEMENT_TYPE",
-    # Adapter
     "GRID_COST_IMPORT",
     "GRID_COST_NET",
     "GRID_DEVICE_GRID",

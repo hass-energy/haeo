@@ -27,7 +27,6 @@ from .schema import (
 )
 
 __all__ = [
-    # Adapter
     "BATTERY_SECTION_DEVICE",
     "BATTERY_SECTION_DEVICE_NAMES",
     "BATTERY_SECTION_ENERGY_IN_FLOW",
@@ -40,7 +39,6 @@ __all__ = [
     "BATTERY_SECTION_POWER_DISCHARGE",
     "BATTERY_SECTION_SOC_MAX",
     "BATTERY_SECTION_SOC_MIN",
-    # Schema
     "CONF_CAPACITY",
     "CONF_INITIAL_CHARGE",
     "ELEMENT_TYPE",

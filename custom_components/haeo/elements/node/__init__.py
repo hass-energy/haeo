@@ -13,11 +13,9 @@ from .adapter import (
 from .schema import CONF_IS_SINK, CONF_IS_SOURCE, ELEMENT_TYPE, NodeConfigData, NodeConfigSchema
 
 __all__ = [
-    # Schema
     "CONF_IS_SINK",
     "CONF_IS_SOURCE",
     "ELEMENT_TYPE",
-    # Adapter
     "NODE_DEVICE_NAMES",
     "NODE_DEVICE_NODE",
     "NODE_OUTPUT_NAMES",

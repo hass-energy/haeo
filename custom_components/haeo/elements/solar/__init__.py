@@ -22,13 +22,11 @@ from .schema import (
 )
 
 __all__ = [
-    # Schema
     "CONF_CONNECTION",
     "CONF_CURTAILMENT",
     "CONF_FORECAST",
     "CONF_PRICE_PRODUCTION",
     "ELEMENT_TYPE",
-    # Adapter
     "SOLAR_DEVICE_NAMES",
     "SOLAR_DEVICE_SOLAR",
     "SOLAR_FORECAST_LIMIT",
