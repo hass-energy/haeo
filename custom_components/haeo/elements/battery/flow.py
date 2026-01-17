@@ -293,12 +293,6 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         connection = main_input.get(CONF_CONNECTION)
         capacity = main_input.get(CONF_CAPACITY)
         initial_charge = main_input.get(CONF_INITIAL_CHARGE_PERCENTAGE)
-        if not isinstance(name, str) or not isinstance(connection, str):
-            msg = "Battery config missing name or connection"
-            raise TypeError(msg)
-        if not isinstance(capacity, (str, float, int, list)) or not isinstance(initial_charge, (str, float, int, list)):
-            msg = "Battery config missing capacity values"
-            raise TypeError(msg)
         input_fields = adapter.inputs(
             {
                 CONF_ELEMENT_TYPE: ELEMENT_TYPE,

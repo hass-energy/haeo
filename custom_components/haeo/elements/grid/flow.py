@@ -192,15 +192,7 @@ class GridSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             connection_value = user_input.get(CONF_CONNECTION)
             import_price = user_input.get(CONF_IMPORT_PRICE)
             export_price = user_input.get(CONF_EXPORT_PRICE)
-            if not isinstance(name_value, str) or not isinstance(connection_value, str):
-                msg = "Grid config missing name or connection"
-                raise TypeError(msg)
-            if not isinstance(import_price, (str, float, int, list)) or not isinstance(
-                export_price, (str, float, int, list)
-            ):
-                msg = "Grid config missing price values"
-                raise TypeError(msg)
-            seed_config: GridConfigSchema = {
+            seed_config = {
                 CONF_ELEMENT_TYPE: ELEMENT_TYPE,
                 CONF_NAME: name_value,
                 CONF_CONNECTION: connection_value,
@@ -210,9 +202,6 @@ class GridSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             input_fields = adapter.inputs(seed_config)
         config_dict = convert_choose_data_to_config(user_input, input_fields, _EXCLUDE_KEYS)
 
-        if not isinstance(name, str) or not isinstance(connection, str):
-            msg = "Grid config missing name or connection"
-            raise TypeError(msg)
         return {
             CONF_ELEMENT_TYPE: ELEMENT_TYPE,
             CONF_NAME: name,

@@ -163,15 +163,8 @@ class LoadSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         """Build final config dict from user input."""
         name = user_input.get(CONF_NAME)
         connection = user_input.get(CONF_CONNECTION)
-
         forecast = user_input.get(CONF_FORECAST)
-        if not isinstance(name, str) or not isinstance(connection, str):
-            msg = "Load config missing name or connection"
-            raise TypeError(msg)
-        if not isinstance(forecast, (str, float, int, list)):
-            msg = "Load config missing forecast value"
-            raise TypeError(msg)
-        seed_config: LoadConfigSchema = {
+        seed_config = {
             CONF_ELEMENT_TYPE: ELEMENT_TYPE,
             CONF_NAME: name,
             CONF_CONNECTION: connection,

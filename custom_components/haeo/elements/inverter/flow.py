@@ -179,16 +179,8 @@ class InverterSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         """Build final config dict from user input."""
         name = user_input.get(CONF_NAME)
         connection = user_input.get(CONF_CONNECTION)
-
-        if not isinstance(name, str) or not isinstance(connection, str):
-            msg = "Inverter config missing name or connection"
-            raise TypeError(msg)
         max_power_dc = user_input.get(CONF_MAX_POWER_DC_TO_AC)
         max_power_ac = user_input.get(CONF_MAX_POWER_AC_TO_DC)
-        valid_types = (str, float, int, list)
-        if not isinstance(max_power_dc, valid_types) or not isinstance(max_power_ac, valid_types):
-            msg = "Inverter config missing max power values"
-            raise TypeError(msg)
         input_fields = adapter.inputs(
             {
                 CONF_ELEMENT_TYPE: ELEMENT_TYPE,

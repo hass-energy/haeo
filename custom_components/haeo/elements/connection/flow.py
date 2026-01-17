@@ -186,11 +186,7 @@ class ConnectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         name = user_input.get(CONF_NAME)
         source = user_input.get(CONF_SOURCE)
         target = user_input.get(CONF_TARGET)
-
-        if not isinstance(name, str) or not isinstance(source, str) or not isinstance(target, str):
-            msg = "Connection config missing name/source/target"
-            raise TypeError(msg)
-        seed_config: ConnectionConfigSchema = {
+        seed_config = {
             CONF_ELEMENT_TYPE: ELEMENT_TYPE,
             CONF_NAME: name,
             CONF_SOURCE: source,

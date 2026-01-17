@@ -162,15 +162,8 @@ class BatterySectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
     def _build_config(self, user_input: dict[str, Any]) -> dict[str, Any]:
         """Build final config dict from user input."""
         name = user_input.get(CONF_NAME)
-
         capacity = user_input.get(CONF_CAPACITY)
         initial_charge = user_input.get(CONF_INITIAL_CHARGE)
-        if not isinstance(name, str):
-            msg = "Battery section config missing name"
-            raise TypeError(msg)
-        if not isinstance(capacity, (str, float, int, list)) or not isinstance(initial_charge, (str, float, int, list)):
-            msg = "Battery section config missing capacity values"
-            raise TypeError(msg)
         input_fields = adapter.inputs(
             {
                 CONF_ELEMENT_TYPE: ELEMENT_TYPE,
