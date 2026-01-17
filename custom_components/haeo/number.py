@@ -6,6 +6,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from custom_components.haeo import HaeoConfigEntry
+from custom_components.haeo.const import CONF_ELEMENT_TYPE
 from custom_components.haeo.elements import get_input_fields, is_element_config_schema
 from custom_components.haeo.entities.device import get_or_create_element_device
 from custom_components.haeo.entities.haeo_number import HaeoInputNumber
@@ -37,7 +38,7 @@ async def async_setup_entry(
         if not is_element_config_schema(subentry.data):
             continue
         element_config = subentry.data
-        element_type = element_config["element_type"]
+        element_type = element_config[CONF_ELEMENT_TYPE]
 
         # Get input field definitions for this element type
         input_fields = get_input_fields(element_config)
