@@ -43,6 +43,7 @@ from custom_components.haeo.elements import (
     ElementType,
     battery,
     connection,
+    get_element_flow_classes,
     grid,
     node,
 )
@@ -74,8 +75,6 @@ def _create_flow(
     element_type: ElementType,
 ) -> Any:
     """Create a configured subentry flow instance for an element type."""
-    from custom_components.haeo.elements import get_element_flow_classes  # noqa: PLC0415
-
     flow_classes = get_element_flow_classes()
     flow_class = flow_classes[element_type]
     flow = flow_class()

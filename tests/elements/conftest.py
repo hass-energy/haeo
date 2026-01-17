@@ -8,7 +8,7 @@ import pytest
 from homeassistant.config_entries import ConfigSubentry
 from homeassistant.core import HomeAssistant
 from pytest_homeassistant_custom_component.common import MockConfigEntry
-
+from custom_components.haeo.elements import get_element_flow_classes
 from custom_components.haeo.const import (
     CONF_ADVANCED_MODE,
     CONF_ELEMENT_TYPE,
@@ -46,8 +46,6 @@ def hub_entry(hass: HomeAssistant) -> MockConfigEntry:
 
 def create_flow(hass: HomeAssistant, hub_entry: MockConfigEntry, element_type: ElementType) -> Any:
     """Create a configured subentry flow instance for an element type."""
-    from custom_components.haeo.elements import get_element_flow_classes  # noqa: PLC0415
-
     flow_classes = get_element_flow_classes()
     flow_class = flow_classes[element_type]
     flow = flow_class()
