@@ -77,37 +77,34 @@ class BatterySectionAdapter:
         """Return input field definitions for battery section elements."""
         _ = config
         return {
-            field.field_name: field
-            for field in (
-                InputFieldInfo(
-                    field_name=CONF_CAPACITY,
-                    entity_description=NumberEntityDescription(
-                        key=CONF_CAPACITY,
-                        translation_key=f"{ELEMENT_TYPE}_{CONF_CAPACITY}",
-                        native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
-                        device_class=NumberDeviceClass.ENERGY_STORAGE,
-                        native_min_value=0.1,
-                        native_max_value=1000.0,
-                        native_step=0.1,
-                    ),
-                    output_type=OutputType.ENERGY,
-                    time_series=True,
+            CONF_CAPACITY: InputFieldInfo(
+                field_name=CONF_CAPACITY,
+                entity_description=NumberEntityDescription(
+                    key=CONF_CAPACITY,
+                    translation_key=f"{ELEMENT_TYPE}_{CONF_CAPACITY}",
+                    native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
+                    device_class=NumberDeviceClass.ENERGY_STORAGE,
+                    native_min_value=0.1,
+                    native_max_value=1000.0,
+                    native_step=0.1,
                 ),
-                InputFieldInfo(
-                    field_name=CONF_INITIAL_CHARGE,
-                    entity_description=NumberEntityDescription(
-                        key=CONF_INITIAL_CHARGE,
-                        translation_key=f"{ELEMENT_TYPE}_{CONF_INITIAL_CHARGE}",
-                        native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
-                        device_class=NumberDeviceClass.ENERGY_STORAGE,
-                        native_min_value=0.0,
-                        native_max_value=1000.0,
-                        native_step=0.1,
-                    ),
-                    output_type=OutputType.ENERGY,
-                    time_series=True,
+                output_type=OutputType.ENERGY,
+                time_series=True,
+            ),
+            CONF_INITIAL_CHARGE: InputFieldInfo(
+                field_name=CONF_INITIAL_CHARGE,
+                entity_description=NumberEntityDescription(
+                    key=CONF_INITIAL_CHARGE,
+                    translation_key=f"{ELEMENT_TYPE}_{CONF_INITIAL_CHARGE}",
+                    native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
+                    device_class=NumberDeviceClass.ENERGY_STORAGE,
+                    native_min_value=0.0,
+                    native_max_value=1000.0,
+                    native_step=0.1,
                 ),
-            )
+                output_type=OutputType.ENERGY,
+                time_series=True,
+            ),
         }
 
     def build_config_data(
