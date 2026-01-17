@@ -173,7 +173,7 @@ class ElementAdapter(Protocol):
 
     @property
     def flow_class(self) -> type:
-    """The config flow handler class for this element type."""
+        """The config flow handler class for this element type."""
         ...
 
     advanced: bool
@@ -372,24 +372,10 @@ def collect_element_subentries(entry: ConfigEntry) -> list[ValidatedElementSuben
     return result
 
 
-def get_input_fields(
-    element_type: ElementType,
-    element_config: ElementConfigSchema,
-) -> tuple[InputFieldInfo[Any], ...]:
-    """Return input field definitions for an element type.
-
-    Args:
-        element_type: The element type (e.g., "battery", "grid")
-        element_config: Element configuration for dynamic input selection
-
-    Returns:
-        Tuple of InputFieldInfo for fields that should become input entities.
-        Returns empty tuple for unknown element types.
-
-    """
-    adapter = ELEMENT_TYPES.get(element_type)
-    if adapter is None:
-        return ()
+def get_input_fields(element_config: ElementConfigSchema) -> tuple[InputFieldInfo[Any], ...]:
+    """Return input field definitions for an element config."""
+    element_type = element_config[CONF_ELEMENT_TYPE]
+    adapter = ELEMENT_TYPES[element_type]
     return adapter.inputs(element_config)
 
 

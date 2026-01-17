@@ -1027,7 +1027,7 @@ def test_load_from_input_entities_loads_time_series_fields(
     from custom_components.haeo.elements import get_input_fields  # noqa: PLC0415
 
     element_config = coordinator._participant_configs["Test Battery"]
-    for field_info in get_input_fields(ELEMENT_TYPE_BATTERY, element_config):
+    for field_info in get_input_fields(element_config):
         mock_entity = MagicMock()
         mock_entity.get_values.return_value = (1.0, 2.0, 3.0)
         mock_runtime_data.input_entities[("Test Battery", field_info.field_name)] = mock_entity

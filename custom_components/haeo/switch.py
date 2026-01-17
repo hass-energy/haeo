@@ -39,7 +39,7 @@ async def async_setup_entry(
         element_type = element_config["element_type"]
 
         # Get input field definitions for this element type
-        input_fields = get_input_fields(element_type, element_config)
+        input_fields = get_input_fields(element_config)
 
         # Filter to only switch fields (by entity description class name)
         # Note: isinstance doesn't work due to Home Assistant's frozen_dataclass_compat wrapper
