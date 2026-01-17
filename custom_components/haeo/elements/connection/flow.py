@@ -1,6 +1,7 @@
 """Connection element configuration flows."""
 
-from typing import Any, cast
+from collections.abc import Mapping
+from typing import Any
 
 from homeassistant.config_entries import ConfigSubentry, ConfigSubentryFlow, SubentryFlowResult, UnknownSubEntry
 from homeassistant.helpers.selector import TextSelector, TextSelectorConfig
@@ -57,13 +58,10 @@ class ConnectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                 self.hass, self.hass.config.language, "config_subentries", integrations=[DOMAIN]
             )
             default_name = translations[f"component.{DOMAIN}.config_subentries.{ELEMENT_TYPE}.flow_title"]
-            if not participants:
-                msg = "Connection config requires participants"
-                raise ValueError(msg)
             if not isinstance(current_source, str):
-                current_source = participants[0]
+                current_source = participants[0] if participants else ""
             if not isinstance(current_target, str):
-                current_target = participants[min(1, len(participants) - 1)]
+                current_target = participants[min(1, len(participants) - 1)] if participants else ""
             element_config: ConnectionConfigSchema = {
                 CONF_ELEMENT_TYPE: ELEMENT_TYPE,
                 CONF_NAME: default_name,
@@ -100,7 +98,6 @@ class ConnectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             if user_input is not None
             else self._build_defaults(
                 default_name,
-                input_fields,
                 dict(subentry_data) if subentry_data is not None else None,
             )
         )
@@ -148,8 +145,7 @@ class ConnectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
     def _build_defaults(
         self,
         default_name: str,
-        input_fields: tuple[Any, ...],
-        subentry_data: dict[str, Any] | None = None,
+        subentry_data: Mapping[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Build default values for the form."""
         defaults: dict[str, Any] = {
@@ -158,6 +154,7 @@ class ConnectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             CONF_TARGET: subentry_data.get(CONF_TARGET) if subentry_data else None,
         }
 
+        input_fields = adapter.inputs({})
         for field_info in input_fields:
             choose_default = get_choose_default(field_info, subentry_data)
             if choose_default is not None:
@@ -183,7 +180,7 @@ class ConnectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             errors[CONF_TARGET] = "cannot_connect_to_self"
         return errors if errors else None
 
-    def _build_config(self, user_input: dict[str, Any]) -> ConnectionConfigSchema:
+    def _build_config(self, user_input: dict[str, Any]) -> dict[str, Any]:
         """Build final config dict from user input."""
         name = user_input.get(CONF_NAME)
         source = user_input.get(CONF_SOURCE)
@@ -201,18 +198,15 @@ class ConnectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         input_fields = adapter.inputs(seed_config)
         config_dict = convert_choose_data_to_config(user_input, input_fields, _EXCLUDE_KEYS)
 
-        return cast(
-            "ConnectionConfigSchema",
-            {
-                CONF_ELEMENT_TYPE: ELEMENT_TYPE,
-                CONF_NAME: name,
-                CONF_SOURCE: source,
-                CONF_TARGET: target,
-                **config_dict,
-            },
-        )
+        return {
+            CONF_ELEMENT_TYPE: ELEMENT_TYPE,
+            CONF_NAME: name,
+            CONF_SOURCE: source,
+            CONF_TARGET: target,
+            **config_dict,
+        }
 
-    def _finalize(self, config: ConnectionConfigSchema, user_input: dict[str, Any]) -> SubentryFlowResult:
+    def _finalize(self, config: dict[str, Any], user_input: dict[str, Any]) -> SubentryFlowResult:
         """Finalize the flow by creating or updating the entry."""
         name = str(user_input.get(CONF_NAME))
         subentry = self._get_subentry()

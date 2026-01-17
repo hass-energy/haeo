@@ -1,5 +1,6 @@
 """Inverter element configuration flows."""
 
+from collections.abc import Mapping
 from typing import Any
 
 from homeassistant.config_entries import ConfigSubentry, ConfigSubentryFlow, SubentryFlowResult, UnknownSubEntry
@@ -21,7 +22,13 @@ from custom_components.haeo.flows.field_schema import (
 )
 
 from .adapter import adapter
-from .schema import CONF_CONNECTION, ELEMENT_TYPE, InverterConfigSchema
+from .schema import (
+    CONF_CONNECTION,
+    CONF_MAX_POWER_AC_TO_DC,
+    CONF_MAX_POWER_DC_TO_AC,
+    ELEMENT_TYPE,
+    InverterConfigSchema,
+)
 
 # Keys to exclude when converting choose data to config
 _EXCLUDE_KEYS = (CONF_NAME, CONF_CONNECTION)
@@ -60,10 +67,7 @@ class InverterSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         else:
             current_connection = subentry_data.get(CONF_CONNECTION) if subentry_data else None
             if not isinstance(current_connection, str):
-                if not participants:
-                    msg = "Inverter config requires a connection target"
-                    raise ValueError(msg)
-                current_connection = participants[0]
+                current_connection = participants[0] if participants else ""
             element_config: InverterConfigSchema = {
                 CONF_ELEMENT_TYPE: ELEMENT_TYPE,
                 CONF_NAME: default_name,
@@ -84,11 +88,20 @@ class InverterSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         entity_metadata = extract_entity_metadata(self.hass)
         inclusion_map = build_inclusion_map(input_fields, entity_metadata)
 
-        schema = self._build_schema(participants, input_fields, inclusion_map, current_connection, subentry_data)
+        schema = self._build_schema(
+            participants,
+            input_fields,
+            inclusion_map,
+            current_connection,
+            dict(subentry_data) if subentry_data is not None else None,
+        )
         defaults = (
             user_input
             if user_input is not None
-            else self._build_defaults(default_name, input_fields, subentry_data)
+            else self._build_defaults(
+                default_name,
+                dict(subentry_data) if subentry_data is not None else None,
+            )
         )
         schema = self.add_suggested_values_to_schema(schema, defaults)
 
@@ -132,8 +145,7 @@ class InverterSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
     def _build_defaults(
         self,
         default_name: str,
-        input_fields: tuple[Any, ...],
-        subentry_data: dict[str, Any] | None = None,
+        subentry_data: Mapping[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Build default values for the form."""
         defaults: dict[str, Any] = {
@@ -141,6 +153,7 @@ class InverterSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             CONF_CONNECTION: subentry_data.get(CONF_CONNECTION) if subentry_data else None,
         }
 
+        input_fields = adapter.inputs({})
         for field_info in input_fields:
             choose_default = get_choose_default(field_info, subentry_data)
             if choose_default is not None:
@@ -161,38 +174,39 @@ class InverterSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         errors.update(validate_choose_fields(user_input, input_fields, InverterConfigSchema.__optional_keys__))
         return errors if errors else None
 
-    def _build_config(self, user_input: dict[str, Any]) -> InverterConfigSchema:
+    def _build_config(self, user_input: dict[str, Any]) -> dict[str, Any]:
         """Build final config dict from user input."""
         name = user_input.get(CONF_NAME)
         connection = user_input.get(CONF_CONNECTION)
 
         if not isinstance(name, str) or not isinstance(connection, str):
             msg = "Inverter config missing name or connection"
-            raise ValueError(msg)
+            raise TypeError(msg)
         max_power_dc = user_input.get(CONF_MAX_POWER_DC_TO_AC)
         max_power_ac = user_input.get(CONF_MAX_POWER_AC_TO_DC)
-        if not isinstance(max_power_dc, (str, float, int)) or not isinstance(max_power_ac, (str, float, int)):
+        valid_types = (str, float, int, list)
+        if not isinstance(max_power_dc, valid_types) or not isinstance(max_power_ac, valid_types):
             msg = "Inverter config missing max power values"
-            raise ValueError(msg)
-        seed_config: InverterConfigSchema = {
-            CONF_ELEMENT_TYPE: ELEMENT_TYPE,
-            CONF_NAME: name,
-            CONF_CONNECTION: connection,
-            CONF_MAX_POWER_DC_TO_AC: max_power_dc,
-            CONF_MAX_POWER_AC_TO_DC: max_power_ac,
-        }
-        input_fields = adapter.inputs(seed_config)
+            raise TypeError(msg)
+        input_fields = adapter.inputs(
+            {
+                CONF_ELEMENT_TYPE: ELEMENT_TYPE,
+                CONF_NAME: name,
+                CONF_CONNECTION: connection,
+                CONF_MAX_POWER_DC_TO_AC: max_power_dc,
+                CONF_MAX_POWER_AC_TO_DC: max_power_ac,
+            }
+        )
         config_dict = convert_choose_data_to_config(user_input, input_fields, _EXCLUDE_KEYS)
 
-        config: InverterConfigSchema = {
+        return {
             CONF_ELEMENT_TYPE: ELEMENT_TYPE,
             CONF_NAME: name,
             CONF_CONNECTION: connection,
             **config_dict,
         }
-        return config
 
-    def _finalize(self, config: InverterConfigSchema, user_input: dict[str, Any]) -> SubentryFlowResult:
+    def _finalize(self, config: dict[str, Any], user_input: dict[str, Any]) -> SubentryFlowResult:
         """Finalize the flow by creating or updating the entry."""
         name = str(user_input.get(CONF_NAME))
         subentry = self._get_subentry()

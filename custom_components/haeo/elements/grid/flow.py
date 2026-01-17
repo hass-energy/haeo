@@ -1,5 +1,6 @@
 """Grid element configuration flows."""
 
+from collections.abc import Mapping
 from typing import Any
 
 from homeassistant.config_entries import ConfigSubentry, ConfigSubentryFlow, SubentryFlowResult, UnknownSubEntry
@@ -57,10 +58,7 @@ class GridSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             )
             default_name = translations[f"component.{DOMAIN}.config_subentries.{ELEMENT_TYPE}.flow_title"]
             if not isinstance(current_connection, str):
-                if not participants:
-                    msg = "Grid config requires a connection target"
-                    raise ValueError(msg)
-                current_connection = participants[0]
+                current_connection = participants[0] if participants else ""
             element_config: GridConfigSchema = {
                 CONF_ELEMENT_TYPE: ELEMENT_TYPE,
                 CONF_NAME: default_name,
@@ -76,7 +74,10 @@ class GridSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         errors = self._validate_user_input(user_input, input_fields)
 
         if user_input is not None and not errors:
-            config = self._build_config(user_input, subentry_data)
+            config = self._build_config(
+                user_input,
+                dict(subentry_data) if subentry_data is not None else None,
+            )
             return self._finalize(config, user_input)
 
         entity_metadata = extract_entity_metadata(self.hass)
@@ -86,11 +87,20 @@ class GridSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         )
         default_name = translations[f"component.{DOMAIN}.config_subentries.{ELEMENT_TYPE}.flow_title"]
 
-        schema = self._build_schema(participants, input_fields, inclusion_map, current_connection, subentry_data)
+        schema = self._build_schema(
+            participants,
+            input_fields,
+            inclusion_map,
+            current_connection,
+            dict(subentry_data) if subentry_data is not None else None,
+        )
         defaults = (
             user_input
             if user_input is not None
-            else self._build_defaults(default_name, input_fields, subentry_data)
+            else self._build_defaults(
+                default_name,
+                dict(subentry_data) if subentry_data is not None else None,
+            )
         )
         schema = self.add_suggested_values_to_schema(schema, defaults)
 
@@ -132,8 +142,7 @@ class GridSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
     def _build_defaults(
         self,
         default_name: str,
-        input_fields: tuple[Any, ...],
-        subentry_data: dict[str, Any] | None = None,
+        subentry_data: Mapping[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Build default values for the form."""
         defaults: dict[str, Any] = {
@@ -141,6 +150,7 @@ class GridSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             CONF_CONNECTION: subentry_data.get(CONF_CONNECTION) if subentry_data else None,
         }
 
+        input_fields = adapter.inputs({})
         for field_info in input_fields:
             choose_default = get_choose_default(field_info, subentry_data)
             if choose_default is not None:
@@ -165,7 +175,7 @@ class GridSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         self,
         user_input: dict[str, Any],
         current_data: dict[str, Any] | None = None,
-    ) -> GridConfigSchema:
+    ) -> dict[str, Any]:
         """Build final config dict from user input."""
         name = user_input.get(CONF_NAME)
         connection = user_input.get(CONF_CONNECTION)
@@ -183,12 +193,12 @@ class GridSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             export_price = user_input.get(CONF_EXPORT_PRICE)
             if not isinstance(name_value, str) or not isinstance(connection_value, str):
                 msg = "Grid config missing name or connection"
-                raise ValueError(msg)
+                raise TypeError(msg)
             if not isinstance(import_price, (str, float, int, list)) or not isinstance(
                 export_price, (str, float, int, list)
             ):
                 msg = "Grid config missing price values"
-                raise ValueError(msg)
+                raise TypeError(msg)
             seed_config: GridConfigSchema = {
                 CONF_ELEMENT_TYPE: ELEMENT_TYPE,
                 CONF_NAME: name_value,
@@ -201,16 +211,15 @@ class GridSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
 
         if not isinstance(name, str) or not isinstance(connection, str):
             msg = "Grid config missing name or connection"
-            raise ValueError(msg)
-        config: GridConfigSchema = {
+            raise TypeError(msg)
+        return {
             CONF_ELEMENT_TYPE: ELEMENT_TYPE,
             CONF_NAME: name,
             CONF_CONNECTION: connection,
             **config_dict,
         }
-        return config
 
-    def _finalize(self, config: GridConfigSchema, user_input: dict[str, Any]) -> SubentryFlowResult:
+    def _finalize(self, config: dict[str, Any], user_input: dict[str, Any]) -> SubentryFlowResult:
         """Finalize the flow by creating or updating the entry."""
         name = str(user_input.get(CONF_NAME))
         subentry = self._get_subentry()

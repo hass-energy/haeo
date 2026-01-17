@@ -1,5 +1,6 @@
 """Battery element configuration flows."""
 
+from collections.abc import Mapping
 from typing import Any
 
 from homeassistant.config_entries import ConfigSubentry, ConfigSubentryFlow, SubentryFlowResult, UnknownSubEntry
@@ -70,10 +71,7 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             )
             default_name = translations[f"component.{DOMAIN}.config_subentries.{ELEMENT_TYPE}.flow_title"]
             if not isinstance(current_connection, str):
-                if not participants:
-                    msg = "Battery config requires a connection target"
-                    raise ValueError(msg)
-                current_connection = participants[0]
+                current_connection = participants[0] if participants else ""
             element_config: BatteryConfigSchema = {
                 CONF_ELEMENT_TYPE: ELEMENT_TYPE,
                 CONF_NAME: default_name,
@@ -105,11 +103,20 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         )
         default_name = translations[f"component.{DOMAIN}.config_subentries.{ELEMENT_TYPE}.flow_title"]
 
-        schema = self._build_schema(participants, input_fields, inclusion_map, current_connection, subentry_data)
+        schema = self._build_schema(
+            participants,
+            input_fields,
+            inclusion_map,
+            current_connection,
+            dict(subentry_data) if subentry_data is not None else None,
+        )
         defaults = (
             user_input
             if user_input is not None
-            else self._build_defaults(default_name, input_fields, subentry_data)
+            else self._build_defaults(
+                default_name,
+                dict(subentry_data) if subentry_data is not None else None,
+            )
         )
         schema = self.add_suggested_values_to_schema(schema, defaults)
 
@@ -125,7 +132,7 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             config = self._build_config(self._step1_data, user_input)
             return self._finalize(config)
 
-        input_fields = adapter.inputs(self._build_config(self._step1_data, {}))
+        input_fields = adapter.inputs({})
         partition_fields = tuple(field for field in input_fields if field.field_name in PARTITION_FIELD_NAMES)
         entity_metadata = extract_entity_metadata(self.hass)
         inclusion_map = build_inclusion_map(partition_fields, entity_metadata)
@@ -184,7 +191,7 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
     ) -> vol.Schema:
         """Build the schema for partition fields."""
         schema_dict: dict[vol.Marker, Any] = {}
-        input_fields = adapter.inputs(self._build_config(self._step1_data, {}))
+        input_fields = adapter.inputs({})
         partition_fields = tuple(field for field in input_fields if field.field_name in PARTITION_FIELD_NAMES)
 
         for field_info in partition_fields:
@@ -206,8 +213,7 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
     def _build_defaults(
         self,
         default_name: str,
-        input_fields: tuple[Any, ...],
-        subentry_data: dict[str, Any] | None = None,
+        subentry_data: Mapping[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Build default values for the main form."""
         defaults: dict[str, Any] = {
@@ -216,6 +222,7 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         }
 
         # Only include main input fields (not partition fields)
+        input_fields = adapter.inputs({})
         for field_info in input_fields:
             if field_info.field_name in PARTITION_FIELD_NAMES:
                 continue
@@ -231,10 +238,10 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
 
         return defaults
 
-    def _build_partition_defaults(self, subentry_data: dict[str, Any] | None = None) -> dict[str, Any]:
+    def _build_partition_defaults(self, subentry_data: Mapping[str, Any] | None = None) -> dict[str, Any]:
         """Build default values for the partition form."""
         defaults: dict[str, Any] = {}
-        input_fields = adapter.inputs(self._build_config(self._step1_data, {}))
+        input_fields = adapter.inputs({})
         partition_fields = tuple(field for field in input_fields if field.field_name in PARTITION_FIELD_NAMES)
 
         for field_info in partition_fields:
@@ -279,7 +286,7 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         self,
         main_input: dict[str, Any],
         partition_input: dict[str, Any],
-    ) -> BatteryConfigSchema:
+    ) -> dict[str, Any]:
         """Build final config dict from user input."""
         name = main_input.get(CONF_NAME)
         connection = main_input.get(CONF_CONNECTION)
@@ -287,18 +294,19 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         initial_charge = main_input.get(CONF_INITIAL_CHARGE_PERCENTAGE)
         if not isinstance(name, str) or not isinstance(connection, str):
             msg = "Battery config missing name or connection"
-            raise ValueError(msg)
-        if not isinstance(capacity, (str, float, int)) or not isinstance(initial_charge, (str, float, int)):
+            raise TypeError(msg)
+        if not isinstance(capacity, (str, float, int, list)) or not isinstance(initial_charge, (str, float, int, list)):
             msg = "Battery config missing capacity values"
-            raise ValueError(msg)
-        seed_config: BatteryConfigSchema = {
-            CONF_ELEMENT_TYPE: ELEMENT_TYPE,
-            CONF_NAME: name,
-            CONF_CONNECTION: connection,
-            CONF_CAPACITY: capacity,
-            CONF_INITIAL_CHARGE_PERCENTAGE: initial_charge,
-        }
-        input_fields = adapter.inputs(seed_config)
+            raise TypeError(msg)
+        input_fields = adapter.inputs(
+            {
+                CONF_ELEMENT_TYPE: ELEMENT_TYPE,
+                CONF_NAME: name,
+                CONF_CONNECTION: connection,
+                CONF_CAPACITY: capacity,
+                CONF_INITIAL_CHARGE_PERCENTAGE: initial_charge,
+            }
+        )
 
         # Convert main fields (excluding partition field names)
         main_fields = tuple(f for f in input_fields if f.field_name not in PARTITION_FIELD_NAMES)
@@ -310,15 +318,14 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             partition_config = convert_choose_data_to_config(partition_input, partition_fields, ())
             config_dict.update(partition_config)
 
-        config: BatteryConfigSchema = {
+        return {
             CONF_ELEMENT_TYPE: ELEMENT_TYPE,
             CONF_NAME: name,
             CONF_CONNECTION: connection,
             **config_dict,
         }
-        return config
 
-    def _finalize(self, config: BatteryConfigSchema) -> SubentryFlowResult:
+    def _finalize(self, config: dict[str, Any]) -> SubentryFlowResult:
         """Finalize the flow by creating or updating the entry."""
         name = str(self._step1_data.get(CONF_NAME))
         subentry = self._get_subentry()

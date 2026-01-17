@@ -1,6 +1,7 @@
 """Solar element configuration flows."""
 
-from typing import Any, cast
+from collections.abc import Mapping
+from typing import Any
 
 from homeassistant.config_entries import ConfigSubentry, ConfigSubentryFlow, SubentryFlowResult, UnknownSubEntry
 from homeassistant.helpers.selector import TextSelector, TextSelectorConfig
@@ -57,10 +58,7 @@ class SolarSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             )
             default_name = translations[f"component.{DOMAIN}.config_subentries.{ELEMENT_TYPE}.flow_title"]
             if not isinstance(current_connection, str):
-                if not participants:
-                    msg = "Solar config requires a connection target"
-                    raise ValueError(msg)
-                current_connection = participants[0]
+                current_connection = participants[0] if participants else ""
             element_config: SolarConfigSchema = {
                 CONF_ELEMENT_TYPE: ELEMENT_TYPE,
                 CONF_NAME: default_name,
@@ -96,7 +94,6 @@ class SolarSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             if user_input is not None
             else self._build_defaults(
                 default_name,
-                input_fields,
                 dict(subentry_data) if subentry_data is not None else None,
             )
         )
@@ -140,8 +137,7 @@ class SolarSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
     def _build_defaults(
         self,
         default_name: str,
-        input_fields: tuple[Any, ...],
-        subentry_data: dict[str, Any] | None = None,
+        subentry_data: Mapping[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Build default values for the form."""
         defaults: dict[str, Any] = {
@@ -149,6 +145,7 @@ class SolarSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             CONF_CONNECTION: subentry_data.get(CONF_CONNECTION) if subentry_data else None,
         }
 
+        input_fields = adapter.inputs({})
         for field_info in input_fields:
             choose_default = get_choose_default(field_info, subentry_data)
             if choose_default is not None:
@@ -169,7 +166,7 @@ class SolarSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         errors.update(validate_choose_fields(user_input, input_fields, SolarConfigSchema.__optional_keys__))
         return errors if errors else None
 
-    def _build_config(self, user_input: dict[str, Any]) -> SolarConfigSchema:
+    def _build_config(self, user_input: dict[str, Any]) -> dict[str, Any]:
         """Build final config dict from user input."""
         name = user_input.get(CONF_NAME)
         connection = user_input.get(CONF_CONNECTION)
@@ -190,17 +187,14 @@ class SolarSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         input_fields = adapter.inputs(seed_config)
         config_dict = convert_choose_data_to_config(user_input, input_fields, _EXCLUDE_KEYS)
 
-        return cast(
-            "SolarConfigSchema",
-            {
-                CONF_ELEMENT_TYPE: ELEMENT_TYPE,
-                CONF_NAME: name,
-                CONF_CONNECTION: connection,
-                **config_dict,
-            },
-        )
+        return {
+            CONF_ELEMENT_TYPE: ELEMENT_TYPE,
+            CONF_NAME: name,
+            CONF_CONNECTION: connection,
+            **config_dict,
+        }
 
-    def _finalize(self, config: SolarConfigSchema, user_input: dict[str, Any]) -> SubentryFlowResult:
+    def _finalize(self, config: dict[str, Any], user_input: dict[str, Any]) -> SubentryFlowResult:
         """Finalize the flow by creating or updating the entry."""
         name = str(user_input.get(CONF_NAME))
         subentry = self._get_subentry()

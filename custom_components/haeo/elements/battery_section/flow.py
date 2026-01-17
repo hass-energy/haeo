@@ -1,5 +1,6 @@
 """Battery section element configuration flows."""
 
+from collections.abc import Mapping
 from typing import Any
 
 from homeassistant.config_entries import ConfigSubentry, ConfigSubentryFlow, SubentryFlowResult, UnknownSubEntry
@@ -77,11 +78,18 @@ class BatterySectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         )
         default_name = translations[f"component.{DOMAIN}.config_subentries.{ELEMENT_TYPE}.flow_title"]
 
-        schema = self._build_schema(input_fields, inclusion_map, subentry_data)
+        schema = self._build_schema(
+            input_fields,
+            inclusion_map,
+            dict(subentry_data) if subentry_data is not None else None,
+        )
         defaults = (
             user_input
             if user_input is not None
-            else self._build_defaults(default_name, input_fields, subentry_data)
+            else self._build_defaults(
+                default_name,
+                dict(subentry_data) if subentry_data is not None else None,
+            )
         )
         schema = self.add_suggested_values_to_schema(schema, defaults)
 
@@ -122,14 +130,14 @@ class BatterySectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
     def _build_defaults(
         self,
         default_name: str,
-        input_fields: tuple[Any, ...],
-        subentry_data: dict[str, Any] | None = None,
+        subentry_data: Mapping[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Build default values for the form."""
         defaults: dict[str, Any] = {
             CONF_NAME: default_name if subentry_data is None else subentry_data.get(CONF_NAME),
         }
 
+        input_fields = adapter.inputs({})
         for field_info in input_fields:
             choose_default = get_choose_default(field_info, subentry_data)
             if choose_default is not None:
@@ -150,7 +158,7 @@ class BatterySectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         errors.update(validate_choose_fields(user_input, input_fields, BatterySectionConfigSchema.__optional_keys__))
         return errors if errors else None
 
-    def _build_config(self, user_input: dict[str, Any]) -> BatterySectionConfigSchema:
+    def _build_config(self, user_input: dict[str, Any]) -> dict[str, Any]:
         """Build final config dict from user input."""
         name = user_input.get(CONF_NAME)
 
@@ -158,27 +166,27 @@ class BatterySectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         initial_charge = user_input.get(CONF_INITIAL_CHARGE)
         if not isinstance(name, str):
             msg = "Battery section config missing name"
-            raise ValueError(msg)
-        if not isinstance(capacity, (str, float, int)) or not isinstance(initial_charge, (str, float, int)):
+            raise TypeError(msg)
+        if not isinstance(capacity, (str, float, int, list)) or not isinstance(initial_charge, (str, float, int, list)):
             msg = "Battery section config missing capacity values"
-            raise ValueError(msg)
-        seed_config: BatterySectionConfigSchema = {
-            CONF_ELEMENT_TYPE: ELEMENT_TYPE,
-            CONF_NAME: name,
-            CONF_CAPACITY: capacity,
-            CONF_INITIAL_CHARGE: initial_charge,
-        }
-        input_fields = adapter.inputs(seed_config)
+            raise TypeError(msg)
+        input_fields = adapter.inputs(
+            {
+                CONF_ELEMENT_TYPE: ELEMENT_TYPE,
+                CONF_NAME: name,
+                CONF_CAPACITY: capacity,
+                CONF_INITIAL_CHARGE: initial_charge,
+            }
+        )
         config_dict = convert_choose_data_to_config(user_input, input_fields, _EXCLUDE_KEYS)
 
-        config: BatterySectionConfigSchema = {
+        return {
             CONF_ELEMENT_TYPE: ELEMENT_TYPE,
             CONF_NAME: name,
             **config_dict,
         }
-        return config
 
-    def _finalize(self, config: BatterySectionConfigSchema, user_input: dict[str, Any]) -> SubentryFlowResult:
+    def _finalize(self, config: dict[str, Any], user_input: dict[str, Any]) -> SubentryFlowResult:
         """Finalize the flow by creating or updating the entry."""
         name = str(user_input.get(CONF_NAME))
         subentry = self._get_subentry()

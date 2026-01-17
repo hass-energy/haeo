@@ -5,7 +5,7 @@ Home Assistant's ChooseSelector, allowing users to pick between "Entity"
 (select from compatible sensors) or "Constant" (enter a value directly).
 """
 
-from collections.abc import Collection
+from collections.abc import Collection, Mapping
 from typing import Any
 
 from homeassistant.components.number import NumberEntityDescription
@@ -157,7 +157,7 @@ def build_entity_selector(
 
 def get_preferred_choice(
     field_info: InputFieldInfo[Any],
-    current_data: dict[str, Any] | None = None,
+    current_data: Mapping[str, Any] | None = None,
     *,
     is_optional: bool = False,
 ) -> str:
@@ -332,7 +332,7 @@ def build_choose_schema_entry(
 
 def get_choose_default(
     field_info: InputFieldInfo[Any],
-    current_data: dict[str, Any] | None = None,
+    current_data: Mapping[str, Any] | None = None,
 ) -> Any:
     """Get the default value for a choose selector field.
 
