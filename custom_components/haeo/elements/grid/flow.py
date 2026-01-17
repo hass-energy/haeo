@@ -19,7 +19,8 @@ from custom_components.haeo.flows.field_schema import (
     validate_choose_fields,
 )
 
-from .schema import CONF_CONNECTION, ELEMENT_TYPE, INPUT_FIELDS, GridConfigSchema
+from .adapter import INPUT_FIELDS
+from .schema import CONF_CONNECTION, ELEMENT_TYPE, GridConfigSchema
 
 # Keys to exclude when converting choose data to config
 _EXCLUDE_KEYS = (CONF_NAME, CONF_CONNECTION)

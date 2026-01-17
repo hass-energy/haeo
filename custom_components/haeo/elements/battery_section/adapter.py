@@ -4,17 +4,19 @@ from collections.abc import Mapping, Sequence
 from dataclasses import replace
 from typing import Any, Final, Literal
 
+from homeassistant.components.number import NumberDeviceClass, NumberEntityDescription
+from homeassistant.const import UnitOfEnergy
 from homeassistant.core import HomeAssistant
 
 from custom_components.haeo.const import ConnectivityLevel
 from custom_components.haeo.data.loader import TimeSeriesLoader
+from custom_components.haeo.elements.input_fields import InputFieldInfo
 from custom_components.haeo.model import ModelElementConfig, ModelOutputName
 from custom_components.haeo.model import battery as model_battery
 from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_BATTERY
 from custom_components.haeo.model.output_data import OutputData
 
-from .flow import BatterySectionSubentryFlowHandler
 from .schema import (
     CONF_CAPACITY,
     CONF_INITIAL_CHARGE,
@@ -55,14 +57,53 @@ BATTERY_SECTION_DEVICE_NAMES: Final[frozenset[BatterySectionDeviceName]] = froze
     (BATTERY_SECTION_DEVICE := "battery_section",),
 )
 
+# Input field definitions for creating input entities
+INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
+    InputFieldInfo(
+        field_name=CONF_CAPACITY,
+        entity_description=NumberEntityDescription(
+            key=CONF_CAPACITY,
+            translation_key=f"{ELEMENT_TYPE}_{CONF_CAPACITY}",
+            native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
+            device_class=NumberDeviceClass.ENERGY_STORAGE,
+            native_min_value=0.1,
+            native_max_value=1000.0,
+            native_step=0.1,
+        ),
+        output_type=OutputType.ENERGY,
+        time_series=True,
+    ),
+    InputFieldInfo(
+        field_name=CONF_INITIAL_CHARGE,
+        entity_description=NumberEntityDescription(
+            key=CONF_INITIAL_CHARGE,
+            translation_key=f"{ELEMENT_TYPE}_{CONF_INITIAL_CHARGE}",
+            native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
+            device_class=NumberDeviceClass.ENERGY_STORAGE,
+            native_min_value=0.0,
+            native_max_value=1000.0,
+            native_step=0.1,
+        ),
+        output_type=OutputType.ENERGY,
+        time_series=True,
+    ),
+)
+
 
 class BatterySectionAdapter:
     """Adapter for Battery Section elements."""
 
     element_type: str = ELEMENT_TYPE
-    flow_class: type = BatterySectionSubentryFlowHandler
     advanced: bool = True
     connectivity: ConnectivityLevel = ConnectivityLevel.ADVANCED
+
+    @property
+    def flow_class(self) -> type:
+        """Return the config flow handler class."""
+        # Local import avoids a circular dependency: the flow imports adapter INPUT_FIELDS.
+        from .flow import BatterySectionSubentryFlowHandler  # noqa: PLC0415
+
+        return BatterySectionSubentryFlowHandler
 
     def available(self, config: BatterySectionConfigSchema, *, hass: HomeAssistant, **_kwargs: Any) -> bool:
         """Check if battery section configuration can be loaded."""
@@ -71,6 +112,11 @@ class BatterySectionAdapter:
         # Check required time series fields
         required_fields = [CONF_CAPACITY, CONF_INITIAL_CHARGE]
         return all(ts_loader.available(hass=hass, value=config[field]) for field in required_fields)
+
+    def inputs(self, config: BatterySectionConfigSchema) -> tuple[InputFieldInfo[Any], ...]:
+        """Return input field definitions for battery section elements."""
+        _ = config
+        return INPUT_FIELDS
 
     def build_config_data(
         self,

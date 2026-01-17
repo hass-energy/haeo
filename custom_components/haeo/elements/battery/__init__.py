@@ -19,6 +19,8 @@ from .adapter import (
     BATTERY_SOC_MAX,
     BATTERY_SOC_MIN,
     BATTERY_STATE_OF_CHARGE,
+    INPUT_FIELDS,
+    PARTITION_FIELDS,
     BatteryAdapter,
     BatteryDeviceName,
     BatteryOutputName,
@@ -27,7 +29,6 @@ from .adapter import (
 )
 from .flow import BatterySubentryFlowHandler
 from .schema import (
-    ALL_INPUT_FIELDS,
     CONF_CAPACITY,
     CONF_CONFIGURE_PARTITIONS,
     CONF_CONNECTION,
@@ -44,16 +45,12 @@ from .schema import (
     CONF_UNDERCHARGE_COST,
     CONF_UNDERCHARGE_PERCENTAGE,
     ELEMENT_TYPE,
-    INPUT_FIELDS,
     PARTITION_FIELD_NAMES,
-    PARTITION_FIELDS,
     BatteryConfigData,
     BatteryConfigSchema,
 )
 
 __all__ = [
-    # Schema
-    "ALL_INPUT_FIELDS",
     # Adapter
     "BATTERY_BALANCE_POWER_DOWN",
     "BATTERY_BALANCE_POWER_UP",

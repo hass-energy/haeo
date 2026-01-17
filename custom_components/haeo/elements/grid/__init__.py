@@ -12,6 +12,7 @@ from .adapter import (
     GRID_POWER_MAX_EXPORT_PRICE,
     GRID_POWER_MAX_IMPORT_PRICE,
     GRID_REVENUE_EXPORT,
+    INPUT_FIELDS,
     GridAdapter,
     GridDeviceName,
     GridOutputName,
@@ -25,7 +26,6 @@ from .schema import (
     CONF_IMPORT_LIMIT,
     CONF_IMPORT_PRICE,
     ELEMENT_TYPE,
-    INPUT_FIELDS,
     GridConfigData,
     GridConfigSchema,
 )

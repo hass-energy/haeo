@@ -3,14 +3,17 @@
 from collections.abc import Mapping
 from typing import Any, Final, Literal
 
+from homeassistant.components.switch import SwitchEntityDescription
+
 from custom_components.haeo.const import ConnectivityLevel
 from custom_components.haeo.data.loader import ConstantLoader
+from custom_components.haeo.elements.input_fields import InputFieldDefaults, InputFieldInfo
 from custom_components.haeo.model import ModelElementConfig, ModelOutputName
+from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_NODE
 from custom_components.haeo.model.elements.node import NODE_POWER_BALANCE
 from custom_components.haeo.model.output_data import OutputData
 
-from .flow import NodeSubentryFlowHandler
 from .schema import CONF_IS_SINK, CONF_IS_SOURCE, ELEMENT_TYPE, NodeConfigData, NodeConfigSchema
 
 # Defaults for absent optional fields (no-op values: pure junction behavior)
@@ -28,20 +31,54 @@ NODE_DEVICE_NAMES: Final[frozenset[NodeDeviceName]] = frozenset(
     (NODE_DEVICE_NODE := "node",),
 )
 
+# Input field definitions for creating input entities
+INPUT_FIELDS: Final[tuple[InputFieldInfo[SwitchEntityDescription], ...]] = (
+    InputFieldInfo(
+        field_name=CONF_IS_SOURCE,
+        entity_description=SwitchEntityDescription(
+            key=CONF_IS_SOURCE,
+            translation_key=f"{ELEMENT_TYPE}_{CONF_IS_SOURCE}",
+        ),
+        output_type=OutputType.STATUS,
+        defaults=InputFieldDefaults(mode="value", value=False),
+    ),
+    InputFieldInfo(
+        field_name=CONF_IS_SINK,
+        entity_description=SwitchEntityDescription(
+            key=CONF_IS_SINK,
+            translation_key=f"{ELEMENT_TYPE}_{CONF_IS_SINK}",
+        ),
+        output_type=OutputType.STATUS,
+        defaults=InputFieldDefaults(mode="value", value=False),
+    ),
+)
+
 
 class NodeAdapter:
     """Adapter for Node elements."""
 
     element_type: str = ELEMENT_TYPE
-    flow_class: type = NodeSubentryFlowHandler
     advanced: bool = True
     connectivity: ConnectivityLevel = ConnectivityLevel.ALWAYS
+
+    @property
+    def flow_class(self) -> type:
+        """Return the config flow handler class."""
+        # Local import avoids a circular dependency: the flow imports adapter INPUT_FIELDS.
+        from .flow import NodeSubentryFlowHandler  # noqa: PLC0415
+
+        return NodeSubentryFlowHandler
 
     def available(self, config: NodeConfigSchema, **_kwargs: Any) -> bool:
         """Check if node configuration can be loaded."""
         # Nodes only have constant fields, always available
         _ = config  # Unused but required by protocol
         return True
+
+    def inputs(self, config: NodeConfigSchema) -> tuple[InputFieldInfo[Any], ...]:
+        """Return input field definitions for node elements."""
+        _ = config
+        return INPUT_FIELDS
 
     def build_config_data(
         self,

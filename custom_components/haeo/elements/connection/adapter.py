@@ -4,10 +4,13 @@ from collections.abc import Mapping, Sequence
 from dataclasses import replace
 from typing import Any, Final, Literal
 
+from homeassistant.components.number import NumberDeviceClass, NumberEntityDescription
+from homeassistant.const import PERCENTAGE, UnitOfPower
 from homeassistant.core import HomeAssistant
 
 from custom_components.haeo.const import ConnectivityLevel
 from custom_components.haeo.data.loader import TimeSeriesLoader
+from custom_components.haeo.elements.input_fields import InputFieldInfo
 from custom_components.haeo.model import ModelElementConfig, ModelOutputName
 from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION
@@ -22,7 +25,6 @@ from custom_components.haeo.model.elements.power_connection import (
 )
 from custom_components.haeo.model.output_data import OutputData
 
-from .flow import ConnectionSubentryFlowHandler
 from .schema import (
     CONF_EFFICIENCY_SOURCE_TARGET,
     CONF_EFFICIENCY_TARGET_SOURCE,
@@ -56,14 +58,107 @@ CONNECTION_DEVICE_NAMES: Final[frozenset[ConnectionDeviceName]] = frozenset(
     (CONNECTION_DEVICE_CONNECTION := "connection",),
 )
 
+# Input field definitions for creating input entities
+INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
+    InputFieldInfo(
+        field_name=CONF_MAX_POWER_SOURCE_TARGET,
+        entity_description=NumberEntityDescription(
+            key=CONF_MAX_POWER_SOURCE_TARGET,
+            translation_key=f"{ELEMENT_TYPE}_{CONF_MAX_POWER_SOURCE_TARGET}",
+            native_unit_of_measurement=UnitOfPower.KILO_WATT,
+            device_class=NumberDeviceClass.POWER,
+            native_min_value=0.0,
+            native_max_value=1000.0,
+            native_step=0.1,
+        ),
+        output_type=OutputType.POWER_LIMIT,
+        time_series=True,
+    ),
+    InputFieldInfo(
+        field_name=CONF_MAX_POWER_TARGET_SOURCE,
+        entity_description=NumberEntityDescription(
+            key=CONF_MAX_POWER_TARGET_SOURCE,
+            translation_key=f"{ELEMENT_TYPE}_{CONF_MAX_POWER_TARGET_SOURCE}",
+            native_unit_of_measurement=UnitOfPower.KILO_WATT,
+            device_class=NumberDeviceClass.POWER,
+            native_min_value=0.0,
+            native_max_value=1000.0,
+            native_step=0.1,
+        ),
+        output_type=OutputType.POWER_LIMIT,
+        time_series=True,
+    ),
+    InputFieldInfo(
+        field_name=CONF_EFFICIENCY_SOURCE_TARGET,
+        entity_description=NumberEntityDescription(
+            key=CONF_EFFICIENCY_SOURCE_TARGET,
+            translation_key=f"{ELEMENT_TYPE}_{CONF_EFFICIENCY_SOURCE_TARGET}",
+            native_unit_of_measurement=PERCENTAGE,
+            device_class=NumberDeviceClass.POWER_FACTOR,
+            native_min_value=50.0,
+            native_max_value=100.0,
+            native_step=0.1,
+        ),
+        output_type=OutputType.EFFICIENCY,
+        time_series=True,
+    ),
+    InputFieldInfo(
+        field_name=CONF_EFFICIENCY_TARGET_SOURCE,
+        entity_description=NumberEntityDescription(
+            key=CONF_EFFICIENCY_TARGET_SOURCE,
+            translation_key=f"{ELEMENT_TYPE}_{CONF_EFFICIENCY_TARGET_SOURCE}",
+            native_unit_of_measurement=PERCENTAGE,
+            device_class=NumberDeviceClass.POWER_FACTOR,
+            native_min_value=50.0,
+            native_max_value=100.0,
+            native_step=0.1,
+        ),
+        output_type=OutputType.EFFICIENCY,
+        time_series=True,
+    ),
+    InputFieldInfo(
+        field_name=CONF_PRICE_SOURCE_TARGET,
+        entity_description=NumberEntityDescription(
+            key=CONF_PRICE_SOURCE_TARGET,
+            translation_key=f"{ELEMENT_TYPE}_{CONF_PRICE_SOURCE_TARGET}",
+            native_min_value=-1.0,
+            native_max_value=10.0,
+            native_step=0.001,
+        ),
+        output_type=OutputType.PRICE,
+        direction="-",
+        time_series=True,
+    ),
+    InputFieldInfo(
+        field_name=CONF_PRICE_TARGET_SOURCE,
+        entity_description=NumberEntityDescription(
+            key=CONF_PRICE_TARGET_SOURCE,
+            translation_key=f"{ELEMENT_TYPE}_{CONF_PRICE_TARGET_SOURCE}",
+            native_min_value=-1.0,
+            native_max_value=10.0,
+            native_step=0.001,
+        ),
+        output_type=OutputType.PRICE,
+        direction="-",
+        time_series=True,
+    ),
+)
+
 
 class ConnectionAdapter:
     """Adapter for Connection elements."""
 
     element_type: str = ELEMENT_TYPE
-    flow_class: type = ConnectionSubentryFlowHandler
     advanced: bool = True
     connectivity: ConnectivityLevel = ConnectivityLevel.NEVER
+
+    @property
+    def flow_class(self) -> type:
+        """Return the config flow handler class."""
+        # Local import avoids a circular dependency: the flow imports adapter INPUT_FIELDS.
+        from .flow import ConnectionSubentryFlowHandler  # noqa: PLC0415
+
+        return ConnectionSubentryFlowHandler
 
     def available(self, config: ConnectionConfigSchema, *, hass: HomeAssistant, **_kwargs: Any) -> bool:
         """Check if connection configuration can be loaded."""
@@ -84,6 +179,11 @@ class ConnectionAdapter:
                 return False
 
         return True
+
+    def inputs(self, config: ConnectionConfigSchema) -> tuple[InputFieldInfo[Any], ...]:
+        """Return input field definitions for connection elements."""
+        _ = config
+        return INPUT_FIELDS
 
     def build_config_data(
         self,

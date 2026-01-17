@@ -4,11 +4,14 @@ from collections.abc import Mapping, Sequence
 from dataclasses import replace
 from typing import Any, Final, Literal
 
+from homeassistant.components.number import NumberDeviceClass, NumberEntityDescription
+from homeassistant.const import UnitOfPower
 from homeassistant.core import HomeAssistant
 import numpy as np
 
 from custom_components.haeo.const import ConnectivityLevel
 from custom_components.haeo.data.loader import TimeSeriesLoader
+from custom_components.haeo.elements.input_fields import InputFieldDefaults, InputFieldInfo
 from custom_components.haeo.model import ModelElementConfig, ModelOutputName
 from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE
@@ -20,8 +23,16 @@ from custom_components.haeo.model.elements.power_connection import (
 )
 from custom_components.haeo.model.output_data import OutputData
 
-from .flow import GridSubentryFlowHandler
-from .schema import CONF_CONNECTION, ELEMENT_TYPE, GridConfigData, GridConfigSchema
+from .schema import (
+    CONF_CONNECTION,
+    CONF_EXPORT_LIMIT,
+    CONF_EXPORT_PRICE,
+    CONF_IMPORT_LIMIT,
+    CONF_IMPORT_PRICE,
+    ELEMENT_TYPE,
+    GridConfigData,
+    GridConfigSchema,
+)
 
 # Grid-specific output names for translation/sensor mapping
 type GridOutputName = Literal[
@@ -56,14 +67,83 @@ GRID_DEVICE_NAMES: Final[frozenset[GridDeviceName]] = frozenset(
     (GRID_DEVICE_GRID := "grid",),
 )
 
+# Input field definitions for creating input entities
+INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
+    InputFieldInfo(
+        field_name=CONF_IMPORT_PRICE,
+        entity_description=NumberEntityDescription(
+            key=CONF_IMPORT_PRICE,
+            translation_key=f"{ELEMENT_TYPE}_{CONF_IMPORT_PRICE}",
+            native_min_value=-1.0,
+            native_max_value=10.0,
+            native_step=0.001,
+        ),
+        output_type=OutputType.PRICE,
+        time_series=True,
+        direction="-",  # Import = consuming from grid = cost
+    ),
+    InputFieldInfo(
+        field_name=CONF_EXPORT_PRICE,
+        entity_description=NumberEntityDescription(
+            key=CONF_EXPORT_PRICE,
+            translation_key=f"{ELEMENT_TYPE}_{CONF_EXPORT_PRICE}",
+            native_min_value=-1.0,
+            native_max_value=10.0,
+            native_step=0.001,
+        ),
+        output_type=OutputType.PRICE,
+        time_series=True,
+        direction="+",  # Export = producing to grid = revenue
+    ),
+    InputFieldInfo(
+        field_name=CONF_IMPORT_LIMIT,
+        entity_description=NumberEntityDescription(
+            key=CONF_IMPORT_LIMIT,
+            translation_key=f"{ELEMENT_TYPE}_{CONF_IMPORT_LIMIT}",
+            native_unit_of_measurement=UnitOfPower.KILO_WATT,
+            device_class=NumberDeviceClass.POWER,
+            native_min_value=0.0,
+            native_max_value=1000.0,
+            native_step=0.1,
+        ),
+        output_type=OutputType.POWER_LIMIT,
+        time_series=True,
+        direction="+",
+        defaults=InputFieldDefaults(mode="value", value=100.0),
+    ),
+    InputFieldInfo(
+        field_name=CONF_EXPORT_LIMIT,
+        entity_description=NumberEntityDescription(
+            key=CONF_EXPORT_LIMIT,
+            translation_key=f"{ELEMENT_TYPE}_{CONF_EXPORT_LIMIT}",
+            native_unit_of_measurement=UnitOfPower.KILO_WATT,
+            device_class=NumberDeviceClass.POWER,
+            native_min_value=0.0,
+            native_max_value=1000.0,
+            native_step=0.1,
+        ),
+        output_type=OutputType.POWER_LIMIT,
+        time_series=True,
+        direction="-",
+        defaults=InputFieldDefaults(mode="value", value=100.0),
+    ),
+)
+
 
 class GridAdapter:
     """Adapter for Grid elements."""
 
     element_type: str = ELEMENT_TYPE
-    flow_class: type = GridSubentryFlowHandler
     advanced: bool = False
     connectivity: ConnectivityLevel = ConnectivityLevel.ADVANCED
+
+    @property
+    def flow_class(self) -> type:
+        """Return the config flow handler class."""
+        # Local import avoids a circular dependency: the flow imports adapter INPUT_FIELDS.
+        from .flow import GridSubentryFlowHandler  # noqa: PLC0415
+
+        return GridSubentryFlowHandler
 
     def available(self, config: GridConfigSchema, *, hass: HomeAssistant, **_kwargs: Any) -> bool:
         """Check if grid configuration can be loaded."""
@@ -79,6 +159,11 @@ class GridAdapter:
             return ts_loader.available(hass=hass, value=value) if value else True
 
         return entities_available(config.get("import_price")) and entities_available(config.get("export_price"))
+
+    def inputs(self, config: GridConfigSchema) -> tuple[InputFieldInfo[Any], ...]:
+        """Return input field definitions for grid elements."""
+        _ = config
+        return INPUT_FIELDS
 
     def build_config_data(
         self,

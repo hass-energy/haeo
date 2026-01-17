@@ -19,7 +19,8 @@ from custom_components.haeo.flows.field_schema import (
     validate_choose_fields,
 )
 
-from .schema import ELEMENT_TYPE, INPUT_FIELDS, BatterySectionConfigSchema
+from .adapter import INPUT_FIELDS
+from .schema import ELEMENT_TYPE, BatterySectionConfigSchema
 
 # Keys to exclude when converting choose data to config
 _EXCLUDE_KEYS = (CONF_NAME,)

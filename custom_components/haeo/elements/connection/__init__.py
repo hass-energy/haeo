@@ -15,6 +15,7 @@ from .adapter import (
     CONNECTION_DEVICE_NAMES,
     CONNECTION_OUTPUT_NAMES,
     CONNECTION_POWER_ACTIVE,
+    INPUT_FIELDS,
     ConnectionAdapter,
     ConnectionDeviceName,
     ConnectionOutputName,
@@ -31,7 +32,6 @@ from .schema import (
     CONF_SOURCE,
     CONF_TARGET,
     ELEMENT_TYPE,
-    INPUT_FIELDS,
     ConnectionConfigData,
     ConnectionConfigSchema,
 )

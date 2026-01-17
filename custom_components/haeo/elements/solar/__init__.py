@@ -1,6 +1,7 @@
 """Solar element for HAEO integration."""
 
 from .adapter import (
+    INPUT_FIELDS,
     SOLAR_DEVICE_NAMES,
     SOLAR_DEVICE_SOLAR,
     SOLAR_FORECAST_LIMIT,
@@ -18,7 +19,6 @@ from .schema import (
     CONF_FORECAST,
     CONF_PRICE_PRODUCTION,
     ELEMENT_TYPE,
-    INPUT_FIELDS,
     SolarConfigData,
     SolarConfigSchema,
 )

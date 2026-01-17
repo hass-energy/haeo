@@ -19,15 +19,8 @@ from custom_components.haeo.flows.field_schema import (
     validate_choose_fields,
 )
 
-from .schema import (
-    CONF_CONFIGURE_PARTITIONS,
-    CONF_CONNECTION,
-    ELEMENT_TYPE,
-    INPUT_FIELDS,
-    PARTITION_FIELD_NAMES,
-    PARTITION_FIELDS,
-    BatteryConfigSchema,
-)
+from .adapter import INPUT_FIELDS, PARTITION_FIELDS
+from .schema import CONF_CONFIGURE_PARTITIONS, CONF_CONNECTION, ELEMENT_TYPE, PARTITION_FIELD_NAMES, BatteryConfigSchema
 
 # Keys to exclude when converting choose data to config
 _EXCLUDE_KEYS = (CONF_NAME, CONF_CONNECTION, CONF_CONFIGURE_PARTITIONS)
