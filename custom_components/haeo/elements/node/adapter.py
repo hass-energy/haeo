@@ -39,21 +39,13 @@ class NodeAdapter:
     advanced: bool = True
     connectivity: ConnectivityLevel = ConnectivityLevel.ALWAYS
 
-    @property
-    def flow_class(self) -> type:
-        """Return the config flow handler class."""
-        # Local import avoids a circular dependency: the flow calls adapter.inputs for field metadata.
-        from .flow import NodeSubentryFlowHandler  # noqa: PLC0415
-
-        return NodeSubentryFlowHandler
-
     def available(self, config: NodeConfigSchema, **_kwargs: Any) -> bool:
         """Check if node configuration can be loaded."""
         # Nodes only have constant fields, always available
         _ = config  # Unused but required by protocol
         return True
 
-    def inputs(self, config: NodeConfigSchema) -> tuple[InputFieldInfo[Any], ...]:
+    def inputs(self, config: Any) -> tuple[InputFieldInfo[Any], ...]:
         """Return input field definitions for node elements."""
         _ = config
         return (

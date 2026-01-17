@@ -75,14 +75,6 @@ class GridAdapter:
     advanced: bool = False
     connectivity: ConnectivityLevel = ConnectivityLevel.ADVANCED
 
-    @property
-    def flow_class(self) -> type:
-        """Return the config flow handler class."""
-        # Local import avoids a circular dependency: the flow calls adapter.inputs for field metadata.
-        from .flow import GridSubentryFlowHandler  # noqa: PLC0415
-
-        return GridSubentryFlowHandler
-
     def available(self, config: GridConfigSchema, *, hass: HomeAssistant, **_kwargs: Any) -> bool:
         """Check if grid configuration can be loaded."""
         ts_loader = TimeSeriesLoader()
@@ -98,7 +90,7 @@ class GridAdapter:
 
         return entities_available(config.get("import_price")) and entities_available(config.get("export_price"))
 
-    def inputs(self, config: GridConfigSchema) -> tuple[InputFieldInfo[Any], ...]:
+    def inputs(self, config: Any) -> tuple[InputFieldInfo[Any], ...]:
         """Return input field definitions for grid elements."""
         _ = config
         return (

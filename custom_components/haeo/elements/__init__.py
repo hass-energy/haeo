@@ -171,11 +171,6 @@ class ElementAdapter(Protocol):
     element_type: str
     """The element type identifier."""
 
-    @property
-    def flow_class(self) -> type:
-        """The config flow handler class for this element type."""
-        ...
-
     advanced: bool
     """Whether this element type requires advanced mode."""
 
@@ -244,6 +239,34 @@ ELEMENT_TYPES: dict[ElementType, ElementAdapter] = {
     node.ELEMENT_TYPE: node.adapter,
     battery_section.ELEMENT_TYPE: battery_section.adapter,
 }
+
+
+def get_element_flow_classes() -> dict[ElementType, type]:
+    """Return mapping of element types to their config flow handler classes.
+
+    This function performs lazy imports to avoid circular dependencies
+    (flows import adapters, not the other way around).
+    """
+    # Local imports to avoid circular dependencies with flow modules
+    from custom_components.haeo.elements.battery.flow import BatterySubentryFlowHandler  # noqa: PLC0415
+    from custom_components.haeo.elements.battery_section.flow import BatterySectionSubentryFlowHandler  # noqa: PLC0415
+    from custom_components.haeo.elements.connection.flow import ConnectionSubentryFlowHandler  # noqa: PLC0415
+    from custom_components.haeo.elements.grid.flow import GridSubentryFlowHandler  # noqa: PLC0415
+    from custom_components.haeo.elements.inverter.flow import InverterSubentryFlowHandler  # noqa: PLC0415
+    from custom_components.haeo.elements.load.flow import LoadSubentryFlowHandler  # noqa: PLC0415
+    from custom_components.haeo.elements.node.flow import NodeSubentryFlowHandler  # noqa: PLC0415
+    from custom_components.haeo.elements.solar.flow import SolarSubentryFlowHandler  # noqa: PLC0415
+
+    return {
+        "battery": BatterySubentryFlowHandler,
+        "battery_section": BatterySectionSubentryFlowHandler,
+        "connection": ConnectionSubentryFlowHandler,
+        "grid": GridSubentryFlowHandler,
+        "inverter": InverterSubentryFlowHandler,
+        "load": LoadSubentryFlowHandler,
+        "node": NodeSubentryFlowHandler,
+        "solar": SolarSubentryFlowHandler,
+    }
 
 
 class ValidatedElementSubentry(NamedTuple):
@@ -400,6 +423,7 @@ __all__ = [
     "InputFieldInfo",
     "ValidatedElementSubentry",
     "collect_element_subentries",
+    "get_element_flow_classes",
     "get_input_fields",
     "is_element_config_schema",
     "is_element_type",

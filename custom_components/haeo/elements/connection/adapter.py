@@ -66,14 +66,6 @@ class ConnectionAdapter:
     advanced: bool = True
     connectivity: ConnectivityLevel = ConnectivityLevel.NEVER
 
-    @property
-    def flow_class(self) -> type:
-        """Return the config flow handler class."""
-        # Local import avoids a circular dependency: the flow calls adapter.inputs for field metadata.
-        from .flow import ConnectionSubentryFlowHandler  # noqa: PLC0415
-
-        return ConnectionSubentryFlowHandler
-
     def available(self, config: ConnectionConfigSchema, *, hass: HomeAssistant, **_kwargs: Any) -> bool:
         """Check if connection configuration can be loaded."""
         ts_loader = TimeSeriesLoader()
@@ -94,7 +86,7 @@ class ConnectionAdapter:
 
         return True
 
-    def inputs(self, config: ConnectionConfigSchema) -> tuple[InputFieldInfo[Any], ...]:
+    def inputs(self, config: Any) -> tuple[InputFieldInfo[Any], ...]:
         """Return input field definitions for connection elements."""
         _ = config
         return (

@@ -74,9 +74,10 @@ def _create_flow(
     element_type: ElementType,
 ) -> Any:
     """Create a configured subentry flow instance for an element type."""
+    from custom_components.haeo.elements import get_element_flow_classes  # noqa: PLC0415
 
-    registry_entry = ELEMENT_TYPES[element_type]
-    flow_class = registry_entry.flow_class
+    flow_classes = get_element_flow_classes()
+    flow_class = flow_classes[element_type]
     flow = flow_class()
     flow.hass = hass
     flow.handler = (hub_entry.entry_id, element_type)

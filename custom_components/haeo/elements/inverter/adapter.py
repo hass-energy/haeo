@@ -70,14 +70,6 @@ class InverterAdapter:
     advanced: bool = False
     connectivity: ConnectivityLevel = ConnectivityLevel.ALWAYS
 
-    @property
-    def flow_class(self) -> type:
-        """Return the config flow handler class."""
-        # Local import avoids a circular dependency: the flow calls adapter.inputs for field metadata.
-        from .flow import InverterSubentryFlowHandler  # noqa: PLC0415
-
-        return InverterSubentryFlowHandler
-
     def available(self, config: InverterConfigSchema, *, hass: HomeAssistant, **_kwargs: Any) -> bool:
         """Check if inverter configuration can be loaded."""
         ts_loader = TimeSeriesLoader()
@@ -85,7 +77,7 @@ class InverterAdapter:
             return False
         return ts_loader.available(hass=hass, value=config[CONF_MAX_POWER_AC_TO_DC])
 
-    def inputs(self, config: InverterConfigSchema) -> tuple[InputFieldInfo[Any], ...]:
+    def inputs(self, config: Any) -> tuple[InputFieldInfo[Any], ...]:
         """Return input field definitions for inverter elements."""
         _ = config
         return (

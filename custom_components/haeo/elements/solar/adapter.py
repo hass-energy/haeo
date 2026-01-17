@@ -63,20 +63,12 @@ class SolarAdapter:
     advanced: bool = False
     connectivity: ConnectivityLevel = ConnectivityLevel.ADVANCED
 
-    @property
-    def flow_class(self) -> type:
-        """Return the config flow handler class."""
-        # Local import avoids a circular dependency: the flow calls adapter.inputs for field metadata.
-        from .flow import SolarSubentryFlowHandler  # noqa: PLC0415
-
-        return SolarSubentryFlowHandler
-
     def available(self, config: SolarConfigSchema, *, hass: HomeAssistant, **_kwargs: Any) -> bool:
         """Check if solar configuration can be loaded."""
         ts_loader = TimeSeriesLoader()
         return ts_loader.available(hass=hass, value=config[CONF_FORECAST])
 
-    def inputs(self, config: SolarConfigSchema) -> tuple[InputFieldInfo[Any], ...]:
+    def inputs(self, config: Any) -> tuple[InputFieldInfo[Any], ...]:
         """Return input field definitions for solar elements."""
         _ = config
         return (

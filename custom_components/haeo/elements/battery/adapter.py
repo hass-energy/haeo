@@ -109,14 +109,6 @@ class BatteryAdapter:
     advanced: bool = False
     connectivity: ConnectivityLevel = ConnectivityLevel.ADVANCED
 
-    @property
-    def flow_class(self) -> type:
-        """Return the config flow handler class."""
-        # Local import avoids a circular dependency: the flow calls adapter.inputs for field metadata.
-        from .flow import BatterySubentryFlowHandler  # noqa: PLC0415
-
-        return BatterySubentryFlowHandler
-
     def available(self, config: BatteryConfigSchema, *, hass: HomeAssistant, **_kwargs: Any) -> bool:
         """Check if battery configuration can be loaded."""
         ts_loader = TimeSeriesLoader()
@@ -152,7 +144,7 @@ class BatteryAdapter:
         ]
         return all(entity_available(config.get(field)) for field in optional_fields)
 
-    def inputs(self, config: BatteryConfigSchema) -> tuple[InputFieldInfo[Any], ...]:
+    def inputs(self, config: Any) -> tuple[InputFieldInfo[Any], ...]:
         """Return input field definitions for battery elements."""
         _ = config
         return (
