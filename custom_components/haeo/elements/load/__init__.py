@@ -11,7 +11,6 @@ from .adapter import (
     LoadOutputName,
     adapter,
 )
-from .flow import LoadSubentryFlowHandler
 from .schema import CONF_CONNECTION, CONF_FORECAST, ELEMENT_TYPE, LoadConfigData, LoadConfigSchema
 
 __all__ = [
@@ -30,7 +29,5 @@ __all__ = [
     "LoadConfigSchema",
     "LoadDeviceName",
     "LoadOutputName",
-    # Flow
-    "LoadSubentryFlowHandler",
     "adapter",
 ]

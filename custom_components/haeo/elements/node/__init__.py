@@ -10,7 +10,6 @@ from .adapter import (
     NodeOutputName,
     adapter,
 )
-from .flow import NodeSubentryFlowHandler
 from .schema import CONF_IS_SINK, CONF_IS_SOURCE, ELEMENT_TYPE, NodeConfigData, NodeConfigSchema
 
 __all__ = [
@@ -28,7 +27,5 @@ __all__ = [
     "NodeConfigSchema",
     "NodeDeviceName",
     "NodeOutputName",
-    # Flow
-    "NodeSubentryFlowHandler",
     "adapter",
 ]

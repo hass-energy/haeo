@@ -15,7 +15,6 @@ from .adapter import (
     InverterOutputName,
     adapter,
 )
-from .flow import InverterSubentryFlowHandler
 from .schema import (
     CONF_CONNECTION,
     CONF_EFFICIENCY_AC_TO_DC,
@@ -50,7 +49,5 @@ __all__ = [
     "InverterConfigSchema",
     "InverterDeviceName",
     "InverterOutputName",
-    # Flow
-    "InverterSubentryFlowHandler",
     "adapter",
 ]

@@ -20,7 +20,6 @@ from .adapter import (
     ConnectionOutputName,
     adapter,
 )
-from .flow import ConnectionSubentryFlowHandler
 from .schema import (
     CONF_EFFICIENCY_SOURCE_TARGET,
     CONF_EFFICIENCY_TARGET_SOURCE,
@@ -61,8 +60,6 @@ __all__ = [
     "ConnectionConfigSchema",
     "ConnectionDeviceName",
     "ConnectionOutputName",
-    # Flow
-    "ConnectionSubentryFlowHandler",
     "PowerConnectionOutputName",
     "adapter",
 ]

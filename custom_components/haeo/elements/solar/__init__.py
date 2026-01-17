@@ -11,7 +11,6 @@ from .adapter import (
     SolarOutputName,
     adapter,
 )
-from .flow import SolarSubentryFlowHandler
 from .schema import (
     CONF_CONNECTION,
     CONF_CURTAILMENT,
@@ -40,7 +39,5 @@ __all__ = [
     "SolarConfigSchema",
     "SolarDeviceName",
     "SolarOutputName",
-    # Flow
-    "SolarSubentryFlowHandler",
     "adapter",
 ]

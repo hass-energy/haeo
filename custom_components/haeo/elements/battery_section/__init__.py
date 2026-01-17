@@ -18,7 +18,6 @@ from .adapter import (
     BatterySectionOutputName,
     adapter,
 )
-from .flow import BatterySectionSubentryFlowHandler
 from .schema import (
     CONF_CAPACITY,
     CONF_INITIAL_CHARGE,
@@ -50,7 +49,5 @@ __all__ = [
     "BatterySectionConfigSchema",
     "BatterySectionDeviceName",
     "BatterySectionOutputName",
-    # Flow
-    "BatterySectionSubentryFlowHandler",
     "adapter",
 ]

@@ -25,7 +25,6 @@ from .adapter import (
     adapter,
     sum_output_data,
 )
-from .flow import BatterySubentryFlowHandler
 from .schema import (
     CONF_CAPACITY,
     CONF_CONFIGURE_PARTITIONS,
@@ -90,8 +89,6 @@ __all__ = [
     "BatteryConfigSchema",
     "BatteryDeviceName",
     "BatteryOutputName",
-    # Flow
-    "BatterySubentryFlowHandler",
     "adapter",
     "sum_output_data",
 ]
