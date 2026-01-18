@@ -24,9 +24,10 @@ from .battery_balance_connection import (
 from .connection import CONNECTION_OUTPUT_NAMES as CONNECTION_OUTPUT_NAMES
 from .connection import CONNECTION_POWER_SOURCE_TARGET as CONNECTION_POWER_SOURCE_TARGET
 from .connection import CONNECTION_POWER_TARGET_SOURCE as CONNECTION_POWER_TARGET_SOURCE
-from .connection import CONNECTION_TIME_SLICE as CONNECTION_TIME_SLICE
+from .connection import ELEMENT_TYPE as MODEL_ELEMENT_TYPE_CONNECTION
 from .connection import Connection as Connection
-from .connection import ConnectionConstraintName as ConnectionConstraintName
+from .connection import ConnectionElementConfig as ConnectionElementConfig
+from .connection import ConnectionElementTypeName as ConnectionElementTypeName
 from .connection import ConnectionOutputName as ConnectionOutputName
 from .node import ELEMENT_TYPE as MODEL_ELEMENT_TYPE_NODE
 from .node import NODE_OUTPUT_NAMES
@@ -34,12 +35,13 @@ from .node import Node as Node
 from .node import NodeElementConfig as NodeElementConfig
 from .node import NodeElementTypeName as NodeElementTypeName
 from .node import NodeOutputName as NodeOutputName
-from .power_connection import ELEMENT_TYPE as MODEL_ELEMENT_TYPE_CONNECTION
-from .power_connection import POWER_CONNECTION_OUTPUT_NAMES as POWER_CONNECTION_OUTPUT_NAMES
-from .power_connection import ConnectionElementConfig as ConnectionElementConfig
-from .power_connection import ConnectionElementTypeName as ConnectionElementTypeName
-from .power_connection import PowerConnection as PowerConnection
-from .power_connection import PowerConnectionOutputName as PowerConnectionOutputName
+from .segments import EfficiencySegment as EfficiencySegment
+from .segments import PassthroughSegment as PassthroughSegment
+from .segments import PowerLimitSegment as PowerLimitSegment
+from .segments import PricingSegment as PricingSegment
+from .segments import Segment as Segment
+from .segments import SegmentSpec as SegmentSpec
+from .segments import SegmentType as SegmentType
 
 # Type for all model element types
 ModelElementType = (
@@ -72,8 +74,8 @@ ELEMENTS: Final[dict[ModelElementType, ElementSpec]] = {
         output_names=NODE_OUTPUT_NAMES,
     ),
     MODEL_ELEMENT_TYPE_CONNECTION: ElementSpec(
-        factory=PowerConnection,
-        output_names=POWER_CONNECTION_OUTPUT_NAMES,
+        factory=Connection,
+        output_names=CONNECTION_OUTPUT_NAMES,
     ),
     MODEL_ELEMENT_TYPE_BATTERY_BALANCE_CONNECTION: ElementSpec(
         factory=BatteryBalanceConnection,
@@ -87,13 +89,11 @@ __all__ = [
     "CONNECTION_OUTPUT_NAMES",
     "CONNECTION_POWER_SOURCE_TARGET",
     "CONNECTION_POWER_TARGET_SOURCE",
-    "CONNECTION_TIME_SLICE",
     "ELEMENTS",
     "MODEL_ELEMENT_TYPE_BATTERY",
     "MODEL_ELEMENT_TYPE_BATTERY_BALANCE_CONNECTION",
     "MODEL_ELEMENT_TYPE_CONNECTION",
     "MODEL_ELEMENT_TYPE_NODE",
-    "POWER_CONNECTION_OUTPUT_NAMES",
     "Battery",
     "BatteryBalanceConnection",
     "BatteryBalanceConnectionElementConfig",
@@ -101,15 +101,20 @@ __all__ = [
     "BatteryElementConfig",
     "BatteryOutputName",
     "Connection",
-    "ConnectionConstraintName",
     "ConnectionElementConfig",
+    "ConnectionElementTypeName",
     "ConnectionOutputName",
+    "EfficiencySegment",
     "ElementSpec",
     "ModelElementConfig",
     "ModelElementType",
     "Node",
     "NodeElementConfig",
     "NodeOutputName",
-    "PowerConnection",
-    "PowerConnectionOutputName",
+    "PassthroughSegment",
+    "PowerLimitSegment",
+    "PricingSegment",
+    "Segment",
+    "SegmentSpec",
+    "SegmentType",
 ]

@@ -1,6 +1,6 @@
 """Output data specification for model elements."""
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any, Literal
 
@@ -71,3 +71,6 @@ class OutputData:
         else:
             # Wrap single values in tuple
             self.values = (values,)
+
+
+type ModelOutputValue = OutputData | Mapping[str, OutputData] | Mapping[str, Mapping[str, OutputData]]

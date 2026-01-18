@@ -8,17 +8,16 @@ from homeassistant.components.number import NumberDeviceClass, NumberEntityDescr
 from homeassistant.components.switch import SwitchEntityDescription
 from homeassistant.const import UnitOfPower
 from homeassistant.core import HomeAssistant
+import numpy as np
 
 from custom_components.haeo.const import ConnectivityLevel
 from custom_components.haeo.data.loader import TimeSeriesLoader
 from custom_components.haeo.elements.input_fields import InputFieldDefaults, InputFieldInfo
-from custom_components.haeo.model import ModelElementConfig, ModelOutputName
+from custom_components.haeo.model import ModelElementConfig, ModelOutputName, ModelOutputValue
 from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE
-from custom_components.haeo.model.elements.power_connection import (
-    CONNECTION_POWER_SOURCE_TARGET,
-    CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET,
-)
+from custom_components.haeo.model.elements.connection import CONNECTION_POWER_SOURCE_TARGET, CONNECTION_SEGMENTS
+from custom_components.haeo.model.elements.segments import POWER_LIMIT_SOURCE_TARGET
 from custom_components.haeo.model.output_data import OutputData
 
 from .schema import (
@@ -91,7 +90,6 @@ class SolarAdapter:
                 ),
                 output_type=OutputType.PRICE,
                 direction="+",
-                time_series=True,
                 defaults=InputFieldDefaults(mode=None, value=0.0),
             ),
             CONF_CURTAILMENT: InputFieldInfo(
@@ -108,39 +106,59 @@ class SolarAdapter:
 
     def model_elements(self, config: SolarConfigData) -> list[ModelElementConfig]:
         """Return model element parameters for Solar configuration."""
+        n_periods = len(config["forecast"])
+        price_production = config.get("price_production")
+        curtailment = config.get("curtailment")
+        fixed_spec = {"fixed": not curtailment} if curtailment is not None else {}
+
         return [
-            {
-                "element_type": MODEL_ELEMENT_TYPE_NODE,
-                "name": config["name"],
-                "is_source": True,
-                "is_sink": False,
-            },
+            {"element_type": MODEL_ELEMENT_TYPE_NODE, "name": config["name"], "is_source": True, "is_sink": False},
             {
                 "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
                 "name": f"{config['name']}:connection",
                 "source": config["name"],
                 "target": config["connection"],
-                "max_power_source_target": config["forecast"],
-                "max_power_target_source": 0.0,
-                "price_source_target": config.get("price_production"),
-                "fixed_power": not config.get("curtailment", True),
+                "segments": {
+                    "power_limit": {
+                        "segment_type": "power_limit",
+                        "max_power_source_target": config["forecast"],
+                        "max_power_target_source": np.zeros(n_periods, dtype=float),
+                        **fixed_spec,
+                    },
+                    "pricing": {
+                        "segment_type": "pricing",
+                        "price_source_target": price_production,
+                        "price_target_source": None,
+                    },
+                },
             },
         ]
 
     def outputs(
         self,
         name: str,
-        model_outputs: Mapping[str, Mapping[ModelOutputName, OutputData]],
+        model_outputs: Mapping[str, Mapping[ModelOutputName, ModelOutputValue]],
         **_kwargs: Any,
     ) -> Mapping[SolarDeviceName, Mapping[SolarOutputName, OutputData]]:
         """Map model outputs to solar-specific output names."""
         connection = model_outputs[f"{name}:connection"]
 
         power_source_target = connection[CONNECTION_POWER_SOURCE_TARGET]
+        if not isinstance(power_source_target, OutputData):
+            msg = f"Expected OutputData for {name!r} {CONNECTION_POWER_SOURCE_TARGET}"
+            raise TypeError(msg)
         solar_outputs: dict[SolarOutputName, OutputData] = {
             SOLAR_POWER: replace(power_source_target, type=OutputType.POWER),
-            SOLAR_FORECAST_LIMIT: connection[CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET],
         }
+
+        # Shadow price from power_limit segment (if present)
+        segments_output = connection.get(CONNECTION_SEGMENTS)
+        if isinstance(segments_output, Mapping):
+            power_limit_outputs = segments_output.get("power_limit")
+            if isinstance(power_limit_outputs, Mapping):
+                shadow = power_limit_outputs.get(POWER_LIMIT_SOURCE_TARGET)
+                if isinstance(shadow, OutputData):
+                    solar_outputs[SOLAR_FORECAST_LIMIT] = shadow
 
         return {SOLAR_DEVICE_SOLAR: solar_outputs}
 

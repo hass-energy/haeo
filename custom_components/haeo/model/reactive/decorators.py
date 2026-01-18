@@ -4,6 +4,8 @@ from collections.abc import Callable
 from functools import partial
 from typing import TYPE_CHECKING, Any, TypeVar, overload
 
+from custom_components.haeo.model.output_data import OutputData
+
 from .tracked_param import ensure_decorator_state, tracking_context
 
 if TYPE_CHECKING:
@@ -11,7 +13,9 @@ if TYPE_CHECKING:
     from highspy.highs import highs_cons, highs_linear_expression
 
     from custom_components.haeo.model.element import Element
-    from custom_components.haeo.model.output_data import OutputData
+    from custom_components.haeo.model.output_data import ModelOutputValue
+
+    from .protocols import ReactiveHost
 
 # Type variable for generic return types
 R = TypeVar("R")
@@ -37,15 +41,15 @@ class ReactiveMethod[R]:
     def __get__(self, obj: None, objtype: type) -> "ReactiveMethod[R]": ...
 
     @overload
-    def __get__(self, obj: "Element[Any]", objtype: type) -> Callable[[], R]: ...
+    def __get__(self, obj: "ReactiveHost", objtype: type) -> Callable[[], R]: ...
 
-    def __get__(self, obj: "Element[Any] | None", objtype: type) -> "ReactiveMethod[R] | Callable[[], R]":
+    def __get__(self, obj: "ReactiveHost | None", objtype: type) -> "ReactiveMethod[R] | Callable[[], R]":
         """Return bound method that uses caching."""
         if obj is None:
             return self
         return partial(self._call, obj)
 
-    def _call(self, obj: "Element[Any]") -> R:
+    def _call(self, obj: "ReactiveHost") -> R:
         """Execute with caching and dependency tracking."""
         state = ensure_decorator_state(obj, self._name)
 
@@ -68,7 +72,7 @@ class ReactiveMethod[R]:
 
         return result
 
-    def _record_access(self, obj: "Element[Any]") -> None:  # noqa: ARG002 (obj not used but part of method signature)
+    def _record_access(self, obj: "ReactiveHost") -> None:  # noqa: ARG002 (obj not used but part of method signature)
         """Record this method's access in the current tracking context.
 
         When another cached method calls this one, this establishes a dependency.
@@ -111,11 +115,11 @@ class ReactiveConstraint[R](ReactiveMethod[R]):
         self.output = output
         self.unit = unit
 
-    def get_output(self, obj: "Element[Any]") -> "OutputData | None":
+    def get_output(self, obj: "ReactiveHost") -> "OutputData | None":
         """Get output data for this constraint (shadow prices if output=True).
 
         Args:
-            obj: The element instance
+            obj: The reactive host instance (Element or Segment)
 
         Returns:
             OutputData with shadow prices, or None if output=False or constraint not yet applied
@@ -125,8 +129,9 @@ class ReactiveConstraint[R](ReactiveMethod[R]):
             return None
 
         # Import here to avoid circular dependency
+        import numpy as np  # noqa: PLC0415
+
         from custom_components.haeo.model.const import OutputType  # noqa: PLC0415
-        from custom_components.haeo.model.output_data import OutputData  # noqa: PLC0415
 
         # Get the state for this constraint
         state_attr = f"_reactive_state_{self._name}"
@@ -134,15 +139,17 @@ class ReactiveConstraint[R](ReactiveMethod[R]):
         if state is None or "constraint" not in state:
             return None
 
-        # Extract shadow prices from the constraint
+        # Extract shadow prices from the constraint using the solver
         cons = state["constraint"]
+        arr = np.asarray(cons, dtype=object)
+        values = tuple(obj._solver.constrDuals(arr).flat)  # noqa: SLF001 # pyright: ignore[reportPrivateUsage]
         return OutputData(
             type=OutputType.SHADOW_PRICE,
             unit=self.unit,
-            values=obj.extract_values(cons),
+            values=values,
         )
 
-    def _call(self, obj: "Element[Any]") -> R:
+    def _call(self, obj: "ReactiveHost") -> R:
         """Execute with caching, dependency tracking, and solver lifecycle management."""
         # Record access if being tracked by another method
         self._record_access(obj)
@@ -261,7 +268,7 @@ class ReactiveCost[R](ReactiveMethod[R]):
     When called by another cached method, records access to establish dependency.
     """
 
-    def _call(self, obj: "Element[Any]") -> R:
+    def _call(self, obj: "ReactiveHost") -> R:
         """Execute with caching and dependency tracking."""
         # Record access if being tracked by another method
         self._record_access(obj)
@@ -284,14 +291,17 @@ class OutputMethod[R]:
                 return OutputData(type=OutputType.POWER, unit="kW", ...)
     """
 
-    def __init__(self, fn: Callable[..., R]) -> None:
+    def __init__(self, fn: Callable[..., R], *, output_name: str | None = None) -> None:
         """Initialize with the method."""
         self._fn = fn
         self._name: str = fn.__name__
+        self._output_name: str | None = output_name
 
     def __set_name__(self, owner: type, name: str) -> None:
         """Store the method name."""
         self._name = name
+        if self._output_name is None:
+            self._output_name = name
 
     @overload
     def __get__(self, obj: None, objtype: type) -> "OutputMethod[R]": ...
@@ -305,14 +315,19 @@ class OutputMethod[R]:
             return self
         return partial(self._fn, obj)
 
-    def get_output(self, obj: "Element[Any]") -> "OutputData | None":
+    @property
+    def output_name(self) -> str:
+        """Return the output name exposed by this method."""
+        return self._output_name or self._name
+
+    def get_output(self, obj: "Element[Any]") -> "ModelOutputValue | None":
         """Get output data for this output method.
 
         Args:
             obj: The element instance
 
         Returns:
-            OutputData from calling the method, or None if method returns None
+            OutputData or nested output mapping from calling the method, or None if method returns None
 
         """
         method = getattr(obj, self._name)
@@ -354,4 +369,20 @@ def constraint[R](
 
 
 cost = ReactiveCost
-output = OutputMethod
+
+
+@overload
+def output[R](fn: Callable[..., R], /) -> OutputMethod[R]: ...
+
+
+@overload
+def output(*, name: str) -> Callable[[Callable[..., R]], OutputMethod[R]]: ...
+
+
+def output[R](
+    fn: Callable[..., R] | None = None, /, *, name: str | None = None
+) -> OutputMethod[R] | Callable[[Callable[..., R]], OutputMethod[R]]:
+    """Decorate methods as outputs, optionally overriding their output name."""
+    if fn is not None:
+        return OutputMethod(fn, output_name=name)
+    return lambda f: OutputMethod(f, output_name=name)

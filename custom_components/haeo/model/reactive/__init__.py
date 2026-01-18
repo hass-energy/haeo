@@ -11,12 +11,14 @@ The pattern is inspired by reactive frameworks like MobX:
 """
 
 from .decorators import OutputMethod, ReactiveConstraint, ReactiveCost, ReactiveMethod, constraint, cost, output
+from .protocols import ReactiveHost
 from .tracked_param import TrackedParam
 
 __all__ = [
     "OutputMethod",
     "ReactiveConstraint",
     "ReactiveCost",
+    "ReactiveHost",
     "ReactiveMethod",
     "TrackedParam",
     "constraint",

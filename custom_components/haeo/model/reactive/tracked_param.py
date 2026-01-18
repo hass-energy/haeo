@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Any, overload
 import numpy as np
 
 if TYPE_CHECKING:
-    from custom_components.haeo.model.element import Element
+    from .protocols import ReactiveHost
 
 # Context for tracking parameter access during constraint computation
 tracking_context: ContextVar[set[str] | None] = ContextVar("tracking", default=None)
@@ -17,6 +17,8 @@ class TrackedParam[T]:
 
     When a constraint method accesses this parameter, the access is recorded.
     When the parameter value changes, dependent constraints are invalidated.
+
+    Can be used on any class satisfying the ReactiveHost protocol (Element, Segment, etc).
 
     Usage:
         class Battery(Element):
@@ -41,9 +43,9 @@ class TrackedParam[T]:
     def __get__(self, obj: None, objtype: type) -> "TrackedParam[T]": ...
 
     @overload
-    def __get__(self, obj: "Element[Any]", objtype: type) -> T: ...
+    def __get__(self, obj: "ReactiveHost", objtype: type) -> T: ...
 
-    def __get__(self, obj: "Element[Any] | None", objtype: type) -> "TrackedParam[T] | T":
+    def __get__(self, obj: "ReactiveHost | None", objtype: type) -> "TrackedParam[T] | T":
         """Get the parameter value and record access if tracking is active."""
         if obj is None:
             return self
@@ -54,7 +56,7 @@ class TrackedParam[T]:
         # Raise AttributeError if never set (standard Python behavior)
         return getattr(obj, self._private)  # type: ignore[return-value]
 
-    def __set__(self, obj: "Element[Any]", value: T) -> None:
+    def __set__(self, obj: "ReactiveHost", value: T) -> None:
         """Set the parameter value and invalidate dependent decorators."""
         # Check if this is the first time setting (no invalidation needed)
         if not hasattr(obj, self._private):
@@ -70,11 +72,11 @@ class TrackedParam[T]:
             # Invalidate all reactive decorators that depend on this parameter
             _invalidate_param_dependents(obj, self._name)
 
-    def is_set(self, obj: "Element[Any]") -> bool:
+    def is_set(self, obj: "ReactiveHost") -> bool:
         """Check if this parameter has been set on the given object.
 
         Args:
-            obj: The element instance to check
+            obj: The reactive host instance to check
 
         Returns:
             True if the parameter has been set, False otherwise
@@ -117,11 +119,11 @@ def _values_equal(a: object, b: object) -> bool:
         return False
 
 
-def _invalidate_param_dependents(element: "Element[Any]", param_name: str) -> None:
-    """Invalidate all reactive decorators on an element that depend on a parameter.
+def _invalidate_param_dependents(obj: "ReactiveHost", param_name: str) -> None:
+    """Invalidate all reactive decorators on an object that depend on a parameter.
 
     Args:
-        element: The element instance
+        obj: The reactive host instance (Element or Segment)
         param_name: The parameter name that changed
 
     """
@@ -131,27 +133,27 @@ def _invalidate_param_dependents(element: "Element[Any]", param_name: str) -> No
     # Track which methods were invalidated
     invalidated_methods: set[str] = set()
 
-    # Iterate through all attributes on the element's class
-    for attr_name in dir(type(element)):
+    # Iterate through all attributes on the object's class
+    for attr_name in dir(type(obj)):
         # Get the descriptor from the class
-        descriptor = getattr(type(element), attr_name, None)
+        descriptor = getattr(type(obj), attr_name, None)
         if isinstance(descriptor, ReactiveMethod):
-            # Get the state for this decorator on this element instance
-            state = get_decorator_state(element, attr_name)
+            # Get the state for this decorator on this object instance
+            state = get_decorator_state(obj, attr_name)
             if state is not None and param_name in state.get("deps", set()):
                 state["invalidated"] = True
                 invalidated_methods.add(attr_name)
 
     # Propagate invalidation to methods that depend on invalidated methods
     if invalidated_methods:
-        _propagate_method_invalidation(element, invalidated_methods)
+        _propagate_method_invalidation(obj, invalidated_methods)
 
 
-def _propagate_method_invalidation(element: "Element[Any]", invalidated_methods: set[str]) -> None:
+def _propagate_method_invalidation(obj: "ReactiveHost", invalidated_methods: set[str]) -> None:
     """Propagate invalidation to methods that depend on invalidated methods.
 
     Args:
-        element: The element instance
+        obj: The reactive host instance (Element or Segment)
         invalidated_methods: Set of method names that were invalidated
 
     """
@@ -163,10 +165,10 @@ def _propagate_method_invalidation(element: "Element[Any]", invalidated_methods:
     while newly_invalidated:
         next_round: set[str] = set()
 
-        for attr_name in dir(type(element)):
-            descriptor = getattr(type(element), attr_name, None)
+        for attr_name in dir(type(obj)):
+            descriptor = getattr(type(obj), attr_name, None)
             if isinstance(descriptor, ReactiveMethod):
-                state = get_decorator_state(element, attr_name)
+                state = get_decorator_state(obj, attr_name)
                 # Skip if already invalidated
                 if state is None or state.get("invalidated", True):
                     continue
@@ -184,11 +186,11 @@ def _propagate_method_invalidation(element: "Element[Any]", invalidated_methods:
         newly_invalidated = next_round
 
 
-def get_decorator_state(element: "Element[Any]", method_name: str) -> dict[str, Any] | None:
-    """Get the state dictionary for a decorator method on an element.
+def get_decorator_state(obj: "ReactiveHost", method_name: str) -> dict[str, Any] | None:
+    """Get the state dictionary for a decorator method on an object.
 
     Args:
-        element: The element instance
+        obj: The reactive host instance (Element or Segment)
         method_name: The method name
 
     Returns:
@@ -196,14 +198,14 @@ def get_decorator_state(element: "Element[Any]", method_name: str) -> dict[str, 
 
     """
     state_attr = f"_reactive_state_{method_name}"
-    return getattr(element, state_attr, None)
+    return getattr(obj, state_attr, None)
 
 
-def ensure_decorator_state(element: "Element[Any]", method_name: str) -> dict[str, Any]:
-    """Ensure a state dictionary exists for a decorator method on an element.
+def ensure_decorator_state(obj: "ReactiveHost", method_name: str) -> dict[str, Any]:
+    """Ensure a state dictionary exists for a decorator method on an object.
 
     Args:
-        element: The element instance
+        obj: The reactive host instance (Element or Segment)
         method_name: The method name
 
     Returns:
@@ -211,9 +213,9 @@ def ensure_decorator_state(element: "Element[Any]", method_name: str) -> dict[st
 
     """
     state_attr = f"_reactive_state_{method_name}"
-    if not hasattr(element, state_attr):
-        setattr(element, state_attr, {"invalidated": True, "deps": set(), "result": None})
-    return getattr(element, state_attr)
+    if not hasattr(obj, state_attr):
+        setattr(obj, state_attr, {"invalidated": True, "deps": set(), "result": None})
+    return getattr(obj, state_attr)
 
 
 # Re-export tracking context for use by decorators

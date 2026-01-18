@@ -16,8 +16,8 @@ from custom_components.haeo.model.elements import (
 )
 from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION as ELEMENT_TYPE_CONNECTION
 from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_NODE as ELEMENT_TYPE_NODE
+from custom_components.haeo.model.elements.connection import Connection
 from custom_components.haeo.model.elements.node import Node
-from custom_components.haeo.model.elements.power_connection import PowerConnection
 
 # Test constants
 HOURS_PER_DAY = 24
@@ -47,13 +47,23 @@ def test_network_add_duplicate_element() -> None:
 
     # Add first battery
     battery1 = network.add(
-        {"element_type": ELEMENT_TYPE_BATTERY, "name": "test_battery", "capacity": 10000, "initial_charge": 5000}
+        {
+            "element_type": ELEMENT_TYPE_BATTERY,
+            "name": "test_battery",
+            "capacity": np.array([10000.0]),
+            "initial_charge": 5000,
+        }
     )  # 50% of 10000
     assert battery1 is not None
 
     # Try to add another element with same name
     network.add(
-        {"element_type": ELEMENT_TYPE_BATTERY, "name": "test_battery", "capacity": 15000, "initial_charge": 11250}
+        {
+            "element_type": ELEMENT_TYPE_BATTERY,
+            "name": "test_battery",
+            "capacity": np.array([15000.0]),
+            "initial_charge": 11250,
+        }
     )  # 75% of 15000
 
     # Network handles duplicates
@@ -68,7 +78,14 @@ def test_connect_entities() -> None:
     )
 
     # Add entities
-    network.add({"element_type": ELEMENT_TYPE_BATTERY, "name": "battery1", "capacity": 10000, "initial_charge": 5000})
+    network.add(
+        {
+            "element_type": ELEMENT_TYPE_BATTERY,
+            "name": "battery1",
+            "capacity": np.array([10000.0]),
+            "initial_charge": 5000,
+        }
+    )
     network.add({"element_type": ELEMENT_TYPE_NODE, "name": "grid1", "is_sink": False, "is_source": True})
 
     # Connect them
@@ -78,7 +95,12 @@ def test_connect_entities() -> None:
             "name": "battery1_to_grid1",
             "source": "battery1",
             "target": "grid1",
-            "max_power_source_target": 5000,
+            "segments": {
+                "power_limit": {
+                    "segment_type": "power_limit",
+                    "max_power_source_target": np.array([5000.0, 5000.0, 5000.0]),
+                }
+            },
         }
     )
 
@@ -93,7 +115,7 @@ def test_connect_entities() -> None:
     # Check that the connection element was added
     connection_name = "battery1_to_grid1"
     assert connection_name in network.elements
-    assert isinstance(network.elements[connection_name], PowerConnection)
+    assert isinstance(network.elements[connection_name], Connection)
 
 
 def test_connect_nonexistent_entities() -> None:
@@ -120,7 +142,14 @@ def test_connect_nonexistent_target_entity() -> None:
         periods=np.array([1.0] * 3),
     )
     # Add only source entity
-    network.add({"element_type": ELEMENT_TYPE_BATTERY, "name": "battery1", "capacity": 10000, "initial_charge": 5000})
+    network.add(
+        {
+            "element_type": ELEMENT_TYPE_BATTERY,
+            "name": "battery1",
+            "capacity": np.array([10000.0]),
+            "initial_charge": 5000,
+        }
+    )
     # Try to connect to nonexistent target
     with pytest.raises(ValueError, match="Failed to register connection bad_connection with target nonexistent"):
         network.add(
@@ -140,7 +169,14 @@ def test_connect_source_is_connection() -> None:
         periods=np.array([1.0] * 3),
     )
     # Add entities and a connection
-    network.add({"element_type": ELEMENT_TYPE_BATTERY, "name": "battery1", "capacity": 10000, "initial_charge": 5000})
+    network.add(
+        {
+            "element_type": ELEMENT_TYPE_BATTERY,
+            "name": "battery1",
+            "capacity": np.array([10000.0]),
+            "initial_charge": 5000,
+        }
+    )
     network.add({"element_type": ELEMENT_TYPE_NODE, "name": "grid1", "is_sink": False, "is_source": True})
     network.add({"element_type": ELEMENT_TYPE_CONNECTION, "name": "conn1", "source": "battery1", "target": "grid1"})
 
@@ -160,7 +196,14 @@ def test_connect_target_is_connection() -> None:
         periods=np.array([1.0] * 3),
     )
     # Add entities and a connection
-    network.add({"element_type": ELEMENT_TYPE_BATTERY, "name": "battery1", "capacity": 10000, "initial_charge": 5000})
+    network.add(
+        {
+            "element_type": ELEMENT_TYPE_BATTERY,
+            "name": "battery1",
+            "capacity": np.array([10000.0]),
+            "initial_charge": 5000,
+        }
+    )
     network.add({"element_type": ELEMENT_TYPE_NODE, "name": "grid1", "is_sink": False, "is_source": True})
     network.add({"element_type": ELEMENT_TYPE_CONNECTION, "name": "conn1", "source": "battery1", "target": "grid1"})
 
@@ -175,10 +218,10 @@ def test_connect_target_is_connection() -> None:
 
 def test_validate_raises_when_source_missing() -> None:
     """Validate should raise when a connection source is missing."""
-    net = Network(name="net", periods=np.array([1.0]))
-    net.elements["conn"] = PowerConnection(
+    net = Network(name="net", periods=np.array([1.0] * 1))
+    net.elements["conn"] = Connection(
         name="conn",
-        periods=np.array([1.0]),
+        periods=np.array([1.0] * 1),
         solver=net._solver,
         source="missing",
         target="also_missing",
@@ -190,13 +233,13 @@ def test_validate_raises_when_source_missing() -> None:
 
 def test_validate_raises_when_target_missing() -> None:
     """Validate should raise when a connection target is missing."""
-    net = Network(name="net", periods=np.array([1.0]))
+    net = Network(name="net", periods=np.array([1.0] * 1))
     net.elements["source_node"] = Node(
-        name="source_node", periods=np.array([1.0]), solver=net._solver, is_source=True, is_sink=True
+        name="source_node", periods=np.array([1.0] * 1, dtype=float), solver=net._solver, is_source=True, is_sink=True
     )
-    net.elements["conn"] = PowerConnection(
+    net.elements["conn"] = Connection(
         name="conn",
-        periods=np.array([1.0]),
+        periods=np.array([1.0] * 1),
         solver=net._solver,
         source="source_node",
         target="missing_target",
@@ -208,22 +251,28 @@ def test_validate_raises_when_target_missing() -> None:
 
 def test_validate_raises_when_endpoints_are_connections() -> None:
     """Validate should reject connections that point to connection elements."""
-    net = Network(name="net", periods=np.array([1.0]))
+    net = Network(name="net", periods=np.array([1.0] * 1))
     # Non-connection element to satisfy target for conn2
-    net.elements["node"] = Node(name="node", periods=np.array([1.0]), solver=net._solver, is_source=True, is_sink=True)
+    net.elements["node"] = Node(
+        name="node",
+        periods=np.array([1.0] * 1, dtype=float),
+        solver=net._solver,
+        is_source=True,
+        is_sink=True,
+    )
 
-    net.elements["conn2"] = PowerConnection(
+    net.elements["conn2"] = Connection(
         name="conn2",
-        periods=np.array([1.0]),
+        periods=np.array([1.0] * 1),
         solver=net._solver,
         source="node",
         target="node",
     )
 
     # conn1 references conn2 as source and target to hit both connection checks
-    net.elements["conn1"] = PowerConnection(
+    net.elements["conn1"] = Connection(
         name="conn1",
-        periods=np.array([1.0]),
+        periods=np.array([1.0] * 1),
         solver=net._solver,
         source="conn2",
         target="conn2",
@@ -235,7 +284,7 @@ def test_validate_raises_when_endpoints_are_connections() -> None:
 
 def test_constraints_returns_empty_when_no_elements() -> None:
     """Constraints should return empty dict when network has no elements."""
-    net = Network(name="net", periods=np.array([1.0]))
+    net = Network(name="net", periods=np.array([1.0] * 1))
 
     assert net.constraints() == {}
 
@@ -248,7 +297,14 @@ def test_network_constraint_generation_error() -> None:
     )
 
     # Add a regular battery
-    network.add({"element_type": ELEMENT_TYPE_BATTERY, "name": "battery", "capacity": 10000, "initial_charge": 5000})
+    network.add(
+        {
+            "element_type": ELEMENT_TYPE_BATTERY,
+            "name": "battery",
+            "capacity": np.array([10000.0]),
+            "initial_charge": 5000,
+        }
+    )
 
     # Mock an element to raise an exception during constraints
     mock_element = Mock(spec=Element)
@@ -333,7 +389,7 @@ def test_network_optimize_raises_on_solver_failure(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Optimize should surface solver failure status with context."""
-    network = Network(name="test_network", periods=np.array([1.0]))
+    network = Network(name="test_network", periods=np.array([1.0] * 1))
     network.add({"element_type": ELEMENT_TYPE_NODE, "name": "node", "is_sink": True, "is_source": True})
 
     def mock_optimize() -> float:
@@ -359,7 +415,7 @@ def test_network_optimize_raises_on_infeasible_network(
 ) -> None:
     """Test optimize() raises ValueError when network optimization fails."""
     # Create a valid network
-    network = Network(name="test_network", periods=np.array([1.0]))
+    network = Network(name="test_network", periods=np.array([1.0] * 1))
     network.add({"element_type": ELEMENT_TYPE_NODE, "name": "node", "is_sink": True, "is_source": True})
 
     # Track if run() has been called
@@ -393,10 +449,20 @@ def test_add_battery_balance_connection() -> None:
 
     # Add two battery sections
     network.add(
-        {"element_type": ELEMENT_TYPE_BATTERY, "name": "upper_section", "capacity": 10.0, "initial_charge": 5.0}
+        {
+            "element_type": ELEMENT_TYPE_BATTERY,
+            "name": "upper_section",
+            "capacity": np.array([10.0]),
+            "initial_charge": 5.0,
+        }
     )
     network.add(
-        {"element_type": ELEMENT_TYPE_BATTERY, "name": "lower_section", "capacity": 10.0, "initial_charge": 5.0}
+        {
+            "element_type": ELEMENT_TYPE_BATTERY,
+            "name": "lower_section",
+            "capacity": np.array([10.0]),
+            "initial_charge": 5.0,
+        }
     )
 
     # Add battery balance connection
@@ -421,7 +487,12 @@ def test_add_battery_balance_connection_upper_not_battery() -> None:
     # Add a node (not a battery) as upper
     network.add({"element_type": ELEMENT_TYPE_NODE, "name": "not_a_battery", "is_sink": True, "is_source": True})
     network.add(
-        {"element_type": ELEMENT_TYPE_BATTERY, "name": "lower_section", "capacity": 10.0, "initial_charge": 5.0}
+        {
+            "element_type": ELEMENT_TYPE_BATTERY,
+            "name": "lower_section",
+            "capacity": np.array([10.0]),
+            "initial_charge": 5.0,
+        }
     )
 
     with pytest.raises(TypeError, match="Upper element 'not_a_battery' is not a battery"):
@@ -441,7 +512,12 @@ def test_add_battery_balance_connection_lower_not_battery() -> None:
 
     # Add battery as upper, node as lower
     network.add(
-        {"element_type": ELEMENT_TYPE_BATTERY, "name": "upper_section", "capacity": 10.0, "initial_charge": 5.0}
+        {
+            "element_type": ELEMENT_TYPE_BATTERY,
+            "name": "upper_section",
+            "capacity": np.array([10.0]),
+            "initial_charge": 5.0,
+        }
     )
     network.add({"element_type": ELEMENT_TYPE_NODE, "name": "not_a_battery", "is_sink": True, "is_source": True})
 
@@ -471,7 +547,7 @@ def test_network_cost_with_multiple_elements() -> None:
             "name": "conn1",
             "source": "source",
             "target": "target",
-            "price_source_target": np.array([10.0, 20.0]),
+            "segments": {"pricing": {"segment_type": "pricing", "price_source_target": np.array([10.0, 20.0])}},
         }
     )
     network.add(
@@ -480,7 +556,7 @@ def test_network_cost_with_multiple_elements() -> None:
             "name": "conn2",
             "source": "target",
             "target": "source",
-            "price_source_target": np.array([5.0, 10.0]),
+            "segments": {"pricing": {"segment_type": "pricing", "price_source_target": np.array([5.0, 10.0])}},
         }
     )
 

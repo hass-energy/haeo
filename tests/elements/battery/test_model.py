@@ -9,7 +9,7 @@ import pytest
 from custom_components.haeo.elements import ELEMENT_TYPES
 from custom_components.haeo.elements import battery as battery_element
 from custom_components.haeo.elements.battery import BatteryConfigData
-from custom_components.haeo.model import ModelOutputName, power_connection
+from custom_components.haeo.model import ModelOutputName, ModelOutputValue, connection
 from custom_components.haeo.model import battery as battery_model
 from custom_components.haeo.model import battery_balance_connection as balance_model
 from custom_components.haeo.model import node as node_model
@@ -21,7 +21,6 @@ from custom_components.haeo.model.elements import (
     MODEL_ELEMENT_TYPE_NODE,
 )
 from custom_components.haeo.model.output_data import OutputData
-
 from tests.util.normalize import normalize_for_compare
 
 
@@ -39,7 +38,7 @@ class OutputsCase(TypedDict):
     description: str
     name: str
     data: BatteryConfigData
-    model_outputs: Mapping[str, Mapping[ModelOutputName, OutputData]]
+    model_outputs: Mapping[str, Mapping[ModelOutputName, ModelOutputValue]]
     outputs: Mapping[str, Mapping[str, OutputData]]
 
 
@@ -95,7 +94,13 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "name": "battery_main:undercharge:to_node",
                 "source": "battery_main:undercharge",
                 "target": "battery_main:node",
-                "price_source_target": [0.03],
+                "segments": {
+                    "pricing": {
+                        "segment_type": "pricing",
+                        "price_source_target": [0.03],
+                        "price_target_source": None,
+                    }
+                },
             },
             # Normal connection: no penalty
             {
@@ -103,7 +108,13 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "name": "battery_main:normal:to_node",
                 "source": "battery_main:normal",
                 "target": "battery_main:node",
-                "price_source_target": None,
+                "segments": {
+                    "pricing": {
+                        "segment_type": "pricing",
+                        "price_source_target": None,
+                        "price_target_source": None,
+                    }
+                },
             },
             # Overcharge connection: penalty on charge (price_target_source)
             {
@@ -111,7 +122,13 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "name": "battery_main:overcharge:to_node",
                 "source": "battery_main:overcharge",
                 "target": "battery_main:node",
-                "price_target_source": [0.04],
+                "segments": {
+                    "pricing": {
+                        "segment_type": "pricing",
+                        "price_source_target": None,
+                        "price_target_source": [0.04],
+                    }
+                },
             },
             # Balance connection: undercharge -> normal
             {
@@ -133,12 +150,23 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "name": "battery_main:connection",
                 "source": "battery_main:node",
                 "target": "network",
-                "efficiency_source_target": [95.0],
-                "efficiency_target_source": [95.0],
-                "max_power_source_target": [5.0],
-                "max_power_target_source": [5.0],
-                "price_target_source": [-0.01],
-                "price_source_target": [0.03],  # early_discharge_incentive + discharge_cost
+                "segments": {
+                    "efficiency": {
+                        "segment_type": "efficiency",
+                        "efficiency_source_target": [0.95],
+                        "efficiency_target_source": [0.95],
+                    },
+                    "power_limit": {
+                        "segment_type": "power_limit",
+                        "max_power_source_target": [5.0],
+                        "max_power_target_source": [5.0],
+                    },
+                    "pricing": {
+                        "segment_type": "pricing",
+                        "price_source_target": [0.03],  # early_discharge_incentive + discharge_cost
+                        "price_target_source": [-0.01],
+                    },
+                },
             },
         ],
     },
@@ -177,7 +205,13 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "name": "battery_normal:normal:to_node",
                 "source": "battery_normal:normal",
                 "target": "battery_normal:node",
-                "price_source_target": None,
+                "segments": {
+                    "pricing": {
+                        "segment_type": "pricing",
+                        "price_source_target": None,
+                        "price_target_source": None,
+                    }
+                },
             },
             # Main connection to network
             {
@@ -185,12 +219,23 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "name": "battery_normal:connection",
                 "source": "battery_normal:node",
                 "target": "network",
-                "efficiency_source_target": [95.0],
-                "efficiency_target_source": [95.0],
-                "max_power_source_target": [5.0],
-                "max_power_target_source": [5.0],
-                "price_target_source": [-0.001],
-                "price_source_target": [0.003],  # early_discharge_incentive + discharge_cost
+                "segments": {
+                    "efficiency": {
+                        "segment_type": "efficiency",
+                        "efficiency_source_target": [0.95],
+                        "efficiency_target_source": [0.95],
+                    },
+                    "power_limit": {
+                        "segment_type": "power_limit",
+                        "max_power_source_target": [5.0],
+                        "max_power_target_source": [5.0],
+                    },
+                    "pricing": {
+                        "segment_type": "pricing",
+                        "price_source_target": [0.003],  # early_discharge_incentive + discharge_cost
+                        "price_target_source": [-0.001],
+                    },
+                },
             },
         ],
     },
@@ -227,8 +272,8 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
             },
             "battery_no_balance:node": {},
             "battery_no_balance:normal:to_node": {
-                power_connection.CONNECTION_POWER_SOURCE_TARGET: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(0.5,), direction="+"),
-                power_connection.CONNECTION_POWER_TARGET_SOURCE: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(1.0,), direction="-"),
+                connection.CONNECTION_POWER_SOURCE_TARGET: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(0.5,), direction="+"),
+                connection.CONNECTION_POWER_TARGET_SOURCE: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(1.0,), direction="-"),
             },
         },
         "outputs": {
@@ -283,8 +328,8 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
                 battery_model.BATTERY_SOC_MIN: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.0,)),
             },
             "battery_all_sections:undercharge:to_node": {
-                power_connection.CONNECTION_POWER_SOURCE_TARGET: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(0.1,), direction="+"),
-                power_connection.CONNECTION_POWER_TARGET_SOURCE: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(0.2,), direction="-"),
+                connection.CONNECTION_POWER_SOURCE_TARGET: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(0.1,), direction="+"),
+                connection.CONNECTION_POWER_TARGET_SOURCE: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(0.2,), direction="-"),
             },
             # Normal section
             "battery_all_sections:normal": {
@@ -297,8 +342,8 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
                 battery_model.BATTERY_SOC_MIN: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.0,)),
             },
             "battery_all_sections:normal:to_node": {
-                power_connection.CONNECTION_POWER_SOURCE_TARGET: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(0.3,), direction="+"),
-                power_connection.CONNECTION_POWER_TARGET_SOURCE: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(0.5,), direction="-"),
+                connection.CONNECTION_POWER_SOURCE_TARGET: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(0.3,), direction="+"),
+                connection.CONNECTION_POWER_TARGET_SOURCE: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(0.5,), direction="-"),
             },
             # Overcharge section
             "battery_all_sections:overcharge": {
@@ -311,8 +356,8 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
                 battery_model.BATTERY_SOC_MIN: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.0,)),
             },
             "battery_all_sections:overcharge:to_node": {
-                power_connection.CONNECTION_POWER_SOURCE_TARGET: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(0.1,), direction="+"),
-                power_connection.CONNECTION_POWER_TARGET_SOURCE: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(0.3,), direction="-"),
+                connection.CONNECTION_POWER_SOURCE_TARGET: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(0.1,), direction="+"),
+                connection.CONNECTION_POWER_TARGET_SOURCE: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(0.3,), direction="-"),
             },
             # Node with power balance
             "battery_all_sections:node": {

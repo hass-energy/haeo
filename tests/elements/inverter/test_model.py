@@ -9,13 +9,12 @@ import pytest
 from custom_components.haeo.elements import ELEMENT_TYPES
 from custom_components.haeo.elements import inverter as inverter_element
 from custom_components.haeo.elements.inverter import InverterConfigData
-from custom_components.haeo.model import ModelOutputName
+from custom_components.haeo.model import ModelOutputName, ModelOutputValue
 from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE
-from custom_components.haeo.model.elements import power_connection
+from custom_components.haeo.model.elements import connection
 from custom_components.haeo.model.elements.node import NODE_POWER_BALANCE
 from custom_components.haeo.model.output_data import OutputData
-
 from tests.util.normalize import normalize_for_compare
 
 
@@ -32,7 +31,7 @@ class OutputsCase(TypedDict):
 
     description: str
     name: str
-    model_outputs: Mapping[str, Mapping[ModelOutputName, OutputData]]
+    model_outputs: Mapping[str, Mapping[ModelOutputName, ModelOutputValue]]
     outputs: Mapping[str, Mapping[str, OutputData]]
 
 
@@ -55,10 +54,18 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "name": "inverter_main:connection",
                 "source": "inverter_main",
                 "target": "network",
-                "max_power_source_target": [10.0],
-                "max_power_target_source": [10.0],
-                "efficiency_source_target": 100.0,
-                "efficiency_target_source": 100.0,
+                "segments": {
+                    "efficiency": {
+                        "segment_type": "efficiency",
+                        "efficiency_source_target": 1.0,
+                        "efficiency_target_source": 1.0,
+                    },
+                    "power_limit": {
+                        "segment_type": "power_limit",
+                        "max_power_source_target": [10.0],
+                        "max_power_target_source": [10.0],
+                    },
+                },
             },
         ],
     },
@@ -80,10 +87,18 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "name": "inverter_simple:connection",
                 "source": "inverter_simple",
                 "target": "network",
-                "max_power_source_target": [10.0],
-                "max_power_target_source": [10.0],
-                "efficiency_source_target": 100.0,
-                "efficiency_target_source": 100.0,
+                "segments": {
+                    "efficiency": {
+                        "segment_type": "efficiency",
+                        "efficiency_source_target": 1.0,
+                        "efficiency_target_source": 1.0,
+                    },
+                    "power_limit": {
+                        "segment_type": "power_limit",
+                        "max_power_source_target": [10.0],
+                        "max_power_target_source": [10.0],
+                    },
+                },
             },
         ],
     },
@@ -99,10 +114,14 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
                 NODE_POWER_BALANCE: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.0,)),
             },
             "inverter_main:connection": {
-                power_connection.CONNECTION_POWER_SOURCE_TARGET: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(5.0,), direction="+"),
-                power_connection.CONNECTION_POWER_TARGET_SOURCE: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(3.0,), direction="-"),
-                power_connection.CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.01,)),
-                power_connection.CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.02,)),
+                connection.CONNECTION_POWER_SOURCE_TARGET: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(5.0,), direction="+"),
+                connection.CONNECTION_POWER_TARGET_SOURCE: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(3.0,), direction="-"),
+                connection.CONNECTION_SEGMENTS: {
+                    "power_limit": {
+                        "source_target": OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.01,)),
+                        "target_source": OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.02,)),
+                    }
+                },
             },
         },
         "outputs": {

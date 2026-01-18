@@ -9,12 +9,11 @@ import pytest
 from custom_components.haeo.elements import ELEMENT_TYPES
 from custom_components.haeo.elements import connection as connection_element
 from custom_components.haeo.elements.connection import ConnectionConfigData
-from custom_components.haeo.model import ModelOutputName
+from custom_components.haeo.model import ModelOutputName, ModelOutputValue
 from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION
-from custom_components.haeo.model.elements import power_connection
+from custom_components.haeo.model.elements import connection as model_connection
 from custom_components.haeo.model.output_data import OutputData
-
 from tests.util.normalize import normalize_for_compare
 
 
@@ -31,7 +30,7 @@ class OutputsCase(TypedDict):
 
     description: str
     name: str
-    model_outputs: Mapping[str, Mapping[ModelOutputName, OutputData]]
+    model_outputs: Mapping[str, Mapping[ModelOutputName, ModelOutputValue]]
     outputs: Mapping[str, Mapping[str, OutputData]]
 
 
@@ -56,12 +55,23 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "name": "c1",
                 "source": "s",
                 "target": "t",
-                "max_power_source_target": [4.0],
-                "max_power_target_source": [2.0],
-                "efficiency_source_target": [95.0],
-                "efficiency_target_source": [90.0],
-                "price_source_target": [0.1],
-                "price_target_source": [0.05],
+                "segments": {
+                    "efficiency": {
+                        "segment_type": "efficiency",
+                        "efficiency_source_target": [0.95],
+                        "efficiency_target_source": [0.90],
+                    },
+                    "power_limit": {
+                        "segment_type": "power_limit",
+                        "max_power_source_target": [4.0],
+                        "max_power_target_source": [2.0],
+                    },
+                    "pricing": {
+                        "segment_type": "pricing",
+                        "price_source_target": [0.1],
+                        "price_target_source": [0.05],
+                    },
+                },
             }
         ],
     },
@@ -75,16 +85,27 @@ CREATE_CASES: Sequence[CreateCase] = [
         ),
         "model": [
             {
-                "element_type": "connection",
+                "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
                 "name": "c_min",
                 "source": "s",
                 "target": "t",
-                "max_power_source_target": None,
-                "max_power_target_source": None,
-                "efficiency_source_target": None,
-                "efficiency_target_source": None,
-                "price_source_target": None,
-                "price_target_source": None,
+                "segments": {
+                    "efficiency": {
+                        "segment_type": "efficiency",
+                        "efficiency_source_target": None,
+                        "efficiency_target_source": None,
+                    },
+                    "power_limit": {
+                        "segment_type": "power_limit",
+                        "max_power_source_target": None,
+                        "max_power_target_source": None,
+                    },
+                    "pricing": {
+                        "segment_type": "pricing",
+                        "price_source_target": None,
+                        "price_target_source": None,
+                    },
+                },
             }
         ],
     },
@@ -97,11 +118,15 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
         "name": "c1",
         "model_outputs": {
             "c1": {
-                power_connection.CONNECTION_POWER_SOURCE_TARGET: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(5.0,), direction="+"),
-                power_connection.CONNECTION_POWER_TARGET_SOURCE: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(7.0,), direction="-"),
-                power_connection.CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.01,)),
-                power_connection.CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.02,)),
-                power_connection.CONNECTION_TIME_SLICE: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.001,)),
+                model_connection.CONNECTION_POWER_SOURCE_TARGET: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(5.0,), direction="+"),
+                model_connection.CONNECTION_POWER_TARGET_SOURCE: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(7.0,), direction="-"),
+                model_connection.CONNECTION_SEGMENTS: {
+                    "power_limit": {
+                        "source_target": OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.01,)),
+                        "target_source": OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.02,)),
+                        "time_slice": OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.001,)),
+                    }
+                },
             }
         },
         "outputs": {
@@ -120,8 +145,8 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
         "name": "c_min",
         "model_outputs": {
             "c_min": {
-                power_connection.CONNECTION_POWER_SOURCE_TARGET: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(5.0,), direction="+"),
-                power_connection.CONNECTION_POWER_TARGET_SOURCE: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(7.0,), direction="-"),
+                model_connection.CONNECTION_POWER_SOURCE_TARGET: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(5.0,), direction="+"),
+                model_connection.CONNECTION_POWER_TARGET_SOURCE: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(7.0,), direction="-"),
             }
         },
         "outputs": {

@@ -1,7 +1,7 @@
 """Connection type definitions for model test data."""
 
 from collections.abc import Callable, Sequence
-from typing import Any, NotRequired, TypedDict
+from typing import NotRequired, TypedDict
 
 
 class ExpectedOutput(TypedDict):
@@ -10,6 +10,10 @@ class ExpectedOutput(TypedDict):
     type: str
     unit: str
     values: tuple[float, ...]
+
+
+type ExpectedOutputFixture = ExpectedOutput | dict[str, "ExpectedOutputFixture"]
+type ExpectedOutputs = dict[str, ExpectedOutputFixture]
 
 
 class ConnectionTestCaseInputs(TypedDict):
@@ -25,8 +29,8 @@ class ConnectionTestCase(TypedDict):
     """Structure for connection test cases."""
 
     description: str
-    factory: Callable[..., Any]
-    data: dict[str, Any]
+    factory: Callable[..., object]
+    data: dict[str, object]
     inputs: NotRequired[ConnectionTestCaseInputs]
-    expected_outputs: NotRequired[dict[str, ExpectedOutput]]
+    expected_outputs: NotRequired[ExpectedOutputs]
     expected_error: NotRequired[str]

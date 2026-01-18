@@ -12,7 +12,7 @@ import numpy as np
 from custom_components.haeo.const import ConnectivityLevel
 from custom_components.haeo.data.loader import TimeSeriesLoader
 from custom_components.haeo.elements.input_fields import InputFieldDefaults, InputFieldInfo
-from custom_components.haeo.model import ModelElementConfig, ModelOutputName
+from custom_components.haeo.model import ModelElementConfig, ModelOutputName, ModelOutputValue
 from custom_components.haeo.model import battery as model_battery
 from custom_components.haeo.model import battery_balance_connection as model_balance
 from custom_components.haeo.model.const import OutputType
@@ -21,10 +21,6 @@ from custom_components.haeo.model.elements import (
     MODEL_ELEMENT_TYPE_BATTERY_BALANCE_CONNECTION,
     MODEL_ELEMENT_TYPE_CONNECTION,
     MODEL_ELEMENT_TYPE_NODE,
-    BatteryBalanceConnectionElementConfig,
-    BatteryElementConfig,
-    ConnectionElementConfig,
-    NodeElementConfig,
 )
 from custom_components.haeo.model.elements.node import NODE_POWER_BALANCE
 from custom_components.haeo.model.output_data import OutputData
@@ -369,15 +365,14 @@ class BatteryAdapter:
         initial_soc = config["initial_charge_percentage"][0]
 
         # Convert percentages to ratio arrays for time-varying limits
-        min_charge_percentage = config.get(
-            CONF_MIN_CHARGE_PERCENTAGE,
-            np.full(n_boundaries, DEFAULTS[CONF_MIN_CHARGE_PERCENTAGE], dtype=float),
-        )
-        max_charge_percentage = config.get(
-            CONF_MAX_CHARGE_PERCENTAGE,
-            np.full(n_boundaries, DEFAULTS[CONF_MAX_CHARGE_PERCENTAGE], dtype=float),
-        )
-        efficiency_values = config.get(CONF_EFFICIENCY)
+        min_charge_percentage = config.get(CONF_MIN_CHARGE_PERCENTAGE)
+        if min_charge_percentage is None:
+            min_charge_percentage = np.full(n_boundaries, DEFAULTS[CONF_MIN_CHARGE_PERCENTAGE], dtype=float)
+        max_charge_percentage = config.get(CONF_MAX_CHARGE_PERCENTAGE)
+        if max_charge_percentage is None:
+            max_charge_percentage = np.full(n_boundaries, DEFAULTS[CONF_MAX_CHARGE_PERCENTAGE], dtype=float)
+        efficiency = config.get(CONF_EFFICIENCY)
+        efficiency_values = efficiency / 100.0 if efficiency is not None else None
 
         min_ratio_array = min_charge_percentage / 100.0
         max_ratio_array = max_charge_percentage / 100.0
@@ -418,15 +413,16 @@ class BatteryAdapter:
             section_capacities[section_name] = undercharge_capacity
             # For initial charge distribution, use first period capacity
             undercharge_capacity_first = float(undercharge_capacity[0])
-            section_initial_charge = float(min(initial_charge, undercharge_capacity_first))
+            section_initial_charge = min(initial_charge, undercharge_capacity_first)
 
-            section_config: BatteryElementConfig = {
-                "element_type": MODEL_ELEMENT_TYPE_BATTERY,
-                "name": section_name,
-                "capacity": undercharge_capacity,
-                "initial_charge": section_initial_charge,
-            }
-            elements.append(section_config)
+            elements.append(
+                {
+                    "element_type": MODEL_ELEMENT_TYPE_BATTERY,
+                    "name": section_name,
+                    "capacity": undercharge_capacity,
+                    "initial_charge": section_initial_charge,
+                }
+            )
 
             initial_charge = max(initial_charge - section_initial_charge, 0.0)
 
@@ -437,15 +433,16 @@ class BatteryAdapter:
         normal_capacity = (max_ratio_array - min_ratio_array) * capacity_array
         section_capacities[section_name] = normal_capacity
         normal_capacity_first = float(normal_capacity[0])
-        section_initial_charge = float(min(initial_charge, normal_capacity_first))
+        section_initial_charge = min(initial_charge, normal_capacity_first)
 
-        section_config: BatteryElementConfig = {
-            "element_type": MODEL_ELEMENT_TYPE_BATTERY,
-            "name": section_name,
-            "capacity": normal_capacity,
-            "initial_charge": section_initial_charge,
-        }
-        elements.append(section_config)
+        elements.append(
+            {
+                "element_type": MODEL_ELEMENT_TYPE_BATTERY,
+                "name": section_name,
+                "capacity": normal_capacity,
+                "initial_charge": section_initial_charge,
+            }
+        )
 
         initial_charge = max(initial_charge - section_initial_charge, 0.0)
 
@@ -457,25 +454,27 @@ class BatteryAdapter:
             overcharge_capacity = (overcharge_ratio_array - max_ratio_array) * capacity_array
             section_capacities[section_name] = overcharge_capacity
             overcharge_capacity_first = float(overcharge_capacity[0])
-            section_initial_charge = float(min(initial_charge, overcharge_capacity_first))
+            section_initial_charge = min(initial_charge, overcharge_capacity_first)
 
-            section_config: BatteryElementConfig = {
-                "element_type": MODEL_ELEMENT_TYPE_BATTERY,
-                "name": section_name,
-                "capacity": overcharge_capacity,
-                "initial_charge": section_initial_charge,
-            }
-            elements.append(section_config)
+            elements.append(
+                {
+                    "element_type": MODEL_ELEMENT_TYPE_BATTERY,
+                    "name": section_name,
+                    "capacity": overcharge_capacity,
+                    "initial_charge": section_initial_charge,
+                }
+            )
 
         # 4. Create internal node
         node_name = f"{name}:node"
-        node_config: NodeElementConfig = {
-            "element_type": MODEL_ELEMENT_TYPE_NODE,
-            "name": node_name,
-            "is_source": False,
-            "is_sink": False,
-        }
-        elements.append(node_config)
+        elements.append(
+            {
+                "element_type": MODEL_ELEMENT_TYPE_NODE,
+                "name": node_name,
+                "is_source": False,
+                "is_sink": False,
+            }
+        )
 
         # 5. Create connections from sections to internal node
 
@@ -494,28 +493,40 @@ class BatteryAdapter:
                 discharge_price = undercharge_cost_array
             elif "overcharge" in section_name:
                 charge_price = overcharge_cost_array
-                connection_config: ConnectionElementConfig = {
-                    "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
-                    "name": f"{section_name}:to_node",
-                    "source": section_name,
-                    "target": node_name,
-                    # Overcharge penalty when charging
-                    "price_target_source": charge_price,
-                }
-                elements.append(connection_config)
+                elements.append(
+                    {
+                        "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
+                        "name": f"{section_name}:to_node",
+                        "source": section_name,
+                        "target": node_name,
+                        "segments": {
+                            "pricing": {
+                                "segment_type": "pricing",
+                                "price_source_target": None,
+                                "price_target_source": charge_price,  # Overcharge penalty when charging
+                            }
+                        },
+                    }
+                )
                 continue
             else:
                 discharge_price = None
 
-            connection_config: ConnectionElementConfig = {
-                "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
-                "name": f"{section_name}:to_node",
-                "source": section_name,
-                "target": node_name,
-            }
-            # Undercharge penalty when discharging (None for normal section)
-            connection_config["price_source_target"] = discharge_price
-            elements.append(connection_config)
+            elements.append(
+                {
+                    "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
+                    "name": f"{section_name}:to_node",
+                    "source": section_name,
+                    "target": node_name,
+                    "segments": {
+                        "pricing": {
+                            "segment_type": "pricing",
+                            "price_source_target": discharge_price,  # Undercharge penalty when discharging
+                            "price_target_source": None,
+                        }
+                    },
+                }
+            )
 
         # 6. Create balance connections between adjacent sections (enforces fill ordering)
         # Balance connections ensure lower sections fill before upper sections
@@ -524,13 +535,14 @@ class BatteryAdapter:
             lower_section = section_names[i]
             upper_section = section_names[i + 1]
 
-            balance_config: BatteryBalanceConnectionElementConfig = {
-                "element_type": MODEL_ELEMENT_TYPE_BATTERY_BALANCE_CONNECTION,
-                "name": f"{name}:balance:{lower_section.split(':')[-1]}:{upper_section.split(':')[-1]}",
-                "upper": upper_section,
-                "lower": lower_section,
-            }
-            elements.append(balance_config)
+            elements.append(
+                {
+                    "element_type": MODEL_ELEMENT_TYPE_BATTERY_BALANCE_CONNECTION,
+                    "name": f"{name}:balance:{lower_section.split(':')[-1]}:{upper_section.split(':')[-1]}",
+                    "upper": upper_section,
+                    "lower": lower_section,
+                }
+            )
 
         # 7. Create connection from internal node to target
         # Time-varying early charge incentive applied here (charge earlier in horizon)
@@ -538,35 +550,46 @@ class BatteryAdapter:
         charge_early_incentive = -early_charge_incentive + (early_charge_incentive * ramp)
         discharge_early_incentive = early_charge_incentive + (early_charge_incentive * ramp)
 
-        discharge_costs = discharge_early_incentive
-        if "discharge_cost" in config:
-            discharge_costs = discharge_early_incentive + config["discharge_cost"]
-
+        discharge_costs = (
+            discharge_early_incentive + config["discharge_cost"]
+            if "discharge_cost" in config
+            else discharge_early_incentive
+        )
         max_discharge = config.get("max_discharge_power")
         max_charge = config.get("max_charge_power")
 
-        connection_config: ConnectionElementConfig = {
-            "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
-            "name": f"{name}:connection",
-            "source": node_name,
-            "target": config["connection"],
-            "max_power_source_target": max_discharge,
-            "max_power_target_source": max_charge,
-            # Node to network (discharge), network to node (charge)
-            "price_source_target": discharge_costs,
-            "price_target_source": charge_early_incentive,
-        }
-        if efficiency_values is not None:
-            connection_config["efficiency_source_target"] = efficiency_values
-            connection_config["efficiency_target_source"] = efficiency_values
-        elements.append(connection_config)
+        elements.append(
+            {
+                "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
+                "name": f"{name}:connection",
+                "source": node_name,
+                "target": config["connection"],
+                "segments": {
+                    "efficiency": {
+                        "segment_type": "efficiency",
+                        "efficiency_source_target": efficiency_values,  # Node to network (discharge)
+                        "efficiency_target_source": efficiency_values,  # Network to node (charge)
+                    },
+                    "power_limit": {
+                        "segment_type": "power_limit",
+                        "max_power_source_target": max_discharge,
+                        "max_power_target_source": max_charge,
+                    },
+                    "pricing": {
+                        "segment_type": "pricing",
+                        "price_source_target": discharge_costs,
+                        "price_target_source": charge_early_incentive,
+                    },
+                },
+            }
+        )
 
         return elements
 
     def outputs(
         self,
         name: str,
-        model_outputs: Mapping[str, Mapping[ModelOutputName, OutputData]],
+        model_outputs: Mapping[str, Mapping[ModelOutputName, ModelOutputValue]],
         config: BatteryConfigData,
         **_kwargs: Any,
     ) -> Mapping[BatteryDeviceName, Mapping[BatteryOutputName, OutputData]]:
@@ -582,29 +605,48 @@ class BatteryAdapter:
         # Check for undercharge section
         undercharge_name = f"{name}:undercharge"
         if undercharge_name in model_outputs:
-            undercharge_outputs = dict(model_outputs[undercharge_name])
+            undercharge_outputs: dict[ModelOutputName, OutputData] = {}
+            for key, value in model_outputs[undercharge_name].items():
+                if not isinstance(value, OutputData):
+                    msg = f"Expected OutputData for {undercharge_name!r} output {key!r}"
+                    raise TypeError(msg)
+                undercharge_outputs[key] = value
             section_outputs["undercharge"] = undercharge_outputs
             section_names.append("undercharge")
 
         # Normal section (always present)
         normal_name = f"{name}:normal"
         if normal_name in model_outputs:
-            normal_outputs = dict(model_outputs[normal_name])
+            normal_outputs: dict[ModelOutputName, OutputData] = {}
+            for key, value in model_outputs[normal_name].items():
+                if not isinstance(value, OutputData):
+                    msg = f"Expected OutputData for {normal_name!r} output {key!r}"
+                    raise TypeError(msg)
+                normal_outputs[key] = value
             section_outputs["normal"] = normal_outputs
             section_names.append("normal")
 
         # Check for overcharge section
         overcharge_name = f"{name}:overcharge"
         if overcharge_name in model_outputs:
-            overcharge_outputs = dict(model_outputs[overcharge_name])
+            overcharge_outputs: dict[ModelOutputName, OutputData] = {}
+            for key, value in model_outputs[overcharge_name].items():
+                if not isinstance(value, OutputData):
+                    msg = f"Expected OutputData for {overcharge_name!r} output {key!r}"
+                    raise TypeError(msg)
+                overcharge_outputs[key] = value
             section_outputs["overcharge"] = overcharge_outputs
             section_names.append("overcharge")
 
         # Get node outputs for power balance
         node_name = f"{name}:node"
-        node_outputs: dict[ModelOutputName, OutputData] = (
-            dict(model_outputs[node_name]) if node_name in model_outputs else {}
-        )
+        node_outputs: dict[ModelOutputName, OutputData] = {}
+        if node_name in model_outputs:
+            for key, value in model_outputs[node_name].items():
+                if not isinstance(value, OutputData):
+                    msg = f"Expected OutputData for {node_name!r} output {key!r}"
+                    raise TypeError(msg)
+                node_outputs[key] = value
 
         # Calculate aggregate outputs
         # Sum power charge/discharge across all sections
@@ -783,10 +825,9 @@ def _calculate_total_energy(aggregate_energy: OutputData, config: BatteryConfigD
     capacity = config["capacity"]
 
     # Get time-varying min ratio (also boundaries)
-    min_charge_percentage = config.get(
-        CONF_MIN_CHARGE_PERCENTAGE,
-        np.full(len(capacity), DEFAULTS[CONF_MIN_CHARGE_PERCENTAGE], dtype=float),
-    )
+    min_charge_percentage = config.get(CONF_MIN_CHARGE_PERCENTAGE)
+    if min_charge_percentage is None:
+        min_charge_percentage = np.full(len(capacity), DEFAULTS[CONF_MIN_CHARGE_PERCENTAGE], dtype=float)
     min_ratio = min_charge_percentage / 100.0
 
     undercharge_pct = config.get("undercharge_percentage")

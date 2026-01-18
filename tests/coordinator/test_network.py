@@ -14,7 +14,8 @@ from custom_components.haeo.elements.connection import (
 )
 from custom_components.haeo.model import Network
 from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE
-from custom_components.haeo.model.elements.power_connection import PowerConnection
+from custom_components.haeo.model.elements.connection import Connection
+from custom_components.haeo.model.elements.segments import PowerLimitSegment
 
 
 def test_update_element_updates_tracked_params() -> None:
@@ -29,19 +30,26 @@ def test_update_element_updates_tracked_params() -> None:
             "name": "conn",
             "source": "source",
             "target": "target",
-            "max_power_source_target": 10.0,
-            "max_power_target_source": 5.0,
+            "segments": {
+                "power_limit": {
+                    "segment_type": "power_limit",
+                    "max_power_source_target": np.array([10.0, 10.0]),
+                    "max_power_target_source": np.array([5.0, 5.0]),
+                }
+            },
         }
     )
 
     # Verify initial state with type narrowing
     conn = network.elements["conn"]
-    assert isinstance(conn, PowerConnection)
+    assert isinstance(conn, Connection)
     # Check initial TrackedParam values
-    assert conn.max_power_source_target is not None
-    assert conn.max_power_target_source is not None
-    assert conn.max_power_source_target[0] == 10.0
-    assert conn.max_power_target_source[0] == 5.0
+    power_limit = conn.segments["power_limit"]
+    assert isinstance(power_limit, PowerLimitSegment)
+    assert power_limit.max_power_source_target is not None
+    assert power_limit.max_power_target_source is not None
+    assert power_limit.max_power_source_target[0] == 10.0
+    assert power_limit.max_power_target_source[0] == 5.0
 
     # Update via element config
     config: ElementConfigData = {
@@ -55,8 +63,8 @@ def test_update_element_updates_tracked_params() -> None:
     update_element(network, config)
 
     # Verify updated state - TrackedParams should be updated
-    assert conn.max_power_source_target[0] == 20.0
-    assert conn.max_power_target_source[0] == 15.0
+    assert power_limit.max_power_source_target[0] == 20.0
+    assert power_limit.max_power_target_source[0] == 15.0
 
 
 def test_update_element_raises_for_missing_model_element() -> None:

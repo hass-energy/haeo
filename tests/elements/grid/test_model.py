@@ -4,18 +4,16 @@ from collections.abc import Mapping, Sequence
 from typing import Any, TypedDict
 
 import numpy as np
-from numpy.typing import NDArray
 import pytest
 
 from custom_components.haeo.elements import ELEMENT_TYPES
 from custom_components.haeo.elements import grid as grid_element
 from custom_components.haeo.elements.grid import GridConfigData
-from custom_components.haeo.model import ModelOutputName
+from custom_components.haeo.model import ModelOutputName, ModelOutputValue
 from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE
-from custom_components.haeo.model.elements import power_connection
+from custom_components.haeo.model.elements import connection
 from custom_components.haeo.model.output_data import OutputData
-
 from tests.util.normalize import normalize_for_compare
 
 
@@ -33,8 +31,8 @@ class OutputsCase(TypedDict):
     description: str
     name: str
     config: GridConfigData
-    model_outputs: Mapping[str, Mapping[ModelOutputName, OutputData]]
-    periods: NDArray[np.floating[Any]]
+    model_outputs: Mapping[str, Mapping[ModelOutputName, ModelOutputValue]]
+    periods: list[float]
     outputs: Mapping[str, Mapping[str, OutputData]]
 
 
@@ -57,10 +55,18 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "name": "grid_main:connection",
                 "source": "grid_main",
                 "target": "network",
-                "max_power_source_target": [5.0],
-                "max_power_target_source": [3.0],
-                "price_source_target": [0.1],
-                "price_target_source": [-0.05],
+                "segments": {
+                    "power_limit": {
+                        "segment_type": "power_limit",
+                        "max_power_source_target": [5.0],
+                        "max_power_target_source": [3.0],
+                    },
+                    "pricing": {
+                        "segment_type": "pricing",
+                        "price_source_target": [0.1],
+                        "price_target_source": [-0.05],
+                    },
+                },
             },
         ],
     },
@@ -80,10 +86,14 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
         ),
         "model_outputs": {
             "grid_main:connection": {
-                power_connection.CONNECTION_POWER_TARGET_SOURCE: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(2.0,), direction="-"),
-                power_connection.CONNECTION_POWER_SOURCE_TARGET: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(5.0,), direction="+"),
-                power_connection.CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.01,)),
-                power_connection.CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.02,)),
+                connection.CONNECTION_POWER_TARGET_SOURCE: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(2.0,), direction="-"),
+                connection.CONNECTION_POWER_SOURCE_TARGET: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(5.0,), direction="+"),
+                connection.CONNECTION_SEGMENTS: {
+                    "power_limit": {
+                        "target_source": OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.01,)),
+                        "source_target": OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.02,)),
+                    }
+                },
             }
         },
         "periods": np.array([1.0]),  # 1 hour period
@@ -117,8 +127,8 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
         ),
         "model_outputs": {
             "grid_multi:connection": {
-                power_connection.CONNECTION_POWER_TARGET_SOURCE: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(0.0, 0.0), direction="-"),
-                power_connection.CONNECTION_POWER_SOURCE_TARGET: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(5.0, 3.0), direction="+"),
+                connection.CONNECTION_POWER_TARGET_SOURCE: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(0.0, 0.0), direction="-"),
+                connection.CONNECTION_POWER_SOURCE_TARGET: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(5.0, 3.0), direction="+"),
             }
         },
         "periods": np.array([0.5, 0.5]),  # 30 min periods

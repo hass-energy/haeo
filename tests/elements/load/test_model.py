@@ -9,12 +9,11 @@ import pytest
 from custom_components.haeo.elements import ELEMENT_TYPES
 from custom_components.haeo.elements import load as load_element
 from custom_components.haeo.elements.load import LoadConfigData
-from custom_components.haeo.model import ModelOutputName
+from custom_components.haeo.model import ModelOutputName, ModelOutputValue
 from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE
-from custom_components.haeo.model.elements import power_connection
+from custom_components.haeo.model.elements import connection
 from custom_components.haeo.model.output_data import OutputData
-
 from tests.util.normalize import normalize_for_compare
 
 
@@ -31,7 +30,7 @@ class OutputsCase(TypedDict):
 
     description: str
     name: str
-    model_outputs: Mapping[str, Mapping[ModelOutputName, OutputData]]
+    model_outputs: Mapping[str, Mapping[ModelOutputName, ModelOutputValue]]
     outputs: Mapping[str, Mapping[str, OutputData]]
 
 
@@ -51,9 +50,14 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "name": "load_main:connection",
                 "source": "load_main",
                 "target": "network",
-                "max_power_source_target": 0.0,
-                "max_power_target_source": [1.0, 2.0],
-                "fixed_power": True,
+                "segments": {
+                    "power_limit": {
+                        "segment_type": "power_limit",
+                        "max_power_source_target": [0.0, 0.0],
+                        "max_power_target_source": [1.0, 2.0],
+                        "fixed": True,
+                    }
+                },
             },
         ],
     },
@@ -66,8 +70,8 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
         "name": "load_main",
         "model_outputs": {
             "load_main:connection": {
-                power_connection.CONNECTION_POWER_TARGET_SOURCE: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(1.0,), direction="+"),
-                power_connection.CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.01,)),
+                connection.CONNECTION_POWER_TARGET_SOURCE: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(1.0,), direction="+"),
+                connection.CONNECTION_SEGMENTS: {"power_limit": {"target_source": OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.01,))}},
             }
         },
         "outputs": {

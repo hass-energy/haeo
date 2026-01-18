@@ -1,12 +1,14 @@
-"""Tests for battery adapter availability and model elements."""
+"""Tests for battery adapter config handling and model elements."""
 
+from homeassistant.core import HomeAssistant
 import numpy as np
 import pytest
-from homeassistant.core import HomeAssistant
 
 from custom_components.haeo.elements import battery
 from custom_components.haeo.elements.battery import sum_output_data
 from custom_components.haeo.model.const import OutputType
+from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_BATTERY, MODEL_ELEMENT_TYPE_CONNECTION
+from custom_components.haeo.model.elements.segments import is_efficiency_spec
 from custom_components.haeo.model.output_data import OutputData
 
 
@@ -200,12 +202,17 @@ def test_model_elements_omits_efficiency_when_missing() -> None:
 
     elements = battery.adapter.model_elements(config_data)
 
-    normal_section = next(element for element in elements if element["element_type"] == "battery" and element["name"] == "test_battery:normal")
+    normal_section = next(element for element in elements if element["element_type"] == MODEL_ELEMENT_TYPE_BATTERY and element["name"] == "test_battery:normal")
     np.testing.assert_array_equal(normal_section["capacity"], [10.0, 10.0, 10.0])
 
-    connection = next(element for element in elements if element["element_type"] == "connection" and element["name"] == "test_battery:connection")
-    assert "efficiency_source_target" not in connection
-    assert "efficiency_target_source" not in connection
+    connection = next(element for element in elements if element["element_type"] == MODEL_ELEMENT_TYPE_CONNECTION and element["name"] == "test_battery:connection")
+    segments = connection.get("segments")
+    assert segments is not None
+    efficiency_segment = segments.get("efficiency")
+    assert efficiency_segment is not None
+    assert is_efficiency_spec(efficiency_segment)
+    assert efficiency_segment.get("efficiency_source_target") is None
+    assert efficiency_segment.get("efficiency_target_source") is None
 
 
 def test_model_elements_passes_efficiency_when_present() -> None:
@@ -221,10 +228,15 @@ def test_model_elements_passes_efficiency_when_present() -> None:
 
     elements = battery.adapter.model_elements(config_data)
 
-    connection = next(element for element in elements if element["element_type"] == "connection" and element["name"] == "test_battery:connection")
-    efficiency_source_target = connection.get("efficiency_source_target")
+    connection = next(element for element in elements if element["element_type"] == MODEL_ELEMENT_TYPE_CONNECTION and element["name"] == "test_battery:connection")
+    segments = connection.get("segments")
+    assert segments is not None
+    efficiency_segment = segments.get("efficiency")
+    assert efficiency_segment is not None
+    assert is_efficiency_spec(efficiency_segment)
+    efficiency_source_target = efficiency_segment.get("efficiency_source_target")
     assert efficiency_source_target is not None
-    np.testing.assert_array_equal(efficiency_source_target, [95.0, 95.0])
-    efficiency_target_source = connection.get("efficiency_target_source")
+    np.testing.assert_array_equal(efficiency_source_target, [0.95, 0.95])
+    efficiency_target_source = efficiency_segment.get("efficiency_target_source")
     assert efficiency_target_source is not None
-    np.testing.assert_array_equal(efficiency_target_source, [95.0, 95.0])
+    np.testing.assert_array_equal(efficiency_target_source, [0.95, 0.95])

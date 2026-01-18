@@ -10,9 +10,9 @@ from numpy.typing import NDArray
 from custom_components.haeo.model.element import Element
 from custom_components.haeo.model.reactive import constraint
 
-# Model element type for nodes
-ELEMENT_TYPE: Final = "node"
 type NodeElementTypeName = Literal["node"]
+# Model element type for nodes
+ELEMENT_TYPE: Final[NodeElementTypeName] = "node"
 
 type NodeConstraintName = Literal["node_power_balance"]
 
