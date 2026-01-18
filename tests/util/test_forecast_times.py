@@ -1,9 +1,10 @@
 """Tests for forecast time generation utilities."""
 
 from datetime import UTC, datetime
-from typing import Any, TypedDict
+from typing import TypedDict
 from unittest.mock import patch
 
+from freezegun import freeze_time
 import pytest
 
 from custom_components.haeo.util.forecast_times import (
@@ -385,7 +386,7 @@ def test_tiers_to_periods_with_missing_tiers() -> None:
 
 
 @pytest.mark.parametrize("preset", ["2_days", "3_days", "5_days", "7_days"])
-def test_preset_produces_constant_step_count_for_all_minutes(preset: str, freezer: Any) -> None:
+def test_preset_produces_constant_step_count_for_all_minutes(preset: str) -> None:
     """Verify each preset produces the same step count regardless of starting minute.
 
     The time alignment algorithm adjusts tier counts to align with forecast boundaries,
@@ -403,9 +404,9 @@ def test_preset_produces_constant_step_count_for_all_minutes(preset: str, freeze
     step_counts: list[int] = []
 
     for minute in range(60):
-        freezer.move_to(datetime(2025, 1, 1, 12, minute, 0, tzinfo=UTC))
-        periods = tiers_to_periods_seconds(config)
-        step_counts.append(len(periods))
+        with freeze_time(datetime(2025, 1, 1, 12, minute, 0, tzinfo=UTC)):
+            periods = tiers_to_periods_seconds(config)
+            step_counts.append(len(periods))
 
     # All minutes should produce the same step count
     expected_count = step_counts[0]
