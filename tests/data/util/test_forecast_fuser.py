@@ -88,9 +88,10 @@ from custom_components.haeo.data.util.forecast_fuser import fuse_to_boundaries, 
         ),
         pytest.param(
             30.0,
-            [(0, 100.0), (2000, 200.0), (4000, 300.0)],
+            # Point at t=500 (value=125 matches linear interpolation) ensures present only applies to interval 0
+            [(0, 100.0), (500, 125.0), (2000, 200.0), (4000, 300.0)],
             [0, 500, 1500, 2500, 3500],  # Horizon boundaries don't align with forecast points
-            [30.0, 30.0, 200.0, 250.0],  # present until first future forecast (t=2000), then trapezoidal
+            [30.0, 150.0, 200.0, 250.0],  # present@0, then trapezoidal averages from forecast
             id="interpolation_between_forecast_points",
         ),
         pytest.param(
@@ -109,9 +110,10 @@ from custom_components.haeo.data.util.forecast_fuser import fuse_to_boundaries, 
         ),
         pytest.param(
             10.0,
-            [(0, 100.0), (3000, 400.0)],  # Sparse forecast requiring interpolation
+            # Point at t=1000 (value=200 matches linear interpolation) ensures present only applies to interval 0
+            [(0, 100.0), (1000, 200.0), (3000, 400.0)],  # Sparse forecast requiring interpolation
             [0, 1000, 2000, 3000, 4000],  # Multiple intervals between forecast points
-            [10.0, 10.0, 10.0, 398.2014388489209],  # present until first future forecast (t=3000)
+            [10.0, 250.0, 350.0, 398.2014388489209],  # present@0, then trapezoidal averages from forecast
             id="sparse_forecast_multiple_interpolations",
         ),
         pytest.param(
@@ -125,16 +127,17 @@ from custom_components.haeo.data.util.forecast_fuser import fuse_to_boundaries, 
             50.0,
             [
                 (0.0, 100.0),
+                (500.0, 100.0),  # Point at t=500 ensures present only applies to interval 0
                 (np.nextafter(1000.0, -np.inf), 100.0),
                 (1000.0, 200.0),
                 (np.nextafter(2000.0, -np.inf), 200.0),
             ],
             [0, 500, 1000, 1500, 2000],
             # Interval [0,500]: present value override = 50.0
-            # Interval [500,1000]: present value extends to forecast boundary (t≈1000)
+            # Interval [500,1000]: trapezoidal from 500 to 1000, step at boundary gives avg ~150
             # Interval [1000,1500]: constant at 200 (forecast data)
             # Interval [1500,2000]: constant at 200
-            [50.0, 50.0, 200.0, 200.0],
+            [50.0, 150.0, 200.0, 200.0],
             id="step_function_integration",
         ),
         pytest.param(
