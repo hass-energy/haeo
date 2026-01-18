@@ -446,6 +446,5 @@ def test_preset_produces_exact_horizon_duration(preset: str) -> None:
             periods = tiers_to_periods_seconds(config)
             total_seconds = sum(periods)
             assert total_seconds == expected_seconds, (
-                f"Preset {preset}: minute {minute} produced {total_seconds}s, "
-                f"expected {expected_seconds}s"
+                f"Preset {preset}: minute {minute} produced {total_seconds}s, expected {expected_seconds}s"
             )
