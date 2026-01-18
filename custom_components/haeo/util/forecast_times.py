@@ -177,52 +177,37 @@ def calculate_aligned_tier_counts(
     return periods_seconds, tier_counts
 
 
-def calculate_worst_case_total_steps(
+def calculate_total_steps(
     min_counts: tuple[int, int, int],
-    tier_durations: tuple[int, int, int, int],
     horizon_minutes: int,
 ) -> int:
-    """Calculate total step count based on worst-case alignment.
+    """Calculate total step count for preset configurations.
 
-    The worst case is when T1 and T2 expand to their maximum possible counts
-    due to unfavorable start time alignment.
+    Since presets use fixed tier durations (1, 5, 30, 60 minutes), we know
+    the worst-case alignment overhead is at most 10 steps (4 for T1, 5 for T2,
+    1 for T3). We add 12 steps as a buffer for alignment variance absorption,
+    chosen for its high divisibility (1, 2, 3, 4, 6, 12).
 
     Args:
         min_counts: Minimum step counts for tiers 1-3.
-        tier_durations: Duration of each tier in minutes (1, 5, 30, 60).
         horizon_minutes: Total horizon duration in minutes.
 
     Returns:
-        Total number of steps needed for worst-case alignment.
+        Total number of steps for the optimization horizon.
 
     """
-    t1_dur, t2_dur, t3_dur, t4_dur = tier_durations
-    min_t1, min_t2, min_t3 = min_counts
+    # Fixed tier durations for presets: 1, 5, 30, 60 minutes
+    # 12-step buffer covers worst-case alignment (10 steps) with room for flexibility
+    alignment_buffer = 12
 
-    # Worst case for T1: start 1 minute after 5-min boundary (need 4 extra steps)
-    # Maximum T1 = max(min_t1, t2_dur - 1) when starting at :X1, :X6, etc.
-    max_t1 = max(min_t1, t2_dur - 1)
+    # T1-T3 cover this many minutes at minimum counts
+    min_t1_t3_minutes = min_counts[0] * 1 + min_counts[1] * 5 + min_counts[2] * 30
 
-    # Worst case for T2: T1 ends 1 minute after 30-min boundary
-    # Maximum T2 = max(min_t2, (t3_dur - t2_dur) / t2_dur) = max(min_t2, 5)
-    max_t2 = max(min_t2, (t3_dur - t2_dur) // t2_dur)
+    # Remaining minutes for T4 at 60-min granularity
+    remaining_minutes = horizon_minutes - min_t1_t3_minutes
+    base_t4_steps = remaining_minutes // 60
 
-    # Worst case for T3: T2 ends 1 minute after 60-min boundary
-    # Maximum T3 = max(min_t3, (t4_dur - t3_dur) / t3_dur) = max(min_t3, 1)
-    max_t3 = max(min_t3, (t4_dur - t3_dur) // t3_dur)
-
-    # T1-T3 cover this many minutes in worst case
-    worst_case_t1_t3_minutes = max_t1 * t1_dur + max_t2 * t2_dur + max_t3 * t3_dur
-
-    # Remaining minutes for T4
-    remaining_minutes = horizon_minutes - worst_case_t1_t3_minutes
-
-    # T4 needs enough steps to cover remaining minutes
-    # We add steps as 60-min, but might need 30-min steps for variance
-    # Use 30-min granularity to ensure we have enough steps
-    t4_steps = (remaining_minutes + t3_dur - 1) // t3_dur  # Round up at 30-min granularity
-
-    return max_t1 + max_t2 + max_t3 + t4_steps
+    return sum(min_counts) + base_t4_steps + alignment_buffer
 
 
 def tiers_to_periods_seconds(config: Mapping[str, int | str]) -> list[int]:
@@ -243,23 +228,16 @@ def tiers_to_periods_seconds(config: Mapping[str, int | str]) -> list[int]:
     horizon_preset = config.get("horizon_preset")
 
     if horizon_preset and horizon_preset in _PRESET_DAYS:
-        # Preset mode: use dynamic time alignment
+        # Preset mode: use dynamic time alignment with fixed tier configuration
         days = _PRESET_DAYS[horizon_preset]
         horizon_minutes = days * 24 * 60
 
-        tier_durations = (
-            int(config.get("tier_1_duration", 1)),
-            int(config.get("tier_2_duration", 5)),
-            int(config.get("tier_3_duration", 30)),
-            int(config.get("tier_4_duration", 60)),
-        )
-        # For presets, use standard minimum counts for alignment
+        # Presets use fixed tier durations and minimum counts
+        tier_durations = (1, 5, 30, 60)
         min_counts = (5, 6, 4)
 
         now = dt_util.utcnow()
-
-        # Calculate total steps based on worst-case for consistent solver size
-        total_steps = calculate_worst_case_total_steps(min_counts, tier_durations, horizon_minutes)
+        total_steps = calculate_total_steps(min_counts, horizon_minutes)
 
         periods_seconds, _ = calculate_aligned_tier_counts(
             start_time=now,

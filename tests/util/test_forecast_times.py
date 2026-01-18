@@ -8,7 +8,7 @@ import pytest
 
 from custom_components.haeo.util.forecast_times import (
     calculate_aligned_tier_counts,
-    calculate_worst_case_total_steps,
+    calculate_total_steps,
     generate_forecast_timestamps,
     generate_forecast_timestamps_from_config,
     minutes_to_next_boundary,
@@ -198,7 +198,7 @@ def test_alignment_tier_counts_aligned_start() -> None:
     min_counts = (5, 6, 4)  # Standard minimums
     horizon_minutes = 5 * 24 * 60  # 5 days
 
-    total_steps = calculate_worst_case_total_steps(min_counts, tier_durations, horizon_minutes)
+    total_steps = calculate_total_steps(min_counts, horizon_minutes)
 
     periods_seconds, tier_counts = calculate_aligned_tier_counts(
         start_time=start_time,
@@ -227,7 +227,7 @@ def test_alignment_tier_counts_mid_hour_start() -> None:
     min_counts = (5, 6, 4)
     horizon_minutes = 5 * 24 * 60
 
-    total_steps = calculate_worst_case_total_steps(min_counts, tier_durations, horizon_minutes)
+    total_steps = calculate_total_steps(min_counts, horizon_minutes)
 
     periods_seconds, tier_counts = calculate_aligned_tier_counts(
         start_time=start_time,
@@ -266,19 +266,25 @@ def test_minutes_to_next_boundary() -> None:
     assert minutes_to_next_boundary(45, 30) == 15  # 45 -> 60
 
 
-def test_calculate_worst_case_total_steps() -> None:
-    """Test worst-case total step calculation."""
-    tier_durations = (1, 5, 30, 60)
+def test_calculate_total_steps() -> None:
+    """Test total step calculation with alignment buffer."""
     min_counts = (5, 6, 4)
     horizon_minutes = 5 * 24 * 60  # 5 days
 
-    total_steps = calculate_worst_case_total_steps(min_counts, tier_durations, horizon_minutes)
+    total_steps = calculate_total_steps(min_counts, horizon_minutes)
 
     # Should be deterministic for given inputs
     assert total_steps > 0
     # Sanity check: should cover the horizon
     # With mostly 60-min steps, 5 days = 120 hours = ~120 steps at least
     assert total_steps >= 100
+
+    # Verify the formula: sum(min_counts) + base_t4_steps + 12
+    min_t1_t3_minutes = 5 * 1 + 6 * 5 + 4 * 30  # 5 + 30 + 120 = 155
+    remaining_minutes = horizon_minutes - min_t1_t3_minutes  # 7200 - 155 = 7045
+    expected_base_t4 = remaining_minutes // 60  # 117
+    expected_total = 5 + 6 + 4 + expected_base_t4 + 12  # 15 + 117 + 12 = 144
+    assert total_steps == expected_total
 
 
 def test_alignment_no_extra_steps() -> None:
