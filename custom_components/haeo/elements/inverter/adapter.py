@@ -13,12 +13,7 @@ from custom_components.haeo.data.loader import TimeSeriesLoader
 from custom_components.haeo.elements.input_fields import InputFieldDefaults, InputFieldInfo
 from custom_components.haeo.model import ModelElementConfig, ModelOutputName
 from custom_components.haeo.model.const import OutputType
-from custom_components.haeo.model.elements import (
-    MODEL_ELEMENT_TYPE_CONNECTION,
-    MODEL_ELEMENT_TYPE_NODE,
-    ConnectionElementConfig,
-    NodeElementConfig,
-)
+from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE
 from custom_components.haeo.model.elements.node import NODE_POWER_BALANCE
 from custom_components.haeo.model.elements.power_connection import (
     CONNECTION_POWER_SOURCE_TARGET,
@@ -150,23 +145,24 @@ class InverterAdapter:
         efficiency and power limits for bidirectional power conversion.
         """
         name = config["name"]
-        node_config: NodeElementConfig = {
-            "element_type": MODEL_ELEMENT_TYPE_NODE,
-            "name": name,
-            "is_source": False,
-            "is_sink": False,
-        }
-        connection_config: ConnectionElementConfig = {
-            "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
-            "name": f"{name}:connection",
-            "source": name,
-            "target": config["connection"],
-            "max_power_source_target": config["max_power_dc_to_ac"],
-            "max_power_target_source": config["max_power_ac_to_dc"],
-            "efficiency_source_target": config.get("efficiency_dc_to_ac"),
-            "efficiency_target_source": config.get("efficiency_ac_to_dc"),
-        }
-        return [node_config, connection_config]
+        return [
+            {
+                "element_type": MODEL_ELEMENT_TYPE_NODE,
+                "name": name,
+                "is_source": False,
+                "is_sink": False,
+            },
+            {
+                "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
+                "name": f"{name}:connection",
+                "source": name,
+                "target": config["connection"],
+                "max_power_source_target": config["max_power_dc_to_ac"],
+                "max_power_target_source": config["max_power_ac_to_dc"],
+                "efficiency_source_target": config.get("efficiency_dc_to_ac"),
+                "efficiency_target_source": config.get("efficiency_ac_to_dc"),
+            },
+        ]
 
     def outputs(
         self,

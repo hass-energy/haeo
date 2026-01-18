@@ -13,12 +13,7 @@ from custom_components.haeo.data.loader import TimeSeriesLoader
 from custom_components.haeo.elements.input_fields import InputFieldInfo
 from custom_components.haeo.model import ModelElementConfig, ModelOutputName
 from custom_components.haeo.model.const import OutputType
-from custom_components.haeo.model.elements import (
-    MODEL_ELEMENT_TYPE_CONNECTION,
-    MODEL_ELEMENT_TYPE_NODE,
-    ConnectionElementConfig,
-    NodeElementConfig,
-)
+from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE
 from custom_components.haeo.model.elements.power_connection import (
     CONNECTION_POWER_TARGET_SOURCE,
     CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE,
@@ -83,22 +78,25 @@ class LoadAdapter:
 
     def model_elements(self, config: LoadConfigData) -> list[ModelElementConfig]:
         """Create model elements for Load configuration."""
-        node_config: NodeElementConfig = {
-            "element_type": MODEL_ELEMENT_TYPE_NODE,
-            "name": config["name"],
-            "is_source": False,
-            "is_sink": True,
-        }
-        connection_config: ConnectionElementConfig = {
-            "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
-            "name": f"{config['name']}:connection",
-            "source": config["name"],
-            "target": config["connection"],
-            "max_power_source_target": 0.0,
-            "max_power_target_source": config["forecast"],
-            "fixed_power": True,
-        }
-        return [node_config, connection_config]
+        return [
+            # Create Node for the load (sink only - consumes power)
+            {
+                "element_type": MODEL_ELEMENT_TYPE_NODE,
+                "name": config["name"],
+                "is_source": False,
+                "is_sink": True,
+            },
+            # Create Connection from node to load (power flows TO the load)
+            {
+                "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
+                "name": f"{config['name']}:connection",
+                "source": config["name"],
+                "target": config["connection"],
+                "max_power_source_target": 0.0,
+                "max_power_target_source": config["forecast"],
+                "fixed_power": True,
+            },
+        ]
 
     def outputs(
         self,

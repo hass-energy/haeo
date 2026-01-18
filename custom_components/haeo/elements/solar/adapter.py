@@ -14,12 +14,7 @@ from custom_components.haeo.data.loader import TimeSeriesLoader
 from custom_components.haeo.elements.input_fields import InputFieldDefaults, InputFieldInfo
 from custom_components.haeo.model import ModelElementConfig, ModelOutputName
 from custom_components.haeo.model.const import OutputType
-from custom_components.haeo.model.elements import (
-    MODEL_ELEMENT_TYPE_CONNECTION,
-    MODEL_ELEMENT_TYPE_NODE,
-    ConnectionElementConfig,
-    NodeElementConfig,
-)
+from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE
 from custom_components.haeo.model.elements.power_connection import (
     CONNECTION_POWER_SOURCE_TARGET,
     CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET,
@@ -119,23 +114,24 @@ class SolarAdapter:
 
     def model_elements(self, config: SolarConfigData) -> list[ModelElementConfig]:
         """Return model element parameters for Solar configuration."""
-        node_config: NodeElementConfig = {
-            "element_type": MODEL_ELEMENT_TYPE_NODE,
-            "name": config["name"],
-            "is_source": True,
-            "is_sink": False,
-        }
-        connection_config: ConnectionElementConfig = {
-            "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
-            "name": f"{config['name']}:connection",
-            "source": config["name"],
-            "target": config["connection"],
-            "max_power_source_target": config["forecast"],
-            "max_power_target_source": 0.0,
-            "fixed_power": not config.get("curtailment", DEFAULTS[CONF_CURTAILMENT]),
-            "price_source_target": config.get("price_production"),
-        }
-        return [node_config, connection_config]
+        return [
+            {
+                "element_type": MODEL_ELEMENT_TYPE_NODE,
+                "name": config["name"],
+                "is_source": True,
+                "is_sink": False,
+            },
+            {
+                "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
+                "name": f"{config['name']}:connection",
+                "source": config["name"],
+                "target": config["connection"],
+                "max_power_source_target": config["forecast"],
+                "max_power_target_source": 0.0,
+                "fixed_power": not config.get("curtailment", DEFAULTS[CONF_CURTAILMENT]),
+                "price_source_target": config.get("price_production"),
+            },
+        ]
 
     def outputs(
         self,

@@ -14,12 +14,7 @@ from custom_components.haeo.data.loader import TimeSeriesLoader
 from custom_components.haeo.elements.input_fields import InputFieldDefaults, InputFieldInfo
 from custom_components.haeo.model import ModelElementConfig, ModelOutputName
 from custom_components.haeo.model.const import OutputType
-from custom_components.haeo.model.elements import (
-    MODEL_ELEMENT_TYPE_CONNECTION,
-    MODEL_ELEMENT_TYPE_NODE,
-    ConnectionElementConfig,
-    NodeElementConfig,
-)
+from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE
 from custom_components.haeo.model.elements.power_connection import (
     CONNECTION_POWER_SOURCE_TARGET,
     CONNECTION_POWER_TARGET_SOURCE,
@@ -160,23 +155,24 @@ class GridAdapter:
 
     def model_elements(self, config: GridConfigData) -> list[ModelElementConfig]:
         """Create model elements for Grid configuration."""
-        node_config: NodeElementConfig = {
-            "element_type": MODEL_ELEMENT_TYPE_NODE,
-            "name": config["name"],
-            "is_source": True,
-            "is_sink": True,
-        }
-        connection_config: ConnectionElementConfig = {
-            "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
-            "name": f"{config['name']}:connection",
-            "source": config["name"],
-            "target": config["connection"],
-            "max_power_source_target": config.get("import_limit"),  # source_target is grid to system (IMPORT)
-            "max_power_target_source": config.get("export_limit"),  # target_source is system to grid (EXPORT)
-            "price_source_target": config["import_price"],
-            "price_target_source": -config["export_price"],  # Negate because exporting earns money
-        }
-        return [node_config, connection_config]
+        return [
+            {
+                "element_type": MODEL_ELEMENT_TYPE_NODE,
+                "name": config["name"],
+                "is_source": True,
+                "is_sink": True,
+            },
+            {
+                "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
+                "name": f"{config['name']}:connection",
+                "source": config["name"],
+                "target": config["connection"],
+                "max_power_source_target": config.get("import_limit"),  # source_target is grid to system (IMPORT)
+                "max_power_target_source": config.get("export_limit"),  # target_source is system to grid (EXPORT)
+                "price_source_target": config["import_price"],
+                "price_target_source": -config["export_price"],  # Negate because exporting earns money
+            },
+        ]
 
     def outputs(
         self,
