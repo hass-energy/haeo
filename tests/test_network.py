@@ -1,8 +1,6 @@
 """Tests for network connectivity helpers."""
 
-from types import MappingProxyType
-
-from homeassistant.config_entries import ConfigSubentry
+from typing import Any
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import issue_registry as ir
 import pytest
@@ -57,17 +55,16 @@ async def test_evaluate_network_connectivity_connected(
 ) -> None:
     """Network with a single node should be considered connected."""
 
-    node_a = ConfigSubentry(
-        data=MappingProxyType(
-            {CONF_ELEMENT_TYPE: ELEMENT_TYPE_NODE, CONF_NAME: "Node A", CONF_IS_SOURCE: False, CONF_IS_SINK: False}
-        ),
-        subentry_type=ELEMENT_TYPE_NODE,
-        title="Node A",
-        unique_id=None,
-    )
-    hass.config_entries.async_add_subentry(config_entry, node_a)
+    participants: dict[str, dict[str, Any]] = {
+        "Node A": {
+            CONF_ELEMENT_TYPE: ELEMENT_TYPE_NODE,
+            CONF_NAME: "Node A",
+            CONF_IS_SOURCE: False,
+            CONF_IS_SINK: False,
+        }
+    }
 
-    await evaluate_network_connectivity(hass, config_entry)
+    await evaluate_network_connectivity(hass, config_entry, participants=participants)
 
     issue_id = f"disconnected_network_{config_entry.entry_id}"
     issue_registry = ir.async_get(hass)
@@ -81,26 +78,22 @@ async def test_evaluate_network_connectivity_disconnected(
 ) -> None:
     """Network with isolated nodes should create a repair issue."""
 
-    node_a = ConfigSubentry(
-        data=MappingProxyType(
-            {CONF_ELEMENT_TYPE: ELEMENT_TYPE_NODE, CONF_NAME: "Node A", CONF_IS_SOURCE: False, CONF_IS_SINK: False}
-        ),
-        subentry_type=ELEMENT_TYPE_NODE,
-        title="Node A",
-        unique_id=None,
-    )
-    node_b = ConfigSubentry(
-        data=MappingProxyType(
-            {CONF_ELEMENT_TYPE: ELEMENT_TYPE_NODE, CONF_NAME: "Node B", CONF_IS_SOURCE: False, CONF_IS_SINK: False}
-        ),
-        subentry_type=ELEMENT_TYPE_NODE,
-        title="Node B",
-        unique_id=None,
-    )
-    hass.config_entries.async_add_subentry(config_entry, node_a)
-    hass.config_entries.async_add_subentry(config_entry, node_b)
+    participants: dict[str, dict[str, Any]] = {
+        "Node A": {
+            CONF_ELEMENT_TYPE: ELEMENT_TYPE_NODE,
+            CONF_NAME: "Node A",
+            CONF_IS_SOURCE: False,
+            CONF_IS_SINK: False,
+        },
+        "Node B": {
+            CONF_ELEMENT_TYPE: ELEMENT_TYPE_NODE,
+            CONF_NAME: "Node B",
+            CONF_IS_SOURCE: False,
+            CONF_IS_SINK: False,
+        },
+    }
 
-    await evaluate_network_connectivity(hass, config_entry)
+    await evaluate_network_connectivity(hass, config_entry, participants=participants)
 
     issue_id = f"disconnected_network_{config_entry.entry_id}"
     issue_registry = ir.async_get(hass)
@@ -115,44 +108,32 @@ async def test_evaluate_network_connectivity_resolves_issue(
 ) -> None:
     """Validation should clear the issue when connectivity is restored."""
 
-    node_a = ConfigSubentry(
-        data=MappingProxyType(
-            {CONF_ELEMENT_TYPE: ELEMENT_TYPE_NODE, CONF_NAME: "Node A", CONF_IS_SOURCE: False, CONF_IS_SINK: False}
-        ),
-        subentry_type=ELEMENT_TYPE_NODE,
-        title="Node A",
-        unique_id=None,
-    )
-    node_b = ConfigSubentry(
-        data=MappingProxyType(
-            {CONF_ELEMENT_TYPE: ELEMENT_TYPE_NODE, CONF_NAME: "Node B", CONF_IS_SOURCE: False, CONF_IS_SINK: False}
-        ),
-        subentry_type=ELEMENT_TYPE_NODE,
-        title="Node B",
-        unique_id=None,
-    )
-    hass.config_entries.async_add_subentry(config_entry, node_a)
-    hass.config_entries.async_add_subentry(config_entry, node_b)
+    participants: dict[str, dict[str, Any]] = {
+        "Node A": {
+            CONF_ELEMENT_TYPE: ELEMENT_TYPE_NODE,
+            CONF_NAME: "Node A",
+            CONF_IS_SOURCE: False,
+            CONF_IS_SINK: False,
+        },
+        "Node B": {
+            CONF_ELEMENT_TYPE: ELEMENT_TYPE_NODE,
+            CONF_NAME: "Node B",
+            CONF_IS_SOURCE: False,
+            CONF_IS_SINK: False,
+        },
+    }
 
-    await evaluate_network_connectivity(hass, config_entry)
+    await evaluate_network_connectivity(hass, config_entry, participants=participants)
 
     # Connect the nodes and re-validate
-    connection = ConfigSubentry(
-        data=MappingProxyType(
-            {
-                CONF_ELEMENT_TYPE: ELEMENT_TYPE_CONNECTION,
-                CONF_NAME: "A to B",
-                CONF_SOURCE: "Node A",
-                CONF_TARGET: "Node B",
-            }
-        ),
-        subentry_type=ELEMENT_TYPE_CONNECTION,
-        title="A to B",
-        unique_id=None,
-    )
-    hass.config_entries.async_add_subentry(config_entry, connection)
+    participants["A to B"] = {
+        CONF_ELEMENT_TYPE: ELEMENT_TYPE_CONNECTION,
+        CONF_NAME: "A to B",
+        CONF_SOURCE: "Node A",
+        CONF_TARGET: "Node B",
+    }
 
-    await evaluate_network_connectivity(hass, config_entry)
+    await evaluate_network_connectivity(hass, config_entry, participants=participants)
 
     issue_id = f"disconnected_network_{config_entry.entry_id}"
     issue_registry = ir.async_get(hass)

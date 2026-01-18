@@ -1,10 +1,10 @@
-"""Tests for solar adapter load() and available() functions."""
+"""Tests for solar adapter build_config_data() and available() functions."""
 
 from homeassistant.core import HomeAssistant
 
 from custom_components.haeo.elements import solar
 
-from ..conftest import FORECAST_TIMES, set_forecast_sensor
+from ..conftest import set_forecast_sensor
 
 
 async def test_available_returns_true_when_forecast_sensor_exists(hass: HomeAssistant) -> None:
@@ -37,10 +37,8 @@ async def test_available_returns_false_when_forecast_sensor_missing(hass: HomeAs
     assert result is False
 
 
-async def test_load_returns_config_data(hass: HomeAssistant) -> None:
-    """Solar load() should return ConfigData with loaded values."""
-    set_forecast_sensor(hass, "sensor.forecast", "5.0", [{"datetime": "2024-01-01T00:00:00Z", "value": 5.0}], "kW")
-
+def test_build_config_data_returns_config_data() -> None:
+    """build_config_data() should return ConfigData with loaded values."""
     config: solar.SolarConfigSchema = {
         "element_type": "solar",
         "name": "test_solar",
@@ -48,20 +46,21 @@ async def test_load_returns_config_data(hass: HomeAssistant) -> None:
         "forecast": ["sensor.forecast"],
         "curtailment": True,
     }
+    loaded_values = {
+        "forecast": [5.0],
+        "curtailment": True,
+    }
 
-    result = await solar.adapter.load(config, hass=hass, forecast_times=FORECAST_TIMES)
+    result = solar.adapter.build_config_data(loaded_values, config)
 
     assert result["element_type"] == "solar"
     assert result["name"] == "test_solar"
-    assert len(result["forecast"]) == 1
+    assert result["forecast"] == [5.0]
     assert result.get("curtailment") is True
-    # price_production is not in result when not configured (uses default in model_elements)
 
 
-async def test_load_with_optional_fields(hass: HomeAssistant) -> None:
-    """Solar load() should include optional constant fields."""
-    set_forecast_sensor(hass, "sensor.forecast", "5.0", [{"datetime": "2024-01-01T00:00:00Z", "value": 5.0}], "kW")
-
+def test_build_config_data_includes_optional_fields() -> None:
+    """build_config_data() should include optional constant fields when provided."""
     config: solar.SolarConfigSchema = {
         "element_type": "solar",
         "name": "test_solar",
@@ -70,8 +69,13 @@ async def test_load_with_optional_fields(hass: HomeAssistant) -> None:
         "price_production": 0.02,
         "curtailment": False,
     }
+    loaded_values = {
+        "forecast": [5.0],
+        "price_production": 0.02,
+        "curtailment": False,
+    }
 
-    result = await solar.adapter.load(config, hass=hass, forecast_times=FORECAST_TIMES)
+    result = solar.adapter.build_config_data(loaded_values, config)
 
     assert result.get("price_production") == 0.02
     assert result.get("curtailment") is False
