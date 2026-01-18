@@ -58,6 +58,7 @@ from custom_components.haeo.model.output_data import ModelOutputValue, OutputDat
 
 from . import battery, battery_section, connection, grid, inverter, load, node, solar
 from .input_fields import InputFieldInfo
+from .loaded_values import LoadedValues
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -188,7 +189,7 @@ class ElementAdapter(Protocol):
 
     def build_config_data(
         self,
-        loaded_values: Mapping[str, Any],
+        loaded_values: LoadedValues,
         config: Any,
     ) -> Any:
         """Build ConfigData from pre-loaded values.

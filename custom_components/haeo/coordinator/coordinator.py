@@ -8,6 +8,7 @@ import time
 from typing import TYPE_CHECKING, Any, Literal, TypedDict
 
 from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass
+from homeassistant.components.switch import SwitchEntityDescription
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import EntityCategory, UnitOfTime
 from homeassistant.core import CALLBACK_TYPE, Event, HomeAssistant, callback
@@ -16,6 +17,7 @@ from homeassistant.helpers.translation import async_get_translations
 from homeassistant.helpers.typing import StateType
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util import dt as dt_util
+import numpy as np
 
 from custom_components.haeo.const import (
     CONF_DEBOUNCE_SECONDS,
@@ -41,6 +43,7 @@ from custom_components.haeo.elements import (
     get_input_fields,
     is_element_type,
 )
+from custom_components.haeo.elements.loaded_values import LoadedValue
 from custom_components.haeo.model import ModelOutputName, ModelOutputValue, Network, OutputData, OutputType
 from custom_components.haeo.repairs import dismiss_optimization_failure_issue
 from custom_components.haeo.util.forecast_times import tiers_to_periods_seconds
@@ -450,7 +453,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         input_field_infos = get_input_fields(element_config)
 
         # Collect loaded values from input entities
-        loaded_values: dict[str, Any] = {}
+        loaded_values: dict[str, LoadedValue] = {}
         for field_info in input_field_infos.values():
             field_name = field_info.field_name
             key = (element_name, field_name)
@@ -461,13 +464,13 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             entity = runtime_data.input_entities[key]
             values = entity.get_values()
 
-            if values is None:
+            if not values:
                 continue
 
-            if field_info.time_series:
-                loaded_values[field_name] = list(values)
+            if isinstance(field_info.entity_description, SwitchEntityDescription):
+                loaded_values[field_name] = bool(values[0])
             else:
-                loaded_values[field_name] = values[0] if values else None
+                loaded_values[field_name] = np.asarray(values, dtype=float)
 
         # Delegate to adapter's build_config_data() - single source of truth
         adapter = ELEMENT_TYPES[element_type]

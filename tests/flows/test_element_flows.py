@@ -48,6 +48,7 @@ from custom_components.haeo.elements import (
     node,
 )
 from custom_components.haeo.elements.input_fields import InputFieldInfo
+from custom_components.haeo.elements.loaded_values import LoadedValues
 from custom_components.haeo.model import OutputData
 from tests.conftest import ElementTestData
 
@@ -194,7 +195,7 @@ def flow_test_element_factory(monkeypatch: pytest.MonkeyPatch) -> FlowTestElemen
             _ = config
             return {}
 
-        def build_config_data(self, loaded_values: Mapping[str, Any], config: Any) -> Any:
+        def build_config_data(self, loaded_values: LoadedValues, config: Any) -> Any:
             _ = loaded_values
             return config
 

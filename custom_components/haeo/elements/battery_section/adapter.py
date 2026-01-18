@@ -7,11 +7,11 @@ from typing import Any, Final, Literal
 from homeassistant.components.number import NumberDeviceClass, NumberEntityDescription
 from homeassistant.const import UnitOfEnergy
 from homeassistant.core import HomeAssistant
-import numpy as np
 
 from custom_components.haeo.const import ConnectivityLevel
 from custom_components.haeo.data.loader import TimeSeriesLoader
 from custom_components.haeo.elements.input_fields import InputFieldInfo
+from custom_components.haeo.elements.loaded_values import LoadedValues, require_loaded_array
 from custom_components.haeo.model import ModelElementConfig, ModelOutputName, ModelOutputValue
 from custom_components.haeo.model import battery as model_battery
 from custom_components.haeo.model.const import OutputType
@@ -110,7 +110,7 @@ class BatterySectionAdapter:
 
     def build_config_data(
         self,
-        loaded_values: Mapping[str, Any],
+        loaded_values: LoadedValues,
         config: BatterySectionConfigSchema,
     ) -> BatterySectionConfigData:
         """Build ConfigData from pre-loaded values.
@@ -129,8 +129,8 @@ class BatterySectionAdapter:
         return {
             "element_type": config["element_type"],
             "name": config["name"],
-            "capacity": np.asarray(loaded_values[CONF_CAPACITY], dtype=float),
-            "initial_charge": np.asarray(loaded_values[CONF_INITIAL_CHARGE], dtype=float),
+            "capacity": require_loaded_array(loaded_values[CONF_CAPACITY], CONF_CAPACITY),
+            "initial_charge": require_loaded_array(loaded_values[CONF_INITIAL_CHARGE], CONF_INITIAL_CHARGE),
         }
 
     def model_elements(self, config: BatterySectionConfigData) -> list[ModelElementConfig]:

@@ -12,6 +12,7 @@ import numpy as np
 from custom_components.haeo.const import ConnectivityLevel
 from custom_components.haeo.data.loader import TimeSeriesLoader
 from custom_components.haeo.elements.input_fields import InputFieldDefaults, InputFieldInfo
+from custom_components.haeo.elements.loaded_values import LoadedValues, require_loaded_array
 from custom_components.haeo.model import ModelElementConfig, ModelOutputName, ModelOutputValue
 from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE
@@ -156,7 +157,7 @@ class GridAdapter:
 
     def build_config_data(
         self,
-        loaded_values: Mapping[str, Any],
+        loaded_values: LoadedValues,
         config: GridConfigSchema,
     ) -> GridConfigData:
         """Build ConfigData from pre-loaded values.
@@ -177,16 +178,16 @@ class GridAdapter:
             "element_type": config["element_type"],
             "name": config["name"],
             "connection": config[CONF_CONNECTION],
-            "import_price": np.asarray(loaded_values["import_price"], dtype=float),
-            "export_price": np.asarray(loaded_values["export_price"], dtype=float),
+            "import_price": require_loaded_array(loaded_values["import_price"], CONF_IMPORT_PRICE),
+            "export_price": require_loaded_array(loaded_values["export_price"], CONF_EXPORT_PRICE),
         }
 
         # Optional limit fields - only include if present
         if "import_limit" in loaded_values:
-            data["import_limit"] = np.asarray(loaded_values["import_limit"], dtype=float)
+            data["import_limit"] = require_loaded_array(loaded_values["import_limit"], CONF_IMPORT_LIMIT)
 
         if "export_limit" in loaded_values:
-            data["export_limit"] = np.asarray(loaded_values["export_limit"], dtype=float)
+            data["export_limit"] = require_loaded_array(loaded_values["export_limit"], CONF_EXPORT_LIMIT)
 
         return data
 
