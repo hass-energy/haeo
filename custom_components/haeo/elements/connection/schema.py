@@ -1,6 +1,9 @@
 """Connection element schema definitions."""
 
-from typing import Final, Literal, NotRequired, TypedDict
+from typing import Any, Final, Literal, NotRequired, TypedDict
+
+import numpy as np
+from numpy.typing import NDArray
 
 ELEMENT_TYPE: Final = "connection"
 
@@ -51,9 +54,9 @@ class ConnectionConfigData(TypedDict):
     target: str  # Target element name
 
     # Optional fields
-    max_power_source_target: NotRequired[list[float]]  # Loaded power limit per period (kW)
-    max_power_target_source: NotRequired[list[float]]  # Loaded power limit per period (kW)
-    efficiency_source_target: NotRequired[list[float]]  # Loaded efficiency per period (%)
-    efficiency_target_source: NotRequired[list[float]]  # Loaded efficiency per period (%)
-    price_source_target: NotRequired[list[float]]  # Loaded price per period ($/kWh)
-    price_target_source: NotRequired[list[float]]  # Loaded price per period ($/kWh)
+    max_power_source_target: NotRequired[NDArray[np.floating[Any]]]  # Loaded power limit per period (kW)
+    max_power_target_source: NotRequired[NDArray[np.floating[Any]]]  # Loaded power limit per period (kW)
+    efficiency_source_target: NotRequired[NDArray[np.floating[Any]]]  # Loaded efficiency per period (%)
+    efficiency_target_source: NotRequired[NDArray[np.floating[Any]]]  # Loaded efficiency per period (%)
+    price_source_target: NotRequired[NDArray[np.floating[Any]]]  # Loaded price per period ($/kWh)
+    price_target_source: NotRequired[NDArray[np.floating[Any]]]  # Loaded price per period ($/kWh)

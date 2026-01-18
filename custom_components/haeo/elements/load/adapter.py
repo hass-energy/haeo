@@ -20,7 +20,7 @@ from custom_components.haeo.model.elements.power_connection import (
 )
 from custom_components.haeo.model.output_data import OutputData
 
-from .schema import CONF_CONNECTION, CONF_FORECAST, ELEMENT_TYPE, LoadConfigData, LoadConfigSchema
+from .schema import CONF_FORECAST, ELEMENT_TYPE, LoadConfigData, LoadConfigSchema
 
 # Load output names
 type LoadOutputName = Literal[
@@ -73,39 +73,19 @@ class LoadAdapter:
                 output_type=OutputType.POWER,
                 direction="+",
                 time_series=True,
-            ),
-        }
-
-    def build_config_data(
-        self,
-        loaded_values: Mapping[str, Any],
-        config: LoadConfigSchema,
-    ) -> LoadConfigData:
-        """Build ConfigData from pre-loaded values.
-
-        This is the single source of truth for ConfigData construction.
-        The coordinator uses this method after loading input entity values.
-
-        Args:
-            loaded_values: Dict of field names to loaded values (from input entities)
-            config: Original ConfigSchema for non-input fields (element_type, name, connection)
-
-        Returns:
-            LoadConfigData with all fields populated
-
-        """
-        return {
-            "element_type": config["element_type"],
-            "name": config["name"],
-            "connection": config[CONF_CONNECTION],
-            "forecast": list(loaded_values[CONF_FORECAST]),
+            )
         }
 
     def model_elements(self, config: LoadConfigData) -> list[ModelElementConfig]:
         """Create model elements for Load configuration."""
         return [
             # Create Node for the load (sink only - consumes power)
-            {"element_type": MODEL_ELEMENT_TYPE_NODE, "name": config["name"], "is_source": False, "is_sink": True},
+            {
+                "element_type": MODEL_ELEMENT_TYPE_NODE,
+                "name": config["name"],
+                "is_source": False,
+                "is_sink": True,
+            },
             # Create Connection from node to load (power flows TO the load)
             {
                 "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
@@ -126,7 +106,6 @@ class LoadAdapter:
     ) -> Mapping[LoadDeviceName, Mapping[LoadOutputName, OutputData]]:
         """Map model outputs to load-specific output names."""
         connection = model_outputs[f"{name}:connection"]
-
         load_outputs: dict[LoadOutputName, OutputData] = {
             LOAD_POWER: replace(connection[CONNECTION_POWER_TARGET_SOURCE], type=OutputType.POWER),
             LOAD_FORECAST_LIMIT_PRICE: connection[CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE],

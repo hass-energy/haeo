@@ -32,8 +32,6 @@ from .schema import (
     CONF_MAX_POWER_TARGET_SOURCE,
     CONF_PRICE_SOURCE_TARGET,
     CONF_PRICE_TARGET_SOURCE,
-    CONF_SOURCE,
-    CONF_TARGET,
     ELEMENT_TYPE,
     ConnectionConfigData,
     ConnectionConfigSchema,
@@ -174,47 +172,6 @@ class ConnectionAdapter:
             ),
         }
 
-    def build_config_data(
-        self,
-        loaded_values: Mapping[str, Any],
-        config: ConnectionConfigSchema,
-    ) -> ConnectionConfigData:
-        """Build ConfigData from pre-loaded values.
-
-        This is the single source of truth for ConfigData construction.
-        The coordinator uses this method after loading input entity values.
-
-        Args:
-            loaded_values: Dict of field names to loaded values (from input entities)
-            config: Original ConfigSchema for non-input fields (element_type, name, source, target)
-
-        Returns:
-            ConnectionConfigData with all fields populated
-
-        """
-        data: ConnectionConfigData = {
-            "element_type": config["element_type"],
-            "name": config["name"],
-            "source": config[CONF_SOURCE],
-            "target": config[CONF_TARGET],
-        }
-
-        # Optional time series fields
-        if CONF_MAX_POWER_SOURCE_TARGET in loaded_values:
-            data["max_power_source_target"] = list(loaded_values[CONF_MAX_POWER_SOURCE_TARGET])
-        if CONF_MAX_POWER_TARGET_SOURCE in loaded_values:
-            data["max_power_target_source"] = list(loaded_values[CONF_MAX_POWER_TARGET_SOURCE])
-        if CONF_EFFICIENCY_SOURCE_TARGET in loaded_values:
-            data["efficiency_source_target"] = list(loaded_values[CONF_EFFICIENCY_SOURCE_TARGET])
-        if CONF_EFFICIENCY_TARGET_SOURCE in loaded_values:
-            data["efficiency_target_source"] = list(loaded_values[CONF_EFFICIENCY_TARGET_SOURCE])
-        if CONF_PRICE_SOURCE_TARGET in loaded_values:
-            data["price_source_target"] = list(loaded_values[CONF_PRICE_SOURCE_TARGET])
-        if CONF_PRICE_TARGET_SOURCE in loaded_values:
-            data["price_target_source"] = list(loaded_values[CONF_PRICE_TARGET_SOURCE])
-
-        return data
-
     def model_elements(self, config: ConnectionConfigData) -> list[ModelElementConfig]:
         """Return model element parameters for Connection configuration."""
         return [
@@ -240,7 +197,6 @@ class ConnectionAdapter:
     ) -> Mapping[ConnectionDeviceName, Mapping[ConnectionOutputName, OutputData]]:
         """Map model outputs to connection-specific output names."""
         connection = model_outputs[name]
-
         connection_outputs: dict[ConnectionOutputName, OutputData] = {
             CONNECTION_POWER_SOURCE_TARGET: connection[CONNECTION_POWER_SOURCE_TARGET],
             CONNECTION_POWER_TARGET_SOURCE: connection[CONNECTION_POWER_TARGET_SOURCE],

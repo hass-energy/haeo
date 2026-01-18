@@ -3,6 +3,7 @@
 from collections.abc import Mapping, Sequence
 from typing import Any, TypedDict
 
+import numpy as np
 import pytest
 
 from custom_components.haeo.elements import ELEMENT_TYPES
@@ -13,6 +14,8 @@ from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE
 from custom_components.haeo.model.elements import power_connection
 from custom_components.haeo.model.output_data import OutputData
+
+from tests.util.normalize import normalize_for_compare
 
 
 class CreateCase(TypedDict):
@@ -39,7 +42,7 @@ CREATE_CASES: Sequence[CreateCase] = [
             element_type="load",
             name="load_main",
             connection="network",
-            forecast=[1.0, 2.0],
+            forecast=np.array([1.0, 2.0]),
         ),
         "model": [
             {"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "load_main", "is_source": False, "is_sink": True},
@@ -82,7 +85,7 @@ def test_model_elements(case: CreateCase) -> None:
     """Verify adapter transforms ConfigData into expected model elements."""
     entry = ELEMENT_TYPES["load"]
     result = entry.model_elements(case["data"])
-    assert result == case["model"]
+    assert normalize_for_compare(result) == normalize_for_compare(case["model"])
 
 
 @pytest.mark.parametrize("case", OUTPUTS_CASES, ids=lambda c: c["description"])

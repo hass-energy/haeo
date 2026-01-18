@@ -1,5 +1,6 @@
-"""Tests for battery adapter build_config_data() and available() functions."""
+"""Tests for battery adapter availability and model elements."""
 
+import numpy as np
 import pytest
 from homeassistant.core import HomeAssistant
 
@@ -187,133 +188,43 @@ def test_sum_output_data_sums_multiple_outputs() -> None:
     assert result.advanced is False
 
 
-# Tests for build_config_data() - single source of truth for ConfigData construction
-
-
-def test_build_config_data_applies_defaults_for_optional_fields() -> None:
-    """build_config_data() should apply defaults for optional fields not in loaded_values."""
-    config: battery.BatteryConfigSchema = {
+def test_model_elements_omits_efficiency_when_missing() -> None:
+    """model_elements() should leave efficiency to model defaults when missing."""
+    config_data: battery.BatteryConfigData = {
         "element_type": "battery",
         "name": "test_battery",
         "connection": "main_bus",
-        "capacity": "sensor.capacity",  # Will be ignored, using loaded_values
-        "initial_charge_percentage": "sensor.initial",  # Will be ignored
+        "capacity": np.array([10.0, 10.0, 10.0]),
+        "initial_charge_percentage": np.array([50.0, 50.0]),
     }
 
-    # Only provide required fields, no optional fields with defaults
-    loaded_values = {
-        "capacity": [10.0, 10.0, 10.0],  # 3 boundaries
-        "initial_charge_percentage": [50.0, 50.0],  # 2 intervals
-    }
+    elements = battery.adapter.model_elements(config_data)
 
-    result = battery.adapter.build_config_data(loaded_values, config)
+    normal_section = next(element for element in elements if element["element_type"] == "battery" and element["name"] == "test_battery:normal")
+    np.testing.assert_array_equal(normal_section["capacity"], [10.0, 10.0, 10.0])
 
-    # Required fields from loaded_values
-    assert result["capacity"] == [10.0, 10.0, 10.0]
-    assert result["initial_charge_percentage"] == [50.0, 50.0]
-
-    # Defaults applied for optional fields (boundaries: 3 values, intervals: 2 values)
-    assert result["min_charge_percentage"] == [0.0, 0.0, 0.0]  # Default 0.0, boundaries
-    assert result["max_charge_percentage"] == [100.0, 100.0, 100.0]  # Default 100.0, boundaries
-    assert result["efficiency"] == [99.0, 99.0]  # Default 99.0, intervals
+    connection = next(element for element in elements if element["element_type"] == "connection" and element["name"] == "test_battery:connection")
+    assert "efficiency_source_target" not in connection
+    assert "efficiency_target_source" not in connection
 
 
-def test_build_config_data_uses_provided_values_over_defaults() -> None:
-    """build_config_data() should use loaded values instead of defaults when provided."""
-    config: battery.BatteryConfigSchema = {
+def test_model_elements_passes_efficiency_when_present() -> None:
+    """model_elements() should pass through provided efficiency values."""
+    config_data: battery.BatteryConfigData = {
         "element_type": "battery",
         "name": "test_battery",
         "connection": "main_bus",
-        "capacity": "sensor.capacity",
-        "initial_charge_percentage": "sensor.initial",
+        "capacity": np.array([10.0, 10.0, 10.0]),
+        "initial_charge_percentage": np.array([50.0, 50.0]),
+        "efficiency": np.array([95.0, 95.0]),
     }
 
-    loaded_values = {
-        "capacity": [20.0, 20.0, 20.0],
-        "initial_charge_percentage": [75.0, 75.0],
-        # Provide non-default values for optional fields
-        "min_charge_percentage": [10.0, 10.0, 10.0],
-        "max_charge_percentage": [90.0, 90.0, 90.0],
-        "efficiency": [95.0, 95.0],
-    }
+    elements = battery.adapter.model_elements(config_data)
 
-    result = battery.adapter.build_config_data(loaded_values, config)
-
-    # Should use provided values, not defaults
-    assert result["min_charge_percentage"] == [10.0, 10.0, 10.0]
-    assert result["max_charge_percentage"] == [90.0, 90.0, 90.0]
-    assert result["efficiency"] == [95.0, 95.0]
-
-
-def test_build_config_data_includes_optional_fields_without_defaults() -> None:
-    """build_config_data() should include optional fields without defaults when provided."""
-    config: battery.BatteryConfigSchema = {
-        "element_type": "battery",
-        "name": "test_battery",
-        "connection": "main_bus",
-        "capacity": "sensor.capacity",
-        "initial_charge_percentage": "sensor.initial",
-    }
-
-    loaded_values = {
-        "capacity": [10.0, 10.0, 10.0],
-        "initial_charge_percentage": [50.0, 50.0],
-        # Optional fields without defaults
-        "max_charge_power": [5.0, 5.0],
-        "max_discharge_power": [6.0, 6.0],
-        "early_charge_incentive": [0.002, 0.002],
-    }
-
-    result = battery.adapter.build_config_data(loaded_values, config)
-
-    assert result.get("max_charge_power") == [5.0, 5.0]
-    assert result.get("max_discharge_power") == [6.0, 6.0]
-    assert result.get("early_charge_incentive") == [0.002, 0.002]
-
-
-def test_build_config_data_omits_optional_fields_not_provided() -> None:
-    """build_config_data() should omit optional fields without defaults when not in loaded_values."""
-    config: battery.BatteryConfigSchema = {
-        "element_type": "battery",
-        "name": "test_battery",
-        "connection": "main_bus",
-        "capacity": "sensor.capacity",
-        "initial_charge_percentage": "sensor.initial",
-    }
-
-    loaded_values = {
-        "capacity": [10.0, 10.0, 10.0],
-        "initial_charge_percentage": [50.0, 50.0],
-        # Not providing max_charge_power, max_discharge_power, etc.
-    }
-
-    result = battery.adapter.build_config_data(loaded_values, config)
-
-    # Optional fields without defaults should not be present
-    assert "max_charge_power" not in result
-    assert "max_discharge_power" not in result
-    assert "discharge_cost" not in result
-    assert "early_charge_incentive" not in result
-
-
-def test_build_config_data_preserves_non_input_fields_from_config() -> None:
-    """build_config_data() should use non-input fields from config (e.g., connection)."""
-    config: battery.BatteryConfigSchema = {
-        "element_type": "battery",
-        "name": "my_battery",
-        "connection": "dc_bus",
-        "capacity": "sensor.capacity",
-        "initial_charge_percentage": "sensor.initial",
-    }
-
-    loaded_values = {
-        "capacity": [10.0, 10.0, 10.0],
-        "initial_charge_percentage": [50.0, 50.0],
-    }
-
-    result = battery.adapter.build_config_data(loaded_values, config)
-
-    # Non-input fields come from config
-    assert result["element_type"] == "battery"
-    assert result["name"] == "my_battery"
-    assert result["connection"] == "dc_bus"
+    connection = next(element for element in elements if element["element_type"] == "connection" and element["name"] == "test_battery:connection")
+    efficiency_source_target = connection.get("efficiency_source_target")
+    assert efficiency_source_target is not None
+    np.testing.assert_array_equal(efficiency_source_target, [95.0, 95.0])
+    efficiency_target_source = connection.get("efficiency_target_source")
+    assert efficiency_target_source is not None
+    np.testing.assert_array_equal(efficiency_target_source, [95.0, 95.0])

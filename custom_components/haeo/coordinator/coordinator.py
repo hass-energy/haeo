@@ -16,6 +16,7 @@ from homeassistant.helpers.translation import async_get_translations
 from homeassistant.helpers.typing import StateType
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util import dt as dt_util
+import numpy as np
 
 from custom_components.haeo.const import (
     CONF_DEBOUNCE_SECONDS,
@@ -32,6 +33,7 @@ from custom_components.haeo.const import (
     NetworkOutputName,
 )
 from custom_components.haeo.elements import (
+    ELEMENT_CONFIG_SCHEMAS,
     ELEMENT_TYPES,
     ElementConfigData,
     ElementConfigSchema,
@@ -39,6 +41,7 @@ from custom_components.haeo.elements import (
     ElementOutputName,
     collect_element_subentries,
     get_input_fields,
+    is_element_config_data,
     is_element_type,
 )
 from custom_components.haeo.model import ModelOutputName, Network, OutputData, OutputType
@@ -417,8 +420,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
     def _load_element_config(self, element_name: str) -> ElementConfigData:
         """Load configuration for a single element from its input entities.
 
-        Collects loaded values from input entities and delegates to the adapter's
-        build_config_data() method - the single source of truth for ConfigData construction.
+        Collects loaded values from input entities and merges them with config values.
 
         Args:
             element_name: Name of the element to load
@@ -465,18 +467,32 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
                 continue
 
             if field_info.time_series:
-                loaded_values[field_name] = list(values)
+                loaded_values[field_name] = np.asarray(values, dtype=float)
             else:
                 loaded_values[field_name] = values[0] if values else None
 
-        # Delegate to adapter's build_config_data() - single source of truth
-        adapter = ELEMENT_TYPES[element_type]
-        try:
-            return adapter.build_config_data(loaded_values, element_config)
-        except KeyError as e:
-            field_name = e.args[0] if e.args else "unknown"
-            msg = f"Missing required field '{field_name}' for element '{element_name}'"
-            raise ValueError(msg) from e
+        element_values: dict[str, Any] = {
+            key: value for key, value in element_config.items() if key not in input_field_infos
+        }
+        element_values.update(loaded_values)
+
+        schema_cls = ELEMENT_CONFIG_SCHEMAS[element_type]
+        optional_keys: frozenset[str] = getattr(schema_cls, "__optional_keys__", frozenset())
+        for field_info in input_field_infos.values():
+            field_name = field_info.field_name
+            is_required = field_info.force_required or field_name not in optional_keys
+            if not is_required:
+                continue
+            value = element_values.get(field_name)
+            if value is None:
+                msg = f"Missing required field '{field_name}' for element '{element_name}'"
+                raise ValueError(msg)
+
+        if not is_element_config_data(element_values):
+            msg = f"Invalid config data for element '{element_name}'"
+            raise ValueError(msg)
+
+        return element_values
 
     def _load_from_input_entities(self) -> dict[str, ElementConfigData]:
         """Load element configurations from input entities.

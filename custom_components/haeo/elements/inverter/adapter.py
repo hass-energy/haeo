@@ -24,7 +24,6 @@ from custom_components.haeo.model.elements.power_connection import (
 from custom_components.haeo.model.output_data import OutputData
 
 from .schema import (
-    CONF_CONNECTION,
     CONF_EFFICIENCY_AC_TO_DC,
     CONF_EFFICIENCY_DC_TO_AC,
     CONF_MAX_POWER_AC_TO_DC,
@@ -139,40 +138,6 @@ class InverterAdapter:
             ),
         }
 
-    def build_config_data(
-        self,
-        loaded_values: Mapping[str, Any],
-        config: InverterConfigSchema,
-    ) -> InverterConfigData:
-        """Build ConfigData from pre-loaded values.
-
-        This is the single source of truth for ConfigData construction.
-        The coordinator uses this method after loading input entity values.
-
-        Args:
-            loaded_values: Dict of field names to loaded values (from input entities)
-            config: Original ConfigSchema for non-input fields (element_type, name, connection)
-
-        Returns:
-            InverterConfigData with all fields populated
-
-        """
-        data: InverterConfigData = {
-            "element_type": config["element_type"],
-            "name": config["name"],
-            "connection": config[CONF_CONNECTION],
-            "max_power_dc_to_ac": list(loaded_values[CONF_MAX_POWER_DC_TO_AC]),
-            "max_power_ac_to_dc": list(loaded_values[CONF_MAX_POWER_AC_TO_DC]),
-        }
-
-        # Optional scalar efficiency fields
-        if CONF_EFFICIENCY_DC_TO_AC in loaded_values:
-            data["efficiency_dc_to_ac"] = float(loaded_values[CONF_EFFICIENCY_DC_TO_AC])
-        if CONF_EFFICIENCY_AC_TO_DC in loaded_values:
-            data["efficiency_ac_to_dc"] = float(loaded_values[CONF_EFFICIENCY_AC_TO_DC])
-
-        return data
-
     def model_elements(self, config: InverterConfigData) -> list[ModelElementConfig]:
         """Return model element parameters for Inverter configuration.
 
@@ -180,13 +145,13 @@ class InverterAdapter:
         efficiency and power limits for bidirectional power conversion.
         """
         name = config["name"]
-
         return [
-            # Create Node for the DC bus (pure junction - neither source nor sink)
-            {"element_type": MODEL_ELEMENT_TYPE_NODE, "name": name, "is_source": False, "is_sink": False},
-            # Create a connection from DC bus to AC node
-            # source_target = DC to AC (inverting)
-            # target_source = AC to DC (rectifying)
+            {
+                "element_type": MODEL_ELEMENT_TYPE_NODE,
+                "name": name,
+                "is_source": False,
+                "is_sink": False,
+            },
             {
                 "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
                 "name": f"{name}:connection",
@@ -208,22 +173,24 @@ class InverterAdapter:
         """Map model outputs to inverter-specific output names."""
         connection = model_outputs[f"{name}:connection"]
         dc_bus = model_outputs[name]
+        power_source_target = connection[CONNECTION_POWER_SOURCE_TARGET]
+        power_target_source = connection[CONNECTION_POWER_TARGET_SOURCE]
 
         inverter_outputs: dict[InverterOutputName, OutputData] = {}
 
         # source_target = DC to AC (inverting)
         # target_source = AC to DC (rectifying)
-        inverter_outputs[INVERTER_POWER_DC_TO_AC] = connection[CONNECTION_POWER_SOURCE_TARGET]
-        inverter_outputs[INVERTER_POWER_AC_TO_DC] = connection[CONNECTION_POWER_TARGET_SOURCE]
+        inverter_outputs[INVERTER_POWER_DC_TO_AC] = power_source_target
+        inverter_outputs[INVERTER_POWER_AC_TO_DC] = power_target_source
 
         # Active inverter power (DC to AC - AC to DC)
         inverter_outputs[INVERTER_POWER_ACTIVE] = replace(
-            connection[CONNECTION_POWER_SOURCE_TARGET],
+            power_source_target,
             values=[
                 dc_to_ac - ac_to_dc
                 for dc_to_ac, ac_to_dc in zip(
-                    connection[CONNECTION_POWER_SOURCE_TARGET].values,
-                    connection[CONNECTION_POWER_TARGET_SOURCE].values,
+                    power_source_target.values,
+                    power_target_source.values,
                     strict=True,
                 )
             ],
@@ -232,7 +199,8 @@ class InverterAdapter:
         )
 
         # DC bus power balance shadow price
-        inverter_outputs[INVERTER_DC_BUS_POWER_BALANCE] = dc_bus[NODE_POWER_BALANCE]
+        dc_bus_balance = dc_bus[NODE_POWER_BALANCE]
+        inverter_outputs[INVERTER_DC_BUS_POWER_BALANCE] = dc_bus_balance
 
         # Shadow prices
         inverter_outputs[INVERTER_MAX_POWER_DC_TO_AC_PRICE] = connection[CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET]

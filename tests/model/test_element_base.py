@@ -3,6 +3,7 @@
 from unittest.mock import Mock
 
 from highspy import Highs
+import numpy as np
 import pytest
 
 from custom_components.haeo.model.element import Element
@@ -18,7 +19,7 @@ def test_connection_power_with_target_end(solver: Highs) -> None:
     h = solver
 
     # Create a simple node element
-    node = Node(name="test_node", periods=[1.0] * 3, solver=h)
+    node = Node(name="test_node", periods=np.array([1.0] * 3), solver=h)
 
     # Create power variables for the mock connection
     power_into_target = h.addVariables(3, lb=-10, ub=10, name_prefix="power_into_target_", out_array=True)
@@ -50,7 +51,7 @@ def test_connection_power_with_source_end(solver: Highs) -> None:
     h = solver
 
     # Create a simple node element
-    node = Node(name="test_node", periods=[1.0] * 3, solver=h)
+    node = Node(name="test_node", periods=np.array([1.0] * 3), solver=h)
 
     # Create power variables for the mock connection
     power_into_source = h.addVariables(3, lb=-10, ub=10, name_prefix="power_into_source_", out_array=True)
@@ -84,7 +85,7 @@ def test_constraints_populates_constraint_state(solver: Highs) -> None:
 
     # Create a simple element that has constraint methods
     # Use is_sink=False so the node_power_balance actually creates constraints
-    element = Node(name="test_node", periods=[1.0] * 3, solver=h, is_source=True, is_sink=False)
+    element = Node(name="test_node", periods=np.array([1.0] * 3), solver=h, is_source=True, is_sink=False)
 
     # Call constraints to trigger decorator lifecycle
     constraints_dict = element.constraints()
@@ -103,7 +104,7 @@ def test_connection_power_with_multiple_connections(solver: Highs) -> None:
     h = solver
 
     # Create a simple node element
-    node = Node(name="test_node", periods=[1.0] * 3, solver=h)
+    node = Node(name="test_node", periods=np.array([1.0] * 3), solver=h)
 
     # Create first mock connection (node as source)
     power_into_source_1 = h.addVariables(3, lb=-10, ub=10, name_prefix="conn1_into_source_", out_array=True)
@@ -143,5 +144,5 @@ def test_element_default_outputs(solver: Highs) -> None:
     class MinimalElement(Element[str]):
         pass
 
-    element = MinimalElement("test", [1.0], solver=solver, output_names=frozenset())
+    element = MinimalElement("test", np.array([1.0]), solver=solver, output_names=frozenset())
     assert element.outputs() == {}

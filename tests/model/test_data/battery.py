@@ -1,5 +1,7 @@
 """Test data and factories for Battery element."""
 
+import numpy as np
+
 from custom_components.haeo.model.elements.battery import Battery
 
 from .element_types import ElementTestCase
@@ -10,7 +12,7 @@ VALID_CASES: list[ElementTestCase] = [
         "factory": Battery,
         "data": {
             "name": "battery_charging",
-            "periods": [1.0] * 3,
+            "periods": np.array([1.0] * 3),
             "capacity": 10.0,
             "initial_charge": 2.0,
         },
@@ -35,7 +37,7 @@ VALID_CASES: list[ElementTestCase] = [
         "factory": Battery,
         "data": {
             "name": "battery_discharging",
-            "periods": [1.0] * 3,
+            "periods": np.array([1.0] * 3),
             "capacity": 10.0,
             "initial_charge": 8.0,
         },
@@ -60,7 +62,7 @@ VALID_CASES: list[ElementTestCase] = [
         "factory": Battery,
         "data": {
             "name": "battery_fixed",
-            "periods": [1.0] * 3,
+            "periods": np.array([1.0] * 3),
             "capacity": 10.0,
             "initial_charge": 5.0,
         },

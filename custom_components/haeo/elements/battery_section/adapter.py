@@ -107,31 +107,6 @@ class BatterySectionAdapter:
             ),
         }
 
-    def build_config_data(
-        self,
-        loaded_values: Mapping[str, Any],
-        config: BatterySectionConfigSchema,
-    ) -> BatterySectionConfigData:
-        """Build ConfigData from pre-loaded values.
-
-        This is the single source of truth for ConfigData construction.
-        The coordinator uses this method after loading input entity values.
-
-        Args:
-            loaded_values: Dict of field names to loaded values (from input entities)
-            config: Original ConfigSchema for non-input fields (element_type, name)
-
-        Returns:
-            BatterySectionConfigData with all fields populated
-
-        """
-        return {
-            "element_type": config["element_type"],
-            "name": config["name"],
-            "capacity": list(loaded_values[CONF_CAPACITY]),
-            "initial_charge": list(loaded_values[CONF_INITIAL_CHARGE]),
-        }
-
     def model_elements(self, config: BatterySectionConfigData) -> list[ModelElementConfig]:
         """Create model elements for BatterySection configuration.
 

@@ -3,6 +3,7 @@
 from collections.abc import Mapping, Sequence
 from typing import Any, TypedDict
 
+import numpy as np
 import pytest
 
 from custom_components.haeo.elements import ELEMENT_TYPES
@@ -13,6 +14,8 @@ from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE
 from custom_components.haeo.model.elements import power_connection
 from custom_components.haeo.model.output_data import OutputData
+
+from tests.util.normalize import normalize_for_compare
 
 
 class CreateCase(TypedDict):
@@ -39,8 +42,8 @@ CREATE_CASES: Sequence[CreateCase] = [
             element_type="solar",
             name="pv_main",
             connection="network",
-            forecast=[2.0, 1.5],
-            price_production=0.15,
+            forecast=np.array([2.0, 1.5]),
+            price_production=np.array([0.15, 0.15]),
             curtailment=False,
         ),
         "model": [
@@ -50,10 +53,33 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "name": "pv_main:connection",
                 "source": "pv_main",
                 "target": "network",
-                "max_power_source_target": [2.0, 1.5],
+                "max_power_source_target": np.array([2.0, 1.5]),
                 "max_power_target_source": 0.0,
                 "fixed_power": True,
-                "price_source_target": 0.15,
+                "price_source_target": np.array([0.15, 0.15]),
+            },
+        ],
+    },
+    {
+        "description": "Solar without curtailment defaults fixed power off",
+        "data": SolarConfigData(
+            element_type="solar",
+            name="pv_default",
+            connection="network",
+            forecast=np.array([2.0, 1.5]),
+            price_production=np.array([0.15, 0.15]),
+        ),
+        "model": [
+            {"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "pv_default", "is_source": True, "is_sink": False},
+            {
+                "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
+                "name": "pv_default:connection",
+                "source": "pv_default",
+                "target": "network",
+                "max_power_source_target": np.array([2.0, 1.5]),
+                "max_power_target_source": 0.0,
+                "price_source_target": np.array([0.15, 0.15]),
+                "fixed_power": False,
             },
         ],
     },
@@ -101,7 +127,7 @@ def test_model_elements(case: CreateCase) -> None:
     """Verify adapter transforms ConfigData into expected model elements."""
     entry = ELEMENT_TYPES["solar"]
     result = entry.model_elements(case["data"])
-    assert result == case["model"]
+    assert normalize_for_compare(result) == normalize_for_compare(case["model"])
 
 
 @pytest.mark.parametrize("case", OUTPUTS_CASES, ids=lambda c: c["description"])

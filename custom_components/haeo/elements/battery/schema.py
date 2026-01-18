@@ -1,6 +1,9 @@
 """Battery element schema definitions."""
 
-from typing import Final, Literal, NotRequired, TypedDict
+from typing import Any, Final, Literal, NotRequired, TypedDict
+
+import numpy as np
+from numpy.typing import NDArray
 
 ELEMENT_TYPE: Final = "battery"
 
@@ -80,24 +83,24 @@ class BatteryConfigData(TypedDict):
     connection: str  # Element name that battery connects to
 
     # Loaded sensor values (time series)
-    capacity: list[float]  # kWh per period
-    initial_charge_percentage: list[float]  # % per period (uses first value)
+    capacity: NDArray[np.floating[Any]]  # kWh per period
+    initial_charge_percentage: NDArray[np.floating[Any]]  # % per period (uses first value)
 
-    # Time series with defaults applied
-    min_charge_percentage: list[float]  # % per period
-    max_charge_percentage: list[float]  # % per period
-    efficiency: list[float]  # % per period
+    # Time series with defaults applied in model_elements
+    min_charge_percentage: NotRequired[NDArray[np.floating[Any]]]  # % per period
+    max_charge_percentage: NotRequired[NDArray[np.floating[Any]]]  # % per period
+    efficiency: NotRequired[NDArray[np.floating[Any]]]  # % per period
 
     # Optional loaded values
-    max_charge_power: NotRequired[list[float]]  # kW per period
-    max_discharge_power: NotRequired[list[float]]  # kW per period
+    max_charge_power: NotRequired[NDArray[np.floating[Any]]]  # kW per period
+    max_discharge_power: NotRequired[NDArray[np.floating[Any]]]  # kW per period
 
     # Optional prices (time series)
-    early_charge_incentive: NotRequired[list[float]]  # $/kWh per period
-    discharge_cost: NotRequired[list[float]]  # $/kWh per period
+    early_charge_incentive: NotRequired[NDArray[np.floating[Any]]]  # $/kWh per period
+    discharge_cost: NotRequired[NDArray[np.floating[Any]]]  # $/kWh per period
 
     # Advanced: undercharge/overcharge regions (time series)
-    undercharge_percentage: NotRequired[list[float]]  # % per period
-    overcharge_percentage: NotRequired[list[float]]  # % per period
-    undercharge_cost: NotRequired[list[float]]  # $/kWh per period
-    overcharge_cost: NotRequired[list[float]]  # $/kWh per period
+    undercharge_percentage: NotRequired[NDArray[np.floating[Any]]]  # % per period
+    overcharge_percentage: NotRequired[NDArray[np.floating[Any]]]  # % per period
+    undercharge_cost: NotRequired[NDArray[np.floating[Any]]]  # $/kWh per period
+    overcharge_cost: NotRequired[NDArray[np.floating[Any]]]  # $/kWh per period

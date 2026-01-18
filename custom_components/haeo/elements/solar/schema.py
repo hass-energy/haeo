@@ -1,6 +1,9 @@
 """Solar element schema definitions."""
 
-from typing import Final, Literal, NotRequired, TypedDict
+from typing import Any, Final, Literal, NotRequired, TypedDict
+
+import numpy as np
+from numpy.typing import NDArray
 
 ELEMENT_TYPE: Final = "solar"
 
@@ -29,7 +32,7 @@ class SolarConfigSchema(TypedDict):
 
     # Optional fields (with sensible defaults)
     curtailment: NotRequired[str | bool]  # Entity ID or constant boolean (default: True)
-    price_production: NotRequired[str | float]  # Entity ID or constant $/kWh
+    price_production: NotRequired[list[str] | str | float]  # Entity ID(s) or constant $/kWh
 
 
 class SolarConfigData(TypedDict):
@@ -41,6 +44,6 @@ class SolarConfigData(TypedDict):
     element_type: Literal["solar"]
     name: str
     connection: str  # Element name to connect to
-    forecast: list[float]  # Loaded power values per period (kW)
+    forecast: NDArray[np.floating[Any]]  # Loaded power values per period (kW)
     curtailment: NotRequired[bool]  # Whether solar can be curtailed (default: True)
-    price_production: NotRequired[float]  # $/kWh production incentive (default: 0.0)
+    price_production: NotRequired[NDArray[np.floating[Any]]]  # $/kWh production incentive (default: 0.0)

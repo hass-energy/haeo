@@ -20,7 +20,7 @@ class TrackedParam[T]:
 
     Usage:
         class Battery(Element):
-            capacity = TrackedParam[Sequence[float]]()
+            capacity = TrackedParam[NDArray[np.floating[Any]]]()
 
             @constraint
             def soc_max_constraint(self) -> list[highs_linear_expression]:
