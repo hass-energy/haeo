@@ -4,7 +4,11 @@ from typing import Any
 
 import pytest
 
-from custom_components.haeo.elements import ELEMENT_CONFIG_SCHEMAS, is_element_config_schema
+from custom_components.haeo.elements import (
+    ELEMENT_CONFIG_SCHEMAS,
+    is_element_config_data,
+    is_element_config_schema,
+)
 
 
 @pytest.mark.parametrize(
@@ -182,6 +186,50 @@ def test_is_element_config_schema_valid_battery_section() -> None:
         "initial_charge": "sensor.charge",
     }
     assert is_element_config_schema(valid_config) is True
+
+
+@pytest.mark.parametrize(
+    "input_data",
+    [
+        [1, 2, 3],
+        "not a config",
+        None,
+    ],
+)
+def test_is_not_element_config_data(input_data: Any) -> None:
+    """Test is_element_config_data with non-Mapping input."""
+    assert is_element_config_data(input_data) is False
+
+
+@pytest.mark.parametrize(
+    "input_data",
+    [
+        {"element_type": "unknown_type", "name": "test"},
+        {"name": "test"},
+    ],
+)
+def test_is_element_config_data_invalid_element_type(input_data: dict[str, Any]) -> None:
+    """Test is_element_config_data with invalid element types."""
+    assert is_element_config_data(input_data) is False
+
+
+def test_is_element_config_data_missing_required_keys() -> None:
+    """Test is_element_config_data rejects missing required keys."""
+    invalid_config = {
+        "element_type": "battery",
+        "name": "test_battery",
+        # Missing required keys like connection/capacity/initial_charge_percentage.
+    }
+    assert is_element_config_data(invalid_config) is False
+
+
+def test_is_element_config_data_valid_node() -> None:
+    """Test is_element_config_data with minimal valid node config."""
+    valid_config = {
+        "element_type": "node",
+        "name": "test_node",
+    }
+    assert is_element_config_data(valid_config) is True
 
 
 def test_config_schemas_match_element_types() -> None:
