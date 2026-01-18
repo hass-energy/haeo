@@ -136,6 +136,7 @@ def battery_power_charge(self) -> OutputData:
 ```
 
 The network discovers outputs via reflection on `@output` and `@constraint(output=True)` decorated methods.
+Use `@output(name="...")` to expose a custom output name when the method name is not the desired output key.
 
 ## Modeling guidelines
 

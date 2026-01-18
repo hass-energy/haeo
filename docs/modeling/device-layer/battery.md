@@ -1,6 +1,6 @@
 # Battery Modeling
 
-The Battery device composes multiple [Battery model](../model-layer/elements/battery.md) sections with [PowerConnections](../model-layer/connections/power-connection.md) through a central [Node](node.md) to provide energy storage with multi-section SOC tracking and cost-based operating preferences.
+The Battery device composes multiple [Battery model](../model-layer/elements/battery.md) sections with [Connections](../model-layer/connections/connection.md) through a central [Node](node.md) to provide energy storage with multi-section SOC tracking and cost-based operating preferences.
 
 ## Model Elements Created
 
@@ -12,13 +12,13 @@ graph LR
         BO["Battery Section<br/>overcharge<br/>(optional)"]
         Node["Node<br/>battery_main:node"]
 
-        BU -->|PowerConnection<br/>undercharge cost| Node
+        BU -->|Connection<br/>pricing segment| Node
         BU <-->|BalanceConnection| BN
-        BN -->|PowerConnection| Node
+        BN -->|Connection<br/>pricing segment| Node
         BN <-->|BalanceConnection| BO
-        BO -->|PowerConnection<br/>overcharge cost| Node
+        BO -->|Connection<br/>pricing segment| Node
 
-        Conn["PowerConnection<br/>battery_main:connection<br/>(efficiency, power limits,<br/>early charge incentive)"]
+        Conn["Connection<br/>battery_main:connection<br/>(efficiency, limits,<br/>early charge incentive)"]
 
     end
     Target[Connection Target]
@@ -35,12 +35,12 @@ The adapter creates 4-10 model elements depending on configuration:
 | [Battery](../model-layer/elements/battery.md)                            | `{name}:normal` (always)            | Capacity: `(max% - min%) * capacity`, initial charge distributed         |
 | [Battery](../model-layer/elements/battery.md)                            | `{name}:overcharge` (optional)      | Capacity: `(overcharge% - max%) * capacity`, initial charge distributed  |
 | [Node](node.md)                                                          | `{name}:node`                       | Pure junction (no power generation/consumption)                          |
-| [PowerConnection](../model-layer/connections/power-connection.md)        | `{name}:undercharge:to_node`        | Discharge price: undercharge cost penalty                                |
-| [PowerConnection](../model-layer/connections/power-connection.md)        | `{name}:normal:to_node`             | No pricing (neutral)                                                     |
-| [PowerConnection](../model-layer/connections/power-connection.md)        | `{name}:overcharge:to_node`         | Charge price: overcharge cost penalty                                    |
+| [Connection](../model-layer/connections/connection.md)                   | `{name}:undercharge:to_node`        | Pricing segment for undercharge discharge penalty                        |
+| [Connection](../model-layer/connections/connection.md)                   | `{name}:normal:to_node`             | Pricing segment with neutral costs                                       |
+| [Connection](../model-layer/connections/connection.md)                   | `{name}:overcharge:to_node`         | Pricing segment for overcharge charge penalty                            |
 | [BatteryBalanceConnection](../model-layer/battery-balance-connection.md) | `{name}:balance:undercharge:normal` | Enforces fill ordering between undercharge and normal sections           |
 | [BatteryBalanceConnection](../model-layer/battery-balance-connection.md) | `{name}:balance:normal:overcharge`  | Enforces fill ordering between normal and overcharge sections            |
-| [PowerConnection](../model-layer/connections/power-connection.md)        | `{name}:connection`                 | Efficiency, power limits, early charge/discharge incentive               |
+| [Connection](../model-layer/connections/connection.md)                   | `{name}:connection`                 | Efficiency, power-limit, and pricing segments                            |
 
 ## Architecture Details
 
@@ -119,26 +119,26 @@ Battery creates 1-4 devices in Home Assistant depending on configuration:
 | Normal      | `{name}:normal`      | Multi-section operation active      | Normal section metrics and shadow prices      |
 | Overcharge  | `{name}:overcharge`  | `overcharge_percentage` configured  | Overcharge section metrics and shadow prices  |
 
-## Parameter Mapping
+## Parameter mapping
 
-The adapter transforms user configuration into model parameters:
+The adapter transforms user configuration into connection segments:
 
-| User Configuration          | Model Element(s)               | Model Parameter                                                   | Notes                              |
-| --------------------------- | ------------------------------ | ----------------------------------------------------------------- | ---------------------------------- |
-| `capacity`                  | Battery sections               | Section capacities based on percentage ranges                     | Distributed across sections        |
-| `initial_charge_percentage` | Battery sections               | `initial_charge` distributed bottom-up                            | Fills sections sequentially        |
-| `min_charge_percentage`     | Battery sections               | Defines normal section lower bound                                | Inner bound (preferred min)        |
-| `max_charge_percentage`     | Battery sections               | Defines normal section upper bound                                | Inner bound (preferred max)        |
-| `undercharge_percentage`    | Battery sections               | Defines undercharge section lower bound                           | Outer bound (hard min)             |
-| `overcharge_percentage`     | Battery sections               | Defines overcharge section upper bound                            | Outer bound (hard max)             |
-| `early_charge_incentive`    | Node-to-target connection      | `price_target_source` (charge), `price_source_target` (discharge) | Time-varying on main connection    |
-| `undercharge_cost`          | Undercharge-to-node connection | `price_source_target` (discharge penalty)                         | Penalty for undercharge discharge  |
-| `overcharge_cost`           | Overcharge-to-node connection  | `price_target_source` (charge penalty)                            | Penalty for overcharge charging    |
-| `efficiency`                | Node-to-target connection      | `efficiency_source_target`, `efficiency_target_source`            | Applied to both directions         |
-| `max_charge_power`          | Node-to-target connection      | `max_power_target_source`                                         | Network to battery                 |
-| `max_discharge_power`       | Node-to-target connection      | `max_power_source_target`                                         | Battery to network                 |
-| `discharge_cost`            | Node-to-target connection      | Added to `price_source_target`                                    | Added to early discharge incentive |
-| (automatic)                 | Balance connections            | `capacity_lower` from section capacity                            | Enforces section fill ordering     |
+| User Configuration          | Model Element(s)    | Model Parameter                                        | Notes                              |
+| --------------------------- | ------------------- | ------------------------------------------------------ | ---------------------------------- |
+| `capacity`                  | Battery sections    | Section capacities based on percentage ranges          | Distributed across sections        |
+| `initial_charge_percentage` | Battery sections    | `initial_charge` distributed bottom-up                 | Fills sections sequentially        |
+| `min_charge_percentage`     | Battery sections    | Defines normal section lower bound                     | Inner bound (preferred min)        |
+| `max_charge_percentage`     | Battery sections    | Defines normal section upper bound                     | Inner bound (preferred max)        |
+| `undercharge_percentage`    | Battery sections    | Defines undercharge section lower bound                | Outer bound (hard min)             |
+| `overcharge_percentage`     | Battery sections    | Defines overcharge section upper bound                 | Outer bound (hard max)             |
+| `early_charge_incentive`    | Pricing segment     | `price_target_source` and `price_source_target`        | Time-varying on main connection    |
+| `undercharge_cost`          | Pricing segment     | `price_source_target`                                  | Undercharge discharge penalty      |
+| `overcharge_cost`           | Pricing segment     | `price_target_source`                                  | Overcharge charge penalty          |
+| `efficiency`                | Efficiency segment  | `efficiency_source_target`, `efficiency_target_source` | Applied to both directions         |
+| `max_charge_power`          | Power-limit segment | `max_power_target_source`                              | Network to battery                 |
+| `max_discharge_power`       | Power-limit segment | `max_power_source_target`                              | Battery to network                 |
+| `discharge_cost`            | Pricing segment     | Added to `price_source_target`                         | Added to early discharge incentive |
+| (automatic)                 | Balance connections | `capacity_lower` from section capacity                 | Enforces section fill ordering     |
 
 ## Output Mapping
 
@@ -236,7 +236,7 @@ See [Battery Configuration](../../user-guide/elements/battery.md#sensors-created
 
     How power limits, efficiency, and pricing are applied.
 
-    [:material-arrow-right: PowerConnection formulation](../model-layer/connections/power-connection.md)
+    [:material-arrow-right: Connection formulation](../model-layer/connections/connection.md)
 
 - :material-scale-balance:{ .lg .middle } **Balance connection**
 

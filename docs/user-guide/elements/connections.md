@@ -31,6 +31,9 @@ Connections define how power flows between elements in your network with support
 
     **Leaving fields unset**: When a direction should allow unlimited flow with no losses or costs, leave the corresponding fields empty rather than creating sensors with maximum or default values.
 
+    **Segment-based behavior**: Connections compose internal segments for limits, efficiency, and pricing.
+    You configure the fields above, and the model applies the corresponding segment behavior automatically.
+
     **Using constant values**: All sensor fields require sensor entities.
 
 Use [input number helpers](https://www.home-assistant.io/integrations/input_number/) to configure constant values.

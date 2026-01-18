@@ -1,6 +1,6 @@
 # Solar Modeling
 
-The Solar device composes a [Node](../model-layer/elements/node.md) (power source only) with an implicit [PowerConnection](../model-layer/connections/power-connection.md) to model solar generation with optional curtailment.
+The Solar device composes a [Node](../model-layer/elements/node.md) (power source only) with an implicit [Connection](../model-layer/connections/connection.md) to model solar generation with optional curtailment.
 
 ## Model Elements Created
 
@@ -8,7 +8,7 @@ The Solar device composes a [Node](../model-layer/elements/node.md) (power sourc
 graph LR
     subgraph "Device"
         SS["Node<br/>(is_source=true, is_sink=false)"]
-        Conn["PowerConnection<br/>{name}:connection"]
+        Conn["Connection<br/>{name}:connection"]
     end
 
     Node[Connection Target]
@@ -17,10 +17,10 @@ graph LR
     Conn -->|connects to| Node
 ```
 
-| Model Element                                                     | Name                | Parameters From Configuration           |
-| ----------------------------------------------------------------- | ------------------- | --------------------------------------- |
-| [Node](../model-layer/elements/node.md)                           | `{name}`            | is_source=true, is_sink=false           |
-| [PowerConnection](../model-layer/connections/power-connection.md) | `{name}:connection` | forecast as max_power, production price |
+| Model Element                                          | Name                | Parameters From Configuration          |
+| ------------------------------------------------------ | ------------------- | -------------------------------------- |
+| [Node](../model-layer/elements/node.md)                | `{name}`            | is_source=true, is_sink=false          |
+| [Connection](../model-layer/connections/connection.md) | `{name}:connection` | power-limit and pricing segment values |
 
 ## Devices Created
 
@@ -30,18 +30,18 @@ Solar creates 1 device in Home Assistant:
 | ------- | -------- | ------------ | ------------------------------------ |
 | Primary | `{name}` | Always       | Solar generation tracking and limits |
 
-## Parameter Mapping
+## Parameter mapping
 
-The adapter transforms user configuration into model parameters:
+The adapter transforms user configuration into connection segments:
 
-| User Configuration   | Model Element   | Model Parameter           | Notes                                        |
-| -------------------- | --------------- | ------------------------- | -------------------------------------------- |
-| `forecast`           | PowerConnection | `max_power_source_target` | Upper bound on generation                    |
-| `production_price`   | PowerConnection | `price_source_target`     | Cost/revenue per kWh generated (default: 0)  |
-| `enable_curtailment` | PowerConnection | `fixed_power`             | false if curtailment enabled, true otherwise |
-| `connection`         | PowerConnection | `target`                  | Node to connect to                           |
-| —                    | Node            | `is_source=true`          | Solar provides power                         |
-| —                    | Node            | `is_sink=false`           | Solar cannot consume power                   |
+| User Configuration | Segment           | Segment Field             | Notes                                       |
+| ------------------ | ----------------- | ------------------------- | ------------------------------------------- |
+| `forecast`         | PowerLimitSegment | `max_power_source_target` | Upper bound on generation                   |
+| `curtailment`      | PowerLimitSegment | `fixed`                   | True when curtailment is disabled           |
+| `price_production` | PricingSegment    | `price_source_target`     | Cost/revenue per kWh generated (default: 0) |
+| `connection`       | Connection        | `target`                  | Node to connect to                          |
+| —                  | Node              | `is_source=true`          | Solar provides power                        |
+| —                  | Node              | `is_sink=false`           | Solar cannot consume power                  |
 
 ## Sensors Created
 
@@ -136,6 +136,6 @@ Solar represents a solar generation system that produces power based on weather 
 
     How generation limits are applied.
 
-    [:material-arrow-right: PowerConnection formulation](../model-layer/connections/power-connection.md)
+    [:material-arrow-right: Connection formulation](../model-layer/connections/connection.md)
 
 </div>

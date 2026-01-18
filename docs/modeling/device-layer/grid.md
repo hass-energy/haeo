@@ -1,6 +1,6 @@
 # Grid Modeling
 
-The Grid device composes a [Node](../model-layer/elements/node.md) (bidirectional power source/sink) with an implicit [Connection](../model-layer/connections/power-connection.md) to model utility grid connections with time-varying import/export pricing.
+The Grid device composes a [Node](../model-layer/elements/node.md) (bidirectional power source/sink) with an implicit [Connection](../model-layer/connections/connection.md) to model utility grid connections with time-varying import and export pricing.
 
 ## Model Elements Created
 
@@ -17,10 +17,10 @@ graph LR
     Conn <-->|connects to| Node
 ```
 
-| Model Element                                                | Name                | Parameters From Configuration              |
-| ------------------------------------------------------------ | ------------------- | ------------------------------------------ |
-| [Node](../model-layer/elements/node.md)                      | `{name}`            | is_source=true, is_sink=true               |
-| [Connection](../model-layer/connections/power-connection.md) | `{name}:connection` | import/export limits, import/export prices |
+| Model Element                                          | Name                | Parameters From Configuration          |
+| ------------------------------------------------------ | ------------------- | -------------------------------------- |
+| [Node](../model-layer/elements/node.md)                | `{name}`            | is_source=true, is_sink=true           |
+| [Connection](../model-layer/connections/connection.md) | `{name}:connection` | power-limit and pricing segment values |
 
 ## Devices Created
 
@@ -30,19 +30,19 @@ Grid creates 1 device in Home Assistant:
 | ------- | -------- | ------------ | ----------------------------------------- |
 | Primary | `{name}` | Always       | Bidirectional grid connection and pricing |
 
-## Parameter Mapping
+## Parameter mapping
 
-The adapter transforms user configuration into model parameters:
+The adapter transforms user configuration into connection segments:
 
-| User Configuration | Model Element   | Model Parameter           | Notes                           |
-| ------------------ | --------------- | ------------------------- | ------------------------------- |
-| `import_price`     | PowerConnection | `price_target_source`     | Cost per kWh imported           |
-| `export_price`     | PowerConnection | `price_source_target`     | Revenue per kWh exported        |
-| `import_limit`     | PowerConnection | `max_power_target_source` | Maximum import power (optional) |
-| `export_limit`     | PowerConnection | `max_power_source_target` | Maximum export power (optional) |
-| `connection`       | PowerConnection | `target`                  | Node to connect to              |
-| —                  | Node            | `is_source=true`          | Grid can supply power           |
-| —                  | Node            | `is_sink=true`            | Grid can absorb power           |
+| User Configuration | Segment           | Segment Field             | Notes                                   |
+| ------------------ | ----------------- | ------------------------- | --------------------------------------- |
+| `import_price`     | PricingSegment    | `price_source_target`     | Cost per kWh imported                   |
+| `export_price`     | PricingSegment    | `price_target_source`     | Stored as negative to represent revenue |
+| `import_limit`     | PowerLimitSegment | `max_power_source_target` | Maximum import power (optional)         |
+| `export_limit`     | PowerLimitSegment | `max_power_target_source` | Maximum export power (optional)         |
+| `connection`       | Connection        | `target`                  | Node to connect to                      |
+| —                  | Node              | `is_source=true`          | Grid can supply power                   |
+| —                  | Node              | `is_sink=true`            | Grid can absorb power                   |
 
 ## Sensors Created
 
@@ -135,6 +135,6 @@ Grid represents the utility connection that can supply power (import) when local
 
     How power limits and pricing are applied.
 
-    [:material-arrow-right: PowerConnection formulation](../model-layer/connections/power-connection.md)
+    [:material-arrow-right: Connection formulation](../model-layer/connections/connection.md)
 
 </div>

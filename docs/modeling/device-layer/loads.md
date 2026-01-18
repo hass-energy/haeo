@@ -1,6 +1,6 @@
 # Load Modeling
 
-The Load device composes a [Node](../model-layer/elements/node.md) (power sink only) with an implicit [PowerConnection](../model-layer/connections/power-connection.md) to model power consumption based on forecast data.
+The Load device composes a [Node](../model-layer/elements/node.md) (power sink only) with an implicit [Connection](../model-layer/connections/connection.md) to model power consumption based on forecast data.
 
 ## Model Elements Created
 
@@ -8,7 +8,7 @@ The Load device composes a [Node](../model-layer/elements/node.md) (power sink o
 graph LR
     subgraph "Device"
         SS["Node<br/>(is_source=false, is_sink=true)"]
-        Conn["PowerConnection<br/>{name}:connection<br/>(fixed_power=true)"]
+        Conn["Connection<br/>{name}:connection<br/>(power_limit fixed)"]
     end
 
     Node[Connection Target]
@@ -18,10 +18,10 @@ graph LR
     Node -->|connects to| Conn
 ```
 
-| Model Element                                                     | Name                | Parameters From Configuration       |
-| ----------------------------------------------------------------- | ------------------- | ----------------------------------- |
-| [Node](../model-layer/elements/node.md)                           | `{name}`            | is_source=false, is_sink=true       |
-| [PowerConnection](../model-layer/connections/power-connection.md) | `{name}:connection` | forecast as fixed power requirement |
+| Model Element                                          | Name                | Parameters From Configuration                  |
+| ------------------------------------------------------ | ------------------- | ---------------------------------------------- |
+| [Node](../model-layer/elements/node.md)                | `{name}`            | is_source=false, is_sink=true                  |
+| [Connection](../model-layer/connections/connection.md) | `{name}:connection` | power-limit segment with fixed forecast demand |
 
 ## Devices Created
 
@@ -31,17 +31,18 @@ Load creates 1 device in Home Assistant:
 | ------- | -------- | ------------ | ------------------------- |
 | Primary | `{name}` | Always       | Load consumption tracking |
 
-## Parameter Mapping
+## Parameter mapping
 
-The adapter transforms user configuration into model parameters:
+The adapter transforms user configuration into connection segments:
 
-| User Configuration | Model Element   | Model Parameter           | Notes                             |
-| ------------------ | --------------- | ------------------------- | --------------------------------- |
-| `forecast`         | PowerConnection | `max_power_target_source` | Required consumption at each time |
-| `connection`       | PowerConnection | `source`                  | Node to connect from              |
-| —                  | PowerConnection | `fixed_power=true`        | Consumption must equal forecast   |
-| —                  | Node            | `is_source=false`         | Load cannot provide power         |
-| —                  | Node            | `is_sink=true`            | Load consumes power               |
+| User Configuration | Segment           | Segment Field             | Notes                               |
+| ------------------ | ----------------- | ------------------------- | ----------------------------------- |
+| `forecast`         | PowerLimitSegment | `max_power_target_source` | Required consumption at each time   |
+| `connection`       | Connection        | `source`                  | Node to connect from                |
+| —                  | PowerLimitSegment | `max_power_source_target` | Set to zero to prevent reverse flow |
+| —                  | PowerLimitSegment | `fixed`                   | True to enforce demand equality     |
+| —                  | Node              | `is_source=false`         | Load cannot provide power           |
+| —                  | Node              | `is_sink=true`            | Load consumes power                 |
 
 ## Sensors Created
 
@@ -131,6 +132,6 @@ Load represents power consumption that must be satisfied by the system—either 
 
     How consumption constraints are applied.
 
-    [:material-arrow-right: PowerConnection formulation](../model-layer/connections/power-connection.md)
+    [:material-arrow-right: Connection formulation](../model-layer/connections/connection.md)
 
 </div>
