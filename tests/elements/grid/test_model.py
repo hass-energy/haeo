@@ -5,6 +5,7 @@ from typing import Any, TypedDict
 
 import numpy as np
 import pytest
+from numpy.typing import NDArray
 
 from custom_components.haeo.elements import ELEMENT_TYPES
 from custom_components.haeo.elements import grid as grid_element
@@ -32,7 +33,7 @@ class OutputsCase(TypedDict):
     name: str
     config: GridConfigData
     model_outputs: Mapping[str, Mapping[ModelOutputName, ModelOutputValue]]
-    periods: list[float]
+    periods: NDArray[np.floating[Any]]
     outputs: Mapping[str, Mapping[str, OutputData]]
 
 

@@ -86,7 +86,7 @@ def _solve_segment_scenario(case: SegmentScenario) -> dict[str, ExpectedValue]:
 
 def _solve_connection_scenario(case: ConnectionScenario) -> dict[str, ExpectedValue]:
     h = create_solver()
-    periods = case["periods"]
+    periods = np.asarray(case["periods"], dtype=np.float64)
     segments = case["segments"]
     if segments is None:
         conn = Connection(name="conn", periods=periods, solver=h, source="src", target="tgt")

@@ -17,6 +17,7 @@ CONF_EFFICIENCY_TARGET_SOURCE: Final = "efficiency_target_source"
 CONF_PRICE_SOURCE_TARGET: Final = "price_source_target"
 CONF_PRICE_TARGET_SOURCE: Final = "price_target_source"
 
+
 class ConnectionConfigSchema(TypedDict):
     """Connection element configuration as stored in Home Assistant.
 

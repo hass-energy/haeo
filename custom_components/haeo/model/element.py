@@ -170,13 +170,16 @@ class Element[OutputNameT: str]:
         result: dict[OutputNameT, OutputData] = {}
         for name in dir(type(self)):
             attr = getattr(type(self), name, None)
-            # Check for decorators that support get_output()
-            if (
-                isinstance(attr, (OutputMethod, ReactiveConstraint))
-                and name in self._output_names
-                and (output_data := attr.get_output(self)) is not None
-            ):
-                result[name] = output_data  # type: ignore[assignment]  # name validated by `in` check at runtime
+            # Resolve output name for OutputMethod (supports custom names).
+            if isinstance(attr, OutputMethod):
+                output_name = attr.output_name
+            elif isinstance(attr, ReactiveConstraint):
+                output_name = name
+            else:
+                continue
+
+            if output_name in self._output_names and (output_data := attr.get_output(self)) is not None:
+                result[output_name] = output_data  # type: ignore[assignment]  # name validated by `in` check at runtime
         return result
 
     def constraints(self) -> dict[str, highs_cons | list[highs_cons]]:
