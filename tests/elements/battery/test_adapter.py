@@ -221,11 +221,7 @@ def test_model_elements_passes_efficiency_when_present() -> None:
 
     elements = battery.adapter.model_elements(config_data)
 
-    connection = next(
-        element
-        for element in elements
-        if element["element_type"] == "connection" and element["name"] == "test_battery:connection"
-    )
+    connection = next(element for element in elements if element["element_type"] == "connection" and element["name"] == "test_battery:connection")
     efficiency_source_target = connection.get("efficiency_source_target")
     assert efficiency_source_target is not None
     np.testing.assert_array_equal(efficiency_source_target, [95.0, 95.0])
