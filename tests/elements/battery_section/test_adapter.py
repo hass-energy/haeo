@@ -10,7 +10,6 @@ def _set_sensor(hass: HomeAssistant, entity_id: str, value: str, unit: str = "kW
     hass.states.async_set(entity_id, value, {"unit_of_measurement": unit})
 
 
-
 async def test_available_returns_true_when_sensors_exist(hass: HomeAssistant) -> None:
     """Battery section available() should return True when required sensors exist."""
     _set_sensor(hass, "sensor.capacity", "10.0", "kWh")

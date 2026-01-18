@@ -1,6 +1,5 @@
 """Tests for network connectivity helpers."""
 
-from typing import Any
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import issue_registry as ir
 import pytest
@@ -20,9 +19,9 @@ from custom_components.haeo.const import (
     DOMAIN,
 )
 from custom_components.haeo.coordinator import evaluate_network_connectivity
-from custom_components.haeo.elements import ELEMENT_TYPE_CONNECTION, ELEMENT_TYPE_NODE
-from custom_components.haeo.elements.connection import CONF_SOURCE, CONF_TARGET
-from custom_components.haeo.elements.node import CONF_IS_SINK, CONF_IS_SOURCE
+from custom_components.haeo.elements import ELEMENT_TYPE_CONNECTION, ELEMENT_TYPE_NODE, ElementConfigData
+from custom_components.haeo.elements.connection import CONF_SOURCE, CONF_TARGET, ConnectionConfigData
+from custom_components.haeo.elements.node import CONF_IS_SINK, CONF_IS_SOURCE, NodeConfigData
 
 
 @pytest.fixture
@@ -55,14 +54,13 @@ async def test_evaluate_network_connectivity_connected(
 ) -> None:
     """Network with a single node should be considered connected."""
 
-    participants: dict[str, dict[str, Any]] = {
-        "Node A": {
-            CONF_ELEMENT_TYPE: ELEMENT_TYPE_NODE,
-            CONF_NAME: "Node A",
-            CONF_IS_SOURCE: False,
-            CONF_IS_SINK: False,
-        }
+    node_a: NodeConfigData = {
+        CONF_ELEMENT_TYPE: ELEMENT_TYPE_NODE,
+        CONF_NAME: "Node A",
+        CONF_IS_SOURCE: False,
+        CONF_IS_SINK: False,
     }
+    participants: dict[str, ElementConfigData] = {"Node A": node_a}
 
     await evaluate_network_connectivity(hass, config_entry, participants=participants)
 
@@ -78,20 +76,19 @@ async def test_evaluate_network_connectivity_disconnected(
 ) -> None:
     """Network with isolated nodes should create a repair issue."""
 
-    participants: dict[str, dict[str, Any]] = {
-        "Node A": {
-            CONF_ELEMENT_TYPE: ELEMENT_TYPE_NODE,
-            CONF_NAME: "Node A",
-            CONF_IS_SOURCE: False,
-            CONF_IS_SINK: False,
-        },
-        "Node B": {
-            CONF_ELEMENT_TYPE: ELEMENT_TYPE_NODE,
-            CONF_NAME: "Node B",
-            CONF_IS_SOURCE: False,
-            CONF_IS_SINK: False,
-        },
+    node_a: NodeConfigData = {
+        CONF_ELEMENT_TYPE: ELEMENT_TYPE_NODE,
+        CONF_NAME: "Node A",
+        CONF_IS_SOURCE: False,
+        CONF_IS_SINK: False,
     }
+    node_b: NodeConfigData = {
+        CONF_ELEMENT_TYPE: ELEMENT_TYPE_NODE,
+        CONF_NAME: "Node B",
+        CONF_IS_SOURCE: False,
+        CONF_IS_SINK: False,
+    }
+    participants: dict[str, ElementConfigData] = {"Node A": node_a, "Node B": node_b}
 
     await evaluate_network_connectivity(hass, config_entry, participants=participants)
 
@@ -108,30 +105,30 @@ async def test_evaluate_network_connectivity_resolves_issue(
 ) -> None:
     """Validation should clear the issue when connectivity is restored."""
 
-    participants: dict[str, dict[str, Any]] = {
-        "Node A": {
-            CONF_ELEMENT_TYPE: ELEMENT_TYPE_NODE,
-            CONF_NAME: "Node A",
-            CONF_IS_SOURCE: False,
-            CONF_IS_SINK: False,
-        },
-        "Node B": {
-            CONF_ELEMENT_TYPE: ELEMENT_TYPE_NODE,
-            CONF_NAME: "Node B",
-            CONF_IS_SOURCE: False,
-            CONF_IS_SINK: False,
-        },
+    node_a: NodeConfigData = {
+        CONF_ELEMENT_TYPE: ELEMENT_TYPE_NODE,
+        CONF_NAME: "Node A",
+        CONF_IS_SOURCE: False,
+        CONF_IS_SINK: False,
     }
+    node_b: NodeConfigData = {
+        CONF_ELEMENT_TYPE: ELEMENT_TYPE_NODE,
+        CONF_NAME: "Node B",
+        CONF_IS_SOURCE: False,
+        CONF_IS_SINK: False,
+    }
+    participants: dict[str, ElementConfigData] = {"Node A": node_a, "Node B": node_b}
 
     await evaluate_network_connectivity(hass, config_entry, participants=participants)
 
     # Connect the nodes and re-validate
-    participants["A to B"] = {
+    connection: ConnectionConfigData = {
         CONF_ELEMENT_TYPE: ELEMENT_TYPE_CONNECTION,
         CONF_NAME: "A to B",
         CONF_SOURCE: "Node A",
         CONF_TARGET: "Node B",
     }
+    participants["A to B"] = connection
 
     await evaluate_network_connectivity(hass, config_entry, participants=participants)
 

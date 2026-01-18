@@ -10,7 +10,6 @@ def _set_sensor(hass: HomeAssistant, entity_id: str, value: str, unit: str = "kW
     hass.states.async_set(entity_id, value, {"unit_of_measurement": unit})
 
 
-
 async def test_available_returns_true_with_no_optional_fields(hass: HomeAssistant) -> None:
     """Connection available() should return True with only required fields."""
     config: connection.ConnectionConfigSchema = {
@@ -91,12 +90,12 @@ def test_build_config_data_includes_optional_fields() -> None:
     assert result["name"] == "c1"
     assert result["source"] == "node_a"
     assert result["target"] == "node_b"
-    assert result["max_power_source_target"] == [5.0]
-    assert result["max_power_target_source"] == [3.0]
-    assert result["efficiency_source_target"] == [95.0]
-    assert result["efficiency_target_source"] == [90.0]
-    assert result["price_source_target"] == [0.10]
-    assert result["price_target_source"] == [0.05]
+    assert result.get("max_power_source_target") == [5.0]
+    assert result.get("max_power_target_source") == [3.0]
+    assert result.get("efficiency_source_target") == [95.0]
+    assert result.get("efficiency_target_source") == [90.0]
+    assert result.get("price_source_target") == [0.10]
+    assert result.get("price_target_source") == [0.05]
 
 
 def test_build_config_data_omits_optional_fields() -> None:

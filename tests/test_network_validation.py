@@ -1,8 +1,7 @@
 """Tests for network connectivity validation."""
 
-from typing import Any
-
 from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME
+from custom_components.haeo.elements import ElementConfigData
 from custom_components.haeo.elements.battery import (
     CONF_CAPACITY,
     CONF_EFFICIENCY,
@@ -15,11 +14,12 @@ from custom_components.haeo.elements.battery import (
     CONF_OVERCHARGE_PERCENTAGE,
     CONF_UNDERCHARGE_COST,
     CONF_UNDERCHARGE_PERCENTAGE,
+    BatteryConfigData,
 )
 from custom_components.haeo.elements.battery import CONF_CONNECTION as BATTERY_CONF_CONNECTION
 from custom_components.haeo.elements.grid import CONF_CONNECTION as GRID_CONF_CONNECTION
-from custom_components.haeo.elements.grid import CONF_EXPORT_PRICE, CONF_IMPORT_PRICE
-from custom_components.haeo.elements.node import CONF_IS_SINK, CONF_IS_SOURCE
+from custom_components.haeo.elements.grid import CONF_EXPORT_PRICE, CONF_IMPORT_PRICE, GridConfigData
+from custom_components.haeo.elements.node import CONF_IS_SINK, CONF_IS_SOURCE, NodeConfigData
 from custom_components.haeo.validation import format_component_summary, validate_network_topology
 
 
@@ -48,21 +48,20 @@ def test_validate_network_topology_empty() -> None:
 
 def test_validate_network_topology_with_implicit_connection() -> None:
     """Element with implicit connection field creates edge to target node."""
-    participants: dict[str, dict[str, Any]] = {
-        "main_node": {
-            CONF_ELEMENT_TYPE: "node",
-            CONF_NAME: "main",
-            CONF_IS_SOURCE: False,
-            CONF_IS_SINK: False,
-        },
-        "grid": {
-            CONF_ELEMENT_TYPE: "grid",
-            CONF_NAME: "grid",
-            GRID_CONF_CONNECTION: "main",
-            CONF_IMPORT_PRICE: [0.30, 0.30],
-            CONF_EXPORT_PRICE: [0.10, 0.10],
-        },
+    main_node: NodeConfigData = {
+        CONF_ELEMENT_TYPE: "node",
+        CONF_NAME: "main",
+        CONF_IS_SOURCE: False,
+        CONF_IS_SINK: False,
     }
+    grid: GridConfigData = {
+        CONF_ELEMENT_TYPE: "grid",
+        CONF_NAME: "grid",
+        GRID_CONF_CONNECTION: "main",
+        CONF_IMPORT_PRICE: [0.30, 0.30],
+        CONF_EXPORT_PRICE: [0.10, 0.10],
+    }
+    participants: dict[str, ElementConfigData] = {"main_node": main_node, "grid": grid}
 
     result = validate_network_topology(participants)
 
@@ -72,33 +71,37 @@ def test_validate_network_topology_with_implicit_connection() -> None:
 
 def test_validate_network_topology_detects_disconnected() -> None:
     """Disconnected components are properly identified."""
-    participants: dict[str, dict[str, Any]] = {
-        "node_a": {
-            CONF_ELEMENT_TYPE: "node",
-            CONF_NAME: "a",
-            CONF_IS_SOURCE: False,
-            CONF_IS_SINK: False,
-        },
-        "node_b": {
-            CONF_ELEMENT_TYPE: "node",
-            CONF_NAME: "b",
-            CONF_IS_SOURCE: False,
-            CONF_IS_SINK: False,
-        },
-        "grid_a": {
-            CONF_ELEMENT_TYPE: "grid",
-            CONF_NAME: "grid_a",
-            GRID_CONF_CONNECTION: "a",
-            CONF_IMPORT_PRICE: [0.30, 0.30],
-            CONF_EXPORT_PRICE: [0.10, 0.10],
-        },
-        "grid_b": {
-            CONF_ELEMENT_TYPE: "grid",
-            CONF_NAME: "grid_b",
-            GRID_CONF_CONNECTION: "b",
-            CONF_IMPORT_PRICE: [0.30, 0.30],
-            CONF_EXPORT_PRICE: [0.10, 0.10],
-        },
+    node_a: NodeConfigData = {
+        CONF_ELEMENT_TYPE: "node",
+        CONF_NAME: "a",
+        CONF_IS_SOURCE: False,
+        CONF_IS_SINK: False,
+    }
+    node_b: NodeConfigData = {
+        CONF_ELEMENT_TYPE: "node",
+        CONF_NAME: "b",
+        CONF_IS_SOURCE: False,
+        CONF_IS_SINK: False,
+    }
+    grid_a: GridConfigData = {
+        CONF_ELEMENT_TYPE: "grid",
+        CONF_NAME: "grid_a",
+        GRID_CONF_CONNECTION: "a",
+        CONF_IMPORT_PRICE: [0.30, 0.30],
+        CONF_EXPORT_PRICE: [0.10, 0.10],
+    }
+    grid_b: GridConfigData = {
+        CONF_ELEMENT_TYPE: "grid",
+        CONF_NAME: "grid_b",
+        GRID_CONF_CONNECTION: "b",
+        CONF_IMPORT_PRICE: [0.30, 0.30],
+        CONF_EXPORT_PRICE: [0.10, 0.10],
+    }
+    participants: dict[str, ElementConfigData] = {
+        "node_a": node_a,
+        "node_b": node_b,
+        "grid_a": grid_a,
+        "grid_b": grid_b,
     }
 
     result = validate_network_topology(participants)
@@ -110,32 +113,35 @@ def test_validate_network_topology_detects_disconnected() -> None:
 
 def test_validate_network_topology_with_battery() -> None:
     """Battery element works in validation with loaded config data."""
-    participants: dict[str, dict[str, Any]] = {
-        "main_node": {
-            CONF_ELEMENT_TYPE: "node",
-            CONF_NAME: "main",
-            CONF_IS_SOURCE: False,
-            CONF_IS_SINK: False,
-        },
-        "grid": {
-            CONF_ELEMENT_TYPE: "grid",
-            CONF_NAME: "grid",
-            GRID_CONF_CONNECTION: "main",
-            CONF_IMPORT_PRICE: [0.30, 0.30],
-            CONF_EXPORT_PRICE: [0.10, 0.10],
-        },
-        "battery": {
-            CONF_ELEMENT_TYPE: "battery",
-            CONF_NAME: "battery",
-            BATTERY_CONF_CONNECTION: "main",
-            CONF_CAPACITY: [10.0, 10.0, 10.0],
-            CONF_INITIAL_CHARGE_PERCENTAGE: [50.0, 50.0],
-            CONF_MAX_CHARGE_POWER: [5.0, 5.0],
-            CONF_MAX_DISCHARGE_POWER: [5.0, 5.0],
-            CONF_MIN_CHARGE_PERCENTAGE: [10.0, 10.0, 10.0],
-            CONF_MAX_CHARGE_PERCENTAGE: [90.0, 90.0, 90.0],
-            CONF_EFFICIENCY: [95.0, 95.0],
-        },
+    main_node: NodeConfigData = {
+        CONF_ELEMENT_TYPE: "node",
+        CONF_NAME: "main",
+        CONF_IS_SOURCE: False,
+        CONF_IS_SINK: False,
+    }
+    grid: GridConfigData = {
+        CONF_ELEMENT_TYPE: "grid",
+        CONF_NAME: "grid",
+        GRID_CONF_CONNECTION: "main",
+        CONF_IMPORT_PRICE: [0.30, 0.30],
+        CONF_EXPORT_PRICE: [0.10, 0.10],
+    }
+    battery: BatteryConfigData = {
+        CONF_ELEMENT_TYPE: "battery",
+        CONF_NAME: "battery",
+        BATTERY_CONF_CONNECTION: "main",
+        CONF_CAPACITY: [10.0, 10.0, 10.0],
+        CONF_INITIAL_CHARGE_PERCENTAGE: [50.0, 50.0],
+        CONF_MAX_CHARGE_POWER: [5.0, 5.0],
+        CONF_MAX_DISCHARGE_POWER: [5.0, 5.0],
+        CONF_MIN_CHARGE_PERCENTAGE: [10.0, 10.0, 10.0],
+        CONF_MAX_CHARGE_PERCENTAGE: [90.0, 90.0, 90.0],
+        CONF_EFFICIENCY: [95.0, 95.0],
+    }
+    participants: dict[str, ElementConfigData] = {
+        "main_node": main_node,
+        "grid": grid,
+        "battery": battery,
     }
 
     result = validate_network_topology(participants)
@@ -148,29 +154,31 @@ def test_validate_network_topology_with_battery() -> None:
 
 def test_validate_network_topology_with_battery_all_sections() -> None:
     """Battery with undercharge/overcharge sections works in validation."""
-    participants: dict[str, dict[str, Any]] = {
-        "main_node": {
-            CONF_ELEMENT_TYPE: "node",
-            CONF_NAME: "main",
-            CONF_IS_SOURCE: False,
-            CONF_IS_SINK: False,
-        },
-        "battery": {
-            CONF_ELEMENT_TYPE: "battery",
-            CONF_NAME: "battery",
-            BATTERY_CONF_CONNECTION: "main",
-            CONF_CAPACITY: [10.0, 10.0, 10.0],
-            CONF_INITIAL_CHARGE_PERCENTAGE: [50.0, 50.0],
-            CONF_MAX_CHARGE_POWER: [5.0, 5.0],
-            CONF_MAX_DISCHARGE_POWER: [5.0, 5.0],
-            CONF_MIN_CHARGE_PERCENTAGE: [10.0, 10.0, 10.0],
-            CONF_MAX_CHARGE_PERCENTAGE: [90.0, 90.0, 90.0],
-            CONF_EFFICIENCY: [95.0, 95.0],
-            CONF_UNDERCHARGE_PERCENTAGE: [5.0, 5.0, 5.0],
-            CONF_OVERCHARGE_PERCENTAGE: [95.0, 95.0, 95.0],
-            CONF_UNDERCHARGE_COST: [0.05, 0.05],
-            CONF_OVERCHARGE_COST: [0.02, 0.02],
-        },
+    main_node: NodeConfigData = {
+        CONF_ELEMENT_TYPE: "node",
+        CONF_NAME: "main",
+        CONF_IS_SOURCE: False,
+        CONF_IS_SINK: False,
+    }
+    battery: BatteryConfigData = {
+        CONF_ELEMENT_TYPE: "battery",
+        CONF_NAME: "battery",
+        BATTERY_CONF_CONNECTION: "main",
+        CONF_CAPACITY: [10.0, 10.0, 10.0],
+        CONF_INITIAL_CHARGE_PERCENTAGE: [50.0, 50.0],
+        CONF_MAX_CHARGE_POWER: [5.0, 5.0],
+        CONF_MAX_DISCHARGE_POWER: [5.0, 5.0],
+        CONF_MIN_CHARGE_PERCENTAGE: [10.0, 10.0, 10.0],
+        CONF_MAX_CHARGE_PERCENTAGE: [90.0, 90.0, 90.0],
+        CONF_EFFICIENCY: [95.0, 95.0],
+        CONF_UNDERCHARGE_PERCENTAGE: [5.0, 5.0, 5.0],
+        CONF_OVERCHARGE_PERCENTAGE: [95.0, 95.0, 95.0],
+        CONF_UNDERCHARGE_COST: [0.05, 0.05],
+        CONF_OVERCHARGE_COST: [0.02, 0.02],
+    }
+    participants: dict[str, ElementConfigData] = {
+        "main_node": main_node,
+        "battery": battery,
     }
 
     result = validate_network_topology(participants)

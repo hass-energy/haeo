@@ -10,7 +10,6 @@ def _set_sensor(hass: HomeAssistant, entity_id: str, value: str, unit: str = "kW
     hass.states.async_set(entity_id, value, {"unit_of_measurement": unit})
 
 
-
 async def test_available_returns_true_when_sensors_exist(hass: HomeAssistant) -> None:
     """Grid available() should return True when required sensors exist."""
     _set_sensor(hass, "sensor.import_price", "0.30", "$/kWh")
@@ -100,8 +99,8 @@ def test_build_config_data_includes_optional_limits() -> None:
 
     result = grid.adapter.build_config_data(loaded_values, config)
 
-    assert result["import_limit"] == [10.0, 10.0]
-    assert result["export_limit"] == [5.0, 5.0]
+    assert result.get("import_limit") == [10.0, 10.0]
+    assert result.get("export_limit") == [5.0, 5.0]
 
 
 async def test_available_with_constant_prices(hass: HomeAssistant) -> None:

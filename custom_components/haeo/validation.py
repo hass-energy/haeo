@@ -53,6 +53,7 @@ def validate_network_topology(participants: Mapping[str, ElementConfigData]) -> 
 
     Returns:
         NetworkConnectivityResult indicating connectivity status.
+
     """
     if not participants:
         return NetworkConnectivityResult(is_connected=True, components=())
