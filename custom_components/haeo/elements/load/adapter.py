@@ -1,6 +1,6 @@
 """Load element adapter for model layer integration."""
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping
 from dataclasses import replace
 from typing import Any, Final, Literal
 
@@ -84,10 +84,10 @@ class LoadAdapter:
         """Build ConfigData from pre-loaded values.
 
         This is the single source of truth for ConfigData construction.
-        Both load() and the coordinator use this method.
+        The coordinator uses this method after loading input entity values.
 
         Args:
-            loaded_values: Dict of field names to loaded values (from input entities or TimeSeriesLoader)
+            loaded_values: Dict of field names to loaded values (from input entities)
             config: Original ConfigSchema for non-input fields (element_type, name, connection)
 
         Returns:
@@ -100,26 +100,6 @@ class LoadAdapter:
             "connection": config[CONF_CONNECTION],
             "forecast": list(loaded_values[CONF_FORECAST]),
         }
-
-    async def load(
-        self,
-        config: LoadConfigSchema,
-        *,
-        hass: HomeAssistant,
-        forecast_times: Sequence[float],
-    ) -> LoadConfigData:
-        """Load load configuration values from sensors.
-
-        Uses TimeSeriesLoader to load values, then delegates to build_config_data().
-        """
-        ts_loader = TimeSeriesLoader()
-        loaded_values: dict[str, list[float]] = {}
-
-        loaded_values[CONF_FORECAST] = await ts_loader.load_intervals(
-            hass=hass, value=config[CONF_FORECAST], forecast_times=forecast_times
-        )
-
-        return self.build_config_data(loaded_values, config)
 
     def model_elements(self, config: LoadConfigData) -> list[ModelElementConfig]:
         """Create model elements for Load configuration."""

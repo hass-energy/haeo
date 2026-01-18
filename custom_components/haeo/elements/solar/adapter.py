@@ -1,6 +1,6 @@
 """Solar element adapter for model layer integration."""
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping
 from dataclasses import replace
 from typing import Any, Final, Literal
 
@@ -10,7 +10,7 @@ from homeassistant.const import UnitOfPower
 from homeassistant.core import HomeAssistant
 
 from custom_components.haeo.const import ConnectivityLevel
-from custom_components.haeo.data.loader import ConstantLoader, TimeSeriesLoader
+from custom_components.haeo.data.loader import TimeSeriesLoader
 from custom_components.haeo.elements.input_fields import InputFieldDefaults, InputFieldInfo
 from custom_components.haeo.model import ModelElementConfig, ModelOutputName
 from custom_components.haeo.model.const import OutputType
@@ -120,10 +120,10 @@ class SolarAdapter:
         """Build ConfigData from pre-loaded values.
 
         This is the single source of truth for ConfigData construction.
-        Both load() and the coordinator use this method.
+        The coordinator uses this method after loading input entity values.
 
         Args:
-            loaded_values: Dict of field names to loaded values (from input entities or TimeSeriesLoader)
+            loaded_values: Dict of field names to loaded values (from input entities)
             config: Original ConfigSchema for non-input fields (element_type, name, connection)
 
         Returns:
@@ -144,35 +144,6 @@ class SolarAdapter:
             data["curtailment"] = bool(loaded_values[CONF_CURTAILMENT])
 
         return data
-
-    async def load(
-        self,
-        config: SolarConfigSchema,
-        *,
-        hass: HomeAssistant,
-        forecast_times: Sequence[float],
-    ) -> SolarConfigData:
-        """Load solar configuration values from sensors.
-
-        Uses TimeSeriesLoader to load values, then delegates to build_config_data().
-        """
-        ts_loader = TimeSeriesLoader()
-        const_loader_float = ConstantLoader[float](float)
-        const_loader_bool = ConstantLoader[bool](bool)
-        loaded_values: dict[str, list[float] | float | bool] = {}
-
-        # Load required time series field
-        loaded_values[CONF_FORECAST] = await ts_loader.load_intervals(
-            hass=hass, value=config[CONF_FORECAST], forecast_times=forecast_times
-        )
-
-        # Load optional scalar fields
-        if CONF_PRICE_PRODUCTION in config:
-            loaded_values[CONF_PRICE_PRODUCTION] = await const_loader_float.load(value=config[CONF_PRICE_PRODUCTION])
-        if CONF_CURTAILMENT in config:
-            loaded_values[CONF_CURTAILMENT] = await const_loader_bool.load(value=config[CONF_CURTAILMENT])
-
-        return self.build_config_data(loaded_values, config)
 
     def model_elements(self, config: SolarConfigData) -> list[ModelElementConfig]:
         """Return model element parameters for Solar configuration."""

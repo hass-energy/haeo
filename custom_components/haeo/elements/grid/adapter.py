@@ -162,10 +162,10 @@ class GridAdapter:
         """Build ConfigData from pre-loaded values.
 
         This is the single source of truth for ConfigData construction.
-        Both load() and the coordinator use this method.
+        The coordinator uses this method after loading input entity values.
 
         Args:
-            loaded_values: Dict of field names to loaded values (from input entities or TimeSeriesLoader)
+            loaded_values: Dict of field names to loaded values (from input entities)
             config: Original ConfigSchema for non-input fields (element_type, name, connection)
 
         Returns:
@@ -189,76 +189,6 @@ class GridAdapter:
             data["export_limit"] = list(loaded_values["export_limit"])
 
         return data
-
-    async def load(
-        self,
-        config: GridConfigSchema,
-        *,
-        hass: HomeAssistant,
-        forecast_times: Sequence[float],
-    ) -> GridConfigData:
-        """Load grid configuration values from sensors.
-
-        Uses TimeSeriesLoader to load values, then delegates to build_config_data().
-        """
-        ts_loader = TimeSeriesLoader()
-        n_periods = max(0, len(forecast_times) - 1)
-        loaded_values: dict[str, list[float]] = {}
-
-        # Load import_price: entity ID, entity list, or constant (required field)
-        import_value = config["import_price"]
-        if isinstance(import_value, list):
-            loaded_values["import_price"] = await ts_loader.load_intervals(
-                hass=hass, value=import_value, forecast_times=forecast_times
-            )
-        elif isinstance(import_value, str):
-            loaded_values["import_price"] = await ts_loader.load_intervals(
-                hass=hass, value=[import_value], forecast_times=forecast_times
-            )
-        else:
-            loaded_values["import_price"] = [float(import_value)] * n_periods
-
-        # Load export_price: entity ID, entity list, or constant (required field)
-        export_value = config["export_price"]
-        if isinstance(export_value, list):
-            loaded_values["export_price"] = await ts_loader.load_intervals(
-                hass=hass, value=export_value, forecast_times=forecast_times
-            )
-        elif isinstance(export_value, str):
-            loaded_values["export_price"] = await ts_loader.load_intervals(
-                hass=hass, value=[export_value], forecast_times=forecast_times
-            )
-        else:
-            loaded_values["export_price"] = [float(export_value)] * n_periods
-
-        # Load optional limit fields
-        import_limit = config.get("import_limit")
-        if import_limit is not None:
-            if isinstance(import_limit, list) and import_limit:
-                loaded_values["import_limit"] = await ts_loader.load_intervals(
-                    hass=hass, value=import_limit, forecast_times=forecast_times
-                )
-            elif isinstance(import_limit, str):
-                loaded_values["import_limit"] = await ts_loader.load_intervals(
-                    hass=hass, value=[import_limit], forecast_times=forecast_times
-                )
-            else:
-                loaded_values["import_limit"] = [float(import_limit)] * n_periods
-
-        export_limit = config.get("export_limit")
-        if export_limit is not None:
-            if isinstance(export_limit, list) and export_limit:
-                loaded_values["export_limit"] = await ts_loader.load_intervals(
-                    hass=hass, value=export_limit, forecast_times=forecast_times
-                )
-            elif isinstance(export_limit, str):
-                loaded_values["export_limit"] = await ts_loader.load_intervals(
-                    hass=hass, value=[export_limit], forecast_times=forecast_times
-                )
-            else:
-                loaded_values["export_limit"] = [float(export_limit)] * n_periods
-
-        return self.build_config_data(loaded_values, config)
 
     def model_elements(self, config: GridConfigData) -> list[ModelElementConfig]:
         """Create model elements for Grid configuration."""

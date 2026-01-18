@@ -6,7 +6,6 @@ from typing import Any, Final, Literal
 from homeassistant.components.switch import SwitchEntityDescription
 
 from custom_components.haeo.const import ConnectivityLevel
-from custom_components.haeo.data.loader import ConstantLoader
 from custom_components.haeo.elements.input_fields import InputFieldDefaults, InputFieldInfo
 from custom_components.haeo.model import ModelElementConfig, ModelOutputName
 from custom_components.haeo.model.const import OutputType
@@ -77,10 +76,10 @@ class NodeAdapter:
         """Build ConfigData from pre-loaded values.
 
         This is the single source of truth for ConfigData construction.
-        Both load() and the coordinator use this method.
+        The coordinator uses this method after loading input entity values.
 
         Args:
-            loaded_values: Dict of field names to loaded values (from input entities or ConstantLoader)
+            loaded_values: Dict of field names to loaded values (from input entities)
             config: Original ConfigSchema for non-input fields (element_type, name)
 
         Returns:
@@ -93,22 +92,6 @@ class NodeAdapter:
             "is_source": bool(loaded_values.get(CONF_IS_SOURCE, DEFAULT_IS_SOURCE)),
             "is_sink": bool(loaded_values.get(CONF_IS_SINK, DEFAULT_IS_SINK)),
         }
-
-    async def load(self, config: NodeConfigSchema, **_kwargs: Any) -> NodeConfigData:
-        """Load node configuration values.
-
-        Uses ConstantLoader for boolean fields, then delegates to build_config_data().
-        """
-        const_loader_bool = ConstantLoader[bool](bool)
-        loaded_values: dict[str, bool] = {}
-
-        # Load boolean fields with defaults
-        if CONF_IS_SOURCE in config:
-            loaded_values[CONF_IS_SOURCE] = await const_loader_bool.load(value=config[CONF_IS_SOURCE])
-        if CONF_IS_SINK in config:
-            loaded_values[CONF_IS_SINK] = await const_loader_bool.load(value=config[CONF_IS_SINK])
-
-        return self.build_config_data(loaded_values, config)
 
     def model_elements(self, config: NodeConfigData) -> list[ModelElementConfig]:
         """Return model element parameters for Node configuration."""

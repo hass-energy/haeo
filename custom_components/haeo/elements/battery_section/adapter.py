@@ -1,6 +1,6 @@
 """Battery section element adapter for model layer integration."""
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping
 from dataclasses import replace
 from typing import Any, Final, Literal
 
@@ -115,10 +115,10 @@ class BatterySectionAdapter:
         """Build ConfigData from pre-loaded values.
 
         This is the single source of truth for ConfigData construction.
-        Both load() and the coordinator use this method.
+        The coordinator uses this method after loading input entity values.
 
         Args:
-            loaded_values: Dict of field names to loaded values (from input entities or TimeSeriesLoader)
+            loaded_values: Dict of field names to loaded values (from input entities)
             config: Original ConfigSchema for non-input fields (element_type, name)
 
         Returns:
@@ -131,29 +131,6 @@ class BatterySectionAdapter:
             "capacity": list(loaded_values[CONF_CAPACITY]),
             "initial_charge": list(loaded_values[CONF_INITIAL_CHARGE]),
         }
-
-    async def load(
-        self,
-        config: BatterySectionConfigSchema,
-        *,
-        hass: HomeAssistant,
-        forecast_times: Sequence[float],
-    ) -> BatterySectionConfigData:
-        """Load battery section configuration values from sensors.
-
-        Uses TimeSeriesLoader to load values, then delegates to build_config_data().
-        """
-        ts_loader = TimeSeriesLoader()
-        loaded_values: dict[str, list[float]] = {}
-
-        loaded_values[CONF_CAPACITY] = await ts_loader.load_boundaries(
-            hass=hass, value=config[CONF_CAPACITY], forecast_times=forecast_times
-        )
-        loaded_values[CONF_INITIAL_CHARGE] = await ts_loader.load_intervals(
-            hass=hass, value=config[CONF_INITIAL_CHARGE], forecast_times=forecast_times
-        )
-
-        return self.build_config_data(loaded_values, config)
 
     def model_elements(self, config: BatterySectionConfigData) -> list[ModelElementConfig]:
         """Create model elements for BatterySection configuration.

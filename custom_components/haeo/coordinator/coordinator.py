@@ -547,6 +547,13 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             # All input entities are guaranteed to be fully loaded by the time we get here
             loaded_configs = self._load_from_input_entities()
 
+            # Validate network connectivity from loaded configs and manage repair issues
+            await network_module.evaluate_network_connectivity(
+                self.hass,
+                self.config_entry,
+                participants=loaded_configs,
+            )
+
             _LOGGER.debug("Running optimization with %d participants", len(loaded_configs))
 
             # Network should have been created in async_initialize()

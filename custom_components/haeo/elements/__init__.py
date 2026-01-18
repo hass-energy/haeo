@@ -6,7 +6,8 @@ model outputs to user-friendly device outputs.
 
 Adapter Pattern:
     Configuration Element (with entity IDs) →
-    Adapter.load() →
+    Input entity values →
+    Adapter.build_config_data() →
     Configuration Data (with loaded values) →
     Adapter.model_elements() →
     Model Elements (pure optimization) →
@@ -26,7 +27,7 @@ Sub-element Naming Convention:
         - "home_battery:connection" (implicit connection to network)
 """
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping
 import logging
 import types
 from typing import (
@@ -185,16 +186,6 @@ class ElementAdapter(Protocol):
         """Return input field definitions for this element."""
         ...
 
-    async def load(
-        self,
-        config: Any,
-        *,
-        hass: HomeAssistant,
-        forecast_times: Sequence[float],
-    ) -> Any:
-        """Load configuration values from sensors."""
-        ...
-
     def build_config_data(
         self,
         loaded_values: Mapping[str, Any],
@@ -203,10 +194,10 @@ class ElementAdapter(Protocol):
         """Build ConfigData from pre-loaded values.
 
         This is the single source of truth for ConfigData construction.
-        Both load() and the coordinator use this method.
+        The coordinator uses this method after loading input entity values.
 
         Args:
-            loaded_values: Dict of field names to loaded values (from input entities or TimeSeriesLoader)
+            loaded_values: Dict of field names to loaded values (from input entities)
             config: Original ConfigSchema for non-input fields (e.g., connection)
 
         Returns:

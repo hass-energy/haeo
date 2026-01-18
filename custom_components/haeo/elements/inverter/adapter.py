@@ -1,6 +1,6 @@
 """Inverter element adapter for model layer integration."""
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping
 from dataclasses import replace
 from typing import Any, Final, Literal
 
@@ -9,7 +9,7 @@ from homeassistant.const import PERCENTAGE, UnitOfPower
 from homeassistant.core import HomeAssistant
 
 from custom_components.haeo.const import ConnectivityLevel
-from custom_components.haeo.data.loader import ConstantLoader, TimeSeriesLoader
+from custom_components.haeo.data.loader import TimeSeriesLoader
 from custom_components.haeo.elements.input_fields import InputFieldDefaults, InputFieldInfo
 from custom_components.haeo.model import ModelElementConfig, ModelOutputName
 from custom_components.haeo.model.const import OutputType
@@ -147,10 +147,10 @@ class InverterAdapter:
         """Build ConfigData from pre-loaded values.
 
         This is the single source of truth for ConfigData construction.
-        Both load() and the coordinator use this method.
+        The coordinator uses this method after loading input entity values.
 
         Args:
-            loaded_values: Dict of field names to loaded values (from input entities or TimeSeriesLoader)
+            loaded_values: Dict of field names to loaded values (from input entities)
             config: Original ConfigSchema for non-input fields (element_type, name, connection)
 
         Returns:
@@ -172,37 +172,6 @@ class InverterAdapter:
             data["efficiency_ac_to_dc"] = float(loaded_values[CONF_EFFICIENCY_AC_TO_DC])
 
         return data
-
-    async def load(
-        self,
-        config: InverterConfigSchema,
-        *,
-        hass: HomeAssistant,
-        forecast_times: Sequence[float],
-    ) -> InverterConfigData:
-        """Load inverter configuration values from sensors.
-
-        Uses TimeSeriesLoader to load values, then delegates to build_config_data().
-        """
-        ts_loader = TimeSeriesLoader()
-        const_loader = ConstantLoader[float](float)
-        loaded_values: dict[str, list[float] | float] = {}
-
-        # Load required time series fields
-        loaded_values[CONF_MAX_POWER_DC_TO_AC] = await ts_loader.load_intervals(
-            hass=hass, value=config[CONF_MAX_POWER_DC_TO_AC], forecast_times=forecast_times
-        )
-        loaded_values[CONF_MAX_POWER_AC_TO_DC] = await ts_loader.load_intervals(
-            hass=hass, value=config[CONF_MAX_POWER_AC_TO_DC], forecast_times=forecast_times
-        )
-
-        # Load optional scalar fields
-        if CONF_EFFICIENCY_DC_TO_AC in config:
-            loaded_values[CONF_EFFICIENCY_DC_TO_AC] = await const_loader.load(value=config[CONF_EFFICIENCY_DC_TO_AC])
-        if CONF_EFFICIENCY_AC_TO_DC in config:
-            loaded_values[CONF_EFFICIENCY_AC_TO_DC] = await const_loader.load(value=config[CONF_EFFICIENCY_AC_TO_DC])
-
-        return self.build_config_data(loaded_values, config)
 
     def model_elements(self, config: InverterConfigData) -> list[ModelElementConfig]:
         """Return model element parameters for Inverter configuration.
