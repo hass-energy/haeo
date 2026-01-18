@@ -1,5 +1,7 @@
 """Tests for network connectivity validation."""
 
+import numpy as np
+
 from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.elements import ElementConfigData
 from custom_components.haeo.elements.battery import (
@@ -58,8 +60,8 @@ def test_validate_network_topology_with_implicit_connection() -> None:
         CONF_ELEMENT_TYPE: "grid",
         CONF_NAME: "grid",
         GRID_CONF_CONNECTION: "main",
-        CONF_IMPORT_PRICE: [0.30, 0.30],
-        CONF_EXPORT_PRICE: [0.10, 0.10],
+        CONF_IMPORT_PRICE: np.array([0.30, 0.30]),
+        CONF_EXPORT_PRICE: np.array([0.10, 0.10]),
     }
     participants: dict[str, ElementConfigData] = {"main_node": main_node, "grid": grid}
 
@@ -87,15 +89,15 @@ def test_validate_network_topology_detects_disconnected() -> None:
         CONF_ELEMENT_TYPE: "grid",
         CONF_NAME: "grid_a",
         GRID_CONF_CONNECTION: "a",
-        CONF_IMPORT_PRICE: [0.30, 0.30],
-        CONF_EXPORT_PRICE: [0.10, 0.10],
+        CONF_IMPORT_PRICE: np.array([0.30, 0.30]),
+        CONF_EXPORT_PRICE: np.array([0.10, 0.10]),
     }
     grid_b: GridConfigData = {
         CONF_ELEMENT_TYPE: "grid",
         CONF_NAME: "grid_b",
         GRID_CONF_CONNECTION: "b",
-        CONF_IMPORT_PRICE: [0.30, 0.30],
-        CONF_EXPORT_PRICE: [0.10, 0.10],
+        CONF_IMPORT_PRICE: np.array([0.30, 0.30]),
+        CONF_EXPORT_PRICE: np.array([0.10, 0.10]),
     }
     participants: dict[str, ElementConfigData] = {
         "node_a": node_a,
@@ -123,20 +125,20 @@ def test_validate_network_topology_with_battery() -> None:
         CONF_ELEMENT_TYPE: "grid",
         CONF_NAME: "grid",
         GRID_CONF_CONNECTION: "main",
-        CONF_IMPORT_PRICE: [0.30, 0.30],
-        CONF_EXPORT_PRICE: [0.10, 0.10],
+        CONF_IMPORT_PRICE: np.array([0.30, 0.30]),
+        CONF_EXPORT_PRICE: np.array([0.10, 0.10]),
     }
     battery: BatteryConfigData = {
         CONF_ELEMENT_TYPE: "battery",
         CONF_NAME: "battery",
         BATTERY_CONF_CONNECTION: "main",
-        CONF_CAPACITY: [10.0, 10.0, 10.0],
-        CONF_INITIAL_CHARGE_PERCENTAGE: [50.0, 50.0],
-        CONF_MAX_CHARGE_POWER: [5.0, 5.0],
-        CONF_MAX_DISCHARGE_POWER: [5.0, 5.0],
-        CONF_MIN_CHARGE_PERCENTAGE: [10.0, 10.0, 10.0],
-        CONF_MAX_CHARGE_PERCENTAGE: [90.0, 90.0, 90.0],
-        CONF_EFFICIENCY: [95.0, 95.0],
+        CONF_CAPACITY: np.array([10.0, 10.0, 10.0]),
+        CONF_INITIAL_CHARGE_PERCENTAGE: np.array([50.0, 50.0]),
+        CONF_MAX_CHARGE_POWER: np.array([5.0, 5.0]),
+        CONF_MAX_DISCHARGE_POWER: np.array([5.0, 5.0]),
+        CONF_MIN_CHARGE_PERCENTAGE: np.array([10.0, 10.0, 10.0]),
+        CONF_MAX_CHARGE_PERCENTAGE: np.array([90.0, 90.0, 90.0]),
+        CONF_EFFICIENCY: np.array([95.0, 95.0]),
     }
     participants: dict[str, ElementConfigData] = {
         "main_node": main_node,
@@ -164,17 +166,17 @@ def test_validate_network_topology_with_battery_all_sections() -> None:
         CONF_ELEMENT_TYPE: "battery",
         CONF_NAME: "battery",
         BATTERY_CONF_CONNECTION: "main",
-        CONF_CAPACITY: [10.0, 10.0, 10.0],
-        CONF_INITIAL_CHARGE_PERCENTAGE: [50.0, 50.0],
-        CONF_MAX_CHARGE_POWER: [5.0, 5.0],
-        CONF_MAX_DISCHARGE_POWER: [5.0, 5.0],
-        CONF_MIN_CHARGE_PERCENTAGE: [10.0, 10.0, 10.0],
-        CONF_MAX_CHARGE_PERCENTAGE: [90.0, 90.0, 90.0],
-        CONF_EFFICIENCY: [95.0, 95.0],
-        CONF_UNDERCHARGE_PERCENTAGE: [5.0, 5.0, 5.0],
-        CONF_OVERCHARGE_PERCENTAGE: [95.0, 95.0, 95.0],
-        CONF_UNDERCHARGE_COST: [0.05, 0.05],
-        CONF_OVERCHARGE_COST: [0.02, 0.02],
+        CONF_CAPACITY: np.array([10.0, 10.0, 10.0]),
+        CONF_INITIAL_CHARGE_PERCENTAGE: np.array([50.0, 50.0]),
+        CONF_MAX_CHARGE_POWER: np.array([5.0, 5.0]),
+        CONF_MAX_DISCHARGE_POWER: np.array([5.0, 5.0]),
+        CONF_MIN_CHARGE_PERCENTAGE: np.array([10.0, 10.0, 10.0]),
+        CONF_MAX_CHARGE_PERCENTAGE: np.array([90.0, 90.0, 90.0]),
+        CONF_EFFICIENCY: np.array([95.0, 95.0]),
+        CONF_UNDERCHARGE_PERCENTAGE: np.array([5.0, 5.0, 5.0]),
+        CONF_OVERCHARGE_PERCENTAGE: np.array([95.0, 95.0, 95.0]),
+        CONF_UNDERCHARGE_COST: np.array([0.05, 0.05]),
+        CONF_OVERCHARGE_COST: np.array([0.02, 0.02]),
     }
     participants: dict[str, ElementConfigData] = {
         "main_node": main_node,

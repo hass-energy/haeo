@@ -1,33 +1,41 @@
 """Battery element adapter for model layer integration."""
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping
 from dataclasses import replace
 from typing import Any, Final, Literal
 
+from homeassistant.components.number import NumberDeviceClass, NumberEntityDescription
+from homeassistant.const import PERCENTAGE, UnitOfEnergy, UnitOfPower
 from homeassistant.core import HomeAssistant
 import numpy as np
 
 from custom_components.haeo.const import ConnectivityLevel
 from custom_components.haeo.data.loader import TimeSeriesLoader
-from custom_components.haeo.model import ModelElementConfig, ModelOutputName, ModelOutputValue
+from custom_components.haeo.elements.input_fields import InputFieldDefaults, InputFieldInfo
+from custom_components.haeo.model import ModelElementConfig, ModelOutputName
 from custom_components.haeo.model import battery as model_battery
 from custom_components.haeo.model import battery_balance_connection as model_balance
 from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.elements import (
+    BatteryBalanceConnectionElementConfig,
+    BatteryElementConfig,
+    ConnectionElementConfig,
     MODEL_ELEMENT_TYPE_BATTERY,
     MODEL_ELEMENT_TYPE_BATTERY_BALANCE_CONNECTION,
     MODEL_ELEMENT_TYPE_CONNECTION,
     MODEL_ELEMENT_TYPE_NODE,
+    NodeElementConfig,
 )
 from custom_components.haeo.model.elements.node import NODE_POWER_BALANCE
 from custom_components.haeo.model.output_data import OutputData
 
-from .flow import BatterySubentryFlowHandler
 from .schema import (
+    CONF_CAPACITY,
     CONF_CONNECTION,
     CONF_DISCHARGE_COST,
     CONF_EARLY_CHARGE_INCENTIVE,
     CONF_EFFICIENCY,
+    CONF_INITIAL_CHARGE_PERCENTAGE,
     CONF_MAX_CHARGE_PERCENTAGE,
     CONF_MAX_CHARGE_POWER,
     CONF_MAX_DISCHARGE_POWER,
@@ -102,7 +110,6 @@ class BatteryAdapter:
     """Adapter for Battery elements."""
 
     element_type: str = ELEMENT_TYPE
-    flow_class: type = BatterySubentryFlowHandler
     advanced: bool = False
     connectivity: ConnectivityLevel = ConnectivityLevel.ADVANCED
 
@@ -140,6 +147,211 @@ class BatteryAdapter:
             CONF_OVERCHARGE_PERCENTAGE,
         ]
         return all(entity_available(config.get(field)) for field in optional_fields)
+
+    def inputs(self, config: Any) -> dict[str, InputFieldInfo[Any]]:
+        """Return input field definitions for battery elements."""
+        _ = config
+        return {
+            CONF_CAPACITY: InputFieldInfo(
+                field_name=CONF_CAPACITY,
+                entity_description=NumberEntityDescription(
+                    key=CONF_CAPACITY,
+                    translation_key=f"{ELEMENT_TYPE}_{CONF_CAPACITY}",
+                    native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
+                    device_class=NumberDeviceClass.ENERGY_STORAGE,
+                    native_min_value=0.1,
+                    native_max_value=1000.0,
+                    native_step=0.1,
+                ),
+                output_type=OutputType.ENERGY,
+                time_series=True,
+                boundaries=True,
+            ),
+            CONF_INITIAL_CHARGE_PERCENTAGE: InputFieldInfo(
+                field_name=CONF_INITIAL_CHARGE_PERCENTAGE,
+                entity_description=NumberEntityDescription(
+                    key=CONF_INITIAL_CHARGE_PERCENTAGE,
+                    translation_key=f"{ELEMENT_TYPE}_{CONF_INITIAL_CHARGE_PERCENTAGE}",
+                    native_unit_of_measurement=PERCENTAGE,
+                    device_class=NumberDeviceClass.BATTERY,
+                    native_min_value=0.0,
+                    native_max_value=100.0,
+                    native_step=0.1,
+                ),
+                output_type=OutputType.STATE_OF_CHARGE,
+                time_series=True,
+            ),
+            CONF_MAX_CHARGE_POWER: InputFieldInfo(
+                field_name=CONF_MAX_CHARGE_POWER,
+                entity_description=NumberEntityDescription(
+                    key=CONF_MAX_CHARGE_POWER,
+                    translation_key=f"{ELEMENT_TYPE}_{CONF_MAX_CHARGE_POWER}",
+                    native_unit_of_measurement=UnitOfPower.KILO_WATT,
+                    device_class=NumberDeviceClass.POWER,
+                    native_min_value=0.0,
+                    native_max_value=1000.0,
+                    native_step=0.1,
+                ),
+                output_type=OutputType.POWER,
+                direction="+",
+                time_series=True,
+                defaults=InputFieldDefaults(mode="entity"),
+            ),
+            CONF_MAX_DISCHARGE_POWER: InputFieldInfo(
+                field_name=CONF_MAX_DISCHARGE_POWER,
+                entity_description=NumberEntityDescription(
+                    key=CONF_MAX_DISCHARGE_POWER,
+                    translation_key=f"{ELEMENT_TYPE}_{CONF_MAX_DISCHARGE_POWER}",
+                    native_unit_of_measurement=UnitOfPower.KILO_WATT,
+                    device_class=NumberDeviceClass.POWER,
+                    native_min_value=0.0,
+                    native_max_value=1000.0,
+                    native_step=0.1,
+                ),
+                output_type=OutputType.POWER,
+                direction="-",
+                time_series=True,
+                defaults=InputFieldDefaults(mode="entity"),
+            ),
+            CONF_EFFICIENCY: InputFieldInfo(
+                field_name=CONF_EFFICIENCY,
+                entity_description=NumberEntityDescription(
+                    key=CONF_EFFICIENCY,
+                    translation_key=f"{ELEMENT_TYPE}_{CONF_EFFICIENCY}",
+                    native_unit_of_measurement=PERCENTAGE,
+                    device_class=NumberDeviceClass.POWER_FACTOR,
+                    native_min_value=50.0,
+                    native_max_value=100.0,
+                    native_step=0.1,
+                ),
+                output_type=OutputType.EFFICIENCY,
+                time_series=True,
+                defaults=InputFieldDefaults(mode="value", value=95.0),
+            ),
+            CONF_EARLY_CHARGE_INCENTIVE: InputFieldInfo(
+                field_name=CONF_EARLY_CHARGE_INCENTIVE,
+                entity_description=NumberEntityDescription(
+                    key=CONF_EARLY_CHARGE_INCENTIVE,
+                    translation_key=f"{ELEMENT_TYPE}_{CONF_EARLY_CHARGE_INCENTIVE}",
+                    native_min_value=0.0,
+                    native_max_value=1.0,
+                    native_step=0.001,
+                ),
+                output_type=OutputType.PRICE,
+                direction="-",
+                time_series=True,
+                defaults=InputFieldDefaults(mode="value", value=0.001),
+            ),
+            CONF_MIN_CHARGE_PERCENTAGE: InputFieldInfo(
+                field_name=CONF_MIN_CHARGE_PERCENTAGE,
+                entity_description=NumberEntityDescription(
+                    key=CONF_MIN_CHARGE_PERCENTAGE,
+                    translation_key=f"{ELEMENT_TYPE}_{CONF_MIN_CHARGE_PERCENTAGE}",
+                    native_unit_of_measurement=PERCENTAGE,
+                    device_class=NumberDeviceClass.BATTERY,
+                    native_min_value=0.0,
+                    native_max_value=100.0,
+                    native_step=1.0,
+                ),
+                output_type=OutputType.STATE_OF_CHARGE,
+                time_series=True,
+                boundaries=True,
+                defaults=InputFieldDefaults(mode=None, value=0.0),
+            ),
+            CONF_MAX_CHARGE_PERCENTAGE: InputFieldInfo(
+                field_name=CONF_MAX_CHARGE_PERCENTAGE,
+                entity_description=NumberEntityDescription(
+                    key=CONF_MAX_CHARGE_PERCENTAGE,
+                    translation_key=f"{ELEMENT_TYPE}_{CONF_MAX_CHARGE_PERCENTAGE}",
+                    native_unit_of_measurement=PERCENTAGE,
+                    device_class=NumberDeviceClass.BATTERY,
+                    native_min_value=0.0,
+                    native_max_value=100.0,
+                    native_step=1.0,
+                ),
+                output_type=OutputType.STATE_OF_CHARGE,
+                time_series=True,
+                boundaries=True,
+                defaults=InputFieldDefaults(mode=None, value=100.0),
+            ),
+            CONF_DISCHARGE_COST: InputFieldInfo(
+                field_name=CONF_DISCHARGE_COST,
+                entity_description=NumberEntityDescription(
+                    key=CONF_DISCHARGE_COST,
+                    translation_key=f"{ELEMENT_TYPE}_{CONF_DISCHARGE_COST}",
+                    native_min_value=0.0,
+                    native_max_value=1.0,
+                    native_step=0.001,
+                ),
+                output_type=OutputType.PRICE,
+                direction="-",
+                time_series=True,
+            ),
+            CONF_UNDERCHARGE_PERCENTAGE: InputFieldInfo(
+                field_name=CONF_UNDERCHARGE_PERCENTAGE,
+                entity_description=NumberEntityDescription(
+                    key=CONF_UNDERCHARGE_PERCENTAGE,
+                    translation_key=f"{ELEMENT_TYPE}_{CONF_UNDERCHARGE_PERCENTAGE}",
+                    native_unit_of_measurement=PERCENTAGE,
+                    device_class=NumberDeviceClass.BATTERY,
+                    native_min_value=0.0,
+                    native_max_value=100.0,
+                    native_step=1.0,
+                ),
+                output_type=OutputType.STATE_OF_CHARGE,
+                time_series=True,
+                boundaries=True,
+                defaults=InputFieldDefaults(mode="value", value=0),
+                device_type=BATTERY_DEVICE_UNDERCHARGE,
+            ),
+            CONF_UNDERCHARGE_COST: InputFieldInfo(
+                field_name=CONF_UNDERCHARGE_COST,
+                entity_description=NumberEntityDescription(
+                    key=CONF_UNDERCHARGE_COST,
+                    translation_key=f"{ELEMENT_TYPE}_{CONF_UNDERCHARGE_COST}",
+                    native_min_value=0.0,
+                    native_max_value=10.0,
+                    native_step=0.001,
+                ),
+                output_type=OutputType.PRICE,
+                direction="-",
+                time_series=True,
+                defaults=InputFieldDefaults(mode="value", value=0),
+                device_type=BATTERY_DEVICE_UNDERCHARGE,
+            ),
+            CONF_OVERCHARGE_PERCENTAGE: InputFieldInfo(
+                field_name=CONF_OVERCHARGE_PERCENTAGE,
+                entity_description=NumberEntityDescription(
+                    key=CONF_OVERCHARGE_PERCENTAGE,
+                    translation_key=f"{ELEMENT_TYPE}_{CONF_OVERCHARGE_PERCENTAGE}",
+                    native_unit_of_measurement=PERCENTAGE,
+                    device_class=NumberDeviceClass.BATTERY,
+                    native_min_value=0.0,
+                    native_max_value=100.0,
+                    native_step=1.0,
+                ),
+                output_type=OutputType.STATE_OF_CHARGE,
+                time_series=True,
+                boundaries=True,
+                defaults=InputFieldDefaults(mode="value", value=100),
+                device_type=BATTERY_DEVICE_OVERCHARGE,
+            ),
+            CONF_OVERCHARGE_COST: InputFieldInfo(
+                field_name=CONF_OVERCHARGE_COST,
+                entity_description=NumberEntityDescription(
+                    key=CONF_OVERCHARGE_COST,
+                    translation_key=f"{ELEMENT_TYPE}_{CONF_OVERCHARGE_COST}",
+                    native_min_value=0.0,
+                    native_max_value=10.0,
+                    native_step=0.001,
+                ),
+                output_type=OutputType.PRICE,
+                direction="-",
+                time_series=True,
+                defaults=InputFieldDefaults(mode="value", value=0),
+                device_type=BATTERY_DEVICE_OVERCHARGE,
+            ),
+        }
 
     def build_config_data(
         self,
@@ -193,9 +405,7 @@ class BatteryAdapter:
             "name": config["name"],
             "connection": config[CONF_CONNECTION],
             "capacity": capacity,
-            "initial_charge_percentage": np.asarray(
-                loaded_values["initial_charge_percentage"], dtype=float
-            ),
+            "initial_charge_percentage": np.asarray(loaded_values["initial_charge_percentage"], dtype=float),
             "min_charge_percentage": min_charge,
             "max_charge_percentage": max_charge,
             "efficiency": efficiency,
@@ -212,19 +422,13 @@ class BatteryAdapter:
             data["discharge_cost"] = np.asarray(loaded_values[CONF_DISCHARGE_COST], dtype=float)
 
         if CONF_EARLY_CHARGE_INCENTIVE in loaded_values:
-            data["early_charge_incentive"] = np.asarray(
-                loaded_values[CONF_EARLY_CHARGE_INCENTIVE], dtype=float
-            )
+            data["early_charge_incentive"] = np.asarray(loaded_values[CONF_EARLY_CHARGE_INCENTIVE], dtype=float)
 
         if CONF_UNDERCHARGE_PERCENTAGE in loaded_values:
-            data["undercharge_percentage"] = np.asarray(
-                loaded_values[CONF_UNDERCHARGE_PERCENTAGE], dtype=float
-            )
+            data["undercharge_percentage"] = np.asarray(loaded_values[CONF_UNDERCHARGE_PERCENTAGE], dtype=float)
 
         if CONF_OVERCHARGE_PERCENTAGE in loaded_values:
-            data["overcharge_percentage"] = np.asarray(
-                loaded_values[CONF_OVERCHARGE_PERCENTAGE], dtype=float
-            )
+            data["overcharge_percentage"] = np.asarray(loaded_values[CONF_OVERCHARGE_PERCENTAGE], dtype=float)
 
         if CONF_UNDERCHARGE_COST in loaded_values:
             data["undercharge_cost"] = np.asarray(loaded_values[CONF_UNDERCHARGE_COST], dtype=float)
@@ -269,9 +473,7 @@ class BatteryAdapter:
         # Calculate early charge/discharge incentives (use first period if present)
         early_charge_list = config.get("early_charge_incentive")
         early_charge_incentive = (
-            float(early_charge_list[0])
-            if early_charge_list is not None
-            else DEFAULTS[CONF_EARLY_CHARGE_INCENTIVE]
+            float(early_charge_list[0]) if early_charge_list is not None else DEFAULTS[CONF_EARLY_CHARGE_INCENTIVE]
         )
 
         # Determine unusable ratio for initial charge calculation
@@ -295,14 +497,13 @@ class BatteryAdapter:
             undercharge_capacity_first = float(undercharge_capacity[0])
             section_initial_charge = min(initial_charge, undercharge_capacity_first)
 
-            elements.append(
-                {
-                    "element_type": MODEL_ELEMENT_TYPE_BATTERY,
-                    "name": section_name,
-                    "capacity": undercharge_capacity,
-                    "initial_charge": section_initial_charge,
-                }
-            )
+            section_config: BatteryElementConfig = {
+                "element_type": MODEL_ELEMENT_TYPE_BATTERY,
+                "name": section_name,
+                "capacity": undercharge_capacity,
+                "initial_charge": section_initial_charge,
+            }
+            elements.append(section_config)
 
             initial_charge = max(initial_charge - section_initial_charge, 0.0)
 
@@ -315,14 +516,13 @@ class BatteryAdapter:
         normal_capacity_first = float(normal_capacity[0])
         section_initial_charge = min(initial_charge, normal_capacity_first)
 
-        elements.append(
-            {
-                "element_type": MODEL_ELEMENT_TYPE_BATTERY,
-                "name": section_name,
-                "capacity": normal_capacity,
-                "initial_charge": section_initial_charge,
-            }
-        )
+        section_config: BatteryElementConfig = {
+            "element_type": MODEL_ELEMENT_TYPE_BATTERY,
+            "name": section_name,
+            "capacity": normal_capacity,
+            "initial_charge": section_initial_charge,
+        }
+        elements.append(section_config)
 
         initial_charge = max(initial_charge - section_initial_charge, 0.0)
 
@@ -336,25 +536,23 @@ class BatteryAdapter:
             overcharge_capacity_first = float(overcharge_capacity[0])
             section_initial_charge = min(initial_charge, overcharge_capacity_first)
 
-            elements.append(
-                {
-                    "element_type": MODEL_ELEMENT_TYPE_BATTERY,
-                    "name": section_name,
-                    "capacity": overcharge_capacity,
-                    "initial_charge": section_initial_charge,
-                }
-            )
+            section_config: BatteryElementConfig = {
+                "element_type": MODEL_ELEMENT_TYPE_BATTERY,
+                "name": section_name,
+                "capacity": overcharge_capacity,
+                "initial_charge": section_initial_charge,
+            }
+            elements.append(section_config)
 
         # 4. Create internal node
         node_name = f"{name}:node"
-        elements.append(
-            {
-                "element_type": MODEL_ELEMENT_TYPE_NODE,
-                "name": node_name,
-                "is_source": False,
-                "is_sink": False,
-            }
-        )
+        node_config: NodeElementConfig = {
+            "element_type": MODEL_ELEMENT_TYPE_NODE,
+            "name": node_name,
+            "is_source": False,
+            "is_sink": False,
+        }
+        elements.append(node_config)
 
         # 5. Create connections from sections to internal node
 
@@ -373,40 +571,29 @@ class BatteryAdapter:
                 discharge_price = undercharge_cost_array
             elif "overcharge" in section_name:
                 charge_price = overcharge_cost_array
-                elements.append(
-                    {
-                        "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
-                        "name": f"{section_name}:to_node",
-                        "source": section_name,
-                        "target": node_name,
-                        "segments": {
-                            "pricing": {
-                                "segment_type": "pricing",
-                                "price_source_target": None,
-                                "price_target_source": charge_price,  # Overcharge penalty when charging
-                            }
-                        },
-                    }
-                )
-                continue
-            else:
-                discharge_price = None
-
-            elements.append(
-                {
+                connection_config: ConnectionElementConfig = {
                     "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
                     "name": f"{section_name}:to_node",
                     "source": section_name,
                     "target": node_name,
-                    "segments": {
-                        "pricing": {
-                            "segment_type": "pricing",
-                            "price_source_target": discharge_price,  # Undercharge penalty when discharging
-                            "price_target_source": None,
-                        }
-                    },
+                    # Overcharge penalty when charging
+                    "price_target_source": charge_price,
                 }
-            )
+                elements.append(connection_config)
+                continue
+            else:
+                discharge_price = None
+
+            connection_config: ConnectionElementConfig = {
+                "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
+                "name": f"{section_name}:to_node",
+                "source": section_name,
+                "target": node_name,
+            }
+            if discharge_price is not None:
+                # Undercharge penalty when discharging
+                connection_config["price_source_target"] = discharge_price
+            elements.append(connection_config)
 
         # 6. Create balance connections between adjacent sections (enforces fill ordering)
         # Balance connections ensure lower sections fill before upper sections
@@ -415,22 +602,17 @@ class BatteryAdapter:
             lower_section = section_names[i]
             upper_section = section_names[i + 1]
 
-            elements.append(
-                {
-                    "element_type": MODEL_ELEMENT_TYPE_BATTERY_BALANCE_CONNECTION,
-                    "name": f"{name}:balance:{lower_section.split(':')[-1]}:{upper_section.split(':')[-1]}",
-                    "upper": upper_section,
-                    "lower": lower_section,
-                }
-            )
+            balance_config: BatteryBalanceConnectionElementConfig = {
+                "element_type": MODEL_ELEMENT_TYPE_BATTERY_BALANCE_CONNECTION,
+                "name": f"{name}:balance:{lower_section.split(':')[-1]}:{upper_section.split(':')[-1]}",
+                "upper": upper_section,
+                "lower": lower_section,
+            }
+            elements.append(balance_config)
 
         # 7. Create connection from internal node to target
         # Time-varying early charge incentive applied here (charge earlier in horizon)
-        ramp = (
-            np.arange(n_periods, dtype=float) / max(n_periods - 1, 1)
-            if n_periods
-            else np.array([], dtype=float)
-        )
+        ramp = np.arange(n_periods, dtype=float) / max(n_periods - 1, 1) if n_periods else np.array([], dtype=float)
         charge_early_incentive = -early_charge_incentive + (early_charge_incentive * ramp)
         discharge_early_incentive = early_charge_incentive + (early_charge_incentive * ramp)
 
@@ -443,38 +625,27 @@ class BatteryAdapter:
         max_discharge = config.get("max_discharge_power")
         max_charge = config.get("max_charge_power")
 
-        elements.append(
-            {
-                "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
-                "name": f"{name}:connection",
-                "source": node_name,
-                "target": config["connection"],
-                "segments": {
-                    "efficiency": {
-                        "segment_type": "efficiency",
-                        "efficiency_source_target": efficiency_values / 100.0,  # Node to network (discharge)
-                        "efficiency_target_source": efficiency_values / 100.0,  # Network to node (charge)
-                    },
-                    "power_limit": {
-                        "segment_type": "power_limit",
-                        "max_power_source_target": max_discharge,
-                        "max_power_target_source": max_charge,
-                    },
-                    "pricing": {
-                        "segment_type": "pricing",
-                        "price_source_target": discharge_costs,
-                        "price_target_source": charge_early_incentive,
-                    },
-                },
-            }
-        )
+        connection_config: ConnectionElementConfig = {
+            "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
+            "name": f"{name}:connection",
+            "source": node_name,
+            "target": config["connection"],
+            "max_power_source_target": max_discharge,
+            "max_power_target_source": max_charge,
+            # Node to network (discharge), network to node (charge)
+            "efficiency_source_target": efficiency_values,
+            "efficiency_target_source": efficiency_values,
+            "price_source_target": discharge_costs,
+            "price_target_source": charge_early_incentive,
+        }
+        elements.append(connection_config)
 
         return elements
 
     def outputs(
         self,
         name: str,
-        model_outputs: Mapping[str, Mapping[ModelOutputName, ModelOutputValue]],
+        model_outputs: Mapping[str, Mapping[ModelOutputName, OutputData]],
         config: BatteryConfigData,
         **_kwargs: Any,
     ) -> Mapping[BatteryDeviceName, Mapping[BatteryOutputName, OutputData]]:
@@ -492,9 +663,6 @@ class BatteryAdapter:
         if undercharge_name in model_outputs:
             undercharge_outputs: dict[ModelOutputName, OutputData] = {}
             for key, value in model_outputs[undercharge_name].items():
-                if not isinstance(value, OutputData):
-                    msg = f"Expected OutputData for {undercharge_name!r} output {key!r}"
-                    raise TypeError(msg)
                 undercharge_outputs[key] = value
             section_outputs["undercharge"] = undercharge_outputs
             section_names.append("undercharge")
@@ -504,9 +672,6 @@ class BatteryAdapter:
         if normal_name in model_outputs:
             normal_outputs: dict[ModelOutputName, OutputData] = {}
             for key, value in model_outputs[normal_name].items():
-                if not isinstance(value, OutputData):
-                    msg = f"Expected OutputData for {normal_name!r} output {key!r}"
-                    raise TypeError(msg)
                 normal_outputs[key] = value
             section_outputs["normal"] = normal_outputs
             section_names.append("normal")
@@ -516,9 +681,6 @@ class BatteryAdapter:
         if overcharge_name in model_outputs:
             overcharge_outputs: dict[ModelOutputName, OutputData] = {}
             for key, value in model_outputs[overcharge_name].items():
-                if not isinstance(value, OutputData):
-                    msg = f"Expected OutputData for {overcharge_name!r} output {key!r}"
-                    raise TypeError(msg)
                 overcharge_outputs[key] = value
             section_outputs["overcharge"] = overcharge_outputs
             section_names.append("overcharge")
@@ -528,9 +690,6 @@ class BatteryAdapter:
         node_outputs: dict[ModelOutputName, OutputData] = {}
         if node_name in model_outputs:
             for key, value in model_outputs[node_name].items():
-                if not isinstance(value, OutputData):
-                    msg = f"Expected OutputData for {node_name!r} output {key!r}"
-                    raise TypeError(msg)
                 node_outputs[key] = value
 
         # Calculate aggregate outputs

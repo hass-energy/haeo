@@ -9,10 +9,10 @@ import pytest
 from custom_components.haeo.elements import ELEMENT_TYPES
 from custom_components.haeo.elements import solar as solar_element
 from custom_components.haeo.elements.solar import SolarConfigData
-from custom_components.haeo.model import ModelOutputName, ModelOutputValue
+from custom_components.haeo.model import ModelOutputName
 from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE
-from custom_components.haeo.model.elements import connection
+from custom_components.haeo.model.elements import power_connection
 from custom_components.haeo.model.output_data import OutputData
 
 
@@ -29,7 +29,7 @@ class OutputsCase(TypedDict):
 
     description: str
     name: str
-    model_outputs: Mapping[str, Mapping[ModelOutputName, ModelOutputValue]]
+    model_outputs: Mapping[str, Mapping[ModelOutputName, OutputData]]
     outputs: Mapping[str, Mapping[str, OutputData]]
 
 
@@ -51,19 +51,10 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "name": "pv_main:connection",
                 "source": "pv_main",
                 "target": "network",
-                "segments": {
-                    "power_limit": {
-                        "segment_type": "power_limit",
-                        "max_power_source_target": [2.0, 1.5],
-                        "max_power_target_source": [0.0, 0.0],
-                        "fixed": True,
-                    },
-                    "pricing": {
-                        "segment_type": "pricing",
-                        "price_source_target": [0.15, 0.15],
-                        "price_target_source": None,
-                    },
-                },
+                "max_power_source_target": np.array([2.0, 1.5]),
+                "max_power_target_source": 0.0,
+                "fixed_power": True,
+                "price_source_target": np.array([0.15, 0.15]),
             },
         ],
     },
@@ -76,8 +67,8 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
         "name": "pv_main",
         "model_outputs": {
             "pv_main:connection": {
-                connection.CONNECTION_POWER_SOURCE_TARGET: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(2.0,), direction="+"),
-                connection.CONNECTION_SEGMENTS: {"power_limit": {"source_target": OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.02,))}},
+                power_connection.CONNECTION_POWER_SOURCE_TARGET: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(2.0,), direction="+"),
+                power_connection.CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.02,)),
             }
         },
         "outputs": {
@@ -92,8 +83,8 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
         "name": "pv_with_price",
         "model_outputs": {
             "pv_with_price:connection": {
-                connection.CONNECTION_POWER_SOURCE_TARGET: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(1.5,), direction="+"),
-                connection.CONNECTION_SEGMENTS: {"power_limit": {"source_target": OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.0,))}},
+                power_connection.CONNECTION_POWER_SOURCE_TARGET: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(1.5,), direction="+"),
+                power_connection.CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.0,)),
             }
         },
         "outputs": {
@@ -118,10 +109,10 @@ def _normalize_for_compare(value: Any) -> Any:
     """Normalize numpy arrays to lists for equality checks."""
     if isinstance(value, np.ndarray):
         return value.tolist()
-    if isinstance(value, dict):
-        return {key: _normalize_for_compare(val) for key, val in value.items()}
     if isinstance(value, list):
         return [_normalize_for_compare(item) for item in value]
+    if isinstance(value, dict):
+        return {key: _normalize_for_compare(val) for key, val in value.items()}
     return value
 
 

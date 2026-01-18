@@ -1,27 +1,34 @@
 """Inverter element adapter for model layer integration."""
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping
 from dataclasses import replace
 from typing import Any, Final, Literal
 
+from homeassistant.components.number import NumberDeviceClass, NumberEntityDescription
+from homeassistant.const import PERCENTAGE, UnitOfPower
 from homeassistant.core import HomeAssistant
 import numpy as np
 
 from custom_components.haeo.const import ConnectivityLevel
-from custom_components.haeo.data.loader import ConstantLoader, TimeSeriesLoader
-from custom_components.haeo.model import ModelElementConfig, ModelOutputName, ModelOutputValue
+from custom_components.haeo.data.loader import TimeSeriesLoader
+from custom_components.haeo.elements.input_fields import InputFieldDefaults, InputFieldInfo
+from custom_components.haeo.model import ModelElementConfig, ModelOutputName
 from custom_components.haeo.model.const import OutputType
-from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE
-from custom_components.haeo.model.elements.connection import (
-    CONNECTION_POWER_SOURCE_TARGET,
-    CONNECTION_POWER_TARGET_SOURCE,
-    CONNECTION_SEGMENTS,
+from custom_components.haeo.model.elements import (
+    ConnectionElementConfig,
+    MODEL_ELEMENT_TYPE_CONNECTION,
+    MODEL_ELEMENT_TYPE_NODE,
+    NodeElementConfig,
 )
 from custom_components.haeo.model.elements.node import NODE_POWER_BALANCE
-from custom_components.haeo.model.elements.segments import POWER_LIMIT_SOURCE_TARGET, POWER_LIMIT_TARGET_SOURCE
+from custom_components.haeo.model.elements.power_connection import (
+    CONNECTION_POWER_SOURCE_TARGET,
+    CONNECTION_POWER_TARGET_SOURCE,
+    CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET,
+    CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE,
+)
 from custom_components.haeo.model.output_data import OutputData
 
-from .flow import InverterSubentryFlowHandler
 from .schema import (
     CONF_CONNECTION,
     CONF_EFFICIENCY_AC_TO_DC,
@@ -66,7 +73,6 @@ class InverterAdapter:
     """Adapter for Inverter elements."""
 
     element_type: str = ELEMENT_TYPE
-    flow_class: type = InverterSubentryFlowHandler
     advanced: bool = False
     connectivity: ConnectivityLevel = ConnectivityLevel.ALWAYS
 
@@ -76,6 +82,68 @@ class InverterAdapter:
         if not ts_loader.available(hass=hass, value=config[CONF_MAX_POWER_DC_TO_AC]):
             return False
         return ts_loader.available(hass=hass, value=config[CONF_MAX_POWER_AC_TO_DC])
+
+    def inputs(self, config: Any) -> dict[str, InputFieldInfo[Any]]:
+        """Return input field definitions for inverter elements."""
+        _ = config
+        return {
+            CONF_MAX_POWER_DC_TO_AC: InputFieldInfo(
+                field_name=CONF_MAX_POWER_DC_TO_AC,
+                entity_description=NumberEntityDescription(
+                    key=CONF_MAX_POWER_DC_TO_AC,
+                    translation_key=f"{ELEMENT_TYPE}_{CONF_MAX_POWER_DC_TO_AC}",
+                    native_unit_of_measurement=UnitOfPower.KILO_WATT,
+                    device_class=NumberDeviceClass.POWER,
+                    native_min_value=0.0,
+                    native_max_value=1000.0,
+                    native_step=0.1,
+                ),
+                output_type=OutputType.POWER_LIMIT,
+                time_series=True,
+            ),
+            CONF_MAX_POWER_AC_TO_DC: InputFieldInfo(
+                field_name=CONF_MAX_POWER_AC_TO_DC,
+                entity_description=NumberEntityDescription(
+                    key=CONF_MAX_POWER_AC_TO_DC,
+                    translation_key=f"{ELEMENT_TYPE}_{CONF_MAX_POWER_AC_TO_DC}",
+                    native_unit_of_measurement=UnitOfPower.KILO_WATT,
+                    device_class=NumberDeviceClass.POWER,
+                    native_min_value=0.0,
+                    native_max_value=1000.0,
+                    native_step=0.1,
+                ),
+                output_type=OutputType.POWER_LIMIT,
+                time_series=True,
+            ),
+            CONF_EFFICIENCY_DC_TO_AC: InputFieldInfo(
+                field_name=CONF_EFFICIENCY_DC_TO_AC,
+                entity_description=NumberEntityDescription(
+                    key=CONF_EFFICIENCY_DC_TO_AC,
+                    translation_key=f"{ELEMENT_TYPE}_{CONF_EFFICIENCY_DC_TO_AC}",
+                    native_unit_of_measurement=PERCENTAGE,
+                    device_class=NumberDeviceClass.POWER_FACTOR,
+                    native_min_value=50.0,
+                    native_max_value=100.0,
+                    native_step=0.1,
+                ),
+                output_type=OutputType.EFFICIENCY,
+                defaults=InputFieldDefaults(mode=None, value=100.0),
+            ),
+            CONF_EFFICIENCY_AC_TO_DC: InputFieldInfo(
+                field_name=CONF_EFFICIENCY_AC_TO_DC,
+                entity_description=NumberEntityDescription(
+                    key=CONF_EFFICIENCY_AC_TO_DC,
+                    translation_key=f"{ELEMENT_TYPE}_{CONF_EFFICIENCY_AC_TO_DC}",
+                    native_unit_of_measurement=PERCENTAGE,
+                    device_class=NumberDeviceClass.POWER_FACTOR,
+                    native_min_value=50.0,
+                    native_max_value=100.0,
+                    native_step=0.1,
+                ),
+                output_type=OutputType.EFFICIENCY,
+                defaults=InputFieldDefaults(mode=None, value=100.0),
+            ),
+        }
 
     def build_config_data(
         self,
@@ -118,42 +186,28 @@ class InverterAdapter:
         efficiency and power limits for bidirectional power conversion.
         """
         name = config["name"]
-        efficiency_source_target = config.get("efficiency_dc_to_ac")
-        efficiency_target_source = config.get("efficiency_ac_to_dc")
-        return [
-            # Create Node for the DC bus (pure junction - neither source nor sink)
-            {"element_type": MODEL_ELEMENT_TYPE_NODE, "name": name, "is_source": False, "is_sink": False},
-            # Create a connection from DC bus to AC node
-            # source_target = DC to AC (inverting)
-            # target_source = AC to DC (rectifying)
-            {
-                "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
-                "name": f"{name}:connection",
-                "source": name,
-                "target": config["connection"],
-                "segments": {
-                    "efficiency": {
-                        "segment_type": "efficiency",
-                        "efficiency_source_target": (
-                            efficiency_source_target / 100.0 if efficiency_source_target is not None else None
-                        ),
-                        "efficiency_target_source": (
-                            efficiency_target_source / 100.0 if efficiency_target_source is not None else None
-                        ),
-                    },
-                    "power_limit": {
-                        "segment_type": "power_limit",
-                        "max_power_source_target": config["max_power_dc_to_ac"],
-                        "max_power_target_source": config["max_power_ac_to_dc"],
-                    },
-                },
-            },
-        ]
+        node_config: NodeElementConfig = {
+            "element_type": MODEL_ELEMENT_TYPE_NODE,
+            "name": name,
+            "is_source": False,
+            "is_sink": False,
+        }
+        connection_config: ConnectionElementConfig = {
+            "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
+            "name": f"{name}:connection",
+            "source": name,
+            "target": config["connection"],
+            "max_power_source_target": config["max_power_dc_to_ac"],
+            "max_power_target_source": config["max_power_ac_to_dc"],
+            "efficiency_source_target": config.get("efficiency_dc_to_ac"),
+            "efficiency_target_source": config.get("efficiency_ac_to_dc"),
+        }
+        return [node_config, connection_config]
 
     def outputs(
         self,
         name: str,
-        model_outputs: Mapping[str, Mapping[ModelOutputName, ModelOutputValue]],
+        model_outputs: Mapping[str, Mapping[ModelOutputName, OutputData]],
         **_kwargs: Any,
     ) -> Mapping[InverterDeviceName, Mapping[InverterOutputName, OutputData]]:
         """Map model outputs to inverter-specific output names."""
@@ -161,12 +215,6 @@ class InverterAdapter:
         dc_bus = model_outputs[name]
         power_source_target = connection[CONNECTION_POWER_SOURCE_TARGET]
         power_target_source = connection[CONNECTION_POWER_TARGET_SOURCE]
-        if not isinstance(power_source_target, OutputData):
-            msg = f"Expected OutputData for {name!r} {CONNECTION_POWER_SOURCE_TARGET}"
-            raise TypeError(msg)
-        if not isinstance(power_target_source, OutputData):
-            msg = f"Expected OutputData for {name!r} {CONNECTION_POWER_TARGET_SOURCE}"
-            raise TypeError(msg)
 
         inverter_outputs: dict[InverterOutputName, OutputData] = {}
 
@@ -192,25 +240,11 @@ class InverterAdapter:
 
         # DC bus power balance shadow price
         dc_bus_balance = dc_bus[NODE_POWER_BALANCE]
-        if not isinstance(dc_bus_balance, OutputData):
-            msg = f"Expected OutputData for {name!r} {NODE_POWER_BALANCE}"
-            raise TypeError(msg)
         inverter_outputs[INVERTER_DC_BUS_POWER_BALANCE] = dc_bus_balance
 
-        # Shadow prices from power_limit segment
-        segments_output = connection.get(CONNECTION_SEGMENTS)
-        if isinstance(segments_output, Mapping):
-            power_limit_outputs = segments_output.get("power_limit")
-            if isinstance(power_limit_outputs, Mapping):
-                # DC→AC is source→target
-                dc_to_ac_shadow = power_limit_outputs.get(POWER_LIMIT_SOURCE_TARGET)
-                if isinstance(dc_to_ac_shadow, OutputData):
-                    inverter_outputs[INVERTER_MAX_POWER_DC_TO_AC_PRICE] = dc_to_ac_shadow
-
-                # AC→DC is target→source
-                ac_to_dc_shadow = power_limit_outputs.get(POWER_LIMIT_TARGET_SOURCE)
-                if isinstance(ac_to_dc_shadow, OutputData):
-                    inverter_outputs[INVERTER_MAX_POWER_AC_TO_DC_PRICE] = ac_to_dc_shadow
+        # Shadow prices
+        inverter_outputs[INVERTER_MAX_POWER_DC_TO_AC_PRICE] = connection[CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET]
+        inverter_outputs[INVERTER_MAX_POWER_AC_TO_DC_PRICE] = connection[CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE]
 
         return {INVERTER_DEVICE_INVERTER: inverter_outputs}
 

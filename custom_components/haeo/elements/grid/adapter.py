@@ -4,24 +4,40 @@ from collections.abc import Mapping, Sequence
 from dataclasses import replace
 from typing import Any, Final, Literal
 
+from homeassistant.components.number import NumberDeviceClass, NumberEntityDescription
+from homeassistant.const import UnitOfPower
 from homeassistant.core import HomeAssistant
 import numpy as np
 
 from custom_components.haeo.const import ConnectivityLevel
 from custom_components.haeo.data.loader import TimeSeriesLoader
-from custom_components.haeo.model import ModelElementConfig, ModelOutputName, ModelOutputValue
+from custom_components.haeo.elements.input_fields import InputFieldDefaults, InputFieldInfo
+from custom_components.haeo.model import ModelElementConfig, ModelOutputName
 from custom_components.haeo.model.const import OutputType
-from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE
-from custom_components.haeo.model.elements.connection import (
+from custom_components.haeo.model.elements import (
+    ConnectionElementConfig,
+    MODEL_ELEMENT_TYPE_CONNECTION,
+    MODEL_ELEMENT_TYPE_NODE,
+    NodeElementConfig,
+)
+from custom_components.haeo.model.elements.power_connection import (
     CONNECTION_POWER_SOURCE_TARGET,
     CONNECTION_POWER_TARGET_SOURCE,
-    CONNECTION_SEGMENTS,
+    CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET,
+    CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE,
 )
-from custom_components.haeo.model.elements.segments import POWER_LIMIT_SOURCE_TARGET, POWER_LIMIT_TARGET_SOURCE
 from custom_components.haeo.model.output_data import OutputData
 
-from .flow import GridSubentryFlowHandler
-from .schema import CONF_CONNECTION, ELEMENT_TYPE, GridConfigData, GridConfigSchema
+from .schema import (
+    CONF_CONNECTION,
+    CONF_EXPORT_LIMIT,
+    CONF_EXPORT_PRICE,
+    CONF_IMPORT_LIMIT,
+    CONF_IMPORT_PRICE,
+    ELEMENT_TYPE,
+    GridConfigData,
+    GridConfigSchema,
+)
 
 # Grid-specific output names for translation/sensor mapping
 type GridOutputName = Literal[
@@ -61,7 +77,6 @@ class GridAdapter:
     """Adapter for Grid elements."""
 
     element_type: str = ELEMENT_TYPE
-    flow_class: type = GridSubentryFlowHandler
     advanced: bool = False
     connectivity: ConnectivityLevel = ConnectivityLevel.ADVANCED
 
@@ -79,6 +94,70 @@ class GridAdapter:
             return ts_loader.available(hass=hass, value=value) if value else True
 
         return entities_available(config.get("import_price")) and entities_available(config.get("export_price"))
+
+    def inputs(self, config: Any) -> dict[str, InputFieldInfo[Any]]:
+        """Return input field definitions for grid elements."""
+        _ = config
+        return {
+            CONF_IMPORT_PRICE: InputFieldInfo(
+                field_name=CONF_IMPORT_PRICE,
+                entity_description=NumberEntityDescription(
+                    key=CONF_IMPORT_PRICE,
+                    translation_key=f"{ELEMENT_TYPE}_{CONF_IMPORT_PRICE}",
+                    native_min_value=-1.0,
+                    native_max_value=10.0,
+                    native_step=0.001,
+                ),
+                output_type=OutputType.PRICE,
+                time_series=True,
+                direction="-",  # Import = consuming from grid = cost
+            ),
+            CONF_EXPORT_PRICE: InputFieldInfo(
+                field_name=CONF_EXPORT_PRICE,
+                entity_description=NumberEntityDescription(
+                    key=CONF_EXPORT_PRICE,
+                    translation_key=f"{ELEMENT_TYPE}_{CONF_EXPORT_PRICE}",
+                    native_min_value=-1.0,
+                    native_max_value=10.0,
+                    native_step=0.001,
+                ),
+                output_type=OutputType.PRICE,
+                time_series=True,
+                direction="+",  # Export = producing to grid = revenue
+            ),
+            CONF_IMPORT_LIMIT: InputFieldInfo(
+                field_name=CONF_IMPORT_LIMIT,
+                entity_description=NumberEntityDescription(
+                    key=CONF_IMPORT_LIMIT,
+                    translation_key=f"{ELEMENT_TYPE}_{CONF_IMPORT_LIMIT}",
+                    native_unit_of_measurement=UnitOfPower.KILO_WATT,
+                    device_class=NumberDeviceClass.POWER,
+                    native_min_value=0.0,
+                    native_max_value=1000.0,
+                    native_step=0.1,
+                ),
+                output_type=OutputType.POWER_LIMIT,
+                time_series=True,
+                direction="+",
+                defaults=InputFieldDefaults(mode="value", value=100.0),
+            ),
+            CONF_EXPORT_LIMIT: InputFieldInfo(
+                field_name=CONF_EXPORT_LIMIT,
+                entity_description=NumberEntityDescription(
+                    key=CONF_EXPORT_LIMIT,
+                    translation_key=f"{ELEMENT_TYPE}_{CONF_EXPORT_LIMIT}",
+                    native_unit_of_measurement=UnitOfPower.KILO_WATT,
+                    device_class=NumberDeviceClass.POWER,
+                    native_min_value=0.0,
+                    native_max_value=1000.0,
+                    native_step=0.1,
+                ),
+                output_type=OutputType.POWER_LIMIT,
+                time_series=True,
+                direction="-",
+                defaults=InputFieldDefaults(mode="value", value=100.0),
+            ),
+        }
 
     def build_config_data(
         self,
@@ -118,41 +197,28 @@ class GridAdapter:
 
     def model_elements(self, config: GridConfigData) -> list[ModelElementConfig]:
         """Create model elements for Grid configuration."""
-        import_limit = config.get("import_limit")
-        export_limit = config.get("export_limit")
-        return [
-            # Create Node for the grid (both source and sink - can import and export)
-            {
-                "element_type": MODEL_ELEMENT_TYPE_NODE,
-                "name": config["name"],
-                "is_source": True,
-                "is_sink": True,
-            },
-            # Create a connection from system node to grid
-            {
-                "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
-                "name": f"{config['name']}:connection",
-                "source": config["name"],
-                "target": config["connection"],
-                "segments": {
-                    "power_limit": {
-                        "segment_type": "power_limit",
-                        "max_power_source_target": import_limit,
-                        "max_power_target_source": export_limit,
-                    },
-                    "pricing": {
-                        "segment_type": "pricing",
-                        "price_source_target": config["import_price"],
-                        "price_target_source": -config["export_price"],
-                    },
-                },
-            },
-        ]
+        node_config: NodeElementConfig = {
+            "element_type": MODEL_ELEMENT_TYPE_NODE,
+            "name": config["name"],
+            "is_source": True,
+            "is_sink": True,
+        }
+        connection_config: ConnectionElementConfig = {
+            "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
+            "name": f"{config['name']}:connection",
+            "source": config["name"],
+            "target": config["connection"],
+            "max_power_source_target": config.get("import_limit"),  # source_target is grid to system (IMPORT)
+            "max_power_target_source": config.get("export_limit"),  # target_source is system to grid (EXPORT)
+            "price_source_target": config["import_price"],
+            "price_target_source": -config["export_price"],  # Negate because exporting earns money
+        }
+        return [node_config, connection_config]
 
     def outputs(
         self,
         name: str,
-        model_outputs: Mapping[str, Mapping[ModelOutputName, ModelOutputValue]],
+        model_outputs: Mapping[str, Mapping[ModelOutputName, OutputData]],
         *,
         config: GridConfigData,
         periods: Sequence[float],
@@ -167,12 +233,6 @@ class GridAdapter:
         # target_source = system to grid = EXPORT
         power_import = connection[CONNECTION_POWER_SOURCE_TARGET]
         power_export = connection[CONNECTION_POWER_TARGET_SOURCE]
-        if not isinstance(power_import, OutputData):
-            msg = f"Expected OutputData for {name!r} {CONNECTION_POWER_SOURCE_TARGET}"
-            raise TypeError(msg)
-        if not isinstance(power_export, OutputData):
-            msg = f"Expected OutputData for {name!r} {CONNECTION_POWER_TARGET_SOURCE}"
-            raise TypeError(msg)
 
         grid_outputs[GRID_POWER_EXPORT] = replace(power_export, type=OutputType.POWER)
         grid_outputs[GRID_POWER_IMPORT] = replace(power_import, type=OutputType.POWER)
@@ -217,17 +277,11 @@ class GridAdapter:
             type=OutputType.COST, unit="$", values=net_cumsum, direction=None, state_last=True
         )
 
-        # Output the shadow prices from power_limit segment
-        segments_output = connection.get(CONNECTION_SEGMENTS)
-        if isinstance(segments_output, Mapping):
-            power_limit_outputs = segments_output.get("power_limit")
-            if isinstance(power_limit_outputs, Mapping):
-                export_shadow = power_limit_outputs.get(POWER_LIMIT_TARGET_SOURCE)
-                if isinstance(export_shadow, OutputData):
-                    grid_outputs[GRID_POWER_MAX_EXPORT_PRICE] = export_shadow
-                import_shadow = power_limit_outputs.get(POWER_LIMIT_SOURCE_TARGET)
-                if isinstance(import_shadow, OutputData):
-                    grid_outputs[GRID_POWER_MAX_IMPORT_PRICE] = import_shadow
+        # Output the shadow prices if they exist
+        if CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE in connection:
+            grid_outputs[GRID_POWER_MAX_EXPORT_PRICE] = connection[CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE]
+        if CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET in connection:
+            grid_outputs[GRID_POWER_MAX_IMPORT_PRICE] = connection[CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET]
 
         return {GRID_DEVICE_GRID: grid_outputs}
 

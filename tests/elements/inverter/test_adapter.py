@@ -1,9 +1,7 @@
-"""Tests for inverter adapter load() and available() functions."""
+"""Tests for inverter adapter build_config_data() and available() functions."""
 
-from collections.abc import Sequence
-
-from homeassistant.core import HomeAssistant
 import numpy as np
+from homeassistant.core import HomeAssistant
 
 from custom_components.haeo.elements import inverter
 
@@ -11,14 +9,6 @@ from custom_components.haeo.elements import inverter
 def _set_sensor(hass: HomeAssistant, entity_id: str, value: str, unit: str = "kW") -> None:
     """Set a sensor state in hass."""
     hass.states.async_set(entity_id, value, {"unit_of_measurement": unit})
-
-
-def _assert_array_equal(actual: np.ndarray | None, expected: float | list[float]) -> None:
-    assert actual is not None
-    np.testing.assert_array_equal(actual, expected)
-
-
-FORECAST_TIMES: Sequence[float] = [0.0, 1800.0]
 
 
 async def test_available_returns_true_when_sensors_exist(hass: HomeAssistant) -> None:
@@ -72,11 +62,8 @@ async def test_available_returns_false_when_second_sensor_missing(hass: HomeAssi
     assert result is False
 
 
-async def test_load_returns_config_data(hass: HomeAssistant) -> None:
-    """Inverter load() should return ConfigData with loaded values."""
-    _set_sensor(hass, "sensor.max_dc_to_ac", "5.0", "kW")
-    _set_sensor(hass, "sensor.max_ac_to_dc", "5.0", "kW")
-
+def test_build_config_data_returns_config_data() -> None:
+    """build_config_data() should return ConfigData with loaded values."""
     config: inverter.InverterConfigSchema = {
         "element_type": "inverter",
         "name": "test_inverter",
@@ -84,31 +71,40 @@ async def test_load_returns_config_data(hass: HomeAssistant) -> None:
         "max_power_dc_to_ac": "sensor.max_dc_to_ac",
         "max_power_ac_to_dc": "sensor.max_ac_to_dc",
     }
+    loaded_values = {
+        "max_power_dc_to_ac": [5.0],
+        "max_power_ac_to_dc": [4.0],
+    }
 
-    result = await inverter.adapter.load(config, hass=hass, forecast_times=FORECAST_TIMES)
+    result = inverter.adapter.build_config_data(loaded_values, config)
 
     assert result["element_type"] == "inverter"
     assert result["name"] == "test_inverter"
-    assert len(result["max_power_dc_to_ac"]) == 1
-    assert result["max_power_dc_to_ac"][0] == 5.0
+    np.testing.assert_array_equal(result["max_power_dc_to_ac"], [5.0])
+    np.testing.assert_array_equal(result["max_power_ac_to_dc"], [4.0])
 
 
-async def test_load_with_optional_efficiency(hass: HomeAssistant) -> None:
-    """Inverter load() should include optional constant efficiency fields."""
-    _set_sensor(hass, "sensor.max_dc_to_ac", "5.0", "kW")
-    _set_sensor(hass, "sensor.max_ac_to_dc", "5.0", "kW")
-
+def test_build_config_data_includes_optional_efficiency() -> None:
+    """build_config_data() should include optional efficiency fields when provided."""
     config: inverter.InverterConfigSchema = {
         "element_type": "inverter",
         "name": "test_inverter",
         "connection": "ac_bus",
         "max_power_dc_to_ac": "sensor.max_dc_to_ac",
         "max_power_ac_to_dc": "sensor.max_ac_to_dc",
+    }
+    loaded_values = {
+        "max_power_dc_to_ac": [5.0],
+        "max_power_ac_to_dc": [4.0],
         "efficiency_dc_to_ac": 97.0,
         "efficiency_ac_to_dc": 95.0,
     }
 
-    result = await inverter.adapter.load(config, hass=hass, forecast_times=FORECAST_TIMES)
+    result = inverter.adapter.build_config_data(loaded_values, config)
 
-    _assert_array_equal(result.get("efficiency_dc_to_ac"), 97.0)
-    _assert_array_equal(result.get("efficiency_ac_to_dc"), 95.0)
+    efficiency_dc_to_ac = result.get("efficiency_dc_to_ac")
+    assert efficiency_dc_to_ac is not None
+    np.testing.assert_array_equal(efficiency_dc_to_ac, 97.0)
+    efficiency_ac_to_dc = result.get("efficiency_ac_to_dc")
+    assert efficiency_ac_to_dc is not None
+    np.testing.assert_array_equal(efficiency_ac_to_dc, 95.0)

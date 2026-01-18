@@ -1,7 +1,7 @@
 """Battery entity for electrical system modeling."""
 
 from collections.abc import Sequence
-from typing import Final, Literal, TypedDict
+from typing import Any, Final, Literal, TypedDict
 
 from highspy import Highs
 from highspy.highs import highs_linear_expression
@@ -17,6 +17,8 @@ from custom_components.haeo.model.util import broadcast_to_sequence
 # Model element type for batteries
 ELEMENT_TYPE: Final = "battery"
 type BatteryElementTypeName = Literal["battery"]
+
+type FloatArray = NDArray[np.floating[Any]]
 
 # Type for battery constraint names (shadow prices exposed as outputs)
 type BatteryConstraintName = Literal[
@@ -62,7 +64,7 @@ class BatteryElementConfig(TypedDict):
 
     element_type: BatteryElementTypeName
     name: str
-    capacity: Sequence[float] | float
+    capacity: Sequence[float] | FloatArray | float
     initial_charge: float
 
 

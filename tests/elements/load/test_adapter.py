@@ -1,5 +1,6 @@
 """Tests for load element adapter build_config_data() and available() functions."""
 
+import numpy as np
 from homeassistant.core import HomeAssistant
 
 from custom_components.haeo.elements import load as load_element
@@ -49,7 +50,7 @@ def test_build_config_data_returns_config_data() -> None:
 
     assert result["element_type"] == "load"
     assert result["name"] == "test_load"
-    assert result["forecast"] == [2.5]
+    np.testing.assert_array_equal(result["forecast"], [2.5])
 
 
 def test_inputs_returns_input_fields() -> None:
