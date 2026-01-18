@@ -2,13 +2,8 @@
 
 from typing import Any, Final, Literal, TypedDict
 
-from homeassistant.components.number import NumberDeviceClass, NumberEntityDescription
-from homeassistant.const import UnitOfPower
 import numpy as np
 from numpy.typing import NDArray
-
-from custom_components.haeo.elements.input_fields import InputFieldInfo
-from custom_components.haeo.model.const import OutputType
 
 ELEMENT_TYPE: Final = "load"
 
@@ -17,25 +12,6 @@ CONF_FORECAST: Final = "forecast"
 CONF_CONNECTION: Final = "connection"
 
 type FloatArray = NDArray[np.floating[Any]]
-
-# Input field definitions for creating input entities
-INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
-    InputFieldInfo(
-        field_name=CONF_FORECAST,
-        entity_description=NumberEntityDescription(
-            key=CONF_FORECAST,
-            translation_key=f"{ELEMENT_TYPE}_{CONF_FORECAST}",
-            native_unit_of_measurement=UnitOfPower.KILO_WATT,
-            device_class=NumberDeviceClass.POWER,
-            native_min_value=0.0,
-            native_max_value=1000.0,
-            native_step=0.01,
-        ),
-        output_type=OutputType.POWER,
-        direction="+",
-        time_series=True,
-    ),
-)
 
 
 class LoadConfigSchema(TypedDict):

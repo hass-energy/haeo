@@ -25,7 +25,7 @@ elements/battery/
 ├── __init__.py      # Public exports
 ├── schema.py        # ConfigSchema, ConfigData TypedDicts, DEFAULTS dict
 ├── flow.py          # Config flow implementation
-└── adapter.py       # available(), load(), create_model_elements(), outputs()
+└── adapter.py       # available(), inputs(), build_config_data(), model_elements(), outputs()
 ```
 
 ## Schema module (`schema.py`)
@@ -60,7 +60,7 @@ class BatteryConfigData(TypedDict):
     element_type: Literal["battery"]
     name: str
     capacity: list[float]  # Loaded kWh values
-    efficiency: float  # Default applied during load
+    efficiency: float  # Default applied during build_config_data
 ```
 
 **Important**: Do not put numeric values in comments (e.g., "Default 99%").
@@ -90,30 +90,23 @@ schema = self.add_suggested_values_to_schema(schema, DEFAULTS)  # Apply defaults
 
 ## Adapter module (`adapter.py`)
 
-Contains four key functions:
+Contains key functions:
 
 - **`available()`**: Check if config can be loaded (sensors exist)
-- **`load()`**: Load sensor values into ConfigData, applying DEFAULTS
-- **`create_model_elements()`**: Transform ConfigData into model params
+- **`inputs()`**: Define input fields for entity creation and loading
+- **`build_config_data()`**: Build ConfigData from loaded values and apply defaults
+- **`model_elements()`**: Transform ConfigData into model params
 - **`outputs()`**: Map model outputs to device sensors
 
 ## Registry
 
-Elements register in `ELEMENT_TYPES` as `ElementAdapter` instances:
+Elements register in `ELEMENT_TYPES` as adapter instances:
 
 ```python
 from custom_components.haeo.elements import ElementAdapter, ConnectivityLevel
 
 ELEMENT_TYPES: dict[ElementType, ElementAdapter] = {
-    battery.ELEMENT_TYPE: ElementAdapter(
-        element_type=battery.ELEMENT_TYPE,
-        flow_class=battery.BatterySubentryFlowHandler,
-        available=battery.available,
-        load=battery.load,
-        create_model_elements=battery.create_model_elements,
-        outputs=battery.outputs,
-        connectivity=ConnectivityLevel.ADVANCED,
-    ),
+    battery.ELEMENT_TYPE: battery.adapter,
 }
 ```
 
@@ -122,7 +115,7 @@ ELEMENT_TYPES: dict[ElementType, ElementAdapter] = {
 1. Create element subfolder with `__init__.py`, `schema.py`, `flow.py`, `adapter.py`
 2. Define Schema and Data TypedDicts in `schema.py` with DEFAULTS dict for optional fields
 3. Implement config flow in `flow.py` using DEFAULTS for suggested values
-4. Implement `available()`, `load()`, `create_model_elements()`, `outputs()` in `adapter.py`
+4. Implement `available()`, `inputs()`, `build_config_data()`, `model_elements()`, `outputs()` in `adapter.py`
 5. Register `ElementAdapter` instance in `ELEMENT_TYPES` in `elements/__init__.py`
 6. Add flow test data in `tests/flows/test_data/{element_type}.py`
 7. Add element tests in `tests/elements/{element_type}/` with `test_adapter.py`, `test_flow.py`, `test_model.py`

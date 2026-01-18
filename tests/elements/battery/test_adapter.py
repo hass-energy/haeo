@@ -1,6 +1,4 @@
-"""Tests for battery adapter load() and available() functions."""
-
-from collections.abc import Sequence
+"""Tests for battery adapter build_config_data() and available() functions."""
 
 from homeassistant.core import HomeAssistant
 import numpy as np
@@ -20,9 +18,6 @@ def _set_sensor(hass: HomeAssistant, entity_id: str, value: str, unit: str = "kW
 def _assert_array_equal(actual: np.ndarray | None, expected: list[float]) -> None:
     assert actual is not None
     np.testing.assert_array_equal(actual, expected)
-
-
-FORECAST_TIMES: Sequence[float] = [0.0, 1800.0, 3600.0]  # 3 boundaries = 2 periods
 
 
 async def test_available_returns_true_when_sensors_exist(hass: HomeAssistant) -> None:
@@ -166,33 +161,6 @@ async def test_available_with_empty_list_returns_true(hass: HomeAssistant) -> No
     assert result is True
 
 
-async def test_load_returns_config_data(hass: HomeAssistant) -> None:
-    """Battery load() should return ConfigData with loaded values."""
-    _set_sensor(hass, "sensor.capacity", "10.0", "kWh")
-    _set_sensor(hass, "sensor.initial", "50.0", "%")
-    _set_sensor(hass, "sensor.max_charge", "5.0", "kW")
-    _set_sensor(hass, "sensor.max_discharge", "5.0", "kW")
-
-    config: battery.BatteryConfigSchema = {
-        "element_type": "battery",
-        "name": "test_battery",
-        "connection": "main_bus",
-        "capacity": "sensor.capacity",
-        "initial_charge_percentage": "sensor.initial",
-        "max_charge_power": "sensor.max_charge",
-        "max_discharge_power": "sensor.max_discharge",
-    }
-
-    result = await battery.adapter.load(config, hass=hass, forecast_times=FORECAST_TIMES)
-
-    assert result["element_type"] == "battery"
-    assert result["name"] == "test_battery"
-    assert len(result["capacity"]) == 3  # 3 boundaries for 2 periods
-    assert result["capacity"][0] == 10.0
-    assert result.get("max_charge_power", [None])[0] == 5.0
-    assert result.get("max_discharge_power", [None])[0] == 5.0
-
-
 def test_sum_output_data_raises_on_empty_list() -> None:
     """sum_output_data raises ValueError when given an empty list."""
     with pytest.raises(ValueError, match="Cannot sum empty list of outputs"):
@@ -223,68 +191,6 @@ def test_sum_output_data_sums_multiple_outputs() -> None:
     assert result.values == (5.0, 7.0, 9.0)
     assert result.direction == "+"
     assert result.advanced is False
-
-
-async def test_load_with_optional_time_series_fields(hass: HomeAssistant) -> None:
-    """Battery load() should load optional time series fields when configured."""
-    _set_sensor(hass, "sensor.capacity", "10.0", "kWh")
-    _set_sensor(hass, "sensor.initial", "50.0", "%")
-    _set_sensor(hass, "sensor.max_charge", "5.0", "kW")
-    _set_sensor(hass, "sensor.max_discharge", "6.0", "kW")
-    _set_sensor(hass, "sensor.discharge_cost", "0.05", "$/kWh")
-
-    config: battery.BatteryConfigSchema = {
-        "element_type": "battery",
-        "name": "test_battery",
-        "connection": "main_bus",
-        "capacity": "sensor.capacity",
-        "initial_charge_percentage": "sensor.initial",
-        "max_charge_power": "sensor.max_charge",
-        "max_discharge_power": "sensor.max_discharge",
-        "discharge_cost": "sensor.discharge_cost",
-    }
-
-    result = await battery.adapter.load(config, hass=hass, forecast_times=FORECAST_TIMES)
-
-    assert result["element_type"] == "battery"
-    assert "max_charge_power" in result
-    assert result["max_charge_power"][0] == 5.0
-    assert "max_discharge_power" in result
-    assert result["max_discharge_power"][0] == 6.0
-    assert "discharge_cost" in result
-    assert result["discharge_cost"][0] == 0.05
-
-
-async def test_load_with_optional_scalar_fields(hass: HomeAssistant) -> None:
-    """Battery load() should load optional scalar fields when configured.
-
-    Scalar values are broadcast to time series when loaded.
-    """
-    _set_sensor(hass, "sensor.capacity", "10.0", "kWh")
-    _set_sensor(hass, "sensor.initial", "50.0", "%")
-
-    config: battery.BatteryConfigSchema = {
-        "element_type": "battery",
-        "name": "test_battery",
-        "connection": "main_bus",
-        "capacity": "sensor.capacity",
-        "initial_charge_percentage": "sensor.initial",
-        "max_charge_power": 5.0,
-        "max_discharge_power": 5.0,
-        "early_charge_incentive": 0.005,
-        "undercharge_percentage": 10.0,
-        "overcharge_percentage": 90.0,
-    }
-
-    result = await battery.adapter.load(config, hass=hass, forecast_times=FORECAST_TIMES)
-
-    assert result["element_type"] == "battery"
-    # Scalar values are broadcast to time series
-    # Intervals (n values): early_charge_incentive
-    _assert_array_equal(result.get("early_charge_incentive"), [0.005, 0.005])
-    # Fence posts (n+1 values): undercharge/overcharge percentages (energy boundaries)
-    _assert_array_equal(result.get("undercharge_percentage"), [10.0, 10.0, 10.0])
-    _assert_array_equal(result.get("overcharge_percentage"), [90.0, 90.0, 90.0])
 
 
 # Tests for build_config_data() - single source of truth for ConfigData construction

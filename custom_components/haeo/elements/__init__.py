@@ -6,7 +6,8 @@ model outputs to user-friendly device outputs.
 
 Adapter Pattern:
     Configuration Element (with entity IDs) →
-    Adapter.load() →
+    Input entity values →
+    Adapter.build_config_data() →
     Configuration Data (with loaded values) →
     Adapter.model_elements() →
     Model Elements (pure optimization) →
@@ -26,7 +27,7 @@ Sub-element Naming Convention:
         - "home_battery:connection" (implicit connection to network)
 """
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping
 import logging
 import types
 from typing import (
@@ -171,9 +172,6 @@ class ElementAdapter(Protocol):
     element_type: str
     """The element type identifier."""
 
-    flow_class: type
-    """The config flow handler class for this element type."""
-
     advanced: bool
     """Whether this element type requires advanced mode."""
 
@@ -184,14 +182,8 @@ class ElementAdapter(Protocol):
         """Check if element configuration can be loaded."""
         ...
 
-    async def load(
-        self,
-        config: Any,
-        *,
-        hass: HomeAssistant,
-        forecast_times: Sequence[float],
-    ) -> Any:
-        """Load configuration values from sensors."""
+    def inputs(self, config: Mapping[str, Any] | None) -> dict[str, InputFieldInfo[Any]]:
+        """Return input field definitions for this element."""
         ...
 
     def build_config_data(
@@ -202,10 +194,10 @@ class ElementAdapter(Protocol):
         """Build ConfigData from pre-loaded values.
 
         This is the single source of truth for ConfigData construction.
-        Both load() and the coordinator use this method.
+        The coordinator uses this method after loading input entity values.
 
         Args:
-            loaded_values: Dict of field names to loaded values (from input entities or TimeSeriesLoader)
+            loaded_values: Dict of field names to loaded values (from input entities)
             config: Original ConfigSchema for non-input fields (e.g., connection)
 
         Returns:
@@ -238,6 +230,34 @@ ELEMENT_TYPES: dict[ElementType, ElementAdapter] = {
     node.ELEMENT_TYPE: node.adapter,
     battery_section.ELEMENT_TYPE: battery_section.adapter,
 }
+
+
+def get_element_flow_classes() -> dict[ElementType, type]:
+    """Return mapping of element types to their config flow handler classes.
+
+    This function performs lazy imports to avoid circular dependencies
+    (flows import adapters, not the other way around).
+    """
+    # Local imports to avoid circular dependencies with flow modules
+    from custom_components.haeo.elements.battery.flow import BatterySubentryFlowHandler  # noqa: PLC0415
+    from custom_components.haeo.elements.battery_section.flow import BatterySectionSubentryFlowHandler  # noqa: PLC0415
+    from custom_components.haeo.elements.connection.flow import ConnectionSubentryFlowHandler  # noqa: PLC0415
+    from custom_components.haeo.elements.grid.flow import GridSubentryFlowHandler  # noqa: PLC0415
+    from custom_components.haeo.elements.inverter.flow import InverterSubentryFlowHandler  # noqa: PLC0415
+    from custom_components.haeo.elements.load.flow import LoadSubentryFlowHandler  # noqa: PLC0415
+    from custom_components.haeo.elements.node.flow import NodeSubentryFlowHandler  # noqa: PLC0415
+    from custom_components.haeo.elements.solar.flow import SolarSubentryFlowHandler  # noqa: PLC0415
+
+    return {
+        "battery": BatterySubentryFlowHandler,
+        "battery_section": BatterySectionSubentryFlowHandler,
+        "connection": ConnectionSubentryFlowHandler,
+        "grid": GridSubentryFlowHandler,
+        "inverter": InverterSubentryFlowHandler,
+        "load": LoadSubentryFlowHandler,
+        "node": NodeSubentryFlowHandler,
+        "solar": SolarSubentryFlowHandler,
+    }
 
 
 class ValidatedElementSubentry(NamedTuple):
@@ -366,30 +386,11 @@ def collect_element_subentries(entry: ConfigEntry) -> list[ValidatedElementSuben
     return result
 
 
-# Registry mapping element types to their input field definitions
-_INPUT_FIELDS_REGISTRY: Final[dict[str, tuple[InputFieldInfo[Any], ...]]] = {
-    battery.ELEMENT_TYPE: battery.ALL_INPUT_FIELDS,
-    grid.ELEMENT_TYPE: grid.INPUT_FIELDS,
-    solar.ELEMENT_TYPE: solar.INPUT_FIELDS,
-    load.ELEMENT_TYPE: load.INPUT_FIELDS,
-    inverter.ELEMENT_TYPE: inverter.INPUT_FIELDS,
-    connection.ELEMENT_TYPE: connection.INPUT_FIELDS,
-    node.ELEMENT_TYPE: node.INPUT_FIELDS,
-}
-
-
-def get_input_fields(element_type: str) -> tuple[InputFieldInfo[Any], ...]:
-    """Return input field definitions for an element type.
-
-    Args:
-        element_type: The element type (e.g., "battery", "grid")
-
-    Returns:
-        Tuple of InputFieldInfo for fields that should become input entities.
-        Returns empty tuple for unknown element types.
-
-    """
-    return _INPUT_FIELDS_REGISTRY.get(element_type, ())
+def get_input_fields(element_config: ElementConfigSchema) -> dict[str, InputFieldInfo[Any]]:
+    """Return input field definitions for an element config."""
+    element_type = element_config[CONF_ELEMENT_TYPE]
+    adapter = ELEMENT_TYPES[element_type]
+    return adapter.inputs(element_config)
 
 
 __all__ = [
@@ -413,6 +414,7 @@ __all__ = [
     "InputFieldInfo",
     "ValidatedElementSubentry",
     "collect_element_subentries",
+    "get_element_flow_classes",
     "get_input_fields",
     "is_element_config_schema",
     "is_element_type",

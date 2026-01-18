@@ -4,7 +4,6 @@ from typing import Any
 
 from homeassistant.components.number import NumberEntityDescription
 from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.selector import BooleanSelector, NumberSelector
 import pytest
@@ -12,12 +11,23 @@ import pytest
 from custom_components.haeo.const import DOMAIN
 from custom_components.haeo.elements.input_fields import InputFieldDefaults, InputFieldInfo
 from custom_components.haeo.flows.field_schema import (
+    CHOICE_CONSTANT,
+    CHOICE_ENTITY,
+    CHOICE_NONE,
+    NormalizingChooseSelector,
+    _normalize_entity_selection,
     boolean_selector_from_field,
-    convert_entity_selections_to_config,
-    extract_non_entity_fields,
+    build_choose_selector,
+    build_entity_selector,
+    convert_choose_data_to_config,
+    get_choose_default,
     get_haeo_input_entity_ids,
-    is_haeo_input_entity,
+    get_preferred_choice,
+    is_valid_choose_value,
     number_selector_from_field,
+    preprocess_choose_selector_input,
+    resolve_haeo_input_entity_id,
+    validate_choose_fields,
 )
 from custom_components.haeo.model.const import OutputType
 
@@ -40,6 +50,11 @@ def number_field() -> InputFieldInfo[NumberEntityDescription]:
         output_type=OutputType.POWER,
         defaults=InputFieldDefaults(mode="value", value=50.0),
     )
+
+
+def _field_map(*fields: InputFieldInfo[Any]) -> dict[str, InputFieldInfo[Any]]:
+    """Build an input field mapping keyed by field name."""
+    return {field.field_name: field for field in fields}
 
 
 # --- Tests for boolean_selector_from_field ---
@@ -101,65 +116,167 @@ def test_number_selector_from_field_without_unit() -> None:
     assert isinstance(selector, NumberSelector)
 
 
-# --- Tests for is_haeo_input_entity ---
+# --- Tests for build_choose_selector ---
 
 
-def test_is_haeo_input_entity_returns_false_for_nonexistent(hass: HomeAssistant) -> None:
-    """is_haeo_input_entity returns False for non-existent entity."""
-    result = is_haeo_input_entity("sensor.does_not_exist")
-    assert result is False
+def test_build_choose_selector_creates_normalizing_choose_selector(
+    number_field: InputFieldInfo[NumberEntityDescription],
+) -> None:
+    """NormalizingChooseSelector is created with entity and constant choices."""
+    selector = build_choose_selector(number_field)
+    assert isinstance(selector, NormalizingChooseSelector)
 
 
-def test_is_haeo_input_entity_returns_false_for_non_haeo_platform(hass: HomeAssistant) -> None:
-    """is_haeo_input_entity returns False for entity from different platform."""
-    registry = er.async_get(hass)
-    registry.async_get_or_create(
-        domain="number",
-        platform="other_integration",
-        unique_id="test_number_123",
-        suggested_object_id="other_number",
+def test_build_choose_selector_entity_first_by_default(
+    number_field: InputFieldInfo[NumberEntityDescription],
+) -> None:
+    """Entity choice appears first when preferred_choice is entity."""
+    selector = build_choose_selector(number_field, preferred_choice=CHOICE_ENTITY)
+    config = selector.config
+    choices_keys = list(config["choices"].keys())
+    assert choices_keys[0] == CHOICE_ENTITY
+    assert choices_keys[1] == CHOICE_CONSTANT
+
+
+def test_build_choose_selector_constant_first_when_preferred(
+    number_field: InputFieldInfo[NumberEntityDescription],
+) -> None:
+    """Constant choice appears first when preferred_choice is constant."""
+    selector = build_choose_selector(number_field, preferred_choice=CHOICE_CONSTANT)
+    config = selector.config
+    choices_keys = list(config["choices"].keys())
+    assert choices_keys[0] == CHOICE_CONSTANT
+    assert choices_keys[1] == CHOICE_ENTITY
+
+
+# --- Tests for get_preferred_choice ---
+
+
+def test_get_preferred_choice_returns_entity_by_default() -> None:
+    """get_preferred_choice returns entity when no current_data or defaults."""
+    field = InputFieldInfo(
+        field_name="power",
+        entity_description=NumberEntityDescription(
+            key="power",
+            name="Power",
+        ),
+        output_type=OutputType.POWER,
+        defaults=None,
     )
-    result = is_haeo_input_entity("number.other_number")
-    assert result is False
+    result = get_preferred_choice(field)
+    assert result == CHOICE_ENTITY
 
 
-def test_is_haeo_input_entity_returns_true_for_haeo_number(hass: HomeAssistant) -> None:
-    """is_haeo_input_entity returns True for HAEO number entity."""
-    registry = er.async_get(hass)
-    entity = registry.async_get_or_create(
-        domain="number",
-        platform=DOMAIN,
-        unique_id="test_number",
-        suggested_object_id="haeo_number",
+def test_get_preferred_choice_returns_constant_for_value_defaults() -> None:
+    """get_preferred_choice returns constant when defaults.mode is value."""
+    field = InputFieldInfo(
+        field_name="power",
+        entity_description=NumberEntityDescription(
+            key="power",
+            name="Power",
+        ),
+        output_type=OutputType.POWER,
+        defaults=InputFieldDefaults(mode="value", value=10.0),
     )
-    result = is_haeo_input_entity(entity.entity_id)
-    assert result is True
+    result = get_preferred_choice(field)
+    assert result == CHOICE_CONSTANT
 
 
-def test_is_haeo_input_entity_returns_true_for_haeo_switch(hass: HomeAssistant) -> None:
-    """is_haeo_input_entity returns True for HAEO switch entity."""
-    registry = er.async_get(hass)
-    entity = registry.async_get_or_create(
-        domain="switch",
-        platform=DOMAIN,
-        unique_id="test_switch",
-        suggested_object_id="haeo_switch",
+def test_get_preferred_choice_returns_entity_for_entity_defaults() -> None:
+    """get_preferred_choice returns entity when defaults.mode is entity."""
+    field = InputFieldInfo(
+        field_name="power",
+        entity_description=NumberEntityDescription(
+            key="power",
+            name="Power",
+        ),
+        output_type=OutputType.POWER,
+        defaults=InputFieldDefaults(mode="entity"),
     )
-    result = is_haeo_input_entity(entity.entity_id)
-    assert result is True
+    result = get_preferred_choice(field)
+    assert result == CHOICE_ENTITY
 
 
-def test_is_haeo_input_entity_returns_false_for_haeo_sensor(hass: HomeAssistant) -> None:
-    """is_haeo_input_entity returns False for HAEO sensor (not an input entity)."""
-    registry = er.async_get(hass)
-    entity = registry.async_get_or_create(
-        domain="sensor",
-        platform=DOMAIN,
-        unique_id="test_sensor",
-        suggested_object_id="haeo_sensor",
+def test_get_preferred_choice_uses_current_data_string_as_entity() -> None:
+    """get_preferred_choice returns entity when current_data has string value."""
+    field = InputFieldInfo(
+        field_name="power",
+        entity_description=NumberEntityDescription(
+            key="power",
+            name="Power",
+        ),
+        output_type=OutputType.POWER,
     )
-    result = is_haeo_input_entity(entity.entity_id)
-    assert result is False
+    current_data = {"power": "sensor.power"}
+    result = get_preferred_choice(field, current_data)
+    assert result == CHOICE_ENTITY
+
+
+def test_get_preferred_choice_uses_current_data_list_as_entity() -> None:
+    """get_preferred_choice returns entity when current_data has list value.
+
+    This covers the case where multiple=True is used on EntitySelector,
+    which stores entity IDs as a list (e.g., for chained sensors).
+    """
+    field = InputFieldInfo(
+        field_name="import_price",
+        entity_description=NumberEntityDescription(
+            key="import_price",
+            name="Import Price",
+        ),
+        output_type=OutputType.PRICE,
+    )
+    current_data = {"import_price": ["sensor.current_price", "sensor.forecast_price"]}
+    result = get_preferred_choice(field, current_data)
+    assert result == CHOICE_ENTITY
+
+
+def test_get_preferred_choice_uses_current_data_single_item_list_as_entity() -> None:
+    """get_preferred_choice returns entity when current_data has single-item list.
+
+    Even a single entity stored as a list should be recognized as entity mode.
+    """
+    field = InputFieldInfo(
+        field_name="power",
+        entity_description=NumberEntityDescription(
+            key="power",
+            name="Power",
+        ),
+        output_type=OutputType.POWER,
+    )
+    current_data = {"power": ["sensor.power"]}
+    result = get_preferred_choice(field, current_data)
+    assert result == CHOICE_ENTITY
+
+
+def test_get_preferred_choice_uses_current_data_number_as_constant() -> None:
+    """get_preferred_choice returns constant when current_data has number value."""
+    field = InputFieldInfo(
+        field_name="power",
+        entity_description=NumberEntityDescription(
+            key="power",
+            name="Power",
+        ),
+        output_type=OutputType.POWER,
+    )
+    current_data = {"power": 25.5}
+    result = get_preferred_choice(field, current_data)
+    assert result == CHOICE_CONSTANT
+
+
+def test_get_preferred_choice_uses_current_data_boolean_as_constant() -> None:
+    """get_preferred_choice returns constant when current_data has boolean value."""
+    field = InputFieldInfo(
+        field_name="enabled",
+        entity_description=NumberEntityDescription(
+            key="enabled",
+            name="Enabled",
+        ),
+        output_type=OutputType.STATUS,
+    )
+    current_data = {"enabled": True}
+    result = get_preferred_choice(field, current_data)
+    assert result == CHOICE_CONSTANT
 
 
 # --- Tests for get_haeo_input_entity_ids ---
@@ -224,269 +341,666 @@ def test_get_haeo_input_entity_ids_excludes_haeo_sensors(hass: HomeAssistant) ->
     assert sensor_entity.entity_id not in result
 
 
-# --- Tests for extract_non_entity_fields ---
+# --- Tests for get_choose_default ---
 
 
-def test_extract_non_entity_fields_extracts_non_list_values() -> None:
-    """extract_non_entity_fields extracts non-list values from step data."""
-    step1_data = {
-        "name": "Test Element",
-        "connection": "main_bus",
-        "import_price": ["sensor.price"],  # List - should be excluded
-        "export_price": ["sensor.export"],  # List - should be excluded
+def test_get_choose_default_returns_none_when_no_defaults(
+    hass: HomeAssistant,
+) -> None:
+    """get_choose_default returns None when no defaults or current_data."""
+    field = InputFieldInfo(
+        field_name="power",
+        entity_description=NumberEntityDescription(
+            key="power",
+            name="Power",
+        ),
+        output_type=OutputType.POWER,
+        defaults=None,
+    )
+    result = get_choose_default(field)
+    assert result is None
+
+
+def test_get_choose_default_returns_constant_for_value_mode(
+    hass: HomeAssistant,
+) -> None:
+    """get_choose_default returns constant value for value mode defaults."""
+    field = InputFieldInfo(
+        field_name="power",
+        entity_description=NumberEntityDescription(
+            key="power",
+            name="Power",
+        ),
+        output_type=OutputType.POWER,
+        defaults=InputFieldDefaults(mode="value", value=10.0),
+    )
+    result = get_choose_default(field)
+    assert result == 10.0
+
+
+def test_get_choose_default_returns_empty_list_for_entity_mode(
+    hass: HomeAssistant,
+) -> None:
+    """get_choose_default returns empty list for entity mode defaults."""
+    field = InputFieldInfo(
+        field_name="power",
+        entity_description=NumberEntityDescription(
+            key="power",
+            name="Power",
+        ),
+        output_type=OutputType.POWER,
+        defaults=InputFieldDefaults(mode="entity"),
+    )
+    result = get_choose_default(field)
+    assert result == []
+
+
+def test_get_choose_default_uses_current_data_constant(
+    hass: HomeAssistant,
+) -> None:
+    """get_choose_default returns constant value from current_data."""
+    field = InputFieldInfo(
+        field_name="power",
+        entity_description=NumberEntityDescription(
+            key="power",
+            name="Power",
+        ),
+        output_type=OutputType.POWER,
+    )
+    current_data = {"power": 25.5}
+    result = get_choose_default(field, current_data=current_data)
+    assert result == 25.5
+
+
+def test_get_choose_default_uses_current_data_entity(
+    hass: HomeAssistant,
+) -> None:
+    """get_choose_default returns entity list from current_data string."""
+    field = InputFieldInfo(
+        field_name="power",
+        entity_description=NumberEntityDescription(
+            key="power",
+            name="Power",
+        ),
+        output_type=OutputType.POWER,
+    )
+    current_data = {"power": "sensor.power"}
+    result = get_choose_default(field, current_data=current_data)
+    assert result == ["sensor.power"]
+
+
+def test_get_choose_default_uses_current_data_entity_list(
+    hass: HomeAssistant,
+) -> None:
+    """get_choose_default returns entity list from current_data list."""
+    field = InputFieldInfo(
+        field_name="power",
+        entity_description=NumberEntityDescription(
+            key="power",
+            name="Power",
+        ),
+        output_type=OutputType.POWER,
+    )
+    current_data = {"power": ["sensor.power1", "sensor.power2"]}
+    result = get_choose_default(field, current_data=current_data)
+    assert result == ["sensor.power1", "sensor.power2"]
+
+
+def test_get_choose_default_uses_current_data_boolean(
+    hass: HomeAssistant,
+) -> None:
+    """get_choose_default returns boolean value from current_data."""
+    field = InputFieldInfo(
+        field_name="enabled",
+        entity_description=NumberEntityDescription(
+            key="enabled",
+            name="Enabled",
+        ),
+        output_type=OutputType.STATUS,
+    )
+    current_data = {"enabled": True}
+    result = get_choose_default(field, current_data=current_data)
+    assert result is True
+
+
+# --- Tests for convert_choose_data_to_config ---
+
+
+def test_convert_choose_data_constant_stored_directly(
+    number_field: InputFieldInfo[NumberEntityDescription],
+) -> None:
+    """Constant choice value is stored directly.
+
+    After schema validation, ChooseSelector returns the raw value.
+    """
+    user_input: dict[str, Any] = {
+        "test_field": 42.0,  # Raw value after ChooseSelector validation
     }
-    result = extract_non_entity_fields(step1_data)
-    assert result == {"name": "Test Element", "connection": "main_bus"}
+    result = convert_choose_data_to_config(user_input, _field_map(number_field))
+    assert result["test_field"] == 42.0
 
 
-def test_extract_non_entity_fields_respects_exclude_keys() -> None:
-    """extract_non_entity_fields excludes specified keys."""
-    step1_data = {
-        "name": "Test Element",
-        "connection": "main_bus",
-        "capacity": 10.5,
+def test_convert_choose_data_entity_single_stored_as_string(
+    number_field: InputFieldInfo[NumberEntityDescription],
+) -> None:
+    """Single entity is stored as string.
+
+    After schema validation, ChooseSelector returns the entity list.
+    """
+    user_input: dict[str, Any] = {
+        "test_field": ["sensor.power"],  # Raw list after ChooseSelector validation
     }
-    result = extract_non_entity_fields(step1_data, exclude_keys=("name", "connection"))
-    assert result == {"capacity": 10.5}
+    result = convert_choose_data_to_config(user_input, _field_map(number_field))
+    assert result["test_field"] == "sensor.power"
 
 
-def test_extract_non_entity_fields_returns_empty_for_all_lists() -> None:
-    """extract_non_entity_fields returns empty dict when all values are lists."""
-    step1_data = {
-        "import_price": ["sensor.price"],
-        "export_price": ["sensor.export"],
+def test_convert_choose_data_entity_multiple_stored_as_list(
+    number_field: InputFieldInfo[NumberEntityDescription],
+) -> None:
+    """Multiple entities are stored as list.
+
+    After schema validation, ChooseSelector returns the entity list.
+    """
+    user_input: dict[str, Any] = {
+        "test_field": ["sensor.power1", "sensor.power2"],  # Raw list
     }
-    result = extract_non_entity_fields(step1_data)
-    assert result == {}
+    result = convert_choose_data_to_config(user_input, _field_map(number_field))
+    assert result["test_field"] == ["sensor.power1", "sensor.power2"]
 
 
-# --- Tests for convert_entity_selections_to_config ---
+def test_convert_choose_data_empty_value_omitted(
+    number_field: InputFieldInfo[NumberEntityDescription],
+) -> None:
+    """Empty entity list is omitted from config."""
+    user_input: dict[str, Any] = {
+        "test_field": [],  # Empty list after ChooseSelector validation
+    }
+    result = convert_choose_data_to_config(user_input, _field_map(number_field))
+    assert "test_field" not in result
 
 
-def test_convert_empty_selection_omitted() -> None:
-    """Empty entity selection is omitted from config."""
-    entity_selections: dict[str, list[str]] = {"field1": []}
-    configurable_values: dict[str, Any] = {}
+def test_convert_choose_data_none_constant_omitted(
+    number_field: InputFieldInfo[NumberEntityDescription],
+) -> None:
+    """None value is omitted from config."""
+    user_input: dict[str, Any] = {
+        "test_field": None,
+    }
+    result = convert_choose_data_to_config(user_input, _field_map(number_field))
+    assert "test_field" not in result
 
-    result = convert_entity_selections_to_config(entity_selections, configurable_values)
 
-    assert "field1" not in result
+def test_convert_choose_data_respects_exclude_keys(
+    number_field: InputFieldInfo[NumberEntityDescription],
+) -> None:
+    """Excluded keys are not processed."""
+    user_input: dict[str, Any] = {
+        "name": "Test",
+        "test_field": 42.0,  # Raw value
+    }
+    result = convert_choose_data_to_config(user_input, _field_map(number_field), exclude_keys=("name",))
+    assert "name" not in result
+    assert result["test_field"] == 42.0
 
 
-def test_convert_configurable_entity_uses_configurable_value(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Configurable entity selection uses value from configurable_values."""
-    monkeypatch.setattr(
-        "custom_components.haeo.flows.field_schema.is_configurable_entity",
-        lambda entity_id: entity_id == "number.haeo_configure_power",
+def test_convert_choose_data_ignores_unknown_fields(
+    number_field: InputFieldInfo[NumberEntityDescription],
+) -> None:
+    """Unknown fields (not in input_fields) are ignored."""
+    user_input: dict[str, Any] = {
+        "test_field": 42.0,  # Raw value
+        "unknown_field": 99.0,  # Not in input_fields
+    }
+    result = convert_choose_data_to_config(user_input, _field_map(number_field))
+    assert "test_field" in result
+    assert "unknown_field" not in result
+
+
+def test_convert_choose_data_boolean_constant() -> None:
+    """Boolean constant is stored correctly.
+
+    After schema validation, ChooseSelector returns the raw boolean.
+    """
+    field = InputFieldInfo(
+        field_name="enabled",
+        entity_description=NumberEntityDescription(
+            key="enabled",
+            name="Enabled",
+        ),
+        output_type=OutputType.STATUS,
     )
-    entity_selections = {"power": ["number.haeo_configure_power"]}
-    configurable_values: dict[str, Any] = {"power": 10.5}
-
-    result = convert_entity_selections_to_config(entity_selections, configurable_values)
-
-    assert result["power"] == 10.5
-
-
-def test_convert_configurable_entity_without_value_omitted(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Configurable entity without value in configurable_values is omitted."""
-    monkeypatch.setattr(
-        "custom_components.haeo.flows.field_schema.is_configurable_entity",
-        lambda entity_id: entity_id == "number.haeo_configure_power",
-    )
-    entity_selections = {"power": ["number.haeo_configure_power"]}
-    configurable_values: dict[str, Any] = {}
-
-    result = convert_entity_selections_to_config(entity_selections, configurable_values)
-
-    assert "power" not in result
-
-
-def test_convert_external_entity_single_stored_as_string() -> None:
-    """Single external entity is stored as string."""
-    entity_selections = {"power": ["sensor.grid_power"]}
-    configurable_values: dict[str, Any] = {}
-
-    result = convert_entity_selections_to_config(entity_selections, configurable_values)
-
-    assert result["power"] == "sensor.grid_power"
-
-
-def test_convert_external_entity_multiple_stored_as_list() -> None:
-    """Multiple external entities are stored as list."""
-    entity_selections = {"power": ["sensor.power1", "sensor.power2"]}
-    configurable_values: dict[str, Any] = {}
-
-    result = convert_entity_selections_to_config(entity_selections, configurable_values)
-
-    assert result["power"] == ["sensor.power1", "sensor.power2"]
-
-
-def test_convert_self_referential_entity_preserves_float(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Self-referential entity selection preserves float from current_data."""
-    monkeypatch.setattr(
-        "custom_components.haeo.flows.field_schema.resolve_configurable_entity_id",
-        lambda _entry_id, _subentry_id, _field_name: "number.haeo_entry1_sub1_capacity",
-    )
-    entity_selections = {"capacity": ["number.haeo_entry1_sub1_capacity"]}
-    configurable_values: dict[str, Any] = {}
-    current_data: dict[str, Any] = {"capacity": 13.5}
-
-    result = convert_entity_selections_to_config(
-        entity_selections,
-        configurable_values,
-        current_data=current_data,
-        entry_id="entry1",
-        subentry_id="sub1",
-    )
-
-    assert result["capacity"] == 13.5
-
-
-def test_convert_self_referential_entity_preserves_int(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Self-referential entity selection preserves int from current_data."""
-    monkeypatch.setattr(
-        "custom_components.haeo.flows.field_schema.resolve_configurable_entity_id",
-        lambda _entry_id, _subentry_id, _field_name: "number.haeo_entry1_sub1_capacity",
-    )
-    entity_selections = {"capacity": ["number.haeo_entry1_sub1_capacity"]}
-    configurable_values: dict[str, Any] = {}
-    current_data: dict[str, Any] = {"capacity": 10}
-
-    result = convert_entity_selections_to_config(
-        entity_selections,
-        configurable_values,
-        current_data=current_data,
-        entry_id="entry1",
-        subentry_id="sub1",
-    )
-
-    assert result["capacity"] == 10
-
-
-def test_convert_self_referential_entity_preserves_bool(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Self-referential entity selection preserves boolean from current_data."""
-    monkeypatch.setattr(
-        "custom_components.haeo.flows.field_schema.resolve_configurable_entity_id",
-        lambda _entry_id, _subentry_id, _field_name: "switch.haeo_entry1_sub1_enabled",
-    )
-    entity_selections = {"enabled": ["switch.haeo_entry1_sub1_enabled"]}
-    configurable_values: dict[str, Any] = {}
-    current_data: dict[str, Any] = {"enabled": True}
-
-    result = convert_entity_selections_to_config(
-        entity_selections,
-        configurable_values,
-        current_data=current_data,
-        entry_id="entry1",
-        subentry_id="sub1",
-    )
-
+    user_input: dict[str, Any] = {
+        "enabled": True,  # Raw boolean
+    }
+    result = convert_choose_data_to_config(user_input, _field_map(field))
     assert result["enabled"] is True
 
 
-def test_convert_self_referential_without_current_data_raises_error(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Self-referential entity without current_data raises HomeAssistantError."""
-    monkeypatch.setattr(
-        "custom_components.haeo.flows.field_schema.resolve_configurable_entity_id",
-        lambda _entry_id, _subentry_id, _field_name: "number.haeo_entry1_sub1_capacity",
+def test_convert_choose_data_none_omits_field(
+    number_field: InputFieldInfo[NumberEntityDescription],
+) -> None:
+    """None choice omits field from config.
+
+    After preprocessing, the none choice is converted to None.
+    """
+    user_input: dict[str, Any] = {
+        "test_field": None,  # None from preprocessing (originally "" from ConstantSelector)
+    }
+    result = convert_choose_data_to_config(user_input, _field_map(number_field))
+    assert "test_field" not in result
+
+
+# --- Tests for none choice in build_choose_selector ---
+
+
+def test_build_choose_selector_optional_has_none_choice(
+    number_field: InputFieldInfo[NumberEntityDescription],
+) -> None:
+    """Optional field selector includes none choice."""
+    selector = build_choose_selector(number_field, is_optional=True)
+    config = selector.config
+    assert CHOICE_NONE in config["choices"]
+    assert CHOICE_ENTITY in config["choices"]
+    assert CHOICE_CONSTANT in config["choices"]
+
+
+def test_build_choose_selector_required_has_no_none_choice(
+    number_field: InputFieldInfo[NumberEntityDescription],
+) -> None:
+    """Required field selector does not include none choice."""
+    selector = build_choose_selector(number_field, is_optional=False)
+    config = selector.config
+    assert CHOICE_NONE not in config["choices"]
+    assert CHOICE_ENTITY in config["choices"]
+    assert CHOICE_CONSTANT in config["choices"]
+
+
+def test_build_choose_selector_none_first_when_preferred(
+    number_field: InputFieldInfo[NumberEntityDescription],
+) -> None:
+    """None choice appears first when preferred_choice is none."""
+    selector = build_choose_selector(number_field, is_optional=True, preferred_choice=CHOICE_NONE)
+    config = selector.config
+    choices_keys = list(config["choices"].keys())
+    assert choices_keys[0] == CHOICE_NONE
+
+
+# --- Tests for none choice in get_preferred_choice ---
+
+
+def test_get_preferred_choice_returns_none_for_optional_without_data() -> None:
+    """get_preferred_choice returns none for optional field not in current_data."""
+    field = InputFieldInfo(
+        field_name="power",
+        entity_description=NumberEntityDescription(
+            key="power",
+            name="Power",
+        ),
+        output_type=OutputType.POWER,
+        defaults=None,
     )
-    entity_selections = {"capacity": ["number.haeo_entry1_sub1_capacity"]}
-    configurable_values: dict[str, Any] = {}
-
-    with pytest.raises(HomeAssistantError) as exc_info:
-        convert_entity_selections_to_config(
-            entity_selections,
-            configurable_values,
-            current_data=None,
-            entry_id="entry1",
-            subentry_id="sub1",
-        )
-
-    assert exc_info.value.translation_key == "self_referential_no_current_data"
-    assert exc_info.value.translation_placeholders == {"field": "capacity"}
+    # current_data exists but field is not in it (meaning it was set to none)
+    current_data = {"other_field": 10.0}
+    result = get_preferred_choice(field, current_data, is_optional=True)
+    assert result == CHOICE_NONE
 
 
-def test_convert_self_referential_with_non_scalar_raises_error(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Self-referential entity with non-scalar value raises HomeAssistantError."""
-    monkeypatch.setattr(
-        "custom_components.haeo.flows.field_schema.resolve_configurable_entity_id",
-        lambda _entry_id, _subentry_id, _field_name: "number.haeo_entry1_sub1_capacity",
+def test_get_preferred_choice_returns_none_for_optional_new_entry_no_defaults() -> None:
+    """get_preferred_choice returns none for optional field with no defaults in new entry."""
+    field = InputFieldInfo(
+        field_name="power",
+        entity_description=NumberEntityDescription(
+            key="power",
+            name="Power",
+        ),
+        output_type=OutputType.POWER,
+        defaults=None,
     )
-    entity_selections = {"capacity": ["number.haeo_entry1_sub1_capacity"]}
-    configurable_values: dict[str, Any] = {}
-    current_data: dict[str, Any] = {"capacity": ["sensor.external"]}  # List, not scalar
-
-    with pytest.raises(HomeAssistantError) as exc_info:
-        convert_entity_selections_to_config(
-            entity_selections,
-            configurable_values,
-            current_data=current_data,
-            entry_id="entry1",
-            subentry_id="sub1",
-        )
-
-    assert exc_info.value.translation_key == "self_referential_invalid_value"
-    assert exc_info.value.translation_placeholders == {"field": "capacity", "value_type": "list"}
+    # No current_data (new entry)
+    result = get_preferred_choice(field, None, is_optional=True)
+    assert result == CHOICE_NONE
 
 
-def test_convert_other_haeo_entity_stored_as_reference(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Other HAEO entity (not self-referential) is stored as entity reference."""
-    monkeypatch.setattr(
-        "custom_components.haeo.flows.field_schema.resolve_configurable_entity_id",
-        lambda _entry_id, _subentry_id, _field_name: "number.haeo_entry1_sub1_capacity",
+def test_get_preferred_choice_returns_value_for_optional_with_value_defaults() -> None:
+    """get_preferred_choice returns constant for optional field with value defaults."""
+    field = InputFieldInfo(
+        field_name="power",
+        entity_description=NumberEntityDescription(
+            key="power",
+            name="Power",
+        ),
+        output_type=OutputType.POWER,
+        defaults=InputFieldDefaults(mode="value", value=10.0),
     )
-    # This is a DIFFERENT HAEO entity (from another element)
-    entity_selections = {"capacity": ["number.haeo_entry1_other_sub_capacity"]}
-    configurable_values: dict[str, Any] = {}
-    current_data: dict[str, Any] = {"capacity": 13.5}
+    result = get_preferred_choice(field, None, is_optional=True)
+    assert result == CHOICE_CONSTANT
 
-    result = convert_entity_selections_to_config(
-        entity_selections,
-        configurable_values,
-        current_data=current_data,
-        entry_id="entry1",
-        subentry_id="sub1",
+
+def test_get_preferred_choice_required_field_ignores_is_optional_false() -> None:
+    """get_preferred_choice for required field (is_optional=False) returns entity by default."""
+    field = InputFieldInfo(
+        field_name="power",
+        entity_description=NumberEntityDescription(
+            key="power",
+            name="Power",
+        ),
+        output_type=OutputType.POWER,
+        defaults=None,
     )
+    # current_data exists but field is not in it
+    current_data = {"other_field": 10.0}
+    result = get_preferred_choice(field, current_data, is_optional=False)
+    # Required field should NOT return none, should return entity
+    assert result == CHOICE_ENTITY
 
-    # Should be stored as entity reference, NOT preserve scalar
-    assert result["capacity"] == "number.haeo_entry1_other_sub_capacity"
 
-
-def test_convert_no_entry_id_treats_as_external() -> None:
-    """Without entry_id, any entity is treated as external (stored as reference)."""
-    entity_selections = {"capacity": ["number.haeo_battery_capacity"]}
-    configurable_values: dict[str, Any] = {}
-    current_data: dict[str, Any] = {"capacity": 13.5}
-
-    result = convert_entity_selections_to_config(
-        entity_selections,
-        configurable_values,
-        current_data=current_data,
-        # No entry_id or subentry_id
+def test_get_preferred_choice_returns_none_for_defaults_mode_none() -> None:
+    """get_preferred_choice returns none when defaults.mode is None for optional field."""
+    field = InputFieldInfo(
+        field_name="efficiency",
+        entity_description=NumberEntityDescription(
+            key="efficiency",
+            name="Efficiency",
+        ),
+        output_type=OutputType.EFFICIENCY,
+        # mode=None with a value means "default to none, but use this value if user enables"
+        defaults=InputFieldDefaults(mode=None, value=100.0),
     )
+    # No current_data (new entry)
+    result = get_preferred_choice(field, None, is_optional=True)
+    assert result == CHOICE_NONE
 
-    # Without entry_id, can't determine self-reference, so store as entity
-    assert result["capacity"] == "number.haeo_battery_capacity"
 
-
-def test_convert_self_referential_field_not_in_current_data_raises_error(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Self-referential entity with field not in current_data raises HomeAssistantError."""
-    monkeypatch.setattr(
-        "custom_components.haeo.flows.field_schema.resolve_configurable_entity_id",
-        lambda _entry_id, _subentry_id, _field_name: "number.haeo_entry1_sub1_capacity",
+def test_get_preferred_choice_returns_entity_for_defaults_mode_entity() -> None:
+    """get_preferred_choice returns entity when defaults.mode is entity."""
+    field = InputFieldInfo(
+        field_name="power",
+        entity_description=NumberEntityDescription(
+            key="power",
+            name="Power",
+        ),
+        output_type=OutputType.POWER,
+        defaults=InputFieldDefaults(mode="entity"),
     )
-    entity_selections = {"capacity": ["number.haeo_entry1_sub1_capacity"]}
-    configurable_values: dict[str, Any] = {}
-    current_data: dict[str, Any] = {"other_field": 10.0}
+    result = get_preferred_choice(field, None, is_optional=True)
+    assert result == CHOICE_ENTITY
 
-    with pytest.raises(HomeAssistantError) as exc_info:
-        convert_entity_selections_to_config(
-            entity_selections,
-            configurable_values,
-            current_data=current_data,
-            entry_id="entry1",
-            subentry_id="sub1",
-        )
 
-    assert exc_info.value.translation_key == "self_referential_field_missing"
-    assert exc_info.value.translation_placeholders == {"field": "capacity"}
+# --- Tests for resolve_haeo_input_entity_id ---
+
+
+def test_resolve_haeo_input_entity_id_returns_none_when_not_found(hass: HomeAssistant) -> None:
+    """resolve_haeo_input_entity_id returns None when entity doesn't exist."""
+    result = resolve_haeo_input_entity_id("entry123", "subentry456", "test_field")
+    assert result is None
+
+
+# --- Tests for build_entity_selector ---
+
+
+def test_build_entity_selector_with_include_entities(hass: HomeAssistant) -> None:
+    """build_entity_selector includes entities in config when provided."""
+    selector = build_entity_selector(include_entities=["sensor.power", "sensor.voltage"])
+    config = selector.config
+    assert "include_entities" in config
+    assert "sensor.power" in config["include_entities"]
+    assert "sensor.voltage" in config["include_entities"]
+
+
+def test_build_entity_selector_without_include_entities(hass: HomeAssistant) -> None:
+    """build_entity_selector with no include_entities still includes HAEO entities."""
+    selector = build_entity_selector(include_entities=None)
+    config = selector.config
+    # Even with None, HAEO input entities are added (if any exist)
+    assert config["domain"] == [DOMAIN, "sensor", "input_number", "number", "switch"]
+
+
+# --- Tests for _normalize_entity_selection ---
+
+
+def test_normalize_entity_selection_with_string_returns_string() -> None:
+    """_normalize_entity_selection returns string unchanged when passed a string."""
+    result = _normalize_entity_selection("sensor.power")
+    assert result == "sensor.power"
+
+
+def test_normalize_entity_selection_single_element_list_returns_string() -> None:
+    """_normalize_entity_selection extracts single element from list."""
+    result = _normalize_entity_selection(["sensor.power"])
+    assert result == "sensor.power"
+
+
+def test_normalize_entity_selection_multi_element_list_returns_list() -> None:
+    """_normalize_entity_selection keeps multi-element list as list."""
+    result = _normalize_entity_selection(["sensor.power1", "sensor.power2"])
+    assert result == ["sensor.power1", "sensor.power2"]
+
+
+# --- Tests for preprocess_choose_selector_input ---
+
+
+def test_preprocess_choose_selector_input_none_returns_none(
+    number_field: InputFieldInfo[NumberEntityDescription],
+) -> None:
+    """preprocess_choose_selector_input returns None when input is None."""
+    result = preprocess_choose_selector_input(None, _field_map(number_field))
+    assert result is None
+
+
+def test_preprocess_choose_selector_input_none_choice_returns_none(
+    number_field: InputFieldInfo[NumberEntityDescription],
+) -> None:
+    """preprocess_choose_selector_input converts none choice to None."""
+    user_input = {
+        "test_field": {"active_choice": "none", "constant": 100},
+    }
+    result = preprocess_choose_selector_input(user_input, _field_map(number_field))
+    assert result is not None
+    assert result["test_field"] is None
+
+
+def test_preprocess_choose_selector_input_entity_choice_extracts_entities(
+    number_field: InputFieldInfo[NumberEntityDescription],
+) -> None:
+    """preprocess_choose_selector_input extracts entity list from entity choice."""
+    user_input = {
+        "test_field": {"active_choice": "entity", "entity": ["sensor.power"]},
+    }
+    result = preprocess_choose_selector_input(user_input, _field_map(number_field))
+    assert result is not None
+    assert result["test_field"] == ["sensor.power"]
+
+
+def test_preprocess_choose_selector_input_constant_choice_extracts_value(
+    number_field: InputFieldInfo[NumberEntityDescription],
+) -> None:
+    """preprocess_choose_selector_input extracts constant value from constant choice."""
+    user_input = {
+        "test_field": {"active_choice": "constant", "constant": 42.5},
+    }
+    result = preprocess_choose_selector_input(user_input, _field_map(number_field))
+    assert result is not None
+    assert result["test_field"] == 42.5
+
+
+def test_preprocess_choose_selector_input_already_normalized_passthrough(
+    number_field: InputFieldInfo[NumberEntityDescription],
+) -> None:
+    """preprocess_choose_selector_input passes through already-normalized data."""
+    # Already normalized entity list
+    user_input_entity = {"test_field": ["sensor.power"]}
+    result = preprocess_choose_selector_input(user_input_entity, _field_map(number_field))
+    assert result is not None
+    assert result["test_field"] == ["sensor.power"]
+
+    # Already normalized constant
+    user_input_constant = {"test_field": 50.0}
+    result = preprocess_choose_selector_input(user_input_constant, _field_map(number_field))
+    assert result is not None
+    assert result["test_field"] == 50.0
+
+    # Empty string (from ConstantSelector) is converted to None
+    user_input_none = {"test_field": ""}
+    result = preprocess_choose_selector_input(user_input_none, _field_map(number_field))
+    assert result is not None
+    assert result["test_field"] is None
+
+
+def test_preprocess_choose_selector_input_ignores_non_field_keys(
+    number_field: InputFieldInfo[NumberEntityDescription],
+) -> None:
+    """preprocess_choose_selector_input ignores keys not in input_fields."""
+    user_input = {
+        "test_field": {"active_choice": "none", "constant": 100},
+        "name": "Test Name",  # Not in input_fields, should pass through unchanged
+        "other_field": {"active_choice": "none"},  # Not in input_fields
+    }
+    result = preprocess_choose_selector_input(user_input, _field_map(number_field))
+    assert result is not None
+    assert result["test_field"] is None  # Converted to None
+    assert result["name"] == "Test Name"
+    # other_field is not in input_fields, so it passes through as-is
+    assert result["other_field"] == {"active_choice": "none"}
+
+
+def test_preprocess_choose_selector_input_entity_choice_empty_list(
+    number_field: InputFieldInfo[NumberEntityDescription],
+) -> None:
+    """preprocess_choose_selector_input handles entity choice with missing entity key."""
+    user_input = {
+        "test_field": {"active_choice": "entity"},  # No entity key
+    }
+    result = preprocess_choose_selector_input(user_input, _field_map(number_field))
+    assert result is not None
+    assert result["test_field"] == []
+
+
+# --- is_valid_choose_value tests ---
+
+
+def test_is_valid_choose_value_with_none() -> None:
+    """is_valid_choose_value returns False for None."""
+    assert is_valid_choose_value(None) is False
+
+
+def test_is_valid_choose_value_with_entity_list() -> None:
+    """is_valid_choose_value returns True for non-empty entity lists."""
+    assert is_valid_choose_value(["sensor.power"]) is True
+    assert is_valid_choose_value(["sensor.a", "sensor.b"]) is True
+    # Empty list is invalid
+    assert is_valid_choose_value([]) is False
+
+
+def test_is_valid_choose_value_with_string_entity_id() -> None:
+    """is_valid_choose_value accepts string entity IDs as valid."""
+    assert is_valid_choose_value("sensor.price") is True
+    # Empty string is invalid
+    assert is_valid_choose_value("") is False
+
+
+def test_is_valid_choose_value_with_numeric_constants() -> None:
+    """is_valid_choose_value returns True for numeric constants."""
+    assert is_valid_choose_value(42.0) is True
+    assert is_valid_choose_value(0) is True
+    assert is_valid_choose_value(-10.5) is True
+
+
+def test_is_valid_choose_value_with_boolean() -> None:
+    """is_valid_choose_value returns True for boolean values."""
+    assert is_valid_choose_value(True) is True
+    assert is_valid_choose_value(False) is True
+
+
+def test_is_valid_choose_value_with_unexpected_types() -> None:
+    """is_valid_choose_value returns False for unexpected types."""
+    assert is_valid_choose_value({"key": "value"}) is False
+    assert is_valid_choose_value(object()) is False
+
+
+# --- validate_choose_fields tests ---
+
+
+def test_validate_choose_fields_returns_empty_for_valid_input(
+    number_field: InputFieldInfo[NumberEntityDescription],
+) -> None:
+    """validate_choose_fields returns empty dict when all required fields are valid."""
+    user_input = {"test_field": 42.0}
+    result = validate_choose_fields(user_input, _field_map(number_field), frozenset())
+    assert result == {}
+
+
+def test_validate_choose_fields_returns_error_for_invalid_required(
+    number_field: InputFieldInfo[NumberEntityDescription],
+) -> None:
+    """validate_choose_fields returns error for invalid required field."""
+    user_input = {"test_field": None}
+    result = validate_choose_fields(user_input, _field_map(number_field), frozenset())
+    assert result == {"test_field": "required"}
+
+
+def test_validate_choose_fields_skips_optional_fields(
+    number_field: InputFieldInfo[NumberEntityDescription],
+) -> None:
+    """validate_choose_fields skips fields in optional_keys."""
+    user_input = {"test_field": None}
+    # Mark test_field as optional
+    result = validate_choose_fields(user_input, _field_map(number_field), frozenset({"test_field"}))
+    assert result == {}
+
+
+def test_validate_choose_fields_skips_excluded_fields(
+    number_field: InputFieldInfo[NumberEntityDescription],
+) -> None:
+    """validate_choose_fields skips fields in exclude_fields."""
+    user_input = {"test_field": None}
+    result = validate_choose_fields(
+        user_input,
+        _field_map(number_field),
+        frozenset(),
+        exclude_fields=("test_field",),
+    )
+    assert result == {}
+
+
+# --- Tests for NormalizingChooseSelector.__call__ ---
+
+
+def test_normalizing_choose_selector_call_with_none_choice(
+    number_field: InputFieldInfo[NumberEntityDescription],
+) -> None:
+    """NormalizingChooseSelector normalizes none choice dict to empty string."""
+    selector = build_choose_selector(number_field, is_optional=True, preferred_choice=CHOICE_NONE)
+    # The selector should normalize {"active_choice": "none", ...} to ""
+    # and then validate it (ConstantSelector accepts "")
+    result = selector({"active_choice": "none", "constant": 100})
+    assert result == ""
+
+
+def test_normalizing_choose_selector_call_with_entity_choice(
+    number_field: InputFieldInfo[NumberEntityDescription],
+) -> None:
+    """NormalizingChooseSelector normalizes entity choice dict to entity list."""
+    selector = build_choose_selector(number_field, preferred_choice=CHOICE_ENTITY)
+    # The selector should normalize {"active_choice": "entity", "entity": [...]} to the list
+    result = selector({"active_choice": "entity", "entity": ["sensor.power"]})
+    assert result == ["sensor.power"]
+
+
+def test_normalizing_choose_selector_call_with_constant_choice(
+    number_field: InputFieldInfo[NumberEntityDescription],
+) -> None:
+    """NormalizingChooseSelector normalizes constant choice dict to constant value."""
+    selector = build_choose_selector(number_field, preferred_choice=CHOICE_CONSTANT)
+    # The selector should normalize {"active_choice": "constant", "constant": 42.0} to 42.0
+    result = selector({"active_choice": "constant", "constant": 42.0})
+    assert result == 42.0
+
+
+def test_normalizing_choose_selector_call_passthrough_already_normalized(
+    number_field: InputFieldInfo[NumberEntityDescription],
+) -> None:
+    """NormalizingChooseSelector passes through already-normalized values."""
+    selector = build_choose_selector(number_field, preferred_choice=CHOICE_CONSTANT)
+    # Already normalized constant value should pass through
+    result = selector(50.0)
+    assert result == 50.0

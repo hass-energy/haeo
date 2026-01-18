@@ -21,7 +21,7 @@ from custom_components.haeo.const import (
     ELEMENT_TYPE_NETWORK,
     INTEGRATION_TYPE_HUB,
 )
-from custom_components.haeo.elements import ELEMENT_TYPE_NODE, ELEMENT_TYPES
+from custom_components.haeo.elements import ELEMENT_TYPE_NODE, ELEMENT_TYPES, get_element_flow_classes
 from custom_components.haeo.elements.node import CONF_IS_SINK, CONF_IS_SOURCE
 
 from . import HORIZON_PRESET_CUSTOM, get_custom_tiers_schema, get_hub_setup_schema, get_tier_config
@@ -157,10 +157,11 @@ class HubConfigFlow(ConfigFlow, domain=DOMAIN):
         Element types marked as advanced in the registry require advanced_mode enabled.
         """
         advanced_mode = config_entry.data.get(CONF_ADVANCED_MODE, False)
+        flow_classes = get_element_flow_classes()
 
         # Register element flows, filtering advanced types based on mode
         return {
-            element_type: entry.flow_class
+            element_type: flow_classes[element_type]
             for element_type, entry in ELEMENT_TYPES.items()
             if not entry.advanced or advanced_mode
         }

@@ -3,17 +3,11 @@
 from custom_components.haeo.const import CONF_NAME
 from custom_components.haeo.elements.load import CONF_CONNECTION, CONF_FORECAST
 
-# Test data for load flow - entity-first approach
-# Step 1 (mode_input): Select entities (including constant entities) for each field
-# Step 2 (config): Enter constant values for fields with constant entities selected
+# Test data for load flow - single-step with choose selector
+# config: Contains all field values in choose selector format
 VALID_DATA = [
     {
         "description": "Load with forecast sensors (variable load)",
-        "mode_input": {
-            CONF_NAME: "Test Load",
-            CONF_CONNECTION: "main_bus",
-            CONF_FORECAST: ["sensor.forecast1", "sensor.forecast2"],
-        },
         "config": {
             CONF_NAME: "Test Load",
             CONF_CONNECTION: "main_bus",
@@ -22,11 +16,6 @@ VALID_DATA = [
     },
     {
         "description": "Load with constant value (fixed load pattern)",
-        "mode_input": {
-            CONF_NAME: "Constant Load",
-            CONF_CONNECTION: "main_bus",
-            CONF_FORECAST: ["haeo.configurable_entity"],
-        },
         "config": {
             CONF_NAME: "Constant Load",
             CONF_CONNECTION: "main_bus",

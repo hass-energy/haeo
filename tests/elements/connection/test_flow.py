@@ -3,14 +3,20 @@
 from types import MappingProxyType
 from unittest.mock import Mock
 
-from homeassistant.config_entries import ConfigSubentry
+from homeassistant.config_entries import SOURCE_RECONFIGURE, ConfigSubentry
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.elements import battery, grid, node
-from custom_components.haeo.elements.connection import CONF_SOURCE, CONF_TARGET, ELEMENT_TYPE
+from custom_components.haeo.elements.connection import (
+    CONF_MAX_POWER_SOURCE_TARGET,
+    CONF_MAX_POWER_TARGET_SOURCE,
+    CONF_SOURCE,
+    CONF_TARGET,
+    ELEMENT_TYPE,
+)
 
 from ..conftest import add_participant, create_flow
 
@@ -54,7 +60,7 @@ async def test_reconfigure_source_equals_target_error(hass: HomeAssistant, hub_e
     hass.config_entries.async_add_subentry(hub_entry, existing_subentry)
 
     flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
-    flow.context = {"subentry_id": existing_subentry.subentry_id}
+    flow.context = {"subentry_id": existing_subentry.subentry_id, "source": SOURCE_RECONFIGURE}
     flow._get_reconfigure_subentry = Mock(return_value=existing_subentry)
 
     # Submit with source == target
@@ -91,7 +97,7 @@ async def test_reconfigure_with_deleted_participant(hass: HomeAssistant, hub_ent
     hass.config_entries.async_add_subentry(hub_entry, existing_subentry)
 
     flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
-    flow.context = {"subentry_id": existing_subentry.subentry_id}
+    flow.context = {"subentry_id": existing_subentry.subentry_id, "source": SOURCE_RECONFIGURE}
     flow._get_reconfigure_subentry = Mock(return_value=existing_subentry)
 
     # Show reconfigure form - should not error
@@ -138,13 +144,11 @@ async def test_get_subentry_returns_none_for_user_flow(hass: HomeAssistant, hub_
 
 
 async def test_reconfigure_with_string_entity_id_v010_format(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
-    """Reconfigure with v0.1.0 string entity ID should show entity in defaults."""
+    """Reconfigure with v0.1.0 string entity ID should show entity choice in defaults."""
     add_participant(hass, hub_entry, "Battery1", battery.ELEMENT_TYPE)
     add_participant(hass, hub_entry, "Grid1", grid.ELEMENT_TYPE)
 
     # Create existing entry with v0.1.0 format: string entity IDs (not list, not scalar)
-    from custom_components.haeo.elements.connection import CONF_MAX_POWER_SOURCE_TARGET, CONF_MAX_POWER_TARGET_SOURCE
-
     existing_config = {
         CONF_ELEMENT_TYPE: ELEMENT_TYPE,
         CONF_NAME: "Test Connection",
@@ -162,7 +166,7 @@ async def test_reconfigure_with_string_entity_id_v010_format(hass: HomeAssistant
     hass.config_entries.async_add_subentry(hub_entry, existing_subentry)
 
     flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
-    flow.context = {"subentry_id": existing_subentry.subentry_id}
+    flow.context = {"subentry_id": existing_subentry.subentry_id, "source": SOURCE_RECONFIGURE}
     flow._get_reconfigure_subentry = Mock(return_value=existing_subentry)
 
     # Show reconfigure form (user_input=None)
@@ -171,23 +175,20 @@ async def test_reconfigure_with_string_entity_id_v010_format(hass: HomeAssistant
     assert result.get("type") == FlowResultType.FORM
     assert result.get("step_id") == "user"
 
-    # Check defaults - should have the string entity IDs wrapped in lists
-    defaults = flow._build_step1_defaults("Test Connection", dict(existing_subentry.data))
+    # Check defaults - should have entity choice with the string entity IDs wrapped in lists
+    defaults = flow._build_defaults("Test Connection", dict(existing_subentry.data))
 
-    # Defaults should contain the original entity IDs as lists
+    # Defaults should contain entity choice with the original entity IDs as lists
     assert defaults[CONF_MAX_POWER_SOURCE_TARGET] == ["sensor.max_power_st"]
     assert defaults[CONF_MAX_POWER_TARGET_SOURCE] == ["sensor.max_power_ts"]
 
 
-async def test_reconfigure_with_scalar_value_shows_configurable_entity(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
-    """Reconfigure with scalar value should show configurable entity in defaults."""
-    from custom_components.haeo.elements.connection import CONF_MAX_POWER_SOURCE_TARGET, CONF_MAX_POWER_TARGET_SOURCE
-    from custom_components.haeo.flows.field_schema import get_configurable_entity_id
-
+async def test_reconfigure_with_scalar_shows_constant_defaults(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
+    """Reconfigure with scalar value should show constant choice in defaults."""
     add_participant(hass, hub_entry, "Battery1", battery.ELEMENT_TYPE)
     add_participant(hass, hub_entry, "Grid1", grid.ELEMENT_TYPE)
 
-    # Create existing entry with scalar values (from configurable entity setup)
+    # Create existing entry with scalar values (from constant config)
     existing_config = {
         CONF_ELEMENT_TYPE: ELEMENT_TYPE,
         CONF_NAME: "Test Connection",
@@ -205,13 +206,82 @@ async def test_reconfigure_with_scalar_value_shows_configurable_entity(hass: Hom
     hass.config_entries.async_add_subentry(hub_entry, existing_subentry)
 
     flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
-    flow.context = {"subentry_id": existing_subentry.subentry_id}
+    flow.context = {"subentry_id": existing_subentry.subentry_id, "source": SOURCE_RECONFIGURE}
     flow._get_reconfigure_subentry = Mock(return_value=existing_subentry)
 
-    # Check defaults - should resolve to configurable entity since no HAEO entity exists
-    defaults = flow._build_step1_defaults("Test Connection", dict(existing_subentry.data))
+    # Check defaults - should resolve to constant choice with scalar values
+    defaults = flow._build_defaults("Test Connection", dict(existing_subentry.data))
 
-    # Without a registered HAEO entity, resolves to configurable entity
-    configurable_entity_id = get_configurable_entity_id()
-    assert defaults[CONF_MAX_POWER_SOURCE_TARGET] == [configurable_entity_id]
-    assert defaults[CONF_MAX_POWER_TARGET_SOURCE] == [configurable_entity_id]
+    # Defaults should contain constant choice with scalar values
+    assert defaults[CONF_MAX_POWER_SOURCE_TARGET] == 10.0
+    assert defaults[CONF_MAX_POWER_TARGET_SOURCE] == 10.0
+
+
+async def test_user_step_with_constant_creates_entry(
+    hass: HomeAssistant,
+    hub_entry: MockConfigEntry,
+) -> None:
+    """Submitting with constant values should create entry directly."""
+    add_participant(hass, hub_entry, "Battery1", battery.ELEMENT_TYPE)
+    add_participant(hass, hub_entry, "Grid1", grid.ELEMENT_TYPE)
+
+    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
+    flow.async_create_entry = Mock(
+        return_value={
+            "type": FlowResultType.CREATE_ENTRY,
+            "title": "Test Connection",
+            "data": {},
+        }
+    )
+
+    # Submit with constant values using choose selector format
+    user_input = {
+        CONF_NAME: "Test Connection",
+        CONF_SOURCE: "Battery1",
+        CONF_TARGET: "Grid1",
+        CONF_MAX_POWER_SOURCE_TARGET: 10.0,
+        CONF_MAX_POWER_TARGET_SOURCE: 10.0,
+    }
+    result = await flow.async_step_user(user_input=user_input)
+
+    assert result.get("type") == FlowResultType.CREATE_ENTRY
+
+    # Verify the config contains the constant values
+    create_kwargs = flow.async_create_entry.call_args.kwargs
+    assert create_kwargs["data"][CONF_MAX_POWER_SOURCE_TARGET] == 10.0
+    assert create_kwargs["data"][CONF_MAX_POWER_TARGET_SOURCE] == 10.0
+
+
+async def test_user_step_with_entity_creates_entry(
+    hass: HomeAssistant,
+    hub_entry: MockConfigEntry,
+) -> None:
+    """Submitting with entity selections should create entry with entity IDs."""
+    add_participant(hass, hub_entry, "Battery1", battery.ELEMENT_TYPE)
+    add_participant(hass, hub_entry, "Grid1", grid.ELEMENT_TYPE)
+
+    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
+    flow.async_create_entry = Mock(
+        return_value={
+            "type": FlowResultType.CREATE_ENTRY,
+            "title": "Test Connection",
+            "data": {},
+        }
+    )
+
+    # Submit with entity selections
+    user_input = {
+        CONF_NAME: "Test Connection",
+        CONF_SOURCE: "Battery1",
+        CONF_TARGET: "Grid1",
+        CONF_MAX_POWER_SOURCE_TARGET: ["sensor.power_st"],
+        CONF_MAX_POWER_TARGET_SOURCE: ["sensor.power_ts"],
+    }
+    result = await flow.async_step_user(user_input=user_input)
+
+    assert result.get("type") == FlowResultType.CREATE_ENTRY
+
+    # Verify the config contains the entity IDs as strings (single entity)
+    create_kwargs = flow.async_create_entry.call_args.kwargs
+    assert create_kwargs["data"][CONF_MAX_POWER_SOURCE_TARGET] == "sensor.power_st"
+    assert create_kwargs["data"][CONF_MAX_POWER_TARGET_SOURCE] == "sensor.power_ts"

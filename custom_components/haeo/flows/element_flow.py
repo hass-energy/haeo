@@ -2,13 +2,14 @@
 
 This module provides:
 - get_unit_spec_for_output_type(): Map OutputType to UnitSpec for entity filtering
-- build_inclusion_map(): Generate field → compatible entities mapping from INPUT_FIELDS
+- build_inclusion_map(): Generate field → compatible entities mapping from input fields
 - filter_compatible_entities(): Filter entity metadata by unit compatibility
 - build_participant_selector(): Create dropdown selector for element names
 - ElementFlowMixin: Mixin providing common subentry flow functionality
 """
 
-from typing import Any, ClassVar, Final
+from collections.abc import Mapping
+from typing import Any, Final
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import PERCENTAGE, UnitOfEnergy, UnitOfPower
@@ -69,16 +70,16 @@ def filter_compatible_entities(
 
 
 def build_inclusion_map(
-    input_fields: tuple[InputFieldInfo[Any], ...],
+    input_fields: Mapping[str, InputFieldInfo[Any]],
     entity_metadata: list[EntityMetadata],
 ) -> dict[str, list[str]]:
-    """Build field name → compatible entity IDs mapping from INPUT_FIELDS.
+    """Build field name → compatible entity IDs mapping from input fields.
 
     This dynamically generates the inclusion map by looking up each field's
     output_type and computing which entities are compatible.
 
     Args:
-        input_fields: Tuple of InputFieldInfo from element's schema.
+        input_fields: Mapping of InputFieldInfo from element's schema.
         entity_metadata: List of entity metadata from extract_entity_metadata.
 
     Returns:
@@ -87,7 +88,7 @@ def build_inclusion_map(
     """
     result: dict[str, list[str]] = {}
 
-    for field_info in input_fields:
+    for field_info in input_fields.values():
         unit_spec = get_unit_spec_for_output_type(field_info.output_type)
         if unit_spec is not None:
             result[field_info.field_name] = filter_compatible_entities(entity_metadata, unit_spec)
@@ -136,13 +137,7 @@ class ElementFlowMixin:
     - _get_reconfigure_subentry(): Returns the subentry being reconfigured
     - context: Flow context dict (from ConfigSubentryFlow)
 
-    Class variables that can be set by subclasses:
-    - has_value_source_step: Whether the flow uses a separate step for value sources
-
     """
-
-    # Class variable indicating whether this flow uses a separate value source step
-    has_value_source_step: ClassVar[bool] = False
 
     def _get_used_names(self) -> set[str]:
         """Return all configured element names excluding the current subentry.

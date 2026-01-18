@@ -1,12 +1,8 @@
-"""Tests for node adapter load() and available() functions."""
-
-from collections.abc import Sequence
+"""Tests for node adapter build_config_data() and available() functions."""
 
 from homeassistant.core import HomeAssistant
 
 from custom_components.haeo.elements import node
-
-FORECAST_TIMES: Sequence[float] = [0.0, 1800.0]
 
 
 async def test_available_returns_true(hass: HomeAssistant) -> None:
@@ -22,16 +18,22 @@ async def test_available_returns_true(hass: HomeAssistant) -> None:
     assert result is True
 
 
-async def test_load_returns_config_data(hass: HomeAssistant) -> None:
-    """Node load() should return ConfigData with name and type."""
+def test_build_config_data_returns_config_data() -> None:
+    """build_config_data() should return ConfigData with loaded values."""
     config: node.NodeConfigSchema = {
         "element_type": "node",
         "name": "test_node",
         "is_source": False,
         "is_sink": False,
     }
+    loaded_values = {
+        "is_source": True,
+        "is_sink": False,
+    }
 
-    result = await node.adapter.load(config, hass=hass, forecast_times=FORECAST_TIMES)
+    result = node.adapter.build_config_data(loaded_values, config)
 
     assert result["element_type"] == "node"
     assert result["name"] == "test_node"
+    assert result["is_source"] is True
+    assert result["is_sink"] is False

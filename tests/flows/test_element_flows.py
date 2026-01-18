@@ -43,21 +43,15 @@ from custom_components.haeo.elements import (
     ElementType,
     battery,
     connection,
+    get_element_flow_classes,
     grid,
     node,
 )
+from custom_components.haeo.elements.input_fields import InputFieldInfo
 from custom_components.haeo.model import OutputData
 from tests.conftest import ElementTestData
 
 ALL_ELEMENT_TYPES: tuple[ElementType, ...] = tuple(ELEMENT_TYPES)
-
-# Element types that use two-step flows (have has_value_source_step = True on flow handler)
-TWO_STEP_FLOW_ELEMENTS: frozenset[ElementType] = frozenset(
-    element_type
-    for element_type, entry in ELEMENT_TYPES.items()
-    if getattr(entry.flow_class, "has_value_source_step", False)
-)
-
 
 TEST_ELEMENT_TYPE = "flow_test_element"
 
@@ -82,9 +76,8 @@ def _create_flow(
     element_type: ElementType,
 ) -> Any:
     """Create a configured subentry flow instance for an element type."""
-
-    registry_entry = ELEMENT_TYPES[element_type]
-    flow_class = registry_entry.flow_class
+    flow_classes = get_element_flow_classes()
+    flow_class = flow_classes[element_type]
     flow = flow_class()
     flow.hass = hass
     flow.handler = (hub_entry.entry_id, element_type)
@@ -197,7 +190,12 @@ def flow_test_element_factory(monkeypatch: pytest.MonkeyPatch) -> FlowTestElemen
             _ = config  # Unused but required by protocol
             return True
 
-        async def load(self, config: Any, **_kwargs: Any) -> Any:
+        def inputs(self, config: Any) -> dict[str, InputFieldInfo[Any]]:
+            _ = config
+            return {}
+
+        def build_config_data(self, loaded_values: Mapping[str, Any], config: Any) -> Any:
+            _ = loaded_values
             return config
 
         def model_elements(self, config: Any) -> list[dict[str, Any]]:  # noqa: ARG002
@@ -206,8 +204,8 @@ def flow_test_element_factory(monkeypatch: pytest.MonkeyPatch) -> FlowTestElemen
         def outputs(
             self,
             name: str,  # noqa: ARG002
-            outputs: Mapping[str, Mapping[Any, OutputData]],  # noqa: ARG002
-            _config: Any,
+            model_outputs: Mapping[str, Mapping[Any, OutputData]],  # noqa: ARG002
+            **_kwargs: Any,
         ) -> Mapping[str, Mapping[ElementOutputName, OutputData]]:
             return {}
 
@@ -269,19 +267,8 @@ async def test_element_flow_user_step_success(
     assert result.get("step_id") == "user"
     assert not result.get("errors")
 
-    if element_type in TWO_STEP_FLOW_ELEMENTS:
-        # Two-step flow: submit mode selection, then optionally values
-        mode_input = cases.valid[0].mode_input
-        assert mode_input is not None, f"mode_input required for two-step element {element_type}"
-        result = await flow.async_step_user(user_input=mode_input)
-
-        # Step 2 is only shown if configurable entity was selected
-        # If no configurable fields, flow skips directly to create_entry
-        if result.get("type") == FlowResultType.FORM and result.get("step_id") == "values":
-            result = await flow.async_step_values(user_input=user_input)
-    else:
-        # One-step flow: submit values directly
-        result = await flow.async_step_user(user_input=user_input)
+    # Single-step flow: submit values directly
+    result = await flow.async_step_user(user_input=user_input)
 
     assert result.get("type") == FlowResultType.CREATE_ENTRY
 
@@ -300,13 +287,7 @@ async def test_element_flow_user_step_missing_name(
     """Ensure missing names are rejected for all element types."""
 
     flow = _create_flow(hass, hub_entry, element_type)
-    # Two-step flows use mode_input for step 1, one-step flows use config
-    if element_type in TWO_STEP_FLOW_ELEMENTS:
-        mode_input = element_test_data[element_type].valid[0].mode_input
-        assert mode_input is not None
-        base_input = deepcopy(mode_input)
-    else:
-        base_input = deepcopy(element_test_data[element_type].valid[0].config)
+    base_input = deepcopy(element_test_data[element_type].valid[0].config)
     base_input[CONF_NAME] = ""
 
     _prepare_flow_context(hass, hub_entry, element_type, base_input)
@@ -334,13 +315,7 @@ async def test_element_flow_user_step_duplicate_name(
 
     flow = _create_flow(hass, hub_entry, element_type)
 
-    # Two-step flows use mode_input for step 1, one-step flows use config
-    if element_type in TWO_STEP_FLOW_ELEMENTS:
-        mode_input = element_test_data[element_type].valid[0].mode_input
-        assert mode_input is not None
-        result = await flow.async_step_user(user_input=mode_input)
-    else:
-        result = await flow.async_step_user(user_input=existing_config)
+    result = await flow.async_step_user(user_input=existing_config)
     assert result.get("type") == FlowResultType.FORM
     assert result.get("errors") == {CONF_NAME: "name_exists"}
 
@@ -353,11 +328,6 @@ async def test_element_flow_reconfigure_success(
     element_test_data: dict[ElementType, ElementTestData],
 ) -> None:
     """Verify reconfigure submissions succeed for unchanged data."""
-    # Entity-first elements use shared step 1 (step_id="user") for both new and reconfigure
-    # They are tested separately in tests/elements/*/test_flow.py
-    if element_type in TWO_STEP_FLOW_ELEMENTS:
-        pytest.skip("Entity-first flow pattern tested separately")
-
     existing_config = deepcopy(element_test_data[element_type].valid[0].config)
 
     _prepare_flow_context(hass, hub_entry, element_type, existing_config)
@@ -377,17 +347,8 @@ async def test_element_flow_reconfigure_success(
 
     reconfigure_input = deepcopy(existing_config)
 
-    if element_type in TWO_STEP_FLOW_ELEMENTS:
-        # Two-step flow: submit mode selection, then values
-        mode_input = element_test_data[element_type].valid[0].mode_input
-        assert mode_input is not None, f"mode_input required for two-step element {element_type}"
-        result = await flow.async_step_reconfigure(user_input=mode_input)
-        assert result.get("type") == FlowResultType.FORM
-        assert result.get("step_id") == "reconfigure_values"
-        result = await flow.async_step_reconfigure_values(user_input=reconfigure_input)
-    else:
-        # One-step flow: submit values directly
-        result = await flow.async_step_reconfigure(user_input=reconfigure_input)
+    # Single-step flow: submit values directly
+    result = await flow.async_step_reconfigure(user_input=reconfigure_input)
 
     assert result.get("type") == FlowResultType.ABORT
     assert result.get("reason") == "reconfigure_successful"
@@ -404,11 +365,6 @@ async def test_element_flow_reconfigure_rename(
     element_test_data: dict[ElementType, ElementTestData],
 ) -> None:
     """Verify reconfigure handles renaming across element types."""
-    # Entity-first elements use shared step 1 (step_id="user") for both new and reconfigure
-    # They are tested separately in tests/elements/*/test_flow.py
-    if element_type in TWO_STEP_FLOW_ELEMENTS:
-        pytest.skip("Entity-first flow pattern tested separately")
-
     existing_config = deepcopy(element_test_data[element_type].valid[0].config)
 
     _prepare_flow_context(hass, hub_entry, element_type, existing_config)
@@ -425,18 +381,8 @@ async def test_element_flow_reconfigure_rename(
     original_name = renamed_input[CONF_NAME]
     renamed_input[CONF_NAME] = f"{original_name} Updated"
 
-    if element_type in TWO_STEP_FLOW_ELEMENTS:
-        # Two-step flow: submit mode selection with updated name, then values
-        mode_input = deepcopy(element_test_data[element_type].valid[0].mode_input)
-        assert mode_input is not None, f"mode_input required for two-step element {element_type}"
-        mode_input[CONF_NAME] = renamed_input[CONF_NAME]
-        result = await flow.async_step_reconfigure(user_input=mode_input)
-        assert result.get("type") == FlowResultType.FORM
-        assert result.get("step_id") == "reconfigure_values"
-        result = await flow.async_step_reconfigure_values(user_input=renamed_input)
-    else:
-        # One-step flow: submit values directly
-        result = await flow.async_step_reconfigure(user_input=renamed_input)
+    # Single-step flow: submit values directly
+    result = await flow.async_step_reconfigure(user_input=renamed_input)
 
     assert result.get("type") == FlowResultType.ABORT
     assert result.get("reason") == "reconfigure_successful"
@@ -465,13 +411,7 @@ async def test_element_flow_reconfigure_missing_name(
     flow.context = {"subentry_id": existing_subentry.subentry_id}
     flow._get_reconfigure_subentry = Mock(return_value=existing_subentry)
 
-    # Two-step flows use mode_input for step 1, one-step flows use config
-    if element_type in TWO_STEP_FLOW_ELEMENTS:
-        mode_input = element_test_data[element_type].valid[0].mode_input
-        assert mode_input is not None
-        invalid_input = deepcopy(mode_input)
-    else:
-        invalid_input = deepcopy(existing_config)
+    invalid_input = deepcopy(existing_config)
     invalid_input[CONF_NAME] = ""
 
     result = await flow.async_step_reconfigure(user_input=invalid_input)
@@ -510,16 +450,7 @@ async def test_element_flow_reconfigure_duplicate_name(
     flow.context = {"subentry_id": secondary_subentry.subentry_id}
     flow._get_reconfigure_subentry = Mock(return_value=secondary_subentry)
 
-    # Two-step flows use mode_input for step 1, one-step flows use config
-    if element_type in TWO_STEP_FLOW_ELEMENTS:
-        # Get mode_input for secondary and set name to duplicate
-        secondary_mode_input = element_test_data[element_type].valid[0].mode_input
-        if len(element_test_data[element_type].valid) > 1:
-            secondary_mode_input = element_test_data[element_type].valid[1].mode_input
-        assert secondary_mode_input is not None
-        duplicate_input = deepcopy(secondary_mode_input)
-    else:
-        duplicate_input = deepcopy(secondary_config)
+    duplicate_input = deepcopy(secondary_config)
     duplicate_input[CONF_NAME] = primary_config[CONF_NAME]
 
     result = await flow.async_step_reconfigure(user_input=duplicate_input)

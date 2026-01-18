@@ -1,14 +1,18 @@
 """Solar element adapter for model layer integration."""
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping
 from dataclasses import replace
 from typing import Any, Final, Literal
 
+from homeassistant.components.number import NumberDeviceClass, NumberEntityDescription
+from homeassistant.components.switch import SwitchEntityDescription
+from homeassistant.const import UnitOfPower
 from homeassistant.core import HomeAssistant
 import numpy as np
 
 from custom_components.haeo.const import ConnectivityLevel
-from custom_components.haeo.data.loader import ConstantLoader, TimeSeriesLoader
+from custom_components.haeo.data.loader import TimeSeriesLoader
+from custom_components.haeo.elements.input_fields import InputFieldDefaults, InputFieldInfo
 from custom_components.haeo.model import ModelElementConfig, ModelOutputName, ModelOutputValue
 from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE
@@ -16,7 +20,6 @@ from custom_components.haeo.model.elements.connection import CONNECTION_POWER_SO
 from custom_components.haeo.model.elements.segments import POWER_LIMIT_SOURCE_TARGET
 from custom_components.haeo.model.output_data import OutputData
 
-from .flow import SolarSubentryFlowHandler
 from .schema import (
     CONF_CONNECTION,
     CONF_CURTAILMENT,
@@ -56,7 +59,6 @@ class SolarAdapter:
     """Adapter for Solar elements."""
 
     element_type: str = ELEMENT_TYPE
-    flow_class: type = SolarSubentryFlowHandler
     advanced: bool = False
     connectivity: ConnectivityLevel = ConnectivityLevel.ADVANCED
 
@@ -64,6 +66,50 @@ class SolarAdapter:
         """Check if solar configuration can be loaded."""
         ts_loader = TimeSeriesLoader()
         return ts_loader.available(hass=hass, value=config[CONF_FORECAST])
+
+    def inputs(self, config: Any) -> dict[str, InputFieldInfo[Any]]:
+        """Return input field definitions for solar elements."""
+        _ = config
+        return {
+            CONF_FORECAST: InputFieldInfo(
+                field_name=CONF_FORECAST,
+                entity_description=NumberEntityDescription(
+                    key=CONF_FORECAST,
+                    translation_key=f"{ELEMENT_TYPE}_{CONF_FORECAST}",
+                    native_unit_of_measurement=UnitOfPower.KILO_WATT,
+                    device_class=NumberDeviceClass.POWER,
+                    native_min_value=0.0,
+                    native_max_value=1000.0,
+                    native_step=0.01,
+                ),
+                output_type=OutputType.POWER,
+                direction="-",
+                time_series=True,
+            ),
+            CONF_PRICE_PRODUCTION: InputFieldInfo(
+                field_name=CONF_PRICE_PRODUCTION,
+                entity_description=NumberEntityDescription(
+                    key=CONF_PRICE_PRODUCTION,
+                    translation_key=f"{ELEMENT_TYPE}_{CONF_PRICE_PRODUCTION}",
+                    native_min_value=-1.0,
+                    native_max_value=10.0,
+                    native_step=0.001,
+                ),
+                output_type=OutputType.PRICE,
+                direction="+",
+                defaults=InputFieldDefaults(mode=None, value=0.0),
+            ),
+            CONF_CURTAILMENT: InputFieldInfo(
+                field_name=CONF_CURTAILMENT,
+                entity_description=SwitchEntityDescription(
+                    key=CONF_CURTAILMENT,
+                    translation_key=f"{ELEMENT_TYPE}_{CONF_CURTAILMENT}",
+                ),
+                output_type=OutputType.STATUS,
+                defaults=InputFieldDefaults(mode="value", value=True),
+                force_required=True,
+            ),
+        }
 
     def build_config_data(
         self,
@@ -73,10 +119,10 @@ class SolarAdapter:
         """Build ConfigData from pre-loaded values.
 
         This is the single source of truth for ConfigData construction.
-        Both load() and the coordinator use this method.
+        The coordinator uses this method after loading input entity values.
 
         Args:
-            loaded_values: Dict of field names to loaded values (from input entities or TimeSeriesLoader)
+            loaded_values: Dict of field names to loaded values (from input entities)
             config: Original ConfigSchema for non-input fields (element_type, name, connection)
 
         Returns:
@@ -97,36 +143,6 @@ class SolarAdapter:
             data["curtailment"] = bool(loaded_values[CONF_CURTAILMENT])
 
         return data
-
-    async def load(
-        self,
-        config: SolarConfigSchema,
-        *,
-        hass: HomeAssistant,
-        forecast_times: Sequence[float],
-    ) -> SolarConfigData:
-        """Load solar configuration values from sensors.
-
-        Uses TimeSeriesLoader to load values, then delegates to build_config_data().
-        """
-        ts_loader = TimeSeriesLoader()
-        const_loader_bool = ConstantLoader[bool](bool)
-        loaded_values: dict[str, list[float] | bool] = {}
-
-        # Load required time series field
-        loaded_values[CONF_FORECAST] = await ts_loader.load_intervals(
-            hass=hass, value=config[CONF_FORECAST], forecast_times=forecast_times
-        )
-
-        # Load optional fields
-        if CONF_PRICE_PRODUCTION in config:
-            loaded_values[CONF_PRICE_PRODUCTION] = await ts_loader.load_intervals(
-                hass=hass, value=config[CONF_PRICE_PRODUCTION], forecast_times=forecast_times
-            )
-        if CONF_CURTAILMENT in config:
-            loaded_values[CONF_CURTAILMENT] = await const_loader_bool.load(value=config[CONF_CURTAILMENT])
-
-        return self.build_config_data(loaded_values, config)
 
     def model_elements(self, config: SolarConfigData) -> list[ModelElementConfig]:
         """Return model element parameters for Solar configuration."""

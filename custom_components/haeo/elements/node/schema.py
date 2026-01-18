@@ -2,38 +2,11 @@
 
 from typing import Final, Literal, NotRequired, TypedDict
 
-from homeassistant.components.switch import SwitchEntityDescription
-
-from custom_components.haeo.elements.input_fields import InputFieldDefaults, InputFieldInfo
-from custom_components.haeo.model.const import OutputType
-
 ELEMENT_TYPE: Final = "node"
 
 # Configuration field names
 CONF_IS_SOURCE: Final = "is_source"
 CONF_IS_SINK: Final = "is_sink"
-
-# Input field definitions for creating input entities
-INPUT_FIELDS: Final[tuple[InputFieldInfo[SwitchEntityDescription], ...]] = (
-    InputFieldInfo(
-        field_name=CONF_IS_SOURCE,
-        entity_description=SwitchEntityDescription(
-            key=CONF_IS_SOURCE,
-            translation_key=f"{ELEMENT_TYPE}_{CONF_IS_SOURCE}",
-        ),
-        output_type=OutputType.STATUS,
-        defaults=InputFieldDefaults(mode="value", value=False),
-    ),
-    InputFieldInfo(
-        field_name=CONF_IS_SINK,
-        entity_description=SwitchEntityDescription(
-            key=CONF_IS_SINK,
-            translation_key=f"{ELEMENT_TYPE}_{CONF_IS_SINK}",
-        ),
-        output_type=OutputType.STATUS,
-        defaults=InputFieldDefaults(mode="value", value=False),
-    ),
-)
 
 
 class NodeConfigSchema(TypedDict):

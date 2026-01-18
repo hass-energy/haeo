@@ -1,6 +1,6 @@
 """Node element configuration flows."""
 
-from typing import Any, cast
+from typing import Any
 
 from homeassistant.config_entries import ConfigSubentry, ConfigSubentryFlow, SubentryFlowResult, UnknownSubEntry
 from homeassistant.helpers.selector import BooleanSelector, BooleanSelectorConfig, TextSelector, TextSelectorConfig
@@ -9,7 +9,7 @@ import voluptuous as vol
 from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.flows.element_flow import ElementFlowMixin
 
-from .schema import CONF_IS_SINK, CONF_IS_SOURCE, ELEMENT_TYPE, NodeConfigSchema
+from .schema import CONF_IS_SINK, CONF_IS_SOURCE, ELEMENT_TYPE
 
 # Suggested values for first setup (pure junction: no source or sink)
 _SUGGESTED_DEFAULTS = {
@@ -59,7 +59,12 @@ class NodeSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         if user_input is not None:
             name = user_input.get(CONF_NAME)
             if self._validate_name(name, errors):
-                config = cast("NodeConfigSchema", {CONF_ELEMENT_TYPE: ELEMENT_TYPE, **user_input})
+                config = {
+                    CONF_ELEMENT_TYPE: ELEMENT_TYPE,
+                    CONF_NAME: name,
+                    CONF_IS_SOURCE: bool(user_input.get(CONF_IS_SOURCE, False)),
+                    CONF_IS_SINK: bool(user_input.get(CONF_IS_SINK, False)),
+                }
                 if subentry is not None:
                     return self.async_update_and_abort(
                         self._get_entry(),

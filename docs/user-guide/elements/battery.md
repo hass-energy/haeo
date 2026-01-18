@@ -25,13 +25,11 @@ A battery in HAEO represents:
 
 ### Configuration process
 
-Battery configuration uses a two-step flow (see [Configuration](../configuration.md#two-step-element-configuration) for details):
+Battery configuration uses a single-step flow where you enter the name, connection, and configure each input field.
+For each field, select "Entity" to link to a sensor, "Constant" to enter a fixed value, or "None" for optional fields you don't need.
 
-1. **Step 1**: Enter name, connection, and select entities for each field (or "Configurable Entity" to enter a constant value)
-2. **Step 2**: Enter constant values for any fields where you selected "Configurable Entity"
-
-For each field, you can select Home Assistant sensors to link values, or choose "Configurable Entity" to enter a constant value.
-Optional fields can be left empty to use default values or disable that functionality.
+Fields configured with "Constant" create input entities that you can adjust at runtime without reconfiguring.
+Optional fields set to "None" are omitted from the optimization entirely.
 
 ## Configuration Fields
 

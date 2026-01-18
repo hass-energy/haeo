@@ -1,14 +1,17 @@
 """Connection element adapter for model layer integration."""
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping
 from dataclasses import replace
 from typing import Any, Final, Literal
 
+from homeassistant.components.number import NumberDeviceClass, NumberEntityDescription
+from homeassistant.const import PERCENTAGE, UnitOfPower
 from homeassistant.core import HomeAssistant
 import numpy as np
 
 from custom_components.haeo.const import ConnectivityLevel
 from custom_components.haeo.data.loader import TimeSeriesLoader
+from custom_components.haeo.elements.input_fields import InputFieldInfo
 from custom_components.haeo.model import ModelElementConfig, ModelOutputName, ModelOutputValue
 from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION
@@ -29,7 +32,6 @@ from custom_components.haeo.model.elements.segments import (
 )
 from custom_components.haeo.model.output_data import OutputData
 
-from .flow import ConnectionSubentryFlowHandler
 from .schema import (
     CONF_EFFICIENCY_SOURCE_TARGET,
     CONF_EFFICIENCY_TARGET_SOURCE,
@@ -79,7 +81,6 @@ class ConnectionAdapter:
     """Adapter for Connection elements."""
 
     element_type: str = ELEMENT_TYPE
-    flow_class: type = ConnectionSubentryFlowHandler
     advanced: bool = True
     connectivity: ConnectivityLevel = ConnectivityLevel.NEVER
 
@@ -103,6 +104,94 @@ class ConnectionAdapter:
 
         return True
 
+    def inputs(self, config: Any) -> dict[str, InputFieldInfo[Any]]:
+        """Return input field definitions for connection elements."""
+        _ = config
+        return {
+            CONF_MAX_POWER_SOURCE_TARGET: InputFieldInfo(
+                field_name=CONF_MAX_POWER_SOURCE_TARGET,
+                entity_description=NumberEntityDescription(
+                    key=CONF_MAX_POWER_SOURCE_TARGET,
+                    translation_key=f"{ELEMENT_TYPE}_{CONF_MAX_POWER_SOURCE_TARGET}",
+                    native_unit_of_measurement=UnitOfPower.KILO_WATT,
+                    device_class=NumberDeviceClass.POWER,
+                    native_min_value=0.0,
+                    native_max_value=1000.0,
+                    native_step=0.1,
+                ),
+                output_type=OutputType.POWER_LIMIT,
+                time_series=True,
+            ),
+            CONF_MAX_POWER_TARGET_SOURCE: InputFieldInfo(
+                field_name=CONF_MAX_POWER_TARGET_SOURCE,
+                entity_description=NumberEntityDescription(
+                    key=CONF_MAX_POWER_TARGET_SOURCE,
+                    translation_key=f"{ELEMENT_TYPE}_{CONF_MAX_POWER_TARGET_SOURCE}",
+                    native_unit_of_measurement=UnitOfPower.KILO_WATT,
+                    device_class=NumberDeviceClass.POWER,
+                    native_min_value=0.0,
+                    native_max_value=1000.0,
+                    native_step=0.1,
+                ),
+                output_type=OutputType.POWER_LIMIT,
+                time_series=True,
+            ),
+            CONF_EFFICIENCY_SOURCE_TARGET: InputFieldInfo(
+                field_name=CONF_EFFICIENCY_SOURCE_TARGET,
+                entity_description=NumberEntityDescription(
+                    key=CONF_EFFICIENCY_SOURCE_TARGET,
+                    translation_key=f"{ELEMENT_TYPE}_{CONF_EFFICIENCY_SOURCE_TARGET}",
+                    native_unit_of_measurement=PERCENTAGE,
+                    device_class=NumberDeviceClass.POWER_FACTOR,
+                    native_min_value=50.0,
+                    native_max_value=100.0,
+                    native_step=0.1,
+                ),
+                output_type=OutputType.EFFICIENCY,
+                time_series=True,
+            ),
+            CONF_EFFICIENCY_TARGET_SOURCE: InputFieldInfo(
+                field_name=CONF_EFFICIENCY_TARGET_SOURCE,
+                entity_description=NumberEntityDescription(
+                    key=CONF_EFFICIENCY_TARGET_SOURCE,
+                    translation_key=f"{ELEMENT_TYPE}_{CONF_EFFICIENCY_TARGET_SOURCE}",
+                    native_unit_of_measurement=PERCENTAGE,
+                    device_class=NumberDeviceClass.POWER_FACTOR,
+                    native_min_value=50.0,
+                    native_max_value=100.0,
+                    native_step=0.1,
+                ),
+                output_type=OutputType.EFFICIENCY,
+                time_series=True,
+            ),
+            CONF_PRICE_SOURCE_TARGET: InputFieldInfo(
+                field_name=CONF_PRICE_SOURCE_TARGET,
+                entity_description=NumberEntityDescription(
+                    key=CONF_PRICE_SOURCE_TARGET,
+                    translation_key=f"{ELEMENT_TYPE}_{CONF_PRICE_SOURCE_TARGET}",
+                    native_min_value=-1.0,
+                    native_max_value=10.0,
+                    native_step=0.001,
+                ),
+                output_type=OutputType.PRICE,
+                direction="-",
+                time_series=True,
+            ),
+            CONF_PRICE_TARGET_SOURCE: InputFieldInfo(
+                field_name=CONF_PRICE_TARGET_SOURCE,
+                entity_description=NumberEntityDescription(
+                    key=CONF_PRICE_TARGET_SOURCE,
+                    translation_key=f"{ELEMENT_TYPE}_{CONF_PRICE_TARGET_SOURCE}",
+                    native_min_value=-1.0,
+                    native_max_value=10.0,
+                    native_step=0.001,
+                ),
+                output_type=OutputType.PRICE,
+                direction="-",
+                time_series=True,
+            ),
+        }
+
     def build_config_data(
         self,
         loaded_values: Mapping[str, Any],
@@ -111,10 +200,10 @@ class ConnectionAdapter:
         """Build ConfigData from pre-loaded values.
 
         This is the single source of truth for ConfigData construction.
-        Both load() and the coordinator use this method.
+        The coordinator uses this method after loading input entity values.
 
         Args:
-            loaded_values: Dict of field names to loaded values (from input entities or TimeSeriesLoader)
+            loaded_values: Dict of field names to loaded values (from input entities)
             config: Original ConfigSchema for non-input fields (element_type, name, source, target)
 
         Returns:
@@ -143,48 +232,6 @@ class ConnectionAdapter:
             data["price_target_source"] = np.asarray(loaded_values[CONF_PRICE_TARGET_SOURCE], dtype=float)
 
         return data
-
-    async def load(
-        self,
-        config: ConnectionConfigSchema,
-        *,
-        hass: HomeAssistant,
-        forecast_times: Sequence[float],
-    ) -> ConnectionConfigData:
-        """Load connection configuration values from sensors.
-
-        Uses TimeSeriesLoader to load values, then delegates to build_config_data().
-        """
-        ts_loader = TimeSeriesLoader()
-        loaded_values: dict[str, list[float]] = {}
-
-        # Load optional time series fields
-        if CONF_MAX_POWER_SOURCE_TARGET in config:
-            loaded_values[CONF_MAX_POWER_SOURCE_TARGET] = await ts_loader.load_intervals(
-                hass=hass, value=config[CONF_MAX_POWER_SOURCE_TARGET], forecast_times=forecast_times
-            )
-        if CONF_MAX_POWER_TARGET_SOURCE in config:
-            loaded_values[CONF_MAX_POWER_TARGET_SOURCE] = await ts_loader.load_intervals(
-                hass=hass, value=config[CONF_MAX_POWER_TARGET_SOURCE], forecast_times=forecast_times
-            )
-        if CONF_EFFICIENCY_SOURCE_TARGET in config:
-            loaded_values[CONF_EFFICIENCY_SOURCE_TARGET] = await ts_loader.load_intervals(
-                hass=hass, value=config[CONF_EFFICIENCY_SOURCE_TARGET], forecast_times=forecast_times
-            )
-        if CONF_EFFICIENCY_TARGET_SOURCE in config:
-            loaded_values[CONF_EFFICIENCY_TARGET_SOURCE] = await ts_loader.load_intervals(
-                hass=hass, value=config[CONF_EFFICIENCY_TARGET_SOURCE], forecast_times=forecast_times
-            )
-        if CONF_PRICE_SOURCE_TARGET in config:
-            loaded_values[CONF_PRICE_SOURCE_TARGET] = await ts_loader.load_intervals(
-                hass=hass, value=config[CONF_PRICE_SOURCE_TARGET], forecast_times=forecast_times
-            )
-        if CONF_PRICE_TARGET_SOURCE in config:
-            loaded_values[CONF_PRICE_TARGET_SOURCE] = await ts_loader.load_intervals(
-                hass=hass, value=config[CONF_PRICE_TARGET_SOURCE], forecast_times=forecast_times
-            )
-
-        return self.build_config_data(loaded_values, config)
 
     def model_elements(self, config: ConnectionConfigData) -> list[ModelElementConfig]:
         """Return model element parameters for Connection configuration.

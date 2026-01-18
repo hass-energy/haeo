@@ -8,7 +8,7 @@ import pytest
 from homeassistant.config_entries import ConfigSubentry
 from homeassistant.core import HomeAssistant
 from pytest_homeassistant_custom_component.common import MockConfigEntry
-
+from custom_components.haeo.elements import get_element_flow_classes
 from custom_components.haeo.const import (
     CONF_ADVANCED_MODE,
     CONF_ELEMENT_TYPE,
@@ -17,14 +17,7 @@ from custom_components.haeo.const import (
     DOMAIN,
     INTEGRATION_TYPE_HUB,
 )
-from custom_components.haeo.elements import ELEMENT_TYPES, ElementType
-from custom_components.haeo.flows.sentinels import async_setup_sentinel_entities
-
-
-@pytest.fixture(autouse=True)
-async def setup_sentinel_entities(hass: HomeAssistant) -> None:
-    """Set up the configurable sentinel entity for element tests."""
-    await async_setup_sentinel_entities(hass)
+from custom_components.haeo.elements import ElementType
 
 
 # Default forecast times for adapter load tests (0s, 30min)
@@ -53,8 +46,8 @@ def hub_entry(hass: HomeAssistant) -> MockConfigEntry:
 
 def create_flow(hass: HomeAssistant, hub_entry: MockConfigEntry, element_type: ElementType) -> Any:
     """Create a configured subentry flow instance for an element type."""
-    registry_entry = ELEMENT_TYPES[element_type]
-    flow_class = registry_entry.flow_class
+    flow_classes = get_element_flow_classes()
+    flow_class = flow_classes[element_type]
     flow = flow_class()
     flow.hass = hass
     flow.handler = (hub_entry.entry_id, element_type)

@@ -1,8 +1,9 @@
-"""Test battery config flow."""
+"""Test battery config flow data for choose selector approach."""
 
 from custom_components.haeo.const import CONF_NAME
 from custom_components.haeo.elements.battery import (
     CONF_CAPACITY,
+    CONF_CONFIGURE_PARTITIONS,
     CONF_CONNECTION,
     CONF_DISCHARGE_COST,
     CONF_EARLY_CHARGE_INCENTIVE,
@@ -12,35 +13,13 @@ from custom_components.haeo.elements.battery import (
     CONF_MAX_CHARGE_POWER,
     CONF_MAX_DISCHARGE_POWER,
     CONF_MIN_CHARGE_PERCENTAGE,
-    CONF_OVERCHARGE_COST,
-    CONF_OVERCHARGE_PERCENTAGE,
-    CONF_UNDERCHARGE_COST,
-    CONF_UNDERCHARGE_PERCENTAGE,
 )
 
-# Test data for battery flow - entity-first approach
-# Step 1 (mode_input): Select entities (including constant entities) for each field
-# Step 2 (config): Enter constant values for fields with constant entities selected
+# Test data for battery flow - single-step with choose selector (plus optional partition step)
+# config: Contains all field values in choose selector format
 VALID_DATA = [
     {
         "description": "Basic battery configuration",
-        "mode_input": {
-            CONF_NAME: "Test Battery",
-            CONF_CONNECTION: "main_bus",
-            CONF_CAPACITY: ["haeo.configurable_entity"],
-            CONF_INITIAL_CHARGE_PERCENTAGE: ["sensor.battery_soc"],
-            CONF_MIN_CHARGE_PERCENTAGE: ["haeo.configurable_entity"],
-            CONF_MAX_CHARGE_PERCENTAGE: ["haeo.configurable_entity"],
-            CONF_EFFICIENCY: ["haeo.configurable_entity"],
-            CONF_MAX_CHARGE_POWER: ["haeo.configurable_entity"],
-            CONF_MAX_DISCHARGE_POWER: ["haeo.configurable_entity"],
-            CONF_EARLY_CHARGE_INCENTIVE: ["haeo.configurable_entity"],
-            CONF_DISCHARGE_COST: [],
-            CONF_UNDERCHARGE_PERCENTAGE: [],
-            CONF_OVERCHARGE_PERCENTAGE: [],
-            CONF_UNDERCHARGE_COST: [],
-            CONF_OVERCHARGE_COST: [],
-        },
         "config": {
             CONF_NAME: "Test Battery",
             CONF_CONNECTION: "main_bus",
@@ -52,27 +31,11 @@ VALID_DATA = [
             CONF_MAX_CHARGE_POWER: 5.0,
             CONF_MAX_DISCHARGE_POWER: 5.0,
             CONF_EARLY_CHARGE_INCENTIVE: 0.01,
+            CONF_CONFIGURE_PARTITIONS: False,
         },
     },
     {
-        "description": "Advanced battery configuration with efficiency and limits",
-        "mode_input": {
-            CONF_NAME: "Advanced Battery",
-            CONF_CONNECTION: "main_bus",
-            CONF_CAPACITY: ["haeo.configurable_entity"],
-            CONF_INITIAL_CHARGE_PERCENTAGE: ["sensor.battery_soc"],
-            CONF_MIN_CHARGE_PERCENTAGE: ["haeo.configurable_entity"],
-            CONF_MAX_CHARGE_PERCENTAGE: ["haeo.configurable_entity"],
-            CONF_EFFICIENCY: ["haeo.configurable_entity"],
-            CONF_MAX_CHARGE_POWER: ["haeo.configurable_entity"],
-            CONF_MAX_DISCHARGE_POWER: ["haeo.configurable_entity"],
-            CONF_EARLY_CHARGE_INCENTIVE: ["haeo.configurable_entity"],
-            CONF_DISCHARGE_COST: ["haeo.configurable_entity"],
-            CONF_UNDERCHARGE_PERCENTAGE: ["haeo.configurable_entity"],
-            CONF_OVERCHARGE_PERCENTAGE: ["haeo.configurable_entity"],
-            CONF_UNDERCHARGE_COST: ["haeo.configurable_entity"],
-            CONF_OVERCHARGE_COST: ["haeo.configurable_entity"],
-        },
+        "description": "Battery with optional discharge cost",
         "config": {
             CONF_NAME: "Advanced Battery",
             CONF_CONNECTION: "main_bus",
@@ -85,10 +48,7 @@ VALID_DATA = [
             CONF_EFFICIENCY: 95.0,
             CONF_EARLY_CHARGE_INCENTIVE: 0.05,
             CONF_DISCHARGE_COST: 0.03,
-            CONF_UNDERCHARGE_PERCENTAGE: 5.0,
-            CONF_OVERCHARGE_PERCENTAGE: 95.0,
-            CONF_UNDERCHARGE_COST: 0.10,
-            CONF_OVERCHARGE_COST: 0.10,
+            CONF_CONFIGURE_PARTITIONS: False,
         },
     },
 ]
@@ -96,23 +56,6 @@ VALID_DATA = [
 INVALID_DATA = [
     {
         "description": "Empty name should fail validation",
-        "mode_input": {
-            CONF_NAME: "",
-            CONF_CONNECTION: "main_bus",
-            CONF_CAPACITY: ["haeo.configurable_entity"],
-            CONF_INITIAL_CHARGE_PERCENTAGE: ["sensor.battery_soc"],
-            CONF_MIN_CHARGE_PERCENTAGE: [],
-            CONF_MAX_CHARGE_PERCENTAGE: [],
-            CONF_EFFICIENCY: [],
-            CONF_MAX_CHARGE_POWER: ["haeo.configurable_entity"],
-            CONF_MAX_DISCHARGE_POWER: ["haeo.configurable_entity"],
-            CONF_EARLY_CHARGE_INCENTIVE: [],
-            CONF_DISCHARGE_COST: [],
-            CONF_UNDERCHARGE_PERCENTAGE: [],
-            CONF_OVERCHARGE_PERCENTAGE: [],
-            CONF_UNDERCHARGE_COST: [],
-            CONF_OVERCHARGE_COST: [],
-        },
         "config": {
             CONF_NAME: "",
             CONF_CONNECTION: "main_bus",
@@ -120,36 +63,8 @@ INVALID_DATA = [
             CONF_INITIAL_CHARGE_PERCENTAGE: ["sensor.battery_soc"],
             CONF_MAX_CHARGE_POWER: 5.0,
             CONF_MAX_DISCHARGE_POWER: 5.0,
+            CONF_CONFIGURE_PARTITIONS: False,
         },
         "error": "cannot be empty",
-    },
-    {
-        "description": "Negative capacity should fail validation",
-        "mode_input": {
-            CONF_NAME: "Test Battery",
-            CONF_CONNECTION: "main_bus",
-            CONF_CAPACITY: ["haeo.configurable_entity"],
-            CONF_INITIAL_CHARGE_PERCENTAGE: ["sensor.battery_soc"],
-            CONF_MIN_CHARGE_PERCENTAGE: [],
-            CONF_MAX_CHARGE_PERCENTAGE: [],
-            CONF_EFFICIENCY: [],
-            CONF_MAX_CHARGE_POWER: ["haeo.configurable_entity"],
-            CONF_MAX_DISCHARGE_POWER: ["haeo.configurable_entity"],
-            CONF_EARLY_CHARGE_INCENTIVE: [],
-            CONF_DISCHARGE_COST: [],
-            CONF_UNDERCHARGE_PERCENTAGE: [],
-            CONF_OVERCHARGE_PERCENTAGE: [],
-            CONF_UNDERCHARGE_COST: [],
-            CONF_OVERCHARGE_COST: [],
-        },
-        "config": {
-            CONF_NAME: "Test Battery",
-            CONF_CONNECTION: "main_bus",
-            CONF_CAPACITY: -1000.0,
-            CONF_INITIAL_CHARGE_PERCENTAGE: ["sensor.battery_soc"],
-            CONF_MAX_CHARGE_POWER: 5.0,
-            CONF_MAX_DISCHARGE_POWER: 5.0,
-        },
-        "error": "value must be positive",
     },
 ]

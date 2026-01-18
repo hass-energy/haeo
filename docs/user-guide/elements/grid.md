@@ -9,10 +9,8 @@ It allows bidirectional power flow: importing (buying) and exporting (selling) e
 
 ## Configuration
 
-Grid configuration uses a two-step flow (see [Configuration](../configuration.md#two-step-element-configuration) for details):
-
-1. **Step 1**: Enter name, connection, and select entities for each field (or "Configurable Entity" to enter a constant value)
-2. **Step 2**: Enter constant values for any fields where you selected "Configurable Entity"
+Grid configuration uses a single-step flow where you enter the name and configure each input field.
+For each field, select "Entity" to link to a sensor, "Constant" to enter a fixed value, or "None" for optional fields you don't need.
 
 | Field                             | Type   | Required | Default | Description                                                |
 | --------------------------------- | ------ | -------- | ------- | ---------------------------------------------------------- |
@@ -34,7 +32,7 @@ Used to create sensor entity IDs and identify the grid in connections.
 Configure the cost of importing electricity from the grid.
 You can use either a constant value or one or more Home Assistant sensors.
 
-**Configurable Entity**: Select "Configurable Entity" and enter a fixed price in \$/kWh in step 2.
+**Constant**: Select "Constant" and enter a fixed price in \$/kWh directly.
 Use this for simple flat-rate tariffs.
 
 **Sensor link**: Select one or more Home Assistant sensors providing electricity import pricing.
@@ -58,7 +56,7 @@ See the [Forecasts and Sensors guide](../forecasts-and-sensors.md) for details o
 Configure the revenue for exporting electricity to the grid.
 You can use either a constant value or one or more Home Assistant sensors.
 
-**Configurable Entity**: Select "Configurable Entity" and enter a fixed price in \$/kWh in step 2.
+**Constant**: Select "Constant" and enter a fixed price in \$/kWh directly.
 Use this for simple feed-in tariffs.
 
 **Sensor link**: Select one or more Home Assistant sensors providing export pricing.
@@ -81,8 +79,8 @@ For example, `-0.05` means you pay \$0.05 per kWh to export.
 
 Maximum power that can be imported from the grid (kW).
 
-**Optional**: Leave this field empty in step 1 to leave import unlimited.
-You can also select "Configurable Entity" to enter a constant value, or link to sensors for dynamic limits.
+**Optional**: Select "None" to leave import unlimited.
+You can also select "Constant" to enter a fixed limit, or "Entity" to link to sensors for dynamic limits.
 
 Use this to model:
 
@@ -97,8 +95,8 @@ Use this to model:
 
 Maximum power that can be exported to the grid (kW).
 
-**Optional**: Leave this field empty in step 1 to leave export unlimited.
-You can also select "Configurable Entity" to enter a constant value, or link to sensors for dynamic limits.
+**Optional**: Select "None" to leave export unlimited.
+You can also select "Constant" to enter a fixed limit, or "Entity" to link to sensors for dynamic limits.
 
 Use this to model:
 
@@ -127,15 +125,15 @@ Select multiple sensors for time-varying pricing:
 
 ### Fixed Pricing
 
-Select "Configurable Entity" for fixed rates, or link to an input_number for adjustable rates:
+Select "Constant" for fixed rates, or "Entity" to link to an input_number for adjustable rates:
 
-| Field            | Selection           | Value |
-| ---------------- | ------------------- | ----- |
-| **Name**         | -                   | Grid  |
-| **Import Price** | Configurable Entity | 0.25  |
-| **Export Price** | Configurable Entity | 0.08  |
-| **Import Limit** | Configurable Entity | 20    |
-| **Export Limit** | Configurable Entity | 5     |
+| Field            | Selection | Value |
+| ---------------- | --------- | ----- |
+| **Name**         | -         | Grid  |
+| **Import Price** | Constant  | 0.25  |
+| **Export Price** | Constant  | 0.08  |
+| **Import Limit** | Constant  | 20    |
+| **Export Limit** | Constant  | 5     |
 
 For more examples and sensor configuration, see the [Forecasts and Sensors guide](../forecasts-and-sensors.md).
 
@@ -151,8 +149,8 @@ Input entities appear as Number entities with the `config` entity category.
 | `number.{name}_max_import_power` | kW     | Maximum import power (if configured)      |
 | `number.{name}_max_export_power` | kW     | Maximum export power (if configured)      |
 
-Input entities are only created for fields you configure with "Configurable Entity".
-If you leave an optional limit field empty, no input entity is created for that field.
+Input entities are only created for fields you configure with "Constant".
+If you set an optional field to "None", no input entity is created for that field.
 
 Input entities include a `forecast` attribute showing values for each optimization period.
 See the [Input Entities developer guide](../../developer-guide/inputs.md) for details on input entity behavior.

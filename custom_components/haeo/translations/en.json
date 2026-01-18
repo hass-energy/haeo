@@ -84,14 +84,14 @@
             "capacity": "Capacity",
             "configure_partitions": "Configure battery partitions",
             "connection": "Connection",
-            "discharge_cost": "Discharge Cost (Optional)",
-            "early_charge_incentive": "Early Charge Incentive (Optional)",
-            "efficiency": "Round-trip Efficiency (Optional)",
+            "discharge_cost": "Discharge Cost",
+            "early_charge_incentive": "Early Charge Incentive",
+            "efficiency": "Round-trip Efficiency",
             "initial_charge_percentage": "State of Charge",
-            "max_charge_percentage": "Max Charge Level (Optional)",
+            "max_charge_percentage": "Max Charge Level",
             "max_charge_power": "Max Charging Power",
             "max_discharge_power": "Max Discharging Power",
-            "min_charge_percentage": "Min Charge Level (Optional)",
+            "min_charge_percentage": "Min Charge Level",
             "name": "Battery Name"
           }
         },
@@ -114,21 +114,6 @@
             "undercharge_cost": "Undercharge Cost",
             "undercharge_percentage": "Undercharge Percentage"
           }
-        },
-        "values": {
-          "title": "Battery Values",
-          "description": "Enter values for the selected input sources",
-          "data": {
-            "capacity": "Capacity",
-            "discharge_cost": "Discharge Cost",
-            "early_charge_incentive": "Early Charge Incentive",
-            "efficiency": "Round-trip Efficiency",
-            "initial_charge_percentage": "State of Charge",
-            "max_charge_percentage": "Max Charge Level",
-            "max_charge_power": "Max Charging Power",
-            "max_discharge_power": "Max Discharging Power",
-            "min_charge_percentage": "Min Charge Level"
-          }
         }
       },
       "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" },
@@ -143,11 +128,6 @@
           "title": "Battery Section Configuration",
           "description": "Configure a single battery section with explicit capacity and initial charge. Connect to other elements using Connection elements.",
           "data": { "capacity": "Capacity", "initial_charge": "Initial Charge", "name": "Battery Section Name" }
-        },
-        "values": {
-          "title": "Battery Section Values",
-          "description": "Enter values for the selected input sources",
-          "data": { "capacity": "Capacity", "initial_charge": "Initial Charge" }
         }
       },
       "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" },
@@ -171,18 +151,6 @@
             "price_target_source": "Price Target to Source",
             "source": "Source Device",
             "target": "Target Device"
-          }
-        },
-        "values": {
-          "title": "Connection Values",
-          "description": "Enter values for the selected input sources",
-          "data": {
-            "efficiency_source_target": "Efficiency Source to Target",
-            "efficiency_target_source": "Efficiency Target to Source",
-            "max_power_source_target": "Max Power Source to Target",
-            "max_power_target_source": "Max Power Target to Source",
-            "price_source_target": "Price Source to Target",
-            "price_target_source": "Price Target to Source"
           }
         }
       },
@@ -212,16 +180,6 @@
             "import_price": "Import Price",
             "name": "Grid Name"
           }
-        },
-        "values": {
-          "title": "Grid Values",
-          "description": "Enter values for the selected input sources",
-          "data": {
-            "export_limit": "Export Limit",
-            "export_price": "Export Price",
-            "import_limit": "Import Limit",
-            "import_price": "Import Price"
-          }
         }
       },
       "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" },
@@ -237,21 +195,11 @@
           "description": "Configure bidirectional inverter with DC bus for battery and solar connections",
           "data": {
             "connection": "AC Connection",
-            "efficiency_ac_to_dc": "AC to DC Efficiency (Optional)",
-            "efficiency_dc_to_ac": "DC to AC Efficiency (Optional)",
-            "max_power_ac_to_dc": "Max AC to DC Power",
-            "max_power_dc_to_ac": "Max DC to AC Power",
-            "name": "Inverter Name"
-          }
-        },
-        "values": {
-          "title": "Inverter Values",
-          "description": "Enter values for the selected input sources",
-          "data": {
             "efficiency_ac_to_dc": "AC to DC Efficiency",
             "efficiency_dc_to_ac": "DC to AC Efficiency",
             "max_power_ac_to_dc": "Max AC to DC Power",
-            "max_power_dc_to_ac": "Max DC to AC Power"
+            "max_power_dc_to_ac": "Max DC to AC Power",
+            "name": "Inverter Name"
           }
         }
       },
@@ -267,11 +215,6 @@
           "title": "Load Configuration",
           "description": "Configure a load with forecast or constant power.\n\n[HAFO]({hafo_url}) can be used to generate forecast sensors.",
           "data": { "connection": "Connection", "forecast": "Forecast", "name": "Load Name" }
-        },
-        "values": {
-          "title": "Load Values",
-          "description": "Enter values for the selected input sources",
-          "data": { "forecast": "Forecast" }
         }
       },
       "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" },
@@ -312,16 +255,11 @@
           "description": "Configure solar forecasting and parameters",
           "data": {
             "connection": "Connection",
-            "curtailment": "Allow Curtailment (Default: On)",
+            "curtailment": "Allow Curtailment",
             "forecast": "Forecast",
             "name": "Solar Name",
-            "price_production": "Production Price (Default: 0)"
+            "price_production": "Production Price"
           }
-        },
-        "values": {
-          "title": "Solar Values",
-          "description": "Enter values for the selected input sources",
-          "data": { "curtailment": "Allow Curtailment", "forecast": "Forecast", "price_production": "Production Price" }
         }
       },
       "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" },
@@ -344,7 +282,6 @@
     "solar": { "name": "{name}" }
   },
   "entity": {
-    "haeo": { "configurable_entity": { "name": "Configurable Entity" } },
     "number": {
       "battery_capacity": { "name": "Capacity" },
       "battery_discharge_cost": { "name": "Discharge cost" },
@@ -477,6 +414,7 @@
   "selector": {
     "horizon_preset": {
       "options": { "2_days": "2 days", "3_days": "3 days", "5_days": "5 days", "7_days": "7 days", "custom": "Custom" }
-    }
+    },
+    "input_source": { "choices": { "constant": "Constant", "entity": "Entity", "none": "None" } }
   }
 }
