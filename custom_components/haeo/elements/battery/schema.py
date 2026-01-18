@@ -83,10 +83,10 @@ class BatteryConfigData(TypedDict):
     capacity: list[float]  # kWh per period
     initial_charge_percentage: list[float]  # % per period (uses first value)
 
-    # Time series with defaults applied
-    min_charge_percentage: list[float]  # % per period
-    max_charge_percentage: list[float]  # % per period
-    efficiency: list[float]  # % per period
+    # Time series with defaults applied in model_elements
+    min_charge_percentage: NotRequired[list[float]]  # % per period
+    max_charge_percentage: NotRequired[list[float]]  # % per period
+    efficiency: NotRequired[list[float]]  # % per period
 
     # Optional loaded values
     max_charge_power: NotRequired[list[float]]  # kW per period

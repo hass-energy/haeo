@@ -1,4 +1,4 @@
-"""Tests for connection adapter build_config_data() and available() functions."""
+"""Tests for connection adapter availability checks."""
 
 from homeassistant.core import HomeAssistant
 
@@ -65,53 +65,3 @@ async def test_available_returns_false_when_optional_sensor_missing(hass: HomeAs
 
     result = connection.adapter.available(config, hass=hass)
     assert result is False
-
-
-def test_build_config_data_includes_optional_fields() -> None:
-    """build_config_data() should include optional fields when provided."""
-    config: connection.ConnectionConfigSchema = {
-        "element_type": "connection",
-        "name": "c1",
-        "source": "node_a",
-        "target": "node_b",
-    }
-    loaded_values = {
-        "max_power_source_target": [5.0],
-        "max_power_target_source": [3.0],
-        "efficiency_source_target": [95.0],
-        "efficiency_target_source": [90.0],
-        "price_source_target": [0.10],
-        "price_target_source": [0.05],
-    }
-
-    result = connection.adapter.build_config_data(loaded_values, config)
-
-    assert result["element_type"] == "connection"
-    assert result["name"] == "c1"
-    assert result["source"] == "node_a"
-    assert result["target"] == "node_b"
-    assert result.get("max_power_source_target") == [5.0]
-    assert result.get("max_power_target_source") == [3.0]
-    assert result.get("efficiency_source_target") == [95.0]
-    assert result.get("efficiency_target_source") == [90.0]
-    assert result.get("price_source_target") == [0.10]
-    assert result.get("price_target_source") == [0.05]
-
-
-def test_build_config_data_omits_optional_fields() -> None:
-    """build_config_data() should omit optional fields when not provided."""
-    config: connection.ConnectionConfigSchema = {
-        "element_type": "connection",
-        "name": "c1",
-        "source": "node_a",
-        "target": "node_b",
-    }
-
-    result = connection.adapter.build_config_data({}, config)
-
-    assert "max_power_source_target" not in result
-    assert "max_power_target_source" not in result
-    assert "efficiency_source_target" not in result
-    assert "efficiency_target_source" not in result
-    assert "price_source_target" not in result
-    assert "price_target_source" not in result

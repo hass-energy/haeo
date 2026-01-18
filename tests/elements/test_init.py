@@ -1,10 +1,24 @@
 """Tests for elements module __init__.py functions."""
 
-from typing import Any
+from types import MappingProxyType
+from typing import Any, NotRequired, Required
 
 import pytest
+from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.haeo.elements import ELEMENT_CONFIG_SCHEMAS, is_element_config_schema
+from homeassistant.config_entries import ConfigSubentry
+from homeassistant.core import HomeAssistant
+
+from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_INTEGRATION_TYPE, CONF_NAME, DOMAIN, INTEGRATION_TYPE_HUB
+from custom_components.haeo.elements import (
+    ELEMENT_CONFIG_SCHEMAS,
+    collect_element_subentries,
+    is_element_config_data,
+    is_element_config_schema,
+)
+from custom_components.haeo.elements import battery
+from custom_components.haeo.elements import node as node_schema
+from custom_components.haeo import elements as elements_module
 
 
 @pytest.mark.parametrize(
@@ -182,6 +196,119 @@ def test_is_element_config_schema_valid_battery_section() -> None:
         "initial_charge": "sensor.charge",
     }
     assert is_element_config_schema(valid_config) is True
+
+
+@pytest.mark.parametrize(
+    "input_data",
+    [
+        [1, 2, 3],
+        "not a config",
+        None,
+    ],
+)
+def test_is_not_element_config_data(input_data: Any) -> None:
+    """Test is_element_config_data with non-Mapping input."""
+    assert is_element_config_data(input_data) is False
+
+
+@pytest.mark.parametrize(
+    "input_data",
+    [
+        {"element_type": "unknown_type", "name": "test"},
+        {"name": "test"},
+    ],
+)
+def test_is_element_config_data_invalid_element_type(input_data: dict[str, Any]) -> None:
+    """Test is_element_config_data with invalid element types."""
+    assert is_element_config_data(input_data) is False
+
+
+def test_is_element_config_data_missing_required_keys() -> None:
+    """Test is_element_config_data rejects missing required keys."""
+    invalid_config = {
+        "element_type": "battery",
+        "name": "test_battery",
+        # Missing required keys like connection/capacity/initial_charge_percentage.
+    }
+    assert is_element_config_data(invalid_config) is False
+
+
+def test_is_element_config_data_valid_node() -> None:
+    """Test is_element_config_data with minimal valid node config."""
+    valid_config = {
+        "element_type": "node",
+        "name": "test_node",
+    }
+    assert is_element_config_data(valid_config) is True
+
+
+def test_is_element_config_data_optional_type_validation() -> None:
+    """Test is_element_config_data validates optional key types."""
+    invalid_config = {
+        "element_type": node_schema.ELEMENT_TYPE,
+        "name": "test_node",
+        "is_source": "yes",
+    }
+    assert is_element_config_data(invalid_config) is False
+
+    valid_config = {
+        "element_type": node_schema.ELEMENT_TYPE,
+        "name": "test_node",
+        "is_source": True,
+    }
+    assert is_element_config_data(valid_config) is True
+
+
+def test_unwrap_required_type_handles_required_wrappers() -> None:
+    """Test _unwrap_required_type returns underlying Required types."""
+    assert elements_module._unwrap_required_type(NotRequired[bool]) is bool
+    assert elements_module._unwrap_required_type(Required[int]) is int
+
+
+def test_conforms_to_typed_dict_skips_optional_without_hint() -> None:
+    """Test optional keys without hints are ignored when validating."""
+
+    class _Dummy:
+        __required_keys__ = frozenset()
+        __optional_keys__ = frozenset({"optional"})
+
+    assert elements_module._conforms_to_typed_dict(
+        {"optional": 1},
+        _Dummy,
+        check_optional=True,
+    )
+
+
+def test_collect_element_subentries_skips_invalid_configs(
+    hass: HomeAssistant,
+) -> None:
+    """collect_element_subentries should warn and skip invalid subentries."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data={
+            CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
+            CONF_NAME: "Test Network",
+        },
+        entry_id="hub_entry_id",
+    )
+    entry.add_to_hass(hass)
+
+    subentry = ConfigSubentry(
+        data=MappingProxyType(
+            {
+                CONF_ELEMENT_TYPE: battery.ELEMENT_TYPE,
+                CONF_NAME: "Bad Battery",
+            }
+        ),
+        subentry_type=battery.ELEMENT_TYPE,
+        title="Bad Battery",
+        unique_id=None,
+    )
+    hass.config_entries.async_add_subentry(entry, subentry)
+
+    result = collect_element_subentries(entry)
+
+    assert result == []
 
 
 def test_config_schemas_match_element_types() -> None:

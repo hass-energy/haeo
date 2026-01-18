@@ -68,39 +68,14 @@ class NodeAdapter:
             ),
         }
 
-    def build_config_data(
-        self,
-        loaded_values: Mapping[str, Any],
-        config: NodeConfigSchema,
-    ) -> NodeConfigData:
-        """Build ConfigData from pre-loaded values.
-
-        This is the single source of truth for ConfigData construction.
-        The coordinator uses this method after loading input entity values.
-
-        Args:
-            loaded_values: Dict of field names to loaded values (from input entities)
-            config: Original ConfigSchema for non-input fields (element_type, name)
-
-        Returns:
-            NodeConfigData with all fields populated and defaults applied
-
-        """
-        return {
-            "element_type": config["element_type"],
-            "name": config["name"],
-            "is_source": bool(loaded_values.get(CONF_IS_SOURCE, DEFAULT_IS_SOURCE)),
-            "is_sink": bool(loaded_values.get(CONF_IS_SINK, DEFAULT_IS_SINK)),
-        }
-
     def model_elements(self, config: NodeConfigData) -> list[ModelElementConfig]:
         """Return model element parameters for Node configuration."""
         return [
             {
                 "element_type": MODEL_ELEMENT_TYPE_NODE,
                 "name": config["name"],
-                "is_source": config["is_source"],
-                "is_sink": config["is_sink"],
+                "is_source": config.get(CONF_IS_SOURCE, DEFAULT_IS_SOURCE),
+                "is_sink": config.get(CONF_IS_SINK, DEFAULT_IS_SINK),
             }
         ]
 

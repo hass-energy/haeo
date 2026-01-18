@@ -1,4 +1,4 @@
-"""Tests for grid adapter build_config_data() and available() functions."""
+"""Tests for grid adapter availability checks."""
 
 from homeassistant.core import HomeAssistant
 
@@ -57,50 +57,6 @@ async def test_available_returns_false_when_export_price_missing(hass: HomeAssis
 
     result = grid.adapter.available(config, hass=hass)
     assert result is False
-
-
-def test_build_config_data_returns_config_data() -> None:
-    """build_config_data() should return ConfigData with loaded values."""
-    config: grid.GridConfigSchema = {
-        "element_type": "grid",
-        "name": "test_grid",
-        "connection": "main_bus",
-        "import_price": ["sensor.import_price"],
-        "export_price": ["sensor.export_price"],
-    }
-    loaded_values = {
-        "import_price": [0.30, 0.30],
-        "export_price": [0.05, 0.05],
-    }
-
-    result = grid.adapter.build_config_data(loaded_values, config)
-
-    assert result["element_type"] == "grid"
-    assert result["name"] == "test_grid"
-    assert result["import_price"] == [0.30, 0.30]
-    assert result["export_price"] == [0.05, 0.05]
-
-
-def test_build_config_data_includes_optional_limits() -> None:
-    """build_config_data() should include optional limit fields when provided."""
-    config: grid.GridConfigSchema = {
-        "element_type": "grid",
-        "name": "test_grid",
-        "connection": "main_bus",
-        "import_price": ["sensor.import_price"],
-        "export_price": ["sensor.export_price"],
-    }
-    loaded_values = {
-        "import_price": [0.30, 0.30],
-        "export_price": [0.05, 0.05],
-        "import_limit": [10.0, 10.0],
-        "export_limit": [5.0, 5.0],
-    }
-
-    result = grid.adapter.build_config_data(loaded_values, config)
-
-    assert result.get("import_limit") == [10.0, 10.0]
-    assert result.get("export_limit") == [5.0, 5.0]
 
 
 async def test_available_with_constant_prices(hass: HomeAssistant) -> None:
