@@ -12,6 +12,7 @@ from homeassistant.const import UnitOfEnergy
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import UpdateFailed
 from homeassistant.util import dt as dt_util
+import numpy as np
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
@@ -384,14 +385,14 @@ async def test_async_update_data_returns_outputs(
     mock_dismiss.assert_called_once_with(hass, mock_hub_entry.entry_id)
 
 
-async def test_async_update_data_with_empty_input_entities(
+async def test_async_initialize_with_empty_input_entities(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
     mock_battery_subentry: ConfigSubentry,
     mock_grid_subentry: ConfigSubentry,
     mock_runtime_data: HaeoRuntimeData,
 ) -> None:
-    """Coordinator handles empty input entity data by passing it to loader."""
+    """Initialization surfaces network creation failures when inputs are empty."""
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
 
     # Mock _load_from_input_entities to return minimal data
@@ -405,7 +406,7 @@ async def test_async_update_data_with_empty_input_entities(
     ):
         mock_load.side_effect = UpdateFailed("Missing required data")
         with pytest.raises(UpdateFailed, match="Missing required data"):
-            await coordinator._async_update_data()
+            await coordinator.async_initialize()
         mock_load.assert_called_once()
 
 
@@ -416,13 +417,16 @@ async def test_async_update_data_propagates_update_failed(
     mock_grid_subentry: ConfigSubentry,
     mock_runtime_data: HaeoRuntimeData,
 ) -> None:
-    """Coordinator surfaces loader failures as UpdateFailed."""
+    """Coordinator surfaces UpdateFailed exceptions from optimization."""
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
+    coordinator.network = MagicMock()
 
     with (
         patch.object(coordinator, "_load_from_input_entities", return_value={}),
-        patch(
-            "custom_components.haeo.coordinator.coordinator.network_module.create_network",
+        patch.object(
+            hass,
+            "async_add_executor_job",
+            new_callable=AsyncMock,
             side_effect=UpdateFailed("missing data"),
         ),
         pytest.raises(UpdateFailed, match="missing data"),
@@ -437,13 +441,16 @@ async def test_async_update_data_propagates_value_error(
     mock_grid_subentry: ConfigSubentry,
     mock_runtime_data: HaeoRuntimeData,
 ) -> None:
-    """Coordinator allows unexpected errors to bubble up."""
+    """Coordinator allows unexpected optimization errors to bubble up."""
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
+    coordinator.network = MagicMock()
 
     with (
         patch.object(coordinator, "_load_from_input_entities", return_value={}),
-        patch(
-            "custom_components.haeo.coordinator.coordinator.network_module.create_network",
+        patch.object(
+            hass,
+            "async_add_executor_job",
+            new_callable=AsyncMock,
             side_effect=ValueError("invalid config"),
         ),
         pytest.raises(ValueError, match="invalid config"),
@@ -461,11 +468,11 @@ async def test_async_update_data_raises_on_missing_model_element(
     """Coordinator should surface KeyError when adapter cannot find model element outputs."""
 
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
-    fake_network = Network(name="net", periods=[1.0] * 1)
+    fake_network = Network(name="net", periods=np.array([1.0]))
     # Network must have at least one element for HiGHS to optimize (empty networks are rejected)
     fake_network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "dummy_node"})
 
-    def broken_outputs(_name: str, _outputs: object, _config: object) -> dict[str, dict[str, OutputData]]:
+    def broken_outputs(*_args: Any, **_kwargs: Any) -> dict[str, dict[str, OutputData]]:
         msg = "missing model element"
         raise KeyError(msg)
 
@@ -475,13 +482,19 @@ async def test_async_update_data_raises_on_missing_model_element(
         "custom_components.haeo.coordinator.coordinator.ELEMENT_TYPES",
         {**ELEMENT_TYPES, "battery": patched_entry},
     )
-    monkeypatch.setattr(
-        "custom_components.haeo.coordinator.coordinator.network_module.create_network",
-        AsyncMock(return_value=fake_network),
-    )
+    coordinator.network = fake_network
 
     with (
-        patch.object(coordinator, "_load_from_input_entities", return_value={}),
+        patch.object(
+            coordinator,
+            "_load_from_input_entities",
+            return_value={"Test Battery": mock_battery_subentry.data},
+        ),
+        patch.object(hass, "async_add_executor_job", new_callable=AsyncMock, return_value=0.0),
+        patch(
+            "custom_components.haeo.coordinator.coordinator.async_get_translations",
+            AsyncMock(return_value={"component.haeo.common.network_subentry_name": "System"}),
+        ),
         pytest.raises(KeyError),
     ):
         await coordinator._async_update_data()
@@ -1020,13 +1033,14 @@ def test_load_from_input_entities_loads_time_series_fields(
     mock_hub_entry: MockConfigEntry,
     mock_runtime_data: HaeoRuntimeData,
 ) -> None:
-    """Time series fields are loaded as lists from input entities."""
+    """Time series fields are loaded as arrays from input entities."""
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
 
     # Create mock input entities for all required fields
     from custom_components.haeo.elements import get_input_fields  # noqa: PLC0415
 
-    for field_info in get_input_fields(ELEMENT_TYPE_BATTERY):
+    element_config = coordinator._participant_configs["Test Battery"]
+    for field_info in get_input_fields(element_config).values():
         mock_entity = MagicMock()
         mock_entity.get_values.return_value = (1.0, 2.0, 3.0)
         mock_runtime_data.input_entities[("Test Battery", field_info.field_name)] = mock_entity
@@ -1037,7 +1051,8 @@ def test_load_from_input_entities_loads_time_series_fields(
     # Narrow the discriminated union type using element_type
     battery_config = result["Test Battery"]
     assert battery_config["element_type"] == "battery"
-    assert battery_config["capacity"] == [1.0, 2.0, 3.0]
+    assert isinstance(battery_config["capacity"], np.ndarray)
+    np.testing.assert_array_equal(battery_config["capacity"], [1.0, 2.0, 3.0])
 
 
 @pytest.mark.usefixtures("mock_battery_subentry")
@@ -1091,6 +1106,38 @@ def test_load_from_input_entities_raises_for_invalid_element_type(
 
     # Should raise for invalid element type
     with pytest.raises(ValueError, match="Invalid element type 'invalid_type' for element 'Invalid Element'"):
+        coordinator._load_from_input_entities()
+
+
+@pytest.mark.usefixtures("mock_battery_subentry")
+def test_load_from_input_entities_raises_for_invalid_config_data(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+    mock_runtime_data: HaeoRuntimeData,
+) -> None:
+    """Loading raises error for elements with invalid config data."""
+    coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
+
+    invalid_config: Any = {
+        "Bad Battery": {
+            CONF_ELEMENT_TYPE: ELEMENT_TYPE_BATTERY,
+            CONF_NAME: "Bad Battery",
+            CONF_CAPACITY: "sensor.battery_capacity",
+            CONF_INITIAL_CHARGE_PERCENTAGE: "sensor.battery_soc",
+            # Missing required non-input field: connection
+        }
+    }
+    coordinator._participant_configs = invalid_config
+
+    from custom_components.haeo.elements import get_input_fields  # noqa: PLC0415
+
+    element_config = coordinator._participant_configs["Bad Battery"]
+    for field_info in get_input_fields(element_config).values():
+        mock_entity = MagicMock()
+        mock_entity.get_values.return_value = (1.0, 2.0, 3.0)
+        mock_runtime_data.input_entities[("Bad Battery", field_info.field_name)] = mock_entity
+
+    with pytest.raises(ValueError, match="Invalid config data for element 'Bad Battery'"):
         coordinator._load_from_input_entities()
 
 

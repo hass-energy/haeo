@@ -6,8 +6,8 @@ model outputs to user-friendly device outputs.
 
 Adapter Pattern:
     Configuration Element (with entity IDs) →
-    Adapter.load() →
-    Configuration Data (with loaded values) →
+    Input entity values →
+    Coordinator merges loaded values →
     Adapter.model_elements() →
     Model Elements (pure optimization) →
     Model.optimize() →
@@ -26,7 +26,7 @@ Sub-element Naming Convention:
         - "home_battery:connection" (implicit connection to network)
 """
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping
 import logging
 import types
 from typing import (
@@ -34,8 +34,11 @@ from typing import (
     Final,
     Literal,
     NamedTuple,
+    NotRequired,
     Protocol,
+    Required,
     TypeGuard,
+    Union,
     get_args,
     get_origin,
     get_type_hints,
@@ -171,9 +174,6 @@ class ElementAdapter(Protocol):
     element_type: str
     """The element type identifier."""
 
-    flow_class: type
-    """The config flow handler class for this element type."""
-
     advanced: bool
     """Whether this element type requires advanced mode."""
 
@@ -184,34 +184,8 @@ class ElementAdapter(Protocol):
         """Check if element configuration can be loaded."""
         ...
 
-    async def load(
-        self,
-        config: Any,
-        *,
-        hass: HomeAssistant,
-        forecast_times: Sequence[float],
-    ) -> Any:
-        """Load configuration values from sensors."""
-        ...
-
-    def build_config_data(
-        self,
-        loaded_values: Mapping[str, Any],
-        config: Any,
-    ) -> Any:
-        """Build ConfigData from pre-loaded values.
-
-        This is the single source of truth for ConfigData construction.
-        Both load() and the coordinator use this method.
-
-        Args:
-            loaded_values: Dict of field names to loaded values (from input entities or TimeSeriesLoader)
-            config: Original ConfigSchema for non-input fields (e.g., connection)
-
-        Returns:
-            ConfigData with all fields populated and defaults applied
-
-        """
+    def inputs(self, config: Mapping[str, Any] | None) -> dict[str, InputFieldInfo[Any]]:
+        """Return input field definitions for this element."""
         ...
 
     def model_elements(self, config: Any) -> list[ModelElementConfig]:
@@ -240,6 +214,34 @@ ELEMENT_TYPES: dict[ElementType, ElementAdapter] = {
 }
 
 
+def get_element_flow_classes() -> dict[ElementType, type]:
+    """Return mapping of element types to their config flow handler classes.
+
+    This function performs lazy imports to avoid circular dependencies
+    (flows import adapters, not the other way around).
+    """
+    # Local imports to avoid circular dependencies with flow modules
+    from custom_components.haeo.elements.battery.flow import BatterySubentryFlowHandler  # noqa: PLC0415
+    from custom_components.haeo.elements.battery_section.flow import BatterySectionSubentryFlowHandler  # noqa: PLC0415
+    from custom_components.haeo.elements.connection.flow import ConnectionSubentryFlowHandler  # noqa: PLC0415
+    from custom_components.haeo.elements.grid.flow import GridSubentryFlowHandler  # noqa: PLC0415
+    from custom_components.haeo.elements.inverter.flow import InverterSubentryFlowHandler  # noqa: PLC0415
+    from custom_components.haeo.elements.load.flow import LoadSubentryFlowHandler  # noqa: PLC0415
+    from custom_components.haeo.elements.node.flow import NodeSubentryFlowHandler  # noqa: PLC0415
+    from custom_components.haeo.elements.solar.flow import SolarSubentryFlowHandler  # noqa: PLC0415
+
+    return {
+        "battery": BatterySubentryFlowHandler,
+        "battery_section": BatterySectionSubentryFlowHandler,
+        "connection": ConnectionSubentryFlowHandler,
+        "grid": GridSubentryFlowHandler,
+        "inverter": InverterSubentryFlowHandler,
+        "load": LoadSubentryFlowHandler,
+        "node": NodeSubentryFlowHandler,
+        "solar": SolarSubentryFlowHandler,
+    }
+
+
 class ValidatedElementSubentry(NamedTuple):
     """Validated element subentry with structured configuration."""
 
@@ -262,6 +264,18 @@ ELEMENT_CONFIG_SCHEMAS: Final[dict[ElementType, type]] = {
     "solar": solar.SolarConfigSchema,
 }
 
+# Map element types to their ConfigData TypedDict classes for reflection
+ELEMENT_CONFIG_DATA: Final[dict[ElementType, type]] = {
+    "battery": battery.BatteryConfigData,
+    "battery_section": battery_section.BatterySectionConfigData,
+    "connection": connection.ConnectionConfigData,
+    "grid": grid.GridConfigData,
+    "inverter": inverter.InverterConfigData,
+    "load": load.LoadConfigData,
+    "node": node.NodeConfigData,
+    "solar": solar.SolarConfigData,
+}
+
 
 def is_element_type(value: Any) -> TypeGuard[ElementType]:
     """Return True when value is a valid ElementType literal.
@@ -272,17 +286,53 @@ def is_element_type(value: Any) -> TypeGuard[ElementType]:
     return value in ELEMENT_TYPES
 
 
-def _conforms_to_typed_dict(value: Mapping[str, Any], typed_dict_cls: type) -> bool:
+def _unwrap_required_type(expected_type: Any) -> Any:
+    """Return the underlying type for Required/NotRequired hints."""
+    origin = get_origin(expected_type)
+    if origin in (NotRequired, Required):
+        return get_args(expected_type)[0]
+    return expected_type
+
+
+def _conforms_to_typed_dict(
+    value: Mapping[str, Any],
+    typed_dict_cls: type,
+    *,
+    check_optional: bool = False,
+) -> bool:
     """Check if a mapping conforms to a TypedDict's required fields and types.
 
     Uses reflection to get required keys and type hints from the TypedDict class.
-    Only checks required fields (not NotRequired fields).
+    Only checks required fields unless check_optional is True.
     """
     # Get required keys from TypedDict
     required_keys: frozenset[str] = getattr(typed_dict_cls, "__required_keys__", frozenset())
+    optional_keys: frozenset[str] = getattr(typed_dict_cls, "__optional_keys__", frozenset())
 
     # Get type hints for the TypedDict
     hints = get_type_hints(typed_dict_cls)
+
+    def _matches_type(value_item: Any, expected_type: Any) -> bool:
+        expected_type = _unwrap_required_type(expected_type)
+        # Get the origin type for generic types (e.g., list[str] -> list)
+        origin = get_origin(expected_type)
+        check_type = origin if origin is not None else expected_type
+
+        # Handle Literal types by checking if value is one of the allowed values
+        # For Literal, we don't do isinstance check - just ensure the field exists
+        if check_type is Literal:
+            return True
+
+        if check_type in (types.UnionType, Union):
+            # Handle union types (e.g., list[str] | float)
+            # Use the origin for generic args (e.g., list[str] -> list); for primitive
+            # types (e.g., float, int) get_origin() returns None so we fall back to arg
+            # itself, producing a tuple like (list, float) suitable for isinstance().
+            union_args = get_args(expected_type)
+            allowed_types = tuple(get_origin(arg) or arg for arg in union_args)
+            return isinstance(value_item, allowed_types)
+
+        return isinstance(value_item, check_type)
 
     for key in required_keys:
         if key not in value:
@@ -290,24 +340,17 @@ def _conforms_to_typed_dict(value: Mapping[str, Any], typed_dict_cls: type) -> b
 
         # Required keys in a TypedDict always have type hints
         expected_type = hints[key]
+        if not _matches_type(value[key], expected_type):
+            return False
 
-        # Get the origin type for generic types (e.g., list[str] -> list)
-        origin = get_origin(expected_type)
-        check_type = origin if origin is not None else expected_type
-
-        # Handle Literal types by checking if value is one of the allowed values
-        # For Literal, we don't do isinstance check - just ensure the field exists
-        if check_type is not Literal:
-            if check_type is types.UnionType:
-                # Handle union types (e.g., list[str] | float)
-                # Use the origin for generic args (e.g., list[str] -> list); for primitive
-                # types (e.g., float, int) get_origin() returns None so we fall back to arg
-                # itself, producing a tuple like (list, float) suitable for isinstance().
-                union_args = get_args(expected_type)
-                allowed_types = tuple(get_origin(arg) or arg for arg in union_args)
-                if not isinstance(value[key], allowed_types):
-                    return False
-            elif not isinstance(value[key], check_type):
+    if check_optional:
+        for key in optional_keys:
+            if key not in value:
+                continue
+            expected_type = hints.get(key)
+            if expected_type is None:
+                continue
+            if not _matches_type(value[key], expected_type):
                 return False
 
     return True
@@ -333,6 +376,22 @@ def is_element_config_schema(value: Any) -> TypeGuard[ElementConfigSchema]:
     schema_cls = ELEMENT_CONFIG_SCHEMAS[element_type]
 
     return _conforms_to_typed_dict(value, schema_cls)
+
+
+def is_element_config_data(value: Any) -> TypeGuard[ElementConfigData]:
+    """Return True when value matches any ElementConfigData TypedDict.
+
+    Checks required keys and types, plus optional key types when present.
+    """
+    if not isinstance(value, Mapping):
+        return False
+
+    element_type = value.get(CONF_ELEMENT_TYPE)
+    if not is_element_type(element_type):
+        return False
+
+    data_cls = ELEMENT_CONFIG_DATA[element_type]
+    return _conforms_to_typed_dict(value, data_cls, check_optional=True)
 
 
 def collect_element_subentries(entry: ConfigEntry) -> list[ValidatedElementSubentry]:
@@ -366,30 +425,11 @@ def collect_element_subentries(entry: ConfigEntry) -> list[ValidatedElementSuben
     return result
 
 
-# Registry mapping element types to their input field definitions
-_INPUT_FIELDS_REGISTRY: Final[dict[str, tuple[InputFieldInfo[Any], ...]]] = {
-    battery.ELEMENT_TYPE: battery.ALL_INPUT_FIELDS,
-    grid.ELEMENT_TYPE: grid.INPUT_FIELDS,
-    solar.ELEMENT_TYPE: solar.INPUT_FIELDS,
-    load.ELEMENT_TYPE: load.INPUT_FIELDS,
-    inverter.ELEMENT_TYPE: inverter.INPUT_FIELDS,
-    connection.ELEMENT_TYPE: connection.INPUT_FIELDS,
-    node.ELEMENT_TYPE: node.INPUT_FIELDS,
-}
-
-
-def get_input_fields(element_type: str) -> tuple[InputFieldInfo[Any], ...]:
-    """Return input field definitions for an element type.
-
-    Args:
-        element_type: The element type (e.g., "battery", "grid")
-
-    Returns:
-        Tuple of InputFieldInfo for fields that should become input entities.
-        Returns empty tuple for unknown element types.
-
-    """
-    return _INPUT_FIELDS_REGISTRY.get(element_type, ())
+def get_input_fields(element_config: ElementConfigSchema) -> dict[str, InputFieldInfo[Any]]:
+    """Return input field definitions for an element config."""
+    element_type = element_config[CONF_ELEMENT_TYPE]
+    adapter = ELEMENT_TYPES[element_type]
+    return adapter.inputs(element_config)
 
 
 __all__ = [
@@ -413,7 +453,9 @@ __all__ = [
     "InputFieldInfo",
     "ValidatedElementSubentry",
     "collect_element_subentries",
+    "get_element_flow_classes",
     "get_input_fields",
+    "is_element_config_data",
     "is_element_config_schema",
     "is_element_type",
 ]

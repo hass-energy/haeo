@@ -3,6 +3,7 @@
 from collections.abc import Mapping, Sequence
 from typing import Any, TypedDict
 
+import numpy as np
 import pytest
 
 from custom_components.haeo.elements import ELEMENT_TYPES
@@ -13,6 +14,8 @@ from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.elements import battery as battery_model
 from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_BATTERY
 from custom_components.haeo.model.output_data import OutputData
+
+from tests.util.normalize import normalize_for_compare
 
 
 class CreateCase(TypedDict):
@@ -38,8 +41,8 @@ CREATE_CASES: Sequence[CreateCase] = [
         "data": BatterySectionConfigData(
             element_type="battery_section",
             name="test_section",
-            capacity=[10.0],
-            initial_charge=[5.0],
+            capacity=np.array([10.0]),
+            initial_charge=np.array([5.0]),
         ),
         "model": [
             {
@@ -110,7 +113,7 @@ def test_model_elements(case: CreateCase) -> None:
     """Verify adapter transforms ConfigData into expected model elements."""
     entry = ELEMENT_TYPES["battery_section"]
     result = entry.model_elements(case["data"])
-    assert result == case["model"]
+    assert normalize_for_compare(result) == normalize_for_compare(case["model"])
 
 
 @pytest.mark.parametrize("case", OUTPUTS_CASES, ids=lambda c: c["description"])

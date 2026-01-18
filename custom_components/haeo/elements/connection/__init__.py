@@ -20,7 +20,6 @@ from .adapter import (
     ConnectionOutputName,
     adapter,
 )
-from .flow import ConnectionSubentryFlowHandler
 from .schema import (
     CONF_EFFICIENCY_SOURCE_TARGET,
     CONF_EFFICIENCY_TARGET_SOURCE,
@@ -31,13 +30,11 @@ from .schema import (
     CONF_SOURCE,
     CONF_TARGET,
     ELEMENT_TYPE,
-    INPUT_FIELDS,
     ConnectionConfigData,
     ConnectionConfigSchema,
 )
 
 __all__ = [
-    # Schema
     "CONF_EFFICIENCY_SOURCE_TARGET",
     "CONF_EFFICIENCY_TARGET_SOURCE",
     "CONF_MAX_POWER_SOURCE_TARGET",
@@ -46,7 +43,6 @@ __all__ = [
     "CONF_PRICE_TARGET_SOURCE",
     "CONF_SOURCE",
     "CONF_TARGET",
-    # Adapter
     "CONNECTION_DEVICE_CONNECTION",
     "CONNECTION_DEVICE_NAMES",
     "CONNECTION_OUTPUT_NAMES",
@@ -57,14 +53,11 @@ __all__ = [
     "CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE",
     "CONNECTION_TIME_SLICE",
     "ELEMENT_TYPE",
-    "INPUT_FIELDS",
     "ConnectionAdapter",
     "ConnectionConfigData",
     "ConnectionConfigSchema",
     "ConnectionDeviceName",
     "ConnectionOutputName",
-    # Flow
-    "ConnectionSubentryFlowHandler",
     "PowerConnectionOutputName",
     "adapter",
 ]

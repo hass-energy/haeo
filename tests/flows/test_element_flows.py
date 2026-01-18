@@ -43,9 +43,11 @@ from custom_components.haeo.elements import (
     ElementType,
     battery,
     connection,
+    get_element_flow_classes,
     grid,
     node,
 )
+from custom_components.haeo.elements.input_fields import InputFieldInfo
 from custom_components.haeo.model import OutputData
 from tests.conftest import ElementTestData
 
@@ -74,9 +76,8 @@ def _create_flow(
     element_type: ElementType,
 ) -> Any:
     """Create a configured subentry flow instance for an element type."""
-
-    registry_entry = ELEMENT_TYPES[element_type]
-    flow_class = registry_entry.flow_class
+    flow_classes = get_element_flow_classes()
+    flow_class = flow_classes[element_type]
     flow = flow_class()
     flow.hass = hass
     flow.handler = (hub_entry.entry_id, element_type)
@@ -189,8 +190,9 @@ def flow_test_element_factory(monkeypatch: pytest.MonkeyPatch) -> FlowTestElemen
             _ = config  # Unused but required by protocol
             return True
 
-        async def load(self, config: Any, **_kwargs: Any) -> Any:
-            return config
+        def inputs(self, config: Any) -> dict[str, InputFieldInfo[Any]]:
+            _ = config
+            return {}
 
         def model_elements(self, config: Any) -> list[dict[str, Any]]:  # noqa: ARG002
             return []
@@ -198,8 +200,8 @@ def flow_test_element_factory(monkeypatch: pytest.MonkeyPatch) -> FlowTestElemen
         def outputs(
             self,
             name: str,  # noqa: ARG002
-            outputs: Mapping[str, Mapping[Any, OutputData]],  # noqa: ARG002
-            _config: Any,
+            model_outputs: Mapping[str, Mapping[Any, OutputData]],  # noqa: ARG002
+            **_kwargs: Any,
         ) -> Mapping[str, Mapping[ElementOutputName, OutputData]]:
             return {}
 

@@ -1,7 +1,9 @@
 """Element type definitions for model test data."""
 
-from collections.abc import Callable, Sequence
+from collections.abc import Callable
 from typing import Any, NotRequired, TypedDict
+
+from numpy.typing import NDArray
 
 
 class ExpectedOutput(TypedDict):
@@ -15,9 +17,9 @@ class ExpectedOutput(TypedDict):
 class ElementTestCaseInputs(TypedDict):
     """Inputs for element optimization scenario."""
 
-    power: NotRequired[Sequence[float | None]]
-    input_cost: NotRequired[float | Sequence[float]]
-    output_cost: NotRequired[float | Sequence[float]]
+    power: NotRequired[list[float | None]]
+    input_cost: NotRequired[float | NDArray[Any]]
+    output_cost: NotRequired[float | NDArray[Any]]
 
 
 class ElementTestCase(TypedDict):

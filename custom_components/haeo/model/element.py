@@ -32,7 +32,7 @@ class Element[OutputNameT: str]:
     def __init__(
         self,
         name: str,
-        periods: Sequence[float],
+        periods: NDArray[np.floating[Any]],
         *,
         solver: Highs,
         output_names: frozenset[OutputNameT],
@@ -41,7 +41,7 @@ class Element[OutputNameT: str]:
 
         Args:
             name: Name of the entity
-            periods: Sequence of time period durations in hours (one per optimization interval)
+            periods: Array of time period durations in hours (one per optimization interval)
             solver: The HiGHS solver instance for creating variables and constraints
             output_names: Frozenset of valid output names for this element type (used for type narrowing)
 

@@ -4,6 +4,7 @@ import logging
 from unittest.mock import Mock
 
 from highspy import HighsModelStatus
+import numpy as np
 import pytest
 
 from custom_components.haeo.model import Network
@@ -28,11 +29,11 @@ def test_network_initialization() -> None:
     """Test network initialization."""
     network = Network(
         name="test_network",
-        periods=[1.0] * HOURS_PER_DAY,
+        periods=np.array([1.0] * HOURS_PER_DAY),
     )
 
     assert network.name == "test_network"
-    assert network.periods == [1.0] * DEFAULT_PERIODS  # Periods in hours
+    np.testing.assert_array_equal(network.periods, [1.0] * DEFAULT_PERIODS)  # Periods in hours
     assert network.n_periods == DEFAULT_PERIODS
     assert len(network.elements) == 0
 
@@ -41,7 +42,7 @@ def test_network_add_duplicate_element() -> None:
     """Test adding duplicate element to network."""
     network = Network(
         name="test_network",
-        periods=[1.0] * 3,
+        periods=np.array([1.0] * 3),
     )
 
     # Add first battery
@@ -63,7 +64,7 @@ def test_connect_entities() -> None:
     """Test connecting entities in the network."""
     network = Network(
         name="test_network",
-        periods=[1.0] * 3,
+        periods=np.array([1.0] * 3),
     )
 
     # Add entities
@@ -99,7 +100,7 @@ def test_connect_nonexistent_entities() -> None:
     """Test connecting nonexistent entities."""
     network = Network(
         name="test_network",
-        periods=[1.0] * 3,
+        periods=np.array([1.0] * 3),
     )
     with pytest.raises(ValueError, match="Failed to register connection bad_connection with source nonexistent"):
         network.add(
@@ -116,7 +117,7 @@ def test_connect_nonexistent_target_entity() -> None:
     """Test connecting to nonexistent target entity."""
     network = Network(
         name="test_network",
-        periods=[1.0] * 3,
+        periods=np.array([1.0] * 3),
     )
     # Add only source entity
     network.add({"element_type": ELEMENT_TYPE_BATTERY, "name": "battery1", "capacity": 10000, "initial_charge": 5000})
@@ -136,7 +137,7 @@ def test_connect_source_is_connection() -> None:
     """Test connecting when source is a connection element."""
     network = Network(
         name="test_network",
-        periods=[1.0] * 3,
+        periods=np.array([1.0] * 3),
     )
     # Add entities and a connection
     network.add({"element_type": ELEMENT_TYPE_BATTERY, "name": "battery1", "capacity": 10000, "initial_charge": 5000})
@@ -156,7 +157,7 @@ def test_connect_target_is_connection() -> None:
     """Test connecting when target is a connection element."""
     network = Network(
         name="test_network",
-        periods=[1.0] * 3,
+        periods=np.array([1.0] * 3),
     )
     # Add entities and a connection
     network.add({"element_type": ELEMENT_TYPE_BATTERY, "name": "battery1", "capacity": 10000, "initial_charge": 5000})
@@ -174,10 +175,10 @@ def test_connect_target_is_connection() -> None:
 
 def test_validate_raises_when_source_missing() -> None:
     """Validate should raise when a connection source is missing."""
-    net = Network(name="net", periods=[1.0] * 1)
+    net = Network(name="net", periods=np.array([1.0]))
     net.elements["conn"] = PowerConnection(
         name="conn",
-        periods=[1.0] * 1,
+        periods=np.array([1.0]),
         solver=net._solver,
         source="missing",
         target="also_missing",
@@ -189,13 +190,13 @@ def test_validate_raises_when_source_missing() -> None:
 
 def test_validate_raises_when_target_missing() -> None:
     """Validate should raise when a connection target is missing."""
-    net = Network(name="net", periods=[1.0] * 1)
+    net = Network(name="net", periods=np.array([1.0]))
     net.elements["source_node"] = Node(
-        name="source_node", periods=[1.0] * 1, solver=net._solver, is_source=True, is_sink=True
+        name="source_node", periods=np.array([1.0]), solver=net._solver, is_source=True, is_sink=True
     )
     net.elements["conn"] = PowerConnection(
         name="conn",
-        periods=[1.0] * 1,
+        periods=np.array([1.0]),
         solver=net._solver,
         source="source_node",
         target="missing_target",
@@ -207,13 +208,13 @@ def test_validate_raises_when_target_missing() -> None:
 
 def test_validate_raises_when_endpoints_are_connections() -> None:
     """Validate should reject connections that point to connection elements."""
-    net = Network(name="net", periods=[1.0] * 1)
+    net = Network(name="net", periods=np.array([1.0]))
     # Non-connection element to satisfy target for conn2
-    net.elements["node"] = Node(name="node", periods=[1.0] * 1, solver=net._solver, is_source=True, is_sink=True)
+    net.elements["node"] = Node(name="node", periods=np.array([1.0]), solver=net._solver, is_source=True, is_sink=True)
 
     net.elements["conn2"] = PowerConnection(
         name="conn2",
-        periods=[1.0] * 1,
+        periods=np.array([1.0]),
         solver=net._solver,
         source="node",
         target="node",
@@ -222,7 +223,7 @@ def test_validate_raises_when_endpoints_are_connections() -> None:
     # conn1 references conn2 as source and target to hit both connection checks
     net.elements["conn1"] = PowerConnection(
         name="conn1",
-        periods=[1.0] * 1,
+        periods=np.array([1.0]),
         solver=net._solver,
         source="conn2",
         target="conn2",
@@ -234,7 +235,7 @@ def test_validate_raises_when_endpoints_are_connections() -> None:
 
 def test_constraints_returns_empty_when_no_elements() -> None:
     """Constraints should return empty dict when network has no elements."""
-    net = Network(name="net", periods=[1.0] * 1)
+    net = Network(name="net", periods=np.array([1.0]))
 
     assert net.constraints() == {}
 
@@ -243,7 +244,7 @@ def test_network_constraint_generation_error() -> None:
     """Test that constraint generation errors are caught and wrapped with context."""
     network = Network(
         name="test_network",
-        periods=[1.0] * 3,
+        periods=np.array([1.0] * 3),
     )
 
     # Add a regular battery
@@ -269,7 +270,7 @@ def test_network_optimize_validates_before_running() -> None:
     """Test that optimize() calls validate() and catches validation errors."""
     network = Network(
         name="test_network",
-        periods=[1.0] * 3,
+        periods=np.array([1.0] * 3),
     )
 
     # Add elements but create an invalid connection (connection to connection)
@@ -289,7 +290,7 @@ def test_network_optimize_constraints_error() -> None:
     """Test that optimize() catches and wraps constraints errors."""
     network = Network(
         name="test_network",
-        periods=[1.0] * 3,
+        periods=np.array([1.0] * 3),
     )
 
     # Add a regular element
@@ -313,7 +314,7 @@ def test_network_optimize_success_logs_solver_output(
 
     caplog.set_level(logging.DEBUG, logger=network_module.__name__)
 
-    network = Network(name="test_network", periods=[1.0] * 2)
+    network = Network(name="test_network", periods=np.array([1.0] * 2))
     network.add({"element_type": ELEMENT_TYPE_NODE, "name": "node", "is_sink": True, "is_source": True})
 
     result = network.optimize()
@@ -332,7 +333,7 @@ def test_network_optimize_raises_on_solver_failure(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Optimize should surface solver failure status with context."""
-    network = Network(name="test_network", periods=[1.0] * 1)
+    network = Network(name="test_network", periods=np.array([1.0]))
     network.add({"element_type": ELEMENT_TYPE_NODE, "name": "node", "is_sink": True, "is_source": True})
 
     def mock_optimize() -> float:
@@ -358,7 +359,7 @@ def test_network_optimize_raises_on_infeasible_network(
 ) -> None:
     """Test optimize() raises ValueError when network optimization fails."""
     # Create a valid network
-    network = Network(name="test_network", periods=[1.0] * 1)
+    network = Network(name="test_network", periods=np.array([1.0]))
     network.add({"element_type": ELEMENT_TYPE_NODE, "name": "node", "is_sink": True, "is_source": True})
 
     # Track if run() has been called
@@ -388,7 +389,7 @@ def test_network_optimize_raises_on_infeasible_network(
 
 def test_add_battery_balance_connection() -> None:
     """Test adding a battery balance connection via Network.add()."""
-    network = Network(name="test_network", periods=[1.0] * 3)
+    network = Network(name="test_network", periods=np.array([1.0] * 3))
 
     # Add two battery sections
     network.add(
@@ -415,7 +416,7 @@ def test_add_battery_balance_connection() -> None:
 
 def test_add_battery_balance_connection_upper_not_battery() -> None:
     """Test battery balance connection raises TypeError when upper is not a battery."""
-    network = Network(name="test_network", periods=[1.0] * 3)
+    network = Network(name="test_network", periods=np.array([1.0] * 3))
 
     # Add a node (not a battery) as upper
     network.add({"element_type": ELEMENT_TYPE_NODE, "name": "not_a_battery", "is_sink": True, "is_source": True})
@@ -436,7 +437,7 @@ def test_add_battery_balance_connection_upper_not_battery() -> None:
 
 def test_add_battery_balance_connection_lower_not_battery() -> None:
     """Test battery balance connection raises TypeError when lower is not a battery."""
-    network = Network(name="test_network", periods=[1.0] * 3)
+    network = Network(name="test_network", periods=np.array([1.0] * 3))
 
     # Add battery as upper, node as lower
     network.add(
@@ -457,7 +458,7 @@ def test_add_battery_balance_connection_lower_not_battery() -> None:
 
 def test_network_cost_with_multiple_elements() -> None:
     """Test Network.cost() aggregates costs from multiple elements using Highs.qsum."""
-    network = Network(name="test", periods=[1.0, 1.0])
+    network = Network(name="test", periods=np.array([1.0, 1.0]))
 
     # Add two nodes
     network.add({"element_type": ELEMENT_TYPE_NODE, "name": "source", "is_source": True, "is_sink": False})
@@ -470,7 +471,7 @@ def test_network_cost_with_multiple_elements() -> None:
             "name": "conn1",
             "source": "source",
             "target": "target",
-            "price_source_target": [10.0, 20.0],
+            "price_source_target": np.array([10.0, 20.0]),
         }
     )
     network.add(
@@ -479,7 +480,7 @@ def test_network_cost_with_multiple_elements() -> None:
             "name": "conn2",
             "source": "target",
             "target": "source",
-            "price_source_target": [5.0, 10.0],
+            "price_source_target": np.array([5.0, 10.0]),
         }
     )
 
@@ -492,7 +493,7 @@ def test_network_cost_with_multiple_elements() -> None:
 
 def test_network_cost_returns_none_when_no_costs() -> None:
     """Test Network.cost() returns None when network has no cost terms."""
-    network = Network(name="test", periods=[1.0])
+    network = Network(name="test", periods=np.array([1.0]))
 
     # Add a node (has no costs)
     network.add({"element_type": ELEMENT_TYPE_NODE, "name": "node", "is_source": True, "is_sink": True})
@@ -504,7 +505,7 @@ def test_network_cost_returns_none_when_no_costs() -> None:
 
 def test_network_constraints_empty_when_no_elements() -> None:
     """Test Network.constraints() returns empty dict with no elements."""
-    network = Network(name="test", periods=[1.0])
+    network = Network(name="test", periods=np.array([1.0]))
 
     # No elements added - should return empty dict
     constraints = network.constraints()

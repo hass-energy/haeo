@@ -42,10 +42,10 @@ graph LR
 Input entities subscribe to the [HorizonManager](horizon-manager.md) and refresh their data when the forecast horizon advances.
 The coordinator reads pre-loaded values from `runtime_data.inputs` rather than loading directly from sensors.
 
-## Input Field Registry
+## Input Field Map
 
-Each element type declares which configuration fields become input entities via the `INPUT_FIELDS` registry in its adapter module.
-The registry uses an `InputFieldInfo` dataclass that specifies the field name, entity description, output type, direction, and whether values vary per period.
+Each element type declares which configuration fields become input entities via its adapter's `inputs()` method.
+The method returns a dict keyed by field name, with `InputFieldInfo` values that describe entity metadata, output type, direction, and time-series behavior.
 
 See the element adapter modules for specific registrations.
 

@@ -3,6 +3,7 @@
 from collections.abc import Mapping, Sequence
 from typing import Any, TypedDict
 
+import numpy as np
 import pytest
 
 from custom_components.haeo.elements import ELEMENT_TYPES
@@ -14,6 +15,8 @@ from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION,
 from custom_components.haeo.model.elements import power_connection
 from custom_components.haeo.model.elements.node import NODE_POWER_BALANCE
 from custom_components.haeo.model.output_data import OutputData
+
+from tests.util.normalize import normalize_for_compare
 
 
 class CreateCase(TypedDict):
@@ -40,10 +43,10 @@ CREATE_CASES: Sequence[CreateCase] = [
             element_type="inverter",
             name="inverter_main",
             connection="network",
-            max_power_dc_to_ac=[10.0],
-            max_power_ac_to_dc=[10.0],
-            efficiency_dc_to_ac=100.0,
-            efficiency_ac_to_dc=100.0,
+            max_power_dc_to_ac=np.array([10.0]),
+            max_power_ac_to_dc=np.array([10.0]),
+            efficiency_dc_to_ac=np.array(100.0),
+            efficiency_ac_to_dc=np.array(100.0),
         ),
         "model": [
             {"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "inverter_main", "is_source": False, "is_sink": False},
@@ -65,10 +68,10 @@ CREATE_CASES: Sequence[CreateCase] = [
             element_type="inverter",
             name="inverter_simple",
             connection="network",
-            max_power_dc_to_ac=[10.0],
-            max_power_ac_to_dc=[10.0],
-            efficiency_dc_to_ac=100.0,
-            efficiency_ac_to_dc=100.0,
+            max_power_dc_to_ac=np.array([10.0]),
+            max_power_ac_to_dc=np.array([10.0]),
+            efficiency_dc_to_ac=np.array(100.0),
+            efficiency_ac_to_dc=np.array(100.0),
         ),
         "model": [
             {"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "inverter_simple", "is_source": False, "is_sink": False},
@@ -121,7 +124,7 @@ def test_model_elements(case: CreateCase) -> None:
     """Verify adapter transforms ConfigData into expected model elements."""
     entry = ELEMENT_TYPES["inverter"]
     result = entry.model_elements(case["data"])
-    assert result == case["model"]
+    assert normalize_for_compare(result) == normalize_for_compare(case["model"])
 
 
 @pytest.mark.parametrize("case", OUTPUTS_CASES, ids=lambda c: c["description"])

@@ -1,7 +1,6 @@
 """Utility functions for model elements."""
 
-from collections.abc import Sequence
-from typing import overload
+from typing import Any, overload
 
 import numpy as np
 from numpy.typing import NDArray
@@ -12,10 +11,13 @@ def broadcast_to_sequence(value: None, n_periods: int) -> None: ...
 
 
 @overload
-def broadcast_to_sequence(value: float | Sequence[float], n_periods: int) -> NDArray[np.float64]: ...
+def broadcast_to_sequence(value: float | NDArray[np.floating[Any]], n_periods: int) -> NDArray[np.float64]: ...
 
 
-def broadcast_to_sequence(value: float | Sequence[float] | None, n_periods: int) -> NDArray[np.float64] | None:
+def broadcast_to_sequence(
+    value: float | NDArray[np.floating[Any]] | None,
+    n_periods: int,
+) -> NDArray[np.float64] | None:
     """Broadcast a scalar or sequence to match n_periods.
 
     For single values, broadcasts to n_periods length.
@@ -23,7 +25,7 @@ def broadcast_to_sequence(value: float | Sequence[float] | None, n_periods: int)
     For sequences that are too long, truncates to n_periods.
 
     Args:
-        value: Scalar value, sequence to broadcast, or None
+        value: Scalar value, array to broadcast, or None
         n_periods: Target number of periods
 
     Returns:

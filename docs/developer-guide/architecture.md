@@ -183,7 +183,7 @@ Rather than documenting every file, focus on how the major areas collaborate:
 - **Model (`model/`)**: Pure Python optimization layer with declarative constraints and costs.
     - `model/elements/`: Model element implementations (Battery, Node, Connection types)
     - `model/reactive/`: Parameter tracking and constraint caching infrastructure
-- **Metadata (`elements/` and `schema/`)**: Describe configuration defaults, validation, INPUT_FIELDS registry, and runtime metadata for every element type.
+- **Metadata (`elements/` and `schema/`)**: Describe configuration defaults, validation, input field mapping, and runtime metadata for every element type.
 - **Presentation (`sensors/`)**: Builds sensor platforms that publish optimization results back to Home Assistant.
 - **Translations (`translations/`)**: Provides user-facing strings for config flows and entity names.
 
@@ -196,7 +196,7 @@ Rather than documenting every file, focus on how the major areas collaborate:
     - `__init__.py`: Public exports
     - `schema.py`: Define `ConfigSchema` and `ConfigData` TypedDicts
     - `flow.py`: Implement config flow with voluptuous schemas
-    - `adapter.py`: Implement `available()`, `load()`, `create_model_elements()`, `outputs()`, and `INPUT_FIELDS` registry
+    - `adapter.py`: Implement `available()`, `load()`, `create_model_elements()`, `outputs()`, and `inputs()` mapping
 
 2. **Register element type** in `elements/__init__.py`:
 

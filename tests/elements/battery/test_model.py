@@ -3,6 +3,7 @@
 from collections.abc import Mapping, Sequence
 from typing import Any, TypedDict
 
+import numpy as np
 import pytest
 
 from custom_components.haeo.elements import ELEMENT_TYPES
@@ -20,6 +21,8 @@ from custom_components.haeo.model.elements import (
     MODEL_ELEMENT_TYPE_NODE,
 )
 from custom_components.haeo.model.output_data import OutputData
+
+from tests.util.normalize import normalize_for_compare
 
 
 class CreateCase(TypedDict):
@@ -47,19 +50,19 @@ CREATE_CASES: Sequence[CreateCase] = [
             element_type="battery",
             name="battery_main",
             connection="network",
-            capacity=[10.0, 10.0],
-            initial_charge_percentage=[50.0],
-            min_charge_percentage=[10.0, 10.0],
-            max_charge_percentage=[90.0, 90.0],
-            efficiency=[95.0],
-            max_charge_power=[5.0],
-            max_discharge_power=[5.0],
-            early_charge_incentive=[0.01],
-            discharge_cost=[0.02],
-            undercharge_percentage=[5.0, 5.0],
-            overcharge_percentage=[95.0, 95.0],
-            undercharge_cost=[0.03],
-            overcharge_cost=[0.04],
+            capacity=np.array([10.0, 10.0]),
+            initial_charge_percentage=np.array([50.0]),
+            min_charge_percentage=np.array([10.0, 10.0]),
+            max_charge_percentage=np.array([90.0, 90.0]),
+            efficiency=np.array([95.0]),
+            max_charge_power=np.array([5.0]),
+            max_discharge_power=np.array([5.0]),
+            early_charge_incentive=np.array([0.01]),
+            discharge_cost=np.array([0.02]),
+            undercharge_percentage=np.array([5.0, 5.0]),
+            overcharge_percentage=np.array([95.0, 95.0]),
+            undercharge_cost=np.array([0.03]),
+            overcharge_cost=np.array([0.04]),
         ),
         "model": [
             {
@@ -145,15 +148,15 @@ CREATE_CASES: Sequence[CreateCase] = [
             element_type="battery",
             name="battery_normal",
             connection="network",
-            capacity=[10.0, 10.0],
-            initial_charge_percentage=[50.0],
-            min_charge_percentage=[0.0, 0.0],
-            max_charge_percentage=[100.0, 100.0],
-            efficiency=[95.0],
-            max_charge_power=[5.0],
-            max_discharge_power=[5.0],
-            early_charge_incentive=[0.001],
-            discharge_cost=[0.002],
+            capacity=np.array([10.0, 10.0]),
+            initial_charge_percentage=np.array([50.0]),
+            min_charge_percentage=np.array([0.0, 0.0]),
+            max_charge_percentage=np.array([100.0, 100.0]),
+            efficiency=np.array([95.0]),
+            max_charge_power=np.array([5.0]),
+            max_discharge_power=np.array([5.0]),
+            early_charge_incentive=np.array([0.001]),
+            discharge_cost=np.array([0.002]),
         ),
         "model": [
             {
@@ -202,15 +205,15 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
             element_type="battery",
             name="battery_no_balance",
             connection="network",
-            capacity=[10.0, 10.0],
-            initial_charge_percentage=[50.0],
-            min_charge_percentage=[0.0, 0.0],
-            max_charge_percentage=[100.0, 100.0],
-            efficiency=[95.0],
-            max_charge_power=[5.0],
-            max_discharge_power=[5.0],
-            early_charge_incentive=[0.001],
-            discharge_cost=[0.002],
+            capacity=np.array([10.0, 10.0]),
+            initial_charge_percentage=np.array([50.0]),
+            min_charge_percentage=np.array([0.0, 0.0]),
+            max_charge_percentage=np.array([100.0, 100.0]),
+            efficiency=np.array([95.0]),
+            max_charge_power=np.array([5.0]),
+            max_discharge_power=np.array([5.0]),
+            early_charge_incentive=np.array([0.001]),
+            discharge_cost=np.array([0.002]),
         ),
         "model_outputs": {
             "battery_no_balance:normal": {
@@ -254,19 +257,19 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
             element_type="battery",
             name="battery_all_sections",
             connection="network",
-            capacity=[10.0, 10.0],
-            initial_charge_percentage=[50.0],
-            min_charge_percentage=[10.0, 10.0],
-            max_charge_percentage=[90.0, 90.0],
-            efficiency=[95.0],
-            max_charge_power=[5.0],
-            max_discharge_power=[5.0],
-            early_charge_incentive=[0.001],
-            discharge_cost=[0.002],
-            undercharge_percentage=[5.0, 5.0],
-            overcharge_percentage=[95.0, 95.0],
-            undercharge_cost=[0.03],
-            overcharge_cost=[0.04],
+            capacity=np.array([10.0, 10.0]),
+            initial_charge_percentage=np.array([50.0]),
+            min_charge_percentage=np.array([10.0, 10.0]),
+            max_charge_percentage=np.array([90.0, 90.0]),
+            efficiency=np.array([95.0]),
+            max_charge_power=np.array([5.0]),
+            max_discharge_power=np.array([5.0]),
+            early_charge_incentive=np.array([0.001]),
+            discharge_cost=np.array([0.002]),
+            undercharge_percentage=np.array([5.0, 5.0]),
+            overcharge_percentage=np.array([95.0, 95.0]),
+            undercharge_cost=np.array([0.03]),
+            overcharge_cost=np.array([0.04]),
         ),
         "model_outputs": {
             # Undercharge section
@@ -391,7 +394,7 @@ def test_model_elements(case: CreateCase) -> None:
     """Verify adapter transforms ConfigData into expected model elements."""
     entry = ELEMENT_TYPES["battery"]
     result = entry.model_elements(case["data"])
-    assert result == case["model"]
+    assert normalize_for_compare(result) == normalize_for_compare(case["model"])
 
 
 @pytest.mark.parametrize("case", OUTPUTS_CASES, ids=lambda c: c["description"])

@@ -5,7 +5,7 @@ Home Assistant's ChooseSelector, allowing users to pick between "Entity"
 (select from compatible sensors) or "Constant" (enter a value directly).
 """
 
-from collections.abc import Collection
+from collections.abc import Collection, Mapping
 from typing import Any
 
 from homeassistant.components.number import NumberEntityDescription
@@ -157,7 +157,7 @@ def build_entity_selector(
 
 def get_preferred_choice(
     field_info: InputFieldInfo[Any],
-    current_data: dict[str, Any] | None = None,
+    current_data: Mapping[str, Any] | None = None,
     *,
     is_optional: bool = False,
 ) -> str:
@@ -332,7 +332,7 @@ def build_choose_schema_entry(
 
 def get_choose_default(
     field_info: InputFieldInfo[Any],
-    current_data: dict[str, Any] | None = None,
+    current_data: Mapping[str, Any] | None = None,
 ) -> Any:
     """Get the default value for a choose selector field.
 
@@ -382,7 +382,7 @@ def get_choose_default(
 
 def convert_choose_data_to_config(
     user_input: dict[str, Any],
-    input_fields: tuple[InputFieldInfo[Any], ...],
+    input_fields: Mapping[str, InputFieldInfo[Any]],
     exclude_keys: tuple[str, ...] = (),
 ) -> dict[str, Any]:
     """Convert choose selector user input to final config format.
@@ -394,7 +394,7 @@ def convert_choose_data_to_config(
 
     Args:
         user_input: User input from the form (after preprocessing).
-        input_fields: Tuple of input field metadata.
+        input_fields: Mapping of input field metadata keyed by field name.
         exclude_keys: Keys to exclude from processing (e.g., name, connection).
 
     Returns:
@@ -406,7 +406,7 @@ def convert_choose_data_to_config(
 
     """
     config: dict[str, Any] = {}
-    field_names = {f.field_name for f in input_fields}
+    field_names = set(input_fields)
 
     for field_name, value in user_input.items():
         if field_name in exclude_keys:
@@ -445,7 +445,7 @@ def _normalize_entity_selection(entities: list[str] | str) -> str | list[str]:
 
 def preprocess_choose_selector_input(
     user_input: dict[str, Any] | None,
-    input_fields: tuple[InputFieldInfo[Any], ...],
+    input_fields: Mapping[str, InputFieldInfo[Any]],
 ) -> dict[str, Any] | None:
     """Preprocess user input to normalize ChooseSelector data.
 
@@ -465,7 +465,7 @@ def preprocess_choose_selector_input(
 
     Args:
         user_input: User input from the form submission.
-        input_fields: Tuple of input field metadata.
+        input_fields: Mapping of input field metadata keyed by field name.
 
     Returns:
         Normalized user input dict, or None if input was None.
@@ -475,7 +475,7 @@ def preprocess_choose_selector_input(
         return None
 
     result = dict(user_input)
-    field_names = {f.field_name for f in input_fields}
+    field_names = set(input_fields)
 
     for field_name in field_names:
         value = result.get(field_name)
@@ -525,7 +525,7 @@ def is_valid_choose_value(value: Any) -> bool:
 
 def validate_choose_fields(
     user_input: dict[str, Any],
-    input_fields: tuple[InputFieldInfo[Any], ...],
+    input_fields: Mapping[str, InputFieldInfo[Any]],
     optional_keys: frozenset[str],
     *,
     exclude_fields: Collection[str] = (),
@@ -534,7 +534,7 @@ def validate_choose_fields(
 
     Args:
         user_input: User input dictionary from the form.
-        input_fields: Tuple of InputFieldInfo defining the fields.
+        input_fields: Mapping of InputFieldInfo defining the fields.
         optional_keys: The __optional_keys__ frozenset from the TypedDict schema.
         exclude_fields: Field names to skip validation for.
 
@@ -544,9 +544,7 @@ def validate_choose_fields(
     """
     errors: dict[str, str] = {}
 
-    for field_info in input_fields:
-        field_name = field_info.field_name
-
+    for field_name, field_info in input_fields.items():
         if field_name in exclude_fields:
             continue
 

@@ -5,51 +5,16 @@ Unlike the standard Battery element which creates multiple sections and an inter
 this element creates a single battery section that must be connected manually via Connection.
 """
 
-from typing import Final, Literal, TypedDict
+from typing import Any, Final, Literal, TypedDict
 
-from homeassistant.components.number import NumberDeviceClass, NumberEntityDescription
-from homeassistant.const import UnitOfEnergy
-
-from custom_components.haeo.elements.input_fields import InputFieldInfo
-from custom_components.haeo.model.const import OutputType
+import numpy as np
+from numpy.typing import NDArray
 
 ELEMENT_TYPE: Final = "battery_section"
 
 # Configuration field names
 CONF_CAPACITY: Final = "capacity"
 CONF_INITIAL_CHARGE: Final = "initial_charge"
-
-# Input field definitions for creating input entities
-INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
-    InputFieldInfo(
-        field_name=CONF_CAPACITY,
-        entity_description=NumberEntityDescription(
-            key=CONF_CAPACITY,
-            translation_key=f"{ELEMENT_TYPE}_{CONF_CAPACITY}",
-            native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
-            device_class=NumberDeviceClass.ENERGY_STORAGE,
-            native_min_value=0.1,
-            native_max_value=1000.0,
-            native_step=0.1,
-        ),
-        output_type=OutputType.ENERGY,
-        time_series=True,
-    ),
-    InputFieldInfo(
-        field_name=CONF_INITIAL_CHARGE,
-        entity_description=NumberEntityDescription(
-            key=CONF_INITIAL_CHARGE,
-            translation_key=f"{ELEMENT_TYPE}_{CONF_INITIAL_CHARGE}",
-            native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
-            device_class=NumberDeviceClass.ENERGY_STORAGE,
-            native_min_value=0.0,
-            native_max_value=1000.0,
-            native_step=0.1,
-        ),
-        output_type=OutputType.ENERGY,
-        time_series=True,
-    ),
-)
 
 
 class BatterySectionConfigSchema(TypedDict):
@@ -76,5 +41,5 @@ class BatterySectionConfigData(TypedDict):
 
     element_type: Literal["battery_section"]
     name: str
-    capacity: list[float]  # kWh at each time boundary (n+1 values)
-    initial_charge: list[float]  # kWh per period (uses first value)
+    capacity: NDArray[np.floating[Any]]  # kWh at each time boundary (n+1 values)
+    initial_charge: NDArray[np.floating[Any]]  # kWh per period (uses first value)

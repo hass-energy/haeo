@@ -88,9 +88,10 @@ from custom_components.haeo.data.util.forecast_fuser import fuse_to_boundaries, 
         ),
         pytest.param(
             30.0,
-            [(0, 100.0), (2000, 200.0), (4000, 300.0)],
+            # Point at t=500 (value=125 matches linear interpolation) ensures present only applies to interval 0
+            [(0, 100.0), (500, 125.0), (2000, 200.0), (4000, 300.0)],
             [0, 500, 1500, 2500, 3500],  # Horizon boundaries don't align with forecast points
-            [30.0, 150.0, 200.0, 250.0],  # present@0, then trapezoidal averages from pure forecast
+            [30.0, 150.0, 200.0, 250.0],  # present@0, then pure forecast averages
             id="interpolation_between_forecast_points",
         ),
         pytest.param(
@@ -109,7 +110,8 @@ from custom_components.haeo.data.util.forecast_fuser import fuse_to_boundaries, 
         ),
         pytest.param(
             10.0,
-            [(0, 100.0), (3000, 400.0)],  # Sparse forecast requiring interpolation
+            # Point at t=1000 (value=200 matches linear interpolation) ensures present only applies to interval 0
+            [(0, 100.0), (1000, 200.0), (3000, 400.0)],  # Sparse forecast requiring interpolation
             [0, 1000, 2000, 3000, 4000],  # Multiple intervals between forecast points
             [10.0, 250.0, 350.0, 398.2014388489209],  # present@0, then pure forecast averages
             id="sparse_forecast_multiple_interpolations",
@@ -125,6 +127,7 @@ from custom_components.haeo.data.util.forecast_fuser import fuse_to_boundaries, 
             50.0,
             [
                 (0.0, 100.0),
+                (500.0, 100.0),  # Point at t=500 ensures present only applies to interval 0
                 (np.nextafter(1000.0, -np.inf), 100.0),
                 (1000.0, 200.0),
                 (np.nextafter(2000.0, -np.inf), 200.0),
@@ -138,6 +141,39 @@ from custom_components.haeo.data.util.forecast_fuser import fuse_to_boundaries, 
             # Interval [1500,2000]: constant at 200
             [50.0, 150.0, 200.0, 200.0],
             id="step_function_integration",
+        ),
+        pytest.param(
+            0.16,  # Current price (e.g., $/kWh)
+            # Forecast has 5-minute (300s) boundaries: 300, 600, 900
+            [(300, 0.15), (600, 0.14), (900, 0.13)],
+            # T1 intervals: 1-minute (60s) each, starting at t=0
+            # Present value extends to all intervals ending at or before t=300
+            [0, 60, 120, 180, 240, 300, 360, 420],
+            # Intervals 0-4 end at 60,120,180,240,300 <= 300, all use present value
+            # Intervals 5-6 use forecast interpolation between points
+            [0.16, 0.16, 0.16, 0.16, 0.16, 0.149, 0.147],
+            id="t1_alignment_extends_present_to_forecast_boundary",
+        ),
+        pytest.param(
+            None,  # No present value - use forecast for all intervals
+            [(0, 100.0), (1000, 150.0), (2000, 200.0), (3000, 250.0)],
+            [0, 1000, 2000, 3000],
+            [125.0, 175.0, 225.0],  # Pure trapezoidal averages from forecast
+            id="no_present_value_uses_forecast_for_all",
+        ),
+        pytest.param(
+            50.0,  # Present value with forecast all at or before horizon start
+            [(0, 100.0), (-1000, 50.0)],  # All forecasts at/before t=0
+            [0, 1000, 2000],
+            [50.0, 99.12177985948477],  # Present@0, then cycled forecast average
+            id="all_forecasts_at_or_before_horizon_start",
+        ),
+        pytest.param(
+            42.0,  # Single interval case
+            [(0, 100.0), (1000, 200.0)],
+            [0, 1000],  # Only 2 boundaries = 1 interval
+            [42.0],  # Just present value for single interval
+            id="single_interval_only",
         ),
     ],
 )

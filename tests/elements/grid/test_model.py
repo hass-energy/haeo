@@ -3,6 +3,8 @@
 from collections.abc import Mapping, Sequence
 from typing import Any, TypedDict
 
+import numpy as np
+from numpy.typing import NDArray
 import pytest
 
 from custom_components.haeo.elements import ELEMENT_TYPES
@@ -13,6 +15,8 @@ from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE
 from custom_components.haeo.model.elements import power_connection
 from custom_components.haeo.model.output_data import OutputData
+
+from tests.util.normalize import normalize_for_compare
 
 
 class CreateCase(TypedDict):
@@ -30,7 +34,7 @@ class OutputsCase(TypedDict):
     name: str
     config: GridConfigData
     model_outputs: Mapping[str, Mapping[ModelOutputName, OutputData]]
-    periods: list[float]
+    periods: NDArray[np.floating[Any]]
     outputs: Mapping[str, Mapping[str, OutputData]]
 
 
@@ -41,10 +45,10 @@ CREATE_CASES: Sequence[CreateCase] = [
             element_type="grid",
             name="grid_main",
             connection="network",
-            import_price=[0.1],
-            export_price=[0.05],
-            import_limit=[5.0],
-            export_limit=[3.0],
+            import_price=np.array([0.1]),
+            export_price=np.array([0.05]),
+            import_limit=np.array([5.0]),
+            export_limit=np.array([3.0]),
         ),
         "model": [
             {"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "grid_main", "is_source": True, "is_sink": True},
@@ -67,7 +71,13 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
     {
         "description": "Grid with import and export - cost/revenue calculated from power × price × period",
         "name": "grid_main",
-        "config": GridConfigData(element_type="grid", name="grid_main", connection="network", import_price=[0.10], export_price=[0.05]),
+        "config": GridConfigData(
+            element_type="grid",
+            name="grid_main",
+            connection="network",
+            import_price=np.array([0.10]),
+            export_price=np.array([0.05]),
+        ),
         "model_outputs": {
             "grid_main:connection": {
                 power_connection.CONNECTION_POWER_TARGET_SOURCE: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(2.0,), direction="-"),
@@ -76,7 +86,7 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
                 power_connection.CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.02,)),
             }
         },
-        "periods": [1.0],  # 1 hour period
+        "periods": np.array([1.0]),  # 1 hour period
         # Cost/revenue calculations:
         # import_cost = 5.0 kW × $0.10/kWh × 1h = $0.50
         # export_revenue = 2.0 kW × $0.05/kWh × 1h = $0.10 (positive!)
@@ -98,14 +108,20 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
     {
         "description": "Grid with multiple periods - cumulative cost/revenue",
         "name": "grid_multi",
-        "config": GridConfigData(element_type="grid", name="grid_multi", connection="network", import_price=[0.10, 0.20], export_price=[0.05, 0.05]),
+        "config": GridConfigData(
+            element_type="grid",
+            name="grid_multi",
+            connection="network",
+            import_price=np.array([0.10, 0.20]),
+            export_price=np.array([0.05, 0.05]),
+        ),
         "model_outputs": {
             "grid_multi:connection": {
                 power_connection.CONNECTION_POWER_TARGET_SOURCE: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(0.0, 0.0), direction="-"),
                 power_connection.CONNECTION_POWER_SOURCE_TARGET: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(5.0, 3.0), direction="+"),
             }
         },
-        "periods": [0.5, 0.5],  # 30 min periods
+        "periods": np.array([0.5, 0.5]),  # 30 min periods
         # Cost/revenue calculations (per period, then cumulative):
         # Period 1: import_cost = 5.0 kW × $0.10/kWh × 0.5h = $0.25
         # Period 2: import_cost = 3.0 kW × $0.20/kWh × 0.5h = $0.30
@@ -129,7 +145,7 @@ def test_model_elements(case: CreateCase) -> None:
     """Verify adapter transforms ConfigData into expected model elements."""
     entry = ELEMENT_TYPES["grid"]
     result = entry.model_elements(case["data"])
-    assert result == case["model"]
+    assert normalize_for_compare(result) == normalize_for_compare(case["model"])
 
 
 @pytest.mark.parametrize("case", OUTPUTS_CASES, ids=lambda c: c["description"])
