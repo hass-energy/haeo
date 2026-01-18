@@ -1,11 +1,11 @@
 """Battery balance connection for energy redistribution between battery sections."""
 
-from collections.abc import Sequence
-from typing import TYPE_CHECKING, Final, Literal, NotRequired, TypedDict
+from typing import TYPE_CHECKING, Any, Final, Literal, NotRequired, TypedDict
 
 from highspy import Highs
 from highspy.highs import HighspyArray, highs_linear_expression
 import numpy as np
+from numpy.typing import NDArray
 
 from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.output_data import OutputData
@@ -85,7 +85,7 @@ class BatteryBalanceConnection(Connection[BatteryBalanceConnectionOutputName]):
     def __init__(
         self,
         name: str,
-        periods: Sequence[float],
+        periods: NDArray[np.floating[Any]],
         *,
         solver: Highs,
         upper: str,

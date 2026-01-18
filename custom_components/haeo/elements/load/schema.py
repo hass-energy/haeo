@@ -1,6 +1,9 @@
 """Load element schema definitions."""
 
-from typing import Final, Literal, TypedDict
+from typing import Any, Final, Literal, TypedDict
+
+import numpy as np
+from numpy.typing import NDArray
 
 ELEMENT_TYPE: Final = "load"
 
@@ -30,4 +33,4 @@ class LoadConfigData(TypedDict):
     element_type: Literal["load"]
     name: str
     connection: str  # Element name to connect to
-    forecast: list[float]  # Loaded power values per period (kW)
+    forecast: NDArray[np.floating[Any]]  # Loaded power values per period (kW)

@@ -3,6 +3,7 @@
 from collections.abc import Mapping, Sequence
 from typing import Any, TypedDict
 
+import numpy as np
 import pytest
 
 from custom_components.haeo.elements import ELEMENT_TYPES
@@ -13,6 +14,8 @@ from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION
 from custom_components.haeo.model.elements import power_connection
 from custom_components.haeo.model.output_data import OutputData
+
+from tests.util.normalize import normalize_for_compare
 
 
 class CreateCase(TypedDict):
@@ -40,12 +43,12 @@ CREATE_CASES: Sequence[CreateCase] = [
             name="c1",
             source="s",
             target="t",
-            max_power_source_target=[4.0],
-            max_power_target_source=[2.0],
-            efficiency_source_target=[95.0],
-            efficiency_target_source=[90.0],
-            price_source_target=[0.1],
-            price_target_source=[0.05],
+            max_power_source_target=np.array([4.0]),
+            max_power_target_source=np.array([2.0]),
+            efficiency_source_target=np.array([95.0]),
+            efficiency_target_source=np.array([90.0]),
+            price_source_target=np.array([0.1]),
+            price_target_source=np.array([0.05]),
         ),
         "model": [
             {
@@ -137,7 +140,7 @@ def test_model_elements(case: CreateCase) -> None:
     """Verify adapter transforms ConfigData into expected model elements."""
     entry = ELEMENT_TYPES["connection"]
     result = entry.model_elements(case["data"])
-    assert result == case["model"]
+    assert normalize_for_compare(result) == normalize_for_compare(case["model"])
 
 
 @pytest.mark.parametrize("case", OUTPUTS_CASES, ids=lambda c: c["description"])

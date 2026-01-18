@@ -1,7 +1,6 @@
 """Battery entity for electrical system modeling."""
 
-from collections.abc import Sequence
-from typing import Final, Literal, TypedDict
+from typing import Any, Final, Literal, TypedDict
 
 from highspy import Highs
 from highspy.highs import highs_linear_expression
@@ -62,7 +61,7 @@ class BatteryElementConfig(TypedDict):
 
     element_type: BatteryElementTypeName
     name: str
-    capacity: Sequence[float] | float
+    capacity: NDArray[np.floating[Any]] | float
     initial_charge: float
 
 
@@ -80,17 +79,17 @@ class Battery(Element[BatteryOutputName]):
     def __init__(
         self,
         name: str,
-        periods: Sequence[float],
+        periods: NDArray[np.floating[Any]],
         *,
         solver: Highs,
-        capacity: Sequence[float] | float,
+        capacity: NDArray[np.floating[Any]] | float,
         initial_charge: float,
     ) -> None:
         """Initialize a battery entity.
 
         Args:
             name: Name of the battery
-            periods: Sequence of time period durations in hours
+            periods: Array of time period durations in hours
             solver: The HiGHS solver instance for creating variables and constraints
             capacity: Battery capacity in kWh per period (T+1 values for energy boundaries)
             initial_charge: Initial charge in kWh

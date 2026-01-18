@@ -5,7 +5,10 @@ Unlike the standard Battery element which creates multiple sections and an inter
 this element creates a single battery section that must be connected manually via Connection.
 """
 
-from typing import Final, Literal, TypedDict
+from typing import Any, Final, Literal, TypedDict
+
+import numpy as np
+from numpy.typing import NDArray
 
 ELEMENT_TYPE: Final = "battery_section"
 
@@ -38,5 +41,5 @@ class BatterySectionConfigData(TypedDict):
 
     element_type: Literal["battery_section"]
     name: str
-    capacity: list[float]  # kWh at each time boundary (n+1 values)
-    initial_charge: list[float]  # kWh per period (uses first value)
+    capacity: NDArray[np.floating[Any]]  # kWh at each time boundary (n+1 values)
+    initial_charge: NDArray[np.floating[Any]]  # kWh per period (uses first value)

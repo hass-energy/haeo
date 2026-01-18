@@ -145,13 +145,13 @@ class InverterAdapter:
         efficiency and power limits for bidirectional power conversion.
         """
         name = config["name"]
-
         return [
-            # Create Node for the DC bus (pure junction - neither source nor sink)
-            {"element_type": MODEL_ELEMENT_TYPE_NODE, "name": name, "is_source": False, "is_sink": False},
-            # Create a connection from DC bus to AC node
-            # source_target = DC to AC (inverting)
-            # target_source = AC to DC (rectifying)
+            {
+                "element_type": MODEL_ELEMENT_TYPE_NODE,
+                "name": name,
+                "is_source": False,
+                "is_sink": False,
+            },
             {
                 "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
                 "name": f"{name}:connection",
@@ -173,22 +173,24 @@ class InverterAdapter:
         """Map model outputs to inverter-specific output names."""
         connection = model_outputs[f"{name}:connection"]
         dc_bus = model_outputs[name]
+        power_source_target = connection[CONNECTION_POWER_SOURCE_TARGET]
+        power_target_source = connection[CONNECTION_POWER_TARGET_SOURCE]
 
         inverter_outputs: dict[InverterOutputName, OutputData] = {}
 
         # source_target = DC to AC (inverting)
         # target_source = AC to DC (rectifying)
-        inverter_outputs[INVERTER_POWER_DC_TO_AC] = connection[CONNECTION_POWER_SOURCE_TARGET]
-        inverter_outputs[INVERTER_POWER_AC_TO_DC] = connection[CONNECTION_POWER_TARGET_SOURCE]
+        inverter_outputs[INVERTER_POWER_DC_TO_AC] = power_source_target
+        inverter_outputs[INVERTER_POWER_AC_TO_DC] = power_target_source
 
         # Active inverter power (DC to AC - AC to DC)
         inverter_outputs[INVERTER_POWER_ACTIVE] = replace(
-            connection[CONNECTION_POWER_SOURCE_TARGET],
+            power_source_target,
             values=[
                 dc_to_ac - ac_to_dc
                 for dc_to_ac, ac_to_dc in zip(
-                    connection[CONNECTION_POWER_SOURCE_TARGET].values,
-                    connection[CONNECTION_POWER_TARGET_SOURCE].values,
+                    power_source_target.values,
+                    power_target_source.values,
                     strict=True,
                 )
             ],
@@ -197,7 +199,8 @@ class InverterAdapter:
         )
 
         # DC bus power balance shadow price
-        inverter_outputs[INVERTER_DC_BUS_POWER_BALANCE] = dc_bus[NODE_POWER_BALANCE]
+        dc_bus_balance = dc_bus[NODE_POWER_BALANCE]
+        inverter_outputs[INVERTER_DC_BUS_POWER_BALANCE] = dc_bus_balance
 
         # Shadow prices
         inverter_outputs[INVERTER_MAX_POWER_DC_TO_AC_PRICE] = connection[CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET]

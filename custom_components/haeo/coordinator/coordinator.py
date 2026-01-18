@@ -16,6 +16,7 @@ from homeassistant.helpers.translation import async_get_translations
 from homeassistant.helpers.typing import StateType
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util import dt as dt_util
+import numpy as np
 
 from custom_components.haeo.const import (
     CONF_DEBOUNCE_SECONDS,
@@ -466,7 +467,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
                 continue
 
             if field_info.time_series:
-                loaded_values[field_name] = list(values)
+                loaded_values[field_name] = np.asarray(values, dtype=float)
             else:
                 loaded_values[field_name] = values[0] if values else None
 

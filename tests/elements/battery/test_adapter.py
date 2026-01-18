@@ -1,5 +1,6 @@
 """Tests for battery adapter availability and model elements."""
 
+import numpy as np
 import pytest
 from homeassistant.core import HomeAssistant
 
@@ -187,25 +188,43 @@ def test_sum_output_data_sums_multiple_outputs() -> None:
     assert result.advanced is False
 
 
-def test_model_elements_applies_defaults_for_limits_and_efficiency() -> None:
-    """model_elements() should apply defaults for limits and efficiency."""
+def test_model_elements_omits_efficiency_when_missing() -> None:
+    """model_elements() should leave efficiency to model defaults when missing."""
     config_data: battery.BatteryConfigData = {
         "element_type": "battery",
         "name": "test_battery",
         "connection": "main_bus",
-        "capacity": [10.0, 10.0, 10.0],
-        "initial_charge_percentage": [50.0, 50.0],
+        "capacity": np.array([10.0, 10.0, 10.0]),
+        "initial_charge_percentage": np.array([50.0, 50.0]),
     }
 
     elements = battery.adapter.model_elements(config_data)
 
     normal_section = next(element for element in elements if element["element_type"] == "battery" and element["name"] == "test_battery:normal")
-    assert normal_section["capacity"] == [10.0, 10.0, 10.0]
+    np.testing.assert_array_equal(normal_section["capacity"], [10.0, 10.0, 10.0])
+
+    connection = next(element for element in elements if element["element_type"] == "connection" and element["name"] == "test_battery:connection")
+    assert "efficiency_source_target" not in connection
+    assert "efficiency_target_source" not in connection
+
+
+def test_model_elements_passes_efficiency_when_present() -> None:
+    """model_elements() should pass through provided efficiency values."""
+    config_data: battery.BatteryConfigData = {
+        "element_type": "battery",
+        "name": "test_battery",
+        "connection": "main_bus",
+        "capacity": np.array([10.0, 10.0, 10.0]),
+        "initial_charge_percentage": np.array([50.0, 50.0]),
+        "efficiency": np.array([95.0, 95.0]),
+    }
+
+    elements = battery.adapter.model_elements(config_data)
 
     connection = next(element for element in elements if element["element_type"] == "connection" and element["name"] == "test_battery:connection")
     efficiency_source_target = connection.get("efficiency_source_target")
     assert efficiency_source_target is not None
-    assert efficiency_source_target == [99.0, 99.0]
+    np.testing.assert_array_equal(efficiency_source_target, [95.0, 95.0])
     efficiency_target_source = connection.get("efficiency_target_source")
     assert efficiency_target_source is not None
-    assert efficiency_target_source == [99.0, 99.0]
+    np.testing.assert_array_equal(efficiency_target_source, [95.0, 95.0])

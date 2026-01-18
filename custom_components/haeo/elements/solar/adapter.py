@@ -30,12 +30,6 @@ from .schema import (
     SolarConfigSchema,
 )
 
-# Default values for optional fields applied by adapter
-DEFAULTS: Final[dict[str, bool | float]] = {
-    CONF_CURTAILMENT: True,  # Allow curtailment by default
-    CONF_PRICE_PRODUCTION: 0.0,  # No production incentive
-}
-
 # Solar output names
 type SolarOutputName = Literal[
     "solar_power",
@@ -97,6 +91,7 @@ class SolarAdapter:
                 ),
                 output_type=OutputType.PRICE,
                 direction="+",
+                time_series=True,
                 defaults=InputFieldDefaults(mode=None, value=0.0),
             ),
             CONF_CURTAILMENT: InputFieldInfo(
@@ -114,7 +109,12 @@ class SolarAdapter:
     def model_elements(self, config: SolarConfigData) -> list[ModelElementConfig]:
         """Return model element parameters for Solar configuration."""
         return [
-            {"element_type": MODEL_ELEMENT_TYPE_NODE, "name": config["name"], "is_source": True, "is_sink": False},
+            {
+                "element_type": MODEL_ELEMENT_TYPE_NODE,
+                "name": config["name"],
+                "is_source": True,
+                "is_sink": False,
+            },
             {
                 "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
                 "name": f"{config['name']}:connection",
@@ -122,8 +122,8 @@ class SolarAdapter:
                 "target": config["connection"],
                 "max_power_source_target": config["forecast"],
                 "max_power_target_source": 0.0,
-                "fixed_power": not config.get("curtailment", DEFAULTS[CONF_CURTAILMENT]),
                 "price_source_target": config.get("price_production"),
+                "fixed_power": not config.get("curtailment", True),
             },
         ]
 
@@ -136,8 +136,9 @@ class SolarAdapter:
         """Map model outputs to solar-specific output names."""
         connection = model_outputs[f"{name}:connection"]
 
+        power_source_target = connection[CONNECTION_POWER_SOURCE_TARGET]
         solar_outputs: dict[SolarOutputName, OutputData] = {
-            SOLAR_POWER: replace(connection[CONNECTION_POWER_SOURCE_TARGET], type=OutputType.POWER),
+            SOLAR_POWER: replace(power_source_target, type=OutputType.POWER),
             SOLAR_FORECAST_LIMIT: connection[CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET],
         }
 

@@ -17,7 +17,7 @@ constraints (E >= 0, E <= C) fully bind the solution to exact values.
 """
 
 from dataclasses import dataclass
-from typing import Self
+from typing import Any, Self
 
 from highspy import Highs
 from highspy.highs import HighspyArray
@@ -111,9 +111,9 @@ class MockBattery:
             return self._solver.addVariables(n, lb=0.0, ub=0.0, name_prefix="zero_power_", out_array=True)
         return net_power
 
-    def build_power_balance(self, periods: tuple[float, ...]) -> None:
+    def build_power_balance(self, periods: NDArray[np.floating[Any]]) -> None:
         """Build power balance constraint linking connections to energy change."""
-        periods_array = np.array(periods)
+        periods_array = periods
         # HiGHS expressions need multiplication by reciprocal, not division
         power_charge = (self._energy_in[1:] - self._energy_in[:-1]) * (1.0 / periods_array)
         power_discharge = (self._energy_out[1:] - self._energy_out[:-1]) * (1.0 / periods_array)
@@ -129,7 +129,7 @@ class BalanceTestScenario:
 
     description: str
     n_periods: int
-    periods: tuple[float, ...]
+    periods: NDArray[np.floating[Any]]
     # Upper battery config
     upper_capacity: float | tuple[float, ...]
     upper_initial: float
@@ -146,7 +146,7 @@ BALANCE_TEST_SCENARIOS: list[BalanceTestScenario] = [
     BalanceTestScenario(
         description="Downward: lower has space, upper has more than enough",
         n_periods=1,
-        periods=(1.0,),
+        periods=np.array([1.0]),
         upper_capacity=10.0,
         upper_initial=8.0,  # 8 kWh available
         lower_capacity=10.0,
@@ -158,7 +158,7 @@ BALANCE_TEST_SCENARIOS: list[BalanceTestScenario] = [
     BalanceTestScenario(
         description="Downward: lower has more space than upper has energy",
         n_periods=1,
-        periods=(1.0,),
+        periods=np.array([1.0]),
         upper_capacity=10.0,
         upper_initial=2.0,  # Only 2 kWh available
         lower_capacity=10.0,
@@ -170,7 +170,7 @@ BALANCE_TEST_SCENARIOS: list[BalanceTestScenario] = [
     BalanceTestScenario(
         description="Downward: lower section full, no transfer needed",
         n_periods=1,
-        periods=(1.0,),
+        periods=np.array([1.0]),
         upper_capacity=10.0,
         upper_initial=5.0,
         lower_capacity=10.0,
@@ -182,7 +182,7 @@ BALANCE_TEST_SCENARIOS: list[BalanceTestScenario] = [
     BalanceTestScenario(
         description="Downward: upper section empty, nothing to transfer",
         n_periods=1,
-        periods=(1.0,),
+        periods=np.array([1.0]),
         upper_capacity=10.0,
         upper_initial=0.0,  # Empty
         lower_capacity=10.0,
@@ -194,7 +194,7 @@ BALANCE_TEST_SCENARIOS: list[BalanceTestScenario] = [
     BalanceTestScenario(
         description="Upward: capacity shrinks, excess moves up",
         n_periods=1,
-        periods=(1.0,),
+        periods=np.array([1.0]),
         upper_capacity=10.0,
         upper_initial=0.0,
         # Capacity shrinks from 10 to 7 kWh
@@ -208,7 +208,7 @@ BALANCE_TEST_SCENARIOS: list[BalanceTestScenario] = [
     BalanceTestScenario(
         description="Upward: capacity stable, no upward flow",
         n_periods=1,
-        periods=(1.0,),
+        periods=np.array([1.0]),
         upper_capacity=10.0,
         upper_initial=3.0,
         lower_capacity=10.0,  # Stable capacity
@@ -220,7 +220,7 @@ BALANCE_TEST_SCENARIOS: list[BalanceTestScenario] = [
     BalanceTestScenario(
         description="Multi-period: varying conditions",
         n_periods=3,
-        periods=(1.0, 1.0, 1.0),
+        periods=np.array([1.0, 1.0, 1.0]),
         upper_capacity=10.0,
         upper_initial=6.0,
         # Lower capacity shrinks from 10->8 between period 1 and 2
@@ -238,7 +238,7 @@ BALANCE_TEST_SCENARIOS: list[BalanceTestScenario] = [
     BalanceTestScenario(
         description="Edge: both sections empty",
         n_periods=1,
-        periods=(1.0,),
+        periods=np.array([1.0]),
         upper_capacity=10.0,
         upper_initial=0.0,
         lower_capacity=10.0,
@@ -250,7 +250,7 @@ BALANCE_TEST_SCENARIOS: list[BalanceTestScenario] = [
     BalanceTestScenario(
         description="Edge: both sections full",
         n_periods=1,
-        periods=(1.0,),
+        periods=np.array([1.0]),
         upper_capacity=10.0,
         upper_initial=10.0,
         lower_capacity=10.0,
@@ -330,7 +330,7 @@ def test_battery_balance_connection_missing_references(solver: Highs) -> None:
     """Verify error when battery references not set."""
     connection = BatteryBalanceConnection(
         name="balance",
-        periods=(1.0,),
+        periods=np.array([1.0]),
         solver=solver,
         upper="upper",
         lower="lower",
@@ -347,7 +347,7 @@ def test_battery_balance_connection_outputs_structure(solver: Highs) -> None:
 
     connection = BatteryBalanceConnection(
         name="balance",
-        periods=(1.0, 1.0),
+        periods=np.array([1.0, 1.0]),
         solver=solver,
         upper="upper",
         lower="lower",
@@ -388,7 +388,7 @@ def test_battery_balance_connection_raises_without_battery_references() -> None:
     # Create connection without setting battery references
     conn = BatteryBalanceConnection(
         name="balance",
-        periods=[1.0, 1.0],
+        periods=np.array([1.0, 1.0]),
         solver=h,
         upper="upper",
         lower="lower",

@@ -3,6 +3,7 @@
 from typing import cast
 
 from homeassistant.core import HomeAssistant
+import numpy as np
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
@@ -45,7 +46,7 @@ async def test_create_network_successful_loads_load_participant(hass: HomeAssist
         participants=loaded_configs,
     )
 
-    assert result.periods == [0.5] * 4  # 1800 seconds = 0.5 hours
+    np.testing.assert_array_equal(result.periods, [0.5] * 4)  # 1800 seconds = 0.5 hours
     assert "Baseload" in result.elements
 
 

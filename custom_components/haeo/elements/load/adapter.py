@@ -73,14 +73,19 @@ class LoadAdapter:
                 output_type=OutputType.POWER,
                 direction="+",
                 time_series=True,
-            ),
+            )
         }
 
     def model_elements(self, config: LoadConfigData) -> list[ModelElementConfig]:
         """Create model elements for Load configuration."""
         return [
             # Create Node for the load (sink only - consumes power)
-            {"element_type": MODEL_ELEMENT_TYPE_NODE, "name": config["name"], "is_source": False, "is_sink": True},
+            {
+                "element_type": MODEL_ELEMENT_TYPE_NODE,
+                "name": config["name"],
+                "is_source": False,
+                "is_sink": True,
+            },
             # Create Connection from node to load (power flows TO the load)
             {
                 "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
@@ -101,7 +106,6 @@ class LoadAdapter:
     ) -> Mapping[LoadDeviceName, Mapping[LoadOutputName, OutputData]]:
         """Map model outputs to load-specific output names."""
         connection = model_outputs[f"{name}:connection"]
-
         load_outputs: dict[LoadOutputName, OutputData] = {
             LOAD_POWER: replace(connection[CONNECTION_POWER_TARGET_SOURCE], type=OutputType.POWER),
             LOAD_FORECAST_LIMIT_PRICE: connection[CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE],

@@ -1,5 +1,6 @@
 """Tests for coordinator network utilities."""
 
+import numpy as np
 import pytest
 
 from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME
@@ -19,7 +20,7 @@ from custom_components.haeo.model.elements.power_connection import PowerConnecti
 def test_update_element_updates_tracked_params() -> None:
     """Test update_element updates TrackedParams on existing elements."""
     # Create network with nodes and connection
-    network = Network(name="test", periods=[1.0, 1.0])
+    network = Network(name="test", periods=np.array([1.0, 1.0]))
     network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "source", "is_source": True, "is_sink": False})
     network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "target", "is_source": False, "is_sink": True})
     network.add(
@@ -48,8 +49,8 @@ def test_update_element_updates_tracked_params() -> None:
         CONF_NAME: "conn",
         CONF_SOURCE: "source",
         CONF_TARGET: "target",
-        CONF_MAX_POWER_SOURCE_TARGET: [20.0, 20.0],
-        CONF_MAX_POWER_TARGET_SOURCE: [15.0, 15.0],
+        CONF_MAX_POWER_SOURCE_TARGET: np.array([20.0, 20.0]),
+        CONF_MAX_POWER_TARGET_SOURCE: np.array([15.0, 15.0]),
     }
     update_element(network, config)
 
@@ -61,7 +62,7 @@ def test_update_element_updates_tracked_params() -> None:
 def test_update_element_raises_for_missing_model_element() -> None:
     """Test update_element raises ValueError when model element is not found."""
     # Create network with only nodes
-    network = Network(name="test", periods=[1.0, 1.0])
+    network = Network(name="test", periods=np.array([1.0, 1.0]))
     network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "source", "is_source": True, "is_sink": False})
     network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "target", "is_source": False, "is_sink": True})
     # Connection "nonexistent_conn" does NOT exist
@@ -72,8 +73,8 @@ def test_update_element_raises_for_missing_model_element() -> None:
         CONF_NAME: "nonexistent_conn",
         CONF_SOURCE: "source",
         CONF_TARGET: "target",
-        CONF_MAX_POWER_SOURCE_TARGET: [20.0, 20.0],
-        CONF_MAX_POWER_TARGET_SOURCE: [15.0, 15.0],
+        CONF_MAX_POWER_SOURCE_TARGET: np.array([20.0, 20.0]),
+        CONF_MAX_POWER_TARGET_SOURCE: np.array([15.0, 15.0]),
     }
 
     with pytest.raises(ValueError, match="Model element 'nonexistent_conn' not found in network during update"):

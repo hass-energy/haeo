@@ -1,6 +1,6 @@
 """Grid element adapter for model layer integration."""
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping
 from dataclasses import replace
 from typing import Any, Final, Literal
 
@@ -8,6 +8,7 @@ from homeassistant.components.number import NumberDeviceClass, NumberEntityDescr
 from homeassistant.const import UnitOfPower
 from homeassistant.core import HomeAssistant
 import numpy as np
+from numpy.typing import NDArray
 
 from custom_components.haeo.const import ConnectivityLevel
 from custom_components.haeo.data.loader import TimeSeriesLoader
@@ -156,14 +157,12 @@ class GridAdapter:
     def model_elements(self, config: GridConfigData) -> list[ModelElementConfig]:
         """Create model elements for Grid configuration."""
         return [
-            # Create Node for the grid (both source and sink - can import and export)
             {
                 "element_type": MODEL_ELEMENT_TYPE_NODE,
                 "name": config["name"],
                 "is_source": True,
                 "is_sink": True,
             },
-            # Create a connection from system node to grid
             {
                 "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
                 "name": f"{config['name']}:connection",
@@ -172,7 +171,7 @@ class GridAdapter:
                 "max_power_source_target": config.get("import_limit"),  # source_target is grid to system (IMPORT)
                 "max_power_target_source": config.get("export_limit"),  # target_source is system to grid (EXPORT)
                 "price_source_target": config["import_price"],
-                "price_target_source": [-p for p in config["export_price"]],  # Negate because exporting earns money
+                "price_target_source": -config["export_price"],  # Negate because exporting earns money
             },
         ]
 
@@ -182,7 +181,7 @@ class GridAdapter:
         model_outputs: Mapping[str, Mapping[ModelOutputName, OutputData]],
         *,
         config: GridConfigData,
-        periods: Sequence[float],
+        periods: NDArray[np.floating[Any]],
         **_kwargs: Any,
     ) -> Mapping[GridDeviceName, Mapping[GridOutputName, OutputData]]:
         """Map model outputs to grid-specific output names."""

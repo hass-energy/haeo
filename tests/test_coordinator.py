@@ -12,6 +12,7 @@ from homeassistant.const import UnitOfEnergy
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import UpdateFailed
 from homeassistant.util import dt as dt_util
+import numpy as np
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
@@ -467,7 +468,7 @@ async def test_async_update_data_raises_on_missing_model_element(
     """Coordinator should surface KeyError when adapter cannot find model element outputs."""
 
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
-    fake_network = Network(name="net", periods=[1.0] * 1)
+    fake_network = Network(name="net", periods=np.array([1.0]))
     # Network must have at least one element for HiGHS to optimize (empty networks are rejected)
     fake_network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "dummy_node"})
 
@@ -1032,7 +1033,7 @@ def test_load_from_input_entities_loads_time_series_fields(
     mock_hub_entry: MockConfigEntry,
     mock_runtime_data: HaeoRuntimeData,
 ) -> None:
-    """Time series fields are loaded as lists from input entities."""
+    """Time series fields are loaded as arrays from input entities."""
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
 
     # Create mock input entities for all required fields
@@ -1050,7 +1051,8 @@ def test_load_from_input_entities_loads_time_series_fields(
     # Narrow the discriminated union type using element_type
     battery_config = result["Test Battery"]
     assert battery_config["element_type"] == "battery"
-    assert battery_config["capacity"] == [1.0, 2.0, 3.0]
+    assert isinstance(battery_config["capacity"], np.ndarray)
+    np.testing.assert_array_equal(battery_config["capacity"], [1.0, 2.0, 3.0])
 
 
 @pytest.mark.usefixtures("mock_battery_subentry")

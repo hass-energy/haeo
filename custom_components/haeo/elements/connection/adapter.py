@@ -197,7 +197,6 @@ class ConnectionAdapter:
     ) -> Mapping[ConnectionDeviceName, Mapping[ConnectionOutputName, OutputData]]:
         """Map model outputs to connection-specific output names."""
         connection = model_outputs[name]
-
         connection_outputs: dict[ConnectionOutputName, OutputData] = {
             CONNECTION_POWER_SOURCE_TARGET: connection[CONNECTION_POWER_SOURCE_TARGET],
             CONNECTION_POWER_TARGET_SOURCE: connection[CONNECTION_POWER_TARGET_SOURCE],
