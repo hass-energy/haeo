@@ -31,3 +31,5 @@ site/
 
 # Node modules
 node_modules/
+
+custom_components/hacs/
