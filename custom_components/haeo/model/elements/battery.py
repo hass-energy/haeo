@@ -1,6 +1,5 @@
 """Battery entity for electrical system modeling."""
 
-from collections.abc import Sequence
 from typing import Any, Final, Literal, TypedDict
 
 from highspy import Highs
@@ -14,11 +13,9 @@ from custom_components.haeo.model.output_data import OutputData
 from custom_components.haeo.model.reactive import TrackedParam, constraint, output
 from custom_components.haeo.model.util import broadcast_to_sequence
 
-type BatteryElementTypeName = Literal["battery"]
 # Model element type for batteries
-ELEMENT_TYPE: Final[BatteryElementTypeName] = "battery"
-
-type FloatArray = NDArray[np.floating[Any]]
+ELEMENT_TYPE: Final = "battery"
+type BatteryElementTypeName = Literal["battery"]
 
 # Type for battery constraint names (shadow prices exposed as outputs)
 type BatteryConstraintName = Literal[
@@ -64,7 +61,7 @@ class BatteryElementConfig(TypedDict):
 
     element_type: BatteryElementTypeName
     name: str
-    capacity: FloatArray
+    capacity: NDArray[np.floating[Any]] | float
     initial_charge: float
 
 
@@ -82,17 +79,17 @@ class Battery(Element[BatteryOutputName]):
     def __init__(
         self,
         name: str,
-        periods: Sequence[float],
+        periods: NDArray[np.floating[Any]],
         *,
         solver: Highs,
-        capacity: FloatArray,
+        capacity: NDArray[np.floating[Any]] | float,
         initial_charge: float,
     ) -> None:
         """Initialize a battery entity.
 
         Args:
             name: Name of the battery
-            periods: Sequence of time period durations in hours
+            periods: Array of time period durations in hours
             solver: The HiGHS solver instance for creating variables and constraints
             capacity: Battery capacity in kWh per period (T+1 values for energy boundaries)
             initial_charge: Initial charge in kWh

@@ -11,18 +11,21 @@ def broadcast_to_sequence(value: None, n_periods: int) -> None: ...
 
 
 @overload
-def broadcast_to_sequence(value: NDArray[np.floating[Any]], n_periods: int) -> NDArray[np.float64]: ...
+def broadcast_to_sequence(value: float | NDArray[np.floating[Any]], n_periods: int) -> NDArray[np.float64]: ...
 
 
-def broadcast_to_sequence(value: NDArray[np.floating[Any]] | None, n_periods: int) -> NDArray[np.float64] | None:
-    """Broadcast an array to match n_periods.
+def broadcast_to_sequence(
+    value: float | NDArray[np.floating[Any]] | None,
+    n_periods: int,
+) -> NDArray[np.float64] | None:
+    """Broadcast a scalar or sequence to match n_periods.
 
     For single values, broadcasts to n_periods length.
-    For arrays that are too short, extends by repeating the last value.
-    For arrays that are too long, truncates to n_periods.
+    For sequences that are too short, extends by repeating the last value.
+    For sequences that are too long, truncates to n_periods.
 
     Args:
-        value: Array to broadcast, or None
+        value: Scalar value, array to broadcast, or None
         n_periods: Target number of periods
 
     Returns:
@@ -37,10 +40,10 @@ def broadcast_to_sequence(value: NDArray[np.floating[Any]] | None, n_periods: in
         return None
 
     # Convert to array and broadcast
-    value_array = np.atleast_1d(np.asarray(value, dtype=np.float64))
+    value_array: NDArray[np.float64] = np.atleast_1d(value)
 
     if value_array.size == 0:
-        msg = "Array cannot be empty"
+        msg = "Sequence cannot be empty"
         raise ValueError(msg)
 
     # If it's a single value, broadcast it

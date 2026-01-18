@@ -157,7 +157,7 @@ def test_extract_values_converts_highs_variables() -> None:
     variables, h = test_data.highs_sequence(h, "test", 3)
 
     # Create a simple element to test extract_values
-    element = Node(name="test", periods=[1.0, 1.0, 1.0], solver=h)
+    element = Node(name="test", periods=np.array([1.0, 1.0, 1.0]), solver=h)
     result = element.extract_values(variables)
 
     assert isinstance(result, tuple)
@@ -170,7 +170,7 @@ def test_extract_values_converts_highs_variables() -> None:
 def test_extract_values_handles_none() -> None:
     """Element.extract_values should return empty tuple for None input."""
     h = Highs()
-    element = Node(name="test", periods=[1.0], solver=h)
+    element = Node(name="test", periods=np.array([1.0]), solver=h)
     result = element.extract_values(None)
 
     assert isinstance(result, tuple)

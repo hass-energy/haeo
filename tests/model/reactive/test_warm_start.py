@@ -23,7 +23,7 @@ from custom_components.haeo.model.elements.segments import PowerLimitSegment, Pr
 
 def test_battery_update_capacity_modifies_soc_constraints() -> None:
     """Test that setting capacity directly invalidates and rebuilds SOC constraints."""
-    network = Network(name="test", periods=[1.0, 1.0, 1.0])
+    network = Network(name="test", periods=np.array([1.0, 1.0, 1.0]))
 
     # Add battery and run initial optimization
     network.add(
@@ -78,7 +78,7 @@ def test_battery_update_capacity_modifies_soc_constraints() -> None:
 
 def test_battery_update_initial_charge_modifies_constraint() -> None:
     """Test that setting initial_charge invalidates the initial state constraint."""
-    network = Network(name="test", periods=[1.0])
+    network = Network(name="test", periods=np.array([1.0]))
 
     network.add(
         {
@@ -125,7 +125,7 @@ def test_battery_update_initial_charge_modifies_constraint() -> None:
 
 def test_battery_update_with_sequence_capacity() -> None:
     """Test setting capacity with a sequence value."""
-    network = Network(name="test", periods=[1.0, 1.0, 1.0])
+    network = Network(name="test", periods=np.array([1.0, 1.0, 1.0]))
 
     network.add(
         {
@@ -152,7 +152,7 @@ def test_battery_update_with_sequence_capacity() -> None:
 
 def test_connection_update_max_power_source_target() -> None:
     """Test setting max_power_source_target invalidates constraint bounds."""
-    network = Network(name="test", periods=[1.0, 1.0, 1.0])
+    network = Network(name="test", periods=np.array([1.0, 1.0, 1.0]))
 
     network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "source", "is_source": True, "is_sink": False})
     network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "sink", "is_source": False, "is_sink": True})
@@ -193,7 +193,7 @@ def test_connection_update_max_power_source_target() -> None:
 
 def test_connection_update_price_source_target() -> None:
     """Test setting price_source_target invalidates objective coefficients."""
-    network = Network(name="test", periods=[1.0, 1.0, 1.0])
+    network = Network(name="test", periods=np.array([1.0, 1.0, 1.0]))
 
     network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "source", "is_source": True, "is_sink": False})
     network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "sink", "is_source": False, "is_sink": True})
@@ -234,7 +234,7 @@ def test_connection_update_price_source_target() -> None:
 
 def test_connection_update_max_power_target_source() -> None:
     """Test setting max_power_target_source invalidates constraint bounds."""
-    network = Network(name="test", periods=[1.0])
+    network = Network(name="test", periods=np.array([1.0]))
 
     network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "source", "is_source": True, "is_sink": True})
     network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "sink", "is_source": True, "is_sink": True})
@@ -267,7 +267,7 @@ def test_connection_update_max_power_target_source() -> None:
 
 def test_connection_update_price_target_source() -> None:
     """Test setting price_target_source invalidates objective coefficients."""
-    network = Network(name="test", periods=[1.0])
+    network = Network(name="test", periods=np.array([1.0]))
 
     # Battery starts empty, needs to charge from grid
     network.add(
@@ -323,7 +323,7 @@ def test_connection_update_price_target_source() -> None:
 
 def test_connection_update_with_sequence_values() -> None:
     """Test setting connection parameters with sequence values."""
-    network = Network(name="test", periods=[1.0, 1.0, 1.0])
+    network = Network(name="test", periods=np.array([1.0, 1.0, 1.0]))
 
     network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "source", "is_source": True, "is_sink": False})
     network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "sink", "is_source": False, "is_sink": True})
@@ -361,7 +361,7 @@ def test_connection_update_with_sequence_values() -> None:
 def test_warm_start_produces_same_result() -> None:
     """Test that warm start optimization produces same result as cold start."""
     # Create first network (cold start)
-    network1 = Network(name="test1", periods=[1.0, 1.0, 1.0])
+    network1 = Network(name="test1", periods=np.array([1.0, 1.0, 1.0]))
     network1.add(
         {
             "element_type": MODEL_ELEMENT_TYPE_BATTERY,
@@ -394,7 +394,7 @@ def test_warm_start_produces_same_result() -> None:
     cost1 = network1.optimize()
 
     # Create second network (warm start simulation)
-    network2 = Network(name="test2", periods=[1.0, 1.0, 1.0])
+    network2 = Network(name="test2", periods=np.array([1.0, 1.0, 1.0]))
     # First add with initial parameters
     network2.add(
         {
@@ -455,7 +455,7 @@ def test_warm_start_produces_same_result() -> None:
 
 def test_network_add_connection_updates_prices() -> None:
     """Test that updating connection via network.add updates prices correctly."""
-    network = Network(name="test", periods=[1.0])
+    network = Network(name="test", periods=np.array([1.0]))
 
     network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "source", "is_source": True, "is_sink": False})
     network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "sink", "is_source": False, "is_sink": True})
@@ -499,7 +499,7 @@ def test_solver_structure_unchanged_after_update() -> None:
     The number of constraints and variables should remain constant
     across multiple optimizations with parameter updates.
     """
-    network = Network(name="test", periods=[1.0, 1.0, 1.0])
+    network = Network(name="test", periods=np.array([1.0, 1.0, 1.0]))
 
     network.add(
         {

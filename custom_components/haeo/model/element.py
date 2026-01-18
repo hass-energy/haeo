@@ -1,29 +1,18 @@
 """Generic electrical entity for energy system modeling."""
 
 from collections.abc import Mapping, Sequence
-from typing import Any, Literal, Protocol, cast
+from typing import TYPE_CHECKING, Any, Literal
 
 from highspy import Highs
 from highspy.highs import HighspyArray, highs_cons
 import numpy as np
 from numpy.typing import NDArray
 
-from .output_data import ModelOutputValue
+from .output_data import OutputData
 from .reactive import OutputMethod, ReactiveConstraint, ReactiveCost, TrackedParam, cost
 
-
-class ConnectionProtocol(Protocol):
-    """Protocol for connection objects that can be registered with elements."""
-
-    @property
-    def power_into_source(self) -> HighspyArray:
-        """Return effective power flowing into the source element."""
-        ...
-
-    @property
-    def power_into_target(self) -> HighspyArray:
-        """Return effective power flowing into the target element."""
-        ...
+if TYPE_CHECKING:
+    from .elements.connection import Connection
 
 
 class Element[OutputNameT: str]:
@@ -43,7 +32,7 @@ class Element[OutputNameT: str]:
     def __init__(
         self,
         name: str,
-        periods: Sequence[float] | NDArray[np.floating[Any]],
+        periods: NDArray[np.floating[Any]],
         *,
         solver: Highs,
         output_names: frozenset[OutputNameT],
@@ -52,7 +41,7 @@ class Element[OutputNameT: str]:
 
         Args:
             name: Name of the entity
-            periods: Sequence of time period durations in hours (one per optimization interval)
+            periods: Array of time period durations in hours (one per optimization interval)
             solver: The HiGHS solver instance for creating variables and constraints
             output_names: Frozenset of valid output names for this element type (used for type narrowing)
 
@@ -63,7 +52,7 @@ class Element[OutputNameT: str]:
         self._output_names = output_names
 
         # Track connections for power balance
-        self._connections: list[tuple[ConnectionProtocol, Literal["source", "target"]]] = []
+        self._connections: list[tuple[Connection[Any], Literal["source", "target"]]] = []
 
     def __getitem__(self, key: str) -> Any:
         """Get a TrackedParam value by name.
@@ -112,7 +101,7 @@ class Element[OutputNameT: str]:
         """Return the number of optimization periods."""
         return len(self.periods)
 
-    def register_connection(self, connection: ConnectionProtocol, end: Literal["source", "target"]) -> None:
+    def register_connection(self, connection: "Connection[Any]", end: Literal["source", "target"]) -> None:
         """Register a connection to this element.
 
         Args:
@@ -171,24 +160,19 @@ class Element[OutputNameT: str]:
         # Default: use batch value extraction (handles highs_var and highs_linear_expression)
         return tuple(self._solver.vals(arr).flat)
 
-    def outputs(self) -> Mapping[OutputNameT, ModelOutputValue]:
+    def outputs(self) -> Mapping[OutputNameT, OutputData]:
         """Return output specifications for the element.
 
         Discovers all @output and @constraint(output=True) decorated methods via
-        reflection and calls their get_output() method to retrieve output data.
+        reflection and calls their get_output() method to retrieve OutputData.
         The method name is used as the output name (dictionary key).
         """
-        result: dict[OutputNameT, ModelOutputValue] = {}
+        result: dict[OutputNameT, OutputData] = {}
         for name in dir(type(self)):
             attr = getattr(type(self), name, None)
             # Check for decorators that support get_output()
-            if isinstance(attr, OutputMethod):
-                output_name = attr.output_name
-                if output_name in self._output_names and (output_data := attr.get_output(self)) is not None:
-                    result[cast("OutputNameT", output_name)] = output_data
-                continue
             if (
-                isinstance(attr, ReactiveConstraint)
+                isinstance(attr, (OutputMethod, ReactiveConstraint))
                 and name in self._output_names
                 and (output_data := attr.get_output(self)) is not None
             ):

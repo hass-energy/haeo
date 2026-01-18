@@ -1,12 +1,13 @@
 """Network class for electrical system modeling and optimization."""
 
-from collections.abc import Sequence
 from dataclasses import dataclass, field
 import logging
 from typing import Any, overload
 
 from highspy import Highs, HighsModelStatus
 from highspy.highs import highs_cons, highs_linear_expression
+import numpy as np
+from numpy.typing import NDArray
 
 from .element import Element
 from .elements import ELEMENTS, ModelElementConfig
@@ -32,12 +33,13 @@ class Network:
     """
 
     name: str
-    periods: Sequence[float]  # Period durations in hours (one per optimization interval)
+    periods: NDArray[np.floating[Any]]  # Period durations in hours (one per optimization interval)
     elements: dict[str, Element[Any]] = field(default_factory=dict)
     _solver: Highs = field(default_factory=Highs, repr=False)
 
     def __post_init__(self) -> None:
         """Set up the solver with logging callback."""
+        self.periods = np.asarray(self.periods, dtype=float)
         # Redirect HiGHS logging to Python logger at debug level
         self._solver.cbLogging += self._log_callback
 

@@ -22,7 +22,7 @@ def test_extends_shorter_sequence() -> None:
 
 def test_broadcasts_single_value() -> None:
     """Single values are broadcast to n_periods length."""
-    result = broadcast_to_sequence(np.array(5.0), n_periods=3)
+    result = broadcast_to_sequence(5.0, n_periods=3)
     assert isinstance(result, np.ndarray)
     np.testing.assert_array_equal(result, [5.0, 5.0, 5.0])
 
@@ -42,5 +42,5 @@ def test_none_returns_none() -> None:
 
 def test_empty_raises() -> None:
     """Empty sequences raise ValueError."""
-    with pytest.raises(ValueError, match="Array cannot be empty"):
+    with pytest.raises(ValueError, match="Sequence cannot be empty"):
         broadcast_to_sequence(np.array([]), n_periods=3)

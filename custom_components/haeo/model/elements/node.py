@@ -1,10 +1,11 @@
 """Node entity for electrical system modeling."""
 
-from collections.abc import Sequence
-from typing import Final, Literal, NotRequired, TypedDict
+from typing import Any, Final, Literal, NotRequired, TypedDict
 
 from highspy import Highs
 from highspy.highs import highs_linear_expression
+import numpy as np
+from numpy.typing import NDArray
 
 from custom_components.haeo.model.element import Element
 from custom_components.haeo.model.reactive import constraint
@@ -47,7 +48,7 @@ class Node(Element[NodeOutputName]):
     def __init__(
         self,
         name: str,
-        periods: Sequence[float],
+        periods: NDArray[np.floating[Any]],
         *,
         solver: Highs,
         is_source: bool = True,
@@ -57,7 +58,7 @@ class Node(Element[NodeOutputName]):
 
         Args:
             name: Name of the node
-            periods: Sequence of time period durations in hours
+            periods: Array of time period durations in hours
             solver: The HiGHS solver instance for creating variables and constraints
             is_source: Whether this element can produce power (source behavior)
             is_sink: Whether this element can consume power (sink behavior)

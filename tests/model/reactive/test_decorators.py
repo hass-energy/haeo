@@ -15,7 +15,7 @@ def create_test_element[T: Element[str]](cls: type[T]) -> T:
     """Create a test element instance with a fresh solver."""
     solver = Highs()
     solver.setOptionValue("output_flag", False)
-    return cls(name="test", periods=(1.0,), solver=solver, output_names=frozenset())
+    return cls(name="test", periods=np.array([1.0]), solver=solver, output_names=frozenset())
 
 
 # ReactiveConstraint tests
@@ -297,7 +297,7 @@ def test_constraints_adds_new_constraint() -> None:
             # Constraint methods return expressions, decorator applies to solver
             return [x <= 5.0]
 
-    elem = TestElement(name="test", periods=(1.0,), solver=solver, output_names=frozenset())
+    elem = TestElement(name="test", periods=np.array([1.0]), solver=solver, output_names=frozenset())
 
     elem.constraints()
 
@@ -317,7 +317,7 @@ def test_constraints_skips_none_result() -> None:
         def my_constraint(self) -> None:
             return None
 
-    elem = TestElement(name="test", periods=(1.0,), solver=solver, output_names=frozenset())
+    elem = TestElement(name="test", periods=np.array([1.0]), solver=solver, output_names=frozenset())
 
     elem.constraints()
 
@@ -360,7 +360,7 @@ def test_reactive_workflow() -> None:
         capacity=10.0,
         initial_charge=5.0,
         name="test",
-        periods=(1.0,),
+        periods=np.array([1.0]),
         solver=solver,
         output_names=frozenset(),
     )
@@ -392,7 +392,7 @@ def test_constraint_without_output_flag() -> None:
     # Use 2 periods since battery constraints use slices [1:]
     battery = Battery(
         name="test",
-        periods=[1.0, 1.0],
+        periods=np.array([1.0, 1.0]),
         solver=h,
         capacity=np.array([10.0, 10.0, 10.0]),
         initial_charge=5.0,

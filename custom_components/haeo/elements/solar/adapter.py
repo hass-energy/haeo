@@ -29,12 +29,6 @@ from .schema import (
     SolarConfigSchema,
 )
 
-# Default values for optional fields applied by adapter
-DEFAULTS: Final[dict[str, bool | float]] = {
-    CONF_CURTAILMENT: True,  # Allow curtailment by default
-    CONF_PRICE_PRODUCTION: 0.0,  # No production incentive
-}
-
 # Solar output names
 type SolarOutputName = Literal[
     "solar_power",
@@ -114,6 +108,8 @@ class SolarAdapter:
         """Return model element parameters for Solar configuration."""
         n_periods = len(config["forecast"])
         price_production = config.get("price_production")
+        curtailment = config.get("curtailment")
+        fixed_spec = {"fixed": not curtailment} if curtailment is not None else {}
 
         return [
             {"element_type": MODEL_ELEMENT_TYPE_NODE, "name": config["name"], "is_source": True, "is_sink": False},
@@ -126,8 +122,8 @@ class SolarAdapter:
                     "power_limit": {
                         "segment_type": "power_limit",
                         "max_power_source_target": config["forecast"],
-                        "max_power_target_source": np.zeros(n_periods),
-                        "fixed": not config.get("curtailment", DEFAULTS[CONF_CURTAILMENT]),
+                        "max_power_target_source": np.zeros(n_periods, dtype=float),
+                        **fixed_spec,
                     },
                     "pricing": {
                         "segment_type": "pricing",

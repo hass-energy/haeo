@@ -48,7 +48,6 @@ from .schema import (
 DEFAULTS: Final[dict[str, float]] = {
     CONF_MIN_CHARGE_PERCENTAGE: 0.0,
     CONF_MAX_CHARGE_PERCENTAGE: 100.0,
-    CONF_EFFICIENCY: 99.0,
     CONF_EARLY_CHARGE_INCENTIVE: 0.001,
 }
 
@@ -373,8 +372,7 @@ class BatteryAdapter:
         if max_charge_percentage is None:
             max_charge_percentage = np.full(n_boundaries, DEFAULTS[CONF_MAX_CHARGE_PERCENTAGE], dtype=float)
         efficiency = config.get(CONF_EFFICIENCY)
-        if efficiency is None:
-            efficiency = np.full(n_periods, DEFAULTS[CONF_EFFICIENCY], dtype=float)
+        efficiency_values = efficiency / 100.0 if efficiency is not None else None
 
         min_ratio_array = min_charge_percentage / 100.0
         max_ratio_array = max_charge_percentage / 100.0
@@ -557,7 +555,6 @@ class BatteryAdapter:
             if "discharge_cost" in config
             else discharge_early_incentive
         )
-        efficiency_values = efficiency
         max_discharge = config.get("max_discharge_power")
         max_charge = config.get("max_charge_power")
 
@@ -570,8 +567,8 @@ class BatteryAdapter:
                 "segments": {
                     "efficiency": {
                         "segment_type": "efficiency",
-                        "efficiency_source_target": efficiency_values / 100.0,  # Node to network (discharge)
-                        "efficiency_target_source": efficiency_values / 100.0,  # Network to node (charge)
+                        "efficiency_source_target": efficiency_values,  # Node to network (discharge)
+                        "efficiency_target_source": efficiency_values,  # Network to node (charge)
                     },
                     "power_limit": {
                         "segment_type": "power_limit",

@@ -468,7 +468,7 @@ async def test_async_update_data_raises_on_missing_model_element(
     """Coordinator should surface KeyError when adapter cannot find model element outputs."""
 
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
-    fake_network = Network(name="net", periods=[1.0] * 1)
+    fake_network = Network(name="net", periods=np.array([1.0]))
     # Network must have at least one element for HiGHS to optimize (empty networks are rejected)
     fake_network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "dummy_node"})
 
@@ -1051,6 +1051,7 @@ def test_load_from_input_entities_loads_time_series_fields(
     # Narrow the discriminated union type using element_type
     battery_config = result["Test Battery"]
     assert battery_config["element_type"] == "battery"
+    assert isinstance(battery_config["capacity"], np.ndarray)
     np.testing.assert_array_equal(battery_config["capacity"], [1.0, 2.0, 3.0])
 
 
@@ -1105,6 +1106,38 @@ def test_load_from_input_entities_raises_for_invalid_element_type(
 
     # Should raise for invalid element type
     with pytest.raises(ValueError, match="Invalid element type 'invalid_type' for element 'Invalid Element'"):
+        coordinator._load_from_input_entities()
+
+
+@pytest.mark.usefixtures("mock_battery_subentry")
+def test_load_from_input_entities_raises_for_invalid_config_data(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+    mock_runtime_data: HaeoRuntimeData,
+) -> None:
+    """Loading raises error for elements with invalid config data."""
+    coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
+
+    invalid_config: Any = {
+        "Bad Battery": {
+            CONF_ELEMENT_TYPE: ELEMENT_TYPE_BATTERY,
+            CONF_NAME: "Bad Battery",
+            CONF_CAPACITY: "sensor.battery_capacity",
+            CONF_INITIAL_CHARGE_PERCENTAGE: "sensor.battery_soc",
+            # Missing required non-input field: connection
+        }
+    }
+    coordinator._participant_configs = invalid_config
+
+    from custom_components.haeo.elements import get_input_fields  # noqa: PLC0415
+
+    element_config = coordinator._participant_configs["Bad Battery"]
+    for field_info in get_input_fields(element_config).values():
+        mock_entity = MagicMock()
+        mock_entity.get_values.return_value = (1.0, 2.0, 3.0)
+        mock_runtime_data.input_entities[("Bad Battery", field_info.field_name)] = mock_entity
+
+    with pytest.raises(ValueError, match="Invalid config data for element 'Bad Battery'"):
         coordinator._load_from_input_entities()
 
 

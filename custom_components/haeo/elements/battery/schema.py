@@ -24,8 +24,6 @@ CONF_OVERCHARGE_COST: Final = "overcharge_cost"
 CONF_CONNECTION: Final = "connection"
 CONF_CONFIGURE_PARTITIONS: Final = "configure_partitions"
 
-type FloatArray = NDArray[np.floating[Any]]
-
 # Partition field names (hidden behind checkbox)
 PARTITION_FIELD_NAMES: Final[frozenset[str]] = frozenset(
     (
@@ -85,24 +83,24 @@ class BatteryConfigData(TypedDict):
     connection: str  # Element name that battery connects to
 
     # Loaded sensor values (time series)
-    capacity: FloatArray  # kWh per period
-    initial_charge_percentage: FloatArray  # % per period (uses first value)
+    capacity: NDArray[np.floating[Any]]  # kWh per period
+    initial_charge_percentage: NDArray[np.floating[Any]]  # % per period (uses first value)
 
-    # Time series with defaults applied
-    min_charge_percentage: NotRequired[FloatArray]  # % per period
-    max_charge_percentage: NotRequired[FloatArray]  # % per period
-    efficiency: NotRequired[FloatArray]  # % per period
+    # Time series with defaults applied in model_elements
+    min_charge_percentage: NotRequired[NDArray[np.floating[Any]]]  # % per period
+    max_charge_percentage: NotRequired[NDArray[np.floating[Any]]]  # % per period
+    efficiency: NotRequired[NDArray[np.floating[Any]]]  # % per period
 
     # Optional loaded values
-    max_charge_power: NotRequired[FloatArray]  # kW per period
-    max_discharge_power: NotRequired[FloatArray]  # kW per period
+    max_charge_power: NotRequired[NDArray[np.floating[Any]]]  # kW per period
+    max_discharge_power: NotRequired[NDArray[np.floating[Any]]]  # kW per period
 
     # Optional prices (time series)
-    early_charge_incentive: NotRequired[FloatArray]  # $/kWh per period
-    discharge_cost: NotRequired[FloatArray]  # $/kWh per period
+    early_charge_incentive: NotRequired[NDArray[np.floating[Any]]]  # $/kWh per period
+    discharge_cost: NotRequired[NDArray[np.floating[Any]]]  # $/kWh per period
 
     # Advanced: undercharge/overcharge regions (time series)
-    undercharge_percentage: NotRequired[FloatArray]  # % per period
-    overcharge_percentage: NotRequired[FloatArray]  # % per period
-    undercharge_cost: NotRequired[FloatArray]  # $/kWh per period
-    overcharge_cost: NotRequired[FloatArray]  # $/kWh per period
+    undercharge_percentage: NotRequired[NDArray[np.floating[Any]]]  # % per period
+    overcharge_percentage: NotRequired[NDArray[np.floating[Any]]]  # % per period
+    undercharge_cost: NotRequired[NDArray[np.floating[Any]]]  # $/kWh per period
+    overcharge_cost: NotRequired[NDArray[np.floating[Any]]]  # $/kWh per period

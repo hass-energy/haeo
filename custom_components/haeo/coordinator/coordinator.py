@@ -8,7 +8,6 @@ import time
 from typing import TYPE_CHECKING, Any, Literal, TypedDict
 
 from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass
-from homeassistant.components.switch import SwitchEntityDescription
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import EntityCategory, UnitOfTime
 from homeassistant.core import CALLBACK_TYPE, Event, HomeAssistant, callback
@@ -45,7 +44,7 @@ from custom_components.haeo.elements import (
     is_element_config_data,
     is_element_type,
 )
-from custom_components.haeo.model import ModelOutputName, ModelOutputValue, Network, OutputData, OutputType
+from custom_components.haeo.model import ModelOutputName, Network, OutputData, OutputType
 from custom_components.haeo.repairs import dismiss_optimization_failure_issue
 from custom_components.haeo.util.forecast_times import tiers_to_periods_seconds
 
@@ -464,13 +463,13 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             entity = runtime_data.input_entities[key]
             values = entity.get_values()
 
-            if not values:
+            if values is None:
                 continue
 
-            if isinstance(field_info.entity_description, SwitchEntityDescription):
-                loaded_values[field_name] = bool(values[0])
-            else:
+            if field_info.time_series:
                 loaded_values[field_name] = np.asarray(values, dtype=float)
+            else:
+                loaded_values[field_name] = values[0] if values else None
 
         element_values: dict[str, Any] = {
             key: value for key, value in element_config.items() if key not in input_field_infos
@@ -479,13 +478,13 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
 
         schema_cls = ELEMENT_CONFIG_SCHEMAS[element_type]
         optional_keys: frozenset[str] = getattr(schema_cls, "__optional_keys__", frozenset())
-        required_input_fields = {
-            field_info.field_name
-            for field_info in input_field_infos.values()
-            if field_info.force_required or field_info.field_name not in optional_keys
-        }
-        for field_name in required_input_fields:
-            if field_name not in element_values:
+        for field_info in input_field_infos.values():
+            field_name = field_info.field_name
+            is_required = field_info.force_required or field_name not in optional_keys
+            if not is_required:
+                continue
+            value = element_values.get(field_name)
+            if value is None:
                 msg = f"Missing required field '{field_name}' for element '{element_name}'"
                 raise ValueError(msg)
 
@@ -612,7 +611,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             }
 
             # Build nested outputs structure from all network model elements
-            model_outputs: dict[str, Mapping[ModelOutputName, ModelOutputValue]] = {
+            model_outputs: dict[str, Mapping[ModelOutputName, OutputData]] = {
                 element_name: element.outputs() for element_name, element in network.elements.items()
             }
 

@@ -12,7 +12,7 @@ VALID_CASES: list[ElementTestCase] = [
         "factory": Node,
         "data": {
             "name": "node",
-            "periods": [1.0] * 2,
+            "periods": np.array([1.0] * 2),
         },
         "expected_outputs": {},
     },
@@ -21,7 +21,7 @@ VALID_CASES: list[ElementTestCase] = [
         "factory": Node,
         "data": {
             "name": "hub_node",
-            "periods": [1.0] * 3,
+            "periods": np.array([1.0] * 3),
             "is_source": False,
             "is_sink": False,
         },

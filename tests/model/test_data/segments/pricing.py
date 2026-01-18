@@ -18,7 +18,7 @@ SCENARIOS: Sequence[SegmentScenario] = [
             "price_source_target": np.array([0.1, 0.1]),
             "price_target_source": np.array([0.2, 0.2]),
         },
-        "periods": [1.0, 0.5],
+        "periods": np.array([1.0, 0.5]),
         "inputs": {
             "power_in_st": [10.0, 10.0],
             "power_in_ts": [5.0, 5.0],

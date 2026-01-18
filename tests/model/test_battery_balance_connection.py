@@ -26,8 +26,6 @@ from numpy.typing import NDArray
 import pytest
 
 from custom_components.haeo.model.elements.battery_balance_connection import BatteryBalanceConnection
-from custom_components.haeo.model.output_data import OutputData
-from custom_components.haeo.model.util import broadcast_to_sequence
 
 
 @dataclass
@@ -40,7 +38,7 @@ class MockBattery:
 
     name: str
     n_periods: int
-    capacity: NDArray[np.floating[Any]]
+    capacity: tuple[float, ...]
     initial_charge: float
     _solver: Highs
     stored_energy: HighspyArray
@@ -53,14 +51,13 @@ class MockBattery:
         cls,
         name: str,
         n_periods: int,
-        capacity: NDArray[np.floating[Any]],
+        capacity: float | tuple[float, ...],
         initial_charge: float,
         solver: Highs,
     ) -> Self:
         """Create a mock battery with SOC constraints."""
         # Broadcast capacity to T+1 boundaries
-        cap = broadcast_to_sequence(capacity, n_periods + 1)
-        assert cap is not None
+        cap = tuple([float(capacity)] * (n_periods + 1)) if isinstance(capacity, float | int) else capacity
 
         # Create cumulative energy variables (T+1 values)
         energy_in = solver.addVariables(n_periods + 1, lb=0.0, name_prefix=f"{name}_e_in_", out_array=True)
@@ -114,9 +111,9 @@ class MockBattery:
             return self._solver.addVariables(n, lb=0.0, ub=0.0, name_prefix="zero_power_", out_array=True)
         return net_power
 
-    def build_power_balance(self, periods: tuple[float, ...]) -> None:
+    def build_power_balance(self, periods: NDArray[np.floating[Any]]) -> None:
         """Build power balance constraint linking connections to energy change."""
-        periods_array = np.array(periods)
+        periods_array = periods
         # HiGHS expressions need multiplication by reciprocal, not division
         power_charge = (self._energy_in[1:] - self._energy_in[:-1]) * (1.0 / periods_array)
         power_discharge = (self._energy_out[1:] - self._energy_out[:-1]) * (1.0 / periods_array)
@@ -132,12 +129,12 @@ class BalanceTestScenario:
 
     description: str
     n_periods: int
-    periods: tuple[float, ...]
+    periods: NDArray[np.floating[Any]]
     # Upper battery config
-    upper_capacity: NDArray[np.floating[Any]]
+    upper_capacity: float | tuple[float, ...]
     upper_initial: float
     # Lower battery config (capacity can change over time for upward flow tests)
-    lower_capacity: NDArray[np.floating[Any]]
+    lower_capacity: float | tuple[float, ...]
     lower_initial: float
     # Expected results
     expected_power_down: tuple[float, ...]
@@ -149,10 +146,10 @@ BALANCE_TEST_SCENARIOS: list[BalanceTestScenario] = [
     BalanceTestScenario(
         description="Downward: lower has space, upper has more than enough",
         n_periods=1,
-        periods=(1.0,),
-        upper_capacity=np.array([10.0]),
+        periods=np.array([1.0]),
+        upper_capacity=10.0,
         upper_initial=8.0,  # 8 kWh available
-        lower_capacity=np.array([10.0]),
+        lower_capacity=10.0,
         lower_initial=7.0,  # 3 kWh space (demand = 10 - 7 = 3)
         expected_power_down=(3.0,),  # min(3, 8) = 3
         expected_power_up=(0.0,),
@@ -161,10 +158,10 @@ BALANCE_TEST_SCENARIOS: list[BalanceTestScenario] = [
     BalanceTestScenario(
         description="Downward: lower has more space than upper has energy",
         n_periods=1,
-        periods=(1.0,),
-        upper_capacity=np.array([10.0]),
+        periods=np.array([1.0]),
+        upper_capacity=10.0,
         upper_initial=2.0,  # Only 2 kWh available
-        lower_capacity=np.array([10.0]),
+        lower_capacity=10.0,
         lower_initial=3.0,  # 7 kWh space (demand = 10 - 3 = 7)
         expected_power_down=(2.0,),  # min(7, 2) = 2
         expected_power_up=(0.0,),
@@ -173,10 +170,10 @@ BALANCE_TEST_SCENARIOS: list[BalanceTestScenario] = [
     BalanceTestScenario(
         description="Downward: lower section full, no transfer needed",
         n_periods=1,
-        periods=(1.0,),
-        upper_capacity=np.array([10.0]),
+        periods=np.array([1.0]),
+        upper_capacity=10.0,
         upper_initial=5.0,
-        lower_capacity=np.array([10.0]),
+        lower_capacity=10.0,
         lower_initial=10.0,  # Full - no space
         expected_power_down=(0.0,),  # min(0, 5) = 0
         expected_power_up=(0.0,),
@@ -185,10 +182,10 @@ BALANCE_TEST_SCENARIOS: list[BalanceTestScenario] = [
     BalanceTestScenario(
         description="Downward: upper section empty, nothing to transfer",
         n_periods=1,
-        periods=(1.0,),
-        upper_capacity=np.array([10.0]),
+        periods=np.array([1.0]),
+        upper_capacity=10.0,
         upper_initial=0.0,  # Empty
-        lower_capacity=np.array([10.0]),
+        lower_capacity=10.0,
         lower_initial=5.0,  # 5 kWh space
         expected_power_down=(0.0,),  # min(5, 0) = 0
         expected_power_up=(0.0,),
@@ -197,11 +194,11 @@ BALANCE_TEST_SCENARIOS: list[BalanceTestScenario] = [
     BalanceTestScenario(
         description="Upward: capacity shrinks, excess moves up",
         n_periods=1,
-        periods=(1.0,),
-        upper_capacity=np.array([10.0]),
+        periods=np.array([1.0]),
+        upper_capacity=10.0,
         upper_initial=0.0,
         # Capacity shrinks from 10 to 7 kWh
-        lower_capacity=np.array([10.0, 7.0]),
+        lower_capacity=(10.0, 7.0),
         lower_initial=9.0,  # 9 kWh stored, excess = 9 - 7 = 2
         # demand = 10 - 9 = 1, but available = 0 (upper empty)
         expected_power_down=(0.0,),  # min(1, 0) = 0
@@ -211,10 +208,10 @@ BALANCE_TEST_SCENARIOS: list[BalanceTestScenario] = [
     BalanceTestScenario(
         description="Upward: capacity stable, no upward flow",
         n_periods=1,
-        periods=(1.0,),
-        upper_capacity=np.array([10.0]),
+        periods=np.array([1.0]),
+        upper_capacity=10.0,
         upper_initial=3.0,
-        lower_capacity=np.array([10.0]),  # Stable capacity
+        lower_capacity=10.0,  # Stable capacity
         lower_initial=8.0,
         expected_power_down=(2.0,),  # Fill remaining space: 10 - 8 = 2
         expected_power_up=(0.0,),  # No excess
@@ -223,11 +220,11 @@ BALANCE_TEST_SCENARIOS: list[BalanceTestScenario] = [
     BalanceTestScenario(
         description="Multi-period: varying conditions",
         n_periods=3,
-        periods=(1.0, 1.0, 1.0),
-        upper_capacity=np.array([10.0]),
+        periods=np.array([1.0, 1.0, 1.0]),
+        upper_capacity=10.0,
         upper_initial=6.0,
         # Lower capacity shrinks from 10->8 between period 1 and 2
-        lower_capacity=np.array([10.0, 10.0, 8.0, 8.0]),
+        lower_capacity=(10.0, 10.0, 8.0, 8.0),
         lower_initial=5.0,
         # Period 0: demand=5, available=6 -> power_down=5
         #   lower: 5+5=10, upper: 6-5=1
@@ -241,10 +238,10 @@ BALANCE_TEST_SCENARIOS: list[BalanceTestScenario] = [
     BalanceTestScenario(
         description="Edge: both sections empty",
         n_periods=1,
-        periods=(1.0,),
-        upper_capacity=np.array([10.0]),
+        periods=np.array([1.0]),
+        upper_capacity=10.0,
         upper_initial=0.0,
-        lower_capacity=np.array([10.0]),
+        lower_capacity=10.0,
         lower_initial=0.0,
         expected_power_down=(0.0,),  # min(10, 0) = 0
         expected_power_up=(0.0,),
@@ -253,10 +250,10 @@ BALANCE_TEST_SCENARIOS: list[BalanceTestScenario] = [
     BalanceTestScenario(
         description="Edge: both sections full",
         n_periods=1,
-        periods=(1.0,),
-        upper_capacity=np.array([10.0]),
+        periods=np.array([1.0]),
+        upper_capacity=10.0,
         upper_initial=10.0,
-        lower_capacity=np.array([10.0]),
+        lower_capacity=10.0,
         lower_initial=10.0,
         expected_power_down=(0.0,),  # min(0, 10) = 0
         expected_power_up=(0.0,),
@@ -333,7 +330,7 @@ def test_battery_balance_connection_missing_references(solver: Highs) -> None:
     """Verify error when battery references not set."""
     connection = BatteryBalanceConnection(
         name="balance",
-        periods=(1.0,),
+        periods=np.array([1.0]),
         solver=solver,
         upper="upper",
         lower="lower",
@@ -345,12 +342,12 @@ def test_battery_balance_connection_missing_references(solver: Highs) -> None:
 
 def test_battery_balance_connection_outputs_structure(solver: Highs) -> None:
     """Verify outputs method returns expected structure before optimization."""
-    upper = MockBattery.create("upper", 2, np.array([10.0]), 5.0, solver)
-    lower = MockBattery.create("lower", 2, np.array([10.0]), 3.0, solver)
+    upper = MockBattery.create("upper", 2, 10.0, 5.0, solver)
+    lower = MockBattery.create("lower", 2, 10.0, 3.0, solver)
 
     connection = BatteryBalanceConnection(
         name="balance",
-        periods=(1.0, 1.0),
+        periods=np.array([1.0, 1.0]),
         solver=solver,
         upper="upper",
         lower="lower",
@@ -377,14 +374,10 @@ def test_battery_balance_connection_outputs_structure(solver: Highs) -> None:
     assert "balance_up_slack_bound" in outputs
 
     # Verify output metadata
-    power_down = outputs["balance_power_down"]
-    power_up = outputs["balance_power_up"]
-    assert isinstance(power_down, OutputData)
-    assert isinstance(power_up, OutputData)
-    assert power_down.unit == "kW"
-    assert power_up.unit == "kW"
-    assert power_down.direction == "+"
-    assert power_up.direction == "-"
+    assert outputs["balance_power_down"].unit == "kW"
+    assert outputs["balance_power_up"].unit == "kW"
+    assert outputs["balance_power_down"].direction == "+"
+    assert outputs["balance_power_up"].direction == "-"
 
 
 def test_battery_balance_connection_raises_without_battery_references() -> None:
@@ -395,7 +388,7 @@ def test_battery_balance_connection_raises_without_battery_references() -> None:
     # Create connection without setting battery references
     conn = BatteryBalanceConnection(
         name="balance",
-        periods=[1.0, 1.0],
+        periods=np.array([1.0, 1.0]),
         solver=h,
         upper="upper",
         lower="lower",

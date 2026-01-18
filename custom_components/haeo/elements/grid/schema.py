@@ -14,8 +14,6 @@ CONF_IMPORT_LIMIT: Final = "import_limit"
 CONF_EXPORT_LIMIT: Final = "export_limit"
 CONF_CONNECTION: Final = "connection"
 
-type FloatArray = NDArray[np.floating[Any]]
-
 
 class GridConfigSchema(TypedDict):
     """Grid element configuration as stored in Home Assistant.
@@ -51,9 +49,9 @@ class GridConfigData(TypedDict):
     element_type: Literal["grid"]
     name: str
     connection: str  # Element name to connect to
-    import_price: FloatArray  # Loaded price values per period ($/kWh)
-    export_price: FloatArray  # Loaded price values per period ($/kWh)
+    import_price: NDArray[np.floating[Any]]  # Loaded price values per period ($/kWh)
+    export_price: NDArray[np.floating[Any]]  # Loaded price values per period ($/kWh)
 
     # Optional fields - now time series
-    import_limit: NotRequired[FloatArray]  # Loaded values per period (kW)
-    export_limit: NotRequired[FloatArray]  # Loaded values per period (kW)
+    import_limit: NotRequired[NDArray[np.floating[Any]]]  # Loaded values per period (kW)
+    export_limit: NotRequired[NDArray[np.floating[Any]]]  # Loaded values per period (kW)

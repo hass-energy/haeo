@@ -12,7 +12,7 @@ VALID_CASES: list[ConnectionTestCase] = [
         "factory": Connection,
         "data": {
             "name": "forward_connection",
-            "periods": [1.0] * 3,
+            "periods": np.array([1.0] * 3),
             "source": "battery",
             "target": "load",
             "segments": {"power_limit": {"segment_type": "power_limit", "max_power_source_target": np.array([5.0, 5.0, 5.0])}},
@@ -35,7 +35,7 @@ VALID_CASES: list[ConnectionTestCase] = [
         "factory": Connection,
         "data": {
             "name": "reverse_connection",
-            "periods": [1.0] * 3,
+            "periods": np.array([1.0] * 3),
             "source": "grid",
             "target": "solar",
             "segments": {"power_limit": {"segment_type": "power_limit", "max_power_target_source": np.array([3.0, 3.0, 3.0])}},
@@ -58,7 +58,7 @@ VALID_CASES: list[ConnectionTestCase] = [
         "factory": Connection,
         "data": {
             "name": "limited_forward",
-            "periods": [1.0] * 2,
+            "periods": np.array([1.0] * 2),
             "source": "gen",
             "target": "net",
             "segments": {"power_limit": {"segment_type": "power_limit", "max_power_source_target": np.array([4.0, 4.0])}},
@@ -81,7 +81,7 @@ VALID_CASES: list[ConnectionTestCase] = [
         "factory": Connection,
         "data": {
             "name": "inverter",
-            "periods": [1.0] * 2,
+            "periods": np.array([1.0] * 2),
             "source": "dc",
             "target": "ac",
             "segments": {
@@ -113,7 +113,7 @@ VALID_CASES: list[ConnectionTestCase] = [
         "factory": Connection,
         "data": {
             "name": "priced_active_link",
-            "periods": [1.0, 0.5],
+            "periods": np.array([1.0, 0.5]),
             "source": "cheap_grid",
             "target": "load_node",
             "segments": {
@@ -139,7 +139,7 @@ VALID_CASES: list[ConnectionTestCase] = [
         "factory": Connection,
         "data": {
             "name": "varying_connection",
-            "periods": [1.0] * 3,
+            "periods": np.array([1.0] * 3),
             "source": "grid",
             "target": "net",
             "segments": {"power_limit": {"segment_type": "power_limit", "max_power_source_target": np.array([10.0, 5.0, 8.0])}},
@@ -162,7 +162,7 @@ VALID_CASES: list[ConnectionTestCase] = [
         "factory": Connection,
         "data": {
             "name": "bidirectional_priced",
-            "periods": [1.0, 1.0],
+            "periods": np.array([1.0, 1.0]),
             "source": "node_a",
             "target": "node_b",
             "segments": {
@@ -204,7 +204,7 @@ VALID_CASES: list[ConnectionTestCase] = [
         "factory": Connection,
         "data": {
             "name": "bidirectional_converter",
-            "periods": [1.0] * 2,
+            "periods": np.array([1.0] * 2),
             "source": "dc_bus",
             "target": "ac_bus",
             "segments": {
@@ -246,7 +246,7 @@ VALID_CASES: list[ConnectionTestCase] = [
         "factory": Connection,
         "data": {
             "name": "fixed_reverse",
-            "periods": [1.0] * 2,
+            "periods": np.array([1.0] * 2),
             "source": "load",
             "target": "generator",
             "segments": {

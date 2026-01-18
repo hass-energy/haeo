@@ -5,12 +5,12 @@ to model various connection behaviors.
 """
 
 from collections import OrderedDict
-from collections.abc import Sequence
 from typing import Any, Final, Literal, NotRequired, TypedDict
 
 from highspy import Highs
 from highspy.highs import HighspyArray, highs_cons, highs_linear_expression
 import numpy as np
+from numpy.typing import NDArray
 
 from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.element import Element
@@ -100,7 +100,7 @@ class Connection[TOutputName: str](Element[TOutputName]):
     def __init__(
         self,
         name: str,
-        periods: Sequence[float],
+        periods: NDArray[np.floating[Any]],
         *,
         solver: Highs,
         source: str,
@@ -113,8 +113,8 @@ class Connection[TOutputName: str](Element[TOutputName]):
 
         Args:
             name: Name of the connection
-            periods: Sequence of time period durations in hours
-            solver: The HiGHS solver instance
+            periods: Array of time period durations in hours (one per optimization interval)
+            solver: The HiGHS solver instance for creating variables and constraints
             source: Name of the source element
             target: Name of the target element
             segments: Dict of segment names to SegmentSpec TypedDicts.
