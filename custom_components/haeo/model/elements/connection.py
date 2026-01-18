@@ -30,9 +30,9 @@ from .segments import (
     is_pricing_spec,
 )
 
-# Model element type for connections
-ELEMENT_TYPE: Final = "connection"
 type ConnectionElementTypeName = Literal["connection"]
+# Model element type for connections
+ELEMENT_TYPE: Final[ConnectionElementTypeName] = "connection"
 
 
 class ConnectionElementConfig(TypedDict):

@@ -13,9 +13,9 @@ from custom_components.haeo.model.reactive import constraint, output
 
 from .connection import CONNECTION_OUTPUT_NAMES, Connection, ConnectionOutputName
 
-# Model element type for battery balance connections
-ELEMENT_TYPE: Final = "battery_balance_connection"
 type BatteryBalanceConnectionElementTypeName = Literal["battery_balance_connection"]
+# Model element type for battery balance connections
+ELEMENT_TYPE: Final[BatteryBalanceConnectionElementTypeName] = "battery_balance_connection"
 
 if TYPE_CHECKING:
     from .battery import Battery

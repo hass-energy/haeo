@@ -14,9 +14,9 @@ from custom_components.haeo.model.output_data import OutputData
 from custom_components.haeo.model.reactive import TrackedParam, constraint, output
 from custom_components.haeo.model.util import broadcast_to_sequence
 
-# Model element type for batteries
-ELEMENT_TYPE: Final = "battery"
 type BatteryElementTypeName = Literal["battery"]
+# Model element type for batteries
+ELEMENT_TYPE: Final[BatteryElementTypeName] = "battery"
 
 type FloatArray = NDArray[np.floating[Any]]
 
