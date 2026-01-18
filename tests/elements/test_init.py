@@ -232,6 +232,23 @@ def test_is_element_config_data_valid_node() -> None:
     assert is_element_config_data(valid_config) is True
 
 
+def test_is_element_config_data_optional_type_validation() -> None:
+    """Test is_element_config_data validates optional key types."""
+    invalid_config = {
+        "element_type": "node",
+        "name": "test_node",
+        "is_source": "yes",
+    }
+    assert is_element_config_data(invalid_config) is False
+
+    valid_config = {
+        "element_type": "node",
+        "name": "test_node",
+        "is_source": True,
+    }
+    assert is_element_config_data(valid_config) is True
+
+
 def test_config_schemas_match_element_types() -> None:
     """Ensure ELEMENT_CONFIG_SCHEMAS has an entry for every registered element type."""
     from custom_components.haeo.elements import ELEMENT_TYPES
