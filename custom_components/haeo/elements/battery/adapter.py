@@ -364,26 +364,20 @@ class BatteryAdapter:
         n_periods = n_boundaries - 1
 
         # Get capacity array and initial SOC from first period
-        capacity_array = np.asarray(config["capacity"], dtype=float)
+        capacity_array = config["capacity"]
         capacity_first = capacity_array[0]
         initial_soc = config["initial_charge_percentage"][0]
 
         # Convert percentages to ratio arrays for time-varying limits
-        min_charge_percentage = config.get(CONF_MIN_CHARGE_PERCENTAGE)
-        if min_charge_percentage is None:
-            min_charge_percentage = np.full(n_boundaries, DEFAULTS[CONF_MIN_CHARGE_PERCENTAGE], dtype=float)
-        else:
-            min_charge_percentage = np.asarray(min_charge_percentage, dtype=float)
-
-        max_charge_percentage = config.get(CONF_MAX_CHARGE_PERCENTAGE)
-        if max_charge_percentage is None:
-            max_charge_percentage = np.full(n_boundaries, DEFAULTS[CONF_MAX_CHARGE_PERCENTAGE], dtype=float)
-        else:
-            max_charge_percentage = np.asarray(max_charge_percentage, dtype=float)
-
+        min_charge_percentage = config.get(
+            CONF_MIN_CHARGE_PERCENTAGE,
+            np.full(n_boundaries, DEFAULTS[CONF_MIN_CHARGE_PERCENTAGE], dtype=float),
+        )
+        max_charge_percentage = config.get(
+            CONF_MAX_CHARGE_PERCENTAGE,
+            np.full(n_boundaries, DEFAULTS[CONF_MAX_CHARGE_PERCENTAGE], dtype=float),
+        )
         efficiency_values = config.get(CONF_EFFICIENCY)
-        if efficiency_values is not None:
-            efficiency_values = np.asarray(efficiency_values, dtype=float)
 
         min_ratio_array = min_charge_percentage / 100.0
         max_ratio_array = max_charge_percentage / 100.0
@@ -546,14 +540,10 @@ class BatteryAdapter:
 
         discharge_costs = discharge_early_incentive
         if "discharge_cost" in config:
-            discharge_costs = discharge_early_incentive + np.asarray(config["discharge_cost"], dtype=float)
+            discharge_costs = discharge_early_incentive + config["discharge_cost"]
 
         max_discharge = config.get("max_discharge_power")
-        if max_discharge is not None:
-            max_discharge = np.asarray(max_discharge, dtype=float)
         max_charge = config.get("max_charge_power")
-        if max_charge is not None:
-            max_charge = np.asarray(max_charge, dtype=float)
 
         connection_config: ConnectionElementConfig = {
             "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
@@ -790,14 +780,13 @@ def sum_output_data(outputs: list[OutputData]) -> OutputData:
 def _calculate_total_energy(aggregate_energy: OutputData, config: BatteryConfigData) -> OutputData:
     """Calculate total energy stored including inaccessible energy below min SOC."""
     # Capacity and percentage fields are already boundaries (n+1 values)
-    capacity = np.asarray(config["capacity"], dtype=float)
+    capacity = config["capacity"]
 
     # Get time-varying min ratio (also boundaries)
-    min_charge_percentage = config.get(CONF_MIN_CHARGE_PERCENTAGE)
-    if min_charge_percentage is None:
-        min_charge_percentage = np.full(len(capacity), DEFAULTS[CONF_MIN_CHARGE_PERCENTAGE], dtype=float)
-    else:
-        min_charge_percentage = np.asarray(min_charge_percentage, dtype=float)
+    min_charge_percentage = config.get(
+        CONF_MIN_CHARGE_PERCENTAGE,
+        np.full(len(capacity), DEFAULTS[CONF_MIN_CHARGE_PERCENTAGE], dtype=float),
+    )
     min_ratio = min_charge_percentage / 100.0
 
     undercharge_pct = config.get("undercharge_percentage")
@@ -818,7 +807,7 @@ def _calculate_total_energy(aggregate_energy: OutputData, config: BatteryConfigD
 def _calculate_soc(total_energy: OutputData, config: BatteryConfigData) -> OutputData:
     """Calculate SOC percentage from aggregate energy and total capacity."""
     # Capacity is already boundaries (n+1 values), same as energy
-    capacity = np.asarray(config["capacity"], dtype=float)
+    capacity = config["capacity"]
     soc_values = np.asarray(total_energy.values, dtype=float) / capacity * 100.0
 
     return OutputData(

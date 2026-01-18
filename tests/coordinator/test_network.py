@@ -20,7 +20,7 @@ from custom_components.haeo.model.elements.power_connection import PowerConnecti
 def test_update_element_updates_tracked_params() -> None:
     """Test update_element updates TrackedParams on existing elements."""
     # Create network with nodes and connection
-    network = Network(name="test", periods=[1.0, 1.0])
+    network = Network(name="test", periods=np.array([1.0, 1.0]))
     network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "source", "is_source": True, "is_sink": False})
     network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "target", "is_source": False, "is_sink": True})
     network.add(
@@ -62,7 +62,7 @@ def test_update_element_updates_tracked_params() -> None:
 def test_update_element_raises_for_missing_model_element() -> None:
     """Test update_element raises ValueError when model element is not found."""
     # Create network with only nodes
-    network = Network(name="test", periods=[1.0, 1.0])
+    network = Network(name="test", periods=np.array([1.0, 1.0]))
     network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "source", "is_source": True, "is_sink": False})
     network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "target", "is_source": False, "is_sink": True})
     # Connection "nonexistent_conn" does NOT exist

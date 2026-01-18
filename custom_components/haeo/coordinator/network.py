@@ -6,6 +6,7 @@ import logging
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+import numpy as np
 
 from custom_components.haeo.const import CONF_ELEMENT_TYPE
 from custom_components.haeo.elements import ELEMENT_TYPE_CONNECTION, ELEMENT_TYPES, ElementConfigData
@@ -42,7 +43,7 @@ async def create_network(
 ) -> Network:
     """Create a new Network from configuration."""
     # Convert seconds to hours for model layer
-    periods_hours = [s / 3600 for s in periods_seconds]
+    periods_hours = np.asarray(periods_seconds, dtype=float) / 3600
     net = Network(name=f"haeo_network_{entry.entry_id}", periods=periods_hours)
 
     if not participants:

@@ -4,6 +4,7 @@ from typing import Any
 
 from highspy import Highs
 from highspy.highs import highs_linear_expression, highs_var
+import numpy as np
 import pytest
 
 from custom_components.haeo.model.elements.connection import Connection
@@ -154,7 +155,7 @@ def test_base_connection_power_into_properties(solver: Highs) -> None:
     # Create a base Connection (lossless bidirectional)
     conn: Connection[str] = Connection(
         name="test_conn",
-        periods=[1.0, 1.0],
+        periods=np.array([1.0, 1.0]),
         solver=solver,
         source="source_element",
         target="target_element",

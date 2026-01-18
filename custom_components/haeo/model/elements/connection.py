@@ -4,11 +4,12 @@ Provides a basic lossless bidirectional connection between elements.
 Subclasses like PowerConnection add efficiency, pricing, and power limits.
 """
 
-from collections.abc import Sequence
-from typing import Final, Literal
+from typing import Any, Final, Literal
 
 from highspy import Highs
 from highspy.highs import HighspyArray
+import numpy as np
+from numpy.typing import NDArray
 
 from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.element import Element
@@ -50,7 +51,7 @@ class Connection[OutputNameT: str](Element[OutputNameT]):
     def __init__(
         self,
         name: str,
-        periods: Sequence[float],
+        periods: NDArray[np.floating[Any]],
         *,
         solver: Highs,
         source: str,
@@ -61,7 +62,7 @@ class Connection[OutputNameT: str](Element[OutputNameT]):
 
         Args:
             name: Name of the connection
-            periods: Sequence of time period durations in hours (one per optimization interval)
+            periods: Array of time period durations in hours (one per optimization interval)
             solver: The HiGHS solver instance for creating variables and constraints
             source: Name of the source element
             target: Name of the target element

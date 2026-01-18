@@ -16,6 +16,8 @@ from custom_components.haeo.model.elements import power_connection
 from custom_components.haeo.model.elements.node import NODE_POWER_BALANCE
 from custom_components.haeo.model.output_data import OutputData
 
+from tests.util.normalize import normalize_for_compare
+
 
 class CreateCase(TypedDict):
     """Test case for model_elements."""
@@ -122,18 +124,7 @@ def test_model_elements(case: CreateCase) -> None:
     """Verify adapter transforms ConfigData into expected model elements."""
     entry = ELEMENT_TYPES["inverter"]
     result = entry.model_elements(case["data"])
-    assert _normalize_for_compare(result) == _normalize_for_compare(case["model"])
-
-
-def _normalize_for_compare(value: Any) -> Any:
-    """Normalize numpy arrays to lists for equality checks."""
-    if isinstance(value, np.ndarray):
-        return value.tolist()
-    if isinstance(value, list):
-        return [_normalize_for_compare(item) for item in value]
-    if isinstance(value, dict):
-        return {key: _normalize_for_compare(val) for key, val in value.items()}
-    return value
+    assert normalize_for_compare(result) == normalize_for_compare(case["model"])
 
 
 @pytest.mark.parametrize("case", OUTPUTS_CASES, ids=lambda c: c["description"])

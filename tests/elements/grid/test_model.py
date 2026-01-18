@@ -4,6 +4,7 @@ from collections.abc import Mapping, Sequence
 from typing import Any, TypedDict
 
 import numpy as np
+from numpy.typing import NDArray
 import pytest
 
 from custom_components.haeo.elements import ELEMENT_TYPES
@@ -14,6 +15,8 @@ from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE
 from custom_components.haeo.model.elements import power_connection
 from custom_components.haeo.model.output_data import OutputData
+
+from tests.util.normalize import normalize_for_compare
 
 
 class CreateCase(TypedDict):
@@ -31,7 +34,7 @@ class OutputsCase(TypedDict):
     name: str
     config: GridConfigData
     model_outputs: Mapping[str, Mapping[ModelOutputName, OutputData]]
-    periods: list[float]
+    periods: NDArray[np.floating[Any]]
     outputs: Mapping[str, Mapping[str, OutputData]]
 
 
@@ -83,7 +86,7 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
                 power_connection.CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.02,)),
             }
         },
-        "periods": [1.0],  # 1 hour period
+        "periods": np.array([1.0]),  # 1 hour period
         # Cost/revenue calculations:
         # import_cost = 5.0 kW × $0.10/kWh × 1h = $0.50
         # export_revenue = 2.0 kW × $0.05/kWh × 1h = $0.10 (positive!)
@@ -118,7 +121,7 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
                 power_connection.CONNECTION_POWER_SOURCE_TARGET: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(5.0, 3.0), direction="+"),
             }
         },
-        "periods": [0.5, 0.5],  # 30 min periods
+        "periods": np.array([0.5, 0.5]),  # 30 min periods
         # Cost/revenue calculations (per period, then cumulative):
         # Period 1: import_cost = 5.0 kW × $0.10/kWh × 0.5h = $0.25
         # Period 2: import_cost = 3.0 kW × $0.20/kWh × 0.5h = $0.30
@@ -142,18 +145,7 @@ def test_model_elements(case: CreateCase) -> None:
     """Verify adapter transforms ConfigData into expected model elements."""
     entry = ELEMENT_TYPES["grid"]
     result = entry.model_elements(case["data"])
-    assert _normalize_for_compare(result) == _normalize_for_compare(case["model"])
-
-
-def _normalize_for_compare(value: Any) -> Any:
-    """Normalize numpy arrays to lists for equality checks."""
-    if isinstance(value, np.ndarray):
-        return value.tolist()
-    if isinstance(value, list):
-        return [_normalize_for_compare(item) for item in value]
-    if isinstance(value, dict):
-        return {key: _normalize_for_compare(val) for key, val in value.items()}
-    return value
+    assert normalize_for_compare(result) == normalize_for_compare(case["model"])
 
 
 @pytest.mark.parametrize("case", OUTPUTS_CASES, ids=lambda c: c["description"])

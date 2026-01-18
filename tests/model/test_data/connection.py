@@ -1,5 +1,7 @@
 """Test data and factories for Connection element."""
 
+import numpy as np
+
 from custom_components.haeo.model.elements.power_connection import PowerConnection
 
 from .connection_types import ConnectionTestCase
@@ -10,7 +12,7 @@ VALID_CASES: list[ConnectionTestCase] = [
         "factory": PowerConnection,
         "data": {
             "name": "forward_connection",
-            "periods": [1.0] * 3,
+            "periods": np.array([1.0] * 3),
             "source": "battery",
             "target": "load",
             "max_power_source_target": 5.0,
@@ -32,7 +34,7 @@ VALID_CASES: list[ConnectionTestCase] = [
         "factory": PowerConnection,
         "data": {
             "name": "reverse_connection",
-            "periods": [1.0] * 3,
+            "periods": np.array([1.0] * 3),
             "source": "grid",
             "target": "solar",
             "max_power_target_source": 3.0,
@@ -54,7 +56,7 @@ VALID_CASES: list[ConnectionTestCase] = [
         "factory": PowerConnection,
         "data": {
             "name": "limited_forward",
-            "periods": [1.0] * 2,
+            "periods": np.array([1.0] * 2),
             "source": "gen",
             "target": "net",
             "max_power_source_target": 4.0,
@@ -76,7 +78,7 @@ VALID_CASES: list[ConnectionTestCase] = [
         "factory": PowerConnection,
         "data": {
             "name": "inverter",
-            "periods": [1.0] * 2,
+            "periods": np.array([1.0] * 2),
             "source": "dc",
             "target": "ac",
             "max_power_source_target": 10.0,
@@ -99,11 +101,11 @@ VALID_CASES: list[ConnectionTestCase] = [
         "factory": PowerConnection,
         "data": {
             "name": "priced_active_link",
-            "periods": [1.0, 0.5],
+            "periods": np.array([1.0, 0.5]),
             "source": "cheap_grid",
             "target": "load_node",
             "max_power_source_target": 5.0,
-            "price_source_target": [0.10, 0.20],  # Transfer pricing
+            "price_source_target": np.array([0.10, 0.20]),  # Transfer pricing
         },
         "inputs": {
             "source_power": [None, None],  # Infinite source
@@ -122,10 +124,10 @@ VALID_CASES: list[ConnectionTestCase] = [
         "factory": PowerConnection,
         "data": {
             "name": "varying_connection",
-            "periods": [1.0] * 3,
+            "periods": np.array([1.0] * 3),
             "source": "grid",
             "target": "net",
-            "max_power_source_target": [10.0, 5.0, 8.0],
+            "max_power_source_target": np.array([10.0, 5.0, 8.0]),
         },
         "inputs": {
             "source_power": [None, None, None],
@@ -144,13 +146,13 @@ VALID_CASES: list[ConnectionTestCase] = [
         "factory": PowerConnection,
         "data": {
             "name": "bidirectional_priced",
-            "periods": [1.0, 1.0],
+            "periods": np.array([1.0, 1.0]),
             "source": "node_a",
             "target": "node_b",
             "max_power_source_target": 4.0,
             "max_power_target_source": 3.0,
-            "price_source_target": [0.10, 0.20],
-            "price_target_source": [0.15, 0.25],
+            "price_source_target": np.array([0.10, 0.20]),
+            "price_target_source": np.array([0.15, 0.25]),
         },
         "inputs": {
             "source_power": [None, None],
@@ -171,7 +173,7 @@ VALID_CASES: list[ConnectionTestCase] = [
         "factory": PowerConnection,
         "data": {
             "name": "bidirectional_converter",
-            "periods": [1.0] * 2,
+            "periods": np.array([1.0] * 2),
             "source": "dc_bus",
             "target": "ac_bus",
             "max_power_source_target": 10.0,
@@ -198,7 +200,7 @@ VALID_CASES: list[ConnectionTestCase] = [
         "factory": PowerConnection,
         "data": {
             "name": "fixed_reverse",
-            "periods": [1.0] * 2,
+            "periods": np.array([1.0] * 2),
             "source": "load",
             "target": "generator",
             "max_power_target_source": 4.0,

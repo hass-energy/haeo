@@ -1,6 +1,5 @@
 """Power connection class for electrical system modeling."""
 
-from collections.abc import Sequence
 from typing import Any, Final, Literal, NotRequired, TypedDict
 
 from highspy import Highs
@@ -53,13 +52,13 @@ class ConnectionElementConfig(TypedDict):
     name: str
     source: str
     target: str
-    max_power_source_target: NotRequired[Sequence[float] | NDArray[np.floating[Any]] | float | None]
-    max_power_target_source: NotRequired[Sequence[float] | NDArray[np.floating[Any]] | float | None]
+    max_power_source_target: NotRequired[NDArray[np.floating[Any]] | float | None]
+    max_power_target_source: NotRequired[NDArray[np.floating[Any]] | float | None]
     fixed_power: NotRequired[bool]
-    efficiency_source_target: NotRequired[Sequence[float] | NDArray[np.floating[Any]] | float | None]
-    efficiency_target_source: NotRequired[Sequence[float] | NDArray[np.floating[Any]] | float | None]
-    price_source_target: NotRequired[Sequence[float] | NDArray[np.floating[Any]] | float | None]
-    price_target_source: NotRequired[Sequence[float] | NDArray[np.floating[Any]] | float | None]
+    efficiency_source_target: NotRequired[NDArray[np.floating[Any]] | float | None]
+    efficiency_target_source: NotRequired[NDArray[np.floating[Any]] | float | None]
+    price_source_target: NotRequired[NDArray[np.floating[Any]] | float | None]
+    price_target_source: NotRequired[NDArray[np.floating[Any]] | float | None]
 
 
 class PowerConnection(Connection[PowerConnectionOutputName]):
@@ -83,24 +82,24 @@ class PowerConnection(Connection[PowerConnectionOutputName]):
     def __init__(
         self,
         name: str,
-        periods: Sequence[float],
+        periods: NDArray[np.floating[Any]],
         *,
         solver: Highs,
         source: str,
         target: str,
-        max_power_source_target: float | Sequence[float] | None = None,
-        max_power_target_source: float | Sequence[float] | None = None,
+        max_power_source_target: float | NDArray[np.floating[Any]] | None = None,
+        max_power_target_source: float | NDArray[np.floating[Any]] | None = None,
         fixed_power: bool = False,
-        efficiency_source_target: float | Sequence[float] | None = None,
-        efficiency_target_source: float | Sequence[float] | None = None,
-        price_source_target: float | Sequence[float] | None = None,
-        price_target_source: float | Sequence[float] | None = None,
+        efficiency_source_target: float | NDArray[np.floating[Any]] | None = None,
+        efficiency_target_source: float | NDArray[np.floating[Any]] | None = None,
+        price_source_target: float | NDArray[np.floating[Any]] | None = None,
+        price_target_source: float | NDArray[np.floating[Any]] | None = None,
     ) -> None:
         """Initialize a connection between two elements.
 
         Args:
             name: Name of the connection
-            periods: Sequence of time period durations in hours (one per optimization interval)
+            periods: Array of time period durations in hours (one per optimization interval)
             solver: The HiGHS solver instance for creating variables and constraints
             source: Name of the source element
             target: Name of the target element

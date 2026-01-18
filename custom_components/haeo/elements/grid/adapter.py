@@ -1,6 +1,6 @@
 """Grid element adapter for model layer integration."""
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping
 from dataclasses import replace
 from typing import Any, Final, Literal
 
@@ -8,6 +8,7 @@ from homeassistant.components.number import NumberDeviceClass, NumberEntityDescr
 from homeassistant.const import UnitOfPower
 from homeassistant.core import HomeAssistant
 import numpy as np
+from numpy.typing import NDArray
 
 from custom_components.haeo.const import ConnectivityLevel
 from custom_components.haeo.data.loader import TimeSeriesLoader
@@ -180,7 +181,7 @@ class GridAdapter:
         model_outputs: Mapping[str, Mapping[ModelOutputName, OutputData]],
         *,
         config: GridConfigData,
-        periods: Sequence[float],
+        periods: NDArray[np.floating[Any]],
         **_kwargs: Any,
     ) -> Mapping[GridDeviceName, Mapping[GridOutputName, OutputData]]:
         """Map model outputs to grid-specific output names."""

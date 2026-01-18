@@ -468,7 +468,7 @@ async def test_async_update_data_raises_on_missing_model_element(
     """Coordinator should surface KeyError when adapter cannot find model element outputs."""
 
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
-    fake_network = Network(name="net", periods=[1.0] * 1)
+    fake_network = Network(name="net", periods=np.array([1.0]))
     # Network must have at least one element for HiGHS to optimize (empty networks are rejected)
     fake_network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "dummy_node"})
 
