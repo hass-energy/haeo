@@ -19,25 +19,20 @@ from custom_components.haeo.horizon import HorizonManager
 
 @pytest.fixture
 def config_entry(hass: HomeAssistant) -> MockConfigEntry:
-    """Return a config entry for horizon entity tests.
-
-    Uses the new horizon_duration_minutes config format with dynamic alignment.
-    """
+    """Return a config entry for horizon entity tests."""
     entry = MockConfigEntry(
         domain=DOMAIN,
         title="Test Network",
         data={
             "name": "Test Network",
-            # Tier configuration with minimums (actual counts computed dynamically)
-            "tier_1_count": 5,
-            "tier_1_duration": 1,
-            "tier_2_count": 6,
-            "tier_2_duration": 5,
-            "tier_3_count": 4,
+            "tier_1_count": 2,
+            "tier_1_duration": 5,  # 5 minutes
+            "tier_2_count": 1,
+            "tier_2_duration": 15,  # 15 minutes
+            "tier_3_count": 0,
             "tier_3_duration": 30,
+            "tier_4_count": 0,
             "tier_4_duration": 60,
-            # 5 days horizon
-            "horizon_duration_minutes": 5 * 24 * 60,
         },
         entry_id="test_horizon_entry",
     )
@@ -139,10 +134,8 @@ def test_extra_state_attributes(
     assert "forecast" in attrs
     assert "period_count" in attrs
     assert "smallest_period_seconds" in attrs
-    # Period count matches what the horizon manager reports
-    assert attrs["period_count"] == horizon_manager.period_count
-    # Smallest period is T1 duration (1 minute = 60 seconds)
-    assert attrs["smallest_period_seconds"] == 60
+    assert attrs["period_count"] == 3
+    assert attrs["smallest_period_seconds"] == 300
 
 
 def test_forecast_attribute_contains_timestamps(
@@ -164,8 +157,7 @@ def test_forecast_attribute_contains_timestamps(
     forecast = attrs["forecast"]
 
     assert isinstance(forecast, list)
-    # Forecast has period_count + 1 boundaries
-    assert len(forecast) == horizon_manager.period_count + 1
+    assert len(forecast) == 4  # 4 boundaries
 
     # Each entry should have time and value keys
     for entry in forecast:

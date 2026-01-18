@@ -8,23 +8,22 @@
         "data": {
           "advanced_mode": "Advanced Mode",
           "debounce_seconds": "Debounce Window (seconds)",
-          "horizon_days": "Planning Horizon",
-          "horizon_duration_minutes": "Planning Horizon (minutes)",
+          "horizon_preset": "Planning Horizon",
           "name": "System Name",
           "update_interval_minutes": "Update Interval (minutes)"
         }
       },
       "custom_tiers": {
         "title": "Custom Tier Configuration",
-        "description": "Configure custom interval tiers. Tier counts are minimums - actual counts are adjusted at runtime to align with forecast data boundaries.",
+        "description": "Configure custom interval tiers. Near-term intervals are more granular for precise control, while longer-term intervals reduce complexity.",
         "data": {
-          "horizon_duration_minutes": "Planning Horizon (minutes)",
-          "tier_1_count": "Tier 1 Minimum Steps (fine-grained)",
+          "tier_1_count": "Tier 1 Count (fine-grained)",
           "tier_1_duration": "Tier 1 Duration (minutes)",
-          "tier_2_count": "Tier 2 Minimum Steps (short-term)",
+          "tier_2_count": "Tier 2 Count (short-term)",
           "tier_2_duration": "Tier 2 Duration (minutes)",
-          "tier_3_count": "Tier 3 Minimum Steps (medium-term)",
+          "tier_3_count": "Tier 3 Count (medium-term)",
           "tier_3_duration": "Tier 3 Duration (minutes)",
+          "tier_4_count": "Tier 4 Count (long-term)",
           "tier_4_duration": "Tier 4 Duration (minutes)"
         }
       }
@@ -36,15 +35,15 @@
     "step": {
       "custom_tiers": {
         "title": "Custom Tier Configuration",
-        "description": "Configure custom interval tiers. Tier counts are minimums - actual counts are adjusted at runtime to align with forecast data boundaries.",
+        "description": "Configure custom interval tiers. Near-term intervals are more granular for precise control, while longer-term intervals reduce complexity.",
         "data": {
-          "horizon_duration_minutes": "Planning Horizon (minutes)",
-          "tier_1_count": "Tier 1 Minimum Steps (fine-grained)",
+          "tier_1_count": "Tier 1 Count (fine-grained)",
           "tier_1_duration": "Tier 1 Duration (minutes)",
-          "tier_2_count": "Tier 2 Minimum Steps (short-term)",
+          "tier_2_count": "Tier 2 Count (short-term)",
           "tier_2_duration": "Tier 2 Duration (minutes)",
-          "tier_3_count": "Tier 3 Minimum Steps (medium-term)",
+          "tier_3_count": "Tier 3 Count (medium-term)",
           "tier_3_duration": "Tier 3 Duration (minutes)",
+          "tier_4_count": "Tier 4 Count (long-term)",
           "tier_4_duration": "Tier 4 Duration (minutes)"
         }
       },
@@ -54,8 +53,7 @@
         "data": {
           "advanced_mode": "Advanced Mode",
           "debounce_seconds": "Debounce Window (seconds)",
-          "horizon_days": "Planning Horizon",
-          "horizon_duration_minutes": "Planning Horizon (minutes)",
+          "horizon_preset": "Planning Horizon",
           "update_interval_minutes": "Update Interval (minutes)"
         }
       }
@@ -413,5 +411,9 @@
       "description": "The HAEO optimization failed with the following error: {error_message}\n\nThis could be caused by:\n1. Missing or invalid sensor/forecast data\n2. Conflicting constraints in your configuration\n3. Issues with the selected solver\n\nSteps to resolve:\n1. Check the Home Assistant logs for detailed error information\n2. Verify all required sensors are available and reporting valid data\n3. Review your system configuration for conflicting constraints\n4. Try a different optimization solver in the integration settings\n5. This issue will automatically dismiss when optimization succeeds"
     }
   },
-  "selector": { "input_source": { "choices": { "constant": "Constant", "entity": "Entity", "none": "None" } } }
+  "selector": {
+    "horizon_preset": {
+      "options": { "2_days": "2 days", "3_days": "3 days", "5_days": "5 days", "7_days": "7 days", "custom": "Custom" }
+    }
+  }
 }

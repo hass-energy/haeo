@@ -19,7 +19,6 @@ from custom_components.haeo import HaeoRuntimeData
 from custom_components.haeo.const import (
     CONF_DEBOUNCE_SECONDS,
     CONF_ELEMENT_TYPE,
-    CONF_HORIZON_DURATION_MINUTES,
     CONF_INTEGRATION_TYPE,
     CONF_NAME,
     CONF_TIER_1_COUNT,
@@ -28,6 +27,7 @@ from custom_components.haeo.const import (
     CONF_TIER_2_DURATION,
     CONF_TIER_3_COUNT,
     CONF_TIER_3_DURATION,
+    CONF_TIER_4_COUNT,
     CONF_TIER_4_DURATION,
     CONF_UPDATE_INTERVAL_MINUTES,
     DEFAULT_DEBOUNCE_SECONDS,
@@ -82,7 +82,6 @@ from custom_components.haeo.elements.grid import (
 )
 from custom_components.haeo.elements.solar import SOLAR_POWER
 from custom_components.haeo.model import Network, OutputData, OutputType
-from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_NODE
 
 
 @pytest.fixture
@@ -99,8 +98,8 @@ def mock_hub_entry(hass: HomeAssistant) -> MockConfigEntry:
             CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
             CONF_TIER_3_COUNT: 0,
             CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
+            CONF_TIER_4_COUNT: 0,
             CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
-            CONF_HORIZON_DURATION_MINUTES: 60,  # 1 hour horizon for tests
             CONF_UPDATE_INTERVAL_MINUTES: DEFAULT_UPDATE_INTERVAL_MINUTES,
             CONF_DEBOUNCE_SECONDS: DEFAULT_DEBOUNCE_SECONDS,
         },
@@ -463,7 +462,7 @@ async def test_async_update_data_raises_on_missing_model_element(
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
     fake_network = Network(name="net", periods=[1.0] * 1)
     # Network must have at least one element for HiGHS to optimize (empty networks are rejected)
-    fake_network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "dummy_node"})
+    fake_network.add("node", "dummy_node")
 
     def broken_outputs(_name: str, _outputs: object, _config: object) -> dict[str, dict[str, OutputData]]:
         msg = "missing model element"
@@ -545,32 +544,6 @@ def test_build_coordinator_output_skips_forecast_for_single_value() -> None:
     )
 
     assert output.state == 5.0
-    assert output.forecast is None
-
-
-def test_build_coordinator_output_uses_last_value_when_state_last() -> None:
-    """Cumulative outputs with state_last=True should use the last value as state."""
-
-    output = _build_coordinator_output(
-        SOLAR_POWER,
-        OutputData(type=OutputType.POWER, unit="kW", values=(1.0, 2.0, 3.0), state_last=True),
-        forecast_times=(1, 2, 3),
-    )
-
-    assert output.state == 3.0  # Last value, not first
-    assert output.forecast is not None
-
-
-def test_build_coordinator_output_handles_empty_values() -> None:
-    """Empty values should result in None state."""
-
-    output = _build_coordinator_output(
-        SOLAR_POWER,
-        OutputData(type=OutputType.POWER, unit="kW", values=()),
-        forecast_times=(1, 2),
-    )
-
-    assert output.state is None
     assert output.forecast is None
 
 

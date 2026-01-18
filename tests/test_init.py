@@ -1,13 +1,11 @@
 """Test the HAEO integration."""
 
 import asyncio
-from collections.abc import Iterable
 from contextlib import suppress
 from types import MappingProxyType
 from unittest.mock import AsyncMock, Mock
 
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry
-from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryError, ConfigEntryNotReady
 from homeassistant.helpers import device_registry as dr
@@ -17,7 +15,6 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 from custom_components.haeo import (
     HaeoRuntimeData,
     _ensure_required_subentries,
-    async_migrate_entry,
     async_reload_entry,
     async_remove_config_entry_device,
     async_setup_entry,
@@ -27,7 +24,6 @@ from custom_components.haeo import (
 from custom_components.haeo.const import (
     CONF_ADVANCED_MODE,
     CONF_ELEMENT_TYPE,
-    CONF_HORIZON_DURATION_MINUTES,
     CONF_INTEGRATION_TYPE,
     CONF_NAME,
     CONF_TIER_1_COUNT,
@@ -36,14 +32,15 @@ from custom_components.haeo.const import (
     CONF_TIER_2_DURATION,
     CONF_TIER_3_COUNT,
     CONF_TIER_3_DURATION,
+    CONF_TIER_4_COUNT,
     CONF_TIER_4_DURATION,
-    DEFAULT_HORIZON_DURATION_MINUTES,
     DEFAULT_TIER_1_COUNT,
     DEFAULT_TIER_1_DURATION,
     DEFAULT_TIER_2_COUNT,
     DEFAULT_TIER_2_DURATION,
     DEFAULT_TIER_3_COUNT,
     DEFAULT_TIER_3_DURATION,
+    DEFAULT_TIER_4_COUNT,
     DEFAULT_TIER_4_DURATION,
     DOMAIN,
     INTEGRATION_TYPE_HUB,
@@ -78,8 +75,8 @@ def mock_hub_entry(hass: HomeAssistant) -> MockConfigEntry:
             CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
             CONF_TIER_3_COUNT: DEFAULT_TIER_3_COUNT,
             CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
+            CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
             CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
-            CONF_HORIZON_DURATION_MINUTES: DEFAULT_HORIZON_DURATION_MINUTES,
         },
         entry_id="hub_entry_id",
         title="Test HAEO Integration",
@@ -197,6 +194,113 @@ async def test_unload_hub_entry(hass: HomeAssistant, mock_hub_entry: MockConfigE
     # runtime_data should be cleared
     assert mock_hub_entry.runtime_data is None
     # Note: coordinator.cleanup is now called via async_on_unload, not directly in async_unload_entry
+
+
+async def test_sentinel_cleanup_via_async_on_unload(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Sentinel cleanup is registered via async_on_unload during setup.
+
+    The reference-counted sentinel cleanup is called via async_on_unload,
+    not directly in async_unload_entry. This test verifies that after setup,
+    an unload callback is registered that will clean up sentinels.
+    """
+    from custom_components.haeo.flows.sentinels import _SENTINEL_REF_COUNT_KEY  # noqa: PLC0415
+
+    # Mock the full setup to complete successfully
+    class DummyCoordinator:
+        def __init__(self, _hass_param: HomeAssistant, _entry_param: ConfigEntry) -> None:
+            self.async_initialize = AsyncMock()
+            self.async_refresh = AsyncMock()
+            self.cleanup = Mock()
+
+    monkeypatch.setattr("custom_components.haeo.HaeoDataUpdateCoordinator", DummyCoordinator)
+
+    async def mock_forward_setups(entry: object, platforms: list[object]) -> None:
+        pass
+
+    monkeypatch.setattr(hass.config_entries, "async_forward_entry_setups", mock_forward_setups)
+
+    # Run setup
+    result = await async_setup_entry(hass, mock_hub_entry)
+    assert result is True
+
+    # Verify sentinel ref count was incremented
+    assert hass.data.get(_SENTINEL_REF_COUNT_KEY) == 1
+
+    # Verify async_on_unload callbacks are registered
+    # (HA stores these in entry._on_unload)
+    assert len(mock_hub_entry._on_unload) > 0, "async_on_unload callbacks should be registered"
+
+
+async def test_multiple_entries_share_sentinels(
+    hass: HomeAssistant,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Multiple HAEO entries share sentinel entities via reference counting.
+
+    With async_on_unload pattern, each entry registers its own cleanup callback.
+    Reference counting ensures sentinels are only removed when all entries unload.
+    """
+    from custom_components.haeo.flows.sentinels import (  # noqa: PLC0415
+        _SENTINEL_REF_COUNT_KEY,
+        async_setup_sentinel_entities,
+        async_unload_sentinel_entities,
+    )
+
+    # Create two entries
+    entry1 = MockConfigEntry(
+        domain=DOMAIN,
+        data={
+            CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
+            CONF_NAME: "Network 1",
+            CONF_TIER_1_COUNT: DEFAULT_TIER_1_COUNT,
+            CONF_TIER_1_DURATION: DEFAULT_TIER_1_DURATION,
+            CONF_TIER_2_COUNT: DEFAULT_TIER_2_COUNT,
+            CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
+            CONF_TIER_3_COUNT: DEFAULT_TIER_3_COUNT,
+            CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
+            CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
+            CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
+        },
+        entry_id="entry_1",
+    )
+    entry1.add_to_hass(hass)
+
+    entry2 = MockConfigEntry(
+        domain=DOMAIN,
+        data={
+            CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
+            CONF_NAME: "Network 2",
+            CONF_TIER_1_COUNT: DEFAULT_TIER_1_COUNT,
+            CONF_TIER_1_DURATION: DEFAULT_TIER_1_DURATION,
+            CONF_TIER_2_COUNT: DEFAULT_TIER_2_COUNT,
+            CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
+            CONF_TIER_3_COUNT: DEFAULT_TIER_3_COUNT,
+            CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
+            CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
+            CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
+        },
+        entry_id="entry_2",
+    )
+    entry2.add_to_hass(hass)
+
+    # Simulate both entries setting up sentinels
+    await async_setup_sentinel_entities(hass)
+    await async_setup_sentinel_entities(hass)
+
+    # Both incremented ref count
+    assert hass.data.get(_SENTINEL_REF_COUNT_KEY) == 2
+
+    # First unload - ref count decrements but sentinel remains
+    async_unload_sentinel_entities(hass)
+    assert hass.data.get(_SENTINEL_REF_COUNT_KEY) == 1
+
+    # Second unload - sentinel is removed
+    async_unload_sentinel_entities(hass)
+    assert _SENTINEL_REF_COUNT_KEY not in hass.data
 
 
 async def test_async_setup_entry_initializes_coordinator(
@@ -751,6 +855,37 @@ async def test_setup_cleanup_on_coordinator_error(
     assert exc_info.value.translation_key == "setup_failed_transient"
 
 
+async def test_sentinel_reference_counting(
+    hass: HomeAssistant,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Sentinel entities use reference counting for multiple entries."""
+    from custom_components.haeo.flows.sentinels import (  # noqa: PLC0415
+        _SENTINEL_REF_COUNT_KEY,
+        async_setup_sentinel_entities,
+        async_unload_sentinel_entities,
+    )
+
+    # Initial state - no sentinels
+    assert _SENTINEL_REF_COUNT_KEY not in hass.data
+
+    # First setup - creates sentinel
+    await async_setup_sentinel_entities(hass)
+    assert hass.data.get(_SENTINEL_REF_COUNT_KEY) == 1
+
+    # Second setup - increments count, no new sentinel created
+    await async_setup_sentinel_entities(hass)
+    assert hass.data.get(_SENTINEL_REF_COUNT_KEY) == 2
+
+    # First unload - decrements count, sentinel still exists
+    async_unload_sentinel_entities(hass)
+    assert hass.data.get(_SENTINEL_REF_COUNT_KEY) == 1
+
+    # Second unload - removes sentinel
+    async_unload_sentinel_entities(hass)
+    assert _SENTINEL_REF_COUNT_KEY not in hass.data
+
+
 async def test_async_setup_entry_raises_config_entry_error_on_permanent_failure(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
@@ -802,6 +937,37 @@ async def test_async_setup_entry_raises_config_entry_error_on_permanent_failure(
     assert exc_info.value.translation_key == "setup_failed_permanent"
 
 
+async def test_sentinel_entity_already_exists(
+    hass: HomeAssistant,
+) -> None:
+    """Sentinel setup reuses existing entity when already registered.
+
+    Tests the branch where entity_id is not None (entity already exists),
+    skipping async_get_or_create and going straight to async_set.
+    """
+    from custom_components.haeo.flows.sentinels import (  # noqa: PLC0415
+        _SENTINEL_REF_COUNT_KEY,
+        async_setup_sentinel_entities,
+        async_unload_sentinel_entities,
+    )
+
+    # First setup - creates the sentinel entity
+    await async_setup_sentinel_entities(hass)
+    assert hass.data.get(_SENTINEL_REF_COUNT_KEY) == 1
+
+    # Clear the reference count to force re-setup but keep the entity
+    hass.data.pop(_SENTINEL_REF_COUNT_KEY, None)
+
+    # Second setup with ref_count reset - exercises the entity_id is not None branch
+    # because the entity still exists in the registry
+    await async_setup_sentinel_entities(hass)
+    assert hass.data.get(_SENTINEL_REF_COUNT_KEY) == 1
+
+    # Clean up
+    async_unload_sentinel_entities(hass)
+    assert _SENTINEL_REF_COUNT_KEY not in hass.data
+
+
 async def test_setup_preserves_config_entry_not_ready_exception(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
@@ -826,7 +992,7 @@ async def test_setup_preserves_config_entry_not_ready_exception(
     monkeypatch.setattr("custom_components.haeo.HaeoRuntimeData", MockRuntimeData)
 
     # Patch forward_entry_setups
-    async def mock_forward_setups(entry: ConfigEntry, platforms: Iterable[Platform | str]) -> None:
+    async def mock_forward_setups(entry: object, platforms: list[object]) -> None:
         pass
 
     monkeypatch.setattr(hass.config_entries, "async_forward_entry_setups", mock_forward_setups)
@@ -834,7 +1000,7 @@ async def test_setup_preserves_config_entry_not_ready_exception(
     # Track unload calls
     original_unload_platforms = hass.config_entries.async_unload_platforms
 
-    async def tracked_unload_platforms(entry: ConfigEntry, platforms: Iterable[Platform | str]) -> bool:
+    async def tracked_unload_platforms(entry: object, platforms: list[object]) -> bool:
         return await original_unload_platforms(entry, platforms)
 
     monkeypatch.setattr(hass.config_entries, "async_unload_platforms", tracked_unload_platforms)
@@ -888,7 +1054,7 @@ async def test_setup_preserves_config_entry_error_exception(
     monkeypatch.setattr("custom_components.haeo.HaeoRuntimeData", MockRuntimeData)
 
     # Patch forward_entry_setups
-    async def mock_forward_setups(entry: ConfigEntry, platforms: Iterable[Platform | str]) -> None:
+    async def mock_forward_setups(entry: object, platforms: list[object]) -> None:
         pass
 
     monkeypatch.setattr(hass.config_entries, "async_forward_entry_setups", mock_forward_setups)
@@ -896,7 +1062,7 @@ async def test_setup_preserves_config_entry_error_exception(
     # Track unload calls
     original_unload_platforms = hass.config_entries.async_unload_platforms
 
-    async def tracked_unload_platforms(entry: ConfigEntry, platforms: Iterable[Platform | str]) -> bool:
+    async def tracked_unload_platforms(entry: object, platforms: list[object]) -> bool:
         return await original_unload_platforms(entry, platforms)
 
     monkeypatch.setattr(hass.config_entries, "async_unload_platforms", tracked_unload_platforms)
@@ -924,33 +1090,3 @@ async def test_setup_preserves_config_entry_error_exception(
 
     # Verify the original translation key is preserved (not wrapped in setup_failed_permanent)
     assert exc_info.value.translation_key == "custom_config_error"
-
-
-async def test_async_migrate_entry_with_horizon_preset(hass: HomeAssistant) -> None:
-    """Test migration from version 1 with horizon_preset in N_days format."""
-    # Create a version 1 entry with horizon_preset
-    entry = MockConfigEntry(
-        domain=DOMAIN,
-        version=1,
-        data={
-            CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
-            CONF_NAME: "Test Network",
-            "horizon_preset": "5_days",  # Legacy format
-            # No tier counts - would be computed in migration
-        },
-        entry_id="migrate_test_id",
-        title="Test Migration",
-    )
-    entry.add_to_hass(hass)
-
-    # Run migration
-    result = await async_migrate_entry(hass, entry)
-
-    assert result is True
-    # Verify horizon was computed from preset (5 days = 7200 minutes)
-    assert entry.data[CONF_HORIZON_DURATION_MINUTES] == 5 * 24 * 60
-    # Verify legacy keys removed
-    assert "horizon_preset" not in entry.data
-    assert "tier_4_count" not in entry.data
-    # Verify version was updated
-    assert entry.version == 2

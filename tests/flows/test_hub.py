@@ -3,10 +3,11 @@
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
 from homeassistant.helpers.translation import async_get_translations
+import pytest
 
 from custom_components.haeo.const import (
     CONF_DEBOUNCE_SECONDS,
-    CONF_HORIZON_DURATION_MINUTES,
+    CONF_HORIZON_PRESET,
     CONF_NAME,
     CONF_TIER_1_COUNT,
     CONF_TIER_1_DURATION,
@@ -14,22 +15,15 @@ from custom_components.haeo.const import (
     CONF_TIER_2_DURATION,
     CONF_TIER_3_COUNT,
     CONF_TIER_3_DURATION,
+    CONF_TIER_4_COUNT,
     CONF_TIER_4_DURATION,
     CONF_UPDATE_INTERVAL_MINUTES,
-    DEFAULT_HORIZON_DURATION_MINUTES,
     DOMAIN,
 )
-from custom_components.haeo.flows import (
-    CONF_HORIZON_DAYS,
-    HORIZON_UNIT_DAYS,
-    HORIZON_UNIT_HOURS,
-    HORIZON_UNIT_MINUTES,
-    convert_horizon_days_to_minutes,
-    get_custom_tiers_schema,
-    get_default_tier_config,
-    get_hub_setup_schema,
-    horizon_minutes_to_display,
-)
+
+# Import the private function for testing
+import custom_components.haeo.flows as flows_module
+from custom_components.haeo.flows import HORIZON_PRESET_5_DAYS, get_custom_tiers_schema, get_hub_setup_schema
 from custom_components.haeo.flows.hub import HubConfigFlow
 
 # Test data for hub flow
@@ -58,7 +52,7 @@ async def test_user_step_translations_loadable(hass: HomeAssistant) -> None:
     # Check that key config flow translations exist
     assert f"component.{DOMAIN}.config.step.user.title" in translations
     assert f"component.{DOMAIN}.config.step.user.data.name" in translations
-    assert f"component.{DOMAIN}.config.step.user.data.horizon_days" in translations
+    assert f"component.{DOMAIN}.config.step.user.data.horizon_preset" in translations
 
 
 async def test_custom_tiers_step_translations_loadable(hass: HomeAssistant) -> None:
@@ -115,8 +109,7 @@ async def test_hub_setup_schema_has_expected_fields(hass: HomeAssistant) -> None
 
     # Verify expected fields are present
     assert CONF_NAME in field_names
-    # The UI uses horizon_days, which is converted to horizon_duration_minutes in the flow handler
-    assert CONF_HORIZON_DAYS in field_names
+    assert CONF_HORIZON_PRESET in field_names
 
     # Verify update interval and debounce are NOT in the add flow (only in options/edit)
     assert CONF_UPDATE_INTERVAL_MINUTES not in field_names
@@ -134,7 +127,7 @@ async def test_custom_tiers_schema_has_tier_fields(hass: HomeAssistant) -> None:
     # Get field names from schema
     field_names = {key.schema for key in schema.schema}
 
-    # Verify tier fields are present (tier_4_count is no longer used - computed at runtime)
+    # Verify all tier fields are present
     assert CONF_TIER_1_DURATION in field_names
     assert CONF_TIER_1_COUNT in field_names
     assert CONF_TIER_2_DURATION in field_names
@@ -142,7 +135,7 @@ async def test_custom_tiers_schema_has_tier_fields(hass: HomeAssistant) -> None:
     assert CONF_TIER_3_DURATION in field_names
     assert CONF_TIER_3_COUNT in field_names
     assert CONF_TIER_4_DURATION in field_names
-    assert CONF_HORIZON_DURATION_MINUTES in field_names
+    assert CONF_TIER_4_COUNT in field_names
 
 
 async def test_schema_coerces_floats_to_integers(hass: HomeAssistant) -> None:
@@ -153,12 +146,12 @@ async def test_schema_coerces_floats_to_integers(hass: HomeAssistant) -> None:
     test_data = {
         CONF_TIER_1_COUNT: 5.0,  # Float input
         CONF_TIER_1_DURATION: 1.0,  # Float input
-        CONF_TIER_2_COUNT: 6.0,
+        CONF_TIER_2_COUNT: 11.0,
         CONF_TIER_2_DURATION: 5.0,
-        CONF_TIER_3_COUNT: 4.0,
+        CONF_TIER_3_COUNT: 46.0,
         CONF_TIER_3_DURATION: 30.0,
+        CONF_TIER_4_COUNT: 48.0,
         CONF_TIER_4_DURATION: 60.0,
-        CONF_HORIZON_DURATION_MINUTES: 7200.0,  # 5 days
     }
 
     # Validate and coerce the data
@@ -171,83 +164,17 @@ async def test_schema_coerces_floats_to_integers(hass: HomeAssistant) -> None:
     assert validated_data[CONF_TIER_1_DURATION] == 1
 
 
-async def test_hub_setup_schema_default_horizon(hass: HomeAssistant) -> None:
-    """Test that the hub setup schema defaults to 5 days horizon."""
+async def test_hub_setup_schema_default_preset(hass: HomeAssistant) -> None:
+    """Test that the hub setup schema defaults to 5 days preset."""
     schema = get_hub_setup_schema()
 
-    # Find the horizon_days field (UI input, converted to minutes in flow handler)
+    # Find the horizon_preset field
     schema_keys = {vol_key.schema: vol_key for vol_key in schema.schema}
-    assert CONF_HORIZON_DAYS in schema_keys, "CONF_HORIZON_DAYS not found in schema"
-    # Default is 5 days (shown as 5 in the UI slider)
-    assert schema_keys[CONF_HORIZON_DAYS].default() == 5
+    assert CONF_HORIZON_PRESET in schema_keys, "CONF_HORIZON_PRESET not found in schema"
+    assert schema_keys[CONF_HORIZON_PRESET].default() == HORIZON_PRESET_5_DAYS
 
 
-def test_get_default_tier_config() -> None:
-    """Test get_default_tier_config returns expected values."""
-    config = get_default_tier_config()
-
-    assert config[CONF_TIER_1_COUNT] == 5
-    assert config[CONF_TIER_1_DURATION] == 1
-    assert config[CONF_TIER_2_COUNT] == 6
-    assert config[CONF_TIER_2_DURATION] == 5
-    assert config[CONF_TIER_3_COUNT] == 4
-    assert config[CONF_TIER_3_DURATION] == 30
-    assert config[CONF_TIER_4_DURATION] == 60
-    assert config[CONF_HORIZON_DURATION_MINUTES] == DEFAULT_HORIZON_DURATION_MINUTES
-
-
-def test_get_default_tier_config_with_custom_horizon() -> None:
-    """Test get_default_tier_config with custom horizon."""
-    horizon = 3 * 24 * 60  # 3 days
-    config = get_default_tier_config(horizon)
-
-    assert config[CONF_HORIZON_DURATION_MINUTES] == horizon
-
-
-def test_horizon_minutes_to_display_days() -> None:
-    """Test horizon_minutes_to_display with value divisible by days."""
-    # 5 days = 7200 minutes
-    unit, value = horizon_minutes_to_display(5 * 24 * 60)
-    assert unit == HORIZON_UNIT_DAYS
-    assert value == 5
-
-
-def test_horizon_minutes_to_display_hours() -> None:
-    """Test horizon_minutes_to_display with value divisible by hours but not days."""
-    # 25 hours = 1500 minutes (not evenly divisible by days)
-    unit, value = horizon_minutes_to_display(25 * 60)
-    assert unit == HORIZON_UNIT_HOURS
-    assert value == 25
-
-
-def test_horizon_minutes_to_display_minutes() -> None:
-    """Test horizon_minutes_to_display with value not divisible by hours."""
-    # 90 minutes (not divisible by 60)
-    unit, value = horizon_minutes_to_display(90)
-    assert unit == HORIZON_UNIT_MINUTES
-    assert value == 90
-
-
-def test_convert_horizon_days_to_minutes_with_days() -> None:
-    """Test convert_horizon_days_to_minutes converts days to minutes."""
-    user_input = {CONF_HORIZON_DAYS: 5, "other_key": "value"}
-    result = convert_horizon_days_to_minutes(user_input)
-
-    # Should convert horizon_days to horizon_duration_minutes
-    assert CONF_HORIZON_DURATION_MINUTES in result
-    assert result[CONF_HORIZON_DURATION_MINUTES] == 5 * 24 * 60
-    # Should remove horizon_days
-    assert CONF_HORIZON_DAYS not in result
-    # Should preserve other keys
-    assert result["other_key"] == "value"
-
-
-def test_convert_horizon_days_to_minutes_without_days() -> None:
-    """Test convert_horizon_days_to_minutes is a no-op without horizon_days."""
-    user_input = {"other_key": "value", CONF_HORIZON_DURATION_MINUTES: 7200}
-    result = convert_horizon_days_to_minutes(user_input)
-
-    # Should return unchanged
-    assert result == user_input
-    assert result[CONF_HORIZON_DURATION_MINUTES] == 7200
-    assert result["other_key"] == "value"
+def test_create_horizon_preset_raises_on_invalid_days() -> None:
+    """Test _create_horizon_preset raises ValueError for days < 2."""
+    with pytest.raises(ValueError, match="Horizon must be at least 2 days"):
+        flows_module._create_horizon_preset(1)

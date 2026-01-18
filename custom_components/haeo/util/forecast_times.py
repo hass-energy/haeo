@@ -5,6 +5,14 @@ from datetime import datetime
 
 from homeassistant.util import dt as dt_util
 
+# Preset name to days mapping for aligned mode
+_PRESET_DAYS: dict[str, int] = {
+    "2_days": 2,
+    "3_days": 3,
+    "5_days": 5,
+    "7_days": 7,
+}
+
 
 def minutes_to_next_boundary(current_minute: int, boundary_interval: int) -> int:
     """Calculate minutes until the next boundary of the given interval.
@@ -217,30 +225,38 @@ def calculate_worst_case_total_steps(
     return max_t1 + max_t2 + max_t3 + t4_steps
 
 
-def tiers_to_periods_seconds(config: Mapping[str, int]) -> list[int]:
+def tiers_to_periods_seconds(config: Mapping[str, int | str]) -> list[int]:
     """Convert tier configuration to list of period durations in seconds.
 
-    Note: This is a legacy function for backwards compatibility.
-    New code should use calculate_aligned_tier_counts for dynamic alignment.
-    """
-    from custom_components.haeo.const import CONF_HORIZON_DURATION_MINUTES  # noqa: PLC0415
+    Uses dynamic time alignment when a preset is selected (2/3/5/7 days).
+    Falls back to fixed tier counts when using custom configuration.
 
-    # Check if this is new-style config with horizon_duration_minutes
-    if CONF_HORIZON_DURATION_MINUTES in config:
-        # Use aligned calculation
-        now = dt_util.utcnow()
+    Args:
+        config: Tier configuration dictionary with tier_N_count and tier_N_duration keys,
+            plus optional horizon_preset key.
+
+    Returns:
+        List of period durations in seconds.
+
+    """
+    # Check if using a preset (enables time alignment)
+    horizon_preset = config.get("horizon_preset")
+
+    if horizon_preset and horizon_preset in _PRESET_DAYS:
+        # Preset mode: use dynamic time alignment
+        days = _PRESET_DAYS[horizon_preset]
+        horizon_minutes = days * 24 * 60
+
         tier_durations = (
-            config.get("tier_1_duration", 1),
-            config.get("tier_2_duration", 5),
-            config.get("tier_3_duration", 30),
-            config.get("tier_4_duration", 60),
+            int(config.get("tier_1_duration", 1)),
+            int(config.get("tier_2_duration", 5)),
+            int(config.get("tier_3_duration", 30)),
+            int(config.get("tier_4_duration", 60)),
         )
-        min_counts = (
-            config.get("tier_1_count", 5),
-            config.get("tier_2_count", 6),
-            config.get("tier_3_count", 4),
-        )
-        horizon_minutes = config[CONF_HORIZON_DURATION_MINUTES]
+        # For presets, use standard minimum counts for alignment
+        min_counts = (5, 6, 4)
+
+        now = dt_util.utcnow()
 
         # Calculate total steps based on worst-case for consistent solver size
         total_steps = calculate_worst_case_total_steps(min_counts, tier_durations, horizon_minutes)
@@ -254,14 +270,14 @@ def tiers_to_periods_seconds(config: Mapping[str, int]) -> list[int]:
         )
         return periods_seconds
 
-    # Legacy path: fixed tier counts
+    # Custom/legacy mode: use fixed tier counts from config
     periods: list[int] = []
     for tier in [1, 2, 3, 4]:
         count_key = f"tier_{tier}_count"
         duration_key = f"tier_{tier}_duration"
         if count_key in config:
-            count = config[count_key]
-            duration_seconds = config[duration_key] * 60
+            count = int(config[count_key])
+            duration_seconds = int(config[duration_key]) * 60
             periods.extend([duration_seconds] * count)
     return periods
 
@@ -296,7 +312,7 @@ def generate_forecast_timestamps(periods_seconds: Sequence[int], start_time: flo
     return tuple(timestamps)
 
 
-def generate_forecast_timestamps_from_config(config: Mapping[str, int]) -> tuple[float, ...]:
+def generate_forecast_timestamps_from_config(config: Mapping[str, int | str]) -> tuple[float, ...]:
     """Generate forecast timestamps from tier configuration.
 
     Converts tier config to period durations and generates boundary timestamps

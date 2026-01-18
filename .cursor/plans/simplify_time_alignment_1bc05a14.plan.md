@@ -4,34 +4,34 @@ overview: Simplify the time step alignment feature by keeping the original prese
 todos:
   - id: revert-const
     content: Revert const.py to original preset-based configuration
-    status: pending
+    status: completed
   - id: revert-flows
     content: Revert flows/__init__.py to original preset system
-    status: pending
+    status: completed
   - id: revert-options
     content: Revert flows/options.py to original options flow logic
-    status: pending
+    status: completed
   - id: update-forecast-times
     content: Update forecast_times.py with dual-path logic based on horizon_preset
-    status: pending
+    status: completed
     dependencies:
       - revert-const
   - id: update-horizon
     content: Update horizon.py to detect preset vs custom mode
-    status: pending
+    status: completed
     dependencies:
       - update-forecast-times
   - id: remove-migration
     content: Remove migration code from __init__.py
-    status: pending
+    status: completed
     dependencies:
       - revert-const
   - id: revert-translations
     content: Revert translation changes in en.json
-    status: pending
+    status: completed
   - id: update-tests
     content: Update tests to use original config schema
-    status: pending
+    status: completed
     dependencies:
       - revert-const
       - update-forecast-times

@@ -10,7 +10,8 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.haeo.const import (
     CONF_ADVANCED_MODE,
-    CONF_HORIZON_DURATION_MINUTES,
+    CONF_DEBOUNCE_SECONDS,
+    CONF_HORIZON_PRESET,
     CONF_NAME,
     CONF_TIER_1_COUNT,
     CONF_TIER_1_DURATION,
@@ -18,38 +19,46 @@ from custom_components.haeo.const import (
     CONF_TIER_2_DURATION,
     CONF_TIER_3_COUNT,
     CONF_TIER_3_DURATION,
+    CONF_TIER_4_COUNT,
     CONF_TIER_4_DURATION,
-    DEFAULT_HORIZON_DURATION_MINUTES,
+    CONF_UPDATE_INTERVAL_MINUTES,
+    DEFAULT_DEBOUNCE_SECONDS,
     DEFAULT_TIER_1_COUNT,
     DEFAULT_TIER_1_DURATION,
     DEFAULT_TIER_2_COUNT,
     DEFAULT_TIER_2_DURATION,
     DEFAULT_TIER_3_COUNT,
     DEFAULT_TIER_3_DURATION,
+    DEFAULT_TIER_4_COUNT,
     DEFAULT_TIER_4_DURATION,
+    DEFAULT_UPDATE_INTERVAL_MINUTES,
     DOMAIN,
     INTEGRATION_TYPE_HUB,
 )
 from custom_components.haeo.elements import ELEMENT_TYPES
-from custom_components.haeo.flows import CONF_HORIZON_DAYS
+from custom_components.haeo.flows import (
+    HORIZON_PRESET_3_DAYS,
+    HORIZON_PRESET_5_DAYS,
+    HORIZON_PRESET_CUSTOM,
+    HORIZON_PRESETS,
+)
 from custom_components.haeo.flows.hub import HubConfigFlow
 
 
-async def test_user_flow_success_with_default_horizon(hass: HomeAssistant) -> None:
-    """Test successful hub creation via user flow with default horizon."""
+async def test_user_flow_success_with_preset(hass: HomeAssistant) -> None:
+    """Test successful hub creation via user flow with a preset."""
     result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": SOURCE_USER})
 
     assert result.get("type") == FlowResultType.FORM
     assert result.get("step_id") == "user"
     assert result.get("errors") == {}
 
-    # Configure with default horizon (5 days = 7200 minutes)
+    # Configure with preset (should create entry directly, no second step)
     result = await hass.config_entries.flow.async_configure(
         result["flow_id"],
         user_input={
             CONF_NAME: "Test Hub",
-            CONF_HORIZON_DAYS: 5,  # 5 days (UI shows days, converted to minutes in flow)
-            CONF_ADVANCED_MODE: False,
+            CONF_HORIZON_PRESET: HORIZON_PRESET_3_DAYS,
         },
     )
 
@@ -60,12 +69,14 @@ async def test_user_flow_success_with_default_horizon(hass: HomeAssistant) -> No
     assert data[CONF_NAME] == "Test Hub"
     assert data["integration_type"] == INTEGRATION_TYPE_HUB
 
-    # Verify horizon is stored in minutes (5 days = 7200 minutes)
-    assert data[CONF_HORIZON_DURATION_MINUTES] == 5 * 24 * 60
+    # Verify preset is stored in entry data
+    assert data[CONF_HORIZON_PRESET] == HORIZON_PRESET_3_DAYS
 
-    # Verify default tier values were applied
-    assert data[CONF_TIER_1_COUNT] == DEFAULT_TIER_1_COUNT
-    assert data[CONF_TIER_1_DURATION] == DEFAULT_TIER_1_DURATION
+    # Verify preset values were applied
+    preset_values = HORIZON_PRESETS[HORIZON_PRESET_3_DAYS]
+    assert data[CONF_TIER_1_DURATION] == preset_values[CONF_TIER_1_DURATION]
+    assert data[CONF_TIER_1_COUNT] == preset_values[CONF_TIER_1_COUNT]
+    assert data[CONF_TIER_4_COUNT] == preset_values[CONF_TIER_4_COUNT]
 
     # Verify entry was created
     entries = hass.config_entries.async_entries(DOMAIN)
@@ -73,20 +84,93 @@ async def test_user_flow_success_with_default_horizon(hass: HomeAssistant) -> No
     assert entries[0].title == "Test Hub"
 
 
-async def test_user_flow_custom_horizon(hass: HomeAssistant) -> None:
-    """Test hub creation with custom horizon value."""
+async def test_user_flow_custom_preset_shows_second_step(hass: HomeAssistant) -> None:
+    """Test that selecting Custom preset shows the custom_tiers step."""
     result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": SOURCE_USER})
 
     assert result.get("type") == FlowResultType.FORM
     assert result.get("step_id") == "user"
 
-    # Configure with 7 days horizon
+    # Select Custom preset
     result = await hass.config_entries.flow.async_configure(
         result["flow_id"],
         user_input={
-            CONF_NAME: "7 Day Hub",
-            CONF_HORIZON_DAYS: 7,  # 7 days (UI shows days, converted to minutes in flow)
-            CONF_ADVANCED_MODE: False,
+            CONF_NAME: "Custom Hub",
+            CONF_HORIZON_PRESET: HORIZON_PRESET_CUSTOM,
+        },
+    )
+
+    # Should show custom_tiers step
+    assert result.get("type") == FlowResultType.FORM
+    assert result.get("step_id") == "custom_tiers"
+
+    # Verify tier fields are in the schema
+    data_schema = result.get("data_schema")
+    assert data_schema is not None
+    field_names = {key.schema for key in data_schema.schema}
+    assert CONF_TIER_1_DURATION in field_names
+    assert CONF_TIER_1_COUNT in field_names
+    assert CONF_TIER_4_COUNT in field_names
+
+
+async def test_user_flow_custom_tiers_creates_entry(hass: HomeAssistant) -> None:
+    """Test that completing custom_tiers step creates the entry."""
+    result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": SOURCE_USER})
+
+    # First step: select Custom
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"],
+        user_input={
+            CONF_NAME: "Custom Hub",
+            CONF_HORIZON_PRESET: HORIZON_PRESET_CUSTOM,
+        },
+    )
+
+    assert result.get("step_id") == "custom_tiers"
+
+    # Second step: provide custom tier values
+    custom_tier_4_count = 96  # 96 intervals of 120 min = 8 days
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"],
+        user_input={
+            CONF_TIER_1_COUNT: 10,
+            CONF_TIER_1_DURATION: 2,
+            CONF_TIER_2_COUNT: 12,
+            CONF_TIER_2_DURATION: 10,
+            CONF_TIER_3_COUNT: 24,
+            CONF_TIER_3_DURATION: 60,
+            CONF_TIER_4_COUNT: custom_tier_4_count,
+            CONF_TIER_4_DURATION: 120,
+        },
+    )
+
+    assert result.get("type") == FlowResultType.CREATE_ENTRY
+    assert result.get("title") == "Custom Hub"
+    data = result.get("data")
+    assert data is not None
+
+    # Verify preset is stored as custom
+    assert data[CONF_HORIZON_PRESET] == HORIZON_PRESET_CUSTOM
+
+    # Verify custom values were used
+    assert data[CONF_TIER_1_COUNT] == 10
+    assert data[CONF_TIER_1_DURATION] == 2
+    assert data[CONF_TIER_4_COUNT] == custom_tier_4_count
+    # Verify defaults were used for update interval and debounce (they're hidden during add)
+    assert data[CONF_UPDATE_INTERVAL_MINUTES] == DEFAULT_UPDATE_INTERVAL_MINUTES
+    assert data[CONF_DEBOUNCE_SECONDS] == DEFAULT_DEBOUNCE_SECONDS
+
+
+async def test_user_flow_different_presets(hass: HomeAssistant) -> None:
+    """Test that different presets apply correct tier values."""
+    result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": SOURCE_USER})
+
+    # Use 5-day preset
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"],
+        user_input={
+            CONF_NAME: "5 Day Hub",
+            CONF_HORIZON_PRESET: HORIZON_PRESET_5_DAYS,
         },
     )
 
@@ -94,8 +178,10 @@ async def test_user_flow_custom_horizon(hass: HomeAssistant) -> None:
     data = result.get("data")
     assert data is not None
 
-    # Verify horizon is 7 days in minutes
-    assert data[CONF_HORIZON_DURATION_MINUTES] == 7 * 24 * 60
+    # Verify 5-day preset values
+    preset_values = HORIZON_PRESETS[HORIZON_PRESET_5_DAYS]
+    assert data[CONF_TIER_4_COUNT] == preset_values[CONF_TIER_4_COUNT]
+    assert data[CONF_TIER_4_COUNT] == 96  # 96 intervals of 60 min for 5 days
 
 
 async def test_user_flow_duplicate_name(hass: HomeAssistant) -> None:
@@ -106,13 +192,13 @@ async def test_user_flow_duplicate_name(hass: HomeAssistant) -> None:
         data={
             "integration_type": INTEGRATION_TYPE_HUB,
             CONF_NAME: "Existing Hub",
-            CONF_HORIZON_DURATION_MINUTES: DEFAULT_HORIZON_DURATION_MINUTES,
             CONF_TIER_1_COUNT: DEFAULT_TIER_1_COUNT,
             CONF_TIER_1_DURATION: DEFAULT_TIER_1_DURATION,
             CONF_TIER_2_COUNT: DEFAULT_TIER_2_COUNT,
             CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
             CONF_TIER_3_COUNT: DEFAULT_TIER_3_COUNT,
             CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
+            CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
             CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
         },
         title="Existing Hub",
@@ -126,8 +212,7 @@ async def test_user_flow_duplicate_name(hass: HomeAssistant) -> None:
         result["flow_id"],
         user_input={
             CONF_NAME: "Existing Hub",
-            CONF_HORIZON_DAYS: 5,
-            CONF_ADVANCED_MODE: False,
+            CONF_HORIZON_PRESET: HORIZON_PRESET_3_DAYS,
         },
     )
 
@@ -139,8 +224,7 @@ async def test_user_flow_duplicate_name(hass: HomeAssistant) -> None:
         result["flow_id"],
         user_input={
             CONF_NAME: "New Hub",
-            CONF_HORIZON_DAYS: 5,
-            CONF_ADVANCED_MODE: False,
+            CONF_HORIZON_PRESET: HORIZON_PRESET_3_DAYS,
         },
     )
 
@@ -157,8 +241,7 @@ async def test_user_flow_unique_id_prevents_duplicate(hass: HomeAssistant) -> No
         result["flow_id"],
         user_input={
             CONF_NAME: "Test Hub",
-            CONF_HORIZON_DAYS: 5,
-            CONF_ADVANCED_MODE: False,
+            CONF_HORIZON_PRESET: HORIZON_PRESET_3_DAYS,
         },
     )
 
@@ -171,8 +254,7 @@ async def test_user_flow_unique_id_prevents_duplicate(hass: HomeAssistant) -> No
         result["flow_id"],
         user_input={
             CONF_NAME: "test hub",  # Same name, different case
-            CONF_HORIZON_DAYS: 5,
-            CONF_ADVANCED_MODE: False,
+            CONF_HORIZON_PRESET: HORIZON_PRESET_3_DAYS,
         },
     )
 
@@ -192,8 +274,8 @@ async def test_user_flow_default_values(hass: HomeAssistant) -> None:
     # Check suggested values exist in the schema
     schema_keys = {vol_key.schema: vol_key for vol_key in data_schema.schema}
 
-    # Verify default horizon is 5 days
-    assert schema_keys[CONF_HORIZON_DAYS].default() == 5  # 5 days
+    # Verify default horizon preset is 5 days
+    assert schema_keys[CONF_HORIZON_PRESET].default() == HORIZON_PRESET_5_DAYS
 
 
 async def test_hub_supports_subentry_types(hass: HomeAssistant) -> None:
@@ -205,13 +287,13 @@ async def test_hub_supports_subentry_types(hass: HomeAssistant) -> None:
             "integration_type": INTEGRATION_TYPE_HUB,
             CONF_NAME: "Test Hub",
             CONF_ADVANCED_MODE: True,  # Required for connection, node, battery_section flows
-            CONF_HORIZON_DURATION_MINUTES: DEFAULT_HORIZON_DURATION_MINUTES,
             CONF_TIER_1_COUNT: DEFAULT_TIER_1_COUNT,
             CONF_TIER_1_DURATION: DEFAULT_TIER_1_DURATION,
             CONF_TIER_2_COUNT: DEFAULT_TIER_2_COUNT,
             CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
             CONF_TIER_3_COUNT: DEFAULT_TIER_3_COUNT,
             CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
+            CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
             CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
         },
         entry_id="test_hub_id",
@@ -243,8 +325,6 @@ async def test_subentry_translations_exist(hass: HomeAssistant) -> None:
 
     subentry_flows = HubConfigFlow.async_get_supported_subentry_types(hub_entry)
 
-    # All elements use single-step flow where reconfigure reuses the "user" step
-    # So we don't check for step.reconfigure.* translations
     common_suffixes = (
         "flow_title",
         "entry_type",
@@ -252,6 +332,8 @@ async def test_subentry_translations_exist(hass: HomeAssistant) -> None:
         "initiate_flow.reconfigure",
         "step.user.title",
         "step.user.description",
+        "step.reconfigure.title",
+        "step.reconfigure.description",
         "error.name_exists",
         "error.missing_name",
     )
@@ -259,7 +341,10 @@ async def test_subentry_translations_exist(hass: HomeAssistant) -> None:
     for element_type, flow_class in subentry_flows.items():
         base_key = f"component.{DOMAIN}.config_subentries.{element_type}"
 
+        # Entity-first elements use consolidated translations without separate reconfigure step
         suffixes_to_check = common_suffixes
+        if getattr(flow_class, "has_value_source_step", False):
+            suffixes_to_check = tuple(s for s in common_suffixes if not s.startswith("step.reconfigure"))
 
         for suffix in suffixes_to_check:
             assert f"{base_key}.{suffix}" in translations, f"Missing translation key {base_key}.{suffix}"

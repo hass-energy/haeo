@@ -10,13 +10,13 @@ from homeassistant.util import dt as dt_util
 from . import HaeoConfigEntry, HaeoRuntimeData
 from .const import (
     CONF_ELEMENT_TYPE,
-    CONF_HORIZON_DURATION_MINUTES,
     CONF_TIER_1_COUNT,
     CONF_TIER_1_DURATION,
     CONF_TIER_2_COUNT,
     CONF_TIER_2_DURATION,
     CONF_TIER_3_COUNT,
     CONF_TIER_3_DURATION,
+    CONF_TIER_4_COUNT,
     CONF_TIER_4_DURATION,
 )
 from .elements import ElementConfigSchema, is_element_config_schema
@@ -67,8 +67,8 @@ async def async_get_config_entry_diagnostics(hass: HomeAssistant, config_entry: 
         CONF_TIER_2_DURATION: config_entry.data.get(CONF_TIER_2_DURATION),
         CONF_TIER_3_COUNT: config_entry.data.get(CONF_TIER_3_COUNT),
         CONF_TIER_3_DURATION: config_entry.data.get(CONF_TIER_3_DURATION),
+        CONF_TIER_4_COUNT: config_entry.data.get(CONF_TIER_4_COUNT),
         CONF_TIER_4_DURATION: config_entry.data.get(CONF_TIER_4_DURATION),
-        CONF_HORIZON_DURATION_MINUTES: config_entry.data.get(CONF_HORIZON_DURATION_MINUTES),
     }
 
     # Transform subentries into participants dict

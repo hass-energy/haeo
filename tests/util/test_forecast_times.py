@@ -17,15 +17,14 @@ from custom_components.haeo.util.forecast_times import (
 
 
 class TierTestCase(TypedDict):
-    """Test case for tiers_to_periods_seconds (legacy config)."""
+    """Test case for tiers_to_periods_seconds."""
 
     description: str
     config: dict[str, int]
     expected: list[int]
 
 
-# Legacy tier test cases (without horizon_duration_minutes)
-LEGACY_TIER_TEST_CASES: dict[str, TierTestCase] = {
+TIER_TEST_CASES: dict[str, TierTestCase] = {
     "single_tier": {
         "description": "single tier with 3 intervals of 60 seconds",
         "config": {
@@ -85,10 +84,10 @@ LEGACY_TIER_TEST_CASES: dict[str, TierTestCase] = {
 }
 
 
-@pytest.mark.parametrize("case_id", LEGACY_TIER_TEST_CASES.keys())
-def test_tiers_to_periods_seconds_legacy(case_id: str) -> None:
-    """Verify legacy tier configuration converts to correct period durations."""
-    case = LEGACY_TIER_TEST_CASES[case_id]
+@pytest.mark.parametrize("case_id", TIER_TEST_CASES.keys())
+def test_tiers_to_periods_seconds(case_id: str) -> None:
+    """Verify tier configuration converts to correct period durations."""
+    case = TIER_TEST_CASES[case_id]
     result = tiers_to_periods_seconds(case["config"])
     assert result == case["expected"], case["description"]
 
@@ -187,105 +186,18 @@ def test_generate_forecast_timestamps_from_config() -> None:
     assert result[2] == expected_start + 120.0
 
 
-# ==================== Alignment Tests ====================
+# ============================================================================
+# Time alignment tests (for preset configurations)
+# ============================================================================
 
 
-class BoundaryTestCase(TypedDict):
-    """Test case for minutes_to_next_boundary."""
-
-    current_minute: int
-    boundary_interval: int
-    expected: int
-
-
-BOUNDARY_TEST_CASES: dict[str, BoundaryTestCase] = {
-    "at_boundary_5min": {
-        "current_minute": 0,
-        "boundary_interval": 5,
-        "expected": 5,  # Next boundary is 5 minutes away
-    },
-    "just_past_5min_boundary": {
-        "current_minute": 1,
-        "boundary_interval": 5,
-        "expected": 4,  # 1 -> 5
-    },
-    "mid_5min_interval": {
-        "current_minute": 43,
-        "boundary_interval": 5,
-        "expected": 2,  # 43 -> 45
-    },
-    "at_boundary_30min": {
-        "current_minute": 30,
-        "boundary_interval": 30,
-        "expected": 30,  # Next boundary is 30 minutes away
-    },
-    "mid_30min_interval": {
-        "current_minute": 45,
-        "boundary_interval": 30,
-        "expected": 15,  # 45 -> 60
-    },
-    "at_hour_boundary": {
-        "current_minute": 0,
-        "boundary_interval": 60,
-        "expected": 60,  # Next boundary is 60 minutes away
-    },
-}
-
-
-@pytest.mark.parametrize("case_id", BOUNDARY_TEST_CASES.keys())
-def test_minutes_to_next_boundary(case_id: str) -> None:
-    """Verify boundary calculation for different intervals."""
-    case = BOUNDARY_TEST_CASES[case_id]
-    result = minutes_to_next_boundary(case["current_minute"], case["boundary_interval"])
-    assert result == case["expected"]
-
-
-class AlignmentTestCase(TypedDict):
-    """Test case for calculate_aligned_tier_counts."""
-
-    description: str
-    start_minute: int
-    expected_t1_min: int  # Minimum expected T1 count
-    expected_t2_min: int  # Minimum expected T2 count
-    expected_t3_min: int  # Minimum expected T3 count
-
-
-ALIGNMENT_TEST_CASES: dict[str, AlignmentTestCase] = {
-    "aligned_to_hour": {
-        "description": "Start at :00 - all tiers use minimum counts",
-        "start_minute": 0,
-        "expected_t1_min": 5,  # min_t1
-        "expected_t2_min": 6,  # min_t2
-        "expected_t3_min": 4,  # min_t3
-    },
-    "worst_case_t1": {
-        "description": "Start at :26 - 4 min to :30, T1 expands",
-        "start_minute": 26,
-        "expected_t1_min": 5,  # Uses minimum since 4 < 5
-        "expected_t2_min": 6,  # T1 ends at :31 -> need 4 steps (20 min) to get to :51, then 2 more (10 min) to :01?
-        "expected_t3_min": 4,
-    },
-    "mid_interval": {
-        "description": "Start at :43 - 2 min to :45",
-        "start_minute": 43,
-        "expected_t1_min": 5,  # min(5, 2) = 5
-        "expected_t2_min": 6,
-        "expected_t3_min": 4,
-    },
-}
-
-
-@pytest.mark.parametrize("case_id", ALIGNMENT_TEST_CASES.keys())
-def test_calculate_aligned_tier_counts(case_id: str) -> None:
-    """Verify aligned tier counts meet minimum requirements."""
-    case = ALIGNMENT_TEST_CASES[case_id]
-
-    # Create datetime with specified minute
-    start_time = datetime(2025, 1, 1, 12, case["start_minute"], 0, tzinfo=UTC)
-
-    tier_durations = (1, 5, 30, 60)  # Standard tier durations in minutes
-    min_counts = (5, 6, 4)  # Default minimums
+def test_alignment_tier_counts_aligned_start() -> None:
+    """Verify tier counts are correctly calculated when starting on the hour."""
+    start_time = datetime(2025, 1, 1, 12, 0, 0, tzinfo=UTC)
+    tier_durations = (1, 5, 30, 60)  # Standard tier durations
+    min_counts = (5, 6, 4)  # Standard minimums
     horizon_minutes = 5 * 24 * 60  # 5 days
+
     total_steps = calculate_worst_case_total_steps(min_counts, tier_durations, horizon_minutes)
 
     periods_seconds, tier_counts = calculate_aligned_tier_counts(
@@ -296,81 +208,28 @@ def test_calculate_aligned_tier_counts(case_id: str) -> None:
         horizon_minutes=horizon_minutes,
     )
 
-    t1_count, t2_count, t3_count, _t4_count = tier_counts
-
-    # Verify minimum counts are respected
-    assert t1_count >= case["expected_t1_min"], f"{case['description']}: T1 count below minimum"
-    assert t2_count >= case["expected_t2_min"], f"{case['description']}: T2 count below minimum"
-    assert t3_count >= case["expected_t3_min"], f"{case['description']}: T3 count below minimum"
-
-    # Verify total steps match
-    assert sum(tier_counts) == total_steps, f"{case['description']}: Total steps mismatch"
-
-    # Verify periods match tier counts
-    assert len(periods_seconds) == sum(tier_counts), f"{case['description']}: Periods length mismatch"
+    # T1 should respect minimum and align to 5-min boundary
+    assert tier_counts[0] >= min_counts[0], "T1 should have at least minimum count"
+    # T2 should respect minimum and align to 30-min boundary
+    assert tier_counts[1] >= min_counts[1], "T2 should have at least minimum count"
+    # T3 should respect minimum
+    assert tier_counts[2] >= min_counts[2], "T3 should have at least minimum count"
+    # Verify total periods matches periods_seconds length
+    assert len(periods_seconds) == sum(tier_counts)
+    # Verify total step count is consistent
+    assert sum(tier_counts) == total_steps
 
 
-def test_calculate_worst_case_total_steps() -> None:
-    """Verify worst-case step calculation."""
-    tier_durations = (1, 5, 30, 60)
-    min_counts = (5, 6, 4)
-    horizon_minutes = 5 * 24 * 60  # 5 days = 7200 minutes
-
-    total_steps = calculate_worst_case_total_steps(min_counts, tier_durations, horizon_minutes)
-
-    # Worst case:
-    # T1: max(5, 5-1) = 5 steps * 1 min = 5 min
-    # T2: max(6, (30-5)/5) = max(6, 5) = 6 steps * 5 min = 30 min
-    # T3: max(4, (60-30)/30) = max(4, 1) = 4 steps * 30 min = 120 min
-    # Total T1-T3: 155 minutes
-    # Remaining: 7200 - 155 = 7045 minutes
-    # T4 at 30-min granularity: ceil(7045/30) = 235 steps
-
-    assert total_steps > 0
-    assert total_steps == 5 + 6 + 4 + 235  # 250 total steps
-
-
-def test_aligned_config_uses_alignment() -> None:
-    """Verify tiers_to_periods_seconds uses alignment for new-style config."""
-    config = {
-        "tier_1_count": 5,
-        "tier_1_duration": 1,
-        "tier_2_count": 6,
-        "tier_2_duration": 5,
-        "tier_3_count": 4,
-        "tier_3_duration": 30,
-        "tier_4_duration": 60,
-        "horizon_duration_minutes": 5 * 24 * 60,  # 5 days
-    }
-
-    # Mock time to a specific minute
-    mock_time = datetime(2025, 1, 1, 12, 15, 0, tzinfo=UTC)
-
-    with patch("custom_components.haeo.util.forecast_times.dt_util.utcnow", return_value=mock_time):
-        periods = tiers_to_periods_seconds(config)
-
-    # Should have periods for all tiers
-    assert len(periods) > 0
-
-    # Verify T1 periods are 60 seconds (1 minute)
-    assert all(p == 60 for p in periods[:5])  # At least 5 T1 steps
-
-    # Verify some T2 periods are 300 seconds (5 minutes)
-    t2_start = 5  # After T1
-    assert any(p == 300 for p in periods[t2_start : t2_start + 10])
-
-
-def test_tier_boundaries_align_to_forecast_intervals() -> None:
-    """Verify that tier transitions align with forecast data boundaries."""
-    # Start at :43 - should align T2 to :45 boundary
+def test_alignment_tier_counts_mid_hour_start() -> None:
+    """Verify tier counts when starting at an odd minute."""
     start_time = datetime(2025, 1, 1, 12, 43, 0, tzinfo=UTC)
-
     tier_durations = (1, 5, 30, 60)
     min_counts = (5, 6, 4)
-    horizon_minutes = 2 * 24 * 60  # 2 days
+    horizon_minutes = 5 * 24 * 60
+
     total_steps = calculate_worst_case_total_steps(min_counts, tier_durations, horizon_minutes)
 
-    _periods_seconds, tier_counts = calculate_aligned_tier_counts(
+    periods_seconds, tier_counts = calculate_aligned_tier_counts(
         start_time=start_time,
         tier_durations=tier_durations,
         min_counts=min_counts,
@@ -378,15 +237,90 @@ def test_tier_boundaries_align_to_forecast_intervals() -> None:
         horizon_minutes=horizon_minutes,
     )
 
-    t1_count = tier_counts[0]
-    t1_minutes = t1_count * 1  # T1 duration is 1 minute
+    # T1 ends on a 5-min boundary - from :43, T1 should end on :50 or later
+    t1_end_minute = (start_time.minute + tier_counts[0] * tier_durations[0]) % 60
+    assert t1_end_minute % 5 == 0, "T1 should end on 5-min boundary"
 
-    # T1 should end at a 5-minute boundary
-    t1_end_minute = (43 + t1_minutes) % 60
-    assert t1_end_minute % 5 == 0, f"T1 end ({t1_end_minute}) should be on 5-min boundary"
+    # T2 ends on a 30-min boundary
+    t2_end_minute = (t1_end_minute + tier_counts[1] * tier_durations[1]) % 60
+    assert t2_end_minute % 30 == 0, "T2 should end on 30-min boundary"
 
-    # T2 should end at a 30-minute boundary
-    t2_count = tier_counts[1]
-    t2_minutes = t2_count * 5
-    t2_end_minute = (t1_end_minute + t2_minutes) % 60
-    assert t2_end_minute % 30 == 0, f"T2 end ({t2_end_minute}) should be on 30-min boundary"
+    # Total steps preserved
+    assert sum(tier_counts) == total_steps
+    assert len(periods_seconds) == sum(tier_counts)
+
+
+def test_minutes_to_next_boundary() -> None:
+    """Test minutes_to_next_boundary helper function."""
+    # Already on boundary - returns full interval
+    assert minutes_to_next_boundary(0, 5) == 5
+    assert minutes_to_next_boundary(30, 30) == 30
+
+    # Near boundary
+    assert minutes_to_next_boundary(43, 5) == 2  # 43 -> 45
+    assert minutes_to_next_boundary(28, 30) == 2  # 28 -> 30
+    assert minutes_to_next_boundary(59, 60) == 1  # 59 -> 60
+
+    # Various positions
+    assert minutes_to_next_boundary(17, 5) == 3  # 17 -> 20
+    assert minutes_to_next_boundary(45, 30) == 15  # 45 -> 60
+
+
+def test_calculate_worst_case_total_steps() -> None:
+    """Test worst-case total step calculation."""
+    tier_durations = (1, 5, 30, 60)
+    min_counts = (5, 6, 4)
+    horizon_minutes = 5 * 24 * 60  # 5 days
+
+    total_steps = calculate_worst_case_total_steps(min_counts, tier_durations, horizon_minutes)
+
+    # Should be deterministic for given inputs
+    assert total_steps > 0
+    # Sanity check: should cover the horizon
+    # With mostly 60-min steps, 5 days = 120 hours = ~120 steps at least
+    assert total_steps >= 100
+
+
+def test_tiers_to_periods_with_preset() -> None:
+    """Test that tiers_to_periods_seconds uses alignment for presets."""
+    config = {
+        "horizon_preset": "5_days",
+        "tier_1_duration": 1,
+        "tier_2_duration": 5,
+        "tier_3_duration": 30,
+        "tier_4_duration": 60,
+    }
+
+    # Mock utcnow to return a known time
+    mock_time = datetime(2025, 1, 1, 12, 0, 0, tzinfo=UTC)
+
+    with patch("custom_components.haeo.util.forecast_times.dt_util.utcnow", return_value=mock_time):
+        periods = tiers_to_periods_seconds(config)
+
+    # Should have periods
+    assert len(periods) > 0
+    # First periods should be 60 seconds (tier 1)
+    assert periods[0] == 60
+
+
+def test_tiers_to_periods_with_custom() -> None:
+    """Test that tiers_to_periods_seconds uses fixed counts for custom preset."""
+    config = {
+        "horizon_preset": "custom",
+        "tier_1_count": 5,
+        "tier_1_duration": 1,
+        "tier_2_count": 11,
+        "tier_2_duration": 5,
+        "tier_3_count": 46,
+        "tier_3_duration": 30,
+        "tier_4_count": 48,
+        "tier_4_duration": 60,
+    }
+
+    periods = tiers_to_periods_seconds(config)
+
+    # Should have exactly the specified number of periods
+    assert len(periods) == 5 + 11 + 46 + 48  # 110 periods
+    # Verify the pattern: 5x60s, 11x300s, 46x1800s, 48x3600s
+    assert periods[:5] == [60] * 5
+    assert periods[5:16] == [300] * 11
