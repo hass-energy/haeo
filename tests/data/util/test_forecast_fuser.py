@@ -91,7 +91,7 @@ from custom_components.haeo.data.util.forecast_fuser import fuse_to_boundaries, 
             # Point at t=500 (value=125 matches linear interpolation) ensures present only applies to interval 0
             [(0, 100.0), (500, 125.0), (2000, 200.0), (4000, 300.0)],
             [0, 500, 1500, 2500, 3500],  # Horizon boundaries don't align with forecast points
-            [30.0, 150.0, 200.0, 250.0],  # present@0, then trapezoidal averages from forecast
+            [30.0, 150.0, 200.0, 250.0],  # present@0, then pure forecast averages
             id="interpolation_between_forecast_points",
         ),
         pytest.param(
@@ -113,7 +113,7 @@ from custom_components.haeo.data.util.forecast_fuser import fuse_to_boundaries, 
             # Point at t=1000 (value=200 matches linear interpolation) ensures present only applies to interval 0
             [(0, 100.0), (1000, 200.0), (3000, 400.0)],  # Sparse forecast requiring interpolation
             [0, 1000, 2000, 3000, 4000],  # Multiple intervals between forecast points
-            [10.0, 250.0, 350.0, 398.2014388489209],  # present@0, then trapezoidal averages from forecast
+            [10.0, 250.0, 350.0, 398.2014388489209],  # present@0, then pure forecast averages
             id="sparse_forecast_multiple_interpolations",
         ),
         pytest.param(
