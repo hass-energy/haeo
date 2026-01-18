@@ -202,9 +202,9 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
 
     def __init__(self, hass: HomeAssistant, config_entry: ConfigEntry) -> None:
         """Initialize the coordinator."""
-        # Network will be created in async_initialize()
-        # Typed as Network (not optional) since it's guaranteed to exist after initialization
-        # For tests that set it manually, or for lazy initialization fallback
+        # Network will be created in async_initialize().
+        # Typed as Network (not optional) since it's guaranteed to exist after initialization.
+        # Tests may set this manually before the first optimization.
         self.network: Network = None  # type: ignore[assignment]
 
         # Build participant configs and track subentry IDs
@@ -255,6 +255,11 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         self.network = await network_module.create_network(
             self.config_entry,
             periods_seconds=periods_seconds,
+            participants=loaded_configs,
+        )
+        await network_module.evaluate_network_connectivity(
+            self.hass,
+            self.config_entry,
             participants=loaded_configs,
         )
 
@@ -442,11 +447,11 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             raise ValueError(msg)
 
         # Get input field definitions for this element type
-        input_field_infos = get_input_fields(element_type)
+        input_field_infos = get_input_fields(element_config)
 
         # Collect loaded values from input entities
         loaded_values: dict[str, Any] = {}
-        for field_info in input_field_infos:
+        for field_info in input_field_infos.values():
             field_name = field_info.field_name
             key = (element_name, field_name)
 
@@ -532,9 +537,6 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             # This ensures debouncing works even if optimization takes a long time
             self._last_optimization_time = start_time
 
-            # Convert tier configuration to list of period durations in seconds
-            periods_seconds = tiers_to_periods_seconds(self.config_entry.data)
-
             # Get forecast timestamps from horizon manager
             runtime_data = self._get_runtime_data()
             if runtime_data is None:
@@ -549,17 +551,8 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
 
             _LOGGER.debug("Running optimization with %d participants", len(loaded_configs))
 
-            # Network should have been created in async_initialize()
-            # or set manually in tests - create lazily if needed (for test compatibility)
-            if not self.network:  # type: ignore[truthy-bool]
-                network = await network_module.create_network(
-                    self.config_entry,
-                    periods_seconds=periods_seconds,
-                    participants=loaded_configs,
-                )
-                self.network = network
-            else:
-                network = self.network
+            # Network should have been created in async_initialize() or set manually in tests.
+            network = self.network
 
             # Perform the optimization
             cost = await self.hass.async_add_executor_job(network.optimize)

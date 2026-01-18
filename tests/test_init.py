@@ -502,7 +502,6 @@ async def test_async_update_listener(
 
     # Mock the reload function
     reload_called = False
-    connectivity_called = False
     ensure_called = False
 
     async def mock_reload(entry_id: str) -> bool:
@@ -520,23 +519,11 @@ async def test_async_update_listener(
 
     monkeypatch.setattr("custom_components.haeo._ensure_required_subentries", mock_ensure)
 
-    async def mock_evaluate(hass_arg: HomeAssistant, entry_arg: ConfigEntry) -> None:
-        nonlocal connectivity_called
-        assert hass_arg is hass
-        assert entry_arg is mock_hub_entry
-        connectivity_called = True
-
-    monkeypatch.setattr(
-        "custom_components.haeo.coordinator.evaluate_network_connectivity",
-        mock_evaluate,
-    )
-
     # Call update listener
     await async_update_listener(hass, mock_hub_entry)
 
     # Verify reload was called
     assert reload_called
-    assert connectivity_called
     assert ensure_called
 
 

@@ -52,6 +52,11 @@ def number_field() -> InputFieldInfo[NumberEntityDescription]:
     )
 
 
+def _field_map(*fields: InputFieldInfo[Any]) -> dict[str, InputFieldInfo[Any]]:
+    """Build an input field mapping keyed by field name."""
+    return {field.field_name: field for field in fields}
+
+
 # --- Tests for boolean_selector_from_field ---
 
 
@@ -471,7 +476,7 @@ def test_convert_choose_data_constant_stored_directly(
     user_input: dict[str, Any] = {
         "test_field": 42.0,  # Raw value after ChooseSelector validation
     }
-    result = convert_choose_data_to_config(user_input, (number_field,))
+    result = convert_choose_data_to_config(user_input, _field_map(number_field))
     assert result["test_field"] == 42.0
 
 
@@ -485,7 +490,7 @@ def test_convert_choose_data_entity_single_stored_as_string(
     user_input: dict[str, Any] = {
         "test_field": ["sensor.power"],  # Raw list after ChooseSelector validation
     }
-    result = convert_choose_data_to_config(user_input, (number_field,))
+    result = convert_choose_data_to_config(user_input, _field_map(number_field))
     assert result["test_field"] == "sensor.power"
 
 
@@ -499,7 +504,7 @@ def test_convert_choose_data_entity_multiple_stored_as_list(
     user_input: dict[str, Any] = {
         "test_field": ["sensor.power1", "sensor.power2"],  # Raw list
     }
-    result = convert_choose_data_to_config(user_input, (number_field,))
+    result = convert_choose_data_to_config(user_input, _field_map(number_field))
     assert result["test_field"] == ["sensor.power1", "sensor.power2"]
 
 
@@ -510,7 +515,7 @@ def test_convert_choose_data_empty_value_omitted(
     user_input: dict[str, Any] = {
         "test_field": [],  # Empty list after ChooseSelector validation
     }
-    result = convert_choose_data_to_config(user_input, (number_field,))
+    result = convert_choose_data_to_config(user_input, _field_map(number_field))
     assert "test_field" not in result
 
 
@@ -521,7 +526,7 @@ def test_convert_choose_data_none_constant_omitted(
     user_input: dict[str, Any] = {
         "test_field": None,
     }
-    result = convert_choose_data_to_config(user_input, (number_field,))
+    result = convert_choose_data_to_config(user_input, _field_map(number_field))
     assert "test_field" not in result
 
 
@@ -533,7 +538,7 @@ def test_convert_choose_data_respects_exclude_keys(
         "name": "Test",
         "test_field": 42.0,  # Raw value
     }
-    result = convert_choose_data_to_config(user_input, (number_field,), exclude_keys=("name",))
+    result = convert_choose_data_to_config(user_input, _field_map(number_field), exclude_keys=("name",))
     assert "name" not in result
     assert result["test_field"] == 42.0
 
@@ -546,7 +551,7 @@ def test_convert_choose_data_ignores_unknown_fields(
         "test_field": 42.0,  # Raw value
         "unknown_field": 99.0,  # Not in input_fields
     }
-    result = convert_choose_data_to_config(user_input, (number_field,))
+    result = convert_choose_data_to_config(user_input, _field_map(number_field))
     assert "test_field" in result
     assert "unknown_field" not in result
 
@@ -567,7 +572,7 @@ def test_convert_choose_data_boolean_constant() -> None:
     user_input: dict[str, Any] = {
         "enabled": True,  # Raw boolean
     }
-    result = convert_choose_data_to_config(user_input, (field,))
+    result = convert_choose_data_to_config(user_input, _field_map(field))
     assert result["enabled"] is True
 
 
@@ -581,7 +586,7 @@ def test_convert_choose_data_none_omits_field(
     user_input: dict[str, Any] = {
         "test_field": None,  # None from preprocessing (originally "" from ConstantSelector)
     }
-    result = convert_choose_data_to_config(user_input, (number_field,))
+    result = convert_choose_data_to_config(user_input, _field_map(number_field))
     assert "test_field" not in result
 
 
@@ -778,7 +783,7 @@ def test_preprocess_choose_selector_input_none_returns_none(
     number_field: InputFieldInfo[NumberEntityDescription],
 ) -> None:
     """preprocess_choose_selector_input returns None when input is None."""
-    result = preprocess_choose_selector_input(None, (number_field,))
+    result = preprocess_choose_selector_input(None, _field_map(number_field))
     assert result is None
 
 
@@ -789,7 +794,7 @@ def test_preprocess_choose_selector_input_none_choice_returns_none(
     user_input = {
         "test_field": {"active_choice": "none", "constant": 100},
     }
-    result = preprocess_choose_selector_input(user_input, (number_field,))
+    result = preprocess_choose_selector_input(user_input, _field_map(number_field))
     assert result is not None
     assert result["test_field"] is None
 
@@ -801,7 +806,7 @@ def test_preprocess_choose_selector_input_entity_choice_extracts_entities(
     user_input = {
         "test_field": {"active_choice": "entity", "entity": ["sensor.power"]},
     }
-    result = preprocess_choose_selector_input(user_input, (number_field,))
+    result = preprocess_choose_selector_input(user_input, _field_map(number_field))
     assert result is not None
     assert result["test_field"] == ["sensor.power"]
 
@@ -813,7 +818,7 @@ def test_preprocess_choose_selector_input_constant_choice_extracts_value(
     user_input = {
         "test_field": {"active_choice": "constant", "constant": 42.5},
     }
-    result = preprocess_choose_selector_input(user_input, (number_field,))
+    result = preprocess_choose_selector_input(user_input, _field_map(number_field))
     assert result is not None
     assert result["test_field"] == 42.5
 
@@ -824,19 +829,19 @@ def test_preprocess_choose_selector_input_already_normalized_passthrough(
     """preprocess_choose_selector_input passes through already-normalized data."""
     # Already normalized entity list
     user_input_entity = {"test_field": ["sensor.power"]}
-    result = preprocess_choose_selector_input(user_input_entity, (number_field,))
+    result = preprocess_choose_selector_input(user_input_entity, _field_map(number_field))
     assert result is not None
     assert result["test_field"] == ["sensor.power"]
 
     # Already normalized constant
     user_input_constant = {"test_field": 50.0}
-    result = preprocess_choose_selector_input(user_input_constant, (number_field,))
+    result = preprocess_choose_selector_input(user_input_constant, _field_map(number_field))
     assert result is not None
     assert result["test_field"] == 50.0
 
     # Empty string (from ConstantSelector) is converted to None
     user_input_none = {"test_field": ""}
-    result = preprocess_choose_selector_input(user_input_none, (number_field,))
+    result = preprocess_choose_selector_input(user_input_none, _field_map(number_field))
     assert result is not None
     assert result["test_field"] is None
 
@@ -850,7 +855,7 @@ def test_preprocess_choose_selector_input_ignores_non_field_keys(
         "name": "Test Name",  # Not in input_fields, should pass through unchanged
         "other_field": {"active_choice": "none"},  # Not in input_fields
     }
-    result = preprocess_choose_selector_input(user_input, (number_field,))
+    result = preprocess_choose_selector_input(user_input, _field_map(number_field))
     assert result is not None
     assert result["test_field"] is None  # Converted to None
     assert result["name"] == "Test Name"
@@ -865,7 +870,7 @@ def test_preprocess_choose_selector_input_entity_choice_empty_list(
     user_input = {
         "test_field": {"active_choice": "entity"},  # No entity key
     }
-    result = preprocess_choose_selector_input(user_input, (number_field,))
+    result = preprocess_choose_selector_input(user_input, _field_map(number_field))
     assert result is not None
     assert result["test_field"] == []
 
@@ -920,7 +925,7 @@ def test_validate_choose_fields_returns_empty_for_valid_input(
 ) -> None:
     """validate_choose_fields returns empty dict when all required fields are valid."""
     user_input = {"test_field": 42.0}
-    result = validate_choose_fields(user_input, (number_field,), frozenset())
+    result = validate_choose_fields(user_input, _field_map(number_field), frozenset())
     assert result == {}
 
 
@@ -929,7 +934,7 @@ def test_validate_choose_fields_returns_error_for_invalid_required(
 ) -> None:
     """validate_choose_fields returns error for invalid required field."""
     user_input = {"test_field": None}
-    result = validate_choose_fields(user_input, (number_field,), frozenset())
+    result = validate_choose_fields(user_input, _field_map(number_field), frozenset())
     assert result == {"test_field": "required"}
 
 
@@ -939,7 +944,7 @@ def test_validate_choose_fields_skips_optional_fields(
     """validate_choose_fields skips fields in optional_keys."""
     user_input = {"test_field": None}
     # Mark test_field as optional
-    result = validate_choose_fields(user_input, (number_field,), frozenset({"test_field"}))
+    result = validate_choose_fields(user_input, _field_map(number_field), frozenset({"test_field"}))
     assert result == {}
 
 
@@ -948,7 +953,12 @@ def test_validate_choose_fields_skips_excluded_fields(
 ) -> None:
     """validate_choose_fields skips fields in exclude_fields."""
     user_input = {"test_field": None}
-    result = validate_choose_fields(user_input, (number_field,), frozenset(), exclude_fields=("test_field",))
+    result = validate_choose_fields(
+        user_input,
+        _field_map(number_field),
+        frozenset(),
+        exclude_fields=("test_field",),
+    )
     assert result == {}
 
 

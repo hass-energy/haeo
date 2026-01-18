@@ -8,20 +8,11 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 
 from custom_components.haeo.const import CONF_ELEMENT_TYPE
-from custom_components.haeo.elements import (
-    ELEMENT_TYPE_CONNECTION,
-    ELEMENT_TYPES,
-    ElementConfigData,
-    ElementConfigSchema,
-)
+from custom_components.haeo.elements import ELEMENT_TYPE_CONNECTION, ELEMENT_TYPES, ElementConfigData
 from custom_components.haeo.model import Network
 from custom_components.haeo.model.elements import ModelElementConfig
 from custom_components.haeo.repairs import create_disconnected_network_issue, dismiss_disconnected_network_issue
-from custom_components.haeo.validation import (
-    collect_participant_configs,
-    format_component_summary,
-    validate_network_topology,
-)
+from custom_components.haeo.validation import format_component_summary, validate_network_topology
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -97,12 +88,10 @@ async def evaluate_network_connectivity(
     hass: HomeAssistant,
     entry: ConfigEntry,
     *,
-    participant_configs: Mapping[str, ElementConfigSchema] | None = None,
+    participants: Mapping[str, ElementConfigData],
 ) -> None:
     """Validate the network connectivity for an entry and manage repair issues."""
-
-    participants = dict(participant_configs) if participant_configs is not None else collect_participant_configs(entry)
-    result = await validate_network_topology(hass, participants, entry)
+    result = validate_network_topology(participants)
 
     if result.is_connected:
         dismiss_disconnected_network_issue(hass, entry.entry_id)

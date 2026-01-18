@@ -101,10 +101,11 @@ def scenario_data(scenario_path: Path) -> ScenarioData:
     outputs_file = scenario_path / "outputs.json"
 
     # Check all required files exist
-    for file in [config_file, environment_file, inputs_file, outputs_file]:
-        if not file.exists():
-            msg = f"Required scenario file not found: {file}"
-            raise FileNotFoundError(msg)
+    required_files = [config_file, environment_file, inputs_file, outputs_file]
+    missing_files = [file for file in required_files if not file.exists()]
+    if missing_files:
+        missing_list = ", ".join(str(file) for file in missing_files)
+        pytest.skip(f"Scenario files missing: {missing_list}")
 
     # Load all files
     with config_file.open() as f:

@@ -1,20 +1,22 @@
 """Battery section element adapter for model layer integration."""
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping
 from dataclasses import replace
 from typing import Any, Final, Literal
 
+from homeassistant.components.number import NumberDeviceClass, NumberEntityDescription
+from homeassistant.const import UnitOfEnergy
 from homeassistant.core import HomeAssistant
 
 from custom_components.haeo.const import ConnectivityLevel
 from custom_components.haeo.data.loader import TimeSeriesLoader
+from custom_components.haeo.elements.input_fields import InputFieldInfo
 from custom_components.haeo.model import ModelElementConfig, ModelOutputName
 from custom_components.haeo.model import battery as model_battery
 from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_BATTERY
 from custom_components.haeo.model.output_data import OutputData
 
-from .flow import BatterySectionSubentryFlowHandler
 from .schema import (
     CONF_CAPACITY,
     CONF_INITIAL_CHARGE,
@@ -60,7 +62,6 @@ class BatterySectionAdapter:
     """Adapter for Battery Section elements."""
 
     element_type: str = ELEMENT_TYPE
-    flow_class: type = BatterySectionSubentryFlowHandler
     advanced: bool = True
     connectivity: ConnectivityLevel = ConnectivityLevel.ADVANCED
 
@@ -72,6 +73,40 @@ class BatterySectionAdapter:
         required_fields = [CONF_CAPACITY, CONF_INITIAL_CHARGE]
         return all(ts_loader.available(hass=hass, value=config[field]) for field in required_fields)
 
+    def inputs(self, config: Any) -> dict[str, InputFieldInfo[Any]]:
+        """Return input field definitions for battery section elements."""
+        _ = config
+        return {
+            CONF_CAPACITY: InputFieldInfo(
+                field_name=CONF_CAPACITY,
+                entity_description=NumberEntityDescription(
+                    key=CONF_CAPACITY,
+                    translation_key=f"{ELEMENT_TYPE}_{CONF_CAPACITY}",
+                    native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
+                    device_class=NumberDeviceClass.ENERGY_STORAGE,
+                    native_min_value=0.1,
+                    native_max_value=1000.0,
+                    native_step=0.1,
+                ),
+                output_type=OutputType.ENERGY,
+                time_series=True,
+            ),
+            CONF_INITIAL_CHARGE: InputFieldInfo(
+                field_name=CONF_INITIAL_CHARGE,
+                entity_description=NumberEntityDescription(
+                    key=CONF_INITIAL_CHARGE,
+                    translation_key=f"{ELEMENT_TYPE}_{CONF_INITIAL_CHARGE}",
+                    native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
+                    device_class=NumberDeviceClass.ENERGY_STORAGE,
+                    native_min_value=0.0,
+                    native_max_value=1000.0,
+                    native_step=0.1,
+                ),
+                output_type=OutputType.ENERGY,
+                time_series=True,
+            ),
+        }
+
     def build_config_data(
         self,
         loaded_values: Mapping[str, Any],
@@ -80,10 +115,10 @@ class BatterySectionAdapter:
         """Build ConfigData from pre-loaded values.
 
         This is the single source of truth for ConfigData construction.
-        Both load() and the coordinator use this method.
+        The coordinator uses this method after loading input entity values.
 
         Args:
-            loaded_values: Dict of field names to loaded values (from input entities or TimeSeriesLoader)
+            loaded_values: Dict of field names to loaded values (from input entities)
             config: Original ConfigSchema for non-input fields (element_type, name)
 
         Returns:
@@ -96,29 +131,6 @@ class BatterySectionAdapter:
             "capacity": list(loaded_values[CONF_CAPACITY]),
             "initial_charge": list(loaded_values[CONF_INITIAL_CHARGE]),
         }
-
-    async def load(
-        self,
-        config: BatterySectionConfigSchema,
-        *,
-        hass: HomeAssistant,
-        forecast_times: Sequence[float],
-    ) -> BatterySectionConfigData:
-        """Load battery section configuration values from sensors.
-
-        Uses TimeSeriesLoader to load values, then delegates to build_config_data().
-        """
-        ts_loader = TimeSeriesLoader()
-        loaded_values: dict[str, list[float]] = {}
-
-        loaded_values[CONF_CAPACITY] = await ts_loader.load_boundaries(
-            hass=hass, value=config[CONF_CAPACITY], forecast_times=forecast_times
-        )
-        loaded_values[CONF_INITIAL_CHARGE] = await ts_loader.load_intervals(
-            hass=hass, value=config[CONF_INITIAL_CHARGE], forecast_times=forecast_times
-        )
-
-        return self.build_config_data(loaded_values, config)
 
     def model_elements(self, config: BatterySectionConfigData) -> list[ModelElementConfig]:
         """Create model elements for BatterySection configuration.
