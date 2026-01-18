@@ -1,6 +1,5 @@
-"""Tests for solar adapter build_config_data() and available() functions."""
+"""Tests for solar adapter availability checks."""
 
-import numpy as np
 from homeassistant.core import HomeAssistant
 
 from custom_components.haeo.elements import solar
@@ -36,49 +35,3 @@ async def test_available_returns_false_when_forecast_sensor_missing(hass: HomeAs
 
     result = solar.adapter.available(config, hass=hass)
     assert result is False
-
-
-def test_build_config_data_returns_config_data() -> None:
-    """build_config_data() should return ConfigData with loaded values."""
-    config: solar.SolarConfigSchema = {
-        "element_type": "solar",
-        "name": "test_solar",
-        "connection": "dc_bus",
-        "forecast": ["sensor.forecast"],
-        "curtailment": True,
-    }
-    loaded_values = {
-        "forecast": [5.0],
-        "curtailment": True,
-    }
-
-    result = solar.adapter.build_config_data(loaded_values, config)
-
-    assert result["element_type"] == "solar"
-    assert result["name"] == "test_solar"
-    np.testing.assert_array_equal(result["forecast"], [5.0])
-    assert result.get("curtailment") is True
-
-
-def test_build_config_data_includes_optional_fields() -> None:
-    """build_config_data() should include optional fields when provided."""
-    config: solar.SolarConfigSchema = {
-        "element_type": "solar",
-        "name": "test_solar",
-        "connection": "dc_bus",
-        "forecast": ["sensor.forecast"],
-        "price_production": ["sensor.price"],
-        "curtailment": False,
-    }
-    loaded_values = {
-        "forecast": [5.0],
-        "price_production": [0.02],
-        "curtailment": False,
-    }
-
-    result = solar.adapter.build_config_data(loaded_values, config)
-
-    price_production = result.get("price_production")
-    assert price_production is not None
-    np.testing.assert_array_equal(price_production, [0.02])
-    assert result.get("curtailment") is False

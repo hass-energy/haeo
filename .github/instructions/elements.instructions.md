@@ -25,7 +25,7 @@ elements/battery/
 ├── __init__.py      # Public exports
 ├── schema.py        # ConfigSchema, ConfigData TypedDicts, DEFAULTS dict
 ├── flow.py          # Config flow implementation
-└── adapter.py       # available(), inputs(), build_config_data(), model_elements(), outputs()
+└── adapter.py       # available(), inputs(), model_elements(), outputs()
 ```
 
 ## Schema module (`schema.py`)
@@ -60,7 +60,7 @@ class BatteryConfigData(TypedDict):
     element_type: Literal["battery"]
     name: str
     capacity: list[float]  # Loaded kWh values
-    efficiency: float  # Default applied during build_config_data
+    efficiency: NotRequired[float]  # Default applied during model_elements
 ```
 
 **Important**: Do not put numeric values in comments (e.g., "Default 99%").
@@ -94,7 +94,6 @@ Contains key functions:
 
 - **`available()`**: Check if config can be loaded (sensors exist)
 - **`inputs()`**: Define input fields for entity creation and loading
-- **`build_config_data()`**: Build ConfigData from loaded values and apply defaults
 - **`model_elements()`**: Transform ConfigData into model params
 - **`outputs()`**: Map model outputs to device sensors
 
@@ -115,7 +114,7 @@ ELEMENT_TYPES: dict[ElementType, ElementAdapter] = {
 1. Create element subfolder with `__init__.py`, `schema.py`, `flow.py`, `adapter.py`
 2. Define Schema and Data TypedDicts in `schema.py` with DEFAULTS dict for optional fields
 3. Implement config flow in `flow.py` using DEFAULTS for suggested values
-4. Implement `available()`, `inputs()`, `build_config_data()`, `model_elements()`, `outputs()` in `adapter.py`
+4. Implement `available()`, `inputs()`, `model_elements()`, `outputs()` in `adapter.py`
 5. Register `ElementAdapter` instance in `ELEMENT_TYPES` in `elements/__init__.py`
 6. Add flow test data in `tests/flows/test_data/{element_type}.py`
 7. Add element tests in `tests/elements/{element_type}/` with `test_adapter.py`, `test_flow.py`, `test_model.py`

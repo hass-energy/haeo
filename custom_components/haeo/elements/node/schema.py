@@ -34,5 +34,5 @@ class NodeConfigData(TypedDict):
 
     element_type: Literal["node"]
     name: str
-    is_source: bool
-    is_sink: bool
+    is_source: NotRequired[bool]
+    is_sink: NotRequired[bool]

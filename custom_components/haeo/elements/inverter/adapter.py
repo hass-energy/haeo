@@ -7,7 +7,6 @@ from typing import Any, Final, Literal
 from homeassistant.components.number import NumberDeviceClass, NumberEntityDescription
 from homeassistant.const import PERCENTAGE, UnitOfPower
 from homeassistant.core import HomeAssistant
-import numpy as np
 
 from custom_components.haeo.const import ConnectivityLevel
 from custom_components.haeo.data.loader import TimeSeriesLoader
@@ -15,9 +14,9 @@ from custom_components.haeo.elements.input_fields import InputFieldDefaults, Inp
 from custom_components.haeo.model import ModelElementConfig, ModelOutputName
 from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.elements import (
-    ConnectionElementConfig,
     MODEL_ELEMENT_TYPE_CONNECTION,
     MODEL_ELEMENT_TYPE_NODE,
+    ConnectionElementConfig,
     NodeElementConfig,
 )
 from custom_components.haeo.model.elements.node import NODE_POWER_BALANCE
@@ -30,7 +29,6 @@ from custom_components.haeo.model.elements.power_connection import (
 from custom_components.haeo.model.output_data import OutputData
 
 from .schema import (
-    CONF_CONNECTION,
     CONF_EFFICIENCY_AC_TO_DC,
     CONF_EFFICIENCY_DC_TO_AC,
     CONF_MAX_POWER_AC_TO_DC,
@@ -144,40 +142,6 @@ class InverterAdapter:
                 defaults=InputFieldDefaults(mode=None, value=100.0),
             ),
         }
-
-    def build_config_data(
-        self,
-        loaded_values: Mapping[str, Any],
-        config: InverterConfigSchema,
-    ) -> InverterConfigData:
-        """Build ConfigData from pre-loaded values.
-
-        This is the single source of truth for ConfigData construction.
-        Both load() and the coordinator use this method.
-
-        Args:
-            loaded_values: Dict of field names to loaded values (from input entities or TimeSeriesLoader)
-            config: Original ConfigSchema for non-input fields (element_type, name, connection)
-
-        Returns:
-            InverterConfigData with all fields populated
-
-        """
-        data: InverterConfigData = {
-            "element_type": config["element_type"],
-            "name": config["name"],
-            "connection": config[CONF_CONNECTION],
-            "max_power_dc_to_ac": np.asarray(loaded_values[CONF_MAX_POWER_DC_TO_AC], dtype=float),
-            "max_power_ac_to_dc": np.asarray(loaded_values[CONF_MAX_POWER_AC_TO_DC], dtype=float),
-        }
-
-        # Optional efficiency fields
-        if CONF_EFFICIENCY_DC_TO_AC in loaded_values:
-            data["efficiency_dc_to_ac"] = np.asarray(loaded_values[CONF_EFFICIENCY_DC_TO_AC], dtype=float)
-        if CONF_EFFICIENCY_AC_TO_DC in loaded_values:
-            data["efficiency_ac_to_dc"] = np.asarray(loaded_values[CONF_EFFICIENCY_AC_TO_DC], dtype=float)
-
-        return data
 
     def model_elements(self, config: InverterConfigData) -> list[ModelElementConfig]:
         """Return model element parameters for Inverter configuration.

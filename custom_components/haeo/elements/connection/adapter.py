@@ -7,14 +7,13 @@ from typing import Any, Final, Literal
 from homeassistant.components.number import NumberDeviceClass, NumberEntityDescription
 from homeassistant.const import PERCENTAGE, UnitOfPower
 from homeassistant.core import HomeAssistant
-import numpy as np
 
 from custom_components.haeo.const import ConnectivityLevel
 from custom_components.haeo.data.loader import TimeSeriesLoader
 from custom_components.haeo.elements.input_fields import InputFieldInfo
 from custom_components.haeo.model import ModelElementConfig, ModelOutputName
 from custom_components.haeo.model.const import OutputType
-from custom_components.haeo.model.elements import ConnectionElementConfig, MODEL_ELEMENT_TYPE_CONNECTION
+from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, ConnectionElementConfig
 from custom_components.haeo.model.elements.power_connection import (
     CONNECTION_POWER_SOURCE_TARGET,
     CONNECTION_POWER_TARGET_SOURCE,
@@ -33,8 +32,6 @@ from .schema import (
     CONF_MAX_POWER_TARGET_SOURCE,
     CONF_PRICE_SOURCE_TARGET,
     CONF_PRICE_TARGET_SOURCE,
-    CONF_SOURCE,
-    CONF_TARGET,
     ELEMENT_TYPE,
     ConnectionConfigData,
     ConnectionConfigSchema,
@@ -174,47 +171,6 @@ class ConnectionAdapter:
                 time_series=True,
             ),
         }
-
-    def build_config_data(
-        self,
-        loaded_values: Mapping[str, Any],
-        config: ConnectionConfigSchema,
-    ) -> ConnectionConfigData:
-        """Build ConfigData from pre-loaded values.
-
-        This is the single source of truth for ConfigData construction.
-        Both load() and the coordinator use this method.
-
-        Args:
-            loaded_values: Dict of field names to loaded values (from input entities or TimeSeriesLoader)
-            config: Original ConfigSchema for non-input fields (element_type, name, source, target)
-
-        Returns:
-            ConnectionConfigData with all fields populated
-
-        """
-        data: ConnectionConfigData = {
-            "element_type": config["element_type"],
-            "name": config["name"],
-            "source": config[CONF_SOURCE],
-            "target": config[CONF_TARGET],
-        }
-
-        # Optional time series fields
-        if CONF_MAX_POWER_SOURCE_TARGET in loaded_values:
-            data["max_power_source_target"] = np.asarray(loaded_values[CONF_MAX_POWER_SOURCE_TARGET], dtype=float)
-        if CONF_MAX_POWER_TARGET_SOURCE in loaded_values:
-            data["max_power_target_source"] = np.asarray(loaded_values[CONF_MAX_POWER_TARGET_SOURCE], dtype=float)
-        if CONF_EFFICIENCY_SOURCE_TARGET in loaded_values:
-            data["efficiency_source_target"] = np.asarray(loaded_values[CONF_EFFICIENCY_SOURCE_TARGET], dtype=float)
-        if CONF_EFFICIENCY_TARGET_SOURCE in loaded_values:
-            data["efficiency_target_source"] = np.asarray(loaded_values[CONF_EFFICIENCY_TARGET_SOURCE], dtype=float)
-        if CONF_PRICE_SOURCE_TARGET in loaded_values:
-            data["price_source_target"] = np.asarray(loaded_values[CONF_PRICE_SOURCE_TARGET], dtype=float)
-        if CONF_PRICE_TARGET_SOURCE in loaded_values:
-            data["price_target_source"] = np.asarray(loaded_values[CONF_PRICE_TARGET_SOURCE], dtype=float)
-
-        return data
 
     def model_elements(self, config: ConnectionConfigData) -> list[ModelElementConfig]:
         """Return model element parameters for Connection configuration."""

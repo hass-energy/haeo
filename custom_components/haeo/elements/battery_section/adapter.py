@@ -7,7 +7,6 @@ from typing import Any, Final, Literal
 from homeassistant.components.number import NumberDeviceClass, NumberEntityDescription
 from homeassistant.const import UnitOfEnergy
 from homeassistant.core import HomeAssistant
-import numpy as np
 
 from custom_components.haeo.const import ConnectivityLevel
 from custom_components.haeo.data.loader import TimeSeriesLoader
@@ -106,31 +105,6 @@ class BatterySectionAdapter:
                 output_type=OutputType.ENERGY,
                 time_series=True,
             ),
-        }
-
-    def build_config_data(
-        self,
-        loaded_values: Mapping[str, Any],
-        config: BatterySectionConfigSchema,
-    ) -> BatterySectionConfigData:
-        """Build ConfigData from pre-loaded values.
-
-        This is the single source of truth for ConfigData construction.
-        The coordinator uses this method after loading input entity values.
-
-        Args:
-            loaded_values: Dict of field names to loaded values (from input entities)
-            config: Original ConfigSchema for non-input fields (element_type, name)
-
-        Returns:
-            BatterySectionConfigData with all fields populated
-
-        """
-        return {
-            "element_type": config["element_type"],
-            "name": config["name"],
-            "capacity": np.asarray(loaded_values[CONF_CAPACITY], dtype=float),
-            "initial_charge": np.asarray(loaded_values[CONF_INITIAL_CHARGE], dtype=float),
         }
 
     def model_elements(self, config: BatterySectionConfigData) -> list[ModelElementConfig]:

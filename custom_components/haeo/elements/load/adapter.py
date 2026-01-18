@@ -7,7 +7,6 @@ from typing import Any, Final, Literal
 from homeassistant.components.number import NumberDeviceClass, NumberEntityDescription
 from homeassistant.const import UnitOfPower
 from homeassistant.core import HomeAssistant
-import numpy as np
 
 from custom_components.haeo.const import ConnectivityLevel
 from custom_components.haeo.data.loader import TimeSeriesLoader
@@ -15,9 +14,9 @@ from custom_components.haeo.elements.input_fields import InputFieldInfo
 from custom_components.haeo.model import ModelElementConfig, ModelOutputName
 from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.elements import (
-    ConnectionElementConfig,
     MODEL_ELEMENT_TYPE_CONNECTION,
     MODEL_ELEMENT_TYPE_NODE,
+    ConnectionElementConfig,
     NodeElementConfig,
 )
 from custom_components.haeo.model.elements.power_connection import (
@@ -26,7 +25,7 @@ from custom_components.haeo.model.elements.power_connection import (
 )
 from custom_components.haeo.model.output_data import OutputData
 
-from .schema import CONF_CONNECTION, CONF_FORECAST, ELEMENT_TYPE, LoadConfigData, LoadConfigSchema
+from .schema import CONF_FORECAST, ELEMENT_TYPE, LoadConfigData, LoadConfigSchema
 
 # Load output names
 type LoadOutputName = Literal[
@@ -80,31 +79,6 @@ class LoadAdapter:
                 direction="+",
                 time_series=True,
             )
-        }
-
-    def build_config_data(
-        self,
-        loaded_values: Mapping[str, Any],
-        config: LoadConfigSchema,
-    ) -> LoadConfigData:
-        """Build ConfigData from pre-loaded values.
-
-        This is the single source of truth for ConfigData construction.
-        Both load() and the coordinator use this method.
-
-        Args:
-            loaded_values: Dict of field names to loaded values (from input entities or TimeSeriesLoader)
-            config: Original ConfigSchema for non-input fields (element_type, name, connection)
-
-        Returns:
-            LoadConfigData with all fields populated
-
-        """
-        return {
-            "element_type": config["element_type"],
-            "name": config["name"],
-            "connection": config[CONF_CONNECTION],
-            "forecast": np.asarray(loaded_values[CONF_FORECAST], dtype=float),
         }
 
     def model_elements(self, config: LoadConfigData) -> list[ModelElementConfig]:

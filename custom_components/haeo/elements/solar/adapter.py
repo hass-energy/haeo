@@ -8,7 +8,6 @@ from homeassistant.components.number import NumberDeviceClass, NumberEntityDescr
 from homeassistant.components.switch import SwitchEntityDescription
 from homeassistant.const import UnitOfPower
 from homeassistant.core import HomeAssistant
-import numpy as np
 
 from custom_components.haeo.const import ConnectivityLevel
 from custom_components.haeo.data.loader import TimeSeriesLoader
@@ -16,9 +15,9 @@ from custom_components.haeo.elements.input_fields import InputFieldDefaults, Inp
 from custom_components.haeo.model import ModelElementConfig, ModelOutputName
 from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.elements import (
-    ConnectionElementConfig,
     MODEL_ELEMENT_TYPE_CONNECTION,
     MODEL_ELEMENT_TYPE_NODE,
+    ConnectionElementConfig,
     NodeElementConfig,
 )
 from custom_components.haeo.model.elements.power_connection import (
@@ -28,7 +27,6 @@ from custom_components.haeo.model.elements.power_connection import (
 from custom_components.haeo.model.output_data import OutputData
 
 from .schema import (
-    CONF_CONNECTION,
     CONF_CURTAILMENT,
     CONF_FORECAST,
     CONF_PRICE_PRODUCTION,
@@ -118,39 +116,6 @@ class SolarAdapter:
                 force_required=True,
             ),
         }
-
-    def build_config_data(
-        self,
-        loaded_values: Mapping[str, Any],
-        config: SolarConfigSchema,
-    ) -> SolarConfigData:
-        """Build ConfigData from pre-loaded values.
-
-        This is the single source of truth for ConfigData construction.
-        Both load() and the coordinator use this method.
-
-        Args:
-            loaded_values: Dict of field names to loaded values (from input entities or TimeSeriesLoader)
-            config: Original ConfigSchema for non-input fields (element_type, name, connection)
-
-        Returns:
-            SolarConfigData with all fields populated
-
-        """
-        data: SolarConfigData = {
-            "element_type": config["element_type"],
-            "name": config["name"],
-            "connection": config[CONF_CONNECTION],
-            "forecast": np.asarray(loaded_values[CONF_FORECAST], dtype=float),
-        }
-
-        # Optional fields
-        if CONF_PRICE_PRODUCTION in loaded_values:
-            data["price_production"] = np.asarray(loaded_values[CONF_PRICE_PRODUCTION], dtype=float)
-        if CONF_CURTAILMENT in loaded_values:
-            data["curtailment"] = bool(loaded_values[CONF_CURTAILMENT])
-
-        return data
 
     def model_elements(self, config: SolarConfigData) -> list[ModelElementConfig]:
         """Return model element parameters for Solar configuration."""

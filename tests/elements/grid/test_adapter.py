@@ -1,6 +1,5 @@
-"""Tests for grid adapter build_config_data() and available() functions."""
+"""Tests for grid adapter availability checks."""
 
-import numpy as np
 from homeassistant.core import HomeAssistant
 
 from custom_components.haeo.elements import grid
@@ -58,54 +57,6 @@ async def test_available_returns_false_when_export_price_missing(hass: HomeAssis
 
     result = grid.adapter.available(config, hass=hass)
     assert result is False
-
-
-def test_build_config_data_returns_config_data() -> None:
-    """build_config_data() should return ConfigData with loaded values."""
-    config: grid.GridConfigSchema = {
-        "element_type": "grid",
-        "name": "test_grid",
-        "connection": "main_bus",
-        "import_price": ["sensor.import_price"],
-        "export_price": ["sensor.export_price"],
-    }
-    loaded_values = {
-        "import_price": [0.30, 0.30],
-        "export_price": [0.05, 0.05],
-    }
-
-    result = grid.adapter.build_config_data(loaded_values, config)
-
-    assert result["element_type"] == "grid"
-    assert result["name"] == "test_grid"
-    np.testing.assert_array_equal(result["import_price"], [0.30, 0.30])
-    np.testing.assert_array_equal(result["export_price"], [0.05, 0.05])
-
-
-def test_build_config_data_includes_optional_limits() -> None:
-    """build_config_data() should include optional limit fields when provided."""
-    config: grid.GridConfigSchema = {
-        "element_type": "grid",
-        "name": "test_grid",
-        "connection": "main_bus",
-        "import_price": ["sensor.import_price"],
-        "export_price": ["sensor.export_price"],
-    }
-    loaded_values = {
-        "import_price": [0.30, 0.30],
-        "export_price": [0.05, 0.05],
-        "import_limit": [10.0, 10.0],
-        "export_limit": [5.0, 5.0],
-    }
-
-    result = grid.adapter.build_config_data(loaded_values, config)
-
-    import_limit = result.get("import_limit")
-    assert import_limit is not None
-    np.testing.assert_array_equal(import_limit, [10.0, 10.0])
-    export_limit = result.get("export_limit")
-    assert export_limit is not None
-    np.testing.assert_array_equal(export_limit, [5.0, 5.0])
 
 
 async def test_available_with_constant_prices(hass: HomeAssistant) -> None:
