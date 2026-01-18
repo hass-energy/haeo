@@ -188,8 +188,8 @@ def test_sum_output_data_sums_multiple_outputs() -> None:
     assert result.advanced is False
 
 
-def test_model_elements_applies_defaults_for_limits_and_efficiency() -> None:
-    """model_elements() should apply defaults for limits and efficiency."""
+def test_model_elements_omits_efficiency_when_missing() -> None:
+    """model_elements() should leave efficiency to model defaults when missing."""
     config_data: battery.BatteryConfigData = {
         "element_type": "battery",
         "name": "test_battery",
@@ -204,9 +204,5 @@ def test_model_elements_applies_defaults_for_limits_and_efficiency() -> None:
     np.testing.assert_array_equal(normal_section["capacity"], [10.0, 10.0, 10.0])
 
     connection = next(element for element in elements if element["element_type"] == "connection" and element["name"] == "test_battery:connection")
-    efficiency_source_target = connection.get("efficiency_source_target")
-    assert efficiency_source_target is not None
-    np.testing.assert_array_equal(efficiency_source_target, [99.0, 99.0])
-    efficiency_target_source = connection.get("efficiency_target_source")
-    assert efficiency_target_source is not None
-    np.testing.assert_array_equal(efficiency_target_source, [99.0, 99.0])
+    assert "efficiency_source_target" not in connection
+    assert "efficiency_target_source" not in connection

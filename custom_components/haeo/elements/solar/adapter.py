@@ -30,12 +30,6 @@ from .schema import (
     SolarConfigSchema,
 )
 
-# Default values for optional fields applied by adapter
-DEFAULTS: Final[dict[str, bool | float]] = {
-    CONF_CURTAILMENT: True,  # Allow curtailment by default
-    CONF_PRICE_PRODUCTION: 0.0,  # No production incentive
-}
-
 # Solar output names
 type SolarOutputName = Literal[
     "solar_power",
@@ -114,24 +108,27 @@ class SolarAdapter:
 
     def model_elements(self, config: SolarConfigData) -> list[ModelElementConfig]:
         """Return model element parameters for Solar configuration."""
-        return [
-            {
-                "element_type": MODEL_ELEMENT_TYPE_NODE,
-                "name": config["name"],
-                "is_source": True,
-                "is_sink": False,
-            },
-            {
-                "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
-                "name": f"{config['name']}:connection",
-                "source": config["name"],
-                "target": config["connection"],
-                "max_power_source_target": config["forecast"],
-                "max_power_target_source": 0.0,
-                "fixed_power": not config.get("curtailment", DEFAULTS[CONF_CURTAILMENT]),
-                "price_source_target": config.get("price_production"),
-            },
-        ]
+        curtailment = config.get("curtailment")
+
+        node_config: ModelElementConfig = {
+            "element_type": MODEL_ELEMENT_TYPE_NODE,
+            "name": config["name"],
+            "is_source": True,
+            "is_sink": False,
+        }
+        connection_config: ModelElementConfig = {
+            "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
+            "name": f"{config['name']}:connection",
+            "source": config["name"],
+            "target": config["connection"],
+            "max_power_source_target": config["forecast"],
+            "max_power_target_source": 0.0,
+            "price_source_target": config.get("price_production"),
+        }
+        if curtailment is not None:
+            connection_config["fixed_power"] = not curtailment
+
+        return [node_config, connection_config]
 
     def outputs(
         self,

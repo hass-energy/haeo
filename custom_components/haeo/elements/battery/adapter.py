@@ -52,7 +52,6 @@ from .schema import (
 DEFAULTS: Final[dict[str, float]] = {
     CONF_MIN_CHARGE_PERCENTAGE: 0.0,
     CONF_MAX_CHARGE_PERCENTAGE: 100.0,
-    CONF_EFFICIENCY: 99.0,
     CONF_EARLY_CHARGE_INCENTIVE: 0.001,
 }
 
@@ -383,9 +382,7 @@ class BatteryAdapter:
             max_charge_percentage = np.asarray(max_charge_percentage, dtype=float)
 
         efficiency_values = config.get(CONF_EFFICIENCY)
-        if efficiency_values is None:
-            efficiency_values = np.full(n_periods, DEFAULTS[CONF_EFFICIENCY], dtype=float)
-        else:
+        if efficiency_values is not None:
             efficiency_values = np.asarray(efficiency_values, dtype=float)
 
         min_ratio_array = min_charge_percentage / 100.0
@@ -566,11 +563,12 @@ class BatteryAdapter:
             "max_power_source_target": max_discharge,
             "max_power_target_source": max_charge,
             # Node to network (discharge), network to node (charge)
-            "efficiency_source_target": efficiency_values,
-            "efficiency_target_source": efficiency_values,
             "price_source_target": discharge_costs,
             "price_target_source": charge_early_incentive,
         }
+        if efficiency_values is not None:
+            connection_config["efficiency_source_target"] = efficiency_values
+            connection_config["efficiency_target_source"] = efficiency_values
         elements.append(connection_config)
 
         return elements
