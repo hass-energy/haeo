@@ -281,6 +281,38 @@ def test_calculate_worst_case_total_steps() -> None:
     assert total_steps >= 100
 
 
+def test_alignment_no_extra_steps() -> None:
+    """Test alignment when extra_steps <= 0 (no variance absorption needed).
+
+    This tests the case where remaining_steps <= base_t4_steps, meaning
+    T4 can be covered entirely with 60-min periods without needing 30-min
+    variance absorption.
+    """
+    # Start aligned on the hour for predictable T1/T2/T3 counts
+    start_time = datetime(2025, 1, 1, 12, 0, 0, tzinfo=UTC)
+    tier_durations = (1, 5, 30, 60)
+    min_counts = (5, 6, 4)
+    horizon_minutes = 2 * 24 * 60  # 2 days
+
+    # With alignment at :00, T1=5, T2=11, T3=4 (used_steps=20).
+    # Remaining duration is 2700 min, needing 45 base T4 steps.
+    # Setting total_steps=65 gives remaining_steps=45, so extra_steps=0.
+    total_steps = 65
+
+    periods_seconds, tier_counts = calculate_aligned_tier_counts(
+        start_time=start_time,
+        tier_durations=tier_durations,
+        min_counts=min_counts,
+        total_steps=total_steps,
+        horizon_minutes=horizon_minutes,
+    )
+
+    # Verify we got results
+    assert len(periods_seconds) == sum(tier_counts)
+    # T4 count should be exactly remaining_steps (no variance absorption)
+    assert tier_counts[3] == total_steps - (tier_counts[0] + tier_counts[1] + tier_counts[2])
+
+
 def test_tiers_to_periods_with_preset() -> None:
     """Test that tiers_to_periods_seconds uses alignment for presets."""
     config = {
@@ -324,3 +356,23 @@ def test_tiers_to_periods_with_custom() -> None:
     # Verify the pattern: 5x60s, 11x300s, 46x1800s, 48x3600s
     assert periods[:5] == [60] * 5
     assert periods[5:16] == [300] * 11
+
+
+def test_tiers_to_periods_with_missing_tiers() -> None:
+    """Test that tiers_to_periods_seconds handles missing tier configs gracefully."""
+    # Config with only T1 and T2, missing T3 and T4
+    config = {
+        "horizon_preset": "custom",
+        "tier_1_count": 3,
+        "tier_1_duration": 1,
+        "tier_2_count": 2,
+        "tier_2_duration": 5,
+        # tier_3 and tier_4 deliberately omitted
+    }
+
+    periods = tiers_to_periods_seconds(config)
+
+    # Should have only the specified tiers
+    assert len(periods) == 3 + 2  # 5 periods total
+    assert periods[:3] == [60] * 3  # T1: 3x60s
+    assert periods[3:5] == [300] * 2  # T2: 2x300s
