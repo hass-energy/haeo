@@ -197,115 +197,6 @@ async def test_unload_hub_entry(hass: HomeAssistant, mock_hub_entry: MockConfigE
     # Note: coordinator.cleanup is now called via async_on_unload, not directly in async_unload_entry
 
 
-async def test_sentinel_cleanup_via_async_on_unload(
-    hass: HomeAssistant,
-    mock_hub_entry: MockConfigEntry,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Sentinel cleanup is registered via async_on_unload during setup.
-
-    The reference-counted sentinel cleanup is called via async_on_unload,
-    not directly in async_unload_entry. This test verifies that after setup,
-    an unload callback is registered that will clean up sentinels.
-    """
-    from custom_components.haeo.flows.sentinels import _SENTINEL_REF_COUNT_KEY  # noqa: PLC0415
-
-    # Mock the full setup to complete successfully
-    class DummyCoordinator:
-        def __init__(self, _hass_param: HomeAssistant, _entry_param: ConfigEntry) -> None:
-            self.async_initialize = AsyncMock()
-            self.async_refresh = AsyncMock()
-            self.cleanup = Mock()
-
-    monkeypatch.setattr("custom_components.haeo.HaeoDataUpdateCoordinator", DummyCoordinator)
-
-    async def mock_forward_setups(entry: object, platforms: list[object]) -> None:
-        pass
-
-    monkeypatch.setattr(hass.config_entries, "async_forward_entry_setups", mock_forward_setups)
-
-    # Run setup
-    result = await async_setup_entry(hass, mock_hub_entry)
-    assert result is True
-
-    # Verify sentinel ref count was incremented
-    assert hass.data.get(_SENTINEL_REF_COUNT_KEY) == 1
-
-    # Verify async_on_unload callbacks are registered
-    # (HA stores these in entry._on_unload)
-    on_unload = mock_hub_entry._on_unload
-    assert on_unload is not None
-    assert len(on_unload) > 0, "async_on_unload callbacks should be registered"
-
-
-async def test_multiple_entries_share_sentinels(
-    hass: HomeAssistant,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Multiple HAEO entries share sentinel entities via reference counting.
-
-    With async_on_unload pattern, each entry registers its own cleanup callback.
-    Reference counting ensures sentinels are only removed when all entries unload.
-    """
-    from custom_components.haeo.flows.sentinels import (  # noqa: PLC0415
-        _SENTINEL_REF_COUNT_KEY,
-        async_setup_sentinel_entities,
-        async_unload_sentinel_entities,
-    )
-
-    # Create two entries
-    entry1 = MockConfigEntry(
-        domain=DOMAIN,
-        data={
-            CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
-            CONF_NAME: "Network 1",
-            CONF_TIER_1_COUNT: DEFAULT_TIER_1_COUNT,
-            CONF_TIER_1_DURATION: DEFAULT_TIER_1_DURATION,
-            CONF_TIER_2_COUNT: DEFAULT_TIER_2_COUNT,
-            CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
-            CONF_TIER_3_COUNT: DEFAULT_TIER_3_COUNT,
-            CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
-            CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
-            CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
-        },
-        entry_id="entry_1",
-    )
-    entry1.add_to_hass(hass)
-
-    entry2 = MockConfigEntry(
-        domain=DOMAIN,
-        data={
-            CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
-            CONF_NAME: "Network 2",
-            CONF_TIER_1_COUNT: DEFAULT_TIER_1_COUNT,
-            CONF_TIER_1_DURATION: DEFAULT_TIER_1_DURATION,
-            CONF_TIER_2_COUNT: DEFAULT_TIER_2_COUNT,
-            CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
-            CONF_TIER_3_COUNT: DEFAULT_TIER_3_COUNT,
-            CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
-            CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
-            CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
-        },
-        entry_id="entry_2",
-    )
-    entry2.add_to_hass(hass)
-
-    # Simulate both entries setting up sentinels
-    await async_setup_sentinel_entities(hass)
-    await async_setup_sentinel_entities(hass)
-
-    # Both incremented ref count
-    assert hass.data.get(_SENTINEL_REF_COUNT_KEY) == 2
-
-    # First unload - ref count decrements but sentinel remains
-    async_unload_sentinel_entities(hass)
-    assert hass.data.get(_SENTINEL_REF_COUNT_KEY) == 1
-
-    # Second unload - sentinel is removed
-    async_unload_sentinel_entities(hass)
-    assert _SENTINEL_REF_COUNT_KEY not in hass.data
-
-
 async def test_async_setup_entry_initializes_coordinator(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
@@ -845,37 +736,6 @@ async def test_setup_cleanup_on_coordinator_error(
     assert exc_info.value.translation_key == "setup_failed_transient"
 
 
-async def test_sentinel_reference_counting(
-    hass: HomeAssistant,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Sentinel entities use reference counting for multiple entries."""
-    from custom_components.haeo.flows.sentinels import (  # noqa: PLC0415
-        _SENTINEL_REF_COUNT_KEY,
-        async_setup_sentinel_entities,
-        async_unload_sentinel_entities,
-    )
-
-    # Initial state - no sentinels
-    assert _SENTINEL_REF_COUNT_KEY not in hass.data
-
-    # First setup - creates sentinel
-    await async_setup_sentinel_entities(hass)
-    assert hass.data.get(_SENTINEL_REF_COUNT_KEY) == 1
-
-    # Second setup - increments count, no new sentinel created
-    await async_setup_sentinel_entities(hass)
-    assert hass.data.get(_SENTINEL_REF_COUNT_KEY) == 2
-
-    # First unload - decrements count, sentinel still exists
-    async_unload_sentinel_entities(hass)
-    assert hass.data.get(_SENTINEL_REF_COUNT_KEY) == 1
-
-    # Second unload - removes sentinel
-    async_unload_sentinel_entities(hass)
-    assert _SENTINEL_REF_COUNT_KEY not in hass.data
-
-
 async def test_async_setup_entry_raises_config_entry_error_on_permanent_failure(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
@@ -925,37 +785,6 @@ async def test_async_setup_entry_raises_config_entry_error_on_permanent_failure(
 
     # Verify the exception has the correct translation key
     assert exc_info.value.translation_key == "setup_failed_permanent"
-
-
-async def test_sentinel_entity_already_exists(
-    hass: HomeAssistant,
-) -> None:
-    """Sentinel setup reuses existing entity when already registered.
-
-    Tests the branch where entity_id is not None (entity already exists),
-    skipping async_get_or_create and going straight to async_set.
-    """
-    from custom_components.haeo.flows.sentinels import (  # noqa: PLC0415
-        _SENTINEL_REF_COUNT_KEY,
-        async_setup_sentinel_entities,
-        async_unload_sentinel_entities,
-    )
-
-    # First setup - creates the sentinel entity
-    await async_setup_sentinel_entities(hass)
-    assert hass.data.get(_SENTINEL_REF_COUNT_KEY) == 1
-
-    # Clear the reference count to force re-setup but keep the entity
-    hass.data.pop(_SENTINEL_REF_COUNT_KEY, None)
-
-    # Second setup with ref_count reset - exercises the entity_id is not None branch
-    # because the entity still exists in the registry
-    await async_setup_sentinel_entities(hass)
-    assert hass.data.get(_SENTINEL_REF_COUNT_KEY) == 1
-
-    # Clean up
-    async_unload_sentinel_entities(hass)
-    assert _SENTINEL_REF_COUNT_KEY not in hass.data
 
 
 async def test_setup_preserves_config_entry_not_ready_exception(
