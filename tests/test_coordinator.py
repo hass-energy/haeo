@@ -82,6 +82,7 @@ from custom_components.haeo.elements.grid import (
 )
 from custom_components.haeo.elements.solar import SOLAR_POWER
 from custom_components.haeo.model import Network, OutputData, OutputType
+from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_NODE
 
 
 @pytest.fixture
@@ -468,7 +469,7 @@ async def test_async_update_data_raises_on_missing_model_element(
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
     fake_network = Network(name="net", periods=[1.0] * 1)
     # Network must have at least one element for HiGHS to optimize (empty networks are rejected)
-    fake_network.add({"element_type": "node", "name": "dummy_node"})
+    fake_network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "dummy_node"})
 
     def broken_outputs(*_args: Any, **_kwargs: Any) -> dict[str, dict[str, OutputData]]:
         msg = "missing model element"
@@ -556,6 +557,32 @@ def test_build_coordinator_output_skips_forecast_for_single_value() -> None:
     )
 
     assert output.state == 5.0
+    assert output.forecast is None
+
+
+def test_build_coordinator_output_uses_last_value_when_state_last() -> None:
+    """Cumulative outputs with state_last=True should use the last value as state."""
+
+    output = _build_coordinator_output(
+        SOLAR_POWER,
+        OutputData(type=OutputType.POWER, unit="kW", values=(1.0, 2.0, 3.0), state_last=True),
+        forecast_times=(1, 2, 3),
+    )
+
+    assert output.state == 3.0  # Last value, not first
+    assert output.forecast is not None
+
+
+def test_build_coordinator_output_handles_empty_values() -> None:
+    """Empty values should result in None state."""
+
+    output = _build_coordinator_output(
+        SOLAR_POWER,
+        OutputData(type=OutputType.POWER, unit="kW", values=()),
+        forecast_times=(1, 2),
+    )
+
+    assert output.state is None
     assert output.forecast is None
 
 

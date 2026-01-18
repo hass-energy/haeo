@@ -1,6 +1,7 @@
 """Test the HAEO integration."""
 
 import asyncio
+from collections.abc import Iterable
 from contextlib import suppress
 from types import MappingProxyType
 from unittest.mock import AsyncMock, Mock
@@ -811,7 +812,7 @@ async def test_setup_preserves_config_entry_not_ready_exception(
     monkeypatch.setattr("custom_components.haeo.HaeoRuntimeData", MockRuntimeData)
 
     # Patch forward_entry_setups
-    async def mock_forward_setups(entry: object, platforms: list[object]) -> None:
+    async def mock_forward_setups(entry: ConfigEntry, platforms: Iterable[Platform | str]) -> None:
         pass
 
     monkeypatch.setattr(hass.config_entries, "async_forward_entry_setups", mock_forward_setups)
@@ -819,7 +820,7 @@ async def test_setup_preserves_config_entry_not_ready_exception(
     # Track unload calls
     original_unload_platforms = hass.config_entries.async_unload_platforms
 
-    async def tracked_unload_platforms(entry: ConfigEntry, platforms: list[Platform | str]) -> bool:
+    async def tracked_unload_platforms(entry: ConfigEntry, platforms: Iterable[Platform | str]) -> bool:
         return await original_unload_platforms(entry, platforms)
 
     monkeypatch.setattr(hass.config_entries, "async_unload_platforms", tracked_unload_platforms)
@@ -873,7 +874,7 @@ async def test_setup_preserves_config_entry_error_exception(
     monkeypatch.setattr("custom_components.haeo.HaeoRuntimeData", MockRuntimeData)
 
     # Patch forward_entry_setups
-    async def mock_forward_setups(entry: object, platforms: list[object]) -> None:
+    async def mock_forward_setups(entry: ConfigEntry, platforms: Iterable[Platform | str]) -> None:
         pass
 
     monkeypatch.setattr(hass.config_entries, "async_forward_entry_setups", mock_forward_setups)
@@ -881,7 +882,7 @@ async def test_setup_preserves_config_entry_error_exception(
     # Track unload calls
     original_unload_platforms = hass.config_entries.async_unload_platforms
 
-    async def tracked_unload_platforms(entry: ConfigEntry, platforms: list[Platform | str]) -> bool:
+    async def tracked_unload_platforms(entry: ConfigEntry, platforms: Iterable[Platform | str]) -> bool:
         return await original_unload_platforms(entry, platforms)
 
     monkeypatch.setattr(hass.config_entries, "async_unload_platforms", tracked_unload_platforms)
