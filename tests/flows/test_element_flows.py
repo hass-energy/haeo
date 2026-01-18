@@ -56,8 +56,8 @@ ALL_ELEMENT_TYPES: tuple[ElementType, ...] = tuple(ELEMENT_TYPES)
 # Element types that use two-step flows (have has_value_source_step = True on flow handler)
 TWO_STEP_FLOW_ELEMENTS: frozenset[ElementType] = frozenset(
     element_type
-    for element_type, entry in ELEMENT_TYPES.items()
-    if getattr(entry.flow_class, "has_value_source_step", False)
+    for element_type, flow_class in get_element_flow_classes().items()
+    if getattr(flow_class, "has_value_source_step", False)
 )
 
 
