@@ -325,6 +325,8 @@ async def test_subentry_translations_exist(hass: HomeAssistant) -> None:
 
     subentry_flows = HubConfigFlow.async_get_supported_subentry_types(hub_entry)
 
+    # All elements use single-step flow where reconfigure reuses the "user" step
+    # So we don't check for step.reconfigure.* translations
     common_suffixes = (
         "flow_title",
         "entry_type",
@@ -332,8 +334,6 @@ async def test_subentry_translations_exist(hass: HomeAssistant) -> None:
         "initiate_flow.reconfigure",
         "step.user.title",
         "step.user.description",
-        "step.reconfigure.title",
-        "step.reconfigure.description",
         "error.name_exists",
         "error.missing_name",
     )
@@ -341,10 +341,7 @@ async def test_subentry_translations_exist(hass: HomeAssistant) -> None:
     for element_type, flow_class in subentry_flows.items():
         base_key = f"component.{DOMAIN}.config_subentries.{element_type}"
 
-        # Entity-first elements use consolidated translations without separate reconfigure step
         suffixes_to_check = common_suffixes
-        if getattr(flow_class, "has_value_source_step", False):
-            suffixes_to_check = tuple(s for s in common_suffixes if not s.startswith("step.reconfigure"))
 
         for suffix in suffixes_to_check:
             assert f"{base_key}.{suffix}" in translations, f"Missing translation key {base_key}.{suffix}"
