@@ -93,8 +93,8 @@ def calculate_aligned_tier_counts(
 
     This function dynamically adjusts tier counts based on the start time to ensure
     that tier boundaries align with forecast data boundaries (5-min, 30-min, 60-min).
-    Extra steps from alignment are absorbed by extending T3 or adding a trailing
-    30-min step to T4.
+    Extra steps from alignment are absorbed by extending T3. A variable-sized trailing
+    step is added to T4 to ensure the total duration exactly matches horizon_minutes.
 
     Args:
         start_time: The optimization start time.
@@ -126,53 +126,49 @@ def calculate_aligned_tier_counts(
     t2_end_minute = (t1_end_minute + t2_count * t2_dur) % 60
     t3_count = _calculate_aligned_count(t2_end_minute, t3_dur, t4_dur, min_t3)
 
-    # Calculate remaining steps and duration for T4
+    # Calculate remaining steps and initial duration for T4
     used_steps = t1_count + t2_count + t3_count
     remaining_steps = total_steps - used_steps
 
-    # Duration covered by T1-T3
+    # Duration covered by T1-T3 (before any extra T3 steps)
     t1_minutes = t1_count * t1_dur
     t2_minutes = t2_count * t2_dur
     t3_minutes = t3_count * t3_dur
     covered_minutes = t1_minutes + t2_minutes + t3_minutes
 
-    # Remaining duration for T4
+    # Initial remaining duration for T4
     remaining_duration = horizon_minutes - covered_minutes
 
-    # How many steps would T4 need if purely 60-min?
-    base_t4_steps = remaining_duration // t4_dur
-
-    # Extra steps that must be 30-min instead of 60-min
-    extra_steps = remaining_steps - base_t4_steps
-
-    # Variance absorption strategy
-    t4_trailing_30 = False
-    if extra_steps > 0:
-        if extra_steps % 2 == 0:
-            # Even: add all extra steps as 30-min to T3
-            t3_count += extra_steps
-            t4_count = base_t4_steps
-        else:
-            # Odd: add (extra-1) 30-min steps to T3, one 30-min at end of T4
-            t3_count += extra_steps - 1
-            t4_count = base_t4_steps
-            t4_trailing_30 = True
+    # Calculate extra T3 steps to absorb into total_steps while respecting duration.
+    # The formula balances step count and duration by converting T4 60-min slots
+    # to pairs of T3 30-min slots, accounting for the trailing step if present.
+    if remaining_duration % t4_dur == 0:
+        extra_t3 = 2 * remaining_steps - remaining_duration // t3_dur
     else:
-        t4_count = remaining_steps
+        extra_t3 = 2 * remaining_steps - 1 - remaining_duration // t3_dur
+
+    extra_t3 = max(0, extra_t3)
+    t3_count += extra_t3
+
+    # Recalculate remaining duration after T3 extension
+    covered_minutes = t1_minutes + t2_minutes + t3_count * t3_dur
+    remaining_duration = horizon_minutes - covered_minutes
+
+    # Calculate T4 with trailing step to hit exact horizon end
+    trailing_minutes = remaining_duration % t4_dur
+    t4_60min_count = remaining_duration // t4_dur
+    t4_count = t4_60min_count + (1 if trailing_minutes > 0 else 0)
 
     # Build period durations in seconds
     periods_seconds: list[int] = []
     periods_seconds.extend([t1_dur * 60] * t1_count)
     periods_seconds.extend([t2_dur * 60] * t2_count)
     periods_seconds.extend([t3_dur * 60] * t3_count)
-    if t4_trailing_30:
-        # All but last T4 step are 60-min, last is 30-min
-        periods_seconds.extend([t4_dur * 60] * t4_count)
-        periods_seconds.append(t3_dur * 60)  # Trailing 30-min step
-    else:
-        periods_seconds.extend([t4_dur * 60] * t4_count)
+    periods_seconds.extend([t4_dur * 60] * t4_60min_count)
+    if trailing_minutes > 0:
+        periods_seconds.append(trailing_minutes * 60)
 
-    tier_counts = [t1_count, t2_count, t3_count, t4_count + (1 if t4_trailing_30 else 0)]
+    tier_counts = [t1_count, t2_count, t3_count, t4_count]
 
     return periods_seconds, tier_counts
 

@@ -414,3 +414,38 @@ def test_preset_produces_constant_step_count_for_all_minutes(preset: str) -> Non
         assert count == expected_count, (
             f"Preset {preset}: minute {minute} produced {count} steps, expected {expected_count}"
         )
+
+
+PRESET_HORIZON_MINUTES = {
+    "2_days": 2 * 24 * 60,
+    "3_days": 3 * 24 * 60,
+    "5_days": 5 * 24 * 60,
+    "7_days": 7 * 24 * 60,
+}
+
+
+@pytest.mark.parametrize("preset", ["2_days", "3_days", "5_days", "7_days"])
+def test_preset_produces_exact_horizon_duration(preset: str) -> None:
+    """Verify total period duration exactly matches horizon minutes.
+
+    The trailing step ensures that for N whole-day horizons, the optimization
+    ends at the same minute of the hour it started.
+    """
+    config = {
+        "horizon_preset": preset,
+        "tier_1_duration": 1,
+        "tier_2_duration": 5,
+        "tier_3_duration": 30,
+        "tier_4_duration": 60,
+    }
+    expected_seconds = PRESET_HORIZON_MINUTES[preset] * 60
+
+    # Test all 60 possible start minutes
+    for minute in range(60):
+        with freeze_time(datetime(2025, 1, 1, 12, minute, 0, tzinfo=UTC)):
+            periods = tiers_to_periods_seconds(config)
+            total_seconds = sum(periods)
+            assert total_seconds == expected_seconds, (
+                f"Preset {preset}: minute {minute} produced {total_seconds}s, "
+                f"expected {expected_seconds}s"
+            )
