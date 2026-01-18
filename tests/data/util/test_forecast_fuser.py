@@ -134,8 +134,10 @@ from custom_components.haeo.data.util.forecast_fuser import fuse_to_boundaries, 
             ],
             [0, 500, 1000, 1500, 2000],
             # Interval [0,500]: present value override = 50.0
-            # Interval [500,1000]: trapezoidal from 500 to 1000, step at boundary gives avg ~150
-            # Interval [1000,1500]: constant at 200 (forecast data)
+            # Interval [500,1000]: trapezoidal from 500 to 1000, includes step at boundary
+            #   - Most of interval at 100, but includes point at t=1000 with value=200
+            #   - Result: ~150 (average of 100 and 200 at the boundary)
+            # Interval [1000,1500]: constant at 200
             # Interval [1500,2000]: constant at 200
             [50.0, 150.0, 200.0, 200.0],
             id="step_function_integration",
