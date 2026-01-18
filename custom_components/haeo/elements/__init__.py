@@ -314,9 +314,6 @@ def _conforms_to_typed_dict(
 
     def _matches_type(value_item: Any, expected_type: Any) -> bool:
         expected_type = _unwrap_required_type(expected_type)
-        if expected_type is Any:
-            return True
-
         # Get the origin type for generic types (e.g., list[str] -> list)
         origin = get_origin(expected_type)
         check_type = origin if origin is not None else expected_type
@@ -335,9 +332,7 @@ def _conforms_to_typed_dict(
             allowed_types = tuple(get_origin(arg) or arg for arg in union_args)
             return isinstance(value_item, allowed_types)
 
-        if isinstance(check_type, type):
-            return isinstance(value_item, check_type)
-        return True
+        return isinstance(value_item, check_type)
 
     for key in required_keys:
         if key not in value:

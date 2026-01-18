@@ -58,6 +58,28 @@ CREATE_CASES: Sequence[CreateCase] = [
             },
         ],
     },
+    {
+        "description": "Solar without curtailment uses model default",
+        "data": SolarConfigData(
+            element_type="solar",
+            name="pv_default",
+            connection="network",
+            forecast=np.array([2.0, 1.5]),
+            price_production=np.array([0.15, 0.15]),
+        ),
+        "model": [
+            {"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "pv_default", "is_source": True, "is_sink": False},
+            {
+                "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
+                "name": "pv_default:connection",
+                "source": "pv_default",
+                "target": "network",
+                "max_power_source_target": np.array([2.0, 1.5]),
+                "max_power_target_source": 0.0,
+                "price_source_target": np.array([0.15, 0.15]),
+            },
+        ],
+    },
 ]
 
 
