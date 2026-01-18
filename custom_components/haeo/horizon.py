@@ -27,7 +27,6 @@ class HorizonManager:
 
     This class:
     - Provides forecast timestamps for all input entities to use
-    - Uses dynamic time alignment for presets, fixed tiers for custom
     - Schedules updates at period boundaries
     - Notifies subscribers when the horizon changes
 
@@ -44,7 +43,7 @@ class HorizonManager:
         self._hass = hass
         self._config_entry = config_entry
 
-        # Calculate period durations from config (uses alignment for presets)
+        # Calculate period durations from config
         self._periods_seconds = tiers_to_periods_seconds(config_entry.data)
         self._smallest_period = min(self._periods_seconds)
 
@@ -61,12 +60,7 @@ class HorizonManager:
         self._update_timestamps()
 
     def _update_timestamps(self) -> None:
-        """Update the cached forecast timestamps.
-
-        For preset configurations, this recalculates aligned periods based on
-        the current time. For custom configurations, periods are fixed.
-        """
-        # Recalculate periods (for presets, this applies time alignment)
+        """Update the cached forecast timestamps."""
         self._periods_seconds = tiers_to_periods_seconds(self._config_entry.data)
         self._forecast_timestamps = generate_forecast_timestamps(self._periods_seconds)
 
