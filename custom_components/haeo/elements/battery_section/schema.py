@@ -16,8 +16,6 @@ ELEMENT_TYPE: Final = "battery_section"
 CONF_CAPACITY: Final = "capacity"
 CONF_INITIAL_CHARGE: Final = "initial_charge"
 
-type FloatArray = NDArray[np.floating[Any]]
-
 
 class BatterySectionConfigSchema(TypedDict):
     """Battery section element configuration as stored in Home Assistant.
@@ -43,5 +41,5 @@ class BatterySectionConfigData(TypedDict):
 
     element_type: Literal["battery_section"]
     name: str
-    capacity: FloatArray  # kWh at each time boundary (n+1 values)
-    initial_charge: FloatArray  # kWh per period (uses first value)
+    capacity: NDArray[np.floating[Any]]  # kWh at each time boundary (n+1 values)
+    initial_charge: NDArray[np.floating[Any]]  # kWh per period (uses first value)

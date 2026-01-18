@@ -18,8 +18,6 @@ from custom_components.haeo.model.util import broadcast_to_sequence
 ELEMENT_TYPE: Final = "battery"
 type BatteryElementTypeName = Literal["battery"]
 
-type FloatArray = NDArray[np.floating[Any]]
-
 # Type for battery constraint names (shadow prices exposed as outputs)
 type BatteryConstraintName = Literal[
     "battery_power_balance",
@@ -64,7 +62,7 @@ class BatteryElementConfig(TypedDict):
 
     element_type: BatteryElementTypeName
     name: str
-    capacity: Sequence[float] | FloatArray | float
+    capacity: Sequence[float] | NDArray[np.floating[Any]] | float
     initial_charge: float
 
 

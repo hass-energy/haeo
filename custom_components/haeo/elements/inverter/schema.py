@@ -14,8 +14,6 @@ CONF_EFFICIENCY_AC_TO_DC: Final = "efficiency_ac_to_dc"
 CONF_MAX_POWER_DC_TO_AC: Final = "max_power_dc_to_ac"
 CONF_MAX_POWER_AC_TO_DC: Final = "max_power_ac_to_dc"
 
-type FloatArray = NDArray[np.floating[Any]]
-
 
 class InverterConfigSchema(TypedDict):
     """Inverter element configuration as stored in Home Assistant.
@@ -49,7 +47,7 @@ class InverterConfigData(TypedDict):
     element_type: Literal["inverter"]
     name: str
     connection: str  # AC side node to connect to
-    max_power_dc_to_ac: FloatArray  # Loaded power limit per period (kW)
-    max_power_ac_to_dc: FloatArray  # Loaded power limit per period (kW)
-    efficiency_dc_to_ac: NotRequired[FloatArray]  # Percentage (0-100), defaults to 100% (no loss)
-    efficiency_ac_to_dc: NotRequired[FloatArray]  # Percentage (0-100), defaults to 100% (no loss)
+    max_power_dc_to_ac: NDArray[np.floating[Any]]  # Loaded power limit per period (kW)
+    max_power_ac_to_dc: NDArray[np.floating[Any]]  # Loaded power limit per period (kW)
+    efficiency_dc_to_ac: NotRequired[NDArray[np.floating[Any]]]  # Percentage (0-100), defaults to 100% (no loss)
+    efficiency_ac_to_dc: NotRequired[NDArray[np.floating[Any]]]  # Percentage (0-100), defaults to 100% (no loss)

@@ -11,8 +11,6 @@ ELEMENT_TYPE: Final = "load"
 CONF_FORECAST: Final = "forecast"
 CONF_CONNECTION: Final = "connection"
 
-type FloatArray = NDArray[np.floating[Any]]
-
 
 class LoadConfigSchema(TypedDict):
     """Load element configuration as stored in Home Assistant.
@@ -35,4 +33,4 @@ class LoadConfigData(TypedDict):
     element_type: Literal["load"]
     name: str
     connection: str  # Element name to connect to
-    forecast: FloatArray  # Loaded power values per period (kW)
+    forecast: NDArray[np.floating[Any]]  # Loaded power values per period (kW)

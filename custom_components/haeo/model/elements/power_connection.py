@@ -25,8 +25,6 @@ from .connection import (
 ELEMENT_TYPE: Final = "connection"
 type ConnectionElementTypeName = Literal["connection"]
 
-type FloatArray = NDArray[np.floating[Any]]
-
 type PowerConnectionConstraintName = (
     Literal[
         "connection_shadow_power_max_source_target",
@@ -55,13 +53,13 @@ class ConnectionElementConfig(TypedDict):
     name: str
     source: str
     target: str
-    max_power_source_target: NotRequired[Sequence[float] | FloatArray | float | None]
-    max_power_target_source: NotRequired[Sequence[float] | FloatArray | float | None]
+    max_power_source_target: NotRequired[Sequence[float] | NDArray[np.floating[Any]] | float | None]
+    max_power_target_source: NotRequired[Sequence[float] | NDArray[np.floating[Any]] | float | None]
     fixed_power: NotRequired[bool]
-    efficiency_source_target: NotRequired[Sequence[float] | FloatArray | float | None]
-    efficiency_target_source: NotRequired[Sequence[float] | FloatArray | float | None]
-    price_source_target: NotRequired[Sequence[float] | FloatArray | float | None]
-    price_target_source: NotRequired[Sequence[float] | FloatArray | float | None]
+    efficiency_source_target: NotRequired[Sequence[float] | NDArray[np.floating[Any]] | float | None]
+    efficiency_target_source: NotRequired[Sequence[float] | NDArray[np.floating[Any]] | float | None]
+    price_source_target: NotRequired[Sequence[float] | NDArray[np.floating[Any]] | float | None]
+    price_target_source: NotRequired[Sequence[float] | NDArray[np.floating[Any]] | float | None]
 
 
 class PowerConnection(Connection[PowerConnectionOutputName]):

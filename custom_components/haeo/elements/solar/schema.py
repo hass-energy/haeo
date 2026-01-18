@@ -13,8 +13,6 @@ CONF_PRICE_PRODUCTION: Final = "price_production"
 CONF_CURTAILMENT: Final = "curtailment"
 CONF_CONNECTION: Final = "connection"
 
-type FloatArray = NDArray[np.floating[Any]]
-
 
 class SolarConfigSchema(TypedDict):
     """Solar element configuration as stored in Home Assistant.
@@ -46,6 +44,6 @@ class SolarConfigData(TypedDict):
     element_type: Literal["solar"]
     name: str
     connection: str  # Element name to connect to
-    forecast: FloatArray  # Loaded power values per period (kW)
+    forecast: NDArray[np.floating[Any]]  # Loaded power values per period (kW)
     curtailment: NotRequired[bool]  # Whether solar can be curtailed (default: True)
-    price_production: NotRequired[FloatArray]  # $/kWh production incentive (default: 0.0)
+    price_production: NotRequired[NDArray[np.floating[Any]]]  # $/kWh production incentive (default: 0.0)

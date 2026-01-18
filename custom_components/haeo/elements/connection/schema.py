@@ -17,8 +17,6 @@ CONF_EFFICIENCY_TARGET_SOURCE: Final = "efficiency_target_source"
 CONF_PRICE_SOURCE_TARGET: Final = "price_source_target"
 CONF_PRICE_TARGET_SOURCE: Final = "price_target_source"
 
-type FloatArray = NDArray[np.floating[Any]]
-
 
 class ConnectionConfigSchema(TypedDict):
     """Connection element configuration as stored in Home Assistant.
@@ -56,9 +54,9 @@ class ConnectionConfigData(TypedDict):
     target: str  # Target element name
 
     # Optional fields
-    max_power_source_target: NotRequired[FloatArray]  # Loaded power limit per period (kW)
-    max_power_target_source: NotRequired[FloatArray]  # Loaded power limit per period (kW)
-    efficiency_source_target: NotRequired[FloatArray]  # Loaded efficiency per period (%)
-    efficiency_target_source: NotRequired[FloatArray]  # Loaded efficiency per period (%)
-    price_source_target: NotRequired[FloatArray]  # Loaded price per period ($/kWh)
-    price_target_source: NotRequired[FloatArray]  # Loaded price per period ($/kWh)
+    max_power_source_target: NotRequired[NDArray[np.floating[Any]]]  # Loaded power limit per period (kW)
+    max_power_target_source: NotRequired[NDArray[np.floating[Any]]]  # Loaded power limit per period (kW)
+    efficiency_source_target: NotRequired[NDArray[np.floating[Any]]]  # Loaded efficiency per period (%)
+    efficiency_target_source: NotRequired[NDArray[np.floating[Any]]]  # Loaded efficiency per period (%)
+    price_source_target: NotRequired[NDArray[np.floating[Any]]]  # Loaded price per period ($/kWh)
+    price_target_source: NotRequired[NDArray[np.floating[Any]]]  # Loaded price per period ($/kWh)
