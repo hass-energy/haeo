@@ -34,6 +34,7 @@ from custom_components.haeo.const import (
     NetworkOutputName,
 )
 from custom_components.haeo.elements import (
+    ELEMENT_CONFIG_SCHEMAS,
     ELEMENT_TYPES,
     ElementConfigData,
     ElementConfigSchema,
@@ -41,6 +42,7 @@ from custom_components.haeo.elements import (
     ElementOutputName,
     collect_element_subentries,
     get_input_fields,
+    is_element_config_data,
     is_element_type,
 )
 from custom_components.haeo.model import ModelOutputName, ModelOutputValue, Network, OutputData, OutputType
@@ -419,8 +421,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
     def _load_element_config(self, element_name: str) -> ElementConfigData:
         """Load configuration for a single element from its input entities.
 
-        Collects loaded values from input entities and delegates to the adapter's
-        build_config_data() method - the single source of truth for ConfigData construction.
+        Collects loaded values from input entities and merges them with config values.
 
         Args:
             element_name: Name of the element to load
@@ -476,14 +477,23 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         }
         element_values.update(loaded_values)
 
-        # Delegate to adapter's build_config_data() - single source of truth
-        adapter = ELEMENT_TYPES[element_type]
-        try:
-            return adapter.build_config_data(element_values, element_config)
-        except KeyError as e:
-            field_name = e.args[0] if e.args else "unknown"
-            msg = f"Missing required field '{field_name}' for element '{element_name}'"
-            raise ValueError(msg) from e
+        schema_cls = ELEMENT_CONFIG_SCHEMAS[element_type]
+        optional_keys: frozenset[str] = getattr(schema_cls, "__optional_keys__", frozenset())
+        required_input_fields = {
+            field_info.field_name
+            for field_info in input_field_infos.values()
+            if field_info.force_required or field_info.field_name not in optional_keys
+        }
+        for field_name in required_input_fields:
+            if field_name not in element_values:
+                msg = f"Missing required field '{field_name}' for element '{element_name}'"
+                raise ValueError(msg)
+
+        if not is_element_config_data(element_values):
+            msg = f"Invalid config data for element '{element_name}'"
+            raise ValueError(msg)
+
+        return element_values
 
     def _load_from_input_entities(self) -> dict[str, ElementConfigData]:
         """Load element configurations from input entities.

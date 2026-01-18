@@ -7,8 +7,7 @@ model outputs to user-friendly device outputs.
 Adapter Pattern:
     Configuration Element (with entity IDs) →
     Input entity values →
-    Adapter.build_config_data() →
-    Configuration Data (with loaded values) →
+    Coordinator merges loaded values →
     Adapter.model_elements() →
     Model Elements (pure optimization) →
     Model.optimize() →
@@ -186,26 +185,6 @@ class ElementAdapter(Protocol):
         """Return input field definitions for this element."""
         ...
 
-    def build_config_data(
-        self,
-        loaded_values: Any,
-        config: Any,
-    ) -> Any:
-        """Build ConfigData from pre-loaded values.
-
-        This is the single source of truth for ConfigData construction.
-        The coordinator uses this method after loading input entity values.
-
-        Args:
-            loaded_values: Dict of field names to loaded values (from input entities)
-            config: Original ConfigSchema for non-input fields (e.g., connection)
-
-        Returns:
-            ConfigData with all fields populated and defaults applied
-
-        """
-        ...
-
     def model_elements(self, config: Any) -> list[ModelElementConfig]:
         """Return model element parameters for the loaded config."""
         ...
@@ -355,6 +334,23 @@ def is_element_config_schema(value: Any) -> TypeGuard[ElementConfigSchema]:
     return _conforms_to_typed_dict(value, schema_cls)
 
 
+def is_element_config_data(value: Any) -> TypeGuard[ElementConfigData]:
+    """Return True when value matches any ElementConfigData TypedDict.
+
+    Checks only that required keys exist for the element type.
+    """
+    if not isinstance(value, Mapping):
+        return False
+
+    element_type = value.get(CONF_ELEMENT_TYPE)
+    if not is_element_type(element_type):
+        return False
+
+    schema_cls = ELEMENT_CONFIG_SCHEMAS[element_type]
+    required_keys: frozenset[str] = getattr(schema_cls, "__required_keys__", frozenset())
+    return all(key in value for key in required_keys)
+
+
 def collect_element_subentries(entry: ConfigEntry) -> list[ValidatedElementSubentry]:
     """Return validated element subentries excluding the network element."""
     result: list[ValidatedElementSubentry] = []
@@ -416,6 +412,7 @@ __all__ = [
     "collect_element_subentries",
     "get_element_flow_classes",
     "get_input_fields",
+    "is_element_config_data",
     "is_element_config_schema",
     "is_element_type",
 ]

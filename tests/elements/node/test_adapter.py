@@ -1,4 +1,4 @@
-"""Tests for node adapter build_config_data() and available() functions."""
+"""Tests for node adapter availability and model elements."""
 
 from homeassistant.core import HomeAssistant
 
@@ -18,24 +18,17 @@ async def test_available_returns_true(hass: HomeAssistant) -> None:
     assert result is True
 
 
-def test_build_config_data_returns_config_data() -> None:
-    """build_config_data() should return ConfigData with loaded values."""
-    config: node.NodeConfigSchema = {
+def test_model_elements_applies_default_flags() -> None:
+    """model_elements() should apply default is_source/is_sink flags."""
+    config_data: node.NodeConfigData = {
         "element_type": "node",
         "name": "test_node",
-        "is_source": False,
-        "is_sink": False,
-    }
-    loaded_values: node.NodeConfigData = {
-        "element_type": "node",
-        "name": "test_node",
-        "is_source": True,
-        "is_sink": False,
     }
 
-    result = node.adapter.build_config_data(loaded_values, config)
+    elements = node.adapter.model_elements(config_data)
 
-    assert result["element_type"] == "node"
-    assert result["name"] == "test_node"
-    assert result.get("is_source") is True
-    assert result.get("is_sink") is False
+    assert len(elements) == 1
+    node_element = elements[0]
+    assert node_element["name"] == "test_node"
+    assert node_element.get("is_source") is False
+    assert node_element.get("is_sink") is False

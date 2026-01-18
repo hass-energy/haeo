@@ -21,7 +21,6 @@ from custom_components.haeo.model.elements.segments import POWER_LIMIT_SOURCE_TA
 from custom_components.haeo.model.output_data import OutputData
 
 from .schema import (
-    CONF_CONNECTION,
     CONF_CURTAILMENT,
     CONF_FORECAST,
     CONF_PRICE_PRODUCTION,
@@ -110,39 +109,6 @@ class SolarAdapter:
                 force_required=True,
             ),
         }
-
-    def build_config_data(
-        self,
-        loaded_values: SolarConfigData,
-        config: SolarConfigSchema,
-    ) -> SolarConfigData:
-        """Build ConfigData from pre-loaded values.
-
-        This is the single source of truth for ConfigData construction.
-        The coordinator uses this method after loading input entity values.
-
-        Args:
-            loaded_values: Dict of field names to loaded values (from input entities)
-            config: Original ConfigSchema for non-input fields (element_type, name, connection)
-
-        Returns:
-            SolarConfigData with all fields populated
-
-        """
-        data: SolarConfigData = {
-            "element_type": config["element_type"],
-            "name": config["name"],
-            "connection": config[CONF_CONNECTION],
-            "forecast": loaded_values[CONF_FORECAST],
-        }
-
-        # Optional fields
-        if CONF_PRICE_PRODUCTION in loaded_values:
-            data["price_production"] = loaded_values[CONF_PRICE_PRODUCTION]
-        if CONF_CURTAILMENT in loaded_values:
-            data["curtailment"] = loaded_values[CONF_CURTAILMENT]
-
-        return data
 
     def model_elements(self, config: SolarConfigData) -> list[ModelElementConfig]:
         """Return model element parameters for Solar configuration."""

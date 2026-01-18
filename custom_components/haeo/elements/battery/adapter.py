@@ -27,7 +27,6 @@ from custom_components.haeo.model.output_data import OutputData
 
 from .schema import (
     CONF_CAPACITY,
-    CONF_CONNECTION,
     CONF_DISCHARGE_COST,
     CONF_EARLY_CHARGE_INCENTIVE,
     CONF_EFFICIENCY,
@@ -348,66 +347,6 @@ class BatteryAdapter:
                 device_type=BATTERY_DEVICE_OVERCHARGE,
             ),
         }
-
-    def build_config_data(
-        self,
-        loaded_values: BatteryConfigData,
-        config: BatteryConfigSchema,
-    ) -> BatteryConfigData:
-        """Build ConfigData from pre-loaded values.
-
-        This is the single source of truth for ConfigData construction.
-        The coordinator uses this method after loading input entity values.
-
-        Args:
-            loaded_values: Dict of field names to loaded values (from input entities)
-            config: Original ConfigSchema for non-input fields (element_type, name, connection)
-
-        Returns:
-            BatteryConfigData with loaded values (defaults applied in model_elements)
-
-        """
-        data: BatteryConfigData = {
-            "element_type": config["element_type"],
-            "name": config["name"],
-            "connection": config[CONF_CONNECTION],
-            "capacity": loaded_values[CONF_CAPACITY],
-            "initial_charge_percentage": loaded_values[CONF_INITIAL_CHARGE_PERCENTAGE],
-        }
-
-        # Optional fields - only include if present in loaded_values
-        if CONF_MIN_CHARGE_PERCENTAGE in loaded_values:
-            data["min_charge_percentage"] = loaded_values[CONF_MIN_CHARGE_PERCENTAGE]
-        if CONF_MAX_CHARGE_PERCENTAGE in loaded_values:
-            data["max_charge_percentage"] = loaded_values[CONF_MAX_CHARGE_PERCENTAGE]
-        if CONF_EFFICIENCY in loaded_values:
-            data["efficiency"] = loaded_values[CONF_EFFICIENCY]
-
-        if CONF_MAX_CHARGE_POWER in loaded_values:
-            data["max_charge_power"] = loaded_values[CONF_MAX_CHARGE_POWER]
-
-        if CONF_MAX_DISCHARGE_POWER in loaded_values:
-            data["max_discharge_power"] = loaded_values[CONF_MAX_DISCHARGE_POWER]
-
-        if CONF_DISCHARGE_COST in loaded_values:
-            data["discharge_cost"] = loaded_values[CONF_DISCHARGE_COST]
-
-        if CONF_EARLY_CHARGE_INCENTIVE in loaded_values:
-            data["early_charge_incentive"] = loaded_values[CONF_EARLY_CHARGE_INCENTIVE]
-
-        if CONF_UNDERCHARGE_PERCENTAGE in loaded_values:
-            data["undercharge_percentage"] = loaded_values[CONF_UNDERCHARGE_PERCENTAGE]
-
-        if CONF_OVERCHARGE_PERCENTAGE in loaded_values:
-            data["overcharge_percentage"] = loaded_values[CONF_OVERCHARGE_PERCENTAGE]
-
-        if CONF_UNDERCHARGE_COST in loaded_values:
-            data["undercharge_cost"] = loaded_values[CONF_UNDERCHARGE_COST]
-
-        if CONF_OVERCHARGE_COST in loaded_values:
-            data["overcharge_cost"] = loaded_values[CONF_OVERCHARGE_COST]
-
-        return data
 
     def model_elements(self, config: BatteryConfigData) -> list[ModelElementConfig]:
         """Create model elements for Battery configuration.

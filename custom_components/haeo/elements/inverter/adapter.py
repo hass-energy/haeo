@@ -24,7 +24,6 @@ from custom_components.haeo.model.elements.segments import POWER_LIMIT_SOURCE_TA
 from custom_components.haeo.model.output_data import OutputData
 
 from .schema import (
-    CONF_CONNECTION,
     CONF_EFFICIENCY_AC_TO_DC,
     CONF_EFFICIENCY_DC_TO_AC,
     CONF_MAX_POWER_AC_TO_DC,
@@ -138,40 +137,6 @@ class InverterAdapter:
                 defaults=InputFieldDefaults(mode=None, value=100.0),
             ),
         }
-
-    def build_config_data(
-        self,
-        loaded_values: InverterConfigData,
-        config: InverterConfigSchema,
-    ) -> InverterConfigData:
-        """Build ConfigData from pre-loaded values.
-
-        This is the single source of truth for ConfigData construction.
-        The coordinator uses this method after loading input entity values.
-
-        Args:
-            loaded_values: Dict of field names to loaded values (from input entities)
-            config: Original ConfigSchema for non-input fields (element_type, name, connection)
-
-        Returns:
-            InverterConfigData with all fields populated
-
-        """
-        data: InverterConfigData = {
-            "element_type": config["element_type"],
-            "name": config["name"],
-            "connection": config[CONF_CONNECTION],
-            "max_power_dc_to_ac": loaded_values[CONF_MAX_POWER_DC_TO_AC],
-            "max_power_ac_to_dc": loaded_values[CONF_MAX_POWER_AC_TO_DC],
-        }
-
-        # Optional efficiency fields
-        if CONF_EFFICIENCY_DC_TO_AC in loaded_values:
-            data["efficiency_dc_to_ac"] = loaded_values[CONF_EFFICIENCY_DC_TO_AC]
-        if CONF_EFFICIENCY_AC_TO_DC in loaded_values:
-            data["efficiency_ac_to_dc"] = loaded_values[CONF_EFFICIENCY_AC_TO_DC]
-
-        return data
 
     def model_elements(self, config: InverterConfigData) -> list[ModelElementConfig]:
         """Return model element parameters for Inverter configuration.

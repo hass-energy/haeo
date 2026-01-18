@@ -1,7 +1,6 @@
-"""Tests for battery_section adapter build_config_data() and available() functions."""
+"""Tests for battery_section adapter availability checks."""
 
 from homeassistant.core import HomeAssistant
-import numpy as np
 
 from custom_components.haeo.elements import battery_section
 
@@ -41,28 +40,3 @@ async def test_available_returns_false_when_sensor_missing(hass: HomeAssistant) 
 
     result = battery_section.adapter.available(config, hass=hass)
     assert result is False
-
-
-def test_build_config_data_returns_config_data() -> None:
-    """build_config_data() should return ConfigData with loaded values."""
-    config: battery_section.BatterySectionConfigSchema = {
-        "element_type": "battery_section",
-        "name": "test_section",
-        "capacity": "sensor.capacity",
-        "initial_charge": "sensor.initial",
-    }
-    loaded_values: battery_section.BatterySectionConfigData = {
-        "element_type": "battery_section",
-        "name": "test_section",
-        "capacity": np.array([10.0, 10.0]),
-        "initial_charge": np.array([50.0]),
-    }
-
-    result = battery_section.adapter.build_config_data(loaded_values, config)
-
-    assert result["element_type"] == "battery_section"
-    assert result["name"] == "test_section"
-    assert len(result["capacity"]) == 2  # Boundaries: n+1 values
-    np.testing.assert_array_equal(result["capacity"], [10.0, 10.0])  # Broadcast to all boundaries
-    assert len(result["initial_charge"]) == 1
-    assert result["initial_charge"][0] == 50.0
