@@ -365,23 +365,25 @@ class BatteryAdapter:
         initial_soc = config["initial_charge_percentage"][0]
 
         # Convert percentages to ratio arrays for time-varying limits
-        min_charge_percentage = config.get(CONF_MIN_CHARGE_PERCENTAGE)
-        if min_charge_percentage is None:
-            min_charge_percentage = np.full(n_boundaries, DEFAULTS[CONF_MIN_CHARGE_PERCENTAGE], dtype=float)
-        max_charge_percentage = config.get(CONF_MAX_CHARGE_PERCENTAGE)
-        if max_charge_percentage is None:
-            max_charge_percentage = np.full(n_boundaries, DEFAULTS[CONF_MAX_CHARGE_PERCENTAGE], dtype=float)
+        min_charge_percentage = config.get(CONF_MIN_CHARGE_PERCENTAGE, DEFAULTS[CONF_MIN_CHARGE_PERCENTAGE])
+        max_charge_percentage = config.get(CONF_MAX_CHARGE_PERCENTAGE, DEFAULTS[CONF_MAX_CHARGE_PERCENTAGE])
         efficiency = config.get(CONF_EFFICIENCY)
         efficiency_values = efficiency / 100.0 if efficiency is not None else None
 
         min_ratio_array = min_charge_percentage / 100.0
         max_ratio_array = max_charge_percentage / 100.0
-        min_ratio_first = min_ratio_array[0]
+        min_ratio_first = (
+            float(min_ratio_array[0]) if isinstance(min_ratio_array, np.ndarray) else float(min_ratio_array)
+        )
 
         # Get optional percentage arrays (if present)
         undercharge_pct = config.get("undercharge_percentage")
         undercharge_ratio_array = undercharge_pct / 100.0 if undercharge_pct is not None else None
-        undercharge_ratio_first = undercharge_ratio_array[0] if undercharge_ratio_array is not None else None
+        undercharge_ratio_first = (
+            float(undercharge_ratio_array[0])
+            if isinstance(undercharge_ratio_array, np.ndarray)
+            else undercharge_ratio_array
+        )
 
         overcharge_pct = config.get("overcharge_percentage")
         overcharge_ratio_array = overcharge_pct / 100.0 if overcharge_pct is not None else None
@@ -479,12 +481,8 @@ class BatteryAdapter:
         # 5. Create connections from sections to internal node
 
         # Get undercharge/overcharge cost arrays (or broadcast scalars to arrays)
-        undercharge_cost_array = (
-            config["undercharge_cost"] if "undercharge_cost" in config else np.zeros(n_periods, dtype=float)
-        )
-        overcharge_cost_array = (
-            config["overcharge_cost"] if "overcharge_cost" in config else np.zeros(n_periods, dtype=float)
-        )
+        undercharge_cost_array = config.get("undercharge_cost", 0.0)
+        overcharge_cost_array = config.get("overcharge_cost", 0.0)
 
         for section_name in section_names:
             # Determine discharge costs based on section (undercharge/overcharge penalties)
@@ -825,9 +823,7 @@ def _calculate_total_energy(aggregate_energy: OutputData, config: BatteryConfigD
     capacity = config["capacity"]
 
     # Get time-varying min ratio (also boundaries)
-    min_charge_percentage = config.get(CONF_MIN_CHARGE_PERCENTAGE)
-    if min_charge_percentage is None:
-        min_charge_percentage = np.full(len(capacity), DEFAULTS[CONF_MIN_CHARGE_PERCENTAGE], dtype=float)
+    min_charge_percentage = config.get(CONF_MIN_CHARGE_PERCENTAGE, DEFAULTS[CONF_MIN_CHARGE_PERCENTAGE])
     min_ratio = min_charge_percentage / 100.0
 
     undercharge_pct = config.get("undercharge_percentage")
