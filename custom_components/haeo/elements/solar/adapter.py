@@ -108,27 +108,24 @@ class SolarAdapter:
 
     def model_elements(self, config: SolarConfigData) -> list[ModelElementConfig]:
         """Return model element parameters for Solar configuration."""
-        curtailment = config.get("curtailment")
-
-        node_config: ModelElementConfig = {
-            "element_type": MODEL_ELEMENT_TYPE_NODE,
-            "name": config["name"],
-            "is_source": True,
-            "is_sink": False,
-        }
-        connection_config: ModelElementConfig = {
-            "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
-            "name": f"{config['name']}:connection",
-            "source": config["name"],
-            "target": config["connection"],
-            "max_power_source_target": config["forecast"],
-            "max_power_target_source": 0.0,
-            "price_source_target": config.get("price_production"),
-        }
-        if curtailment is not None:
-            connection_config["fixed_power"] = not curtailment
-
-        return [node_config, connection_config]
+        return [
+            {
+                "element_type": MODEL_ELEMENT_TYPE_NODE,
+                "name": config["name"],
+                "is_source": True,
+                "is_sink": False,
+            },
+            {
+                "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
+                "name": f"{config['name']}:connection",
+                "source": config["name"],
+                "target": config["connection"],
+                "max_power_source_target": config["forecast"],
+                "max_power_target_source": 0.0,
+                "price_source_target": config.get("price_production"),
+                "fixed_power": not config.get("curtailment", True),
+            },
+        ]
 
     def outputs(
         self,

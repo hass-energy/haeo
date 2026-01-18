@@ -174,19 +174,20 @@ class ConnectionAdapter:
 
     def model_elements(self, config: ConnectionConfigData) -> list[ModelElementConfig]:
         """Return model element parameters for Connection configuration."""
-        connection_config: ConnectionElementConfig = {
-            "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
-            "name": config["name"],
-            "source": config["source"],
-            "target": config["target"],
-            "max_power_source_target": config.get("max_power_source_target"),
-            "max_power_target_source": config.get("max_power_target_source"),
-            "efficiency_source_target": config.get("efficiency_source_target"),
-            "efficiency_target_source": config.get("efficiency_target_source"),
-            "price_source_target": config.get("price_source_target"),
-            "price_target_source": config.get("price_target_source"),
-        }
-        return [connection_config]
+        return [
+            {
+                "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
+                "name": config["name"],
+                "source": config["source"],
+                "target": config["target"],
+                "max_power_source_target": config.get("max_power_source_target"),
+                "max_power_target_source": config.get("max_power_target_source"),
+                "efficiency_source_target": config.get("efficiency_source_target"),
+                "efficiency_target_source": config.get("efficiency_target_source"),
+                "price_source_target": config.get("price_source_target"),
+                "price_target_source": config.get("price_target_source"),
+            }
+        ]
 
     def outputs(
         self,
