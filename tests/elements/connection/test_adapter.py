@@ -76,7 +76,11 @@ def test_build_config_data_includes_optional_fields() -> None:
         "source": "node_a",
         "target": "node_b",
     }
-    loaded_values = {
+    loaded_values: connection.ConnectionConfigData = {
+        "element_type": "connection",
+        "name": "c1",
+        "source": "node_a",
+        "target": "node_b",
         "max_power_source_target": np.array([5.0]),
         "max_power_target_source": np.array([3.0]),
         "efficiency_source_target": np.array([95.0]),
@@ -91,18 +95,24 @@ def test_build_config_data_includes_optional_fields() -> None:
     assert result["name"] == "c1"
     assert result["source"] == "node_a"
     assert result["target"] == "node_b"
-    assert result.get("max_power_source_target") is not None
-    np.testing.assert_array_equal(result["max_power_source_target"], [5.0])
-    assert result.get("max_power_target_source") is not None
-    np.testing.assert_array_equal(result["max_power_target_source"], [3.0])
-    assert result.get("efficiency_source_target") is not None
-    np.testing.assert_array_equal(result["efficiency_source_target"], [95.0])
-    assert result.get("efficiency_target_source") is not None
-    np.testing.assert_array_equal(result["efficiency_target_source"], [90.0])
-    assert result.get("price_source_target") is not None
-    np.testing.assert_array_equal(result["price_source_target"], [0.10])
-    assert result.get("price_target_source") is not None
-    np.testing.assert_array_equal(result["price_target_source"], [0.05])
+    max_power_source_target = result.get("max_power_source_target")
+    assert max_power_source_target is not None
+    np.testing.assert_array_equal(max_power_source_target, [5.0])
+    max_power_target_source = result.get("max_power_target_source")
+    assert max_power_target_source is not None
+    np.testing.assert_array_equal(max_power_target_source, [3.0])
+    efficiency_source_target = result.get("efficiency_source_target")
+    assert efficiency_source_target is not None
+    np.testing.assert_array_equal(efficiency_source_target, [95.0])
+    efficiency_target_source = result.get("efficiency_target_source")
+    assert efficiency_target_source is not None
+    np.testing.assert_array_equal(efficiency_target_source, [90.0])
+    price_source_target = result.get("price_source_target")
+    assert price_source_target is not None
+    np.testing.assert_array_equal(price_source_target, [0.10])
+    price_target_source = result.get("price_target_source")
+    assert price_target_source is not None
+    np.testing.assert_array_equal(price_target_source, [0.05])
 
 
 def test_build_config_data_omits_optional_fields() -> None:
@@ -114,7 +124,13 @@ def test_build_config_data_omits_optional_fields() -> None:
         "target": "node_b",
     }
 
-    result = connection.adapter.build_config_data({}, config)
+    loaded_values: connection.ConnectionConfigData = {
+        "element_type": "connection",
+        "name": "c1",
+        "source": "node_a",
+        "target": "node_b",
+    }
+    result = connection.adapter.build_config_data(loaded_values, config)
 
     assert "max_power_source_target" not in result
     assert "max_power_target_source" not in result

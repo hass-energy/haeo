@@ -44,7 +44,12 @@ def test_build_config_data_returns_config_data() -> None:
         "connection": "main_bus",
         "forecast": ["sensor.power"],
     }
-    loaded_values = {"forecast": np.array([2.5])}
+    loaded_values: load_element.LoadConfigData = {
+        "element_type": "load",
+        "name": "test_load",
+        "connection": "main_bus",
+        "forecast": np.array([2.5]),
+    }
 
     result = load_element.adapter.build_config_data(loaded_values, config)
 

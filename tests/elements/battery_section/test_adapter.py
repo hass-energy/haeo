@@ -51,7 +51,9 @@ def test_build_config_data_returns_config_data() -> None:
         "capacity": "sensor.capacity",
         "initial_charge": "sensor.initial",
     }
-    loaded_values = {
+    loaded_values: battery_section.BatterySectionConfigData = {
+        "element_type": "battery_section",
+        "name": "test_section",
         "capacity": np.array([10.0, 10.0]),
         "initial_charge": np.array([50.0]),
     }

@@ -26,7 +26,9 @@ def test_build_config_data_returns_config_data() -> None:
         "is_source": False,
         "is_sink": False,
     }
-    loaded_values = {
+    loaded_values: node.NodeConfigData = {
+        "element_type": "node",
+        "name": "test_node",
         "is_source": True,
         "is_sink": False,
     }
@@ -35,5 +37,5 @@ def test_build_config_data_returns_config_data() -> None:
 
     assert result["element_type"] == "node"
     assert result["name"] == "test_node"
-    assert result["is_source"] is True
-    assert result["is_sink"] is False
+    assert result.get("is_source") is True
+    assert result.get("is_sink") is False

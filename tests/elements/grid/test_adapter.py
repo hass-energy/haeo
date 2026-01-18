@@ -69,7 +69,10 @@ def test_build_config_data_returns_config_data() -> None:
         "import_price": ["sensor.import_price"],
         "export_price": ["sensor.export_price"],
     }
-    loaded_values = {
+    loaded_values: grid.GridConfigData = {
+        "element_type": "grid",
+        "name": "test_grid",
+        "connection": "main_bus",
         "import_price": np.array([0.30, 0.30]),
         "export_price": np.array([0.05, 0.05]),
     }
@@ -91,7 +94,10 @@ def test_build_config_data_includes_optional_limits() -> None:
         "import_price": ["sensor.import_price"],
         "export_price": ["sensor.export_price"],
     }
-    loaded_values = {
+    loaded_values: grid.GridConfigData = {
+        "element_type": "grid",
+        "name": "test_grid",
+        "connection": "main_bus",
         "import_price": np.array([0.30, 0.30]),
         "export_price": np.array([0.05, 0.05]),
         "import_limit": np.array([10.0, 10.0]),
@@ -100,10 +106,12 @@ def test_build_config_data_includes_optional_limits() -> None:
 
     result = grid.adapter.build_config_data(loaded_values, config)
 
-    assert result.get("import_limit") is not None
-    np.testing.assert_array_equal(result["import_limit"], [10.0, 10.0])
-    assert result.get("export_limit") is not None
-    np.testing.assert_array_equal(result["export_limit"], [5.0, 5.0])
+    import_limit = result.get("import_limit")
+    assert import_limit is not None
+    np.testing.assert_array_equal(import_limit, [10.0, 10.0])
+    export_limit = result.get("export_limit")
+    assert export_limit is not None
+    np.testing.assert_array_equal(export_limit, [5.0, 5.0])
 
 
 async def test_available_with_constant_prices(hass: HomeAssistant) -> None:

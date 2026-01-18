@@ -47,7 +47,10 @@ def test_build_config_data_returns_config_data() -> None:
         "forecast": ["sensor.forecast"],
         "curtailment": True,
     }
-    loaded_values = {
+    loaded_values: solar.SolarConfigData = {
+        "element_type": "solar",
+        "name": "test_solar",
+        "connection": "dc_bus",
         "forecast": np.array([5.0]),
         "curtailment": True,
     }
@@ -70,7 +73,10 @@ def test_build_config_data_includes_optional_fields() -> None:
         "price_production": 0.02,
         "curtailment": False,
     }
-    loaded_values = {
+    loaded_values: solar.SolarConfigData = {
+        "element_type": "solar",
+        "name": "test_solar",
+        "connection": "dc_bus",
         "forecast": np.array([5.0]),
         "price_production": np.array([0.02]),
         "curtailment": False,
@@ -78,6 +84,7 @@ def test_build_config_data_includes_optional_fields() -> None:
 
     result = solar.adapter.build_config_data(loaded_values, config)
 
-    assert result.get("price_production") is not None
-    np.testing.assert_array_equal(result["price_production"], [0.02])
+    price_production = result.get("price_production")
+    assert price_production is not None
+    np.testing.assert_array_equal(price_production, [0.02])
     assert result.get("curtailment") is False

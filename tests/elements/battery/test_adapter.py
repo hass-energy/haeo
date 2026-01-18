@@ -202,7 +202,10 @@ def test_build_config_data_applies_defaults_for_optional_fields() -> None:
     }
 
     # Only provide required fields, no optional fields with defaults
-    loaded_values = {
+    loaded_values: battery.BatteryConfigData = {
+        "element_type": "battery",
+        "name": "test_battery",
+        "connection": "main_bus",
         "capacity": np.array([10.0, 10.0, 10.0]),  # 3 boundaries
         "initial_charge_percentage": np.array([50.0, 50.0]),  # 2 intervals
     }
@@ -214,9 +217,15 @@ def test_build_config_data_applies_defaults_for_optional_fields() -> None:
     np.testing.assert_array_equal(result["initial_charge_percentage"], [50.0, 50.0])
 
     # Defaults applied for optional fields (boundaries: 3 values, intervals: 2 values)
-    np.testing.assert_array_equal(result["min_charge_percentage"], [0.0, 0.0, 0.0])  # Default 0.0, boundaries
-    np.testing.assert_array_equal(result["max_charge_percentage"], [100.0, 100.0, 100.0])  # Default 100.0, boundaries
-    np.testing.assert_array_equal(result["efficiency"], [99.0, 99.0])  # Default 99.0, intervals
+    min_charge_percentage = result.get("min_charge_percentage")
+    assert min_charge_percentage is not None
+    np.testing.assert_array_equal(min_charge_percentage, [0.0, 0.0, 0.0])  # Default 0.0, boundaries
+    max_charge_percentage = result.get("max_charge_percentage")
+    assert max_charge_percentage is not None
+    np.testing.assert_array_equal(max_charge_percentage, [100.0, 100.0, 100.0])  # Default 100.0, boundaries
+    efficiency = result.get("efficiency")
+    assert efficiency is not None
+    np.testing.assert_array_equal(efficiency, [99.0, 99.0])  # Default 99.0, intervals
 
 
 def test_build_config_data_uses_provided_values_over_defaults() -> None:
@@ -229,7 +238,10 @@ def test_build_config_data_uses_provided_values_over_defaults() -> None:
         "initial_charge_percentage": "sensor.initial",
     }
 
-    loaded_values = {
+    loaded_values: battery.BatteryConfigData = {
+        "element_type": "battery",
+        "name": "test_battery",
+        "connection": "main_bus",
         "capacity": np.array([20.0, 20.0, 20.0]),
         "initial_charge_percentage": np.array([75.0, 75.0]),
         # Provide non-default values for optional fields
@@ -241,9 +253,15 @@ def test_build_config_data_uses_provided_values_over_defaults() -> None:
     result = battery.adapter.build_config_data(loaded_values, config)
 
     # Should use provided values, not defaults
-    np.testing.assert_array_equal(result["min_charge_percentage"], [10.0, 10.0, 10.0])
-    np.testing.assert_array_equal(result["max_charge_percentage"], [90.0, 90.0, 90.0])
-    np.testing.assert_array_equal(result["efficiency"], [95.0, 95.0])
+    min_charge_percentage = result.get("min_charge_percentage")
+    assert min_charge_percentage is not None
+    np.testing.assert_array_equal(min_charge_percentage, [10.0, 10.0, 10.0])
+    max_charge_percentage = result.get("max_charge_percentage")
+    assert max_charge_percentage is not None
+    np.testing.assert_array_equal(max_charge_percentage, [90.0, 90.0, 90.0])
+    efficiency = result.get("efficiency")
+    assert efficiency is not None
+    np.testing.assert_array_equal(efficiency, [95.0, 95.0])
 
 
 def test_build_config_data_includes_optional_fields_without_defaults() -> None:
@@ -256,7 +274,10 @@ def test_build_config_data_includes_optional_fields_without_defaults() -> None:
         "initial_charge_percentage": "sensor.initial",
     }
 
-    loaded_values = {
+    loaded_values: battery.BatteryConfigData = {
+        "element_type": "battery",
+        "name": "test_battery",
+        "connection": "main_bus",
         "capacity": np.array([10.0, 10.0, 10.0]),
         "initial_charge_percentage": np.array([50.0, 50.0]),
         # Optional fields without defaults
@@ -267,12 +288,15 @@ def test_build_config_data_includes_optional_fields_without_defaults() -> None:
 
     result = battery.adapter.build_config_data(loaded_values, config)
 
-    assert result.get("max_charge_power") is not None
-    np.testing.assert_array_equal(result["max_charge_power"], [5.0, 5.0])
-    assert result.get("max_discharge_power") is not None
-    np.testing.assert_array_equal(result["max_discharge_power"], [6.0, 6.0])
-    assert result.get("early_charge_incentive") is not None
-    np.testing.assert_array_equal(result["early_charge_incentive"], [0.002, 0.002])
+    max_charge_power = result.get("max_charge_power")
+    assert max_charge_power is not None
+    np.testing.assert_array_equal(max_charge_power, [5.0, 5.0])
+    max_discharge_power = result.get("max_discharge_power")
+    assert max_discharge_power is not None
+    np.testing.assert_array_equal(max_discharge_power, [6.0, 6.0])
+    early_charge_incentive = result.get("early_charge_incentive")
+    assert early_charge_incentive is not None
+    np.testing.assert_array_equal(early_charge_incentive, [0.002, 0.002])
 
 
 def test_build_config_data_omits_optional_fields_not_provided() -> None:
@@ -285,7 +309,10 @@ def test_build_config_data_omits_optional_fields_not_provided() -> None:
         "initial_charge_percentage": "sensor.initial",
     }
 
-    loaded_values = {
+    loaded_values: battery.BatteryConfigData = {
+        "element_type": "battery",
+        "name": "test_battery",
+        "connection": "main_bus",
         "capacity": np.array([10.0, 10.0, 10.0]),
         "initial_charge_percentage": np.array([50.0, 50.0]),
         # Not providing max_charge_power, max_discharge_power, etc.
@@ -310,7 +337,10 @@ def test_build_config_data_preserves_non_input_fields_from_config() -> None:
         "initial_charge_percentage": "sensor.initial",
     }
 
-    loaded_values = {
+    loaded_values: battery.BatteryConfigData = {
+        "element_type": "battery",
+        "name": "my_battery",
+        "connection": "dc_bus",
         "capacity": np.array([10.0, 10.0, 10.0]),
         "initial_charge_percentage": np.array([50.0, 50.0]),
     }

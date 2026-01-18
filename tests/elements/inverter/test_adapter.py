@@ -71,7 +71,10 @@ def test_build_config_data_returns_config_data() -> None:
         "max_power_dc_to_ac": "sensor.max_dc_to_ac",
         "max_power_ac_to_dc": "sensor.max_ac_to_dc",
     }
-    loaded_values = {
+    loaded_values: inverter.InverterConfigData = {
+        "element_type": "inverter",
+        "name": "test_inverter",
+        "connection": "ac_bus",
         "max_power_dc_to_ac": np.array([5.0]),
         "max_power_ac_to_dc": np.array([4.0]),
     }
@@ -93,7 +96,10 @@ def test_build_config_data_includes_optional_efficiency() -> None:
         "max_power_dc_to_ac": "sensor.max_dc_to_ac",
         "max_power_ac_to_dc": "sensor.max_ac_to_dc",
     }
-    loaded_values = {
+    loaded_values: inverter.InverterConfigData = {
+        "element_type": "inverter",
+        "name": "test_inverter",
+        "connection": "ac_bus",
         "max_power_dc_to_ac": np.array([5.0]),
         "max_power_ac_to_dc": np.array([4.0]),
         "efficiency_dc_to_ac": np.array([97.0]),
@@ -102,7 +108,9 @@ def test_build_config_data_includes_optional_efficiency() -> None:
 
     result = inverter.adapter.build_config_data(loaded_values, config)
 
-    assert result.get("efficiency_dc_to_ac") is not None
-    np.testing.assert_array_equal(result["efficiency_dc_to_ac"], [97.0])
-    assert result.get("efficiency_ac_to_dc") is not None
-    np.testing.assert_array_equal(result["efficiency_ac_to_dc"], [95.0])
+    efficiency_dc_to_ac = result.get("efficiency_dc_to_ac")
+    assert efficiency_dc_to_ac is not None
+    np.testing.assert_array_equal(efficiency_dc_to_ac, [97.0])
+    efficiency_ac_to_dc = result.get("efficiency_ac_to_dc")
+    assert efficiency_ac_to_dc is not None
+    np.testing.assert_array_equal(efficiency_ac_to_dc, [95.0])
