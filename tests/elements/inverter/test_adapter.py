@@ -11,11 +11,6 @@ def _set_sensor(hass: HomeAssistant, entity_id: str, value: str, unit: str = "kW
     hass.states.async_set(entity_id, value, {"unit_of_measurement": unit})
 
 
-def _assert_array_equal(actual: np.ndarray | None, expected: float | list[float]) -> None:
-    assert actual is not None
-    np.testing.assert_array_equal(actual, expected)
-
-
 async def test_available_returns_true_when_sensors_exist(hass: HomeAssistant) -> None:
     """Inverter available() should return True when required sensors exist."""
     _set_sensor(hass, "sensor.max_dc_to_ac", "5.0", "kW")
@@ -77,16 +72,16 @@ def test_build_config_data_returns_config_data() -> None:
         "max_power_ac_to_dc": "sensor.max_ac_to_dc",
     }
     loaded_values = {
-        "max_power_dc_to_ac": [5.0],
-        "max_power_ac_to_dc": [4.0],
+        "max_power_dc_to_ac": np.array([5.0]),
+        "max_power_ac_to_dc": np.array([4.0]),
     }
 
     result = inverter.adapter.build_config_data(loaded_values, config)
 
     assert result["element_type"] == "inverter"
     assert result["name"] == "test_inverter"
-    _assert_array_equal(result["max_power_dc_to_ac"], [5.0])
-    _assert_array_equal(result["max_power_ac_to_dc"], [4.0])
+    np.testing.assert_array_equal(result["max_power_dc_to_ac"], [5.0])
+    np.testing.assert_array_equal(result["max_power_ac_to_dc"], [4.0])
 
 
 def test_build_config_data_includes_optional_efficiency() -> None:
@@ -99,13 +94,15 @@ def test_build_config_data_includes_optional_efficiency() -> None:
         "max_power_ac_to_dc": "sensor.max_ac_to_dc",
     }
     loaded_values = {
-        "max_power_dc_to_ac": [5.0],
-        "max_power_ac_to_dc": [4.0],
-        "efficiency_dc_to_ac": 97.0,
-        "efficiency_ac_to_dc": 95.0,
+        "max_power_dc_to_ac": np.array([5.0]),
+        "max_power_ac_to_dc": np.array([4.0]),
+        "efficiency_dc_to_ac": np.array([97.0]),
+        "efficiency_ac_to_dc": np.array([95.0]),
     }
 
     result = inverter.adapter.build_config_data(loaded_values, config)
 
-    _assert_array_equal(result.get("efficiency_dc_to_ac"), 97.0)
-    _assert_array_equal(result.get("efficiency_ac_to_dc"), 95.0)
+    assert result.get("efficiency_dc_to_ac") is not None
+    np.testing.assert_array_equal(result["efficiency_dc_to_ac"], [97.0])
+    assert result.get("efficiency_ac_to_dc") is not None
+    np.testing.assert_array_equal(result["efficiency_ac_to_dc"], [95.0])

@@ -11,11 +11,6 @@ def _set_sensor(hass: HomeAssistant, entity_id: str, value: str, unit: str = "kW
     hass.states.async_set(entity_id, value, {"unit_of_measurement": unit})
 
 
-def _assert_array_equal(actual: np.ndarray | None, expected: list[float]) -> None:
-    assert actual is not None
-    np.testing.assert_array_equal(actual, expected)
-
-
 async def test_available_returns_true_when_sensors_exist(hass: HomeAssistant) -> None:
     """Battery section available() should return True when required sensors exist."""
     _set_sensor(hass, "sensor.capacity", "10.0", "kWh")
@@ -57,8 +52,8 @@ def test_build_config_data_returns_config_data() -> None:
         "initial_charge": "sensor.initial",
     }
     loaded_values = {
-        "capacity": [10.0, 10.0],
-        "initial_charge": [50.0],
+        "capacity": np.array([10.0, 10.0]),
+        "initial_charge": np.array([50.0]),
     }
 
     result = battery_section.adapter.build_config_data(loaded_values, config)
@@ -66,6 +61,6 @@ def test_build_config_data_returns_config_data() -> None:
     assert result["element_type"] == "battery_section"
     assert result["name"] == "test_section"
     assert len(result["capacity"]) == 2  # Boundaries: n+1 values
-    _assert_array_equal(result["capacity"], [10.0, 10.0])  # Broadcast to all boundaries
+    np.testing.assert_array_equal(result["capacity"], [10.0, 10.0])  # Broadcast to all boundaries
     assert len(result["initial_charge"]) == 1
     assert result["initial_charge"][0] == 50.0

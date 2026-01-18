@@ -11,11 +11,6 @@ def _set_sensor(hass: HomeAssistant, entity_id: str, value: str, unit: str = "kW
     hass.states.async_set(entity_id, value, {"unit_of_measurement": unit})
 
 
-def _assert_array_equal(actual: np.ndarray | None, expected: list[float]) -> None:
-    assert actual is not None
-    np.testing.assert_array_equal(actual, expected)
-
-
 async def test_available_returns_true_when_sensors_exist(hass: HomeAssistant) -> None:
     """Grid available() should return True when required sensors exist."""
     _set_sensor(hass, "sensor.import_price", "0.30", "$/kWh")
@@ -75,16 +70,16 @@ def test_build_config_data_returns_config_data() -> None:
         "export_price": ["sensor.export_price"],
     }
     loaded_values = {
-        "import_price": [0.30, 0.30],
-        "export_price": [0.05, 0.05],
+        "import_price": np.array([0.30, 0.30]),
+        "export_price": np.array([0.05, 0.05]),
     }
 
     result = grid.adapter.build_config_data(loaded_values, config)
 
     assert result["element_type"] == "grid"
     assert result["name"] == "test_grid"
-    _assert_array_equal(result["import_price"], [0.30, 0.30])
-    _assert_array_equal(result["export_price"], [0.05, 0.05])
+    np.testing.assert_array_equal(result["import_price"], [0.30, 0.30])
+    np.testing.assert_array_equal(result["export_price"], [0.05, 0.05])
 
 
 def test_build_config_data_includes_optional_limits() -> None:
@@ -97,16 +92,18 @@ def test_build_config_data_includes_optional_limits() -> None:
         "export_price": ["sensor.export_price"],
     }
     loaded_values = {
-        "import_price": [0.30, 0.30],
-        "export_price": [0.05, 0.05],
-        "import_limit": [10.0, 10.0],
-        "export_limit": [5.0, 5.0],
+        "import_price": np.array([0.30, 0.30]),
+        "export_price": np.array([0.05, 0.05]),
+        "import_limit": np.array([10.0, 10.0]),
+        "export_limit": np.array([5.0, 5.0]),
     }
 
     result = grid.adapter.build_config_data(loaded_values, config)
 
-    _assert_array_equal(result.get("import_limit"), [10.0, 10.0])
-    _assert_array_equal(result.get("export_limit"), [5.0, 5.0])
+    assert result.get("import_limit") is not None
+    np.testing.assert_array_equal(result["import_limit"], [10.0, 10.0])
+    assert result.get("export_limit") is not None
+    np.testing.assert_array_equal(result["export_limit"], [5.0, 5.0])
 
 
 async def test_available_with_constant_prices(hass: HomeAssistant) -> None:

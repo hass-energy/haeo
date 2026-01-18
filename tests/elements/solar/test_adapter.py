@@ -8,11 +8,6 @@ from custom_components.haeo.elements import solar
 from ..conftest import set_forecast_sensor
 
 
-def _assert_array_equal(actual: np.ndarray | None, expected: float | list[float]) -> None:
-    assert actual is not None
-    np.testing.assert_array_equal(actual, expected)
-
-
 async def test_available_returns_true_when_forecast_sensor_exists(hass: HomeAssistant) -> None:
     """Solar available() should return True when forecast sensor exists."""
     set_forecast_sensor(hass, "sensor.forecast", "5.0", [{"datetime": "2024-01-01T00:00:00Z", "value": 5.0}], "kW")
@@ -53,7 +48,7 @@ def test_build_config_data_returns_config_data() -> None:
         "curtailment": True,
     }
     loaded_values = {
-        "forecast": [5.0],
+        "forecast": np.array([5.0]),
         "curtailment": True,
     }
 
@@ -61,7 +56,7 @@ def test_build_config_data_returns_config_data() -> None:
 
     assert result["element_type"] == "solar"
     assert result["name"] == "test_solar"
-    assert result["forecast"] == [5.0]
+    np.testing.assert_array_equal(result["forecast"], [5.0])
     assert result.get("curtailment") is True
 
 
@@ -76,12 +71,13 @@ def test_build_config_data_includes_optional_fields() -> None:
         "curtailment": False,
     }
     loaded_values = {
-        "forecast": [5.0],
-        "price_production": [0.02],
+        "forecast": np.array([5.0]),
+        "price_production": np.array([0.02]),
         "curtailment": False,
     }
 
     result = solar.adapter.build_config_data(loaded_values, config)
 
-    _assert_array_equal(result.get("price_production"), [0.02])
+    assert result.get("price_production") is not None
+    np.testing.assert_array_equal(result["price_production"], [0.02])
     assert result.get("curtailment") is False

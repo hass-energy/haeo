@@ -1033,7 +1033,7 @@ def test_load_from_input_entities_loads_time_series_fields(
     mock_hub_entry: MockConfigEntry,
     mock_runtime_data: HaeoRuntimeData,
 ) -> None:
-    """Time series fields are loaded as lists from input entities."""
+    """Time series fields are loaded as arrays from input entities."""
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
 
     # Create mock input entities for all required fields

@@ -1,6 +1,7 @@
 """Tests for connection adapter build_config_data() and available() functions."""
 
 from homeassistant.core import HomeAssistant
+import numpy as np
 
 from custom_components.haeo.elements import connection
 
@@ -76,12 +77,12 @@ def test_build_config_data_includes_optional_fields() -> None:
         "target": "node_b",
     }
     loaded_values = {
-        "max_power_source_target": [5.0],
-        "max_power_target_source": [3.0],
-        "efficiency_source_target": [95.0],
-        "efficiency_target_source": [90.0],
-        "price_source_target": [0.10],
-        "price_target_source": [0.05],
+        "max_power_source_target": np.array([5.0]),
+        "max_power_target_source": np.array([3.0]),
+        "efficiency_source_target": np.array([95.0]),
+        "efficiency_target_source": np.array([90.0]),
+        "price_source_target": np.array([0.10]),
+        "price_target_source": np.array([0.05]),
     }
 
     result = connection.adapter.build_config_data(loaded_values, config)
@@ -90,12 +91,18 @@ def test_build_config_data_includes_optional_fields() -> None:
     assert result["name"] == "c1"
     assert result["source"] == "node_a"
     assert result["target"] == "node_b"
-    assert result.get("max_power_source_target") == [5.0]
-    assert result.get("max_power_target_source") == [3.0]
-    assert result.get("efficiency_source_target") == [95.0]
-    assert result.get("efficiency_target_source") == [90.0]
-    assert result.get("price_source_target") == [0.10]
-    assert result.get("price_target_source") == [0.05]
+    assert result.get("max_power_source_target") is not None
+    np.testing.assert_array_equal(result["max_power_source_target"], [5.0])
+    assert result.get("max_power_target_source") is not None
+    np.testing.assert_array_equal(result["max_power_target_source"], [3.0])
+    assert result.get("efficiency_source_target") is not None
+    np.testing.assert_array_equal(result["efficiency_source_target"], [95.0])
+    assert result.get("efficiency_target_source") is not None
+    np.testing.assert_array_equal(result["efficiency_target_source"], [90.0])
+    assert result.get("price_source_target") is not None
+    np.testing.assert_array_equal(result["price_source_target"], [0.10])
+    assert result.get("price_target_source") is not None
+    np.testing.assert_array_equal(result["price_target_source"], [0.05])
 
 
 def test_build_config_data_omits_optional_fields() -> None:
