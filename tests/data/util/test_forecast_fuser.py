@@ -154,6 +154,27 @@ from custom_components.haeo.data.util.forecast_fuser import fuse_to_boundaries, 
             [0.16, 0.16, 0.16, 0.16, 0.16, 0.149, 0.147],
             id="t1_alignment_extends_present_to_forecast_boundary",
         ),
+        pytest.param(
+            None,  # No present value - use forecast for all intervals
+            [(0, 100.0), (1000, 150.0), (2000, 200.0), (3000, 250.0)],
+            [0, 1000, 2000, 3000],
+            [125.0, 175.0, 225.0],  # Pure trapezoidal averages from forecast
+            id="no_present_value_uses_forecast_for_all",
+        ),
+        pytest.param(
+            50.0,  # Present value with forecast all at or before horizon start
+            [(0, 100.0), (-1000, 50.0)],  # All forecasts at/before t=0
+            [0, 1000, 2000],
+            [50.0, 99.12177985948477],  # Present@0, then cycled forecast average
+            id="all_forecasts_at_or_before_horizon_start",
+        ),
+        pytest.param(
+            42.0,  # Single interval case
+            [(0, 100.0), (1000, 200.0)],
+            [0, 1000],  # Only 2 boundaries = 1 interval
+            [42.0],  # Just present value for single interval
+            id="single_interval_only",
+        ),
     ],
 )
 def test_fuse_to_intervals(
