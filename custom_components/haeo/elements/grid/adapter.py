@@ -24,7 +24,6 @@ from custom_components.haeo.model.elements.power_connection import (
 from custom_components.haeo.model.output_data import OutputData
 
 from .schema import (
-    CONF_CONNECTION,
     CONF_EXPORT_LIMIT,
     CONF_EXPORT_PRICE,
     CONF_IMPORT_LIMIT,
@@ -153,42 +152,6 @@ class GridAdapter:
                 defaults=InputFieldDefaults(mode="value", value=100.0),
             ),
         }
-
-    def build_config_data(
-        self,
-        loaded_values: Mapping[str, Any],
-        config: GridConfigSchema,
-    ) -> GridConfigData:
-        """Build ConfigData from pre-loaded values.
-
-        This is the single source of truth for ConfigData construction.
-        The coordinator uses this method after loading input entity values.
-
-        Args:
-            loaded_values: Dict of field names to loaded values (from input entities)
-            config: Original ConfigSchema for non-input fields (element_type, name, connection)
-
-        Returns:
-            GridConfigData with all fields populated and defaults applied
-
-        """
-        # Build data with required fields (prices must be present in loaded_values)
-        data: GridConfigData = {
-            "element_type": config["element_type"],
-            "name": config["name"],
-            "connection": config[CONF_CONNECTION],
-            "import_price": list(loaded_values["import_price"]),
-            "export_price": list(loaded_values["export_price"]),
-        }
-
-        # Optional limit fields - only include if present
-        if "import_limit" in loaded_values:
-            data["import_limit"] = list(loaded_values["import_limit"])
-
-        if "export_limit" in loaded_values:
-            data["export_limit"] = list(loaded_values["export_limit"])
-
-        return data
 
     def model_elements(self, config: GridConfigData) -> list[ModelElementConfig]:
         """Create model elements for Grid configuration."""

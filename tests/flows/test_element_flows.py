@@ -194,10 +194,6 @@ def flow_test_element_factory(monkeypatch: pytest.MonkeyPatch) -> FlowTestElemen
             _ = config
             return {}
 
-        def build_config_data(self, loaded_values: Mapping[str, Any], config: Any) -> Any:
-            _ = loaded_values
-            return config
-
         def model_elements(self, config: Any) -> list[dict[str, Any]]:  # noqa: ARG002
             return []
 

@@ -20,7 +20,7 @@ from custom_components.haeo.model.elements.power_connection import (
 )
 from custom_components.haeo.model.output_data import OutputData
 
-from .schema import CONF_CONNECTION, CONF_FORECAST, ELEMENT_TYPE, LoadConfigData, LoadConfigSchema
+from .schema import CONF_FORECAST, ELEMENT_TYPE, LoadConfigData, LoadConfigSchema
 
 # Load output names
 type LoadOutputName = Literal[
@@ -74,31 +74,6 @@ class LoadAdapter:
                 direction="+",
                 time_series=True,
             ),
-        }
-
-    def build_config_data(
-        self,
-        loaded_values: Mapping[str, Any],
-        config: LoadConfigSchema,
-    ) -> LoadConfigData:
-        """Build ConfigData from pre-loaded values.
-
-        This is the single source of truth for ConfigData construction.
-        The coordinator uses this method after loading input entity values.
-
-        Args:
-            loaded_values: Dict of field names to loaded values (from input entities)
-            config: Original ConfigSchema for non-input fields (element_type, name, connection)
-
-        Returns:
-            LoadConfigData with all fields populated
-
-        """
-        return {
-            "element_type": config["element_type"],
-            "name": config["name"],
-            "connection": config[CONF_CONNECTION],
-            "forecast": list(loaded_values[CONF_FORECAST]),
         }
 
     def model_elements(self, config: LoadConfigData) -> list[ModelElementConfig]:
