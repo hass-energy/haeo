@@ -1,4 +1,4 @@
-"""Tests for battery adapter build_config_data() and available() functions."""
+"""Tests for battery adapter config handling and model elements."""
 
 from homeassistant.core import HomeAssistant
 import numpy as np
@@ -7,6 +7,8 @@ import pytest
 from custom_components.haeo.elements import battery
 from custom_components.haeo.elements.battery import sum_output_data
 from custom_components.haeo.model.const import OutputType
+from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_BATTERY, MODEL_ELEMENT_TYPE_CONNECTION
+from custom_components.haeo.model.elements.segments import is_efficiency_spec
 from custom_components.haeo.model.output_data import OutputData
 
 
@@ -191,8 +193,8 @@ def test_sum_output_data_sums_multiple_outputs() -> None:
 # Tests for build_config_data() - single source of truth for ConfigData construction
 
 
-def test_build_config_data_applies_defaults_for_optional_fields() -> None:
-    """build_config_data() should apply defaults for optional fields not in loaded_values."""
+def test_build_config_data_omits_defaults_for_optional_fields() -> None:
+    """build_config_data() should not apply defaults for optional fields."""
     config: battery.BatteryConfigSchema = {
         "element_type": "battery",
         "name": "test_battery",
@@ -216,16 +218,10 @@ def test_build_config_data_applies_defaults_for_optional_fields() -> None:
     np.testing.assert_array_equal(result["capacity"], [10.0, 10.0, 10.0])
     np.testing.assert_array_equal(result["initial_charge_percentage"], [50.0, 50.0])
 
-    # Defaults applied for optional fields (boundaries: 3 values, intervals: 2 values)
-    min_charge_percentage = result.get("min_charge_percentage")
-    assert min_charge_percentage is not None
-    np.testing.assert_array_equal(min_charge_percentage, [0.0, 0.0, 0.0])  # Default 0.0, boundaries
-    max_charge_percentage = result.get("max_charge_percentage")
-    assert max_charge_percentage is not None
-    np.testing.assert_array_equal(max_charge_percentage, [100.0, 100.0, 100.0])  # Default 100.0, boundaries
-    efficiency = result.get("efficiency")
-    assert efficiency is not None
-    np.testing.assert_array_equal(efficiency, [99.0, 99.0])  # Default 99.0, intervals
+    # Defaults are applied in model_elements, not build_config_data
+    assert "min_charge_percentage" not in result
+    assert "max_charge_percentage" not in result
+    assert "efficiency" not in result
 
 
 def test_build_config_data_uses_provided_values_over_defaults() -> None:
@@ -351,3 +347,32 @@ def test_build_config_data_preserves_non_input_fields_from_config() -> None:
     assert result["element_type"] == "battery"
     assert result["name"] == "my_battery"
     assert result["connection"] == "dc_bus"
+
+
+def test_model_elements_applies_defaults_for_limits_and_efficiency() -> None:
+    """model_elements() should apply defaults for limits and efficiency."""
+    config_data: battery.BatteryConfigData = {
+        "element_type": "battery",
+        "name": "test_battery",
+        "connection": "main_bus",
+        "capacity": np.array([10.0, 10.0, 10.0]),
+        "initial_charge_percentage": np.array([50.0, 50.0]),
+    }
+
+    elements = battery.adapter.model_elements(config_data)
+
+    normal_section = next(element for element in elements if element["element_type"] == MODEL_ELEMENT_TYPE_BATTERY and element["name"] == "test_battery:normal")
+    np.testing.assert_array_equal(normal_section["capacity"], [10.0, 10.0, 10.0])
+
+    connection = next(element for element in elements if element["element_type"] == MODEL_ELEMENT_TYPE_CONNECTION and element["name"] == "test_battery:connection")
+    segments = connection.get("segments")
+    assert segments is not None
+    efficiency_segment = segments.get("efficiency")
+    assert efficiency_segment is not None
+    assert is_efficiency_spec(efficiency_segment)
+    efficiency_source_target = efficiency_segment.get("efficiency_source_target")
+    assert efficiency_source_target is not None
+    np.testing.assert_array_equal(efficiency_source_target, [0.99, 0.99])
+    efficiency_target_source = efficiency_segment.get("efficiency_target_source")
+    assert efficiency_target_source is not None
+    np.testing.assert_array_equal(efficiency_target_source, [0.99, 0.99])

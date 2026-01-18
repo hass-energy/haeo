@@ -364,45 +364,25 @@ class BatteryAdapter:
             config: Original ConfigSchema for non-input fields (element_type, name, connection)
 
         Returns:
-            BatteryConfigData with all fields populated and defaults applied
+            BatteryConfigData with loaded values (defaults applied in model_elements)
 
         """
-        # Determine array sizes from capacity (a required boundary field)
-        capacity = loaded_values[CONF_CAPACITY]
-        n_boundaries = len(capacity)
-        n_periods = max(0, n_boundaries - 1)
-
-        # Apply defaults for optional fields with defaults
-        min_charge_value = loaded_values.get(CONF_MIN_CHARGE_PERCENTAGE)
-        min_charge = (
-            np.full(n_boundaries, DEFAULTS[CONF_MIN_CHARGE_PERCENTAGE], dtype=float)
-            if min_charge_value is None
-            else min_charge_value
-        )
-        max_charge_value = loaded_values.get(CONF_MAX_CHARGE_PERCENTAGE)
-        max_charge = (
-            np.full(n_boundaries, DEFAULTS[CONF_MAX_CHARGE_PERCENTAGE], dtype=float)
-            if max_charge_value is None
-            else max_charge_value
-        )
-        efficiency_value = loaded_values.get(CONF_EFFICIENCY)
-        efficiency = (
-            np.full(n_periods, DEFAULTS[CONF_EFFICIENCY], dtype=float) if efficiency_value is None else efficiency_value
-        )
-
-        # Build data with required fields and defaults
         data: BatteryConfigData = {
             "element_type": config["element_type"],
             "name": config["name"],
             "connection": config[CONF_CONNECTION],
-            "capacity": capacity,
+            "capacity": loaded_values[CONF_CAPACITY],
             "initial_charge_percentage": loaded_values[CONF_INITIAL_CHARGE_PERCENTAGE],
-            "min_charge_percentage": min_charge,
-            "max_charge_percentage": max_charge,
-            "efficiency": efficiency,
         }
 
-        # Optional fields without defaults - only include if present in loaded_values
+        # Optional fields - only include if present in loaded_values
+        if CONF_MIN_CHARGE_PERCENTAGE in loaded_values:
+            data["min_charge_percentage"] = loaded_values[CONF_MIN_CHARGE_PERCENTAGE]
+        if CONF_MAX_CHARGE_PERCENTAGE in loaded_values:
+            data["max_charge_percentage"] = loaded_values[CONF_MAX_CHARGE_PERCENTAGE]
+        if CONF_EFFICIENCY in loaded_values:
+            data["efficiency"] = loaded_values[CONF_EFFICIENCY]
+
         if CONF_MAX_CHARGE_POWER in loaded_values:
             data["max_charge_power"] = loaded_values[CONF_MAX_CHARGE_POWER]
 

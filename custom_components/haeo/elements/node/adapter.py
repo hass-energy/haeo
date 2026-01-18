@@ -83,15 +83,18 @@ class NodeAdapter:
             config: Original ConfigSchema for non-input fields (element_type, name)
 
         Returns:
-            NodeConfigData with all fields populated and defaults applied
+            NodeConfigData with loaded values (defaults applied in model_elements)
 
         """
-        return {
+        data: NodeConfigData = {
             "element_type": config["element_type"],
             "name": config["name"],
-            "is_source": loaded_values.get(CONF_IS_SOURCE, DEFAULT_IS_SOURCE),
-            "is_sink": loaded_values.get(CONF_IS_SINK, DEFAULT_IS_SINK),
         }
+        if CONF_IS_SOURCE in loaded_values:
+            data["is_source"] = loaded_values[CONF_IS_SOURCE]
+        if CONF_IS_SINK in loaded_values:
+            data["is_sink"] = loaded_values[CONF_IS_SINK]
+        return data
 
     def model_elements(self, config: NodeConfigData) -> list[ModelElementConfig]:
         """Return model element parameters for Node configuration."""
