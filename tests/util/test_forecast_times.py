@@ -1,7 +1,7 @@
 """Tests for forecast time generation utilities."""
 
 from datetime import UTC, datetime
-from typing import TypedDict
+from typing import Any, TypedDict
 from unittest.mock import patch
 
 import pytest
@@ -382,3 +382,34 @@ def test_tiers_to_periods_with_missing_tiers() -> None:
     assert len(periods) == 3 + 2  # 5 periods total
     assert periods[:3] == [60] * 3  # T1: 3x60s
     assert periods[3:5] == [300] * 2  # T2: 2x300s
+
+
+@pytest.mark.parametrize("preset", ["2_days", "3_days", "5_days", "7_days"])
+def test_preset_produces_constant_step_count_for_all_minutes(preset: str, freezer: Any) -> None:
+    """Verify each preset produces the same step count regardless of starting minute.
+
+    The time alignment algorithm adjusts tier counts to align with forecast boundaries,
+    but the total number of steps must remain constant for a given preset. This ensures
+    consistent solver performance regardless of when optimization starts.
+    """
+    config = {
+        "horizon_preset": preset,
+        "tier_1_duration": 1,
+        "tier_2_duration": 5,
+        "tier_3_duration": 30,
+        "tier_4_duration": 60,
+    }
+
+    step_counts: list[int] = []
+
+    for minute in range(60):
+        freezer.move_to(datetime(2025, 1, 1, 12, minute, 0, tzinfo=UTC))
+        periods = tiers_to_periods_seconds(config)
+        step_counts.append(len(periods))
+
+    # All minutes should produce the same step count
+    expected_count = step_counts[0]
+    for minute, count in enumerate(step_counts):
+        assert count == expected_count, (
+            f"Preset {preset}: minute {minute} produced {count} steps, expected {expected_count}"
+        )
