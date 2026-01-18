@@ -7,7 +7,6 @@ from homeassistant.components.switch import SwitchEntityDescription
 
 from custom_components.haeo.const import ConnectivityLevel
 from custom_components.haeo.elements.input_fields import InputFieldDefaults, InputFieldInfo
-from custom_components.haeo.elements.loaded_values import LoadedValues, require_loaded_bool
 from custom_components.haeo.model import ModelElementConfig, ModelOutputName, ModelOutputValue
 from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_NODE
@@ -71,7 +70,7 @@ class NodeAdapter:
 
     def build_config_data(
         self,
-        loaded_values: LoadedValues,
+        loaded_values: NodeConfigData,
         config: NodeConfigSchema,
     ) -> NodeConfigData:
         """Build ConfigData from pre-loaded values.
@@ -90,16 +89,8 @@ class NodeAdapter:
         return {
             "element_type": config["element_type"],
             "name": config["name"],
-            "is_source": (
-                require_loaded_bool(loaded_values[CONF_IS_SOURCE], CONF_IS_SOURCE)
-                if CONF_IS_SOURCE in loaded_values
-                else DEFAULT_IS_SOURCE
-            ),
-            "is_sink": (
-                require_loaded_bool(loaded_values[CONF_IS_SINK], CONF_IS_SINK)
-                if CONF_IS_SINK in loaded_values
-                else DEFAULT_IS_SINK
-            ),
+            "is_source": loaded_values.get(CONF_IS_SOURCE, DEFAULT_IS_SOURCE),
+            "is_sink": loaded_values.get(CONF_IS_SINK, DEFAULT_IS_SINK),
         }
 
     def model_elements(self, config: NodeConfigData) -> list[ModelElementConfig]:
@@ -108,8 +99,8 @@ class NodeAdapter:
             {
                 "element_type": MODEL_ELEMENT_TYPE_NODE,
                 "name": config["name"],
-                "is_source": config["is_source"],
-                "is_sink": config["is_sink"],
+                "is_source": config.get(CONF_IS_SOURCE, DEFAULT_IS_SOURCE),
+                "is_sink": config.get(CONF_IS_SINK, DEFAULT_IS_SINK),
             }
         ]
 

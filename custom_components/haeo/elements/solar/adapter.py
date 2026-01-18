@@ -13,7 +13,6 @@ import numpy as np
 from custom_components.haeo.const import ConnectivityLevel
 from custom_components.haeo.data.loader import TimeSeriesLoader
 from custom_components.haeo.elements.input_fields import InputFieldDefaults, InputFieldInfo
-from custom_components.haeo.elements.loaded_values import LoadedValues, require_loaded_array, require_loaded_bool
 from custom_components.haeo.model import ModelElementConfig, ModelOutputName, ModelOutputValue
 from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE
@@ -114,7 +113,7 @@ class SolarAdapter:
 
     def build_config_data(
         self,
-        loaded_values: LoadedValues,
+        loaded_values: SolarConfigData,
         config: SolarConfigSchema,
     ) -> SolarConfigData:
         """Build ConfigData from pre-loaded values.
@@ -134,14 +133,14 @@ class SolarAdapter:
             "element_type": config["element_type"],
             "name": config["name"],
             "connection": config[CONF_CONNECTION],
-            "forecast": require_loaded_array(loaded_values[CONF_FORECAST], CONF_FORECAST),
+            "forecast": loaded_values[CONF_FORECAST],
         }
 
         # Optional fields
         if CONF_PRICE_PRODUCTION in loaded_values:
-            data["price_production"] = require_loaded_array(loaded_values[CONF_PRICE_PRODUCTION], CONF_PRICE_PRODUCTION)
+            data["price_production"] = loaded_values[CONF_PRICE_PRODUCTION]
         if CONF_CURTAILMENT in loaded_values:
-            data["curtailment"] = require_loaded_bool(loaded_values[CONF_CURTAILMENT], CONF_CURTAILMENT)
+            data["curtailment"] = loaded_values[CONF_CURTAILMENT]
 
         return data
 

@@ -12,7 +12,6 @@ import numpy as np
 from custom_components.haeo.const import ConnectivityLevel
 from custom_components.haeo.data.loader import TimeSeriesLoader
 from custom_components.haeo.elements.input_fields import InputFieldDefaults, InputFieldInfo
-from custom_components.haeo.elements.loaded_values import LoadedValues, require_loaded_array
 from custom_components.haeo.model import ModelElementConfig, ModelOutputName, ModelOutputValue
 from custom_components.haeo.model import battery as model_battery
 from custom_components.haeo.model import battery_balance_connection as model_balance
@@ -352,7 +351,7 @@ class BatteryAdapter:
 
     def build_config_data(
         self,
-        loaded_values: LoadedValues,
+        loaded_values: BatteryConfigData,
         config: BatteryConfigSchema,
     ) -> BatteryConfigData:
         """Build ConfigData from pre-loaded values.
@@ -369,7 +368,7 @@ class BatteryAdapter:
 
         """
         # Determine array sizes from capacity (a required boundary field)
-        capacity = require_loaded_array(loaded_values[CONF_CAPACITY], CONF_CAPACITY)
+        capacity = loaded_values[CONF_CAPACITY]
         n_boundaries = len(capacity)
         n_periods = max(0, n_boundaries - 1)
 
@@ -378,19 +377,17 @@ class BatteryAdapter:
         min_charge = (
             np.full(n_boundaries, DEFAULTS[CONF_MIN_CHARGE_PERCENTAGE], dtype=float)
             if min_charge_value is None
-            else require_loaded_array(min_charge_value, CONF_MIN_CHARGE_PERCENTAGE)
+            else min_charge_value
         )
         max_charge_value = loaded_values.get(CONF_MAX_CHARGE_PERCENTAGE)
         max_charge = (
             np.full(n_boundaries, DEFAULTS[CONF_MAX_CHARGE_PERCENTAGE], dtype=float)
             if max_charge_value is None
-            else require_loaded_array(max_charge_value, CONF_MAX_CHARGE_PERCENTAGE)
+            else max_charge_value
         )
         efficiency_value = loaded_values.get(CONF_EFFICIENCY)
         efficiency = (
-            np.full(n_periods, DEFAULTS[CONF_EFFICIENCY], dtype=float)
-            if efficiency_value is None
-            else require_loaded_array(efficiency_value, CONF_EFFICIENCY)
+            np.full(n_periods, DEFAULTS[CONF_EFFICIENCY], dtype=float) if efficiency_value is None else efficiency_value
         )
 
         # Build data with required fields and defaults
@@ -399,10 +396,7 @@ class BatteryAdapter:
             "name": config["name"],
             "connection": config[CONF_CONNECTION],
             "capacity": capacity,
-            "initial_charge_percentage": require_loaded_array(
-                loaded_values[CONF_INITIAL_CHARGE_PERCENTAGE],
-                CONF_INITIAL_CHARGE_PERCENTAGE,
-            ),
+            "initial_charge_percentage": loaded_values[CONF_INITIAL_CHARGE_PERCENTAGE],
             "min_charge_percentage": min_charge,
             "max_charge_percentage": max_charge,
             "efficiency": efficiency,
@@ -410,36 +404,28 @@ class BatteryAdapter:
 
         # Optional fields without defaults - only include if present in loaded_values
         if CONF_MAX_CHARGE_POWER in loaded_values:
-            data["max_charge_power"] = require_loaded_array(loaded_values[CONF_MAX_CHARGE_POWER], CONF_MAX_CHARGE_POWER)
+            data["max_charge_power"] = loaded_values[CONF_MAX_CHARGE_POWER]
 
         if CONF_MAX_DISCHARGE_POWER in loaded_values:
-            data["max_discharge_power"] = require_loaded_array(
-                loaded_values[CONF_MAX_DISCHARGE_POWER], CONF_MAX_DISCHARGE_POWER
-            )
+            data["max_discharge_power"] = loaded_values[CONF_MAX_DISCHARGE_POWER]
 
         if CONF_DISCHARGE_COST in loaded_values:
-            data["discharge_cost"] = require_loaded_array(loaded_values[CONF_DISCHARGE_COST], CONF_DISCHARGE_COST)
+            data["discharge_cost"] = loaded_values[CONF_DISCHARGE_COST]
 
         if CONF_EARLY_CHARGE_INCENTIVE in loaded_values:
-            data["early_charge_incentive"] = require_loaded_array(
-                loaded_values[CONF_EARLY_CHARGE_INCENTIVE], CONF_EARLY_CHARGE_INCENTIVE
-            )
+            data["early_charge_incentive"] = loaded_values[CONF_EARLY_CHARGE_INCENTIVE]
 
         if CONF_UNDERCHARGE_PERCENTAGE in loaded_values:
-            data["undercharge_percentage"] = require_loaded_array(
-                loaded_values[CONF_UNDERCHARGE_PERCENTAGE], CONF_UNDERCHARGE_PERCENTAGE
-            )
+            data["undercharge_percentage"] = loaded_values[CONF_UNDERCHARGE_PERCENTAGE]
 
         if CONF_OVERCHARGE_PERCENTAGE in loaded_values:
-            data["overcharge_percentage"] = require_loaded_array(
-                loaded_values[CONF_OVERCHARGE_PERCENTAGE], CONF_OVERCHARGE_PERCENTAGE
-            )
+            data["overcharge_percentage"] = loaded_values[CONF_OVERCHARGE_PERCENTAGE]
 
         if CONF_UNDERCHARGE_COST in loaded_values:
-            data["undercharge_cost"] = require_loaded_array(loaded_values[CONF_UNDERCHARGE_COST], CONF_UNDERCHARGE_COST)
+            data["undercharge_cost"] = loaded_values[CONF_UNDERCHARGE_COST]
 
         if CONF_OVERCHARGE_COST in loaded_values:
-            data["overcharge_cost"] = require_loaded_array(loaded_values[CONF_OVERCHARGE_COST], CONF_OVERCHARGE_COST)
+            data["overcharge_cost"] = loaded_values[CONF_OVERCHARGE_COST]
 
         return data
 
@@ -461,8 +447,18 @@ class BatteryAdapter:
         initial_soc = config["initial_charge_percentage"][0]
 
         # Convert percentages to ratio arrays for time-varying limits
-        min_ratio_array = config["min_charge_percentage"] / 100.0
-        max_ratio_array = config["max_charge_percentage"] / 100.0
+        min_charge_percentage = config.get(CONF_MIN_CHARGE_PERCENTAGE)
+        if min_charge_percentage is None:
+            min_charge_percentage = np.full(n_boundaries, DEFAULTS[CONF_MIN_CHARGE_PERCENTAGE], dtype=float)
+        max_charge_percentage = config.get(CONF_MAX_CHARGE_PERCENTAGE)
+        if max_charge_percentage is None:
+            max_charge_percentage = np.full(n_boundaries, DEFAULTS[CONF_MAX_CHARGE_PERCENTAGE], dtype=float)
+        efficiency = config.get(CONF_EFFICIENCY)
+        if efficiency is None:
+            efficiency = np.full(n_periods, DEFAULTS[CONF_EFFICIENCY], dtype=float)
+
+        min_ratio_array = min_charge_percentage / 100.0
+        max_ratio_array = max_charge_percentage / 100.0
         min_ratio_first = min_ratio_array[0]
 
         # Get optional percentage arrays (if present)
@@ -642,7 +638,7 @@ class BatteryAdapter:
             if "discharge_cost" in config
             else discharge_early_incentive
         )
-        efficiency_values = config["efficiency"]
+        efficiency_values = efficiency
         max_discharge = config.get("max_discharge_power")
         max_charge = config.get("max_charge_power")
 
@@ -913,7 +909,10 @@ def _calculate_total_energy(aggregate_energy: OutputData, config: BatteryConfigD
     capacity = config["capacity"]
 
     # Get time-varying min ratio (also boundaries)
-    min_ratio = config["min_charge_percentage"] / 100.0
+    min_charge_percentage = config.get(CONF_MIN_CHARGE_PERCENTAGE)
+    if min_charge_percentage is None:
+        min_charge_percentage = np.full(len(capacity), DEFAULTS[CONF_MIN_CHARGE_PERCENTAGE], dtype=float)
+    min_ratio = min_charge_percentage / 100.0
 
     undercharge_pct = config.get("undercharge_percentage")
     undercharge_ratio = undercharge_pct / 100.0 if undercharge_pct is not None else None

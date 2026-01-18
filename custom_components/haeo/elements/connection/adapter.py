@@ -11,7 +11,6 @@ from homeassistant.core import HomeAssistant
 from custom_components.haeo.const import ConnectivityLevel
 from custom_components.haeo.data.loader import TimeSeriesLoader
 from custom_components.haeo.elements.input_fields import InputFieldInfo
-from custom_components.haeo.elements.loaded_values import LoadedValues, require_loaded_array
 from custom_components.haeo.model import ModelElementConfig, ModelOutputName, ModelOutputValue
 from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION
@@ -194,7 +193,7 @@ class ConnectionAdapter:
 
     def build_config_data(
         self,
-        loaded_values: LoadedValues,
+        loaded_values: ConnectionConfigData,
         config: ConnectionConfigSchema,
     ) -> ConnectionConfigData:
         """Build ConfigData from pre-loaded values.
@@ -219,29 +218,17 @@ class ConnectionAdapter:
 
         # Optional time series fields
         if CONF_MAX_POWER_SOURCE_TARGET in loaded_values:
-            data["max_power_source_target"] = require_loaded_array(
-                loaded_values[CONF_MAX_POWER_SOURCE_TARGET], CONF_MAX_POWER_SOURCE_TARGET
-            )
+            data["max_power_source_target"] = loaded_values[CONF_MAX_POWER_SOURCE_TARGET]
         if CONF_MAX_POWER_TARGET_SOURCE in loaded_values:
-            data["max_power_target_source"] = require_loaded_array(
-                loaded_values[CONF_MAX_POWER_TARGET_SOURCE], CONF_MAX_POWER_TARGET_SOURCE
-            )
+            data["max_power_target_source"] = loaded_values[CONF_MAX_POWER_TARGET_SOURCE]
         if CONF_EFFICIENCY_SOURCE_TARGET in loaded_values:
-            data["efficiency_source_target"] = require_loaded_array(
-                loaded_values[CONF_EFFICIENCY_SOURCE_TARGET], CONF_EFFICIENCY_SOURCE_TARGET
-            )
+            data["efficiency_source_target"] = loaded_values[CONF_EFFICIENCY_SOURCE_TARGET]
         if CONF_EFFICIENCY_TARGET_SOURCE in loaded_values:
-            data["efficiency_target_source"] = require_loaded_array(
-                loaded_values[CONF_EFFICIENCY_TARGET_SOURCE], CONF_EFFICIENCY_TARGET_SOURCE
-            )
+            data["efficiency_target_source"] = loaded_values[CONF_EFFICIENCY_TARGET_SOURCE]
         if CONF_PRICE_SOURCE_TARGET in loaded_values:
-            data["price_source_target"] = require_loaded_array(
-                loaded_values[CONF_PRICE_SOURCE_TARGET], CONF_PRICE_SOURCE_TARGET
-            )
+            data["price_source_target"] = loaded_values[CONF_PRICE_SOURCE_TARGET]
         if CONF_PRICE_TARGET_SOURCE in loaded_values:
-            data["price_target_source"] = require_loaded_array(
-                loaded_values[CONF_PRICE_TARGET_SOURCE], CONF_PRICE_TARGET_SOURCE
-            )
+            data["price_target_source"] = loaded_values[CONF_PRICE_TARGET_SOURCE]
 
         return data
 

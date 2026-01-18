@@ -43,7 +43,6 @@ from custom_components.haeo.elements import (
     get_input_fields,
     is_element_type,
 )
-from custom_components.haeo.elements.loaded_values import LoadedValue
 from custom_components.haeo.model import ModelOutputName, ModelOutputValue, Network, OutputData, OutputType
 from custom_components.haeo.repairs import dismiss_optimization_failure_issue
 from custom_components.haeo.util.forecast_times import tiers_to_periods_seconds
@@ -453,7 +452,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         input_field_infos = get_input_fields(element_config)
 
         # Collect loaded values from input entities
-        loaded_values: dict[str, LoadedValue] = {}
+        loaded_values: dict[str, Any] = {}
         for field_info in input_field_infos.values():
             field_name = field_info.field_name
             key = (element_name, field_name)
@@ -472,10 +471,15 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             else:
                 loaded_values[field_name] = np.asarray(values, dtype=float)
 
+        element_values: dict[str, Any] = {
+            key: value for key, value in element_config.items() if key not in input_field_infos
+        }
+        element_values.update(loaded_values)
+
         # Delegate to adapter's build_config_data() - single source of truth
         adapter = ELEMENT_TYPES[element_type]
         try:
-            return adapter.build_config_data(loaded_values, element_config)
+            return adapter.build_config_data(element_values, element_config)
         except KeyError as e:
             field_name = e.args[0] if e.args else "unknown"
             msg = f"Missing required field '{field_name}' for element '{element_name}'"

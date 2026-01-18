@@ -11,7 +11,6 @@ from homeassistant.core import HomeAssistant
 from custom_components.haeo.const import ConnectivityLevel
 from custom_components.haeo.data.loader import TimeSeriesLoader
 from custom_components.haeo.elements.input_fields import InputFieldDefaults, InputFieldInfo
-from custom_components.haeo.elements.loaded_values import LoadedValues, require_loaded_array
 from custom_components.haeo.model import ModelElementConfig, ModelOutputName, ModelOutputValue
 from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE
@@ -142,7 +141,7 @@ class InverterAdapter:
 
     def build_config_data(
         self,
-        loaded_values: LoadedValues,
+        loaded_values: InverterConfigData,
         config: InverterConfigSchema,
     ) -> InverterConfigData:
         """Build ConfigData from pre-loaded values.
@@ -162,19 +161,15 @@ class InverterAdapter:
             "element_type": config["element_type"],
             "name": config["name"],
             "connection": config[CONF_CONNECTION],
-            "max_power_dc_to_ac": require_loaded_array(loaded_values[CONF_MAX_POWER_DC_TO_AC], CONF_MAX_POWER_DC_TO_AC),
-            "max_power_ac_to_dc": require_loaded_array(loaded_values[CONF_MAX_POWER_AC_TO_DC], CONF_MAX_POWER_AC_TO_DC),
+            "max_power_dc_to_ac": loaded_values[CONF_MAX_POWER_DC_TO_AC],
+            "max_power_ac_to_dc": loaded_values[CONF_MAX_POWER_AC_TO_DC],
         }
 
         # Optional efficiency fields
         if CONF_EFFICIENCY_DC_TO_AC in loaded_values:
-            data["efficiency_dc_to_ac"] = require_loaded_array(
-                loaded_values[CONF_EFFICIENCY_DC_TO_AC], CONF_EFFICIENCY_DC_TO_AC
-            )
+            data["efficiency_dc_to_ac"] = loaded_values[CONF_EFFICIENCY_DC_TO_AC]
         if CONF_EFFICIENCY_AC_TO_DC in loaded_values:
-            data["efficiency_ac_to_dc"] = require_loaded_array(
-                loaded_values[CONF_EFFICIENCY_AC_TO_DC], CONF_EFFICIENCY_AC_TO_DC
-            )
+            data["efficiency_ac_to_dc"] = loaded_values[CONF_EFFICIENCY_AC_TO_DC]
 
         return data
 

@@ -12,7 +12,6 @@ import numpy as np
 from custom_components.haeo.const import ConnectivityLevel
 from custom_components.haeo.data.loader import TimeSeriesLoader
 from custom_components.haeo.elements.input_fields import InputFieldInfo
-from custom_components.haeo.elements.loaded_values import LoadedValues, require_loaded_array
 from custom_components.haeo.model import ModelElementConfig, ModelOutputName, ModelOutputValue
 from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE
@@ -78,7 +77,7 @@ class LoadAdapter:
 
     def build_config_data(
         self,
-        loaded_values: LoadedValues,
+        loaded_values: LoadConfigData,
         config: LoadConfigSchema,
     ) -> LoadConfigData:
         """Build ConfigData from pre-loaded values.
@@ -98,7 +97,7 @@ class LoadAdapter:
             "element_type": config["element_type"],
             "name": config["name"],
             "connection": config[CONF_CONNECTION],
-            "forecast": require_loaded_array(loaded_values[CONF_FORECAST], CONF_FORECAST),
+            "forecast": loaded_values[CONF_FORECAST],
         }
 
     def model_elements(self, config: LoadConfigData) -> list[ModelElementConfig]:
