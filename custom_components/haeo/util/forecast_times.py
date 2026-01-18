@@ -148,16 +148,28 @@ def calculate_aligned_tier_counts(
         extra_t3 = 2 * remaining_steps - 1 - remaining_duration // t3_dur
 
     extra_t3 = max(0, extra_t3)
+
+    # Ensure extra_t3 is even so T3 ends on a 60-min (hour) boundary.
+    # If odd, round DOWN and add a 30-min bridge step at the end of T4.
+    # This keeps T4 on hourly boundaries without changing total step count.
+    t4_bridge_30 = extra_t3 % 2 == 1
+    if t4_bridge_30:
+        extra_t3 -= 1
+
     t3_count += extra_t3
 
     # Recalculate remaining duration after T3 extension
     covered_minutes = t1_minutes + t2_minutes + t3_count * t3_dur
     remaining_duration = horizon_minutes - covered_minutes
 
+    # Account for the bridge step if present
+    if t4_bridge_30:
+        remaining_duration -= t3_dur  # 30 minutes covered by bridge
+
     # Calculate T4 with trailing step to hit exact horizon end
     trailing_minutes = remaining_duration % t4_dur
     t4_60min_count = remaining_duration // t4_dur
-    t4_count = t4_60min_count + (1 if trailing_minutes > 0 else 0)
+    t4_count = t4_60min_count + (1 if trailing_minutes > 0 else 0) + (1 if t4_bridge_30 else 0)
 
     # Build period durations in seconds
     periods_seconds: list[int] = []
@@ -165,6 +177,8 @@ def calculate_aligned_tier_counts(
     periods_seconds.extend([t2_dur * 60] * t2_count)
     periods_seconds.extend([t3_dur * 60] * t3_count)
     periods_seconds.extend([t4_dur * 60] * t4_60min_count)
+    if t4_bridge_30:
+        periods_seconds.append(t3_dur * 60)  # 30-min bridge step at end of T4
     if trailing_minutes > 0:
         periods_seconds.append(trailing_minutes * 60)
 
