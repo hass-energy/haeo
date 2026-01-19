@@ -90,8 +90,9 @@ class SolarAdapter:
                     native_step=0.001,
                 ),
                 output_type=OutputType.PRICE,
-                direction="+",
                 time_series=True,
+                interpolation="step",
+                direction="+",
                 defaults=InputFieldDefaults(mode=None, value=0.0),
             ),
             CONF_CURTAILMENT: InputFieldInfo(

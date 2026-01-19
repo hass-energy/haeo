@@ -1,7 +1,7 @@
 """Loader for unified time series sensor and forecast data."""
 
 from collections.abc import Mapping, Sequence
-from typing import Any
+from typing import Any, Literal
 
 from homeassistant.core import HomeAssistant
 
@@ -9,6 +9,9 @@ from custom_components.haeo.data.util.forecast_combiner import combine_sensor_pa
 from custom_components.haeo.data.util.forecast_fuser import fuse_to_boundaries, fuse_to_intervals
 
 from .sensor_loader import load_sensors, normalize_entity_ids
+
+# Re-export interpolation mode type for callers
+type InterpolationMode = Literal["linear", "step"]
 
 
 def _is_constant_value(value: Any) -> bool:
@@ -62,6 +65,7 @@ class TimeSeriesLoader:
         hass: HomeAssistant,
         value: Any,
         forecast_times: Sequence[float],
+        interpolation: InterpolationMode = "linear",
     ) -> list[float]:
         """Load a value as interval averages (n values for n+1 boundaries).
 
@@ -69,9 +73,12 @@ class TimeSeriesLoader:
             hass: Home Assistant instance
             value: Entity ID(s) or constant value (must not be None)
             forecast_times: Boundary timestamps (n+1 values defining n intervals)
+            interpolation: How to interpolate between forecast points:
+                - "linear": Values change linearly between points (power, efficiency)
+                - "step": Values hold until the next point (prices)
 
         Returns:
-            n interval values (trapezoidal averages over each period)
+            n interval values (averages over each period)
 
         Raises:
             ValueError: If value is None, empty, or sensors unavailable
@@ -105,7 +112,7 @@ class TimeSeriesLoader:
 
         present_value, forecast_series = combine_sensor_payloads(payloads)
 
-        return fuse_to_intervals(present_value, forecast_series, forecast_times)
+        return fuse_to_intervals(present_value, forecast_series, forecast_times, interpolation)
 
     async def load_boundaries(
         self,

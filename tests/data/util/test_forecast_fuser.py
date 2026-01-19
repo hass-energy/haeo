@@ -5,9 +5,14 @@ the boundary pattern where n+1 timestamps produce n interval values:
 - Position 0: Present value (actual current state at t0)
 - Position k (k≥1): Interval average over [horizon_times[k-1] → horizon_times[k]]
 
+Interpolation modes:
+- "linear" (default): Values change linearly between forecast points (power, efficiency)
+- "step": Values hold until the next point (prices)
+
 Tests cover:
 - Present value override behavior (0.0 vs actual values)
-- Interval averaging via trapezoidal integration
+- Interval averaging via trapezoidal integration (linear mode)
+- Step function averaging (step mode)
 - Edge cases (empty forecasts, constant values, misaligned timestamps)
 
 Cycling behavior (forecast shorter than horizon) is tested in test_forecast_cycle.py.
@@ -139,10 +144,44 @@ from custom_components.haeo.data.util.forecast_fuser import fuse_to_boundaries, 
             [50.0, 150.0, 200.0, 200.0],
             id="step_function_integration",
         ),
+        pytest.param(
+            0.16,  # Current price (e.g., $/kWh)
+            # Forecast has 5-minute (300s) boundaries: 300, 600, 900
+            [(300, 0.15), (600, 0.14), (900, 0.13)],
+            # T1 intervals: 1-minute (60s) each, starting at t=0
+            # With linear interpolation, values interpolate between points
+            [0, 60, 120, 180, 240, 300, 360, 420],
+            # Present@0, then linear interpolation from t=0 (extrapolated) to t=300
+            # Before t=300: extrapolates from forecast, uses 0.15 (first forecast value)
+            # After t=300: interpolates between 0.15 and 0.14
+            [0.16, 0.15, 0.15, 0.15, 0.15, 0.149, 0.147],
+            id="t1_alignment_linear_interpolation",
+        ),
+        pytest.param(
+            None,  # No present value - use forecast for all intervals
+            [(0, 100.0), (1000, 150.0), (2000, 200.0), (3000, 250.0)],
+            [0, 1000, 2000, 3000],
+            [125.0, 175.0, 225.0],  # Pure trapezoidal averages from forecast
+            id="no_present_value_uses_forecast_for_all",
+        ),
+        pytest.param(
+            50.0,  # Present value with forecast all at or before horizon start
+            [(0, 100.0), (-1000, 50.0)],  # All forecasts at/before t=0
+            [0, 1000, 2000],
+            [50.0, 99.12177985948477],  # Present@0, then cycled forecast average
+            id="all_forecasts_at_or_before_horizon_start",
+        ),
+        pytest.param(
+            42.0,  # Single interval case
+            [(0, 100.0), (1000, 200.0)],
+            [0, 1000],  # Only 2 boundaries = 1 interval
+            [42.0],  # Just present value for single interval
+            id="single_interval_only",
+        ),
     ],
 )
 def test_fuse_to_intervals(
-    present_value: float,
+    present_value: float | None,
     forecast_series: list[tuple[int, float]],
     horizon_times: list[int],
     expected: list[float],
@@ -252,3 +291,99 @@ def test_fuse_to_boundaries_raises_when_no_data() -> None:
     """Test that missing both forecast_series and present_value raises ValueError."""
     with pytest.raises(ValueError, match="Either forecast_series or present_value must be provided"):
         fuse_to_boundaries(None, [], [0, 1000, 2000])
+
+
+# --- Tests for step interpolation mode ---
+
+
+@pytest.mark.parametrize(
+    ("present_value", "forecast_series", "horizon_times", "expected"),
+    [
+        pytest.param(
+            0.16,  # Current price (e.g., $/kWh)
+            # Forecast has 5-minute (300s) boundaries: 300, 600, 900
+            [(300, 0.15), (600, 0.14), (900, 0.13)],
+            # T1 intervals: 1-minute (60s) each, starting at t=0
+            # With step interpolation, value holds until next point
+            [0, 60, 120, 180, 240, 300, 360, 600, 660],
+            # Present@0, then step function holds 0.15 until t=600
+            # After t=600: holds 0.14 until t=900
+            [0.16, 0.15, 0.15, 0.15, 0.15, 0.15, 0.15, 0.14],
+            id="t1_alignment_step_interpolation",
+        ),
+        pytest.param(
+            None,  # No present value
+            [(0, 100.0), (1000, 200.0), (2000, 300.0)],
+            [0, 500, 1000, 1500, 2000],
+            # Step: value at t=0 is 100, holds until t=1000 (200), holds until t=2000 (300)
+            # [0-500]: 100, [500-1000]: 100, [1000-1500]: 200, [1500-2000]: 200
+            [100.0, 100.0, 200.0, 200.0],
+            id="step_function_basic",
+        ),
+        pytest.param(
+            50.0,  # Present value
+            [(0, 100.0), (1000, 200.0), (2000, 300.0)],
+            [0, 500, 1000, 1500, 2000],
+            # Present@0, then step function
+            [50.0, 100.0, 200.0, 200.0],
+            id="step_function_with_present",
+        ),
+        pytest.param(
+            None,
+            [(500, 100.0), (1500, 200.0)],  # Forecast starts after t=0
+            [0, 500, 1000, 1500, 2000],
+            # Before t=500: extrapolates using first value (100)
+            # [0-500]: 100, [500-1000]: 100, [1000-1500]: 100, [1500-2000]: 200
+            [100.0, 100.0, 100.0, 200.0],
+            id="step_function_forecast_after_horizon_start",
+        ),
+        pytest.param(
+            0.20,  # Present value for price
+            [(300, 0.18), (600, 0.16), (900, 0.14)],
+            [0, 150, 300, 450, 600, 750, 900],
+            # Present@0, then step function
+            # [0-150]: 0.20 (present), [150-300]: 0.18, [300-450]: 0.18
+            # [450-600]: 0.18, [600-750]: 0.16, [750-900]: 0.16
+            [0.20, 0.18, 0.18, 0.18, 0.16, 0.16],
+            id="step_function_price_intervals",
+        ),
+        pytest.param(
+            None,
+            [(0, 10.0), (100, 20.0), (300, 30.0)],  # Multiple steps in one interval
+            [0, 200, 400],
+            # [0-200]: weighted avg of 10 (0-100) and 20 (100-200) = (10*100 + 20*100)/200 = 15
+            # [200-400]: weighted avg of 20 (200-300) and 30 (300-400) = (20*100 + 30*100)/200 = 25
+            [15.0, 25.0],
+            id="step_function_multiple_steps_per_interval",
+        ),
+        pytest.param(
+            100.0,
+            [],  # No forecast, only present value
+            [0, 1000, 2000],
+            [100.0, 100.0],
+            id="step_function_only_present",
+        ),
+        pytest.param(
+            None,
+            [(0, 50.0), (1000, 50.0), (2000, 50.0)],  # Constant forecast
+            [0, 500, 1000, 1500, 2000],
+            [50.0, 50.0, 50.0, 50.0],
+            id="step_function_constant_forecast",
+        ),
+    ],
+)
+def test_fuse_to_intervals_step_mode(
+    present_value: float | None,
+    forecast_series: list[tuple[int, float]],
+    horizon_times: list[int],
+    expected: list[float],
+) -> None:
+    """Test fuse_to_intervals with step interpolation mode.
+
+    Step interpolation (zero-order hold) holds each value constant until
+    the next forecast point. This is appropriate for discrete data like
+    electricity prices that remain constant within each pricing period.
+    """
+    result = fuse_to_intervals(present_value, forecast_series, horizon_times, interpolation="step")
+
+    assert result == pytest.approx(expected)

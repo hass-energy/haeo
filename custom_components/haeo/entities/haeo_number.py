@@ -197,6 +197,7 @@ class HaeoInputNumber(NumberEntity):
                     hass=self._hass,
                     value=self._source_entity_ids,
                     forecast_times=list(forecast_timestamps),
+                    interpolation=self._field_info.interpolation,
                 )
         except Exception:
             # If loading fails, don't update state

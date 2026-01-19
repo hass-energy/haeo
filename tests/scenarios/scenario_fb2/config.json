@@ -1,0 +1,74 @@
+{
+  "tier_1_count": 5,
+  "tier_1_duration": 1,
+  "tier_2_count": 11,
+  "tier_2_duration": 5,
+  "tier_3_count": 46,
+  "tier_3_duration": 30,
+  "tier_4_count": 96,
+  "tier_4_duration": 60,
+  "participants": {
+    "Battery": {
+      "name": "Battery",
+      "element_type": "battery",
+      "capacity": "sensor.sigen_plant_rated_energy_capacity",
+      "connection": "Inverter",
+      "early_charge_incentive": 0.001,
+      "efficiency": 99.0,
+      "initial_charge_percentage": "sensor.sigen_plant_battery_state_of_charge",
+      "max_charge_percentage": 100.0,
+      "max_charge_power": "sensor.sigen_plant_ess_rated_charging_power",
+      "max_discharge_power": "sensor.sigen_plant_ess_rated_discharging_power",
+      "min_charge_percentage": 10.0
+    },
+    "Grid": {
+      "name": "Grid",
+      "element_type": "grid",
+      "connection": "Switchboard",
+      "export_limit": 5.0,
+      "export_price": [
+        "sensor.01ka098bre5mj9frgt0qhmjgmd_feed_in_price",
+        "sensor.01ka098bre5mj9frgt0qhmjgmd_feed_in_forecast"
+      ],
+      "import_limit": 10.0,
+      "import_price": [
+        "sensor.01ka098bre5mj9frgt0qhmjgmd_general_price",
+        "sensor.01ka098bre5mj9frgt0qhmjgmd_general_forecast"
+      ]
+    },
+    "Inverter": {
+      "name": "Inverter",
+      "element_type": "inverter",
+      "connection": "Switchboard",
+      "max_power_ac_to_dc": "sensor.sigen_plant_max_active_power",
+      "max_power_dc_to_ac": "sensor.sigen_plant_max_active_power"
+    },
+    "Load": {
+      "name": "Load",
+      "element_type": "load",
+      "connection": "Switchboard",
+      "forecast": "sensor.sigen_plant_consumed_power"
+    },
+    "Solar": {
+      "name": "Solar",
+      "element_type": "solar",
+      "connection": "Inverter",
+      "curtailment": true,
+      "forecast": [
+        "sensor.solcast_pv_forecast_forecast_today",
+        "sensor.solcast_pv_forecast_forecast_tomorrow",
+        "sensor.solcast_pv_forecast_forecast_day_3",
+        "sensor.solcast_pv_forecast_forecast_day_4",
+        "sensor.solcast_pv_forecast_forecast_day_5",
+        "sensor.solcast_pv_forecast_forecast_day_6",
+        "sensor.solcast_pv_forecast_forecast_day_7"
+      ]
+    },
+    "Switchboard": {
+      "name": "Switchboard",
+      "element_type": "node",
+      "is_sink": false,
+      "is_source": false
+    }
+  }
+}

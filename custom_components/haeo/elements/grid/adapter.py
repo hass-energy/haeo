@@ -105,6 +105,7 @@ class GridAdapter:
                 ),
                 output_type=OutputType.PRICE,
                 time_series=True,
+                interpolation="step",
                 direction="-",  # Import = consuming from grid = cost
             ),
             CONF_EXPORT_PRICE: InputFieldInfo(
@@ -118,6 +119,7 @@ class GridAdapter:
                 ),
                 output_type=OutputType.PRICE,
                 time_series=True,
+                interpolation="step",
                 direction="+",  # Export = producing to grid = revenue
             ),
             CONF_IMPORT_LIMIT: InputFieldInfo(

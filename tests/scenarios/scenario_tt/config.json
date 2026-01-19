@@ -1,0 +1,63 @@
+{
+  "tier_1_count": 5,
+  "tier_1_duration": 1,
+  "tier_2_count": 11,
+  "tier_2_duration": 5,
+  "tier_3_count": 46,
+  "tier_3_duration": 30,
+  "tier_4_count": 96,
+  "tier_4_duration": 60,
+  "participants": {
+    "Battery": {
+      "name": "Battery",
+      "element_type": "battery",
+      "capacity": "sensor.sigen_plant_rated_energy_capacity",
+      "connection": "Inverter",
+      "early_charge_incentive": 0.001,
+      "efficiency": 95.0,
+      "initial_charge_percentage": "sensor.sigen_plant_battery_state_of_charge",
+      "max_charge_power": "sensor.sigen_plant_ess_rated_charging_power",
+      "max_discharge_power": "sensor.sigen_plant_ess_rated_discharging_power"
+    },
+    "Grid": {
+      "name": "Grid",
+      "element_type": "grid",
+      "connection": "Switchboard",
+      "export_limit": 30.0,
+      "export_price": ["sensor.home_feed_in_price", "sensor.home_feed_in_forecast"],
+      "import_limit": 30.0,
+      "import_price": ["sensor.home_general_price", "sensor.home_general_forecast"]
+    },
+    "Inverter": {
+      "name": "Inverter",
+      "element_type": "inverter",
+      "connection": "Switchboard",
+      "max_power_ac_to_dc": "sensor.sigen_plant_max_active_power",
+      "max_power_dc_to_ac": "sensor.sigen_plant_max_active_power"
+    },
+    "Load": {
+      "name": "Load",
+      "element_type": "load",
+      "connection": "Switchboard",
+      "forecast": "input_number.fake_load"
+    },
+    "Solar": {
+      "name": "Solar",
+      "element_type": "solar",
+      "connection": "Inverter",
+      "curtailment": true,
+      "forecast": [
+        "sensor.east_solar_production_forecast_estimated_energy_production_today",
+        "sensor.north_solar_production_forecast_estimated_energy_production_today",
+        "sensor.south_solar_prediction_forecast_estimated_energy_production_today",
+        "sensor.west_solar_production_forecast_estimated_energy_production_today"
+      ]
+    },
+    "Switchboard": {
+      "name": "Switchboard",
+      "element_type": "node",
+      "is_sink": false,
+      "is_source": false
+    }
+  }
+}

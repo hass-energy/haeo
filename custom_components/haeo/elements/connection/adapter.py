@@ -154,8 +154,9 @@ class ConnectionAdapter:
                     native_step=0.001,
                 ),
                 output_type=OutputType.PRICE,
-                direction="-",
                 time_series=True,
+                interpolation="step",
+                direction="-",
             ),
             CONF_PRICE_TARGET_SOURCE: InputFieldInfo(
                 field_name=CONF_PRICE_TARGET_SOURCE,
@@ -167,8 +168,9 @@ class ConnectionAdapter:
                     native_step=0.001,
                 ),
                 output_type=OutputType.PRICE,
-                direction="-",
                 time_series=True,
+                interpolation="step",
+                direction="-",
             ),
         }
 
