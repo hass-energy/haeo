@@ -8,26 +8,15 @@ from homeassistant.components.number import NumberDeviceClass, NumberEntityDescr
 from homeassistant.components.switch import SwitchEntityDescription
 from homeassistant.const import UnitOfPower
 from homeassistant.core import HomeAssistant
-import numpy as np
 
 from custom_components.haeo.const import ConnectivityLevel
 from custom_components.haeo.data.loader import TimeSeriesLoader
 from custom_components.haeo.elements.input_fields import InputFieldDefaults, InputFieldInfo
 from custom_components.haeo.model import ModelElementConfig, ModelOutputName, ModelOutputValue
 from custom_components.haeo.model.const import OutputType
-from custom_components.haeo.model.elements import (
-    MODEL_ELEMENT_TYPE_CONNECTION,
-    MODEL_ELEMENT_TYPE_NODE,
-    ConnectionElementConfig,
-    NodeElementConfig,
-)
+from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE
 from custom_components.haeo.model.elements.connection import CONNECTION_POWER_SOURCE_TARGET, CONNECTION_SEGMENTS
-from custom_components.haeo.model.elements.segments import (
-    POWER_LIMIT_SOURCE_TARGET,
-    PowerLimitSegmentSpec,
-    PricingSegmentSpec,
-    SegmentSpec,
-)
+from custom_components.haeo.model.elements.segments import POWER_LIMIT_SOURCE_TARGET
 from custom_components.haeo.model.output_data import OutputData
 
 from .schema import (
@@ -116,42 +105,33 @@ class SolarAdapter:
 
     def model_elements(self, config: SolarConfigData) -> list[ModelElementConfig]:
         """Return model element parameters for Solar configuration."""
-        n_periods = len(config["forecast"])
-        price_production = config.get("price_production")
-        curtailment = config.get("curtailment")
-        power_limit_spec: PowerLimitSegmentSpec = {
-            "segment_type": "power_limit",
-            "max_power_source_target": config["forecast"],
-            "max_power_target_source": np.zeros(n_periods, dtype=float),
-        }
-        if curtailment is not None:
-            power_limit_spec["fixed"] = not curtailment
-
-        pricing_spec: PricingSegmentSpec = {
-            "segment_type": "pricing",
-            "price_source_target": price_production,
-            "price_target_source": None,
-        }
-        segments: dict[str, SegmentSpec] = {
-            "power_limit": power_limit_spec,
-            "pricing": pricing_spec,
-        }
-
-        node_config: NodeElementConfig = {
-            "element_type": MODEL_ELEMENT_TYPE_NODE,
-            "name": config["name"],
-            "is_source": True,
-            "is_sink": False,
-        }
-        connection_config: ConnectionElementConfig = {
-            "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
-            "name": f"{config['name']}:connection",
-            "source": config["name"],
-            "target": config["connection"],
-            "segments": segments,
-        }
-
-        return [node_config, connection_config]
+        return [
+            {
+                "element_type": MODEL_ELEMENT_TYPE_NODE,
+                "name": config["name"],
+                "is_source": True,
+                "is_sink": False,
+            },
+            {
+                "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
+                "name": f"{config['name']}:connection",
+                "source": config["name"],
+                "target": config["connection"],
+                "segments": {
+                    "power_limit": {
+                        "segment_type": "power_limit",
+                        "max_power_source_target": config["forecast"],
+                        "max_power_target_source": 0.0,
+                        "fixed": not config.get("curtailment", True),
+                    },
+                    "pricing": {
+                        "segment_type": "pricing",
+                        "price_source_target": config.get("price_production"),
+                        "price_target_source": None,
+                    },
+                },
+            },
+        ]
 
     def outputs(
         self,

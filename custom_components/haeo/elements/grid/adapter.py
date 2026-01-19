@@ -156,8 +156,6 @@ class GridAdapter:
 
     def model_elements(self, config: GridConfigData) -> list[ModelElementConfig]:
         """Create model elements for Grid configuration."""
-        import_limit = config.get("import_limit")
-        export_limit = config.get("export_limit")
         return [
             # Create Node for the grid (both source and sink - can import and export)
             {
@@ -175,8 +173,8 @@ class GridAdapter:
                 "segments": {
                     "power_limit": {
                         "segment_type": "power_limit",
-                        "max_power_source_target": import_limit,
-                        "max_power_target_source": export_limit,
+                        "max_power_source_target": config.get("import_limit"),
+                        "max_power_target_source": config.get("export_limit"),
                     },
                     "pricing": {
                         "segment_type": "pricing",

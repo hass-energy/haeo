@@ -45,6 +45,8 @@ Each segment may transform the flow before passing it to the next segment.
 | `segments` | Ordered mapping of segment names to segment specifications |
 
 If `segments` is omitted or empty, a passthrough segment is created automatically.
+Segment parameters can be scalars or per-period arrays.
+Scalar values are broadcast across all periods.
 
 ### Constraints
 

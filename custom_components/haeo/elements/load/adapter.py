@@ -7,7 +7,6 @@ from typing import Any, Final, Literal
 from homeassistant.components.number import NumberDeviceClass, NumberEntityDescription
 from homeassistant.const import UnitOfPower
 from homeassistant.core import HomeAssistant
-import numpy as np
 
 from custom_components.haeo.const import ConnectivityLevel
 from custom_components.haeo.data.loader import TimeSeriesLoader
@@ -77,7 +76,6 @@ class LoadAdapter:
 
     def model_elements(self, config: LoadConfigData) -> list[ModelElementConfig]:
         """Create model elements for Load configuration."""
-        n_periods = len(config["forecast"])
         return [
             # Create Node for the load (sink only - consumes power)
             {"element_type": MODEL_ELEMENT_TYPE_NODE, "name": config["name"], "is_source": False, "is_sink": True},
@@ -90,7 +88,7 @@ class LoadAdapter:
                 "segments": {
                     "power_limit": {
                         "segment_type": "power_limit",
-                        "max_power_source_target": np.zeros(n_periods),
+                        "max_power_source_target": 0.0,
                         "max_power_target_source": config["forecast"],
                         "fixed": True,
                     }

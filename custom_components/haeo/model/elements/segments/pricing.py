@@ -21,8 +21,8 @@ class PricingSegmentSpec(TypedDict):
     """Specification for creating a PricingSegment."""
 
     segment_type: Literal["pricing"]
-    price_source_target: NotRequired[NDArray[np.floating[Any]] | None]
-    price_target_source: NotRequired[NDArray[np.floating[Any]] | None]
+    price_source_target: NotRequired[NDArray[np.floating[Any]] | float | None]
+    price_target_source: NotRequired[NDArray[np.floating[Any]] | float | None]
 
 
 class PricingSegment(Segment):
@@ -68,17 +68,16 @@ class PricingSegment(Segment):
         self._power_ts = solver.addVariables(n_periods, lb=0, name_prefix=f"{segment_id}_ts_", out_array=True)
 
         # Set tracked params (these trigger reactive infrastructure)
-        price_source_target = spec.get("price_source_target")
-        if price_source_target is not None:
-            self.price_source_target = np.asarray(price_source_target, dtype=np.float64)
-        else:
-            self.price_source_target = None
+        self.price_source_target = self._normalize_price(spec.get("price_source_target"))
+        self.price_target_source = self._normalize_price(spec.get("price_target_source"))
 
-        price_target_source = spec.get("price_target_source")
-        if price_target_source is not None:
-            self.price_target_source = np.asarray(price_target_source, dtype=np.float64)
-        else:
-            self.price_target_source = None
+    def _normalize_price(self, value: NDArray[np.floating[Any]] | float | None) -> NDArray[np.float64] | None:
+        if value is None:
+            return None
+        arr = np.asarray(value, dtype=np.float64)
+        if arr.shape == ():
+            return np.full(self._n_periods, float(arr), dtype=np.float64)
+        return arr
 
     @property
     def power_in_st(self) -> HighspyArray:

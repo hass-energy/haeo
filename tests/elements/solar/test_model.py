@@ -56,7 +56,7 @@ CREATE_CASES: Sequence[CreateCase] = [
                     "power_limit": {
                         "segment_type": "power_limit",
                         "max_power_source_target": [2.0, 1.5],
-                        "max_power_target_source": [0.0, 0.0],
+                        "max_power_target_source": 0.0,
                         "fixed": True,
                     },
                     "pricing": {
