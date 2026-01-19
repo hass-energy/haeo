@@ -33,4 +33,4 @@ class LoadConfigData(TypedDict):
     element_type: Literal["load"]
     name: str
     connection: str  # Element name to connect to
-    forecast: NDArray[np.floating[Any]]  # Loaded power values per period (kW)
+    forecast: NDArray[np.floating[Any]] | float  # Loaded power values per period (kW)

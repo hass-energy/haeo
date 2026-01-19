@@ -23,6 +23,7 @@ from custom_components.haeo.model.elements.connection import (
 )
 from custom_components.haeo.model.elements.segments import POWER_LIMIT_SOURCE_TARGET, POWER_LIMIT_TARGET_SOURCE
 from custom_components.haeo.model.output_data import OutputData
+from custom_components.haeo.model.util import broadcast_to_sequence
 
 from .schema import (
     CONF_EXPORT_LIMIT,
@@ -223,8 +224,8 @@ class GridAdapter:
 
         # Calculate cost outputs in adapter layer: cost = power * price * period
         # This is a derived calculation, not from model layer outputs
-        import_prices = config["import_price"]
-        export_prices = config["export_price"]
+        import_prices = broadcast_to_sequence(config["import_price"], len(periods))
+        export_prices = broadcast_to_sequence(config["export_price"], len(periods))
 
         # Import cost: positive = money spent (power from grid * price * period)
         import_cost_values = tuple(

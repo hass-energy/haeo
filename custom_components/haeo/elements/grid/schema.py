@@ -49,9 +49,9 @@ class GridConfigData(TypedDict):
     element_type: Literal["grid"]
     name: str
     connection: str  # Element name to connect to
-    import_price: NDArray[np.floating[Any]]  # Loaded price values per period ($/kWh)
-    export_price: NDArray[np.floating[Any]]  # Loaded price values per period ($/kWh)
+    import_price: NDArray[np.floating[Any]] | float  # Loaded price values per period ($/kWh)
+    export_price: NDArray[np.floating[Any]] | float  # Loaded price values per period ($/kWh)
 
     # Optional fields - now time series
-    import_limit: NotRequired[NDArray[np.floating[Any]]]  # Loaded values per period (kW)
-    export_limit: NotRequired[NDArray[np.floating[Any]]]  # Loaded values per period (kW)
+    import_limit: NotRequired[NDArray[np.floating[Any]] | float]  # Loaded values per period (kW)
+    export_limit: NotRequired[NDArray[np.floating[Any]] | float]  # Loaded values per period (kW)

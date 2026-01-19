@@ -89,7 +89,7 @@ class BatteryConfigData(TypedDict):
     # Time series with defaults applied in model_elements
     min_charge_percentage: NotRequired[NDArray[np.floating[Any]] | float]  # Ratio per period (0-1)
     max_charge_percentage: NotRequired[NDArray[np.floating[Any]] | float]  # Ratio per period (0-1)
-    efficiency: NotRequired[NDArray[np.floating[Any]]]  # Ratio per period (0-1)
+    efficiency: NotRequired[NDArray[np.floating[Any]] | float]  # Ratio per period (0-1)
 
     # Optional loaded values
     max_charge_power: NotRequired[NDArray[np.floating[Any]]]  # kW per period

@@ -44,6 +44,6 @@ class SolarConfigData(TypedDict):
     element_type: Literal["solar"]
     name: str
     connection: str  # Element name to connect to
-    forecast: NDArray[np.floating[Any]]  # Loaded power values per period (kW)
+    forecast: NDArray[np.floating[Any]] | float  # Loaded power values per period (kW)
     curtailment: NotRequired[bool]  # Whether solar can be curtailed (default: True)
-    price_production: NotRequired[NDArray[np.floating[Any]]]  # $/kWh production incentive (default: 0.0)
+    price_production: NotRequired[NDArray[np.floating[Any]] | float]  # $/kWh production incentive (default: 0.0)

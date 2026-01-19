@@ -54,9 +54,9 @@ class ConnectionConfigData(TypedDict):
     target: str  # Target element name
 
     # Optional fields
-    max_power_source_target: NotRequired[NDArray[np.floating[Any]]]  # Loaded power limit per period (kW)
-    max_power_target_source: NotRequired[NDArray[np.floating[Any]]]  # Loaded power limit per period (kW)
-    efficiency_source_target: NotRequired[NDArray[np.floating[Any]]]  # Loaded efficiency ratio per period (0-1)
-    efficiency_target_source: NotRequired[NDArray[np.floating[Any]]]  # Loaded efficiency ratio per period (0-1)
-    price_source_target: NotRequired[NDArray[np.floating[Any]]]  # Loaded price per period ($/kWh)
-    price_target_source: NotRequired[NDArray[np.floating[Any]]]  # Loaded price per period ($/kWh)
+    max_power_source_target: NotRequired[NDArray[np.floating[Any]] | float]  # Loaded power limit per period (kW)
+    max_power_target_source: NotRequired[NDArray[np.floating[Any]] | float]  # Loaded power limit per period (kW)
+    efficiency_source_target: NotRequired[NDArray[np.floating[Any]] | float]  # Loaded efficiency ratio per period (0-1)
+    efficiency_target_source: NotRequired[NDArray[np.floating[Any]] | float]  # Loaded efficiency ratio per period (0-1)
+    price_source_target: NotRequired[NDArray[np.floating[Any]] | float]  # Loaded price per period ($/kWh)
+    price_target_source: NotRequired[NDArray[np.floating[Any]] | float]  # Loaded price per period ($/kWh)
