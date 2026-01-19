@@ -197,7 +197,7 @@ def test_model_elements_omits_efficiency_when_missing() -> None:
         "name": "test_battery",
         "connection": "main_bus",
         "capacity": np.array([10.0, 10.0, 10.0]),
-        "initial_charge_percentage": np.array([50.0, 50.0]),
+        "initial_charge_percentage": np.array([0.5, 0.5]),
     }
 
     elements = battery.adapter.model_elements(config_data)
@@ -222,8 +222,8 @@ def test_model_elements_passes_efficiency_when_present() -> None:
         "name": "test_battery",
         "connection": "main_bus",
         "capacity": np.array([10.0, 10.0, 10.0]),
-        "initial_charge_percentage": np.array([50.0, 50.0]),
-        "efficiency": np.array([95.0, 95.0]),
+        "initial_charge_percentage": np.array([0.5, 0.5]),
+        "efficiency": np.array([0.95, 0.95]),
     }
 
     elements = battery.adapter.model_elements(config_data)

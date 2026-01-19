@@ -49,5 +49,5 @@ class InverterConfigData(TypedDict):
     connection: str  # AC side node to connect to
     max_power_dc_to_ac: NDArray[np.floating[Any]]  # Loaded power limit per period (kW)
     max_power_ac_to_dc: NDArray[np.floating[Any]]  # Loaded power limit per period (kW)
-    efficiency_dc_to_ac: NotRequired[NDArray[np.floating[Any]]]  # Percentage (0-100), defaults to 100% (no loss)
-    efficiency_ac_to_dc: NotRequired[NDArray[np.floating[Any]]]  # Percentage (0-100), defaults to 100% (no loss)
+    efficiency_dc_to_ac: NotRequired[NDArray[np.floating[Any]]]  # Ratio (0-1), defaults to 1.0 (no loss)
+    efficiency_ac_to_dc: NotRequired[NDArray[np.floating[Any]]]  # Ratio (0-1), defaults to 1.0 (no loss)

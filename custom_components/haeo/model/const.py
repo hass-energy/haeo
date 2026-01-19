@@ -1,6 +1,7 @@
 """Constants for HAEO energy modeling."""
 
 from enum import StrEnum, auto
+from typing import Final
 
 
 class OutputType(StrEnum):
@@ -18,8 +19,8 @@ class OutputType(StrEnum):
         ENERGY: Energy quantity (kWh)
 
     Percentage types:
-        SOC: State of charge percentage (%)
-        EFFICIENCY: Efficiency ratio percentage (%)
+        SOC: State of charge ratio (0-1, displayed as %)
+        EFFICIENCY: Efficiency ratio (0-1, displayed as %)
 
     Monetary types:
         PRICE: Price per energy unit ($/kWh, €/kWh, etc.)
@@ -43,3 +44,16 @@ class OutputType(StrEnum):
     STATUS = auto()
     DURATION = auto()
     SHADOW_PRICE = auto()
+
+
+PERCENT_OUTPUT_TYPES: Final[frozenset[OutputType]] = frozenset(
+    {
+        OutputType.STATE_OF_CHARGE,
+        OutputType.EFFICIENCY,
+    }
+)
+
+
+def is_percentage_output(output_type: OutputType) -> bool:
+    """Return True when output values are ratios displayed as percentages."""
+    return output_type in PERCENT_OUTPUT_TYPES

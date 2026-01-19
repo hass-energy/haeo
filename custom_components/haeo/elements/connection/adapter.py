@@ -196,14 +196,7 @@ class ConnectionAdapter:
         explicit None values for missing configuration fields.
         """
         # Build segments using explicit None for missing parameters.
-        # Note: Efficiency values from config are percentages; convert to fractions.
-        efficiency_source_target = config.get("efficiency_source_target")
-        efficiency_target_source = config.get("efficiency_target_source")
-        max_power_source_target = config.get("max_power_source_target")
-        max_power_target_source = config.get("max_power_target_source")
-        price_source_target = config.get("price_source_target")
-        price_target_source = config.get("price_target_source")
-
+        # Efficiency values are ratios (0-1) after input normalization.
         return [
             {
                 "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
@@ -213,22 +206,18 @@ class ConnectionAdapter:
                 "segments": {
                     "efficiency": {
                         "segment_type": "efficiency",
-                        "efficiency_source_target": (
-                            efficiency_source_target / 100.0 if efficiency_source_target is not None else None
-                        ),
-                        "efficiency_target_source": (
-                            efficiency_target_source / 100.0 if efficiency_target_source is not None else None
-                        ),
+                        "efficiency_source_target": config.get("efficiency_source_target"),
+                        "efficiency_target_source": config.get("efficiency_target_source"),
                     },
                     "power_limit": {
                         "segment_type": "power_limit",
-                        "max_power_source_target": (max_power_source_target),
-                        "max_power_target_source": (max_power_target_source),
+                        "max_power_source_target": config.get("max_power_source_target"),
+                        "max_power_target_source": config.get("max_power_target_source"),
                     },
                     "pricing": {
                         "segment_type": "pricing",
-                        "price_source_target": (price_source_target),
-                        "price_target_source": (price_target_source),
+                        "price_source_target": config.get("price_source_target"),
+                        "price_target_source": config.get("price_target_source"),
                     },
                 },
             }

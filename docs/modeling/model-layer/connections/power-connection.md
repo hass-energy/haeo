@@ -37,8 +37,9 @@ This profile uses a segment chain with these parameters:
 | PricingSegment    | `price_source_target`      | None      | Price for source to target flow (\$/kWh) |
 | PricingSegment    | `price_target_source`      | None      | Price for target to source flow (\$/kWh) |
 
-Device-layer adapters accept efficiency in percent and convert to ratios.
-All segment parameters can be time-varying arrays.
+Input entities normalize efficiency percentages to ratios (0-1) before model adapters.
+All segment parameters can be time-varying arrays or scalars.
+Scalar values are broadcast across all periods.
 
 ### Constraints
 

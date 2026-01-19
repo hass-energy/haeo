@@ -44,10 +44,10 @@ from .schema import (
     BatteryConfigSchema,
 )
 
-# Default values for optional fields applied by adapter
+# Default ratio values for optional fields applied by adapter
 DEFAULTS: Final[dict[str, float]] = {
     CONF_MIN_CHARGE_PERCENTAGE: 0.0,
-    CONF_MAX_CHARGE_PERCENTAGE: 100.0,
+    CONF_MAX_CHARGE_PERCENTAGE: 1.0,
     CONF_EARLY_CHARGE_INCENTIVE: 0.001,
 }
 
@@ -364,21 +364,21 @@ class BatteryAdapter:
         capacity_first = capacity_array[0]
         initial_soc = config["initial_charge_percentage"][0]
 
-        # Convert percentages to ratio arrays for time-varying limits
+        # Ratio arrays for time-varying limits (0-1)
         min_charge_percentage = config.get(CONF_MIN_CHARGE_PERCENTAGE, DEFAULTS[CONF_MIN_CHARGE_PERCENTAGE])
         max_charge_percentage = config.get(CONF_MAX_CHARGE_PERCENTAGE, DEFAULTS[CONF_MAX_CHARGE_PERCENTAGE])
         efficiency = config.get(CONF_EFFICIENCY)
-        efficiency_values = efficiency / 100.0 if efficiency is not None else None
+        efficiency_values = efficiency if efficiency is not None else None
 
-        min_ratio_array = min_charge_percentage / 100.0
-        max_ratio_array = max_charge_percentage / 100.0
+        min_ratio_array = min_charge_percentage
+        max_ratio_array = max_charge_percentage
         min_ratio_first = (
             float(min_ratio_array[0]) if isinstance(min_ratio_array, np.ndarray) else float(min_ratio_array)
         )
 
-        # Get optional percentage arrays (if present)
+        # Optional ratio arrays (if present)
         undercharge_pct = config.get("undercharge_percentage")
-        undercharge_ratio_array = undercharge_pct / 100.0 if undercharge_pct is not None else None
+        undercharge_ratio_array = undercharge_pct if undercharge_pct is not None else None
         undercharge_ratio_first = (
             float(undercharge_ratio_array[0])
             if isinstance(undercharge_ratio_array, np.ndarray)
@@ -386,9 +386,9 @@ class BatteryAdapter:
         )
 
         overcharge_pct = config.get("overcharge_percentage")
-        overcharge_ratio_array = overcharge_pct / 100.0 if overcharge_pct is not None else None
+        overcharge_ratio_array = overcharge_pct if overcharge_pct is not None else None
 
-        initial_soc_ratio = initial_soc / 100.0
+        initial_soc_ratio = initial_soc
 
         # Calculate early charge/discharge incentives (use first period if present)
         early_charge_list = config.get("early_charge_incentive")
@@ -399,7 +399,7 @@ class BatteryAdapter:
         # Determine unusable ratio for initial charge calculation
         unusable_ratio_first = undercharge_ratio_first if undercharge_ratio_first is not None else min_ratio_first
 
-        # Calculate initial charge in kWh (remove unusable percentage)
+        # Calculate initial charge in kWh (remove unusable ratio)
         initial_charge = max((initial_soc_ratio - unusable_ratio_first) * capacity_first, 0.0)
 
         # Create battery sections and track their capacities
@@ -819,15 +819,15 @@ def sum_output_data(outputs: list[OutputData]) -> OutputData:
 
 def _calculate_total_energy(aggregate_energy: OutputData, config: BatteryConfigData) -> OutputData:
     """Calculate total energy stored including inaccessible energy below min SOC."""
-    # Capacity and percentage fields are already boundaries (n+1 values)
+    # Capacity and ratio fields are already boundaries (n+1 values)
     capacity = config["capacity"]
 
     # Get time-varying min ratio (also boundaries)
     min_charge_percentage = config.get(CONF_MIN_CHARGE_PERCENTAGE, DEFAULTS[CONF_MIN_CHARGE_PERCENTAGE])
-    min_ratio = min_charge_percentage / 100.0
+    min_ratio = min_charge_percentage
 
     undercharge_pct = config.get("undercharge_percentage")
-    undercharge_ratio = undercharge_pct / 100.0 if undercharge_pct is not None else None
+    undercharge_ratio = undercharge_pct if undercharge_pct is not None else None
     unusable_ratio = undercharge_ratio if undercharge_ratio is not None else min_ratio
 
     # Both energy values and capacity/ratios are now boundaries (n+1 values)
@@ -842,10 +842,10 @@ def _calculate_total_energy(aggregate_energy: OutputData, config: BatteryConfigD
 
 
 def _calculate_soc(total_energy: OutputData, config: BatteryConfigData) -> OutputData:
-    """Calculate SOC percentage from aggregate energy and total capacity."""
+    """Calculate SOC ratio from aggregate energy and total capacity."""
     # Capacity is already boundaries (n+1 values), same as energy
     capacity = config["capacity"]
-    soc_values = np.asarray(total_energy.values, dtype=float) / capacity * 100.0
+    soc_values = np.asarray(total_energy.values, dtype=float) / capacity
 
     return OutputData(
         type=OutputType.STATE_OF_CHARGE,

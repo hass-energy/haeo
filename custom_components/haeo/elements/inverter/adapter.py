@@ -144,29 +144,22 @@ class InverterAdapter:
         Creates a DC bus (Node junction) and a connection to the AC side with
         efficiency and power limits for bidirectional power conversion.
         """
-        name = config["name"]
-        efficiency_source_target = config.get("efficiency_dc_to_ac")
-        efficiency_target_source = config.get("efficiency_ac_to_dc")
         return [
             # Create Node for the DC bus (pure junction - neither source nor sink)
-            {"element_type": MODEL_ELEMENT_TYPE_NODE, "name": name, "is_source": False, "is_sink": False},
+            {"element_type": MODEL_ELEMENT_TYPE_NODE, "name": config["name"], "is_source": False, "is_sink": False},
             # Create a connection from DC bus to AC node
             # source_target = DC to AC (inverting)
             # target_source = AC to DC (rectifying)
             {
                 "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
-                "name": f"{name}:connection",
-                "source": name,
+                "name": f"{config['name']}:connection",
+                "source": config["name"],
                 "target": config["connection"],
                 "segments": {
                     "efficiency": {
                         "segment_type": "efficiency",
-                        "efficiency_source_target": (
-                            efficiency_source_target / 100.0 if efficiency_source_target is not None else None
-                        ),
-                        "efficiency_target_source": (
-                            efficiency_target_source / 100.0 if efficiency_target_source is not None else None
-                        ),
+                        "efficiency_source_target": config.get("efficiency_dc_to_ac"),
+                        "efficiency_target_source": config.get("efficiency_ac_to_dc"),
                     },
                     "power_limit": {
                         "segment_type": "power_limit",

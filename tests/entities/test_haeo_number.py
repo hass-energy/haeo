@@ -122,6 +122,24 @@ def boundary_field_info() -> InputFieldInfo[NumberEntityDescription]:
     )
 
 
+@pytest.fixture
+def percent_field_info() -> InputFieldInfo[NumberEntityDescription]:
+    """Return a sample InputFieldInfo for a percentage-based field."""
+    return InputFieldInfo(
+        field_name="soc",
+        entity_description=NumberEntityDescription(
+            key="soc",
+            translation_key="soc",
+            native_unit_of_measurement="%",
+            native_min_value=0.0,
+            native_max_value=100.0,
+            native_step=1.0,
+        ),
+        output_type=OutputType.STATE_OF_CHARGE,
+        time_series=True,
+    )
+
+
 def _create_subentry(name: str, data: dict[str, Any]) -> ConfigSubentry:
     """Create a ConfigSubentry with the given data."""
     return ConfigSubentry(
@@ -538,6 +556,32 @@ async def test_get_values_returns_forecast_values(
     assert all(v == 10.5 for v in values)
     # Should have 2 values (one per period, boundaries - 1)
     assert len(values) == 2
+
+
+async def test_get_values_scales_percentage_fields(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    device_entry: Mock,
+    percent_field_info: InputFieldInfo[NumberEntityDescription],
+    horizon_manager: Mock,
+) -> None:
+    """Percentage-based fields should be normalized to ratios."""
+    subentry = _create_subentry("Test Battery", {"soc": 50.0})
+    config_entry.runtime_data = None
+
+    entity = HaeoInputNumber(
+        hass=hass,
+        config_entry=config_entry,
+        subentry=subentry,
+        field_info=percent_field_info,
+        device_entry=device_entry,
+        horizon_manager=horizon_manager,
+    )
+
+    entity._update_editable_forecast()
+
+    values = entity.get_values()
+    assert values == (0.5, 0.5)
 
 
 async def test_get_values_returns_none_without_forecast(

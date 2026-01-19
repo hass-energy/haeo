@@ -515,6 +515,19 @@ def test_build_coordinator_output_emits_forecast_entries() -> None:
     assert [item["value"] for item in output.forecast] == [1.2, 3.4]
 
 
+def test_build_coordinator_output_scales_percentage_outputs() -> None:
+    """Percentage outputs should be converted back to 0-100 for UI."""
+    output = _build_coordinator_output(
+        "battery_state_of_charge",
+        OutputData(type=OutputType.STATE_OF_CHARGE, unit="%", values=(0.4, 0.5)),
+        forecast_times=(1, 2),
+    )
+
+    assert output.state == 40.0
+    assert output.forecast is not None
+    assert [item["value"] for item in output.forecast] == [40.0, 50.0]
+
+
 def test_build_coordinator_output_handles_timestamp_errors(monkeypatch: pytest.MonkeyPatch) -> None:
     """ValueError from datetime conversion should clear the forecast payload."""
 

@@ -16,7 +16,7 @@ from typing_extensions import TypedDict
 
 from .segment import Segment
 
-# Efficiency is specified as percentage (0-100), convert to fraction
+# Legacy percent scale constant (unused in ratio-based configs).
 EFFICIENCY_PERCENT: Final = 100.0
 
 
@@ -24,8 +24,8 @@ class EfficiencySegmentSpec(TypedDict):
     """Specification for creating an EfficiencySegment."""
 
     segment_type: Literal["efficiency"]
-    efficiency_source_target: NotRequired[NDArray[np.floating[Any]] | None]
-    efficiency_target_source: NotRequired[NDArray[np.floating[Any]] | None]
+    efficiency_source_target: NotRequired[NDArray[np.floating[Any]] | float | None]
+    efficiency_target_source: NotRequired[NDArray[np.floating[Any]] | float | None]
 
 
 class EfficiencySegment(Segment):

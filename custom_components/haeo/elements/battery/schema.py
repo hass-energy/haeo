@@ -84,12 +84,12 @@ class BatteryConfigData(TypedDict):
 
     # Loaded sensor values (time series)
     capacity: NDArray[np.floating[Any]]  # kWh per period
-    initial_charge_percentage: NDArray[np.floating[Any]]  # % per period (uses first value)
+    initial_charge_percentage: NDArray[np.floating[Any]]  # Ratio per period (0-1, uses first value)
 
     # Time series with defaults applied in model_elements
-    min_charge_percentage: NotRequired[NDArray[np.floating[Any]]]  # % per period
-    max_charge_percentage: NotRequired[NDArray[np.floating[Any]]]  # % per period
-    efficiency: NotRequired[NDArray[np.floating[Any]]]  # % per period
+    min_charge_percentage: NotRequired[NDArray[np.floating[Any]] | float]  # Ratio per period (0-1)
+    max_charge_percentage: NotRequired[NDArray[np.floating[Any]] | float]  # Ratio per period (0-1)
+    efficiency: NotRequired[NDArray[np.floating[Any]]]  # Ratio per period (0-1)
 
     # Optional loaded values
     max_charge_power: NotRequired[NDArray[np.floating[Any]]]  # kW per period
@@ -100,7 +100,7 @@ class BatteryConfigData(TypedDict):
     discharge_cost: NotRequired[NDArray[np.floating[Any]]]  # $/kWh per period
 
     # Advanced: undercharge/overcharge regions (time series)
-    undercharge_percentage: NotRequired[NDArray[np.floating[Any]]]  # % per period
-    overcharge_percentage: NotRequired[NDArray[np.floating[Any]]]  # % per period
+    undercharge_percentage: NotRequired[NDArray[np.floating[Any]] | float]  # Ratio per period (0-1)
+    overcharge_percentage: NotRequired[NDArray[np.floating[Any]] | float]  # Ratio per period (0-1)
     undercharge_cost: NotRequired[NDArray[np.floating[Any]]]  # $/kWh per period
     overcharge_cost: NotRequired[NDArray[np.floating[Any]]]  # $/kWh per period

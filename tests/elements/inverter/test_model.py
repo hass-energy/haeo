@@ -44,8 +44,8 @@ CREATE_CASES: Sequence[CreateCase] = [
             connection="network",
             max_power_dc_to_ac=np.array([10.0]),
             max_power_ac_to_dc=np.array([10.0]),
-            efficiency_dc_to_ac=np.array(100.0),
-            efficiency_ac_to_dc=np.array(100.0),
+            efficiency_dc_to_ac=np.array(1.0),
+            efficiency_ac_to_dc=np.array(1.0),
         ),
         "model": [
             {"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "inverter_main", "is_source": False, "is_sink": False},
@@ -77,8 +77,8 @@ CREATE_CASES: Sequence[CreateCase] = [
             connection="network",
             max_power_dc_to_ac=np.array([10.0]),
             max_power_ac_to_dc=np.array([10.0]),
-            efficiency_dc_to_ac=np.array(100.0),
-            efficiency_ac_to_dc=np.array(100.0),
+            efficiency_dc_to_ac=np.array(1.0),
+            efficiency_ac_to_dc=np.array(1.0),
         ),
         "model": [
             {"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "inverter_simple", "is_source": False, "is_sink": False},

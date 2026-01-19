@@ -45,6 +45,7 @@ from custom_components.haeo.elements import (
     is_element_type,
 )
 from custom_components.haeo.model import ModelOutputName, Network, OutputData, OutputType
+from custom_components.haeo.model.const import is_percentage_output
 from custom_components.haeo.repairs import dismiss_optimization_failure_issue
 from custom_components.haeo.util.forecast_times import tiers_to_periods_seconds
 
@@ -146,6 +147,8 @@ def _build_coordinator_output(
     """
 
     values = tuple(output_data.values)
+    if is_percentage_output(output_data.type):
+        values = tuple(float(value) * 100.0 for value in values)
     if not values:
         state = None
     elif output_data.state_last:

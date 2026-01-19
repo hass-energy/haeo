@@ -17,6 +17,7 @@ from custom_components.haeo import HaeoConfigEntry
 from custom_components.haeo.data.loader import TimeSeriesLoader
 from custom_components.haeo.elements.input_fields import InputFieldInfo
 from custom_components.haeo.horizon import HorizonManager
+from custom_components.haeo.model.const import is_percentage_output
 from custom_components.haeo.util import async_update_subentry_value
 
 
@@ -288,7 +289,10 @@ class HaeoInputNumber(NumberEntity):
         """Return the forecast values as a tuple, or None if not loaded."""
         forecast = self._attr_extra_state_attributes.get("forecast")
         if forecast:
-            return tuple(point["value"] for point in forecast if isinstance(point, dict) and "value" in point)
+            values = tuple(point["value"] for point in forecast if isinstance(point, dict) and "value" in point)
+            if is_percentage_output(self._field_info.output_type):
+                return tuple(float(value) / 100.0 for value in values)
+            return values
         return None
 
     async def async_set_native_value(self, value: float) -> None:
