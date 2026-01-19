@@ -11,7 +11,7 @@ from homeassistant.core import HomeAssistant
 from custom_components.haeo.const import ConnectivityLevel
 from custom_components.haeo.data.loader import TimeSeriesLoader
 from custom_components.haeo.elements.input_fields import InputFieldInfo
-from custom_components.haeo.elements.output_utils import expect_output_data, maybe_output_data
+from custom_components.haeo.elements.output_utils import expect_output_data
 from custom_components.haeo.model import ModelElementConfig, ModelOutputName, ModelOutputValue
 from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION
@@ -265,7 +265,7 @@ class ConnectionAdapter:
                 (CONNECTION_TIME_SLICE, POWER_LIMIT_TIME_SLICE),
             )
             for output_name, shadow_key in shadow_mappings:
-                if (shadow := maybe_output_data(power_limit_outputs.get(shadow_key))) is not None:
+                if (shadow := expect_output_data(power_limit_outputs.get(shadow_key))) is not None:
                     connection_outputs[output_name] = shadow
 
         return {CONNECTION_DEVICE_CONNECTION: connection_outputs}

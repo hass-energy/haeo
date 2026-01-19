@@ -11,7 +11,7 @@ from homeassistant.core import HomeAssistant
 from custom_components.haeo.const import ConnectivityLevel
 from custom_components.haeo.data.loader import TimeSeriesLoader
 from custom_components.haeo.elements.input_fields import InputFieldDefaults, InputFieldInfo
-from custom_components.haeo.elements.output_utils import expect_output_data, maybe_output_data
+from custom_components.haeo.elements.output_utils import expect_output_data
 from custom_components.haeo.model import ModelElementConfig, ModelOutputName, ModelOutputValue
 from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE
@@ -217,7 +217,7 @@ class InverterAdapter:
                 (INVERTER_MAX_POWER_AC_TO_DC_PRICE, POWER_LIMIT_TARGET_SOURCE),
             )
             for output_name, shadow_key in shadow_mappings:
-                if (shadow := maybe_output_data(power_limit_outputs.get(shadow_key))) is not None:
+                if (shadow := expect_output_data(power_limit_outputs.get(shadow_key))) is not None:
                     inverter_outputs[output_name] = shadow
 
         return {INVERTER_DEVICE_INVERTER: inverter_outputs}

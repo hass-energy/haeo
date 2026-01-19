@@ -12,7 +12,7 @@ import numpy as np
 from custom_components.haeo.const import ConnectivityLevel
 from custom_components.haeo.data.loader import TimeSeriesLoader
 from custom_components.haeo.elements.input_fields import InputFieldDefaults, InputFieldInfo
-from custom_components.haeo.elements.output_utils import expect_output_data_map
+from custom_components.haeo.elements.output_utils import expect_output_data
 from custom_components.haeo.model import ModelElementConfig, ModelOutputName, ModelOutputValue
 from custom_components.haeo.model import battery as model_battery
 from custom_components.haeo.model import battery_balance_connection as model_balance
@@ -601,24 +601,34 @@ class BatteryAdapter:
         # Check for undercharge section
         undercharge_name = f"{name}:undercharge"
         if undercharge_name in model_outputs:
-            section_outputs["undercharge"] = expect_output_data_map(model_outputs[undercharge_name])
+            section_outputs["undercharge"] = {
+                key: expect_output_data(value) for key, value in model_outputs[undercharge_name].items()
+            }
             section_names.append("undercharge")
 
         # Normal section (always present)
         normal_name = f"{name}:normal"
         if normal_name in model_outputs:
-            section_outputs["normal"] = expect_output_data_map(model_outputs[normal_name])
+            section_outputs["normal"] = {
+                key: expect_output_data(value) for key, value in model_outputs[normal_name].items()
+            }
             section_names.append("normal")
 
         # Check for overcharge section
         overcharge_name = f"{name}:overcharge"
         if overcharge_name in model_outputs:
-            section_outputs["overcharge"] = expect_output_data_map(model_outputs[overcharge_name])
+            section_outputs["overcharge"] = {
+                key: expect_output_data(value) for key, value in model_outputs[overcharge_name].items()
+            }
             section_names.append("overcharge")
 
         # Get node outputs for power balance
         node_name = f"{name}:node"
-        node_outputs = expect_output_data_map(model_outputs[node_name]) if node_name in model_outputs else {}
+        node_outputs = (
+            {key: expect_output_data(value) for key, value in model_outputs[node_name].items()}
+            if node_name in model_outputs
+            else {}
+        )
 
         # Calculate aggregate outputs
         # Sum power charge/discharge across all sections
@@ -798,11 +808,9 @@ def _calculate_total_energy(aggregate_energy: OutputData, config: BatteryConfigD
 
     # Get time-varying min ratio (also boundaries)
     min_charge_percentage = config.get(CONF_MIN_CHARGE_PERCENTAGE, DEFAULTS[CONF_MIN_CHARGE_PERCENTAGE])
-    min_ratio = min_charge_percentage
-
     undercharge_pct = config.get("undercharge_percentage")
     undercharge_ratio = undercharge_pct if undercharge_pct is not None else None
-    unusable_ratio = undercharge_ratio if undercharge_ratio is not None else min_ratio
+    unusable_ratio = undercharge_ratio if undercharge_ratio is not None else min_charge_percentage
 
     # Both energy values and capacity/ratios are now boundaries (n+1 values)
     inaccessible_energy = unusable_ratio * capacity
