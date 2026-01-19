@@ -263,7 +263,7 @@ def wrap_forecasts(data: JSONDict) -> JSONDict:
 
     now = datetime.now(UTC)
     # Round down to nearest 5-minute boundary to preserve forecast clock alignment
-    window_start = now.replace(second=0, microsecond=0, minute=(now.minute // 5) * 5)
+    window_start = now.replace(second=0, microsecond=0, minute=0)
     forecast_times = _parse_forecast_times(forecasts)
 
     if not forecast_times:
