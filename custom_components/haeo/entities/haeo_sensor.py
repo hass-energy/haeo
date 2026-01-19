@@ -113,7 +113,7 @@ class HaeoSensor(CoordinatorEntity[HaeoDataUpdateCoordinator], SensorEntity):
 
     @staticmethod
     def _scale_percentage_state(unit: str | None, value: StateType) -> StateType:
-        if unit != PERCENTAGE:
+        if unit != PERCENTAGE or value is None:
             return value
         return float(value) * 100.0
 
