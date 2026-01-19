@@ -2,22 +2,19 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 import json
 import logging
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 from homeassistant.config_entries import ConfigEntryState
-from homeassistant.core import HomeAssistant, ServiceCall, callback
+from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import config_validation as cv
 from homeassistant.util import dt as dt_util
 import voluptuous as vol
 
 from .const import DOMAIN
-
-if TYPE_CHECKING:
-    from homeassistant.helpers.typing import ConfigType
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -27,7 +24,7 @@ ATTR_CONFIG_ENTRY = "config_entry"
 
 def _json_default(obj: object) -> str:
     """Handle non-serializable objects like datetime."""
-    if hasattr(obj, "isoformat"):
+    if isinstance(obj, datetime):
         return obj.isoformat()
     msg = f"Object of type {type(obj).__name__} is not JSON serializable"
     raise TypeError(msg)
