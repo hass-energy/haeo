@@ -100,10 +100,6 @@ def fuse_to_intervals(
     Trapezoidal integration accounts for internal forecast points within each interval,
     not just the endpoint values.
 
-    Present value extends to all intervals ending at or before the first forecast point
-    that is strictly after horizon_start. This ensures the current value is used until
-    actual future forecast data is available.
-
     """
     if not horizon_times or len(horizon_times) < MIN_BOUNDARIES:
         return []
@@ -121,16 +117,6 @@ def fuse_to_intervals(
     horizon_end = horizon_times[-1]
 
     block_array = _build_extended_block(forecast_series, horizon_start, horizon_end)
-
-    # Find the first forecast point strictly after horizon_start.
-    # Present value extends to all intervals ending at or before this point,
-    # since we don't have actual forecast data until then.
-    first_future_forecast = None
-    if present_value is not None:
-        for timestamp, _value in forecast_series:
-            if timestamp > horizon_start:
-                first_future_forecast = timestamp
-                break
 
     # Trapezoidal integration over each interval
     result: list[float] = []
@@ -153,18 +139,8 @@ def fuse_to_intervals(
         area = np.trapezoid(values, times)
         result.append(float(area / interval_duration))
 
-    # Apply present_value to intervals until we have actual forecast data.
-    # Extend to all intervals ending at or before the first future forecast point.
-    # Round to nearest second to handle nextafter timestamps and fractional horizon times.
+    # Replace first interval with present_value if provided
     if present_value is not None:
         result[0] = present_value
-        if first_future_forecast is not None:
-            first_future_rounded = round(first_future_forecast)
-            for i in range(1, n_intervals):
-                interval_end = horizon_times[i + 1]
-                if round(interval_end) <= first_future_rounded:
-                    result[i] = present_value
-                else:
-                    break
 
     return result
