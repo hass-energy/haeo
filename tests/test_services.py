@@ -108,11 +108,11 @@ async def test_save_diagnostics_service_success(
     files = list(tmp_path.glob("haeo_diagnostics_*.json"))
     assert len(files) == 1
 
-    # Verify file content
+    # Verify file content - data is wrapped in {"data": ...} to match HA diagnostics format
     with files[0].open() as f:
         saved_data = json.load(f)
 
-    assert saved_data == mock_diagnostics
+    assert saved_data == {"data": mock_diagnostics}
 
 
 async def test_save_diagnostics_service_entry_not_found(hass: HomeAssistant) -> None:
