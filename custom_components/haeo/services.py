@@ -73,10 +73,13 @@ async def async_setup_services(hass: HomeAssistant) -> None:
         filename = f"haeo_diagnostics_{entry_id}_{timestamp}.json"
         filepath = Path(hass.config.path(filename))
 
+        # Wrap in {"data": ...} to match Home Assistant's diagnostics download format
+        output = {"data": diagnostics_data}
+
         # Write to file (in executor to avoid blocking)
         def write_diagnostics() -> None:
             with filepath.open("w", encoding="utf-8") as f:
-                json.dump(diagnostics_data, f, indent=2, ensure_ascii=False, default=_json_default)
+                json.dump(output, f, indent=2, ensure_ascii=False, default=_json_default)
 
         await hass.async_add_executor_job(write_diagnostics)
 
