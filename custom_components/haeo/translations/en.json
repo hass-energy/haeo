@@ -373,6 +373,15 @@
     }
   },
   "exceptions": {
+    "config_entry_not_found": {
+      "message": "Config entry {entry_id} not found"
+    },
+    "config_entry_not_loaded": {
+      "message": "Config entry {entry_id} is not loaded (state: {state})"
+    },
+    "config_entry_wrong_domain": {
+      "message": "Config entry {entry_id} is not a HAEO hub (domain: {domain})"
+    },
     "input_entities_not_ready": {
       "message": "Input entities not ready after 30 seconds: {not_ready}. Some sensors may not be available yet."
     },
@@ -416,5 +425,17 @@
       "options": { "2_days": "2 days", "3_days": "3 days", "5_days": "5 days", "7_days": "7 days", "custom": "Custom" }
     },
     "input_source": { "choices": { "constant": "Constant", "entity": "Entity", "none": "None" } }
+  },
+  "services": {
+    "save_diagnostics": {
+      "name": "Save diagnostics",
+      "description": "Save a diagnostics file for a HAEO hub to the config directory",
+      "fields": {
+        "config_entry": {
+          "name": "Hub",
+          "description": "The HAEO hub to save diagnostics for"
+        }
+      }
+    }
   }
 }

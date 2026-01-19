@@ -4,16 +4,21 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass, field
+import json
 import logging
+from pathlib import Path
 from types import MappingProxyType
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
-from homeassistant.config_entries import ConfigEntry, ConfigSubentry
+from homeassistant.config_entries import ConfigEntry, ConfigEntryState, ConfigSubentry
 from homeassistant.const import Platform
-from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import ConfigEntryError, ConfigEntryNotReady
-from homeassistant.helpers import device_registry as dr
+from homeassistant.core import HomeAssistant, ServiceCall
+from homeassistant.exceptions import ConfigEntryError, ConfigEntryNotReady, HomeAssistantError, ServiceValidationError
+from homeassistant.helpers import config_validation as cv, device_registry as dr
 from homeassistant.helpers.translation import async_get_translations
+from homeassistant.helpers.typing import ConfigType
+from homeassistant.util import dt as dt_util
+import voluptuous as vol
 
 from custom_components.haeo.const import CONF_ADVANCED_MODE, CONF_ELEMENT_TYPE, CONF_NAME, DOMAIN, ELEMENT_TYPE_NETWORK
 from custom_components.haeo.coordinator import HaeoDataUpdateCoordinator
@@ -32,6 +37,75 @@ INPUT_PLATFORMS: list[Platform] = [Platform.NUMBER, Platform.SWITCH]
 
 # Platforms that consume coordinator data (set up after coordinator)
 OUTPUT_PLATFORMS: list[Platform] = [Platform.SENSOR]
+
+# Service constants
+SERVICE_SAVE_DIAGNOSTICS = "save_diagnostics"
+ATTR_CONFIG_ENTRY = "config_entry"
+
+
+async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
+    """Set up the HAEO integration.
+
+    Registers domain-level services that are available even before any config entries are loaded.
+    """
+
+    async def async_handle_save_diagnostics(call: ServiceCall) -> None:
+        """Handle the save_diagnostics service call."""
+        # Import diagnostics module here to avoid circular imports
+        from custom_components.haeo.diagnostics import async_get_config_entry_diagnostics  # noqa: PLC0415
+
+        entry_id = call.data[ATTR_CONFIG_ENTRY]
+
+        # Validate config entry exists
+        entry = hass.config_entries.async_get_entry(entry_id)
+        if entry is None:
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="config_entry_not_found",
+                translation_placeholders={"entry_id": entry_id},
+            )
+
+        # Validate it's a HAEO entry
+        if entry.domain != DOMAIN:
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="config_entry_wrong_domain",
+                translation_placeholders={"entry_id": entry_id, "domain": entry.domain},
+            )
+
+        # Validate entry is loaded
+        if entry.state is not ConfigEntryState.LOADED:
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="config_entry_not_loaded",
+                translation_placeholders={"entry_id": entry_id, "state": str(entry.state)},
+            )
+
+        # Get diagnostics data
+        diagnostics_data = await async_get_config_entry_diagnostics(hass, entry)
+
+        # Generate filename with timestamp
+        timestamp = dt_util.now().strftime("%Y%m%dT%H%M%S")
+        filename = f"haeo_diagnostics_{entry_id}_{timestamp}.json"
+        filepath = Path(hass.config.path(filename))
+
+        # Write to file (in executor to avoid blocking)
+        def write_diagnostics() -> None:
+            with filepath.open("w", encoding="utf-8") as f:
+                json.dump(diagnostics_data, f, indent=2, ensure_ascii=False)
+
+        await hass.async_add_executor_job(write_diagnostics)
+
+        _LOGGER.info("HAEO diagnostics saved to %s", filepath)
+
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_SAVE_DIAGNOSTICS,
+        async_handle_save_diagnostics,
+        schema=vol.Schema({vol.Required(ATTR_CONFIG_ENTRY): cv.string}),
+    )
+
+    return True
 
 
 @dataclass(slots=True)
