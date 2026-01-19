@@ -114,75 +114,63 @@ def shift_day_offset(data: JSONDict, day_offset: int) -> JSONDict:
     return _transform_value_recursive(data, transform_fn)  # type: ignore[no-any-return]
 
 
-def _parse_forecast_times(forecasts: ForecastList) -> list[tuple[datetime, datetime, JSONDict]]:
-    """Parse forecast list into (utc_timestamp, local_timestamp, forecast) tuples.
+def _parse_forecast_times(forecasts: ForecastList) -> list[tuple[datetime, JSONDict]]:
+    """Parse forecast list into (timestamp, forecast) tuples.
 
     Args:
         forecasts: List of forecast dictionaries with time fields
 
     Returns:
-        List of (utc_time, local_time, forecast) tuples sorted by utc_time.
-        local_time is from nem_date (for timezone-aware matching).
-        utc_time is from start_time (for timestamp calculations).
+        List of (timestamp, forecast) tuples sorted by time.
+        Uses nem_date (local time) for timezone-aware matching, falls back to start_time.
 
     """
     forecast_times = []
     for forecast in forecasts:
-        start_time_str = forecast.get("start_time")
-        nem_date_str = forecast.get("nem_date")
-
-        if not start_time_str and not nem_date_str:
+        # Prefer nem_date (local time) for matching; fall back to start_time
+        time_str = forecast.get("nem_date") or forecast.get("start_time")
+        if not time_str:
             continue
 
         try:
-            # Use start_time for UTC timestamp, nem_date for local time matching
-            utc_time = datetime.fromisoformat(start_time_str) if start_time_str else None
-            local_time = datetime.fromisoformat(nem_date_str) if nem_date_str else None
-
-            # Fall back if one is missing
-            if utc_time is None:
-                utc_time = local_time
-            if local_time is None:
-                local_time = utc_time
-
-            forecast_times.append((utc_time, local_time, forecast))
+            timestamp = datetime.fromisoformat(time_str)
+            forecast_times.append((timestamp, forecast))
         except (ValueError, AttributeError):
-            logger.debug("Could not parse forecast time: start=%s, nem=%s", start_time_str, nem_date_str)
+            logger.debug("Could not parse forecast time: %s", time_str)
 
     forecast_times.sort(key=lambda x: x[0])
     return forecast_times
 
 
 def _find_closest_time_of_day_index(
-    forecast_times: list[tuple[datetime, datetime, JSONDict]],
+    forecast_times: list[tuple[datetime, JSONDict]],
     window_start: datetime,
 ) -> int:
     """Find index of forecast closest to current time-of-day in local timezone.
 
     Args:
-        forecast_times: Sorted list of (utc_time, local_time, forecast) tuples
+        forecast_times: Sorted list of (timestamp, forecast) tuples
         window_start: Window start datetime (UTC) to match against
 
     Returns:
         Index of forecast with closest matching local time-of-day
 
     """
-    # Get local timezone from first forecast and convert window_start
     if not forecast_times:
         return 0
 
-    first_local_time = forecast_times[0][1]
-    local_tz = first_local_time.tzinfo
-
-    window_start_local = window_start.astimezone(local_tz) if local_tz is not None else window_start
+    # Convert window_start to forecast's timezone for local time-of-day matching
+    first_time = forecast_times[0][0]
+    local_tz = first_time.tzinfo
+    window_start_local = window_start.astimezone(local_tz) if local_tz else window_start
 
     window_minutes = window_start_local.hour * 60 + window_start_local.minute
 
     closest_idx = 0
     min_time_diff = float("inf")
 
-    for i, (_, local_time, _) in enumerate(forecast_times):
-        forecast_minutes = local_time.hour * 60 + local_time.minute
+    for i, (timestamp, _) in enumerate(forecast_times):
+        forecast_minutes = timestamp.hour * 60 + timestamp.minute
         time_diff = abs(window_minutes - forecast_minutes)
 
         if time_diff < min_time_diff:
@@ -262,7 +250,7 @@ def wrap_forecasts(data: JSONDict) -> JSONDict:
         return data
 
     now = datetime.now(UTC)
-    # Round down to nearest 5-minute boundary to preserve forecast clock alignment
+    # Round down to nearest hour to align with forecast boundaries
     window_start = now.replace(second=0, microsecond=0, minute=0)
     forecast_times = _parse_forecast_times(forecasts)
 
@@ -271,25 +259,24 @@ def wrap_forecasts(data: JSONDict) -> JSONDict:
         return data
 
     closest_idx = _find_closest_time_of_day_index(forecast_times, window_start)
-    first_forecast_local = forecast_times[closest_idx][1]
+    first_forecast_time = forecast_times[closest_idx][0]
 
-    # Calculate delta using local times to preserve local time-of-day boundaries
-    # Convert window_start to local timezone for proper alignment
-    local_tz = first_forecast_local.tzinfo
+    # Convert window_start to forecast timezone and calculate delta
+    local_tz = first_forecast_time.tzinfo
     window_start_local = window_start.astimezone(local_tz) if local_tz else window_start
-    base_time_delta = window_start_local - first_forecast_local
+    base_time_delta = window_start_local - first_forecast_time
 
-    # Calculate wrap duration using local times (time span of entire forecast period + gap)
-    last_local = forecast_times[-1][1]
-    first_local = forecast_times[0][1]
-    forecast_duration_seconds = (last_local - first_local).total_seconds()
+    # Calculate wrap duration (time span of entire forecast period + gap)
+    last_time = forecast_times[-1][0]
+    first_time = forecast_times[0][0]
+    forecast_duration_seconds = (last_time - first_time).total_seconds()
     gap_seconds = 300  # 5 minute gap between periods
     wrap_duration = timedelta(seconds=forecast_duration_seconds + gap_seconds)
 
     window_forecasts = []
     for i in range(len(forecast_times)):
         idx = (closest_idx + i) % len(forecast_times)
-        _, _, forecast = forecast_times[idx]
+        _, forecast = forecast_times[idx]
 
         # All forecasts shift by base_time_delta (the date shift + time alignment)
         # Wrapped forecasts also add wrap_duration to push them to the next cycle
