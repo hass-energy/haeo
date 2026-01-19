@@ -4,6 +4,8 @@ from collections.abc import Callable
 from functools import partial
 from typing import TYPE_CHECKING, Any, TypeVar, overload
 
+import numpy as np
+
 from custom_components.haeo.model.output_data import OutputData
 
 from .tracked_param import ensure_decorator_state, tracking_context
@@ -129,8 +131,6 @@ class ReactiveConstraint[R](ReactiveMethod[R]):
             return None
 
         # Import here to avoid circular dependency
-        import numpy as np  # noqa: PLC0415
-
         from custom_components.haeo.model.const import OutputType  # noqa: PLC0415
 
         # Get the state for this constraint

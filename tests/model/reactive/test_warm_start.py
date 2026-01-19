@@ -30,7 +30,7 @@ def test_battery_update_capacity_modifies_soc_constraints() -> None:
         {
             "element_type": MODEL_ELEMENT_TYPE_BATTERY,
             "name": "battery",
-            "capacity": np.array([10.0]),
+            "capacity": 10.0,
             "initial_charge": 5.0,
         }
     )
@@ -44,13 +44,13 @@ def test_battery_update_capacity_modifies_soc_constraints() -> None:
             "segments": {
                 "power_limit": {
                     "segment_type": "power_limit",
-                    "max_power_source_target": np.array([5.0, 5.0, 5.0]),
-                    "max_power_target_source": np.array([5.0, 5.0, 5.0]),
+                    "max_power_source_target": 5.0,
+                    "max_power_target_source": 5.0,
                 },
                 "pricing": {
                     "segment_type": "pricing",
-                    "price_source_target": np.array([-0.10, -0.10, -0.10]),  # Export pays
-                    "price_target_source": np.array([0.15, 0.15, 0.15]),  # Import costs
+                    "price_source_target": -0.10,  # Export pays
+                    "price_target_source": 0.15,  # Import costs
                 },
             },
         }
@@ -84,7 +84,7 @@ def test_battery_update_initial_charge_modifies_constraint() -> None:
         {
             "element_type": MODEL_ELEMENT_TYPE_BATTERY,
             "name": "battery",
-            "capacity": np.array([10.0]),
+            "capacity": 10.0,
             "initial_charge": 2.0,
         }
     )
@@ -96,8 +96,8 @@ def test_battery_update_initial_charge_modifies_constraint() -> None:
             "source": "battery",
             "target": "grid",
             "segments": {
-                "power_limit": {"segment_type": "power_limit", "max_power_source_target": np.array([10.0])},
-                "pricing": {"segment_type": "pricing", "price_source_target": np.array([-0.10])},
+                "power_limit": {"segment_type": "power_limit", "max_power_source_target": 10.0},
+                "pricing": {"segment_type": "pricing", "price_source_target": -0.10},
             },
         }
     )
@@ -131,7 +131,7 @@ def test_battery_update_with_sequence_capacity() -> None:
         {
             "element_type": MODEL_ELEMENT_TYPE_BATTERY,
             "name": "battery",
-            "capacity": np.array([10.0]),
+            "capacity": 10.0,
             "initial_charge": 5.0,
         }
     )
@@ -165,9 +165,9 @@ def test_connection_update_max_power_source_target() -> None:
             "segments": {
                 "power_limit": {
                     "segment_type": "power_limit",
-                    "max_power_source_target": np.array([5.0, 5.0, 5.0]),
+                    "max_power_source_target": 5.0,
                 },
-                "pricing": {"segment_type": "pricing", "price_source_target": np.array([0.10, 0.10, 0.10])},
+                "pricing": {"segment_type": "pricing", "price_source_target": 0.10},
             },
         }
     )
@@ -206,10 +206,10 @@ def test_connection_update_price_source_target() -> None:
             "segments": {
                 "power_limit": {
                     "segment_type": "power_limit",
-                    "max_power_source_target": np.array([5.0, 5.0, 5.0]),
+                    "max_power_source_target": 5.0,
                     "fixed": True,  # Force flow to happen
                 },
-                "pricing": {"segment_type": "pricing", "price_source_target": np.array([0.10, 0.10, 0.10])},
+                "pricing": {"segment_type": "pricing", "price_source_target": 0.10},
             },
         }
     )
@@ -247,8 +247,8 @@ def test_connection_update_max_power_target_source() -> None:
             "segments": {
                 "power_limit": {
                     "segment_type": "power_limit",
-                    "max_power_source_target": np.array([5.0]),
-                    "max_power_target_source": np.array([3.0]),
+                    "max_power_source_target": 5.0,
+                    "max_power_target_source": 3.0,
                 }
             },
         }
@@ -274,7 +274,7 @@ def test_connection_update_price_target_source() -> None:
         {
             "element_type": MODEL_ELEMENT_TYPE_BATTERY,
             "name": "battery",
-            "capacity": np.array([10.0]),
+            "capacity": 10.0,
             "initial_charge": 0.0,
         }
     )
@@ -288,13 +288,13 @@ def test_connection_update_price_target_source() -> None:
             "segments": {
                 "power_limit": {
                     "segment_type": "power_limit",
-                    "max_power_source_target": np.array([5.0]),
-                    "max_power_target_source": np.array([5.0]),
+                    "max_power_source_target": 5.0,
+                    "max_power_target_source": 5.0,
                 },
                 "pricing": {
                     "segment_type": "pricing",
-                    "price_source_target": np.array([0.0]),
-                    "price_target_source": np.array([0.15]),  # Cost to import from grid to battery
+                    "price_source_target": 0.0,
+                    "price_target_source": 0.15,  # Cost to import from grid to battery
                 },
             },
         }
@@ -336,9 +336,9 @@ def test_connection_update_with_sequence_values() -> None:
             "segments": {
                 "power_limit": {
                     "segment_type": "power_limit",
-                    "max_power_source_target": np.array([5.0, 5.0, 5.0]),
+                    "max_power_source_target": 5.0,
                 },
-                "pricing": {"segment_type": "pricing", "price_source_target": np.array([0.10, 0.10, 0.10])},
+                "pricing": {"segment_type": "pricing", "price_source_target": 0.10},
             },
         }
     )
@@ -366,7 +366,7 @@ def test_warm_start_produces_same_result() -> None:
         {
             "element_type": MODEL_ELEMENT_TYPE_BATTERY,
             "name": "battery",
-            "capacity": np.array([10.0]),
+            "capacity": 10.0,
             "initial_charge": 5.0,
         }
     )
@@ -380,13 +380,13 @@ def test_warm_start_produces_same_result() -> None:
             "segments": {
                 "power_limit": {
                     "segment_type": "power_limit",
-                    "max_power_source_target": np.array([5.0, 5.0, 5.0]),
-                    "max_power_target_source": np.array([5.0, 5.0, 5.0]),
+                    "max_power_source_target": 5.0,
+                    "max_power_target_source": 5.0,
                 },
                 "pricing": {
                     "segment_type": "pricing",
-                    "price_source_target": np.array([-0.10, -0.10, -0.10]),
-                    "price_target_source": np.array([0.15, 0.15, 0.15]),
+                    "price_source_target": -0.10,
+                    "price_target_source": 0.15,
                 },
             },
         }
@@ -400,7 +400,7 @@ def test_warm_start_produces_same_result() -> None:
         {
             "element_type": MODEL_ELEMENT_TYPE_BATTERY,
             "name": "battery",
-            "capacity": np.array([5.0]),
+            "capacity": 5.0,
             "initial_charge": 2.0,
         }
     )
@@ -414,13 +414,13 @@ def test_warm_start_produces_same_result() -> None:
             "segments": {
                 "power_limit": {
                     "segment_type": "power_limit",
-                    "max_power_source_target": np.array([2.0, 2.0, 2.0]),
-                    "max_power_target_source": np.array([2.0, 2.0, 2.0]),
+                    "max_power_source_target": 2.0,
+                    "max_power_target_source": 2.0,
                 },
                 "pricing": {
                     "segment_type": "pricing",
-                    "price_source_target": np.array([-0.05, -0.05, -0.05]),
-                    "price_target_source": np.array([0.08, 0.08, 0.08]),
+                    "price_source_target": -0.05,
+                    "price_target_source": 0.08,
                 },
             },
         }
@@ -466,8 +466,8 @@ def test_network_add_connection_updates_prices() -> None:
             "source": "source",
             "target": "sink",
             "segments": {
-                "power_limit": {"segment_type": "power_limit", "max_power_source_target": np.array([5.0])},
-                "pricing": {"segment_type": "pricing", "price_source_target": np.array([-0.10])},
+                "power_limit": {"segment_type": "power_limit", "max_power_source_target": 5.0},
+                "pricing": {"segment_type": "pricing", "price_source_target": -0.10},
             },
         }
     )
@@ -482,8 +482,8 @@ def test_network_add_connection_updates_prices() -> None:
             "name": "conn",
             "source": "source",
             "target": "sink",
-            "max_power_source_target": np.array([5.0]),
-            "price_source_target": np.array([-0.20]),
+            "max_power_source_target": 5.0,
+            "price_source_target": -0.20,
         },
     )
 
@@ -505,7 +505,7 @@ def test_solver_structure_unchanged_after_update() -> None:
         {
             "element_type": MODEL_ELEMENT_TYPE_BATTERY,
             "name": "battery",
-            "capacity": np.array([10.0]),
+            "capacity": 10.0,
             "initial_charge": 5.0,
         }
     )
@@ -519,13 +519,13 @@ def test_solver_structure_unchanged_after_update() -> None:
             "segments": {
                 "power_limit": {
                     "segment_type": "power_limit",
-                    "max_power_source_target": np.array([5.0, 5.0, 5.0]),
-                    "max_power_target_source": np.array([5.0, 5.0, 5.0]),
+                    "max_power_source_target": 5.0,
+                    "max_power_target_source": 5.0,
                 },
                 "pricing": {
                     "segment_type": "pricing",
-                    "price_source_target": np.array([-0.10, -0.10, -0.10]),
-                    "price_target_source": np.array([0.15, 0.15, 0.15]),
+                    "price_source_target": -0.10,
+                    "price_target_source": 0.15,
                 },
             },
         }

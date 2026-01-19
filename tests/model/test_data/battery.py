@@ -13,13 +13,13 @@ VALID_CASES: list[ElementTestCase] = [
         "data": {
             "name": "battery_charging",
             "periods": np.array([1.0] * 3),
-            "capacity": np.array([10.0]),
+            "capacity": 10.0,
             "initial_charge": 2.0,
         },
         "inputs": {
             "power": [5.0, 2.0, 0.0],  # Forced input
-            "input_cost": np.array(0.0),
-            "output_cost": np.array(0.0),
+            "input_cost": 0.0,
+            "output_cost": 0.0,
         },
         "expected_outputs": {
             "battery_energy_stored": {"type": "energy", "unit": "kWh", "values": (2.0, 7.0, 9.0, 9.0)},
@@ -38,13 +38,13 @@ VALID_CASES: list[ElementTestCase] = [
         "data": {
             "name": "battery_discharging",
             "periods": np.array([1.0] * 3),
-            "capacity": np.array([10.0]),
+            "capacity": 10.0,
             "initial_charge": 8.0,
         },
         "inputs": {
             "power": [-3.0, -3.0, 0.0],  # Forced output
-            "input_cost": np.array(0.0),
-            "output_cost": np.array(0.0),
+            "input_cost": 0.0,
+            "output_cost": 0.0,
         },
         "expected_outputs": {
             "battery_energy_stored": {"type": "energy", "unit": "kWh", "values": (8.0, 5.0, 2.0, 2.0)},
@@ -63,13 +63,13 @@ VALID_CASES: list[ElementTestCase] = [
         "data": {
             "name": "battery_fixed",
             "periods": np.array([1.0] * 3),
-            "capacity": np.array([10.0]),
+            "capacity": 10.0,
             "initial_charge": 5.0,
         },
         "inputs": {
             "power": [2.0, -1.0, 1.0],  # Positive=charge, negative=discharge
-            "input_cost": np.array(0.0),
-            "output_cost": np.array(0.0),
+            "input_cost": 0.0,
+            "output_cost": 0.0,
         },
         "expected_outputs": {
             "battery_energy_stored": {"type": "energy", "unit": "kWh", "values": (5.0, 7.0, 6.0, 7.0)},
