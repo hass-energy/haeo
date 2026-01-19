@@ -229,6 +229,7 @@ async def test_save_diagnostics_filename_format(
     timestamp_part = filename.replace("haeo_diagnostics_", "").replace(".json", "")
     # Format: 2026-01-19_155018.452421 (27 chars: 10 date + 1 underscore + 6 time + 1 dot + 6 microseconds)
     assert len(timestamp_part) == 24
-    assert timestamp_part[4] == "-" and timestamp_part[7] == "-"  # Date separators
+    assert timestamp_part[4] == "-"  # Year-month separator
+    assert timestamp_part[7] == "-"  # Month-day separator
     assert timestamp_part[10] == "_"  # Date/time separator
     assert "." in timestamp_part  # Microseconds separator
