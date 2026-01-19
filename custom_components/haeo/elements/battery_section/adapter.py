@@ -11,6 +11,7 @@ from homeassistant.core import HomeAssistant
 from custom_components.haeo.const import ConnectivityLevel
 from custom_components.haeo.data.loader import TimeSeriesLoader
 from custom_components.haeo.elements.input_fields import InputFieldInfo
+from custom_components.haeo.elements.output_utils import expect_output_data_map
 from custom_components.haeo.model import ModelElementConfig, ModelOutputName, ModelOutputValue
 from custom_components.haeo.model import battery as model_battery
 from custom_components.haeo.model.const import OutputType
@@ -128,12 +129,7 @@ class BatterySectionAdapter:
         **_kwargs: Any,
     ) -> Mapping[BatterySectionDeviceName, Mapping[BatterySectionOutputName, OutputData]]:
         """Map model outputs to battery section output names."""
-        battery_data: dict[ModelOutputName, OutputData] = {}
-        for key, value in model_outputs[name].items():
-            if not isinstance(value, OutputData):
-                msg = f"Expected OutputData for {name!r} output {key!r}"
-                raise TypeError(msg)
-            battery_data[key] = value
+        battery_data = expect_output_data_map(name, model_outputs[name])
 
         section_outputs: dict[BatterySectionOutputName, OutputData] = {}
 

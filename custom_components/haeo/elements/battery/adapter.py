@@ -12,6 +12,7 @@ import numpy as np
 from custom_components.haeo.const import ConnectivityLevel
 from custom_components.haeo.data.loader import TimeSeriesLoader
 from custom_components.haeo.elements.input_fields import InputFieldDefaults, InputFieldInfo
+from custom_components.haeo.elements.output_utils import expect_output_data_map
 from custom_components.haeo.model import ModelElementConfig, ModelOutputName, ModelOutputValue
 from custom_components.haeo.model import battery as model_battery
 from custom_components.haeo.model import battery_balance_connection as model_balance
@@ -603,48 +604,24 @@ class BatteryAdapter:
         # Check for undercharge section
         undercharge_name = f"{name}:undercharge"
         if undercharge_name in model_outputs:
-            undercharge_outputs: dict[ModelOutputName, OutputData] = {}
-            for key, value in model_outputs[undercharge_name].items():
-                if not isinstance(value, OutputData):
-                    msg = f"Expected OutputData for {undercharge_name!r} output {key!r}"
-                    raise TypeError(msg)
-                undercharge_outputs[key] = value
-            section_outputs["undercharge"] = undercharge_outputs
+            section_outputs["undercharge"] = expect_output_data_map(undercharge_name, model_outputs[undercharge_name])
             section_names.append("undercharge")
 
         # Normal section (always present)
         normal_name = f"{name}:normal"
         if normal_name in model_outputs:
-            normal_outputs: dict[ModelOutputName, OutputData] = {}
-            for key, value in model_outputs[normal_name].items():
-                if not isinstance(value, OutputData):
-                    msg = f"Expected OutputData for {normal_name!r} output {key!r}"
-                    raise TypeError(msg)
-                normal_outputs[key] = value
-            section_outputs["normal"] = normal_outputs
+            section_outputs["normal"] = expect_output_data_map(normal_name, model_outputs[normal_name])
             section_names.append("normal")
 
         # Check for overcharge section
         overcharge_name = f"{name}:overcharge"
         if overcharge_name in model_outputs:
-            overcharge_outputs: dict[ModelOutputName, OutputData] = {}
-            for key, value in model_outputs[overcharge_name].items():
-                if not isinstance(value, OutputData):
-                    msg = f"Expected OutputData for {overcharge_name!r} output {key!r}"
-                    raise TypeError(msg)
-                overcharge_outputs[key] = value
-            section_outputs["overcharge"] = overcharge_outputs
+            section_outputs["overcharge"] = expect_output_data_map(overcharge_name, model_outputs[overcharge_name])
             section_names.append("overcharge")
 
         # Get node outputs for power balance
         node_name = f"{name}:node"
-        node_outputs: dict[ModelOutputName, OutputData] = {}
-        if node_name in model_outputs:
-            for key, value in model_outputs[node_name].items():
-                if not isinstance(value, OutputData):
-                    msg = f"Expected OutputData for {node_name!r} output {key!r}"
-                    raise TypeError(msg)
-                node_outputs[key] = value
+        node_outputs = expect_output_data_map(node_name, model_outputs[node_name]) if node_name in model_outputs else {}
 
         # Calculate aggregate outputs
         # Sum power charge/discharge across all sections

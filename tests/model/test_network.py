@@ -197,7 +197,7 @@ def test_validate_raises_when_target_missing() -> None:
     """Validate should raise when a connection target is missing."""
     net = Network(name="net", periods=np.array([1.0]))
     net.elements["source_node"] = Node(
-        name="source_node", periods=np.array([1.0], dtype=float), solver=net._solver, is_source=True, is_sink=True
+        name="source_node", periods=np.array([1.0]), solver=net._solver, is_source=True, is_sink=True
     )
     net.elements["conn"] = Connection(
         name="conn",
@@ -215,13 +215,7 @@ def test_validate_raises_when_endpoints_are_connections() -> None:
     """Validate should reject connections that point to connection elements."""
     net = Network(name="net", periods=np.array([1.0]))
     # Non-connection element to satisfy target for conn2
-    net.elements["node"] = Node(
-        name="node",
-        periods=np.array([1.0], dtype=float),
-        solver=net._solver,
-        is_source=True,
-        is_sink=True,
-    )
+    net.elements["node"] = Node(name="node", periods=np.array([1.0]), solver=net._solver, is_source=True, is_sink=True)
 
     net.elements["conn2"] = Connection(
         name="conn2",
@@ -259,14 +253,7 @@ def test_network_constraint_generation_error() -> None:
     )
 
     # Add a regular battery
-    network.add(
-        {
-            "element_type": ELEMENT_TYPE_BATTERY,
-            "name": "battery",
-            "capacity": 10000.0,
-            "initial_charge": 5000,
-        }
-    )
+    network.add({"element_type": ELEMENT_TYPE_BATTERY, "name": "battery", "capacity": 10000, "initial_charge": 5000})
 
     # Mock an element to raise an exception during constraints
     mock_element = Mock(spec=Element)
@@ -411,20 +398,10 @@ def test_add_battery_balance_connection() -> None:
 
     # Add two battery sections
     network.add(
-        {
-            "element_type": ELEMENT_TYPE_BATTERY,
-            "name": "upper_section",
-            "capacity": 10.0,
-            "initial_charge": 5.0,
-        }
+        {"element_type": ELEMENT_TYPE_BATTERY, "name": "upper_section", "capacity": 10.0, "initial_charge": 5.0}
     )
     network.add(
-        {
-            "element_type": ELEMENT_TYPE_BATTERY,
-            "name": "lower_section",
-            "capacity": 10.0,
-            "initial_charge": 5.0,
-        }
+        {"element_type": ELEMENT_TYPE_BATTERY, "name": "lower_section", "capacity": 10.0, "initial_charge": 5.0}
     )
 
     # Add battery balance connection
@@ -449,12 +426,7 @@ def test_add_battery_balance_connection_upper_not_battery() -> None:
     # Add a node (not a battery) as upper
     network.add({"element_type": ELEMENT_TYPE_NODE, "name": "not_a_battery", "is_sink": True, "is_source": True})
     network.add(
-        {
-            "element_type": ELEMENT_TYPE_BATTERY,
-            "name": "lower_section",
-            "capacity": 10.0,
-            "initial_charge": 5.0,
-        }
+        {"element_type": ELEMENT_TYPE_BATTERY, "name": "lower_section", "capacity": 10.0, "initial_charge": 5.0}
     )
 
     with pytest.raises(TypeError, match="Upper element 'not_a_battery' is not a battery"):
@@ -474,12 +446,7 @@ def test_add_battery_balance_connection_lower_not_battery() -> None:
 
     # Add battery as upper, node as lower
     network.add(
-        {
-            "element_type": ELEMENT_TYPE_BATTERY,
-            "name": "upper_section",
-            "capacity": 10.0,
-            "initial_charge": 5.0,
-        }
+        {"element_type": ELEMENT_TYPE_BATTERY, "name": "upper_section", "capacity": 10.0, "initial_charge": 5.0}
     )
     network.add({"element_type": ELEMENT_TYPE_NODE, "name": "not_a_battery", "is_sink": True, "is_source": True})
 
@@ -509,7 +476,9 @@ def test_network_cost_with_multiple_elements() -> None:
             "name": "conn1",
             "source": "source",
             "target": "target",
-            "segments": {"pricing": {"segment_type": "pricing", "price_source_target": np.array([10.0, 20.0])}},
+            "segments": {
+                "pricing": {"segment_type": "pricing", "price_source_target": np.array([10.0, 20.0])},
+            },
         }
     )
     network.add(
@@ -518,7 +487,9 @@ def test_network_cost_with_multiple_elements() -> None:
             "name": "conn2",
             "source": "target",
             "target": "source",
-            "segments": {"pricing": {"segment_type": "pricing", "price_source_target": np.array([5.0, 10.0])}},
+            "segments": {
+                "pricing": {"segment_type": "pricing", "price_source_target": np.array([5.0, 10.0])},
+            },
         }
     )
 
