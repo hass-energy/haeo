@@ -13,7 +13,7 @@ from numpy.typing import NDArray
 from custom_components.haeo.const import ConnectivityLevel
 from custom_components.haeo.data.loader import TimeSeriesLoader
 from custom_components.haeo.elements.input_fields import InputFieldDefaults, InputFieldInfo
-from custom_components.haeo.elements.output_utils import expect_output_data
+from custom_components.haeo.elements.output_utils import expect_output_data, maybe_output_data
 from custom_components.haeo.model import ModelElementConfig, ModelOutputName, ModelOutputValue
 from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE
@@ -250,16 +250,16 @@ class GridAdapter:
         )
 
         # Output the shadow prices from power_limit segment
-        segments_output = connection.get(CONNECTION_SEGMENTS)
-        if isinstance(segments_output, Mapping):
-            power_limit_outputs = segments_output.get("power_limit")
-            if isinstance(power_limit_outputs, Mapping):
-                export_shadow = power_limit_outputs.get(POWER_LIMIT_TARGET_SOURCE)
-                if isinstance(export_shadow, OutputData):
-                    grid_outputs[GRID_POWER_MAX_EXPORT_PRICE] = export_shadow
-                import_shadow = power_limit_outputs.get(POWER_LIMIT_SOURCE_TARGET)
-                if isinstance(import_shadow, OutputData):
-                    grid_outputs[GRID_POWER_MAX_IMPORT_PRICE] = import_shadow
+        if isinstance(segments_output := connection.get(CONNECTION_SEGMENTS), Mapping) and isinstance(
+            power_limit_outputs := segments_output.get("power_limit"), Mapping
+        ):
+            shadow_mappings: tuple[tuple[GridOutputName, str], ...] = (
+                (GRID_POWER_MAX_EXPORT_PRICE, POWER_LIMIT_TARGET_SOURCE),
+                (GRID_POWER_MAX_IMPORT_PRICE, POWER_LIMIT_SOURCE_TARGET),
+            )
+            for output_name, shadow_key in shadow_mappings:
+                if (shadow := maybe_output_data(power_limit_outputs.get(shadow_key))) is not None:
+                    grid_outputs[output_name] = shadow
 
         return {GRID_DEVICE_GRID: grid_outputs}
 

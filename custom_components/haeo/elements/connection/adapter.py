@@ -11,7 +11,7 @@ from homeassistant.core import HomeAssistant
 from custom_components.haeo.const import ConnectivityLevel
 from custom_components.haeo.data.loader import TimeSeriesLoader
 from custom_components.haeo.elements.input_fields import InputFieldInfo
-from custom_components.haeo.elements.output_utils import expect_output_data
+from custom_components.haeo.elements.output_utils import expect_output_data, maybe_output_data
 from custom_components.haeo.model import ModelElementConfig, ModelOutputName, ModelOutputValue
 from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION
@@ -256,19 +256,17 @@ class ConnectionAdapter:
         )
 
         # Shadow prices are exposed under the model's `segments` output map.
-        segments_output = connection.get(CONNECTION_SEGMENTS)
-        if isinstance(segments_output, Mapping):
-            power_limit_outputs = segments_output.get("power_limit")
-            if isinstance(power_limit_outputs, Mapping):
-                source_target_shadow = power_limit_outputs.get(POWER_LIMIT_SOURCE_TARGET)
-                if isinstance(source_target_shadow, OutputData):
-                    connection_outputs[CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET] = source_target_shadow
-                target_source_shadow = power_limit_outputs.get(POWER_LIMIT_TARGET_SOURCE)
-                if isinstance(target_source_shadow, OutputData):
-                    connection_outputs[CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE] = target_source_shadow
-                time_slice_shadow = power_limit_outputs.get(POWER_LIMIT_TIME_SLICE)
-                if isinstance(time_slice_shadow, OutputData):
-                    connection_outputs[CONNECTION_TIME_SLICE] = time_slice_shadow
+        if isinstance(segments_output := connection.get(CONNECTION_SEGMENTS), Mapping) and isinstance(
+            power_limit_outputs := segments_output.get("power_limit"), Mapping
+        ):
+            shadow_mappings: tuple[tuple[ConnectionOutputName, str], ...] = (
+                (CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET, POWER_LIMIT_SOURCE_TARGET),
+                (CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE, POWER_LIMIT_TARGET_SOURCE),
+                (CONNECTION_TIME_SLICE, POWER_LIMIT_TIME_SLICE),
+            )
+            for output_name, shadow_key in shadow_mappings:
+                if (shadow := maybe_output_data(power_limit_outputs.get(shadow_key))) is not None:
+                    connection_outputs[output_name] = shadow
 
         return {CONNECTION_DEVICE_CONNECTION: connection_outputs}
 

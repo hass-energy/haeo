@@ -13,6 +13,13 @@ def expect_output_data(value: ModelOutputValue) -> OutputData:
     return value
 
 
+def maybe_output_data(value: ModelOutputValue | None) -> OutputData | None:
+    """Return OutputData for value if present, else None."""
+    if value is None:
+        return None
+    return expect_output_data(value)
+
+
 def expect_output_data_map(
     outputs: Mapping[ModelOutputName, ModelOutputValue],
 ) -> dict[ModelOutputName, OutputData]:
@@ -23,4 +30,4 @@ def expect_output_data_map(
     return result
 
 
-__all__ = ["expect_output_data", "expect_output_data_map"]
+__all__ = ["expect_output_data", "expect_output_data_map", "maybe_output_data"]

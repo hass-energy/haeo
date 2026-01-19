@@ -11,7 +11,7 @@ from homeassistant.core import HomeAssistant
 from custom_components.haeo.const import ConnectivityLevel
 from custom_components.haeo.data.loader import TimeSeriesLoader
 from custom_components.haeo.elements.input_fields import InputFieldDefaults, InputFieldInfo
-from custom_components.haeo.elements.output_utils import expect_output_data
+from custom_components.haeo.elements.output_utils import expect_output_data, maybe_output_data
 from custom_components.haeo.model import ModelElementConfig, ModelOutputName, ModelOutputValue
 from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE
@@ -209,19 +209,16 @@ class InverterAdapter:
         inverter_outputs[INVERTER_DC_BUS_POWER_BALANCE] = expect_output_data(dc_bus[NODE_POWER_BALANCE])
 
         # Shadow prices from power_limit segment
-        segments_output = connection.get(CONNECTION_SEGMENTS)
-        if isinstance(segments_output, Mapping):
-            power_limit_outputs = segments_output.get("power_limit")
-            if isinstance(power_limit_outputs, Mapping):
-                # DC→AC is source→target
-                dc_to_ac_shadow = power_limit_outputs.get(POWER_LIMIT_SOURCE_TARGET)
-                if isinstance(dc_to_ac_shadow, OutputData):
-                    inverter_outputs[INVERTER_MAX_POWER_DC_TO_AC_PRICE] = dc_to_ac_shadow
-
-                # AC→DC is target→source
-                ac_to_dc_shadow = power_limit_outputs.get(POWER_LIMIT_TARGET_SOURCE)
-                if isinstance(ac_to_dc_shadow, OutputData):
-                    inverter_outputs[INVERTER_MAX_POWER_AC_TO_DC_PRICE] = ac_to_dc_shadow
+        if isinstance(segments_output := connection.get(CONNECTION_SEGMENTS), Mapping) and isinstance(
+            power_limit_outputs := segments_output.get("power_limit"), Mapping
+        ):
+            shadow_mappings: tuple[tuple[InverterOutputName, str], ...] = (
+                (INVERTER_MAX_POWER_DC_TO_AC_PRICE, POWER_LIMIT_SOURCE_TARGET),
+                (INVERTER_MAX_POWER_AC_TO_DC_PRICE, POWER_LIMIT_TARGET_SOURCE),
+            )
+            for output_name, shadow_key in shadow_mappings:
+                if (shadow := maybe_output_data(power_limit_outputs.get(shadow_key))) is not None:
+                    inverter_outputs[output_name] = shadow
 
         return {INVERTER_DEVICE_INVERTER: inverter_outputs}
 

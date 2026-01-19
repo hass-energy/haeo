@@ -12,7 +12,7 @@ from homeassistant.core import HomeAssistant
 from custom_components.haeo.const import ConnectivityLevel
 from custom_components.haeo.data.loader import TimeSeriesLoader
 from custom_components.haeo.elements.input_fields import InputFieldDefaults, InputFieldInfo
-from custom_components.haeo.elements.output_utils import expect_output_data
+from custom_components.haeo.elements.output_utils import expect_output_data, maybe_output_data
 from custom_components.haeo.model import ModelElementConfig, ModelOutputName, ModelOutputValue
 from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE
@@ -149,13 +149,12 @@ class SolarAdapter:
         }
 
         # Shadow price from power_limit segment (if present)
-        segments_output = connection.get(CONNECTION_SEGMENTS)
-        if isinstance(segments_output, Mapping):
-            power_limit_outputs = segments_output.get("power_limit")
-            if isinstance(power_limit_outputs, Mapping):
-                shadow = power_limit_outputs.get(POWER_LIMIT_SOURCE_TARGET)
-                if isinstance(shadow, OutputData):
-                    solar_outputs[SOLAR_FORECAST_LIMIT] = shadow
+        if (
+            isinstance(segments_output := connection.get(CONNECTION_SEGMENTS), Mapping)
+            and isinstance(power_limit_outputs := segments_output.get("power_limit"), Mapping)
+            and (shadow := maybe_output_data(power_limit_outputs.get(POWER_LIMIT_SOURCE_TARGET))) is not None
+        ):
+            solar_outputs[SOLAR_FORECAST_LIMIT] = shadow
 
         return {SOLAR_DEVICE_SOLAR: solar_outputs}
 
