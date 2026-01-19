@@ -361,33 +361,30 @@ class BatteryAdapter:
         n_periods = n_boundaries - 1
 
         # Get capacity array and initial SOC from first period
-        capacity_array = config["capacity"]
-        capacity_first = capacity_array[0]
+        capacity = config["capacity"]
+        capacity_first = capacity[0]
         initial_soc = config["initial_charge_percentage"][0]
 
         # Ratio arrays for time-varying limits (0-1)
         min_charge_percentage = config.get(CONF_MIN_CHARGE_PERCENTAGE, DEFAULTS[CONF_MIN_CHARGE_PERCENTAGE])
         max_charge_percentage = config.get(CONF_MAX_CHARGE_PERCENTAGE, DEFAULTS[CONF_MAX_CHARGE_PERCENTAGE])
         efficiency = config.get(CONF_EFFICIENCY)
-        efficiency_values = efficiency if efficiency is not None else None
 
-        min_ratio_array = min_charge_percentage
-        max_ratio_array = max_charge_percentage
         min_ratio_first = (
-            float(min_ratio_array[0]) if isinstance(min_ratio_array, np.ndarray) else float(min_ratio_array)
+            float(min_charge_percentage[0])
+            if isinstance(min_charge_percentage, np.ndarray)
+            else float(min_charge_percentage)
         )
 
         # Optional ratio arrays (if present)
-        undercharge_pct = config.get("undercharge_percentage")
-        undercharge_ratio_array = undercharge_pct if undercharge_pct is not None else None
+        undercharge_percentage = config.get("undercharge_percentage")
         undercharge_ratio_first = (
-            float(undercharge_ratio_array[0])
-            if isinstance(undercharge_ratio_array, np.ndarray)
-            else undercharge_ratio_array
+            float(undercharge_percentage[0])
+            if isinstance(undercharge_percentage, np.ndarray)
+            else undercharge_percentage
         )
 
-        overcharge_pct = config.get("overcharge_percentage")
-        overcharge_ratio_array = overcharge_pct if overcharge_pct is not None else None
+        overcharge_percentage = config.get("overcharge_percentage")
 
         initial_soc_ratio = initial_soc
 
@@ -408,11 +405,11 @@ class BatteryAdapter:
         section_capacities: dict[str, np.ndarray] = {}
 
         # 1. Undercharge section (if configured)
-        if undercharge_ratio_array is not None and config.get("undercharge_cost") is not None:
+        if undercharge_percentage is not None and config.get("undercharge_cost") is not None:
             section_name = f"{name}:undercharge"
             section_names.append(section_name)
             # Time-varying capacity: (min_ratio - undercharge_ratio) * capacity per period
-            undercharge_capacity = (min_ratio_array - undercharge_ratio_array) * capacity_array
+            undercharge_capacity = (min_charge_percentage - undercharge_percentage) * capacity
             section_capacities[section_name] = undercharge_capacity
             # For initial charge distribution, use first period capacity
             undercharge_capacity_first = float(undercharge_capacity[0])
@@ -433,7 +430,7 @@ class BatteryAdapter:
         section_name = f"{name}:normal"
         section_names.append(section_name)
         # Time-varying capacity: (max_ratio - min_ratio) * capacity per period
-        normal_capacity = (max_ratio_array - min_ratio_array) * capacity_array
+        normal_capacity = (max_charge_percentage - min_charge_percentage) * capacity
         section_capacities[section_name] = normal_capacity
         normal_capacity_first = float(normal_capacity[0])
         section_initial_charge = min(initial_charge, normal_capacity_first)
@@ -450,11 +447,11 @@ class BatteryAdapter:
         initial_charge = max(initial_charge - section_initial_charge, 0.0)
 
         # 3. Overcharge section (if configured)
-        if overcharge_ratio_array is not None and config.get("overcharge_cost") is not None:
+        if overcharge_percentage is not None and config.get("overcharge_cost") is not None:
             section_name = f"{name}:overcharge"
             section_names.append(section_name)
             # Time-varying capacity: (overcharge_ratio - max_ratio) * capacity per period
-            overcharge_capacity = (overcharge_ratio_array - max_ratio_array) * capacity_array
+            overcharge_capacity = (overcharge_percentage - max_charge_percentage) * capacity
             section_capacities[section_name] = overcharge_capacity
             overcharge_capacity_first = float(overcharge_capacity[0])
             section_initial_charge = min(initial_charge, overcharge_capacity_first)
@@ -482,16 +479,16 @@ class BatteryAdapter:
         # 5. Create connections from sections to internal node
 
         # Get undercharge/overcharge cost arrays (or broadcast scalars to arrays)
-        undercharge_cost_array = config.get("undercharge_cost", 0.0)
-        overcharge_cost_array = config.get("overcharge_cost", 0.0)
+        undercharge_cost = config.get("undercharge_cost", 0.0)
+        overcharge_cost = config.get("overcharge_cost", 0.0)
 
         for section_name in section_names:
             # Determine discharge costs based on section (undercharge/overcharge penalties)
             # Ordering is enforced by balance connections, not price incentives
             if "undercharge" in section_name:
-                discharge_price = undercharge_cost_array
+                discharge_price = undercharge_cost
             elif "overcharge" in section_name:
-                charge_price = overcharge_cost_array
+                charge_price = overcharge_cost
                 elements.append(
                     {
                         "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
@@ -566,8 +563,8 @@ class BatteryAdapter:
                 "segments": {
                     "efficiency": {
                         "segment_type": "efficiency",
-                        "efficiency_source_target": efficiency_values,  # Node to network (discharge)
-                        "efficiency_target_source": efficiency_values,  # Network to node (charge)
+                        "efficiency_source_target": efficiency,  # Node to network (discharge)
+                        "efficiency_target_source": efficiency,  # Network to node (charge)
                     },
                     "power_limit": {
                         "segment_type": "power_limit",
