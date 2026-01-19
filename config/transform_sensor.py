@@ -121,38 +121,31 @@ def _parse_forecast_times(forecasts: ForecastList) -> list[tuple[datetime, JSOND
         forecasts: List of forecast dictionaries with time fields
 
     Returns:
-        List of (timestamp, forecast) tuples sorted by time.
-        Uses nem_date (local time) for timezone-aware matching, falls back to start_time.
+        List of (datetime, forecast) tuples sorted by time
 
     """
     forecast_times = []
     for forecast in forecasts:
-        # Prefer nem_date (local time) for matching; fall back to start_time
-        time_str = forecast.get("nem_date") or forecast.get("start_time")
-        if not time_str:
+        start_time_str = forecast.get("nem_date") or forecast.get("start_time")
+        if not start_time_str:
             continue
 
         try:
-            timestamp = datetime.fromisoformat(time_str)
-            forecast_times.append((timestamp, forecast))
+            start_time = datetime.fromisoformat(start_time_str)
+            forecast_times.append((start_time, forecast))
         except (ValueError, AttributeError):
-            logger.debug("Could not parse forecast time: %s", time_str)
+            logger.debug("Could not parse forecast time: %s", start_time_str)
 
     forecast_times.sort(key=lambda x: x[0])
     return forecast_times
 
 
-def _find_closest_time_of_day_index(
-    forecast_times: list[tuple[datetime, JSONDict]],
-    window_start: datetime,
-) -> int:
+def _find_closest_time_of_day_index(forecast_times: list[tuple[datetime, JSONDict]], now: datetime) -> int:
     """Find index of forecast closest to current time-of-day.
 
-    Uses modular arithmetic on actual time differences, which is timezone-agnostic.
-
     Args:
-        forecast_times: Sorted list of (timestamp, forecast) tuples
-        window_start: Window start datetime to match against
+        forecast_times: Sorted list of (datetime, forecast) tuples
+        now: Current datetime for comparison
 
     Returns:
         Index of forecast with closest matching time-of-day
@@ -163,16 +156,14 @@ def _find_closest_time_of_day_index(
 
     seconds_per_day = 86400
     closest_idx = 0
-    min_offset = float("inf")
+    min_time_diff = float("inf")
 
-    for i, (timestamp, _) in enumerate(forecast_times):
-        # Time difference mod 24 hours gives within-day offset
-        diff_seconds = (window_start - timestamp).total_seconds() % seconds_per_day
-        # Consider both directions (e.g., 23 hours ahead vs 1 hour behind)
-        offset = min(diff_seconds, seconds_per_day - diff_seconds)
+    for i, (ts, _) in enumerate(forecast_times):
+        diff_seconds = (now - ts).total_seconds() % seconds_per_day
+        time_diff = min(diff_seconds, seconds_per_day - diff_seconds)
 
-        if offset < min_offset:
-            min_offset = offset
+        if time_diff < min_time_diff:
+            min_time_diff = time_diff
             closest_idx = i
 
     return closest_idx
@@ -247,20 +238,16 @@ def wrap_forecasts(data: JSONDict) -> JSONDict:
         logger.debug("Empty forecasts list")
         return data
 
-    now = datetime.now(UTC)
-    # Round down to nearest hour to align with forecast boundaries
-    window_start = now.replace(second=0, microsecond=0, minute=0)
+    now = datetime.now(UTC).replace(second=0, microsecond=0, minute=0)
     forecast_times = _parse_forecast_times(forecasts)
 
     if not forecast_times:
         logger.warning("No valid forecast times found")
         return data
 
-    closest_idx = _find_closest_time_of_day_index(forecast_times, window_start)
+    closest_idx = _find_closest_time_of_day_index(forecast_times, now)
     first_forecast_time = forecast_times[closest_idx][0]
-
-    # Calculate delta directly - datetime subtraction handles timezone conversion
-    base_time_delta = window_start - first_forecast_time
+    base_time_delta = now - first_forecast_time
 
     # Calculate wrap duration (time span of entire forecast period + gap)
     last_time = forecast_times[-1][0]
@@ -274,8 +261,7 @@ def wrap_forecasts(data: JSONDict) -> JSONDict:
         idx = (closest_idx + i) % len(forecast_times)
         _, forecast = forecast_times[idx]
 
-        # All forecasts shift by base_time_delta (the date shift + time alignment)
-        # Wrapped forecasts also add wrap_duration to push them to the next cycle
+        # Add wrap duration if we've wrapped around
         adjusted_delta = base_time_delta + wrap_duration if idx < closest_idx else base_time_delta
 
         transformed_forecast = _transform_forecast_timestamps(forecast, adjusted_delta)
