@@ -109,9 +109,9 @@ async def async_setup_services(hass: HomeAssistant) -> None:
         # Get diagnostics data
         diagnostics_data = await async_get_config_entry_diagnostics(hass, entry)
 
-        # Generate filename with timestamp
-        timestamp = dt_util.now().strftime("%Y-%m-%d_%H-%M-%S")
-        filename = f"haeo_diagnostics_{entry_id}_{timestamp}.json"
+        # Generate filename with timestamp (microseconds for uniqueness)
+        timestamp = dt_util.now().strftime("%Y-%m-%d_%H%M%S.%f")
+        filename = f"haeo_diagnostics_{timestamp}.json"
         filepath = Path(hass.config.path(filename))
 
         # Build full diagnostics payload matching Home Assistant's format
