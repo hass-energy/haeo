@@ -90,9 +90,16 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         filepath = Path(hass.config.path(filename))
 
         # Write to file (in executor to avoid blocking)
+        def json_default(obj: object) -> str:
+            """Handle non-serializable objects like datetime."""
+            if hasattr(obj, "isoformat"):
+                return obj.isoformat()
+            msg = f"Object of type {type(obj).__name__} is not JSON serializable"
+            raise TypeError(msg)
+
         def write_diagnostics() -> None:
             with filepath.open("w", encoding="utf-8") as f:
-                json.dump(diagnostics_data, f, indent=2, ensure_ascii=False)
+                json.dump(diagnostics_data, f, indent=2, ensure_ascii=False, default=json_default)
 
         await hass.async_add_executor_job(write_diagnostics)
 
