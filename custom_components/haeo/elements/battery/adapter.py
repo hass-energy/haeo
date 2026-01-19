@@ -604,24 +604,24 @@ class BatteryAdapter:
         # Check for undercharge section
         undercharge_name = f"{name}:undercharge"
         if undercharge_name in model_outputs:
-            section_outputs["undercharge"] = expect_output_data_map(undercharge_name, model_outputs[undercharge_name])
+            section_outputs["undercharge"] = expect_output_data_map(model_outputs[undercharge_name])
             section_names.append("undercharge")
 
         # Normal section (always present)
         normal_name = f"{name}:normal"
         if normal_name in model_outputs:
-            section_outputs["normal"] = expect_output_data_map(normal_name, model_outputs[normal_name])
+            section_outputs["normal"] = expect_output_data_map(model_outputs[normal_name])
             section_names.append("normal")
 
         # Check for overcharge section
         overcharge_name = f"{name}:overcharge"
         if overcharge_name in model_outputs:
-            section_outputs["overcharge"] = expect_output_data_map(overcharge_name, model_outputs[overcharge_name])
+            section_outputs["overcharge"] = expect_output_data_map(model_outputs[overcharge_name])
             section_names.append("overcharge")
 
         # Get node outputs for power balance
         node_name = f"{name}:node"
-        node_outputs = expect_output_data_map(node_name, model_outputs[node_name]) if node_name in model_outputs else {}
+        node_outputs = expect_output_data_map(model_outputs[node_name]) if node_name in model_outputs else {}
 
         # Calculate aggregate outputs
         # Sum power charge/discharge across all sections

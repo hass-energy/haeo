@@ -12,6 +12,7 @@ from homeassistant.core import HomeAssistant
 from custom_components.haeo.const import ConnectivityLevel
 from custom_components.haeo.data.loader import TimeSeriesLoader
 from custom_components.haeo.elements.input_fields import InputFieldDefaults, InputFieldInfo
+from custom_components.haeo.elements.output_utils import expect_output_data
 from custom_components.haeo.model import ModelElementConfig, ModelOutputName, ModelOutputValue
 from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE
@@ -142,10 +143,7 @@ class SolarAdapter:
         """Map model outputs to solar-specific output names."""
         connection = model_outputs[f"{name}:connection"]
 
-        power_source_target = connection[CONNECTION_POWER_SOURCE_TARGET]
-        if not isinstance(power_source_target, OutputData):
-            msg = f"Expected OutputData for {name!r} {CONNECTION_POWER_SOURCE_TARGET}"
-            raise TypeError(msg)
+        power_source_target = expect_output_data(connection[CONNECTION_POWER_SOURCE_TARGET])
         solar_outputs: dict[SolarOutputName, OutputData] = {
             SOLAR_POWER: replace(power_source_target, type=OutputType.POWER),
         }

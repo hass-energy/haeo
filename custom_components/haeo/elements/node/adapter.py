@@ -7,6 +7,7 @@ from homeassistant.components.switch import SwitchEntityDescription
 
 from custom_components.haeo.const import ConnectivityLevel
 from custom_components.haeo.elements.input_fields import InputFieldDefaults, InputFieldInfo
+from custom_components.haeo.elements.output_utils import expect_output_data
 from custom_components.haeo.model import ModelElementConfig, ModelOutputName, ModelOutputValue
 from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_NODE
@@ -91,11 +92,7 @@ class NodeAdapter:
         # Map Node power_balance to node_power_balance (only present for constrained nodes)
         node_outputs: dict[NodeOutputName, OutputData] = {}
         if NODE_POWER_BALANCE in node_model:
-            power_balance = node_model[NODE_POWER_BALANCE]
-            if not isinstance(power_balance, OutputData):
-                msg = f"Expected OutputData for {name!r} {NODE_POWER_BALANCE}"
-                raise TypeError(msg)
-            node_outputs[NODE_POWER_BALANCE] = power_balance
+            node_outputs[NODE_POWER_BALANCE] = expect_output_data(node_model[NODE_POWER_BALANCE])
 
         return {NODE_DEVICE_NODE: node_outputs}
 

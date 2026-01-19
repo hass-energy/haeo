@@ -11,6 +11,7 @@ from homeassistant.core import HomeAssistant
 from custom_components.haeo.const import ConnectivityLevel
 from custom_components.haeo.data.loader import TimeSeriesLoader
 from custom_components.haeo.elements.input_fields import InputFieldInfo
+from custom_components.haeo.elements.output_utils import expect_output_data
 from custom_components.haeo.model import ModelElementConfig, ModelOutputName, ModelOutputValue
 from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION
@@ -231,14 +232,8 @@ class ConnectionAdapter:
     ) -> Mapping[ConnectionDeviceName, Mapping[ConnectionOutputName, OutputData]]:
         """Map model outputs to connection-specific output names."""
         connection = model_outputs[name]
-        power_source_target = connection[CONNECTION_POWER_SOURCE_TARGET]
-        power_target_source = connection[CONNECTION_POWER_TARGET_SOURCE]
-        if not isinstance(power_source_target, OutputData):
-            msg = f"Expected OutputData for {name!r} {CONNECTION_POWER_SOURCE_TARGET}"
-            raise TypeError(msg)
-        if not isinstance(power_target_source, OutputData):
-            msg = f"Expected OutputData for {name!r} {CONNECTION_POWER_TARGET_SOURCE}"
-            raise TypeError(msg)
+        power_source_target = expect_output_data(connection[CONNECTION_POWER_SOURCE_TARGET])
+        power_target_source = expect_output_data(connection[CONNECTION_POWER_TARGET_SOURCE])
 
         connection_outputs: dict[ConnectionOutputName, OutputData] = {
             CONNECTION_POWER_SOURCE_TARGET: power_source_target,

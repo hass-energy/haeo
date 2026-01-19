@@ -13,6 +13,7 @@ from numpy.typing import NDArray
 from custom_components.haeo.const import ConnectivityLevel
 from custom_components.haeo.data.loader import TimeSeriesLoader
 from custom_components.haeo.elements.input_fields import InputFieldDefaults, InputFieldInfo
+from custom_components.haeo.elements.output_utils import expect_output_data
 from custom_components.haeo.model import ModelElementConfig, ModelOutputName, ModelOutputValue
 from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE
@@ -202,14 +203,8 @@ class GridAdapter:
 
         # source_target = grid to system = IMPORT
         # target_source = system to grid = EXPORT
-        power_import = connection[CONNECTION_POWER_SOURCE_TARGET]
-        power_export = connection[CONNECTION_POWER_TARGET_SOURCE]
-        if not isinstance(power_import, OutputData):
-            msg = f"Expected OutputData for {name!r} {CONNECTION_POWER_SOURCE_TARGET}"
-            raise TypeError(msg)
-        if not isinstance(power_export, OutputData):
-            msg = f"Expected OutputData for {name!r} {CONNECTION_POWER_TARGET_SOURCE}"
-            raise TypeError(msg)
+        power_import = expect_output_data(connection[CONNECTION_POWER_SOURCE_TARGET])
+        power_export = expect_output_data(connection[CONNECTION_POWER_TARGET_SOURCE])
 
         grid_outputs[GRID_POWER_EXPORT] = replace(power_export, type=OutputType.POWER)
         grid_outputs[GRID_POWER_IMPORT] = replace(power_import, type=OutputType.POWER)

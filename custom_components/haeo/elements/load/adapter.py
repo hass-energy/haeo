@@ -11,6 +11,7 @@ from homeassistant.core import HomeAssistant
 from custom_components.haeo.const import ConnectivityLevel
 from custom_components.haeo.data.loader import TimeSeriesLoader
 from custom_components.haeo.elements.input_fields import InputFieldInfo
+from custom_components.haeo.elements.output_utils import expect_output_data
 from custom_components.haeo.model import ModelElementConfig, ModelOutputName, ModelOutputValue
 from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE
@@ -105,10 +106,7 @@ class LoadAdapter:
         """Map model outputs to load-specific output names."""
         connection = model_outputs[f"{name}:connection"]
 
-        power_target_source = connection[CONNECTION_POWER_TARGET_SOURCE]
-        if not isinstance(power_target_source, OutputData):
-            msg = f"Expected OutputData for {name!r} {CONNECTION_POWER_TARGET_SOURCE}"
-            raise TypeError(msg)
+        power_target_source = expect_output_data(connection[CONNECTION_POWER_TARGET_SOURCE])
         load_outputs: dict[LoadOutputName, OutputData] = {
             LOAD_POWER: replace(power_target_source, type=OutputType.POWER),
         }

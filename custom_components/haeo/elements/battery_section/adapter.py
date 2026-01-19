@@ -129,7 +129,7 @@ class BatterySectionAdapter:
         **_kwargs: Any,
     ) -> Mapping[BatterySectionDeviceName, Mapping[BatterySectionOutputName, OutputData]]:
         """Map model outputs to battery section output names."""
-        battery_data = expect_output_data_map(name, model_outputs[name])
+        battery_data = expect_output_data_map(model_outputs[name])
 
         section_outputs: dict[BatterySectionOutputName, OutputData] = {}
 
