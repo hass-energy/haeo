@@ -3,12 +3,13 @@
 from typing import Any
 
 from homeassistant.components.sensor import SensorEntity, SensorEntityDescription
+from homeassistant.const import PERCENTAGE
 from homeassistant.core import callback
 from homeassistant.helpers.device_registry import DeviceEntry
 from homeassistant.helpers.typing import StateType
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from custom_components.haeo.coordinator import CoordinatorOutput, HaeoDataUpdateCoordinator
+from custom_components.haeo.coordinator import CoordinatorOutput, ForecastPoint, HaeoDataUpdateCoordinator
 from custom_components.haeo.elements import ElementDeviceName, ElementOutputName
 from custom_components.haeo.model import OutputType
 
@@ -87,10 +88,10 @@ class HaeoSensor(CoordinatorEntity[HaeoDataUpdateCoordinator], SensorEntity):
                 attributes["advanced"] = output_data.advanced
                 self._apply_output(output_data)
                 if output_data.state is not None:
-                    native_value = output_data.state
+                    native_value = self._scale_percentage_state(output_data.unit, output_data.state)
 
                 if output_data.forecast:
-                    attributes["forecast"] = list(output_data.forecast)
+                    attributes["forecast"] = self._scale_percentage_forecast(output_data.unit, output_data.forecast)
 
         self._attr_native_value = native_value
         self._attr_extra_state_attributes = attributes
@@ -109,6 +110,21 @@ class HaeoSensor(CoordinatorEntity[HaeoDataUpdateCoordinator], SensorEntity):
         self._attr_device_class = output.device_class
         self._attr_state_class = output.state_class
         self._attr_options = list(output.options) if output.options is not None else None
+
+    @staticmethod
+    def _scale_percentage_state(unit: str | None, value: StateType) -> StateType:
+        if unit != PERCENTAGE:
+            return value
+        return float(value) * 100.0
+
+    @staticmethod
+    def _scale_percentage_forecast(
+        unit: str | None,
+        forecast: list[ForecastPoint],
+    ) -> list[ForecastPoint]:
+        if unit != PERCENTAGE:
+            return list(forecast)
+        return [{"time": point["time"], "value": float(point["value"]) * 100.0} for point in forecast]
 
 
 __all__ = ["HaeoSensor"]

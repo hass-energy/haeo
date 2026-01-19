@@ -23,6 +23,7 @@ from custom_components.haeo.const import (
     OUTPUT_NAME_OPTIMIZATION_STATUS,
 )
 from custom_components.haeo.coordinator import CoordinatorOutput, ForecastPoint
+from custom_components.haeo.elements.battery import BATTERY_STATE_OF_CHARGE
 from custom_components.haeo.elements.battery import ELEMENT_TYPE as BATTERY_TYPE
 from custom_components.haeo.elements.load import LOAD_POWER
 from custom_components.haeo.entities import HaeoSensor
@@ -312,6 +313,43 @@ def test_handle_coordinator_update_reapplies_metadata(device_entry: DeviceEntry)
     assert attributes["output_type"] == OutputType.POWER
     assert attributes["forecast"] == updated_output.forecast
     assert attributes["forecast"] is not updated_output.forecast
+
+
+def test_handle_coordinator_update_scales_percentage_outputs(device_entry: DeviceEntry) -> None:
+    """Percentage outputs are scaled for display in sensors."""
+    coordinator = _create_mock_coordinator()
+    forecast_time = datetime(2024, 1, 1, tzinfo=UTC)
+    output = _make_output(
+        type_=OutputType.STATE_OF_CHARGE,
+        unit="%",
+        state=0.5,
+        forecast=[ForecastPoint(time=forecast_time, value=0.5)],
+        entity_category=None,
+        device_class=SensorDeviceClass.BATTERY,
+        state_class=SensorStateClass.MEASUREMENT,
+        options=None,
+    )
+
+    sensor = HaeoSensor(
+        coordinator,
+        device_entry=device_entry,
+        subentry_key="battery",
+        device_key="battery",
+        element_title="Battery",
+        element_type=BATTERY_TYPE,
+        output_name=BATTERY_STATE_OF_CHARGE,
+        output_data=output,
+        unique_id="sensor-id",
+    )
+    sensor.async_write_ha_state = Mock()
+
+    coordinator.data = {"battery": {"battery": {BATTERY_STATE_OF_CHARGE: output}}}
+    sensor._handle_coordinator_update()
+
+    assert sensor.native_value == 50.0
+    attributes = sensor.extra_state_attributes
+    assert attributes is not None
+    assert attributes["forecast"] == [{"time": forecast_time, "value": 50.0}]
 
 
 def test_handle_coordinator_update_without_data_leaves_sensor_empty(device_entry: DeviceEntry) -> None:
