@@ -1,0 +1,7 @@
+{
+    "services": {
+        "save_diagnostics": {
+            "service": "mdi:bug"
+        }
+    }
+}

@@ -1,5 +1,4 @@
 save_diagnostics:
-  icon: mdi:bug
   fields:
     config_entry:
       required: true
