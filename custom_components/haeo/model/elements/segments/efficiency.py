@@ -6,7 +6,7 @@ Efficiency reduces output power relative to input:
 This models inverter losses, transformer losses, etc.
 """
 
-from typing import Any, Final, Literal, NotRequired
+from typing import Any, Literal, NotRequired
 
 from highspy import Highs
 from highspy.highs import HighspyArray
@@ -14,10 +14,10 @@ import numpy as np
 from numpy.typing import NDArray
 from typing_extensions import TypedDict
 
-from .segment import Segment
+from custom_components.haeo.model.reactive import TrackedParam
+from custom_components.haeo.model.util import broadcast_to_sequence
 
-# Legacy percent scale constant (unused in ratio-based configs).
-EFFICIENCY_PERCENT: Final = 100.0
+from .segment import Segment
 
 
 class EfficiencySegmentSpec(TypedDict):
@@ -37,6 +37,9 @@ class EfficiencySegment(Segment):
 
     Efficiency values are fractions in range (0, 1].
     """
+
+    efficiency_source_target: TrackedParam[NDArray[np.float64]] = TrackedParam()
+    efficiency_target_source: TrackedParam[NDArray[np.float64]] = TrackedParam()
 
     def __init__(
         self,
@@ -60,8 +63,14 @@ class EfficiencySegment(Segment):
         super().__init__(segment_id, n_periods, periods, solver)
 
         # Store efficiency values
-        self._efficiency_source_target = self._normalize_efficiency(spec.get("efficiency_source_target"))
-        self._efficiency_target_source = self._normalize_efficiency(spec.get("efficiency_target_source"))
+        efficiency_source_target = spec.get("efficiency_source_target")
+        self.efficiency_source_target = broadcast_to_sequence(
+            1.0 if efficiency_source_target is None else efficiency_source_target, self._n_periods
+        )
+        efficiency_target_source = spec.get("efficiency_target_source")
+        self.efficiency_target_source = broadcast_to_sequence(
+            1.0 if efficiency_target_source is None else efficiency_target_source, self._n_periods
+        )
 
         # Single variable per direction - efficiency applied via properties
         self._power_st = solver.addVariables(n_periods, lb=0, name_prefix=f"{segment_id}_st_", out_array=True)
@@ -73,18 +82,9 @@ class EfficiencySegment(Segment):
         return self._power_st
 
     @property
-    def efficiency_source_target(self) -> NDArray[np.floating[Any]]:
-        """Efficiency for source→target direction."""
-        return self._efficiency_source_target
-
-    @efficiency_source_target.setter
-    def efficiency_source_target(self, value: NDArray[np.floating[Any]] | None) -> None:
-        self._efficiency_source_target = self._normalize_efficiency(value)
-
-    @property
     def power_out_st(self) -> HighspyArray:
         """Power leaving segment in source→target direction (after efficiency loss)."""
-        return self._power_st * self._efficiency_source_target
+        return self._power_st * self.efficiency_source_target
 
     @property
     def power_in_ts(self) -> HighspyArray:
@@ -92,30 +92,9 @@ class EfficiencySegment(Segment):
         return self._power_ts
 
     @property
-    def efficiency_target_source(self) -> NDArray[np.floating[Any]]:
-        """Efficiency for target→source direction."""
-        return self._efficiency_target_source
-
-    @efficiency_target_source.setter
-    def efficiency_target_source(self, value: NDArray[np.floating[Any]] | None) -> None:
-        self._efficiency_target_source = self._normalize_efficiency(value)
-
-    @property
     def power_out_ts(self) -> HighspyArray:
         """Power leaving segment in target→source direction (after efficiency loss)."""
-        return self._power_ts * self._efficiency_target_source
-
-    def _normalize_efficiency(self, value: NDArray[np.floating[Any]] | None) -> NDArray[np.float64]:
-        """Normalize efficiency to a period-length float array."""
-        if value is None:
-            return np.ones(self._n_periods, dtype=np.float64)
-        arr = np.asarray(value, dtype=np.float64)
-        if arr.shape == ():
-            return np.full(self._n_periods, float(arr), dtype=np.float64)
-        if arr.shape != (self._n_periods,):
-            msg = f"Expected length {self._n_periods} for {self.segment_id!r}, got {arr.shape}"
-            raise ValueError(msg)
-        return arr
+        return self._power_ts * self.efficiency_target_source
 
 
-__all__ = ["EFFICIENCY_PERCENT", "EfficiencySegment", "EfficiencySegmentSpec"]
+__all__ = ["EfficiencySegment", "EfficiencySegmentSpec"]

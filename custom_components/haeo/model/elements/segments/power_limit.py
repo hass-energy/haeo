@@ -13,6 +13,7 @@ from numpy.typing import NDArray
 from typing_extensions import TypedDict
 
 from custom_components.haeo.model.reactive import TrackedParam, constraint
+from custom_components.haeo.model.util import broadcast_to_sequence
 
 from .segment import Segment
 
@@ -80,16 +81,8 @@ class PowerLimitSegment(Segment):
         self._power_ts = solver.addVariables(n_periods, lb=0, name_prefix=f"{segment_id}_ts_", out_array=True)
 
         # Set tracked params (these trigger reactive infrastructure)
-        self.max_power_source_target = self._normalize_limit(spec.get("max_power_source_target"))
-        self.max_power_target_source = self._normalize_limit(spec.get("max_power_target_source"))
-
-    def _normalize_limit(self, value: NDArray[np.floating[Any]] | float | None) -> NDArray[np.float64] | None:
-        if value is None:
-            return None
-        arr = np.asarray(value, dtype=np.float64)
-        if arr.shape == ():
-            return np.full(self._n_periods, float(arr), dtype=np.float64)
-        return arr
+        self.max_power_source_target = broadcast_to_sequence(spec.get("max_power_source_target"), self._n_periods)
+        self.max_power_target_source = broadcast_to_sequence(spec.get("max_power_target_source"), self._n_periods)
 
     @property
     def power_in_st(self) -> HighspyArray:

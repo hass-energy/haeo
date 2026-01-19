@@ -9,7 +9,7 @@ Each segment type applies a specific transformation or constraint to power flow:
 
 from typing import Final, Literal, TypeGuard
 
-from .efficiency import EFFICIENCY_PERCENT, EfficiencySegment, EfficiencySegmentSpec
+from .efficiency import EfficiencySegment, EfficiencySegmentSpec
 from .passthrough import PassthroughSegment, PassthroughSegmentSpec
 from .power_limit import (
     POWER_LIMIT_SOURCE_TARGET,
@@ -58,7 +58,6 @@ SEGMENT_TYPES: Final[dict[SegmentType, type[Segment]]] = {
 }
 
 __all__ = [
-    "EFFICIENCY_PERCENT",
     "POWER_LIMIT_SOURCE_TARGET",
     "POWER_LIMIT_TARGET_SOURCE",
     "POWER_LIMIT_TIME_SLICE",
