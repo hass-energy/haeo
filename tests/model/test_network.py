@@ -180,7 +180,7 @@ def test_connect_target_is_connection() -> None:
 
 def test_validate_raises_when_source_missing() -> None:
     """Validate should raise when a connection source is missing."""
-    net = Network(name="net", periods=np.array([1.0] * 1))
+    net = Network(name="net", periods=np.array([1.0]))
     net.elements["conn"] = Connection(
         name="conn",
         periods=np.array([1.0]),
@@ -195,13 +195,13 @@ def test_validate_raises_when_source_missing() -> None:
 
 def test_validate_raises_when_target_missing() -> None:
     """Validate should raise when a connection target is missing."""
-    net = Network(name="net", periods=np.array([1.0] * 1))
+    net = Network(name="net", periods=np.array([1.0]))
     net.elements["source_node"] = Node(
-        name="source_node", periods=np.array([1.0] * 1, dtype=float), solver=net._solver, is_source=True, is_sink=True
+        name="source_node", periods=np.array([1.0], dtype=float), solver=net._solver, is_source=True, is_sink=True
     )
     net.elements["conn"] = Connection(
         name="conn",
-        periods=np.array([1.0] * 1),
+        periods=np.array([1.0]),
         solver=net._solver,
         source="source_node",
         target="missing_target",
@@ -213,11 +213,11 @@ def test_validate_raises_when_target_missing() -> None:
 
 def test_validate_raises_when_endpoints_are_connections() -> None:
     """Validate should reject connections that point to connection elements."""
-    net = Network(name="net", periods=np.array([1.0] * 1))
+    net = Network(name="net", periods=np.array([1.0]))
     # Non-connection element to satisfy target for conn2
     net.elements["node"] = Node(
         name="node",
-        periods=np.array([1.0] * 1, dtype=float),
+        periods=np.array([1.0], dtype=float),
         solver=net._solver,
         is_source=True,
         is_sink=True,
@@ -225,7 +225,7 @@ def test_validate_raises_when_endpoints_are_connections() -> None:
 
     net.elements["conn2"] = Connection(
         name="conn2",
-        periods=np.array([1.0] * 1),
+        periods=np.array([1.0]),
         solver=net._solver,
         source="node",
         target="node",
@@ -234,7 +234,7 @@ def test_validate_raises_when_endpoints_are_connections() -> None:
     # conn1 references conn2 as source and target to hit both connection checks
     net.elements["conn1"] = Connection(
         name="conn1",
-        periods=np.array([1.0] * 1),
+        periods=np.array([1.0]),
         solver=net._solver,
         source="conn2",
         target="conn2",
@@ -246,7 +246,7 @@ def test_validate_raises_when_endpoints_are_connections() -> None:
 
 def test_constraints_returns_empty_when_no_elements() -> None:
     """Constraints should return empty dict when network has no elements."""
-    net = Network(name="net", periods=np.array([1.0] * 1))
+    net = Network(name="net", periods=np.array([1.0]))
 
     assert net.constraints() == {}
 
@@ -351,7 +351,7 @@ def test_network_optimize_raises_on_solver_failure(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Optimize should surface solver failure status with context."""
-    network = Network(name="test_network", periods=np.array([1.0] * 1))
+    network = Network(name="test_network", periods=np.array([1.0]))
     network.add({"element_type": ELEMENT_TYPE_NODE, "name": "node", "is_sink": True, "is_source": True})
 
     def mock_optimize() -> float:
@@ -377,7 +377,7 @@ def test_network_optimize_raises_on_infeasible_network(
 ) -> None:
     """Test optimize() raises ValueError when network optimization fails."""
     # Create a valid network
-    network = Network(name="test_network", periods=np.array([1.0] * 1))
+    network = Network(name="test_network", periods=np.array([1.0]))
     network.add({"element_type": ELEMENT_TYPE_NODE, "name": "node", "is_sink": True, "is_source": True})
 
     # Track if run() has been called
