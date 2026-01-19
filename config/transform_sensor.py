@@ -239,15 +239,17 @@ def wrap_forecasts(data: JSONDict) -> JSONDict:
         return data
 
     now = datetime.now(UTC)
+    # Round down to nearest 5-minute boundary to preserve forecast clock alignment
+    window_start = now.replace(second=0, microsecond=0, minute=(now.minute // 5) * 5)
     forecast_times = _parse_forecast_times(forecasts)
 
     if not forecast_times:
         logger.warning("No valid forecast times found")
         return data
 
-    closest_idx = _find_closest_time_of_day_index(forecast_times, now)
+    closest_idx = _find_closest_time_of_day_index(forecast_times, window_start)
     first_forecast_time = forecast_times[closest_idx][0]
-    base_time_delta = now - first_forecast_time
+    base_time_delta = window_start - first_forecast_time
 
     # Calculate wrap duration (time span of entire forecast period + gap)
     last_time = forecast_times[-1][0]
