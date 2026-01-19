@@ -6,8 +6,6 @@ Power in equals power out (lossless).
 
 from typing import Any, Literal
 
-__all__ = ["PassthroughSegment", "PassthroughSegmentSpec"]
-
 from highspy import Highs
 from highspy.highs import HighspyArray
 import numpy as np

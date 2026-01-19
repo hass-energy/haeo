@@ -91,6 +91,7 @@ class SolarAdapter:
                 output_type=OutputType.PRICE,
                 direction="+",
                 defaults=InputFieldDefaults(mode=None, value=0.0),
+                time_series=True,
             ),
             CONF_CURTAILMENT: InputFieldInfo(
                 field_name=CONF_CURTAILMENT,
