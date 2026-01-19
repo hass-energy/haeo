@@ -1,9 +1,18 @@
 {
   "entity_id": "sensor.sigen_plant_ess_rated_charging_power",
-  "state": "16.8",
+  "state": "46.2",
   "last_changed": "2025-09-25T03:22:40.495616+00:00",
   "last_reported": "2025-09-25T08:01:12.992684+00:00",
   "last_updated": "2025-09-25T03:22:40.495616+00:00",
-  "context": { "id": "01K5ZE9ZFFH9S7JG2Q061FKGTV", "parent_id": null, "user_id": null },
-  "attributes": { "device_class": "power", "friendly_name": "Sigen Plant ESS Rated Charging Power", "state_class": "measurement", "unit_of_measurement": "kW" }
+  "context": {
+    "id": "01K5ZE9ZFFH9S7JG2Q061FKGTV",
+    "parent_id": null,
+    "user_id": null
+  },
+  "attributes": {
+    "device_class": "power",
+    "friendly_name": "Sigen Plant ESS Rated Charging Power",
+    "state_class": "measurement",
+    "unit_of_measurement": "kW"
+  }
 }

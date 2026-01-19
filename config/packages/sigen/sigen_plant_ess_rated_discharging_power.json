@@ -1,9 +1,18 @@
 {
   "entity_id": "sensor.sigen_plant_ess_rated_discharging_power",
-  "state": "19.2",
+  "state": "52.8",
   "last_changed": "2025-09-25T03:22:40.495818+00:00",
   "last_reported": "2025-09-25T08:01:12.992714+00:00",
   "last_updated": "2025-09-25T03:22:40.495818+00:00",
-  "context": { "id": "01K5ZE9ZFFJDNN8RPXMKZZYWFX", "parent_id": null, "user_id": null },
-  "attributes": { "device_class": "power", "friendly_name": "Sigen Plant ESS Rated Discharging Power", "state_class": "measurement", "unit_of_measurement": "kW" }
+  "context": {
+    "id": "01K5ZE9ZFFJDNN8RPXMKZZYWFX",
+    "parent_id": null,
+    "user_id": null
+  },
+  "attributes": {
+    "device_class": "power",
+    "friendly_name": "Sigen Plant ESS Rated Discharging Power",
+    "state_class": "measurement",
+    "unit_of_measurement": "kW"
+  }
 }
