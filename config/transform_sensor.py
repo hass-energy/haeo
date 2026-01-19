@@ -146,35 +146,33 @@ def _find_closest_time_of_day_index(
     forecast_times: list[tuple[datetime, JSONDict]],
     window_start: datetime,
 ) -> int:
-    """Find index of forecast closest to current time-of-day in local timezone.
+    """Find index of forecast closest to current time-of-day.
+
+    Uses modular arithmetic on actual time differences, which is timezone-agnostic.
 
     Args:
         forecast_times: Sorted list of (timestamp, forecast) tuples
-        window_start: Window start datetime (UTC) to match against
+        window_start: Window start datetime to match against
 
     Returns:
-        Index of forecast with closest matching local time-of-day
+        Index of forecast with closest matching time-of-day
 
     """
     if not forecast_times:
         return 0
 
-    # Convert window_start to forecast's timezone for local time-of-day matching
-    first_time = forecast_times[0][0]
-    local_tz = first_time.tzinfo
-    window_start_local = window_start.astimezone(local_tz) if local_tz else window_start
-
-    window_minutes = window_start_local.hour * 60 + window_start_local.minute
-
+    seconds_per_day = 86400
     closest_idx = 0
-    min_time_diff = float("inf")
+    min_offset = float("inf")
 
     for i, (timestamp, _) in enumerate(forecast_times):
-        forecast_minutes = timestamp.hour * 60 + timestamp.minute
-        time_diff = abs(window_minutes - forecast_minutes)
+        # Time difference mod 24 hours gives within-day offset
+        diff_seconds = (window_start - timestamp).total_seconds() % seconds_per_day
+        # Consider both directions (e.g., 23 hours ahead vs 1 hour behind)
+        offset = min(diff_seconds, seconds_per_day - diff_seconds)
 
-        if time_diff < min_time_diff:
-            min_time_diff = time_diff
+        if offset < min_offset:
+            min_offset = offset
             closest_idx = i
 
     return closest_idx
@@ -261,10 +259,8 @@ def wrap_forecasts(data: JSONDict) -> JSONDict:
     closest_idx = _find_closest_time_of_day_index(forecast_times, window_start)
     first_forecast_time = forecast_times[closest_idx][0]
 
-    # Convert window_start to forecast timezone and calculate delta
-    local_tz = first_forecast_time.tzinfo
-    window_start_local = window_start.astimezone(local_tz) if local_tz else window_start
-    base_time_delta = window_start_local - first_forecast_time
+    # Calculate delta directly - datetime subtraction handles timezone conversion
+    base_time_delta = window_start - first_forecast_time
 
     # Calculate wrap duration (time span of entire forecast period + gap)
     last_time = forecast_times[-1][0]
