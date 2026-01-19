@@ -1,7 +1,7 @@
 {
-    "services": {
-        "save_diagnostics": {
-            "service": "mdi:bug"
-        }
+  "services": {
+    "save_diagnostics": {
+      "service": "mdi:bug"
     }
+  }
 }
