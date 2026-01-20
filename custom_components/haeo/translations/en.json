@@ -383,7 +383,7 @@
       "message": "HAEO cannot load data for {unavailable_sensors}. Verify each referenced sensor exists and is reporting data."
     },
     "no_history_at_timestamp": {
-      "message": "No history available at timestamp {timestamp} for: {missing}. The recorder may not have data this far back."
+      "message": "No history available at time {time} for: {missing}. The recorder may not have data this far back."
     },
     "self_referential_field_missing": {
       "message": "Configuration error for field {field}: The entity created by this field was selected, but the field is missing from the stored configuration. This may indicate corrupted configuration data. Please recreate the element."

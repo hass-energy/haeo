@@ -130,7 +130,7 @@ async def async_setup_services(hass: HomeAssistant) -> None:
                 translation_domain=DOMAIN,
                 translation_key="no_history_at_timestamp",
                 translation_placeholders={
-                    "timestamp": target_timestamp.isoformat(),
+                    "time": target_timestamp.isoformat(),
                     "missing": ", ".join(result.missing_entity_ids),
                 },
             )

@@ -760,13 +760,13 @@ async def test_diagnostics_with_historical_provider_omits_outputs(hass: HomeAssi
     mock_provider.timestamp = target_time
     mock_provider.get_states = AsyncMock(return_value={})
 
-    diagnostics = await collect_diagnostics(hass, entry, mock_provider)
+    result = await collect_diagnostics(hass, entry, mock_provider)
 
     # Verify environment reflects historical mode
-    assert diagnostics["environment"]["historical"] is True
+    assert result.data["environment"]["historical"] is True
 
     # Verify outputs is empty (historical diagnostics omit outputs)
-    assert diagnostics["outputs"] == {}
+    assert result.data["outputs"] == {}
 
 
 async def test_diagnostics_with_network_subentry_not_element_config(hass: HomeAssistant) -> None:
@@ -873,3 +873,119 @@ async def test_diagnostics_skips_switch_with_none_value(hass: HomeAssistant) -> 
     # Verify that the switch with None value is NOT captured in config
     battery_config = diagnostics["config"]["participants"]["Battery One"]
     assert "some_boolean_field" not in battery_config
+
+
+async def test_collect_diagnostics_returns_missing_entity_ids(hass: HomeAssistant) -> None:
+    """Test that collect_diagnostics returns missing entity IDs when not all states are found."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        title="Test Hub",
+        data={
+            CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
+            CONF_NAME: "Test Hub",
+            CONF_TIER_1_COUNT: DEFAULT_TIER_1_COUNT,
+            CONF_TIER_1_DURATION: DEFAULT_TIER_1_DURATION,
+            CONF_TIER_2_COUNT: DEFAULT_TIER_2_COUNT,
+            CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
+            CONF_TIER_3_COUNT: DEFAULT_TIER_3_COUNT,
+            CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
+            CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
+            CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
+        },
+        entry_id="hub_entry",
+    )
+    entry.add_to_hass(hass)
+
+    battery_subentry = ConfigSubentry(
+        data=MappingProxyType(
+            {
+                CONF_ELEMENT_TYPE: ELEMENT_TYPE_BATTERY,
+                CONF_NAME: "Battery",
+                CONF_CAPACITY: "sensor.battery_capacity",
+                CONF_CONNECTION: "DC Bus",
+                CONF_INITIAL_CHARGE_PERCENTAGE: "sensor.battery_soc",
+                CONF_MAX_CHARGE_POWER: 5.0,
+                CONF_MAX_DISCHARGE_POWER: 5.0,
+                CONF_MIN_CHARGE_PERCENTAGE: 10.0,
+                CONF_MAX_CHARGE_PERCENTAGE: 90.0,
+                CONF_EFFICIENCY: 95.0,
+            }
+        ),
+        subentry_type=ELEMENT_TYPE_BATTERY,
+        title="Battery",
+        unique_id=None,
+    )
+    hass.config_entries.async_add_subentry(entry, battery_subentry)
+
+    # Only set up one of the two expected sensor states
+    hass.states.async_set("sensor.battery_capacity", "5000", {"unit_of_measurement": "Wh"})
+    # sensor.battery_soc is NOT set - it will be missing
+
+    entry.runtime_data = None
+
+    result = await collect_diagnostics(hass, entry, CurrentStateProvider(hass))
+
+    # Verify missing_entity_ids contains the missing sensor
+    assert "sensor.battery_soc" in result.missing_entity_ids
+    assert "sensor.battery_capacity" not in result.missing_entity_ids
+
+    # Verify inputs only has the found sensor
+    assert len(result.data["inputs"]) == 1
+    assert result.data["inputs"][0]["entity_id"] == "sensor.battery_capacity"
+
+
+async def test_collect_diagnostics_returns_empty_missing_when_all_found(hass: HomeAssistant) -> None:
+    """Test that collect_diagnostics returns empty missing_entity_ids when all states are found."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        title="Test Hub",
+        data={
+            CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
+            CONF_NAME: "Test Hub",
+            CONF_TIER_1_COUNT: DEFAULT_TIER_1_COUNT,
+            CONF_TIER_1_DURATION: DEFAULT_TIER_1_DURATION,
+            CONF_TIER_2_COUNT: DEFAULT_TIER_2_COUNT,
+            CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
+            CONF_TIER_3_COUNT: DEFAULT_TIER_3_COUNT,
+            CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
+            CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
+            CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
+        },
+        entry_id="hub_entry",
+    )
+    entry.add_to_hass(hass)
+
+    battery_subentry = ConfigSubentry(
+        data=MappingProxyType(
+            {
+                CONF_ELEMENT_TYPE: ELEMENT_TYPE_BATTERY,
+                CONF_NAME: "Battery",
+                CONF_CAPACITY: "sensor.battery_capacity",
+                CONF_CONNECTION: "DC Bus",
+                CONF_INITIAL_CHARGE_PERCENTAGE: "sensor.battery_soc",
+                CONF_MAX_CHARGE_POWER: 5.0,
+                CONF_MAX_DISCHARGE_POWER: 5.0,
+                CONF_MIN_CHARGE_PERCENTAGE: 10.0,
+                CONF_MAX_CHARGE_PERCENTAGE: 90.0,
+                CONF_EFFICIENCY: 95.0,
+            }
+        ),
+        subentry_type=ELEMENT_TYPE_BATTERY,
+        title="Battery",
+        unique_id=None,
+    )
+    hass.config_entries.async_add_subentry(entry, battery_subentry)
+
+    # Set up both expected sensor states
+    hass.states.async_set("sensor.battery_capacity", "5000", {"unit_of_measurement": "Wh"})
+    hass.states.async_set("sensor.battery_soc", "75", {"unit_of_measurement": "%"})
+
+    entry.runtime_data = None
+
+    result = await collect_diagnostics(hass, entry, CurrentStateProvider(hass))
+
+    # Verify no missing entity IDs
+    assert result.missing_entity_ids == []
+
+    # Verify inputs has both sensors
+    assert len(result.data["inputs"]) == 2

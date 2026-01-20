@@ -35,6 +35,7 @@ from custom_components.haeo.const import (
     DOMAIN,
     INTEGRATION_TYPE_HUB,
 )
+from custom_components.haeo.diagnostics import DiagnosticsResult
 from custom_components.haeo.services import _format_manifest
 
 
@@ -84,12 +85,15 @@ async def test_save_diagnostics_service_success(
     mock_hub_entry.runtime_data = None
 
     # Mock the diagnostics function
-    mock_diagnostics = {
-        "config": {"participants": {}},
-        "environment": {"ha_version": "2024.1.0"},
-        "inputs": [],
-        "outputs": {},
-    }
+    mock_diagnostics = DiagnosticsResult(
+        data={
+            "config": {"participants": {}},
+            "environment": {"ha_version": "2024.1.0"},
+            "inputs": [],
+            "outputs": {},
+        },
+        missing_entity_ids=[],
+    )
 
     # Mock config path to use tmp_path
     hass.config.config_dir = str(tmp_path)
@@ -123,7 +127,7 @@ async def test_save_diagnostics_service_success(
     assert "data" in saved_data
 
     # Verify the actual diagnostics data is in the "data" key
-    assert saved_data["data"] == mock_diagnostics
+    assert saved_data["data"] == mock_diagnostics.data
 
 
 async def test_save_diagnostics_service_entry_not_found(hass: HomeAssistant) -> None:
@@ -211,7 +215,10 @@ async def test_save_diagnostics_filename_format(
     with patch(
         "custom_components.haeo.diagnostics.collect_diagnostics",
         new_callable=AsyncMock,
-        return_value={"config": {}, "environment": {}, "inputs": [], "outputs": {}},
+        return_value=DiagnosticsResult(
+            data={"config": {}, "environment": {}, "inputs": [], "outputs": {}},
+            missing_entity_ids=[],
+        ),
     ):
         await hass.services.async_call(
             DOMAIN,
@@ -288,12 +295,15 @@ async def test_save_diagnostics_with_historical_timestamp(
 
     target_timestamp = datetime(2026, 1, 20, 14, 32, 3, tzinfo=UTC)
 
-    mock_diagnostics = {
-        "config": {"participants": {}},
-        "environment": {"ha_version": "2024.1.0", "historical": True},
-        "inputs": [],
-        "outputs": {},
-    }
+    mock_diagnostics = DiagnosticsResult(
+        data={
+            "config": {"participants": {}},
+            "environment": {"ha_version": "2024.1.0", "historical": True},
+            "inputs": [{"entity_id": "sensor.test"}],  # Non-empty to pass validation
+            "outputs": {},
+        },
+        missing_entity_ids=[],
+    )
 
     mock_historical_provider = Mock()
     mock_historical_provider.timestamp = target_timestamp
@@ -377,3 +387,67 @@ async def test_save_diagnostics_schema_excludes_timestamp_when_recorder_unavaila
     assert "config_entry" in result
     # Timestamp should not be parsed since it's not in the schema
     assert "timestamp" not in result
+
+
+async def test_save_diagnostics_historical_missing_entities_raises_error(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+    tmp_path: Path,
+) -> None:
+    """Test save_diagnostics raises error when historical query has missing entities."""
+    # Set up the service - need to register recorder component first
+    hass.config.components.add("recorder")
+    await async_setup(hass, {})
+
+    # Mock the entry state as loaded
+    mock_hub_entry._async_set_state(hass, ConfigEntryState.LOADED, None)
+    mock_hub_entry.runtime_data = None
+
+    # Mock config path
+    hass.config.config_dir = str(tmp_path)
+
+    target_timestamp = datetime(2025, 1, 1, 12, 0, 0, tzinfo=UTC)
+
+    # Mock diagnostics with missing entities
+    mock_diagnostics = DiagnosticsResult(
+        data={
+            "config": {"participants": {}},
+            "environment": {"ha_version": "2024.1.0", "historical": True},
+            "inputs": [],  # No inputs found
+            "outputs": {},
+        },
+        missing_entity_ids=["sensor.battery_soc", "sensor.grid_price"],
+    )
+
+    mock_historical_provider = Mock()
+    mock_historical_provider.timestamp = target_timestamp
+
+    with (
+        patch(
+            "custom_components.haeo.diagnostics.collect_diagnostics",
+            new_callable=AsyncMock,
+            return_value=mock_diagnostics,
+        ),
+        patch(
+            "custom_components.haeo.diagnostics.HistoricalStateProvider",
+            return_value=mock_historical_provider,
+        ),
+        pytest.raises(ServiceValidationError) as exc_info,
+    ):
+        await hass.services.async_call(
+            DOMAIN,
+            "save_diagnostics",
+            {
+                "config_entry": mock_hub_entry.entry_id,
+                "timestamp": target_timestamp,
+            },
+            blocking=True,
+        )
+
+    assert exc_info.value.translation_key == "no_history_at_timestamp"
+    # Verify placeholders include time and missing entities
+    placeholders = exc_info.value.translation_placeholders
+    assert placeholders is not None
+    assert "time" in placeholders
+    assert "sensor.battery_soc" in placeholders["missing"]
+    assert "sensor.grid_price" in placeholders["missing"]
