@@ -423,12 +423,12 @@
     "input_source": { "choices": { "constant": "Constant", "entity": "Entity", "none": "None" } }
   },
   "services": {
-    "run_optimizer": {
+    "optimize": {
       "description": "Manually trigger optimization, bypassing the debounce timer and auto-optimize setting",
       "fields": {
-        "config_entry": { "description": "The HAEO system to run optimization for", "name": "System" }
+        "config_entry": { "description": "The HAEO system to optimize", "name": "System" }
       },
-      "name": "Run optimizer"
+      "name": "Optimize"
     },
     "save_diagnostics": {
       "description": "Save a diagnostics file to the config directory",

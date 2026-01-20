@@ -10,7 +10,7 @@ save_diagnostics:
       selector:
         datetime:
 
-run_optimizer:
+optimize:
   fields:
     config_entry:
       required: true

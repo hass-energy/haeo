@@ -23,7 +23,7 @@ from .const import DOMAIN
 _LOGGER = logging.getLogger(__name__)
 
 SERVICE_SAVE_DIAGNOSTICS = "save_diagnostics"
-SERVICE_RUN_OPTIMIZER = "run_optimizer"
+SERVICE_OPTIMIZE = "optimize"
 ATTR_CONFIG_ENTRY = "config_entry"
 ATTR_TIMESTAMP = "time"
 
@@ -217,7 +217,7 @@ async def async_setup_services(hass: HomeAssistant) -> None:
 
     hass.services.async_register(
         DOMAIN,
-        SERVICE_RUN_OPTIMIZER,
+        SERVICE_OPTIMIZE,
         async_handle_run_optimizer,
         schema=vol.Schema({vol.Required(ATTR_CONFIG_ENTRY): cv.string}),
     )
