@@ -4,6 +4,7 @@ from collections.abc import Iterable
 from datetime import datetime, timedelta
 from typing import Any, cast
 
+from homeassistant.components.recorder import get_instance as get_recorder_instance
 from homeassistant.components.recorder import history as recorder_history
 from homeassistant.core import HomeAssistant, State
 
@@ -25,6 +26,7 @@ class HistoricalStateProvider:
         """
         self._hass = hass
         self._timestamp = target_timestamp
+        self._recorder = get_recorder_instance(hass)
 
     @property
     def is_historical(self) -> bool:
@@ -51,8 +53,8 @@ class HistoricalStateProvider:
         if not entity_id_list:
             return {}
 
-        # Run the blocking database query in an executor
-        states = await self._hass.async_add_executor_job(self._get_states_sync, entity_id_list)
+        # Run the blocking database query in the recorder's executor
+        states = await self._recorder.async_add_executor_job(self._get_states_sync, entity_id_list)
 
         # Extract first state for each entity (the start state)
         return {entity_id: states_list[0] for entity_id, states_list in states.items() if states_list}
