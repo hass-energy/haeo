@@ -66,10 +66,12 @@ class HaeoAutoOptimizeSwitch(SwitchEntity, RestoreEntity):
         self._coordinator.auto_optimize_enabled = self._attr_is_on
 
     async def async_turn_on(self, **_kwargs: Any) -> None:
-        """Enable automatic optimization."""
+        """Enable automatic optimization and run immediately."""
         self._coordinator.auto_optimize_enabled = True
         self._attr_is_on = True
         self.async_write_ha_state()
+        # Run optimization immediately to catch up on any changes while disabled
+        await self._coordinator.async_run_optimization(bypass_debounce=True)
 
     async def async_turn_off(self, **_kwargs: Any) -> None:
         """Disable automatic optimization."""
