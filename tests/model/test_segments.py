@@ -1,11 +1,14 @@
 """Tests for connection segments and Connection class."""
 
 from collections.abc import Sequence
+from typing import Any
 
 from highspy import Highs
 import numpy as np
+from numpy.typing import NDArray
 import pytest
 
+from custom_components.haeo.model.element import Element
 from custom_components.haeo.model.elements.connection import Connection
 from custom_components.haeo.model.elements.segments import PowerLimitSegment, PricingSegment
 
@@ -19,6 +22,14 @@ def create_solver() -> Highs:
     h.setOptionValue("output_flag", False)
     h.setOptionValue("log_to_console", False)
     return h
+
+
+class DummyElement(Element[str]):
+    """Minimal element for segment endpoint wiring in tests."""
+
+    def __init__(self, name: str, periods: NDArray[np.floating[Any]], solver: Highs) -> None:
+        """Create a dummy element with no outputs."""
+        super().__init__(name=name, periods=periods, solver=solver, output_names=frozenset())
 
 
 def _assert_expected_value(actual: ExpectedValue, expected: ExpectedValue) -> None:
@@ -49,7 +60,17 @@ def _assert_expected_outputs(actual: dict[str, ExpectedValue], expected: dict[st
 def _solve_segment_scenario(case: SegmentScenario) -> dict[str, ExpectedValue]:
     h = create_solver()
     periods = np.asarray(case["periods"], dtype=np.float64)
-    seg = case["factory"]("seg", len(periods), periods, h, spec=case["spec"])
+    source = DummyElement("source", periods, h)
+    target = DummyElement("target", periods, h)
+    seg = case["factory"](
+        "seg",
+        len(periods),
+        periods,
+        h,
+        spec=case["spec"],
+        source_element=source,
+        target_element=target,
+    )
     seg.constraints()
 
     inputs = case["inputs"]
@@ -92,6 +113,9 @@ def _solve_connection_scenario(case: ConnectionScenario) -> dict[str, ExpectedVa
         conn = Connection(name="conn", periods=periods, solver=h, source="src", target="tgt")
     else:
         conn = Connection(name="conn", periods=periods, solver=h, source="src", target="tgt", segments=segments)
+    source = DummyElement("src", periods, h)
+    target = DummyElement("tgt", periods, h)
+    conn.set_endpoints(source, target)
 
     inputs = case["inputs"]
     for segment_name, attr, value in inputs.get("updates", ()):

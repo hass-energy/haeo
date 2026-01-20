@@ -12,6 +12,7 @@ import numpy as np
 from numpy.typing import NDArray
 from typing_extensions import TypedDict
 
+from custom_components.haeo.model.element import Element
 from custom_components.haeo.model.reactive import TrackedParam, constraint
 from custom_components.haeo.model.util import broadcast_to_sequence
 
@@ -62,6 +63,8 @@ class PowerLimitSegment(Segment):
         solver: Highs,
         *,
         spec: PowerLimitSegmentSpec,
+        source_element: Element[Any],
+        target_element: Element[Any],
     ) -> None:
         """Initialize power limit segment.
 
@@ -71,9 +74,18 @@ class PowerLimitSegment(Segment):
             periods: Time period durations in hours
             solver: HiGHS solver instance
             spec: Power limit segment specification.
+            source_element: Connected source element reference
+            target_element: Connected target element reference
 
         """
-        super().__init__(segment_id, n_periods, periods, solver)
+        super().__init__(
+            segment_id,
+            n_periods,
+            periods,
+            solver,
+            source_element=source_element,
+            target_element=target_element,
+        )
         self._fixed = spec.get("fixed", False)
 
         # Create single power variable per direction (lossless segment, in == out)

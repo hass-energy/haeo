@@ -18,7 +18,7 @@ constraints (E >= 0, E <= C) fully bind the solution to exact values.
 
 from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Any, Self, cast
+from typing import Any, Self
 
 from highspy import Highs
 from highspy.highs import HighspyArray
@@ -26,18 +26,18 @@ import numpy as np
 from numpy.typing import NDArray
 import pytest
 
+from custom_components.haeo.model.element import Element
 from custom_components.haeo.model.elements.connection import CONNECTION_SEGMENTS, Connection
 from custom_components.haeo.model.elements.segments.battery_balance import (
     BALANCE_ABSORBED_EXCESS,
     BALANCE_POWER_DOWN,
     BALANCE_POWER_UP,
     BALANCE_UNMET_DEMAND,
-    BatteryBalanceSegment,
 )
 
 
 @dataclass
-class MockBattery:
+class MockBattery(Element[str]):
     """Simplified battery for testing balance connection constraints.
 
     Provides stored_energy as HiGHS linear expressions and adds basic SOC
@@ -45,25 +45,29 @@ class MockBattery:
     """
 
     name: str
-    n_periods: int
+    periods: NDArray[np.floating[Any]]
     capacity: tuple[float, ...]
     initial_charge: float
     _solver: Highs
     stored_energy: HighspyArray
     _energy_in: HighspyArray
     _energy_out: HighspyArray
-    _connections: list[tuple[Connection[str], str]]
+
+    def __post_init__(self) -> None:
+        """Initialize base element fields after dataclass setup."""
+        super().__init__(name=self.name, periods=self.periods, solver=self._solver, output_names=frozenset())
 
     @classmethod
     def create(
         cls,
         name: str,
-        n_periods: int,
+        periods: NDArray[np.floating[Any]],
         capacity: float | tuple[float, ...],
         initial_charge: float,
         solver: Highs,
     ) -> Self:
         """Create a mock battery with SOC constraints."""
+        n_periods = len(periods)
         # Broadcast capacity to T+1 boundaries
         cap = tuple([float(capacity)] * (n_periods + 1)) if isinstance(capacity, float | int) else capacity
 
@@ -89,35 +93,14 @@ class MockBattery:
 
         return cls(
             name=name,
-            n_periods=n_periods,
+            periods=periods,
             capacity=cap,
             initial_charge=initial_charge,
             _solver=solver,
             stored_energy=stored_energy,
             _energy_in=energy_in,
             _energy_out=energy_out,
-            _connections=[],
         )
-
-    def register_connection(self, connection: Connection[str], end: str) -> None:
-        """Register a connection to this battery."""
-        self._connections.append((connection, end))
-
-    def connection_power(self, _periods: NDArray[np.floating]) -> HighspyArray:
-        """Calculate net power from all registered connections."""
-        n = self.n_periods
-        # Start with zero power
-        net_power: HighspyArray | float = 0.0
-
-        for conn, end in self._connections:
-            # Power flowing into this battery from the connection
-            power = conn.power_into_source if end == "source" else conn.power_into_target
-            net_power = net_power + power
-
-        # If still a scalar, create array
-        if isinstance(net_power, float | int):
-            return self._solver.addVariables(n, lb=0.0, ub=0.0, name_prefix="zero_power_", out_array=True)
-        return net_power
 
     def build_power_balance(self, periods: NDArray[np.floating[Any]]) -> None:
         """Build power balance constraint linking connections to energy change."""
@@ -127,7 +110,7 @@ class MockBattery:
         power_discharge = (self._energy_out[1:] - self._energy_out[:-1]) * (1.0 / periods_array)
         net_battery_power = power_charge - power_discharge
 
-        connection_power = self.connection_power(periods_array)
+        connection_power = self.connection_power()
         self._solver.addConstrs(connection_power == net_battery_power)
 
 
@@ -279,14 +262,14 @@ def test_battery_balance_connection(scenario: BalanceTestScenario, solver: Highs
     # Create mock batteries
     upper = MockBattery.create(
         name="upper",
-        n_periods=scenario.n_periods,
+        periods=scenario.periods,
         capacity=scenario.upper_capacity,
         initial_charge=scenario.upper_initial,
         solver=solver,
     )
     lower = MockBattery.create(
         name="lower",
-        n_periods=scenario.n_periods,
+        periods=scenario.periods,
         capacity=scenario.lower_capacity,
         initial_charge=scenario.lower_initial,
         solver=solver,
@@ -338,29 +321,15 @@ def test_battery_balance_connection(scenario: BalanceTestScenario, solver: Highs
     )
 
 
-def test_battery_balance_connection_missing_references(solver: Highs) -> None:
-    """Verify error when battery references not set."""
-    connection = Connection(
-        name="balance",
-        periods=np.array([1.0]),
-        solver=solver,
-        source="upper",
-        target="lower",
-        segments={"balance": {"segment_type": "battery_balance"}},
-    )
-
-    with pytest.raises(ValueError, match="Battery references not set"):
-        connection.constraints()
-
-
 def test_battery_balance_connection_outputs_structure(solver: Highs) -> None:
     """Verify outputs method returns expected structure before optimization."""
-    upper = MockBattery.create("upper", 2, 10.0, 5.0, solver)
-    lower = MockBattery.create("lower", 2, 10.0, 3.0, solver)
+    periods = np.array([1.0, 1.0])
+    upper = MockBattery.create("upper", periods, 10.0, 5.0, solver)
+    lower = MockBattery.create("lower", periods, 10.0, 3.0, solver)
 
     connection = Connection(
         name="balance",
-        periods=np.array([1.0, 1.0]),
+        periods=periods,
         solver=solver,
         source="upper",
         target="lower",
@@ -395,33 +364,3 @@ def test_battery_balance_connection_outputs_structure(solver: Highs) -> None:
     assert segment_outputs[BALANCE_POWER_UP].unit == "kW"
     assert segment_outputs[BALANCE_POWER_DOWN].direction == "+"
     assert segment_outputs[BALANCE_POWER_UP].direction == "-"
-
-
-def test_battery_balance_connection_raises_without_battery_references() -> None:
-    """Test that constraint methods raise ValueError when battery references not set."""
-    h = Highs()
-    h.setOptionValue("output_flag", False)
-
-    # Create connection without setting battery references
-    conn = Connection(
-        name="balance",
-        periods=np.array([1.0, 1.0]),
-        solver=h,
-        source="upper",
-        target="lower",
-        segments={"balance": {"segment_type": "battery_balance"}},
-    )
-
-    # Calling constraints without setting battery references should raise
-    balance_segment = cast("BatteryBalanceSegment", conn.segments["balance"])
-    with pytest.raises(ValueError, match="Battery references not set"):
-        balance_segment.balance_down_lower_bound()
-
-    with pytest.raises(ValueError, match="Battery references not set"):
-        balance_segment.balance_down_slack_bound()
-
-    with pytest.raises(ValueError, match="Battery references not set"):
-        balance_segment.balance_up_upper_bound()
-
-    with pytest.raises(ValueError, match="Battery references not set"):
-        balance_segment.balance_up_slack_bound()

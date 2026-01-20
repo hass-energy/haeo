@@ -23,6 +23,7 @@ from highspy.highs import HighspyArray, highs_cons
 import numpy as np
 from numpy.typing import NDArray
 
+from custom_components.haeo.model.element import Element
 from custom_components.haeo.model.output_data import OutputData
 from custom_components.haeo.model.reactive import OutputMethod, ReactiveConstraint, ReactiveCost
 
@@ -47,6 +48,9 @@ class Segment(ABC):
         n_periods: int,
         periods: NDArray[np.floating[Any]],
         solver: Highs,
+        *,
+        source_element: Element[Any],
+        target_element: Element[Any],
     ) -> None:
         """Initialize segment with common attributes.
 
@@ -55,14 +59,16 @@ class Segment(ABC):
             n_periods: Number of optimization periods
             periods: Time period durations in hours
             solver: HiGHS solver instance
+            source_element: Connected source element reference
+            target_element: Connected target element reference
 
         """
         self._segment_id = segment_id
         self._n_periods = n_periods
         self._periods = periods
         self._solver = solver
-        self._source_element: Any | None = None
-        self._target_element: Any | None = None
+        self._source_element = source_element
+        self._target_element = target_element
 
     @property
     def segment_id(self) -> str:
@@ -79,19 +85,14 @@ class Segment(ABC):
         """Return time period durations in hours."""
         return self._periods
 
-    def set_endpoints(self, source_element: Any, target_element: Any) -> None:
-        """Store references to the connected elements."""
-        self._source_element = source_element
-        self._target_element = target_element
-
     @property
-    def source_element(self) -> Any | None:
-        """Return the source element reference if available."""
+    def source_element(self) -> Element[Any]:
+        """Return the source element reference."""
         return self._source_element
 
     @property
-    def target_element(self) -> Any | None:
-        """Return the target element reference if available."""
+    def target_element(self) -> Element[Any]:
+        """Return the target element reference."""
         return self._target_element
 
     @property

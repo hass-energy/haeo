@@ -14,6 +14,7 @@ import numpy as np
 from numpy.typing import NDArray
 from typing_extensions import TypedDict
 
+from custom_components.haeo.model.element import Element
 from custom_components.haeo.model.reactive import TrackedParam
 from custom_components.haeo.model.util import broadcast_to_sequence
 
@@ -49,6 +50,8 @@ class EfficiencySegment(Segment):
         solver: Highs,
         *,
         spec: EfficiencySegmentSpec,
+        source_element: Element[Any],
+        target_element: Element[Any],
     ) -> None:
         """Initialize efficiency segment.
 
@@ -58,9 +61,18 @@ class EfficiencySegment(Segment):
             periods: Time period durations in hours
             solver: HiGHS solver instance
             spec: Efficiency segment specification.
+            source_element: Connected source element reference
+            target_element: Connected target element reference
 
         """
-        super().__init__(segment_id, n_periods, periods, solver)
+        super().__init__(
+            segment_id,
+            n_periods,
+            periods,
+            solver,
+            source_element=source_element,
+            target_element=target_element,
+        )
 
         # Store efficiency values
         efficiency_source_target = spec.get("efficiency_source_target")

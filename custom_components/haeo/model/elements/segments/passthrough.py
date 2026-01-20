@@ -12,6 +12,8 @@ import numpy as np
 from numpy.typing import NDArray
 from typing_extensions import TypedDict
 
+from custom_components.haeo.model.element import Element
+
 from .segment import Segment
 
 
@@ -36,6 +38,8 @@ class PassthroughSegment(Segment):
         solver: Highs,
         *,
         spec: PassthroughSegmentSpec,
+        source_element: Element[Any],
+        target_element: Element[Any],
     ) -> None:
         """Initialize passthrough segment.
 
@@ -45,10 +49,19 @@ class PassthroughSegment(Segment):
             periods: Time period durations in hours
             solver: HiGHS solver instance
             spec: Passthrough segment specification (unused).
+            source_element: Connected source element reference
+            target_element: Connected target element reference
 
         """
         _ = spec
-        super().__init__(segment_id, n_periods, periods, solver)
+        super().__init__(
+            segment_id,
+            n_periods,
+            periods,
+            solver,
+            source_element=source_element,
+            target_element=target_element,
+        )
 
         # Create single power variable per direction (lossless, in == out)
         self._power_st = solver.addVariables(n_periods, lb=0, name_prefix=f"{segment_id}_st_", out_array=True)

@@ -112,19 +112,29 @@ class Connection[TOutputName: str](Element[TOutputName]):
             solver=solver,
             output_names=actual_output_names,
         )
-        n_periods = self.n_periods
-        periods_array = np.asarray(periods)
-
         self._source = source
         self._target = target
         self._source_element: Element[Any] | None = None
         self._target_element: Element[Any] | None = None
 
         # Segments stored in OrderedDict for name-based and index-based access
+        self._segment_specs: OrderedDict[str, SegmentSpec] = OrderedDict(segments or {})
         self._segments: OrderedDict[str, Segment] = OrderedDict()
 
-        segment_specs = segments or {}
+    @property
+    def segments(self) -> OrderedDict[str, Segment]:
+        """Return the ordered dict of segments."""
+        return self._segments
 
+    def set_endpoints(self, source_element: Element[Any], target_element: Element[Any]) -> None:
+        """Set source/target element references on the connection segments."""
+        self._source_element = source_element
+        self._target_element = target_element
+        if not self._segments:
+            self._initialize_segments(source_element, target_element)
+
+    def _initialize_segments(self, source_element: Element[Any], target_element: Element[Any]) -> None:
+        segment_specs = self._segment_specs
         for idx, (segment_name, segment_spec) in enumerate(segment_specs.items()):
             # Ensure unique segment names
             resolved_name = segment_name
@@ -132,37 +142,29 @@ class Connection[TOutputName: str](Element[TOutputName]):
                 resolved_name = f"{resolved_name}_{idx}"
 
             # Create segment with standard args plus spec
-            segment_id = f"{name}_{resolved_name}"
+            segment_id = f"{self.name}_{resolved_name}"
             segment = create_segment(
                 segment_id=segment_id,
-                n_periods=n_periods,
-                periods=periods_array,
-                solver=solver,
+                n_periods=self.n_periods,
+                periods=self.periods,
+                solver=self._solver,
                 spec=segment_spec,
+                source_element=source_element,
+                target_element=target_element,
             )
             self._segments[resolved_name] = segment
 
         # If no segments provided, create a passthrough segment
         if not self._segments:
             self._segments["passthrough"] = create_segment(
-                segment_id=f"{name}_passthrough",
-                n_periods=n_periods,
-                periods=periods_array,
-                solver=solver,
+                segment_id=f"{self.name}_passthrough",
+                n_periods=self.n_periods,
+                periods=self.periods,
+                solver=self._solver,
                 spec={"segment_type": "passthrough"},
+                source_element=source_element,
+                target_element=target_element,
             )
-
-    @property
-    def segments(self) -> OrderedDict[str, Segment]:
-        """Return the ordered dict of segments."""
-        return self._segments
-
-    def set_endpoints(self, source_element: Any, target_element: Any) -> None:
-        """Set source/target element references on the connection segments."""
-        self._source_element = source_element
-        self._target_element = target_element
-        for segment in self._segments.values():
-            segment.set_endpoints(source_element, target_element)
 
     @property
     def _first(self) -> Segment:

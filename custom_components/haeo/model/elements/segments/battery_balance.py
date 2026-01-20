@@ -9,6 +9,7 @@ from numpy.typing import NDArray
 from typing_extensions import TypedDict
 
 from custom_components.haeo.model.const import OutputType
+from custom_components.haeo.model.element import Element
 from custom_components.haeo.model.output_data import OutputData
 from custom_components.haeo.model.reactive import constraint, cost, output
 
@@ -52,9 +53,26 @@ class BatteryBalanceSegment(Segment):
         solver: Highs,
         *,
         spec: BatteryBalanceSegmentSpec,
+        source_element: Element[Any],
+        target_element: Element[Any],
     ) -> None:
         """Initialize the balance segment variables."""
-        super().__init__(segment_id, n_periods, periods, solver)
+        super().__init__(
+            segment_id,
+            n_periods,
+            periods,
+            solver,
+            source_element=source_element,
+            target_element=target_element,
+        )
+        if not hasattr(source_element, "stored_energy") or not hasattr(source_element, "capacity"):
+            name = getattr(source_element, "name", "source")
+            msg = f"Upper element '{name}' is not a battery"
+            raise TypeError(msg)
+        if not hasattr(target_element, "stored_energy") or not hasattr(target_element, "capacity"):
+            name = getattr(target_element, "name", "target")
+            msg = f"Lower element '{name}' is not a battery"
+            raise TypeError(msg)
         self._slack_penalty = spec.get("slack_penalty") or self.DEFAULT_SLACK_PENALTY
 
         self._power_down = solver.addVariables(n_periods, lb=0, name_prefix=f"{segment_id}_power_down_", out_array=True)
@@ -68,9 +86,7 @@ class BatteryBalanceSegment(Segment):
 
     def _get_batteries(self) -> tuple[Any, Any]:
         if (
-            self.source_element is None
-            or self.target_element is None
-            or not hasattr(self.source_element, "stored_energy")
+            not hasattr(self.source_element, "stored_energy")
             or not hasattr(self.source_element, "capacity")
             or not hasattr(self.target_element, "stored_energy")
             or not hasattr(self.target_element, "capacity")
@@ -78,18 +94,6 @@ class BatteryBalanceSegment(Segment):
             msg = f"Battery references not set for {self.segment_id}"
             raise ValueError(msg)
         return self.source_element, self.target_element
-
-    def set_endpoints(self, source_element: Any, target_element: Any) -> None:
-        """Validate and store connected battery endpoints."""
-        if not hasattr(source_element, "stored_energy") or not hasattr(source_element, "capacity"):
-            name = getattr(source_element, "name", "source")
-            msg = f"Upper element '{name}' is not a battery"
-            raise TypeError(msg)
-        if not hasattr(target_element, "stored_energy") or not hasattr(target_element, "capacity"):
-            name = getattr(target_element, "name", "target")
-            msg = f"Lower element '{name}' is not a battery"
-            raise TypeError(msg)
-        super().set_endpoints(source_element, target_element)
 
     @property
     def power_in_st(self) -> HighspyArray:

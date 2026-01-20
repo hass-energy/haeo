@@ -1,12 +1,14 @@
 """Model connection output tests covering reporting and validation helpers."""
 
-from typing import TypeGuard, cast
+from typing import Any, TypeGuard, cast
 
 from highspy import Highs
 from highspy.highs import highs_linear_expression, highs_var
 import numpy as np
+from numpy.typing import NDArray
 import pytest
 
+from custom_components.haeo.model.element import Element
 from custom_components.haeo.model.elements.connection import Connection
 from custom_components.haeo.model.output_data import ModelOutputValue, OutputData
 
@@ -34,6 +36,14 @@ def _serialize_output_value(output_value: ModelOutputValue) -> ExpectedOutputFix
     return {name: _serialize_output_value(child) for name, child in output_value.items()}
 
 
+class DummyElement(Element[str]):
+    """Minimal element for connection endpoint wiring in tests."""
+
+    def __init__(self, name: str, periods: NDArray[np.floating[Any]], solver: Highs) -> None:
+        """Create a dummy element with no outputs."""
+        super().__init__(name=name, periods=periods, solver=solver, output_names=frozenset())
+
+
 def _solve_connection_scenario(element: Connection[str], inputs: ConnectionTestCaseInputs | None) -> ExpectedOutputs:
     """Set up and solve an optimization scenario for a connection.
 
@@ -47,6 +57,9 @@ def _solve_connection_scenario(element: Connection[str], inputs: ConnectionTestC
     """
     # Use the element's solver instance (set in constructor)
     h = element._solver
+    source = DummyElement(element.source, element.periods, h)
+    target = DummyElement(element.target, element.periods, h)
+    element.set_endpoints(source, target)
 
     # Always call constraints to set up constraints (variables already exist)
     element.constraints()
@@ -179,6 +192,9 @@ def test_base_connection_power_into_properties(solver: Highs) -> None:
         source="source_element",
         target="target_element",
     )
+    source = DummyElement("source_element", conn.periods, solver)
+    target = DummyElement("target_element", conn.periods, solver)
+    conn.set_endpoints(source, target)
 
     # Fix power values: 5 kW source->target in period 0, 3 kW target->source in period 1
     solver.addConstr(conn.power_source_target[0] == 5.0)

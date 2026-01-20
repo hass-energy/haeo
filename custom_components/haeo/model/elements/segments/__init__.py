@@ -15,6 +15,8 @@ from highspy import Highs
 import numpy as np
 from numpy.typing import NDArray
 
+from custom_components.haeo.model.element import Element
+
 from .battery_balance import (
     BALANCE_ABSORBED_EXCESS,
     BALANCE_POWER_DOWN,
@@ -94,11 +96,21 @@ def create_segment(
     periods: NDArray[np.floating[Any]],
     solver: Highs,
     spec: SegmentSpec,
+    source_element: Element[Any],
+    target_element: Element[Any],
 ) -> Segment:
     """Create a segment instance from a segment specification."""
     segment_type = spec["segment_type"]
     entry = SEGMENTS[segment_type]
-    return entry.factory(segment_id, n_periods, periods, solver, spec=spec)
+    return entry.factory(
+        segment_id,
+        n_periods,
+        periods,
+        solver,
+        spec=spec,
+        source_element=source_element,
+        target_element=target_element,
+    )
 
 
 __all__ = [
