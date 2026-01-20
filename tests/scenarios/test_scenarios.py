@@ -66,7 +66,7 @@ async def test_scenarios(
     """Test that scenario sets up correctly and optimization matches expected outputs."""
     # Extract freeze timestamp and timezone from scenario data
     freeze_timestamp = scenario_data["environment"]["timestamp"]
-    timezone = scenario_data["environment"].get("timezone", "UTC")
+    timezone = scenario_data["environment"]["timezone"]
 
     # Configure HA timezone from scenario environment
     await hass.config.async_set_time_zone(timezone)
