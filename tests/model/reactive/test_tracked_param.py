@@ -189,8 +189,8 @@ def test_dict_access_setitem_unknown_key_raises_keyerror() -> None:
         elem["unknown_param"] = 123
 
 
-def test_dict_access_getitem_regular_attribute_raises_keyerror() -> None:
-    """Test that __getitem__ raises KeyError for non-TrackedParam attributes."""
+def test_dict_access_getitem_regular_attribute_returns_value() -> None:
+    """Test that __getitem__ returns values for regular attributes."""
 
     class TestElement(Element[str]):
         capacity = TrackedParam[float]()
@@ -198,5 +198,4 @@ def test_dict_access_getitem_regular_attribute_raises_keyerror() -> None:
     elem = create_test_element(TestElement)
 
     # 'name' is a regular attribute, not a TrackedParam
-    with pytest.raises(KeyError, match="name"):
-        _ = elem["name"]
+    assert elem["name"] == "test"

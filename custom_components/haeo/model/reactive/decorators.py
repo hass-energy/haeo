@@ -2,22 +2,16 @@
 
 from collections.abc import Callable
 from functools import partial
-from typing import TYPE_CHECKING, Any, TypeVar, overload
+from typing import TypeVar, overload
 
+from highspy import Highs
+from highspy.highs import highs_cons, highs_linear_expression
 import numpy as np
 
-from custom_components.haeo.model.output_data import OutputData
+from custom_components.haeo.model.output_data import ModelOutputValue, OutputData
 
+from .protocols import ReactiveHost
 from .tracked_param import ensure_decorator_state, tracking_context
-
-if TYPE_CHECKING:
-    from highspy import Highs
-    from highspy.highs import highs_cons, highs_linear_expression
-
-    from custom_components.haeo.model.element import Element
-    from custom_components.haeo.model.output_data import ModelOutputValue
-
-    from .protocols import ReactiveHost
 
 # Type variable for generic return types
 R = TypeVar("R")
@@ -307,9 +301,9 @@ class OutputMethod[R]:
     def __get__(self, obj: None, objtype: type) -> "OutputMethod[R]": ...
 
     @overload
-    def __get__(self, obj: "Element[Any]", objtype: type) -> Callable[[], R]: ...
+    def __get__(self, obj: ReactiveHost, objtype: type) -> Callable[[], R]: ...
 
-    def __get__(self, obj: "Element[Any] | None", objtype: type) -> "OutputMethod[R] | Callable[[], R]":
+    def __get__(self, obj: "ReactiveHost | None", objtype: type) -> "OutputMethod[R] | Callable[[], R]":
         """Return bound method."""
         if obj is None:
             return self
@@ -320,7 +314,7 @@ class OutputMethod[R]:
         """Return the output name exposed by this method."""
         return self._output_name or self._name
 
-    def get_output(self, obj: "Element[Any]") -> "ModelOutputValue | None":
+    def get_output(self, obj: ReactiveHost) -> "ModelOutputValue | None":
         """Get output data for this output method.
 
         Args:

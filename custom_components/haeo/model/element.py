@@ -1,7 +1,7 @@
 """Generic electrical entity for energy system modeling."""
 
 from collections.abc import Mapping, Sequence
-from typing import TYPE_CHECKING, Any, Literal
+from typing import Any, Literal
 
 from highspy import Highs
 from highspy.highs import HighspyArray, highs_cons
@@ -10,9 +10,6 @@ from numpy.typing import NDArray
 
 from .output_data import OutputData
 from .reactive import OutputMethod, ReactiveConstraint, ReactiveCost, TrackedParam, cost
-
-if TYPE_CHECKING:
-    from .elements.connection import Connection
 
 
 class Element[OutputNameT: str]:
@@ -52,10 +49,10 @@ class Element[OutputNameT: str]:
         self._output_names = output_names
 
         # Track connections for power balance
-        self._connections: list[tuple[Connection[Any], Literal["source", "target"]]] = []
+        self._connections: list[tuple[Any, Literal["source", "target"]]] = []
 
-    def __getitem__(self, key: str) -> Any:
-        """Get a TrackedParam value by name.
+    def __getitem__(self, key: str | int) -> Any:
+        """Get a value by name or index.
 
         Args:
             key: Name of the TrackedParam
@@ -67,16 +64,31 @@ class Element[OutputNameT: str]:
             KeyError: If no TrackedParam with this name exists
 
         """
+        segments = getattr(self, "segments", None)
+        if isinstance(key, int):
+            if isinstance(segments, Mapping):
+                try:
+                    return list(segments.values())[key]
+                except IndexError as exc:
+                    msg = f"{type(self).__name__!r} has no segment at index {key}"
+                    raise KeyError(msg) from exc
+            msg = f"{type(self).__name__!r} does not support indexed access"
+            raise KeyError(msg)
+
+        if isinstance(segments, Mapping) and key in segments:
+            return segments[key]
+
         # Look up the descriptor on the class
         descriptor = getattr(type(self), key, None)
-        if not isinstance(descriptor, TrackedParam):
-            msg = f"{type(self).__name__!r} has no TrackedParam {key!r}"
-            raise KeyError(msg)
-        # Use normal attribute access to trigger the descriptor
-        return getattr(self, key)
+        if isinstance(descriptor, TrackedParam):
+            return getattr(self, key)
+        if hasattr(self, key):
+            return getattr(self, key)
+        msg = f"{type(self).__name__!r} has no attribute {key!r}"
+        raise KeyError(msg)
 
     def __setitem__(self, key: str, value: Any) -> None:
-        """Set a TrackedParam value by name.
+        """Set a value by name.
 
         Setting a value triggers invalidation of dependent constraints/costs.
 
@@ -90,18 +102,21 @@ class Element[OutputNameT: str]:
         """
         # Look up the descriptor on the class
         descriptor = getattr(type(self), key, None)
-        if not isinstance(descriptor, TrackedParam):
-            msg = f"{type(self).__name__!r} has no TrackedParam {key!r}"
-            raise KeyError(msg)
-        # Use normal attribute access to trigger the descriptor
-        setattr(self, key, value)
+        if isinstance(descriptor, TrackedParam):
+            setattr(self, key, value)
+            return
+        if hasattr(self, key):
+            setattr(self, key, value)
+            return
+        msg = f"{type(self).__name__!r} has no attribute {key!r}"
+        raise KeyError(msg)
 
     @property
     def n_periods(self) -> int:
         """Return the number of optimization periods."""
         return len(self.periods)
 
-    def register_connection(self, connection: "Connection[Any]", end: Literal["source", "target"]) -> None:
+    def register_connection(self, connection: Any, end: Literal["source", "target"]) -> None:
         """Register a connection to this element.
 
         Args:

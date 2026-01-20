@@ -1,12 +1,11 @@
 """TrackedParam descriptor for automatic dependency tracking."""
 
 from contextvars import ContextVar
-from typing import TYPE_CHECKING, Any, overload
+from typing import Any, overload
 
 import numpy as np
 
-if TYPE_CHECKING:
-    from .protocols import ReactiveHost
+from .protocols import ReactiveHost
 
 # Context for tracking parameter access during constraint computation
 tracking_context: ContextVar[set[str] | None] = ContextVar("tracking", default=None)
@@ -43,7 +42,7 @@ class TrackedParam[T]:
     def __get__(self, obj: None, objtype: type) -> "TrackedParam[T]": ...
 
     @overload
-    def __get__(self, obj: "ReactiveHost", objtype: type) -> T: ...
+    def __get__(self, obj: ReactiveHost, objtype: type) -> T: ...
 
     def __get__(self, obj: "ReactiveHost | None", objtype: type) -> "TrackedParam[T] | T":
         """Get the parameter value and record access if tracking is active."""
@@ -56,7 +55,7 @@ class TrackedParam[T]:
         # Raise AttributeError if never set (standard Python behavior)
         return getattr(obj, self._private)  # type: ignore[return-value]
 
-    def __set__(self, obj: "ReactiveHost", value: T) -> None:
+    def __set__(self, obj: ReactiveHost, value: T) -> None:
         """Set the parameter value and invalidate dependent decorators."""
         # Check if this is the first time setting (no invalidation needed)
         if not hasattr(obj, self._private):
@@ -72,7 +71,7 @@ class TrackedParam[T]:
             # Invalidate all reactive decorators that depend on this parameter
             _invalidate_param_dependents(obj, self._name)
 
-    def is_set(self, obj: "ReactiveHost") -> bool:
+    def is_set(self, obj: ReactiveHost) -> bool:
         """Check if this parameter has been set on the given object.
 
         Args:
@@ -119,7 +118,7 @@ def _values_equal(a: object, b: object) -> bool:
         return False
 
 
-def _invalidate_param_dependents(obj: "ReactiveHost", param_name: str) -> None:
+def _invalidate_param_dependents(obj: ReactiveHost, param_name: str) -> None:
     """Invalidate all reactive decorators on an object that depend on a parameter.
 
     Args:
@@ -149,7 +148,7 @@ def _invalidate_param_dependents(obj: "ReactiveHost", param_name: str) -> None:
         _propagate_method_invalidation(obj, invalidated_methods)
 
 
-def _propagate_method_invalidation(obj: "ReactiveHost", invalidated_methods: set[str]) -> None:
+def _propagate_method_invalidation(obj: ReactiveHost, invalidated_methods: set[str]) -> None:
     """Propagate invalidation to methods that depend on invalidated methods.
 
     Args:
@@ -186,7 +185,7 @@ def _propagate_method_invalidation(obj: "ReactiveHost", invalidated_methods: set
         newly_invalidated = next_round
 
 
-def get_decorator_state(obj: "ReactiveHost", method_name: str) -> dict[str, Any] | None:
+def get_decorator_state(obj: ReactiveHost, method_name: str) -> dict[str, Any] | None:
     """Get the state dictionary for a decorator method on an object.
 
     Args:
@@ -201,7 +200,7 @@ def get_decorator_state(obj: "ReactiveHost", method_name: str) -> dict[str, Any]
     return getattr(obj, state_attr, None)
 
 
-def ensure_decorator_state(obj: "ReactiveHost", method_name: str) -> dict[str, Any]:
+def ensure_decorator_state(obj: ReactiveHost, method_name: str) -> dict[str, Any]:
     """Ensure a state dictionary exists for a decorator method on an object.
 
     Args:

@@ -23,7 +23,8 @@ from highspy.highs import HighspyArray, highs_cons
 import numpy as np
 from numpy.typing import NDArray
 
-from custom_components.haeo.model.reactive import ReactiveConstraint, ReactiveCost
+from custom_components.haeo.model.output_data import OutputData
+from custom_components.haeo.model.reactive import OutputMethod, ReactiveConstraint, ReactiveCost
 
 
 class Segment(ABC):
@@ -60,6 +61,8 @@ class Segment(ABC):
         self._n_periods = n_periods
         self._periods = periods
         self._solver = solver
+        self._source_element: Any | None = None
+        self._target_element: Any | None = None
 
     @property
     def segment_id(self) -> str:
@@ -75,6 +78,21 @@ class Segment(ABC):
     def periods(self) -> NDArray[np.floating[Any]]:
         """Return time period durations in hours."""
         return self._periods
+
+    def set_endpoints(self, source_element: Any, target_element: Any) -> None:
+        """Store references to the connected elements."""
+        self._source_element = source_element
+        self._target_element = target_element
+
+    @property
+    def source_element(self) -> Any | None:
+        """Return the source element reference if available."""
+        return self._source_element
+
+    @property
+    def target_element(self) -> Any | None:
+        """Return the target element reference if available."""
+        return self._target_element
 
     @property
     @abstractmethod
@@ -124,6 +142,23 @@ class Segment(ABC):
                 if state is not None and "constraint" in state:
                     cons = state["constraint"]
                     result[name] = cons
+        return result
+
+    def outputs(self) -> dict[str, OutputData]:
+        """Return output data from output and constraint methods."""
+        result: dict[str, OutputData] = {}
+        for name in dir(type(self)):
+            attr = getattr(type(self), name, None)
+            if isinstance(attr, OutputMethod):
+                output_name = attr.output_name
+            elif isinstance(attr, ReactiveConstraint):
+                output_name = name
+            else:
+                continue
+
+            output_data = attr.get_output(self)
+            if isinstance(output_data, OutputData):
+                result[output_name] = output_data
         return result
 
     def cost(self) -> Any:

@@ -7,8 +7,23 @@ Each segment type applies a specific transformation or constraint to power flow:
 - PricingSegment: Adds transfer pricing costs
 """
 
-from typing import Final, Literal, TypeGuard
+from collections.abc import Callable
+from dataclasses import dataclass
+from typing import Any, Final, Literal, TypeGuard
 
+from highspy import Highs
+import numpy as np
+from numpy.typing import NDArray
+
+from .battery_balance import (
+    BALANCE_ABSORBED_EXCESS,
+    BALANCE_POWER_DOWN,
+    BALANCE_POWER_UP,
+    BALANCE_UNMET_DEMAND,
+    BatteryBalanceOutputName,
+    BatteryBalanceSegment,
+    BatteryBalanceSegmentSpec,
+)
 from .efficiency import EfficiencySegment, EfficiencySegmentSpec
 from .passthrough import PassthroughSegment, PassthroughSegmentSpec
 from .power_limit import (
@@ -23,10 +38,16 @@ from .pricing import PricingSegment, PricingSegmentSpec
 from .segment import Segment
 
 # Discriminated union of segment type strings
-type SegmentType = Literal["efficiency", "passthrough", "power_limit", "pricing"]
+type SegmentType = Literal["battery_balance", "efficiency", "passthrough", "power_limit", "pricing"]
 
 # Union type for all segment specifications
-type SegmentSpec = EfficiencySegmentSpec | PassthroughSegmentSpec | PowerLimitSegmentSpec | PricingSegmentSpec
+type SegmentSpec = (
+    BatteryBalanceSegmentSpec
+    | EfficiencySegmentSpec
+    | PassthroughSegmentSpec
+    | PowerLimitSegmentSpec
+    | PricingSegmentSpec
+)
 
 
 def is_efficiency_spec(spec: SegmentSpec) -> TypeGuard[EfficiencySegmentSpec]:
@@ -49,19 +70,49 @@ def is_pricing_spec(spec: SegmentSpec) -> TypeGuard[PricingSegmentSpec]:
     return spec["segment_type"] == "pricing"
 
 
-# Registry mapping segment type strings to segment classes
-SEGMENT_TYPES: Final[dict[SegmentType, type[Segment]]] = {
-    "efficiency": EfficiencySegment,
-    "passthrough": PassthroughSegment,
-    "power_limit": PowerLimitSegment,
-    "pricing": PricingSegment,
+@dataclass(frozen=True, slots=True)
+class SegmentSpecEntry:
+    """Specification for a segment type."""
+
+    factory: Callable[..., Segment]
+
+
+# Registry mapping segment type strings to segment factories
+SEGMENTS: Final[dict[SegmentType, SegmentSpecEntry]] = {
+    "battery_balance": SegmentSpecEntry(factory=BatteryBalanceSegment),
+    "efficiency": SegmentSpecEntry(factory=EfficiencySegment),
+    "passthrough": SegmentSpecEntry(factory=PassthroughSegment),
+    "power_limit": SegmentSpecEntry(factory=PowerLimitSegment),
+    "pricing": SegmentSpecEntry(factory=PricingSegment),
 }
 
+
+def create_segment(
+    *,
+    segment_id: str,
+    n_periods: int,
+    periods: NDArray[np.floating[Any]],
+    solver: Highs,
+    spec: SegmentSpec,
+) -> Segment:
+    """Create a segment instance from a segment specification."""
+    segment_type = spec["segment_type"]
+    entry = SEGMENTS[segment_type]
+    return entry.factory(segment_id, n_periods, periods, solver, spec=spec)
+
+
 __all__ = [
+    "BALANCE_ABSORBED_EXCESS",
+    "BALANCE_POWER_DOWN",
+    "BALANCE_POWER_UP",
+    "BALANCE_UNMET_DEMAND",
     "POWER_LIMIT_SOURCE_TARGET",
     "POWER_LIMIT_TARGET_SOURCE",
     "POWER_LIMIT_TIME_SLICE",
-    "SEGMENT_TYPES",
+    "SEGMENTS",
+    "BatteryBalanceOutputName",
+    "BatteryBalanceSegment",
+    "BatteryBalanceSegmentSpec",
     "EfficiencySegment",
     "EfficiencySegmentSpec",
     "PassthroughSegment",
@@ -73,7 +124,9 @@ __all__ = [
     "PricingSegmentSpec",
     "Segment",
     "SegmentSpec",
+    "SegmentSpecEntry",
     "SegmentType",
+    "create_segment",
     "is_efficiency_spec",
     "is_passthrough_spec",
     "is_power_limit_spec",

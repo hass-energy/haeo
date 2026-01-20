@@ -1,9 +1,8 @@
 """Protocols for reactive infrastructure type hints."""
 
-from typing import TYPE_CHECKING, Protocol, runtime_checkable
+from typing import Protocol, runtime_checkable
 
-if TYPE_CHECKING:
-    from highspy import Highs
+from highspy import Highs
 
 
 @runtime_checkable
@@ -18,4 +17,4 @@ class ReactiveHost(Protocol):
 
     """
 
-    _solver: "Highs"
+    _solver: Highs

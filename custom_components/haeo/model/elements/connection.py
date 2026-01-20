@@ -15,20 +15,9 @@ from numpy.typing import NDArray
 from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.element import Element
 from custom_components.haeo.model.output_data import OutputData
-from custom_components.haeo.model.reactive import ReactiveConstraint, constraint, output
+from custom_components.haeo.model.reactive import constraint, output
 
-from .segments import (
-    EfficiencySegment,
-    PassthroughSegment,
-    PowerLimitSegment,
-    PricingSegment,
-    Segment,
-    SegmentSpec,
-    is_efficiency_spec,
-    is_passthrough_spec,
-    is_power_limit_spec,
-    is_pricing_spec,
-)
+from .segments import Segment, SegmentSpec, create_segment
 
 type ConnectionElementTypeName = Literal["connection"]
 # Model element type for connections
@@ -52,9 +41,6 @@ MIN_SEGMENTS_FOR_LINKING = 2
 type ConnectionOutputName = Literal[
     "connection_power_source_target",
     "connection_power_target_source",
-    "connection_shadow_power_max_source_target",
-    "connection_shadow_power_max_target_source",
-    "connection_time_slice",
     "segments",
 ]
 
@@ -72,9 +58,6 @@ CONNECTION_OUTPUT_NAMES: Final[frozenset[ConnectionOutputName]] = frozenset(
     (
         CONNECTION_POWER_SOURCE_TARGET,
         CONNECTION_POWER_TARGET_SOURCE,
-        CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET,
-        CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE,
-        CONNECTION_TIME_SLICE,
         CONNECTION_SEGMENTS,
     )
 )
@@ -136,6 +119,8 @@ class Connection[TOutputName: str](Element[TOutputName]):
 
         self._source = source
         self._target = target
+        self._source_element: Element[Any] | None = None
+        self._target_element: Element[Any] | None = None
 
         # Segments stored in OrderedDict for name-based and index-based access
         self._segments: OrderedDict[str, Segment] = OrderedDict()
@@ -147,9 +132,6 @@ class Connection[TOutputName: str](Element[TOutputName]):
         segment_specs = segments or {}
 
         for idx, (segment_name, segment_spec) in enumerate(segment_specs.items()):
-            # Extract segment_type (required in all specs)
-            segment_type = segment_spec["segment_type"]
-
             # Ensure unique segment names
             resolved_name = segment_name
             if resolved_name in self._segments:
@@ -157,81 +139,36 @@ class Connection[TOutputName: str](Element[TOutputName]):
 
             # Create segment with standard args plus spec
             segment_id = f"{name}_{resolved_name}"
-            if is_efficiency_spec(segment_spec):
-                segment = EfficiencySegment(
-                    segment_id,
-                    n_periods,
-                    periods_array,
-                    solver,
-                    spec=segment_spec,
-                )
-            elif is_passthrough_spec(segment_spec):
-                segment = PassthroughSegment(
-                    segment_id,
-                    n_periods,
-                    periods_array,
-                    solver,
-                    spec=segment_spec,
-                )
-            elif is_power_limit_spec(segment_spec):
-                segment = PowerLimitSegment(
-                    segment_id,
-                    n_periods,
-                    periods_array,
-                    solver,
-                    spec=segment_spec,
-                )
-            elif is_pricing_spec(segment_spec):
-                segment = PricingSegment(
-                    segment_id,
-                    n_periods,
-                    periods_array,
-                    solver,
-                    spec=segment_spec,
-                )
-            else:
-                msg = f"Unknown segment_type {segment_type!r}"
-                raise ValueError(msg)
+            segment = create_segment(
+                segment_id=segment_id,
+                n_periods=n_periods,
+                periods=periods_array,
+                solver=solver,
+                spec=segment_spec,
+            )
             self._segments[resolved_name] = segment
 
         # If no segments provided, create a passthrough segment
         if not self._segments:
-            passthrough = PassthroughSegment(
-                f"{name}_passthrough",
-                n_periods,
-                periods_array,
-                solver,
+            self._segments["passthrough"] = create_segment(
+                segment_id=f"{name}_passthrough",
+                n_periods=n_periods,
+                periods=periods_array,
+                solver=solver,
                 spec={"segment_type": "passthrough"},
             )
-            self._segments["passthrough"] = passthrough
 
     @property
     def segments(self) -> OrderedDict[str, Segment]:
         """Return the ordered dict of segments."""
         return self._segments
 
-    def __getitem__(self, key: str | int) -> Segment:
-        """Access a segment by name or index."""
-        if isinstance(key, int):
-            return list(self._segments.values())[key]
-
-        if key in self._segments:
-            return self._segments[key]
-
-        msg = f"{type(self).__name__!r} has no segment {key!r}"
-        raise KeyError(msg)
-
-    def __setitem__(self, key: str | int, value: Any) -> None:
-        """Set a TrackedParam value for connection subclasses."""
-        if isinstance(key, int):
-            msg = "Cannot assign segments via index"
-            raise KeyError(msg)
-
-        if key in self._segments:
-            msg = "Cannot replace segments via assignment"
-            raise KeyError(msg)
-
-        super().__setitem__(key, value)
+    def set_endpoints(self, source_element: Any, target_element: Any) -> None:
+        """Set source/target element references on the connection segments."""
+        self._source_element = source_element
+        self._target_element = target_element
+        for segment in self._segments.values():
+            segment.set_endpoints(source_element, target_element)
 
     @property
     def _first(self) -> Segment | None:
@@ -336,8 +273,7 @@ class Connection[TOutputName: str](Element[TOutputName]):
 
         Collects costs from all segments and aggregates them.
 
-        Note: Subclasses with @cost methods (like BatteryBalanceConnection) should
-        override this method to include their own costs.
+        Note: Specialized connections can override to include their own costs.
 
         Returns:
             Aggregated cost expression or None if no costs
@@ -386,27 +322,16 @@ class Connection[TOutputName: str](Element[TOutputName]):
 
     # --- Output methods ---
 
-    def _segment_shadow_outputs(self) -> ConnectionSegmentOutputs:
-        """Collect shadow price outputs from all segments."""
+    def _segment_outputs(self) -> ConnectionSegmentOutputs:
+        """Collect outputs from all segments."""
         segment_outputs: ConnectionSegmentOutputs = {}
 
         for segment_name, segment in self._segments.items():
-            for name in dir(type(segment)):
-                attr = getattr(type(segment), name, None)
-                if not isinstance(attr, ReactiveConstraint):
-                    continue
-
-                output_data = attr.get_output(segment)
-                if output_data is None:
-                    continue
-
-                segment_outputs.setdefault(segment_name, {})[name] = output_data
+            outputs = segment.outputs()
+            if outputs:
+                segment_outputs[segment_name] = outputs
 
         return segment_outputs
-
-    def _get_power_limit_shadow(self, name: str) -> OutputData | None:
-        """Return a power_limit shadow output by name."""
-        return self._segment_shadow_outputs().get("power_limit", {}).get(name)
 
     @output
     def connection_power_source_target(self) -> OutputData:
@@ -431,23 +356,8 @@ class Connection[TOutputName: str](Element[TOutputName]):
     @output(name=CONNECTION_SEGMENTS)
     def segment_outputs(self) -> ConnectionSegmentOutputs | None:
         """Return outputs grouped by segment."""
-        segment_outputs = self._segment_shadow_outputs()
+        segment_outputs = self._segment_outputs()
         return segment_outputs or None
-
-    @output
-    def connection_shadow_power_max_source_target(self) -> OutputData | None:
-        """Shadow price for source→target power limit."""
-        return self._get_power_limit_shadow("source_target")
-
-    @output
-    def connection_shadow_power_max_target_source(self) -> OutputData | None:
-        """Shadow price for target→source power limit."""
-        return self._get_power_limit_shadow("target_source")
-
-    @output
-    def connection_time_slice(self) -> OutputData | None:
-        """Shadow price for power limit time-slice constraint."""
-        return self._get_power_limit_shadow("time_slice")
 
 
 __all__ = [

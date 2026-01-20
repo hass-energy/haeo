@@ -12,7 +12,6 @@ from numpy.typing import NDArray
 from .element import Element
 from .elements import ELEMENTS, ModelElementConfig
 from .elements.battery import Battery, BatteryElementConfig
-from .elements.battery_balance_connection import BatteryBalanceConnection, BatteryBalanceConnectionElementConfig
 from .elements.connection import Connection, ConnectionElementConfig, ConnectionOutputName
 from .elements.node import Node, NodeElementConfig
 
@@ -68,9 +67,6 @@ class Network:
     @overload
     def add(self, element_config: ConnectionElementConfig) -> Connection[ConnectionOutputName]: ...
 
-    @overload
-    def add(self, element_config: BatteryBalanceConnectionElementConfig) -> BatteryBalanceConnection: ...
-
     def add(self, element_config: ModelElementConfig) -> Element[Any]:
         """Add a new element to the network.
 
@@ -97,8 +93,7 @@ class Network:
         self.elements[name] = element_instance
 
         # Register connections immediately when adding Connection elements
-        # (but not BatteryBalanceConnection - those register themselves via set_battery_references)
-        if isinstance(element_instance, Connection) and not isinstance(element_instance, BatteryBalanceConnection):
+        if isinstance(element_instance, Connection):
             # Get source and target elements
             source_element = self.elements.get(element_instance.source)
             target_element = self.elements.get(element_instance.target)
@@ -118,22 +113,7 @@ class Network:
                     f"Failed to register connection {name} with target {element_instance.target}: Not found or invalid"
                 )
                 raise ValueError(msg)
-
-        # Register battery balance connections with their battery sections
-        if isinstance(element_instance, BatteryBalanceConnection):
-            # BatteryBalanceConnection uses source=upper, target=lower
-            upper_element = self.elements.get(element_instance.source)
-            lower_element = self.elements.get(element_instance.target)
-
-            if not isinstance(upper_element, Battery):
-                msg = f"Upper element '{element_instance.source}' is not a battery"
-                raise TypeError(msg)
-
-            if not isinstance(lower_element, Battery):
-                msg = f"Lower element '{element_instance.target}' is not a battery"
-                raise TypeError(msg)
-
-            element_instance.set_battery_references(upper_element, lower_element)
+            element_instance.set_endpoints(source_element, target_element)
 
         return element_instance
 
