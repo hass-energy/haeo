@@ -27,12 +27,8 @@
         }
       }
     },
-    "error": {
-      "name_exists": "A system with this name already exists"
-    },
-    "abort": {
-      "already_configured": "HAEO already configured"
-    }
+    "error": { "name_exists": "A system with this name already exists" },
+    "abort": { "already_configured": "HAEO already configured" }
   },
   "options": {
     "step": {
@@ -77,10 +73,7 @@
     "battery": {
       "flow_title": "Battery",
       "entry_type": "Battery",
-      "initiate_flow": {
-        "user": "Battery",
-        "reconfigure": "Battery"
-      },
+      "initiate_flow": { "user": "Battery", "reconfigure": "Battery" },
       "step": {
         "user": {
           "title": "Battery Configuration",
@@ -121,47 +114,27 @@
           }
         }
       },
-      "error": {
-        "missing_name": "Name is required",
-        "name_exists": "A device with this name already exists"
-      },
-      "abort": {
-        "reconfigure_successful": "Configuration updated successfully"
-      }
+      "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" },
+      "abort": { "reconfigure_successful": "Configuration updated successfully" }
     },
     "battery_section": {
       "flow_title": "Battery Section",
       "entry_type": "Battery Section",
-      "initiate_flow": {
-        "user": "Battery Section",
-        "reconfigure": "Battery Section"
-      },
+      "initiate_flow": { "user": "Battery Section", "reconfigure": "Battery Section" },
       "step": {
         "user": {
           "title": "Battery Section Configuration",
           "description": "Configure a single battery section with explicit capacity and initial charge. Connect to other elements using Connection elements.",
-          "data": {
-            "capacity": "Capacity",
-            "initial_charge": "Initial Charge",
-            "name": "Battery Section Name"
-          }
+          "data": { "capacity": "Capacity", "initial_charge": "Initial Charge", "name": "Battery Section Name" }
         }
       },
-      "error": {
-        "missing_name": "Name is required",
-        "name_exists": "A device with this name already exists"
-      },
-      "abort": {
-        "reconfigure_successful": "Configuration updated successfully"
-      }
+      "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" },
+      "abort": { "reconfigure_successful": "Configuration updated successfully" }
     },
     "connection": {
       "flow_title": "Connection",
       "entry_type": "Connection",
-      "initiate_flow": {
-        "user": "Connection",
-        "reconfigure": "Connection"
-      },
+      "initiate_flow": { "user": "Connection", "reconfigure": "Connection" },
       "step": {
         "user": {
           "title": "Connection Configuration",
@@ -187,17 +160,12 @@
         "missing_name": "Name is required",
         "name_exists": "A device with this name already exists"
       },
-      "abort": {
-        "reconfigure_successful": "Configuration updated successfully"
-      }
+      "abort": { "reconfigure_successful": "Configuration updated successfully" }
     },
     "grid": {
       "flow_title": "Grid",
       "entry_type": "Grid",
-      "initiate_flow": {
-        "user": "Grid",
-        "reconfigure": "Grid"
-      },
+      "initiate_flow": { "user": "Grid", "reconfigure": "Grid" },
       "step": {
         "user": {
           "title": "Grid Configuration",
@@ -212,21 +180,13 @@
           }
         }
       },
-      "error": {
-        "missing_name": "Name is required",
-        "name_exists": "A device with this name already exists"
-      },
-      "abort": {
-        "reconfigure_successful": "Configuration updated successfully"
-      }
+      "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" },
+      "abort": { "reconfigure_successful": "Configuration updated successfully" }
     },
     "inverter": {
       "flow_title": "Inverter",
       "entry_type": "Inverter",
-      "initiate_flow": {
-        "user": "Inverter",
-        "reconfigure": "Inverter"
-      },
+      "initiate_flow": { "user": "Inverter", "reconfigure": "Inverter" },
       "step": {
         "user": {
           "title": "Inverter Configuration",
@@ -241,59 +201,34 @@
           }
         }
       },
-      "error": {
-        "missing_name": "Name is required",
-        "name_exists": "A device with this name already exists"
-      },
-      "abort": {
-        "reconfigure_successful": "Configuration updated successfully"
-      }
+      "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" },
+      "abort": { "reconfigure_successful": "Configuration updated successfully" }
     },
     "load": {
       "flow_title": "Load",
       "entry_type": "Load",
-      "initiate_flow": {
-        "user": "Load",
-        "reconfigure": "Load"
-      },
+      "initiate_flow": { "user": "Load", "reconfigure": "Load" },
       "step": {
         "user": {
           "title": "Load Configuration",
           "description": "Configure a load with forecast or constant power.\n\n[HAFO]({hafo_url}) can be used to generate forecast sensors.",
-          "data": {
-            "connection": "Connection",
-            "forecast": "Forecast",
-            "name": "Load Name"
-          }
+          "data": { "connection": "Connection", "forecast": "Forecast", "name": "Load Name" }
         }
       },
-      "error": {
-        "missing_name": "Name is required",
-        "name_exists": "A device with this name already exists"
-      },
-      "abort": {
-        "reconfigure_successful": "Configuration updated successfully"
-      }
+      "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" },
+      "abort": { "reconfigure_successful": "Configuration updated successfully" }
     },
     "network": {
       "flow_title": "HAEO",
       "entry_type": "HAEO",
-      "initiate_flow": {
-        "user": "HAEO",
-        "reconfigure": "HAEO"
-      },
+      "initiate_flow": { "user": "HAEO", "reconfigure": "HAEO" },
       "step": {},
-      "abort": {
-        "reconfigure_successful": "Configuration updated successfully"
-      }
+      "abort": { "reconfigure_successful": "Configuration updated successfully" }
     },
     "node": {
       "flow_title": "Node",
       "entry_type": "Node",
-      "initiate_flow": {
-        "user": "Node",
-        "reconfigure": "Node"
-      },
+      "initiate_flow": { "user": "Node", "reconfigure": "Node" },
       "step": {
         "user": {
           "title": "Node Configuration",
@@ -305,21 +240,13 @@
           }
         }
       },
-      "error": {
-        "missing_name": "Name is required",
-        "name_exists": "A device with this name already exists"
-      },
-      "abort": {
-        "reconfigure_successful": "Configuration updated successfully"
-      }
+      "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" },
+      "abort": { "reconfigure_successful": "Configuration updated successfully" }
     },
     "solar": {
       "flow_title": "Solar",
       "entry_type": "Solar",
-      "initiate_flow": {
-        "user": "Solar",
-        "reconfigure": "Solar"
-      },
+      "initiate_flow": { "user": "Solar", "reconfigure": "Solar" },
       "step": {
         "user": {
           "title": "Solar Configuration",
@@ -333,325 +260,120 @@
           }
         }
       },
-      "error": {
-        "missing_name": "Name is required",
-        "name_exists": "A device with this name already exists"
-      },
-      "abort": {
-        "reconfigure_successful": "Configuration updated successfully"
-      }
+      "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" },
+      "abort": { "reconfigure_successful": "Configuration updated successfully" }
     }
   },
-  "common": {
-    "default_hub_name": "Home",
-    "network_subentry_name": "System",
-    "switchboard_node_name": "Switchboard"
-  },
+  "common": { "default_hub_name": "Home", "network_subentry_name": "System", "switchboard_node_name": "Switchboard" },
   "device": {
-    "battery": {
-      "name": "{name}"
-    },
-    "battery_device_normal": {
-      "name": "{name} Main Partition"
-    },
-    "battery_device_overcharge": {
-      "name": "{name} Overcharge Partition"
-    },
-    "battery_device_undercharge": {
-      "name": "{name} Undercharge Partition"
-    },
-    "battery_section": {
-      "name": "{name}"
-    },
-    "connection": {
-      "name": "{name}"
-    },
-    "grid": {
-      "name": "{name}"
-    },
-    "inverter": {
-      "name": "{name}"
-    },
-    "load": {
-      "name": "{name}"
-    },
-    "network": {
-      "name": "Optimizer"
-    },
-    "node": {
-      "name": "{name}"
-    },
-    "solar": {
-      "name": "{name}"
-    }
+    "battery": { "name": "{name}" },
+    "battery_device_normal": { "name": "{name} Main Partition" },
+    "battery_device_overcharge": { "name": "{name} Overcharge Partition" },
+    "battery_device_undercharge": { "name": "{name} Undercharge Partition" },
+    "battery_section": { "name": "{name}" },
+    "connection": { "name": "{name}" },
+    "grid": { "name": "{name}" },
+    "inverter": { "name": "{name}" },
+    "load": { "name": "{name}" },
+    "network": { "name": "Optimizer" },
+    "node": { "name": "{name}" },
+    "solar": { "name": "{name}" }
   },
   "entity": {
     "number": {
-      "battery_capacity": {
-        "name": "Capacity"
-      },
-      "battery_discharge_cost": {
-        "name": "Discharge cost"
-      },
-      "battery_early_charge_incentive": {
-        "name": "Early charge incentive"
-      },
-      "battery_efficiency": {
-        "name": "Efficiency"
-      },
-      "battery_initial_charge_percentage": {
-        "name": "Initial charge"
-      },
-      "battery_max_charge_percentage": {
-        "name": "Max charge"
-      },
-      "battery_max_charge_power": {
-        "name": "Max charge power"
-      },
-      "battery_max_discharge_power": {
-        "name": "Max discharge power"
-      },
-      "battery_min_charge_percentage": {
-        "name": "Min charge"
-      },
-      "battery_overcharge_cost": {
-        "name": "Overcharge cost"
-      },
-      "battery_overcharge_percentage": {
-        "name": "Overcharge percentage"
-      },
-      "battery_undercharge_cost": {
-        "name": "Undercharge cost"
-      },
-      "battery_undercharge_percentage": {
-        "name": "Undercharge percentage"
-      },
-      "connection_efficiency_source_target": {
-        "name": "Source to target efficiency"
-      },
-      "connection_efficiency_target_source": {
-        "name": "Target to source efficiency"
-      },
-      "connection_max_power_source_target": {
-        "name": "Max source to target power"
-      },
-      "connection_max_power_target_source": {
-        "name": "Max target to source power"
-      },
-      "connection_price_source_target": {
-        "name": "Source to target price"
-      },
-      "connection_price_target_source": {
-        "name": "Target to source price"
-      },
-      "grid_export_limit": {
-        "name": "Export limit"
-      },
-      "grid_export_price": {
-        "name": "Export price"
-      },
-      "grid_import_limit": {
-        "name": "Import limit"
-      },
-      "grid_import_price": {
-        "name": "Import price"
-      },
-      "inverter_efficiency_ac_to_dc": {
-        "name": "AC to DC efficiency"
-      },
-      "inverter_efficiency_dc_to_ac": {
-        "name": "DC to AC efficiency"
-      },
-      "inverter_max_power_ac_to_dc": {
-        "name": "Max AC to DC power"
-      },
-      "inverter_max_power_dc_to_ac": {
-        "name": "Max DC to AC power"
-      },
-      "load_forecast": {
-        "name": "Forecast"
-      },
-      "solar_forecast": {
-        "name": "Forecast"
-      },
-      "solar_price_production": {
-        "name": "Production price"
-      }
+      "battery_capacity": { "name": "Capacity" },
+      "battery_discharge_cost": { "name": "Discharge cost" },
+      "battery_early_charge_incentive": { "name": "Early charge incentive" },
+      "battery_efficiency": { "name": "Efficiency" },
+      "battery_initial_charge_percentage": { "name": "Initial charge" },
+      "battery_max_charge_percentage": { "name": "Max charge" },
+      "battery_max_charge_power": { "name": "Max charge power" },
+      "battery_max_discharge_power": { "name": "Max discharge power" },
+      "battery_min_charge_percentage": { "name": "Min charge" },
+      "battery_overcharge_cost": { "name": "Overcharge cost" },
+      "battery_overcharge_percentage": { "name": "Overcharge percentage" },
+      "battery_undercharge_cost": { "name": "Undercharge cost" },
+      "battery_undercharge_percentage": { "name": "Undercharge percentage" },
+      "connection_efficiency_source_target": { "name": "Source to target efficiency" },
+      "connection_efficiency_target_source": { "name": "Target to source efficiency" },
+      "connection_max_power_source_target": { "name": "Max source to target power" },
+      "connection_max_power_target_source": { "name": "Max target to source power" },
+      "connection_price_source_target": { "name": "Source to target price" },
+      "connection_price_target_source": { "name": "Target to source price" },
+      "grid_export_limit": { "name": "Export limit" },
+      "grid_export_price": { "name": "Export price" },
+      "grid_import_limit": { "name": "Import limit" },
+      "grid_import_price": { "name": "Import price" },
+      "inverter_efficiency_ac_to_dc": { "name": "AC to DC efficiency" },
+      "inverter_efficiency_dc_to_ac": { "name": "DC to AC efficiency" },
+      "inverter_max_power_ac_to_dc": { "name": "Max AC to DC power" },
+      "inverter_max_power_dc_to_ac": { "name": "Max DC to AC power" },
+      "load_forecast": { "name": "Forecast" },
+      "solar_forecast": { "name": "Forecast" },
+      "solar_price_production": { "name": "Production price" }
     },
     "sensor": {
-      "battery_balance_power_down": {
-        "name": "Balance power down"
-      },
-      "battery_balance_power_up": {
-        "name": "Balance power up"
-      },
-      "battery_energy_in_flow": {
-        "name": "Energy in flow shadow price"
-      },
-      "battery_energy_out_flow": {
-        "name": "Energy out flow shadow price"
-      },
-      "battery_energy_stored": {
-        "name": "Energy stored"
-      },
-      "battery_power_active": {
-        "name": "Active power"
-      },
-      "battery_power_balance": {
-        "name": "Power balance shadow price"
-      },
-      "battery_power_charge": {
-        "name": "Charge power"
-      },
-      "battery_power_discharge": {
-        "name": "Discharge power"
-      },
-      "battery_section_energy_in_flow": {
-        "name": "Energy in flow shadow price"
-      },
-      "battery_section_energy_out_flow": {
-        "name": "Energy out flow shadow price"
-      },
-      "battery_section_energy_stored": {
-        "name": "Energy stored"
-      },
-      "battery_section_power_active": {
-        "name": "Active power"
-      },
-      "battery_section_power_balance": {
-        "name": "Power balance shadow price"
-      },
-      "battery_section_power_charge": {
-        "name": "Charge power"
-      },
-      "battery_section_power_discharge": {
-        "name": "Discharge power"
-      },
-      "battery_section_soc_max": {
-        "name": "SOC max shadow price"
-      },
-      "battery_section_soc_min": {
-        "name": "SOC min shadow price"
-      },
-      "battery_soc_max": {
-        "name": "SOC max shadow price"
-      },
-      "battery_soc_min": {
-        "name": "SOC min shadow price"
-      },
-      "battery_state_of_charge": {
-        "name": "State of charge"
-      },
-      "connection_power_active": {
-        "name": "{source} to {target} active power"
-      },
-      "connection_power_source_target": {
-        "name": "{source} to {target} power"
-      },
-      "connection_power_target_source": {
-        "name": "{target} to {source} power"
-      },
-      "connection_shadow_power_max_source_target": {
-        "name": "Max {source} to {target} power shadow price"
-      },
-      "connection_shadow_power_max_target_source": {
-        "name": "Max {target} to {source} power shadow price"
-      },
-      "connection_time_slice": {
-        "name": "Time slice shadow price"
-      },
-      "grid_cost_import": {
-        "name": "Import cost"
-      },
-      "grid_cost_net": {
-        "name": "Net cost"
-      },
-      "grid_power_active": {
-        "name": "Active power"
-      },
-      "grid_power_export": {
-        "name": "Export power"
-      },
-      "grid_power_import": {
-        "name": "Import power"
-      },
-      "grid_power_max_export_price": {
-        "name": "Max export power shadow price"
-      },
-      "grid_power_max_import_price": {
-        "name": "Max import power shadow price"
-      },
-      "grid_revenue_export": {
-        "name": "Export revenue"
-      },
-      "horizon": {
-        "name": "Forecast horizon"
-      },
-      "inverter_dc_bus_power_balance": {
-        "name": "DC bus power balance shadow price"
-      },
-      "inverter_max_power_ac_to_dc_price": {
-        "name": "Max AC to DC power shadow price"
-      },
-      "inverter_max_power_dc_to_ac_price": {
-        "name": "Max DC to AC power shadow price"
-      },
-      "inverter_power_ac_to_dc": {
-        "name": "AC to DC power"
-      },
-      "inverter_power_active": {
-        "name": "Active power"
-      },
-      "inverter_power_dc_to_ac": {
-        "name": "DC to AC power"
-      },
-      "load_forecast_limit_price": {
-        "name": "Forecast limit shadow price"
-      },
-      "load_power": {
-        "name": "Power"
-      },
-      "network_optimization_cost": {
-        "name": "Cost"
-      },
-      "network_optimization_duration": {
-        "name": "Duration"
-      },
-      "network_optimization_status": {
-        "name": "Status"
-      },
-      "node_power_balance": {
-        "name": "Power balance shadow price"
-      },
-      "solar_forecast_limit": {
-        "name": "Forecast limit shadow price"
-      },
-      "solar_power": {
-        "name": "Power"
-      }
+      "battery_balance_power_down": { "name": "Balance power down" },
+      "battery_balance_power_up": { "name": "Balance power up" },
+      "battery_energy_in_flow": { "name": "Energy in flow shadow price" },
+      "battery_energy_out_flow": { "name": "Energy out flow shadow price" },
+      "battery_energy_stored": { "name": "Energy stored" },
+      "battery_power_active": { "name": "Active power" },
+      "battery_power_balance": { "name": "Power balance shadow price" },
+      "battery_power_charge": { "name": "Charge power" },
+      "battery_power_discharge": { "name": "Discharge power" },
+      "battery_section_energy_in_flow": { "name": "Energy in flow shadow price" },
+      "battery_section_energy_out_flow": { "name": "Energy out flow shadow price" },
+      "battery_section_energy_stored": { "name": "Energy stored" },
+      "battery_section_power_active": { "name": "Active power" },
+      "battery_section_power_balance": { "name": "Power balance shadow price" },
+      "battery_section_power_charge": { "name": "Charge power" },
+      "battery_section_power_discharge": { "name": "Discharge power" },
+      "battery_section_soc_max": { "name": "SOC max shadow price" },
+      "battery_section_soc_min": { "name": "SOC min shadow price" },
+      "battery_soc_max": { "name": "SOC max shadow price" },
+      "battery_soc_min": { "name": "SOC min shadow price" },
+      "battery_state_of_charge": { "name": "State of charge" },
+      "connection_power_active": { "name": "{source} to {target} active power" },
+      "connection_power_source_target": { "name": "{source} to {target} power" },
+      "connection_power_target_source": { "name": "{target} to {source} power" },
+      "connection_shadow_power_max_source_target": { "name": "Max {source} to {target} power shadow price" },
+      "connection_shadow_power_max_target_source": { "name": "Max {target} to {source} power shadow price" },
+      "connection_time_slice": { "name": "Time slice shadow price" },
+      "grid_cost_import": { "name": "Import cost" },
+      "grid_cost_net": { "name": "Net cost" },
+      "grid_power_active": { "name": "Active power" },
+      "grid_power_export": { "name": "Export power" },
+      "grid_power_import": { "name": "Import power" },
+      "grid_power_max_export_price": { "name": "Max export power shadow price" },
+      "grid_power_max_import_price": { "name": "Max import power shadow price" },
+      "grid_revenue_export": { "name": "Export revenue" },
+      "horizon": { "name": "Forecast horizon" },
+      "inverter_dc_bus_power_balance": { "name": "DC bus power balance shadow price" },
+      "inverter_max_power_ac_to_dc_price": { "name": "Max AC to DC power shadow price" },
+      "inverter_max_power_dc_to_ac_price": { "name": "Max DC to AC power shadow price" },
+      "inverter_power_ac_to_dc": { "name": "AC to DC power" },
+      "inverter_power_active": { "name": "Active power" },
+      "inverter_power_dc_to_ac": { "name": "DC to AC power" },
+      "load_forecast_limit_price": { "name": "Forecast limit shadow price" },
+      "load_power": { "name": "Power" },
+      "network_optimization_cost": { "name": "Cost" },
+      "network_optimization_duration": { "name": "Duration" },
+      "network_optimization_status": { "name": "Status" },
+      "node_power_balance": { "name": "Power balance shadow price" },
+      "solar_forecast_limit": { "name": "Forecast limit shadow price" },
+      "solar_power": { "name": "Power" }
     },
     "switch": {
-      "node_is_sink": {
-        "name": "Is sink"
-      },
-      "node_is_source": {
-        "name": "Is source"
-      },
-      "solar_curtailment": {
-        "name": "Curtailment"
-      }
+      "node_is_sink": { "name": "Is sink" },
+      "node_is_source": { "name": "Is source" },
+      "solar_curtailment": { "name": "Curtailment" }
     }
   },
   "exceptions": {
-    "config_entry_not_found": {
-      "message": "Config entry {entry_id} not found"
-    },
-    "config_entry_not_loaded": {
-      "message": "Config entry {entry_id} is not loaded (state: {state})"
-    },
-    "config_entry_wrong_domain": {
-      "message": "Config entry {entry_id} is not a HAEO hub (domain: {domain})"
-    },
+    "config_entry_not_found": { "message": "Config entry {entry_id} not found" },
+    "config_entry_not_loaded": { "message": "Config entry {entry_id} is not loaded (state: {state})" },
+    "config_entry_wrong_domain": { "message": "Config entry {entry_id} is not a HAEO hub (domain: {domain})" },
     "input_entities_not_ready": {
       "message": "Input entities not ready after 30 seconds: {not_ready}. Some sensors may not be available yet."
     },
@@ -670,9 +392,7 @@
     "setup_failed_permanent": {
       "message": "Setup failed due to configuration error: {error}. Please check your configuration."
     },
-    "setup_failed_transient": {
-      "message": "Setup failed: {error}. Home Assistant will retry automatically."
-    }
+    "setup_failed_transient": { "message": "Setup failed: {error}. Home Assistant will retry automatically." }
   },
   "issues": {
     "disconnected_network": {
@@ -694,31 +414,14 @@
   },
   "selector": {
     "horizon_preset": {
-      "options": {
-        "2_days": "2 days",
-        "3_days": "3 days",
-        "5_days": "5 days",
-        "7_days": "7 days",
-        "custom": "Custom"
-      }
+      "options": { "2_days": "2 days", "3_days": "3 days", "5_days": "5 days", "7_days": "7 days", "custom": "Custom" }
     },
-    "input_source": {
-      "choices": {
-        "constant": "Constant",
-        "entity": "Entity",
-        "none": "None"
-      }
-    }
+    "input_source": { "choices": { "constant": "Constant", "entity": "Entity", "none": "None" } }
   },
   "services": {
     "save_diagnostics": {
       "description": "Save a diagnostics file to the config directory",
-      "fields": {
-        "config_entry": {
-          "description": "The HAEO system to save diagnostics for",
-          "name": "System"
-        }
-      },
+      "fields": { "config_entry": { "description": "The HAEO system to save diagnostics for", "name": "System" } },
       "name": "Save diagnostics"
     }
   }

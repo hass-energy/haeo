@@ -6,11 +6,7 @@ from typing import Any
 from homeassistant import config_entries
 from homeassistant.config_entries import ConfigFlowResult
 
-from custom_components.haeo.const import (
-    CONF_ADVANCED_MODE,
-    CONF_DEBOUNCE_SECONDS,
-    CONF_HORIZON_PRESET,
-)
+from custom_components.haeo.const import CONF_ADVANCED_MODE, CONF_DEBOUNCE_SECONDS, CONF_HORIZON_PRESET
 
 from . import HORIZON_PRESET_CUSTOM, get_custom_tiers_schema, get_hub_options_schema, get_tier_config
 
