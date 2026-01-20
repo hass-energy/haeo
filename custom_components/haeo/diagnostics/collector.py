@@ -144,7 +144,7 @@ async def collect_diagnostics(
         # Convert to local timezone to ensure offset is included
         timestamp = dt_util.as_local(state_provider.timestamp).isoformat()
     else:
-        timestamp = dt_util.now().isoformat()
+        timestamp = dt_util.as_local(dt_util.now()).isoformat()
 
     # Build environment section
     environment: dict[str, Any] = {
