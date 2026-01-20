@@ -5,7 +5,7 @@ save_diagnostics:
       selector:
         config_entry:
           integration: haeo
-    timestamp:
+    time:
       required: false
       selector:
         datetime:

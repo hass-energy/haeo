@@ -24,7 +24,7 @@ _LOGGER = logging.getLogger(__name__)
 
 SERVICE_SAVE_DIAGNOSTICS = "save_diagnostics"
 ATTR_CONFIG_ENTRY = "config_entry"
-ATTR_TIMESTAMP = "timestamp"
+ATTR_TIMESTAMP = "time"
 
 
 def _format_manifest(manifest: Manifest) -> Manifest:

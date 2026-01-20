@@ -429,7 +429,7 @@
       "fields": {
         "config_entry": { "description": "The HAEO system to save diagnostics for", "name": "System" },
         "time": {
-          "description": "Optional time for historical diagnostics. If omitted, uses current state.",
+          "description": "Optional historial time to generate diagnostics from, uses current state if omitted.",
           "name": "Time"
         }
       },
