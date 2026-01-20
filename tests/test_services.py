@@ -12,7 +12,7 @@ from homeassistant.loader import Manifest
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.haeo import async_setup
+from custom_components.haeo import HaeoRuntimeData, async_setup
 from custom_components.haeo.const import (
     CONF_INTEGRATION_TYPE,
     CONF_NAME,
@@ -451,3 +451,127 @@ async def test_save_diagnostics_historical_missing_entities_raises_error(
     assert "time" in placeholders
     assert "sensor.battery_soc" in placeholders["missing"]
     assert "sensor.grid_price" in placeholders["missing"]
+
+
+# ===== Tests for the optimize service =====
+
+
+async def test_async_setup_registers_optimize_service(hass: HomeAssistant) -> None:
+    """Test that async_setup registers the optimize service."""
+    result = await async_setup(hass, {})
+
+    assert result is True
+    assert hass.services.has_service(DOMAIN, "optimize")
+
+
+async def test_optimize_service_success(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+) -> None:
+    """Test optimize service runs optimization successfully."""
+    await async_setup(hass, {})
+
+    # Mock the entry state as loaded
+    mock_hub_entry._async_set_state(hass, ConfigEntryState.LOADED, None)
+
+    # Create a mock coordinator
+    mock_coordinator = AsyncMock()
+    mock_coordinator.async_run_optimization = AsyncMock()
+
+    mock_hub_entry.runtime_data = HaeoRuntimeData(
+        coordinator=mock_coordinator,
+        horizon_manager=Mock(),
+    )
+
+    # Call the service
+    await hass.services.async_call(
+        DOMAIN,
+        "optimize",
+        {"config_entry": mock_hub_entry.entry_id},
+        blocking=True,
+    )
+
+    # Verify optimization was triggered
+    mock_coordinator.async_run_optimization.assert_called_once()
+
+
+async def test_optimize_service_entry_not_found(hass: HomeAssistant) -> None:
+    """Test optimize raises error when config entry not found."""
+    await async_setup(hass, {})
+
+    with pytest.raises(ServiceValidationError) as exc_info:
+        await hass.services.async_call(
+            DOMAIN,
+            "optimize",
+            {"config_entry": "non_existent_entry"},
+            blocking=True,
+        )
+
+    assert exc_info.value.translation_key == "config_entry_not_found"
+
+
+async def test_optimize_service_wrong_domain(hass: HomeAssistant) -> None:
+    """Test optimize raises error when config entry is not HAEO."""
+    await async_setup(hass, {})
+
+    other_entry = MockConfigEntry(
+        domain="other_integration",
+        data={},
+        entry_id="other_entry_id",
+    )
+    other_entry.add_to_hass(hass)
+
+    with pytest.raises(ServiceValidationError) as exc_info:
+        await hass.services.async_call(
+            DOMAIN,
+            "optimize",
+            {"config_entry": other_entry.entry_id},
+            blocking=True,
+        )
+
+    assert exc_info.value.translation_key == "config_entry_wrong_domain"
+
+
+async def test_optimize_service_entry_not_loaded(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+) -> None:
+    """Test optimize raises error when config entry not loaded."""
+    await async_setup(hass, {})
+
+    mock_hub_entry._async_set_state(hass, ConfigEntryState.NOT_LOADED, None)
+
+    with pytest.raises(ServiceValidationError) as exc_info:
+        await hass.services.async_call(
+            DOMAIN,
+            "optimize",
+            {"config_entry": mock_hub_entry.entry_id},
+            blocking=True,
+        )
+
+    assert exc_info.value.translation_key == "config_entry_not_loaded"
+
+
+async def test_optimize_service_no_coordinator(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+) -> None:
+    """Test optimize raises error when coordinator is not available."""
+    await async_setup(hass, {})
+
+    mock_hub_entry._async_set_state(hass, ConfigEntryState.LOADED, None)
+    # Runtime data with no coordinator
+    mock_hub_entry.runtime_data = HaeoRuntimeData(
+        coordinator=None,
+        horizon_manager=Mock(),
+    )
+
+    with pytest.raises(ServiceValidationError) as exc_info:
+        await hass.services.async_call(
+            DOMAIN,
+            "optimize",
+            {"config_entry": mock_hub_entry.entry_id},
+            blocking=True,
+        )
+
+    assert exc_info.value.translation_key == "config_entry_not_loaded"

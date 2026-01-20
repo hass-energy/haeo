@@ -1230,3 +1230,86 @@ def test_element_update_callback_calls_handle_element_update(
 
     # Verify _handle_element_update was called with correct element name
     handle_mock.assert_called_once_with("Test Battery")
+
+
+# ===== Tests for auto-optimize control =====
+
+
+def test_auto_optimize_enabled_defaults_to_true(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+) -> None:
+    """Auto-optimize is enabled by default."""
+    coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
+    assert coordinator.auto_optimize_enabled is True
+
+
+def test_auto_optimize_enabled_setter(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+) -> None:
+    """Auto-optimize can be disabled and re-enabled."""
+    coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
+
+    coordinator.auto_optimize_enabled = False
+    assert coordinator.auto_optimize_enabled is False
+
+    coordinator.auto_optimize_enabled = True
+    assert coordinator.auto_optimize_enabled is True
+
+
+def test_trigger_optimization_skips_when_auto_optimize_disabled(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+) -> None:
+    """_trigger_optimization does nothing when auto-optimize is disabled."""
+    coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
+    coordinator.auto_optimize_enabled = False
+
+    # Set initial state - _optimization_in_progress False, no pending
+    coordinator._optimization_in_progress = False
+    coordinator._pending_refresh = False
+
+    # Call _trigger_optimization - should return early due to auto_optimize_enabled=False
+    coordinator._trigger_optimization()
+
+    # State should remain unchanged (no pending refresh set, no timers scheduled)
+    assert coordinator._pending_refresh is False
+    assert coordinator._debounce_timer is None
+
+
+@pytest.mark.usefixtures("mock_battery_subentry", "mock_grid_subentry", "mock_runtime_data")
+async def test_async_run_optimization_runs_when_inputs_aligned(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+) -> None:
+    """async_run_optimization runs optimization when inputs are aligned."""
+    coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
+
+    # Mock _are_inputs_aligned to return True
+    with (
+        patch.object(coordinator, "_are_inputs_aligned", return_value=True),
+        patch.object(coordinator, "async_refresh", new_callable=AsyncMock) as refresh_mock,
+    ):
+        await coordinator.async_run_optimization()
+
+    refresh_mock.assert_called_once()
+
+
+@pytest.mark.usefixtures("mock_battery_subentry", "mock_grid_subentry", "mock_runtime_data")
+async def test_async_run_optimization_skips_when_inputs_not_aligned(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+) -> None:
+    """async_run_optimization skips when inputs are not aligned."""
+    coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
+
+    # Mock _are_inputs_aligned to return False
+    with (
+        patch.object(coordinator, "_are_inputs_aligned", return_value=False),
+        patch.object(coordinator, "async_refresh", new_callable=AsyncMock) as refresh_mock,
+    ):
+        await coordinator.async_run_optimization()
+
+    # async_refresh should not be called
+    refresh_mock.assert_not_called()

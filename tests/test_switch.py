@@ -1,16 +1,20 @@
 """Tests for the HAEO switch platform."""
 
 from types import MappingProxyType
-from unittest.mock import Mock
+from unittest.mock import AsyncMock, Mock
 
 from homeassistant.config_entries import ConfigSubentry
-from homeassistant.core import HomeAssistant
+from homeassistant.const import STATE_OFF, STATE_ON
+from homeassistant.core import HomeAssistant, State
+from homeassistant.helpers.device_registry import DeviceEntry
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.haeo import HaeoRuntimeData
 from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME, DOMAIN, ELEMENT_TYPE_NETWORK
+from custom_components.haeo.elements.grid import ELEMENT_TYPE as GRID_TYPE
 from custom_components.haeo.elements.solar import ELEMENT_TYPE as SOLAR_TYPE
+from custom_components.haeo.entities.haeo_auto_optimize_switch import HaeoAutoOptimizeSwitch
 from custom_components.haeo.entities.haeo_number import ConfigEntityMode
 from custom_components.haeo.horizon import HorizonManager
 from custom_components.haeo.switch import async_setup_entry
@@ -75,6 +79,23 @@ def _add_subentry(
     return subentry
 
 
+async def test_setup_raises_error_when_runtime_data_missing(hass: HomeAssistant) -> None:
+    """Setup raises RuntimeError when runtime_data is not set."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        title="Test Network",
+        data={"name": "Test"},
+        entry_id="test_missing_runtime",
+    )
+    entry.add_to_hass(hass)
+    # Explicitly set runtime_data to None
+    entry.runtime_data = None
+
+    async_add_entities = Mock()
+    with pytest.raises(RuntimeError, match="Runtime data not set"):
+        await async_setup_entry(hass, entry, async_add_entities)
+
+
 async def test_setup_skips_network_subentry(
     hass: HomeAssistant,
     config_entry: MockConfigEntry,
@@ -87,6 +108,33 @@ async def test_setup_skips_network_subentry(
 
     # No input switch entities created for network-only config
     # (auto-optimize switch is created separately in __init__.py)
+    async_add_entities.assert_not_called()
+
+
+async def test_setup_skips_element_without_switch_fields(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+) -> None:
+    """Setup skips elements that have no switch fields (like grid)."""
+    _add_subentry(hass, config_entry, ELEMENT_TYPE_NETWORK, "Test Network", {})
+
+    # Add grid element - it has no switch fields
+    _add_subentry(
+        hass,
+        config_entry,
+        GRID_TYPE,
+        "Main Grid",
+        {
+            "connection": "main_bus",
+            "import_price": 0.30,
+            "export_price": 0.05,
+        },
+    )
+
+    async_add_entities = Mock()
+    await async_setup_entry(hass, config_entry, async_add_entities)
+
+    # No switch entities created for grid element (grid has no switch fields)
     async_add_entities.assert_not_called()
 
 
@@ -249,3 +297,160 @@ async def test_setup_with_entity_id_creates_driven_mode_entity(
         curtailment_entities = [e for e in entities if e._field_info.field_name == "allow_curtailment"]
         if curtailment_entities:
             assert curtailment_entities[0]._entity_mode == ConfigEntityMode.DRIVEN
+
+
+# ===== Tests for HaeoAutoOptimizeSwitch =====
+
+
+def _create_mock_coordinator() -> Mock:
+    """Create a mock coordinator for testing."""
+    coordinator = Mock()
+    coordinator.auto_optimize_enabled = True
+    coordinator.async_run_optimization = AsyncMock()
+    return coordinator
+
+
+def _create_mock_device_entry() -> DeviceEntry:
+    """Create a mock device entry for testing."""
+    return DeviceEntry(id="test_device_id")
+
+
+async def test_auto_optimize_switch_turn_on(hass: HomeAssistant) -> None:
+    """Test turning on the auto-optimize switch enables optimization and triggers run."""
+    entry = MockConfigEntry(domain=DOMAIN, entry_id="test_entry")
+    entry.add_to_hass(hass)
+
+    coordinator = _create_mock_coordinator()
+    coordinator.auto_optimize_enabled = False  # Start disabled
+
+    switch = HaeoAutoOptimizeSwitch(
+        hass=hass,
+        config_entry=entry,
+        device_entry=_create_mock_device_entry(),
+        coordinator=coordinator,
+    )
+    # Mock async_write_ha_state to avoid entity registration requirements
+    switch.async_write_ha_state = Mock()  # type: ignore[method-assign]
+
+    # Turn on the switch
+    await switch.async_turn_on()
+
+    # Verify coordinator was updated
+    assert coordinator.auto_optimize_enabled is True
+    assert switch.is_on is True
+    # Verify optimization was triggered
+    coordinator.async_run_optimization.assert_called_once()
+
+
+async def test_auto_optimize_switch_turn_off(hass: HomeAssistant) -> None:
+    """Test turning off the auto-optimize switch disables optimization."""
+    entry = MockConfigEntry(domain=DOMAIN, entry_id="test_entry")
+    entry.add_to_hass(hass)
+
+    coordinator = _create_mock_coordinator()
+    coordinator.auto_optimize_enabled = True  # Start enabled
+
+    switch = HaeoAutoOptimizeSwitch(
+        hass=hass,
+        config_entry=entry,
+        device_entry=_create_mock_device_entry(),
+        coordinator=coordinator,
+    )
+    # Mock async_write_ha_state to avoid entity registration requirements
+    switch.async_write_ha_state = Mock()  # type: ignore[method-assign]
+
+    # Turn off the switch
+    await switch.async_turn_off()
+
+    # Verify coordinator was updated
+    assert coordinator.auto_optimize_enabled is False
+    assert switch.is_on is False
+    # Optimization should not be triggered on turn off
+    coordinator.async_run_optimization.assert_not_called()
+
+
+async def test_auto_optimize_switch_restores_on_state(hass: HomeAssistant) -> None:
+    """Test switch restores ON state from previous session."""
+    entry = MockConfigEntry(domain=DOMAIN, entry_id="test_entry")
+    entry.add_to_hass(hass)
+
+    coordinator = _create_mock_coordinator()
+    coordinator.auto_optimize_enabled = False  # Will be updated by restore
+
+    switch = HaeoAutoOptimizeSwitch(
+        hass=hass,
+        config_entry=entry,
+        device_entry=_create_mock_device_entry(),
+        coordinator=coordinator,
+    )
+
+    # Mock the restore state mechanism
+    async def mock_get_last_state() -> State:
+        return State("switch.test", STATE_ON)
+
+    switch.async_get_last_state = mock_get_last_state  # type: ignore[method-assign]
+
+    # Call async_added_to_hass which triggers state restoration
+    await switch.async_added_to_hass()
+
+    # Verify state was restored to ON
+    assert switch.is_on is True
+    assert coordinator.auto_optimize_enabled is True
+
+
+async def test_auto_optimize_switch_restores_off_state(hass: HomeAssistant) -> None:
+    """Test switch restores OFF state from previous session."""
+    entry = MockConfigEntry(domain=DOMAIN, entry_id="test_entry")
+    entry.add_to_hass(hass)
+
+    coordinator = _create_mock_coordinator()
+    coordinator.auto_optimize_enabled = True  # Will be updated by restore
+
+    switch = HaeoAutoOptimizeSwitch(
+        hass=hass,
+        config_entry=entry,
+        device_entry=_create_mock_device_entry(),
+        coordinator=coordinator,
+    )
+
+    # Mock the restore state mechanism
+    async def mock_get_last_state() -> State:
+        return State("switch.test", STATE_OFF)
+
+    switch.async_get_last_state = mock_get_last_state  # type: ignore[method-assign]
+
+    # Call async_added_to_hass which triggers state restoration
+    await switch.async_added_to_hass()
+
+    # Verify state was restored to OFF
+    assert switch.is_on is False
+    assert coordinator.auto_optimize_enabled is False
+
+
+async def test_auto_optimize_switch_defaults_to_on_without_previous_state(hass: HomeAssistant) -> None:
+    """Test switch defaults to ON when no previous state exists."""
+    entry = MockConfigEntry(domain=DOMAIN, entry_id="test_entry")
+    entry.add_to_hass(hass)
+
+    coordinator = _create_mock_coordinator()
+    coordinator.auto_optimize_enabled = False  # Will be updated to True
+
+    switch = HaeoAutoOptimizeSwitch(
+        hass=hass,
+        config_entry=entry,
+        device_entry=_create_mock_device_entry(),
+        coordinator=coordinator,
+    )
+
+    # Mock the restore state mechanism to return None (no previous state)
+    async def mock_get_last_state() -> None:
+        return None
+
+    switch.async_get_last_state = mock_get_last_state  # type: ignore[method-assign]
+
+    # Call async_added_to_hass which triggers state restoration
+    await switch.async_added_to_hass()
+
+    # Verify state defaults to ON
+    assert switch.is_on is True
+    assert coordinator.auto_optimize_enabled is True
