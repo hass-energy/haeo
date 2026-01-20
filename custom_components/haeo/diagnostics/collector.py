@@ -152,11 +152,8 @@ async def collect_diagnostics(
         "haeo_version": haeo_version,
         "timestamp": timestamp,
         "timezone": str(dt_util.get_default_time_zone()),
+        "historical": state_provider.is_historical,
     }
-
-    # Add historical flag if applicable
-    if state_provider.is_historical:
-        environment["historical"] = True
 
     # Return dict with alphabetically sorted keys
     # This puts config and environment first, then inputs and outputs
