@@ -76,17 +76,14 @@ PricingSegment instances contribute directional energy costs.
 
 ## Outputs
 
-Connection exposes power flow and shadow prices:
+Connection exposes power flow and segment outputs:
 
 - `connection_power_source_target`
 - `connection_power_target_source`
-- `connection_shadow_power_max_source_target` (when a power limit is configured)
-- `connection_shadow_power_max_target_source` (when a power limit is configured)
-- `connection_time_slice` (when both power limits are configured)
 - `segments` (nested map of segment names to constraint shadow outputs)
 
 The `segments` output groups segment outputs using the segment names provided in the configuration.
-Adapters use this map to surface segment-specific shadow prices.
+Adapters use this map to surface segment-specific shadow prices (for example `power_limit.source_target`).
 
 ## When to use
 

@@ -108,12 +108,12 @@ This selective rebuilding (warm start optimization) is more efficient than recon
 
     [:material-arrow-right: Device Layer](../device-layer/index.md)
 
-- :material-scale-balance:{ .lg .middle } **Battery balance connection**
+- :material-scale-balance:{ .lg .middle } **Battery balance segment**
 
     ---
 
     Energy redistribution between battery sections.
 
-    [:material-arrow-right: Balance connection formulation](battery-balance-connection.md)
+    [:material-arrow-right: Balance segment formulation](battery-balance-connection.md)
 
 </div>

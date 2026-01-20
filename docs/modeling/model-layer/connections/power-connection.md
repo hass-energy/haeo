@@ -57,7 +57,7 @@ $$
 
 If `fixed=True`, these become equality constraints (power must equal the limit).
 
-**Shadow prices**: The `connection_shadow_power_max_source_target` and `connection_shadow_power_max_target_source` outputs provide the marginal value of relaxing these constraints.
+**Shadow prices**: The `segments.power_limit.source_target` and `segments.power_limit.target_source` outputs provide the marginal value of relaxing these constraints.
 
 #### Time-slice constraint
 

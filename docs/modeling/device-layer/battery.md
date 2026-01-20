@@ -29,18 +29,18 @@ graph LR
 
 The adapter creates 4-10 model elements depending on configuration:
 
-| Model Element                                                            | Name                                | Parameters From Configuration                                            |
-| ------------------------------------------------------------------------ | ----------------------------------- | ------------------------------------------------------------------------ |
-| [Battery](../model-layer/elements/battery.md)                            | `{name}:undercharge` (optional)     | Capacity: `(min% - undercharge%) * capacity`, initial charge distributed |
-| [Battery](../model-layer/elements/battery.md)                            | `{name}:normal` (always)            | Capacity: `(max% - min%) * capacity`, initial charge distributed         |
-| [Battery](../model-layer/elements/battery.md)                            | `{name}:overcharge` (optional)      | Capacity: `(overcharge% - max%) * capacity`, initial charge distributed  |
-| [Node](node.md)                                                          | `{name}:node`                       | Pure junction (no power generation/consumption)                          |
-| [Connection](../model-layer/connections/connection.md)                   | `{name}:undercharge:to_node`        | Pricing segment for undercharge discharge penalty                        |
-| [Connection](../model-layer/connections/connection.md)                   | `{name}:normal:to_node`             | Pricing segment with neutral costs                                       |
-| [Connection](../model-layer/connections/connection.md)                   | `{name}:overcharge:to_node`         | Pricing segment for overcharge charge penalty                            |
-| [BatteryBalanceConnection](../model-layer/battery-balance-connection.md) | `{name}:balance:undercharge:normal` | Enforces fill ordering between undercharge and normal sections           |
-| [BatteryBalanceConnection](../model-layer/battery-balance-connection.md) | `{name}:balance:normal:overcharge`  | Enforces fill ordering between normal and overcharge sections            |
-| [Connection](../model-layer/connections/connection.md)                   | `{name}:connection`                 | Efficiency, power-limit, and pricing segments                            |
+| Model Element                                          | Name                                | Parameters From Configuration                                            |
+| ------------------------------------------------------ | ----------------------------------- | ------------------------------------------------------------------------ |
+| [Battery](../model-layer/elements/battery.md)          | `{name}:undercharge` (optional)     | Capacity: `(min% - undercharge%) * capacity`, initial charge distributed |
+| [Battery](../model-layer/elements/battery.md)          | `{name}:normal` (always)            | Capacity: `(max% - min%) * capacity`, initial charge distributed         |
+| [Battery](../model-layer/elements/battery.md)          | `{name}:overcharge` (optional)      | Capacity: `(overcharge% - max%) * capacity`, initial charge distributed  |
+| [Node](node.md)                                        | `{name}:node`                       | Pure junction (no power generation/consumption)                          |
+| [Connection](../model-layer/connections/connection.md) | `{name}:undercharge:to_node`        | Pricing segment for undercharge discharge penalty                        |
+| [Connection](../model-layer/connections/connection.md) | `{name}:normal:to_node`             | Pricing segment with neutral costs                                       |
+| [Connection](../model-layer/connections/connection.md) | `{name}:overcharge:to_node`         | Pricing segment for overcharge charge penalty                            |
+| [Connection](../model-layer/connections/connection.md) | `{name}:balance:undercharge:normal` | Battery balance segment for undercharge/normal ordering                  |
+| [Connection](../model-layer/connections/connection.md) | `{name}:balance:normal:overcharge`  | Battery balance segment for normal/overcharge ordering                   |
+| [Connection](../model-layer/connections/connection.md) | `{name}:connection`                 | Efficiency, power-limit, and pricing segments                            |
 
 ## Architecture Details
 
@@ -71,7 +71,7 @@ Initial charge is distributed bottom-up across sections:
 
 ### Constraint-Based Section Ordering
 
-[BatteryBalanceConnection](../model-layer/battery-balance-connection.md) elements enforce fill ordering between adjacent battery sections via LP constraints:
+[Battery balance segment](../model-layer/battery-balance-connection.md) enforces fill ordering between adjacent battery sections via LP constraints:
 
 **Charging order** (enforced by constraints):
 
@@ -138,7 +138,7 @@ The adapter transforms user configuration into connection segments:
 | `max_charge_power`          | Power-limit segment | `max_power_target_source`                              | Network to battery                 |
 | `max_discharge_power`       | Power-limit segment | `max_power_source_target`                              | Battery to network                 |
 | `discharge_cost`            | Pricing segment     | Added to `price_source_target`                         | Added to early discharge incentive |
-| (automatic)                 | Balance connections | `capacity_lower` from section capacity                 | Enforces section fill ordering     |
+| (automatic)                 | Balance segments    | `capacity_lower` from section capacity                 | Enforces section fill ordering     |
 
 ## Output Mapping
 
@@ -156,20 +156,20 @@ The adapter aggregates model outputs to user-friendly sensor names:
 
 **Section device outputs** (undercharge, normal, overcharge):
 
-| Model Output(s)                         | Sensor Name          | Description                          |
-| --------------------------------------- | -------------------- | ------------------------------------ |
-| Section `BATTERY_ENERGY_STORED`         | `energy_stored`      | Energy stored in this section        |
-| Section `BATTERY_POWER_CHARGE`          | `power_charge`       | Charge power in this section         |
-| Section `BATTERY_POWER_DISCHARGE`       | `power_discharge`    | Discharge power in this section      |
-| Section `BATTERY_ENERGY_IN_FLOW`        | `energy_in_flow`     | Energy in flow shadow price          |
-| Section `BATTERY_ENERGY_OUT_FLOW`       | `energy_out_flow`    | Energy out flow shadow price         |
-| Section `BATTERY_SOC_MAX`               | `soc_max`            | SOC max shadow price                 |
-| Section `BATTERY_SOC_MIN`               | `soc_min`            | SOC min shadow price                 |
-| Balance connection `BALANCE_POWER_DOWN` | `balance_power_down` | Power flowing down into this section |
-| Balance connection `BALANCE_POWER_UP`   | `balance_power_up`   | Power flowing up out of this section |
+| Model Output(s)                      | Sensor Name          | Description                          |
+| ------------------------------------ | -------------------- | ------------------------------------ |
+| Section `BATTERY_ENERGY_STORED`      | `energy_stored`      | Energy stored in this section        |
+| Section `BATTERY_POWER_CHARGE`       | `power_charge`       | Charge power in this section         |
+| Section `BATTERY_POWER_DISCHARGE`    | `power_discharge`    | Discharge power in this section      |
+| Section `BATTERY_ENERGY_IN_FLOW`     | `energy_in_flow`     | Energy in flow shadow price          |
+| Section `BATTERY_ENERGY_OUT_FLOW`    | `energy_out_flow`    | Energy out flow shadow price         |
+| Section `BATTERY_SOC_MAX`            | `soc_max`            | SOC max shadow price                 |
+| Section `BATTERY_SOC_MIN`            | `soc_min`            | SOC min shadow price                 |
+| Balance segment `BALANCE_POWER_DOWN` | `balance_power_down` | Power flowing down into this section |
+| Balance segment `BALANCE_POWER_UP`   | `balance_power_up`   | Power flowing up out of this section |
 
-The `balance_power_down` and `balance_power_up` sensors show power flowing through balance connections with adjacent sections.
-Each section accumulates power from all adjacent balance connections (sections can have connections both above and below).
+The `balance_power_down` and `balance_power_up` sensors show power flowing through balance segments with adjacent sections.
+Each section accumulates power from all adjacent balance segments (sections can have connections both above and below).
 These sensors are useful for diagnosing section rebalancing when capacity changes occur.
 
 See [Battery Configuration](../../user-guide/elements/battery.md#sensors-created) for complete sensor documentation.
@@ -238,13 +238,13 @@ See [Battery Configuration](../../user-guide/elements/battery.md#sensors-created
 
     [:material-arrow-right: Connection formulation](../model-layer/connections/connection.md)
 
-- :material-scale-balance:{ .lg .middle } **Balance connection**
+- :material-scale-balance:{ .lg .middle } **Balance segment**
 
     ---
 
     How section fill ordering is enforced.
 
-    [:material-arrow-right: BatteryBalanceConnection](../model-layer/battery-balance-connection.md)
+    [:material-arrow-right: Battery balance segment](../model-layer/battery-balance-connection.md)
 
 - :material-circle-outline:{ .lg .middle } **Node model**
 

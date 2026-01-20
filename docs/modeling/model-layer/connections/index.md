@@ -6,12 +6,12 @@ They define how power moves through the network and apply constraints, efficienc
 ## Connection composition
 
 HAEO uses a single Connection class that composes segment building blocks.
-BatteryBalanceConnection extends Connection for battery-specific balance constraints.
+Battery balance is modeled by a dedicated segment inside a Connection.
 
 ```mermaid
 classDiagram
-    Connection <|-- BatteryBalanceConnection
     Connection *-- Segment
+    Segment <|-- BatteryBalanceSegment
     Segment <|-- EfficiencySegment
     Segment <|-- PowerLimitSegment
     Segment <|-- PricingSegment
@@ -24,12 +24,13 @@ classDiagram
 Composable bidirectional connection with ordered segments.
 Use segments to apply limits, efficiency losses, and pricing.
 
-**BatteryBalanceConnection**:
+**Battery balance segment**:
 Specialized energy redistribution between battery sections.
 Used internally by the Battery device to enforce SOC ordering.
 
 ## Segment types
 
+- **BatteryBalanceSegment** enforces ordering between battery sections.
 - **EfficiencySegment** applies direction-specific efficiency multipliers.
 - **PowerLimitSegment** enforces directional limits and time-slice coupling.
 - **PricingSegment** adds directional cost terms to the objective.
@@ -70,13 +71,13 @@ This separation allows the same element types to be connected in different ways 
 
     [:material-arrow-right: Connection formulation](connection.md)
 
-- :material-battery-charging:{ .lg .middle } **Battery balance connection**
+- :material-battery-charging:{ .lg .middle } **Battery balance segment**
 
     ---
 
     Battery-specific redistribution constraints.
 
-    [:material-arrow-right: Battery balance connection](../battery-balance-connection.md)
+    [:material-arrow-right: Battery balance segment](../battery-balance-connection.md)
 
 - :material-battery-charging:{ .lg .middle } **Elements**
 
