@@ -1,5 +1,6 @@
 """Core diagnostics collection logic."""
 
+from dataclasses import dataclass
 from typing import Any
 
 from homeassistant.const import __version__ as ha_version
@@ -27,6 +28,17 @@ from custom_components.haeo.sensor_utils import get_output_sensors
 from .state_provider import StateProvider
 
 
+@dataclass
+class DiagnosticsResult:
+    """Result of collecting diagnostics."""
+
+    data: dict[str, Any]
+    """The diagnostics data to be saved."""
+
+    missing_entity_ids: list[str]
+    """Entity IDs that were expected but not found in state provider."""
+
+
 def _extract_entity_ids_from_config(config: ElementConfigSchema) -> set[str]:
     """Extract entity IDs from element configuration.
 
@@ -51,7 +63,7 @@ async def collect_diagnostics(
     hass: HomeAssistant,
     config_entry: HaeoConfigEntry,
     state_provider: StateProvider,
-) -> dict[str, Any]:
+) -> DiagnosticsResult:
     """Collect diagnostics using the provided state provider.
 
     Returns a dict with four main keys:
@@ -124,6 +136,9 @@ async def collect_diagnostics(
     # Get states using the provider (current or historical)
     entity_states = await state_provider.get_states(sorted(all_entity_ids))
 
+    # Calculate which entities were expected but not found
+    missing_entity_ids = sorted(all_entity_ids - set(entity_states.keys()))
+
     # Extract input states as dicts
     inputs: list[dict[str, Any]] = [
         state.as_dict() for entity_id in sorted(all_entity_ids) if (state := entity_states.get(entity_id)) is not None
@@ -153,14 +168,16 @@ async def collect_diagnostics(
     if state_provider.is_historical:
         environment["historical"] = True
 
-    # Return dict with alphabetically sorted keys
-    # This puts config and environment first, then inputs and outputs
-    return {
-        "config": config,
-        "environment": environment,
-        "inputs": inputs,
-        "outputs": outputs,
-    }
+    # Return result with data and missing entity info
+    return DiagnosticsResult(
+        data={
+            "config": config,
+            "environment": environment,
+            "inputs": inputs,
+            "outputs": outputs,
+        },
+        missing_entity_ids=missing_entity_ids,
+    )
 
 
-__all__ = ["collect_diagnostics"]
+__all__ = ["DiagnosticsResult", "collect_diagnostics"]

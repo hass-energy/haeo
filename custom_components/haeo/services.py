@@ -122,7 +122,18 @@ async def async_setup_services(hass: HomeAssistant) -> None:
             state_provider = CurrentStateProvider(hass)
 
         # Get diagnostics data using the appropriate provider
-        diagnostics_data = await collect_diagnostics(hass, entry, state_provider)
+        result = await collect_diagnostics(hass, entry, state_provider)
+
+        # Validate that historical queries returned all expected data
+        if target_timestamp is not None and result.missing_entity_ids:
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="no_history_at_timestamp",
+                translation_placeholders={
+                    "timestamp": target_timestamp.isoformat(),
+                    "missing": ", ".join(result.missing_entity_ids),
+                },
+            )
 
         # Generate filename with timestamp (microseconds for uniqueness)
         file_timestamp = (state_provider.timestamp or dt_util.now()).strftime("%Y-%m-%d_%H%M%S.%f")
@@ -130,7 +141,7 @@ async def async_setup_services(hass: HomeAssistant) -> None:
         filepath = Path(hass.config.path("haeo", "diagnostics", filename))
 
         # Build full diagnostics payload matching Home Assistant's format
-        output = await _build_diagnostics_payload(hass, diagnostics_data)
+        output = await _build_diagnostics_payload(hass, result.data)
 
         # Write to file (in executor to avoid blocking)
         def write_diagnostics() -> None:

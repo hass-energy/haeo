@@ -6,7 +6,7 @@ from homeassistant.core import HomeAssistant
 
 from custom_components.haeo import HaeoConfigEntry
 
-from .collector import collect_diagnostics
+from .collector import DiagnosticsResult, collect_diagnostics
 from .historical_state_provider import HistoricalStateProvider
 from .state_provider import CurrentStateProvider, StateProvider
 
@@ -20,11 +20,13 @@ async def async_get_config_entry_diagnostics(
     This is the Home Assistant entry point for diagnostics.
     It delegates to collect_diagnostics with a CurrentStateProvider.
     """
-    return await collect_diagnostics(hass, config_entry, CurrentStateProvider(hass))
+    result = await collect_diagnostics(hass, config_entry, CurrentStateProvider(hass))
+    return result.data
 
 
 __all__ = [
     "CurrentStateProvider",
+    "DiagnosticsResult",
     "HistoricalStateProvider",
     "StateProvider",
     "async_get_config_entry_diagnostics",
