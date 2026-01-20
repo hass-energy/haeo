@@ -974,7 +974,7 @@ async def test_editable_mode_with_boundaries_field(
     values = entity.get_values()
     assert values is not None
     assert len(values) == 3  # All 3 boundary timestamps
-    assert all(v == 50.0 for v in values)
+    assert all(v == 0.5 for v in values)
 
 
 async def test_async_load_data_with_boundaries_field(
@@ -1011,7 +1011,7 @@ async def test_async_load_data_with_boundaries_field(
     # Should have 3 values
     assert entity.native_value == 10.0
     values = entity.get_values()
-    assert values == (10.0, 20.0, 30.0)
+    assert values == (0.1, 0.2, 0.3)
 
 
 async def test_entity_mode_property(
