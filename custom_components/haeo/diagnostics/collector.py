@@ -138,13 +138,9 @@ async def collect_diagnostics(
     integration = await async_get_integration(hass, config_entry.domain)
     haeo_version = integration.version or "unknown"
 
-    # Determine timestamp for environment section
-    # Ensure timestamp always includes timezone offset for unambiguous parsing
-    if state_provider.is_historical and state_provider.timestamp is not None:
-        # Convert to local timezone to ensure offset is included
-        timestamp = dt_util.as_local(state_provider.timestamp).isoformat()
-    else:
-        timestamp = dt_util.as_local(dt_util.now()).isoformat()
+    # Use provider's timestamp if available, otherwise current time
+    # Convert to local timezone to ensure offset is included for unambiguous parsing
+    timestamp = dt_util.as_local(state_provider.timestamp or dt_util.now()).isoformat()
 
     # Build environment section
     environment: dict[str, Any] = {
