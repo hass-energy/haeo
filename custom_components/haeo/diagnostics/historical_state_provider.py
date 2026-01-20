@@ -4,9 +4,9 @@ from collections.abc import Iterable
 from datetime import datetime, timedelta
 from typing import Any, cast
 
-from homeassistant.components.recorder import get_instance as get_recorder_instance
 from homeassistant.components.recorder import history as recorder_history
 from homeassistant.core import HomeAssistant, State
+from homeassistant.helpers.recorder import get_instance as get_recorder_instance
 
 
 class HistoricalStateProvider:
