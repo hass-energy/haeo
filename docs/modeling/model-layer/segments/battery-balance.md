@@ -1,18 +1,18 @@
-# Battery Balance Segment
+# Battery balance segment
 
 The `BatteryBalanceSegment` models lossless energy redistribution between adjacent battery sections within a multi-section battery.
-It enforces fill ordering (lower sections fill before upper) and handles capacity changes through bidirectional power flow.
+It enforces fill ordering and handles capacity changes through bidirectional power flow.
 
 ## Purpose
 
 Multi-section batteries in HAEO separate usable capacity into lower and upper sections.
 The lower section should fill before the upper section to maximize value from limited cycling capacity.
-When capacity changes (e.g., due to reserve adjustments), energy may need to redistribute between sections.
+When capacity changes (for example, due to reserve adjustments), energy may need to redistribute between sections.
 
 The balance segment handles two scenarios:
 
-1. **Downward flow**: Energy moves from upper to lower when there is room in the lower section
-2. **Upward flow**: Energy moves from lower to upper when capacity shrinks below current stored energy
+1. **Downward flow**: Energy moves from upper to lower when there is room in the lower section.
+2. **Upward flow**: Energy moves from lower to upper when capacity shrinks below current stored energy.
 
 ## Model formulation
 
@@ -93,7 +93,7 @@ By requiring downward flow to fill lower section capacity, the model ensures low
 This maximizes value from limited cycling capacity.
 
 **Capacity tracking**:
-When battery reserve changes (e.g., user increases reserve during a storm), capacity may shrink.
+When battery reserve changes (for example, a user increases reserve during a storm), capacity may shrink.
 Upward flow handles energy that must vacate the lower section.
 
 ## Slack penalty selection
@@ -111,15 +111,15 @@ It must exceed any reasonable energy price to ensure the LP solver minimizes sla
 
     Multi-section battery formulation and SOC tracking.
 
-    [:material-arrow-right: Battery formulation](elements/battery.md)
+    [:material-arrow-right: Battery formulation](../elements/battery.md)
 
-- :material-connection:{ .lg .middle } **Power connection**
+- :material-layers:{ .lg .middle } **Segments**
 
     ---
 
-    Standard bidirectional power flow connections.
+    Browse all connection segment types.
 
-    [:material-arrow-right: Connection formulation](connections/index.md)
+    [:material-arrow-right: Segment index](index.md)
 
 - :material-code-braces:{ .lg .middle } **Implementation**
 

@@ -16,10 +16,11 @@ The mapping keys become segment names and drive the nested `segments` output.
 
 ## Segment types
 
-- **EfficiencySegment** applies direction-specific efficiency multipliers.
-- **PowerLimitSegment** enforces directional limits and the time-slice coupling constraint.
-- **PricingSegment** adds directional cost terms to the objective.
-- **PassthroughSegment** forwards flow without constraints or cost.
+- **[Battery balance segment](../segments/battery-balance.md)** enforces ordering between battery sections.
+- **[Efficiency segment](../segments/efficiency.md)** applies direction-specific efficiency multipliers.
+- **[Power limit segment](../segments/power-limit.md)** enforces directional limits and time-slice coupling.
+- **[Pricing segment](../segments/pricing.md)** adds directional cost terms to the objective.
+- **[Passthrough segment](../segments/passthrough.md)** forwards flow without constraints or cost.
 
 ## Model formulation
 
@@ -94,13 +95,13 @@ Select the segment chain that matches the physical behavior you need.
 
 <div class="grid cards" markdown>
 
-- :material-connection:{ .lg .middle } **Connection profile**
+- :material-layers:{ .lg .middle } **Segments**
 
     ---
 
-    Limits, efficiency, and pricing segments.
+    Segment catalog and formulations.
 
-    [:material-arrow-right: PowerConnection profile](power-connection.md)
+    [:material-arrow-right: Segment index](../segments/index.md)
 
 - :material-battery-charging:{ .lg .middle } **Elements**
 

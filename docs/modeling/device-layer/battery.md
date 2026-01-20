@@ -71,7 +71,7 @@ Initial charge is distributed bottom-up across sections:
 
 ### Constraint-Based Section Ordering
 
-[Battery balance segment](../model-layer/battery-balance-connection.md) enforces fill ordering between adjacent battery sections via LP constraints:
+[Battery balance segment](../model-layer/segments/battery-balance.md) enforces fill ordering between adjacent battery sections via LP constraints:
 
 **Charging order** (enforced by constraints):
 
@@ -244,7 +244,7 @@ See [Battery Configuration](../../user-guide/elements/battery.md#sensors-created
 
     How section fill ordering is enforced.
 
-    [:material-arrow-right: Battery balance segment](../model-layer/battery-balance-connection.md)
+    [:material-arrow-right: Battery balance segment](../model-layer/segments/battery-balance.md)
 
 - :material-circle-outline:{ .lg .middle } **Node model**
 

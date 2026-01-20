@@ -6,7 +6,14 @@ They define how power moves through the network and apply constraints, efficienc
 ## Connection composition
 
 HAEO uses a single Connection class that composes segment building blocks.
-Battery balance is modeled by a dedicated segment inside a Connection.
+Connections define an ordered segment chain that transforms power as it moves between elements.
+
+Composition rules:
+
+- Segment configuration is an ordered mapping; keys become segment names.
+- The segment chain is linked by equality constraints between adjacent segments.
+- Segment outputs are grouped under the `segments` output using the configured names.
+- A passthrough segment is created when no segments are provided.
 
 ```mermaid
 classDiagram
@@ -18,23 +25,19 @@ classDiagram
     Segment <|-- PassthroughSegment
 ```
 
-## Connection types
+## Connection type
 
 **[Connection](connection.md)**:
 Composable bidirectional connection with ordered segments.
-Use segments to apply limits, efficiency losses, and pricing.
-
-**Battery balance segment**:
-Specialized energy redistribution between battery sections.
-Used internally by the Battery device to enforce SOC ordering.
+Use segments to apply limits, efficiency losses, pricing, or internal balancing.
 
 ## Segment types
 
-- **BatteryBalanceSegment** enforces ordering between battery sections.
-- **EfficiencySegment** applies direction-specific efficiency multipliers.
-- **PowerLimitSegment** enforces directional limits and time-slice coupling.
-- **PricingSegment** adds directional cost terms to the objective.
-- **PassthroughSegment** provides lossless flow with no constraints.
+- **[Battery balance segment](../segments/battery-balance.md)** enforces ordering between battery sections.
+- **[Efficiency segment](../segments/efficiency.md)** applies direction-specific efficiency multipliers.
+- **[Power limit segment](../segments/power-limit.md)** enforces directional limits and time-slice coupling.
+- **[Pricing segment](../segments/pricing.md)** adds directional cost terms to the objective.
+- **[Passthrough segment](../segments/passthrough.md)** provides lossless flow with no constraints.
 
 ## Common interface
 
@@ -71,13 +74,13 @@ This separation allows the same element types to be connected in different ways 
 
     [:material-arrow-right: Connection formulation](connection.md)
 
-- :material-battery-charging:{ .lg .middle } **Battery balance segment**
+- :material-layers:{ .lg .middle } **Segments**
 
     ---
 
-    Battery-specific redistribution constraints.
+    Segment catalog and formulations.
 
-    [:material-arrow-right: Battery balance segment](../battery-balance-connection.md)
+    [:material-arrow-right: Segment index](../segments/index.md)
 
 - :material-battery-charging:{ .lg .middle } **Elements**
 
