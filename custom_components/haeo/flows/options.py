@@ -10,7 +10,6 @@ from custom_components.haeo.const import (
     CONF_ADVANCED_MODE,
     CONF_DEBOUNCE_SECONDS,
     CONF_HORIZON_PRESET,
-    CONF_UPDATE_INTERVAL_MINUTES,
 )
 
 from . import HORIZON_PRESET_CUSTOM, get_custom_tiers_schema, get_hub_options_schema, get_tier_config
@@ -63,7 +62,6 @@ class HubOptionsFlow(config_entries.OptionsFlow):
             **self.config_entry.data,
             CONF_HORIZON_PRESET: stored_preset,
             **tier_config,
-            CONF_UPDATE_INTERVAL_MINUTES: self._user_input[CONF_UPDATE_INTERVAL_MINUTES],
             CONF_DEBOUNCE_SECONDS: self._user_input[CONF_DEBOUNCE_SECONDS],
             CONF_ADVANCED_MODE: self._user_input[CONF_ADVANCED_MODE],
         }

@@ -21,7 +21,6 @@ from custom_components.haeo.const import (
     CONF_TIER_3_DURATION,
     CONF_TIER_4_COUNT,
     CONF_TIER_4_DURATION,
-    CONF_UPDATE_INTERVAL_MINUTES,
     DEFAULT_DEBOUNCE_SECONDS,
     DEFAULT_TIER_1_COUNT,
     DEFAULT_TIER_1_DURATION,
@@ -31,7 +30,6 @@ from custom_components.haeo.const import (
     DEFAULT_TIER_3_DURATION,
     DEFAULT_TIER_4_COUNT,
     DEFAULT_TIER_4_DURATION,
-    DEFAULT_UPDATE_INTERVAL_MINUTES,
     DOMAIN,
     INTEGRATION_TYPE_HUB,
 )
@@ -156,8 +154,7 @@ async def test_user_flow_custom_tiers_creates_entry(hass: HomeAssistant) -> None
     assert data[CONF_TIER_1_COUNT] == 10
     assert data[CONF_TIER_1_DURATION] == 2
     assert data[CONF_TIER_4_COUNT] == custom_tier_4_count
-    # Verify defaults were used for update interval and debounce (they're hidden during add)
-    assert data[CONF_UPDATE_INTERVAL_MINUTES] == DEFAULT_UPDATE_INTERVAL_MINUTES
+    # Verify default debounce was used (hidden during add)
     assert data[CONF_DEBOUNCE_SECONDS] == DEFAULT_DEBOUNCE_SECONDS
 
 

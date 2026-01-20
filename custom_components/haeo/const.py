@@ -16,7 +16,6 @@ INTEGRATION_TYPE_HUB: Final = "hub"
 CONF_NAME: Final = "name"
 CONF_INTEGRATION_TYPE: Final = "integration_type"
 CONF_ELEMENT_TYPE: Final = "element_type"
-CONF_UPDATE_INTERVAL_MINUTES: Final = "update_interval_minutes"
 CONF_DEBOUNCE_SECONDS: Final = "debounce_seconds"
 CONF_HORIZON_PRESET: Final = "horizon_preset"
 CONF_ADVANCED_MODE: Final = "advanced_mode"
@@ -50,7 +49,6 @@ DEFAULT_TIER_4_COUNT: Final = 48
 DEFAULT_TIER_4_DURATION: Final = 60
 
 # Other defaults
-DEFAULT_UPDATE_INTERVAL_MINUTES: Final = 5  # 5 minutes default
 DEFAULT_DEBOUNCE_SECONDS: Final = 2  # 2 seconds debounce window
 
 # Optimization statuses

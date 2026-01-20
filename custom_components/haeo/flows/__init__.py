@@ -27,7 +27,6 @@ from custom_components.haeo.const import (
     CONF_TIER_3_DURATION,
     CONF_TIER_4_COUNT,
     CONF_TIER_4_DURATION,
-    CONF_UPDATE_INTERVAL_MINUTES,
     DEFAULT_DEBOUNCE_SECONDS,
     DEFAULT_TIER_1_COUNT,
     DEFAULT_TIER_1_DURATION,
@@ -37,7 +36,6 @@ from custom_components.haeo.const import (
     DEFAULT_TIER_3_DURATION,
     DEFAULT_TIER_4_COUNT,
     DEFAULT_TIER_4_DURATION,
-    DEFAULT_UPDATE_INTERVAL_MINUTES,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -130,7 +128,6 @@ def get_hub_setup_schema(suggested_name: str | None = None) -> vol.Schema:
 
     Returns:
         Voluptuous schema with name, horizon preset, and basic settings.
-        Update interval and debounce settings are hidden during add and use defaults.
 
     """
     name_key = (
@@ -272,15 +269,6 @@ def get_hub_options_schema(config_entry: ConfigEntry) -> vol.Schema:
                     mode=SelectSelectorMode.DROPDOWN,
                     translation_key="horizon_preset",
                 )
-            ),
-            vol.Required(
-                CONF_UPDATE_INTERVAL_MINUTES,
-                default=config_entry.data.get(CONF_UPDATE_INTERVAL_MINUTES, DEFAULT_UPDATE_INTERVAL_MINUTES),
-            ): vol.All(
-                NumberSelector(
-                    NumberSelectorConfig(min=1, max=120, step=1, mode=NumberSelectorMode.BOX),
-                ),
-                vol.Coerce(int),
             ),
             vol.Required(
                 CONF_DEBOUNCE_SECONDS,

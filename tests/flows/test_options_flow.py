@@ -19,7 +19,6 @@ from custom_components.haeo.const import (
     CONF_TIER_3_DURATION,
     CONF_TIER_4_COUNT,
     CONF_TIER_4_DURATION,
-    CONF_UPDATE_INTERVAL_MINUTES,
     DEFAULT_DEBOUNCE_SECONDS,
     DEFAULT_TIER_1_COUNT,
     DEFAULT_TIER_1_DURATION,
@@ -29,7 +28,6 @@ from custom_components.haeo.const import (
     DEFAULT_TIER_3_DURATION,
     DEFAULT_TIER_4_COUNT,
     DEFAULT_TIER_4_DURATION,
-    DEFAULT_UPDATE_INTERVAL_MINUTES,
     DOMAIN,
     INTEGRATION_TYPE_HUB,
 )
@@ -59,7 +57,6 @@ async def test_options_flow_init(hass: HomeAssistant) -> None:
             CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
             CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
             CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
-            CONF_UPDATE_INTERVAL_MINUTES: DEFAULT_UPDATE_INTERVAL_MINUTES,
             CONF_DEBOUNCE_SECONDS: DEFAULT_DEBOUNCE_SECONDS,
         },
     )
@@ -93,7 +90,6 @@ async def test_options_flow_select_preset(hass: HomeAssistant) -> None:
             CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
             CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
             CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
-            CONF_UPDATE_INTERVAL_MINUTES: DEFAULT_UPDATE_INTERVAL_MINUTES,
             CONF_DEBOUNCE_SECONDS: DEFAULT_DEBOUNCE_SECONDS,
         },
     )
@@ -109,7 +105,6 @@ async def test_options_flow_select_preset(hass: HomeAssistant) -> None:
             result["flow_id"],
             user_input={
                 CONF_HORIZON_PRESET: HORIZON_PRESET_3_DAYS,
-                CONF_UPDATE_INTERVAL_MINUTES: DEFAULT_UPDATE_INTERVAL_MINUTES,
                 CONF_DEBOUNCE_SECONDS: DEFAULT_DEBOUNCE_SECONDS,
             },
         ),
@@ -139,7 +134,6 @@ async def test_options_flow_custom_tiers(hass: HomeAssistant) -> None:
             CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
             CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
             CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
-            CONF_UPDATE_INTERVAL_MINUTES: DEFAULT_UPDATE_INTERVAL_MINUTES,
             CONF_DEBOUNCE_SECONDS: DEFAULT_DEBOUNCE_SECONDS,
         },
     )
@@ -155,7 +149,6 @@ async def test_options_flow_custom_tiers(hass: HomeAssistant) -> None:
             result["flow_id"],
             user_input={
                 CONF_HORIZON_PRESET: HORIZON_PRESET_CUSTOM,
-                CONF_UPDATE_INTERVAL_MINUTES: DEFAULT_UPDATE_INTERVAL_MINUTES,
                 CONF_DEBOUNCE_SECONDS: DEFAULT_DEBOUNCE_SECONDS,
             },
         ),
