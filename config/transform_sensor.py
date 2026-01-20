@@ -126,7 +126,7 @@ def _parse_forecast_times(forecasts: ForecastList) -> list[tuple[datetime, JSOND
     """
     forecast_times = []
     for forecast in forecasts:
-        start_time_str = forecast.get("start_time") or forecast.get("nem_date")
+        start_time_str = forecast.get("nem_date") or forecast.get("start_time")
         if not start_time_str:
             continue
 
@@ -151,16 +151,16 @@ def _find_closest_time_of_day_index(forecast_times: list[tuple[datetime, JSONDic
         Index of forecast with closest matching time-of-day
 
     """
-    now_time_of_day = now.time()
-    now_minutes = now_time_of_day.hour * 60 + now_time_of_day.minute
+    if not forecast_times:
+        return 0
 
+    seconds_per_day = 86400
     closest_idx = 0
     min_time_diff = float("inf")
 
     for i, (ts, _) in enumerate(forecast_times):
-        forecast_time_of_day = ts.time()
-        forecast_minutes = forecast_time_of_day.hour * 60 + forecast_time_of_day.minute
-        time_diff = abs(now_minutes - forecast_minutes)
+        diff_seconds = (now - ts).total_seconds() % seconds_per_day
+        time_diff = min(diff_seconds, seconds_per_day - diff_seconds)
 
         if time_diff < min_time_diff:
             min_time_diff = time_diff
@@ -238,7 +238,7 @@ def wrap_forecasts(data: JSONDict) -> JSONDict:
         logger.debug("Empty forecasts list")
         return data
 
-    now = datetime.now(UTC)
+    now = datetime.now(UTC).replace(second=0, microsecond=0, minute=0)
     forecast_times = _parse_forecast_times(forecasts)
 
     if not forecast_times:
@@ -259,16 +259,10 @@ def wrap_forecasts(data: JSONDict) -> JSONDict:
     window_forecasts = []
     for i in range(len(forecast_times)):
         idx = (closest_idx + i) % len(forecast_times)
-        original_time, forecast = forecast_times[idx]
-
-        # Calculate position offset within original array
-        position_offset = timedelta(seconds=(original_time - first_forecast_time).total_seconds())
+        _, forecast = forecast_times[idx]
 
         # Add wrap duration if we've wrapped around
-        if idx < closest_idx:
-            adjusted_delta = base_time_delta + wrap_duration + position_offset
-        else:
-            adjusted_delta = base_time_delta + position_offset
+        adjusted_delta = base_time_delta + wrap_duration if idx < closest_idx else base_time_delta
 
         transformed_forecast = _transform_forecast_timestamps(forecast, adjusted_delta)
         window_forecasts.append(transformed_forecast)

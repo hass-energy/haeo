@@ -6,6 +6,7 @@ created early in the setup process before any platforms are loaded.
 
 The HorizonManager:
 - Computes forecast timestamps based on tier configuration
+- Uses dynamic time alignment when a preset is selected
 - Schedules updates at period boundaries
 - Provides callbacks for dependent components to subscribe to horizon changes
 """
@@ -60,6 +61,7 @@ class HorizonManager:
 
     def _update_timestamps(self) -> None:
         """Update the cached forecast timestamps."""
+        self._periods_seconds = tiers_to_periods_seconds(self._config_entry.data)
         self._forecast_timestamps = generate_forecast_timestamps(self._periods_seconds)
 
     def start(self) -> Callable[[], None]:

@@ -373,11 +373,17 @@
     }
   },
   "exceptions": {
+    "config_entry_not_found": { "message": "Config entry {entry_id} not found" },
+    "config_entry_not_loaded": { "message": "Config entry {entry_id} is not loaded (state: {state})" },
+    "config_entry_wrong_domain": { "message": "Config entry {entry_id} is not a HAEO hub (domain: {domain})" },
     "input_entities_not_ready": {
       "message": "Input entities not ready after 30 seconds: {not_ready}. Some sensors may not be available yet."
     },
     "missing_sensors": {
       "message": "HAEO cannot load data for {unavailable_sensors}. Verify each referenced sensor exists and is reporting data."
+    },
+    "no_history_at_time": {
+      "message": "No history available at time {time} for: {missing}. The recorder may not have data this far back."
     },
     "self_referential_field_missing": {
       "message": "Configuration error for field {field}: The entity created by this field was selected, but the field is missing from the stored configuration. This may indicate corrupted configuration data. Please recreate the element."
@@ -416,5 +422,18 @@
       "options": { "2_days": "2 days", "3_days": "3 days", "5_days": "5 days", "7_days": "7 days", "custom": "Custom" }
     },
     "input_source": { "choices": { "constant": "Constant", "entity": "Entity", "none": "None" } }
+  },
+  "services": {
+    "save_diagnostics": {
+      "description": "Save a diagnostics file to the config directory",
+      "fields": {
+        "config_entry": { "description": "The HAEO system to save diagnostics for", "name": "System" },
+        "time": {
+          "description": "Generates a diagnostics file based on entity states at this historical time. Uses current state if omitted.",
+          "name": "Time"
+        }
+      },
+      "name": "Save diagnostics"
+    }
   }
 }

@@ -1,5 +1,6 @@
-"""Diagnostics support for HAEO integration."""
+"""Core diagnostics collection logic."""
 
+from dataclasses import dataclass
 from typing import Any
 
 from homeassistant.const import __version__ as ha_version
@@ -7,8 +8,8 @@ from homeassistant.core import HomeAssistant
 from homeassistant.loader import async_get_integration
 from homeassistant.util import dt as dt_util
 
-from . import HaeoConfigEntry, HaeoRuntimeData
-from .const import (
+from custom_components.haeo import HaeoConfigEntry, HaeoRuntimeData
+from custom_components.haeo.const import (
     CONF_ELEMENT_TYPE,
     CONF_TIER_1_COUNT,
     CONF_TIER_1_DURATION,
@@ -19,10 +20,23 @@ from .const import (
     CONF_TIER_4_COUNT,
     CONF_TIER_4_DURATION,
 )
-from .elements import ElementConfigSchema, is_element_config_schema
-from .entities.haeo_number import ConfigEntityMode, HaeoInputNumber
-from .entities.haeo_switch import HaeoInputSwitch
-from .sensor_utils import get_output_sensors
+from custom_components.haeo.elements import ElementConfigSchema, is_element_config_schema
+from custom_components.haeo.entities.haeo_number import ConfigEntityMode, HaeoInputNumber
+from custom_components.haeo.entities.haeo_switch import HaeoInputSwitch
+from custom_components.haeo.sensor_utils import get_output_sensors
+
+from .state_provider import StateProvider
+
+
+@dataclass
+class DiagnosticsResult:
+    """Result of collecting diagnostics."""
+
+    data: dict[str, Any]
+    """The diagnostics data to be saved."""
+
+    missing_entity_ids: list[str]
+    """Entity IDs that were expected but not found in state provider."""
 
 
 def _extract_entity_ids_from_config(config: ElementConfigSchema) -> set[str]:
@@ -45,18 +59,26 @@ def _extract_entity_ids_from_config(config: ElementConfigSchema) -> set[str]:
     return entity_ids
 
 
-async def async_get_config_entry_diagnostics(hass: HomeAssistant, config_entry: HaeoConfigEntry) -> dict[str, Any]:
-    """Return diagnostics for a HAEO config entry.
+async def collect_diagnostics(
+    hass: HomeAssistant,
+    config_entry: HaeoConfigEntry,
+    state_provider: StateProvider,
+) -> DiagnosticsResult:
+    """Collect diagnostics using the provided state provider.
 
     Returns a dict with four main keys:
     - config: HAEO configuration (participants, horizon, period)
     - inputs: Input sensor states used in optimization
-    - outputs: Output sensor states from optimization results
+    - outputs: Output sensor states from optimization results (omitted for historical)
     - environment: Environment information (HA version, HAEO version, timestamp)
 
     For editable input entities (constants rather than sensor-driven), the current
     entity value is captured in the participant config. This allows diagnostics
     exports to be used as configuration defaults.
+
+    For historical diagnostics (when state_provider.is_historical is True),
+    output sensors are omitted because they reflect the optimization that ran
+    at that past time with different inputs.
     """
     # Build config section with participants
     config: dict[str, Any] = {
@@ -81,8 +103,9 @@ async def async_get_config_entry_diagnostics(hass: HomeAssistant, config_entry: 
 
     # Capture current values from editable input entities
     # This allows diagnostics to be used as configuration defaults
+    # Only do this for current state (not historical)
     runtime_data = config_entry.runtime_data
-    if isinstance(runtime_data, HaeoRuntimeData):
+    if not state_provider.is_historical and isinstance(runtime_data, HaeoRuntimeData):
         for (element_name, field_name), entity in runtime_data.input_entities.items():
             if element_name not in config["participants"]:
                 continue
@@ -110,32 +133,51 @@ async def async_get_config_entry_diagnostics(hass: HomeAssistant, config_entry: 
             extracted_ids = _extract_entity_ids_from_config(participant_config)
             all_entity_ids.update(extracted_ids)
 
+    # Get states using the provider (current or historical)
+    entity_states = await state_provider.get_states(sorted(all_entity_ids))
+
+    # Calculate which entities were expected but not found
+    missing_entity_ids = sorted(all_entity_ids - set(entity_states.keys()))
+
     # Extract input states as dicts
     inputs: list[dict[str, Any]] = [
-        state.as_dict() for entity_id in sorted(all_entity_ids) if (state := hass.states.get(entity_id)) is not None
+        state.as_dict() for entity_id in sorted(all_entity_ids) if (state := entity_states.get(entity_id)) is not None
     ]
 
-    # Get output sensors using common utility function
-    # This filters to entities created by this config entry and cleans unstable fields
-    outputs = get_output_sensors(hass, config_entry)
+    # Get output sensors - only for current state, omit for historical
+    outputs: dict[str, Any] = {}
+    if not state_provider.is_historical:
+        outputs = get_output_sensors(hass, config_entry)
 
     # Get HAEO version from integration metadata
     integration = await async_get_integration(hass, config_entry.domain)
     haeo_version = integration.version or "unknown"
 
+    # Use provider's timestamp if available, otherwise current time
+    # Convert to local timezone to ensure offset is included for unambiguous parsing
+    timestamp = dt_util.as_local(state_provider.timestamp or dt_util.now()).isoformat()
+
     # Build environment section
     environment: dict[str, Any] = {
         "ha_version": ha_version,
         "haeo_version": haeo_version,
-        "timestamp": dt_util.now().isoformat(),
+        "timestamp": timestamp,
         "timezone": str(dt_util.get_default_time_zone()),
     }
 
-    # Return dict with alphabetically sorted keys
-    # This puts config and environment first, then inputs and outputs
-    return {
-        "config": config,
-        "environment": environment,
-        "inputs": inputs,
-        "outputs": outputs,
-    }
+    if state_provider.is_historical:
+        environment["historical"] = True
+
+    # Return result with data and missing entity info
+    return DiagnosticsResult(
+        data={
+            "config": config,
+            "environment": environment,
+            "inputs": inputs,
+            "outputs": outputs,
+        },
+        missing_entity_ids=missing_entity_ids,
+    )
+
+
+__all__ = ["DiagnosticsResult", "collect_diagnostics"]

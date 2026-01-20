@@ -14,10 +14,12 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryError, ConfigEntryNotReady
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.translation import async_get_translations
+from homeassistant.helpers.typing import ConfigType
 
 from custom_components.haeo.const import CONF_ADVANCED_MODE, CONF_ELEMENT_TYPE, CONF_NAME, DOMAIN, ELEMENT_TYPE_NETWORK
 from custom_components.haeo.coordinator import HaeoDataUpdateCoordinator
 from custom_components.haeo.horizon import HorizonManager
+from custom_components.haeo.services import async_setup_services
 
 if TYPE_CHECKING:
     from custom_components.haeo.entities.haeo_number import HaeoInputNumber
@@ -32,6 +34,15 @@ INPUT_PLATFORMS: list[Platform] = [Platform.NUMBER, Platform.SWITCH]
 
 # Platforms that consume coordinator data (set up after coordinator)
 OUTPUT_PLATFORMS: list[Platform] = [Platform.SENSOR]
+
+
+async def async_setup(hass: HomeAssistant, _config: ConfigType) -> bool:
+    """Set up the HAEO integration.
+
+    Registers domain-level services that are available even before any config entries are loaded.
+    """
+    await async_setup_services(hass)
+    return True
 
 
 @dataclass(slots=True)

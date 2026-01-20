@@ -1,0 +1,11 @@
+save_diagnostics:
+  fields:
+    config_entry:
+      required: true
+      selector:
+        config_entry:
+          integration: haeo
+    time:
+      required: false
+      selector:
+        datetime:
