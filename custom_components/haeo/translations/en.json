@@ -425,9 +425,7 @@
   "services": {
     "optimize": {
       "description": "Manually trigger optimization, bypassing the debounce timer and auto-optimize setting",
-      "fields": {
-        "config_entry": { "description": "The HAEO system to optimize", "name": "System" }
-      },
+      "fields": { "config_entry": { "description": "The HAEO system to optimize", "name": "System" } },
       "name": "Optimize"
     },
     "save_diagnostics": {

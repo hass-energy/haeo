@@ -12,7 +12,7 @@ from homeassistant.helpers.restore_state import RestoreEntity
 from custom_components.haeo.coordinator import HaeoDataUpdateCoordinator
 
 
-class HaeoAutoOptimizeSwitch(SwitchEntity, RestoreEntity):
+class HaeoAutoOptimizeSwitch(SwitchEntity, RestoreEntity):  # pyright: ignore[reportIncompatibleVariableOverride]
     """Switch entity to enable/disable automatic optimization.
 
     This switch controls whether HAEO automatically runs optimization
@@ -71,7 +71,7 @@ class HaeoAutoOptimizeSwitch(SwitchEntity, RestoreEntity):
         self._attr_is_on = True
         self.async_write_ha_state()
         # Run optimization immediately to catch up on any changes while disabled
-        await self._coordinator.async_run_optimization(bypass_debounce=True)
+        await self._coordinator.async_run_optimization()
 
     async def async_turn_off(self, **_kwargs: Any) -> None:
         """Disable automatic optimization."""

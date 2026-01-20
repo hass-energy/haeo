@@ -719,7 +719,7 @@ async def test_setup_cleanup_on_coordinator_error(
 
     # Mock coordinator that fails on initialize
     class FailingCoordinator:
-        def __init__(self, hass_param: HomeAssistant, entry_param: ConfigEntry) -> None:
+        def __init__(self, _hass: HomeAssistant, _entry: ConfigEntry) -> None:
             self.auto_optimize_enabled = True
 
         def cleanup(self) -> None:
@@ -770,7 +770,7 @@ async def test_async_setup_entry_raises_config_entry_error_on_permanent_failure(
 
     # Mock coordinator that fails with ValueError (permanent failure)
     class FailingCoordinator:
-        def __init__(self, hass_param: HomeAssistant, entry_param: ConfigEntry) -> None:
+        def __init__(self, _hass: HomeAssistant, _entry: ConfigEntry) -> None:
             self.auto_optimize_enabled = True
 
         def cleanup(self) -> None:
@@ -829,7 +829,7 @@ async def test_setup_preserves_config_entry_not_ready_exception(
 
     # Mock coordinator that raises ConfigEntryNotReady with custom translation key
     class FailingCoordinator:
-        def __init__(self, hass_param: HomeAssistant, entry_param: ConfigEntry) -> None:
+        def __init__(self, _hass: HomeAssistant, _entry: ConfigEntry) -> None:
             self.auto_optimize_enabled = True
 
         def cleanup(self) -> None:
@@ -891,7 +891,7 @@ async def test_setup_preserves_config_entry_error_exception(
 
     # Mock coordinator that raises ConfigEntryError with custom translation key
     class FailingCoordinator:
-        def __init__(self, hass_param: HomeAssistant, entry_param: ConfigEntry) -> None:
+        def __init__(self, _hass: HomeAssistant, _entry: ConfigEntry) -> None:
             self.auto_optimize_enabled = True
 
         def cleanup(self) -> None:
