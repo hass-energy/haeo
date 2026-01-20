@@ -1,18 +1,18 @@
 """Tests for HAEO service actions."""
 
+from datetime import UTC, datetime
 import json
-from datetime import datetime, timezone
 from pathlib import Path
 from unittest.mock import AsyncMock, Mock, patch
 
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ServiceValidationError
+from homeassistant.loader import Manifest
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.haeo import async_setup
-from custom_components.haeo.services import _format_manifest
 from custom_components.haeo.const import (
     CONF_INTEGRATION_TYPE,
     CONF_NAME,
@@ -35,6 +35,7 @@ from custom_components.haeo.const import (
     DOMAIN,
     INTEGRATION_TYPE_HUB,
 )
+from custom_components.haeo.services import _format_manifest
 
 
 @pytest.fixture
@@ -239,7 +240,7 @@ async def test_save_diagnostics_filename_format(
 
 def test_format_manifest_strips_codeowner_prefix() -> None:
     """Test that _format_manifest strips @ prefix from codeowners."""
-    manifest = {
+    manifest: Manifest = {
         "domain": "haeo",
         "name": "HAEO",
         "codeowners": ["@TrentHouliston", "@BrendanAnnable"],
@@ -249,14 +250,14 @@ def test_format_manifest_strips_codeowner_prefix() -> None:
     result = _format_manifest(manifest)
 
     # Verify @ was stripped from codeowners
-    assert result["codeowners"] == ["TrentHouliston", "BrendanAnnable"]
+    assert result.get("codeowners") == ["TrentHouliston", "BrendanAnnable"]
     # Verify original manifest is not modified
-    assert manifest["codeowners"] == ["@TrentHouliston", "@BrendanAnnable"]
+    assert manifest.get("codeowners") == ["@TrentHouliston", "@BrendanAnnable"]
 
 
 def test_format_manifest_no_codeowners() -> None:
     """Test that _format_manifest handles manifests without codeowners."""
-    manifest = {
+    manifest: Manifest = {
         "domain": "haeo",
         "name": "HAEO",
         "version": "0.2.1",
@@ -265,7 +266,7 @@ def test_format_manifest_no_codeowners() -> None:
     result = _format_manifest(manifest)
 
     # Verify the manifest is returned unchanged (no codeowners key)
-    assert "codeowners" not in result or result["codeowners"] == manifest.get("codeowners")
+    assert "codeowners" not in result or result.get("codeowners") == manifest.get("codeowners")
 
 
 async def test_save_diagnostics_with_historical_timestamp(
@@ -285,7 +286,7 @@ async def test_save_diagnostics_with_historical_timestamp(
     # Mock config path
     hass.config.config_dir = str(tmp_path)
 
-    target_timestamp = datetime(2026, 1, 20, 14, 32, 3, tzinfo=timezone.utc)
+    target_timestamp = datetime(2026, 1, 20, 14, 32, 3, tzinfo=UTC)
 
     mock_diagnostics = {
         "config": {"participants": {}},
