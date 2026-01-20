@@ -33,9 +33,7 @@ PLATFORMS: list[Platform] = [Platform.SENSOR, Platform.NUMBER, Platform.SWITCH]
 INPUT_PLATFORMS: list[Platform] = [Platform.NUMBER, Platform.SWITCH]
 
 # Platforms that consume coordinator data (set up after coordinator)
-# Switch is included here to allow creation of the auto-optimize switch
-# (the first switch setup in INPUT_PLATFORMS creates input switches only)
-OUTPUT_PLATFORMS: list[Platform] = [Platform.SENSOR, Platform.SWITCH]
+OUTPUT_PLATFORMS: list[Platform] = [Platform.SENSOR]
 
 
 async def async_setup(hass: HomeAssistant, _config: ConfigType) -> bool:
@@ -212,6 +210,28 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> bool
     runtime_data.coordinator = coordinator
     # Register coordinator cleanup
     entry.async_on_unload(coordinator.cleanup)
+
+    # Create auto-optimize switch now that coordinator exists
+    # Find the switch platform that was set up in INPUT_PLATFORMS and add the entity to it
+    from homeassistant.helpers import entity_platform  # noqa: PLC0415
+
+    from custom_components.haeo.entities.device import get_or_create_network_device  # noqa: PLC0415
+    from custom_components.haeo.entities.haeo_auto_optimize_switch import HaeoAutoOptimizeSwitch  # noqa: PLC0415
+
+    network_device_entry = get_or_create_network_device(hass, entry, network_subentry)
+    auto_optimize_switch = HaeoAutoOptimizeSwitch(
+        hass=hass,
+        config_entry=entry,
+        device_entry=network_device_entry,
+        coordinator=coordinator,
+    )
+
+    # Get the switch platform for this entry and add the auto-optimize switch
+    switch_platforms = entity_platform.async_get_platforms(hass, DOMAIN)
+    for platform in switch_platforms:
+        if platform.domain == "switch" and platform.config_entry == entry:
+            await platform.async_add_entities([auto_optimize_switch])
+            break
 
     # Wrap coordinator operations to provide meaningful HA error messages
     # Cleanup is handled via async_on_unload callbacks - no explicit cleanup needed here

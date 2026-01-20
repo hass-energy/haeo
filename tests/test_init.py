@@ -213,6 +213,7 @@ async def test_async_setup_entry_initializes_coordinator(
             self.async_initialize = AsyncMock()
             self.async_refresh = AsyncMock()
             self.cleanup = Mock()
+            self.auto_optimize_enabled = True
 
     created: list[DummyCoordinator] = []
 
@@ -675,6 +676,7 @@ async def test_setup_reentry_after_timeout_failure(
             self.async_initialize = AsyncMock()
             self.async_refresh = AsyncMock()
             self.cleanup = Mock()
+            self.auto_optimize_enabled = True
 
     monkeypatch.setattr("custom_components.haeo.HaeoDataUpdateCoordinator", DummyCoordinator)
 
@@ -718,7 +720,7 @@ async def test_setup_cleanup_on_coordinator_error(
     # Mock coordinator that fails on initialize
     class FailingCoordinator:
         def __init__(self, hass_param: HomeAssistant, entry_param: ConfigEntry) -> None:
-            pass
+            self.auto_optimize_enabled = True
 
         def cleanup(self) -> None:
             pass
@@ -769,7 +771,7 @@ async def test_async_setup_entry_raises_config_entry_error_on_permanent_failure(
     # Mock coordinator that fails with ValueError (permanent failure)
     class FailingCoordinator:
         def __init__(self, hass_param: HomeAssistant, entry_param: ConfigEntry) -> None:
-            pass
+            self.auto_optimize_enabled = True
 
         def cleanup(self) -> None:
             pass
@@ -828,7 +830,7 @@ async def test_setup_preserves_config_entry_not_ready_exception(
     # Mock coordinator that raises ConfigEntryNotReady with custom translation key
     class FailingCoordinator:
         def __init__(self, hass_param: HomeAssistant, entry_param: ConfigEntry) -> None:
-            pass
+            self.auto_optimize_enabled = True
 
         def cleanup(self) -> None:
             pass
@@ -890,7 +892,7 @@ async def test_setup_preserves_config_entry_error_exception(
     # Mock coordinator that raises ConfigEntryError with custom translation key
     class FailingCoordinator:
         def __init__(self, hass_param: HomeAssistant, entry_param: ConfigEntry) -> None:
-            pass
+            self.auto_optimize_enabled = True
 
         def cleanup(self) -> None:
             pass

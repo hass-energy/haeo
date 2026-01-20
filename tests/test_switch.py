@@ -76,43 +76,19 @@ def _add_subentry(
     return subentry
 
 
-async def test_setup_skips_network_subentry_when_no_coordinator(
+async def test_setup_skips_network_subentry(
     hass: HomeAssistant,
     config_entry: MockConfigEntry,
 ) -> None:
-    """Setup skips the network subentry which has no switch fields (INPUT_PLATFORMS call)."""
+    """Setup skips the network subentry which has no switch fields."""
     _add_subentry(hass, config_entry, ELEMENT_TYPE_NETWORK, "Test Network", {})
-
-    # Simulate INPUT_PLATFORMS call - no coordinator yet
-    config_entry.runtime_data.coordinator = None
 
     async_add_entities = Mock()
     await async_setup_entry(hass, config_entry, async_add_entities)
 
     # No input switch entities created for network-only config
+    # (auto-optimize switch is created separately in __init__.py)
     async_add_entities.assert_not_called()
-
-
-async def test_setup_creates_auto_optimize_switch_for_network(
-    hass: HomeAssistant,
-    config_entry: MockConfigEntry,
-) -> None:
-    """Setup creates auto-optimize switch for network subentry when coordinator exists."""
-    _add_subentry(hass, config_entry, ELEMENT_TYPE_NETWORK, "Test Network", {})
-
-    # Set up coordinator - this is the OUTPUT_PLATFORMS call
-    mock_coordinator = Mock(spec=HaeoDataUpdateCoordinator)
-    mock_coordinator.auto_optimize_enabled = True
-    config_entry.runtime_data.coordinator = mock_coordinator
-
-    async_add_entities = Mock()
-    await async_setup_entry(hass, config_entry, async_add_entities)
-
-    # Auto-optimize switch created for network
-    async_add_entities.assert_called_once()
-    entities = list(async_add_entities.call_args.args[0])
-    assert len(entities) == 1
-    assert entities[0]._attr_translation_key == "network_auto_optimize"
 
 
 async def test_setup_creates_switch_entities_for_solar_curtailment(
