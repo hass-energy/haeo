@@ -139,8 +139,10 @@ async def collect_diagnostics(
     haeo_version = integration.version or "unknown"
 
     # Determine timestamp for environment section
+    # Ensure timestamp always includes timezone offset for unambiguous parsing
     if state_provider.is_historical and state_provider.timestamp is not None:
-        timestamp = state_provider.timestamp.isoformat()
+        # Convert to local timezone to ensure offset is included
+        timestamp = dt_util.as_local(state_provider.timestamp).isoformat()
     else:
         timestamp = dt_util.now().isoformat()
 

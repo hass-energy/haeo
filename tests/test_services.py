@@ -104,8 +104,8 @@ async def test_save_diagnostics_service_success(
             blocking=True,
         )
 
-    # Verify a file was created
-    files = list(tmp_path.glob("haeo_diagnostics_*.json"))
+    # Verify a file was created in the haeo/diagnostics subdirectory
+    files = list(tmp_path.glob("haeo/diagnostics/diagnostics_*.json"))
     assert len(files) == 1
 
     # Verify file content matches Home Assistant's full diagnostics format
@@ -217,16 +217,16 @@ async def test_save_diagnostics_filename_format(
             blocking=True,
         )
 
-    # Verify filename format: haeo_diagnostics_<timestamp>.json
-    files = list(tmp_path.glob("haeo_diagnostics_*.json"))
+    # Verify filename format: diagnostics_<timestamp>.json in haeo/diagnostics/
+    files = list(tmp_path.glob("haeo/diagnostics/diagnostics_*.json"))
     assert len(files) == 1
 
     filename = files[0].name
-    assert filename.startswith("haeo_diagnostics_")
+    assert filename.startswith("diagnostics_")
     assert filename.endswith(".json")
 
     # Verify timestamp format in filename (YYYY-MM-DD_HHMMSS.microseconds)
-    timestamp_part = filename.replace("haeo_diagnostics_", "").replace(".json", "")
+    timestamp_part = filename.replace("diagnostics_", "").replace(".json", "")
     # Format: 2026-01-19_155018.452421 (27 chars: 10 date + 1 underscore + 6 time + 1 dot + 6 microseconds)
     assert len(timestamp_part) == 24
     assert timestamp_part[4] == "-"  # Year-month separator
