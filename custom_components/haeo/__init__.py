@@ -131,11 +131,12 @@ async def async_update_listener(hass: HomeAssistant, entry: HaeoConfigEntry) -> 
     # Check if this is a value-only update from an input entity
     runtime_data = entry.runtime_data
     if runtime_data is not None and runtime_data.value_update_in_progress:
-        # Clear the flag and skip reload - just refresh coordinator
+        # Clear the flag and skip reload - just refresh coordinator if auto-optimize is enabled
         runtime_data.value_update_in_progress = False
-        _LOGGER.debug("Value update detected, refreshing coordinator without reload")
-        if runtime_data.coordinator is not None:
-            await runtime_data.coordinator.async_refresh()
+        coordinator = runtime_data.coordinator
+        if coordinator is not None and coordinator.auto_optimize_enabled:
+            _LOGGER.debug("Value update detected, refreshing coordinator without reload")
+            await coordinator.async_refresh()
         return
 
     await _ensure_required_subentries(hass, entry)
