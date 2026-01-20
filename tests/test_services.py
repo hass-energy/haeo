@@ -276,12 +276,12 @@ def test_format_manifest_no_codeowners() -> None:
     assert "codeowners" not in result or result.get("codeowners") == manifest.get("codeowners")
 
 
-async def test_save_diagnostics_with_historical_timestamp(
+async def test_save_diagnostics_with_historical_time(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
     tmp_path: Path,
 ) -> None:
-    """Test save_diagnostics service with historical timestamp uses HistoricalStateProvider."""
+    """Test save_diagnostics service with historical time uses HistoricalStateProvider."""
     # Set up the service - need to register recorder component first
     hass.config.components.add("recorder")
     await async_setup(hass, {})
@@ -324,7 +324,7 @@ async def test_save_diagnostics_with_historical_timestamp(
             "save_diagnostics",
             {
                 "config_entry": mock_hub_entry.entry_id,
-                "timestamp": target_timestamp,
+                "time": target_timestamp,
             },
             blocking=True,
         )
@@ -344,10 +344,10 @@ async def test_save_diagnostics_with_historical_timestamp(
     assert "2026-01-20" in files[0].name
 
 
-async def test_save_diagnostics_schema_includes_timestamp_when_recorder_available(
+async def test_save_diagnostics_schema_includes_time_when_recorder_available(
     hass: HomeAssistant,
 ) -> None:
-    """Test that timestamp parameter is available when recorder is loaded."""
+    """Test that time parameter is available when recorder is loaded."""
     # Add recorder to components
     hass.config.components.add("recorder")
 
@@ -360,15 +360,15 @@ async def test_save_diagnostics_schema_includes_timestamp_when_recorder_availabl
     schema = service.schema
     assert schema is not None
 
-    # The schema should include the optional timestamp field
-    # We can verify by checking that the schema accepts a timestamp
-    schema({"config_entry": "test_entry", "timestamp": "2026-01-20T14:32:03+00:00"})
+    # The schema should include the optional time field
+    # We can verify by checking that the schema accepts a time
+    schema({"config_entry": "test_entry", "time": "2026-01-20T14:32:03+00:00"})
 
 
-async def test_save_diagnostics_schema_excludes_timestamp_when_recorder_unavailable(
+async def test_save_diagnostics_schema_excludes_time_when_recorder_unavailable(
     hass: HomeAssistant,
 ) -> None:
-    """Test that timestamp parameter is not available when recorder is not loaded."""
+    """Test that time parameter is not available when recorder is not loaded."""
     # By default, recorder is not in components
     assert "recorder" not in hass.config.components
 
@@ -381,12 +381,12 @@ async def test_save_diagnostics_schema_excludes_timestamp_when_recorder_unavaila
     schema = service.schema
     assert schema is not None
 
-    # The schema should not include the timestamp field
+    # The schema should not include the time field
     # Verify the schema only requires config_entry (timestamp would fail)
     result = schema({"config_entry": "test_entry"})
     assert "config_entry" in result
-    # Timestamp should not be parsed since it's not in the schema
-    assert "timestamp" not in result
+    # Time should not be parsed since it's not in the schema
+    assert "time" not in result
 
 
 async def test_save_diagnostics_historical_missing_entities_raises_error(
@@ -439,7 +439,7 @@ async def test_save_diagnostics_historical_missing_entities_raises_error(
             "save_diagnostics",
             {
                 "config_entry": mock_hub_entry.entry_id,
-                "timestamp": target_timestamp,
+                "time": target_timestamp,
             },
             blocking=True,
         )
