@@ -172,6 +172,7 @@ nav:
               - Efficiency segment: modeling/model-layer/segments/efficiency.md
               - Power limit segment: modeling/model-layer/segments/power-limit.md
               - Pricing segment: modeling/model-layer/segments/pricing.md
+              - Demand pricing segment: modeling/model-layer/segments/demand-pricing.md
               - Passthrough segment: modeling/model-layer/segments/passthrough.md
       - Device Layer:
           - modeling/device-layer/index.md

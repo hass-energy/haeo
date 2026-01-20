@@ -23,7 +23,7 @@ graph LR
 | [Connection](../model-layer/connections/connection.md) | `{name}` | Source, target, and segment specifications |
 
 The Connection device creates a `Connection` model element with a segment chain.
-The adapter builds power-limit, efficiency, and pricing segments based on configured fields.
+The adapter builds power-limit, efficiency, pricing, and demand pricing segments based on configured fields.
 
 ## Devices Created
 
@@ -47,6 +47,12 @@ The adapter maps configuration into connection segments:
 | `efficiency_target_source` | EfficiencySegment | `efficiency_target_source` | Percent converted to ratio     |
 | `price_source_target`      | PricingSegment    | `price_source_target`      | Optional, no cost if not set   |
 | `price_target_source`      | PricingSegment    | `price_target_source`      | Optional, no cost if not set   |
+| `demand_window_source_target` | DemandPricingSegment | `demand_window_source_target` | Optional, disabled if not set |
+| `demand_window_target_source` | DemandPricingSegment | `demand_window_target_source` | Optional, disabled if not set |
+| `demand_price_source_target`  | DemandPricingSegment | `demand_price_source_target`  | Optional, no cost if not set  |
+| `demand_price_target_source`  | DemandPricingSegment | `demand_price_target_source`  | Optional, no cost if not set  |
+| `demand_block_hours`          | DemandPricingSegment | `demand_block_hours`          | Defaults to 0.5 hours         |
+| `demand_days`                 | DemandPricingSegment | `demand_days`                 | Defaults to 1 day             |
 
 If a field is omitted, the corresponding segment defaults apply.
 Power limits and pricing are skipped when values are `None`.

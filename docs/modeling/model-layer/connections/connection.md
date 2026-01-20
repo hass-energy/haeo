@@ -20,6 +20,7 @@ The mapping keys become segment names and drive the nested `segments` output.
 - **[Efficiency segment](../segments/efficiency.md)** applies direction-specific efficiency multipliers.
 - **[Power limit segment](../segments/power-limit.md)** enforces directional limits and time-slice coupling.
 - **[Pricing segment](../segments/pricing.md)** adds directional cost terms to the objective.
+- **[Demand pricing segment](../segments/demand-pricing.md)** adds peak demand charges for demand windows.
 - **[Passthrough segment](../segments/passthrough.md)** forwards flow without constraints or cost.
 
 ## Model formulation
@@ -74,6 +75,7 @@ Elements do not need to account for them directly.
 
 Connection aggregates cost expressions from all segments.
 PricingSegment instances contribute directional energy costs.
+DemandPricingSegment instances contribute peak demand costs.
 
 ## Outputs
 
