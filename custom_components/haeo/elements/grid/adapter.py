@@ -5,7 +5,7 @@ from dataclasses import replace
 from typing import Any, Final, Literal
 
 from homeassistant.components.number import NumberDeviceClass, NumberEntityDescription
-from homeassistant.const import UnitOfPower
+from homeassistant.const import UnitOfPower, UnitOfTime
 from homeassistant.core import HomeAssistant
 import numpy as np
 from numpy.typing import NDArray
@@ -27,6 +27,12 @@ from custom_components.haeo.model.output_data import OutputData
 from custom_components.haeo.model.util import broadcast_to_sequence
 
 from .schema import (
+    CONF_DEMAND_BLOCK_HOURS,
+    CONF_DEMAND_DAYS,
+    CONF_DEMAND_PRICE_EXPORT,
+    CONF_DEMAND_PRICE_IMPORT,
+    CONF_DEMAND_WINDOW_EXPORT,
+    CONF_DEMAND_WINDOW_IMPORT,
     CONF_EXPORT_LIMIT,
     CONF_EXPORT_PRICE,
     CONF_IMPORT_LIMIT,
@@ -90,7 +96,25 @@ class GridAdapter:
             # At this point value is a list of strings
             return ts_loader.available(hass=hass, value=value) if value else True
 
-        return entities_available(config.get("import_price")) and entities_available(config.get("export_price"))
+        optional_fields = [
+            CONF_IMPORT_LIMIT,
+            CONF_EXPORT_LIMIT,
+            CONF_DEMAND_WINDOW_IMPORT,
+            CONF_DEMAND_WINDOW_EXPORT,
+            CONF_DEMAND_PRICE_IMPORT,
+            CONF_DEMAND_PRICE_EXPORT,
+            CONF_DEMAND_BLOCK_HOURS,
+            CONF_DEMAND_DAYS,
+        ]
+
+        if not (entities_available(config.get("import_price")) and entities_available(config.get("export_price"))):
+            return False
+
+        for field in optional_fields:
+            if field in config and not ts_loader.available(hass=hass, value=config[field]):
+                return False
+
+        return True
 
     def inputs(self, config: Any) -> dict[str, InputFieldInfo[Any]]:
         """Return input field definitions for grid elements."""
@@ -154,6 +178,84 @@ class GridAdapter:
                 direction="-",
                 defaults=InputFieldDefaults(mode="value", value=100.0),
             ),
+            CONF_DEMAND_WINDOW_IMPORT: InputFieldInfo(
+                field_name=CONF_DEMAND_WINDOW_IMPORT,
+                entity_description=NumberEntityDescription(
+                    key=CONF_DEMAND_WINDOW_IMPORT,
+                    translation_key=f"{ELEMENT_TYPE}_{CONF_DEMAND_WINDOW_IMPORT}",
+                    native_min_value=0.0,
+                    native_max_value=1.0,
+                    native_step=0.01,
+                ),
+                output_type=OutputType.STATUS,
+                time_series=True,
+            ),
+            CONF_DEMAND_WINDOW_EXPORT: InputFieldInfo(
+                field_name=CONF_DEMAND_WINDOW_EXPORT,
+                entity_description=NumberEntityDescription(
+                    key=CONF_DEMAND_WINDOW_EXPORT,
+                    translation_key=f"{ELEMENT_TYPE}_{CONF_DEMAND_WINDOW_EXPORT}",
+                    native_min_value=0.0,
+                    native_max_value=1.0,
+                    native_step=0.01,
+                ),
+                output_type=OutputType.STATUS,
+                time_series=True,
+            ),
+            CONF_DEMAND_PRICE_IMPORT: InputFieldInfo(
+                field_name=CONF_DEMAND_PRICE_IMPORT,
+                entity_description=NumberEntityDescription(
+                    key=CONF_DEMAND_PRICE_IMPORT,
+                    translation_key=f"{ELEMENT_TYPE}_{CONF_DEMAND_PRICE_IMPORT}",
+                    native_unit_of_measurement="$/kW",
+                    native_min_value=0.0,
+                    native_max_value=100.0,
+                    native_step=0.01,
+                ),
+                output_type=OutputType.COST,
+                time_series=False,
+                direction="-",
+            ),
+            CONF_DEMAND_PRICE_EXPORT: InputFieldInfo(
+                field_name=CONF_DEMAND_PRICE_EXPORT,
+                entity_description=NumberEntityDescription(
+                    key=CONF_DEMAND_PRICE_EXPORT,
+                    translation_key=f"{ELEMENT_TYPE}_{CONF_DEMAND_PRICE_EXPORT}",
+                    native_unit_of_measurement="$/kW",
+                    native_min_value=0.0,
+                    native_max_value=100.0,
+                    native_step=0.01,
+                ),
+                output_type=OutputType.COST,
+                time_series=False,
+                direction="+",
+            ),
+            CONF_DEMAND_BLOCK_HOURS: InputFieldInfo(
+                field_name=CONF_DEMAND_BLOCK_HOURS,
+                entity_description=NumberEntityDescription(
+                    key=CONF_DEMAND_BLOCK_HOURS,
+                    translation_key=f"{ELEMENT_TYPE}_{CONF_DEMAND_BLOCK_HOURS}",
+                    native_unit_of_measurement=UnitOfTime.HOURS,
+                    native_min_value=0.01,
+                    native_max_value=24.0,
+                    native_step=0.01,
+                ),
+                output_type=OutputType.DURATION,
+                time_series=False,
+            ),
+            CONF_DEMAND_DAYS: InputFieldInfo(
+                field_name=CONF_DEMAND_DAYS,
+                entity_description=NumberEntityDescription(
+                    key=CONF_DEMAND_DAYS,
+                    translation_key=f"{ELEMENT_TYPE}_{CONF_DEMAND_DAYS}",
+                    native_unit_of_measurement=UnitOfTime.DAYS,
+                    native_min_value=0.0,
+                    native_max_value=365.0,
+                    native_step=1.0,
+                ),
+                output_type=OutputType.DURATION,
+                time_series=False,
+            ),
         }
 
     def model_elements(self, config: GridConfigData) -> list[ModelElementConfig]:
@@ -182,6 +284,15 @@ class GridAdapter:
                         "segment_type": "pricing",
                         "price_source_target": config["import_price"],
                         "price_target_source": -config["export_price"],
+                    },
+                    "demand_pricing": {
+                        "segment_type": "demand_pricing",
+                        "demand_window_source_target": config.get("demand_window_import"),
+                        "demand_window_target_source": config.get("demand_window_export"),
+                        "demand_price_source_target": config.get("demand_price_import"),
+                        "demand_price_target_source": config.get("demand_price_export"),
+                        "demand_block_hours": config.get("demand_block_hours"),
+                        "demand_days": config.get("demand_days"),
                     },
                 },
             },

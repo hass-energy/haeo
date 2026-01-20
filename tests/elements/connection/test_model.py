@@ -48,6 +48,12 @@ CREATE_CASES: Sequence[CreateCase] = [
             efficiency_target_source=np.array([0.90]),
             price_source_target=np.array([0.1]),
             price_target_source=np.array([0.05]),
+            demand_window_source_target=np.array([1.0]),
+            demand_window_target_source=np.array([0.0]),
+            demand_price_source_target=10.0,
+            demand_price_target_source=5.0,
+            demand_block_hours=0.5,
+            demand_days=30.0,
         ),
         "model": [
             {
@@ -70,6 +76,15 @@ CREATE_CASES: Sequence[CreateCase] = [
                         "segment_type": "pricing",
                         "price_source_target": [0.1],
                         "price_target_source": [0.05],
+                    },
+                    "demand_pricing": {
+                        "segment_type": "demand_pricing",
+                        "demand_window_source_target": [1.0],
+                        "demand_window_target_source": [0.0],
+                        "demand_price_source_target": 10.0,
+                        "demand_price_target_source": 5.0,
+                        "demand_block_hours": 0.5,
+                        "demand_days": 30.0,
                     },
                 },
             }
@@ -104,6 +119,15 @@ CREATE_CASES: Sequence[CreateCase] = [
                         "segment_type": "pricing",
                         "price_source_target": None,
                         "price_target_source": None,
+                    },
+                    "demand_pricing": {
+                        "segment_type": "demand_pricing",
+                        "demand_window_source_target": None,
+                        "demand_window_target_source": None,
+                        "demand_price_source_target": None,
+                        "demand_price_target_source": None,
+                        "demand_block_hours": None,
+                        "demand_days": None,
                     },
                 },
             }

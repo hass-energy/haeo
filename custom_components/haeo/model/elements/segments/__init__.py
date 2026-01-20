@@ -1,6 +1,7 @@
 """Connection segment types for composable connection architecture.
 
 Each segment type applies a specific transformation or constraint to power flow:
+- DemandPricingSegment: Adds peak demand pricing costs
 - EfficiencySegment: Applies efficiency losses
 - PassthroughSegment: Lossless passthrough (no constraints)
 - PowerLimitSegment: Limits power flow with optional time-slice constraint
@@ -26,6 +27,7 @@ from .battery_balance import (
     BatteryBalanceSegment,
     BatteryBalanceSegmentSpec,
 )
+from .demand_pricing import DemandPricingSegment, DemandPricingSegmentSpec
 from .efficiency import EfficiencySegment, EfficiencySegmentSpec
 from .passthrough import PassthroughSegment, PassthroughSegmentSpec
 from .power_limit import (
@@ -40,11 +42,19 @@ from .pricing import PricingSegment, PricingSegmentSpec
 from .segment import Segment
 
 # Discriminated union of segment type strings
-type SegmentType = Literal["battery_balance", "efficiency", "passthrough", "power_limit", "pricing"]
+type SegmentType = Literal[
+    "battery_balance",
+    "demand_pricing",
+    "efficiency",
+    "passthrough",
+    "power_limit",
+    "pricing",
+]
 
 # Union type for all segment specifications
 type SegmentSpec = (
     BatteryBalanceSegmentSpec
+    | DemandPricingSegmentSpec
     | EfficiencySegmentSpec
     | PassthroughSegmentSpec
     | PowerLimitSegmentSpec
@@ -72,6 +82,11 @@ def is_pricing_spec(spec: SegmentSpec) -> TypeGuard[PricingSegmentSpec]:
     return spec["segment_type"] == "pricing"
 
 
+def is_demand_pricing_spec(spec: SegmentSpec) -> TypeGuard[DemandPricingSegmentSpec]:
+    """Return True when spec is for a demand pricing segment."""
+    return spec["segment_type"] == "demand_pricing"
+
+
 @dataclass(frozen=True, slots=True)
 class SegmentSpecEntry:
     """Specification for a segment type."""
@@ -82,6 +97,7 @@ class SegmentSpecEntry:
 # Registry mapping segment type strings to segment factories
 SEGMENTS: Final[dict[SegmentType, SegmentSpecEntry]] = {
     "battery_balance": SegmentSpecEntry(factory=BatteryBalanceSegment),
+    "demand_pricing": SegmentSpecEntry(factory=DemandPricingSegment),
     "efficiency": SegmentSpecEntry(factory=EfficiencySegment),
     "passthrough": SegmentSpecEntry(factory=PassthroughSegment),
     "power_limit": SegmentSpecEntry(factory=PowerLimitSegment),
@@ -132,6 +148,8 @@ __all__ = [
     "PowerLimitOutputName",
     "PowerLimitSegment",
     "PowerLimitSegmentSpec",
+    "DemandPricingSegment",
+    "DemandPricingSegmentSpec",
     "PricingSegment",
     "PricingSegmentSpec",
     "Segment",
@@ -139,6 +157,7 @@ __all__ = [
     "SegmentSpecEntry",
     "SegmentType",
     "create_segment",
+    "is_demand_pricing_spec",
     "is_efficiency_spec",
     "is_passthrough_spec",
     "is_power_limit_spec",
