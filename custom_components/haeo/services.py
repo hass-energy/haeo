@@ -119,11 +119,7 @@ async def async_setup_services(hass: HomeAssistant) -> None:
         diagnostics_data = await collect_diagnostics(hass, entry, state_provider)
 
         # Generate filename with timestamp (microseconds for uniqueness)
-        # Use the target timestamp if historical, otherwise use now
-        if target_timestamp is not None:
-            file_timestamp = target_timestamp.strftime("%Y-%m-%d_%H%M%S.%f")
-        else:
-            file_timestamp = dt_util.now().strftime("%Y-%m-%d_%H%M%S.%f")
+        file_timestamp = (state_provider.timestamp or dt_util.now()).strftime("%Y-%m-%d_%H%M%S.%f")
         filename = f"haeo_diagnostics_{file_timestamp}.json"
         filepath = Path(hass.config.path(filename))
 
