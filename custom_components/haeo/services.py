@@ -120,14 +120,15 @@ async def async_setup_services(hass: HomeAssistant) -> None:
 
         # Generate filename with timestamp (microseconds for uniqueness)
         file_timestamp = (state_provider.timestamp or dt_util.now()).strftime("%Y-%m-%d_%H%M%S.%f")
-        filename = f"haeo_diagnostics_{file_timestamp}.json"
-        filepath = Path(hass.config.path(filename))
+        filename = f"diagnostics_{file_timestamp}.json"
+        filepath = Path(hass.config.path("haeo", "diagnostics", filename))
 
         # Build full diagnostics payload matching Home Assistant's format
         output = await _build_diagnostics_payload(hass, diagnostics_data)
 
         # Write to file (in executor to avoid blocking)
         def write_diagnostics() -> None:
+            filepath.parent.mkdir(parents=True, exist_ok=True)
             with filepath.open("w", encoding="utf-8") as f:
                 json.dump(output, f, indent=2, cls=ExtendedJSONEncoder)
 
