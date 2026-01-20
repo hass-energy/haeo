@@ -225,6 +225,9 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         self._pending_refresh: bool = False
         self._optimization_in_progress: bool = False  # Prevent concurrent optimizations
 
+        # Auto-optimization control - enabled by default (current behavior)
+        self._auto_optimize_enabled: bool = True
+
         # No update_interval - we're event-driven from input entities
         # No request_refresh_debouncer - we handle debouncing ourselves
         super().__init__(
@@ -347,9 +350,40 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         # Just trigger optimization - _are_inputs_aligned will gate until all elements update
         self._trigger_optimization()
 
+    @property
+    def auto_optimize_enabled(self) -> bool:
+        """Return whether automatic optimization is enabled."""
+        return self._auto_optimize_enabled
+
+    @auto_optimize_enabled.setter
+    def auto_optimize_enabled(self, value: bool) -> None:
+        """Set whether automatic optimization is enabled."""
+        self._auto_optimize_enabled = value
+
+    async def async_run_optimization(self) -> None:
+        """Manually trigger optimization, bypassing debouncing and auto-optimize check.
+
+        This method is intended for the run_optimizer service to allow users
+        to trigger optimization on demand, regardless of the auto_optimize_enabled setting.
+        """
+        if not self._are_inputs_aligned():
+            _LOGGER.debug("Inputs not aligned, skipping manual optimization")
+            return
+
+        await self.async_refresh()
+
     @callback
     def _trigger_optimization(self) -> None:
-        """Trigger optimization with debouncing."""
+        """Trigger optimization with debouncing.
+
+        This method respects the auto_optimize_enabled flag. When disabled,
+        automatic optimization triggers are ignored.
+        """
+        # Skip if auto-optimization is disabled
+        if not self._auto_optimize_enabled:
+            _LOGGER.debug("Auto-optimization disabled, skipping")
+            return
+
         # If optimization is in progress, just mark pending
         if self._optimization_in_progress:
             self._pending_refresh = True

@@ -33,7 +33,9 @@ PLATFORMS: list[Platform] = [Platform.SENSOR, Platform.NUMBER, Platform.SWITCH]
 INPUT_PLATFORMS: list[Platform] = [Platform.NUMBER, Platform.SWITCH]
 
 # Platforms that consume coordinator data (set up after coordinator)
-OUTPUT_PLATFORMS: list[Platform] = [Platform.SENSOR]
+# Switch is included here to allow creation of the auto-optimize switch
+# (the first switch setup in INPUT_PLATFORMS creates input switches only)
+OUTPUT_PLATFORMS: list[Platform] = [Platform.SENSOR, Platform.SWITCH]
 
 
 async def async_setup(hass: HomeAssistant, _config: ConfigType) -> bool:

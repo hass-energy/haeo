@@ -23,6 +23,7 @@ from .const import DOMAIN
 _LOGGER = logging.getLogger(__name__)
 
 SERVICE_SAVE_DIAGNOSTICS = "save_diagnostics"
+SERVICE_RUN_OPTIMIZER = "run_optimizer"
 ATTR_CONFIG_ENTRY = "config_entry"
 ATTR_TIMESTAMP = "time"
 
@@ -163,4 +164,60 @@ async def async_setup_services(hass: HomeAssistant) -> None:
         SERVICE_SAVE_DIAGNOSTICS,
         async_handle_save_diagnostics,
         schema=vol.Schema(schema_fields),
+    )
+
+    async def async_handle_run_optimizer(call: ServiceCall) -> None:
+        """Handle the run_optimizer service call.
+
+        Manually triggers optimization, bypassing debouncing and the auto-optimize setting.
+        """
+        # Import here to avoid circular imports
+        from . import HaeoConfigEntry  # noqa: PLC0415
+
+        entry_id = call.data[ATTR_CONFIG_ENTRY]
+
+        # Validate config entry exists
+        entry = hass.config_entries.async_get_entry(entry_id)
+        if entry is None:
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="config_entry_not_found",
+                translation_placeholders={"entry_id": entry_id},
+            )
+
+        # Validate it's a HAEO entry
+        if entry.domain != DOMAIN:
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="config_entry_wrong_domain",
+                translation_placeholders={"entry_id": entry_id, "domain": entry.domain},
+            )
+
+        # Validate entry is loaded
+        if entry.state is not ConfigEntryState.LOADED:
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="config_entry_not_loaded",
+                translation_placeholders={"entry_id": entry_id, "state": str(entry.state)},
+            )
+
+        # Get runtime data and coordinator
+        typed_entry: HaeoConfigEntry = entry  # type: ignore[assignment]
+        runtime_data = typed_entry.runtime_data
+        if runtime_data is None or runtime_data.coordinator is None:
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="config_entry_not_loaded",
+                translation_placeholders={"entry_id": entry_id, "state": "no coordinator"},
+            )
+
+        # Run optimization
+        _LOGGER.info("Running optimization for %s (manual trigger)", entry_id)
+        await runtime_data.coordinator.async_run_optimization()
+
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_RUN_OPTIMIZER,
+        async_handle_run_optimizer,
+        schema=vol.Schema({vol.Required(ATTR_CONFIG_ENTRY): cv.string}),
     )

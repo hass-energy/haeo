@@ -365,6 +365,7 @@
       "solar_power": { "name": "Power" }
     },
     "switch": {
+      "network_auto_optimize": { "name": "Auto optimize" },
       "node_is_sink": { "name": "Is sink" },
       "node_is_source": { "name": "Is source" },
       "solar_curtailment": { "name": "Curtailment" }
@@ -422,6 +423,13 @@
     "input_source": { "choices": { "constant": "Constant", "entity": "Entity", "none": "None" } }
   },
   "services": {
+    "run_optimizer": {
+      "description": "Manually trigger optimization, bypassing the debounce timer and auto-optimize setting",
+      "fields": {
+        "config_entry": { "description": "The HAEO system to run optimization for", "name": "System" }
+      },
+      "name": "Run optimizer"
+    },
     "save_diagnostics": {
       "description": "Save a diagnostics file to the config directory",
       "fields": {

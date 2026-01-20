@@ -28,7 +28,11 @@ def horizon_manager() -> Mock:
 
 @pytest.fixture
 def config_entry(hass: HomeAssistant, horizon_manager: Mock) -> MockConfigEntry:
-    """Return a config entry for switch platform tests."""
+    """Return a config entry for switch platform tests.
+
+    By default, coordinator is None to simulate the INPUT_PLATFORMS call.
+    Tests that need coordinator behavior should set it explicitly.
+    """
     entry = MockConfigEntry(
         domain=DOMAIN,
         title="Test Network",
@@ -46,10 +50,9 @@ def config_entry(hass: HomeAssistant, horizon_manager: Mock) -> MockConfigEntry:
         entry_id="test_switch_platform_entry",
     )
     entry.add_to_hass(hass)
-    # Set up runtime_data with mock horizon manager
-    mock_coordinator = Mock(spec=HaeoDataUpdateCoordinator)
+    # Set up runtime_data with mock horizon manager - no coordinator by default (INPUT_PLATFORMS call)
     entry.runtime_data = HaeoRuntimeData(
-        coordinator=mock_coordinator,
+        coordinator=None,
         horizon_manager=horizon_manager,
     )
     return entry
@@ -73,18 +76,43 @@ def _add_subentry(
     return subentry
 
 
-async def test_setup_skips_network_subentry(
+async def test_setup_skips_network_subentry_when_no_coordinator(
     hass: HomeAssistant,
     config_entry: MockConfigEntry,
 ) -> None:
-    """Setup skips the network subentry which has no switch fields."""
+    """Setup skips the network subentry which has no switch fields (INPUT_PLATFORMS call)."""
     _add_subentry(hass, config_entry, ELEMENT_TYPE_NETWORK, "Test Network", {})
+
+    # Simulate INPUT_PLATFORMS call - no coordinator yet
+    config_entry.runtime_data.coordinator = None
 
     async_add_entities = Mock()
     await async_setup_entry(hass, config_entry, async_add_entities)
 
-    # No entities created for network-only config
+    # No input switch entities created for network-only config
     async_add_entities.assert_not_called()
+
+
+async def test_setup_creates_auto_optimize_switch_for_network(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+) -> None:
+    """Setup creates auto-optimize switch for network subentry when coordinator exists."""
+    _add_subentry(hass, config_entry, ELEMENT_TYPE_NETWORK, "Test Network", {})
+
+    # Set up coordinator - this is the OUTPUT_PLATFORMS call
+    mock_coordinator = Mock(spec=HaeoDataUpdateCoordinator)
+    mock_coordinator.auto_optimize_enabled = True
+    config_entry.runtime_data.coordinator = mock_coordinator
+
+    async_add_entities = Mock()
+    await async_setup_entry(hass, config_entry, async_add_entities)
+
+    # Auto-optimize switch created for network
+    async_add_entities.assert_called_once()
+    entities = list(async_add_entities.call_args.args[0])
+    assert len(entities) == 1
+    assert entities[0]._attr_translation_key == "network_auto_optimize"
 
 
 async def test_setup_creates_switch_entities_for_solar_curtailment(
