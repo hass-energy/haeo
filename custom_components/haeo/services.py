@@ -65,11 +65,7 @@ async def _build_diagnostics_payload(hass: HomeAssistant, data: dict[str, Any]) 
 
     # Get issues for this domain
     issue_registry = ir.async_get(hass)
-    issues = [
-        issue_reg.to_json()
-        for issue_id, issue_reg in issue_registry.issues.items()
-        if issue_id[0] == DOMAIN
-    ]
+    issues = [issue_reg.to_json() for issue_id, issue_reg in issue_registry.issues.items() if issue_id[0] == DOMAIN]
 
     return {
         "home_assistant": hass_sys_info,
