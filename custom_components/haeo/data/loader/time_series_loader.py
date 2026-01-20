@@ -10,8 +10,11 @@ from custom_components.haeo.data.util.forecast_fuser import fuse_to_boundaries, 
 
 from .sensor_loader import load_sensors, normalize_entity_ids
 
-# Re-export interpolation mode type for callers
-type InterpolationMode = Literal["linear", "step"]
+# Interpolation mode type for time series fusion
+# - "linear": Interval averages with linear interpolation (n values)
+# - "step": Interval averages with step interpolation (n values)
+# - "boundary": Point-in-time values at boundaries (n+1 values)
+type InterpolationMode = Literal["linear", "step", "boundary"]
 
 
 def _is_constant_value(value: Any) -> bool:
@@ -59,13 +62,53 @@ class TimeSeriesLoader:
 
         return len(payloads) == len(entity_ids)
 
-    async def load_intervals(
+    async def load(
         self,
         *,
         hass: HomeAssistant,
         value: Any,
         forecast_times: Sequence[float],
         interpolation: InterpolationMode = "linear",
+    ) -> list[float]:
+        """Load a value using the specified interpolation mode.
+
+        Args:
+            hass: Home Assistant instance
+            value: Entity ID(s) or constant value (must not be None)
+            forecast_times: Boundary timestamps (n+1 values defining n intervals)
+            interpolation: How to fuse forecast data:
+                - "linear": Interval averages with linear interpolation (n values)
+                - "step": Interval averages with step interpolation (n values)
+                - "boundary": Point-in-time values at boundaries (n+1 values)
+
+        Returns:
+            For "linear" and "step": n interval values (averages over each period)
+            For "boundary": n+1 point-in-time values (one for each boundary)
+
+        Raises:
+            ValueError: If value is None, empty, or sensors unavailable
+
+        """
+        if interpolation == "boundary":
+            return await self.load_boundaries(
+                hass=hass,
+                value=value,
+                forecast_times=forecast_times,
+            )
+        return await self.load_intervals(
+            hass=hass,
+            value=value,
+            forecast_times=forecast_times,
+            interpolation=interpolation,
+        )
+
+    async def load_intervals(
+        self,
+        *,
+        hass: HomeAssistant,
+        value: Any,
+        forecast_times: Sequence[float],
+        interpolation: Literal["linear", "step"] = "linear",
     ) -> list[float]:
         """Load a value as interval averages (n values for n+1 boundaries).
 

@@ -13,9 +13,10 @@ from homeassistant.components.switch import SwitchEntityDescription
 from custom_components.haeo.model.const import OutputType
 
 # Interpolation mode for time series data
-# - "linear": Values interpolate linearly between points (power, efficiency)
-# - "step": Values hold until the next point (prices)
-type InterpolationMode = Literal["linear", "step"]
+# - "linear": Values interpolate linearly between points, returns n interval averages (power, efficiency)
+# - "step": Values hold until the next point, returns n interval averages (prices)
+# - "boundary": Point-in-time values at boundaries, returns n+1 values (capacity, SoC limits)
+type InterpolationMode = Literal["linear", "step", "boundary"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -52,8 +53,10 @@ class InputFieldInfo[T: (NumberEntityDescription, SwitchEntityDescription)]:
         output_type: OutputType enum value for categorization and unit spec lookup
         direction: "+" or "-" for power direction attributes
         time_series: Whether this field is time series (list) or scalar
-        boundaries: Whether time series values are at boundaries (n+1 values) vs intervals (n values)
-        interpolation: How to interpolate between forecast points ("linear" or "step")
+        interpolation: How to fuse forecast data:
+            - "linear": Interval averages with linear interpolation (n values)
+            - "step": Interval averages with step interpolation (n values)
+            - "boundary": Point-in-time values at boundaries (n+1 values)
         defaults: Default pre-selection behavior for config flow fields
         device_type: Optional device type override for sub-device inputs
 
@@ -69,7 +72,6 @@ class InputFieldInfo[T: (NumberEntityDescription, SwitchEntityDescription)]:
     output_type: OutputType
     direction: str | None = None
     time_series: bool = False
-    boundaries: bool = False
     interpolation: InterpolationMode = "linear"
     defaults: InputFieldDefaults | None = None
     # Force value to be required, even if its optional in the schema

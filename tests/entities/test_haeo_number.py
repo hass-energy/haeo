@@ -118,7 +118,7 @@ def boundary_field_info() -> InputFieldInfo[NumberEntityDescription]:
         ),
         output_type=OutputType.ENERGY,
         time_series=True,
-        boundaries=True,
+        interpolation="boundary",
     )
 
 
@@ -910,7 +910,7 @@ async def test_editable_mode_with_boundaries_field(
     boundary_field_info: InputFieldInfo[NumberEntityDescription],
     horizon_manager: Mock,
 ) -> None:
-    """Number entity with boundaries=True field builds correct forecast."""
+    """Number entity with interpolation='boundary' field builds correct forecast."""
     subentry = _create_subentry("Test Battery", {"soc": 50.0})
     config_entry.runtime_data = None
 
@@ -926,7 +926,7 @@ async def test_editable_mode_with_boundaries_field(
     # Update forecast
     entity._update_editable_forecast()
 
-    # With boundaries=True and 3 timestamps, should have 3 values (n+1 values for n+1 boundaries)
+    # With interpolation="boundary" and 3 timestamps, should have 3 values (n+1 values for n+1 boundaries)
     values = entity.get_values()
     assert values is not None
     assert len(values) == 3  # All 3 boundary timestamps
@@ -940,7 +940,7 @@ async def test_async_load_data_with_boundaries_field(
     boundary_field_info: InputFieldInfo[NumberEntityDescription],
     horizon_manager: Mock,
 ) -> None:
-    """_async_load_data uses load_boundaries for boundaries=True fields."""
+    """_async_load_data uses load with interpolation='boundary' for boundary fields."""
     subentry = _create_subentry("Test Battery", {"soc": ["sensor.soc"]})
     config_entry.runtime_data = None
 
@@ -955,14 +955,14 @@ async def test_async_load_data_with_boundaries_field(
 
     # Mock loader to return boundary values (n+1 values)
     # Use AsyncMock to properly mock the async method
-    entity._loader.load_boundaries = AsyncMock(return_value=[10.0, 20.0, 30.0])
-    entity._loader.load_intervals = AsyncMock()
+    entity._loader.load = AsyncMock(return_value=[10.0, 20.0, 30.0])
 
     await entity._async_load_data()
 
-    # Should call load_boundaries, not load_intervals
-    entity._loader.load_boundaries.assert_called_once()
-    entity._loader.load_intervals.assert_not_called()
+    # Should call load with interpolation="boundary"
+    entity._loader.load.assert_called_once()
+    call_kwargs = entity._loader.load.call_args.kwargs
+    assert call_kwargs["interpolation"] == "boundary"
 
     # Should have 3 values
     assert entity.native_value == 10.0

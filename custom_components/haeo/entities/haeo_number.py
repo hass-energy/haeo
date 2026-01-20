@@ -184,21 +184,12 @@ class HaeoInputNumber(NumberEntity):
         forecast_timestamps = self._get_forecast_timestamps()
 
         try:
-            if self._field_info.boundaries:
-                # Boundary fields: n+1 values at time boundaries
-                values = await self._loader.load_boundaries(
-                    hass=self._hass,
-                    value=self._source_entity_ids,
-                    forecast_times=list(forecast_timestamps),
-                )
-            else:
-                # Interval fields: n values for periods between boundaries
-                values = await self._loader.load_intervals(
-                    hass=self._hass,
-                    value=self._source_entity_ids,
-                    forecast_times=list(forecast_timestamps),
-                    interpolation=self._field_info.interpolation,
-                )
+            values = await self._loader.load(
+                hass=self._hass,
+                value=self._source_entity_ids,
+                forecast_times=list(forecast_timestamps),
+                interpolation=self._field_info.interpolation,
+            )
         except Exception:
             # If loading fails, don't update state
             return
@@ -210,7 +201,7 @@ class HaeoInputNumber(NumberEntity):
         # For boundaries: n+1 values at each timestamp
         # For intervals: n values corresponding to periods (use timestamps[:-1])
         local_tz = dt_util.get_default_time_zone()
-        if self._field_info.boundaries:
+        if self._field_info.interpolation == "boundary":
             forecast = [
                 {"time": datetime.fromtimestamp(ts, tz=local_tz), "value": val}
                 for ts, val in zip(forecast_timestamps, values, strict=True)
@@ -243,7 +234,7 @@ class HaeoInputNumber(NumberEntity):
             # For boundaries: n+1 values at each timestamp
             # For intervals: n values corresponding to periods (use timestamps[:-1])
             local_tz = dt_util.get_default_time_zone()
-            if self._field_info.boundaries:
+            if self._field_info.interpolation == "boundary":
                 forecast = [
                     {"time": datetime.fromtimestamp(ts, tz=local_tz), "value": self._attr_native_value}
                     for ts in forecast_timestamps
