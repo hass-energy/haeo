@@ -128,7 +128,6 @@ def create_segment(
         target_element=target_element,
     )
 
-
 __all__ = [
     "BALANCE_ABSORBED_EXCESS",
     "BALANCE_POWER_DOWN",
@@ -141,6 +140,8 @@ __all__ = [
     "BatteryBalanceOutputName",
     "BatteryBalanceSegment",
     "BatteryBalanceSegmentSpec",
+    "DemandPricingSegment",
+    "DemandPricingSegmentSpec",
     "EfficiencySegment",
     "EfficiencySegmentSpec",
     "PassthroughSegment",
@@ -148,8 +149,6 @@ __all__ = [
     "PowerLimitOutputName",
     "PowerLimitSegment",
     "PowerLimitSegmentSpec",
-    "DemandPricingSegment",
-    "DemandPricingSegmentSpec",
     "PricingSegment",
     "PricingSegmentSpec",
     "Segment",
