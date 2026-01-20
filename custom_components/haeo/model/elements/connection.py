@@ -90,7 +90,6 @@ class Connection[TOutputName: str](Element[TOutputName]):
         target: str,
         segments: dict[str, SegmentSpec] | None = None,
         output_names: frozenset[TOutputName] | None = None,
-        _skip_segments: bool = False,
     ) -> None:
         """Initialize a connection.
 
@@ -103,7 +102,6 @@ class Connection[TOutputName: str](Element[TOutputName]):
             segments: Dict of segment names to SegmentSpec TypedDicts.
                 Each spec has segment_type plus segment-specific parameters.
             output_names: Output names for this connection type
-            _skip_segments: If True, skip segment creation (for subclasses with custom power flow)
 
         """
         # Use provided output_names or default to CONNECTION_OUTPUT_NAMES
@@ -124,10 +122,6 @@ class Connection[TOutputName: str](Element[TOutputName]):
 
         # Segments stored in OrderedDict for name-based and index-based access
         self._segments: OrderedDict[str, Segment] = OrderedDict()
-
-        # Skip segment creation for subclasses that handle power flow themselves
-        if _skip_segments:
-            return
 
         segment_specs = segments or {}
 
@@ -171,17 +165,19 @@ class Connection[TOutputName: str](Element[TOutputName]):
             segment.set_endpoints(source_element, target_element)
 
     @property
-    def _first(self) -> Segment | None:
+    def _first(self) -> Segment:
         """Return the first segment in the chain."""
         if not self._segments:
-            return None
+            msg = f"{type(self).__name__} has no segments configured"
+            raise RuntimeError(msg)
         return next(iter(self._segments.values()))
 
     @property
-    def _last(self) -> Segment | None:
+    def _last(self) -> Segment:
         """Return the last segment in the chain."""
         if not self._segments:
-            return None
+            msg = f"{type(self).__name__} has no segments configured"
+            raise RuntimeError(msg)
         return next(reversed(self._segments.values()))
 
     @property
@@ -196,24 +192,12 @@ class Connection[TOutputName: str](Element[TOutputName]):
 
     @property
     def power_source_target(self) -> HighspyArray:
-        """Return power flowing from source to target (input to first segment).
-
-        Note: Subclasses using _skip_segments=True must override this property.
-        """
-        if self._first is None:
-            msg = f"{type(self).__name__} must override power_source_target when using _skip_segments=True"
-            raise NotImplementedError(msg)
+        """Return power flowing from source to target (input to first segment)."""
         return self._first.power_in_st
 
     @property
     def power_target_source(self) -> HighspyArray:
-        """Return power flowing from target to source (input to first segment from t→s direction).
-
-        Note: Subclasses using _skip_segments=True must override this property.
-        """
-        if self._first is None:
-            msg = f"{type(self).__name__} must override power_target_source when using _skip_segments=True"
-            raise NotImplementedError(msg)
+        """Return power flowing from target to source (input to first segment from t→s direction)."""
         return self._first.power_in_ts
 
     @property
@@ -222,11 +206,7 @@ class Connection[TOutputName: str](Element[TOutputName]):
 
         This is the t→s output from the last segment minus the s→t input to the first segment.
 
-        Note: Subclasses using _skip_segments=True must override this property.
         """
-        if self._last is None or self._first is None:
-            msg = f"{type(self).__name__} must override power_into_source when using _skip_segments=True"
-            raise NotImplementedError(msg)
         return self._last.power_out_ts - self._first.power_in_st
 
     @property
@@ -235,11 +215,7 @@ class Connection[TOutputName: str](Element[TOutputName]):
 
         This is the s→t output from the last segment minus the t→s input to the first segment.
 
-        Note: Subclasses using _skip_segments=True must override this property.
         """
-        if self._last is None or self._first is None:
-            msg = f"{type(self).__name__} must override power_into_target when using _skip_segments=True"
-            raise NotImplementedError(msg)
         return self._last.power_out_st - self._first.power_in_ts
 
     # --- Constraint and cost delegation to segments ---
