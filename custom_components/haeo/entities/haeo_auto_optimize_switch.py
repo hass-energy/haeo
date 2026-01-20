@@ -4,19 +4,22 @@ from typing import Any
 
 from homeassistant.components.switch import SwitchEntity
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import EntityCategory
+from homeassistant.const import STATE_ON, EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceEntry
+from homeassistant.helpers.restore_state import RestoreEntity
 
 from custom_components.haeo.coordinator import HaeoDataUpdateCoordinator
 
 
-class HaeoAutoOptimizeSwitch(SwitchEntity):
+class HaeoAutoOptimizeSwitch(SwitchEntity, RestoreEntity):
     """Switch entity to enable/disable automatic optimization.
 
     This switch controls whether HAEO automatically runs optimization
     when input entities change. When disabled, users must manually
-    trigger optimization via the run_optimizer service.
+    trigger optimization via the optimize service.
+
+    Uses RestoreEntity to persist state across Home Assistant restarts.
 
     Default: enabled (preserves current behavior)
     """
@@ -44,8 +47,23 @@ class HaeoAutoOptimizeSwitch(SwitchEntity):
         # Unique ID: entry_id + auto_optimize
         self._attr_unique_id = f"{config_entry.entry_id}_auto_optimize"
 
-        # Initialize state from coordinator
-        self._attr_is_on = coordinator.auto_optimize_enabled
+        # Default state - will be overridden by restored state in async_added_to_hass
+        self._attr_is_on = True
+
+    async def async_added_to_hass(self) -> None:
+        """Restore state when entity is added to Home Assistant."""
+        await super().async_added_to_hass()
+
+        # Try to restore previous state
+        last_state = await self.async_get_last_state()
+        if last_state is not None:
+            self._attr_is_on = last_state.state == STATE_ON
+        else:
+            # No previous state - default to enabled
+            self._attr_is_on = True
+
+        # Apply restored state to coordinator
+        self._coordinator.auto_optimize_enabled = self._attr_is_on
 
     async def async_turn_on(self, **_kwargs: Any) -> None:
         """Enable automatic optimization."""
