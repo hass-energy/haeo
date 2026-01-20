@@ -377,11 +377,10 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         """Trigger optimization with debouncing.
 
         This method respects the auto_optimize_enabled flag. When disabled,
-        automatic optimization triggers are ignored.
+        automatic optimization triggers are ignored silently.
         """
         # Skip if auto-optimization is disabled
         if not self._auto_optimize_enabled:
-            _LOGGER.debug("Auto-optimization disabled, skipping")
             return
 
         # If optimization is in progress, just mark pending
