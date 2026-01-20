@@ -10,6 +10,7 @@ from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.json import ExtendedJSONEncoder
 from homeassistant.helpers.system_info import async_get_system_info
 from homeassistant.loader import Manifest, async_get_custom_components, async_get_integration
@@ -62,12 +63,21 @@ async def _build_diagnostics_payload(hass: HomeAssistant, data: dict[str, Any]) 
     # Get integration manifest
     integration = await async_get_integration(hass, DOMAIN)
 
+    # Get issues for this domain
+    issue_registry = ir.async_get(hass)
+    issues = [
+        issue_reg.to_json()
+        for issue_id, issue_reg in issue_registry.issues.items()
+        if issue_id[0] == DOMAIN
+    ]
+
     return {
         "home_assistant": hass_sys_info,
         "custom_components": custom_components,
         "integration_manifest": _format_manifest(integration.manifest),
         "setup_times": async_get_domain_setup_times(hass, DOMAIN),
         "data": data,
+        "issues": issues,
     }
 
 
