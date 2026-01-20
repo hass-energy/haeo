@@ -444,7 +444,7 @@ async def test_save_diagnostics_historical_missing_entities_raises_error(
             blocking=True,
         )
 
-    assert exc_info.value.translation_key == "no_history_at_timestamp"
+    assert exc_info.value.translation_key == "no_history_at_time"
     # Verify placeholders include time and missing entities
     placeholders = exc_info.value.translation_placeholders
     assert placeholders is not None

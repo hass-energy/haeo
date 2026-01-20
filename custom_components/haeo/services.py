@@ -128,7 +128,7 @@ async def async_setup_services(hass: HomeAssistant) -> None:
         if target_timestamp is not None and result.missing_entity_ids:
             raise ServiceValidationError(
                 translation_domain=DOMAIN,
-                translation_key="no_history_at_timestamp",
+                translation_key="no_history_at_time",
                 translation_placeholders={
                     "time": target_timestamp.isoformat(),
                     "missing": ", ".join(result.missing_entity_ids),

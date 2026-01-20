@@ -382,7 +382,7 @@
     "missing_sensors": {
       "message": "HAEO cannot load data for {unavailable_sensors}. Verify each referenced sensor exists and is reporting data."
     },
-    "no_history_at_timestamp": {
+    "no_history_at_time": {
       "message": "No history available at time {time} for: {missing}. The recorder may not have data this far back."
     },
     "self_referential_field_missing": {
@@ -428,9 +428,9 @@
       "description": "Save a diagnostics file to the config directory",
       "fields": {
         "config_entry": { "description": "The HAEO system to save diagnostics for", "name": "System" },
-        "timestamp": {
-          "description": "Optional timestamp for historical diagnostics. If omitted, uses current state.",
-          "name": "Timestamp"
+        "time": {
+          "description": "Optional time for historical diagnostics. If omitted, uses current state.",
+          "name": "Time"
         }
       },
       "name": "Save diagnostics"
