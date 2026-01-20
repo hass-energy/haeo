@@ -1,5 +1,6 @@
 """Service actions for HAEO integration."""
 
+from datetime import datetime
 import json
 import logging
 from pathlib import Path
@@ -22,6 +23,7 @@ _LOGGER = logging.getLogger(__name__)
 
 SERVICE_SAVE_DIAGNOSTICS = "save_diagnostics"
 ATTR_CONFIG_ENTRY = "config_entry"
+ATTR_TIMESTAMP = "timestamp"
 
 
 def _format_manifest(manifest: Manifest) -> Manifest:
@@ -75,9 +77,10 @@ async def async_setup_services(hass: HomeAssistant) -> None:
     async def async_handle_save_diagnostics(call: ServiceCall) -> None:
         """Handle the save_diagnostics service call."""
         # Import diagnostics module here to avoid circular imports
-        from .diagnostics import async_get_config_entry_diagnostics  # noqa: PLC0415
+        from .diagnostics import CurrentStateProvider, HistoricalStateProvider, collect_diagnostics  # noqa: PLC0415
 
         entry_id = call.data[ATTR_CONFIG_ENTRY]
+        target_timestamp: datetime | None = call.data.get(ATTR_TIMESTAMP)
 
         # Validate config entry exists
         entry = hass.config_entries.async_get_entry(entry_id)
@@ -104,12 +107,24 @@ async def async_setup_services(hass: HomeAssistant) -> None:
                 translation_placeholders={"entry_id": entry_id, "state": str(entry.state)},
             )
 
-        # Get diagnostics data
-        diagnostics_data = await async_get_config_entry_diagnostics(hass, entry)
+        # Create state provider based on timestamp presence
+        # Note: timestamp is only in schema when recorder is available,
+        # and HistoricalStateProvider imports recorder at module level
+        if target_timestamp is not None:
+            state_provider = HistoricalStateProvider(hass, target_timestamp)
+        else:
+            state_provider = CurrentStateProvider(hass)
+
+        # Get diagnostics data using the appropriate provider
+        diagnostics_data = await collect_diagnostics(hass, entry, state_provider)
 
         # Generate filename with timestamp (microseconds for uniqueness)
-        timestamp = dt_util.now().strftime("%Y-%m-%d_%H%M%S.%f")
-        filename = f"haeo_diagnostics_{timestamp}.json"
+        # Use the target timestamp if historical, otherwise use now
+        if target_timestamp is not None:
+            file_timestamp = target_timestamp.strftime("%Y-%m-%d_%H%M%S.%f")
+        else:
+            file_timestamp = dt_util.now().strftime("%Y-%m-%d_%H%M%S.%f")
+        filename = f"haeo_diagnostics_{file_timestamp}.json"
         filepath = Path(hass.config.path(filename))
 
         # Build full diagnostics payload matching Home Assistant's format
@@ -124,9 +139,14 @@ async def async_setup_services(hass: HomeAssistant) -> None:
 
         _LOGGER.info("HAEO diagnostics saved to %s", filepath)
 
+    # Build schema - only include timestamp if recorder is available
+    schema_fields: dict[vol.Marker, Any] = {vol.Required(ATTR_CONFIG_ENTRY): cv.string}
+    if "recorder" in hass.config.components:
+        schema_fields[vol.Optional(ATTR_TIMESTAMP)] = cv.datetime
+
     hass.services.async_register(
         DOMAIN,
         SERVICE_SAVE_DIAGNOSTICS,
         async_handle_save_diagnostics,
-        schema=vol.Schema({vol.Required(ATTR_CONFIG_ENTRY): cv.string}),
+        schema=vol.Schema(schema_fields),
     )

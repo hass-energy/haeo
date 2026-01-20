@@ -3,6 +3,7 @@
   "name": "HAEO",
   "codeowners": ["@TrentHouliston", "@BrendanAnnable"],
   "config_flow": true,
+  "after_dependencies": ["recorder"],
   "dependencies": [],
   "documentation": "https://github.com/hass-energy/haeo",
   "integration_type": "hub",

@@ -92,7 +92,7 @@ async def test_save_diagnostics_service_success(
     hass.config.config_dir = str(tmp_path)
 
     with patch(
-        "custom_components.haeo.diagnostics.async_get_config_entry_diagnostics",
+        "custom_components.haeo.diagnostics.collect_diagnostics",
         new_callable=AsyncMock,
         return_value=mock_diagnostics,
     ):
@@ -206,7 +206,7 @@ async def test_save_diagnostics_filename_format(
     hass.config.config_dir = str(tmp_path)
 
     with patch(
-        "custom_components.haeo.diagnostics.async_get_config_entry_diagnostics",
+        "custom_components.haeo.diagnostics.collect_diagnostics",
         new_callable=AsyncMock,
         return_value={"config": {}, "environment": {}, "inputs": [], "outputs": {}},
     ):

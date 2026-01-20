@@ -423,7 +423,13 @@
   "services": {
     "save_diagnostics": {
       "description": "Save a diagnostics file to the config directory",
-      "fields": { "config_entry": { "description": "The HAEO system to save diagnostics for", "name": "System" } },
+      "fields": {
+        "config_entry": { "description": "The HAEO system to save diagnostics for", "name": "System" },
+        "timestamp": {
+          "description": "Optional timestamp for historical diagnostics. If omitted, uses current state.",
+          "name": "Timestamp"
+        }
+      },
       "name": "Save diagnostics"
     }
   }
