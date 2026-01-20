@@ -11,9 +11,6 @@ from custom_components.haeo.model import Network
 from custom_components.haeo.model import network as network_module
 from custom_components.haeo.model.element import Element
 from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_BATTERY as ELEMENT_TYPE_BATTERY
-from custom_components.haeo.model.elements import (
-    MODEL_ELEMENT_TYPE_BATTERY_BALANCE_CONNECTION as ELEMENT_TYPE_BATTERY_BALANCE_CONNECTION,
-)
 from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION as ELEMENT_TYPE_CONNECTION
 from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_NODE as ELEMENT_TYPE_NODE
 from custom_components.haeo.model.elements.connection import Connection
@@ -407,10 +404,11 @@ def test_add_battery_balance_connection() -> None:
     # Add battery balance connection
     balance = network.add(
         {
-            "element_type": ELEMENT_TYPE_BATTERY_BALANCE_CONNECTION,
+            "element_type": ELEMENT_TYPE_CONNECTION,
             "name": "balance",
-            "upper": "upper_section",
-            "lower": "lower_section",
+            "source": "upper_section",
+            "target": "lower_section",
+            "segments": {"balance": {"segment_type": "battery_balance"}},
         }
     )
 
@@ -432,10 +430,11 @@ def test_add_battery_balance_connection_upper_not_battery() -> None:
     with pytest.raises(TypeError, match="Upper element 'not_a_battery' is not a battery"):
         network.add(
             {
-                "element_type": ELEMENT_TYPE_BATTERY_BALANCE_CONNECTION,
+                "element_type": ELEMENT_TYPE_CONNECTION,
                 "name": "balance",
-                "upper": "not_a_battery",
-                "lower": "lower_section",
+                "source": "not_a_battery",
+                "target": "lower_section",
+                "segments": {"balance": {"segment_type": "battery_balance"}},
             }
         )
 
@@ -453,10 +452,11 @@ def test_add_battery_balance_connection_lower_not_battery() -> None:
     with pytest.raises(TypeError, match="Lower element 'not_a_battery' is not a battery"):
         network.add(
             {
-                "element_type": ELEMENT_TYPE_BATTERY_BALANCE_CONNECTION,
+                "element_type": ELEMENT_TYPE_CONNECTION,
                 "name": "balance",
-                "upper": "upper_section",
-                "lower": "not_a_battery",
+                "source": "upper_section",
+                "target": "not_a_battery",
+                "segments": {"balance": {"segment_type": "battery_balance"}},
             }
         )
 

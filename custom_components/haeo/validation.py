@@ -4,7 +4,7 @@ from collections.abc import Mapping, Sequence
 
 from .const import CONF_ELEMENT_TYPE
 from .elements import ELEMENT_TYPES, ElementConfigData
-from .model.elements import MODEL_ELEMENT_TYPE_BATTERY_BALANCE_CONNECTION, MODEL_ELEMENT_TYPE_CONNECTION
+from .model.elements import MODEL_ELEMENT_TYPE_CONNECTION
 from .util.graph import ConnectivityResult as NetworkConnectivityResult
 from .util.graph import find_connected_components
 
@@ -25,19 +25,23 @@ def _build_adjacency(participants: Mapping[str, ElementConfigData]) -> dict[str,
         # Get model elements including implicit connections
         model_elements = adapter.model_elements(loaded_config)
 
-        # Add non-connection elements as nodes (skip balance connections - internal bookkeeping)
+        # Add non-connection elements as nodes (skip internal connection elements)
         for elem in model_elements:
             elem_type = elem["element_type"]
-            if elem_type not in {MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_BATTERY_BALANCE_CONNECTION}:
+            if elem_type != MODEL_ELEMENT_TYPE_CONNECTION:
                 adjacency.setdefault(elem["name"], set())
 
         # Add edges from connection elements
         for elem in model_elements:
-            if elem["element_type"] == MODEL_ELEMENT_TYPE_CONNECTION:
-                source = elem["source"]
-                target = elem["target"]
-                adjacency.setdefault(source, set()).add(target)
-                adjacency.setdefault(target, set()).add(source)
+            if elem["element_type"] != MODEL_ELEMENT_TYPE_CONNECTION:
+                continue
+            segments = elem.get("segments")
+            if segments and any(segment.get("segment_type") == "battery_balance" for segment in segments.values()):
+                continue
+            source = elem["source"]
+            target = elem["target"]
+            adjacency.setdefault(source, set()).add(target)
+            adjacency.setdefault(target, set()).add(source)
 
     return adjacency
 

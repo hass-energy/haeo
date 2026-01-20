@@ -1,4 +1,4 @@
-"""Tests for BatteryBalanceConnection constraints.
+"""Tests for battery balance segment constraints.
 
 This test suite verifies the battery balance connection's constraint formulation
 using simplified mock batteries with controlled stored_energy values and SOC
@@ -12,12 +12,13 @@ constraints. The tests confirm that:
    - When capacity stable: power_up = 0
    - When capacity shrinks: power_up = excess amount
 
-The battery balance connection only provides one-sided bounds; the external SOC
+The battery balance segment only provides one-sided bounds; the external SOC
 constraints (E >= 0, E <= C) fully bind the solution to exact values.
 """
 
+from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Any, Self
+from typing import Any, Self, cast
 
 from highspy import Highs
 from highspy.highs import HighspyArray
@@ -25,7 +26,14 @@ import numpy as np
 from numpy.typing import NDArray
 import pytest
 
-from custom_components.haeo.model.elements.battery_balance_connection import BatteryBalanceConnection
+from custom_components.haeo.model.elements.connection import CONNECTION_SEGMENTS, Connection
+from custom_components.haeo.model.elements.segments.battery_balance import (
+    BALANCE_ABSORBED_EXCESS,
+    BALANCE_POWER_DOWN,
+    BALANCE_POWER_UP,
+    BALANCE_UNMET_DEMAND,
+    BatteryBalanceSegment,
+)
 
 
 @dataclass
@@ -44,7 +52,7 @@ class MockBattery:
     stored_energy: HighspyArray
     _energy_in: HighspyArray
     _energy_out: HighspyArray
-    _connections: list[tuple[BatteryBalanceConnection, str]]
+    _connections: list[tuple[Connection[str], str]]
 
     @classmethod
     def create(
@@ -91,7 +99,7 @@ class MockBattery:
             _connections=[],
         )
 
-    def register_connection(self, connection: BatteryBalanceConnection, end: str) -> None:
+    def register_connection(self, connection: Connection[str], end: str) -> None:
         """Register a connection to this battery."""
         self._connections.append((connection, end))
 
@@ -285,17 +293,17 @@ def test_battery_balance_connection(scenario: BalanceTestScenario, solver: Highs
     )
 
     # Create balance connection
-    connection = BatteryBalanceConnection(
+    connection = Connection(
         name="balance",
         periods=scenario.periods,
         solver=solver,
-        upper="upper",
-        lower="lower",
+        source="upper",
+        target="lower",
+        segments={"balance": {"segment_type": "battery_balance"}},
     )
-
-    # Set battery references and build constraints
-    # MockBattery provides the same interface as Battery but isn't a subtype
-    connection.set_battery_references(upper, lower)  # type: ignore[arg-type]
+    connection.set_endpoints(upper, lower)
+    upper.register_connection(connection, "source")
+    lower.register_connection(connection, "target")
 
     # Build power balance for batteries (links connections to energy change)
     upper.build_power_balance(scenario.periods)
@@ -314,8 +322,12 @@ def test_battery_balance_connection(scenario: BalanceTestScenario, solver: Highs
 
     # Extract results
     outputs = connection.outputs()
-    power_down = outputs["balance_power_down"].values
-    power_up = outputs["balance_power_up"].values
+    segments_output = outputs[CONNECTION_SEGMENTS]
+    assert isinstance(segments_output, Mapping)
+    segment_outputs = segments_output["balance"]
+    assert isinstance(segment_outputs, Mapping)
+    power_down = segment_outputs[BALANCE_POWER_DOWN].values
+    power_up = segment_outputs[BALANCE_POWER_UP].values
 
     # Verify power flows match expectations
     assert power_down == pytest.approx(scenario.expected_power_down, abs=1e-6), (
@@ -328,12 +340,13 @@ def test_battery_balance_connection(scenario: BalanceTestScenario, solver: Highs
 
 def test_battery_balance_connection_missing_references(solver: Highs) -> None:
     """Verify error when battery references not set."""
-    connection = BatteryBalanceConnection(
+    connection = Connection(
         name="balance",
         periods=np.array([1.0]),
         solver=solver,
-        upper="upper",
-        lower="lower",
+        source="upper",
+        target="lower",
+        segments={"balance": {"segment_type": "battery_balance"}},
     )
 
     with pytest.raises(ValueError, match="Battery references not set"):
@@ -345,39 +358,43 @@ def test_battery_balance_connection_outputs_structure(solver: Highs) -> None:
     upper = MockBattery.create("upper", 2, 10.0, 5.0, solver)
     lower = MockBattery.create("lower", 2, 10.0, 3.0, solver)
 
-    connection = BatteryBalanceConnection(
+    connection = Connection(
         name="balance",
         periods=np.array([1.0, 1.0]),
         solver=solver,
-        upper="upper",
-        lower="lower",
+        source="upper",
+        target="lower",
+        segments={"balance": {"segment_type": "battery_balance"}},
     )
-    # MockBattery provides the same interface as Battery but isn't a subtype
-    connection.set_battery_references(upper, lower)  # type: ignore[arg-type]
+    connection.set_endpoints(upper, lower)
     connection.constraints()
 
     # Run solver
     solver.run()
 
     outputs = connection.outputs()
+    segments_output = outputs[CONNECTION_SEGMENTS]
+    assert isinstance(segments_output, Mapping)
+    segment_outputs = segments_output["balance"]
+    assert isinstance(segment_outputs, Mapping)
 
     # Check required outputs exist
-    assert "balance_power_down" in outputs
-    assert "balance_power_up" in outputs
-    assert "balance_unmet_demand" in outputs
-    assert "balance_absorbed_excess" in outputs
+    assert BALANCE_POWER_DOWN in segment_outputs
+    assert BALANCE_POWER_UP in segment_outputs
+    assert BALANCE_UNMET_DEMAND in segment_outputs
+    assert BALANCE_ABSORBED_EXCESS in segment_outputs
 
     # Check constraint shadow prices exist
-    assert "balance_down_lower_bound" in outputs
-    assert "balance_down_slack_bound" in outputs
-    assert "balance_up_upper_bound" in outputs
-    assert "balance_up_slack_bound" in outputs
+    assert "balance_down_lower_bound" in segment_outputs
+    assert "balance_down_slack_bound" in segment_outputs
+    assert "balance_up_upper_bound" in segment_outputs
+    assert "balance_up_slack_bound" in segment_outputs
 
     # Verify output metadata
-    assert outputs["balance_power_down"].unit == "kW"
-    assert outputs["balance_power_up"].unit == "kW"
-    assert outputs["balance_power_down"].direction == "+"
-    assert outputs["balance_power_up"].direction == "-"
+    assert segment_outputs[BALANCE_POWER_DOWN].unit == "kW"
+    assert segment_outputs[BALANCE_POWER_UP].unit == "kW"
+    assert segment_outputs[BALANCE_POWER_DOWN].direction == "+"
+    assert segment_outputs[BALANCE_POWER_UP].direction == "-"
 
 
 def test_battery_balance_connection_raises_without_battery_references() -> None:
@@ -386,23 +403,25 @@ def test_battery_balance_connection_raises_without_battery_references() -> None:
     h.setOptionValue("output_flag", False)
 
     # Create connection without setting battery references
-    conn = BatteryBalanceConnection(
+    conn = Connection(
         name="balance",
         periods=np.array([1.0, 1.0]),
         solver=h,
-        upper="upper",
-        lower="lower",
+        source="upper",
+        target="lower",
+        segments={"balance": {"segment_type": "battery_balance"}},
     )
 
     # Calling constraints without setting battery references should raise
+    balance_segment = cast("BatteryBalanceSegment", conn.segments["balance"])
     with pytest.raises(ValueError, match="Battery references not set"):
-        conn.balance_down_lower_bound()
+        balance_segment.balance_down_lower_bound()
 
     with pytest.raises(ValueError, match="Battery references not set"):
-        conn.balance_down_slack_bound()
+        balance_segment.balance_down_slack_bound()
 
     with pytest.raises(ValueError, match="Battery references not set"):
-        conn.balance_up_upper_bound()
+        balance_segment.balance_up_upper_bound()
 
     with pytest.raises(ValueError, match="Battery references not set"):
-        conn.balance_up_slack_bound()
+        balance_segment.balance_up_slack_bound()

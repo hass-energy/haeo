@@ -6,7 +6,6 @@ from .element import Element as Element
 from .elements import ModelElementConfig as ModelElementConfig
 from .elements import ModelElementType as ModelElementType
 from .elements import battery as battery
-from .elements import battery_balance_connection as battery_balance_connection
 from .elements import connection as connection
 from .elements import node as node
 from .elements.battery import BATTERY_OUTPUT_NAMES as BATTERY_OUTPUT_NAMES
@@ -14,8 +13,6 @@ from .elements.battery import BATTERY_POWER_CONSTRAINTS as BATTERY_POWER_CONSTRA
 from .elements.battery import Battery as Battery
 from .elements.battery import BatteryConstraintName as BatteryConstraintName
 from .elements.battery import BatteryOutputName as BatteryOutputName
-from .elements.battery_balance_connection import ELEMENT_TYPE as MODEL_ELEMENT_BATTERY_BALANCE_CONNECTION
-from .elements.battery_balance_connection import BatteryBalanceConnection as BatteryBalanceConnection
 from .elements.connection import CONNECTION_OUTPUT_NAMES as CONNECTION_OUTPUT_NAMES
 from .elements.connection import CONNECTION_POWER_SOURCE_TARGET as CONNECTION_POWER_SOURCE_TARGET
 from .elements.connection import CONNECTION_POWER_TARGET_SOURCE as CONNECTION_POWER_TARGET_SOURCE
@@ -33,9 +30,7 @@ __all__ = [
     "CONNECTION_OUTPUT_NAMES",
     "CONNECTION_POWER_SOURCE_TARGET",
     "CONNECTION_POWER_TARGET_SOURCE",
-    "MODEL_ELEMENT_BATTERY_BALANCE_CONNECTION",
     "Battery",
-    "BatteryBalanceConnection",
     "BatteryConstraintName",
     "BatteryOutputName",
     "Connection",

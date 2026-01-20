@@ -11,15 +11,14 @@ from custom_components.haeo.elements import battery as battery_element
 from custom_components.haeo.elements.battery import BatteryConfigData
 from custom_components.haeo.model import ModelOutputName, ModelOutputValue, connection
 from custom_components.haeo.model import battery as battery_model
-from custom_components.haeo.model import battery_balance_connection as balance_model
 from custom_components.haeo.model import node as node_model
 from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.elements import (
     MODEL_ELEMENT_TYPE_BATTERY,
-    MODEL_ELEMENT_TYPE_BATTERY_BALANCE_CONNECTION,
     MODEL_ELEMENT_TYPE_CONNECTION,
     MODEL_ELEMENT_TYPE_NODE,
 )
+from custom_components.haeo.model.elements.segments.battery_balance import BALANCE_POWER_DOWN, BALANCE_POWER_UP
 from custom_components.haeo.model.output_data import OutputData
 from tests.util.normalize import normalize_for_compare
 
@@ -132,17 +131,19 @@ CREATE_CASES: Sequence[CreateCase] = [
             },
             # Balance connection: undercharge -> normal
             {
-                "element_type": MODEL_ELEMENT_TYPE_BATTERY_BALANCE_CONNECTION,
+                "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
                 "name": "battery_main:balance:undercharge:normal",
-                "upper": "battery_main:normal",
-                "lower": "battery_main:undercharge",
+                "source": "battery_main:normal",
+                "target": "battery_main:undercharge",
+                "segments": {"balance": {"segment_type": "battery_balance"}},
             },
             # Balance connection: normal -> overcharge
             {
-                "element_type": MODEL_ELEMENT_TYPE_BATTERY_BALANCE_CONNECTION,
+                "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
                 "name": "battery_main:balance:normal:overcharge",
-                "upper": "battery_main:overcharge",
-                "lower": "battery_main:normal",
+                "source": "battery_main:overcharge",
+                "target": "battery_main:normal",
+                "segments": {"balance": {"segment_type": "battery_balance"}},
             },
             # Main connection to network
             {
@@ -365,12 +366,20 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
             },
             # Balance connections
             "battery_all_sections:balance:undercharge:normal": {
-                balance_model.BALANCE_POWER_DOWN: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(0.05,)),
-                balance_model.BALANCE_POWER_UP: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(0.02,)),
+                connection.CONNECTION_SEGMENTS: {
+                    "balance": {
+                        BALANCE_POWER_DOWN: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(0.05,)),
+                        BALANCE_POWER_UP: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(0.02,)),
+                    }
+                },
             },
             "battery_all_sections:balance:normal:overcharge": {
-                balance_model.BALANCE_POWER_DOWN: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(0.03,)),
-                balance_model.BALANCE_POWER_UP: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(0.01,)),
+                connection.CONNECTION_SEGMENTS: {
+                    "balance": {
+                        BALANCE_POWER_DOWN: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(0.03,)),
+                        BALANCE_POWER_UP: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(0.01,)),
+                    }
+                },
             },
         },
         # Expected outputs calculated as:

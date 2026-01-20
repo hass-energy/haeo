@@ -18,7 +18,8 @@ import networkx as nx
 
 from custom_components.haeo.model import Network
 from custom_components.haeo.model.element import Element
-from custom_components.haeo.model.elements import Battery, BatteryBalanceConnection, Connection, Node
+from custom_components.haeo.model.elements import Battery, Connection, Node
+from custom_components.haeo.model.elements.segments import BatteryBalanceSegment
 
 # Use non-GUI backend
 mpl.use("Agg")
@@ -86,11 +87,13 @@ def _get_element_type(element: Element[str]) -> str:
         return "battery"
     if isinstance(element, Node):
         return "node"
-    if isinstance(element, BatteryBalanceConnection):
-        return "balance"
     if isinstance(element, Connection):
         return "connection"
     return "unknown"
+
+
+def _is_balance_connection(element: Connection[str]) -> bool:
+    return any(isinstance(segment, BatteryBalanceSegment) for segment in element.segments.values())
 
 
 def _get_parent_device(name: str) -> str:
@@ -143,7 +146,7 @@ def build_graph(
                 graph.add_node(endpoint, color="lightgray", element_type="unknown")
                 device_groups[parent].append(endpoint)
 
-        edge_style = "balance" if isinstance(element, BatteryBalanceConnection) else "power"
+        edge_style = "balance" if _is_balance_connection(element) else "power"
         graph.add_edge(source, target, name=name, style=edge_style)
 
     # Sort device_groups and their node lists for deterministic order

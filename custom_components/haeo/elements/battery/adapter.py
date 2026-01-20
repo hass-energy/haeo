@@ -15,15 +15,15 @@ from custom_components.haeo.elements.input_fields import InputFieldDefaults, Inp
 from custom_components.haeo.elements.output_utils import expect_output_data
 from custom_components.haeo.model import ModelElementConfig, ModelOutputName, ModelOutputValue
 from custom_components.haeo.model import battery as model_battery
-from custom_components.haeo.model import battery_balance_connection as model_balance
 from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.elements import (
     MODEL_ELEMENT_TYPE_BATTERY,
-    MODEL_ELEMENT_TYPE_BATTERY_BALANCE_CONNECTION,
     MODEL_ELEMENT_TYPE_CONNECTION,
     MODEL_ELEMENT_TYPE_NODE,
 )
+from custom_components.haeo.model.elements.connection import CONNECTION_SEGMENTS
 from custom_components.haeo.model.elements.node import NODE_POWER_BALANCE
+from custom_components.haeo.model.elements.segments import BALANCE_POWER_DOWN, BALANCE_POWER_UP
 from custom_components.haeo.model.output_data import OutputData
 
 from .schema import (
@@ -526,17 +526,21 @@ class BatteryAdapter:
 
         # 6. Create balance connections between adjacent sections (enforces fill ordering)
         # Balance connections ensure lower sections fill before upper sections
-        # The BatteryBalanceConnection derives capacity from connected battery sections directly
         for i in range(len(section_names) - 1):
             lower_section = section_names[i]
             upper_section = section_names[i + 1]
 
             elements.append(
                 {
-                    "element_type": MODEL_ELEMENT_TYPE_BATTERY_BALANCE_CONNECTION,
+                    "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
                     "name": f"{name}:balance:{lower_section.split(':')[-1]}:{upper_section.split(':')[-1]}",
-                    "upper": upper_section,
-                    "lower": lower_section,
+                    "source": upper_section,
+                    "target": lower_section,
+                    "segments": {
+                        "balance": {
+                            "segment_type": "battery_balance",
+                        }
+                    },
                 }
             )
 
@@ -728,15 +732,19 @@ class BatteryAdapter:
                 if balance_name in model_outputs:
                     # Power down from this section to lower section (energy leaving downward)
                     balance_outputs = model_outputs[balance_name]
-                    down_output = balance_outputs.get(model_balance.BALANCE_POWER_DOWN)
-                    if isinstance(down_output, OutputData):
-                        down_vals = down_output.values
-                        power_down_values = list(down_vals)
-                    # Power up from lower section to this section (energy entering from below)
-                    up_output = balance_outputs.get(model_balance.BALANCE_POWER_UP)
-                    if isinstance(up_output, OutputData):
-                        up_vals = up_output.values
-                        power_up_values = list(up_vals)
+                    segments_output = balance_outputs.get(CONNECTION_SEGMENTS)
+                    if isinstance(segments_output, Mapping):
+                        balance_segment = segments_output.get("balance")
+                        if isinstance(balance_segment, Mapping):
+                            down_output = balance_segment.get(BALANCE_POWER_DOWN)
+                            if isinstance(down_output, OutputData):
+                                down_vals = down_output.values
+                                power_down_values = list(down_vals)
+                            # Power up from lower section to this section (energy entering from below)
+                            up_output = balance_segment.get(BALANCE_POWER_UP)
+                            if isinstance(up_output, OutputData):
+                                up_vals = up_output.values
+                                power_up_values = list(up_vals)
 
             # Check for balance connection with section above (this section is lower)
             # In this connection: power_down enters this section, power_up leaves this section
@@ -746,21 +754,25 @@ class BatteryAdapter:
                 if balance_name in model_outputs:
                     # Power down from upper section to this section (energy entering from above)
                     balance_outputs = model_outputs[balance_name]
-                    down_output = balance_outputs.get(model_balance.BALANCE_POWER_DOWN)
-                    if isinstance(down_output, OutputData):
-                        down_vals = np.array(down_output.values)
-                        if power_down_values is None:
-                            power_down_values = list(down_vals)
-                        else:
-                            power_down_values = list(np.array(power_down_values) + down_vals)
-                    # Power up from this section to upper section (energy leaving upward)
-                    up_output = balance_outputs.get(model_balance.BALANCE_POWER_UP)
-                    if isinstance(up_output, OutputData):
-                        up_vals = np.array(up_output.values)
-                        if power_up_values is None:
-                            power_up_values = list(up_vals)
-                        else:
-                            power_up_values = list(np.array(power_up_values) + up_vals)
+                    segments_output = balance_outputs.get(CONNECTION_SEGMENTS)
+                    if isinstance(segments_output, Mapping):
+                        balance_segment = segments_output.get("balance")
+                        if isinstance(balance_segment, Mapping):
+                            down_output = balance_segment.get(BALANCE_POWER_DOWN)
+                            if isinstance(down_output, OutputData):
+                                down_vals = np.array(down_output.values)
+                                if power_down_values is None:
+                                    power_down_values = list(down_vals)
+                                else:
+                                    power_down_values = list(np.array(power_down_values) + down_vals)
+                            # Power up from this section to upper section (energy leaving upward)
+                            up_output = balance_segment.get(BALANCE_POWER_UP)
+                            if isinstance(up_output, OutputData):
+                                up_vals = np.array(up_output.values)
+                                if power_up_values is None:
+                                    power_up_values = list(up_vals)
+                                else:
+                                    power_up_values = list(np.array(power_up_values) + up_vals)
 
             if power_down_values is not None:
                 result[device_key][BATTERY_BALANCE_POWER_DOWN] = OutputData(
