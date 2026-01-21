@@ -170,11 +170,13 @@ async def async_setup_services(hass: HomeAssistant) -> None:
         """Handle the run_optimizer service call.
 
         Manually triggers optimization, bypassing debouncing and the auto-optimize setting.
+        Optionally accepts a timestamp to run historical optimization.
         """
         # Import here to avoid circular imports
         from . import HaeoConfigEntry  # noqa: PLC0415
 
         entry_id = call.data[ATTR_CONFIG_ENTRY]
+        target_timestamp: datetime | None = call.data.get(ATTR_TIMESTAMP)
 
         # Validate config entry exists
         entry = hass.config_entries.async_get_entry(entry_id)
@@ -212,12 +214,32 @@ async def async_setup_services(hass: HomeAssistant) -> None:
             )
 
         # Run optimization
-        _LOGGER.info("Running optimization for %s (manual trigger)", entry_id)
-        await runtime_data.coordinator.async_run_optimization()
+        if target_timestamp is not None:
+            _LOGGER.info("Running historical optimization for %s at %s", entry_id, target_timestamp.isoformat())
+        else:
+            _LOGGER.info("Running optimization for %s (manual trigger)", entry_id)
+
+        missing_entity_ids = await runtime_data.coordinator.async_run_optimization(target_time=target_timestamp)
+
+        # Validate that historical queries returned all expected data
+        if target_timestamp is not None and missing_entity_ids:
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="no_history_at_time",
+                translation_placeholders={
+                    "time": target_timestamp.isoformat(),
+                    "missing": ", ".join(missing_entity_ids),
+                },
+            )
+
+    # Build optimize schema - only include timestamp if recorder is available
+    optimize_schema_fields: dict[vol.Marker, Any] = {vol.Required(ATTR_CONFIG_ENTRY): cv.string}
+    if "recorder" in hass.config.components:
+        optimize_schema_fields[vol.Optional(ATTR_TIMESTAMP)] = cv.datetime
 
     hass.services.async_register(
         DOMAIN,
         SERVICE_OPTIMIZE,
         async_handle_run_optimizer,
-        schema=vol.Schema({vol.Required(ATTR_CONFIG_ENTRY): cv.string}),
+        schema=vol.Schema(optimize_schema_fields),
     )

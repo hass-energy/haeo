@@ -4,22 +4,22 @@ overview: Add an optional `time` parameter to the `haeo.optimize` service that a
 todos:
   - id: move-state-providers
     content: Create state/ directory and move state providers from diagnostics/
-    status: pending
+    status: completed
   - id: forecast-times
     content: Add optional start_time parameter to tiers_to_periods_seconds()
-    status: pending
+    status: completed
   - id: coordinator-historical
     content: Add target_time parameter to async_run_optimization() and historical state loading
-    status: pending
+    status: completed
   - id: service-schema
     content: Add time field to optimize service schema (conditional on recorder)
-    status: pending
+    status: completed
   - id: services-yaml
     content: Add time field definition to services.yaml
-    status: pending
+    status: completed
   - id: tests
     content: Add tests for historical optimization
-    status: pending
+    status: completed
 ---
 
 # Add Time Parameter to Optimize Service

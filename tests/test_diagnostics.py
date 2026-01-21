@@ -601,7 +601,7 @@ async def test_historical_state_provider_properties(hass: HomeAssistant) -> None
     # Mock the recorder instance
     mock_recorder = Mock()
     with patch(
-        "custom_components.haeo.diagnostics.historical_state_provider.get_recorder_instance",
+        "custom_components.haeo.state.historical_state_provider.get_recorder_instance",
         return_value=mock_recorder,
     ):
         provider = HistoricalStateProvider(hass, target_time)
@@ -622,7 +622,7 @@ async def test_historical_state_provider_get_state(hass: HomeAssistant) -> None:
     mock_recorder.async_add_executor_job = AsyncMock(return_value={"sensor.test_entity": [mock_state]})
 
     with patch(
-        "custom_components.haeo.diagnostics.historical_state_provider.get_recorder_instance",
+        "custom_components.haeo.state.historical_state_provider.get_recorder_instance",
         return_value=mock_recorder,
     ):
         provider = HistoricalStateProvider(hass, target_time)
@@ -641,7 +641,7 @@ async def test_historical_state_provider_get_state_not_found(hass: HomeAssistant
     mock_recorder.async_add_executor_job = AsyncMock(return_value={})
 
     with patch(
-        "custom_components.haeo.diagnostics.historical_state_provider.get_recorder_instance",
+        "custom_components.haeo.state.historical_state_provider.get_recorder_instance",
         return_value=mock_recorder,
     ):
         provider = HistoricalStateProvider(hass, target_time)
@@ -668,7 +668,7 @@ async def test_historical_state_provider_get_states(hass: HomeAssistant) -> None
     )
 
     with patch(
-        "custom_components.haeo.diagnostics.historical_state_provider.get_recorder_instance",
+        "custom_components.haeo.state.historical_state_provider.get_recorder_instance",
         return_value=mock_recorder,
     ):
         provider = HistoricalStateProvider(hass, target_time)
@@ -686,7 +686,7 @@ async def test_historical_state_provider_get_states_empty(hass: HomeAssistant) -
     mock_recorder = Mock()
 
     with patch(
-        "custom_components.haeo.diagnostics.historical_state_provider.get_recorder_instance",
+        "custom_components.haeo.state.historical_state_provider.get_recorder_instance",
         return_value=mock_recorder,
     ):
         provider = HistoricalStateProvider(hass, target_time)
@@ -707,11 +707,11 @@ async def test_historical_state_provider_get_states_sync(hass: HomeAssistant) ->
 
     with (
         patch(
-            "custom_components.haeo.diagnostics.historical_state_provider.get_recorder_instance",
+            "custom_components.haeo.state.historical_state_provider.get_recorder_instance",
             return_value=mock_recorder,
         ),
         patch(
-            "custom_components.haeo.diagnostics.historical_state_provider.recorder_history.get_significant_states",
+            "custom_components.haeo.state.historical_state_provider.recorder_history.get_significant_states",
             return_value={"sensor.test": [mock_state]},
         ) as mock_get_states,
     ):

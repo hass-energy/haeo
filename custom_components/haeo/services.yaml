@@ -17,3 +17,7 @@ optimize:
       selector:
         config_entry:
           integration: haeo
+    time:
+      required: false
+      selector:
+        datetime:
