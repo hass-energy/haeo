@@ -204,7 +204,7 @@ async def async_setup_services(hass: HomeAssistant) -> None:
         # Get runtime data and coordinator
         typed_entry: HaeoConfigEntry = entry  # type: ignore[assignment]
         runtime_data = typed_entry.runtime_data
-        if runtime_data is None or runtime_data.coordinator is None:
+        if not runtime_data or not runtime_data.coordinator:
             raise ServiceValidationError(
                 translation_domain=DOMAIN,
                 translation_key="config_entry_not_loaded",
