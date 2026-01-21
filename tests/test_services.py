@@ -674,9 +674,7 @@ async def test_optimize_historical_missing_entities_raises_error(
 
     # Create a mock coordinator that returns missing entities
     mock_coordinator = AsyncMock()
-    mock_coordinator.async_run_optimization = AsyncMock(
-        return_value=["sensor.battery_soc", "sensor.grid_price"]
-    )
+    mock_coordinator.async_run_optimization = AsyncMock(return_value=["sensor.battery_soc", "sensor.grid_price"])
 
     mock_hub_entry.runtime_data = HaeoRuntimeData(
         coordinator=mock_coordinator,
