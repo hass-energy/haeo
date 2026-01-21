@@ -332,3 +332,129 @@ async def test_horizon_manager_scheduled_update_reschedules(
     assert manager._unsub_timer is not None
 
     manager.stop()
+
+
+# --- Tests for pause/resume ---
+
+
+async def test_horizon_manager_pause_cancels_timer(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+) -> None:
+    """HorizonManager pause cancels the update timer."""
+    manager = HorizonManager(hass, config_entry)
+    manager.start()
+
+    # Verify timer is running
+    assert manager._unsub_timer is not None
+
+    # Pause should cancel the timer
+    manager.pause()
+
+    assert manager._unsub_timer is None
+
+    # Clean up
+    manager.stop()
+
+
+async def test_horizon_manager_pause_preserves_subscribers(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+) -> None:
+    """HorizonManager pause preserves subscribers unlike stop."""
+    manager = HorizonManager(hass, config_entry)
+    manager.start()
+
+    callback_count = 0
+
+    def test_callback() -> None:
+        nonlocal callback_count
+        callback_count += 1
+
+    manager.subscribe(test_callback)
+
+    # Pause should preserve subscribers
+    manager.pause()
+
+    # Subscribers should still be registered
+    assert len(manager._subscribers) == 1
+
+    # Clean up
+    manager.stop()
+
+
+async def test_horizon_manager_resume_updates_timestamps(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+) -> None:
+    """HorizonManager resume updates timestamps to current time."""
+    manager = HorizonManager(hass, config_entry)
+    manager.start()
+
+    # Get initial timestamps
+    initial_timestamps = manager.get_forecast_timestamps()
+
+    # Pause
+    manager.pause()
+
+    # Resume should update timestamps
+    manager.resume()
+
+    resumed_timestamps = manager.get_forecast_timestamps()
+
+    # Timestamps may have changed if time passed, or be the same if within same period
+    # But they should be valid (not empty)
+    assert len(resumed_timestamps) > 0
+    assert len(resumed_timestamps) == len(initial_timestamps)
+
+    # Clean up
+    manager.stop()
+
+
+async def test_horizon_manager_resume_notifies_subscribers(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+) -> None:
+    """HorizonManager resume notifies all subscribers."""
+    manager = HorizonManager(hass, config_entry)
+    manager.start()
+
+    callback_count = 0
+
+    def test_callback() -> None:
+        nonlocal callback_count
+        callback_count += 1
+
+    manager.subscribe(test_callback)
+
+    # Pause
+    manager.pause()
+
+    # Resume should notify subscribers
+    manager.resume()
+
+    assert callback_count == 1
+
+    # Clean up
+    manager.stop()
+
+
+async def test_horizon_manager_resume_restarts_timer(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+) -> None:
+    """HorizonManager resume restarts the update timer."""
+    manager = HorizonManager(hass, config_entry)
+    manager.start()
+
+    # Pause cancels timer
+    manager.pause()
+    assert manager._unsub_timer is None
+
+    # Resume should restart timer
+    manager.resume()
+
+    assert manager._unsub_timer is not None
+
+    # Clean up
+    manager.stop()

@@ -357,8 +357,21 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
 
     @auto_optimize_enabled.setter
     def auto_optimize_enabled(self, value: bool) -> None:
-        """Set whether automatic optimization is enabled."""
+        """Set whether automatic optimization is enabled.
+
+        When disabled, pauses the HorizonManager to freeze timestamps.
+        When enabled, resumes the HorizonManager which updates timestamps
+        to current time and notifies all subscribers.
+        """
         self._auto_optimize_enabled = value
+
+        # Pause/resume the horizon manager to freeze/unfreeze time
+        runtime_data = self._get_runtime_data()
+        if runtime_data is not None:
+            if value:
+                runtime_data.horizon_manager.resume()
+            else:
+                runtime_data.horizon_manager.pause()
 
     async def async_run_optimization(self) -> None:
         """Manually trigger optimization, bypassing debouncing and auto-optimize check.

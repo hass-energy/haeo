@@ -1278,6 +1278,42 @@ def test_trigger_optimization_skips_when_auto_optimize_disabled(
     assert coordinator._debounce_timer is None
 
 
+def test_auto_optimize_disabled_pauses_horizon_manager(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+    mock_runtime_data: HaeoRuntimeData,
+) -> None:
+    """Disabling auto-optimize pauses the horizon manager."""
+    coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
+
+    # Disable auto-optimize
+    coordinator.auto_optimize_enabled = False
+
+    # Horizon manager pause should have been called
+    _get_mock_horizon(mock_runtime_data).pause.assert_called_once()
+
+
+def test_auto_optimize_enabled_resumes_horizon_manager(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+    mock_runtime_data: HaeoRuntimeData,
+) -> None:
+    """Enabling auto-optimize resumes the horizon manager."""
+    coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
+
+    # First disable (to have a transition)
+    coordinator.auto_optimize_enabled = False
+
+    # Clear mock to verify resume is called
+    _get_mock_horizon(mock_runtime_data).resume.reset_mock()
+
+    # Re-enable auto-optimize
+    coordinator.auto_optimize_enabled = True
+
+    # Horizon manager resume should have been called
+    _get_mock_horizon(mock_runtime_data).resume.assert_called_once()
+
+
 @pytest.mark.usefixtures("mock_battery_subentry", "mock_grid_subentry", "mock_runtime_data")
 async def test_async_run_optimization_runs_when_inputs_aligned(
     hass: HomeAssistant,
