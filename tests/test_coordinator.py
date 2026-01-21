@@ -1342,6 +1342,114 @@ def test_apply_auto_optimize_state_resumes_horizon_manager(
     _get_mock_horizon(mock_runtime_data).resume.assert_called_once()
 
 
+def test_apply_auto_optimize_state_no_op_without_runtime_data(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+) -> None:
+    """_apply_auto_optimize_state does nothing when runtime_data is None."""
+    # Don't set runtime_data
+    mock_hub_entry.runtime_data = None
+    coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
+
+    # Should not raise - just return early
+    coordinator._apply_auto_optimize_state(is_enabled=True)
+    coordinator._apply_auto_optimize_state(is_enabled=False)
+
+
+def test_handle_auto_optimize_switch_change_on_enables(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+    mock_runtime_data: HaeoRuntimeData,
+) -> None:
+    """_handle_auto_optimize_switch_change resumes horizon and triggers optimization when turned on."""
+    from homeassistant.const import STATE_ON
+    from homeassistant.core import State
+
+    coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
+
+    # Create mock event for switch turning ON
+    new_state = MagicMock(spec=State)
+    new_state.state = STATE_ON
+    event_data: EventStateChangedData = {
+        "entity_id": "switch.haeo_auto_optimize",
+        "old_state": None,
+        "new_state": new_state,
+    }
+    event = MagicMock()
+    event.data = event_data
+
+    # Patch async_create_task to capture the coroutine and prevent unawaited warning
+    created_tasks: list[Any] = []
+
+    def capture_task(coro: Any) -> None:
+        # Close the coroutine to avoid unawaited warning
+        coro.close()
+        created_tasks.append(coro)
+
+    with patch.object(hass, "async_create_task", side_effect=capture_task):
+        coordinator._handle_auto_optimize_switch_change(event)
+
+    # Should resume horizon manager
+    _get_mock_horizon(mock_runtime_data).resume.assert_called()
+    # Should have created a task for optimization
+    assert len(created_tasks) == 1
+
+
+def test_handle_auto_optimize_switch_change_off_pauses(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+    mock_runtime_data: HaeoRuntimeData,
+) -> None:
+    """_handle_auto_optimize_switch_change pauses horizon when turned off."""
+    from homeassistant.const import STATE_OFF
+    from homeassistant.core import State
+
+    coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
+
+    # Create mock event for switch turning OFF
+    new_state = MagicMock(spec=State)
+    new_state.state = STATE_OFF
+    event_data: EventStateChangedData = {
+        "entity_id": "switch.haeo_auto_optimize",
+        "old_state": None,
+        "new_state": new_state,
+    }
+    event = MagicMock()
+    event.data = event_data
+
+    coordinator._handle_auto_optimize_switch_change(event)
+
+    # Should pause horizon manager
+    _get_mock_horizon(mock_runtime_data).pause.assert_called()
+
+
+def test_handle_auto_optimize_switch_change_none_state_returns_early(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+    mock_runtime_data: HaeoRuntimeData,
+) -> None:
+    """_handle_auto_optimize_switch_change returns early when new_state is None."""
+    coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
+
+    # Create mock event with None new_state
+    event_data: EventStateChangedData = {
+        "entity_id": "switch.haeo_auto_optimize",
+        "old_state": None,
+        "new_state": None,
+    }
+    event = MagicMock()
+    event.data = event_data
+
+    # Reset mock to track new calls
+    _get_mock_horizon(mock_runtime_data).reset_mock()
+
+    coordinator._handle_auto_optimize_switch_change(event)
+
+    # Should NOT have called pause or resume
+    _get_mock_horizon(mock_runtime_data).pause.assert_not_called()
+    _get_mock_horizon(mock_runtime_data).resume.assert_not_called()
+
+
 @pytest.mark.usefixtures("mock_battery_subentry", "mock_grid_subentry", "mock_runtime_data")
 async def test_async_run_optimization_runs_when_inputs_aligned(
     hass: HomeAssistant,
