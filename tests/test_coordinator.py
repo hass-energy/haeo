@@ -636,7 +636,7 @@ def test_element_state_change_triggers_update_and_optimization(
 
     with (
         patch.object(coordinator, "_load_element_config") as load_mock,
-        patch.object(coordinator, "_trigger_optimization") as trigger_mock,
+        patch.object(coordinator, "signal_optimization_stale") as trigger_mock,
         patch("custom_components.haeo.coordinator.coordinator.network_module.update_element") as update_mock,
     ):
         load_mock.return_value = {"element_type": "battery", "name": "Test Battery"}
@@ -660,14 +660,14 @@ def test_horizon_change_triggers_optimization(
     """Horizon manager changes trigger optimization."""
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
 
-    with patch.object(coordinator, "_trigger_optimization") as trigger_mock:
+    with patch.object(coordinator, "signal_optimization_stale") as trigger_mock:
         coordinator._handle_horizon_change()
 
     trigger_mock.assert_called_once()
 
 
 @pytest.mark.usefixtures("mock_battery_subentry", "mock_grid_subentry")
-def test_trigger_optimization_marks_pending_when_in_progress(
+def testsignal_optimization_stale_marks_pending_when_in_progress(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
     mock_runtime_data: HaeoRuntimeData,
@@ -677,13 +677,13 @@ def test_trigger_optimization_marks_pending_when_in_progress(
     coordinator._optimization_in_progress = True
     coordinator._pending_refresh = False
 
-    coordinator._trigger_optimization()
+    coordinator.signal_optimization_stale()
 
     assert coordinator._pending_refresh is True
 
 
 @pytest.mark.usefixtures("mock_battery_subentry", "mock_grid_subentry")
-def test_trigger_optimization_schedules_timer_in_cooldown(
+def testsignal_optimization_stale_schedules_timer_in_cooldown(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
     mock_runtime_data: HaeoRuntimeData,
@@ -695,7 +695,7 @@ def test_trigger_optimization_schedules_timer_in_cooldown(
 
     with patch("custom_components.haeo.coordinator.coordinator.async_call_later") as mock_timer:
         mock_timer.return_value = MagicMock()  # Return unsubscribe callback
-        coordinator._trigger_optimization()
+        coordinator.signal_optimization_stale()
 
     assert coordinator._pending_refresh is True
     mock_timer.assert_called_once()
@@ -706,7 +706,7 @@ def test_trigger_optimization_schedules_timer_in_cooldown(
 
 
 @pytest.mark.usefixtures("mock_battery_subentry", "mock_grid_subentry")
-def test_trigger_optimization_reuses_existing_timer(
+def testsignal_optimization_stale_reuses_existing_timer(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
     mock_runtime_data: HaeoRuntimeData,
@@ -719,7 +719,7 @@ def test_trigger_optimization_reuses_existing_timer(
     coordinator._debounce_timer = existing_timer
 
     with patch("custom_components.haeo.coordinator.coordinator.async_call_later") as mock_timer:
-        coordinator._trigger_optimization()
+        coordinator.signal_optimization_stale()
 
     # Should not schedule new timer since one exists
     mock_timer.assert_not_called()
@@ -1002,7 +1002,7 @@ def test_cleanup_clears_debounce_timer(
 
 
 @pytest.mark.usefixtures("mock_battery_subentry", "mock_grid_subentry")
-def test_trigger_optimization_optimizes_immediately_outside_cooldown(
+def testsignal_optimization_stale_optimizes_immediately_outside_cooldown(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
     mock_runtime_data: HaeoRuntimeData,
@@ -1014,7 +1014,7 @@ def test_trigger_optimization_optimizes_immediately_outside_cooldown(
     coordinator._debounce_seconds = 5.0
 
     with patch.object(coordinator, "_maybe_trigger_refresh") as mock_trigger:
-        coordinator._trigger_optimization()
+        coordinator.signal_optimization_stale()
 
     mock_trigger.assert_called_once()
 
@@ -1180,7 +1180,7 @@ def test_handle_element_update_logs_and_returns_on_load_error(
             "_load_element_config",
             side_effect=ValueError("Missing required field"),
         ),
-        patch.object(coordinator, "_trigger_optimization") as trigger_mock,
+        patch.object(coordinator, "signal_optimization_stale") as trigger_mock,
         patch("custom_components.haeo.coordinator.coordinator._LOGGER") as mock_logger,
     ):
         # Should not raise - logs and returns
@@ -1247,11 +1247,11 @@ def test_element_update_callback_calls_handle_element_update(
 # ===== Tests for auto-optimize control =====
 
 
-def test_auto_optimize_enabled_defaults_to_true_when_no_switch(
+def test_auto_optimize_enabled_raises_when_no_switch(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
 ) -> None:
-    """Auto-optimize defaults to True when no switch is available."""
+    """Auto-optimize raises error when no switch is available."""
     # Create runtime data without auto_optimize_switch
     from custom_components.haeo.horizon import HorizonManager  # noqa: PLC0415
 
@@ -1259,7 +1259,8 @@ def test_auto_optimize_enabled_defaults_to_true_when_no_switch(
     mock_hub_entry.runtime_data = HaeoRuntimeData(horizon_manager=mock_horizon)
 
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
-    assert coordinator.auto_optimize_enabled is True
+    with pytest.raises(RuntimeError, match="auto_optimize_switch not available"):
+        _ = coordinator.auto_optimize_enabled
 
 
 def test_auto_optimize_enabled_reads_from_switch(
@@ -1285,12 +1286,12 @@ def test_auto_optimize_enabled_reads_from_switch(
     assert coordinator.auto_optimize_enabled is True
 
 
-def test_trigger_optimization_skips_when_auto_optimize_disabled(
+def testsignal_optimization_stale_skips_when_auto_optimize_disabled(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
     mock_runtime_data: HaeoRuntimeData,
 ) -> None:
-    """_trigger_optimization does nothing when auto-optimize is disabled."""
+    """signal_optimization_stale does nothing when auto-optimize is disabled."""
     switch = mock_runtime_data.auto_optimize_switch
     assert switch is not None
 
@@ -1303,8 +1304,8 @@ def test_trigger_optimization_skips_when_auto_optimize_disabled(
     coordinator._optimization_in_progress = False
     coordinator._pending_refresh = False
 
-    # Call _trigger_optimization - should return early due to auto_optimize_enabled=False
-    coordinator._trigger_optimization()
+    # Call signal_optimization_stale - should return early due to auto_optimize_enabled=False
+    coordinator.signal_optimization_stale()
 
     # State should remain unchanged (no pending refresh set, no timers scheduled)
     assert coordinator._pending_refresh is False

@@ -354,13 +354,13 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         network_module.update_element(self.network, element_config)
 
         # Trigger optimization (with debouncing)
-        self._trigger_optimization()
+        self.signal_optimization_stale()
 
     @callback
     def _handle_horizon_change(self) -> None:
         """Handle horizon manager changes."""
         # Just trigger optimization - _are_inputs_aligned will gate until all elements update
-        self._trigger_optimization()
+        self.signal_optimization_stale()
 
     @callback
     def _handle_auto_optimize_switch_change(self, event: Event[EventStateChangedData]) -> None:
@@ -419,11 +419,11 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         await self.async_refresh()
 
     @callback
-    def _trigger_optimization(self) -> None:
-        """Trigger optimization with debouncing.
+    def signal_optimization_stale(self) -> None:
+        """Signal that optimization results are stale and a refresh may be needed.
 
-        This method respects the auto_optimize_enabled flag. When disabled,
-        automatic optimization triggers are ignored silently.
+        Checks auto_optimize_enabled before proceeding. If disabled, does nothing.
+        Handles debouncing to prevent excessive refreshes.
         """
         # Skip if auto-optimization is disabled
         if not self.auto_optimize_enabled:
