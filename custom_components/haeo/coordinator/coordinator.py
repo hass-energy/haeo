@@ -226,6 +226,9 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         self._pending_refresh: bool = False
         self._optimization_in_progress: bool = False  # Prevent concurrent optimizations
 
+        # Optimization horizon start time (for historical optimization support)
+        self._optimization_start_time: datetime | None = None
+
         # No update_interval - we're event-driven from input entities
         # No request_refresh_debouncer - we handle debouncing ourselves
         super().__init__(
@@ -278,6 +281,16 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         """Get runtime data from config entry, or None if not available."""
         config_entry = self._get_config_entry()
         return getattr(config_entry, "runtime_data", None)
+
+    @property
+    def optimization_start_time(self) -> datetime | None:
+        """Return the start time of the optimization horizon.
+
+        This is the time from which the optimization forecast begins.
+        For normal optimization, this is the current time.
+        For historical optimization, this is the requested historical time.
+        """
+        return self._optimization_start_time
 
     def _subscribe_to_input_entities(self) -> None:
         """Subscribe to state changes from input entities.
@@ -448,6 +461,9 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         # Generate periods and forecast timestamps based on target time
         periods_seconds = tiers_to_periods_seconds(self.config_entry.data, start_time=target_time)
         forecast_timestamps = generate_forecast_timestamps(periods_seconds, start_time=target_time.timestamp())
+
+        # Record optimization start time for historical run
+        self._optimization_start_time = target_time
 
         # Collect all input entity IDs
         input_entity_ids = [entity.entity_id for entity in runtime_data.input_entities.values()]
@@ -855,6 +871,11 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
                 raise UpdateFailed(msg)
 
             forecast_timestamps = runtime_data.horizon_manager.get_forecast_timestamps()
+
+            # Record optimization start time (first forecast timestamp)
+            self._optimization_start_time = (
+                dt_util.utc_from_timestamp(forecast_timestamps[0]) if forecast_timestamps else dt_util.utcnow()
+            )
 
             # Load element configurations from input entities
             # All input entities are guaranteed to be fully loaded by the time we get here
