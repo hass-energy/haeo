@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Any, Literal, TypedDict
 
 from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import STATE_ON, EntityCategory, UnitOfTime
+from homeassistant.const import PERCENTAGE, STATE_ON, EntityCategory, UnitOfTime
 from homeassistant.core import CALLBACK_TYPE, Event, HomeAssistant, callback
 from homeassistant.helpers.event import EventStateChangedData, async_call_later, async_track_state_change_event
 from homeassistant.helpers.translation import async_get_translations
@@ -598,6 +598,14 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
                 values = tuple(point["value"] for point in forecast if isinstance(point, dict) and "value" in point)
                 if not values:
                     continue
+
+                # Apply percentage conversion if entity uses percentage unit
+                # This matches the behavior in HaeoInputNumber.get_values()
+                if (
+                    hasattr(entity, "entity_description")
+                    and getattr(entity.entity_description, "native_unit_of_measurement", None) == PERCENTAGE
+                ):
+                    values = tuple(float(v) / 100.0 for v in values)
 
                 if field_info.time_series:
                     loaded_values[field_name] = np.asarray(values, dtype=float)
