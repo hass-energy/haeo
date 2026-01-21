@@ -1268,17 +1268,20 @@ def test_auto_optimize_enabled_reads_from_switch(
     mock_runtime_data: HaeoRuntimeData,
 ) -> None:
     """Auto-optimize reads state from the switch entity."""
+    switch = mock_runtime_data.auto_optimize_switch
+    assert switch is not None
+
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
 
     # Switch is on by default in fixture
     assert coordinator.auto_optimize_enabled is True
 
     # Change switch to off
-    mock_runtime_data.auto_optimize_switch.is_on = False
+    switch.is_on = False
     assert coordinator.auto_optimize_enabled is False
 
     # Change switch back to on
-    mock_runtime_data.auto_optimize_switch.is_on = True
+    switch.is_on = True
     assert coordinator.auto_optimize_enabled is True
 
 
@@ -1288,8 +1291,11 @@ def test_trigger_optimization_skips_when_auto_optimize_disabled(
     mock_runtime_data: HaeoRuntimeData,
 ) -> None:
     """_trigger_optimization does nothing when auto-optimize is disabled."""
+    switch = mock_runtime_data.auto_optimize_switch
+    assert switch is not None
+
     # Set switch to off
-    mock_runtime_data.auto_optimize_switch.is_on = False
+    switch.is_on = False
 
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
 
