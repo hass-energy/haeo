@@ -430,7 +430,7 @@ async def test_async_update_listener_value_update_in_progress(
 ) -> None:
     """Test async_update_listener skips reload when value update is in progress."""
     # Set up runtime_data with value_update_in_progress=True
-    mock_coordinator = AsyncMock()
+    mock_coordinator = Mock()
     mock_hub_entry.runtime_data = HaeoRuntimeData(
         horizon_manager=_create_mock_horizon_manager(),
         coordinator=mock_coordinator,
@@ -450,9 +450,9 @@ async def test_async_update_listener_value_update_in_progress(
     # Call update listener
     await async_update_listener(hass, mock_hub_entry)
 
-    # Verify: flag should be cleared, coordinator refreshed, NO reload
+    # Verify: flag should be cleared, optimization signaled stale, NO reload
     assert mock_hub_entry.runtime_data.value_update_in_progress is False
-    mock_coordinator.async_refresh.assert_called_once()
+    mock_coordinator.signal_optimization_stale.assert_called_once()
     assert not reload_called
 
 
