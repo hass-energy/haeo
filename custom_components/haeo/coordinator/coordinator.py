@@ -47,7 +47,7 @@ from custom_components.haeo.elements import (
 from custom_components.haeo.model import ModelOutputName, Network, OutputData, OutputType
 from custom_components.haeo.repairs import dismiss_optimization_failure_issue
 from custom_components.haeo.state import HistoricalStateProvider
-from custom_components.haeo.util.forecast_times import generate_forecast_timestamps, tiers_to_periods_seconds
+from custom_components.haeo.util.forecast_times import tiers_to_periods_seconds
 
 from . import network as network_module
 
@@ -458,9 +458,13 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             msg = "Runtime data not available"
             raise UpdateFailed(msg)
 
-        # Generate periods and forecast timestamps based on target time
-        periods_seconds = tiers_to_periods_seconds(self.config_entry.data, start_time=target_time)
-        forecast_timestamps = generate_forecast_timestamps(periods_seconds, start_time=target_time.timestamp())
+        # Set horizon manager to historical time (this notifies all subscribers including
+        # the horizon entity and input entities)
+        runtime_data.horizon_manager.set_start_time(target_time)
+
+        # Use horizon manager's timestamps for consistency
+        forecast_timestamps = runtime_data.horizon_manager.get_forecast_timestamps()
+        periods_seconds = runtime_data.horizon_manager.periods_seconds
 
         # Record optimization start time for historical run
         self._optimization_start_time = target_time
