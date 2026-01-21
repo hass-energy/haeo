@@ -8,8 +8,9 @@ from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry
-from homeassistant.const import UnitOfEnergy
-from homeassistant.core import HomeAssistant
+from homeassistant.const import STATE_OFF, STATE_ON, UnitOfEnergy
+from homeassistant.core import HomeAssistant, State
+from homeassistant.helpers.event import EventStateChangedData
 from homeassistant.helpers.update_coordinator import UpdateFailed
 from homeassistant.util import dt as dt_util
 import numpy as np
@@ -1362,9 +1363,6 @@ def test_handle_auto_optimize_switch_change_on_enables(
     mock_runtime_data: HaeoRuntimeData,
 ) -> None:
     """_handle_auto_optimize_switch_change resumes horizon and triggers optimization when turned on."""
-    from homeassistant.const import STATE_ON
-    from homeassistant.core import State
-
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
 
     # Create mock event for switch turning ON
@@ -1401,9 +1399,6 @@ def test_handle_auto_optimize_switch_change_off_pauses(
     mock_runtime_data: HaeoRuntimeData,
 ) -> None:
     """_handle_auto_optimize_switch_change pauses horizon when turned off."""
-    from homeassistant.const import STATE_OFF
-    from homeassistant.core import State
-
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
 
     # Create mock event for switch turning OFF
