@@ -667,7 +667,7 @@ def test_horizon_change_triggers_optimization(
 
 
 @pytest.mark.usefixtures("mock_battery_subentry", "mock_grid_subentry")
-def testsignal_optimization_stale_marks_pending_when_in_progress(
+def test_signal_optimization_stale_marks_pending_when_in_progress(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
     mock_runtime_data: HaeoRuntimeData,
@@ -683,7 +683,7 @@ def testsignal_optimization_stale_marks_pending_when_in_progress(
 
 
 @pytest.mark.usefixtures("mock_battery_subentry", "mock_grid_subentry")
-def testsignal_optimization_stale_schedules_timer_in_cooldown(
+def test_signal_optimization_stale_schedules_timer_in_cooldown(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
     mock_runtime_data: HaeoRuntimeData,
@@ -706,7 +706,7 @@ def testsignal_optimization_stale_schedules_timer_in_cooldown(
 
 
 @pytest.mark.usefixtures("mock_battery_subentry", "mock_grid_subentry")
-def testsignal_optimization_stale_reuses_existing_timer(
+def test_signal_optimization_stale_reuses_existing_timer(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
     mock_runtime_data: HaeoRuntimeData,
@@ -1002,7 +1002,7 @@ def test_cleanup_clears_debounce_timer(
 
 
 @pytest.mark.usefixtures("mock_battery_subentry", "mock_grid_subentry")
-def testsignal_optimization_stale_optimizes_immediately_outside_cooldown(
+def test_signal_optimization_stale_optimizes_immediately_outside_cooldown(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
     mock_runtime_data: HaeoRuntimeData,
@@ -1286,7 +1286,7 @@ def test_auto_optimize_enabled_reads_from_switch(
     assert coordinator.auto_optimize_enabled is True
 
 
-def testsignal_optimization_stale_skips_when_auto_optimize_disabled(
+def test_signal_optimization_stale_skips_when_auto_optimize_disabled(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
     mock_runtime_data: HaeoRuntimeData,
