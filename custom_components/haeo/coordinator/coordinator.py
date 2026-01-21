@@ -407,11 +407,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         return runtime_data.auto_optimize_switch.is_on or False
 
     async def async_run_optimization(self) -> None:
-        """Manually trigger optimization, bypassing debouncing and auto-optimize check.
-
-        This method is intended for the run_optimizer service to allow users
-        to trigger optimization on demand, regardless of the auto_optimize_enabled setting.
-        """
+        """Manually trigger optimization, bypassing debouncing and auto-optimize check."""
         if not self._are_inputs_aligned():
             _LOGGER.debug("Inputs not aligned, skipping manual optimization")
             return
