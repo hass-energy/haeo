@@ -4,25 +4,25 @@ overview: Refactor the auto-optimize switch to be a true input entity created in
 todos:
   - id: create-switch-entity
     content: Create entities/auto_optimize_switch.py with simplified AutoOptimizeSwitch class (pure state holder)
-    status: pending
+    status: completed
   - id: update-runtime-data
     content: Add auto_optimize_switch field to HaeoRuntimeData in __init__.py
-    status: pending
+    status: completed
   - id: update-switch-platform
     content: Add auto-optimize switch creation to switch.py
-    status: pending
+    status: completed
   - id: update-coordinator
     content: Refactor coordinator to read from switch, subscribe to state changes, and trigger optimization on turn-on
-    status: pending
+    status: completed
   - id: cleanup-init
     content: Remove manual switch creation from __init__.py
-    status: pending
+    status: completed
   - id: delete-old-file
     content: Delete entities/haeo_auto_optimize_switch.py
-    status: pending
+    status: completed
   - id: update-exports
     content: Update entities/__init__.py exports
-    status: pending
+    status: completed
 isProject: false
 ---
 

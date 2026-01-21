@@ -1,7 +1,7 @@
 """Tests for the HAEO switch platform."""
 
 from types import MappingProxyType
-from unittest.mock import AsyncMock, Mock
+from unittest.mock import Mock
 
 from homeassistant.config_entries import ConfigSubentry
 from homeassistant.const import STATE_OFF, STATE_ON
@@ -14,7 +14,7 @@ from custom_components.haeo import HaeoRuntimeData
 from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME, DOMAIN, ELEMENT_TYPE_NETWORK
 from custom_components.haeo.elements.grid import ELEMENT_TYPE as GRID_TYPE
 from custom_components.haeo.elements.solar import ELEMENT_TYPE as SOLAR_TYPE
-from custom_components.haeo.entities.haeo_auto_optimize_switch import HaeoAutoOptimizeSwitch
+from custom_components.haeo.entities.auto_optimize_switch import AutoOptimizeSwitch
 from custom_components.haeo.entities.haeo_number import ConfigEntityMode
 from custom_components.haeo.horizon import HorizonManager
 from custom_components.haeo.switch import async_setup_entry
@@ -96,19 +96,21 @@ async def test_setup_raises_error_when_runtime_data_missing(hass: HomeAssistant)
         await async_setup_entry(hass, entry, async_add_entities)
 
 
-async def test_setup_skips_network_subentry(
+async def test_setup_creates_auto_optimize_switch_for_network(
     hass: HomeAssistant,
     config_entry: MockConfigEntry,
 ) -> None:
-    """Setup skips the network subentry which has no switch fields."""
+    """Setup creates auto-optimize switch for network subentry."""
     _add_subentry(hass, config_entry, ELEMENT_TYPE_NETWORK, "Test Network", {})
 
     async_add_entities = Mock()
     await async_setup_entry(hass, config_entry, async_add_entities)
 
-    # No input switch entities created for network-only config
-    # (auto-optimize switch is created separately in __init__.py)
-    async_add_entities.assert_not_called()
+    # Auto-optimize switch is created for network
+    async_add_entities.assert_called_once()
+    entities = list(async_add_entities.call_args.args[0])
+    assert len(entities) == 1
+    assert isinstance(entities[0], AutoOptimizeSwitch)
 
 
 async def test_setup_skips_element_without_switch_fields(
@@ -134,8 +136,11 @@ async def test_setup_skips_element_without_switch_fields(
     async_add_entities = Mock()
     await async_setup_entry(hass, config_entry, async_add_entities)
 
-    # No switch entities created for grid element (grid has no switch fields)
-    async_add_entities.assert_not_called()
+    # Only the auto-optimize switch is created (grid has no switch fields)
+    async_add_entities.assert_called_once()
+    entities = list(async_add_entities.call_args.args[0])
+    assert len(entities) == 1
+    assert isinstance(entities[0], AutoOptimizeSwitch)
 
 
 async def test_setup_creates_switch_entities_for_solar_curtailment(
@@ -163,10 +168,12 @@ async def test_setup_creates_switch_entities_for_solar_curtailment(
 
     if async_add_entities.called:
         entities = list(async_add_entities.call_args.args[0])
+        # Filter out AutoOptimizeSwitch to get only input switches
+        input_switches = [e for e in entities if hasattr(e, "_field_info")]
         # Check if any switch entity was created for curtailment
-        field_names = {e._field_info.field_name for e in entities}
+        field_names = {e._field_info.field_name for e in input_switches}
         if "allow_curtailment" in field_names:
-            assert len(entities) >= 1
+            assert len(input_switches) >= 1
 
 
 async def test_setup_skips_missing_switch_fields_in_config(
@@ -192,10 +199,12 @@ async def test_setup_skips_missing_switch_fields_in_config(
     async_add_entities = Mock()
     await async_setup_entry(hass, config_entry, async_add_entities)
 
-    # If called, check that curtailment field is not present
+    # If called, check that curtailment field is not present in input switches
     if async_add_entities.called:
         entities = list(async_add_entities.call_args.args[0])
-        field_names = {e._field_info.field_name for e in entities}
+        # Filter out AutoOptimizeSwitch to get only input switches
+        input_switches = [e for e in entities if hasattr(e, "_field_info")]
+        field_names = {e._field_info.field_name for e in input_switches}
         assert "allow_curtailment" not in field_names
 
 
@@ -262,10 +271,12 @@ async def test_setup_handles_multiple_solar_elements(
 
     if async_add_entities.called:
         entities = list(async_add_entities.call_args.args[0])
+        # Filter out AutoOptimizeSwitch to get only input switches
+        input_switches = [e for e in entities if hasattr(e, "_subentry")]
 
         # Should have entities from both solar panels
-        element_names = {e._subentry.title for e in entities}
-        if len(entities) > 0:
+        element_names = {e._subentry.title for e in input_switches}
+        if len(input_switches) > 0:
             # At least one should be present
             assert "Solar North" in element_names or "Solar South" in element_names
 
@@ -294,20 +305,14 @@ async def test_setup_with_entity_id_creates_driven_mode_entity(
 
     if async_add_entities.called:
         entities = list(async_add_entities.call_args.args[0])
-        curtailment_entities = [e for e in entities if e._field_info.field_name == "allow_curtailment"]
+        # Filter out AutoOptimizeSwitch to get only input switches
+        input_switches = [e for e in entities if hasattr(e, "_field_info")]
+        curtailment_entities = [e for e in input_switches if e._field_info.field_name == "allow_curtailment"]
         if curtailment_entities:
             assert curtailment_entities[0]._entity_mode == ConfigEntityMode.DRIVEN
 
 
-# ===== Tests for HaeoAutoOptimizeSwitch =====
-
-
-def _create_mock_coordinator() -> Mock:
-    """Create a mock coordinator for testing."""
-    coordinator = Mock()
-    coordinator.auto_optimize_enabled = True
-    coordinator.async_run_optimization = AsyncMock()
-    return coordinator
+# ===== Tests for AutoOptimizeSwitch =====
 
 
 def _create_mock_device_entry() -> DeviceEntry:
@@ -316,57 +321,49 @@ def _create_mock_device_entry() -> DeviceEntry:
 
 
 async def test_auto_optimize_switch_turn_on(hass: HomeAssistant) -> None:
-    """Test turning on the auto-optimize switch enables optimization and triggers run."""
+    """Test turning on the auto-optimize switch updates state."""
     entry = MockConfigEntry(domain=DOMAIN, entry_id="test_entry")
     entry.add_to_hass(hass)
 
-    coordinator = _create_mock_coordinator()
-    coordinator.auto_optimize_enabled = False  # Start disabled
-
-    switch = HaeoAutoOptimizeSwitch(
+    switch = AutoOptimizeSwitch(
         hass=hass,
         config_entry=entry,
         device_entry=_create_mock_device_entry(),
-        coordinator=coordinator,
     )
+    # Set initial state to off
+    switch._attr_is_on = False
     # Mock async_write_ha_state to avoid entity registration requirements
     switch.async_write_ha_state = Mock()  # type: ignore[method-assign]
 
     # Turn on the switch
     await switch.async_turn_on()
 
-    # Verify coordinator was updated
-    assert coordinator.auto_optimize_enabled is True
+    # Verify switch state was updated
     assert switch.is_on is True
-    # Verify optimization was triggered
-    coordinator.async_run_optimization.assert_called_once()
+    switch.async_write_ha_state.assert_called_once()
 
 
 async def test_auto_optimize_switch_turn_off(hass: HomeAssistant) -> None:
-    """Test turning off the auto-optimize switch disables optimization."""
+    """Test turning off the auto-optimize switch updates state."""
     entry = MockConfigEntry(domain=DOMAIN, entry_id="test_entry")
     entry.add_to_hass(hass)
 
-    coordinator = _create_mock_coordinator()
-    coordinator.auto_optimize_enabled = True  # Start enabled
-
-    switch = HaeoAutoOptimizeSwitch(
+    switch = AutoOptimizeSwitch(
         hass=hass,
         config_entry=entry,
         device_entry=_create_mock_device_entry(),
-        coordinator=coordinator,
     )
+    # Set initial state to on
+    switch._attr_is_on = True
     # Mock async_write_ha_state to avoid entity registration requirements
     switch.async_write_ha_state = Mock()  # type: ignore[method-assign]
 
     # Turn off the switch
     await switch.async_turn_off()
 
-    # Verify coordinator was updated
-    assert coordinator.auto_optimize_enabled is False
+    # Verify switch state was updated
     assert switch.is_on is False
-    # Optimization should not be triggered on turn off
-    coordinator.async_run_optimization.assert_not_called()
+    switch.async_write_ha_state.assert_called_once()
 
 
 async def test_auto_optimize_switch_restores_on_state(hass: HomeAssistant) -> None:
@@ -374,14 +371,10 @@ async def test_auto_optimize_switch_restores_on_state(hass: HomeAssistant) -> No
     entry = MockConfigEntry(domain=DOMAIN, entry_id="test_entry")
     entry.add_to_hass(hass)
 
-    coordinator = _create_mock_coordinator()
-    coordinator.auto_optimize_enabled = False  # Will be updated by restore
-
-    switch = HaeoAutoOptimizeSwitch(
+    switch = AutoOptimizeSwitch(
         hass=hass,
         config_entry=entry,
         device_entry=_create_mock_device_entry(),
-        coordinator=coordinator,
     )
 
     # Mock the restore state mechanism
@@ -395,7 +388,6 @@ async def test_auto_optimize_switch_restores_on_state(hass: HomeAssistant) -> No
 
     # Verify state was restored to ON
     assert switch.is_on is True
-    assert coordinator.auto_optimize_enabled is True
 
 
 async def test_auto_optimize_switch_restores_off_state(hass: HomeAssistant) -> None:
@@ -403,14 +395,10 @@ async def test_auto_optimize_switch_restores_off_state(hass: HomeAssistant) -> N
     entry = MockConfigEntry(domain=DOMAIN, entry_id="test_entry")
     entry.add_to_hass(hass)
 
-    coordinator = _create_mock_coordinator()
-    coordinator.auto_optimize_enabled = True  # Will be updated by restore
-
-    switch = HaeoAutoOptimizeSwitch(
+    switch = AutoOptimizeSwitch(
         hass=hass,
         config_entry=entry,
         device_entry=_create_mock_device_entry(),
-        coordinator=coordinator,
     )
 
     # Mock the restore state mechanism
@@ -424,7 +412,6 @@ async def test_auto_optimize_switch_restores_off_state(hass: HomeAssistant) -> N
 
     # Verify state was restored to OFF
     assert switch.is_on is False
-    assert coordinator.auto_optimize_enabled is False
 
 
 async def test_auto_optimize_switch_defaults_to_on_without_previous_state(hass: HomeAssistant) -> None:
@@ -432,14 +419,10 @@ async def test_auto_optimize_switch_defaults_to_on_without_previous_state(hass: 
     entry = MockConfigEntry(domain=DOMAIN, entry_id="test_entry")
     entry.add_to_hass(hass)
 
-    coordinator = _create_mock_coordinator()
-    coordinator.auto_optimize_enabled = False  # Will be updated to True
-
-    switch = HaeoAutoOptimizeSwitch(
+    switch = AutoOptimizeSwitch(
         hass=hass,
         config_entry=entry,
         device_entry=_create_mock_device_entry(),
-        coordinator=coordinator,
     )
 
     # Mock the restore state mechanism to return None (no previous state)
@@ -453,4 +436,3 @@ async def test_auto_optimize_switch_defaults_to_on_without_previous_state(hass: 
 
     # Verify state defaults to ON
     assert switch.is_on is True
-    assert coordinator.auto_optimize_enabled is True

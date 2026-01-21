@@ -13,7 +13,6 @@ from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryError, ConfigEntryNotReady
 from homeassistant.helpers import device_registry as dr
-from homeassistant.helpers import entity_platform
 from homeassistant.helpers.translation import async_get_translations
 from homeassistant.helpers.typing import ConfigType
 
@@ -23,6 +22,7 @@ from custom_components.haeo.horizon import HorizonManager
 from custom_components.haeo.services import async_setup_services
 
 if TYPE_CHECKING:
+    from custom_components.haeo.entities.auto_optimize_switch import AutoOptimizeSwitch
     from custom_components.haeo.entities.haeo_number import HaeoInputNumber
     from custom_components.haeo.entities.haeo_switch import HaeoInputSwitch
 
@@ -53,6 +53,7 @@ class HaeoRuntimeData:
     Attributes:
         horizon_manager: Manager providing forecast time windows.
         input_entities: Dict of input entities keyed by (element_name, field_name).
+        auto_optimize_switch: Switch controlling automatic optimization.
         coordinator: Coordinator for network-level optimization (set after input platforms).
         value_update_in_progress: Flag to skip reload when updating entity values.
 
@@ -60,6 +61,7 @@ class HaeoRuntimeData:
 
     horizon_manager: HorizonManager
     input_entities: dict[tuple[str, str], HaeoInputNumber | HaeoInputSwitch] = field(default_factory=dict)
+    auto_optimize_switch: AutoOptimizeSwitch | None = field(default=None)
     coordinator: HaeoDataUpdateCoordinator | None = field(default=None)
     value_update_in_progress: bool = field(default=False)
 
@@ -212,24 +214,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> bool
     runtime_data.coordinator = coordinator
     # Register coordinator cleanup
     entry.async_on_unload(coordinator.cleanup)
-
-    from custom_components.haeo.entities.device import get_or_create_network_device  # noqa: PLC0415
-    from custom_components.haeo.entities.haeo_auto_optimize_switch import HaeoAutoOptimizeSwitch  # noqa: PLC0415
-
-    network_device_entry = get_or_create_network_device(hass, entry, network_subentry)
-    auto_optimize_switch = HaeoAutoOptimizeSwitch(
-        hass=hass,
-        config_entry=entry,
-        device_entry=network_device_entry,
-        coordinator=coordinator,
-    )
-
-    # Get the switch platform for this entry and add the auto-optimize switch
-    switch_platforms = entity_platform.async_get_platforms(hass, DOMAIN)
-    for platform in switch_platforms:
-        if platform.domain == "switch" and platform.config_entry == entry:
-            await platform.async_add_entities([auto_optimize_switch])
-            break
 
     # Wrap coordinator operations to provide meaningful HA error messages
     # Cleanup is handled via async_on_unload callbacks - no explicit cleanup needed here

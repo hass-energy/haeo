@@ -205,6 +205,7 @@ def mock_runtime_data(hass: HomeAssistant, mock_hub_entry: MockConfigEntry) -> H
 
     The horizon_manager is a MagicMock - use _get_mock_horizon() to access mock methods.
     """
+    from custom_components.haeo.entities.auto_optimize_switch import AutoOptimizeSwitch  # noqa: PLC0415
     from custom_components.haeo.horizon import HorizonManager  # noqa: PLC0415
 
     # Create mock horizon manager (typed as HorizonManager but is MagicMock at runtime)
@@ -212,8 +213,16 @@ def mock_runtime_data(hass: HomeAssistant, mock_hub_entry: MockConfigEntry) -> H
     mock_horizon.get_forecast_timestamps.return_value = (1000.0, 2000.0, 3000.0)
     mock_horizon.subscribe.return_value = MagicMock()  # Unsubscribe function
 
+    # Create mock auto-optimize switch (default to on)
+    mock_auto_optimize_switch: Any = MagicMock(spec=AutoOptimizeSwitch)
+    mock_auto_optimize_switch.is_on = True
+    mock_auto_optimize_switch.entity_id = "switch.haeo_auto_optimize"
+
     # Create runtime data
-    runtime_data = HaeoRuntimeData(horizon_manager=mock_horizon)
+    runtime_data = HaeoRuntimeData(
+        horizon_manager=mock_horizon,
+        auto_optimize_switch=mock_auto_optimize_switch,
+    )
 
     # Store on config entry
     mock_hub_entry.runtime_data = runtime_data
@@ -591,7 +600,7 @@ def test_coordinator_cleanup_invokes_listener(
     mock_runtime_data: HaeoRuntimeData,
     patch_state_change_listener: MagicMock,
 ) -> None:
-    """cleanup() should call the unsubscribe callback and clear the reference."""
+    """cleanup() should call the unsubscribe callbacks and clear the references."""
 
     unsubscribe = MagicMock()
     patch_state_change_listener.return_value = unsubscribe
@@ -605,11 +614,14 @@ def test_coordinator_cleanup_invokes_listener(
 
     # Subscription now happens after first refresh, so simulate that
     coordinator._subscribe_to_input_entities()
-    assert len(coordinator._state_change_unsubs) > 0
+    # Should have subscriptions for: input entity + auto-optimize switch
+    num_subs = len(coordinator._state_change_unsubs)
+    assert num_subs >= 2  # At least input entity + auto-optimize switch
 
     coordinator.cleanup()
 
-    unsubscribe.assert_called_once()
+    # All unsubscribers should be called
+    assert unsubscribe.call_count == num_subs
     assert len(coordinator._state_change_unsubs) == 0
 
 
@@ -1235,36 +1247,51 @@ def test_element_update_callback_calls_handle_element_update(
 # ===== Tests for auto-optimize control =====
 
 
-def test_auto_optimize_enabled_defaults_to_true(
+def test_auto_optimize_enabled_defaults_to_true_when_no_switch(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
 ) -> None:
-    """Auto-optimize is enabled by default."""
+    """Auto-optimize defaults to True when no switch is available."""
+    # Create runtime data without auto_optimize_switch
+    from custom_components.haeo.horizon import HorizonManager  # noqa: PLC0415
+
+    mock_horizon: Any = MagicMock(spec=HorizonManager)
+    mock_hub_entry.runtime_data = HaeoRuntimeData(horizon_manager=mock_horizon)
+
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
     assert coordinator.auto_optimize_enabled is True
 
 
-def test_auto_optimize_enabled_setter(
+def test_auto_optimize_enabled_reads_from_switch(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
+    mock_runtime_data: HaeoRuntimeData,
 ) -> None:
-    """Auto-optimize can be disabled and re-enabled."""
+    """Auto-optimize reads state from the switch entity."""
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
 
-    coordinator.auto_optimize_enabled = False
+    # Switch is on by default in fixture
+    assert coordinator.auto_optimize_enabled is True
+
+    # Change switch to off
+    mock_runtime_data.auto_optimize_switch.is_on = False
     assert coordinator.auto_optimize_enabled is False
 
-    coordinator.auto_optimize_enabled = True
+    # Change switch back to on
+    mock_runtime_data.auto_optimize_switch.is_on = True
     assert coordinator.auto_optimize_enabled is True
 
 
 def test_trigger_optimization_skips_when_auto_optimize_disabled(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
+    mock_runtime_data: HaeoRuntimeData,
 ) -> None:
     """_trigger_optimization does nothing when auto-optimize is disabled."""
+    # Set switch to off
+    mock_runtime_data.auto_optimize_switch.is_on = False
+
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
-    coordinator.auto_optimize_enabled = False
 
     # Set initial state - _optimization_in_progress False, no pending
     coordinator._optimization_in_progress = False
@@ -1278,37 +1305,31 @@ def test_trigger_optimization_skips_when_auto_optimize_disabled(
     assert coordinator._debounce_timer is None
 
 
-def test_auto_optimize_disabled_pauses_horizon_manager(
+def test_apply_auto_optimize_state_pauses_horizon_manager(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
     mock_runtime_data: HaeoRuntimeData,
 ) -> None:
-    """Disabling auto-optimize pauses the horizon manager."""
+    """_apply_auto_optimize_state pauses horizon manager when disabled."""
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
 
-    # Disable auto-optimize
-    coordinator.auto_optimize_enabled = False
+    # Apply disabled state
+    coordinator._apply_auto_optimize_state(is_enabled=False)
 
     # Horizon manager pause should have been called
     _get_mock_horizon(mock_runtime_data).pause.assert_called_once()
 
 
-def test_auto_optimize_enabled_resumes_horizon_manager(
+def test_apply_auto_optimize_state_resumes_horizon_manager(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
     mock_runtime_data: HaeoRuntimeData,
 ) -> None:
-    """Enabling auto-optimize resumes the horizon manager."""
+    """_apply_auto_optimize_state resumes horizon manager when enabled."""
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
 
-    # First disable (to have a transition)
-    coordinator.auto_optimize_enabled = False
-
-    # Clear mock to verify resume is called
-    _get_mock_horizon(mock_runtime_data).resume.reset_mock()
-
-    # Re-enable auto-optimize
-    coordinator.auto_optimize_enabled = True
+    # Apply enabled state
+    coordinator._apply_auto_optimize_state(is_enabled=True)
 
     # Horizon manager resume should have been called
     _get_mock_horizon(mock_runtime_data).resume.assert_called_once()
