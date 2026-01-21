@@ -399,11 +399,11 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         """Return whether automatic optimization is enabled.
 
         Reads from the auto-optimize switch entity stored in runtime_data.
-        Defaults to True if the switch is not available (e.g., during startup).
         """
         runtime_data = self._get_runtime_data()
-        if runtime_data is None or runtime_data.auto_optimize_switch is None:
-            return True  # Default to enabled
+        if not runtime_data or not runtime_data.auto_optimize_switch:
+            msg = "auto_optimize_switch not available"
+            raise RuntimeError(msg)
         return runtime_data.auto_optimize_switch.is_on or False
 
     async def async_run_optimization(self) -> None:
