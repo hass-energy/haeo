@@ -83,20 +83,17 @@ async def async_setup_entry(
             _LOGGER.debug("Registered input entity: %s.%s", element_name, field_name)
 
     # Create auto-optimize switch for the network device
-    network_subentry = next(
-        (s for s in config_entry.subentries.values() if s.subentry_type == ELEMENT_TYPE_NETWORK),
-        None,
+    network_subentry = next(s for s in config_entry.subentries.values() if s.subentry_type == ELEMENT_TYPE_NETWORK)
+
+    network_device = get_or_create_network_device(hass, config_entry, network_subentry)
+    auto_optimize_switch = AutoOptimizeSwitch(
+        hass=hass,
+        config_entry=config_entry,
+        device_entry=network_device,
     )
-    if network_subentry is not None:
-        network_device = get_or_create_network_device(hass, config_entry, network_subentry)
-        auto_optimize_switch = AutoOptimizeSwitch(
-            hass=hass,
-            config_entry=config_entry,
-            device_entry=network_device,
-        )
-        entities.append(auto_optimize_switch)
-        runtime_data.auto_optimize_switch = auto_optimize_switch
-        _LOGGER.debug("Created auto-optimize switch for network")
+    entities.append(auto_optimize_switch)
+    runtime_data.auto_optimize_switch = auto_optimize_switch
+    _LOGGER.debug("Created auto-optimize switch for network")
 
     if entities:
         _LOGGER.debug("Creating %d switch entities", len(entities))
