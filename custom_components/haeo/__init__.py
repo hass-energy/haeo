@@ -13,6 +13,7 @@ from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryError, ConfigEntryNotReady
 from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers import entity_platform
 from homeassistant.helpers.translation import async_get_translations
 from homeassistant.helpers.typing import ConfigType
 
@@ -211,10 +212,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> bool
     runtime_data.coordinator = coordinator
     # Register coordinator cleanup
     entry.async_on_unload(coordinator.cleanup)
-
-    # Create auto-optimize switch now that coordinator exists
-    # Find the switch platform that was set up in INPUT_PLATFORMS and add the entity to it
-    from homeassistant.helpers import entity_platform  # noqa: PLC0415
 
     from custom_components.haeo.entities.device import get_or_create_network_device  # noqa: PLC0415
     from custom_components.haeo.entities.haeo_auto_optimize_switch import HaeoAutoOptimizeSwitch  # noqa: PLC0415
