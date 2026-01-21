@@ -3,7 +3,7 @@ name: Auto-optimize as Input
 overview: Refactor the auto-optimize switch to be a true input entity created in switch.py, with the coordinator reading from it instead of the switch pushing state to the coordinator.
 todos:
   - id: create-switch-entity
-    content: Create entities/auto_optimize_switch.py with simplified AutoOptimizeSwitch class
+    content: Create entities/auto_optimize_switch.py with simplified AutoOptimizeSwitch class (pure state holder)
     status: pending
   - id: update-runtime-data
     content: Add auto_optimize_switch field to HaeoRuntimeData in __init__.py
@@ -12,7 +12,7 @@ todos:
     content: Add auto-optimize switch creation to switch.py
     status: pending
   - id: update-coordinator
-    content: Refactor coordinator to read from switch and subscribe to state changes
+    content: Refactor coordinator to read from switch, subscribe to state changes, and trigger optimization on turn-on
     status: pending
   - id: cleanup-init
     content: Remove manual switch creation from __init__.py
@@ -40,8 +40,9 @@ The auto-optimize switch breaks the normal entity pattern:
 
 Treat the auto-optimize switch as a true input entity:
 
-- Created in `switch.py` like other switches (no coordinator reference needed)
-- Coordinator pulls state from the switch and subscribes to changes
+- Created in `switch.py` like other switches
+- Pure state holder with zero coordinator knowledge
+- Coordinator subscribes to state changes and reacts
 - Follows the same lifecycle as other input entities
 
 ## Architecture
@@ -53,58 +54,61 @@ flowchart LR
         switch1 -->|"calls async_run_optimization"| coord1
     end
 
-    subgraph after [New: Coordinator pulls from Switch]
-        switch2[AutoOptimizeSwitch] -->|"fires state change"| ha[Home Assistant]
-        ha -->|"event"| coord2[Coordinator]
+    subgraph after [New: Coordinator subscribes to Switch]
+        switch2[AutoOptimizeSwitch] -->|"state change event"| ha[Home Assistant]
+        ha -->|"event callback"| coord2[Coordinator]
         coord2 -->|"reads is_on"| switch2
+        coord2 -->|"triggers optimization"| coord2
     end
 ```
-
-
 
 ## Changes
 
 ### 1. Refactor entity: `entities/auto_optimize_switch.py`
 
-Rename from `haeo_auto_optimize_switch.py` and simplify:
+Rename from `haeo_auto_optimize_switch.py` and simplify to a pure state holder:
 
-- Remove coordinator dependency from constructor
-- Remove coordinator imports
+- Remove coordinator dependency entirely
+- Remove all coordinator imports
 - Keep `RestoreEntity` for state persistence
-- `async_turn_on/off` just update state (no coordinator calls)
-- Store reference to `runtime_data` to trigger coordinator refresh on turn-on
+- `async_turn_on/off` just update state and write to HA (nothing else)
 
 ```python
 class AutoOptimizeSwitch(SwitchEntity, RestoreEntity):
     def __init__(
         self,
         hass: HomeAssistant,
-        config_entry: HaeoConfigEntry,
+        config_entry: ConfigEntry,
         device_entry: DeviceEntry,
     ) -> None:
-        # No coordinator reference needed
-        ...
+        # No coordinator, no runtime_data - pure state holder
+        self._hass = hass
+        self._config_entry = config_entry
+        self.device_entry = device_entry
+        self._attr_unique_id = f"{config_entry.entry_id}_auto_optimize"
+        self._attr_is_on = True  # default
 
     async def async_turn_on(self, **_kwargs: Any) -> None:
         self._attr_is_on = True
         self.async_write_ha_state()
-        # Trigger coordinator refresh if it exists
-        runtime_data = self._config_entry.runtime_data
-        if runtime_data and runtime_data.coordinator:
-            await runtime_data.coordinator.async_run_optimization()
+        # Coordinator subscribes to this and will react
+
+    async def async_turn_off(self, **_kwargs: Any) -> None:
+        self._attr_is_on = False
+        self.async_write_ha_state()
 ```
 
 ### 2. Update `switch.py`
 
 Add auto-optimize switch creation after input switches:
 
-- Find network subentry (like `__init__.py` does)
+- Find network subentry
 - Create `AutoOptimizeSwitch` linked to network device
-- Store in `runtime_data` for coordinator access (new field: `auto_optimize_switch`)
+- Store in `runtime_data.auto_optimize_switch` for coordinator access
 
 ### 3. Update `HaeoRuntimeData` in `__init__.py`
 
-Add field for the auto-optimize switch:
+Add field for the auto-optimize switch reference:
 
 ```python
 @dataclass(slots=True)
@@ -120,15 +124,16 @@ class HaeoRuntimeData:
 
 In `coordinator/coordinator.py`:
 
-- Remove `_auto_optimize_enabled` internal state
-- Add property that reads from switch: `runtime_data.auto_optimize_switch.is_on`
-- Subscribe to switch state changes in `async_initialize()`
-- On switch turn-on event: resume horizon manager
-- On switch turn-off event: pause horizon manager
+- Remove `_auto_optimize_enabled` internal state variable
+- Replace `auto_optimize_enabled` property to read from `runtime_data.auto_optimize_switch.is_on`
+- In `async_initialize()`: subscribe to switch's entity_id state changes via `async_track_state_change_event`
+- State change handler:
+  - On turn-on (`STATE_ON`): resume horizon manager + trigger `async_run_optimization()`
+  - On turn-off: pause horizon manager
 
 ### 5. Clean up `__init__.py`
 
-Remove lines 216-232 (manual switch creation and platform injection).
+Remove lines 216-232 (manual switch creation and platform injection code).
 
 ### 6. Delete old file
 
@@ -136,12 +141,11 @@ Delete `entities/haeo_auto_optimize_switch.py`.
 
 ## File Summary
 
-
-| File                                    | Action                                            |
-| --------------------------------------- | ------------------------------------------------- |
-| `entities/auto_optimize_switch.py`      | Create (renamed, simplified)                      |
-| `entities/haeo_auto_optimize_switch.py` | Delete                                            |
-| `switch.py`                             | Add auto-optimize switch creation                 |
-| `__init__.py`                           | Add field to runtime data, remove manual creation |
-| `coordinator/coordinator.py`            | Read from switch, subscribe to changes            |
-| `entities/__init__.py`                  | Update exports                                    |
+| File | Action |
+|------|--------|
+| `entities/auto_optimize_switch.py` | Create (renamed, simplified to pure state holder) |
+| `entities/haeo_auto_optimize_switch.py` | Delete |
+| `switch.py` | Add auto-optimize switch creation |
+| `__init__.py` | Add field to runtime data, remove manual creation |
+| `coordinator/coordinator.py` | Subscribe to switch state, read from it, react to changes |
+| `entities/__init__.py` | Update exports |
