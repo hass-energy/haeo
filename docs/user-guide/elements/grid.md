@@ -12,19 +12,19 @@ It allows bidirectional power flow: importing (buying) and exporting (selling) e
 Grid configuration uses a single-step flow where you enter the name and configure each input field.
 For each field, select "Entity" to link to a sensor, "Constant" to enter a fixed value, or "None" for optional fields you don't need.
 
-| Field                             | Type   | Required | Default | Description                                                |
-| --------------------------------- | ------ | -------- | ------- | ---------------------------------------------------------- |
-| **[Name](#name)**                 | String | Yes      | -       | Unique identifier for this grid                            |
-| **[Import Price](#import-price)** | Price  | Yes      | -       | Price per kWh for importing electricity from grid (\$/kWh) |
-| **[Export Price](#export-price)** | Price  | Yes      | -       | Revenue per kWh for exporting electricity to grid (\$/kWh) |
-| **[Import Limit](#import-limit)** | Power  | No       | -       | Maximum import power from grid                             |
-| **[Export Limit](#export-limit)** | Power  | No       | -       | Maximum export power to grid                               |
-| **[Import Demand Window](#demand-pricing)** | Number | No | - | Demand window weight (0-1) for import blocks             |
-| **[Export Demand Window](#demand-pricing)** | Number | No | - | Demand window weight (0-1) for export blocks             |
-| **[Import Demand Price](#demand-pricing)** | Number | No | - | Demand price (\$/kW/day) for import peak blocks          |
-| **[Export Demand Price](#demand-pricing)** | Number | No | - | Demand price (\$/kW/day) for export peak blocks          |
-| **[Demand Block Hours](#demand-pricing)** | Number | No | 0.5 | Block size in hours used for demand averaging            |
-| **[Demand Billing Days](#demand-pricing)** | Number | No | 1 | Billing period days used to scale demand price            |
+| Field                                       | Type   | Required | Default | Description                                                |
+| ------------------------------------------- | ------ | -------- | ------- | ---------------------------------------------------------- |
+| **[Name](#name)**                           | String | Yes      | -       | Unique identifier for this grid                            |
+| **[Import Price](#import-price)**           | Price  | Yes      | -       | Price per kWh for importing electricity from grid (\$/kWh) |
+| **[Export Price](#export-price)**           | Price  | Yes      | -       | Revenue per kWh for exporting electricity to grid (\$/kWh) |
+| **[Import Limit](#import-limit)**           | Power  | No       | -       | Maximum import power from grid                             |
+| **[Export Limit](#export-limit)**           | Power  | No       | -       | Maximum export power to grid                               |
+| **[Import Demand Window](#demand-pricing)** | Number | No       | -       | Demand window weight (0-1) for import blocks               |
+| **[Export Demand Window](#demand-pricing)** | Number | No       | -       | Demand window weight (0-1) for export blocks               |
+| **[Import Demand Price](#demand-pricing)**  | Number | No       | -       | Demand price (\$/kW/day) for import peak blocks            |
+| **[Export Demand Price](#demand-pricing)**  | Number | No       | -       | Demand price (\$/kW/day) for export peak blocks            |
+| **[Demand Block Hours](#demand-pricing)**   | Number | No       | 0.5     | Block size in hours used for demand averaging              |
+| **[Demand Billing Days](#demand-pricing)**  | Number | No       | 1       | Billing period days used to scale demand price             |
 
 ## Name
 
@@ -158,18 +158,18 @@ For more examples and sensor configuration, see the [Forecasts and Sensors guide
 Each configured field creates a corresponding input entity in Home Assistant.
 Input entities appear as Number entities with the `config` entity category.
 
-| Input                            | Unit   | Description                               |
-| -------------------------------- | ------ | ----------------------------------------- |
-| `number.{name}_import_price`     | \$/kWh | Import price from configured value/sensor |
-| `number.{name}_export_price`     | \$/kWh | Export price from configured value/sensor |
-| `number.{name}_max_import_power` | kW     | Maximum import power (if configured)      |
-| `number.{name}_max_export_power` | kW     | Maximum export power (if configured)      |
-| `number.{name}_demand_window_import` | -  | Import demand window weight (if configured) |
-| `number.{name}_demand_window_export` | -  | Export demand window weight (if configured) |
-| `number.{name}_demand_price_import`  | \$/kW | Import demand price (if configured)       |
-| `number.{name}_demand_price_export`  | \$/kW | Export demand price (if configured)       |
-| `number.{name}_demand_block_hours`   | h  | Demand block hours (if configured)         |
-| `number.{name}_demand_days`          | d  | Demand billing days (if configured)        |
+| Input                                | Unit   | Description                                 |
+| ------------------------------------ | ------ | ------------------------------------------- |
+| `number.{name}_import_price`         | \$/kWh | Import price from configured value/sensor   |
+| `number.{name}_export_price`         | \$/kWh | Export price from configured value/sensor   |
+| `number.{name}_max_import_power`     | kW     | Maximum import power (if configured)        |
+| `number.{name}_max_export_power`     | kW     | Maximum export power (if configured)        |
+| `number.{name}_demand_window_import` | -      | Import demand window weight (if configured) |
+| `number.{name}_demand_window_export` | -      | Export demand window weight (if configured) |
+| `number.{name}_demand_price_import`  | \$/kW  | Import demand price (if configured)         |
+| `number.{name}_demand_price_export`  | \$/kW  | Export demand price (if configured)         |
+| `number.{name}_demand_block_hours`   | h      | Demand block hours (if configured)          |
+| `number.{name}_demand_days`          | d      | Demand billing days (if configured)         |
 
 Input entities are only created for fields you configure with "Constant".
 If you set an optional field to "None", no input entity is created for that field.

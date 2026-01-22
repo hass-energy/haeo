@@ -7,22 +7,22 @@ It models tariffs that charge for the highest average kW within demand windows.
 
 ### Parameters
 
-| Parameter | Description | Default |
-| --- | --- | --- |
-| $w_{s \rightarrow t}(t)$ | Demand window weight for source to target periods | None |
-| $w_{t \rightarrow s}(t)$ | Demand window weight for target to source periods | None |
-| $c_{s \rightarrow t}$ | Demand price for source to target peak (\$/kW/day) | None |
-| $c_{t \rightarrow s}$ | Demand price for target to source peak (\$/kW/day) | None |
-| $B$ | Demand block duration (hours) | 0.5 |
-| $D$ | Billing days multiplier | 1 |
+| Parameter                | Description                                        | Default |
+| ------------------------ | -------------------------------------------------- | ------- |
+| $w_{s \rightarrow t}(t)$ | Demand window weight for source to target periods  | None    |
+| $w_{t \rightarrow s}(t)$ | Demand window weight for target to source periods  | None    |
+| $c_{s \rightarrow t}$    | Demand price for source to target peak (\$/kW/day) | None    |
+| $c_{t \rightarrow s}$    | Demand price for target to source peak (\$/kW/day) | None    |
+| $B$                      | Demand block duration (hours)                      | 0.5     |
+| $D$                      | Billing days multiplier                            | 1       |
 
 Window weights are normalized to $[0, 1]$ and can be time-varying.
 Block duration and billing days are scalars.
 
 ### Decision variables
 
-| Variable | Domain | Description |
-| --- | --- | --- |
+| Variable                          | Domain                | Description                                        |
+| --------------------------------- | --------------------- | -------------------------------------------------- |
 | $P_{\text{peak},s \rightarrow t}$ | $\mathbb{R}_{\geq 0}$ | Peak block-average power for source to target flow |
 | $P_{\text{peak},t \rightarrow s}$ | $\mathbb{R}_{\geq 0}$ | Peak block-average power for target to source flow |
 
