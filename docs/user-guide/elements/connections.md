@@ -30,6 +30,8 @@ Connections define how power flows between elements in your network with support
 | **Demand Window Target→Source** | [sensor(s)](../forecasts-and-sensors.md) | No       | -         | Demand window weight (0-1) for target to source blocks                 |
 | **Demand Price Source→Target**  | Number                                   | No       | -         | Demand price (\$/kW/day) for source to target peak blocks              |
 | **Demand Price Target→Source**  | Number                                   | No       | -         | Demand price (\$/kW/day) for target to source peak blocks              |
+| **Demand Energy Source→Target** | Number                                   | No       | -         | Energy already used in the current source to target block (kWh)        |
+| **Demand Energy Target→Source** | Number                                   | No       | -         | Energy already used in the current target to source block (kWh)        |
 | **Demand Block Hours**          | Number                                   | No       | 0.5       | Block size in hours used for demand averaging                          |
 | **Demand Billing Days**         | Number                                   | No       | 1         | Billing period days used to scale demand price                         |
 
@@ -205,6 +207,8 @@ Input entities appear as Number entities with the `config` entity category.
 | `number.{name}_demand_window_target_source` | -      | Reverse demand window weight (if configured) |
 | `number.{name}_demand_price_source_target`  | \$/kW  | Forward demand price (if configured)         |
 | `number.{name}_demand_price_target_source`  | \$/kW  | Reverse demand price (if configured)         |
+| `number.{name}_demand_current_energy_source_target` | kWh | Forward demand energy so far (if configured) |
+| `number.{name}_demand_current_energy_target_source` | kWh | Reverse demand energy so far (if configured) |
 | `number.{name}_demand_block_hours`          | h      | Demand block hours (if configured)           |
 | `number.{name}_demand_days`                 | d      | Demand billing days (if configured)          |
 

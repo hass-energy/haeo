@@ -44,6 +44,8 @@ The adapter transforms user configuration into connection segments:
 | `demand_window_export` | DemandPricingSegment | `demand_window_target_source` | Optional demand window weights          |
 | `demand_price_import`  | DemandPricingSegment | `demand_price_source_target`  | Optional demand price per kW/day        |
 | `demand_price_export`  | DemandPricingSegment | `demand_price_target_source`  | Optional demand price per kW/day        |
+| `demand_current_energy_import` | DemandPricingSegment | `demand_current_energy_source_target` | Optional, kWh already used |
+| `demand_current_energy_export` | DemandPricingSegment | `demand_current_energy_target_source` | Optional, kWh already used |
 | `demand_block_hours`   | DemandPricingSegment | `demand_block_hours`          | Defaults to 0.5 hours                   |
 | `demand_days`          | DemandPricingSegment | `demand_days`                 | Defaults to 1 day                       |
 | `connection`           | Connection           | `target`                      | Node to connect to                      |

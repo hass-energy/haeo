@@ -23,6 +23,8 @@ For each field, select "Entity" to link to a sensor, "Constant" to enter a fixed
 | **[Export Demand Window](#demand-pricing)** | Number | No       | -       | Demand window weight (0-1) for export blocks               |
 | **[Import Demand Price](#demand-pricing)**  | Number | No       | -       | Demand price (\$/kW/day) for import peak blocks            |
 | **[Export Demand Price](#demand-pricing)**  | Number | No       | -       | Demand price (\$/kW/day) for export peak blocks            |
+| **[Import Demand Energy](#demand-pricing)** | Number | No       | -       | Energy already used in the current import block (kWh)      |
+| **[Export Demand Energy](#demand-pricing)** | Number | No       | -       | Energy already used in the current export block (kWh)      |
 | **[Demand Block Hours](#demand-pricing)**   | Number | No       | 0.5     | Block size in hours used for demand averaging              |
 | **[Demand Billing Days](#demand-pricing)**  | Number | No       | 1       | Billing period days used to scale demand price             |
 
@@ -168,6 +170,8 @@ Input entities appear as Number entities with the `config` entity category.
 | `number.{name}_demand_window_export` | -      | Export demand window weight (if configured) |
 | `number.{name}_demand_price_import`  | \$/kW  | Import demand price (if configured)         |
 | `number.{name}_demand_price_export`  | \$/kW  | Export demand price (if configured)         |
+| `number.{name}_demand_current_energy_import` | kWh | Import demand energy so far (if configured) |
+| `number.{name}_demand_current_energy_export` | kWh | Export demand energy so far (if configured) |
 | `number.{name}_demand_block_hours`   | h      | Demand block hours (if configured)          |
 | `number.{name}_demand_days`          | d      | Demand billing days (if configured)         |
 

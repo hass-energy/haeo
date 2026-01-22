@@ -13,6 +13,8 @@ It models tariffs that charge for the highest average kW within demand windows.
 | $w_{t \rightarrow s}(t)$ | Demand window weight for target to source periods  | None    |
 | $c_{s \rightarrow t}$    | Demand price for source to target peak (\$/kW/day) | None    |
 | $c_{t \rightarrow s}$    | Demand price for target to source peak (\$/kW/day) | None    |
+| $E_{s \rightarrow t}$    | Demand energy already used in current block (kWh)  | 0       |
+| $E_{t \rightarrow s}$    | Demand energy already used in current block (kWh)  | 0       |
 | $B$                      | Demand block duration (hours)                      | 0.5     |
 | $D$                      | Billing days multiplier                            | 1       |
 
@@ -38,6 +40,7 @@ $$
 
 where $\alpha_{b,t}$ is the fraction of period $t$ that overlaps block $b$.
 The weights sum to 1 within each block.
+If $E$ is provided, it is added to the first block energy before averaging.
 
 ### Constraints
 
