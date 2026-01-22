@@ -249,28 +249,88 @@ def format_currency(value: float) -> str:
     return f"-${abs(value):.2f}"
 
 
+def find_output_entity(
+    outputs: dict[str, Any], element_name: str, field_or_output_name: str
+) -> dict[str, Any] | None:
+    """Find an output entity by element_name and field_name or output_name attributes.
+
+    Number entities (inputs) have field_name attribute:
+        {"element_name": "Grid", "field_name": "export_price", "forecast": [...]}
+
+    Sensor entities (outputs) have output_name attribute:
+        {"element_name": "Battery", "output_name": "battery_state_of_charge", "forecast": [...]}
+
+    Args:
+        outputs: Dictionary of output entities from diagnostics
+        element_name: The element name (e.g., "Grid", "Battery")
+        field_or_output_name: The field_name or output_name to match
+
+    Returns:
+        The entity dict if found, None otherwise.
+
+    """
+    for entity in outputs.values():
+        attrs = entity.get("attributes", {})
+        if attrs.get("element_name") != element_name:
+            continue
+        # Check field_name (for number.* entities)
+        if attrs.get("field_name") == field_or_output_name:
+            return entity
+        # Check output_name (for sensor.* entities)
+        if attrs.get("output_name") == field_or_output_name:
+            return entity
+    return None
+
+
+def get_forecast_by_field(
+    outputs: dict[str, Any], element_name: str, field_or_output_name: str
+) -> dict[str, float]:
+    """Extract forecast values by element_name and field/output name, keyed by time string."""
+    entity = find_output_entity(outputs, element_name, field_or_output_name)
+    if entity is None:
+        return {}
+    forecast = entity.get("attributes", {}).get("forecast", [])
+    return {item["time"]: item["value"] for item in forecast}
+
+
 def get_forecast_values(outputs: dict[str, Any], entity_id: str) -> dict[str, float]:
-    """Extract forecast values from a diagnostics output entity, keyed by time string."""
+    """Extract forecast values from a diagnostics output entity by entity_id.
+
+    Falls back to exact entity_id match for backward compatibility.
+    """
     entity = outputs.get(entity_id, {})
     attributes = entity.get("attributes", {})
     forecast = attributes.get("forecast", [])
     return {item["time"]: item["value"] for item in forecast}
 
 
-def format_output_table_from_diagnostics(outputs: dict[str, Any], timezone_str: str) -> str:
+def format_output_table_from_diagnostics(
+    outputs: dict[str, Any], timezone_str: str, config: dict[str, Any]
+) -> str:
     """Format pre-computed outputs from diagnostics as a table.
 
     This reads the already-computed outputs stored in the diagnostics file.
+    Uses element names from config to find output entities by their attributes.
     """
-    # Extract forecast data for each field
-    buy_prices = get_forecast_values(outputs, "number.grid_import_price")
-    sell_prices = get_forecast_values(outputs, "number.grid_export_price")
-    battery_power = get_forecast_values(outputs, "sensor.battery_active_power")
-    grid_power = get_forecast_values(outputs, "sensor.grid_active_power")
-    load_power = get_forecast_values(outputs, "sensor.load_power")
-    solar_power = get_forecast_values(outputs, "sensor.solar_power")
-    soc = get_forecast_values(outputs, "sensor.battery_state_of_charge")
-    grid_cost_net = get_forecast_values(outputs, "sensor.grid_net_cost")
+    # Find element names from config
+    participants = config.get("participants", {})
+    grid_name = next((name for name, cfg in participants.items() if cfg.get("element_type") == "grid"), "Grid")
+    battery_name = next(
+        (name for name, cfg in participants.items() if cfg.get("element_type") == "battery"), "Battery"
+    )
+    load_name = next((name for name, cfg in participants.items() if cfg.get("element_type") == "load"), "Load")
+    solar_name = next((name for name, cfg in participants.items() if cfg.get("element_type") == "solar"), "Solar")
+
+    # Extract forecast data using element_name and field_name/output_name attributes
+    # Prices use field_name (number.* entities), sensors use output_name (sensor.* entities)
+    buy_prices = get_forecast_by_field(outputs, grid_name, "import_price")
+    sell_prices = get_forecast_by_field(outputs, grid_name, "export_price")
+    battery_power = get_forecast_by_field(outputs, battery_name, "battery_power_active")
+    grid_power = get_forecast_by_field(outputs, grid_name, "grid_power_active")
+    load_power = get_forecast_by_field(outputs, load_name, "load_power")
+    solar_power = get_forecast_by_field(outputs, solar_name, "solar_power")
+    soc = get_forecast_by_field(outputs, battery_name, "battery_state_of_charge")
+    grid_cost_net = get_forecast_by_field(outputs, grid_name, "grid_cost_net")
 
     # Get all unique times (sorted)
     all_times = sorted(set(buy_prices.keys()))
@@ -472,17 +532,29 @@ def format_output_table_from_network(
     return "\n".join(result_parts)
 
 
-def extract_rows_from_diagnostics(outputs: dict[str, Any], _timezone_str: str) -> list[RowData]:
+def extract_rows_from_diagnostics(
+    outputs: dict[str, Any], _timezone_str: str, config: dict[str, Any]
+) -> list[RowData]:
     """Extract row data from pre-computed diagnostics outputs."""
-    # Extract forecast data for each field
-    buy_prices = get_forecast_values(outputs, "number.grid_import_price")
-    sell_prices = get_forecast_values(outputs, "number.grid_export_price")
-    battery_power = get_forecast_values(outputs, "sensor.battery_active_power")
-    grid_power = get_forecast_values(outputs, "sensor.grid_active_power")
-    load_power = get_forecast_values(outputs, "sensor.load_power")
-    solar_power = get_forecast_values(outputs, "sensor.solar_power")
-    soc = get_forecast_values(outputs, "sensor.battery_state_of_charge")
-    grid_cost_net = get_forecast_values(outputs, "sensor.grid_net_cost")
+    # Find element names from config
+    participants = config.get("participants", {})
+    grid_name = next((name for name, cfg in participants.items() if cfg.get("element_type") == "grid"), "Grid")
+    battery_name = next(
+        (name for name, cfg in participants.items() if cfg.get("element_type") == "battery"), "Battery"
+    )
+    load_name = next((name for name, cfg in participants.items() if cfg.get("element_type") == "load"), "Load")
+    solar_name = next((name for name, cfg in participants.items() if cfg.get("element_type") == "solar"), "Solar")
+
+    # Extract forecast data using element_name and field_name/output_name attributes
+    # Prices use field_name (number.* entities), sensors use output_name (sensor.* entities)
+    buy_prices = get_forecast_by_field(outputs, grid_name, "import_price")
+    sell_prices = get_forecast_by_field(outputs, grid_name, "export_price")
+    battery_power = get_forecast_by_field(outputs, battery_name, "battery_power_active")
+    grid_power = get_forecast_by_field(outputs, grid_name, "grid_power_active")
+    load_power = get_forecast_by_field(outputs, load_name, "load_power")
+    solar_power = get_forecast_by_field(outputs, solar_name, "solar_power")
+    soc = get_forecast_by_field(outputs, battery_name, "battery_state_of_charge")
+    grid_cost_net = get_forecast_by_field(outputs, grid_name, "grid_cost_net")
 
     # Get all unique times (sorted)
     all_times = sorted(set(buy_prices.keys()))
@@ -809,7 +881,7 @@ def run_diagnostics(path: Path, *, outputs_only: bool = False, compare: bool = F
             sys.exit(1)
 
         print(f"Output entities: {len(diag.outputs)}")
-        table = format_output_table_from_diagnostics(diag.outputs, timezone_str)
+        table = format_output_table_from_diagnostics(diag.outputs, timezone_str, config)
         print(table)
         return
 
@@ -886,7 +958,7 @@ def run_diagnostics(path: Path, *, outputs_only: bool = False, compare: bool = F
             print("Error: No outputs in diagnostics file for comparison")
             sys.exit(1)
 
-        diag_rows = extract_rows_from_diagnostics(diag.outputs, timezone_str)
+        diag_rows = extract_rows_from_diagnostics(diag.outputs, timezone_str, config)
         rerun_rows = extract_rows_from_network(network, loaded_participants, forecast_times, timezone_str)
         table = format_comparison_table(diag_rows, rerun_rows, timezone_str)
     else:
