@@ -1,5 +1,6 @@
 """Demand pricing segment for peak demand tariffs."""
 
+from datetime import datetime, tzinfo
 from typing import Any, Final, Literal, NotRequired
 
 from highspy import Highs
@@ -54,6 +55,8 @@ class DemandPricingSegment(Segment):
         periods: NDArray[np.floating[Any]],
         solver: Highs,
         *,
+        period_start_times: NDArray[np.floating[Any]] | None = None,
+        timezone: tzinfo | None = None,
         spec: DemandPricingSegmentSpec,
         source_element: Element[Any],
         target_element: Element[Any],
@@ -75,6 +78,8 @@ class DemandPricingSegment(Segment):
             n_periods,
             periods,
             solver,
+            period_start_times=period_start_times,
+            timezone=timezone,
             source_element=source_element,
             target_element=target_element,
         )
@@ -180,11 +185,22 @@ class DemandPricingSegment(Segment):
 
         constraints: list[highs_linear_expression] = []
         for weight in weights:
+            if window is not None:
+                mask = weight > 0
+                if not np.any(mask):
+                    continue
+                block_windows = window_values[mask]
+                if float(block_windows.max() - block_windows.min()) > 1e-9:
+                    continue
+                window_weight = float(block_windows[0])
+                if window_weight <= 0:
+                    continue
+            else:
+                window_weight = 1.0
             block_average = Highs.qsum(power * weight)
-            window_weight = float(np.sum(window_values * weight))
             constraints.append(peak >= block_average * window_weight)
 
-        return constraints
+        return constraints or None
 
     def _block_weights(self, block_hours: float) -> list[NDArray[np.float64]]:
         boundaries = np.concatenate(([0.0], np.cumsum(self._periods, dtype=np.float64)))
@@ -193,9 +209,13 @@ class DemandPricingSegment(Segment):
             return []
 
         weights: list[NDArray[np.float64]] = []
-        block_start = 0.0
+        offset = self._block_anchor_offset(block_hours)
+        block_start = -offset
         while block_start < total_hours - 1e-9:
-            block_end = min(block_start + block_hours, total_hours)
+            block_end = block_start + block_hours
+            if block_start < 0 or block_end > total_hours + 1e-9:
+                block_start = block_end
+                continue
             duration = block_end - block_start
             if duration <= 0:
                 break
@@ -206,6 +226,24 @@ class DemandPricingSegment(Segment):
             block_start = block_end
 
         return weights
+
+    def _block_anchor_offset(self, block_hours: float) -> float:
+        if block_hours <= 0:
+            return 0.0
+        if self._period_start_times is None or self._period_start_times.size == 0:
+            return 0.0
+        start_time = float(self._period_start_times[0])
+        if self._period_start_timezone is None:
+            start_dt = datetime.fromtimestamp(start_time)
+        else:
+            start_dt = datetime.fromtimestamp(start_time, tz=self._period_start_timezone)
+        hours_since_midnight = (
+            start_dt.hour
+            + start_dt.minute / 60.0
+            + start_dt.second / 3600.0
+            + start_dt.microsecond / 3_600_000_000.0
+        )
+        return hours_since_midnight % block_hours
 
 
 def _as_float(value: NDArray[np.floating[Any]] | float | None) -> float | None:

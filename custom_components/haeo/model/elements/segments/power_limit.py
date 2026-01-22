@@ -4,6 +4,7 @@ Limits power flow in each direction and optionally prevents simultaneous
 bidirectional flow at full capacity (time-slice constraint).
 """
 
+from datetime import tzinfo
 from typing import Any, Final, Literal, NotRequired
 
 from highspy import Highs
@@ -62,6 +63,8 @@ class PowerLimitSegment(Segment):
         periods: NDArray[np.floating[Any]],
         solver: Highs,
         *,
+        period_start_times: NDArray[np.floating[Any]] | None = None,
+        timezone: tzinfo | None = None,
         spec: PowerLimitSegmentSpec,
         source_element: Element[Any],
         target_element: Element[Any],
@@ -83,6 +86,8 @@ class PowerLimitSegment(Segment):
             n_periods,
             periods,
             solver,
+            period_start_times=period_start_times,
+            timezone=timezone,
             source_element=source_element,
             target_element=target_element,
         )

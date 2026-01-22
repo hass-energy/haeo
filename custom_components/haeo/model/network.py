@@ -1,6 +1,7 @@
 """Network class for electrical system modeling and optimization."""
 
 from dataclasses import dataclass, field
+from datetime import tzinfo
 import logging
 from typing import Any, overload
 
@@ -33,12 +34,16 @@ class Network:
 
     name: str
     periods: NDArray[np.floating[Any]]  # Period durations in hours (one per optimization interval)
+    period_start_times: NDArray[np.floating[Any]] | None = None  # Period boundary timestamps (epoch seconds)
+    timezone: tzinfo | None = None
     elements: dict[str, Element[Any]] = field(default_factory=dict)
     _solver: Highs = field(default_factory=Highs, repr=False)
 
     def __post_init__(self) -> None:
         """Set up the solver with logging callback."""
         self.periods = np.asarray(self.periods, dtype=float)
+        if self.period_start_times is not None:
+            self.period_start_times = np.asarray(self.period_start_times, dtype=float)
         # Redirect HiGHS logging to Python logger at debug level
         self._solver.cbLogging += self._log_callback
 
@@ -88,7 +93,12 @@ class Network:
         # Create new element using registry
         element_spec = ELEMENTS[element_type]
         element_instance: Element[Any] = element_spec.factory(
-            name=name, periods=self.periods, solver=self._solver, **kwargs
+            name=name,
+            periods=self.periods,
+            period_start_times=self.period_start_times,
+            timezone=self.timezone,
+            solver=self._solver,
+            **kwargs,
         )
         self.elements[name] = element_instance
 

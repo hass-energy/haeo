@@ -4,6 +4,7 @@ A simple segment that creates power variables but applies no transformations.
 Power in equals power out (lossless).
 """
 
+from datetime import tzinfo
 from typing import Any, Literal
 
 from highspy import Highs
@@ -37,6 +38,8 @@ class PassthroughSegment(Segment):
         periods: NDArray[np.floating[Any]],
         solver: Highs,
         *,
+        period_start_times: NDArray[np.floating[Any]] | None = None,
+        timezone: tzinfo | None = None,
         spec: PassthroughSegmentSpec,
         source_element: Element[Any],
         target_element: Element[Any],
@@ -59,6 +62,8 @@ class PassthroughSegment(Segment):
             n_periods,
             periods,
             solver,
+            period_start_times=period_start_times,
+            timezone=timezone,
             source_element=source_element,
             target_element=target_element,
         )

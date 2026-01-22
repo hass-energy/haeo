@@ -9,6 +9,7 @@ Each segment type applies a specific transformation or constraint to power flow:
 """
 
 from collections.abc import Callable
+from datetime import tzinfo
 from dataclasses import dataclass
 from typing import Any, Final, Literal, TypeGuard
 
@@ -110,6 +111,8 @@ def create_segment(
     segment_id: str,
     n_periods: int,
     periods: NDArray[np.floating[Any]],
+    period_start_times: NDArray[np.floating[Any]] | None,
+    timezone: tzinfo | None,
     solver: Highs,
     spec: SegmentSpec,
     source_element: Element[Any],
@@ -122,6 +125,8 @@ def create_segment(
         segment_id,
         n_periods,
         periods,
+        period_start_times=period_start_times,
+        timezone=timezone,
         solver,
         spec=spec,
         source_element=source_element,

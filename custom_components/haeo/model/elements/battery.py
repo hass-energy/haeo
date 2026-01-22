@@ -1,5 +1,6 @@
 """Battery entity for electrical system modeling."""
 
+from datetime import tzinfo
 from typing import Any, Final, Literal, TypedDict
 
 from highspy import Highs
@@ -81,6 +82,8 @@ class Battery(Element[BatteryOutputName]):
         name: str,
         periods: NDArray[np.floating[Any]],
         *,
+        period_start_times: NDArray[np.floating[Any]] | None = None,
+        timezone: tzinfo | None = None,
         solver: Highs,
         capacity: NDArray[np.floating[Any]] | float,
         initial_charge: float,
@@ -95,7 +98,14 @@ class Battery(Element[BatteryOutputName]):
             initial_charge: Initial charge in kWh
 
         """
-        super().__init__(name=name, periods=periods, solver=solver, output_names=BATTERY_OUTPUT_NAMES)
+        super().__init__(
+            name=name,
+            periods=periods,
+            period_start_times=period_start_times,
+            timezone=timezone,
+            solver=solver,
+            output_names=BATTERY_OUTPUT_NAMES,
+        )
         n_periods = self.n_periods
 
         # Set tracked parameters (broadcasts capacity to n_periods + 1)

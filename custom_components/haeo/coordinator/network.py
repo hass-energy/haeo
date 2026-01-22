@@ -1,6 +1,7 @@
 """Network building and connectivity helpers for the HAEO integration."""
 
 from collections.abc import Mapping, MutableMapping, Sequence
+from datetime import tzinfo
 import logging
 from typing import Any, cast
 
@@ -41,11 +42,19 @@ async def create_network(
     *,
     periods_seconds: Sequence[int],
     participants: Mapping[str, ElementConfigData],
+    period_start_times: Sequence[float] | None = None,
+    timezone: tzinfo | None = None,
 ) -> Network:
     """Create a new Network from configuration."""
     # Convert seconds to hours for model layer
     periods_hours = np.asarray(periods_seconds, dtype=float) / 3600
-    net = Network(name=f"haeo_network_{entry.entry_id}", periods=periods_hours)
+    period_start_array = np.asarray(period_start_times, dtype=float) if period_start_times is not None else None
+    net = Network(
+        name=f"haeo_network_{entry.entry_id}",
+        periods=periods_hours,
+        period_start_times=period_start_array,
+        timezone=timezone,
+    )
 
     if not participants:
         _LOGGER.info("No participants configured for hub - returning empty network")

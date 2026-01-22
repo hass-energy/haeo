@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from datetime import datetime
 import logging
 import time
-from typing import TYPE_CHECKING, Any, Literal, TypedDict
+from typing import Any, Literal, TYPE_CHECKING, TypedDict
 
 from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass
 from homeassistant.config_entries import ConfigEntry
@@ -24,22 +24,22 @@ from custom_components.haeo.const import (
     DEFAULT_DEBOUNCE_SECONDS,
     DOMAIN,
     ELEMENT_TYPE_NETWORK,
+    NetworkOutputName,
     OPTIMIZATION_STATUS_FAILED,
     OPTIMIZATION_STATUS_PENDING,
     OPTIMIZATION_STATUS_SUCCESS,
     OUTPUT_NAME_OPTIMIZATION_COST,
     OUTPUT_NAME_OPTIMIZATION_DURATION,
     OUTPUT_NAME_OPTIMIZATION_STATUS,
-    NetworkOutputName,
 )
 from custom_components.haeo.elements import (
+    collect_element_subentries,
     ELEMENT_CONFIG_SCHEMAS,
     ELEMENT_TYPES,
     ElementConfigData,
     ElementConfigSchema,
     ElementDeviceName,
     ElementOutputName,
-    collect_element_subentries,
     get_input_fields,
     is_element_config_data,
     is_element_type,
@@ -259,6 +259,8 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             self.config_entry,
             periods_seconds=periods_seconds,
             participants=loaded_configs,
+            period_start_times=runtime_data.horizon_manager.get_forecast_timestamps(),
+            timezone=dt_util.get_default_time_zone(),
         )
         await network_module.evaluate_network_connectivity(
             self.hass,

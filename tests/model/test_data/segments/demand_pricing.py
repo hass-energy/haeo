@@ -1,5 +1,7 @@
 """Demand pricing segment scenarios."""
 
+from datetime import timezone
+
 import numpy as np
 
 from custom_components.haeo.model.elements.segments import DemandPricingSegment
@@ -24,7 +26,45 @@ SCENARIOS: list[SegmentScenario] = [
             "minimize_cost": True,
         },
         "expected_outputs": {"objective_value": 1500.0},
-    }
+    },
+    {
+        "description": "Demand pricing ignores mixed-window blocks",
+        "factory": DemandPricingSegment,
+        "spec": {
+            "segment_type": "demand_pricing",
+            "demand_price_source_target": 10.0,
+            "demand_window_source_target": np.array([1.0, 0.0, 1.0, 1.0]),
+            "demand_block_hours": 0.5,
+            "demand_days": 1.0,
+        },
+        "periods": np.array([0.25, 0.25, 0.25, 0.25]),
+        "inputs": {
+            "power_in_st": [10.0, 0.0, 1.0, 1.0],
+            "power_in_ts": [0.0, 0.0, 0.0, 0.0],
+            "minimize_cost": True,
+        },
+        "expected_outputs": {"objective_value": 10.0},
+    },
+    {
+        "description": "Demand pricing aligns to wall-clock blocks",
+        "factory": DemandPricingSegment,
+        "spec": {
+            "segment_type": "demand_pricing",
+            "demand_price_source_target": 1.0,
+            "demand_window_source_target": np.array([1.0, 1.0]),
+            "demand_block_hours": 0.5,
+            "demand_days": 1.0,
+        },
+        "periods": np.array([0.5, 0.5]),
+        "period_start_times": np.array([900.0, 2700.0, 4500.0]),
+        "period_start_timezone": timezone.utc,
+        "inputs": {
+            "power_in_st": [10.0, 0.0],
+            "power_in_ts": [0.0, 0.0],
+            "minimize_cost": True,
+        },
+        "expected_outputs": {"objective_value": 5.0},
+    },
 ]
 
 __all__ = ["SCENARIOS"]

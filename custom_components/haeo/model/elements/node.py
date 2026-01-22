@@ -1,5 +1,6 @@
 """Node entity for electrical system modeling."""
 
+from datetime import tzinfo
 from typing import Any, Final, Literal, NotRequired, TypedDict
 
 from highspy import Highs
@@ -49,6 +50,8 @@ class Node(Element[NodeOutputName]):
         name: str,
         periods: NDArray[np.floating[Any]],
         *,
+        period_start_times: NDArray[np.floating[Any]] | None = None,
+        timezone: tzinfo | None = None,
         solver: Highs,
         is_source: bool = True,
         is_sink: bool = True,
@@ -63,7 +66,14 @@ class Node(Element[NodeOutputName]):
             is_sink: Whether this element can consume power (sink behavior)
 
         """
-        super().__init__(name=name, periods=periods, solver=solver, output_names=NODE_OUTPUT_NAMES)
+        super().__init__(
+            name=name,
+            periods=periods,
+            period_start_times=period_start_times,
+            timezone=timezone,
+            solver=solver,
+            output_names=NODE_OUTPUT_NAMES,
+        )
 
         # Store if we are a source and/or sink
         self.is_source = is_source

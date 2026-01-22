@@ -1,7 +1,8 @@
 """Test data types for segment scenarios."""
 
 from collections.abc import Sequence
-from typing import Any, Literal, TypedDict
+from datetime import tzinfo
+from typing import Any, Literal, NotRequired, TypedDict
 
 import numpy as np
 from numpy.typing import NDArray
@@ -27,6 +28,8 @@ class SegmentScenario(TypedDict):
     factory: type
     spec: SegmentSpec
     periods: NDArray[np.floating[Any]]
+    period_start_times: NotRequired[NDArray[np.floating[Any]]]
+    period_start_timezone: NotRequired[tzinfo]
     inputs: SegmentScenarioInputs
     expected_outputs: dict[str, ExpectedValue]
 
