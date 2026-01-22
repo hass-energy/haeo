@@ -7,7 +7,7 @@ from typing import Any
 from homeassistant.components.switch import SwitchEntity, SwitchEntityDescription
 from homeassistant.config_entries import ConfigSubentry
 from homeassistant.const import STATE_ON, EntityCategory
-from homeassistant.core import Event, HomeAssistant, callback
+from homeassistant.core import Event, HomeAssistant, State, callback
 from homeassistant.helpers.device_registry import DeviceEntry
 from homeassistant.helpers.event import EventStateChangedData, async_track_state_change_event
 from homeassistant.util import dt as dt_util
@@ -97,6 +97,9 @@ class HaeoInputSwitch(SwitchEntity):
         # Event that signals data is ready for coordinator access
         self._data_ready = asyncio.Event()
 
+        # Captured source states for diagnostics reproducibility
+        self._captured_source_states: dict[str, State] = {}
+
         # Initialize forecast immediately for EDITABLE mode entities
         # This ensures get_values() returns data before async_added_to_hass() is called
         # DRIVEN mode entities load data in async_added_to_hass() - the coordinator
@@ -156,7 +159,8 @@ class HaeoInputSwitch(SwitchEntity):
     def _handle_source_state_change(self, event: Event[EventStateChangedData]) -> None:
         """Handle source entity state change."""
         new_state = event.data["new_state"]
-        if new_state is not None:
+        if new_state is not None and self._source_entity_id is not None:
+            self._captured_source_states = {self._source_entity_id: new_state}
             self._attr_is_on = new_state.state == STATE_ON
             self._update_forecast()
             self.async_write_ha_state()
@@ -168,6 +172,7 @@ class HaeoInputSwitch(SwitchEntity):
 
         state = self._hass.states.get(self._source_entity_id)
         if state is not None:
+            self._captured_source_states = {self._source_entity_id: state}
             self._attr_is_on = state.state == STATE_ON
             self._update_forecast()
 
@@ -222,6 +227,14 @@ class HaeoInputSwitch(SwitchEntity):
         if forecast:
             return tuple(point["value"] for point in forecast if isinstance(point, dict) and "value" in point)
         return None
+
+    def get_captured_source_states(self) -> dict[str, State]:
+        """Return the source sensor states captured at last data load.
+
+        These states represent the exact inputs that were processed to produce
+        the current forecast values. For diagnostics reproducibility.
+        """
+        return dict(self._captured_source_states)
 
     async def async_turn_on(self, **_kwargs: Any) -> None:
         """Handle user turning switch on.

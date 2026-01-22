@@ -20,7 +20,11 @@ async def async_get_config_entry_diagnostics(
     This is the Home Assistant entry point for diagnostics.
     It delegates to collect_diagnostics with a CurrentStateProvider.
     """
-    result = await collect_diagnostics(hass, config_entry, CurrentStateProvider(hass))
+    # Get coordinator for reproducibility
+    runtime_data = config_entry.runtime_data
+    coordinator = getattr(runtime_data, "coordinator", None)
+
+    result = await collect_diagnostics(hass, config_entry, CurrentStateProvider(hass), coordinator)
     return result.data
 
 

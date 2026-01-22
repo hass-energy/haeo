@@ -114,16 +114,23 @@ async def async_setup_services(hass: HomeAssistant) -> None:
                 translation_placeholders={"entry_id": entry_id, "state": str(entry.state)},
             )
 
+        # Get coordinator for current state diagnostics
+        # This captures the exact optimization context for reproducibility
+        runtime_data = entry.runtime_data
+        coordinator = getattr(runtime_data, "coordinator", None)
+
         # Create state provider based on timestamp presence
         # Note: timestamp is only in schema when recorder is available,
         # and HistoricalStateProvider imports recorder at module level
         if target_timestamp is not None:
             state_provider = HistoricalStateProvider(hass, target_timestamp)
+            # Don't use coordinator for historical - it reflects current optimization
+            coordinator = None
         else:
             state_provider = CurrentStateProvider(hass)
 
         # Get diagnostics data using the appropriate provider
-        result = await collect_diagnostics(hass, entry, state_provider)
+        result = await collect_diagnostics(hass, entry, state_provider, coordinator)
 
         # Validate that historical queries returned all expected data
         if target_timestamp is not None and result.missing_entity_ids:

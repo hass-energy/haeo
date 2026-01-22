@@ -6459,6 +6459,7 @@
       "unit_of_measurement": "$/kW"
     }
   },
+  "switch.optimizer_auto_optimize": { "entity_id": "switch.optimizer_auto_optimize", "state": "on", "attributes": { "friendly_name": "Optimizer Auto optimize" } },
   "switch.solar_curtailment": {
     "entity_id": "switch.solar_curtailment",
     "state": "on",
