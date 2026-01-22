@@ -18,7 +18,6 @@ import contextlib
 from dataclasses import dataclass
 from datetime import UTC, datetime
 import json
-import math
 from pathlib import Path
 import sys
 from typing import Any
@@ -30,44 +29,23 @@ import numpy as np
 from tabulate import tabulate
 
 from custom_components.haeo.const import CONF_ELEMENT_TYPE
+from custom_components.haeo.coordinator.network import collect_model_elements
 from custom_components.haeo.data.loader.extractors import extract
+from custom_components.haeo.data.loader.extractors.utils.parse_datetime import (
+    parse_datetime_to_timestamp,
+)
 from custom_components.haeo.data.util.forecast_combiner import combine_sensor_payloads
 from custom_components.haeo.data.util.forecast_fuser import fuse_to_boundaries, fuse_to_intervals
 from custom_components.haeo.elements import ELEMENT_TYPES, ElementConfigData, is_element_type
 from custom_components.haeo.model import Network
-from custom_components.haeo.model.elements import ModelElementConfig
 from custom_components.haeo.model.output_data import OutputData
+from custom_components.haeo.util.forecast_times import (
+    generate_forecast_timestamps,
+    tiers_to_periods_seconds,
+)
 
 type ForecastSeries = Sequence[tuple[float, float]]
 type SensorPayload = float | ForecastSeries
-
-# Smart rounding constants (match sensor_utils.py)
-_DEFAULT_DECIMAL_PLACES = 4
-_TARGET_SIG_FIGS = 4
-
-
-def _get_decimal_places(max_abs_value: float) -> int:
-    """Calculate decimal places needed for approximately 4 significant figures."""
-    if max_abs_value == 0:
-        return _DEFAULT_DECIMAL_PLACES
-    magnitude = math.floor(math.log10(max_abs_value))
-    return max(0, _TARGET_SIG_FIGS - (magnitude + 1))
-
-
-def smart_round(value: float, max_value: float | None = None) -> float:
-    """Round a value to approximately 4 significant figures.
-
-    This matches the rounding applied by HAEO diagnostics storage.
-    If max_value is provided, uses it to determine decimal places.
-    Otherwise uses the value itself.
-    """
-    ref_value = abs(max_value) if max_value is not None else abs(value)
-    if ref_value == 0:
-        ref_value = abs(value)
-    if ref_value == 0:
-        return 0.0
-    decimal_places = _get_decimal_places(ref_value)
-    return round(value, decimal_places) + 0.0  # +0.0 converts -0.0 to 0.0
 
 
 @dataclass
@@ -138,15 +116,6 @@ class DiagnosticsData:
         return cls(config=config, environment=environment, inputs=inputs, outputs=outputs)
 
 
-def parse_datetime_to_timestamp(value: str | datetime) -> float:
-    """Parse a datetime string or datetime object to a Unix timestamp."""
-    if isinstance(value, datetime):
-        return value.timestamp()
-    # Try parsing ISO format
-    dt = datetime.fromisoformat(value)
-    return dt.timestamp()
-
-
 class DiagnosticsStateProvider:
     """Provides entity states from diagnostics inputs using HAEO extractors."""
 
@@ -183,27 +152,6 @@ class DiagnosticsStateProvider:
             return extract(state).data
         except ValueError:
             return None
-
-
-def tiers_to_periods_seconds(config: Mapping[str, Any]) -> list[int]:
-    """Convert tier configuration to list of period durations in seconds."""
-    periods: list[int] = []
-    for tier in [1, 2, 3, 4]:
-        count_key = f"tier_{tier}_count"
-        duration_key = f"tier_{tier}_duration"
-        if count_key in config:
-            count = int(config[count_key])
-            duration_seconds = int(config[duration_key]) * 60
-            periods.extend([duration_seconds] * count)
-    return periods
-
-
-def generate_forecast_timestamps(periods_seconds: Sequence[int], start_time: float) -> tuple[float, ...]:
-    """Generate forecast timestamps as period boundaries."""
-    timestamps: list[float] = [start_time]
-    for period in periods_seconds:
-        timestamps.append(timestamps[-1] + period)
-    return tuple(timestamps)
 
 
 def load_sensors(
@@ -297,39 +245,6 @@ def load_element_data(
         loaded_config[field_name] = np.array(values)
 
     return loaded_config  # type: ignore[return-value]
-
-
-def collect_model_elements(participants: Mapping[str, ElementConfigData]) -> list[ModelElementConfig]:
-    """Collect and sort model elements from all participants."""
-    all_model_elements: list[ModelElementConfig] = []
-    for loaded_params in participants.values():
-        element_type = loaded_params[CONF_ELEMENT_TYPE]
-        if not is_element_type(element_type):
-            continue
-        model_elements = ELEMENT_TYPES[element_type].model_elements(loaded_params)
-        all_model_elements.extend(model_elements)
-
-    # Sort so connections are added last
-    return sorted(
-        all_model_elements,
-        key=lambda e: e.get("element_type") == "connection",
-    )
-
-
-def create_network(
-    periods_seconds: Sequence[int],
-    participants: Mapping[str, ElementConfigData],
-) -> Network:
-    """Create a Network from configuration."""
-    periods_hours = np.asarray(periods_seconds, dtype=float) / 3600
-    net = Network(name="diag_network", periods=periods_hours)
-
-    sorted_model_elements = collect_model_elements(participants)
-
-    for model_element_config in sorted_model_elements:
-        net.add(model_element_config)
-
-    return net
 
 
 def format_currency(value: float) -> str:
@@ -579,17 +494,18 @@ def extract_rows_from_diagnostics(outputs: dict[str, Any], _timezone_str: str) -
         formatted_time = dt.strftime("%H:%M")
         timestamp = dt.timestamp()
 
+        # Use +0.0 to convert -0.0 to 0.0 for consistent display
         rows.append(RowData(
             time=formatted_time,
             timestamp=timestamp,
-            buy=buy_prices.get(time_str, 0.0),
-            sell=sell_prices.get(time_str, 0.0),
-            battery=battery_power.get(time_str, 0.0),
-            grid=grid_power.get(time_str, 0.0),
-            load=load_power.get(time_str, 0.0),
-            solar=solar_power.get(time_str, 0.0),
-            soc=soc.get(time_str, 0.0),
-            profit=-grid_cost_net.get(time_str, 0.0) + 0.0,  # profit = -cost, +0.0 fixes -0.0
+            buy=buy_prices.get(time_str, 0.0) + 0.0,
+            sell=sell_prices.get(time_str, 0.0) + 0.0,
+            battery=battery_power.get(time_str, 0.0) + 0.0,
+            grid=grid_power.get(time_str, 0.0) + 0.0,
+            load=load_power.get(time_str, 0.0) + 0.0,
+            solar=solar_power.get(time_str, 0.0) + 0.0,
+            soc=soc.get(time_str, 0.0) + 0.0,
+            profit=-grid_cost_net.get(time_str, 0.0) + 0.0,
         ))
 
     return rows
@@ -650,8 +566,6 @@ def extract_rows_from_network(
     grid_import_price: dict[float, float] = {}
     grid_export_price: dict[float, float] = {}
     grid_cost_cumulative: dict[float, float] = {}
-    grid_import_cost: dict[float, float] = {}
-    grid_export_revenue: dict[float, float] = {}
 
     n_intervals = len(forecast_times) - 1
     if grid_import_price_array is not None:
@@ -677,14 +591,6 @@ def extract_rows_from_network(
                     for i, v in enumerate(values):
                         if i < len(forecast_times) - 1:
                             grid_cost_cumulative[forecast_times[i]] = float(v)
-                elif output_name == "grid_cost_import":
-                    for i, v in enumerate(values):
-                        if i < len(forecast_times) - 1:
-                            grid_import_cost[forecast_times[i]] = float(v)
-                elif output_name == "grid_revenue_export":
-                    for i, v in enumerate(values):
-                        if i < len(forecast_times) - 1:
-                            grid_export_revenue[forecast_times[i]] = float(v)
 
             if "Battery:battery" in full_name:
                 if output_name == "battery_state_of_charge":
@@ -706,26 +612,7 @@ def extract_rows_from_network(
                     if i < len(forecast_times) - 1:
                         solar_power[forecast_times[i]] = float(v)
 
-    # Calculate max values per category for smart rounding (matches diagnostics behavior)
-    max_price = max(
-        (max(abs(v) for v in grid_import_price.values()) if grid_import_price else 0.0),
-        (max(abs(v) for v in grid_export_price.values()) if grid_export_price else 0.0),
-    )
-    max_power = max(
-        (max(abs(v) for v in grid_power.values()) if grid_power else 0.0),
-        (max(abs(v) for v in battery_power.values()) if battery_power else 0.0),
-        (max(abs(v) for v in load_power.values()) if load_power else 0.0),
-        (max(abs(v) for v in solar_power.values()) if solar_power else 0.0),
-    )
-    max_soc = max(abs(v) for v in battery_soc.values()) if battery_soc else 100.0
-    # Include all $ entities for consistent rounding (matches diagnostics behavior)
-    max_cost = max(
-        (max(abs(v) for v in grid_cost_cumulative.values()) if grid_cost_cumulative else 0.0),
-        (max(abs(v) for v in grid_import_cost.values()) if grid_import_cost else 0.0),
-        (max(abs(v) for v in grid_export_revenue.values()) if grid_export_revenue else 0.0),
-    )
-
-    # Build row data with smart rounding applied
+    # Build row data (no rounding - diagnostics stores unrounded values)
     rows: list[RowData] = []
     all_times = sorted(set(forecast_times[:-1]))
 
@@ -733,17 +620,18 @@ def extract_rows_from_network(
         dt = datetime.fromtimestamp(timestamp, tz=tz)
         formatted_time = dt.strftime("%H:%M")
 
+        # Use +0.0 to convert -0.0 to 0.0
         rows.append(RowData(
             time=formatted_time,
             timestamp=timestamp,
-            buy=smart_round(grid_import_price.get(timestamp, 0.0), max_price),
-            sell=smart_round(grid_export_price.get(timestamp, 0.0), max_price),
-            battery=smart_round(battery_power.get(timestamp, 0.0), max_power),
-            grid=smart_round(grid_power.get(timestamp, 0.0), max_power),
-            load=smart_round(load_power.get(timestamp, 0.0), max_power),
-            solar=smart_round(solar_power.get(timestamp, 0.0), max_power),
-            soc=smart_round(battery_soc.get(timestamp, 0.0), max_soc),
-            profit=smart_round(-grid_cost_cumulative.get(timestamp, 0.0), max_cost),
+            buy=grid_import_price.get(timestamp, 0.0) + 0.0,
+            sell=grid_export_price.get(timestamp, 0.0) + 0.0,
+            battery=battery_power.get(timestamp, 0.0) + 0.0,
+            grid=grid_power.get(timestamp, 0.0) + 0.0,
+            load=load_power.get(timestamp, 0.0) + 0.0,
+            solar=solar_power.get(timestamp, 0.0) + 0.0,
+            soc=battery_soc.get(timestamp, 0.0) + 0.0,
+            profit=-grid_cost_cumulative.get(timestamp, 0.0) + 0.0,
         ))
 
     return rows
@@ -960,7 +848,10 @@ def run_diagnostics(path: Path, *, outputs_only: bool = False, compare: bool = F
 
     # Create network and run optimization
     print("\nCreating network...")
-    network = create_network(periods_seconds, loaded_participants)
+    periods_hours = np.asarray(periods_seconds, dtype=float) / 3600
+    network = Network(name="diag", periods=periods_hours)
+    for elem in collect_model_elements(loaded_participants):
+        network.add(elem)
     print(f"Network elements: {list(network.elements.keys())}")
 
     print("\nRunning optimization...")
