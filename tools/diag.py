@@ -14,7 +14,6 @@ from __future__ import annotations
 
 import argparse
 from collections.abc import Mapping, Sequence
-import contextlib
 from dataclasses import dataclass
 from datetime import UTC, datetime
 import json
@@ -23,17 +22,21 @@ import sys
 from typing import Any
 from zoneinfo import ZoneInfo
 
+from homeassistant.core import State
 import numpy as np
 from tabulate import tabulate
 
 from custom_components.haeo.const import CONF_ELEMENT_TYPE
-from custom_components.haeo.data.util import ForecastSeries
+from custom_components.haeo.data.loader.extractors import extract
 from custom_components.haeo.data.util.forecast_combiner import combine_sensor_payloads
 from custom_components.haeo.data.util.forecast_fuser import fuse_to_boundaries, fuse_to_intervals
 from custom_components.haeo.elements import ELEMENT_TYPES, ElementConfigData, is_element_type
 from custom_components.haeo.model import Network
 from custom_components.haeo.model.elements import ModelElementConfig
 from custom_components.haeo.model.output_data import OutputData
+
+type ForecastSeries = Sequence[tuple[float, float]]
+type SensorPayload = float | ForecastSeries
 
 
 @dataclass
@@ -97,67 +100,46 @@ def parse_datetime_to_timestamp(value: str | datetime) -> float:
     return dt.timestamp()
 
 
-def extract_forecast_from_entity(entity_state: dict[str, Any]) -> tuple[float | None, ForecastSeries]:
-    """Extract forecast data from an entity state dict.
-
-    Returns:
-        Tuple of (present_value, forecast_series) where forecast_series is
-        a list of (timestamp, value) tuples.
-
-    """
-    state = entity_state.get("state")
-    attributes = entity_state.get("attributes", {})
-    forecast = attributes.get("forecast", [])
-
-    # Try to get present value from state
-    present_value: float | None = None
-    if state is not None:
-        with contextlib.suppress(ValueError, TypeError):
-            present_value = float(state)
-
-    # Parse forecast data
-    forecast_series: ForecastSeries = []
-    if isinstance(forecast, list):
-        for item in forecast:
-            if isinstance(item, dict) and "time" in item and "value" in item:
-                try:
-                    timestamp = parse_datetime_to_timestamp(item["time"])
-                    value = float(item["value"])
-                    forecast_series.append((timestamp, value))
-                except (ValueError, TypeError):
-                    continue
-
-    return present_value, forecast_series
-
-
 class DiagnosticsStateProvider:
-    """Provides entity states from diagnostics inputs."""
+    """Provides entity states from diagnostics inputs using HAEO extractors."""
 
     def __init__(self, inputs: list[dict[str, Any]]) -> None:
         """Initialize with inputs list from diagnostics."""
-        self._states: dict[str, dict[str, Any]] = {}
+        self._states: dict[str, State] = {}
         for entity_state in inputs:
             entity_id = entity_state.get("entity_id")
             if entity_id:
-                self._states[entity_id] = entity_state
+                # Create a mock Home Assistant State object
+                state_value = str(entity_state.get("state", "unknown"))
+                attributes = entity_state.get("attributes", {})
+                self._states[entity_id] = State(
+                    entity_id=entity_id,
+                    state=state_value,
+                    attributes=attributes,
+                )
 
-    def get(self, entity_id: str) -> dict[str, Any] | None:
+    def get(self, entity_id: str) -> State | None:
         """Get entity state by ID."""
         return self._states.get(entity_id)
 
-    def load_sensor(self, entity_id: str) -> tuple[float | None, ForecastSeries] | None:
-        """Load sensor data for an entity ID."""
+    def load_sensor(self, entity_id: str) -> SensorPayload | None:
+        """Load sensor data for an entity ID using HAEO extractors.
+
+        Returns either a float (for simple values) or a list of (timestamp, value)
+        tuples (for forecast data), or None if no data is available.
+        """
         state = self.get(entity_id)
         if state is None:
             return None
-        return extract_forecast_from_entity(state)
+
+        try:
+            return extract(state).data
+        except ValueError:
+            return None
 
 
 def tiers_to_periods_seconds(config: Mapping[str, Any]) -> list[int]:
-    """Convert tier configuration to list of period durations in seconds.
-
-    This is a simplified version that uses fixed tier counts from config.
-    """
+    """Convert tier configuration to list of period durations in seconds."""
     periods: list[int] = []
     for tier in [1, 2, 3, 4]:
         count_key = f"tier_{tier}_count"
@@ -177,6 +159,19 @@ def generate_forecast_timestamps(periods_seconds: Sequence[int], start_time: flo
     return tuple(timestamps)
 
 
+def load_sensors(
+    state_provider: DiagnosticsStateProvider,
+    entity_ids: Sequence[str],
+) -> dict[str, SensorPayload]:
+    """Load sensor data for multiple entity IDs."""
+    payloads: dict[str, SensorPayload] = {}
+    for entity_id in entity_ids:
+        payload = state_provider.load_sensor(entity_id)
+        if payload is not None:
+            payloads[entity_id] = payload
+    return payloads
+
+
 def load_element_data(
     element_name: str,
     element_config: dict[str, Any],
@@ -185,7 +180,7 @@ def load_element_data(
 ) -> ElementConfigData:
     """Load data for a single element from the state provider.
 
-    Converts entity IDs to loaded numpy arrays.
+    Uses HAEO extractors to correctly parse all forecast formats (Solcast, HAEO, etc.).
     """
     element_type = element_config.get(CONF_ELEMENT_TYPE)
     if not is_element_type(element_type):
@@ -227,29 +222,14 @@ def load_element_data(
         if not entity_ids:
             continue
 
-        # Load sensor data from state provider
-        payloads: dict[str, tuple[float | None, ForecastSeries] | float] = {}
-        for entity_id in entity_ids:
-            result = state_provider.load_sensor(entity_id)
-            if result is not None:
-                present_value, forecast_series = result
-                if forecast_series:
-                    payloads[entity_id] = forecast_series
-                elif present_value is not None:
-                    payloads[entity_id] = present_value
+        # Load sensor data from state provider (using extractors)
+        payloads = load_sensors(state_provider, entity_ids)
 
         if not payloads:
             continue
 
-        # Convert to expected format for combine_sensor_payloads
-        sensor_payloads: dict[str, float | list[tuple[float, float]]] = {}
-        for entity_id, payload in payloads.items():
-            if isinstance(payload, float):
-                sensor_payloads[entity_id] = payload
-            else:
-                sensor_payloads[entity_id] = list(payload)
-
-        present_value, forecast_series = combine_sensor_payloads(sensor_payloads)
+        # Combine sensor payloads (handles multiple sensors, e.g. multi-string solar)
+        present_value, forecast_series = combine_sensor_payloads(payloads)
 
         # Fuse to horizon timestamps
         if field_info.boundaries:
@@ -295,127 +275,6 @@ def create_network(
     return net
 
 
-def format_output_table(
-    network: Network,
-    forecast_times: tuple[float, ...],
-    timezone_str: str,
-) -> str:
-    """Format network outputs as a table."""
-    tz = ZoneInfo(timezone_str)
-
-    # Collect outputs from elements - model layer outputs are Mapping[str, OutputData]
-    outputs: dict[str, dict[str, OutputData]] = {}
-    for element_name, element in network.elements.items():
-        element_outputs = element.outputs()
-        if element_outputs:
-            outputs[element_name] = dict(element_outputs)
-
-    # Find grid element outputs (from connection elements)
-    # Grid power: positive = importing, negative = exporting
-    grid_power: dict[float, float] = {}
-
-    # Find battery element outputs
-    # Battery power: positive = charging (from battery perspective), negative = discharging
-    battery_power: dict[float, float] = {}
-    battery_soc: dict[float, float] = {}
-
-    # Find load and solar outputs
-    load_power: dict[float, float] = {}
-    solar_power: dict[float, float] = {}
-
-    for element_name, element_outputs in outputs.items():
-        for output_name, output_data in element_outputs.items():
-            # Ensure we have an OutputData instance
-            if not isinstance(output_data, OutputData):
-                continue
-
-            values = list(output_data.values)
-
-            # Grid:connection - get power flow
-            if element_name == "Grid:connection":
-                if output_name == "connection_power_source_target":
-                    # source_target = from Grid to Switchboard = import
-                    for i, v in enumerate(values):
-                        if i < len(forecast_times):
-                            grid_power[forecast_times[i]] = float(v)
-                elif output_name == "connection_power_target_source":
-                    # target_source = from Switchboard to Grid = export (subtract)
-                    for i, v in enumerate(values):
-                        if i < len(forecast_times):
-                            grid_power[forecast_times[i]] = grid_power.get(forecast_times[i], 0.0) - float(v)
-
-            # Battery:normal - get battery power and SoC
-            if element_name == "Battery:normal":
-                if output_name == "battery_energy_stored":
-                    # battery_energy_stored is in kWh, convert to SoC percentage
-                    # For now, just use the raw values
-                    for i, v in enumerate(values):
-                        if i < len(forecast_times):
-                            battery_soc[forecast_times[i]] = float(v)
-                elif output_name == "battery_power_charge":
-                    # Charging power (positive = charging)
-                    for i, v in enumerate(values):
-                        if i < len(forecast_times):
-                            battery_power[forecast_times[i]] = battery_power.get(forecast_times[i], 0.0) + float(v)
-                elif output_name == "battery_power_discharge":
-                    # Discharging power (subtract to make discharge negative)
-                    for i, v in enumerate(values):
-                        if i < len(forecast_times):
-                            battery_power[forecast_times[i]] = battery_power.get(forecast_times[i], 0.0) - float(v)
-
-            # Load:connection - get load power
-            if element_name == "Load:connection" and output_name == "connection_power_target_source":
-                # target_source = from Switchboard to Load = power consumed by load
-                for i, v in enumerate(values):
-                    if i < len(forecast_times):
-                        load_power[forecast_times[i]] = float(v)
-
-            # Solar:connection - get solar power
-            if element_name == "Solar:connection" and output_name == "connection_power_source_target":
-                # source_target = from Solar to Inverter = solar generation
-                for i, v in enumerate(values):
-                    if i < len(forecast_times):
-                        solar_power[forecast_times[i]] = float(v)
-
-    # Build table rows
-    headers = ["Time", "Battery", "Grid", "Load", "Solar", "SoC"]
-    rows: list[list[str]] = []
-
-    # Get all timestamps and sort them
-    all_times = sorted(set(forecast_times[:-1]))  # Exclude last boundary
-
-    for timestamp in all_times:
-        dt = datetime.fromtimestamp(timestamp, tz=tz)
-        formatted_time = dt.strftime("%H:%M")
-
-        # Get values for this timestamp
-        grid = grid_power.get(timestamp, 0.0)
-        battery = battery_power.get(timestamp, 0.0)
-        load = load_power.get(timestamp, 0.0)
-        solar = solar_power.get(timestamp, 0.0)
-        soc = battery_soc.get(timestamp, 0.0)
-
-        rows.append([
-            formatted_time,
-            f"{battery:.1f}",
-            f"{grid:.1f}",
-            f"{load:.1f}",
-            f"{solar:.1f}",
-            f"{soc:.1f}",
-        ])
-
-    # Format table with headers repeated every 25 rows
-    result_parts: list[str] = ["\nHAEO Optimization Results"]
-    chunk_size = 25
-    for i in range(0, len(rows), chunk_size):
-        chunk = rows[i : i + chunk_size]
-        result_parts.append(tabulate(chunk, headers=headers, tablefmt="simple", numalign="right", stralign="right"))
-        if i + chunk_size < len(rows):
-            result_parts.append("")
-
-    return "\n".join(result_parts)
-
-
 def format_currency(value: float) -> str:
     """Format a currency value."""
     if value >= 0:
@@ -424,18 +283,17 @@ def format_currency(value: float) -> str:
 
 
 def get_forecast_values(outputs: dict[str, Any], entity_id: str) -> dict[str, float]:
-    """Extract forecast values from an entity, keyed by time string."""
+    """Extract forecast values from a diagnostics output entity, keyed by time string."""
     entity = outputs.get(entity_id, {})
     attributes = entity.get("attributes", {})
     forecast = attributes.get("forecast", [])
     return {item["time"]: item["value"] for item in forecast}
 
 
-def format_outputs_only_table(outputs: dict[str, Any], timezone_str: str) -> str:
+def format_output_table_from_diagnostics(outputs: dict[str, Any], timezone_str: str) -> str:
     """Format pre-computed outputs from diagnostics as a table.
 
-    This reads the already-computed outputs stored in the diagnostics file,
-    without running the optimization.
+    This reads the already-computed outputs stored in the diagnostics file.
     """
     # Extract forecast data for each field
     buy_prices = get_forecast_values(outputs, "number.grid_import_price")
@@ -478,7 +336,7 @@ def format_outputs_only_table(outputs: dict[str, Any], timezone_str: str) -> str
         ])
 
     # Format table with headers repeated every 25 rows
-    result_parts: list[str] = [f"\nHAEO Forecast (from diagnostics outputs, {timezone_str})"]
+    result_parts: list[str] = [f"\nHAEO Forecast ({timezone_str})"]
     chunk_size = 25
     for i in range(0, len(rows), chunk_size):
         chunk = rows[i : i + chunk_size]
@@ -489,33 +347,143 @@ def format_outputs_only_table(outputs: dict[str, Any], timezone_str: str) -> str
     return "\n".join(result_parts)
 
 
-def run_outputs_only(path: Path) -> None:
-    """Display pre-computed outputs from a diagnostics file without running optimization."""
-    # Load diagnostics
-    if path.is_dir():
-        print(f"Loading diagnostics from directory: {path}")
-        diag = DiagnosticsData.from_split_files(path)
-    else:
-        print(f"Loading diagnostics from file: {path}")
-        diag = DiagnosticsData.from_file(path)
+def format_output_table_from_network(
+    network: Network,
+    forecast_times: tuple[float, ...],
+    timezone_str: str,
+) -> str:
+    """Format network outputs as a table after running optimization."""
+    tz = ZoneInfo(timezone_str)
 
-    environment = diag.environment
-    timezone_str = environment.get("timezone", "UTC")
+    # Collect outputs from elements
+    outputs: dict[str, dict[str, OutputData]] = {}
+    for element_name, element in network.elements.items():
+        element_outputs = element.outputs()
+        if element_outputs:
+            outputs[element_name] = dict(element_outputs)
 
-    print(f"Timezone: {timezone_str}")
-    print(f"Output entities: {len(diag.outputs)}")
+    # Extract data from model outputs
+    grid_import_power: dict[float, float] = {}
+    grid_export_power: dict[float, float] = {}
+    battery_power: dict[float, float] = {}
+    battery_soc: dict[float, float] = {}
+    load_power: dict[float, float] = {}
+    solar_power: dict[float, float] = {}
+    grid_import_price: dict[float, float] = {}
+    grid_export_price: dict[float, float] = {}
+    grid_cost_cumulative: dict[float, float] = {}
 
-    if not diag.outputs:
-        print("Error: No outputs in diagnostics file")
-        sys.exit(1)
+    for element_name, element_outputs in outputs.items():
+        for output_name, output_data in element_outputs.items():
+            if not isinstance(output_data, OutputData):
+                continue
 
-    # Format and print results
-    table = format_outputs_only_table(diag.outputs, timezone_str)
-    print(table)
+            values = list(output_data.values)
+
+            # Grid:connection - get power flow
+            if element_name == "Grid:connection":
+                if output_name == "connection_power_source_target":
+                    for i, v in enumerate(values):
+                        if i < len(forecast_times):
+                            grid_import_power[forecast_times[i]] = float(v)
+                elif output_name == "connection_power_target_source":
+                    for i, v in enumerate(values):
+                        if i < len(forecast_times):
+                            grid_export_power[forecast_times[i]] = float(v)
+
+            # Grid - get prices and costs
+            if element_name == "Grid":
+                if output_name == "grid_import_price":
+                    for i, v in enumerate(values):
+                        if i < len(forecast_times):
+                            grid_import_price[forecast_times[i]] = float(v)
+                elif output_name == "grid_export_price":
+                    for i, v in enumerate(values):
+                        if i < len(forecast_times):
+                            grid_export_price[forecast_times[i]] = float(v)
+                elif output_name == "grid_cost_net":
+                    cumulative = 0.0
+                    for i, v in enumerate(values):
+                        if i < len(forecast_times):
+                            cumulative += float(v)
+                            grid_cost_cumulative[forecast_times[i]] = cumulative
+
+            # Battery:normal - get battery power and SoC
+            if element_name == "Battery:normal":
+                if output_name == "battery_state_of_charge":
+                    for i, v in enumerate(values):
+                        if i < len(forecast_times):
+                            battery_soc[forecast_times[i]] = float(v)
+                elif output_name == "battery_power_charge":
+                    for i, v in enumerate(values):
+                        if i < len(forecast_times):
+                            battery_power[forecast_times[i]] = battery_power.get(forecast_times[i], 0.0) + float(v)
+                elif output_name == "battery_power_discharge":
+                    for i, v in enumerate(values):
+                        if i < len(forecast_times):
+                            battery_power[forecast_times[i]] = battery_power.get(forecast_times[i], 0.0) - float(v)
+
+            # Load:connection - get load power
+            if element_name == "Load:connection" and output_name == "connection_power_target_source":
+                for i, v in enumerate(values):
+                    if i < len(forecast_times):
+                        load_power[forecast_times[i]] = float(v)
+
+            # Solar:connection - get solar power
+            if element_name == "Solar:connection" and output_name == "connection_power_source_target":
+                for i, v in enumerate(values):
+                    if i < len(forecast_times):
+                        solar_power[forecast_times[i]] = float(v)
+
+    # Build table rows
+    headers = ["Time", "Buy", "Sell", "Battery", "Grid", "Load", "Solar", "SoC", "Profit"]
+    rows: list[list[str]] = []
+
+    all_times = sorted(set(forecast_times[:-1]))  # Exclude last boundary
+
+    for timestamp in all_times:
+        dt = datetime.fromtimestamp(timestamp, tz=tz)
+        formatted_time = dt.strftime("%H:%M")
+
+        # Net grid power (import - export)
+        grid_net = grid_import_power.get(timestamp, 0.0) - grid_export_power.get(timestamp, 0.0)
+
+        # Cumulative profit = negative of cumulative cost
+        cumulative_profit = -grid_cost_cumulative.get(timestamp, 0.0)
+        profit_str = format_currency(cumulative_profit)
+
+        rows.append([
+            formatted_time,
+            f"{grid_import_price.get(timestamp, 0.0):.2f}",
+            f"{grid_export_price.get(timestamp, 0.0):.2f}",
+            f"{battery_power.get(timestamp, 0.0):.1f}",
+            f"{grid_net:.1f}",
+            f"{load_power.get(timestamp, 0.0):.1f}",
+            f"{solar_power.get(timestamp, 0.0):.1f}",
+            f"{battery_soc.get(timestamp, 0.0):.1f}",
+            profit_str,
+        ])
+
+    # Format table with headers repeated every 25 rows
+    result_parts: list[str] = [f"\nHAEO Optimization Results ({timezone_str})"]
+    chunk_size = 25
+    for i in range(0, len(rows), chunk_size):
+        chunk = rows[i : i + chunk_size]
+        result_parts.append(tabulate(chunk, headers=headers, tablefmt="simple", numalign="right", stralign="right"))
+        if i + chunk_size < len(rows):
+            result_parts.append("")
+
+    return "\n".join(result_parts)
 
 
-def run_diagnostics(path: Path) -> None:
-    """Run optimization from a diagnostics file and print results."""
+def run_diagnostics(path: Path, *, outputs_only: bool = False) -> None:
+    """Run diagnostics processing from a file.
+
+    Args:
+        path: Path to diagnostics JSON file or directory with split files
+        outputs_only: If True, skip optimization and display pre-computed outputs
+
+    """
     # Load diagnostics
     if path.is_dir():
         print(f"Loading diagnostics from directory: {path}")
@@ -543,6 +511,17 @@ def run_diagnostics(path: Path) -> None:
     print(f"Timezone: {timezone_str}")
     print(f"Participants: {list(participants_config.keys())}")
 
+    # If outputs-only, just display pre-computed outputs
+    if outputs_only:
+        if not diag.outputs:
+            print("Error: No outputs in diagnostics file")
+            sys.exit(1)
+
+        print(f"Output entities: {len(diag.outputs)}")
+        table = format_output_table_from_diagnostics(diag.outputs, timezone_str)
+        print(table)
+        return
+
     # Calculate periods from tier config
     periods_seconds = tiers_to_periods_seconds(config)
     print(f"Optimization periods: {len(periods_seconds)} intervals")
@@ -555,7 +534,7 @@ def run_diagnostics(path: Path) -> None:
     forecast_times = generate_forecast_timestamps(periods_seconds, start_time)
     print(f"Forecast horizon: {len(forecast_times)} boundaries")
 
-    # Create state provider from inputs
+    # Create state provider from inputs (uses HAEO extractors)
     state_provider = DiagnosticsStateProvider(diag.inputs)
 
     # Load element data
@@ -586,7 +565,7 @@ def run_diagnostics(path: Path) -> None:
         sys.exit(1)
 
     # Format and print results
-    table = format_output_table(network, forecast_times, timezone_str)
+    table = format_output_table_from_network(network, forecast_times, timezone_str)
     print(table)
 
 
@@ -622,10 +601,7 @@ Examples:
         print(f"Error: File not found: {args.file}")
         sys.exit(1)
 
-    if args.outputs_only:
-        run_outputs_only(args.file)
-    else:
-        run_diagnostics(args.file)
+    run_diagnostics(args.file, outputs_only=args.outputs_only)
 
 
 if __name__ == "__main__":
