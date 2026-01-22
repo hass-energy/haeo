@@ -133,8 +133,22 @@ async def collect_diagnostics(
             extracted_ids = _extract_entity_ids_from_config(participant_config)
             all_entity_ids.update(extracted_ids)
 
-    # Get states using the provider (current or historical)
-    entity_states = await state_provider.get_states(sorted(all_entity_ids))
+    # Check for optimization snapshot for reproducibility
+    # For non-historical diagnostics, prefer the snapshot captured at optimization time
+    optimization_snapshot = (
+        runtime_data.optimization_snapshot
+        if isinstance(runtime_data, HaeoRuntimeData) and not state_provider.is_historical
+        else None
+    )
+
+    if optimization_snapshot is not None:
+        # Use snapshot states captured at optimization time for exact reproducibility
+        entity_states = {
+            eid: state for eid in all_entity_ids if (state := optimization_snapshot.source_states.get(eid)) is not None
+        }
+    else:
+        # Fall back to state provider (historical or no snapshot available)
+        entity_states = await state_provider.get_states(sorted(all_entity_ids))
 
     # Calculate which entities were expected but not found
     missing_entity_ids = sorted(all_entity_ids - set(entity_states.keys()))
@@ -153,9 +167,13 @@ async def collect_diagnostics(
     integration = await async_get_integration(hass, config_entry.domain)
     haeo_version = integration.version or "unknown"
 
-    # Use provider's timestamp if available, otherwise current time
-    # Convert to local timezone to ensure offset is included for unambiguous parsing
-    timestamp = dt_util.as_local(state_provider.timestamp or dt_util.now()).isoformat()
+    # Determine timestamp source:
+    # - For current diagnostics with snapshot: use optimization timestamp for reproducibility
+    # - For historical or no snapshot: use provider's timestamp or current time
+    if optimization_snapshot is not None:
+        timestamp = dt_util.as_local(optimization_snapshot.timestamp).isoformat()
+    else:
+        timestamp = dt_util.as_local(state_provider.timestamp or dt_util.now()).isoformat()
 
     # Build environment section
     environment: dict[str, Any] = {
@@ -164,6 +182,10 @@ async def collect_diagnostics(
         "timestamp": timestamp,
         "timezone": str(dt_util.get_default_time_zone()),
     }
+
+    # Include forecast_timestamps for exact reproducibility
+    if optimization_snapshot is not None:
+        environment["forecast_timestamps"] = list(optimization_snapshot.forecast_timestamps)
 
     if state_provider.is_historical:
         environment["historical"] = True

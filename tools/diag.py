@@ -566,9 +566,14 @@ def run_diagnostics(path: Path, *, outputs_only: bool = False) -> None:
         print("Error: No periods configured")
         sys.exit(1)
 
-    # Generate forecast timestamps
-    forecast_times = generate_forecast_timestamps(periods_seconds, start_time)
-    print(f"Forecast horizon: {len(forecast_times)} boundaries")
+    # Use forecast_timestamps from environment if available (for exact reproducibility)
+    # Otherwise fall back to generating from config (backward compatibility)
+    if "forecast_timestamps" in environment:
+        forecast_times = tuple(environment["forecast_timestamps"])
+        print(f"Forecast horizon: {len(forecast_times)} boundaries (from diagnostics)")
+    else:
+        forecast_times = generate_forecast_timestamps(periods_seconds, start_time)
+        print(f"Forecast horizon: {len(forecast_times)} boundaries (generated)")
 
     # Create state provider from inputs (uses HAEO extractors)
     state_provider = DiagnosticsStateProvider(diag.inputs)
