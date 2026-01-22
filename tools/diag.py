@@ -698,23 +698,33 @@ def format_comparison_table(
 ) -> str:
     """Format a comparison table showing diagnostics vs rerun values.
 
-    Shows both values side-by-side with differences highlighted.
+    Shows both values side-by-side with rerun values highlighted (inverted) when different.
     """
+    # ANSI escape codes for inverted text
+    ansi_invert = "\033[7m"
+    ansi_reset = "\033[0m"
+
+    def highlight_if_diff(diag_str: str, rerun_str: str) -> str:
+        """Highlight rerun value if its formatted string differs from diagnostics."""
+        if diag_str != rerun_str:
+            return f"{ansi_invert}{rerun_str}{ansi_reset}"
+        return rerun_str
+
     # Match rows by timestamp
     diag_by_ts = {r.timestamp: r for r in diag_rows}
     rerun_by_ts = {r.timestamp: r for r in rerun_rows}
 
     all_timestamps = sorted(set(diag_by_ts.keys()) | set(rerun_by_ts.keys()))
 
-    # Headers: Time, then for each field: Diag | Rerun | Diff
+    # Headers: Time, then for each field: Diag | Rerun
     headers = [
         "Time",
         "Buy(D)", "Buy(R)",
         "Sell(D)", "Sell(R)",
-        "Batt(D)", "Batt(R)", "ΔBatt",
-        "Grid(D)", "Grid(R)", "ΔGrid",
-        "SoC(D)", "SoC(R)", "ΔSoC",
-        "Profit(D)", "Profit(R)", "ΔProf",
+        "Batt(D)", "Batt(R)",
+        "Grid(D)", "Grid(R)",
+        "SoC(D)", "SoC(R)",
+        "Profit(D)", "Profit(R)",
     ]
 
     rows: list[list[str]] = []
@@ -742,33 +752,42 @@ def format_comparison_table(
         r_soc = r.soc if r else 0.0
         r_profit = r.profit if r else 0.0
 
-        # Calculate differences
-        diff_battery = r_battery - d_battery
-        diff_grid = r_grid - d_grid
-        diff_soc = r_soc - d_soc
-        diff_profit = r_profit - d_profit
-
-        # Track totals
-        total_diffs["battery"] += abs(diff_battery)
-        total_diffs["grid"] += abs(diff_grid)
-        total_diffs["soc"] += abs(diff_soc)
-        total_diffs["profit"] += abs(diff_profit)
+        # Track totals for summary
+        total_diffs["battery"] += abs(r_battery - d_battery)
+        total_diffs["grid"] += abs(r_grid - d_grid)
+        total_diffs["soc"] += abs(r_soc - d_soc)
+        total_diffs["profit"] += abs(r_profit - d_profit)
         diff_count += 1
 
-        # Format diff with sign
-        def fmt_diff(v: float) -> str:
-            if abs(v) < 0.01:
-                return "="
-            return f"{v:+.1f}"
+        # Format values
+        d_buy_str = f"{d_buy:.2f}"
+        r_buy_str = f"{r_buy:.2f}"
+        d_sell_str = f"{d_sell:.2f}"
+        r_sell_str = f"{r_sell:.2f}"
+        d_batt_str = f"{d_battery:.1f}"
+        r_batt_str = f"{r_battery:.1f}"
+        d_grid_str = f"{d_grid:.1f}"
+        r_grid_str = f"{r_grid:.1f}"
+        d_soc_str = f"{d_soc:.1f}"
+        r_soc_str = f"{r_soc:.1f}"
+        d_profit_str = format_currency(d_profit)
+        r_profit_str = format_currency(r_profit)
 
+        # Build row, highlighting rerun values if different
         rows.append([
             time_str,
-            f"{d_buy:.2f}", f"{r_buy:.2f}",
-            f"{d_sell:.2f}", f"{r_sell:.2f}",
-            f"{d_battery:.1f}", f"{r_battery:.1f}", fmt_diff(diff_battery),
-            f"{d_grid:.1f}", f"{r_grid:.1f}", fmt_diff(diff_grid),
-            f"{d_soc:.1f}", f"{r_soc:.1f}", fmt_diff(diff_soc),
-            format_currency(d_profit), format_currency(r_profit), fmt_diff(diff_profit),
+            d_buy_str,
+            highlight_if_diff(d_buy_str, r_buy_str),
+            d_sell_str,
+            highlight_if_diff(d_sell_str, r_sell_str),
+            d_batt_str,
+            highlight_if_diff(d_batt_str, r_batt_str),
+            d_grid_str,
+            highlight_if_diff(d_grid_str, r_grid_str),
+            d_soc_str,
+            highlight_if_diff(d_soc_str, r_soc_str),
+            d_profit_str,
+            highlight_if_diff(d_profit_str, r_profit_str),
         ])
 
     # Summary
@@ -783,8 +802,8 @@ def format_comparison_table(
         "",
     ]
 
-    # Format table with headers repeated every 15 rows (table is wider)
-    chunk_size = 15
+    # Format table with headers repeated every 20 rows
+    chunk_size = 20
     for i in range(0, len(rows), chunk_size):
         chunk = rows[i : i + chunk_size]
         result_parts.append(tabulate(chunk, headers=headers, tablefmt="simple", numalign="right", stralign="right"))
