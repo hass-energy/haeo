@@ -13,7 +13,7 @@ This tool loads a HAEO diagnostics export and either:
 from __future__ import annotations
 
 import argparse
-from collections.abc import Mapping, Sequence
+from collections.abc import Sequence
 import contextlib
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -31,18 +31,13 @@ from tabulate import tabulate
 from custom_components.haeo.const import CONF_ELEMENT_TYPE
 from custom_components.haeo.coordinator.network import collect_model_elements
 from custom_components.haeo.data.loader.extractors import extract
-from custom_components.haeo.data.loader.extractors.utils.parse_datetime import (
-    parse_datetime_to_timestamp,
-)
+from custom_components.haeo.data.loader.extractors.utils.parse_datetime import parse_datetime_to_timestamp
 from custom_components.haeo.data.util.forecast_combiner import combine_sensor_payloads
 from custom_components.haeo.data.util.forecast_fuser import fuse_to_boundaries, fuse_to_intervals
 from custom_components.haeo.elements import ELEMENT_TYPES, ElementConfigData, is_element_type
 from custom_components.haeo.model import Network
 from custom_components.haeo.model.output_data import OutputData
-from custom_components.haeo.util.forecast_times import (
-    generate_forecast_timestamps,
-    tiers_to_periods_seconds,
-)
+from custom_components.haeo.util.forecast_times import generate_forecast_timestamps, tiers_to_periods_seconds
 
 type ForecastSeries = Sequence[tuple[float, float]]
 type SensorPayload = float | ForecastSeries
@@ -295,17 +290,19 @@ def format_output_table_from_diagnostics(outputs: dict[str, Any], timezone_str: 
         cumulative_profit = -grid_cost_net.get(time_str, 0.0)
         profit_str = format_currency(cumulative_profit)
 
-        rows.append([
-            formatted_time,
-            f"{buy_prices.get(time_str, 0.0):.2f}",
-            f"{sell_prices.get(time_str, 0.0):.2f}",
-            f"{battery_power.get(time_str, 0.0):.1f}",
-            f"{grid_net:.1f}",
-            f"{load_power.get(time_str, 0.0):.1f}",
-            f"{solar_power.get(time_str, 0.0):.1f}",
-            f"{soc.get(time_str, 0.0):.1f}",
-            profit_str,
-        ])
+        rows.append(
+            [
+                formatted_time,
+                f"{buy_prices.get(time_str, 0.0):.2f}",
+                f"{sell_prices.get(time_str, 0.0):.2f}",
+                f"{battery_power.get(time_str, 0.0):.1f}",
+                f"{grid_net:.1f}",
+                f"{load_power.get(time_str, 0.0):.1f}",
+                f"{solar_power.get(time_str, 0.0):.1f}",
+                f"{soc.get(time_str, 0.0):.1f}",
+                profit_str,
+            ]
+        )
 
     # Format table with headers repeated every 25 rows
     result_parts: list[str] = [f"\nHAEO Forecast ({timezone_str})"]
@@ -449,17 +446,19 @@ def format_output_table_from_network(
         cumulative_profit = -grid_cost_cumulative.get(timestamp, 0.0)
         profit_str = format_currency(cumulative_profit)
 
-        rows.append([
-            formatted_time,
-            f"{grid_import_price.get(timestamp, 0.0):.2f}",
-            f"{grid_export_price.get(timestamp, 0.0):.2f}",
-            f"{battery_power.get(timestamp, 0.0):.1f}",
-            f"{grid_power.get(timestamp, 0.0):.1f}",
-            f"{load_power.get(timestamp, 0.0):.1f}",
-            f"{solar_power.get(timestamp, 0.0):.1f}",
-            f"{battery_soc.get(timestamp, 0.0):.1f}",
-            profit_str,
-        ])
+        rows.append(
+            [
+                formatted_time,
+                f"{grid_import_price.get(timestamp, 0.0):.2f}",
+                f"{grid_export_price.get(timestamp, 0.0):.2f}",
+                f"{battery_power.get(timestamp, 0.0):.1f}",
+                f"{grid_power.get(timestamp, 0.0):.1f}",
+                f"{load_power.get(timestamp, 0.0):.1f}",
+                f"{solar_power.get(timestamp, 0.0):.1f}",
+                f"{battery_soc.get(timestamp, 0.0):.1f}",
+                profit_str,
+            ]
+        )
 
     # Format table with headers repeated every 25 rows
     result_parts: list[str] = [f"\nHAEO Optimization Results ({timezone_str})"]
@@ -495,18 +494,20 @@ def extract_rows_from_diagnostics(outputs: dict[str, Any], _timezone_str: str) -
         timestamp = dt.timestamp()
 
         # Use +0.0 to convert -0.0 to 0.0 for consistent display
-        rows.append(RowData(
-            time=formatted_time,
-            timestamp=timestamp,
-            buy=buy_prices.get(time_str, 0.0) + 0.0,
-            sell=sell_prices.get(time_str, 0.0) + 0.0,
-            battery=battery_power.get(time_str, 0.0) + 0.0,
-            grid=grid_power.get(time_str, 0.0) + 0.0,
-            load=load_power.get(time_str, 0.0) + 0.0,
-            solar=solar_power.get(time_str, 0.0) + 0.0,
-            soc=soc.get(time_str, 0.0) + 0.0,
-            profit=-grid_cost_net.get(time_str, 0.0) + 0.0,
-        ))
+        rows.append(
+            RowData(
+                time=formatted_time,
+                timestamp=timestamp,
+                buy=buy_prices.get(time_str, 0.0) + 0.0,
+                sell=sell_prices.get(time_str, 0.0) + 0.0,
+                battery=battery_power.get(time_str, 0.0) + 0.0,
+                grid=grid_power.get(time_str, 0.0) + 0.0,
+                load=load_power.get(time_str, 0.0) + 0.0,
+                solar=solar_power.get(time_str, 0.0) + 0.0,
+                soc=soc.get(time_str, 0.0) + 0.0,
+                profit=-grid_cost_net.get(time_str, 0.0) + 0.0,
+            )
+        )
 
     return rows
 
@@ -621,18 +622,20 @@ def extract_rows_from_network(
         formatted_time = dt.strftime("%H:%M")
 
         # Use +0.0 to convert -0.0 to 0.0
-        rows.append(RowData(
-            time=formatted_time,
-            timestamp=timestamp,
-            buy=grid_import_price.get(timestamp, 0.0) + 0.0,
-            sell=grid_export_price.get(timestamp, 0.0) + 0.0,
-            battery=battery_power.get(timestamp, 0.0) + 0.0,
-            grid=grid_power.get(timestamp, 0.0) + 0.0,
-            load=load_power.get(timestamp, 0.0) + 0.0,
-            solar=solar_power.get(timestamp, 0.0) + 0.0,
-            soc=battery_soc.get(timestamp, 0.0) + 0.0,
-            profit=-grid_cost_cumulative.get(timestamp, 0.0) + 0.0,
-        ))
+        rows.append(
+            RowData(
+                time=formatted_time,
+                timestamp=timestamp,
+                buy=grid_import_price.get(timestamp, 0.0) + 0.0,
+                sell=grid_export_price.get(timestamp, 0.0) + 0.0,
+                battery=battery_power.get(timestamp, 0.0) + 0.0,
+                grid=grid_power.get(timestamp, 0.0) + 0.0,
+                load=load_power.get(timestamp, 0.0) + 0.0,
+                solar=solar_power.get(timestamp, 0.0) + 0.0,
+                soc=battery_soc.get(timestamp, 0.0) + 0.0,
+                profit=-grid_cost_cumulative.get(timestamp, 0.0) + 0.0,
+            )
+        )
 
     return rows
 
@@ -665,12 +668,18 @@ def format_comparison_table(
     # Headers: Time, then for each field: Diag | Rerun
     headers = [
         "Time",
-        "Buy(D)", "Buy(R)",
-        "Sell(D)", "Sell(R)",
-        "Batt(D)", "Batt(R)",
-        "Grid(D)", "Grid(R)",
-        "SoC(D)", "SoC(R)",
-        "Profit(D)", "Profit(R)",
+        "Buy(D)",
+        "Buy(R)",
+        "Sell(D)",
+        "Sell(R)",
+        "Batt(D)",
+        "Batt(R)",
+        "Grid(D)",
+        "Grid(R)",
+        "SoC(D)",
+        "SoC(R)",
+        "Profit(D)",
+        "Profit(R)",
     ]
 
     rows: list[list[str]] = []
@@ -720,21 +729,23 @@ def format_comparison_table(
         r_profit_str = format_currency(r_profit)
 
         # Build row, highlighting rerun values if different
-        rows.append([
-            time_str,
-            d_buy_str,
-            highlight_if_diff(d_buy_str, r_buy_str),
-            d_sell_str,
-            highlight_if_diff(d_sell_str, r_sell_str),
-            d_batt_str,
-            highlight_if_diff(d_batt_str, r_batt_str),
-            d_grid_str,
-            highlight_if_diff(d_grid_str, r_grid_str),
-            d_soc_str,
-            highlight_if_diff(d_soc_str, r_soc_str),
-            d_profit_str,
-            highlight_if_diff(d_profit_str, r_profit_str),
-        ])
+        rows.append(
+            [
+                time_str,
+                d_buy_str,
+                highlight_if_diff(d_buy_str, r_buy_str),
+                d_sell_str,
+                highlight_if_diff(d_sell_str, r_sell_str),
+                d_batt_str,
+                highlight_if_diff(d_batt_str, r_batt_str),
+                d_grid_str,
+                highlight_if_diff(d_grid_str, r_grid_str),
+                d_soc_str,
+                highlight_if_diff(d_soc_str, r_soc_str),
+                d_profit_str,
+                highlight_if_diff(d_profit_str, r_profit_str),
+            ]
+        )
 
     # Summary
     avg_diffs = {k: v / diff_count if diff_count > 0 else 0.0 for k, v in total_diffs.items()}
@@ -785,11 +796,7 @@ def run_diagnostics(path: Path, *, outputs_only: bool = False, compare: bool = F
     timestamp_str = environment.get("timestamp", "")
     timezone_str = environment.get("timezone", "UTC")
 
-    start_time = (
-        parse_datetime_to_timestamp(timestamp_str)
-        if timestamp_str
-        else datetime.now(tz=UTC).timestamp()
-    )
+    start_time = parse_datetime_to_timestamp(timestamp_str) if timestamp_str else datetime.now(tz=UTC).timestamp()
 
     print(f"Environment timestamp: {timestamp_str}")
     print(f"Timezone: {timezone_str}")
@@ -811,10 +818,7 @@ def run_diagnostics(path: Path, *, outputs_only: bool = False, compare: bool = F
     if "forecast_timestamps" in environment:
         forecast_times = tuple(environment["forecast_timestamps"])
         # Derive periods_seconds from the actual forecast timestamps
-        periods_seconds = [
-            int(forecast_times[i + 1] - forecast_times[i])
-            for i in range(len(forecast_times) - 1)
-        ]
+        periods_seconds = [int(forecast_times[i + 1] - forecast_times[i]) for i in range(len(forecast_times) - 1)]
         print(f"Optimization periods: {len(periods_seconds)} intervals (from diagnostics)")
         print(f"Forecast horizon: {len(forecast_times)} boundaries (from diagnostics)")
     else:

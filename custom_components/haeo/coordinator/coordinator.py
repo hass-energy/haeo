@@ -657,9 +657,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             # This snapshot ensures diagnostics has the exact inputs used for this optimization
             source_entity_ids = self._collect_source_entity_ids()
             source_states = {
-                eid: state
-                for eid in source_entity_ids
-                if (state := self.hass.states.get(eid)) is not None
+                eid: state for eid in source_entity_ids if (state := self.hass.states.get(eid)) is not None
             }
 
             # Import here to avoid circular import at module level
