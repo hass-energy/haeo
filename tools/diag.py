@@ -822,7 +822,7 @@ def run_diagnostics(path: Path, *, outputs_only: bool = False, compare: bool = F
         print(f"Optimization periods: {len(periods_seconds)} intervals (from diagnostics)")
         print(f"Forecast horizon: {len(forecast_times)} boundaries (from diagnostics)")
     else:
-        # Fall back to tier config
+        # Fall back to tier config - infer start time from outputs if available
         periods_seconds = tiers_to_periods_seconds(config)
         print(f"Optimization periods: {len(periods_seconds)} intervals (from config)")
 
@@ -830,7 +830,20 @@ def run_diagnostics(path: Path, *, outputs_only: bool = False, compare: bool = F
             print("Error: No periods configured")
             sys.exit(1)
 
-        forecast_times = generate_forecast_timestamps(periods_seconds, start_time)
+        # Try to infer start time from output forecast timestamps for backward compatibility
+        inferred_start = None
+        if diag.outputs:
+            for entity_id in ["number.grid_import_price", "sensor.grid_active_power", "sensor.battery_active_power"]:
+                entity = diag.outputs.get(entity_id, {})
+                forecast = entity.get("attributes", {}).get("forecast", [])
+                if forecast and "time" in forecast[0]:
+                    first_time_str = forecast[0]["time"]
+                    inferred_start = parse_datetime_to_timestamp(first_time_str)
+                    print(f"Inferred start time from outputs: {first_time_str}")
+                    break
+
+        effective_start = inferred_start if inferred_start is not None else start_time
+        forecast_times = generate_forecast_timestamps(periods_seconds, effective_start)
         print(f"Forecast horizon: {len(forecast_times)} boundaries (generated)")
 
     # Create state provider from inputs (uses HAEO extractors)
