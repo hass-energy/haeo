@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import argparse
 from collections.abc import Mapping, Sequence
+import contextlib
 from dataclasses import dataclass
 from datetime import UTC, datetime
 import json
@@ -38,6 +39,22 @@ from custom_components.haeo.model.output_data import OutputData
 
 type ForecastSeries = Sequence[tuple[float, float]]
 type SensorPayload = float | ForecastSeries
+
+
+@dataclass
+class RowData:
+    """Data for a single table row."""
+
+    time: str  # Formatted time string (HH:MM)
+    timestamp: float  # Unix timestamp for matching rows
+    buy: float
+    sell: float
+    battery: float
+    grid: float
+    load: float
+    solar: float
+    soc: float
+    profit: float
 
 
 @dataclass
@@ -512,12 +529,278 @@ def format_output_table_from_network(
     return "\n".join(result_parts)
 
 
-def run_diagnostics(path: Path, *, outputs_only: bool = False) -> None:
+def extract_rows_from_diagnostics(outputs: dict[str, Any], _timezone_str: str) -> list[RowData]:
+    """Extract row data from pre-computed diagnostics outputs."""
+    # Extract forecast data for each field
+    buy_prices = get_forecast_values(outputs, "number.grid_import_price")
+    sell_prices = get_forecast_values(outputs, "number.grid_export_price")
+    battery_power = get_forecast_values(outputs, "sensor.battery_active_power")
+    grid_power = get_forecast_values(outputs, "sensor.grid_active_power")
+    load_power = get_forecast_values(outputs, "sensor.load_power")
+    solar_power = get_forecast_values(outputs, "sensor.solar_power")
+    soc = get_forecast_values(outputs, "sensor.battery_state_of_charge")
+    grid_cost_net = get_forecast_values(outputs, "sensor.grid_net_cost")
+
+    # Get all unique times (sorted)
+    all_times = sorted(set(buy_prices.keys()))
+
+    rows: list[RowData] = []
+    for time_str in all_times:
+        dt = datetime.fromisoformat(time_str)
+        formatted_time = dt.strftime("%H:%M")
+        timestamp = dt.timestamp()
+
+        rows.append(RowData(
+            time=formatted_time,
+            timestamp=timestamp,
+            buy=buy_prices.get(time_str, 0.0),
+            sell=sell_prices.get(time_str, 0.0),
+            battery=battery_power.get(time_str, 0.0),
+            grid=grid_power.get(time_str, 0.0),
+            load=load_power.get(time_str, 0.0),
+            solar=solar_power.get(time_str, 0.0),
+            soc=soc.get(time_str, 0.0),
+            profit=-grid_cost_net.get(time_str, 0.0),  # profit = -cost
+        ))
+
+    return rows
+
+
+def extract_rows_from_network(
+    network: Network,
+    loaded_participants: dict[str, ElementConfigData],
+    forecast_times: tuple[float, ...],
+    timezone_str: str,
+) -> list[RowData]:
+    """Extract row data from network optimization results."""
+    tz = ZoneInfo(timezone_str)
+
+    # Collect raw model outputs from all network elements
+    model_outputs: dict[str, Any] = {
+        element_name: element.outputs() for element_name, element in network.elements.items()
+    }
+
+    # Process outputs through each element's adapter
+    adapter_outputs: dict[str, dict[str, OutputData]] = {}
+
+    for element_name, element_config in loaded_participants.items():
+        element_type = element_config.get(CONF_ELEMENT_TYPE)
+        if not is_element_type(element_type):
+            continue
+
+        adapter = ELEMENT_TYPES[element_type]
+        with contextlib.suppress(Exception):
+            element_outputs = adapter.outputs(
+                name=element_name,
+                model_outputs=model_outputs,
+                config=element_config,
+                periods=network.periods,
+            )
+            for device_name, device_outputs in element_outputs.items():
+                adapter_outputs[f"{element_name}:{device_name}"] = dict(device_outputs)
+
+    # Extract prices from Grid config
+    grid_import_price_array: np.ndarray | None = None
+    grid_export_price_array: np.ndarray | None = None
+    for element_config in loaded_participants.values():
+        if element_config.get(CONF_ELEMENT_TYPE) == "grid":
+            import_price = element_config.get("import_price")
+            export_price = element_config.get("export_price")
+            if isinstance(import_price, np.ndarray):
+                grid_import_price_array = import_price
+            if isinstance(export_price, np.ndarray):
+                grid_export_price_array = export_price
+            break
+
+    # Extract data from adapter outputs
+    grid_power: dict[float, float] = {}
+    battery_power: dict[float, float] = {}
+    battery_soc: dict[float, float] = {}
+    load_power: dict[float, float] = {}
+    solar_power: dict[float, float] = {}
+    grid_import_price: dict[float, float] = {}
+    grid_export_price: dict[float, float] = {}
+    grid_cost_cumulative: dict[float, float] = {}
+
+    n_intervals = len(forecast_times) - 1
+    if grid_import_price_array is not None:
+        for i in range(min(len(grid_import_price_array), n_intervals)):
+            grid_import_price[forecast_times[i]] = float(grid_import_price_array[i])
+    if grid_export_price_array is not None:
+        for i in range(min(len(grid_export_price_array), n_intervals)):
+            grid_export_price[forecast_times[i]] = float(grid_export_price_array[i])
+
+    for full_name, element_outputs in adapter_outputs.items():
+        for output_name, output_data in element_outputs.items():
+            if not isinstance(output_data, OutputData):
+                continue
+
+            values = list(output_data.values)
+
+            if "Grid:grid" in full_name:
+                if output_name == "grid_power_active":
+                    for i, v in enumerate(values):
+                        if i < len(forecast_times) - 1:
+                            grid_power[forecast_times[i]] = float(v)
+                elif output_name == "grid_cost_net":
+                    for i, v in enumerate(values):
+                        if i < len(forecast_times) - 1:
+                            grid_cost_cumulative[forecast_times[i]] = float(v)
+
+            if "Battery:battery" in full_name:
+                if output_name == "battery_state_of_charge":
+                    for i, v in enumerate(values):
+                        if i < len(forecast_times):
+                            battery_soc[forecast_times[i]] = float(v) * 100.0
+                elif output_name == "battery_power_active":
+                    for i, v in enumerate(values):
+                        if i < len(forecast_times) - 1:
+                            battery_power[forecast_times[i]] = float(v)
+
+            if "Load:load" in full_name and output_name == "load_power":
+                for i, v in enumerate(values):
+                    if i < len(forecast_times) - 1:
+                        load_power[forecast_times[i]] = float(v)
+
+            if "Solar:solar" in full_name and output_name == "solar_power":
+                for i, v in enumerate(values):
+                    if i < len(forecast_times) - 1:
+                        solar_power[forecast_times[i]] = float(v)
+
+    # Build row data
+    rows: list[RowData] = []
+    all_times = sorted(set(forecast_times[:-1]))
+
+    for timestamp in all_times:
+        dt = datetime.fromtimestamp(timestamp, tz=tz)
+        formatted_time = dt.strftime("%H:%M")
+
+        rows.append(RowData(
+            time=formatted_time,
+            timestamp=timestamp,
+            buy=grid_import_price.get(timestamp, 0.0),
+            sell=grid_export_price.get(timestamp, 0.0),
+            battery=battery_power.get(timestamp, 0.0),
+            grid=grid_power.get(timestamp, 0.0),
+            load=load_power.get(timestamp, 0.0),
+            solar=solar_power.get(timestamp, 0.0),
+            soc=battery_soc.get(timestamp, 0.0),
+            profit=-grid_cost_cumulative.get(timestamp, 0.0),
+        ))
+
+    return rows
+
+
+def format_comparison_table(
+    diag_rows: list[RowData],
+    rerun_rows: list[RowData],
+    timezone_str: str,
+) -> str:
+    """Format a comparison table showing diagnostics vs rerun values.
+
+    Shows both values side-by-side with differences highlighted.
+    """
+    # Match rows by timestamp
+    diag_by_ts = {r.timestamp: r for r in diag_rows}
+    rerun_by_ts = {r.timestamp: r for r in rerun_rows}
+
+    all_timestamps = sorted(set(diag_by_ts.keys()) | set(rerun_by_ts.keys()))
+
+    # Headers: Time, then for each field: Diag | Rerun | Diff
+    headers = [
+        "Time",
+        "Buy(D)", "Buy(R)",
+        "Sell(D)", "Sell(R)",
+        "Batt(D)", "Batt(R)", "ΔBatt",
+        "Grid(D)", "Grid(R)", "ΔGrid",
+        "SoC(D)", "SoC(R)", "ΔSoC",
+        "Profit(D)", "Profit(R)", "ΔProf",
+    ]
+
+    rows: list[list[str]] = []
+    total_diffs = {"battery": 0.0, "grid": 0.0, "soc": 0.0, "profit": 0.0}
+    diff_count = 0
+
+    for ts in all_timestamps:
+        d = diag_by_ts.get(ts)
+        r = rerun_by_ts.get(ts)
+
+        time_str = d.time if d else (r.time if r else "??:??")
+
+        # Get values or defaults
+        d_buy = d.buy if d else 0.0
+        d_sell = d.sell if d else 0.0
+        d_battery = d.battery if d else 0.0
+        d_grid = d.grid if d else 0.0
+        d_soc = d.soc if d else 0.0
+        d_profit = d.profit if d else 0.0
+
+        r_buy = r.buy if r else 0.0
+        r_sell = r.sell if r else 0.0
+        r_battery = r.battery if r else 0.0
+        r_grid = r.grid if r else 0.0
+        r_soc = r.soc if r else 0.0
+        r_profit = r.profit if r else 0.0
+
+        # Calculate differences
+        diff_battery = r_battery - d_battery
+        diff_grid = r_grid - d_grid
+        diff_soc = r_soc - d_soc
+        diff_profit = r_profit - d_profit
+
+        # Track totals
+        total_diffs["battery"] += abs(diff_battery)
+        total_diffs["grid"] += abs(diff_grid)
+        total_diffs["soc"] += abs(diff_soc)
+        total_diffs["profit"] += abs(diff_profit)
+        diff_count += 1
+
+        # Format diff with sign
+        def fmt_diff(v: float) -> str:
+            if abs(v) < 0.01:
+                return "="
+            return f"{v:+.1f}"
+
+        rows.append([
+            time_str,
+            f"{d_buy:.2f}", f"{r_buy:.2f}",
+            f"{d_sell:.2f}", f"{r_sell:.2f}",
+            f"{d_battery:.1f}", f"{r_battery:.1f}", fmt_diff(diff_battery),
+            f"{d_grid:.1f}", f"{r_grid:.1f}", fmt_diff(diff_grid),
+            f"{d_soc:.1f}", f"{r_soc:.1f}", fmt_diff(diff_soc),
+            format_currency(d_profit), format_currency(r_profit), fmt_diff(diff_profit),
+        ])
+
+    # Summary
+    avg_diffs = {k: v / diff_count if diff_count > 0 else 0.0 for k, v in total_diffs.items()}
+
+    result_parts: list[str] = [
+        f"\nHAEO Comparison: Diagnostics (D) vs Rerun (R) [{timezone_str}]",
+        f"Rows compared: {len(rows)}",
+        f"Mean absolute differences: Battery={avg_diffs['battery']:.2f}kW, "
+        f"Grid={avg_diffs['grid']:.2f}kW, SoC={avg_diffs['soc']:.2f}%, "
+        f"Profit=${avg_diffs['profit']:.3f}",
+        "",
+    ]
+
+    # Format table with headers repeated every 15 rows (table is wider)
+    chunk_size = 15
+    for i in range(0, len(rows), chunk_size):
+        chunk = rows[i : i + chunk_size]
+        result_parts.append(tabulate(chunk, headers=headers, tablefmt="simple", numalign="right", stralign="right"))
+        if i + chunk_size < len(rows):
+            result_parts.append("")
+
+    return "\n".join(result_parts)
+
+
+def run_diagnostics(path: Path, *, outputs_only: bool = False, compare: bool = False) -> None:
     """Run diagnostics processing from a file.
 
     Args:
         path: Path to diagnostics JSON file or directory with split files
         outputs_only: If True, skip optimization and display pre-computed outputs
+        compare: If True, show comparison table of diagnostics vs rerun outputs
 
     """
     # Load diagnostics
@@ -547,8 +830,8 @@ def run_diagnostics(path: Path, *, outputs_only: bool = False) -> None:
     print(f"Timezone: {timezone_str}")
     print(f"Participants: {list(participants_config.keys())}")
 
-    # If outputs-only, just display pre-computed outputs
-    if outputs_only:
+    # If outputs-only (without compare), just display pre-computed outputs
+    if outputs_only and not compare:
         if not diag.outputs:
             print("Error: No outputs in diagnostics file")
             sys.exit(1)
@@ -612,7 +895,17 @@ def run_diagnostics(path: Path, *, outputs_only: bool = False) -> None:
         sys.exit(1)
 
     # Format and print results
-    table = format_output_table_from_network(network, loaded_participants, forecast_times, timezone_str)
+    if compare:
+        # Extract data from both sources
+        if not diag.outputs:
+            print("Error: No outputs in diagnostics file for comparison")
+            sys.exit(1)
+
+        diag_rows = extract_rows_from_diagnostics(diag.outputs, timezone_str)
+        rerun_rows = extract_rows_from_network(network, loaded_participants, forecast_times, timezone_str)
+        table = format_comparison_table(diag_rows, rerun_rows, timezone_str)
+    else:
+        table = format_output_table_from_network(network, loaded_participants, forecast_times, timezone_str)
     print(table)
 
 
@@ -625,6 +918,7 @@ def main() -> None:
 Examples:
     uv run diag --file diagnostics.json
     uv run diag --file diagnostics.json --outputs-only
+    uv run diag --file diagnostics.json --compare
     uv run diag --file tests/scenarios/scenario_discord/
         """,
     )
@@ -641,6 +935,12 @@ Examples:
         action="store_true",
         help="Skip optimization and display pre-computed outputs from diagnostics",
     )
+    parser.add_argument(
+        "--compare",
+        "-c",
+        action="store_true",
+        help="Compare diagnostics outputs vs rerun optimization side-by-side",
+    )
 
     args = parser.parse_args()
 
@@ -648,7 +948,10 @@ Examples:
         print(f"Error: File not found: {args.file}")
         sys.exit(1)
 
-    run_diagnostics(args.file, outputs_only=args.outputs_only)
+    if args.compare and args.outputs_only:
+        print("Warning: --compare implies running optimization, ignoring --outputs-only")
+
+    run_diagnostics(args.file, outputs_only=args.outputs_only, compare=args.compare)
 
 
 if __name__ == "__main__":
