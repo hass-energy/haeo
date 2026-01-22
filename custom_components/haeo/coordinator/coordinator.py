@@ -11,7 +11,7 @@ from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import STATE_ON, EntityCategory, UnitOfTime
 from homeassistant.core import CALLBACK_TYPE, Event, HomeAssistant, callback
-from homeassistant.helpers.event import EventStateChangedData, async_call_later, async_track_state_change_event
+from homeassistant.helpers.event import async_call_later, async_track_state_change_event, EventStateChangedData
 from homeassistant.helpers.translation import async_get_translations
 from homeassistant.helpers.typing import StateType
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
@@ -24,22 +24,22 @@ from custom_components.haeo.const import (
     DEFAULT_DEBOUNCE_SECONDS,
     DOMAIN,
     ELEMENT_TYPE_NETWORK,
+    NetworkOutputName,
     OPTIMIZATION_STATUS_FAILED,
     OPTIMIZATION_STATUS_PENDING,
     OPTIMIZATION_STATUS_SUCCESS,
     OUTPUT_NAME_OPTIMIZATION_COST,
     OUTPUT_NAME_OPTIMIZATION_DURATION,
     OUTPUT_NAME_OPTIMIZATION_STATUS,
-    NetworkOutputName,
 )
 from custom_components.haeo.elements import (
+    collect_element_subentries,
     ELEMENT_CONFIG_SCHEMAS,
     ELEMENT_TYPES,
     ElementConfigData,
     ElementConfigSchema,
     ElementDeviceName,
     ElementOutputName,
-    collect_element_subentries,
     get_input_fields,
     is_element_config_data,
     is_element_type,
@@ -255,10 +255,15 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
 
         _LOGGER.debug("Initializing network with %d participants", len(loaded_configs))
 
+        horizon = runtime_data.horizon_manager.get_forecast_timestamps()
+        start_time = horizon[0] if horizon else None
+
         self.network = await network_module.create_network(
             self.config_entry,
             periods_seconds=periods_seconds,
             participants=loaded_configs,
+            period_start_time=start_time,
+            timezone=dt_util.get_default_time_zone(),
         )
         await network_module.evaluate_network_connectivity(
             self.hass,

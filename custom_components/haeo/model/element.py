@@ -1,6 +1,7 @@
 """Generic electrical entity for energy system modeling."""
 
 from collections.abc import Mapping, Sequence
+from datetime import tzinfo
 from typing import Any, Literal
 
 from highspy import Highs
@@ -31,6 +32,8 @@ class Element[OutputNameT: str]:
         name: str,
         periods: NDArray[np.floating[Any]],
         *,
+        period_start_time: float | None = None,
+        timezone: tzinfo | None = None,
         solver: Highs,
         output_names: frozenset[OutputNameT],
     ) -> None:
@@ -45,6 +48,8 @@ class Element[OutputNameT: str]:
         """
         self.name = name
         self.periods = np.asarray(periods)
+        self.period_start_time = period_start_time
+        self.period_start_timezone = timezone
         self._solver = solver
         self._output_names = output_names
 

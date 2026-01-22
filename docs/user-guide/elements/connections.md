@@ -15,17 +15,25 @@ Connections define how power flows between elements in your network with support
 
 ## Configuration
 
-| Field                        | Type                                     | Required | Default   | Description                                                            |
-| ---------------------------- | ---------------------------------------- | -------- | --------- | ---------------------------------------------------------------------- |
-| **Name**                     | String                                   | Yes      | -         | Unique identifier for this connection                                  |
-| **Source**                   | Element                                  | Yes      | -         | Element where power can flow from (in source→target direction)         |
-| **Target**                   | Element                                  | Yes      | -         | Element where power can flow to (in source→target direction)           |
-| **Max Power Source→Target**  | [sensor](../forecasts-and-sensors.md)    | No       | Unlimited | Maximum power flow from source to target (kW)                          |
-| **Max Power Target→Source**  | [sensor](../forecasts-and-sensors.md)    | No       | Unlimited | Maximum power flow from target to source (kW)                          |
-| **Efficiency Source→Target** | [sensor](../forecasts-and-sensors.md)    | No       | 100%      | Efficiency percentage (0-100) for power transfer from source to target |
-| **Efficiency Target→Source** | [sensor](../forecasts-and-sensors.md)    | No       | 100%      | Efficiency percentage (0-100) for power transfer from target to source |
-| **Price Source→Target**      | [sensor(s)](../forecasts-and-sensors.md) | No       | 0         | Price (\$/kWh) for transferring power from source to target            |
-| **Price Target→Source**      | [sensor(s)](../forecasts-and-sensors.md) | No       | 0         | Price (\$/kWh) for transferring power from target to source            |
+| Field                           | Type                                     | Required | Default   | Description                                                            |
+| ------------------------------- | ---------------------------------------- | -------- | --------- | ---------------------------------------------------------------------- |
+| **Name**                        | String                                   | Yes      | -         | Unique identifier for this connection                                  |
+| **Source**                      | Element                                  | Yes      | -         | Element where power can flow from (in source→target direction)         |
+| **Target**                      | Element                                  | Yes      | -         | Element where power can flow to (in source→target direction)           |
+| **Max Power Source→Target**     | [sensor](../forecasts-and-sensors.md)    | No       | Unlimited | Maximum power flow from source to target (kW)                          |
+| **Max Power Target→Source**     | [sensor](../forecasts-and-sensors.md)    | No       | Unlimited | Maximum power flow from target to source (kW)                          |
+| **Efficiency Source→Target**    | [sensor](../forecasts-and-sensors.md)    | No       | 100%      | Efficiency percentage (0-100) for power transfer from source to target |
+| **Efficiency Target→Source**    | [sensor](../forecasts-and-sensors.md)    | No       | 100%      | Efficiency percentage (0-100) for power transfer from target to source |
+| **Price Source→Target**         | [sensor(s)](../forecasts-and-sensors.md) | No       | 0         | Price (\$/kWh) for transferring power from source to target            |
+| **Price Target→Source**         | [sensor(s)](../forecasts-and-sensors.md) | No       | 0         | Price (\$/kWh) for transferring power from target to source            |
+| **Demand Window Source→Target** | [sensor(s)](../forecasts-and-sensors.md) | No       | -         | Demand window weight (0-1) for source to target blocks                 |
+| **Demand Window Target→Source** | [sensor(s)](../forecasts-and-sensors.md) | No       | -         | Demand window weight (0-1) for target to source blocks                 |
+| **Demand Price Source→Target**  | Number                                   | No       | -         | Demand price (\$/kW/day) for source to target peak blocks              |
+| **Demand Price Target→Source**  | Number                                   | No       | -         | Demand price (\$/kW/day) for target to source peak blocks              |
+| **Demand Energy Source→Target** | Number                                   | No       | -         | Energy already used in the current source to target block (kWh)        |
+| **Demand Energy Target→Source** | Number                                   | No       | -         | Energy already used in the current target to source block (kWh)        |
+| **Demand Block Hours**          | Number                                   | No       | 0.5       | Block size in hours used for demand averaging                          |
+| **Demand Billing Days**         | Number                                   | No       | 1         | Billing period days used to scale demand price                         |
 
 !!! tip "Configuration tips"
 
@@ -90,6 +98,12 @@ Configure different efficiencies for each direction to model real-world devices.
 
 **Transmission costs:**
 Connection pricing models fees for using a power transfer path (wheeling charges, connection fees, peak demand charges).
+
+**Demand pricing:**
+Demand pricing uses the maximum block-average power within the configured demand windows.
+Set demand window weights to 1 during peak windows and 0 outside them.
+Demand block hours controls the averaging block size, such as `0.5` for 30-minute blocks.
+Demand billing days scales the demand price to the billing period length.
 
 ## Common Patterns
 
@@ -181,14 +195,22 @@ The optimizer will only schedule charging when the sensor value is non-zero.
 Each configuration field creates a corresponding input entity in Home Assistant.
 Input entities appear as Number entities with the `config` entity category.
 
-| Input                                    | Unit   | Description                            |
-| ---------------------------------------- | ------ | -------------------------------------- |
-| `number.{name}_max_power_source_target`  | kW     | Maximum forward power (if configured)  |
-| `number.{name}_max_power_target_source`  | kW     | Maximum reverse power (if configured)  |
-| `number.{name}_efficiency_source_target` | %      | Forward efficiency (if configured)     |
-| `number.{name}_efficiency_target_source` | %      | Reverse efficiency (if configured)     |
-| `number.{name}_price_source_target`      | \$/kWh | Forward transfer price (if configured) |
-| `number.{name}_price_target_source`      | \$/kWh | Reverse transfer price (if configured) |
+| Input                                       | Unit   | Description                                  |
+| ------------------------------------------- | ------ | -------------------------------------------- |
+| `number.{name}_max_power_source_target`     | kW     | Maximum forward power (if configured)        |
+| `number.{name}_max_power_target_source`     | kW     | Maximum reverse power (if configured)        |
+| `number.{name}_efficiency_source_target`    | %      | Forward efficiency (if configured)           |
+| `number.{name}_efficiency_target_source`    | %      | Reverse efficiency (if configured)           |
+| `number.{name}_price_source_target`         | \$/kWh | Forward transfer price (if configured)       |
+| `number.{name}_price_target_source`         | \$/kWh | Reverse transfer price (if configured)       |
+| `number.{name}_demand_window_source_target` | -      | Forward demand window weight (if configured) |
+| `number.{name}_demand_window_target_source` | -      | Reverse demand window weight (if configured) |
+| `number.{name}_demand_price_source_target`  | \$/kW  | Forward demand price (if configured)         |
+| `number.{name}_demand_price_target_source`  | \$/kW  | Reverse demand price (if configured)         |
+| `number.{name}_demand_current_energy_source_target` | kWh | Forward demand energy so far (if configured) |
+| `number.{name}_demand_current_energy_target_source` | kWh | Reverse demand energy so far (if configured) |
+| `number.{name}_demand_block_hours`          | h      | Demand block hours (if configured)           |
+| `number.{name}_demand_days`                 | d      | Demand billing days (if configured)          |
 
 Input entities include a `forecast` attribute showing values for each optimization period.
 See the [Input Entities developer guide](../../developer-guide/inputs.md) for details on input entity behavior.

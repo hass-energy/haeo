@@ -1,5 +1,6 @@
 """Segment scenario aggregates."""
 
+from .demand_pricing import SCENARIOS as DEMAND_PRICING_SCENARIOS
 from .efficiency import SCENARIOS as EFFICIENCY_SCENARIOS
 from .passthrough import SCENARIOS as PASSTHROUGH_SCENARIOS
 from .power_limit import SCENARIOS as POWER_LIMIT_SCENARIOS
@@ -10,6 +11,7 @@ SEGMENT_SCENARIOS = [
     *EFFICIENCY_SCENARIOS,
     *POWER_LIMIT_SCENARIOS,
     *PRICING_SCENARIOS,
+    *DEMAND_PRICING_SCENARIOS,
 ]
 
 __all__ = [
@@ -17,5 +19,6 @@ __all__ = [
     "PASSTHROUGH_SCENARIOS",
     "POWER_LIMIT_SCENARIOS",
     "PRICING_SCENARIOS",
+    "DEMAND_PRICING_SCENARIOS",
     "SEGMENT_SCENARIOS",
 ]

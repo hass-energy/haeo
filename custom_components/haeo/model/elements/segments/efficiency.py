@@ -6,6 +6,7 @@ Efficiency reduces output power relative to input:
 This models inverter losses, transformer losses, etc.
 """
 
+from datetime import tzinfo
 from typing import Any, Literal, NotRequired
 
 from highspy import Highs
@@ -49,6 +50,8 @@ class EfficiencySegment(Segment):
         periods: NDArray[np.floating[Any]],
         solver: Highs,
         *,
+        period_start_time: float | None = None,
+        timezone: tzinfo | None = None,
         spec: EfficiencySegmentSpec,
         source_element: Element[Any],
         target_element: Element[Any],
@@ -70,6 +73,8 @@ class EfficiencySegment(Segment):
             n_periods,
             periods,
             solver,
+            period_start_time=period_start_time,
+            timezone=timezone,
             source_element=source_element,
             target_element=target_element,
         )
