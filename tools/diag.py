@@ -22,6 +22,7 @@ import sys
 from typing import Any
 from zoneinfo import ZoneInfo
 
+from homeassistant.const import PERCENTAGE
 from homeassistant.core import State
 import numpy as np
 from tabulate import tabulate
@@ -203,13 +204,17 @@ def load_element_data(
 
         # Handle constant values
         if isinstance(value, (int, float)) and not isinstance(value, bool):
+            # Convert percentage values to ratios (0-1 range)
+            unit = getattr(field_info.entity_description, "native_unit_of_measurement", None)
+            converted_value = float(value) / 100.0 if unit == PERCENTAGE else float(value)
+
             if field_info.time_series:
                 if field_info.boundaries:
-                    loaded_config[field_name] = np.array([float(value)] * len(forecast_times))
+                    loaded_config[field_name] = np.array([converted_value] * len(forecast_times))
                 else:
-                    loaded_config[field_name] = np.array([float(value)] * (len(forecast_times) - 1))
+                    loaded_config[field_name] = np.array([converted_value] * (len(forecast_times) - 1))
             else:
-                loaded_config[field_name] = float(value)
+                loaded_config[field_name] = converted_value
             continue
 
         # Handle entity IDs (string or list of strings)
@@ -236,6 +241,12 @@ def load_element_data(
             values = fuse_to_boundaries(present_value, forecast_series, list(forecast_times))
         else:
             values = fuse_to_intervals(present_value, forecast_series, list(forecast_times))
+
+        # Convert percentage values to ratios (0-1 range)
+        # This matches what HaeoInputNumber.get_values() does
+        unit = getattr(field_info.entity_description, "native_unit_of_measurement", None)
+        if unit == PERCENTAGE:
+            values = [v / 100.0 for v in values]
 
         loaded_config[field_name] = np.array(values)
 
@@ -349,22 +360,61 @@ def format_output_table_from_diagnostics(outputs: dict[str, Any], timezone_str: 
 
 def format_output_table_from_network(
     network: Network,
+    loaded_participants: dict[str, ElementConfigData],
     forecast_times: tuple[float, ...],
     timezone_str: str,
 ) -> str:
-    """Format network outputs as a table after running optimization."""
+    """Format network outputs as a table after running optimization.
+
+    Uses the adapter layer's outputs() methods to transform model outputs
+    into the same format as the diagnostics outputs.
+    """
     tz = ZoneInfo(timezone_str)
 
-    # Collect outputs from elements
-    outputs: dict[str, dict[str, OutputData]] = {}
-    for element_name, element in network.elements.items():
-        element_outputs = element.outputs()
-        if element_outputs:
-            outputs[element_name] = dict(element_outputs)
+    # Collect raw model outputs from all network elements
+    model_outputs: dict[str, Any] = {
+        element_name: element.outputs() for element_name, element in network.elements.items()
+    }
 
-    # Extract data from model outputs
-    grid_import_power: dict[float, float] = {}
-    grid_export_power: dict[float, float] = {}
+    # Process outputs through each element's adapter
+    # This transforms raw model outputs into sensor-friendly formats
+    adapter_outputs: dict[str, dict[str, OutputData]] = {}
+
+    for element_name, element_config in loaded_participants.items():
+        element_type = element_config.get(CONF_ELEMENT_TYPE)
+        if not is_element_type(element_type):
+            continue
+
+        adapter = ELEMENT_TYPES[element_type]
+        try:
+            # Call the adapter's outputs method
+            element_outputs = adapter.outputs(
+                name=element_name,
+                model_outputs=model_outputs,
+                config=element_config,
+                periods=network.periods,
+            )
+            # Flatten device outputs: {device_name: {output_name: OutputData}}
+            for device_name, device_outputs in element_outputs.items():
+                adapter_outputs[f"{element_name}:{device_name}"] = dict(device_outputs)
+        except Exception as e:
+            print(f"  Warning: Failed to get outputs for {element_name}: {e}")
+
+    # Extract prices from Grid config (these are inputs, not outputs)
+    grid_import_price_array: np.ndarray | None = None
+    grid_export_price_array: np.ndarray | None = None
+    for element_config in loaded_participants.values():
+        if element_config.get(CONF_ELEMENT_TYPE) == "grid":
+            import_price = element_config.get("import_price")
+            export_price = element_config.get("export_price")
+            if isinstance(import_price, np.ndarray):
+                grid_import_price_array = import_price
+            if isinstance(export_price, np.ndarray):
+                grid_export_price_array = export_price
+            break
+
+    # Extract data from adapter outputs
+    grid_power: dict[float, float] = {}
     battery_power: dict[float, float] = {}
     battery_soc: dict[float, float] = {}
     load_power: dict[float, float] = {}
@@ -373,66 +423,55 @@ def format_output_table_from_network(
     grid_export_price: dict[float, float] = {}
     grid_cost_cumulative: dict[float, float] = {}
 
-    for element_name, element_outputs in outputs.items():
+    # Populate prices from config arrays
+    n_intervals = len(forecast_times) - 1
+    if grid_import_price_array is not None:
+        for i in range(min(len(grid_import_price_array), n_intervals)):
+            grid_import_price[forecast_times[i]] = float(grid_import_price_array[i])
+    if grid_export_price_array is not None:
+        for i in range(min(len(grid_export_price_array), n_intervals)):
+            grid_export_price[forecast_times[i]] = float(grid_export_price_array[i])
+
+    for full_name, element_outputs in adapter_outputs.items():
         for output_name, output_data in element_outputs.items():
             if not isinstance(output_data, OutputData):
                 continue
 
             values = list(output_data.values)
 
-            # Grid:connection - get power flow
-            if element_name == "Grid:connection":
-                if output_name == "connection_power_source_target":
+            # Grid outputs (from Grid:grid device)
+            if "Grid:grid" in full_name:
+                if output_name == "grid_power_active":
                     for i, v in enumerate(values):
-                        if i < len(forecast_times):
-                            grid_import_power[forecast_times[i]] = float(v)
-                elif output_name == "connection_power_target_source":
-                    for i, v in enumerate(values):
-                        if i < len(forecast_times):
-                            grid_export_power[forecast_times[i]] = float(v)
-
-            # Grid - get prices and costs
-            if element_name == "Grid":
-                if output_name == "grid_import_price":
-                    for i, v in enumerate(values):
-                        if i < len(forecast_times):
-                            grid_import_price[forecast_times[i]] = float(v)
-                elif output_name == "grid_export_price":
-                    for i, v in enumerate(values):
-                        if i < len(forecast_times):
-                            grid_export_price[forecast_times[i]] = float(v)
+                        if i < len(forecast_times) - 1:
+                            grid_power[forecast_times[i]] = float(v)
                 elif output_name == "grid_cost_net":
-                    cumulative = 0.0
                     for i, v in enumerate(values):
-                        if i < len(forecast_times):
-                            cumulative += float(v)
-                            grid_cost_cumulative[forecast_times[i]] = cumulative
+                        if i < len(forecast_times) - 1:
+                            grid_cost_cumulative[forecast_times[i]] = float(v)
 
-            # Battery:normal - get battery power and SoC
-            if element_name == "Battery:normal":
+            # Battery outputs (from Battery:battery device)
+            if "Battery:battery" in full_name:
                 if output_name == "battery_state_of_charge":
                     for i, v in enumerate(values):
                         if i < len(forecast_times):
-                            battery_soc[forecast_times[i]] = float(v)
-                elif output_name == "battery_power_charge":
+                            # SoC is a ratio (0-1), convert to percentage
+                            battery_soc[forecast_times[i]] = float(v) * 100.0
+                elif output_name == "battery_power_active":
                     for i, v in enumerate(values):
-                        if i < len(forecast_times):
-                            battery_power[forecast_times[i]] = battery_power.get(forecast_times[i], 0.0) + float(v)
-                elif output_name == "battery_power_discharge":
-                    for i, v in enumerate(values):
-                        if i < len(forecast_times):
-                            battery_power[forecast_times[i]] = battery_power.get(forecast_times[i], 0.0) - float(v)
+                        if i < len(forecast_times) - 1:
+                            battery_power[forecast_times[i]] = float(v)
 
-            # Load:connection - get load power
-            if element_name == "Load:connection" and output_name == "connection_power_target_source":
+            # Load outputs (from Load:load device)
+            if "Load:load" in full_name and output_name == "load_power":
                 for i, v in enumerate(values):
-                    if i < len(forecast_times):
+                    if i < len(forecast_times) - 1:
                         load_power[forecast_times[i]] = float(v)
 
-            # Solar:connection - get solar power
-            if element_name == "Solar:connection" and output_name == "connection_power_source_target":
+            # Solar outputs (from Solar:solar device)
+            if "Solar:solar" in full_name and output_name == "solar_power":
                 for i, v in enumerate(values):
-                    if i < len(forecast_times):
+                    if i < len(forecast_times) - 1:
                         solar_power[forecast_times[i]] = float(v)
 
     # Build table rows
@@ -445,9 +484,6 @@ def format_output_table_from_network(
         dt = datetime.fromtimestamp(timestamp, tz=tz)
         formatted_time = dt.strftime("%H:%M")
 
-        # Net grid power (import - export)
-        grid_net = grid_import_power.get(timestamp, 0.0) - grid_export_power.get(timestamp, 0.0)
-
         # Cumulative profit = negative of cumulative cost
         cumulative_profit = -grid_cost_cumulative.get(timestamp, 0.0)
         profit_str = format_currency(cumulative_profit)
@@ -457,7 +493,7 @@ def format_output_table_from_network(
             f"{grid_import_price.get(timestamp, 0.0):.2f}",
             f"{grid_export_price.get(timestamp, 0.0):.2f}",
             f"{battery_power.get(timestamp, 0.0):.1f}",
-            f"{grid_net:.1f}",
+            f"{grid_power.get(timestamp, 0.0):.1f}",
             f"{load_power.get(timestamp, 0.0):.1f}",
             f"{solar_power.get(timestamp, 0.0):.1f}",
             f"{battery_soc.get(timestamp, 0.0):.1f}",
@@ -565,7 +601,7 @@ def run_diagnostics(path: Path, *, outputs_only: bool = False) -> None:
         sys.exit(1)
 
     # Format and print results
-    table = format_output_table_from_network(network, forecast_times, timezone_str)
+    table = format_output_table_from_network(network, loaded_participants, forecast_times, timezone_str)
     print(table)
 
 
