@@ -82,7 +82,7 @@ class Battery(Element[BatteryOutputName]):
         name: str,
         periods: NDArray[np.floating[Any]],
         *,
-        period_start_times: NDArray[np.floating[Any]] | None = None,
+        period_start_time: float | None = None,
         timezone: tzinfo | None = None,
         solver: Highs,
         capacity: NDArray[np.floating[Any]] | float,
@@ -101,7 +101,7 @@ class Battery(Element[BatteryOutputName]):
         super().__init__(
             name=name,
             periods=periods,
-            period_start_times=period_start_times,
+            period_start_time=period_start_time,
             timezone=timezone,
             solver=solver,
             output_names=BATTERY_OUTPUT_NAMES,

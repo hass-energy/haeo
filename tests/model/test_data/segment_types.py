@@ -28,7 +28,7 @@ class SegmentScenario(TypedDict):
     factory: type
     spec: SegmentSpec
     periods: NDArray[np.floating[Any]]
-    period_start_times: NotRequired[NDArray[np.floating[Any]]]
+    period_start_time: NotRequired[float]
     period_start_timezone: NotRequired[tzinfo]
     inputs: SegmentScenarioInputs
     expected_outputs: dict[str, ExpectedValue]

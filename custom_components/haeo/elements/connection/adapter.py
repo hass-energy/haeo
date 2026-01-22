@@ -5,7 +5,7 @@ from dataclasses import replace
 from typing import Any, Final, Literal
 
 from homeassistant.components.number import NumberDeviceClass, NumberEntityDescription
-from homeassistant.const import PERCENTAGE, UnitOfPower, UnitOfTime
+from homeassistant.const import PERCENTAGE, UnitOfEnergy, UnitOfPower, UnitOfTime
 from homeassistant.core import HomeAssistant
 
 from custom_components.haeo.const import ConnectivityLevel
@@ -34,6 +34,8 @@ from custom_components.haeo.model.output_data import OutputData
 
 from .schema import (
     CONF_DEMAND_BLOCK_HOURS,
+    CONF_DEMAND_CURRENT_ENERGY_SOURCE_TARGET,
+    CONF_DEMAND_CURRENT_ENERGY_TARGET_SOURCE,
     CONF_DEMAND_DAYS,
     CONF_DEMAND_PRICE_SOURCE_TARGET,
     CONF_DEMAND_PRICE_TARGET_SOURCE,
@@ -104,6 +106,8 @@ class ConnectionAdapter:
             CONF_DEMAND_WINDOW_TARGET_SOURCE,
             CONF_DEMAND_PRICE_SOURCE_TARGET,
             CONF_DEMAND_PRICE_TARGET_SOURCE,
+            CONF_DEMAND_CURRENT_ENERGY_SOURCE_TARGET,
+            CONF_DEMAND_CURRENT_ENERGY_TARGET_SOURCE,
             CONF_DEMAND_BLOCK_HOURS,
             CONF_DEMAND_DAYS,
         ]
@@ -250,6 +254,34 @@ class ConnectionAdapter:
                 output_type=OutputType.COST,
                 time_series=False,
             ),
+            CONF_DEMAND_CURRENT_ENERGY_SOURCE_TARGET: InputFieldInfo(
+                field_name=CONF_DEMAND_CURRENT_ENERGY_SOURCE_TARGET,
+                entity_description=NumberEntityDescription(
+                    key=CONF_DEMAND_CURRENT_ENERGY_SOURCE_TARGET,
+                    translation_key=f"{ELEMENT_TYPE}_{CONF_DEMAND_CURRENT_ENERGY_SOURCE_TARGET}",
+                    native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
+                    device_class=NumberDeviceClass.ENERGY,
+                    native_min_value=0.0,
+                    native_max_value=1_000_000.0,
+                    native_step=0.01,
+                ),
+                output_type=OutputType.ENERGY,
+                time_series=False,
+            ),
+            CONF_DEMAND_CURRENT_ENERGY_TARGET_SOURCE: InputFieldInfo(
+                field_name=CONF_DEMAND_CURRENT_ENERGY_TARGET_SOURCE,
+                entity_description=NumberEntityDescription(
+                    key=CONF_DEMAND_CURRENT_ENERGY_TARGET_SOURCE,
+                    translation_key=f"{ELEMENT_TYPE}_{CONF_DEMAND_CURRENT_ENERGY_TARGET_SOURCE}",
+                    native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
+                    device_class=NumberDeviceClass.ENERGY,
+                    native_min_value=0.0,
+                    native_max_value=1_000_000.0,
+                    native_step=0.01,
+                ),
+                output_type=OutputType.ENERGY,
+                time_series=False,
+            ),
             CONF_DEMAND_BLOCK_HOURS: InputFieldInfo(
                 field_name=CONF_DEMAND_BLOCK_HOURS,
                 entity_description=NumberEntityDescription(
@@ -314,6 +346,8 @@ class ConnectionAdapter:
                         "demand_window_target_source": config.get("demand_window_target_source"),
                         "demand_price_source_target": config.get("demand_price_source_target"),
                         "demand_price_target_source": config.get("demand_price_target_source"),
+                    "demand_current_energy_source_target": config.get("demand_current_energy_source_target"),
+                    "demand_current_energy_target_source": config.get("demand_current_energy_target_source"),
                         "demand_block_hours": config.get("demand_block_hours"),
                         "demand_days": config.get("demand_days"),
                     },

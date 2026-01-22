@@ -50,7 +50,7 @@ class Segment(ABC):
         periods: NDArray[np.floating[Any]],
         solver: Highs,
         *,
-        period_start_times: NDArray[np.floating[Any]] | None = None,
+        period_start_time: float | None = None,
         timezone: tzinfo | None = None,
         source_element: Element[Any],
         target_element: Element[Any],
@@ -69,9 +69,7 @@ class Segment(ABC):
         self._segment_id = segment_id
         self._n_periods = n_periods
         self._periods = periods
-        self._period_start_times = (
-            np.asarray(period_start_times, dtype=float) if period_start_times is not None else None
-        )
+        self._period_start_time = period_start_time
         self._period_start_timezone = timezone
         self._solver = solver
         self._source_element = source_element

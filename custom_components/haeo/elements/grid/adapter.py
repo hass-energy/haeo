@@ -5,7 +5,7 @@ from dataclasses import replace
 from typing import Any, Final, Literal
 
 from homeassistant.components.number import NumberDeviceClass, NumberEntityDescription
-from homeassistant.const import UnitOfPower, UnitOfTime
+from homeassistant.const import UnitOfEnergy, UnitOfPower, UnitOfTime
 from homeassistant.core import HomeAssistant
 import numpy as np
 from numpy.typing import NDArray
@@ -28,6 +28,8 @@ from custom_components.haeo.model.util import broadcast_to_sequence
 
 from .schema import (
     CONF_DEMAND_BLOCK_HOURS,
+    CONF_DEMAND_CURRENT_ENERGY_EXPORT,
+    CONF_DEMAND_CURRENT_ENERGY_IMPORT,
     CONF_DEMAND_DAYS,
     CONF_DEMAND_PRICE_EXPORT,
     CONF_DEMAND_PRICE_IMPORT,
@@ -103,6 +105,8 @@ class GridAdapter:
             CONF_DEMAND_WINDOW_EXPORT,
             CONF_DEMAND_PRICE_IMPORT,
             CONF_DEMAND_PRICE_EXPORT,
+            CONF_DEMAND_CURRENT_ENERGY_IMPORT,
+            CONF_DEMAND_CURRENT_ENERGY_EXPORT,
             CONF_DEMAND_BLOCK_HOURS,
             CONF_DEMAND_DAYS,
         ]
@@ -230,6 +234,36 @@ class GridAdapter:
                 time_series=False,
                 direction="+",
             ),
+            CONF_DEMAND_CURRENT_ENERGY_IMPORT: InputFieldInfo(
+                field_name=CONF_DEMAND_CURRENT_ENERGY_IMPORT,
+                entity_description=NumberEntityDescription(
+                    key=CONF_DEMAND_CURRENT_ENERGY_IMPORT,
+                    translation_key=f"{ELEMENT_TYPE}_{CONF_DEMAND_CURRENT_ENERGY_IMPORT}",
+                    native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
+                    device_class=NumberDeviceClass.ENERGY,
+                    native_min_value=0.0,
+                    native_max_value=1_000_000.0,
+                    native_step=0.01,
+                ),
+                output_type=OutputType.ENERGY,
+                time_series=False,
+                direction="-",
+            ),
+            CONF_DEMAND_CURRENT_ENERGY_EXPORT: InputFieldInfo(
+                field_name=CONF_DEMAND_CURRENT_ENERGY_EXPORT,
+                entity_description=NumberEntityDescription(
+                    key=CONF_DEMAND_CURRENT_ENERGY_EXPORT,
+                    translation_key=f"{ELEMENT_TYPE}_{CONF_DEMAND_CURRENT_ENERGY_EXPORT}",
+                    native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
+                    device_class=NumberDeviceClass.ENERGY,
+                    native_min_value=0.0,
+                    native_max_value=1_000_000.0,
+                    native_step=0.01,
+                ),
+                output_type=OutputType.ENERGY,
+                time_series=False,
+                direction="+",
+            ),
             CONF_DEMAND_BLOCK_HOURS: InputFieldInfo(
                 field_name=CONF_DEMAND_BLOCK_HOURS,
                 entity_description=NumberEntityDescription(
@@ -291,6 +325,8 @@ class GridAdapter:
                         "demand_window_target_source": config.get("demand_window_export"),
                         "demand_price_source_target": config.get("demand_price_import"),
                         "demand_price_target_source": config.get("demand_price_export"),
+                    "demand_current_energy_source_target": config.get("demand_current_energy_import"),
+                    "demand_current_energy_target_source": config.get("demand_current_energy_export"),
                         "demand_block_hours": config.get("demand_block_hours"),
                         "demand_days": config.get("demand_days"),
                     },

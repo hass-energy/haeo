@@ -32,7 +32,7 @@ class Element[OutputNameT: str]:
         name: str,
         periods: NDArray[np.floating[Any]],
         *,
-        period_start_times: NDArray[np.floating[Any]] | None = None,
+        period_start_time: float | None = None,
         timezone: tzinfo | None = None,
         solver: Highs,
         output_names: frozenset[OutputNameT],
@@ -48,9 +48,7 @@ class Element[OutputNameT: str]:
         """
         self.name = name
         self.periods = np.asarray(periods)
-        self.period_start_times = (
-            np.asarray(period_start_times, dtype=float) if period_start_times is not None else None
-        )
+        self.period_start_time = period_start_time
         self.period_start_timezone = timezone
         self._solver = solver
         self._output_names = output_names

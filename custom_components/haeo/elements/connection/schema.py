@@ -20,6 +20,8 @@ CONF_DEMAND_WINDOW_SOURCE_TARGET: Final = "demand_window_source_target"
 CONF_DEMAND_WINDOW_TARGET_SOURCE: Final = "demand_window_target_source"
 CONF_DEMAND_PRICE_SOURCE_TARGET: Final = "demand_price_source_target"
 CONF_DEMAND_PRICE_TARGET_SOURCE: Final = "demand_price_target_source"
+CONF_DEMAND_CURRENT_ENERGY_SOURCE_TARGET: Final = "demand_current_energy_source_target"
+CONF_DEMAND_CURRENT_ENERGY_TARGET_SOURCE: Final = "demand_current_energy_target_source"
 CONF_DEMAND_BLOCK_HOURS: Final = "demand_block_hours"
 CONF_DEMAND_DAYS: Final = "demand_days"
 
@@ -50,6 +52,8 @@ class ConnectionConfigSchema(TypedDict):
     demand_window_target_source: NotRequired[str | float]  # Entity ID or constant weight (0-1)
     demand_price_source_target: NotRequired[str | float]  # Entity ID or constant $/kW/day
     demand_price_target_source: NotRequired[str | float]  # Entity ID or constant $/kW/day
+    demand_current_energy_source_target: NotRequired[str | float]  # Entity ID or constant kWh
+    demand_current_energy_target_source: NotRequired[str | float]  # Entity ID or constant kWh
     demand_block_hours: NotRequired[str | float]  # Entity ID or constant hours
     demand_days: NotRequired[str | float]  # Entity ID or constant days
 
@@ -76,5 +80,7 @@ class ConnectionConfigData(TypedDict):
     demand_window_target_source: NotRequired[NDArray[np.floating[Any]] | float]  # Loaded demand window weights (0-1)
     demand_price_source_target: NotRequired[float]  # Demand price in $/kW/day
     demand_price_target_source: NotRequired[float]  # Demand price in $/kW/day
+    demand_current_energy_source_target: NotRequired[float]  # Demand energy already used (kWh)
+    demand_current_energy_target_source: NotRequired[float]  # Demand energy already used (kWh)
     demand_block_hours: NotRequired[float]  # Demand block duration in hours
     demand_days: NotRequired[float]  # Demand billing days

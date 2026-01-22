@@ -5,13 +5,13 @@ from dataclasses import dataclass
 from datetime import datetime
 import logging
 import time
-from typing import Any, Literal, TYPE_CHECKING, TypedDict
+from typing import TYPE_CHECKING, Any, Literal, TypedDict
 
 from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import EntityCategory, UnitOfTime
 from homeassistant.core import CALLBACK_TYPE, Event, HomeAssistant, callback
-from homeassistant.helpers.event import EventStateChangedData, async_call_later, async_track_state_change_event
+from homeassistant.helpers.event import async_call_later, async_track_state_change_event, EventStateChangedData
 from homeassistant.helpers.translation import async_get_translations
 from homeassistant.helpers.typing import StateType
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
@@ -255,11 +255,14 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
 
         _LOGGER.debug("Initializing network with %d participants", len(loaded_configs))
 
+        horizon = runtime_data.horizon_manager.get_forecast_timestamps()
+        start_time = horizon[0] if horizon else None
+
         self.network = await network_module.create_network(
             self.config_entry,
             periods_seconds=periods_seconds,
             participants=loaded_configs,
-            period_start_times=runtime_data.horizon_manager.get_forecast_timestamps(),
+            period_start_time=start_time,
             timezone=dt_util.get_default_time_zone(),
         )
         await network_module.evaluate_network_connectivity(

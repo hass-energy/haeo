@@ -30,6 +30,8 @@ class DemandPricingSegmentSpec(TypedDict):
     demand_window_target_source: NotRequired[NDArray[np.floating[Any]] | float | None]
     demand_price_source_target: NotRequired[NDArray[np.floating[Any]] | float | None]
     demand_price_target_source: NotRequired[NDArray[np.floating[Any]] | float | None]
+    demand_current_energy_source_target: NotRequired[NDArray[np.floating[Any]] | float | None]
+    demand_current_energy_target_source: NotRequired[NDArray[np.floating[Any]] | float | None]
     demand_block_hours: NotRequired[float | None]
     demand_days: NotRequired[float | None]
 
@@ -45,6 +47,8 @@ class DemandPricingSegment(Segment):
     demand_window_target_source: TrackedParam[NDArray[np.float64] | None] = TrackedParam()
     demand_price_source_target: TrackedParam[float | None] = TrackedParam()
     demand_price_target_source: TrackedParam[float | None] = TrackedParam()
+    demand_current_energy_source_target: TrackedParam[float | None] = TrackedParam()
+    demand_current_energy_target_source: TrackedParam[float | None] = TrackedParam()
     demand_block_hours: TrackedParam[float] = TrackedParam()
     demand_days: TrackedParam[float] = TrackedParam()
 
@@ -55,7 +59,7 @@ class DemandPricingSegment(Segment):
         periods: NDArray[np.floating[Any]],
         solver: Highs,
         *,
-        period_start_times: NDArray[np.floating[Any]] | None = None,
+        period_start_time: float | None = None,
         timezone: tzinfo | None = None,
         spec: DemandPricingSegmentSpec,
         source_element: Element[Any],
@@ -78,7 +82,7 @@ class DemandPricingSegment(Segment):
             n_periods,
             periods,
             solver,
-            period_start_times=period_start_times,
+            period_start_time=period_start_time,
             timezone=timezone,
             source_element=source_element,
             target_element=target_element,
@@ -91,6 +95,8 @@ class DemandPricingSegment(Segment):
         self.demand_window_target_source = broadcast_to_sequence(spec.get("demand_window_target_source"), n_periods)
         self.demand_price_source_target = _as_float(spec.get("demand_price_source_target"))
         self.demand_price_target_source = _as_float(spec.get("demand_price_target_source"))
+        self.demand_current_energy_source_target = _as_float(spec.get("demand_current_energy_source_target"))
+        self.demand_current_energy_target_source = _as_float(spec.get("demand_current_energy_target_source"))
         block_hours = _as_float(spec.get("demand_block_hours"))
         self.demand_block_hours = DEFAULT_DEMAND_BLOCK_HOURS if block_hours is None else block_hours
         demand_days = _as_float(spec.get("demand_days"))
@@ -136,6 +142,7 @@ class DemandPricingSegment(Segment):
             power=self._power_st,
             window=self.demand_window_source_target,
             peak=self._peak_st,
+            initial_energy=self.demand_current_energy_source_target,
         )
 
     @constraint
@@ -147,6 +154,7 @@ class DemandPricingSegment(Segment):
             power=self._power_ts,
             window=self.demand_window_target_source,
             peak=self._peak_ts,
+            initial_energy=self.demand_current_energy_target_source,
         )
 
     @cost
@@ -171,6 +179,7 @@ class DemandPricingSegment(Segment):
         power: HighspyArray,
         window: NDArray[np.float64] | None,
         peak: highs_var,
+        initial_energy: float | None,
     ) -> list[highs_linear_expression] | None:
         block_hours = self.demand_block_hours
         if block_hours <= 0:
@@ -184,7 +193,7 @@ class DemandPricingSegment(Segment):
         window_values = np.ones(self._n_periods, dtype=np.float64) if window is None else window
 
         constraints: list[highs_linear_expression] = []
-        for weight in weights:
+        for weight, is_first_block in weights:
             if window is not None:
                 mask = weight > 0
                 if not np.any(mask):
@@ -198,31 +207,36 @@ class DemandPricingSegment(Segment):
             else:
                 window_weight = 1.0
             block_average = Highs.qsum(power * weight)
+            if is_first_block and initial_energy:
+                block_average += float(initial_energy) / block_hours
             constraints.append(peak >= block_average * window_weight)
 
         return constraints or None
 
-    def _block_weights(self, block_hours: float) -> list[NDArray[np.float64]]:
+    def _block_weights(self, block_hours: float) -> list[tuple[NDArray[np.float64], bool]]:
         boundaries = np.concatenate(([0.0], np.cumsum(self._periods, dtype=np.float64)))
         total_hours = float(boundaries[-1])
         if total_hours <= 0:
             return []
 
-        weights: list[NDArray[np.float64]] = []
+        weights: list[tuple[NDArray[np.float64], bool]] = []
         offset = self._block_anchor_offset(block_hours)
         block_start = -offset
+        is_first_block = True
         while block_start < total_hours - 1e-9:
             block_end = block_start + block_hours
-            if block_start < 0 or block_end > total_hours + 1e-9:
+            if block_end <= 0:
                 block_start = block_end
                 continue
-            duration = block_end - block_start
-            if duration <= 0:
-                break
-
+            overlap_start = max(0.0, block_start)
+            overlap_end = min(total_hours, block_end)
+            if overlap_end <= overlap_start:
+                block_start = block_end
+                continue
             overlaps = np.minimum(boundaries[1:], block_end) - np.maximum(boundaries[:-1], block_start)
             overlaps = np.clip(overlaps, 0.0, None)
-            weights.append((overlaps / duration).astype(np.float64))
+            weights.append(((overlaps / block_hours).astype(np.float64), is_first_block))
+            is_first_block = False
             block_start = block_end
 
         return weights
@@ -230,9 +244,9 @@ class DemandPricingSegment(Segment):
     def _block_anchor_offset(self, block_hours: float) -> float:
         if block_hours <= 0:
             return 0.0
-        if self._period_start_times is None or self._period_start_times.size == 0:
+        if self._period_start_time is None:
             return 0.0
-        start_time = float(self._period_start_times[0])
+        start_time = float(self._period_start_time)
         if self._period_start_timezone is None:
             start_dt = datetime.fromtimestamp(start_time)
         else:

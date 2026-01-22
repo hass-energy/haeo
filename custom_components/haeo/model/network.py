@@ -34,7 +34,7 @@ class Network:
 
     name: str
     periods: NDArray[np.floating[Any]]  # Period durations in hours (one per optimization interval)
-    period_start_times: NDArray[np.floating[Any]] | None = None  # Period boundary timestamps (epoch seconds)
+    period_start_time: float | None = None  # Start timestamp for horizon (epoch seconds)
     timezone: tzinfo | None = None
     elements: dict[str, Element[Any]] = field(default_factory=dict)
     _solver: Highs = field(default_factory=Highs, repr=False)
@@ -42,8 +42,6 @@ class Network:
     def __post_init__(self) -> None:
         """Set up the solver with logging callback."""
         self.periods = np.asarray(self.periods, dtype=float)
-        if self.period_start_times is not None:
-            self.period_start_times = np.asarray(self.period_start_times, dtype=float)
         # Redirect HiGHS logging to Python logger at debug level
         self._solver.cbLogging += self._log_callback
 
@@ -95,7 +93,7 @@ class Network:
         element_instance: Element[Any] = element_spec.factory(
             name=name,
             periods=self.periods,
-            period_start_times=self.period_start_times,
+            period_start_time=self.period_start_time,
             timezone=self.timezone,
             solver=self._solver,
             **kwargs,
