@@ -3,9 +3,11 @@
 
 Usage:
     uv run diag --file path/to/diagnostics.json
+    uv run diag --file path/to/diagnostics.json --outputs-only
 
-This tool loads a HAEO diagnostics export and runs the optimization,
-displaying the forecast results as a table.
+This tool loads a HAEO diagnostics export and either:
+- Runs the optimization and displays results (default)
+- Displays pre-computed outputs from the diagnostics file (--outputs-only)
 """
 
 from __future__ import annotations
@@ -414,6 +416,104 @@ def format_output_table(
     return "\n".join(result_parts)
 
 
+def format_currency(value: float) -> str:
+    """Format a currency value."""
+    if value >= 0:
+        return f"${value:.2f}"
+    return f"-${abs(value):.2f}"
+
+
+def get_forecast_values(outputs: dict[str, Any], entity_id: str) -> dict[str, float]:
+    """Extract forecast values from an entity, keyed by time string."""
+    entity = outputs.get(entity_id, {})
+    attributes = entity.get("attributes", {})
+    forecast = attributes.get("forecast", [])
+    return {item["time"]: item["value"] for item in forecast}
+
+
+def format_outputs_only_table(outputs: dict[str, Any], timezone_str: str) -> str:
+    """Format pre-computed outputs from diagnostics as a table.
+
+    This reads the already-computed outputs stored in the diagnostics file,
+    without running the optimization.
+    """
+    # Extract forecast data for each field
+    buy_prices = get_forecast_values(outputs, "number.grid_import_price")
+    sell_prices = get_forecast_values(outputs, "number.grid_export_price")
+    battery_power = get_forecast_values(outputs, "sensor.battery_active_power")
+    grid_power = get_forecast_values(outputs, "sensor.grid_active_power")
+    load_power = get_forecast_values(outputs, "sensor.load_power")
+    solar_power = get_forecast_values(outputs, "sensor.solar_power")
+    soc = get_forecast_values(outputs, "sensor.battery_state_of_charge")
+    grid_cost_net = get_forecast_values(outputs, "sensor.grid_net_cost")
+
+    # Get all unique times (sorted)
+    all_times = sorted(set(buy_prices.keys()))
+
+    headers = ["Time", "Buy", "Sell", "Battery", "Grid", "Load", "Solar", "SoC", "Profit"]
+    rows: list[list[str]] = []
+
+    for time_str in all_times:
+        # Parse the ISO timestamp and format as HH:MM
+        dt = datetime.fromisoformat(time_str)
+        formatted_time = dt.strftime("%H:%M")
+
+        # Grid power (positive = importing, negative = exporting)
+        grid_net = grid_power.get(time_str, 0.0)
+
+        # Cumulative profit = negative of cumulative cost (positive cost = spending)
+        cumulative_profit = -grid_cost_net.get(time_str, 0.0)
+        profit_str = format_currency(cumulative_profit)
+
+        rows.append([
+            formatted_time,
+            f"{buy_prices.get(time_str, 0.0):.2f}",
+            f"{sell_prices.get(time_str, 0.0):.2f}",
+            f"{battery_power.get(time_str, 0.0):.1f}",
+            f"{grid_net:.1f}",
+            f"{load_power.get(time_str, 0.0):.1f}",
+            f"{solar_power.get(time_str, 0.0):.1f}",
+            f"{soc.get(time_str, 0.0):.1f}",
+            profit_str,
+        ])
+
+    # Format table with headers repeated every 25 rows
+    result_parts: list[str] = [f"\nHAEO Forecast (from diagnostics outputs, {timezone_str})"]
+    chunk_size = 25
+    for i in range(0, len(rows), chunk_size):
+        chunk = rows[i : i + chunk_size]
+        result_parts.append(tabulate(chunk, headers=headers, tablefmt="simple", numalign="right", stralign="right"))
+        if i + chunk_size < len(rows):
+            result_parts.append("")
+
+    return "\n".join(result_parts)
+
+
+def run_outputs_only(path: Path) -> None:
+    """Display pre-computed outputs from a diagnostics file without running optimization."""
+    # Load diagnostics
+    if path.is_dir():
+        print(f"Loading diagnostics from directory: {path}")
+        diag = DiagnosticsData.from_split_files(path)
+    else:
+        print(f"Loading diagnostics from file: {path}")
+        diag = DiagnosticsData.from_file(path)
+
+    environment = diag.environment
+    timezone_str = environment.get("timezone", "UTC")
+
+    print(f"Timezone: {timezone_str}")
+    print(f"Output entities: {len(diag.outputs)}")
+
+    if not diag.outputs:
+        print("Error: No outputs in diagnostics file")
+        sys.exit(1)
+
+    # Format and print results
+    table = format_outputs_only_table(diag.outputs, timezone_str)
+    print(table)
+
+
 def run_diagnostics(path: Path) -> None:
     """Run optimization from a diagnostics file and print results."""
     # Load diagnostics
@@ -498,6 +598,7 @@ def main() -> None:
         epilog="""
 Examples:
     uv run diag --file diagnostics.json
+    uv run diag --file diagnostics.json --outputs-only
     uv run diag --file tests/scenarios/scenario_discord/
         """,
     )
@@ -508,6 +609,12 @@ Examples:
         required=True,
         help="Path to diagnostics JSON file or directory with split files",
     )
+    parser.add_argument(
+        "--outputs-only",
+        "-o",
+        action="store_true",
+        help="Skip optimization and display pre-computed outputs from diagnostics",
+    )
 
     args = parser.parse_args()
 
@@ -515,7 +622,10 @@ Examples:
         print(f"Error: File not found: {args.file}")
         sys.exit(1)
 
-    run_diagnostics(args.file)
+    if args.outputs_only:
+        run_outputs_only(args.file)
+    else:
+        run_diagnostics(args.file)
 
 
 if __name__ == "__main__":
