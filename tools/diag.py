@@ -249,9 +249,7 @@ def format_currency(value: float) -> str:
     return f"-${abs(value):.2f}"
 
 
-def find_output_entity(
-    outputs: dict[str, Any], element_name: str, field_or_output_name: str
-) -> dict[str, Any] | None:
+def find_output_entity(outputs: dict[str, Any], element_name: str, field_or_output_name: str) -> dict[str, Any] | None:
     """Find an output entity by element_name and field_name or output_name attributes.
 
     Number entities (inputs) have field_name attribute:
@@ -282,9 +280,7 @@ def find_output_entity(
     return None
 
 
-def get_forecast_by_field(
-    outputs: dict[str, Any], element_name: str, field_or_output_name: str
-) -> dict[str, float]:
+def get_forecast_by_field(outputs: dict[str, Any], element_name: str, field_or_output_name: str) -> dict[str, float]:
     """Extract forecast values by element_name and field/output name, keyed by time string."""
     entity = find_output_entity(outputs, element_name, field_or_output_name)
     if entity is None:
@@ -304,9 +300,7 @@ def get_forecast_values(outputs: dict[str, Any], entity_id: str) -> dict[str, fl
     return {item["time"]: item["value"] for item in forecast}
 
 
-def format_output_table_from_diagnostics(
-    outputs: dict[str, Any], timezone_str: str, config: dict[str, Any]
-) -> str:
+def format_output_table_from_diagnostics(outputs: dict[str, Any], timezone_str: str, config: dict[str, Any]) -> str:
     """Format pre-computed outputs from diagnostics as a table.
 
     This reads the already-computed outputs stored in the diagnostics file.
@@ -315,9 +309,7 @@ def format_output_table_from_diagnostics(
     # Find element names from config
     participants = config.get("participants", {})
     grid_name = next((name for name, cfg in participants.items() if cfg.get("element_type") == "grid"), "Grid")
-    battery_name = next(
-        (name for name, cfg in participants.items() if cfg.get("element_type") == "battery"), "Battery"
-    )
+    battery_name = next((name for name, cfg in participants.items() if cfg.get("element_type") == "battery"), "Battery")
     load_name = next((name for name, cfg in participants.items() if cfg.get("element_type") == "load"), "Load")
     solar_name = next((name for name, cfg in participants.items() if cfg.get("element_type") == "solar"), "Solar")
 
@@ -452,9 +444,6 @@ def format_output_table_from_network(
 
     for full_name, element_outputs in adapter_outputs.items():
         for output_name, output_data in element_outputs.items():
-            if not isinstance(output_data, OutputData):
-                continue
-
             values = list(output_data.values)
 
             # Grid outputs (from Grid:grid device)
@@ -532,16 +521,12 @@ def format_output_table_from_network(
     return "\n".join(result_parts)
 
 
-def extract_rows_from_diagnostics(
-    outputs: dict[str, Any], _timezone_str: str, config: dict[str, Any]
-) -> list[RowData]:
+def extract_rows_from_diagnostics(outputs: dict[str, Any], _timezone_str: str, config: dict[str, Any]) -> list[RowData]:
     """Extract row data from pre-computed diagnostics outputs."""
     # Find element names from config
     participants = config.get("participants", {})
     grid_name = next((name for name, cfg in participants.items() if cfg.get("element_type") == "grid"), "Grid")
-    battery_name = next(
-        (name for name, cfg in participants.items() if cfg.get("element_type") == "battery"), "Battery"
-    )
+    battery_name = next((name for name, cfg in participants.items() if cfg.get("element_type") == "battery"), "Battery")
     load_name = next((name for name, cfg in participants.items() if cfg.get("element_type") == "load"), "Load")
     solar_name = next((name for name, cfg in participants.items() if cfg.get("element_type") == "solar"), "Solar")
 
@@ -650,9 +635,6 @@ def extract_rows_from_network(
 
     for full_name, element_outputs in adapter_outputs.items():
         for output_name, output_data in element_outputs.items():
-            if not isinstance(output_data, OutputData):
-                continue
-
             values = list(output_data.values)
 
             if "Grid:grid" in full_name:
