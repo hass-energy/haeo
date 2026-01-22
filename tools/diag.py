@@ -558,20 +558,26 @@ def run_diagnostics(path: Path, *, outputs_only: bool = False) -> None:
         print(table)
         return
 
-    # Calculate periods from tier config
-    periods_seconds = tiers_to_periods_seconds(config)
-    print(f"Optimization periods: {len(periods_seconds)} intervals")
-
-    if not periods_seconds:
-        print("Error: No periods configured")
-        sys.exit(1)
-
     # Use forecast_timestamps from environment if available (for exact reproducibility)
-    # Otherwise fall back to generating from config (backward compatibility)
+    # Otherwise fall back to generating from tier config (backward compatibility)
     if "forecast_timestamps" in environment:
         forecast_times = tuple(environment["forecast_timestamps"])
+        # Derive periods_seconds from the actual forecast timestamps
+        periods_seconds = [
+            int(forecast_times[i + 1] - forecast_times[i])
+            for i in range(len(forecast_times) - 1)
+        ]
+        print(f"Optimization periods: {len(periods_seconds)} intervals (from diagnostics)")
         print(f"Forecast horizon: {len(forecast_times)} boundaries (from diagnostics)")
     else:
+        # Fall back to tier config
+        periods_seconds = tiers_to_periods_seconds(config)
+        print(f"Optimization periods: {len(periods_seconds)} intervals (from config)")
+
+        if not periods_seconds:
+            print("Error: No periods configured")
+            sys.exit(1)
+
         forecast_times = generate_forecast_timestamps(periods_seconds, start_time)
         print(f"Forecast horizon: {len(forecast_times)} boundaries (generated)")
 

@@ -11,6 +11,7 @@ from homeassistant.util import dt as dt_util
 from custom_components.haeo import HaeoConfigEntry, HaeoRuntimeData
 from custom_components.haeo.const import (
     CONF_ELEMENT_TYPE,
+    CONF_HORIZON_PRESET,
     CONF_TIER_1_COUNT,
     CONF_TIER_1_DURATION,
     CONF_TIER_2_COUNT,
@@ -83,6 +84,7 @@ async def collect_diagnostics(
     # Build config section with participants
     config: dict[str, Any] = {
         "participants": {},
+        CONF_HORIZON_PRESET: config_entry.data.get(CONF_HORIZON_PRESET),
         CONF_TIER_1_COUNT: config_entry.data.get(CONF_TIER_1_COUNT),
         CONF_TIER_1_DURATION: config_entry.data.get(CONF_TIER_1_DURATION),
         CONF_TIER_2_COUNT: config_entry.data.get(CONF_TIER_2_COUNT),
