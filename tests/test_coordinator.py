@@ -630,28 +630,20 @@ def test_coordinator_cleanup_invokes_listener(
 
 
 @pytest.mark.usefixtures("mock_battery_subentry", "mock_grid_subentry")
-def test_element_state_change_triggers_update_and_optimization(
+def test_element_state_change_marks_stale_and_triggers_optimization(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
     mock_runtime_data: HaeoRuntimeData,
 ) -> None:
-    """Input entity state change events update element and trigger optimization."""
+    """Input entity state change events mark element as stale and trigger optimization."""
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
 
-    with (
-        patch.object(coordinator, "_load_element_config") as load_mock,
-        patch.object(coordinator, "signal_optimization_stale") as trigger_mock,
-        patch("custom_components.haeo.coordinator.coordinator.network_module.update_element") as update_mock,
-    ):
-        load_mock.return_value = {"element_type": "battery", "name": "Test Battery"}
-        # Set network so update path is taken
-        coordinator.network = MagicMock()
-
+    with patch.object(coordinator, "signal_optimization_stale") as trigger_mock:
         # Simulate an element update
         coordinator._handle_element_update("Test Battery")
 
-    load_mock.assert_called_once_with("Test Battery")
-    update_mock.assert_called_once()
+    # Element is marked stale, not loaded immediately
+    assert coordinator._context_builder.get_stale_elements() == frozenset({"Test Battery"})
     trigger_mock.assert_called_once()
 
 
@@ -1173,39 +1165,6 @@ async def test_async_initialize_raises_without_runtime_data(
 
     with pytest.raises(RuntimeError, match="Runtime data not available"):
         await coordinator.async_initialize()
-
-
-@pytest.mark.usefixtures("mock_battery_subentry", "mock_grid_subentry")
-def test_handle_element_update_logs_and_returns_on_load_error(
-    hass: HomeAssistant,
-    mock_hub_entry: MockConfigEntry,
-    mock_runtime_data: HaeoRuntimeData,
-) -> None:
-    """_handle_element_update logs exception and returns when load fails."""
-    coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
-    coordinator.network = MagicMock()
-
-    # Mock _load_element_config to raise ValueError
-    with (
-        patch.object(
-            coordinator,
-            "_load_element_config",
-            side_effect=ValueError("Missing required field"),
-        ),
-        patch.object(coordinator, "signal_optimization_stale") as trigger_mock,
-        patch("custom_components.haeo.coordinator.coordinator._LOGGER") as mock_logger,
-    ):
-        # Should not raise - logs and returns
-        coordinator._handle_element_update("Test Battery")
-
-    # Trigger should NOT be called since we returned early
-    trigger_mock.assert_not_called()
-
-    # Should have logged the exception
-    mock_logger.exception.assert_called_once()
-    call_args = mock_logger.exception.call_args
-    assert "Failed to load config for element" in call_args[0][0]
-    assert "Test Battery" in call_args[0][1]
 
 
 @pytest.mark.usefixtures("mock_battery_subentry")

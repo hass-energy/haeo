@@ -49,7 +49,7 @@ from custom_components.haeo.repairs import dismiss_optimization_failure_issue
 from custom_components.haeo.util.forecast_times import tiers_to_periods_seconds
 
 from . import network as network_module
-from .context import OptimizationContext
+from .context import OptimizationContext, OptimizationContextBuilder
 
 if TYPE_CHECKING:
     from custom_components.haeo import HaeoConfigEntry, HaeoRuntimeData
@@ -239,6 +239,9 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         self._pending_refresh: bool = False
         self._optimization_in_progress: bool = False  # Prevent concurrent optimizations
 
+        # Context builder tracks stale elements and builds optimization context
+        self._context_builder = OptimizationContextBuilder(self._participant_configs)
+
         # No update_interval - we're event-driven from input entities
         # No request_refresh_debouncer - we handle debouncing ourselves
         super().__init__(
@@ -351,21 +354,12 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
     def _handle_element_update(self, element_name: str) -> None:
         """Handle an update to a specific element's input entities.
 
-        Updates only that element's TrackedParams in the network, then triggers
-        optimization with debouncing.
-
-        The network is guaranteed to exist because it's created in async_initialize()
-        before this handler is registered.
+        Marks the element as stale so its TrackedParams will be updated
+        in the network at optimization time, then triggers optimization
+        with debouncing.
         """
-        # Load the updated config for just this element
-        try:
-            element_config = self._load_element_config(element_name)
-        except ValueError:
-            _LOGGER.exception("Failed to load config for element %s due to invalid input entities", element_name)
-            return
-
-        # Update just this element's TrackedParams
-        network_module.update_element(self.network, element_config)
+        # Mark element as needing network update at optimization time
+        self._context_builder.mark_stale(element_name)
 
         # Trigger optimization (with debouncing)
         self.signal_optimization_stale()
@@ -648,9 +642,20 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
                 msg = "Runtime data not available"
                 raise UpdateFailed(msg)
 
-            # Build immutable context capturing all inputs at this moment
-            context = OptimizationContext.build(
-                participant_configs=self._participant_configs,
+            # Network should have been created in async_initialize() or set manually in tests.
+            network = self.network
+
+            # Update network for stale elements only (those that changed since last optimization)
+            stale_elements = self._context_builder.get_stale_elements()
+            for element_name in stale_elements:
+                try:
+                    element_config = self._load_element_config(element_name)
+                    network_module.update_element(network, element_config)
+                except ValueError:
+                    _LOGGER.exception("Failed to load config for stale element %s", element_name)
+
+            # Build immutable context (clears stale tracking)
+            context = self._context_builder.build(
                 input_entities=runtime_data.input_entities,
                 horizon_manager=runtime_data.horizon_manager,
             )
@@ -663,9 +668,6 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             loaded_configs = self._load_from_input_entities()
 
             _LOGGER.debug("Running optimization with %d participants", len(loaded_configs))
-
-            # Network should have been created in async_initialize() or set manually in tests.
-            network = self.network
 
             # Perform the optimization
             cost = await self.hass.async_add_executor_job(network.optimize)

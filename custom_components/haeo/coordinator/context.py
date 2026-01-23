@@ -86,4 +86,76 @@ class OptimizationContext:
         )
 
 
-__all__ = ["OptimizationContext"]
+class OptimizationContextBuilder:
+    """Tracks element changes and builds optimization context.
+
+    This builder maintains a set of elements that have changed since the last
+    optimization run. The coordinator uses this to:
+    1. Update only stale elements in the network (via get_stale_elements())
+    2. Build the immutable OptimizationContext (via build())
+
+    The build() method clears the stale tracking, so each optimization run
+    starts fresh.
+    """
+
+    def __init__(self, participant_configs: Mapping[str, ElementConfigSchema]) -> None:
+        """Initialize the builder with participant configurations.
+
+        Args:
+            participant_configs: Element schemas keyed by element name.
+
+        """
+        self._participant_configs = participant_configs
+        self._stale_elements: set[str] = set()
+
+    def mark_stale(self, element_name: str) -> None:
+        """Mark an element as changed since last optimization.
+
+        Args:
+            element_name: Name of the element that has changed.
+
+        """
+        self._stale_elements.add(element_name)
+
+    def get_stale_elements(self) -> frozenset[str]:
+        """Return elements that have changed since last build.
+
+        Returns:
+            Immutable set of element names needing network update.
+
+        """
+        return frozenset(self._stale_elements)
+
+    def build(
+        self,
+        input_entities: Mapping[tuple[str, str], HaeoInputNumber | HaeoInputSwitch],
+        horizon_manager: HorizonManager,
+    ) -> OptimizationContext:
+        """Build immutable context and clear stale tracking.
+
+        Pure operation - no side effects on network.
+        Caller should update network for stale elements before calling build().
+
+        Args:
+            input_entities: runtime_data.input_entities dict
+            horizon_manager: runtime_data.horizon_manager
+
+        Returns:
+            Immutable OptimizationContext with all inputs captured.
+
+        """
+        self._stale_elements.clear()
+
+        # Pull source states from all input entities
+        source_states: dict[str, State] = {}
+        for entity in input_entities.values():
+            source_states.update(entity.get_captured_source_states())
+
+        return OptimizationContext(
+            participants=_deep_copy_config(self._participant_configs),
+            source_states=source_states,
+            forecast_timestamps=horizon_manager.get_forecast_timestamps(),
+        )
+
+
+__all__ = ["OptimizationContext", "OptimizationContextBuilder"]
