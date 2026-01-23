@@ -101,8 +101,7 @@ async def collect_diagnostics(
 
     if has_context and context is not None:
         # Use participants from optimization context - exact values used at optimization time
-        for element_name, element_config in context.participants.items():
-            config["participants"][element_name] = dict(element_config)
+        config["participants"] = context.participants
     else:
         # Fall back to subentries + editable entity values (historical or no context)
         for subentry in config_entry.subentries.values():
