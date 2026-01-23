@@ -389,74 +389,57 @@ def test_network_optimize_raises_on_infeasible_network(
         network.optimize()
 
 
-def test_add_battery_balance_connection() -> None:
-    """Test adding a battery balance connection via Network.add()."""
+def test_add_soc_pricing_connection() -> None:
+    """Test adding a SOC pricing connection via Network.add()."""
     network = Network(name="test_network", periods=np.array([1.0] * 3))
 
-    # Add two battery sections
     network.add(
-        {"element_type": ELEMENT_TYPE_BATTERY, "name": "upper_section", "capacity": 10.0, "initial_charge": 5.0}
+        {"element_type": ELEMENT_TYPE_BATTERY, "name": "battery", "capacity": 10.0, "initial_charge": 5.0}
     )
-    network.add(
-        {"element_type": ELEMENT_TYPE_BATTERY, "name": "lower_section", "capacity": 10.0, "initial_charge": 5.0}
-    )
+    network.add({"element_type": ELEMENT_TYPE_NODE, "name": "node", "is_sink": True, "is_source": True})
 
-    # Add battery balance connection
-    balance = network.add(
+    connection = network.add(
         {
             "element_type": ELEMENT_TYPE_CONNECTION,
-            "name": "balance",
-            "source": "upper_section",
-            "target": "lower_section",
-            "segments": {"balance": {"segment_type": "battery_balance"}},
+            "name": "soc_pricing",
+            "source": "battery",
+            "target": "node",
+            "segments": {
+                "soc": {
+                    "segment_type": "soc_pricing",
+                    "undercharge_threshold": np.array([1.0, 1.0, 1.0]),
+                    "undercharge_price": np.array([0.1, 0.1, 0.1]),
+                }
+            },
         }
     )
 
-    assert balance is not None
-    assert balance.name == "balance"
-    assert "balance" in network.elements
+    assert connection is not None
+    assert connection.name == "soc_pricing"
+    assert "soc_pricing" in network.elements
 
 
-def test_add_battery_balance_connection_upper_not_battery() -> None:
-    """Test battery balance connection raises TypeError when upper is not a battery."""
+def test_add_soc_pricing_connection_without_battery() -> None:
+    """SOC pricing connection requires a battery endpoint."""
     network = Network(name="test_network", periods=np.array([1.0] * 3))
 
-    # Add a node (not a battery) as upper
-    network.add({"element_type": ELEMENT_TYPE_NODE, "name": "not_a_battery", "is_sink": True, "is_source": True})
-    network.add(
-        {"element_type": ELEMENT_TYPE_BATTERY, "name": "lower_section", "capacity": 10.0, "initial_charge": 5.0}
-    )
+    network.add({"element_type": ELEMENT_TYPE_NODE, "name": "source", "is_sink": False, "is_source": True})
+    network.add({"element_type": ELEMENT_TYPE_NODE, "name": "target", "is_sink": True, "is_source": False})
 
-    with pytest.raises(TypeError, match="Upper element 'not_a_battery' is not a battery"):
+    with pytest.raises(TypeError, match="SOC pricing segment requires a battery element endpoint"):
         network.add(
             {
                 "element_type": ELEMENT_TYPE_CONNECTION,
-                "name": "balance",
-                "source": "not_a_battery",
-                "target": "lower_section",
-                "segments": {"balance": {"segment_type": "battery_balance"}},
-            }
-        )
-
-
-def test_add_battery_balance_connection_lower_not_battery() -> None:
-    """Test battery balance connection raises TypeError when lower is not a battery."""
-    network = Network(name="test_network", periods=np.array([1.0] * 3))
-
-    # Add battery as upper, node as lower
-    network.add(
-        {"element_type": ELEMENT_TYPE_BATTERY, "name": "upper_section", "capacity": 10.0, "initial_charge": 5.0}
-    )
-    network.add({"element_type": ELEMENT_TYPE_NODE, "name": "not_a_battery", "is_sink": True, "is_source": True})
-
-    with pytest.raises(TypeError, match="Lower element 'not_a_battery' is not a battery"):
-        network.add(
-            {
-                "element_type": ELEMENT_TYPE_CONNECTION,
-                "name": "balance",
-                "source": "upper_section",
-                "target": "not_a_battery",
-                "segments": {"balance": {"segment_type": "battery_balance"}},
+                "name": "soc_pricing",
+                "source": "source",
+                "target": "target",
+                "segments": {
+                    "soc": {
+                        "segment_type": "soc_pricing",
+                        "undercharge_threshold": np.array([1.0, 1.0, 1.0]),
+                        "undercharge_price": np.array([0.1, 0.1, 0.1]),
+                    }
+                },
             }
         )
 

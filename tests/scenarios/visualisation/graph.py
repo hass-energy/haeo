@@ -19,7 +19,6 @@ import networkx as nx
 from custom_components.haeo.model import Network
 from custom_components.haeo.model.element import Element
 from custom_components.haeo.model.elements import Battery, Connection, Node
-from custom_components.haeo.model.elements.segments import BatteryBalanceSegment
 
 # Use non-GUI backend
 mpl.use("Agg")
@@ -48,7 +47,6 @@ class StyleConfig:
     group_colors: dict[str, str]
     # Edge colors
     power_edge_color: str = "#555555"
-    balance_edge_color: str = "#9467bd"
     # Text sizing (character-based)
     char_width: float = 0.08
     line_height: float = 0.18
@@ -62,7 +60,6 @@ DEFAULT_STYLE = StyleConfig(
     node_colors={
         "battery": "#98df8a",
         "node": "#c7c7c7",
-        "balance": "#c5b0d5",
         "connection": "#aec7e8",
     },
     group_colors={
@@ -90,10 +87,6 @@ def _get_element_type(element: Element[str]) -> str:
     if isinstance(element, Connection):
         return "connection"
     return "unknown"
-
-
-def _is_balance_connection(element: Connection[str]) -> bool:
-    return any(isinstance(segment, BatteryBalanceSegment) for segment in element.segments.values())
 
 
 def _get_parent_device(name: str) -> str:
@@ -146,8 +139,7 @@ def build_graph(
                 graph.add_node(endpoint, color="lightgray", element_type="unknown")
                 device_groups[parent].append(endpoint)
 
-        edge_style = "balance" if _is_balance_connection(element) else "power"
-        graph.add_edge(source, target, name=name, style=edge_style)
+        graph.add_edge(source, target, name=name, style="power")
 
     # Sort device_groups and their node lists for deterministic order
     sorted_groups = {k: sorted(v) for k, v in sorted(device_groups.items())}
@@ -411,7 +403,6 @@ def _draw_edges(
     """Draw edges with arrows."""
     # Sort edges for deterministic drawing order
     power_edges = sorted((u, v) for u, v, d in graph.edges(data=True) if d.get("style") == "power")
-    balance_edges = sorted((u, v) for u, v, d in graph.edges(data=True) if d.get("style") == "balance")
 
     if power_edges:
         nx.draw_networkx_edges(  # type: ignore[no-untyped-call]
@@ -421,24 +412,6 @@ def _draw_edges(
             edge_color=style.power_edge_color,
             width=1.5,
             connectionstyle="arc3,rad=0.1",
-            arrows=True,
-            arrowsize=15,
-            arrowstyle="->",
-            node_size=1500,
-            min_source_margin=15,
-            min_target_margin=15,
-            ax=ax,
-        )
-
-    if balance_edges:
-        nx.draw_networkx_edges(  # type: ignore[no-untyped-call]
-            graph,
-            pos,
-            edgelist=balance_edges,
-            edge_color=style.balance_edge_color,
-            width=1.2,
-            style="dashed",
-            connectionstyle="arc3,rad=0.15",
             arrows=True,
             arrowsize=15,
             arrowstyle="->",
