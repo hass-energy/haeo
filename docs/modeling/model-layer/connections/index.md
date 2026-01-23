@@ -18,10 +18,10 @@ Composition rules:
 ```mermaid
 classDiagram
     Connection *-- Segment
-    Segment <|-- BatteryBalanceSegment
     Segment <|-- EfficiencySegment
     Segment <|-- PowerLimitSegment
     Segment <|-- PricingSegment
+    Segment <|-- SocPricingSegment
     Segment <|-- PassthroughSegment
 ```
 
@@ -29,11 +29,11 @@ classDiagram
 
 **[Connection](connection.md)**:
 Composable bidirectional connection with ordered segments.
-Use segments to apply limits, efficiency losses, pricing, or internal balancing.
+Use segments to apply limits, efficiency losses, pricing, or SOC penalties.
 
 ## Segment types
 
-- **[Battery balance segment](../segments/battery-balance.md)** enforces ordering between battery sections.
+- **[SOC pricing segment](../segments/soc-pricing.md)** applies SOC penalty costs.
 - **[Efficiency segment](../segments/efficiency.md)** applies direction-specific efficiency multipliers.
 - **[Power limit segment](../segments/power-limit.md)** enforces directional limits and time-slice coupling.
 - **[Pricing segment](../segments/pricing.md)** adds directional cost terms to the objective.
