@@ -18,10 +18,10 @@ graph LR
 
 The adapter creates two model elements:
 
-| Model Element                                          | Name                  | Parameters From Configuration                           |
-| ------------------------------------------------------ | --------------------- | ------------------------------------------------------- |
-| [Battery](../model-layer/elements/battery.md)          | `{name}`              | Capacity range, initial charge                          |
-| [Connection](../model-layer/connections/connection.md) | `{name}:connection`   | Efficiency, power limits, pricing, SOC pricing (optional) |
+| Model Element                                          | Name                | Parameters From Configuration                             |
+| ------------------------------------------------------ | ------------------- | --------------------------------------------------------- |
+| [Battery](../model-layer/elements/battery.md)          | `{name}`            | Capacity range, initial charge                            |
+| [Connection](../model-layer/connections/connection.md) | `{name}:connection` | Efficiency, power limits, pricing, SOC pricing (optional) |
 
 ## Architecture Details
 
@@ -64,43 +64,43 @@ These small values break ties when prices are equal.
 
 Battery creates a single Home Assistant device:
 
-| Device    | Name     | Created When | Purpose                           |
-| --------- | -------- | ------------ | --------------------------------- |
-| Battery   | `{name}` | Always       | Power, energy, SOC, shadow prices |
+| Device  | Name     | Created When | Purpose                           |
+| ------- | -------- | ------------ | --------------------------------- |
+| Battery | `{name}` | Always       | Power, energy, SOC, shadow prices |
 
 ## Parameter mapping
 
-| User Configuration          | Model Element(s)    | Model Parameter                                             | Notes                               |
-| --------------------------- | ------------------- | ----------------------------------------------------------- | ----------------------------------- |
-| `capacity`                  | Battery             | Capacity range from lower/upper SOC bounds                  | kWh, boundaries                     |
-| `initial_charge_percentage` | Battery             | `initial_charge` (offset by lower bound)                    | kWh                                 |
-| `min_charge_percentage`     | Battery + SOC pricing | Preferred minimum SOC threshold                             | Penalty threshold                   |
-| `max_charge_percentage`     | Battery + SOC pricing | Preferred maximum SOC threshold                             | Penalty threshold                   |
-| `undercharge_percentage`    | Battery             | Lower bound for SOC range                                   | Hard minimum                        |
-| `overcharge_percentage`     | Battery             | Upper bound for SOC range                                   | Hard maximum                        |
-| `undercharge_cost`          | SOC pricing segment | `undercharge_price`                                         | Penalty below min SOC               |
-| `overcharge_cost`           | SOC pricing segment | `overcharge_price`                                          | Penalty above max SOC               |
-| `early_charge_incentive`    | Pricing segment     | Time-varying charge/discharge incentive                     | Applied on main connection          |
-| `discharge_cost`            | Pricing segment     | Added to `price_source_target`                              | Base discharge cost                 |
-| `efficiency`                | Efficiency segment  | `efficiency_source_target`, `efficiency_target_source`      | Applied to both directions          |
-| `max_charge_power`          | Power-limit segment | `max_power_target_source`                                   | Network to battery                  |
-| `max_discharge_power`       | Power-limit segment | `max_power_source_target`                                   | Battery to network                  |
+| User Configuration          | Model Element(s)      | Model Parameter                                        | Notes                      |
+| --------------------------- | --------------------- | ------------------------------------------------------ | -------------------------- |
+| `capacity`                  | Battery               | Capacity range from lower/upper SOC bounds             | kWh, boundaries            |
+| `initial_charge_percentage` | Battery               | `initial_charge` (offset by lower bound)               | kWh                        |
+| `min_charge_percentage`     | Battery + SOC pricing | Preferred minimum SOC threshold                        | Penalty threshold          |
+| `max_charge_percentage`     | Battery + SOC pricing | Preferred maximum SOC threshold                        | Penalty threshold          |
+| `undercharge_percentage`    | Battery               | Lower bound for SOC range                              | Hard minimum               |
+| `overcharge_percentage`     | Battery               | Upper bound for SOC range                              | Hard maximum               |
+| `undercharge_cost`          | SOC pricing segment   | `undercharge_price`                                    | Penalty below min SOC      |
+| `overcharge_cost`           | SOC pricing segment   | `overcharge_price`                                     | Penalty above max SOC      |
+| `early_charge_incentive`    | Pricing segment       | Time-varying charge/discharge incentive                | Applied on main connection |
+| `discharge_cost`            | Pricing segment       | Added to `price_source_target`                         | Base discharge cost        |
+| `efficiency`                | Efficiency segment    | `efficiency_source_target`, `efficiency_target_source` | Applied to both directions |
+| `max_charge_power`          | Power-limit segment   | `max_power_target_source`                              | Network to battery         |
+| `max_discharge_power`       | Power-limit segment   | `max_power_source_target`                              | Battery to network         |
 
 ## Output Mapping
 
 The adapter maps model outputs directly from the battery element:
 
-| Model Output                 | Sensor Name       | Description                |
-| ---------------------------- | ----------------- | -------------------------- |
-| `BATTERY_POWER_CHARGE`       | `power_charge`    | Charge power               |
-| `BATTERY_POWER_DISCHARGE`    | `power_discharge` | Discharge power            |
-| `BATTERY_ENERGY_STORED`      | `energy_stored`   | Total energy stored        |
-| Calculated SOC               | `state_of_charge` | State of charge            |
-| `BATTERY_POWER_BALANCE`      | `power_balance`   | Power balance shadow price |
-| `BATTERY_ENERGY_IN_FLOW`     | `energy_in_flow`  | Energy-in shadow price     |
-| `BATTERY_ENERGY_OUT_FLOW`    | `energy_out_flow` | Energy-out shadow price    |
-| `BATTERY_SOC_MAX`            | `soc_max`         | Max SOC shadow price       |
-| `BATTERY_SOC_MIN`            | `soc_min`         | Min SOC shadow price       |
+| Model Output              | Sensor Name       | Description                |
+| ------------------------- | ----------------- | -------------------------- |
+| `BATTERY_POWER_CHARGE`    | `power_charge`    | Charge power               |
+| `BATTERY_POWER_DISCHARGE` | `power_discharge` | Discharge power            |
+| `BATTERY_ENERGY_STORED`   | `energy_stored`   | Total energy stored        |
+| Calculated SOC            | `state_of_charge` | State of charge            |
+| `BATTERY_POWER_BALANCE`   | `power_balance`   | Power balance shadow price |
+| `BATTERY_ENERGY_IN_FLOW`  | `energy_in_flow`  | Energy-in shadow price     |
+| `BATTERY_ENERGY_OUT_FLOW` | `energy_out_flow` | Energy-out shadow price    |
+| `BATTERY_SOC_MAX`         | `soc_max`         | Max SOC shadow price       |
+| `BATTERY_SOC_MIN`         | `soc_min`         | Min SOC shadow price       |
 
 See [Battery Configuration](../../user-guide/elements/battery.md#sensors-created) for complete sensor documentation.
 

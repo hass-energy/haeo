@@ -70,7 +70,6 @@ async def test_keep_device_for_existing_element(
     assert not result, "Device should be kept for existing element"
 
 
-
 async def test_remove_device_for_deleted_element(
     hass: HomeAssistant,
     mock_config_entry: HaeoConfigEntry,
@@ -94,7 +93,6 @@ async def test_remove_device_for_deleted_element(
     )
 
     assert result, "Device should be removed for non-existent element"
-
 
 
 async def test_keep_hub_device(

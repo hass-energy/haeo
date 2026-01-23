@@ -7,23 +7,23 @@ It uses slack variables to represent the energy below or above thresholds and ad
 
 ### Parameters
 
-| Parameter                | Description                              | Units  |
-| ------------------------ | ---------------------------------------- | ------ |
-| $E_{\text{min}}(t)$       | Undercharge energy threshold             | kWh    |
-| $E_{\text{max}}(t)$       | Overcharge energy threshold              | kWh    |
-| $c_{\text{under}}(t)$     | Undercharge penalty price                | \$/kWh |
-| $c_{\text{over}}(t)$      | Overcharge penalty price                 | \$/kWh |
-| $E_{\text{stored}}(t)$    | Battery stored energy (model coordinate) | kWh    |
+| Parameter              | Description                              | Units  |
+| ---------------------- | ---------------------------------------- | ------ |
+| $E_{\text{min}}(t)$    | Undercharge energy threshold             | kWh    |
+| $E_{\text{max}}(t)$    | Overcharge energy threshold              | kWh    |
+| $c_{\text{under}}(t)$  | Undercharge penalty price                | \$/kWh |
+| $c_{\text{over}}(t)$   | Overcharge penalty price                 | \$/kWh |
+| $E_{\text{stored}}(t)$ | Battery stored energy (model coordinate) | kWh    |
 
 Thresholds are provided in the model coordinate system.
 When an undercharge range is configured, $E_{\text{stored}}$ is measured relative to the lower SOC bound.
 
 ### Decision variables
 
-| Variable                 | Domain                | Description                         |
-| ------------------------ | --------------------- | ----------------------------------- |
-| $S_{\text{under}}(t)$    | $\mathbb{R}_{\geq 0}$ | Energy below undercharge threshold  |
-| $S_{\text{over}}(t)$     | $\mathbb{R}_{\geq 0}$ | Energy above overcharge threshold   |
+| Variable              | Domain                | Description                        |
+| --------------------- | --------------------- | ---------------------------------- |
+| $S_{\text{under}}(t)$ | $\mathbb{R}_{\geq 0}$ | Energy below undercharge threshold |
+| $S_{\text{over}}(t)$  | $\mathbb{R}_{\geq 0}$ | Energy above overcharge threshold  |
 
 ### Constraints
 

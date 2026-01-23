@@ -393,9 +393,7 @@ def test_add_soc_pricing_connection() -> None:
     """Test adding a SOC pricing connection via Network.add()."""
     network = Network(name="test_network", periods=np.array([1.0] * 3))
 
-    network.add(
-        {"element_type": ELEMENT_TYPE_BATTERY, "name": "battery", "capacity": 10.0, "initial_charge": 5.0}
-    )
+    network.add({"element_type": ELEMENT_TYPE_BATTERY, "name": "battery", "capacity": 10.0, "initial_charge": 5.0})
     network.add({"element_type": ELEMENT_TYPE_NODE, "name": "node", "is_sink": True, "is_source": True})
 
     connection = network.add(

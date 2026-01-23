@@ -272,20 +272,20 @@ In this example:
 Each configuration field creates a corresponding input entity in Home Assistant.
 Input entities appear as Number entities with the `config` entity category.
 
-| Input                                                | Unit   | Description                                    |
-| ---------------------------------------------------- | ------ | ---------------------------------------------- |
-| `number.{name}_capacity`                             | kWh    | Battery storage capacity                       |
-| `number.{name}_soc`                                  | %      | Current state of charge from sensor            |
+| Input                                                | Unit   | Description                                  |
+| ---------------------------------------------------- | ------ | -------------------------------------------- |
+| `number.{name}_capacity`                             | kWh    | Battery storage capacity                     |
+| `number.{name}_soc`                                  | %      | Current state of charge from sensor          |
 | `number.{name}_soc_min`                              | %      | Preferred minimum SOC (normal range floor)   |
 | `number.{name}_soc_max`                              | %      | Preferred maximum SOC (normal range ceiling) |
-| `number.{name}_soc_target`                           | %      | Target SOC at end of horizon                   |
-| `number.{name}_max_charge_power`                     | kW     | Maximum charging power                         |
-| `number.{name}_max_discharge_power`                  | kW     | Maximum discharging power                      |
-| `number.{name}_charge_cost_per_cycle`                | -      | Base cycle degradation cost                    |
-| `number.{name}_charge_cost_per_kwh`                  | \$/kWh | Per-kWh charging cost                          |
-| `number.{name}_undercharge_soc`                      | %      | Hard minimum SOC limit (if configured)         |
-| `number.{name}_overcharge_soc`                       | %      | Hard maximum SOC limit (if configured)         |
-| `number.{name}_undercharge_cost` / `overcharge_cost` | \$/kWh | Penalty costs for extended regions             |
+| `number.{name}_soc_target`                           | %      | Target SOC at end of horizon                 |
+| `number.{name}_max_charge_power`                     | kW     | Maximum charging power                       |
+| `number.{name}_max_discharge_power`                  | kW     | Maximum discharging power                    |
+| `number.{name}_charge_cost_per_cycle`                | -      | Base cycle degradation cost                  |
+| `number.{name}_charge_cost_per_kwh`                  | \$/kWh | Per-kWh charging cost                        |
+| `number.{name}_undercharge_soc`                      | %      | Hard minimum SOC limit (if configured)       |
+| `number.{name}_overcharge_soc`                       | %      | Hard maximum SOC limit (if configured)       |
+| `number.{name}_undercharge_cost` / `overcharge_cost` | \$/kWh | Penalty costs for extended regions           |
 
 Input entities include a `forecast` attribute showing values for each optimization period.
 See the [Input Entities developer guide](../../developer-guide/inputs.md) for details on input entity behavior.

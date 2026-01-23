@@ -16,7 +16,14 @@ class MockBattery(Element[str]):
 
     stored_energy: HighspyArray
 
-    def __init__(self, name: str, periods: NDArray[np.floating[Any]], solver: Highs, stored_energy: HighspyArray) -> None:
+    def __init__(
+        self,
+        name: str,
+        periods: NDArray[np.floating[Any]],
+        solver: Highs,
+        stored_energy: HighspyArray,
+    ) -> None:
+        """Initialize the mock battery."""
         super().__init__(name=name, periods=periods, solver=solver, output_names=frozenset())
         self.stored_energy = stored_energy
 
@@ -25,6 +32,7 @@ class DummyElement(Element[str]):
     """Minimal non-battery element for segment endpoints."""
 
     def __init__(self, name: str, periods: NDArray[np.floating[Any]], solver: Highs) -> None:
+        """Initialize the dummy element."""
         super().__init__(name=name, periods=periods, solver=solver, output_names=frozenset())
 
 

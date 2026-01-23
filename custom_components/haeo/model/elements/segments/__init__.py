@@ -29,19 +29,15 @@ from .power_limit import (
     PowerLimitSegmentSpec,
 )
 from .pricing import PricingSegment, PricingSegmentSpec
-from .soc_pricing import SocPricingSegment, SocPricingSegmentSpec
 from .segment import Segment
+from .soc_pricing import SocPricingSegment, SocPricingSegmentSpec
 
 # Discriminated union of segment type strings
 type SegmentType = Literal["efficiency", "passthrough", "power_limit", "pricing", "soc_pricing"]
 
 # Union type for all segment specifications
 type SegmentSpec = (
-    EfficiencySegmentSpec
-    | PassthroughSegmentSpec
-    | PowerLimitSegmentSpec
-    | PricingSegmentSpec
-    | SocPricingSegmentSpec
+    EfficiencySegmentSpec | PassthroughSegmentSpec | PowerLimitSegmentSpec | PricingSegmentSpec | SocPricingSegmentSpec
 )
 
 
@@ -125,12 +121,12 @@ __all__ = [
     "PowerLimitSegmentSpec",
     "PricingSegment",
     "PricingSegmentSpec",
-    "SocPricingSegment",
-    "SocPricingSegmentSpec",
     "Segment",
     "SegmentSpec",
     "SegmentSpecEntry",
     "SegmentType",
+    "SocPricingSegment",
+    "SocPricingSegmentSpec",
     "create_segment",
     "is_efficiency_spec",
     "is_passthrough_spec",

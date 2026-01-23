@@ -8,6 +8,7 @@ from homeassistant.components.number import NumberDeviceClass, NumberEntityDescr
 from homeassistant.const import PERCENTAGE, UnitOfEnergy, UnitOfPower
 from homeassistant.core import HomeAssistant
 import numpy as np
+from numpy.typing import NDArray
 
 from custom_components.haeo.const import ConnectivityLevel
 from custom_components.haeo.data.loader import TimeSeriesLoader
@@ -17,7 +18,7 @@ from custom_components.haeo.model import ModelElementConfig, ModelOutputName, Mo
 from custom_components.haeo.model import battery as model_battery
 from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_BATTERY, MODEL_ELEMENT_TYPE_CONNECTION
-from custom_components.haeo.model.elements.segments import SocPricingSegmentSpec
+from custom_components.haeo.model.elements.segments import SegmentSpec, SocPricingSegmentSpec
 from custom_components.haeo.model.output_data import OutputData
 from custom_components.haeo.model.util import broadcast_to_sequence
 
@@ -77,11 +78,7 @@ BATTERY_OUTPUT_NAMES: Final[frozenset[BatteryOutputName]] = frozenset(
 
 type BatteryDeviceName = Literal["battery"]
 
-BATTERY_DEVICE_NAMES: Final[frozenset[BatteryDeviceName]] = frozenset(
-    (
-        BATTERY_DEVICE_BATTERY := "battery",
-    )
-)
+BATTERY_DEVICE_NAMES: Final[frozenset[BatteryDeviceName]] = frozenset((BATTERY_DEVICE_BATTERY := "battery",))
 
 
 class BatteryAdapter:
@@ -418,22 +415,22 @@ class BatteryAdapter:
                     "overcharge_price": overcharge_cost,
                 }
 
-        segments: dict[str, SocPricingSegmentSpec | dict[str, Any]] = {
-                    "efficiency": {
-                        "segment_type": "efficiency",
+        segments: dict[str, SegmentSpec] = {
+            "efficiency": {
+                "segment_type": "efficiency",
                 "efficiency_source_target": efficiency,  # Battery to network (discharge)
                 "efficiency_target_source": efficiency,  # Network to battery (charge)
-                    },
-                    "power_limit": {
-                        "segment_type": "power_limit",
-                        "max_power_source_target": max_discharge,
-                        "max_power_target_source": max_charge,
-                    },
-                    "pricing": {
-                        "segment_type": "pricing",
-                        "price_source_target": discharge_costs,
-                        "price_target_source": charge_early_incentive,
-                    },
+            },
+            "power_limit": {
+                "segment_type": "power_limit",
+                "max_power_source_target": max_discharge,
+                "max_power_target_source": max_charge,
+            },
+            "pricing": {
+                "segment_type": "pricing",
+                "price_source_target": discharge_costs,
+                "price_target_source": charge_early_incentive,
+            },
         }
         if soc_pricing_spec is not None:
             segments["soc_pricing"] = soc_pricing_spec

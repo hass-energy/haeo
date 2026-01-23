@@ -166,11 +166,7 @@ def test_model_elements_omits_efficiency_when_missing() -> None:
 
     elements = battery.adapter.model_elements(config_data)
 
-    battery_element = next(
-        element
-        for element in elements
-        if element["element_type"] == MODEL_ELEMENT_TYPE_BATTERY and element["name"] == "test_battery"
-    )
+    battery_element = next(element for element in elements if element["element_type"] == MODEL_ELEMENT_TYPE_BATTERY and element["name"] == "test_battery")
     np.testing.assert_array_equal(battery_element["capacity"], [10.0, 10.0, 10.0])
 
     connection = next(element for element in elements if element["element_type"] == MODEL_ELEMENT_TYPE_CONNECTION and element["name"] == "test_battery:connection")

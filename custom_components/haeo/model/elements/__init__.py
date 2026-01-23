@@ -32,11 +32,11 @@ from .segments import EfficiencySegment as EfficiencySegment
 from .segments import PassthroughSegment as PassthroughSegment
 from .segments import PowerLimitSegment as PowerLimitSegment
 from .segments import PricingSegment as PricingSegment
-from .segments import SocPricingSegment as SocPricingSegment
-from .segments import SocPricingSegmentSpec as SocPricingSegmentSpec
 from .segments import Segment as Segment
 from .segments import SegmentSpec as SegmentSpec
 from .segments import SegmentType as SegmentType
+from .segments import SocPricingSegment as SocPricingSegment
+from .segments import SocPricingSegmentSpec as SocPricingSegmentSpec
 
 # Type for all model element types
 ModelElementType = BatteryElementTypeName | NodeElementTypeName | ConnectionElementTypeName
@@ -98,9 +98,9 @@ __all__ = [
     "PassthroughSegment",
     "PowerLimitSegment",
     "PricingSegment",
-    "SocPricingSegment",
-    "SocPricingSegmentSpec",
     "Segment",
     "SegmentSpec",
     "SegmentType",
+    "SocPricingSegment",
+    "SocPricingSegmentSpec",
 ]
