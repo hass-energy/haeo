@@ -267,9 +267,6 @@
   "common": { "default_hub_name": "Home", "network_subentry_name": "System", "switchboard_node_name": "Switchboard" },
   "device": {
     "battery": { "name": "{name}" },
-    "battery_device_normal": { "name": "{name} Main Partition" },
-    "battery_device_overcharge": { "name": "{name} Overcharge Partition" },
-    "battery_device_undercharge": { "name": "{name} Undercharge Partition" },
     "battery_section": { "name": "{name}" },
     "connection": { "name": "{name}" },
     "grid": { "name": "{name}" },
@@ -313,8 +310,6 @@
       "solar_price_production": { "name": "Production price" }
     },
     "sensor": {
-      "battery_balance_power_down": { "name": "Balance power down" },
-      "battery_balance_power_up": { "name": "Balance power up" },
       "battery_energy_in_flow": { "name": "Energy in flow shadow price" },
       "battery_energy_out_flow": { "name": "Energy out flow shadow price" },
       "battery_energy_stored": { "name": "Energy stored" },
