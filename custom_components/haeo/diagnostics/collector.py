@@ -176,10 +176,6 @@ async def collect_diagnostics(
         "timezone": str(dt_util.get_default_time_zone()),
     }
 
-    # Include forecast_timestamps for exact reproducibility
-    if has_context and context is not None:
-        environment["forecast_timestamps"] = list(context.forecast_timestamps)
-
     if state_provider.is_historical:
         environment["historical"] = True
 
