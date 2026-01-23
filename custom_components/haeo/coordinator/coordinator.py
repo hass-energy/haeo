@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING, Any, Literal, TypedDict
 from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import STATE_ON, EntityCategory, UnitOfTime
-from homeassistant.core import CALLBACK_TYPE, Event, HomeAssistant, State, callback
+from homeassistant.core import CALLBACK_TYPE, Event, HomeAssistant, callback
 from homeassistant.helpers.event import EventStateChangedData, async_call_later, async_track_state_change_event
 from homeassistant.helpers.translation import async_get_translations
 from homeassistant.helpers.typing import StateType
@@ -197,16 +197,6 @@ class CoordinatorData:
 
     timestamp: datetime
     """When the optimization ran."""
-
-    @property
-    def forecast_timestamps(self) -> tuple[float, ...]:
-        """Horizon boundary timestamps used for the optimization."""
-        return self.context.forecast_timestamps
-
-    @property
-    def source_states(self) -> dict[str, State]:
-        """Source sensor states captured when input entities loaded data."""
-        return self.context.source_states
 
 
 class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):

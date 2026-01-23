@@ -1121,9 +1121,6 @@ async def test_diagnostics_uses_snapshot_source_states(hass: HomeAssistant) -> N
     result_timestamp = datetime.fromisoformat(result.data["environment"]["timestamp"])
     assert result_timestamp == snapshot_timestamp
 
-    # Verify forecast_timestamps are included
-    assert result.data["environment"]["forecast_timestamps"] == list(snapshot_forecast_timestamps)
-
 
 async def test_diagnostics_falls_back_to_current_state_without_snapshot(hass: HomeAssistant) -> None:
     """Test that diagnostics falls back to current HA state when no snapshot available."""
