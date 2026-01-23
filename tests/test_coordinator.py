@@ -643,7 +643,7 @@ def test_element_state_change_marks_stale_and_triggers_optimization(
         coordinator._handle_element_update("Test Battery")
 
     # Element is marked stale, not loaded immediately
-    assert coordinator._context_builder.get_stale_elements() == frozenset({"Test Battery"})
+    assert coordinator._context.get_stale_elements() == frozenset({"Test Battery"})
     trigger_mock.assert_called_once()
 
 

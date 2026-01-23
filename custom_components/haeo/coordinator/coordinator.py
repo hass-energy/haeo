@@ -240,7 +240,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         self._optimization_in_progress: bool = False  # Prevent concurrent optimizations
 
         # Context builder tracks stale elements and builds optimization context
-        self._context_builder = OptimizationContextBuilder(self._participant_configs)
+        self._context = OptimizationContextBuilder(self._participant_configs)
 
         # No update_interval - we're event-driven from input entities
         # No request_refresh_debouncer - we handle debouncing ourselves
@@ -359,7 +359,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         with debouncing.
         """
         # Mark element as needing network update at optimization time
-        self._context_builder.mark_stale(element_name)
+        self._context.mark_stale(element_name)
 
         # Trigger optimization (with debouncing)
         self.signal_optimization_stale()
@@ -646,7 +646,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             network = self.network
 
             # Update network for stale elements only (those that changed since last optimization)
-            stale_elements = self._context_builder.get_stale_elements()
+            stale_elements = self._context.get_stale_elements()
             for element_name in stale_elements:
                 try:
                     element_config = self._load_element_config(element_name)
@@ -655,7 +655,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
                     _LOGGER.exception("Failed to load config for stale element %s", element_name)
 
             # Build immutable context (clears stale tracking)
-            context = self._context_builder.build(
+            context = self._context.build(
                 input_entities=runtime_data.input_entities,
                 horizon_manager=runtime_data.horizon_manager,
             )
