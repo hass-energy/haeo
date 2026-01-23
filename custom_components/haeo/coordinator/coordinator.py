@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING, Any, Literal, TypedDict
 from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import STATE_ON, EntityCategory, UnitOfTime
-from homeassistant.core import CALLBACK_TYPE, Event, HomeAssistant, callback
+from homeassistant.core import CALLBACK_TYPE, Event, HomeAssistant, State, callback
 from homeassistant.helpers.event import EventStateChangedData, async_call_later, async_track_state_change_event
 from homeassistant.helpers.translation import async_get_translations
 from homeassistant.helpers.typing import StateType
@@ -49,6 +49,7 @@ from custom_components.haeo.repairs import dismiss_optimization_failure_issue
 from custom_components.haeo.util.forecast_times import tiers_to_periods_seconds
 
 from . import network as network_module
+from .context import OptimizationContext
 
 if TYPE_CHECKING:
     from custom_components.haeo import HaeoConfigEntry, HaeoRuntimeData
@@ -182,7 +183,30 @@ def _build_coordinator_output(
 
 
 type SubentryDevices = dict[ElementDeviceName, dict[ElementOutputName | NetworkOutputName, CoordinatorOutput]]
-type CoordinatorData = dict[str, SubentryDevices]
+
+
+@dataclass(slots=True)
+class CoordinatorData:
+    """Result of an optimization run including inputs and outputs."""
+
+    context: OptimizationContext
+    """Immutable snapshot of all inputs used for this optimization."""
+
+    outputs: dict[str, SubentryDevices]
+    """Element outputs organized by element_name → device_name → output_name."""
+
+    timestamp: datetime
+    """When the optimization ran."""
+
+    @property
+    def forecast_timestamps(self) -> tuple[float, ...]:
+        """Horizon boundary timestamps used for the optimization."""
+        return self.context.forecast_timestamps
+
+    @property
+    def source_states(self) -> dict[str, State]:
+        """Source sensor states captured when input entities loaded data."""
+        return self.context.source_states
 
 
 class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
@@ -628,13 +652,21 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             # This ensures debouncing works even if optimization takes a long time
             self._last_optimization_time = start_time
 
-            # Get forecast timestamps from horizon manager
+            # Get runtime data for access to input entities and horizon manager
             runtime_data = self._get_runtime_data()
             if runtime_data is None:
                 msg = "Runtime data not available"
                 raise UpdateFailed(msg)
 
-            forecast_timestamps = runtime_data.horizon_manager.get_forecast_timestamps()
+            # Build immutable context capturing all inputs at this moment
+            context = OptimizationContext.build(
+                participant_configs=self._participant_configs,
+                input_entities=runtime_data.input_entities,
+                horizon_manager=runtime_data.horizon_manager,
+            )
+
+            # Capture timestamp for the optimization result
+            optimization_timestamp = dt_util.utcnow()
 
             # Load element configurations from input entities
             # All input entities are guaranteed to be fully loaded by the time we get here
@@ -675,7 +707,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             )
             network_subentry_name = translations[f"component.{DOMAIN}.common.network_subentry_name"]
 
-            result: CoordinatorData = {
+            outputs: dict[str, SubentryDevices] = {
                 # HAEO outputs use network subentry name as key, network element type as device
                 network_subentry_name: {
                     ELEMENT_TYPE_NETWORK: {
@@ -721,7 +753,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
                         output_name: _build_coordinator_output(
                             output_name,
                             output_data,
-                            forecast_times=forecast_timestamps,
+                            forecast_times=context.forecast_timestamps,
                         )
                         for output_name, output_data in device_outputs.items()
                     }
@@ -730,9 +762,13 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
                         subentry_devices[device_name] = processed_outputs
 
                 if subentry_devices:
-                    result[element_name] = subentry_devices
+                    outputs[element_name] = subentry_devices
 
-            return result
+            return CoordinatorData(
+                context=context,
+                outputs=outputs,
+                timestamp=optimization_timestamp,
+            )
         finally:
             # Always clear the in-progress flag
             self._optimization_in_progress = False

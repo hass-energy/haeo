@@ -2,6 +2,7 @@
 
 from datetime import UTC, datetime, timedelta, timezone
 from types import MappingProxyType
+from typing import cast
 from unittest.mock import AsyncMock, Mock, patch
 
 from homeassistant.config_entries import ConfigSubentry
@@ -33,14 +34,20 @@ from custom_components.haeo.const import (
     DOMAIN,
     INTEGRATION_TYPE_HUB,
 )
-from custom_components.haeo.coordinator import CoordinatorOutput, ForecastPoint, HaeoDataUpdateCoordinator
+from custom_components.haeo.coordinator import (
+    CoordinatorData,
+    CoordinatorOutput,
+    ForecastPoint,
+    HaeoDataUpdateCoordinator,
+    OptimizationContext,
+)
 from custom_components.haeo.diagnostics import (
     CurrentStateProvider,
     HistoricalStateProvider,
     async_get_config_entry_diagnostics,
     collect_diagnostics,
 )
-from custom_components.haeo.elements import ELEMENT_TYPE_BATTERY
+from custom_components.haeo.elements import ELEMENT_TYPE_BATTERY, ElementConfigSchema
 from custom_components.haeo.elements.battery import (
     CONF_CAPACITY,
     CONF_CONNECTION,
@@ -317,16 +324,24 @@ async def test_diagnostics_with_outputs(hass: HomeAssistant) -> None:
 
     # Create a mock coordinator with outputs
     coordinator = Mock(spec=HaeoDataUpdateCoordinator)
-    coordinator.data = {
-        "grid": {
-            GRID_POWER_IMPORT: CoordinatorOutput(
-                type=OutputType.POWER,
-                unit="kW",
-                state=5.5,
-                forecast=[ForecastPoint(time=datetime(2024, 1, 1, 12, 0, tzinfo=UTC), value=5.5)],
-            )
-        }
-    }
+    coordinator.data = CoordinatorData(
+        context=OptimizationContext(
+            participants={},
+            source_states={},
+            forecast_timestamps=(1000.0, 2000.0, 3000.0),
+        ),
+        outputs={  # type: ignore[arg-type]
+            "grid": {
+                GRID_POWER_IMPORT: CoordinatorOutput(
+                    type=OutputType.POWER,
+                    unit="kW",
+                    state=5.5,
+                    forecast=[ForecastPoint(time=datetime(2024, 1, 1, 12, 0, tzinfo=UTC), value=5.5)],
+                )
+            }
+        },
+        timestamp=datetime(2024, 1, 1, 12, 0, tzinfo=UTC),
+    )
 
     # Register output sensor in entity registry (required for get_output_sensors)
     entity_registry = er.async_get(hass)
@@ -989,3 +1004,285 @@ async def test_collect_diagnostics_returns_empty_missing_when_all_found(hass: Ho
 
     # Verify inputs has both sensors
     assert len(result.data["inputs"]) == 2
+
+
+async def test_diagnostics_uses_snapshot_source_states(hass: HomeAssistant) -> None:
+    """Test that diagnostics uses coordinator's snapshot source states instead of current HA state."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        title="Test Hub",
+        data={
+            CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
+            CONF_NAME: "Test Hub",
+            CONF_TIER_1_COUNT: DEFAULT_TIER_1_COUNT,
+            CONF_TIER_1_DURATION: DEFAULT_TIER_1_DURATION,
+            CONF_TIER_2_COUNT: DEFAULT_TIER_2_COUNT,
+            CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
+            CONF_TIER_3_COUNT: DEFAULT_TIER_3_COUNT,
+            CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
+            CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
+            CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
+        },
+        entry_id="hub_entry",
+    )
+    entry.add_to_hass(hass)
+
+    battery_subentry = ConfigSubentry(
+        data=MappingProxyType(
+            {
+                CONF_ELEMENT_TYPE: ELEMENT_TYPE_BATTERY,
+                CONF_NAME: "Battery",
+                CONF_CAPACITY: "sensor.battery_capacity",
+                CONF_CONNECTION: "DC Bus",
+                CONF_INITIAL_CHARGE_PERCENTAGE: "sensor.battery_soc",
+                CONF_MAX_CHARGE_POWER: 5.0,
+                CONF_MAX_DISCHARGE_POWER: 5.0,
+                CONF_MIN_CHARGE_PERCENTAGE: 10.0,
+                CONF_MAX_CHARGE_PERCENTAGE: 90.0,
+                CONF_EFFICIENCY: 95.0,
+            }
+        ),
+        subentry_type=ELEMENT_TYPE_BATTERY,
+        title="Battery",
+        unique_id=None,
+    )
+    hass.config_entries.async_add_subentry(entry, battery_subentry)
+
+    # Set current HA state to NEW values
+    hass.states.async_set("sensor.battery_capacity", "9999", {"unit_of_measurement": "Wh"})
+    hass.states.async_set("sensor.battery_soc", "99", {"unit_of_measurement": "%"})
+
+    # Create snapshot states with OLD values (what was used during optimization)
+    snapshot_capacity_state = State(
+        "sensor.battery_capacity", "5000", {"unit_of_measurement": "Wh", "device_class": "energy"}
+    )
+    snapshot_soc_state = State("sensor.battery_soc", "75", {"unit_of_measurement": "%", "device_class": "battery"})
+
+    # Create mock coordinator with snapshot data
+    snapshot_timestamp = datetime(2026, 1, 20, 10, 0, 0, tzinfo=UTC)
+    snapshot_forecast_timestamps = (1737370800.0, 1737374400.0, 1737378000.0)
+
+    # Build the participant config that would have been captured at optimization time
+    battery_config = cast(
+        "ElementConfigSchema",
+        {
+            CONF_ELEMENT_TYPE: ELEMENT_TYPE_BATTERY,
+            CONF_NAME: "Battery",
+            CONF_CAPACITY: "sensor.battery_capacity",
+            CONF_CONNECTION: "DC Bus",
+            CONF_INITIAL_CHARGE_PERCENTAGE: "sensor.battery_soc",
+            CONF_MAX_CHARGE_POWER: 5.0,
+            CONF_MAX_DISCHARGE_POWER: 5.0,
+            CONF_MIN_CHARGE_PERCENTAGE: 10.0,
+            CONF_MAX_CHARGE_PERCENTAGE: 90.0,
+            CONF_EFFICIENCY: 95.0,
+        },
+    )
+
+    coordinator = Mock(spec=HaeoDataUpdateCoordinator)
+    coordinator.data = CoordinatorData(
+        context=OptimizationContext(
+            participants={"Battery": battery_config},
+            source_states={
+                "sensor.battery_capacity": snapshot_capacity_state,
+                "sensor.battery_soc": snapshot_soc_state,
+            },
+            forecast_timestamps=snapshot_forecast_timestamps,
+        ),
+        outputs={},
+        timestamp=snapshot_timestamp,
+    )
+
+    runtime_data = HaeoRuntimeData(
+        horizon_manager=Mock(),
+        coordinator=coordinator,
+    )
+    entry.runtime_data = runtime_data
+
+    # Pass coordinator explicitly for reproducibility
+    result = await collect_diagnostics(hass, entry, CurrentStateProvider(hass), coordinator)
+
+    # Verify participants come from context (not subentry)
+    assert "Battery" in result.data["config"]["participants"]
+
+    # Verify inputs use snapshot values, NOT current HA state
+    inputs = result.data["inputs"]
+    assert len(inputs) == 2
+
+    capacity_input = next(inp for inp in inputs if inp["entity_id"] == "sensor.battery_capacity")
+    soc_input = next(inp for inp in inputs if inp["entity_id"] == "sensor.battery_soc")
+
+    # These should be the snapshot values, not current (9999, 99)
+    assert capacity_input["state"] == "5000"
+    assert soc_input["state"] == "75"
+
+    # Verify environment uses snapshot timestamp (converted to local timezone)
+    # Parse and compare the datetime value, not the string representation
+    result_timestamp = datetime.fromisoformat(result.data["environment"]["timestamp"])
+    assert result_timestamp == snapshot_timestamp
+
+    # Verify forecast_timestamps are included
+    assert result.data["environment"]["forecast_timestamps"] == list(snapshot_forecast_timestamps)
+
+
+async def test_diagnostics_falls_back_to_current_state_without_snapshot(hass: HomeAssistant) -> None:
+    """Test that diagnostics falls back to current HA state when no snapshot available."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        title="Test Hub",
+        data={
+            CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
+            CONF_NAME: "Test Hub",
+            CONF_TIER_1_COUNT: DEFAULT_TIER_1_COUNT,
+            CONF_TIER_1_DURATION: DEFAULT_TIER_1_DURATION,
+            CONF_TIER_2_COUNT: DEFAULT_TIER_2_COUNT,
+            CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
+            CONF_TIER_3_COUNT: DEFAULT_TIER_3_COUNT,
+            CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
+            CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
+            CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
+        },
+        entry_id="hub_entry",
+    )
+    entry.add_to_hass(hass)
+
+    battery_subentry = ConfigSubentry(
+        data=MappingProxyType(
+            {
+                CONF_ELEMENT_TYPE: ELEMENT_TYPE_BATTERY,
+                CONF_NAME: "Battery",
+                CONF_CAPACITY: "sensor.battery_capacity",
+                CONF_CONNECTION: "DC Bus",
+                CONF_INITIAL_CHARGE_PERCENTAGE: "sensor.battery_soc",
+                CONF_MAX_CHARGE_POWER: 5.0,
+                CONF_MAX_DISCHARGE_POWER: 5.0,
+                CONF_MIN_CHARGE_PERCENTAGE: 10.0,
+                CONF_MAX_CHARGE_PERCENTAGE: 90.0,
+                CONF_EFFICIENCY: 95.0,
+            }
+        ),
+        subentry_type=ELEMENT_TYPE_BATTERY,
+        title="Battery",
+        unique_id=None,
+    )
+    hass.config_entries.async_add_subentry(entry, battery_subentry)
+
+    # Set current HA state
+    hass.states.async_set("sensor.battery_capacity", "5000", {"unit_of_measurement": "Wh"})
+    hass.states.async_set("sensor.battery_soc", "75", {"unit_of_measurement": "%"})
+
+    # Create coordinator with EMPTY snapshot (no optimization has run yet)
+    coordinator = Mock(spec=HaeoDataUpdateCoordinator)
+    # When no optimization has run, coordinator.data is None
+    coordinator.data = None
+
+    runtime_data = HaeoRuntimeData(
+        horizon_manager=Mock(),
+        coordinator=coordinator,
+    )
+    entry.runtime_data = runtime_data
+
+    # Pass coordinator (with data=None) since no optimization has run
+    result = await collect_diagnostics(hass, entry, CurrentStateProvider(hass), coordinator)
+
+    # Verify inputs use current HA state (fallback)
+    inputs = result.data["inputs"]
+    assert len(inputs) == 2
+
+    capacity_input = next(inp for inp in inputs if inp["entity_id"] == "sensor.battery_capacity")
+    soc_input = next(inp for inp in inputs if inp["entity_id"] == "sensor.battery_soc")
+
+    assert capacity_input["state"] == "5000"
+    assert soc_input["state"] == "75"
+
+    # Verify forecast_timestamps is NOT in environment (no snapshot)
+    assert "forecast_timestamps" not in result.data["environment"]
+
+
+async def test_diagnostics_historical_skips_snapshot(hass: HomeAssistant) -> None:
+    """Test that historical diagnostics skips snapshot and uses historical provider."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        title="Test Hub",
+        data={
+            CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
+            CONF_NAME: "Test Hub",
+            CONF_TIER_1_COUNT: DEFAULT_TIER_1_COUNT,
+            CONF_TIER_1_DURATION: DEFAULT_TIER_1_DURATION,
+            CONF_TIER_2_COUNT: DEFAULT_TIER_2_COUNT,
+            CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
+            CONF_TIER_3_COUNT: DEFAULT_TIER_3_COUNT,
+            CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
+            CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
+            CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
+        },
+        entry_id="hub_entry",
+    )
+    entry.add_to_hass(hass)
+
+    battery_subentry = ConfigSubentry(
+        data=MappingProxyType(
+            {
+                CONF_ELEMENT_TYPE: ELEMENT_TYPE_BATTERY,
+                CONF_NAME: "Battery",
+                CONF_CAPACITY: "sensor.battery_capacity",
+                CONF_CONNECTION: "DC Bus",
+                CONF_INITIAL_CHARGE_PERCENTAGE: "sensor.battery_soc",
+                CONF_MAX_CHARGE_POWER: 5.0,
+                CONF_MAX_DISCHARGE_POWER: 5.0,
+                CONF_MIN_CHARGE_PERCENTAGE: 10.0,
+                CONF_MAX_CHARGE_PERCENTAGE: 90.0,
+                CONF_EFFICIENCY: 95.0,
+            }
+        ),
+        subentry_type=ELEMENT_TYPE_BATTERY,
+        title="Battery",
+        unique_id=None,
+    )
+    hass.config_entries.async_add_subentry(entry, battery_subentry)
+
+    # Create snapshot states (should be IGNORED for historical)
+    snapshot_capacity_state = State("sensor.battery_capacity", "5000", {"unit_of_measurement": "Wh"})
+
+    coordinator = Mock(spec=HaeoDataUpdateCoordinator)
+    coordinator.data = CoordinatorData(
+        context=OptimizationContext(
+            participants={},
+            source_states={
+                "sensor.battery_capacity": snapshot_capacity_state,
+            },
+            forecast_timestamps=(1737370800.0,),
+        ),
+        outputs={},
+        timestamp=datetime(2026, 1, 20, 10, 0, 0, tzinfo=UTC),
+    )
+
+    runtime_data = HaeoRuntimeData(
+        horizon_manager=Mock(),
+        coordinator=coordinator,
+    )
+    entry.runtime_data = runtime_data
+
+    # Create a mock historical provider that returns different values
+    historical_state = State("sensor.battery_capacity", "3000", {"unit_of_measurement": "Wh"})
+    historical_soc = State("sensor.battery_soc", "50", {"unit_of_measurement": "%"})
+    mock_provider = Mock()
+    mock_provider.is_historical = True
+    mock_provider.timestamp = datetime(2026, 1, 15, 8, 0, 0, tzinfo=UTC)
+    mock_provider.get_states = AsyncMock(
+        return_value={
+            "sensor.battery_capacity": historical_state,
+            "sensor.battery_soc": historical_soc,
+        }
+    )
+
+    result = await collect_diagnostics(hass, entry, mock_provider)
+
+    # Verify inputs use historical values, NOT snapshot
+    inputs = result.data["inputs"]
+    capacity_input = next(inp for inp in inputs if inp["entity_id"] == "sensor.battery_capacity")
+    assert capacity_input["state"] == "3000"  # Historical value, not snapshot's 5000
+
+    # Verify forecast_timestamps NOT in environment (historical mode)
+    assert "forecast_timestamps" not in result.data["environment"]
+    assert result.data["environment"]["historical"] is True

@@ -44,8 +44,10 @@ from custom_components.haeo.const import (
 )
 from custom_components.haeo.coordinator import (
     STATUS_OPTIONS,
+    CoordinatorData,
     ForecastPoint,
     HaeoDataUpdateCoordinator,
+    OptimizationContext,
     _build_coordinator_output,
 )
 from custom_components.haeo.elements import (
@@ -359,7 +361,8 @@ async def test_async_update_data_returns_outputs(
 
     mock_executor.assert_awaited_once_with(fake_network.optimize)
 
-    network_outputs = result["System"][ELEMENT_TYPE_NETWORK]
+    # Access outputs via the outputs attribute
+    network_outputs = result.outputs["System"][ELEMENT_TYPE_NETWORK]
     cost_output = network_outputs[OUTPUT_NAME_OPTIMIZATION_COST]
     assert cost_output.type == OutputType.COST
     assert cost_output.unit == hass.config.currency
@@ -377,7 +380,7 @@ async def test_async_update_data_returns_outputs(
     assert duration_output.state is not None
     assert duration_output.forecast is None
 
-    battery_outputs = result["Test Battery"][BATTERY_DEVICE_BATTERY]
+    battery_outputs = result.outputs["Test Battery"][BATTERY_DEVICE_BATTERY]
     battery_output = battery_outputs[BATTERY_POWER_CHARGE]
     assert battery_output.type == OutputType.POWER
     assert battery_output.unit == "kW"
@@ -909,7 +912,15 @@ async def test_async_update_data_returns_existing_when_concurrent(
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
 
     # Simulate existing data and in-progress flag
-    existing_data = {"existing": "data"}
+    existing_data = CoordinatorData(
+        context=OptimizationContext(
+            participants={},
+            source_states={},
+            forecast_timestamps=(1000.0,),
+        ),
+        outputs={"existing": {"device": {}}},  # type: ignore[dict-item]
+        timestamp=datetime(2024, 1, 1, 12, 0, tzinfo=UTC),
+    )
     coordinator.data = existing_data  # type: ignore[assignment]
     coordinator._optimization_in_progress = True
 
