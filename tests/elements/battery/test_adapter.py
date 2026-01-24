@@ -4,7 +4,6 @@ from homeassistant.core import HomeAssistant
 import numpy as np
 
 from custom_components.haeo.elements import battery
-from custom_components.haeo.elements.battery.adapter import _ratio_series
 from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_BATTERY, MODEL_ELEMENT_TYPE_CONNECTION
 from custom_components.haeo.model.elements.segments import is_efficiency_spec
 
@@ -229,21 +228,3 @@ def test_model_elements_overcharge_only_adds_soc_pricing() -> None:
     assert soc_pricing is not None
     assert soc_pricing.get("discharge_energy_threshold") is None
     assert soc_pricing.get("charge_capacity_threshold") is not None
-
-
-def test_ratio_series_handles_empty_periods() -> None:
-    """Ratio series returns empty when there are no periods."""
-    result = _ratio_series(0.5, 0)
-    assert result.size == 0
-
-
-def test_ratio_series_trims_boundary_series() -> None:
-    """Ratio series drops the first boundary value when provided."""
-    result = _ratio_series(np.array([0.1, 0.2, 0.3]), 2)
-    assert result.tolist() == [0.2, 0.3]
-
-
-def test_ratio_series_broadcasts_scalar() -> None:
-    """Ratio series broadcasts scalar ratios across periods."""
-    result = _ratio_series(0.4, 3)
-    assert result.tolist() == [0.4, 0.4, 0.4]

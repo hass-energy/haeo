@@ -389,8 +389,8 @@ class BatteryAdapter:
 
         soc_pricing_spec: SocPricingSegmentSpec | None = None
         if undercharge_percentage is not None and undercharge_cost is not None:
-            min_ratio_series = _ratio_series(min_charge_percentage, n_periods)
-            lower_ratio_series = _ratio_series(lower_ratio, n_periods)
+            min_ratio_series = broadcast_to_sequence(min_charge_percentage, n_periods + 1)[1:]
+            lower_ratio_series = broadcast_to_sequence(lower_ratio, n_periods + 1)[1:]
             discharge_energy_threshold = (min_ratio_series - lower_ratio_series) * capacity[1:]
             soc_pricing_spec = {
                 "segment_type": "soc_pricing",
@@ -399,8 +399,8 @@ class BatteryAdapter:
             }
 
         if overcharge_percentage is not None and overcharge_cost is not None:
-            max_ratio_series = _ratio_series(max_charge_percentage, n_periods)
-            lower_ratio_series = _ratio_series(lower_ratio, n_periods)
+            max_ratio_series = broadcast_to_sequence(max_charge_percentage, n_periods + 1)[1:]
+            lower_ratio_series = broadcast_to_sequence(lower_ratio, n_periods + 1)[1:]
             charge_capacity_threshold = (max_ratio_series - lower_ratio_series) * capacity[1:]
             if soc_pricing_spec is None:
                 soc_pricing_spec = {
@@ -495,18 +495,6 @@ class BatteryAdapter:
 
 
 adapter = BatteryAdapter()
-
-
-def _ratio_series(value: NDArray[np.floating[Any]] | float, n_periods: int) -> NDArray[np.float64]:
-    """Normalize ratio values to a per-period series."""
-    if n_periods == 0:
-        return np.array([], dtype=np.float64)
-    if isinstance(value, np.ndarray):
-        ratio = np.asarray(value, dtype=float)
-        if ratio.size == n_periods + 1:
-            ratio = ratio[1:]
-        return broadcast_to_sequence(ratio, n_periods)
-    return broadcast_to_sequence(float(value), n_periods)
 
 
 def _calculate_total_energy(aggregate_energy: OutputData, config: BatteryConfigData) -> OutputData:
