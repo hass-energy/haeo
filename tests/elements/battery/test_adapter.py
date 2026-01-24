@@ -4,6 +4,7 @@ from homeassistant.core import HomeAssistant
 import numpy as np
 
 from custom_components.haeo.elements import battery
+from custom_components.haeo.elements.battery.adapter import _ratio_series
 from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_BATTERY, MODEL_ELEMENT_TYPE_CONNECTION
 from custom_components.haeo.model.elements.segments import is_efficiency_spec
 
@@ -204,3 +205,45 @@ def test_model_elements_passes_efficiency_when_present() -> None:
     efficiency_target_source = efficiency_segment.get("efficiency_target_source")
     assert efficiency_target_source is not None
     np.testing.assert_array_equal(efficiency_target_source, [0.95, 0.95])
+
+
+def test_model_elements_overcharge_only_adds_soc_pricing() -> None:
+    """SOC pricing is added when only overcharge inputs are configured."""
+    config_data: battery.BatteryConfigData = {
+        "element_type": "battery",
+        "name": "test_battery",
+        "connection": "main_bus",
+        "capacity": np.array([10.0, 10.0, 10.0]),
+        "initial_charge_percentage": np.array([0.5, 0.5]),
+        "min_charge_percentage": np.array([0.1, 0.1, 0.1]),
+        "max_charge_percentage": np.array([0.9, 0.9, 0.9]),
+        "overcharge_percentage": np.array([0.95, 0.95, 0.95]),
+        "overcharge_cost": np.array([0.2, 0.2]),
+    }
+
+    elements = battery.adapter.model_elements(config_data)
+    connection = next(element for element in elements if element["element_type"] == MODEL_ELEMENT_TYPE_CONNECTION and element["name"] == "test_battery:connection")
+    segments = connection.get("segments")
+    assert segments is not None
+    soc_pricing = segments.get("soc_pricing")
+    assert soc_pricing is not None
+    assert soc_pricing.get("undercharge_threshold") is None
+    assert soc_pricing.get("overcharge_threshold") is not None
+
+
+def test_ratio_series_handles_empty_periods() -> None:
+    """Ratio series returns empty when there are no periods."""
+    result = _ratio_series(0.5, 0)
+    assert result.size == 0
+
+
+def test_ratio_series_trims_boundary_series() -> None:
+    """Ratio series drops the first boundary value when provided."""
+    result = _ratio_series(np.array([0.1, 0.2, 0.3]), 2)
+    assert result.tolist() == [0.2, 0.3]
+
+
+def test_ratio_series_broadcasts_scalar() -> None:
+    """Ratio series broadcasts scalar ratios across periods."""
+    result = _ratio_series(0.4, 3)
+    assert result.tolist() == [0.4, 0.4, 0.4]

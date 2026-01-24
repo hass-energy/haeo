@@ -10,10 +10,18 @@ import pytest
 
 from custom_components.haeo.model.element import Element
 from custom_components.haeo.model.elements.connection import Connection
-from custom_components.haeo.model.elements.segments import PowerLimitSegment, PricingSegment
+from custom_components.haeo.model.elements.segments import (
+    PowerLimitSegment,
+    PricingSegment,
+    is_efficiency_spec,
+    is_passthrough_spec,
+    is_power_limit_spec,
+    is_pricing_spec,
+    is_soc_pricing_spec,
+)
 
 from . import test_data
-from .test_data.segment_types import ConnectionScenario, ExpectedValue, SegmentScenario
+from .test_data.segment_types import ConnectionScenario, ExpectedValue, SegmentErrorScenario, SegmentScenario
 
 
 def create_solver() -> Highs:
@@ -60,8 +68,12 @@ def _assert_expected_outputs(actual: dict[str, ExpectedValue], expected: dict[st
 def _solve_segment_scenario(case: SegmentScenario) -> dict[str, ExpectedValue]:
     h = create_solver()
     periods = np.asarray(case["periods"], dtype=np.float64)
-    source = DummyElement("source", periods, h)
-    target = DummyElement("target", periods, h)
+    endpoint_factory = case.get("endpoint_factory")
+    if endpoint_factory is None:
+        source = DummyElement("source", periods, h)
+        target = DummyElement("target", periods, h)
+    else:
+        source, target = endpoint_factory(h, periods)
     seg = case["factory"](
         "seg",
         len(periods),
@@ -203,3 +215,51 @@ def test_connection_scenarios(case: ConnectionScenario) -> None:
     """Connections should match expected inputs/outputs."""
     outputs = _solve_connection_scenario(case)
     _assert_expected_outputs(outputs, case["expected_outputs"])
+
+
+@pytest.mark.parametrize("case", test_data.SEGMENT_ERROR_SCENARIOS, ids=lambda c: c["description"])
+def test_segment_error_scenarios(case: SegmentErrorScenario) -> None:
+    """Segments should raise errors for invalid configurations."""
+    h = create_solver()
+    periods = np.asarray(case["periods"], dtype=np.float64)
+    endpoint_factory = case.get("endpoint_factory")
+    if endpoint_factory is None:
+        source = DummyElement("source", periods, h)
+        target = DummyElement("target", periods, h)
+    else:
+        source, target = endpoint_factory(h, periods)
+
+    match = case["match"]
+    if match is None:
+        with pytest.raises(case["error"]):
+            case["factory"](
+                "seg",
+                len(periods),
+                periods,
+                h,
+                spec=case["spec"],
+                source_element=source,
+                target_element=target,
+            )
+    else:
+        with pytest.raises(case["error"], match=match):
+            case["factory"](
+                "seg",
+                len(periods),
+                periods,
+                h,
+                spec=case["spec"],
+                source_element=source,
+                target_element=target,
+            )
+
+
+def test_segment_spec_typeguards() -> None:
+    """Type guard helpers identify segment specs by type."""
+    assert is_efficiency_spec(
+        {"segment_type": "efficiency", "efficiency_source_target": None, "efficiency_target_source": None}
+    )
+    assert is_passthrough_spec({"segment_type": "passthrough"})
+    assert is_power_limit_spec({"segment_type": "power_limit"})
+    assert is_pricing_spec({"segment_type": "pricing", "price_source_target": None, "price_target_source": None})
+    assert is_soc_pricing_spec({"segment_type": "soc_pricing"})
