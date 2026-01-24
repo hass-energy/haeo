@@ -227,8 +227,8 @@ def test_model_elements_overcharge_only_adds_soc_pricing() -> None:
     assert segments is not None
     soc_pricing = segments.get("soc_pricing")
     assert soc_pricing is not None
-    assert soc_pricing.get("lower_energy_threshold") is None
-    assert soc_pricing.get("upper_energy_threshold") is not None
+    assert soc_pricing.get("discharge_energy_threshold") is None
+    assert soc_pricing.get("charge_capacity_threshold") is not None
 
 
 def test_ratio_series_handles_empty_periods() -> None:

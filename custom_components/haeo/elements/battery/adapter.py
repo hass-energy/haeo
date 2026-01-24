@@ -391,28 +391,28 @@ class BatteryAdapter:
         if undercharge_percentage is not None and undercharge_cost is not None:
             min_ratio_series = _ratio_series(min_charge_percentage, n_periods)
             lower_ratio_series = _ratio_series(lower_ratio, n_periods)
-            lower_energy_threshold = (min_ratio_series - lower_ratio_series) * capacity[1:]
+            discharge_energy_threshold = (min_ratio_series - lower_ratio_series) * capacity[1:]
             soc_pricing_spec = {
                 "segment_type": "soc_pricing",
-                "lower_energy_threshold": lower_energy_threshold,
-                "lower_energy_price": undercharge_cost,
+                "discharge_energy_threshold": discharge_energy_threshold,
+                "discharge_energy_price": undercharge_cost,
             }
 
         if overcharge_percentage is not None and overcharge_cost is not None:
             max_ratio_series = _ratio_series(max_charge_percentage, n_periods)
             lower_ratio_series = _ratio_series(lower_ratio, n_periods)
-            upper_energy_threshold = (max_ratio_series - lower_ratio_series) * capacity[1:]
+            charge_capacity_threshold = (max_ratio_series - lower_ratio_series) * capacity[1:]
             if soc_pricing_spec is None:
                 soc_pricing_spec = {
                     "segment_type": "soc_pricing",
-                    "upper_energy_threshold": upper_energy_threshold,
-                    "upper_energy_price": overcharge_cost,
+                    "charge_capacity_threshold": charge_capacity_threshold,
+                    "charge_capacity_price": overcharge_cost,
                 }
             else:
                 soc_pricing_spec = {
                     **soc_pricing_spec,
-                    "upper_energy_threshold": upper_energy_threshold,
-                    "upper_energy_price": overcharge_cost,
+                    "charge_capacity_threshold": charge_capacity_threshold,
+                    "charge_capacity_price": overcharge_cost,
                 }
 
         segments: dict[str, SegmentSpec] = {
