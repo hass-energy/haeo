@@ -458,11 +458,7 @@ class BatteryAdapter:
 
         Maps outputs from a single battery model element.
         """
-        battery_outputs = (
-            {key: expect_output_data(value) for key, value in model_outputs[name].items()}
-            if name in model_outputs
-            else {}
-        )
+        battery_outputs = {key: expect_output_data(value) for key, value in model_outputs[name].items()}
 
         power_charge = battery_outputs[model_battery.BATTERY_POWER_CHARGE]
         power_discharge = battery_outputs[model_battery.BATTERY_POWER_DISCHARGE]
@@ -485,21 +481,15 @@ class BatteryAdapter:
             type=OutputType.POWER,
         )
 
-        if model_battery.BATTERY_POWER_BALANCE in battery_outputs:
-            aggregate_outputs[BATTERY_POWER_BALANCE] = battery_outputs[model_battery.BATTERY_POWER_BALANCE]
-
-        if model_battery.BATTERY_ENERGY_IN_FLOW in battery_outputs:
-            aggregate_outputs[BATTERY_ENERGY_IN_FLOW] = replace(
-                battery_outputs[model_battery.BATTERY_ENERGY_IN_FLOW], advanced=True
-            )
-        if model_battery.BATTERY_ENERGY_OUT_FLOW in battery_outputs:
-            aggregate_outputs[BATTERY_ENERGY_OUT_FLOW] = replace(
-                battery_outputs[model_battery.BATTERY_ENERGY_OUT_FLOW], advanced=True
-            )
-        if model_battery.BATTERY_SOC_MAX in battery_outputs:
-            aggregate_outputs[BATTERY_SOC_MAX] = replace(battery_outputs[model_battery.BATTERY_SOC_MAX], advanced=True)
-        if model_battery.BATTERY_SOC_MIN in battery_outputs:
-            aggregate_outputs[BATTERY_SOC_MIN] = replace(battery_outputs[model_battery.BATTERY_SOC_MIN], advanced=True)
+        aggregate_outputs[BATTERY_POWER_BALANCE] = battery_outputs[model_battery.BATTERY_POWER_BALANCE]
+        aggregate_outputs[BATTERY_ENERGY_IN_FLOW] = replace(
+            battery_outputs[model_battery.BATTERY_ENERGY_IN_FLOW], advanced=True
+        )
+        aggregate_outputs[BATTERY_ENERGY_OUT_FLOW] = replace(
+            battery_outputs[model_battery.BATTERY_ENERGY_OUT_FLOW], advanced=True
+        )
+        aggregate_outputs[BATTERY_SOC_MAX] = replace(battery_outputs[model_battery.BATTERY_SOC_MAX], advanced=True)
+        aggregate_outputs[BATTERY_SOC_MIN] = replace(battery_outputs[model_battery.BATTERY_SOC_MIN], advanced=True)
 
         return {BATTERY_DEVICE_BATTERY: aggregate_outputs}
 
