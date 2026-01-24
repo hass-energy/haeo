@@ -391,28 +391,28 @@ class BatteryAdapter:
         if undercharge_percentage is not None and undercharge_cost is not None:
             min_ratio_series = _ratio_series(min_charge_percentage, n_periods)
             lower_ratio_series = _ratio_series(lower_ratio, n_periods)
-            undercharge_threshold = (min_ratio_series - lower_ratio_series) * capacity[1:]
+            lower_energy_threshold = (min_ratio_series - lower_ratio_series) * capacity[1:]
             soc_pricing_spec = {
                 "segment_type": "soc_pricing",
-                "undercharge_threshold": undercharge_threshold,
-                "undercharge_price": undercharge_cost,
+                "lower_energy_threshold": lower_energy_threshold,
+                "lower_energy_price": undercharge_cost,
             }
 
         if overcharge_percentage is not None and overcharge_cost is not None:
             max_ratio_series = _ratio_series(max_charge_percentage, n_periods)
             lower_ratio_series = _ratio_series(lower_ratio, n_periods)
-            overcharge_threshold = (max_ratio_series - lower_ratio_series) * capacity[1:]
+            upper_energy_threshold = (max_ratio_series - lower_ratio_series) * capacity[1:]
             if soc_pricing_spec is None:
                 soc_pricing_spec = {
                     "segment_type": "soc_pricing",
-                    "overcharge_threshold": overcharge_threshold,
-                    "overcharge_price": overcharge_cost,
+                    "upper_energy_threshold": upper_energy_threshold,
+                    "upper_energy_price": overcharge_cost,
                 }
             else:
                 soc_pricing_spec = {
                     **soc_pricing_spec,
-                    "overcharge_threshold": overcharge_threshold,
-                    "overcharge_price": overcharge_cost,
+                    "upper_energy_threshold": upper_energy_threshold,
+                    "upper_energy_price": overcharge_cost,
                 }
 
         segments: dict[str, SegmentSpec] = {

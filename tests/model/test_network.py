@@ -405,8 +405,8 @@ def test_add_soc_pricing_connection() -> None:
             "segments": {
                 "soc": {
                     "segment_type": "soc_pricing",
-                    "undercharge_threshold": np.array([1.0, 1.0, 1.0]),
-                    "undercharge_price": np.array([0.1, 0.1, 0.1]),
+                    "lower_energy_threshold": np.array([1.0, 1.0, 1.0]),
+                    "lower_energy_price": np.array([0.1, 0.1, 0.1]),
                 }
             },
         }
@@ -434,8 +434,8 @@ def test_add_soc_pricing_connection_without_battery() -> None:
                 "segments": {
                     "soc": {
                         "segment_type": "soc_pricing",
-                        "undercharge_threshold": np.array([1.0, 1.0, 1.0]),
-                        "undercharge_price": np.array([0.1, 0.1, 0.1]),
+                        "lower_energy_threshold": np.array([1.0, 1.0, 1.0]),
+                        "lower_energy_price": np.array([0.1, 0.1, 0.1]),
                     }
                 },
             }

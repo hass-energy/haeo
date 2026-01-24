@@ -78,8 +78,8 @@ Battery creates a single Home Assistant device:
 | `max_charge_percentage`     | Battery + SOC pricing | Preferred maximum SOC threshold                        | Penalty threshold          |
 | `undercharge_percentage`    | Battery               | Lower bound for SOC range                              | Hard minimum               |
 | `overcharge_percentage`     | Battery               | Upper bound for SOC range                              | Hard maximum               |
-| `undercharge_cost`          | SOC pricing segment   | `undercharge_price`                                    | Penalty below min SOC      |
-| `overcharge_cost`           | SOC pricing segment   | `overcharge_price`                                     | Penalty above max SOC      |
+| `undercharge_cost`          | SOC pricing segment   | `lower_energy_price`                                   | Penalty below min SOC      |
+| `overcharge_cost`           | SOC pricing segment   | `upper_energy_price`                                   | Penalty above max SOC      |
 | `early_charge_incentive`    | Pricing segment       | Time-varying charge/discharge incentive                | Applied on main connection |
 | `discharge_cost`            | Pricing segment       | Added to `price_source_target`                         | Base discharge cost        |
 | `efficiency`                | Efficiency segment    | `efficiency_source_target`, `efficiency_target_source` | Applied to both directions |
