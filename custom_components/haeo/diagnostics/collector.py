@@ -20,7 +20,11 @@ from custom_components.haeo.const import (
     CONF_TIER_4_COUNT,
     CONF_TIER_4_DURATION,
 )
-from custom_components.haeo.elements import ElementConfigSchema, is_element_config_schema, set_nested_config_value
+from custom_components.haeo.elements import (
+    ElementConfigSchema,
+    is_element_config_schema,
+    set_nested_config_value_by_path,
+)
 from custom_components.haeo.entities.haeo_number import ConfigEntityMode, HaeoInputNumber
 from custom_components.haeo.entities.haeo_switch import HaeoInputSwitch
 from custom_components.haeo.flows import HUB_SECTION_TIERS
@@ -121,7 +125,7 @@ async def collect_diagnostics(
     # Only do this for current state (not historical)
     runtime_data = config_entry.runtime_data
     if not state_provider.is_historical and isinstance(runtime_data, HaeoRuntimeData):
-        for (element_name, field_name), entity in runtime_data.input_entities.items():
+        for (element_name, field_path), entity in runtime_data.input_entities.items():
             if element_name not in config["participants"]:
                 continue
             participant = config["participants"][element_name]
@@ -130,18 +134,10 @@ async def collect_diagnostics(
             if entity.entity_mode != ConfigEntityMode.EDITABLE:
                 continue
 
-            if (
-                isinstance(entity, HaeoInputNumber)
-                and entity.native_value is not None
-                and not set_nested_config_value(participant, field_name, entity.native_value)
-            ):
-                participant[field_name] = entity.native_value
-            elif (
-                isinstance(entity, HaeoInputSwitch)
-                and entity.is_on is not None
-                and not set_nested_config_value(participant, field_name, entity.is_on)
-            ):
-                participant[field_name] = entity.is_on
+            if isinstance(entity, HaeoInputNumber) and entity.native_value is not None:
+                set_nested_config_value_by_path(participant, field_path, entity.native_value)
+            elif isinstance(entity, HaeoInputSwitch) and entity.is_on is not None:
+                set_nested_config_value_by_path(participant, field_path, entity.is_on)
 
     # Collect input sensor states for all entities used in the configuration
     all_entity_ids: set[str] = set()

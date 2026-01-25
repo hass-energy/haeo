@@ -56,6 +56,7 @@ if TYPE_CHECKING:
     from custom_components.haeo.entities.auto_optimize_switch import AutoOptimizeSwitch
     from custom_components.haeo.entities.haeo_number import HaeoInputNumber
     from custom_components.haeo.entities.haeo_switch import HaeoInputSwitch
+    from custom_components.haeo.elements import InputFieldPath
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -340,7 +341,7 @@ class HaeoRuntimeData:
 
     Attributes:
         horizon_manager: Manager providing forecast time windows.
-        input_entities: Dict of input entities keyed by (element_name, field_name).
+        input_entities: Dict of input entities keyed by (element_name, field_path).
         auto_optimize_switch: Switch controlling automatic optimization.
         coordinator: Coordinator for network-level optimization (set after input platforms).
         value_update_in_progress: Flag to skip reload when updating entity values.
@@ -348,7 +349,9 @@ class HaeoRuntimeData:
     """
 
     horizon_manager: HorizonManager
-    input_entities: dict[tuple[str, str], HaeoInputNumber | HaeoInputSwitch] = field(default_factory=dict)
+    input_entities: dict[tuple[str, InputFieldPath], HaeoInputNumber | HaeoInputSwitch] = field(
+        default_factory=dict
+    )
     auto_optimize_switch: AutoOptimizeSwitch | None = field(default=None)
     coordinator: HaeoDataUpdateCoordinator | None = field(default=None)
     value_update_in_progress: bool = field(default=False)

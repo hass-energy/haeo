@@ -16,7 +16,7 @@ from homeassistant.util import dt as dt_util
 
 from custom_components.haeo import HaeoConfigEntry
 from custom_components.haeo.data.loader import TimeSeriesLoader
-from custom_components.haeo.elements import get_nested_config_value
+from custom_components.haeo.elements import InputFieldPath, find_nested_config_path, get_nested_config_value_by_path
 from custom_components.haeo.elements.input_fields import InputFieldInfo
 from custom_components.haeo.horizon import HorizonManager
 from custom_components.haeo.util import async_update_subentry_value
@@ -54,6 +54,7 @@ class HaeoInputNumber(NumberEntity):
         config_entry: HaeoConfigEntry,
         subentry: ConfigSubentry,
         field_info: InputFieldInfo[NumberEntityDescription],
+        field_path: InputFieldPath | None = None,
         device_entry: DeviceEntry,
         horizon_manager: HorizonManager,
     ) -> None:
@@ -62,6 +63,11 @@ class HaeoInputNumber(NumberEntity):
         self._config_entry: HaeoConfigEntry = config_entry
         self._subentry = subentry
         self._field_info = field_info
+        self._field_path = (
+            field_path
+            or find_nested_config_path(subentry.data, field_info.field_name)
+            or (field_info.field_name,)
+        )
         self._horizon_manager = horizon_manager
 
         # Set device_entry to link entity to device
@@ -70,7 +76,7 @@ class HaeoInputNumber(NumberEntity):
         # Determine mode from config value type
         # Entity IDs can be list[str] (new format) or str (v0.1 format)
         # Constants are stored as float from NumberSelector
-        config_value = get_nested_config_value(subentry.data, field_info.field_name)
+        config_value = get_nested_config_value_by_path(subentry.data, self._field_path)
 
         if isinstance(config_value, list) and config_value:
             # DRIVEN mode: value comes from external sensors (list format)
@@ -90,7 +96,8 @@ class HaeoInputNumber(NumberEntity):
             self._attr_native_value = float(config_value)  # type: ignore[arg-type]
 
         # Unique ID for multi-hub safety: entry_id + subentry_id + field_name
-        self._attr_unique_id = f"{config_entry.entry_id}_{subentry.subentry_id}_{field_info.field_name}"
+        field_path_key = ".".join(self._field_path)
+        self._attr_unique_id = f"{config_entry.entry_id}_{subentry.subentry_id}_{field_path_key}"
 
         # Use entity description directly from field info
         self.entity_description = field_info.entity_description
@@ -112,6 +119,7 @@ class HaeoInputNumber(NumberEntity):
             "element_name": subentry.title,
             "element_type": subentry.subentry_type,
             "field_name": field_info.field_name,
+            "field_path": field_path_key,
             "output_type": field_info.output_type,
             "time_series": field_info.time_series,
         }
@@ -327,8 +335,8 @@ class HaeoInputNumber(NumberEntity):
             self._hass,
             self._config_entry,
             self._subentry,
-            self._field_info.field_name,
-            value,
+            field_path=self._field_path,
+            value=value,
         )
 
 

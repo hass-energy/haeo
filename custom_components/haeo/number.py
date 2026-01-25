@@ -7,7 +7,12 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from custom_components.haeo import HaeoConfigEntry
 from custom_components.haeo.const import CONF_ELEMENT_TYPE
-from custom_components.haeo.elements import get_input_fields, get_nested_config_value, is_element_config_schema
+from custom_components.haeo.elements import (
+    get_input_fields,
+    get_nested_config_value_by_path,
+    is_element_config_schema,
+    iter_input_field_paths,
+)
 from custom_components.haeo.entities.device import get_or_create_element_device
 from custom_components.haeo.entities.haeo_number import HaeoInputNumber
 
@@ -46,7 +51,9 @@ async def async_setup_entry(
         # Filter to only number fields (by entity description class name)
         # Note: isinstance doesn't work due to Home Assistant's frozen_dataclass_compat wrapper
         number_fields = [
-            f for f in input_fields.values() if type(f.entity_description).__name__ == "NumberEntityDescription"
+            (field_path, field_info)
+            for field_path, field_info in iter_input_field_paths(input_fields)
+            if type(field_info.entity_description).__name__ == "NumberEntityDescription"
         ]
 
         if not number_fields:
@@ -56,9 +63,9 @@ async def async_setup_entry(
         # Input entities go on the main device (element_type matches device_name)
         device_entry = get_or_create_element_device(hass, config_entry, subentry, element_type)
 
-        for field_info in number_fields:
+        for field_path, field_info in number_fields:
             # Only create entities for configured fields
-            if get_nested_config_value(subentry.data, field_info.field_name) is None:
+            if get_nested_config_value_by_path(subentry.data, field_path) is None:
                 continue
 
             entity = HaeoInputNumber(
@@ -66,6 +73,7 @@ async def async_setup_entry(
                 config_entry=config_entry,
                 subentry=subentry,
                 field_info=field_info,
+                field_path=field_path,
                 device_entry=device_entry,
                 horizon_manager=horizon_manager,
             )
@@ -73,8 +81,7 @@ async def async_setup_entry(
 
             # Register in runtime_data for coordinator access
             element_name = subentry.title
-            field_name = field_info.field_name
-            runtime_data.input_entities[(element_name, field_name)] = entity
+            runtime_data.input_entities[(element_name, field_path)] = entity
 
     if entities:
         _LOGGER.debug("Creating %d number entities for HAEO inputs", len(entities))

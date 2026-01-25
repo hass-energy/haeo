@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Any
 from homeassistant.config_entries import ConfigSubentry
 from homeassistant.core import HomeAssistant
 
-from custom_components.haeo.elements import set_nested_config_value
+from custom_components.haeo.elements import InputFieldPath, set_nested_config_value_by_path
 
 if TYPE_CHECKING:
     from custom_components.haeo import HaeoConfigEntry
@@ -15,7 +15,7 @@ async def async_update_subentry_value(
     hass: HomeAssistant,
     entry: "HaeoConfigEntry",
     subentry: ConfigSubentry,
-    field_name: str,
+    field_path: InputFieldPath,
     value: Any,
 ) -> None:
     """Update a single field value in a subentry without triggering reload.
@@ -28,7 +28,7 @@ async def async_update_subentry_value(
         hass: Home Assistant instance.
         entry: The hub config entry.
         subentry: The subentry to update.
-        field_name: Name of the field to update.
+        field_path: Path to the field to update.
         value: New value for the field.
 
     """
@@ -39,8 +39,7 @@ async def async_update_subentry_value(
 
     # Update subentry data with new value
     new_data = dict(subentry.data)
-    if not set_nested_config_value(new_data, field_name, value):
-        new_data[field_name] = value
+    set_nested_config_value_by_path(new_data, field_path, value)
 
     try:
         hass.config_entries.async_update_subentry(

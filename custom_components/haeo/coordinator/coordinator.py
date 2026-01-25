@@ -42,10 +42,11 @@ from custom_components.haeo.elements import (
     ElementOutputName,
     collect_element_subentries,
     get_input_fields,
-    get_nested_config_value,
     is_element_config_data,
     is_element_type,
-    set_nested_config_value,
+    get_nested_config_value_by_path,
+    iter_input_field_paths,
+    set_nested_config_value_by_path,
 )
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED
 from custom_components.haeo.model import ModelOutputName, Network, OutputData, OutputType
@@ -313,7 +314,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
 
         # Group input entities by element name
         entities_by_element: dict[str, list[str]] = {}
-        for (element_name, _field_name), entity in runtime_data.input_entities.items():
+        for (element_name, _field_path), entity in runtime_data.input_entities.items():
             if element_name not in entities_by_element:
                 entities_by_element[element_name] = []
             entities_by_element[element_name].append(entity.entity_id)
@@ -532,11 +533,11 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         input_field_infos = get_input_fields(element_config)
 
         # Collect loaded values from input entities
-        loaded_values: dict[str, Any] = {}
-        missing_entity_values: set[str] = set()
-        for field_info in input_field_infos.values():
+        loaded_values: dict[tuple[str, ...], Any] = {}
+        missing_entity_values: set[tuple[str, ...]] = set()
+        for field_path, field_info in iter_input_field_paths(input_field_infos):
             field_name = field_info.field_name
-            key = (element_name, field_name)
+            key = (element_name, field_path)
 
             if key not in runtime_data.input_entities:
                 continue
@@ -545,34 +546,34 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             values = entity.get_values()
 
             if values is None:
-                missing_entity_values.add(field_name)
+                missing_entity_values.add(field_path)
                 continue
 
             if field_info.time_series:
-                loaded_values[field_name] = np.asarray(values, dtype=float)
+                loaded_values[field_path] = np.asarray(values, dtype=float)
             else:
-                loaded_values[field_name] = values[0] if values else None
+                loaded_values[field_path] = values[0] if values else None
 
         element_values: dict[str, Any] = deepcopy(dict(element_config))
-        for field_name, value in loaded_values.items():
-            set_nested_config_value(element_values, field_name, value)
+        for field_path, value in loaded_values.items():
+            set_nested_config_value_by_path(element_values, field_path, value)
 
         optional_keys = ELEMENT_OPTIONAL_INPUT_FIELDS[element_type]
-        for field_info in input_field_infos.values():
+        for field_path, field_info in iter_input_field_paths(input_field_infos):
             field_name = field_info.field_name
             is_required = field_info.force_required or field_name not in optional_keys
             if not is_required:
                 continue
-            key = (element_name, field_name)
+            key = (element_name, field_path)
             if key not in runtime_data.input_entities:
-                msg = f"Missing required field '{field_name}' for element '{element_name}'"
+                msg = f"Missing required field '{'.'.join(field_path)}' for element '{element_name}'"
                 raise ValueError(msg)
-            if field_name in missing_entity_values:
-                msg = f"Missing required field '{field_name}' for element '{element_name}'"
+            if field_path in missing_entity_values:
+                msg = f"Missing required field '{'.'.join(field_path)}' for element '{element_name}'"
                 raise ValueError(msg)
-            value = get_nested_config_value(element_values, field_name)
+            value = get_nested_config_value_by_path(element_values, field_path)
             if value is None:
-                msg = f"Missing required field '{field_name}' for element '{element_name}'"
+                msg = f"Missing required field '{'.'.join(field_path)}' for element '{element_name}'"
                 raise ValueError(msg)
 
         if not is_element_config_data(element_values):
