@@ -60,7 +60,6 @@ from custom_components.haeo.elements.grid import CONF_SECTION_BASIC as CONF_GRID
 from custom_components.haeo.elements.grid import CONF_SECTION_LIMITS as CONF_GRID_SECTION_LIMITS
 from custom_components.haeo.elements.grid import CONF_SECTION_PRICING as CONF_GRID_SECTION_PRICING
 from custom_components.haeo.entities.haeo_number import ConfigEntityMode, HaeoInputNumber
-from custom_components.haeo.entities.haeo_switch import HaeoInputSwitch
 from custom_components.haeo.model import OutputType
 
 
@@ -481,16 +480,11 @@ async def test_diagnostics_captures_editable_entity_values(hass: HomeAssistant) 
     mock_number.entity_mode = ConfigEntityMode.EDITABLE
     mock_number.native_value = 12.5  # Current value differs from config
 
-    mock_switch = Mock(spec=HaeoInputSwitch)
-    mock_switch.entity_mode = ConfigEntityMode.EDITABLE
-    mock_switch.is_on = True
-
     # Create HaeoRuntimeData with input entities
     runtime_data = HaeoRuntimeData(
         horizon_manager=Mock(),
         input_entities={
-            ("Battery One", CONF_CAPACITY): mock_number,
-            ("Battery One", "some_boolean_field"): mock_switch,
+            ("Battery One", (CONF_SECTION_BASIC, CONF_CAPACITY)): mock_number,
         },
     )
     entry.runtime_data = runtime_data
@@ -500,7 +494,6 @@ async def test_diagnostics_captures_editable_entity_values(hass: HomeAssistant) 
     # Verify that editable entity values are captured in config
     battery_config = diagnostics["config"]["participants"]["Battery One"]
     assert battery_config[CONF_SECTION_BASIC][CONF_CAPACITY] == 12.5  # Current entity value, not config value
-    assert battery_config["some_boolean_field"] is True
 
 
 async def test_diagnostics_skips_unknown_element_in_input_entities(hass: HomeAssistant) -> None:
@@ -553,7 +546,7 @@ async def test_diagnostics_skips_unknown_element_in_input_entities(hass: HomeAss
         horizon_manager=Mock(),
         input_entities={
             # This element doesn't exist in participants
-            ("Unknown Element", CONF_CAPACITY): mock_number,
+            ("Unknown Element", (CONF_SECTION_BASIC, CONF_CAPACITY)): mock_number,
         },
     )
     entry.runtime_data = runtime_data
@@ -615,7 +608,7 @@ async def test_diagnostics_skips_driven_entity_values(hass: HomeAssistant) -> No
     runtime_data = HaeoRuntimeData(
         horizon_manager=Mock(),
         input_entities={
-            ("Battery One", CONF_CAPACITY): mock_number,
+            ("Battery One", (CONF_SECTION_BASIC, CONF_CAPACITY)): mock_number,
         },
     )
     entry.runtime_data = runtime_data
@@ -915,25 +908,25 @@ async def test_diagnostics_skips_switch_with_none_value(hass: HomeAssistant) -> 
     )
     hass.config_entries.async_add_subentry(entry, battery_subentry)
 
-    # Create mock editable switch entity with is_on = None
-    mock_switch = Mock(spec=HaeoInputSwitch)
-    mock_switch.entity_mode = ConfigEntityMode.EDITABLE
-    mock_switch.is_on = None  # None value should be skipped
+    # Create mock editable number entity with native_value = None
+    mock_number = Mock(spec=HaeoInputNumber)
+    mock_number.entity_mode = ConfigEntityMode.EDITABLE
+    mock_number.native_value = None  # None value should be skipped
 
     # Create HaeoRuntimeData with input entities
     runtime_data = HaeoRuntimeData(
         horizon_manager=Mock(),
         input_entities={
-            ("Battery One", "some_boolean_field"): mock_switch,
+            ("Battery One", (CONF_SECTION_BASIC, CONF_CAPACITY)): mock_number,
         },
     )
     entry.runtime_data = runtime_data
 
     diagnostics = await async_get_config_entry_diagnostics(hass, entry)
 
-    # Verify that the switch with None value is NOT captured in config
+    # Verify that the None value is NOT captured in config
     battery_config = diagnostics["config"]["participants"]["Battery One"]
-    assert "some_boolean_field" not in battery_config
+    assert battery_config[CONF_SECTION_BASIC][CONF_CAPACITY] == 10.0
 
 
 async def test_collect_diagnostics_returns_missing_entity_ids(hass: HomeAssistant) -> None:

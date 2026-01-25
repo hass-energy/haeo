@@ -65,6 +65,8 @@ from custom_components.haeo.elements.battery import (
     CONF_MAX_CHARGE_POWER,
     CONF_MAX_DISCHARGE_POWER,
     CONF_MIN_CHARGE_PERCENTAGE,
+    CONF_SECTION_BASIC,
+    CONF_SECTION_LIMITS,
 )
 from custom_components.haeo.elements.connection import (
     CONF_SOURCE,
@@ -631,7 +633,7 @@ def test_coordinator_cleanup_invokes_listener(
     # Add a mock input entity so subscription gets created
     mock_input_entity = MagicMock()
     mock_input_entity.entity_id = "number.haeo_test_battery_power"
-    mock_runtime_data.input_entities[("Test Battery", "power")] = mock_input_entity
+    mock_runtime_data.input_entities[("Test Battery", (CONF_SECTION_LIMITS, CONF_MAX_CHARGE_POWER))] = mock_input_entity
 
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
 
@@ -868,7 +870,7 @@ def test_are_inputs_aligned_returns_false_with_none_horizon_start(
     # Add mock input entity with None horizon_start
     mock_entity = MagicMock()
     mock_entity.horizon_start = None
-    mock_runtime_data.input_entities[("Test Battery", "capacity")] = mock_entity
+    mock_runtime_data.input_entities[("Test Battery", (CONF_SECTION_BASIC, CONF_CAPACITY))] = mock_entity
 
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
 
@@ -890,7 +892,7 @@ def test_are_inputs_aligned_returns_false_with_misaligned_horizon(
     # Add mock input entity with misaligned horizon (more than 1.0 seconds off)
     mock_entity = MagicMock()
     mock_entity.horizon_start = expected_start + 5.0  # 5 seconds off > 1.0 tolerance
-    mock_runtime_data.input_entities[("Test Battery", "capacity")] = mock_entity
+    mock_runtime_data.input_entities[("Test Battery", (CONF_SECTION_BASIC, CONF_CAPACITY))] = mock_entity
 
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
 
@@ -912,7 +914,7 @@ def test_are_inputs_aligned_returns_true_when_aligned(
     # Add mock input entity with aligned horizon (within tolerance)
     mock_entity = MagicMock()
     mock_entity.horizon_start = expected_start + 0.5  # Within 1.0 tolerance
-    mock_runtime_data.input_entities[("Test Battery", "capacity")] = mock_entity
+    mock_runtime_data.input_entities[("Test Battery", (CONF_SECTION_BASIC, CONF_CAPACITY))] = mock_entity
 
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
 
@@ -1055,7 +1057,7 @@ def test_load_from_input_entities_raises_when_required_input_missing(
     mock_runtime_data.input_entities = {}
 
     # Should raise when required fields are missing
-    with pytest.raises(ValueError, match="Missing required field 'capacity' for element 'Test Battery'"):
+    with pytest.raises(ValueError, match="Missing required field 'basic\\.capacity' for element 'Test Battery'"):
         coordinator._load_from_input_entities()
 
 
@@ -1069,13 +1071,13 @@ def test_load_from_input_entities_loads_time_series_fields(
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
 
     # Create mock input entities for all required fields
-    from custom_components.haeo.elements import get_input_fields  # noqa: PLC0415
+    from custom_components.haeo.elements import get_input_fields, iter_input_field_paths  # noqa: PLC0415
 
     element_config = coordinator._participant_configs["Test Battery"]
-    for field_info in get_input_fields(element_config).values():
+    for field_path, field_info in iter_input_field_paths(get_input_fields(element_config)):
         mock_entity = MagicMock()
         mock_entity.get_values.return_value = (1.0, 2.0, 3.0)
-        mock_runtime_data.input_entities[("Test Battery", field_info.field_name)] = mock_entity
+        mock_runtime_data.input_entities[("Test Battery", field_path)] = mock_entity
 
     result = coordinator._load_from_input_entities()
 
@@ -1099,13 +1101,15 @@ def test_load_from_input_entities_raises_when_required_field_returns_none(
     # Create mock input entity that returns None for required field (capacity)
     mock_entity = MagicMock()
     mock_entity.get_values.return_value = None
-    mock_runtime_data.input_entities[("Test Battery", "capacity")] = mock_entity
-    mock_runtime_data.input_entities[("Test Battery", "initial_charge_percentage")] = MagicMock(
+    mock_runtime_data.input_entities[("Test Battery", (CONF_SECTION_BASIC, CONF_CAPACITY))] = mock_entity
+    mock_runtime_data.input_entities[
+        ("Test Battery", (CONF_SECTION_BASIC, CONF_INITIAL_CHARGE_PERCENTAGE))
+    ] = MagicMock(
         get_values=Mock(return_value=(50.0,))
     )
 
     # Should raise since required field (capacity) returned None
-    with pytest.raises(ValueError, match="Missing required field 'capacity' for element 'Test Battery'"):
+    with pytest.raises(ValueError, match="Missing required field 'basic\\.capacity' for element 'Test Battery'"):
         coordinator._load_from_input_entities()
 
 
@@ -1168,13 +1172,13 @@ def test_load_from_input_entities_raises_for_invalid_config_data(
     }
     coordinator._participant_configs = invalid_config
 
-    from custom_components.haeo.elements import get_input_fields  # noqa: PLC0415
+    from custom_components.haeo.elements import get_input_fields, iter_input_field_paths  # noqa: PLC0415
 
     element_config = coordinator._participant_configs["Bad Battery"]
-    for field_info in get_input_fields(element_config).values():
+    for field_path, field_info in iter_input_field_paths(get_input_fields(element_config)):
         mock_entity = MagicMock()
         mock_entity.get_values.return_value = (1.0, 2.0, 3.0)
-        mock_runtime_data.input_entities[("Bad Battery", field_info.field_name)] = mock_entity
+        mock_runtime_data.input_entities[("Bad Battery", field_path)] = mock_entity
 
     with pytest.raises(ValueError, match="Invalid config data for element 'Bad Battery'"):
         coordinator._load_from_input_entities()

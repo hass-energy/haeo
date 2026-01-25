@@ -555,7 +555,7 @@ async def test_async_setup_entry_raises_config_entry_not_ready_on_timeout(
     class MockRuntimeData:
         def __init__(self) -> None:
             self.horizon_manager = mock_horizon
-            self.input_entities = {("Test Element", "field"): never_ready_entity}
+            self.input_entities = {("Test Element", ("basic", "field")): never_ready_entity}
             self.coordinator = None
             self.value_update_in_progress = False
 
@@ -648,7 +648,7 @@ async def test_setup_reentry_after_timeout_failure(
     class MockRuntimeData:
         def __init__(self, horizon_manager: object) -> None:
             self.horizon_manager = horizon_manager
-            self.input_entities = {("Test Element", "field"): entity}
+            self.input_entities = {("Test Element", ("basic", "field")): entity}
             self.coordinator = None
             self.value_update_in_progress = False
 
