@@ -76,6 +76,32 @@ SCENARIOS: list[SegmentScenario] = [
         "endpoint_factory": _battery_endpoints_fixed,
     },
     {
+        "description": "SOC pricing supports discharge-only penalty",
+        "factory": SocPricingSegment,
+        "spec": {
+            "segment_type": "soc_pricing",
+            "discharge_energy_threshold": np.array([3.0, 3.0]),
+            "discharge_energy_price": np.array([0.5, 0.5]),
+        },
+        "periods": np.array([1.0, 1.0]),
+        "inputs": {"minimize_cost": True},
+        "expected_outputs": {"discharge_energy_slack": (1.0, 0.0), "objective_value": 0.5},
+        "endpoint_factory": _battery_endpoints_fixed,
+    },
+    {
+        "description": "SOC pricing supports charge-only penalty",
+        "factory": SocPricingSegment,
+        "spec": {
+            "segment_type": "soc_pricing",
+            "charge_capacity_threshold": np.array([8.0, 8.0]),
+            "charge_capacity_price": np.array([0.2, 0.2]),
+        },
+        "periods": np.array([1.0, 1.0]),
+        "inputs": {"minimize_cost": True},
+        "expected_outputs": {"charge_capacity_slack": (0.0, 1.0), "objective_value": 0.2},
+        "endpoint_factory": _battery_endpoints_fixed,
+    },
+    {
         "description": "SOC pricing passes through power",
         "factory": SocPricingSegment,
         "spec": {"segment_type": "soc_pricing"},
