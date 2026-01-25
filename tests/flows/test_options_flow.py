@@ -37,8 +37,26 @@ from custom_components.haeo.flows import (
     HORIZON_PRESET_CUSTOM,
     HORIZON_PRESETS,
 )
+import voluptuous as vol
 
 type FlowResultDict = dict[str, Any]
+
+
+def _wrap_options_input(
+    basic: dict[str, Any],
+    advanced: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Wrap options input values into sectioned form data."""
+    return {
+        "basic": basic,
+        "advanced": advanced or {},
+    }
+
+
+def _get_section_schema(data_schema: Any, key: str) -> vol.Schema:
+    """Return the schema for a specific section key."""
+    section_map = {marker.schema: section for marker, section in data_schema.schema.items()}
+    return section_map[key].schema
 
 
 async def test_options_flow_init(hass: HomeAssistant) -> None:
@@ -68,7 +86,8 @@ async def test_options_flow_init(hass: HomeAssistant) -> None:
     assert result["step_id"] == "init"
 
     assert result["data_schema"] is not None
-    schema_keys = {vol_key.schema: vol_key for vol_key in result["data_schema"].schema}
+    basic_schema = _get_section_schema(result["data_schema"], "basic")
+    schema_keys = {vol_key.schema: vol_key for vol_key in basic_schema.schema}
     # Verify preset dropdown is shown with current value as default
     assert CONF_HORIZON_PRESET in schema_keys
     assert schema_keys[CONF_HORIZON_PRESET].default() == HORIZON_PRESET_5_DAYS
@@ -103,10 +122,10 @@ async def test_options_flow_select_preset(hass: HomeAssistant) -> None:
         "FlowResultDict",
         await hass.config_entries.options.async_configure(
             result["flow_id"],
-            user_input={
-                CONF_HORIZON_PRESET: HORIZON_PRESET_3_DAYS,
-                CONF_DEBOUNCE_SECONDS: DEFAULT_DEBOUNCE_SECONDS,
-            },
+            user_input=_wrap_options_input(
+                {CONF_HORIZON_PRESET: HORIZON_PRESET_3_DAYS},
+                {CONF_DEBOUNCE_SECONDS: DEFAULT_DEBOUNCE_SECONDS},
+            ),
         ),
     )
 
@@ -147,10 +166,10 @@ async def test_options_flow_custom_tiers(hass: HomeAssistant) -> None:
         "FlowResultDict",
         await hass.config_entries.options.async_configure(
             result["flow_id"],
-            user_input={
-                CONF_HORIZON_PRESET: HORIZON_PRESET_CUSTOM,
-                CONF_DEBOUNCE_SECONDS: DEFAULT_DEBOUNCE_SECONDS,
-            },
+            user_input=_wrap_options_input(
+                {CONF_HORIZON_PRESET: HORIZON_PRESET_CUSTOM},
+                {CONF_DEBOUNCE_SECONDS: DEFAULT_DEBOUNCE_SECONDS},
+            ),
         ),
     )
 

@@ -7,6 +7,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
 from homeassistant.helpers.translation import async_get_translations
 from pytest_homeassistant_custom_component.common import MockConfigEntry
+import voluptuous as vol
 
 from custom_components.haeo.const import (
     CONF_ADVANCED_MODE,
@@ -43,6 +44,23 @@ from custom_components.haeo.flows import (
 from custom_components.haeo.flows.hub import HubConfigFlow
 
 
+def _wrap_hub_user_input(
+    basic: dict[str, Any],
+    advanced: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Wrap hub input values into sectioned form data."""
+    return {
+        "basic": basic,
+        "advanced": advanced or {},
+    }
+
+
+def _get_section_schema(data_schema: Any, key: str) -> vol.Schema:
+    """Return the schema for a specific section key."""
+    section_map = {marker.schema: section for marker, section in data_schema.schema.items()}
+    return section_map[key].schema
+
+
 async def test_user_flow_success_with_preset(hass: HomeAssistant) -> None:
     """Test successful hub creation via user flow with a preset."""
     result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": SOURCE_USER})
@@ -54,10 +72,12 @@ async def test_user_flow_success_with_preset(hass: HomeAssistant) -> None:
     # Configure with preset (should create entry directly, no second step)
     result = await hass.config_entries.flow.async_configure(
         result["flow_id"],
-        user_input={
-            CONF_NAME: "Test Hub",
-            CONF_HORIZON_PRESET: HORIZON_PRESET_3_DAYS,
-        },
+        user_input=_wrap_hub_user_input(
+            {
+                CONF_NAME: "Test Hub",
+                CONF_HORIZON_PRESET: HORIZON_PRESET_3_DAYS,
+            }
+        ),
     )
 
     assert result.get("type") == FlowResultType.CREATE_ENTRY
@@ -92,10 +112,12 @@ async def test_user_flow_custom_preset_shows_second_step(hass: HomeAssistant) ->
     # Select Custom preset
     result = await hass.config_entries.flow.async_configure(
         result["flow_id"],
-        user_input={
-            CONF_NAME: "Custom Hub",
-            CONF_HORIZON_PRESET: HORIZON_PRESET_CUSTOM,
-        },
+        user_input=_wrap_hub_user_input(
+            {
+                CONF_NAME: "Custom Hub",
+                CONF_HORIZON_PRESET: HORIZON_PRESET_CUSTOM,
+            }
+        ),
     )
 
     # Should show custom_tiers step
@@ -118,10 +140,12 @@ async def test_user_flow_custom_tiers_creates_entry(hass: HomeAssistant) -> None
     # First step: select Custom
     result = await hass.config_entries.flow.async_configure(
         result["flow_id"],
-        user_input={
-            CONF_NAME: "Custom Hub",
-            CONF_HORIZON_PRESET: HORIZON_PRESET_CUSTOM,
-        },
+        user_input=_wrap_hub_user_input(
+            {
+                CONF_NAME: "Custom Hub",
+                CONF_HORIZON_PRESET: HORIZON_PRESET_CUSTOM,
+            }
+        ),
     )
 
     assert result.get("step_id") == "custom_tiers"
@@ -165,10 +189,12 @@ async def test_user_flow_different_presets(hass: HomeAssistant) -> None:
     # Use 5-day preset
     result = await hass.config_entries.flow.async_configure(
         result["flow_id"],
-        user_input={
-            CONF_NAME: "5 Day Hub",
-            CONF_HORIZON_PRESET: HORIZON_PRESET_5_DAYS,
-        },
+        user_input=_wrap_hub_user_input(
+            {
+                CONF_NAME: "5 Day Hub",
+                CONF_HORIZON_PRESET: HORIZON_PRESET_5_DAYS,
+            }
+        ),
     )
 
     assert result.get("type") == FlowResultType.CREATE_ENTRY
@@ -207,10 +233,12 @@ async def test_user_flow_duplicate_name(hass: HomeAssistant) -> None:
 
     result = await hass.config_entries.flow.async_configure(
         result["flow_id"],
-        user_input={
-            CONF_NAME: "Existing Hub",
-            CONF_HORIZON_PRESET: HORIZON_PRESET_3_DAYS,
-        },
+        user_input=_wrap_hub_user_input(
+            {
+                CONF_NAME: "Existing Hub",
+                CONF_HORIZON_PRESET: HORIZON_PRESET_3_DAYS,
+            }
+        ),
     )
 
     assert result.get("type") == FlowResultType.FORM
@@ -219,10 +247,12 @@ async def test_user_flow_duplicate_name(hass: HomeAssistant) -> None:
     # Verify flow can recover from error
     result = await hass.config_entries.flow.async_configure(
         result["flow_id"],
-        user_input={
-            CONF_NAME: "New Hub",
-            CONF_HORIZON_PRESET: HORIZON_PRESET_3_DAYS,
-        },
+        user_input=_wrap_hub_user_input(
+            {
+                CONF_NAME: "New Hub",
+                CONF_HORIZON_PRESET: HORIZON_PRESET_3_DAYS,
+            }
+        ),
     )
 
     assert result.get("type") == FlowResultType.CREATE_ENTRY
@@ -236,10 +266,12 @@ async def test_user_flow_unique_id_prevents_duplicate(hass: HomeAssistant) -> No
 
     result = await hass.config_entries.flow.async_configure(
         result["flow_id"],
-        user_input={
-            CONF_NAME: "Test Hub",
-            CONF_HORIZON_PRESET: HORIZON_PRESET_3_DAYS,
-        },
+        user_input=_wrap_hub_user_input(
+            {
+                CONF_NAME: "Test Hub",
+                CONF_HORIZON_PRESET: HORIZON_PRESET_3_DAYS,
+            }
+        ),
     )
 
     assert result.get("type") == FlowResultType.CREATE_ENTRY
@@ -249,10 +281,12 @@ async def test_user_flow_unique_id_prevents_duplicate(hass: HomeAssistant) -> No
 
     result = await hass.config_entries.flow.async_configure(
         result["flow_id"],
-        user_input={
-            CONF_NAME: "test hub",  # Same name, different case
-            CONF_HORIZON_PRESET: HORIZON_PRESET_3_DAYS,
-        },
+        user_input=_wrap_hub_user_input(
+            {
+                CONF_NAME: "test hub",  # Same name, different case
+                CONF_HORIZON_PRESET: HORIZON_PRESET_3_DAYS,
+            }
+        ),
     )
 
     # Should be rejected due to unique_id check
@@ -269,9 +303,10 @@ async def test_user_flow_default_values(hass: HomeAssistant) -> None:
     assert data_schema is not None
 
     # Check suggested values exist in the schema
-    schema_keys = {vol_key.schema: vol_key for vol_key in data_schema.schema}
+    basic_schema = _get_section_schema(data_schema, "basic")
+    schema_keys = {vol_key.schema: vol_key for vol_key in basic_schema.schema}
 
-    # Verify default horizon preset is 5 days
+    # Verify default horizon preset is 5 days (basic section)
     assert schema_keys[CONF_HORIZON_PRESET].default() == HORIZON_PRESET_5_DAYS
 
 
@@ -354,8 +389,13 @@ async def test_subentry_translations_exist(hass: HomeAssistant) -> None:
         if schema is None:
             continue
 
-        for field in schema.schema:
-            field_name = field.schema
-            assert f"{base_key}.step.user.data.{field_name}" in translations, (
-                f"Missing translation for {element_type} field '{field_name}'"
+        for section_key, section_schema in schema.schema.items():
+            section_name = section_key.schema
+            assert f"{base_key}.step.user.sections.{section_name}.name" in translations, (
+                f"Missing section name translation for {element_type} section '{section_name}'"
             )
+            for field in section_schema.schema.schema:
+                field_name = field.schema
+                assert f"{base_key}.step.user.sections.{section_name}.data.{field_name}" in translations, (
+                    f"Missing translation for {element_type} field '{field_name}' in section '{section_name}'"
+                )
