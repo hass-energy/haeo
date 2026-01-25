@@ -6,7 +6,7 @@ and their associated metadata like output type, direction, and time series behav
 
 from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Any, Literal, TypeAlias
+from typing import Any, Literal
 
 from homeassistant.components.number import NumberEntityDescription
 from homeassistant.components.switch import SwitchEntityDescription
@@ -72,9 +72,9 @@ class InputFieldInfo[T: (NumberEntityDescription, SwitchEntityDescription)]:
     device_type: str | None = None
 
 
-InputFieldSection: TypeAlias = Mapping[str, InputFieldInfo[Any]]
-InputFieldGroups: TypeAlias = Mapping[str, InputFieldSection]
-InputFieldPath: TypeAlias = tuple[str, ...]
+type InputFieldSection = Mapping[str, InputFieldInfo[Any]]
+type InputFieldGroups = Mapping[str, InputFieldSection]
+type InputFieldPath = tuple[str, ...]
 
 __all__ = [
     "InputFieldDefaults",

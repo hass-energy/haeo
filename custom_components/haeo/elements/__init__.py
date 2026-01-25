@@ -475,7 +475,7 @@ def find_nested_config_path(config: Mapping[str, Any], field_name: str) -> Input
         if isinstance(value, Mapping):
             nested = find_nested_config_path(value, field_name)
             if nested is not None:
-                return (key,) + nested
+                return (key, *nested)
     return None
 
 

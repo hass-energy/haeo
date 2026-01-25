@@ -452,9 +452,7 @@ async def test_unique_id_includes_all_components(
         horizon_manager=horizon_manager,
     )
 
-    expected_unique_id = (
-        f"{config_entry.entry_id}_{subentry.subentry_id}_advanced.{curtailment_field_info.field_name}"
-    )
+    expected_unique_id = f"{config_entry.entry_id}_{subentry.subentry_id}_advanced.{curtailment_field_info.field_name}"
     assert entity.unique_id == expected_unique_id
 
 

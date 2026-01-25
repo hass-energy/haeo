@@ -349,9 +349,7 @@ class HaeoRuntimeData:
     """
 
     horizon_manager: HorizonManager
-    input_entities: dict[tuple[str, InputFieldPath], HaeoInputNumber | HaeoInputSwitch] = field(
-        default_factory=dict
-    )
+    input_entities: dict[tuple[str, InputFieldPath], HaeoInputNumber | HaeoInputSwitch] = field(default_factory=dict)
     auto_optimize_switch: AutoOptimizeSwitch | None = field(default=None)
     coordinator: HaeoDataUpdateCoordinator | None = field(default=None)
     value_update_in_progress: bool = field(default=False)

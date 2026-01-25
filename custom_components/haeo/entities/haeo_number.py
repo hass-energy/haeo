@@ -54,9 +54,9 @@ class HaeoInputNumber(NumberEntity):
         config_entry: HaeoConfigEntry,
         subentry: ConfigSubentry,
         field_info: InputFieldInfo[NumberEntityDescription],
-        field_path: InputFieldPath | None = None,
         device_entry: DeviceEntry,
         horizon_manager: HorizonManager,
+        field_path: InputFieldPath | None = None,
     ) -> None:
         """Initialize the input number entity."""
         self._hass = hass
@@ -64,9 +64,7 @@ class HaeoInputNumber(NumberEntity):
         self._subentry = subentry
         self._field_info = field_info
         self._field_path = (
-            field_path
-            or find_nested_config_path(subentry.data, field_info.field_name)
-            or (field_info.field_name,)
+            field_path or find_nested_config_path(subentry.data, field_info.field_name) or (field_info.field_name,)
         )
         self._horizon_manager = horizon_manager
 

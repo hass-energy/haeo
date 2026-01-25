@@ -1074,7 +1074,7 @@ def test_load_from_input_entities_loads_time_series_fields(
     from custom_components.haeo.elements import get_input_fields, iter_input_field_paths  # noqa: PLC0415
 
     element_config = coordinator._participant_configs["Test Battery"]
-    for field_path, field_info in iter_input_field_paths(get_input_fields(element_config)):
+    for field_path, _field_info in iter_input_field_paths(get_input_fields(element_config)):
         mock_entity = MagicMock()
         mock_entity.get_values.return_value = (1.0, 2.0, 3.0)
         mock_runtime_data.input_entities[("Test Battery", field_path)] = mock_entity
@@ -1102,10 +1102,8 @@ def test_load_from_input_entities_raises_when_required_field_returns_none(
     mock_entity = MagicMock()
     mock_entity.get_values.return_value = None
     mock_runtime_data.input_entities[("Test Battery", (CONF_SECTION_BASIC, CONF_CAPACITY))] = mock_entity
-    mock_runtime_data.input_entities[
-        ("Test Battery", (CONF_SECTION_BASIC, CONF_INITIAL_CHARGE_PERCENTAGE))
-    ] = MagicMock(
-        get_values=Mock(return_value=(50.0,))
+    mock_runtime_data.input_entities[("Test Battery", (CONF_SECTION_BASIC, CONF_INITIAL_CHARGE_PERCENTAGE))] = (
+        MagicMock(get_values=Mock(return_value=(50.0,)))
     )
 
     # Should raise since required field (capacity) returned None
@@ -1175,7 +1173,7 @@ def test_load_from_input_entities_raises_for_invalid_config_data(
     from custom_components.haeo.elements import get_input_fields, iter_input_field_paths  # noqa: PLC0415
 
     element_config = coordinator._participant_configs["Bad Battery"]
-    for field_path, field_info in iter_input_field_paths(get_input_fields(element_config)):
+    for field_path, _field_info in iter_input_field_paths(get_input_fields(element_config)):
         mock_entity = MagicMock()
         mock_entity.get_values.return_value = (1.0, 2.0, 3.0)
         mock_runtime_data.input_entities[("Bad Battery", field_path)] = mock_entity
