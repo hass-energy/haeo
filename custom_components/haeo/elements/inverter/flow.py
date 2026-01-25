@@ -17,12 +17,10 @@ from custom_components.haeo.flows.field_schema import (
     SectionDefinition,
     build_choose_field_entries,
     build_section_schema,
-    convert_choose_data_to_config,
-    flatten_section_input,
     get_choose_default,
-    nest_section_defaults,
-    preprocess_choose_selector_input,
-    validate_choose_fields,
+    preprocess_sectioned_choose_input,
+    convert_sectioned_choose_data_to_config,
+    validate_sectioned_choose_fields,
 )
 
 from .adapter import adapter
@@ -32,12 +30,13 @@ from .schema import (
     CONF_EFFICIENCY_DC_TO_AC,
     CONF_MAX_POWER_AC_TO_DC,
     CONF_MAX_POWER_DC_TO_AC,
+    CONF_SECTION_ADVANCED,
+    CONF_SECTION_BASIC,
+    CONF_SECTION_LIMITS,
     ELEMENT_TYPE,
+    OPTIONAL_INPUT_FIELDS,
     InverterConfigSchema,
 )
-
-# Keys to exclude when converting choose data to config
-_EXCLUDE_KEYS = (CONF_NAME, CONF_CONNECTION)
 
 
 class InverterSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
@@ -82,7 +81,9 @@ class InverterSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         default_name = translations[f"component.{DOMAIN}.config_subentries.{ELEMENT_TYPE}.flow_title"]
 
         participants = self._get_participant_names()
-        current_connection = subentry_data.get(CONF_CONNECTION) if subentry_data else None
+        current_connection = (
+            subentry_data.get(CONF_SECTION_BASIC, {}).get(CONF_CONNECTION) if subentry_data else None
+        )
 
         if (
             subentry_data is not None
@@ -91,22 +92,28 @@ class InverterSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         ):
             element_config = subentry_data
         else:
-            current_connection = subentry_data.get(CONF_CONNECTION) if subentry_data else None
+            current_connection = (
+                subentry_data.get(CONF_SECTION_BASIC, {}).get(CONF_CONNECTION) if subentry_data else None
+            )
             if not isinstance(current_connection, str):
                 current_connection = participants[0] if participants else ""
             element_config: InverterConfigSchema = {
                 CONF_ELEMENT_TYPE: ELEMENT_TYPE,
-                CONF_NAME: default_name,
-                CONF_CONNECTION: current_connection,
-                CONF_MAX_POWER_DC_TO_AC: 0.0,
-                CONF_MAX_POWER_AC_TO_DC: 0.0,
+                CONF_SECTION_BASIC: {
+                    CONF_NAME: default_name,
+                    CONF_CONNECTION: current_connection,
+                },
+                CONF_SECTION_LIMITS: {
+                    CONF_MAX_POWER_DC_TO_AC: 0.0,
+                    CONF_MAX_POWER_AC_TO_DC: 0.0,
+                },
+                CONF_SECTION_ADVANCED: {},
             }
 
         input_fields = adapter.inputs(element_config)
 
         sections = self._get_sections()
-        user_input = flatten_section_input(user_input, {section.key for section in sections})
-        user_input = preprocess_choose_selector_input(user_input, input_fields)
+        user_input = preprocess_sectioned_choose_input(user_input, input_fields, sections)
         errors = self._validate_user_input(user_input, input_fields)
 
         if user_input is not None and not errors:
@@ -131,8 +138,7 @@ class InverterSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                 dict(subentry_data) if subentry_data is not None else None,
             )
         )
-        defaults = nest_section_defaults(flat_defaults, sections)
-        schema = self.add_suggested_values_to_schema(schema, defaults)
+        schema = self.add_suggested_values_to_schema(schema, flat_defaults)
 
         return self.async_show_form(step_id="user", data_schema=schema, errors=errors)
 
@@ -165,7 +171,7 @@ class InverterSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         field_entries.update(
             build_choose_field_entries(
                 input_fields,
-                optional_keys=InverterConfigSchema.__optional_keys__,
+                optional_fields=OPTIONAL_INPUT_FIELDS,
                 inclusion_map=inclusion_map,
                 current_data=subentry_data,
             )
@@ -179,16 +185,28 @@ class InverterSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         subentry_data: Mapping[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Build default values for the form."""
+        basic_data = subentry_data.get(CONF_SECTION_BASIC, {}) if subentry_data else {}
         defaults: dict[str, Any] = {
-            CONF_NAME: default_name if subentry_data is None else subentry_data.get(CONF_NAME),
-            CONF_CONNECTION: subentry_data.get(CONF_CONNECTION) if subentry_data else None,
+            CONF_SECTION_BASIC: {
+                CONF_NAME: default_name if subentry_data is None else basic_data.get(CONF_NAME),
+                CONF_CONNECTION: basic_data.get(CONF_CONNECTION) if subentry_data else None,
+            },
+            CONF_SECTION_LIMITS: {},
+            CONF_SECTION_ADVANCED: {},
         }
 
         input_fields = adapter.inputs(subentry_data)
+        section_map = {
+            field_name: section.key
+            for section in self._get_sections()
+            for field_name in section.fields
+        }
         for field_info in input_fields.values():
             choose_default = get_choose_default(field_info, subentry_data)
             if choose_default is not None:
-                defaults[field_info.field_name] = choose_default
+                section_key = section_map.get(field_info.field_name)
+                if section_key:
+                    defaults.setdefault(section_key, {})[field_info.field_name] = choose_default
 
         return defaults
 
@@ -201,37 +219,35 @@ class InverterSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         if user_input is None:
             return None
         errors: dict[str, str] = {}
-        self._validate_name(user_input.get(CONF_NAME), errors)
-        errors.update(validate_choose_fields(user_input, input_fields, InverterConfigSchema.__optional_keys__))
+        basic_input = user_input.get(CONF_SECTION_BASIC, {})
+        self._validate_name(basic_input.get(CONF_NAME), errors)
+        errors.update(
+            validate_sectioned_choose_fields(
+                user_input,
+                input_fields,
+                OPTIONAL_INPUT_FIELDS,
+                self._get_sections(),
+            )
+        )
         return errors if errors else None
 
     def _build_config(self, user_input: dict[str, Any]) -> dict[str, Any]:
         """Build final config dict from user input."""
-        name = user_input.get(CONF_NAME)
-        connection = user_input.get(CONF_CONNECTION)
-        max_power_dc = user_input.get(CONF_MAX_POWER_DC_TO_AC)
-        max_power_ac = user_input.get(CONF_MAX_POWER_AC_TO_DC)
-        input_fields = adapter.inputs(
-            {
-                CONF_ELEMENT_TYPE: ELEMENT_TYPE,
-                CONF_NAME: name,
-                CONF_CONNECTION: connection,
-                CONF_MAX_POWER_DC_TO_AC: max_power_dc,
-                CONF_MAX_POWER_AC_TO_DC: max_power_ac,
-            }
+        input_fields = adapter.inputs(user_input)
+        config_dict = convert_sectioned_choose_data_to_config(
+            user_input,
+            input_fields,
+            self._get_sections(),
         )
-        config_dict = convert_choose_data_to_config(user_input, input_fields, _EXCLUDE_KEYS)
 
         return {
             CONF_ELEMENT_TYPE: ELEMENT_TYPE,
-            CONF_NAME: name,
-            CONF_CONNECTION: connection,
             **config_dict,
         }
 
     def _finalize(self, config: dict[str, Any], user_input: dict[str, Any]) -> SubentryFlowResult:
         """Finalize the flow by creating or updating the entry."""
-        name = str(user_input.get(CONF_NAME))
+        name = str(user_input.get(CONF_SECTION_BASIC, {}).get(CONF_NAME))
         subentry = self._get_subentry()
         if subentry is not None:
             return self.async_update_and_abort(self._get_entry(), subentry, title=name, data=config)

@@ -8,8 +8,15 @@ from homeassistant.config_entries import ConfigFlowResult
 
 from custom_components.haeo.const import CONF_ADVANCED_MODE, CONF_DEBOUNCE_SECONDS, CONF_HORIZON_PRESET
 
-from . import HORIZON_PRESET_CUSTOM, get_custom_tiers_schema, get_hub_options_schema, get_tier_config
-from .field_schema import flatten_section_input
+from . import (
+    HUB_SECTION_ADVANCED,
+    HUB_SECTION_BASIC,
+    HUB_SECTION_TIERS,
+    HORIZON_PRESET_CUSTOM,
+    get_custom_tiers_schema,
+    get_hub_options_schema,
+    get_tier_config,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -24,12 +31,11 @@ class HubOptionsFlow(config_entries.OptionsFlow):
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         """Configure hub settings with simplified preset dropdown."""
         if user_input is not None:
-            user_input = flatten_section_input(user_input, {"basic", "advanced"})
             # Store user input for later
             self._user_input = user_input
 
             # If custom preset selected, go to custom tiers step
-            if user_input[CONF_HORIZON_PRESET] == HORIZON_PRESET_CUSTOM:
+            if user_input[HUB_SECTION_BASIC][CONF_HORIZON_PRESET] == HORIZON_PRESET_CUSTOM:
                 return await self.async_step_custom_tiers()
 
             # Otherwise, apply preset values and save
@@ -42,7 +48,7 @@ class HubOptionsFlow(config_entries.OptionsFlow):
         """Handle custom tier configuration step."""
         if user_input is not None:
             # Merge custom tier config with stored user input
-            self._user_input.update(user_input)
+            self._user_input[HUB_SECTION_TIERS] = user_input
             return await self._save_options()
 
         # Show full tier configuration form with current values
@@ -53,15 +59,24 @@ class HubOptionsFlow(config_entries.OptionsFlow):
 
     async def _save_options(self) -> ConfigFlowResult:
         """Save the options with tier configuration."""
-        tier_config, stored_preset = get_tier_config(self._user_input, self._user_input.get(CONF_HORIZON_PRESET))
+        tier_config, stored_preset = get_tier_config(
+            self._user_input,
+            self._user_input[HUB_SECTION_BASIC].get(CONF_HORIZON_PRESET),
+        )
 
         # Update config entry data with new values
         new_data = {
             **self.config_entry.data,
-            CONF_HORIZON_PRESET: stored_preset,
-            **tier_config,
-            CONF_DEBOUNCE_SECONDS: self._user_input[CONF_DEBOUNCE_SECONDS],
-            CONF_ADVANCED_MODE: self._user_input[CONF_ADVANCED_MODE],
+            HUB_SECTION_BASIC: {
+                **self.config_entry.data.get(HUB_SECTION_BASIC, {}),
+                CONF_HORIZON_PRESET: stored_preset,
+            },
+            HUB_SECTION_TIERS: tier_config,
+            HUB_SECTION_ADVANCED: {
+                **self.config_entry.data.get(HUB_SECTION_ADVANCED, {}),
+                CONF_DEBOUNCE_SECONDS: self._user_input[HUB_SECTION_ADVANCED][CONF_DEBOUNCE_SECONDS],
+                CONF_ADVANCED_MODE: self._user_input[HUB_SECTION_ADVANCED][CONF_ADVANCED_MODE],
+            },
         }
 
         self.hass.config_entries.async_update_entry(self.config_entry, data=new_data)

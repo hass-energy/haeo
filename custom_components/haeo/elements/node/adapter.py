@@ -14,7 +14,15 @@ from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_NODE
 from custom_components.haeo.model.elements.node import NODE_POWER_BALANCE
 from custom_components.haeo.model.output_data import OutputData
 
-from .schema import CONF_IS_SINK, CONF_IS_SOURCE, ELEMENT_TYPE, NodeConfigData, NodeConfigSchema
+from .schema import (
+    CONF_IS_SINK,
+    CONF_IS_SOURCE,
+    CONF_SECTION_ADVANCED,
+    CONF_SECTION_BASIC,
+    ELEMENT_TYPE,
+    NodeConfigData,
+    NodeConfigSchema,
+)
 
 # Defaults for absent optional fields (no-op values: pure junction behavior)
 DEFAULT_IS_SOURCE: Final[bool] = False
@@ -74,9 +82,9 @@ class NodeAdapter:
         return [
             {
                 "element_type": MODEL_ELEMENT_TYPE_NODE,
-                "name": config["name"],
-                "is_source": config.get(CONF_IS_SOURCE, DEFAULT_IS_SOURCE),
-                "is_sink": config.get(CONF_IS_SINK, DEFAULT_IS_SINK),
+                "name": config[CONF_SECTION_BASIC]["name"],
+                "is_source": config[CONF_SECTION_ADVANCED].get(CONF_IS_SOURCE, DEFAULT_IS_SOURCE),
+                "is_sink": config[CONF_SECTION_ADVANCED].get(CONF_IS_SINK, DEFAULT_IS_SINK),
             }
         ]
 

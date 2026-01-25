@@ -21,9 +21,12 @@ from custom_components.haeo.model.elements.segments import POWER_LIMIT_SOURCE_TA
 from custom_components.haeo.model.output_data import OutputData
 
 from .schema import (
+    CONF_CONNECTION,
     CONF_CURTAILMENT,
     CONF_FORECAST,
     CONF_PRICE_PRODUCTION,
+    CONF_SECTION_ADVANCED,
+    CONF_SECTION_BASIC,
     ELEMENT_TYPE,
     SolarConfigData,
     SolarConfigSchema,
@@ -58,7 +61,7 @@ class SolarAdapter:
     def available(self, config: SolarConfigSchema, *, hass: HomeAssistant, **_kwargs: Any) -> bool:
         """Check if solar configuration can be loaded."""
         ts_loader = TimeSeriesLoader()
-        return ts_loader.available(hass=hass, value=config[CONF_FORECAST])
+        return ts_loader.available(hass=hass, value=config[CONF_SECTION_BASIC][CONF_FORECAST])
 
     def inputs(self, config: Any) -> dict[str, InputFieldInfo[Any]]:
         """Return input field definitions for solar elements."""
@@ -110,25 +113,25 @@ class SolarAdapter:
         return [
             {
                 "element_type": MODEL_ELEMENT_TYPE_NODE,
-                "name": config["name"],
+                "name": config[CONF_SECTION_BASIC]["name"],
                 "is_source": True,
                 "is_sink": False,
             },
             {
                 "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
-                "name": f"{config['name']}:connection",
-                "source": config["name"],
-                "target": config["connection"],
+                "name": f"{config[CONF_SECTION_BASIC]['name']}:connection",
+                "source": config[CONF_SECTION_BASIC]["name"],
+                "target": config[CONF_SECTION_BASIC][CONF_CONNECTION],
                 "segments": {
                     "power_limit": {
                         "segment_type": "power_limit",
-                        "max_power_source_target": config["forecast"],
+                        "max_power_source_target": config[CONF_SECTION_BASIC][CONF_FORECAST],
                         "max_power_target_source": 0.0,
-                        "fixed": not config.get("curtailment", True),
+                        "fixed": not config[CONF_SECTION_ADVANCED].get(CONF_CURTAILMENT, True),
                     },
                     "pricing": {
                         "segment_type": "pricing",
-                        "price_source_target": config.get("price_production"),
+                        "price_source_target": config[CONF_SECTION_ADVANCED].get(CONF_PRICE_PRODUCTION),
                         "price_target_source": None,
                     },
                 },

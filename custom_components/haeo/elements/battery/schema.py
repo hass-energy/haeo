@@ -23,6 +23,27 @@ CONF_UNDERCHARGE_COST: Final = "undercharge_cost"
 CONF_OVERCHARGE_COST: Final = "overcharge_cost"
 CONF_CONNECTION: Final = "connection"
 CONF_CONFIGURE_PARTITIONS: Final = "configure_partitions"
+CONF_SECTION_BASIC: Final = "basic"
+CONF_SECTION_LIMITS: Final = "limits"
+CONF_SECTION_ADVANCED: Final = "advanced"
+CONF_SECTION_UNDERCHARGE: Final = "undercharge"
+CONF_SECTION_OVERCHARGE: Final = "overcharge"
+
+OPTIONAL_INPUT_FIELDS: Final[frozenset[str]] = frozenset(
+    {
+        CONF_MIN_CHARGE_PERCENTAGE,
+        CONF_MAX_CHARGE_PERCENTAGE,
+        CONF_EFFICIENCY,
+        CONF_MAX_CHARGE_POWER,
+        CONF_MAX_DISCHARGE_POWER,
+        CONF_EARLY_CHARGE_INCENTIVE,
+        CONF_DISCHARGE_COST,
+        CONF_UNDERCHARGE_PERCENTAGE,
+        CONF_UNDERCHARGE_COST,
+        CONF_OVERCHARGE_PERCENTAGE,
+        CONF_OVERCHARGE_COST,
+    }
+)
 
 # Partition field names (hidden behind checkbox)
 PARTITION_FIELD_NAMES: Final[frozenset[str]] = frozenset(
@@ -35,6 +56,47 @@ PARTITION_FIELD_NAMES: Final[frozenset[str]] = frozenset(
 )
 
 
+class BatteryBasicConfig(TypedDict):
+    """Basic configuration for battery elements."""
+
+    name: str
+    connection: str  # Element name that battery connects to
+    capacity: str | float  # Energy sensor entity ID or constant value (kWh)
+    initial_charge_percentage: str | float  # SOC sensor entity ID or constant value (%)
+
+
+class BatteryLimitsConfig(TypedDict, total=False):
+    """Limit configuration for battery elements."""
+
+    min_charge_percentage: str | float
+    max_charge_percentage: str | float
+    max_charge_power: str | float  # Power sensor entity ID or constant value (kW)
+    max_discharge_power: str | float  # Power sensor entity ID or constant value (kW)
+
+
+class BatteryAdvancedConfig(TypedDict, total=False):
+    """Advanced configuration for battery elements."""
+
+    efficiency: str | float
+    early_charge_incentive: str | float
+    discharge_cost: list[str] | str | float  # Price sensors ($/kWh) - list for chaining
+    configure_partitions: bool  # Whether to configure partition fields
+
+
+class BatteryPartitionUnderchargeConfig(TypedDict, total=False):
+    """Undercharge partition configuration."""
+
+    undercharge_percentage: str | float
+    undercharge_cost: list[str] | str | float  # Price sensors ($/kWh) - list for chaining
+
+
+class BatteryPartitionOverchargeConfig(TypedDict, total=False):
+    """Overcharge partition configuration."""
+
+    overcharge_percentage: str | float
+    overcharge_cost: list[str] | str | float  # Price sensors ($/kWh) - list for chaining
+
+
 class BatteryConfigSchema(TypedDict):
     """Battery element configuration as stored in Home Assistant.
 
@@ -42,34 +104,52 @@ class BatteryConfigSchema(TypedDict):
     """
 
     element_type: Literal["battery"]
+    basic: BatteryBasicConfig
+    limits: BatteryLimitsConfig
+    advanced: BatteryAdvancedConfig
+    undercharge: NotRequired[BatteryPartitionUnderchargeConfig]
+    overcharge: NotRequired[BatteryPartitionOverchargeConfig]
+
+
+class BatteryBasicData(TypedDict):
+    """Loaded basic values for battery elements."""
+
     name: str
     connection: str  # Element name that battery connects to
+    capacity: NDArray[np.floating[Any]]  # kWh per period
+    initial_charge_percentage: NDArray[np.floating[Any]]  # Ratio per period (0-1, uses first value)
 
-    # Required sensors - can be entity links or constants
-    capacity: str | float  # Energy sensor entity ID or constant value (kWh)
-    initial_charge_percentage: str | float  # SOC sensor entity ID or constant value (%)
 
-    # Optional fields - can be entity links, constants, or missing (uses default)
-    min_charge_percentage: NotRequired[str | float]
-    max_charge_percentage: NotRequired[str | float]
-    efficiency: NotRequired[str | float]
+class BatteryLimitsData(TypedDict, total=False):
+    """Loaded limit values for battery elements."""
 
-    # Optional power limits - can be entity links or constants
-    max_charge_power: NotRequired[str | float]  # Power sensor entity ID or constant value (kW)
-    max_discharge_power: NotRequired[str | float]  # Power sensor entity ID or constant value (kW)
+    min_charge_percentage: NDArray[np.floating[Any]] | float  # Ratio per period (0-1)
+    max_charge_percentage: NDArray[np.floating[Any]] | float  # Ratio per period (0-1)
+    max_charge_power: NDArray[np.floating[Any]]  # kW per period
+    max_discharge_power: NDArray[np.floating[Any]]  # kW per period
 
-    # Optional price fields - can be entity links or constants
-    early_charge_incentive: NotRequired[str | float]
-    discharge_cost: NotRequired[list[str] | str | float]  # Price sensors ($/kWh) - list for chaining
 
-    # Partition configuration checkbox
-    configure_partitions: NotRequired[bool]  # Whether to configure partition fields
+class BatteryAdvancedData(TypedDict, total=False):
+    """Loaded advanced values for battery elements."""
 
-    # Partition fields (only present when configure_partitions is True)
-    undercharge_percentage: NotRequired[str | float]
-    overcharge_percentage: NotRequired[str | float]
-    undercharge_cost: NotRequired[list[str] | str | float]  # Price sensors ($/kWh) - list for chaining
-    overcharge_cost: NotRequired[list[str] | str | float]  # Price sensors ($/kWh) - list for chaining
+    efficiency: NDArray[np.floating[Any]] | float  # Ratio per period (0-1)
+    early_charge_incentive: NDArray[np.floating[Any]]  # $/kWh per period
+    discharge_cost: NDArray[np.floating[Any]]  # $/kWh per period
+    configure_partitions: bool
+
+
+class BatteryPartitionUnderchargeData(TypedDict, total=False):
+    """Loaded undercharge partition values."""
+
+    undercharge_percentage: NDArray[np.floating[Any]] | float  # Ratio per period (0-1)
+    undercharge_cost: NDArray[np.floating[Any]]  # $/kWh per period
+
+
+class BatteryPartitionOverchargeData(TypedDict, total=False):
+    """Loaded overcharge partition values."""
+
+    overcharge_percentage: NDArray[np.floating[Any]] | float  # Ratio per period (0-1)
+    overcharge_cost: NDArray[np.floating[Any]]  # $/kWh per period
 
 
 class BatteryConfigData(TypedDict):
@@ -79,28 +159,8 @@ class BatteryConfigData(TypedDict):
     """
 
     element_type: Literal["battery"]
-    name: str
-    connection: str  # Element name that battery connects to
-
-    # Loaded sensor values (time series)
-    capacity: NDArray[np.floating[Any]]  # kWh per period
-    initial_charge_percentage: NDArray[np.floating[Any]]  # Ratio per period (0-1, uses first value)
-
-    # Time series with defaults applied in model_elements
-    min_charge_percentage: NotRequired[NDArray[np.floating[Any]] | float]  # Ratio per period (0-1)
-    max_charge_percentage: NotRequired[NDArray[np.floating[Any]] | float]  # Ratio per period (0-1)
-    efficiency: NotRequired[NDArray[np.floating[Any]] | float]  # Ratio per period (0-1)
-
-    # Optional loaded values
-    max_charge_power: NotRequired[NDArray[np.floating[Any]]]  # kW per period
-    max_discharge_power: NotRequired[NDArray[np.floating[Any]]]  # kW per period
-
-    # Optional prices (time series)
-    early_charge_incentive: NotRequired[NDArray[np.floating[Any]]]  # $/kWh per period
-    discharge_cost: NotRequired[NDArray[np.floating[Any]]]  # $/kWh per period
-
-    # Advanced: undercharge/overcharge regions (time series)
-    undercharge_percentage: NotRequired[NDArray[np.floating[Any]] | float]  # Ratio per period (0-1)
-    overcharge_percentage: NotRequired[NDArray[np.floating[Any]] | float]  # Ratio per period (0-1)
-    undercharge_cost: NotRequired[NDArray[np.floating[Any]]]  # $/kWh per period
-    overcharge_cost: NotRequired[NDArray[np.floating[Any]]]  # $/kWh per period
+    basic: BatteryBasicData
+    limits: BatteryLimitsData
+    advanced: BatteryAdvancedData
+    undercharge: NotRequired[BatteryPartitionUnderchargeData]
+    overcharge: NotRequired[BatteryPartitionOverchargeData]

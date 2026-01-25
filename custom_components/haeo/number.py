@@ -7,7 +7,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from custom_components.haeo import HaeoConfigEntry
 from custom_components.haeo.const import CONF_ELEMENT_TYPE
-from custom_components.haeo.elements import get_input_fields, is_element_config_schema
+from custom_components.haeo.elements import get_input_fields, get_nested_config_value, is_element_config_schema
 from custom_components.haeo.entities.device import get_or_create_element_device
 from custom_components.haeo.entities.haeo_number import HaeoInputNumber
 
@@ -58,7 +58,7 @@ async def async_setup_entry(
 
         for field_info in number_fields:
             # Only create entities for configured fields
-            if field_info.field_name not in subentry.data:
+            if get_nested_config_value(subentry.data, field_info.field_name) is None:
                 continue
 
             entity = HaeoInputNumber(

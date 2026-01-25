@@ -17,6 +17,7 @@ from homeassistant.helpers.translation import async_get_translations
 from homeassistant.helpers.typing import ConfigType
 
 from custom_components.haeo.const import CONF_ADVANCED_MODE, CONF_ELEMENT_TYPE, CONF_NAME, DOMAIN, ELEMENT_TYPE_NETWORK
+from custom_components.haeo.flows import HUB_SECTION_ADVANCED
 from custom_components.haeo.coordinator import HaeoDataUpdateCoordinator
 from custom_components.haeo.horizon import HorizonManager
 from custom_components.haeo.services import async_setup_services
@@ -76,7 +77,12 @@ async def _ensure_required_subentries(hass: HomeAssistant, hub_entry: ConfigEntr
     In non-advanced mode, also creates a Switchboard node if missing.
     """
     from custom_components.haeo.elements import ELEMENT_TYPE_NODE  # noqa: PLC0415
-    from custom_components.haeo.elements.node import CONF_IS_SINK, CONF_IS_SOURCE  # noqa: PLC0415
+    from custom_components.haeo.elements.node import (  # noqa: PLC0415
+        CONF_IS_SINK,
+        CONF_IS_SOURCE,
+        CONF_SECTION_ADVANCED,
+        CONF_SECTION_BASIC,
+    )
 
     # Check if Network subentry already exists
     has_network = False
@@ -107,7 +113,7 @@ async def _ensure_required_subentries(hass: HomeAssistant, hub_entry: ConfigEntr
         _LOGGER.debug("Network subentry created successfully")
 
     # In non-advanced mode, ensure switchboard node exists
-    advanced_mode = hub_entry.data.get(CONF_ADVANCED_MODE, False)
+    advanced_mode = hub_entry.data.get(HUB_SECTION_ADVANCED, {}).get(CONF_ADVANCED_MODE, False)
     if not advanced_mode and not has_node:
         _LOGGER.info("Creating Switchboard node for hub %s (non-advanced mode)", hub_entry.entry_id)
         switchboard_name = translations.get(f"component.{DOMAIN}.common.switchboard_node_name", "Switchboard")
@@ -115,10 +121,12 @@ async def _ensure_required_subentries(hass: HomeAssistant, hub_entry: ConfigEntr
         switchboard_subentry = ConfigSubentry(
             data=MappingProxyType(
                 {
-                    CONF_NAME: switchboard_name,
                     CONF_ELEMENT_TYPE: ELEMENT_TYPE_NODE,
-                    CONF_IS_SOURCE: False,
-                    CONF_IS_SINK: False,
+                    CONF_SECTION_BASIC: {CONF_NAME: switchboard_name},
+                    CONF_SECTION_ADVANCED: {
+                        CONF_IS_SOURCE: False,
+                        CONF_IS_SINK: False,
+                    },
                 }
             ),
             subentry_type=ELEMENT_TYPE_NODE,

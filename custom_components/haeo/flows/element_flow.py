@@ -164,8 +164,10 @@ class ElementFlowMixin:
         """
         from custom_components.haeo.elements import ELEMENT_TYPES, ConnectivityLevel  # noqa: PLC0415
 
+        from custom_components.haeo.flows import HUB_SECTION_ADVANCED  # noqa: PLC0415
+
         hub_entry: ConfigEntry = self._get_entry()  # type: ignore[attr-defined]
-        advanced_mode = hub_entry.data.get(CONF_ADVANCED_MODE, False)
+        advanced_mode = hub_entry.data.get(HUB_SECTION_ADVANCED, {}).get(CONF_ADVANCED_MODE, False)
         current_id = self._get_current_subentry_id()
 
         result: list[str] = []

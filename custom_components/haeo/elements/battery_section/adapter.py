@@ -21,6 +21,8 @@ from custom_components.haeo.model.output_data import OutputData
 from .schema import (
     CONF_CAPACITY,
     CONF_INITIAL_CHARGE,
+    CONF_SECTION_BASIC,
+    CONF_SECTION_INPUTS,
     ELEMENT_TYPE,
     BatterySectionConfigData,
     BatterySectionConfigSchema,
@@ -72,7 +74,8 @@ class BatterySectionAdapter:
 
         # Check required time series fields
         required_fields = [CONF_CAPACITY, CONF_INITIAL_CHARGE]
-        return all(ts_loader.available(hass=hass, value=config[field]) for field in required_fields)
+        inputs = config[CONF_SECTION_INPUTS]
+        return all(ts_loader.available(hass=hass, value=inputs[field]) for field in required_fields)
 
     def inputs(self, config: Any) -> dict[str, InputFieldInfo[Any]]:
         """Return input field definitions for battery section elements."""
@@ -116,9 +119,9 @@ class BatterySectionAdapter:
         return [
             {
                 "element_type": MODEL_ELEMENT_TYPE_BATTERY,
-                "name": config["name"],
-                "capacity": config["capacity"],
-                "initial_charge": config["initial_charge"][0],
+                "name": config[CONF_SECTION_BASIC]["name"],
+                "capacity": config[CONF_SECTION_INPUTS][CONF_CAPACITY],
+                "initial_charge": config[CONF_SECTION_INPUTS][CONF_INITIAL_CHARGE][0],
             }
         ]
 

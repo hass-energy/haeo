@@ -25,10 +25,14 @@ from custom_components.haeo.model.elements.segments import POWER_LIMIT_SOURCE_TA
 from custom_components.haeo.model.output_data import OutputData
 
 from .schema import (
+    CONF_CONNECTION,
     CONF_EFFICIENCY_AC_TO_DC,
     CONF_EFFICIENCY_DC_TO_AC,
     CONF_MAX_POWER_AC_TO_DC,
     CONF_MAX_POWER_DC_TO_AC,
+    CONF_SECTION_ADVANCED,
+    CONF_SECTION_BASIC,
+    CONF_SECTION_LIMITS,
     ELEMENT_TYPE,
     InverterConfigData,
     InverterConfigSchema,
@@ -73,9 +77,10 @@ class InverterAdapter:
     def available(self, config: InverterConfigSchema, *, hass: HomeAssistant, **_kwargs: Any) -> bool:
         """Check if inverter configuration can be loaded."""
         ts_loader = TimeSeriesLoader()
-        if not ts_loader.available(hass=hass, value=config[CONF_MAX_POWER_DC_TO_AC]):
+        limits = config[CONF_SECTION_LIMITS]
+        if not ts_loader.available(hass=hass, value=limits[CONF_MAX_POWER_DC_TO_AC]):
             return False
-        return ts_loader.available(hass=hass, value=config[CONF_MAX_POWER_AC_TO_DC])
+        return ts_loader.available(hass=hass, value=limits[CONF_MAX_POWER_AC_TO_DC])
 
     def inputs(self, config: Any) -> dict[str, InputFieldInfo[Any]]:
         """Return input field definitions for inverter elements."""
@@ -147,25 +152,30 @@ class InverterAdapter:
         """
         return [
             # Create Node for the DC bus (pure junction - neither source nor sink)
-            {"element_type": MODEL_ELEMENT_TYPE_NODE, "name": config["name"], "is_source": False, "is_sink": False},
+            {
+                "element_type": MODEL_ELEMENT_TYPE_NODE,
+                "name": config[CONF_SECTION_BASIC]["name"],
+                "is_source": False,
+                "is_sink": False,
+            },
             # Create a connection from DC bus to AC node
             # source_target = DC to AC (inverting)
             # target_source = AC to DC (rectifying)
             {
                 "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
-                "name": f"{config['name']}:connection",
-                "source": config["name"],
-                "target": config["connection"],
+                "name": f"{config[CONF_SECTION_BASIC]['name']}:connection",
+                "source": config[CONF_SECTION_BASIC]["name"],
+                "target": config[CONF_SECTION_BASIC][CONF_CONNECTION],
                 "segments": {
                     "efficiency": {
                         "segment_type": "efficiency",
-                        "efficiency_source_target": config.get("efficiency_dc_to_ac"),
-                        "efficiency_target_source": config.get("efficiency_ac_to_dc"),
+                        "efficiency_source_target": config[CONF_SECTION_ADVANCED].get(CONF_EFFICIENCY_DC_TO_AC),
+                        "efficiency_target_source": config[CONF_SECTION_ADVANCED].get(CONF_EFFICIENCY_AC_TO_DC),
                     },
                     "power_limit": {
                         "segment_type": "power_limit",
-                        "max_power_source_target": config["max_power_dc_to_ac"],
-                        "max_power_target_source": config["max_power_ac_to_dc"],
+                        "max_power_source_target": config[CONF_SECTION_LIMITS][CONF_MAX_POWER_DC_TO_AC],
+                        "max_power_target_source": config[CONF_SECTION_LIMITS][CONF_MAX_POWER_AC_TO_DC],
                     },
                 },
             },

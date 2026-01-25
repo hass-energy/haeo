@@ -8,19 +8,23 @@ import voluptuous as vol
 
 from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.flows.element_flow import ElementFlowMixin
-from custom_components.haeo.flows.field_schema import (
-    SectionDefinition,
-    build_section_schema,
-    flatten_section_input,
-    nest_section_defaults,
-)
+from custom_components.haeo.flows.field_schema import SectionDefinition, build_section_schema
 
-from .schema import CONF_IS_SINK, CONF_IS_SOURCE, ELEMENT_TYPE
+from .schema import (
+    CONF_IS_SINK,
+    CONF_IS_SOURCE,
+    CONF_SECTION_ADVANCED,
+    CONF_SECTION_BASIC,
+    ELEMENT_TYPE,
+)
 
 # Suggested values for first setup (pure junction: no source or sink)
 _SUGGESTED_DEFAULTS = {
-    CONF_IS_SOURCE: False,
-    CONF_IS_SINK: False,
+    CONF_SECTION_BASIC: {},
+    CONF_SECTION_ADVANCED: {
+        CONF_IS_SOURCE: False,
+        CONF_IS_SINK: False,
+    },
 }
 
 
@@ -86,17 +90,18 @@ class NodeSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         errors: dict[str, str] = {}
         subentry = self._get_subentry()
 
-        sections = self._get_sections()
-        user_input = flatten_section_input(user_input, {section.key for section in sections})
-
         if user_input is not None:
-            name = user_input.get(CONF_NAME)
+            basic_input = user_input.get(CONF_SECTION_BASIC, {})
+            advanced_input = user_input.get(CONF_SECTION_ADVANCED, {})
+            name = basic_input.get(CONF_NAME)
             if self._validate_name(name, errors):
                 config = {
                     CONF_ELEMENT_TYPE: ELEMENT_TYPE,
-                    CONF_NAME: name,
-                    CONF_IS_SOURCE: bool(user_input.get(CONF_IS_SOURCE, False)),
-                    CONF_IS_SINK: bool(user_input.get(CONF_IS_SINK, False)),
+                    CONF_SECTION_BASIC: {CONF_NAME: name},
+                    CONF_SECTION_ADVANCED: {
+                        CONF_IS_SOURCE: bool(advanced_input.get(CONF_IS_SOURCE, False)),
+                        CONF_IS_SINK: bool(advanced_input.get(CONF_IS_SINK, False)),
+                    },
                 }
                 if subentry is not None:
                     return self.async_update_and_abort(
@@ -108,8 +113,7 @@ class NodeSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                 return self.async_create_entry(title=name, data=config)
 
         schema = self._build_schema()
-        flat_defaults = dict(subentry.data) if subentry else _SUGGESTED_DEFAULTS
-        defaults = nest_section_defaults(flat_defaults, sections)
+        defaults = dict(subentry.data) if subentry else _SUGGESTED_DEFAULTS
         schema = self.add_suggested_values_to_schema(schema, defaults)
 
         return self.async_show_form(

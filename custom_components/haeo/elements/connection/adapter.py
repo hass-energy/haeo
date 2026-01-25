@@ -39,6 +39,9 @@ from .schema import (
     CONF_MAX_POWER_TARGET_SOURCE,
     CONF_PRICE_SOURCE_TARGET,
     CONF_PRICE_TARGET_SOURCE,
+    CONF_SECTION_ADVANCED,
+    CONF_SECTION_BASIC,
+    CONF_SECTION_LIMITS,
     ELEMENT_TYPE,
     ConnectionConfigData,
     ConnectionConfigSchema,
@@ -96,8 +99,12 @@ class ConnectionAdapter:
             CONF_PRICE_TARGET_SOURCE,
         ]
 
+        limits = config[CONF_SECTION_LIMITS]
+        advanced = config[CONF_SECTION_ADVANCED]
         for field in optional_fields:
-            if field in config and not ts_loader.available(hass=hass, value=config[field]):
+            if field in limits and not ts_loader.available(hass=hass, value=limits[field]):
+                return False
+            if field in advanced and not ts_loader.available(hass=hass, value=advanced[field]):
                 return False
 
         return True
@@ -201,24 +208,24 @@ class ConnectionAdapter:
         return [
             {
                 "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
-                "name": config["name"],
-                "source": config["source"],
-                "target": config["target"],
+                "name": config[CONF_SECTION_BASIC]["name"],
+                "source": config[CONF_SECTION_BASIC]["source"],
+                "target": config[CONF_SECTION_BASIC]["target"],
                 "segments": {
                     "efficiency": {
                         "segment_type": "efficiency",
-                        "efficiency_source_target": config.get("efficiency_source_target"),
-                        "efficiency_target_source": config.get("efficiency_target_source"),
+                        "efficiency_source_target": config[CONF_SECTION_ADVANCED].get(CONF_EFFICIENCY_SOURCE_TARGET),
+                        "efficiency_target_source": config[CONF_SECTION_ADVANCED].get(CONF_EFFICIENCY_TARGET_SOURCE),
                     },
                     "power_limit": {
                         "segment_type": "power_limit",
-                        "max_power_source_target": config.get("max_power_source_target"),
-                        "max_power_target_source": config.get("max_power_target_source"),
+                        "max_power_source_target": config[CONF_SECTION_LIMITS].get(CONF_MAX_POWER_SOURCE_TARGET),
+                        "max_power_target_source": config[CONF_SECTION_LIMITS].get(CONF_MAX_POWER_TARGET_SOURCE),
                     },
                     "pricing": {
                         "segment_type": "pricing",
-                        "price_source_target": config.get("price_source_target"),
-                        "price_target_source": config.get("price_target_source"),
+                        "price_source_target": config[CONF_SECTION_ADVANCED].get(CONF_PRICE_SOURCE_TARGET),
+                        "price_target_source": config[CONF_SECTION_ADVANCED].get(CONF_PRICE_TARGET_SOURCE),
                     },
                 },
             }

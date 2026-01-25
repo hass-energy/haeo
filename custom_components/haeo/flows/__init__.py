@@ -48,6 +48,10 @@ HORIZON_PRESET_5_DAYS: Final = "5_days"  # Default
 HORIZON_PRESET_7_DAYS: Final = "7_days"
 HORIZON_PRESET_CUSTOM: Final = "custom"
 
+HUB_SECTION_BASIC: Final = "basic"
+HUB_SECTION_ADVANCED: Final = "advanced"
+HUB_SECTION_TIERS: Final = "tiers"
+
 HORIZON_PRESET_OPTIONS: Final = [
     HORIZON_PRESET_2_DAYS,
     HORIZON_PRESET_3_DAYS,
@@ -118,7 +122,8 @@ def get_tier_config(user_input: dict[str, Any], horizon_preset: str | None) -> t
     """
     if horizon_preset and horizon_preset != HORIZON_PRESET_CUSTOM:
         return HORIZON_PRESETS[horizon_preset], horizon_preset
-    return {key: user_input[key] for key in TIER_CONF_KEYS}, HORIZON_PRESET_CUSTOM
+    tiers = user_input[HUB_SECTION_TIERS]
+    return {key: tiers[key] for key in TIER_CONF_KEYS}, HORIZON_PRESET_CUSTOM
 
 
 def get_hub_setup_schema(suggested_name: str | None = None) -> vol.Schema:
@@ -139,12 +144,12 @@ def get_hub_setup_schema(suggested_name: str | None = None) -> vol.Schema:
 
     sections = (
         SectionDefinition(
-            key="basic",
+            key=HUB_SECTION_BASIC,
             fields=(CONF_NAME, CONF_HORIZON_PRESET),
             collapsed=False,
         ),
         SectionDefinition(
-            key="advanced",
+            key=HUB_SECTION_ADVANCED,
             fields=(CONF_ADVANCED_MODE,),
             collapsed=True,
         ),
@@ -187,23 +192,20 @@ def get_custom_tiers_schema(config_entry: ConfigEntry | None = None) -> vol.Sche
         Voluptuous schema with all tier configuration fields.
 
     """
+    tiers_data = config_entry.data.get(HUB_SECTION_TIERS, {}) if config_entry else {}
     return vol.Schema(
         {
             # Tier 1: Fine-grained near-term intervals
             vol.Required(
                 CONF_TIER_1_COUNT,
-                default=config_entry.data.get(CONF_TIER_1_COUNT, DEFAULT_TIER_1_COUNT)
-                if config_entry
-                else DEFAULT_TIER_1_COUNT,
+                default=tiers_data.get(CONF_TIER_1_COUNT, DEFAULT_TIER_1_COUNT),
             ): vol.All(
                 NumberSelector(NumberSelectorConfig(min=0, max=60, step=1, mode=NumberSelectorMode.BOX)),
                 vol.Coerce(int),
             ),
             vol.Required(
                 CONF_TIER_1_DURATION,
-                default=config_entry.data.get(CONF_TIER_1_DURATION, DEFAULT_TIER_1_DURATION)
-                if config_entry
-                else DEFAULT_TIER_1_DURATION,
+                default=tiers_data.get(CONF_TIER_1_DURATION, DEFAULT_TIER_1_DURATION),
             ): vol.All(
                 NumberSelector(NumberSelectorConfig(min=1, max=60, step=1, mode=NumberSelectorMode.BOX)),
                 vol.Coerce(int),
@@ -211,18 +213,14 @@ def get_custom_tiers_schema(config_entry: ConfigEntry | None = None) -> vol.Sche
             # Tier 2: Short-term intervals
             vol.Required(
                 CONF_TIER_2_COUNT,
-                default=config_entry.data.get(CONF_TIER_2_COUNT, DEFAULT_TIER_2_COUNT)
-                if config_entry
-                else DEFAULT_TIER_2_COUNT,
+                default=tiers_data.get(CONF_TIER_2_COUNT, DEFAULT_TIER_2_COUNT),
             ): vol.All(
                 NumberSelector(NumberSelectorConfig(min=0, max=60, step=1, mode=NumberSelectorMode.BOX)),
                 vol.Coerce(int),
             ),
             vol.Required(
                 CONF_TIER_2_DURATION,
-                default=config_entry.data.get(CONF_TIER_2_DURATION, DEFAULT_TIER_2_DURATION)
-                if config_entry
-                else DEFAULT_TIER_2_DURATION,
+                default=tiers_data.get(CONF_TIER_2_DURATION, DEFAULT_TIER_2_DURATION),
             ): vol.All(
                 NumberSelector(NumberSelectorConfig(min=1, max=60, step=1, mode=NumberSelectorMode.BOX)),
                 vol.Coerce(int),
@@ -230,18 +228,14 @@ def get_custom_tiers_schema(config_entry: ConfigEntry | None = None) -> vol.Sche
             # Tier 3: Medium-term intervals
             vol.Required(
                 CONF_TIER_3_COUNT,
-                default=config_entry.data.get(CONF_TIER_3_COUNT, DEFAULT_TIER_3_COUNT)
-                if config_entry
-                else DEFAULT_TIER_3_COUNT,
+                default=tiers_data.get(CONF_TIER_3_COUNT, DEFAULT_TIER_3_COUNT),
             ): vol.All(
                 NumberSelector(NumberSelectorConfig(min=0, max=100, step=1, mode=NumberSelectorMode.BOX)),
                 vol.Coerce(int),
             ),
             vol.Required(
                 CONF_TIER_3_DURATION,
-                default=config_entry.data.get(CONF_TIER_3_DURATION, DEFAULT_TIER_3_DURATION)
-                if config_entry
-                else DEFAULT_TIER_3_DURATION,
+                default=tiers_data.get(CONF_TIER_3_DURATION, DEFAULT_TIER_3_DURATION),
             ): vol.All(
                 NumberSelector(NumberSelectorConfig(min=1, max=120, step=1, mode=NumberSelectorMode.BOX)),
                 vol.Coerce(int),
@@ -249,18 +243,14 @@ def get_custom_tiers_schema(config_entry: ConfigEntry | None = None) -> vol.Sche
             # Tier 4: Long-term intervals
             vol.Required(
                 CONF_TIER_4_COUNT,
-                default=config_entry.data.get(CONF_TIER_4_COUNT, DEFAULT_TIER_4_COUNT)
-                if config_entry
-                else DEFAULT_TIER_4_COUNT,
+                default=tiers_data.get(CONF_TIER_4_COUNT, DEFAULT_TIER_4_COUNT),
             ): vol.All(
                 NumberSelector(NumberSelectorConfig(min=0, max=200, step=1, mode=NumberSelectorMode.BOX)),
                 vol.Coerce(int),
             ),
             vol.Required(
                 CONF_TIER_4_DURATION,
-                default=config_entry.data.get(CONF_TIER_4_DURATION, DEFAULT_TIER_4_DURATION)
-                if config_entry
-                else DEFAULT_TIER_4_DURATION,
+                default=tiers_data.get(CONF_TIER_4_DURATION, DEFAULT_TIER_4_DURATION),
             ): vol.All(
                 NumberSelector(NumberSelectorConfig(min=1, max=240, step=1, mode=NumberSelectorMode.BOX)),
                 vol.Coerce(int),
@@ -280,16 +270,18 @@ def get_hub_options_schema(config_entry: ConfigEntry) -> vol.Schema:
 
     """
     # Get stored preset, defaulting to 5_days if not stored
-    current_preset = config_entry.data.get(CONF_HORIZON_PRESET, HORIZON_PRESET_5_DAYS)
+    basic_data = config_entry.data.get(HUB_SECTION_BASIC, {})
+    advanced_data = config_entry.data.get(HUB_SECTION_ADVANCED, {})
+    current_preset = basic_data.get(CONF_HORIZON_PRESET, HORIZON_PRESET_5_DAYS)
 
     sections = (
         SectionDefinition(
-            key="basic",
+            key=HUB_SECTION_BASIC,
             fields=(CONF_HORIZON_PRESET,),
             collapsed=False,
         ),
         SectionDefinition(
-            key="advanced",
+            key=HUB_SECTION_ADVANCED,
             fields=(CONF_DEBOUNCE_SECONDS, CONF_ADVANCED_MODE),
             collapsed=True,
         ),
@@ -308,7 +300,7 @@ def get_hub_options_schema(config_entry: ConfigEntry) -> vol.Schema:
         CONF_DEBOUNCE_SECONDS: (
             vol.Required(
                 CONF_DEBOUNCE_SECONDS,
-                default=config_entry.data.get(CONF_DEBOUNCE_SECONDS, DEFAULT_DEBOUNCE_SECONDS),
+                default=advanced_data.get(CONF_DEBOUNCE_SECONDS, DEFAULT_DEBOUNCE_SECONDS),
             ),
             vol.All(
                 NumberSelector(
@@ -320,7 +312,7 @@ def get_hub_options_schema(config_entry: ConfigEntry) -> vol.Schema:
         CONF_ADVANCED_MODE: (
             vol.Required(
                 CONF_ADVANCED_MODE,
-                default=config_entry.data.get(CONF_ADVANCED_MODE, False),
+                default=advanced_data.get(CONF_ADVANCED_MODE, False),
             ),
             bool,
         ),
