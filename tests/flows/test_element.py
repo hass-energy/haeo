@@ -22,7 +22,8 @@ def hub_entry(hass: HomeAssistant) -> MockConfigEntry:
         domain=DOMAIN,
         data={
             CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
-            CONF_NAME: "Test Hub",
+            "basic": {CONF_NAME: "Test Hub"},
+            "advanced": {},
         },
         entry_id="hub_id",
     )
@@ -37,8 +38,8 @@ async def test_subentry_flow_classes_have_correct_attributes(hass: HomeAssistant
         domain=DOMAIN,
         data={
             CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
-            CONF_NAME: "Test Hub",
-            CONF_ADVANCED_MODE: True,  # Required for connection flows
+            "basic": {CONF_NAME: "Test Hub"},
+            "advanced": {CONF_ADVANCED_MODE: True},  # Required for connection flows
         },
         entry_id="hub_id",
     )

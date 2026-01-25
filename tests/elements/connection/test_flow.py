@@ -1,6 +1,7 @@
 """Tests for connection element config flow."""
 
 from types import MappingProxyType
+from typing import Any
 from unittest.mock import Mock
 
 from homeassistant.config_entries import SOURCE_RECONFIGURE, ConfigSubentry
@@ -13,12 +14,43 @@ from custom_components.haeo.elements import battery, grid, node
 from custom_components.haeo.elements.connection import (
     CONF_MAX_POWER_SOURCE_TARGET,
     CONF_MAX_POWER_TARGET_SOURCE,
+    CONF_SECTION_ADVANCED,
+    CONF_SECTION_BASIC,
+    CONF_SECTION_LIMITS,
     CONF_SOURCE,
     CONF_TARGET,
     ELEMENT_TYPE,
 )
 
 from ..conftest import add_participant, create_flow
+
+
+def _wrap_input(flat: dict[str, Any]) -> dict[str, Any]:
+    """Wrap flat connection input values into sectioned config."""
+    if CONF_SECTION_BASIC in flat:
+        return dict(flat)
+    basic = {
+        CONF_NAME: flat[CONF_NAME],
+        CONF_SOURCE: flat[CONF_SOURCE],
+        CONF_TARGET: flat[CONF_TARGET],
+    }
+    limits = {
+        key: flat[key]
+        for key in (CONF_MAX_POWER_SOURCE_TARGET, CONF_MAX_POWER_TARGET_SOURCE)
+        if key in flat
+    }
+    return {
+        CONF_SECTION_BASIC: basic,
+        CONF_SECTION_LIMITS: limits,
+        CONF_SECTION_ADVANCED: {},
+    }
+
+
+def _wrap_config(flat: dict[str, Any]) -> dict[str, Any]:
+    """Wrap flat connection config values into sectioned config with element type."""
+    if CONF_SECTION_BASIC in flat:
+        return {CONF_ELEMENT_TYPE: ELEMENT_TYPE, **flat}
+    return {CONF_ELEMENT_TYPE: ELEMENT_TYPE, **_wrap_input(flat)}
 
 
 async def test_flow_source_equals_target_error(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
@@ -45,12 +77,13 @@ async def test_reconfigure_source_equals_target_error(hass: HomeAssistant, hub_e
     add_participant(hass, hub_entry, "Battery1", battery.ELEMENT_TYPE)
     add_participant(hass, hub_entry, "Grid1", grid.ELEMENT_TYPE)
 
-    existing_config = {
-        CONF_ELEMENT_TYPE: ELEMENT_TYPE,
-        CONF_NAME: "Existing Connection",
-        CONF_SOURCE: "Battery1",
-        CONF_TARGET: "Grid1",
-    }
+    existing_config = _wrap_config(
+        {
+            CONF_NAME: "Existing Connection",
+            CONF_SOURCE: "Battery1",
+            CONF_TARGET: "Grid1",
+        }
+    )
     existing_subentry = ConfigSubentry(
         data=MappingProxyType(existing_config),
         subentry_type=ELEMENT_TYPE,
@@ -82,12 +115,13 @@ async def test_reconfigure_with_deleted_participant(hass: HomeAssistant, hub_ent
     add_participant(hass, hub_entry, "Grid1", grid.ELEMENT_TYPE)
 
     # Create connection that references a deleted source
-    existing_config = {
-        CONF_ELEMENT_TYPE: ELEMENT_TYPE,
-        CONF_NAME: "Old Connection",
-        CONF_SOURCE: "DeletedBattery",  # This element no longer exists
-        CONF_TARGET: "Grid1",
-    }
+    existing_config = _wrap_config(
+        {
+            CONF_NAME: "Old Connection",
+            CONF_SOURCE: "DeletedBattery",  # This element no longer exists
+            CONF_TARGET: "Grid1",
+        }
+    )
     existing_subentry = ConfigSubentry(
         data=MappingProxyType(existing_config),
         subentry_type=ELEMENT_TYPE,
@@ -149,14 +183,15 @@ async def test_reconfigure_with_string_entity_id_v010_format(hass: HomeAssistant
     add_participant(hass, hub_entry, "Grid1", grid.ELEMENT_TYPE)
 
     # Create existing entry with v0.1.0 format: string entity IDs (not list, not scalar)
-    existing_config = {
-        CONF_ELEMENT_TYPE: ELEMENT_TYPE,
-        CONF_NAME: "Test Connection",
-        CONF_SOURCE: "Battery1",
-        CONF_TARGET: "Grid1",
-        CONF_MAX_POWER_SOURCE_TARGET: "sensor.max_power_st",  # v0.1.0: single string entity ID
-        CONF_MAX_POWER_TARGET_SOURCE: "sensor.max_power_ts",  # v0.1.0: single string entity ID
-    }
+    existing_config = _wrap_config(
+        {
+            CONF_NAME: "Test Connection",
+            CONF_SOURCE: "Battery1",
+            CONF_TARGET: "Grid1",
+            CONF_MAX_POWER_SOURCE_TARGET: "sensor.max_power_st",  # v0.1.0: single string entity ID
+            CONF_MAX_POWER_TARGET_SOURCE: "sensor.max_power_ts",  # v0.1.0: single string entity ID
+        }
+    )
     existing_subentry = ConfigSubentry(
         data=MappingProxyType(existing_config),
         subentry_type=ELEMENT_TYPE,
@@ -179,8 +214,8 @@ async def test_reconfigure_with_string_entity_id_v010_format(hass: HomeAssistant
     defaults = flow._build_defaults("Test Connection", dict(existing_subentry.data))
 
     # Defaults should contain entity choice with the original entity IDs as lists
-    assert defaults[CONF_MAX_POWER_SOURCE_TARGET] == ["sensor.max_power_st"]
-    assert defaults[CONF_MAX_POWER_TARGET_SOURCE] == ["sensor.max_power_ts"]
+    assert defaults[CONF_SECTION_LIMITS][CONF_MAX_POWER_SOURCE_TARGET] == ["sensor.max_power_st"]
+    assert defaults[CONF_SECTION_LIMITS][CONF_MAX_POWER_TARGET_SOURCE] == ["sensor.max_power_ts"]
 
 
 async def test_reconfigure_with_scalar_shows_constant_defaults(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
@@ -189,14 +224,15 @@ async def test_reconfigure_with_scalar_shows_constant_defaults(hass: HomeAssista
     add_participant(hass, hub_entry, "Grid1", grid.ELEMENT_TYPE)
 
     # Create existing entry with scalar values (from constant config)
-    existing_config = {
-        CONF_ELEMENT_TYPE: ELEMENT_TYPE,
-        CONF_NAME: "Test Connection",
-        CONF_SOURCE: "Battery1",
-        CONF_TARGET: "Grid1",
-        CONF_MAX_POWER_SOURCE_TARGET: 10.0,  # Scalar value
-        CONF_MAX_POWER_TARGET_SOURCE: 10.0,  # Scalar value
-    }
+    existing_config = _wrap_config(
+        {
+            CONF_NAME: "Test Connection",
+            CONF_SOURCE: "Battery1",
+            CONF_TARGET: "Grid1",
+            CONF_MAX_POWER_SOURCE_TARGET: 10.0,  # Scalar value
+            CONF_MAX_POWER_TARGET_SOURCE: 10.0,  # Scalar value
+        }
+    )
     existing_subentry = ConfigSubentry(
         data=MappingProxyType(existing_config),
         subentry_type=ELEMENT_TYPE,
@@ -213,8 +249,8 @@ async def test_reconfigure_with_scalar_shows_constant_defaults(hass: HomeAssista
     defaults = flow._build_defaults("Test Connection", dict(existing_subentry.data))
 
     # Defaults should contain constant choice with scalar values
-    assert defaults[CONF_MAX_POWER_SOURCE_TARGET] == 10.0
-    assert defaults[CONF_MAX_POWER_TARGET_SOURCE] == 10.0
+    assert defaults[CONF_SECTION_LIMITS][CONF_MAX_POWER_SOURCE_TARGET] == 10.0
+    assert defaults[CONF_SECTION_LIMITS][CONF_MAX_POWER_TARGET_SOURCE] == 10.0
 
 
 async def test_user_step_with_constant_creates_entry(
@@ -248,8 +284,8 @@ async def test_user_step_with_constant_creates_entry(
 
     # Verify the config contains the constant values
     create_kwargs = flow.async_create_entry.call_args.kwargs
-    assert create_kwargs["data"][CONF_MAX_POWER_SOURCE_TARGET] == 10.0
-    assert create_kwargs["data"][CONF_MAX_POWER_TARGET_SOURCE] == 10.0
+    assert create_kwargs["data"][CONF_SECTION_LIMITS][CONF_MAX_POWER_SOURCE_TARGET] == 10.0
+    assert create_kwargs["data"][CONF_SECTION_LIMITS][CONF_MAX_POWER_TARGET_SOURCE] == 10.0
 
 
 async def test_user_step_with_entity_creates_entry(
@@ -283,5 +319,5 @@ async def test_user_step_with_entity_creates_entry(
 
     # Verify the config contains the entity IDs as strings (single entity)
     create_kwargs = flow.async_create_entry.call_args.kwargs
-    assert create_kwargs["data"][CONF_MAX_POWER_SOURCE_TARGET] == "sensor.power_st"
-    assert create_kwargs["data"][CONF_MAX_POWER_TARGET_SOURCE] == "sensor.power_ts"
+    assert create_kwargs["data"][CONF_SECTION_LIMITS][CONF_MAX_POWER_SOURCE_TARGET] == "sensor.power_st"
+    assert create_kwargs["data"][CONF_SECTION_LIMITS][CONF_MAX_POWER_TARGET_SOURCE] == "sensor.power_ts"

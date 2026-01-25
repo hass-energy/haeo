@@ -65,17 +65,23 @@ async def test_options_flow_init(hass: HomeAssistant) -> None:
         domain=DOMAIN,
         data={
             CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
-            CONF_NAME: "Test Hub",
-            CONF_HORIZON_PRESET: HORIZON_PRESET_5_DAYS,
-            CONF_TIER_1_COUNT: DEFAULT_TIER_1_COUNT,
-            CONF_TIER_1_DURATION: DEFAULT_TIER_1_DURATION,
-            CONF_TIER_2_COUNT: DEFAULT_TIER_2_COUNT,
-            CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
-            CONF_TIER_3_COUNT: DEFAULT_TIER_3_COUNT,
-            CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
-            CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
-            CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
-            CONF_DEBOUNCE_SECONDS: DEFAULT_DEBOUNCE_SECONDS,
+            "basic": {
+                CONF_NAME: "Test Hub",
+                CONF_HORIZON_PRESET: HORIZON_PRESET_5_DAYS,
+            },
+            "tiers": {
+                CONF_TIER_1_COUNT: DEFAULT_TIER_1_COUNT,
+                CONF_TIER_1_DURATION: DEFAULT_TIER_1_DURATION,
+                CONF_TIER_2_COUNT: DEFAULT_TIER_2_COUNT,
+                CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
+                CONF_TIER_3_COUNT: DEFAULT_TIER_3_COUNT,
+                CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
+                CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
+                CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
+            },
+            "advanced": {
+                CONF_DEBOUNCE_SECONDS: DEFAULT_DEBOUNCE_SECONDS,
+            },
         },
     )
     entry.add_to_hass(hass)
@@ -99,17 +105,23 @@ async def test_options_flow_select_preset(hass: HomeAssistant) -> None:
         domain=DOMAIN,
         data={
             CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
-            CONF_NAME: "Test Hub",
-            CONF_HORIZON_PRESET: HORIZON_PRESET_5_DAYS,
-            CONF_TIER_1_COUNT: DEFAULT_TIER_1_COUNT,
-            CONF_TIER_1_DURATION: DEFAULT_TIER_1_DURATION,
-            CONF_TIER_2_COUNT: DEFAULT_TIER_2_COUNT,
-            CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
-            CONF_TIER_3_COUNT: DEFAULT_TIER_3_COUNT,
-            CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
-            CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
-            CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
-            CONF_DEBOUNCE_SECONDS: DEFAULT_DEBOUNCE_SECONDS,
+            "basic": {
+                CONF_NAME: "Test Hub",
+                CONF_HORIZON_PRESET: HORIZON_PRESET_5_DAYS,
+            },
+            "tiers": {
+                CONF_TIER_1_COUNT: DEFAULT_TIER_1_COUNT,
+                CONF_TIER_1_DURATION: DEFAULT_TIER_1_DURATION,
+                CONF_TIER_2_COUNT: DEFAULT_TIER_2_COUNT,
+                CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
+                CONF_TIER_3_COUNT: DEFAULT_TIER_3_COUNT,
+                CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
+                CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
+                CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
+            },
+            "advanced": {
+                CONF_DEBOUNCE_SECONDS: DEFAULT_DEBOUNCE_SECONDS,
+            },
         },
     )
     entry.add_to_hass(hass)
@@ -131,10 +143,10 @@ async def test_options_flow_select_preset(hass: HomeAssistant) -> None:
 
     assert result["type"] == FlowResultType.CREATE_ENTRY
     # Verify preset is stored
-    assert entry.data[CONF_HORIZON_PRESET] == HORIZON_PRESET_3_DAYS
+    assert entry.data["basic"][CONF_HORIZON_PRESET] == HORIZON_PRESET_3_DAYS
     # Verify tier values match the 3 days preset
     preset_config = HORIZON_PRESETS[HORIZON_PRESET_3_DAYS]
-    assert entry.data[CONF_TIER_4_COUNT] == preset_config[CONF_TIER_4_COUNT]
+    assert entry.data["tiers"][CONF_TIER_4_COUNT] == preset_config[CONF_TIER_4_COUNT]
 
 
 async def test_options_flow_custom_tiers(hass: HomeAssistant) -> None:
@@ -143,17 +155,23 @@ async def test_options_flow_custom_tiers(hass: HomeAssistant) -> None:
         domain=DOMAIN,
         data={
             CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
-            CONF_NAME: "Test Hub",
-            CONF_HORIZON_PRESET: HORIZON_PRESET_5_DAYS,
-            CONF_TIER_1_COUNT: DEFAULT_TIER_1_COUNT,
-            CONF_TIER_1_DURATION: DEFAULT_TIER_1_DURATION,
-            CONF_TIER_2_COUNT: DEFAULT_TIER_2_COUNT,
-            CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
-            CONF_TIER_3_COUNT: DEFAULT_TIER_3_COUNT,
-            CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
-            CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
-            CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
-            CONF_DEBOUNCE_SECONDS: DEFAULT_DEBOUNCE_SECONDS,
+            "basic": {
+                CONF_NAME: "Test Hub",
+                CONF_HORIZON_PRESET: HORIZON_PRESET_5_DAYS,
+            },
+            "tiers": {
+                CONF_TIER_1_COUNT: DEFAULT_TIER_1_COUNT,
+                CONF_TIER_1_DURATION: DEFAULT_TIER_1_DURATION,
+                CONF_TIER_2_COUNT: DEFAULT_TIER_2_COUNT,
+                CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
+                CONF_TIER_3_COUNT: DEFAULT_TIER_3_COUNT,
+                CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
+                CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
+                CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
+            },
+            "advanced": {
+                CONF_DEBOUNCE_SECONDS: DEFAULT_DEBOUNCE_SECONDS,
+            },
         },
     )
     entry.add_to_hass(hass)
@@ -195,6 +213,6 @@ async def test_options_flow_custom_tiers(hass: HomeAssistant) -> None:
     )
 
     assert result["type"] == FlowResultType.CREATE_ENTRY
-    assert entry.data[CONF_HORIZON_PRESET] == HORIZON_PRESET_CUSTOM
-    assert entry.data[CONF_TIER_1_COUNT] == 10
-    assert entry.data[CONF_TIER_1_DURATION] == 2
+    assert entry.data["basic"][CONF_HORIZON_PRESET] == HORIZON_PRESET_CUSTOM
+    assert entry.data["tiers"][CONF_TIER_1_COUNT] == 10
+    assert entry.data["tiers"][CONF_TIER_1_DURATION] == 2

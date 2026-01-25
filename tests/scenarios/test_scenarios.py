@@ -37,6 +37,131 @@ from tests.scenarios.visualization import visualize_scenario_results
 _LOGGER = logging.getLogger(__name__)
 
 
+def _pick_fields(config: dict[str, Any], fields: tuple[str, ...]) -> dict[str, Any]:
+    """Select fields that are present in a config dict."""
+    return {field: config[field] for field in fields if field in config}
+
+
+def _sectioned_participant_config(config: dict[str, Any]) -> dict[str, Any]:
+    """Convert flat participant configs into sectioned configs for scenario tests."""
+    if "basic" in config:
+        return config
+
+    element_type = config[CONF_ELEMENT_TYPE]
+    name = config[CONF_NAME]
+
+    if element_type == "battery":
+        basic = _pick_fields(
+            config,
+            ("connection", "capacity", "initial_charge_percentage"),
+        )
+        basic[CONF_NAME] = name
+        limits = _pick_fields(
+            config,
+            (
+                "min_charge_percentage",
+                "max_charge_percentage",
+                "max_charge_power",
+                "max_discharge_power",
+            ),
+        )
+        advanced = _pick_fields(
+            config,
+            (
+                "efficiency",
+                "early_charge_incentive",
+                "discharge_cost",
+                "configure_partitions",
+            ),
+        )
+        sectioned = {
+            CONF_ELEMENT_TYPE: element_type,
+            "basic": basic,
+            "limits": limits,
+            "advanced": advanced,
+        }
+        undercharge = _pick_fields(config, ("undercharge_percentage", "undercharge_cost"))
+        if undercharge:
+            sectioned["undercharge"] = undercharge
+        overcharge = _pick_fields(config, ("overcharge_percentage", "overcharge_cost"))
+        if overcharge:
+            sectioned["overcharge"] = overcharge
+        return sectioned
+
+    if element_type == "load":
+        return {
+            CONF_ELEMENT_TYPE: element_type,
+            "basic": {CONF_NAME: name, "connection": config["connection"]},
+            "inputs": {"forecast": config["forecast"]},
+        }
+
+    if element_type == "grid":
+        return {
+            CONF_ELEMENT_TYPE: element_type,
+            "basic": {CONF_NAME: name, "connection": config["connection"]},
+            "pricing": {
+                "import_price": config["import_price"],
+                "export_price": config["export_price"],
+            },
+            "limits": _pick_fields(config, ("import_limit", "export_limit")),
+        }
+
+    if element_type == "inverter":
+        return {
+            CONF_ELEMENT_TYPE: element_type,
+            "basic": {CONF_NAME: name, "connection": config["connection"]},
+            "limits": _pick_fields(config, ("max_power_dc_to_ac", "max_power_ac_to_dc")),
+            "advanced": _pick_fields(config, ("efficiency_dc_to_ac", "efficiency_ac_to_dc")),
+        }
+
+    if element_type == "solar":
+        return {
+            CONF_ELEMENT_TYPE: element_type,
+            "basic": {
+                CONF_NAME: name,
+                "connection": config["connection"],
+                "forecast": config["forecast"],
+            },
+            "advanced": _pick_fields(config, ("curtailment", "price_production")),
+        }
+
+    if element_type == "node":
+        return {
+            CONF_ELEMENT_TYPE: element_type,
+            "basic": {CONF_NAME: name},
+            "advanced": _pick_fields(config, ("is_source", "is_sink")),
+        }
+
+    if element_type == "connection":
+        return {
+            CONF_ELEMENT_TYPE: element_type,
+            "basic": {
+                CONF_NAME: name,
+                "source": config["source"],
+                "target": config["target"],
+            },
+            "limits": _pick_fields(config, ("max_power_source_target", "max_power_target_source")),
+            "advanced": _pick_fields(
+                config,
+                (
+                    "efficiency_source_target",
+                    "efficiency_target_source",
+                    "price_source_target",
+                    "price_target_source",
+                ),
+            ),
+        }
+
+    if element_type == "battery_section":
+        return {
+            CONF_ELEMENT_TYPE: element_type,
+            "basic": {CONF_NAME: name},
+            "inputs": _pick_fields(config, ("capacity", "initial_charge")),
+        }
+
+    return config
+
+
 def _discover_scenarios() -> list[Path]:
     """Discover all scenario folders."""
     scenarios_dir = Path(__file__).parent
@@ -89,23 +214,30 @@ async def test_scenarios(
             domain=DOMAIN,
             data={
                 "integration_type": INTEGRATION_TYPE_HUB,
-                CONF_NAME: "Test Hub",
-                CONF_TIER_1_COUNT: scenario_config["tier_1_count"],
-                CONF_TIER_1_DURATION: scenario_config["tier_1_duration"],
-                CONF_TIER_2_COUNT: scenario_config.get("tier_2_count", 0),
-                CONF_TIER_2_DURATION: scenario_config.get("tier_2_duration", 5),
-                CONF_TIER_3_COUNT: scenario_config.get("tier_3_count", 0),
-                CONF_TIER_3_DURATION: scenario_config.get("tier_3_duration", 30),
-                CONF_TIER_4_COUNT: scenario_config.get("tier_4_count", 0),
-                CONF_TIER_4_DURATION: scenario_config.get("tier_4_duration", 60),
+                "basic": {CONF_NAME: "Test Hub"},
+                "tiers": {
+                    CONF_TIER_1_COUNT: scenario_config["tier_1_count"],
+                    CONF_TIER_1_DURATION: scenario_config["tier_1_duration"],
+                    CONF_TIER_2_COUNT: scenario_config.get("tier_2_count", 0),
+                    CONF_TIER_2_DURATION: scenario_config.get("tier_2_duration", 5),
+                    CONF_TIER_3_COUNT: scenario_config.get("tier_3_count", 0),
+                    CONF_TIER_3_DURATION: scenario_config.get("tier_3_duration", 30),
+                    CONF_TIER_4_COUNT: scenario_config.get("tier_4_count", 0),
+                    CONF_TIER_4_DURATION: scenario_config.get("tier_4_duration", 60),
+                },
+                "advanced": {},
             },
         )
         mock_config_entry.add_to_hass(hass)
 
         # Create element subentries from the scenario config
         for name, config in scenario_config["participants"].items():
+            sectioned_config = _sectioned_participant_config(config)
             subentry = ConfigSubentry(
-                data=MappingProxyType(config), subentry_type=config[CONF_ELEMENT_TYPE], title=name, unique_id=None
+                data=MappingProxyType(sectioned_config),
+                subentry_type=sectioned_config[CONF_ELEMENT_TYPE],
+                title=name,
+                unique_id=None,
             )
             hass.config_entries.async_add_subentry(mock_config_entry, subentry)
 

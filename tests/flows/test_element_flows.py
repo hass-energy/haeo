@@ -116,11 +116,20 @@ def _prepare_flow_context(
     """Populate dependent participants required by connection flows."""
 
     if element_type == connection.ELEMENT_TYPE:
+        basic = config.get(connection.CONF_SECTION_BASIC, {})
         for key in (connection.CONF_SOURCE, connection.CONF_TARGET):
-            endpoint = config.get(key)
+            endpoint = basic.get(key)
             if isinstance(endpoint, str) and endpoint:
                 inferred_type: ElementType = grid.ELEMENT_TYPE if "grid" in endpoint.lower() else battery.ELEMENT_TYPE
                 _add_participant_subentry(hass, hub_entry, endpoint, inferred_type)
+
+
+def _get_element_name(config: Mapping[str, Any], element_type: ElementType) -> str:
+    """Return the element name from a sectioned config dict."""
+    basic = config.get("basic")
+    if isinstance(basic, Mapping) and CONF_NAME in basic:
+        return str(basic[CONF_NAME])
+    return str(config.get(CONF_NAME, element_type.title()))
 
 
 def _make_subentry(element_type: ElementType, config: dict[str, Any]) -> ConfigSubentry:
@@ -130,7 +139,7 @@ def _make_subentry(element_type: ElementType, config: dict[str, Any]) -> ConfigS
     return ConfigSubentry(
         data=MappingProxyType(data),
         subentry_type=element_type,
-        title=data.get(CONF_NAME, element_type.title()),
+        title=_get_element_name(data, element_type),
         unique_id=None,
     )
 
@@ -218,15 +227,17 @@ def hub_entry(hass: HomeAssistant) -> MockConfigEntry:
         domain=DOMAIN,
         data={
             CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
-            CONF_NAME: "Test Hub",
-            CONF_TIER_1_COUNT: DEFAULT_TIER_1_COUNT,
-            CONF_TIER_1_DURATION: DEFAULT_TIER_1_DURATION,
-            CONF_TIER_2_COUNT: DEFAULT_TIER_2_COUNT,
-            CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
-            CONF_TIER_3_COUNT: DEFAULT_TIER_3_COUNT,
-            CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
-            CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
-            CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
+            "basic": {CONF_NAME: "Test Hub"},
+            "tiers": {
+                CONF_TIER_1_COUNT: DEFAULT_TIER_1_COUNT,
+                CONF_TIER_1_DURATION: DEFAULT_TIER_1_DURATION,
+                CONF_TIER_2_COUNT: DEFAULT_TIER_2_COUNT,
+                CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
+                CONF_TIER_3_COUNT: DEFAULT_TIER_3_COUNT,
+                CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
+                CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
+                CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
+            },
         },
         entry_id="test_hub_id",
     )
@@ -253,7 +264,7 @@ async def test_element_flow_user_step_success(
     flow.async_create_entry = Mock(
         return_value={
             "type": FlowResultType.CREATE_ENTRY,
-            "title": user_input.get(CONF_NAME, element_type),
+            "title": _get_element_name(user_input, element_type),
             "data": {},
         }
     )
@@ -270,7 +281,7 @@ async def test_element_flow_user_step_success(
 
     created_kwargs = flow.async_create_entry.call_args.kwargs
     assert created_kwargs["data"][CONF_ELEMENT_TYPE] == element_type
-    assert created_kwargs["data"][CONF_NAME] == user_input[CONF_NAME]
+    assert _get_element_name(created_kwargs["data"], element_type) == _get_element_name(user_input, element_type)
 
 
 @pytest.mark.parametrize("element_type", ALL_ELEMENT_TYPES)
@@ -284,7 +295,7 @@ async def test_element_flow_user_step_missing_name(
 
     flow = _create_flow(hass, hub_entry, element_type)
     base_input = deepcopy(element_test_data[element_type].valid[0].config)
-    base_input[CONF_NAME] = ""
+    base_input["basic"][CONF_NAME] = ""
 
     _prepare_flow_context(hass, hub_entry, element_type, base_input)
 
@@ -374,8 +385,8 @@ async def test_element_flow_reconfigure_rename(
     flow.async_update_and_abort = Mock(return_value={"type": FlowResultType.ABORT, "reason": "reconfigure_successful"})
 
     renamed_input = deepcopy(existing_config)
-    original_name = renamed_input[CONF_NAME]
-    renamed_input[CONF_NAME] = f"{original_name} Updated"
+    original_name = renamed_input["basic"][CONF_NAME]
+    renamed_input["basic"][CONF_NAME] = f"{original_name} Updated"
 
     # Single-step flow: submit values directly
     result = await flow.async_step_reconfigure(user_input=renamed_input)
@@ -384,7 +395,7 @@ async def test_element_flow_reconfigure_rename(
     assert result.get("reason") == "reconfigure_successful"
 
     update_kwargs = flow.async_update_and_abort.call_args.kwargs
-    assert update_kwargs["title"] == renamed_input[CONF_NAME]
+    assert update_kwargs["title"] == renamed_input["basic"][CONF_NAME]
 
 
 @pytest.mark.parametrize("element_type", ALL_ELEMENT_TYPES)
@@ -408,7 +419,7 @@ async def test_element_flow_reconfigure_missing_name(
     flow._get_reconfigure_subentry = Mock(return_value=existing_subentry)
 
     invalid_input = deepcopy(existing_config)
-    invalid_input[CONF_NAME] = ""
+    invalid_input["basic"][CONF_NAME] = ""
 
     result = await flow.async_step_reconfigure(user_input=invalid_input)
     assert result.get("type") == FlowResultType.FORM
@@ -431,7 +442,7 @@ async def test_element_flow_reconfigure_duplicate_name(
         else primary_config
     )
     secondary_config = deepcopy(secondary_source)
-    secondary_config[CONF_NAME] = f"{primary_config[CONF_NAME]} Secondary"
+    secondary_config["basic"][CONF_NAME] = f"{primary_config['basic'][CONF_NAME]} Secondary"
 
     _prepare_flow_context(hass, hub_entry, element_type, primary_config)
     _prepare_flow_context(hass, hub_entry, element_type, secondary_config)
@@ -447,7 +458,7 @@ async def test_element_flow_reconfigure_duplicate_name(
     flow._get_reconfigure_subentry = Mock(return_value=secondary_subentry)
 
     duplicate_input = deepcopy(secondary_config)
-    duplicate_input[CONF_NAME] = primary_config[CONF_NAME]
+    duplicate_input["basic"][CONF_NAME] = primary_config["basic"][CONF_NAME]
 
     result = await flow.async_step_reconfigure(user_input=duplicate_input)
     assert result.get("type") == FlowResultType.FORM

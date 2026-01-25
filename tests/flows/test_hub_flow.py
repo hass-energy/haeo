@@ -84,17 +84,18 @@ async def test_user_flow_success_with_preset(hass: HomeAssistant) -> None:
     assert result.get("title") == "Test Hub"
     data = result.get("data")
     assert data is not None
-    assert data[CONF_NAME] == "Test Hub"
+    assert data["basic"][CONF_NAME] == "Test Hub"
     assert data["integration_type"] == INTEGRATION_TYPE_HUB
 
     # Verify preset is stored in entry data
-    assert data[CONF_HORIZON_PRESET] == HORIZON_PRESET_3_DAYS
+    assert data["basic"][CONF_HORIZON_PRESET] == HORIZON_PRESET_3_DAYS
 
     # Verify preset values were applied
     preset_values = HORIZON_PRESETS[HORIZON_PRESET_3_DAYS]
-    assert data[CONF_TIER_1_DURATION] == preset_values[CONF_TIER_1_DURATION]
-    assert data[CONF_TIER_1_COUNT] == preset_values[CONF_TIER_1_COUNT]
-    assert data[CONF_TIER_4_COUNT] == preset_values[CONF_TIER_4_COUNT]
+    tiers = data["tiers"]
+    assert tiers[CONF_TIER_1_DURATION] == preset_values[CONF_TIER_1_DURATION]
+    assert tiers[CONF_TIER_1_COUNT] == preset_values[CONF_TIER_1_COUNT]
+    assert tiers[CONF_TIER_4_COUNT] == preset_values[CONF_TIER_4_COUNT]
 
     # Verify entry was created
     entries = hass.config_entries.async_entries(DOMAIN)
@@ -172,14 +173,15 @@ async def test_user_flow_custom_tiers_creates_entry(hass: HomeAssistant) -> None
     assert data is not None
 
     # Verify preset is stored as custom
-    assert data[CONF_HORIZON_PRESET] == HORIZON_PRESET_CUSTOM
+    assert data["basic"][CONF_HORIZON_PRESET] == HORIZON_PRESET_CUSTOM
 
     # Verify custom values were used
-    assert data[CONF_TIER_1_COUNT] == 10
-    assert data[CONF_TIER_1_DURATION] == 2
-    assert data[CONF_TIER_4_COUNT] == custom_tier_4_count
+    tiers = data["tiers"]
+    assert tiers[CONF_TIER_1_COUNT] == 10
+    assert tiers[CONF_TIER_1_DURATION] == 2
+    assert tiers[CONF_TIER_4_COUNT] == custom_tier_4_count
     # Verify default debounce was used (hidden during add)
-    assert data[CONF_DEBOUNCE_SECONDS] == DEFAULT_DEBOUNCE_SECONDS
+    assert data["advanced"][CONF_DEBOUNCE_SECONDS] == DEFAULT_DEBOUNCE_SECONDS
 
 
 async def test_user_flow_different_presets(hass: HomeAssistant) -> None:
@@ -203,8 +205,9 @@ async def test_user_flow_different_presets(hass: HomeAssistant) -> None:
 
     # Verify 5-day preset values
     preset_values = HORIZON_PRESETS[HORIZON_PRESET_5_DAYS]
-    assert data[CONF_TIER_4_COUNT] == preset_values[CONF_TIER_4_COUNT]
-    assert data[CONF_TIER_4_COUNT] == 96  # 96 intervals of 60 min for 5 days
+    tiers = data["tiers"]
+    assert tiers[CONF_TIER_4_COUNT] == preset_values[CONF_TIER_4_COUNT]
+    assert tiers[CONF_TIER_4_COUNT] == 96  # 96 intervals of 60 min for 5 days
 
 
 async def test_user_flow_duplicate_name(hass: HomeAssistant) -> None:
@@ -214,15 +217,17 @@ async def test_user_flow_duplicate_name(hass: HomeAssistant) -> None:
         domain=DOMAIN,
         data={
             "integration_type": INTEGRATION_TYPE_HUB,
-            CONF_NAME: "Existing Hub",
-            CONF_TIER_1_COUNT: DEFAULT_TIER_1_COUNT,
-            CONF_TIER_1_DURATION: DEFAULT_TIER_1_DURATION,
-            CONF_TIER_2_COUNT: DEFAULT_TIER_2_COUNT,
-            CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
-            CONF_TIER_3_COUNT: DEFAULT_TIER_3_COUNT,
-            CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
-            CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
-            CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
+            "basic": {CONF_NAME: "Existing Hub"},
+            "tiers": {
+                CONF_TIER_1_COUNT: DEFAULT_TIER_1_COUNT,
+                CONF_TIER_1_DURATION: DEFAULT_TIER_1_DURATION,
+                CONF_TIER_2_COUNT: DEFAULT_TIER_2_COUNT,
+                CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
+                CONF_TIER_3_COUNT: DEFAULT_TIER_3_COUNT,
+                CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
+                CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
+                CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
+            },
         },
         title="Existing Hub",
     )
@@ -317,16 +322,22 @@ async def test_hub_supports_subentry_types(hass: HomeAssistant) -> None:
         domain=DOMAIN,
         data={
             "integration_type": INTEGRATION_TYPE_HUB,
-            CONF_NAME: "Test Hub",
-            CONF_ADVANCED_MODE: True,  # Required for connection, node, battery_section flows
-            CONF_TIER_1_COUNT: DEFAULT_TIER_1_COUNT,
-            CONF_TIER_1_DURATION: DEFAULT_TIER_1_DURATION,
-            CONF_TIER_2_COUNT: DEFAULT_TIER_2_COUNT,
-            CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
-            CONF_TIER_3_COUNT: DEFAULT_TIER_3_COUNT,
-            CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
-            CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
-            CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
+            "basic": {
+                CONF_NAME: "Test Hub",
+            },
+            "advanced": {
+                CONF_ADVANCED_MODE: True,  # Required for connection, node, battery_section flows
+            },
+            "tiers": {
+                CONF_TIER_1_COUNT: DEFAULT_TIER_1_COUNT,
+                CONF_TIER_1_DURATION: DEFAULT_TIER_1_DURATION,
+                CONF_TIER_2_COUNT: DEFAULT_TIER_2_COUNT,
+                CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
+                CONF_TIER_3_COUNT: DEFAULT_TIER_3_COUNT,
+                CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
+                CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
+                CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
+            },
         },
         entry_id="test_hub_id",
     )

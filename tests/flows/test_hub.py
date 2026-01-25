@@ -87,7 +87,7 @@ async def test_user_step_form_has_translations(hass: HomeAssistant) -> None:
         section_name = section_key.schema
         section_translation = f"component.{DOMAIN}.config.step.user.sections.{section_name}.name"
         assert section_translation in translations, f"Missing section translation '{section_translation}'"
-        for field in section_schema.schema:
+        for field in section_schema.schema.schema:
             field_name = field.schema
             translation_key = (
                 f"component.{DOMAIN}.config.step.user.sections.{section_name}.data.{field_name}"

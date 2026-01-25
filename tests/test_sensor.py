@@ -94,15 +94,18 @@ def config_entry(hass: HomeAssistant) -> MockConfigEntry:
         domain=DOMAIN,
         title="Mock Network",
         data={
-            "name": "Mock Network",
-            "tier_1_count": 5,
-            "tier_1_duration": 1,
-            "tier_2_count": 11,
-            "tier_2_duration": 5,
-            "tier_3_count": 0,
-            "tier_3_duration": 30,
-            "tier_4_count": 0,
-            "tier_4_duration": 60,
+            "basic": {CONF_NAME: "Mock Network"},
+            "tiers": {
+                "tier_1_count": 5,
+                "tier_1_duration": 1,
+                "tier_2_count": 11,
+                "tier_2_duration": 5,
+                "tier_3_count": 0,
+                "tier_3_duration": 30,
+                "tier_4_count": 0,
+                "tier_4_duration": 60,
+            },
+            "advanced": {},
         },
         entry_id="mock_entry",
     )
@@ -115,7 +118,19 @@ def config_entry(hass: HomeAssistant) -> MockConfigEntry:
         unique_id=None,
     )
     battery_subentry = ConfigSubentry(
-        data=MappingProxyType({CONF_ELEMENT_TYPE: BATTERY_TYPE, CONF_NAME: "Battery"}),
+        data=MappingProxyType(
+            {
+                CONF_ELEMENT_TYPE: BATTERY_TYPE,
+                "basic": {
+                    CONF_NAME: "Battery",
+                    "connection": "Switchboard",
+                    "capacity": 10.0,
+                    "initial_charge_percentage": 50.0,
+                },
+                "limits": {},
+                "advanced": {},
+            }
+        ),
         subentry_type=BATTERY_TYPE,
         title="Battery",
         unique_id=None,

@@ -16,6 +16,12 @@ import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.haeo.const import CONF_NAME, DOMAIN
+from custom_components.haeo.elements.solar import (
+    CONF_CONNECTION,
+    CONF_FORECAST,
+    CONF_SECTION_ADVANCED,
+    CONF_SECTION_BASIC,
+)
 from custom_components.haeo.elements.input_fields import InputFieldDefaults, InputFieldInfo
 from custom_components.haeo.entities.haeo_number import ConfigEntityMode
 from custom_components.haeo.entities.haeo_switch import HaeoInputSwitch
@@ -32,15 +38,18 @@ def config_entry(hass: HomeAssistant) -> MockConfigEntry:
         domain=DOMAIN,
         title="Test Network",
         data={
-            "name": "Test Network",
-            "tier_1_count": 2,
-            "tier_1_duration": 5,
-            "tier_2_count": 0,
-            "tier_2_duration": 15,
-            "tier_3_count": 0,
-            "tier_3_duration": 30,
-            "tier_4_count": 0,
-            "tier_4_duration": 60,
+            "basic": {CONF_NAME: "Test Network"},
+            "tiers": {
+                "tier_1_count": 2,
+                "tier_1_duration": 5,
+                "tier_2_count": 0,
+                "tier_2_duration": 15,
+                "tier_3_count": 0,
+                "tier_3_duration": 30,
+                "tier_4_count": 0,
+                "tier_4_duration": 60,
+            },
+            "advanced": {},
         },
         entry_id="test_switch_entry",
     )
@@ -83,7 +92,17 @@ def curtailment_field_info() -> InputFieldInfo[SwitchEntityDescription]:
 def _create_subentry(name: str, data: dict[str, Any]) -> ConfigSubentry:
     """Create a ConfigSubentry with the given data."""
     return ConfigSubentry(
-        data=MappingProxyType({CONF_NAME: name, "element_type": "solar", **data}),
+        data=MappingProxyType(
+            {
+                "element_type": "solar",
+                CONF_SECTION_BASIC: {
+                    CONF_NAME: name,
+                    CONF_CONNECTION: "Switchboard",
+                    CONF_FORECAST: ["sensor.solar_forecast"],
+                },
+                CONF_SECTION_ADVANCED: data,
+            }
+        ),
         subentry_type="solar",
         title=name,
         unique_id=None,

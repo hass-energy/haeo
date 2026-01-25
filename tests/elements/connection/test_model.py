@@ -39,15 +39,17 @@ CREATE_CASES: Sequence[CreateCase] = [
         "description": "Connection with all optional fields",
         "data": ConnectionConfigData(
             element_type="connection",
-            name="c1",
-            source="s",
-            target="t",
-            max_power_source_target=np.array([4.0]),
-            max_power_target_source=np.array([2.0]),
-            efficiency_source_target=np.array([0.95]),
-            efficiency_target_source=np.array([0.90]),
-            price_source_target=np.array([0.1]),
-            price_target_source=np.array([0.05]),
+            basic={"name": "c1", "source": "s", "target": "t"},
+            limits={
+                "max_power_source_target": np.array([4.0]),
+                "max_power_target_source": np.array([2.0]),
+            },
+            advanced={
+                "efficiency_source_target": np.array([0.95]),
+                "efficiency_target_source": np.array([0.90]),
+                "price_source_target": np.array([0.1]),
+                "price_target_source": np.array([0.05]),
+            },
         ),
         "model": [
             {
@@ -79,9 +81,9 @@ CREATE_CASES: Sequence[CreateCase] = [
         "description": "Connection without optional fields",
         "data": ConnectionConfigData(
             element_type="connection",
-            name="c_min",
-            source="s",
-            target="t",
+            basic={"name": "c_min", "source": "s", "target": "t"},
+            limits={},
+            advanced={},
         ),
         "model": [
             {

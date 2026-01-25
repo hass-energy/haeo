@@ -1,7 +1,12 @@
 """Test data and validation for load flow configuration."""
 
 from custom_components.haeo.const import CONF_NAME
-from custom_components.haeo.elements.load import CONF_CONNECTION, CONF_FORECAST
+from custom_components.haeo.elements.load import (
+    CONF_CONNECTION,
+    CONF_FORECAST,
+    CONF_SECTION_BASIC,
+    CONF_SECTION_INPUTS,
+)
 
 # Test data for load flow - single-step with choose selector
 # config: Contains all field values in choose selector format
@@ -9,17 +14,25 @@ VALID_DATA = [
     {
         "description": "Load with forecast sensors (variable load)",
         "config": {
-            CONF_NAME: "Test Load",
-            CONF_CONNECTION: "main_bus",
-            CONF_FORECAST: ["sensor.forecast1", "sensor.forecast2"],
+            CONF_SECTION_BASIC: {
+                CONF_NAME: "Test Load",
+                CONF_CONNECTION: "main_bus",
+            },
+            CONF_SECTION_INPUTS: {
+                CONF_FORECAST: ["sensor.forecast1", "sensor.forecast2"],
+            },
         },
     },
     {
         "description": "Load with constant value (fixed load pattern)",
         "config": {
-            CONF_NAME: "Constant Load",
-            CONF_CONNECTION: "main_bus",
-            CONF_FORECAST: 1.5,
+            CONF_SECTION_BASIC: {
+                CONF_NAME: "Constant Load",
+                CONF_CONNECTION: "main_bus",
+            },
+            CONF_SECTION_INPUTS: {
+                CONF_FORECAST: 1.5,
+            },
         },
     },
 ]
