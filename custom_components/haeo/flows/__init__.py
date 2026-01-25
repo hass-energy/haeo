@@ -155,29 +155,33 @@ def get_hub_setup_schema(suggested_name: str | None = None) -> vol.Schema:
         ),
     )
     field_entries = {
-        CONF_NAME: (
-            name_key,
-            vol.All(
-                str,
-                vol.Strip,
-                vol.Length(min=1, msg="Name cannot be empty"),
-                vol.Length(max=255, msg="Name cannot be longer than 255 characters"),
+        HUB_SECTION_BASIC: {
+            CONF_NAME: (
+                name_key,
+                vol.All(
+                    str,
+                    vol.Strip,
+                    vol.Length(min=1, msg="Name cannot be empty"),
+                    vol.Length(max=255, msg="Name cannot be longer than 255 characters"),
+                ),
             ),
-        ),
-        CONF_HORIZON_PRESET: (
-            vol.Required(CONF_HORIZON_PRESET, default=HORIZON_PRESET_5_DAYS),
-            SelectSelector(
-                SelectSelectorConfig(
-                    options=HORIZON_PRESET_OPTIONS,
-                    mode=SelectSelectorMode.DROPDOWN,
-                    translation_key="horizon_preset",
-                )
+            CONF_HORIZON_PRESET: (
+                vol.Required(CONF_HORIZON_PRESET, default=HORIZON_PRESET_5_DAYS),
+                SelectSelector(
+                    SelectSelectorConfig(
+                        options=HORIZON_PRESET_OPTIONS,
+                        mode=SelectSelectorMode.DROPDOWN,
+                        translation_key="horizon_preset",
+                    )
+                ),
             ),
-        ),
-        CONF_ADVANCED_MODE: (
-            vol.Required(CONF_ADVANCED_MODE, default=False),
-            bool,
-        ),
+        },
+        HUB_SECTION_ADVANCED: {
+            CONF_ADVANCED_MODE: (
+                vol.Required(CONF_ADVANCED_MODE, default=False),
+                bool,
+            ),
+        },
     }
     return vol.Schema(build_section_schema(sections, field_entries))
 
@@ -287,34 +291,38 @@ def get_hub_options_schema(config_entry: ConfigEntry) -> vol.Schema:
         ),
     )
     field_entries = {
-        CONF_HORIZON_PRESET: (
-            vol.Required(CONF_HORIZON_PRESET, default=current_preset),
-            SelectSelector(
-                SelectSelectorConfig(
-                    options=HORIZON_PRESET_OPTIONS,
-                    mode=SelectSelectorMode.DROPDOWN,
-                    translation_key="horizon_preset",
-                )
-            ),
-        ),
-        CONF_DEBOUNCE_SECONDS: (
-            vol.Required(
-                CONF_DEBOUNCE_SECONDS,
-                default=advanced_data.get(CONF_DEBOUNCE_SECONDS, DEFAULT_DEBOUNCE_SECONDS),
-            ),
-            vol.All(
-                NumberSelector(
-                    NumberSelectorConfig(min=0, max=30, step=1, mode=NumberSelectorMode.BOX),
+        HUB_SECTION_BASIC: {
+            CONF_HORIZON_PRESET: (
+                vol.Required(CONF_HORIZON_PRESET, default=current_preset),
+                SelectSelector(
+                    SelectSelectorConfig(
+                        options=HORIZON_PRESET_OPTIONS,
+                        mode=SelectSelectorMode.DROPDOWN,
+                        translation_key="horizon_preset",
+                    )
                 ),
-                vol.Coerce(int),
             ),
-        ),
-        CONF_ADVANCED_MODE: (
-            vol.Required(
-                CONF_ADVANCED_MODE,
-                default=advanced_data.get(CONF_ADVANCED_MODE, False),
+        },
+        HUB_SECTION_ADVANCED: {
+            CONF_DEBOUNCE_SECONDS: (
+                vol.Required(
+                    CONF_DEBOUNCE_SECONDS,
+                    default=advanced_data.get(CONF_DEBOUNCE_SECONDS, DEFAULT_DEBOUNCE_SECONDS),
+                ),
+                vol.All(
+                    NumberSelector(
+                        NumberSelectorConfig(min=0, max=30, step=1, mode=NumberSelectorMode.BOX),
+                    ),
+                    vol.Coerce(int),
+                ),
             ),
-            bool,
-        ),
+            CONF_ADVANCED_MODE: (
+                vol.Required(
+                    CONF_ADVANCED_MODE,
+                    default=advanced_data.get(CONF_ADVANCED_MODE, False),
+                ),
+                bool,
+            ),
+        },
     }
     return vol.Schema(build_section_schema(sections, field_entries))

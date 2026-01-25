@@ -30,7 +30,7 @@ from homeassistant.helpers.selector import (
 import voluptuous as vol
 
 from custom_components.haeo.const import DOMAIN
-from custom_components.haeo.elements.input_fields import InputFieldInfo
+from custom_components.haeo.elements.input_fields import InputFieldGroups, InputFieldInfo
 
 # Choose selector choice keys (used for config flow data and translations)
 CHOICE_ENTITY = "entity"
@@ -391,7 +391,7 @@ def build_choose_field_entries(
 
 def build_section_schema(
     sections: Sequence[SectionDefinition],
-    field_entries: Mapping[str, tuple[vol.Marker, Any]],
+    field_entries: Mapping[str, Mapping[str, tuple[vol.Marker, Any]]],
 ) -> dict[vol.Marker, Any]:
     """Build section-wrapped schema entries from a field entry map.
 
@@ -407,8 +407,9 @@ def build_section_schema(
 
     for section_def in sections:
         section_schema: dict[vol.Marker, Any] = {}
+        section_entries = field_entries.get(section_def.key, {})
         for field_name in section_def.fields:
-            entry = field_entries.get(field_name)
+            entry = section_entries.get(field_name)
             if entry is None:
                 continue
             marker, selector = entry
@@ -481,7 +482,7 @@ def nest_section_defaults(
 
 def preprocess_sectioned_choose_input(
     user_input: dict[str, Any] | None,
-    input_fields: Mapping[str, InputFieldInfo[Any]],
+    input_fields: InputFieldGroups,
     sections: Sequence[SectionDefinition],
 ) -> dict[str, Any] | None:
     """Preprocess sectioned input to normalize ChooseSelector data."""
@@ -497,9 +498,7 @@ def preprocess_sectioned_choose_input(
         section_input = result.get(section_def.key)
         if not isinstance(section_input, dict):
             continue
-        section_fields = {
-            field_name: input_fields[field_name] for field_name in section_def.fields if field_name in input_fields
-        }
+        section_fields = input_fields.get(section_def.key, {})
         normalized = preprocess_choose_selector_input(section_input, section_fields)
         result[section_def.key] = normalized or {}
     return result
@@ -522,7 +521,7 @@ def _nest_section_input(user_input: Mapping[str, Any], sections: Sequence[Sectio
 
 def validate_sectioned_choose_fields(
     user_input: Mapping[str, Any],
-    input_fields: Mapping[str, InputFieldInfo[Any]],
+    input_fields: InputFieldGroups,
     optional_fields: frozenset[str],
     sections: Sequence[SectionDefinition],
     *,
@@ -534,9 +533,7 @@ def validate_sectioned_choose_fields(
         section_input = user_input.get(section_def.key, {})
         if not isinstance(section_input, Mapping):
             continue
-        section_fields = {
-            field_name: input_fields[field_name] for field_name in section_def.fields if field_name in input_fields
-        }
+        section_fields = input_fields.get(section_def.key, {})
         errors.update(
             validate_choose_fields(
                 dict(section_input),
@@ -550,7 +547,7 @@ def validate_sectioned_choose_fields(
 
 def convert_sectioned_choose_data_to_config(
     user_input: Mapping[str, Any],
-    input_fields: Mapping[str, InputFieldInfo[Any]],
+    input_fields: InputFieldGroups,
     sections: Sequence[SectionDefinition],
     *,
     exclude_fields: tuple[str, ...] = (),
@@ -562,9 +559,7 @@ def convert_sectioned_choose_data_to_config(
         if not isinstance(section_input, Mapping):
             config[section_def.key] = {}
             continue
-        section_fields = {
-            field_name: input_fields[field_name] for field_name in section_def.fields if field_name in input_fields
-        }
+        section_fields = input_fields.get(section_def.key, {})
         section_config: dict[str, Any] = {
             key: value
             for key, value in section_input.items()

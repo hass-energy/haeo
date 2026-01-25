@@ -11,8 +11,12 @@ import voluptuous as vol
 from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME, DOMAIN
 from custom_components.haeo.data.loader.extractors import extract_entity_metadata
 from custom_components.haeo.elements import is_element_config_schema
-from custom_components.haeo.elements.input_fields import InputFieldInfo
-from custom_components.haeo.flows.element_flow import ElementFlowMixin, build_inclusion_map, build_participant_selector
+from custom_components.haeo.elements.input_fields import InputFieldGroups
+from custom_components.haeo.flows.element_flow import (
+    ElementFlowMixin,
+    build_participant_selector,
+    build_sectioned_inclusion_map,
+)
 from custom_components.haeo.flows.field_schema import (
     SectionDefinition,
     build_choose_field_entries,
@@ -119,12 +123,12 @@ class InverterSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             return self._finalize(config, user_input)
 
         entity_metadata = extract_entity_metadata(self.hass)
-        inclusion_map = build_inclusion_map(input_fields, entity_metadata)
+        section_inclusion_map = build_sectioned_inclusion_map(input_fields, entity_metadata)
 
         schema = self._build_schema(
             participants,
             input_fields,
-            inclusion_map,
+            section_inclusion_map,
             current_connection,
             dict(subentry_data) if subentry_data is not None else None,
         )
@@ -143,37 +147,41 @@ class InverterSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
     def _build_schema(
         self,
         participants: list[str],
-        input_fields: Mapping[str, InputFieldInfo[Any]],
-        inclusion_map: dict[str, list[str]],
+        input_fields: InputFieldGroups,
+        section_inclusion_map: dict[str, dict[str, list[str]]],
         current_connection: str | None = None,
         subentry_data: dict[str, Any] | None = None,
     ) -> vol.Schema:
         """Build the schema with name, connection, and choose selectors for inputs."""
         sections = self._get_sections()
-        field_entries: dict[str, tuple[vol.Marker, Any]] = {
-            CONF_NAME: (
-                vol.Required(CONF_NAME),
-                vol.All(
-                    vol.Coerce(str),
-                    vol.Strip,
-                    vol.Length(min=1, msg="Name cannot be empty"),
-                    TextSelector(TextSelectorConfig()),
+        field_entries: dict[str, dict[str, tuple[vol.Marker, Any]]] = {
+            CONF_SECTION_BASIC: {
+                CONF_NAME: (
+                    vol.Required(CONF_NAME),
+                    vol.All(
+                        vol.Coerce(str),
+                        vol.Strip,
+                        vol.Length(min=1, msg="Name cannot be empty"),
+                        TextSelector(TextSelectorConfig()),
+                    ),
                 ),
-            ),
-            CONF_CONNECTION: (
-                vol.Required(CONF_CONNECTION),
-                build_participant_selector(participants, current_connection),
-            ),
+                CONF_CONNECTION: (
+                    vol.Required(CONF_CONNECTION),
+                    build_participant_selector(participants, current_connection),
+                ),
+            }
         }
 
-        field_entries.update(
-            build_choose_field_entries(
-                input_fields,
+        for section_def in sections:
+            section_fields = input_fields.get(section_def.key, {})
+            if not section_fields:
+                continue
+            field_entries[section_def.key] = build_choose_field_entries(
+                section_fields,
                 optional_fields=OPTIONAL_INPUT_FIELDS,
-                inclusion_map=inclusion_map,
-                current_data=subentry_data,
+                inclusion_map=section_inclusion_map.get(section_def.key, {}),
+                current_data=subentry_data.get(section_def.key) if subentry_data else None,
             )
-        )
 
         return vol.Schema(build_section_schema(sections, field_entries))
 
@@ -194,12 +202,13 @@ class InverterSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         }
 
         input_fields = adapter.inputs(subentry_data)
-        section_map = {field_name: section.key for section in self._get_sections() for field_name in section.fields}
-        for field_info in input_fields.values():
-            choose_default = get_choose_default(field_info, subentry_data)
-            if choose_default is not None:
-                section_key = section_map.get(field_info.field_name)
-                if section_key:
+        for section_key, section_fields in input_fields.items():
+            for field_info in section_fields.values():
+                choose_default = get_choose_default(
+                    field_info,
+                    subentry_data.get(section_key) if subentry_data else None,
+                )
+                if choose_default is not None:
                     defaults.setdefault(section_key, {})[field_info.field_name] = choose_default
 
         return defaults
@@ -207,7 +216,7 @@ class InverterSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
     def _validate_user_input(
         self,
         user_input: dict[str, Any] | None,
-        input_fields: Mapping[str, InputFieldInfo[Any]],
+        input_fields: InputFieldGroups,
     ) -> dict[str, str] | None:
         """Validate user input and return errors dict if any."""
         if user_input is None:

@@ -43,30 +43,34 @@ class NodeSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
     def _build_schema(self) -> vol.Schema:
         """Build the voluptuous schema for node configuration."""
         sections = self._get_sections()
-        field_entries: dict[str, tuple[vol.Marker, Any]] = {
-            CONF_NAME: (
-                vol.Required(CONF_NAME),
-                vol.All(
-                    vol.Coerce(str),
-                    vol.Strip,
-                    vol.Length(min=1, msg="Name cannot be empty"),
-                    TextSelector(TextSelectorConfig()),
+        field_entries: dict[str, dict[str, tuple[vol.Marker, Any]]] = {
+            CONF_SECTION_BASIC: {
+                CONF_NAME: (
+                    vol.Required(CONF_NAME),
+                    vol.All(
+                        vol.Coerce(str),
+                        vol.Strip,
+                        vol.Length(min=1, msg="Name cannot be empty"),
+                        TextSelector(TextSelectorConfig()),
+                    ),
                 ),
-            ),
-            CONF_IS_SOURCE: (
-                vol.Optional(CONF_IS_SOURCE),
-                vol.All(
-                    vol.Coerce(bool),
-                    BooleanSelector(BooleanSelectorConfig()),
+            },
+            CONF_SECTION_ADVANCED: {
+                CONF_IS_SOURCE: (
+                    vol.Optional(CONF_IS_SOURCE),
+                    vol.All(
+                        vol.Coerce(bool),
+                        BooleanSelector(BooleanSelectorConfig()),
+                    ),
                 ),
-            ),
-            CONF_IS_SINK: (
-                vol.Optional(CONF_IS_SINK),
-                vol.All(
-                    vol.Coerce(bool),
-                    BooleanSelector(BooleanSelectorConfig()),
+                CONF_IS_SINK: (
+                    vol.Optional(CONF_IS_SINK),
+                    vol.All(
+                        vol.Coerce(bool),
+                        BooleanSelector(BooleanSelectorConfig()),
+                    ),
                 ),
-            ),
+            },
         }
 
         return vol.Schema(build_section_schema(sections, field_entries))
