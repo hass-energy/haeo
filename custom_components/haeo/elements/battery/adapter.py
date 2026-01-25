@@ -8,7 +8,6 @@ from homeassistant.components.number import NumberDeviceClass, NumberEntityDescr
 from homeassistant.const import PERCENTAGE, UnitOfEnergy, UnitOfPower
 from homeassistant.core import HomeAssistant
 import numpy as np
-from numpy.typing import NDArray
 
 from custom_components.haeo.const import ConnectivityLevel
 from custom_components.haeo.data.loader import TimeSeriesLoader
