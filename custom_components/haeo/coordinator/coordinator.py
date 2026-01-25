@@ -42,9 +42,9 @@ from custom_components.haeo.elements import (
     ElementOutputName,
     collect_element_subentries,
     get_input_fields,
+    get_nested_config_value_by_path,
     is_element_config_data,
     is_element_type,
-    get_nested_config_value_by_path,
     iter_input_field_paths,
     set_nested_config_value_by_path,
 )

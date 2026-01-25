@@ -53,10 +53,10 @@ from custom_components.haeo.horizon import HorizonManager
 from custom_components.haeo.services import async_setup_services
 
 if TYPE_CHECKING:
+    from custom_components.haeo.elements import InputFieldPath
     from custom_components.haeo.entities.auto_optimize_switch import AutoOptimizeSwitch
     from custom_components.haeo.entities.haeo_number import HaeoInputNumber
     from custom_components.haeo.entities.haeo_switch import HaeoInputSwitch
-    from custom_components.haeo.elements import InputFieldPath
 
 _LOGGER = logging.getLogger(__name__)
 

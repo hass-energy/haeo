@@ -4,11 +4,9 @@ Defines which config fields should become input entities (NumberEntity/SwitchEnt
 and their associated metadata like output type, direction, and time series behavior.
 """
 
-from dataclasses import dataclass
-from typing import Any, Literal
 from collections.abc import Mapping
-
-from typing_extensions import TypeAlias
+from dataclasses import dataclass
+from typing import Any, Literal, TypeAlias
 
 from homeassistant.components.number import NumberEntityDescription
 from homeassistant.components.switch import SwitchEntityDescription
@@ -80,8 +78,8 @@ InputFieldPath: TypeAlias = tuple[str, ...]
 
 __all__ = [
     "InputFieldDefaults",
-    "InputFieldInfo",
     "InputFieldGroups",
+    "InputFieldInfo",
     "InputFieldPath",
     "InputFieldSection",
 ]
