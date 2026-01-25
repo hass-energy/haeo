@@ -137,6 +137,22 @@ class BatteryAdapter:
     def inputs(self, config: Any) -> dict[str, InputFieldInfo[Any]]:
         """Return input field definitions for battery elements."""
         _ = config
+        partition_fields = {
+            **_partition_input_fields(
+                percentage_key=CONF_UNDERCHARGE_PERCENTAGE,
+                cost_key=CONF_UNDERCHARGE_COST,
+                percentage_default=0,
+                cost_default=0,
+                cost_direction="-",
+            ),
+            **_partition_input_fields(
+                percentage_key=CONF_OVERCHARGE_PERCENTAGE,
+                cost_key=CONF_OVERCHARGE_COST,
+                percentage_default=100,
+                cost_default=0,
+                cost_direction="-",
+            ),
+        }
         return {
             CONF_CAPACITY: InputFieldInfo(
                 field_name=CONF_CAPACITY,
@@ -273,66 +289,7 @@ class BatteryAdapter:
                 direction="-",
                 time_series=True,
             ),
-            CONF_UNDERCHARGE_PERCENTAGE: InputFieldInfo(
-                field_name=CONF_UNDERCHARGE_PERCENTAGE,
-                entity_description=NumberEntityDescription(
-                    key=CONF_UNDERCHARGE_PERCENTAGE,
-                    translation_key=f"{ELEMENT_TYPE}_{CONF_UNDERCHARGE_PERCENTAGE}",
-                    native_unit_of_measurement=PERCENTAGE,
-                    device_class=NumberDeviceClass.BATTERY,
-                    native_min_value=0.0,
-                    native_max_value=100.0,
-                    native_step=1.0,
-                ),
-                output_type=OutputType.STATE_OF_CHARGE,
-                time_series=True,
-                boundaries=True,
-                defaults=InputFieldDefaults(mode="value", value=0),
-            ),
-            CONF_UNDERCHARGE_COST: InputFieldInfo(
-                field_name=CONF_UNDERCHARGE_COST,
-                entity_description=NumberEntityDescription(
-                    key=CONF_UNDERCHARGE_COST,
-                    translation_key=f"{ELEMENT_TYPE}_{CONF_UNDERCHARGE_COST}",
-                    native_min_value=0.0,
-                    native_max_value=10.0,
-                    native_step=0.001,
-                ),
-                output_type=OutputType.PRICE,
-                direction="-",
-                time_series=True,
-                defaults=InputFieldDefaults(mode="value", value=0),
-            ),
-            CONF_OVERCHARGE_PERCENTAGE: InputFieldInfo(
-                field_name=CONF_OVERCHARGE_PERCENTAGE,
-                entity_description=NumberEntityDescription(
-                    key=CONF_OVERCHARGE_PERCENTAGE,
-                    translation_key=f"{ELEMENT_TYPE}_{CONF_OVERCHARGE_PERCENTAGE}",
-                    native_unit_of_measurement=PERCENTAGE,
-                    device_class=NumberDeviceClass.BATTERY,
-                    native_min_value=0.0,
-                    native_max_value=100.0,
-                    native_step=1.0,
-                ),
-                output_type=OutputType.STATE_OF_CHARGE,
-                time_series=True,
-                boundaries=True,
-                defaults=InputFieldDefaults(mode="value", value=100),
-            ),
-            CONF_OVERCHARGE_COST: InputFieldInfo(
-                field_name=CONF_OVERCHARGE_COST,
-                entity_description=NumberEntityDescription(
-                    key=CONF_OVERCHARGE_COST,
-                    translation_key=f"{ELEMENT_TYPE}_{CONF_OVERCHARGE_COST}",
-                    native_min_value=0.0,
-                    native_max_value=10.0,
-                    native_step=0.001,
-                ),
-                output_type=OutputType.PRICE,
-                direction="-",
-                time_series=True,
-                defaults=InputFieldDefaults(mode="value", value=0),
-            ),
+            **partition_fields,
         }
 
     def model_elements(self, config: BatteryConfigData) -> list[ModelElementConfig]:
@@ -511,6 +468,49 @@ class BatteryAdapter:
 
 
 adapter = BatteryAdapter()
+
+
+def _partition_input_fields(
+    *,
+    percentage_key: str,
+    cost_key: str,
+    percentage_default: int,
+    cost_default: int,
+    cost_direction: str,
+) -> dict[str, InputFieldInfo[Any]]:
+    """Build shared input field definitions for partition sections."""
+    return {
+        percentage_key: InputFieldInfo(
+            field_name=percentage_key,
+            entity_description=NumberEntityDescription(
+                key=percentage_key,
+                translation_key=f"{ELEMENT_TYPE}_{percentage_key}",
+                native_unit_of_measurement=PERCENTAGE,
+                device_class=NumberDeviceClass.BATTERY,
+                native_min_value=0.0,
+                native_max_value=100.0,
+                native_step=1.0,
+            ),
+            output_type=OutputType.STATE_OF_CHARGE,
+            time_series=True,
+            boundaries=True,
+            defaults=InputFieldDefaults(mode="value", value=percentage_default),
+        ),
+        cost_key: InputFieldInfo(
+            field_name=cost_key,
+            entity_description=NumberEntityDescription(
+                key=cost_key,
+                translation_key=f"{ELEMENT_TYPE}_{cost_key}",
+                native_min_value=0.0,
+                native_max_value=10.0,
+                native_step=0.001,
+            ),
+            output_type=OutputType.PRICE,
+            direction=cost_direction,
+            time_series=True,
+            defaults=InputFieldDefaults(mode="value", value=cost_default),
+        ),
+    }
 
 
 def _calculate_total_energy(aggregate_energy: OutputData, config: BatteryConfigData) -> OutputData:

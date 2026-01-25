@@ -51,6 +51,19 @@ from .schema import (
     BatteryConfigSchema,
 )
 
+PARTITION_SECTION_DEFINITIONS = (
+    SectionDefinition(
+        key=CONF_SECTION_UNDERCHARGE,
+        fields=(CONF_UNDERCHARGE_PERCENTAGE, CONF_UNDERCHARGE_COST),
+        collapsed=False,
+    ),
+    SectionDefinition(
+        key=CONF_SECTION_OVERCHARGE,
+        fields=(CONF_OVERCHARGE_PERCENTAGE, CONF_OVERCHARGE_COST),
+        collapsed=False,
+    ),
+)
+
 
 class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
     """Handle battery element configuration flows."""
@@ -97,18 +110,7 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
 
     def _get_partition_sections(self) -> tuple[SectionDefinition, ...]:
         """Return sections for the partition configuration step."""
-        return (
-            SectionDefinition(
-                key=CONF_SECTION_UNDERCHARGE,
-                fields=(CONF_UNDERCHARGE_PERCENTAGE, CONF_UNDERCHARGE_COST),
-                collapsed=False,
-            ),
-            SectionDefinition(
-                key=CONF_SECTION_OVERCHARGE,
-                fields=(CONF_OVERCHARGE_PERCENTAGE, CONF_OVERCHARGE_COST),
-                collapsed=False,
-            ),
-        )
+        return PARTITION_SECTION_DEFINITIONS
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> SubentryFlowResult:
         """Handle user step: name, connection, and input configuration."""
