@@ -195,7 +195,6 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
 
     async def async_step_partitions(self, user_input: dict[str, Any] | None = None) -> SubentryFlowResult:
         """Handle partition configuration step."""
-        sections = self._get_partition_sections()
         errors = self._validate_partition_input(user_input)
         subentry = self._get_subentry()
         subentry_data = dict(subentry.data) if subentry else None
@@ -358,7 +357,7 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                 input_fields,
                 OPTIONAL_INPUT_FIELDS,
                 self._get_sections(),
-                exclude_fields=PARTITION_FIELD_NAMES,
+                exclude_fields=tuple(PARTITION_FIELD_NAMES),
             )
         )
         return errors if errors else None

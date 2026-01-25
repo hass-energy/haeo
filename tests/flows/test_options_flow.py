@@ -5,6 +5,7 @@ from typing import Any, cast
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
 from pytest_homeassistant_custom_component.common import MockConfigEntry
+import voluptuous as vol
 
 from custom_components.haeo.const import (
     CONF_DEBOUNCE_SECONDS,
@@ -37,7 +38,6 @@ from custom_components.haeo.flows import (
     HORIZON_PRESET_CUSTOM,
     HORIZON_PRESETS,
 )
-import voluptuous as vol
 
 type FlowResultDict = dict[str, Any]
 

@@ -19,16 +19,16 @@ from custom_components.haeo.elements.grid import (
     CONF_SECTION_BASIC,
     CONF_SECTION_LIMITS,
     CONF_SECTION_PRICING,
-    ELEMENT_TYPE as GRID_TYPE,
 )
+from custom_components.haeo.elements.grid import ELEMENT_TYPE as GRID_TYPE
 from custom_components.haeo.elements.solar import (
     CONF_CURTAILMENT,
     CONF_FORECAST,
     CONF_PRICE_PRODUCTION,
     CONF_SECTION_ADVANCED,
-    CONF_SECTION_BASIC as SOLAR_SECTION_BASIC,
-    ELEMENT_TYPE as SOLAR_TYPE,
 )
+from custom_components.haeo.elements.solar import CONF_SECTION_BASIC as SOLAR_SECTION_BASIC
+from custom_components.haeo.elements.solar import ELEMENT_TYPE as SOLAR_TYPE
 from custom_components.haeo.entities.auto_optimize_switch import AutoOptimizeSwitch
 from custom_components.haeo.entities.haeo_number import ConfigEntityMode
 from custom_components.haeo.horizon import HorizonManager

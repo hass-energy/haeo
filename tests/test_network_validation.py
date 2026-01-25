@@ -25,21 +25,13 @@ from custom_components.haeo.elements.battery import (
 )
 from custom_components.haeo.elements.battery import CONF_CONNECTION as BATTERY_CONF_CONNECTION
 from custom_components.haeo.elements.grid import CONF_CONNECTION as GRID_CONF_CONNECTION
-from custom_components.haeo.elements.grid import (
-    CONF_EXPORT_PRICE,
-    CONF_IMPORT_PRICE,
-    CONF_SECTION_BASIC as CONF_GRID_SECTION_BASIC,
-    CONF_SECTION_LIMITS as CONF_GRID_SECTION_LIMITS,
-    CONF_SECTION_PRICING as CONF_GRID_SECTION_PRICING,
-    GridConfigData,
-)
-from custom_components.haeo.elements.node import (
-    CONF_IS_SINK,
-    CONF_IS_SOURCE,
-    CONF_SECTION_ADVANCED as CONF_NODE_SECTION_ADVANCED,
-    CONF_SECTION_BASIC as CONF_NODE_SECTION_BASIC,
-    NodeConfigData,
-)
+from custom_components.haeo.elements.grid import CONF_EXPORT_PRICE, CONF_IMPORT_PRICE, GridConfigData
+from custom_components.haeo.elements.grid import CONF_SECTION_BASIC as CONF_GRID_SECTION_BASIC
+from custom_components.haeo.elements.grid import CONF_SECTION_LIMITS as CONF_GRID_SECTION_LIMITS
+from custom_components.haeo.elements.grid import CONF_SECTION_PRICING as CONF_GRID_SECTION_PRICING
+from custom_components.haeo.elements.node import CONF_IS_SINK, CONF_IS_SOURCE, NodeConfigData
+from custom_components.haeo.elements.node import CONF_SECTION_ADVANCED as CONF_NODE_SECTION_ADVANCED
+from custom_components.haeo.elements.node import CONF_SECTION_BASIC as CONF_NODE_SECTION_BASIC
 from custom_components.haeo.validation import format_component_summary, validate_network_topology
 
 

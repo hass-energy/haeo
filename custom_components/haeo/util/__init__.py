@@ -6,6 +6,7 @@ from homeassistant.config_entries import ConfigSubentry
 from homeassistant.core import HomeAssistant
 
 from custom_components.haeo.elements import set_nested_config_value
+
 if TYPE_CHECKING:
     from custom_components.haeo import HaeoConfigEntry
 

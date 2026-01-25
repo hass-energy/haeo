@@ -77,16 +77,8 @@ def _wrap_main_input(user_input: dict[str, Any]) -> dict[str, Any]:
 def _wrap_partition_input(user_input: dict[str, Any]) -> dict[str, Any]:
     """Wrap partition inputs into sectioned form data."""
     return {
-        CONF_SECTION_UNDERCHARGE: {
-            key: user_input[key]
-            for key in (CONF_UNDERCHARGE_PERCENTAGE, CONF_UNDERCHARGE_COST)
-            if key in user_input
-        },
-        CONF_SECTION_OVERCHARGE: {
-            key: user_input[key]
-            for key in (CONF_OVERCHARGE_PERCENTAGE, CONF_OVERCHARGE_COST)
-            if key in user_input
-        },
+        CONF_SECTION_UNDERCHARGE: {key: user_input[key] for key in (CONF_UNDERCHARGE_PERCENTAGE, CONF_UNDERCHARGE_COST) if key in user_input},
+        CONF_SECTION_OVERCHARGE: {key: user_input[key] for key in (CONF_OVERCHARGE_PERCENTAGE, CONF_OVERCHARGE_COST) if key in user_input},
     }
 
 

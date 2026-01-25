@@ -53,11 +53,7 @@ from custom_components.haeo.elements import (
     ELEMENT_TYPE_GRID,
     ELEMENT_TYPE_NODE,
 )
-from custom_components.haeo.elements.battery import (
-    CONF_CAPACITY,
-    CONF_CONNECTION,
-    CONF_INITIAL_CHARGE_PERCENTAGE,
-)
+from custom_components.haeo.elements.battery import CONF_CAPACITY, CONF_CONNECTION, CONF_INITIAL_CHARGE_PERCENTAGE
 from custom_components.haeo.elements.connection import CONF_SOURCE, CONF_TARGET
 from custom_components.haeo.elements.grid import (
     CONF_EXPORT_LIMIT,

@@ -3,8 +3,8 @@
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
 from homeassistant.helpers.translation import async_get_translations
-import voluptuous as vol
 import pytest
+import voluptuous as vol
 
 from custom_components.haeo.const import (
     CONF_DEBOUNCE_SECONDS,
@@ -89,9 +89,7 @@ async def test_user_step_form_has_translations(hass: HomeAssistant) -> None:
         assert section_translation in translations, f"Missing section translation '{section_translation}'"
         for field in section_schema.schema.schema:
             field_name = field.schema
-            translation_key = (
-                f"component.{DOMAIN}.config.step.user.sections.{section_name}.data.{field_name}"
-            )
+            translation_key = f"component.{DOMAIN}.config.step.user.sections.{section_name}.data.{field_name}"
             assert translation_key in translations, f"Missing translation for field '{field_name}'"
 
 

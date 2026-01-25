@@ -38,11 +38,7 @@ def _wrap_input(flat: dict[str, Any]) -> dict[str, Any]:
         CONF_IMPORT_PRICE: flat[CONF_IMPORT_PRICE],
         CONF_EXPORT_PRICE: flat[CONF_EXPORT_PRICE],
     }
-    limits = {
-        key: flat[key]
-        for key in (CONF_IMPORT_LIMIT, CONF_EXPORT_LIMIT)
-        if key in flat
-    }
+    limits = {key: flat[key] for key in (CONF_IMPORT_LIMIT, CONF_EXPORT_LIMIT) if key in flat}
     return {
         CONF_SECTION_BASIC: basic,
         CONF_SECTION_PRICING: pricing,

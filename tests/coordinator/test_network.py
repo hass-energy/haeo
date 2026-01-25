@@ -3,15 +3,10 @@
 import numpy as np
 import pytest
 
-from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME
+from custom_components.haeo.const import CONF_ELEMENT_TYPE
 from custom_components.haeo.coordinator.network import update_element
 from custom_components.haeo.elements import ElementConfigData
-from custom_components.haeo.elements.connection import (
-    CONF_MAX_POWER_SOURCE_TARGET,
-    CONF_MAX_POWER_TARGET_SOURCE,
-    CONF_SOURCE,
-    CONF_TARGET,
-)
+from custom_components.haeo.elements.connection import CONF_MAX_POWER_SOURCE_TARGET, CONF_MAX_POWER_TARGET_SOURCE
 from custom_components.haeo.model import Network
 from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE
 from custom_components.haeo.model.elements.connection import Connection

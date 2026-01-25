@@ -1,6 +1,6 @@
 """Grid element schema definitions."""
 
-from typing import Any, Final, Literal, NotRequired, TypedDict
+from typing import Any, Final, Literal, TypedDict
 
 import numpy as np
 from numpy.typing import NDArray

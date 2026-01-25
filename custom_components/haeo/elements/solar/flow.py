@@ -17,9 +17,9 @@ from custom_components.haeo.flows.field_schema import (
     SectionDefinition,
     build_choose_field_entries,
     build_section_schema,
+    convert_sectioned_choose_data_to_config,
     get_choose_default,
     preprocess_sectioned_choose_input,
-    convert_sectioned_choose_data_to_config,
     validate_sectioned_choose_fields,
 )
 
@@ -68,9 +68,7 @@ class SolarSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         subentry = self._get_subentry()
         subentry_data = dict(subentry.data) if subentry else None
         participants = self._get_participant_names()
-        current_connection = (
-            subentry_data.get(CONF_SECTION_BASIC, {}).get(CONF_CONNECTION) if subentry_data else None
-        )
+        current_connection = subentry_data.get(CONF_SECTION_BASIC, {}).get(CONF_CONNECTION) if subentry_data else None
 
         if (
             subentry_data is not None
@@ -184,11 +182,7 @@ class SolarSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         }
 
         input_fields = adapter.inputs(subentry_data)
-        section_map = {
-            field_name: section.key
-            for section in self._get_sections()
-            for field_name in section.fields
-        }
+        section_map = {field_name: section.key for section in self._get_sections() for field_name in section.fields}
         for field_info in input_fields.values():
             choose_default = get_choose_default(field_info, subentry_data)
             if choose_default is not None:

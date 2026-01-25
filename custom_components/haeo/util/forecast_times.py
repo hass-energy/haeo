@@ -263,14 +263,19 @@ def tiers_to_periods_seconds(config: Mapping[str, int | str | Mapping[str, int |
         return periods_seconds
 
     # Custom/legacy mode: use fixed tier counts from config
-    tier_config = tiers_section if isinstance(tiers_section, Mapping) else config
+    if isinstance(tiers_section, Mapping):
+        tier_config: Mapping[str, int | str] = tiers_section
+    else:
+        tier_config = {key: value for key, value in config.items() if isinstance(value, int | str)}
     periods: list[int] = []
     for tier in [1, 2, 3, 4]:
         count_key = f"tier_{tier}_count"
         duration_key = f"tier_{tier}_duration"
-        if count_key in tier_config:
-            count = int(tier_config[count_key])
-            duration_seconds = int(tier_config[duration_key]) * 60
+        count_value = tier_config.get(count_key)
+        duration_value = tier_config.get(duration_key)
+        if count_value is not None and duration_value is not None:
+            count = int(count_value)
+            duration_seconds = int(duration_value) * 60
             periods.extend([duration_seconds] * count)
     return periods
 

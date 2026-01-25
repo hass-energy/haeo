@@ -1,12 +1,7 @@
 """Test data and validation for load flow configuration."""
 
 from custom_components.haeo.const import CONF_NAME
-from custom_components.haeo.elements.load import (
-    CONF_CONNECTION,
-    CONF_FORECAST,
-    CONF_SECTION_BASIC,
-    CONF_SECTION_INPUTS,
-)
+from custom_components.haeo.elements.load import CONF_CONNECTION, CONF_FORECAST, CONF_SECTION_BASIC, CONF_SECTION_INPUTS
 
 # Test data for load flow - single-step with choose selector
 # config: Contains all field values in choose selector format

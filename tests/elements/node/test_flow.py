@@ -29,11 +29,7 @@ def _wrap_input(flat: dict[str, Any]) -> dict[str, Any]:
         return dict(flat)
     return {
         CONF_SECTION_BASIC: {CONF_NAME: flat[CONF_NAME]},
-        CONF_SECTION_ADVANCED: {
-            key: flat[key]
-            for key in (CONF_IS_SOURCE, CONF_IS_SINK)
-            if key in flat
-        },
+        CONF_SECTION_ADVANCED: {key: flat[key] for key in (CONF_IS_SOURCE, CONF_IS_SINK) if key in flat},
     }
 
 
@@ -147,9 +143,7 @@ async def test_reconfigure_step_updates_entry(hass: HomeAssistant, hub_entry: Mo
 async def test_reconfigure_step_shows_form_initially(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
     """Node reconfigure step should show form with current values."""
     existing = ConfigSubentry(
-        data=MappingProxyType(
-            _wrap_config({CONF_NAME: "TestNode", CONF_IS_SOURCE: True, CONF_IS_SINK: False})
-        ),
+        data=MappingProxyType(_wrap_config({CONF_NAME: "TestNode", CONF_IS_SOURCE: True, CONF_IS_SINK: False})),
         subentry_type=ELEMENT_TYPE,
         title="TestNode",
         unique_id=None,

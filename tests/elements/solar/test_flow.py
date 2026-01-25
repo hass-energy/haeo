@@ -33,11 +33,7 @@ def _wrap_input(flat: dict[str, Any]) -> dict[str, Any]:
         CONF_CONNECTION: flat[CONF_CONNECTION],
         CONF_FORECAST: flat[CONF_FORECAST],
     }
-    advanced = {
-        key: flat[key]
-        for key in (CONF_CURTAILMENT, CONF_PRICE_PRODUCTION)
-        if key in flat
-    }
+    advanced = {key: flat[key] for key in (CONF_CURTAILMENT, CONF_PRICE_PRODUCTION) if key in flat}
     return {
         CONF_SECTION_BASIC: basic,
         CONF_SECTION_ADVANCED: advanced,

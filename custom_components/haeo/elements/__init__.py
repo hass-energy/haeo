@@ -460,7 +460,7 @@ def get_nested_config_value(config: Mapping[str, Any], field_name: str) -> Any |
 
 def set_nested_config_value(config: dict[str, Any], field_name: str, value: Any) -> bool:
     """Set a field value in a nested element config."""
-    for key, nested in config.items():
+    for nested in config.values():
         if isinstance(nested, dict):
             if field_name in nested:
                 nested[field_name] = value

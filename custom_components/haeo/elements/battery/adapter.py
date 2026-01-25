@@ -397,7 +397,9 @@ class BatteryAdapter:
         discharge_early_incentive = early_charge_incentive + (early_charge_incentive * ramp)
 
         discharge_cost = advanced.get(CONF_DISCHARGE_COST)
-        discharge_costs = discharge_early_incentive + discharge_cost if discharge_cost is not None else discharge_early_incentive
+        discharge_costs = (
+            discharge_early_incentive + discharge_cost if discharge_cost is not None else discharge_early_incentive
+        )
         max_discharge = limits.get(CONF_MAX_DISCHARGE_POWER)
         max_charge = limits.get(CONF_MAX_CHARGE_POWER)
 
@@ -517,7 +519,10 @@ def _calculate_total_energy(aggregate_energy: OutputData, config: BatteryConfigD
     capacity = config[CONF_SECTION_BASIC][CONF_CAPACITY]
 
     # Get time-varying min ratio (also boundaries)
-    min_charge_percentage = config[CONF_SECTION_LIMITS].get(CONF_MIN_CHARGE_PERCENTAGE, DEFAULTS[CONF_MIN_CHARGE_PERCENTAGE])
+    min_charge_percentage = config[CONF_SECTION_LIMITS].get(
+        CONF_MIN_CHARGE_PERCENTAGE,
+        DEFAULTS[CONF_MIN_CHARGE_PERCENTAGE],
+    )
     undercharge = config.get(CONF_SECTION_UNDERCHARGE, {})
     undercharge_cost = undercharge.get(CONF_UNDERCHARGE_COST)
     undercharge_pct = undercharge.get(CONF_UNDERCHARGE_PERCENTAGE) if undercharge_cost is not None else None

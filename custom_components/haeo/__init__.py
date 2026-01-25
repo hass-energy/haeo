@@ -6,7 +6,7 @@ import asyncio
 from dataclasses import dataclass, field
 import logging
 from types import MappingProxyType
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry
 from homeassistant.const import Platform
@@ -42,8 +42,13 @@ from custom_components.haeo.const import (
     DOMAIN,
     ELEMENT_TYPE_NETWORK,
 )
-from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_BASIC, HUB_SECTION_TIERS, HORIZON_PRESET_5_DAYS
 from custom_components.haeo.coordinator import HaeoDataUpdateCoordinator
+from custom_components.haeo.flows import (
+    HORIZON_PRESET_5_DAYS,
+    HUB_SECTION_ADVANCED,
+    HUB_SECTION_BASIC,
+    HUB_SECTION_TIERS,
+)
 from custom_components.haeo.horizon import HorizonManager
 from custom_components.haeo.services import async_setup_services
 
@@ -61,6 +66,8 @@ INPUT_PLATFORMS: list[Platform] = [Platform.NUMBER, Platform.SWITCH]
 
 # Platforms that consume coordinator data (set up after coordinator)
 OUTPUT_PLATFORMS: list[Platform] = [Platform.SENSOR]
+
+MIGRATION_MINOR_VERSION = 2
 
 
 async def async_setup(hass: HomeAssistant, _config: ConfigType) -> bool:
@@ -301,13 +308,22 @@ def _migrate_subentry_data(subentry: ConfigSubentry) -> dict[str, Any] | None:
 
 async def async_migrate_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> bool:
     """Migrate existing config entries to the latest version."""
-    if entry.version != 1 or entry.minor_version >= 2:
+    if entry.version != 1 or entry.minor_version >= MIGRATION_MINOR_VERSION:
         return True
 
-    _LOGGER.info("Migrating HAEO entry %s to version 1.%s", entry.entry_id, 2)
+    _LOGGER.info(
+        "Migrating HAEO entry %s to version 1.%s",
+        entry.entry_id,
+        MIGRATION_MINOR_VERSION,
+    )
 
     new_data, new_options = _migrate_hub_data(entry)
-    hass.config_entries.async_update_entry(entry, data=new_data, options=new_options, minor_version=2)
+    hass.config_entries.async_update_entry(
+        entry,
+        data=new_data,
+        options=new_options,
+        minor_version=MIGRATION_MINOR_VERSION,
+    )
 
     for subentry in entry.subentries.values():
         migrated = _migrate_subentry_data(subentry)

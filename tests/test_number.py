@@ -20,8 +20,8 @@ from custom_components.haeo.elements.grid import (
     CONF_SECTION_BASIC,
     CONF_SECTION_LIMITS,
     CONF_SECTION_PRICING,
-    ELEMENT_TYPE as GRID_TYPE,
 )
+from custom_components.haeo.elements.grid import ELEMENT_TYPE as GRID_TYPE
 from custom_components.haeo.horizon import HorizonManager
 from custom_components.haeo.number import async_setup_entry
 

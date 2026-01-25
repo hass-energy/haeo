@@ -1,6 +1,6 @@
 """Node element schema definitions."""
 
-from typing import Final, Literal, NotRequired, TypedDict
+from typing import Final, Literal, TypedDict
 
 ELEMENT_TYPE: Final = "node"
 

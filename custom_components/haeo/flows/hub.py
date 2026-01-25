@@ -20,18 +20,15 @@ from custom_components.haeo.const import (
     INTEGRATION_TYPE_HUB,
 )
 from custom_components.haeo.elements import ELEMENT_TYPE_NODE, ELEMENT_TYPES, get_element_flow_classes
-from custom_components.haeo.elements.node import (
-    CONF_IS_SINK,
-    CONF_IS_SOURCE,
-    CONF_SECTION_ADVANCED as NODE_SECTION_ADVANCED,
-    CONF_SECTION_BASIC as NODE_SECTION_BASIC,
-)
+from custom_components.haeo.elements.node import CONF_IS_SINK, CONF_IS_SOURCE
+from custom_components.haeo.elements.node import CONF_SECTION_ADVANCED as NODE_SECTION_ADVANCED
+from custom_components.haeo.elements.node import CONF_SECTION_BASIC as NODE_SECTION_BASIC
 
 from . import (
+    HORIZON_PRESET_CUSTOM,
     HUB_SECTION_ADVANCED,
     HUB_SECTION_BASIC,
     HUB_SECTION_TIERS,
-    HORIZON_PRESET_CUSTOM,
     get_custom_tiers_schema,
     get_hub_setup_schema,
     get_tier_config,

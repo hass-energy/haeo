@@ -507,12 +507,12 @@ def preprocess_sectioned_choose_input(
 
 def _nest_section_input(user_input: Mapping[str, Any], sections: Sequence[SectionDefinition]) -> dict[str, Any]:
     """Nest flat input into sectioned input based on section definitions."""
-    result: dict[str, Any] = {section.key: {} for section in sections}
+    result: dict[str, Any] = {section_def.key: {} for section_def in sections}
     for key, value in user_input.items():
         matched = False
-        for section in sections:
-            if key in section.fields:
-                result[section.key][key] = value
+        for section_def in sections:
+            if key in section_def.fields:
+                result[section_def.key][key] = value
                 matched = True
                 break
         if not matched:
@@ -599,10 +599,7 @@ def get_choose_default(
     field_name = field_info.field_name
 
     # Check current stored data first (for reconfigure)
-    if current_data is not None:
-        current_value = _get_nested_value(current_data, field_name)
-    else:
-        current_value = None
+    current_value = _get_nested_value(current_data, field_name) if current_data is not None else None
 
     if current_value is not None:
         if isinstance(current_value, (float, int)) and not isinstance(current_value, bool):

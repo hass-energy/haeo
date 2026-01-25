@@ -163,7 +163,6 @@ class ElementFlowMixin:
 
         """
         from custom_components.haeo.elements import ELEMENT_TYPES, ConnectivityLevel  # noqa: PLC0415
-
         from custom_components.haeo.flows import HUB_SECTION_ADVANCED  # noqa: PLC0415
 
         hub_entry: ConfigEntry = self._get_entry()  # type: ignore[attr-defined]

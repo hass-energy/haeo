@@ -20,21 +20,13 @@ from custom_components.haeo.const import (
 )
 from custom_components.haeo.coordinator import evaluate_network_connectivity
 from custom_components.haeo.elements import ELEMENT_TYPE_CONNECTION, ELEMENT_TYPE_NODE, ElementConfigData
-from custom_components.haeo.elements.connection import (
-    CONF_SECTION_ADVANCED as CONF_CONNECTION_SECTION_ADVANCED,
-    CONF_SECTION_BASIC as CONF_CONNECTION_SECTION_BASIC,
-    CONF_SECTION_LIMITS as CONF_CONNECTION_SECTION_LIMITS,
-    CONF_SOURCE,
-    CONF_TARGET,
-    ConnectionConfigData,
-)
-from custom_components.haeo.elements.node import (
-    CONF_IS_SINK,
-    CONF_IS_SOURCE,
-    CONF_SECTION_ADVANCED as CONF_NODE_SECTION_ADVANCED,
-    CONF_SECTION_BASIC as CONF_NODE_SECTION_BASIC,
-    NodeConfigData,
-)
+from custom_components.haeo.elements.connection import CONF_SECTION_ADVANCED as CONF_CONNECTION_SECTION_ADVANCED
+from custom_components.haeo.elements.connection import CONF_SECTION_BASIC as CONF_CONNECTION_SECTION_BASIC
+from custom_components.haeo.elements.connection import CONF_SECTION_LIMITS as CONF_CONNECTION_SECTION_LIMITS
+from custom_components.haeo.elements.connection import CONF_SOURCE, CONF_TARGET, ConnectionConfigData
+from custom_components.haeo.elements.node import CONF_IS_SINK, CONF_IS_SOURCE, NodeConfigData
+from custom_components.haeo.elements.node import CONF_SECTION_ADVANCED as CONF_NODE_SECTION_ADVANCED
+from custom_components.haeo.elements.node import CONF_SECTION_BASIC as CONF_NODE_SECTION_BASIC
 
 
 @pytest.fixture

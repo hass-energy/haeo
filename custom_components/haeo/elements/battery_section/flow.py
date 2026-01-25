@@ -17,9 +17,9 @@ from custom_components.haeo.flows.field_schema import (
     SectionDefinition,
     build_choose_field_entries,
     build_section_schema,
+    convert_sectioned_choose_data_to_config,
     get_choose_default,
     preprocess_sectioned_choose_input,
-    convert_sectioned_choose_data_to_config,
     validate_sectioned_choose_fields,
 )
 

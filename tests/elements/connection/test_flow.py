@@ -34,11 +34,7 @@ def _wrap_input(flat: dict[str, Any]) -> dict[str, Any]:
         CONF_SOURCE: flat[CONF_SOURCE],
         CONF_TARGET: flat[CONF_TARGET],
     }
-    limits = {
-        key: flat[key]
-        for key in (CONF_MAX_POWER_SOURCE_TARGET, CONF_MAX_POWER_TARGET_SOURCE)
-        if key in flat
-    }
+    limits = {key: flat[key] for key in (CONF_MAX_POWER_SOURCE_TARGET, CONF_MAX_POWER_TARGET_SOURCE) if key in flat}
     return {
         CONF_SECTION_BASIC: basic,
         CONF_SECTION_LIMITS: limits,
