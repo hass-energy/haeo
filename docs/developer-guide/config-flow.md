@@ -96,9 +96,19 @@ Element entries link to their parent hub via `parent_entry_id`:
     "data": {
         "element_type": "battery",
         "parent_entry_id": "abc123...",  # Links to hub entry
-        "capacity": 13500,
-        "charge_power": 5000,
-        # ... element-specific configuration
+        "basic": {
+            "name": "Home Battery",
+            "connection": "Main Bus",
+            "capacity": 13500,
+            "initial_charge_percentage": 50.0,
+        },
+        "limits": {
+            "max_charge_power": 5000,
+            "max_discharge_power": 5000,
+        },
+        "advanced": {},
+        "undercharge": {},
+        "overcharge": {},
     },
 }
 ```
@@ -187,6 +197,9 @@ The ChooseSelector utilities are in `custom_components/haeo/flows/field_schema.p
 - `get_preferred_choice()`: Determines which choice should be pre-selected based on defaults or current config
 - `get_choose_default()`: Provides default values for the nested selector
 - `convert_choose_data_to_config()`: Converts ChooseSelector output to final config format
+- `preprocess_sectioned_choose_input()`: Normalizes sectioned ChooseSelector input
+- `validate_sectioned_choose_fields()`: Validates sectioned choose fields before conversion
+- `convert_sectioned_choose_data_to_config()`: Converts sectioned ChooseSelector data into sectioned config
 
 The choice ordering in `ChooseSelector` determines the pre-selected option.
 The `get_preferred_choice()` function examines field defaults and current configuration to order choices appropriately.
