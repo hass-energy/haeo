@@ -172,6 +172,12 @@ All element configuration happens in a single step:
 
 This replaces the previous two-step pattern where constant values were entered in a separate step.
 
+### UI Sections
+
+Config flows group related fields using `data_entry_flow.section` so advanced settings can be collapsed by default.
+When using sections, translation strings for labels must live under
+`step.<step_id>.sections.<section_key>.data.<field_name>` (and `data_description` if needed).
+
 ### Implementation Pattern
 
 The ChooseSelector utilities are in `custom_components/haeo/flows/field_schema.py`:

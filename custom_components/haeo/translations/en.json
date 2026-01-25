@@ -5,6 +5,13 @@
       "user": {
         "title": "HAEO Setup",
         "description": "Create a new HAEO energy system.",
+        "sections": {
+          "basic": {
+            "name": "Basic settings",
+            "data": { "name": "System Name", "horizon_preset": "Planning Horizon" }
+          },
+          "advanced": { "name": "Advanced settings", "data": { "advanced_mode": "Advanced Mode" } }
+        },
         "data": {
           "advanced_mode": "Advanced Mode",
           "debounce_seconds": "Debounce Window (seconds)",
@@ -49,6 +56,16 @@
       "init": {
         "title": "HAEO Settings",
         "description": "Configure optimization settings. Choose a planning horizon that matches your forecast data availability.",
+        "sections": {
+          "basic": {
+            "name": "Basic settings",
+            "data": { "horizon_preset": "Planning Horizon" }
+          },
+          "advanced": {
+            "name": "Advanced settings",
+            "data": { "debounce_seconds": "Debounce Window (seconds)", "advanced_mode": "Advanced Mode" }
+          }
+        },
         "data": {
           "advanced_mode": "Advanced Mode",
           "debounce_seconds": "Debounce Window (seconds)",
@@ -78,6 +95,35 @@
         "user": {
           "title": "Battery Configuration",
           "description": "Configure battery parameters for energy optimization",
+          "sections": {
+            "basic": {
+              "name": "Basic settings",
+              "data": {
+                "name": "Battery Name",
+                "connection": "Connection",
+                "capacity": "Capacity",
+                "initial_charge_percentage": "State of Charge"
+              }
+            },
+            "limits": {
+              "name": "Limits",
+              "data": {
+                "min_charge_percentage": "Min Charge Level",
+                "max_charge_percentage": "Max Charge Level",
+                "max_charge_power": "Max Charging Power",
+                "max_discharge_power": "Max Discharging Power"
+              }
+            },
+            "advanced": {
+              "name": "Advanced settings",
+              "data": {
+                "efficiency": "Round-trip Efficiency",
+                "early_charge_incentive": "Early Charge Incentive",
+                "discharge_cost": "Discharge Cost",
+                "configure_partitions": "Configure battery partitions"
+              }
+            }
+          },
           "data": {
             "capacity": "Capacity",
             "configure_partitions": "Configure battery partitions",
@@ -106,6 +152,22 @@
         "partitions": {
           "title": "Battery Partitions",
           "description": "Select entities for undercharge and overcharge regions",
+          "sections": {
+            "undercharge": {
+              "name": "Undercharge settings",
+              "data": {
+                "undercharge_percentage": "Undercharge Percentage",
+                "undercharge_cost": "Undercharge Cost"
+              }
+            },
+            "overcharge": {
+              "name": "Overcharge settings",
+              "data": {
+                "overcharge_percentage": "Overcharge Percentage",
+                "overcharge_cost": "Overcharge Cost"
+              }
+            }
+          },
           "data": {
             "overcharge_cost": "Overcharge Cost",
             "overcharge_percentage": "Overcharge Percentage",
@@ -125,6 +187,13 @@
         "user": {
           "title": "Battery Section Configuration",
           "description": "Configure a single battery section with explicit capacity and initial charge. Connect to other elements using Connection elements.",
+          "sections": {
+            "basic": { "name": "Basic settings", "data": { "name": "Battery Section Name" } },
+            "inputs": {
+              "name": "Inputs",
+              "data": { "capacity": "Capacity", "initial_charge": "Initial Charge" }
+            }
+          },
           "data": { "capacity": "Capacity", "initial_charge": "Initial Charge", "name": "Battery Section Name" }
         }
       },
@@ -139,6 +208,28 @@
         "user": {
           "title": "Connection Configuration",
           "description": "Configure connection parameters between devices",
+          "sections": {
+            "basic": {
+              "name": "Basic settings",
+              "data": { "name": "Connection Name", "source": "Source Device", "target": "Target Device" }
+            },
+            "limits": {
+              "name": "Limits",
+              "data": {
+                "max_power_source_target": "Max Power Source to Target",
+                "max_power_target_source": "Max Power Target to Source"
+              }
+            },
+            "advanced": {
+              "name": "Advanced settings",
+              "data": {
+                "efficiency_source_target": "Efficiency Source to Target",
+                "efficiency_target_source": "Efficiency Target to Source",
+                "price_source_target": "Price Source to Target",
+                "price_target_source": "Price Target to Source"
+              }
+            }
+          },
           "data": {
             "efficiency_source_target": "Efficiency Source to Target",
             "efficiency_target_source": "Efficiency Target to Source",
@@ -170,6 +261,14 @@
         "user": {
           "title": "Grid Configuration",
           "description": "Configure grid import/export parameters and pricing",
+          "sections": {
+            "basic": { "name": "Basic settings", "data": { "name": "Grid Name", "connection": "Connection" } },
+            "pricing": {
+              "name": "Pricing",
+              "data": { "import_price": "Import Price", "export_price": "Export Price" }
+            },
+            "limits": { "name": "Limits", "data": { "import_limit": "Import Limit", "export_limit": "Export Limit" } }
+          },
           "data": {
             "connection": "Connection",
             "export_limit": "Export Limit",
@@ -191,6 +290,17 @@
         "user": {
           "title": "Inverter Configuration",
           "description": "Configure bidirectional inverter with DC bus for battery and solar connections",
+          "sections": {
+            "basic": { "name": "Basic settings", "data": { "name": "Inverter Name", "connection": "AC Connection" } },
+            "limits": {
+              "name": "Limits",
+              "data": { "max_power_dc_to_ac": "Max DC to AC Power", "max_power_ac_to_dc": "Max AC to DC Power" }
+            },
+            "advanced": {
+              "name": "Advanced settings",
+              "data": { "efficiency_dc_to_ac": "DC to AC Efficiency", "efficiency_ac_to_dc": "AC to DC Efficiency" }
+            }
+          },
           "data": {
             "connection": "AC Connection",
             "efficiency_ac_to_dc": "AC to DC Efficiency",
@@ -212,6 +322,10 @@
         "user": {
           "title": "Load Configuration",
           "description": "Configure a load with forecast or constant power.\n\n[HAFO]({hafo_url}) can be used to generate forecast sensors.",
+          "sections": {
+            "basic": { "name": "Basic settings", "data": { "name": "Load Name", "connection": "Connection" } },
+            "inputs": { "name": "Inputs", "data": { "forecast": "Forecast" } }
+          },
           "data": { "connection": "Connection", "forecast": "Forecast", "name": "Load Name" }
         }
       },
@@ -233,6 +347,16 @@
         "user": {
           "title": "Node Configuration",
           "description": "Add a node for power balance calculations or to source/sink unlimited power.",
+          "sections": {
+            "basic": { "name": "Basic settings", "data": { "name": "Node Name" } },
+            "advanced": {
+              "name": "Advanced settings",
+              "data": {
+                "is_source": "Can produce unlimited power (Source)",
+                "is_sink": "Can consume unlimited power (Sink)"
+              }
+            }
+          },
           "data": {
             "is_sink": "Can consume unlimited power (Sink)",
             "is_source": "Can produce unlimited power (Source)",
@@ -251,6 +375,16 @@
         "user": {
           "title": "Solar Configuration",
           "description": "Configure solar forecasting and parameters",
+          "sections": {
+            "basic": {
+              "name": "Basic settings",
+              "data": { "name": "Solar Name", "connection": "Connection", "forecast": "Forecast" }
+            },
+            "advanced": {
+              "name": "Advanced settings",
+              "data": { "curtailment": "Allow Curtailment", "price_production": "Production Price" }
+            }
+          },
           "data": {
             "connection": "Connection",
             "curtailment": "Allow Curtailment",
