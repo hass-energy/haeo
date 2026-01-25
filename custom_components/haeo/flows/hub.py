@@ -20,7 +20,12 @@ from custom_components.haeo.const import (
     INTEGRATION_TYPE_HUB,
 )
 from custom_components.haeo.elements import ELEMENT_TYPE_NODE, ELEMENT_TYPES, get_element_flow_classes
-from custom_components.haeo.elements.node import CONF_IS_SINK, CONF_IS_SOURCE
+from custom_components.haeo.elements.node import (
+    CONF_IS_SINK,
+    CONF_IS_SOURCE,
+    CONF_SECTION_ADVANCED as NODE_SECTION_ADVANCED,
+    CONF_SECTION_BASIC as NODE_SECTION_BASIC,
+)
 
 from . import (
     HUB_SECTION_ADVANCED,
@@ -40,7 +45,7 @@ class HubConfigFlow(ConfigFlow, domain=DOMAIN):
     """Handle a config flow for HAEO hub creation."""
 
     VERSION = 1
-    MINOR_VERSION = 1
+    MINOR_VERSION = 2
 
     def __init__(self) -> None:
         """Initialize the config flow."""
@@ -142,10 +147,12 @@ class HubConfigFlow(ConfigFlow, domain=DOMAIN):
                 # Switchboard node as central connection point
                 {
                     "data": {
-                        CONF_NAME: switchboard_name,
                         CONF_ELEMENT_TYPE: ELEMENT_TYPE_NODE,
-                        CONF_IS_SOURCE: False,
-                        CONF_IS_SINK: False,
+                        NODE_SECTION_BASIC: {CONF_NAME: switchboard_name},
+                        NODE_SECTION_ADVANCED: {
+                            CONF_IS_SOURCE: False,
+                            CONF_IS_SINK: False,
+                        },
                     },
                     "subentry_type": ELEMENT_TYPE_NODE,
                     "title": switchboard_name,

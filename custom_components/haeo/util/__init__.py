@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Any
 from homeassistant.config_entries import ConfigSubentry
 from homeassistant.core import HomeAssistant
 
+from custom_components.haeo.elements import set_nested_config_value
 if TYPE_CHECKING:
     from custom_components.haeo import HaeoConfigEntry
 
@@ -37,7 +38,8 @@ async def async_update_subentry_value(
 
     # Update subentry data with new value
     new_data = dict(subentry.data)
-    new_data[field_name] = value
+    if not set_nested_config_value(new_data, field_name, value):
+        new_data[field_name] = value
 
     try:
         hass.config_entries.async_update_subentry(
