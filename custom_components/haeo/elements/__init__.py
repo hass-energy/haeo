@@ -273,6 +273,18 @@ ELEMENT_CONFIG_DATA: Final[dict[ElementType, type]] = {
     "solar": solar.SolarConfigData,
 }
 
+# Optional input fields per element type (used for required field checks)
+ELEMENT_OPTIONAL_INPUT_FIELDS: Final[dict[ElementType, frozenset[str]]] = {
+    "battery": battery.OPTIONAL_INPUT_FIELDS,
+    "battery_section": battery_section.OPTIONAL_INPUT_FIELDS,
+    "connection": connection.OPTIONAL_INPUT_FIELDS,
+    "grid": grid.OPTIONAL_INPUT_FIELDS,
+    "inverter": inverter.OPTIONAL_INPUT_FIELDS,
+    "load": load.OPTIONAL_INPUT_FIELDS,
+    "node": node.OPTIONAL_INPUT_FIELDS,
+    "solar": solar.OPTIONAL_INPUT_FIELDS,
+}
+
 
 def is_element_type(value: Any) -> TypeGuard[ElementType]:
     """Return True when value is a valid ElementType literal.
@@ -311,24 +323,26 @@ def _conforms_to_typed_dict(
 
     def _matches_type(value_item: Any, expected_type: Any) -> bool:
         expected_type = _unwrap_required_type(expected_type)
-        # Get the origin type for generic types (e.g., list[str] -> list)
         origin = get_origin(expected_type)
-        check_type = origin if origin is not None else expected_type
 
         # Handle Literal types by checking if value is one of the allowed values
         # For Literal, we don't do isinstance check - just ensure the field exists
-        if check_type is Literal:
+        if origin is Literal:
             return True
 
-        if check_type in (types.UnionType, Union):
-            # Handle union types (e.g., list[str] | float)
-            # Use the origin for generic args (e.g., list[str] -> list); for primitive
-            # types (e.g., float, int) get_origin() returns None so we fall back to arg
-            # itself, producing a tuple like (list, float) suitable for isinstance().
+        if origin in (types.UnionType, Union):
             union_args = get_args(expected_type)
-            allowed_types = tuple(get_origin(arg) or arg for arg in union_args)
-            return isinstance(value_item, allowed_types)
+            return any(_matches_type(value_item, arg) for arg in union_args)
 
+        if isinstance(expected_type, type) and hasattr(expected_type, "__required_keys__"):
+            return isinstance(value_item, Mapping) and _conforms_to_typed_dict(
+                value_item,
+                expected_type,
+                check_optional=True,
+            )
+
+        # Get the origin type for generic types (e.g., list[str] -> list)
+        check_type = origin if origin is not None else expected_type
         return isinstance(value_item, check_type)
 
     for key in required_keys:
@@ -429,9 +443,34 @@ def get_input_fields(element_config: ElementConfigSchema) -> dict[str, InputFiel
     return adapter.inputs(element_config)
 
 
+def get_nested_config_value(config: Mapping[str, Any], field_name: str) -> Any | None:
+    """Find a field value in a nested element config."""
+    for value in config.values():
+        if isinstance(value, Mapping):
+            if field_name in value:
+                return value[field_name]
+            nested_value = get_nested_config_value(value, field_name)
+            if nested_value is not None:
+                return nested_value
+    return None
+
+
+def set_nested_config_value(config: dict[str, Any], field_name: str, value: Any) -> bool:
+    """Set a field value in a nested element config."""
+    for key, nested in config.items():
+        if isinstance(nested, dict):
+            if field_name in nested:
+                nested[field_name] = value
+                return True
+            if set_nested_config_value(nested, field_name, value):
+                return True
+    return False
+
+
 __all__ = [
     "ELEMENT_CONFIG_SCHEMAS",
     "ELEMENT_DEVICE_NAMES",
+    "ELEMENT_OPTIONAL_INPUT_FIELDS",
     "ELEMENT_TYPES",
     "ELEMENT_TYPE_BATTERY",
     "ELEMENT_TYPE_BATTERY_SECTION",
@@ -452,7 +491,9 @@ __all__ = [
     "collect_element_subentries",
     "get_element_flow_classes",
     "get_input_fields",
+    "get_nested_config_value",
     "is_element_config_data",
     "is_element_config_schema",
     "is_element_type",
+    "set_nested_config_value",
 ]

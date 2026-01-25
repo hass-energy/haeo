@@ -1,6 +1,7 @@
 """Data update coordinator for the Home Assistant Energy Optimizer integration."""
 
 from collections.abc import Callable, Mapping
+from copy import deepcopy
 from dataclasses import dataclass
 from datetime import datetime
 import logging
@@ -32,8 +33,10 @@ from custom_components.haeo.const import (
     OUTPUT_NAME_OPTIMIZATION_STATUS,
     NetworkOutputName,
 )
+from custom_components.haeo.flows import HUB_SECTION_ADVANCED
 from custom_components.haeo.elements import (
     ELEMENT_CONFIG_SCHEMAS,
+    ELEMENT_OPTIONAL_INPUT_FIELDS,
     ELEMENT_TYPES,
     ElementConfigData,
     ElementConfigSchema,
@@ -41,8 +44,10 @@ from custom_components.haeo.elements import (
     ElementOutputName,
     collect_element_subentries,
     get_input_fields,
+    get_nested_config_value,
     is_element_config_data,
     is_element_type,
+    set_nested_config_value,
 )
 from custom_components.haeo.model import ModelOutputName, Network, OutputData, OutputType
 from custom_components.haeo.repairs import dismiss_optimization_failure_issue
@@ -219,7 +224,8 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             self._participant_subentry_ids[participant.name] = participant.subentry.subentry_id
 
         # Custom debouncing state
-        self._debounce_seconds = float(config_entry.data.get(CONF_DEBOUNCE_SECONDS, DEFAULT_DEBOUNCE_SECONDS))
+        advanced_data = config_entry.data.get(HUB_SECTION_ADVANCED, {})
+        self._debounce_seconds = float(advanced_data.get(CONF_DEBOUNCE_SECONDS, DEFAULT_DEBOUNCE_SECONDS))
         self._last_optimization_time: float | None = None
         self._debounce_timer: CALLBACK_TYPE | None = None
         self._pending_refresh: bool = False
@@ -546,19 +552,17 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             else:
                 loaded_values[field_name] = values[0] if values else None
 
-        element_values: dict[str, Any] = {
-            key: value for key, value in element_config.items() if key not in input_field_infos
-        }
-        element_values.update(loaded_values)
+        element_values: dict[str, Any] = deepcopy(dict(element_config))
+        for field_name, value in loaded_values.items():
+            set_nested_config_value(element_values, field_name, value)
 
-        schema_cls = ELEMENT_CONFIG_SCHEMAS[element_type]
-        optional_keys: frozenset[str] = getattr(schema_cls, "__optional_keys__", frozenset())
+        optional_keys = ELEMENT_OPTIONAL_INPUT_FIELDS[element_type]
         for field_info in input_field_infos.values():
             field_name = field_info.field_name
             is_required = field_info.force_required or field_name not in optional_keys
             if not is_required:
                 continue
-            value = element_values.get(field_name)
+            value = get_nested_config_value(element_values, field_name)
             if value is None:
                 msg = f"Missing required field '{field_name}' for element '{element_name}'"
                 raise ValueError(msg)

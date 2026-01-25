@@ -20,7 +20,11 @@ from custom_components.haeo.const import (
     CONF_TIER_4_COUNT,
     CONF_TIER_4_DURATION,
 )
-from custom_components.haeo.elements import ElementConfigSchema, is_element_config_schema
+from custom_components.haeo.elements import (
+    ElementConfigSchema,
+    is_element_config_schema,
+    set_nested_config_value,
+)
 from custom_components.haeo.entities.haeo_number import ConfigEntityMode, HaeoInputNumber
 from custom_components.haeo.entities.haeo_switch import HaeoInputSwitch
 from custom_components.haeo.sensor_utils import get_output_sensors
@@ -48,14 +52,21 @@ def _extract_entity_ids_from_config(config: ElementConfigSchema) -> set[str]:
 
     This function iterates over all config values and collects entity IDs.
     """
+    def _collect(value: Any, collected: set[str]) -> None:
+        if isinstance(value, str):
+            if "." in value:
+                collected.add(value)
+            return
+        if isinstance(value, list):
+            if all(isinstance(item, str) for item in value):
+                collected.update(item for item in value if "." in item)
+            return
+        if isinstance(value, dict):
+            for nested in value.values():
+                _collect(nested, collected)
+
     entity_ids: set[str] = set()
-    for value in config.values():
-        if isinstance(value, str) and "." in value:
-            # Single entity ID string
-            entity_ids.add(value)
-        elif isinstance(value, list) and all(isinstance(item, str) for item in value):
-            # List of entity IDs (for chained forecasts/prices)
-            entity_ids.update(item for item in value if "." in item)
+    _collect(config, entity_ids)
     return entity_ids
 
 
@@ -81,24 +92,29 @@ async def collect_diagnostics(
     at that past time with different inputs.
     """
     # Build config section with participants
+    tiers = config_entry.data.get("tiers") if isinstance(config_entry.data.get("tiers"), dict) else {}
     config: dict[str, Any] = {
         "participants": {},
-        CONF_TIER_1_COUNT: config_entry.data.get(CONF_TIER_1_COUNT),
-        CONF_TIER_1_DURATION: config_entry.data.get(CONF_TIER_1_DURATION),
-        CONF_TIER_2_COUNT: config_entry.data.get(CONF_TIER_2_COUNT),
-        CONF_TIER_2_DURATION: config_entry.data.get(CONF_TIER_2_DURATION),
-        CONF_TIER_3_COUNT: config_entry.data.get(CONF_TIER_3_COUNT),
-        CONF_TIER_3_DURATION: config_entry.data.get(CONF_TIER_3_DURATION),
-        CONF_TIER_4_COUNT: config_entry.data.get(CONF_TIER_4_COUNT),
-        CONF_TIER_4_DURATION: config_entry.data.get(CONF_TIER_4_DURATION),
+        CONF_TIER_1_COUNT: tiers.get(CONF_TIER_1_COUNT, config_entry.data.get(CONF_TIER_1_COUNT)),
+        CONF_TIER_1_DURATION: tiers.get(CONF_TIER_1_DURATION, config_entry.data.get(CONF_TIER_1_DURATION)),
+        CONF_TIER_2_COUNT: tiers.get(CONF_TIER_2_COUNT, config_entry.data.get(CONF_TIER_2_COUNT)),
+        CONF_TIER_2_DURATION: tiers.get(CONF_TIER_2_DURATION, config_entry.data.get(CONF_TIER_2_DURATION)),
+        CONF_TIER_3_COUNT: tiers.get(CONF_TIER_3_COUNT, config_entry.data.get(CONF_TIER_3_COUNT)),
+        CONF_TIER_3_DURATION: tiers.get(CONF_TIER_3_DURATION, config_entry.data.get(CONF_TIER_3_DURATION)),
+        CONF_TIER_4_COUNT: tiers.get(CONF_TIER_4_COUNT, config_entry.data.get(CONF_TIER_4_COUNT)),
+        CONF_TIER_4_DURATION: tiers.get(CONF_TIER_4_DURATION, config_entry.data.get(CONF_TIER_4_DURATION)),
     }
 
     # Transform subentries into participants dict
     for subentry in config_entry.subentries.values():
         if subentry.subentry_type != "network":
             raw_data = dict(subentry.data)
-            raw_data.setdefault("name", subentry.title)
             raw_data.setdefault(CONF_ELEMENT_TYPE, subentry.subentry_type)
+            basic = raw_data.get("basic")
+            if isinstance(basic, dict):
+                basic.setdefault("name", subentry.title)
+            else:
+                raw_data.setdefault("name", subentry.title)
             config["participants"][subentry.title] = raw_data
 
     # Capture current values from editable input entities
@@ -116,9 +132,11 @@ async def collect_diagnostics(
                 continue
 
             if isinstance(entity, HaeoInputNumber) and entity.native_value is not None:
-                participant[field_name] = entity.native_value
+                if not set_nested_config_value(participant, field_name, entity.native_value):
+                    participant[field_name] = entity.native_value
             elif isinstance(entity, HaeoInputSwitch) and entity.is_on is not None:
-                participant[field_name] = entity.is_on
+                if not set_nested_config_value(participant, field_name, entity.is_on):
+                    participant[field_name] = entity.is_on
 
     # Collect input sensor states for all entities used in the configuration
     all_entity_ids: set[str] = set()

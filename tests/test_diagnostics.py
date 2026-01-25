@@ -3,6 +3,7 @@
 from datetime import UTC, datetime, timedelta, timezone
 from types import MappingProxyType
 from unittest.mock import AsyncMock, Mock, patch
+from typing import Any
 
 from homeassistant.config_entries import ConfigSubentry
 from homeassistant.core import HomeAssistant, State
@@ -50,11 +51,82 @@ from custom_components.haeo.elements.battery import (
     CONF_MAX_CHARGE_POWER,
     CONF_MAX_DISCHARGE_POWER,
     CONF_MIN_CHARGE_PERCENTAGE,
+    CONF_SECTION_ADVANCED,
+    CONF_SECTION_BASIC,
+    CONF_SECTION_LIMITS,
 )
-from custom_components.haeo.elements.grid import CONF_EXPORT_PRICE, CONF_IMPORT_PRICE, GRID_POWER_IMPORT
+from custom_components.haeo.elements.grid import (
+    CONF_EXPORT_PRICE,
+    CONF_IMPORT_PRICE,
+    CONF_SECTION_BASIC as CONF_GRID_SECTION_BASIC,
+    CONF_SECTION_LIMITS as CONF_GRID_SECTION_LIMITS,
+    CONF_SECTION_PRICING as CONF_GRID_SECTION_PRICING,
+    GRID_POWER_IMPORT,
+)
 from custom_components.haeo.entities.haeo_number import ConfigEntityMode, HaeoInputNumber
 from custom_components.haeo.entities.haeo_switch import HaeoInputSwitch
 from custom_components.haeo.model import OutputType
+
+
+def _battery_config(
+    *,
+    name: str,
+    connection: str,
+    capacity: str | float,
+    initial_charge_percentage: str | float,
+    max_charge_power: float | None = None,
+    max_discharge_power: float | None = None,
+    min_charge_percentage: float | None = None,
+    max_charge_percentage: float | None = None,
+    efficiency: float | None = None,
+) -> dict[str, Any]:
+    """Build a sectioned battery config dict for diagnostics tests."""
+    limits: dict[str, Any] = {}
+    advanced: dict[str, Any] = {}
+    if max_charge_power is not None:
+        limits[CONF_MAX_CHARGE_POWER] = max_charge_power
+    if max_discharge_power is not None:
+        limits[CONF_MAX_DISCHARGE_POWER] = max_discharge_power
+    if min_charge_percentage is not None:
+        limits[CONF_MIN_CHARGE_PERCENTAGE] = min_charge_percentage
+    if max_charge_percentage is not None:
+        limits[CONF_MAX_CHARGE_PERCENTAGE] = max_charge_percentage
+    if efficiency is not None:
+        advanced[CONF_EFFICIENCY] = efficiency
+
+    return {
+        CONF_ELEMENT_TYPE: ELEMENT_TYPE_BATTERY,
+        CONF_SECTION_BASIC: {
+            CONF_NAME: name,
+            CONF_CONNECTION: connection,
+            CONF_CAPACITY: capacity,
+            CONF_INITIAL_CHARGE_PERCENTAGE: initial_charge_percentage,
+        },
+        CONF_SECTION_LIMITS: limits,
+        CONF_SECTION_ADVANCED: advanced,
+    }
+
+
+def _grid_config(
+    *,
+    name: str,
+    connection: str,
+    import_price: list[str] | str | float,
+    export_price: list[str] | str | float,
+) -> dict[str, Any]:
+    """Build a sectioned grid config dict for diagnostics tests."""
+    return {
+        CONF_ELEMENT_TYPE: "grid",
+        CONF_GRID_SECTION_BASIC: {
+            CONF_NAME: name,
+            CONF_CONNECTION: connection,
+        },
+        CONF_GRID_SECTION_PRICING: {
+            CONF_IMPORT_PRICE: import_price,
+            CONF_EXPORT_PRICE: export_price,
+        },
+        CONF_GRID_SECTION_LIMITS: {},
+    }
 
 
 async def test_diagnostics_basic_structure(hass: HomeAssistant) -> None:
@@ -124,18 +196,17 @@ async def test_diagnostics_with_participants(hass: HomeAssistant) -> None:
 
     battery_subentry = ConfigSubentry(
         data=MappingProxyType(
-            {
-                CONF_ELEMENT_TYPE: ELEMENT_TYPE_BATTERY,
-                CONF_NAME: "Battery One",
-                CONF_CAPACITY: "sensor.battery_capacity",
-                CONF_CONNECTION: "DC Bus",
-                CONF_INITIAL_CHARGE_PERCENTAGE: "sensor.battery_soc",
-                CONF_MAX_CHARGE_POWER: 5.0,
-                CONF_MAX_DISCHARGE_POWER: 5.0,
-                CONF_MIN_CHARGE_PERCENTAGE: 10.0,
-                CONF_MAX_CHARGE_PERCENTAGE: 90.0,
-                CONF_EFFICIENCY: 95.0,
-            }
+            _battery_config(
+                name="Battery One",
+                connection="DC Bus",
+                capacity="sensor.battery_capacity",
+                initial_charge_percentage="sensor.battery_soc",
+                max_charge_power=5.0,
+                max_discharge_power=5.0,
+                min_charge_percentage=10.0,
+                max_charge_percentage=90.0,
+                efficiency=95.0,
+            )
         ),
         subentry_type=ELEMENT_TYPE_BATTERY,
         title="Battery One",
@@ -170,9 +241,9 @@ async def test_diagnostics_with_participants(hass: HomeAssistant) -> None:
     assert "Battery One" in participants
     battery_config = participants["Battery One"]
     assert battery_config[CONF_ELEMENT_TYPE] == ELEMENT_TYPE_BATTERY
-    assert battery_config[CONF_NAME] == "Battery One"
-    assert battery_config[CONF_CAPACITY] == "sensor.battery_capacity"
-    assert battery_config[CONF_INITIAL_CHARGE_PERCENTAGE] == "sensor.battery_soc"
+    assert battery_config[CONF_SECTION_BASIC][CONF_NAME] == "Battery One"
+    assert battery_config[CONF_SECTION_BASIC][CONF_CAPACITY] == "sensor.battery_capacity"
+    assert battery_config[CONF_SECTION_BASIC][CONF_INITIAL_CHARGE_PERCENTAGE] == "sensor.battery_soc"
 
     # Verify input states are collected using State.as_dict()
     # Both sensor.battery_capacity and sensor.battery_soc should be collected
@@ -223,18 +294,17 @@ async def test_diagnostics_skips_network_subentry(hass: HomeAssistant) -> None:
     # Add a battery subentry (should be included)
     battery_subentry = ConfigSubentry(
         data=MappingProxyType(
-            {
-                CONF_ELEMENT_TYPE: ELEMENT_TYPE_BATTERY,
-                CONF_NAME: "Battery",
-                CONF_CAPACITY: "sensor.battery_capacity",
-                CONF_CONNECTION: "DC Bus",
-                CONF_INITIAL_CHARGE_PERCENTAGE: "sensor.battery_soc",
-                CONF_MAX_CHARGE_POWER: 5.0,
-                CONF_MAX_DISCHARGE_POWER: 5.0,
-                CONF_MIN_CHARGE_PERCENTAGE: 10.0,
-                CONF_MAX_CHARGE_PERCENTAGE: 90.0,
-                CONF_EFFICIENCY: 95.0,
-            }
+            _battery_config(
+                name="Battery",
+                connection="DC Bus",
+                capacity="sensor.battery_capacity",
+                initial_charge_percentage="sensor.battery_soc",
+                max_charge_power=5.0,
+                max_discharge_power=5.0,
+                min_charge_percentage=10.0,
+                max_charge_percentage=90.0,
+                efficiency=95.0,
+            )
         ),
         subentry_type=ELEMENT_TYPE_BATTERY,
         title="Battery",
@@ -285,13 +355,12 @@ async def test_diagnostics_with_outputs(hass: HomeAssistant) -> None:
 
     grid_subentry = ConfigSubentry(
         data=MappingProxyType(
-            {
-                CONF_ELEMENT_TYPE: "grid",
-                CONF_NAME: "Grid",
-                CONF_CONNECTION: "Main Bus",
-                CONF_IMPORT_PRICE: ["sensor.grid_import_price", "sensor.grid_import_forecast"],
-                CONF_EXPORT_PRICE: 0.08,
-            }
+            _grid_config(
+                name="Grid",
+                connection="Main Bus",
+                import_price=["sensor.grid_import_price", "sensor.grid_import_forecast"],
+                export_price=0.08,
+            )
         ),
         subentry_type="grid",
         title="Grid",
@@ -393,18 +462,17 @@ async def test_diagnostics_captures_editable_entity_values(hass: HomeAssistant) 
 
     battery_subentry = ConfigSubentry(
         data=MappingProxyType(
-            {
-                CONF_ELEMENT_TYPE: ELEMENT_TYPE_BATTERY,
-                CONF_NAME: "Battery One",
-                CONF_CAPACITY: 10.0,  # Constant value - creates editable entity
-                CONF_CONNECTION: "DC Bus",
-                CONF_INITIAL_CHARGE_PERCENTAGE: 50.0,  # Constant - creates editable entity
-                CONF_MAX_CHARGE_POWER: 5.0,
-                CONF_MAX_DISCHARGE_POWER: 5.0,
-                CONF_MIN_CHARGE_PERCENTAGE: 10.0,
-                CONF_MAX_CHARGE_PERCENTAGE: 90.0,
-                CONF_EFFICIENCY: 95.0,
-            }
+            _battery_config(
+                name="Battery One",
+                connection="DC Bus",
+                capacity=10.0,  # Constant value - creates editable entity
+                initial_charge_percentage=50.0,  # Constant - creates editable entity
+                max_charge_power=5.0,
+                max_discharge_power=5.0,
+                min_charge_percentage=10.0,
+                max_charge_percentage=90.0,
+                efficiency=95.0,
+            )
         ),
         subentry_type=ELEMENT_TYPE_BATTERY,
         title="Battery One",
@@ -435,7 +503,7 @@ async def test_diagnostics_captures_editable_entity_values(hass: HomeAssistant) 
 
     # Verify that editable entity values are captured in config
     battery_config = diagnostics["config"]["participants"]["Battery One"]
-    assert battery_config[CONF_CAPACITY] == 12.5  # Current entity value, not config value
+    assert battery_config[CONF_SECTION_BASIC][CONF_CAPACITY] == 12.5  # Current entity value, not config value
     assert battery_config["some_boolean_field"] is True
 
 
@@ -462,18 +530,17 @@ async def test_diagnostics_skips_unknown_element_in_input_entities(hass: HomeAss
 
     battery_subentry = ConfigSubentry(
         data=MappingProxyType(
-            {
-                CONF_ELEMENT_TYPE: ELEMENT_TYPE_BATTERY,
-                CONF_NAME: "Battery One",
-                CONF_CAPACITY: 10.0,
-                CONF_CONNECTION: "DC Bus",
-                CONF_INITIAL_CHARGE_PERCENTAGE: 50.0,
-                CONF_MAX_CHARGE_POWER: 5.0,
-                CONF_MAX_DISCHARGE_POWER: 5.0,
-                CONF_MIN_CHARGE_PERCENTAGE: 10.0,
-                CONF_MAX_CHARGE_PERCENTAGE: 90.0,
-                CONF_EFFICIENCY: 95.0,
-            }
+            _battery_config(
+                name="Battery One",
+                connection="DC Bus",
+                capacity=10.0,
+                initial_charge_percentage=50.0,
+                max_charge_power=5.0,
+                max_discharge_power=5.0,
+                min_charge_percentage=10.0,
+                max_charge_percentage=90.0,
+                efficiency=95.0,
+            )
         ),
         subentry_type=ELEMENT_TYPE_BATTERY,
         title="Battery One",
@@ -499,7 +566,7 @@ async def test_diagnostics_skips_unknown_element_in_input_entities(hass: HomeAss
 
     # Verify that Battery One exists unchanged (unknown element was skipped)
     battery_config = diagnostics["config"]["participants"]["Battery One"]
-    assert battery_config[CONF_CAPACITY] == 10.0  # Original config value preserved
+    assert battery_config[CONF_SECTION_BASIC][CONF_CAPACITY] == 10.0  # Original config value preserved
 
 
 async def test_diagnostics_skips_driven_entity_values(hass: HomeAssistant) -> None:
@@ -525,18 +592,17 @@ async def test_diagnostics_skips_driven_entity_values(hass: HomeAssistant) -> No
 
     battery_subentry = ConfigSubentry(
         data=MappingProxyType(
-            {
-                CONF_ELEMENT_TYPE: ELEMENT_TYPE_BATTERY,
-                CONF_NAME: "Battery One",
-                CONF_CAPACITY: "sensor.battery_capacity",  # Entity ID - creates driven entity
-                CONF_CONNECTION: "DC Bus",
-                CONF_INITIAL_CHARGE_PERCENTAGE: 50.0,
-                CONF_MAX_CHARGE_POWER: 5.0,
-                CONF_MAX_DISCHARGE_POWER: 5.0,
-                CONF_MIN_CHARGE_PERCENTAGE: 10.0,
-                CONF_MAX_CHARGE_PERCENTAGE: 90.0,
-                CONF_EFFICIENCY: 95.0,
-            }
+            _battery_config(
+                name="Battery One",
+                connection="DC Bus",
+                capacity="sensor.battery_capacity",  # Entity ID - creates driven entity
+                initial_charge_percentage=50.0,
+                max_charge_power=5.0,
+                max_discharge_power=5.0,
+                min_charge_percentage=10.0,
+                max_charge_percentage=90.0,
+                efficiency=95.0,
+            )
         ),
         subentry_type=ELEMENT_TYPE_BATTERY,
         title="Battery One",
@@ -562,7 +628,7 @@ async def test_diagnostics_skips_driven_entity_values(hass: HomeAssistant) -> No
 
     # Verify that driven entity value is NOT captured - config value preserved
     battery_config = diagnostics["config"]["participants"]["Battery One"]
-    assert battery_config[CONF_CAPACITY] == "sensor.battery_capacity"  # Original config value
+    assert battery_config[CONF_SECTION_BASIC][CONF_CAPACITY] == "sensor.battery_capacity"  # Original config value
 
 
 async def test_current_state_provider_get_state(hass: HomeAssistant) -> None:
@@ -835,18 +901,17 @@ async def test_diagnostics_skips_switch_with_none_value(hass: HomeAssistant) -> 
 
     battery_subentry = ConfigSubentry(
         data=MappingProxyType(
-            {
-                CONF_ELEMENT_TYPE: ELEMENT_TYPE_BATTERY,
-                CONF_NAME: "Battery One",
-                CONF_CAPACITY: 10.0,
-                CONF_CONNECTION: "DC Bus",
-                CONF_INITIAL_CHARGE_PERCENTAGE: 50.0,
-                CONF_MAX_CHARGE_POWER: 5.0,
-                CONF_MAX_DISCHARGE_POWER: 5.0,
-                CONF_MIN_CHARGE_PERCENTAGE: 10.0,
-                CONF_MAX_CHARGE_PERCENTAGE: 90.0,
-                CONF_EFFICIENCY: 95.0,
-            }
+            _battery_config(
+                name="Battery One",
+                connection="DC Bus",
+                capacity=10.0,
+                initial_charge_percentage=50.0,
+                max_charge_power=5.0,
+                max_discharge_power=5.0,
+                min_charge_percentage=10.0,
+                max_charge_percentage=90.0,
+                efficiency=95.0,
+            )
         ),
         subentry_type=ELEMENT_TYPE_BATTERY,
         title="Battery One",
@@ -898,18 +963,17 @@ async def test_collect_diagnostics_returns_missing_entity_ids(hass: HomeAssistan
 
     battery_subentry = ConfigSubentry(
         data=MappingProxyType(
-            {
-                CONF_ELEMENT_TYPE: ELEMENT_TYPE_BATTERY,
-                CONF_NAME: "Battery",
-                CONF_CAPACITY: "sensor.battery_capacity",
-                CONF_CONNECTION: "DC Bus",
-                CONF_INITIAL_CHARGE_PERCENTAGE: "sensor.battery_soc",
-                CONF_MAX_CHARGE_POWER: 5.0,
-                CONF_MAX_DISCHARGE_POWER: 5.0,
-                CONF_MIN_CHARGE_PERCENTAGE: 10.0,
-                CONF_MAX_CHARGE_PERCENTAGE: 90.0,
-                CONF_EFFICIENCY: 95.0,
-            }
+            _battery_config(
+                name="Battery",
+                connection="DC Bus",
+                capacity="sensor.battery_capacity",
+                initial_charge_percentage="sensor.battery_soc",
+                max_charge_power=5.0,
+                max_discharge_power=5.0,
+                min_charge_percentage=10.0,
+                max_charge_percentage=90.0,
+                efficiency=95.0,
+            )
         ),
         subentry_type=ELEMENT_TYPE_BATTERY,
         title="Battery",
@@ -957,18 +1021,17 @@ async def test_collect_diagnostics_returns_empty_missing_when_all_found(hass: Ho
 
     battery_subentry = ConfigSubentry(
         data=MappingProxyType(
-            {
-                CONF_ELEMENT_TYPE: ELEMENT_TYPE_BATTERY,
-                CONF_NAME: "Battery",
-                CONF_CAPACITY: "sensor.battery_capacity",
-                CONF_CONNECTION: "DC Bus",
-                CONF_INITIAL_CHARGE_PERCENTAGE: "sensor.battery_soc",
-                CONF_MAX_CHARGE_POWER: 5.0,
-                CONF_MAX_DISCHARGE_POWER: 5.0,
-                CONF_MIN_CHARGE_PERCENTAGE: 10.0,
-                CONF_MAX_CHARGE_PERCENTAGE: 90.0,
-                CONF_EFFICIENCY: 95.0,
-            }
+            _battery_config(
+                name="Battery",
+                connection="DC Bus",
+                capacity="sensor.battery_capacity",
+                initial_charge_percentage="sensor.battery_soc",
+                max_charge_power=5.0,
+                max_discharge_power=5.0,
+                min_charge_percentage=10.0,
+                max_charge_percentage=90.0,
+                efficiency=95.0,
+            )
         ),
         subentry_type=ELEMENT_TYPE_BATTERY,
         title="Battery",
