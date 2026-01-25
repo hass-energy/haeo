@@ -5,11 +5,13 @@ Home Assistant's ChooseSelector, allowing users to pick between "Entity"
 (select from compatible sensors) or "Constant" (enter a value directly).
 """
 
-from collections.abc import Collection, Mapping
+from collections.abc import Collection, Mapping, Sequence
+from dataclasses import dataclass
 from typing import Any
 
 from homeassistant.components.number import NumberEntityDescription
 from homeassistant.core import async_get_hass
+from homeassistant.data_entry_flow import section
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.selector import (
     BooleanSelector,
@@ -34,6 +36,15 @@ from custom_components.haeo.elements.input_fields import InputFieldInfo
 CHOICE_ENTITY = "entity"
 CHOICE_CONSTANT = "constant"
 CHOICE_NONE = "none"
+
+
+@dataclass(frozen=True, slots=True)
+class SectionDefinition:
+    """Definition of a config flow section for grouping fields."""
+
+    key: str
+    fields: tuple[str, ...]
+    collapsed: bool = False
 
 
 def number_selector_from_field(
@@ -330,6 +341,132 @@ def build_choose_schema_entry(
     return vol.Required(field_name), selector
 
 
+def build_choose_field_entries(
+    input_fields: Mapping[str, InputFieldInfo[Any]],
+    *,
+    optional_keys: frozenset[str],
+    inclusion_map: dict[str, list[str]],
+    current_data: Mapping[str, Any] | None = None,
+) -> dict[str, tuple[vol.Marker, Any]]:
+    """Build choose selector entries for input fields.
+
+    Args:
+        input_fields: Mapping of InputFieldInfo keyed by field name.
+        optional_keys: Optional keys from the config schema TypedDict.
+        inclusion_map: Mapping of field name -> compatible entity IDs.
+        current_data: Current configuration data (for reconfigure).
+
+    Returns:
+        Mapping of field_name -> (marker, selector) for schema insertion.
+
+    """
+    entries: dict[str, tuple[vol.Marker, Any]] = {}
+
+    for field_info in input_fields.values():
+        is_optional = field_info.field_name in optional_keys and not field_info.force_required
+        include_entities = inclusion_map.get(field_info.field_name)
+        preferred = get_preferred_choice(field_info, current_data, is_optional=is_optional)
+        marker, selector = build_choose_schema_entry(
+            field_info,
+            is_optional=is_optional,
+            include_entities=include_entities,
+            preferred_choice=preferred,
+        )
+        entries[field_info.field_name] = (marker, selector)
+
+    return entries
+
+
+def build_section_schema(
+    sections: Sequence[SectionDefinition],
+    field_entries: Mapping[str, tuple[vol.Marker, Any]],
+) -> dict[vol.Marker, Any]:
+    """Build section-wrapped schema entries from a field entry map.
+
+    Args:
+        sections: Section definitions with field order.
+        field_entries: Mapping of field_name -> (marker, selector).
+
+    Returns:
+        Schema dict with sections (data_entry_flow.section) in order.
+
+    """
+    schema_dict: dict[vol.Marker, Any] = {}
+
+    for section_def in sections:
+        section_schema: dict[vol.Marker, Any] = {}
+        for field_name in section_def.fields:
+            entry = field_entries.get(field_name)
+            if entry is None:
+                continue
+            marker, selector = entry
+            section_schema[marker] = selector
+        if section_schema:
+            schema_dict[vol.Required(section_def.key)] = section(
+                vol.Schema(section_schema),
+                {"collapsed": section_def.collapsed},
+            )
+
+    return schema_dict
+
+
+def flatten_section_input(
+    user_input: dict[str, Any] | None,
+    section_keys: Collection[str],
+) -> dict[str, Any] | None:
+    """Flatten sectioned user input into a flat dictionary.
+
+    Args:
+        user_input: User input from the form.
+        section_keys: Keys used for section wrappers in the schema.
+
+    Returns:
+        Flattened user input, or None if input was None.
+
+    """
+    if user_input is None:
+        return None
+
+    result: dict[str, Any] = {}
+
+    for key, value in user_input.items():
+        if key in section_keys and isinstance(value, dict):
+            result.update(value)
+        else:
+            result[key] = value
+
+    return result
+
+
+def nest_section_defaults(
+    defaults: Mapping[str, Any],
+    sections: Sequence[SectionDefinition],
+) -> dict[str, Any]:
+    """Nest flat defaults into sectioned defaults for the schema.
+
+    Args:
+        defaults: Flat mapping of field_name -> default value.
+        sections: Section definitions with field membership.
+
+    Returns:
+        Defaults dict matching the sectioned schema shape.
+
+    """
+    result: dict[str, Any] = {}
+    remaining: dict[str, Any] = dict(defaults)
+
+    for section_def in sections:
+        section_defaults: dict[str, Any] = {}
+        for field_name in section_def.fields:
+            if field_name in remaining:
+                section_defaults[field_name] = remaining.pop(field_name)
+        if section_defaults:
+            result[section_def.key] = section_defaults
+
+    result.update(remaining)
+    return result
+
+
 def get_choose_default(
     field_info: InputFieldInfo[Any],
     current_data: Mapping[str, Any] | None = None,
@@ -566,16 +703,21 @@ __all__ = [
     "CHOICE_NONE",
     "NormalizingChooseSelector",
     "boolean_selector_from_field",
+    "build_choose_field_entries",
     "build_choose_schema_entry",
     "build_choose_selector",
+    "build_section_schema",
     "build_entity_selector",
     "convert_choose_data_to_config",
+    "flatten_section_input",
     "get_choose_default",
     "get_haeo_input_entity_ids",
     "get_preferred_choice",
     "is_valid_choose_value",
+    "nest_section_defaults",
     "number_selector_from_field",
     "preprocess_choose_selector_input",
     "resolve_haeo_input_entity_id",
+    "SectionDefinition",
     "validate_choose_fields",
 ]
