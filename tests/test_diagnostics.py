@@ -60,6 +60,7 @@ from custom_components.haeo.elements.grid import CONF_SECTION_BASIC as CONF_GRID
 from custom_components.haeo.elements.grid import CONF_SECTION_LIMITS as CONF_GRID_SECTION_LIMITS
 from custom_components.haeo.elements.grid import CONF_SECTION_PRICING as CONF_GRID_SECTION_PRICING
 from custom_components.haeo.entities.haeo_number import ConfigEntityMode, HaeoInputNumber
+from custom_components.haeo.flows import HUB_SECTION_BASIC, HUB_SECTION_TIERS
 from custom_components.haeo.model import OutputType
 
 
@@ -124,13 +125,12 @@ def _grid_config(
     }
 
 
-async def test_diagnostics_basic_structure(hass: HomeAssistant) -> None:
-    """Diagnostics returns correct structure with four main keys in the right order."""
-    entry = MockConfigEntry(
-        domain=DOMAIN,
-        data={
-            CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
-            CONF_NAME: "Test Hub",
+def _hub_entry_data(name: str = "Test Hub") -> dict[str, Any]:
+    """Build hub entry data using the sectioned schema."""
+    return {
+        CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
+        HUB_SECTION_BASIC: {CONF_NAME: name},
+        HUB_SECTION_TIERS: {
             CONF_TIER_1_COUNT: DEFAULT_TIER_1_COUNT,
             CONF_TIER_1_DURATION: DEFAULT_TIER_1_DURATION,
             CONF_TIER_2_COUNT: DEFAULT_TIER_2_COUNT,
@@ -140,6 +140,14 @@ async def test_diagnostics_basic_structure(hass: HomeAssistant) -> None:
             CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
             CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
         },
+    }
+
+
+async def test_diagnostics_basic_structure(hass: HomeAssistant) -> None:
+    """Diagnostics returns correct structure with four main keys in the right order."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data=_hub_entry_data("Test Hub"),
         entry_id="test_entry",
     )
     entry.add_to_hass(hass)
@@ -157,8 +165,8 @@ async def test_diagnostics_basic_structure(hass: HomeAssistant) -> None:
     # can use sort_keys=True for alphabetical ordering (config, environment, inputs, outputs)
 
     # Verify config structure
-    assert diagnostics["config"][CONF_TIER_1_COUNT] == DEFAULT_TIER_1_COUNT
-    assert diagnostics["config"][CONF_TIER_1_DURATION] == DEFAULT_TIER_1_DURATION
+    assert diagnostics["config"][HUB_SECTION_TIERS][CONF_TIER_1_COUNT] == DEFAULT_TIER_1_COUNT
+    assert diagnostics["config"][HUB_SECTION_TIERS][CONF_TIER_1_DURATION] == DEFAULT_TIER_1_DURATION
     assert "participants" in diagnostics["config"]
 
     # Verify environment
@@ -173,18 +181,7 @@ async def test_diagnostics_with_participants(hass: HomeAssistant) -> None:
     entry = MockConfigEntry(
         domain=DOMAIN,
         title="Test Hub",
-        data={
-            CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
-            CONF_NAME: "Test Hub",
-            CONF_TIER_1_COUNT: DEFAULT_TIER_1_COUNT,
-            CONF_TIER_1_DURATION: DEFAULT_TIER_1_DURATION,
-            CONF_TIER_2_COUNT: DEFAULT_TIER_2_COUNT,
-            CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
-            CONF_TIER_3_COUNT: DEFAULT_TIER_3_COUNT,
-            CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
-            CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
-            CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
-        },
+        data=_hub_entry_data("Test Hub"),
         entry_id="hub_entry",
     )
     entry.add_to_hass(hass)
@@ -261,18 +258,7 @@ async def test_diagnostics_skips_network_subentry(hass: HomeAssistant) -> None:
     entry = MockConfigEntry(
         domain=DOMAIN,
         title="Test Hub",
-        data={
-            CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
-            CONF_NAME: "Test Hub",
-            CONF_TIER_1_COUNT: DEFAULT_TIER_1_COUNT,
-            CONF_TIER_1_DURATION: DEFAULT_TIER_1_DURATION,
-            CONF_TIER_2_COUNT: DEFAULT_TIER_2_COUNT,
-            CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
-            CONF_TIER_3_COUNT: DEFAULT_TIER_3_COUNT,
-            CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
-            CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
-            CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
-        },
+        data=_hub_entry_data("Test Hub"),
         entry_id="hub_entry",
     )
     entry.add_to_hass(hass)
@@ -332,18 +318,7 @@ async def test_diagnostics_with_outputs(hass: HomeAssistant) -> None:
     entry = MockConfigEntry(
         domain=DOMAIN,
         title="Test Hub",
-        data={
-            CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
-            CONF_NAME: "Test Hub",
-            CONF_TIER_1_COUNT: DEFAULT_TIER_1_COUNT,
-            CONF_TIER_1_DURATION: DEFAULT_TIER_1_DURATION,
-            CONF_TIER_2_COUNT: DEFAULT_TIER_2_COUNT,
-            CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
-            CONF_TIER_3_COUNT: DEFAULT_TIER_3_COUNT,
-            CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
-            CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
-            CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
-        },
+        data=_hub_entry_data("Test Hub"),
         entry_id="hub_entry",
     )
     entry.add_to_hass(hass)
@@ -439,18 +414,7 @@ async def test_diagnostics_captures_editable_entity_values(hass: HomeAssistant) 
     entry = MockConfigEntry(
         domain=DOMAIN,
         title="Test Hub",
-        data={
-            CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
-            CONF_NAME: "Test Hub",
-            CONF_TIER_1_COUNT: DEFAULT_TIER_1_COUNT,
-            CONF_TIER_1_DURATION: DEFAULT_TIER_1_DURATION,
-            CONF_TIER_2_COUNT: DEFAULT_TIER_2_COUNT,
-            CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
-            CONF_TIER_3_COUNT: DEFAULT_TIER_3_COUNT,
-            CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
-            CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
-            CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
-        },
+        data=_hub_entry_data("Test Hub"),
         entry_id="hub_entry",
     )
     entry.add_to_hass(hass)
@@ -501,18 +465,7 @@ async def test_diagnostics_skips_unknown_element_in_input_entities(hass: HomeAss
     entry = MockConfigEntry(
         domain=DOMAIN,
         title="Test Hub",
-        data={
-            CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
-            CONF_NAME: "Test Hub",
-            CONF_TIER_1_COUNT: DEFAULT_TIER_1_COUNT,
-            CONF_TIER_1_DURATION: DEFAULT_TIER_1_DURATION,
-            CONF_TIER_2_COUNT: DEFAULT_TIER_2_COUNT,
-            CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
-            CONF_TIER_3_COUNT: DEFAULT_TIER_3_COUNT,
-            CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
-            CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
-            CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
-        },
+        data=_hub_entry_data("Test Hub"),
         entry_id="hub_entry",
     )
     entry.add_to_hass(hass)
@@ -563,18 +516,7 @@ async def test_diagnostics_skips_driven_entity_values(hass: HomeAssistant) -> No
     entry = MockConfigEntry(
         domain=DOMAIN,
         title="Test Hub",
-        data={
-            CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
-            CONF_NAME: "Test Hub",
-            CONF_TIER_1_COUNT: DEFAULT_TIER_1_COUNT,
-            CONF_TIER_1_DURATION: DEFAULT_TIER_1_DURATION,
-            CONF_TIER_2_COUNT: DEFAULT_TIER_2_COUNT,
-            CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
-            CONF_TIER_3_COUNT: DEFAULT_TIER_3_COUNT,
-            CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
-            CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
-            CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
-        },
+        data=_hub_entry_data("Test Hub"),
         entry_id="hub_entry",
     )
     entry.add_to_hass(hass)
@@ -791,18 +733,7 @@ async def test_diagnostics_with_historical_provider_omits_outputs(hass: HomeAssi
     """Test that diagnostics with historical provider omits output sensors."""
     entry = MockConfigEntry(
         domain=DOMAIN,
-        data={
-            CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
-            CONF_NAME: "Test Hub",
-            CONF_TIER_1_COUNT: DEFAULT_TIER_1_COUNT,
-            CONF_TIER_1_DURATION: DEFAULT_TIER_1_DURATION,
-            CONF_TIER_2_COUNT: DEFAULT_TIER_2_COUNT,
-            CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
-            CONF_TIER_3_COUNT: DEFAULT_TIER_3_COUNT,
-            CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
-            CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
-            CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
-        },
+        data=_hub_entry_data("Test Hub"),
         entry_id="test_entry",
     )
     entry.add_to_hass(hass)
@@ -829,18 +760,7 @@ async def test_diagnostics_with_network_subentry_not_element_config(hass: HomeAs
     entry = MockConfigEntry(
         domain=DOMAIN,
         title="Test Hub",
-        data={
-            CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
-            CONF_NAME: "Test Hub",
-            CONF_TIER_1_COUNT: DEFAULT_TIER_1_COUNT,
-            CONF_TIER_1_DURATION: DEFAULT_TIER_1_DURATION,
-            CONF_TIER_2_COUNT: DEFAULT_TIER_2_COUNT,
-            CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
-            CONF_TIER_3_COUNT: DEFAULT_TIER_3_COUNT,
-            CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
-            CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
-            CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
-        },
+        data=_hub_entry_data("Test Hub"),
         entry_id="hub_entry",
     )
     entry.add_to_hass(hass)
@@ -872,18 +792,7 @@ async def test_diagnostics_skips_switch_with_none_value(hass: HomeAssistant) -> 
     entry = MockConfigEntry(
         domain=DOMAIN,
         title="Test Hub",
-        data={
-            CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
-            CONF_NAME: "Test Hub",
-            CONF_TIER_1_COUNT: DEFAULT_TIER_1_COUNT,
-            CONF_TIER_1_DURATION: DEFAULT_TIER_1_DURATION,
-            CONF_TIER_2_COUNT: DEFAULT_TIER_2_COUNT,
-            CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
-            CONF_TIER_3_COUNT: DEFAULT_TIER_3_COUNT,
-            CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
-            CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
-            CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
-        },
+        data=_hub_entry_data("Test Hub"),
         entry_id="hub_entry",
     )
     entry.add_to_hass(hass)
@@ -934,18 +843,7 @@ async def test_collect_diagnostics_returns_missing_entity_ids(hass: HomeAssistan
     entry = MockConfigEntry(
         domain=DOMAIN,
         title="Test Hub",
-        data={
-            CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
-            CONF_NAME: "Test Hub",
-            CONF_TIER_1_COUNT: DEFAULT_TIER_1_COUNT,
-            CONF_TIER_1_DURATION: DEFAULT_TIER_1_DURATION,
-            CONF_TIER_2_COUNT: DEFAULT_TIER_2_COUNT,
-            CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
-            CONF_TIER_3_COUNT: DEFAULT_TIER_3_COUNT,
-            CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
-            CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
-            CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
-        },
+        data=_hub_entry_data("Test Hub"),
         entry_id="hub_entry",
     )
     entry.add_to_hass(hass)
@@ -992,18 +890,7 @@ async def test_collect_diagnostics_returns_empty_missing_when_all_found(hass: Ho
     entry = MockConfigEntry(
         domain=DOMAIN,
         title="Test Hub",
-        data={
-            CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
-            CONF_NAME: "Test Hub",
-            CONF_TIER_1_COUNT: DEFAULT_TIER_1_COUNT,
-            CONF_TIER_1_DURATION: DEFAULT_TIER_1_DURATION,
-            CONF_TIER_2_COUNT: DEFAULT_TIER_2_COUNT,
-            CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
-            CONF_TIER_3_COUNT: DEFAULT_TIER_3_COUNT,
-            CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
-            CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
-            CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
-        },
+        data=_hub_entry_data("Test Hub"),
         entry_id="hub_entry",
     )
     entry.add_to_hass(hass)

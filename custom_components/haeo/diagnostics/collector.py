@@ -19,6 +19,14 @@ from custom_components.haeo.const import (
     CONF_TIER_3_DURATION,
     CONF_TIER_4_COUNT,
     CONF_TIER_4_DURATION,
+    DEFAULT_TIER_1_COUNT,
+    DEFAULT_TIER_1_DURATION,
+    DEFAULT_TIER_2_COUNT,
+    DEFAULT_TIER_2_DURATION,
+    DEFAULT_TIER_3_COUNT,
+    DEFAULT_TIER_3_DURATION,
+    DEFAULT_TIER_4_COUNT,
+    DEFAULT_TIER_4_DURATION,
 )
 from custom_components.haeo.elements import (
     ElementConfigSchema,
@@ -98,14 +106,16 @@ async def collect_diagnostics(
     tiers = tiers_section if isinstance(tiers_section, dict) else {}
     config: dict[str, Any] = {
         "participants": {},
-        CONF_TIER_1_COUNT: tiers.get(CONF_TIER_1_COUNT, config_entry.data.get(CONF_TIER_1_COUNT)),
-        CONF_TIER_1_DURATION: tiers.get(CONF_TIER_1_DURATION, config_entry.data.get(CONF_TIER_1_DURATION)),
-        CONF_TIER_2_COUNT: tiers.get(CONF_TIER_2_COUNT, config_entry.data.get(CONF_TIER_2_COUNT)),
-        CONF_TIER_2_DURATION: tiers.get(CONF_TIER_2_DURATION, config_entry.data.get(CONF_TIER_2_DURATION)),
-        CONF_TIER_3_COUNT: tiers.get(CONF_TIER_3_COUNT, config_entry.data.get(CONF_TIER_3_COUNT)),
-        CONF_TIER_3_DURATION: tiers.get(CONF_TIER_3_DURATION, config_entry.data.get(CONF_TIER_3_DURATION)),
-        CONF_TIER_4_COUNT: tiers.get(CONF_TIER_4_COUNT, config_entry.data.get(CONF_TIER_4_COUNT)),
-        CONF_TIER_4_DURATION: tiers.get(CONF_TIER_4_DURATION, config_entry.data.get(CONF_TIER_4_DURATION)),
+        HUB_SECTION_TIERS: {
+            CONF_TIER_1_COUNT: tiers.get(CONF_TIER_1_COUNT, DEFAULT_TIER_1_COUNT),
+            CONF_TIER_1_DURATION: tiers.get(CONF_TIER_1_DURATION, DEFAULT_TIER_1_DURATION),
+            CONF_TIER_2_COUNT: tiers.get(CONF_TIER_2_COUNT, DEFAULT_TIER_2_COUNT),
+            CONF_TIER_2_DURATION: tiers.get(CONF_TIER_2_DURATION, DEFAULT_TIER_2_DURATION),
+            CONF_TIER_3_COUNT: tiers.get(CONF_TIER_3_COUNT, DEFAULT_TIER_3_COUNT),
+            CONF_TIER_3_DURATION: tiers.get(CONF_TIER_3_DURATION, DEFAULT_TIER_3_DURATION),
+            CONF_TIER_4_COUNT: tiers.get(CONF_TIER_4_COUNT, DEFAULT_TIER_4_COUNT),
+            CONF_TIER_4_DURATION: tiers.get(CONF_TIER_4_DURATION, DEFAULT_TIER_4_DURATION),
+        },
     }
 
     # Transform subentries into participants dict
