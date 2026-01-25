@@ -63,49 +63,53 @@ class SolarAdapter:
         ts_loader = TimeSeriesLoader()
         return ts_loader.available(hass=hass, value=config[CONF_SECTION_BASIC][CONF_FORECAST])
 
-    def inputs(self, config: Any) -> dict[str, InputFieldInfo[Any]]:
+    def inputs(self, config: Any) -> dict[str, dict[str, InputFieldInfo[Any]]]:
         """Return input field definitions for solar elements."""
         _ = config
         return {
-            CONF_FORECAST: InputFieldInfo(
-                field_name=CONF_FORECAST,
-                entity_description=NumberEntityDescription(
-                    key=CONF_FORECAST,
-                    translation_key=f"{ELEMENT_TYPE}_{CONF_FORECAST}",
-                    native_unit_of_measurement=UnitOfPower.KILO_WATT,
-                    device_class=NumberDeviceClass.POWER,
-                    native_min_value=0.0,
-                    native_max_value=1000.0,
-                    native_step=0.01,
+            CONF_SECTION_BASIC: {
+                CONF_FORECAST: InputFieldInfo(
+                    field_name=CONF_FORECAST,
+                    entity_description=NumberEntityDescription(
+                        key=CONF_FORECAST,
+                        translation_key=f"{ELEMENT_TYPE}_{CONF_FORECAST}",
+                        native_unit_of_measurement=UnitOfPower.KILO_WATT,
+                        device_class=NumberDeviceClass.POWER,
+                        native_min_value=0.0,
+                        native_max_value=1000.0,
+                        native_step=0.01,
+                    ),
+                    output_type=OutputType.POWER,
+                    direction="-",
+                    time_series=True,
                 ),
-                output_type=OutputType.POWER,
-                direction="-",
-                time_series=True,
-            ),
-            CONF_PRICE_PRODUCTION: InputFieldInfo(
-                field_name=CONF_PRICE_PRODUCTION,
-                entity_description=NumberEntityDescription(
-                    key=CONF_PRICE_PRODUCTION,
-                    translation_key=f"{ELEMENT_TYPE}_{CONF_PRICE_PRODUCTION}",
-                    native_min_value=-1.0,
-                    native_max_value=10.0,
-                    native_step=0.001,
+            },
+            CONF_SECTION_ADVANCED: {
+                CONF_PRICE_PRODUCTION: InputFieldInfo(
+                    field_name=CONF_PRICE_PRODUCTION,
+                    entity_description=NumberEntityDescription(
+                        key=CONF_PRICE_PRODUCTION,
+                        translation_key=f"{ELEMENT_TYPE}_{CONF_PRICE_PRODUCTION}",
+                        native_min_value=-1.0,
+                        native_max_value=10.0,
+                        native_step=0.001,
+                    ),
+                    output_type=OutputType.PRICE,
+                    direction="+",
+                    time_series=True,
+                    defaults=InputFieldDefaults(mode=None, value=0.0),
                 ),
-                output_type=OutputType.PRICE,
-                direction="+",
-                time_series=True,
-                defaults=InputFieldDefaults(mode=None, value=0.0),
-            ),
-            CONF_CURTAILMENT: InputFieldInfo(
-                field_name=CONF_CURTAILMENT,
-                entity_description=SwitchEntityDescription(
-                    key=CONF_CURTAILMENT,
-                    translation_key=f"{ELEMENT_TYPE}_{CONF_CURTAILMENT}",
+                CONF_CURTAILMENT: InputFieldInfo(
+                    field_name=CONF_CURTAILMENT,
+                    entity_description=SwitchEntityDescription(
+                        key=CONF_CURTAILMENT,
+                        translation_key=f"{ELEMENT_TYPE}_{CONF_CURTAILMENT}",
+                    ),
+                    output_type=OutputType.STATUS,
+                    defaults=InputFieldDefaults(mode="value", value=True),
+                    force_required=True,
                 ),
-                output_type=OutputType.STATUS,
-                defaults=InputFieldDefaults(mode="value", value=True),
-                force_required=True,
-            ),
+            },
         }
 
     def model_elements(self, config: SolarConfigData) -> list[ModelElementConfig]:

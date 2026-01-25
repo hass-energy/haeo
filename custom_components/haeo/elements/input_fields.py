@@ -5,7 +5,10 @@ and their associated metadata like output type, direction, and time series behav
 """
 
 from dataclasses import dataclass
-from typing import Literal
+from typing import Any, Literal
+from collections.abc import Mapping
+
+from typing_extensions import TypeAlias
 
 from homeassistant.components.number import NumberEntityDescription
 from homeassistant.components.switch import SwitchEntityDescription
@@ -71,7 +74,14 @@ class InputFieldInfo[T: (NumberEntityDescription, SwitchEntityDescription)]:
     device_type: str | None = None
 
 
+InputFieldSection: TypeAlias = Mapping[str, InputFieldInfo[Any]]
+InputFieldGroups: TypeAlias = Mapping[str, InputFieldSection]
+InputFieldPath: TypeAlias = tuple[str, ...]
+
 __all__ = [
     "InputFieldDefaults",
     "InputFieldInfo",
+    "InputFieldGroups",
+    "InputFieldPath",
+    "InputFieldSection",
 ]

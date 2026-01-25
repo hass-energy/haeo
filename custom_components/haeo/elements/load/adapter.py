@@ -62,25 +62,27 @@ class LoadAdapter:
         ts_loader = TimeSeriesLoader()
         return ts_loader.available(hass=hass, value=config[CONF_SECTION_INPUTS][CONF_FORECAST])
 
-    def inputs(self, config: Any) -> dict[str, InputFieldInfo[Any]]:
+    def inputs(self, config: Any) -> dict[str, dict[str, InputFieldInfo[Any]]]:
         """Return input field definitions for load elements."""
         _ = config
         return {
-            CONF_FORECAST: InputFieldInfo(
-                field_name=CONF_FORECAST,
-                entity_description=NumberEntityDescription(
-                    key=CONF_FORECAST,
-                    translation_key=f"{ELEMENT_TYPE}_{CONF_FORECAST}",
-                    native_unit_of_measurement=UnitOfPower.KILO_WATT,
-                    device_class=NumberDeviceClass.POWER,
-                    native_min_value=0.0,
-                    native_max_value=1000.0,
-                    native_step=0.01,
+            CONF_SECTION_INPUTS: {
+                CONF_FORECAST: InputFieldInfo(
+                    field_name=CONF_FORECAST,
+                    entity_description=NumberEntityDescription(
+                        key=CONF_FORECAST,
+                        translation_key=f"{ELEMENT_TYPE}_{CONF_FORECAST}",
+                        native_unit_of_measurement=UnitOfPower.KILO_WATT,
+                        device_class=NumberDeviceClass.POWER,
+                        native_min_value=0.0,
+                        native_max_value=1000.0,
+                        native_step=0.01,
+                    ),
+                    output_type=OutputType.POWER,
+                    direction="+",
+                    time_series=True,
                 ),
-                output_type=OutputType.POWER,
-                direction="+",
-                time_series=True,
-            ),
+            },
         }
 
     def model_elements(self, config: LoadConfigData) -> list[ModelElementConfig]:

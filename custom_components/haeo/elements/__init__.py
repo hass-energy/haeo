@@ -56,7 +56,7 @@ from custom_components.haeo.model import ModelElementConfig, ModelOutputName
 from custom_components.haeo.model.output_data import ModelOutputValue, OutputData
 
 from . import battery, battery_section, connection, grid, inverter, load, node, solar
-from .input_fields import InputFieldInfo
+from .input_fields import InputFieldGroups, InputFieldInfo, InputFieldPath, InputFieldSection
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -181,7 +181,7 @@ class ElementAdapter(Protocol):
         """Check if element configuration can be loaded."""
         ...
 
-    def inputs(self, config: Mapping[str, Any] | None) -> dict[str, InputFieldInfo[Any]]:
+    def inputs(self, config: Mapping[str, Any] | None) -> InputFieldGroups:
         """Return input field definitions for this element."""
         ...
 
@@ -439,11 +439,20 @@ def collect_element_subentries(entry: ConfigEntry) -> list[ValidatedElementSuben
     return result
 
 
-def get_input_fields(element_config: ElementConfigSchema) -> dict[str, InputFieldInfo[Any]]:
+def get_input_fields(element_config: ElementConfigSchema) -> InputFieldGroups:
     """Return input field definitions for an element config."""
     element_type = element_config[CONF_ELEMENT_TYPE]
     adapter = ELEMENT_TYPES[element_type]
     return adapter.inputs(element_config)
+
+
+def iter_input_field_paths(input_fields: InputFieldGroups) -> list[tuple[InputFieldPath, InputFieldInfo[Any]]]:
+    """Return (field_path, InputFieldInfo) pairs from nested input fields."""
+    results: list[tuple[InputFieldPath, InputFieldInfo[Any]]] = []
+    for section_key, section_fields in input_fields.items():
+        for field_name, field_info in section_fields.items():
+            results.append(((section_key, field_name), field_info))
+    return results
 
 
 def get_nested_config_value(config: Mapping[str, Any], field_name: str) -> Any | None:
@@ -458,6 +467,30 @@ def get_nested_config_value(config: Mapping[str, Any], field_name: str) -> Any |
     return None
 
 
+def find_nested_config_path(config: Mapping[str, Any], field_name: str) -> InputFieldPath | None:
+    """Find the path to a field in a nested element config."""
+    for key, value in config.items():
+        if key == field_name:
+            return (key,)
+        if isinstance(value, Mapping):
+            nested = find_nested_config_path(value, field_name)
+            if nested is not None:
+                return (key,) + nested
+    return None
+
+
+def get_nested_config_value_by_path(config: Mapping[str, Any], field_path: InputFieldPath) -> Any | None:
+    """Find a field value in a nested element config using a path."""
+    current: Any = config
+    for key in field_path:
+        if not isinstance(current, Mapping):
+            return None
+        if key not in current:
+            return None
+        current = current[key]
+    return current
+
+
 def set_nested_config_value(config: dict[str, Any], field_name: str, value: Any) -> bool:
     """Set a field value in a nested element config."""
     for nested in config.values():
@@ -468,6 +501,22 @@ def set_nested_config_value(config: dict[str, Any], field_name: str, value: Any)
             if set_nested_config_value(nested, field_name, value):
                 return True
     return False
+
+
+def set_nested_config_value_by_path(config: dict[str, Any], field_path: InputFieldPath, value: Any) -> bool:
+    """Set a field value in a nested element config using a path."""
+    current: Any = config
+    for key in field_path[:-1]:
+        if not isinstance(current, dict):
+            return False
+        next_value = current.get(key)
+        if not isinstance(next_value, dict):
+            return False
+        current = next_value
+    if not isinstance(current, dict):
+        return False
+    current[field_path[-1]] = value
+    return True
 
 
 __all__ = [
@@ -489,14 +538,21 @@ __all__ = [
     "ElementConfigSchema",
     "ElementDeviceName",
     "ElementType",
+    "InputFieldGroups",
     "InputFieldInfo",
+    "InputFieldPath",
+    "InputFieldSection",
     "ValidatedElementSubentry",
     "collect_element_subentries",
+    "find_nested_config_path",
     "get_element_flow_classes",
     "get_input_fields",
+    "get_nested_config_value_by_path",
+    "iter_input_field_paths",
     "get_nested_config_value",
     "is_element_config_data",
     "is_element_config_schema",
     "is_element_type",
     "set_nested_config_value",
+    "set_nested_config_value_by_path",
 ]

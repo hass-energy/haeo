@@ -97,68 +97,72 @@ class GridAdapter:
         pricing = config[CONF_SECTION_PRICING]
         return entities_available(pricing.get(CONF_IMPORT_PRICE)) and entities_available(pricing.get(CONF_EXPORT_PRICE))
 
-    def inputs(self, config: Any) -> dict[str, InputFieldInfo[Any]]:
+    def inputs(self, config: Any) -> dict[str, dict[str, InputFieldInfo[Any]]]:
         """Return input field definitions for grid elements."""
         _ = config
         return {
-            CONF_IMPORT_PRICE: InputFieldInfo(
-                field_name=CONF_IMPORT_PRICE,
-                entity_description=NumberEntityDescription(
-                    key=CONF_IMPORT_PRICE,
-                    translation_key=f"{ELEMENT_TYPE}_{CONF_IMPORT_PRICE}",
-                    native_min_value=-1.0,
-                    native_max_value=10.0,
-                    native_step=0.001,
+            CONF_SECTION_PRICING: {
+                CONF_IMPORT_PRICE: InputFieldInfo(
+                    field_name=CONF_IMPORT_PRICE,
+                    entity_description=NumberEntityDescription(
+                        key=CONF_IMPORT_PRICE,
+                        translation_key=f"{ELEMENT_TYPE}_{CONF_IMPORT_PRICE}",
+                        native_min_value=-1.0,
+                        native_max_value=10.0,
+                        native_step=0.001,
+                    ),
+                    output_type=OutputType.PRICE,
+                    time_series=True,
+                    direction="-",  # Import = consuming from grid = cost
                 ),
-                output_type=OutputType.PRICE,
-                time_series=True,
-                direction="-",  # Import = consuming from grid = cost
-            ),
-            CONF_EXPORT_PRICE: InputFieldInfo(
-                field_name=CONF_EXPORT_PRICE,
-                entity_description=NumberEntityDescription(
-                    key=CONF_EXPORT_PRICE,
-                    translation_key=f"{ELEMENT_TYPE}_{CONF_EXPORT_PRICE}",
-                    native_min_value=-1.0,
-                    native_max_value=10.0,
-                    native_step=0.001,
+                CONF_EXPORT_PRICE: InputFieldInfo(
+                    field_name=CONF_EXPORT_PRICE,
+                    entity_description=NumberEntityDescription(
+                        key=CONF_EXPORT_PRICE,
+                        translation_key=f"{ELEMENT_TYPE}_{CONF_EXPORT_PRICE}",
+                        native_min_value=-1.0,
+                        native_max_value=10.0,
+                        native_step=0.001,
+                    ),
+                    output_type=OutputType.PRICE,
+                    time_series=True,
+                    direction="+",  # Export = producing to grid = revenue
                 ),
-                output_type=OutputType.PRICE,
-                time_series=True,
-                direction="+",  # Export = producing to grid = revenue
-            ),
-            CONF_IMPORT_LIMIT: InputFieldInfo(
-                field_name=CONF_IMPORT_LIMIT,
-                entity_description=NumberEntityDescription(
-                    key=CONF_IMPORT_LIMIT,
-                    translation_key=f"{ELEMENT_TYPE}_{CONF_IMPORT_LIMIT}",
-                    native_unit_of_measurement=UnitOfPower.KILO_WATT,
-                    device_class=NumberDeviceClass.POWER,
-                    native_min_value=0.0,
-                    native_max_value=1000.0,
-                    native_step=0.1,
+            },
+            CONF_SECTION_LIMITS: {
+                CONF_IMPORT_LIMIT: InputFieldInfo(
+                    field_name=CONF_IMPORT_LIMIT,
+                    entity_description=NumberEntityDescription(
+                        key=CONF_IMPORT_LIMIT,
+                        translation_key=f"{ELEMENT_TYPE}_{CONF_IMPORT_LIMIT}",
+                        native_unit_of_measurement=UnitOfPower.KILO_WATT,
+                        device_class=NumberDeviceClass.POWER,
+                        native_min_value=0.0,
+                        native_max_value=1000.0,
+                        native_step=0.1,
+                    ),
+                    output_type=OutputType.POWER_LIMIT,
+                    time_series=True,
+                    direction="+",
+                    defaults=InputFieldDefaults(mode="value", value=100.0),
                 ),
-                output_type=OutputType.POWER_LIMIT,
-                time_series=True,
-                direction="+",
-                defaults=InputFieldDefaults(mode="value", value=100.0),
-            ),
-            CONF_EXPORT_LIMIT: InputFieldInfo(
-                field_name=CONF_EXPORT_LIMIT,
-                entity_description=NumberEntityDescription(
-                    key=CONF_EXPORT_LIMIT,
-                    translation_key=f"{ELEMENT_TYPE}_{CONF_EXPORT_LIMIT}",
-                    native_unit_of_measurement=UnitOfPower.KILO_WATT,
-                    device_class=NumberDeviceClass.POWER,
-                    native_min_value=0.0,
-                    native_max_value=1000.0,
-                    native_step=0.1,
+                CONF_EXPORT_LIMIT: InputFieldInfo(
+                    field_name=CONF_EXPORT_LIMIT,
+                    entity_description=NumberEntityDescription(
+                        key=CONF_EXPORT_LIMIT,
+                        translation_key=f"{ELEMENT_TYPE}_{CONF_EXPORT_LIMIT}",
+                        native_unit_of_measurement=UnitOfPower.KILO_WATT,
+                        device_class=NumberDeviceClass.POWER,
+                        native_min_value=0.0,
+                        native_max_value=1000.0,
+                        native_step=0.1,
+                    ),
+                    output_type=OutputType.POWER_LIMIT,
+                    time_series=True,
+                    direction="-",
+                    defaults=InputFieldDefaults(mode="value", value=100.0),
                 ),
-                output_type=OutputType.POWER_LIMIT,
-                time_series=True,
-                direction="-",
-                defaults=InputFieldDefaults(mode="value", value=100.0),
-            ),
+            },
         }
 
     def model_elements(self, config: GridConfigData) -> list[ModelElementConfig]:
