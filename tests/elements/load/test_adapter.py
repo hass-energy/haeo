@@ -43,4 +43,5 @@ def test_inputs_returns_input_fields() -> None:
 
     input_fields = load_element.adapter.inputs(config)
 
-    assert "forecast" in input_fields
+    assert "inputs" in input_fields
+    assert "forecast" in input_fields["inputs"]

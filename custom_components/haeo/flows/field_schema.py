@@ -49,6 +49,8 @@ class SectionDefinition:
 
 def _get_nested_value(data: Mapping[str, Any], field_name: str) -> Any | None:
     """Find a field value in a nested mapping."""
+    if field_name in data:
+        return data[field_name]
     for value in data.values():
         if isinstance(value, Mapping):
             if field_name in value:
