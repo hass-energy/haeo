@@ -22,6 +22,7 @@ from custom_components.haeo.const import (
 from custom_components.haeo.elements import ELEMENT_TYPE_NODE, ELEMENT_TYPES, get_element_flow_classes
 from custom_components.haeo.elements.node import CONF_IS_SINK, CONF_IS_SOURCE
 
+from .field_schema import flatten_section_input
 from . import HORIZON_PRESET_CUSTOM, get_custom_tiers_schema, get_hub_setup_schema, get_tier_config
 from .options import HubOptionsFlow
 
@@ -43,6 +44,7 @@ class HubConfigFlow(ConfigFlow, domain=DOMAIN):
         errors: dict[str, str] = {}
 
         if user_input is not None:
+            user_input = flatten_section_input(user_input, {"basic", "advanced"})
             # Validate that the name is unique
             hub_name = user_input[CONF_NAME]
             existing_names = [entry.title for entry in self.hass.config_entries.async_entries(DOMAIN)]

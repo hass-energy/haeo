@@ -14,10 +14,13 @@ from custom_components.haeo.elements import is_element_config_schema
 from custom_components.haeo.elements.input_fields import InputFieldInfo
 from custom_components.haeo.flows.element_flow import ElementFlowMixin, build_inclusion_map, build_participant_selector
 from custom_components.haeo.flows.field_schema import (
-    build_choose_schema_entry,
+    SectionDefinition,
+    build_choose_field_entries,
+    build_section_schema,
     convert_choose_data_to_config,
+    flatten_section_input,
     get_choose_default,
-    get_preferred_choice,
+    nest_section_defaults,
     preprocess_choose_selector_input,
     validate_choose_fields,
 )
@@ -25,6 +28,8 @@ from custom_components.haeo.flows.field_schema import (
 from .adapter import adapter
 from .schema import (
     CONF_CONNECTION,
+    CONF_EFFICIENCY_AC_TO_DC,
+    CONF_EFFICIENCY_DC_TO_AC,
     CONF_MAX_POWER_AC_TO_DC,
     CONF_MAX_POWER_DC_TO_AC,
     ELEMENT_TYPE,
@@ -37,6 +42,26 @@ _EXCLUDE_KEYS = (CONF_NAME, CONF_CONNECTION)
 
 class InverterSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
     """Handle inverter element configuration flows."""
+
+    def _get_sections(self) -> tuple[SectionDefinition, ...]:
+        """Return sections for the configuration step."""
+        return (
+            SectionDefinition(
+                key="basic",
+                fields=(CONF_NAME, CONF_CONNECTION),
+                collapsed=False,
+            ),
+            SectionDefinition(
+                key="limits",
+                fields=(CONF_MAX_POWER_DC_TO_AC, CONF_MAX_POWER_AC_TO_DC),
+                collapsed=False,
+            ),
+            SectionDefinition(
+                key="advanced",
+                fields=(CONF_EFFICIENCY_DC_TO_AC, CONF_EFFICIENCY_AC_TO_DC),
+                collapsed=True,
+            ),
+        )
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> SubentryFlowResult:
         """Handle user step: name, connection, and input configuration."""
@@ -79,6 +104,8 @@ class InverterSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
 
         input_fields = adapter.inputs(element_config)
 
+        sections = self._get_sections()
+        user_input = flatten_section_input(user_input, {section.key for section in sections})
         user_input = preprocess_choose_selector_input(user_input, input_fields)
         errors = self._validate_user_input(user_input, input_fields)
 
@@ -96,7 +123,7 @@ class InverterSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             current_connection,
             dict(subentry_data) if subentry_data is not None else None,
         )
-        defaults = (
+        flat_defaults = (
             user_input
             if user_input is not None
             else self._build_defaults(
@@ -104,6 +131,7 @@ class InverterSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                 dict(subentry_data) if subentry_data is not None else None,
             )
         )
+        defaults = nest_section_defaults(flat_defaults, sections)
         schema = self.add_suggested_values_to_schema(schema, defaults)
 
         return self.async_show_form(step_id="user", data_schema=schema, errors=errors)
@@ -117,31 +145,33 @@ class InverterSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         subentry_data: dict[str, Any] | None = None,
     ) -> vol.Schema:
         """Build the schema with name, connection, and choose selectors for inputs."""
-        schema_dict: dict[vol.Marker, Any] = {
-            vol.Required(CONF_NAME): vol.All(
-                vol.Coerce(str),
-                vol.Strip,
-                vol.Length(min=1, msg="Name cannot be empty"),
-                TextSelector(TextSelectorConfig()),
+        sections = self._get_sections()
+        field_entries: dict[str, tuple[vol.Marker, Any]] = {
+            CONF_NAME: (
+                vol.Required(CONF_NAME),
+                vol.All(
+                    vol.Coerce(str),
+                    vol.Strip,
+                    vol.Length(min=1, msg="Name cannot be empty"),
+                    TextSelector(TextSelectorConfig()),
+                ),
             ),
-            vol.Required(CONF_CONNECTION): build_participant_selector(participants, current_connection),
+            CONF_CONNECTION: (
+                vol.Required(CONF_CONNECTION),
+                build_participant_selector(participants, current_connection),
+            ),
         }
 
-        for field_info in input_fields.values():
-            is_optional = (
-                field_info.field_name in InverterConfigSchema.__optional_keys__ and not field_info.force_required
+        field_entries.update(
+            build_choose_field_entries(
+                input_fields,
+                optional_keys=InverterConfigSchema.__optional_keys__,
+                inclusion_map=inclusion_map,
+                current_data=subentry_data,
             )
-            include_entities = inclusion_map.get(field_info.field_name)
-            preferred = get_preferred_choice(field_info, subentry_data, is_optional=is_optional)
-            marker, selector = build_choose_schema_entry(
-                field_info,
-                is_optional=is_optional,
-                include_entities=include_entities,
-                preferred_choice=preferred,
-            )
-            schema_dict[marker] = selector
+        )
 
-        return vol.Schema(schema_dict)
+        return vol.Schema(build_section_schema(sections, field_entries))
 
     def _build_defaults(
         self,

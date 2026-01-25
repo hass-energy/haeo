@@ -37,6 +37,7 @@ from custom_components.haeo.const import (
     DEFAULT_TIER_4_COUNT,
     DEFAULT_TIER_4_DURATION,
 )
+from custom_components.haeo.flows.field_schema import SectionDefinition, build_section_schema
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -136,24 +137,44 @@ def get_hub_setup_schema(suggested_name: str | None = None) -> vol.Schema:
         else vol.Required(CONF_NAME)
     )
 
-    return vol.Schema(
-        {
-            name_key: vol.All(
+    sections = (
+        SectionDefinition(
+            key="basic",
+            fields=(CONF_NAME, CONF_HORIZON_PRESET),
+            collapsed=False,
+        ),
+        SectionDefinition(
+            key="advanced",
+            fields=(CONF_ADVANCED_MODE,),
+            collapsed=True,
+        ),
+    )
+    field_entries = {
+        CONF_NAME: (
+            name_key,
+            vol.All(
                 str,
                 vol.Strip,
                 vol.Length(min=1, msg="Name cannot be empty"),
                 vol.Length(max=255, msg="Name cannot be longer than 255 characters"),
             ),
-            vol.Required(CONF_HORIZON_PRESET, default=HORIZON_PRESET_5_DAYS): SelectSelector(
+        ),
+        CONF_HORIZON_PRESET: (
+            vol.Required(CONF_HORIZON_PRESET, default=HORIZON_PRESET_5_DAYS),
+            SelectSelector(
                 SelectSelectorConfig(
                     options=HORIZON_PRESET_OPTIONS,
                     mode=SelectSelectorMode.DROPDOWN,
                     translation_key="horizon_preset",
                 )
             ),
-            vol.Required(CONF_ADVANCED_MODE, default=False): bool,
-        }
-    )
+        ),
+        CONF_ADVANCED_MODE: (
+            vol.Required(CONF_ADVANCED_MODE, default=False),
+            bool,
+        ),
+    }
+    return vol.Schema(build_section_schema(sections, field_entries))
 
 
 def get_custom_tiers_schema(config_entry: ConfigEntry | None = None) -> vol.Schema:
@@ -261,27 +282,47 @@ def get_hub_options_schema(config_entry: ConfigEntry) -> vol.Schema:
     # Get stored preset, defaulting to 5_days if not stored
     current_preset = config_entry.data.get(CONF_HORIZON_PRESET, HORIZON_PRESET_5_DAYS)
 
-    return vol.Schema(
-        {
-            vol.Required(CONF_HORIZON_PRESET, default=current_preset): SelectSelector(
+    sections = (
+        SectionDefinition(
+            key="basic",
+            fields=(CONF_HORIZON_PRESET,),
+            collapsed=False,
+        ),
+        SectionDefinition(
+            key="advanced",
+            fields=(CONF_DEBOUNCE_SECONDS, CONF_ADVANCED_MODE),
+            collapsed=True,
+        ),
+    )
+    field_entries = {
+        CONF_HORIZON_PRESET: (
+            vol.Required(CONF_HORIZON_PRESET, default=current_preset),
+            SelectSelector(
                 SelectSelectorConfig(
                     options=HORIZON_PRESET_OPTIONS,
                     mode=SelectSelectorMode.DROPDOWN,
                     translation_key="horizon_preset",
                 )
             ),
+        ),
+        CONF_DEBOUNCE_SECONDS: (
             vol.Required(
                 CONF_DEBOUNCE_SECONDS,
                 default=config_entry.data.get(CONF_DEBOUNCE_SECONDS, DEFAULT_DEBOUNCE_SECONDS),
-            ): vol.All(
+            ),
+            vol.All(
                 NumberSelector(
                     NumberSelectorConfig(min=0, max=30, step=1, mode=NumberSelectorMode.BOX),
                 ),
                 vol.Coerce(int),
             ),
+        ),
+        CONF_ADVANCED_MODE: (
             vol.Required(
                 CONF_ADVANCED_MODE,
                 default=config_entry.data.get(CONF_ADVANCED_MODE, False),
-            ): bool,
-        }
-    )
+            ),
+            bool,
+        ),
+    }
+    return vol.Schema(build_section_schema(sections, field_entries))

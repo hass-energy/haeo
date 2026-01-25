@@ -9,6 +9,7 @@ from homeassistant.config_entries import ConfigFlowResult
 from custom_components.haeo.const import CONF_ADVANCED_MODE, CONF_DEBOUNCE_SECONDS, CONF_HORIZON_PRESET
 
 from . import HORIZON_PRESET_CUSTOM, get_custom_tiers_schema, get_hub_options_schema, get_tier_config
+from .field_schema import flatten_section_input
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -23,6 +24,7 @@ class HubOptionsFlow(config_entries.OptionsFlow):
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         """Configure hub settings with simplified preset dropdown."""
         if user_input is not None:
+            user_input = flatten_section_input(user_input, {"basic", "advanced"})
             # Store user input for later
             self._user_input = user_input
 
