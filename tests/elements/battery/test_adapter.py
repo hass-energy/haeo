@@ -2,14 +2,10 @@
 
 from homeassistant.core import HomeAssistant
 import numpy as np
-import pytest
 
 from custom_components.haeo.elements import battery
-from custom_components.haeo.elements.battery import sum_output_data
-from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_BATTERY, MODEL_ELEMENT_TYPE_CONNECTION
 from custom_components.haeo.model.elements.segments import is_efficiency_spec
-from custom_components.haeo.model.output_data import OutputData
 
 
 def _set_sensor(hass: HomeAssistant, entity_id: str, value: str, unit: str = "kW") -> None:
@@ -158,38 +154,6 @@ async def test_available_with_empty_list_returns_true(hass: HomeAssistant) -> No
     assert result is True
 
 
-def test_sum_output_data_raises_on_empty_list() -> None:
-    """sum_output_data raises ValueError when given an empty list."""
-    with pytest.raises(ValueError, match="Cannot sum empty list of outputs"):
-        sum_output_data([])
-
-
-def test_sum_output_data_sums_multiple_outputs() -> None:
-    """sum_output_data correctly sums values from multiple OutputData objects."""
-    output1 = OutputData(
-        type=OutputType.POWER,
-        unit="kW",
-        values=(1.0, 2.0, 3.0),
-        direction="+",
-        advanced=False,
-    )
-    output2 = OutputData(
-        type=OutputType.POWER,
-        unit="kW",
-        values=(4.0, 5.0, 6.0),
-        direction="+",
-        advanced=False,
-    )
-
-    result = sum_output_data([output1, output2])
-
-    assert result.type == OutputType.POWER
-    assert result.unit == "kW"
-    assert result.values == (5.0, 7.0, 9.0)
-    assert result.direction == "+"
-    assert result.advanced is False
-
-
 def test_model_elements_omits_efficiency_when_missing() -> None:
     """model_elements() should leave efficiency to model defaults when missing."""
     config_data: battery.BatteryConfigData = {
@@ -202,8 +166,8 @@ def test_model_elements_omits_efficiency_when_missing() -> None:
 
     elements = battery.adapter.model_elements(config_data)
 
-    normal_section = next(element for element in elements if element["element_type"] == MODEL_ELEMENT_TYPE_BATTERY and element["name"] == "test_battery:normal")
-    np.testing.assert_array_equal(normal_section["capacity"], [10.0, 10.0, 10.0])
+    battery_element = next(element for element in elements if element["element_type"] == MODEL_ELEMENT_TYPE_BATTERY and element["name"] == "test_battery")
+    np.testing.assert_array_equal(battery_element["capacity"], [10.0, 10.0, 10.0])
 
     connection = next(element for element in elements if element["element_type"] == MODEL_ELEMENT_TYPE_CONNECTION and element["name"] == "test_battery:connection")
     segments = connection.get("segments")
@@ -240,3 +204,27 @@ def test_model_elements_passes_efficiency_when_present() -> None:
     efficiency_target_source = efficiency_segment.get("efficiency_target_source")
     assert efficiency_target_source is not None
     np.testing.assert_array_equal(efficiency_target_source, [0.95, 0.95])
+
+
+def test_model_elements_overcharge_only_adds_soc_pricing() -> None:
+    """SOC pricing is added when only overcharge inputs are configured."""
+    config_data: battery.BatteryConfigData = {
+        "element_type": "battery",
+        "name": "test_battery",
+        "connection": "main_bus",
+        "capacity": np.array([10.0, 10.0, 10.0]),
+        "initial_charge_percentage": np.array([0.5, 0.5]),
+        "min_charge_percentage": np.array([0.1, 0.1, 0.1]),
+        "max_charge_percentage": np.array([0.9, 0.9, 0.9]),
+        "overcharge_percentage": np.array([0.95, 0.95, 0.95]),
+        "overcharge_cost": np.array([0.2, 0.2]),
+    }
+
+    elements = battery.adapter.model_elements(config_data)
+    connection = next(element for element in elements if element["element_type"] == MODEL_ELEMENT_TYPE_CONNECTION and element["name"] == "test_battery:connection")
+    segments = connection.get("segments")
+    assert segments is not None
+    soc_pricing = segments.get("soc_pricing")
+    assert soc_pricing is not None
+    assert soc_pricing.get("discharge_energy_threshold") is None
+    assert soc_pricing.get("charge_capacity_threshold") is not None

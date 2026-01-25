@@ -19,10 +19,7 @@ Sub-element Naming Convention:
     Adapters may create multiple model elements and devices from a single config element.
     Sub-elements follow the pattern: {main_element}:{subname}
     Example: Battery "home_battery" creates:
-        - "home_battery" (aggregate device)
-        - "home_battery:undercharge" (undercharge region device)
-        - "home_battery:normal" (normal region device)
-        - "home_battery:overcharge" (overcharge region device)
+        - "home_battery" (battery device)
         - "home_battery:connection" (implicit connection to network)
 """
 

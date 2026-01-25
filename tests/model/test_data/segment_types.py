@@ -1,14 +1,17 @@
 """Test data types for segment scenarios."""
 
-from collections.abc import Sequence
-from typing import Any, Literal, TypedDict
+from collections.abc import Callable, Sequence
+from typing import Any, Literal, NotRequired, TypedDict
 
+from highspy import Highs
 import numpy as np
 from numpy.typing import NDArray
 
+from custom_components.haeo.model.element import Element
 from custom_components.haeo.model.elements.segments import SegmentSpec
 
 type ExpectedValue = Sequence[float] | Sequence[str] | float
+type SegmentEndpointFactory = Callable[[Highs, NDArray[np.floating[Any]]], tuple[Element[Any], Element[Any]]]
 
 
 class SegmentScenarioInputs(TypedDict, total=False):
@@ -29,6 +32,19 @@ class SegmentScenario(TypedDict):
     periods: NDArray[np.floating[Any]]
     inputs: SegmentScenarioInputs
     expected_outputs: dict[str, ExpectedValue]
+    endpoint_factory: NotRequired[SegmentEndpointFactory]
+
+
+class SegmentErrorScenario(TypedDict):
+    """Scenario describing segment initialization errors."""
+
+    description: str
+    factory: type
+    spec: SegmentSpec
+    periods: NDArray[np.floating[Any]]
+    error: type[Exception]
+    match: str | None
+    endpoint_factory: NotRequired[SegmentEndpointFactory]
 
 
 class ConnectionScenarioInputs(TypedDict, total=False):

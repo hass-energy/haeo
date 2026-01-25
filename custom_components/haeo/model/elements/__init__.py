@@ -28,8 +28,6 @@ from .node import Node as Node
 from .node import NodeElementConfig as NodeElementConfig
 from .node import NodeElementTypeName as NodeElementTypeName
 from .node import NodeOutputName as NodeOutputName
-from .segments import BatteryBalanceSegment as BatteryBalanceSegment
-from .segments import BatteryBalanceSegmentSpec as BatteryBalanceSegmentSpec
 from .segments import EfficiencySegment as EfficiencySegment
 from .segments import PassthroughSegment as PassthroughSegment
 from .segments import PowerLimitSegment as PowerLimitSegment
@@ -37,6 +35,8 @@ from .segments import PricingSegment as PricingSegment
 from .segments import Segment as Segment
 from .segments import SegmentSpec as SegmentSpec
 from .segments import SegmentType as SegmentType
+from .segments import SocPricingSegment as SocPricingSegment
+from .segments import SocPricingSegmentSpec as SocPricingSegmentSpec
 
 # Type for all model element types
 ModelElementType = BatteryElementTypeName | NodeElementTypeName | ConnectionElementTypeName
@@ -81,8 +81,6 @@ __all__ = [
     "MODEL_ELEMENT_TYPE_CONNECTION",
     "MODEL_ELEMENT_TYPE_NODE",
     "Battery",
-    "BatteryBalanceSegment",
-    "BatteryBalanceSegmentSpec",
     "BatteryConstraintName",
     "BatteryElementConfig",
     "BatteryOutputName",
@@ -103,4 +101,6 @@ __all__ = [
     "Segment",
     "SegmentSpec",
     "SegmentType",
+    "SocPricingSegment",
+    "SocPricingSegmentSpec",
 ]
