@@ -142,22 +142,21 @@ class BatteryAdvancedData(TypedDict, total=False):
     configure_partitions: bool
 
 
-type BatteryPartitionPercentageData = NDArray[np.floating[Any]] | float
-type BatteryPartitionCostData = NDArray[np.floating[Any]] | float
+type BatteryPartitionValueData = NDArray[np.floating[Any]] | float
 
 
 class BatteryPartitionUnderchargeData(TypedDict, total=False):
     """Loaded undercharge partition values."""
 
-    undercharge_percentage: BatteryPartitionPercentageData  # Ratio per period (0-1)
-    undercharge_cost: BatteryPartitionCostData  # $/kWh per period
+    undercharge_percentage: BatteryPartitionValueData  # Ratio per period (0-1)
+    undercharge_cost: BatteryPartitionValueData  # $/kWh per period
 
 
 class BatteryPartitionOverchargeData(TypedDict, total=False):
     """Loaded overcharge partition values."""
 
-    overcharge_percentage: BatteryPartitionPercentageData  # Ratio per period (0-1)
-    overcharge_cost: BatteryPartitionCostData  # $/kWh per period
+    overcharge_percentage: BatteryPartitionValueData  # Ratio per period (0-1)
+    overcharge_cost: BatteryPartitionValueData  # $/kWh per period
 
 
 class BatteryConfigData(TypedDict):
