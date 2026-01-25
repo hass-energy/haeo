@@ -1,6 +1,7 @@
 """Number entity for HAEO input configuration."""
 
 import asyncio
+from collections.abc import Mapping
 from datetime import datetime
 from enum import Enum
 from typing import Any
@@ -15,6 +16,7 @@ from homeassistant.util import dt as dt_util
 
 from custom_components.haeo import HaeoConfigEntry
 from custom_components.haeo.data.loader import TimeSeriesLoader
+from custom_components.haeo.elements import get_nested_config_value
 from custom_components.haeo.elements.input_fields import InputFieldInfo
 from custom_components.haeo.horizon import HorizonManager
 from custom_components.haeo.util import async_update_subentry_value
@@ -68,7 +70,7 @@ class HaeoInputNumber(NumberEntity):
         # Determine mode from config value type
         # Entity IDs can be list[str] (new format) or str (v0.1 format)
         # Constants are stored as float from NumberSelector
-        config_value = subentry.data.get(field_info.field_name)
+        config_value = get_nested_config_value(subentry.data, field_info.field_name)
 
         if isinstance(config_value, list) and config_value:
             # DRIVEN mode: value comes from external sensors (list format)
@@ -94,7 +96,15 @@ class HaeoInputNumber(NumberEntity):
         self.entity_description = field_info.entity_description
 
         # Pass subentry data as translation placeholders
-        self._attr_translation_placeholders = {k: str(v) for k, v in subentry.data.items()}
+        placeholders: dict[str, str] = {}
+        for key, value in subentry.data.items():
+            if isinstance(value, Mapping):
+                for nested_key, nested_value in value.items():
+                    placeholders.setdefault(nested_key, str(nested_value))
+                continue
+            placeholders[key] = str(value)
+        placeholders.setdefault("name", subentry.title)
+        self._attr_translation_placeholders = placeholders
 
         # Build base extra state attributes (static values)
         self._base_extra_attrs: dict[str, Any] = {

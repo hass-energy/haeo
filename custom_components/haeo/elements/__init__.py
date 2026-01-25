@@ -334,6 +334,9 @@ def _conforms_to_typed_dict(
             union_args = get_args(expected_type)
             return any(_matches_type(value_item, arg) for arg in union_args)
 
+        if expected_type is float and isinstance(value_item, int):
+            return True
+
         if isinstance(expected_type, type) and hasattr(expected_type, "__required_keys__"):
             return isinstance(value_item, Mapping) and _conforms_to_typed_dict(
                 value_item,

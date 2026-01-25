@@ -534,6 +534,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
 
         # Collect loaded values from input entities
         loaded_values: dict[str, Any] = {}
+        missing_entity_values: set[str] = set()
         for field_info in input_field_infos.values():
             field_name = field_info.field_name
             key = (element_name, field_name)
@@ -545,6 +546,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             values = entity.get_values()
 
             if values is None:
+                missing_entity_values.add(field_name)
                 continue
 
             if field_info.time_series:
@@ -562,6 +564,13 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             is_required = field_info.force_required or field_name not in optional_keys
             if not is_required:
                 continue
+            key = (element_name, field_name)
+            if key not in runtime_data.input_entities:
+                msg = f"Missing required field '{field_name}' for element '{element_name}'"
+                raise ValueError(msg)
+            if field_name in missing_entity_values:
+                msg = f"Missing required field '{field_name}' for element '{element_name}'"
+                raise ValueError(msg)
             value = get_nested_config_value(element_values, field_name)
             if value is None:
                 msg = f"Missing required field '{field_name}' for element '{element_name}'"

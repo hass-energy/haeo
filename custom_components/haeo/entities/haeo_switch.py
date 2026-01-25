@@ -1,6 +1,7 @@
 """Switch entity for HAEO boolean input configuration."""
 
 import asyncio
+from collections.abc import Mapping
 from datetime import datetime
 from typing import Any
 
@@ -13,6 +14,7 @@ from homeassistant.helpers.event import EventStateChangedData, async_track_state
 from homeassistant.util import dt as dt_util
 
 from custom_components.haeo import HaeoConfigEntry
+from custom_components.haeo.elements import get_nested_config_value
 from custom_components.haeo.elements.input_fields import InputFieldInfo
 from custom_components.haeo.entities.haeo_number import ConfigEntityMode
 from custom_components.haeo.horizon import HorizonManager
@@ -60,7 +62,7 @@ class HaeoInputSwitch(SwitchEntity):
         # Determine mode from config value type
         # Entity IDs are stored as str from EntitySelector
         # Boolean constants are stored as bool from BooleanSelector
-        config_value = subentry.data.get(field_info.field_name)
+        config_value = get_nested_config_value(subentry.data, field_info.field_name)
 
         if isinstance(config_value, str):
             # DRIVEN mode: value comes from external sensor
@@ -80,7 +82,15 @@ class HaeoInputSwitch(SwitchEntity):
         self.entity_description = field_info.entity_description
 
         # Pass subentry data as translation placeholders
-        self._attr_translation_placeholders = {k: str(v) for k, v in subentry.data.items()}
+        placeholders: dict[str, str] = {}
+        for key, value in subentry.data.items():
+            if isinstance(value, Mapping):
+                for nested_key, nested_value in value.items():
+                    placeholders.setdefault(nested_key, str(nested_value))
+                continue
+            placeholders[key] = str(value)
+        placeholders.setdefault("name", subentry.title)
+        self._attr_translation_placeholders = placeholders
 
         # Build base extra state attributes (static values)
         self._base_extra_attrs: dict[str, Any] = {
