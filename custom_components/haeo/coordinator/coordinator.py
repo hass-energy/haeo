@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Any, Literal, TypedDict
 
 from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import STATE_ON, EntityCategory, UnitOfTime
+from homeassistant.const import PERCENTAGE, STATE_ON, EntityCategory, UnitOfTime
 from homeassistant.core import CALLBACK_TYPE, Event, HomeAssistant, callback
 from homeassistant.helpers.event import EventStateChangedData, async_call_later, async_track_state_change_event
 from homeassistant.helpers.translation import async_get_translations
@@ -46,6 +46,7 @@ from custom_components.haeo.elements import (
 )
 from custom_components.haeo.model import ModelOutputName, Network, OutputData, OutputType
 from custom_components.haeo.repairs import dismiss_optimization_failure_issue
+from custom_components.haeo.state import HistoricalStateProvider
 from custom_components.haeo.util.forecast_times import tiers_to_periods_seconds
 
 from . import network as network_module
@@ -225,6 +226,9 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         self._pending_refresh: bool = False
         self._optimization_in_progress: bool = False  # Prevent concurrent optimizations
 
+        # Optimization horizon start time (for historical optimization support)
+        self._optimization_start_time: datetime | None = None
+
         # No update_interval - we're event-driven from input entities
         # No request_refresh_debouncer - we handle debouncing ourselves
         super().__init__(
@@ -277,6 +281,16 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         """Get runtime data from config entry, or None if not available."""
         config_entry = self._get_config_entry()
         return getattr(config_entry, "runtime_data", None)
+
+    @property
+    def optimization_start_time(self) -> datetime | None:
+        """Return the start time of the optimization horizon.
+
+        This is the time from which the optimization forecast begins.
+        For normal optimization, this is the current time.
+        For historical optimization, this is the requested historical time.
+        """
+        return self._optimization_start_time
 
     def _subscribe_to_input_entities(self) -> None:
         """Subscribe to state changes from input entities.
@@ -406,13 +420,239 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             raise RuntimeError(msg)
         return runtime_data.auto_optimize_switch.is_on or False
 
-    async def async_run_optimization(self) -> None:
-        """Manually trigger optimization, bypassing debouncing and auto-optimize check."""
+    async def async_run_optimization(self, target_time: datetime | None = None) -> list[str]:
+        """Manually trigger optimization, bypassing debouncing and auto-optimize check.
+
+        Args:
+            target_time: Optional historical timestamp to run optimization for.
+                If provided, uses historical state from the recorder instead of
+                current input entity values.
+
+        Returns:
+            List of missing entity IDs (empty for current optimization, may have
+            entries for historical optimization if recorder data is incomplete).
+
+        """
+        if target_time is not None:
+            return await self._run_historical_optimization(target_time)
+
         if not self._are_inputs_aligned():
             _LOGGER.debug("Inputs not aligned, skipping manual optimization")
-            return
+            return []
 
         await self.async_refresh()
+        return []
+
+    async def _run_historical_optimization(self, target_time: datetime) -> list[str]:
+        """Run optimization using historical state from the recorder.
+
+        Args:
+            target_time: The timestamp to fetch historical state for.
+
+        Returns:
+            List of missing entity IDs if recorder data is incomplete.
+
+        """
+        runtime_data = self._get_runtime_data()
+        if runtime_data is None:
+            msg = "Runtime data not available"
+            raise UpdateFailed(msg)
+
+        # Set horizon manager to historical time (this notifies all subscribers including
+        # the horizon entity and input entities)
+        runtime_data.horizon_manager.set_start_time(target_time)
+
+        # Use horizon manager's timestamps for consistency
+        forecast_timestamps = runtime_data.horizon_manager.get_forecast_timestamps()
+        periods_seconds = runtime_data.horizon_manager.periods_seconds
+
+        # Record optimization start time for historical run
+        self._optimization_start_time = target_time
+
+        # Collect all input entity IDs
+        input_entity_ids = [entity.entity_id for entity in runtime_data.input_entities.values()]
+
+        # Fetch historical states from the recorder
+        state_provider = HistoricalStateProvider(self.hass, target_time)
+        historical_states = await state_provider.get_states(input_entity_ids)
+
+        # Check for missing entities
+        missing_entity_ids = [eid for eid in input_entity_ids if eid not in historical_states]
+        if missing_entity_ids:
+            _LOGGER.warning(
+                "Historical optimization missing data for entities: %s",
+                ", ".join(missing_entity_ids),
+            )
+            return missing_entity_ids
+
+        # Load configs from historical states
+        loaded_configs = self._load_from_historical_states(historical_states)
+
+        # Create a temporary network for historical optimization
+        network = await network_module.create_network(
+            self.config_entry,
+            periods_seconds=periods_seconds,
+            participants=loaded_configs,
+        )
+
+        # Run the optimization
+        _LOGGER.info("Running historical optimization for %s", target_time.isoformat())
+        cost = await self.hass.async_add_executor_job(network.optimize)
+        _LOGGER.debug("Historical optimization completed with cost: %s", cost)
+
+        # Build and set coordinator data from results
+        network_output_data: dict[NetworkOutputName, OutputData] = {
+            OUTPUT_NAME_OPTIMIZATION_COST: OutputData(
+                type=OutputType.COST, unit=self.hass.config.currency, values=(cost,)
+            ),
+            OUTPUT_NAME_OPTIMIZATION_STATUS: OutputData(
+                type=OutputType.STATUS, unit=None, values=(OPTIMIZATION_STATUS_SUCCESS,)
+            ),
+        }
+
+        # Load the network subentry name from translations
+        translations = await async_get_translations(
+            self.hass, self.hass.config.language, "common", integrations=[DOMAIN]
+        )
+        network_subentry_name = translations[f"component.{DOMAIN}.common.network_subentry_name"]
+
+        result: CoordinatorData = {
+            network_subentry_name: {
+                ELEMENT_TYPE_NETWORK: {
+                    name: _build_coordinator_output(name, output, forecast_times=None)
+                    for name, output in network_output_data.items()
+                }
+            }
+        }
+
+        # Build nested outputs structure from all network model elements
+        model_outputs: dict[str, Mapping[ModelOutputName, OutputData]] = {
+            element_name: element.outputs() for element_name, element in network.elements.items()
+        }
+
+        # Process each config element using its outputs function
+        for element_name, element_config in self._participant_configs.items():
+            element_type = element_config[CONF_ELEMENT_TYPE]
+            outputs_fn = ELEMENT_TYPES[element_type].outputs
+
+            adapter_outputs: Mapping[ElementDeviceName, Mapping[ElementOutputName, OutputData]] = outputs_fn(
+                name=element_name,
+                model_outputs=model_outputs,
+                config=loaded_configs[element_name],
+                periods=network.periods,
+            )
+
+            subentry_devices: SubentryDevices = {}
+            for device_name, device_outputs in adapter_outputs.items():
+                processed_outputs: dict[ElementOutputName, CoordinatorOutput] = {
+                    output_name: _build_coordinator_output(
+                        output_name,
+                        output_data,
+                        forecast_times=forecast_timestamps,
+                    )
+                    for output_name, output_data in device_outputs.items()
+                }
+
+                if processed_outputs:
+                    subentry_devices[device_name] = processed_outputs
+
+            if subentry_devices:
+                result[element_name] = subentry_devices
+
+        # Update coordinator data
+        self.async_set_updated_data(result)
+
+        return []
+
+    def _load_from_historical_states(
+        self,
+        historical_states: dict[str, Any],
+    ) -> dict[str, ElementConfigData]:
+        """Load element configurations from historical entity states.
+
+        Args:
+            historical_states: Dict mapping entity_id to historical State objects.
+
+        Returns:
+            Dict mapping element name to loaded configuration.
+
+        """
+        runtime_data = self._get_runtime_data()
+        if runtime_data is None:
+            msg = "Runtime data not available"
+            raise UpdateFailed(msg)
+
+        loaded_configs: dict[str, ElementConfigData] = {}
+
+        for element_name, element_config in self._participant_configs.items():
+            element_type = element_config[CONF_ELEMENT_TYPE]
+
+            if not is_element_type(element_type):
+                msg = f"Invalid element type '{element_type}' for element '{element_name}'"
+                raise ValueError(msg)
+
+            # Get input field definitions for this element type
+            input_field_infos = get_input_fields(element_config)
+
+            # Collect loaded values from historical states
+            loaded_values: dict[str, Any] = {}
+            for field_info in input_field_infos.values():
+                field_name = field_info.field_name
+                key = (element_name, field_name)
+
+                if key not in runtime_data.input_entities:
+                    continue
+
+                entity = runtime_data.input_entities[key]
+                entity_id = entity.entity_id
+
+                if entity_id not in historical_states:
+                    continue
+
+                # Extract forecast values from historical state attributes
+                state = historical_states[entity_id]
+                forecast = state.attributes.get("forecast")
+                if not forecast:
+                    continue
+
+                values = tuple(point["value"] for point in forecast if isinstance(point, dict) and "value" in point)
+                if not values:
+                    continue
+
+                # Apply percentage conversion if entity uses percentage unit
+                # This matches the behavior in HaeoInputNumber.get_values()
+                if (
+                    hasattr(entity, "entity_description")
+                    and getattr(entity.entity_description, "native_unit_of_measurement", None) == PERCENTAGE
+                ):
+                    values = tuple(float(v) / 100.0 for v in values)
+
+                if field_info.time_series:
+                    loaded_values[field_name] = np.asarray(values, dtype=float)
+                else:
+                    loaded_values[field_name] = values[0] if values else None
+
+            # Merge with config values (non-input fields)
+            element_values: dict[str, Any] = {k: v for k, v in element_config.items() if k not in input_field_infos}
+            element_values.update(loaded_values)
+
+            # Validate required fields
+            schema_cls = ELEMENT_CONFIG_SCHEMAS[element_type]
+            optional_keys: frozenset[str] = getattr(schema_cls, "__optional_keys__", frozenset())
+            for field_info in input_field_infos.values():
+                field_name = field_info.field_name
+                is_required = field_info.force_required or field_name not in optional_keys
+                if is_required and element_values.get(field_name) is None:
+                    msg = f"Missing required field '{field_name}' for element '{element_name}'"
+                    raise ValueError(msg)
+
+            if not is_element_config_data(element_values):
+                msg = f"Invalid config data for element '{element_name}'"
+                raise ValueError(msg)
+
+            loaded_configs[element_name] = element_values
+
+        return loaded_configs
 
     @callback
     def signal_optimization_stale(self) -> None:
@@ -635,6 +875,11 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
                 raise UpdateFailed(msg)
 
             forecast_timestamps = runtime_data.horizon_manager.get_forecast_timestamps()
+
+            # Record optimization start time (first forecast timestamp)
+            self._optimization_start_time = (
+                dt_util.utc_from_timestamp(forecast_timestamps[0]) if forecast_timestamps else dt_util.utcnow()
+            )
 
             # Load element configurations from input entities
             # All input entities are guaranteed to be fully loaded by the time we get here

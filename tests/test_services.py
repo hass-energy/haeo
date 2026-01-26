@@ -575,3 +575,127 @@ async def test_optimize_service_no_coordinator(
         )
 
     assert exc_info.value.translation_key == "config_entry_not_loaded"
+
+
+async def test_optimize_service_with_historical_time(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+) -> None:
+    """Test optimize service with historical time parameter."""
+    # Set up the service - need to register recorder component first
+    hass.config.components.add("recorder")
+    await async_setup(hass, {})
+
+    # Mock the entry state as loaded
+    mock_hub_entry._async_set_state(hass, ConfigEntryState.LOADED, None)
+
+    target_timestamp = datetime(2026, 1, 20, 14, 32, 3, tzinfo=UTC)
+
+    # Create a mock coordinator
+    mock_coordinator = AsyncMock()
+    mock_coordinator.async_run_optimization = AsyncMock(return_value=[])
+
+    mock_hub_entry.runtime_data = HaeoRuntimeData(
+        coordinator=mock_coordinator,
+        horizon_manager=Mock(),
+    )
+
+    # Call the service with historical time
+    await hass.services.async_call(
+        DOMAIN,
+        "optimize",
+        {
+            "config_entry": mock_hub_entry.entry_id,
+            "time": target_timestamp,
+        },
+        blocking=True,
+    )
+
+    # Verify optimization was triggered with the target time
+    mock_coordinator.async_run_optimization.assert_called_once_with(target_time=target_timestamp)
+
+
+async def test_optimize_schema_includes_time_when_recorder_available(
+    hass: HomeAssistant,
+) -> None:
+    """Test that time parameter is available when recorder is loaded."""
+    # Add recorder to components
+    hass.config.components.add("recorder")
+
+    await async_setup(hass, {})
+
+    # Get the registered service schema
+    service = hass.services._services.get(DOMAIN, {}).get("optimize")
+    assert service is not None
+
+    schema = service.schema
+    assert schema is not None
+
+    # The schema should include the optional time field
+    schema({"config_entry": "test_entry", "time": "2026-01-20T14:32:03+00:00"})
+
+
+async def test_optimize_schema_excludes_time_when_recorder_unavailable(
+    hass: HomeAssistant,
+) -> None:
+    """Test that time parameter is not available when recorder is not loaded."""
+    # By default, recorder is not in components
+    assert "recorder" not in hass.config.components
+
+    await async_setup(hass, {})
+
+    # Get the registered service schema
+    service = hass.services._services.get(DOMAIN, {}).get("optimize")
+    assert service is not None
+
+    schema = service.schema
+    assert schema is not None
+
+    # The schema should not include the time field
+    result = schema({"config_entry": "test_entry"})
+    assert "config_entry" in result
+    # Time should not be parsed since it's not in the schema
+    assert "time" not in result
+
+
+async def test_optimize_historical_missing_entities_raises_error(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+) -> None:
+    """Test optimize raises error when historical query has missing entities."""
+    # Set up the service - need to register recorder component first
+    hass.config.components.add("recorder")
+    await async_setup(hass, {})
+
+    # Mock the entry state as loaded
+    mock_hub_entry._async_set_state(hass, ConfigEntryState.LOADED, None)
+
+    target_timestamp = datetime(2025, 1, 1, 12, 0, 0, tzinfo=UTC)
+
+    # Create a mock coordinator that returns missing entities
+    mock_coordinator = AsyncMock()
+    mock_coordinator.async_run_optimization = AsyncMock(return_value=["sensor.battery_soc", "sensor.grid_price"])
+
+    mock_hub_entry.runtime_data = HaeoRuntimeData(
+        coordinator=mock_coordinator,
+        horizon_manager=Mock(),
+    )
+
+    with pytest.raises(ServiceValidationError) as exc_info:
+        await hass.services.async_call(
+            DOMAIN,
+            "optimize",
+            {
+                "config_entry": mock_hub_entry.entry_id,
+                "time": target_timestamp,
+            },
+            blocking=True,
+        )
+
+    assert exc_info.value.translation_key == "no_history_at_time"
+    # Verify placeholders include time and missing entities
+    placeholders = exc_info.value.translation_placeholders
+    assert placeholders is not None
+    assert "time" in placeholders
+    assert "sensor.battery_soc" in placeholders["missing"]
+    assert "sensor.grid_price" in placeholders["missing"]

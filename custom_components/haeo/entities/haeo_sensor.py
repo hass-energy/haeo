@@ -9,6 +9,7 @@ from homeassistant.helpers.device_registry import DeviceEntry
 from homeassistant.helpers.typing import StateType
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
+from custom_components.haeo.const import OUTPUT_NAME_OPTIMIZATION_STATUS
 from custom_components.haeo.coordinator import CoordinatorOutput, ForecastPoint, HaeoDataUpdateCoordinator
 from custom_components.haeo.elements import ElementDeviceName, ElementOutputName
 from custom_components.haeo.model import OutputType
@@ -92,6 +93,12 @@ class HaeoSensor(CoordinatorEntity[HaeoDataUpdateCoordinator], SensorEntity):
 
                 if output_data.forecast:
                     attributes["forecast"] = self._scale_percentage_forecast(output_data.unit, output_data.forecast)
+
+        # Add optimization_start_time to the status sensor
+        if self._output_name == OUTPUT_NAME_OPTIMIZATION_STATUS:
+            start_time = self.coordinator.optimization_start_time
+            if start_time is not None:
+                attributes["optimization_start_time"] = start_time.isoformat()
 
         self._attr_native_value = native_value
         self._attr_extra_state_attributes = attributes

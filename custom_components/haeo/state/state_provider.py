@@ -1,4 +1,4 @@
-"""State provider abstraction for diagnostics data collection."""
+"""State provider abstraction for entity state access."""
 
 from collections.abc import Iterable
 from datetime import datetime

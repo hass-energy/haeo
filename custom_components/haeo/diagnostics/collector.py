@@ -24,8 +24,7 @@ from custom_components.haeo.elements import ElementConfigSchema, is_element_conf
 from custom_components.haeo.entities.haeo_number import ConfigEntityMode, HaeoInputNumber
 from custom_components.haeo.entities.haeo_switch import HaeoInputSwitch
 from custom_components.haeo.sensor_utils import get_output_sensors
-
-from .state_provider import StateProvider
+from custom_components.haeo.state import StateProvider
 
 
 @dataclass

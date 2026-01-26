@@ -110,6 +110,29 @@ class HorizonManager:
         # Restart the timer
         self._schedule_next_update()
 
+    def set_start_time(self, start_time: datetime) -> None:
+        """Set a custom start time for the horizon and notify subscribers.
+
+        Used for historical optimization to shift the horizon to a past time.
+        Call resume() to return to real-time tracking.
+
+        Args:
+            start_time: The datetime to use as the horizon start time.
+
+        """
+        # Pause timer to prevent real-time updates from overwriting
+        self.pause()
+
+        # Regenerate timestamps with the specified start time
+        self._forecast_timestamps = generate_forecast_timestamps(
+            self._periods_seconds,
+            start_time=start_time.timestamp(),
+        )
+
+        # Notify all subscribers
+        for subscriber in self._subscribers:
+            subscriber()
+
     def _schedule_next_update(self) -> None:
         """Schedule the next horizon update at the next period boundary."""
         now = dt_util.utcnow()

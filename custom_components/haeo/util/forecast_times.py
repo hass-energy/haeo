@@ -220,7 +220,10 @@ def calculate_total_steps(
     return sum(min_counts) + base_t4_steps + alignment_buffer
 
 
-def tiers_to_periods_seconds(config: Mapping[str, int | str]) -> list[int]:
+def tiers_to_periods_seconds(
+    config: Mapping[str, int | str],
+    start_time: datetime | None = None,
+) -> list[int]:
     """Convert tier configuration to list of period durations in seconds.
 
     Uses dynamic time alignment when a preset is selected (2/3/5/7 days).
@@ -229,6 +232,7 @@ def tiers_to_periods_seconds(config: Mapping[str, int | str]) -> list[int]:
     Args:
         config: Tier configuration dictionary with tier_N_count and tier_N_duration keys,
             plus optional horizon_preset key.
+        start_time: Optional start time for tier alignment. If None, uses current time.
 
     Returns:
         List of period durations in seconds.
@@ -246,11 +250,11 @@ def tiers_to_periods_seconds(config: Mapping[str, int | str]) -> list[int]:
         tier_durations = (1, 5, 30, 60)
         min_counts = (5, 6, 4)
 
-        now = dt_util.utcnow()
+        alignment_time = start_time if start_time is not None else dt_util.utcnow()
         total_steps = calculate_total_steps(min_counts, horizon_minutes)
 
         periods_seconds, _ = calculate_aligned_tier_counts(
-            start_time=now,
+            start_time=alignment_time,
             tier_durations=tier_durations,
             min_counts=min_counts,
             total_steps=total_steps,

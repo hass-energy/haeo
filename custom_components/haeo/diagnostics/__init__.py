@@ -5,10 +5,9 @@ from typing import Any
 from homeassistant.core import HomeAssistant
 
 from custom_components.haeo import HaeoConfigEntry
+from custom_components.haeo.state import CurrentStateProvider, HistoricalStateProvider, StateProvider
 
 from .collector import DiagnosticsResult, collect_diagnostics
-from .historical_state_provider import HistoricalStateProvider
-from .state_provider import CurrentStateProvider, StateProvider
 
 
 async def async_get_config_entry_diagnostics(
