@@ -136,18 +136,12 @@
         "partition_values": {
           "title": "Battery Partition Values",
           "description": "Enter values for the partition input sources",
-          "data": {
-            "cost": "Cost",
-            "percentage": "Percentage"
-          }
+          "data": { "cost": "Cost", "percentage": "Percentage" }
         },
         "partitions": {
           "title": "Battery Partitions",
           "description": "Select entities for undercharge and overcharge regions",
-          "data": {
-            "cost": "Cost",
-            "percentage": "Percentage"
-          },
+          "data": { "cost": "Cost", "percentage": "Percentage" },
           "sections": {
             "overcharge": {
               "data": { "cost": "Overcharge cost", "percentage": "Overcharge percentage" },
@@ -391,6 +385,7 @@
   "entity": {
     "number": {
       "battery_capacity": { "name": "Capacity" },
+      "battery_cost": { "name": "Cost" },
       "battery_discharge_cost": { "name": "Discharge cost" },
       "battery_early_charge_incentive": { "name": "Early charge incentive" },
       "battery_efficiency": { "name": "Efficiency" },
@@ -399,7 +394,6 @@
       "battery_max_charge_power": { "name": "Max charge power" },
       "battery_max_discharge_power": { "name": "Max discharge power" },
       "battery_min_charge_percentage": { "name": "Min charge" },
-      "battery_cost": { "name": "Cost" },
       "battery_percentage": { "name": "Percentage" },
       "connection_efficiency_source_target": { "name": "Source to target efficiency" },
       "connection_efficiency_target_source": { "name": "Target to source efficiency" },
