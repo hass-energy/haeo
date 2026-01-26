@@ -139,14 +139,14 @@ This is the lower bound of the battery's operating range.
 **Example**:
 
 ```
-undercharge_percentage=5% < min_charge_percentage=10%
+undercharge percentage=5% < min_charge_percentage=10%
 ```
 
-This allows operation between 5-10% SOC with an added `undercharge_cost` penalty when discharging below `min_charge_percentage`.
+This allows operation between 5-10% SOC with an added undercharge cost penalty when discharging below `min_charge_percentage`.
 
 !!! tip "Key insight"
 
-    `undercharge_percentage` is the hard limit - the battery cannot discharge below this level.
+    The undercharge percentage is the hard limit - the battery cannot discharge below this level.
     The `min_charge_percentage` is the soft limit - HAEO prefers to stay above it but will discharge into the 5-10% range when economically justified.
 
 ### Overcharge Configuration
@@ -164,20 +164,20 @@ This is the upper bound of the battery's operating range.
 **Example**:
 
 ```
-max_charge_percentage=90% < overcharge_percentage=95%
+max_charge_percentage=90% < overcharge percentage=95%
 ```
 
-This allows operation between 90-95% SOC with an added `overcharge_cost` penalty when charging above `max_charge_percentage`.
+This allows operation between 90-95% SOC with an added overcharge cost penalty when charging above `max_charge_percentage`.
 
 !!! tip "Key insight"
 
-    `overcharge_percentage` is the hard limit - the battery cannot charge above this level.
+    The overcharge percentage is the hard limit - the battery cannot charge above this level.
     The `max_charge_percentage` is the soft limit - HAEO prefers to stay below it but will charge into the 90-95% range when economically justified.
 
 #### Undercharge Cost
 
 Economic penalty in \$/kWh for **discharging** below `min_charge_percentage`.
-Required when `undercharge_percentage` is configured.
+Required when the undercharge percentage is configured.
 This penalty applies **in addition to** the normal `discharge_cost`.
 
 **Setting the cost**: Consider the economic value of avoiding deep discharge:
@@ -188,17 +188,17 @@ This penalty applies **in addition to** the normal `discharge_cost`.
 
 Typical values: \$0.50-\$2.00/kWh
 
-**How it works**: The optimizer compares grid revenue against the combined penalties (discharge_cost + undercharge_cost).
+**How it works**: The optimizer compares grid revenue against the combined penalties (discharge_cost + undercharge cost).
 If grid prices are \$0.40/kWh and total cost is \$0.50/kWh (e.g., \$0.02 discharge + \$0.48 undercharge), the battery won't discharge into the undercharge range.
 If grid prices spike to \$0.80/kWh, the optimizer will economically justify deep discharge because the \$0.30/kWh profit (\$0.80 - \$0.50) makes it worthwhile.
 
 **Applies to**: Energy discharged below `min_charge_percentage`.
-The battery will not discharge below `undercharge_percentage` under any circumstance.
+The battery will not discharge below the undercharge percentage under any circumstance.
 
 #### Overcharge Cost
 
 Economic penalty in \$/kWh for **charging** above `max_charge_percentage`.
-Required when `overcharge_percentage` is configured.
+Required when the overcharge percentage is configured.
 
 **Setting the cost**: Consider the economic value of avoiding high SOC:
 
@@ -217,7 +217,7 @@ For example, if overcharge cost is \$1.00/kWh, grid prices would need to be belo
 For example, if export prices tomorrow are \$0.50/kWh and overcharge cost is \$0.20/kWh, HAEO will overcharge today to maximize export revenue tomorrow.
 
 **Applies to**: Energy charged above `max_charge_percentage`.
-The battery will not charge above `overcharge_percentage` under any circumstance.
+The battery will not charge above the overcharge percentage under any circumstance.
 
 ## Configuration Examples
 
@@ -283,9 +283,8 @@ Input entities appear as Number entities with the `config` entity category.
 | `number.{name}_max_discharge_power`                  | kW     | Maximum discharging power                    |
 | `number.{name}_charge_cost_per_cycle`                | -      | Base cycle degradation cost                  |
 | `number.{name}_charge_cost_per_kwh`                  | \$/kWh | Per-kWh charging cost                        |
-| `number.{name}_undercharge_soc`                      | %      | Hard minimum SOC limit (if configured)       |
-| `number.{name}_overcharge_soc`                       | %      | Hard maximum SOC limit (if configured)       |
-| `number.{name}_undercharge_cost` / `overcharge_cost` | \$/kWh | Penalty costs for extended regions           |
+| `number.{name}_percentage`                          | %      | Undercharge or overcharge percentage         |
+| `number.{name}_cost`                                | \$/kWh | Undercharge or overcharge cost               |
 
 Input entities include a `forecast` attribute showing values for each optimization period.
 See the [Input Entities developer guide](../../developer-guide/inputs.md) for details on input entity behavior.

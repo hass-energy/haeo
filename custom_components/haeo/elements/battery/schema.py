@@ -17,10 +17,8 @@ CONF_MAX_CHARGE_POWER: Final = "max_charge_power"
 CONF_MAX_DISCHARGE_POWER: Final = "max_discharge_power"
 CONF_EARLY_CHARGE_INCENTIVE: Final = "early_charge_incentive"
 CONF_DISCHARGE_COST: Final = "discharge_cost"
-CONF_UNDERCHARGE_PERCENTAGE: Final = "undercharge_percentage"
-CONF_OVERCHARGE_PERCENTAGE: Final = "overcharge_percentage"
-CONF_UNDERCHARGE_COST: Final = "undercharge_cost"
-CONF_OVERCHARGE_COST: Final = "overcharge_cost"
+CONF_PARTITION_PERCENTAGE: Final = "percentage"
+CONF_PARTITION_COST: Final = "cost"
 CONF_CONNECTION: Final = "connection"
 CONF_CONFIGURE_PARTITIONS: Final = "configure_partitions"
 CONF_SECTION_BASIC: Final = "basic"
@@ -38,20 +36,16 @@ OPTIONAL_INPUT_FIELDS: Final[frozenset[str]] = frozenset(
         CONF_MAX_DISCHARGE_POWER,
         CONF_EARLY_CHARGE_INCENTIVE,
         CONF_DISCHARGE_COST,
-        CONF_UNDERCHARGE_PERCENTAGE,
-        CONF_UNDERCHARGE_COST,
-        CONF_OVERCHARGE_PERCENTAGE,
-        CONF_OVERCHARGE_COST,
+        CONF_PARTITION_PERCENTAGE,
+        CONF_PARTITION_COST,
     }
 )
 
 # Partition field names (hidden behind checkbox)
 PARTITION_FIELD_NAMES: Final[frozenset[str]] = frozenset(
     (
-        CONF_UNDERCHARGE_PERCENTAGE,
-        CONF_OVERCHARGE_PERCENTAGE,
-        CONF_UNDERCHARGE_COST,
-        CONF_OVERCHARGE_COST,
+        CONF_PARTITION_PERCENTAGE,
+        CONF_PARTITION_COST,
     )
 )
 
@@ -87,18 +81,11 @@ type BatteryPartitionPercentageConfig = str | float
 type BatteryPartitionCostConfig = list[str] | str | float
 
 
-class BatteryPartitionUnderchargeConfig(TypedDict, total=False):
-    """Undercharge partition configuration."""
+class BatteryPartitionConfig(TypedDict, total=False):
+    """Partition configuration (undercharge/overcharge)."""
 
-    undercharge_percentage: BatteryPartitionPercentageConfig
-    undercharge_cost: BatteryPartitionCostConfig  # Price sensors ($/kWh) - list for chaining
-
-
-class BatteryPartitionOverchargeConfig(TypedDict, total=False):
-    """Overcharge partition configuration."""
-
-    overcharge_percentage: BatteryPartitionPercentageConfig
-    overcharge_cost: BatteryPartitionCostConfig  # Price sensors ($/kWh) - list for chaining
+    percentage: BatteryPartitionPercentageConfig
+    cost: BatteryPartitionCostConfig  # Price sensors ($/kWh) - list for chaining
 
 
 class BatteryConfigSchema(TypedDict):
@@ -111,8 +98,8 @@ class BatteryConfigSchema(TypedDict):
     basic: BatteryBasicConfig
     limits: BatteryLimitsConfig
     advanced: BatteryAdvancedConfig
-    undercharge: NotRequired[BatteryPartitionUnderchargeConfig]
-    overcharge: NotRequired[BatteryPartitionOverchargeConfig]
+    undercharge: NotRequired[BatteryPartitionConfig]
+    overcharge: NotRequired[BatteryPartitionConfig]
 
 
 class BatteryBasicData(TypedDict):
@@ -145,18 +132,11 @@ class BatteryAdvancedData(TypedDict, total=False):
 type BatteryPartitionValueData = NDArray[np.floating[Any]] | float
 
 
-class BatteryPartitionUnderchargeData(TypedDict, total=False):
-    """Loaded undercharge partition values."""
+class BatteryPartitionData(TypedDict, total=False):
+    """Loaded partition values (undercharge/overcharge)."""
 
-    undercharge_percentage: BatteryPartitionValueData  # Ratio per period (0-1)
-    undercharge_cost: BatteryPartitionValueData  # $/kWh per period
-
-
-class BatteryPartitionOverchargeData(TypedDict, total=False):
-    """Loaded overcharge partition values."""
-
-    overcharge_percentage: BatteryPartitionValueData  # Ratio per period (0-1)
-    overcharge_cost: BatteryPartitionValueData  # $/kWh per period
+    percentage: BatteryPartitionValueData  # Ratio per period (0-1)
+    cost: BatteryPartitionValueData  # $/kWh per period
 
 
 class BatteryConfigData(TypedDict):
@@ -169,5 +149,5 @@ class BatteryConfigData(TypedDict):
     basic: BatteryBasicData
     limits: BatteryLimitsData
     advanced: BatteryAdvancedData
-    undercharge: NotRequired[BatteryPartitionUnderchargeData]
-    overcharge: NotRequired[BatteryPartitionOverchargeData]
+    undercharge: NotRequired[BatteryPartitionData]
+    overcharge: NotRequired[BatteryPartitionData]

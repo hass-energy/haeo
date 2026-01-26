@@ -80,11 +80,11 @@ def _sectioned_participant_config(config: dict[str, Any]) -> dict[str, Any]:
             "limits": limits,
             "advanced": advanced,
         }
-        undercharge = _pick_fields(config, ("undercharge_percentage", "undercharge_cost"))
-        if undercharge:
+        undercharge = config.get("undercharge")
+        if isinstance(undercharge, dict) and undercharge:
             sectioned["undercharge"] = undercharge
-        overcharge = _pick_fields(config, ("overcharge_percentage", "overcharge_cost"))
-        if overcharge:
+        overcharge = config.get("overcharge")
+        if isinstance(overcharge, dict) and overcharge:
             sectioned["overcharge"] = overcharge
         return sectioned
 

@@ -178,17 +178,10 @@ def _migrate_subentry_data(subentry: ConfigSubentry) -> dict[str, Any] | None:
             battery.CONF_CONFIGURE_PARTITIONS,
         ):
             add_if_present(advanced, key)
-        for key in (battery.CONF_UNDERCHARGE_PERCENTAGE, battery.CONF_UNDERCHARGE_COST):
-            add_if_present(undercharge, key)
-        for key in (battery.CONF_OVERCHARGE_PERCENTAGE, battery.CONF_OVERCHARGE_COST):
-            add_if_present(overcharge, key)
-
-        if isinstance(data.get("partitions"), dict):
-            partitions = data["partitions"]
-            if isinstance(partitions.get("undercharge"), dict):
-                undercharge.update(partitions["undercharge"])
-            if isinstance(partitions.get("overcharge"), dict):
-                overcharge.update(partitions["overcharge"])
+        if isinstance(data.get(battery.CONF_SECTION_UNDERCHARGE), dict):
+            undercharge.update(data[battery.CONF_SECTION_UNDERCHARGE])
+        if isinstance(data.get(battery.CONF_SECTION_OVERCHARGE), dict):
+            overcharge.update(data[battery.CONF_SECTION_OVERCHARGE])
 
         migrated |= {
             battery.CONF_SECTION_BASIC: basic,

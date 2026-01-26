@@ -23,15 +23,13 @@ from custom_components.haeo.elements.battery import (
     CONF_MAX_CHARGE_POWER,
     CONF_MAX_DISCHARGE_POWER,
     CONF_MIN_CHARGE_PERCENTAGE,
-    CONF_OVERCHARGE_COST,
-    CONF_OVERCHARGE_PERCENTAGE,
+    CONF_PARTITION_COST,
+    CONF_PARTITION_PERCENTAGE,
     CONF_SECTION_ADVANCED,
     CONF_SECTION_BASIC,
     CONF_SECTION_LIMITS,
     CONF_SECTION_OVERCHARGE,
     CONF_SECTION_UNDERCHARGE,
-    CONF_UNDERCHARGE_COST,
-    CONF_UNDERCHARGE_PERCENTAGE,
     ELEMENT_TYPE,
 )
 
@@ -74,11 +72,15 @@ def _wrap_main_input(user_input: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _wrap_partition_input(user_input: dict[str, Any]) -> dict[str, Any]:
+def _wrap_partition_input(
+    undercharge_input: dict[str, Any],
+    overcharge_input: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     """Wrap partition inputs into sectioned form data."""
+    overcharge_input = overcharge_input or {}
     return {
-        CONF_SECTION_UNDERCHARGE: {key: user_input[key] for key in (CONF_UNDERCHARGE_PERCENTAGE, CONF_UNDERCHARGE_COST) if key in user_input},
-        CONF_SECTION_OVERCHARGE: {key: user_input[key] for key in (CONF_OVERCHARGE_PERCENTAGE, CONF_OVERCHARGE_COST) if key in user_input},
+        CONF_SECTION_UNDERCHARGE: {key: undercharge_input[key] for key in (CONF_PARTITION_PERCENTAGE, CONF_PARTITION_COST) if key in undercharge_input},
+        CONF_SECTION_OVERCHARGE: {key: overcharge_input[key] for key in (CONF_PARTITION_PERCENTAGE, CONF_PARTITION_COST) if key in overcharge_input},
     }
 
 
@@ -307,20 +309,22 @@ async def test_partition_flow_with_entity_links_creates_entry(hass: HomeAssistan
     await flow.async_step_user(user_input=_wrap_main_input(step1_input))
 
     partition_input = {
-        CONF_UNDERCHARGE_PERCENTAGE: ["sensor.undercharge_pct"],
-        CONF_OVERCHARGE_PERCENTAGE: ["sensor.overcharge_pct"],
-        CONF_UNDERCHARGE_COST: None,
-        CONF_OVERCHARGE_COST: None,
+        CONF_PARTITION_PERCENTAGE: ["sensor.undercharge_pct"],
+        CONF_PARTITION_COST: None,
+    }
+    partition_input_overcharge = {
+        CONF_PARTITION_PERCENTAGE: ["sensor.overcharge_pct"],
+        CONF_PARTITION_COST: None,
     }
 
-    result = await flow.async_step_partitions(user_input=_wrap_partition_input(partition_input))
+    result = await flow.async_step_partitions(user_input=_wrap_partition_input(partition_input, partition_input_overcharge))
     assert result.get("type") == FlowResultType.CREATE_ENTRY
 
     created_data = flow.async_create_entry.call_args.kwargs["data"]
     undercharge = created_data[CONF_SECTION_UNDERCHARGE]
     overcharge = created_data[CONF_SECTION_OVERCHARGE]
-    assert undercharge[CONF_UNDERCHARGE_PERCENTAGE] == "sensor.undercharge_pct"
-    assert overcharge[CONF_OVERCHARGE_PERCENTAGE] == "sensor.overcharge_pct"
+    assert undercharge[CONF_PARTITION_PERCENTAGE] == "sensor.undercharge_pct"
+    assert overcharge[CONF_PARTITION_PERCENTAGE] == "sensor.overcharge_pct"
 
 
 async def test_partition_flow_with_constant_values_creates_entry(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
@@ -353,22 +357,24 @@ async def test_partition_flow_with_constant_values_creates_entry(hass: HomeAssis
     await flow.async_step_user(user_input=_wrap_main_input(step1_input))
 
     partition_input = {
-        CONF_UNDERCHARGE_PERCENTAGE: 5.0,
-        CONF_OVERCHARGE_PERCENTAGE: 95.0,
-        CONF_UNDERCHARGE_COST: 0.10,
-        CONF_OVERCHARGE_COST: 0.10,
+        CONF_PARTITION_PERCENTAGE: 5.0,
+        CONF_PARTITION_COST: 0.10,
+    }
+    partition_input_overcharge = {
+        CONF_PARTITION_PERCENTAGE: 95.0,
+        CONF_PARTITION_COST: 0.10,
     }
 
-    result = await flow.async_step_partitions(user_input=_wrap_partition_input(partition_input))
+    result = await flow.async_step_partitions(user_input=_wrap_partition_input(partition_input, partition_input_overcharge))
     assert result.get("type") == FlowResultType.CREATE_ENTRY
 
     created_data = flow.async_create_entry.call_args.kwargs["data"]
     undercharge = created_data[CONF_SECTION_UNDERCHARGE]
     overcharge = created_data[CONF_SECTION_OVERCHARGE]
-    assert undercharge[CONF_UNDERCHARGE_PERCENTAGE] == 5.0
-    assert overcharge[CONF_OVERCHARGE_PERCENTAGE] == 95.0
-    assert undercharge[CONF_UNDERCHARGE_COST] == 0.10
-    assert overcharge[CONF_OVERCHARGE_COST] == 0.10
+    assert undercharge[CONF_PARTITION_PERCENTAGE] == 5.0
+    assert overcharge[CONF_PARTITION_PERCENTAGE] == 95.0
+    assert undercharge[CONF_PARTITION_COST] == 0.10
+    assert overcharge[CONF_PARTITION_COST] == 0.10
 
 
 async def test_partition_disabled_skips_partition_step(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
@@ -425,11 +431,13 @@ async def test_reconfigure_with_existing_partitions_shows_form(hass: HomeAssista
         ),
         **_wrap_partition_input(
             {
-                CONF_UNDERCHARGE_PERCENTAGE: 5.0,
-                CONF_OVERCHARGE_PERCENTAGE: 95.0,
-                CONF_UNDERCHARGE_COST: 0.10,
-                CONF_OVERCHARGE_COST: 0.10,
-            }
+                CONF_PARTITION_PERCENTAGE: 5.0,
+                CONF_PARTITION_COST: 0.10,
+            },
+            {
+                CONF_PARTITION_PERCENTAGE: 95.0,
+                CONF_PARTITION_COST: 0.10,
+            },
         ),
     }
     existing_subentry = ConfigSubentry(
@@ -470,9 +478,11 @@ async def test_reconfigure_partition_defaults_entity_links(hass: HomeAssistant, 
         ),
         **_wrap_partition_input(
             {
-                CONF_UNDERCHARGE_PERCENTAGE: "sensor.undercharge",
-                CONF_OVERCHARGE_PERCENTAGE: "sensor.overcharge",
-            }
+                CONF_PARTITION_PERCENTAGE: "sensor.undercharge",
+            },
+            {
+                CONF_PARTITION_PERCENTAGE: "sensor.overcharge",
+            },
         ),
     }
     existing_subentry = ConfigSubentry(
@@ -492,8 +502,8 @@ async def test_reconfigure_partition_defaults_entity_links(hass: HomeAssistant, 
 
     defaults = flow._build_partition_defaults(dict(existing_config))
 
-    assert defaults[CONF_SECTION_UNDERCHARGE][CONF_UNDERCHARGE_PERCENTAGE] == ["sensor.undercharge"]
-    assert defaults[CONF_SECTION_OVERCHARGE][CONF_OVERCHARGE_PERCENTAGE] == ["sensor.overcharge"]
+    assert defaults[CONF_SECTION_UNDERCHARGE][CONF_PARTITION_PERCENTAGE] == ["sensor.undercharge"]
+    assert defaults[CONF_SECTION_OVERCHARGE][CONF_PARTITION_PERCENTAGE] == ["sensor.overcharge"]
 
 
 async def test_reconfigure_partition_defaults_scalar_values(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
@@ -514,9 +524,11 @@ async def test_reconfigure_partition_defaults_scalar_values(hass: HomeAssistant,
         ),
         **_wrap_partition_input(
             {
-                CONF_UNDERCHARGE_PERCENTAGE: 5.0,
-                CONF_OVERCHARGE_PERCENTAGE: 95.0,
-            }
+                CONF_PARTITION_PERCENTAGE: 5.0,
+            },
+            {
+                CONF_PARTITION_PERCENTAGE: 95.0,
+            },
         ),
     }
     existing_subentry = ConfigSubentry(
@@ -536,8 +548,8 @@ async def test_reconfigure_partition_defaults_scalar_values(hass: HomeAssistant,
 
     defaults = flow._build_partition_defaults(dict(existing_config))
 
-    assert defaults[CONF_SECTION_UNDERCHARGE][CONF_UNDERCHARGE_PERCENTAGE] == 5.0
-    assert defaults[CONF_SECTION_OVERCHARGE][CONF_OVERCHARGE_PERCENTAGE] == 95.0
+    assert defaults[CONF_SECTION_UNDERCHARGE][CONF_PARTITION_PERCENTAGE] == 5.0
+    assert defaults[CONF_SECTION_OVERCHARGE][CONF_PARTITION_PERCENTAGE] == 95.0
 
 
 async def test_build_partition_defaults_no_existing_data(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
@@ -547,10 +559,10 @@ async def test_build_partition_defaults_no_existing_data(hass: HomeAssistant, hu
     defaults = flow._build_partition_defaults(None)
 
     # Partition fields have defaults (mode="value", value=0 or value=100)
-    assert defaults.get(CONF_SECTION_UNDERCHARGE, {}).get(CONF_UNDERCHARGE_PERCENTAGE) == 0
-    assert defaults.get(CONF_SECTION_OVERCHARGE, {}).get(CONF_OVERCHARGE_PERCENTAGE) == 100
-    assert defaults.get(CONF_SECTION_UNDERCHARGE, {}).get(CONF_UNDERCHARGE_COST) == 0
-    assert defaults.get(CONF_SECTION_OVERCHARGE, {}).get(CONF_OVERCHARGE_COST) == 0
+    assert defaults.get(CONF_SECTION_UNDERCHARGE, {}).get(CONF_PARTITION_PERCENTAGE) == 0
+    assert defaults.get(CONF_SECTION_OVERCHARGE, {}).get(CONF_PARTITION_PERCENTAGE) == 100
+    assert defaults.get(CONF_SECTION_UNDERCHARGE, {}).get(CONF_PARTITION_COST) == 0
+    assert defaults.get(CONF_SECTION_OVERCHARGE, {}).get(CONF_PARTITION_COST) == 0
 
 
 async def test_defaults_with_scalar_values_shows_constant_choice(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:

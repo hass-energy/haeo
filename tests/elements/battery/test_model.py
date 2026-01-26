@@ -61,12 +61,12 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "discharge_cost": np.array([0.02]),
             },
             undercharge={
-                "undercharge_percentage": np.array([0.05, 0.05]),
-                "undercharge_cost": np.array([0.03]),
+                "percentage": np.array([0.05, 0.05]),
+                "cost": np.array([0.03]),
             },
             overcharge={
-                "overcharge_percentage": np.array([0.95, 0.95]),
-                "overcharge_cost": np.array([0.04]),
+                "percentage": np.array([0.95, 0.95]),
+                "cost": np.array([0.04]),
             },
         ),
         "model": [
@@ -243,12 +243,12 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
                 "discharge_cost": np.array([0.002]),
             },
             undercharge={
-                "undercharge_percentage": np.array([0.05, 0.05]),
-                "undercharge_cost": np.array([0.03]),
+                "percentage": np.array([0.05, 0.05]),
+                "cost": np.array([0.03]),
             },
             overcharge={
-                "overcharge_percentage": np.array([0.95, 0.95]),
-                "overcharge_cost": np.array([0.04]),
+                "percentage": np.array([0.95, 0.95]),
+                "cost": np.array([0.04]),
             },
         ),
         "model_outputs": {

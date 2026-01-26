@@ -32,15 +32,13 @@ from .schema import (
     CONF_MAX_CHARGE_POWER,
     CONF_MAX_DISCHARGE_POWER,
     CONF_MIN_CHARGE_PERCENTAGE,
-    CONF_OVERCHARGE_COST,
-    CONF_OVERCHARGE_PERCENTAGE,
+    CONF_PARTITION_COST,
+    CONF_PARTITION_PERCENTAGE,
     CONF_SECTION_ADVANCED,
     CONF_SECTION_BASIC,
     CONF_SECTION_LIMITS,
     CONF_SECTION_OVERCHARGE,
     CONF_SECTION_UNDERCHARGE,
-    CONF_UNDERCHARGE_COST,
-    CONF_UNDERCHARGE_PERCENTAGE,
     ELEMENT_TYPE,
     BatteryConfigData,
     BatteryConfigSchema,
@@ -127,10 +125,10 @@ class BatteryAdapter:
             (advanced, CONF_EFFICIENCY),
             (advanced, CONF_EARLY_CHARGE_INCENTIVE),
             (advanced, CONF_DISCHARGE_COST),
-            (undercharge, CONF_UNDERCHARGE_PERCENTAGE),
-            (undercharge, CONF_UNDERCHARGE_COST),
-            (overcharge, CONF_OVERCHARGE_PERCENTAGE),
-            (overcharge, CONF_OVERCHARGE_COST),
+            (undercharge, CONF_PARTITION_PERCENTAGE),
+            (undercharge, CONF_PARTITION_COST),
+            (overcharge, CONF_PARTITION_PERCENTAGE),
+            (overcharge, CONF_PARTITION_COST),
         ]
         return all(entity_available(section.get(field)) for section, field in optional_checks)
 
@@ -280,15 +278,11 @@ class BatteryAdapter:
                 ),
             },
             CONF_SECTION_UNDERCHARGE: _partition_input_fields(
-                percentage_key=CONF_UNDERCHARGE_PERCENTAGE,
-                cost_key=CONF_UNDERCHARGE_COST,
                 percentage_default=0,
                 cost_default=0,
                 cost_direction="-",
             ),
             CONF_SECTION_OVERCHARGE: _partition_input_fields(
-                percentage_key=CONF_OVERCHARGE_PERCENTAGE,
-                cost_key=CONF_OVERCHARGE_COST,
                 percentage_default=100,
                 cost_default=0,
                 cost_direction="-",
@@ -320,10 +314,10 @@ class BatteryAdapter:
         max_charge_percentage = limits.get(CONF_MAX_CHARGE_PERCENTAGE, DEFAULTS[CONF_MAX_CHARGE_PERCENTAGE])
         efficiency = advanced.get(CONF_EFFICIENCY)
 
-        undercharge_cost = undercharge.get(CONF_UNDERCHARGE_COST)
-        overcharge_cost = overcharge.get(CONF_OVERCHARGE_COST)
-        undercharge_percentage = undercharge.get(CONF_UNDERCHARGE_PERCENTAGE) if undercharge_cost is not None else None
-        overcharge_percentage = overcharge.get(CONF_OVERCHARGE_PERCENTAGE) if overcharge_cost is not None else None
+        undercharge_cost = undercharge.get(CONF_PARTITION_COST)
+        overcharge_cost = overcharge.get(CONF_PARTITION_COST)
+        undercharge_percentage = undercharge.get(CONF_PARTITION_PERCENTAGE) if undercharge_cost is not None else None
+        overcharge_percentage = overcharge.get(CONF_PARTITION_PERCENTAGE) if overcharge_cost is not None else None
 
         lower_ratio = undercharge_percentage if undercharge_percentage is not None else min_charge_percentage
         upper_ratio = overcharge_percentage if overcharge_percentage is not None else max_charge_percentage
@@ -475,19 +469,17 @@ adapter = BatteryAdapter()
 
 def _partition_input_fields(
     *,
-    percentage_key: str,
-    cost_key: str,
     percentage_default: int,
     cost_default: int,
     cost_direction: str,
 ) -> dict[str, InputFieldInfo[Any]]:
     """Build shared input field definitions for partition sections."""
     return {
-        percentage_key: InputFieldInfo(
-            field_name=percentage_key,
+        CONF_PARTITION_PERCENTAGE: InputFieldInfo(
+            field_name=CONF_PARTITION_PERCENTAGE,
             entity_description=NumberEntityDescription(
-                key=percentage_key,
-                translation_key=f"{ELEMENT_TYPE}_{percentage_key}",
+                key=CONF_PARTITION_PERCENTAGE,
+                translation_key=f"{ELEMENT_TYPE}_{CONF_PARTITION_PERCENTAGE}",
                 native_unit_of_measurement=PERCENTAGE,
                 device_class=NumberDeviceClass.BATTERY,
                 native_min_value=0.0,
@@ -499,11 +491,11 @@ def _partition_input_fields(
             boundaries=True,
             defaults=InputFieldDefaults(mode="value", value=percentage_default),
         ),
-        cost_key: InputFieldInfo(
-            field_name=cost_key,
+        CONF_PARTITION_COST: InputFieldInfo(
+            field_name=CONF_PARTITION_COST,
             entity_description=NumberEntityDescription(
-                key=cost_key,
-                translation_key=f"{ELEMENT_TYPE}_{cost_key}",
+                key=CONF_PARTITION_COST,
+                translation_key=f"{ELEMENT_TYPE}_{CONF_PARTITION_COST}",
                 native_min_value=0.0,
                 native_max_value=10.0,
                 native_step=0.001,
@@ -527,8 +519,8 @@ def _calculate_total_energy(aggregate_energy: OutputData, config: BatteryConfigD
         DEFAULTS[CONF_MIN_CHARGE_PERCENTAGE],
     )
     undercharge = config.get(CONF_SECTION_UNDERCHARGE, {})
-    undercharge_cost = undercharge.get(CONF_UNDERCHARGE_COST)
-    undercharge_pct = undercharge.get(CONF_UNDERCHARGE_PERCENTAGE) if undercharge_cost is not None else None
+    undercharge_cost = undercharge.get(CONF_PARTITION_COST)
+    undercharge_pct = undercharge.get(CONF_PARTITION_PERCENTAGE) if undercharge_cost is not None else None
     unusable_ratio = undercharge_pct if undercharge_pct is not None else min_charge_percentage
 
     # Both energy values and capacity/ratios are now boundaries (n+1 values)

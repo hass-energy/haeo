@@ -12,15 +12,13 @@ from custom_components.haeo.elements.battery import (
     CONF_MAX_CHARGE_POWER,
     CONF_MAX_DISCHARGE_POWER,
     CONF_MIN_CHARGE_PERCENTAGE,
-    CONF_OVERCHARGE_COST,
-    CONF_OVERCHARGE_PERCENTAGE,
+    CONF_PARTITION_COST,
+    CONF_PARTITION_PERCENTAGE,
     CONF_SECTION_ADVANCED,
     CONF_SECTION_BASIC,
     CONF_SECTION_LIMITS,
     CONF_SECTION_OVERCHARGE,
     CONF_SECTION_UNDERCHARGE,
-    CONF_UNDERCHARGE_COST,
-    CONF_UNDERCHARGE_PERCENTAGE,
     BatteryConfigData,
 )
 from custom_components.haeo.elements.battery import CONF_CONNECTION as BATTERY_CONF_CONNECTION
@@ -199,12 +197,12 @@ def test_validate_network_topology_with_battery_all_sections() -> None:
             CONF_EFFICIENCY: np.array([95.0, 95.0]),
         },
         CONF_SECTION_UNDERCHARGE: {
-            CONF_UNDERCHARGE_PERCENTAGE: np.array([5.0, 5.0, 5.0]),
-            CONF_UNDERCHARGE_COST: np.array([0.05, 0.05]),
+            CONF_PARTITION_PERCENTAGE: np.array([5.0, 5.0, 5.0]),
+            CONF_PARTITION_COST: np.array([0.05, 0.05]),
         },
         CONF_SECTION_OVERCHARGE: {
-            CONF_OVERCHARGE_PERCENTAGE: np.array([95.0, 95.0, 95.0]),
-            CONF_OVERCHARGE_COST: np.array([0.02, 0.02]),
+            CONF_PARTITION_PERCENTAGE: np.array([95.0, 95.0, 95.0]),
+            CONF_PARTITION_COST: np.array([0.02, 0.02]),
         },
     }
     participants: dict[str, ElementConfigData] = {

@@ -43,10 +43,10 @@ def _wrap_config(flat: dict[str, object]) -> battery.BatteryConfigSchema:
             "configure_partitions",
         ):
             advanced[key] = value
-        elif key in ("undercharge_percentage", "undercharge_cost"):
-            undercharge[key] = value
-        elif key in ("overcharge_percentage", "overcharge_cost"):
-            overcharge[key] = value
+        elif key == "undercharge" and isinstance(value, dict):
+            undercharge.update(value)
+        elif key == "overcharge" and isinstance(value, dict):
+            overcharge.update(value)
 
     config: dict[str, object] = {
         "element_type": "battery",
@@ -276,8 +276,10 @@ def test_model_elements_overcharge_only_adds_soc_pricing() -> None:
             "initial_charge_percentage": np.array([0.5, 0.5]),
             "min_charge_percentage": np.array([0.1, 0.1, 0.1]),
             "max_charge_percentage": np.array([0.9, 0.9, 0.9]),
-            "overcharge_percentage": np.array([0.95, 0.95, 0.95]),
-            "overcharge_cost": np.array([0.2, 0.2]),
+            "overcharge": {
+                "percentage": np.array([0.95, 0.95, 0.95]),
+                "cost": np.array([0.2, 0.2]),
+            },
         }
     )
 
