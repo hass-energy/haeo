@@ -156,8 +156,7 @@ def _apply_interpolation_mode(
                 result.append((t1, v2))
             case "nearest":
                 mid = (t1 + t2) / 2
-                result.append((mid, v1))
-                result.append((mid, v2))
+                result.extend([(mid, v1), (mid, v2)])
             case _:
                 return list(data)
 
