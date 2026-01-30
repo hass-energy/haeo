@@ -17,6 +17,7 @@ from custom_components.haeo import HaeoRuntimeData
 from custom_components.haeo.const import (
     CONF_ELEMENT_TYPE,
     CONF_NAME,
+    CONF_RECORD_FORECASTS,
     DOMAIN,
     ELEMENT_TYPE_NETWORK,
     OUTPUT_NAME_OPTIMIZATION_DURATION,
@@ -27,6 +28,7 @@ from custom_components.haeo.elements.battery import BATTERY_STATE_OF_CHARGE
 from custom_components.haeo.elements.battery import ELEMENT_TYPE as BATTERY_TYPE
 from custom_components.haeo.elements.load import LOAD_POWER
 from custom_components.haeo.entities import HaeoSensor
+from custom_components.haeo.entities.haeo_sensor import FORECAST_UNRECORDED_ATTRIBUTES
 from custom_components.haeo.model import OutputType
 from custom_components.haeo.sensor import async_setup_entry
 
@@ -597,3 +599,54 @@ def test_handle_coordinator_update_missing_output_clears_value(device_entry: Dev
     coordinator.data = {"battery": {}}
     sensor._handle_coordinator_update()
     assert sensor.native_value is None
+
+
+
+# --- Recorder Filtering Tests ---
+
+
+@pytest.mark.parametrize(
+    ("record_forecasts", "expect_unrecorded"),
+    [
+        (False, True),  # Default: forecasts are excluded from recorder
+        (True, False),  # When enabled: forecasts are recorded
+    ],
+)
+def test_unrecorded_attributes_based_on_config(
+    device_entry: DeviceEntry,
+    record_forecasts: bool,
+    expect_unrecorded: bool,
+) -> None:
+    """Sensor sets _unrecorded_attributes based on record_forecasts config."""
+    coordinator = _create_mock_coordinator()
+    # Mock the config_entry.data.get behavior
+    coordinator.config_entry = Mock()
+    coordinator.config_entry.data = {CONF_RECORD_FORECASTS: record_forecasts}
+
+    output = _make_output(
+        type_=OutputType.POWER,
+        unit="kW",
+        state=1.0,
+        forecast=None,
+        entity_category=None,
+        device_class=SensorDeviceClass.POWER,
+        state_class=SensorStateClass.MEASUREMENT,
+        options=None,
+    )
+
+    sensor = HaeoSensor(
+        coordinator,
+        device_entry=device_entry,
+        subentry_key="battery",
+        device_key="battery",
+        element_title="Battery",
+        element_type=BATTERY_TYPE,
+        output_name=LOAD_POWER,
+        output_data=output,
+        unique_id="sensor-id",
+    )
+
+    if expect_unrecorded:
+        assert sensor._unrecorded_attributes == FORECAST_UNRECORDED_ATTRIBUTES
+    else:
+        assert not hasattr(sensor, "_unrecorded_attributes") or sensor._unrecorded_attributes == frozenset()
