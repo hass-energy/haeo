@@ -1,15 +1,18 @@
 """Data extractor package for different energy data providers."""
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from enum import StrEnum
-from typing import NamedTuple
+from typing import Any, NamedTuple
 
 from homeassistant.components.sensor import SensorDeviceClass
 from homeassistant.core import State
 
+from custom_components.haeo.data.util import InterpolationMode
+
 from . import aemo_nem, amber2mqtt, amberelectric, emhass, flow_power, haeo, open_meteo_solar_forecast, solcast_solar
 from .utils import (
     EntityMetadata,
+    apply_interpolation_mode,
     base_unit_for_device_class,
     convert_to_base_unit,
     extract_entity_metadata,
@@ -108,11 +111,29 @@ def extract(state: State) -> ExtractedData:
         ]
         # Separate duplicate timestamps to prevent interpolation (also converts int timestamps to float)
         separated_data = separate_duplicate_timestamps(converted_data)
+
+        # Apply interpolation mode if specified
+        interpolation_mode = _get_interpolation_mode(state.attributes)
+        if interpolation_mode != InterpolationMode.LINEAR:
+            separated_data = apply_interpolation_mode(separated_data, interpolation_mode)
+
         return ExtractedData(separated_data, base_unit)
 
     # Convert single value
     converted_value = convert_to_base_unit(data, unit_str, device_class)
     return ExtractedData(converted_value, base_unit)
+
+
+def _get_interpolation_mode(attributes: Mapping[str, Any]) -> InterpolationMode:
+    """Extract interpolation mode from state attributes, defaulting to LINEAR."""
+    mode_str = attributes.get("interpolation_mode")
+    if mode_str is None:
+        return InterpolationMode.LINEAR
+
+    try:
+        return InterpolationMode(mode_str)
+    except ValueError:
+        return InterpolationMode.LINEAR
 
 
 __all__ = [
