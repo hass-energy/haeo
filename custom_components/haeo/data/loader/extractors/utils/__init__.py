@@ -1,6 +1,5 @@
 """Extractor utility functions for data extraction and parsing."""
 
-from .apply_interpolation_mode import apply_interpolation_mode
 from .base_unit import base_unit_for_device_class, convert_to_base_unit
 from .entity_metadata import EntityMetadata, extract_entity_metadata
 from .parse_datetime import is_parsable_to_datetime, parse_datetime_to_timestamp
@@ -8,7 +7,6 @@ from .separate_timestamps import separate_duplicate_timestamps
 
 __all__ = [
     "EntityMetadata",
-    "apply_interpolation_mode",
     "base_unit_for_device_class",
     "convert_to_base_unit",
     "extract_entity_metadata",

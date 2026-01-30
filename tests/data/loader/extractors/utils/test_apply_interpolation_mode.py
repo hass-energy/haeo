@@ -3,9 +3,9 @@
 import numpy as np
 import pytest
 
-from custom_components.haeo.data.loader.extractors.utils.apply_interpolation_mode import (
-    EPSILON,
-    apply_interpolation_mode,
+from custom_components.haeo.data.loader.extractors.haeo import (
+    _EPSILON as EPSILON,
+    _apply_interpolation_mode as apply_interpolation_mode,
 )
 from custom_components.haeo.data.util import InterpolationMode
 

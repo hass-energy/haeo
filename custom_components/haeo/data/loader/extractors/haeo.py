@@ -15,7 +15,13 @@ from homeassistant.core import State
 
 from custom_components.haeo.data.util import InterpolationMode
 
-from .utils import apply_interpolation_mode, is_parsable_to_datetime, parse_datetime_to_timestamp
+from .utils import is_parsable_to_datetime, parse_datetime_to_timestamp
+
+# Small epsilon for creating step transitions (1 millisecond)
+_EPSILON = 0.001
+
+# Minimum points needed to apply interpolation mode (need at least 2 for transitions)
+_MIN_POINTS = 2
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -112,7 +118,7 @@ class Parser:
         # Apply interpolation mode if specified
         interpolation_mode = _get_interpolation_mode(state.attributes)
         if interpolation_mode != InterpolationMode.LINEAR:
-            parsed = apply_interpolation_mode(parsed, interpolation_mode)
+            parsed = _apply_interpolation_mode(parsed, interpolation_mode)
 
         unit = state.attributes["unit_of_measurement"]
 
@@ -137,3 +143,47 @@ def _get_interpolation_mode(attributes: Mapping[str, object]) -> InterpolationMo
         return InterpolationMode(mode_str)
     except ValueError:
         return InterpolationMode.LINEAR
+
+
+def _apply_interpolation_mode(
+    data: Sequence[tuple[float, float]],
+    mode: InterpolationMode,
+) -> list[tuple[float, float]]:
+    """Apply interpolation mode by generating synthetic intermediate points.
+
+    Converts non-linear interpolation into a series that behaves correctly
+    with linear interpolation by adding synthetic points at transitions.
+
+    Args:
+        data: Sorted sequence of (timestamp, value) tuples
+        mode: Interpolation mode to apply
+
+    Returns:
+        New series with synthetic points added for non-linear modes.
+        For LINEAR mode, returns a copy of the original data.
+
+    """
+    if not data or len(data) < _MIN_POINTS:
+        return list(data)
+
+    if mode == InterpolationMode.LINEAR:
+        return list(data)
+
+    result = [data[0]]
+    for i in range(len(data) - 1):
+        t1, v1 = data[i]
+        t2, v2 = data[i + 1]
+
+        match mode:
+            case InterpolationMode.PREVIOUS:
+                result.append((t2 - _EPSILON, v1))
+            case InterpolationMode.NEXT:
+                result.append((t1 + _EPSILON, v2))
+            case InterpolationMode.NEAREST:
+                mid = (t1 + t2) / 2
+                result.append((mid - _EPSILON, v1))
+                result.append((mid, v2))
+
+        result.append((t2, v2))
+
+    return result
