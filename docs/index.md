@@ -101,6 +101,12 @@ For **contributors and developers**:
 - **Discussions**: Ask questions in [GitHub Discussions](https://github.com/hass-energy/haeo/discussions)
 - **Contributing**: See our [contribution guidelines](developer-guide/contributing.md)
 
+## Support the Project
+
+If HAEO has helped you save on your energy bills, consider buying us a coffee!
+
+<script type="text/javascript" src="https://cdnjs.buymeacoffee.com/1.0.0/button.prod.min.js" data-name="bmc-button" data-slug="haeo.io" data-color="#5F7FFF" data-emoji="" data-font="Lato" data-text="Buy us a coffee" data-outline-color="#000000" data-font-color="#ffffff" data-coffee-color="#FFDD00"></script>
+
 ## Next Steps
 
 <div class="grid cards" markdown>

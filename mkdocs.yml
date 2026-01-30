@@ -115,11 +115,14 @@ extra:
   social:
     - icon: fontawesome/brands/github
       link: https://github.com/hass-energy/haeo
+    - icon: simple/buymeacoffee
+      link: https://buymeacoffee.com/haeo.io
   version:
     provider: mike
 
 extra_javascript:
   - javascripts/katex.js
+  - javascripts/coffee.js
   - https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js
   - https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js
 
