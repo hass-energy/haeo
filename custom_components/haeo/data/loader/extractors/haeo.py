@@ -13,7 +13,9 @@ from typing import Literal, NotRequired, Protocol, TypedDict, TypeGuard
 from homeassistant.components.sensor import SensorDeviceClass
 from homeassistant.core import State
 
-from .utils import is_parsable_to_datetime, parse_datetime_to_timestamp
+from custom_components.haeo.data.util import InterpolationMode
+
+from .utils import apply_interpolation_mode, is_parsable_to_datetime, parse_datetime_to_timestamp
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -34,6 +36,7 @@ class HaeoForecastAttributes(TypedDict):
     forecast: Sequence[HaeoForecastPoint]
     unit_of_measurement: str
     device_class: NotRequired[str]
+    interpolation_mode: NotRequired[str]
 
 
 class HaeoForecastState(Protocol):
@@ -101,8 +104,15 @@ class Parser:
         forecast = state.attributes["forecast"]
 
         # Parse list of {"time": ..., "value": ...} dicts
-        parsed = [(parse_datetime_to_timestamp(item["time"]), float(item["value"])) for item in forecast]
+        parsed: list[tuple[float, float]] = [
+            (float(parse_datetime_to_timestamp(item["time"])), float(item["value"])) for item in forecast
+        ]
         parsed.sort(key=lambda x: x[0])
+
+        # Apply interpolation mode if specified
+        interpolation_mode = _get_interpolation_mode(state.attributes)
+        if interpolation_mode != InterpolationMode.LINEAR:
+            parsed = apply_interpolation_mode(parsed, interpolation_mode)
 
         unit = state.attributes["unit_of_measurement"]
 
@@ -112,4 +122,18 @@ class Parser:
             with suppress(ValueError):
                 device_class = SensorDeviceClass(device_class_attr)
 
-        return parsed, unit, device_class
+        # Cast back to int timestamps for compatibility with other extractors
+        result: list[tuple[int, float]] = [(int(ts), value) for ts, value in parsed]
+        return result, unit, device_class
+
+
+def _get_interpolation_mode(attributes: Mapping[str, object]) -> InterpolationMode:
+    """Extract interpolation mode from state attributes, defaulting to LINEAR."""
+    mode_str = attributes.get("interpolation_mode")
+    if not isinstance(mode_str, str):
+        return InterpolationMode.LINEAR
+
+    try:
+        return InterpolationMode(mode_str)
+    except ValueError:
+        return InterpolationMode.LINEAR
