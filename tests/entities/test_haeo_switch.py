@@ -1141,7 +1141,6 @@ async def test_wait_ready_blocks_until_data_loaded(
     assert entity.is_ready() is True
 
 
-
 # --- Recorder Filtering Tests ---
 
 

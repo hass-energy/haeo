@@ -601,7 +601,6 @@ def test_handle_coordinator_update_missing_output_clears_value(device_entry: Dev
     assert sensor.native_value is None
 
 
-
 # --- Recorder Filtering Tests ---
 
 

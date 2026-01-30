@@ -18,8 +18,8 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 from custom_components.haeo.const import CONF_NAME, CONF_RECORD_FORECASTS, DOMAIN
 from custom_components.haeo.elements.input_fields import InputFieldInfo
 from custom_components.haeo.entities.haeo_number import (
-    ConfigEntityMode,
     FORECAST_UNRECORDED_ATTRIBUTES,
+    ConfigEntityMode,
     HaeoInputNumber,
 )
 from custom_components.haeo.horizon import HorizonManager
@@ -1185,7 +1185,6 @@ async def test_wait_ready_blocks_until_data_loaded(
     await asyncio.wait_for(wait_task, timeout=1.0)
 
     assert entity.is_ready() is True
-
 
 
 # --- Recorder Filtering Tests ---
