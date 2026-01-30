@@ -156,7 +156,7 @@ def _apply_interpolation_mode(
                 mid = (t1 + t2) / 2
                 result.extend([(mid, v1), (mid, v2)])
             case _:
-                return data
+                pass
 
         result.append((t2, v2))
 
