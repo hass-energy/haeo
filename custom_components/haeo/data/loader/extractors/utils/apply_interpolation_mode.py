@@ -32,20 +32,15 @@ def apply_interpolation_mode(
     if not data or len(data) < MIN_POINTS:
         return list(data)
 
-    if mode == InterpolationMode.LINEAR:
-        return list(data)
-
-    if mode == InterpolationMode.PREVIOUS:
-        return _apply_previous(data)
-
-    if mode == InterpolationMode.NEXT:
-        return _apply_next(data)
-
-    if mode == InterpolationMode.NEAREST:
-        return _apply_nearest(data)
-
-    # Fallback for unknown modes - treat as linear
-    return list(data)
+    match mode:
+        case InterpolationMode.LINEAR:
+            return list(data)
+        case InterpolationMode.PREVIOUS:
+            return _apply_previous(data)
+        case InterpolationMode.NEXT:
+            return _apply_next(data)
+        case InterpolationMode.NEAREST:
+            return _apply_nearest(data)
 
 
 def _apply_previous(data: Sequence[tuple[float, float]]) -> list[tuple[float, float]]:
