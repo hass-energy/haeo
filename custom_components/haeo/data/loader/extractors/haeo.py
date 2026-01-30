@@ -13,12 +13,7 @@ from typing import Literal, NotRequired, Protocol, TypedDict, TypeGuard
 from homeassistant.components.sensor import SensorDeviceClass
 from homeassistant.core import State
 
-from custom_components.haeo.data.util import InterpolationMode
-
 from .utils import is_parsable_to_datetime, parse_datetime_to_timestamp
-
-# Minimum points needed to apply interpolation mode (need at least 2 for transitions)
-_MIN_POINTS = 2
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -113,9 +108,7 @@ class Parser:
         parsed.sort(key=lambda x: x[0])
 
         # Apply interpolation mode if specified
-        interpolation_mode = _get_interpolation_mode(state.attributes)
-        if interpolation_mode != InterpolationMode.LINEAR:
-            parsed = _apply_interpolation_mode(parsed, interpolation_mode)
+        parsed = _apply_interpolation_mode(parsed, state.attributes.get("interpolation_mode"))
 
         unit = state.attributes["unit_of_measurement"]
 
@@ -130,21 +123,9 @@ class Parser:
         return result, unit, device_class
 
 
-def _get_interpolation_mode(attributes: Mapping[str, object]) -> InterpolationMode:
-    """Extract interpolation mode from state attributes, defaulting to LINEAR."""
-    mode_str = attributes.get("interpolation_mode")
-    if not isinstance(mode_str, str):
-        return InterpolationMode.LINEAR
-
-    try:
-        return InterpolationMode(mode_str)
-    except ValueError:
-        return InterpolationMode.LINEAR
-
-
 def _apply_interpolation_mode(
     data: Sequence[tuple[float, float]],
-    mode: InterpolationMode,
+    mode: str | None,
 ) -> list[tuple[float, float]]:
     """Apply interpolation mode by generating synthetic intermediate points.
 
@@ -160,10 +141,7 @@ def _apply_interpolation_mode(
         For LINEAR mode, returns a copy of the original data.
 
     """
-    if not data or len(data) < _MIN_POINTS:
-        return list(data)
-
-    if mode == InterpolationMode.LINEAR:
+    if len(data) <= 1 or not mode or mode == "linear":
         return list(data)
 
     result = [data[0]]
@@ -172,14 +150,16 @@ def _apply_interpolation_mode(
         t2, v2 = data[i + 1]
 
         match mode:
-            case InterpolationMode.PREVIOUS:
+            case "previous":
                 result.append((t2, v1))
-            case InterpolationMode.NEXT:
+            case "next":
                 result.append((t1, v2))
-            case InterpolationMode.NEAREST:
+            case "nearest":
                 mid = (t1 + t2) / 2
                 result.append((mid, v1))
                 result.append((mid, v2))
+            case _:
+                return list(data)
 
         result.append((t2, v2))
 
