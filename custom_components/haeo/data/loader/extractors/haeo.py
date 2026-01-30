@@ -17,9 +17,6 @@ from custom_components.haeo.data.util import InterpolationMode
 
 from .utils import is_parsable_to_datetime, parse_datetime_to_timestamp
 
-# Small epsilon for creating step transitions (1 millisecond)
-_EPSILON = 0.001
-
 # Minimum points needed to apply interpolation mode (need at least 2 for transitions)
 _MIN_POINTS = 2
 
@@ -176,12 +173,12 @@ def _apply_interpolation_mode(
 
         match mode:
             case InterpolationMode.PREVIOUS:
-                result.append((t2 - _EPSILON, v1))
+                result.append((t2, v1))
             case InterpolationMode.NEXT:
-                result.append((t1 + _EPSILON, v2))
+                result.append((t1, v2))
             case InterpolationMode.NEAREST:
                 mid = (t1 + t2) / 2
-                result.append((mid - _EPSILON, v1))
+                result.append((mid, v1))
                 result.append((mid, v2))
 
         result.append((t2, v2))
