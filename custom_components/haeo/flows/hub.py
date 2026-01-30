@@ -14,6 +14,7 @@ from custom_components.haeo.const import (
     CONF_ELEMENT_TYPE,
     CONF_HORIZON_PRESET,
     CONF_INTEGRATION_TYPE,
+    CONF_RECORD_FORECASTS,
     DEFAULT_DEBOUNCE_SECONDS,
     DOMAIN,
     ELEMENT_TYPE_NETWORK,
@@ -112,6 +113,7 @@ class HubConfigFlow(ConfigFlow, domain=DOMAIN):
                 **tier_config,
                 CONF_DEBOUNCE_SECONDS: DEFAULT_DEBOUNCE_SECONDS,
                 CONF_ADVANCED_MODE: self._user_input[CONF_ADVANCED_MODE],
+                CONF_RECORD_FORECASTS: self._user_input.get(CONF_RECORD_FORECASTS, False),
             },
             subentries=[
                 # Network subentry for optimization sensors

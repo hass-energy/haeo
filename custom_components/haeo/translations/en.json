@@ -9,7 +9,8 @@
           "advanced_mode": "Advanced Mode",
           "debounce_seconds": "Debounce Window (seconds)",
           "horizon_preset": "Planning Horizon",
-          "name": "System Name"
+          "name": "System Name",
+          "record_forecasts": "Record forecast data"
         }
       },
       "custom_tiers": {
@@ -52,7 +53,8 @@
         "data": {
           "advanced_mode": "Advanced Mode",
           "debounce_seconds": "Debounce Window (seconds)",
-          "horizon_preset": "Planning Horizon"
+          "horizon_preset": "Planning Horizon",
+          "record_forecasts": "Record forecast data"
         }
       }
     },

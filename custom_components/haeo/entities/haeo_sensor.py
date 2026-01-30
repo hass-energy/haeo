@@ -9,9 +9,13 @@ from homeassistant.helpers.device_registry import DeviceEntry
 from homeassistant.helpers.typing import StateType
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
+from custom_components.haeo.const import CONF_RECORD_FORECASTS
 from custom_components.haeo.coordinator import CoordinatorOutput, ForecastPoint, HaeoDataUpdateCoordinator
 from custom_components.haeo.elements import ElementDeviceName, ElementOutputName
 from custom_components.haeo.model import OutputType
+
+# Attributes to exclude from recorder when forecast recording is disabled
+FORECAST_UNRECORDED_ATTRIBUTES: frozenset[str] = frozenset({"forecast"})
 
 
 class HaeoSensor(CoordinatorEntity[HaeoDataUpdateCoordinator], SensorEntity):
@@ -56,6 +60,10 @@ class HaeoSensor(CoordinatorEntity[HaeoDataUpdateCoordinator], SensorEntity):
         if translation_placeholders is not None:
             self._attr_translation_placeholders = translation_placeholders
         self._apply_output(output_data)
+
+        # Exclude forecast from recorder unless explicitly enabled
+        if not coordinator.config_entry.data.get(CONF_RECORD_FORECASTS, False):
+            self._unrecorded_attributes = FORECAST_UNRECORDED_ATTRIBUTES
 
     @property
     def available(self) -> bool:  # pyright: ignore[reportIncompatibleVariableOverride]
