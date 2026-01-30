@@ -153,7 +153,6 @@ def get_hub_setup_schema(suggested_name: str | None = None) -> vol.Schema:
                 )
             ),
             vol.Required(CONF_ADVANCED_MODE, default=False): bool,
-            vol.Optional(CONF_RECORD_FORECASTS, default=False): bool,
         }
     )
 

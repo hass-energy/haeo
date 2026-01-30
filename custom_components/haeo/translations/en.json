@@ -9,8 +9,7 @@
           "advanced_mode": "Advanced Mode",
           "debounce_seconds": "Debounce Window (seconds)",
           "horizon_preset": "Planning Horizon",
-          "name": "System Name",
-          "record_forecasts": "Record forecast data"
+          "name": "System Name"
         }
       },
       "custom_tiers": {
@@ -55,6 +54,9 @@
           "debounce_seconds": "Debounce Window (seconds)",
           "horizon_preset": "Planning Horizon",
           "record_forecasts": "Record forecast data"
+        },
+        "data_description": {
+          "record_forecasts": "When enabled, forecast attributes are saved to the recorder database. This significantly increases database size but allows debugging historical forecasts. Disabled by default to reduce database load."
         }
       }
     },
