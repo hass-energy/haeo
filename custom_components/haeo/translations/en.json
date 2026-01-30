@@ -376,7 +376,7 @@
     "config_entry_not_loaded": { "message": "Config entry {entry_id} is not loaded (state: {state})" },
     "config_entry_wrong_domain": { "message": "Config entry {entry_id} is not a HAEO hub (domain: {domain})" },
     "input_entities_not_ready": {
-      "message": "Input entities not ready after 30 seconds: {not_ready}. Some sensors may not be available yet."
+      "message": "Input entities not ready after {timeout} seconds: {not_ready}. Some sensors may not be available yet."
     },
     "missing_sensors": {
       "message": "HAEO cannot load data for {unavailable_sensors}. Verify each referenced sensor exists and is reporting data."
