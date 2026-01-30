@@ -224,6 +224,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         self._debounce_timer: CALLBACK_TYPE | None = None
         self._pending_refresh: bool = False
         self._optimization_in_progress: bool = False  # Prevent concurrent optimizations
+        self._pending_element_updates: dict[str, ElementConfigData] = {}
 
         # No update_interval - we're event-driven from input entities
         # No request_refresh_debouncer - we handle debouncing ourselves
@@ -337,9 +338,6 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
     def _handle_element_update(self, element_name: str) -> None:
         """Handle an update to a specific element's input entities.
 
-        Updates only that element's TrackedParams in the network, then triggers
-        optimization with debouncing.
-
         The network is guaranteed to exist because it's created in async_initialize()
         before this handler is registered.
         """
@@ -350,8 +348,8 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             _LOGGER.exception("Failed to load config for element %s due to invalid input entities", element_name)
             return
 
-        # Update just this element's TrackedParams
-        network_module.update_element(self.network, element_config)
+        # Defer network update until optimization time
+        self._pending_element_updates[element_name] = element_config
 
         # Trigger optimization (with debouncing)
         self.signal_optimization_stale()
@@ -602,6 +600,18 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             self._debounce_timer()
             self._debounce_timer = None
 
+        self._pending_element_updates.clear()
+
+    def _apply_pending_element_updates(self) -> None:
+        """Apply all pending element updates to the network.
+
+        Called at optimization time to batch-apply updates that were deferred
+        during input entity state changes.
+        """
+        for element_config in self._pending_element_updates.values():
+            network_module.update_element(self.network, element_config)
+        self._pending_element_updates.clear()
+
     async def _async_update_data(self) -> CoordinatorData:
         """Update data from input entities and run optimization."""
         # Check if optimization is already in progress
@@ -644,6 +654,9 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
 
             # Network should have been created in async_initialize() or set manually in tests.
             network = self.network
+
+            # Apply any pending element updates before optimization
+            self._apply_pending_element_updates()
 
             # Perform the optimization
             cost = await self.hass.async_add_executor_job(network.optimize)
