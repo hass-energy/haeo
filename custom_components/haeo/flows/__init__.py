@@ -19,6 +19,7 @@ from custom_components.haeo.const import (
     CONF_DEBOUNCE_SECONDS,
     CONF_HORIZON_PRESET,
     CONF_NAME,
+    CONF_RECORD_FORECASTS,
     CONF_TIER_1_COUNT,
     CONF_TIER_1_DURATION,
     CONF_TIER_2_COUNT,
@@ -282,6 +283,10 @@ def get_hub_options_schema(config_entry: ConfigEntry) -> vol.Schema:
             vol.Required(
                 CONF_ADVANCED_MODE,
                 default=config_entry.data.get(CONF_ADVANCED_MODE, False),
+            ): bool,
+            vol.Optional(
+                CONF_RECORD_FORECASTS,
+                default=config_entry.data.get(CONF_RECORD_FORECASTS, False),
             ): bool,
         }
     )

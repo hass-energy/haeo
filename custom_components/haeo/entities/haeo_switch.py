@@ -13,10 +13,14 @@ from homeassistant.helpers.event import EventStateChangedData, async_track_state
 from homeassistant.util import dt as dt_util
 
 from custom_components.haeo import HaeoConfigEntry
+from custom_components.haeo.const import CONF_RECORD_FORECASTS
 from custom_components.haeo.elements.input_fields import InputFieldInfo
 from custom_components.haeo.entities.haeo_number import ConfigEntityMode
 from custom_components.haeo.horizon import HorizonManager
 from custom_components.haeo.util import async_update_subentry_value
+
+# Attributes to exclude from recorder when forecast recording is disabled
+FORECAST_UNRECORDED_ATTRIBUTES: frozenset[str] = frozenset({"forecast"})
 
 
 class HaeoInputSwitch(SwitchEntity):
@@ -96,6 +100,10 @@ class HaeoInputSwitch(SwitchEntity):
 
         # Event that signals data is ready for coordinator access
         self._data_ready = asyncio.Event()
+
+        # Exclude forecast from recorder unless explicitly enabled
+        if not config_entry.data.get(CONF_RECORD_FORECASTS, False):
+            self._unrecorded_attributes = FORECAST_UNRECORDED_ATTRIBUTES
 
         # Initialize forecast immediately for EDITABLE mode entities
         # This ensures get_values() returns data before async_added_to_hass() is called

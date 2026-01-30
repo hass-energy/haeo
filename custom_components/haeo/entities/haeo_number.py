@@ -14,10 +14,14 @@ from homeassistant.helpers.event import EventStateChangedData, async_track_state
 from homeassistant.util import dt as dt_util
 
 from custom_components.haeo import HaeoConfigEntry
+from custom_components.haeo.const import CONF_RECORD_FORECASTS
 from custom_components.haeo.data.loader import TimeSeriesLoader
 from custom_components.haeo.elements.input_fields import InputFieldInfo
 from custom_components.haeo.horizon import HorizonManager
 from custom_components.haeo.util import async_update_subentry_value
+
+# Attributes to exclude from recorder when forecast recording is disabled
+FORECAST_UNRECORDED_ATTRIBUTES: frozenset[str] = frozenset({"forecast"})
 
 
 class ConfigEntityMode(Enum):
@@ -116,6 +120,10 @@ class HaeoInputNumber(NumberEntity):
 
         # Event that signals data is ready for coordinator access
         self._data_ready = asyncio.Event()
+
+        # Exclude forecast from recorder unless explicitly enabled
+        if not config_entry.data.get(CONF_RECORD_FORECASTS, False):
+            self._unrecorded_attributes = FORECAST_UNRECORDED_ATTRIBUTES
 
     def _get_forecast_timestamps(self) -> tuple[float, ...]:
         """Get forecast timestamps from horizon manager."""

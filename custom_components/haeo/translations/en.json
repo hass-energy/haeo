@@ -52,7 +52,12 @@
         "data": {
           "advanced_mode": "Advanced Mode",
           "debounce_seconds": "Debounce Window (seconds)",
-          "horizon_preset": "Planning Horizon"
+          "horizon_preset": "Planning Horizon",
+          "record_forecasts": "Record forecast data"
+        },
+        "data_description": {
+          "advanced_mode": "Reveals additional element types for complex energy systems.",
+          "record_forecasts": "When enabled, forecast attributes are saved to the recorder database. This significantly increases database size but allows debugging historical forecasts. Disabled by default to reduce database load."
         }
       }
     },
