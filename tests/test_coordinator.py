@@ -627,29 +627,29 @@ def test_coordinator_cleanup_invokes_listener(
 
 
 @pytest.mark.usefixtures("mock_battery_subentry", "mock_grid_subentry")
-def test_element_state_change_triggers_update_and_optimization(
+def test_element_state_change_defers_update_and_triggers_optimization(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
     mock_runtime_data: HaeoRuntimeData,
 ) -> None:
-    """Input entity state change events update element and trigger optimization."""
+    """Input entity state change events defer element update and trigger optimization."""
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
+    element_config = {"element_type": "battery", "name": "Test Battery"}
 
     with (
         patch.object(coordinator, "_load_element_config") as load_mock,
         patch.object(coordinator, "signal_optimization_stale") as trigger_mock,
-        patch("custom_components.haeo.coordinator.coordinator.network_module.update_element") as update_mock,
     ):
-        load_mock.return_value = {"element_type": "battery", "name": "Test Battery"}
-        # Set network so update path is taken
+        load_mock.return_value = element_config
         coordinator.network = MagicMock()
 
         # Simulate an element update
         coordinator._handle_element_update("Test Battery")
 
     load_mock.assert_called_once_with("Test Battery")
-    update_mock.assert_called_once()
     trigger_mock.assert_called_once()
+    # Config is stored in pending updates dict, not applied immediately
+    assert coordinator._pending_element_updates == {"Test Battery": element_config}
 
 
 @pytest.mark.usefixtures("mock_battery_subentry", "mock_grid_subentry")
