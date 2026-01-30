@@ -103,9 +103,7 @@ class Parser:
         forecast = state.attributes["forecast"]
 
         # Parse list of {"time": ..., "value": ...} dicts
-        parsed: list[tuple[float, float]] = [
-            (float(parse_datetime_to_timestamp(item["time"])), float(item["value"])) for item in forecast
-        ]
+        parsed = [(parse_datetime_to_timestamp(item["time"]), float(item["value"])) for item in forecast]
         parsed.sort(key=lambda x: x[0])
 
         # Apply interpolation mode if specified
@@ -119,15 +117,13 @@ class Parser:
             with suppress(ValueError):
                 device_class = SensorDeviceClass(device_class_attr)
 
-        # Cast back to int timestamps for compatibility with other extractors
-        result: list[tuple[int, float]] = [(int(ts), value) for ts, value in parsed]
-        return result, unit, device_class
+        return parsed, unit, device_class
 
 
 def _apply_interpolation_mode(
-    data: list[tuple[float, float]],
+    data: list[tuple[int, float]],
     mode: str | None,
-) -> list[tuple[float, float]]:
+) -> list[tuple[int, float]]:
     """Apply interpolation mode by generating synthetic intermediate points.
 
     Converts non-linear interpolation into a series that behaves correctly
@@ -153,7 +149,7 @@ def _apply_interpolation_mode(
             case "next":
                 result.append((t1, v2))
             case "nearest":
-                mid = (t1 + t2) / 2
+                mid = (t1 + t2) // 2
                 result.extend([(mid, v1), (mid, v2)])
             case _:
                 pass
