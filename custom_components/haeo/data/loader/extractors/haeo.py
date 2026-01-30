@@ -124,7 +124,7 @@ class Parser:
 
 
 def _apply_interpolation_mode(
-    data: Sequence[tuple[float, float]],
+    data: list[tuple[float, float]],
     mode: str | None,
 ) -> list[tuple[float, float]]:
     """Apply interpolation mode by generating synthetic intermediate points.
@@ -142,7 +142,7 @@ def _apply_interpolation_mode(
 
     """
     if len(data) <= 1 or not mode or mode == "linear":
-        return list(data)
+        return data
 
     result = [data[0]]
     for i in range(len(data) - 1):
@@ -158,7 +158,7 @@ def _apply_interpolation_mode(
                 mid = (t1 + t2) / 2
                 result.extend([(mid, v1), (mid, v2)])
             case _:
-                return list(data)
+                return data
 
         result.append((t2, v2))
 
