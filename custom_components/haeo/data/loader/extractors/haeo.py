@@ -7,6 +7,7 @@ attribute containing a mapping of datetime keys to float values.
 from collections.abc import Mapping, Sequence
 from contextlib import suppress
 from datetime import datetime
+from itertools import pairwise
 import logging
 from typing import Literal, NotRequired, Protocol, TypedDict, TypeGuard
 
@@ -145,10 +146,7 @@ def _apply_interpolation_mode(
         return data
 
     result = [data[0]]
-    for i in range(len(data) - 1):
-        t1, v1 = data[i]
-        t2, v2 = data[i + 1]
-
+    for (t1, v1), (t2, v2) in pairwise(data):
         match mode:
             case "previous":
                 result.append((t2, v1))
