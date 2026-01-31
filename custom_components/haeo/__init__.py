@@ -4,13 +4,14 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass, field
+from datetime import datetime
 import logging
 from types import MappingProxyType
 from typing import TYPE_CHECKING
 
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry
 from homeassistant.const import Platform
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, State
 from homeassistant.exceptions import ConfigEntryError, ConfigEntryNotReady
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.translation import async_get_translations
@@ -50,6 +51,25 @@ async def async_setup(hass: HomeAssistant, _config: ConfigType) -> bool:
 
 
 @dataclass(slots=True)
+class OptimizationSnapshot:
+    """Snapshot of inputs at optimization time for diagnostics reproducibility.
+
+    This ensures diagnostics captures the exact state that produced the outputs,
+    not the state at the moment diagnostics is requested.
+
+    Attributes:
+        timestamp: When the optimization ran.
+        forecast_timestamps: Horizon boundary timestamps used for the optimization.
+        source_states: Raw source sensor states captured at optimization time.
+
+    """
+
+    timestamp: datetime
+    forecast_timestamps: tuple[float, ...]
+    source_states: dict[str, State]
+
+
+@dataclass(slots=True)
 class HaeoRuntimeData:
     """Runtime data for HAEO integration.
 
@@ -59,6 +79,7 @@ class HaeoRuntimeData:
         auto_optimize_switch: Switch controlling automatic optimization.
         coordinator: Coordinator for network-level optimization (set after input platforms).
         value_update_in_progress: Flag to skip reload when updating entity values.
+        optimization_snapshot: Snapshot of inputs at last optimization for diagnostics.
 
     """
 
@@ -67,6 +88,7 @@ class HaeoRuntimeData:
     auto_optimize_switch: AutoOptimizeSwitch | None = field(default=None)
     coordinator: HaeoDataUpdateCoordinator | None = field(default=None)
     value_update_in_progress: bool = field(default=False)
+    optimization_snapshot: OptimizationSnapshot | None = field(default=None)
 
 
 type HaeoConfigEntry = ConfigEntry[HaeoRuntimeData | None]

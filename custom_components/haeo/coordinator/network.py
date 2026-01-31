@@ -19,7 +19,7 @@ from custom_components.haeo.validation import format_component_summary, validate
 _LOGGER = logging.getLogger(__name__)
 
 
-def _collect_model_elements(
+def collect_model_elements(
     participants: Mapping[str, ElementConfigData],
 ) -> list[ModelElementConfig]:
     """Collect and sort model elements from all participants."""
@@ -51,7 +51,7 @@ async def create_network(
         _LOGGER.info("No participants configured for hub - returning empty network")
         return net
 
-    sorted_model_elements = _collect_model_elements(participants)
+    sorted_model_elements = collect_model_elements(participants)
 
     for model_element_config in sorted_model_elements:
         element_name = model_element_config.get("name")
@@ -175,6 +175,7 @@ async def evaluate_network_connectivity(
 
 
 __all__ = [
+    "collect_model_elements",
     "create_network",
     "evaluate_network_connectivity",
     "update_element",
