@@ -553,7 +553,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         optional_keys: frozenset[str] = getattr(schema_cls, "__optional_keys__", frozenset())
         for field_info in input_field_infos.values():
             field_name = field_info.field_name
-            is_required = field_info.force_required or field_name not in optional_keys
+            is_required = field_name not in optional_keys
             if not is_required:
                 continue
             value = element_values.get(field_name)
