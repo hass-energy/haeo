@@ -13,9 +13,11 @@ from custom_components.haeo.elements.battery import (
     CONF_MAX_CHARGE_POWER,
     CONF_MAX_DISCHARGE_POWER,
     CONF_MIN_CHARGE_PERCENTAGE,
-    CONF_SECTION_ADVANCED,
-    CONF_SECTION_BASIC,
-    CONF_SECTION_LIMITS,
+    SECTION_ADVANCED,
+    SECTION_BASIC,
+    SECTION_LIMITS,
+    SECTION_PRICING,
+    SECTION_STORAGE,
 )
 
 # Test data for battery flow - single-step with choose selector (plus optional partition step)
@@ -24,21 +26,25 @@ VALID_DATA = [
     {
         "description": "Basic battery configuration",
         "config": {
-            CONF_SECTION_BASIC: {
+            SECTION_BASIC: {
                 CONF_NAME: "Test Battery",
                 CONF_CONNECTION: "main_bus",
+            },
+            SECTION_STORAGE: {
                 CONF_CAPACITY: 10.0,
                 CONF_INITIAL_CHARGE_PERCENTAGE: ["sensor.battery_soc"],
             },
-            CONF_SECTION_LIMITS: {
+            SECTION_LIMITS: {
                 CONF_MIN_CHARGE_PERCENTAGE: 10.0,
                 CONF_MAX_CHARGE_PERCENTAGE: 90.0,
                 CONF_MAX_CHARGE_POWER: 5.0,
                 CONF_MAX_DISCHARGE_POWER: 5.0,
             },
-            CONF_SECTION_ADVANCED: {
-                CONF_EFFICIENCY: 95.0,
+            SECTION_PRICING: {
                 CONF_EARLY_CHARGE_INCENTIVE: 0.01,
+            },
+            SECTION_ADVANCED: {
+                CONF_EFFICIENCY: 95.0,
                 CONF_CONFIGURE_PARTITIONS: False,
             },
         },
@@ -46,22 +52,26 @@ VALID_DATA = [
     {
         "description": "Battery with optional discharge cost",
         "config": {
-            CONF_SECTION_BASIC: {
+            SECTION_BASIC: {
                 CONF_NAME: "Advanced Battery",
                 CONF_CONNECTION: "main_bus",
+            },
+            SECTION_STORAGE: {
                 CONF_CAPACITY: 10.0,
                 CONF_INITIAL_CHARGE_PERCENTAGE: ["sensor.battery_soc"],
             },
-            CONF_SECTION_LIMITS: {
+            SECTION_LIMITS: {
                 CONF_MIN_CHARGE_PERCENTAGE: 10.0,
                 CONF_MAX_CHARGE_PERCENTAGE: 90.0,
                 CONF_MAX_CHARGE_POWER: 5.0,
                 CONF_MAX_DISCHARGE_POWER: 5.0,
             },
-            CONF_SECTION_ADVANCED: {
-                CONF_EFFICIENCY: 95.0,
+            SECTION_PRICING: {
                 CONF_EARLY_CHARGE_INCENTIVE: 0.05,
                 CONF_DISCHARGE_COST: 0.03,
+            },
+            SECTION_ADVANCED: {
+                CONF_EFFICIENCY: 95.0,
                 CONF_CONFIGURE_PARTITIONS: False,
             },
         },
@@ -72,17 +82,23 @@ INVALID_DATA = [
     {
         "description": "Empty name should fail validation",
         "config": {
-            CONF_SECTION_BASIC: {
+            SECTION_BASIC: {
                 CONF_NAME: "",
                 CONF_CONNECTION: "main_bus",
+            },
+            SECTION_STORAGE: {
                 CONF_CAPACITY: 10.0,
                 CONF_INITIAL_CHARGE_PERCENTAGE: ["sensor.battery_soc"],
             },
-            CONF_SECTION_LIMITS: {
+            SECTION_LIMITS: {
                 CONF_MAX_CHARGE_POWER: 5.0,
                 CONF_MAX_DISCHARGE_POWER: 5.0,
             },
-            CONF_SECTION_ADVANCED: {
+            SECTION_PRICING: {
+                CONF_EARLY_CHARGE_INCENTIVE: 0.01,
+            },
+            SECTION_ADVANCED: {
+                CONF_EFFICIENCY: 95.0,
                 CONF_CONFIGURE_PARTITIONS: False,
             },
         },

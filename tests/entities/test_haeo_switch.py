@@ -20,8 +20,11 @@ from custom_components.haeo.elements.input_fields import InputFieldDefaults, Inp
 from custom_components.haeo.elements.solar import (
     CONF_CONNECTION,
     CONF_FORECAST,
-    CONF_SECTION_ADVANCED,
-    CONF_SECTION_BASIC,
+    CONF_PRICE_PRODUCTION,
+    SECTION_ADVANCED,
+    SECTION_BASIC,
+    SECTION_INPUTS,
+    SECTION_PRICING,
 )
 from custom_components.haeo.entities.haeo_number import ConfigEntityMode
 from custom_components.haeo.entities.haeo_switch import FORECAST_UNRECORDED_ATTRIBUTES, HaeoInputSwitch
@@ -95,12 +98,17 @@ def _create_subentry(name: str, data: dict[str, Any]) -> ConfigSubentry:
         data=MappingProxyType(
             {
                 "element_type": "solar",
-                CONF_SECTION_BASIC: {
+                SECTION_BASIC: {
                     CONF_NAME: name,
                     CONF_CONNECTION: "Switchboard",
+                },
+                SECTION_INPUTS: {
                     CONF_FORECAST: ["sensor.solar_forecast"],
                 },
-                CONF_SECTION_ADVANCED: data,
+                SECTION_PRICING: {
+                    CONF_PRICE_PRODUCTION: 0.0,
+                },
+                SECTION_ADVANCED: data,
             }
         ),
         subentry_type="solar",

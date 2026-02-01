@@ -116,9 +116,9 @@ def _prepare_flow_context(
     """Populate dependent participants required by connection flows."""
 
     if element_type == connection.ELEMENT_TYPE:
-        basic = config.get(connection.CONF_SECTION_BASIC, {})
+        endpoints = config.get(connection.SECTION_ENDPOINTS, {})
         for key in (connection.CONF_SOURCE, connection.CONF_TARGET):
-            endpoint = basic.get(key)
+            endpoint = endpoints.get(key)
             if isinstance(endpoint, str) and endpoint:
                 inferred_type: ElementType = grid.ELEMENT_TYPE if "grid" in endpoint.lower() else battery.ELEMENT_TYPE
                 _add_participant_subentry(hass, hub_entry, endpoint, inferred_type)

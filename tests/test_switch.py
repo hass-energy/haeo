@@ -16,19 +16,20 @@ from custom_components.haeo.elements.grid import (
     CONF_CONNECTION,
     CONF_EXPORT_PRICE,
     CONF_IMPORT_PRICE,
-    CONF_SECTION_BASIC,
-    CONF_SECTION_LIMITS,
-    CONF_SECTION_PRICING,
+    SECTION_BASIC,
+    SECTION_LIMITS,
+    SECTION_PRICING,
 )
 from custom_components.haeo.elements.grid import ELEMENT_TYPE as GRID_TYPE
 from custom_components.haeo.elements.solar import (
     CONF_CURTAILMENT,
     CONF_FORECAST,
     CONF_PRICE_PRODUCTION,
-    CONF_SECTION_ADVANCED,
+    SECTION_ADVANCED,
+    SECTION_INPUTS,
 )
-from custom_components.haeo.elements.solar import CONF_SECTION_BASIC as SOLAR_SECTION_BASIC
 from custom_components.haeo.elements.solar import ELEMENT_TYPE as SOLAR_TYPE
+from custom_components.haeo.elements.solar import SECTION_BASIC as SOLAR_SECTION_BASIC
 from custom_components.haeo.entities.auto_optimize_switch import AutoOptimizeSwitch
 from custom_components.haeo.entities.haeo_number import ConfigEntityMode
 from custom_components.haeo.horizon import HorizonManager
@@ -90,26 +91,30 @@ def _add_subentry(
     payload: dict[str, object] = {CONF_ELEMENT_TYPE: subentry_type}
     if subentry_type == GRID_TYPE:
         payload |= {
-            CONF_SECTION_BASIC: {
+            SECTION_BASIC: {
                 CONF_NAME: title,
                 CONF_CONNECTION: data.get("connection", "Switchboard"),
             },
-            CONF_SECTION_PRICING: {
+            SECTION_PRICING: {
                 CONF_IMPORT_PRICE: data.get("import_price"),
                 CONF_EXPORT_PRICE: data.get("export_price"),
             },
-            CONF_SECTION_LIMITS: {},
+            SECTION_LIMITS: {},
         }
     elif subentry_type == SOLAR_TYPE:
         payload |= {
             SOLAR_SECTION_BASIC: {
                 CONF_NAME: title,
                 CONF_CONNECTION: data.get("connection", "Switchboard"),
+            },
+            SECTION_INPUTS: {
                 CONF_FORECAST: data.get("forecast", ["sensor.solar_forecast"]),
             },
-            CONF_SECTION_ADVANCED: {
-                CONF_CURTAILMENT: data.get("curtailment"),
+            SECTION_PRICING: {
                 CONF_PRICE_PRODUCTION: data.get("price_production"),
+            },
+            SECTION_ADVANCED: {
+                CONF_CURTAILMENT: data.get("curtailment"),
             },
         }
     else:

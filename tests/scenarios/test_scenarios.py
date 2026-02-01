@@ -51,11 +51,9 @@ def _sectioned_participant_config(config: dict[str, Any]) -> dict[str, Any]:
     name = config[CONF_NAME]
 
     if element_type == "battery":
-        basic = _pick_fields(
-            config,
-            ("connection", "capacity", "initial_charge_percentage"),
-        )
+        basic = _pick_fields(config, ("connection",))
         basic[CONF_NAME] = name
+        storage = _pick_fields(config, ("capacity", "initial_charge_percentage"))
         limits = _pick_fields(
             config,
             (
@@ -65,19 +63,14 @@ def _sectioned_participant_config(config: dict[str, Any]) -> dict[str, Any]:
                 "max_discharge_power",
             ),
         )
-        advanced = _pick_fields(
-            config,
-            (
-                "efficiency",
-                "early_charge_incentive",
-                "discharge_cost",
-                "configure_partitions",
-            ),
-        )
+        pricing = _pick_fields(config, ("early_charge_incentive", "discharge_cost"))
+        advanced = _pick_fields(config, ("efficiency", "configure_partitions"))
         sectioned = {
             CONF_ELEMENT_TYPE: element_type,
             "basic": basic,
+            "storage": storage,
             "limits": limits,
+            "pricing": pricing,
             "advanced": advanced,
         }
         undercharge = config.get("undercharge")
@@ -120,9 +113,10 @@ def _sectioned_participant_config(config: dict[str, Any]) -> dict[str, Any]:
             "basic": {
                 CONF_NAME: name,
                 "connection": config["connection"],
-                "forecast": config["forecast"],
             },
-            "advanced": _pick_fields(config, ("curtailment", "price_production")),
+            "inputs": {"forecast": config["forecast"]},
+            "pricing": _pick_fields(config, ("price_production",)),
+            "advanced": _pick_fields(config, ("curtailment",)),
         }
 
     if element_type == "node":
@@ -135,28 +129,18 @@ def _sectioned_participant_config(config: dict[str, Any]) -> dict[str, Any]:
     if element_type == "connection":
         return {
             CONF_ELEMENT_TYPE: element_type,
-            "basic": {
-                CONF_NAME: name,
-                "source": config["source"],
-                "target": config["target"],
-            },
+            "basic": {CONF_NAME: name},
+            "endpoints": {"source": config["source"], "target": config["target"]},
             "limits": _pick_fields(config, ("max_power_source_target", "max_power_target_source")),
-            "advanced": _pick_fields(
-                config,
-                (
-                    "efficiency_source_target",
-                    "efficiency_target_source",
-                    "price_source_target",
-                    "price_target_source",
-                ),
-            ),
+            "pricing": _pick_fields(config, ("price_source_target", "price_target_source")),
+            "advanced": _pick_fields(config, ("efficiency_source_target", "efficiency_target_source")),
         }
 
     if element_type == "battery_section":
         return {
             CONF_ELEMENT_TYPE: element_type,
             "basic": {CONF_NAME: name},
-            "inputs": _pick_fields(config, ("capacity", "initial_charge")),
+            "storage": _pick_fields(config, ("capacity", "initial_charge")),
         }
 
     return config

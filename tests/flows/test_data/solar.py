@@ -6,8 +6,10 @@ from custom_components.haeo.elements.solar import (
     CONF_CURTAILMENT,
     CONF_FORECAST,
     CONF_PRICE_PRODUCTION,
-    CONF_SECTION_ADVANCED,
-    CONF_SECTION_BASIC,
+    SECTION_ADVANCED,
+    SECTION_BASIC,
+    SECTION_INPUTS,
+    SECTION_PRICING,
 )
 
 # Test data for solar flow - single-step with choose selector
@@ -17,13 +19,17 @@ VALID_DATA = [
     {
         "description": "Basic solar configuration with constant forecast",
         "config": {
-            CONF_SECTION_BASIC: {
+            SECTION_BASIC: {
                 CONF_NAME: "Test Solar",
                 CONF_CONNECTION: "main_bus",
+            },
+            SECTION_INPUTS: {
                 CONF_FORECAST: 5.0,
             },
-            CONF_SECTION_ADVANCED: {
+            SECTION_PRICING: {
                 CONF_PRICE_PRODUCTION: 0.0,
+            },
+            SECTION_ADVANCED: {
                 CONF_CURTAILMENT: False,
             },
         },
@@ -31,13 +37,17 @@ VALID_DATA = [
     {
         "description": "Curtailable solar with production price",
         "config": {
-            CONF_SECTION_BASIC: {
+            SECTION_BASIC: {
                 CONF_NAME: "Rooftop Solar",
                 CONF_CONNECTION: "main_bus",
+            },
+            SECTION_INPUTS: {
                 CONF_FORECAST: ["sensor.solar_power"],
             },
-            CONF_SECTION_ADVANCED: {
+            SECTION_PRICING: {
                 CONF_PRICE_PRODUCTION: 0.04,
+            },
+            SECTION_ADVANCED: {
                 CONF_CURTAILMENT: True,
             },
         },

@@ -51,17 +51,18 @@ from custom_components.haeo.elements.battery import (
     CONF_MAX_CHARGE_POWER,
     CONF_MAX_DISCHARGE_POWER,
     CONF_MIN_CHARGE_PERCENTAGE,
-    CONF_SECTION_ADVANCED,
-    CONF_SECTION_BASIC,
-    CONF_SECTION_LIMITS,
 )
 from custom_components.haeo.elements.grid import CONF_EXPORT_PRICE, CONF_IMPORT_PRICE, GRID_POWER_IMPORT
-from custom_components.haeo.elements.grid import CONF_SECTION_BASIC as CONF_GRID_SECTION_BASIC
-from custom_components.haeo.elements.grid import CONF_SECTION_LIMITS as CONF_GRID_SECTION_LIMITS
-from custom_components.haeo.elements.grid import CONF_SECTION_PRICING as CONF_GRID_SECTION_PRICING
 from custom_components.haeo.entities.haeo_number import ConfigEntityMode, HaeoInputNumber
 from custom_components.haeo.flows import HUB_SECTION_BASIC, HUB_SECTION_TIERS
 from custom_components.haeo.model import OutputType
+from custom_components.haeo.sections import (
+    SECTION_ADVANCED,
+    SECTION_BASIC,
+    SECTION_LIMITS,
+    SECTION_PRICING,
+    SECTION_STORAGE,
+)
 
 
 def _battery_config(
@@ -79,6 +80,7 @@ def _battery_config(
     """Build a sectioned battery config dict for diagnostics tests."""
     limits: dict[str, Any] = {}
     advanced: dict[str, Any] = {}
+    pricing: dict[str, Any] = {}
     if max_charge_power is not None:
         limits[CONF_MAX_CHARGE_POWER] = max_charge_power
     if max_discharge_power is not None:
@@ -90,16 +92,21 @@ def _battery_config(
     if efficiency is not None:
         advanced[CONF_EFFICIENCY] = efficiency
 
+    storage = {
+        CONF_CAPACITY: capacity,
+        CONF_INITIAL_CHARGE_PERCENTAGE: initial_charge_percentage,
+    }
+
     return {
         CONF_ELEMENT_TYPE: ELEMENT_TYPE_BATTERY,
-        CONF_SECTION_BASIC: {
+        SECTION_BASIC: {
             CONF_NAME: name,
             CONF_CONNECTION: connection,
-            CONF_CAPACITY: capacity,
-            CONF_INITIAL_CHARGE_PERCENTAGE: initial_charge_percentage,
         },
-        CONF_SECTION_LIMITS: limits,
-        CONF_SECTION_ADVANCED: advanced,
+        SECTION_STORAGE: storage,
+        SECTION_LIMITS: limits,
+        SECTION_PRICING: pricing,
+        SECTION_ADVANCED: advanced,
     }
 
 
@@ -113,15 +120,15 @@ def _grid_config(
     """Build a sectioned grid config dict for diagnostics tests."""
     return {
         CONF_ELEMENT_TYPE: "grid",
-        CONF_GRID_SECTION_BASIC: {
+        SECTION_BASIC: {
             CONF_NAME: name,
             CONF_CONNECTION: connection,
         },
-        CONF_GRID_SECTION_PRICING: {
+        SECTION_PRICING: {
             CONF_IMPORT_PRICE: import_price,
             CONF_EXPORT_PRICE: export_price,
         },
-        CONF_GRID_SECTION_LIMITS: {},
+        SECTION_LIMITS: {},
     }
 
 
@@ -233,9 +240,9 @@ async def test_diagnostics_with_participants(hass: HomeAssistant) -> None:
     assert "Battery One" in participants
     battery_config = participants["Battery One"]
     assert battery_config[CONF_ELEMENT_TYPE] == ELEMENT_TYPE_BATTERY
-    assert battery_config[CONF_SECTION_BASIC][CONF_NAME] == "Battery One"
-    assert battery_config[CONF_SECTION_BASIC][CONF_CAPACITY] == "sensor.battery_capacity"
-    assert battery_config[CONF_SECTION_BASIC][CONF_INITIAL_CHARGE_PERCENTAGE] == "sensor.battery_soc"
+    assert battery_config[SECTION_BASIC][CONF_NAME] == "Battery One"
+    assert battery_config[SECTION_STORAGE][CONF_CAPACITY] == "sensor.battery_capacity"
+    assert battery_config[SECTION_STORAGE][CONF_INITIAL_CHARGE_PERCENTAGE] == "sensor.battery_soc"
 
     # Verify input states are collected using State.as_dict()
     # Both sensor.battery_capacity and sensor.battery_soc should be collected
@@ -448,7 +455,7 @@ async def test_diagnostics_captures_editable_entity_values(hass: HomeAssistant) 
     runtime_data = HaeoRuntimeData(
         horizon_manager=Mock(),
         input_entities={
-            ("Battery One", (CONF_SECTION_BASIC, CONF_CAPACITY)): mock_number,
+            ("Battery One", (SECTION_STORAGE, CONF_CAPACITY)): mock_number,
         },
     )
     entry.runtime_data = runtime_data
@@ -457,7 +464,7 @@ async def test_diagnostics_captures_editable_entity_values(hass: HomeAssistant) 
 
     # Verify that editable entity values are captured in config
     battery_config = diagnostics["config"]["participants"]["Battery One"]
-    assert battery_config[CONF_SECTION_BASIC][CONF_CAPACITY] == 12.5  # Current entity value, not config value
+    assert battery_config[SECTION_STORAGE][CONF_CAPACITY] == 12.5  # Current entity value, not config value
 
 
 async def test_diagnostics_skips_unknown_element_in_input_entities(hass: HomeAssistant) -> None:
@@ -499,7 +506,7 @@ async def test_diagnostics_skips_unknown_element_in_input_entities(hass: HomeAss
         horizon_manager=Mock(),
         input_entities={
             # This element doesn't exist in participants
-            ("Unknown Element", (CONF_SECTION_BASIC, CONF_CAPACITY)): mock_number,
+            ("Unknown Element", (SECTION_STORAGE, CONF_CAPACITY)): mock_number,
         },
     )
     entry.runtime_data = runtime_data
@@ -508,7 +515,7 @@ async def test_diagnostics_skips_unknown_element_in_input_entities(hass: HomeAss
 
     # Verify that Battery One exists unchanged (unknown element was skipped)
     battery_config = diagnostics["config"]["participants"]["Battery One"]
-    assert battery_config[CONF_SECTION_BASIC][CONF_CAPACITY] == 10.0  # Original config value preserved
+    assert battery_config[SECTION_STORAGE][CONF_CAPACITY] == 10.0  # Original config value preserved
 
 
 async def test_diagnostics_skips_driven_entity_values(hass: HomeAssistant) -> None:
@@ -550,7 +557,7 @@ async def test_diagnostics_skips_driven_entity_values(hass: HomeAssistant) -> No
     runtime_data = HaeoRuntimeData(
         horizon_manager=Mock(),
         input_entities={
-            ("Battery One", (CONF_SECTION_BASIC, CONF_CAPACITY)): mock_number,
+            ("Battery One", (SECTION_STORAGE, CONF_CAPACITY)): mock_number,
         },
     )
     entry.runtime_data = runtime_data
@@ -559,7 +566,7 @@ async def test_diagnostics_skips_driven_entity_values(hass: HomeAssistant) -> No
 
     # Verify that driven entity value is NOT captured - config value preserved
     battery_config = diagnostics["config"]["participants"]["Battery One"]
-    assert battery_config[CONF_SECTION_BASIC][CONF_CAPACITY] == "sensor.battery_capacity"  # Original config value
+    assert battery_config[SECTION_STORAGE][CONF_CAPACITY] == "sensor.battery_capacity"  # Original config value
 
 
 async def test_current_state_provider_get_state(hass: HomeAssistant) -> None:
@@ -826,7 +833,7 @@ async def test_diagnostics_skips_switch_with_none_value(hass: HomeAssistant) -> 
     runtime_data = HaeoRuntimeData(
         horizon_manager=Mock(),
         input_entities={
-            ("Battery One", (CONF_SECTION_BASIC, CONF_CAPACITY)): mock_number,
+            ("Battery One", (SECTION_STORAGE, CONF_CAPACITY)): mock_number,
         },
     )
     entry.runtime_data = runtime_data
@@ -835,7 +842,7 @@ async def test_diagnostics_skips_switch_with_none_value(hass: HomeAssistant) -> 
 
     # Verify that the None value is NOT captured in config
     battery_config = diagnostics["config"]["participants"]["Battery One"]
-    assert battery_config[CONF_SECTION_BASIC][CONF_CAPACITY] == 10.0
+    assert battery_config[SECTION_STORAGE][CONF_CAPACITY] == 10.0
 
 
 async def test_collect_diagnostics_returns_missing_entity_ids(hass: HomeAssistant) -> None:

@@ -17,9 +17,9 @@ from custom_components.haeo.elements.grid import (
     CONF_EXPORT_PRICE,
     CONF_IMPORT_LIMIT,
     CONF_IMPORT_PRICE,
-    CONF_SECTION_BASIC,
-    CONF_SECTION_LIMITS,
-    CONF_SECTION_PRICING,
+    SECTION_BASIC,
+    SECTION_LIMITS,
+    SECTION_PRICING,
 )
 from custom_components.haeo.elements.grid import ELEMENT_TYPE as GRID_TYPE
 from custom_components.haeo.horizon import HorizonManager
@@ -83,15 +83,15 @@ def _add_subentry(
         if data.get("export_limit") is not None:
             limits[CONF_EXPORT_LIMIT] = data.get("export_limit")
         payload |= {
-            CONF_SECTION_BASIC: {
+            SECTION_BASIC: {
                 CONF_NAME: title,
                 CONF_CONNECTION: data.get("connection", "Switchboard"),
             },
-            CONF_SECTION_PRICING: {
+            SECTION_PRICING: {
                 CONF_IMPORT_PRICE: data.get("import_price"),
                 CONF_EXPORT_PRICE: data.get("export_price"),
             },
-            CONF_SECTION_LIMITS: limits,
+            SECTION_LIMITS: limits,
         }
     else:
         payload[CONF_NAME] = title

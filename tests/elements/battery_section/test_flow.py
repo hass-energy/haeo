@@ -13,9 +13,9 @@ from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.elements.battery_section import (
     CONF_CAPACITY,
     CONF_INITIAL_CHARGE,
-    CONF_SECTION_BASIC,
-    CONF_SECTION_INPUTS,
     ELEMENT_TYPE,
+    SECTION_BASIC,
+    SECTION_STORAGE,
 )
 
 from ..conftest import create_flow
@@ -23,11 +23,11 @@ from ..conftest import create_flow
 
 def _wrap_input(flat: dict[str, Any]) -> dict[str, Any]:
     """Wrap flat battery section input values into sectioned config."""
-    if CONF_SECTION_BASIC in flat:
+    if SECTION_BASIC in flat:
         return dict(flat)
     return {
-        CONF_SECTION_BASIC: {CONF_NAME: flat[CONF_NAME]},
-        CONF_SECTION_INPUTS: {
+        SECTION_BASIC: {CONF_NAME: flat[CONF_NAME]},
+        SECTION_STORAGE: {
             CONF_CAPACITY: flat[CONF_CAPACITY],
             CONF_INITIAL_CHARGE: flat[CONF_INITIAL_CHARGE],
         },
@@ -36,7 +36,7 @@ def _wrap_input(flat: dict[str, Any]) -> dict[str, Any]:
 
 def _wrap_config(flat: dict[str, Any]) -> dict[str, Any]:
     """Wrap flat battery section config values into sectioned config with element type."""
-    if CONF_SECTION_BASIC in flat:
+    if SECTION_BASIC in flat:
         return {CONF_ELEMENT_TYPE: ELEMENT_TYPE, **flat}
     return {CONF_ELEMENT_TYPE: ELEMENT_TYPE, **_wrap_input(flat)}
 
@@ -139,8 +139,8 @@ async def test_reconfigure_with_string_entity_id_v010_format(hass: HomeAssistant
     defaults = flow._build_defaults("Test Battery Section", dict(existing_subentry.data))
 
     # Defaults should contain entity choice with the original entity IDs as lists
-    assert defaults[CONF_SECTION_INPUTS][CONF_CAPACITY] == ["sensor.section_capacity"]
-    assert defaults[CONF_SECTION_INPUTS][CONF_INITIAL_CHARGE] == ["sensor.section_charge"]
+    assert defaults[SECTION_STORAGE][CONF_CAPACITY] == ["sensor.section_capacity"]
+    assert defaults[SECTION_STORAGE][CONF_INITIAL_CHARGE] == ["sensor.section_charge"]
 
 
 async def test_reconfigure_with_scalar_shows_constant_defaults(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
@@ -169,8 +169,8 @@ async def test_reconfigure_with_scalar_shows_constant_defaults(hass: HomeAssista
     defaults = flow._build_defaults("Test Battery Section", dict(existing_subentry.data))
 
     # Defaults should contain constant choice with the scalar values
-    assert defaults[CONF_SECTION_INPUTS][CONF_CAPACITY] == 10.0
-    assert defaults[CONF_SECTION_INPUTS][CONF_INITIAL_CHARGE] == 5.0
+    assert defaults[SECTION_STORAGE][CONF_CAPACITY] == 10.0
+    assert defaults[SECTION_STORAGE][CONF_INITIAL_CHARGE] == 5.0
 
 
 async def test_reconfigure_with_missing_field_shows_none_default(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
@@ -178,8 +178,8 @@ async def test_reconfigure_with_missing_field_shows_none_default(hass: HomeAssis
     # Create existing entry with only some fields (simulating optional field not set)
     existing_config = {
         CONF_ELEMENT_TYPE: ELEMENT_TYPE,
-        CONF_SECTION_BASIC: {CONF_NAME: "Test Battery Section"},
-        CONF_SECTION_INPUTS: {
+        SECTION_BASIC: {CONF_NAME: "Test Battery Section"},
+        SECTION_STORAGE: {
             CONF_CAPACITY: 10.0,  # Only capacity set
             # CONF_INITIAL_CHARGE intentionally missing to test else branch
         },
@@ -200,7 +200,7 @@ async def test_reconfigure_with_missing_field_shows_none_default(hass: HomeAssis
     defaults = flow._build_defaults("Test Battery Section", dict(existing_subentry.data))
 
     # Missing field should result in None default
-    assert defaults.get(CONF_SECTION_INPUTS, {}).get(CONF_INITIAL_CHARGE) is None
+    assert defaults.get(SECTION_STORAGE, {}).get(CONF_INITIAL_CHARGE) is None
 
 
 async def test_user_step_with_constant_creates_entry(
@@ -231,8 +231,8 @@ async def test_user_step_with_constant_creates_entry(
 
     # Verify the config contains the constant values
     create_kwargs = flow.async_create_entry.call_args.kwargs
-    assert create_kwargs["data"][CONF_SECTION_INPUTS][CONF_CAPACITY] == 10.0
-    assert create_kwargs["data"][CONF_SECTION_INPUTS][CONF_INITIAL_CHARGE] == 5.0
+    assert create_kwargs["data"][SECTION_STORAGE][CONF_CAPACITY] == 10.0
+    assert create_kwargs["data"][SECTION_STORAGE][CONF_INITIAL_CHARGE] == 5.0
 
 
 async def test_user_step_with_entity_creates_entry(
@@ -263,8 +263,8 @@ async def test_user_step_with_entity_creates_entry(
 
     # Verify the config contains the entity IDs as strings (single entity)
     create_kwargs = flow.async_create_entry.call_args.kwargs
-    assert create_kwargs["data"][CONF_SECTION_INPUTS][CONF_CAPACITY] == "sensor.capacity"
-    assert create_kwargs["data"][CONF_SECTION_INPUTS][CONF_INITIAL_CHARGE] == "sensor.charge"
+    assert create_kwargs["data"][SECTION_STORAGE][CONF_CAPACITY] == "sensor.capacity"
+    assert create_kwargs["data"][SECTION_STORAGE][CONF_INITIAL_CHARGE] == "sensor.charge"
 
 
 async def test_user_step_empty_required_field_shows_error(
