@@ -165,11 +165,13 @@ class SolarSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             section_fields = input_fields.get(section_def.key, {})
             if not section_fields:
                 continue
-            field_entries[section_def.key] = build_choose_field_entries(
-                section_fields,
-                optional_fields=OPTIONAL_INPUT_FIELDS,
-                inclusion_map=section_inclusion_map.get(section_def.key, {}),
-                current_data=subentry_data.get(section_def.key) if subentry_data else None,
+            field_entries.setdefault(section_def.key, {}).update(
+                build_choose_field_entries(
+                    section_fields,
+                    optional_fields=OPTIONAL_INPUT_FIELDS,
+                    inclusion_map=section_inclusion_map.get(section_def.key, {}),
+                    current_data=subentry_data.get(section_def.key) if subentry_data else None,
+                )
             )
 
         return vol.Schema(build_section_schema(sections, field_entries))
