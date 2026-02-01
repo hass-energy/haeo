@@ -96,9 +96,19 @@ Element entries link to their parent hub via `parent_entry_id`:
     "data": {
         "element_type": "battery",
         "parent_entry_id": "abc123...",  # Links to hub entry
-        "capacity": 13500,
-        "charge_power": 5000,
-        # ... element-specific configuration
+        "basic": {
+            "name": "Home Battery",
+            "connection": "Main Bus",
+            "capacity": 13500,
+            "initial_charge_percentage": 50.0,
+        },
+        "limits": {
+            "max_charge_power": 5000,
+            "max_discharge_power": 5000,
+        },
+        "advanced": {},
+        "undercharge": {},
+        "overcharge": {},
     },
 }
 ```
@@ -172,6 +182,12 @@ All element configuration happens in a single step:
 
 This replaces the previous two-step pattern where constant values were entered in a separate step.
 
+### UI Sections
+
+Config flows group related fields using `data_entry_flow.section` so advanced settings can be collapsed by default.
+When using sections, translation strings for labels must live under
+`step.<step_id>.sections.<section_key>.data.<field_name>` (and `data_description` if needed).
+
 ### Implementation Pattern
 
 The ChooseSelector utilities are in `custom_components/haeo/flows/field_schema.py`:
@@ -181,6 +197,9 @@ The ChooseSelector utilities are in `custom_components/haeo/flows/field_schema.p
 - `get_preferred_choice()`: Determines which choice should be pre-selected based on defaults or current config
 - `get_choose_default()`: Provides default values for the nested selector
 - `convert_choose_data_to_config()`: Converts ChooseSelector output to final config format
+- `preprocess_sectioned_choose_input()`: Normalizes sectioned ChooseSelector input
+- `validate_sectioned_choose_fields()`: Validates sectioned choose fields before conversion
+- `convert_sectioned_choose_data_to_config()`: Converts sectioned ChooseSelector data into sectioned config
 
 The choice ordering in `ChooseSelector` determines the pre-selected option.
 The `get_preferred_choice()` function examines field defaults and current configuration to order choices appropriately.

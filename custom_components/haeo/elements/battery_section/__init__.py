@@ -21,7 +21,10 @@ from .adapter import (
 from .schema import (
     CONF_CAPACITY,
     CONF_INITIAL_CHARGE,
+    CONF_SECTION_BASIC,
+    CONF_SECTION_INPUTS,
     ELEMENT_TYPE,
+    OPTIONAL_INPUT_FIELDS,
     BatterySectionConfigData,
     BatterySectionConfigSchema,
 )
@@ -41,7 +44,10 @@ __all__ = [
     "BATTERY_SECTION_SOC_MIN",
     "CONF_CAPACITY",
     "CONF_INITIAL_CHARGE",
+    "CONF_SECTION_BASIC",
+    "CONF_SECTION_INPUTS",
     "ELEMENT_TYPE",
+    "OPTIONAL_INPUT_FIELDS",
     "BatterySectionAdapter",
     "BatterySectionConfigData",
     "BatterySectionConfigSchema",

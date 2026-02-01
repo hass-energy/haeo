@@ -23,6 +23,7 @@ from custom_components.haeo.model.util import broadcast_to_sequence
 
 from .schema import (
     CONF_CAPACITY,
+    CONF_CONNECTION,
     CONF_DISCHARGE_COST,
     CONF_EARLY_CHARGE_INCENTIVE,
     CONF_EFFICIENCY,
@@ -31,10 +32,13 @@ from .schema import (
     CONF_MAX_CHARGE_POWER,
     CONF_MAX_DISCHARGE_POWER,
     CONF_MIN_CHARGE_PERCENTAGE,
-    CONF_OVERCHARGE_COST,
-    CONF_OVERCHARGE_PERCENTAGE,
-    CONF_UNDERCHARGE_COST,
-    CONF_UNDERCHARGE_PERCENTAGE,
+    CONF_PARTITION_COST,
+    CONF_PARTITION_PERCENTAGE,
+    CONF_SECTION_ADVANCED,
+    CONF_SECTION_BASIC,
+    CONF_SECTION_LIMITS,
+    CONF_SECTION_OVERCHARGE,
+    CONF_SECTION_UNDERCHARGE,
     ELEMENT_TYPE,
     BatteryConfigData,
     BatteryConfigSchema,
@@ -100,226 +104,188 @@ class BatteryAdapter:
             # list[str] for entity chaining
             return ts_loader.available(hass=hass, value=value) if value else True
 
+        basic = config[CONF_SECTION_BASIC]
+        limits = config[CONF_SECTION_LIMITS]
+        advanced = config[CONF_SECTION_ADVANCED]
+        undercharge = config.get(CONF_SECTION_UNDERCHARGE, {})
+        overcharge = config.get(CONF_SECTION_OVERCHARGE, {})
+
         # Check required fields
-        if not entity_available(config.get("capacity")):
+        if not entity_available(basic.get(CONF_CAPACITY)):
             return False
-        if not entity_available(config.get("initial_charge_percentage")):
+        if not entity_available(basic.get(CONF_INITIAL_CHARGE_PERCENTAGE)):
             return False
 
         # Check optional time series fields if present
-        optional_fields = [
-            CONF_MAX_CHARGE_POWER,
-            CONF_MAX_DISCHARGE_POWER,
-            CONF_DISCHARGE_COST,
-            CONF_UNDERCHARGE_COST,
-            CONF_OVERCHARGE_COST,
-            CONF_MIN_CHARGE_PERCENTAGE,
-            CONF_MAX_CHARGE_PERCENTAGE,
-            CONF_EFFICIENCY,
-            CONF_EARLY_CHARGE_INCENTIVE,
-            CONF_UNDERCHARGE_PERCENTAGE,
-            CONF_OVERCHARGE_PERCENTAGE,
+        optional_checks = [
+            (limits, CONF_MAX_CHARGE_POWER),
+            (limits, CONF_MAX_DISCHARGE_POWER),
+            (limits, CONF_MIN_CHARGE_PERCENTAGE),
+            (limits, CONF_MAX_CHARGE_PERCENTAGE),
+            (advanced, CONF_EFFICIENCY),
+            (advanced, CONF_EARLY_CHARGE_INCENTIVE),
+            (advanced, CONF_DISCHARGE_COST),
+            (undercharge, CONF_PARTITION_PERCENTAGE),
+            (undercharge, CONF_PARTITION_COST),
+            (overcharge, CONF_PARTITION_PERCENTAGE),
+            (overcharge, CONF_PARTITION_COST),
         ]
-        return all(entity_available(config.get(field)) for field in optional_fields)
+        return all(entity_available(section.get(field)) for section, field in optional_checks)
 
-    def inputs(self, config: Any) -> dict[str, InputFieldInfo[Any]]:
+    def inputs(self, config: Any) -> dict[str, dict[str, InputFieldInfo[Any]]]:
         """Return input field definitions for battery elements."""
         _ = config
         return {
-            CONF_CAPACITY: InputFieldInfo(
-                field_name=CONF_CAPACITY,
-                entity_description=NumberEntityDescription(
-                    key=CONF_CAPACITY,
-                    translation_key=f"{ELEMENT_TYPE}_{CONF_CAPACITY}",
-                    native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
-                    device_class=NumberDeviceClass.ENERGY_STORAGE,
-                    native_min_value=0.1,
-                    native_max_value=1000.0,
-                    native_step=0.1,
+            CONF_SECTION_BASIC: {
+                CONF_CAPACITY: InputFieldInfo(
+                    field_name=CONF_CAPACITY,
+                    entity_description=NumberEntityDescription(
+                        key=CONF_CAPACITY,
+                        translation_key=f"{ELEMENT_TYPE}_{CONF_CAPACITY}",
+                        native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
+                        device_class=NumberDeviceClass.ENERGY_STORAGE,
+                        native_min_value=0.1,
+                        native_max_value=1000.0,
+                        native_step=0.1,
+                    ),
+                    output_type=OutputType.ENERGY,
+                    time_series=True,
+                    boundaries=True,
                 ),
-                output_type=OutputType.ENERGY,
-                time_series=True,
-                boundaries=True,
+                CONF_INITIAL_CHARGE_PERCENTAGE: InputFieldInfo(
+                    field_name=CONF_INITIAL_CHARGE_PERCENTAGE,
+                    entity_description=NumberEntityDescription(
+                        key=CONF_INITIAL_CHARGE_PERCENTAGE,
+                        translation_key=f"{ELEMENT_TYPE}_{CONF_INITIAL_CHARGE_PERCENTAGE}",
+                        native_unit_of_measurement=PERCENTAGE,
+                        device_class=NumberDeviceClass.BATTERY,
+                        native_min_value=0.0,
+                        native_max_value=100.0,
+                        native_step=0.1,
+                    ),
+                    output_type=OutputType.STATE_OF_CHARGE,
+                    time_series=True,
+                ),
+            },
+            CONF_SECTION_LIMITS: {
+                CONF_MAX_CHARGE_POWER: InputFieldInfo(
+                    field_name=CONF_MAX_CHARGE_POWER,
+                    entity_description=NumberEntityDescription(
+                        key=CONF_MAX_CHARGE_POWER,
+                        translation_key=f"{ELEMENT_TYPE}_{CONF_MAX_CHARGE_POWER}",
+                        native_unit_of_measurement=UnitOfPower.KILO_WATT,
+                        device_class=NumberDeviceClass.POWER,
+                        native_min_value=0.0,
+                        native_max_value=1000.0,
+                        native_step=0.1,
+                    ),
+                    output_type=OutputType.POWER,
+                    direction="+",
+                    time_series=True,
+                    defaults=InputFieldDefaults(mode="entity"),
+                ),
+                CONF_MAX_DISCHARGE_POWER: InputFieldInfo(
+                    field_name=CONF_MAX_DISCHARGE_POWER,
+                    entity_description=NumberEntityDescription(
+                        key=CONF_MAX_DISCHARGE_POWER,
+                        translation_key=f"{ELEMENT_TYPE}_{CONF_MAX_DISCHARGE_POWER}",
+                        native_unit_of_measurement=UnitOfPower.KILO_WATT,
+                        device_class=NumberDeviceClass.POWER,
+                        native_min_value=0.0,
+                        native_max_value=1000.0,
+                        native_step=0.1,
+                    ),
+                    output_type=OutputType.POWER,
+                    direction="-",
+                    time_series=True,
+                    defaults=InputFieldDefaults(mode="entity"),
+                ),
+                CONF_MIN_CHARGE_PERCENTAGE: InputFieldInfo(
+                    field_name=CONF_MIN_CHARGE_PERCENTAGE,
+                    entity_description=NumberEntityDescription(
+                        key=CONF_MIN_CHARGE_PERCENTAGE,
+                        translation_key=f"{ELEMENT_TYPE}_{CONF_MIN_CHARGE_PERCENTAGE}",
+                        native_unit_of_measurement=PERCENTAGE,
+                        device_class=NumberDeviceClass.BATTERY,
+                        native_min_value=0.0,
+                        native_max_value=100.0,
+                        native_step=1.0,
+                    ),
+                    output_type=OutputType.STATE_OF_CHARGE,
+                    time_series=True,
+                    boundaries=True,
+                    defaults=InputFieldDefaults(mode=None, value=0.0),
+                ),
+                CONF_MAX_CHARGE_PERCENTAGE: InputFieldInfo(
+                    field_name=CONF_MAX_CHARGE_PERCENTAGE,
+                    entity_description=NumberEntityDescription(
+                        key=CONF_MAX_CHARGE_PERCENTAGE,
+                        translation_key=f"{ELEMENT_TYPE}_{CONF_MAX_CHARGE_PERCENTAGE}",
+                        native_unit_of_measurement=PERCENTAGE,
+                        device_class=NumberDeviceClass.BATTERY,
+                        native_min_value=0.0,
+                        native_max_value=100.0,
+                        native_step=1.0,
+                    ),
+                    output_type=OutputType.STATE_OF_CHARGE,
+                    time_series=True,
+                    boundaries=True,
+                    defaults=InputFieldDefaults(mode=None, value=100.0),
+                ),
+            },
+            CONF_SECTION_ADVANCED: {
+                CONF_EFFICIENCY: InputFieldInfo(
+                    field_name=CONF_EFFICIENCY,
+                    entity_description=NumberEntityDescription(
+                        key=CONF_EFFICIENCY,
+                        translation_key=f"{ELEMENT_TYPE}_{CONF_EFFICIENCY}",
+                        native_unit_of_measurement=PERCENTAGE,
+                        device_class=NumberDeviceClass.POWER_FACTOR,
+                        native_min_value=50.0,
+                        native_max_value=100.0,
+                        native_step=0.1,
+                    ),
+                    output_type=OutputType.EFFICIENCY,
+                    time_series=True,
+                    defaults=InputFieldDefaults(mode="value", value=95.0),
+                ),
+                CONF_EARLY_CHARGE_INCENTIVE: InputFieldInfo(
+                    field_name=CONF_EARLY_CHARGE_INCENTIVE,
+                    entity_description=NumberEntityDescription(
+                        key=CONF_EARLY_CHARGE_INCENTIVE,
+                        translation_key=f"{ELEMENT_TYPE}_{CONF_EARLY_CHARGE_INCENTIVE}",
+                        native_min_value=0.0,
+                        native_max_value=1.0,
+                        native_step=0.001,
+                    ),
+                    output_type=OutputType.PRICE,
+                    direction="-",
+                    time_series=True,
+                    defaults=InputFieldDefaults(mode="value", value=0.001),
+                ),
+                CONF_DISCHARGE_COST: InputFieldInfo(
+                    field_name=CONF_DISCHARGE_COST,
+                    entity_description=NumberEntityDescription(
+                        key=CONF_DISCHARGE_COST,
+                        translation_key=f"{ELEMENT_TYPE}_{CONF_DISCHARGE_COST}",
+                        native_min_value=0.0,
+                        native_max_value=1.0,
+                        native_step=0.001,
+                    ),
+                    output_type=OutputType.PRICE,
+                    direction="-",
+                    time_series=True,
+                ),
+            },
+            CONF_SECTION_UNDERCHARGE: _partition_input_fields(
+                percentage_default=0,
+                cost_default=0,
+                cost_direction="-",
             ),
-            CONF_INITIAL_CHARGE_PERCENTAGE: InputFieldInfo(
-                field_name=CONF_INITIAL_CHARGE_PERCENTAGE,
-                entity_description=NumberEntityDescription(
-                    key=CONF_INITIAL_CHARGE_PERCENTAGE,
-                    translation_key=f"{ELEMENT_TYPE}_{CONF_INITIAL_CHARGE_PERCENTAGE}",
-                    native_unit_of_measurement=PERCENTAGE,
-                    device_class=NumberDeviceClass.BATTERY,
-                    native_min_value=0.0,
-                    native_max_value=100.0,
-                    native_step=0.1,
-                ),
-                output_type=OutputType.STATE_OF_CHARGE,
-                time_series=True,
-            ),
-            CONF_MAX_CHARGE_POWER: InputFieldInfo(
-                field_name=CONF_MAX_CHARGE_POWER,
-                entity_description=NumberEntityDescription(
-                    key=CONF_MAX_CHARGE_POWER,
-                    translation_key=f"{ELEMENT_TYPE}_{CONF_MAX_CHARGE_POWER}",
-                    native_unit_of_measurement=UnitOfPower.KILO_WATT,
-                    device_class=NumberDeviceClass.POWER,
-                    native_min_value=0.0,
-                    native_max_value=1000.0,
-                    native_step=0.1,
-                ),
-                output_type=OutputType.POWER,
-                direction="+",
-                time_series=True,
-                defaults=InputFieldDefaults(mode="entity"),
-            ),
-            CONF_MAX_DISCHARGE_POWER: InputFieldInfo(
-                field_name=CONF_MAX_DISCHARGE_POWER,
-                entity_description=NumberEntityDescription(
-                    key=CONF_MAX_DISCHARGE_POWER,
-                    translation_key=f"{ELEMENT_TYPE}_{CONF_MAX_DISCHARGE_POWER}",
-                    native_unit_of_measurement=UnitOfPower.KILO_WATT,
-                    device_class=NumberDeviceClass.POWER,
-                    native_min_value=0.0,
-                    native_max_value=1000.0,
-                    native_step=0.1,
-                ),
-                output_type=OutputType.POWER,
-                direction="-",
-                time_series=True,
-                defaults=InputFieldDefaults(mode="entity"),
-            ),
-            CONF_EFFICIENCY: InputFieldInfo(
-                field_name=CONF_EFFICIENCY,
-                entity_description=NumberEntityDescription(
-                    key=CONF_EFFICIENCY,
-                    translation_key=f"{ELEMENT_TYPE}_{CONF_EFFICIENCY}",
-                    native_unit_of_measurement=PERCENTAGE,
-                    device_class=NumberDeviceClass.POWER_FACTOR,
-                    native_min_value=50.0,
-                    native_max_value=100.0,
-                    native_step=0.1,
-                ),
-                output_type=OutputType.EFFICIENCY,
-                time_series=True,
-                defaults=InputFieldDefaults(mode="value", value=95.0),
-            ),
-            CONF_EARLY_CHARGE_INCENTIVE: InputFieldInfo(
-                field_name=CONF_EARLY_CHARGE_INCENTIVE,
-                entity_description=NumberEntityDescription(
-                    key=CONF_EARLY_CHARGE_INCENTIVE,
-                    translation_key=f"{ELEMENT_TYPE}_{CONF_EARLY_CHARGE_INCENTIVE}",
-                    native_min_value=0.0,
-                    native_max_value=1.0,
-                    native_step=0.001,
-                ),
-                output_type=OutputType.PRICE,
-                direction="-",
-                time_series=True,
-                defaults=InputFieldDefaults(mode="value", value=0.001),
-            ),
-            CONF_MIN_CHARGE_PERCENTAGE: InputFieldInfo(
-                field_name=CONF_MIN_CHARGE_PERCENTAGE,
-                entity_description=NumberEntityDescription(
-                    key=CONF_MIN_CHARGE_PERCENTAGE,
-                    translation_key=f"{ELEMENT_TYPE}_{CONF_MIN_CHARGE_PERCENTAGE}",
-                    native_unit_of_measurement=PERCENTAGE,
-                    device_class=NumberDeviceClass.BATTERY,
-                    native_min_value=0.0,
-                    native_max_value=100.0,
-                    native_step=1.0,
-                ),
-                output_type=OutputType.STATE_OF_CHARGE,
-                time_series=True,
-                boundaries=True,
-                defaults=InputFieldDefaults(mode=None, value=0.0),
-            ),
-            CONF_MAX_CHARGE_PERCENTAGE: InputFieldInfo(
-                field_name=CONF_MAX_CHARGE_PERCENTAGE,
-                entity_description=NumberEntityDescription(
-                    key=CONF_MAX_CHARGE_PERCENTAGE,
-                    translation_key=f"{ELEMENT_TYPE}_{CONF_MAX_CHARGE_PERCENTAGE}",
-                    native_unit_of_measurement=PERCENTAGE,
-                    device_class=NumberDeviceClass.BATTERY,
-                    native_min_value=0.0,
-                    native_max_value=100.0,
-                    native_step=1.0,
-                ),
-                output_type=OutputType.STATE_OF_CHARGE,
-                time_series=True,
-                boundaries=True,
-                defaults=InputFieldDefaults(mode=None, value=100.0),
-            ),
-            CONF_DISCHARGE_COST: InputFieldInfo(
-                field_name=CONF_DISCHARGE_COST,
-                entity_description=NumberEntityDescription(
-                    key=CONF_DISCHARGE_COST,
-                    translation_key=f"{ELEMENT_TYPE}_{CONF_DISCHARGE_COST}",
-                    native_min_value=0.0,
-                    native_max_value=1.0,
-                    native_step=0.001,
-                ),
-                output_type=OutputType.PRICE,
-                direction="-",
-                time_series=True,
-            ),
-            CONF_UNDERCHARGE_PERCENTAGE: InputFieldInfo(
-                field_name=CONF_UNDERCHARGE_PERCENTAGE,
-                entity_description=NumberEntityDescription(
-                    key=CONF_UNDERCHARGE_PERCENTAGE,
-                    translation_key=f"{ELEMENT_TYPE}_{CONF_UNDERCHARGE_PERCENTAGE}",
-                    native_unit_of_measurement=PERCENTAGE,
-                    device_class=NumberDeviceClass.BATTERY,
-                    native_min_value=0.0,
-                    native_max_value=100.0,
-                    native_step=1.0,
-                ),
-                output_type=OutputType.STATE_OF_CHARGE,
-                time_series=True,
-                boundaries=True,
-                defaults=InputFieldDefaults(mode="value", value=0),
-            ),
-            CONF_UNDERCHARGE_COST: InputFieldInfo(
-                field_name=CONF_UNDERCHARGE_COST,
-                entity_description=NumberEntityDescription(
-                    key=CONF_UNDERCHARGE_COST,
-                    translation_key=f"{ELEMENT_TYPE}_{CONF_UNDERCHARGE_COST}",
-                    native_min_value=0.0,
-                    native_max_value=10.0,
-                    native_step=0.001,
-                ),
-                output_type=OutputType.PRICE,
-                direction="-",
-                time_series=True,
-                defaults=InputFieldDefaults(mode="value", value=0),
-            ),
-            CONF_OVERCHARGE_PERCENTAGE: InputFieldInfo(
-                field_name=CONF_OVERCHARGE_PERCENTAGE,
-                entity_description=NumberEntityDescription(
-                    key=CONF_OVERCHARGE_PERCENTAGE,
-                    translation_key=f"{ELEMENT_TYPE}_{CONF_OVERCHARGE_PERCENTAGE}",
-                    native_unit_of_measurement=PERCENTAGE,
-                    device_class=NumberDeviceClass.BATTERY,
-                    native_min_value=0.0,
-                    native_max_value=100.0,
-                    native_step=1.0,
-                ),
-                output_type=OutputType.STATE_OF_CHARGE,
-                time_series=True,
-                boundaries=True,
-                defaults=InputFieldDefaults(mode="value", value=100),
-            ),
-            CONF_OVERCHARGE_COST: InputFieldInfo(
-                field_name=CONF_OVERCHARGE_COST,
-                entity_description=NumberEntityDescription(
-                    key=CONF_OVERCHARGE_COST,
-                    translation_key=f"{ELEMENT_TYPE}_{CONF_OVERCHARGE_COST}",
-                    native_min_value=0.0,
-                    native_max_value=10.0,
-                    native_step=0.001,
-                ),
-                output_type=OutputType.PRICE,
-                direction="-",
-                time_series=True,
-                defaults=InputFieldDefaults(mode="value", value=0),
+            CONF_SECTION_OVERCHARGE: _partition_input_fields(
+                percentage_default=100,
+                cost_default=0,
+                cost_direction="-",
             ),
         }
 
@@ -328,24 +294,30 @@ class BatteryAdapter:
 
         Creates a single battery element and a connection to the target.
         """
-        name = config["name"]
+        basic = config[CONF_SECTION_BASIC]
+        limits = config[CONF_SECTION_LIMITS]
+        advanced = config[CONF_SECTION_ADVANCED]
+        undercharge = config.get(CONF_SECTION_UNDERCHARGE, {})
+        overcharge = config.get(CONF_SECTION_OVERCHARGE, {})
+
+        name = basic["name"]
         elements: list[ModelElementConfig] = []
         # capacity is boundaries (n+1 values), so n_periods = len - 1
-        n_boundaries = len(config["capacity"])
+        n_boundaries = len(basic[CONF_CAPACITY])
         n_periods = n_boundaries - 1
 
-        capacity = config["capacity"]
+        capacity = basic[CONF_CAPACITY]
         capacity_first = float(capacity[0])
-        initial_soc = float(config["initial_charge_percentage"][0])
+        initial_soc = float(basic[CONF_INITIAL_CHARGE_PERCENTAGE][0])
 
-        min_charge_percentage = config.get(CONF_MIN_CHARGE_PERCENTAGE, DEFAULTS[CONF_MIN_CHARGE_PERCENTAGE])
-        max_charge_percentage = config.get(CONF_MAX_CHARGE_PERCENTAGE, DEFAULTS[CONF_MAX_CHARGE_PERCENTAGE])
-        efficiency = config.get(CONF_EFFICIENCY)
+        min_charge_percentage = limits.get(CONF_MIN_CHARGE_PERCENTAGE, DEFAULTS[CONF_MIN_CHARGE_PERCENTAGE])
+        max_charge_percentage = limits.get(CONF_MAX_CHARGE_PERCENTAGE, DEFAULTS[CONF_MAX_CHARGE_PERCENTAGE])
+        efficiency = advanced.get(CONF_EFFICIENCY)
 
-        undercharge_cost = config.get("undercharge_cost")
-        overcharge_cost = config.get("overcharge_cost")
-        undercharge_percentage = config.get("undercharge_percentage") if undercharge_cost is not None else None
-        overcharge_percentage = config.get("overcharge_percentage") if overcharge_cost is not None else None
+        undercharge_cost = undercharge.get(CONF_PARTITION_COST)
+        overcharge_cost = overcharge.get(CONF_PARTITION_COST)
+        undercharge_percentage = undercharge.get(CONF_PARTITION_PERCENTAGE) if undercharge_cost is not None else None
+        overcharge_percentage = overcharge.get(CONF_PARTITION_PERCENTAGE) if overcharge_cost is not None else None
 
         lower_ratio = undercharge_percentage if undercharge_percentage is not None else min_charge_percentage
         upper_ratio = overcharge_percentage if overcharge_percentage is not None else max_charge_percentage
@@ -367,7 +339,7 @@ class BatteryAdapter:
         )
 
         # Calculate early charge/discharge incentives (use first period if present)
-        early_charge_list = config.get("early_charge_incentive")
+        early_charge_list = advanced.get(CONF_EARLY_CHARGE_INCENTIVE)
         early_charge_incentive = (
             float(early_charge_list[0]) if early_charge_list is not None else DEFAULTS[CONF_EARLY_CHARGE_INCENTIVE]
         )
@@ -378,13 +350,12 @@ class BatteryAdapter:
         charge_early_incentive = -early_charge_incentive + (early_charge_incentive * ramp)
         discharge_early_incentive = early_charge_incentive + (early_charge_incentive * ramp)
 
+        discharge_cost = advanced.get(CONF_DISCHARGE_COST)
         discharge_costs = (
-            discharge_early_incentive + config["discharge_cost"]
-            if "discharge_cost" in config
-            else discharge_early_incentive
+            discharge_early_incentive + discharge_cost if discharge_cost is not None else discharge_early_incentive
         )
-        max_discharge = config.get("max_discharge_power")
-        max_charge = config.get("max_charge_power")
+        max_discharge = limits.get(CONF_MAX_DISCHARGE_POWER)
+        max_charge = limits.get(CONF_MAX_CHARGE_POWER)
 
         soc_pricing_spec: SocPricingSegmentSpec | None = None
         if undercharge_percentage is not None and undercharge_cost is not None:
@@ -439,7 +410,7 @@ class BatteryAdapter:
                 "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
                 "name": f"{name}:connection",
                 "source": name,
-                "target": config["connection"],
+                "target": basic[CONF_CONNECTION],
                 "segments": segments,
             }
         )
@@ -496,15 +467,60 @@ class BatteryAdapter:
 adapter = BatteryAdapter()
 
 
+def _partition_input_fields(
+    *,
+    percentage_default: int,
+    cost_default: int,
+    cost_direction: str,
+) -> dict[str, InputFieldInfo[Any]]:
+    """Build shared input field definitions for partition sections."""
+    return {
+        CONF_PARTITION_PERCENTAGE: InputFieldInfo(
+            field_name=CONF_PARTITION_PERCENTAGE,
+            entity_description=NumberEntityDescription(
+                key=CONF_PARTITION_PERCENTAGE,
+                translation_key=f"{ELEMENT_TYPE}_{CONF_PARTITION_PERCENTAGE}",
+                native_unit_of_measurement=PERCENTAGE,
+                device_class=NumberDeviceClass.BATTERY,
+                native_min_value=0.0,
+                native_max_value=100.0,
+                native_step=1.0,
+            ),
+            output_type=OutputType.STATE_OF_CHARGE,
+            time_series=True,
+            boundaries=True,
+            defaults=InputFieldDefaults(mode="value", value=percentage_default),
+        ),
+        CONF_PARTITION_COST: InputFieldInfo(
+            field_name=CONF_PARTITION_COST,
+            entity_description=NumberEntityDescription(
+                key=CONF_PARTITION_COST,
+                translation_key=f"{ELEMENT_TYPE}_{CONF_PARTITION_COST}",
+                native_min_value=0.0,
+                native_max_value=10.0,
+                native_step=0.001,
+            ),
+            output_type=OutputType.PRICE,
+            direction=cost_direction,
+            time_series=True,
+            defaults=InputFieldDefaults(mode="value", value=cost_default),
+        ),
+    }
+
+
 def _calculate_total_energy(aggregate_energy: OutputData, config: BatteryConfigData) -> OutputData:
     """Calculate total energy stored including inaccessible energy below min SOC."""
     # Capacity and ratio fields are already boundaries (n+1 values)
-    capacity = config["capacity"]
+    capacity = config[CONF_SECTION_BASIC][CONF_CAPACITY]
 
     # Get time-varying min ratio (also boundaries)
-    min_charge_percentage = config.get(CONF_MIN_CHARGE_PERCENTAGE, DEFAULTS[CONF_MIN_CHARGE_PERCENTAGE])
-    undercharge_cost = config.get("undercharge_cost")
-    undercharge_pct = config.get("undercharge_percentage") if undercharge_cost is not None else None
+    min_charge_percentage = config[CONF_SECTION_LIMITS].get(
+        CONF_MIN_CHARGE_PERCENTAGE,
+        DEFAULTS[CONF_MIN_CHARGE_PERCENTAGE],
+    )
+    undercharge = config.get(CONF_SECTION_UNDERCHARGE, {})
+    undercharge_cost = undercharge.get(CONF_PARTITION_COST)
+    undercharge_pct = undercharge.get(CONF_PARTITION_PERCENTAGE) if undercharge_cost is not None else None
     unusable_ratio = undercharge_pct if undercharge_pct is not None else min_charge_percentage
 
     # Both energy values and capacity/ratios are now boundaries (n+1 values)
@@ -521,7 +537,7 @@ def _calculate_total_energy(aggregate_energy: OutputData, config: BatteryConfigD
 def _calculate_soc(total_energy: OutputData, config: BatteryConfigData) -> OutputData:
     """Calculate SOC ratio from aggregate energy and total capacity."""
     # Capacity is already boundaries (n+1 values), same as energy
-    capacity = config["capacity"]
+    capacity = config[CONF_SECTION_BASIC][CONF_CAPACITY]
     soc_values = np.asarray(total_energy.values, dtype=float) / capacity
 
     return OutputData(

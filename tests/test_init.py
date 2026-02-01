@@ -53,7 +53,7 @@ from custom_components.haeo.elements import (
     ELEMENT_TYPE_GRID,
     ELEMENT_TYPE_NODE,
 )
-from custom_components.haeo.elements.battery import CONF_CAPACITY, CONF_INITIAL_CHARGE_PERCENTAGE
+from custom_components.haeo.elements.battery import CONF_CAPACITY, CONF_CONNECTION, CONF_INITIAL_CHARGE_PERCENTAGE
 from custom_components.haeo.elements.connection import CONF_SOURCE, CONF_TARGET
 from custom_components.haeo.elements.grid import (
     CONF_EXPORT_LIMIT,
@@ -70,15 +70,18 @@ def mock_hub_entry(hass: HomeAssistant) -> MockConfigEntry:
         domain=DOMAIN,
         data={
             CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
-            CONF_NAME: "Test Network",
-            CONF_TIER_1_COUNT: DEFAULT_TIER_1_COUNT,
-            CONF_TIER_1_DURATION: DEFAULT_TIER_1_DURATION,
-            CONF_TIER_2_COUNT: DEFAULT_TIER_2_COUNT,
-            CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
-            CONF_TIER_3_COUNT: DEFAULT_TIER_3_COUNT,
-            CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
-            CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
-            CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
+            "basic": {CONF_NAME: "Test Network"},
+            "tiers": {
+                CONF_TIER_1_COUNT: DEFAULT_TIER_1_COUNT,
+                CONF_TIER_1_DURATION: DEFAULT_TIER_1_DURATION,
+                CONF_TIER_2_COUNT: DEFAULT_TIER_2_COUNT,
+                CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
+                CONF_TIER_3_COUNT: DEFAULT_TIER_3_COUNT,
+                CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
+                CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
+                CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
+            },
+            "advanced": {},
         },
         entry_id="hub_entry_id",
         title="Test HAEO Integration",
@@ -94,8 +97,14 @@ def mock_battery_subentry(hass: HomeAssistant, mock_hub_entry: MockConfigEntry) 
         data=MappingProxyType(
             {
                 CONF_ELEMENT_TYPE: ELEMENT_TYPE_BATTERY,
-                CONF_CAPACITY: 10000,
-                CONF_INITIAL_CHARGE_PERCENTAGE: "sensor.battery_charge",
+                "basic": {
+                    CONF_NAME: "Test Battery",
+                    CONF_CONNECTION: "Switchboard",
+                    CONF_CAPACITY: 10000,
+                    CONF_INITIAL_CHARGE_PERCENTAGE: "sensor.battery_charge",
+                },
+                "limits": {},
+                "advanced": {},
             }
         ),
         subentry_type=ELEMENT_TYPE_BATTERY,
@@ -113,15 +122,17 @@ def mock_grid_subentry(hass: HomeAssistant, mock_hub_entry: MockConfigEntry) -> 
         data=MappingProxyType(
             {
                 CONF_ELEMENT_TYPE: ELEMENT_TYPE_GRID,
-                CONF_IMPORT_LIMIT: 10000,
-                CONF_EXPORT_LIMIT: 5000,
-                CONF_IMPORT_PRICE: {
-                    "live": ["sensor.import_price"],
-                    "forecast": ["sensor.import_price"],
+                "basic": {
+                    CONF_NAME: "Test Grid",
+                    CONF_CONNECTION: "Switchboard",
                 },
-                CONF_EXPORT_PRICE: {
-                    "live": ["sensor.export_price"],
-                    "forecast": ["sensor.export_price"],
+                "pricing": {
+                    CONF_IMPORT_PRICE: ["sensor.import_price"],
+                    CONF_EXPORT_PRICE: ["sensor.export_price"],
+                },
+                "limits": {
+                    CONF_IMPORT_LIMIT: 10000,
+                    CONF_EXPORT_LIMIT: 5000,
                 },
             }
         ),
@@ -140,8 +151,13 @@ def mock_connection_subentry(hass: HomeAssistant, mock_hub_entry: MockConfigEntr
         data=MappingProxyType(
             {
                 CONF_ELEMENT_TYPE: ELEMENT_TYPE_CONNECTION,
-                CONF_SOURCE: "test_battery",
-                CONF_TARGET: "test_grid",
+                "basic": {
+                    CONF_NAME: "Battery to Grid",
+                    CONF_SOURCE: "Test Battery",
+                    CONF_TARGET: "Test Grid",
+                },
+                "limits": {},
+                "advanced": {},
             }
         ),
         subentry_type=ELEMENT_TYPE_CONNECTION,
@@ -308,9 +324,9 @@ async def test_ensure_required_subentries_creates_switchboard_non_advanced(
 
     # Verify the created node has correct configuration
     node_subentry = next(sub for sub in mock_hub_entry.subentries.values() if sub.subentry_type == ELEMENT_TYPE_NODE)
-    assert node_subentry.data[CONF_NAME] == "Switchboard"  # Default name when translations not available
-    assert node_subentry.data["is_source"] is False
-    assert node_subentry.data["is_sink"] is False
+    assert node_subentry.data["basic"][CONF_NAME] == "Switchboard"  # Default name when translations not available
+    assert node_subentry.data["advanced"]["is_source"] is False
+    assert node_subentry.data["advanced"]["is_sink"] is False
 
 
 async def test_ensure_required_subentries_skips_switchboard_advanced_mode(
@@ -322,8 +338,9 @@ async def test_ensure_required_subentries_skips_switchboard_advanced_mode(
         domain=DOMAIN,
         data={
             CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
-            CONF_NAME: "Test Network",
-            CONF_ADVANCED_MODE: True,
+            "basic": {CONF_NAME: "Test Network"},
+            "advanced": {CONF_ADVANCED_MODE: True},
+            "tiers": {},
         },
         entry_id="hub_entry_id",
         title="Test HAEO Integration",
@@ -538,7 +555,7 @@ async def test_async_setup_entry_raises_config_entry_not_ready_on_timeout(
     class MockRuntimeData:
         def __init__(self) -> None:
             self.horizon_manager = mock_horizon
-            self.input_entities = {("Test Element", "field"): never_ready_entity}
+            self.input_entities = {("Test Element", ("basic", "field")): never_ready_entity}
             self.coordinator = None
             self.value_update_in_progress = False
 
@@ -631,7 +648,7 @@ async def test_setup_reentry_after_timeout_failure(
     class MockRuntimeData:
         def __init__(self, horizon_manager: object) -> None:
             self.horizon_manager = horizon_manager
-            self.input_entities = {("Test Element", "field"): entity}
+            self.input_entities = {("Test Element", ("basic", "field")): entity}
             self.coordinator = None
             self.value_update_in_progress = False
 

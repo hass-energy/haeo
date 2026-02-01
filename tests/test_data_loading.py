@@ -10,9 +10,16 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME, DOMAIN
 from custom_components.haeo.coordinator import create_network
 from custom_components.haeo.elements import ElementConfigData
+from custom_components.haeo.elements.connection import CONF_SECTION_ADVANCED as CONF_CONNECTION_SECTION_ADVANCED
+from custom_components.haeo.elements.connection import CONF_SECTION_BASIC as CONF_CONNECTION_SECTION_BASIC
+from custom_components.haeo.elements.connection import CONF_SECTION_LIMITS as CONF_CONNECTION_SECTION_LIMITS
 from custom_components.haeo.elements.connection import CONF_SOURCE, CONF_TARGET
 from custom_components.haeo.elements.load import CONF_CONNECTION
+from custom_components.haeo.elements.load import CONF_SECTION_BASIC as CONF_LOAD_SECTION_BASIC
+from custom_components.haeo.elements.load import CONF_SECTION_INPUTS as CONF_LOAD_SECTION_INPUTS
 from custom_components.haeo.elements.node import CONF_IS_SINK, CONF_IS_SOURCE
+from custom_components.haeo.elements.node import CONF_SECTION_ADVANCED as CONF_NODE_SECTION_ADVANCED
+from custom_components.haeo.elements.node import CONF_SECTION_BASIC as CONF_NODE_SECTION_BASIC
 
 
 async def test_create_network_successful_loads_load_participant(hass: HomeAssistant) -> None:
@@ -27,15 +34,15 @@ async def test_create_network_successful_loads_load_participant(hass: HomeAssist
         {
             "main_bus": {
                 CONF_ELEMENT_TYPE: "node",
-                CONF_NAME: "main_bus",
-                CONF_IS_SOURCE: False,
-                CONF_IS_SINK: False,
+                CONF_NODE_SECTION_BASIC: {CONF_NAME: "main_bus"},
+                CONF_NODE_SECTION_ADVANCED: {CONF_IS_SOURCE: False, CONF_IS_SINK: False},
             },
             "Baseload": {
                 CONF_ELEMENT_TYPE: "load",
-                CONF_NAME: "Baseload",
-                CONF_CONNECTION: "main_bus",
-                "forecast": [2.5, 2.5, 2.5, 2.5],  # Pre-loaded values in kW
+                CONF_LOAD_SECTION_BASIC: {CONF_NAME: "Baseload", CONF_CONNECTION: "main_bus"},
+                CONF_LOAD_SECTION_INPUTS: {
+                    "forecast": [2.5, 2.5, 2.5, 2.5],  # Pre-loaded values in kW
+                },
             },
         },
     )
@@ -78,21 +85,23 @@ async def test_create_network_sorts_connections_after_elements(hass: HomeAssista
         {
             "line": {
                 CONF_ELEMENT_TYPE: "connection",
-                CONF_NAME: "line",
-                CONF_SOURCE: "node_a",
-                CONF_TARGET: "node_b",
+                CONF_CONNECTION_SECTION_BASIC: {
+                    CONF_NAME: "line",
+                    CONF_SOURCE: "node_a",
+                    CONF_TARGET: "node_b",
+                },
+                CONF_CONNECTION_SECTION_LIMITS: {},
+                CONF_CONNECTION_SECTION_ADVANCED: {},
             },
             "node_a": {
                 CONF_ELEMENT_TYPE: "node",
-                CONF_NAME: "node_a",
-                CONF_IS_SOURCE: False,
-                CONF_IS_SINK: False,
+                CONF_NODE_SECTION_BASIC: {CONF_NAME: "node_a"},
+                CONF_NODE_SECTION_ADVANCED: {CONF_IS_SOURCE: False, CONF_IS_SINK: False},
             },
             "node_b": {
                 CONF_ELEMENT_TYPE: "node",
-                CONF_NAME: "node_b",
-                CONF_IS_SOURCE: False,
-                CONF_IS_SINK: False,
+                CONF_NODE_SECTION_BASIC: {CONF_NAME: "node_b"},
+                CONF_NODE_SECTION_ADVANCED: {CONF_IS_SOURCE: False, CONF_IS_SINK: False},
             },
         },
     )
@@ -116,7 +125,11 @@ async def test_create_network_add_failure_is_wrapped(hass: HomeAssistant, monkey
     participants = cast(
         "dict[str, ElementConfigData]",
         {
-            "node": {CONF_ELEMENT_TYPE: "node", CONF_NAME: "node", CONF_IS_SOURCE: False, CONF_IS_SINK: False},
+            "node": {
+                CONF_ELEMENT_TYPE: "node",
+                CONF_NODE_SECTION_BASIC: {CONF_NAME: "node"},
+                CONF_NODE_SECTION_ADVANCED: {CONF_IS_SOURCE: False, CONF_IS_SINK: False},
+            },
         },
     )
 

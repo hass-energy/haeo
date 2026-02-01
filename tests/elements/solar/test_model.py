@@ -39,11 +39,15 @@ CREATE_CASES: Sequence[CreateCase] = [
         "description": "Solar with production price",
         "data": SolarConfigData(
             element_type="solar",
-            name="pv_main",
-            connection="network",
-            forecast=np.array([2.0, 1.5]),
-            price_production=np.array([0.15, 0.15]),
-            curtailment=False,
+            basic={
+                "name": "pv_main",
+                "connection": "network",
+                "forecast": np.array([2.0, 1.5]),
+            },
+            advanced={
+                "price_production": np.array([0.15, 0.15]),
+                "curtailment": False,
+            },
         ),
         "model": [
             {"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "pv_main", "is_source": True, "is_sink": False},

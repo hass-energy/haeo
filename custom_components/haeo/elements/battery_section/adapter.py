@@ -21,6 +21,8 @@ from custom_components.haeo.model.output_data import OutputData
 from .schema import (
     CONF_CAPACITY,
     CONF_INITIAL_CHARGE,
+    CONF_SECTION_BASIC,
+    CONF_SECTION_INPUTS,
     ELEMENT_TYPE,
     BatterySectionConfigData,
     BatterySectionConfigSchema,
@@ -72,40 +74,43 @@ class BatterySectionAdapter:
 
         # Check required time series fields
         required_fields = [CONF_CAPACITY, CONF_INITIAL_CHARGE]
-        return all(ts_loader.available(hass=hass, value=config[field]) for field in required_fields)
+        inputs = config[CONF_SECTION_INPUTS]
+        return all(ts_loader.available(hass=hass, value=inputs[field]) for field in required_fields)
 
-    def inputs(self, config: Any) -> dict[str, InputFieldInfo[Any]]:
+    def inputs(self, config: Any) -> dict[str, dict[str, InputFieldInfo[Any]]]:
         """Return input field definitions for battery section elements."""
         _ = config
         return {
-            CONF_CAPACITY: InputFieldInfo(
-                field_name=CONF_CAPACITY,
-                entity_description=NumberEntityDescription(
-                    key=CONF_CAPACITY,
-                    translation_key=f"{ELEMENT_TYPE}_{CONF_CAPACITY}",
-                    native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
-                    device_class=NumberDeviceClass.ENERGY_STORAGE,
-                    native_min_value=0.1,
-                    native_max_value=1000.0,
-                    native_step=0.1,
+            CONF_SECTION_INPUTS: {
+                CONF_CAPACITY: InputFieldInfo(
+                    field_name=CONF_CAPACITY,
+                    entity_description=NumberEntityDescription(
+                        key=CONF_CAPACITY,
+                        translation_key=f"{ELEMENT_TYPE}_{CONF_CAPACITY}",
+                        native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
+                        device_class=NumberDeviceClass.ENERGY_STORAGE,
+                        native_min_value=0.1,
+                        native_max_value=1000.0,
+                        native_step=0.1,
+                    ),
+                    output_type=OutputType.ENERGY,
+                    time_series=True,
                 ),
-                output_type=OutputType.ENERGY,
-                time_series=True,
-            ),
-            CONF_INITIAL_CHARGE: InputFieldInfo(
-                field_name=CONF_INITIAL_CHARGE,
-                entity_description=NumberEntityDescription(
-                    key=CONF_INITIAL_CHARGE,
-                    translation_key=f"{ELEMENT_TYPE}_{CONF_INITIAL_CHARGE}",
-                    native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
-                    device_class=NumberDeviceClass.ENERGY_STORAGE,
-                    native_min_value=0.0,
-                    native_max_value=1000.0,
-                    native_step=0.1,
+                CONF_INITIAL_CHARGE: InputFieldInfo(
+                    field_name=CONF_INITIAL_CHARGE,
+                    entity_description=NumberEntityDescription(
+                        key=CONF_INITIAL_CHARGE,
+                        translation_key=f"{ELEMENT_TYPE}_{CONF_INITIAL_CHARGE}",
+                        native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
+                        device_class=NumberDeviceClass.ENERGY_STORAGE,
+                        native_min_value=0.0,
+                        native_max_value=1000.0,
+                        native_step=0.1,
+                    ),
+                    output_type=OutputType.ENERGY,
+                    time_series=True,
                 ),
-                output_type=OutputType.ENERGY,
-                time_series=True,
-            ),
+            },
         }
 
     def model_elements(self, config: BatterySectionConfigData) -> list[ModelElementConfig]:
@@ -116,9 +121,9 @@ class BatterySectionAdapter:
         return [
             {
                 "element_type": MODEL_ELEMENT_TYPE_BATTERY,
-                "name": config["name"],
-                "capacity": config["capacity"],
-                "initial_charge": config["initial_charge"][0],
+                "name": config[CONF_SECTION_BASIC]["name"],
+                "capacity": config[CONF_SECTION_INPUTS][CONF_CAPACITY],
+                "initial_charge": config[CONF_SECTION_INPUTS][CONF_INITIAL_CHARGE][0],
             }
         ]
 

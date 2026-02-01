@@ -7,6 +7,9 @@ from custom_components.haeo.elements.grid import (
     CONF_EXPORT_PRICE,
     CONF_IMPORT_LIMIT,
     CONF_IMPORT_PRICE,
+    CONF_SECTION_BASIC,
+    CONF_SECTION_LIMITS,
+    CONF_SECTION_PRICING,
 )
 
 # Test data for grid flow - single-step with choose selector
@@ -15,12 +18,18 @@ VALID_DATA = [
     {
         "description": "Basic grid with all constant values",
         "config": {
-            CONF_NAME: "Test Grid",
-            CONF_CONNECTION: "main_bus",
-            CONF_IMPORT_PRICE: 0.30,
-            CONF_EXPORT_PRICE: 0.05,
-            CONF_IMPORT_LIMIT: 10.0,
-            CONF_EXPORT_LIMIT: 10.0,
+            CONF_SECTION_BASIC: {
+                CONF_NAME: "Test Grid",
+                CONF_CONNECTION: "main_bus",
+            },
+            CONF_SECTION_PRICING: {
+                CONF_IMPORT_PRICE: 0.30,
+                CONF_EXPORT_PRICE: 0.05,
+            },
+            CONF_SECTION_LIMITS: {
+                CONF_IMPORT_LIMIT: 10.0,
+                CONF_EXPORT_LIMIT: 10.0,
+            },
         },
     },
 ]

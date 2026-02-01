@@ -479,11 +479,9 @@ def test_network_add_connection_updates_prices() -> None:
         network,
         {
             "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
-            "name": "conn",
-            "source": "source",
-            "target": "sink",
-            "max_power_source_target": 5.0,
-            "price_source_target": -0.20,
+            "basic": {"name": "conn", "source": "source", "target": "sink"},
+            "limits": {"max_power_source_target": 5.0},
+            "advanced": {"price_source_target": -0.20},
         },
     )
 

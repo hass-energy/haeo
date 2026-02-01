@@ -29,8 +29,8 @@ The adapter creates two model elements:
 
 The battery model tracks stored energy within a bounded range:
 
-- **Lower bound**: `undercharge_percentage` when configured, otherwise `min_charge_percentage`
-- **Upper bound**: `overcharge_percentage` when configured, otherwise `max_charge_percentage`
+- **Lower bound**: undercharge percentage when configured, otherwise `min_charge_percentage`
+- **Upper bound**: overcharge percentage when configured, otherwise `max_charge_percentage`
 
 The model capacity is:
 
@@ -76,10 +76,10 @@ Battery creates a single Home Assistant device:
 | `initial_charge_percentage` | Battery               | `initial_charge` (offset by lower bound)               | kWh                        |
 | `min_charge_percentage`     | Battery + SOC pricing | Preferred minimum SOC threshold                        | Penalty threshold          |
 | `max_charge_percentage`     | Battery + SOC pricing | Preferred maximum SOC threshold                        | Penalty threshold          |
-| `undercharge_percentage`    | Battery               | Lower bound for SOC range                              | Hard minimum               |
-| `overcharge_percentage`     | Battery               | Upper bound for SOC range                              | Hard maximum               |
-| `undercharge_cost`          | SOC pricing segment   | `discharge_energy_price`                               | Penalty below min SOC      |
-| `overcharge_cost`           | SOC pricing segment   | `charge_capacity_price`                                | Penalty above max SOC      |
+| Undercharge percentage      | Battery               | Lower bound for SOC range                              | Hard minimum               |
+| Overcharge percentage       | Battery               | Upper bound for SOC range                              | Hard maximum               |
+| Undercharge cost            | SOC pricing segment   | `discharge_energy_price`                               | Penalty below min SOC      |
+| Overcharge cost             | SOC pricing segment   | `charge_capacity_price`                                | Penalty above max SOC      |
 | `early_charge_incentive`    | Pricing segment       | Time-varying charge/discharge incentive                | Applied on main connection |
 | `discharge_cost`            | Pricing segment       | Added to `price_source_target`                         | Base discharge cost        |
 | `efficiency`                | Efficiency segment    | `efficiency_source_target`, `efficiency_target_source` | Applied to both directions |

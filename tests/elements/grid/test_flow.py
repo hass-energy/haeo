@@ -1,6 +1,7 @@
 """Tests for grid element config flow."""
 
 from types import MappingProxyType
+from typing import Any
 from unittest.mock import Mock
 
 from homeassistant.config_entries import SOURCE_RECONFIGURE, ConfigSubentry
@@ -16,22 +17,53 @@ from custom_components.haeo.elements.grid import (
     CONF_EXPORT_PRICE,
     CONF_IMPORT_LIMIT,
     CONF_IMPORT_PRICE,
+    CONF_SECTION_BASIC,
+    CONF_SECTION_LIMITS,
+    CONF_SECTION_PRICING,
     ELEMENT_TYPE,
 )
 
 from ..conftest import add_participant, create_flow
 
 
+def _wrap_input(flat: dict[str, Any]) -> dict[str, Any]:
+    """Wrap flat grid input values into sectioned config."""
+    if CONF_SECTION_BASIC in flat:
+        return dict(flat)
+    basic = {
+        CONF_NAME: flat[CONF_NAME],
+        CONF_CONNECTION: flat[CONF_CONNECTION],
+    }
+    pricing = {
+        CONF_IMPORT_PRICE: flat[CONF_IMPORT_PRICE],
+        CONF_EXPORT_PRICE: flat[CONF_EXPORT_PRICE],
+    }
+    limits = {key: flat[key] for key in (CONF_IMPORT_LIMIT, CONF_EXPORT_LIMIT) if key in flat}
+    return {
+        CONF_SECTION_BASIC: basic,
+        CONF_SECTION_PRICING: pricing,
+        CONF_SECTION_LIMITS: limits,
+    }
+
+
+def _wrap_config(flat: dict[str, Any]) -> dict[str, Any]:
+    """Wrap flat grid config values into sectioned config with element type."""
+    if CONF_SECTION_BASIC in flat:
+        return {CONF_ELEMENT_TYPE: ELEMENT_TYPE, **flat}
+    return {CONF_ELEMENT_TYPE: ELEMENT_TYPE, **_wrap_input(flat)}
+
+
 async def test_reconfigure_with_deleted_connection_target(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
     """Grid reconfigure should include deleted connection target in options."""
     # Create grid that references a deleted connection target
-    existing_config = {
-        CONF_ELEMENT_TYPE: ELEMENT_TYPE,
-        CONF_NAME: "Test Grid",
-        CONF_CONNECTION: "DeletedNode",  # This node no longer exists
-        CONF_IMPORT_PRICE: 0.30,
-        CONF_EXPORT_PRICE: 0.05,
-    }
+    existing_config = _wrap_config(
+        {
+            CONF_NAME: "Test Grid",
+            CONF_CONNECTION: "DeletedNode",  # This node no longer exists
+            CONF_IMPORT_PRICE: 0.30,
+            CONF_EXPORT_PRICE: 0.05,
+        }
+    )
     existing_subentry = ConfigSubentry(
         data=MappingProxyType(existing_config),
         subentry_type=ELEMENT_TYPE,
@@ -98,12 +130,14 @@ async def test_user_step_empty_required_field_shows_error(
     flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
 
     # Submit with empty import_price (required field) - entity choice with empty list
-    user_input = {
-        CONF_NAME: "Test Grid",
-        CONF_CONNECTION: "TestNode",
-        CONF_IMPORT_PRICE: [],
-        CONF_EXPORT_PRICE: 0.05,
-    }
+    user_input = _wrap_input(
+        {
+            CONF_NAME: "Test Grid",
+            CONF_CONNECTION: "TestNode",
+            CONF_IMPORT_PRICE: [],
+            CONF_EXPORT_PRICE: 0.05,
+        }
+    )
     result = await flow.async_step_user(user_input=user_input)
 
     assert result.get("type") == FlowResultType.FORM
@@ -131,22 +165,24 @@ async def test_user_step_with_constant_creates_entry(
     )
 
     # Submit with constant values using choose selector format
-    user_input = {
-        CONF_NAME: "Test Grid",
-        CONF_CONNECTION: "TestNode",
-        CONF_IMPORT_PRICE: 0.25,
-        CONF_EXPORT_PRICE: 0.05,
-        CONF_IMPORT_LIMIT: 10.0,
-        CONF_EXPORT_LIMIT: 10.0,
-    }
+    user_input = _wrap_input(
+        {
+            CONF_NAME: "Test Grid",
+            CONF_CONNECTION: "TestNode",
+            CONF_IMPORT_PRICE: 0.25,
+            CONF_EXPORT_PRICE: 0.05,
+            CONF_IMPORT_LIMIT: 10.0,
+            CONF_EXPORT_LIMIT: 10.0,
+        }
+    )
     result = await flow.async_step_user(user_input=user_input)
 
     assert result.get("type") == FlowResultType.CREATE_ENTRY
 
     # Verify the config contains the constant values
     create_kwargs = flow.async_create_entry.call_args.kwargs
-    assert create_kwargs["data"][CONF_IMPORT_PRICE] == 0.25
-    assert create_kwargs["data"][CONF_EXPORT_PRICE] == 0.05
+    assert create_kwargs["data"][CONF_SECTION_PRICING][CONF_IMPORT_PRICE] == 0.25
+    assert create_kwargs["data"][CONF_SECTION_PRICING][CONF_EXPORT_PRICE] == 0.05
 
 
 async def test_user_step_with_entity_creates_entry(
@@ -166,22 +202,24 @@ async def test_user_step_with_entity_creates_entry(
     )
 
     # Submit with entity selections
-    user_input = {
-        CONF_NAME: "Test Grid",
-        CONF_CONNECTION: "TestNode",
-        CONF_IMPORT_PRICE: ["sensor.import_price"],
-        CONF_EXPORT_PRICE: ["sensor.export_price"],
-        CONF_IMPORT_LIMIT: 10.0,
-        CONF_EXPORT_LIMIT: 10.0,
-    }
+    user_input = _wrap_input(
+        {
+            CONF_NAME: "Test Grid",
+            CONF_CONNECTION: "TestNode",
+            CONF_IMPORT_PRICE: ["sensor.import_price"],
+            CONF_EXPORT_PRICE: ["sensor.export_price"],
+            CONF_IMPORT_LIMIT: 10.0,
+            CONF_EXPORT_LIMIT: 10.0,
+        }
+    )
     result = await flow.async_step_user(user_input=user_input)
 
     assert result.get("type") == FlowResultType.CREATE_ENTRY
 
     # Verify the config contains the entity IDs as strings (single entity)
     create_kwargs = flow.async_create_entry.call_args.kwargs
-    assert create_kwargs["data"][CONF_IMPORT_PRICE] == "sensor.import_price"
-    assert create_kwargs["data"][CONF_EXPORT_PRICE] == "sensor.export_price"
+    assert create_kwargs["data"][CONF_SECTION_PRICING][CONF_IMPORT_PRICE] == "sensor.import_price"
+    assert create_kwargs["data"][CONF_SECTION_PRICING][CONF_EXPORT_PRICE] == "sensor.export_price"
 
 
 # --- Tests for reconfigure flow ---
@@ -195,13 +233,14 @@ async def test_reconfigure_empty_required_field_shows_error(
     add_participant(hass, hub_entry, "TestNode", node.ELEMENT_TYPE)
 
     # Create existing entry with scalar values
-    existing_config = {
-        CONF_ELEMENT_TYPE: ELEMENT_TYPE,
-        CONF_NAME: "Test Grid",
-        CONF_CONNECTION: "TestNode",
-        CONF_IMPORT_PRICE: 0.30,
-        CONF_EXPORT_PRICE: 0.05,
-    }
+    existing_config = _wrap_config(
+        {
+            CONF_NAME: "Test Grid",
+            CONF_CONNECTION: "TestNode",
+            CONF_IMPORT_PRICE: 0.30,
+            CONF_EXPORT_PRICE: 0.05,
+        }
+    )
     existing_subentry = ConfigSubentry(
         data=MappingProxyType(existing_config),
         subentry_type=ELEMENT_TYPE,
@@ -215,12 +254,14 @@ async def test_reconfigure_empty_required_field_shows_error(
     flow._get_reconfigure_subentry = Mock(return_value=existing_subentry)
 
     # Submit with empty import_price (required field)
-    user_input = {
-        CONF_NAME: "Test Grid",
-        CONF_CONNECTION: "TestNode",
-        CONF_IMPORT_PRICE: [],
-        CONF_EXPORT_PRICE: 0.05,
-    }
+    user_input = _wrap_input(
+        {
+            CONF_NAME: "Test Grid",
+            CONF_CONNECTION: "TestNode",
+            CONF_IMPORT_PRICE: [],
+            CONF_EXPORT_PRICE: 0.05,
+        }
+    )
     result = await flow.async_step_reconfigure(user_input=user_input)
 
     # Should show reconfigure form again with error
@@ -237,13 +278,14 @@ async def test_reconfigure_with_constant_updates_entry(
     add_participant(hass, hub_entry, "TestNode", node.ELEMENT_TYPE)
 
     # Create existing entry with entity links
-    existing_config = {
-        CONF_ELEMENT_TYPE: ELEMENT_TYPE,
-        CONF_NAME: "Test Grid",
-        CONF_CONNECTION: "TestNode",
-        CONF_IMPORT_PRICE: "sensor.import",
-        CONF_EXPORT_PRICE: "sensor.export",
-    }
+    existing_config = _wrap_config(
+        {
+            CONF_NAME: "Test Grid",
+            CONF_CONNECTION: "TestNode",
+            CONF_IMPORT_PRICE: "sensor.import",
+            CONF_EXPORT_PRICE: "sensor.export",
+        }
+    )
     existing_subentry = ConfigSubentry(
         data=MappingProxyType(existing_config),
         subentry_type=ELEMENT_TYPE,
@@ -258,12 +300,14 @@ async def test_reconfigure_with_constant_updates_entry(
     flow.async_update_and_abort = Mock(return_value={"type": FlowResultType.ABORT, "reason": "reconfigure_successful"})
 
     # Change to constant values
-    user_input = {
-        CONF_NAME: "Test Grid",
-        CONF_CONNECTION: "TestNode",
-        CONF_IMPORT_PRICE: 0.30,
-        CONF_EXPORT_PRICE: 0.08,
-    }
+    user_input = _wrap_input(
+        {
+            CONF_NAME: "Test Grid",
+            CONF_CONNECTION: "TestNode",
+            CONF_IMPORT_PRICE: 0.30,
+            CONF_EXPORT_PRICE: 0.08,
+        }
+    )
     result = await flow.async_step_reconfigure(user_input=user_input)
 
     assert result.get("type") == FlowResultType.ABORT
@@ -271,8 +315,8 @@ async def test_reconfigure_with_constant_updates_entry(
 
     # Verify the config contains the constant values
     update_kwargs = flow.async_update_and_abort.call_args.kwargs
-    assert update_kwargs["data"][CONF_IMPORT_PRICE] == 0.30
-    assert update_kwargs["data"][CONF_EXPORT_PRICE] == 0.08
+    assert update_kwargs["data"][CONF_SECTION_PRICING][CONF_IMPORT_PRICE] == 0.30
+    assert update_kwargs["data"][CONF_SECTION_PRICING][CONF_EXPORT_PRICE] == 0.08
 
 
 async def test_reconfigure_with_scalar_shows_constant_defaults(
@@ -283,13 +327,14 @@ async def test_reconfigure_with_scalar_shows_constant_defaults(
     add_participant(hass, hub_entry, "TestNode", node.ELEMENT_TYPE)
 
     # Create existing entry with scalar values (from prior constant config)
-    existing_config = {
-        CONF_ELEMENT_TYPE: ELEMENT_TYPE,
-        CONF_NAME: "Test Grid",
-        CONF_CONNECTION: "TestNode",
-        CONF_IMPORT_PRICE: 0.30,  # Scalar value
-        CONF_EXPORT_PRICE: 0.08,  # Scalar value
-    }
+    existing_config = _wrap_config(
+        {
+            CONF_NAME: "Test Grid",
+            CONF_CONNECTION: "TestNode",
+            CONF_IMPORT_PRICE: 0.30,  # Scalar value
+            CONF_EXPORT_PRICE: 0.08,  # Scalar value
+        }
+    )
     existing_subentry = ConfigSubentry(
         data=MappingProxyType(existing_config),
         subentry_type=ELEMENT_TYPE,
@@ -312,8 +357,8 @@ async def test_reconfigure_with_scalar_shows_constant_defaults(
     defaults = flow._build_defaults("Test Grid", dict(existing_subentry.data))
 
     # Defaults should contain constant choice with values
-    assert defaults[CONF_IMPORT_PRICE] == 0.30
-    assert defaults[CONF_EXPORT_PRICE] == 0.08
+    assert defaults[CONF_SECTION_PRICING][CONF_IMPORT_PRICE] == 0.30
+    assert defaults[CONF_SECTION_PRICING][CONF_EXPORT_PRICE] == 0.08
 
 
 async def test_reconfigure_with_string_entity_id_v010_format(
@@ -324,13 +369,14 @@ async def test_reconfigure_with_string_entity_id_v010_format(
     add_participant(hass, hub_entry, "TestNode", node.ELEMENT_TYPE)
 
     # Create existing entry with v0.1.0 format: string entity IDs (not list, not scalar)
-    existing_config = {
-        CONF_ELEMENT_TYPE: ELEMENT_TYPE,
-        CONF_NAME: "Test Grid",
-        CONF_CONNECTION: "TestNode",
-        CONF_IMPORT_PRICE: "sensor.import_price",  # v0.1.0: single string entity ID
-        CONF_EXPORT_PRICE: "sensor.export_price",  # v0.1.0: single string entity ID
-    }
+    existing_config = _wrap_config(
+        {
+            CONF_NAME: "Test Grid",
+            CONF_CONNECTION: "TestNode",
+            CONF_IMPORT_PRICE: "sensor.import_price",  # v0.1.0: single string entity ID
+            CONF_EXPORT_PRICE: "sensor.export_price",  # v0.1.0: single string entity ID
+        }
+    )
     existing_subentry = ConfigSubentry(
         data=MappingProxyType(existing_config),
         subentry_type=ELEMENT_TYPE,
@@ -353,8 +399,8 @@ async def test_reconfigure_with_string_entity_id_v010_format(
     defaults = flow._build_defaults("Test Grid", dict(existing_subentry.data))
 
     # Defaults should contain entity choice with the original entity IDs as lists
-    assert defaults[CONF_IMPORT_PRICE] == ["sensor.import_price"]
-    assert defaults[CONF_EXPORT_PRICE] == ["sensor.export_price"]
+    assert defaults[CONF_SECTION_PRICING][CONF_IMPORT_PRICE] == ["sensor.import_price"]
+    assert defaults[CONF_SECTION_PRICING][CONF_EXPORT_PRICE] == ["sensor.export_price"]
 
 
 async def test_reconfigure_with_entity_list(
@@ -365,13 +411,14 @@ async def test_reconfigure_with_entity_list(
     add_participant(hass, hub_entry, "TestNode", node.ELEMENT_TYPE)
 
     # Create existing entry with entity list format
-    existing_config = {
-        CONF_ELEMENT_TYPE: ELEMENT_TYPE,
-        CONF_NAME: "Test Grid",
-        CONF_CONNECTION: "TestNode",
-        CONF_IMPORT_PRICE: ["sensor.import1", "sensor.import2"],  # List of entities
-        CONF_EXPORT_PRICE: ["sensor.export"],  # Single entity in list
-    }
+    existing_config = _wrap_config(
+        {
+            CONF_NAME: "Test Grid",
+            CONF_CONNECTION: "TestNode",
+            CONF_IMPORT_PRICE: ["sensor.import1", "sensor.import2"],  # List of entities
+            CONF_EXPORT_PRICE: ["sensor.export"],  # Single entity in list
+        }
+    )
     existing_subentry = ConfigSubentry(
         data=MappingProxyType(existing_config),
         subentry_type=ELEMENT_TYPE,
@@ -388,8 +435,8 @@ async def test_reconfigure_with_entity_list(
     defaults = flow._build_defaults("Test Grid", dict(existing_subentry.data))
 
     # Defaults should contain entity choice with the entity lists
-    assert defaults[CONF_IMPORT_PRICE] == ["sensor.import1", "sensor.import2"]
-    assert defaults[CONF_EXPORT_PRICE] == ["sensor.export"]
+    assert defaults[CONF_SECTION_PRICING][CONF_IMPORT_PRICE] == ["sensor.import1", "sensor.import2"]
+    assert defaults[CONF_SECTION_PRICING][CONF_EXPORT_PRICE] == ["sensor.export"]
 
 
 # --- Tests for _is_valid_choose_value ---

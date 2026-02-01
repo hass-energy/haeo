@@ -35,15 +35,18 @@ def config_entry(hass: HomeAssistant) -> MockConfigEntry:
         domain=DOMAIN,
         title="Test Network",
         data={
-            "name": "Test Network",
-            "tier_1_count": 2,
-            "tier_1_duration": 5,
-            "tier_2_count": 0,
-            "tier_2_duration": 15,
-            "tier_3_count": 0,
-            "tier_3_duration": 30,
-            "tier_4_count": 0,
-            "tier_4_duration": 60,
+            "basic": {CONF_NAME: "Test Network"},
+            "tiers": {
+                "tier_1_count": 2,
+                "tier_1_duration": 5,
+                "tier_2_count": 0,
+                "tier_2_duration": 15,
+                "tier_3_count": 0,
+                "tier_3_duration": 30,
+                "tier_4_count": 0,
+                "tier_4_duration": 60,
+            },
+            "advanced": {},
         },
         entry_id="test_entry",
     )
@@ -147,7 +150,13 @@ def percent_field_info() -> InputFieldInfo[NumberEntityDescription]:
 def _create_subentry(name: str, data: dict[str, Any]) -> ConfigSubentry:
     """Create a ConfigSubentry with the given data."""
     return ConfigSubentry(
-        data=MappingProxyType({CONF_NAME: name, "element_type": "battery", **data}),
+        data=MappingProxyType(
+            {
+                "element_type": "battery",
+                "basic": {CONF_NAME: name},
+                "advanced": data,
+            }
+        ),
         subentry_type="battery",
         title=name,
         unique_id=None,
@@ -392,7 +401,7 @@ async def test_unique_id_includes_all_components(
         horizon_manager=horizon_manager,
     )
 
-    expected_unique_id = f"{config_entry.entry_id}_{subentry.subentry_id}_{power_field_info.field_name}"
+    expected_unique_id = f"{config_entry.entry_id}_{subentry.subentry_id}_advanced.{power_field_info.field_name}"
     assert entity.unique_id == expected_unique_id
 
 

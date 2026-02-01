@@ -10,6 +10,23 @@ ELEMENT_TYPE: Final = "load"
 # Configuration field names
 CONF_FORECAST: Final = "forecast"
 CONF_CONNECTION: Final = "connection"
+CONF_SECTION_BASIC: Final = "basic"
+CONF_SECTION_INPUTS: Final = "inputs"
+
+OPTIONAL_INPUT_FIELDS: Final[frozenset[str]] = frozenset()
+
+
+class LoadBasicConfig(TypedDict):
+    """Basic configuration for load elements."""
+
+    name: str
+    connection: str  # Element name to connect to
+
+
+class LoadInputsConfig(TypedDict):
+    """Input configuration for load elements."""
+
+    forecast: list[str] | str | float  # Entity ID(s) or constant kW - list for chaining
 
 
 class LoadConfigSchema(TypedDict):
@@ -19,9 +36,21 @@ class LoadConfigSchema(TypedDict):
     """
 
     element_type: Literal["load"]
+    basic: LoadBasicConfig
+    inputs: LoadInputsConfig
+
+
+class LoadBasicData(TypedDict):
+    """Loaded basic values for load elements."""
+
     name: str
     connection: str  # Element name to connect to
-    forecast: list[str] | str | float  # Entity ID(s) or constant kW - list for chaining
+
+
+class LoadInputsData(TypedDict):
+    """Loaded input values for load elements."""
+
+    forecast: NDArray[np.floating[Any]] | float  # Loaded power values per period (kW)
 
 
 class LoadConfigData(TypedDict):
@@ -31,6 +60,5 @@ class LoadConfigData(TypedDict):
     """
 
     element_type: Literal["load"]
-    name: str
-    connection: str  # Element name to connect to
-    forecast: NDArray[np.floating[Any]] | float  # Loaded power values per period (kW)
+    basic: LoadBasicData
+    inputs: LoadInputsData
