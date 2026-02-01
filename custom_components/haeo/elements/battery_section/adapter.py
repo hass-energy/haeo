@@ -17,16 +17,9 @@ from custom_components.haeo.model import battery as model_battery
 from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_BATTERY
 from custom_components.haeo.model.output_data import OutputData
+from custom_components.haeo.sections import CONF_CAPACITY, CONF_INITIAL_CHARGE, SECTION_BASIC, SECTION_STORAGE
 
-from .schema import (
-    CONF_CAPACITY,
-    CONF_INITIAL_CHARGE,
-    CONF_SECTION_BASIC,
-    CONF_SECTION_INPUTS,
-    ELEMENT_TYPE,
-    BatterySectionConfigData,
-    BatterySectionConfigSchema,
-)
+from .schema import ELEMENT_TYPE, BatterySectionConfigData, BatterySectionConfigSchema
 
 type BatterySectionOutputName = Literal[
     "battery_section_power_charge",
@@ -74,14 +67,14 @@ class BatterySectionAdapter:
 
         # Check required time series fields
         required_fields = [CONF_CAPACITY, CONF_INITIAL_CHARGE]
-        inputs = config[CONF_SECTION_INPUTS]
+        inputs = config[SECTION_STORAGE]
         return all(ts_loader.available(hass=hass, value=inputs[field]) for field in required_fields)
 
     def inputs(self, config: Any) -> dict[str, dict[str, InputFieldInfo[Any]]]:
         """Return input field definitions for battery section elements."""
         _ = config
         return {
-            CONF_SECTION_INPUTS: {
+            SECTION_STORAGE: {
                 CONF_CAPACITY: InputFieldInfo(
                     field_name=CONF_CAPACITY,
                     entity_description=NumberEntityDescription(
@@ -121,9 +114,9 @@ class BatterySectionAdapter:
         return [
             {
                 "element_type": MODEL_ELEMENT_TYPE_BATTERY,
-                "name": config[CONF_SECTION_BASIC]["name"],
-                "capacity": config[CONF_SECTION_INPUTS][CONF_CAPACITY],
-                "initial_charge": config[CONF_SECTION_INPUTS][CONF_INITIAL_CHARGE][0],
+                "name": config[SECTION_BASIC]["name"],
+                "capacity": config[SECTION_STORAGE][CONF_CAPACITY],
+                "initial_charge": config[SECTION_STORAGE][CONF_INITIAL_CHARGE][0],
             }
         ]
 

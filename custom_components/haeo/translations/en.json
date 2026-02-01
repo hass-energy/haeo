@@ -109,23 +109,13 @@
             "name": "Battery Name"
           },
           "sections": {
-            "advanced": {
-              "data": {
-                "configure_partitions": "Configure battery partitions",
-                "discharge_cost": "Discharge Cost",
-                "early_charge_incentive": "Early Charge Incentive",
-                "efficiency": "Round-trip Efficiency"
-              },
-              "name": "Advanced settings"
-            },
             "basic": {
-              "data": {
-                "capacity": "Capacity",
-                "connection": "Connection",
-                "initial_charge_percentage": "State of Charge",
-                "name": "Battery Name"
-              },
+              "data": { "connection": "Connection", "name": "Battery Name" },
               "name": "Basic settings"
+            },
+            "storage": {
+              "data": { "capacity": "Capacity", "initial_charge_percentage": "State of Charge" },
+              "name": "Storage"
             },
             "limits": {
               "data": {
@@ -135,6 +125,20 @@
                 "min_charge_percentage": "Min Charge Level"
               },
               "name": "Limits"
+            },
+            "pricing": {
+              "data": {
+                "early_charge_incentive": "Early Charge Incentive",
+                "discharge_cost": "Discharge Cost"
+              },
+              "name": "Pricing"
+            },
+            "advanced": {
+              "data": {
+                "configure_partitions": "Configure battery partitions",
+                "efficiency": "Round-trip Efficiency"
+              },
+              "name": "Advanced settings"
             }
           }
         },
@@ -173,7 +177,7 @@
           "data": { "capacity": "Capacity", "initial_charge": "Initial Charge", "name": "Battery Section Name" },
           "sections": {
             "basic": { "data": { "name": "Battery Section Name" }, "name": "Basic settings" },
-            "inputs": { "data": { "capacity": "Capacity", "initial_charge": "Initial Charge" }, "name": "Inputs" }
+            "storage": { "data": { "capacity": "Capacity", "initial_charge": "Initial Charge" }, "name": "Storage" }
           }
         }
       },
@@ -200,18 +204,10 @@
             "target": "Target Device"
           },
           "sections": {
-            "advanced": {
-              "data": {
-                "efficiency_source_target": "Efficiency Source to Target",
-                "efficiency_target_source": "Efficiency Target to Source",
-                "price_source_target": "Price Source to Target",
-                "price_target_source": "Price Target to Source"
-              },
-              "name": "Advanced settings"
-            },
-            "basic": {
-              "data": { "name": "Connection Name", "source": "Source Device", "target": "Target Device" },
-              "name": "Basic settings"
+            "basic": { "data": { "name": "Connection Name" }, "name": "Basic settings" },
+            "endpoints": {
+              "data": { "source": "Source Device", "target": "Target Device" },
+              "name": "Endpoints"
             },
             "limits": {
               "data": {
@@ -219,6 +215,20 @@
                 "max_power_target_source": "Max Power Target to Source"
               },
               "name": "Limits"
+            },
+            "pricing": {
+              "data": {
+                "price_source_target": "Price Source to Target",
+                "price_target_source": "Price Target to Source"
+              },
+              "name": "Pricing"
+            },
+            "advanced": {
+              "data": {
+                "efficiency_source_target": "Efficiency Source to Target",
+                "efficiency_target_source": "Efficiency Target to Source"
+              },
+              "name": "Advanced settings"
             }
           }
         }
@@ -360,14 +370,13 @@
             "price_production": "Production Price"
           },
           "sections": {
-            "advanced": {
-              "data": { "curtailment": "Allow Curtailment", "price_production": "Production Price" },
-              "name": "Advanced settings"
-            },
             "basic": {
-              "data": { "connection": "Connection", "forecast": "Forecast", "name": "Solar Name" },
+              "data": { "connection": "Connection", "name": "Solar Name" },
               "name": "Basic settings"
-            }
+            },
+            "inputs": { "data": { "forecast": "Forecast" }, "name": "Inputs" },
+            "pricing": { "data": { "price_production": "Production Price" }, "name": "Pricing" },
+            "advanced": { "data": { "curtailment": "Allow Curtailment" }, "name": "Advanced settings" }
           }
         }
       },
