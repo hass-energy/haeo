@@ -47,6 +47,7 @@ from homeassistant.core import HomeAssistant
 
 from custom_components.haeo.const import (
     CONF_ELEMENT_TYPE,
+    ELEMENT_TYPE_NETWORK,
     NETWORK_OUTPUT_NAMES,
     ConnectivityLevel,
     NetworkDeviceName,
@@ -154,6 +155,18 @@ ELEMENT_DEVICE_NAMES: Final[frozenset[ElementDeviceName]] = frozenset(
     | solar.SOLAR_DEVICE_NAMES
     | NETWORK_DEVICE_NAMES
 )
+
+ELEMENT_DEVICE_NAMES_BY_TYPE: Final[dict[str, frozenset[str]]] = {
+    inverter.ELEMENT_TYPE: frozenset(inverter.INVERTER_DEVICE_NAMES),
+    battery.ELEMENT_TYPE: frozenset(battery.BATTERY_DEVICE_NAMES),
+    battery_section.ELEMENT_TYPE: frozenset(battery_section.BATTERY_SECTION_DEVICE_NAMES),
+    connection.ELEMENT_TYPE: frozenset(connection.CONNECTION_DEVICE_NAMES),
+    grid.ELEMENT_TYPE: frozenset(grid.GRID_DEVICE_NAMES),
+    load.ELEMENT_TYPE: frozenset(load.LOAD_DEVICE_NAMES),
+    node.ELEMENT_TYPE: frozenset(node.NODE_DEVICE_NAMES),
+    solar.ELEMENT_TYPE: frozenset(solar.SOLAR_DEVICE_NAMES),
+    ELEMENT_TYPE_NETWORK: frozenset(NETWORK_DEVICE_NAMES),
+}
 
 
 @runtime_checkable
@@ -449,6 +462,7 @@ __all__ = [
     "ElementType",
     "InputFieldInfo",
     "ValidatedElementSubentry",
+    "ELEMENT_DEVICE_NAMES_BY_TYPE",
     "collect_element_subentries",
     "get_element_flow_classes",
     "get_input_fields",

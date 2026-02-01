@@ -18,6 +18,7 @@ from homeassistant.helpers.typing import ConfigType
 
 from custom_components.haeo.const import CONF_ADVANCED_MODE, CONF_ELEMENT_TYPE, CONF_NAME, DOMAIN, ELEMENT_TYPE_NETWORK
 from custom_components.haeo.coordinator import HaeoDataUpdateCoordinator
+from custom_components.haeo.elements import ELEMENT_DEVICE_NAMES_BY_TYPE
 from custom_components.haeo.horizon import HorizonManager
 from custom_components.haeo.services import async_setup_services
 
@@ -332,7 +333,11 @@ async def async_remove_config_entry_device(
                         continue
 
                     device_name = suffix.removeprefix(prefix)
-                    if device_name == subentry.subentry_type:
+                    allowed_device_names = ELEMENT_DEVICE_NAMES_BY_TYPE.get(subentry.subentry_type)
+                    if allowed_device_names is None:
+                        # Unknown subentry type - keep device to avoid accidental removal
+                        return False
+                    if device_name in allowed_device_names:
                         # Device belongs to an existing subentry - keep it
                         return False
                     # Device name no longer created for this subentry
