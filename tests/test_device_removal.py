@@ -9,11 +9,10 @@ from types import MappingProxyType
 from homeassistant.config_entries import ConfigSubentry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr
-from homeassistant.helpers import entity_registry as er
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.haeo import HaeoConfigEntry, async_cleanup_stale_devices, async_remove_config_entry_device
+from custom_components.haeo import HaeoConfigEntry, async_remove_config_entry_device
 from custom_components.haeo.const import DOMAIN
 
 
@@ -127,67 +126,6 @@ async def test_remove_device_with_stale_device_name_for_existing_element(
     )
 
     assert result, "Device should be removed when device name is no longer created"
-
-
-async def test_cleanup_removes_stale_device_without_entities(
-    hass: HomeAssistant,
-    mock_config_entry: HaeoConfigEntry,
-    mock_device_registry: dr.DeviceRegistry,
-) -> None:
-    """Cleanup removes stale devices when no entities remain."""
-    subentry = ConfigSubentry(
-        data=MappingProxyType({"name": "Battery", "element_type": "battery"}),
-        subentry_type="battery",
-        title="Battery",
-        unique_id=None,
-    )
-    hass.config_entries.async_add_subentry(mock_config_entry, subentry)
-
-    device = mock_device_registry.async_get_or_create(
-        config_entry_id=mock_config_entry.entry_id,
-        identifiers={(DOMAIN, f"{mock_config_entry.entry_id}_{subentry.subentry_id}_battery_section")},
-        name="Battery Partition",
-    )
-
-    removed = await async_cleanup_stale_devices(hass, mock_config_entry)
-
-    assert removed == 1
-    assert mock_device_registry.async_get(device.id) is None
-
-
-async def test_cleanup_skips_stale_device_with_entities(
-    hass: HomeAssistant,
-    mock_config_entry: HaeoConfigEntry,
-    mock_device_registry: dr.DeviceRegistry,
-) -> None:
-    """Cleanup skips stale devices when entities still reference them."""
-    subentry = ConfigSubentry(
-        data=MappingProxyType({"name": "Battery", "element_type": "battery"}),
-        subentry_type="battery",
-        title="Battery",
-        unique_id=None,
-    )
-    hass.config_entries.async_add_subentry(mock_config_entry, subentry)
-
-    device = mock_device_registry.async_get_or_create(
-        config_entry_id=mock_config_entry.entry_id,
-        identifiers={(DOMAIN, f"{mock_config_entry.entry_id}_{subentry.subentry_id}_battery_section")},
-        name="Battery Partition",
-    )
-
-    entity_registry = er.async_get(hass)
-    entity_registry.async_get_or_create(
-        domain="sensor",
-        platform=DOMAIN,
-        unique_id="stale_device_sensor",
-        config_entry=mock_config_entry,
-        device_id=device.id,
-    )
-
-    removed = await async_cleanup_stale_devices(hass, mock_config_entry)
-
-    assert removed == 0
-    assert mock_device_registry.async_get(device.id) is not None
 
 
 async def test_keep_hub_device(

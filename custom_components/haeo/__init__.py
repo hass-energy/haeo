@@ -13,7 +13,6 @@ from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryError, ConfigEntryNotReady
 from homeassistant.helpers import device_registry as dr
-from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.translation import async_get_translations
 from homeassistant.helpers.typing import ConfigType
 
@@ -260,47 +259,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> bool
         lambda: hass.config_entries.async_unload_platforms(entry, OUTPUT_PLATFORMS)  # type: ignore[arg-type]
     )
 
-    await async_cleanup_stale_devices(hass, entry)
-
     # Register update listener LAST - after all setup is complete
     # This prevents reload loops from subentry additions during initial setup
     entry.async_on_unload(entry.add_update_listener(async_update_listener))
 
     _LOGGER.info("HAEO integration setup complete")
     return True
-
-
-async def async_cleanup_stale_devices(hass: HomeAssistant, config_entry: HaeoConfigEntry) -> int:
-    """Remove stale devices that are no longer created by the integration.
-
-    Returns the number of removed devices.
-    """
-    device_registry = dr.async_get(hass)
-    entity_registry = er.async_get(hass)
-    removed = 0
-
-    for device_entry in dr.async_entries_for_config_entry(device_registry, config_entry.entry_id):
-        if not await async_remove_config_entry_device(hass, config_entry, device_entry):
-            continue
-
-        if er.async_entries_for_device(
-            entity_registry,
-            device_entry.id,
-            include_disabled_entities=True,
-        ):
-            _LOGGER.debug(
-                "Skipping stale device %s because entities remain",
-                device_entry.name,
-            )
-            continue
-
-        device_registry.async_remove_device(device_entry.id)
-        removed += 1
-
-    if removed:
-        _LOGGER.info("Removed %d stale devices", removed)
-
-    return removed
 
 
 async def async_unload_entry(_hass: HomeAssistant, entry: HaeoConfigEntry) -> bool:
