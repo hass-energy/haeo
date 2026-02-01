@@ -109,9 +109,9 @@
             "name": "Battery Name"
           },
           "sections": {
-            "basic": {
+            "details": {
               "data": { "connection": "Connection", "name": "Battery Name" },
-              "name": "Basic settings"
+              "name": "Details"
             },
             "storage": {
               "data": { "capacity": "Capacity", "initial_charge_percentage": "State of Charge" },
@@ -176,7 +176,7 @@
           "description": "Configure a single battery section with explicit capacity and initial charge. Connect to other elements using Connection elements.",
           "data": { "capacity": "Capacity", "initial_charge": "Initial Charge", "name": "Battery Section Name" },
           "sections": {
-            "basic": { "data": { "name": "Battery Section Name" }, "name": "Basic settings" },
+            "details": { "data": { "name": "Battery Section Name" }, "name": "Details" },
             "storage": { "data": { "capacity": "Capacity", "initial_charge": "Initial Charge" }, "name": "Storage" }
           }
         }
@@ -204,7 +204,7 @@
             "target": "Target Device"
           },
           "sections": {
-            "basic": { "data": { "name": "Connection Name" }, "name": "Basic settings" },
+            "details": { "data": { "name": "Connection Name" }, "name": "Details" },
             "endpoints": {
               "data": { "source": "Source Device", "target": "Target Device" },
               "name": "Endpoints"
@@ -260,7 +260,7 @@
             "name": "Grid Name"
           },
           "sections": {
-            "basic": { "data": { "connection": "Connection", "name": "Grid Name" }, "name": "Basic settings" },
+            "details": { "data": { "connection": "Connection", "name": "Grid Name" }, "name": "Details" },
             "limits": { "data": { "export_limit": "Export Limit", "import_limit": "Import Limit" }, "name": "Limits" },
             "pricing": { "data": { "export_price": "Export Price", "import_price": "Import Price" }, "name": "Pricing" }
           }
@@ -290,7 +290,7 @@
               "data": { "efficiency_ac_to_dc": "AC to DC Efficiency", "efficiency_dc_to_ac": "DC to AC Efficiency" },
               "name": "Advanced settings"
             },
-            "basic": { "data": { "connection": "AC Connection", "name": "Inverter Name" }, "name": "Basic settings" },
+            "details": { "data": { "connection": "AC Connection", "name": "Inverter Name" }, "name": "Details" },
             "limits": {
               "data": { "max_power_ac_to_dc": "Max AC to DC Power", "max_power_dc_to_ac": "Max DC to AC Power" },
               "name": "Limits"
@@ -311,8 +311,8 @@
           "description": "Configure a load with forecast or constant power.\n\n[HAFO]({hafo_url}) can be used to generate forecast sensors.",
           "data": { "connection": "Connection", "forecast": "Forecast", "name": "Load Name" },
           "sections": {
-            "basic": { "data": { "connection": "Connection", "name": "Load Name" }, "name": "Basic settings" },
-            "inputs": { "data": { "forecast": "Forecast" }, "name": "Inputs" }
+            "details": { "data": { "connection": "Connection", "name": "Load Name" }, "name": "Details" },
+            "forecast": { "data": { "forecast": "Forecast" }, "name": "Forecast" }
           }
         }
       },
@@ -347,7 +347,7 @@
               },
               "name": "Advanced settings"
             },
-            "basic": { "data": { "name": "Node Name" }, "name": "Basic settings" }
+            "details": { "data": { "name": "Node Name" }, "name": "Details" }
           }
         }
       },
@@ -370,11 +370,11 @@
             "price_production": "Production Price"
           },
           "sections": {
-            "basic": {
+            "details": {
               "data": { "connection": "Connection", "name": "Solar Name" },
-              "name": "Basic settings"
+              "name": "Details"
             },
-            "inputs": { "data": { "forecast": "Forecast" }, "name": "Inputs" },
+            "forecast": { "data": { "forecast": "Forecast" }, "name": "Forecast" },
             "pricing": { "data": { "price_production": "Production Price" }, "name": "Pricing" },
             "advanced": { "data": { "curtailment": "Allow Curtailment" }, "name": "Advanced settings" }
           }

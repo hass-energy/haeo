@@ -9,7 +9,7 @@ from custom_components.haeo.const import CONF_NAME
 from custom_components.haeo.flows.element_flow import build_participant_selector
 from custom_components.haeo.flows.field_schema import SectionDefinition
 
-SECTION_DETAILS: Final = "basic"
+SECTION_DETAILS: Final = "details"
 CONF_CONNECTION: Final = "connection"
 
 
@@ -60,7 +60,7 @@ def build_details_fields(
     return fields
 
 
-__all__ = [  # noqa: RUF022
+__all__ = [
     "CONF_CONNECTION",
     "DetailsConfig",
     "DetailsData",
