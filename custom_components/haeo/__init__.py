@@ -43,6 +43,7 @@ from custom_components.haeo.const import (
     ELEMENT_TYPE_NETWORK,
 )
 from custom_components.haeo.coordinator import HaeoDataUpdateCoordinator
+from custom_components.haeo.elements import ELEMENT_DEVICE_NAMES_BY_TYPE
 from custom_components.haeo.flows import (
     HORIZON_PRESET_5_DAYS,
     HUB_SECTION_ADVANCED,
@@ -594,8 +595,8 @@ async def async_remove_config_entry_device(
         # Device already removed or does not exist; nothing to clean up
         return False
 
-    # Get all current subentry IDs (devices are keyed by subentry_id, not element name)
-    current_subentry_ids = {subentry.subentry_id for subentry in config_entry.subentries.values()}
+    # Get all current subentries (devices are keyed by subentry_id, not element name)
+    subentries_by_id = {subentry.subentry_id: subentry for subentry in config_entry.subentries.values()}
 
     # Check if this device's identifier matches any current subentry
     has_haeo_identifier = False
@@ -615,18 +616,29 @@ async def async_remove_config_entry_device(
 
                 # Check if any current subentry_id is a prefix of the suffix
                 # The suffix is subentry_id_device_name, so we check for subentry_id_
-                for subentry_id in current_subentry_ids:
-                    if suffix.startswith(f"{subentry_id}_"):
+                for subentry_id, subentry in subentries_by_id.items():
+                    prefix = f"{subentry_id}_"
+                    if not suffix.startswith(prefix):
+                        continue
+
+                    device_name = suffix.removeprefix(prefix)
+                    allowed_device_names = ELEMENT_DEVICE_NAMES_BY_TYPE.get(subentry.subentry_type)
+                    if allowed_device_names is None:
+                        # Unknown subentry type - keep device to avoid accidental removal
+                        return False
+                    if device_name in allowed_device_names:
                         # Device belongs to an existing subentry - keep it
                         return False
+                    # Device name no longer created for this subentry
+                    break
 
     # If device has no HAEO identifiers, it's not managed by us - keep it
     if not has_haeo_identifier:
         return False
 
-    # Device doesn't match any current subentry - allow removal
+    # Device doesn't match any current subentry or device name - allow removal
     _LOGGER.info(
-        "Removing stale device %s (was associated with removed element)",
+        "Removing stale device %s (no longer created by this entry)",
         device_entry.name,
     )
     return True

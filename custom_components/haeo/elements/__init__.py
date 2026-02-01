@@ -47,6 +47,7 @@ from homeassistant.core import HomeAssistant
 
 from custom_components.haeo.const import (
     CONF_ELEMENT_TYPE,
+    ELEMENT_TYPE_NETWORK,
     NETWORK_OUTPUT_NAMES,
     ConnectivityLevel,
     NetworkDeviceName,
@@ -154,6 +155,18 @@ ELEMENT_DEVICE_NAMES: Final[frozenset[ElementDeviceName]] = frozenset(
     | solar.SOLAR_DEVICE_NAMES
     | NETWORK_DEVICE_NAMES
 )
+
+ELEMENT_DEVICE_NAMES_BY_TYPE: Final[dict[str, frozenset[ElementDeviceName]]] = {
+    inverter.ELEMENT_TYPE: frozenset(inverter.INVERTER_DEVICE_NAMES),
+    battery.ELEMENT_TYPE: frozenset(battery.BATTERY_DEVICE_NAMES),
+    battery_section.ELEMENT_TYPE: frozenset(battery_section.BATTERY_SECTION_DEVICE_NAMES),
+    connection.ELEMENT_TYPE: frozenset(connection.CONNECTION_DEVICE_NAMES),
+    grid.ELEMENT_TYPE: frozenset(grid.GRID_DEVICE_NAMES),
+    load.ELEMENT_TYPE: frozenset(load.LOAD_DEVICE_NAMES),
+    node.ELEMENT_TYPE: frozenset(node.NODE_DEVICE_NAMES),
+    solar.ELEMENT_TYPE: frozenset(solar.SOLAR_DEVICE_NAMES),
+    ELEMENT_TYPE_NETWORK: frozenset(NETWORK_DEVICE_NAMES),
+}
 
 
 @runtime_checkable
@@ -522,6 +535,7 @@ def set_nested_config_value_by_path(config: dict[str, Any], field_path: InputFie
 __all__ = [
     "ELEMENT_CONFIG_SCHEMAS",
     "ELEMENT_DEVICE_NAMES",
+    "ELEMENT_DEVICE_NAMES_BY_TYPE",
     "ELEMENT_OPTIONAL_INPUT_FIELDS",
     "ELEMENT_TYPES",
     "ELEMENT_TYPE_BATTERY",
