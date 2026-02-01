@@ -70,6 +70,9 @@ OUTPUT_PLATFORMS: list[Platform] = [Platform.SENSOR]
 
 MIGRATION_MINOR_VERSION = 2
 
+# Timeout in seconds for waiting for input entities to be ready
+INPUT_ENTITY_READY_TIMEOUT = 5
+
 
 async def async_setup(hass: HomeAssistant, _config: ConfigType) -> bool:
     """Set up the HAEO integration.
@@ -487,14 +490,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> bool
     # Each entity signals via asyncio.Event when its forecast data is loaded
     _LOGGER.debug("Waiting for %d input entities to be ready", len(runtime_data.input_entities))
     try:
-        async with asyncio.timeout(30):
+        async with asyncio.timeout(INPUT_ENTITY_READY_TIMEOUT):
             await asyncio.gather(*[entity.wait_ready() for entity in runtime_data.input_entities.values()])
     except TimeoutError:
         not_ready = [key for key, entity in runtime_data.input_entities.items() if not entity.is_ready()]
         raise ConfigEntryNotReady(
             translation_domain=DOMAIN,
             translation_key="input_entities_not_ready",
-            translation_placeholders={"not_ready": str(not_ready)},
+            translation_placeholders={
+                "not_ready": str(not_ready),
+                "timeout": str(INPUT_ENTITY_READY_TIMEOUT),
+            },
         ) from None
     _LOGGER.debug("All input entities ready")
 

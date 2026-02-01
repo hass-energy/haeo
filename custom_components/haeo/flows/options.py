@@ -6,7 +6,12 @@ from typing import Any
 from homeassistant import config_entries
 from homeassistant.config_entries import ConfigFlowResult
 
-from custom_components.haeo.const import CONF_ADVANCED_MODE, CONF_DEBOUNCE_SECONDS, CONF_HORIZON_PRESET
+from custom_components.haeo.const import (
+    CONF_ADVANCED_MODE,
+    CONF_DEBOUNCE_SECONDS,
+    CONF_HORIZON_PRESET,
+    CONF_RECORD_FORECASTS,
+)
 
 from . import (
     HORIZON_PRESET_CUSTOM,
@@ -77,6 +82,7 @@ class HubOptionsFlow(config_entries.OptionsFlow):
                 CONF_DEBOUNCE_SECONDS: self._user_input[HUB_SECTION_ADVANCED][CONF_DEBOUNCE_SECONDS],
                 CONF_ADVANCED_MODE: self._user_input[HUB_SECTION_ADVANCED][CONF_ADVANCED_MODE],
             },
+            CONF_RECORD_FORECASTS: self._user_input[HUB_SECTION_ADVANCED].get(CONF_RECORD_FORECASTS, False),
         }
 
         self.hass.config_entries.async_update_entry(self.config_entry, data=new_data)
