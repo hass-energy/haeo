@@ -1,24 +1,20 @@
 {
   "config": {
     "flow_title": "HAEO Setup",
-          "horizon_preset": "Planning Horizon",
-          "record_forecasts": "Record forecast data"
-        },
+    "step": {
+      "user": {
+        "title": "HAEO Setup",
+        "description": "Configure your system and choose a planning horizon that matches your forecast data availability.",
+        "data": { "advanced_mode": "Advanced Mode", "horizon_preset": "Planning Horizon", "name": "System Name" },
+        "data_description": { "advanced_mode": "Reveals additional element types for complex energy systems." },
         "sections": {
-          "advanced": {
-            "data": {
-              "advanced_mode": "Advanced Mode",
-              "debounce_seconds": "Debounce Window (seconds)",
-              "record_forecasts": "Record forecast data"
-            },
-            "name": "Advanced settings"
-          },
-          "basic": { "data": { "horizon_preset": "Planning Horizon" }, "name": "Basic settings" }
-        },
-        "data_description": {
-          "advanced_mode": "Reveals additional element types for complex energy systems.",
-          "record_forecasts": "When enabled, forecast attributes are saved to the recorder database. This significantly increases database size but allows debugging historical forecasts. Disabled by default to reduce database load."
+          "advanced": { "data": { "advanced_mode": "Advanced Mode" }, "name": "Advanced settings" },
+          "basic": { "data": { "horizon_preset": "Planning Horizon", "name": "System Name" }, "name": "Basic settings" }
         }
+      },
+      "custom_tiers": {
+        "title": "Custom Tier Configuration",
+        "description": "Configure custom interval tiers. Near-term intervals are more granular for precise control, while longer-term intervals reduce complexity.",
         "data": {
           "tier_1_count": "Tier 1 Count (fine-grained)",
           "tier_1_duration": "Tier 1 Duration (minutes)",
@@ -59,6 +55,10 @@
           "horizon_preset": "Planning Horizon",
           "record_forecasts": "Record forecast data"
         },
+        "data_description": {
+          "advanced_mode": "Reveals additional element types for complex energy systems.",
+          "record_forecasts": "When enabled, forecast attributes are saved to the recorder database. This significantly increases database size but allows debugging historical forecasts. Disabled by default to reduce database load."
+        },
         "sections": {
           "advanced": {
             "data": {
@@ -69,10 +69,6 @@
             "name": "Advanced settings"
           },
           "basic": { "data": { "horizon_preset": "Planning Horizon" }, "name": "Basic settings" }
-        },
-        "data_description": {
-          "advanced_mode": "Reveals additional element types for complex energy systems.",
-          "record_forecasts": "When enabled, forecast attributes are saved to the recorder database. This significantly increases database size but allows debugging historical forecasts. Disabled by default to reduce database load."
         }
       }
     },

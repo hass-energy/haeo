@@ -11,7 +11,9 @@ Update the project version number to `$VERSION`.
 2. Update `custom_components/amber_express/manifest.json`:
 
     ```json
-    "version": "$VERSION"
+    {
+      "version": "$VERSION"
+    }
     ```
 
 3. Run `uv lock` to regenerate the lockfile with the new version.
