@@ -98,13 +98,13 @@
             "capacity": "Capacity",
             "configure_partitions": "Configure battery partitions",
             "connection": "Connection",
-            "discharge_cost": "Discharge Cost",
-            "early_charge_incentive": "Early Charge Incentive",
+            "price_source_target": "Discharge price",
+            "price_target_source": "Charge price",
             "efficiency": "Round-trip Efficiency",
             "initial_charge_percentage": "State of Charge",
             "max_charge_percentage": "Max Charge Level",
-            "max_charge_power": "Max Charging Power",
-            "max_discharge_power": "Max Discharging Power",
+            "max_power_source_target": "Max discharge power",
+            "max_power_target_source": "Max charge power",
             "min_charge_percentage": "Min Charge Level",
             "name": "Battery Name"
           },
@@ -120,16 +120,21 @@
             "limits": {
               "data": {
                 "max_charge_percentage": "Max Charge Level",
-                "max_charge_power": "Max Charging Power",
-                "max_discharge_power": "Max Discharging Power",
                 "min_charge_percentage": "Min Charge Level"
               },
               "name": "Limits"
             },
+            "power_limits": {
+              "data": {
+                "max_power_source_target": "Max discharge power",
+                "max_power_target_source": "Max charge power"
+              },
+              "name": "Power limits"
+            },
             "pricing": {
               "data": {
-                "early_charge_incentive": "Early Charge Incentive",
-                "discharge_cost": "Discharge Cost"
+                "price_source_target": "Discharge price",
+                "price_target_source": "Charge price"
               },
               "name": "Pricing"
             },
@@ -209,12 +214,12 @@
               "data": { "source": "Source Device", "target": "Target Device" },
               "name": "Endpoints"
             },
-            "limits": {
+            "power_limits": {
               "data": {
                 "max_power_source_target": "Max Power Source to Target",
                 "max_power_target_source": "Max Power Target to Source"
               },
-              "name": "Limits"
+              "name": "Power limits"
             },
             "pricing": {
               "data": {
@@ -253,16 +258,22 @@
           "description": "Configure grid import/export parameters and pricing",
           "data": {
             "connection": "Connection",
-            "export_limit": "Export Limit",
-            "export_price": "Export Price",
-            "import_limit": "Import Limit",
-            "import_price": "Import Price",
+            "max_power_source_target": "Import limit",
+            "max_power_target_source": "Export limit",
+            "price_source_target": "Import price",
+            "price_target_source": "Export price",
             "name": "Grid Name"
           },
           "sections": {
             "details": { "data": { "connection": "Connection", "name": "Grid Name" }, "name": "Details" },
-            "limits": { "data": { "export_limit": "Export Limit", "import_limit": "Import Limit" }, "name": "Limits" },
-            "pricing": { "data": { "export_price": "Export Price", "import_price": "Import Price" }, "name": "Pricing" }
+            "power_limits": {
+              "data": { "max_power_source_target": "Import limit", "max_power_target_source": "Export limit" },
+              "name": "Power limits"
+            },
+            "pricing": {
+              "data": { "price_source_target": "Import price", "price_target_source": "Export price" },
+              "name": "Pricing"
+            }
           }
         }
       },
@@ -281,8 +292,8 @@
             "connection": "AC Connection",
             "efficiency_ac_to_dc": "AC to DC Efficiency",
             "efficiency_dc_to_ac": "DC to AC Efficiency",
-            "max_power_ac_to_dc": "Max AC to DC Power",
-            "max_power_dc_to_ac": "Max DC to AC Power",
+            "max_power_source_target": "Max DC to AC power",
+            "max_power_target_source": "Max AC to DC power",
             "name": "Inverter Name"
           },
           "sections": {
@@ -291,9 +302,9 @@
               "name": "Advanced settings"
             },
             "details": { "data": { "connection": "AC Connection", "name": "Inverter Name" }, "name": "Details" },
-            "limits": {
-              "data": { "max_power_ac_to_dc": "Max AC to DC Power", "max_power_dc_to_ac": "Max DC to AC Power" },
-              "name": "Limits"
+            "power_limits": {
+              "data": { "max_power_source_target": "Max DC to AC power", "max_power_target_source": "Max AC to DC power" },
+              "name": "Power limits"
             }
           }
         }
@@ -367,7 +378,7 @@
             "curtailment": "Allow Curtailment",
             "forecast": "Forecast",
             "name": "Solar Name",
-            "price_production": "Production Price"
+            "price_source_target": "Production price"
           },
           "sections": {
             "details": {
@@ -375,7 +386,7 @@
               "name": "Details"
             },
             "forecast": { "data": { "forecast": "Forecast" }, "name": "Forecast" },
-            "pricing": { "data": { "price_production": "Production Price" }, "name": "Pricing" },
+            "pricing": { "data": { "price_source_target": "Production price" }, "name": "Pricing" },
             "advanced": { "data": { "curtailment": "Allow Curtailment" }, "name": "Advanced settings" }
           }
         }
@@ -400,13 +411,13 @@
     "number": {
       "battery_capacity": { "name": "Capacity" },
       "battery_cost": { "name": "Cost" },
-      "battery_discharge_cost": { "name": "Discharge cost" },
-      "battery_early_charge_incentive": { "name": "Early charge incentive" },
+      "battery_price_source_target": { "name": "Discharge price" },
+      "battery_price_target_source": { "name": "Charge price" },
       "battery_efficiency": { "name": "Efficiency" },
       "battery_initial_charge_percentage": { "name": "Initial charge" },
       "battery_max_charge_percentage": { "name": "Max charge" },
-      "battery_max_charge_power": { "name": "Max charge power" },
-      "battery_max_discharge_power": { "name": "Max discharge power" },
+      "battery_max_power_target_source": { "name": "Max charge power" },
+      "battery_max_power_source_target": { "name": "Max discharge power" },
       "battery_min_charge_percentage": { "name": "Min charge" },
       "battery_percentage": { "name": "Percentage" },
       "connection_efficiency_source_target": { "name": "Source to target efficiency" },
@@ -415,17 +426,17 @@
       "connection_max_power_target_source": { "name": "Max target to source power" },
       "connection_price_source_target": { "name": "Source to target price" },
       "connection_price_target_source": { "name": "Target to source price" },
-      "grid_export_limit": { "name": "Export limit" },
-      "grid_export_price": { "name": "Export price" },
-      "grid_import_limit": { "name": "Import limit" },
-      "grid_import_price": { "name": "Import price" },
+      "grid_max_power_target_source": { "name": "Export limit" },
+      "grid_max_power_source_target": { "name": "Import limit" },
+      "grid_price_target_source": { "name": "Export price" },
+      "grid_price_source_target": { "name": "Import price" },
       "inverter_efficiency_ac_to_dc": { "name": "AC to DC efficiency" },
       "inverter_efficiency_dc_to_ac": { "name": "DC to AC efficiency" },
-      "inverter_max_power_ac_to_dc": { "name": "Max AC to DC power" },
-      "inverter_max_power_dc_to_ac": { "name": "Max DC to AC power" },
+      "inverter_max_power_target_source": { "name": "Max AC to DC power" },
+      "inverter_max_power_source_target": { "name": "Max DC to AC power" },
       "load_forecast": { "name": "Forecast" },
       "solar_forecast": { "name": "Forecast" },
-      "solar_price_production": { "name": "Production price" }
+      "solar_price_source_target": { "name": "Production price" }
     },
     "sensor": {
       "battery_energy_in_flow": { "name": "Energy in flow shadow price" },

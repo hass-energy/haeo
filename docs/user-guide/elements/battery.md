@@ -47,8 +47,8 @@ Optional fields set to "None" are omitted from the optimization entirely.
 | **[Efficiency](#efficiency)**                                  | Percentage | No       | 99      | Round-trip efficiency                                      |
 | **[Max Charge Power](#max-charge-and-discharge-power)**        | Power      | No       | -       | Maximum charging power                                     |
 | **[Max Discharge Power](#max-charge-and-discharge-power)**     | Power      | No       | -       | Maximum discharging power                                  |
-| **[Early Charge Incentive](#early-charge-incentive-advanced)** | Price      | No       | 0.001   | Small cost to prefer early charging (advanced)             |
-| **[Discharge Cost](#discharge-cost)**                          | Price      | No       | 0       | Base discharge cost for degradation modeling               |
+| **[Charge Price](#charge-price)**                              | Price      | No       | 0       | Base price applied when charging                            |
+| **[Discharge Price](#discharge-price)**                        | Price      | No       | 0       | Base price applied when discharging                         |
 
 If not specified, power is unconstrained (limited only by other system constraints).
 
@@ -96,33 +96,19 @@ Leave the fields blank when no practical limit applies.
     Use the battery charge/discharge rating, not the inverter rating.
     Hybrid inverters often have separate ratings for battery power and inverter output power.
 
-### Early Charge Incentive (Advanced)
+### Charge Price
 
-Creates a small time-varying cost that prefers charging earlier in the optimization window when all else is equal.
-Default is 0.001 \$/kWh (0.1 cents).
+Base price in \$/kWh applied to all battery charging operations.
+Use positive values to discourage charging or negative values to incentivize charging.
 
-**How it works**: The incentive varies linearly from a small negative cost (encourages charging) at the beginning of the optimization window to zero at the end.
-This prevents arbitrary timing decisions when grid prices are flat.
+**Default**: 0 \$/kWh (no added cost)
 
-**When to adjust**:
+### Discharge Price
 
-- Keep the default (0.001) for most systems
-- Increase slightly (0.002-0.005) if the battery seems to delay charging unnecessarily
-- Decrease (0.0005) if you want more flexibility in timing
+Base price in \$/kWh applied to all battery discharge operations.
+Models battery degradation or other discharge penalties.
 
-!!! important
-
-    Keep this value small (< 0.01 \$/kWh) so it doesn't override actual price signals.
-
-### Discharge Cost
-
-Base cost in \$/kWh applied to all battery discharge operations.
-Models battery degradation from cycling.
-
-**Setting the cost**: Consider the cost of battery wear per cycle.
-A typical value is \$0.00-\$0.05/kWh depending on battery chemistry and expected lifetime.
-
-**Leave at zero** if you don't want to model degradation costs.
+**Default**: 0 \$/kWh (no added cost)
 
 ### Undercharge Configuration
 
@@ -178,7 +164,7 @@ This allows operation between 90-95% SOC with an added overcharge cost penalty w
 
 Economic penalty in \$/kWh for **discharging** below `min_charge_percentage`.
 Required when the undercharge percentage is configured.
-This penalty applies **in addition to** the normal `discharge_cost`.
+This penalty applies **in addition to** the configured `price_source_target` (discharge price).
 
 **Setting the cost**: Consider the economic value of avoiding deep discharge:
 
@@ -188,7 +174,7 @@ This penalty applies **in addition to** the normal `discharge_cost`.
 
 Typical values: \$0.50-\$2.00/kWh
 
-**How it works**: The optimizer compares grid revenue against the combined penalties (discharge_cost + undercharge cost).
+**How it works**: The optimizer compares grid revenue against the combined penalties (`price_source_target` + undercharge cost).
 If grid prices are \$0.40/kWh and total cost is \$0.50/kWh (e.g., \$0.02 discharge + \$0.48 undercharge), the battery won't discharge into the undercharge range.
 If grid prices spike to \$0.80/kWh, the optimizer will economically justify deep discharge because the \$0.30/kWh profit (\$0.80 - \$0.50) makes it worthwhile.
 
@@ -256,12 +242,12 @@ A battery configured with undercharge and overcharge ranges for conditional exte
 | **Efficiency**                | 99%                |
 | **Max Charge Power**          | 6 kW               |
 | **Max Discharge Power**       | 6 kW               |
-| **Discharge Cost**            | 0.02 \$/kWh        |
+| **Discharge Price**           | 0.02 \$/kWh        |
 
 In this example:
 
 - **Undercharge range**: 5-10% (available with \$1.50/kWh discharge penalty)
-- **Normal range**: 10-90% (preferred operation, only \$0.02/kWh discharge cost for degradation)
+- **Normal range**: 10-90% (preferred operation, only \$0.02/kWh discharge price for degradation)
 - **Overcharge range**: 90-95% (available with \$1.00/kWh charge penalty)
 - Total usable range: 5-95% (90%)
 - Higher undercharge cost reflects greater degradation risk at low SOC
@@ -275,14 +261,14 @@ Input entities appear as Number entities with the `config` entity category.
 | Input                                 | Unit   | Description                                  |
 | ------------------------------------- | ------ | -------------------------------------------- |
 | `number.{name}_capacity`              | kWh    | Battery storage capacity                     |
-| `number.{name}_soc`                   | %      | Current state of charge from sensor          |
-| `number.{name}_soc_min`               | %      | Preferred minimum SOC (normal range floor)   |
-| `number.{name}_soc_max`               | %      | Preferred maximum SOC (normal range ceiling) |
-| `number.{name}_soc_target`            | %      | Target SOC at end of horizon                 |
-| `number.{name}_max_charge_power`      | kW     | Maximum charging power                       |
-| `number.{name}_max_discharge_power`   | kW     | Maximum discharging power                    |
-| `number.{name}_charge_cost_per_cycle` | -      | Base cycle degradation cost                  |
-| `number.{name}_charge_cost_per_kwh`   | \$/kWh | Per-kWh charging cost                        |
+| `number.{name}_initial_charge_percentage` | %      | Current state of charge from sensor          |
+| `number.{name}_min_charge_percentage` | %      | Preferred minimum SOC (normal range floor)   |
+| `number.{name}_max_charge_percentage` | %      | Preferred maximum SOC (normal range ceiling) |
+| `number.{name}_max_power_target_source` | kW     | Maximum charging power                       |
+| `number.{name}_max_power_source_target` | kW     | Maximum discharging power                    |
+| `number.{name}_price_target_source`   | \$/kWh | Charge price (if configured)                 |
+| `number.{name}_price_source_target`   | \$/kWh | Discharge price (if configured)              |
+| `number.{name}_efficiency`            | %      | Round-trip efficiency                        |
 | `number.{name}_percentage`            | %      | Undercharge or overcharge percentage         |
 | `number.{name}_cost`                  | \$/kWh | Undercharge or overcharge cost               |
 

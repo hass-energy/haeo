@@ -15,20 +15,21 @@ from custom_components.haeo.elements.battery import (
     CONF_CAPACITY,
     CONF_CONFIGURE_PARTITIONS,
     CONF_CONNECTION,
-    CONF_DISCHARGE_COST,
-    CONF_EARLY_CHARGE_INCENTIVE,
     CONF_EFFICIENCY,
     CONF_INITIAL_CHARGE_PERCENTAGE,
     CONF_MAX_CHARGE_PERCENTAGE,
-    CONF_MAX_CHARGE_POWER,
-    CONF_MAX_DISCHARGE_POWER,
+    CONF_MAX_POWER_SOURCE_TARGET,
+    CONF_MAX_POWER_TARGET_SOURCE,
     CONF_MIN_CHARGE_PERCENTAGE,
     CONF_PARTITION_COST,
     CONF_PARTITION_PERCENTAGE,
+    CONF_PRICE_SOURCE_TARGET,
+    CONF_PRICE_TARGET_SOURCE,
     ELEMENT_TYPE,
     SECTION_ADVANCED,
     SECTION_DETAILS,
     SECTION_LIMITS,
+    SECTION_POWER_LIMITS,
     SECTION_OVERCHARGE,
     SECTION_PRICING,
     SECTION_STORAGE,
@@ -62,16 +63,22 @@ def _wrap_main_input(user_input: dict[str, Any]) -> dict[str, Any]:
             for key in (
                 CONF_MIN_CHARGE_PERCENTAGE,
                 CONF_MAX_CHARGE_PERCENTAGE,
-                CONF_MAX_CHARGE_POWER,
-                CONF_MAX_DISCHARGE_POWER,
+            )
+            if key in user_input
+        },
+        SECTION_POWER_LIMITS: {
+            key: user_input[key]
+            for key in (
+                CONF_MAX_POWER_SOURCE_TARGET,
+                CONF_MAX_POWER_TARGET_SOURCE,
             )
             if key in user_input
         },
         SECTION_PRICING: {
             key: user_input[key]
             for key in (
-                CONF_EARLY_CHARGE_INCENTIVE,
-                CONF_DISCHARGE_COST,
+                CONF_PRICE_SOURCE_TARGET,
+                CONF_PRICE_TARGET_SOURCE,
             )
             if key in user_input
         },
@@ -183,10 +190,10 @@ async def test_user_step_with_constant_values_creates_entry(hass: HomeAssistant,
         CONF_MIN_CHARGE_PERCENTAGE: None,
         CONF_MAX_CHARGE_PERCENTAGE: None,
         CONF_EFFICIENCY: 0.95,
-        CONF_MAX_CHARGE_POWER: 5.0,
-        CONF_MAX_DISCHARGE_POWER: 5.0,
-        CONF_EARLY_CHARGE_INCENTIVE: 0.001,
-        CONF_DISCHARGE_COST: None,
+        CONF_MAX_POWER_TARGET_SOURCE: 5.0,
+        CONF_MAX_POWER_SOURCE_TARGET: 5.0,
+        CONF_PRICE_TARGET_SOURCE: 0.001,
+        CONF_PRICE_SOURCE_TARGET: None,
         CONF_CONFIGURE_PARTITIONS: False,
     }
 
@@ -196,7 +203,7 @@ async def test_user_step_with_constant_values_creates_entry(hass: HomeAssistant,
     created_data = flow.async_create_entry.call_args.kwargs["data"]
     assert created_data["storage"][CONF_CAPACITY] == 10.0
     assert created_data["storage"][CONF_INITIAL_CHARGE_PERCENTAGE] == "sensor.battery_soc"
-    assert created_data["limits"][CONF_MAX_CHARGE_POWER] == 5.0
+    assert created_data["power_limits"][CONF_MAX_POWER_TARGET_SOURCE] == 5.0
 
 
 async def test_user_step_with_entity_values_creates_entry(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
@@ -220,10 +227,10 @@ async def test_user_step_with_entity_values_creates_entry(hass: HomeAssistant, h
         CONF_MIN_CHARGE_PERCENTAGE: None,
         CONF_MAX_CHARGE_PERCENTAGE: None,
         CONF_EFFICIENCY: None,
-        CONF_MAX_CHARGE_POWER: ["sensor.max_charge"],
-        CONF_MAX_DISCHARGE_POWER: ["sensor.max_discharge"],
-        CONF_EARLY_CHARGE_INCENTIVE: None,
-        CONF_DISCHARGE_COST: None,
+        CONF_MAX_POWER_TARGET_SOURCE: ["sensor.max_charge"],
+        CONF_MAX_POWER_SOURCE_TARGET: ["sensor.max_discharge"],
+        CONF_PRICE_TARGET_SOURCE: None,
+        CONF_PRICE_SOURCE_TARGET: None,
         CONF_CONFIGURE_PARTITIONS: False,
     }
 
@@ -233,7 +240,7 @@ async def test_user_step_with_entity_values_creates_entry(hass: HomeAssistant, h
     created_data = flow.async_create_entry.call_args.kwargs["data"]
     assert created_data["storage"][CONF_CAPACITY] == "sensor.capacity"
     assert created_data["storage"][CONF_INITIAL_CHARGE_PERCENTAGE] == "sensor.battery_soc"
-    assert created_data["limits"][CONF_MAX_CHARGE_POWER] == "sensor.max_charge"
+    assert created_data["power_limits"][CONF_MAX_POWER_TARGET_SOURCE] == "sensor.max_charge"
 
 
 async def test_user_step_empty_required_field_shows_error(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
@@ -249,10 +256,10 @@ async def test_user_step_empty_required_field_shows_error(hass: HomeAssistant, h
         CONF_MIN_CHARGE_PERCENTAGE: None,
         CONF_MAX_CHARGE_PERCENTAGE: None,
         CONF_EFFICIENCY: None,
-        CONF_MAX_CHARGE_POWER: 5.0,
-        CONF_MAX_DISCHARGE_POWER: 5.0,
-        CONF_EARLY_CHARGE_INCENTIVE: None,
-        CONF_DISCHARGE_COST: None,
+        CONF_MAX_POWER_TARGET_SOURCE: 5.0,
+        CONF_MAX_POWER_SOURCE_TARGET: 5.0,
+        CONF_PRICE_TARGET_SOURCE: None,
+        CONF_PRICE_SOURCE_TARGET: None,
         CONF_CONFIGURE_PARTITIONS: False,
     }
 
@@ -276,10 +283,10 @@ async def test_partition_flow_enabled_shows_partition_step(hass: HomeAssistant, 
         CONF_MIN_CHARGE_PERCENTAGE: None,
         CONF_MAX_CHARGE_PERCENTAGE: None,
         CONF_EFFICIENCY: 0.95,
-        CONF_MAX_CHARGE_POWER: 5.0,
-        CONF_MAX_DISCHARGE_POWER: 5.0,
-        CONF_EARLY_CHARGE_INCENTIVE: None,
-        CONF_DISCHARGE_COST: None,
+        CONF_MAX_POWER_TARGET_SOURCE: 5.0,
+        CONF_MAX_POWER_SOURCE_TARGET: 5.0,
+        CONF_PRICE_TARGET_SOURCE: None,
+        CONF_PRICE_SOURCE_TARGET: None,
         CONF_CONFIGURE_PARTITIONS: True,
     }
 
@@ -313,10 +320,10 @@ async def test_partition_flow_with_entity_links_creates_entry(hass: HomeAssistan
         CONF_MIN_CHARGE_PERCENTAGE: None,
         CONF_MAX_CHARGE_PERCENTAGE: None,
         CONF_EFFICIENCY: None,
-        CONF_MAX_CHARGE_POWER: 5.0,
-        CONF_MAX_DISCHARGE_POWER: 5.0,
-        CONF_EARLY_CHARGE_INCENTIVE: None,
-        CONF_DISCHARGE_COST: None,
+        CONF_MAX_POWER_TARGET_SOURCE: 5.0,
+        CONF_MAX_POWER_SOURCE_TARGET: 5.0,
+        CONF_PRICE_TARGET_SOURCE: None,
+        CONF_PRICE_SOURCE_TARGET: None,
         CONF_CONFIGURE_PARTITIONS: True,
     }
 
@@ -362,10 +369,10 @@ async def test_partition_flow_with_constant_values_creates_entry(hass: HomeAssis
         CONF_MIN_CHARGE_PERCENTAGE: None,
         CONF_MAX_CHARGE_PERCENTAGE: None,
         CONF_EFFICIENCY: None,
-        CONF_MAX_CHARGE_POWER: 5.0,
-        CONF_MAX_DISCHARGE_POWER: 5.0,
-        CONF_EARLY_CHARGE_INCENTIVE: None,
-        CONF_DISCHARGE_COST: None,
+        CONF_MAX_POWER_TARGET_SOURCE: 5.0,
+        CONF_MAX_POWER_SOURCE_TARGET: 5.0,
+        CONF_PRICE_TARGET_SOURCE: None,
+        CONF_PRICE_SOURCE_TARGET: None,
         CONF_CONFIGURE_PARTITIONS: True,
     }
     await flow.async_step_user(user_input=_wrap_main_input(step1_input))
@@ -412,10 +419,10 @@ async def test_partition_disabled_skips_partition_step(hass: HomeAssistant, hub_
         CONF_MIN_CHARGE_PERCENTAGE: None,
         CONF_MAX_CHARGE_PERCENTAGE: None,
         CONF_EFFICIENCY: None,
-        CONF_MAX_CHARGE_POWER: 5.0,
-        CONF_MAX_DISCHARGE_POWER: 5.0,
-        CONF_EARLY_CHARGE_INCENTIVE: None,
-        CONF_DISCHARGE_COST: None,
+        CONF_MAX_POWER_TARGET_SOURCE: 5.0,
+        CONF_MAX_POWER_SOURCE_TARGET: 5.0,
+        CONF_PRICE_TARGET_SOURCE: None,
+        CONF_PRICE_SOURCE_TARGET: None,
         CONF_CONFIGURE_PARTITIONS: False,
     }
 
@@ -439,8 +446,8 @@ async def test_reconfigure_with_existing_partitions_shows_form(hass: HomeAssista
                 CONF_CONNECTION: "main_bus",
                 CONF_CAPACITY: 10.0,
                 CONF_INITIAL_CHARGE_PERCENTAGE: 50.0,
-                CONF_MAX_CHARGE_POWER: 5.0,
-                CONF_MAX_DISCHARGE_POWER: 5.0,
+                CONF_MAX_POWER_TARGET_SOURCE: 5.0,
+                CONF_MAX_POWER_SOURCE_TARGET: 5.0,
             }
         ),
         **_wrap_partition_input(
@@ -486,8 +493,8 @@ async def test_reconfigure_partition_defaults_entity_links(hass: HomeAssistant, 
                 CONF_CONNECTION: "main_bus",
                 CONF_CAPACITY: 10.0,
                 CONF_INITIAL_CHARGE_PERCENTAGE: 50.0,
-                CONF_MAX_CHARGE_POWER: 5.0,
-                CONF_MAX_DISCHARGE_POWER: 5.0,
+                CONF_MAX_POWER_TARGET_SOURCE: 5.0,
+                CONF_MAX_POWER_SOURCE_TARGET: 5.0,
             }
         ),
         **_wrap_partition_input(
@@ -532,8 +539,8 @@ async def test_reconfigure_partition_defaults_scalar_values(hass: HomeAssistant,
                 CONF_CONNECTION: "main_bus",
                 CONF_CAPACITY: 10.0,
                 CONF_INITIAL_CHARGE_PERCENTAGE: 50.0,
-                CONF_MAX_CHARGE_POWER: 5.0,
-                CONF_MAX_DISCHARGE_POWER: 5.0,
+                CONF_MAX_POWER_TARGET_SOURCE: 5.0,
+                CONF_MAX_POWER_SOURCE_TARGET: 5.0,
             }
         ),
         **_wrap_partition_input(
@@ -586,14 +593,14 @@ async def test_defaults_with_scalar_values_shows_constant_choice(hass: HomeAssis
     existing_data = _wrap_main_input(
         {
             CONF_CAPACITY: 10.0,
-            CONF_MAX_CHARGE_POWER: 5.0,
+            CONF_MAX_POWER_TARGET_SOURCE: 5.0,
             CONF_EFFICIENCY: 0.95,
         }
     )
     defaults = flow._build_defaults("Test Battery", existing_data)
 
     assert defaults[SECTION_STORAGE][CONF_CAPACITY] == 10.0
-    assert defaults[SECTION_LIMITS][CONF_MAX_CHARGE_POWER] == 5.0
+    assert defaults[SECTION_POWER_LIMITS][CONF_MAX_POWER_TARGET_SOURCE] == 5.0
     assert defaults[SECTION_ADVANCED][CONF_EFFICIENCY] == 0.95
 
 
@@ -625,8 +632,8 @@ async def test_reconfigure_with_string_entity_id_v010_format(hass: HomeAssistant
                 CONF_CONNECTION: "main_bus",
                 CONF_CAPACITY: "sensor.battery_capacity",
                 CONF_INITIAL_CHARGE_PERCENTAGE: "sensor.battery_soc",
-                CONF_MAX_CHARGE_POWER: "sensor.charge_power",
-                CONF_MAX_DISCHARGE_POWER: "sensor.discharge_power",
+                CONF_MAX_POWER_TARGET_SOURCE: "sensor.charge_power",
+                CONF_MAX_POWER_SOURCE_TARGET: "sensor.discharge_power",
             }
         ),
     }
@@ -654,8 +661,8 @@ async def test_reconfigure_with_string_entity_id_v010_format(hass: HomeAssistant
 
     assert defaults[SECTION_STORAGE][CONF_CAPACITY] == ["sensor.battery_capacity"]
     assert defaults[SECTION_STORAGE][CONF_INITIAL_CHARGE_PERCENTAGE] == ["sensor.battery_soc"]
-    assert defaults[SECTION_LIMITS][CONF_MAX_CHARGE_POWER] == ["sensor.charge_power"]
-    assert defaults[SECTION_LIMITS][CONF_MAX_DISCHARGE_POWER] == ["sensor.discharge_power"]
+    assert defaults[SECTION_POWER_LIMITS][CONF_MAX_POWER_TARGET_SOURCE] == ["sensor.charge_power"]
+    assert defaults[SECTION_POWER_LIMITS][CONF_MAX_POWER_SOURCE_TARGET] == ["sensor.discharge_power"]
 
 
 async def test_reconfigure_updates_existing_battery(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
@@ -670,8 +677,8 @@ async def test_reconfigure_updates_existing_battery(hass: HomeAssistant, hub_ent
                 CONF_CONNECTION: "main_bus",
                 CONF_CAPACITY: 10.0,
                 CONF_INITIAL_CHARGE_PERCENTAGE: 50.0,
-                CONF_MAX_CHARGE_POWER: 5.0,
-                CONF_MAX_DISCHARGE_POWER: 5.0,
+                CONF_MAX_POWER_TARGET_SOURCE: 5.0,
+                CONF_MAX_POWER_SOURCE_TARGET: 5.0,
             }
         ),
     }
@@ -701,10 +708,10 @@ async def test_reconfigure_updates_existing_battery(hass: HomeAssistant, hub_ent
         CONF_MIN_CHARGE_PERCENTAGE: None,
         CONF_MAX_CHARGE_PERCENTAGE: None,
         CONF_EFFICIENCY: None,
-        CONF_MAX_CHARGE_POWER: 7.5,
-        CONF_MAX_DISCHARGE_POWER: 7.5,
-        CONF_EARLY_CHARGE_INCENTIVE: None,
-        CONF_DISCHARGE_COST: None,
+        CONF_MAX_POWER_TARGET_SOURCE: 7.5,
+        CONF_MAX_POWER_SOURCE_TARGET: 7.5,
+        CONF_PRICE_TARGET_SOURCE: None,
+        CONF_PRICE_SOURCE_TARGET: None,
         CONF_CONFIGURE_PARTITIONS: False,
     }
 
@@ -715,7 +722,7 @@ async def test_reconfigure_updates_existing_battery(hass: HomeAssistant, hub_ent
     update_kwargs = flow.async_update_and_abort.call_args.kwargs
     assert update_kwargs["title"] == "Test Battery Updated"
     assert update_kwargs["data"][SECTION_STORAGE][CONF_CAPACITY] == 15.0
-    assert update_kwargs["data"][SECTION_LIMITS][CONF_MAX_CHARGE_POWER] == 7.5
+    assert update_kwargs["data"][SECTION_POWER_LIMITS][CONF_MAX_POWER_TARGET_SOURCE] == 7.5
 
 
 # --- Tests for _is_valid_choose_value ---

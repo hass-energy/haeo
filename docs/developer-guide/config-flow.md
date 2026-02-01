@@ -96,15 +96,25 @@ Element entries link to their parent hub via `parent_entry_id`:
     "data": {
         "element_type": "battery",
         "parent_entry_id": "abc123...",  # Links to hub entry
-        "basic": {
+        "details": {
             "name": "Home Battery",
             "connection": "Main Bus",
-            "capacity": 13500,
+        },
+        "storage": {
+            "capacity": 13.5,
             "initial_charge_percentage": 50.0,
         },
         "limits": {
-            "max_charge_power": 5000,
-            "max_discharge_power": 5000,
+            "min_charge_percentage": 10.0,
+            "max_charge_percentage": 90.0,
+        },
+        "power_limits": {
+            "max_power_source_target": 5.0,
+            "max_power_target_source": 5.0,
+        },
+        "pricing": {
+            "price_source_target": 0.02,
+            "price_target_source": 0.01,
         },
         "advanced": {},
         "undercharge": {},

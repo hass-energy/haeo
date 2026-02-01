@@ -61,7 +61,7 @@ The `environment.json` timestamp is used as the freeze time for the test, and `o
 
 # Multiple patterns from file
 ./tests/scenarios/filter_states.py http://ha.local:8123 \
-    -o scenario/states.json sensor.battery_soc sensor.import_price sensor.house_load
+  -o scenario/states.json sensor.battery_soc sensor.price_source_target sensor.house_load
 ```
 
 ## Basic Configuration
@@ -75,20 +75,21 @@ The `environment.json` timestamp is used as the freeze time for the test, and `o
       "element_type": "battery",
       "capacity": 10000,
       "initial_charge_percentage": "sensor.battery_soc",
-      "max_power": 5000
+      "max_power_target_source": 5000,
+      "max_power_source_target": 5000
     },
     "solar": {
       "element_type": "solar",
-      "max_power": "sensor.solar_power"
+      "forecast": "sensor.solar_power"
     },
     "grid": {
       "element_type": "grid",
-      "import_price": "sensor.electricity_price",
-      "export_price": "sensor.feed_in_tariff"
+      "price_source_target": "sensor.electricity_price",
+      "price_target_source": "sensor.feed_in_tariff"
     },
     "load": {
-      "element_type": "constant_load",
-      "power": "sensor.house_power"
+      "element_type": "load",
+      "forecast": "sensor.house_power"
     }
   },
   "connections": [

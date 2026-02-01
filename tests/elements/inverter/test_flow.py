@@ -14,15 +14,19 @@ from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME, DOMAIN
 from custom_components.haeo.elements import node
 from custom_components.haeo.elements.inverter import (
     CONF_CONNECTION,
-    CONF_MAX_POWER_AC_TO_DC,
-    CONF_MAX_POWER_DC_TO_AC,
+    CONF_MAX_POWER_SOURCE_TARGET,
+    CONF_MAX_POWER_TARGET_SOURCE,
     ELEMENT_TYPE,
     SECTION_ADVANCED,
     SECTION_DETAILS,
-    SECTION_LIMITS,
+    SECTION_POWER_LIMITS,
 )
 
 from ..conftest import add_participant, create_flow
+
+CONF_MAX_POWER_DC_TO_AC = CONF_MAX_POWER_SOURCE_TARGET
+CONF_MAX_POWER_AC_TO_DC = CONF_MAX_POWER_TARGET_SOURCE
+SECTION_LIMITS = SECTION_POWER_LIMITS
 
 
 def _wrap_input(flat: dict[str, Any]) -> dict[str, Any]:

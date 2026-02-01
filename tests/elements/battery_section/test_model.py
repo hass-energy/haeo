@@ -39,8 +39,8 @@ CREATE_CASES: Sequence[CreateCase] = [
         "description": "Battery section basic",
         "data": BatterySectionConfigData(
             element_type="battery_section",
-            basic={"name": "test_section"},
-            inputs={
+            details={"name": "test_section"},
+            storage={
                 "capacity": np.array([10.0]),
                 "initial_charge": np.array([5.0]),
             },

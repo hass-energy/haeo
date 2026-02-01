@@ -23,21 +23,21 @@ from custom_components.haeo.flows.field_schema import (
 )
 from custom_components.haeo.sections import (
     CONF_CONNECTION,
+    CONF_MAX_POWER_SOURCE_TARGET,
+    CONF_MAX_POWER_TARGET_SOURCE,
     SECTION_ADVANCED,
     SECTION_DETAILS,
-    SECTION_LIMITS,
+    SECTION_POWER_LIMITS,
     advanced_section,
     build_details_fields,
     details_section,
-    limits_section,
+    power_limits_section,
 )
 
 from .adapter import adapter
 from .schema import (
     CONF_EFFICIENCY_AC_TO_DC,
     CONF_EFFICIENCY_DC_TO_AC,
-    CONF_MAX_POWER_AC_TO_DC,
-    CONF_MAX_POWER_DC_TO_AC,
     ELEMENT_TYPE,
     OPTIONAL_INPUT_FIELDS,
     InverterConfigSchema,
@@ -51,7 +51,10 @@ class InverterSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         """Return sections for the configuration step."""
         return (
             details_section((CONF_NAME, CONF_CONNECTION), collapsed=False),
-            limits_section((CONF_MAX_POWER_DC_TO_AC, CONF_MAX_POWER_AC_TO_DC), collapsed=False),
+            power_limits_section(
+                (CONF_MAX_POWER_SOURCE_TARGET, CONF_MAX_POWER_TARGET_SOURCE),
+                collapsed=False,
+            ),
             advanced_section((CONF_EFFICIENCY_DC_TO_AC, CONF_EFFICIENCY_AC_TO_DC), collapsed=True),
         )
 
@@ -92,9 +95,9 @@ class InverterSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                     CONF_NAME: default_name,
                     CONF_CONNECTION: current_connection,
                 },
-                SECTION_LIMITS: {
-                    CONF_MAX_POWER_DC_TO_AC: 0.0,
-                    CONF_MAX_POWER_AC_TO_DC: 0.0,
+                SECTION_POWER_LIMITS: {
+                    CONF_MAX_POWER_SOURCE_TARGET: 0.0,
+                    CONF_MAX_POWER_TARGET_SOURCE: 0.0,
                 },
                 SECTION_ADVANCED: {},
             }
@@ -176,7 +179,7 @@ class InverterSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                 CONF_NAME: default_name if subentry_data is None else basic_data.get(CONF_NAME),
                 CONF_CONNECTION: basic_data.get(CONF_CONNECTION) if subentry_data else None,
             },
-            SECTION_LIMITS: {},
+            SECTION_POWER_LIMITS: {},
             SECTION_ADVANCED: {},
         }
 

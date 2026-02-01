@@ -48,11 +48,11 @@ from custom_components.haeo.elements.battery import (
     CONF_EFFICIENCY,
     CONF_INITIAL_CHARGE_PERCENTAGE,
     CONF_MAX_CHARGE_PERCENTAGE,
-    CONF_MAX_CHARGE_POWER,
-    CONF_MAX_DISCHARGE_POWER,
+    CONF_MAX_POWER_SOURCE_TARGET,
+    CONF_MAX_POWER_TARGET_SOURCE,
     CONF_MIN_CHARGE_PERCENTAGE,
 )
-from custom_components.haeo.elements.grid import CONF_EXPORT_PRICE, CONF_IMPORT_PRICE, GRID_POWER_IMPORT
+from custom_components.haeo.elements.grid import CONF_PRICE_SOURCE_TARGET, CONF_PRICE_TARGET_SOURCE, GRID_POWER_IMPORT
 from custom_components.haeo.entities.haeo_number import ConfigEntityMode, HaeoInputNumber
 from custom_components.haeo.flows import HUB_SECTION_BASIC, HUB_SECTION_TIERS
 from custom_components.haeo.model import OutputType
@@ -60,6 +60,7 @@ from custom_components.haeo.sections import (
     SECTION_ADVANCED,
     SECTION_DETAILS,
     SECTION_LIMITS,
+    SECTION_POWER_LIMITS,
     SECTION_PRICING,
     SECTION_STORAGE,
 )
@@ -71,20 +72,21 @@ def _battery_config(
     connection: str,
     capacity: str | float,
     initial_charge_percentage: str | float,
-    max_charge_power: float | None = None,
-    max_discharge_power: float | None = None,
+    max_power_source_target: float | None = None,
+    max_power_target_source: float | None = None,
     min_charge_percentage: float | None = None,
     max_charge_percentage: float | None = None,
     efficiency: float | None = None,
 ) -> dict[str, Any]:
     """Build a sectioned battery config dict for diagnostics tests."""
     limits: dict[str, Any] = {}
+    power_limits: dict[str, Any] = {}
     advanced: dict[str, Any] = {}
     pricing: dict[str, Any] = {}
-    if max_charge_power is not None:
-        limits[CONF_MAX_CHARGE_POWER] = max_charge_power
-    if max_discharge_power is not None:
-        limits[CONF_MAX_DISCHARGE_POWER] = max_discharge_power
+    if max_power_source_target is not None:
+        power_limits[CONF_MAX_POWER_SOURCE_TARGET] = max_power_source_target
+    if max_power_target_source is not None:
+        power_limits[CONF_MAX_POWER_TARGET_SOURCE] = max_power_target_source
     if min_charge_percentage is not None:
         limits[CONF_MIN_CHARGE_PERCENTAGE] = min_charge_percentage
     if max_charge_percentage is not None:
@@ -105,6 +107,7 @@ def _battery_config(
         },
         SECTION_STORAGE: storage,
         SECTION_LIMITS: limits,
+        SECTION_POWER_LIMITS: power_limits,
         SECTION_PRICING: pricing,
         SECTION_ADVANCED: advanced,
     }
@@ -114,8 +117,8 @@ def _grid_config(
     *,
     name: str,
     connection: str,
-    import_price: list[str] | str | float,
-    export_price: list[str] | str | float,
+    price_source_target: list[str] | str | float,
+    price_target_source: list[str] | str | float,
 ) -> dict[str, Any]:
     """Build a sectioned grid config dict for diagnostics tests."""
     return {
@@ -125,10 +128,10 @@ def _grid_config(
             CONF_CONNECTION: connection,
         },
         SECTION_PRICING: {
-            CONF_IMPORT_PRICE: import_price,
-            CONF_EXPORT_PRICE: export_price,
+            CONF_PRICE_SOURCE_TARGET: price_source_target,
+            CONF_PRICE_TARGET_SOURCE: price_target_source,
         },
-        SECTION_LIMITS: {},
+        SECTION_POWER_LIMITS: {},
     }
 
 
@@ -200,8 +203,8 @@ async def test_diagnostics_with_participants(hass: HomeAssistant) -> None:
                 connection="DC Bus",
                 capacity="sensor.battery_capacity",
                 initial_charge_percentage="sensor.battery_soc",
-                max_charge_power=5.0,
-                max_discharge_power=5.0,
+                max_power_source_target=5.0,
+                max_power_target_source=5.0,
                 min_charge_percentage=10.0,
                 max_charge_percentage=90.0,
                 efficiency=95.0,
@@ -287,8 +290,8 @@ async def test_diagnostics_skips_network_subentry(hass: HomeAssistant) -> None:
                 connection="DC Bus",
                 capacity="sensor.battery_capacity",
                 initial_charge_percentage="sensor.battery_soc",
-                max_charge_power=5.0,
-                max_discharge_power=5.0,
+                max_power_source_target=5.0,
+                max_power_target_source=5.0,
                 min_charge_percentage=10.0,
                 max_charge_percentage=90.0,
                 efficiency=95.0,
@@ -335,8 +338,8 @@ async def test_diagnostics_with_outputs(hass: HomeAssistant) -> None:
             _grid_config(
                 name="Grid",
                 connection="Main Bus",
-                import_price=["sensor.grid_import_price", "sensor.grid_import_forecast"],
-                export_price=0.08,
+                price_source_target=["sensor.grid_import_price", "sensor.grid_import_forecast"],
+                price_target_source=0.08,
             )
         ),
         subentry_type="grid",
@@ -433,8 +436,8 @@ async def test_diagnostics_captures_editable_entity_values(hass: HomeAssistant) 
                 connection="DC Bus",
                 capacity=10.0,  # Constant value - creates editable entity
                 initial_charge_percentage=50.0,  # Constant - creates editable entity
-                max_charge_power=5.0,
-                max_discharge_power=5.0,
+                max_power_source_target=5.0,
+                max_power_target_source=5.0,
                 min_charge_percentage=10.0,
                 max_charge_percentage=90.0,
                 efficiency=95.0,
@@ -484,8 +487,8 @@ async def test_diagnostics_skips_unknown_element_in_input_entities(hass: HomeAss
                 connection="DC Bus",
                 capacity=10.0,
                 initial_charge_percentage=50.0,
-                max_charge_power=5.0,
-                max_discharge_power=5.0,
+                max_power_source_target=5.0,
+                max_power_target_source=5.0,
                 min_charge_percentage=10.0,
                 max_charge_percentage=90.0,
                 efficiency=95.0,
@@ -535,8 +538,8 @@ async def test_diagnostics_skips_driven_entity_values(hass: HomeAssistant) -> No
                 connection="DC Bus",
                 capacity="sensor.battery_capacity",  # Entity ID - creates driven entity
                 initial_charge_percentage=50.0,
-                max_charge_power=5.0,
-                max_discharge_power=5.0,
+                max_power_source_target=5.0,
+                max_power_target_source=5.0,
                 min_charge_percentage=10.0,
                 max_charge_percentage=90.0,
                 efficiency=95.0,
@@ -811,8 +814,8 @@ async def test_diagnostics_skips_switch_with_none_value(hass: HomeAssistant) -> 
                 connection="DC Bus",
                 capacity=10.0,
                 initial_charge_percentage=50.0,
-                max_charge_power=5.0,
-                max_discharge_power=5.0,
+                max_power_source_target=5.0,
+                max_power_target_source=5.0,
                 min_charge_percentage=10.0,
                 max_charge_percentage=90.0,
                 efficiency=95.0,
@@ -862,8 +865,8 @@ async def test_collect_diagnostics_returns_missing_entity_ids(hass: HomeAssistan
                 connection="DC Bus",
                 capacity="sensor.battery_capacity",
                 initial_charge_percentage="sensor.battery_soc",
-                max_charge_power=5.0,
-                max_discharge_power=5.0,
+                max_power_source_target=5.0,
+                max_power_target_source=5.0,
                 min_charge_percentage=10.0,
                 max_charge_percentage=90.0,
                 efficiency=95.0,
@@ -909,8 +912,8 @@ async def test_collect_diagnostics_returns_empty_missing_when_all_found(hass: Ho
                 connection="DC Bus",
                 capacity="sensor.battery_capacity",
                 initial_charge_percentage="sensor.battery_soc",
-                max_charge_power=5.0,
-                max_discharge_power=5.0,
+                max_power_source_target=5.0,
+                max_power_target_source=5.0,
                 min_charge_percentage=10.0,
                 max_charge_percentage=90.0,
                 efficiency=95.0,

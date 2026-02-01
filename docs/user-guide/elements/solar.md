@@ -110,7 +110,7 @@ Input entities appear as Number or Switch entities with the `config` entity cate
 | Input                       | Unit   | Description                                    |
 | --------------------------- | ------ | ---------------------------------------------- |
 | `number.{name}_forecast`    | kW     | Solar power forecast from configured sensor(s) |
-| `number.{name}_price`       | \$/kWh | Cost for curtailing generation                 |
+| `number.{name}_price_source_target` | \$/kWh | Production price from configured value/sensor |
 | `switch.{name}_curtailment` | -      | Whether curtailment is permitted               |
 
 Input entities include a `forecast` attribute showing values for each optimization period.

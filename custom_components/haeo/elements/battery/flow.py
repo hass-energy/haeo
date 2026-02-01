@@ -26,15 +26,21 @@ from custom_components.haeo.sections import (
     CONF_CAPACITY,
     CONF_CONNECTION,
     CONF_INITIAL_CHARGE_PERCENTAGE,
+    CONF_MAX_POWER_SOURCE_TARGET,
+    CONF_MAX_POWER_TARGET_SOURCE,
+    CONF_PRICE_SOURCE_TARGET,
+    CONF_PRICE_TARGET_SOURCE,
     SECTION_ADVANCED,
     SECTION_DETAILS,
     SECTION_LIMITS,
+    SECTION_POWER_LIMITS,
     SECTION_PRICING,
     SECTION_STORAGE,
     advanced_section,
     build_details_fields,
     details_section,
     limits_section,
+    power_limits_section,
     pricing_section,
     storage_section,
 )
@@ -42,12 +48,8 @@ from custom_components.haeo.sections import (
 from .adapter import adapter
 from .schema import (
     CONF_CONFIGURE_PARTITIONS,
-    CONF_DISCHARGE_COST,
-    CONF_EARLY_CHARGE_INCENTIVE,
     CONF_EFFICIENCY,
     CONF_MAX_CHARGE_PERCENTAGE,
-    CONF_MAX_CHARGE_POWER,
-    CONF_MAX_DISCHARGE_POWER,
     CONF_MIN_CHARGE_PERCENTAGE,
     CONF_PARTITION_COST,
     CONF_PARTITION_PERCENTAGE,
@@ -96,13 +98,15 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                 (
                     CONF_MIN_CHARGE_PERCENTAGE,
                     CONF_MAX_CHARGE_PERCENTAGE,
-                    CONF_MAX_CHARGE_POWER,
-                    CONF_MAX_DISCHARGE_POWER,
                 ),
                 collapsed=False,
             ),
+            power_limits_section(
+                (CONF_MAX_POWER_TARGET_SOURCE, CONF_MAX_POWER_SOURCE_TARGET),
+                collapsed=False,
+            ),
             pricing_section(
-                (CONF_EARLY_CHARGE_INCENTIVE, CONF_DISCHARGE_COST),
+                (CONF_PRICE_SOURCE_TARGET, CONF_PRICE_TARGET_SOURCE),
                 collapsed=False,
             ),
             advanced_section(
@@ -154,6 +158,7 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                     CONF_INITIAL_CHARGE_PERCENTAGE: 0.0,
                 },
                 SECTION_LIMITS: {},
+                SECTION_POWER_LIMITS: {},
                 SECTION_PRICING: {},
                 SECTION_ADVANCED: {},
             }
@@ -295,6 +300,7 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             },
             SECTION_STORAGE: {},
             SECTION_LIMITS: {},
+            SECTION_POWER_LIMITS: {},
             SECTION_PRICING: {},
             SECTION_ADVANCED: {},
         }

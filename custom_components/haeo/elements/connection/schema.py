@@ -3,16 +3,20 @@
 from typing import Final, Literal, TypedDict
 
 from custom_components.haeo.sections import (
+    CONF_MAX_POWER_SOURCE_TARGET,
+    CONF_MAX_POWER_TARGET_SOURCE,
+    CONF_PRICE_SOURCE_TARGET,
+    CONF_PRICE_TARGET_SOURCE,
     SECTION_ADVANCED,
     SECTION_DETAILS,
-    SECTION_LIMITS,
+    SECTION_POWER_LIMITS,
     SECTION_PRICING,
     AdvancedConfig,
     AdvancedData,
     DetailsConfig,
     DetailsData,
-    LimitsConfig,
-    LimitsData,
+    PowerLimitsConfig,
+    PowerLimitsData,
     PricingConfig,
     PricingData,
 )
@@ -23,12 +27,6 @@ SECTION_ENDPOINTS: Final = "endpoints"
 
 CONF_SOURCE: Final = "source"
 CONF_TARGET: Final = "target"
-
-CONF_MAX_POWER_SOURCE_TARGET: Final = "max_power_source_target"
-CONF_MAX_POWER_TARGET_SOURCE: Final = "max_power_target_source"
-
-CONF_PRICE_SOURCE_TARGET: Final = "price_source_target"
-CONF_PRICE_TARGET_SOURCE: Final = "price_target_source"
 
 CONF_EFFICIENCY_SOURCE_TARGET: Final = "efficiency_source_target"
 CONF_EFFICIENCY_TARGET_SOURCE: Final = "efficiency_target_source"
@@ -63,9 +61,9 @@ class ConnectionConfigSchema(TypedDict):
     """Connection element configuration as stored in Home Assistant."""
 
     element_type: Literal["connection"]
-    basic: DetailsConfig
+    details: DetailsConfig
     endpoints: EndpointsConfig
-    limits: LimitsConfig
+    power_limits: PowerLimitsConfig
     pricing: PricingConfig
     advanced: AdvancedConfig
 
@@ -74,9 +72,9 @@ class ConnectionConfigData(TypedDict):
     """Connection element configuration with loaded values."""
 
     element_type: Literal["connection"]
-    basic: DetailsData
+    details: DetailsData
     endpoints: EndpointsData
-    limits: LimitsData
+    power_limits: PowerLimitsData
     pricing: PricingData
     advanced: AdvancedData
 
@@ -95,7 +93,7 @@ __all__ = [
     "SECTION_ADVANCED",
     "SECTION_DETAILS",
     "SECTION_ENDPOINTS",
-    "SECTION_LIMITS",
+    "SECTION_POWER_LIMITS",
     "SECTION_PRICING",
     "ConnectionConfigData",
     "ConnectionConfigSchema",

@@ -5,17 +5,18 @@ from custom_components.haeo.elements.battery import (
     CONF_CAPACITY,
     CONF_CONFIGURE_PARTITIONS,
     CONF_CONNECTION,
-    CONF_DISCHARGE_COST,
-    CONF_EARLY_CHARGE_INCENTIVE,
     CONF_EFFICIENCY,
     CONF_INITIAL_CHARGE_PERCENTAGE,
     CONF_MAX_CHARGE_PERCENTAGE,
-    CONF_MAX_CHARGE_POWER,
-    CONF_MAX_DISCHARGE_POWER,
+    CONF_MAX_POWER_SOURCE_TARGET,
+    CONF_MAX_POWER_TARGET_SOURCE,
     CONF_MIN_CHARGE_PERCENTAGE,
+    CONF_PRICE_SOURCE_TARGET,
+    CONF_PRICE_TARGET_SOURCE,
     SECTION_ADVANCED,
     SECTION_DETAILS,
     SECTION_LIMITS,
+    SECTION_POWER_LIMITS,
     SECTION_PRICING,
     SECTION_STORAGE,
 )
@@ -37,11 +38,13 @@ VALID_DATA = [
             SECTION_LIMITS: {
                 CONF_MIN_CHARGE_PERCENTAGE: 10.0,
                 CONF_MAX_CHARGE_PERCENTAGE: 90.0,
-                CONF_MAX_CHARGE_POWER: 5.0,
-                CONF_MAX_DISCHARGE_POWER: 5.0,
+            },
+            SECTION_POWER_LIMITS: {
+                CONF_MAX_POWER_TARGET_SOURCE: 5.0,
+                CONF_MAX_POWER_SOURCE_TARGET: 5.0,
             },
             SECTION_PRICING: {
-                CONF_EARLY_CHARGE_INCENTIVE: 0.01,
+                CONF_PRICE_TARGET_SOURCE: 0.01,
             },
             SECTION_ADVANCED: {
                 CONF_EFFICIENCY: 95.0,
@@ -63,12 +66,14 @@ VALID_DATA = [
             SECTION_LIMITS: {
                 CONF_MIN_CHARGE_PERCENTAGE: 10.0,
                 CONF_MAX_CHARGE_PERCENTAGE: 90.0,
-                CONF_MAX_CHARGE_POWER: 5.0,
-                CONF_MAX_DISCHARGE_POWER: 5.0,
+            },
+            SECTION_POWER_LIMITS: {
+                CONF_MAX_POWER_TARGET_SOURCE: 5.0,
+                CONF_MAX_POWER_SOURCE_TARGET: 5.0,
             },
             SECTION_PRICING: {
-                CONF_EARLY_CHARGE_INCENTIVE: 0.05,
-                CONF_DISCHARGE_COST: 0.03,
+                CONF_PRICE_TARGET_SOURCE: 0.05,
+                CONF_PRICE_SOURCE_TARGET: 0.03,
             },
             SECTION_ADVANCED: {
                 CONF_EFFICIENCY: 95.0,
@@ -91,11 +96,13 @@ INVALID_DATA = [
                 CONF_INITIAL_CHARGE_PERCENTAGE: ["sensor.battery_soc"],
             },
             SECTION_LIMITS: {
-                CONF_MAX_CHARGE_POWER: 5.0,
-                CONF_MAX_DISCHARGE_POWER: 5.0,
+            },
+            SECTION_POWER_LIMITS: {
+                CONF_MAX_POWER_TARGET_SOURCE: 5.0,
+                CONF_MAX_POWER_SOURCE_TARGET: 5.0,
             },
             SECTION_PRICING: {
-                CONF_EARLY_CHARGE_INCENTIVE: 0.01,
+                CONF_PRICE_TARGET_SOURCE: 0.01,
             },
             SECTION_ADVANCED: {
                 CONF_EFFICIENCY: 95.0,

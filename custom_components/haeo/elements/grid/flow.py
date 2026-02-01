@@ -23,25 +23,21 @@ from custom_components.haeo.flows.field_schema import (
 )
 from custom_components.haeo.sections import (
     CONF_CONNECTION,
+    CONF_MAX_POWER_SOURCE_TARGET,
+    CONF_MAX_POWER_TARGET_SOURCE,
+    CONF_PRICE_SOURCE_TARGET,
+    CONF_PRICE_TARGET_SOURCE,
     SECTION_DETAILS,
-    SECTION_LIMITS,
+    SECTION_POWER_LIMITS,
     SECTION_PRICING,
     build_details_fields,
     details_section,
-    limits_section,
+    power_limits_section,
     pricing_section,
 )
 
 from .adapter import adapter
-from .schema import (
-    CONF_EXPORT_LIMIT,
-    CONF_EXPORT_PRICE,
-    CONF_IMPORT_LIMIT,
-    CONF_IMPORT_PRICE,
-    ELEMENT_TYPE,
-    OPTIONAL_INPUT_FIELDS,
-    GridConfigSchema,
-)
+from .schema import ELEMENT_TYPE, OPTIONAL_INPUT_FIELDS, GridConfigSchema
 
 
 class GridSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
@@ -51,8 +47,11 @@ class GridSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         """Return sections for the configuration step."""
         return (
             details_section((CONF_NAME, CONF_CONNECTION), collapsed=False),
-            pricing_section((CONF_IMPORT_PRICE, CONF_EXPORT_PRICE), collapsed=False),
-            limits_section((CONF_IMPORT_LIMIT, CONF_EXPORT_LIMIT), collapsed=True),
+            pricing_section((CONF_PRICE_SOURCE_TARGET, CONF_PRICE_TARGET_SOURCE), collapsed=False),
+            power_limits_section(
+                (CONF_MAX_POWER_SOURCE_TARGET, CONF_MAX_POWER_TARGET_SOURCE),
+                collapsed=True,
+            ),
         )
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> SubentryFlowResult:
@@ -90,10 +89,10 @@ class GridSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                     CONF_CONNECTION: current_connection,
                 },
                 SECTION_PRICING: {
-                    CONF_IMPORT_PRICE: 0.0,
-                    CONF_EXPORT_PRICE: 0.0,
+                    CONF_PRICE_SOURCE_TARGET: 0.0,
+                    CONF_PRICE_TARGET_SOURCE: 0.0,
                 },
-                SECTION_LIMITS: {},
+                SECTION_POWER_LIMITS: {},
             }
 
         input_fields = adapter.inputs(element_config)
@@ -182,7 +181,7 @@ class GridSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                 CONF_CONNECTION: basic_data.get(CONF_CONNECTION) if subentry_data else None,
             },
             SECTION_PRICING: {},
-            SECTION_LIMITS: {},
+            SECTION_POWER_LIMITS: {},
         }
 
         input_fields = adapter.inputs(subentry_data)

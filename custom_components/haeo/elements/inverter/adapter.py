@@ -23,13 +23,18 @@ from custom_components.haeo.model.elements.connection import (
 from custom_components.haeo.model.elements.node import NODE_POWER_BALANCE
 from custom_components.haeo.model.elements.segments import POWER_LIMIT_SOURCE_TARGET, POWER_LIMIT_TARGET_SOURCE
 from custom_components.haeo.model.output_data import OutputData
-from custom_components.haeo.sections import CONF_CONNECTION, SECTION_ADVANCED, SECTION_DETAILS, SECTION_LIMITS
+from custom_components.haeo.sections import (
+    CONF_CONNECTION,
+    CONF_MAX_POWER_SOURCE_TARGET,
+    CONF_MAX_POWER_TARGET_SOURCE,
+    SECTION_ADVANCED,
+    SECTION_DETAILS,
+    SECTION_POWER_LIMITS,
+)
 
 from .schema import (
     CONF_EFFICIENCY_AC_TO_DC,
     CONF_EFFICIENCY_DC_TO_AC,
-    CONF_MAX_POWER_AC_TO_DC,
-    CONF_MAX_POWER_DC_TO_AC,
     ELEMENT_TYPE,
     InverterConfigData,
     InverterConfigSchema,
@@ -74,21 +79,21 @@ class InverterAdapter:
     def available(self, config: InverterConfigSchema, *, hass: HomeAssistant, **_kwargs: Any) -> bool:
         """Check if inverter configuration can be loaded."""
         ts_loader = TimeSeriesLoader()
-        limits = config[SECTION_LIMITS]
-        if not ts_loader.available(hass=hass, value=limits[CONF_MAX_POWER_DC_TO_AC]):
+        limits = config[SECTION_POWER_LIMITS]
+        if not ts_loader.available(hass=hass, value=limits[CONF_MAX_POWER_SOURCE_TARGET]):
             return False
-        return ts_loader.available(hass=hass, value=limits[CONF_MAX_POWER_AC_TO_DC])
+        return ts_loader.available(hass=hass, value=limits[CONF_MAX_POWER_TARGET_SOURCE])
 
     def inputs(self, config: Any) -> dict[str, dict[str, InputFieldInfo[Any]]]:
         """Return input field definitions for inverter elements."""
         _ = config
         return {
-            SECTION_LIMITS: {
-                CONF_MAX_POWER_DC_TO_AC: InputFieldInfo(
-                    field_name=CONF_MAX_POWER_DC_TO_AC,
+            SECTION_POWER_LIMITS: {
+                CONF_MAX_POWER_SOURCE_TARGET: InputFieldInfo(
+                    field_name=CONF_MAX_POWER_SOURCE_TARGET,
                     entity_description=NumberEntityDescription(
-                        key=CONF_MAX_POWER_DC_TO_AC,
-                        translation_key=f"{ELEMENT_TYPE}_{CONF_MAX_POWER_DC_TO_AC}",
+                        key=CONF_MAX_POWER_SOURCE_TARGET,
+                        translation_key=f"{ELEMENT_TYPE}_{CONF_MAX_POWER_SOURCE_TARGET}",
                         native_unit_of_measurement=UnitOfPower.KILO_WATT,
                         device_class=NumberDeviceClass.POWER,
                         native_min_value=0.0,
@@ -98,11 +103,11 @@ class InverterAdapter:
                     output_type=OutputType.POWER_LIMIT,
                     time_series=True,
                 ),
-                CONF_MAX_POWER_AC_TO_DC: InputFieldInfo(
-                    field_name=CONF_MAX_POWER_AC_TO_DC,
+                CONF_MAX_POWER_TARGET_SOURCE: InputFieldInfo(
+                    field_name=CONF_MAX_POWER_TARGET_SOURCE,
                     entity_description=NumberEntityDescription(
-                        key=CONF_MAX_POWER_AC_TO_DC,
-                        translation_key=f"{ELEMENT_TYPE}_{CONF_MAX_POWER_AC_TO_DC}",
+                        key=CONF_MAX_POWER_TARGET_SOURCE,
+                        translation_key=f"{ELEMENT_TYPE}_{CONF_MAX_POWER_TARGET_SOURCE}",
                         native_unit_of_measurement=UnitOfPower.KILO_WATT,
                         device_class=NumberDeviceClass.POWER,
                         native_min_value=0.0,
@@ -175,8 +180,8 @@ class InverterAdapter:
                     },
                     "power_limit": {
                         "segment_type": "power_limit",
-                        "max_power_source_target": config[SECTION_LIMITS][CONF_MAX_POWER_DC_TO_AC],
-                        "max_power_target_source": config[SECTION_LIMITS][CONF_MAX_POWER_AC_TO_DC],
+                        "max_power_source_target": config[SECTION_POWER_LIMITS][CONF_MAX_POWER_SOURCE_TARGET],
+                        "max_power_target_source": config[SECTION_POWER_LIMITS][CONF_MAX_POWER_TARGET_SOURCE],
                     },
                 },
             },

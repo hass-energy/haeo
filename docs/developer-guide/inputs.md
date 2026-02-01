@@ -130,7 +130,7 @@ switch.{element_name}_{field_name}
 Examples:
 
 - `number.battery_capacity`
-- `number.main_grid_import_price`
+- `number.main_grid_price_source_target`
 - `switch.solar_curtailment`
 
 ### Device Association

@@ -5,11 +5,11 @@ from custom_components.haeo.elements.inverter import (
     CONF_CONNECTION,
     CONF_EFFICIENCY_AC_TO_DC,
     CONF_EFFICIENCY_DC_TO_AC,
-    CONF_MAX_POWER_AC_TO_DC,
-    CONF_MAX_POWER_DC_TO_AC,
+    CONF_MAX_POWER_SOURCE_TARGET,
+    CONF_MAX_POWER_TARGET_SOURCE,
     SECTION_ADVANCED,
     SECTION_DETAILS,
-    SECTION_LIMITS,
+    SECTION_POWER_LIMITS,
 )
 
 # Test data for inverter flow - single-step with choose selector
@@ -22,9 +22,9 @@ VALID_DATA = [
                 CONF_NAME: "Test Inverter",
                 CONF_CONNECTION: "main_bus",
             },
-            SECTION_LIMITS: {
-                CONF_MAX_POWER_DC_TO_AC: 5.0,
-                CONF_MAX_POWER_AC_TO_DC: 5.0,
+            SECTION_POWER_LIMITS: {
+                CONF_MAX_POWER_SOURCE_TARGET: 5.0,
+                CONF_MAX_POWER_TARGET_SOURCE: 5.0,
             },
             SECTION_ADVANCED: {
                 CONF_EFFICIENCY_DC_TO_AC: 95.0,

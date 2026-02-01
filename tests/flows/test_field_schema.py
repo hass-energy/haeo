@@ -30,6 +30,7 @@ from custom_components.haeo.flows.field_schema import (
     validate_choose_fields,
 )
 from custom_components.haeo.model.const import OutputType
+from custom_components.haeo.sections import SECTION_DETAILS
 
 # --- Fixtures ---
 
@@ -207,7 +208,7 @@ def test_get_preferred_choice_uses_current_data_string_as_entity() -> None:
         ),
         output_type=OutputType.POWER,
     )
-    current_data = {"basic": {"power": "sensor.power"}}
+    current_data = {SECTION_DETAILS: {"power": "sensor.power"}}
     result = get_preferred_choice(field, current_data)
     assert result == CHOICE_ENTITY
 
@@ -219,14 +220,18 @@ def test_get_preferred_choice_uses_current_data_list_as_entity() -> None:
     which stores entity IDs as a list (e.g., for chained sensors).
     """
     field = InputFieldInfo(
-        field_name="import_price",
+        field_name="price_source_target",
         entity_description=NumberEntityDescription(
-            key="import_price",
-            name="Import Price",
+            key="price_source_target",
+            name="Price Source Target",
         ),
         output_type=OutputType.PRICE,
     )
-    current_data = {"basic": {"import_price": ["sensor.current_price", "sensor.forecast_price"]}}
+    current_data = {
+        SECTION_DETAILS: {
+            "price_source_target": ["sensor.current_price", "sensor.forecast_price"],
+        }
+    }
     result = get_preferred_choice(field, current_data)
     assert result == CHOICE_ENTITY
 
@@ -244,7 +249,7 @@ def test_get_preferred_choice_uses_current_data_single_item_list_as_entity() -> 
         ),
         output_type=OutputType.POWER,
     )
-    current_data = {"basic": {"power": ["sensor.power"]}}
+    current_data = {SECTION_DETAILS: {"power": ["sensor.power"]}}
     result = get_preferred_choice(field, current_data)
     assert result == CHOICE_ENTITY
 
@@ -259,7 +264,7 @@ def test_get_preferred_choice_uses_current_data_number_as_constant() -> None:
         ),
         output_type=OutputType.POWER,
     )
-    current_data = {"basic": {"power": 25.5}}
+    current_data = {SECTION_DETAILS: {"power": 25.5}}
     result = get_preferred_choice(field, current_data)
     assert result == CHOICE_CONSTANT
 
@@ -274,7 +279,7 @@ def test_get_preferred_choice_uses_current_data_boolean_as_constant() -> None:
         ),
         output_type=OutputType.STATUS,
     )
-    current_data = {"basic": {"enabled": True}}
+    current_data = {SECTION_DETAILS: {"enabled": True}}
     result = get_preferred_choice(field, current_data)
     assert result == CHOICE_CONSTANT
 
@@ -407,7 +412,7 @@ def test_get_choose_default_uses_current_data_constant(
         ),
         output_type=OutputType.POWER,
     )
-    current_data = {"basic": {"power": 25.5}}
+    current_data = {SECTION_DETAILS: {"power": 25.5}}
     result = get_choose_default(field, current_data=current_data)
     assert result == 25.5
 
@@ -424,7 +429,7 @@ def test_get_choose_default_uses_current_data_entity(
         ),
         output_type=OutputType.POWER,
     )
-    current_data = {"basic": {"power": "sensor.power"}}
+    current_data = {SECTION_DETAILS: {"power": "sensor.power"}}
     result = get_choose_default(field, current_data=current_data)
     assert result == ["sensor.power"]
 
@@ -441,7 +446,7 @@ def test_get_choose_default_uses_current_data_entity_list(
         ),
         output_type=OutputType.POWER,
     )
-    current_data = {"basic": {"power": ["sensor.power1", "sensor.power2"]}}
+    current_data = {SECTION_DETAILS: {"power": ["sensor.power1", "sensor.power2"]}}
     result = get_choose_default(field, current_data=current_data)
     assert result == ["sensor.power1", "sensor.power2"]
 
@@ -458,7 +463,7 @@ def test_get_choose_default_uses_current_data_boolean(
         ),
         output_type=OutputType.STATUS,
     )
-    current_data = {"basic": {"enabled": True}}
+    current_data = {SECTION_DETAILS: {"enabled": True}}
     result = get_choose_default(field, current_data=current_data)
     assert result is True
 
@@ -640,7 +645,7 @@ def test_get_preferred_choice_returns_none_for_optional_without_data() -> None:
         defaults=None,
     )
     # current_data exists but field is not in it (meaning it was set to none)
-    current_data = {"basic": {"other_field": 10.0}}
+    current_data = {SECTION_DETAILS: {"other_field": 10.0}}
     result = get_preferred_choice(field, current_data, is_optional=True)
     assert result == CHOICE_NONE
 
@@ -688,7 +693,7 @@ def test_get_preferred_choice_required_field_ignores_is_optional_false() -> None
         defaults=None,
     )
     # current_data exists but field is not in it
-    current_data = {"basic": {"other_field": 10.0}}
+    current_data = {SECTION_DETAILS: {"other_field": 10.0}}
     result = get_preferred_choice(field, current_data, is_optional=False)
     # Required field should NOT return none, should return entity
     assert result == CHOICE_ENTITY

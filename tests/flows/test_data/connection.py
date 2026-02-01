@@ -10,7 +10,7 @@ from custom_components.haeo.elements.connection import (
     SECTION_ADVANCED,
     SECTION_DETAILS,
     SECTION_ENDPOINTS,
-    SECTION_LIMITS,
+    SECTION_POWER_LIMITS,
     SECTION_PRICING,
 )
 
@@ -27,7 +27,7 @@ VALID_DATA = [
                 CONF_SOURCE: "Battery1",
                 CONF_TARGET: "Grid1",
             },
-            SECTION_LIMITS: {},
+            SECTION_POWER_LIMITS: {},
             SECTION_PRICING: {},
             SECTION_ADVANCED: {},
         },
@@ -42,7 +42,7 @@ VALID_DATA = [
                 CONF_SOURCE: "Battery1",
                 CONF_TARGET: "Grid1",
             },
-            SECTION_LIMITS: {
+            SECTION_POWER_LIMITS: {
                 CONF_MAX_POWER_SOURCE_TARGET: 10.0,
                 CONF_MAX_POWER_TARGET_SOURCE: 10.0,
             },

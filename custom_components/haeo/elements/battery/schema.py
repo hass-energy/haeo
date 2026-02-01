@@ -9,21 +9,28 @@ from custom_components.haeo.sections import (
     CONF_CAPACITY,
     CONF_CONNECTION,
     CONF_INITIAL_CHARGE_PERCENTAGE,
+    CONF_MAX_POWER_SOURCE_TARGET,
+    CONF_MAX_POWER_TARGET_SOURCE,
+    CONF_PRICE_SOURCE_TARGET,
+    CONF_PRICE_TARGET_SOURCE,
     SECTION_ADVANCED,
     SECTION_DETAILS,
     SECTION_LIMITS,
+    SECTION_POWER_LIMITS,
     SECTION_PRICING,
     SECTION_STORAGE,
     AdvancedConfig,
     AdvancedData,
-    DetailsConfig,
-    DetailsData,
+    ConnectedDetailsConfig,
+    ConnectedDetailsData,
     LimitsConfig,
     LimitsData,
+    PowerLimitsConfig,
+    PowerLimitsData,
     PricingConfig,
     PricingData,
-    StorageConfig,
-    StorageData,
+    StorageSocConfig,
+    StorageSocData,
 )
 
 ELEMENT_TYPE: Final = "battery"
@@ -33,14 +40,8 @@ SECTION_OVERCHARGE: Final = "overcharge"
 
 CONF_MIN_CHARGE_PERCENTAGE: Final = "min_charge_percentage"
 CONF_MAX_CHARGE_PERCENTAGE: Final = "max_charge_percentage"
-CONF_MAX_CHARGE_POWER: Final = "max_charge_power"
-CONF_MAX_DISCHARGE_POWER: Final = "max_discharge_power"
-
 CONF_EFFICIENCY: Final = "efficiency"
 CONF_CONFIGURE_PARTITIONS: Final = "configure_partitions"
-
-CONF_EARLY_CHARGE_INCENTIVE: Final = "early_charge_incentive"
-CONF_DISCHARGE_COST: Final = "discharge_cost"
 
 CONF_PARTITION_PERCENTAGE: Final = "percentage"
 CONF_PARTITION_COST: Final = "cost"
@@ -49,11 +50,11 @@ OPTIONAL_INPUT_FIELDS: Final[frozenset[str]] = frozenset(
     {
         CONF_MIN_CHARGE_PERCENTAGE,
         CONF_MAX_CHARGE_PERCENTAGE,
+        CONF_MAX_POWER_SOURCE_TARGET,
+        CONF_MAX_POWER_TARGET_SOURCE,
         CONF_EFFICIENCY,
-        CONF_MAX_CHARGE_POWER,
-        CONF_MAX_DISCHARGE_POWER,
-        CONF_EARLY_CHARGE_INCENTIVE,
-        CONF_DISCHARGE_COST,
+        CONF_PRICE_SOURCE_TARGET,
+        CONF_PRICE_TARGET_SOURCE,
         CONF_PARTITION_PERCENTAGE,
         CONF_PARTITION_COST,
     }
@@ -93,9 +94,10 @@ class BatteryConfigSchema(TypedDict):
     """Battery element configuration as stored in Home Assistant."""
 
     element_type: Literal["battery"]
-    basic: DetailsConfig
-    storage: StorageConfig
+    details: ConnectedDetailsConfig
+    storage: StorageSocConfig
     limits: LimitsConfig
+    power_limits: PowerLimitsConfig
     pricing: PricingConfig
     advanced: AdvancedConfig
     undercharge: NotRequired[PartitionConfig]
@@ -106,9 +108,10 @@ class BatteryConfigData(TypedDict):
     """Battery element configuration with loaded values."""
 
     element_type: Literal["battery"]
-    basic: DetailsData
-    storage: StorageData
+    details: ConnectedDetailsData
+    storage: StorageSocData
     limits: LimitsData
+    power_limits: PowerLimitsData
     pricing: PricingData
     advanced: AdvancedData
     undercharge: NotRequired[PartitionData]
@@ -119,13 +122,11 @@ __all__ = [
     "CONF_CAPACITY",
     "CONF_CONFIGURE_PARTITIONS",
     "CONF_CONNECTION",
-    "CONF_DISCHARGE_COST",
-    "CONF_EARLY_CHARGE_INCENTIVE",
     "CONF_EFFICIENCY",
     "CONF_INITIAL_CHARGE_PERCENTAGE",
     "CONF_MAX_CHARGE_PERCENTAGE",
-    "CONF_MAX_CHARGE_POWER",
-    "CONF_MAX_DISCHARGE_POWER",
+    "CONF_MAX_POWER_SOURCE_TARGET",
+    "CONF_MAX_POWER_TARGET_SOURCE",
     "CONF_MIN_CHARGE_PERCENTAGE",
     "CONF_PARTITION_COST",
     "CONF_PARTITION_PERCENTAGE",
@@ -136,6 +137,7 @@ __all__ = [
     "SECTION_DETAILS",
     "SECTION_LIMITS",
     "SECTION_OVERCHARGE",
+    "SECTION_POWER_LIMITS",
     "SECTION_PRICING",
     "SECTION_STORAGE",
     "SECTION_UNDERCHARGE",

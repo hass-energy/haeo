@@ -15,33 +15,17 @@ type LimitsValueData = NDArray[np.floating[Any]] | float
 
 
 class LimitsConfig(TypedDict, total=False):
-    """Limit configuration across element types."""
+    """Charge percentage limits configuration."""
 
     min_charge_percentage: LimitsValueConfig
     max_charge_percentage: LimitsValueConfig
-    max_charge_power: LimitsValueConfig
-    max_discharge_power: LimitsValueConfig
-    import_limit: LimitsValueConfig
-    export_limit: LimitsValueConfig
-    max_power_source_target: LimitsValueConfig
-    max_power_target_source: LimitsValueConfig
-    max_power_ac_to_dc: LimitsValueConfig
-    max_power_dc_to_ac: LimitsValueConfig
 
 
 class LimitsData(TypedDict, total=False):
-    """Loaded limit values across element types."""
+    """Loaded charge percentage limits."""
 
     min_charge_percentage: LimitsValueData
     max_charge_percentage: LimitsValueData
-    max_charge_power: LimitsValueData
-    max_discharge_power: LimitsValueData
-    import_limit: LimitsValueData
-    export_limit: LimitsValueData
-    max_power_source_target: LimitsValueData
-    max_power_target_source: LimitsValueData
-    max_power_ac_to_dc: LimitsValueData
-    max_power_dc_to_ac: LimitsValueData
 
 
 def limits_section(fields: tuple[str, ...], *, collapsed: bool = False) -> SectionDefinition:
@@ -54,10 +38,10 @@ def build_limits_fields() -> dict[str, tuple[vol.Marker, Any]]:
     return {}
 
 
-__all__ = [  # noqa: RUF022
+__all__ = [
+    "SECTION_LIMITS",
     "LimitsConfig",
     "LimitsData",
-    "SECTION_LIMITS",
     "build_limits_fields",
     "limits_section",
 ]

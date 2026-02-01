@@ -31,7 +31,7 @@ from custom_components.haeo.model.elements.segments import (
     POWER_LIMIT_TIME_SLICE,
 )
 from custom_components.haeo.model.output_data import OutputData
-from custom_components.haeo.sections import SECTION_ADVANCED, SECTION_DETAILS, SECTION_LIMITS, SECTION_PRICING
+from custom_components.haeo.sections import SECTION_ADVANCED, SECTION_DETAILS, SECTION_POWER_LIMITS, SECTION_PRICING
 
 from .schema import (
     CONF_EFFICIENCY_SOURCE_TARGET,
@@ -98,7 +98,7 @@ class ConnectionAdapter:
             CONF_PRICE_TARGET_SOURCE,
         ]
 
-        limits = config[SECTION_LIMITS]
+        limits = config[SECTION_POWER_LIMITS]
         advanced = config[SECTION_ADVANCED]
         pricing = config[SECTION_PRICING]
         for field in optional_fields:
@@ -115,7 +115,7 @@ class ConnectionAdapter:
         """Return input field definitions for connection elements."""
         _ = config
         return {
-            SECTION_LIMITS: {
+            SECTION_POWER_LIMITS: {
                 CONF_MAX_POWER_SOURCE_TARGET: InputFieldInfo(
                     field_name=CONF_MAX_POWER_SOURCE_TARGET,
                     entity_description=NumberEntityDescription(
@@ -227,8 +227,8 @@ class ConnectionAdapter:
                     },
                     "power_limit": {
                         "segment_type": "power_limit",
-                        "max_power_source_target": config[SECTION_LIMITS].get(CONF_MAX_POWER_SOURCE_TARGET),
-                        "max_power_target_source": config[SECTION_LIMITS].get(CONF_MAX_POWER_TARGET_SOURCE),
+                        "max_power_source_target": config[SECTION_POWER_LIMITS].get(CONF_MAX_POWER_SOURCE_TARGET),
+                        "max_power_target_source": config[SECTION_POWER_LIMITS].get(CONF_MAX_POWER_TARGET_SOURCE),
                     },
                     "pricing": {
                         "segment_type": "pricing",

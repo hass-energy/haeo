@@ -38,7 +38,7 @@ The adapter transforms user configuration into connection segments:
 | ------------------ | ----------------- | ------------------------- | ------------------------------------------- |
 | `forecast`         | PowerLimitSegment | `max_power_source_target` | Upper bound on generation                   |
 | `curtailment`      | PowerLimitSegment | `fixed`                   | True when curtailment is disabled           |
-| `price_production` | PricingSegment    | `price_source_target`     | Cost/revenue per kWh generated (default: 0) |
+| `price_source_target` | PricingSegment    | `price_source_target`     | Cost/revenue per kWh generated (default: 0) |
 | `connection`       | Connection        | `target`                  | Node to connect to                          |
 | —                  | Node              | `is_source=true`          | Solar provides power                        |
 | —                  | Node              | `is_sink=false`           | Solar cannot consume power                  |

@@ -42,11 +42,12 @@ def test_is_not_element_config_schema(input_data: Any) -> None:
         {"element_type": "battery"},  # Missing all required fields
         {
             "element_type": "battery",
-            "basic": {"name": "test"},
+            "details": {"name": "test"},
         },  # Missing required battery fields
         {
             "element_type": "connection",
-            "basic": {"name": "test", "source": "a"},
+            "details": {"name": "test"},
+            "endpoints": {"source": "a"},
         },  # Missing target
     ],
 )
@@ -61,30 +62,34 @@ def test_is_element_config_schema_invalid_structure(input_data: dict[str, Any]) 
         # Wrong type for name (should be str)
         {
             "element_type": "node",
-            "basic": {"name": 123},
+            "details": {"name": 123},
             "advanced": {"is_source": False, "is_sink": False},
         },
         # Wrong type for connection (should be str)
         {
             "element_type": "grid",
-            "basic": {"name": "test", "connection": ["list_not_str"]},
+            "details": {"name": "test", "connection": ["list_not_str"]},
             "pricing": {
-                "import_price": ["sensor.import"],
-                "export_price": ["sensor.export"],
+                "price_source_target": ["sensor.import"],
+                "price_target_source": ["sensor.export"],
             },
-            "limits": {},
+            "power_limits": {},
         },
         # Wrong type for capacity (bool is rejected - bools are explicitly excluded from
         # constant value handling even though bool is a subclass of int in Python)
         {
             "element_type": "battery",
-            "basic": {
+            "details": {
                 "name": "test",
                 "connection": "bus",
+            },
+            "storage": {
                 "capacity": True,
                 "initial_charge_percentage": ["sensor.soc"],
             },
             "limits": {},
+            "power_limits": {},
+            "pricing": {},
             "advanced": {},
             "undercharge": {},
             "overcharge": {},
@@ -100,7 +105,7 @@ def test_is_element_config_schema_valid_node() -> None:
     """Test is_element_config_schema with valid node config."""
     valid_config = {
         "element_type": "node",
-        "basic": {"name": "test_node"},
+        "details": {"name": "test_node"},
         "advanced": {"is_source": False, "is_sink": False},
     }
     assert is_element_config_schema(valid_config) is True
@@ -110,7 +115,7 @@ def test_is_element_config_schema_valid_node_minimal() -> None:
     """Test is_element_config_schema with minimal node config (optional fields omitted)."""
     valid_config = {
         "element_type": "node",
-        "basic": {"name": "test_node"},
+        "details": {"name": "test_node"},
         "advanced": {},
     }
     assert is_element_config_schema(valid_config) is True
@@ -120,15 +125,24 @@ def test_is_element_config_schema_valid_battery() -> None:
     """Test is_element_config_schema with valid battery config."""
     valid_config = {
         "element_type": "battery",
-        "basic": {
+        "details": {
             "name": "test_battery",
             "connection": "main_bus",
+        },
+        "storage": {
             "capacity": "sensor.capacity",
             "initial_charge_percentage": "sensor.soc",
         },
         "limits": {
-            "max_charge_power": 5.0,
-            "max_discharge_power": 5.0,
+            "min_charge_percentage": 10.0,
+            "max_charge_percentage": 90.0,
+        },
+        "power_limits": {
+            "max_power_source_target": 5.0,
+            "max_power_target_source": 5.0,
+        },
+        "pricing": {
+            "price_target_source": 0.05,
         },
         "advanced": {},
         "undercharge": {},
@@ -141,12 +155,12 @@ def test_is_element_config_schema_valid_grid() -> None:
     """Test is_element_config_schema with valid grid config."""
     valid_config = {
         "element_type": "grid",
-        "basic": {"name": "test_grid", "connection": "main_bus"},
+        "details": {"name": "test_grid", "connection": "main_bus"},
         "pricing": {
-            "import_price": ["sensor.import"],  # list for chaining
-            "export_price": ["sensor.export"],  # list for chaining
+            "price_source_target": ["sensor.import"],  # list for chaining
+            "price_target_source": ["sensor.export"],  # list for chaining
         },
-        "limits": {},
+        "power_limits": {},
     }
     assert is_element_config_schema(valid_config) is True
 
@@ -155,12 +169,12 @@ def test_is_element_config_schema_valid_grid_minimal() -> None:
     """Test is_element_config_schema with minimal valid grid config (prices required)."""
     valid_config = {
         "element_type": "grid",
-        "basic": {"name": "test_grid", "connection": "main_bus"},
+        "details": {"name": "test_grid", "connection": "main_bus"},
         "pricing": {
-            "import_price": 0.25,
-            "export_price": 0.05,
+            "price_source_target": 0.25,
+            "price_target_source": 0.05,
         },
-        "limits": {},
+        "power_limits": {},
     }
     assert is_element_config_schema(valid_config) is True
 
@@ -169,12 +183,15 @@ def test_is_element_config_schema_valid_connection() -> None:
     """Test is_element_config_schema with valid connection config."""
     valid_config = {
         "element_type": "connection",
-        "basic": {
+        "details": {
             "name": "test_connection",
+        },
+        "endpoints": {
             "source": "battery",
             "target": "grid",
         },
-        "limits": {},
+        "power_limits": {},
+        "pricing": {},
         "advanced": {},
     }
     assert is_element_config_schema(valid_config) is True
@@ -184,8 +201,8 @@ def test_is_element_config_schema_valid_load() -> None:
     """Test is_element_config_schema with valid load config."""
     valid_config = {
         "element_type": "load",
-        "basic": {"name": "test_load", "connection": "main_bus"},
-        "inputs": {"forecast": ["sensor.load_forecast"]},
+        "details": {"name": "test_load", "connection": "main_bus"},
+        "forecast": {"forecast": ["sensor.load_forecast"]},
     }
     assert is_element_config_schema(valid_config) is True
 
@@ -194,7 +211,9 @@ def test_is_element_config_schema_valid_solar() -> None:
     """Test is_element_config_schema with valid solar config."""
     valid_config = {
         "element_type": "solar",
-        "basic": {"name": "test_solar", "connection": "main_bus", "forecast": ["sensor.solar_forecast"]},
+        "details": {"name": "test_solar", "connection": "main_bus"},
+        "forecast": {"forecast": ["sensor.solar_forecast"]},
+        "pricing": {"price_source_target": 0.0},
         "advanced": {"curtailment": True},
     }
     assert is_element_config_schema(valid_config) is True
@@ -204,10 +223,10 @@ def test_is_element_config_schema_valid_inverter() -> None:
     """Test is_element_config_schema with valid inverter config."""
     valid_config = {
         "element_type": "inverter",
-        "basic": {"name": "test_inverter", "connection": "ac_bus"},
-        "limits": {
-            "max_power_dc_to_ac": "sensor.dc_to_ac",
-            "max_power_ac_to_dc": "sensor.ac_to_dc",
+        "details": {"name": "test_inverter", "connection": "ac_bus"},
+        "power_limits": {
+            "max_power_source_target": "sensor.dc_to_ac",
+            "max_power_target_source": "sensor.ac_to_dc",
         },
         "advanced": {},
     }
@@ -218,8 +237,8 @@ def test_is_element_config_schema_valid_battery_section() -> None:
     """Test is_element_config_schema with valid battery_section config."""
     valid_config = {
         "element_type": "battery_section",
-        "basic": {"name": "test_section"},
-        "inputs": {"capacity": "sensor.capacity", "initial_charge": "sensor.charge"},
+        "details": {"name": "test_section"},
+        "storage": {"capacity": "sensor.capacity", "initial_charge": "sensor.charge"},
     }
     assert is_element_config_schema(valid_config) is True
 
@@ -253,7 +272,7 @@ def test_is_element_config_data_missing_required_keys() -> None:
     """Test is_element_config_data rejects missing required keys."""
     invalid_config = {
         "element_type": "battery",
-        "basic": {"name": "test_battery"},
+        "details": {"name": "test_battery"},
         # Missing required keys like connection/capacity/initial_charge_percentage.
     }
     assert is_element_config_data(invalid_config) is False
@@ -263,7 +282,7 @@ def test_is_element_config_data_valid_node() -> None:
     """Test is_element_config_data with minimal valid node config."""
     valid_config = {
         "element_type": "node",
-        "basic": {"name": "test_node"},
+        "details": {"name": "test_node"},
         "advanced": {},
     }
     assert is_element_config_data(valid_config) is True
@@ -273,14 +292,14 @@ def test_is_element_config_data_optional_type_validation() -> None:
     """Test is_element_config_data validates optional key types."""
     invalid_config = {
         "element_type": node_schema.ELEMENT_TYPE,
-        "basic": {"name": "test_node"},
+        "details": {"name": "test_node"},
         "advanced": {"is_source": "yes"},
     }
     assert is_element_config_data(invalid_config) is False
 
     valid_config = {
         "element_type": node_schema.ELEMENT_TYPE,
-        "basic": {"name": "test_node"},
+        "details": {"name": "test_node"},
         "advanced": {"is_source": True},
     }
     assert is_element_config_data(valid_config) is True

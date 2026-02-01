@@ -17,7 +17,7 @@ from custom_components.haeo.sections import (
     SECTION_ADVANCED,
     SECTION_DETAILS,
     SECTION_FORECAST,
-    SECTION_LIMITS,
+    SECTION_POWER_LIMITS,
     SECTION_PRICING,
 )
 
@@ -92,7 +92,7 @@ async def test_create_network_sorts_connections_after_elements(hass: HomeAssista
                     CONF_SOURCE: "node_a",
                     CONF_TARGET: "node_b",
                 },
-                SECTION_LIMITS: {},
+                SECTION_POWER_LIMITS: {},
                 SECTION_PRICING: {},
                 SECTION_ADVANCED: {},
             },

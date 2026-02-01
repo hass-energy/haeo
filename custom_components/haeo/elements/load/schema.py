@@ -6,8 +6,8 @@ from custom_components.haeo.sections import (
     CONF_FORECAST,
     SECTION_DETAILS,
     SECTION_FORECAST,
-    DetailsConfig,
-    DetailsData,
+    ConnectedDetailsConfig,
+    ConnectedDetailsData,
     ForecastConfig,
     ForecastData,
 )
@@ -21,16 +21,16 @@ class LoadConfigSchema(TypedDict):
     """Load element configuration as stored in Home Assistant."""
 
     element_type: Literal["load"]
-    basic: DetailsConfig
-    inputs: ForecastConfig
+    details: ConnectedDetailsConfig
+    forecast: ForecastConfig
 
 
 class LoadConfigData(TypedDict):
     """Load element configuration with loaded values."""
 
     element_type: Literal["load"]
-    basic: DetailsData
-    inputs: ForecastData
+    details: ConnectedDetailsData
+    forecast: ForecastData
 
 
 __all__ = [

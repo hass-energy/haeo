@@ -9,31 +9,37 @@ import voluptuous as vol
 from custom_components.haeo.flows.field_schema import SectionDefinition
 
 SECTION_PRICING: Final = "pricing"
+CONF_PRICE_SOURCE_TARGET: Final = "price_source_target"
+CONF_PRICE_TARGET_SOURCE: Final = "price_target_source"
 
 type PricingValueConfig = list[str] | str | float
 type PricingValueData = NDArray[np.floating[Any]] | float
 
 
 class PricingConfig(TypedDict, total=False):
-    """Pricing configuration across element types."""
+    """Directional pricing configuration for power transfer."""
 
-    early_charge_incentive: PricingValueConfig
-    discharge_cost: PricingValueConfig
-    import_price: PricingValueConfig
-    export_price: PricingValueConfig
-    price_production: PricingValueConfig
     price_source_target: PricingValueConfig
     price_target_source: PricingValueConfig
 
 
 class PricingData(TypedDict, total=False):
-    """Loaded pricing values across element types."""
+    """Loaded directional pricing values."""
 
-    early_charge_incentive: PricingValueData
-    discharge_cost: PricingValueData
-    import_price: PricingValueData
-    export_price: PricingValueData
-    price_production: PricingValueData
+    price_source_target: PricingValueData
+    price_target_source: PricingValueData
+
+
+class PricingPairConfig(TypedDict):
+    """Directional pricing configuration with required values."""
+
+    price_source_target: PricingValueConfig
+    price_target_source: PricingValueConfig
+
+
+class PricingPairData(TypedDict):
+    """Loaded directional pricing values with required entries."""
+
     price_source_target: PricingValueData
     price_target_source: PricingValueData
 
@@ -48,10 +54,14 @@ def build_pricing_fields() -> dict[str, tuple[vol.Marker, Any]]:
     return {}
 
 
-__all__ = [  # noqa: RUF022
+__all__ = [
+    "CONF_PRICE_SOURCE_TARGET",
+    "CONF_PRICE_TARGET_SOURCE",
+    "SECTION_PRICING",
     "PricingConfig",
     "PricingData",
-    "SECTION_PRICING",
+    "PricingPairConfig",
+    "PricingPairData",
     "build_pricing_fields",
     "pricing_section",
 ]

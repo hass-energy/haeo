@@ -56,6 +56,7 @@ from custom_components.haeo.services import async_setup_services
 
 if TYPE_CHECKING:
     from custom_components.haeo.entities.auto_optimize_switch import AutoOptimizeSwitch
+    from custom_components.haeo.entities.haeo_number import ConfigEntityMode
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -64,6 +65,16 @@ class InputEntity(Protocol):
     """Protocol for input entities tracked by the runtime data."""
 
     entity_id: str
+
+    @property
+    def entity_mode(self) -> ConfigEntityMode:
+        """Return the entity's operating mode."""
+        ...
+
+    @property
+    def horizon_start(self) -> float | None:
+        """Return the first forecast timestamp, or None if not loaded."""
+        ...
 
     def is_ready(self) -> bool:
         """Return True if data has been loaded and entity is ready."""
@@ -180,10 +191,15 @@ def _migrate_subentry_data(subentry: ConfigSubentry) -> dict[str, Any] | None:
         CONF_FORECAST,
         CONF_INITIAL_CHARGE,
         CONF_INITIAL_CHARGE_PERCENTAGE,
+        CONF_MAX_POWER_SOURCE_TARGET,
+        CONF_MAX_POWER_TARGET_SOURCE,
+        CONF_PRICE_SOURCE_TARGET,
+        CONF_PRICE_TARGET_SOURCE,
         SECTION_ADVANCED,
         SECTION_DETAILS,
         SECTION_FORECAST,
         SECTION_LIMITS,
+        SECTION_POWER_LIMITS,
         SECTION_PRICING,
         SECTION_STORAGE,
     )
@@ -209,6 +225,7 @@ def _migrate_subentry_data(subentry: ConfigSubentry) -> dict[str, Any] | None:
         details: dict[str, Any] = {}
         storage: dict[str, Any] = {}
         limits: dict[str, Any] = {}
+        power_limits: dict[str, Any] = {}
         pricing: dict[str, Any] = {}
         advanced: dict[str, Any] = {}
         undercharge: dict[str, Any] = {}
@@ -221,12 +238,20 @@ def _migrate_subentry_data(subentry: ConfigSubentry) -> dict[str, Any] | None:
         for key in (
             battery.CONF_MIN_CHARGE_PERCENTAGE,
             battery.CONF_MAX_CHARGE_PERCENTAGE,
-            battery.CONF_MAX_CHARGE_POWER,
-            battery.CONF_MAX_DISCHARGE_POWER,
         ):
             add_if_present(limits, key)
-        for key in (battery.CONF_EARLY_CHARGE_INCENTIVE, battery.CONF_DISCHARGE_COST):
+        for key in (CONF_MAX_POWER_SOURCE_TARGET, CONF_MAX_POWER_TARGET_SOURCE):
+            add_if_present(power_limits, key)
+        if (legacy_max_charge := get_value("max_charge_power")) is not None:
+            power_limits.setdefault(CONF_MAX_POWER_TARGET_SOURCE, legacy_max_charge)
+        if (legacy_max_discharge := get_value("max_discharge_power")) is not None:
+            power_limits.setdefault(CONF_MAX_POWER_SOURCE_TARGET, legacy_max_discharge)
+        for key in (CONF_PRICE_SOURCE_TARGET, CONF_PRICE_TARGET_SOURCE):
             add_if_present(pricing, key)
+        if (legacy_discharge_cost := get_value("discharge_cost")) is not None:
+            pricing.setdefault(CONF_PRICE_SOURCE_TARGET, legacy_discharge_cost)
+        if (legacy_charge_incentive := get_value("early_charge_incentive")) is not None:
+            pricing.setdefault(CONF_PRICE_TARGET_SOURCE, legacy_charge_incentive)
         for key in (battery.CONF_EFFICIENCY, battery.CONF_CONFIGURE_PARTITIONS):
             add_if_present(advanced, key)
         if isinstance(data.get(battery.SECTION_UNDERCHARGE), dict):
@@ -238,6 +263,7 @@ def _migrate_subentry_data(subentry: ConfigSubentry) -> dict[str, Any] | None:
             SECTION_DETAILS: details,
             SECTION_STORAGE: storage,
             SECTION_LIMITS: limits,
+            SECTION_POWER_LIMITS: power_limits,
             SECTION_PRICING: pricing,
             SECTION_ADVANCED: advanced,
             battery.SECTION_UNDERCHARGE: undercharge,
@@ -260,14 +286,14 @@ def _migrate_subentry_data(subentry: ConfigSubentry) -> dict[str, Any] | None:
     if element_type == connection.ELEMENT_TYPE:
         details: dict[str, Any] = {}
         endpoints: dict[str, Any] = {}
-        limits: dict[str, Any] = {}
+        power_limits: dict[str, Any] = {}
         pricing: dict[str, Any] = {}
         advanced: dict[str, Any] = {}
         add_if_present(details, CONF_NAME)
         for key in (connection.CONF_SOURCE, connection.CONF_TARGET):
             add_if_present(endpoints, key)
         for key in (connection.CONF_MAX_POWER_SOURCE_TARGET, connection.CONF_MAX_POWER_TARGET_SOURCE):
-            add_if_present(limits, key)
+            add_if_present(power_limits, key)
         for key in (connection.CONF_PRICE_SOURCE_TARGET, connection.CONF_PRICE_TARGET_SOURCE):
             add_if_present(pricing, key)
         for key in (connection.CONF_EFFICIENCY_SOURCE_TARGET, connection.CONF_EFFICIENCY_TARGET_SOURCE):
@@ -275,7 +301,7 @@ def _migrate_subentry_data(subentry: ConfigSubentry) -> dict[str, Any] | None:
         migrated |= {
             SECTION_DETAILS: details,
             connection.SECTION_ENDPOINTS: endpoints,
-            SECTION_LIMITS: limits,
+            SECTION_POWER_LIMITS: power_limits,
             SECTION_PRICING: pricing,
             SECTION_ADVANCED: advanced,
         }
@@ -284,33 +310,45 @@ def _migrate_subentry_data(subentry: ConfigSubentry) -> dict[str, Any] | None:
     if element_type == grid.ELEMENT_TYPE:
         details: dict[str, Any] = {}
         pricing: dict[str, Any] = {}
-        limits: dict[str, Any] = {}
+        power_limits: dict[str, Any] = {}
         for key in (CONF_NAME, CONF_CONNECTION):
             add_if_present(details, key)
-        for key in (grid.CONF_IMPORT_PRICE, grid.CONF_EXPORT_PRICE):
+        for key in (CONF_PRICE_SOURCE_TARGET, CONF_PRICE_TARGET_SOURCE):
             add_if_present(pricing, key)
-        for key in (grid.CONF_IMPORT_LIMIT, grid.CONF_EXPORT_LIMIT):
-            add_if_present(limits, key)
+        if (legacy_import_price := get_value("import_price")) is not None:
+            pricing.setdefault(CONF_PRICE_SOURCE_TARGET, legacy_import_price)
+        if (legacy_export_price := get_value("export_price")) is not None:
+            pricing.setdefault(CONF_PRICE_TARGET_SOURCE, legacy_export_price)
+        for key in (CONF_MAX_POWER_SOURCE_TARGET, CONF_MAX_POWER_TARGET_SOURCE):
+            add_if_present(power_limits, key)
+        if (legacy_import_limit := get_value("import_limit")) is not None:
+            power_limits.setdefault(CONF_MAX_POWER_SOURCE_TARGET, legacy_import_limit)
+        if (legacy_export_limit := get_value("export_limit")) is not None:
+            power_limits.setdefault(CONF_MAX_POWER_TARGET_SOURCE, legacy_export_limit)
         migrated |= {
             SECTION_DETAILS: details,
             SECTION_PRICING: pricing,
-            SECTION_LIMITS: limits,
+            SECTION_POWER_LIMITS: power_limits,
         }
         return migrated
 
     if element_type == inverter.ELEMENT_TYPE:
         details: dict[str, Any] = {}
-        limits: dict[str, Any] = {}
+        power_limits: dict[str, Any] = {}
         advanced: dict[str, Any] = {}
         for key in (CONF_NAME, CONF_CONNECTION):
             add_if_present(details, key)
-        for key in (inverter.CONF_MAX_POWER_DC_TO_AC, inverter.CONF_MAX_POWER_AC_TO_DC):
-            add_if_present(limits, key)
+        for key in (CONF_MAX_POWER_SOURCE_TARGET, CONF_MAX_POWER_TARGET_SOURCE):
+            add_if_present(power_limits, key)
+        if (legacy_dc_to_ac := get_value("max_power_dc_to_ac")) is not None:
+            power_limits.setdefault(CONF_MAX_POWER_SOURCE_TARGET, legacy_dc_to_ac)
+        if (legacy_ac_to_dc := get_value("max_power_ac_to_dc")) is not None:
+            power_limits.setdefault(CONF_MAX_POWER_TARGET_SOURCE, legacy_ac_to_dc)
         for key in (inverter.CONF_EFFICIENCY_DC_TO_AC, inverter.CONF_EFFICIENCY_AC_TO_DC):
             add_if_present(advanced, key)
         migrated |= {
             SECTION_DETAILS: details,
-            SECTION_LIMITS: limits,
+            SECTION_POWER_LIMITS: power_limits,
             SECTION_ADVANCED: advanced,
         }
         return migrated
@@ -347,7 +385,9 @@ def _migrate_subentry_data(subentry: ConfigSubentry) -> dict[str, Any] | None:
         for key in (CONF_NAME, CONF_CONNECTION):
             add_if_present(details, key)
         add_if_present(forecast, CONF_FORECAST)
-        add_if_present(pricing, solar.CONF_PRICE_PRODUCTION)
+        add_if_present(pricing, CONF_PRICE_SOURCE_TARGET)
+        if (legacy_production_price := get_value("price_production")) is not None:
+            pricing.setdefault(CONF_PRICE_SOURCE_TARGET, legacy_production_price)
         add_if_present(advanced, solar.CONF_CURTAILMENT)
         migrated |= {
             SECTION_DETAILS: details,

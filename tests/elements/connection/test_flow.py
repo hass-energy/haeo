@@ -20,7 +20,7 @@ from custom_components.haeo.elements.connection import (
     SECTION_ADVANCED,
     SECTION_DETAILS,
     SECTION_ENDPOINTS,
-    SECTION_LIMITS,
+    SECTION_POWER_LIMITS,
     SECTION_PRICING,
 )
 
@@ -31,7 +31,7 @@ def _wrap_input(flat: dict[str, Any]) -> dict[str, Any]:
     """Wrap flat connection input values into sectioned config."""
     if SECTION_DETAILS in flat:
         return dict(flat)
-    basic = {
+    details = {
         CONF_NAME: flat[CONF_NAME],
     }
     endpoints = {
@@ -40,9 +40,9 @@ def _wrap_input(flat: dict[str, Any]) -> dict[str, Any]:
     }
     limits = {key: flat[key] for key in (CONF_MAX_POWER_SOURCE_TARGET, CONF_MAX_POWER_TARGET_SOURCE) if key in flat}
     return {
-        SECTION_DETAILS: basic,
+        SECTION_DETAILS: details,
         SECTION_ENDPOINTS: endpoints,
-        SECTION_LIMITS: limits,
+        SECTION_POWER_LIMITS: limits,
         SECTION_PRICING: {},
         SECTION_ADVANCED: {},
     }
@@ -216,8 +216,8 @@ async def test_reconfigure_with_string_entity_id_v010_format(hass: HomeAssistant
     defaults = flow._build_defaults("Test Connection", dict(existing_subentry.data))
 
     # Defaults should contain entity choice with the original entity IDs as lists
-    assert defaults[SECTION_LIMITS][CONF_MAX_POWER_SOURCE_TARGET] == ["sensor.max_power_st"]
-    assert defaults[SECTION_LIMITS][CONF_MAX_POWER_TARGET_SOURCE] == ["sensor.max_power_ts"]
+    assert defaults[SECTION_POWER_LIMITS][CONF_MAX_POWER_SOURCE_TARGET] == ["sensor.max_power_st"]
+    assert defaults[SECTION_POWER_LIMITS][CONF_MAX_POWER_TARGET_SOURCE] == ["sensor.max_power_ts"]
 
 
 async def test_reconfigure_with_scalar_shows_constant_defaults(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
@@ -251,8 +251,8 @@ async def test_reconfigure_with_scalar_shows_constant_defaults(hass: HomeAssista
     defaults = flow._build_defaults("Test Connection", dict(existing_subentry.data))
 
     # Defaults should contain constant choice with scalar values
-    assert defaults[SECTION_LIMITS][CONF_MAX_POWER_SOURCE_TARGET] == 10.0
-    assert defaults[SECTION_LIMITS][CONF_MAX_POWER_TARGET_SOURCE] == 10.0
+    assert defaults[SECTION_POWER_LIMITS][CONF_MAX_POWER_SOURCE_TARGET] == 10.0
+    assert defaults[SECTION_POWER_LIMITS][CONF_MAX_POWER_TARGET_SOURCE] == 10.0
 
 
 async def test_user_step_with_constant_creates_entry(
@@ -286,8 +286,8 @@ async def test_user_step_with_constant_creates_entry(
 
     # Verify the config contains the constant values
     create_kwargs = flow.async_create_entry.call_args.kwargs
-    assert create_kwargs["data"][SECTION_LIMITS][CONF_MAX_POWER_SOURCE_TARGET] == 10.0
-    assert create_kwargs["data"][SECTION_LIMITS][CONF_MAX_POWER_TARGET_SOURCE] == 10.0
+    assert create_kwargs["data"][SECTION_POWER_LIMITS][CONF_MAX_POWER_SOURCE_TARGET] == 10.0
+    assert create_kwargs["data"][SECTION_POWER_LIMITS][CONF_MAX_POWER_TARGET_SOURCE] == 10.0
 
 
 async def test_user_step_with_entity_creates_entry(
@@ -321,5 +321,5 @@ async def test_user_step_with_entity_creates_entry(
 
     # Verify the config contains the entity IDs as strings (single entity)
     create_kwargs = flow.async_create_entry.call_args.kwargs
-    assert create_kwargs["data"][SECTION_LIMITS][CONF_MAX_POWER_SOURCE_TARGET] == "sensor.power_st"
-    assert create_kwargs["data"][SECTION_LIMITS][CONF_MAX_POWER_TARGET_SOURCE] == "sensor.power_ts"
+    assert create_kwargs["data"][SECTION_POWER_LIMITS][CONF_MAX_POWER_SOURCE_TARGET] == "sensor.power_st"
+    assert create_kwargs["data"][SECTION_POWER_LIMITS][CONF_MAX_POWER_TARGET_SOURCE] == "sensor.power_ts"

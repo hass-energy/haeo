@@ -144,10 +144,10 @@ Input entities appear as Number entities with the `config` entity category.
 
 | Input                            | Unit   | Description                               |
 | -------------------------------- | ------ | ----------------------------------------- |
-| `number.{name}_import_price`     | \$/kWh | Import price from configured value/sensor |
-| `number.{name}_export_price`     | \$/kWh | Export price from configured value/sensor |
-| `number.{name}_max_import_power` | kW     | Maximum import power (if configured)      |
-| `number.{name}_max_export_power` | kW     | Maximum export power (if configured)      |
+| `number.{name}_price_source_target` | \$/kWh | Import price from configured value/sensor |
+| `number.{name}_price_target_source` | \$/kWh | Export price from configured value/sensor |
+| `number.{name}_max_power_source_target` | kW     | Maximum import power (if configured)      |
+| `number.{name}_max_power_target_source` | kW     | Maximum export power (if configured)      |
 
 Input entities are only created for fields you configure with "Constant".
 If you set an optional field to "None", no input entity is created for that field.

@@ -28,12 +28,12 @@ from custom_components.haeo.flows.field_schema import (
 from custom_components.haeo.sections import (
     SECTION_ADVANCED,
     SECTION_DETAILS,
-    SECTION_LIMITS,
+    SECTION_POWER_LIMITS,
     SECTION_PRICING,
     advanced_section,
     build_details_fields,
     details_section,
-    limits_section,
+    power_limits_section,
     pricing_section,
 )
 
@@ -80,7 +80,7 @@ class ConnectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         return (
             details_section((CONF_NAME,), collapsed=False),
             SectionDefinition(key=SECTION_ENDPOINTS, fields=(CONF_SOURCE, CONF_TARGET), collapsed=False),
-            limits_section((CONF_MAX_POWER_SOURCE_TARGET, CONF_MAX_POWER_TARGET_SOURCE), collapsed=False),
+            power_limits_section((CONF_MAX_POWER_SOURCE_TARGET, CONF_MAX_POWER_TARGET_SOURCE), collapsed=False),
             pricing_section((CONF_PRICE_SOURCE_TARGET, CONF_PRICE_TARGET_SOURCE), collapsed=False),
             advanced_section((CONF_EFFICIENCY_SOURCE_TARGET, CONF_EFFICIENCY_TARGET_SOURCE), collapsed=True),
         )
@@ -125,7 +125,7 @@ class ConnectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                     CONF_SOURCE: current_source,
                     CONF_TARGET: current_target,
                 },
-                SECTION_LIMITS: {},
+                SECTION_POWER_LIMITS: {},
                 SECTION_PRICING: {},
                 SECTION_ADVANCED: {},
             }
@@ -210,7 +210,7 @@ class ConnectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                 CONF_SOURCE: endpoints_data.get(CONF_SOURCE) if subentry_data else None,
                 CONF_TARGET: endpoints_data.get(CONF_TARGET) if subentry_data else None,
             },
-            SECTION_LIMITS: {},
+            SECTION_POWER_LIMITS: {},
             SECTION_PRICING: {},
             SECTION_ADVANCED: {},
         }

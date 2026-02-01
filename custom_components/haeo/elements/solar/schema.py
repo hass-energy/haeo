@@ -4,14 +4,15 @@ from typing import Final, Literal, TypedDict
 
 from custom_components.haeo.sections import (
     CONF_FORECAST,
+    CONF_PRICE_SOURCE_TARGET,
     SECTION_ADVANCED,
     SECTION_DETAILS,
     SECTION_FORECAST,
     SECTION_PRICING,
     AdvancedConfig,
     AdvancedData,
-    DetailsConfig,
-    DetailsData,
+    ConnectedDetailsConfig,
+    ConnectedDetailsData,
     ForecastConfig,
     ForecastData,
     PricingConfig,
@@ -21,9 +22,8 @@ from custom_components.haeo.sections import (
 ELEMENT_TYPE: Final = "solar"
 
 CONF_CURTAILMENT: Final = "curtailment"
-CONF_PRICE_PRODUCTION: Final = "price_production"
 
-OPTIONAL_INPUT_FIELDS: Final[frozenset[str]] = frozenset({CONF_CURTAILMENT, CONF_PRICE_PRODUCTION})
+OPTIONAL_INPUT_FIELDS: Final[frozenset[str]] = frozenset({CONF_CURTAILMENT, CONF_PRICE_SOURCE_TARGET})
 
 
 class SolarConfigSchema(TypedDict):
@@ -33,8 +33,8 @@ class SolarConfigSchema(TypedDict):
     """
 
     element_type: Literal["solar"]
-    basic: DetailsConfig
-    inputs: ForecastConfig
+    details: ConnectedDetailsConfig
+    forecast: ForecastConfig
     pricing: PricingConfig
     advanced: AdvancedConfig
 
@@ -43,8 +43,8 @@ class SolarConfigData(TypedDict):
     """Solar element configuration with loaded values."""
 
     element_type: Literal["solar"]
-    basic: DetailsData
-    inputs: ForecastData
+    details: ConnectedDetailsData
+    forecast: ForecastData
     pricing: PricingData
     advanced: AdvancedData
 
@@ -52,15 +52,13 @@ class SolarConfigData(TypedDict):
 __all__ = [
     "CONF_CURTAILMENT",
     "CONF_FORECAST",
-    "CONF_PRICE_PRODUCTION",
+    "CONF_PRICE_SOURCE_TARGET",
     "ELEMENT_TYPE",
     "OPTIONAL_INPUT_FIELDS",
     "SECTION_ADVANCED",
     "SECTION_DETAILS",
     "SECTION_FORECAST",
     "SECTION_PRICING",
-    "SolarAdvancedConfig",
     "SolarConfigData",
     "SolarConfigSchema",
-    "SolarPricingConfig",
 ]

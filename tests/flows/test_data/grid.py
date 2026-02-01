@@ -3,12 +3,12 @@
 from custom_components.haeo.const import CONF_NAME
 from custom_components.haeo.elements.grid import (
     CONF_CONNECTION,
-    CONF_EXPORT_LIMIT,
-    CONF_EXPORT_PRICE,
-    CONF_IMPORT_LIMIT,
-    CONF_IMPORT_PRICE,
+    CONF_MAX_POWER_SOURCE_TARGET,
+    CONF_MAX_POWER_TARGET_SOURCE,
+    CONF_PRICE_SOURCE_TARGET,
+    CONF_PRICE_TARGET_SOURCE,
     SECTION_DETAILS,
-    SECTION_LIMITS,
+    SECTION_POWER_LIMITS,
     SECTION_PRICING,
 )
 
@@ -23,12 +23,12 @@ VALID_DATA = [
                 CONF_CONNECTION: "main_bus",
             },
             SECTION_PRICING: {
-                CONF_IMPORT_PRICE: 0.30,
-                CONF_EXPORT_PRICE: 0.05,
+                CONF_PRICE_SOURCE_TARGET: 0.30,
+                CONF_PRICE_TARGET_SOURCE: 0.05,
             },
-            SECTION_LIMITS: {
-                CONF_IMPORT_LIMIT: 10.0,
-                CONF_EXPORT_LIMIT: 10.0,
+            SECTION_POWER_LIMITS: {
+                CONF_MAX_POWER_SOURCE_TARGET: 10.0,
+                CONF_MAX_POWER_TARGET_SOURCE: 10.0,
             },
         },
     },

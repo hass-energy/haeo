@@ -20,7 +20,7 @@ from custom_components.haeo.elements.input_fields import InputFieldDefaults, Inp
 from custom_components.haeo.elements.solar import (
     CONF_CONNECTION,
     CONF_FORECAST,
-    CONF_PRICE_PRODUCTION,
+    CONF_PRICE_SOURCE_TARGET,
     SECTION_ADVANCED,
     SECTION_DETAILS,
     SECTION_FORECAST,
@@ -106,7 +106,7 @@ def _create_subentry(name: str, data: dict[str, Any]) -> ConfigSubentry:
                     CONF_FORECAST: ["sensor.solar_forecast"],
                 },
                 SECTION_PRICING: {
-                    CONF_PRICE_PRODUCTION: 0.0,
+                    CONF_PRICE_SOURCE_TARGET: 0.0,
                 },
                 SECTION_ADVANCED: data,
             }

@@ -23,7 +23,7 @@ class NodeConfigSchema(TypedDict):
     """Node element configuration as stored in Home Assistant."""
 
     element_type: Literal["node"]
-    basic: DetailsConfig
+    details: DetailsConfig
     advanced: AdvancedConfig
 
 
@@ -31,7 +31,7 @@ class NodeConfigData(TypedDict):
     """Node element configuration with loaded values."""
 
     element_type: Literal["node"]
-    basic: DetailsData
+    details: DetailsData
     advanced: AdvancedData
 
 

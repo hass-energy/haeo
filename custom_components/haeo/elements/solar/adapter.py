@@ -22,13 +22,14 @@ from custom_components.haeo.model.output_data import OutputData
 from custom_components.haeo.sections import (
     CONF_CONNECTION,
     CONF_FORECAST,
+    CONF_PRICE_SOURCE_TARGET,
     SECTION_ADVANCED,
     SECTION_DETAILS,
     SECTION_FORECAST,
     SECTION_PRICING,
 )
 
-from .schema import CONF_CURTAILMENT, CONF_PRICE_PRODUCTION, ELEMENT_TYPE, SolarConfigData, SolarConfigSchema
+from .schema import CONF_CURTAILMENT, ELEMENT_TYPE, SolarConfigData, SolarConfigSchema
 
 # Solar output names
 type SolarOutputName = Literal[
@@ -83,11 +84,11 @@ class SolarAdapter:
                 ),
             },
             SECTION_PRICING: {
-                CONF_PRICE_PRODUCTION: InputFieldInfo(
-                    field_name=CONF_PRICE_PRODUCTION,
+                CONF_PRICE_SOURCE_TARGET: InputFieldInfo(
+                    field_name=CONF_PRICE_SOURCE_TARGET,
                     entity_description=NumberEntityDescription(
-                        key=CONF_PRICE_PRODUCTION,
-                        translation_key=f"{ELEMENT_TYPE}_{CONF_PRICE_PRODUCTION}",
+                        key=CONF_PRICE_SOURCE_TARGET,
+                        translation_key=f"{ELEMENT_TYPE}_{CONF_PRICE_SOURCE_TARGET}",
                         native_min_value=-1.0,
                         native_max_value=10.0,
                         native_step=0.001,
@@ -135,7 +136,7 @@ class SolarAdapter:
                     },
                     "pricing": {
                         "segment_type": "pricing",
-                        "price_source_target": config[SECTION_PRICING].get(CONF_PRICE_PRODUCTION),
+                        "price_source_target": config[SECTION_PRICING].get(CONF_PRICE_SOURCE_TARGET),
                         "price_target_source": None,
                     },
                 },

@@ -15,7 +15,7 @@ from custom_components.haeo.elements.solar import (
     CONF_CONNECTION,
     CONF_CURTAILMENT,
     CONF_FORECAST,
-    CONF_PRICE_PRODUCTION,
+    CONF_PRICE_SOURCE_TARGET,
     ELEMENT_TYPE,
     SECTION_ADVANCED,
     SECTION_DETAILS,
@@ -30,17 +30,17 @@ def _wrap_input(flat: dict[str, Any]) -> dict[str, Any]:
     """Wrap flat solar input values into sectioned config."""
     if SECTION_DETAILS in flat:
         return dict(flat)
-    basic = {
+    details = {
         CONF_NAME: flat[CONF_NAME],
         CONF_CONNECTION: flat[CONF_CONNECTION],
     }
     forecast = {
         CONF_FORECAST: flat[CONF_FORECAST],
     }
-    pricing = {key: flat[key] for key in (CONF_PRICE_PRODUCTION,) if key in flat}
+    pricing = {key: flat[key] for key in (CONF_PRICE_SOURCE_TARGET,) if key in flat}
     advanced = {key: flat[key] for key in (CONF_CURTAILMENT,) if key in flat}
     return {
-        SECTION_DETAILS: basic,
+        SECTION_DETAILS: details,
         SECTION_FORECAST: forecast,
         SECTION_PRICING: pricing,
         SECTION_ADVANCED: advanced,
@@ -204,13 +204,13 @@ async def test_user_step_with_entity_creates_entry(
     )
 
     # Submit with entity selection using choose selector format
-    # price_production and curtailment are force_required, so must be included
+    # price_source_target and curtailment are force_required, so must be included
     user_input = _wrap_input(
         {
             CONF_NAME: "Test Solar",
             CONF_CONNECTION: "TestNode",
             CONF_FORECAST: ["sensor.solar_forecast"],
-            CONF_PRICE_PRODUCTION: 0.0,
+            CONF_PRICE_SOURCE_TARGET: 0.0,
             CONF_CURTAILMENT: True,
         }
     )
@@ -240,13 +240,13 @@ async def test_user_step_with_constant_creates_entry(
     )
 
     # Submit with constant value using choose selector format
-    # price_production and curtailment are force_required, so must be included
+    # price_source_target and curtailment are force_required, so must be included
     user_input = _wrap_input(
         {
             CONF_NAME: "Test Solar",
             CONF_CONNECTION: "TestNode",
             CONF_FORECAST: 5.0,
-            CONF_PRICE_PRODUCTION: 0.0,
+            CONF_PRICE_SOURCE_TARGET: 0.0,
             CONF_CURTAILMENT: True,
         }
     )
@@ -273,7 +273,7 @@ async def test_user_step_empty_required_field_shows_error(
             CONF_NAME: "Test Solar",
             CONF_CONNECTION: "TestNode",
             CONF_FORECAST: [],  # Empty list = invalid
-            CONF_PRICE_PRODUCTION: 0.0,
+            CONF_PRICE_SOURCE_TARGET: 0.0,
             CONF_CURTAILMENT: True,
         }
     )

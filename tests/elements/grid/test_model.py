@@ -42,14 +42,14 @@ CREATE_CASES: Sequence[CreateCase] = [
         "description": "Grid with import and export limits",
         "data": GridConfigData(
             element_type="grid",
-            basic={"name": "grid_main", "connection": "network"},
+            details={"name": "grid_main", "connection": "network"},
             pricing={
-                "import_price": np.array([0.1]),
-                "export_price": np.array([0.05]),
+                "price_source_target": np.array([0.1]),
+                "price_target_source": np.array([0.05]),
             },
-            limits={
-                "import_limit": np.array([5.0]),
-                "export_limit": np.array([3.0]),
+            power_limits={
+                "max_power_source_target": np.array([5.0]),
+                "max_power_target_source": np.array([3.0]),
             },
         ),
         "model": [
@@ -83,12 +83,12 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
         "name": "grid_main",
         "config": GridConfigData(
             element_type="grid",
-            basic={"name": "grid_main", "connection": "network"},
+            details={"name": "grid_main", "connection": "network"},
             pricing={
-                "import_price": np.array([0.10]),
-                "export_price": np.array([0.05]),
+                "price_source_target": np.array([0.10]),
+                "price_target_source": np.array([0.05]),
             },
-            limits={},
+            power_limits={},
         ),
         "model_outputs": {
             "grid_main:connection": {
@@ -126,12 +126,12 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
         "name": "grid_multi",
         "config": GridConfigData(
             element_type="grid",
-            basic={"name": "grid_multi", "connection": "network"},
+            details={"name": "grid_multi", "connection": "network"},
             pricing={
-                "import_price": np.array([0.10, 0.20]),
-                "export_price": np.array([0.05, 0.05]),
+                "price_source_target": np.array([0.10, 0.20]),
+                "price_target_source": np.array([0.05, 0.05]),
             },
-            limits={},
+            power_limits={},
         ),
         "model_outputs": {
             "grid_multi:connection": {

@@ -24,6 +24,7 @@ from custom_components.haeo.entities.haeo_number import (
 )
 from custom_components.haeo.horizon import HorizonManager
 from custom_components.haeo.model import OutputType
+from custom_components.haeo.sections import SECTION_ADVANCED, SECTION_DETAILS
 
 # --- Fixtures ---
 
@@ -153,8 +154,8 @@ def _create_subentry(name: str, data: dict[str, Any]) -> ConfigSubentry:
         data=MappingProxyType(
             {
                 "element_type": "battery",
-                "basic": {CONF_NAME: name},
-                "advanced": data,
+                SECTION_DETAILS: {CONF_NAME: name},
+                SECTION_ADVANCED: data,
             }
         ),
         subentry_type="battery",

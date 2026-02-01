@@ -17,12 +17,12 @@ async def test_available_returns_true_when_sensors_exist(hass: HomeAssistant) ->
 
     config: grid.GridConfigSchema = {
         "element_type": "grid",
-        "basic": {"name": "test_grid", "connection": "main_bus"},
+        "details": {"name": "test_grid", "connection": "main_bus"},
         "pricing": {
-            "import_price": ["sensor.import_price"],
-            "export_price": ["sensor.export_price"],
+            "price_source_target": ["sensor.import_price"],
+            "price_target_source": ["sensor.export_price"],
         },
-        "limits": {},
+        "power_limits": {},
     }
 
     result = grid.adapter.available(config, hass=hass)
@@ -35,12 +35,12 @@ async def test_available_returns_false_when_import_price_missing(hass: HomeAssis
 
     config: grid.GridConfigSchema = {
         "element_type": "grid",
-        "basic": {"name": "test_grid", "connection": "main_bus"},
+        "details": {"name": "test_grid", "connection": "main_bus"},
         "pricing": {
-            "import_price": ["sensor.missing"],
-            "export_price": ["sensor.export_price"],
+            "price_source_target": ["sensor.missing"],
+            "price_target_source": ["sensor.export_price"],
         },
-        "limits": {},
+        "power_limits": {},
     }
 
     result = grid.adapter.available(config, hass=hass)
@@ -53,12 +53,12 @@ async def test_available_returns_false_when_export_price_missing(hass: HomeAssis
 
     config: grid.GridConfigSchema = {
         "element_type": "grid",
-        "basic": {"name": "test_grid", "connection": "main_bus"},
+        "details": {"name": "test_grid", "connection": "main_bus"},
         "pricing": {
-            "import_price": ["sensor.import_price"],
-            "export_price": ["sensor.missing"],
+            "price_source_target": ["sensor.import_price"],
+            "price_target_source": ["sensor.missing"],
         },
-        "limits": {},
+        "power_limits": {},
     }
 
     result = grid.adapter.available(config, hass=hass)
@@ -69,12 +69,12 @@ async def test_available_with_constant_prices(hass: HomeAssistant) -> None:
     """Grid available() returns True when prices are constants (no sensors needed)."""
     config: grid.GridConfigSchema = {
         "element_type": "grid",
-        "basic": {"name": "test_grid", "connection": "main_bus"},
+        "details": {"name": "test_grid", "connection": "main_bus"},
         "pricing": {
-            "import_price": 0.30,  # Constant
-            "export_price": 0.05,  # Constant
+            "price_source_target": 0.30,  # Constant
+            "price_target_source": 0.05,  # Constant
         },
-        "limits": {},
+        "power_limits": {},
     }
 
     result = grid.adapter.available(config, hass=hass)
@@ -87,12 +87,12 @@ async def test_available_with_single_entity_string(hass: HomeAssistant) -> None:
 
     config: grid.GridConfigSchema = {
         "element_type": "grid",
-        "basic": {"name": "test_grid", "connection": "main_bus"},
+        "details": {"name": "test_grid", "connection": "main_bus"},
         "pricing": {
-            "import_price": "sensor.import_price",  # Single string, not list
-            "export_price": 0.05,  # Constant
+            "price_source_target": "sensor.import_price",  # Single string, not list
+            "price_target_source": 0.05,  # Constant
         },
-        "limits": {},
+        "power_limits": {},
     }
 
     result = grid.adapter.available(config, hass=hass)

@@ -44,32 +44,32 @@ def _pick_fields(config: dict[str, Any], fields: tuple[str, ...]) -> dict[str, A
 
 def _sectioned_participant_config(config: dict[str, Any]) -> dict[str, Any]:
     """Convert flat participant configs into sectioned configs for scenario tests."""
-    if "basic" in config:
+    if "details" in config:
         return config
 
     element_type = config[CONF_ELEMENT_TYPE]
     name = config[CONF_NAME]
 
     if element_type == "battery":
-        basic = _pick_fields(config, ("connection",))
-        basic[CONF_NAME] = name
+        details = _pick_fields(config, ("connection",))
+        details[CONF_NAME] = name
         storage = _pick_fields(config, ("capacity", "initial_charge_percentage"))
-        limits = _pick_fields(
+        limits = _pick_fields(config, ("min_charge_percentage", "max_charge_percentage"))
+        power_limits = _pick_fields(
             config,
             (
-                "min_charge_percentage",
-                "max_charge_percentage",
-                "max_charge_power",
-                "max_discharge_power",
+                "max_power_source_target",
+                "max_power_target_source",
             ),
         )
-        pricing = _pick_fields(config, ("early_charge_incentive", "discharge_cost"))
+        pricing = _pick_fields(config, ("price_source_target", "price_target_source"))
         advanced = _pick_fields(config, ("efficiency", "configure_partitions"))
         sectioned = {
             CONF_ELEMENT_TYPE: element_type,
-            "basic": basic,
+            "details": details,
             "storage": storage,
             "limits": limits,
+            "power_limits": power_limits,
             "pricing": pricing,
             "advanced": advanced,
         }
@@ -84,54 +84,60 @@ def _sectioned_participant_config(config: dict[str, Any]) -> dict[str, Any]:
     if element_type == "load":
         return {
             CONF_ELEMENT_TYPE: element_type,
-            "basic": {CONF_NAME: name, "connection": config["connection"]},
-            "inputs": {"forecast": config["forecast"]},
+            "details": {CONF_NAME: name, "connection": config["connection"]},
+            "forecast": {"forecast": config["forecast"]},
         }
 
     if element_type == "grid":
         return {
             CONF_ELEMENT_TYPE: element_type,
-            "basic": {CONF_NAME: name, "connection": config["connection"]},
+            "details": {CONF_NAME: name, "connection": config["connection"]},
             "pricing": {
-                "import_price": config["import_price"],
-                "export_price": config["export_price"],
+                "price_source_target": config["price_source_target"],
+                "price_target_source": config["price_target_source"],
             },
-            "limits": _pick_fields(config, ("import_limit", "export_limit")),
+            "power_limits": _pick_fields(
+                config,
+                ("max_power_source_target", "max_power_target_source"),
+            ),
         }
 
     if element_type == "inverter":
         return {
             CONF_ELEMENT_TYPE: element_type,
-            "basic": {CONF_NAME: name, "connection": config["connection"]},
-            "limits": _pick_fields(config, ("max_power_dc_to_ac", "max_power_ac_to_dc")),
+            "details": {CONF_NAME: name, "connection": config["connection"]},
+            "power_limits": _pick_fields(
+                config,
+                ("max_power_source_target", "max_power_target_source"),
+            ),
             "advanced": _pick_fields(config, ("efficiency_dc_to_ac", "efficiency_ac_to_dc")),
         }
 
     if element_type == "solar":
         return {
             CONF_ELEMENT_TYPE: element_type,
-            "basic": {
+            "details": {
                 CONF_NAME: name,
                 "connection": config["connection"],
             },
-            "inputs": {"forecast": config["forecast"]},
-            "pricing": _pick_fields(config, ("price_production",)),
+            "forecast": {"forecast": config["forecast"]},
+            "pricing": _pick_fields(config, ("price_source_target",)),
             "advanced": _pick_fields(config, ("curtailment",)),
         }
 
     if element_type == "node":
         return {
             CONF_ELEMENT_TYPE: element_type,
-            "basic": {CONF_NAME: name},
+            "details": {CONF_NAME: name},
             "advanced": _pick_fields(config, ("is_source", "is_sink")),
         }
 
     if element_type == "connection":
         return {
             CONF_ELEMENT_TYPE: element_type,
-            "basic": {CONF_NAME: name},
+            "details": {CONF_NAME: name},
             "endpoints": {"source": config["source"], "target": config["target"]},
-            "limits": _pick_fields(config, ("max_power_source_target", "max_power_target_source")),
+            "power_limits": _pick_fields(config, ("max_power_source_target", "max_power_target_source")),
             "pricing": _pick_fields(config, ("price_source_target", "price_target_source")),
             "advanced": _pick_fields(config, ("efficiency_source_target", "efficiency_target_source")),
         }
@@ -139,7 +145,7 @@ def _sectioned_participant_config(config: dict[str, Any]) -> dict[str, Any]:
     if element_type == "battery_section":
         return {
             CONF_ELEMENT_TYPE: element_type,
-            "basic": {CONF_NAME: name},
+            "details": {CONF_NAME: name},
             "storage": _pick_fields(config, ("capacity", "initial_charge")),
         }
 

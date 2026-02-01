@@ -102,10 +102,10 @@ Input entities appear as Number entities with the `config` entity category.
 
 | Input                            | Unit | Description                              |
 | -------------------------------- | ---- | ---------------------------------------- |
-| `number.{name}_max_import_power` | kW   | Maximum AC→DC power (if configured)      |
-| `number.{name}_max_export_power` | kW   | Maximum DC→AC power (if configured)      |
-| `number.{name}_charge_soc_min`   | %    | Minimum SOC for charging (if configured) |
-| `number.{name}_charge_soc_max`   | %    | Maximum SOC for charging (if configured) |
+| `number.{name}_max_power_source_target` | kW   | Maximum DC→AC power (if configured)      |
+| `number.{name}_max_power_target_source` | kW   | Maximum AC→DC power (if configured)      |
+| `number.{name}_efficiency_dc_to_ac` | %    | Efficiency DC→AC (if configured)         |
+| `number.{name}_efficiency_ac_to_dc` | %    | Efficiency AC→DC (if configured)         |
 
 Input entities include a `forecast` attribute showing values for each optimization period.
 See the [Input Entities developer guide](../../developer-guide/inputs.md) for details on input entity behavior.
@@ -123,8 +123,6 @@ Not all sensors are created for every inverter - only those relevant to the conf
 | [`sensor.{name}_power_ac_to_dc`](#ac-to-dc-power)             | kW    | Power flowing from AC to DC (rectifying) |
 | [`sensor.{name}_power_active`](#active-power)                 | kW    | Net power (DC to AC - AC to DC)          |
 | [`sensor.{name}_dc_bus_power_balance`](#dc-bus-power-balance) | \$/kW | DC bus power balance shadow price        |
-| [`sensor.{name}_max_power_dc_to_ac`](#max-power-dc-to-ac)     | kW    | Maximum DC to AC power (when limited)    |
-| [`sensor.{name}_max_power_ac_to_dc`](#max-power-ac-to-dc)     | kW    | Maximum AC to DC power (when limited)    |
 | [`sensor.{name}_max_power_dc_to_ac_price`](#shadow-prices)    | \$/kW | Maximum DC to AC power shadow price      |
 | [`sensor.{name}_max_power_ac_to_dc_price`](#shadow-prices)    | \$/kW | Maximum AC to DC power shadow price      |
 
@@ -163,16 +161,6 @@ This shadow price shows how much the total system cost would decrease if the DC 
 - **Nonzero value**: DC bus power balance is constraining the optimization
     - The value shows how much system cost would decrease if the balance constraint were relaxed
     - Helps identify when DC devices (batteries, solar) are not optimally balanced
-
-### Max Power DC to AC
-
-The configured maximum DC to AC power limit from the sensor configuration.
-Only created when a DC to AC power limit is configured.
-
-### Max Power AC to DC
-
-The configured maximum AC to DC power limit from the sensor configuration.
-Only created when an AC to DC power limit is configured.
 
 ### Shadow Prices
 

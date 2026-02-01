@@ -8,7 +8,7 @@ import voluptuous as vol
 
 from custom_components.haeo.flows.field_schema import SectionDefinition
 
-SECTION_FORECAST: Final = "inputs"
+SECTION_FORECAST: Final = "forecast"
 CONF_FORECAST: Final = "forecast"
 
 

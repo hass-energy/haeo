@@ -24,20 +24,21 @@ from custom_components.haeo.sections import (
     CONF_CAPACITY,
     CONF_CONNECTION,
     CONF_INITIAL_CHARGE_PERCENTAGE,
+    CONF_MAX_POWER_SOURCE_TARGET,
+    CONF_MAX_POWER_TARGET_SOURCE,
+    CONF_PRICE_SOURCE_TARGET,
+    CONF_PRICE_TARGET_SOURCE,
     SECTION_ADVANCED,
     SECTION_DETAILS,
     SECTION_LIMITS,
+    SECTION_POWER_LIMITS,
     SECTION_PRICING,
     SECTION_STORAGE,
 )
 
 from .schema import (
-    CONF_DISCHARGE_COST,
-    CONF_EARLY_CHARGE_INCENTIVE,
     CONF_EFFICIENCY,
     CONF_MAX_CHARGE_PERCENTAGE,
-    CONF_MAX_CHARGE_POWER,
-    CONF_MAX_DISCHARGE_POWER,
     CONF_MIN_CHARGE_PERCENTAGE,
     CONF_PARTITION_COST,
     CONF_PARTITION_PERCENTAGE,
@@ -52,7 +53,6 @@ from .schema import (
 DEFAULTS: Final[dict[str, float]] = {
     CONF_MIN_CHARGE_PERCENTAGE: 0.0,
     CONF_MAX_CHARGE_PERCENTAGE: 1.0,
-    CONF_EARLY_CHARGE_INCENTIVE: 0.001,
 }
 
 type BatteryOutputName = Literal[
@@ -110,6 +110,7 @@ class BatteryAdapter:
 
         storage = config[SECTION_STORAGE]
         limits = config[SECTION_LIMITS]
+        power_limits = config[SECTION_POWER_LIMITS]
         pricing = config[SECTION_PRICING]
         advanced = config[SECTION_ADVANCED]
         undercharge = config.get(SECTION_UNDERCHARGE, {})
@@ -123,13 +124,13 @@ class BatteryAdapter:
 
         # Check optional time series fields if present
         optional_checks = [
-            (limits, CONF_MAX_CHARGE_POWER),
-            (limits, CONF_MAX_DISCHARGE_POWER),
+            (power_limits, CONF_MAX_POWER_SOURCE_TARGET),
+            (power_limits, CONF_MAX_POWER_TARGET_SOURCE),
             (limits, CONF_MIN_CHARGE_PERCENTAGE),
             (limits, CONF_MAX_CHARGE_PERCENTAGE),
             (advanced, CONF_EFFICIENCY),
-            (pricing, CONF_EARLY_CHARGE_INCENTIVE),
-            (pricing, CONF_DISCHARGE_COST),
+            (pricing, CONF_PRICE_SOURCE_TARGET),
+            (pricing, CONF_PRICE_TARGET_SOURCE),
             (undercharge, CONF_PARTITION_PERCENTAGE),
             (undercharge, CONF_PARTITION_COST),
             (overcharge, CONF_PARTITION_PERCENTAGE),
@@ -172,12 +173,12 @@ class BatteryAdapter:
                     time_series=True,
                 ),
             },
-            SECTION_LIMITS: {
-                CONF_MAX_CHARGE_POWER: InputFieldInfo(
-                    field_name=CONF_MAX_CHARGE_POWER,
+            SECTION_POWER_LIMITS: {
+                CONF_MAX_POWER_TARGET_SOURCE: InputFieldInfo(
+                    field_name=CONF_MAX_POWER_TARGET_SOURCE,
                     entity_description=NumberEntityDescription(
-                        key=CONF_MAX_CHARGE_POWER,
-                        translation_key=f"{ELEMENT_TYPE}_{CONF_MAX_CHARGE_POWER}",
+                        key=CONF_MAX_POWER_TARGET_SOURCE,
+                        translation_key=f"{ELEMENT_TYPE}_{CONF_MAX_POWER_TARGET_SOURCE}",
                         native_unit_of_measurement=UnitOfPower.KILO_WATT,
                         device_class=NumberDeviceClass.POWER,
                         native_min_value=0.0,
@@ -189,11 +190,11 @@ class BatteryAdapter:
                     time_series=True,
                     defaults=InputFieldDefaults(mode="entity"),
                 ),
-                CONF_MAX_DISCHARGE_POWER: InputFieldInfo(
-                    field_name=CONF_MAX_DISCHARGE_POWER,
+                CONF_MAX_POWER_SOURCE_TARGET: InputFieldInfo(
+                    field_name=CONF_MAX_POWER_SOURCE_TARGET,
                     entity_description=NumberEntityDescription(
-                        key=CONF_MAX_DISCHARGE_POWER,
-                        translation_key=f"{ELEMENT_TYPE}_{CONF_MAX_DISCHARGE_POWER}",
+                        key=CONF_MAX_POWER_SOURCE_TARGET,
+                        translation_key=f"{ELEMENT_TYPE}_{CONF_MAX_POWER_SOURCE_TARGET}",
                         native_unit_of_measurement=UnitOfPower.KILO_WATT,
                         device_class=NumberDeviceClass.POWER,
                         native_min_value=0.0,
@@ -205,6 +206,8 @@ class BatteryAdapter:
                     time_series=True,
                     defaults=InputFieldDefaults(mode="entity"),
                 ),
+            },
+            SECTION_LIMITS: {
                 CONF_MIN_CHARGE_PERCENTAGE: InputFieldInfo(
                     field_name=CONF_MIN_CHARGE_PERCENTAGE,
                     entity_description=NumberEntityDescription(
@@ -256,32 +259,33 @@ class BatteryAdapter:
                 ),
             },
             SECTION_PRICING: {
-                CONF_EARLY_CHARGE_INCENTIVE: InputFieldInfo(
-                    field_name=CONF_EARLY_CHARGE_INCENTIVE,
+                CONF_PRICE_SOURCE_TARGET: InputFieldInfo(
+                    field_name=CONF_PRICE_SOURCE_TARGET,
                     entity_description=NumberEntityDescription(
-                        key=CONF_EARLY_CHARGE_INCENTIVE,
-                        translation_key=f"{ELEMENT_TYPE}_{CONF_EARLY_CHARGE_INCENTIVE}",
-                        native_min_value=0.0,
-                        native_max_value=1.0,
+                        key=CONF_PRICE_SOURCE_TARGET,
+                        translation_key=f"{ELEMENT_TYPE}_{CONF_PRICE_SOURCE_TARGET}",
+                        native_min_value=-1.0,
+                        native_max_value=10.0,
                         native_step=0.001,
                     ),
                     output_type=OutputType.PRICE,
                     direction="-",
                     time_series=True,
-                    defaults=InputFieldDefaults(mode="value", value=0.001),
+                    defaults=InputFieldDefaults(mode=None, value=0.0),
                 ),
-                CONF_DISCHARGE_COST: InputFieldInfo(
-                    field_name=CONF_DISCHARGE_COST,
+                CONF_PRICE_TARGET_SOURCE: InputFieldInfo(
+                    field_name=CONF_PRICE_TARGET_SOURCE,
                     entity_description=NumberEntityDescription(
-                        key=CONF_DISCHARGE_COST,
-                        translation_key=f"{ELEMENT_TYPE}_{CONF_DISCHARGE_COST}",
-                        native_min_value=0.0,
-                        native_max_value=1.0,
+                        key=CONF_PRICE_TARGET_SOURCE,
+                        translation_key=f"{ELEMENT_TYPE}_{CONF_PRICE_TARGET_SOURCE}",
+                        native_min_value=-1.0,
+                        native_max_value=10.0,
                         native_step=0.001,
                     ),
                     output_type=OutputType.PRICE,
                     direction="-",
                     time_series=True,
+                    defaults=InputFieldDefaults(mode=None, value=0.0),
                 ),
             },
             SECTION_UNDERCHARGE: _partition_input_fields(
@@ -304,6 +308,7 @@ class BatteryAdapter:
         basic = config[SECTION_DETAILS]
         storage = config[SECTION_STORAGE]
         limits = config[SECTION_LIMITS]
+        power_limits = config[SECTION_POWER_LIMITS]
         pricing = config[SECTION_PRICING]
         advanced = config[SECTION_ADVANCED]
         undercharge = config.get(SECTION_UNDERCHARGE, {})
@@ -347,24 +352,11 @@ class BatteryAdapter:
             }
         )
 
-        # Calculate early charge/discharge incentives (use first period if present)
-        early_charge_list = pricing.get(CONF_EARLY_CHARGE_INCENTIVE)
-        early_charge_incentive = (
-            float(early_charge_list[0]) if early_charge_list is not None else DEFAULTS[CONF_EARLY_CHARGE_INCENTIVE]
-        )
-
         # Create connection from battery to target
-        # Time-varying early charge incentive applied here (charge earlier in horizon)
-        ramp = np.arange(n_periods, dtype=float) / max(n_periods - 1, 1) if n_periods else np.array([], dtype=float)
-        charge_early_incentive = -early_charge_incentive + (early_charge_incentive * ramp)
-        discharge_early_incentive = early_charge_incentive + (early_charge_incentive * ramp)
-
-        discharge_cost = pricing.get(CONF_DISCHARGE_COST)
-        discharge_costs = (
-            discharge_early_incentive + discharge_cost if discharge_cost is not None else discharge_early_incentive
-        )
-        max_discharge = limits.get(CONF_MAX_DISCHARGE_POWER)
-        max_charge = limits.get(CONF_MAX_CHARGE_POWER)
+        price_source_target = pricing.get(CONF_PRICE_SOURCE_TARGET)
+        price_target_source = pricing.get(CONF_PRICE_TARGET_SOURCE)
+        max_discharge = power_limits.get(CONF_MAX_POWER_SOURCE_TARGET)
+        max_charge = power_limits.get(CONF_MAX_POWER_TARGET_SOURCE)
 
         soc_pricing_spec: SocPricingSegmentSpec | None = None
         if undercharge_percentage is not None and undercharge_cost is not None:
@@ -407,8 +399,8 @@ class BatteryAdapter:
             },
             "pricing": {
                 "segment_type": "pricing",
-                "price_source_target": discharge_costs,
-                "price_target_source": charge_early_incentive,
+                "price_source_target": price_source_target,
+                "price_target_source": price_target_source,
             },
         }
         if soc_pricing_spec is not None:

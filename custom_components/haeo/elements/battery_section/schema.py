@@ -14,8 +14,8 @@ from custom_components.haeo.sections import (
     SECTION_STORAGE,
     DetailsConfig,
     DetailsData,
-    StorageConfig,
-    StorageData,
+    StorageChargeConfig,
+    StorageChargeData,
 )
 
 ELEMENT_TYPE: Final = "battery_section"
@@ -27,16 +27,16 @@ class BatterySectionConfigSchema(TypedDict):
     """Battery section element configuration as stored in Home Assistant."""
 
     element_type: Literal["battery_section"]
-    basic: DetailsConfig
-    storage: StorageConfig
+    details: DetailsConfig
+    storage: StorageChargeConfig
 
 
 class BatterySectionConfigData(TypedDict):
     """Battery section element configuration with loaded values."""
 
     element_type: Literal["battery_section"]
-    basic: DetailsData
-    storage: StorageData
+    details: DetailsData
+    storage: StorageChargeData
 
 
 __all__ = [

@@ -9,8 +9,8 @@ from custom_components.haeo.elements.battery import (
     CONF_EFFICIENCY,
     CONF_INITIAL_CHARGE_PERCENTAGE,
     CONF_MAX_CHARGE_PERCENTAGE,
-    CONF_MAX_CHARGE_POWER,
-    CONF_MAX_DISCHARGE_POWER,
+    CONF_MAX_POWER_SOURCE_TARGET,
+    CONF_MAX_POWER_TARGET_SOURCE,
     CONF_MIN_CHARGE_PERCENTAGE,
     CONF_PARTITION_COST,
     CONF_PARTITION_PERCENTAGE,
@@ -20,12 +20,13 @@ from custom_components.haeo.elements.battery import (
 )
 from custom_components.haeo.elements.battery import CONF_CONNECTION as BATTERY_CONF_CONNECTION
 from custom_components.haeo.elements.grid import CONF_CONNECTION as GRID_CONF_CONNECTION
-from custom_components.haeo.elements.grid import CONF_EXPORT_PRICE, CONF_IMPORT_PRICE, GridConfigData
+from custom_components.haeo.elements.grid import CONF_PRICE_SOURCE_TARGET, CONF_PRICE_TARGET_SOURCE, GridConfigData
 from custom_components.haeo.elements.node import CONF_IS_SINK, CONF_IS_SOURCE, NodeConfigData
 from custom_components.haeo.sections import (
     SECTION_ADVANCED,
     SECTION_DETAILS,
     SECTION_LIMITS,
+    SECTION_POWER_LIMITS,
     SECTION_PRICING,
     SECTION_STORAGE,
 )
@@ -66,10 +67,10 @@ def test_validate_network_topology_with_implicit_connection() -> None:
         CONF_ELEMENT_TYPE: "grid",
         SECTION_DETAILS: {CONF_NAME: "grid", GRID_CONF_CONNECTION: "main"},
         SECTION_PRICING: {
-            CONF_IMPORT_PRICE: np.array([0.30, 0.30]),
-            CONF_EXPORT_PRICE: np.array([0.10, 0.10]),
+            CONF_PRICE_SOURCE_TARGET: np.array([0.30, 0.30]),
+            CONF_PRICE_TARGET_SOURCE: np.array([0.10, 0.10]),
         },
-        SECTION_LIMITS: {},
+        SECTION_POWER_LIMITS: {},
     }
     participants: dict[str, ElementConfigData] = {"main_node": main_node, "grid": grid}
 
@@ -95,19 +96,19 @@ def test_validate_network_topology_detects_disconnected() -> None:
         CONF_ELEMENT_TYPE: "grid",
         SECTION_DETAILS: {CONF_NAME: "grid_a", GRID_CONF_CONNECTION: "a"},
         SECTION_PRICING: {
-            CONF_IMPORT_PRICE: np.array([0.30, 0.30]),
-            CONF_EXPORT_PRICE: np.array([0.10, 0.10]),
+            CONF_PRICE_SOURCE_TARGET: np.array([0.30, 0.30]),
+            CONF_PRICE_TARGET_SOURCE: np.array([0.10, 0.10]),
         },
-        SECTION_LIMITS: {},
+        SECTION_POWER_LIMITS: {},
     }
     grid_b: GridConfigData = {
         CONF_ELEMENT_TYPE: "grid",
         SECTION_DETAILS: {CONF_NAME: "grid_b", GRID_CONF_CONNECTION: "b"},
         SECTION_PRICING: {
-            CONF_IMPORT_PRICE: np.array([0.30, 0.30]),
-            CONF_EXPORT_PRICE: np.array([0.10, 0.10]),
+            CONF_PRICE_SOURCE_TARGET: np.array([0.30, 0.30]),
+            CONF_PRICE_TARGET_SOURCE: np.array([0.10, 0.10]),
         },
-        SECTION_LIMITS: {},
+        SECTION_POWER_LIMITS: {},
     }
     participants: dict[str, ElementConfigData] = {
         "node_a": node_a,
@@ -134,10 +135,10 @@ def test_validate_network_topology_with_battery() -> None:
         CONF_ELEMENT_TYPE: "grid",
         SECTION_DETAILS: {CONF_NAME: "grid", GRID_CONF_CONNECTION: "main"},
         SECTION_PRICING: {
-            CONF_IMPORT_PRICE: np.array([0.30, 0.30]),
-            CONF_EXPORT_PRICE: np.array([0.10, 0.10]),
+            CONF_PRICE_SOURCE_TARGET: np.array([0.30, 0.30]),
+            CONF_PRICE_TARGET_SOURCE: np.array([0.10, 0.10]),
         },
-        SECTION_LIMITS: {},
+        SECTION_POWER_LIMITS: {},
     }
     battery: BatteryConfigData = {
         CONF_ELEMENT_TYPE: "battery",
@@ -150,10 +151,12 @@ def test_validate_network_topology_with_battery() -> None:
             CONF_INITIAL_CHARGE_PERCENTAGE: np.array([50.0, 50.0]),
         },
         SECTION_LIMITS: {
-            CONF_MAX_CHARGE_POWER: np.array([5.0, 5.0]),
-            CONF_MAX_DISCHARGE_POWER: np.array([5.0, 5.0]),
             CONF_MIN_CHARGE_PERCENTAGE: np.array([10.0, 10.0, 10.0]),
             CONF_MAX_CHARGE_PERCENTAGE: np.array([90.0, 90.0, 90.0]),
+        },
+        SECTION_POWER_LIMITS: {
+            CONF_MAX_POWER_SOURCE_TARGET: np.array([5.0, 5.0]),
+            CONF_MAX_POWER_TARGET_SOURCE: np.array([5.0, 5.0]),
         },
         SECTION_PRICING: {},
         SECTION_ADVANCED: {
@@ -192,10 +195,12 @@ def test_validate_network_topology_with_battery_all_sections() -> None:
             CONF_INITIAL_CHARGE_PERCENTAGE: np.array([50.0, 50.0]),
         },
         SECTION_LIMITS: {
-            CONF_MAX_CHARGE_POWER: np.array([5.0, 5.0]),
-            CONF_MAX_DISCHARGE_POWER: np.array([5.0, 5.0]),
             CONF_MIN_CHARGE_PERCENTAGE: np.array([10.0, 10.0, 10.0]),
             CONF_MAX_CHARGE_PERCENTAGE: np.array([90.0, 90.0, 90.0]),
+        },
+        SECTION_POWER_LIMITS: {
+            CONF_MAX_POWER_SOURCE_TARGET: np.array([5.0, 5.0]),
+            CONF_MAX_POWER_TARGET_SOURCE: np.array([5.0, 5.0]),
         },
         SECTION_PRICING: {},
         SECTION_ADVANCED: {

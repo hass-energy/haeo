@@ -14,20 +14,17 @@ from custom_components.haeo import HaeoRuntimeData
 from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME, DOMAIN, ELEMENT_TYPE_NETWORK
 from custom_components.haeo.elements.grid import (
     CONF_CONNECTION,
-    CONF_EXPORT_PRICE,
-    CONF_IMPORT_PRICE,
+    CONF_MAX_POWER_SOURCE_TARGET,
+    CONF_MAX_POWER_TARGET_SOURCE,
+    CONF_PRICE_SOURCE_TARGET,
+    CONF_PRICE_TARGET_SOURCE,
     SECTION_DETAILS,
-    SECTION_LIMITS,
+    SECTION_POWER_LIMITS,
     SECTION_PRICING,
 )
 from custom_components.haeo.elements.grid import ELEMENT_TYPE as GRID_TYPE
-from custom_components.haeo.elements.solar import (
-    CONF_CURTAILMENT,
-    CONF_FORECAST,
-    CONF_PRICE_PRODUCTION,
-    SECTION_ADVANCED,
-    SECTION_FORECAST,
-)
+from custom_components.haeo.elements.solar import CONF_CURTAILMENT, CONF_FORECAST, SECTION_ADVANCED, SECTION_FORECAST
+from custom_components.haeo.elements.solar import CONF_PRICE_SOURCE_TARGET as CONF_SOLAR_PRICE_SOURCE_TARGET
 from custom_components.haeo.elements.solar import ELEMENT_TYPE as SOLAR_TYPE
 from custom_components.haeo.elements.solar import SECTION_DETAILS as SOLAR_SECTION_DETAILS
 from custom_components.haeo.entities.auto_optimize_switch import AutoOptimizeSwitch
@@ -96,10 +93,13 @@ def _add_subentry(
                 CONF_CONNECTION: data.get("connection", "Switchboard"),
             },
             SECTION_PRICING: {
-                CONF_IMPORT_PRICE: data.get("import_price"),
-                CONF_EXPORT_PRICE: data.get("export_price"),
+                CONF_PRICE_SOURCE_TARGET: data.get("price_source_target"),
+                CONF_PRICE_TARGET_SOURCE: data.get("price_target_source"),
             },
-            SECTION_LIMITS: {},
+            SECTION_POWER_LIMITS: {
+                CONF_MAX_POWER_SOURCE_TARGET: data.get("max_power_source_target"),
+                CONF_MAX_POWER_TARGET_SOURCE: data.get("max_power_target_source"),
+            },
         }
     elif subentry_type == SOLAR_TYPE:
         payload |= {
@@ -111,7 +111,7 @@ def _add_subentry(
                 CONF_FORECAST: data.get("forecast", ["sensor.solar_forecast"]),
             },
             SECTION_PRICING: {
-                CONF_PRICE_PRODUCTION: data.get("price_production"),
+                CONF_SOLAR_PRICE_SOURCE_TARGET: data.get("price_source_target"),
             },
             SECTION_ADVANCED: {
                 CONF_CURTAILMENT: data.get("curtailment"),
@@ -179,8 +179,8 @@ async def test_setup_skips_element_without_switch_fields(
         "Main Grid",
         {
             "connection": "main_bus",
-            "import_price": 0.30,
-            "export_price": 0.05,
+            "price_source_target": 0.30,
+            "price_target_source": 0.05,
         },
     )
 

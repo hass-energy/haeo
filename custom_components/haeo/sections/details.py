@@ -27,6 +27,20 @@ class DetailsData(TypedDict):
     connection: NotRequired[str]
 
 
+class ConnectedDetailsConfig(TypedDict):
+    """Details configuration with a required connection target."""
+
+    name: str
+    connection: str
+
+
+class ConnectedDetailsData(TypedDict):
+    """Loaded details values with a required connection target."""
+
+    name: str
+    connection: str
+
+
 def details_section(fields: tuple[str, ...], *, collapsed: bool = False) -> SectionDefinition:
     """Return the standard details section definition."""
     return SectionDefinition(key=SECTION_DETAILS, fields=fields, collapsed=collapsed)
@@ -62,9 +76,11 @@ def build_details_fields(
 
 __all__ = [
     "CONF_CONNECTION",
+    "SECTION_DETAILS",
+    "ConnectedDetailsConfig",
+    "ConnectedDetailsData",
     "DetailsConfig",
     "DetailsData",
-    "SECTION_DETAILS",
     "build_details_fields",
     "details_section",
 ]

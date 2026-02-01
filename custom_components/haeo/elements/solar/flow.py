@@ -24,6 +24,7 @@ from custom_components.haeo.flows.field_schema import (
 from custom_components.haeo.sections import (
     CONF_CONNECTION,
     CONF_FORECAST,
+    CONF_PRICE_SOURCE_TARGET,
     SECTION_ADVANCED,
     SECTION_DETAILS,
     SECTION_FORECAST,
@@ -36,7 +37,7 @@ from custom_components.haeo.sections import (
 )
 
 from .adapter import adapter
-from .schema import CONF_CURTAILMENT, CONF_PRICE_PRODUCTION, ELEMENT_TYPE, OPTIONAL_INPUT_FIELDS, SolarConfigSchema
+from .schema import CONF_CURTAILMENT, ELEMENT_TYPE, OPTIONAL_INPUT_FIELDS, SolarConfigSchema
 
 
 class SolarSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
@@ -47,7 +48,7 @@ class SolarSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         return (
             details_section((CONF_NAME, CONF_CONNECTION), collapsed=False),
             forecast_section((CONF_FORECAST,), collapsed=False),
-            pricing_section((CONF_PRICE_PRODUCTION,), collapsed=False),
+            pricing_section((CONF_PRICE_SOURCE_TARGET,), collapsed=False),
             advanced_section((CONF_CURTAILMENT,), collapsed=True),
         )
 
@@ -89,7 +90,7 @@ class SolarSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                     CONF_FORECAST: 0.0,
                 },
                 SECTION_PRICING: {
-                    CONF_PRICE_PRODUCTION: 0.0,
+                    CONF_PRICE_SOURCE_TARGET: 0.0,
                 },
                 SECTION_ADVANCED: {},
             }

@@ -13,36 +13,46 @@ from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.elements import node
 from custom_components.haeo.elements.grid import (
     CONF_CONNECTION,
-    CONF_EXPORT_LIMIT,
-    CONF_EXPORT_PRICE,
-    CONF_IMPORT_LIMIT,
-    CONF_IMPORT_PRICE,
+    CONF_MAX_POWER_SOURCE_TARGET,
+    CONF_MAX_POWER_TARGET_SOURCE,
+    CONF_PRICE_SOURCE_TARGET,
+    CONF_PRICE_TARGET_SOURCE,
     ELEMENT_TYPE,
     SECTION_DETAILS,
-    SECTION_LIMITS,
+    SECTION_POWER_LIMITS,
     SECTION_PRICING,
 )
 
 from ..conftest import add_participant, create_flow
+
+CONF_IMPORT_PRICE = CONF_PRICE_SOURCE_TARGET
+CONF_EXPORT_PRICE = CONF_PRICE_TARGET_SOURCE
+CONF_IMPORT_LIMIT = CONF_MAX_POWER_SOURCE_TARGET
+CONF_EXPORT_LIMIT = CONF_MAX_POWER_TARGET_SOURCE
+SECTION_LIMITS = SECTION_POWER_LIMITS
 
 
 def _wrap_input(flat: dict[str, Any]) -> dict[str, Any]:
     """Wrap flat grid input values into sectioned config."""
     if SECTION_DETAILS in flat:
         return dict(flat)
-    basic = {
+    details = {
         CONF_NAME: flat[CONF_NAME],
         CONF_CONNECTION: flat[CONF_CONNECTION],
     }
     pricing = {
-        CONF_IMPORT_PRICE: flat[CONF_IMPORT_PRICE],
-        CONF_EXPORT_PRICE: flat[CONF_EXPORT_PRICE],
+        CONF_PRICE_SOURCE_TARGET: flat[CONF_PRICE_SOURCE_TARGET],
+        CONF_PRICE_TARGET_SOURCE: flat[CONF_PRICE_TARGET_SOURCE],
     }
-    limits = {key: flat[key] for key in (CONF_IMPORT_LIMIT, CONF_EXPORT_LIMIT) if key in flat}
+    power_limits = {
+        key: flat[key]
+        for key in (CONF_MAX_POWER_SOURCE_TARGET, CONF_MAX_POWER_TARGET_SOURCE)
+        if key in flat
+    }
     return {
-        SECTION_DETAILS: basic,
+        SECTION_DETAILS: details,
         SECTION_PRICING: pricing,
-        SECTION_LIMITS: limits,
+        SECTION_POWER_LIMITS: power_limits,
     }
 
 
