@@ -2,58 +2,69 @@
 
 # ruff: noqa: I001
 
-from .advanced import advanced_section, SECTION_ADVANCED
-from .basic import (
-    basic_section,
-    BasicNameConfig,
-    BasicNameConnectionConfig,
-    BasicNameConnectionData,
-    BasicNameData,
-    build_connection_field,
-    build_name_field,
+from .advanced import AdvancedConfig, AdvancedData, SECTION_ADVANCED, advanced_section, build_advanced_fields
+from .details import (
     CONF_CONNECTION,
-    SECTION_BASIC,
+    DetailsConfig,
+    DetailsData,
+    SECTION_DETAILS,
+    build_details_fields,
+    details_section,
 )
-from .inputs import (
+from .forecast import (
     CONF_FORECAST,
-    ForecastInputsConfig,
-    ForecastInputsData,
-    inputs_section,
-    SECTION_INPUTS,
+    ForecastConfig,
+    ForecastData,
+    SECTION_FORECAST,
+    build_forecast_fields,
+    forecast_section,
 )
-from .limits import limits_section, SECTION_LIMITS
-from .pricing import pricing_section, SECTION_PRICING
+from .limits import LimitsConfig, LimitsData, SECTION_LIMITS, build_limits_fields, limits_section
+from .pricing import PricingConfig, PricingData, SECTION_PRICING, build_pricing_fields, pricing_section
 from .storage import (
     CONF_CAPACITY,
     CONF_INITIAL_CHARGE,
     CONF_INITIAL_CHARGE_PERCENTAGE,
     SECTION_STORAGE,
+    StorageConfig,
+    StorageData,
+    build_storage_fields,
     storage_section,
 )
 
 __all__ = [
+    "AdvancedConfig",
+    "AdvancedData",
     "CONF_CAPACITY",
     "CONF_CONNECTION",
     "CONF_FORECAST",
     "CONF_INITIAL_CHARGE",
     "CONF_INITIAL_CHARGE_PERCENTAGE",
+    "DetailsConfig",
+    "DetailsData",
+    "ForecastConfig",
+    "ForecastData",
+    "LimitsConfig",
+    "LimitsData",
+    "PricingConfig",
+    "PricingData",
     "SECTION_ADVANCED",
-    "SECTION_BASIC",
-    "SECTION_INPUTS",
+    "SECTION_DETAILS",
+    "SECTION_FORECAST",
     "SECTION_LIMITS",
     "SECTION_PRICING",
     "SECTION_STORAGE",
-    "BasicNameConfig",
-    "BasicNameConnectionConfig",
-    "BasicNameConnectionData",
-    "BasicNameData",
-    "ForecastInputsConfig",
-    "ForecastInputsData",
+    "StorageConfig",
+    "StorageData",
     "advanced_section",
-    "basic_section",
-    "build_connection_field",
-    "build_name_field",
-    "inputs_section",
+    "build_advanced_fields",
+    "build_details_fields",
+    "build_forecast_fields",
+    "build_limits_fields",
+    "build_pricing_fields",
+    "build_storage_fields",
+    "details_section",
+    "forecast_section",
     "limits_section",
     "pricing_section",
     "storage_section",

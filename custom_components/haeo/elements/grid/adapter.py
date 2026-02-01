@@ -25,7 +25,7 @@ from custom_components.haeo.model.elements.connection import (
 from custom_components.haeo.model.elements.segments import POWER_LIMIT_SOURCE_TARGET, POWER_LIMIT_TARGET_SOURCE
 from custom_components.haeo.model.output_data import OutputData
 from custom_components.haeo.model.util import broadcast_to_sequence
-from custom_components.haeo.sections import CONF_CONNECTION, SECTION_BASIC, SECTION_LIMITS, SECTION_PRICING
+from custom_components.haeo.sections import CONF_CONNECTION, SECTION_DETAILS, SECTION_LIMITS, SECTION_PRICING
 
 from .schema import (
     CONF_EXPORT_LIMIT,
@@ -168,16 +168,16 @@ class GridAdapter:
             # Create Node for the grid (both source and sink - can import and export)
             {
                 "element_type": MODEL_ELEMENT_TYPE_NODE,
-                "name": config[SECTION_BASIC]["name"],
+                "name": config[SECTION_DETAILS]["name"],
                 "is_source": True,
                 "is_sink": True,
             },
             # Create a connection from system node to grid
             {
                 "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
-                "name": f"{config[SECTION_BASIC]['name']}:connection",
-                "source": config[SECTION_BASIC]["name"],
-                "target": config[SECTION_BASIC][CONF_CONNECTION],
+                "name": f"{config[SECTION_DETAILS]['name']}:connection",
+                "source": config[SECTION_DETAILS]["name"],
+                "target": config[SECTION_DETAILS][CONF_CONNECTION],
                 "segments": {
                     "power_limit": {
                         "segment_type": "power_limit",

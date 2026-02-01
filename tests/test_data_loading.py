@@ -15,8 +15,8 @@ from custom_components.haeo.elements.load import CONF_CONNECTION
 from custom_components.haeo.elements.node import CONF_IS_SINK, CONF_IS_SOURCE
 from custom_components.haeo.sections import (
     SECTION_ADVANCED,
-    SECTION_BASIC,
-    SECTION_INPUTS,
+    SECTION_DETAILS,
+    SECTION_FORECAST,
     SECTION_LIMITS,
     SECTION_PRICING,
 )
@@ -34,13 +34,13 @@ async def test_create_network_successful_loads_load_participant(hass: HomeAssist
         {
             "main_bus": {
                 CONF_ELEMENT_TYPE: "node",
-                SECTION_BASIC: {CONF_NAME: "main_bus"},
+                SECTION_DETAILS: {CONF_NAME: "main_bus"},
                 SECTION_ADVANCED: {CONF_IS_SOURCE: False, CONF_IS_SINK: False},
             },
             "Baseload": {
                 CONF_ELEMENT_TYPE: "load",
-                SECTION_BASIC: {CONF_NAME: "Baseload", CONF_CONNECTION: "main_bus"},
-                SECTION_INPUTS: {
+                SECTION_DETAILS: {CONF_NAME: "Baseload", CONF_CONNECTION: "main_bus"},
+                SECTION_FORECAST: {
                     "forecast": [2.5, 2.5, 2.5, 2.5],  # Pre-loaded values in kW
                 },
             },
@@ -85,7 +85,7 @@ async def test_create_network_sorts_connections_after_elements(hass: HomeAssista
         {
             "line": {
                 CONF_ELEMENT_TYPE: "connection",
-                SECTION_BASIC: {
+                SECTION_DETAILS: {
                     CONF_NAME: "line",
                 },
                 SECTION_ENDPOINTS: {
@@ -98,12 +98,12 @@ async def test_create_network_sorts_connections_after_elements(hass: HomeAssista
             },
             "node_a": {
                 CONF_ELEMENT_TYPE: "node",
-                SECTION_BASIC: {CONF_NAME: "node_a"},
+                SECTION_DETAILS: {CONF_NAME: "node_a"},
                 SECTION_ADVANCED: {CONF_IS_SOURCE: False, CONF_IS_SINK: False},
             },
             "node_b": {
                 CONF_ELEMENT_TYPE: "node",
-                SECTION_BASIC: {CONF_NAME: "node_b"},
+                SECTION_DETAILS: {CONF_NAME: "node_b"},
                 SECTION_ADVANCED: {CONF_IS_SOURCE: False, CONF_IS_SINK: False},
             },
         },
@@ -130,7 +130,7 @@ async def test_create_network_add_failure_is_wrapped(hass: HomeAssistant, monkey
         {
             "node": {
                 CONF_ELEMENT_TYPE: "node",
-                SECTION_BASIC: {CONF_NAME: "node"},
+                SECTION_DETAILS: {CONF_NAME: "node"},
                 SECTION_ADVANCED: {CONF_IS_SOURCE: False, CONF_IS_SINK: False},
             },
         },

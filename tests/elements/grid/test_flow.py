@@ -18,7 +18,7 @@ from custom_components.haeo.elements.grid import (
     CONF_IMPORT_LIMIT,
     CONF_IMPORT_PRICE,
     ELEMENT_TYPE,
-    SECTION_BASIC,
+    SECTION_DETAILS,
     SECTION_LIMITS,
     SECTION_PRICING,
 )
@@ -28,7 +28,7 @@ from ..conftest import add_participant, create_flow
 
 def _wrap_input(flat: dict[str, Any]) -> dict[str, Any]:
     """Wrap flat grid input values into sectioned config."""
-    if SECTION_BASIC in flat:
+    if SECTION_DETAILS in flat:
         return dict(flat)
     basic = {
         CONF_NAME: flat[CONF_NAME],
@@ -40,7 +40,7 @@ def _wrap_input(flat: dict[str, Any]) -> dict[str, Any]:
     }
     limits = {key: flat[key] for key in (CONF_IMPORT_LIMIT, CONF_EXPORT_LIMIT) if key in flat}
     return {
-        SECTION_BASIC: basic,
+        SECTION_DETAILS: basic,
         SECTION_PRICING: pricing,
         SECTION_LIMITS: limits,
     }
@@ -48,7 +48,7 @@ def _wrap_input(flat: dict[str, Any]) -> dict[str, Any]:
 
 def _wrap_config(flat: dict[str, Any]) -> dict[str, Any]:
     """Wrap flat grid config values into sectioned config with element type."""
-    if SECTION_BASIC in flat:
+    if SECTION_DETAILS in flat:
         return {CONF_ELEMENT_TYPE: ELEMENT_TYPE, **flat}
     return {CONF_ELEMENT_TYPE: ELEMENT_TYPE, **_wrap_input(flat)}
 

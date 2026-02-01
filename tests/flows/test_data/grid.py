@@ -7,7 +7,7 @@ from custom_components.haeo.elements.grid import (
     CONF_EXPORT_PRICE,
     CONF_IMPORT_LIMIT,
     CONF_IMPORT_PRICE,
-    SECTION_BASIC,
+    SECTION_DETAILS,
     SECTION_LIMITS,
     SECTION_PRICING,
 )
@@ -18,7 +18,7 @@ VALID_DATA = [
     {
         "description": "Basic grid with all constant values",
         "config": {
-            SECTION_BASIC: {
+            SECTION_DETAILS: {
                 CONF_NAME: "Test Grid",
                 CONF_CONNECTION: "main_bus",
             },

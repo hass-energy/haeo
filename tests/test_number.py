@@ -17,7 +17,7 @@ from custom_components.haeo.elements.grid import (
     CONF_EXPORT_PRICE,
     CONF_IMPORT_LIMIT,
     CONF_IMPORT_PRICE,
-    SECTION_BASIC,
+    SECTION_DETAILS,
     SECTION_LIMITS,
     SECTION_PRICING,
 )
@@ -83,7 +83,7 @@ def _add_subentry(
         if data.get("export_limit") is not None:
             limits[CONF_EXPORT_LIMIT] = data.get("export_limit")
         payload |= {
-            SECTION_BASIC: {
+            SECTION_DETAILS: {
                 CONF_NAME: title,
                 CONF_CONNECTION: data.get("connection", "Switchboard"),
             },

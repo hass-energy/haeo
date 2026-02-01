@@ -10,12 +10,20 @@ from custom_components.haeo.sections import (
     CONF_CONNECTION,
     CONF_INITIAL_CHARGE_PERCENTAGE,
     SECTION_ADVANCED,
-    SECTION_BASIC,
+    SECTION_DETAILS,
     SECTION_LIMITS,
     SECTION_PRICING,
     SECTION_STORAGE,
-    BasicNameConnectionConfig,
-    BasicNameConnectionData,
+    AdvancedConfig,
+    AdvancedData,
+    DetailsConfig,
+    DetailsData,
+    LimitsConfig,
+    LimitsData,
+    PricingConfig,
+    PricingData,
+    StorageConfig,
+    StorageData,
 )
 
 ELEMENT_TYPE: Final = "battery"
@@ -60,66 +68,6 @@ PARTITION_FIELD_NAMES: Final[frozenset[str]] = frozenset(
 )
 
 
-class BatteryStorageConfig(TypedDict):
-    """Storage configuration for battery elements."""
-
-    capacity: str | float
-    initial_charge_percentage: str | float
-
-
-class BatteryStorageData(TypedDict):
-    """Loaded storage values for battery elements."""
-
-    capacity: NDArray[np.floating[Any]] | float
-    initial_charge_percentage: NDArray[np.floating[Any]] | float
-
-
-class BatteryLimitsConfig(TypedDict, total=False):
-    """Limit configuration for battery elements."""
-
-    min_charge_percentage: str | float
-    max_charge_percentage: str | float
-    max_charge_power: str | float
-    max_discharge_power: str | float
-
-
-class BatteryLimitsData(TypedDict, total=False):
-    """Loaded limit values for battery elements."""
-
-    min_charge_percentage: NDArray[np.floating[Any]] | float
-    max_charge_percentage: NDArray[np.floating[Any]] | float
-    max_charge_power: NDArray[np.floating[Any]] | float
-    max_discharge_power: NDArray[np.floating[Any]] | float
-
-
-class BatteryPricingConfig(TypedDict, total=False):
-    """Pricing configuration for battery elements."""
-
-    early_charge_incentive: str | float
-    discharge_cost: list[str] | str | float
-
-
-class BatteryPricingData(TypedDict, total=False):
-    """Loaded pricing values for battery elements."""
-
-    early_charge_incentive: NDArray[np.floating[Any]] | float
-    discharge_cost: NDArray[np.floating[Any]] | float
-
-
-class BatteryAdvancedConfig(TypedDict, total=False):
-    """Advanced configuration for battery elements."""
-
-    efficiency: str | float
-    configure_partitions: bool
-
-
-class BatteryAdvancedData(TypedDict, total=False):
-    """Loaded advanced values for battery elements."""
-
-    efficiency: NDArray[np.floating[Any]] | float
-    configure_partitions: bool
-
-
 type PartitionPercentageConfig = str | float
 type PartitionCostConfig = list[str] | str | float
 
@@ -145,11 +93,11 @@ class BatteryConfigSchema(TypedDict):
     """Battery element configuration as stored in Home Assistant."""
 
     element_type: Literal["battery"]
-    basic: BasicNameConnectionConfig
-    storage: BatteryStorageConfig
-    limits: BatteryLimitsConfig
-    pricing: BatteryPricingConfig
-    advanced: BatteryAdvancedConfig
+    basic: DetailsConfig
+    storage: StorageConfig
+    limits: LimitsConfig
+    pricing: PricingConfig
+    advanced: AdvancedConfig
     undercharge: NotRequired[PartitionConfig]
     overcharge: NotRequired[PartitionConfig]
 
@@ -158,11 +106,11 @@ class BatteryConfigData(TypedDict):
     """Battery element configuration with loaded values."""
 
     element_type: Literal["battery"]
-    basic: BasicNameConnectionData
-    storage: BatteryStorageData
-    limits: BatteryLimitsData
-    pricing: BatteryPricingData
-    advanced: BatteryAdvancedData
+    basic: DetailsData
+    storage: StorageData
+    limits: LimitsData
+    pricing: PricingData
+    advanced: AdvancedData
     undercharge: NotRequired[PartitionData]
     overcharge: NotRequired[PartitionData]
 
@@ -185,7 +133,7 @@ __all__ = [
     "OPTIONAL_INPUT_FIELDS",
     "PARTITION_FIELD_NAMES",
     "SECTION_ADVANCED",
-    "SECTION_BASIC",
+    "SECTION_DETAILS",
     "SECTION_LIMITS",
     "SECTION_OVERCHARGE",
     "SECTION_PRICING",

@@ -23,8 +23,8 @@ from custom_components.haeo.sections import (
     CONF_CONNECTION,
     CONF_FORECAST,
     SECTION_ADVANCED,
-    SECTION_BASIC,
-    SECTION_INPUTS,
+    SECTION_DETAILS,
+    SECTION_FORECAST,
     SECTION_PRICING,
 )
 
@@ -59,13 +59,13 @@ class SolarAdapter:
     def available(self, config: SolarConfigSchema, *, hass: HomeAssistant, **_kwargs: Any) -> bool:
         """Check if solar configuration can be loaded."""
         ts_loader = TimeSeriesLoader()
-        return ts_loader.available(hass=hass, value=config[SECTION_INPUTS][CONF_FORECAST])
+        return ts_loader.available(hass=hass, value=config[SECTION_FORECAST][CONF_FORECAST])
 
     def inputs(self, config: Any) -> dict[str, dict[str, InputFieldInfo[Any]]]:
         """Return input field definitions for solar elements."""
         _ = config
         return {
-            SECTION_INPUTS: {
+            SECTION_FORECAST: {
                 CONF_FORECAST: InputFieldInfo(
                     field_name=CONF_FORECAST,
                     entity_description=NumberEntityDescription(
@@ -117,19 +117,19 @@ class SolarAdapter:
         return [
             {
                 "element_type": MODEL_ELEMENT_TYPE_NODE,
-                "name": config[SECTION_BASIC]["name"],
+                "name": config[SECTION_DETAILS]["name"],
                 "is_source": True,
                 "is_sink": False,
             },
             {
                 "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
-                "name": f"{config[SECTION_BASIC]['name']}:connection",
-                "source": config[SECTION_BASIC]["name"],
-                "target": config[SECTION_BASIC][CONF_CONNECTION],
+                "name": f"{config[SECTION_DETAILS]['name']}:connection",
+                "source": config[SECTION_DETAILS]["name"],
+                "target": config[SECTION_DETAILS][CONF_CONNECTION],
                 "segments": {
                     "power_limit": {
                         "segment_type": "power_limit",
-                        "max_power_source_target": config[SECTION_INPUTS][CONF_FORECAST],
+                        "max_power_source_target": config[SECTION_FORECAST][CONF_FORECAST],
                         "max_power_target_source": 0.0,
                         "fixed": not config[SECTION_ADVANCED].get(CONF_CURTAILMENT, True),
                     },

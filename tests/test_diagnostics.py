@@ -58,7 +58,7 @@ from custom_components.haeo.flows import HUB_SECTION_BASIC, HUB_SECTION_TIERS
 from custom_components.haeo.model import OutputType
 from custom_components.haeo.sections import (
     SECTION_ADVANCED,
-    SECTION_BASIC,
+    SECTION_DETAILS,
     SECTION_LIMITS,
     SECTION_PRICING,
     SECTION_STORAGE,
@@ -99,7 +99,7 @@ def _battery_config(
 
     return {
         CONF_ELEMENT_TYPE: ELEMENT_TYPE_BATTERY,
-        SECTION_BASIC: {
+        SECTION_DETAILS: {
             CONF_NAME: name,
             CONF_CONNECTION: connection,
         },
@@ -120,7 +120,7 @@ def _grid_config(
     """Build a sectioned grid config dict for diagnostics tests."""
     return {
         CONF_ELEMENT_TYPE: "grid",
-        SECTION_BASIC: {
+        SECTION_DETAILS: {
             CONF_NAME: name,
             CONF_CONNECTION: connection,
         },
@@ -240,7 +240,7 @@ async def test_diagnostics_with_participants(hass: HomeAssistant) -> None:
     assert "Battery One" in participants
     battery_config = participants["Battery One"]
     assert battery_config[CONF_ELEMENT_TYPE] == ELEMENT_TYPE_BATTERY
-    assert battery_config[SECTION_BASIC][CONF_NAME] == "Battery One"
+    assert battery_config[SECTION_DETAILS][CONF_NAME] == "Battery One"
     assert battery_config[SECTION_STORAGE][CONF_CAPACITY] == "sensor.battery_capacity"
     assert battery_config[SECTION_STORAGE][CONF_INITIAL_CHARGE_PERCENTAGE] == "sensor.battery_soc"
 

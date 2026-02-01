@@ -14,7 +14,7 @@ from custom_components.haeo.elements.battery_section import (
     CONF_CAPACITY,
     CONF_INITIAL_CHARGE,
     ELEMENT_TYPE,
-    SECTION_BASIC,
+    SECTION_DETAILS,
     SECTION_STORAGE,
 )
 
@@ -23,10 +23,10 @@ from ..conftest import create_flow
 
 def _wrap_input(flat: dict[str, Any]) -> dict[str, Any]:
     """Wrap flat battery section input values into sectioned config."""
-    if SECTION_BASIC in flat:
+    if SECTION_DETAILS in flat:
         return dict(flat)
     return {
-        SECTION_BASIC: {CONF_NAME: flat[CONF_NAME]},
+        SECTION_DETAILS: {CONF_NAME: flat[CONF_NAME]},
         SECTION_STORAGE: {
             CONF_CAPACITY: flat[CONF_CAPACITY],
             CONF_INITIAL_CHARGE: flat[CONF_INITIAL_CHARGE],
@@ -36,7 +36,7 @@ def _wrap_input(flat: dict[str, Any]) -> dict[str, Any]:
 
 def _wrap_config(flat: dict[str, Any]) -> dict[str, Any]:
     """Wrap flat battery section config values into sectioned config with element type."""
-    if SECTION_BASIC in flat:
+    if SECTION_DETAILS in flat:
         return {CONF_ELEMENT_TYPE: ELEMENT_TYPE, **flat}
     return {CONF_ELEMENT_TYPE: ELEMENT_TYPE, **_wrap_input(flat)}
 
@@ -178,7 +178,7 @@ async def test_reconfigure_with_missing_field_shows_none_default(hass: HomeAssis
     # Create existing entry with only some fields (simulating optional field not set)
     existing_config = {
         CONF_ELEMENT_TYPE: ELEMENT_TYPE,
-        SECTION_BASIC: {CONF_NAME: "Test Battery Section"},
+        SECTION_DETAILS: {CONF_NAME: "Test Battery Section"},
         SECTION_STORAGE: {
             CONF_CAPACITY: 10.0,  # Only capacity set
             # CONF_INITIAL_CHARGE intentionally missing to test else branch

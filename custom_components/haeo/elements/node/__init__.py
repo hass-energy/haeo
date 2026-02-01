@@ -16,7 +16,7 @@ from .schema import (
     ELEMENT_TYPE,
     OPTIONAL_INPUT_FIELDS,
     SECTION_ADVANCED,
-    SECTION_BASIC,
+    SECTION_DETAILS,
     NodeConfigData,
     NodeConfigSchema,
 )
@@ -31,7 +31,7 @@ __all__ = [
     "NODE_POWER_BALANCE",
     "OPTIONAL_INPUT_FIELDS",
     "SECTION_ADVANCED",
-    "SECTION_BASIC",
+    "SECTION_DETAILS",
     "NodeAdapter",
     "NodeConfigData",
     "NodeConfigSchema",

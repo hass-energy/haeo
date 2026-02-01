@@ -4,7 +4,7 @@ from custom_components.haeo.const import CONF_NAME
 from custom_components.haeo.elements.battery_section import (
     CONF_CAPACITY,
     CONF_INITIAL_CHARGE,
-    SECTION_BASIC,
+    SECTION_DETAILS,
     SECTION_STORAGE,
 )
 
@@ -14,7 +14,7 @@ VALID_DATA = [
     {
         "description": "Battery section with sensor entities",
         "config": {
-            SECTION_BASIC: {
+            SECTION_DETAILS: {
                 CONF_NAME: "Test Section",
             },
             SECTION_STORAGE: {
@@ -26,7 +26,7 @@ VALID_DATA = [
     {
         "description": "Battery section with constant values",
         "config": {
-            SECTION_BASIC: {
+            SECTION_DETAILS: {
                 CONF_NAME: "Constant Section",
             },
             SECTION_STORAGE: {

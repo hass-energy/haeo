@@ -181,8 +181,8 @@ def _migrate_subentry_data(subentry: ConfigSubentry) -> dict[str, Any] | None:
         CONF_INITIAL_CHARGE,
         CONF_INITIAL_CHARGE_PERCENTAGE,
         SECTION_ADVANCED,
-        SECTION_BASIC,
-        SECTION_INPUTS,
+        SECTION_DETAILS,
+        SECTION_FORECAST,
         SECTION_LIMITS,
         SECTION_PRICING,
         SECTION_STORAGE,
@@ -206,7 +206,7 @@ def _migrate_subentry_data(subentry: ConfigSubentry) -> dict[str, Any] | None:
     migrated: dict[str, Any] = {CONF_ELEMENT_TYPE: element_type}
 
     if element_type == battery.ELEMENT_TYPE:
-        basic: dict[str, Any] = {}
+        details: dict[str, Any] = {}
         storage: dict[str, Any] = {}
         limits: dict[str, Any] = {}
         pricing: dict[str, Any] = {}
@@ -215,7 +215,7 @@ def _migrate_subentry_data(subentry: ConfigSubentry) -> dict[str, Any] | None:
         overcharge: dict[str, Any] = {}
 
         for key in (CONF_NAME, CONF_CONNECTION):
-            add_if_present(basic, key)
+            add_if_present(details, key)
         for key in (CONF_CAPACITY, CONF_INITIAL_CHARGE_PERCENTAGE):
             add_if_present(storage, key)
         for key in (
@@ -235,7 +235,7 @@ def _migrate_subentry_data(subentry: ConfigSubentry) -> dict[str, Any] | None:
             overcharge.update(data[battery.SECTION_OVERCHARGE])
 
         migrated |= {
-            SECTION_BASIC: basic,
+            SECTION_DETAILS: details,
             SECTION_STORAGE: storage,
             SECTION_LIMITS: limits,
             SECTION_PRICING: pricing,
@@ -246,24 +246,24 @@ def _migrate_subentry_data(subentry: ConfigSubentry) -> dict[str, Any] | None:
         return migrated
 
     if element_type == battery_section.ELEMENT_TYPE:
-        basic: dict[str, Any] = {}
+        details: dict[str, Any] = {}
         storage: dict[str, Any] = {}
-        add_if_present(basic, CONF_NAME)
+        add_if_present(details, CONF_NAME)
         add_if_present(storage, CONF_CAPACITY)
         add_if_present(storage, CONF_INITIAL_CHARGE)
         migrated |= {
-            SECTION_BASIC: basic,
+            SECTION_DETAILS: details,
             SECTION_STORAGE: storage,
         }
         return migrated
 
     if element_type == connection.ELEMENT_TYPE:
-        basic: dict[str, Any] = {}
+        details: dict[str, Any] = {}
         endpoints: dict[str, Any] = {}
         limits: dict[str, Any] = {}
         pricing: dict[str, Any] = {}
         advanced: dict[str, Any] = {}
-        add_if_present(basic, CONF_NAME)
+        add_if_present(details, CONF_NAME)
         for key in (connection.CONF_SOURCE, connection.CONF_TARGET):
             add_if_present(endpoints, key)
         for key in (connection.CONF_MAX_POWER_SOURCE_TARGET, connection.CONF_MAX_POWER_TARGET_SOURCE):
@@ -273,7 +273,7 @@ def _migrate_subentry_data(subentry: ConfigSubentry) -> dict[str, Any] | None:
         for key in (connection.CONF_EFFICIENCY_SOURCE_TARGET, connection.CONF_EFFICIENCY_TARGET_SOURCE):
             add_if_present(advanced, key)
         migrated |= {
-            SECTION_BASIC: basic,
+            SECTION_DETAILS: details,
             connection.SECTION_ENDPOINTS: endpoints,
             SECTION_LIMITS: limits,
             SECTION_PRICING: pricing,
@@ -282,76 +282,76 @@ def _migrate_subentry_data(subentry: ConfigSubentry) -> dict[str, Any] | None:
         return migrated
 
     if element_type == grid.ELEMENT_TYPE:
-        basic: dict[str, Any] = {}
+        details: dict[str, Any] = {}
         pricing: dict[str, Any] = {}
         limits: dict[str, Any] = {}
         for key in (CONF_NAME, CONF_CONNECTION):
-            add_if_present(basic, key)
+            add_if_present(details, key)
         for key in (grid.CONF_IMPORT_PRICE, grid.CONF_EXPORT_PRICE):
             add_if_present(pricing, key)
         for key in (grid.CONF_IMPORT_LIMIT, grid.CONF_EXPORT_LIMIT):
             add_if_present(limits, key)
         migrated |= {
-            SECTION_BASIC: basic,
+            SECTION_DETAILS: details,
             SECTION_PRICING: pricing,
             SECTION_LIMITS: limits,
         }
         return migrated
 
     if element_type == inverter.ELEMENT_TYPE:
-        basic: dict[str, Any] = {}
+        details: dict[str, Any] = {}
         limits: dict[str, Any] = {}
         advanced: dict[str, Any] = {}
         for key in (CONF_NAME, CONF_CONNECTION):
-            add_if_present(basic, key)
+            add_if_present(details, key)
         for key in (inverter.CONF_MAX_POWER_DC_TO_AC, inverter.CONF_MAX_POWER_AC_TO_DC):
             add_if_present(limits, key)
         for key in (inverter.CONF_EFFICIENCY_DC_TO_AC, inverter.CONF_EFFICIENCY_AC_TO_DC):
             add_if_present(advanced, key)
         migrated |= {
-            SECTION_BASIC: basic,
+            SECTION_DETAILS: details,
             SECTION_LIMITS: limits,
             SECTION_ADVANCED: advanced,
         }
         return migrated
 
     if element_type == load.ELEMENT_TYPE:
-        basic: dict[str, Any] = {}
-        inputs: dict[str, Any] = {}
+        details: dict[str, Any] = {}
+        forecast: dict[str, Any] = {}
         for key in (CONF_NAME, CONF_CONNECTION):
-            add_if_present(basic, key)
-        add_if_present(inputs, CONF_FORECAST)
+            add_if_present(details, key)
+        add_if_present(forecast, CONF_FORECAST)
         migrated |= {
-            SECTION_BASIC: basic,
-            SECTION_INPUTS: inputs,
+            SECTION_DETAILS: details,
+            SECTION_FORECAST: forecast,
         }
         return migrated
 
     if element_type == node.ELEMENT_TYPE:
-        basic: dict[str, Any] = {}
+        details: dict[str, Any] = {}
         advanced: dict[str, Any] = {}
-        add_if_present(basic, CONF_NAME)
+        add_if_present(details, CONF_NAME)
         for key in (node.CONF_IS_SOURCE, node.CONF_IS_SINK):
             add_if_present(advanced, key)
         migrated |= {
-            SECTION_BASIC: basic,
+            SECTION_DETAILS: details,
             SECTION_ADVANCED: advanced,
         }
         return migrated
 
     if element_type == solar.ELEMENT_TYPE:
-        basic: dict[str, Any] = {}
-        inputs: dict[str, Any] = {}
+        details: dict[str, Any] = {}
+        forecast: dict[str, Any] = {}
         pricing: dict[str, Any] = {}
         advanced: dict[str, Any] = {}
         for key in (CONF_NAME, CONF_CONNECTION):
-            add_if_present(basic, key)
-        add_if_present(inputs, CONF_FORECAST)
+            add_if_present(details, key)
+        add_if_present(forecast, CONF_FORECAST)
         add_if_present(pricing, solar.CONF_PRICE_PRODUCTION)
         add_if_present(advanced, solar.CONF_CURTAILMENT)
         migrated |= {
-            SECTION_BASIC: basic,
-            SECTION_INPUTS: inputs,
+            SECTION_DETAILS: details,
+            SECTION_FORECAST: forecast,
             SECTION_PRICING: pricing,
             SECTION_ADVANCED: advanced,
         }
@@ -422,7 +422,7 @@ async def _ensure_required_subentries(hass: HomeAssistant, hub_entry: ConfigEntr
         CONF_IS_SINK,
         CONF_IS_SOURCE,
         SECTION_ADVANCED,
-        SECTION_BASIC,
+        SECTION_DETAILS,
     )
 
     # Check if Network subentry already exists
@@ -463,7 +463,7 @@ async def _ensure_required_subentries(hass: HomeAssistant, hub_entry: ConfigEntr
             data=MappingProxyType(
                 {
                     CONF_ELEMENT_TYPE: ELEMENT_TYPE_NODE,
-                    SECTION_BASIC: {CONF_NAME: switchboard_name},
+                    SECTION_DETAILS: {CONF_NAME: switchboard_name},
                     SECTION_ADVANCED: {
                         CONF_IS_SOURCE: False,
                         CONF_IS_SINK: False,

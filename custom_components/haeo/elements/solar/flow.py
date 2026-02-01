@@ -25,14 +25,13 @@ from custom_components.haeo.sections import (
     CONF_CONNECTION,
     CONF_FORECAST,
     SECTION_ADVANCED,
-    SECTION_BASIC,
-    SECTION_INPUTS,
+    SECTION_DETAILS,
+    SECTION_FORECAST,
     SECTION_PRICING,
     advanced_section,
-    basic_section,
-    build_connection_field,
-    build_name_field,
-    inputs_section,
+    build_details_fields,
+    details_section,
+    forecast_section,
     pricing_section,
 )
 
@@ -46,8 +45,8 @@ class SolarSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
     def _get_sections(self) -> tuple[SectionDefinition, ...]:
         """Return sections for the configuration step."""
         return (
-            basic_section((CONF_NAME, CONF_CONNECTION), collapsed=False),
-            inputs_section((CONF_FORECAST,), collapsed=False),
+            details_section((CONF_NAME, CONF_CONNECTION), collapsed=False),
+            forecast_section((CONF_FORECAST,), collapsed=False),
             pricing_section((CONF_PRICE_PRODUCTION,), collapsed=False),
             advanced_section((CONF_CURTAILMENT,), collapsed=True),
         )
@@ -65,7 +64,7 @@ class SolarSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         subentry = self._get_subentry()
         subentry_data = dict(subentry.data) if subentry else None
         participants = self._get_participant_names()
-        current_connection = subentry_data.get(SECTION_BASIC, {}).get(CONF_CONNECTION) if subentry_data else None
+        current_connection = subentry_data.get(SECTION_DETAILS, {}).get(CONF_CONNECTION) if subentry_data else None
 
         if (
             subentry_data is not None
@@ -82,11 +81,11 @@ class SolarSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                 current_connection = participants[0] if participants else ""
             element_config: SolarConfigSchema = {
                 CONF_ELEMENT_TYPE: ELEMENT_TYPE,
-                SECTION_BASIC: {
+                SECTION_DETAILS: {
                     CONF_NAME: default_name,
                     CONF_CONNECTION: current_connection,
                 },
-                SECTION_INPUTS: {
+                SECTION_FORECAST: {
                     CONF_FORECAST: 0.0,
                 },
                 SECTION_PRICING: {
@@ -142,10 +141,11 @@ class SolarSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         """Build the schema with name, connection, and choose selectors for inputs."""
         sections = self._get_sections()
         field_entries: dict[str, dict[str, tuple[vol.Marker, Any]]] = {
-            SECTION_BASIC: {
-                CONF_NAME: build_name_field(),
-                CONF_CONNECTION: build_connection_field(participants, current_connection),
-            },
+            SECTION_DETAILS: build_details_fields(
+                include_connection=True,
+                participants=participants,
+                current_connection=current_connection,
+            ),
         }
 
         for section_def in sections:
@@ -169,13 +169,13 @@ class SolarSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         subentry_data: Mapping[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Build default values for the form."""
-        basic_data = subentry_data.get(SECTION_BASIC, {}) if subentry_data else {}
+        basic_data = subentry_data.get(SECTION_DETAILS, {}) if subentry_data else {}
         defaults: dict[str, Any] = {
-            SECTION_BASIC: {
+            SECTION_DETAILS: {
                 CONF_NAME: default_name if subentry_data is None else basic_data.get(CONF_NAME),
                 CONF_CONNECTION: basic_data.get(CONF_CONNECTION) if subentry_data else None,
             },
-            SECTION_INPUTS: {},
+            SECTION_FORECAST: {},
             SECTION_PRICING: {},
             SECTION_ADVANCED: {},
         }
@@ -201,7 +201,7 @@ class SolarSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         if user_input is None:
             return None
         errors: dict[str, str] = {}
-        basic_input = user_input.get(SECTION_BASIC, {})
+        basic_input = user_input.get(SECTION_DETAILS, {})
         self._validate_name(basic_input.get(CONF_NAME), errors)
         errors.update(
             validate_sectioned_choose_fields(
@@ -229,7 +229,7 @@ class SolarSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
 
     def _finalize(self, config: dict[str, Any], user_input: dict[str, Any]) -> SubentryFlowResult:
         """Finalize the flow by creating or updating the entry."""
-        name = str(user_input.get(SECTION_BASIC, {}).get(CONF_NAME))
+        name = str(user_input.get(SECTION_DETAILS, {}).get(CONF_NAME))
         subentry = self._get_subentry()
         if subentry is not None:
             return self.async_update_and_abort(self._get_entry(), subentry, title=name, data=config)

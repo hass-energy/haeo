@@ -15,8 +15,8 @@ from custom_components.haeo.elements.load import (
     CONF_CONNECTION,
     CONF_FORECAST,
     ELEMENT_TYPE,
-    SECTION_BASIC,
-    SECTION_INPUTS,
+    SECTION_DETAILS,
+    SECTION_FORECAST,
 )
 
 from ..conftest import add_participant, create_flow
@@ -24,14 +24,14 @@ from ..conftest import add_participant, create_flow
 
 def _wrap_input(flat: dict[str, Any]) -> dict[str, Any]:
     """Wrap flat load input values into sectioned config."""
-    if SECTION_BASIC in flat:
+    if SECTION_DETAILS in flat:
         return dict(flat)
     return {
-        SECTION_BASIC: {
+        SECTION_DETAILS: {
             CONF_NAME: flat[CONF_NAME],
             CONF_CONNECTION: flat[CONF_CONNECTION],
         },
-        SECTION_INPUTS: {
+        SECTION_FORECAST: {
             CONF_FORECAST: flat[CONF_FORECAST],
         },
     }
@@ -39,7 +39,7 @@ def _wrap_input(flat: dict[str, Any]) -> dict[str, Any]:
 
 def _wrap_config(flat: dict[str, Any]) -> dict[str, Any]:
     """Wrap flat load config values into sectioned config with element type."""
-    if SECTION_BASIC in flat:
+    if SECTION_DETAILS in flat:
         return {CONF_ELEMENT_TYPE: ELEMENT_TYPE, **flat}
     return {CONF_ELEMENT_TYPE: ELEMENT_TYPE, **_wrap_input(flat)}
 
@@ -142,7 +142,7 @@ async def test_reconfigure_with_string_entity_id_v010_format(hass: HomeAssistant
     defaults = flow._build_defaults("Test Load", dict(existing_subentry.data))
 
     # Defaults should contain entity choice with original entity ID as list
-    assert defaults[SECTION_INPUTS][CONF_FORECAST] == ["sensor.load_forecast"]
+    assert defaults[SECTION_FORECAST][CONF_FORECAST] == ["sensor.load_forecast"]
 
 
 async def test_reconfigure_with_scalar_shows_constant_defaults(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
@@ -173,7 +173,7 @@ async def test_reconfigure_with_scalar_shows_constant_defaults(hass: HomeAssista
     defaults = flow._build_defaults("Test Load", dict(existing_subentry.data))
 
     # Defaults should contain constant choice with the scalar value
-    assert defaults[SECTION_INPUTS][CONF_FORECAST] == 100.0
+    assert defaults[SECTION_FORECAST][CONF_FORECAST] == 100.0
 
 
 async def test_reconfigure_with_missing_field_shows_none_default(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
@@ -183,11 +183,11 @@ async def test_reconfigure_with_missing_field_shows_none_default(hass: HomeAssis
     # Create existing entry without forecast field (simulating missing optional field)
     existing_config = {
         CONF_ELEMENT_TYPE: ELEMENT_TYPE,
-        SECTION_BASIC: {
+        SECTION_DETAILS: {
             CONF_NAME: "Test Load",
             CONF_CONNECTION: "TestNode",
         },
-        SECTION_INPUTS: {},
+        SECTION_FORECAST: {},
     }
     existing_subentry = ConfigSubentry(
         data=MappingProxyType(existing_config),
@@ -205,7 +205,7 @@ async def test_reconfigure_with_missing_field_shows_none_default(hass: HomeAssis
     defaults = flow._build_defaults("Test Load", dict(existing_subentry.data))
 
     # Missing field should result in None default
-    assert defaults.get(SECTION_INPUTS, {}).get(CONF_FORECAST) is None
+    assert defaults.get(SECTION_FORECAST, {}).get(CONF_FORECAST) is None
 
 
 async def test_user_step_with_entity_creates_entry(
@@ -238,7 +238,7 @@ async def test_user_step_with_entity_creates_entry(
 
     # Verify the config contains the entity ID as string
     create_kwargs = flow.async_create_entry.call_args.kwargs
-    assert create_kwargs["data"][SECTION_INPUTS][CONF_FORECAST] == "sensor.load_forecast"
+    assert create_kwargs["data"][SECTION_FORECAST][CONF_FORECAST] == "sensor.load_forecast"
 
 
 async def test_user_step_with_constant_creates_entry(
@@ -271,7 +271,7 @@ async def test_user_step_with_constant_creates_entry(
 
     # Verify the config contains the constant value
     create_kwargs = flow.async_create_entry.call_args.kwargs
-    assert create_kwargs["data"][SECTION_INPUTS][CONF_FORECAST] == 5.0
+    assert create_kwargs["data"][SECTION_FORECAST][CONF_FORECAST] == 5.0
 
 
 async def test_user_step_empty_required_field_shows_error(

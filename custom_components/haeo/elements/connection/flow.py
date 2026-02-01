@@ -27,12 +27,12 @@ from custom_components.haeo.flows.field_schema import (
 )
 from custom_components.haeo.sections import (
     SECTION_ADVANCED,
-    SECTION_BASIC,
+    SECTION_DETAILS,
     SECTION_LIMITS,
     SECTION_PRICING,
     advanced_section,
-    basic_section,
-    build_name_field,
+    build_details_fields,
+    details_section,
     limits_section,
     pricing_section,
 )
@@ -78,7 +78,7 @@ class ConnectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
     def _get_sections(self) -> tuple[SectionDefinition, ...]:
         """Return sections for the configuration step."""
         return (
-            basic_section((CONF_NAME,), collapsed=False),
+            details_section((CONF_NAME,), collapsed=False),
             SectionDefinition(key=SECTION_ENDPOINTS, fields=(CONF_SOURCE, CONF_TARGET), collapsed=False),
             limits_section((CONF_MAX_POWER_SOURCE_TARGET, CONF_MAX_POWER_TARGET_SOURCE), collapsed=False),
             pricing_section((CONF_PRICE_SOURCE_TARGET, CONF_PRICE_TARGET_SOURCE), collapsed=False),
@@ -118,7 +118,7 @@ class ConnectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                 current_target = participants[min(1, len(participants) - 1)] if participants else ""
             element_config: ConnectionConfigSchema = {
                 CONF_ELEMENT_TYPE: ELEMENT_TYPE,
-                SECTION_BASIC: {
+                SECTION_DETAILS: {
                     CONF_NAME: default_name,
                 },
                 SECTION_ENDPOINTS: {
@@ -179,9 +179,7 @@ class ConnectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         """Build the schema with name, source, target, and choose selectors for inputs."""
         sections = self._get_sections()
         field_entries: dict[str, dict[str, tuple[vol.Marker, Any]]] = {
-            SECTION_BASIC: {
-                CONF_NAME: build_name_field(),
-            },
+            SECTION_DETAILS: build_details_fields(include_connection=False),
             SECTION_ENDPOINTS: _build_endpoints_fields(participants, current_source, current_target),
         }
 
@@ -202,10 +200,10 @@ class ConnectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
 
     def _build_defaults(self, default_name: str, subentry_data: Mapping[str, Any] | None = None) -> dict[str, Any]:
         """Build default values for the form."""
-        basic_data = subentry_data.get(SECTION_BASIC, {}) if subentry_data else {}
+        basic_data = subentry_data.get(SECTION_DETAILS, {}) if subentry_data else {}
         endpoints_data = subentry_data.get(SECTION_ENDPOINTS, {}) if subentry_data else {}
         defaults: dict[str, Any] = {
-            SECTION_BASIC: {
+            SECTION_DETAILS: {
                 CONF_NAME: default_name if subentry_data is None else basic_data.get(CONF_NAME),
             },
             SECTION_ENDPOINTS: {
@@ -238,7 +236,7 @@ class ConnectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         if user_input is None:
             return None
         errors: dict[str, str] = {}
-        basic_input = user_input.get(SECTION_BASIC, {})
+        basic_input = user_input.get(SECTION_DETAILS, {})
         endpoints_input = user_input.get(SECTION_ENDPOINTS, {})
         self._validate_name(basic_input.get(CONF_NAME), errors)
         errors.update(
@@ -272,7 +270,7 @@ class ConnectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
 
     def _finalize(self, config: dict[str, Any], user_input: dict[str, Any]) -> SubentryFlowResult:
         """Finalize the flow by creating or updating the entry."""
-        name = str(user_input.get(SECTION_BASIC, {}).get(CONF_NAME))
+        name = str(user_input.get(SECTION_DETAILS, {}).get(CONF_NAME))
         subentry = self._get_subentry()
         if subentry is not None:
             return self.async_update_and_abort(self._get_entry(), subentry, title=name, data=config)

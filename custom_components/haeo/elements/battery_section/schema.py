@@ -5,18 +5,17 @@ Unlike the standard Battery element which creates multiple sections and an inter
 this element creates a single battery section that must be connected manually via Connection.
 """
 
-from typing import Any, Final, Literal, TypedDict
-
-import numpy as np
-from numpy.typing import NDArray
+from typing import Final, Literal, TypedDict
 
 from custom_components.haeo.sections import (
     CONF_CAPACITY,
     CONF_INITIAL_CHARGE,
-    SECTION_BASIC,
+    SECTION_DETAILS,
     SECTION_STORAGE,
-    BasicNameConfig,
-    BasicNameData,
+    DetailsConfig,
+    DetailsData,
+    StorageConfig,
+    StorageData,
 )
 
 ELEMENT_TYPE: Final = "battery_section"
@@ -24,34 +23,20 @@ ELEMENT_TYPE: Final = "battery_section"
 OPTIONAL_INPUT_FIELDS: Final[frozenset[str]] = frozenset()
 
 
-class BatterySectionStorageConfig(TypedDict):
-    """Storage configuration for battery section elements."""
-
-    capacity: str | float
-    initial_charge: str | float
-
-
-class BatterySectionStorageData(TypedDict):
-    """Loaded storage values for battery section elements."""
-
-    capacity: NDArray[np.floating[Any]] | float
-    initial_charge: NDArray[np.floating[Any]] | float
-
-
 class BatterySectionConfigSchema(TypedDict):
     """Battery section element configuration as stored in Home Assistant."""
 
     element_type: Literal["battery_section"]
-    basic: BasicNameConfig
-    storage: BatterySectionStorageConfig
+    basic: DetailsConfig
+    storage: StorageConfig
 
 
 class BatterySectionConfigData(TypedDict):
     """Battery section element configuration with loaded values."""
 
     element_type: Literal["battery_section"]
-    basic: BasicNameData
-    storage: BatterySectionStorageData
+    basic: DetailsData
+    storage: StorageData
 
 
 __all__ = [
@@ -59,7 +44,7 @@ __all__ = [
     "CONF_INITIAL_CHARGE",
     "ELEMENT_TYPE",
     "OPTIONAL_INPUT_FIELDS",
-    "SECTION_BASIC",
+    "SECTION_DETAILS",
     "SECTION_STORAGE",
     "BatterySectionConfigData",
     "BatterySectionConfigSchema",

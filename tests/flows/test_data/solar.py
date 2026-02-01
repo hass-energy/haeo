@@ -7,8 +7,8 @@ from custom_components.haeo.elements.solar import (
     CONF_FORECAST,
     CONF_PRICE_PRODUCTION,
     SECTION_ADVANCED,
-    SECTION_BASIC,
-    SECTION_INPUTS,
+    SECTION_DETAILS,
+    SECTION_FORECAST,
     SECTION_PRICING,
 )
 
@@ -19,11 +19,11 @@ VALID_DATA = [
     {
         "description": "Basic solar configuration with constant forecast",
         "config": {
-            SECTION_BASIC: {
+            SECTION_DETAILS: {
                 CONF_NAME: "Test Solar",
                 CONF_CONNECTION: "main_bus",
             },
-            SECTION_INPUTS: {
+            SECTION_FORECAST: {
                 CONF_FORECAST: 5.0,
             },
             SECTION_PRICING: {
@@ -37,11 +37,11 @@ VALID_DATA = [
     {
         "description": "Curtailable solar with production price",
         "config": {
-            SECTION_BASIC: {
+            SECTION_DETAILS: {
                 CONF_NAME: "Rooftop Solar",
                 CONF_CONNECTION: "main_bus",
             },
-            SECTION_INPUTS: {
+            SECTION_FORECAST: {
                 CONF_FORECAST: ["sensor.solar_power"],
             },
             SECTION_PRICING: {

@@ -18,7 +18,7 @@ from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION,
 from custom_components.haeo.model.elements.connection import CONNECTION_POWER_TARGET_SOURCE, CONNECTION_SEGMENTS
 from custom_components.haeo.model.elements.segments import POWER_LIMIT_TARGET_SOURCE
 from custom_components.haeo.model.output_data import OutputData
-from custom_components.haeo.sections import CONF_CONNECTION, CONF_FORECAST, SECTION_BASIC, SECTION_INPUTS
+from custom_components.haeo.sections import CONF_CONNECTION, CONF_FORECAST, SECTION_DETAILS, SECTION_FORECAST
 
 from .schema import ELEMENT_TYPE, LoadConfigData, LoadConfigSchema
 
@@ -53,13 +53,13 @@ class LoadAdapter:
     def available(self, config: LoadConfigSchema, *, hass: HomeAssistant, **_kwargs: Any) -> bool:
         """Check if load configuration can be loaded."""
         ts_loader = TimeSeriesLoader()
-        return ts_loader.available(hass=hass, value=config[SECTION_INPUTS][CONF_FORECAST])
+        return ts_loader.available(hass=hass, value=config[SECTION_FORECAST][CONF_FORECAST])
 
     def inputs(self, config: Any) -> dict[str, dict[str, InputFieldInfo[Any]]]:
         """Return input field definitions for load elements."""
         _ = config
         return {
-            SECTION_INPUTS: {
+            SECTION_FORECAST: {
                 CONF_FORECAST: InputFieldInfo(
                     field_name=CONF_FORECAST,
                     entity_description=NumberEntityDescription(
@@ -84,21 +84,21 @@ class LoadAdapter:
             # Create Node for the load (sink only - consumes power)
             {
                 "element_type": MODEL_ELEMENT_TYPE_NODE,
-                "name": config[SECTION_BASIC]["name"],
+                "name": config[SECTION_DETAILS]["name"],
                 "is_source": False,
                 "is_sink": True,
             },
             # Create Connection from node to load (power flows TO the load)
             {
                 "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
-                "name": f"{config[SECTION_BASIC]['name']}:connection",
-                "source": config[SECTION_BASIC]["name"],
-                "target": config[SECTION_BASIC][CONF_CONNECTION],
+                "name": f"{config[SECTION_DETAILS]['name']}:connection",
+                "source": config[SECTION_DETAILS]["name"],
+                "target": config[SECTION_DETAILS][CONF_CONNECTION],
                 "segments": {
                     "power_limit": {
                         "segment_type": "power_limit",
                         "max_power_source_target": 0.0,
-                        "max_power_target_source": config[SECTION_INPUTS][CONF_FORECAST],
+                        "max_power_target_source": config[SECTION_FORECAST][CONF_FORECAST],
                         "fixed": True,
                     }
                 },

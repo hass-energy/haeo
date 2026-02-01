@@ -23,7 +23,7 @@ from custom_components.haeo.model.elements.connection import (
 from custom_components.haeo.model.elements.node import NODE_POWER_BALANCE
 from custom_components.haeo.model.elements.segments import POWER_LIMIT_SOURCE_TARGET, POWER_LIMIT_TARGET_SOURCE
 from custom_components.haeo.model.output_data import OutputData
-from custom_components.haeo.sections import CONF_CONNECTION, SECTION_ADVANCED, SECTION_BASIC, SECTION_LIMITS
+from custom_components.haeo.sections import CONF_CONNECTION, SECTION_ADVANCED, SECTION_DETAILS, SECTION_LIMITS
 
 from .schema import (
     CONF_EFFICIENCY_AC_TO_DC,
@@ -155,7 +155,7 @@ class InverterAdapter:
             # Create Node for the DC bus (pure junction - neither source nor sink)
             {
                 "element_type": MODEL_ELEMENT_TYPE_NODE,
-                "name": config[SECTION_BASIC]["name"],
+                "name": config[SECTION_DETAILS]["name"],
                 "is_source": False,
                 "is_sink": False,
             },
@@ -164,9 +164,9 @@ class InverterAdapter:
             # target_source = AC to DC (rectifying)
             {
                 "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
-                "name": f"{config[SECTION_BASIC]['name']}:connection",
-                "source": config[SECTION_BASIC]["name"],
-                "target": config[SECTION_BASIC][CONF_CONNECTION],
+                "name": f"{config[SECTION_DETAILS]['name']}:connection",
+                "source": config[SECTION_DETAILS]["name"],
+                "target": config[SECTION_DETAILS][CONF_CONNECTION],
                 "segments": {
                     "efficiency": {
                         "segment_type": "efficiency",

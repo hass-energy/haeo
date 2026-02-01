@@ -18,8 +18,8 @@ from custom_components.haeo.elements.solar import (
     CONF_PRICE_PRODUCTION,
     ELEMENT_TYPE,
     SECTION_ADVANCED,
-    SECTION_BASIC,
-    SECTION_INPUTS,
+    SECTION_DETAILS,
+    SECTION_FORECAST,
     SECTION_PRICING,
 )
 
@@ -28,20 +28,20 @@ from ..conftest import add_participant, create_flow
 
 def _wrap_input(flat: dict[str, Any]) -> dict[str, Any]:
     """Wrap flat solar input values into sectioned config."""
-    if SECTION_BASIC in flat:
+    if SECTION_DETAILS in flat:
         return dict(flat)
     basic = {
         CONF_NAME: flat[CONF_NAME],
         CONF_CONNECTION: flat[CONF_CONNECTION],
     }
-    inputs = {
+    forecast = {
         CONF_FORECAST: flat[CONF_FORECAST],
     }
     pricing = {key: flat[key] for key in (CONF_PRICE_PRODUCTION,) if key in flat}
     advanced = {key: flat[key] for key in (CONF_CURTAILMENT,) if key in flat}
     return {
-        SECTION_BASIC: basic,
-        SECTION_INPUTS: inputs,
+        SECTION_DETAILS: basic,
+        SECTION_FORECAST: forecast,
         SECTION_PRICING: pricing,
         SECTION_ADVANCED: advanced,
     }
@@ -49,7 +49,7 @@ def _wrap_input(flat: dict[str, Any]) -> dict[str, Any]:
 
 def _wrap_config(flat: dict[str, Any]) -> dict[str, Any]:
     """Wrap flat solar config values into sectioned config with element type."""
-    if SECTION_BASIC in flat:
+    if SECTION_DETAILS in flat:
         return {CONF_ELEMENT_TYPE: ELEMENT_TYPE, **flat}
     return {CONF_ELEMENT_TYPE: ELEMENT_TYPE, **_wrap_input(flat)}
 
@@ -153,7 +153,7 @@ async def test_reconfigure_with_string_entity_id_v010_format(hass: HomeAssistant
     defaults = flow._build_defaults("Test Solar", dict(existing_subentry.data))
 
     # Defaults should contain entity choice with original entity ID as list
-    assert defaults[SECTION_INPUTS][CONF_FORECAST] == ["sensor.solar_forecast"]
+    assert defaults[SECTION_FORECAST][CONF_FORECAST] == ["sensor.solar_forecast"]
 
 
 async def test_reconfigure_with_scalar_shows_constant_defaults(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
@@ -184,7 +184,7 @@ async def test_reconfigure_with_scalar_shows_constant_defaults(hass: HomeAssista
     defaults = flow._build_defaults("Test Solar", dict(existing_subentry.data))
 
     # Defaults should contain constant choice with the scalar value
-    assert defaults[SECTION_INPUTS][CONF_FORECAST] == 100.0
+    assert defaults[SECTION_FORECAST][CONF_FORECAST] == 100.0
 
 
 async def test_user_step_with_entity_creates_entry(
@@ -220,7 +220,7 @@ async def test_user_step_with_entity_creates_entry(
 
     # Verify the config contains the entity ID as string
     create_kwargs = flow.async_create_entry.call_args.kwargs
-    assert create_kwargs["data"][SECTION_INPUTS][CONF_FORECAST] == "sensor.solar_forecast"
+    assert create_kwargs["data"][SECTION_FORECAST][CONF_FORECAST] == "sensor.solar_forecast"
 
 
 async def test_user_step_with_constant_creates_entry(
@@ -256,7 +256,7 @@ async def test_user_step_with_constant_creates_entry(
 
     # Verify the config contains the constant value
     create_kwargs = flow.async_create_entry.call_args.kwargs
-    assert create_kwargs["data"][SECTION_INPUTS][CONF_FORECAST] == 5.0
+    assert create_kwargs["data"][SECTION_FORECAST][CONF_FORECAST] == 5.0
 
 
 async def test_user_step_empty_required_field_shows_error(

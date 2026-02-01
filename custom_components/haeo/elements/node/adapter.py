@@ -13,7 +13,7 @@ from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_NODE
 from custom_components.haeo.model.elements.node import NODE_POWER_BALANCE
 from custom_components.haeo.model.output_data import OutputData
-from custom_components.haeo.sections import SECTION_ADVANCED, SECTION_BASIC
+from custom_components.haeo.sections import SECTION_ADVANCED, SECTION_DETAILS
 
 from .schema import CONF_IS_SINK, CONF_IS_SOURCE, ELEMENT_TYPE, NodeConfigData, NodeConfigSchema
 
@@ -77,7 +77,7 @@ class NodeAdapter:
         return [
             {
                 "element_type": MODEL_ELEMENT_TYPE_NODE,
-                "name": config[SECTION_BASIC]["name"],
+                "name": config[SECTION_DETAILS]["name"],
                 "is_source": config[SECTION_ADVANCED].get(CONF_IS_SOURCE, DEFAULT_IS_SOURCE),
                 "is_sink": config[SECTION_ADVANCED].get(CONF_IS_SINK, DEFAULT_IS_SINK),
             }

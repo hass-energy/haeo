@@ -18,7 +18,7 @@ from custom_components.haeo.elements.inverter import (
     CONF_MAX_POWER_DC_TO_AC,
     ELEMENT_TYPE,
     SECTION_ADVANCED,
-    SECTION_BASIC,
+    SECTION_DETAILS,
     SECTION_LIMITS,
 )
 
@@ -27,7 +27,7 @@ from ..conftest import add_participant, create_flow
 
 def _wrap_input(flat: dict[str, Any]) -> dict[str, Any]:
     """Wrap flat inverter input values into sectioned config."""
-    if SECTION_BASIC in flat:
+    if SECTION_DETAILS in flat:
         return dict(flat)
     basic = {
         CONF_NAME: flat[CONF_NAME],
@@ -38,7 +38,7 @@ def _wrap_input(flat: dict[str, Any]) -> dict[str, Any]:
         CONF_MAX_POWER_AC_TO_DC: flat[CONF_MAX_POWER_AC_TO_DC],
     }
     return {
-        SECTION_BASIC: basic,
+        SECTION_DETAILS: basic,
         SECTION_LIMITS: limits,
         SECTION_ADVANCED: {},
     }
@@ -46,7 +46,7 @@ def _wrap_input(flat: dict[str, Any]) -> dict[str, Any]:
 
 def _wrap_config(flat: dict[str, Any]) -> dict[str, Any]:
     """Wrap flat inverter config values into sectioned config with element type."""
-    if SECTION_BASIC in flat:
+    if SECTION_DETAILS in flat:
         return {CONF_ELEMENT_TYPE: ELEMENT_TYPE, **flat}
     return {CONF_ELEMENT_TYPE: ELEMENT_TYPE, **_wrap_input(flat)}
 

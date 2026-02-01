@@ -25,7 +25,7 @@ from custom_components.haeo.sections import (
     CONF_CONNECTION,
     CONF_INITIAL_CHARGE_PERCENTAGE,
     SECTION_ADVANCED,
-    SECTION_BASIC,
+    SECTION_DETAILS,
     SECTION_LIMITS,
     SECTION_PRICING,
     SECTION_STORAGE,
@@ -301,7 +301,7 @@ class BatteryAdapter:
 
         Creates a single battery element and a connection to the target.
         """
-        basic = config[SECTION_BASIC]
+        basic = config[SECTION_DETAILS]
         storage = config[SECTION_STORAGE]
         limits = config[SECTION_LIMITS]
         pricing = config[SECTION_PRICING]
