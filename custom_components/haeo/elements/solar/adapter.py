@@ -19,18 +19,16 @@ from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION,
 from custom_components.haeo.model.elements.connection import CONNECTION_POWER_SOURCE_TARGET, CONNECTION_SEGMENTS
 from custom_components.haeo.model.elements.segments import POWER_LIMIT_SOURCE_TARGET
 from custom_components.haeo.model.output_data import OutputData
-
-from .schema import (
+from custom_components.haeo.sections import (
     CONF_CONNECTION,
-    CONF_CURTAILMENT,
     CONF_FORECAST,
-    CONF_PRICE_PRODUCTION,
-    CONF_SECTION_ADVANCED,
-    CONF_SECTION_BASIC,
-    ELEMENT_TYPE,
-    SolarConfigData,
-    SolarConfigSchema,
+    SECTION_ADVANCED,
+    SECTION_BASIC,
+    SECTION_INPUTS,
+    SECTION_PRICING,
 )
+
+from .schema import CONF_CURTAILMENT, CONF_PRICE_PRODUCTION, ELEMENT_TYPE, SolarConfigData, SolarConfigSchema
 
 # Solar output names
 type SolarOutputName = Literal[
@@ -61,13 +59,13 @@ class SolarAdapter:
     def available(self, config: SolarConfigSchema, *, hass: HomeAssistant, **_kwargs: Any) -> bool:
         """Check if solar configuration can be loaded."""
         ts_loader = TimeSeriesLoader()
-        return ts_loader.available(hass=hass, value=config[CONF_SECTION_BASIC][CONF_FORECAST])
+        return ts_loader.available(hass=hass, value=config[SECTION_INPUTS][CONF_FORECAST])
 
     def inputs(self, config: Any) -> dict[str, dict[str, InputFieldInfo[Any]]]:
         """Return input field definitions for solar elements."""
         _ = config
         return {
-            CONF_SECTION_BASIC: {
+            SECTION_INPUTS: {
                 CONF_FORECAST: InputFieldInfo(
                     field_name=CONF_FORECAST,
                     entity_description=NumberEntityDescription(
@@ -84,7 +82,7 @@ class SolarAdapter:
                     time_series=True,
                 ),
             },
-            CONF_SECTION_ADVANCED: {
+            SECTION_PRICING: {
                 CONF_PRICE_PRODUCTION: InputFieldInfo(
                     field_name=CONF_PRICE_PRODUCTION,
                     entity_description=NumberEntityDescription(
@@ -99,6 +97,8 @@ class SolarAdapter:
                     time_series=True,
                     defaults=InputFieldDefaults(mode=None, value=0.0),
                 ),
+            },
+            SECTION_ADVANCED: {
                 CONF_CURTAILMENT: InputFieldInfo(
                     field_name=CONF_CURTAILMENT,
                     entity_description=SwitchEntityDescription(
@@ -117,25 +117,25 @@ class SolarAdapter:
         return [
             {
                 "element_type": MODEL_ELEMENT_TYPE_NODE,
-                "name": config[CONF_SECTION_BASIC]["name"],
+                "name": config[SECTION_BASIC]["name"],
                 "is_source": True,
                 "is_sink": False,
             },
             {
                 "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
-                "name": f"{config[CONF_SECTION_BASIC]['name']}:connection",
-                "source": config[CONF_SECTION_BASIC]["name"],
-                "target": config[CONF_SECTION_BASIC][CONF_CONNECTION],
+                "name": f"{config[SECTION_BASIC]['name']}:connection",
+                "source": config[SECTION_BASIC]["name"],
+                "target": config[SECTION_BASIC][CONF_CONNECTION],
                 "segments": {
                     "power_limit": {
                         "segment_type": "power_limit",
-                        "max_power_source_target": config[CONF_SECTION_BASIC][CONF_FORECAST],
+                        "max_power_source_target": config[SECTION_INPUTS][CONF_FORECAST],
                         "max_power_target_source": 0.0,
-                        "fixed": not config[CONF_SECTION_ADVANCED].get(CONF_CURTAILMENT, True),
+                        "fixed": not config[SECTION_ADVANCED].get(CONF_CURTAILMENT, True),
                     },
                     "pricing": {
                         "segment_type": "pricing",
-                        "price_source_target": config[CONF_SECTION_ADVANCED].get(CONF_PRICE_PRODUCTION),
+                        "price_source_target": config[SECTION_PRICING].get(CONF_PRICE_PRODUCTION),
                         "price_target_source": None,
                     },
                 },

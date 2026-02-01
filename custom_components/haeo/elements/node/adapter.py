@@ -13,16 +13,9 @@ from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_NODE
 from custom_components.haeo.model.elements.node import NODE_POWER_BALANCE
 from custom_components.haeo.model.output_data import OutputData
+from custom_components.haeo.sections import SECTION_ADVANCED, SECTION_BASIC
 
-from .schema import (
-    CONF_IS_SINK,
-    CONF_IS_SOURCE,
-    CONF_SECTION_ADVANCED,
-    CONF_SECTION_BASIC,
-    ELEMENT_TYPE,
-    NodeConfigData,
-    NodeConfigSchema,
-)
+from .schema import CONF_IS_SINK, CONF_IS_SOURCE, ELEMENT_TYPE, NodeConfigData, NodeConfigSchema
 
 # Defaults for absent optional fields (no-op values: pure junction behavior)
 DEFAULT_IS_SOURCE: Final[bool] = False
@@ -57,7 +50,7 @@ class NodeAdapter:
         """Return input field definitions for node elements."""
         _ = config
         return {
-            CONF_SECTION_ADVANCED: {
+            SECTION_ADVANCED: {
                 CONF_IS_SOURCE: InputFieldInfo(
                     field_name=CONF_IS_SOURCE,
                     entity_description=SwitchEntityDescription(
@@ -84,9 +77,9 @@ class NodeAdapter:
         return [
             {
                 "element_type": MODEL_ELEMENT_TYPE_NODE,
-                "name": config[CONF_SECTION_BASIC]["name"],
-                "is_source": config[CONF_SECTION_ADVANCED].get(CONF_IS_SOURCE, DEFAULT_IS_SOURCE),
-                "is_sink": config[CONF_SECTION_ADVANCED].get(CONF_IS_SINK, DEFAULT_IS_SINK),
+                "name": config[SECTION_BASIC]["name"],
+                "is_source": config[SECTION_ADVANCED].get(CONF_IS_SOURCE, DEFAULT_IS_SOURCE),
+                "is_sink": config[SECTION_ADVANCED].get(CONF_IS_SINK, DEFAULT_IS_SINK),
             }
         ]
 

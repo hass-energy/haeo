@@ -20,26 +20,30 @@ from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_BATTERY, MO
 from custom_components.haeo.model.elements.segments import SegmentSpec, SocPricingSegmentSpec
 from custom_components.haeo.model.output_data import OutputData
 from custom_components.haeo.model.util import broadcast_to_sequence
-
-from .schema import (
+from custom_components.haeo.sections import (
     CONF_CAPACITY,
     CONF_CONNECTION,
+    CONF_INITIAL_CHARGE_PERCENTAGE,
+    SECTION_ADVANCED,
+    SECTION_BASIC,
+    SECTION_LIMITS,
+    SECTION_PRICING,
+    SECTION_STORAGE,
+)
+
+from .schema import (
     CONF_DISCHARGE_COST,
     CONF_EARLY_CHARGE_INCENTIVE,
     CONF_EFFICIENCY,
-    CONF_INITIAL_CHARGE_PERCENTAGE,
     CONF_MAX_CHARGE_PERCENTAGE,
     CONF_MAX_CHARGE_POWER,
     CONF_MAX_DISCHARGE_POWER,
     CONF_MIN_CHARGE_PERCENTAGE,
     CONF_PARTITION_COST,
     CONF_PARTITION_PERCENTAGE,
-    CONF_SECTION_ADVANCED,
-    CONF_SECTION_BASIC,
-    CONF_SECTION_LIMITS,
-    CONF_SECTION_OVERCHARGE,
-    CONF_SECTION_UNDERCHARGE,
     ELEMENT_TYPE,
+    SECTION_OVERCHARGE,
+    SECTION_UNDERCHARGE,
     BatteryConfigData,
     BatteryConfigSchema,
 )
@@ -104,16 +108,17 @@ class BatteryAdapter:
             # list[str] for entity chaining
             return ts_loader.available(hass=hass, value=value) if value else True
 
-        basic = config[CONF_SECTION_BASIC]
-        limits = config[CONF_SECTION_LIMITS]
-        advanced = config[CONF_SECTION_ADVANCED]
-        undercharge = config.get(CONF_SECTION_UNDERCHARGE, {})
-        overcharge = config.get(CONF_SECTION_OVERCHARGE, {})
+        storage = config[SECTION_STORAGE]
+        limits = config[SECTION_LIMITS]
+        pricing = config[SECTION_PRICING]
+        advanced = config[SECTION_ADVANCED]
+        undercharge = config.get(SECTION_UNDERCHARGE, {})
+        overcharge = config.get(SECTION_OVERCHARGE, {})
 
         # Check required fields
-        if not entity_available(basic.get(CONF_CAPACITY)):
+        if not entity_available(storage.get(CONF_CAPACITY)):
             return False
-        if not entity_available(basic.get(CONF_INITIAL_CHARGE_PERCENTAGE)):
+        if not entity_available(storage.get(CONF_INITIAL_CHARGE_PERCENTAGE)):
             return False
 
         # Check optional time series fields if present
@@ -123,8 +128,8 @@ class BatteryAdapter:
             (limits, CONF_MIN_CHARGE_PERCENTAGE),
             (limits, CONF_MAX_CHARGE_PERCENTAGE),
             (advanced, CONF_EFFICIENCY),
-            (advanced, CONF_EARLY_CHARGE_INCENTIVE),
-            (advanced, CONF_DISCHARGE_COST),
+            (pricing, CONF_EARLY_CHARGE_INCENTIVE),
+            (pricing, CONF_DISCHARGE_COST),
             (undercharge, CONF_PARTITION_PERCENTAGE),
             (undercharge, CONF_PARTITION_COST),
             (overcharge, CONF_PARTITION_PERCENTAGE),
@@ -136,7 +141,7 @@ class BatteryAdapter:
         """Return input field definitions for battery elements."""
         _ = config
         return {
-            CONF_SECTION_BASIC: {
+            SECTION_STORAGE: {
                 CONF_CAPACITY: InputFieldInfo(
                     field_name=CONF_CAPACITY,
                     entity_description=NumberEntityDescription(
@@ -167,7 +172,7 @@ class BatteryAdapter:
                     time_series=True,
                 ),
             },
-            CONF_SECTION_LIMITS: {
+            SECTION_LIMITS: {
                 CONF_MAX_CHARGE_POWER: InputFieldInfo(
                     field_name=CONF_MAX_CHARGE_POWER,
                     entity_description=NumberEntityDescription(
@@ -233,7 +238,7 @@ class BatteryAdapter:
                     defaults=InputFieldDefaults(mode=None, value=100.0),
                 ),
             },
-            CONF_SECTION_ADVANCED: {
+            SECTION_ADVANCED: {
                 CONF_EFFICIENCY: InputFieldInfo(
                     field_name=CONF_EFFICIENCY,
                     entity_description=NumberEntityDescription(
@@ -249,6 +254,8 @@ class BatteryAdapter:
                     time_series=True,
                     defaults=InputFieldDefaults(mode="value", value=95.0),
                 ),
+            },
+            SECTION_PRICING: {
                 CONF_EARLY_CHARGE_INCENTIVE: InputFieldInfo(
                     field_name=CONF_EARLY_CHARGE_INCENTIVE,
                     entity_description=NumberEntityDescription(
@@ -277,12 +284,12 @@ class BatteryAdapter:
                     time_series=True,
                 ),
             },
-            CONF_SECTION_UNDERCHARGE: _partition_input_fields(
+            SECTION_UNDERCHARGE: _partition_input_fields(
                 percentage_default=0,
                 cost_default=0,
                 cost_direction="-",
             ),
-            CONF_SECTION_OVERCHARGE: _partition_input_fields(
+            SECTION_OVERCHARGE: _partition_input_fields(
                 percentage_default=100,
                 cost_default=0,
                 cost_direction="-",
@@ -294,21 +301,23 @@ class BatteryAdapter:
 
         Creates a single battery element and a connection to the target.
         """
-        basic = config[CONF_SECTION_BASIC]
-        limits = config[CONF_SECTION_LIMITS]
-        advanced = config[CONF_SECTION_ADVANCED]
-        undercharge = config.get(CONF_SECTION_UNDERCHARGE, {})
-        overcharge = config.get(CONF_SECTION_OVERCHARGE, {})
+        basic = config[SECTION_BASIC]
+        storage = config[SECTION_STORAGE]
+        limits = config[SECTION_LIMITS]
+        pricing = config[SECTION_PRICING]
+        advanced = config[SECTION_ADVANCED]
+        undercharge = config.get(SECTION_UNDERCHARGE, {})
+        overcharge = config.get(SECTION_OVERCHARGE, {})
 
         name = basic["name"]
         elements: list[ModelElementConfig] = []
         # capacity is boundaries (n+1 values), so n_periods = len - 1
-        n_boundaries = len(basic[CONF_CAPACITY])
+        n_boundaries = len(storage[CONF_CAPACITY])
         n_periods = n_boundaries - 1
 
-        capacity = basic[CONF_CAPACITY]
+        capacity = storage[CONF_CAPACITY]
         capacity_first = float(capacity[0])
-        initial_soc = float(basic[CONF_INITIAL_CHARGE_PERCENTAGE][0])
+        initial_soc = float(storage[CONF_INITIAL_CHARGE_PERCENTAGE][0])
 
         min_charge_percentage = limits.get(CONF_MIN_CHARGE_PERCENTAGE, DEFAULTS[CONF_MIN_CHARGE_PERCENTAGE])
         max_charge_percentage = limits.get(CONF_MAX_CHARGE_PERCENTAGE, DEFAULTS[CONF_MAX_CHARGE_PERCENTAGE])
@@ -339,7 +348,7 @@ class BatteryAdapter:
         )
 
         # Calculate early charge/discharge incentives (use first period if present)
-        early_charge_list = advanced.get(CONF_EARLY_CHARGE_INCENTIVE)
+        early_charge_list = pricing.get(CONF_EARLY_CHARGE_INCENTIVE)
         early_charge_incentive = (
             float(early_charge_list[0]) if early_charge_list is not None else DEFAULTS[CONF_EARLY_CHARGE_INCENTIVE]
         )
@@ -350,7 +359,7 @@ class BatteryAdapter:
         charge_early_incentive = -early_charge_incentive + (early_charge_incentive * ramp)
         discharge_early_incentive = early_charge_incentive + (early_charge_incentive * ramp)
 
-        discharge_cost = advanced.get(CONF_DISCHARGE_COST)
+        discharge_cost = pricing.get(CONF_DISCHARGE_COST)
         discharge_costs = (
             discharge_early_incentive + discharge_cost if discharge_cost is not None else discharge_early_incentive
         )
@@ -511,14 +520,14 @@ def _partition_input_fields(
 def _calculate_total_energy(aggregate_energy: OutputData, config: BatteryConfigData) -> OutputData:
     """Calculate total energy stored including inaccessible energy below min SOC."""
     # Capacity and ratio fields are already boundaries (n+1 values)
-    capacity = config[CONF_SECTION_BASIC][CONF_CAPACITY]
+    capacity = config[SECTION_STORAGE][CONF_CAPACITY]
 
     # Get time-varying min ratio (also boundaries)
-    min_charge_percentage = config[CONF_SECTION_LIMITS].get(
+    min_charge_percentage = config[SECTION_LIMITS].get(
         CONF_MIN_CHARGE_PERCENTAGE,
         DEFAULTS[CONF_MIN_CHARGE_PERCENTAGE],
     )
-    undercharge = config.get(CONF_SECTION_UNDERCHARGE, {})
+    undercharge = config.get(SECTION_UNDERCHARGE, {})
     undercharge_cost = undercharge.get(CONF_PARTITION_COST)
     undercharge_pct = undercharge.get(CONF_PARTITION_PERCENTAGE) if undercharge_cost is not None else None
     unusable_ratio = undercharge_pct if undercharge_pct is not None else min_charge_percentage
@@ -537,7 +546,7 @@ def _calculate_total_energy(aggregate_energy: OutputData, config: BatteryConfigD
 def _calculate_soc(total_energy: OutputData, config: BatteryConfigData) -> OutputData:
     """Calculate SOC ratio from aggregate energy and total capacity."""
     # Capacity is already boundaries (n+1 values), same as energy
-    capacity = config[CONF_SECTION_BASIC][CONF_CAPACITY]
+    capacity = config[SECTION_STORAGE][CONF_CAPACITY]
     soc_values = np.asarray(total_energy.values, dtype=float) / capacity
 
     return OutputData(

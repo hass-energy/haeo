@@ -25,16 +25,13 @@ from custom_components.haeo.model.elements.connection import (
 from custom_components.haeo.model.elements.segments import POWER_LIMIT_SOURCE_TARGET, POWER_LIMIT_TARGET_SOURCE
 from custom_components.haeo.model.output_data import OutputData
 from custom_components.haeo.model.util import broadcast_to_sequence
+from custom_components.haeo.sections import CONF_CONNECTION, SECTION_BASIC, SECTION_LIMITS, SECTION_PRICING
 
 from .schema import (
-    CONF_CONNECTION,
     CONF_EXPORT_LIMIT,
     CONF_EXPORT_PRICE,
     CONF_IMPORT_LIMIT,
     CONF_IMPORT_PRICE,
-    CONF_SECTION_BASIC,
-    CONF_SECTION_LIMITS,
-    CONF_SECTION_PRICING,
     ELEMENT_TYPE,
     GridConfigData,
     GridConfigSchema,
@@ -94,14 +91,14 @@ class GridAdapter:
             # At this point value is a list of strings
             return ts_loader.available(hass=hass, value=value) if value else True
 
-        pricing = config[CONF_SECTION_PRICING]
+        pricing = config[SECTION_PRICING]
         return entities_available(pricing.get(CONF_IMPORT_PRICE)) and entities_available(pricing.get(CONF_EXPORT_PRICE))
 
     def inputs(self, config: Any) -> dict[str, dict[str, InputFieldInfo[Any]]]:
         """Return input field definitions for grid elements."""
         _ = config
         return {
-            CONF_SECTION_PRICING: {
+            SECTION_PRICING: {
                 CONF_IMPORT_PRICE: InputFieldInfo(
                     field_name=CONF_IMPORT_PRICE,
                     entity_description=NumberEntityDescription(
@@ -129,7 +126,7 @@ class GridAdapter:
                     direction="+",  # Export = producing to grid = revenue
                 ),
             },
-            CONF_SECTION_LIMITS: {
+            SECTION_LIMITS: {
                 CONF_IMPORT_LIMIT: InputFieldInfo(
                     field_name=CONF_IMPORT_LIMIT,
                     entity_description=NumberEntityDescription(
@@ -171,26 +168,26 @@ class GridAdapter:
             # Create Node for the grid (both source and sink - can import and export)
             {
                 "element_type": MODEL_ELEMENT_TYPE_NODE,
-                "name": config[CONF_SECTION_BASIC]["name"],
+                "name": config[SECTION_BASIC]["name"],
                 "is_source": True,
                 "is_sink": True,
             },
             # Create a connection from system node to grid
             {
                 "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
-                "name": f"{config[CONF_SECTION_BASIC]['name']}:connection",
-                "source": config[CONF_SECTION_BASIC]["name"],
-                "target": config[CONF_SECTION_BASIC][CONF_CONNECTION],
+                "name": f"{config[SECTION_BASIC]['name']}:connection",
+                "source": config[SECTION_BASIC]["name"],
+                "target": config[SECTION_BASIC][CONF_CONNECTION],
                 "segments": {
                     "power_limit": {
                         "segment_type": "power_limit",
-                        "max_power_source_target": config[CONF_SECTION_LIMITS].get(CONF_IMPORT_LIMIT),
-                        "max_power_target_source": config[CONF_SECTION_LIMITS].get(CONF_EXPORT_LIMIT),
+                        "max_power_source_target": config[SECTION_LIMITS].get(CONF_IMPORT_LIMIT),
+                        "max_power_target_source": config[SECTION_LIMITS].get(CONF_EXPORT_LIMIT),
                     },
                     "pricing": {
                         "segment_type": "pricing",
-                        "price_source_target": config[CONF_SECTION_PRICING][CONF_IMPORT_PRICE],
-                        "price_target_source": -config[CONF_SECTION_PRICING][CONF_EXPORT_PRICE],
+                        "price_source_target": config[SECTION_PRICING][CONF_IMPORT_PRICE],
+                        "price_target_source": -config[SECTION_PRICING][CONF_EXPORT_PRICE],
                     },
                 },
             },
@@ -228,8 +225,8 @@ class GridAdapter:
 
         # Calculate cost outputs in adapter layer: cost = power * price * period
         # This is a derived calculation, not from model layer outputs
-        import_prices = broadcast_to_sequence(config[CONF_SECTION_PRICING][CONF_IMPORT_PRICE], len(periods))
-        export_prices = broadcast_to_sequence(config[CONF_SECTION_PRICING][CONF_EXPORT_PRICE], len(periods))
+        import_prices = broadcast_to_sequence(config[SECTION_PRICING][CONF_IMPORT_PRICE], len(periods))
+        export_prices = broadcast_to_sequence(config[SECTION_PRICING][CONF_EXPORT_PRICE], len(periods))
 
         # Import cost: positive = money spent (power from grid * price * period)
         import_cost_values = tuple(

@@ -23,16 +23,13 @@ from custom_components.haeo.model.elements.connection import (
 from custom_components.haeo.model.elements.node import NODE_POWER_BALANCE
 from custom_components.haeo.model.elements.segments import POWER_LIMIT_SOURCE_TARGET, POWER_LIMIT_TARGET_SOURCE
 from custom_components.haeo.model.output_data import OutputData
+from custom_components.haeo.sections import CONF_CONNECTION, SECTION_ADVANCED, SECTION_BASIC, SECTION_LIMITS
 
 from .schema import (
-    CONF_CONNECTION,
     CONF_EFFICIENCY_AC_TO_DC,
     CONF_EFFICIENCY_DC_TO_AC,
     CONF_MAX_POWER_AC_TO_DC,
     CONF_MAX_POWER_DC_TO_AC,
-    CONF_SECTION_ADVANCED,
-    CONF_SECTION_BASIC,
-    CONF_SECTION_LIMITS,
     ELEMENT_TYPE,
     InverterConfigData,
     InverterConfigSchema,
@@ -77,7 +74,7 @@ class InverterAdapter:
     def available(self, config: InverterConfigSchema, *, hass: HomeAssistant, **_kwargs: Any) -> bool:
         """Check if inverter configuration can be loaded."""
         ts_loader = TimeSeriesLoader()
-        limits = config[CONF_SECTION_LIMITS]
+        limits = config[SECTION_LIMITS]
         if not ts_loader.available(hass=hass, value=limits[CONF_MAX_POWER_DC_TO_AC]):
             return False
         return ts_loader.available(hass=hass, value=limits[CONF_MAX_POWER_AC_TO_DC])
@@ -86,7 +83,7 @@ class InverterAdapter:
         """Return input field definitions for inverter elements."""
         _ = config
         return {
-            CONF_SECTION_LIMITS: {
+            SECTION_LIMITS: {
                 CONF_MAX_POWER_DC_TO_AC: InputFieldInfo(
                     field_name=CONF_MAX_POWER_DC_TO_AC,
                     entity_description=NumberEntityDescription(
@@ -116,7 +113,7 @@ class InverterAdapter:
                     time_series=True,
                 ),
             },
-            CONF_SECTION_ADVANCED: {
+            SECTION_ADVANCED: {
                 CONF_EFFICIENCY_DC_TO_AC: InputFieldInfo(
                     field_name=CONF_EFFICIENCY_DC_TO_AC,
                     entity_description=NumberEntityDescription(
@@ -158,7 +155,7 @@ class InverterAdapter:
             # Create Node for the DC bus (pure junction - neither source nor sink)
             {
                 "element_type": MODEL_ELEMENT_TYPE_NODE,
-                "name": config[CONF_SECTION_BASIC]["name"],
+                "name": config[SECTION_BASIC]["name"],
                 "is_source": False,
                 "is_sink": False,
             },
@@ -167,19 +164,19 @@ class InverterAdapter:
             # target_source = AC to DC (rectifying)
             {
                 "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
-                "name": f"{config[CONF_SECTION_BASIC]['name']}:connection",
-                "source": config[CONF_SECTION_BASIC]["name"],
-                "target": config[CONF_SECTION_BASIC][CONF_CONNECTION],
+                "name": f"{config[SECTION_BASIC]['name']}:connection",
+                "source": config[SECTION_BASIC]["name"],
+                "target": config[SECTION_BASIC][CONF_CONNECTION],
                 "segments": {
                     "efficiency": {
                         "segment_type": "efficiency",
-                        "efficiency_source_target": config[CONF_SECTION_ADVANCED].get(CONF_EFFICIENCY_DC_TO_AC),
-                        "efficiency_target_source": config[CONF_SECTION_ADVANCED].get(CONF_EFFICIENCY_AC_TO_DC),
+                        "efficiency_source_target": config[SECTION_ADVANCED].get(CONF_EFFICIENCY_DC_TO_AC),
+                        "efficiency_target_source": config[SECTION_ADVANCED].get(CONF_EFFICIENCY_AC_TO_DC),
                     },
                     "power_limit": {
                         "segment_type": "power_limit",
-                        "max_power_source_target": config[CONF_SECTION_LIMITS][CONF_MAX_POWER_DC_TO_AC],
-                        "max_power_target_source": config[CONF_SECTION_LIMITS][CONF_MAX_POWER_AC_TO_DC],
+                        "max_power_source_target": config[SECTION_LIMITS][CONF_MAX_POWER_DC_TO_AC],
+                        "max_power_target_source": config[SECTION_LIMITS][CONF_MAX_POWER_AC_TO_DC],
                     },
                 },
             },

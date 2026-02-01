@@ -20,13 +20,9 @@ from custom_components.haeo.const import (
 )
 from custom_components.haeo.coordinator import evaluate_network_connectivity
 from custom_components.haeo.elements import ELEMENT_TYPE_CONNECTION, ELEMENT_TYPE_NODE, ElementConfigData
-from custom_components.haeo.elements.connection import CONF_SECTION_ADVANCED as CONF_CONNECTION_SECTION_ADVANCED
-from custom_components.haeo.elements.connection import CONF_SECTION_BASIC as CONF_CONNECTION_SECTION_BASIC
-from custom_components.haeo.elements.connection import CONF_SECTION_LIMITS as CONF_CONNECTION_SECTION_LIMITS
-from custom_components.haeo.elements.connection import CONF_SOURCE, CONF_TARGET, ConnectionConfigData
+from custom_components.haeo.elements.connection import CONF_SOURCE, CONF_TARGET, SECTION_ENDPOINTS, ConnectionConfigData
 from custom_components.haeo.elements.node import CONF_IS_SINK, CONF_IS_SOURCE, NodeConfigData
-from custom_components.haeo.elements.node import CONF_SECTION_ADVANCED as CONF_NODE_SECTION_ADVANCED
-from custom_components.haeo.elements.node import CONF_SECTION_BASIC as CONF_NODE_SECTION_BASIC
+from custom_components.haeo.sections import SECTION_ADVANCED, SECTION_BASIC, SECTION_LIMITS, SECTION_PRICING
 
 
 @pytest.fixture
@@ -64,8 +60,8 @@ async def test_evaluate_network_connectivity_connected(
 
     node_a: NodeConfigData = {
         CONF_ELEMENT_TYPE: ELEMENT_TYPE_NODE,
-        CONF_NODE_SECTION_BASIC: {CONF_NAME: "Node A"},
-        CONF_NODE_SECTION_ADVANCED: {CONF_IS_SOURCE: False, CONF_IS_SINK: False},
+        SECTION_BASIC: {CONF_NAME: "Node A"},
+        SECTION_ADVANCED: {CONF_IS_SOURCE: False, CONF_IS_SINK: False},
     }
     participants: dict[str, ElementConfigData] = {"Node A": node_a}
 
@@ -85,13 +81,13 @@ async def test_evaluate_network_connectivity_disconnected(
 
     node_a: NodeConfigData = {
         CONF_ELEMENT_TYPE: ELEMENT_TYPE_NODE,
-        CONF_NODE_SECTION_BASIC: {CONF_NAME: "Node A"},
-        CONF_NODE_SECTION_ADVANCED: {CONF_IS_SOURCE: False, CONF_IS_SINK: False},
+        SECTION_BASIC: {CONF_NAME: "Node A"},
+        SECTION_ADVANCED: {CONF_IS_SOURCE: False, CONF_IS_SINK: False},
     }
     node_b: NodeConfigData = {
         CONF_ELEMENT_TYPE: ELEMENT_TYPE_NODE,
-        CONF_NODE_SECTION_BASIC: {CONF_NAME: "Node B"},
-        CONF_NODE_SECTION_ADVANCED: {CONF_IS_SOURCE: False, CONF_IS_SINK: False},
+        SECTION_BASIC: {CONF_NAME: "Node B"},
+        SECTION_ADVANCED: {CONF_IS_SOURCE: False, CONF_IS_SINK: False},
     }
     participants: dict[str, ElementConfigData] = {"Node A": node_a, "Node B": node_b}
 
@@ -112,13 +108,13 @@ async def test_evaluate_network_connectivity_resolves_issue(
 
     node_a: NodeConfigData = {
         CONF_ELEMENT_TYPE: ELEMENT_TYPE_NODE,
-        CONF_NODE_SECTION_BASIC: {CONF_NAME: "Node A"},
-        CONF_NODE_SECTION_ADVANCED: {CONF_IS_SOURCE: False, CONF_IS_SINK: False},
+        SECTION_BASIC: {CONF_NAME: "Node A"},
+        SECTION_ADVANCED: {CONF_IS_SOURCE: False, CONF_IS_SINK: False},
     }
     node_b: NodeConfigData = {
         CONF_ELEMENT_TYPE: ELEMENT_TYPE_NODE,
-        CONF_NODE_SECTION_BASIC: {CONF_NAME: "Node B"},
-        CONF_NODE_SECTION_ADVANCED: {CONF_IS_SOURCE: False, CONF_IS_SINK: False},
+        SECTION_BASIC: {CONF_NAME: "Node B"},
+        SECTION_ADVANCED: {CONF_IS_SOURCE: False, CONF_IS_SINK: False},
     }
     participants: dict[str, ElementConfigData] = {"Node A": node_a, "Node B": node_b}
 
@@ -127,13 +123,16 @@ async def test_evaluate_network_connectivity_resolves_issue(
     # Connect the nodes and re-validate
     connection: ConnectionConfigData = {
         CONF_ELEMENT_TYPE: ELEMENT_TYPE_CONNECTION,
-        CONF_CONNECTION_SECTION_BASIC: {
+        SECTION_BASIC: {
             CONF_NAME: "A to B",
+        },
+        SECTION_ENDPOINTS: {
             CONF_SOURCE: "Node A",
             CONF_TARGET: "Node B",
         },
-        CONF_CONNECTION_SECTION_LIMITS: {},
-        CONF_CONNECTION_SECTION_ADVANCED: {},
+        SECTION_LIMITS: {},
+        SECTION_PRICING: {},
+        SECTION_ADVANCED: {},
     }
     participants["A to B"] = connection
 
