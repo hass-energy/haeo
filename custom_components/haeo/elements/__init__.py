@@ -156,7 +156,7 @@ ELEMENT_DEVICE_NAMES: Final[frozenset[ElementDeviceName]] = frozenset(
     | NETWORK_DEVICE_NAMES
 )
 
-ELEMENT_DEVICE_NAMES_BY_TYPE: Final[dict[str, frozenset[str]]] = {
+ELEMENT_DEVICE_NAMES_BY_TYPE: Final[dict[str, frozenset[ElementDeviceName]]] = {
     inverter.ELEMENT_TYPE: frozenset(inverter.INVERTER_DEVICE_NAMES),
     battery.ELEMENT_TYPE: frozenset(battery.BATTERY_DEVICE_NAMES),
     battery_section.ELEMENT_TYPE: frozenset(battery_section.BATTERY_SECTION_DEVICE_NAMES),
