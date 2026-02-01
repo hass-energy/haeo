@@ -95,6 +95,39 @@ async def test_remove_device_for_deleted_element(
     assert result, "Device should be removed for non-existent element"
 
 
+async def test_remove_device_with_stale_device_name_for_existing_element(
+    hass: HomeAssistant,
+    mock_config_entry: HaeoConfigEntry,
+    mock_device_registry: dr.DeviceRegistry,
+) -> None:
+    """Test that devices with stale device names are removed even if element exists."""
+    # Add a subentry
+    subentry = ConfigSubentry(
+        data=MappingProxyType({"name": "Battery", "element_type": "battery"}),
+        subentry_type="battery",
+        title="Battery",
+        unique_id=None,
+    )
+    hass.config_entries.async_add_subentry(mock_config_entry, subentry)
+
+    # Device name no longer created for this element type
+    device = mock_device_registry.async_get_or_create(
+        config_entry_id=mock_config_entry.entry_id,
+        identifiers={(DOMAIN, f"{mock_config_entry.entry_id}_{subentry.subentry_id}_battery_section")},
+        name="Battery Partition",
+        manufacturer="HAEO",
+        model="Battery Section",
+    )
+
+    result = await async_remove_config_entry_device(
+        hass,
+        mock_config_entry,
+        device,
+    )
+
+    assert result, "Device should be removed when device name is no longer created"
+
+
 async def test_keep_hub_device(
     hass: HomeAssistant,
     mock_config_entry: HaeoConfigEntry,
