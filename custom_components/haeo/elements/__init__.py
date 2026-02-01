@@ -445,6 +445,7 @@ def get_input_fields(element_config: ElementConfigSchema) -> dict[str, InputFiel
 __all__ = [
     "ELEMENT_CONFIG_SCHEMAS",
     "ELEMENT_DEVICE_NAMES",
+    "ELEMENT_DEVICE_NAMES_BY_TYPE",
     "ELEMENT_TYPES",
     "ELEMENT_TYPE_BATTERY",
     "ELEMENT_TYPE_BATTERY_SECTION",
@@ -462,7 +463,6 @@ __all__ = [
     "ElementType",
     "InputFieldInfo",
     "ValidatedElementSubentry",
-    "ELEMENT_DEVICE_NAMES_BY_TYPE",
     "collect_element_subentries",
     "get_element_flow_classes",
     "get_input_fields",
