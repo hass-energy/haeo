@@ -31,7 +31,7 @@ from custom_components.haeo.model.elements.segments import (
     POWER_LIMIT_TIME_SLICE,
 )
 from custom_components.haeo.model.output_data import OutputData
-from custom_components.haeo.sections import SECTION_ADVANCED, SECTION_DETAILS, SECTION_POWER_LIMITS, SECTION_PRICING
+from custom_components.haeo.sections import SECTION_ADVANCED, SECTION_COMMON, SECTION_POWER_LIMITS, SECTION_PRICING
 
 from .schema import (
     CONF_EFFICIENCY_SOURCE_TARGET,
@@ -216,7 +216,7 @@ class ConnectionAdapter:
         return [
             {
                 "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
-                "name": config[SECTION_DETAILS]["name"],
+                "name": config[SECTION_COMMON]["name"],
                 "source": config[SECTION_ENDPOINTS]["source"],
                 "target": config[SECTION_ENDPOINTS]["target"],
                 "segments": {

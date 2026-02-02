@@ -6,12 +6,12 @@ from custom_components.haeo.sections import (
     CONF_MAX_POWER_SOURCE_TARGET,
     CONF_MAX_POWER_TARGET_SOURCE,
     SECTION_ADVANCED,
-    SECTION_DETAILS,
+    SECTION_COMMON,
     SECTION_POWER_LIMITS,
     AdvancedConfig,
     AdvancedData,
-    ConnectedDetailsConfig,
-    ConnectedDetailsData,
+    ConnectedCommonConfig,
+    ConnectedCommonData,
     PowerLimitsPairConfig,
     PowerLimitsPairData,
 )
@@ -28,7 +28,7 @@ class InverterConfigSchema(TypedDict):
     """Inverter element configuration as stored in Home Assistant."""
 
     element_type: Literal["inverter"]
-    details: ConnectedDetailsConfig
+    common: ConnectedCommonConfig
     power_limits: PowerLimitsPairConfig
     advanced: AdvancedConfig
 
@@ -37,7 +37,7 @@ class InverterConfigData(TypedDict):
     """Inverter element configuration with loaded values."""
 
     element_type: Literal["inverter"]
-    details: ConnectedDetailsData
+    common: ConnectedCommonData
     power_limits: PowerLimitsPairData
     advanced: AdvancedData
 
@@ -50,7 +50,7 @@ __all__ = [
     "ELEMENT_TYPE",
     "OPTIONAL_INPUT_FIELDS",
     "SECTION_ADVANCED",
-    "SECTION_DETAILS",
+    "SECTION_COMMON",
     "SECTION_POWER_LIMITS",
     "InverterConfigData",
     "InverterConfigSchema",

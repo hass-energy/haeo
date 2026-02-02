@@ -10,10 +10,10 @@ from typing import Final, Literal, TypedDict
 from custom_components.haeo.sections import (
     CONF_CAPACITY,
     CONF_INITIAL_CHARGE,
-    SECTION_DETAILS,
+    SECTION_COMMON,
     SECTION_STORAGE,
-    DetailsConfig,
-    DetailsData,
+    CommonConfig,
+    CommonData,
     StorageChargeConfig,
     StorageChargeData,
 )
@@ -27,7 +27,7 @@ class BatterySectionConfigSchema(TypedDict):
     """Battery section element configuration as stored in Home Assistant."""
 
     element_type: Literal["battery_section"]
-    details: DetailsConfig
+    common: CommonConfig
     storage: StorageChargeConfig
 
 
@@ -35,7 +35,7 @@ class BatterySectionConfigData(TypedDict):
     """Battery section element configuration with loaded values."""
 
     element_type: Literal["battery_section"]
-    details: DetailsData
+    common: CommonData
     storage: StorageChargeData
 
 
@@ -44,7 +44,7 @@ __all__ = [
     "CONF_INITIAL_CHARGE",
     "ELEMENT_TYPE",
     "OPTIONAL_INPUT_FIELDS",
-    "SECTION_DETAILS",
+    "SECTION_COMMON",
     "SECTION_STORAGE",
     "BatterySectionConfigData",
     "BatterySectionConfigSchema",

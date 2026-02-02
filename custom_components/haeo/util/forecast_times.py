@@ -235,11 +235,13 @@ def tiers_to_periods_seconds(config: Mapping[str, int | str | Mapping[str, int |
 
     """
     # Support sectioned hub config by reading from nested sections when present
-    basic = config.get("basic") if isinstance(config.get("basic"), Mapping) else None
+    common = config.get("common") if isinstance(config.get("common"), Mapping) else None
     tiers_section = config.get("tiers") if isinstance(config.get("tiers"), Mapping) else None
 
     # Check if using a preset (enables time alignment)
-    horizon_preset = (basic or {}).get("horizon_preset") if isinstance(basic, Mapping) else config.get("horizon_preset")
+    horizon_preset = (
+        (common or {}).get("horizon_preset") if isinstance(common, Mapping) else config.get("horizon_preset")
+    )
 
     if horizon_preset and horizon_preset in _PRESET_DAYS:
         # Preset mode: use dynamic time alignment with fixed tier configuration

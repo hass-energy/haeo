@@ -4,11 +4,11 @@ from typing import Final, Literal, TypedDict
 
 from custom_components.haeo.sections import (
     SECTION_ADVANCED,
-    SECTION_DETAILS,
+    SECTION_COMMON,
     AdvancedConfig,
     AdvancedData,
-    DetailsConfig,
-    DetailsData,
+    CommonConfig,
+    CommonData,
 )
 
 ELEMENT_TYPE: Final = "node"
@@ -23,7 +23,7 @@ class NodeConfigSchema(TypedDict):
     """Node element configuration as stored in Home Assistant."""
 
     element_type: Literal["node"]
-    details: DetailsConfig
+    common: CommonConfig
     advanced: AdvancedConfig
 
 
@@ -31,7 +31,7 @@ class NodeConfigData(TypedDict):
     """Node element configuration with loaded values."""
 
     element_type: Literal["node"]
-    details: DetailsData
+    common: CommonData
     advanced: AdvancedData
 
 
@@ -41,7 +41,7 @@ __all__ = [
     "ELEMENT_TYPE",
     "OPTIONAL_INPUT_FIELDS",
     "SECTION_ADVANCED",
-    "SECTION_DETAILS",
+    "SECTION_COMMON",
     "NodeConfigData",
     "NodeConfigSchema",
 ]

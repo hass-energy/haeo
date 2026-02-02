@@ -96,7 +96,7 @@ Element entries link to their parent hub via `parent_entry_id`:
     "data": {
         "element_type": "battery",
         "parent_entry_id": "abc123...",  # Links to hub entry
-        "details": {
+        "common": {
             "name": "Home Battery",
             "connection": "Main Bus",
         },

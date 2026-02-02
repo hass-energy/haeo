@@ -16,7 +16,7 @@ from custom_components.haeo.const import (
 from . import (
     HORIZON_PRESET_CUSTOM,
     HUB_SECTION_ADVANCED,
-    HUB_SECTION_BASIC,
+    HUB_SECTION_COMMON,
     HUB_SECTION_TIERS,
     get_custom_tiers_schema,
     get_hub_options_schema,
@@ -40,7 +40,7 @@ class HubOptionsFlow(config_entries.OptionsFlow):
             self._user_input = user_input
 
             # If custom preset selected, go to custom tiers step
-            if user_input[HUB_SECTION_BASIC][CONF_HORIZON_PRESET] == HORIZON_PRESET_CUSTOM:
+            if user_input[HUB_SECTION_COMMON][CONF_HORIZON_PRESET] == HORIZON_PRESET_CUSTOM:
                 return await self.async_step_custom_tiers()
 
             # Otherwise, apply preset values and save
@@ -66,14 +66,14 @@ class HubOptionsFlow(config_entries.OptionsFlow):
         """Save the options with tier configuration."""
         tier_config, stored_preset = get_tier_config(
             self._user_input,
-            self._user_input[HUB_SECTION_BASIC].get(CONF_HORIZON_PRESET),
+            self._user_input[HUB_SECTION_COMMON].get(CONF_HORIZON_PRESET),
         )
 
         # Update config entry data with new values
         new_data = {
             **self.config_entry.data,
-            HUB_SECTION_BASIC: {
-                **self.config_entry.data.get(HUB_SECTION_BASIC, {}),
+            HUB_SECTION_COMMON: {
+                **self.config_entry.data.get(HUB_SECTION_COMMON, {}),
                 CONF_HORIZON_PRESET: stored_preset,
             },
             HUB_SECTION_TIERS: tier_config,

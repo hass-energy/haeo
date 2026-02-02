@@ -4,10 +4,10 @@ from typing import Final, Literal, TypedDict
 
 from custom_components.haeo.sections import (
     CONF_FORECAST,
-    SECTION_DETAILS,
+    SECTION_COMMON,
     SECTION_FORECAST,
-    ConnectedDetailsConfig,
-    ConnectedDetailsData,
+    ConnectedCommonConfig,
+    ConnectedCommonData,
     ForecastConfig,
     ForecastData,
 )
@@ -21,7 +21,7 @@ class LoadConfigSchema(TypedDict):
     """Load element configuration as stored in Home Assistant."""
 
     element_type: Literal["load"]
-    details: ConnectedDetailsConfig
+    common: ConnectedCommonConfig
     forecast: ForecastConfig
 
 
@@ -29,7 +29,7 @@ class LoadConfigData(TypedDict):
     """Load element configuration with loaded values."""
 
     element_type: Literal["load"]
-    details: ConnectedDetailsData
+    common: ConnectedCommonData
     forecast: ForecastData
 
 
@@ -37,7 +37,7 @@ __all__ = [
     "CONF_FORECAST",
     "ELEMENT_TYPE",
     "OPTIONAL_INPUT_FIELDS",
-    "SECTION_DETAILS",
+    "SECTION_COMMON",
     "SECTION_FORECAST",
     "LoadConfigData",
     "LoadConfigSchema",

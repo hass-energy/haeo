@@ -6,13 +6,13 @@ from custom_components.haeo.sections import (
     CONF_FORECAST,
     CONF_PRICE_SOURCE_TARGET,
     SECTION_ADVANCED,
-    SECTION_DETAILS,
+    SECTION_COMMON,
     SECTION_FORECAST,
     SECTION_PRICING,
     AdvancedConfig,
     AdvancedData,
-    ConnectedDetailsConfig,
-    ConnectedDetailsData,
+    ConnectedCommonConfig,
+    ConnectedCommonData,
     ForecastConfig,
     ForecastData,
     PricingConfig,
@@ -33,7 +33,7 @@ class SolarConfigSchema(TypedDict):
     """
 
     element_type: Literal["solar"]
-    details: ConnectedDetailsConfig
+    common: ConnectedCommonConfig
     forecast: ForecastConfig
     pricing: PricingConfig
     advanced: AdvancedConfig
@@ -43,7 +43,7 @@ class SolarConfigData(TypedDict):
     """Solar element configuration with loaded values."""
 
     element_type: Literal["solar"]
-    details: ConnectedDetailsData
+    common: ConnectedCommonData
     forecast: ForecastData
     pricing: PricingData
     advanced: AdvancedData
@@ -56,7 +56,7 @@ __all__ = [
     "ELEMENT_TYPE",
     "OPTIONAL_INPUT_FIELDS",
     "SECTION_ADVANCED",
-    "SECTION_DETAILS",
+    "SECTION_COMMON",
     "SECTION_FORECAST",
     "SECTION_PRICING",
     "SolarConfigData",

@@ -9,7 +9,7 @@
         "data_description": { "advanced_mode": "Reveals additional element types for complex energy systems." },
         "sections": {
           "advanced": { "data": { "advanced_mode": "Advanced Mode" }, "name": "Advanced settings" },
-          "basic": { "data": { "horizon_preset": "Planning Horizon", "name": "System Name" }, "name": "Basic settings" }
+          "common": { "data": { "horizon_preset": "Planning Horizon", "name": "System Name" }, "name": "Common settings" }
         }
       },
       "custom_tiers": {
@@ -68,7 +68,7 @@
             },
             "name": "Advanced settings"
           },
-          "basic": { "data": { "horizon_preset": "Planning Horizon" }, "name": "Basic settings" }
+          "common": { "data": { "horizon_preset": "Planning Horizon" }, "name": "Common settings" }
         }
       }
     },
@@ -109,9 +109,9 @@
             "name": "Battery Name"
           },
           "sections": {
-            "details": {
+            "common": {
               "data": { "connection": "Connection", "name": "Battery Name" },
-              "name": "Details"
+              "name": "Common settings"
             },
             "storage": {
               "data": { "capacity": "Capacity", "initial_charge_percentage": "State of Charge" },
@@ -181,7 +181,7 @@
           "description": "Configure a single battery section with explicit capacity and initial charge. Connect to other elements using Connection elements.",
           "data": { "capacity": "Capacity", "initial_charge": "Initial Charge", "name": "Battery Section Name" },
           "sections": {
-            "details": { "data": { "name": "Battery Section Name" }, "name": "Details" },
+            "common": { "data": { "name": "Battery Section Name" }, "name": "Common settings" },
             "storage": { "data": { "capacity": "Capacity", "initial_charge": "Initial Charge" }, "name": "Storage" }
           }
         }
@@ -209,7 +209,7 @@
             "target": "Target Device"
           },
           "sections": {
-            "details": { "data": { "name": "Connection Name" }, "name": "Details" },
+            "common": { "data": { "name": "Connection Name" }, "name": "Common settings" },
             "endpoints": {
               "data": { "source": "Source Device", "target": "Target Device" },
               "name": "Endpoints"
@@ -265,7 +265,7 @@
             "name": "Grid Name"
           },
           "sections": {
-            "details": { "data": { "connection": "Connection", "name": "Grid Name" }, "name": "Details" },
+            "common": { "data": { "connection": "Connection", "name": "Grid Name" }, "name": "Common settings" },
             "power_limits": {
               "data": { "max_power_source_target": "Import limit", "max_power_target_source": "Export limit" },
               "name": "Power limits"
@@ -301,7 +301,7 @@
               "data": { "efficiency_ac_to_dc": "AC to DC Efficiency", "efficiency_dc_to_ac": "DC to AC Efficiency" },
               "name": "Advanced settings"
             },
-            "details": { "data": { "connection": "AC Connection", "name": "Inverter Name" }, "name": "Details" },
+            "common": { "data": { "connection": "AC Connection", "name": "Inverter Name" }, "name": "Common settings" },
             "power_limits": {
               "data": { "max_power_source_target": "Max DC to AC power", "max_power_target_source": "Max AC to DC power" },
               "name": "Power limits"
@@ -322,7 +322,7 @@
           "description": "Configure a load with forecast or constant power.\n\n[HAFO]({hafo_url}) can be used to generate forecast sensors.",
           "data": { "connection": "Connection", "forecast": "Forecast", "name": "Load Name" },
           "sections": {
-            "details": { "data": { "connection": "Connection", "name": "Load Name" }, "name": "Details" },
+            "common": { "data": { "connection": "Connection", "name": "Load Name" }, "name": "Common settings" },
             "forecast": { "data": { "forecast": "Forecast" }, "name": "Forecast" }
           }
         }
@@ -358,7 +358,7 @@
               },
               "name": "Advanced settings"
             },
-            "details": { "data": { "name": "Node Name" }, "name": "Details" }
+            "common": { "data": { "name": "Node Name" }, "name": "Common settings" }
           }
         }
       },
@@ -381,9 +381,9 @@
             "price_source_target": "Production price"
           },
           "sections": {
-            "details": {
+            "common": {
               "data": { "connection": "Connection", "name": "Solar Name" },
-              "name": "Details"
+              "name": "Common settings"
             },
             "forecast": { "data": { "forecast": "Forecast" }, "name": "Forecast" },
             "pricing": { "data": { "price_source_target": "Production price" }, "name": "Pricing" },

@@ -11,17 +11,17 @@ from custom_components.haeo.flows.element_flow import ElementFlowMixin
 from custom_components.haeo.flows.field_schema import SectionDefinition, build_section_schema
 from custom_components.haeo.sections import (
     SECTION_ADVANCED,
-    SECTION_DETAILS,
+    SECTION_COMMON,
     advanced_section,
-    build_details_fields,
-    details_section,
+    build_common_fields,
+    common_section,
 )
 
 from .schema import CONF_IS_SINK, CONF_IS_SOURCE, ELEMENT_TYPE
 
 # Suggested values for first setup (pure junction: no source or sink)
 _SUGGESTED_DEFAULTS = {
-    SECTION_DETAILS: {},
+    SECTION_COMMON: {},
     SECTION_ADVANCED: {
         CONF_IS_SOURCE: False,
         CONF_IS_SINK: False,
@@ -35,7 +35,7 @@ class NodeSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
     def _get_sections(self) -> tuple[SectionDefinition, ...]:
         """Return sections for the configuration step."""
         return (
-            details_section((CONF_NAME,), collapsed=False),
+            common_section((CONF_NAME,), collapsed=False),
             advanced_section((CONF_IS_SOURCE, CONF_IS_SINK), collapsed=True),
         )
 
@@ -43,7 +43,7 @@ class NodeSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         """Build the voluptuous schema for node configuration."""
         sections = self._get_sections()
         field_entries: dict[str, dict[str, tuple[vol.Marker, Any]]] = {
-            SECTION_DETAILS: build_details_fields(include_connection=False),
+            SECTION_COMMON: build_common_fields(include_connection=False),
             SECTION_ADVANCED: {
                 CONF_IS_SOURCE: (
                     vol.Optional(CONF_IS_SOURCE),
@@ -78,13 +78,13 @@ class NodeSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         subentry = self._get_subentry()
 
         if user_input is not None:
-            basic_input = user_input.get(SECTION_DETAILS, {})
+            common_input = user_input.get(SECTION_COMMON, {})
             advanced_input = user_input.get(SECTION_ADVANCED, {})
-            name = basic_input.get(CONF_NAME)
+            name = common_input.get(CONF_NAME)
             if self._validate_name(name, errors):
                 config = {
                     CONF_ELEMENT_TYPE: ELEMENT_TYPE,
-                    SECTION_DETAILS: {CONF_NAME: name},
+                    SECTION_COMMON: {CONF_NAME: name},
                     SECTION_ADVANCED: {
                         CONF_IS_SOURCE: bool(advanced_input.get(CONF_IS_SOURCE, False)),
                         CONF_IS_SINK: bool(advanced_input.get(CONF_IS_SINK, False)),

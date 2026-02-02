@@ -14,15 +14,15 @@ from custom_components.haeo.sections import (
     CONF_PRICE_SOURCE_TARGET,
     CONF_PRICE_TARGET_SOURCE,
     SECTION_ADVANCED,
-    SECTION_DETAILS,
+    SECTION_COMMON,
     SECTION_LIMITS,
     SECTION_POWER_LIMITS,
     SECTION_PRICING,
     SECTION_STORAGE,
     AdvancedConfig,
     AdvancedData,
-    ConnectedDetailsConfig,
-    ConnectedDetailsData,
+    ConnectedCommonConfig,
+    ConnectedCommonData,
     LimitsConfig,
     LimitsData,
     PowerLimitsConfig,
@@ -94,7 +94,7 @@ class BatteryConfigSchema(TypedDict):
     """Battery element configuration as stored in Home Assistant."""
 
     element_type: Literal["battery"]
-    details: ConnectedDetailsConfig
+    common: ConnectedCommonConfig
     storage: StorageSocConfig
     limits: LimitsConfig
     power_limits: PowerLimitsConfig
@@ -108,7 +108,7 @@ class BatteryConfigData(TypedDict):
     """Battery element configuration with loaded values."""
 
     element_type: Literal["battery"]
-    details: ConnectedDetailsData
+    common: ConnectedCommonData
     storage: StorageSocData
     limits: LimitsData
     power_limits: PowerLimitsData
@@ -134,7 +134,7 @@ __all__ = [
     "OPTIONAL_INPUT_FIELDS",
     "PARTITION_FIELD_NAMES",
     "SECTION_ADVANCED",
-    "SECTION_DETAILS",
+    "SECTION_COMMON",
     "SECTION_LIMITS",
     "SECTION_OVERCHARGE",
     "SECTION_POWER_LIMITS",
