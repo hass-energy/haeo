@@ -2,14 +2,7 @@
 
 from typing import Final, Literal, TypedDict
 
-from custom_components.haeo.sections import (
-    SECTION_ADVANCED,
-    SECTION_COMMON,
-    AdvancedConfig,
-    AdvancedData,
-    CommonConfig,
-    CommonData,
-)
+from custom_components.haeo.sections import SECTION_COMMON, SECTION_ROLE, CommonConfig, CommonData, RoleConfig, RoleData
 
 ELEMENT_TYPE: Final = "node"
 
@@ -24,7 +17,7 @@ class NodeConfigSchema(TypedDict):
 
     element_type: Literal["node"]
     common: CommonConfig
-    advanced: AdvancedConfig
+    role: RoleConfig
 
 
 class NodeConfigData(TypedDict):
@@ -32,7 +25,7 @@ class NodeConfigData(TypedDict):
 
     element_type: Literal["node"]
     common: CommonData
-    advanced: AdvancedData
+    role: RoleData
 
 
 __all__ = [
@@ -40,8 +33,8 @@ __all__ = [
     "CONF_IS_SOURCE",
     "ELEMENT_TYPE",
     "OPTIONAL_INPUT_FIELDS",
-    "SECTION_ADVANCED",
     "SECTION_COMMON",
+    "SECTION_ROLE",
     "NodeConfigData",
     "NodeConfigSchema",
 ]

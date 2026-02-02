@@ -25,13 +25,13 @@ from custom_components.haeo.sections import (
     CONF_CONNECTION,
     CONF_FORECAST,
     CONF_PRICE_SOURCE_TARGET,
-    SECTION_ADVANCED,
     SECTION_COMMON,
+    SECTION_CURTAILMENT,
     SECTION_FORECAST,
     SECTION_PRICING,
-    advanced_section,
     build_common_fields,
     common_section,
+    curtailment_section,
     forecast_section,
     pricing_section,
 )
@@ -49,7 +49,7 @@ class SolarSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             common_section((CONF_NAME, CONF_CONNECTION), collapsed=False),
             forecast_section((CONF_FORECAST,), collapsed=False),
             pricing_section((CONF_PRICE_SOURCE_TARGET,), collapsed=False),
-            advanced_section((CONF_CURTAILMENT,), collapsed=True),
+            curtailment_section((CONF_CURTAILMENT,), collapsed=True),
         )
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> SubentryFlowResult:
@@ -92,7 +92,7 @@ class SolarSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                 SECTION_PRICING: {
                     CONF_PRICE_SOURCE_TARGET: 0.0,
                 },
-                SECTION_ADVANCED: {},
+                SECTION_CURTAILMENT: {},
             }
 
         input_fields = adapter.inputs(element_config)
@@ -178,7 +178,7 @@ class SolarSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             },
             SECTION_FORECAST: {},
             SECTION_PRICING: {},
-            SECTION_ADVANCED: {},
+            SECTION_CURTAILMENT: {},
         }
 
         input_fields = adapter.inputs(subentry_data)

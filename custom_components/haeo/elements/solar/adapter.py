@@ -23,8 +23,8 @@ from custom_components.haeo.sections import (
     CONF_CONNECTION,
     CONF_FORECAST,
     CONF_PRICE_SOURCE_TARGET,
-    SECTION_ADVANCED,
     SECTION_COMMON,
+    SECTION_CURTAILMENT,
     SECTION_FORECAST,
     SECTION_PRICING,
 )
@@ -99,7 +99,7 @@ class SolarAdapter:
                     defaults=InputFieldDefaults(mode=None, value=0.0),
                 ),
             },
-            SECTION_ADVANCED: {
+            SECTION_CURTAILMENT: {
                 CONF_CURTAILMENT: InputFieldInfo(
                     field_name=CONF_CURTAILMENT,
                     entity_description=SwitchEntityDescription(
@@ -132,7 +132,7 @@ class SolarAdapter:
                         "segment_type": "power_limit",
                         "max_power_source_target": config[SECTION_FORECAST][CONF_FORECAST],
                         "max_power_target_source": 0.0,
-                        "fixed": not config[SECTION_ADVANCED].get(CONF_CURTAILMENT, True),
+                        "fixed": not config[SECTION_CURTAILMENT].get(CONF_CURTAILMENT, True),
                     },
                     "pricing": {
                         "segment_type": "pricing",

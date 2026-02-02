@@ -13,9 +13,10 @@ from custom_components.haeo.elements.battery import (
     CONF_MIN_CHARGE_PERCENTAGE,
     CONF_PRICE_SOURCE_TARGET,
     CONF_PRICE_TARGET_SOURCE,
-    SECTION_ADVANCED,
     SECTION_COMMON,
+    SECTION_EFFICIENCY,
     SECTION_LIMITS,
+    SECTION_PARTITIONING,
     SECTION_POWER_LIMITS,
     SECTION_PRICING,
     SECTION_STORAGE,
@@ -46,8 +47,10 @@ VALID_DATA = [
             SECTION_PRICING: {
                 CONF_PRICE_TARGET_SOURCE: 0.01,
             },
-            SECTION_ADVANCED: {
+            SECTION_EFFICIENCY: {
                 CONF_EFFICIENCY: 95.0,
+            },
+            SECTION_PARTITIONING: {
                 CONF_CONFIGURE_PARTITIONS: False,
             },
         },
@@ -75,8 +78,10 @@ VALID_DATA = [
                 CONF_PRICE_TARGET_SOURCE: 0.05,
                 CONF_PRICE_SOURCE_TARGET: 0.03,
             },
-            SECTION_ADVANCED: {
+            SECTION_EFFICIENCY: {
                 CONF_EFFICIENCY: 95.0,
+            },
+            SECTION_PARTITIONING: {
                 CONF_CONFIGURE_PARTITIONS: False,
             },
         },
@@ -104,8 +109,10 @@ INVALID_DATA = [
             SECTION_PRICING: {
                 CONF_PRICE_TARGET_SOURCE: 0.01,
             },
-            SECTION_ADVANCED: {
+            SECTION_EFFICIENCY: {
                 CONF_EFFICIENCY: 95.0,
+            },
+            SECTION_PARTITIONING: {
                 CONF_CONFIGURE_PARTITIONS: False,
             },
         },

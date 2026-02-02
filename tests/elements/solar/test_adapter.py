@@ -16,7 +16,7 @@ async def test_available_returns_true_when_forecast_sensor_exists(hass: HomeAssi
         "common": {"name": "test_solar", "connection": "dc_bus"},
         "forecast": {"forecast": ["sensor.forecast"]},
         "pricing": {"price_source_target": 0.0},
-        "advanced": {"curtailment": True},
+        "curtailment": {"curtailment": True},
     }
 
     result = solar.adapter.available(config, hass=hass)
@@ -30,7 +30,7 @@ async def test_available_returns_false_when_forecast_sensor_missing(hass: HomeAs
         "common": {"name": "test_solar", "connection": "dc_bus"},
         "forecast": {"forecast": ["sensor.missing"]},
         "pricing": {"price_source_target": 0.0},
-        "advanced": {"curtailment": True},
+        "curtailment": {"curtailment": True},
     }
 
     result = solar.adapter.available(config, hass=hass)

@@ -10,7 +10,7 @@ async def test_available_returns_true(hass: HomeAssistant) -> None:
     config: node.NodeConfigSchema = {
         "element_type": "node",
         "common": {"name": "test_node"},
-        "advanced": {"is_source": False, "is_sink": False},
+        "role": {"is_source": False, "is_sink": False},
     }
 
     result = node.adapter.available(config, hass=hass)
@@ -22,7 +22,7 @@ def test_model_elements_applies_default_flags() -> None:
     config_data: node.NodeConfigData = {
         "element_type": "node",
         "common": {"name": "test_node"},
-        "advanced": {},
+        "role": {},
     }
 
     elements = node.adapter.model_elements(config_data)

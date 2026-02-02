@@ -23,11 +23,13 @@ from custom_components.haeo.elements.grid import CONF_CONNECTION as GRID_CONF_CO
 from custom_components.haeo.elements.grid import CONF_PRICE_SOURCE_TARGET, CONF_PRICE_TARGET_SOURCE, GridConfigData
 from custom_components.haeo.elements.node import CONF_IS_SINK, CONF_IS_SOURCE, NodeConfigData
 from custom_components.haeo.sections import (
-    SECTION_ADVANCED,
     SECTION_COMMON,
+    SECTION_EFFICIENCY,
     SECTION_LIMITS,
+    SECTION_PARTITIONING,
     SECTION_POWER_LIMITS,
     SECTION_PRICING,
+    SECTION_ROLE,
     SECTION_STORAGE,
 )
 from custom_components.haeo.validation import format_component_summary, validate_network_topology
@@ -61,7 +63,7 @@ def test_validate_network_topology_with_implicit_connection() -> None:
     main_node: NodeConfigData = {
         CONF_ELEMENT_TYPE: "node",
         SECTION_COMMON: {CONF_NAME: "main"},
-        SECTION_ADVANCED: {CONF_IS_SOURCE: False, CONF_IS_SINK: False},
+        SECTION_ROLE: {CONF_IS_SOURCE: False, CONF_IS_SINK: False},
     }
     grid: GridConfigData = {
         CONF_ELEMENT_TYPE: "grid",
@@ -85,12 +87,12 @@ def test_validate_network_topology_detects_disconnected() -> None:
     node_a: NodeConfigData = {
         CONF_ELEMENT_TYPE: "node",
         SECTION_COMMON: {CONF_NAME: "a"},
-        SECTION_ADVANCED: {CONF_IS_SOURCE: False, CONF_IS_SINK: False},
+        SECTION_ROLE: {CONF_IS_SOURCE: False, CONF_IS_SINK: False},
     }
     node_b: NodeConfigData = {
         CONF_ELEMENT_TYPE: "node",
         SECTION_COMMON: {CONF_NAME: "b"},
-        SECTION_ADVANCED: {CONF_IS_SOURCE: False, CONF_IS_SINK: False},
+        SECTION_ROLE: {CONF_IS_SOURCE: False, CONF_IS_SINK: False},
     }
     grid_a: GridConfigData = {
         CONF_ELEMENT_TYPE: "grid",
@@ -129,7 +131,7 @@ def test_validate_network_topology_with_battery() -> None:
     main_node: NodeConfigData = {
         CONF_ELEMENT_TYPE: "node",
         SECTION_COMMON: {CONF_NAME: "main"},
-        SECTION_ADVANCED: {CONF_IS_SOURCE: False, CONF_IS_SINK: False},
+        SECTION_ROLE: {CONF_IS_SOURCE: False, CONF_IS_SINK: False},
     }
     grid: GridConfigData = {
         CONF_ELEMENT_TYPE: "grid",
@@ -159,9 +161,10 @@ def test_validate_network_topology_with_battery() -> None:
             CONF_MAX_POWER_TARGET_SOURCE: np.array([5.0, 5.0]),
         },
         SECTION_PRICING: {},
-        SECTION_ADVANCED: {
+        SECTION_EFFICIENCY: {
             CONF_EFFICIENCY: np.array([95.0, 95.0]),
         },
+        SECTION_PARTITIONING: {},
     }
     participants: dict[str, ElementConfigData] = {
         "main_node": main_node,
@@ -182,7 +185,7 @@ def test_validate_network_topology_with_battery_all_sections() -> None:
     main_node: NodeConfigData = {
         CONF_ELEMENT_TYPE: "node",
         SECTION_COMMON: {CONF_NAME: "main"},
-        SECTION_ADVANCED: {CONF_IS_SOURCE: False, CONF_IS_SINK: False},
+        SECTION_ROLE: {CONF_IS_SOURCE: False, CONF_IS_SINK: False},
     }
     battery: BatteryConfigData = {
         CONF_ELEMENT_TYPE: "battery",
@@ -203,9 +206,10 @@ def test_validate_network_topology_with_battery_all_sections() -> None:
             CONF_MAX_POWER_TARGET_SOURCE: np.array([5.0, 5.0]),
         },
         SECTION_PRICING: {},
-        SECTION_ADVANCED: {
+        SECTION_EFFICIENCY: {
             CONF_EFFICIENCY: np.array([95.0, 95.0]),
         },
+        SECTION_PARTITIONING: {},
         SECTION_UNDERCHARGE: {
             CONF_PARTITION_PERCENTAGE: np.array([5.0, 5.0, 5.0]),
             CONF_PARTITION_COST: np.array([0.05, 0.05]),

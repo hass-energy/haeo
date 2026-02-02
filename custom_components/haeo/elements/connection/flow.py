@@ -26,13 +26,13 @@ from custom_components.haeo.flows.field_schema import (
     validate_sectioned_choose_fields,
 )
 from custom_components.haeo.sections import (
-    SECTION_ADVANCED,
     SECTION_COMMON,
+    SECTION_EFFICIENCY,
     SECTION_POWER_LIMITS,
     SECTION_PRICING,
-    advanced_section,
     build_common_fields,
     common_section,
+    efficiency_section,
     power_limits_section,
     pricing_section,
 )
@@ -82,7 +82,7 @@ class ConnectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             SectionDefinition(key=SECTION_ENDPOINTS, fields=(CONF_SOURCE, CONF_TARGET), collapsed=False),
             power_limits_section((CONF_MAX_POWER_SOURCE_TARGET, CONF_MAX_POWER_TARGET_SOURCE), collapsed=False),
             pricing_section((CONF_PRICE_SOURCE_TARGET, CONF_PRICE_TARGET_SOURCE), collapsed=False),
-            advanced_section((CONF_EFFICIENCY_SOURCE_TARGET, CONF_EFFICIENCY_TARGET_SOURCE), collapsed=True),
+            efficiency_section((CONF_EFFICIENCY_SOURCE_TARGET, CONF_EFFICIENCY_TARGET_SOURCE), collapsed=True),
         )
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> SubentryFlowResult:
@@ -127,7 +127,7 @@ class ConnectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                 },
                 SECTION_POWER_LIMITS: {},
                 SECTION_PRICING: {},
-                SECTION_ADVANCED: {},
+                SECTION_EFFICIENCY: {},
             }
 
         input_fields = adapter.inputs(element_config)
@@ -212,7 +212,7 @@ class ConnectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             },
             SECTION_POWER_LIMITS: {},
             SECTION_PRICING: {},
-            SECTION_ADVANCED: {},
+            SECTION_EFFICIENCY: {},
         }
 
         input_fields = adapter.inputs(subentry_data)

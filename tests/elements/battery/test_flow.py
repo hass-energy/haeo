@@ -26,9 +26,10 @@ from custom_components.haeo.elements.battery import (
     CONF_PRICE_SOURCE_TARGET,
     CONF_PRICE_TARGET_SOURCE,
     ELEMENT_TYPE,
-    SECTION_ADVANCED,
     SECTION_COMMON,
+    SECTION_EFFICIENCY,
     SECTION_LIMITS,
+    SECTION_PARTITIONING,
     SECTION_POWER_LIMITS,
     SECTION_OVERCHARGE,
     SECTION_PRICING,
@@ -82,12 +83,14 @@ def _wrap_main_input(user_input: dict[str, Any]) -> dict[str, Any]:
             )
             if key in user_input
         },
-        SECTION_ADVANCED: {
+        SECTION_EFFICIENCY: {
             key: user_input[key]
-            for key in (
-                CONF_EFFICIENCY,
-                CONF_CONFIGURE_PARTITIONS,
-            )
+            for key in (CONF_EFFICIENCY,)
+            if key in user_input
+        },
+        SECTION_PARTITIONING: {
+            key: user_input[key]
+            for key in (CONF_CONFIGURE_PARTITIONS,)
             if key in user_input
         },
     }
@@ -601,7 +604,7 @@ async def test_defaults_with_scalar_values_shows_constant_choice(hass: HomeAssis
 
     assert defaults[SECTION_STORAGE][CONF_CAPACITY] == 10.0
     assert defaults[SECTION_POWER_LIMITS][CONF_MAX_POWER_TARGET_SOURCE] == 5.0
-    assert defaults[SECTION_ADVANCED][CONF_EFFICIENCY] == 0.95
+    assert defaults[SECTION_EFFICIENCY][CONF_EFFICIENCY] == 0.95
 
 
 async def test_defaults_with_entity_strings_shows_entity_choice(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:

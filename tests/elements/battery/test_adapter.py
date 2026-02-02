@@ -20,7 +20,8 @@ def _wrap_config(flat: dict[str, object]) -> battery.BatteryConfigSchema:
     limits: dict[str, object] = {}
     power_limits: dict[str, object] = {}
     pricing: dict[str, object] = {}
-    advanced: dict[str, object] = {}
+    efficiency: dict[str, object] = {}
+    partitioning: dict[str, object] = {}
     undercharge: dict[str, object] = {}
     overcharge: dict[str, object] = {}
 
@@ -40,11 +41,10 @@ def _wrap_config(flat: dict[str, object]) -> battery.BatteryConfigSchema:
             "max_charge_percentage",
         ):
             limits[key] = value
-        elif key in (
-            "efficiency",
-            "configure_partitions",
-        ):
-            advanced[key] = value
+        elif key == "efficiency":
+            efficiency[key] = value
+        elif key == "configure_partitions":
+            partitioning[key] = value
         elif key in (
             "max_power_source_target",
             "max_power_target_source",
@@ -67,7 +67,8 @@ def _wrap_config(flat: dict[str, object]) -> battery.BatteryConfigSchema:
         "limits": limits,
         "power_limits": power_limits,
         "pricing": pricing,
-        "advanced": advanced,
+        "efficiency": efficiency,
+        "partitioning": partitioning,
         "undercharge": undercharge,
         "overcharge": overcharge,
     }

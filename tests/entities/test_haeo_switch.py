@@ -21,8 +21,8 @@ from custom_components.haeo.elements.solar import (
     CONF_CONNECTION,
     CONF_FORECAST,
     CONF_PRICE_SOURCE_TARGET,
-    SECTION_ADVANCED,
     SECTION_COMMON,
+    SECTION_CURTAILMENT,
     SECTION_FORECAST,
     SECTION_PRICING,
 )
@@ -108,7 +108,7 @@ def _create_subentry(name: str, data: dict[str, Any]) -> ConfigSubentry:
                 SECTION_PRICING: {
                     CONF_PRICE_SOURCE_TARGET: 0.0,
                 },
-                SECTION_ADVANCED: data,
+                SECTION_CURTAILMENT: data,
             }
         ),
         subentry_type="solar",
@@ -460,7 +460,7 @@ async def test_unique_id_includes_all_components(
         horizon_manager=horizon_manager,
     )
 
-    expected_unique_id = f"{config_entry.entry_id}_{subentry.subentry_id}_advanced.{curtailment_field_info.field_name}"
+    expected_unique_id = f"{config_entry.entry_id}_{subentry.subentry_id}_curtailment.{curtailment_field_info.field_name}"
     assert entity.unique_id == expected_unique_id
 
 

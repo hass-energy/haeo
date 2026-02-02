@@ -5,13 +5,13 @@ from typing import Final, Literal, TypedDict
 from custom_components.haeo.sections import (
     CONF_MAX_POWER_SOURCE_TARGET,
     CONF_MAX_POWER_TARGET_SOURCE,
-    SECTION_ADVANCED,
     SECTION_COMMON,
+    SECTION_EFFICIENCY,
     SECTION_POWER_LIMITS,
-    AdvancedConfig,
-    AdvancedData,
     ConnectedCommonConfig,
     ConnectedCommonData,
+    EfficiencyConfig,
+    EfficiencyData,
     PowerLimitsPairConfig,
     PowerLimitsPairData,
 )
@@ -30,7 +30,7 @@ class InverterConfigSchema(TypedDict):
     element_type: Literal["inverter"]
     common: ConnectedCommonConfig
     power_limits: PowerLimitsPairConfig
-    advanced: AdvancedConfig
+    efficiency: EfficiencyConfig
 
 
 class InverterConfigData(TypedDict):
@@ -39,7 +39,7 @@ class InverterConfigData(TypedDict):
     element_type: Literal["inverter"]
     common: ConnectedCommonData
     power_limits: PowerLimitsPairData
-    advanced: AdvancedData
+    efficiency: EfficiencyData
 
 
 __all__ = [
@@ -49,8 +49,8 @@ __all__ = [
     "CONF_MAX_POWER_TARGET_SOURCE",
     "ELEMENT_TYPE",
     "OPTIONAL_INPUT_FIELDS",
-    "SECTION_ADVANCED",
     "SECTION_COMMON",
+    "SECTION_EFFICIENCY",
     "SECTION_POWER_LIMITS",
     "InverterConfigData",
     "InverterConfigSchema",

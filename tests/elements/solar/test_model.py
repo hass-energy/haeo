@@ -49,7 +49,7 @@ CREATE_CASES: Sequence[CreateCase] = [
             pricing={
                 "price_source_target": np.array([0.15, 0.15]),
             },
-            advanced={
+            curtailment={
                 "curtailment": False,
             },
         ),

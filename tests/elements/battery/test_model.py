@@ -63,9 +63,10 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "price_source_target": np.array([0.03]),
                 "price_target_source": np.array([0.01]),
             },
-            advanced={
+            efficiency={
                 "efficiency": np.array([0.95]),
             },
+            partitioning={},
             undercharge={
                 "percentage": np.array([0.05, 0.05]),
                 "cost": np.array([0.03]),
@@ -138,9 +139,10 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "price_source_target": np.array([0.003]),
                 "price_target_source": np.array([0.001]),
             },
-            advanced={
+            efficiency={
                 "efficiency": np.array([0.95]),
             },
+            partitioning={},
             undercharge={},
             overcharge={},
         ),
@@ -205,9 +207,10 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
                 "price_source_target": np.array([0.003]),
                 "price_target_source": np.array([0.001]),
             },
-            advanced={
+            efficiency={
                 "efficiency": np.array([0.95]),
             },
+            partitioning={},
             undercharge={},
             overcharge={},
         ),
@@ -263,9 +266,10 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
                 "price_source_target": np.array([0.003]),
                 "price_target_source": np.array([0.001]),
             },
-            advanced={
+            efficiency={
                 "efficiency": np.array([0.95]),
             },
+            partitioning={},
             undercharge={
                 "percentage": np.array([0.05, 0.05]),
                 "cost": np.array([0.03]),

@@ -5,14 +5,14 @@ from typing import Final, Literal, TypedDict
 from custom_components.haeo.sections import (
     CONF_FORECAST,
     CONF_PRICE_SOURCE_TARGET,
-    SECTION_ADVANCED,
     SECTION_COMMON,
+    SECTION_CURTAILMENT,
     SECTION_FORECAST,
     SECTION_PRICING,
-    AdvancedConfig,
-    AdvancedData,
     ConnectedCommonConfig,
     ConnectedCommonData,
+    CurtailmentConfig,
+    CurtailmentData,
     ForecastConfig,
     ForecastData,
     PricingConfig,
@@ -36,7 +36,7 @@ class SolarConfigSchema(TypedDict):
     common: ConnectedCommonConfig
     forecast: ForecastConfig
     pricing: PricingConfig
-    advanced: AdvancedConfig
+    curtailment: CurtailmentConfig
 
 
 class SolarConfigData(TypedDict):
@@ -46,7 +46,7 @@ class SolarConfigData(TypedDict):
     common: ConnectedCommonData
     forecast: ForecastData
     pricing: PricingData
-    advanced: AdvancedData
+    curtailment: CurtailmentData
 
 
 __all__ = [
@@ -55,8 +55,8 @@ __all__ = [
     "CONF_PRICE_SOURCE_TARGET",
     "ELEMENT_TYPE",
     "OPTIONAL_INPUT_FIELDS",
-    "SECTION_ADVANCED",
     "SECTION_COMMON",
+    "SECTION_CURTAILMENT",
     "SECTION_FORECAST",
     "SECTION_PRICING",
     "SolarConfigData",

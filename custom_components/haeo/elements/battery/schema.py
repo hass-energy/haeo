@@ -13,18 +13,21 @@ from custom_components.haeo.sections import (
     CONF_MAX_POWER_TARGET_SOURCE,
     CONF_PRICE_SOURCE_TARGET,
     CONF_PRICE_TARGET_SOURCE,
-    SECTION_ADVANCED,
     SECTION_COMMON,
+    SECTION_EFFICIENCY,
     SECTION_LIMITS,
+    SECTION_PARTITIONING,
     SECTION_POWER_LIMITS,
     SECTION_PRICING,
     SECTION_STORAGE,
-    AdvancedConfig,
-    AdvancedData,
     ConnectedCommonConfig,
     ConnectedCommonData,
+    EfficiencyConfig,
+    EfficiencyData,
     LimitsConfig,
     LimitsData,
+    PartitioningConfig,
+    PartitioningData,
     PowerLimitsConfig,
     PowerLimitsData,
     PricingConfig,
@@ -99,7 +102,8 @@ class BatteryConfigSchema(TypedDict):
     limits: LimitsConfig
     power_limits: PowerLimitsConfig
     pricing: PricingConfig
-    advanced: AdvancedConfig
+    efficiency: EfficiencyConfig
+    partitioning: PartitioningConfig
     undercharge: NotRequired[PartitionConfig]
     overcharge: NotRequired[PartitionConfig]
 
@@ -113,7 +117,8 @@ class BatteryConfigData(TypedDict):
     limits: LimitsData
     power_limits: PowerLimitsData
     pricing: PricingData
-    advanced: AdvancedData
+    efficiency: EfficiencyData
+    partitioning: PartitioningData
     undercharge: NotRequired[PartitionData]
     overcharge: NotRequired[PartitionData]
 
@@ -133,10 +138,11 @@ __all__ = [
     "ELEMENT_TYPE",
     "OPTIONAL_INPUT_FIELDS",
     "PARTITION_FIELD_NAMES",
-    "SECTION_ADVANCED",
     "SECTION_COMMON",
+    "SECTION_EFFICIENCY",
     "SECTION_LIMITS",
     "SECTION_OVERCHARGE",
+    "SECTION_PARTITIONING",
     "SECTION_POWER_LIMITS",
     "SECTION_PRICING",
     "SECTION_STORAGE",

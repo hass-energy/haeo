@@ -28,8 +28,8 @@ from custom_components.haeo.sections import (
     CONF_MAX_POWER_TARGET_SOURCE,
     CONF_PRICE_SOURCE_TARGET,
     CONF_PRICE_TARGET_SOURCE,
-    SECTION_ADVANCED,
     SECTION_COMMON,
+    SECTION_EFFICIENCY,
     SECTION_LIMITS,
     SECTION_POWER_LIMITS,
     SECTION_PRICING,
@@ -112,7 +112,7 @@ class BatteryAdapter:
         limits = config[SECTION_LIMITS]
         power_limits = config[SECTION_POWER_LIMITS]
         pricing = config[SECTION_PRICING]
-        advanced = config[SECTION_ADVANCED]
+        efficiency = config[SECTION_EFFICIENCY]
         undercharge = config.get(SECTION_UNDERCHARGE, {})
         overcharge = config.get(SECTION_OVERCHARGE, {})
 
@@ -128,7 +128,7 @@ class BatteryAdapter:
             (power_limits, CONF_MAX_POWER_TARGET_SOURCE),
             (limits, CONF_MIN_CHARGE_PERCENTAGE),
             (limits, CONF_MAX_CHARGE_PERCENTAGE),
-            (advanced, CONF_EFFICIENCY),
+            (efficiency, CONF_EFFICIENCY),
             (pricing, CONF_PRICE_SOURCE_TARGET),
             (pricing, CONF_PRICE_TARGET_SOURCE),
             (undercharge, CONF_PARTITION_PERCENTAGE),
@@ -241,7 +241,7 @@ class BatteryAdapter:
                     defaults=InputFieldDefaults(mode=None, value=100.0),
                 ),
             },
-            SECTION_ADVANCED: {
+            SECTION_EFFICIENCY: {
                 CONF_EFFICIENCY: InputFieldInfo(
                     field_name=CONF_EFFICIENCY,
                     entity_description=NumberEntityDescription(
@@ -310,7 +310,7 @@ class BatteryAdapter:
         limits = config[SECTION_LIMITS]
         power_limits = config[SECTION_POWER_LIMITS]
         pricing = config[SECTION_PRICING]
-        advanced = config[SECTION_ADVANCED]
+        efficiency_section = config[SECTION_EFFICIENCY]
         undercharge = config.get(SECTION_UNDERCHARGE, {})
         overcharge = config.get(SECTION_OVERCHARGE, {})
 
@@ -326,7 +326,7 @@ class BatteryAdapter:
 
         min_charge_percentage = limits.get(CONF_MIN_CHARGE_PERCENTAGE, DEFAULTS[CONF_MIN_CHARGE_PERCENTAGE])
         max_charge_percentage = limits.get(CONF_MAX_CHARGE_PERCENTAGE, DEFAULTS[CONF_MAX_CHARGE_PERCENTAGE])
-        efficiency = advanced.get(CONF_EFFICIENCY)
+        efficiency = efficiency_section.get(CONF_EFFICIENCY)
 
         undercharge_cost = undercharge.get(CONF_PARTITION_COST)
         overcharge_cost = overcharge.get(CONF_PARTITION_COST)

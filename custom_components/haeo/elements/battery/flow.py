@@ -30,16 +30,18 @@ from custom_components.haeo.sections import (
     CONF_MAX_POWER_TARGET_SOURCE,
     CONF_PRICE_SOURCE_TARGET,
     CONF_PRICE_TARGET_SOURCE,
-    SECTION_ADVANCED,
     SECTION_COMMON,
+    SECTION_EFFICIENCY,
     SECTION_LIMITS,
+    SECTION_PARTITIONING,
     SECTION_POWER_LIMITS,
     SECTION_PRICING,
     SECTION_STORAGE,
-    advanced_section,
     build_common_fields,
     common_section,
+    efficiency_section,
     limits_section,
+    partitioning_section,
     power_limits_section,
     pricing_section,
     storage_section,
@@ -109,8 +111,12 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                 (CONF_PRICE_SOURCE_TARGET, CONF_PRICE_TARGET_SOURCE),
                 collapsed=False,
             ),
-            advanced_section(
-                (CONF_EFFICIENCY, CONF_CONFIGURE_PARTITIONS),
+            efficiency_section(
+                (CONF_EFFICIENCY,),
+                collapsed=True,
+            ),
+            partitioning_section(
+                (CONF_CONFIGURE_PARTITIONS,),
                 collapsed=True,
             ),
         )
@@ -160,7 +166,8 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                 SECTION_LIMITS: {},
                 SECTION_POWER_LIMITS: {},
                 SECTION_PRICING: {},
-                SECTION_ADVANCED: {},
+                SECTION_EFFICIENCY: {},
+                SECTION_PARTITIONING: {},
             }
 
         input_fields = adapter.inputs(element_config)
@@ -172,7 +179,7 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         if user_input is not None and not errors:
             self._step1_data = user_input
             # Check if partitions are enabled
-            if user_input.get(SECTION_ADVANCED, {}).get(CONF_CONFIGURE_PARTITIONS):
+            if user_input.get(SECTION_PARTITIONING, {}).get(CONF_CONFIGURE_PARTITIONS):
                 return await self.async_step_partitions()
             # No partitions - finalize directly
             config = self._build_config(user_input, {})
@@ -240,7 +247,7 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                 participants=participants,
                 current_connection=current_connection,
             ),
-            SECTION_ADVANCED: {
+            SECTION_PARTITIONING: {
                 CONF_CONFIGURE_PARTITIONS: (
                     vol.Optional(CONF_CONFIGURE_PARTITIONS),
                     BooleanSelector(BooleanSelectorConfig()),
@@ -302,7 +309,8 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             SECTION_LIMITS: {},
             SECTION_POWER_LIMITS: {},
             SECTION_PRICING: {},
-            SECTION_ADVANCED: {},
+            SECTION_EFFICIENCY: {},
+            SECTION_PARTITIONING: {},
         }
 
         input_fields = adapter.inputs(subentry_data)
@@ -327,7 +335,7 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                 ):
                     has_partitions = True
                     break
-        defaults[SECTION_ADVANCED][CONF_CONFIGURE_PARTITIONS] = has_partitions
+        defaults[SECTION_PARTITIONING][CONF_CONFIGURE_PARTITIONS] = has_partitions
 
         return defaults
 

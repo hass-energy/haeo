@@ -23,7 +23,7 @@ from custom_components.haeo.elements.grid import (
     SECTION_PRICING,
 )
 from custom_components.haeo.elements.grid import ELEMENT_TYPE as GRID_TYPE
-from custom_components.haeo.elements.solar import CONF_CURTAILMENT, CONF_FORECAST, SECTION_ADVANCED, SECTION_FORECAST
+from custom_components.haeo.elements.solar import CONF_CURTAILMENT, CONF_FORECAST, SECTION_CURTAILMENT, SECTION_FORECAST
 from custom_components.haeo.elements.solar import CONF_PRICE_SOURCE_TARGET as CONF_SOLAR_PRICE_SOURCE_TARGET
 from custom_components.haeo.elements.solar import ELEMENT_TYPE as SOLAR_TYPE
 from custom_components.haeo.elements.solar import SECTION_COMMON as SOLAR_SECTION_COMMON
@@ -113,7 +113,7 @@ def _add_subentry(
             SECTION_PRICING: {
                 CONF_SOLAR_PRICE_SOURCE_TARGET: data.get("price_source_target"),
             },
-            SECTION_ADVANCED: {
+            SECTION_CURTAILMENT: {
                 CONF_CURTAILMENT: data.get("curtailment"),
             },
         }

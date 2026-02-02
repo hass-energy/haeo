@@ -24,7 +24,7 @@ from custom_components.haeo.entities.haeo_number import (
 )
 from custom_components.haeo.horizon import HorizonManager
 from custom_components.haeo.model import OutputType
-from custom_components.haeo.sections import SECTION_ADVANCED, SECTION_COMMON
+from custom_components.haeo.sections import SECTION_COMMON, SECTION_EFFICIENCY
 
 # --- Fixtures ---
 
@@ -155,7 +155,7 @@ def _create_subentry(name: str, data: dict[str, Any]) -> ConfigSubentry:
             {
                 "element_type": "battery",
                 SECTION_COMMON: {CONF_NAME: name},
-                SECTION_ADVANCED: data,
+                SECTION_EFFICIENCY: data,
             }
         ),
         subentry_type="battery",
@@ -402,7 +402,7 @@ async def test_unique_id_includes_all_components(
         horizon_manager=horizon_manager,
     )
 
-    expected_unique_id = f"{config_entry.entry_id}_{subentry.subentry_id}_advanced.{power_field_info.field_name}"
+    expected_unique_id = f"{config_entry.entry_id}_{subentry.subentry_id}_efficiency.{power_field_info.field_name}"
     assert entity.unique_id == expected_unique_id
 
 

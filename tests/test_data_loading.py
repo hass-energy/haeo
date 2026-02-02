@@ -14,11 +14,12 @@ from custom_components.haeo.elements.connection import CONF_SOURCE, CONF_TARGET,
 from custom_components.haeo.elements.load import CONF_CONNECTION
 from custom_components.haeo.elements.node import CONF_IS_SINK, CONF_IS_SOURCE
 from custom_components.haeo.sections import (
-    SECTION_ADVANCED,
     SECTION_COMMON,
+    SECTION_EFFICIENCY,
     SECTION_FORECAST,
     SECTION_POWER_LIMITS,
     SECTION_PRICING,
+    SECTION_ROLE,
 )
 
 
@@ -35,7 +36,7 @@ async def test_create_network_successful_loads_load_participant(hass: HomeAssist
             "main_bus": {
                 CONF_ELEMENT_TYPE: "node",
                 SECTION_COMMON: {CONF_NAME: "main_bus"},
-                SECTION_ADVANCED: {CONF_IS_SOURCE: False, CONF_IS_SINK: False},
+                SECTION_ROLE: {CONF_IS_SOURCE: False, CONF_IS_SINK: False},
             },
             "Baseload": {
                 CONF_ELEMENT_TYPE: "load",
@@ -94,17 +95,17 @@ async def test_create_network_sorts_connections_after_elements(hass: HomeAssista
                 },
                 SECTION_POWER_LIMITS: {},
                 SECTION_PRICING: {},
-                SECTION_ADVANCED: {},
+                SECTION_EFFICIENCY: {},
             },
             "node_a": {
                 CONF_ELEMENT_TYPE: "node",
                 SECTION_COMMON: {CONF_NAME: "node_a"},
-                SECTION_ADVANCED: {CONF_IS_SOURCE: False, CONF_IS_SINK: False},
+                SECTION_ROLE: {CONF_IS_SOURCE: False, CONF_IS_SINK: False},
             },
             "node_b": {
                 CONF_ELEMENT_TYPE: "node",
                 SECTION_COMMON: {CONF_NAME: "node_b"},
-                SECTION_ADVANCED: {CONF_IS_SOURCE: False, CONF_IS_SINK: False},
+                SECTION_ROLE: {CONF_IS_SOURCE: False, CONF_IS_SINK: False},
             },
         },
     )
@@ -131,7 +132,7 @@ async def test_create_network_add_failure_is_wrapped(hass: HomeAssistant, monkey
             "node": {
                 CONF_ELEMENT_TYPE: "node",
                 SECTION_COMMON: {CONF_NAME: "node"},
-                SECTION_ADVANCED: {CONF_IS_SOURCE: False, CONF_IS_SINK: False},
+                SECTION_ROLE: {CONF_IS_SOURCE: False, CONF_IS_SINK: False},
             },
         },
     )

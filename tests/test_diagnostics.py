@@ -57,9 +57,10 @@ from custom_components.haeo.entities.haeo_number import ConfigEntityMode, HaeoIn
 from custom_components.haeo.flows import HUB_SECTION_COMMON, HUB_SECTION_TIERS
 from custom_components.haeo.model import OutputType
 from custom_components.haeo.sections import (
-    SECTION_ADVANCED,
     SECTION_COMMON,
+    SECTION_EFFICIENCY,
     SECTION_LIMITS,
+    SECTION_PARTITIONING,
     SECTION_POWER_LIMITS,
     SECTION_PRICING,
     SECTION_STORAGE,
@@ -81,7 +82,7 @@ def _battery_config(
     """Build a sectioned battery config dict for diagnostics tests."""
     limits: dict[str, Any] = {}
     power_limits: dict[str, Any] = {}
-    advanced: dict[str, Any] = {}
+    efficiency_section: dict[str, Any] = {}
     pricing: dict[str, Any] = {}
     if max_power_source_target is not None:
         power_limits[CONF_MAX_POWER_SOURCE_TARGET] = max_power_source_target
@@ -92,7 +93,7 @@ def _battery_config(
     if max_charge_percentage is not None:
         limits[CONF_MAX_CHARGE_PERCENTAGE] = max_charge_percentage
     if efficiency is not None:
-        advanced[CONF_EFFICIENCY] = efficiency
+        efficiency_section[CONF_EFFICIENCY] = efficiency
 
     storage = {
         CONF_CAPACITY: capacity,
@@ -109,7 +110,8 @@ def _battery_config(
         SECTION_LIMITS: limits,
         SECTION_POWER_LIMITS: power_limits,
         SECTION_PRICING: pricing,
-        SECTION_ADVANCED: advanced,
+        SECTION_EFFICIENCY: efficiency_section,
+        SECTION_PARTITIONING: {},
     }
 
 

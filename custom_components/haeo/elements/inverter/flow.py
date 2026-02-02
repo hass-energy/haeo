@@ -25,12 +25,12 @@ from custom_components.haeo.sections import (
     CONF_CONNECTION,
     CONF_MAX_POWER_SOURCE_TARGET,
     CONF_MAX_POWER_TARGET_SOURCE,
-    SECTION_ADVANCED,
     SECTION_COMMON,
+    SECTION_EFFICIENCY,
     SECTION_POWER_LIMITS,
-    advanced_section,
     build_common_fields,
     common_section,
+    efficiency_section,
     power_limits_section,
 )
 
@@ -55,7 +55,7 @@ class InverterSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                 (CONF_MAX_POWER_SOURCE_TARGET, CONF_MAX_POWER_TARGET_SOURCE),
                 collapsed=False,
             ),
-            advanced_section((CONF_EFFICIENCY_DC_TO_AC, CONF_EFFICIENCY_AC_TO_DC), collapsed=True),
+            efficiency_section((CONF_EFFICIENCY_DC_TO_AC, CONF_EFFICIENCY_AC_TO_DC), collapsed=True),
         )
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> SubentryFlowResult:
@@ -99,7 +99,7 @@ class InverterSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                     CONF_MAX_POWER_SOURCE_TARGET: 0.0,
                     CONF_MAX_POWER_TARGET_SOURCE: 0.0,
                 },
-                SECTION_ADVANCED: {},
+                SECTION_EFFICIENCY: {},
             }
 
         input_fields = adapter.inputs(element_config)
@@ -180,7 +180,7 @@ class InverterSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                 CONF_CONNECTION: common_data.get(CONF_CONNECTION) if subentry_data else None,
             },
             SECTION_POWER_LIMITS: {},
-            SECTION_ADVANCED: {},
+            SECTION_EFFICIENCY: {},
         }
 
         input_fields = adapter.inputs(subentry_data)

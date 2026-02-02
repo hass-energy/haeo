@@ -17,8 +17,8 @@ from custom_components.haeo.elements.solar import (
     CONF_FORECAST,
     CONF_PRICE_SOURCE_TARGET,
     ELEMENT_TYPE,
-    SECTION_ADVANCED,
     SECTION_COMMON,
+    SECTION_CURTAILMENT,
     SECTION_FORECAST,
     SECTION_PRICING,
 )
@@ -38,12 +38,12 @@ def _wrap_input(flat: dict[str, Any]) -> dict[str, Any]:
         CONF_FORECAST: flat[CONF_FORECAST],
     }
     pricing = {key: flat[key] for key in (CONF_PRICE_SOURCE_TARGET,) if key in flat}
-    advanced = {key: flat[key] for key in (CONF_CURTAILMENT,) if key in flat}
+    curtailment = {key: flat[key] for key in (CONF_CURTAILMENT,) if key in flat}
     return {
         SECTION_COMMON: common,
         SECTION_FORECAST: forecast,
         SECTION_PRICING: pricing,
-        SECTION_ADVANCED: advanced,
+        SECTION_CURTAILMENT: curtailment,
     }
 
 

@@ -17,8 +17,8 @@ from custom_components.haeo.elements.connection import (
     CONF_SOURCE,
     CONF_TARGET,
     ELEMENT_TYPE,
-    SECTION_ADVANCED,
     SECTION_COMMON,
+    SECTION_EFFICIENCY,
     SECTION_ENDPOINTS,
     SECTION_POWER_LIMITS,
     SECTION_PRICING,
@@ -44,7 +44,7 @@ def _wrap_input(flat: dict[str, Any]) -> dict[str, Any]:
         SECTION_ENDPOINTS: endpoints,
         SECTION_POWER_LIMITS: limits,
         SECTION_PRICING: {},
-        SECTION_ADVANCED: {},
+        SECTION_EFFICIENCY: {},
     }
 
 

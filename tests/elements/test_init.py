@@ -63,7 +63,7 @@ def test_is_element_config_schema_invalid_structure(input_data: dict[str, Any]) 
         {
             "element_type": "node",
             "common": {"name": 123},
-            "advanced": {"is_source": False, "is_sink": False},
+            "role": {"is_source": False, "is_sink": False},
         },
         # Wrong type for connection (should be str)
         {
@@ -90,7 +90,8 @@ def test_is_element_config_schema_invalid_structure(input_data: dict[str, Any]) 
             "limits": {},
             "power_limits": {},
             "pricing": {},
-            "advanced": {},
+            "efficiency": {},
+            "partitioning": {},
             "undercharge": {},
             "overcharge": {},
         },
@@ -106,7 +107,7 @@ def test_is_element_config_schema_valid_node() -> None:
     valid_config = {
         "element_type": "node",
         "common": {"name": "test_node"},
-        "advanced": {"is_source": False, "is_sink": False},
+        "role": {"is_source": False, "is_sink": False},
     }
     assert is_element_config_schema(valid_config) is True
 
@@ -116,7 +117,7 @@ def test_is_element_config_schema_valid_node_minimal() -> None:
     valid_config = {
         "element_type": "node",
         "common": {"name": "test_node"},
-        "advanced": {},
+        "role": {},
     }
     assert is_element_config_schema(valid_config) is True
 
@@ -144,7 +145,8 @@ def test_is_element_config_schema_valid_battery() -> None:
         "pricing": {
             "price_target_source": 0.05,
         },
-        "advanced": {},
+        "efficiency": {},
+        "partitioning": {},
         "undercharge": {},
         "overcharge": {},
     }
@@ -192,7 +194,7 @@ def test_is_element_config_schema_valid_connection() -> None:
         },
         "power_limits": {},
         "pricing": {},
-        "advanced": {},
+        "efficiency": {},
     }
     assert is_element_config_schema(valid_config) is True
 
@@ -214,7 +216,7 @@ def test_is_element_config_schema_valid_solar() -> None:
         "common": {"name": "test_solar", "connection": "main_bus"},
         "forecast": {"forecast": ["sensor.solar_forecast"]},
         "pricing": {"price_source_target": 0.0},
-        "advanced": {"curtailment": True},
+        "curtailment": {"curtailment": True},
     }
     assert is_element_config_schema(valid_config) is True
 
@@ -228,7 +230,7 @@ def test_is_element_config_schema_valid_inverter() -> None:
             "max_power_source_target": "sensor.dc_to_ac",
             "max_power_target_source": "sensor.ac_to_dc",
         },
-        "advanced": {},
+        "efficiency": {},
     }
     assert is_element_config_schema(valid_config) is True
 
@@ -283,7 +285,7 @@ def test_is_element_config_data_valid_node() -> None:
     valid_config = {
         "element_type": "node",
         "common": {"name": "test_node"},
-        "advanced": {},
+        "role": {},
     }
     assert is_element_config_data(valid_config) is True
 
@@ -293,14 +295,14 @@ def test_is_element_config_data_optional_type_validation() -> None:
     invalid_config = {
         "element_type": node_schema.ELEMENT_TYPE,
         "common": {"name": "test_node"},
-        "advanced": {"is_source": "yes"},
+        "role": {"is_source": "yes"},
     }
     assert is_element_config_data(invalid_config) is False
 
     valid_config = {
         "element_type": node_schema.ELEMENT_TYPE,
         "common": {"name": "test_node"},
-        "advanced": {"is_source": True},
+        "role": {"is_source": True},
     }
     assert is_element_config_data(valid_config) is True
 

@@ -138,12 +138,13 @@
               },
               "name": "Pricing"
             },
-            "advanced": {
-              "data": {
-                "configure_partitions": "Configure battery partitions",
-                "efficiency": "Round-trip Efficiency"
-              },
-              "name": "Advanced settings"
+            "efficiency": {
+              "data": { "efficiency": "Round-trip Efficiency" },
+              "name": "Battery efficiency"
+            },
+            "partitioning": {
+              "data": { "configure_partitions": "Configure battery partitions" },
+              "name": "Battery partitions"
             }
           }
         },
@@ -228,12 +229,12 @@
               },
               "name": "Pricing"
             },
-            "advanced": {
+            "efficiency": {
               "data": {
                 "efficiency_source_target": "Efficiency Source to Target",
                 "efficiency_target_source": "Efficiency Target to Source"
               },
-              "name": "Advanced settings"
+              "name": "Connection efficiency"
             }
           }
         }
@@ -297,11 +298,11 @@
             "name": "Inverter Name"
           },
           "sections": {
-            "advanced": {
-              "data": { "efficiency_ac_to_dc": "AC to DC Efficiency", "efficiency_dc_to_ac": "DC to AC Efficiency" },
-              "name": "Advanced settings"
-            },
             "common": { "data": { "connection": "AC Connection", "name": "Inverter Name" }, "name": "Common settings" },
+            "efficiency": {
+              "data": { "efficiency_ac_to_dc": "AC to DC Efficiency", "efficiency_dc_to_ac": "DC to AC Efficiency" },
+              "name": "Inverter efficiency"
+            },
             "power_limits": {
               "data": { "max_power_source_target": "Max DC to AC power", "max_power_target_source": "Max AC to DC power" },
               "name": "Power limits"
@@ -351,14 +352,14 @@
             "name": "Node Name"
           },
           "sections": {
-            "advanced": {
+            "common": { "data": { "name": "Node Name" }, "name": "Common settings" },
+            "role": {
               "data": {
                 "is_sink": "Can consume unlimited power (Sink)",
                 "is_source": "Can produce unlimited power (Source)"
               },
-              "name": "Advanced settings"
-            },
-            "common": { "data": { "name": "Node Name" }, "name": "Common settings" }
+              "name": "Node role"
+            }
           }
         }
       },
@@ -387,7 +388,7 @@
             },
             "forecast": { "data": { "forecast": "Forecast" }, "name": "Forecast" },
             "pricing": { "data": { "price_source_target": "Production price" }, "name": "Pricing" },
-            "advanced": { "data": { "curtailment": "Allow Curtailment" }, "name": "Advanced settings" }
+            "curtailment": { "data": { "curtailment": "Allow Curtailment" }, "name": "Curtailment" }
           }
         }
       },

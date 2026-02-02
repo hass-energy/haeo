@@ -62,11 +62,13 @@ from custom_components.haeo.elements.grid import (
     CONF_PRICE_TARGET_SOURCE,
 )
 from custom_components.haeo.sections import (
-    SECTION_ADVANCED,
     SECTION_COMMON,
+    SECTION_EFFICIENCY,
     SECTION_LIMITS,
+    SECTION_PARTITIONING,
     SECTION_POWER_LIMITS,
     SECTION_PRICING,
+    SECTION_ROLE,
     SECTION_STORAGE,
 )
 
@@ -116,7 +118,8 @@ def mock_battery_subentry(hass: HomeAssistant, mock_hub_entry: MockConfigEntry) 
                 SECTION_LIMITS: {},
                 SECTION_POWER_LIMITS: {},
                 SECTION_PRICING: {},
-                SECTION_ADVANCED: {},
+                SECTION_EFFICIENCY: {},
+                SECTION_PARTITIONING: {},
             }
         ),
         subentry_type=ELEMENT_TYPE_BATTERY,
@@ -172,7 +175,7 @@ def mock_connection_subentry(hass: HomeAssistant, mock_hub_entry: MockConfigEntr
                 },
                 SECTION_POWER_LIMITS: {},
                 SECTION_PRICING: {},
-                SECTION_ADVANCED: {},
+                SECTION_EFFICIENCY: {},
             }
         ),
         subentry_type=ELEMENT_TYPE_CONNECTION,
@@ -342,8 +345,8 @@ async def test_ensure_required_subentries_creates_switchboard_non_advanced(
     assert (
         node_subentry.data[SECTION_COMMON][CONF_NAME] == "Switchboard"
     )  # Default name when translations not available
-    assert node_subentry.data[SECTION_ADVANCED]["is_source"] is False
-    assert node_subentry.data[SECTION_ADVANCED]["is_sink"] is False
+    assert node_subentry.data[SECTION_ROLE]["is_source"] is False
+    assert node_subentry.data[SECTION_ROLE]["is_sink"] is False
 
 
 async def test_ensure_required_subentries_skips_switchboard_advanced_mode(

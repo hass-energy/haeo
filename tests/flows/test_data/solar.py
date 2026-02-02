@@ -6,8 +6,8 @@ from custom_components.haeo.elements.solar import (
     CONF_CURTAILMENT,
     CONF_FORECAST,
     CONF_PRICE_SOURCE_TARGET,
-    SECTION_ADVANCED,
     SECTION_COMMON,
+    SECTION_CURTAILMENT,
     SECTION_FORECAST,
     SECTION_PRICING,
 )
@@ -29,7 +29,7 @@ VALID_DATA = [
             SECTION_PRICING: {
                 CONF_PRICE_SOURCE_TARGET: 0.0,
             },
-            SECTION_ADVANCED: {
+            SECTION_CURTAILMENT: {
                 CONF_CURTAILMENT: False,
             },
         },
@@ -47,7 +47,7 @@ VALID_DATA = [
             SECTION_PRICING: {
                 CONF_PRICE_SOURCE_TARGET: 0.04,
             },
-            SECTION_ADVANCED: {
+            SECTION_CURTAILMENT: {
                 CONF_CURTAILMENT: True,
             },
         },

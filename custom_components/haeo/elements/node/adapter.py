@@ -13,7 +13,7 @@ from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_NODE
 from custom_components.haeo.model.elements.node import NODE_POWER_BALANCE
 from custom_components.haeo.model.output_data import OutputData
-from custom_components.haeo.sections import SECTION_ADVANCED, SECTION_COMMON
+from custom_components.haeo.sections import SECTION_COMMON, SECTION_ROLE
 
 from .schema import CONF_IS_SINK, CONF_IS_SOURCE, ELEMENT_TYPE, NodeConfigData, NodeConfigSchema
 
@@ -50,7 +50,7 @@ class NodeAdapter:
         """Return input field definitions for node elements."""
         _ = config
         return {
-            SECTION_ADVANCED: {
+            SECTION_ROLE: {
                 CONF_IS_SOURCE: InputFieldInfo(
                     field_name=CONF_IS_SOURCE,
                     entity_description=SwitchEntityDescription(
@@ -78,8 +78,8 @@ class NodeAdapter:
             {
                 "element_type": MODEL_ELEMENT_TYPE_NODE,
                 "name": config[SECTION_COMMON]["name"],
-                "is_source": config[SECTION_ADVANCED].get(CONF_IS_SOURCE, DEFAULT_IS_SOURCE),
-                "is_sink": config[SECTION_ADVANCED].get(CONF_IS_SINK, DEFAULT_IS_SINK),
+                "is_source": config[SECTION_ROLE].get(CONF_IS_SOURCE, DEFAULT_IS_SOURCE),
+                "is_sink": config[SECTION_ROLE].get(CONF_IS_SINK, DEFAULT_IS_SINK),
             }
         ]
 

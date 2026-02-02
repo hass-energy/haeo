@@ -22,7 +22,13 @@ from custom_components.haeo.coordinator import evaluate_network_connectivity
 from custom_components.haeo.elements import ELEMENT_TYPE_CONNECTION, ELEMENT_TYPE_NODE, ElementConfigData
 from custom_components.haeo.elements.connection import CONF_SOURCE, CONF_TARGET, SECTION_ENDPOINTS, ConnectionConfigData
 from custom_components.haeo.elements.node import CONF_IS_SINK, CONF_IS_SOURCE, NodeConfigData
-from custom_components.haeo.sections import SECTION_ADVANCED, SECTION_COMMON, SECTION_POWER_LIMITS, SECTION_PRICING
+from custom_components.haeo.sections import (
+    SECTION_COMMON,
+    SECTION_EFFICIENCY,
+    SECTION_POWER_LIMITS,
+    SECTION_PRICING,
+    SECTION_ROLE,
+)
 
 
 @pytest.fixture
@@ -61,7 +67,7 @@ async def test_evaluate_network_connectivity_connected(
     node_a: NodeConfigData = {
         CONF_ELEMENT_TYPE: ELEMENT_TYPE_NODE,
         SECTION_COMMON: {CONF_NAME: "Node A"},
-        SECTION_ADVANCED: {CONF_IS_SOURCE: False, CONF_IS_SINK: False},
+        SECTION_ROLE: {CONF_IS_SOURCE: False, CONF_IS_SINK: False},
     }
     participants: dict[str, ElementConfigData] = {"Node A": node_a}
 
@@ -82,12 +88,12 @@ async def test_evaluate_network_connectivity_disconnected(
     node_a: NodeConfigData = {
         CONF_ELEMENT_TYPE: ELEMENT_TYPE_NODE,
         SECTION_COMMON: {CONF_NAME: "Node A"},
-        SECTION_ADVANCED: {CONF_IS_SOURCE: False, CONF_IS_SINK: False},
+        SECTION_ROLE: {CONF_IS_SOURCE: False, CONF_IS_SINK: False},
     }
     node_b: NodeConfigData = {
         CONF_ELEMENT_TYPE: ELEMENT_TYPE_NODE,
         SECTION_COMMON: {CONF_NAME: "Node B"},
-        SECTION_ADVANCED: {CONF_IS_SOURCE: False, CONF_IS_SINK: False},
+        SECTION_ROLE: {CONF_IS_SOURCE: False, CONF_IS_SINK: False},
     }
     participants: dict[str, ElementConfigData] = {"Node A": node_a, "Node B": node_b}
 
@@ -109,12 +115,12 @@ async def test_evaluate_network_connectivity_resolves_issue(
     node_a: NodeConfigData = {
         CONF_ELEMENT_TYPE: ELEMENT_TYPE_NODE,
         SECTION_COMMON: {CONF_NAME: "Node A"},
-        SECTION_ADVANCED: {CONF_IS_SOURCE: False, CONF_IS_SINK: False},
+        SECTION_ROLE: {CONF_IS_SOURCE: False, CONF_IS_SINK: False},
     }
     node_b: NodeConfigData = {
         CONF_ELEMENT_TYPE: ELEMENT_TYPE_NODE,
         SECTION_COMMON: {CONF_NAME: "Node B"},
-        SECTION_ADVANCED: {CONF_IS_SOURCE: False, CONF_IS_SINK: False},
+        SECTION_ROLE: {CONF_IS_SOURCE: False, CONF_IS_SINK: False},
     }
     participants: dict[str, ElementConfigData] = {"Node A": node_a, "Node B": node_b}
 
@@ -132,7 +138,7 @@ async def test_evaluate_network_connectivity_resolves_issue(
         },
         SECTION_POWER_LIMITS: {},
         SECTION_PRICING: {},
-        SECTION_ADVANCED: {},
+        SECTION_EFFICIENCY: {},
     }
     participants["A to B"] = connection
 

@@ -7,8 +7,8 @@ from custom_components.haeo.elements.connection import (
     CONF_MAX_POWER_TARGET_SOURCE,
     CONF_SOURCE,
     CONF_TARGET,
-    SECTION_ADVANCED,
     SECTION_COMMON,
+    SECTION_EFFICIENCY,
     SECTION_ENDPOINTS,
     SECTION_POWER_LIMITS,
     SECTION_PRICING,
@@ -29,7 +29,7 @@ VALID_DATA = [
             },
             SECTION_POWER_LIMITS: {},
             SECTION_PRICING: {},
-            SECTION_ADVANCED: {},
+            SECTION_EFFICIENCY: {},
         },
     },
     {
@@ -47,7 +47,7 @@ VALID_DATA = [
                 CONF_MAX_POWER_TARGET_SOURCE: 10.0,
             },
             SECTION_PRICING: {},
-            SECTION_ADVANCED: {
+            SECTION_EFFICIENCY: {
                 CONF_EFFICIENCY_SOURCE_TARGET: 95.0,
             },
         },

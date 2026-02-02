@@ -27,8 +27,8 @@ from custom_components.haeo.sections import (
     CONF_CONNECTION,
     CONF_MAX_POWER_SOURCE_TARGET,
     CONF_MAX_POWER_TARGET_SOURCE,
-    SECTION_ADVANCED,
     SECTION_COMMON,
+    SECTION_EFFICIENCY,
     SECTION_POWER_LIMITS,
 )
 
@@ -118,7 +118,7 @@ class InverterAdapter:
                     time_series=True,
                 ),
             },
-            SECTION_ADVANCED: {
+            SECTION_EFFICIENCY: {
                 CONF_EFFICIENCY_DC_TO_AC: InputFieldInfo(
                     field_name=CONF_EFFICIENCY_DC_TO_AC,
                     entity_description=NumberEntityDescription(
@@ -175,8 +175,8 @@ class InverterAdapter:
                 "segments": {
                     "efficiency": {
                         "segment_type": "efficiency",
-                        "efficiency_source_target": config[SECTION_ADVANCED].get(CONF_EFFICIENCY_DC_TO_AC),
-                        "efficiency_target_source": config[SECTION_ADVANCED].get(CONF_EFFICIENCY_AC_TO_DC),
+                        "efficiency_source_target": config[SECTION_EFFICIENCY].get(CONF_EFFICIENCY_DC_TO_AC),
+                        "efficiency_target_source": config[SECTION_EFFICIENCY].get(CONF_EFFICIENCY_AC_TO_DC),
                     },
                     "power_limit": {
                         "segment_type": "power_limit",

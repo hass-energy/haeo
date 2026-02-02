@@ -2,7 +2,6 @@
 
 # ruff: noqa: I001
 
-from .advanced import AdvancedConfig, AdvancedData, SECTION_ADVANCED, advanced_section, build_advanced_fields
 from .common import (
     CONF_CONNECTION,
     CommonConfig,
@@ -13,6 +12,20 @@ from .common import (
     build_common_fields,
     common_section,
 )
+from .curtailment import (
+    CurtailmentConfig,
+    CurtailmentData,
+    SECTION_CURTAILMENT,
+    build_curtailment_fields,
+    curtailment_section,
+)
+from .efficiency import (
+    EfficiencyConfig,
+    EfficiencyData,
+    SECTION_EFFICIENCY,
+    build_efficiency_fields,
+    efficiency_section,
+)
 from .forecast import (
     CONF_FORECAST,
     ForecastConfig,
@@ -22,6 +35,13 @@ from .forecast import (
     forecast_section,
 )
 from .limits import LimitsConfig, LimitsData, SECTION_LIMITS, build_limits_fields, limits_section
+from .partitioning import (
+    PartitioningConfig,
+    PartitioningData,
+    SECTION_PARTITIONING,
+    build_partitioning_fields,
+    partitioning_section,
+)
 from .power_limits import (
     CONF_MAX_POWER_SOURCE_TARGET,
     CONF_MAX_POWER_TARGET_SOURCE,
@@ -44,6 +64,7 @@ from .pricing import (
     build_pricing_fields,
     pricing_section,
 )
+from .role import RoleConfig, RoleData, SECTION_ROLE, build_role_fields, role_section
 from .storage import (
     CONF_CAPACITY,
     CONF_INITIAL_CHARGE,
@@ -69,23 +90,30 @@ __all__ = [
     "CONF_MAX_POWER_TARGET_SOURCE",
     "CONF_PRICE_SOURCE_TARGET",
     "CONF_PRICE_TARGET_SOURCE",
-    "SECTION_ADVANCED",
     "SECTION_COMMON",
+    "SECTION_CURTAILMENT",
+    "SECTION_EFFICIENCY",
     "SECTION_FORECAST",
     "SECTION_LIMITS",
+    "SECTION_PARTITIONING",
     "SECTION_POWER_LIMITS",
     "SECTION_PRICING",
+    "SECTION_ROLE",
     "SECTION_STORAGE",
-    "AdvancedConfig",
-    "AdvancedData",
     "CommonConfig",
     "CommonData",
     "ConnectedCommonConfig",
     "ConnectedCommonData",
+    "CurtailmentConfig",
+    "CurtailmentData",
+    "EfficiencyConfig",
+    "EfficiencyData",
     "ForecastConfig",
     "ForecastData",
     "LimitsConfig",
     "LimitsData",
+    "PartitioningConfig",
+    "PartitioningData",
     "PowerLimitsConfig",
     "PowerLimitsData",
     "PowerLimitsPairConfig",
@@ -94,24 +122,32 @@ __all__ = [
     "PricingData",
     "PricingPairConfig",
     "PricingPairData",
+    "RoleConfig",
+    "RoleData",
     "StorageChargeConfig",
     "StorageChargeData",
     "StorageConfig",
     "StorageData",
     "StorageSocConfig",
     "StorageSocData",
-    "advanced_section",
-    "build_advanced_fields",
     "build_common_fields",
+    "build_curtailment_fields",
+    "build_efficiency_fields",
     "build_forecast_fields",
     "build_limits_fields",
+    "build_partitioning_fields",
     "build_power_limits_fields",
     "build_pricing_fields",
+    "build_role_fields",
     "build_storage_fields",
     "common_section",
+    "curtailment_section",
+    "efficiency_section",
     "forecast_section",
     "limits_section",
+    "partitioning_section",
     "power_limits_section",
     "pricing_section",
+    "role_section",
     "storage_section",
 ]

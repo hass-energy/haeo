@@ -82,9 +82,10 @@ from custom_components.haeo.elements.solar import SOLAR_POWER
 from custom_components.haeo.model import Network, OutputData, OutputType
 from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_NODE
 from custom_components.haeo.sections import (
-    SECTION_ADVANCED,
     SECTION_COMMON,
+    SECTION_EFFICIENCY,
     SECTION_LIMITS,
+    SECTION_PARTITIONING,
     SECTION_POWER_LIMITS,
     SECTION_PRICING,
     SECTION_STORAGE,
@@ -145,9 +146,10 @@ def mock_battery_subentry(hass: HomeAssistant, mock_hub_entry: MockConfigEntry) 
                     CONF_MAX_POWER_SOURCE_TARGET: 5.0,
                 },
                 SECTION_PRICING: {},
-                SECTION_ADVANCED: {
+                SECTION_EFFICIENCY: {
                     CONF_EFFICIENCY: 95.0,
                 },
+                SECTION_PARTITIONING: {},
             }
         ),
         subentry_type=ELEMENT_TYPE_BATTERY,
@@ -203,7 +205,7 @@ def mock_connection_subentry(hass: HomeAssistant, mock_hub_entry: MockConfigEntr
                 },
                 SECTION_POWER_LIMITS: {},
                 SECTION_PRICING: {},
-                SECTION_ADVANCED: {},
+                SECTION_EFFICIENCY: {},
             }
         ),
         subentry_type=ELEMENT_TYPE_CONNECTION,
@@ -364,7 +366,7 @@ async def test_async_update_data_returns_outputs(
             },
             SECTION_POWER_LIMITS: {},
             SECTION_PRICING: {},
-            SECTION_ADVANCED: {},
+            SECTION_EFFICIENCY: {},
         },
     }
 
@@ -1186,7 +1188,8 @@ def test_load_from_input_entities_raises_for_invalid_config_data(
             SECTION_LIMITS: {},
             SECTION_POWER_LIMITS: {},
             SECTION_PRICING: {},
-            SECTION_ADVANCED: {},
+            SECTION_EFFICIENCY: {},
+            SECTION_PARTITIONING: {},
         }
     }
     coordinator._participant_configs = invalid_config

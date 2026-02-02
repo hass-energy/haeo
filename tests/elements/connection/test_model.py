@@ -49,7 +49,7 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "price_source_target": np.array([0.1]),
                 "price_target_source": np.array([0.05]),
             },
-            advanced={
+            efficiency={
                 "efficiency_source_target": np.array([0.95]),
                 "efficiency_target_source": np.array([0.90]),
             },
@@ -88,7 +88,7 @@ CREATE_CASES: Sequence[CreateCase] = [
             endpoints={"source": "s", "target": "t"},
             power_limits={},
             pricing={},
-            advanced={},
+            efficiency={},
         ),
         "model": [
             {

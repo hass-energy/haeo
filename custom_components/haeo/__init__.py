@@ -198,12 +198,15 @@ def _migrate_subentry_data(subentry: ConfigSubentry) -> dict[str, Any] | None:
         CONF_MAX_POWER_TARGET_SOURCE,
         CONF_PRICE_SOURCE_TARGET,
         CONF_PRICE_TARGET_SOURCE,
-        SECTION_ADVANCED,
         SECTION_COMMON,
+        SECTION_CURTAILMENT,
+        SECTION_EFFICIENCY,
         SECTION_FORECAST,
         SECTION_LIMITS,
+        SECTION_PARTITIONING,
         SECTION_POWER_LIMITS,
         SECTION_PRICING,
+        SECTION_ROLE,
         SECTION_STORAGE,
     )
 
@@ -230,7 +233,8 @@ def _migrate_subentry_data(subentry: ConfigSubentry) -> dict[str, Any] | None:
         limits: dict[str, Any] = {}
         power_limits: dict[str, Any] = {}
         pricing: dict[str, Any] = {}
-        advanced: dict[str, Any] = {}
+        efficiency: dict[str, Any] = {}
+        partitioning: dict[str, Any] = {}
         undercharge: dict[str, Any] = {}
         overcharge: dict[str, Any] = {}
 
@@ -255,8 +259,8 @@ def _migrate_subentry_data(subentry: ConfigSubentry) -> dict[str, Any] | None:
             pricing.setdefault(CONF_PRICE_SOURCE_TARGET, legacy_discharge_cost)
         if (legacy_charge_incentive := get_value("early_charge_incentive")) is not None:
             pricing.setdefault(CONF_PRICE_TARGET_SOURCE, legacy_charge_incentive)
-        for key in (battery.CONF_EFFICIENCY, battery.CONF_CONFIGURE_PARTITIONS):
-            add_if_present(advanced, key)
+        add_if_present(efficiency, battery.CONF_EFFICIENCY)
+        add_if_present(partitioning, battery.CONF_CONFIGURE_PARTITIONS)
         if isinstance(data.get(battery.SECTION_UNDERCHARGE), dict):
             undercharge.update(data[battery.SECTION_UNDERCHARGE])
         if isinstance(data.get(battery.SECTION_OVERCHARGE), dict):
@@ -268,7 +272,8 @@ def _migrate_subentry_data(subentry: ConfigSubentry) -> dict[str, Any] | None:
             SECTION_LIMITS: limits,
             SECTION_POWER_LIMITS: power_limits,
             SECTION_PRICING: pricing,
-            SECTION_ADVANCED: advanced,
+            SECTION_EFFICIENCY: efficiency,
+            SECTION_PARTITIONING: partitioning,
             battery.SECTION_UNDERCHARGE: undercharge,
             battery.SECTION_OVERCHARGE: overcharge,
         }
@@ -291,7 +296,7 @@ def _migrate_subentry_data(subentry: ConfigSubentry) -> dict[str, Any] | None:
         endpoints: dict[str, Any] = {}
         power_limits: dict[str, Any] = {}
         pricing: dict[str, Any] = {}
-        advanced: dict[str, Any] = {}
+        efficiency: dict[str, Any] = {}
         add_if_present(common, CONF_NAME)
         for key in (connection.CONF_SOURCE, connection.CONF_TARGET):
             add_if_present(endpoints, key)
@@ -300,13 +305,13 @@ def _migrate_subentry_data(subentry: ConfigSubentry) -> dict[str, Any] | None:
         for key in (connection.CONF_PRICE_SOURCE_TARGET, connection.CONF_PRICE_TARGET_SOURCE):
             add_if_present(pricing, key)
         for key in (connection.CONF_EFFICIENCY_SOURCE_TARGET, connection.CONF_EFFICIENCY_TARGET_SOURCE):
-            add_if_present(advanced, key)
+            add_if_present(efficiency, key)
         migrated |= {
             SECTION_COMMON: common,
             connection.SECTION_ENDPOINTS: endpoints,
             SECTION_POWER_LIMITS: power_limits,
             SECTION_PRICING: pricing,
-            SECTION_ADVANCED: advanced,
+            SECTION_EFFICIENCY: efficiency,
         }
         return migrated
 
@@ -338,7 +343,7 @@ def _migrate_subentry_data(subentry: ConfigSubentry) -> dict[str, Any] | None:
     if element_type == inverter.ELEMENT_TYPE:
         common: dict[str, Any] = {}
         power_limits: dict[str, Any] = {}
-        advanced: dict[str, Any] = {}
+        efficiency: dict[str, Any] = {}
         for key in (CONF_NAME, CONF_CONNECTION):
             add_if_present(common, key)
         for key in (CONF_MAX_POWER_SOURCE_TARGET, CONF_MAX_POWER_TARGET_SOURCE):
@@ -348,11 +353,11 @@ def _migrate_subentry_data(subentry: ConfigSubentry) -> dict[str, Any] | None:
         if (legacy_ac_to_dc := get_value("max_power_ac_to_dc")) is not None:
             power_limits.setdefault(CONF_MAX_POWER_TARGET_SOURCE, legacy_ac_to_dc)
         for key in (inverter.CONF_EFFICIENCY_DC_TO_AC, inverter.CONF_EFFICIENCY_AC_TO_DC):
-            add_if_present(advanced, key)
+            add_if_present(efficiency, key)
         migrated |= {
             SECTION_COMMON: common,
             SECTION_POWER_LIMITS: power_limits,
-            SECTION_ADVANCED: advanced,
+            SECTION_EFFICIENCY: efficiency,
         }
         return migrated
 
@@ -370,13 +375,13 @@ def _migrate_subentry_data(subentry: ConfigSubentry) -> dict[str, Any] | None:
 
     if element_type == node.ELEMENT_TYPE:
         common: dict[str, Any] = {}
-        advanced: dict[str, Any] = {}
+        role: dict[str, Any] = {}
         add_if_present(common, CONF_NAME)
         for key in (node.CONF_IS_SOURCE, node.CONF_IS_SINK):
-            add_if_present(advanced, key)
+            add_if_present(role, key)
         migrated |= {
             SECTION_COMMON: common,
-            SECTION_ADVANCED: advanced,
+            SECTION_ROLE: role,
         }
         return migrated
 
@@ -384,19 +389,19 @@ def _migrate_subentry_data(subentry: ConfigSubentry) -> dict[str, Any] | None:
         common: dict[str, Any] = {}
         forecast: dict[str, Any] = {}
         pricing: dict[str, Any] = {}
-        advanced: dict[str, Any] = {}
+        curtailment: dict[str, Any] = {}
         for key in (CONF_NAME, CONF_CONNECTION):
             add_if_present(common, key)
         add_if_present(forecast, CONF_FORECAST)
         add_if_present(pricing, CONF_PRICE_SOURCE_TARGET)
         if (legacy_production_price := get_value("price_production")) is not None:
             pricing.setdefault(CONF_PRICE_SOURCE_TARGET, legacy_production_price)
-        add_if_present(advanced, solar.CONF_CURTAILMENT)
+        add_if_present(curtailment, solar.CONF_CURTAILMENT)
         migrated |= {
             SECTION_COMMON: common,
             SECTION_FORECAST: forecast,
             SECTION_PRICING: pricing,
-            SECTION_ADVANCED: advanced,
+            SECTION_CURTAILMENT: curtailment,
         }
         return migrated
 
@@ -464,8 +469,8 @@ async def _ensure_required_subentries(hass: HomeAssistant, hub_entry: ConfigEntr
     from custom_components.haeo.elements.node import (  # noqa: PLC0415
         CONF_IS_SINK,
         CONF_IS_SOURCE,
-        SECTION_ADVANCED,
         SECTION_COMMON,
+        SECTION_ROLE,
     )
 
     # Check if Network subentry already exists
@@ -507,7 +512,7 @@ async def _ensure_required_subentries(hass: HomeAssistant, hub_entry: ConfigEntr
                 {
                     CONF_ELEMENT_TYPE: ELEMENT_TYPE_NODE,
                     SECTION_COMMON: {CONF_NAME: switchboard_name},
-                    SECTION_ADVANCED: {
+                    SECTION_ROLE: {
                         CONF_IS_SOURCE: False,
                         CONF_IS_SINK: False,
                     },

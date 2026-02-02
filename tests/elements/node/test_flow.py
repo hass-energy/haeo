@@ -16,8 +16,8 @@ from custom_components.haeo.elements.node import (
     CONF_IS_SINK,
     CONF_IS_SOURCE,
     ELEMENT_TYPE,
-    SECTION_ADVANCED,
     SECTION_COMMON,
+    SECTION_ROLE,
 )
 
 from ..conftest import create_flow
@@ -29,7 +29,7 @@ def _wrap_input(flat: dict[str, Any]) -> dict[str, Any]:
         return dict(flat)
     return {
         SECTION_COMMON: {CONF_NAME: flat[CONF_NAME]},
-        SECTION_ADVANCED: {key: flat[key] for key in (CONF_IS_SOURCE, CONF_IS_SINK) if key in flat},
+        SECTION_ROLE: {key: flat[key] for key in (CONF_IS_SOURCE, CONF_IS_SINK) if key in flat},
     }
 
 

@@ -17,8 +17,8 @@ from custom_components.haeo.elements.inverter import (
     CONF_MAX_POWER_SOURCE_TARGET,
     CONF_MAX_POWER_TARGET_SOURCE,
     ELEMENT_TYPE,
-    SECTION_ADVANCED,
     SECTION_COMMON,
+    SECTION_EFFICIENCY,
     SECTION_POWER_LIMITS,
 )
 
@@ -44,7 +44,7 @@ def _wrap_input(flat: dict[str, Any]) -> dict[str, Any]:
     return {
         SECTION_COMMON: common,
         SECTION_LIMITS: limits,
-        SECTION_ADVANCED: {},
+        SECTION_EFFICIENCY: {},
     }
 
 

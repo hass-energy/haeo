@@ -31,7 +31,7 @@ from custom_components.haeo.model.elements.segments import (
     POWER_LIMIT_TIME_SLICE,
 )
 from custom_components.haeo.model.output_data import OutputData
-from custom_components.haeo.sections import SECTION_ADVANCED, SECTION_COMMON, SECTION_POWER_LIMITS, SECTION_PRICING
+from custom_components.haeo.sections import SECTION_COMMON, SECTION_EFFICIENCY, SECTION_POWER_LIMITS, SECTION_PRICING
 
 from .schema import (
     CONF_EFFICIENCY_SOURCE_TARGET,
@@ -99,12 +99,12 @@ class ConnectionAdapter:
         ]
 
         limits = config[SECTION_POWER_LIMITS]
-        advanced = config[SECTION_ADVANCED]
+        efficiency = config[SECTION_EFFICIENCY]
         pricing = config[SECTION_PRICING]
         for field in optional_fields:
             if field in limits and not ts_loader.available(hass=hass, value=limits[field]):
                 return False
-            if field in advanced and not ts_loader.available(hass=hass, value=advanced[field]):
+            if field in efficiency and not ts_loader.available(hass=hass, value=efficiency[field]):
                 return False
             if field in pricing and not ts_loader.available(hass=hass, value=pricing[field]):
                 return False
@@ -145,7 +145,7 @@ class ConnectionAdapter:
                     time_series=True,
                 ),
             },
-            SECTION_ADVANCED: {
+            SECTION_EFFICIENCY: {
                 CONF_EFFICIENCY_SOURCE_TARGET: InputFieldInfo(
                     field_name=CONF_EFFICIENCY_SOURCE_TARGET,
                     entity_description=NumberEntityDescription(
@@ -222,8 +222,8 @@ class ConnectionAdapter:
                 "segments": {
                     "efficiency": {
                         "segment_type": "efficiency",
-                        "efficiency_source_target": config[SECTION_ADVANCED].get(CONF_EFFICIENCY_SOURCE_TARGET),
-                        "efficiency_target_source": config[SECTION_ADVANCED].get(CONF_EFFICIENCY_TARGET_SOURCE),
+                        "efficiency_source_target": config[SECTION_EFFICIENCY].get(CONF_EFFICIENCY_SOURCE_TARGET),
+                        "efficiency_target_source": config[SECTION_EFFICIENCY].get(CONF_EFFICIENCY_TARGET_SOURCE),
                     },
                     "power_limit": {
                         "segment_type": "power_limit",

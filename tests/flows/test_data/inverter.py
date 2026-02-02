@@ -7,8 +7,8 @@ from custom_components.haeo.elements.inverter import (
     CONF_EFFICIENCY_DC_TO_AC,
     CONF_MAX_POWER_SOURCE_TARGET,
     CONF_MAX_POWER_TARGET_SOURCE,
-    SECTION_ADVANCED,
     SECTION_COMMON,
+    SECTION_EFFICIENCY,
     SECTION_POWER_LIMITS,
 )
 
@@ -26,7 +26,7 @@ VALID_DATA = [
                 CONF_MAX_POWER_SOURCE_TARGET: 5.0,
                 CONF_MAX_POWER_TARGET_SOURCE: 5.0,
             },
-            SECTION_ADVANCED: {
+            SECTION_EFFICIENCY: {
                 CONF_EFFICIENCY_DC_TO_AC: 95.0,
                 CONF_EFFICIENCY_AC_TO_DC: 95.0,
             },
