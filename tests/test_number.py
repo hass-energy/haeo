@@ -17,7 +17,7 @@ from custom_components.haeo.elements.grid import (
     CONF_MAX_POWER_TARGET_SOURCE,
     CONF_PRICE_SOURCE_TARGET,
     CONF_PRICE_TARGET_SOURCE,
-    SECTION_DETAILS,
+    SECTION_COMMON,
     SECTION_POWER_LIMITS,
     SECTION_PRICING,
 )
@@ -42,7 +42,7 @@ def config_entry(hass: HomeAssistant, horizon_manager: Mock) -> MockConfigEntry:
         domain=DOMAIN,
         title="Test Network",
         data={
-            "basic": {CONF_NAME: "Test Network"},
+            "common": {CONF_NAME: "Test Network"},
             "tiers": {
                 "tier_1_count": 2,
                 "tier_1_duration": 5,
@@ -83,7 +83,7 @@ def _add_subentry(
         if data.get("max_power_target_source") is not None:
             power_limits[CONF_MAX_POWER_TARGET_SOURCE] = data.get("max_power_target_source")
         payload |= {
-            SECTION_DETAILS: {
+            SECTION_COMMON: {
                 CONF_NAME: title,
                 CONF_CONNECTION: data.get("connection", "Switchboard"),
             },

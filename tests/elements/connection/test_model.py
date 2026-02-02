@@ -39,7 +39,7 @@ CREATE_CASES: Sequence[CreateCase] = [
         "description": "Connection with all optional fields",
         "data": ConnectionConfigData(
             element_type="connection",
-            details={"name": "c1"},
+            common={"name": "c1"},
             endpoints={"source": "s", "target": "t"},
             power_limits={
                 "max_power_source_target": np.array([4.0]),
@@ -84,7 +84,7 @@ CREATE_CASES: Sequence[CreateCase] = [
         "description": "Connection without optional fields",
         "data": ConnectionConfigData(
             element_type="connection",
-            details={"name": "c_min"},
+            common={"name": "c_min"},
             endpoints={"source": "s", "target": "t"},
             power_limits={},
             pricing={},

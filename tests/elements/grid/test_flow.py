@@ -18,7 +18,7 @@ from custom_components.haeo.elements.grid import (
     CONF_PRICE_SOURCE_TARGET,
     CONF_PRICE_TARGET_SOURCE,
     ELEMENT_TYPE,
-    SECTION_DETAILS,
+    SECTION_COMMON,
     SECTION_POWER_LIMITS,
     SECTION_PRICING,
 )
@@ -34,9 +34,9 @@ SECTION_LIMITS = SECTION_POWER_LIMITS
 
 def _wrap_input(flat: dict[str, Any]) -> dict[str, Any]:
     """Wrap flat grid input values into sectioned config."""
-    if SECTION_DETAILS in flat:
+    if SECTION_COMMON in flat:
         return dict(flat)
-    details = {
+    common = {
         CONF_NAME: flat[CONF_NAME],
         CONF_CONNECTION: flat[CONF_CONNECTION],
     }
@@ -50,7 +50,7 @@ def _wrap_input(flat: dict[str, Any]) -> dict[str, Any]:
         if key in flat
     }
     return {
-        SECTION_DETAILS: details,
+        SECTION_COMMON: common,
         SECTION_PRICING: pricing,
         SECTION_POWER_LIMITS: power_limits,
     }
@@ -58,7 +58,7 @@ def _wrap_input(flat: dict[str, Any]) -> dict[str, Any]:
 
 def _wrap_config(flat: dict[str, Any]) -> dict[str, Any]:
     """Wrap flat grid config values into sectioned config with element type."""
-    if SECTION_DETAILS in flat:
+    if SECTION_COMMON in flat:
         return {CONF_ELEMENT_TYPE: ELEMENT_TYPE, **flat}
     return {CONF_ELEMENT_TYPE: ELEMENT_TYPE, **_wrap_input(flat)}
 

@@ -15,7 +15,7 @@ def _set_sensor(hass: HomeAssistant, entity_id: str, value: str, unit: str = "kW
 
 def _wrap_config(flat: dict[str, object]) -> battery.BatteryConfigSchema:
     """Wrap flat battery config values into sectioned config."""
-    details: dict[str, object] = {}
+    common: dict[str, object] = {}
     storage: dict[str, object] = {}
     limits: dict[str, object] = {}
     power_limits: dict[str, object] = {}
@@ -29,7 +29,7 @@ def _wrap_config(flat: dict[str, object]) -> battery.BatteryConfigSchema:
             "name",
             "connection",
         ):
-            details[key] = value
+            common[key] = value
         elif key in (
             "capacity",
             "initial_charge_percentage",
@@ -62,7 +62,7 @@ def _wrap_config(flat: dict[str, object]) -> battery.BatteryConfigSchema:
 
     config: dict[str, object] = {
         "element_type": "battery",
-        "details": details,
+        "common": common,
         "storage": storage,
         "limits": limits,
         "power_limits": power_limits,

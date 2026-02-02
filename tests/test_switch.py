@@ -18,7 +18,7 @@ from custom_components.haeo.elements.grid import (
     CONF_MAX_POWER_TARGET_SOURCE,
     CONF_PRICE_SOURCE_TARGET,
     CONF_PRICE_TARGET_SOURCE,
-    SECTION_DETAILS,
+    SECTION_COMMON,
     SECTION_POWER_LIMITS,
     SECTION_PRICING,
 )
@@ -26,7 +26,7 @@ from custom_components.haeo.elements.grid import ELEMENT_TYPE as GRID_TYPE
 from custom_components.haeo.elements.solar import CONF_CURTAILMENT, CONF_FORECAST, SECTION_ADVANCED, SECTION_FORECAST
 from custom_components.haeo.elements.solar import CONF_PRICE_SOURCE_TARGET as CONF_SOLAR_PRICE_SOURCE_TARGET
 from custom_components.haeo.elements.solar import ELEMENT_TYPE as SOLAR_TYPE
-from custom_components.haeo.elements.solar import SECTION_DETAILS as SOLAR_SECTION_DETAILS
+from custom_components.haeo.elements.solar import SECTION_COMMON as SOLAR_SECTION_COMMON
 from custom_components.haeo.entities.auto_optimize_switch import AutoOptimizeSwitch
 from custom_components.haeo.entities.haeo_number import ConfigEntityMode
 from custom_components.haeo.horizon import HorizonManager
@@ -53,7 +53,7 @@ def config_entry(hass: HomeAssistant, horizon_manager: Mock) -> MockConfigEntry:
         domain=DOMAIN,
         title="Test Network",
         data={
-            "basic": {CONF_NAME: "Test Network"},
+            "common": {CONF_NAME: "Test Network"},
             "tiers": {
                 "tier_1_count": 2,
                 "tier_1_duration": 5,
@@ -88,7 +88,7 @@ def _add_subentry(
     payload: dict[str, object] = {CONF_ELEMENT_TYPE: subentry_type}
     if subentry_type == GRID_TYPE:
         payload |= {
-            SECTION_DETAILS: {
+            SECTION_COMMON: {
                 CONF_NAME: title,
                 CONF_CONNECTION: data.get("connection", "Switchboard"),
             },
@@ -103,7 +103,7 @@ def _add_subentry(
         }
     elif subentry_type == SOLAR_TYPE:
         payload |= {
-            SOLAR_SECTION_DETAILS: {
+            SOLAR_SECTION_COMMON: {
                 CONF_NAME: title,
                 CONF_CONNECTION: data.get("connection", "Switchboard"),
             },
@@ -135,7 +135,7 @@ async def test_setup_raises_error_when_runtime_data_missing(hass: HomeAssistant)
     entry = MockConfigEntry(
         domain=DOMAIN,
         title="Test Network",
-        data={"basic": {CONF_NAME: "Test"}, "advanced": {}, "tiers": {}},
+        data={"common": {CONF_NAME: "Test"}, "advanced": {}, "tiers": {}},
         entry_id="test_missing_runtime",
     )
     entry.add_to_hass(hass)

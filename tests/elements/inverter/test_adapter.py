@@ -17,7 +17,7 @@ async def test_available_returns_true_when_sensors_exist(hass: HomeAssistant) ->
 
     config: inverter.InverterConfigSchema = {
         "element_type": "inverter",
-        "details": {"name": "test_inverter", "connection": "ac_bus"},
+        "common": {"name": "test_inverter", "connection": "ac_bus"},
         "power_limits": {
             "max_power_source_target": "sensor.max_dc_to_ac",
             "max_power_target_source": "sensor.max_ac_to_dc",
@@ -36,7 +36,7 @@ async def test_available_returns_false_when_first_sensor_missing(hass: HomeAssis
 
     config: inverter.InverterConfigSchema = {
         "element_type": "inverter",
-        "details": {"name": "test_inverter", "connection": "ac_bus"},
+        "common": {"name": "test_inverter", "connection": "ac_bus"},
         "power_limits": {
             "max_power_source_target": "sensor.missing",
             "max_power_target_source": "sensor.max_ac_to_dc",
@@ -55,7 +55,7 @@ async def test_available_returns_false_when_second_sensor_missing(hass: HomeAssi
 
     config: inverter.InverterConfigSchema = {
         "element_type": "inverter",
-        "details": {"name": "test_inverter", "connection": "ac_bus"},
+        "common": {"name": "test_inverter", "connection": "ac_bus"},
         "power_limits": {
             "max_power_source_target": "sensor.max_dc_to_ac",
             "max_power_target_source": "sensor.missing",

@@ -39,7 +39,7 @@ CREATE_CASES: Sequence[CreateCase] = [
         "description": "Solar with production price",
         "data": SolarConfigData(
             element_type="solar",
-            details={
+            common={
                 "name": "pv_main",
                 "connection": "network",
             },

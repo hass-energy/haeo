@@ -17,7 +17,7 @@ from custom_components.haeo.elements.node import (
     CONF_IS_SOURCE,
     ELEMENT_TYPE,
     SECTION_ADVANCED,
-    SECTION_DETAILS,
+    SECTION_COMMON,
 )
 
 from ..conftest import create_flow
@@ -25,17 +25,17 @@ from ..conftest import create_flow
 
 def _wrap_input(flat: dict[str, Any]) -> dict[str, Any]:
     """Wrap flat node input values into sectioned config."""
-    if SECTION_DETAILS in flat:
+    if SECTION_COMMON in flat:
         return dict(flat)
     return {
-        SECTION_DETAILS: {CONF_NAME: flat[CONF_NAME]},
+        SECTION_COMMON: {CONF_NAME: flat[CONF_NAME]},
         SECTION_ADVANCED: {key: flat[key] for key in (CONF_IS_SOURCE, CONF_IS_SINK) if key in flat},
     }
 
 
 def _wrap_config(flat: dict[str, Any]) -> dict[str, Any]:
     """Wrap flat node config values into sectioned config with element type."""
-    if SECTION_DETAILS in flat:
+    if SECTION_COMMON in flat:
         return {CONF_ELEMENT_TYPE: ELEMENT_TYPE, **flat}
     return {CONF_ELEMENT_TYPE: ELEMENT_TYPE, **_wrap_input(flat)}
 

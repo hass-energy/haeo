@@ -8,7 +8,7 @@ from custom_components.haeo.elements.inverter import (
     CONF_MAX_POWER_SOURCE_TARGET,
     CONF_MAX_POWER_TARGET_SOURCE,
     SECTION_ADVANCED,
-    SECTION_DETAILS,
+    SECTION_COMMON,
     SECTION_POWER_LIMITS,
 )
 
@@ -18,7 +18,7 @@ VALID_DATA = [
     {
         "description": "Basic inverter with all constant values",
         "config": {
-            SECTION_DETAILS: {
+            SECTION_COMMON: {
                 CONF_NAME: "Test Inverter",
                 CONF_CONNECTION: "main_bus",
             },

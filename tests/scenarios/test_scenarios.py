@@ -44,15 +44,15 @@ def _pick_fields(config: dict[str, Any], fields: tuple[str, ...]) -> dict[str, A
 
 def _sectioned_participant_config(config: dict[str, Any]) -> dict[str, Any]:
     """Convert flat participant configs into sectioned configs for scenario tests."""
-    if "details" in config:
+    if "common" in config:
         return config
 
     element_type = config[CONF_ELEMENT_TYPE]
     name = config[CONF_NAME]
 
     if element_type == "battery":
-        details = _pick_fields(config, ("connection",))
-        details[CONF_NAME] = name
+        common = _pick_fields(config, ("connection",))
+        common[CONF_NAME] = name
         storage = _pick_fields(config, ("capacity", "initial_charge_percentage"))
         limits = _pick_fields(config, ("min_charge_percentage", "max_charge_percentage"))
         power_limits = _pick_fields(
@@ -66,7 +66,7 @@ def _sectioned_participant_config(config: dict[str, Any]) -> dict[str, Any]:
         advanced = _pick_fields(config, ("efficiency", "configure_partitions"))
         sectioned = {
             CONF_ELEMENT_TYPE: element_type,
-            "details": details,
+            "common": common,
             "storage": storage,
             "limits": limits,
             "power_limits": power_limits,
@@ -84,14 +84,14 @@ def _sectioned_participant_config(config: dict[str, Any]) -> dict[str, Any]:
     if element_type == "load":
         return {
             CONF_ELEMENT_TYPE: element_type,
-            "details": {CONF_NAME: name, "connection": config["connection"]},
+            "common": {CONF_NAME: name, "connection": config["connection"]},
             "forecast": {"forecast": config["forecast"]},
         }
 
     if element_type == "grid":
         return {
             CONF_ELEMENT_TYPE: element_type,
-            "details": {CONF_NAME: name, "connection": config["connection"]},
+            "common": {CONF_NAME: name, "connection": config["connection"]},
             "pricing": {
                 "price_source_target": config["price_source_target"],
                 "price_target_source": config["price_target_source"],
@@ -105,7 +105,7 @@ def _sectioned_participant_config(config: dict[str, Any]) -> dict[str, Any]:
     if element_type == "inverter":
         return {
             CONF_ELEMENT_TYPE: element_type,
-            "details": {CONF_NAME: name, "connection": config["connection"]},
+            "common": {CONF_NAME: name, "connection": config["connection"]},
             "power_limits": _pick_fields(
                 config,
                 ("max_power_source_target", "max_power_target_source"),
@@ -116,7 +116,7 @@ def _sectioned_participant_config(config: dict[str, Any]) -> dict[str, Any]:
     if element_type == "solar":
         return {
             CONF_ELEMENT_TYPE: element_type,
-            "details": {
+            "common": {
                 CONF_NAME: name,
                 "connection": config["connection"],
             },
@@ -128,14 +128,14 @@ def _sectioned_participant_config(config: dict[str, Any]) -> dict[str, Any]:
     if element_type == "node":
         return {
             CONF_ELEMENT_TYPE: element_type,
-            "details": {CONF_NAME: name},
+            "common": {CONF_NAME: name},
             "advanced": _pick_fields(config, ("is_source", "is_sink")),
         }
 
     if element_type == "connection":
         return {
             CONF_ELEMENT_TYPE: element_type,
-            "details": {CONF_NAME: name},
+            "common": {CONF_NAME: name},
             "endpoints": {"source": config["source"], "target": config["target"]},
             "power_limits": _pick_fields(config, ("max_power_source_target", "max_power_target_source")),
             "pricing": _pick_fields(config, ("price_source_target", "price_target_source")),
@@ -145,7 +145,7 @@ def _sectioned_participant_config(config: dict[str, Any]) -> dict[str, Any]:
     if element_type == "battery_section":
         return {
             CONF_ELEMENT_TYPE: element_type,
-            "details": {CONF_NAME: name},
+            "common": {CONF_NAME: name},
             "storage": _pick_fields(config, ("capacity", "initial_charge")),
         }
 
@@ -204,7 +204,7 @@ async def test_scenarios(
             domain=DOMAIN,
             data={
                 "integration_type": INTEGRATION_TYPE_HUB,
-                "basic": {CONF_NAME: "Test Hub"},
+                "common": {CONF_NAME: "Test Hub"},
                 "tiers": {
                     CONF_TIER_1_COUNT: scenario_config["tier_1_count"],
                     CONF_TIER_1_DURATION: scenario_config["tier_1_duration"],

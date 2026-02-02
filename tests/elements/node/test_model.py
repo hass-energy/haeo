@@ -37,7 +37,7 @@ CREATE_CASES: Sequence[CreateCase] = [
         "description": "Node as passthrough",
         "data": NodeConfigData(
             element_type="node",
-                details={"name": "node_main"},
+                common={"name": "node_main"},
             advanced={"is_source": False, "is_sink": False},
         ),
         "model": [

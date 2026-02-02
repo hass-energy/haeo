@@ -14,7 +14,7 @@ from custom_components.haeo.elements.battery import (
     CONF_PRICE_SOURCE_TARGET,
     CONF_PRICE_TARGET_SOURCE,
     SECTION_ADVANCED,
-    SECTION_DETAILS,
+    SECTION_COMMON,
     SECTION_LIMITS,
     SECTION_POWER_LIMITS,
     SECTION_PRICING,
@@ -27,7 +27,7 @@ VALID_DATA = [
     {
         "description": "Basic battery configuration",
         "config": {
-            SECTION_DETAILS: {
+            SECTION_COMMON: {
                 CONF_NAME: "Test Battery",
                 CONF_CONNECTION: "main_bus",
             },
@@ -55,7 +55,7 @@ VALID_DATA = [
     {
         "description": "Battery with optional discharge cost",
         "config": {
-            SECTION_DETAILS: {
+            SECTION_COMMON: {
                 CONF_NAME: "Advanced Battery",
                 CONF_CONNECTION: "main_bus",
             },
@@ -87,7 +87,7 @@ INVALID_DATA = [
     {
         "description": "Empty name should fail validation",
         "config": {
-            SECTION_DETAILS: {
+            SECTION_COMMON: {
                 CONF_NAME: "",
                 CONF_CONNECTION: "main_bus",
             },

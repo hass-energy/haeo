@@ -22,7 +22,7 @@ from custom_components.haeo.elements.solar import (
     CONF_FORECAST,
     CONF_PRICE_SOURCE_TARGET,
     SECTION_ADVANCED,
-    SECTION_DETAILS,
+    SECTION_COMMON,
     SECTION_FORECAST,
     SECTION_PRICING,
 )
@@ -41,7 +41,7 @@ def config_entry(hass: HomeAssistant) -> MockConfigEntry:
         domain=DOMAIN,
         title="Test Network",
         data={
-            "basic": {CONF_NAME: "Test Network"},
+            "common": {CONF_NAME: "Test Network"},
             "tiers": {
                 "tier_1_count": 2,
                 "tier_1_duration": 5,
@@ -98,7 +98,7 @@ def _create_subentry(name: str, data: dict[str, Any]) -> ConfigSubentry:
         data=MappingProxyType(
             {
                 "element_type": "solar",
-                SECTION_DETAILS: {
+                SECTION_COMMON: {
                     CONF_NAME: name,
                     CONF_CONNECTION: "Switchboard",
                 },

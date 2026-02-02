@@ -63,7 +63,7 @@ from custom_components.haeo.elements.grid import (
 )
 from custom_components.haeo.sections import (
     SECTION_ADVANCED,
-    SECTION_DETAILS,
+    SECTION_COMMON,
     SECTION_LIMITS,
     SECTION_POWER_LIMITS,
     SECTION_PRICING,
@@ -78,7 +78,7 @@ def mock_hub_entry(hass: HomeAssistant) -> MockConfigEntry:
         domain=DOMAIN,
         data={
             CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
-            "basic": {CONF_NAME: "Test Network"},
+            "common": {CONF_NAME: "Test Network"},
             "tiers": {
                 CONF_TIER_1_COUNT: DEFAULT_TIER_1_COUNT,
                 CONF_TIER_1_DURATION: DEFAULT_TIER_1_DURATION,
@@ -105,7 +105,7 @@ def mock_battery_subentry(hass: HomeAssistant, mock_hub_entry: MockConfigEntry) 
         data=MappingProxyType(
             {
                 CONF_ELEMENT_TYPE: ELEMENT_TYPE_BATTERY,
-                SECTION_DETAILS: {
+                SECTION_COMMON: {
                     CONF_NAME: "Test Battery",
                     CONF_CONNECTION: "Switchboard",
                 },
@@ -134,7 +134,7 @@ def mock_grid_subentry(hass: HomeAssistant, mock_hub_entry: MockConfigEntry) -> 
         data=MappingProxyType(
             {
                 CONF_ELEMENT_TYPE: ELEMENT_TYPE_GRID,
-                SECTION_DETAILS: {
+                SECTION_COMMON: {
                     CONF_NAME: "Test Grid",
                     CONF_CONNECTION: "Switchboard",
                 },
@@ -163,7 +163,7 @@ def mock_connection_subentry(hass: HomeAssistant, mock_hub_entry: MockConfigEntr
         data=MappingProxyType(
             {
                 CONF_ELEMENT_TYPE: ELEMENT_TYPE_CONNECTION,
-                SECTION_DETAILS: {
+                SECTION_COMMON: {
                     CONF_NAME: "Battery to Grid",
                 },
                 SECTION_ENDPOINTS: {
@@ -340,7 +340,7 @@ async def test_ensure_required_subentries_creates_switchboard_non_advanced(
     # Verify the created node has correct configuration
     node_subentry = next(sub for sub in mock_hub_entry.subentries.values() if sub.subentry_type == ELEMENT_TYPE_NODE)
     assert (
-        node_subentry.data[SECTION_DETAILS][CONF_NAME] == "Switchboard"
+        node_subentry.data[SECTION_COMMON][CONF_NAME] == "Switchboard"
     )  # Default name when translations not available
     assert node_subentry.data[SECTION_ADVANCED]["is_source"] is False
     assert node_subentry.data[SECTION_ADVANCED]["is_sink"] is False
@@ -355,7 +355,7 @@ async def test_ensure_required_subentries_skips_switchboard_advanced_mode(
         domain=DOMAIN,
         data={
             CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
-            "basic": {CONF_NAME: "Test Network"},
+            "common": {CONF_NAME: "Test Network"},
             "advanced": {CONF_ADVANCED_MODE: True},
             "tiers": {},
         },
@@ -572,7 +572,7 @@ async def test_async_setup_entry_raises_config_entry_not_ready_on_timeout(
     class MockRuntimeData:
         def __init__(self) -> None:
             self.horizon_manager = mock_horizon
-            self.input_entities = {("Test Element", (SECTION_DETAILS, "field")): never_ready_entity}
+            self.input_entities = {("Test Element", (SECTION_COMMON, "field")): never_ready_entity}
             self.coordinator = None
             self.value_update_in_progress = False
 
@@ -665,7 +665,7 @@ async def test_setup_reentry_after_timeout_failure(
     class MockRuntimeData:
         def __init__(self, horizon_manager: object) -> None:
             self.horizon_manager = horizon_manager
-            self.input_entities = {("Test Element", (SECTION_DETAILS, "field")): entity}
+            self.input_entities = {("Test Element", (SECTION_COMMON, "field")): entity}
             self.coordinator = None
             self.value_update_in_progress = False
 

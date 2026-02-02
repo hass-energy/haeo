@@ -54,11 +54,11 @@ from custom_components.haeo.elements.battery import (
 )
 from custom_components.haeo.elements.grid import CONF_PRICE_SOURCE_TARGET, CONF_PRICE_TARGET_SOURCE, GRID_POWER_IMPORT
 from custom_components.haeo.entities.haeo_number import ConfigEntityMode, HaeoInputNumber
-from custom_components.haeo.flows import HUB_SECTION_BASIC, HUB_SECTION_TIERS
+from custom_components.haeo.flows import HUB_SECTION_COMMON, HUB_SECTION_TIERS
 from custom_components.haeo.model import OutputType
 from custom_components.haeo.sections import (
     SECTION_ADVANCED,
-    SECTION_DETAILS,
+    SECTION_COMMON,
     SECTION_LIMITS,
     SECTION_POWER_LIMITS,
     SECTION_PRICING,
@@ -101,7 +101,7 @@ def _battery_config(
 
     return {
         CONF_ELEMENT_TYPE: ELEMENT_TYPE_BATTERY,
-        SECTION_DETAILS: {
+        SECTION_COMMON: {
             CONF_NAME: name,
             CONF_CONNECTION: connection,
         },
@@ -123,7 +123,7 @@ def _grid_config(
     """Build a sectioned grid config dict for diagnostics tests."""
     return {
         CONF_ELEMENT_TYPE: "grid",
-        SECTION_DETAILS: {
+        SECTION_COMMON: {
             CONF_NAME: name,
             CONF_CONNECTION: connection,
         },
@@ -139,7 +139,7 @@ def _hub_entry_data(name: str = "Test Hub") -> dict[str, Any]:
     """Build hub entry data using the sectioned schema."""
     return {
         CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
-        HUB_SECTION_BASIC: {CONF_NAME: name},
+        HUB_SECTION_COMMON: {CONF_NAME: name},
         HUB_SECTION_TIERS: {
             CONF_TIER_1_COUNT: DEFAULT_TIER_1_COUNT,
             CONF_TIER_1_DURATION: DEFAULT_TIER_1_DURATION,
@@ -243,7 +243,7 @@ async def test_diagnostics_with_participants(hass: HomeAssistant) -> None:
     assert "Battery One" in participants
     battery_config = participants["Battery One"]
     assert battery_config[CONF_ELEMENT_TYPE] == ELEMENT_TYPE_BATTERY
-    assert battery_config[SECTION_DETAILS][CONF_NAME] == "Battery One"
+    assert battery_config[SECTION_COMMON][CONF_NAME] == "Battery One"
     assert battery_config[SECTION_STORAGE][CONF_CAPACITY] == "sensor.battery_capacity"
     assert battery_config[SECTION_STORAGE][CONF_INITIAL_CHARGE_PERCENTAGE] == "sensor.battery_soc"
 

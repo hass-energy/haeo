@@ -96,7 +96,7 @@ def config_entry(hass: HomeAssistant) -> MockConfigEntry:
         domain=DOMAIN,
         title="Mock Network",
         data={
-            "basic": {CONF_NAME: "Mock Network"},
+            "common": {CONF_NAME: "Mock Network"},
             "tiers": {
                 "tier_1_count": 5,
                 "tier_1_duration": 1,
@@ -123,7 +123,7 @@ def config_entry(hass: HomeAssistant) -> MockConfigEntry:
         data=MappingProxyType(
             {
                 CONF_ELEMENT_TYPE: BATTERY_TYPE,
-                "basic": {
+                "common": {
                     CONF_NAME: "Battery",
                     "connection": "Switchboard",
                     "capacity": 10.0,

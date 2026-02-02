@@ -13,7 +13,7 @@ async def test_available_returns_true_when_forecast_sensor_exists(hass: HomeAssi
 
     config: solar.SolarConfigSchema = {
         "element_type": "solar",
-        "details": {"name": "test_solar", "connection": "dc_bus"},
+        "common": {"name": "test_solar", "connection": "dc_bus"},
         "forecast": {"forecast": ["sensor.forecast"]},
         "pricing": {"price_source_target": 0.0},
         "advanced": {"curtailment": True},
@@ -27,7 +27,7 @@ async def test_available_returns_false_when_forecast_sensor_missing(hass: HomeAs
     """Solar available() should return False when forecast sensor is missing."""
     config: solar.SolarConfigSchema = {
         "element_type": "solar",
-        "details": {"name": "test_solar", "connection": "dc_bus"},
+        "common": {"name": "test_solar", "connection": "dc_bus"},
         "forecast": {"forecast": ["sensor.missing"]},
         "pricing": {"price_source_target": 0.0},
         "advanced": {"curtailment": True},

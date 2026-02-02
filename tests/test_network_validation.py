@@ -24,7 +24,7 @@ from custom_components.haeo.elements.grid import CONF_PRICE_SOURCE_TARGET, CONF_
 from custom_components.haeo.elements.node import CONF_IS_SINK, CONF_IS_SOURCE, NodeConfigData
 from custom_components.haeo.sections import (
     SECTION_ADVANCED,
-    SECTION_DETAILS,
+    SECTION_COMMON,
     SECTION_LIMITS,
     SECTION_POWER_LIMITS,
     SECTION_PRICING,
@@ -60,12 +60,12 @@ def test_validate_network_topology_with_implicit_connection() -> None:
     """Element with implicit connection field creates edge to target node."""
     main_node: NodeConfigData = {
         CONF_ELEMENT_TYPE: "node",
-        SECTION_DETAILS: {CONF_NAME: "main"},
+        SECTION_COMMON: {CONF_NAME: "main"},
         SECTION_ADVANCED: {CONF_IS_SOURCE: False, CONF_IS_SINK: False},
     }
     grid: GridConfigData = {
         CONF_ELEMENT_TYPE: "grid",
-        SECTION_DETAILS: {CONF_NAME: "grid", GRID_CONF_CONNECTION: "main"},
+        SECTION_COMMON: {CONF_NAME: "grid", GRID_CONF_CONNECTION: "main"},
         SECTION_PRICING: {
             CONF_PRICE_SOURCE_TARGET: np.array([0.30, 0.30]),
             CONF_PRICE_TARGET_SOURCE: np.array([0.10, 0.10]),
@@ -84,17 +84,17 @@ def test_validate_network_topology_detects_disconnected() -> None:
     """Disconnected components are properly identified."""
     node_a: NodeConfigData = {
         CONF_ELEMENT_TYPE: "node",
-        SECTION_DETAILS: {CONF_NAME: "a"},
+        SECTION_COMMON: {CONF_NAME: "a"},
         SECTION_ADVANCED: {CONF_IS_SOURCE: False, CONF_IS_SINK: False},
     }
     node_b: NodeConfigData = {
         CONF_ELEMENT_TYPE: "node",
-        SECTION_DETAILS: {CONF_NAME: "b"},
+        SECTION_COMMON: {CONF_NAME: "b"},
         SECTION_ADVANCED: {CONF_IS_SOURCE: False, CONF_IS_SINK: False},
     }
     grid_a: GridConfigData = {
         CONF_ELEMENT_TYPE: "grid",
-        SECTION_DETAILS: {CONF_NAME: "grid_a", GRID_CONF_CONNECTION: "a"},
+        SECTION_COMMON: {CONF_NAME: "grid_a", GRID_CONF_CONNECTION: "a"},
         SECTION_PRICING: {
             CONF_PRICE_SOURCE_TARGET: np.array([0.30, 0.30]),
             CONF_PRICE_TARGET_SOURCE: np.array([0.10, 0.10]),
@@ -103,7 +103,7 @@ def test_validate_network_topology_detects_disconnected() -> None:
     }
     grid_b: GridConfigData = {
         CONF_ELEMENT_TYPE: "grid",
-        SECTION_DETAILS: {CONF_NAME: "grid_b", GRID_CONF_CONNECTION: "b"},
+        SECTION_COMMON: {CONF_NAME: "grid_b", GRID_CONF_CONNECTION: "b"},
         SECTION_PRICING: {
             CONF_PRICE_SOURCE_TARGET: np.array([0.30, 0.30]),
             CONF_PRICE_TARGET_SOURCE: np.array([0.10, 0.10]),
@@ -128,12 +128,12 @@ def test_validate_network_topology_with_battery() -> None:
     """Battery element works in validation with loaded config data."""
     main_node: NodeConfigData = {
         CONF_ELEMENT_TYPE: "node",
-        SECTION_DETAILS: {CONF_NAME: "main"},
+        SECTION_COMMON: {CONF_NAME: "main"},
         SECTION_ADVANCED: {CONF_IS_SOURCE: False, CONF_IS_SINK: False},
     }
     grid: GridConfigData = {
         CONF_ELEMENT_TYPE: "grid",
-        SECTION_DETAILS: {CONF_NAME: "grid", GRID_CONF_CONNECTION: "main"},
+        SECTION_COMMON: {CONF_NAME: "grid", GRID_CONF_CONNECTION: "main"},
         SECTION_PRICING: {
             CONF_PRICE_SOURCE_TARGET: np.array([0.30, 0.30]),
             CONF_PRICE_TARGET_SOURCE: np.array([0.10, 0.10]),
@@ -142,7 +142,7 @@ def test_validate_network_topology_with_battery() -> None:
     }
     battery: BatteryConfigData = {
         CONF_ELEMENT_TYPE: "battery",
-        SECTION_DETAILS: {
+        SECTION_COMMON: {
             CONF_NAME: "battery",
             BATTERY_CONF_CONNECTION: "main",
         },
@@ -181,12 +181,12 @@ def test_validate_network_topology_with_battery_all_sections() -> None:
     """Battery with undercharge/overcharge sections works in validation."""
     main_node: NodeConfigData = {
         CONF_ELEMENT_TYPE: "node",
-        SECTION_DETAILS: {CONF_NAME: "main"},
+        SECTION_COMMON: {CONF_NAME: "main"},
         SECTION_ADVANCED: {CONF_IS_SOURCE: False, CONF_IS_SINK: False},
     }
     battery: BatteryConfigData = {
         CONF_ELEMENT_TYPE: "battery",
-        SECTION_DETAILS: {
+        SECTION_COMMON: {
             CONF_NAME: "battery",
             BATTERY_CONF_CONNECTION: "main",
         },

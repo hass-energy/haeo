@@ -15,7 +15,7 @@ from custom_components.haeo.elements.load import (
     CONF_CONNECTION,
     CONF_FORECAST,
     ELEMENT_TYPE,
-    SECTION_DETAILS,
+    SECTION_COMMON,
     SECTION_FORECAST,
 )
 
@@ -24,10 +24,10 @@ from ..conftest import add_participant, create_flow
 
 def _wrap_input(flat: dict[str, Any]) -> dict[str, Any]:
     """Wrap flat load input values into sectioned config."""
-    if SECTION_DETAILS in flat:
+    if SECTION_COMMON in flat:
         return dict(flat)
     return {
-        SECTION_DETAILS: {
+        SECTION_COMMON: {
             CONF_NAME: flat[CONF_NAME],
             CONF_CONNECTION: flat[CONF_CONNECTION],
         },
@@ -39,7 +39,7 @@ def _wrap_input(flat: dict[str, Any]) -> dict[str, Any]:
 
 def _wrap_config(flat: dict[str, Any]) -> dict[str, Any]:
     """Wrap flat load config values into sectioned config with element type."""
-    if SECTION_DETAILS in flat:
+    if SECTION_COMMON in flat:
         return {CONF_ELEMENT_TYPE: ELEMENT_TYPE, **flat}
     return {CONF_ELEMENT_TYPE: ELEMENT_TYPE, **_wrap_input(flat)}
 
@@ -183,7 +183,7 @@ async def test_reconfigure_with_missing_field_shows_none_default(hass: HomeAssis
     # Create existing entry without forecast field (simulating missing optional field)
     existing_config = {
         CONF_ELEMENT_TYPE: ELEMENT_TYPE,
-        SECTION_DETAILS: {
+        SECTION_COMMON: {
             CONF_NAME: "Test Load",
             CONF_CONNECTION: "TestNode",
         },

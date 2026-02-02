@@ -24,7 +24,7 @@ def config_entry(hass: HomeAssistant) -> MockConfigEntry:
         domain=DOMAIN,
         title="Test Network",
         data={
-            "basic": {CONF_NAME: "Test Network"},
+            "common": {CONF_NAME: "Test Network"},
             "tiers": {
                 "tier_1_count": 2,
                 "tier_1_duration": 5,  # 5 minutes

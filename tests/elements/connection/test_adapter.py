@@ -14,7 +14,7 @@ async def test_available_returns_true_with_no_optional_fields(hass: HomeAssistan
     """Connection available() should return True with only required fields."""
     config: connection.ConnectionConfigSchema = {
         "element_type": "connection",
-        "details": {"name": "c1"},
+        "common": {"name": "c1"},
         "endpoints": {"source": "node_a", "target": "node_b"},
         "power_limits": {},
         "pricing": {},
@@ -36,7 +36,7 @@ async def test_available_returns_true_when_optional_sensors_exist(hass: HomeAssi
 
     config: connection.ConnectionConfigSchema = {
         "element_type": "connection",
-        "details": {"name": "c1"},
+        "common": {"name": "c1"},
         "endpoints": {"source": "node_a", "target": "node_b"},
         "power_limits": {
             "max_power_source_target": "sensor.max_power_st",
@@ -63,7 +63,7 @@ async def test_available_returns_false_when_optional_sensor_missing(hass: HomeAs
 
     config: connection.ConnectionConfigSchema = {
         "element_type": "connection",
-        "details": {"name": "c1"},
+        "common": {"name": "c1"},
         "endpoints": {"source": "node_a", "target": "node_b"},
         "power_limits": {
             "max_power_source_target": "sensor.max_power_st",

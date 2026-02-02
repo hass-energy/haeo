@@ -49,7 +49,7 @@ def test_update_element_updates_tracked_params() -> None:
     # Update via element config
     config: ElementConfigData = {
         CONF_ELEMENT_TYPE: MODEL_ELEMENT_TYPE_CONNECTION,
-        "details": {"name": "conn"},
+        "common": {"name": "conn"},
         "endpoints": {"source": "source", "target": "target"},
         "power_limits": {
             CONF_MAX_POWER_SOURCE_TARGET: np.array([20.0, 20.0]),
@@ -76,7 +76,7 @@ def test_update_element_raises_for_missing_model_element() -> None:
     # Try to update a nonexistent element
     config: ElementConfigData = {
         CONF_ELEMENT_TYPE: MODEL_ELEMENT_TYPE_CONNECTION,
-        "details": {"name": "nonexistent_conn"},
+        "common": {"name": "nonexistent_conn"},
         "endpoints": {"source": "source", "target": "target"},
         "power_limits": {
             CONF_MAX_POWER_SOURCE_TARGET: np.array([20.0, 20.0]),

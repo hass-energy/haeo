@@ -83,7 +83,7 @@ from custom_components.haeo.model import Network, OutputData, OutputType
 from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_NODE
 from custom_components.haeo.sections import (
     SECTION_ADVANCED,
-    SECTION_DETAILS,
+    SECTION_COMMON,
     SECTION_LIMITS,
     SECTION_POWER_LIMITS,
     SECTION_PRICING,
@@ -98,7 +98,7 @@ def mock_hub_entry(hass: HomeAssistant) -> MockConfigEntry:
         domain=DOMAIN,
         data={
             CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
-            "basic": {CONF_NAME: "Power Network"},
+            "common": {CONF_NAME: "Power Network"},
             "tiers": {
                 CONF_TIER_1_COUNT: 2,  # 2 intervals of 30 min = 1 hour horizon
                 CONF_TIER_1_DURATION: 30,
@@ -128,7 +128,7 @@ def mock_battery_subentry(hass: HomeAssistant, mock_hub_entry: MockConfigEntry) 
         data=MappingProxyType(
             {
                 CONF_ELEMENT_TYPE: ELEMENT_TYPE_BATTERY,
-                SECTION_DETAILS: {
+                SECTION_COMMON: {
                     CONF_NAME: "Test Battery",
                     CONF_CONNECTION: "DC Bus",
                 },
@@ -165,7 +165,7 @@ def mock_grid_subentry(hass: HomeAssistant, mock_hub_entry: MockConfigEntry) -> 
         data=MappingProxyType(
             {
                 CONF_ELEMENT_TYPE: ELEMENT_TYPE_GRID,
-                SECTION_DETAILS: {
+                SECTION_COMMON: {
                     CONF_NAME: "Test Grid",
                     CONF_CONNECTION_GRID: "AC Bus",
                 },
@@ -194,7 +194,7 @@ def mock_connection_subentry(hass: HomeAssistant, mock_hub_entry: MockConfigEntr
         data=MappingProxyType(
             {
                 CONF_ELEMENT_TYPE: ELEMENT_TYPE_CONNECTION,
-                SECTION_DETAILS: {
+                SECTION_COMMON: {
                     CONF_NAME: "Battery to Grid",
                 },
                 SECTION_ENDPOINTS: {
@@ -355,7 +355,7 @@ async def test_async_update_data_returns_outputs(
         "Test Grid": mock_grid_subentry.data,
         "Battery to Grid": {
             CONF_ELEMENT_TYPE: "connection",
-            SECTION_DETAILS: {
+            SECTION_COMMON: {
                 CONF_NAME: "Battery to Grid",
             },
             SECTION_ENDPOINTS: {
@@ -1175,7 +1175,7 @@ def test_load_from_input_entities_raises_for_invalid_config_data(
     invalid_config: Any = {
         "Bad Battery": {
             CONF_ELEMENT_TYPE: ELEMENT_TYPE_BATTERY,
-            SECTION_DETAILS: {
+            SECTION_COMMON: {
                 CONF_NAME: "Bad Battery",
                 # Missing required non-input field: connection
             },

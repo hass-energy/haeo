@@ -39,7 +39,7 @@ CREATE_CASES: Sequence[CreateCase] = [
         "description": "Load with forecast",
         "data": LoadConfigData(
             element_type="load",
-                        details={"name": "load_main", "connection": "network"},
+                        common={"name": "load_main", "connection": "network"},
                         forecast={"forecast": np.array([1.0, 2.0])},
         ),
         "model": [

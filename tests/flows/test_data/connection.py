@@ -8,7 +8,7 @@ from custom_components.haeo.elements.connection import (
     CONF_SOURCE,
     CONF_TARGET,
     SECTION_ADVANCED,
-    SECTION_DETAILS,
+    SECTION_COMMON,
     SECTION_ENDPOINTS,
     SECTION_POWER_LIMITS,
     SECTION_PRICING,
@@ -20,7 +20,7 @@ VALID_DATA = [
     {
         "description": "Basic connection configuration (no optional fields)",
         "config": {
-            SECTION_DETAILS: {
+            SECTION_COMMON: {
                 CONF_NAME: "Battery to Grid",
             },
             SECTION_ENDPOINTS: {
@@ -35,7 +35,7 @@ VALID_DATA = [
     {
         "description": "Connection with power limits and efficiency",
         "config": {
-            SECTION_DETAILS: {
+            SECTION_COMMON: {
                 CONF_NAME: "Battery to Grid",
             },
             SECTION_ENDPOINTS: {

@@ -43,7 +43,7 @@ CREATE_CASES: Sequence[CreateCase] = [
         "description": "Battery with SOC pricing thresholds",
         "data": BatteryConfigData(
             element_type="battery",
-            details={
+            common={
                 "name": "battery_main",
                 "connection": "network",
             },
@@ -118,7 +118,7 @@ CREATE_CASES: Sequence[CreateCase] = [
         "description": "Battery with normal range only",
         "data": BatteryConfigData(
             element_type="battery",
-            details={
+            common={
                 "name": "battery_normal",
                 "connection": "network",
             },
@@ -185,7 +185,7 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
         "name": "battery_no_balance",
         "data": BatteryConfigData(
             element_type="battery",
-            details={
+            common={
                 "name": "battery_no_balance",
                 "connection": "network",
             },
@@ -243,7 +243,7 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
         "name": "battery_with_thresholds",
         "data": BatteryConfigData(
             element_type="battery",
-            details={
+            common={
                 "name": "battery_with_thresholds",
                 "connection": "network",
             },

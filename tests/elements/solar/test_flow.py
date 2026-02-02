@@ -18,7 +18,7 @@ from custom_components.haeo.elements.solar import (
     CONF_PRICE_SOURCE_TARGET,
     ELEMENT_TYPE,
     SECTION_ADVANCED,
-    SECTION_DETAILS,
+    SECTION_COMMON,
     SECTION_FORECAST,
     SECTION_PRICING,
 )
@@ -28,9 +28,9 @@ from ..conftest import add_participant, create_flow
 
 def _wrap_input(flat: dict[str, Any]) -> dict[str, Any]:
     """Wrap flat solar input values into sectioned config."""
-    if SECTION_DETAILS in flat:
+    if SECTION_COMMON in flat:
         return dict(flat)
-    details = {
+    common = {
         CONF_NAME: flat[CONF_NAME],
         CONF_CONNECTION: flat[CONF_CONNECTION],
     }
@@ -40,7 +40,7 @@ def _wrap_input(flat: dict[str, Any]) -> dict[str, Any]:
     pricing = {key: flat[key] for key in (CONF_PRICE_SOURCE_TARGET,) if key in flat}
     advanced = {key: flat[key] for key in (CONF_CURTAILMENT,) if key in flat}
     return {
-        SECTION_DETAILS: details,
+        SECTION_COMMON: common,
         SECTION_FORECAST: forecast,
         SECTION_PRICING: pricing,
         SECTION_ADVANCED: advanced,
@@ -49,7 +49,7 @@ def _wrap_input(flat: dict[str, Any]) -> dict[str, Any]:
 
 def _wrap_config(flat: dict[str, Any]) -> dict[str, Any]:
     """Wrap flat solar config values into sectioned config with element type."""
-    if SECTION_DETAILS in flat:
+    if SECTION_COMMON in flat:
         return {CONF_ELEMENT_TYPE: ELEMENT_TYPE, **flat}
     return {CONF_ELEMENT_TYPE: ELEMENT_TYPE, **_wrap_input(flat)}
 

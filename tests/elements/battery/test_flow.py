@@ -27,7 +27,7 @@ from custom_components.haeo.elements.battery import (
     CONF_PRICE_TARGET_SOURCE,
     ELEMENT_TYPE,
     SECTION_ADVANCED,
-    SECTION_DETAILS,
+    SECTION_COMMON,
     SECTION_LIMITS,
     SECTION_POWER_LIMITS,
     SECTION_OVERCHARGE,
@@ -42,7 +42,7 @@ from ..conftest import add_participant, create_flow
 def _wrap_main_input(user_input: dict[str, Any]) -> dict[str, Any]:
     """Wrap battery user input into sectioned form data."""
     return {
-        SECTION_DETAILS: {
+        SECTION_COMMON: {
             key: user_input[key]
             for key in (
                 CONF_NAME,

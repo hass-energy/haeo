@@ -24,7 +24,7 @@ from custom_components.haeo.entities.haeo_number import (
 )
 from custom_components.haeo.horizon import HorizonManager
 from custom_components.haeo.model import OutputType
-from custom_components.haeo.sections import SECTION_ADVANCED, SECTION_DETAILS
+from custom_components.haeo.sections import SECTION_ADVANCED, SECTION_COMMON
 
 # --- Fixtures ---
 
@@ -36,7 +36,7 @@ def config_entry(hass: HomeAssistant) -> MockConfigEntry:
         domain=DOMAIN,
         title="Test Network",
         data={
-            "basic": {CONF_NAME: "Test Network"},
+            "common": {CONF_NAME: "Test Network"},
             "tiers": {
                 "tier_1_count": 2,
                 "tier_1_duration": 5,
@@ -154,7 +154,7 @@ def _create_subentry(name: str, data: dict[str, Any]) -> ConfigSubentry:
         data=MappingProxyType(
             {
                 "element_type": "battery",
-                SECTION_DETAILS: {CONF_NAME: name},
+                SECTION_COMMON: {CONF_NAME: name},
                 SECTION_ADVANCED: data,
             }
         ),

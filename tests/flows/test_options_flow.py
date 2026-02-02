@@ -43,12 +43,12 @@ type FlowResultDict = dict[str, Any]
 
 
 def _wrap_options_input(
-    basic: dict[str, Any],
+    common: dict[str, Any],
     advanced: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Wrap options input values into sectioned form data."""
     return {
-        "basic": basic,
+        "common": common,
         "advanced": advanced or {},
     }
 
@@ -65,7 +65,7 @@ async def test_options_flow_init(hass: HomeAssistant) -> None:
         domain=DOMAIN,
         data={
             CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
-            "basic": {
+            "common": {
                 CONF_NAME: "Test Hub",
                 CONF_HORIZON_PRESET: HORIZON_PRESET_5_DAYS,
             },
@@ -92,8 +92,8 @@ async def test_options_flow_init(hass: HomeAssistant) -> None:
     assert result["step_id"] == "init"
 
     assert result["data_schema"] is not None
-    basic_schema = _get_section_schema(result["data_schema"], "basic")
-    schema_keys = {vol_key.schema: vol_key for vol_key in basic_schema.schema}
+    common_schema = _get_section_schema(result["data_schema"], "common")
+    schema_keys = {vol_key.schema: vol_key for vol_key in common_schema.schema}
     # Verify preset dropdown is shown with current value as default
     assert CONF_HORIZON_PRESET in schema_keys
     assert schema_keys[CONF_HORIZON_PRESET].default() == HORIZON_PRESET_5_DAYS
@@ -105,7 +105,7 @@ async def test_options_flow_select_preset(hass: HomeAssistant) -> None:
         domain=DOMAIN,
         data={
             CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
-            "basic": {
+            "common": {
                 CONF_NAME: "Test Hub",
                 CONF_HORIZON_PRESET: HORIZON_PRESET_5_DAYS,
             },
@@ -143,7 +143,7 @@ async def test_options_flow_select_preset(hass: HomeAssistant) -> None:
 
     assert result["type"] == FlowResultType.CREATE_ENTRY
     # Verify preset is stored
-    assert entry.data["basic"][CONF_HORIZON_PRESET] == HORIZON_PRESET_3_DAYS
+    assert entry.data["common"][CONF_HORIZON_PRESET] == HORIZON_PRESET_3_DAYS
     # Verify tier values match the 3 days preset
     preset_config = HORIZON_PRESETS[HORIZON_PRESET_3_DAYS]
     assert entry.data["tiers"][CONF_TIER_4_COUNT] == preset_config[CONF_TIER_4_COUNT]
@@ -155,7 +155,7 @@ async def test_options_flow_custom_tiers(hass: HomeAssistant) -> None:
         domain=DOMAIN,
         data={
             CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
-            "basic": {
+            "common": {
                 CONF_NAME: "Test Hub",
                 CONF_HORIZON_PRESET: HORIZON_PRESET_5_DAYS,
             },
@@ -213,6 +213,6 @@ async def test_options_flow_custom_tiers(hass: HomeAssistant) -> None:
     )
 
     assert result["type"] == FlowResultType.CREATE_ENTRY
-    assert entry.data["basic"][CONF_HORIZON_PRESET] == HORIZON_PRESET_CUSTOM
+    assert entry.data["common"][CONF_HORIZON_PRESET] == HORIZON_PRESET_CUSTOM
     assert entry.data["tiers"][CONF_TIER_1_COUNT] == 10
     assert entry.data["tiers"][CONF_TIER_1_DURATION] == 2
