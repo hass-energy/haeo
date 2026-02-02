@@ -83,14 +83,11 @@ class PartitionConfig(TypedDict, total=False):
     cost: PartitionCostConfig
 
 
-type PartitionValueData = NDArray[np.floating[Any]] | float
-
-
 class PartitionData(TypedDict, total=False):
     """Loaded partition values (undercharge/overcharge)."""
 
-    percentage: PartitionValueData
-    cost: PartitionValueData
+    percentage: NDArray[np.floating[Any]] | float
+    cost: NDArray[np.floating[Any]] | float
 
 
 class BatteryConfigSchema(TypedDict):
