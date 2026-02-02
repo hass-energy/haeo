@@ -273,15 +273,15 @@ Note how the 48-hour pattern repeats starting at hour 48, maintaining realistic 
 
 HAEO automatically detects and parses these forecast formats:
 
-| Integration                                                                                        | Domain                      | Use Case                        | Format              |
-| -------------------------------------------------------------------------------------------------- | --------------------------- | ------------------------------- | ------------------- |
-| [Amber Electric](https://www.home-assistant.io/integrations/amberelectric/)                        | `amberelectric`             | Electricity pricing (Australia) | 30-minute intervals |
-| [AEMO NEM](https://www.home-assistant.io/integrations/aemo/)                                       | `aemo`                      | Wholesale pricing (Australia)   | 30-minute intervals |
-| [EMHASS](https://github.com/davidusb-geern/emhass)                                                 | `emhass`                    | Energy management forecasts     | Variable intervals  |
-| HAEO                                                                                               | `haeo`                      | Chain HAEO outputs as inputs    | Variable intervals  |
-| [HAFO](https://hafo.haeo.io)                                                                       | `hafo`                      | Historical load forecasting     | Hourly intervals    |
-| [Solcast Solar](https://github.com/BJReplay/ha-solcast-solar)                                      | `solcast_pv_forecast`       | Solar generation                | 30-minute intervals |
-| [Open-Meteo Solar Forecast](https://www.home-assistant.io/integrations/open_meteo_solar_forecast/) | `open_meteo_solar_forecast` | Solar generation                | Hourly intervals    |
+| Integration                                                                        | Domain                      | Use Case                        | Format              |
+| ---------------------------------------------------------------------------------- | --------------------------- | ------------------------------- | ------------------- |
+| [Amber Electric](https://www.home-assistant.io/integrations/amberelectric/)        | `amberelectric`             | Electricity pricing (Australia) | 30-minute intervals |
+| [AEMO NEM](https://www.home-assistant.io/integrations/aemo/)                       | `aemo`                      | Wholesale pricing (Australia)   | 30-minute intervals |
+| [EMHASS](https://github.com/davidusb-geern/emhass)                                 | `emhass`                    | Energy management forecasts     | Variable intervals  |
+| HAEO                                                                               | `haeo`                      | Chain HAEO outputs as inputs    | Variable intervals  |
+| [HAFO](https://hafo.haeo.io)                                                       | `hafo`                      | Historical load forecasting     | Hourly intervals    |
+| [Solcast Solar](https://github.com/BJReplay/ha-solcast-solar)                      | `solcast_pv_forecast`       | Solar generation                | 30-minute intervals |
+| [Open-Meteo Solar Forecast](https://github.com/rany2/ha-open-meteo-solar-forecast) | `open_meteo_solar_forecast` | Solar generation                | Hourly intervals    |
 
 Format detection is automatic—you don't need to specify the integration type.
 
