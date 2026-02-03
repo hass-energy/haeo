@@ -9,86 +9,125 @@
   "tier_4_duration": 60,
   "participants": {
     "Battery": {
-      "name": "Battery",
       "element_type": "battery",
-      "capacity": "sensor.sigen_plant_rated_energy_capacity",
-      "connection": "Inverter",
-      "efficiency": 99.0,
-      "initial_charge_percentage": "sensor.sigen_plant_battery_state_of_charge",
-      "max_charge_percentage": 100.0,
-      "max_power_source_target": "sensor.sigen_plant_ess_rated_discharging_power",
-      "max_power_target_source": "sensor.sigen_plant_ess_rated_charging_power",
-      "min_charge_percentage": 10.0,
-      "price_source_target": 0.02,
-      "price_target_source": 0.001
+      "common": {
+        "name": "Battery",
+        "connection": "Inverter"
+      },
+      "efficiency": {
+        "efficiency": 99.0
+      },
+      "limits": {
+        "max_charge_percentage": 100.0,
+        "min_charge_percentage": 10.0
+      },
+      "partitioning": {},
+      "power_limits": {
+        "max_power_source_target": "sensor.sigen_plant_ess_rated_discharging_power",
+        "max_power_target_source": "sensor.sigen_plant_ess_rated_charging_power"
+      },
+      "pricing": {
+        "price_source_target": 0.02,
+        "price_target_source": 0.001
+      },
+      "storage": {
+        "capacity": "sensor.sigen_plant_rated_energy_capacity",
+        "initial_charge_percentage": "sensor.sigen_plant_battery_state_of_charge"
+      }
     },
     "Constant Load": {
-      "name": "Constant Load",
       "element_type": "load",
-      "connection": "Switchboard",
-      "forecast": 1.0
+      "common": {
+        "name": "Constant Load",
+        "connection": "Switchboard"
+      },
+      "forecast": {
+        "forecast": 1.0
+      }
     },
     "Grid": {
-      "name": "Grid",
       "element_type": "grid",
-      "connection": "Switchboard",
-      "max_power_source_target": 55,
-      "max_power_target_source": 30,
-      "price_source_target": ["sensor.home_general_price", "sensor.home_general_forecast"],
-      "price_target_source": ["sensor.home_feed_in_price", "sensor.home_feed_in_forecast"]
+      "common": {
+        "name": "Grid",
+        "connection": "Switchboard"
+      },
+      "power_limits": {
+        "max_power_source_target": 55,
+        "max_power_target_source": 30
+      },
+      "pricing": {
+        "price_source_target": ["sensor.home_general_price", "sensor.home_general_forecast"],
+        "price_target_source": ["sensor.home_feed_in_price", "sensor.home_feed_in_forecast"]
+      }
     },
     "Inverter": {
-      "name": "Inverter",
       "element_type": "inverter",
-      "connection": "Switchboard",
-      "max_power_source_target": "sensor.sigen_plant_max_active_power",
-      "max_power_target_source": "sensor.sigen_plant_max_active_power"
+      "common": {
+        "name": "Inverter",
+        "connection": "Switchboard"
+      },
+      "efficiency": {},
+      "power_limits": {
+        "max_power_source_target": "sensor.sigen_plant_max_active_power",
+        "max_power_target_source": "sensor.sigen_plant_max_active_power"
+      }
     },
     "Solar": {
-      "name": "Solar",
       "element_type": "solar",
-      "connection": "Inverter",
-      "curtailment": true,
-      "forecast": [
-        "sensor.energy_production_today_east",
-        "sensor.energy_production_today_north",
-        "sensor.energy_production_today_south",
-        "sensor.energy_production_today_west",
-        "sensor.energy_production_tomorrow_east",
-        "sensor.energy_production_tomorrow_north",
-        "sensor.energy_production_tomorrow_south",
-        "sensor.energy_production_tomorrow_west",
-        "sensor.energy_production_d2_east",
-        "sensor.energy_production_d2_north",
-        "sensor.energy_production_d2_south",
-        "sensor.energy_production_d2_west",
-        "sensor.energy_production_d3_east",
-        "sensor.energy_production_d3_north",
-        "sensor.energy_production_d3_south",
-        "sensor.energy_production_d3_west",
-        "sensor.energy_production_d4_east",
-        "sensor.energy_production_d4_north",
-        "sensor.energy_production_d4_south",
-        "sensor.energy_production_d4_west",
-        "sensor.energy_production_d5_east",
-        "sensor.energy_production_d5_north",
-        "sensor.energy_production_d5_south",
-        "sensor.energy_production_d5_west",
-        "sensor.energy_production_d6_east",
-        "sensor.energy_production_d6_north",
-        "sensor.energy_production_d6_south",
-        "sensor.energy_production_d6_west",
-        "sensor.energy_production_d7_east",
-        "sensor.energy_production_d7_north",
-        "sensor.energy_production_d7_south",
-        "sensor.energy_production_d7_west"
-      ]
+      "common": {
+        "name": "Solar",
+        "connection": "Inverter"
+      },
+      "curtailment": {
+        "curtailment": true
+      },
+      "forecast": {
+        "forecast": [
+          "sensor.energy_production_today_east",
+          "sensor.energy_production_today_north",
+          "sensor.energy_production_today_south",
+          "sensor.energy_production_today_west",
+          "sensor.energy_production_tomorrow_east",
+          "sensor.energy_production_tomorrow_north",
+          "sensor.energy_production_tomorrow_south",
+          "sensor.energy_production_tomorrow_west",
+          "sensor.energy_production_d2_east",
+          "sensor.energy_production_d2_north",
+          "sensor.energy_production_d2_south",
+          "sensor.energy_production_d2_west",
+          "sensor.energy_production_d3_east",
+          "sensor.energy_production_d3_north",
+          "sensor.energy_production_d3_south",
+          "sensor.energy_production_d3_west",
+          "sensor.energy_production_d4_east",
+          "sensor.energy_production_d4_north",
+          "sensor.energy_production_d4_south",
+          "sensor.energy_production_d4_west",
+          "sensor.energy_production_d5_east",
+          "sensor.energy_production_d5_north",
+          "sensor.energy_production_d5_south",
+          "sensor.energy_production_d5_west",
+          "sensor.energy_production_d6_east",
+          "sensor.energy_production_d6_north",
+          "sensor.energy_production_d6_south",
+          "sensor.energy_production_d6_west",
+          "sensor.energy_production_d7_east",
+          "sensor.energy_production_d7_north",
+          "sensor.energy_production_d7_south",
+          "sensor.energy_production_d7_west"
+        ]
+      },
+      "pricing": {}
     },
     "Switchboard": {
-      "name": "Switchboard",
       "element_type": "node",
-      "is_sink": false,
-      "is_source": false
+      "common": {
+        "name": "Switchboard"
+      },
+      "role": {
+        "is_sink": false,
+        "is_source": false
+      }
     }
   }
 }

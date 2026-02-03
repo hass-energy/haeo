@@ -15,6 +15,7 @@ from homeassistant.helpers.event import async_track_state_change_event
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
+from custom_components.haeo import MIGRATION_MINOR_VERSION
 from custom_components.haeo.const import (
     CONF_ELEMENT_TYPE,
     CONF_NAME,
@@ -35,121 +36,6 @@ from tests.scenarios.conftest import ScenarioData
 from tests.scenarios.visualization import visualize_scenario_results
 
 _LOGGER = logging.getLogger(__name__)
-
-
-def _pick_fields(config: dict[str, Any], fields: tuple[str, ...]) -> dict[str, Any]:
-    """Select fields that are present in a config dict."""
-    return {field: config[field] for field in fields if field in config}
-
-
-def _sectioned_participant_config(config: dict[str, Any]) -> dict[str, Any]:
-    """Convert flat participant configs into sectioned configs for scenario tests."""
-    if "common" in config:
-        return config
-
-    element_type = config[CONF_ELEMENT_TYPE]
-    name = config[CONF_NAME]
-
-    if element_type == "battery":
-        common = _pick_fields(config, ("connection",))
-        common[CONF_NAME] = name
-        storage = _pick_fields(config, ("capacity", "initial_charge_percentage"))
-        limits = _pick_fields(config, ("min_charge_percentage", "max_charge_percentage"))
-        power_limits = _pick_fields(
-            config,
-            (
-                "max_power_source_target",
-                "max_power_target_source",
-            ),
-        )
-        pricing = _pick_fields(config, ("price_source_target", "price_target_source"))
-        advanced = _pick_fields(config, ("efficiency", "configure_partitions"))
-        sectioned = {
-            CONF_ELEMENT_TYPE: element_type,
-            "common": common,
-            "storage": storage,
-            "limits": limits,
-            "power_limits": power_limits,
-            "pricing": pricing,
-            "advanced": advanced,
-        }
-        undercharge = config.get("undercharge")
-        if isinstance(undercharge, dict) and undercharge:
-            sectioned["undercharge"] = undercharge
-        overcharge = config.get("overcharge")
-        if isinstance(overcharge, dict) and overcharge:
-            sectioned["overcharge"] = overcharge
-        return sectioned
-
-    if element_type == "load":
-        return {
-            CONF_ELEMENT_TYPE: element_type,
-            "common": {CONF_NAME: name, "connection": config["connection"]},
-            "forecast": {"forecast": config["forecast"]},
-        }
-
-    if element_type == "grid":
-        return {
-            CONF_ELEMENT_TYPE: element_type,
-            "common": {CONF_NAME: name, "connection": config["connection"]},
-            "pricing": {
-                "price_source_target": config["price_source_target"],
-                "price_target_source": config["price_target_source"],
-            },
-            "power_limits": _pick_fields(
-                config,
-                ("max_power_source_target", "max_power_target_source"),
-            ),
-        }
-
-    if element_type == "inverter":
-        return {
-            CONF_ELEMENT_TYPE: element_type,
-            "common": {CONF_NAME: name, "connection": config["connection"]},
-            "power_limits": _pick_fields(
-                config,
-                ("max_power_source_target", "max_power_target_source"),
-            ),
-            "advanced": _pick_fields(config, ("efficiency_dc_to_ac", "efficiency_ac_to_dc")),
-        }
-
-    if element_type == "solar":
-        return {
-            CONF_ELEMENT_TYPE: element_type,
-            "common": {
-                CONF_NAME: name,
-                "connection": config["connection"],
-            },
-            "forecast": {"forecast": config["forecast"]},
-            "pricing": _pick_fields(config, ("price_source_target",)),
-            "advanced": _pick_fields(config, ("curtailment",)),
-        }
-
-    if element_type == "node":
-        return {
-            CONF_ELEMENT_TYPE: element_type,
-            "common": {CONF_NAME: name},
-            "advanced": _pick_fields(config, ("is_source", "is_sink")),
-        }
-
-    if element_type == "connection":
-        return {
-            CONF_ELEMENT_TYPE: element_type,
-            "common": {CONF_NAME: name},
-            "endpoints": {"source": config["source"], "target": config["target"]},
-            "power_limits": _pick_fields(config, ("max_power_source_target", "max_power_target_source")),
-            "pricing": _pick_fields(config, ("price_source_target", "price_target_source")),
-            "advanced": _pick_fields(config, ("efficiency_source_target", "efficiency_target_source")),
-        }
-
-    if element_type == "battery_section":
-        return {
-            CONF_ELEMENT_TYPE: element_type,
-            "common": {CONF_NAME: name},
-            "storage": _pick_fields(config, ("capacity", "initial_charge")),
-        }
-
-    return config
 
 
 def _discover_scenarios() -> list[Path]:
@@ -217,15 +103,16 @@ async def test_scenarios(
                 },
                 "advanced": {},
             },
+            version=1,
+            minor_version=MIGRATION_MINOR_VERSION,
         )
         mock_config_entry.add_to_hass(hass)
 
         # Create element subentries from the scenario config
         for name, config in scenario_config["participants"].items():
-            sectioned_config = _sectioned_participant_config(config)
             subentry = ConfigSubentry(
-                data=MappingProxyType(sectioned_config),
-                subentry_type=sectioned_config[CONF_ELEMENT_TYPE],
+                data=MappingProxyType(config),
+                subentry_type=config[CONF_ELEMENT_TYPE],
                 title=name,
                 unique_id=None,
             )
