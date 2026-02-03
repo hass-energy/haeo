@@ -8,7 +8,12 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from custom_components.haeo import HaeoConfigEntry
 from custom_components.haeo.const import CONF_ELEMENT_TYPE, ELEMENT_TYPE_NETWORK
-from custom_components.haeo.elements import get_input_fields, is_element_config_schema
+from custom_components.haeo.elements import (
+    get_input_fields,
+    get_nested_config_value_by_path,
+    is_element_config_schema,
+    iter_input_field_paths,
+)
 from custom_components.haeo.entities.auto_optimize_switch import AutoOptimizeSwitch
 from custom_components.haeo.entities.device import get_or_create_element_device, get_or_create_network_device
 from custom_components.haeo.entities.haeo_switch import HaeoInputSwitch
@@ -51,7 +56,9 @@ async def async_setup_entry(
         # Filter to only switch fields (by entity description class name)
         # Note: isinstance doesn't work due to Home Assistant's frozen_dataclass_compat wrapper
         switch_fields = [
-            f for f in input_fields.values() if type(f.entity_description).__name__ == "SwitchEntityDescription"
+            (field_path, field_info)
+            for field_path, field_info in iter_input_field_paths(input_fields)
+            if type(field_info.entity_description).__name__ == "SwitchEntityDescription"
         ]
 
         if not switch_fields:
@@ -61,9 +68,9 @@ async def async_setup_entry(
         # Input entities go on the main device (element_type matches device_name)
         device_entry = get_or_create_element_device(hass, config_entry, subentry, element_type)
 
-        for field_info in switch_fields:
+        for field_path, field_info in switch_fields:
             # Only create entities for configured fields
-            if field_info.field_name not in subentry.data:
+            if get_nested_config_value_by_path(subentry.data, field_path) is None:
                 continue
 
             entity = HaeoInputSwitch(
@@ -71,6 +78,7 @@ async def async_setup_entry(
                 config_entry=config_entry,
                 subentry=subentry,
                 field_info=field_info,
+                field_path=field_path,
                 device_entry=device_entry,
                 horizon_manager=horizon_manager,
             )
@@ -78,9 +86,8 @@ async def async_setup_entry(
 
             # Register in runtime_data for coordinator access
             element_name = subentry.title
-            field_name = field_info.field_name
-            runtime_data.input_entities[(element_name, field_name)] = entity
-            _LOGGER.debug("Registered input entity: %s.%s", element_name, field_name)
+            runtime_data.input_entities[(element_name, field_path)] = entity
+            _LOGGER.debug("Registered input entity: %s.%s", element_name, ".".join(field_path))
 
     # Create auto-optimize switch for the network device
     network_subentry = next(s for s in config_entry.subentries.values() if s.subentry_type == ELEMENT_TYPE_NETWORK)

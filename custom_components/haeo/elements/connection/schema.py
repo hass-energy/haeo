@@ -16,6 +16,44 @@ CONF_EFFICIENCY_SOURCE_TARGET: Final = "efficiency_source_target"
 CONF_EFFICIENCY_TARGET_SOURCE: Final = "efficiency_target_source"
 CONF_PRICE_SOURCE_TARGET: Final = "price_source_target"
 CONF_PRICE_TARGET_SOURCE: Final = "price_target_source"
+CONF_SECTION_BASIC: Final = "basic"
+CONF_SECTION_LIMITS: Final = "limits"
+CONF_SECTION_ADVANCED: Final = "advanced"
+
+OPTIONAL_INPUT_FIELDS: Final[frozenset[str]] = frozenset(
+    {
+        CONF_MAX_POWER_SOURCE_TARGET,
+        CONF_MAX_POWER_TARGET_SOURCE,
+        CONF_EFFICIENCY_SOURCE_TARGET,
+        CONF_EFFICIENCY_TARGET_SOURCE,
+        CONF_PRICE_SOURCE_TARGET,
+        CONF_PRICE_TARGET_SOURCE,
+    }
+)
+
+
+class ConnectionBasicConfig(TypedDict):
+    """Basic configuration for connection elements."""
+
+    name: str
+    source: str  # Source element name
+    target: str  # Target element name
+
+
+class ConnectionLimitsConfig(TypedDict, total=False):
+    """Limit configuration for connection elements."""
+
+    max_power_source_target: str | float  # Entity ID or constant kW
+    max_power_target_source: str | float  # Entity ID or constant kW
+
+
+class ConnectionAdvancedConfig(TypedDict, total=False):
+    """Advanced configuration for connection elements."""
+
+    efficiency_source_target: str | float  # Entity ID or constant %
+    efficiency_target_source: str | float  # Entity ID or constant %
+    price_source_target: str | float  # Entity ID or constant $/kWh
+    price_target_source: str | float  # Entity ID or constant $/kWh
 
 
 class ConnectionConfigSchema(TypedDict):
@@ -29,17 +67,33 @@ class ConnectionConfigSchema(TypedDict):
     """
 
     element_type: Literal["connection"]
+    basic: ConnectionBasicConfig
+    limits: ConnectionLimitsConfig
+    advanced: ConnectionAdvancedConfig
+
+
+class ConnectionBasicData(TypedDict):
+    """Loaded basic values for connection elements."""
+
     name: str
     source: str  # Source element name
     target: str  # Target element name
 
-    # Optional fields
-    max_power_source_target: NotRequired[str | float]  # Entity ID or constant kW
-    max_power_target_source: NotRequired[str | float]  # Entity ID or constant kW
-    efficiency_source_target: NotRequired[str | float]  # Entity ID or constant %
-    efficiency_target_source: NotRequired[str | float]  # Entity ID or constant %
-    price_source_target: NotRequired[str | float]  # Entity ID or constant $/kWh
-    price_target_source: NotRequired[str | float]  # Entity ID or constant $/kWh
+
+class ConnectionLimitsData(TypedDict, total=False):
+    """Loaded limit values for connection elements."""
+
+    max_power_source_target: NotRequired[NDArray[np.floating[Any]] | float]  # Loaded power limit per period (kW)
+    max_power_target_source: NotRequired[NDArray[np.floating[Any]] | float]  # Loaded power limit per period (kW)
+
+
+class ConnectionAdvancedData(TypedDict, total=False):
+    """Loaded advanced values for connection elements."""
+
+    efficiency_source_target: NotRequired[NDArray[np.floating[Any]] | float]  # Loaded efficiency ratio per period (0-1)
+    efficiency_target_source: NotRequired[NDArray[np.floating[Any]] | float]  # Loaded efficiency ratio per period (0-1)
+    price_source_target: NotRequired[NDArray[np.floating[Any]] | float]  # Loaded price per period ($/kWh)
+    price_target_source: NotRequired[NDArray[np.floating[Any]] | float]  # Loaded price per period ($/kWh)
 
 
 class ConnectionConfigData(TypedDict):
@@ -49,14 +103,6 @@ class ConnectionConfigData(TypedDict):
     """
 
     element_type: Literal["connection"]
-    name: str
-    source: str  # Source element name
-    target: str  # Target element name
-
-    # Optional fields
-    max_power_source_target: NotRequired[NDArray[np.floating[Any]] | float]  # Loaded power limit per period (kW)
-    max_power_target_source: NotRequired[NDArray[np.floating[Any]] | float]  # Loaded power limit per period (kW)
-    efficiency_source_target: NotRequired[NDArray[np.floating[Any]] | float]  # Loaded efficiency ratio per period (0-1)
-    efficiency_target_source: NotRequired[NDArray[np.floating[Any]] | float]  # Loaded efficiency ratio per period (0-1)
-    price_source_target: NotRequired[NDArray[np.floating[Any]] | float]  # Loaded price per period ($/kWh)
-    price_target_source: NotRequired[NDArray[np.floating[Any]] | float]  # Loaded price per period ($/kWh)
+    basic: ConnectionBasicData
+    limits: ConnectionLimitsData
+    advanced: ConnectionAdvancedData

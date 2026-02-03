@@ -5,7 +5,7 @@ from datetime import UTC, datetime, timedelta
 import time
 from types import MappingProxyType
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry
 from homeassistant.const import STATE_OFF, STATE_ON, UnitOfEnergy
@@ -67,6 +67,8 @@ from custom_components.haeo.elements.battery import (
     CONF_MAX_CHARGE_POWER,
     CONF_MAX_DISCHARGE_POWER,
     CONF_MIN_CHARGE_PERCENTAGE,
+    CONF_SECTION_BASIC,
+    CONF_SECTION_LIMITS,
 )
 from custom_components.haeo.elements.connection import (
     CONF_SOURCE,
@@ -94,16 +96,18 @@ def mock_hub_entry(hass: HomeAssistant) -> MockConfigEntry:
         domain=DOMAIN,
         data={
             CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
-            CONF_NAME: "Power Network",
-            CONF_TIER_1_COUNT: 2,  # 2 intervals of 30 min = 1 hour horizon
-            CONF_TIER_1_DURATION: 30,
-            CONF_TIER_2_COUNT: 0,
-            CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
-            CONF_TIER_3_COUNT: 0,
-            CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
-            CONF_TIER_4_COUNT: 0,
-            CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
-            CONF_DEBOUNCE_SECONDS: DEFAULT_DEBOUNCE_SECONDS,
+            "basic": {CONF_NAME: "Power Network"},
+            "tiers": {
+                CONF_TIER_1_COUNT: 2,  # 2 intervals of 30 min = 1 hour horizon
+                CONF_TIER_1_DURATION: 30,
+                CONF_TIER_2_COUNT: 0,
+                CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
+                CONF_TIER_3_COUNT: 0,
+                CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
+                CONF_TIER_4_COUNT: 0,
+                CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
+            },
+            "advanced": {CONF_DEBOUNCE_SECONDS: DEFAULT_DEBOUNCE_SECONDS},
         },
         entry_id="hub_entry_id",
     )
@@ -121,16 +125,22 @@ def mock_battery_subentry(hass: HomeAssistant, mock_hub_entry: MockConfigEntry) 
     subentry = ConfigSubentry(
         data=MappingProxyType(
             {
-                CONF_NAME: "test_battery",
                 CONF_ELEMENT_TYPE: ELEMENT_TYPE_BATTERY,
-                CONF_CAPACITY: "sensor.battery_capacity",
-                CONF_CONNECTION: "DC Bus",
-                CONF_INITIAL_CHARGE_PERCENTAGE: "sensor.battery_soc",
-                CONF_MAX_CHARGE_POWER: 5.0,
-                CONF_MAX_DISCHARGE_POWER: 5.0,
-                CONF_MIN_CHARGE_PERCENTAGE: 20.0,
-                CONF_MAX_CHARGE_PERCENTAGE: 80.0,
-                CONF_EFFICIENCY: 95.0,
+                "basic": {
+                    CONF_NAME: "Test Battery",
+                    CONF_CONNECTION: "DC Bus",
+                    CONF_CAPACITY: "sensor.battery_capacity",
+                    CONF_INITIAL_CHARGE_PERCENTAGE: "sensor.battery_soc",
+                },
+                "limits": {
+                    CONF_MAX_CHARGE_POWER: 5.0,
+                    CONF_MAX_DISCHARGE_POWER: 5.0,
+                    CONF_MIN_CHARGE_PERCENTAGE: 20.0,
+                    CONF_MAX_CHARGE_PERCENTAGE: 80.0,
+                },
+                "advanced": {
+                    CONF_EFFICIENCY: 95.0,
+                },
             }
         ),
         subentry_type=ELEMENT_TYPE_BATTERY,
@@ -147,13 +157,19 @@ def mock_grid_subentry(hass: HomeAssistant, mock_hub_entry: MockConfigEntry) -> 
     subentry = ConfigSubentry(
         data=MappingProxyType(
             {
-                CONF_NAME: "test_grid",
                 CONF_ELEMENT_TYPE: ELEMENT_TYPE_GRID,
-                CONF_CONNECTION_GRID: "AC Bus",
-                CONF_IMPORT_LIMIT: 10000,
-                CONF_EXPORT_LIMIT: 5000,
-                CONF_IMPORT_PRICE: ["sensor.import_price"],
-                CONF_EXPORT_PRICE: ["sensor.export_price"],
+                "basic": {
+                    CONF_NAME: "Test Grid",
+                    CONF_CONNECTION_GRID: "AC Bus",
+                },
+                "pricing": {
+                    CONF_IMPORT_PRICE: ["sensor.import_price"],
+                    CONF_EXPORT_PRICE: ["sensor.export_price"],
+                },
+                "limits": {
+                    CONF_IMPORT_LIMIT: 10000,
+                    CONF_EXPORT_LIMIT: 5000,
+                },
             }
         ),
         subentry_type=ELEMENT_TYPE_GRID,
@@ -170,10 +186,14 @@ def mock_connection_subentry(hass: HomeAssistant, mock_hub_entry: MockConfigEntr
     subentry = ConfigSubentry(
         data=MappingProxyType(
             {
-                CONF_NAME: "test_connection",
                 CONF_ELEMENT_TYPE: ELEMENT_TYPE_CONNECTION,
-                CONF_SOURCE: "test_battery",
-                CONF_TARGET: "test_grid",
+                "basic": {
+                    CONF_NAME: "Battery to Grid",
+                    CONF_SOURCE: "Test Battery",
+                    CONF_TARGET: "Test Grid",
+                },
+                "limits": {},
+                "advanced": {},
             }
         ),
         subentry_type=ELEMENT_TYPE_CONNECTION,
@@ -288,9 +308,9 @@ async def test_async_update_data_returns_outputs(
     }
 
     fake_network.elements = {
-        "test_battery": fake_element,
+        "Test Battery": fake_element,
         "empty": empty_element,
-        "battery_to_grid": fake_connection,
+        "Battery to Grid": fake_connection,
     }
 
     # Mock battery adapter
@@ -325,9 +345,13 @@ async def test_async_update_data_returns_outputs(
         "Test Grid": mock_grid_subentry.data,
         "Battery to Grid": {
             CONF_ELEMENT_TYPE: "connection",
-            CONF_NAME: "battery_to_grid",
-            CONF_SOURCE: "test_battery",
-            CONF_TARGET: "test_grid",
+            "basic": {
+                CONF_NAME: "Battery to Grid",
+                CONF_SOURCE: "Test Battery",
+                CONF_TARGET: "Test Grid",
+            },
+            "limits": {},
+            "advanced": {},
         },
     }
 
@@ -612,7 +636,7 @@ def test_coordinator_cleanup_invokes_listener(
     # Add a mock input entity so subscription gets created
     mock_input_entity = MagicMock()
     mock_input_entity.entity_id = "number.haeo_test_battery_power"
-    mock_runtime_data.input_entities[("Test Battery", "power")] = mock_input_entity
+    mock_runtime_data.input_entities[("Test Battery", (CONF_SECTION_LIMITS, CONF_MAX_CHARGE_POWER))] = mock_input_entity
 
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
 
@@ -841,7 +865,7 @@ def test_are_inputs_aligned_returns_false_with_none_horizon_start(
     # Add mock input entity with None horizon_start
     mock_entity = MagicMock()
     mock_entity.horizon_start = None
-    mock_runtime_data.input_entities[("Test Battery", "capacity")] = mock_entity
+    mock_runtime_data.input_entities[("Test Battery", (CONF_SECTION_BASIC, CONF_CAPACITY))] = mock_entity
 
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
 
@@ -863,7 +887,7 @@ def test_are_inputs_aligned_returns_false_with_misaligned_horizon(
     # Add mock input entity with misaligned horizon (more than 1.0 seconds off)
     mock_entity = MagicMock()
     mock_entity.horizon_start = expected_start + 5.0  # 5 seconds off > 1.0 tolerance
-    mock_runtime_data.input_entities[("Test Battery", "capacity")] = mock_entity
+    mock_runtime_data.input_entities[("Test Battery", (CONF_SECTION_BASIC, CONF_CAPACITY))] = mock_entity
 
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
 
@@ -885,7 +909,7 @@ def test_are_inputs_aligned_returns_true_when_aligned(
     # Add mock input entity with aligned horizon (within tolerance)
     mock_entity = MagicMock()
     mock_entity.horizon_start = expected_start + 0.5  # Within 1.0 tolerance
-    mock_runtime_data.input_entities[("Test Battery", "capacity")] = mock_entity
+    mock_runtime_data.input_entities[("Test Battery", (CONF_SECTION_BASIC, CONF_CAPACITY))] = mock_entity
 
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
 
@@ -1036,7 +1060,7 @@ def test_load_from_input_entities_raises_when_required_input_missing(
     mock_runtime_data.input_entities = {}
 
     # Should raise when required fields are missing
-    with pytest.raises(ValueError, match="Missing required field 'capacity' for element 'Test Battery'"):
+    with pytest.raises(ValueError, match="Missing required field 'basic\\.capacity' for element 'Test Battery'"):
         coordinator._load_from_input_entities()
 
 
@@ -1050,13 +1074,13 @@ def test_load_from_input_entities_loads_time_series_fields(
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
 
     # Create mock input entities for all required fields
-    from custom_components.haeo.elements import get_input_fields  # noqa: PLC0415
+    from custom_components.haeo.elements import get_input_fields, iter_input_field_paths  # noqa: PLC0415
 
     element_config = coordinator._participant_configs["Test Battery"]
-    for field_info in get_input_fields(element_config).values():
+    for field_path, _field_info in iter_input_field_paths(get_input_fields(element_config)):
         mock_entity = MagicMock()
         mock_entity.get_values.return_value = (1.0, 2.0, 3.0)
-        mock_runtime_data.input_entities[("Test Battery", field_info.field_name)] = mock_entity
+        mock_runtime_data.input_entities[("Test Battery", field_path)] = mock_entity
 
     result = coordinator._load_from_input_entities()
 
@@ -1064,8 +1088,8 @@ def test_load_from_input_entities_loads_time_series_fields(
     # Narrow the discriminated union type using element_type
     battery_config = result["Test Battery"]
     assert battery_config["element_type"] == "battery"
-    assert isinstance(battery_config["capacity"], np.ndarray)
-    np.testing.assert_array_equal(battery_config["capacity"], [1.0, 2.0, 3.0])
+    assert isinstance(battery_config["basic"]["capacity"], np.ndarray)
+    np.testing.assert_array_equal(battery_config["basic"]["capacity"], [1.0, 2.0, 3.0])
 
 
 @pytest.mark.usefixtures("mock_battery_subentry")
@@ -1080,10 +1104,13 @@ def test_load_from_input_entities_raises_when_required_field_returns_none(
     # Create mock input entity that returns None for required field (capacity)
     mock_entity = MagicMock()
     mock_entity.get_values.return_value = None
-    mock_runtime_data.input_entities[("Test Battery", "capacity")] = mock_entity
+    mock_runtime_data.input_entities[("Test Battery", (CONF_SECTION_BASIC, CONF_CAPACITY))] = mock_entity
+    mock_runtime_data.input_entities[("Test Battery", (CONF_SECTION_BASIC, CONF_INITIAL_CHARGE_PERCENTAGE))] = (
+        MagicMock(get_values=Mock(return_value=(50.0,)))
+    )
 
     # Should raise since required field (capacity) returned None
-    with pytest.raises(ValueError, match="Missing required field 'capacity' for element 'Test Battery'"):
+    with pytest.raises(ValueError, match="Missing required field 'basic\\.capacity' for element 'Test Battery'"):
         coordinator._load_from_input_entities()
 
 
@@ -1134,21 +1161,25 @@ def test_load_from_input_entities_raises_for_invalid_config_data(
     invalid_config: Any = {
         "Bad Battery": {
             CONF_ELEMENT_TYPE: ELEMENT_TYPE_BATTERY,
-            CONF_NAME: "Bad Battery",
-            CONF_CAPACITY: "sensor.battery_capacity",
-            CONF_INITIAL_CHARGE_PERCENTAGE: "sensor.battery_soc",
-            # Missing required non-input field: connection
+            "basic": {
+                CONF_NAME: "Bad Battery",
+                CONF_CAPACITY: "sensor.battery_capacity",
+                CONF_INITIAL_CHARGE_PERCENTAGE: "sensor.battery_soc",
+                # Missing required non-input field: connection
+            },
+            "limits": {},
+            "advanced": {},
         }
     }
     coordinator._participant_configs = invalid_config
 
-    from custom_components.haeo.elements import get_input_fields  # noqa: PLC0415
+    from custom_components.haeo.elements import get_input_fields, iter_input_field_paths  # noqa: PLC0415
 
     element_config = coordinator._participant_configs["Bad Battery"]
-    for field_info in get_input_fields(element_config).values():
+    for field_path, _field_info in iter_input_field_paths(get_input_fields(element_config)):
         mock_entity = MagicMock()
         mock_entity.get_values.return_value = (1.0, 2.0, 3.0)
-        mock_runtime_data.input_entities[("Bad Battery", field_info.field_name)] = mock_entity
+        mock_runtime_data.input_entities[("Bad Battery", field_path)] = mock_entity
 
     with pytest.raises(ValueError, match="Invalid config data for element 'Bad Battery'"):
         coordinator._load_from_input_entities()

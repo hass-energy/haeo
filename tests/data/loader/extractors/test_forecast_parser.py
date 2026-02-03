@@ -133,3 +133,163 @@ PARSER_MAP: dict[str, extractors.DataExtractor] = {
     extractors.solcast_solar.DOMAIN: extractors.solcast_solar.Parser,
     extractors.open_meteo_solar_forecast.DOMAIN: extractors.open_meteo_solar_forecast.Parser,
 }
+
+
+# --- Interpolation Mode Tests ---
+
+
+class TestInterpolationModeExtraction:
+    """Tests for interpolation_mode attribute extraction."""
+
+    def test_no_interpolation_mode_uses_linear(self, hass: HomeAssistant) -> None:
+        """When no interpolation_mode attribute, data is unchanged (linear)."""
+        state = _create_sensor_state(
+            hass,
+            "sensor.haeo_forecast",
+            "100.0",
+            {
+                "forecast": [
+                    {"time": "2024-01-01T00:00:00+00:00", "value": 100.0},
+                    {"time": "2024-01-01T01:00:00+00:00", "value": 200.0},
+                ],
+                "unit_of_measurement": "kW",
+            },
+        )
+
+        result = extractors.extract(state)
+        assert isinstance(result.data, list)
+        # Linear mode: only the original 2 points
+        assert len(result.data) == 2
+
+    def test_linear_mode_explicit(self, hass: HomeAssistant) -> None:
+        """Explicit linear mode leaves data unchanged."""
+        state = _create_sensor_state(
+            hass,
+            "sensor.haeo_forecast",
+            "100.0",
+            {
+                "forecast": [
+                    {"time": "2024-01-01T00:00:00+00:00", "value": 100.0},
+                    {"time": "2024-01-01T01:00:00+00:00", "value": 200.0},
+                ],
+                "unit_of_measurement": "kW",
+                "interpolation_mode": "linear",
+            },
+        )
+
+        result = extractors.extract(state)
+        assert isinstance(result.data, list)
+        assert len(result.data) == 2
+
+    def test_previous_mode_adds_synthetic_points(self, hass: HomeAssistant) -> None:
+        """Previous mode adds synthetic points for step function behavior."""
+        state = _create_sensor_state(
+            hass,
+            "sensor.haeo_forecast",
+            "100.0",
+            {
+                "forecast": [
+                    {"time": "2024-01-01T00:00:00+00:00", "value": 100.0},
+                    {"time": "2024-01-01T01:00:00+00:00", "value": 200.0},
+                ],
+                "unit_of_measurement": "kW",
+                "interpolation_mode": "previous",
+            },
+        )
+
+        result = extractors.extract(state)
+        assert isinstance(result.data, list)
+        # Previous mode: 2 original + 1 synthetic = 3 points
+        assert len(result.data) == 3
+        # First point unchanged
+        assert result.data[0][1] == 100.0
+        # Synthetic point just before second with previous value
+        assert result.data[1][1] == 100.0
+        # Second point
+        assert result.data[2][1] == 200.0
+
+    def test_next_mode_adds_synthetic_points(self, hass: HomeAssistant) -> None:
+        """Next mode adds synthetic points for forward step behavior."""
+        state = _create_sensor_state(
+            hass,
+            "sensor.haeo_forecast",
+            "100.0",
+            {
+                "forecast": [
+                    {"time": "2024-01-01T00:00:00+00:00", "value": 100.0},
+                    {"time": "2024-01-01T01:00:00+00:00", "value": 200.0},
+                ],
+                "unit_of_measurement": "kW",
+                "interpolation_mode": "next",
+            },
+        )
+
+        result = extractors.extract(state)
+        assert isinstance(result.data, list)
+        # Next mode: 2 original + 1 synthetic = 3 points
+        assert len(result.data) == 3
+        # First point unchanged
+        assert result.data[0][1] == 100.0
+        # Synthetic point just after first with next value
+        assert result.data[1][1] == 200.0
+        # Second point
+        assert result.data[2][1] == 200.0
+
+    def test_nearest_mode_adds_synthetic_points(self, hass: HomeAssistant) -> None:
+        """Nearest mode adds synthetic points at midpoints."""
+        state = _create_sensor_state(
+            hass,
+            "sensor.haeo_forecast",
+            "100.0",
+            {
+                "forecast": [
+                    {"time": "2024-01-01T00:00:00+00:00", "value": 100.0},
+                    {"time": "2024-01-01T01:00:00+00:00", "value": 200.0},
+                ],
+                "unit_of_measurement": "kW",
+                "interpolation_mode": "nearest",
+            },
+        )
+
+        result = extractors.extract(state)
+        assert isinstance(result.data, list)
+        # Nearest mode: 2 original + 2 synthetic = 4 points
+        assert len(result.data) == 4
+
+    def test_invalid_mode_falls_back_to_linear(self, hass: HomeAssistant) -> None:
+        """Invalid interpolation_mode value falls back to linear."""
+        state = _create_sensor_state(
+            hass,
+            "sensor.haeo_forecast",
+            "100.0",
+            {
+                "forecast": [
+                    {"time": "2024-01-01T00:00:00+00:00", "value": 100.0},
+                    {"time": "2024-01-01T01:00:00+00:00", "value": 200.0},
+                ],
+                "unit_of_measurement": "kW",
+                "interpolation_mode": "invalid_mode",
+            },
+        )
+
+        result = extractors.extract(state)
+        assert isinstance(result.data, list)
+        # Falls back to linear: only 2 points
+        assert len(result.data) == 2
+
+    def test_simple_value_ignores_interpolation_mode(self, hass: HomeAssistant) -> None:
+        """Interpolation mode is ignored for simple (non-forecast) values."""
+        state = _create_sensor_state(
+            hass,
+            "sensor.simple",
+            "42.0",
+            {
+                "unit_of_measurement": "kW",
+                "interpolation_mode": "previous",
+            },
+        )
+
+        result = extractors.extract(state)
+        # Simple value extraction, not affected by interpolation_mode
+        assert isinstance(result.data, float)
+        assert result.data == 42.0

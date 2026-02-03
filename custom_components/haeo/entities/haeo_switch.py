@@ -1,6 +1,7 @@
 """Switch entity for HAEO boolean input configuration."""
 
 import asyncio
+from collections.abc import Mapping
 from datetime import datetime
 from typing import Any
 
@@ -13,10 +14,15 @@ from homeassistant.helpers.event import EventStateChangedData, async_track_state
 from homeassistant.util import dt as dt_util
 
 from custom_components.haeo import HaeoConfigEntry
+from custom_components.haeo.const import CONF_RECORD_FORECASTS
+from custom_components.haeo.elements import InputFieldPath, find_nested_config_path, get_nested_config_value_by_path
 from custom_components.haeo.elements.input_fields import InputFieldInfo
 from custom_components.haeo.entities.haeo_number import ConfigEntityMode
 from custom_components.haeo.horizon import HorizonManager
 from custom_components.haeo.util import async_update_subentry_value
+
+# Attributes to exclude from recorder when forecast recording is disabled
+FORECAST_UNRECORDED_ATTRIBUTES: frozenset[str] = frozenset({"forecast"})
 
 
 class HaeoInputSwitch(SwitchEntity):
@@ -46,12 +52,16 @@ class HaeoInputSwitch(SwitchEntity):
         field_info: InputFieldInfo[SwitchEntityDescription],
         device_entry: DeviceEntry,
         horizon_manager: HorizonManager,
+        field_path: InputFieldPath | None = None,
     ) -> None:
         """Initialize the input switch entity."""
         self._hass = hass
         self._config_entry: HaeoConfigEntry = config_entry
         self._subentry = subentry
         self._field_info = field_info
+        self._field_path = (
+            field_path or find_nested_config_path(subentry.data, field_info.field_name) or (field_info.field_name,)
+        )
         self._horizon_manager = horizon_manager
 
         # Set device_entry to link entity to device
@@ -60,7 +70,7 @@ class HaeoInputSwitch(SwitchEntity):
         # Determine mode from config value type
         # Entity IDs are stored as str from EntitySelector
         # Boolean constants are stored as bool from BooleanSelector
-        config_value = subentry.data.get(field_info.field_name)
+        config_value = get_nested_config_value_by_path(subentry.data, self._field_path)
 
         if isinstance(config_value, str):
             # DRIVEN mode: value comes from external sensor
@@ -74,13 +84,22 @@ class HaeoInputSwitch(SwitchEntity):
             self._attr_is_on = bool(config_value) if config_value is not None else None
 
         # Unique ID for multi-hub safety: entry_id + subentry_id + field_name
-        self._attr_unique_id = f"{config_entry.entry_id}_{subentry.subentry_id}_{field_info.field_name}"
+        field_path_key = ".".join(self._field_path)
+        self._attr_unique_id = f"{config_entry.entry_id}_{subentry.subentry_id}_{field_path_key}"
 
         # Use entity description directly from field info
         self.entity_description = field_info.entity_description
 
         # Pass subentry data as translation placeholders
-        self._attr_translation_placeholders = {k: str(v) for k, v in subentry.data.items()}
+        placeholders: dict[str, str] = {}
+        for key, value in subentry.data.items():
+            if isinstance(value, Mapping):
+                for nested_key, nested_value in value.items():
+                    placeholders.setdefault(nested_key, str(nested_value))
+                continue
+            placeholders[key] = str(value)
+        placeholders.setdefault("name", subentry.title)
+        self._attr_translation_placeholders = placeholders
 
         # Build base extra state attributes (static values)
         self._base_extra_attrs: dict[str, Any] = {
@@ -88,6 +107,7 @@ class HaeoInputSwitch(SwitchEntity):
             "element_name": subentry.title,
             "element_type": subentry.subentry_type,
             "field_name": field_info.field_name,
+            "field_path": field_path_key,
             "output_type": field_info.output_type,
         }
         if self._source_entity_id:
@@ -99,6 +119,10 @@ class HaeoInputSwitch(SwitchEntity):
 
         # Captured source states for diagnostics reproducibility
         self._captured_source_states: dict[str, State] = {}
+
+        # Exclude forecast from recorder unless explicitly enabled
+        if not config_entry.data.get(CONF_RECORD_FORECASTS, False):
+            self._unrecorded_attributes = FORECAST_UNRECORDED_ATTRIBUTES
 
         # Initialize forecast immediately for EDITABLE mode entities
         # This ensures get_values() returns data before async_added_to_hass() is called
@@ -258,7 +282,7 @@ class HaeoInputSwitch(SwitchEntity):
             self._hass,
             self._config_entry,
             self._subentry,
-            self._field_info.field_name,
+            field_path=self._field_path,
             value=True,
         )
 
@@ -284,7 +308,7 @@ class HaeoInputSwitch(SwitchEntity):
             self._hass,
             self._config_entry,
             self._subentry,
-            self._field_info.field_name,
+            field_path=self._field_path,
             value=False,
         )
 

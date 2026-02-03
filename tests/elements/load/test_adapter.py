@@ -13,9 +13,8 @@ async def test_available_returns_true_when_forecast_sensor_exists(hass: HomeAssi
 
     config: load_element.LoadConfigSchema = {
         "element_type": "load",
-        "name": "test_load",
-        "connection": "main_bus",
-        "forecast": ["sensor.power"],
+        "basic": {"name": "test_load", "connection": "main_bus"},
+        "inputs": {"forecast": ["sensor.power"]},
     }
 
     result = load_element.adapter.available(config, hass=hass)
@@ -26,9 +25,8 @@ async def test_available_returns_false_when_forecast_sensor_missing(hass: HomeAs
     """Load available() should return False when forecast sensor is missing."""
     config: load_element.LoadConfigSchema = {
         "element_type": "load",
-        "name": "test_load",
-        "connection": "main_bus",
-        "forecast": ["sensor.missing"],
+        "basic": {"name": "test_load", "connection": "main_bus"},
+        "inputs": {"forecast": ["sensor.missing"]},
     }
 
     result = load_element.adapter.available(config, hass=hass)
@@ -39,11 +37,11 @@ def test_inputs_returns_input_fields() -> None:
     """inputs() should return input field definitions for load."""
     config: load_element.LoadConfigSchema = {
         "element_type": "load",
-        "name": "test_load",
-        "connection": "main_bus",
-        "forecast": ["sensor.power"],
+        "basic": {"name": "test_load", "connection": "main_bus"},
+        "inputs": {"forecast": ["sensor.power"]},
     }
 
     input_fields = load_element.adapter.inputs(config)
 
-    assert "forecast" in input_fields
+    assert "inputs" in input_fields
+    assert "forecast" in input_fields["inputs"]

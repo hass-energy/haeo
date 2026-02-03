@@ -4,12 +4,12 @@
     "step": {
       "user": {
         "title": "HAEO Setup",
-        "description": "Create a new HAEO energy system.",
-        "data": {
-          "advanced_mode": "Advanced Mode",
-          "debounce_seconds": "Debounce Window (seconds)",
-          "horizon_preset": "Planning Horizon",
-          "name": "System Name"
+        "description": "Configure your system and choose a planning horizon that matches your forecast data availability.",
+        "data": { "advanced_mode": "Advanced Mode", "horizon_preset": "Planning Horizon", "name": "System Name" },
+        "data_description": { "advanced_mode": "Reveals additional element types for complex energy systems." },
+        "sections": {
+          "advanced": { "data": { "advanced_mode": "Advanced Mode" }, "name": "Advanced settings" },
+          "basic": { "data": { "horizon_preset": "Planning Horizon", "name": "System Name" }, "name": "Basic settings" }
         }
       },
       "custom_tiers": {
@@ -52,7 +52,23 @@
         "data": {
           "advanced_mode": "Advanced Mode",
           "debounce_seconds": "Debounce Window (seconds)",
-          "horizon_preset": "Planning Horizon"
+          "horizon_preset": "Planning Horizon",
+          "record_forecasts": "Record forecast data"
+        },
+        "data_description": {
+          "advanced_mode": "Reveals additional element types for complex energy systems.",
+          "record_forecasts": "When enabled, forecast attributes are saved to the recorder database. This significantly increases database size but allows debugging historical forecasts. Disabled by default to reduce database load."
+        },
+        "sections": {
+          "advanced": {
+            "data": {
+              "advanced_mode": "Advanced Mode",
+              "debounce_seconds": "Debounce Window (seconds)",
+              "record_forecasts": "Record forecast data"
+            },
+            "name": "Advanced settings"
+          },
+          "basic": { "data": { "horizon_preset": "Planning Horizon" }, "name": "Basic settings" }
         }
       }
     },
@@ -91,26 +107,55 @@
             "max_discharge_power": "Max Discharging Power",
             "min_charge_percentage": "Min Charge Level",
             "name": "Battery Name"
+          },
+          "sections": {
+            "advanced": {
+              "data": {
+                "configure_partitions": "Configure battery partitions",
+                "discharge_cost": "Discharge Cost",
+                "early_charge_incentive": "Early Charge Incentive",
+                "efficiency": "Round-trip Efficiency"
+              },
+              "name": "Advanced settings"
+            },
+            "basic": {
+              "data": {
+                "capacity": "Capacity",
+                "connection": "Connection",
+                "initial_charge_percentage": "State of Charge",
+                "name": "Battery Name"
+              },
+              "name": "Basic settings"
+            },
+            "limits": {
+              "data": {
+                "max_charge_percentage": "Max Charge Level",
+                "max_charge_power": "Max Charging Power",
+                "max_discharge_power": "Max Discharging Power",
+                "min_charge_percentage": "Min Charge Level"
+              },
+              "name": "Limits"
+            }
           }
         },
         "partition_values": {
           "title": "Battery Partition Values",
           "description": "Enter values for the partition input sources",
-          "data": {
-            "overcharge_cost": "Overcharge Cost",
-            "overcharge_percentage": "Overcharge Percentage",
-            "undercharge_cost": "Undercharge Cost",
-            "undercharge_percentage": "Undercharge Percentage"
-          }
+          "data": { "cost": "Cost", "percentage": "Percentage" }
         },
         "partitions": {
           "title": "Battery Partitions",
           "description": "Select entities for undercharge and overcharge regions",
-          "data": {
-            "overcharge_cost": "Overcharge Cost",
-            "overcharge_percentage": "Overcharge Percentage",
-            "undercharge_cost": "Undercharge Cost",
-            "undercharge_percentage": "Undercharge Percentage"
+          "data": { "cost": "Cost", "percentage": "Percentage" },
+          "sections": {
+            "overcharge": {
+              "data": { "cost": "Overcharge cost", "percentage": "Overcharge percentage" },
+              "name": "Overcharge settings"
+            },
+            "undercharge": {
+              "data": { "cost": "Undercharge cost", "percentage": "Undercharge percentage" },
+              "name": "Undercharge settings"
+            }
           }
         }
       },
@@ -125,7 +170,11 @@
         "user": {
           "title": "Battery Section Configuration",
           "description": "Configure a single battery section with explicit capacity and initial charge. Connect to other elements using Connection elements.",
-          "data": { "capacity": "Capacity", "initial_charge": "Initial Charge", "name": "Battery Section Name" }
+          "data": { "capacity": "Capacity", "initial_charge": "Initial Charge", "name": "Battery Section Name" },
+          "sections": {
+            "basic": { "data": { "name": "Battery Section Name" }, "name": "Basic settings" },
+            "inputs": { "data": { "capacity": "Capacity", "initial_charge": "Initial Charge" }, "name": "Inputs" }
+          }
         }
       },
       "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" },
@@ -149,6 +198,28 @@
             "price_target_source": "Price Target to Source",
             "source": "Source Device",
             "target": "Target Device"
+          },
+          "sections": {
+            "advanced": {
+              "data": {
+                "efficiency_source_target": "Efficiency Source to Target",
+                "efficiency_target_source": "Efficiency Target to Source",
+                "price_source_target": "Price Source to Target",
+                "price_target_source": "Price Target to Source"
+              },
+              "name": "Advanced settings"
+            },
+            "basic": {
+              "data": { "name": "Connection Name", "source": "Source Device", "target": "Target Device" },
+              "name": "Basic settings"
+            },
+            "limits": {
+              "data": {
+                "max_power_source_target": "Max Power Source to Target",
+                "max_power_target_source": "Max Power Target to Source"
+              },
+              "name": "Limits"
+            }
           }
         }
       },
@@ -177,6 +248,11 @@
             "import_limit": "Import Limit",
             "import_price": "Import Price",
             "name": "Grid Name"
+          },
+          "sections": {
+            "basic": { "data": { "connection": "Connection", "name": "Grid Name" }, "name": "Basic settings" },
+            "limits": { "data": { "export_limit": "Export Limit", "import_limit": "Import Limit" }, "name": "Limits" },
+            "pricing": { "data": { "export_price": "Export Price", "import_price": "Import Price" }, "name": "Pricing" }
           }
         }
       },
@@ -198,6 +274,17 @@
             "max_power_ac_to_dc": "Max AC to DC Power",
             "max_power_dc_to_ac": "Max DC to AC Power",
             "name": "Inverter Name"
+          },
+          "sections": {
+            "advanced": {
+              "data": { "efficiency_ac_to_dc": "AC to DC Efficiency", "efficiency_dc_to_ac": "DC to AC Efficiency" },
+              "name": "Advanced settings"
+            },
+            "basic": { "data": { "connection": "AC Connection", "name": "Inverter Name" }, "name": "Basic settings" },
+            "limits": {
+              "data": { "max_power_ac_to_dc": "Max AC to DC Power", "max_power_dc_to_ac": "Max DC to AC Power" },
+              "name": "Limits"
+            }
           }
         }
       },
@@ -212,7 +299,11 @@
         "user": {
           "title": "Load Configuration",
           "description": "Configure a load with forecast or constant power.\n\n[HAFO]({hafo_url}) can be used to generate forecast sensors.",
-          "data": { "connection": "Connection", "forecast": "Forecast", "name": "Load Name" }
+          "data": { "connection": "Connection", "forecast": "Forecast", "name": "Load Name" },
+          "sections": {
+            "basic": { "data": { "connection": "Connection", "name": "Load Name" }, "name": "Basic settings" },
+            "inputs": { "data": { "forecast": "Forecast" }, "name": "Inputs" }
+          }
         }
       },
       "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" },
@@ -237,6 +328,16 @@
             "is_sink": "Can consume unlimited power (Sink)",
             "is_source": "Can produce unlimited power (Source)",
             "name": "Node Name"
+          },
+          "sections": {
+            "advanced": {
+              "data": {
+                "is_sink": "Can consume unlimited power (Sink)",
+                "is_source": "Can produce unlimited power (Source)"
+              },
+              "name": "Advanced settings"
+            },
+            "basic": { "data": { "name": "Node Name" }, "name": "Basic settings" }
           }
         }
       },
@@ -257,6 +358,16 @@
             "forecast": "Forecast",
             "name": "Solar Name",
             "price_production": "Production Price"
+          },
+          "sections": {
+            "advanced": {
+              "data": { "curtailment": "Allow Curtailment", "price_production": "Production Price" },
+              "name": "Advanced settings"
+            },
+            "basic": {
+              "data": { "connection": "Connection", "forecast": "Forecast", "name": "Solar Name" },
+              "name": "Basic settings"
+            }
           }
         }
       },
@@ -267,9 +378,6 @@
   "common": { "default_hub_name": "Home", "network_subentry_name": "System", "switchboard_node_name": "Switchboard" },
   "device": {
     "battery": { "name": "{name}" },
-    "battery_device_normal": { "name": "{name} Main Partition" },
-    "battery_device_overcharge": { "name": "{name} Overcharge Partition" },
-    "battery_device_undercharge": { "name": "{name} Undercharge Partition" },
     "battery_section": { "name": "{name}" },
     "connection": { "name": "{name}" },
     "grid": { "name": "{name}" },
@@ -282,6 +390,7 @@
   "entity": {
     "number": {
       "battery_capacity": { "name": "Capacity" },
+      "battery_cost": { "name": "Cost" },
       "battery_discharge_cost": { "name": "Discharge cost" },
       "battery_early_charge_incentive": { "name": "Early charge incentive" },
       "battery_efficiency": { "name": "Efficiency" },
@@ -290,10 +399,7 @@
       "battery_max_charge_power": { "name": "Max charge power" },
       "battery_max_discharge_power": { "name": "Max discharge power" },
       "battery_min_charge_percentage": { "name": "Min charge" },
-      "battery_overcharge_cost": { "name": "Overcharge cost" },
-      "battery_overcharge_percentage": { "name": "Overcharge percentage" },
-      "battery_undercharge_cost": { "name": "Undercharge cost" },
-      "battery_undercharge_percentage": { "name": "Undercharge percentage" },
+      "battery_percentage": { "name": "Percentage" },
       "connection_efficiency_source_target": { "name": "Source to target efficiency" },
       "connection_efficiency_target_source": { "name": "Target to source efficiency" },
       "connection_max_power_source_target": { "name": "Max source to target power" },
@@ -313,8 +419,6 @@
       "solar_price_production": { "name": "Production price" }
     },
     "sensor": {
-      "battery_balance_power_down": { "name": "Balance power down" },
-      "battery_balance_power_up": { "name": "Balance power up" },
       "battery_energy_in_flow": { "name": "Energy in flow shadow price" },
       "battery_energy_out_flow": { "name": "Energy out flow shadow price" },
       "battery_energy_stored": { "name": "Energy stored" },
@@ -376,7 +480,7 @@
     "config_entry_not_loaded": { "message": "Config entry {entry_id} is not loaded (state: {state})" },
     "config_entry_wrong_domain": { "message": "Config entry {entry_id} is not a HAEO hub (domain: {domain})" },
     "input_entities_not_ready": {
-      "message": "Input entities not ready after 30 seconds: {not_ready}. Some sensors may not be available yet."
+      "message": "Input entities not ready after {timeout} seconds: {not_ready}. Some sensors may not be available yet."
     },
     "missing_sensors": {
       "message": "HAEO cannot load data for {unavailable_sensors}. Verify each referenced sensor exists and is reporting data."

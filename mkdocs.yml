@@ -115,11 +115,14 @@ extra:
   social:
     - icon: fontawesome/brands/github
       link: https://github.com/hass-energy/haeo
+    - icon: simple/buymeacoffee
+      link: https://buymeacoffee.com/haeo.io
   version:
     provider: mike
 
 extra_javascript:
   - javascripts/katex.js
+  - javascripts/coffee.js
   - https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js
   - https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js
 
@@ -168,7 +171,7 @@ nav:
               - Connection: modeling/model-layer/connections/connection.md
           - Segments:
               - modeling/model-layer/segments/index.md
-              - Battery balance segment: modeling/model-layer/segments/battery-balance.md
+              - SOC pricing segment: modeling/model-layer/segments/soc-pricing.md
               - Efficiency segment: modeling/model-layer/segments/efficiency.md
               - Power limit segment: modeling/model-layer/segments/power-limit.md
               - Pricing segment: modeling/model-layer/segments/pricing.md

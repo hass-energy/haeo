@@ -15,10 +15,16 @@ from homeassistant.helpers.entity_platform import PlatformData
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.haeo.const import CONF_NAME, DOMAIN
+from custom_components.haeo.const import CONF_NAME, CONF_RECORD_FORECASTS, DOMAIN
 from custom_components.haeo.elements.input_fields import InputFieldDefaults, InputFieldInfo
+from custom_components.haeo.elements.solar import (
+    CONF_CONNECTION,
+    CONF_FORECAST,
+    CONF_SECTION_ADVANCED,
+    CONF_SECTION_BASIC,
+)
 from custom_components.haeo.entities.haeo_number import ConfigEntityMode
-from custom_components.haeo.entities.haeo_switch import HaeoInputSwitch
+from custom_components.haeo.entities.haeo_switch import FORECAST_UNRECORDED_ATTRIBUTES, HaeoInputSwitch
 from custom_components.haeo.horizon import HorizonManager
 from custom_components.haeo.model.const import OutputType
 
@@ -32,15 +38,18 @@ def config_entry(hass: HomeAssistant) -> MockConfigEntry:
         domain=DOMAIN,
         title="Test Network",
         data={
-            "name": "Test Network",
-            "tier_1_count": 2,
-            "tier_1_duration": 5,
-            "tier_2_count": 0,
-            "tier_2_duration": 15,
-            "tier_3_count": 0,
-            "tier_3_duration": 30,
-            "tier_4_count": 0,
-            "tier_4_duration": 60,
+            "basic": {CONF_NAME: "Test Network"},
+            "tiers": {
+                "tier_1_count": 2,
+                "tier_1_duration": 5,
+                "tier_2_count": 0,
+                "tier_2_duration": 15,
+                "tier_3_count": 0,
+                "tier_3_duration": 30,
+                "tier_4_count": 0,
+                "tier_4_duration": 60,
+            },
+            "advanced": {},
         },
         entry_id="test_switch_entry",
     )
@@ -83,7 +92,17 @@ def curtailment_field_info() -> InputFieldInfo[SwitchEntityDescription]:
 def _create_subentry(name: str, data: dict[str, Any]) -> ConfigSubentry:
     """Create a ConfigSubentry with the given data."""
     return ConfigSubentry(
-        data=MappingProxyType({CONF_NAME: name, "element_type": "solar", **data}),
+        data=MappingProxyType(
+            {
+                "element_type": "solar",
+                CONF_SECTION_BASIC: {
+                    CONF_NAME: name,
+                    CONF_CONNECTION: "Switchboard",
+                    CONF_FORECAST: ["sensor.solar_forecast"],
+                },
+                CONF_SECTION_ADVANCED: data,
+            }
+        ),
         subentry_type="solar",
         title=name,
         unique_id=None,
@@ -433,7 +452,7 @@ async def test_unique_id_includes_all_components(
         horizon_manager=horizon_manager,
     )
 
-    expected_unique_id = f"{config_entry.entry_id}_{subentry.subentry_id}_{curtailment_field_info.field_name}"
+    expected_unique_id = f"{config_entry.entry_id}_{subentry.subentry_id}_advanced.{curtailment_field_info.field_name}"
     assert entity.unique_id == expected_unique_id
 
 
@@ -1139,3 +1158,58 @@ async def test_wait_ready_blocks_until_data_loaded(
     await asyncio.wait_for(wait_task, timeout=1.0)
 
     assert entity.is_ready() is True
+
+
+# --- Recorder Filtering Tests ---
+
+
+@pytest.mark.parametrize(
+    ("record_forecasts", "expect_unrecorded"),
+    [
+        (False, True),  # Default: forecasts are excluded from recorder
+        (True, False),  # When enabled: forecasts are recorded
+    ],
+)
+async def test_unrecorded_attributes_based_on_config(
+    hass: HomeAssistant,
+    device_entry: Mock,
+    curtailment_field_info: InputFieldInfo[SwitchEntityDescription],
+    horizon_manager: Mock,
+    record_forecasts: bool,
+    expect_unrecorded: bool,
+) -> None:
+    """Switch entity sets _unrecorded_attributes based on record_forecasts config."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        title="Test Network",
+        data={
+            "name": "Test Network",
+            CONF_RECORD_FORECASTS: record_forecasts,
+            "tier_1_count": 2,
+            "tier_1_duration": 5,
+            "tier_2_count": 0,
+            "tier_2_duration": 15,
+            "tier_3_count": 0,
+            "tier_3_duration": 30,
+            "tier_4_count": 0,
+            "tier_4_duration": 60,
+        },
+        entry_id="test_entry",
+    )
+    entry.add_to_hass(hass)
+    subentry = _create_subentry("Test Solar", {"curtailment": True})
+    entry.runtime_data = None
+
+    entity = HaeoInputSwitch(
+        hass=hass,
+        config_entry=entry,
+        subentry=subentry,
+        field_info=curtailment_field_info,
+        device_entry=device_entry,
+        horizon_manager=horizon_manager,
+    )
+
+    if expect_unrecorded:
+        assert entity._unrecorded_attributes == FORECAST_UNRECORDED_ATTRIBUTES
+    else:
+        assert not hasattr(entity, "_unrecorded_attributes") or entity._unrecorded_attributes == frozenset()

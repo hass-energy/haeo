@@ -35,9 +35,6 @@ def _build_adjacency(participants: Mapping[str, ElementConfigData]) -> dict[str,
         for elem in model_elements:
             if elem["element_type"] != MODEL_ELEMENT_TYPE_CONNECTION:
                 continue
-            segments = elem.get("segments")
-            if segments and any(segment.get("segment_type") == "battery_balance" for segment in segments.values()):
-                continue
             source = elem["source"]
             target = elem["target"]
             adjacency.setdefault(source, set()).add(target)

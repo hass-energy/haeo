@@ -4,6 +4,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
 from homeassistant.helpers.translation import async_get_translations
 import pytest
+import voluptuous as vol
 
 from custom_components.haeo.const import (
     CONF_DEBOUNCE_SECONDS,
@@ -50,8 +51,9 @@ async def test_user_step_translations_loadable(hass: HomeAssistant) -> None:
 
     # Check that key config flow translations exist
     assert f"component.{DOMAIN}.config.step.user.title" in translations
-    assert f"component.{DOMAIN}.config.step.user.data.name" in translations
-    assert f"component.{DOMAIN}.config.step.user.data.horizon_preset" in translations
+    assert f"component.{DOMAIN}.config.step.user.sections.basic.name" in translations
+    assert f"component.{DOMAIN}.config.step.user.sections.basic.data.name" in translations
+    assert f"component.{DOMAIN}.config.step.user.sections.basic.data.horizon_preset" in translations
 
 
 async def test_custom_tiers_step_translations_loadable(hass: HomeAssistant) -> None:
@@ -81,10 +83,14 @@ async def test_user_step_form_has_translations(hass: HomeAssistant) -> None:
     data_schema = result.get("data_schema")
     assert data_schema is not None
     schema = data_schema.schema
-    for key in schema:
-        field_name = key.schema
-        translation_key = f"component.{DOMAIN}.config.step.user.data.{field_name}"
-        assert translation_key in translations, f"Missing translation for field '{field_name}'"
+    for section_key, section_schema in schema.items():
+        section_name = section_key.schema
+        section_translation = f"component.{DOMAIN}.config.step.user.sections.{section_name}.name"
+        assert section_translation in translations, f"Missing section translation '{section_translation}'"
+        for field in section_schema.schema.schema:
+            field_name = field.schema
+            translation_key = f"component.{DOMAIN}.config.step.user.sections.{section_name}.data.{field_name}"
+            assert translation_key in translations, f"Missing translation for field '{field_name}'"
 
 
 async def test_config_error_translations_exist(hass: HomeAssistant) -> None:
@@ -103,8 +109,9 @@ async def test_hub_setup_schema_has_expected_fields(hass: HomeAssistant) -> None
     """Test that the hub setup schema has the expected simplified fields."""
     schema = get_hub_setup_schema()
 
-    # Get field names from schema
-    field_names = {key.schema for key in schema.schema}
+    # Get field names from basic section
+    basic_section = schema.schema[vol.Required(flows_module.HUB_SECTION_BASIC)]
+    field_names = {key.schema for key in basic_section.schema.schema}
 
     # Verify expected fields are present
     assert CONF_NAME in field_names
@@ -167,7 +174,8 @@ async def test_hub_setup_schema_default_preset(hass: HomeAssistant) -> None:
     schema = get_hub_setup_schema()
 
     # Find the horizon_preset field
-    schema_keys = {vol_key.schema: vol_key for vol_key in schema.schema}
+    basic_section = schema.schema[vol.Required(flows_module.HUB_SECTION_BASIC)]
+    schema_keys = {vol_key.schema: vol_key for vol_key in basic_section.schema.schema}
     assert CONF_HORIZON_PRESET in schema_keys, "CONF_HORIZON_PRESET not found in schema"
     assert schema_keys[CONF_HORIZON_PRESET].default() == HORIZON_PRESET_5_DAYS
 

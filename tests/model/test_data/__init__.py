@@ -8,7 +8,7 @@ from highspy.highs import highs_var
 
 from .connection_types import ConnectionTestCase
 from .element_types import ElementTestCase
-from .segment_types import ConnectionScenario, SegmentScenario
+from .segment_types import ConnectionScenario, SegmentErrorScenario, SegmentScenario
 
 
 def highs_sequence(h: Highs, name: str, length: int) -> tuple[list[highs_var], Highs]:
@@ -70,6 +70,13 @@ def _aggregate_segment_scenarios() -> list[SegmentScenario]:
     ]
 
 
+def _aggregate_segment_error_scenarios() -> list[SegmentErrorScenario]:
+    """Aggregate segment error scenarios."""
+    return [
+        *segments.SEGMENT_ERROR_SCENARIOS,
+    ]
+
+
 def _aggregate_connection_segment_scenarios() -> list[ConnectionScenario]:
     """Aggregate connection scenarios focused on segments."""
     return [
@@ -84,6 +91,7 @@ INVALID_ELEMENT_CASES = _aggregate_invalid_element_cases()
 INVALID_CONNECTION_CASES = _aggregate_invalid_connection_cases()
 SEGMENT_SCENARIOS = _aggregate_segment_scenarios()
 CONNECTION_SEGMENT_SCENARIOS = _aggregate_connection_segment_scenarios()
+SEGMENT_ERROR_SCENARIOS = _aggregate_segment_error_scenarios()
 
 __all__ = [
     "INVALID_CONNECTION_CASES",
@@ -98,4 +106,5 @@ __all__ = [
     "node",
     "segments",
     "SEGMENT_SCENARIOS",
+    "SEGMENT_ERROR_SCENARIOS",
 ]

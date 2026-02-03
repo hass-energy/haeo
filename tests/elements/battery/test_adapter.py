@@ -2,19 +2,66 @@
 
 from homeassistant.core import HomeAssistant
 import numpy as np
-import pytest
 
 from custom_components.haeo.elements import battery
-from custom_components.haeo.elements.battery import sum_output_data
-from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_BATTERY, MODEL_ELEMENT_TYPE_CONNECTION
 from custom_components.haeo.model.elements.segments import is_efficiency_spec
-from custom_components.haeo.model.output_data import OutputData
 
 
 def _set_sensor(hass: HomeAssistant, entity_id: str, value: str, unit: str = "kW") -> None:
     """Set a sensor state in hass."""
     hass.states.async_set(entity_id, value, {"unit_of_measurement": unit})
+
+
+def _wrap_config(flat: dict[str, object]) -> battery.BatteryConfigSchema:
+    """Wrap flat battery config values into sectioned config."""
+    basic: dict[str, object] = {}
+    limits: dict[str, object] = {}
+    advanced: dict[str, object] = {}
+    undercharge: dict[str, object] = {}
+    overcharge: dict[str, object] = {}
+
+    for key, value in flat.items():
+        if key in (
+            "name",
+            "connection",
+            "capacity",
+            "initial_charge_percentage",
+        ):
+            basic[key] = value
+        elif key in (
+            "min_charge_percentage",
+            "max_charge_percentage",
+            "max_charge_power",
+            "max_discharge_power",
+        ):
+            limits[key] = value
+        elif key in (
+            "efficiency",
+            "early_charge_incentive",
+            "discharge_cost",
+            "configure_partitions",
+        ):
+            advanced[key] = value
+        elif key == "undercharge" and isinstance(value, dict):
+            undercharge.update(value)
+        elif key == "overcharge" and isinstance(value, dict):
+            overcharge.update(value)
+
+    config: dict[str, object] = {
+        "element_type": "battery",
+        "basic": basic,
+        "limits": limits,
+        "advanced": advanced,
+        "undercharge": undercharge,
+        "overcharge": overcharge,
+    }
+    return config  # type: ignore[return-value]
+
+
+def _wrap_data(flat: dict[str, object]) -> battery.BatteryConfigData:
+    """Wrap flat battery config data values into sectioned config data."""
+    return _wrap_config(flat)  # type: ignore[return-value]
 
 
 async def test_available_returns_true_when_sensors_exist(hass: HomeAssistant) -> None:
@@ -24,15 +71,16 @@ async def test_available_returns_true_when_sensors_exist(hass: HomeAssistant) ->
     _set_sensor(hass, "sensor.max_charge", "5.0", "kW")
     _set_sensor(hass, "sensor.max_discharge", "5.0", "kW")
 
-    config: battery.BatteryConfigSchema = {
-        "element_type": "battery",
-        "name": "test_battery",
-        "connection": "main_bus",
-        "capacity": "sensor.capacity",
-        "initial_charge_percentage": "sensor.initial",
-        "max_charge_power": "sensor.max_charge",
-        "max_discharge_power": "sensor.max_discharge",
-    }
+    config: battery.BatteryConfigSchema = _wrap_config(
+        {
+            "name": "test_battery",
+            "connection": "main_bus",
+            "capacity": "sensor.capacity",
+            "initial_charge_percentage": "sensor.initial",
+            "max_charge_power": "sensor.max_charge",
+            "max_discharge_power": "sensor.max_discharge",
+        }
+    )
 
     result = battery.adapter.available(config, hass=hass)
     assert result is True
@@ -45,15 +93,16 @@ async def test_available_returns_false_when_required_power_sensor_missing(hass: 
     _set_sensor(hass, "sensor.max_charge", "5.0", "kW")
     # max_discharge_power sensor is missing
 
-    config: battery.BatteryConfigSchema = {
-        "element_type": "battery",
-        "name": "test_battery",
-        "connection": "main_bus",
-        "capacity": "sensor.capacity",
-        "initial_charge_percentage": "sensor.initial",
-        "max_charge_power": "sensor.max_charge",
-        "max_discharge_power": "sensor.missing",
-    }
+    config: battery.BatteryConfigSchema = _wrap_config(
+        {
+            "name": "test_battery",
+            "connection": "main_bus",
+            "capacity": "sensor.capacity",
+            "initial_charge_percentage": "sensor.initial",
+            "max_charge_power": "sensor.max_charge",
+            "max_discharge_power": "sensor.missing",
+        }
+    )
 
     result = battery.adapter.available(config, hass=hass)
     assert result is False
@@ -64,13 +113,14 @@ async def test_available_returns_false_when_capacity_sensor_missing(hass: HomeAs
     _set_sensor(hass, "sensor.initial", "50.0", "%")
     # capacity sensor is missing
 
-    config: battery.BatteryConfigSchema = {
-        "element_type": "battery",
-        "name": "test_battery",
-        "connection": "main_bus",
-        "capacity": "sensor.missing_capacity",
-        "initial_charge_percentage": "sensor.initial",
-    }
+    config: battery.BatteryConfigSchema = _wrap_config(
+        {
+            "name": "test_battery",
+            "connection": "main_bus",
+            "capacity": "sensor.missing_capacity",
+            "initial_charge_percentage": "sensor.initial",
+        }
+    )
 
     result = battery.adapter.available(config, hass=hass)
     assert result is False
@@ -83,15 +133,16 @@ async def test_available_returns_false_when_required_sensor_missing(hass: HomeAs
     _set_sensor(hass, "sensor.max_discharge", "5.0", "kW")
     # initial_charge_percentage sensor is missing
 
-    config: battery.BatteryConfigSchema = {
-        "element_type": "battery",
-        "name": "test_battery",
-        "connection": "main_bus",
-        "capacity": "sensor.capacity",
-        "initial_charge_percentage": "sensor.missing",
-        "max_charge_power": "sensor.max_charge",
-        "max_discharge_power": "sensor.max_discharge",
-    }
+    config: battery.BatteryConfigSchema = _wrap_config(
+        {
+            "name": "test_battery",
+            "connection": "main_bus",
+            "capacity": "sensor.capacity",
+            "initial_charge_percentage": "sensor.missing",
+            "max_charge_power": "sensor.max_charge",
+            "max_discharge_power": "sensor.max_discharge",
+        }
+    )
 
     result = battery.adapter.available(config, hass=hass)
     assert result is False
@@ -104,15 +155,16 @@ async def test_available_with_list_entity_ids_all_exist(hass: HomeAssistant) -> 
     _set_sensor(hass, "sensor.discharge_cost_1", "0.05", "$/kWh")
     _set_sensor(hass, "sensor.discharge_cost_2", "0.06", "$/kWh")
 
-    config: battery.BatteryConfigSchema = {
-        "element_type": "battery",
-        "name": "test_battery",
-        "connection": "main_bus",
-        "capacity": "sensor.capacity",
-        "initial_charge_percentage": "sensor.initial",
-        # List of entity IDs for chained forecasts
-        "discharge_cost": ["sensor.discharge_cost_1", "sensor.discharge_cost_2"],
-    }
+    config: battery.BatteryConfigSchema = _wrap_config(
+        {
+            "name": "test_battery",
+            "connection": "main_bus",
+            "capacity": "sensor.capacity",
+            "initial_charge_percentage": "sensor.initial",
+            # List of entity IDs for chained forecasts
+            "discharge_cost": ["sensor.discharge_cost_1", "sensor.discharge_cost_2"],
+        }
+    )
 
     result = battery.adapter.available(config, hass=hass)
     assert result is True
@@ -125,15 +177,16 @@ async def test_available_with_list_entity_ids_one_missing(hass: HomeAssistant) -
     _set_sensor(hass, "sensor.discharge_cost_1", "0.05", "$/kWh")
     # sensor.discharge_cost_2 is missing
 
-    config: battery.BatteryConfigSchema = {
-        "element_type": "battery",
-        "name": "test_battery",
-        "connection": "main_bus",
-        "capacity": "sensor.capacity",
-        "initial_charge_percentage": "sensor.initial",
-        # List of entity IDs where one is missing
-        "discharge_cost": ["sensor.discharge_cost_1", "sensor.missing"],
-    }
+    config: battery.BatteryConfigSchema = _wrap_config(
+        {
+            "name": "test_battery",
+            "connection": "main_bus",
+            "capacity": "sensor.capacity",
+            "initial_charge_percentage": "sensor.initial",
+            # List of entity IDs where one is missing
+            "discharge_cost": ["sensor.discharge_cost_1", "sensor.missing"],
+        }
+    )
 
     result = battery.adapter.available(config, hass=hass)
     assert result is False
@@ -145,65 +198,35 @@ async def test_available_with_empty_list_returns_true(hass: HomeAssistant) -> No
     _set_sensor(hass, "sensor.initial", "50.0", "%")
 
     # This tests the `if value else True` branch for empty lists
-    config: battery.BatteryConfigSchema = {
-        "element_type": "battery",
-        "name": "test_battery",
-        "connection": "main_bus",
-        "capacity": "sensor.capacity",
-        "initial_charge_percentage": "sensor.initial",
-        "discharge_cost": [],  # Empty list
-    }
+    config: battery.BatteryConfigSchema = _wrap_config(
+        {
+            "name": "test_battery",
+            "connection": "main_bus",
+            "capacity": "sensor.capacity",
+            "initial_charge_percentage": "sensor.initial",
+            "discharge_cost": [],  # Empty list
+        }
+    )
 
     result = battery.adapter.available(config, hass=hass)
     assert result is True
 
 
-def test_sum_output_data_raises_on_empty_list() -> None:
-    """sum_output_data raises ValueError when given an empty list."""
-    with pytest.raises(ValueError, match="Cannot sum empty list of outputs"):
-        sum_output_data([])
-
-
-def test_sum_output_data_sums_multiple_outputs() -> None:
-    """sum_output_data correctly sums values from multiple OutputData objects."""
-    output1 = OutputData(
-        type=OutputType.POWER,
-        unit="kW",
-        values=(1.0, 2.0, 3.0),
-        direction="+",
-        advanced=False,
-    )
-    output2 = OutputData(
-        type=OutputType.POWER,
-        unit="kW",
-        values=(4.0, 5.0, 6.0),
-        direction="+",
-        advanced=False,
-    )
-
-    result = sum_output_data([output1, output2])
-
-    assert result.type == OutputType.POWER
-    assert result.unit == "kW"
-    assert result.values == (5.0, 7.0, 9.0)
-    assert result.direction == "+"
-    assert result.advanced is False
-
-
 def test_model_elements_omits_efficiency_when_missing() -> None:
     """model_elements() should leave efficiency to model defaults when missing."""
-    config_data: battery.BatteryConfigData = {
-        "element_type": "battery",
-        "name": "test_battery",
-        "connection": "main_bus",
-        "capacity": np.array([10.0, 10.0, 10.0]),
-        "initial_charge_percentage": np.array([0.5, 0.5]),
-    }
+    config_data: battery.BatteryConfigData = _wrap_data(
+        {
+            "name": "test_battery",
+            "connection": "main_bus",
+            "capacity": np.array([10.0, 10.0, 10.0]),
+            "initial_charge_percentage": np.array([0.5, 0.5]),
+        }
+    )
 
     elements = battery.adapter.model_elements(config_data)
 
-    normal_section = next(element for element in elements if element["element_type"] == MODEL_ELEMENT_TYPE_BATTERY and element["name"] == "test_battery:normal")
-    np.testing.assert_array_equal(normal_section["capacity"], [10.0, 10.0, 10.0])
+    battery_element = next(element for element in elements if element["element_type"] == MODEL_ELEMENT_TYPE_BATTERY and element["name"] == "test_battery")
+    np.testing.assert_array_equal(battery_element["capacity"], [10.0, 10.0, 10.0])
 
     connection = next(element for element in elements if element["element_type"] == MODEL_ELEMENT_TYPE_CONNECTION and element["name"] == "test_battery:connection")
     segments = connection.get("segments")
@@ -217,14 +240,15 @@ def test_model_elements_omits_efficiency_when_missing() -> None:
 
 def test_model_elements_passes_efficiency_when_present() -> None:
     """model_elements() should pass through provided efficiency values."""
-    config_data: battery.BatteryConfigData = {
-        "element_type": "battery",
-        "name": "test_battery",
-        "connection": "main_bus",
-        "capacity": np.array([10.0, 10.0, 10.0]),
-        "initial_charge_percentage": np.array([0.5, 0.5]),
-        "efficiency": np.array([0.95, 0.95]),
-    }
+    config_data: battery.BatteryConfigData = _wrap_data(
+        {
+            "name": "test_battery",
+            "connection": "main_bus",
+            "capacity": np.array([10.0, 10.0, 10.0]),
+            "initial_charge_percentage": np.array([0.5, 0.5]),
+            "efficiency": np.array([0.95, 0.95]),
+        }
+    )
 
     elements = battery.adapter.model_elements(config_data)
 
@@ -240,3 +264,30 @@ def test_model_elements_passes_efficiency_when_present() -> None:
     efficiency_target_source = efficiency_segment.get("efficiency_target_source")
     assert efficiency_target_source is not None
     np.testing.assert_array_equal(efficiency_target_source, [0.95, 0.95])
+
+
+def test_model_elements_overcharge_only_adds_soc_pricing() -> None:
+    """SOC pricing is added when only overcharge inputs are configured."""
+    config_data: battery.BatteryConfigData = _wrap_data(
+        {
+            "name": "test_battery",
+            "connection": "main_bus",
+            "capacity": np.array([10.0, 10.0, 10.0]),
+            "initial_charge_percentage": np.array([0.5, 0.5]),
+            "min_charge_percentage": np.array([0.1, 0.1, 0.1]),
+            "max_charge_percentage": np.array([0.9, 0.9, 0.9]),
+            "overcharge": {
+                "percentage": np.array([0.95, 0.95, 0.95]),
+                "cost": np.array([0.2, 0.2]),
+            },
+        }
+    )
+
+    elements = battery.adapter.model_elements(config_data)
+    connection = next(element for element in elements if element["element_type"] == MODEL_ELEMENT_TYPE_CONNECTION and element["name"] == "test_battery:connection")
+    segments = connection.get("segments")
+    assert segments is not None
+    soc_pricing = segments.get("soc_pricing")
+    assert soc_pricing is not None
+    assert soc_pricing.get("discharge_energy_threshold") is None
+    assert soc_pricing.get("charge_capacity_threshold") is not None

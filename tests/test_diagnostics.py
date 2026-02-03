@@ -2,7 +2,7 @@
 
 from datetime import UTC, datetime, timedelta, timezone
 from types import MappingProxyType
-from typing import cast
+from typing import Any, cast
 from unittest.mock import AsyncMock, Mock, patch
 
 from homeassistant.config_entries import ConfigSubentry
@@ -57,20 +57,86 @@ from custom_components.haeo.elements.battery import (
     CONF_MAX_CHARGE_POWER,
     CONF_MAX_DISCHARGE_POWER,
     CONF_MIN_CHARGE_PERCENTAGE,
+    CONF_SECTION_ADVANCED,
+    CONF_SECTION_BASIC,
+    CONF_SECTION_LIMITS,
 )
 from custom_components.haeo.elements.grid import CONF_EXPORT_PRICE, CONF_IMPORT_PRICE, GRID_POWER_IMPORT
+from custom_components.haeo.elements.grid import CONF_SECTION_BASIC as CONF_GRID_SECTION_BASIC
+from custom_components.haeo.elements.grid import CONF_SECTION_LIMITS as CONF_GRID_SECTION_LIMITS
+from custom_components.haeo.elements.grid import CONF_SECTION_PRICING as CONF_GRID_SECTION_PRICING
 from custom_components.haeo.entities.haeo_number import ConfigEntityMode, HaeoInputNumber
-from custom_components.haeo.entities.haeo_switch import HaeoInputSwitch
+from custom_components.haeo.flows import HUB_SECTION_BASIC, HUB_SECTION_TIERS
 from custom_components.haeo.model import OutputType
 
 
-async def test_diagnostics_basic_structure(hass: HomeAssistant) -> None:
-    """Diagnostics returns correct structure with four main keys in the right order."""
-    entry = MockConfigEntry(
-        domain=DOMAIN,
-        data={
-            CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
-            CONF_NAME: "Test Hub",
+def _battery_config(
+    *,
+    name: str,
+    connection: str,
+    capacity: str | float,
+    initial_charge_percentage: str | float,
+    max_charge_power: float | None = None,
+    max_discharge_power: float | None = None,
+    min_charge_percentage: float | None = None,
+    max_charge_percentage: float | None = None,
+    efficiency: float | None = None,
+) -> dict[str, Any]:
+    """Build a sectioned battery config dict for diagnostics tests."""
+    limits: dict[str, Any] = {}
+    advanced: dict[str, Any] = {}
+    if max_charge_power is not None:
+        limits[CONF_MAX_CHARGE_POWER] = max_charge_power
+    if max_discharge_power is not None:
+        limits[CONF_MAX_DISCHARGE_POWER] = max_discharge_power
+    if min_charge_percentage is not None:
+        limits[CONF_MIN_CHARGE_PERCENTAGE] = min_charge_percentage
+    if max_charge_percentage is not None:
+        limits[CONF_MAX_CHARGE_PERCENTAGE] = max_charge_percentage
+    if efficiency is not None:
+        advanced[CONF_EFFICIENCY] = efficiency
+
+    return {
+        CONF_ELEMENT_TYPE: ELEMENT_TYPE_BATTERY,
+        CONF_SECTION_BASIC: {
+            CONF_NAME: name,
+            CONF_CONNECTION: connection,
+            CONF_CAPACITY: capacity,
+            CONF_INITIAL_CHARGE_PERCENTAGE: initial_charge_percentage,
+        },
+        CONF_SECTION_LIMITS: limits,
+        CONF_SECTION_ADVANCED: advanced,
+    }
+
+
+def _grid_config(
+    *,
+    name: str,
+    connection: str,
+    import_price: list[str] | str | float,
+    export_price: list[str] | str | float,
+) -> dict[str, Any]:
+    """Build a sectioned grid config dict for diagnostics tests."""
+    return {
+        CONF_ELEMENT_TYPE: "grid",
+        CONF_GRID_SECTION_BASIC: {
+            CONF_NAME: name,
+            CONF_CONNECTION: connection,
+        },
+        CONF_GRID_SECTION_PRICING: {
+            CONF_IMPORT_PRICE: import_price,
+            CONF_EXPORT_PRICE: export_price,
+        },
+        CONF_GRID_SECTION_LIMITS: {},
+    }
+
+
+def _hub_entry_data(name: str = "Test Hub") -> dict[str, Any]:
+    """Build hub entry data using the sectioned schema."""
+    return {
+        CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
+        HUB_SECTION_BASIC: {CONF_NAME: name},
+        HUB_SECTION_TIERS: {
             CONF_TIER_1_COUNT: DEFAULT_TIER_1_COUNT,
             CONF_TIER_1_DURATION: DEFAULT_TIER_1_DURATION,
             CONF_TIER_2_COUNT: DEFAULT_TIER_2_COUNT,
@@ -80,6 +146,14 @@ async def test_diagnostics_basic_structure(hass: HomeAssistant) -> None:
             CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
             CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
         },
+    }
+
+
+async def test_diagnostics_basic_structure(hass: HomeAssistant) -> None:
+    """Diagnostics returns correct structure with four main keys in the right order."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data=_hub_entry_data("Test Hub"),
         entry_id="test_entry",
     )
     entry.add_to_hass(hass)
@@ -97,8 +171,8 @@ async def test_diagnostics_basic_structure(hass: HomeAssistant) -> None:
     # can use sort_keys=True for alphabetical ordering (config, environment, inputs, outputs)
 
     # Verify config structure
-    assert diagnostics["config"][CONF_TIER_1_COUNT] == DEFAULT_TIER_1_COUNT
-    assert diagnostics["config"][CONF_TIER_1_DURATION] == DEFAULT_TIER_1_DURATION
+    assert diagnostics["config"][HUB_SECTION_TIERS][CONF_TIER_1_COUNT] == DEFAULT_TIER_1_COUNT
+    assert diagnostics["config"][HUB_SECTION_TIERS][CONF_TIER_1_DURATION] == DEFAULT_TIER_1_DURATION
     assert "participants" in diagnostics["config"]
 
     # Verify environment
@@ -113,36 +187,24 @@ async def test_diagnostics_with_participants(hass: HomeAssistant) -> None:
     entry = MockConfigEntry(
         domain=DOMAIN,
         title="Test Hub",
-        data={
-            CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
-            CONF_NAME: "Test Hub",
-            CONF_TIER_1_COUNT: DEFAULT_TIER_1_COUNT,
-            CONF_TIER_1_DURATION: DEFAULT_TIER_1_DURATION,
-            CONF_TIER_2_COUNT: DEFAULT_TIER_2_COUNT,
-            CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
-            CONF_TIER_3_COUNT: DEFAULT_TIER_3_COUNT,
-            CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
-            CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
-            CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
-        },
+        data=_hub_entry_data("Test Hub"),
         entry_id="hub_entry",
     )
     entry.add_to_hass(hass)
 
     battery_subentry = ConfigSubentry(
         data=MappingProxyType(
-            {
-                CONF_ELEMENT_TYPE: ELEMENT_TYPE_BATTERY,
-                CONF_NAME: "Battery One",
-                CONF_CAPACITY: "sensor.battery_capacity",
-                CONF_CONNECTION: "DC Bus",
-                CONF_INITIAL_CHARGE_PERCENTAGE: "sensor.battery_soc",
-                CONF_MAX_CHARGE_POWER: 5.0,
-                CONF_MAX_DISCHARGE_POWER: 5.0,
-                CONF_MIN_CHARGE_PERCENTAGE: 10.0,
-                CONF_MAX_CHARGE_PERCENTAGE: 90.0,
-                CONF_EFFICIENCY: 95.0,
-            }
+            _battery_config(
+                name="Battery One",
+                connection="DC Bus",
+                capacity="sensor.battery_capacity",
+                initial_charge_percentage="sensor.battery_soc",
+                max_charge_power=5.0,
+                max_discharge_power=5.0,
+                min_charge_percentage=10.0,
+                max_charge_percentage=90.0,
+                efficiency=95.0,
+            )
         ),
         subentry_type=ELEMENT_TYPE_BATTERY,
         title="Battery One",
@@ -177,9 +239,9 @@ async def test_diagnostics_with_participants(hass: HomeAssistant) -> None:
     assert "Battery One" in participants
     battery_config = participants["Battery One"]
     assert battery_config[CONF_ELEMENT_TYPE] == ELEMENT_TYPE_BATTERY
-    assert battery_config[CONF_NAME] == "Battery One"
-    assert battery_config[CONF_CAPACITY] == "sensor.battery_capacity"
-    assert battery_config[CONF_INITIAL_CHARGE_PERCENTAGE] == "sensor.battery_soc"
+    assert battery_config[CONF_SECTION_BASIC][CONF_NAME] == "Battery One"
+    assert battery_config[CONF_SECTION_BASIC][CONF_CAPACITY] == "sensor.battery_capacity"
+    assert battery_config[CONF_SECTION_BASIC][CONF_INITIAL_CHARGE_PERCENTAGE] == "sensor.battery_soc"
 
     # Verify input states are collected using State.as_dict()
     # Both sensor.battery_capacity and sensor.battery_soc should be collected
@@ -202,18 +264,7 @@ async def test_diagnostics_skips_network_subentry(hass: HomeAssistant) -> None:
     entry = MockConfigEntry(
         domain=DOMAIN,
         title="Test Hub",
-        data={
-            CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
-            CONF_NAME: "Test Hub",
-            CONF_TIER_1_COUNT: DEFAULT_TIER_1_COUNT,
-            CONF_TIER_1_DURATION: DEFAULT_TIER_1_DURATION,
-            CONF_TIER_2_COUNT: DEFAULT_TIER_2_COUNT,
-            CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
-            CONF_TIER_3_COUNT: DEFAULT_TIER_3_COUNT,
-            CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
-            CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
-            CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
-        },
+        data=_hub_entry_data("Test Hub"),
         entry_id="hub_entry",
     )
     entry.add_to_hass(hass)
@@ -230,18 +281,17 @@ async def test_diagnostics_skips_network_subentry(hass: HomeAssistant) -> None:
     # Add a battery subentry (should be included)
     battery_subentry = ConfigSubentry(
         data=MappingProxyType(
-            {
-                CONF_ELEMENT_TYPE: ELEMENT_TYPE_BATTERY,
-                CONF_NAME: "Battery",
-                CONF_CAPACITY: "sensor.battery_capacity",
-                CONF_CONNECTION: "DC Bus",
-                CONF_INITIAL_CHARGE_PERCENTAGE: "sensor.battery_soc",
-                CONF_MAX_CHARGE_POWER: 5.0,
-                CONF_MAX_DISCHARGE_POWER: 5.0,
-                CONF_MIN_CHARGE_PERCENTAGE: 10.0,
-                CONF_MAX_CHARGE_PERCENTAGE: 90.0,
-                CONF_EFFICIENCY: 95.0,
-            }
+            _battery_config(
+                name="Battery",
+                connection="DC Bus",
+                capacity="sensor.battery_capacity",
+                initial_charge_percentage="sensor.battery_soc",
+                max_charge_power=5.0,
+                max_discharge_power=5.0,
+                min_charge_percentage=10.0,
+                max_charge_percentage=90.0,
+                efficiency=95.0,
+            )
         ),
         subentry_type=ELEMENT_TYPE_BATTERY,
         title="Battery",
@@ -274,31 +324,19 @@ async def test_diagnostics_with_outputs(hass: HomeAssistant) -> None:
     entry = MockConfigEntry(
         domain=DOMAIN,
         title="Test Hub",
-        data={
-            CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
-            CONF_NAME: "Test Hub",
-            CONF_TIER_1_COUNT: DEFAULT_TIER_1_COUNT,
-            CONF_TIER_1_DURATION: DEFAULT_TIER_1_DURATION,
-            CONF_TIER_2_COUNT: DEFAULT_TIER_2_COUNT,
-            CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
-            CONF_TIER_3_COUNT: DEFAULT_TIER_3_COUNT,
-            CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
-            CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
-            CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
-        },
+        data=_hub_entry_data("Test Hub"),
         entry_id="hub_entry",
     )
     entry.add_to_hass(hass)
 
     grid_subentry = ConfigSubentry(
         data=MappingProxyType(
-            {
-                CONF_ELEMENT_TYPE: "grid",
-                CONF_NAME: "Grid",
-                CONF_CONNECTION: "Main Bus",
-                CONF_IMPORT_PRICE: ["sensor.grid_import_price", "sensor.grid_import_forecast"],
-                CONF_EXPORT_PRICE: 0.08,
-            }
+            _grid_config(
+                name="Grid",
+                connection="Main Bus",
+                import_price=["sensor.grid_import_price", "sensor.grid_import_forecast"],
+                export_price=0.08,
+            )
         ),
         subentry_type="grid",
         title="Grid",
@@ -390,36 +428,24 @@ async def test_diagnostics_captures_editable_entity_values(hass: HomeAssistant) 
     entry = MockConfigEntry(
         domain=DOMAIN,
         title="Test Hub",
-        data={
-            CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
-            CONF_NAME: "Test Hub",
-            CONF_TIER_1_COUNT: DEFAULT_TIER_1_COUNT,
-            CONF_TIER_1_DURATION: DEFAULT_TIER_1_DURATION,
-            CONF_TIER_2_COUNT: DEFAULT_TIER_2_COUNT,
-            CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
-            CONF_TIER_3_COUNT: DEFAULT_TIER_3_COUNT,
-            CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
-            CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
-            CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
-        },
+        data=_hub_entry_data("Test Hub"),
         entry_id="hub_entry",
     )
     entry.add_to_hass(hass)
 
     battery_subentry = ConfigSubentry(
         data=MappingProxyType(
-            {
-                CONF_ELEMENT_TYPE: ELEMENT_TYPE_BATTERY,
-                CONF_NAME: "Battery One",
-                CONF_CAPACITY: 10.0,  # Constant value - creates editable entity
-                CONF_CONNECTION: "DC Bus",
-                CONF_INITIAL_CHARGE_PERCENTAGE: 50.0,  # Constant - creates editable entity
-                CONF_MAX_CHARGE_POWER: 5.0,
-                CONF_MAX_DISCHARGE_POWER: 5.0,
-                CONF_MIN_CHARGE_PERCENTAGE: 10.0,
-                CONF_MAX_CHARGE_PERCENTAGE: 90.0,
-                CONF_EFFICIENCY: 95.0,
-            }
+            _battery_config(
+                name="Battery One",
+                connection="DC Bus",
+                capacity=10.0,  # Constant value - creates editable entity
+                initial_charge_percentage=50.0,  # Constant - creates editable entity
+                max_charge_power=5.0,
+                max_discharge_power=5.0,
+                min_charge_percentage=10.0,
+                max_charge_percentage=90.0,
+                efficiency=95.0,
+            )
         ),
         subentry_type=ELEMENT_TYPE_BATTERY,
         title="Battery One",
@@ -432,16 +458,11 @@ async def test_diagnostics_captures_editable_entity_values(hass: HomeAssistant) 
     mock_number.entity_mode = ConfigEntityMode.EDITABLE
     mock_number.native_value = 12.5  # Current value differs from config
 
-    mock_switch = Mock(spec=HaeoInputSwitch)
-    mock_switch.entity_mode = ConfigEntityMode.EDITABLE
-    mock_switch.is_on = True
-
     # Create HaeoRuntimeData with input entities
     runtime_data = HaeoRuntimeData(
         horizon_manager=Mock(),
         input_entities={
-            ("Battery One", CONF_CAPACITY): mock_number,
-            ("Battery One", "some_boolean_field"): mock_switch,
+            ("Battery One", (CONF_SECTION_BASIC, CONF_CAPACITY)): mock_number,
         },
     )
     entry.runtime_data = runtime_data
@@ -450,8 +471,7 @@ async def test_diagnostics_captures_editable_entity_values(hass: HomeAssistant) 
 
     # Verify that editable entity values are captured in config
     battery_config = diagnostics["config"]["participants"]["Battery One"]
-    assert battery_config[CONF_CAPACITY] == 12.5  # Current entity value, not config value
-    assert battery_config["some_boolean_field"] is True
+    assert battery_config[CONF_SECTION_BASIC][CONF_CAPACITY] == 12.5  # Current entity value, not config value
 
 
 async def test_diagnostics_skips_unknown_element_in_input_entities(hass: HomeAssistant) -> None:
@@ -459,36 +479,24 @@ async def test_diagnostics_skips_unknown_element_in_input_entities(hass: HomeAss
     entry = MockConfigEntry(
         domain=DOMAIN,
         title="Test Hub",
-        data={
-            CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
-            CONF_NAME: "Test Hub",
-            CONF_TIER_1_COUNT: DEFAULT_TIER_1_COUNT,
-            CONF_TIER_1_DURATION: DEFAULT_TIER_1_DURATION,
-            CONF_TIER_2_COUNT: DEFAULT_TIER_2_COUNT,
-            CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
-            CONF_TIER_3_COUNT: DEFAULT_TIER_3_COUNT,
-            CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
-            CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
-            CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
-        },
+        data=_hub_entry_data("Test Hub"),
         entry_id="hub_entry",
     )
     entry.add_to_hass(hass)
 
     battery_subentry = ConfigSubentry(
         data=MappingProxyType(
-            {
-                CONF_ELEMENT_TYPE: ELEMENT_TYPE_BATTERY,
-                CONF_NAME: "Battery One",
-                CONF_CAPACITY: 10.0,
-                CONF_CONNECTION: "DC Bus",
-                CONF_INITIAL_CHARGE_PERCENTAGE: 50.0,
-                CONF_MAX_CHARGE_POWER: 5.0,
-                CONF_MAX_DISCHARGE_POWER: 5.0,
-                CONF_MIN_CHARGE_PERCENTAGE: 10.0,
-                CONF_MAX_CHARGE_PERCENTAGE: 90.0,
-                CONF_EFFICIENCY: 95.0,
-            }
+            _battery_config(
+                name="Battery One",
+                connection="DC Bus",
+                capacity=10.0,
+                initial_charge_percentage=50.0,
+                max_charge_power=5.0,
+                max_discharge_power=5.0,
+                min_charge_percentage=10.0,
+                max_charge_percentage=90.0,
+                efficiency=95.0,
+            )
         ),
         subentry_type=ELEMENT_TYPE_BATTERY,
         title="Battery One",
@@ -505,7 +513,7 @@ async def test_diagnostics_skips_unknown_element_in_input_entities(hass: HomeAss
         horizon_manager=Mock(),
         input_entities={
             # This element doesn't exist in participants
-            ("Unknown Element", CONF_CAPACITY): mock_number,
+            ("Unknown Element", (CONF_SECTION_BASIC, CONF_CAPACITY)): mock_number,
         },
     )
     entry.runtime_data = runtime_data
@@ -514,7 +522,7 @@ async def test_diagnostics_skips_unknown_element_in_input_entities(hass: HomeAss
 
     # Verify that Battery One exists unchanged (unknown element was skipped)
     battery_config = diagnostics["config"]["participants"]["Battery One"]
-    assert battery_config[CONF_CAPACITY] == 10.0  # Original config value preserved
+    assert battery_config[CONF_SECTION_BASIC][CONF_CAPACITY] == 10.0  # Original config value preserved
 
 
 async def test_diagnostics_skips_driven_entity_values(hass: HomeAssistant) -> None:
@@ -522,36 +530,24 @@ async def test_diagnostics_skips_driven_entity_values(hass: HomeAssistant) -> No
     entry = MockConfigEntry(
         domain=DOMAIN,
         title="Test Hub",
-        data={
-            CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
-            CONF_NAME: "Test Hub",
-            CONF_TIER_1_COUNT: DEFAULT_TIER_1_COUNT,
-            CONF_TIER_1_DURATION: DEFAULT_TIER_1_DURATION,
-            CONF_TIER_2_COUNT: DEFAULT_TIER_2_COUNT,
-            CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
-            CONF_TIER_3_COUNT: DEFAULT_TIER_3_COUNT,
-            CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
-            CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
-            CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
-        },
+        data=_hub_entry_data("Test Hub"),
         entry_id="hub_entry",
     )
     entry.add_to_hass(hass)
 
     battery_subentry = ConfigSubentry(
         data=MappingProxyType(
-            {
-                CONF_ELEMENT_TYPE: ELEMENT_TYPE_BATTERY,
-                CONF_NAME: "Battery One",
-                CONF_CAPACITY: "sensor.battery_capacity",  # Entity ID - creates driven entity
-                CONF_CONNECTION: "DC Bus",
-                CONF_INITIAL_CHARGE_PERCENTAGE: 50.0,
-                CONF_MAX_CHARGE_POWER: 5.0,
-                CONF_MAX_DISCHARGE_POWER: 5.0,
-                CONF_MIN_CHARGE_PERCENTAGE: 10.0,
-                CONF_MAX_CHARGE_PERCENTAGE: 90.0,
-                CONF_EFFICIENCY: 95.0,
-            }
+            _battery_config(
+                name="Battery One",
+                connection="DC Bus",
+                capacity="sensor.battery_capacity",  # Entity ID - creates driven entity
+                initial_charge_percentage=50.0,
+                max_charge_power=5.0,
+                max_discharge_power=5.0,
+                min_charge_percentage=10.0,
+                max_charge_percentage=90.0,
+                efficiency=95.0,
+            )
         ),
         subentry_type=ELEMENT_TYPE_BATTERY,
         title="Battery One",
@@ -568,7 +564,7 @@ async def test_diagnostics_skips_driven_entity_values(hass: HomeAssistant) -> No
     runtime_data = HaeoRuntimeData(
         horizon_manager=Mock(),
         input_entities={
-            ("Battery One", CONF_CAPACITY): mock_number,
+            ("Battery One", (CONF_SECTION_BASIC, CONF_CAPACITY)): mock_number,
         },
     )
     entry.runtime_data = runtime_data
@@ -577,7 +573,7 @@ async def test_diagnostics_skips_driven_entity_values(hass: HomeAssistant) -> No
 
     # Verify that driven entity value is NOT captured - config value preserved
     battery_config = diagnostics["config"]["participants"]["Battery One"]
-    assert battery_config[CONF_CAPACITY] == "sensor.battery_capacity"  # Original config value
+    assert battery_config[CONF_SECTION_BASIC][CONF_CAPACITY] == "sensor.battery_capacity"  # Original config value
 
 
 async def test_current_state_provider_get_state(hass: HomeAssistant) -> None:
@@ -751,18 +747,7 @@ async def test_diagnostics_with_historical_provider_omits_outputs(hass: HomeAssi
     """Test that diagnostics with historical provider omits output sensors."""
     entry = MockConfigEntry(
         domain=DOMAIN,
-        data={
-            CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
-            CONF_NAME: "Test Hub",
-            CONF_TIER_1_COUNT: DEFAULT_TIER_1_COUNT,
-            CONF_TIER_1_DURATION: DEFAULT_TIER_1_DURATION,
-            CONF_TIER_2_COUNT: DEFAULT_TIER_2_COUNT,
-            CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
-            CONF_TIER_3_COUNT: DEFAULT_TIER_3_COUNT,
-            CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
-            CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
-            CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
-        },
+        data=_hub_entry_data("Test Hub"),
         entry_id="test_entry",
     )
     entry.add_to_hass(hass)
@@ -789,18 +774,7 @@ async def test_diagnostics_with_network_subentry_not_element_config(hass: HomeAs
     entry = MockConfigEntry(
         domain=DOMAIN,
         title="Test Hub",
-        data={
-            CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
-            CONF_NAME: "Test Hub",
-            CONF_TIER_1_COUNT: DEFAULT_TIER_1_COUNT,
-            CONF_TIER_1_DURATION: DEFAULT_TIER_1_DURATION,
-            CONF_TIER_2_COUNT: DEFAULT_TIER_2_COUNT,
-            CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
-            CONF_TIER_3_COUNT: DEFAULT_TIER_3_COUNT,
-            CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
-            CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
-            CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
-        },
+        data=_hub_entry_data("Test Hub"),
         entry_id="hub_entry",
     )
     entry.add_to_hass(hass)
@@ -832,36 +806,24 @@ async def test_diagnostics_skips_switch_with_none_value(hass: HomeAssistant) -> 
     entry = MockConfigEntry(
         domain=DOMAIN,
         title="Test Hub",
-        data={
-            CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
-            CONF_NAME: "Test Hub",
-            CONF_TIER_1_COUNT: DEFAULT_TIER_1_COUNT,
-            CONF_TIER_1_DURATION: DEFAULT_TIER_1_DURATION,
-            CONF_TIER_2_COUNT: DEFAULT_TIER_2_COUNT,
-            CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
-            CONF_TIER_3_COUNT: DEFAULT_TIER_3_COUNT,
-            CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
-            CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
-            CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
-        },
+        data=_hub_entry_data("Test Hub"),
         entry_id="hub_entry",
     )
     entry.add_to_hass(hass)
 
     battery_subentry = ConfigSubentry(
         data=MappingProxyType(
-            {
-                CONF_ELEMENT_TYPE: ELEMENT_TYPE_BATTERY,
-                CONF_NAME: "Battery One",
-                CONF_CAPACITY: 10.0,
-                CONF_CONNECTION: "DC Bus",
-                CONF_INITIAL_CHARGE_PERCENTAGE: 50.0,
-                CONF_MAX_CHARGE_POWER: 5.0,
-                CONF_MAX_DISCHARGE_POWER: 5.0,
-                CONF_MIN_CHARGE_PERCENTAGE: 10.0,
-                CONF_MAX_CHARGE_PERCENTAGE: 90.0,
-                CONF_EFFICIENCY: 95.0,
-            }
+            _battery_config(
+                name="Battery One",
+                connection="DC Bus",
+                capacity=10.0,
+                initial_charge_percentage=50.0,
+                max_charge_power=5.0,
+                max_discharge_power=5.0,
+                min_charge_percentage=10.0,
+                max_charge_percentage=90.0,
+                efficiency=95.0,
+            )
         ),
         subentry_type=ELEMENT_TYPE_BATTERY,
         title="Battery One",
@@ -869,25 +831,25 @@ async def test_diagnostics_skips_switch_with_none_value(hass: HomeAssistant) -> 
     )
     hass.config_entries.async_add_subentry(entry, battery_subentry)
 
-    # Create mock editable switch entity with is_on = None
-    mock_switch = Mock(spec=HaeoInputSwitch)
-    mock_switch.entity_mode = ConfigEntityMode.EDITABLE
-    mock_switch.is_on = None  # None value should be skipped
+    # Create mock editable number entity with native_value = None
+    mock_number = Mock(spec=HaeoInputNumber)
+    mock_number.entity_mode = ConfigEntityMode.EDITABLE
+    mock_number.native_value = None  # None value should be skipped
 
     # Create HaeoRuntimeData with input entities
     runtime_data = HaeoRuntimeData(
         horizon_manager=Mock(),
         input_entities={
-            ("Battery One", "some_boolean_field"): mock_switch,
+            ("Battery One", (CONF_SECTION_BASIC, CONF_CAPACITY)): mock_number,
         },
     )
     entry.runtime_data = runtime_data
 
     diagnostics = await async_get_config_entry_diagnostics(hass, entry)
 
-    # Verify that the switch with None value is NOT captured in config
+    # Verify that the None value is NOT captured in config
     battery_config = diagnostics["config"]["participants"]["Battery One"]
-    assert "some_boolean_field" not in battery_config
+    assert battery_config[CONF_SECTION_BASIC][CONF_CAPACITY] == 10.0
 
 
 async def test_collect_diagnostics_returns_missing_entity_ids(hass: HomeAssistant) -> None:
@@ -895,36 +857,24 @@ async def test_collect_diagnostics_returns_missing_entity_ids(hass: HomeAssistan
     entry = MockConfigEntry(
         domain=DOMAIN,
         title="Test Hub",
-        data={
-            CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
-            CONF_NAME: "Test Hub",
-            CONF_TIER_1_COUNT: DEFAULT_TIER_1_COUNT,
-            CONF_TIER_1_DURATION: DEFAULT_TIER_1_DURATION,
-            CONF_TIER_2_COUNT: DEFAULT_TIER_2_COUNT,
-            CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
-            CONF_TIER_3_COUNT: DEFAULT_TIER_3_COUNT,
-            CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
-            CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
-            CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
-        },
+        data=_hub_entry_data("Test Hub"),
         entry_id="hub_entry",
     )
     entry.add_to_hass(hass)
 
     battery_subentry = ConfigSubentry(
         data=MappingProxyType(
-            {
-                CONF_ELEMENT_TYPE: ELEMENT_TYPE_BATTERY,
-                CONF_NAME: "Battery",
-                CONF_CAPACITY: "sensor.battery_capacity",
-                CONF_CONNECTION: "DC Bus",
-                CONF_INITIAL_CHARGE_PERCENTAGE: "sensor.battery_soc",
-                CONF_MAX_CHARGE_POWER: 5.0,
-                CONF_MAX_DISCHARGE_POWER: 5.0,
-                CONF_MIN_CHARGE_PERCENTAGE: 10.0,
-                CONF_MAX_CHARGE_PERCENTAGE: 90.0,
-                CONF_EFFICIENCY: 95.0,
-            }
+            _battery_config(
+                name="Battery",
+                connection="DC Bus",
+                capacity="sensor.battery_capacity",
+                initial_charge_percentage="sensor.battery_soc",
+                max_charge_power=5.0,
+                max_discharge_power=5.0,
+                min_charge_percentage=10.0,
+                max_charge_percentage=90.0,
+                efficiency=95.0,
+            )
         ),
         subentry_type=ELEMENT_TYPE_BATTERY,
         title="Battery",
@@ -954,36 +904,24 @@ async def test_collect_diagnostics_returns_empty_missing_when_all_found(hass: Ho
     entry = MockConfigEntry(
         domain=DOMAIN,
         title="Test Hub",
-        data={
-            CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
-            CONF_NAME: "Test Hub",
-            CONF_TIER_1_COUNT: DEFAULT_TIER_1_COUNT,
-            CONF_TIER_1_DURATION: DEFAULT_TIER_1_DURATION,
-            CONF_TIER_2_COUNT: DEFAULT_TIER_2_COUNT,
-            CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
-            CONF_TIER_3_COUNT: DEFAULT_TIER_3_COUNT,
-            CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
-            CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
-            CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
-        },
+        data=_hub_entry_data("Test Hub"),
         entry_id="hub_entry",
     )
     entry.add_to_hass(hass)
 
     battery_subentry = ConfigSubentry(
         data=MappingProxyType(
-            {
-                CONF_ELEMENT_TYPE: ELEMENT_TYPE_BATTERY,
-                CONF_NAME: "Battery",
-                CONF_CAPACITY: "sensor.battery_capacity",
-                CONF_CONNECTION: "DC Bus",
-                CONF_INITIAL_CHARGE_PERCENTAGE: "sensor.battery_soc",
-                CONF_MAX_CHARGE_POWER: 5.0,
-                CONF_MAX_DISCHARGE_POWER: 5.0,
-                CONF_MIN_CHARGE_PERCENTAGE: 10.0,
-                CONF_MAX_CHARGE_PERCENTAGE: 90.0,
-                CONF_EFFICIENCY: 95.0,
-            }
+            _battery_config(
+                name="Battery",
+                connection="DC Bus",
+                capacity="sensor.battery_capacity",
+                initial_charge_percentage="sensor.battery_soc",
+                max_charge_power=5.0,
+                max_discharge_power=5.0,
+                min_charge_percentage=10.0,
+                max_charge_percentage=90.0,
+                efficiency=95.0,
+            )
         ),
         subentry_type=ELEMENT_TYPE_BATTERY,
         title="Battery",

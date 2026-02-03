@@ -52,29 +52,6 @@ class TestGetOrCreateElementDevice:
         expected_identifier = (DOMAIN, f"{mock_config_entry.entry_id}_{subentry.subentry_id}_battery")
         assert expected_identifier in device.identifiers
 
-    async def test_sub_device_identifier_pattern(
-        self,
-        hass: HomeAssistant,
-        mock_config_entry: MockConfigEntry,
-    ) -> None:
-        """Test sub-device uses {entry_id}_{subentry_id}_{device_name} identifier pattern."""
-        subentry = ConfigSubentry(
-            data=MappingProxyType({"name": "My Battery", "element_type": "battery"}),
-            subentry_type="battery",
-            title="My Battery",
-            unique_id=None,
-        )
-        hass.config_entries.async_add_subentry(mock_config_entry, subentry)
-
-        # Create sub-device (device_name != element_type)
-        device = get_or_create_element_device(hass, mock_config_entry, subentry, "battery_device_normal")
-
-        expected_identifier = (
-            DOMAIN,
-            f"{mock_config_entry.entry_id}_{subentry.subentry_id}_battery_device_normal",
-        )
-        assert expected_identifier in device.identifiers
-
     async def test_same_device_returned_on_subsequent_calls(
         self,
         hass: HomeAssistant,
@@ -143,28 +120,6 @@ class TestBuildDeviceIdentifier:
         expected = (DOMAIN, f"{mock_config_entry.entry_id}_{subentry.subentry_id}_battery")
         assert identifier == expected
 
-    async def test_sub_device_identifier(
-        self,
-        hass: HomeAssistant,
-        mock_config_entry: MockConfigEntry,
-    ) -> None:
-        """Test building identifier for sub-device."""
-        subentry = ConfigSubentry(
-            data=MappingProxyType({"name": "Battery", "element_type": "battery"}),
-            subentry_type="battery",
-            title="Battery",
-            unique_id=None,
-        )
-        hass.config_entries.async_add_subentry(mock_config_entry, subentry)
-
-        identifier = build_device_identifier(mock_config_entry, subentry, "battery_device_normal")
-
-        expected = (
-            DOMAIN,
-            f"{mock_config_entry.entry_id}_{subentry.subentry_id}_battery_device_normal",
-        )
-        assert identifier == expected
-
 
 class TestDeviceConsistency:
     """Tests ensuring consistent device identifiers across platforms."""
@@ -212,25 +167,6 @@ class TestDeviceConsistency:
 
         device = get_or_create_element_device(hass, mock_config_entry, subentry, "battery")
         expected_identifier = build_device_identifier(mock_config_entry, subentry, "battery")
-
-        assert expected_identifier in device.identifiers
-
-    async def test_sub_device_identifier_matches_built_identifier(
-        self,
-        hass: HomeAssistant,
-        mock_config_entry: MockConfigEntry,
-    ) -> None:
-        """Test that created sub-device identifier matches build_device_identifier output."""
-        subentry = ConfigSubentry(
-            data=MappingProxyType({"name": "Battery", "element_type": "battery"}),
-            subentry_type="battery",
-            title="Battery",
-            unique_id=None,
-        )
-        hass.config_entries.async_add_subentry(mock_config_entry, subentry)
-
-        device = get_or_create_element_device(hass, mock_config_entry, subentry, "battery_device_overcharge")
-        expected_identifier = build_device_identifier(mock_config_entry, subentry, "battery_device_overcharge")
 
         assert expected_identifier in device.identifiers
 

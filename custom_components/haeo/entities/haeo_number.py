@@ -1,6 +1,7 @@
 """Number entity for HAEO input configuration."""
 
 import asyncio
+from collections.abc import Mapping
 from datetime import datetime
 from enum import Enum
 from typing import Any
@@ -14,10 +15,15 @@ from homeassistant.helpers.event import EventStateChangedData, async_track_state
 from homeassistant.util import dt as dt_util
 
 from custom_components.haeo import HaeoConfigEntry
+from custom_components.haeo.const import CONF_RECORD_FORECASTS
 from custom_components.haeo.data.loader import TimeSeriesLoader
+from custom_components.haeo.elements import InputFieldPath, find_nested_config_path, get_nested_config_value_by_path
 from custom_components.haeo.elements.input_fields import InputFieldInfo
 from custom_components.haeo.horizon import HorizonManager
 from custom_components.haeo.util import async_update_subentry_value
+
+# Attributes to exclude from recorder when forecast recording is disabled
+FORECAST_UNRECORDED_ATTRIBUTES: frozenset[str] = frozenset({"forecast"})
 
 
 class ConfigEntityMode(Enum):
@@ -54,12 +60,16 @@ class HaeoInputNumber(NumberEntity):
         field_info: InputFieldInfo[NumberEntityDescription],
         device_entry: DeviceEntry,
         horizon_manager: HorizonManager,
+        field_path: InputFieldPath | None = None,
     ) -> None:
         """Initialize the input number entity."""
         self._hass = hass
         self._config_entry: HaeoConfigEntry = config_entry
         self._subentry = subentry
         self._field_info = field_info
+        self._field_path = (
+            field_path or find_nested_config_path(subentry.data, field_info.field_name) or (field_info.field_name,)
+        )
         self._horizon_manager = horizon_manager
 
         # Set device_entry to link entity to device
@@ -68,7 +78,7 @@ class HaeoInputNumber(NumberEntity):
         # Determine mode from config value type
         # Entity IDs can be list[str] (new format) or str (v0.1 format)
         # Constants are stored as float from NumberSelector
-        config_value = subentry.data.get(field_info.field_name)
+        config_value = get_nested_config_value_by_path(subentry.data, self._field_path)
 
         if isinstance(config_value, list) and config_value:
             # DRIVEN mode: value comes from external sensors (list format)
@@ -88,13 +98,22 @@ class HaeoInputNumber(NumberEntity):
             self._attr_native_value = float(config_value)  # type: ignore[arg-type]
 
         # Unique ID for multi-hub safety: entry_id + subentry_id + field_name
-        self._attr_unique_id = f"{config_entry.entry_id}_{subentry.subentry_id}_{field_info.field_name}"
+        field_path_key = ".".join(self._field_path)
+        self._attr_unique_id = f"{config_entry.entry_id}_{subentry.subentry_id}_{field_path_key}"
 
         # Use entity description directly from field info
         self.entity_description = field_info.entity_description
 
         # Pass subentry data as translation placeholders
-        self._attr_translation_placeholders = {k: str(v) for k, v in subentry.data.items()}
+        placeholders: dict[str, str] = {}
+        for key, value in subentry.data.items():
+            if isinstance(value, Mapping):
+                for nested_key, nested_value in value.items():
+                    placeholders.setdefault(nested_key, str(nested_value))
+                continue
+            placeholders[key] = str(value)
+        placeholders.setdefault("name", subentry.title)
+        self._attr_translation_placeholders = placeholders
 
         # Build base extra state attributes (static values)
         self._base_extra_attrs: dict[str, Any] = {
@@ -102,6 +121,7 @@ class HaeoInputNumber(NumberEntity):
             "element_name": subentry.title,
             "element_type": subentry.subentry_type,
             "field_name": field_info.field_name,
+            "field_path": field_path_key,
             "output_type": field_info.output_type,
             "time_series": field_info.time_series,
         }
@@ -119,6 +139,10 @@ class HaeoInputNumber(NumberEntity):
 
         # Captured source states for diagnostics reproducibility
         self._captured_source_states: dict[str, State] = {}
+
+        # Exclude forecast from recorder unless explicitly enabled
+        if not config_entry.data.get(CONF_RECORD_FORECASTS, False):
+            self._unrecorded_attributes = FORECAST_UNRECORDED_ATTRIBUTES
 
     def _get_forecast_timestamps(self) -> tuple[float, ...]:
         """Get forecast timestamps from horizon manager."""
@@ -333,8 +357,8 @@ class HaeoInputNumber(NumberEntity):
             self._hass,
             self._config_entry,
             self._subentry,
-            self._field_info.field_name,
-            value,
+            field_path=self._field_path,
+            value=value,
         )
 
 

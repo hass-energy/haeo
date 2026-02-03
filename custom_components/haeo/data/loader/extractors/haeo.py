@@ -7,6 +7,7 @@ attribute containing a mapping of datetime keys to float values.
 from collections.abc import Mapping, Sequence
 from contextlib import suppress
 from datetime import datetime
+from itertools import pairwise
 import logging
 from typing import Literal, NotRequired, Protocol, TypedDict, TypeGuard
 
@@ -34,6 +35,7 @@ class HaeoForecastAttributes(TypedDict):
     forecast: Sequence[HaeoForecastPoint]
     unit_of_measurement: str
     device_class: NotRequired[str]
+    interpolation_mode: NotRequired[str]
 
 
 class HaeoForecastState(Protocol):
@@ -104,6 +106,9 @@ class Parser:
         parsed = [(parse_datetime_to_timestamp(item["time"]), float(item["value"])) for item in forecast]
         parsed.sort(key=lambda x: x[0])
 
+        # Apply interpolation mode if specified
+        parsed = _apply_interpolation_mode(parsed, state.attributes.get("interpolation_mode"))
+
         unit = state.attributes["unit_of_measurement"]
 
         device_class_attr = state.attributes.get("device_class")
@@ -113,3 +118,42 @@ class Parser:
                 device_class = SensorDeviceClass(device_class_attr)
 
         return parsed, unit, device_class
+
+
+def _apply_interpolation_mode(
+    data: list[tuple[int, float]],
+    mode: str | None,
+) -> list[tuple[int, float]]:
+    """Apply interpolation mode by generating synthetic intermediate points.
+
+    Converts non-linear interpolation into a series that behaves correctly
+    with linear interpolation by adding synthetic points at transitions.
+
+    Args:
+        data: Sorted sequence of (timestamp, value) tuples
+        mode: Interpolation mode to apply
+
+    Returns:
+        New series with synthetic points added for non-linear modes.
+        For LINEAR mode, returns a copy of the original data.
+
+    """
+    if len(data) <= 1 or not mode or mode == "linear":
+        return data
+
+    result = [data[0]]
+    for (t1, v1), (t2, v2) in pairwise(data):
+        match mode:
+            case "previous":
+                result.append((t2, v1))
+            case "next":
+                result.append((t1, v2))
+            case "nearest":
+                mid = (t1 + t2) // 2
+                result.extend([(mid, v1), (mid, v2)])
+            case _:
+                pass
+
+        result.append((t2, v2))
+
+    return result

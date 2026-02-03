@@ -35,8 +35,8 @@ def hub_entry(hass: HomeAssistant) -> MockConfigEntry:
         domain=DOMAIN,
         data={
             CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
-            CONF_NAME: "Test Hub",
-            CONF_ADVANCED_MODE: True,  # Enable advanced mode for all element types
+            "basic": {CONF_NAME: "Test Hub"},
+            "advanced": {CONF_ADVANCED_MODE: True},  # Enable advanced mode for all element types
         },
         entry_id="test_hub_id",
     )

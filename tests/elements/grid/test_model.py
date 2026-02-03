@@ -42,12 +42,15 @@ CREATE_CASES: Sequence[CreateCase] = [
         "description": "Grid with import and export limits",
         "data": GridConfigData(
             element_type="grid",
-            name="grid_main",
-            connection="network",
-            import_price=np.array([0.1]),
-            export_price=np.array([0.05]),
-            import_limit=np.array([5.0]),
-            export_limit=np.array([3.0]),
+            basic={"name": "grid_main", "connection": "network"},
+            pricing={
+                "import_price": np.array([0.1]),
+                "export_price": np.array([0.05]),
+            },
+            limits={
+                "import_limit": np.array([5.0]),
+                "export_limit": np.array([3.0]),
+            },
         ),
         "model": [
             {"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "grid_main", "is_source": True, "is_sink": True},
@@ -80,10 +83,12 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
         "name": "grid_main",
         "config": GridConfigData(
             element_type="grid",
-            name="grid_main",
-            connection="network",
-            import_price=np.array([0.10]),
-            export_price=np.array([0.05]),
+            basic={"name": "grid_main", "connection": "network"},
+            pricing={
+                "import_price": np.array([0.10]),
+                "export_price": np.array([0.05]),
+            },
+            limits={},
         ),
         "model_outputs": {
             "grid_main:connection": {
@@ -121,10 +126,12 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
         "name": "grid_multi",
         "config": GridConfigData(
             element_type="grid",
-            name="grid_multi",
-            connection="network",
-            import_price=np.array([0.10, 0.20]),
-            export_price=np.array([0.05, 0.05]),
+            basic={"name": "grid_multi", "connection": "network"},
+            pricing={
+                "import_price": np.array([0.10, 0.20]),
+                "export_price": np.array([0.05, 0.05]),
+            },
+            limits={},
         ),
         "model_outputs": {
             "grid_multi:connection": {

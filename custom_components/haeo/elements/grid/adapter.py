@@ -27,10 +27,14 @@ from custom_components.haeo.model.output_data import OutputData
 from custom_components.haeo.model.util import broadcast_to_sequence
 
 from .schema import (
+    CONF_CONNECTION,
     CONF_EXPORT_LIMIT,
     CONF_EXPORT_PRICE,
     CONF_IMPORT_LIMIT,
     CONF_IMPORT_PRICE,
+    CONF_SECTION_BASIC,
+    CONF_SECTION_LIMITS,
+    CONF_SECTION_PRICING,
     ELEMENT_TYPE,
     GridConfigData,
     GridConfigSchema,
@@ -90,70 +94,75 @@ class GridAdapter:
             # At this point value is a list of strings
             return ts_loader.available(hass=hass, value=value) if value else True
 
-        return entities_available(config.get("import_price")) and entities_available(config.get("export_price"))
+        pricing = config[CONF_SECTION_PRICING]
+        return entities_available(pricing.get(CONF_IMPORT_PRICE)) and entities_available(pricing.get(CONF_EXPORT_PRICE))
 
-    def inputs(self, config: Any) -> dict[str, InputFieldInfo[Any]]:
+    def inputs(self, config: Any) -> dict[str, dict[str, InputFieldInfo[Any]]]:
         """Return input field definitions for grid elements."""
         _ = config
         return {
-            CONF_IMPORT_PRICE: InputFieldInfo(
-                field_name=CONF_IMPORT_PRICE,
-                entity_description=NumberEntityDescription(
-                    key=CONF_IMPORT_PRICE,
-                    translation_key=f"{ELEMENT_TYPE}_{CONF_IMPORT_PRICE}",
-                    native_min_value=-1.0,
-                    native_max_value=10.0,
-                    native_step=0.001,
+            CONF_SECTION_PRICING: {
+                CONF_IMPORT_PRICE: InputFieldInfo(
+                    field_name=CONF_IMPORT_PRICE,
+                    entity_description=NumberEntityDescription(
+                        key=CONF_IMPORT_PRICE,
+                        translation_key=f"{ELEMENT_TYPE}_{CONF_IMPORT_PRICE}",
+                        native_min_value=-1.0,
+                        native_max_value=10.0,
+                        native_step=0.001,
+                    ),
+                    output_type=OutputType.PRICE,
+                    time_series=True,
+                    direction="-",  # Import = consuming from grid = cost
                 ),
-                output_type=OutputType.PRICE,
-                time_series=True,
-                direction="-",  # Import = consuming from grid = cost
-            ),
-            CONF_EXPORT_PRICE: InputFieldInfo(
-                field_name=CONF_EXPORT_PRICE,
-                entity_description=NumberEntityDescription(
-                    key=CONF_EXPORT_PRICE,
-                    translation_key=f"{ELEMENT_TYPE}_{CONF_EXPORT_PRICE}",
-                    native_min_value=-1.0,
-                    native_max_value=10.0,
-                    native_step=0.001,
+                CONF_EXPORT_PRICE: InputFieldInfo(
+                    field_name=CONF_EXPORT_PRICE,
+                    entity_description=NumberEntityDescription(
+                        key=CONF_EXPORT_PRICE,
+                        translation_key=f"{ELEMENT_TYPE}_{CONF_EXPORT_PRICE}",
+                        native_min_value=-1.0,
+                        native_max_value=10.0,
+                        native_step=0.001,
+                    ),
+                    output_type=OutputType.PRICE,
+                    time_series=True,
+                    direction="+",  # Export = producing to grid = revenue
                 ),
-                output_type=OutputType.PRICE,
-                time_series=True,
-                direction="+",  # Export = producing to grid = revenue
-            ),
-            CONF_IMPORT_LIMIT: InputFieldInfo(
-                field_name=CONF_IMPORT_LIMIT,
-                entity_description=NumberEntityDescription(
-                    key=CONF_IMPORT_LIMIT,
-                    translation_key=f"{ELEMENT_TYPE}_{CONF_IMPORT_LIMIT}",
-                    native_unit_of_measurement=UnitOfPower.KILO_WATT,
-                    device_class=NumberDeviceClass.POWER,
-                    native_min_value=0.0,
-                    native_max_value=1000.0,
-                    native_step=0.1,
+            },
+            CONF_SECTION_LIMITS: {
+                CONF_IMPORT_LIMIT: InputFieldInfo(
+                    field_name=CONF_IMPORT_LIMIT,
+                    entity_description=NumberEntityDescription(
+                        key=CONF_IMPORT_LIMIT,
+                        translation_key=f"{ELEMENT_TYPE}_{CONF_IMPORT_LIMIT}",
+                        native_unit_of_measurement=UnitOfPower.KILO_WATT,
+                        device_class=NumberDeviceClass.POWER,
+                        native_min_value=0.0,
+                        native_max_value=1000.0,
+                        native_step=0.1,
+                    ),
+                    output_type=OutputType.POWER_LIMIT,
+                    time_series=True,
+                    direction="+",
+                    defaults=InputFieldDefaults(mode="value", value=100.0),
                 ),
-                output_type=OutputType.POWER_LIMIT,
-                time_series=True,
-                direction="+",
-                defaults=InputFieldDefaults(mode="value", value=100.0),
-            ),
-            CONF_EXPORT_LIMIT: InputFieldInfo(
-                field_name=CONF_EXPORT_LIMIT,
-                entity_description=NumberEntityDescription(
-                    key=CONF_EXPORT_LIMIT,
-                    translation_key=f"{ELEMENT_TYPE}_{CONF_EXPORT_LIMIT}",
-                    native_unit_of_measurement=UnitOfPower.KILO_WATT,
-                    device_class=NumberDeviceClass.POWER,
-                    native_min_value=0.0,
-                    native_max_value=1000.0,
-                    native_step=0.1,
+                CONF_EXPORT_LIMIT: InputFieldInfo(
+                    field_name=CONF_EXPORT_LIMIT,
+                    entity_description=NumberEntityDescription(
+                        key=CONF_EXPORT_LIMIT,
+                        translation_key=f"{ELEMENT_TYPE}_{CONF_EXPORT_LIMIT}",
+                        native_unit_of_measurement=UnitOfPower.KILO_WATT,
+                        device_class=NumberDeviceClass.POWER,
+                        native_min_value=0.0,
+                        native_max_value=1000.0,
+                        native_step=0.1,
+                    ),
+                    output_type=OutputType.POWER_LIMIT,
+                    time_series=True,
+                    direction="-",
+                    defaults=InputFieldDefaults(mode="value", value=100.0),
                 ),
-                output_type=OutputType.POWER_LIMIT,
-                time_series=True,
-                direction="-",
-                defaults=InputFieldDefaults(mode="value", value=100.0),
-            ),
+            },
         }
 
     def model_elements(self, config: GridConfigData) -> list[ModelElementConfig]:
@@ -162,26 +171,26 @@ class GridAdapter:
             # Create Node for the grid (both source and sink - can import and export)
             {
                 "element_type": MODEL_ELEMENT_TYPE_NODE,
-                "name": config["name"],
+                "name": config[CONF_SECTION_BASIC]["name"],
                 "is_source": True,
                 "is_sink": True,
             },
             # Create a connection from system node to grid
             {
                 "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
-                "name": f"{config['name']}:connection",
-                "source": config["name"],
-                "target": config["connection"],
+                "name": f"{config[CONF_SECTION_BASIC]['name']}:connection",
+                "source": config[CONF_SECTION_BASIC]["name"],
+                "target": config[CONF_SECTION_BASIC][CONF_CONNECTION],
                 "segments": {
                     "power_limit": {
                         "segment_type": "power_limit",
-                        "max_power_source_target": config.get("import_limit"),
-                        "max_power_target_source": config.get("export_limit"),
+                        "max_power_source_target": config[CONF_SECTION_LIMITS].get(CONF_IMPORT_LIMIT),
+                        "max_power_target_source": config[CONF_SECTION_LIMITS].get(CONF_EXPORT_LIMIT),
                     },
                     "pricing": {
                         "segment_type": "pricing",
-                        "price_source_target": config["import_price"],
-                        "price_target_source": -config["export_price"],
+                        "price_source_target": config[CONF_SECTION_PRICING][CONF_IMPORT_PRICE],
+                        "price_target_source": -config[CONF_SECTION_PRICING][CONF_EXPORT_PRICE],
                     },
                 },
             },
@@ -219,8 +228,8 @@ class GridAdapter:
 
         # Calculate cost outputs in adapter layer: cost = power * price * period
         # This is a derived calculation, not from model layer outputs
-        import_prices = broadcast_to_sequence(config["import_price"], len(periods))
-        export_prices = broadcast_to_sequence(config["export_price"], len(periods))
+        import_prices = broadcast_to_sequence(config[CONF_SECTION_PRICING][CONF_IMPORT_PRICE], len(periods))
+        export_prices = broadcast_to_sequence(config[CONF_SECTION_PRICING][CONF_EXPORT_PRICE], len(periods))
 
         # Import cost: positive = money spent (power from grid * price * period)
         import_cost_values = tuple(

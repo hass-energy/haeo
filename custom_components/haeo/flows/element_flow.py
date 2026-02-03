@@ -18,7 +18,7 @@ import voluptuous as vol
 
 from custom_components.haeo.const import CONF_ADVANCED_MODE, CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.data.loader.extractors import EntityMetadata
-from custom_components.haeo.elements.input_fields import InputFieldInfo
+from custom_components.haeo.elements.input_fields import InputFieldGroups, InputFieldInfo
 from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.schema.util import UnitSpec
 
@@ -96,6 +96,17 @@ def build_inclusion_map(
     return result
 
 
+def build_sectioned_inclusion_map(
+    input_fields: InputFieldGroups,
+    entity_metadata: list[EntityMetadata],
+) -> dict[str, dict[str, list[str]]]:
+    """Build section -> field name -> compatible entity IDs mapping."""
+    return {
+        section_key: build_inclusion_map(section_fields, entity_metadata)
+        for section_key, section_fields in input_fields.items()
+    }
+
+
 def build_participant_selector(
     participants: list[str],
     current_value: str | None = None,
@@ -163,9 +174,10 @@ class ElementFlowMixin:
 
         """
         from custom_components.haeo.elements import ELEMENT_TYPES, ConnectivityLevel  # noqa: PLC0415
+        from custom_components.haeo.flows import HUB_SECTION_ADVANCED  # noqa: PLC0415
 
         hub_entry: ConfigEntry = self._get_entry()  # type: ignore[attr-defined]
-        advanced_mode = hub_entry.data.get(CONF_ADVANCED_MODE, False)
+        advanced_mode = hub_entry.data.get(HUB_SECTION_ADVANCED, {}).get(CONF_ADVANCED_MODE, False)
         current_id = self._get_current_subentry_id()
 
         result: list[str] = []

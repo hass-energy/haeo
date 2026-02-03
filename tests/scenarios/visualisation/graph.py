@@ -19,7 +19,6 @@ import networkx as nx
 from custom_components.haeo.model import Network
 from custom_components.haeo.model.element import Element
 from custom_components.haeo.model.elements import Battery, Connection, Node
-from custom_components.haeo.model.elements.segments import BatteryBalanceSegment
 
 # Use non-GUI backend
 mpl.use("Agg")
@@ -48,7 +47,6 @@ class StyleConfig:
     group_colors: dict[str, str]
     # Edge colors
     power_edge_color: str = "#555555"
-    balance_edge_color: str = "#9467bd"
     # Text sizing (character-based)
     char_width: float = 0.08
     line_height: float = 0.18
@@ -62,7 +60,6 @@ DEFAULT_STYLE = StyleConfig(
     node_colors={
         "battery": "#98df8a",
         "node": "#c7c7c7",
-        "balance": "#c5b0d5",
         "connection": "#aec7e8",
     },
     group_colors={
@@ -90,10 +87,6 @@ def _get_element_type(element: Element[str]) -> str:
     if isinstance(element, Connection):
         return "connection"
     return "unknown"
-
-
-def _is_balance_connection(element: Connection[str]) -> bool:
-    return any(isinstance(segment, BatteryBalanceSegment) for segment in element.segments.values())
 
 
 def _get_parent_device(name: str) -> str:
@@ -146,8 +139,7 @@ def build_graph(
                 graph.add_node(endpoint, color="lightgray", element_type="unknown")
                 device_groups[parent].append(endpoint)
 
-        edge_style = "balance" if _is_balance_connection(element) else "power"
-        graph.add_edge(source, target, name=name, style=edge_style)
+        graph.add_edge(source, target, name=name, style="power")
 
     # Sort device_groups and their node lists for deterministic order
     sorted_groups = {k: sorted(v) for k, v in sorted(device_groups.items())}
@@ -215,6 +207,7 @@ def _compute_group_internal_layout(
 def compute_positions(
     graph: "nx.DiGraph[str]",
     device_groups: dict[str, list[str]],
+    node_sizes: dict[str, tuple[float, float]],
 ) -> dict[str, tuple[float, float]]:
     """Compute hierarchical positions with groups and internal layouts."""
     if not device_groups:
@@ -228,7 +221,11 @@ def compute_positions(
         nodes = device_groups[device_name]
         internal_pos, radius = _compute_group_internal_layout(nodes, graph)
         group_layouts[device_name] = internal_pos
-        group_radii[device_name] = radius
+        max_node_radius = max(
+            (max(node_sizes[node]) / 2 for node in nodes if node in node_sizes),
+            default=0.0,
+        )
+        group_radii[device_name] = max(radius, max_node_radius)
 
     # Build metagraph of inter-group connections (sorted for determinism)
     group_graph: nx.Graph[str] = nx.Graph()
@@ -248,7 +245,7 @@ def compute_positions(
     # Compute group positions and scale to prevent overlap
     raw_group_pos = _compute_spring_layout(group_graph, scale=1.0)
     max_radius = max(group_radii.values()) if group_radii else 0.5
-    spacing = max_radius * 3.5
+    spacing = max_radius * 5.0 + 0.5
 
     # Combine group positions with internal positions (sorted for determinism)
     pos: dict[str, tuple[float, float]] = {}
@@ -411,7 +408,6 @@ def _draw_edges(
     """Draw edges with arrows."""
     # Sort edges for deterministic drawing order
     power_edges = sorted((u, v) for u, v, d in graph.edges(data=True) if d.get("style") == "power")
-    balance_edges = sorted((u, v) for u, v, d in graph.edges(data=True) if d.get("style") == "balance")
 
     if power_edges:
         nx.draw_networkx_edges(  # type: ignore[no-untyped-call]
@@ -421,24 +417,6 @@ def _draw_edges(
             edge_color=style.power_edge_color,
             width=1.5,
             connectionstyle="arc3,rad=0.1",
-            arrows=True,
-            arrowsize=15,
-            arrowstyle="->",
-            node_size=1500,
-            min_source_margin=15,
-            min_target_margin=15,
-            ax=ax,
-        )
-
-    if balance_edges:
-        nx.draw_networkx_edges(  # type: ignore[no-untyped-call]
-            graph,
-            pos,
-            edgelist=balance_edges,
-            edge_color=style.balance_edge_color,
-            width=1.2,
-            style="dashed",
-            connectionstyle="arc3,rad=0.15",
             arrows=True,
             arrowsize=15,
             arrowstyle="->",
@@ -505,11 +483,11 @@ def create_graph_visualization(
         _LOGGER.warning("No nodes to visualize")
         return
 
-    # Compute layout
-    pos = compute_positions(graph, device_groups)
-
     # Compute labels and sizes
     node_labels, node_sizes = compute_node_labels_and_sizes(graph, style)
+
+    # Compute layout (uses node sizes to space groups)
+    pos = compute_positions(graph, device_groups, node_sizes)
     edge_labels = compute_edge_labels(graph)
     max_node_dim = max(max(w, h) for w, h in node_sizes.values()) if node_sizes else 0.3
     node_radius = max_node_dim / 2

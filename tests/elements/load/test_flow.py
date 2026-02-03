@@ -1,6 +1,7 @@
 """Tests for load element config flow."""
 
 from types import MappingProxyType
+from typing import Any
 from unittest.mock import Mock
 
 from homeassistant.config_entries import SOURCE_RECONFIGURE, ConfigSubentry
@@ -10,20 +11,49 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.elements import node
-from custom_components.haeo.elements.load import CONF_CONNECTION, CONF_FORECAST, ELEMENT_TYPE
+from custom_components.haeo.elements.load import (
+    CONF_CONNECTION,
+    CONF_FORECAST,
+    CONF_SECTION_BASIC,
+    CONF_SECTION_INPUTS,
+    ELEMENT_TYPE,
+)
 
 from ..conftest import add_participant, create_flow
+
+
+def _wrap_input(flat: dict[str, Any]) -> dict[str, Any]:
+    """Wrap flat load input values into sectioned config."""
+    if CONF_SECTION_BASIC in flat:
+        return dict(flat)
+    return {
+        CONF_SECTION_BASIC: {
+            CONF_NAME: flat[CONF_NAME],
+            CONF_CONNECTION: flat[CONF_CONNECTION],
+        },
+        CONF_SECTION_INPUTS: {
+            CONF_FORECAST: flat[CONF_FORECAST],
+        },
+    }
+
+
+def _wrap_config(flat: dict[str, Any]) -> dict[str, Any]:
+    """Wrap flat load config values into sectioned config with element type."""
+    if CONF_SECTION_BASIC in flat:
+        return {CONF_ELEMENT_TYPE: ELEMENT_TYPE, **flat}
+    return {CONF_ELEMENT_TYPE: ELEMENT_TYPE, **_wrap_input(flat)}
 
 
 async def test_reconfigure_with_deleted_connection_target(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
     """Load reconfigure should include deleted connection target in options."""
     # Create load that references a deleted connection target
-    existing_config = {
-        CONF_ELEMENT_TYPE: ELEMENT_TYPE,
-        CONF_NAME: "Test Load",
-        CONF_CONNECTION: "DeletedNode",  # This node no longer exists
-        CONF_FORECAST: ["sensor.power"],
-    }
+    existing_config = _wrap_config(
+        {
+            CONF_NAME: "Test Load",
+            CONF_CONNECTION: "DeletedNode",  # This node no longer exists
+            CONF_FORECAST: ["sensor.power"],
+        }
+    )
     existing_subentry = ConfigSubentry(
         data=MappingProxyType(existing_config),
         subentry_type=ELEMENT_TYPE,
@@ -83,12 +113,13 @@ async def test_reconfigure_with_string_entity_id_v010_format(hass: HomeAssistant
     add_participant(hass, hub_entry, "TestNode", node.ELEMENT_TYPE)
 
     # Create existing entry with v0.1.0 format: string entity ID (not list, not scalar)
-    existing_config = {
-        CONF_ELEMENT_TYPE: ELEMENT_TYPE,
-        CONF_NAME: "Test Load",
-        CONF_CONNECTION: "TestNode",
-        CONF_FORECAST: "sensor.load_forecast",  # Simulating v0.1.0 single string entity ID
-    }
+    existing_config = _wrap_config(
+        {
+            CONF_NAME: "Test Load",
+            CONF_CONNECTION: "TestNode",
+            CONF_FORECAST: "sensor.load_forecast",  # Simulating v0.1.0 single string entity ID
+        }
+    )
     existing_subentry = ConfigSubentry(
         data=MappingProxyType(existing_config),
         subentry_type=ELEMENT_TYPE,
@@ -111,7 +142,7 @@ async def test_reconfigure_with_string_entity_id_v010_format(hass: HomeAssistant
     defaults = flow._build_defaults("Test Load", dict(existing_subentry.data))
 
     # Defaults should contain entity choice with original entity ID as list
-    assert defaults[CONF_FORECAST] == ["sensor.load_forecast"]
+    assert defaults[CONF_SECTION_INPUTS][CONF_FORECAST] == ["sensor.load_forecast"]
 
 
 async def test_reconfigure_with_scalar_shows_constant_defaults(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
@@ -119,12 +150,13 @@ async def test_reconfigure_with_scalar_shows_constant_defaults(hass: HomeAssista
     add_participant(hass, hub_entry, "TestNode", node.ELEMENT_TYPE)
 
     # Create existing entry with scalar value (from constant config)
-    existing_config = {
-        CONF_ELEMENT_TYPE: ELEMENT_TYPE,
-        CONF_NAME: "Test Load",
-        CONF_CONNECTION: "TestNode",
-        CONF_FORECAST: 100.0,  # Scalar value, not entity link
-    }
+    existing_config = _wrap_config(
+        {
+            CONF_NAME: "Test Load",
+            CONF_CONNECTION: "TestNode",
+            CONF_FORECAST: 100.0,  # Scalar value, not entity link
+        }
+    )
     existing_subentry = ConfigSubentry(
         data=MappingProxyType(existing_config),
         subentry_type=ELEMENT_TYPE,
@@ -141,7 +173,7 @@ async def test_reconfigure_with_scalar_shows_constant_defaults(hass: HomeAssista
     defaults = flow._build_defaults("Test Load", dict(existing_subentry.data))
 
     # Defaults should contain constant choice with the scalar value
-    assert defaults[CONF_FORECAST] == 100.0
+    assert defaults[CONF_SECTION_INPUTS][CONF_FORECAST] == 100.0
 
 
 async def test_reconfigure_with_missing_field_shows_none_default(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
@@ -151,9 +183,11 @@ async def test_reconfigure_with_missing_field_shows_none_default(hass: HomeAssis
     # Create existing entry without forecast field (simulating missing optional field)
     existing_config = {
         CONF_ELEMENT_TYPE: ELEMENT_TYPE,
-        CONF_NAME: "Test Load",
-        CONF_CONNECTION: "TestNode",
-        # CONF_FORECAST intentionally missing to test else branch
+        CONF_SECTION_BASIC: {
+            CONF_NAME: "Test Load",
+            CONF_CONNECTION: "TestNode",
+        },
+        CONF_SECTION_INPUTS: {},
     }
     existing_subentry = ConfigSubentry(
         data=MappingProxyType(existing_config),
@@ -171,7 +205,7 @@ async def test_reconfigure_with_missing_field_shows_none_default(hass: HomeAssis
     defaults = flow._build_defaults("Test Load", dict(existing_subentry.data))
 
     # Missing field should result in None default
-    assert defaults.get(CONF_FORECAST) is None
+    assert defaults.get(CONF_SECTION_INPUTS, {}).get(CONF_FORECAST) is None
 
 
 async def test_user_step_with_entity_creates_entry(
@@ -191,18 +225,20 @@ async def test_user_step_with_entity_creates_entry(
     )
 
     # Submit with entity selection using choose selector format
-    user_input = {
-        CONF_NAME: "Test Load",
-        CONF_CONNECTION: "TestNode",
-        CONF_FORECAST: ["sensor.load_forecast"],
-    }
+    user_input = _wrap_input(
+        {
+            CONF_NAME: "Test Load",
+            CONF_CONNECTION: "TestNode",
+            CONF_FORECAST: ["sensor.load_forecast"],
+        }
+    )
     result = await flow.async_step_user(user_input=user_input)
 
     assert result.get("type") == FlowResultType.CREATE_ENTRY
 
     # Verify the config contains the entity ID as string
     create_kwargs = flow.async_create_entry.call_args.kwargs
-    assert create_kwargs["data"][CONF_FORECAST] == "sensor.load_forecast"
+    assert create_kwargs["data"][CONF_SECTION_INPUTS][CONF_FORECAST] == "sensor.load_forecast"
 
 
 async def test_user_step_with_constant_creates_entry(
@@ -222,18 +258,20 @@ async def test_user_step_with_constant_creates_entry(
     )
 
     # Submit with constant value using choose selector format
-    user_input = {
-        CONF_NAME: "Test Load",
-        CONF_CONNECTION: "TestNode",
-        CONF_FORECAST: 5.0,
-    }
+    user_input = _wrap_input(
+        {
+            CONF_NAME: "Test Load",
+            CONF_CONNECTION: "TestNode",
+            CONF_FORECAST: 5.0,
+        }
+    )
     result = await flow.async_step_user(user_input=user_input)
 
     assert result.get("type") == FlowResultType.CREATE_ENTRY
 
     # Verify the config contains the constant value
     create_kwargs = flow.async_create_entry.call_args.kwargs
-    assert create_kwargs["data"][CONF_FORECAST] == 5.0
+    assert create_kwargs["data"][CONF_SECTION_INPUTS][CONF_FORECAST] == 5.0
 
 
 async def test_user_step_empty_required_field_shows_error(
@@ -245,11 +283,13 @@ async def test_user_step_empty_required_field_shows_error(
     flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
 
     # Submit with empty forecast (required field)
-    user_input = {
-        CONF_NAME: "Test Load",
-        CONF_CONNECTION: "TestNode",
-        CONF_FORECAST: [],  # Empty list = invalid
-    }
+    user_input = _wrap_input(
+        {
+            CONF_NAME: "Test Load",
+            CONF_CONNECTION: "TestNode",
+            CONF_FORECAST: [],  # Empty list = invalid
+        }
+    )
     result = await flow.async_step_user(user_input=user_input)
 
     assert result.get("type") == FlowResultType.FORM

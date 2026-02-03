@@ -1,12 +1,29 @@
 """Node element schema definitions."""
 
-from typing import Final, Literal, NotRequired, TypedDict
+from typing import Final, Literal, TypedDict
 
 ELEMENT_TYPE: Final = "node"
 
 # Configuration field names
 CONF_IS_SOURCE: Final = "is_source"
 CONF_IS_SINK: Final = "is_sink"
+CONF_SECTION_BASIC: Final = "basic"
+CONF_SECTION_ADVANCED: Final = "advanced"
+
+OPTIONAL_INPUT_FIELDS: Final[frozenset[str]] = frozenset({CONF_IS_SOURCE, CONF_IS_SINK})
+
+
+class NodeBasicConfig(TypedDict):
+    """Basic configuration for node elements."""
+
+    name: str
+
+
+class NodeAdvancedConfig(TypedDict, total=False):
+    """Advanced configuration for node elements."""
+
+    is_source: bool
+    is_sink: bool
 
 
 class NodeConfigSchema(TypedDict):
@@ -21,9 +38,21 @@ class NodeConfigSchema(TypedDict):
     """
 
     element_type: Literal["node"]
+    basic: NodeBasicConfig
+    advanced: NodeAdvancedConfig
+
+
+class NodeBasicData(TypedDict):
+    """Loaded basic values for node elements."""
+
     name: str
-    is_source: NotRequired[bool]
-    is_sink: NotRequired[bool]
+
+
+class NodeAdvancedData(TypedDict, total=False):
+    """Loaded advanced values for node elements."""
+
+    is_source: bool
+    is_sink: bool
 
 
 class NodeConfigData(TypedDict):
@@ -33,6 +62,5 @@ class NodeConfigData(TypedDict):
     """
 
     element_type: Literal["node"]
-    name: str
-    is_source: NotRequired[bool]
-    is_sink: NotRequired[bool]
+    basic: NodeBasicData
+    advanced: NodeAdvancedData

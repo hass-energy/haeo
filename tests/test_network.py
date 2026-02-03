@@ -20,8 +20,13 @@ from custom_components.haeo.const import (
 )
 from custom_components.haeo.coordinator import evaluate_network_connectivity
 from custom_components.haeo.elements import ELEMENT_TYPE_CONNECTION, ELEMENT_TYPE_NODE, ElementConfigData
+from custom_components.haeo.elements.connection import CONF_SECTION_ADVANCED as CONF_CONNECTION_SECTION_ADVANCED
+from custom_components.haeo.elements.connection import CONF_SECTION_BASIC as CONF_CONNECTION_SECTION_BASIC
+from custom_components.haeo.elements.connection import CONF_SECTION_LIMITS as CONF_CONNECTION_SECTION_LIMITS
 from custom_components.haeo.elements.connection import CONF_SOURCE, CONF_TARGET, ConnectionConfigData
 from custom_components.haeo.elements.node import CONF_IS_SINK, CONF_IS_SOURCE, NodeConfigData
+from custom_components.haeo.elements.node import CONF_SECTION_ADVANCED as CONF_NODE_SECTION_ADVANCED
+from custom_components.haeo.elements.node import CONF_SECTION_BASIC as CONF_NODE_SECTION_BASIC
 
 
 @pytest.fixture
@@ -31,15 +36,18 @@ def config_entry(hass: HomeAssistant) -> MockConfigEntry:
     entry = MockConfigEntry(
         domain=DOMAIN,
         data={
-            CONF_NAME: "Test Hub",
-            CONF_TIER_1_COUNT: 2,
-            CONF_TIER_1_DURATION: 30,
-            CONF_TIER_2_COUNT: 0,
-            CONF_TIER_2_DURATION: 60,
-            CONF_TIER_3_COUNT: 0,
-            CONF_TIER_3_DURATION: 30,
-            CONF_TIER_4_COUNT: 0,
-            CONF_TIER_4_DURATION: 60,
+            "basic": {CONF_NAME: "Test Hub"},
+            "tiers": {
+                CONF_TIER_1_COUNT: 2,
+                CONF_TIER_1_DURATION: 30,
+                CONF_TIER_2_COUNT: 0,
+                CONF_TIER_2_DURATION: 60,
+                CONF_TIER_3_COUNT: 0,
+                CONF_TIER_3_DURATION: 30,
+                CONF_TIER_4_COUNT: 0,
+                CONF_TIER_4_DURATION: 60,
+            },
+            "advanced": {},
         },
         entry_id="test_entry",
         title="Test Hub",
@@ -56,9 +64,8 @@ async def test_evaluate_network_connectivity_connected(
 
     node_a: NodeConfigData = {
         CONF_ELEMENT_TYPE: ELEMENT_TYPE_NODE,
-        CONF_NAME: "Node A",
-        CONF_IS_SOURCE: False,
-        CONF_IS_SINK: False,
+        CONF_NODE_SECTION_BASIC: {CONF_NAME: "Node A"},
+        CONF_NODE_SECTION_ADVANCED: {CONF_IS_SOURCE: False, CONF_IS_SINK: False},
     }
     participants: dict[str, ElementConfigData] = {"Node A": node_a}
 
@@ -78,15 +85,13 @@ async def test_evaluate_network_connectivity_disconnected(
 
     node_a: NodeConfigData = {
         CONF_ELEMENT_TYPE: ELEMENT_TYPE_NODE,
-        CONF_NAME: "Node A",
-        CONF_IS_SOURCE: False,
-        CONF_IS_SINK: False,
+        CONF_NODE_SECTION_BASIC: {CONF_NAME: "Node A"},
+        CONF_NODE_SECTION_ADVANCED: {CONF_IS_SOURCE: False, CONF_IS_SINK: False},
     }
     node_b: NodeConfigData = {
         CONF_ELEMENT_TYPE: ELEMENT_TYPE_NODE,
-        CONF_NAME: "Node B",
-        CONF_IS_SOURCE: False,
-        CONF_IS_SINK: False,
+        CONF_NODE_SECTION_BASIC: {CONF_NAME: "Node B"},
+        CONF_NODE_SECTION_ADVANCED: {CONF_IS_SOURCE: False, CONF_IS_SINK: False},
     }
     participants: dict[str, ElementConfigData] = {"Node A": node_a, "Node B": node_b}
 
@@ -107,15 +112,13 @@ async def test_evaluate_network_connectivity_resolves_issue(
 
     node_a: NodeConfigData = {
         CONF_ELEMENT_TYPE: ELEMENT_TYPE_NODE,
-        CONF_NAME: "Node A",
-        CONF_IS_SOURCE: False,
-        CONF_IS_SINK: False,
+        CONF_NODE_SECTION_BASIC: {CONF_NAME: "Node A"},
+        CONF_NODE_SECTION_ADVANCED: {CONF_IS_SOURCE: False, CONF_IS_SINK: False},
     }
     node_b: NodeConfigData = {
         CONF_ELEMENT_TYPE: ELEMENT_TYPE_NODE,
-        CONF_NAME: "Node B",
-        CONF_IS_SOURCE: False,
-        CONF_IS_SINK: False,
+        CONF_NODE_SECTION_BASIC: {CONF_NAME: "Node B"},
+        CONF_NODE_SECTION_ADVANCED: {CONF_IS_SOURCE: False, CONF_IS_SINK: False},
     }
     participants: dict[str, ElementConfigData] = {"Node A": node_a, "Node B": node_b}
 
@@ -124,9 +127,13 @@ async def test_evaluate_network_connectivity_resolves_issue(
     # Connect the nodes and re-validate
     connection: ConnectionConfigData = {
         CONF_ELEMENT_TYPE: ELEMENT_TYPE_CONNECTION,
-        CONF_NAME: "A to B",
-        CONF_SOURCE: "Node A",
-        CONF_TARGET: "Node B",
+        CONF_CONNECTION_SECTION_BASIC: {
+            CONF_NAME: "A to B",
+            CONF_SOURCE: "Node A",
+            CONF_TARGET: "Node B",
+        },
+        CONF_CONNECTION_SECTION_LIMITS: {},
+        CONF_CONNECTION_SECTION_ADVANCED: {},
     }
     participants["A to B"] = connection
 
