@@ -6,12 +6,12 @@ from dataclasses import dataclass
 from datetime import datetime
 import logging
 import time
-from typing import TYPE_CHECKING, Any, Literal, TypedDict
+from typing import TYPE_CHECKING, Any, Literal, Self, TypedDict
 
 from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import STATE_ON, EntityCategory, UnitOfTime
-from homeassistant.core import CALLBACK_TYPE, Event, HomeAssistant, callback
+from homeassistant.core import CALLBACK_TYPE, Event, HomeAssistant, State, callback
 from homeassistant.helpers.event import EventStateChangedData, async_call_later, async_track_state_change_event
 from homeassistant.helpers.translation import async_get_translations
 from homeassistant.helpers.typing import StateType
@@ -40,6 +40,7 @@ from custom_components.haeo.elements import (
     ElementConfigSchema,
     ElementDeviceName,
     ElementOutputName,
+    InputFieldPath,
     collect_element_subentries,
     get_input_fields,
     get_nested_config_value_by_path,
@@ -57,6 +58,9 @@ from . import network as network_module
 
 if TYPE_CHECKING:
     from custom_components.haeo import HaeoConfigEntry, HaeoRuntimeData
+    from custom_components.haeo.entities.haeo_number import HaeoInputNumber
+    from custom_components.haeo.entities.haeo_switch import HaeoInputSwitch
+    from custom_components.haeo.horizon import HorizonManager
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -72,6 +76,87 @@ class ForecastPoint(TypedDict):
 
     time: datetime
     value: Any
+
+
+def _to_plain_dict(value: Any) -> Any:
+    """Recursively convert mappingproxy objects to plain dicts.
+
+    Home Assistant config entries use MappingProxyType which can't be deepcopied.
+    This converts them to regular dicts that can be safely copied.
+    """
+    if isinstance(value, Mapping):
+        return {k: _to_plain_dict(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return type(value)(_to_plain_dict(item) for item in value)
+    return value
+
+
+def _deep_copy_config(configs: Mapping[str, ElementConfigSchema]) -> dict[str, ElementConfigSchema]:
+    """Deep copy participant configs for immutable storage.
+
+    Args:
+        configs: Mapping of element names to their config schemas.
+
+    Returns:
+        New dict with deep-copied config values.
+
+    """
+    # Convert to plain dicts first (handles MappingProxyType), then deep copy
+    return {name: deepcopy(_to_plain_dict(config)) for name, config in configs.items()}
+
+
+@dataclass(frozen=True, slots=True)
+class OptimizationContext:
+    """Immutable snapshot of all inputs at optimization time.
+
+    This class captures all inputs needed to reproduce an optimization run:
+    - Element configurations (raw schemas, not processed data)
+    - Source sensor states captured when entities loaded data
+    - Forecast timestamps from horizon manager
+
+    The context is built at the start of each optimization run and stored
+    in CoordinatorData for diagnostics and reproducibility.
+    """
+
+    participants: dict[str, ElementConfigSchema]
+    """Raw element schemas (not processed ElementConfigData)."""
+
+    source_states: dict[str, State]
+    """Source sensor states captured when entities loaded data."""
+
+    forecast_timestamps: tuple[float, ...]
+    """Forecast timestamps from horizon manager."""
+
+    @classmethod
+    def build(
+        cls,
+        participant_configs: Mapping[str, ElementConfigSchema],
+        input_entities: Mapping[tuple[str, InputFieldPath], "HaeoInputNumber | HaeoInputSwitch"],
+        horizon_manager: "HorizonManager",
+    ) -> Self:
+        """Build context by pulling from existing sources.
+
+        Called at start of _async_update_data() before optimization runs.
+
+        Args:
+            participant_configs: Coordinator's _participant_configs dict
+            input_entities: runtime_data.input_entities dict
+            horizon_manager: runtime_data.horizon_manager
+
+        Returns:
+            Immutable OptimizationContext with all inputs captured.
+
+        """
+        # Pull source states from all input entities (they captured these when loading data)
+        source_states: dict[str, State] = {}
+        for entity in input_entities.values():
+            source_states.update(entity.get_captured_source_states())
+
+        return cls(
+            participants=_deep_copy_config(participant_configs),
+            source_states=dict(source_states),  # Shallow copy - State objects are effectively immutable
+            forecast_timestamps=horizon_manager.get_forecast_timestamps(),
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -187,7 +272,20 @@ def _build_coordinator_output(
 
 
 type SubentryDevices = dict[ElementDeviceName, dict[ElementOutputName | NetworkOutputName, CoordinatorOutput]]
-type CoordinatorData = dict[str, SubentryDevices]
+
+
+@dataclass(slots=True)
+class CoordinatorData:
+    """Result of an optimization run including inputs and outputs."""
+
+    context: OptimizationContext
+    """Immutable snapshot of all inputs used for this optimization."""
+
+    outputs: dict[str, SubentryDevices]
+    """Element outputs organized by element_name -> device_name -> output_name."""
+
+    timestamp: datetime
+    """When the optimization ran."""
 
 
 class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
@@ -659,6 +757,13 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
 
             forecast_timestamps = runtime_data.horizon_manager.get_forecast_timestamps()
 
+            # Build optimization context capturing all inputs for reproducibility
+            context = OptimizationContext.build(
+                participant_configs=self._participant_configs,
+                input_entities=runtime_data.input_entities,
+                horizon_manager=runtime_data.horizon_manager,
+            )
+
             # Load element configurations from input entities
             # All input entities are guaranteed to be fully loaded by the time we get here
             loaded_configs = self._load_from_input_entities()
@@ -701,7 +806,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             )
             network_subentry_name = translations[f"component.{DOMAIN}.common.network_subentry_name"]
 
-            result: CoordinatorData = {
+            outputs: dict[str, SubentryDevices] = {
                 # HAEO outputs use network subentry name as key, network element type as device
                 network_subentry_name: {
                     ELEMENT_TYPE_NETWORK: {
@@ -756,9 +861,13 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
                         subentry_devices[device_name] = processed_outputs
 
                 if subentry_devices:
-                    result[element_name] = subentry_devices
+                    outputs[element_name] = subentry_devices
 
-            return result
+            return CoordinatorData(
+                context=context,
+                outputs=outputs,
+                timestamp=dt_util.utcnow(),
+            )
         finally:
             # Always clear the in-progress flag
             self._optimization_in_progress = False
@@ -772,5 +881,6 @@ __all__ = [
     "CoordinatorOutput",
     "ForecastPoint",
     "HaeoDataUpdateCoordinator",
+    "OptimizationContext",
     "_build_coordinator_output",
 ]

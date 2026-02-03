@@ -44,8 +44,10 @@ from custom_components.haeo.const import (
 )
 from custom_components.haeo.coordinator import (
     STATUS_OPTIONS,
+    CoordinatorData,
     ForecastPoint,
     HaeoDataUpdateCoordinator,
+    OptimizationContext,
     _build_coordinator_output,
 )
 from custom_components.haeo.elements import (
@@ -383,7 +385,12 @@ async def test_async_update_data_returns_outputs(
 
     mock_executor.assert_awaited_once_with(fake_network.optimize)
 
-    network_outputs = result["System"][ELEMENT_TYPE_NETWORK]
+    # Verify result is a CoordinatorData dataclass
+    assert result.context is not None
+    assert result.timestamp is not None
+    assert isinstance(result.outputs, dict)
+
+    network_outputs = result.outputs["System"][ELEMENT_TYPE_NETWORK]
     cost_output = network_outputs[OUTPUT_NAME_OPTIMIZATION_COST]
     assert cost_output.type == OutputType.COST
     assert cost_output.unit == hass.config.currency
@@ -401,7 +408,7 @@ async def test_async_update_data_returns_outputs(
     assert duration_output.state is not None
     assert duration_output.forecast is None
 
-    battery_outputs = result["Test Battery"][BATTERY_DEVICE_BATTERY]
+    battery_outputs = result.outputs["Test Battery"][BATTERY_DEVICE_BATTERY]
     battery_output = battery_outputs[BATTERY_POWER_CHARGE]
     assert battery_output.type == OutputType.POWER
     assert battery_output.unit == "kW"
@@ -933,8 +940,17 @@ async def test_async_update_data_returns_existing_when_concurrent(
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
 
     # Simulate existing data and in-progress flag
-    existing_data = {"existing": "data"}
-    coordinator.data = existing_data  # type: ignore[assignment]
+    existing_context = OptimizationContext(
+        participants={},
+        source_states={},
+        forecast_timestamps=(1000.0, 2000.0),
+    )
+    existing_data = CoordinatorData(
+        context=existing_context,
+        outputs={"existing": {}},
+        timestamp=datetime.now(UTC),
+    )
+    coordinator.data = existing_data
     coordinator._optimization_in_progress = True
 
     result = await coordinator._async_update_data()
@@ -1511,3 +1527,102 @@ async def test_async_run_optimization_skips_when_inputs_not_aligned(
 
     # async_refresh should not be called
     refresh_mock.assert_not_called()
+
+
+# --- OptimizationContext tests ---
+
+
+def test_optimization_context_build_collects_source_states() -> None:
+    """OptimizationContext.build collects source states from all input entities."""
+    # Create mock input entities with captured states
+    mock_state1 = State("sensor.power1", "100")
+    mock_state2 = State("sensor.power2", "200")
+
+    mock_entity1 = MagicMock()
+    mock_entity1.get_captured_source_states.return_value = {"sensor.power1": mock_state1}
+
+    mock_entity2 = MagicMock()
+    mock_entity2.get_captured_source_states.return_value = {"sensor.power2": mock_state2}
+
+    input_entities = {
+        ("Battery", ("basic", "power")): mock_entity1,
+        ("Solar", ("basic", "forecast")): mock_entity2,
+    }
+
+    # Create mock horizon manager
+    mock_horizon = MagicMock()
+    mock_horizon.get_forecast_timestamps.return_value = (1000.0, 2000.0, 3000.0)
+
+    # Create mock participant configs
+    participant_configs = {
+        "Battery": {"element_type": "battery", "basic": {"capacity": 10.0}},
+        "Solar": {"element_type": "solar", "basic": {"forecast": "sensor.solar"}},
+    }
+
+    # Build context
+    context = OptimizationContext.build(
+        participant_configs=participant_configs,
+        input_entities=input_entities,
+        horizon_manager=mock_horizon,
+    )
+
+    # Verify source states are collected
+    assert "sensor.power1" in context.source_states
+    assert "sensor.power2" in context.source_states
+    assert context.source_states["sensor.power1"] == mock_state1
+    assert context.source_states["sensor.power2"] == mock_state2
+
+
+def test_optimization_context_build_deep_copies_configs() -> None:
+    """OptimizationContext.build deep copies participant configs."""
+    nested_config = {"element_type": "battery", "basic": {"capacity": [1.0, 2.0, 3.0]}}
+    participant_configs = {"Battery": nested_config}
+
+    mock_entity = MagicMock()
+    mock_entity.get_captured_source_states.return_value = {}
+
+    mock_horizon = MagicMock()
+    mock_horizon.get_forecast_timestamps.return_value = (1000.0,)
+
+    context = OptimizationContext.build(
+        participant_configs=participant_configs,
+        input_entities={("Battery", ("basic", "capacity")): mock_entity},
+        horizon_manager=mock_horizon,
+    )
+
+    # Verify deep copy - modifying original doesn't affect context
+    nested_config["basic"]["capacity"].append(4.0)
+    assert context.participants["Battery"]["basic"]["capacity"] == [1.0, 2.0, 3.0]
+
+
+def test_optimization_context_build_captures_forecast_timestamps() -> None:
+    """OptimizationContext.build captures forecast timestamps from horizon manager."""
+    mock_horizon = MagicMock()
+    expected_timestamps = (1000.0, 2000.0, 3000.0, 4000.0)
+    mock_horizon.get_forecast_timestamps.return_value = expected_timestamps
+
+    context = OptimizationContext.build(
+        participant_configs={},
+        input_entities={},
+        horizon_manager=mock_horizon,
+    )
+
+    assert context.forecast_timestamps == expected_timestamps
+
+
+def test_optimization_context_is_immutable() -> None:
+    """OptimizationContext is frozen and cannot be modified."""
+    context = OptimizationContext(
+        participants={},
+        source_states={},
+        forecast_timestamps=(1000.0,),
+    )
+
+    with pytest.raises(AttributeError):
+        context.participants = {}  # type: ignore[misc]
+
+    with pytest.raises(AttributeError):
+        context.source_states = {}  # type: ignore[misc]
+
+    with pytest.raises(AttributeError):
+        context.forecast_timestamps = (2000.0,)  # type: ignore[misc]

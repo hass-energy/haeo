@@ -1213,3 +1213,69 @@ async def test_unrecorded_attributes_based_on_config(
         assert entity._unrecorded_attributes == FORECAST_UNRECORDED_ATTRIBUTES
     else:
         assert not hasattr(entity, "_unrecorded_attributes") or entity._unrecorded_attributes == frozenset()
+
+
+async def test_get_captured_source_states_editable_mode(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    device_entry: Mock,
+    curtailment_field_info: InputFieldInfo[SwitchEntityDescription],
+    horizon_manager: Mock,
+) -> None:
+    """EDITABLE mode entity returns empty dict from get_captured_source_states."""
+    subentry = _create_subentry("Test Solar", {"curtailment": True})
+
+    entity = HaeoInputSwitch(
+        hass=hass,
+        config_entry=config_entry,
+        subentry=subentry,
+        field_info=curtailment_field_info,
+        device_entry=device_entry,
+        horizon_manager=horizon_manager,
+    )
+
+    # EDITABLE mode has no source entities
+    assert entity.get_captured_source_states() == {}
+
+
+async def test_get_captured_source_states_driven_mode(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    device_entry: Mock,
+    curtailment_field_info: InputFieldInfo[SwitchEntityDescription],
+    horizon_manager: Mock,
+) -> None:
+    """DRIVEN mode entity captures source state when loading data."""
+    from homeassistant.core import State
+
+    # Set up source entity
+    hass.states.async_set("input_boolean.allow_curtailment", STATE_ON)
+    source_state = hass.states.get("input_boolean.allow_curtailment")
+    assert source_state is not None
+
+    # Use allow_curtailment key to match curtailment_field_info.field_name
+    subentry = _create_subentry("Test Solar", {"allow_curtailment": "input_boolean.allow_curtailment"})
+
+    entity = HaeoInputSwitch(
+        hass=hass,
+        config_entry=config_entry,
+        subentry=subentry,
+        field_info=curtailment_field_info,
+        device_entry=device_entry,
+        horizon_manager=horizon_manager,
+    )
+
+    # Before loading data, captured states should be empty
+    assert entity.get_captured_source_states() == {}
+
+    # Simulate loading data
+    entity._load_source_state()
+
+    # After loading, captured states should include the source entity
+    captured = entity.get_captured_source_states()
+    assert "input_boolean.allow_curtailment" in captured
+    assert isinstance(captured["input_boolean.allow_curtailment"], State)
+
+    # Verify it's a copy (modifications don't affect internal state)
+    captured["sensor.new_entity"] = Mock()
+    assert "sensor.new_entity" not in entity.get_captured_source_states()

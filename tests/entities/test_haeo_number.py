@@ -1249,3 +1249,68 @@ async def test_unrecorded_attributes_based_on_config(
         assert entity._unrecorded_attributes == FORECAST_UNRECORDED_ATTRIBUTES
     else:
         assert not hasattr(entity, "_unrecorded_attributes") or entity._unrecorded_attributes == frozenset()
+
+
+async def test_get_captured_source_states_editable_mode(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    device_entry: Mock,
+    power_field_info: InputFieldInfo[NumberEntityDescription],
+    horizon_manager: Mock,
+) -> None:
+    """EDITABLE mode entity returns empty dict from get_captured_source_states."""
+    subentry = _create_subentry("Test Battery", {"power_limit": 10.5})
+
+    entity = HaeoInputNumber(
+        hass=hass,
+        config_entry=config_entry,
+        subentry=subentry,
+        field_info=power_field_info,
+        device_entry=device_entry,
+        horizon_manager=horizon_manager,
+    )
+
+    # EDITABLE mode has no source entities
+    assert entity.get_captured_source_states() == {}
+
+
+async def test_get_captured_source_states_driven_mode(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    device_entry: Mock,
+    power_field_info: InputFieldInfo[NumberEntityDescription],
+    horizon_manager: Mock,
+) -> None:
+    """DRIVEN mode entity captures source states when loading data."""
+    from homeassistant.core import State
+
+    # Set up source entity
+    hass.states.async_set("sensor.power_limit", "1.5")
+    source_state = hass.states.get("sensor.power_limit")
+    assert source_state is not None
+
+    subentry = _create_subentry("Test Battery", {"power_limit": ["sensor.power_limit"]})
+
+    entity = HaeoInputNumber(
+        hass=hass,
+        config_entry=config_entry,
+        subentry=subentry,
+        field_info=power_field_info,
+        device_entry=device_entry,
+        horizon_manager=horizon_manager,
+    )
+
+    # Before loading data, captured states should be empty
+    assert entity.get_captured_source_states() == {}
+
+    # Simulate loading data
+    await entity._async_load_data()
+
+    # After loading, captured states should include the source entity
+    captured = entity.get_captured_source_states()
+    assert "sensor.power_limit" in captured
+    assert isinstance(captured["sensor.power_limit"], State)
+
+    # Verify it's a copy (modifications don't affect internal state)
+    captured["sensor.new_entity"] = Mock()
+    assert "sensor.new_entity" not in entity.get_captured_source_states()
