@@ -2,7 +2,7 @@
 
 from datetime import UTC, datetime
 from types import MappingProxyType
-from typing import Literal, cast
+from typing import Any, Literal, cast
 from unittest.mock import Mock
 
 from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass
@@ -33,7 +33,7 @@ from custom_components.haeo.model import OutputType
 from custom_components.haeo.sensor import async_setup_entry
 
 
-def _make_coordinator_data(outputs: dict | None = None) -> CoordinatorData | None:
+def _make_coordinator_data(outputs: dict[str, Any] | None = None) -> CoordinatorData | None:
     """Create a CoordinatorData instance for tests.
 
     Args:

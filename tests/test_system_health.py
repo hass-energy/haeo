@@ -1,6 +1,7 @@
 """Tests for HAEO system health reporting."""
 
 from datetime import UTC, datetime
+from typing import Any
 from unittest.mock import MagicMock, Mock, patch
 
 from homeassistant.components.system_health import SystemHealthRegistration
@@ -38,7 +39,7 @@ from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.system_health import async_register, async_system_health_info
 
 
-def _make_coordinator_data(outputs: dict) -> CoordinatorData:
+def _make_coordinator_data(outputs: dict[str, Any]) -> CoordinatorData:
     """Create a CoordinatorData instance for tests."""
     context = OptimizationContext(
         participants={},

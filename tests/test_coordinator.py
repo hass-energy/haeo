@@ -1553,8 +1553,8 @@ def test_optimization_context_build_collects_source_states() -> None:
     mock_horizon = MagicMock()
     mock_horizon.get_forecast_timestamps.return_value = (1000.0, 2000.0, 3000.0)
 
-    # Create mock participant configs
-    participant_configs = {
+    # Create mock participant configs (use Any to avoid strict TypedDict checking in tests)
+    participant_configs: Any = {
         "Battery": {"element_type": "battery", "basic": {"capacity": 10.0}},
         "Solar": {"element_type": "solar", "basic": {"forecast": "sensor.solar"}},
     }
@@ -1575,8 +1575,8 @@ def test_optimization_context_build_collects_source_states() -> None:
 
 def test_optimization_context_build_deep_copies_configs() -> None:
     """OptimizationContext.build deep copies participant configs."""
-    nested_config = {"element_type": "battery", "basic": {"capacity": [1.0, 2.0, 3.0]}}
-    participant_configs = {"Battery": nested_config}
+    nested_config: Any = {"element_type": "battery", "basic": {"capacity": [1.0, 2.0, 3.0]}}
+    participant_configs: Any = {"Battery": nested_config}
 
     mock_entity = MagicMock()
     mock_entity.get_captured_source_states.return_value = {}
@@ -1592,7 +1592,7 @@ def test_optimization_context_build_deep_copies_configs() -> None:
 
     # Verify deep copy - modifying original doesn't affect context
     nested_config["basic"]["capacity"].append(4.0)
-    assert context.participants["Battery"]["basic"]["capacity"] == [1.0, 2.0, 3.0]
+    assert context.participants["Battery"]["basic"]["capacity"] == [1.0, 2.0, 3.0]  # type: ignore[typeddict-item]
 
 
 def test_optimization_context_build_captures_forecast_timestamps() -> None:
