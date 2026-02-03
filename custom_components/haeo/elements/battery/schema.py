@@ -6,9 +6,9 @@ import numpy as np
 from numpy.typing import NDArray
 
 from custom_components.haeo.sections import (
-    CONF_CAPACITY,
     CONF_CONNECTION,
-    CONF_INITIAL_CHARGE_PERCENTAGE,
+    CONF_EFFICIENCY_SOURCE_TARGET,
+    CONF_EFFICIENCY_TARGET_SOURCE,
     CONF_MAX_POWER_SOURCE_TARGET,
     CONF_MAX_POWER_TARGET_SOURCE,
     CONF_PRICE_SOURCE_TARGET,
@@ -17,7 +17,6 @@ from custom_components.haeo.sections import (
     SECTION_EFFICIENCY,
     SECTION_POWER_LIMITS,
     SECTION_PRICING,
-    SECTION_STORAGE,
     ConnectedCommonConfig,
     ConnectedCommonData,
     EfficiencyConfig,
@@ -26,20 +25,21 @@ from custom_components.haeo.sections import (
     PowerLimitsData,
     PricingConfig,
     PricingData,
-    StorageSocConfig,
-    StorageSocData,
 )
 
 ELEMENT_TYPE: Final = "battery"
 
+SECTION_STORAGE: Final = "storage"
 SECTION_UNDERCHARGE: Final = "undercharge"
 SECTION_OVERCHARGE: Final = "overcharge"
 SECTION_LIMITS: Final = "limits"
 SECTION_PARTITIONING: Final = "partitioning"
 
+CONF_CAPACITY: Final = "capacity"
+CONF_INITIAL_CHARGE_PERCENTAGE: Final = "initial_charge_percentage"
+
 CONF_MIN_CHARGE_PERCENTAGE: Final = "min_charge_percentage"
 CONF_MAX_CHARGE_PERCENTAGE: Final = "max_charge_percentage"
-CONF_EFFICIENCY: Final = "efficiency"
 CONF_CONFIGURE_PARTITIONS: Final = "configure_partitions"
 
 CONF_PARTITION_PERCENTAGE: Final = "percentage"
@@ -51,7 +51,8 @@ OPTIONAL_INPUT_FIELDS: Final[frozenset[str]] = frozenset(
         CONF_MAX_CHARGE_PERCENTAGE,
         CONF_MAX_POWER_SOURCE_TARGET,
         CONF_MAX_POWER_TARGET_SOURCE,
-        CONF_EFFICIENCY,
+        CONF_EFFICIENCY_SOURCE_TARGET,
+        CONF_EFFICIENCY_TARGET_SOURCE,
         CONF_PRICE_SOURCE_TARGET,
         CONF_PRICE_TARGET_SOURCE,
         CONF_PARTITION_PERCENTAGE,
@@ -70,6 +71,23 @@ PARTITION_FIELD_NAMES: Final[frozenset[str]] = frozenset(
 
 type LimitsValueConfig = str | float
 type LimitsValueData = NDArray[np.floating[Any]] | float
+
+type StorageValueConfig = str | float
+type StorageValueData = NDArray[np.floating[Any]]
+
+
+class StorageSocConfig(TypedDict):
+    """Storage config with required SOC percentage."""
+
+    capacity: StorageValueConfig
+    initial_charge_percentage: StorageValueConfig
+
+
+class StorageSocData(TypedDict):
+    """Loaded storage values with required SOC percentage."""
+
+    capacity: StorageValueData
+    initial_charge_percentage: StorageValueData
 
 
 class LimitsConfig(TypedDict, total=False):
@@ -150,7 +168,8 @@ __all__ = [
     "CONF_CAPACITY",
     "CONF_CONFIGURE_PARTITIONS",
     "CONF_CONNECTION",
-    "CONF_EFFICIENCY",
+    "CONF_EFFICIENCY_SOURCE_TARGET",
+    "CONF_EFFICIENCY_TARGET_SOURCE",
     "CONF_INITIAL_CHARGE_PERCENTAGE",
     "CONF_MAX_CHARGE_PERCENTAGE",
     "CONF_MAX_POWER_SOURCE_TARGET",

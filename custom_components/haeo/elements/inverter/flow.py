@@ -23,6 +23,8 @@ from custom_components.haeo.flows.field_schema import (
 )
 from custom_components.haeo.sections import (
     CONF_CONNECTION,
+    CONF_EFFICIENCY_SOURCE_TARGET,
+    CONF_EFFICIENCY_TARGET_SOURCE,
     CONF_MAX_POWER_SOURCE_TARGET,
     CONF_MAX_POWER_TARGET_SOURCE,
     SECTION_COMMON,
@@ -35,13 +37,7 @@ from custom_components.haeo.sections import (
 )
 
 from .adapter import adapter
-from .schema import (
-    CONF_EFFICIENCY_AC_TO_DC,
-    CONF_EFFICIENCY_DC_TO_AC,
-    ELEMENT_TYPE,
-    OPTIONAL_INPUT_FIELDS,
-    InverterConfigSchema,
-)
+from .schema import ELEMENT_TYPE, OPTIONAL_INPUT_FIELDS, InverterConfigSchema
 
 
 class InverterSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
@@ -55,7 +51,10 @@ class InverterSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                 (CONF_MAX_POWER_SOURCE_TARGET, CONF_MAX_POWER_TARGET_SOURCE),
                 collapsed=False,
             ),
-            efficiency_section((CONF_EFFICIENCY_DC_TO_AC, CONF_EFFICIENCY_AC_TO_DC), collapsed=True),
+            efficiency_section(
+                (CONF_EFFICIENCY_SOURCE_TARGET, CONF_EFFICIENCY_TARGET_SOURCE),
+                collapsed=True,
+            ),
         )
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> SubentryFlowResult:

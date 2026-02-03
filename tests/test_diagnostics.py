@@ -45,7 +45,8 @@ from custom_components.haeo.elements import ELEMENT_TYPE_BATTERY
 from custom_components.haeo.elements.battery import (
     CONF_CAPACITY,
     CONF_CONNECTION,
-    CONF_EFFICIENCY,
+    CONF_EFFICIENCY_SOURCE_TARGET,
+    CONF_EFFICIENCY_TARGET_SOURCE,
     CONF_INITIAL_CHARGE_PERCENTAGE,
     CONF_MAX_CHARGE_PERCENTAGE,
     CONF_MAX_POWER_SOURCE_TARGET,
@@ -53,18 +54,13 @@ from custom_components.haeo.elements.battery import (
     CONF_MIN_CHARGE_PERCENTAGE,
     SECTION_LIMITS,
     SECTION_PARTITIONING,
+    SECTION_STORAGE,
 )
 from custom_components.haeo.elements.grid import CONF_PRICE_SOURCE_TARGET, CONF_PRICE_TARGET_SOURCE, GRID_POWER_IMPORT
 from custom_components.haeo.entities.haeo_number import ConfigEntityMode, HaeoInputNumber
 from custom_components.haeo.flows import HUB_SECTION_COMMON, HUB_SECTION_TIERS
 from custom_components.haeo.model import OutputType
-from custom_components.haeo.sections import (
-    SECTION_COMMON,
-    SECTION_EFFICIENCY,
-    SECTION_POWER_LIMITS,
-    SECTION_PRICING,
-    SECTION_STORAGE,
-)
+from custom_components.haeo.sections import SECTION_COMMON, SECTION_EFFICIENCY, SECTION_POWER_LIMITS, SECTION_PRICING
 
 
 def _battery_config(
@@ -77,7 +73,8 @@ def _battery_config(
     max_power_target_source: float | None = None,
     min_charge_percentage: float | None = None,
     max_charge_percentage: float | None = None,
-    efficiency: float | None = None,
+    efficiency_source_target: float | None = None,
+    efficiency_target_source: float | None = None,
 ) -> dict[str, Any]:
     """Build a sectioned battery config dict for diagnostics tests."""
     limits: dict[str, Any] = {}
@@ -92,8 +89,10 @@ def _battery_config(
         limits[CONF_MIN_CHARGE_PERCENTAGE] = min_charge_percentage
     if max_charge_percentage is not None:
         limits[CONF_MAX_CHARGE_PERCENTAGE] = max_charge_percentage
-    if efficiency is not None:
-        efficiency_section[CONF_EFFICIENCY] = efficiency
+    if efficiency_source_target is not None:
+        efficiency_section[CONF_EFFICIENCY_SOURCE_TARGET] = efficiency_source_target
+    if efficiency_target_source is not None:
+        efficiency_section[CONF_EFFICIENCY_TARGET_SOURCE] = efficiency_target_source
 
     storage = {
         CONF_CAPACITY: capacity,
@@ -209,7 +208,8 @@ async def test_diagnostics_with_participants(hass: HomeAssistant) -> None:
                 max_power_target_source=5.0,
                 min_charge_percentage=10.0,
                 max_charge_percentage=90.0,
-                efficiency=95.0,
+                efficiency_source_target=95.0,
+                efficiency_target_source=95.0,
             )
         ),
         subentry_type=ELEMENT_TYPE_BATTERY,
@@ -296,7 +296,8 @@ async def test_diagnostics_skips_network_subentry(hass: HomeAssistant) -> None:
                 max_power_target_source=5.0,
                 min_charge_percentage=10.0,
                 max_charge_percentage=90.0,
-                efficiency=95.0,
+                efficiency_source_target=95.0,
+                efficiency_target_source=95.0,
             )
         ),
         subentry_type=ELEMENT_TYPE_BATTERY,
@@ -442,7 +443,8 @@ async def test_diagnostics_captures_editable_entity_values(hass: HomeAssistant) 
                 max_power_target_source=5.0,
                 min_charge_percentage=10.0,
                 max_charge_percentage=90.0,
-                efficiency=95.0,
+                efficiency_source_target=95.0,
+                efficiency_target_source=95.0,
             )
         ),
         subentry_type=ELEMENT_TYPE_BATTERY,
@@ -493,7 +495,8 @@ async def test_diagnostics_skips_unknown_element_in_input_entities(hass: HomeAss
                 max_power_target_source=5.0,
                 min_charge_percentage=10.0,
                 max_charge_percentage=90.0,
-                efficiency=95.0,
+                efficiency_source_target=95.0,
+                efficiency_target_source=95.0,
             )
         ),
         subentry_type=ELEMENT_TYPE_BATTERY,
@@ -544,7 +547,8 @@ async def test_diagnostics_skips_driven_entity_values(hass: HomeAssistant) -> No
                 max_power_target_source=5.0,
                 min_charge_percentage=10.0,
                 max_charge_percentage=90.0,
-                efficiency=95.0,
+                efficiency_source_target=95.0,
+                efficiency_target_source=95.0,
             )
         ),
         subentry_type=ELEMENT_TYPE_BATTERY,
@@ -820,7 +824,8 @@ async def test_diagnostics_skips_switch_with_none_value(hass: HomeAssistant) -> 
                 max_power_target_source=5.0,
                 min_charge_percentage=10.0,
                 max_charge_percentage=90.0,
-                efficiency=95.0,
+                efficiency_source_target=95.0,
+                efficiency_target_source=95.0,
             )
         ),
         subentry_type=ELEMENT_TYPE_BATTERY,
@@ -871,7 +876,8 @@ async def test_collect_diagnostics_returns_missing_entity_ids(hass: HomeAssistan
                 max_power_target_source=5.0,
                 min_charge_percentage=10.0,
                 max_charge_percentage=90.0,
-                efficiency=95.0,
+                efficiency_source_target=95.0,
+                efficiency_target_source=95.0,
             )
         ),
         subentry_type=ELEMENT_TYPE_BATTERY,
@@ -918,7 +924,8 @@ async def test_collect_diagnostics_returns_empty_missing_when_all_found(hass: Ho
                 max_power_target_source=5.0,
                 min_charge_percentage=10.0,
                 max_charge_percentage=90.0,
-                efficiency=95.0,
+                efficiency_source_target=95.0,
+                efficiency_target_source=95.0,
             )
         ),
         subentry_type=ELEMENT_TYPE_BATTERY,

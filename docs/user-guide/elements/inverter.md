@@ -13,10 +13,10 @@ They provide a DC bus for connecting batteries and solar panels, with bidirectio
 | ------------------------------------------ | ------------------------------------- | -------- | ------- | ------------------------------------------------------ |
 | **[Name](#name)**                          | String                                | Yes      | -       | Unique identifier for this inverter                    |
 | **[Connection](#connection)**              | Element                               | Yes      | -       | AC side node to connect to                             |
-| **[Max Power DC→AC](#max-power-dc-to-ac)** | [sensor](../forecasts-and-sensors.md) | No       | -       | Maximum power when converting DC to AC (kW)            |
-| **[Max Power AC→DC](#max-power-ac-to-dc)** | [sensor](../forecasts-and-sensors.md) | No       | -       | Maximum power when converting AC to DC (kW)            |
-| **Efficiency DC→AC**                       | Number (%)                            | No       | 100     | Efficiency percentage when inverting DC to AC (0-100)  |
-| **Efficiency AC→DC**                       | Number (%)                            | No       | 100     | Efficiency percentage when rectifying AC to DC (0-100) |
+| **[Max Power DC to AC](#max-power-dc-to-ac)** | [sensor](../forecasts-and-sensors.md) | No       | -       | Maximum power when converting DC to AC (kW)            |
+| **[Max Power AC to DC](#max-power-ac-to-dc)** | [sensor](../forecasts-and-sensors.md) | No       | -       | Maximum power when converting AC to DC (kW)            |
+| **Efficiency DC to AC**                      | Number (%)                            | No       | 100     | Efficiency percentage when inverting DC to AC (0-100)  |
+| **Efficiency AC to DC**                      | Number (%)                            | No       | 100     | Efficiency percentage when rectifying AC to DC (0-100) |
 
 ## Name
 
@@ -32,28 +32,28 @@ This is typically your home's main electrical bus or switchboard node.
 
 Other elements (batteries, solar panels) connect to the inverter's DC bus by specifying the inverter name as their connection target.
 
-## Max Power DC→AC
+## Max Power DC to AC
 
 Maximum power the inverter can convert from DC to AC (inverting direction).
 Leave empty for unlimited power.
 
 Use a sensor to model time-varying power limits, or an input number helper for a constant value.
 
-## Max Power AC→DC
+## Max Power AC to DC
 
 Maximum power the inverter can convert from AC to DC (rectifying direction).
 Leave empty for unlimited power.
 
 Use a sensor to model time-varying power limits, or an input number helper for a constant value.
 
-## Efficiency DC→AC
+## Efficiency DC to AC
 
 Efficiency percentage when converting DC to AC power (inverting).
 Typical modern inverters achieve 95-98% efficiency.
 
 **Default**: 100% (no losses)
 
-## Efficiency AC→DC
+## Efficiency AC to DC
 
 Efficiency percentage when converting AC to DC power (rectifying).
 Rectifying efficiency may differ from inverting efficiency.
@@ -68,8 +68,8 @@ Rectifying efficiency may differ from inverting efficiency.
 | -------------------- | ------------- |
 | **Name**             | Main Inverter |
 | **Connection**       | Home Bus      |
-| **Efficiency DC→AC** | 97.0          |
-| **Efficiency AC→DC** | 97.0          |
+| **Efficiency DC to AC** | 97.0          |
+| **Efficiency AC to DC** | 97.0          |
 
 ### With Power Limits
 
@@ -77,10 +77,10 @@ Rectifying efficiency may differ from inverting efficiency.
 | -------------------- | ---------------------------- |
 | **Name**             | Hybrid Inverter              |
 | **Connection**       | Home Bus                     |
-| **Efficiency DC→AC** | 96.0                         |
-| **Efficiency AC→DC** | 95.0                         |
-| **Max Power DC→AC**  | input_number.inverter_rating |
-| **Max Power AC→DC**  | input_number.inverter_rating |
+| **Efficiency DC to AC** | 96.0                         |
+| **Efficiency AC to DC** | 95.0                         |
+| **Max Power DC to AC**  | input_number.inverter_rating |
+| **Max Power AC to DC**  | input_number.inverter_rating |
 
 ### Asymmetric Power Ratings
 
@@ -90,10 +90,10 @@ Some inverters have different power ratings for inverting vs. rectifying.
 | -------------------- | ----------------------------- |
 | **Name**             | Solar Inverter                |
 | **Connection**       | AC Panel                      |
-| **Efficiency DC→AC** | 97.5                          |
-| **Efficiency AC→DC** | 96.0                          |
-| **Max Power DC→AC**  | input_number.inverter_max_5kw |
-| **Max Power AC→DC**  | input_number.inverter_max_3kw |
+| **Efficiency DC to AC** | 97.5                          |
+| **Efficiency AC to DC** | 96.0                          |
+| **Max Power DC to AC**  | input_number.inverter_max_5kw |
+| **Max Power AC to DC**  | input_number.inverter_max_3kw |
 
 ### Input Entities
 
@@ -102,10 +102,10 @@ Input entities appear as Number entities with the `config` entity category.
 
 | Input                                   | Unit | Description                         |
 | --------------------------------------- | ---- | ----------------------------------- |
-| `number.{name}_max_power_source_target` | kW   | Maximum DC→AC power (if configured) |
-| `number.{name}_max_power_target_source` | kW   | Maximum AC→DC power (if configured) |
-| `number.{name}_efficiency_dc_to_ac`     | %    | Efficiency DC→AC (if configured)    |
-| `number.{name}_efficiency_ac_to_dc`     | %    | Efficiency AC→DC (if configured)    |
+| `number.{name}_max_power_source_target` | kW   | Maximum DC to AC power (if configured) |
+| `number.{name}_max_power_target_source` | kW   | Maximum AC to DC power (if configured) |
+| `number.{name}_efficiency_source_target` | %    | Efficiency DC to AC (if configured)    |
+| `number.{name}_efficiency_target_source` | %    | Efficiency AC to DC (if configured)    |
 
 Input entities include a `forecast` attribute showing values for each optimization period.
 See the [Input Entities developer guide](../../developer-guide/inputs.md) for details on input entity behavior.
@@ -146,7 +146,7 @@ The net power flow through the inverter (DC to AC minus AC to DC).
 Positive values indicate net DC to AC conversion.
 Negative values indicate net AC to DC conversion.
 
-**Example**: A value of 1.5 kW means the inverter is net converting 1.5 kW from DC to AC (e.g., 3.5 kW DC→AC and 2.0 kW AC→DC).
+**Example**: A value of 1.5 kW means the inverter is net converting 1.5 kW from DC to AC (e.g., 3.5 kW DC to AC and 2.0 kW AC to DC).
 
 ### DC Bus Power Balance
 

@@ -21,18 +21,17 @@ from custom_components.haeo.flows.field_schema import (
     preprocess_sectioned_choose_input,
     validate_sectioned_choose_fields,
 )
-from custom_components.haeo.sections import (
-    CONF_CAPACITY,
-    CONF_INITIAL_CHARGE,
-    SECTION_COMMON,
-    SECTION_STORAGE,
-    build_common_fields,
-    common_section,
-    storage_section,
-)
+from custom_components.haeo.sections import SECTION_COMMON, build_common_fields, common_section
 
 from .adapter import adapter
-from .schema import ELEMENT_TYPE, OPTIONAL_INPUT_FIELDS, BatterySectionConfigSchema
+from .schema import (
+    CONF_CAPACITY,
+    CONF_INITIAL_CHARGE,
+    ELEMENT_TYPE,
+    OPTIONAL_INPUT_FIELDS,
+    SECTION_STORAGE,
+    BatterySectionConfigSchema,
+)
 
 
 class BatterySectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
@@ -42,7 +41,11 @@ class BatterySectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         """Return sections for the configuration step."""
         return (
             common_section((CONF_NAME,), collapsed=False),
-            storage_section((CONF_CAPACITY, CONF_INITIAL_CHARGE), collapsed=False),
+            SectionDefinition(
+                key=SECTION_STORAGE,
+                fields=(CONF_CAPACITY, CONF_INITIAL_CHARGE),
+                collapsed=False,
+            ),
         )
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> SubentryFlowResult:

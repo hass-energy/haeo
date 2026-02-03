@@ -3,6 +3,8 @@
 from typing import Final, Literal, TypedDict
 
 from custom_components.haeo.sections import (
+    CONF_EFFICIENCY_SOURCE_TARGET,
+    CONF_EFFICIENCY_TARGET_SOURCE,
     CONF_MAX_POWER_SOURCE_TARGET,
     CONF_MAX_POWER_TARGET_SOURCE,
     SECTION_COMMON,
@@ -18,10 +20,9 @@ from custom_components.haeo.sections import (
 
 ELEMENT_TYPE: Final = "inverter"
 
-CONF_EFFICIENCY_AC_TO_DC: Final = "efficiency_ac_to_dc"
-CONF_EFFICIENCY_DC_TO_AC: Final = "efficiency_dc_to_ac"
-
-OPTIONAL_INPUT_FIELDS: Final[frozenset[str]] = frozenset({CONF_EFFICIENCY_DC_TO_AC, CONF_EFFICIENCY_AC_TO_DC})
+OPTIONAL_INPUT_FIELDS: Final[frozenset[str]] = frozenset(
+    {CONF_EFFICIENCY_SOURCE_TARGET, CONF_EFFICIENCY_TARGET_SOURCE}
+)
 
 
 class InverterConfigSchema(TypedDict):
@@ -43,8 +44,8 @@ class InverterConfigData(TypedDict):
 
 
 __all__ = [
-    "CONF_EFFICIENCY_AC_TO_DC",
-    "CONF_EFFICIENCY_DC_TO_AC",
+    "CONF_EFFICIENCY_SOURCE_TARGET",
+    "CONF_EFFICIENCY_TARGET_SOURCE",
     "CONF_MAX_POWER_SOURCE_TARGET",
     "CONF_MAX_POWER_TARGET_SOURCE",
     "ELEMENT_TYPE",

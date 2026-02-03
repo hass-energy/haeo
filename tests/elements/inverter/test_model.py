@@ -46,8 +46,8 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "max_power_target_source": np.array([10.0]),
             },
             efficiency={
-                "efficiency_dc_to_ac": np.array(1.0),
-                "efficiency_ac_to_dc": np.array(1.0),
+                "efficiency_source_target": np.array(1.0),
+                "efficiency_target_source": np.array(1.0),
             },
         ),
         "model": [
@@ -82,8 +82,8 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "max_power_target_source": np.array([10.0]),
             },
             efficiency={
-                "efficiency_dc_to_ac": np.array(1.0),
-                "efficiency_ac_to_dc": np.array(1.0),
+                "efficiency_source_target": np.array(1.0),
+                "efficiency_target_source": np.array(1.0),
             },
         ),
         "model": [

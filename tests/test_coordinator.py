@@ -59,7 +59,8 @@ from custom_components.haeo.elements.battery import (
     BATTERY_POWER_CHARGE,
     CONF_CAPACITY,
     CONF_CONNECTION,
-    CONF_EFFICIENCY,
+    CONF_EFFICIENCY_SOURCE_TARGET,
+    CONF_EFFICIENCY_TARGET_SOURCE,
     CONF_INITIAL_CHARGE_PERCENTAGE,
     CONF_MAX_CHARGE_PERCENTAGE,
     CONF_MAX_POWER_SOURCE_TARGET,
@@ -67,6 +68,7 @@ from custom_components.haeo.elements.battery import (
     CONF_MIN_CHARGE_PERCENTAGE,
     SECTION_LIMITS,
     SECTION_PARTITIONING,
+    SECTION_STORAGE,
 )
 from custom_components.haeo.elements.connection import (
     CONF_SOURCE,
@@ -84,13 +86,7 @@ from custom_components.haeo.elements.solar import SOLAR_POWER
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON, HUB_SECTION_TIERS
 from custom_components.haeo.model import Network, OutputData, OutputType
 from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_NODE
-from custom_components.haeo.sections import (
-    SECTION_COMMON,
-    SECTION_EFFICIENCY,
-    SECTION_POWER_LIMITS,
-    SECTION_PRICING,
-    SECTION_STORAGE,
-)
+from custom_components.haeo.sections import SECTION_COMMON, SECTION_EFFICIENCY, SECTION_POWER_LIMITS, SECTION_PRICING
 
 
 @pytest.fixture
@@ -148,7 +144,8 @@ def mock_battery_subentry(hass: HomeAssistant, mock_hub_entry: MockConfigEntry) 
                 },
                 SECTION_PRICING: {},
                 SECTION_EFFICIENCY: {
-                    CONF_EFFICIENCY: 95.0,
+                    CONF_EFFICIENCY_SOURCE_TARGET: 95.0,
+                    CONF_EFFICIENCY_TARGET_SOURCE: 95.0,
                 },
                 SECTION_PARTITIONING: {},
             }

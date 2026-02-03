@@ -188,11 +188,8 @@ def _migrate_subentry_data(subentry: ConfigSubentry) -> dict[str, Any] | None:
         solar,
     )
     from custom_components.haeo.sections import (  # noqa: PLC0415
-        CONF_CAPACITY,
         CONF_CONNECTION,
         CONF_FORECAST,
-        CONF_INITIAL_CHARGE,
-        CONF_INITIAL_CHARGE_PERCENTAGE,
         CONF_MAX_POWER_SOURCE_TARGET,
         CONF_MAX_POWER_TARGET_SOURCE,
         CONF_PRICE_SOURCE_TARGET,
@@ -202,7 +199,6 @@ def _migrate_subentry_data(subentry: ConfigSubentry) -> dict[str, Any] | None:
         SECTION_FORECAST,
         SECTION_POWER_LIMITS,
         SECTION_PRICING,
-        SECTION_STORAGE,
     )
 
     def get_value(key: str) -> Any | None:
@@ -235,7 +231,7 @@ def _migrate_subentry_data(subentry: ConfigSubentry) -> dict[str, Any] | None:
 
         for key in (CONF_NAME, CONF_CONNECTION):
             add_if_present(common, key)
-        for key in (CONF_CAPACITY, CONF_INITIAL_CHARGE_PERCENTAGE):
+        for key in (battery.CONF_CAPACITY, battery.CONF_INITIAL_CHARGE_PERCENTAGE):
             add_if_present(storage, key)
         for key in (
             battery.CONF_MIN_CHARGE_PERCENTAGE,
@@ -254,7 +250,11 @@ def _migrate_subentry_data(subentry: ConfigSubentry) -> dict[str, Any] | None:
             pricing.setdefault(CONF_PRICE_SOURCE_TARGET, legacy_discharge_cost)
         if (legacy_charge_incentive := get_value("early_charge_incentive")) is not None:
             pricing.setdefault(CONF_PRICE_TARGET_SOURCE, legacy_charge_incentive)
-        add_if_present(efficiency, battery.CONF_EFFICIENCY)
+        for key in (battery.CONF_EFFICIENCY_SOURCE_TARGET, battery.CONF_EFFICIENCY_TARGET_SOURCE):
+            add_if_present(efficiency, key)
+        if (legacy_efficiency := get_value("efficiency")) is not None:
+            efficiency.setdefault(battery.CONF_EFFICIENCY_SOURCE_TARGET, legacy_efficiency)
+            efficiency.setdefault(battery.CONF_EFFICIENCY_TARGET_SOURCE, legacy_efficiency)
         add_if_present(partitioning, battery.CONF_CONFIGURE_PARTITIONS)
         if isinstance(data.get(battery.SECTION_UNDERCHARGE), dict):
             undercharge.update(data[battery.SECTION_UNDERCHARGE])
@@ -263,7 +263,7 @@ def _migrate_subentry_data(subentry: ConfigSubentry) -> dict[str, Any] | None:
 
         migrated |= {
             SECTION_COMMON: common,
-            SECTION_STORAGE: storage,
+            battery.SECTION_STORAGE: storage,
             battery.SECTION_LIMITS: limits,
             SECTION_POWER_LIMITS: power_limits,
             SECTION_PRICING: pricing,
@@ -278,11 +278,11 @@ def _migrate_subentry_data(subentry: ConfigSubentry) -> dict[str, Any] | None:
         common: dict[str, Any] = {}
         storage: dict[str, Any] = {}
         add_if_present(common, CONF_NAME)
-        add_if_present(storage, CONF_CAPACITY)
-        add_if_present(storage, CONF_INITIAL_CHARGE)
+        add_if_present(storage, battery_section.CONF_CAPACITY)
+        add_if_present(storage, battery_section.CONF_INITIAL_CHARGE)
         migrated |= {
             SECTION_COMMON: common,
-            SECTION_STORAGE: storage,
+            battery_section.SECTION_STORAGE: storage,
         }
         return migrated
 
@@ -347,8 +347,12 @@ def _migrate_subentry_data(subentry: ConfigSubentry) -> dict[str, Any] | None:
             power_limits.setdefault(CONF_MAX_POWER_SOURCE_TARGET, legacy_dc_to_ac)
         if (legacy_ac_to_dc := get_value("max_power_ac_to_dc")) is not None:
             power_limits.setdefault(CONF_MAX_POWER_TARGET_SOURCE, legacy_ac_to_dc)
-        for key in (inverter.CONF_EFFICIENCY_DC_TO_AC, inverter.CONF_EFFICIENCY_AC_TO_DC):
+        for key in (inverter.CONF_EFFICIENCY_SOURCE_TARGET, inverter.CONF_EFFICIENCY_TARGET_SOURCE):
             add_if_present(efficiency, key)
+        if (legacy_dc_to_ac := get_value("efficiency_dc_to_ac")) is not None:
+            efficiency.setdefault(inverter.CONF_EFFICIENCY_SOURCE_TARGET, legacy_dc_to_ac)
+        if (legacy_ac_to_dc := get_value("efficiency_ac_to_dc")) is not None:
+            efficiency.setdefault(inverter.CONF_EFFICIENCY_TARGET_SOURCE, legacy_ac_to_dc)
         migrated |= {
             SECTION_COMMON: common,
             SECTION_POWER_LIMITS: power_limits,

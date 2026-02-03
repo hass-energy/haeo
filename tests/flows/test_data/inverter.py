@@ -3,8 +3,8 @@
 from custom_components.haeo.const import CONF_NAME
 from custom_components.haeo.elements.inverter import (
     CONF_CONNECTION,
-    CONF_EFFICIENCY_AC_TO_DC,
-    CONF_EFFICIENCY_DC_TO_AC,
+    CONF_EFFICIENCY_SOURCE_TARGET,
+    CONF_EFFICIENCY_TARGET_SOURCE,
     CONF_MAX_POWER_SOURCE_TARGET,
     CONF_MAX_POWER_TARGET_SOURCE,
     SECTION_COMMON,
@@ -27,8 +27,8 @@ VALID_DATA = [
                 CONF_MAX_POWER_TARGET_SOURCE: 5.0,
             },
             SECTION_EFFICIENCY: {
-                CONF_EFFICIENCY_DC_TO_AC: 95.0,
-                CONF_EFFICIENCY_AC_TO_DC: 95.0,
+                CONF_EFFICIENCY_SOURCE_TARGET: 95.0,
+                CONF_EFFICIENCY_TARGET_SOURCE: 95.0,
             },
         },
     },

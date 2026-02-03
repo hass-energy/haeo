@@ -21,9 +21,7 @@ from custom_components.haeo.model.elements.segments import SegmentSpec, SocPrici
 from custom_components.haeo.model.output_data import OutputData
 from custom_components.haeo.model.util import broadcast_to_sequence
 from custom_components.haeo.sections import (
-    CONF_CAPACITY,
     CONF_CONNECTION,
-    CONF_INITIAL_CHARGE_PERCENTAGE,
     CONF_MAX_POWER_SOURCE_TARGET,
     CONF_MAX_POWER_TARGET_SOURCE,
     CONF_PRICE_SOURCE_TARGET,
@@ -32,11 +30,13 @@ from custom_components.haeo.sections import (
     SECTION_EFFICIENCY,
     SECTION_POWER_LIMITS,
     SECTION_PRICING,
-    SECTION_STORAGE,
 )
 
 from .schema import (
-    CONF_EFFICIENCY,
+    CONF_CAPACITY,
+    CONF_EFFICIENCY_SOURCE_TARGET,
+    CONF_EFFICIENCY_TARGET_SOURCE,
+    CONF_INITIAL_CHARGE_PERCENTAGE,
     CONF_MAX_CHARGE_PERCENTAGE,
     CONF_MIN_CHARGE_PERCENTAGE,
     CONF_PARTITION_COST,
@@ -44,6 +44,7 @@ from .schema import (
     ELEMENT_TYPE,
     SECTION_LIMITS,
     SECTION_OVERCHARGE,
+    SECTION_STORAGE,
     SECTION_UNDERCHARGE,
     BatteryConfigData,
     BatteryConfigSchema,
@@ -128,7 +129,8 @@ class BatteryAdapter:
             (power_limits, CONF_MAX_POWER_TARGET_SOURCE),
             (limits, CONF_MIN_CHARGE_PERCENTAGE),
             (limits, CONF_MAX_CHARGE_PERCENTAGE),
-            (efficiency, CONF_EFFICIENCY),
+            (efficiency, CONF_EFFICIENCY_SOURCE_TARGET),
+            (efficiency, CONF_EFFICIENCY_TARGET_SOURCE),
             (pricing, CONF_PRICE_SOURCE_TARGET),
             (pricing, CONF_PRICE_TARGET_SOURCE),
             (undercharge, CONF_PARTITION_PERCENTAGE),
@@ -242,11 +244,26 @@ class BatteryAdapter:
                 ),
             },
             SECTION_EFFICIENCY: {
-                CONF_EFFICIENCY: InputFieldInfo(
-                    field_name=CONF_EFFICIENCY,
+                CONF_EFFICIENCY_SOURCE_TARGET: InputFieldInfo(
+                    field_name=CONF_EFFICIENCY_SOURCE_TARGET,
                     entity_description=NumberEntityDescription(
-                        key=CONF_EFFICIENCY,
-                        translation_key=f"{ELEMENT_TYPE}_{CONF_EFFICIENCY}",
+                        key=CONF_EFFICIENCY_SOURCE_TARGET,
+                        translation_key=f"{ELEMENT_TYPE}_{CONF_EFFICIENCY_SOURCE_TARGET}",
+                        native_unit_of_measurement=PERCENTAGE,
+                        device_class=NumberDeviceClass.POWER_FACTOR,
+                        native_min_value=50.0,
+                        native_max_value=100.0,
+                        native_step=0.1,
+                    ),
+                    output_type=OutputType.EFFICIENCY,
+                    time_series=True,
+                    defaults=InputFieldDefaults(mode="value", value=95.0),
+                ),
+                CONF_EFFICIENCY_TARGET_SOURCE: InputFieldInfo(
+                    field_name=CONF_EFFICIENCY_TARGET_SOURCE,
+                    entity_description=NumberEntityDescription(
+                        key=CONF_EFFICIENCY_TARGET_SOURCE,
+                        translation_key=f"{ELEMENT_TYPE}_{CONF_EFFICIENCY_TARGET_SOURCE}",
                         native_unit_of_measurement=PERCENTAGE,
                         device_class=NumberDeviceClass.POWER_FACTOR,
                         native_min_value=50.0,
@@ -326,7 +343,8 @@ class BatteryAdapter:
 
         min_charge_percentage = limits.get(CONF_MIN_CHARGE_PERCENTAGE, DEFAULTS[CONF_MIN_CHARGE_PERCENTAGE])
         max_charge_percentage = limits.get(CONF_MAX_CHARGE_PERCENTAGE, DEFAULTS[CONF_MAX_CHARGE_PERCENTAGE])
-        efficiency = efficiency_section.get(CONF_EFFICIENCY)
+        efficiency_source_target = efficiency_section.get(CONF_EFFICIENCY_SOURCE_TARGET)
+        efficiency_target_source = efficiency_section.get(CONF_EFFICIENCY_TARGET_SOURCE)
 
         undercharge_cost = undercharge.get(CONF_PARTITION_COST)
         overcharge_cost = overcharge.get(CONF_PARTITION_COST)
@@ -389,8 +407,8 @@ class BatteryAdapter:
         segments: dict[str, SegmentSpec] = {
             "efficiency": {
                 "segment_type": "efficiency",
-                "efficiency_source_target": efficiency,  # Battery to network (discharge)
-                "efficiency_target_source": efficiency,  # Network to battery (charge)
+                "efficiency_source_target": efficiency_source_target,  # Battery to network (discharge)
+                "efficiency_target_source": efficiency_target_source,  # Network to battery (charge)
             },
             "power_limit": {
                 "segment_type": "power_limit",

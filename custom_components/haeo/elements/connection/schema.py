@@ -3,6 +3,8 @@
 from typing import Final, Literal, TypedDict
 
 from custom_components.haeo.sections import (
+    CONF_EFFICIENCY_SOURCE_TARGET,
+    CONF_EFFICIENCY_TARGET_SOURCE,
     CONF_MAX_POWER_SOURCE_TARGET,
     CONF_MAX_POWER_TARGET_SOURCE,
     CONF_PRICE_SOURCE_TARGET,
@@ -27,9 +29,6 @@ SECTION_ENDPOINTS: Final = "endpoints"
 
 CONF_SOURCE: Final = "source"
 CONF_TARGET: Final = "target"
-
-CONF_EFFICIENCY_SOURCE_TARGET: Final = "efficiency_source_target"
-CONF_EFFICIENCY_TARGET_SOURCE: Final = "efficiency_target_source"
 
 OPTIONAL_INPUT_FIELDS: Final[frozenset[str]] = frozenset(
     {

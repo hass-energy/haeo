@@ -80,7 +80,8 @@ Battery creates a single Home Assistant device:
 | Overcharge cost             | SOC pricing segment   | `charge_capacity_price`                                | Penalty above max SOC      |
 | `price_target_source`       | Pricing segment       | `price_target_source`                                  | Charge price               |
 | `price_source_target`       | Pricing segment       | `price_source_target`                                  | Discharge price            |
-| `efficiency`                | Efficiency segment    | `efficiency_source_target`, `efficiency_target_source` | Applied to both directions |
+| `efficiency_source_target`  | Efficiency segment    | `efficiency_source_target`                             | Battery to network (discharge) |
+| `efficiency_target_source`  | Efficiency segment    | `efficiency_target_source`                             | Network to battery (charge) |
 | `max_power_target_source`   | Power-limit segment   | `max_power_target_source`                              | Network to battery         |
 | `max_power_source_target`   | Power-limit segment   | `max_power_source_target`                              | Battery to network         |
 

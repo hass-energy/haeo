@@ -25,6 +25,8 @@ from custom_components.haeo.model.elements.segments import POWER_LIMIT_SOURCE_TA
 from custom_components.haeo.model.output_data import OutputData
 from custom_components.haeo.sections import (
     CONF_CONNECTION,
+    CONF_EFFICIENCY_SOURCE_TARGET,
+    CONF_EFFICIENCY_TARGET_SOURCE,
     CONF_MAX_POWER_SOURCE_TARGET,
     CONF_MAX_POWER_TARGET_SOURCE,
     SECTION_COMMON,
@@ -32,13 +34,7 @@ from custom_components.haeo.sections import (
     SECTION_POWER_LIMITS,
 )
 
-from .schema import (
-    CONF_EFFICIENCY_AC_TO_DC,
-    CONF_EFFICIENCY_DC_TO_AC,
-    ELEMENT_TYPE,
-    InverterConfigData,
-    InverterConfigSchema,
-)
+from .schema import ELEMENT_TYPE, InverterConfigData, InverterConfigSchema
 
 # Inverter output names
 type InverterOutputName = Literal[
@@ -119,11 +115,11 @@ class InverterAdapter:
                 ),
             },
             SECTION_EFFICIENCY: {
-                CONF_EFFICIENCY_DC_TO_AC: InputFieldInfo(
-                    field_name=CONF_EFFICIENCY_DC_TO_AC,
+                CONF_EFFICIENCY_SOURCE_TARGET: InputFieldInfo(
+                    field_name=CONF_EFFICIENCY_SOURCE_TARGET,
                     entity_description=NumberEntityDescription(
-                        key=CONF_EFFICIENCY_DC_TO_AC,
-                        translation_key=f"{ELEMENT_TYPE}_{CONF_EFFICIENCY_DC_TO_AC}",
+                        key=CONF_EFFICIENCY_SOURCE_TARGET,
+                        translation_key=f"{ELEMENT_TYPE}_{CONF_EFFICIENCY_SOURCE_TARGET}",
                         native_unit_of_measurement=PERCENTAGE,
                         device_class=NumberDeviceClass.POWER_FACTOR,
                         native_min_value=50.0,
@@ -133,11 +129,11 @@ class InverterAdapter:
                     output_type=OutputType.EFFICIENCY,
                     defaults=InputFieldDefaults(mode=None, value=100.0),
                 ),
-                CONF_EFFICIENCY_AC_TO_DC: InputFieldInfo(
-                    field_name=CONF_EFFICIENCY_AC_TO_DC,
+                CONF_EFFICIENCY_TARGET_SOURCE: InputFieldInfo(
+                    field_name=CONF_EFFICIENCY_TARGET_SOURCE,
                     entity_description=NumberEntityDescription(
-                        key=CONF_EFFICIENCY_AC_TO_DC,
-                        translation_key=f"{ELEMENT_TYPE}_{CONF_EFFICIENCY_AC_TO_DC}",
+                        key=CONF_EFFICIENCY_TARGET_SOURCE,
+                        translation_key=f"{ELEMENT_TYPE}_{CONF_EFFICIENCY_TARGET_SOURCE}",
                         native_unit_of_measurement=PERCENTAGE,
                         device_class=NumberDeviceClass.POWER_FACTOR,
                         native_min_value=50.0,
@@ -175,8 +171,8 @@ class InverterAdapter:
                 "segments": {
                     "efficiency": {
                         "segment_type": "efficiency",
-                        "efficiency_source_target": config[SECTION_EFFICIENCY].get(CONF_EFFICIENCY_DC_TO_AC),
-                        "efficiency_target_source": config[SECTION_EFFICIENCY].get(CONF_EFFICIENCY_AC_TO_DC),
+                        "efficiency_source_target": config[SECTION_EFFICIENCY].get(CONF_EFFICIENCY_SOURCE_TARGET),
+                        "efficiency_target_source": config[SECTION_EFFICIENCY].get(CONF_EFFICIENCY_TARGET_SOURCE),
                     },
                     "power_limit": {
                         "segment_type": "power_limit",

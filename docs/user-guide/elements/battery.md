@@ -20,7 +20,7 @@ A battery in HAEO represents:
 - **Energy storage** with a maximum capacity (kWh)
 - **Power limits** for charging and discharging (kW)
 - **State of Charge (SOC)** tracking via a Home Assistant sensor
-- **Efficiency** losses during charge/discharge cycles
+- **Charge and discharge efficiency** losses during power conversion
 - **Operating range preferences** guided by economic costs (min/max SOC)
 
 ### Configuration process
@@ -44,7 +44,8 @@ Optional fields set to "None" are omitted from the optimization entirely.
 | **[Overcharge Percentage](#overcharge-configuration)**      | Percentage | No       | -       | Hard maximum SOC limit (%)                                 |
 | **[Undercharge Cost](#undercharge-configuration)**          | Price      | No       | -       | Economic penalty for discharging below min SOC             |
 | **[Overcharge Cost](#overcharge-configuration)**            | Price      | No       | -       | Economic penalty for charging above max SOC                |
-| **[Efficiency](#efficiency)**                               | Percentage | No       | 99      | Round-trip efficiency                                      |
+| **[Discharge efficiency](#charge-and-discharge-efficiency)** | Percentage | No       | 99      | Efficiency when discharging (battery to network)          |
+| **[Charge efficiency](#charge-and-discharge-efficiency)**    | Percentage | No       | 99      | Efficiency when charging (network to battery)             |
 | **[Max Charge Power](#max-charge-and-discharge-power)**     | Power      | No       | -       | Maximum charging power                                     |
 | **[Max Discharge Power](#max-charge-and-discharge-power)**  | Power      | No       | -       | Maximum discharging power                                  |
 | **[Charge Price](#charge-price)**                           | Price      | No       | 0       | Base price applied when charging                           |
@@ -79,12 +80,14 @@ HAEO will normally keep the battery within this range.
 These are the **inner bounds** of normal operation.
 Leaving the defaults (10-90%) is a good starting point unless your manufacturer recommends otherwise.
 
-### Efficiency
+### Charge and discharge efficiency
 
-Enter the round-trip efficiency as a percentage (0-100).
-HAEO automatically converts this to one-way efficiency internally for accurate charge/discharge modeling.
-Most modern lithium batteries have round-trip efficiencies in the 95-98% range, while older chemistries may be lower.
-Refer to your battery or inverter specifications for the round-trip efficiency value.
+Enter separate charge and discharge efficiencies as percentages (0-100).
+Charge efficiency applies when power flows from the network into the battery.
+Discharge efficiency applies when power flows from the battery into the network.
+If you only have a round-trip figure, use the same value for both directions or approximate a symmetric value with $\sqrt{\text{round-trip}}$.
+Most modern lithium batteries have efficiencies in the 95-98% range, while older chemistries may be lower.
+Refer to your battery or inverter specifications for the most appropriate values.
 
 ### Max charge and discharge power
 
@@ -218,7 +221,8 @@ A typical battery configuration with just the essential parameters:
 | **Current Charge Percentage** | sensor.battery_soc |
 | **Min Charge Percentage**     | 20%                |
 | **Max Charge Percentage**     | 90%                |
-| **Efficiency**                | 99%                |
+| **Discharge Efficiency**      | 99%                |
+| **Charge Efficiency**         | 99%                |
 | **Max Charge Power**          | 6 kW               |
 | **Max Discharge Power**       | 6 kW               |
 
@@ -239,7 +243,8 @@ A battery configured with undercharge and overcharge ranges for conditional exte
 | **Overcharge Percentage**     | 95%                |
 | **Undercharge Cost**          | 1.50 \$/kWh        |
 | **Overcharge Cost**           | 1.00 \$/kWh        |
-| **Efficiency**                | 99%                |
+| **Discharge Efficiency**      | 99%                |
+| **Charge Efficiency**         | 99%                |
 | **Max Charge Power**          | 6 kW               |
 | **Max Discharge Power**       | 6 kW               |
 | **Discharge Price**           | 0.02 \$/kWh        |
@@ -268,7 +273,8 @@ Input entities appear as Number entities with the `config` entity category.
 | `number.{name}_max_power_source_target`   | kW     | Maximum discharging power                    |
 | `number.{name}_price_target_source`       | \$/kWh | Charge price (if configured)                 |
 | `number.{name}_price_source_target`       | \$/kWh | Discharge price (if configured)              |
-| `number.{name}_efficiency`                | %      | Round-trip efficiency                        |
+| `number.{name}_efficiency_source_target`  | %      | Discharge efficiency (if configured)         |
+| `number.{name}_efficiency_target_source`  | %      | Charge efficiency (if configured)            |
 | `number.{name}_percentage`                | %      | Undercharge or overcharge percentage         |
 | `number.{name}_cost`                      | \$/kWh | Undercharge or overcharge cost               |
 
@@ -407,7 +413,7 @@ If your battery remains idle:
 If forecast SOC values seem wrong:
 
 1. **Verify capacity**: Ensure capacity matches your actual battery
-2. **Check efficiency**: Confirm you've entered round-trip efficiency (HAEO converts internally)
+2. **Check efficiency**: Confirm charge and discharge efficiencies are set (use the same value in both directions if you only have a round-trip figure)
 3. **Review power limits**: Ensure they match your battery rating
 
 ### SOC Sensor Issues

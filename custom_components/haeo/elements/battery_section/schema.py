@@ -5,22 +5,38 @@ Unlike the standard Battery element which creates multiple sections and an inter
 this element creates a single battery section that must be connected manually via Connection.
 """
 
-from typing import Final, Literal, TypedDict
+from typing import Any, Final, Literal, TypedDict
 
-from custom_components.haeo.sections import (
-    CONF_CAPACITY,
-    CONF_INITIAL_CHARGE,
-    SECTION_COMMON,
-    SECTION_STORAGE,
-    CommonConfig,
-    CommonData,
-    StorageChargeConfig,
-    StorageChargeData,
-)
+import numpy as np
+from numpy.typing import NDArray
+
+from custom_components.haeo.sections import SECTION_COMMON, CommonConfig, CommonData
 
 ELEMENT_TYPE: Final = "battery_section"
 
+SECTION_STORAGE: Final = "storage"
+
+CONF_CAPACITY: Final = "capacity"
+CONF_INITIAL_CHARGE: Final = "initial_charge"
+
 OPTIONAL_INPUT_FIELDS: Final[frozenset[str]] = frozenset()
+
+type StorageValueConfig = str | float
+type StorageValueData = NDArray[np.floating[Any]]
+
+
+class StorageChargeConfig(TypedDict):
+    """Storage config with required initial charge."""
+
+    capacity: StorageValueConfig
+    initial_charge: StorageValueConfig
+
+
+class StorageChargeData(TypedDict):
+    """Loaded storage values with required initial charge."""
+
+    capacity: StorageValueData
+    initial_charge: StorageValueData
 
 
 class BatterySectionConfigSchema(TypedDict):
@@ -48,4 +64,6 @@ __all__ = [
     "SECTION_STORAGE",
     "BatterySectionConfigData",
     "BatterySectionConfigSchema",
+    "StorageChargeConfig",
+    "StorageChargeData",
 ]

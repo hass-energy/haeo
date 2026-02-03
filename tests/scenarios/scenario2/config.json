@@ -15,7 +15,8 @@
         "connection": "Inverter"
       },
       "efficiency": {
-        "efficiency": 99.0
+        "efficiency_source_target": 99.0,
+        "efficiency_target_source": 99.0
       },
       "limits": {
         "max_charge_percentage": 100.0,

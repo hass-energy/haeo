@@ -5,7 +5,8 @@ from custom_components.haeo.elements.battery import (
     CONF_CAPACITY,
     CONF_CONFIGURE_PARTITIONS,
     CONF_CONNECTION,
-    CONF_EFFICIENCY,
+    CONF_EFFICIENCY_SOURCE_TARGET,
+    CONF_EFFICIENCY_TARGET_SOURCE,
     CONF_INITIAL_CHARGE_PERCENTAGE,
     CONF_MAX_CHARGE_PERCENTAGE,
     CONF_MAX_POWER_SOURCE_TARGET,
@@ -48,7 +49,8 @@ VALID_DATA = [
                 CONF_PRICE_TARGET_SOURCE: 0.01,
             },
             SECTION_EFFICIENCY: {
-                CONF_EFFICIENCY: 95.0,
+                CONF_EFFICIENCY_SOURCE_TARGET: 95.0,
+                CONF_EFFICIENCY_TARGET_SOURCE: 95.0,
             },
             SECTION_PARTITIONING: {
                 CONF_CONFIGURE_PARTITIONS: False,
@@ -79,7 +81,8 @@ VALID_DATA = [
                 CONF_PRICE_SOURCE_TARGET: 0.03,
             },
             SECTION_EFFICIENCY: {
-                CONF_EFFICIENCY: 95.0,
+                CONF_EFFICIENCY_SOURCE_TARGET: 95.0,
+                CONF_EFFICIENCY_TARGET_SOURCE: 95.0,
             },
             SECTION_PARTITIONING: {
                 CONF_CONFIGURE_PARTITIONS: False,
@@ -109,7 +112,8 @@ INVALID_DATA = [
                 CONF_PRICE_TARGET_SOURCE: 0.01,
             },
             SECTION_EFFICIENCY: {
-                CONF_EFFICIENCY: 95.0,
+                CONF_EFFICIENCY_SOURCE_TARGET: 95.0,
+                CONF_EFFICIENCY_TARGET_SOURCE: 95.0,
             },
             SECTION_PARTITIONING: {
                 CONF_CONFIGURE_PARTITIONS: False,

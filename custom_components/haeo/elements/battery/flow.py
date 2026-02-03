@@ -23,9 +23,7 @@ from custom_components.haeo.flows.field_schema import (
     validate_sectioned_choose_fields,
 )
 from custom_components.haeo.sections import (
-    CONF_CAPACITY,
     CONF_CONNECTION,
-    CONF_INITIAL_CHARGE_PERCENTAGE,
     CONF_MAX_POWER_SOURCE_TARGET,
     CONF_MAX_POWER_TARGET_SOURCE,
     CONF_PRICE_SOURCE_TARGET,
@@ -34,19 +32,20 @@ from custom_components.haeo.sections import (
     SECTION_EFFICIENCY,
     SECTION_POWER_LIMITS,
     SECTION_PRICING,
-    SECTION_STORAGE,
     build_common_fields,
     common_section,
     efficiency_section,
     power_limits_section,
     pricing_section,
-    storage_section,
 )
 
 from .adapter import adapter
 from .schema import (
+    CONF_CAPACITY,
     CONF_CONFIGURE_PARTITIONS,
-    CONF_EFFICIENCY,
+    CONF_EFFICIENCY_SOURCE_TARGET,
+    CONF_EFFICIENCY_TARGET_SOURCE,
+    CONF_INITIAL_CHARGE_PERCENTAGE,
     CONF_MAX_CHARGE_PERCENTAGE,
     CONF_MIN_CHARGE_PERCENTAGE,
     CONF_PARTITION_COST,
@@ -57,6 +56,7 @@ from .schema import (
     SECTION_LIMITS,
     SECTION_OVERCHARGE,
     SECTION_PARTITIONING,
+    SECTION_STORAGE,
     SECTION_UNDERCHARGE,
     BatteryConfigSchema,
 )
@@ -90,8 +90,9 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                 (CONF_NAME, CONF_CONNECTION),
                 collapsed=False,
             ),
-            storage_section(
-                (CONF_CAPACITY, CONF_INITIAL_CHARGE_PERCENTAGE),
+            SectionDefinition(
+                key=SECTION_STORAGE,
+                fields=(CONF_CAPACITY, CONF_INITIAL_CHARGE_PERCENTAGE),
                 collapsed=False,
             ),
             SectionDefinition(
@@ -111,7 +112,7 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                 collapsed=False,
             ),
             efficiency_section(
-                (CONF_EFFICIENCY,),
+                (CONF_EFFICIENCY_SOURCE_TARGET, CONF_EFFICIENCY_TARGET_SOURCE),
                 collapsed=True,
             ),
             SectionDefinition(

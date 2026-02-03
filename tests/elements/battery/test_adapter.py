@@ -41,7 +41,7 @@ def _wrap_config(flat: dict[str, object]) -> battery.BatteryConfigSchema:
             "max_charge_percentage",
         ):
             limits[key] = value
-        elif key == "efficiency":
+        elif key in ("efficiency_source_target", "efficiency_target_source"):
             efficiency[key] = value
         elif key == "configure_partitions":
             partitioning[key] = value
@@ -262,7 +262,8 @@ def test_model_elements_passes_efficiency_when_present() -> None:
             "connection": "main_bus",
             "capacity": np.array([10.0, 10.0, 10.0]),
             "initial_charge_percentage": np.array([0.5, 0.5]),
-            "efficiency": np.array([0.95, 0.95]),
+            "efficiency_source_target": np.array([0.95, 0.95]),
+            "efficiency_target_source": np.array([0.95, 0.95]),
         }
     )
 

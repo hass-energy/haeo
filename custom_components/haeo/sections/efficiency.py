@@ -10,6 +10,9 @@ from custom_components.haeo.flows.field_schema import SectionDefinition
 
 SECTION_EFFICIENCY: Final = "efficiency"
 
+CONF_EFFICIENCY_SOURCE_TARGET: Final = "efficiency_source_target"
+CONF_EFFICIENCY_TARGET_SOURCE: Final = "efficiency_target_source"
+
 type EfficiencyValueConfig = str | float
 type EfficiencyValueData = NDArray[np.floating[Any]] | float
 
@@ -17,9 +20,6 @@ type EfficiencyValueData = NDArray[np.floating[Any]] | float
 class EfficiencyConfig(TypedDict, total=False):
     """Efficiency configuration across element types."""
 
-    efficiency: EfficiencyValueConfig
-    efficiency_ac_to_dc: EfficiencyValueConfig
-    efficiency_dc_to_ac: EfficiencyValueConfig
     efficiency_source_target: EfficiencyValueConfig
     efficiency_target_source: EfficiencyValueConfig
 
@@ -27,9 +27,6 @@ class EfficiencyConfig(TypedDict, total=False):
 class EfficiencyData(TypedDict, total=False):
     """Loaded efficiency values across element types."""
 
-    efficiency: EfficiencyValueData
-    efficiency_ac_to_dc: EfficiencyValueData
-    efficiency_dc_to_ac: EfficiencyValueData
     efficiency_source_target: EfficiencyValueData
     efficiency_target_source: EfficiencyValueData
 
@@ -45,6 +42,8 @@ def build_efficiency_fields() -> dict[str, tuple[vol.Marker, Any]]:
 
 
 __all__ = [
+    "CONF_EFFICIENCY_SOURCE_TARGET",
+    "CONF_EFFICIENCY_TARGET_SOURCE",
     "SECTION_EFFICIENCY",
     "EfficiencyConfig",
     "EfficiencyData",

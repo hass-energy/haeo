@@ -101,7 +101,8 @@
             "capacity": "Capacity",
             "configure_partitions": "Configure battery partitions",
             "connection": "Connection",
-            "efficiency": "Round-trip Efficiency",
+            "efficiency_source_target": "Discharge efficiency",
+            "efficiency_target_source": "Charge efficiency",
             "initial_charge_percentage": "State of Charge",
             "max_charge_percentage": "Max Charge Level",
             "max_power_source_target": "Max discharge power",
@@ -113,7 +114,13 @@
           },
           "sections": {
             "common": { "data": { "connection": "Connection", "name": "Battery Name" }, "name": "Common settings" },
-            "efficiency": { "data": { "efficiency": "Round-trip Efficiency" }, "name": "Battery efficiency" },
+            "efficiency": {
+              "data": {
+                "efficiency_source_target": "Discharge efficiency",
+                "efficiency_target_source": "Charge efficiency"
+              },
+              "name": "Battery efficiency"
+            },
             "limits": {
               "data": { "max_charge_percentage": "Max Charge Level", "min_charge_percentage": "Min Charge Level" },
               "name": "Limits"
@@ -279,8 +286,8 @@
           "description": "Configure bidirectional inverter with DC bus for battery and solar connections",
           "data": {
             "connection": "AC Connection",
-            "efficiency_ac_to_dc": "AC to DC Efficiency",
-            "efficiency_dc_to_ac": "DC to AC Efficiency",
+            "efficiency_source_target": "DC to AC efficiency",
+            "efficiency_target_source": "AC to DC efficiency",
             "max_power_source_target": "Max DC to AC power",
             "max_power_target_source": "Max AC to DC power",
             "name": "Inverter Name"
@@ -288,7 +295,10 @@
           "sections": {
             "common": { "data": { "connection": "AC Connection", "name": "Inverter Name" }, "name": "Common settings" },
             "efficiency": {
-              "data": { "efficiency_ac_to_dc": "AC to DC Efficiency", "efficiency_dc_to_ac": "DC to AC Efficiency" },
+              "data": {
+                "efficiency_source_target": "DC to AC efficiency",
+                "efficiency_target_source": "AC to DC efficiency"
+              },
               "name": "Inverter efficiency"
             },
             "power_limits": {
@@ -400,7 +410,8 @@
     "number": {
       "battery_capacity": { "name": "Capacity" },
       "battery_cost": { "name": "Cost" },
-      "battery_efficiency": { "name": "Efficiency" },
+      "battery_efficiency_source_target": { "name": "Discharge efficiency" },
+      "battery_efficiency_target_source": { "name": "Charge efficiency" },
       "battery_initial_charge_percentage": { "name": "Initial charge" },
       "battery_max_charge_percentage": { "name": "Max charge" },
       "battery_max_power_source_target": { "name": "Max discharge power" },
@@ -419,8 +430,8 @@
       "grid_max_power_target_source": { "name": "Export limit" },
       "grid_price_source_target": { "name": "Import price" },
       "grid_price_target_source": { "name": "Export price" },
-      "inverter_efficiency_ac_to_dc": { "name": "AC to DC efficiency" },
-      "inverter_efficiency_dc_to_ac": { "name": "DC to AC efficiency" },
+      "inverter_efficiency_source_target": { "name": "DC to AC efficiency" },
+      "inverter_efficiency_target_source": { "name": "AC to DC efficiency" },
       "inverter_max_power_source_target": { "name": "Max DC to AC power" },
       "inverter_max_power_target_source": { "name": "Max AC to DC power" },
       "load_forecast": { "name": "Forecast" },

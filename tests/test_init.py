@@ -59,6 +59,7 @@ from custom_components.haeo.elements.battery import (
     CONF_INITIAL_CHARGE_PERCENTAGE,
     SECTION_LIMITS,
     SECTION_PARTITIONING,
+    SECTION_STORAGE,
 )
 from custom_components.haeo.elements.connection import CONF_SOURCE, CONF_TARGET, SECTION_ENDPOINTS
 from custom_components.haeo.elements.grid import (
@@ -69,13 +70,7 @@ from custom_components.haeo.elements.grid import (
 )
 from custom_components.haeo.elements.node import SECTION_ROLE
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON, HUB_SECTION_TIERS
-from custom_components.haeo.sections import (
-    SECTION_COMMON,
-    SECTION_EFFICIENCY,
-    SECTION_POWER_LIMITS,
-    SECTION_PRICING,
-    SECTION_STORAGE,
-)
+from custom_components.haeo.sections import SECTION_COMMON, SECTION_EFFICIENCY, SECTION_POWER_LIMITS, SECTION_PRICING
 
 
 @pytest.fixture
