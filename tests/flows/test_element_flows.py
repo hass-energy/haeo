@@ -48,6 +48,7 @@ from custom_components.haeo.elements import (
     node,
 )
 from custom_components.haeo.elements.input_fields import InputFieldInfo
+from custom_components.haeo.flows import HUB_SECTION_COMMON, HUB_SECTION_TIERS
 from custom_components.haeo.model import OutputData
 from custom_components.haeo.sections import SECTION_COMMON
 from tests.conftest import ElementTestData
@@ -228,8 +229,8 @@ def hub_entry(hass: HomeAssistant) -> MockConfigEntry:
         domain=DOMAIN,
         data={
             CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
-            "common": {CONF_NAME: "Test Hub"},
-            "tiers": {
+            HUB_SECTION_COMMON: {CONF_NAME: "Test Hub"},
+            HUB_SECTION_TIERS: {
                 CONF_TIER_1_COUNT: DEFAULT_TIER_1_COUNT,
                 CONF_TIER_1_DURATION: DEFAULT_TIER_1_DURATION,
                 CONF_TIER_2_COUNT: DEFAULT_TIER_2_COUNT,

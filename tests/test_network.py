@@ -22,6 +22,7 @@ from custom_components.haeo.coordinator import evaluate_network_connectivity
 from custom_components.haeo.elements import ELEMENT_TYPE_CONNECTION, ELEMENT_TYPE_NODE, ElementConfigData
 from custom_components.haeo.elements.connection import CONF_SOURCE, CONF_TARGET, SECTION_ENDPOINTS, ConnectionConfigData
 from custom_components.haeo.elements.node import CONF_IS_SINK, CONF_IS_SOURCE, SECTION_ROLE, NodeConfigData
+from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON, HUB_SECTION_TIERS
 from custom_components.haeo.sections import SECTION_COMMON, SECTION_EFFICIENCY, SECTION_POWER_LIMITS, SECTION_PRICING
 
 
@@ -32,8 +33,8 @@ def config_entry(hass: HomeAssistant) -> MockConfigEntry:
     entry = MockConfigEntry(
         domain=DOMAIN,
         data={
-            "common": {CONF_NAME: "Test Hub"},
-            "tiers": {
+            HUB_SECTION_COMMON: {CONF_NAME: "Test Hub"},
+            HUB_SECTION_TIERS: {
                 CONF_TIER_1_COUNT: 2,
                 CONF_TIER_1_DURATION: 30,
                 CONF_TIER_2_COUNT: 0,
@@ -43,7 +44,7 @@ def config_entry(hass: HomeAssistant) -> MockConfigEntry:
                 CONF_TIER_4_COUNT: 0,
                 CONF_TIER_4_DURATION: 60,
             },
-            "advanced": {},
+            HUB_SECTION_ADVANCED: {},
         },
         entry_id="test_entry",
         title="Test Hub",

@@ -24,11 +24,13 @@ from custom_components.haeo.const import (
     OUTPUT_NAME_OPTIMIZATION_STATUS,
 )
 from custom_components.haeo.coordinator import CoordinatorOutput, ForecastPoint
-from custom_components.haeo.elements.battery import BATTERY_STATE_OF_CHARGE
+from custom_components.haeo.elements.battery import BATTERY_STATE_OF_CHARGE, SECTION_LIMITS
 from custom_components.haeo.elements.battery import ELEMENT_TYPE as BATTERY_TYPE
+from custom_components.haeo.elements.battery import SECTION_COMMON as BATTERY_SECTION_COMMON
 from custom_components.haeo.elements.load import LOAD_POWER
 from custom_components.haeo.entities import HaeoSensor
 from custom_components.haeo.entities.haeo_sensor import FORECAST_UNRECORDED_ATTRIBUTES
+from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON, HUB_SECTION_TIERS
 from custom_components.haeo.model import OutputType
 from custom_components.haeo.sensor import async_setup_entry
 
@@ -96,8 +98,8 @@ def config_entry(hass: HomeAssistant) -> MockConfigEntry:
         domain=DOMAIN,
         title="Mock Network",
         data={
-            "common": {CONF_NAME: "Mock Network"},
-            "tiers": {
+            HUB_SECTION_COMMON: {CONF_NAME: "Mock Network"},
+            HUB_SECTION_TIERS: {
                 "tier_1_count": 5,
                 "tier_1_duration": 1,
                 "tier_2_count": 11,
@@ -107,7 +109,7 @@ def config_entry(hass: HomeAssistant) -> MockConfigEntry:
                 "tier_4_count": 0,
                 "tier_4_duration": 60,
             },
-            "advanced": {},
+            HUB_SECTION_ADVANCED: {},
         },
         entry_id="mock_entry",
     )
@@ -123,13 +125,13 @@ def config_entry(hass: HomeAssistant) -> MockConfigEntry:
         data=MappingProxyType(
             {
                 CONF_ELEMENT_TYPE: BATTERY_TYPE,
-                "common": {
+                BATTERY_SECTION_COMMON: {
                     CONF_NAME: "Battery",
                     "connection": "Switchboard",
                     "capacity": 10.0,
                     "initial_charge_percentage": 50.0,
                 },
-                "limits": {},
+                SECTION_LIMITS: {},
                 "advanced": {},
             }
         ),

@@ -40,6 +40,9 @@ from custom_components.haeo.flows import (
     HORIZON_PRESET_5_DAYS,
     HORIZON_PRESET_CUSTOM,
     HORIZON_PRESETS,
+    HUB_SECTION_ADVANCED,
+    HUB_SECTION_COMMON,
+    HUB_SECTION_TIERS,
 )
 from custom_components.haeo.flows.hub import HubConfigFlow
 
@@ -50,8 +53,8 @@ def _wrap_hub_user_input(
 ) -> dict[str, Any]:
     """Wrap hub input values into sectioned form data."""
     return {
-        "common": common,
-        "advanced": advanced or {},
+        HUB_SECTION_COMMON: common,
+        HUB_SECTION_ADVANCED: advanced or {},
     }
 
 
@@ -84,15 +87,15 @@ async def test_user_flow_success_with_preset(hass: HomeAssistant) -> None:
     assert result.get("title") == "Test Hub"
     data = result.get("data")
     assert data is not None
-    assert data["common"][CONF_NAME] == "Test Hub"
+    assert data[HUB_SECTION_COMMON][CONF_NAME] == "Test Hub"
     assert data["integration_type"] == INTEGRATION_TYPE_HUB
 
     # Verify preset is stored in entry data
-    assert data["common"][CONF_HORIZON_PRESET] == HORIZON_PRESET_3_DAYS
+    assert data[HUB_SECTION_COMMON][CONF_HORIZON_PRESET] == HORIZON_PRESET_3_DAYS
 
     # Verify preset values were applied
     preset_values = HORIZON_PRESETS[HORIZON_PRESET_3_DAYS]
-    tiers = data["tiers"]
+    tiers = data[HUB_SECTION_TIERS]
     assert tiers[CONF_TIER_1_DURATION] == preset_values[CONF_TIER_1_DURATION]
     assert tiers[CONF_TIER_1_COUNT] == preset_values[CONF_TIER_1_COUNT]
     assert tiers[CONF_TIER_4_COUNT] == preset_values[CONF_TIER_4_COUNT]
@@ -173,15 +176,15 @@ async def test_user_flow_custom_tiers_creates_entry(hass: HomeAssistant) -> None
     assert data is not None
 
     # Verify preset is stored as custom
-    assert data["common"][CONF_HORIZON_PRESET] == HORIZON_PRESET_CUSTOM
+    assert data[HUB_SECTION_COMMON][CONF_HORIZON_PRESET] == HORIZON_PRESET_CUSTOM
 
     # Verify custom values were used
-    tiers = data["tiers"]
+    tiers = data[HUB_SECTION_TIERS]
     assert tiers[CONF_TIER_1_COUNT] == 10
     assert tiers[CONF_TIER_1_DURATION] == 2
     assert tiers[CONF_TIER_4_COUNT] == custom_tier_4_count
     # Verify default debounce was used (hidden during add)
-    assert data["advanced"][CONF_DEBOUNCE_SECONDS] == DEFAULT_DEBOUNCE_SECONDS
+    assert data[HUB_SECTION_ADVANCED][CONF_DEBOUNCE_SECONDS] == DEFAULT_DEBOUNCE_SECONDS
 
 
 async def test_user_flow_different_presets(hass: HomeAssistant) -> None:
@@ -205,7 +208,7 @@ async def test_user_flow_different_presets(hass: HomeAssistant) -> None:
 
     # Verify 5-day preset values
     preset_values = HORIZON_PRESETS[HORIZON_PRESET_5_DAYS]
-    tiers = data["tiers"]
+    tiers = data[HUB_SECTION_TIERS]
     assert tiers[CONF_TIER_4_COUNT] == preset_values[CONF_TIER_4_COUNT]
     assert tiers[CONF_TIER_4_COUNT] == 96  # 96 intervals of 60 min for 5 days
 
@@ -216,9 +219,8 @@ async def test_user_flow_duplicate_name(hass: HomeAssistant) -> None:
     existing_entry = MockConfigEntry(
         domain=DOMAIN,
         data={
-            "integration_type": INTEGRATION_TYPE_HUB,
-            "common": {CONF_NAME: "Existing Hub"},
-            "tiers": {
+            HUB_SECTION_COMMON: {CONF_NAME: "Existing Hub"},
+            HUB_SECTION_TIERS: {
                 CONF_TIER_1_COUNT: DEFAULT_TIER_1_COUNT,
                 CONF_TIER_1_DURATION: DEFAULT_TIER_1_DURATION,
                 CONF_TIER_2_COUNT: DEFAULT_TIER_2_COUNT,
@@ -228,6 +230,7 @@ async def test_user_flow_duplicate_name(hass: HomeAssistant) -> None:
                 CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
                 CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
             },
+            HUB_SECTION_ADVANCED: {CONF_ADVANCED_MODE: True},
         },
         title="Existing Hub",
     )
@@ -308,7 +311,7 @@ async def test_user_flow_default_values(hass: HomeAssistant) -> None:
     assert data_schema is not None
 
     # Check suggested values exist in the schema
-    common_schema = _get_section_schema(data_schema, "common")
+    common_schema = _get_section_schema(data_schema, HUB_SECTION_COMMON)
     schema_keys = {vol_key.schema: vol_key for vol_key in common_schema.schema}
 
     # Verify default horizon preset is 5 days (common section)
@@ -322,13 +325,13 @@ async def test_hub_supports_subentry_types(hass: HomeAssistant) -> None:
         domain=DOMAIN,
         data={
             "integration_type": INTEGRATION_TYPE_HUB,
-            "common": {
+            HUB_SECTION_COMMON: {
                 CONF_NAME: "Test Hub",
             },
-            "advanced": {
+            HUB_SECTION_ADVANCED: {
                 CONF_ADVANCED_MODE: True,  # Required for connection, node, battery_section flows
             },
-            "tiers": {
+            HUB_SECTION_TIERS: {
                 CONF_TIER_1_COUNT: DEFAULT_TIER_1_COUNT,
                 CONF_TIER_1_DURATION: DEFAULT_TIER_1_DURATION,
                 CONF_TIER_2_COUNT: DEFAULT_TIER_2_COUNT,

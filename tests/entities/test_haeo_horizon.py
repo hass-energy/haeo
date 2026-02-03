@@ -12,6 +12,7 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.haeo.const import CONF_NAME, DOMAIN
 from custom_components.haeo.entities.haeo_horizon import HaeoHorizonEntity
+from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON, HUB_SECTION_TIERS
 from custom_components.haeo.horizon import HorizonManager
 
 # --- Fixtures ---
@@ -24,8 +25,8 @@ def config_entry(hass: HomeAssistant) -> MockConfigEntry:
         domain=DOMAIN,
         title="Test Network",
         data={
-            "common": {CONF_NAME: "Test Network"},
-            "tiers": {
+            HUB_SECTION_COMMON: {CONF_NAME: "Test Network"},
+            HUB_SECTION_TIERS: {
                 "tier_1_count": 2,
                 "tier_1_duration": 5,  # 5 minutes
                 "tier_2_count": 1,
@@ -35,7 +36,7 @@ def config_entry(hass: HomeAssistant) -> MockConfigEntry:
                 "tier_4_count": 0,
                 "tier_4_duration": 60,
             },
-            "advanced": {},
+            HUB_SECTION_ADVANCED: {},
         },
         entry_id="test_horizon_entry",
     )

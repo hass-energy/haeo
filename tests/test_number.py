@@ -22,6 +22,7 @@ from custom_components.haeo.elements.grid import (
     SECTION_PRICING,
 )
 from custom_components.haeo.elements.grid import ELEMENT_TYPE as GRID_TYPE
+from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON, HUB_SECTION_TIERS
 from custom_components.haeo.horizon import HorizonManager
 from custom_components.haeo.number import async_setup_entry
 
@@ -42,8 +43,8 @@ def config_entry(hass: HomeAssistant, horizon_manager: Mock) -> MockConfigEntry:
         domain=DOMAIN,
         title="Test Network",
         data={
-            "common": {CONF_NAME: "Test Network"},
-            "tiers": {
+            HUB_SECTION_COMMON: {CONF_NAME: "Test Network"},
+            HUB_SECTION_TIERS: {
                 "tier_1_count": 2,
                 "tier_1_duration": 5,
                 "tier_2_count": 0,
@@ -53,7 +54,7 @@ def config_entry(hass: HomeAssistant, horizon_manager: Mock) -> MockConfigEntry:
                 "tier_4_count": 0,
                 "tier_4_duration": 60,
             },
-            "advanced": {},
+            HUB_SECTION_ADVANCED: {},
         },
         entry_id="test_number_platform_entry",
     )

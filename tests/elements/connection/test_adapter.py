@@ -14,11 +14,11 @@ async def test_available_returns_true_with_no_optional_fields(hass: HomeAssistan
     """Connection available() should return True with only required fields."""
     config: connection.ConnectionConfigSchema = {
         "element_type": "connection",
-        "common": {"name": "c1"},
-        "endpoints": {"source": "node_a", "target": "node_b"},
-        "power_limits": {},
-        "pricing": {},
-        "efficiency": {},
+        connection.SECTION_COMMON: {"name": "c1"},
+        connection.SECTION_ENDPOINTS: {"source": "node_a", "target": "node_b"},
+        connection.SECTION_POWER_LIMITS: {},
+        connection.SECTION_PRICING: {},
+        connection.SECTION_EFFICIENCY: {},
     }
 
     result = connection.adapter.available(config, hass=hass)
@@ -36,17 +36,17 @@ async def test_available_returns_true_when_optional_sensors_exist(hass: HomeAssi
 
     config: connection.ConnectionConfigSchema = {
         "element_type": "connection",
-        "common": {"name": "c1"},
-        "endpoints": {"source": "node_a", "target": "node_b"},
-        "power_limits": {
+        connection.SECTION_COMMON: {"name": "c1"},
+        connection.SECTION_ENDPOINTS: {"source": "node_a", "target": "node_b"},
+        connection.SECTION_POWER_LIMITS: {
             "max_power_source_target": "sensor.max_power_st",
             "max_power_target_source": "sensor.max_power_ts",
         },
-        "pricing": {
+        connection.SECTION_PRICING: {
             "price_source_target": "sensor.price_st",
             "price_target_source": "sensor.price_ts",
         },
-        "efficiency": {
+        connection.SECTION_EFFICIENCY: {
             "efficiency_source_target": "sensor.eff_st",
             "efficiency_target_source": "sensor.eff_ts",
         },
@@ -63,14 +63,14 @@ async def test_available_returns_false_when_optional_sensor_missing(hass: HomeAs
 
     config: connection.ConnectionConfigSchema = {
         "element_type": "connection",
-        "common": {"name": "c1"},
-        "endpoints": {"source": "node_a", "target": "node_b"},
-        "power_limits": {
+        connection.SECTION_COMMON: {"name": "c1"},
+        connection.SECTION_ENDPOINTS: {"source": "node_a", "target": "node_b"},
+        connection.SECTION_POWER_LIMITS: {
             "max_power_source_target": "sensor.max_power_st",
             "max_power_target_source": "sensor.missing",
         },
-        "pricing": {},
-        "efficiency": {},
+        connection.SECTION_PRICING: {},
+        connection.SECTION_EFFICIENCY: {},
     }
 
     result = connection.adapter.available(config, hass=hass)

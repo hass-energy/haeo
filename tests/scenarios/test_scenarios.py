@@ -31,6 +31,7 @@ from custom_components.haeo.const import (
     INTEGRATION_TYPE_HUB,
     OUTPUT_NAME_OPTIMIZATION_STATUS,
 )
+from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON, HUB_SECTION_TIERS
 from custom_components.haeo.sensor_utils import get_output_sensors
 from tests.scenarios.conftest import ScenarioData
 from tests.scenarios.visualization import visualize_scenario_results
@@ -90,8 +91,8 @@ async def test_scenarios(
             domain=DOMAIN,
             data={
                 "integration_type": INTEGRATION_TYPE_HUB,
-                "common": {CONF_NAME: "Test Hub"},
-                "tiers": {
+                HUB_SECTION_COMMON: {CONF_NAME: "Test Hub"},
+                HUB_SECTION_TIERS: {
                     CONF_TIER_1_COUNT: scenario_config["tier_1_count"],
                     CONF_TIER_1_DURATION: scenario_config["tier_1_duration"],
                     CONF_TIER_2_COUNT: scenario_config.get("tier_2_count", 0),
@@ -101,7 +102,7 @@ async def test_scenarios(
                     CONF_TIER_4_COUNT: scenario_config.get("tier_4_count", 0),
                     CONF_TIER_4_DURATION: scenario_config.get("tier_4_duration", 60),
                 },
-                "advanced": {},
+                HUB_SECTION_ADVANCED: {},
             },
             version=1,
             minor_version=MIGRATION_MINOR_VERSION,

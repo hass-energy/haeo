@@ -12,6 +12,7 @@ from custom_components.haeo.const import (
     INTEGRATION_TYPE_HUB,
 )
 from custom_components.haeo.elements import battery, connection, grid
+from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON
 from custom_components.haeo.flows.hub import HubConfigFlow
 
 
@@ -22,8 +23,8 @@ def hub_entry(hass: HomeAssistant) -> MockConfigEntry:
         domain=DOMAIN,
         data={
             CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
-            "common": {CONF_NAME: "Test Hub"},
-            "advanced": {},
+            HUB_SECTION_COMMON: {CONF_NAME: "Test Hub"},
+            HUB_SECTION_ADVANCED: {},
         },
         entry_id="hub_id",
     )
@@ -38,8 +39,8 @@ async def test_subentry_flow_classes_have_correct_attributes(hass: HomeAssistant
         domain=DOMAIN,
         data={
             CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
-            "common": {CONF_NAME: "Test Hub"},
-            "advanced": {CONF_ADVANCED_MODE: True},  # Required for connection flows
+            HUB_SECTION_COMMON: {CONF_NAME: "Test Hub"},
+            HUB_SECTION_ADVANCED: {CONF_ADVANCED_MODE: True},  # Required for connection flows
         },
         entry_id="hub_id",
     )

@@ -29,6 +29,7 @@ from custom_components.haeo.elements.solar import ELEMENT_TYPE as SOLAR_TYPE
 from custom_components.haeo.elements.solar import SECTION_COMMON as SOLAR_SECTION_COMMON
 from custom_components.haeo.entities.auto_optimize_switch import AutoOptimizeSwitch
 from custom_components.haeo.entities.haeo_number import ConfigEntityMode
+from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON, HUB_SECTION_TIERS
 from custom_components.haeo.horizon import HorizonManager
 from custom_components.haeo.switch import async_setup_entry
 
@@ -53,8 +54,8 @@ def config_entry(hass: HomeAssistant, horizon_manager: Mock) -> MockConfigEntry:
         domain=DOMAIN,
         title="Test Network",
         data={
-            "common": {CONF_NAME: "Test Network"},
-            "tiers": {
+            HUB_SECTION_COMMON: {CONF_NAME: "Test Network"},
+            HUB_SECTION_TIERS: {
                 "tier_1_count": 2,
                 "tier_1_duration": 5,
                 "tier_2_count": 0,
@@ -64,7 +65,7 @@ def config_entry(hass: HomeAssistant, horizon_manager: Mock) -> MockConfigEntry:
                 "tier_4_count": 0,
                 "tier_4_duration": 60,
             },
-            "advanced": {},
+            HUB_SECTION_ADVANCED: {},
         },
         entry_id="test_switch_platform_entry",
     )
@@ -135,7 +136,7 @@ async def test_setup_raises_error_when_runtime_data_missing(hass: HomeAssistant)
     entry = MockConfigEntry(
         domain=DOMAIN,
         title="Test Network",
-        data={"common": {CONF_NAME: "Test"}, "advanced": {}, "tiers": {}},
+        data={HUB_SECTION_COMMON: {CONF_NAME: "Test"}, HUB_SECTION_ADVANCED: {}, HUB_SECTION_TIERS: {}},
         entry_id="test_missing_runtime",
     )
     entry.add_to_hass(hass)

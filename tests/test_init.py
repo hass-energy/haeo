@@ -68,6 +68,7 @@ from custom_components.haeo.elements.grid import (
     CONF_PRICE_TARGET_SOURCE,
 )
 from custom_components.haeo.elements.node import SECTION_ROLE
+from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON, HUB_SECTION_TIERS
 from custom_components.haeo.sections import (
     SECTION_COMMON,
     SECTION_EFFICIENCY,
@@ -84,8 +85,8 @@ def mock_hub_entry(hass: HomeAssistant) -> MockConfigEntry:
         domain=DOMAIN,
         data={
             CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
-            "common": {CONF_NAME: "Test Network"},
-            "tiers": {
+            HUB_SECTION_COMMON: {CONF_NAME: "Test Network"},
+            HUB_SECTION_TIERS: {
                 CONF_TIER_1_COUNT: DEFAULT_TIER_1_COUNT,
                 CONF_TIER_1_DURATION: DEFAULT_TIER_1_DURATION,
                 CONF_TIER_2_COUNT: DEFAULT_TIER_2_COUNT,
@@ -95,7 +96,7 @@ def mock_hub_entry(hass: HomeAssistant) -> MockConfigEntry:
                 CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
                 CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
             },
-            "advanced": {},
+            HUB_SECTION_ADVANCED: {},
         },
         entry_id="hub_entry_id",
         title="Test HAEO Integration",
@@ -362,9 +363,9 @@ async def test_ensure_required_subentries_skips_switchboard_advanced_mode(
         domain=DOMAIN,
         data={
             CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
-            "common": {CONF_NAME: "Test Network"},
-            "advanced": {CONF_ADVANCED_MODE: True},
-            "tiers": {},
+            HUB_SECTION_COMMON: {CONF_NAME: "Test Network"},
+            HUB_SECTION_ADVANCED: {CONF_ADVANCED_MODE: True},
+            HUB_SECTION_TIERS: {},
         },
         entry_id="hub_entry_id",
         title="Test HAEO Integration",

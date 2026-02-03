@@ -62,15 +62,15 @@ def _wrap_config(flat: dict[str, object]) -> battery.BatteryConfigSchema:
 
     config: dict[str, object] = {
         "element_type": "battery",
-        "common": common,
-        "storage": storage,
-        "limits": limits,
-        "power_limits": power_limits,
-        "pricing": pricing,
-        "efficiency": efficiency,
-        "partitioning": partitioning,
-        "undercharge": undercharge,
-        "overcharge": overcharge,
+        battery.SECTION_COMMON: common,
+        battery.SECTION_STORAGE: storage,
+        battery.SECTION_LIMITS: limits,
+        battery.SECTION_POWER_LIMITS: power_limits,
+        battery.SECTION_PRICING: pricing,
+        battery.SECTION_EFFICIENCY: efficiency,
+        battery.SECTION_PARTITIONING: partitioning,
+        battery.SECTION_UNDERCHARGE: undercharge,
+        battery.SECTION_OVERCHARGE: overcharge,
     }
     return config  # type: ignore[return-value]
 

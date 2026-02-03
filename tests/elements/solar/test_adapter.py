@@ -13,10 +13,10 @@ async def test_available_returns_true_when_forecast_sensor_exists(hass: HomeAssi
 
     config: solar.SolarConfigSchema = {
         "element_type": "solar",
-        "common": {"name": "test_solar", "connection": "dc_bus"},
-        "forecast": {"forecast": ["sensor.forecast"]},
-        "pricing": {"price_source_target": 0.0},
-        "curtailment": {"curtailment": True},
+        solar.SECTION_COMMON: {"name": "test_solar", "connection": "dc_bus"},
+        solar.SECTION_FORECAST: {"forecast": ["sensor.forecast"]},
+        solar.SECTION_PRICING: {"price_source_target": 0.0},
+        solar.SECTION_CURTAILMENT: {"curtailment": True},
     }
 
     result = solar.adapter.available(config, hass=hass)
@@ -27,10 +27,10 @@ async def test_available_returns_false_when_forecast_sensor_missing(hass: HomeAs
     """Solar available() should return False when forecast sensor is missing."""
     config: solar.SolarConfigSchema = {
         "element_type": "solar",
-        "common": {"name": "test_solar", "connection": "dc_bus"},
-        "forecast": {"forecast": ["sensor.missing"]},
-        "pricing": {"price_source_target": 0.0},
-        "curtailment": {"curtailment": True},
+        solar.SECTION_COMMON: {"name": "test_solar", "connection": "dc_bus"},
+        solar.SECTION_FORECAST: {"forecast": ["sensor.missing"]},
+        solar.SECTION_PRICING: {"price_source_target": 0.0},
+        solar.SECTION_CURTAILMENT: {"curtailment": True},
     }
 
     result = solar.adapter.available(config, hass=hass)

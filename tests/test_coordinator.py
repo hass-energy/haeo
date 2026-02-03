@@ -81,6 +81,7 @@ from custom_components.haeo.elements.grid import CONF_MAX_POWER_SOURCE_TARGET as
 from custom_components.haeo.elements.grid import CONF_MAX_POWER_TARGET_SOURCE as CONF_GRID_MAX_POWER_TARGET_SOURCE
 from custom_components.haeo.elements.grid import CONF_PRICE_SOURCE_TARGET, CONF_PRICE_TARGET_SOURCE
 from custom_components.haeo.elements.solar import SOLAR_POWER
+from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON, HUB_SECTION_TIERS
 from custom_components.haeo.model import Network, OutputData, OutputType
 from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_NODE
 from custom_components.haeo.sections import (
@@ -99,8 +100,8 @@ def mock_hub_entry(hass: HomeAssistant) -> MockConfigEntry:
         domain=DOMAIN,
         data={
             CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
-            "common": {CONF_NAME: "Power Network"},
-            "tiers": {
+            HUB_SECTION_COMMON: {CONF_NAME: "Power Network"},
+            HUB_SECTION_TIERS: {
                 CONF_TIER_1_COUNT: 2,  # 2 intervals of 30 min = 1 hour horizon
                 CONF_TIER_1_DURATION: 30,
                 CONF_TIER_2_COUNT: 0,
@@ -110,7 +111,7 @@ def mock_hub_entry(hass: HomeAssistant) -> MockConfigEntry:
                 CONF_TIER_4_COUNT: 0,
                 CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
             },
-            "advanced": {CONF_DEBOUNCE_SECONDS: DEFAULT_DEBOUNCE_SECONDS},
+            HUB_SECTION_ADVANCED: {CONF_DEBOUNCE_SECONDS: DEFAULT_DEBOUNCE_SECONDS},
         },
         entry_id="hub_entry_id",
     )
