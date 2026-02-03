@@ -654,7 +654,8 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             msg = "Concurrent optimization during first refresh"
             raise UpdateFailed(msg)
 
-        start_time = time.time()
+        start_timestamp = dt_util.utcnow()
+        start_time = start_timestamp.timestamp()
 
         # Set flag to prevent concurrent optimization triggers from callbacks
         # This is cleared in the finally block
@@ -782,7 +783,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             return CoordinatorData(
                 context=context,
                 outputs=outputs,
-                timestamp=dt_util.utcnow(),
+                timestamp=start_timestamp,
             )
         finally:
             # Always clear the in-progress flag
