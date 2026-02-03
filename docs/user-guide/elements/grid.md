@@ -142,10 +142,10 @@ For more examples and sensor configuration, see the [Forecasts and Sensors guide
 Each configured field creates a corresponding input entity in Home Assistant.
 Input entities appear as Number entities with the `config` entity category.
 
-| Input                            | Unit   | Description                               |
-| -------------------------------- | ------ | ----------------------------------------- |
-| `number.{name}_price_source_target` | \$/kWh | Import price from configured value/sensor |
-| `number.{name}_price_target_source` | \$/kWh | Export price from configured value/sensor |
+| Input                                   | Unit   | Description                               |
+| --------------------------------------- | ------ | ----------------------------------------- |
+| `number.{name}_price_source_target`     | \$/kWh | Import price from configured value/sensor |
+| `number.{name}_price_target_source`     | \$/kWh | Export price from configured value/sensor |
 | `number.{name}_max_power_source_target` | kW     | Maximum import power (if configured)      |
 | `number.{name}_max_power_target_source` | kW     | Maximum export power (if configured)      |
 

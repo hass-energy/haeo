@@ -33,22 +33,22 @@ Optional fields set to "None" are omitted from the optimization entirely.
 
 ## Configuration Fields
 
-| Field                                                          | Type       | Required | Default | Description                                                |
-| -------------------------------------------------------------- | ---------- | -------- | ------- | ---------------------------------------------------------- |
-| **[Name](#name)**                                              | String     | Yes      | -       | Unique identifier (e.g., "Main Battery", "Garage Battery") |
-| **[Capacity](#capacity)**                                      | Energy     | Yes      | -       | Total energy storage capacity                              |
-| **[Current Charge Percentage](#current-charge-percentage)**    | Percentage | Yes      | -       | Home Assistant sensor reporting current SOC (0-100%)       |
-| **[Min Charge Percentage](#min-and-max-charge-percentage)**    | Percentage | No       | 10      | Preferred minimum SOC (%)                                  |
-| **[Max Charge Percentage](#min-and-max-charge-percentage)**    | Percentage | No       | 90      | Preferred maximum SOC (%)                                  |
-| **[Undercharge Percentage](#undercharge-configuration)**       | Percentage | No       | -       | Hard minimum SOC limit (%)                                 |
-| **[Overcharge Percentage](#overcharge-configuration)**         | Percentage | No       | -       | Hard maximum SOC limit (%)                                 |
-| **[Undercharge Cost](#undercharge-configuration)**             | Price      | No       | -       | Economic penalty for discharging below min SOC             |
-| **[Overcharge Cost](#overcharge-configuration)**               | Price      | No       | -       | Economic penalty for charging above max SOC                |
-| **[Efficiency](#efficiency)**                                  | Percentage | No       | 99      | Round-trip efficiency                                      |
-| **[Max Charge Power](#max-charge-and-discharge-power)**        | Power      | No       | -       | Maximum charging power                                     |
-| **[Max Discharge Power](#max-charge-and-discharge-power)**     | Power      | No       | -       | Maximum discharging power                                  |
-| **[Charge Price](#charge-price)**                              | Price      | No       | 0       | Base price applied when charging                            |
-| **[Discharge Price](#discharge-price)**                        | Price      | No       | 0       | Base price applied when discharging                         |
+| Field                                                       | Type       | Required | Default | Description                                                |
+| ----------------------------------------------------------- | ---------- | -------- | ------- | ---------------------------------------------------------- |
+| **[Name](#name)**                                           | String     | Yes      | -       | Unique identifier (e.g., "Main Battery", "Garage Battery") |
+| **[Capacity](#capacity)**                                   | Energy     | Yes      | -       | Total energy storage capacity                              |
+| **[Current Charge Percentage](#current-charge-percentage)** | Percentage | Yes      | -       | Home Assistant sensor reporting current SOC (0-100%)       |
+| **[Min Charge Percentage](#min-and-max-charge-percentage)** | Percentage | No       | 10      | Preferred minimum SOC (%)                                  |
+| **[Max Charge Percentage](#min-and-max-charge-percentage)** | Percentage | No       | 90      | Preferred maximum SOC (%)                                  |
+| **[Undercharge Percentage](#undercharge-configuration)**    | Percentage | No       | -       | Hard minimum SOC limit (%)                                 |
+| **[Overcharge Percentage](#overcharge-configuration)**      | Percentage | No       | -       | Hard maximum SOC limit (%)                                 |
+| **[Undercharge Cost](#undercharge-configuration)**          | Price      | No       | -       | Economic penalty for discharging below min SOC             |
+| **[Overcharge Cost](#overcharge-configuration)**            | Price      | No       | -       | Economic penalty for charging above max SOC                |
+| **[Efficiency](#efficiency)**                               | Percentage | No       | 99      | Round-trip efficiency                                      |
+| **[Max Charge Power](#max-charge-and-discharge-power)**     | Power      | No       | -       | Maximum charging power                                     |
+| **[Max Discharge Power](#max-charge-and-discharge-power)**  | Power      | No       | -       | Maximum discharging power                                  |
+| **[Charge Price](#charge-price)**                           | Price      | No       | 0       | Base price applied when charging                           |
+| **[Discharge Price](#discharge-price)**                     | Price      | No       | 0       | Base price applied when discharging                        |
 
 If not specified, power is unconstrained (limited only by other system constraints).
 
@@ -258,19 +258,19 @@ In this example:
 Each configuration field creates a corresponding input entity in Home Assistant.
 Input entities appear as Number entities with the `config` entity category.
 
-| Input                                 | Unit   | Description                                  |
-| ------------------------------------- | ------ | -------------------------------------------- |
-| `number.{name}_capacity`              | kWh    | Battery storage capacity                     |
+| Input                                     | Unit   | Description                                  |
+| ----------------------------------------- | ------ | -------------------------------------------- |
+| `number.{name}_capacity`                  | kWh    | Battery storage capacity                     |
 | `number.{name}_initial_charge_percentage` | %      | Current state of charge from sensor          |
-| `number.{name}_min_charge_percentage` | %      | Preferred minimum SOC (normal range floor)   |
-| `number.{name}_max_charge_percentage` | %      | Preferred maximum SOC (normal range ceiling) |
-| `number.{name}_max_power_target_source` | kW     | Maximum charging power                       |
-| `number.{name}_max_power_source_target` | kW     | Maximum discharging power                    |
-| `number.{name}_price_target_source`   | \$/kWh | Charge price (if configured)                 |
-| `number.{name}_price_source_target`   | \$/kWh | Discharge price (if configured)              |
-| `number.{name}_efficiency`            | %      | Round-trip efficiency                        |
-| `number.{name}_percentage`            | %      | Undercharge or overcharge percentage         |
-| `number.{name}_cost`                  | \$/kWh | Undercharge or overcharge cost               |
+| `number.{name}_min_charge_percentage`     | %      | Preferred minimum SOC (normal range floor)   |
+| `number.{name}_max_charge_percentage`     | %      | Preferred maximum SOC (normal range ceiling) |
+| `number.{name}_max_power_target_source`   | kW     | Maximum charging power                       |
+| `number.{name}_max_power_source_target`   | kW     | Maximum discharging power                    |
+| `number.{name}_price_target_source`       | \$/kWh | Charge price (if configured)                 |
+| `number.{name}_price_source_target`       | \$/kWh | Discharge price (if configured)              |
+| `number.{name}_efficiency`                | %      | Round-trip efficiency                        |
+| `number.{name}_percentage`                | %      | Undercharge or overcharge percentage         |
+| `number.{name}_cost`                      | \$/kWh | Undercharge or overcharge cost               |
 
 Input entities include a `forecast` attribute showing values for each optimization period.
 See the [Input Entities developer guide](../../developer-guide/inputs.md) for details on input entity behavior.

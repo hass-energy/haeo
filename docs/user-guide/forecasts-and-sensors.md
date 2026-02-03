@@ -329,11 +329,11 @@ For values that don't change over time (fixed prices, baseline loads, power limi
 During element configuration, select **Constant** for the field and enter your value directly in the form.
 This is the simplest approach for truly static values.
 
-| Selection | Value | Use Case             |
-| --------- | ----- | -------------------- |
+| Selection | Value | Use Case                      |
+| --------- | ----- | ----------------------------- |
 | Constant  | 0.25  | Fixed price (source → target) |
-| Constant  | 15    | Static power limit   |
-| Constant  | 90    | Fixed SOC percentage |
+| Constant  | 15    | Static power limit            |
+| Constant  | 90    | Fixed SOC percentage          |
 
 ### Input number helpers
 
@@ -355,10 +355,10 @@ For values you want to adjust through the Home Assistant UI without reconfigurin
 
 During element configuration, select the input_number entity in the entity selector:
 
-| Field            | Value                           |
-| ---------------- | ------------------------------- |
-| **Price (source → target)** | input_number.fixed_price_source_target |
-| **Max Power (source → target)** | input_number.max_power_source_target |
+| Field                           | Value                                  |
+| ------------------------------- | -------------------------------------- |
+| **Price (source → target)**     | input_number.fixed_price_source_target |
+| **Max Power (source → target)** | input_number.max_power_source_target   |
 
 HAEO treats input_number helpers like any other sensor, reading the current value and repeating it across the optimization horizon.
 

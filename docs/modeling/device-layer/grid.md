@@ -34,15 +34,15 @@ Grid creates 1 device in Home Assistant:
 
 The adapter transforms user configuration into connection segments:
 
-| User Configuration | Segment           | Segment Field             | Notes                                   |
-| ------------------ | ----------------- | ------------------------- | --------------------------------------- |
-| `price_source_target` | PricingSegment    | `price_source_target`     | Cost per kWh imported                   |
-| `price_target_source` | PricingSegment    | `price_target_source`     | Stored as negative to represent revenue |
+| User Configuration        | Segment           | Segment Field             | Notes                                   |
+| ------------------------- | ----------------- | ------------------------- | --------------------------------------- |
+| `price_source_target`     | PricingSegment    | `price_source_target`     | Cost per kWh imported                   |
+| `price_target_source`     | PricingSegment    | `price_target_source`     | Stored as negative to represent revenue |
 | `max_power_source_target` | PowerLimitSegment | `max_power_source_target` | Maximum import power (optional)         |
 | `max_power_target_source` | PowerLimitSegment | `max_power_target_source` | Maximum export power (optional)         |
-| `connection`       | Connection        | `target`                  | Node to connect to                      |
-| —                  | Node              | `is_source=true`          | Grid can supply power                   |
-| —                  | Node              | `is_sink=true`            | Grid can absorb power                   |
+| `connection`              | Connection        | `target`                  | Node to connect to                      |
+| —                         | Node              | `is_source=true`          | Grid can supply power                   |
+| —                         | Node              | `is_sink=true`            | Grid can absorb power                   |
 
 ## Sensors Created
 

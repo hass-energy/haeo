@@ -100,12 +100,12 @@ Some inverters have different power ratings for inverting vs. rectifying.
 Each configuration field creates a corresponding input entity in Home Assistant.
 Input entities appear as Number entities with the `config` entity category.
 
-| Input                            | Unit | Description                              |
-| -------------------------------- | ---- | ---------------------------------------- |
-| `number.{name}_max_power_source_target` | kW   | Maximum DC→AC power (if configured)      |
-| `number.{name}_max_power_target_source` | kW   | Maximum AC→DC power (if configured)      |
-| `number.{name}_efficiency_dc_to_ac` | %    | Efficiency DC→AC (if configured)         |
-| `number.{name}_efficiency_ac_to_dc` | %    | Efficiency AC→DC (if configured)         |
+| Input                                   | Unit | Description                         |
+| --------------------------------------- | ---- | ----------------------------------- |
+| `number.{name}_max_power_source_target` | kW   | Maximum DC→AC power (if configured) |
+| `number.{name}_max_power_target_source` | kW   | Maximum AC→DC power (if configured) |
+| `number.{name}_efficiency_dc_to_ac`     | %    | Efficiency DC→AC (if configured)    |
+| `number.{name}_efficiency_ac_to_dc`     | %    | Efficiency AC→DC (if configured)    |
 
 Input entities include a `forecast` attribute showing values for each optimization period.
 See the [Input Entities developer guide](../../developer-guide/inputs.md) for details on input entity behavior.
