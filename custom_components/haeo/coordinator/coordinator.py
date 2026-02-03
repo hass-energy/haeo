@@ -738,7 +738,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             }
 
             # Process each config element using its outputs function to transform model outputs into device outputs
-            for element_name, element_config in self._participant_configs.items():
+            for element_name, element_config in context.participants.items():
                 element_type = element_config[CONF_ELEMENT_TYPE]
                 outputs_fn = ELEMENT_TYPES[element_type].outputs
 
