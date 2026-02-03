@@ -8,7 +8,7 @@ from unittest.mock import AsyncMock, Mock
 from homeassistant.components.number import NumberEntityDescription
 from homeassistant.config_entries import ConfigSubentry
 from homeassistant.const import EntityCategory
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, State
 from homeassistant.helpers.device_registry import DeviceEntry
 from homeassistant.helpers.entity import Entity
 from homeassistant.helpers.entity_platform import PlatformData
@@ -1282,8 +1282,6 @@ async def test_get_captured_source_states_driven_mode(
     horizon_manager: Mock,
 ) -> None:
     """DRIVEN mode entity captures source states when loading data."""
-    from homeassistant.core import State
-
     # Set up source entity
     hass.states.async_set("sensor.power_limit", "1.5")
     source_state = hass.states.get("sensor.power_limit")

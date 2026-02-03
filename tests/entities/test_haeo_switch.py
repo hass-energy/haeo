@@ -8,7 +8,7 @@ from unittest.mock import Mock
 from homeassistant.components.switch import SwitchEntityDescription
 from homeassistant.config_entries import ConfigSubentry
 from homeassistant.const import STATE_OFF, STATE_ON, EntityCategory
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, State
 from homeassistant.helpers.device_registry import DeviceEntry
 from homeassistant.helpers.entity import Entity
 from homeassistant.helpers.entity_platform import PlatformData
@@ -1246,8 +1246,6 @@ async def test_get_captured_source_states_driven_mode(
     horizon_manager: Mock,
 ) -> None:
     """DRIVEN mode entity captures source state when loading data."""
-    from homeassistant.core import State
-
     # Set up source entity
     hass.states.async_set("input_boolean.allow_curtailment", STATE_ON)
     source_state = hass.states.get("input_boolean.allow_curtailment")
