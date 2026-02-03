@@ -97,7 +97,6 @@ def _create_input_entities() -> InputEntityMap:
     return {}
 
 
-
 PLATFORMS: list[Platform] = [Platform.SENSOR, Platform.NUMBER, Platform.SWITCH]
 
 # Platforms that provide input entities (must be set up before coordinator)
@@ -199,14 +198,10 @@ def _migrate_subentry_data(subentry: ConfigSubentry) -> dict[str, Any] | None:
         CONF_PRICE_SOURCE_TARGET,
         CONF_PRICE_TARGET_SOURCE,
         SECTION_COMMON,
-        SECTION_CURTAILMENT,
         SECTION_EFFICIENCY,
         SECTION_FORECAST,
-        SECTION_LIMITS,
-        SECTION_PARTITIONING,
         SECTION_POWER_LIMITS,
         SECTION_PRICING,
-        SECTION_ROLE,
         SECTION_STORAGE,
     )
 
@@ -269,11 +264,11 @@ def _migrate_subentry_data(subentry: ConfigSubentry) -> dict[str, Any] | None:
         migrated |= {
             SECTION_COMMON: common,
             SECTION_STORAGE: storage,
-            SECTION_LIMITS: limits,
+            battery.SECTION_LIMITS: limits,
             SECTION_POWER_LIMITS: power_limits,
             SECTION_PRICING: pricing,
             SECTION_EFFICIENCY: efficiency,
-            SECTION_PARTITIONING: partitioning,
+            battery.SECTION_PARTITIONING: partitioning,
             battery.SECTION_UNDERCHARGE: undercharge,
             battery.SECTION_OVERCHARGE: overcharge,
         }
@@ -381,7 +376,7 @@ def _migrate_subentry_data(subentry: ConfigSubentry) -> dict[str, Any] | None:
             add_if_present(role, key)
         migrated |= {
             SECTION_COMMON: common,
-            SECTION_ROLE: role,
+            node.SECTION_ROLE: role,
         }
         return migrated
 
@@ -401,7 +396,7 @@ def _migrate_subentry_data(subentry: ConfigSubentry) -> dict[str, Any] | None:
             SECTION_COMMON: common,
             SECTION_FORECAST: forecast,
             SECTION_PRICING: pricing,
-            SECTION_CURTAILMENT: curtailment,
+            solar.SECTION_CURTAILMENT: curtailment,
         }
         return migrated
 

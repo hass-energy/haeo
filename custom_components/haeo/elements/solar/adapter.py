@@ -24,12 +24,11 @@ from custom_components.haeo.sections import (
     CONF_FORECAST,
     CONF_PRICE_SOURCE_TARGET,
     SECTION_COMMON,
-    SECTION_CURTAILMENT,
     SECTION_FORECAST,
     SECTION_PRICING,
 )
 
-from .schema import CONF_CURTAILMENT, ELEMENT_TYPE, SolarConfigData, SolarConfigSchema
+from .schema import CONF_CURTAILMENT, ELEMENT_TYPE, SECTION_CURTAILMENT, SolarConfigData, SolarConfigSchema
 
 # Solar output names
 type SolarOutputName = Literal[

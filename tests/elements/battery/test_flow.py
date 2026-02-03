@@ -83,16 +83,8 @@ def _wrap_main_input(user_input: dict[str, Any]) -> dict[str, Any]:
             )
             if key in user_input
         },
-        SECTION_EFFICIENCY: {
-            key: user_input[key]
-            for key in (CONF_EFFICIENCY,)
-            if key in user_input
-        },
-        SECTION_PARTITIONING: {
-            key: user_input[key]
-            for key in (CONF_CONFIGURE_PARTITIONS,)
-            if key in user_input
-        },
+        SECTION_EFFICIENCY: {key: user_input[key] for key in (CONF_EFFICIENCY,) if key in user_input},
+        SECTION_PARTITIONING: {key: user_input[key] for key in (CONF_CONFIGURE_PARTITIONS,) if key in user_input},
     }
 
 

@@ -443,9 +443,7 @@ async def test_element_flow_reconfigure_duplicate_name(
         else primary_config
     )
     secondary_config = deepcopy(secondary_source)
-    secondary_config[SECTION_COMMON][CONF_NAME] = (
-        f"{primary_config[SECTION_COMMON][CONF_NAME]} Secondary"
-    )
+    secondary_config[SECTION_COMMON][CONF_NAME] = f"{primary_config[SECTION_COMMON][CONF_NAME]} Secondary"
 
     _prepare_flow_context(hass, hub_entry, element_type, primary_config)
     _prepare_flow_context(hass, hub_entry, element_type, secondary_config)

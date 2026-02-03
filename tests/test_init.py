@@ -53,7 +53,13 @@ from custom_components.haeo.elements import (
     ELEMENT_TYPE_GRID,
     ELEMENT_TYPE_NODE,
 )
-from custom_components.haeo.elements.battery import CONF_CAPACITY, CONF_CONNECTION, CONF_INITIAL_CHARGE_PERCENTAGE
+from custom_components.haeo.elements.battery import (
+    CONF_CAPACITY,
+    CONF_CONNECTION,
+    CONF_INITIAL_CHARGE_PERCENTAGE,
+    SECTION_LIMITS,
+    SECTION_PARTITIONING,
+)
 from custom_components.haeo.elements.connection import CONF_SOURCE, CONF_TARGET, SECTION_ENDPOINTS
 from custom_components.haeo.elements.grid import (
     CONF_MAX_POWER_SOURCE_TARGET,
@@ -61,14 +67,12 @@ from custom_components.haeo.elements.grid import (
     CONF_PRICE_SOURCE_TARGET,
     CONF_PRICE_TARGET_SOURCE,
 )
+from custom_components.haeo.elements.node import SECTION_ROLE
 from custom_components.haeo.sections import (
     SECTION_COMMON,
     SECTION_EFFICIENCY,
-    SECTION_LIMITS,
-    SECTION_PARTITIONING,
     SECTION_POWER_LIMITS,
     SECTION_PRICING,
-    SECTION_ROLE,
     SECTION_STORAGE,
 )
 

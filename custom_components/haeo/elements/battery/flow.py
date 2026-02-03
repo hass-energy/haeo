@@ -32,16 +32,12 @@ from custom_components.haeo.sections import (
     CONF_PRICE_TARGET_SOURCE,
     SECTION_COMMON,
     SECTION_EFFICIENCY,
-    SECTION_LIMITS,
-    SECTION_PARTITIONING,
     SECTION_POWER_LIMITS,
     SECTION_PRICING,
     SECTION_STORAGE,
     build_common_fields,
     common_section,
     efficiency_section,
-    limits_section,
-    partitioning_section,
     power_limits_section,
     pricing_section,
     storage_section,
@@ -58,7 +54,9 @@ from .schema import (
     ELEMENT_TYPE,
     OPTIONAL_INPUT_FIELDS,
     PARTITION_FIELD_NAMES,
+    SECTION_LIMITS,
     SECTION_OVERCHARGE,
+    SECTION_PARTITIONING,
     SECTION_UNDERCHARGE,
     BatteryConfigSchema,
 )
@@ -96,8 +94,9 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                 (CONF_CAPACITY, CONF_INITIAL_CHARGE_PERCENTAGE),
                 collapsed=False,
             ),
-            limits_section(
-                (
+            SectionDefinition(
+                key=SECTION_LIMITS,
+                fields=(
                     CONF_MIN_CHARGE_PERCENTAGE,
                     CONF_MAX_CHARGE_PERCENTAGE,
                 ),
@@ -115,8 +114,9 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                 (CONF_EFFICIENCY,),
                 collapsed=True,
             ),
-            partitioning_section(
-                (CONF_CONFIGURE_PARTITIONS,),
+            SectionDefinition(
+                key=SECTION_PARTITIONING,
+                fields=(CONF_CONFIGURE_PARTITIONS,),
                 collapsed=True,
             ),
         )

@@ -15,8 +15,6 @@ from custom_components.haeo.sections import (
     CONF_PRICE_TARGET_SOURCE,
     SECTION_COMMON,
     SECTION_EFFICIENCY,
-    SECTION_LIMITS,
-    SECTION_PARTITIONING,
     SECTION_POWER_LIMITS,
     SECTION_PRICING,
     SECTION_STORAGE,
@@ -24,10 +22,6 @@ from custom_components.haeo.sections import (
     ConnectedCommonData,
     EfficiencyConfig,
     EfficiencyData,
-    LimitsConfig,
-    LimitsData,
-    PartitioningConfig,
-    PartitioningData,
     PowerLimitsConfig,
     PowerLimitsData,
     PricingConfig,
@@ -40,6 +34,8 @@ ELEMENT_TYPE: Final = "battery"
 
 SECTION_UNDERCHARGE: Final = "undercharge"
 SECTION_OVERCHARGE: Final = "overcharge"
+SECTION_LIMITS: Final = "limits"
+SECTION_PARTITIONING: Final = "partitioning"
 
 CONF_MIN_CHARGE_PERCENTAGE: Final = "min_charge_percentage"
 CONF_MAX_CHARGE_PERCENTAGE: Final = "max_charge_percentage"
@@ -70,6 +66,36 @@ PARTITION_FIELD_NAMES: Final[frozenset[str]] = frozenset(
         CONF_PARTITION_COST,
     )
 )
+
+
+type LimitsValueConfig = str | float
+type LimitsValueData = NDArray[np.floating[Any]] | float
+
+
+class LimitsConfig(TypedDict, total=False):
+    """Charge percentage limits configuration."""
+
+    min_charge_percentage: LimitsValueConfig
+    max_charge_percentage: LimitsValueConfig
+
+
+class LimitsData(TypedDict, total=False):
+    """Loaded charge percentage limits."""
+
+    min_charge_percentage: LimitsValueData
+    max_charge_percentage: LimitsValueData
+
+
+class PartitioningConfig(TypedDict, total=False):
+    """Partitioning configuration values."""
+
+    configure_partitions: bool
+
+
+class PartitioningData(TypedDict, total=False):
+    """Loaded partitioning values."""
+
+    configure_partitions: bool
 
 
 type PartitionPercentageConfig = str | float

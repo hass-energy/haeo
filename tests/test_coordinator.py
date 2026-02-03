@@ -65,6 +65,8 @@ from custom_components.haeo.elements.battery import (
     CONF_MAX_POWER_SOURCE_TARGET,
     CONF_MAX_POWER_TARGET_SOURCE,
     CONF_MIN_CHARGE_PERCENTAGE,
+    SECTION_LIMITS,
+    SECTION_PARTITIONING,
 )
 from custom_components.haeo.elements.connection import (
     CONF_SOURCE,
@@ -84,8 +86,6 @@ from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_NODE
 from custom_components.haeo.sections import (
     SECTION_COMMON,
     SECTION_EFFICIENCY,
-    SECTION_LIMITS,
-    SECTION_PARTITIONING,
     SECTION_POWER_LIMITS,
     SECTION_PRICING,
     SECTION_STORAGE,
@@ -650,9 +650,9 @@ def test_coordinator_cleanup_invokes_listener(
     # Add a mock input entity so subscription gets created
     mock_input_entity = MagicMock()
     mock_input_entity.entity_id = "number.haeo_test_battery_power"
-    mock_runtime_data.input_entities[
-        ("Test Battery", (SECTION_POWER_LIMITS, CONF_MAX_POWER_TARGET_SOURCE))
-    ] = mock_input_entity
+    mock_runtime_data.input_entities[("Test Battery", (SECTION_POWER_LIMITS, CONF_MAX_POWER_TARGET_SOURCE))] = (
+        mock_input_entity
+    )
 
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
 
@@ -1121,8 +1121,8 @@ def test_load_from_input_entities_raises_when_required_field_returns_none(
     mock_entity = MagicMock()
     mock_entity.get_values.return_value = None
     mock_runtime_data.input_entities[("Test Battery", (SECTION_STORAGE, CONF_CAPACITY))] = mock_entity
-    mock_runtime_data.input_entities[("Test Battery", (SECTION_STORAGE, CONF_INITIAL_CHARGE_PERCENTAGE))] = (
-        MagicMock(get_values=Mock(return_value=(50.0,)))
+    mock_runtime_data.input_entities[("Test Battery", (SECTION_STORAGE, CONF_INITIAL_CHARGE_PERCENTAGE))] = MagicMock(
+        get_values=Mock(return_value=(50.0,))
     )
 
     # Should raise since required field (capacity) returned None

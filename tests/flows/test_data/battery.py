@@ -100,8 +100,7 @@ INVALID_DATA = [
                 CONF_CAPACITY: 10.0,
                 CONF_INITIAL_CHARGE_PERCENTAGE: ["sensor.battery_soc"],
             },
-            SECTION_LIMITS: {
-            },
+            SECTION_LIMITS: {},
             SECTION_POWER_LIMITS: {
                 CONF_MAX_POWER_TARGET_SOURCE: 5.0,
                 CONF_MAX_POWER_SOURCE_TARGET: 5.0,

@@ -44,11 +44,7 @@ def _wrap_input(flat: dict[str, Any]) -> dict[str, Any]:
         CONF_PRICE_SOURCE_TARGET: flat[CONF_PRICE_SOURCE_TARGET],
         CONF_PRICE_TARGET_SOURCE: flat[CONF_PRICE_TARGET_SOURCE],
     }
-    power_limits = {
-        key: flat[key]
-        for key in (CONF_MAX_POWER_SOURCE_TARGET, CONF_MAX_POWER_TARGET_SOURCE)
-        if key in flat
-    }
+    power_limits = {key: flat[key] for key in (CONF_MAX_POWER_SOURCE_TARGET, CONF_MAX_POWER_TARGET_SOURCE) if key in flat}
     return {
         SECTION_COMMON: common,
         SECTION_PRICING: pricing,

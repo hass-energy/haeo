@@ -12,14 +12,13 @@ from custom_components.haeo.coordinator import create_network
 from custom_components.haeo.elements import ElementConfigData
 from custom_components.haeo.elements.connection import CONF_SOURCE, CONF_TARGET, SECTION_ENDPOINTS
 from custom_components.haeo.elements.load import CONF_CONNECTION
-from custom_components.haeo.elements.node import CONF_IS_SINK, CONF_IS_SOURCE
+from custom_components.haeo.elements.node import CONF_IS_SINK, CONF_IS_SOURCE, SECTION_ROLE
 from custom_components.haeo.sections import (
     SECTION_COMMON,
     SECTION_EFFICIENCY,
     SECTION_FORECAST,
     SECTION_POWER_LIMITS,
     SECTION_PRICING,
-    SECTION_ROLE,
 )
 
 

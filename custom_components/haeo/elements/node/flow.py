@@ -9,15 +9,9 @@ import voluptuous as vol
 from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.flows.element_flow import ElementFlowMixin
 from custom_components.haeo.flows.field_schema import SectionDefinition, build_section_schema
-from custom_components.haeo.sections import (
-    SECTION_COMMON,
-    SECTION_ROLE,
-    build_common_fields,
-    common_section,
-    role_section,
-)
+from custom_components.haeo.sections import SECTION_COMMON, build_common_fields, common_section
 
-from .schema import CONF_IS_SINK, CONF_IS_SOURCE, ELEMENT_TYPE
+from .schema import CONF_IS_SINK, CONF_IS_SOURCE, ELEMENT_TYPE, SECTION_ROLE
 
 # Suggested values for first setup (pure junction: no source or sink)
 _SUGGESTED_DEFAULTS = {
@@ -36,7 +30,7 @@ class NodeSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         """Return sections for the configuration step."""
         return (
             common_section((CONF_NAME,), collapsed=False),
-            role_section((CONF_IS_SOURCE, CONF_IS_SINK), collapsed=True),
+            SectionDefinition(key=SECTION_ROLE, fields=(CONF_IS_SOURCE, CONF_IS_SINK), collapsed=True),
         )
 
     def _build_schema(self) -> vol.Schema:

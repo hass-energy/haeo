@@ -2,14 +2,30 @@
 
 from typing import Final, Literal, TypedDict
 
-from custom_components.haeo.sections import SECTION_COMMON, SECTION_ROLE, CommonConfig, CommonData, RoleConfig, RoleData
+from custom_components.haeo.sections import SECTION_COMMON, CommonConfig, CommonData
 
 ELEMENT_TYPE: Final = "node"
+
+SECTION_ROLE: Final = "role"
 
 CONF_IS_SOURCE: Final = "is_source"
 CONF_IS_SINK: Final = "is_sink"
 
 OPTIONAL_INPUT_FIELDS: Final[frozenset[str]] = frozenset({CONF_IS_SOURCE, CONF_IS_SINK})
+
+
+class RoleConfig(TypedDict, total=False):
+    """Role configuration for node behavior."""
+
+    is_source: bool
+    is_sink: bool
+
+
+class RoleData(TypedDict, total=False):
+    """Loaded role values for node behavior."""
+
+    is_source: bool
+    is_sink: bool
 
 
 class NodeConfigSchema(TypedDict):
