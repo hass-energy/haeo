@@ -51,6 +51,8 @@ from custom_components.haeo.elements.battery import (
     CONF_MAX_POWER_SOURCE_TARGET,
     CONF_MAX_POWER_TARGET_SOURCE,
     CONF_MIN_CHARGE_PERCENTAGE,
+    SECTION_LIMITS,
+    SECTION_PARTITIONING,
 )
 from custom_components.haeo.elements.grid import CONF_PRICE_SOURCE_TARGET, CONF_PRICE_TARGET_SOURCE, GRID_POWER_IMPORT
 from custom_components.haeo.entities.haeo_number import ConfigEntityMode, HaeoInputNumber
@@ -59,8 +61,6 @@ from custom_components.haeo.model import OutputType
 from custom_components.haeo.sections import (
     SECTION_COMMON,
     SECTION_EFFICIENCY,
-    SECTION_LIMITS,
-    SECTION_PARTITIONING,
     SECTION_POWER_LIMITS,
     SECTION_PRICING,
     SECTION_STORAGE,

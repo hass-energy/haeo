@@ -13,14 +13,14 @@
       "element_type": "battery",
       "capacity": "sensor.sigen_plant_rated_energy_capacity",
       "connection": "Inverter",
-      "price_source_target": 0.02,
-      "price_target_source": 0.001,
       "efficiency": 99.0,
       "initial_charge_percentage": "sensor.sigen_plant_battery_state_of_charge",
       "max_charge_percentage": 100.0,
-      "max_power_target_source": "sensor.sigen_plant_ess_rated_charging_power",
       "max_power_source_target": "sensor.sigen_plant_ess_rated_discharging_power",
-      "min_charge_percentage": 10.0
+      "max_power_target_source": "sensor.sigen_plant_ess_rated_charging_power",
+      "min_charge_percentage": 10.0,
+      "price_source_target": 0.02,
+      "price_target_source": 0.001
     },
     "Constant Load": {
       "name": "Constant Load",
@@ -32,17 +32,17 @@
       "name": "Grid",
       "element_type": "grid",
       "connection": "Switchboard",
-      "max_power_target_source": 30,
-      "price_target_source": ["sensor.home_feed_in_price", "sensor.home_feed_in_forecast"],
       "max_power_source_target": 55,
-      "price_source_target": ["sensor.home_general_price", "sensor.home_general_forecast"]
+      "max_power_target_source": 30,
+      "price_source_target": ["sensor.home_general_price", "sensor.home_general_forecast"],
+      "price_target_source": ["sensor.home_feed_in_price", "sensor.home_feed_in_forecast"]
     },
     "Inverter": {
       "name": "Inverter",
       "element_type": "inverter",
       "connection": "Switchboard",
-      "max_power_target_source": "sensor.sigen_plant_max_active_power",
-      "max_power_source_target": "sensor.sigen_plant_max_active_power"
+      "max_power_source_target": "sensor.sigen_plant_max_active_power",
+      "max_power_target_source": "sensor.sigen_plant_max_active_power"
     },
     "Solar": {
       "name": "Solar",

@@ -61,7 +61,7 @@ The `environment.json` timestamp is used as the freeze time for the test, and `o
 
 # Multiple patterns from file
 ./tests/scenarios/filter_states.py http://ha.local:8123 \
-  -o scenario/states.json sensor.battery_soc sensor.price_source_target sensor.house_load
+    -o scenario/states.json sensor.battery_soc sensor.price_source_target sensor.house_load
 ```
 
 ## Basic Configuration
