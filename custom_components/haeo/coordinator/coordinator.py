@@ -54,6 +54,7 @@ from custom_components.haeo.repairs import dismiss_optimization_failure_issue
 from custom_components.haeo.util.forecast_times import tiers_to_periods_seconds
 
 from . import network as network_module
+from .context import OptimizationContext, OptimizationContextBuilder
 
 if TYPE_CHECKING:
     from custom_components.haeo import HaeoConfigEntry, HaeoRuntimeData
@@ -187,7 +188,20 @@ def _build_coordinator_output(
 
 
 type SubentryDevices = dict[ElementDeviceName, dict[ElementOutputName | NetworkOutputName, CoordinatorOutput]]
-type CoordinatorData = dict[str, SubentryDevices]
+
+
+@dataclass(slots=True)
+class CoordinatorData:
+    """Result of an optimization run including inputs and outputs."""
+
+    context: OptimizationContext
+    """Immutable snapshot of all inputs used for this optimization."""
+
+    outputs: dict[str, SubentryDevices]
+    """Element outputs organized by element_name → device_name → output_name."""
+
+    timestamp: datetime
+    """When the optimization ran."""
 
 
 class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
@@ -231,6 +245,9 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         self._pending_refresh: bool = False
         self._optimization_in_progress: bool = False  # Prevent concurrent optimizations
         self._pending_element_updates: dict[str, ElementConfigData] = {}
+
+        # Context builder tracks stale elements and builds optimization context
+        self._context = OptimizationContextBuilder(self._participant_configs)
 
         # No update_interval - we're event-driven from input entities
         # No request_refresh_debouncer - we handle debouncing ourselves
@@ -344,18 +361,12 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
     def _handle_element_update(self, element_name: str) -> None:
         """Handle an update to a specific element's input entities.
 
-        The network is guaranteed to exist because it's created in async_initialize()
-        before this handler is registered.
+        Marks the element as stale so its TrackedParams will be updated
+        in the network at optimization time, then triggers optimization
+        with debouncing.
         """
-        # Load the updated config for just this element
-        try:
-            element_config = self._load_element_config(element_name)
-        except ValueError:
-            _LOGGER.exception("Failed to load config for element %s due to invalid input entities", element_name)
-            return
-
-        # Defer network update until optimization time
-        self._pending_element_updates[element_name] = element_config
+        # Mark element as needing network update at optimization time
+        self._context.mark_stale(element_name)
 
         # Trigger optimization (with debouncing)
         self.signal_optimization_stale()
@@ -651,25 +662,38 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             # This ensures debouncing works even if optimization takes a long time
             self._last_optimization_time = start_time
 
-            # Get forecast timestamps from horizon manager
+            # Get runtime data for access to input entities and horizon manager
             runtime_data = self._get_runtime_data()
             if runtime_data is None:
                 msg = "Runtime data not available"
                 raise UpdateFailed(msg)
 
-            forecast_timestamps = runtime_data.horizon_manager.get_forecast_timestamps()
+            # Network should have been created in async_initialize() or set manually in tests.
+            network = self.network
+
+            # Update network for stale elements only (those that changed since last optimization)
+            stale_elements = self._context.get_stale_elements()
+            for element_name in stale_elements:
+                try:
+                    element_config = self._load_element_config(element_name)
+                    network_module.update_element(network, element_config)
+                except ValueError:
+                    _LOGGER.exception("Failed to load config for stale element %s", element_name)
+
+            # Build immutable context (clears stale tracking)
+            context = self._context.build(
+                input_entities=runtime_data.input_entities,
+                horizon_manager=runtime_data.horizon_manager,
+            )
+
+            # Capture timestamp for the optimization result
+            optimization_timestamp = dt_util.utcnow()
 
             # Load element configurations from input entities
             # All input entities are guaranteed to be fully loaded by the time we get here
             loaded_configs = self._load_from_input_entities()
 
             _LOGGER.debug("Running optimization with %d participants", len(loaded_configs))
-
-            # Network should have been created in async_initialize() or set manually in tests.
-            network = self.network
-
-            # Apply any pending element updates before optimization
-            self._apply_pending_element_updates()
 
             # Perform the optimization
             cost = await self.hass.async_add_executor_job(network.optimize)
@@ -701,7 +725,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             )
             network_subentry_name = translations[f"component.{DOMAIN}.common.network_subentry_name"]
 
-            result: CoordinatorData = {
+            outputs: dict[str, SubentryDevices] = {
                 # HAEO outputs use network subentry name as key, network element type as device
                 network_subentry_name: {
                     ELEMENT_TYPE_NETWORK: {
@@ -747,7 +771,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
                         output_name: _build_coordinator_output(
                             output_name,
                             output_data,
-                            forecast_times=forecast_timestamps,
+                            forecast_times=context.forecast_timestamps,
                         )
                         for output_name, output_data in device_outputs.items()
                     }
@@ -756,9 +780,13 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
                         subentry_devices[device_name] = processed_outputs
 
                 if subentry_devices:
-                    result[element_name] = subentry_devices
+                    outputs[element_name] = subentry_devices
 
-            return result
+            return CoordinatorData(
+                context=context,
+                outputs=outputs,
+                timestamp=optimization_timestamp,
+            )
         finally:
             # Always clear the in-progress flag
             self._optimization_in_progress = False

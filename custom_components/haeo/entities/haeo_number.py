@@ -9,7 +9,7 @@ from typing import Any
 from homeassistant.components.number import NumberEntity, NumberEntityDescription
 from homeassistant.config_entries import ConfigSubentry
 from homeassistant.const import PERCENTAGE, EntityCategory
-from homeassistant.core import Event, HomeAssistant, callback
+from homeassistant.core import Event, HomeAssistant, State, callback
 from homeassistant.helpers.device_registry import DeviceEntry
 from homeassistant.helpers.event import EventStateChangedData, async_track_state_change_event
 from homeassistant.util import dt as dt_util
@@ -137,6 +137,9 @@ class HaeoInputNumber(NumberEntity):
         # Event that signals data is ready for coordinator access
         self._data_ready = asyncio.Event()
 
+        # Captured source states for diagnostics reproducibility
+        self._captured_source_states: dict[str, State] = {}
+
         # Exclude forecast from recorder unless explicitly enabled
         if not config_entry.data.get(CONF_RECORD_FORECASTS, False):
             self._unrecorded_attributes = FORECAST_UNRECORDED_ATTRIBUTES
@@ -205,6 +208,11 @@ class HaeoInputNumber(NumberEntity):
         state. Do not write state from async_added_to_hass(); Home Assistant
         will handle initial state once the entity has been fully added.
         """
+        # Capture source states before loading - these are the exact states the loader will use
+        self._captured_source_states = {
+            eid: state for eid in self._source_entity_ids if (state := self._hass.states.get(eid)) is not None
+        }
+
         forecast_timestamps = self._get_forecast_timestamps()
 
         try:
@@ -317,6 +325,14 @@ class HaeoInputNumber(NumberEntity):
                 return tuple(float(value) / 100.0 for value in values)
             return values
         return None
+
+    def get_captured_source_states(self) -> dict[str, State]:
+        """Return the source sensor states captured at last data load.
+
+        These states represent the exact inputs that were processed to produce
+        the current forecast values. For diagnostics reproducibility.
+        """
+        return dict(self._captured_source_states)
 
     async def async_set_native_value(self, value: float) -> None:
         """Handle user setting a value.
