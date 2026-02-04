@@ -86,14 +86,9 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
     def _get_sections(self) -> tuple[SectionDefinition, ...]:
         """Return sections for the main configuration step."""
         return (
-            common_section(
-                (CONF_NAME, CONF_CONNECTION),
-                collapsed=False,
-            ),
+            common_section((CONF_NAME, CONF_CONNECTION), collapsed=False),
             SectionDefinition(
-                key=SECTION_STORAGE,
-                fields=(CONF_CAPACITY, CONF_INITIAL_CHARGE_PERCENTAGE),
-                collapsed=False,
+                key=SECTION_STORAGE, fields=(CONF_CAPACITY, CONF_INITIAL_CHARGE_PERCENTAGE), collapsed=False
             ),
             SectionDefinition(
                 key=SECTION_LIMITS,
@@ -103,23 +98,10 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                 ),
                 collapsed=False,
             ),
-            power_limits_section(
-                (CONF_MAX_POWER_TARGET_SOURCE, CONF_MAX_POWER_SOURCE_TARGET),
-                collapsed=False,
-            ),
-            pricing_section(
-                (CONF_PRICE_SOURCE_TARGET, CONF_PRICE_TARGET_SOURCE),
-                collapsed=False,
-            ),
-            efficiency_section(
-                (CONF_EFFICIENCY_SOURCE_TARGET, CONF_EFFICIENCY_TARGET_SOURCE),
-                collapsed=True,
-            ),
-            SectionDefinition(
-                key=SECTION_PARTITIONING,
-                fields=(CONF_CONFIGURE_PARTITIONS,),
-                collapsed=True,
-            ),
+            power_limits_section((CONF_MAX_POWER_TARGET_SOURCE, CONF_MAX_POWER_SOURCE_TARGET), collapsed=False),
+            pricing_section((CONF_PRICE_SOURCE_TARGET, CONF_PRICE_TARGET_SOURCE), collapsed=False),
+            efficiency_section((CONF_EFFICIENCY_SOURCE_TARGET, CONF_EFFICIENCY_TARGET_SOURCE), collapsed=True),
+            SectionDefinition(key=SECTION_PARTITIONING, fields=(CONF_CONFIGURE_PARTITIONS,), collapsed=True),
         )
 
     def _get_partition_sections(self) -> tuple[SectionDefinition, ...]:

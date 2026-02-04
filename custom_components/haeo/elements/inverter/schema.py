@@ -20,9 +20,7 @@ from custom_components.haeo.sections import (
 
 ELEMENT_TYPE: Final = "inverter"
 
-OPTIONAL_INPUT_FIELDS: Final[frozenset[str]] = frozenset(
-    {CONF_EFFICIENCY_SOURCE_TARGET, CONF_EFFICIENCY_TARGET_SOURCE}
-)
+OPTIONAL_INPUT_FIELDS: Final[frozenset[str]] = frozenset({CONF_EFFICIENCY_SOURCE_TARGET, CONF_EFFICIENCY_TARGET_SOURCE})
 
 
 class InverterConfigSchema(TypedDict):
