@@ -30,20 +30,6 @@ class PricingData(TypedDict, total=False):
     price_target_source: PricingValueData
 
 
-class PricingPairConfig(TypedDict):
-    """Directional pricing configuration with required values."""
-
-    price_source_target: PricingValueConfig
-    price_target_source: PricingValueConfig
-
-
-class PricingPairData(TypedDict):
-    """Loaded directional pricing values with required entries."""
-
-    price_source_target: PricingValueData
-    price_target_source: PricingValueData
-
-
 def pricing_section(fields: tuple[str, ...], *, collapsed: bool = False) -> SectionDefinition:
     """Return the standard pricing section definition."""
     return SectionDefinition(key=SECTION_PRICING, fields=fields, collapsed=collapsed)
@@ -60,8 +46,6 @@ __all__ = [
     "SECTION_PRICING",
     "PricingConfig",
     "PricingData",
-    "PricingPairConfig",
-    "PricingPairData",
     "build_pricing_fields",
     "pricing_section",
 ]

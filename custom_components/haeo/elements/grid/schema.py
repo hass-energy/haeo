@@ -14,9 +14,8 @@ from custom_components.haeo.sections import (
     ConnectedCommonData,
     PowerLimitsConfig,
     PowerLimitsData,
-    PricingPairConfig,
-    PricingPairData,
 )
+from custom_components.haeo.sections.pricing import PricingValueConfig, PricingValueData
 
 ELEMENT_TYPE: Final = "grid"
 
@@ -28,12 +27,26 @@ OPTIONAL_INPUT_FIELDS: Final[frozenset[str]] = frozenset(
 )
 
 
+class GridPricingConfig(TypedDict):
+    """Directional pricing configuration with required values."""
+
+    price_source_target: PricingValueConfig
+    price_target_source: PricingValueConfig
+
+
+class GridPricingData(TypedDict):
+    """Loaded directional pricing values with required entries."""
+
+    price_source_target: PricingValueData
+    price_target_source: PricingValueData
+
+
 class GridConfigSchema(TypedDict):
     """Grid element configuration as stored in Home Assistant."""
 
     element_type: Literal["grid"]
     common: ConnectedCommonConfig
-    pricing: PricingPairConfig
+    pricing: GridPricingConfig
     power_limits: PowerLimitsConfig
 
 
@@ -42,7 +55,7 @@ class GridConfigData(TypedDict):
 
     element_type: Literal["grid"]
     common: ConnectedCommonData
-    pricing: PricingPairData
+    pricing: GridPricingData
     power_limits: PowerLimitsData
 
 
