@@ -71,6 +71,7 @@ class HaeoInputNumber(NumberEntity):
             field_path or find_nested_config_path(subentry.data, field_info.field_name) or (field_info.field_name,)
         )
         self._horizon_manager = horizon_manager
+        self._pending_tasks: set[asyncio.Task[None]] = set()
 
         # Set device_entry to link entity to device
         self.device_entry = device_entry
@@ -173,6 +174,16 @@ class HaeoInputNumber(NumberEntity):
             # Load initial data - await ensures entity is ready when added_to_hass completes
             await self._async_load_data()
 
+    async def async_will_remove_from_hass(self) -> None:
+        """Cancel pending tasks before removal."""
+        pending = tuple(self._pending_tasks)
+        for task in pending:
+            task.cancel()
+        if pending:
+            await asyncio.gather(*pending, return_exceptions=True)
+        self._pending_tasks.clear()
+        await super().async_will_remove_from_hass()
+
     @callback
     def _handle_horizon_change(self) -> None:
         """Handle horizon change - refresh forecast with new time windows."""
@@ -181,17 +192,22 @@ class HaeoInputNumber(NumberEntity):
             self.async_write_ha_state()
         else:
             # Re-load data and push state for driven mode
-            self._hass.async_create_task(self._async_load_data_and_update())
+            self._track_task(self._hass.async_create_task(self._async_load_data_and_update()))
 
     @callback
     def _handle_source_state_change(self, _event: Event[EventStateChangedData]) -> None:
         """Handle source entity state change."""
-        self._hass.async_create_task(self._async_load_data_and_update())
+        self._track_task(self._hass.async_create_task(self._async_load_data_and_update()))
 
     async def _async_load_data_and_update(self) -> None:
         """Load data and write state update."""
         await self._async_load_data()
         self.async_write_ha_state()
+
+    def _track_task(self, task: asyncio.Task[None]) -> None:
+        """Track background tasks so they can be cancelled on removal."""
+        self._pending_tasks.add(task)
+        task.add_done_callback(self._pending_tasks.discard)
 
     async def _async_load_data(self) -> None:
         """Load data from source entities and update attributes.
