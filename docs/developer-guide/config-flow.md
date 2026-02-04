@@ -6,8 +6,8 @@ Guide to HAEO's ConfigSubentry-based configuration flow implementation.
 
 HAEO uses Home Assistant's **ConfigSubentry architecture** where each element is managed as a subentry:
 
-1. **Hub flow** (in `custom_components/haeo/flows/hub.py`): Creates main hub entry with optimization settings
-2. **Element flows** (in `custom_components/haeo/flows/element.py`): Creates element ConfigSubentries using `ConfigSubentryFlow`
+1. **Hub flow** (in `custom_components/haeo/flows/hub.py`): Creates the main hub entry and base subentries
+2. **Element flows** (in `custom_components/haeo/elements/<element>/flow.py`): Create element ConfigSubentries using `ConfigSubentryFlow`
 3. **Network subentry**: Automatically created representing the optimization network itself
 
 This architecture follows Home Assistant's native [subentry pattern](https://developers.home-assistant.io/docs/config_entries_config_flow_handler/).
@@ -52,7 +52,8 @@ The hub flow creates the main integration entry that acts as a parent for elemen
 
 ### Hub entry structure
 
-Hub entries are identified by the presence of `integration_type: "hub"` in their data:
+Hub entries are identified by the presence of `integration_type: "hub"` in their data.
+Optimization settings are stored in `data` under section keys, not in `options`.
 
 ```python
 {
@@ -60,23 +61,39 @@ Hub entries are identified by the presence of `integration_type: "hub"` in their
     "domain": "haeo",
     "title": "Home Energy System",
     "data": {
-        "integration_type": "hub"  # Marker to identify hub entries
-    },
-    "options": {
-        "horizon_hours": 48,
-        "period_minutes": 5,
+        "integration_type": "hub",  # Marker to identify hub entries
+        "common": {
+            "name": "Home Energy System",
+            "horizon_preset": "custom",
+        },
+        "tiers": {
+            "tier_1_count": 5,
+            "tier_1_duration": 1,
+            "tier_2_count": 11,
+            "tier_2_duration": 5,
+            "tier_3_count": 46,
+            "tier_3_duration": 30,
+            "tier_4_count": 48,
+            "tier_4_duration": 60,
+        },
+        "advanced": {
+            "advanced_mode": False,
+            "debounce_seconds": 30,
+        },
+        "record_forecasts": False,
     },
 }
 ```
 
-Optimization settings are stored in `options` (user-editable), while the hub marker is stored in `data` (immutable).
+Optimization settings are stored in `data` (user-editable), alongside the hub marker.
 The hub flow implementation is in `custom_components/haeo/flows/hub.py`.
+The form uses sectioned schemas (`common`, `advanced`) and an optional `custom_tiers` step when users select a custom planning horizon.
 
 ### Key implementation points
 
-- Hub flow uses standard config flow pattern with user step
+- Hub flow uses a standard config flow pattern with a user step and optional custom tiers step
 - Prevents duplicate hub names by checking existing entries
-- Stores optimization settings in `options` for later editing via options flow
+- Stores optimization settings in `data` sections so options flow can update them in-place
 - Hub marker in `data` allows coordinator to identify hub entries
 
 ## Element Flows
@@ -86,7 +103,8 @@ All element flows inherit from a common base class that handles parent hub selec
 
 ### Element entry structure
 
-Element entries link to their parent hub via `parent_entry_id`:
+Element entries are stored as subentries under the hub.
+Element configuration is sectioned, with optional sections only present when configured.
 
 ```python
 {
@@ -95,7 +113,6 @@ Element entries link to their parent hub via `parent_entry_id`:
     "title": "Home Battery",
     "data": {
         "element_type": "battery",
-        "parent_entry_id": "abc123...",  # Links to hub entry
         "common": {
             "name": "Home Battery",
             "connection": "Main Bus",
@@ -116,23 +133,34 @@ Element entries link to their parent hub via `parent_entry_id`:
             "price_source_target": 0.02,
             "price_target_source": 0.01,
         },
-        "advanced": {},
-        "undercharge": {},
-        "overcharge": {},
+        "efficiency": {
+            "efficiency_source_target": 95.0,
+            "efficiency_target_source": 95.0,
+        },
+        "partitioning": {
+            "configure_partitions": True,
+        },
+        "undercharge": {
+            "percentage": 5.0,
+            "cost": 1.5,
+        },
+        "overcharge": {
+            "percentage": 95.0,
+            "cost": 1.0,
+        },
     },
 }
 ```
 
 ### Base element flow pattern
 
-All element flows extend `ElementConfigFlow` which provides:
+All element flows use `ElementFlowMixin` which provides:
 
-- Parent hub selection (auto-selects if only one hub exists)
-- Entry creation with proper parent linkage
+- Entry creation with proper subentry linkage
 - Duplicate prevention
 - Standard error handling
 
-The element flow base class is in `custom_components/haeo/flows/element.py`.
+The element flow mixin is in `custom_components/haeo/flows/element_flow.py`.
 
 ### Connection endpoint filtering
 
@@ -152,20 +180,22 @@ See [`custom_components/haeo/elements/__init__.py`](https://github.com/hass-ener
 
 ### Element-specific implementations
 
-Each element type has its own flow class in `custom_components/haeo/flows/`:
+Each element type has its own flow class in `custom_components/haeo/elements/<element>/flow.py`:
 
-- `BatteryConfigFlow` - Battery element configuration
-- `GridConfigFlow` - Grid configuration
-- `SolarConfigFlow` - Solar system configuration
-- `ConstantLoadConfigFlow` - Constant load configuration
-- `ForecastLoadConfigFlow` - Forecast-based load configuration
-- `NodeConfigFlow` - Network node configuration
+- `BatterySubentryFlowHandler` - Battery element configuration
+- `BatterySectionSubentryFlowHandler` - Battery Section configuration
+- `ConnectionSubentryFlowHandler` - Connection configuration
+- `GridSubentryFlowHandler` - Grid configuration
+- `InverterSubentryFlowHandler` - Inverter configuration
+- `LoadSubentryFlowHandler` - Load configuration
+- `NodeSubentryFlowHandler` - Network node configuration
+- `SolarSubentryFlowHandler` - Solar system configuration
 
 Each flow defines element-specific schema fields, defaults, and validation logic.
 
 ## ChooseSelector Config Flow Pattern
 
-Element types use a single-step configuration flow with Home Assistant's `ChooseSelector`.
+Element types use a sectioned configuration flow with Home Assistant's `ChooseSelector`.
 This selector provides a dropdown letting users pick between different input methods for each field.
 
 ### Input Options
@@ -181,20 +211,23 @@ Each configurable field uses a `ChooseSelector` with these options:
 Required fields offer "Entity" and "Constant" choices.
 Optional fields also include "None" to skip the constraint entirely.
 
-### Single-Step Flow
+### Sectioned Flow
 
-All element configuration happens in a single step:
+Most elements configure all inputs in a single step:
 
 1. User enters element name and connection target
 2. For each input field, user selects "Entity", "Constant", or "None"
 3. Based on selection, user either picks entities from a dropdown or enters a constant value inline
 4. Submit creates the element with all configuration
 
-This replaces the previous two-step pattern where constant values were entered in a separate step.
+Some elements add a follow-up step when optional settings are enabled.
+For example, the battery flow presents a second step for undercharge and overcharge partitions when the user enables partitioning.
 
 ### UI Sections
 
 Config flows group related fields using `data_entry_flow.section` so advanced settings can be collapsed by default.
+Shared section definitions live in `custom_components/haeo/sections/` and include `common`, `pricing`, `efficiency`, `power_limits`, and `forecast`.
+Element-specific sections live alongside the element flow and schema.
 When using sections, translation strings for labels must live under
 `step.<step_id>.sections.<section_key>.data.<field_name>` (and `data_description` if needed).
 
@@ -334,13 +367,13 @@ For details on loaders, see [Data Loading](data-loading.md).
 The options flow allows users to edit hub optimization settings after initial setup.
 Elements are managed as separate config entries (added/edited/removed through the main integration flow), not through the options flow.
 
-The options flow implementation is in `custom_components/haeo/flows/hub.py`.
+The options flow implementation is in `custom_components/haeo/flows/options.py`.
 
 ### Key points
 
-- Options flow only edits hub-level optimization settings (horizon, period, solver)
+- Options flow edits hub-level optimization settings (planning horizon preset, tier configuration, debounce window, advanced mode, forecast recording)
 - Element configuration happens via separate config entries
-- Settings stored in `config_entry.options` (not `data`)
+- Settings stored in `config_entry.data` under section keys
 - Changes trigger coordinator reload to apply new parameters
 
 ## Element Management
@@ -379,7 +412,7 @@ See [user configuration guide](../user-guide/configuration.md) for end-user inst
 
 Config flow testing uses Home Assistant's [testing fixtures](https://developers.home-assistant.io/docs/development_testing/#test-fixtures) and follows standard patterns.
 
-Comprehensive test coverage is in `tests/test_config_flow.py`, including:
+Comprehensive test coverage is in `tests/flows/`, including:
 
 - Hub flow success and duplicate prevention
 - Element flow with hub selection

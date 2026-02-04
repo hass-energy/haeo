@@ -36,15 +36,15 @@ Inverter creates 1 device in Home Assistant:
 
 The adapter transforms user configuration into connection segments:
 
-| User Configuration        | Segment           | Segment Field              | Notes                                 |
-| ------------------------- | ----------------- | -------------------------- | ------------------------------------- |
+| User Configuration         | Segment           | Segment Field              | Notes                                 |
+| -------------------------- | ----------------- | -------------------------- | ------------------------------------- |
 | `efficiency_source_target` | EfficiencySegment | `efficiency_source_target` | Efficiency when inverting (DC to AC)  |
 | `efficiency_target_source` | EfficiencySegment | `efficiency_target_source` | Efficiency when rectifying (AC to DC) |
-| `max_power_source_target` | PowerLimitSegment | `max_power_source_target`  | Maximum inverting power (optional)    |
-| `max_power_target_source` | PowerLimitSegment | `max_power_target_source`  | Maximum rectifying power (optional)   |
-| `connection`              | Connection        | `target`                   | AC side node to connect to            |
-| —                         | Node              | `is_source=false`          | DC bus is not a power source          |
-| —                         | Node              | `is_sink=false`            | DC bus is not a power sink            |
+| `max_power_source_target`  | PowerLimitSegment | `max_power_source_target`  | Maximum inverting power (optional)    |
+| `max_power_target_source`  | PowerLimitSegment | `max_power_target_source`  | Maximum rectifying power (optional)   |
+| `connection`               | Connection        | `target`                   | AC side node to connect to            |
+| —                          | Node              | `is_source=false`          | DC bus is not a power source          |
+| —                          | Node              | `is_sink=false`            | DC bus is not a power sink            |
 
 ## Sensors Created
 

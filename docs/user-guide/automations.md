@@ -57,7 +57,7 @@ automation:
     description: Set battery charge power from HAEO recommendation
     trigger:
       - platform: state
-        entity_id: sensor.{battery_name}_power_consumed
+        entity_id: sensor.{battery_name}_power_charge
     condition:
       - condition: template
         value_template: >
@@ -76,7 +76,7 @@ automation:
     description: Set battery discharge power from HAEO recommendation
     trigger:
       - platform: state
-        entity_id: sensor.{battery_name}_power_produced
+        entity_id: sensor.{battery_name}_power_discharge
     condition:
       - condition: template
         value_template: >
@@ -94,7 +94,7 @@ automation:
 
 ### What this automation does
 
-1. **Triggers**: Separate automations for charge (`power_consumed`) and discharge (`power_produced`) sensors
+1. **Triggers**: Separate automations for charge (`power_charge`) and discharge (`power_discharge`) sensors
 2. **Safety checks**: Ensures sensor is available and value is positive (non-zero operation)
 3. **Actions**: Writes the appropriate setpoint to battery control entities
 
@@ -115,17 +115,11 @@ automation:
     description: Limit inverter output when HAEO recommends curtailment
     trigger:
       - platform: state
-        entity_id: sensor.{solar_name}_power_produced
+        entity_id: sensor.{solar_name}_power
     condition:
       - condition: template
         value_template: >
           {{ trigger.to_state.state not in ['unavailable', 'unknown'] }}
-      - condition: template
-        value_template: >
-          {{
-            trigger.to_state.state | float(0)
-            < states('sensor.{solar_name}_power_available') | float(0)
-          }}
     action:
       - service: number.set_value
         target:
@@ -136,14 +130,15 @@ automation:
 
 ### What this automation does
 
-1. **Trigger**: Monitors `power_produced` (optimal generation after curtailment)
-2. **Conditions**: Validates sensor availability and checks if curtailment is active (produced < available)
-3. **Action**: Sets inverter power limit to match HAEO's curtailment recommendation
+1. **Trigger**: Monitors `power` (optimized solar generation)
+2. **Conditions**: Validates sensor availability
+3. **Action**: Sets inverter power limit to match HAEO's optimized output
 
 ### Customization options
 
 - Replace `number.solar_inverter_limit_kw` with your inverter's power limit control entity
 - Add [`for:` duration on the trigger](https://www.home-assistant.io/docs/automation/trigger/#state-trigger) to debounce brief fluctuations
+- Compare against your forecast sensor if you want to apply curtailment only when optimized output is below forecast
 - Use `choose` action with multiple conditions for different curtailment levels (e.g., block export vs reduce power)
 
 ## Best practices
@@ -186,10 +181,9 @@ Use Developer Tools → States to inspect sensor values:
 
 ```
 sensor.{network_name}_optimization_status: "success"
-sensor.{battery_name}_power_consumed: 3.2
-sensor.{battery_name}_power_produced: 0.0
-sensor.{solar_name}_power_produced: 4.5
-sensor.{solar_name}_power_available: 5.0
+sensor.{battery_name}_power_charge: 3.2
+sensor.{battery_name}_power_discharge: 0.0
+sensor.{solar_name}_power: 4.5
 ```
 
 ### Debugging with traces
@@ -214,3 +208,41 @@ If you have questions or need help creating automations:
 - Check the [HAEO GitHub Discussions](https://github.com/hass-energy/haeo/discussions)
 - Review existing automation examples from the community
 - Ask in the Home Assistant Community forums with the `haeo` tag
+
+## Next Steps
+
+<div class="grid cards" markdown>
+
+- :material-graph:{ .lg .middle } **Optimization results**
+
+    ---
+
+    Learn how to interpret the outputs you automate.
+
+    [:material-arrow-right: Optimization guide](optimization.md)
+
+- :material-chart-line:{ .lg .middle } **Forecasts and sensors**
+
+    ---
+
+    Ensure your data sources cover the planning horizon.
+
+    [:material-arrow-right: Forecasts guide](forecasts-and-sensors.md)
+
+- :material-battery-charging:{ .lg .middle } **Battery configuration**
+
+    ---
+
+    Review battery sensors and outputs used in automations.
+
+    [:material-arrow-right: Battery guide](elements/battery.md)
+
+- :material-weather-sunny:{ .lg .middle } **Solar configuration**
+
+    ---
+
+    Validate solar outputs and curtailment behavior.
+
+    [:material-arrow-right: Solar guide](elements/solar.md)
+
+</div>

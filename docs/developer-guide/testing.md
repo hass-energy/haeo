@@ -95,7 +95,7 @@ VALID_CASES = [
             # etc
         },
         "expected_outputs": {
-            "power_consumed": {
+            "battery_power_charge": {
                 "type": "power",
                 "unit": "kW",
                 "values": (1.0, 2.0),

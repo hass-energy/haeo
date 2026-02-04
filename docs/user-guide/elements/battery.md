@@ -25,31 +25,33 @@ A battery in HAEO represents:
 
 ### Configuration process
 
-Battery configuration uses a single-step flow where you enter the name, connection, and configure each input field.
+Battery configuration uses a sectioned flow where you enter the name, connection, and configure each input field.
 For each field, select "Entity" to link to a sensor, "Constant" to enter a fixed value, or "None" for optional fields you don't need.
+If you enable battery partitions, HAEO guides you to a second step to configure undercharge and overcharge values.
 
 Fields configured with "Constant" create input entities that you can adjust at runtime without reconfiguring.
 Optional fields set to "None" are omitted from the optimization entirely.
 
 ## Configuration Fields
 
-| Field                                                       | Type       | Required | Default | Description                                                |
-| ----------------------------------------------------------- | ---------- | -------- | ------- | ---------------------------------------------------------- |
-| **[Name](#name)**                                           | String     | Yes      | -       | Unique identifier (e.g., "Main Battery", "Garage Battery") |
-| **[Capacity](#capacity)**                                   | Energy     | Yes      | -       | Total energy storage capacity                              |
-| **[Current Charge Percentage](#current-charge-percentage)** | Percentage | Yes      | -       | Home Assistant sensor reporting current SOC (0-100%)       |
-| **[Min Charge Percentage](#min-and-max-charge-percentage)** | Percentage | No       | 10      | Preferred minimum SOC (%)                                  |
-| **[Max Charge Percentage](#min-and-max-charge-percentage)** | Percentage | No       | 90      | Preferred maximum SOC (%)                                  |
-| **[Undercharge Percentage](#undercharge-configuration)**    | Percentage | No       | -       | Hard minimum SOC limit (%)                                 |
-| **[Overcharge Percentage](#overcharge-configuration)**      | Percentage | No       | -       | Hard maximum SOC limit (%)                                 |
-| **[Undercharge Cost](#undercharge-configuration)**          | Price      | No       | -       | Economic penalty for discharging below min SOC             |
-| **[Overcharge Cost](#overcharge-configuration)**            | Price      | No       | -       | Economic penalty for charging above max SOC                |
-| **[Discharge efficiency](#charge-and-discharge-efficiency)** | Percentage | No       | 99      | Efficiency when discharging (battery to network)          |
-| **[Charge efficiency](#charge-and-discharge-efficiency)**    | Percentage | No       | 99      | Efficiency when charging (network to battery)             |
-| **[Max Charge Power](#max-charge-and-discharge-power)**     | Power      | No       | -       | Maximum charging power                                     |
-| **[Max Discharge Power](#max-charge-and-discharge-power)**  | Power      | No       | -       | Maximum discharging power                                  |
-| **[Charge Price](#charge-price)**                           | Price      | No       | 0       | Base price applied when charging                           |
-| **[Discharge Price](#discharge-price)**                     | Price      | No       | 0       | Base price applied when discharging                        |
+| Field                                                             | Type       | Required | Default | Description                                                |
+| ----------------------------------------------------------------- | ---------- | -------- | ------- | ---------------------------------------------------------- |
+| **[Name](#name)**                                                 | String     | Yes      | -       | Unique identifier (e.g., "Main Battery", "Garage Battery") |
+| **[Capacity](#capacity)**                                         | Energy     | Yes      | -       | Total energy storage capacity                              |
+| **[Current Charge Percentage](#current-charge-percentage)**       | Percentage | Yes      | -       | Home Assistant sensor reporting current SOC (0-100%)       |
+| **[Min Charge Percentage](#min-and-max-charge-percentage)**       | Percentage | No       | 0       | Preferred minimum SOC (%)                                  |
+| **[Max Charge Percentage](#min-and-max-charge-percentage)**       | Percentage | No       | 100     | Preferred maximum SOC (%)                                  |
+| **[Configure battery partitions](#configure-battery-partitions)** | Boolean    | No       | false   | Enable undercharge and overcharge partitions               |
+| **[Undercharge Percentage](#undercharge-configuration)**          | Percentage | No       | -       | Hard minimum SOC limit (%) (battery partitions step)       |
+| **[Overcharge Percentage](#overcharge-configuration)**            | Percentage | No       | -       | Hard maximum SOC limit (%) (battery partitions step)       |
+| **[Undercharge Cost](#undercharge-configuration)**                | Price      | No       | -       | Economic penalty for discharging below min SOC             |
+| **[Overcharge Cost](#overcharge-configuration)**                  | Price      | No       | -       | Economic penalty for charging above max SOC                |
+| **[Discharge efficiency](#charge-and-discharge-efficiency)**      | Percentage | No       | 95      | Efficiency when discharging (battery to network)           |
+| **[Charge efficiency](#charge-and-discharge-efficiency)**         | Percentage | No       | 95      | Efficiency when charging (network to battery)              |
+| **[Max Charge Power](#max-charge-and-discharge-power)**           | Power      | No       | -       | Maximum charging power                                     |
+| **[Max Discharge Power](#max-charge-and-discharge-power)**        | Power      | No       | -       | Maximum discharging power                                  |
+| **[Charge Price](#charge-price)**                                 | Price      | No       | 0       | Base price applied when charging                           |
+| **[Discharge Price](#discharge-price)**                           | Price      | No       | 0       | Base price applied when discharging                        |
 
 If not specified, power is unconstrained (limited only by other system constraints).
 
@@ -78,7 +80,8 @@ HAEO expects values between 0 and 100.
 Set the preferred operating range for routine battery use.
 HAEO will normally keep the battery within this range.
 These are the **inner bounds** of normal operation.
-Leaving the defaults (10-90%) is a good starting point unless your manufacturer recommends otherwise.
+If you leave them unset, HAEO allows the full 0-100% range.
+A typical starting point is 10-90% unless your manufacturer recommends otherwise.
 
 ### Charge and discharge efficiency
 
@@ -113,7 +116,14 @@ Models battery degradation or other discharge penalties.
 
 **Default**: 0 \$/kWh (no added cost)
 
+### Configure battery partitions
+
+Enable this option to configure undercharge and overcharge partitions.
+When enabled, HAEO opens a second step where you set the undercharge and overcharge percentage and cost values.
+
 ### Undercharge Configuration
+
+Undercharge settings are configured on the battery partitions step.
 
 Configure an extended low SOC range with economic penalties to model battery behavior below normal operating limits.
 This section is optional and can be used independently of overcharge configuration.
@@ -139,6 +149,8 @@ This allows operation between 5-10% SOC with an added undercharge cost penalty w
     The `min_charge_percentage` is the soft limit - HAEO prefers to stay above it but will discharge into the 5-10% range when economically justified.
 
 ### Overcharge Configuration
+
+Overcharge settings are configured on the battery partitions step.
 
 Configure an extended high SOC range with economic penalties to model battery behavior above normal operating limits.
 This section is optional and can be used independently of undercharge configuration.
@@ -232,6 +244,8 @@ This creates a battery that operates in the 20-90% range with no economic penalt
 
 A battery configured with undercharge and overcharge ranges for conditional extended operation:
 
+Enable **Configure battery partitions** to access the undercharge and overcharge fields.
+
 | Field                         | Example Value      |
 | ----------------------------- | ------------------ |
 | **Name**                      | Main Battery       |
@@ -277,6 +291,8 @@ Input entities appear as Number entities with the `config` entity category.
 | `number.{name}_efficiency_target_source`  | %      | Charge efficiency (if configured)            |
 | `number.{name}_percentage`                | %      | Undercharge or overcharge percentage         |
 | `number.{name}_cost`                      | \$/kWh | Undercharge or overcharge cost               |
+
+When both undercharge and overcharge partitions are configured, Home Assistant adds a suffix to keep entity IDs unique.
 
 Input entities include a `forecast` attribute showing values for each optimization period.
 See the [Input Entities developer guide](../../developer-guide/inputs.md) for details on input entity behavior.

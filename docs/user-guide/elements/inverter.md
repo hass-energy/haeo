@@ -9,14 +9,14 @@ They provide a DC bus for connecting batteries and solar panels, with bidirectio
 
 ## Configuration
 
-| Field                                      | Type                                  | Required | Default | Description                                            |
-| ------------------------------------------ | ------------------------------------- | -------- | ------- | ------------------------------------------------------ |
-| **[Name](#name)**                          | String                                | Yes      | -       | Unique identifier for this inverter                    |
-| **[Connection](#connection)**              | Element                               | Yes      | -       | AC side node to connect to                             |
+| Field                                         | Type                                  | Required | Default | Description                                            |
+| --------------------------------------------- | ------------------------------------- | -------- | ------- | ------------------------------------------------------ |
+| **[Name](#name)**                             | String                                | Yes      | -       | Unique identifier for this inverter                    |
+| **[Connection](#connection)**                 | Element                               | Yes      | -       | AC side node to connect to                             |
 | **[Max Power DC to AC](#max-power-dc-to-ac)** | [sensor](../forecasts-and-sensors.md) | No       | -       | Maximum power when converting DC to AC (kW)            |
 | **[Max Power AC to DC](#max-power-ac-to-dc)** | [sensor](../forecasts-and-sensors.md) | No       | -       | Maximum power when converting AC to DC (kW)            |
-| **Efficiency DC to AC**                      | Number (%)                            | No       | 100     | Efficiency percentage when inverting DC to AC (0-100)  |
-| **Efficiency AC to DC**                      | Number (%)                            | No       | 100     | Efficiency percentage when rectifying AC to DC (0-100) |
+| **Efficiency DC to AC**                       | Number (%)                            | No       | 100     | Efficiency percentage when inverting DC to AC (0-100)  |
+| **Efficiency AC to DC**                       | Number (%)                            | No       | 100     | Efficiency percentage when rectifying AC to DC (0-100) |
 
 ## Name
 
@@ -64,19 +64,19 @@ Rectifying efficiency may differ from inverting efficiency.
 
 ### Basic Hybrid Inverter
 
-| Field                | Value         |
-| -------------------- | ------------- |
-| **Name**             | Main Inverter |
-| **Connection**       | Home Bus      |
+| Field                   | Value         |
+| ----------------------- | ------------- |
+| **Name**                | Main Inverter |
+| **Connection**          | Home Bus      |
 | **Efficiency DC to AC** | 97.0          |
 | **Efficiency AC to DC** | 97.0          |
 
 ### With Power Limits
 
-| Field                | Value                        |
-| -------------------- | ---------------------------- |
-| **Name**             | Hybrid Inverter              |
-| **Connection**       | Home Bus                     |
+| Field                   | Value                        |
+| ----------------------- | ---------------------------- |
+| **Name**                | Hybrid Inverter              |
+| **Connection**          | Home Bus                     |
 | **Efficiency DC to AC** | 96.0                         |
 | **Efficiency AC to DC** | 95.0                         |
 | **Max Power DC to AC**  | input_number.inverter_rating |
@@ -86,10 +86,10 @@ Rectifying efficiency may differ from inverting efficiency.
 
 Some inverters have different power ratings for inverting vs. rectifying.
 
-| Field                | Value                         |
-| -------------------- | ----------------------------- |
-| **Name**             | Solar Inverter                |
-| **Connection**       | AC Panel                      |
+| Field                   | Value                         |
+| ----------------------- | ----------------------------- |
+| **Name**                | Solar Inverter                |
+| **Connection**          | AC Panel                      |
 | **Efficiency DC to AC** | 97.5                          |
 | **Efficiency AC to DC** | 96.0                          |
 | **Max Power DC to AC**  | input_number.inverter_max_5kw |
@@ -100,10 +100,10 @@ Some inverters have different power ratings for inverting vs. rectifying.
 Each configuration field creates a corresponding input entity in Home Assistant.
 Input entities appear as Number entities with the `config` entity category.
 
-| Input                                   | Unit | Description                         |
-| --------------------------------------- | ---- | ----------------------------------- |
-| `number.{name}_max_power_source_target` | kW   | Maximum DC to AC power (if configured) |
-| `number.{name}_max_power_target_source` | kW   | Maximum AC to DC power (if configured) |
+| Input                                    | Unit | Description                            |
+| ---------------------------------------- | ---- | -------------------------------------- |
+| `number.{name}_max_power_source_target`  | kW   | Maximum DC to AC power (if configured) |
+| `number.{name}_max_power_target_source`  | kW   | Maximum AC to DC power (if configured) |
 | `number.{name}_efficiency_source_target` | %    | Efficiency DC to AC (if configured)    |
 | `number.{name}_efficiency_target_source` | %    | Efficiency AC to DC (if configured)    |
 

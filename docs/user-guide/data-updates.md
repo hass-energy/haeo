@@ -54,7 +54,7 @@ Persistent problems usually point to missing inputs or external services that ne
 
 Monitor your system occasionally to ensure updates finish comfortably within the time windows that matter for your automations.
 Long optimization runs usually mean the problem has become quite large, so start by simplifying inputs before you tweak the look-ahead horizon.
-Review the [interval tier guidance](configuration.md#interval-tiers) before changing that value.
+Review the [custom tier guidance](configuration.md#custom-tiers) before changing that value.
 
 ## Debugging updates
 
@@ -149,7 +149,7 @@ HAEO is event-driven, so optimizations run immediately when input data changes.
 To improve responsiveness:
 
 - Ensure your source sensors update frequently (check their polling intervals)
-- Adjust interval tiers for faster solving (reduce tier counts or increase durations) after consulting the [interval tier guidance](configuration.md#interval-tiers)
+- Adjust interval tiers for faster solving (reduce tier counts or increase durations) after consulting the [custom tier guidance](configuration.md#custom-tiers)
 - Simplify network topology when possible
 - Trigger manual updates via service calls when you need immediate feedback
 
