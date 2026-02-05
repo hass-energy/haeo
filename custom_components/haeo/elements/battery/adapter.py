@@ -503,7 +503,7 @@ def _decay_charge_price(
             return np.array([start_value], dtype=np.float64)
         return np.linspace(start_value, 0.0, num=n_periods, dtype=np.float64)
 
-    return value
+    return np.asarray(value, dtype=np.float64)
 
 
 def _partition_input_fields(
