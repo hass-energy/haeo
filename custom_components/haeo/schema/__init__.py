@@ -17,7 +17,7 @@ from .connection_target import (
 from .constant_value import ConstantValue, as_constant_value, is_constant_value
 from .entity_value import EntityValue, as_entity_value, is_entity_value
 from .none_value import NoneValue, as_none_value, is_none_value
-from .types import EntityOrConstantValue, OptionalEntityOrConstantValue, SchemaValue, SchemaValueKind
+from .types import SchemaContainer, SchemaValue, SchemaValueKind
 from .util import UnitSpec, matches_unit_spec
 
 VALUE_TYPE_ENTITY: Final = "entity"
@@ -58,6 +58,7 @@ def get_schema_value_kinds(value_type: Any) -> frozenset[SchemaValueKind]:
 
     return frozenset()
 
+
 __all__ = [
     "VALUE_TYPE_CONNECTION_TARGET",
     "VALUE_TYPE_CONSTANT",
@@ -66,10 +67,9 @@ __all__ = [
     "ConnectionTarget",
     "ConnectionTargetValue",
     "ConstantValue",
-    "EntityOrConstantValue",
     "EntityValue",
     "NoneValue",
-    "OptionalEntityOrConstantValue",
+    "SchemaContainer",
     "SchemaValue",
     "SchemaValueKind",
     "UnitSpec",

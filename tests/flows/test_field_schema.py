@@ -31,8 +31,9 @@ from custom_components.haeo.flows.field_schema import (
 )
 from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.schema import (
-    EntityOrConstantValue,
-    OptionalEntityOrConstantValue,
+    ConstantValue,
+    EntityValue,
+    NoneValue,
     as_constant_value,
     as_entity_value,
     as_none_value,
@@ -930,7 +931,7 @@ def test_validate_choose_fields_returns_empty_for_valid_input(
     """validate_choose_fields returns empty dict when all required fields are valid."""
     user_input = {"test_field": 42.0}
     field_schema = {
-        "test_field": FieldSchemaInfo(value_type=EntityOrConstantValue, is_optional=False),
+        "test_field": FieldSchemaInfo(value_type=EntityValue | ConstantValue, is_optional=False),
     }
     result = validate_choose_fields(user_input, _field_map(number_field), field_schema)
     assert result == {}
@@ -942,7 +943,7 @@ def test_validate_choose_fields_returns_error_for_invalid_required(
     """validate_choose_fields returns error for invalid required field."""
     user_input = {"test_field": None}
     field_schema = {
-        "test_field": FieldSchemaInfo(value_type=EntityOrConstantValue, is_optional=False),
+        "test_field": FieldSchemaInfo(value_type=EntityValue | ConstantValue, is_optional=False),
     }
     result = validate_choose_fields(user_input, _field_map(number_field), field_schema)
     assert result == {"test_field": "required"}
@@ -954,7 +955,7 @@ def test_validate_choose_fields_skips_optional_fields(
     """validate_choose_fields skips fields in optional_keys."""
     user_input = {"test_field": None}
     field_schema = {
-        "test_field": FieldSchemaInfo(value_type=OptionalEntityOrConstantValue, is_optional=True),
+        "test_field": FieldSchemaInfo(value_type=EntityValue | ConstantValue | NoneValue, is_optional=True),
     }
     result = validate_choose_fields(user_input, _field_map(number_field), field_schema)
     assert result == {}
@@ -966,7 +967,7 @@ def test_validate_choose_fields_skips_excluded_fields(
     """validate_choose_fields skips fields in exclude_fields."""
     user_input = {"test_field": None}
     field_schema = {
-        "test_field": FieldSchemaInfo(value_type=EntityOrConstantValue, is_optional=False),
+        "test_field": FieldSchemaInfo(value_type=EntityValue | ConstantValue, is_optional=False),
     }
     result = validate_choose_fields(
         user_input,

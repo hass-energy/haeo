@@ -10,7 +10,7 @@ import voluptuous as vol
 from custom_components.haeo.elements import FieldSchemaInfo
 from custom_components.haeo.elements.input_fields import InputFieldSection
 from custom_components.haeo.flows.field_schema import SectionDefinition, build_choose_field_entries
-from custom_components.haeo.schema import EntityOrConstantValue
+from custom_components.haeo.schema import ConstantValue, EntityValue
 
 SECTION_FORECAST: Final = "forecast"
 CONF_FORECAST: Final = "forecast"
@@ -19,7 +19,7 @@ CONF_FORECAST: Final = "forecast"
 class ForecastConfig(TypedDict):
     """Forecast configuration for input values."""
 
-    forecast: EntityOrConstantValue
+    forecast: EntityValue | ConstantValue
 
 
 class ForecastData(TypedDict):

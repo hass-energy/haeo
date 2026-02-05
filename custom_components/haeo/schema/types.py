@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import Literal
 
 from .connection_target import ConnectionTarget, ConnectionTargetValue
@@ -12,17 +13,15 @@ from .none_value import NoneValue
 type SchemaValueKind = Literal["entity", "constant", "none"]
 
 type SchemaValue = EntityValue | ConstantValue | NoneValue
-type EntityOrConstantValue = EntityValue | ConstantValue
-type OptionalEntityOrConstantValue = EntityValue | ConstantValue | NoneValue
+type SchemaContainer = Mapping[str, SchemaValue]
 
 __all__ = [
     "ConnectionTarget",
     "ConnectionTargetValue",
     "ConstantValue",
-    "EntityOrConstantValue",
     "EntityValue",
     "NoneValue",
-    "OptionalEntityOrConstantValue",
+    "SchemaContainer",
     "SchemaValue",
     "SchemaValueKind",
 ]

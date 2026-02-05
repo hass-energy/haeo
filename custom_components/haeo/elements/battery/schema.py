@@ -5,7 +5,7 @@ from typing import Any, Final, Literal, NotRequired, TypedDict
 import numpy as np
 from numpy.typing import NDArray
 
-from custom_components.haeo.schema import EntityOrConstantValue, OptionalEntityOrConstantValue
+from custom_components.haeo.schema import ConstantValue, EntityValue, NoneValue
 from custom_components.haeo.sections import (
     CONF_CONNECTION,
     CONF_EFFICIENCY_SOURCE_TARGET,
@@ -73,8 +73,8 @@ PARTITION_FIELD_NAMES: Final[frozenset[str]] = frozenset(
 class StorageSocConfig(TypedDict):
     """Storage config with required SOC percentage."""
 
-    capacity: EntityOrConstantValue
-    initial_charge_percentage: EntityOrConstantValue
+    capacity: EntityValue | ConstantValue
+    initial_charge_percentage: EntityValue | ConstantValue
 
 
 class StorageSocData(TypedDict):
@@ -87,8 +87,8 @@ class StorageSocData(TypedDict):
 class LimitsConfig(TypedDict, total=False):
     """Charge percentage limits configuration."""
 
-    min_charge_percentage: OptionalEntityOrConstantValue
-    max_charge_percentage: OptionalEntityOrConstantValue
+    min_charge_percentage: EntityValue | ConstantValue | NoneValue
+    max_charge_percentage: EntityValue | ConstantValue | NoneValue
 
 
 class LimitsData(TypedDict, total=False):
@@ -113,8 +113,8 @@ class PartitioningData(TypedDict, total=False):
 class PartitionConfig(TypedDict, total=False):
     """Partition configuration (undercharge/overcharge)."""
 
-    percentage: OptionalEntityOrConstantValue
-    cost: OptionalEntityOrConstantValue
+    percentage: EntityValue | ConstantValue | NoneValue
+    cost: EntityValue | ConstantValue | NoneValue
 
 
 class PartitionData(TypedDict, total=False):

@@ -10,28 +10,25 @@ import voluptuous as vol
 from custom_components.haeo.elements import FieldSchemaInfo
 from custom_components.haeo.elements.input_fields import InputFieldSection
 from custom_components.haeo.flows.field_schema import SectionDefinition, build_choose_field_entries
-from custom_components.haeo.schema import OptionalEntityOrConstantValue
+from custom_components.haeo.schema import ConstantValue, EntityValue, NoneValue
 
 SECTION_POWER_LIMITS: Final = "power_limits"
 CONF_MAX_POWER_SOURCE_TARGET: Final = "max_power_source_target"
 CONF_MAX_POWER_TARGET_SOURCE: Final = "max_power_target_source"
 
-type PowerLimitValueConfig = OptionalEntityOrConstantValue
-type PowerLimitValueData = NDArray[np.floating[Any]] | float
-
 
 class PowerLimitsConfig(TypedDict, total=False):
     """Directional power limit configuration."""
 
-    max_power_source_target: PowerLimitValueConfig
-    max_power_target_source: PowerLimitValueConfig
+    max_power_source_target: EntityValue | ConstantValue | NoneValue
+    max_power_target_source: EntityValue | ConstantValue | NoneValue
 
 
 class PowerLimitsData(TypedDict, total=False):
     """Loaded directional power limits."""
 
-    max_power_source_target: PowerLimitValueData
-    max_power_target_source: PowerLimitValueData
+    max_power_source_target: NDArray[np.floating[Any]] | float
+    max_power_target_source: NDArray[np.floating[Any]] | float
 
 
 def power_limits_section(

@@ -17,7 +17,7 @@ from custom_components.haeo.model import battery as model_battery
 from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_BATTERY
 from custom_components.haeo.model.output_data import OutputData
-from custom_components.haeo.schema import VALUE_TYPE_CONSTANT, VALUE_TYPE_ENTITY, EntityOrConstantValue
+from custom_components.haeo.schema import VALUE_TYPE_CONSTANT, VALUE_TYPE_ENTITY, ConstantValue, EntityValue
 from custom_components.haeo.sections import SECTION_COMMON
 
 from .schema import (
@@ -73,7 +73,7 @@ class BatterySectionAdapter:
         """Check if battery section configuration can be loaded."""
         ts_loader = TimeSeriesLoader()
 
-        def required_available(value: EntityOrConstantValue | None) -> bool:
+        def required_available(value: EntityValue | ConstantValue | None) -> bool:
             if value is None:
                 return False
             if value["type"] == VALUE_TYPE_ENTITY:

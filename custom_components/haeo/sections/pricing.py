@@ -10,28 +10,25 @@ import voluptuous as vol
 from custom_components.haeo.elements import FieldSchemaInfo
 from custom_components.haeo.elements.input_fields import InputFieldSection
 from custom_components.haeo.flows.field_schema import SectionDefinition, build_choose_field_entries
-from custom_components.haeo.schema import OptionalEntityOrConstantValue
+from custom_components.haeo.schema import ConstantValue, EntityValue, NoneValue
 
 SECTION_PRICING: Final = "pricing"
 CONF_PRICE_SOURCE_TARGET: Final = "price_source_target"
 CONF_PRICE_TARGET_SOURCE: Final = "price_target_source"
 
-type PricingValueConfig = OptionalEntityOrConstantValue
-type PricingValueData = NDArray[np.floating[Any]] | float
-
 
 class PricingConfig(TypedDict, total=False):
     """Directional pricing configuration for power transfer."""
 
-    price_source_target: PricingValueConfig
-    price_target_source: PricingValueConfig
+    price_source_target: EntityValue | ConstantValue | NoneValue
+    price_target_source: EntityValue | ConstantValue | NoneValue
 
 
 class PricingData(TypedDict, total=False):
     """Loaded directional pricing values."""
 
-    price_source_target: PricingValueData
-    price_target_source: PricingValueData
+    price_source_target: NDArray[np.floating[Any]] | float
+    price_target_source: NDArray[np.floating[Any]] | float
 
 
 def pricing_section(fields: tuple[str, ...], *, collapsed: bool = False) -> SectionDefinition:

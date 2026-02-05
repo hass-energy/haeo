@@ -10,14 +10,14 @@ import voluptuous as vol
 from custom_components.haeo.elements import FieldSchemaInfo
 from custom_components.haeo.elements.input_fields import InputFieldSection
 from custom_components.haeo.flows.field_schema import SectionDefinition, build_choose_field_entries
-from custom_components.haeo.schema import OptionalEntityOrConstantValue
+from custom_components.haeo.schema import ConstantValue, EntityValue, NoneValue
 
 SECTION_EFFICIENCY: Final = "efficiency"
 
 CONF_EFFICIENCY_SOURCE_TARGET: Final = "efficiency_source_target"
 CONF_EFFICIENCY_TARGET_SOURCE: Final = "efficiency_target_source"
 
-type EfficiencyValueConfig = OptionalEntityOrConstantValue
+type EfficiencyValueConfig = EntityValue | ConstantValue | NoneValue
 type EfficiencyValueData = NDArray[np.floating[Any]] | float
 
 

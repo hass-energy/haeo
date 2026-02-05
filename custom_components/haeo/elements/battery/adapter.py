@@ -25,8 +25,9 @@ from custom_components.haeo.schema import (
     VALUE_TYPE_CONSTANT,
     VALUE_TYPE_ENTITY,
     VALUE_TYPE_NONE,
-    EntityOrConstantValue,
-    OptionalEntityOrConstantValue,
+    ConstantValue,
+    EntityValue,
+    NoneValue,
     extract_connection_target,
 )
 from custom_components.haeo.sections import (
@@ -109,14 +110,14 @@ class BatteryAdapter:
         """Check if battery configuration can be loaded."""
         ts_loader = TimeSeriesLoader()
 
-        def required_available(value: EntityOrConstantValue | None) -> bool:
+        def required_available(value: EntityValue | ConstantValue | None) -> bool:
             if value is None:
                 return False
             if value["type"] == VALUE_TYPE_ENTITY:
                 return ts_loader.available(hass=hass, value=value)
             return value["type"] == VALUE_TYPE_CONSTANT
 
-        def optional_available(value: OptionalEntityOrConstantValue | None) -> bool:
+        def optional_available(value: EntityValue | ConstantValue | NoneValue | None) -> bool:
             if value is None:
                 return True
             if value["type"] == VALUE_TYPE_ENTITY:

@@ -29,7 +29,9 @@ from custom_components.haeo.schema import (
     VALUE_TYPE_CONSTANT,
     VALUE_TYPE_ENTITY,
     VALUE_TYPE_NONE,
-    OptionalEntityOrConstantValue,
+    ConstantValue,
+    EntityValue,
+    NoneValue,
     extract_connection_target,
 )
 from custom_components.haeo.sections import (
@@ -91,7 +93,7 @@ class GridAdapter:
         ts_loader = TimeSeriesLoader()
 
         # Helper to check entity availability
-        def entities_available(value: OptionalEntityOrConstantValue | None) -> bool:
+        def entities_available(value: EntityValue | ConstantValue | NoneValue | None) -> bool:
             if value is None:
                 return True
             if value["type"] == VALUE_TYPE_ENTITY:

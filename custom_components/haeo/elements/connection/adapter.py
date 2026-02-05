@@ -35,7 +35,9 @@ from custom_components.haeo.schema import (
     VALUE_TYPE_CONSTANT,
     VALUE_TYPE_ENTITY,
     VALUE_TYPE_NONE,
-    OptionalEntityOrConstantValue,
+    ConstantValue,
+    EntityValue,
+    NoneValue,
     extract_connection_target,
 )
 from custom_components.haeo.sections import SECTION_COMMON, SECTION_EFFICIENCY, SECTION_POWER_LIMITS, SECTION_PRICING
@@ -95,7 +97,7 @@ class ConnectionAdapter:
         """Check if connection configuration can be loaded."""
         ts_loader = TimeSeriesLoader()
 
-        def optional_available(value: OptionalEntityOrConstantValue | None) -> bool:
+        def optional_available(value: EntityValue | ConstantValue | NoneValue | None) -> bool:
             if value is None:
                 return True
             if value["type"] == VALUE_TYPE_ENTITY:
