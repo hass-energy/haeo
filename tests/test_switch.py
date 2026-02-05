@@ -378,7 +378,6 @@ async def test_auto_optimize_switch_turn_on(hass: HomeAssistant) -> None:
     entry.add_to_hass(hass)
 
     switch = AutoOptimizeSwitch(
-        hass=hass,
         config_entry=entry,
         device_entry=_create_mock_device_entry(),
     )
@@ -401,7 +400,6 @@ async def test_auto_optimize_switch_turn_off(hass: HomeAssistant) -> None:
     entry.add_to_hass(hass)
 
     switch = AutoOptimizeSwitch(
-        hass=hass,
         config_entry=entry,
         device_entry=_create_mock_device_entry(),
     )
@@ -424,7 +422,6 @@ async def test_auto_optimize_switch_restores_on_state(hass: HomeAssistant) -> No
     entry.add_to_hass(hass)
 
     switch = AutoOptimizeSwitch(
-        hass=hass,
         config_entry=entry,
         device_entry=_create_mock_device_entry(),
     )
@@ -448,7 +445,6 @@ async def test_auto_optimize_switch_restores_off_state(hass: HomeAssistant) -> N
     entry.add_to_hass(hass)
 
     switch = AutoOptimizeSwitch(
-        hass=hass,
         config_entry=entry,
         device_entry=_create_mock_device_entry(),
     )
@@ -472,7 +468,6 @@ async def test_auto_optimize_switch_defaults_to_on_without_previous_state(hass: 
     entry.add_to_hass(hass)
 
     switch = AutoOptimizeSwitch(
-        hass=hass,
         config_entry=entry,
         device_entry=_create_mock_device_entry(),
     )

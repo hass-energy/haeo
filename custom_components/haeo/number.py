@@ -69,7 +69,6 @@ async def async_setup_entry(
                 continue
 
             entity = HaeoInputNumber(
-                hass=hass,
                 config_entry=config_entry,
                 subentry=subentry,
                 field_info=field_info,
