@@ -42,7 +42,13 @@ from custom_components.haeo.flows import (
     HUB_SECTION_COMMON,
     HUB_SECTION_TIERS,
 )
-from custom_components.haeo.schema import SchemaValue, as_constant_value, as_entity_value, is_schema_value
+from custom_components.haeo.schema import (
+    SchemaValue,
+    as_constant_value,
+    as_entity_value,
+    is_schema_value,
+    normalize_connection_target,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -179,6 +185,8 @@ def _migrate_subentry_data(subentry: ConfigSubentry) -> dict[str, Any] | None:
 
         for key in (CONF_NAME, CONF_CONNECTION):
             add_if_present(common, key)
+        if CONF_CONNECTION in common:
+            common[CONF_CONNECTION] = normalize_connection_target(common[CONF_CONNECTION])
         for key in (battery.CONF_CAPACITY, battery.CONF_INITIAL_CHARGE_PERCENTAGE):
             add_if_present(storage, key, convert=True)
         for key in (
@@ -245,6 +253,9 @@ def _migrate_subentry_data(subentry: ConfigSubentry) -> dict[str, Any] | None:
         add_if_present(common, CONF_NAME)
         for key in (connection.CONF_SOURCE, connection.CONF_TARGET):
             add_if_present(endpoints, key)
+        for key in (connection.CONF_SOURCE, connection.CONF_TARGET):
+            if key in endpoints:
+                endpoints[key] = normalize_connection_target(endpoints[key])
         for key in (connection.CONF_MAX_POWER_SOURCE_TARGET, connection.CONF_MAX_POWER_TARGET_SOURCE):
             add_if_present(power_limits, key, convert=True)
         for key in (connection.CONF_PRICE_SOURCE_TARGET, connection.CONF_PRICE_TARGET_SOURCE):
@@ -266,6 +277,8 @@ def _migrate_subentry_data(subentry: ConfigSubentry) -> dict[str, Any] | None:
         power_limits: dict[str, Any] = {}
         for key in (CONF_NAME, CONF_CONNECTION):
             add_if_present(common, key)
+        if CONF_CONNECTION in common:
+            common[CONF_CONNECTION] = normalize_connection_target(common[CONF_CONNECTION])
         for key in (CONF_PRICE_SOURCE_TARGET, CONF_PRICE_TARGET_SOURCE):
             add_if_present(pricing, key, convert=True)
         if (legacy_import_price := get_value("import_price")) is not None:
@@ -291,6 +304,8 @@ def _migrate_subentry_data(subentry: ConfigSubentry) -> dict[str, Any] | None:
         efficiency: dict[str, Any] = {}
         for key in (CONF_NAME, CONF_CONNECTION):
             add_if_present(common, key)
+        if CONF_CONNECTION in common:
+            common[CONF_CONNECTION] = normalize_connection_target(common[CONF_CONNECTION])
         for key in (CONF_MAX_POWER_SOURCE_TARGET, CONF_MAX_POWER_TARGET_SOURCE):
             add_if_present(power_limits, key, convert=True)
         if (legacy_dc_to_ac := get_value("max_power_dc_to_ac")) is not None:
@@ -315,6 +330,8 @@ def _migrate_subentry_data(subentry: ConfigSubentry) -> dict[str, Any] | None:
         forecast: dict[str, Any] = {}
         for key in (CONF_NAME, CONF_CONNECTION):
             add_if_present(common, key)
+        if CONF_CONNECTION in common:
+            common[CONF_CONNECTION] = normalize_connection_target(common[CONF_CONNECTION])
         add_if_present(forecast, CONF_FORECAST, convert=True)
         migrated |= {
             SECTION_COMMON: common,
@@ -341,6 +358,8 @@ def _migrate_subentry_data(subentry: ConfigSubentry) -> dict[str, Any] | None:
         curtailment: dict[str, Any] = {}
         for key in (CONF_NAME, CONF_CONNECTION):
             add_if_present(common, key)
+        if CONF_CONNECTION in common:
+            common[CONF_CONNECTION] = normalize_connection_target(common[CONF_CONNECTION])
         add_if_present(forecast, CONF_FORECAST, convert=True)
         add_if_present(pricing, CONF_PRICE_SOURCE_TARGET, convert=True)
         if (legacy_production_price := get_value("price_production")) is not None:

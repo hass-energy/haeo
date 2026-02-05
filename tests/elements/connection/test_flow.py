@@ -23,7 +23,7 @@ from custom_components.haeo.elements.connection import (
     SECTION_POWER_LIMITS,
     SECTION_PRICING,
 )
-from custom_components.haeo.schema import as_constant_value, as_entity_value
+from custom_components.haeo.schema import as_connection_target, as_constant_value, as_entity_value
 
 from ..conftest import add_participant, create_flow
 
@@ -53,7 +53,12 @@ def _wrap_config(flat: dict[str, Any]) -> dict[str, Any]:
     """Wrap flat connection config values into sectioned config with element type."""
     if SECTION_COMMON in flat:
         return {CONF_ELEMENT_TYPE: ELEMENT_TYPE, **flat}
-    return {CONF_ELEMENT_TYPE: ELEMENT_TYPE, **_wrap_input(flat)}
+    config = _wrap_input(flat)
+    endpoints = config.get(SECTION_ENDPOINTS, {})
+    for key in (CONF_SOURCE, CONF_TARGET):
+        if key in endpoints and isinstance(endpoints[key], str):
+            endpoints[key] = as_connection_target(endpoints[key])
+    return {CONF_ELEMENT_TYPE: ELEMENT_TYPE, **config}
 
 
 async def test_flow_source_equals_target_error(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:

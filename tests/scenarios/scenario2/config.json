@@ -12,7 +12,10 @@
       "element_type": "battery",
       "common": {
         "name": "Battery",
-        "connection": "Inverter"
+        "connection": {
+          "type": "connection_target",
+          "value": "Inverter"
+        }
       },
       "efficiency": {
         "efficiency_source_target": {
@@ -70,7 +73,10 @@
       "element_type": "load",
       "common": {
         "name": "Constant Load",
-        "connection": "Switchboard"
+        "connection": {
+          "type": "connection_target",
+          "value": "Switchboard"
+        }
       },
       "forecast": {
         "forecast": {
@@ -83,7 +89,10 @@
       "element_type": "grid",
       "common": {
         "name": "Grid",
-        "connection": "Switchboard"
+        "connection": {
+          "type": "connection_target",
+          "value": "Switchboard"
+        }
       },
       "power_limits": {
         "max_power_source_target": {
@@ -110,7 +119,10 @@
       "element_type": "inverter",
       "common": {
         "name": "Inverter",
-        "connection": "Switchboard"
+        "connection": {
+          "type": "connection_target",
+          "value": "Switchboard"
+        }
       },
       "efficiency": {},
       "power_limits": {
@@ -128,7 +140,10 @@
       "element_type": "solar",
       "common": {
         "name": "Solar",
-        "connection": "Inverter"
+        "connection": {
+          "type": "connection_target",
+          "value": "Inverter"
+        }
       },
       "curtailment": {
         "curtailment": {

@@ -25,6 +25,7 @@ from custom_components.haeo.flows.field_schema import (
     preprocess_sectioned_choose_input,
     validate_sectioned_choose_fields,
 )
+from custom_components.haeo.schema import get_connection_target_name, normalize_connection_target
 from custom_components.haeo.sections import (
     SECTION_COMMON,
     SECTION_EFFICIENCY,
@@ -100,8 +101,16 @@ class ConnectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         subentry = self._get_subentry()
         subentry_data = dict(subentry.data) if subentry else None
         participants = self._get_participant_names()
-        current_source = subentry_data.get(SECTION_ENDPOINTS, {}).get(CONF_SOURCE) if subentry_data else None
-        current_target = subentry_data.get(SECTION_ENDPOINTS, {}).get(CONF_TARGET) if subentry_data else None
+        current_source = (
+            get_connection_target_name(subentry_data.get(SECTION_ENDPOINTS, {}).get(CONF_SOURCE))
+            if subentry_data
+            else None
+        )
+        current_target = (
+            get_connection_target_name(subentry_data.get(SECTION_ENDPOINTS, {}).get(CONF_TARGET))
+            if subentry_data
+            else None
+        )
 
         if (
             subentry_data is not None
@@ -124,8 +133,8 @@ class ConnectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                     CONF_NAME: default_name,
                 },
                 SECTION_ENDPOINTS: {
-                    CONF_SOURCE: current_source,
-                    CONF_TARGET: current_target,
+                    CONF_SOURCE: normalize_connection_target(current_source or ""),
+                    CONF_TARGET: normalize_connection_target(current_target or ""),
                 },
                 SECTION_POWER_LIMITS: {},
                 SECTION_PRICING: {},
@@ -216,8 +225,8 @@ class ConnectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                 CONF_NAME: default_name if subentry_data is None else common_data.get(CONF_NAME),
             },
             SECTION_ENDPOINTS: {
-                CONF_SOURCE: endpoints_data.get(CONF_SOURCE) if subentry_data else None,
-                CONF_TARGET: endpoints_data.get(CONF_TARGET) if subentry_data else None,
+                CONF_SOURCE: get_connection_target_name(endpoints_data.get(CONF_SOURCE)) if subentry_data else None,
+                CONF_TARGET: get_connection_target_name(endpoints_data.get(CONF_TARGET)) if subentry_data else None,
             },
             SECTION_POWER_LIMITS: {},
             SECTION_PRICING: {},
@@ -260,7 +269,9 @@ class ConnectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         # Validate source != target
         source = endpoints_input.get(CONF_SOURCE)
         target = endpoints_input.get(CONF_TARGET)
-        if source and target and source == target:
+        source_name = get_connection_target_name(source)
+        target_name = get_connection_target_name(target)
+        if source_name and target_name and source_name == target_name:
             errors[CONF_TARGET] = "cannot_connect_to_self"
         return errors if errors else None
 
@@ -272,6 +283,11 @@ class ConnectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             input_fields,
             self._get_sections(),
         )
+        endpoints_config = config_dict.get(SECTION_ENDPOINTS, {})
+        if CONF_SOURCE in endpoints_config:
+            endpoints_config[CONF_SOURCE] = normalize_connection_target(endpoints_config[CONF_SOURCE])
+        if CONF_TARGET in endpoints_config:
+            endpoints_config[CONF_TARGET] = normalize_connection_target(endpoints_config[CONF_TARGET])
 
         return {
             CONF_ELEMENT_TYPE: ELEMENT_TYPE,

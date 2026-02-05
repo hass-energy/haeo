@@ -2,6 +2,7 @@
 
 from typing import Final, Literal, TypedDict
 
+from custom_components.haeo.schema import ConnectionTarget
 from custom_components.haeo.sections import (
     CONF_EFFICIENCY_SOURCE_TARGET,
     CONF_EFFICIENCY_TARGET_SOURCE,
@@ -45,15 +46,15 @@ OPTIONAL_INPUT_FIELDS: Final[frozenset[str]] = frozenset(
 class EndpointsConfig(TypedDict):
     """Endpoint configuration for source/target pairs."""
 
-    source: str
-    target: str
+    source: ConnectionTarget
+    target: ConnectionTarget
 
 
 class EndpointsData(TypedDict):
     """Loaded endpoint values."""
 
-    source: str
-    target: str
+    source: ConnectionTarget
+    target: ConnectionTarget
 
 
 class ConnectionConfigSchema(TypedDict):

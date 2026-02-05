@@ -32,7 +32,13 @@ from custom_components.haeo.model.elements.segments import (
 )
 from custom_components.haeo.model.output_data import OutputData
 from custom_components.haeo.sections import SECTION_COMMON, SECTION_EFFICIENCY, SECTION_POWER_LIMITS, SECTION_PRICING
-from custom_components.haeo.schema import OptionalEntityOrConstantValue, VALUE_TYPE_CONSTANT, VALUE_TYPE_ENTITY, VALUE_TYPE_NONE
+from custom_components.haeo.schema import (
+    OptionalEntityOrConstantValue,
+    VALUE_TYPE_CONSTANT,
+    VALUE_TYPE_ENTITY,
+    VALUE_TYPE_NONE,
+    extract_connection_target,
+)
 
 from .schema import (
     CONF_EFFICIENCY_SOURCE_TARGET,
@@ -225,8 +231,8 @@ class ConnectionAdapter:
             {
                 "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
                 "name": config[SECTION_COMMON]["name"],
-                "source": config[SECTION_ENDPOINTS]["source"],
-                "target": config[SECTION_ENDPOINTS]["target"],
+                "source": extract_connection_target(config[SECTION_ENDPOINTS]["source"]),
+                "target": extract_connection_target(config[SECTION_ENDPOINTS]["target"]),
                 "segments": {
                     "efficiency": {
                         "segment_type": "efficiency",

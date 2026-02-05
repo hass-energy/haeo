@@ -11,7 +11,7 @@ from custom_components.haeo.elements.solar import (
     SECTION_FORECAST,
     SECTION_PRICING,
 )
-from custom_components.haeo.schema import as_constant_value, as_entity_value
+from custom_components.haeo.schema import as_connection_target, as_constant_value, as_entity_value
 
 # Test data for solar flow - single-step with choose selector
 # config: Contains all field values in choose selector format
@@ -22,7 +22,7 @@ VALID_DATA = [
         "config": {
             SECTION_COMMON: {
                 CONF_NAME: "Test Solar",
-                CONF_CONNECTION: "main_bus",
+                CONF_CONNECTION: as_connection_target("main_bus"),
             },
             SECTION_FORECAST: {
                 CONF_FORECAST: as_constant_value(5.0),
@@ -40,7 +40,7 @@ VALID_DATA = [
         "config": {
             SECTION_COMMON: {
                 CONF_NAME: "Rooftop Solar",
-                CONF_CONNECTION: "main_bus",
+                CONF_CONNECTION: as_connection_target("main_bus"),
             },
             SECTION_FORECAST: {
                 CONF_FORECAST: as_entity_value(["sensor.solar_power"]),

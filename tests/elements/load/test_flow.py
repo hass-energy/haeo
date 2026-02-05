@@ -18,7 +18,7 @@ from custom_components.haeo.elements.load import (
     SECTION_COMMON,
     SECTION_FORECAST,
 )
-from custom_components.haeo.schema import as_constant_value, as_entity_value
+from custom_components.haeo.schema import as_connection_target, as_constant_value, as_entity_value
 
 from ..conftest import add_participant, create_flow
 
@@ -42,7 +42,11 @@ def _wrap_config(flat: dict[str, Any]) -> dict[str, Any]:
     """Wrap flat load config values into sectioned config with element type."""
     if SECTION_COMMON in flat:
         return {CONF_ELEMENT_TYPE: ELEMENT_TYPE, **flat}
-    return {CONF_ELEMENT_TYPE: ELEMENT_TYPE, **_wrap_input(flat)}
+    config = _wrap_input(flat)
+    common = config.get(SECTION_COMMON, {})
+    if CONF_CONNECTION in common and isinstance(common[CONF_CONNECTION], str):
+        common[CONF_CONNECTION] = as_connection_target(common[CONF_CONNECTION])
+    return {CONF_ELEMENT_TYPE: ELEMENT_TYPE, **config}
 
 
 async def test_reconfigure_with_deleted_connection_target(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
@@ -186,7 +190,7 @@ async def test_reconfigure_with_missing_field_shows_none_default(hass: HomeAssis
         CONF_ELEMENT_TYPE: ELEMENT_TYPE,
         SECTION_COMMON: {
             CONF_NAME: "Test Load",
-            CONF_CONNECTION: "TestNode",
+            CONF_CONNECTION: as_connection_target("TestNode"),
         },
         SECTION_FORECAST: {},
     }

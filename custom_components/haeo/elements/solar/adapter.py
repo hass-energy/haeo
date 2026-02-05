@@ -27,7 +27,7 @@ from custom_components.haeo.sections import (
     SECTION_FORECAST,
     SECTION_PRICING,
 )
-from custom_components.haeo.schema import VALUE_TYPE_CONSTANT, VALUE_TYPE_ENTITY
+from custom_components.haeo.schema import VALUE_TYPE_CONSTANT, VALUE_TYPE_ENTITY, extract_connection_target
 
 from .schema import CONF_CURTAILMENT, ELEMENT_TYPE, SECTION_CURTAILMENT, SolarConfigData, SolarConfigSchema
 
@@ -129,7 +129,7 @@ class SolarAdapter:
                 "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
                 "name": f"{config[SECTION_COMMON]['name']}:connection",
                 "source": config[SECTION_COMMON]["name"],
-                "target": config[SECTION_COMMON][CONF_CONNECTION],
+                    "target": extract_connection_target(config[SECTION_COMMON][CONF_CONNECTION]),
                 "segments": {
                     "power_limit": {
                         "segment_type": "power_limit",

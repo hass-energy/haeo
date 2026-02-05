@@ -10,6 +10,7 @@ from typing import Any, Final, Literal, TypedDict, TypeAliasType, TypeGuard, Uni
 VALUE_TYPE_ENTITY: Final = "entity"
 VALUE_TYPE_CONSTANT: Final = "constant"
 VALUE_TYPE_NONE: Final = "none"
+VALUE_TYPE_CONNECTION_TARGET: Final = "connection_target"
 
 
 class EntityValue(TypedDict):
@@ -32,10 +33,18 @@ class NoneValue(TypedDict):
     type: Literal["none"]
 
 
+class ConnectionTargetValue(TypedDict):
+    """Schema value representing a connection target."""
+
+    type: Literal["connection_target"]
+    value: str
+
+
 type SchemaValue = EntityValue | ConstantValue | NoneValue
 type EntityOrConstantValue = EntityValue | ConstantValue
 type OptionalEntityOrConstantValue = EntityValue | ConstantValue | NoneValue
 type SchemaValueKind = Literal["entity", "constant", "none"]
+type ConnectionTarget = ConnectionTargetValue
 
 
 def normalize_entity_ids(value: Sequence[str] | str) -> list[str]:
@@ -58,6 +67,11 @@ def as_constant_value(value: float | bool) -> ConstantValue:
 def as_none_value() -> NoneValue:
     """Create a disabled schema value."""
     return {"type": VALUE_TYPE_NONE}
+
+
+def as_connection_target(value: str) -> ConnectionTargetValue:
+    """Create a connection target schema value."""
+    return {"type": VALUE_TYPE_CONNECTION_TARGET, "value": value}
 
 
 def is_entity_value(value: Any) -> TypeGuard[EntityValue]:
@@ -89,6 +103,15 @@ def is_none_value(value: Any) -> TypeGuard[NoneValue]:
     return value.get("type") == VALUE_TYPE_NONE
 
 
+def is_connection_target(value: Any) -> TypeGuard[ConnectionTargetValue]:
+    """Return True if value is a connection target schema value."""
+    if not isinstance(value, Mapping):
+        return False
+    if value.get("type") != VALUE_TYPE_CONNECTION_TARGET:
+        return False
+    return isinstance(value.get("value"), str)
+
+
 def is_schema_value(value: Any) -> TypeGuard[SchemaValue]:
     """Return True if value is a known schema value variant."""
     return is_entity_value(value) or is_constant_value(value) or is_none_value(value)
@@ -106,6 +129,33 @@ def extract_constant(value: SchemaValue) -> float | bool | None:
     if value["type"] == VALUE_TYPE_CONSTANT:
         return value["value"]
     return None
+
+
+def extract_connection_target(value: ConnectionTargetValue) -> str:
+    """Extract the connection target name from a schema value."""
+    return value["value"]
+
+
+def normalize_connection_target(value: ConnectionTargetValue | str) -> ConnectionTargetValue:
+    """Normalize a connection target input into a schema value."""
+    if is_connection_target(value):
+        return value
+    if isinstance(value, str):
+        return as_connection_target(value)
+    msg = f"Unsupported connection target {value!r}"
+    raise TypeError(msg)
+
+
+def get_connection_target_name(value: ConnectionTargetValue | str | None) -> str | None:
+    """Return the connection target name for a schema value."""
+    if value is None:
+        return None
+    if is_connection_target(value):
+        return value["value"]
+    if isinstance(value, str):
+        return value
+    msg = f"Unsupported connection target {value!r}"
+    raise TypeError(msg)
 
 
 def _unwrap_alias_type(value_type: Any) -> Any:
@@ -138,6 +188,8 @@ def get_schema_value_kinds(value_type: Any) -> frozenset[SchemaValueKind]:
 
 __all__ = [
     "ConstantValue",
+    "ConnectionTarget",
+    "ConnectionTargetValue",
     "EntityValue",
     "EntityOrConstantValue",
     "NoneValue",
@@ -145,17 +197,23 @@ __all__ = [
     "SchemaValue",
     "SchemaValueKind",
     "VALUE_TYPE_CONSTANT",
+    "VALUE_TYPE_CONNECTION_TARGET",
     "VALUE_TYPE_ENTITY",
     "VALUE_TYPE_NONE",
+    "as_connection_target",
     "as_constant_value",
     "as_entity_value",
     "as_none_value",
     "extract_constant",
+    "extract_connection_target",
     "extract_entity_ids",
+    "get_connection_target_name",
     "get_schema_value_kinds",
+    "is_connection_target",
     "is_constant_value",
     "is_entity_value",
     "is_none_value",
     "is_schema_value",
+    "normalize_connection_target",
     "normalize_entity_ids",
 ]

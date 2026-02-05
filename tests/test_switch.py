@@ -31,7 +31,7 @@ from custom_components.haeo.entities.auto_optimize_switch import AutoOptimizeSwi
 from custom_components.haeo.entities.haeo_number import ConfigEntityMode
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON, HUB_SECTION_TIERS
 from custom_components.haeo.horizon import HorizonManager
-from custom_components.haeo.schema import as_constant_value, as_entity_value, as_none_value
+from custom_components.haeo.schema import as_connection_target, as_constant_value, as_entity_value, as_none_value
 from custom_components.haeo.switch import async_setup_entry
 
 
@@ -107,7 +107,7 @@ def _add_subentry(
         payload |= {
             SECTION_COMMON: {
                 CONF_NAME: title,
-                CONF_CONNECTION: data.get("connection", "Switchboard"),
+                CONF_CONNECTION: as_connection_target(data.get("connection", "Switchboard")),
             },
             SECTION_PRICING: {
                 CONF_PRICE_SOURCE_TARGET: schema_value(data.get("price_source_target")),
@@ -122,7 +122,7 @@ def _add_subentry(
         payload |= {
             SOLAR_SECTION_COMMON: {
                 CONF_NAME: title,
-                CONF_CONNECTION: data.get("connection", "Switchboard"),
+                CONF_CONNECTION: as_connection_target(data.get("connection", "Switchboard")),
             },
             SECTION_FORECAST: {
                 CONF_FORECAST: schema_value(data.get("forecast", ["sensor.solar_forecast"])),

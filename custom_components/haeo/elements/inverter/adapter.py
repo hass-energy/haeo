@@ -33,7 +33,13 @@ from custom_components.haeo.sections import (
     SECTION_EFFICIENCY,
     SECTION_POWER_LIMITS,
 )
-from custom_components.haeo.schema import OptionalEntityOrConstantValue, VALUE_TYPE_CONSTANT, VALUE_TYPE_ENTITY, VALUE_TYPE_NONE
+from custom_components.haeo.schema import (
+    OptionalEntityOrConstantValue,
+    VALUE_TYPE_CONSTANT,
+    VALUE_TYPE_ENTITY,
+    VALUE_TYPE_NONE,
+    extract_connection_target,
+)
 
 from .schema import ELEMENT_TYPE, InverterConfigData, InverterConfigSchema
 
@@ -183,7 +189,7 @@ class InverterAdapter:
                 "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
                 "name": f"{config[SECTION_COMMON]['name']}:connection",
                 "source": config[SECTION_COMMON]["name"],
-                "target": config[SECTION_COMMON][CONF_CONNECTION],
+                "target": extract_connection_target(config[SECTION_COMMON][CONF_CONNECTION]),
                 "segments": {
                     "efficiency": {
                         "segment_type": "efficiency",

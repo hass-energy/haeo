@@ -11,7 +11,7 @@ from custom_components.haeo.elements.grid import (
     SECTION_POWER_LIMITS,
     SECTION_PRICING,
 )
-from custom_components.haeo.schema import as_constant_value
+from custom_components.haeo.schema import as_connection_target, as_constant_value
 
 # Test data for grid flow - single-step with choose selector
 # config: Contains all field values in choose selector format
@@ -21,7 +21,7 @@ VALID_DATA = [
         "config": {
             SECTION_COMMON: {
                 CONF_NAME: "Test Grid",
-                CONF_CONNECTION: "main_bus",
+                CONF_CONNECTION: as_connection_target("main_bus"),
             },
             SECTION_PRICING: {
                 CONF_PRICE_SOURCE_TARGET: as_constant_value(0.30),

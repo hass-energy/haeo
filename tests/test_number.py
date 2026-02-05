@@ -25,7 +25,7 @@ from custom_components.haeo.elements.grid import ELEMENT_TYPE as GRID_TYPE
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON, HUB_SECTION_TIERS
 from custom_components.haeo.horizon import HorizonManager
 from custom_components.haeo.number import async_setup_entry
-from custom_components.haeo.schema import as_constant_value, as_entity_value, as_none_value
+from custom_components.haeo.schema import as_connection_target, as_constant_value, as_entity_value, as_none_value
 
 
 @pytest.fixture
@@ -102,7 +102,7 @@ def _add_subentry(
         payload |= {
             SECTION_COMMON: {
                 CONF_NAME: title,
-                CONF_CONNECTION: data.get("connection", "Switchboard"),
+                CONF_CONNECTION: as_connection_target(data.get("connection", "Switchboard")),
             },
             SECTION_PRICING: {
                 CONF_PRICE_SOURCE_TARGET: schema_value(data.get("price_source_target")),

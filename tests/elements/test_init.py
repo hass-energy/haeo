@@ -19,7 +19,7 @@ from custom_components.haeo.elements import (
 from custom_components.haeo.elements import battery, battery_section, connection, grid, inverter, load, solar
 from custom_components.haeo.elements import node as node_schema
 from custom_components.haeo import elements as elements_module
-from custom_components.haeo.schema import as_constant_value, as_entity_value
+from custom_components.haeo.schema import as_connection_target, as_constant_value, as_entity_value
 
 
 @pytest.mark.parametrize(
@@ -48,7 +48,7 @@ def test_is_not_element_config_schema(input_data: Any) -> None:
         {
             "element_type": "connection",
             connection.SECTION_COMMON: {"name": "test"},
-            connection.SECTION_ENDPOINTS: {"source": "a"},
+            connection.SECTION_ENDPOINTS: {"source": as_connection_target("a")},
         },  # Missing target
     ],
 )
@@ -66,7 +66,7 @@ def test_is_element_config_schema_invalid_structure(input_data: dict[str, Any]) 
             node_schema.SECTION_COMMON: {"name": 123},
             node_schema.SECTION_ROLE: {"is_source": False, "is_sink": False},
         },
-        # Wrong type for connection (should be str)
+        # Wrong type for connection (should be connection target)
         {
             "element_type": "grid",
             grid.SECTION_COMMON: {"name": "test", "connection": ["list_not_str"]},
@@ -82,7 +82,7 @@ def test_is_element_config_schema_invalid_structure(input_data: dict[str, Any]) 
             "element_type": "battery",
             battery.SECTION_COMMON: {
                 "name": "test",
-                "connection": "bus",
+                "connection": as_connection_target("bus"),
             },
             battery.SECTION_STORAGE: {
                 "capacity": True,
@@ -100,7 +100,7 @@ def test_is_element_config_schema_invalid_structure(input_data: dict[str, Any]) 
 )
 def test_is_element_config_schema_wrong_field_types(input_data: dict[str, Any]) -> None:
     """Test is_element_config_schema rejects fields with wrong types for required fields."""
-    assert is_element_config_schema(input_data) is False
+            connection.SECTION_ENDPOINTS: {"source": as_connection_target("a")},
 
 
 def test_is_element_config_schema_valid_node() -> None:
@@ -129,7 +129,7 @@ def test_is_element_config_schema_valid_battery() -> None:
         "element_type": "battery",
         battery.SECTION_COMMON: {
             "name": "test_battery",
-            "connection": "main_bus",
+            "connection": as_connection_target("main_bus"),
         },
         battery.SECTION_STORAGE: {
             "capacity": as_entity_value(["sensor.capacity"]),
@@ -158,7 +158,7 @@ def test_is_element_config_schema_valid_grid() -> None:
     """Test is_element_config_schema with valid grid config."""
     valid_config = {
         "element_type": "grid",
-        grid.SECTION_COMMON: {"name": "test_grid", "connection": "main_bus"},
+        grid.SECTION_COMMON: {"name": "test_grid", "connection": as_connection_target("main_bus")},
         grid.SECTION_PRICING: {
             "price_source_target": as_entity_value(["sensor.import"]),
             "price_target_source": as_entity_value(["sensor.export"]),
@@ -172,7 +172,7 @@ def test_is_element_config_schema_valid_grid_minimal() -> None:
     """Test is_element_config_schema with minimal valid grid config (prices required)."""
     valid_config = {
         "element_type": "grid",
-        grid.SECTION_COMMON: {"name": "test_grid", "connection": "main_bus"},
+        grid.SECTION_COMMON: {"name": "test_grid", "connection": as_connection_target("main_bus")},
         grid.SECTION_PRICING: {
             "price_source_target": as_constant_value(0.25),
             "price_target_source": as_constant_value(0.05),
@@ -190,8 +190,8 @@ def test_is_element_config_schema_valid_connection() -> None:
             "name": "test_connection",
         },
         connection.SECTION_ENDPOINTS: {
-            "source": "battery",
-            "target": "grid",
+            "source": as_connection_target("battery"),
+            "target": as_connection_target("grid"),
         },
         connection.SECTION_POWER_LIMITS: {},
         connection.SECTION_PRICING: {},
@@ -204,7 +204,7 @@ def test_is_element_config_schema_valid_load() -> None:
     """Test is_element_config_schema with valid load config."""
     valid_config = {
         "element_type": "load",
-        load.SECTION_COMMON: {"name": "test_load", "connection": "main_bus"},
+        load.SECTION_COMMON: {"name": "test_load", "connection": as_connection_target("main_bus")},
         load.SECTION_FORECAST: {"forecast": as_entity_value(["sensor.load_forecast"])},
     }
     assert is_element_config_schema(valid_config) is True
@@ -214,7 +214,7 @@ def test_is_element_config_schema_valid_solar() -> None:
     """Test is_element_config_schema with valid solar config."""
     valid_config = {
         "element_type": "solar",
-        solar.SECTION_COMMON: {"name": "test_solar", "connection": "main_bus"},
+        solar.SECTION_COMMON: {"name": "test_solar", "connection": as_connection_target("main_bus")},
         solar.SECTION_FORECAST: {"forecast": as_entity_value(["sensor.solar_forecast"])},
         solar.SECTION_PRICING: {"price_source_target": as_constant_value(0.0)},
         solar.SECTION_CURTAILMENT: {"curtailment": as_constant_value(value=True)},
@@ -226,7 +226,7 @@ def test_is_element_config_schema_valid_inverter() -> None:
     """Test is_element_config_schema with valid inverter config."""
     valid_config = {
         "element_type": "inverter",
-        inverter.SECTION_COMMON: {"name": "test_inverter", "connection": "ac_bus"},
+        inverter.SECTION_COMMON: {"name": "test_inverter", "connection": as_connection_target("ac_bus")},
         inverter.SECTION_POWER_LIMITS: {
             "max_power_source_target": as_entity_value(["sensor.dc_to_ac"]),
             "max_power_target_source": as_entity_value(["sensor.ac_to_dc"]),

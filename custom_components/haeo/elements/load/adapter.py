@@ -19,7 +19,11 @@ from custom_components.haeo.model.elements.connection import CONNECTION_POWER_TA
 from custom_components.haeo.model.elements.segments import POWER_LIMIT_TARGET_SOURCE
 from custom_components.haeo.model.output_data import OutputData
 from custom_components.haeo.sections import CONF_CONNECTION, CONF_FORECAST, SECTION_COMMON, SECTION_FORECAST
-from custom_components.haeo.schema import VALUE_TYPE_CONSTANT, VALUE_TYPE_ENTITY
+from custom_components.haeo.schema import (
+    VALUE_TYPE_CONSTANT,
+    VALUE_TYPE_ENTITY,
+    extract_connection_target,
+)
 
 from .schema import ELEMENT_TYPE, LoadConfigData, LoadConfigSchema
 
@@ -97,7 +101,7 @@ class LoadAdapter:
                 "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
                 "name": f"{config[SECTION_COMMON]['name']}:connection",
                 "source": config[SECTION_COMMON]["name"],
-                "target": config[SECTION_COMMON][CONF_CONNECTION],
+                "target": extract_connection_target(config[SECTION_COMMON][CONF_CONNECTION]),
                 "segments": {
                     "power_limit": {
                         "segment_type": "power_limit",

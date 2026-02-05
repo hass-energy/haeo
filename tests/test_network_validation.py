@@ -27,6 +27,7 @@ from custom_components.haeo.elements.grid import CONF_CONNECTION as GRID_CONF_CO
 from custom_components.haeo.elements.grid import CONF_PRICE_SOURCE_TARGET, CONF_PRICE_TARGET_SOURCE, GridConfigData
 from custom_components.haeo.elements.node import CONF_IS_SINK, CONF_IS_SOURCE, SECTION_ROLE, NodeConfigData
 from custom_components.haeo.sections import SECTION_COMMON, SECTION_EFFICIENCY, SECTION_POWER_LIMITS, SECTION_PRICING
+from custom_components.haeo.schema import as_connection_target
 from custom_components.haeo.validation import format_component_summary, validate_network_topology
 
 
@@ -62,7 +63,7 @@ def test_validate_network_topology_with_implicit_connection() -> None:
     }
     grid: GridConfigData = {
         CONF_ELEMENT_TYPE: "grid",
-        SECTION_COMMON: {CONF_NAME: "grid", GRID_CONF_CONNECTION: "main"},
+        SECTION_COMMON: {CONF_NAME: "grid", GRID_CONF_CONNECTION: as_connection_target("main")},
         SECTION_PRICING: {
             CONF_PRICE_SOURCE_TARGET: np.array([0.30, 0.30]),
             CONF_PRICE_TARGET_SOURCE: np.array([0.10, 0.10]),
@@ -91,7 +92,7 @@ def test_validate_network_topology_detects_disconnected() -> None:
     }
     grid_a: GridConfigData = {
         CONF_ELEMENT_TYPE: "grid",
-        SECTION_COMMON: {CONF_NAME: "grid_a", GRID_CONF_CONNECTION: "a"},
+        SECTION_COMMON: {CONF_NAME: "grid_a", GRID_CONF_CONNECTION: as_connection_target("a")},
         SECTION_PRICING: {
             CONF_PRICE_SOURCE_TARGET: np.array([0.30, 0.30]),
             CONF_PRICE_TARGET_SOURCE: np.array([0.10, 0.10]),
@@ -100,7 +101,7 @@ def test_validate_network_topology_detects_disconnected() -> None:
     }
     grid_b: GridConfigData = {
         CONF_ELEMENT_TYPE: "grid",
-        SECTION_COMMON: {CONF_NAME: "grid_b", GRID_CONF_CONNECTION: "b"},
+        SECTION_COMMON: {CONF_NAME: "grid_b", GRID_CONF_CONNECTION: as_connection_target("b")},
         SECTION_PRICING: {
             CONF_PRICE_SOURCE_TARGET: np.array([0.30, 0.30]),
             CONF_PRICE_TARGET_SOURCE: np.array([0.10, 0.10]),
@@ -130,7 +131,7 @@ def test_validate_network_topology_with_battery() -> None:
     }
     grid: GridConfigData = {
         CONF_ELEMENT_TYPE: "grid",
-        SECTION_COMMON: {CONF_NAME: "grid", GRID_CONF_CONNECTION: "main"},
+        SECTION_COMMON: {CONF_NAME: "grid", GRID_CONF_CONNECTION: as_connection_target("main")},
         SECTION_PRICING: {
             CONF_PRICE_SOURCE_TARGET: np.array([0.30, 0.30]),
             CONF_PRICE_TARGET_SOURCE: np.array([0.10, 0.10]),
@@ -141,7 +142,7 @@ def test_validate_network_topology_with_battery() -> None:
         CONF_ELEMENT_TYPE: "battery",
         SECTION_COMMON: {
             CONF_NAME: "battery",
-            BATTERY_CONF_CONNECTION: "main",
+            BATTERY_CONF_CONNECTION: as_connection_target("main"),
         },
         SECTION_STORAGE: {
             CONF_CAPACITY: np.array([10.0, 10.0, 10.0]),
@@ -187,7 +188,7 @@ def test_validate_network_topology_with_battery_all_sections() -> None:
         CONF_ELEMENT_TYPE: "battery",
         SECTION_COMMON: {
             CONF_NAME: "battery",
-            BATTERY_CONF_CONNECTION: "main",
+            BATTERY_CONF_CONNECTION: as_connection_target("main"),
         },
         SECTION_STORAGE: {
             CONF_CAPACITY: np.array([10.0, 10.0, 10.0]),

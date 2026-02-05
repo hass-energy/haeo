@@ -22,7 +22,7 @@ from custom_components.haeo.elements.battery import (
     SECTION_PRICING,
     SECTION_STORAGE,
 )
-from custom_components.haeo.schema import as_constant_value, as_entity_value
+from custom_components.haeo.schema import as_connection_target, as_constant_value, as_entity_value
 
 # Test data for battery flow - single-step with choose selector (plus optional partition step)
 # config: Contains all field values in choose selector format
@@ -32,7 +32,7 @@ VALID_DATA = [
         "config": {
             SECTION_COMMON: {
                 CONF_NAME: "Test Battery",
-                CONF_CONNECTION: "main_bus",
+                CONF_CONNECTION: as_connection_target("main_bus"),
             },
             SECTION_STORAGE: {
                 CONF_CAPACITY: as_constant_value(10.0),
@@ -63,7 +63,7 @@ VALID_DATA = [
         "config": {
             SECTION_COMMON: {
                 CONF_NAME: "Advanced Battery",
-                CONF_CONNECTION: "main_bus",
+                CONF_CONNECTION: as_connection_target("main_bus"),
             },
             SECTION_STORAGE: {
                 CONF_CAPACITY: as_constant_value(10.0),
@@ -98,7 +98,7 @@ INVALID_DATA = [
         "config": {
             SECTION_COMMON: {
                 CONF_NAME: "",
-                CONF_CONNECTION: "main_bus",
+                CONF_CONNECTION: as_connection_target("main_bus"),
             },
             SECTION_STORAGE: {
                 CONF_CAPACITY: as_constant_value(10.0),

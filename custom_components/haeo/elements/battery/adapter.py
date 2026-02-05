@@ -38,6 +38,7 @@ from custom_components.haeo.schema import (
     VALUE_TYPE_CONSTANT,
     VALUE_TYPE_ENTITY,
     VALUE_TYPE_NONE,
+    extract_connection_target,
 )
 
 from .schema import (
@@ -447,7 +448,7 @@ class BatteryAdapter:
                 "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
                 "name": f"{name}:connection",
                 "source": name,
-                "target": common[CONF_CONNECTION],
+                "target": extract_connection_target(common[CONF_CONNECTION]),
                 "segments": segments,
             }
         )

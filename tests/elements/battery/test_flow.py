@@ -37,22 +37,26 @@ from custom_components.haeo.elements.battery import (
     SECTION_STORAGE,
     SECTION_UNDERCHARGE,
 )
-from custom_components.haeo.schema import as_constant_value, as_entity_value, as_none_value
+from custom_components.haeo.schema import as_connection_target, as_constant_value, as_entity_value, as_none_value
 
 from ..conftest import add_participant, create_flow
 
 
-def _wrap_main_input(user_input: dict[str, Any]) -> dict[str, Any]:
+def _wrap_main_input(user_input: dict[str, Any], *, as_schema: bool = False) -> dict[str, Any]:
     """Wrap battery user input into sectioned form data."""
+    common = {
+        key: user_input[key]
+        for key in (
+            CONF_NAME,
+            CONF_CONNECTION,
+        )
+        if key in user_input
+    }
+    has_schema_values = any(isinstance(value, dict) and "type" in value for value in user_input.values())
+    if (as_schema or has_schema_values) and isinstance(common.get(CONF_CONNECTION), str):
+        common[CONF_CONNECTION] = as_connection_target(common[CONF_CONNECTION])
     return {
-        SECTION_COMMON: {
-            key: user_input[key]
-            for key in (
-                CONF_NAME,
-                CONF_CONNECTION,
-            )
-            if key in user_input
-        },
+        SECTION_COMMON: common,
         SECTION_STORAGE: {
             key: user_input[key]
             for key in (
@@ -85,7 +89,11 @@ def _wrap_main_input(user_input: dict[str, Any]) -> dict[str, Any]:
             )
             if key in user_input
         },
-        SECTION_EFFICIENCY: {key: user_input[key] for key in (CONF_EFFICIENCY_SOURCE_TARGET, CONF_EFFICIENCY_TARGET_SOURCE) if key in user_input},
+        SECTION_EFFICIENCY: {
+            key: user_input[key]
+            for key in (CONF_EFFICIENCY_SOURCE_TARGET, CONF_EFFICIENCY_TARGET_SOURCE)
+            if key in user_input
+        },
         SECTION_PARTITIONING: {key: user_input[key] for key in (CONF_CONFIGURE_PARTITIONS,) if key in user_input},
     }
 
@@ -112,7 +120,8 @@ async def test_reconfigure_with_deleted_connection_target(hass: HomeAssistant, h
                 CONF_CONNECTION: "DeletedNode",
                 CONF_CAPACITY: as_constant_value(10.0),
                 CONF_INITIAL_CHARGE_PERCENTAGE: as_constant_value(50.0),
-            }
+            },
+            as_schema=True,
         ),
     }
     existing_subentry = ConfigSubentry(

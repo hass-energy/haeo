@@ -22,7 +22,12 @@ from custom_components.haeo.flows.field_schema import (
     preprocess_sectioned_choose_input,
     validate_sectioned_choose_fields,
 )
-from custom_components.haeo.schema import as_constant_value
+from custom_components.haeo.schema import (
+    as_constant_value,
+    extract_entity_ids,
+    get_connection_target_name,
+    normalize_connection_target,
+)
 from custom_components.haeo.sections import (
     CONF_CONNECTION,
     CONF_MAX_POWER_SOURCE_TARGET,
@@ -124,7 +129,11 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         subentry = self._get_subentry()
         subentry_data = dict(subentry.data) if subentry else None
         participants = self._get_participant_names()
-        current_connection = subentry_data.get(SECTION_COMMON, {}).get(CONF_CONNECTION) if subentry_data else None
+        current_connection = (
+            get_connection_target_name(subentry_data.get(SECTION_COMMON, {}).get(CONF_CONNECTION))
+            if subentry_data
+            else None
+        )
 
         if (
             subentry_data is not None
@@ -143,7 +152,7 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                 CONF_ELEMENT_TYPE: ELEMENT_TYPE,
                 SECTION_COMMON: {
                     CONF_NAME: default_name,
-                    CONF_CONNECTION: current_connection,
+                    CONF_CONNECTION: normalize_connection_target(current_connection),
                 },
                 SECTION_STORAGE: {
                     CONF_CAPACITY: as_constant_value(0.0),
@@ -297,7 +306,7 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         defaults: dict[str, Any] = {
             SECTION_COMMON: {
                 CONF_NAME: default_name if subentry_data is None else common_data.get(CONF_NAME),
-                CONF_CONNECTION: common_data.get(CONF_CONNECTION) if subentry_data else None,
+                CONF_CONNECTION: get_connection_target_name(common_data.get(CONF_CONNECTION)) if subentry_data else None,
             },
             SECTION_STORAGE: {},
             SECTION_LIMITS: {},
@@ -399,6 +408,10 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             input_fields,
             sections,
         )
+
+        common_config = config_dict.get(SECTION_COMMON, {})
+        if CONF_CONNECTION in common_config:
+            common_config[CONF_CONNECTION] = normalize_connection_target(common_config[CONF_CONNECTION])
 
         if partition_input:
             partition_sections = self._get_partition_sections()

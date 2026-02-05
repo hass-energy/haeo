@@ -8,11 +8,10 @@ import voluptuous as vol
 from custom_components.haeo.const import CONF_NAME
 from custom_components.haeo.flows.element_flow import build_participant_selector
 from custom_components.haeo.flows.field_schema import SectionDefinition
+from custom_components.haeo.schema import ConnectionTarget, get_connection_target_name
 
 SECTION_COMMON: Final = "common"
 CONF_CONNECTION: Final = "connection"
-
-type ConnectionTarget = str
 
 
 class CommonConfig(TypedDict):
@@ -52,7 +51,7 @@ def build_common_fields(
     *,
     include_connection: bool = False,
     participants: list[str] | None = None,
-    current_connection: str | None = None,
+    current_connection: ConnectionTarget | str | None = None,
 ) -> dict[str, tuple[vol.Marker, Any]]:
     """Build common field entries for config flows."""
     fields: dict[str, tuple[vol.Marker, Any]] = {
@@ -68,9 +67,10 @@ def build_common_fields(
     }
 
     if include_connection:
+        connection_name = get_connection_target_name(current_connection)
         fields[CONF_CONNECTION] = (
             vol.Required(CONF_CONNECTION),
-            build_participant_selector(participants or [], current_connection),
+            build_participant_selector(participants or [], connection_name),
         )
 
     return fields
