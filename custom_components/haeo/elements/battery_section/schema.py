@@ -21,6 +21,7 @@ CONF_INITIAL_CHARGE: Final = "initial_charge"
 
 OPTIONAL_INPUT_FIELDS: Final[frozenset[str]] = frozenset()
 
+
 class StorageChargeConfig(TypedDict):
     """Storage config with required initial charge."""
 
