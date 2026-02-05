@@ -1,75 +1,75 @@
 """Solar element schema definitions."""
 
-from typing import Any, Final, Literal, TypedDict
+from typing import Final, Literal, TypedDict
 
-import numpy as np
-from numpy.typing import NDArray
+from custom_components.haeo.sections import (
+    CONF_FORECAST,
+    CONF_PRICE_SOURCE_TARGET,
+    SECTION_COMMON,
+    SECTION_FORECAST,
+    SECTION_PRICING,
+    ConnectedCommonConfig,
+    ConnectedCommonData,
+    ForecastConfig,
+    ForecastData,
+    PricingConfig,
+    PricingData,
+)
 
 ELEMENT_TYPE: Final = "solar"
 
-# Configuration field names
-CONF_FORECAST: Final = "forecast"
-CONF_PRICE_PRODUCTION: Final = "price_production"
+SECTION_CURTAILMENT: Final = "curtailment"
+
 CONF_CURTAILMENT: Final = "curtailment"
-CONF_CONNECTION: Final = "connection"
-CONF_SECTION_BASIC: Final = "basic"
-CONF_SECTION_ADVANCED: Final = "advanced"
 
-OPTIONAL_INPUT_FIELDS: Final[frozenset[str]] = frozenset({CONF_CURTAILMENT, CONF_PRICE_PRODUCTION})
+OPTIONAL_INPUT_FIELDS: Final[frozenset[str]] = frozenset({CONF_CURTAILMENT, CONF_PRICE_SOURCE_TARGET})
 
 
-class SolarBasicConfig(TypedDict):
-    """Basic configuration for solar elements."""
+class CurtailmentConfig(TypedDict, total=False):
+    """Curtailment configuration values."""
 
-    name: str
-    connection: str  # Element name to connect to
-    forecast: list[str] | str | float  # Entity ID(s) or constant kW - list for chaining
+    curtailment: str | bool
 
 
-class SolarAdvancedConfig(TypedDict, total=False):
-    """Advanced configuration for solar elements."""
+class CurtailmentData(TypedDict, total=False):
+    """Loaded curtailment values."""
 
-    curtailment: str | bool  # Entity ID or constant boolean (default: True)
-    price_production: list[str] | str | float  # Entity ID(s) or constant $/kWh
+    curtailment: bool
 
 
 class SolarConfigSchema(TypedDict):
     """Solar element configuration as stored in Home Assistant.
 
     Schema mode contains entity IDs and constant values from the config flow.
-    Values can be:
-    - list[str]: Entity IDs for chained forecasts
-    - str: Single entity ID
-    - float/bool: Constant value when using HAEO Configurable
-    - NotRequired: Field not present when using default
     """
 
     element_type: Literal["solar"]
-    basic: SolarBasicConfig
-    advanced: SolarAdvancedConfig
-
-
-class SolarBasicData(TypedDict):
-    """Loaded basic values for solar elements."""
-
-    name: str
-    connection: str  # Element name to connect to
-    forecast: NDArray[np.floating[Any]] | float  # Loaded power values per period (kW)
-
-
-class SolarAdvancedData(TypedDict, total=False):
-    """Loaded advanced values for solar elements."""
-
-    curtailment: bool  # Whether solar can be curtailed (default: True)
-    price_production: NDArray[np.floating[Any]] | float  # $/kWh production incentive (default: 0.0)
+    common: ConnectedCommonConfig
+    forecast: ForecastConfig
+    pricing: PricingConfig
+    curtailment: CurtailmentConfig
 
 
 class SolarConfigData(TypedDict):
-    """Solar element configuration with loaded values.
-
-    Data mode contains resolved sensor values for optimization.
-    """
+    """Solar element configuration with loaded values."""
 
     element_type: Literal["solar"]
-    basic: SolarBasicData
-    advanced: SolarAdvancedData
+    common: ConnectedCommonData
+    forecast: ForecastData
+    pricing: PricingData
+    curtailment: CurtailmentData
+
+
+__all__ = [
+    "CONF_CURTAILMENT",
+    "CONF_FORECAST",
+    "CONF_PRICE_SOURCE_TARGET",
+    "ELEMENT_TYPE",
+    "OPTIONAL_INPUT_FIELDS",
+    "SECTION_COMMON",
+    "SECTION_CURTAILMENT",
+    "SECTION_FORECAST",
+    "SECTION_PRICING",
+    "SolarConfigData",
+    "SolarConfigSchema",
+]

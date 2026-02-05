@@ -54,7 +54,6 @@ class HaeoInputNumber(NumberEntity):
 
     def __init__(
         self,
-        hass: HomeAssistant,
         config_entry: HaeoConfigEntry,
         subentry: ConfigSubentry,
         field_info: InputFieldInfo[NumberEntityDescription],
@@ -63,7 +62,6 @@ class HaeoInputNumber(NumberEntity):
         field_path: InputFieldPath | None = None,
     ) -> None:
         """Initialize the input number entity."""
-        self._hass = hass
         self._config_entry: HaeoConfigEntry = config_entry
         self._subentry = subentry
         self._field_info = field_info
@@ -168,7 +166,7 @@ class HaeoInputNumber(NumberEntity):
             # Subscribe to source entity changes for DRIVEN mode
             self.async_on_remove(
                 async_track_state_change_event(
-                    self._hass,
+                    self.hass,
                     self._source_entity_ids,
                     self._handle_source_state_change,
                 )
@@ -184,12 +182,12 @@ class HaeoInputNumber(NumberEntity):
             self.async_write_ha_state()
         else:
             # Re-load data and push state for driven mode
-            self._hass.async_create_task(self._async_load_data_and_update())
+            self.hass.async_create_task(self._async_load_data_and_update())
 
     @callback
     def _handle_source_state_change(self, _event: Event[EventStateChangedData]) -> None:
         """Handle source entity state change."""
-        self._hass.async_create_task(self._async_load_data_and_update())
+        self.hass.async_create_task(self._async_load_data_and_update())
 
     async def _async_load_data_and_update(self) -> None:
         """Load data and write state update."""
@@ -219,14 +217,14 @@ class HaeoInputNumber(NumberEntity):
             if self._field_info.boundaries:
                 # Boundary fields: n+1 values at time boundaries
                 values = await self._loader.load_boundaries(
-                    hass=self._hass,
+                    hass=self.hass,
                     value=self._source_entity_ids,
                     forecast_times=list(forecast_timestamps),
                 )
             else:
                 # Interval fields: n values for periods between boundaries
                 values = await self._loader.load_intervals(
-                    hass=self._hass,
+                    hass=self.hass,
                     value=self._source_entity_ids,
                     forecast_times=list(forecast_timestamps),
                 )
@@ -356,7 +354,7 @@ class HaeoInputNumber(NumberEntity):
 
         # Persist to config entry so value survives restarts and shows in reconfigure
         await async_update_subentry_value(
-            self._hass,
+            self.hass,
             self._config_entry,
             self._subentry,
             field_path=self._field_path,

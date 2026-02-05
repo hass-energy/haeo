@@ -6,7 +6,15 @@ import pytest
 from custom_components.haeo.const import CONF_ELEMENT_TYPE
 from custom_components.haeo.coordinator.network import update_element
 from custom_components.haeo.elements import ElementConfigData
-from custom_components.haeo.elements.connection import CONF_MAX_POWER_SOURCE_TARGET, CONF_MAX_POWER_TARGET_SOURCE
+from custom_components.haeo.elements.connection import (
+    CONF_MAX_POWER_SOURCE_TARGET,
+    CONF_MAX_POWER_TARGET_SOURCE,
+    SECTION_COMMON,
+    SECTION_EFFICIENCY,
+    SECTION_ENDPOINTS,
+    SECTION_POWER_LIMITS,
+    SECTION_PRICING,
+)
 from custom_components.haeo.model import Network
 from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE
 from custom_components.haeo.model.elements.connection import Connection
@@ -49,12 +57,14 @@ def test_update_element_updates_tracked_params() -> None:
     # Update via element config
     config: ElementConfigData = {
         CONF_ELEMENT_TYPE: MODEL_ELEMENT_TYPE_CONNECTION,
-        "basic": {"name": "conn", "source": "source", "target": "target"},
-        "limits": {
+        SECTION_COMMON: {"name": "conn"},
+        SECTION_ENDPOINTS: {"source": "source", "target": "target"},
+        SECTION_POWER_LIMITS: {
             CONF_MAX_POWER_SOURCE_TARGET: np.array([20.0, 20.0]),
             CONF_MAX_POWER_TARGET_SOURCE: np.array([15.0, 15.0]),
         },
-        "advanced": {},
+        SECTION_PRICING: {},
+        SECTION_EFFICIENCY: {},
     }
     update_element(network, config)
 
@@ -74,12 +84,14 @@ def test_update_element_raises_for_missing_model_element() -> None:
     # Try to update a nonexistent element
     config: ElementConfigData = {
         CONF_ELEMENT_TYPE: MODEL_ELEMENT_TYPE_CONNECTION,
-        "basic": {"name": "nonexistent_conn", "source": "source", "target": "target"},
-        "limits": {
+        SECTION_COMMON: {"name": "nonexistent_conn"},
+        SECTION_ENDPOINTS: {"source": "source", "target": "target"},
+        SECTION_POWER_LIMITS: {
             CONF_MAX_POWER_SOURCE_TARGET: np.array([20.0, 20.0]),
             CONF_MAX_POWER_TARGET_SOURCE: np.array([15.0, 15.0]),
         },
-        "advanced": {},
+        SECTION_PRICING: {},
+        SECTION_EFFICIENCY: {},
     }
 
     with pytest.raises(ValueError, match="Model element 'nonexistent_conn' not found in network during update"):

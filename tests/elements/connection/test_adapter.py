@@ -14,9 +14,11 @@ async def test_available_returns_true_with_no_optional_fields(hass: HomeAssistan
     """Connection available() should return True with only required fields."""
     config: connection.ConnectionConfigSchema = {
         "element_type": "connection",
-        "basic": {"name": "c1", "source": "node_a", "target": "node_b"},
-        "limits": {},
-        "advanced": {},
+        connection.SECTION_COMMON: {"name": "c1"},
+        connection.SECTION_ENDPOINTS: {"source": "node_a", "target": "node_b"},
+        connection.SECTION_POWER_LIMITS: {},
+        connection.SECTION_PRICING: {},
+        connection.SECTION_EFFICIENCY: {},
     }
 
     result = connection.adapter.available(config, hass=hass)
@@ -34,16 +36,19 @@ async def test_available_returns_true_when_optional_sensors_exist(hass: HomeAssi
 
     config: connection.ConnectionConfigSchema = {
         "element_type": "connection",
-        "basic": {"name": "c1", "source": "node_a", "target": "node_b"},
-        "limits": {
+        connection.SECTION_COMMON: {"name": "c1"},
+        connection.SECTION_ENDPOINTS: {"source": "node_a", "target": "node_b"},
+        connection.SECTION_POWER_LIMITS: {
             "max_power_source_target": "sensor.max_power_st",
             "max_power_target_source": "sensor.max_power_ts",
         },
-        "advanced": {
-            "efficiency_source_target": "sensor.eff_st",
-            "efficiency_target_source": "sensor.eff_ts",
+        connection.SECTION_PRICING: {
             "price_source_target": "sensor.price_st",
             "price_target_source": "sensor.price_ts",
+        },
+        connection.SECTION_EFFICIENCY: {
+            "efficiency_source_target": "sensor.eff_st",
+            "efficiency_target_source": "sensor.eff_ts",
         },
     }
 
@@ -58,13 +63,56 @@ async def test_available_returns_false_when_optional_sensor_missing(hass: HomeAs
 
     config: connection.ConnectionConfigSchema = {
         "element_type": "connection",
-        "basic": {"name": "c1", "source": "node_a", "target": "node_b"},
-        "limits": {
+        connection.SECTION_COMMON: {"name": "c1"},
+        connection.SECTION_ENDPOINTS: {"source": "node_a", "target": "node_b"},
+        connection.SECTION_POWER_LIMITS: {
             "max_power_source_target": "sensor.max_power_st",
             "max_power_target_source": "sensor.missing",
         },
-        "advanced": {},
+        connection.SECTION_PRICING: {},
+        connection.SECTION_EFFICIENCY: {},
     }
 
     result = connection.adapter.available(config, hass=hass)
     assert result is False
+
+
+async def test_available_returns_false_when_efficiency_sensor_missing(hass: HomeAssistant) -> None:
+    """Connection available() should return False when efficiency sensor is missing."""
+    config: connection.ConnectionConfigSchema = {
+        "element_type": "connection",
+        connection.SECTION_COMMON: {"name": "c1"},
+        connection.SECTION_ENDPOINTS: {"source": "node_a", "target": "node_b"},
+        connection.SECTION_POWER_LIMITS: {},
+        connection.SECTION_PRICING: {},
+        connection.SECTION_EFFICIENCY: {
+            "efficiency_source_target": "sensor.missing",
+        },
+    }
+
+    result = connection.adapter.available(config, hass=hass)
+    assert result is False
+
+
+async def test_available_returns_true_with_constant_values(hass: HomeAssistant) -> None:
+    """Connection available() should return True when values are constants."""
+    config: connection.ConnectionConfigSchema = {
+        "element_type": "connection",
+        connection.SECTION_COMMON: {"name": "c1"},
+        connection.SECTION_ENDPOINTS: {"source": "node_a", "target": "node_b"},
+        connection.SECTION_POWER_LIMITS: {
+            "max_power_source_target": 5.0,
+            "max_power_target_source": 4.0,
+        },
+        connection.SECTION_PRICING: {
+            "price_source_target": 0.1,
+            "price_target_source": 0.2,
+        },
+        connection.SECTION_EFFICIENCY: {
+            "efficiency_source_target": 0.9,
+            "efficiency_target_source": 0.91,
+        },
+    }
+
+    result = connection.adapter.available(config, hass=hass)
+    assert result is True

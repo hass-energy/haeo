@@ -14,22 +14,26 @@ from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME, DOMAIN
 from custom_components.haeo.elements import node
 from custom_components.haeo.elements.inverter import (
     CONF_CONNECTION,
-    CONF_MAX_POWER_AC_TO_DC,
-    CONF_MAX_POWER_DC_TO_AC,
-    CONF_SECTION_ADVANCED,
-    CONF_SECTION_BASIC,
-    CONF_SECTION_LIMITS,
+    CONF_MAX_POWER_SOURCE_TARGET,
+    CONF_MAX_POWER_TARGET_SOURCE,
     ELEMENT_TYPE,
+    SECTION_COMMON,
+    SECTION_EFFICIENCY,
+    SECTION_POWER_LIMITS,
 )
 
 from ..conftest import add_participant, create_flow
 
+CONF_MAX_POWER_DC_TO_AC = CONF_MAX_POWER_SOURCE_TARGET
+CONF_MAX_POWER_AC_TO_DC = CONF_MAX_POWER_TARGET_SOURCE
+SECTION_LIMITS = SECTION_POWER_LIMITS
+
 
 def _wrap_input(flat: dict[str, Any]) -> dict[str, Any]:
     """Wrap flat inverter input values into sectioned config."""
-    if CONF_SECTION_BASIC in flat:
+    if SECTION_COMMON in flat:
         return dict(flat)
-    basic = {
+    common = {
         CONF_NAME: flat[CONF_NAME],
         CONF_CONNECTION: flat[CONF_CONNECTION],
     }
@@ -38,15 +42,15 @@ def _wrap_input(flat: dict[str, Any]) -> dict[str, Any]:
         CONF_MAX_POWER_AC_TO_DC: flat[CONF_MAX_POWER_AC_TO_DC],
     }
     return {
-        CONF_SECTION_BASIC: basic,
-        CONF_SECTION_LIMITS: limits,
-        CONF_SECTION_ADVANCED: {},
+        SECTION_COMMON: common,
+        SECTION_LIMITS: limits,
+        SECTION_EFFICIENCY: {},
     }
 
 
 def _wrap_config(flat: dict[str, Any]) -> dict[str, Any]:
     """Wrap flat inverter config values into sectioned config with element type."""
-    if CONF_SECTION_BASIC in flat:
+    if SECTION_COMMON in flat:
         return {CONF_ELEMENT_TYPE: ELEMENT_TYPE, **flat}
     return {CONF_ELEMENT_TYPE: ELEMENT_TYPE, **_wrap_input(flat)}
 
@@ -177,8 +181,8 @@ async def test_user_step_with_constant_creates_entry(
 
     # Verify the config contains the constant values
     create_kwargs = flow.async_create_entry.call_args.kwargs
-    assert create_kwargs["data"][CONF_SECTION_LIMITS][CONF_MAX_POWER_DC_TO_AC] == 10.0
-    assert create_kwargs["data"][CONF_SECTION_LIMITS][CONF_MAX_POWER_AC_TO_DC] == 8.0
+    assert create_kwargs["data"][SECTION_LIMITS][CONF_MAX_POWER_DC_TO_AC] == 10.0
+    assert create_kwargs["data"][SECTION_LIMITS][CONF_MAX_POWER_AC_TO_DC] == 8.0
 
 
 async def test_user_step_with_entity_creates_entry(
@@ -212,8 +216,8 @@ async def test_user_step_with_entity_creates_entry(
 
     # Verify the config contains the entity IDs as strings (single entity)
     create_kwargs = flow.async_create_entry.call_args.kwargs
-    assert create_kwargs["data"][CONF_SECTION_LIMITS][CONF_MAX_POWER_DC_TO_AC] == "sensor.dc_power"
-    assert create_kwargs["data"][CONF_SECTION_LIMITS][CONF_MAX_POWER_AC_TO_DC] == "sensor.ac_power"
+    assert create_kwargs["data"][SECTION_LIMITS][CONF_MAX_POWER_DC_TO_AC] == "sensor.dc_power"
+    assert create_kwargs["data"][SECTION_LIMITS][CONF_MAX_POWER_AC_TO_DC] == "sensor.ac_power"
 
 
 # --- Tests for reconfigure flow ---
@@ -309,8 +313,8 @@ async def test_reconfigure_with_constant_updates_entry(
 
     # Verify the config contains the constant values
     update_kwargs = flow.async_update_and_abort.call_args.kwargs
-    assert update_kwargs["data"][CONF_SECTION_LIMITS][CONF_MAX_POWER_DC_TO_AC] == 10.0
-    assert update_kwargs["data"][CONF_SECTION_LIMITS][CONF_MAX_POWER_AC_TO_DC] == 8.0
+    assert update_kwargs["data"][SECTION_LIMITS][CONF_MAX_POWER_DC_TO_AC] == 10.0
+    assert update_kwargs["data"][SECTION_LIMITS][CONF_MAX_POWER_AC_TO_DC] == 8.0
 
 
 async def test_reconfigure_with_scalar_shows_constant_defaults(
@@ -351,8 +355,8 @@ async def test_reconfigure_with_scalar_shows_constant_defaults(
     defaults = flow._build_defaults("Test Inverter", dict(existing_subentry.data))
 
     # Defaults should contain constant choice with values
-    assert defaults[CONF_SECTION_LIMITS][CONF_MAX_POWER_DC_TO_AC] == 10.0
-    assert defaults[CONF_SECTION_LIMITS][CONF_MAX_POWER_AC_TO_DC] == 8.0
+    assert defaults[SECTION_LIMITS][CONF_MAX_POWER_DC_TO_AC] == 10.0
+    assert defaults[SECTION_LIMITS][CONF_MAX_POWER_AC_TO_DC] == 8.0
 
 
 async def test_reconfigure_with_string_entity_id_v010_format(
@@ -393,8 +397,8 @@ async def test_reconfigure_with_string_entity_id_v010_format(
     defaults = flow._build_defaults("Test Inverter", dict(existing_subentry.data))
 
     # Defaults should contain entity choice with the original entity IDs as lists
-    assert defaults[CONF_SECTION_LIMITS][CONF_MAX_POWER_DC_TO_AC] == ["sensor.dc_to_ac_power"]
-    assert defaults[CONF_SECTION_LIMITS][CONF_MAX_POWER_AC_TO_DC] == ["sensor.ac_to_dc_power"]
+    assert defaults[SECTION_LIMITS][CONF_MAX_POWER_DC_TO_AC] == ["sensor.dc_to_ac_power"]
+    assert defaults[SECTION_LIMITS][CONF_MAX_POWER_AC_TO_DC] == ["sensor.ac_to_dc_power"]
 
 
 async def test_reconfigure_with_entity_list(
@@ -429,8 +433,8 @@ async def test_reconfigure_with_entity_list(
     defaults = flow._build_defaults("Test Inverter", dict(existing_subentry.data))
 
     # Defaults should contain entity choice with the entity lists
-    assert defaults[CONF_SECTION_LIMITS][CONF_MAX_POWER_DC_TO_AC] == ["sensor.dc1", "sensor.dc2"]
-    assert defaults[CONF_SECTION_LIMITS][CONF_MAX_POWER_AC_TO_DC] == ["sensor.ac"]
+    assert defaults[SECTION_LIMITS][CONF_MAX_POWER_DC_TO_AC] == ["sensor.dc1", "sensor.dc2"]
+    assert defaults[SECTION_LIMITS][CONF_MAX_POWER_AC_TO_DC] == ["sensor.ac"]
 
 
 async def test_reconfigure_selecting_entity_stores_entity_id(
@@ -494,8 +498,8 @@ async def test_reconfigure_selecting_entity_stores_entity_id(
 
     # When entity mode is selected, the entity ID is stored
     update_kwargs = flow.async_update_and_abort.call_args.kwargs
-    assert update_kwargs["data"][CONF_SECTION_LIMITS][CONF_MAX_POWER_DC_TO_AC] == dc_to_ac_entity.entity_id
-    assert update_kwargs["data"][CONF_SECTION_LIMITS][CONF_MAX_POWER_AC_TO_DC] == ac_to_dc_entity.entity_id
+    assert update_kwargs["data"][SECTION_LIMITS][CONF_MAX_POWER_DC_TO_AC] == dc_to_ac_entity.entity_id
+    assert update_kwargs["data"][SECTION_LIMITS][CONF_MAX_POWER_AC_TO_DC] == ac_to_dc_entity.entity_id
 
 
 # --- Tests for _is_valid_choose_value ---

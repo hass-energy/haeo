@@ -5,25 +5,31 @@ from custom_components.haeo.elements.solar import (
     CONF_CONNECTION,
     CONF_CURTAILMENT,
     CONF_FORECAST,
-    CONF_PRICE_PRODUCTION,
-    CONF_SECTION_ADVANCED,
-    CONF_SECTION_BASIC,
+    CONF_PRICE_SOURCE_TARGET,
+    SECTION_COMMON,
+    SECTION_CURTAILMENT,
+    SECTION_FORECAST,
+    SECTION_PRICING,
 )
 
 # Test data for solar flow - single-step with choose selector
 # config: Contains all field values in choose selector format
-# Note: price_production and curtailment have force_required=True, so they must be included
+# Note: price_source_target and curtailment have force_required=True, so they must be included
 VALID_DATA = [
     {
         "description": "Basic solar configuration with constant forecast",
         "config": {
-            CONF_SECTION_BASIC: {
+            SECTION_COMMON: {
                 CONF_NAME: "Test Solar",
                 CONF_CONNECTION: "main_bus",
+            },
+            SECTION_FORECAST: {
                 CONF_FORECAST: 5.0,
             },
-            CONF_SECTION_ADVANCED: {
-                CONF_PRICE_PRODUCTION: 0.0,
+            SECTION_PRICING: {
+                CONF_PRICE_SOURCE_TARGET: 0.0,
+            },
+            SECTION_CURTAILMENT: {
                 CONF_CURTAILMENT: False,
             },
         },
@@ -31,13 +37,17 @@ VALID_DATA = [
     {
         "description": "Curtailable solar with production price",
         "config": {
-            CONF_SECTION_BASIC: {
+            SECTION_COMMON: {
                 CONF_NAME: "Rooftop Solar",
                 CONF_CONNECTION: "main_bus",
+            },
+            SECTION_FORECAST: {
                 CONF_FORECAST: ["sensor.solar_power"],
             },
-            CONF_SECTION_ADVANCED: {
-                CONF_PRICE_PRODUCTION: 0.04,
+            SECTION_PRICING: {
+                CONF_PRICE_SOURCE_TARGET: 0.04,
+            },
+            SECTION_CURTAILMENT: {
                 CONF_CURTAILMENT: True,
             },
         },

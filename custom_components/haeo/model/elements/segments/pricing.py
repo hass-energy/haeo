@@ -112,10 +112,10 @@ class PricingSegment(Segment):
 
         if self.price_source_target is not None:
             # Cost = power * price * period duration
-            cost_terms.append(Highs.qsum(self._power_st * self.price_source_target * self._periods))
+            cost_terms.append(Highs.qsum(self._power_st * self.price_source_target * self.periods))
 
         if self.price_target_source is not None:
-            cost_terms.append(Highs.qsum(self._power_ts * self.price_target_source * self._periods))
+            cost_terms.append(Highs.qsum(self._power_ts * self.price_target_source * self.periods))
 
         if not cost_terms:
             return None

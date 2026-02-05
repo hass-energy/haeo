@@ -46,7 +46,6 @@ class HaeoInputSwitch(SwitchEntity):
 
     def __init__(
         self,
-        hass: HomeAssistant,
         config_entry: HaeoConfigEntry,
         subentry: ConfigSubentry,
         field_info: InputFieldInfo[SwitchEntityDescription],
@@ -55,7 +54,6 @@ class HaeoInputSwitch(SwitchEntity):
         field_path: InputFieldPath | None = None,
     ) -> None:
         """Initialize the input switch entity."""
-        self._hass = hass
         self._config_entry: HaeoConfigEntry = config_entry
         self._subentry = subentry
         self._field_info = field_info
@@ -160,7 +158,7 @@ class HaeoInputSwitch(SwitchEntity):
             if self._source_entity_id is not None:
                 self.async_on_remove(
                     async_track_state_change_event(
-                        self._hass,
+                        self.hass,
                         [self._source_entity_id],
                         self._handle_source_state_change,
                     )
@@ -195,7 +193,7 @@ class HaeoInputSwitch(SwitchEntity):
         if self._source_entity_id is None:
             return
 
-        state = self._hass.states.get(self._source_entity_id)
+        state = self.hass.states.get(self._source_entity_id)
         if state is not None:
             # Capture source state for reproducibility
             self._captured_source_states = {self._source_entity_id: state}
@@ -283,7 +281,7 @@ class HaeoInputSwitch(SwitchEntity):
 
         # Persist to config entry so value survives restarts and shows in reconfigure
         await async_update_subentry_value(
-            self._hass,
+            self.hass,
             self._config_entry,
             self._subentry,
             field_path=self._field_path,
@@ -309,7 +307,7 @@ class HaeoInputSwitch(SwitchEntity):
 
         # Persist to config entry so value survives restarts and shows in reconfigure
         await async_update_subentry_value(
-            self._hass,
+            self.hass,
             self._config_entry,
             self._subentry,
             field_path=self._field_path,

@@ -17,12 +17,12 @@ async def test_available_returns_true_when_sensors_exist(hass: HomeAssistant) ->
 
     config: inverter.InverterConfigSchema = {
         "element_type": "inverter",
-        "basic": {"name": "test_inverter", "connection": "ac_bus"},
-        "limits": {
-            "max_power_dc_to_ac": "sensor.max_dc_to_ac",
-            "max_power_ac_to_dc": "sensor.max_ac_to_dc",
+        inverter.SECTION_COMMON: {"name": "test_inverter", "connection": "ac_bus"},
+        inverter.SECTION_POWER_LIMITS: {
+            "max_power_source_target": "sensor.max_dc_to_ac",
+            "max_power_target_source": "sensor.max_ac_to_dc",
         },
-        "advanced": {},
+        inverter.SECTION_EFFICIENCY: {},
     }
 
     result = inverter.adapter.available(config, hass=hass)
@@ -36,12 +36,12 @@ async def test_available_returns_false_when_first_sensor_missing(hass: HomeAssis
 
     config: inverter.InverterConfigSchema = {
         "element_type": "inverter",
-        "basic": {"name": "test_inverter", "connection": "ac_bus"},
-        "limits": {
-            "max_power_dc_to_ac": "sensor.missing",
-            "max_power_ac_to_dc": "sensor.max_ac_to_dc",
+        inverter.SECTION_COMMON: {"name": "test_inverter", "connection": "ac_bus"},
+        inverter.SECTION_POWER_LIMITS: {
+            "max_power_source_target": "sensor.missing",
+            "max_power_target_source": "sensor.max_ac_to_dc",
         },
-        "advanced": {},
+        inverter.SECTION_EFFICIENCY: {},
     }
 
     result = inverter.adapter.available(config, hass=hass)
@@ -55,13 +55,26 @@ async def test_available_returns_false_when_second_sensor_missing(hass: HomeAssi
 
     config: inverter.InverterConfigSchema = {
         "element_type": "inverter",
-        "basic": {"name": "test_inverter", "connection": "ac_bus"},
-        "limits": {
-            "max_power_dc_to_ac": "sensor.max_dc_to_ac",
-            "max_power_ac_to_dc": "sensor.missing",
+        inverter.SECTION_COMMON: {"name": "test_inverter", "connection": "ac_bus"},
+        inverter.SECTION_POWER_LIMITS: {
+            "max_power_source_target": "sensor.max_dc_to_ac",
+            "max_power_target_source": "sensor.missing",
         },
-        "advanced": {},
+        inverter.SECTION_EFFICIENCY: {},
     }
 
     result = inverter.adapter.available(config, hass=hass)
     assert result is False
+
+
+async def test_available_returns_true_when_limits_missing(hass: HomeAssistant) -> None:
+    """Inverter available() should return True when limits are omitted."""
+    config: inverter.InverterConfigSchema = {
+        "element_type": "inverter",
+        inverter.SECTION_COMMON: {"name": "test_inverter", "connection": "ac_bus"},
+        inverter.SECTION_POWER_LIMITS: {},
+        inverter.SECTION_EFFICIENCY: {},
+    }
+
+    result = inverter.adapter.available(config, hass=hass)
+    assert result is True

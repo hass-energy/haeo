@@ -2,65 +2,55 @@
 
 from typing import Final, Literal, TypedDict
 
+from custom_components.haeo.sections import SECTION_COMMON, CommonConfig, CommonData
+
 ELEMENT_TYPE: Final = "node"
 
-# Configuration field names
+SECTION_ROLE: Final = "role"
+
 CONF_IS_SOURCE: Final = "is_source"
 CONF_IS_SINK: Final = "is_sink"
-CONF_SECTION_BASIC: Final = "basic"
-CONF_SECTION_ADVANCED: Final = "advanced"
 
 OPTIONAL_INPUT_FIELDS: Final[frozenset[str]] = frozenset({CONF_IS_SOURCE, CONF_IS_SINK})
 
 
-class NodeBasicConfig(TypedDict):
-    """Basic configuration for node elements."""
+class RoleConfig(TypedDict, total=False):
+    """Role configuration for node behavior."""
 
-    name: str
+    is_source: bool
+    is_sink: bool
 
 
-class NodeAdvancedConfig(TypedDict, total=False):
-    """Advanced configuration for node elements."""
+class RoleData(TypedDict, total=False):
+    """Loaded role values for node behavior."""
 
     is_source: bool
     is_sink: bool
 
 
 class NodeConfigSchema(TypedDict):
-    """Node element configuration as stored in Home Assistant.
-
-    In standard mode, nodes are pure junctions (is_source=False, is_sink=False).
-    In advanced mode, is_source and is_sink can be configured to create:
-    - Grid-like nodes (is_source=True, is_sink=True): Can import and export power
-    - Load-like nodes (is_source=False, is_sink=True): Can only consume power
-    - Source-like nodes (is_source=True, is_sink=False): Can only produce power
-    - Pure junctions (is_source=False, is_sink=False): Power must balance
-    """
+    """Node element configuration as stored in Home Assistant."""
 
     element_type: Literal["node"]
-    basic: NodeBasicConfig
-    advanced: NodeAdvancedConfig
-
-
-class NodeBasicData(TypedDict):
-    """Loaded basic values for node elements."""
-
-    name: str
-
-
-class NodeAdvancedData(TypedDict, total=False):
-    """Loaded advanced values for node elements."""
-
-    is_source: bool
-    is_sink: bool
+    common: CommonConfig
+    role: RoleConfig
 
 
 class NodeConfigData(TypedDict):
-    """Node element configuration with loaded values.
-
-    Data mode is identical to schema mode for nodes (no sensor loading needed).
-    """
+    """Node element configuration with loaded values."""
 
     element_type: Literal["node"]
-    basic: NodeBasicData
-    advanced: NodeAdvancedData
+    common: CommonData
+    role: RoleData
+
+
+__all__ = [
+    "CONF_IS_SINK",
+    "CONF_IS_SOURCE",
+    "ELEMENT_TYPE",
+    "OPTIONAL_INPUT_FIELDS",
+    "SECTION_COMMON",
+    "SECTION_ROLE",
+    "NodeConfigData",
+    "NodeConfigSchema",
+]

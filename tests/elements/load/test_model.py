@@ -39,8 +39,8 @@ CREATE_CASES: Sequence[CreateCase] = [
         "description": "Load with forecast",
         "data": LoadConfigData(
             element_type="load",
-            basic={"name": "load_main", "connection": "network"},
-            inputs={"forecast": np.array([1.0, 2.0])},
+            common={"name": "load_main", "connection": "network"},
+            forecast={"forecast": np.array([1.0, 2.0])},
         ),
         "model": [
             {"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "load_main", "is_source": False, "is_sink": True},

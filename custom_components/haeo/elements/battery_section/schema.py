@@ -10,64 +10,57 @@ from typing import Any, Final, Literal, TypedDict
 import numpy as np
 from numpy.typing import NDArray
 
+from custom_components.haeo.sections import SECTION_COMMON, CommonConfig, CommonData
+
 ELEMENT_TYPE: Final = "battery_section"
 
-# Configuration field names
+SECTION_STORAGE: Final = "storage"
+
 CONF_CAPACITY: Final = "capacity"
 CONF_INITIAL_CHARGE: Final = "initial_charge"
-CONF_SECTION_BASIC: Final = "basic"
-CONF_SECTION_INPUTS: Final = "inputs"
 
 OPTIONAL_INPUT_FIELDS: Final[frozenset[str]] = frozenset()
 
 
-class BatterySectionBasicConfig(TypedDict):
-    """Basic configuration for battery sections."""
+class StorageChargeConfig(TypedDict):
+    """Storage config with required initial charge."""
 
-    name: str
+    capacity: str | float
+    initial_charge: str | float
 
 
-class BatterySectionInputsConfig(TypedDict):
-    """Input configuration for battery sections."""
+class StorageChargeData(TypedDict):
+    """Loaded storage values with required initial charge."""
 
-    capacity: str | float  # Entity ID or constant kWh
-    initial_charge: str | float  # Entity ID or constant kWh
+    capacity: NDArray[np.floating[Any]]
+    initial_charge: NDArray[np.floating[Any]]
 
 
 class BatterySectionConfigSchema(TypedDict):
-    """Battery section element configuration as stored in Home Assistant.
-
-    Schema mode contains entity IDs and constant values from the config flow.
-    Values can be:
-    - str: Entity ID when linking to a sensor
-    - float: Constant value when using HAEO Configurable
-
-    A single battery section with capacity and initial charge. Unlike the standard Battery
-    element, this does not create an internal node or implicit connections.
-    Connect to other elements using explicit Connection elements.
-    """
+    """Battery section element configuration as stored in Home Assistant."""
 
     element_type: Literal["battery_section"]
-    basic: BatterySectionBasicConfig
-    inputs: BatterySectionInputsConfig
-
-
-class BatterySectionBasicData(TypedDict):
-    """Loaded basic values for battery sections."""
-
-    name: str
-
-
-class BatterySectionInputsData(TypedDict):
-    """Loaded input values for battery sections."""
-
-    capacity: NDArray[np.floating[Any]]  # kWh at each time boundary (n+1 values)
-    initial_charge: NDArray[np.floating[Any]]  # kWh per period (uses first value)
+    common: CommonConfig
+    storage: StorageChargeConfig
 
 
 class BatterySectionConfigData(TypedDict):
     """Battery section element configuration with loaded values."""
 
     element_type: Literal["battery_section"]
-    basic: BatterySectionBasicData
-    inputs: BatterySectionInputsData
+    common: CommonData
+    storage: StorageChargeData
+
+
+__all__ = [
+    "CONF_CAPACITY",
+    "CONF_INITIAL_CHARGE",
+    "ELEMENT_TYPE",
+    "OPTIONAL_INPUT_FIELDS",
+    "SECTION_COMMON",
+    "SECTION_STORAGE",
+    "BatterySectionConfigData",
+    "BatterySectionConfigSchema",
+    "StorageChargeConfig",
+    "StorageChargeData",
+]

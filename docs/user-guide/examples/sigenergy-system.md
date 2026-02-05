@@ -49,17 +49,24 @@ Before starting this configuration, ensure you have:
 
 Configure the network through Settings → Devices & Services → Add Integration → HAEO:
 
-| Field               | Value            |
-| ------------------- | ---------------- |
-| **Name**            | Sigenergy System |
-| **Tier 1 Count**    | 5                |
-| **Tier 1 Duration** | 1                |
-| **Tier 2 Count**    | 11               |
-| **Tier 2 Duration** | 5                |
-| **Tier 3 Count**    | 46               |
-| **Tier 3 Duration** | 30               |
-| **Tier 4 Count**    | 48               |
-| **Tier 4 Duration** | 60               |
+| Field                | Value            |
+| -------------------- | ---------------- |
+| **Name**             | Sigenergy System |
+| **Planning Horizon** | Custom           |
+| **Advanced Mode**    | Off              |
+
+In the Custom Tiers step, enter the tier configuration:
+
+| Field               | Value |
+| ------------------- | ----- |
+| **Tier 1 Count**    | 5     |
+| **Tier 1 Duration** | 1     |
+| **Tier 2 Count**    | 11    |
+| **Tier 2 Duration** | 5     |
+| **Tier 3 Count**    | 46    |
+| **Tier 3 Duration** | 30    |
+| **Tier 4 Count**    | 48    |
+| **Tier 4 Duration** | 60    |
 
 After submitting, you should see a Switchboard element already exists.
 This is the AC power balance point where grid and loads connect.
@@ -93,11 +100,10 @@ Configure the Sigenergy battery, connecting to the Inverter's DC side:
 | **Current Charge Percentage** | `Sigen Plant Battery State of Charge`     |
 | **Min Charge Percentage**     | 10                                        |
 | **Max Charge Percentage**     | 100                                       |
-| **Efficiency**                | 99                                        |
+| **Discharge efficiency**      | 99                                        |
+| **Charge efficiency**         | 99                                        |
 | **Max Charge Power**          | `Sigen Plant Ess Rated Charging Power`    |
 | **Max Discharge Power**       | `Sigen Plant Ess Rated Discharging Power` |
-| **Early Charge Incentive**    | 0.001                                     |
-| **Discharge Cost**            | *(optional)*                              |
 
 !!! tip "Searching for Battery Sensors"
 
@@ -179,7 +185,7 @@ After completing configuration:
 
 1. **Navigate to Settings → Devices & Services → HAEO**
 2. **Click on "Sigenergy System" hub** to view the device page
-3. **Verify device/entity counts**: Should show 8 devices and 42 entities
+3. **Verify devices and entities**: Confirm devices appear for each configured element
 4. **Wait for first optimization** - Allow initial run to complete (may take 5-30 seconds)
 5. **Check optimization status** - Should show `success`
 
@@ -187,16 +193,15 @@ After completing configuration:
 
 In the HAEO integration page, you should see:
 
-| Element               | Type     | Entities |
-| --------------------- | -------- | -------- |
-| Sigenergy System      | Network  | 3        |
-| Switchboard           | Node     | 1        |
-| Inverter              | Inverter | 8        |
-| Battery               | Battery  | 6        |
-| Battery Normal Region | Region   | 9        |
-| Solar                 | Solar    | 3        |
-| Grid                  | Grid     | 9        |
-| Load                  | Load     | 3        |
+| Element          | Type     | Entities |
+| ---------------- | -------- | -------- |
+| Sigenergy System | Network  | Varies   |
+| Switchboard      | Node     | Varies   |
+| Inverter         | Inverter | Varies   |
+| Battery          | Battery  | Varies   |
+| Solar            | Solar    | Varies   |
+| Grid             | Grid     | Varies   |
+| Load             | Load     | Varies   |
 
 ### Key Sensors to Monitor
 
@@ -208,26 +213,26 @@ In the HAEO integration page, you should see:
 
 **Battery**:
 
-- `sensor.battery_power_consumed` - Charging power (kW)
-- `sensor.battery_power_produced` - Discharging power (kW)
+- `sensor.battery_power_charge` - Charging power (kW)
+- `sensor.battery_power_discharge` - Discharging power (kW)
 - `sensor.battery_energy_stored` - Current energy level (kWh)
-- `sensor.battery_battery_state_of_charge` - SOC percentage (%)
+- `sensor.battery_state_of_charge` - SOC percentage (%)
 
 **Solar**:
 
-- `sensor.solar_power_produced` - Optimal generation (kW)
-- `sensor.solar_power_available` - Available before curtailment (kW)
+- `sensor.solar_power` - Optimal generation (kW)
+- `sensor.solar_forecast_limit` - Value of additional generation capacity (\$/kW)
 
 **Grid**:
 
-- `sensor.grid_power_imported` - Import from grid (kW)
-- `sensor.grid_power_exported` - Export to grid (kW)
-- `sensor.grid_price_import` - Current import price (\$/kWh)
-- `sensor.grid_price_export` - Current export price (\$/kWh)
+- `sensor.grid_power_import` - Import from grid (kW)
+- `sensor.grid_power_export` - Export to grid (kW)
+- `sensor.grid_cost_import` - Import cost (\$)
+- `sensor.grid_revenue_export` - Export revenue (\$)
 
 **Load**:
 
-- `sensor.load_power_consumed` - Load consumption (kW)
+- `sensor.load_power` - Load consumption (kW)
 
 **Inverter**:
 
@@ -263,3 +268,41 @@ The Inverter element simplifies configuration compared to manual DC/AC nets with
 - Battery and solar share the DC bus capacity
 
 See [Node](../elements/node.md) for more on hybrid inverter modeling.
+
+## Next Steps
+
+<div class="grid cards" markdown>
+
+- :material-battery-charging:{ .lg .middle } **Battery configuration**
+
+    ---
+
+    Review battery settings and partition options.
+
+    [:material-arrow-right: Battery guide](../elements/battery.md)
+
+- :material-flash:{ .lg .middle } **Inverter configuration**
+
+    ---
+
+    Tune DC/AC power limits and efficiencies.
+
+    [:material-arrow-right: Inverter guide](../elements/inverter.md)
+
+- :material-chart-line:{ .lg .middle } **Forecasts and sensors**
+
+    ---
+
+    Ensure pricing and solar forecasts cover your horizon.
+
+    [:material-arrow-right: Forecasts guide](../forecasts-and-sensors.md)
+
+- :material-graph:{ .lg .middle } **Optimization results**
+
+    ---
+
+    Interpret costs, power flows, and shadow prices.
+
+    [:material-arrow-right: Optimization guide](../optimization.md)
+
+</div>

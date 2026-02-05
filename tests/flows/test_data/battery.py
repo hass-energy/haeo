@@ -5,17 +5,22 @@ from custom_components.haeo.elements.battery import (
     CONF_CAPACITY,
     CONF_CONFIGURE_PARTITIONS,
     CONF_CONNECTION,
-    CONF_DISCHARGE_COST,
-    CONF_EARLY_CHARGE_INCENTIVE,
-    CONF_EFFICIENCY,
+    CONF_EFFICIENCY_SOURCE_TARGET,
+    CONF_EFFICIENCY_TARGET_SOURCE,
     CONF_INITIAL_CHARGE_PERCENTAGE,
     CONF_MAX_CHARGE_PERCENTAGE,
-    CONF_MAX_CHARGE_POWER,
-    CONF_MAX_DISCHARGE_POWER,
+    CONF_MAX_POWER_SOURCE_TARGET,
+    CONF_MAX_POWER_TARGET_SOURCE,
     CONF_MIN_CHARGE_PERCENTAGE,
-    CONF_SECTION_ADVANCED,
-    CONF_SECTION_BASIC,
-    CONF_SECTION_LIMITS,
+    CONF_PRICE_SOURCE_TARGET,
+    CONF_PRICE_TARGET_SOURCE,
+    SECTION_COMMON,
+    SECTION_EFFICIENCY,
+    SECTION_LIMITS,
+    SECTION_PARTITIONING,
+    SECTION_POWER_LIMITS,
+    SECTION_PRICING,
+    SECTION_STORAGE,
 )
 
 # Test data for battery flow - single-step with choose selector (plus optional partition step)
@@ -24,21 +29,30 @@ VALID_DATA = [
     {
         "description": "Basic battery configuration",
         "config": {
-            CONF_SECTION_BASIC: {
+            SECTION_COMMON: {
                 CONF_NAME: "Test Battery",
                 CONF_CONNECTION: "main_bus",
+            },
+            SECTION_STORAGE: {
                 CONF_CAPACITY: 10.0,
                 CONF_INITIAL_CHARGE_PERCENTAGE: ["sensor.battery_soc"],
             },
-            CONF_SECTION_LIMITS: {
+            SECTION_LIMITS: {
                 CONF_MIN_CHARGE_PERCENTAGE: 10.0,
                 CONF_MAX_CHARGE_PERCENTAGE: 90.0,
-                CONF_MAX_CHARGE_POWER: 5.0,
-                CONF_MAX_DISCHARGE_POWER: 5.0,
             },
-            CONF_SECTION_ADVANCED: {
-                CONF_EFFICIENCY: 95.0,
-                CONF_EARLY_CHARGE_INCENTIVE: 0.01,
+            SECTION_POWER_LIMITS: {
+                CONF_MAX_POWER_TARGET_SOURCE: 5.0,
+                CONF_MAX_POWER_SOURCE_TARGET: 5.0,
+            },
+            SECTION_PRICING: {
+                CONF_PRICE_TARGET_SOURCE: 0.01,
+            },
+            SECTION_EFFICIENCY: {
+                CONF_EFFICIENCY_SOURCE_TARGET: 95.0,
+                CONF_EFFICIENCY_TARGET_SOURCE: 95.0,
+            },
+            SECTION_PARTITIONING: {
                 CONF_CONFIGURE_PARTITIONS: False,
             },
         },
@@ -46,22 +60,31 @@ VALID_DATA = [
     {
         "description": "Battery with optional discharge cost",
         "config": {
-            CONF_SECTION_BASIC: {
+            SECTION_COMMON: {
                 CONF_NAME: "Advanced Battery",
                 CONF_CONNECTION: "main_bus",
+            },
+            SECTION_STORAGE: {
                 CONF_CAPACITY: 10.0,
                 CONF_INITIAL_CHARGE_PERCENTAGE: ["sensor.battery_soc"],
             },
-            CONF_SECTION_LIMITS: {
+            SECTION_LIMITS: {
                 CONF_MIN_CHARGE_PERCENTAGE: 10.0,
                 CONF_MAX_CHARGE_PERCENTAGE: 90.0,
-                CONF_MAX_CHARGE_POWER: 5.0,
-                CONF_MAX_DISCHARGE_POWER: 5.0,
             },
-            CONF_SECTION_ADVANCED: {
-                CONF_EFFICIENCY: 95.0,
-                CONF_EARLY_CHARGE_INCENTIVE: 0.05,
-                CONF_DISCHARGE_COST: 0.03,
+            SECTION_POWER_LIMITS: {
+                CONF_MAX_POWER_TARGET_SOURCE: 5.0,
+                CONF_MAX_POWER_SOURCE_TARGET: 5.0,
+            },
+            SECTION_PRICING: {
+                CONF_PRICE_TARGET_SOURCE: 0.05,
+                CONF_PRICE_SOURCE_TARGET: 0.03,
+            },
+            SECTION_EFFICIENCY: {
+                CONF_EFFICIENCY_SOURCE_TARGET: 95.0,
+                CONF_EFFICIENCY_TARGET_SOURCE: 95.0,
+            },
+            SECTION_PARTITIONING: {
                 CONF_CONFIGURE_PARTITIONS: False,
             },
         },
@@ -72,17 +95,27 @@ INVALID_DATA = [
     {
         "description": "Empty name should fail validation",
         "config": {
-            CONF_SECTION_BASIC: {
+            SECTION_COMMON: {
                 CONF_NAME: "",
                 CONF_CONNECTION: "main_bus",
+            },
+            SECTION_STORAGE: {
                 CONF_CAPACITY: 10.0,
                 CONF_INITIAL_CHARGE_PERCENTAGE: ["sensor.battery_soc"],
             },
-            CONF_SECTION_LIMITS: {
-                CONF_MAX_CHARGE_POWER: 5.0,
-                CONF_MAX_DISCHARGE_POWER: 5.0,
+            SECTION_LIMITS: {},
+            SECTION_POWER_LIMITS: {
+                CONF_MAX_POWER_TARGET_SOURCE: 5.0,
+                CONF_MAX_POWER_SOURCE_TARGET: 5.0,
             },
-            CONF_SECTION_ADVANCED: {
+            SECTION_PRICING: {
+                CONF_PRICE_TARGET_SOURCE: 0.01,
+            },
+            SECTION_EFFICIENCY: {
+                CONF_EFFICIENCY_SOURCE_TARGET: 95.0,
+                CONF_EFFICIENCY_TARGET_SOURCE: 95.0,
+            },
+            SECTION_PARTITIONING: {
                 CONF_CONFIGURE_PARTITIONS: False,
             },
         },

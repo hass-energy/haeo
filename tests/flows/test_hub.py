@@ -51,9 +51,9 @@ async def test_user_step_translations_loadable(hass: HomeAssistant) -> None:
 
     # Check that key config flow translations exist
     assert f"component.{DOMAIN}.config.step.user.title" in translations
-    assert f"component.{DOMAIN}.config.step.user.sections.basic.name" in translations
-    assert f"component.{DOMAIN}.config.step.user.sections.basic.data.name" in translations
-    assert f"component.{DOMAIN}.config.step.user.sections.basic.data.horizon_preset" in translations
+    assert f"component.{DOMAIN}.config.step.user.sections.common.name" in translations
+    assert f"component.{DOMAIN}.config.step.user.sections.common.data.name" in translations
+    assert f"component.{DOMAIN}.config.step.user.sections.common.data.horizon_preset" in translations
 
 
 async def test_custom_tiers_step_translations_loadable(hass: HomeAssistant) -> None:
@@ -109,9 +109,9 @@ async def test_hub_setup_schema_has_expected_fields(hass: HomeAssistant) -> None
     """Test that the hub setup schema has the expected simplified fields."""
     schema = get_hub_setup_schema()
 
-    # Get field names from basic section
-    basic_section = schema.schema[vol.Required(flows_module.HUB_SECTION_BASIC)]
-    field_names = {key.schema for key in basic_section.schema.schema}
+    # Get field names from common section
+    common_section = schema.schema[vol.Required(flows_module.HUB_SECTION_COMMON)]
+    field_names = {key.schema for key in common_section.schema.schema}
 
     # Verify expected fields are present
     assert CONF_NAME in field_names
@@ -174,8 +174,8 @@ async def test_hub_setup_schema_default_preset(hass: HomeAssistant) -> None:
     schema = get_hub_setup_schema()
 
     # Find the horizon_preset field
-    basic_section = schema.schema[vol.Required(flows_module.HUB_SECTION_BASIC)]
-    schema_keys = {vol_key.schema: vol_key for vol_key in basic_section.schema.schema}
+    common_section = schema.schema[vol.Required(flows_module.HUB_SECTION_COMMON)]
+    schema_keys = {vol_key.schema: vol_key for vol_key in common_section.schema.schema}
     assert CONF_HORIZON_PRESET in schema_keys, "CONF_HORIZON_PRESET not found in schema"
     assert schema_keys[CONF_HORIZON_PRESET].default() == HORIZON_PRESET_5_DAYS
 

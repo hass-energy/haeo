@@ -5,7 +5,6 @@ from typing import Any
 from homeassistant.components.switch import SwitchEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import STATE_ON, EntityCategory
-from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceEntry
 from homeassistant.helpers.restore_state import RestoreEntity
 
@@ -32,7 +31,6 @@ class AutoOptimizeSwitch(SwitchEntity, RestoreEntity):  # pyright: ignore[report
 
     def __init__(
         self,
-        hass: HomeAssistant,
         config_entry: ConfigEntry,
         device_entry: DeviceEntry,
     ) -> None:
@@ -41,7 +39,6 @@ class AutoOptimizeSwitch(SwitchEntity, RestoreEntity):  # pyright: ignore[report
         This switch is a pure state holder with no coordinator knowledge.
         The coordinator subscribes to this switch's state changes.
         """
-        self._hass = hass
         self._config_entry = config_entry
 
         # Link to the network device

@@ -74,7 +74,6 @@ async def async_setup_entry(
                 continue
 
             entity = HaeoInputSwitch(
-                hass=hass,
                 config_entry=config_entry,
                 subentry=subentry,
                 field_info=field_info,
@@ -94,7 +93,6 @@ async def async_setup_entry(
 
     network_device = get_or_create_network_device(hass, config_entry, network_subentry)
     auto_optimize_switch = AutoOptimizeSwitch(
-        hass=hass,
         config_entry=config_entry,
         device_entry=network_device,
     )
