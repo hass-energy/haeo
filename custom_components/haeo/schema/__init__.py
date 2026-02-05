@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import types
+import types as stdlib_types
 from typing import Any, Final, TypeAliasType, Union, get_args, get_origin
 
 from .connection_target import (
@@ -42,7 +42,7 @@ def get_schema_value_kinds(value_type: Any) -> frozenset[SchemaValueKind]:
     value_type = _unwrap_alias_type(value_type)
     origin = get_origin(value_type)
 
-    if origin in (types.UnionType, Union):
+    if origin in (stdlib_types.UnionType, Union):
         kinds: set[SchemaValueKind] = set()
         for arg in get_args(value_type):
             kinds.update(get_schema_value_kinds(arg))

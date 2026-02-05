@@ -19,9 +19,7 @@ from custom_components.haeo.elements import InputFieldPath, find_nested_config_p
 from custom_components.haeo.elements.input_fields import InputFieldInfo
 from custom_components.haeo.entities.haeo_number import ConfigEntityMode
 from custom_components.haeo.horizon import HorizonManager
-from custom_components.haeo.schema import (
-    as_constant_value,
-)
+from custom_components.haeo.schema import as_constant_value
 from custom_components.haeo.util import async_update_subentry_value
 
 # Attributes to exclude from recorder when forecast recording is disabled
