@@ -1,11 +1,26 @@
 """Tests for battery adapter config handling and model elements."""
 
+from collections.abc import Sequence
+
 from homeassistant.core import HomeAssistant
 import numpy as np
 
 from custom_components.haeo.elements import battery
-from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_BATTERY, MODEL_ELEMENT_TYPE_CONNECTION
+from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_BATTERY, MODEL_ELEMENT_TYPE_CONNECTION, ModelElementConfig
+from custom_components.haeo.model.elements.connection import ConnectionElementConfig
 from custom_components.haeo.model.elements.segments import is_efficiency_spec
+
+
+def _get_connection(elements: Sequence[ModelElementConfig], name: str) -> ConnectionElementConfig:
+    """Extract connection element by name from model elements list."""
+    connection = next(
+        (e for e in elements if e.get("element_type") == MODEL_ELEMENT_TYPE_CONNECTION and e.get("name") == name),
+        None,
+    )
+    if connection is None:
+        msg = f"Connection '{name}' not found in elements"
+        raise ValueError(msg)
+    return connection  # type: ignore[return-value]
 
 
 def _set_sensor(hass: HomeAssistant, entity_id: str, value: str, unit: str = "kW") -> None:
@@ -169,7 +184,7 @@ def test_model_elements_omits_efficiency_when_missing() -> None:
     battery_element = next(element for element in elements if element["element_type"] == MODEL_ELEMENT_TYPE_BATTERY and element["name"] == "test_battery")
     np.testing.assert_array_equal(battery_element["capacity"], [10.0, 10.0, 10.0])
 
-    connection = next(element for element in elements if element["element_type"] == MODEL_ELEMENT_TYPE_CONNECTION and element["name"] == "test_battery:connection")
+    connection = _get_connection(elements, "test_battery:connection")
     segments = connection.get("segments")
     assert segments is not None
     efficiency_segment = segments.get("efficiency")
@@ -192,7 +207,7 @@ def test_model_elements_passes_efficiency_when_present() -> None:
 
     elements = battery.adapter.model_elements(config_data)
 
-    connection = next(element for element in elements if element["element_type"] == MODEL_ELEMENT_TYPE_CONNECTION and element["name"] == "test_battery:connection")
+    connection = _get_connection(elements, "test_battery:connection")
     segments = connection.get("segments")
     assert segments is not None
     efficiency_segment = segments.get("efficiency")
@@ -221,10 +236,143 @@ def test_model_elements_overcharge_only_adds_soc_pricing() -> None:
     }
 
     elements = battery.adapter.model_elements(config_data)
-    connection = next(element for element in elements if element["element_type"] == MODEL_ELEMENT_TYPE_CONNECTION and element["name"] == "test_battery:connection")
+    connection = _get_connection(elements, "test_battery:connection")
     segments = connection.get("segments")
     assert segments is not None
     soc_pricing = segments.get("soc_pricing")
     assert soc_pricing is not None
     assert soc_pricing.get("discharge_energy_threshold") is None
     assert soc_pricing.get("charge_capacity_threshold") is not None
+
+
+def test_discharge_respects_power_limit_with_efficiency() -> None:
+    """Battery discharge respects power limit even with efficiency in segment chain.
+
+    With 5kW discharge limit and 90% efficiency configured:
+    - Battery discharge must never exceed 5kW
+    - Efficiency reduces power delivered to grid
+
+    Verifies power_limit and efficiency segments interact correctly - power limit
+    is enforced regardless of efficiency losses in the chain.
+    """
+    from custom_components.haeo.model import Network
+    from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_BATTERY, MODEL_ELEMENT_TYPE_NODE
+    from custom_components.haeo.model.elements.battery import BATTERY_POWER_DISCHARGE
+
+    max_discharge_kw = 5.0
+    efficiency = 0.9
+
+    network = Network(name="test", periods=np.array([1.0]))
+
+    # Battery with plenty of capacity to discharge at max for one period
+    network.add(
+        {
+            "element_type": MODEL_ELEMENT_TYPE_BATTERY,
+            "name": "battery",
+            "capacity": np.array([20.0, 20.0]),
+            "initial_charge": 15.0,  # Plenty to discharge at 5kW for 1 hour
+        }
+    )
+
+    network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "grid", "is_source": True, "is_sink": True})
+
+    # Connection with power limit, efficiency, and pricing
+    network.add(
+        {
+            "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
+            "name": "battery_grid",
+            "source": "battery",
+            "target": "grid",
+            "segments": {
+                "power_limit": {
+                    "segment_type": "power_limit",
+                    "max_power_source_target": np.array([max_discharge_kw]),
+                    "max_power_target_source": np.array([5.0]),
+                },
+                "efficiency": {
+                    "segment_type": "efficiency",
+                    "efficiency_source_target": np.array([efficiency]),
+                    "efficiency_target_source": np.array([efficiency]),
+                },
+                "pricing": {
+                    "segment_type": "pricing",
+                    "price_source_target": np.array([-0.50]),  # Discharge pays
+                    "price_target_source": np.array([0.10]),
+                },
+            },
+        }
+    )
+
+    network.optimize()
+
+    # Verify battery discharge respects power limit
+    battery_discharge = network.elements["battery"].outputs()[BATTERY_POWER_DISCHARGE].values[0]
+    assert battery_discharge <= max_discharge_kw + 0.001, f"Battery discharge {battery_discharge:.3f}kW exceeds {max_discharge_kw}kW limit"
+    # Should discharge at max since it's profitable
+    assert battery_discharge >= max_discharge_kw - 0.001, f"Expected max discharge {max_discharge_kw}kW, got {battery_discharge:.3f}kW"
+
+
+def test_charge_respects_power_limit_with_efficiency() -> None:
+    """Battery charge respects power limit even with efficiency in segment chain.
+
+    With 3kW charge limit and 90% efficiency configured:
+    - Battery charge must never exceed 3kW
+    - Efficiency means grid provides more power than battery stores
+
+    Verifies power_limit and efficiency segments interact correctly.
+    """
+    from custom_components.haeo.model import Network
+    from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_BATTERY, MODEL_ELEMENT_TYPE_NODE
+    from custom_components.haeo.model.elements.battery import BATTERY_POWER_CHARGE
+
+    max_charge_kw = 3.0
+    efficiency = 0.9
+
+    network = Network(name="test", periods=np.array([1.0]))
+
+    # Battery with plenty of headroom to charge at max
+    network.add(
+        {
+            "element_type": MODEL_ELEMENT_TYPE_BATTERY,
+            "name": "battery",
+            "capacity": np.array([20.0, 20.0]),
+            "initial_charge": 2.0,  # Low charge, plenty of room to accept 3kW for 1 hour
+        }
+    )
+
+    network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "grid", "is_source": True, "is_sink": True})
+
+    # Connection with power limit, efficiency, and pricing
+    network.add(
+        {
+            "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
+            "name": "battery_grid",
+            "source": "battery",
+            "target": "grid",
+            "segments": {
+                "power_limit": {
+                    "segment_type": "power_limit",
+                    "max_power_source_target": np.array([5.0]),
+                    "max_power_target_source": np.array([max_charge_kw]),
+                },
+                "efficiency": {
+                    "segment_type": "efficiency",
+                    "efficiency_source_target": np.array([efficiency]),
+                    "efficiency_target_source": np.array([efficiency]),
+                },
+                "pricing": {
+                    "segment_type": "pricing",
+                    "price_source_target": np.array([0.50]),  # Discharge costs
+                    "price_target_source": np.array([-0.10]),  # Charging pays
+                },
+            },
+        }
+    )
+
+    network.optimize()
+
+    # Verify battery charge respects power limit
+    battery_charge = network.elements["battery"].outputs()[BATTERY_POWER_CHARGE].values[0]
+    assert battery_charge <= max_charge_kw + 0.001, f"Battery charge {battery_charge:.3f}kW exceeds {max_charge_kw}kW limit"
+    # Should charge since it's profitable (exact amount depends on efficiency interaction)
+    assert battery_charge > 0, "Expected battery to charge since it's profitable"

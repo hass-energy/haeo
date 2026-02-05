@@ -415,11 +415,6 @@ class BatteryAdapter:
                 }
 
         segments: dict[str, SegmentSpec] = {
-            "efficiency": {
-                "segment_type": "efficiency",
-                "efficiency_source_target": efficiency,  # Battery to network (discharge)
-                "efficiency_target_source": efficiency,  # Network to battery (charge)
-            },
             "power_limit": {
                 "segment_type": "power_limit",
                 "max_power_source_target": max_discharge,
@@ -429,6 +424,11 @@ class BatteryAdapter:
                 "segment_type": "pricing",
                 "price_source_target": discharge_costs,
                 "price_target_source": charge_early_incentive,
+            },
+            "efficiency": {
+                "segment_type": "efficiency",
+                "efficiency_source_target": efficiency,  # Battery to network (discharge)
+                "efficiency_target_source": efficiency,  # Network to battery (charge)
             },
         }
         if soc_pricing_spec is not None:
