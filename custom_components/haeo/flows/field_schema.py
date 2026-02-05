@@ -521,63 +521,6 @@ def build_sectioned_choose_defaults(
     return defaults
 
 
-def flatten_section_input(
-    user_input: dict[str, Any] | None,
-    section_keys: Collection[str],
-) -> dict[str, Any] | None:
-    """Flatten sectioned user input into a flat dictionary.
-
-    Args:
-        user_input: User input from the form.
-        section_keys: Keys used for section wrappers in the schema.
-
-    Returns:
-        Flattened user input, or None if input was None.
-
-    """
-    if user_input is None:
-        return None
-
-    result: dict[str, Any] = {}
-
-    for key, value in user_input.items():
-        if key in section_keys and isinstance(value, dict):
-            result.update(value)
-        else:
-            result[key] = value
-
-    return result
-
-
-def nest_section_defaults(
-    defaults: Mapping[str, Any],
-    sections: Sequence[SectionDefinition],
-) -> dict[str, Any]:
-    """Nest flat defaults into sectioned defaults for the schema.
-
-    Args:
-        defaults: Flat mapping of field_name -> default value.
-        sections: Section definitions with field membership.
-
-    Returns:
-        Defaults dict matching the sectioned schema shape.
-
-    """
-    result: dict[str, Any] = {}
-    remaining: dict[str, Any] = dict(defaults)
-
-    for section_def in sections:
-        section_defaults: dict[str, Any] = {}
-        for field_name in section_def.fields:
-            if field_name in remaining:
-                section_defaults[field_name] = remaining.pop(field_name)
-        if section_defaults:
-            result[section_def.key] = section_defaults
-
-    result.update(remaining)
-    return result
-
-
 def preprocess_sectioned_choose_input(
     user_input: dict[str, Any] | None,
     input_fields: InputFieldGroups,
@@ -919,12 +862,10 @@ __all__ = [
     "build_sectioned_choose_schema",
     "convert_choose_data_to_config",
     "convert_sectioned_choose_data_to_config",
-    "flatten_section_input",
     "get_choose_default",
     "get_haeo_input_entity_ids",
     "get_preferred_choice",
     "is_valid_choose_value",
-    "nest_section_defaults",
     "number_selector_from_field",
     "preprocess_choose_selector_input",
     "preprocess_sectioned_choose_input",
