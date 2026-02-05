@@ -16,8 +16,7 @@ class TimeSeriesLoader:
     """Loader that merges live sensor values and forecasts into a horizon-aligned time series."""
 
     def available(self, *, hass: HomeAssistant, value: EntityValue, **_kwargs: Any) -> bool:
-        """Return True when every referenced sensor can supply data.
-        """
+        """Return True when every referenced sensor can supply data."""
         entity_ids = value["value"]
 
         if not entity_ids:
@@ -50,8 +49,6 @@ class TimeSeriesLoader:
         """
         if not forecast_times:
             return []
-
-        n_periods = max(0, len(forecast_times) - 1)
 
         entity_ids = value["value"]
 
@@ -100,8 +97,6 @@ class TimeSeriesLoader:
         """
         if not forecast_times:
             return []
-
-        n_boundaries = len(forecast_times)
 
         entity_ids = value["value"]
 

@@ -100,7 +100,6 @@ def test_is_element_config_schema_invalid_structure(input_data: dict[str, Any]) 
 )
 def test_is_element_config_schema_wrong_field_types(input_data: dict[str, Any]) -> None:
     """Test is_element_config_schema rejects fields with wrong types for required fields."""
-            connection.SECTION_ENDPOINTS: {"source": as_connection_target("a")},
 
 
 def test_is_element_config_schema_valid_node() -> None:

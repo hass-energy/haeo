@@ -329,9 +329,7 @@ def build_choose_selector(
         choice_map[CHOICE_CONSTANT] = constant_choice
     if CHOICE_NONE in allowed_choices:
         none_selector = ConstantSelector(ConstantSelectorConfig(value=""))
-        choice_map[CHOICE_NONE] = ChooseSelectorChoiceConfig(
-            selector=none_selector.serialize()["selector"]
-        )
+        choice_map[CHOICE_NONE] = ChooseSelectorChoiceConfig(selector=none_selector.serialize()["selector"])
 
     choice_order = [choice for choice in (CHOICE_ENTITY, CHOICE_CONSTANT, CHOICE_NONE) if choice in choice_map]
 

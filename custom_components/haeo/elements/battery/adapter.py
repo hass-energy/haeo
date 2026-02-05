@@ -21,6 +21,14 @@ from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_BATTERY, MO
 from custom_components.haeo.model.elements.segments import SegmentSpec, SocPricingSegmentSpec
 from custom_components.haeo.model.output_data import OutputData
 from custom_components.haeo.model.util import broadcast_to_sequence
+from custom_components.haeo.schema import (
+    VALUE_TYPE_CONSTANT,
+    VALUE_TYPE_ENTITY,
+    VALUE_TYPE_NONE,
+    EntityOrConstantValue,
+    OptionalEntityOrConstantValue,
+    extract_connection_target,
+)
 from custom_components.haeo.sections import (
     CONF_CONNECTION,
     CONF_MAX_POWER_SOURCE_TARGET,
@@ -31,14 +39,6 @@ from custom_components.haeo.sections import (
     SECTION_EFFICIENCY,
     SECTION_POWER_LIMITS,
     SECTION_PRICING,
-)
-from custom_components.haeo.schema import (
-    EntityOrConstantValue,
-    OptionalEntityOrConstantValue,
-    VALUE_TYPE_CONSTANT,
-    VALUE_TYPE_ENTITY,
-    VALUE_TYPE_NONE,
-    extract_connection_target,
 )
 
 from .schema import (
@@ -152,10 +152,7 @@ class BatteryAdapter:
             (overcharge, CONF_PARTITION_PERCENTAGE),
             (overcharge, CONF_PARTITION_COST),
         ]
-        for section, field in optional_checks:
-            if not optional_available(section.get(field)):
-                return False
-        return True
+        return all(optional_available(section.get(field)) for section, field in optional_checks)
 
     def inputs(self, config: Any) -> dict[str, dict[str, InputFieldInfo[Any]]]:
         """Return input field definitions for battery elements."""

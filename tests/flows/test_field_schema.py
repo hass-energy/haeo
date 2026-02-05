@@ -30,7 +30,6 @@ from custom_components.haeo.flows.field_schema import (
     validate_choose_fields,
 )
 from custom_components.haeo.model.const import OutputType
-from custom_components.haeo.sections import SECTION_COMMON
 from custom_components.haeo.schema import (
     EntityOrConstantValue,
     OptionalEntityOrConstantValue,
@@ -38,6 +37,7 @@ from custom_components.haeo.schema import (
     as_entity_value,
     as_none_value,
 )
+from custom_components.haeo.sections import SECTION_COMMON
 
 # --- Fixtures ---
 

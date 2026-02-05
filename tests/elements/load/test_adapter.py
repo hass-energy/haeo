@@ -3,7 +3,7 @@
 from homeassistant.core import HomeAssistant
 
 from custom_components.haeo.elements import load as load_element
-from custom_components.haeo.schema import as_entity_value
+from custom_components.haeo.schema import as_connection_target, as_entity_value
 
 from ..conftest import set_sensor
 
@@ -14,7 +14,10 @@ async def test_available_returns_true_when_forecast_sensor_exists(hass: HomeAssi
 
     config: load_element.LoadConfigSchema = {
         "element_type": "load",
-        load_element.SECTION_COMMON: {"name": "test_load", "connection": "main_bus"},
+        load_element.SECTION_COMMON: {
+            "name": "test_load",
+            "connection": as_connection_target("main_bus"),
+        },
         load_element.SECTION_FORECAST: {"forecast": as_entity_value(["sensor.power"])},
     }
 
@@ -26,7 +29,10 @@ async def test_available_returns_false_when_forecast_sensor_missing(hass: HomeAs
     """Load available() should return False when forecast sensor is missing."""
     config: load_element.LoadConfigSchema = {
         "element_type": "load",
-        load_element.SECTION_COMMON: {"name": "test_load", "connection": "main_bus"},
+        load_element.SECTION_COMMON: {
+            "name": "test_load",
+            "connection": as_connection_target("main_bus"),
+        },
         load_element.SECTION_FORECAST: {"forecast": as_entity_value(["sensor.missing"])},
     }
 
@@ -38,7 +44,10 @@ def test_inputs_returns_input_fields() -> None:
     """inputs() should return input field definitions for load."""
     config: load_element.LoadConfigSchema = {
         "element_type": "load",
-        load_element.SECTION_COMMON: {"name": "test_load", "connection": "main_bus"},
+        load_element.SECTION_COMMON: {
+            "name": "test_load",
+            "connection": as_connection_target("main_bus"),
+        },
         load_element.SECTION_FORECAST: {"forecast": as_entity_value(["sensor.power"])},
     }
 

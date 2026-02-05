@@ -13,9 +13,9 @@ from custom_components.haeo.elements import (
     is_element_config_schema,
     iter_input_field_paths,
 )
-from custom_components.haeo.schema import is_none_value
 from custom_components.haeo.entities.device import get_or_create_element_device
 from custom_components.haeo.entities.haeo_number import HaeoInputNumber
+from custom_components.haeo.schema import is_none_value
 
 _LOGGER = logging.getLogger(__name__)
 

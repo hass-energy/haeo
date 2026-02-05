@@ -20,7 +20,6 @@ from custom_components.haeo.data.loader import TimeSeriesLoader
 from custom_components.haeo.elements import InputFieldPath, find_nested_config_path, get_nested_config_value_by_path
 from custom_components.haeo.elements.input_fields import InputFieldInfo
 from custom_components.haeo.horizon import HorizonManager
-from custom_components.haeo.util import async_update_subentry_value
 from custom_components.haeo.schema import (
     as_constant_value,
     as_entity_value,
@@ -30,6 +29,7 @@ from custom_components.haeo.schema import (
     is_entity_value,
     is_none_value,
 )
+from custom_components.haeo.util import async_update_subentry_value
 
 # Attributes to exclude from recorder when forecast recording is disabled
 FORECAST_UNRECORDED_ATTRIBUTES: frozenset[str] = frozenset({"forecast"})

@@ -3,7 +3,7 @@
 from homeassistant.core import HomeAssistant
 
 from custom_components.haeo.elements import connection
-from custom_components.haeo.schema import as_constant_value, as_entity_value
+from custom_components.haeo.schema import as_connection_target, as_constant_value, as_entity_value
 
 
 def _set_sensor(hass: HomeAssistant, entity_id: str, value: str, unit: str = "kW") -> None:
@@ -16,7 +16,10 @@ async def test_available_returns_true_with_no_optional_fields(hass: HomeAssistan
     config: connection.ConnectionConfigSchema = {
         "element_type": "connection",
         connection.SECTION_COMMON: {"name": "c1"},
-        connection.SECTION_ENDPOINTS: {"source": "node_a", "target": "node_b"},
+        connection.SECTION_ENDPOINTS: {
+            "source": as_connection_target("node_a"),
+            "target": as_connection_target("node_b"),
+        },
         connection.SECTION_POWER_LIMITS: {},
         connection.SECTION_PRICING: {},
         connection.SECTION_EFFICIENCY: {},
@@ -38,7 +41,10 @@ async def test_available_returns_true_when_optional_sensors_exist(hass: HomeAssi
     config: connection.ConnectionConfigSchema = {
         "element_type": "connection",
         connection.SECTION_COMMON: {"name": "c1"},
-        connection.SECTION_ENDPOINTS: {"source": "node_a", "target": "node_b"},
+        connection.SECTION_ENDPOINTS: {
+            "source": as_connection_target("node_a"),
+            "target": as_connection_target("node_b"),
+        },
         connection.SECTION_POWER_LIMITS: {
             "max_power_source_target": as_entity_value(["sensor.max_power_st"]),
             "max_power_target_source": as_entity_value(["sensor.max_power_ts"]),
@@ -65,7 +71,10 @@ async def test_available_returns_false_when_optional_sensor_missing(hass: HomeAs
     config: connection.ConnectionConfigSchema = {
         "element_type": "connection",
         connection.SECTION_COMMON: {"name": "c1"},
-        connection.SECTION_ENDPOINTS: {"source": "node_a", "target": "node_b"},
+        connection.SECTION_ENDPOINTS: {
+            "source": as_connection_target("node_a"),
+            "target": as_connection_target("node_b"),
+        },
         connection.SECTION_POWER_LIMITS: {
             "max_power_source_target": as_entity_value(["sensor.max_power_st"]),
             "max_power_target_source": as_entity_value(["sensor.missing"]),
@@ -83,7 +92,10 @@ async def test_available_returns_false_when_efficiency_sensor_missing(hass: Home
     config: connection.ConnectionConfigSchema = {
         "element_type": "connection",
         connection.SECTION_COMMON: {"name": "c1"},
-        connection.SECTION_ENDPOINTS: {"source": "node_a", "target": "node_b"},
+        connection.SECTION_ENDPOINTS: {
+            "source": as_connection_target("node_a"),
+            "target": as_connection_target("node_b"),
+        },
         connection.SECTION_POWER_LIMITS: {},
         connection.SECTION_PRICING: {},
         connection.SECTION_EFFICIENCY: {
@@ -100,7 +112,10 @@ async def test_available_returns_true_with_constant_values(hass: HomeAssistant) 
     config: connection.ConnectionConfigSchema = {
         "element_type": "connection",
         connection.SECTION_COMMON: {"name": "c1"},
-        connection.SECTION_ENDPOINTS: {"source": "node_a", "target": "node_b"},
+        connection.SECTION_ENDPOINTS: {
+            "source": as_connection_target("node_a"),
+            "target": as_connection_target("node_b"),
+        },
         connection.SECTION_POWER_LIMITS: {
             "max_power_source_target": as_constant_value(5.0),
             "max_power_target_source": as_constant_value(4.0),

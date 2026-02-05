@@ -99,10 +99,11 @@ def _add_subentry(
             power_limits[CONF_MAX_POWER_SOURCE_TARGET] = schema_value(data.get("max_power_source_target"))
         if data.get("max_power_target_source") is not None:
             power_limits[CONF_MAX_POWER_TARGET_SOURCE] = schema_value(data.get("max_power_target_source"))
+        connection_value = data.get("connection", "Switchboard")
         payload |= {
             SECTION_COMMON: {
                 CONF_NAME: title,
-                CONF_CONNECTION: as_connection_target(data.get("connection", "Switchboard")),
+                CONF_CONNECTION: as_connection_target(str(connection_value)),
             },
             SECTION_PRICING: {
                 CONF_PRICE_SOURCE_TARGET: schema_value(data.get("price_source_target")),

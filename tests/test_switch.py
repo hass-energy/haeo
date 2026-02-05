@@ -104,10 +104,11 @@ def _add_subentry(
 
     payload: dict[str, object] = {CONF_ELEMENT_TYPE: subentry_type}
     if subentry_type == GRID_TYPE:
+        connection_value = data.get("connection", "Switchboard")
         payload |= {
             SECTION_COMMON: {
                 CONF_NAME: title,
-                CONF_CONNECTION: as_connection_target(data.get("connection", "Switchboard")),
+                CONF_CONNECTION: as_connection_target(str(connection_value)),
             },
             SECTION_PRICING: {
                 CONF_PRICE_SOURCE_TARGET: schema_value(data.get("price_source_target")),
@@ -119,10 +120,11 @@ def _add_subentry(
             },
         }
     elif subentry_type == SOLAR_TYPE:
+        connection_value = data.get("connection", "Switchboard")
         payload |= {
             SOLAR_SECTION_COMMON: {
                 CONF_NAME: title,
-                CONF_CONNECTION: as_connection_target(data.get("connection", "Switchboard")),
+                CONF_CONNECTION: as_connection_target(str(connection_value)),
             },
             SECTION_FORECAST: {
                 CONF_FORECAST: schema_value(data.get("forecast", ["sensor.solar_forecast"])),

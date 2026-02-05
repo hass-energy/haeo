@@ -37,7 +37,7 @@ from custom_components.haeo.elements.battery import (
     SECTION_STORAGE,
     SECTION_UNDERCHARGE,
 )
-from custom_components.haeo.schema import as_connection_target, as_constant_value, as_entity_value, as_none_value
+from custom_components.haeo.schema import as_connection_target, as_constant_value, as_entity_value
 
 from ..conftest import add_participant, create_flow
 
@@ -89,11 +89,7 @@ def _wrap_main_input(user_input: dict[str, Any], *, as_schema: bool = False) -> 
             )
             if key in user_input
         },
-        SECTION_EFFICIENCY: {
-            key: user_input[key]
-            for key in (CONF_EFFICIENCY_SOURCE_TARGET, CONF_EFFICIENCY_TARGET_SOURCE)
-            if key in user_input
-        },
+        SECTION_EFFICIENCY: {key: user_input[key] for key in (CONF_EFFICIENCY_SOURCE_TARGET, CONF_EFFICIENCY_TARGET_SOURCE) if key in user_input},
         SECTION_PARTITIONING: {key: user_input[key] for key in (CONF_CONFIGURE_PARTITIONS,) if key in user_input},
     }
 

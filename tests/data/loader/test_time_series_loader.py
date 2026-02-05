@@ -94,10 +94,13 @@ async def test_time_series_loader_loads_mixed_live_and_forecast(hass: HomeAssist
     hass.states.async_set("sensor.forecast_price", "0.25", {})
 
     with patch("custom_components.haeo.data.loader.sensor_loader.extract", side_effect=mock_extract):
-        assert loader.available(
-            hass=hass,
-            value=as_entity_value(["sensor.live_price", "sensor.forecast_price"]),
-        ) is True
+        assert (
+            loader.available(
+                hass=hass,
+                value=as_entity_value(["sensor.live_price", "sensor.forecast_price"]),
+            )
+            is True
+        )
 
         result = await loader.load_intervals(
             hass=hass,
@@ -124,11 +127,14 @@ async def test_time_series_loader_returns_empty_series_for_empty_horizon(hass: H
         },
     )
 
-    assert await loader.load_intervals(
-        hass=hass,
-        value=as_entity_value(["sensor.live_price"]),
-        forecast_times=[],
-    ) == []
+    assert (
+        await loader.load_intervals(
+            hass=hass,
+            value=as_entity_value(["sensor.live_price"]),
+            forecast_times=[],
+        )
+        == []
+    )
 
 
 # --- Tests for load_boundaries() ---

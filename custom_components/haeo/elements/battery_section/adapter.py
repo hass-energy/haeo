@@ -17,8 +17,8 @@ from custom_components.haeo.model import battery as model_battery
 from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_BATTERY
 from custom_components.haeo.model.output_data import OutputData
+from custom_components.haeo.schema import VALUE_TYPE_CONSTANT, VALUE_TYPE_ENTITY, EntityOrConstantValue
 from custom_components.haeo.sections import SECTION_COMMON
-from custom_components.haeo.schema import EntityOrConstantValue, VALUE_TYPE_CONSTANT, VALUE_TYPE_ENTITY
 
 from .schema import (
     CONF_CAPACITY,

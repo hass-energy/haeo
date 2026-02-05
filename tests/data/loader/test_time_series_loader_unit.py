@@ -8,6 +8,7 @@ Lower-level fusion and cycling logic is tested in:
 """
 
 from collections.abc import Sequence
+from typing import cast
 
 from homeassistant.core import HomeAssistant
 import pytest
@@ -15,7 +16,7 @@ import pytest
 from custom_components.haeo.data.loader import time_series_loader as tsl
 from custom_components.haeo.data.loader.sensor_loader import normalize_entity_ids
 from custom_components.haeo.data.loader.time_series_loader import TimeSeriesLoader
-from custom_components.haeo.schema import as_entity_value
+from custom_components.haeo.schema import EntityValue, as_entity_value
 
 
 def test_normalize_entity_ids_rejects_invalid_type() -> None:
@@ -67,7 +68,7 @@ def test_time_series_loader_available_invalid_value(hass: HomeAssistant, monkeyp
     monkeypatch.setattr(tsl, "load_sensors", fail_load_sensors)
 
     with pytest.raises(TypeError):
-        loader.available(hass=hass, value=object())
+        loader.available(hass=hass, value=cast(EntityValue, object()))  # noqa: TC006
 
 
 @pytest.mark.asyncio

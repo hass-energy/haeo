@@ -26,8 +26,8 @@ from custom_components.haeo.elements.battery import CONF_CONNECTION as BATTERY_C
 from custom_components.haeo.elements.grid import CONF_CONNECTION as GRID_CONF_CONNECTION
 from custom_components.haeo.elements.grid import CONF_PRICE_SOURCE_TARGET, CONF_PRICE_TARGET_SOURCE, GridConfigData
 from custom_components.haeo.elements.node import CONF_IS_SINK, CONF_IS_SOURCE, SECTION_ROLE, NodeConfigData
-from custom_components.haeo.sections import SECTION_COMMON, SECTION_EFFICIENCY, SECTION_POWER_LIMITS, SECTION_PRICING
 from custom_components.haeo.schema import as_connection_target
+from custom_components.haeo.sections import SECTION_COMMON, SECTION_EFFICIENCY, SECTION_POWER_LIMITS, SECTION_PRICING
 from custom_components.haeo.validation import format_component_summary, validate_network_topology
 
 

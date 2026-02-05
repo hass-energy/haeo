@@ -18,12 +18,8 @@ from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION,
 from custom_components.haeo.model.elements.connection import CONNECTION_POWER_TARGET_SOURCE, CONNECTION_SEGMENTS
 from custom_components.haeo.model.elements.segments import POWER_LIMIT_TARGET_SOURCE
 from custom_components.haeo.model.output_data import OutputData
+from custom_components.haeo.schema import VALUE_TYPE_CONSTANT, VALUE_TYPE_ENTITY, extract_connection_target
 from custom_components.haeo.sections import CONF_CONNECTION, CONF_FORECAST, SECTION_COMMON, SECTION_FORECAST
-from custom_components.haeo.schema import (
-    VALUE_TYPE_CONSTANT,
-    VALUE_TYPE_ENTITY,
-    extract_connection_target,
-)
 
 from .schema import ELEMENT_TYPE, LoadConfigData, LoadConfigSchema
 

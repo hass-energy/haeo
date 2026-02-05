@@ -3,7 +3,7 @@
 from homeassistant.core import HomeAssistant
 
 from custom_components.haeo.elements import inverter
-from custom_components.haeo.schema import as_entity_value
+from custom_components.haeo.schema import as_connection_target, as_entity_value
 
 
 def _set_sensor(hass: HomeAssistant, entity_id: str, value: str, unit: str = "kW") -> None:
@@ -18,7 +18,10 @@ async def test_available_returns_true_when_sensors_exist(hass: HomeAssistant) ->
 
     config: inverter.InverterConfigSchema = {
         "element_type": "inverter",
-        inverter.SECTION_COMMON: {"name": "test_inverter", "connection": "ac_bus"},
+        inverter.SECTION_COMMON: {
+            "name": "test_inverter",
+            "connection": as_connection_target("ac_bus"),
+        },
         inverter.SECTION_POWER_LIMITS: {
             "max_power_source_target": as_entity_value(["sensor.max_dc_to_ac"]),
             "max_power_target_source": as_entity_value(["sensor.max_ac_to_dc"]),
@@ -37,7 +40,10 @@ async def test_available_returns_false_when_first_sensor_missing(hass: HomeAssis
 
     config: inverter.InverterConfigSchema = {
         "element_type": "inverter",
-        inverter.SECTION_COMMON: {"name": "test_inverter", "connection": "ac_bus"},
+        inverter.SECTION_COMMON: {
+            "name": "test_inverter",
+            "connection": as_connection_target("ac_bus"),
+        },
         inverter.SECTION_POWER_LIMITS: {
             "max_power_source_target": as_entity_value(["sensor.missing"]),
             "max_power_target_source": as_entity_value(["sensor.max_ac_to_dc"]),
@@ -56,7 +62,10 @@ async def test_available_returns_false_when_second_sensor_missing(hass: HomeAssi
 
     config: inverter.InverterConfigSchema = {
         "element_type": "inverter",
-        inverter.SECTION_COMMON: {"name": "test_inverter", "connection": "ac_bus"},
+        inverter.SECTION_COMMON: {
+            "name": "test_inverter",
+            "connection": as_connection_target("ac_bus"),
+        },
         inverter.SECTION_POWER_LIMITS: {
             "max_power_source_target": as_entity_value(["sensor.max_dc_to_ac"]),
             "max_power_target_source": as_entity_value(["sensor.missing"]),
@@ -72,7 +81,10 @@ async def test_available_returns_true_when_limits_missing(hass: HomeAssistant) -
     """Inverter available() should return True when limits are omitted."""
     config: inverter.InverterConfigSchema = {
         "element_type": "inverter",
-        inverter.SECTION_COMMON: {"name": "test_inverter", "connection": "ac_bus"},
+        inverter.SECTION_COMMON: {
+            "name": "test_inverter",
+            "connection": as_connection_target("ac_bus"),
+        },
         inverter.SECTION_POWER_LIMITS: {},
         inverter.SECTION_EFFICIENCY: {},
     }

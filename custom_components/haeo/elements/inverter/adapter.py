@@ -23,6 +23,13 @@ from custom_components.haeo.model.elements.connection import (
 from custom_components.haeo.model.elements.node import NODE_POWER_BALANCE
 from custom_components.haeo.model.elements.segments import POWER_LIMIT_SOURCE_TARGET, POWER_LIMIT_TARGET_SOURCE
 from custom_components.haeo.model.output_data import OutputData
+from custom_components.haeo.schema import (
+    VALUE_TYPE_CONSTANT,
+    VALUE_TYPE_ENTITY,
+    VALUE_TYPE_NONE,
+    OptionalEntityOrConstantValue,
+    extract_connection_target,
+)
 from custom_components.haeo.sections import (
     CONF_CONNECTION,
     CONF_EFFICIENCY_SOURCE_TARGET,
@@ -32,13 +39,6 @@ from custom_components.haeo.sections import (
     SECTION_COMMON,
     SECTION_EFFICIENCY,
     SECTION_POWER_LIMITS,
-)
-from custom_components.haeo.schema import (
-    OptionalEntityOrConstantValue,
-    VALUE_TYPE_CONSTANT,
-    VALUE_TYPE_ENTITY,
-    VALUE_TYPE_NONE,
-    extract_connection_target,
 )
 
 from .schema import ELEMENT_TYPE, InverterConfigData, InverterConfigSchema

@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from numbers import Real
 import types
-from typing import Any, Final, Literal, TypedDict, TypeAliasType, TypeGuard, Union, get_args, get_origin
+from typing import Any, Final, Literal, TypeAliasType, TypedDict, TypeGuard, Union, get_args, get_origin
 
 VALUE_TYPE_ENTITY: Final = "entity"
 VALUE_TYPE_CONSTANT: Final = "constant"
@@ -59,7 +59,7 @@ def as_entity_value(value: Sequence[str] | str) -> EntityValue:
     return {"type": VALUE_TYPE_ENTITY, "value": normalize_entity_ids(value)}
 
 
-def as_constant_value(value: float | bool) -> ConstantValue:
+def as_constant_value(value: float | bool) -> ConstantValue:  # noqa: FBT001
     """Create a constant schema value from a scalar."""
     return {"type": VALUE_TYPE_CONSTANT, "value": value}
 
@@ -176,7 +176,7 @@ def get_schema_value_kinds(value_type: Any) -> frozenset[SchemaValueKind]:
         return frozenset(kinds)
 
     if value_type in (EntityValue, ConstantValue, NoneValue):
-        mapping = {
+        mapping: dict[type, SchemaValueKind] = {
             EntityValue: VALUE_TYPE_ENTITY,
             ConstantValue: VALUE_TYPE_CONSTANT,
             NoneValue: VALUE_TYPE_NONE,
@@ -187,25 +187,25 @@ def get_schema_value_kinds(value_type: Any) -> frozenset[SchemaValueKind]:
 
 
 __all__ = [
-    "ConstantValue",
+    "VALUE_TYPE_CONNECTION_TARGET",
+    "VALUE_TYPE_CONSTANT",
+    "VALUE_TYPE_ENTITY",
+    "VALUE_TYPE_NONE",
     "ConnectionTarget",
     "ConnectionTargetValue",
-    "EntityValue",
+    "ConstantValue",
     "EntityOrConstantValue",
+    "EntityValue",
     "NoneValue",
     "OptionalEntityOrConstantValue",
     "SchemaValue",
     "SchemaValueKind",
-    "VALUE_TYPE_CONSTANT",
-    "VALUE_TYPE_CONNECTION_TARGET",
-    "VALUE_TYPE_ENTITY",
-    "VALUE_TYPE_NONE",
     "as_connection_target",
     "as_constant_value",
     "as_entity_value",
     "as_none_value",
-    "extract_constant",
     "extract_connection_target",
+    "extract_constant",
     "extract_entity_ids",
     "get_connection_target_name",
     "get_schema_value_kinds",

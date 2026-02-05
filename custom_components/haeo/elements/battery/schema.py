@@ -5,6 +5,7 @@ from typing import Any, Final, Literal, NotRequired, TypedDict
 import numpy as np
 from numpy.typing import NDArray
 
+from custom_components.haeo.schema import EntityOrConstantValue, OptionalEntityOrConstantValue
 from custom_components.haeo.sections import (
     CONF_CONNECTION,
     CONF_EFFICIENCY_SOURCE_TARGET,
@@ -26,7 +27,6 @@ from custom_components.haeo.sections import (
     PricingConfig,
     PricingData,
 )
-from custom_components.haeo.schema import EntityOrConstantValue, OptionalEntityOrConstantValue
 
 ELEMENT_TYPE: Final = "battery"
 

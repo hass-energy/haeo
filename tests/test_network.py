@@ -23,6 +23,7 @@ from custom_components.haeo.elements import ELEMENT_TYPE_CONNECTION, ELEMENT_TYP
 from custom_components.haeo.elements.connection import CONF_SOURCE, CONF_TARGET, SECTION_ENDPOINTS, ConnectionConfigData
 from custom_components.haeo.elements.node import CONF_IS_SINK, CONF_IS_SOURCE, SECTION_ROLE, NodeConfigData
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON, HUB_SECTION_TIERS
+from custom_components.haeo.schema import as_connection_target
 from custom_components.haeo.sections import SECTION_COMMON, SECTION_EFFICIENCY, SECTION_POWER_LIMITS, SECTION_PRICING
 
 
@@ -128,8 +129,8 @@ async def test_evaluate_network_connectivity_resolves_issue(
             CONF_NAME: "A to B",
         },
         SECTION_ENDPOINTS: {
-            CONF_SOURCE: "Node A",
-            CONF_TARGET: "Node B",
+            CONF_SOURCE: as_connection_target("Node A"),
+            CONF_TARGET: as_connection_target("Node B"),
         },
         SECTION_POWER_LIMITS: {},
         SECTION_PRICING: {},

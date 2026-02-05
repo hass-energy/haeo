@@ -2,6 +2,7 @@
 
 from typing import Final, Literal, TypedDict
 
+from custom_components.haeo.schema import EntityOrConstantValue
 from custom_components.haeo.sections import (
     CONF_FORECAST,
     CONF_PRICE_SOURCE_TARGET,
@@ -15,7 +16,6 @@ from custom_components.haeo.sections import (
     PricingConfig,
     PricingData,
 )
-from custom_components.haeo.schema import EntityOrConstantValue
 
 ELEMENT_TYPE: Final = "solar"
 

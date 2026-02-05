@@ -27,8 +27,8 @@ from custom_components.haeo.entities.haeo_number import (
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON, HUB_SECTION_TIERS
 from custom_components.haeo.horizon import HorizonManager
 from custom_components.haeo.model import OutputType
-from custom_components.haeo.sections import SECTION_COMMON, SECTION_EFFICIENCY
 from custom_components.haeo.schema import as_constant_value, as_entity_value, as_none_value
+from custom_components.haeo.sections import SECTION_COMMON, SECTION_EFFICIENCY
 
 # --- Fixtures ---
 

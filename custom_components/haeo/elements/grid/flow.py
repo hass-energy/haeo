@@ -21,11 +21,7 @@ from custom_components.haeo.flows.field_schema import (
     preprocess_sectioned_choose_input,
     validate_sectioned_choose_fields,
 )
-from custom_components.haeo.schema import (
-    as_constant_value,
-    get_connection_target_name,
-    normalize_connection_target,
-)
+from custom_components.haeo.schema import as_constant_value, get_connection_target_name, normalize_connection_target
 from custom_components.haeo.sections import (
     CONF_CONNECTION,
     CONF_MAX_POWER_SOURCE_TARGET,
@@ -192,10 +188,11 @@ class GridSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
     ) -> dict[str, Any]:
         """Build default values for the form."""
         common_data = subentry_data.get(SECTION_COMMON, {}) if subentry_data else {}
+        connection_default = get_connection_target_name(common_data.get(CONF_CONNECTION)) if subentry_data else None
         defaults: dict[str, Any] = {
             SECTION_COMMON: {
                 CONF_NAME: default_name if subentry_data is None else common_data.get(CONF_NAME),
-                CONF_CONNECTION: get_connection_target_name(common_data.get(CONF_CONNECTION)) if subentry_data else None,
+                CONF_CONNECTION: connection_default,
             },
             SECTION_PRICING: {},
             SECTION_POWER_LIMITS: {},
@@ -247,6 +244,9 @@ class GridSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             input_fields,
             self._get_sections(),
         )
+        common_config = config_dict.get(SECTION_COMMON, {})
+        if CONF_CONNECTION in common_config:
+            common_config[CONF_CONNECTION] = normalize_connection_target(common_config[CONF_CONNECTION])
 
         return {
             CONF_ELEMENT_TYPE: ELEMENT_TYPE,
@@ -257,9 +257,6 @@ class GridSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         """Finalize the flow by creating or updating the entry."""
         name = str(user_input.get(SECTION_COMMON, {}).get(CONF_NAME))
         subentry = self._get_subentry()
-        common_config = config_dict.get(SECTION_COMMON, {})
-        if CONF_CONNECTION in common_config:
-            common_config[CONF_CONNECTION] = normalize_connection_target(common_config[CONF_CONNECTION])
         if subentry is not None:
             return self.async_update_and_abort(self._get_entry(), subentry, title=name, data=config)
         return self.async_create_entry(title=name, data=config)

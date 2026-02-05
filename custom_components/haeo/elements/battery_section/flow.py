@@ -9,7 +9,7 @@ import voluptuous as vol
 
 from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME, DOMAIN
 from custom_components.haeo.data.loader.extractors import extract_entity_metadata
-from custom_components.haeo.elements import is_element_config_schema
+from custom_components.haeo.elements import get_input_field_schema_info, is_element_config_schema
 from custom_components.haeo.elements.input_fields import InputFieldGroups
 from custom_components.haeo.flows.element_flow import ElementFlowMixin, build_sectioned_inclusion_map
 from custom_components.haeo.flows.field_schema import (
@@ -25,13 +25,7 @@ from custom_components.haeo.schema import as_constant_value
 from custom_components.haeo.sections import SECTION_COMMON, build_common_fields, common_section
 
 from .adapter import adapter
-from .schema import (
-    CONF_CAPACITY,
-    CONF_INITIAL_CHARGE,
-    ELEMENT_TYPE,
-    SECTION_STORAGE,
-    BatterySectionConfigSchema,
-)
+from .schema import CONF_CAPACITY, CONF_INITIAL_CHARGE, ELEMENT_TYPE, SECTION_STORAGE, BatterySectionConfigSchema
 
 
 class BatterySectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):

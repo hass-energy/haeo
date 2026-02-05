@@ -16,6 +16,7 @@ def _set_sensor(hass: HomeAssistant, entity_id: str, value: str, unit: str = "kW
 
 def _wrap_config(flat: dict[str, object]) -> battery.BatteryConfigSchema:
     """Wrap flat battery config values into sectioned config."""
+
     def to_schema_value(value: object) -> object:
         if value is None:
             return as_none_value()

@@ -78,12 +78,12 @@ def build_common_fields(
 
 __all__ = [
     "CONF_CONNECTION",
-    "ConnectionTarget",
     "SECTION_COMMON",
     "CommonConfig",
     "CommonData",
     "ConnectedCommonConfig",
     "ConnectedCommonData",
+    "ConnectionTarget",
     "build_common_fields",
     "common_section",
 ]

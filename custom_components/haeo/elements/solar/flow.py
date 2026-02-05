@@ -21,11 +21,7 @@ from custom_components.haeo.flows.field_schema import (
     preprocess_sectioned_choose_input,
     validate_sectioned_choose_fields,
 )
-from custom_components.haeo.schema import (
-    as_constant_value,
-    get_connection_target_name,
-    normalize_connection_target,
-)
+from custom_components.haeo.schema import as_constant_value, get_connection_target_name, normalize_connection_target
 from custom_components.haeo.sections import (
     CONF_CONNECTION,
     CONF_FORECAST,
@@ -186,10 +182,11 @@ class SolarSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
     ) -> dict[str, Any]:
         """Build default values for the form."""
         common_data = subentry_data.get(SECTION_COMMON, {}) if subentry_data else {}
+        connection_default = get_connection_target_name(common_data.get(CONF_CONNECTION)) if subentry_data else None
         defaults: dict[str, Any] = {
             SECTION_COMMON: {
                 CONF_NAME: default_name if subentry_data is None else common_data.get(CONF_NAME),
-                CONF_CONNECTION: get_connection_target_name(common_data.get(CONF_CONNECTION)) if subentry_data else None,
+                CONF_CONNECTION: connection_default,
             },
             SECTION_FORECAST: {},
             SECTION_PRICING: {},
