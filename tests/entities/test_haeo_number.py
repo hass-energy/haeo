@@ -1232,7 +1232,6 @@ async def test_get_captured_source_states_editable_mode(
     subentry = _create_subentry("Test Battery", {"power_limit": 10.5})
 
     entity = HaeoInputNumber(
-        hass=hass,
         config_entry=config_entry,
         subentry=subentry,
         field_info=power_field_info,
@@ -1260,7 +1259,6 @@ async def test_get_captured_source_states_driven_mode(
     subentry = _create_subentry("Test Battery", {"power_limit": ["sensor.power_limit"]})
 
     entity = HaeoInputNumber(
-        hass=hass,
         config_entry=config_entry,
         subentry=subentry,
         field_info=power_field_info,
@@ -1268,11 +1266,11 @@ async def test_get_captured_source_states_driven_mode(
         horizon_manager=horizon_manager,
     )
 
-    # Before loading data, captured states should be empty
+    # Before adding to hass, captured states should be empty
     assert entity.get_captured_source_states() == {}
 
-    # Simulate loading data
-    await entity._async_load_data()
+    # Add to hass which triggers async_added_to_hass -> _async_load_data
+    await _add_entity_to_hass(hass, entity)
 
     # After loading, captured states should include the source entity
     captured = entity.get_captured_source_states()

@@ -210,7 +210,7 @@ class HaeoInputNumber(NumberEntity):
 
         # Capture source states before loading for reproducibility
         self._captured_source_states = {
-            eid: state for eid in self._source_entity_ids if (state := self._hass.states.get(eid)) is not None
+            eid: state for eid in self._source_entity_ids if (state := self.hass.states.get(eid)) is not None
         }
 
         try:

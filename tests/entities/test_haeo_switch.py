@@ -1175,7 +1175,6 @@ async def test_get_captured_source_states_editable_mode(
     subentry = _create_subentry("Test Solar", {"curtailment": True})
 
     entity = HaeoInputSwitch(
-        hass=hass,
         config_entry=config_entry,
         subentry=subentry,
         field_info=curtailment_field_info,
@@ -1204,7 +1203,6 @@ async def test_get_captured_source_states_driven_mode(
     subentry = _create_subentry("Test Solar", {"allow_curtailment": "input_boolean.allow_curtailment"})
 
     entity = HaeoInputSwitch(
-        hass=hass,
         config_entry=config_entry,
         subentry=subentry,
         field_info=curtailment_field_info,
@@ -1212,11 +1210,11 @@ async def test_get_captured_source_states_driven_mode(
         horizon_manager=horizon_manager,
     )
 
-    # Before loading data, captured states should be empty
+    # Before adding to hass, captured states should be empty
     assert entity.get_captured_source_states() == {}
 
-    # Simulate loading data
-    entity._load_source_state()
+    # Add to hass which triggers async_added_to_hass -> _load_source_state
+    await _add_entity_to_hass(hass, entity)
 
     # After loading, captured states should include the source entity
     captured = entity.get_captured_source_states()
