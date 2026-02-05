@@ -9,7 +9,7 @@ from homeassistant.helpers.selector import BooleanSelector, NumberSelector
 import pytest
 
 from custom_components.haeo.const import DOMAIN
-from custom_components.haeo.elements import FieldSchemaInfo
+from custom_components.haeo.elements.field_schema import FieldSchemaInfo
 from custom_components.haeo.elements.input_fields import InputFieldDefaults, InputFieldInfo
 from custom_components.haeo.flows.field_schema import (
     CHOICE_CONSTANT,

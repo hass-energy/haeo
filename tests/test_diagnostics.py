@@ -60,7 +60,7 @@ from custom_components.haeo.elements.grid import CONF_PRICE_SOURCE_TARGET, CONF_
 from custom_components.haeo.entities.haeo_number import ConfigEntityMode, HaeoInputNumber
 from custom_components.haeo.flows import HUB_SECTION_COMMON, HUB_SECTION_TIERS
 from custom_components.haeo.model import OutputType
-from custom_components.haeo.schema import as_constant_value, as_entity_value
+from custom_components.haeo.schema import as_connection_target, as_constant_value, as_entity_value
 from custom_components.haeo.sections import SECTION_COMMON, SECTION_EFFICIENCY, SECTION_POWER_LIMITS, SECTION_PRICING
 
 
@@ -108,7 +108,7 @@ def _battery_config(
         CONF_ELEMENT_TYPE: ELEMENT_TYPE_BATTERY,
         SECTION_COMMON: {
             CONF_NAME: name,
-            CONF_CONNECTION: connection,
+            CONF_CONNECTION: as_connection_target(connection),
         },
         SECTION_STORAGE: storage,
         SECTION_LIMITS: limits,
@@ -131,7 +131,7 @@ def _grid_config(
         CONF_ELEMENT_TYPE: "grid",
         SECTION_COMMON: {
             CONF_NAME: name,
-            CONF_CONNECTION: connection,
+            CONF_CONNECTION: as_connection_target(connection),
         },
         SECTION_PRICING: {
             CONF_PRICE_SOURCE_TARGET: (

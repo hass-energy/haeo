@@ -86,6 +86,7 @@ from custom_components.haeo.elements.solar import SOLAR_POWER
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON, HUB_SECTION_TIERS
 from custom_components.haeo.model import Network, OutputData, OutputType
 from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_NODE
+from custom_components.haeo.schema import as_connection_target, as_constant_value, as_entity_value
 from custom_components.haeo.sections import SECTION_COMMON, SECTION_EFFICIENCY, SECTION_POWER_LIMITS, SECTION_PRICING
 
 
@@ -128,24 +129,24 @@ def mock_battery_subentry(hass: HomeAssistant, mock_hub_entry: MockConfigEntry) 
                 CONF_ELEMENT_TYPE: ELEMENT_TYPE_BATTERY,
                 SECTION_COMMON: {
                     CONF_NAME: "Test Battery",
-                    CONF_CONNECTION: "DC Bus",
+                    CONF_CONNECTION: as_connection_target("DC Bus"),
                 },
                 SECTION_STORAGE: {
-                    CONF_CAPACITY: "sensor.battery_capacity",
-                    CONF_INITIAL_CHARGE_PERCENTAGE: "sensor.battery_soc",
+                    CONF_CAPACITY: as_entity_value(["sensor.battery_capacity"]),
+                    CONF_INITIAL_CHARGE_PERCENTAGE: as_entity_value(["sensor.battery_soc"]),
                 },
                 SECTION_LIMITS: {
-                    CONF_MIN_CHARGE_PERCENTAGE: 20.0,
-                    CONF_MAX_CHARGE_PERCENTAGE: 80.0,
+                    CONF_MIN_CHARGE_PERCENTAGE: as_constant_value(20.0),
+                    CONF_MAX_CHARGE_PERCENTAGE: as_constant_value(80.0),
                 },
                 SECTION_POWER_LIMITS: {
-                    CONF_MAX_POWER_TARGET_SOURCE: 5.0,
-                    CONF_MAX_POWER_SOURCE_TARGET: 5.0,
+                    CONF_MAX_POWER_TARGET_SOURCE: as_constant_value(5.0),
+                    CONF_MAX_POWER_SOURCE_TARGET: as_constant_value(5.0),
                 },
                 SECTION_PRICING: {},
                 SECTION_EFFICIENCY: {
-                    CONF_EFFICIENCY_SOURCE_TARGET: 95.0,
-                    CONF_EFFICIENCY_TARGET_SOURCE: 95.0,
+                    CONF_EFFICIENCY_SOURCE_TARGET: as_constant_value(95.0),
+                    CONF_EFFICIENCY_TARGET_SOURCE: as_constant_value(95.0),
                 },
                 SECTION_PARTITIONING: {},
             }
@@ -167,15 +168,15 @@ def mock_grid_subentry(hass: HomeAssistant, mock_hub_entry: MockConfigEntry) -> 
                 CONF_ELEMENT_TYPE: ELEMENT_TYPE_GRID,
                 SECTION_COMMON: {
                     CONF_NAME: "Test Grid",
-                    CONF_CONNECTION_GRID: "AC Bus",
+                    CONF_CONNECTION_GRID: as_connection_target("AC Bus"),
                 },
                 SECTION_PRICING: {
-                    CONF_PRICE_SOURCE_TARGET: ["sensor.import_price"],
-                    CONF_PRICE_TARGET_SOURCE: ["sensor.export_price"],
+                    CONF_PRICE_SOURCE_TARGET: as_entity_value(["sensor.import_price"]),
+                    CONF_PRICE_TARGET_SOURCE: as_entity_value(["sensor.export_price"]),
                 },
                 SECTION_POWER_LIMITS: {
-                    CONF_GRID_MAX_POWER_SOURCE_TARGET: 10000,
-                    CONF_GRID_MAX_POWER_TARGET_SOURCE: 5000,
+                    CONF_GRID_MAX_POWER_SOURCE_TARGET: as_constant_value(10000),
+                    CONF_GRID_MAX_POWER_TARGET_SOURCE: as_constant_value(5000),
                 },
             }
         ),
@@ -1180,8 +1181,8 @@ def test_load_from_input_entities_raises_for_invalid_config_data(
                 # Missing required non-input field: connection
             },
             SECTION_STORAGE: {
-                CONF_CAPACITY: "sensor.battery_capacity",
-                CONF_INITIAL_CHARGE_PERCENTAGE: "sensor.battery_soc",
+                CONF_CAPACITY: as_entity_value(["sensor.battery_capacity"]),
+                CONF_INITIAL_CHARGE_PERCENTAGE: as_entity_value(["sensor.battery_soc"]),
             },
             SECTION_LIMITS: {},
             SECTION_POWER_LIMITS: {},

@@ -6,9 +6,10 @@ from homeassistant.components.number import NumberEntityDescription
 from homeassistant.core import HomeAssistant
 import voluptuous as vol
 
-from custom_components.haeo.elements import FieldSchemaInfo
+from custom_components.haeo.elements.field_schema import FieldSchemaInfo
 from custom_components.haeo.elements.input_fields import InputFieldInfo
 from custom_components.haeo.model.const import OutputType
+from custom_components.haeo.schema import ConstantValue, EntityValue
 from custom_components.haeo.sections import (
     CONF_EFFICIENCY_SOURCE_TARGET,
     CONF_FORECAST,
@@ -40,7 +41,7 @@ def _number_field(name: str) -> InputFieldInfo[NumberEntityDescription]:
 
 def _field_schema(field_info: InputFieldInfo[NumberEntityDescription]) -> dict[str, FieldSchemaInfo]:
     """Create minimal schema info for a field."""
-    return {field_info.field_name: FieldSchemaInfo(value_type=float, is_optional=False)}
+    return {field_info.field_name: FieldSchemaInfo(value_type=EntityValue | ConstantValue, is_optional=False)}
 
 
 def test_efficiency_section_helpers(hass: HomeAssistant) -> None:

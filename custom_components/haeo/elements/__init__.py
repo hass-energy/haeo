@@ -24,7 +24,6 @@ Sub-element Naming Convention:
 """
 
 from collections.abc import Mapping
-from dataclasses import dataclass
 import logging
 import types
 from typing import (
@@ -59,6 +58,7 @@ from custom_components.haeo.model import ModelElementConfig, ModelOutputName
 from custom_components.haeo.model.output_data import ModelOutputValue, OutputData
 
 from . import battery, battery_section, connection, grid, inverter, load, node, solar
+from .field_schema import FieldSchemaInfo
 from .input_fields import InputFieldGroups, InputFieldInfo, InputFieldPath, InputFieldSection
 
 _LOGGER = logging.getLogger(__name__)
@@ -261,14 +261,6 @@ class ValidatedElementSubentry(NamedTuple):
     element_type: ElementType
     subentry: ConfigSubentry
     config: ElementConfigSchema
-
-
-@dataclass(frozen=True, slots=True)
-class FieldSchemaInfo:
-    """Schema metadata for a config field."""
-
-    value_type: Any
-    is_optional: bool
 
 
 # Map element types to their ConfigSchema TypedDict classes for reflection

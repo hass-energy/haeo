@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import types as stdlib_types
-from typing import Any, Final, TypeAliasType, Union, get_args, get_origin
+from typing import Any, Final, TypeAliasType, TypeGuard, Union, get_args, get_origin
 
 from .connection_target import (
     ConnectionTarget,
@@ -26,7 +26,7 @@ VALUE_TYPE_NONE: Final = "none"
 VALUE_TYPE_CONNECTION_TARGET: Final = "connection_target"
 
 
-def is_schema_value(value: Any) -> bool:
+def is_schema_value(value: Any) -> TypeGuard[SchemaValue]:
     """Return True if value is a known schema value variant."""
     return is_entity_value(value) or is_constant_value(value) or is_none_value(value)
 

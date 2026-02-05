@@ -6,7 +6,12 @@ import numpy as np
 from custom_components.haeo.elements import battery
 from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_BATTERY, MODEL_ELEMENT_TYPE_CONNECTION
 from custom_components.haeo.model.elements.segments import is_efficiency_spec
-from custom_components.haeo.schema import as_constant_value, as_entity_value, as_none_value
+from custom_components.haeo.schema import (
+    as_connection_target,
+    as_constant_value,
+    as_entity_value,
+    as_none_value,
+)
 
 
 def _set_sensor(hass: HomeAssistant, entity_id: str, value: str, unit: str = "kW") -> None:
@@ -27,6 +32,8 @@ def _wrap_config(flat: dict[str, object]) -> battery.BatteryConfigSchema:
         if isinstance(value, str):
             return as_entity_value([value])
         if isinstance(value, list) and all(isinstance(item, str) for item in value):
+            if not value:
+                return as_none_value()
             return as_entity_value(value)
         return value
 
@@ -45,7 +52,10 @@ def _wrap_config(flat: dict[str, object]) -> battery.BatteryConfigSchema:
             "name",
             "connection",
         ):
-            common[key] = value
+            if key == "connection" and isinstance(value, str):
+                common[key] = as_connection_target(value)
+            else:
+                common[key] = value
         elif key in (
             "capacity",
             "initial_charge_percentage",
@@ -92,7 +102,67 @@ def _wrap_config(flat: dict[str, object]) -> battery.BatteryConfigSchema:
 
 def _wrap_data(flat: dict[str, object]) -> battery.BatteryConfigData:
     """Wrap flat battery config data values into sectioned config data."""
-    return _wrap_config(flat)  # type: ignore[return-value]
+    common: dict[str, object] = {}
+    storage: dict[str, object] = {}
+    limits: dict[str, object] = {}
+    power_limits: dict[str, object] = {}
+    pricing: dict[str, object] = {}
+    efficiency: dict[str, object] = {}
+    partitioning: dict[str, object] = {}
+    undercharge: dict[str, object] = {}
+    overcharge: dict[str, object] = {}
+
+    for key, value in flat.items():
+        if key in (
+            "name",
+            "connection",
+        ):
+            if key == "connection" and isinstance(value, str):
+                common[key] = as_connection_target(value)
+            else:
+                common[key] = value
+        elif key in (
+            "capacity",
+            "initial_charge_percentage",
+        ):
+            storage[key] = value
+        elif key in (
+            "min_charge_percentage",
+            "max_charge_percentage",
+        ):
+            limits[key] = value
+        elif key in ("efficiency_source_target", "efficiency_target_source"):
+            efficiency[key] = value
+        elif key == "configure_partitions":
+            partitioning[key] = value
+        elif key in (
+            "max_power_source_target",
+            "max_power_target_source",
+        ):
+            power_limits[key] = value
+        elif key in (
+            "price_source_target",
+            "price_target_source",
+        ):
+            pricing[key] = value
+        elif key == "undercharge" and isinstance(value, dict):
+            undercharge.update(value)
+        elif key == "overcharge" and isinstance(value, dict):
+            overcharge.update(value)
+
+    config: dict[str, object] = {
+        "element_type": "battery",
+        battery.SECTION_COMMON: common,
+        battery.SECTION_STORAGE: storage,
+        battery.SECTION_LIMITS: limits,
+        battery.SECTION_POWER_LIMITS: power_limits,
+        battery.SECTION_PRICING: pricing,
+        battery.SECTION_EFFICIENCY: efficiency,
+        battery.SECTION_PARTITIONING: partitioning,
+        battery.SECTION_UNDERCHARGE: undercharge,
+        battery.SECTION_OVERCHARGE: overcharge,
+    }
+    return config  # type: ignore[return-value]
 
 
 async def test_available_returns_true_when_sensors_exist(hass: HomeAssistant) -> None:

@@ -7,7 +7,7 @@ import numpy as np
 from numpy.typing import NDArray
 import voluptuous as vol
 
-from custom_components.haeo.elements import FieldSchemaInfo
+from custom_components.haeo.elements.field_schema import FieldSchemaInfo
 from custom_components.haeo.elements.input_fields import InputFieldSection
 from custom_components.haeo.flows.field_schema import SectionDefinition, build_choose_field_entries
 from custom_components.haeo.schema import ConstantValue, EntityValue

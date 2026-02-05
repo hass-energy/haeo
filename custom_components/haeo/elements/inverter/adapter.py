@@ -95,6 +95,7 @@ class InverterAdapter:
                     ),
                     output_type=OutputType.POWER_LIMIT,
                     time_series=True,
+                    force_required=True,
                 ),
                 CONF_MAX_POWER_TARGET_SOURCE: InputFieldInfo(
                     field_name=CONF_MAX_POWER_TARGET_SOURCE,
@@ -109,6 +110,7 @@ class InverterAdapter:
                     ),
                     output_type=OutputType.POWER_LIMIT,
                     time_series=True,
+                    force_required=True,
                 ),
             },
             SECTION_EFFICIENCY: {

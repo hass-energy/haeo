@@ -33,7 +33,7 @@ from custom_components.haeo.entities.haeo_switch import FORECAST_UNRECORDED_ATTR
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON, HUB_SECTION_TIERS
 from custom_components.haeo.horizon import HorizonManager
 from custom_components.haeo.model.const import OutputType
-from custom_components.haeo.schema import as_connection_target, as_constant_value, as_entity_value
+from custom_components.haeo.schema import as_connection_target, as_constant_value, as_entity_value, as_none_value
 
 # --- Fixtures ---
 
@@ -98,6 +98,21 @@ def curtailment_field_info() -> InputFieldInfo[SwitchEntityDescription]:
 
 def _create_subentry(name: str, data: dict[str, Any]) -> ConfigSubentry:
     """Create a ConfigSubentry with the given data."""
+
+    def schema_value(value: Any) -> Any:
+        if value is None:
+            return as_none_value()
+        if isinstance(value, bool):
+            return as_constant_value(value)
+        if isinstance(value, (int, float)):
+            return as_constant_value(float(value))
+        if isinstance(value, str):
+            return as_entity_value([value])
+        if isinstance(value, list) and all(isinstance(item, str) for item in value):
+            return as_entity_value(value)
+        msg = f"Unsupported schema value {value!r}"
+        raise TypeError(msg)
+
     return ConfigSubentry(
         data=MappingProxyType(
             {
@@ -112,7 +127,7 @@ def _create_subentry(name: str, data: dict[str, Any]) -> ConfigSubentry:
                 SECTION_PRICING: {
                     CONF_PRICE_SOURCE_TARGET: as_constant_value(0.0),
                 },
-                SECTION_CURTAILMENT: {key: as_constant_value(value) for key, value in data.items()},
+                SECTION_CURTAILMENT: {key: schema_value(value) for key, value in data.items()},
             }
         ),
         subentry_type="solar",

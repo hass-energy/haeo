@@ -31,7 +31,7 @@ from homeassistant.helpers.selector import (
 import voluptuous as vol
 
 from custom_components.haeo.const import DOMAIN
-from custom_components.haeo.elements import FieldSchemaInfo
+from custom_components.haeo.elements.field_schema import FieldSchemaInfo
 from custom_components.haeo.elements.input_fields import InputFieldGroups, InputFieldInfo
 from custom_components.haeo.schema import (
     VALUE_TYPE_CONSTANT,

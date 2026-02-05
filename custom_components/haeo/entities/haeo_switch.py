@@ -19,7 +19,13 @@ from custom_components.haeo.elements import InputFieldPath, find_nested_config_p
 from custom_components.haeo.elements.input_fields import InputFieldInfo
 from custom_components.haeo.entities.haeo_number import ConfigEntityMode
 from custom_components.haeo.horizon import HorizonManager
-from custom_components.haeo.schema import as_constant_value
+from custom_components.haeo.schema import (
+    as_constant_value,
+    is_connection_target,
+    is_constant_value,
+    is_entity_value,
+    is_none_value,
+)
 from custom_components.haeo.util import async_update_subentry_value
 
 # Attributes to exclude from recorder when forecast recording is disabled
@@ -80,6 +86,10 @@ class HaeoInputSwitch(SwitchEntity):
                 self._entity_mode = ConfigEntityMode.EDITABLE
                 self._source_entity_id = None
                 self._attr_is_on = bool(constant)
+            case bool() as constant:
+                self._entity_mode = ConfigEntityMode.EDITABLE
+                self._source_entity_id = None
+                self._attr_is_on = constant
             case {"type": "none"} | None:
                 # Disabled or missing configuration
                 self._entity_mode = ConfigEntityMode.EDITABLE
@@ -98,12 +108,24 @@ class HaeoInputSwitch(SwitchEntity):
 
         # Pass subentry data as translation placeholders
         placeholders: dict[str, str] = {}
+
+        def format_placeholder(value: Any) -> str:
+            if is_entity_value(value):
+                return ", ".join(value["value"])
+            if is_constant_value(value):
+                return str(value["value"])
+            if is_none_value(value):
+                return ""
+            if is_connection_target(value):
+                return value["value"]
+            return str(value)
+
         for key, value in subentry.data.items():
             if isinstance(value, Mapping):
                 for nested_key, nested_value in value.items():
-                    placeholders.setdefault(nested_key, str(nested_value))
+                    placeholders.setdefault(nested_key, format_placeholder(nested_value))
                 continue
-            placeholders[key] = str(value)
+            placeholders[key] = format_placeholder(value)
         placeholders.setdefault("name", subentry.title)
         self._attr_translation_placeholders = placeholders
 
