@@ -228,6 +228,29 @@ async def test_available_with_empty_list_returns_true(hass: HomeAssistant) -> No
     assert result is True
 
 
+async def test_available_returns_true_with_constant_values(hass: HomeAssistant) -> None:
+    """Battery available() returns True when values are constants."""
+    config: battery.BatteryConfigSchema = _wrap_config(
+        {
+            "name": "test_battery",
+            "connection": "main_bus",
+            "capacity": 10.0,
+            "initial_charge_percentage": 0.5,
+            "max_power_target_source": 5.0,
+            "max_power_source_target": 4.0,
+            "price_source_target": 0.15,
+            "price_target_source": 0.05,
+            "efficiency_source_target": 0.95,
+            "efficiency_target_source": 0.94,
+            "undercharge": {"partition_percentage": 0.1, "partition_cost": 0.2},
+            "overcharge": {"partition_percentage": 0.05, "partition_cost": 0.15},
+        }
+    )
+
+    result = battery.adapter.available(config, hass=hass)
+    assert result is True
+
+
 def test_model_elements_omits_efficiency_when_missing() -> None:
     """model_elements() should leave efficiency to model defaults when missing."""
     config_data: battery.BatteryConfigData = _wrap_data(

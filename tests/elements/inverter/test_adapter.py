@@ -65,3 +65,19 @@ async def test_available_returns_false_when_second_sensor_missing(hass: HomeAssi
 
     result = inverter.adapter.available(config, hass=hass)
     assert result is False
+
+
+async def test_available_returns_false_when_limits_missing(hass: HomeAssistant) -> None:
+    """Inverter available() should return False when limits are None."""
+    config: inverter.InverterConfigSchema = {
+        "element_type": "inverter",
+        inverter.SECTION_COMMON: {"name": "test_inverter", "connection": "ac_bus"},
+        inverter.SECTION_POWER_LIMITS: {
+            "max_power_source_target": None,
+            "max_power_target_source": None,
+        },
+        inverter.SECTION_EFFICIENCY: {},
+    }
+
+    result = inverter.adapter.available(config, hass=hass)
+    assert result is False
