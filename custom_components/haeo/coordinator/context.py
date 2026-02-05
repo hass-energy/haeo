@@ -66,14 +66,9 @@ class OptimizationContext:
         for entity in input_entities.values():
             source_states.update(entity.get_captured_source_states())
 
-        forecast_timestamps = horizon_manager.get_forecast_timestamps()
-        if not forecast_timestamps:
-            msg = "Horizon manager has no forecast timestamps"
-            raise ValueError(msg)
-
         return cls(
             hub_config=deepcopy(dict(hub_config)),
-            reference_timestamp=forecast_timestamps[0],
+            reference_timestamp=horizon_manager.reference_timestamp,
             participants=_deep_copy_config(participant_configs),
             source_states=source_states,
         )

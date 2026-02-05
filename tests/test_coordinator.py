@@ -1578,6 +1578,7 @@ def test_optimization_context_build_collects_source_states() -> None:
     mock_horizon = MagicMock()
     mock_horizon.get_forecast_timestamps.return_value = (1000.0, 2000.0, 3000.0)
     mock_horizon.periods_seconds = [300, 600]
+    mock_horizon.reference_timestamp = 1000.0
 
     # Create mock participant configs (use Any to avoid strict TypedDict checking in tests)
     participant_configs: Any = {
@@ -1611,6 +1612,7 @@ def test_optimization_context_build_deep_copies_configs() -> None:
     mock_horizon = MagicMock()
     mock_horizon.get_forecast_timestamps.return_value = (1000.0,)
     mock_horizon.periods_seconds = [300]
+    mock_horizon.reference_timestamp = 1000.0
 
     context = OptimizationContext.build(
         hub_config={"tier_1_count": 2, "tier_1_duration": 60},
@@ -1630,6 +1632,7 @@ def test_optimization_context_build_captures_reference_timestamp() -> None:
     expected_timestamps = (1000.0, 2000.0, 3000.0, 4000.0)
     mock_horizon.get_forecast_timestamps.return_value = expected_timestamps
     mock_horizon.periods_seconds = [300, 600]
+    mock_horizon.reference_timestamp = expected_timestamps[0]
 
     context = OptimizationContext.build(
         hub_config={"tier_1_count": 2, "tier_1_duration": 60},
