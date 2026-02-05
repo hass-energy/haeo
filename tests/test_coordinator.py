@@ -702,8 +702,10 @@ def test_horizon_change_triggers_optimization(
     """Horizon manager changes trigger optimization."""
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
 
+    coordinator.network = Mock()
+
     with patch.object(coordinator, "signal_optimization_stale") as trigger_mock:
-        coordinator._handle_horizon_change()
+        coordinator._handle_horizon_change(coordinator.network)
 
     trigger_mock.assert_called_once()
 

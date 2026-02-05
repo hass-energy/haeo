@@ -3,7 +3,7 @@
 from typing import Any, Final, Literal, TypedDict
 
 from highspy import Highs
-from highspy.highs import highs_linear_expression
+from highspy.highs import HighspyArray, highs_linear_expression
 import numpy as np
 from numpy.typing import NDArray
 
@@ -106,10 +106,26 @@ class Battery(Element[BatteryOutputName]):
         self.energy_in = solver.addVariables(n_periods + 1, lb=0.0, name_prefix=f"{name}_energy_in_", out_array=True)
         self.energy_out = solver.addVariables(n_periods + 1, lb=0.0, name_prefix=f"{name}_energy_out_", out_array=True)
 
-        # Pre-calculate power and energy expressions
-        self.power_consumption = (self.energy_in[1:] - self.energy_in[:-1]) * (1.0 / self.periods)
-        self.power_production = (self.energy_out[1:] - self.energy_out[:-1]) * (1.0 / self.periods)
+        # Stored energy is computed from cumulative values (not period-dependent)
         self.stored_energy = self.energy_in - self.energy_out
+
+    @property
+    def power_consumption(self) -> HighspyArray:
+        """Power being consumed to charge the battery.
+
+        Computed on-demand so that accessing self.periods triggers dependency tracking
+        when called from within @constraint or @cost decorated methods.
+        """
+        return (self.energy_in[1:] - self.energy_in[:-1]) * (1.0 / self.periods)
+
+    @property
+    def power_production(self) -> HighspyArray:
+        """Power being produced by discharging the battery.
+
+        Computed on-demand so that accessing self.periods triggers dependency tracking
+        when called from within @constraint or @cost decorated methods.
+        """
+        return (self.energy_out[1:] - self.energy_out[:-1]) * (1.0 / self.periods)
 
     @constraint
     def battery_initial_charge(self) -> highs_linear_expression:

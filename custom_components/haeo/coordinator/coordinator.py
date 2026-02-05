@@ -299,7 +299,13 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             return
 
         # Subscribe to horizon manager changes (requires full re-optimization)
-        runtime_data.horizon_manager.subscribe(self._handle_horizon_change)
+        network = self.network
+
+        @callback
+        def _on_horizon_change() -> None:
+            self._handle_horizon_change(network)
+
+        runtime_data.horizon_manager.subscribe(_on_horizon_change)
 
         # Subscribe to auto-optimize switch state changes
         if runtime_data.auto_optimize_switch is not None:
@@ -361,9 +367,19 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         self.signal_optimization_stale()
 
     @callback
-    def _handle_horizon_change(self) -> None:
-        """Handle horizon manager changes."""
-        # Just trigger optimization - _are_inputs_aligned will gate until all elements update
+    def _handle_horizon_change(self, network: Network) -> None:
+        """Handle horizon manager changes.
+
+        Updates network periods with new durations from the horizon manager,
+        then triggers optimization. The period update propagates to all elements
+        and segments, invalidating dependent constraints and costs.
+        """
+        # Update network periods with new horizon durations
+        periods_seconds = tiers_to_periods_seconds(self.config_entry.data)
+        periods_hours = np.asarray(periods_seconds, dtype=float) / 3600
+        network.update_periods(periods_hours)
+
+        # Trigger optimization - _are_inputs_aligned will gate until all elements update
         self.signal_optimization_stale()
 
     @callback
