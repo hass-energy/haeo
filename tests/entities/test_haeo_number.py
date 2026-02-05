@@ -24,8 +24,10 @@ from custom_components.haeo.entities.haeo_number import (
     ConfigEntityMode,
     HaeoInputNumber,
 )
+from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON, HUB_SECTION_TIERS
 from custom_components.haeo.horizon import HorizonManager
 from custom_components.haeo.model import OutputType
+from custom_components.haeo.sections import SECTION_COMMON, SECTION_EFFICIENCY
 
 # --- Fixtures ---
 
@@ -37,8 +39,8 @@ def config_entry(hass: HomeAssistant) -> MockConfigEntry:
         domain=DOMAIN,
         title="Test Network",
         data={
-            "basic": {CONF_NAME: "Test Network"},
-            "tiers": {
+            HUB_SECTION_COMMON: {CONF_NAME: "Test Network"},
+            HUB_SECTION_TIERS: {
                 "tier_1_count": 2,
                 "tier_1_duration": 5,
                 "tier_2_count": 0,
@@ -48,7 +50,7 @@ def config_entry(hass: HomeAssistant) -> MockConfigEntry:
                 "tier_4_count": 0,
                 "tier_4_duration": 60,
             },
-            "advanced": {},
+            HUB_SECTION_ADVANCED: {},
         },
         entry_id="test_entry",
     )
@@ -155,8 +157,8 @@ def _create_subentry(name: str, data: dict[str, Any]) -> ConfigSubentry:
         data=MappingProxyType(
             {
                 "element_type": "battery",
-                "basic": {CONF_NAME: name},
-                "advanced": data,
+                SECTION_COMMON: {CONF_NAME: name},
+                SECTION_EFFICIENCY: data,
             }
         ),
         subentry_type="battery",
@@ -400,7 +402,7 @@ async def test_unique_id_includes_all_components(
         horizon_manager=horizon_manager,
     )
 
-    expected_unique_id = f"{config_entry.entry_id}_{subentry.subentry_id}_advanced.{power_field_info.field_name}"
+    expected_unique_id = f"{config_entry.entry_id}_{subentry.subentry_id}_efficiency.{power_field_info.field_name}"
     assert entity.unique_id == expected_unique_id
 
 

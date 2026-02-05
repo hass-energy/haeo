@@ -21,13 +21,13 @@ from custom_components.haeo.const import (
 )
 from custom_components.haeo.elements import ELEMENT_TYPE_NODE, ELEMENT_TYPES, get_element_flow_classes
 from custom_components.haeo.elements.node import CONF_IS_SINK, CONF_IS_SOURCE
-from custom_components.haeo.elements.node import CONF_SECTION_ADVANCED as NODE_SECTION_ADVANCED
-from custom_components.haeo.elements.node import CONF_SECTION_BASIC as NODE_SECTION_BASIC
+from custom_components.haeo.elements.node import SECTION_COMMON as NODE_SECTION_COMMON
+from custom_components.haeo.elements.node import SECTION_ROLE as NODE_SECTION_ROLE
 
 from . import (
     HORIZON_PRESET_CUSTOM,
     HUB_SECTION_ADVANCED,
-    HUB_SECTION_BASIC,
+    HUB_SECTION_COMMON,
     HUB_SECTION_TIERS,
     get_custom_tiers_schema,
     get_hub_setup_schema,
@@ -54,7 +54,7 @@ class HubConfigFlow(ConfigFlow, domain=DOMAIN):
 
         if user_input is not None:
             # Validate that the name is unique
-            hub_name = user_input[HUB_SECTION_BASIC][CONF_NAME]
+            hub_name = user_input[HUB_SECTION_COMMON][CONF_NAME]
             existing_names = [entry.title for entry in self.hass.config_entries.async_entries(DOMAIN)]
 
             if hub_name in existing_names:
@@ -68,7 +68,7 @@ class HubConfigFlow(ConfigFlow, domain=DOMAIN):
                 self._user_input = user_input
 
                 # If custom preset selected, go to custom tiers step
-                if user_input[HUB_SECTION_BASIC][CONF_HORIZON_PRESET] == HORIZON_PRESET_CUSTOM:
+                if user_input[HUB_SECTION_COMMON][CONF_HORIZON_PRESET] == HORIZON_PRESET_CUSTOM:
                     return await self.async_step_custom_tiers()
 
                 # Otherwise, create entry with preset values
@@ -102,10 +102,10 @@ class HubConfigFlow(ConfigFlow, domain=DOMAIN):
 
     async def _create_hub_entry(self) -> ConfigFlowResult:
         """Create the hub entry with tier configuration."""
-        hub_name = self._user_input[HUB_SECTION_BASIC][CONF_NAME]
+        hub_name = self._user_input[HUB_SECTION_COMMON][CONF_NAME]
         tier_config, stored_preset = get_tier_config(
             self._user_input,
-            self._user_input[HUB_SECTION_BASIC].get(CONF_HORIZON_PRESET),
+            self._user_input[HUB_SECTION_COMMON].get(CONF_HORIZON_PRESET),
         )
 
         # Resolve the switchboard node name from translations
@@ -120,7 +120,7 @@ class HubConfigFlow(ConfigFlow, domain=DOMAIN):
             title=hub_name,
             data={
                 CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
-                HUB_SECTION_BASIC: {
+                HUB_SECTION_COMMON: {
                     CONF_NAME: hub_name,
                     CONF_HORIZON_PRESET: stored_preset,
                 },
@@ -145,8 +145,8 @@ class HubConfigFlow(ConfigFlow, domain=DOMAIN):
                 {
                     "data": {
                         CONF_ELEMENT_TYPE: ELEMENT_TYPE_NODE,
-                        NODE_SECTION_BASIC: {CONF_NAME: switchboard_name},
-                        NODE_SECTION_ADVANCED: {
+                        NODE_SECTION_COMMON: {CONF_NAME: switchboard_name},
+                        NODE_SECTION_ROLE: {
                             CONF_IS_SOURCE: False,
                             CONF_IS_SINK: False,
                         },

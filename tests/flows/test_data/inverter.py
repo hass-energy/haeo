@@ -3,13 +3,13 @@
 from custom_components.haeo.const import CONF_NAME
 from custom_components.haeo.elements.inverter import (
     CONF_CONNECTION,
-    CONF_EFFICIENCY_AC_TO_DC,
-    CONF_EFFICIENCY_DC_TO_AC,
-    CONF_MAX_POWER_AC_TO_DC,
-    CONF_MAX_POWER_DC_TO_AC,
-    CONF_SECTION_ADVANCED,
-    CONF_SECTION_BASIC,
-    CONF_SECTION_LIMITS,
+    CONF_EFFICIENCY_SOURCE_TARGET,
+    CONF_EFFICIENCY_TARGET_SOURCE,
+    CONF_MAX_POWER_SOURCE_TARGET,
+    CONF_MAX_POWER_TARGET_SOURCE,
+    SECTION_COMMON,
+    SECTION_EFFICIENCY,
+    SECTION_POWER_LIMITS,
 )
 
 # Test data for inverter flow - single-step with choose selector
@@ -18,17 +18,17 @@ VALID_DATA = [
     {
         "description": "Basic inverter with all constant values",
         "config": {
-            CONF_SECTION_BASIC: {
+            SECTION_COMMON: {
                 CONF_NAME: "Test Inverter",
                 CONF_CONNECTION: "main_bus",
             },
-            CONF_SECTION_LIMITS: {
-                CONF_MAX_POWER_DC_TO_AC: 5.0,
-                CONF_MAX_POWER_AC_TO_DC: 5.0,
+            SECTION_POWER_LIMITS: {
+                CONF_MAX_POWER_SOURCE_TARGET: 5.0,
+                CONF_MAX_POWER_TARGET_SOURCE: 5.0,
             },
-            CONF_SECTION_ADVANCED: {
-                CONF_EFFICIENCY_DC_TO_AC: 95.0,
-                CONF_EFFICIENCY_AC_TO_DC: 95.0,
+            SECTION_EFFICIENCY: {
+                CONF_EFFICIENCY_SOURCE_TARGET: 95.0,
+                CONF_EFFICIENCY_TARGET_SOURCE: 95.0,
             },
         },
     },

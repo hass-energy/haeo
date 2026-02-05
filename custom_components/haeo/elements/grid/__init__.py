@@ -1,5 +1,7 @@
 """Grid element for HAEO integration."""
 
+from custom_components.haeo.sections import CONF_CONNECTION
+
 from .adapter import (
     GRID_COST_IMPORT,
     GRID_COST_NET,
@@ -18,29 +20,25 @@ from .adapter import (
     adapter,
 )
 from .schema import (
-    CONF_CONNECTION,
-    CONF_EXPORT_LIMIT,
-    CONF_EXPORT_PRICE,
-    CONF_IMPORT_LIMIT,
-    CONF_IMPORT_PRICE,
-    CONF_SECTION_BASIC,
-    CONF_SECTION_LIMITS,
-    CONF_SECTION_PRICING,
+    CONF_MAX_POWER_SOURCE_TARGET,
+    CONF_MAX_POWER_TARGET_SOURCE,
+    CONF_PRICE_SOURCE_TARGET,
+    CONF_PRICE_TARGET_SOURCE,
     ELEMENT_TYPE,
     OPTIONAL_INPUT_FIELDS,
+    SECTION_COMMON,
+    SECTION_POWER_LIMITS,
+    SECTION_PRICING,
     GridConfigData,
     GridConfigSchema,
 )
 
 __all__ = [
     "CONF_CONNECTION",
-    "CONF_EXPORT_LIMIT",
-    "CONF_EXPORT_PRICE",
-    "CONF_IMPORT_LIMIT",
-    "CONF_IMPORT_PRICE",
-    "CONF_SECTION_BASIC",
-    "CONF_SECTION_LIMITS",
-    "CONF_SECTION_PRICING",
+    "CONF_MAX_POWER_SOURCE_TARGET",
+    "CONF_MAX_POWER_TARGET_SOURCE",
+    "CONF_PRICE_SOURCE_TARGET",
+    "CONF_PRICE_TARGET_SOURCE",
     "ELEMENT_TYPE",
     "GRID_COST_IMPORT",
     "GRID_COST_NET",
@@ -54,6 +52,9 @@ __all__ = [
     "GRID_POWER_MAX_IMPORT_PRICE",
     "GRID_REVENUE_EXPORT",
     "OPTIONAL_INPUT_FIELDS",
+    "SECTION_COMMON",
+    "SECTION_POWER_LIMITS",
+    "SECTION_PRICING",
     "GridAdapter",
     "GridConfigData",
     "GridConfigSchema",

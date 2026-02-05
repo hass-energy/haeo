@@ -51,14 +51,12 @@ When undercharge or overcharge costs are configured, the connection includes the
 These are soft constraints driven by cost.
 The battery can operate outside the preferred range when prices justify it, but it will never exceed the configured lower/upper bounds.
 
-### Early charge/discharge incentives
+### Charge and discharge pricing
 
-The `early_charge_incentive` parameter (default 0.001 \$/kWh) creates time-varying preferences on the connection:
-
-- **Charge incentive**: Negative cost (benefit) that decreases over time
-- **Discharge incentive**: Positive cost that increases over time (plus `discharge_cost`)
-
-These small values break ties when prices are equal.
+The pricing segment applies optional per-kWh costs on the battery connection.
+`price_target_source` applies when charging (network to battery).
+`price_source_target` applies when discharging (battery to network).
+Use positive values to add costs or negative values to create incentives.
 
 ## Devices Created
 
@@ -70,21 +68,22 @@ Battery creates a single Home Assistant device:
 
 ## Parameter mapping
 
-| User Configuration          | Model Element(s)      | Model Parameter                                        | Notes                      |
-| --------------------------- | --------------------- | ------------------------------------------------------ | -------------------------- |
-| `capacity`                  | Battery               | Capacity range from lower/upper SOC bounds             | kWh, boundaries            |
-| `initial_charge_percentage` | Battery               | `initial_charge` (offset by lower bound)               | kWh                        |
-| `min_charge_percentage`     | Battery + SOC pricing | Preferred minimum SOC threshold                        | Penalty threshold          |
-| `max_charge_percentage`     | Battery + SOC pricing | Preferred maximum SOC threshold                        | Penalty threshold          |
-| Undercharge percentage      | Battery               | Lower bound for SOC range                              | Hard minimum               |
-| Overcharge percentage       | Battery               | Upper bound for SOC range                              | Hard maximum               |
-| Undercharge cost            | SOC pricing segment   | `discharge_energy_price`                               | Penalty below min SOC      |
-| Overcharge cost             | SOC pricing segment   | `charge_capacity_price`                                | Penalty above max SOC      |
-| `early_charge_incentive`    | Pricing segment       | Time-varying charge/discharge incentive                | Applied on main connection |
-| `discharge_cost`            | Pricing segment       | Added to `price_source_target`                         | Base discharge cost        |
-| `efficiency`                | Efficiency segment    | `efficiency_source_target`, `efficiency_target_source` | Applied to both directions |
-| `max_charge_power`          | Power-limit segment   | `max_power_target_source`                              | Network to battery         |
-| `max_discharge_power`       | Power-limit segment   | `max_power_source_target`                              | Battery to network         |
+| User Configuration          | Model Element(s)      | Model Parameter                            | Notes                          |
+| --------------------------- | --------------------- | ------------------------------------------ | ------------------------------ |
+| `capacity`                  | Battery               | Capacity range from lower/upper SOC bounds | kWh, boundaries                |
+| `initial_charge_percentage` | Battery               | `initial_charge` (offset by lower bound)   | kWh                            |
+| `min_charge_percentage`     | Battery + SOC pricing | Preferred minimum SOC threshold            | Penalty threshold              |
+| `max_charge_percentage`     | Battery + SOC pricing | Preferred maximum SOC threshold            | Penalty threshold              |
+| Undercharge percentage      | Battery               | Lower bound for SOC range                  | Hard minimum                   |
+| Overcharge percentage       | Battery               | Upper bound for SOC range                  | Hard maximum                   |
+| Undercharge cost            | SOC pricing segment   | `discharge_energy_price`                   | Penalty below min SOC          |
+| Overcharge cost             | SOC pricing segment   | `charge_capacity_price`                    | Penalty above max SOC          |
+| `price_target_source`       | Pricing segment       | `price_target_source`                      | Charge price                   |
+| `price_source_target`       | Pricing segment       | `price_source_target`                      | Discharge price                |
+| `efficiency_source_target`  | Efficiency segment    | `efficiency_source_target`                 | Battery to network (discharge) |
+| `efficiency_target_source`  | Efficiency segment    | `efficiency_target_source`                 | Network to battery (charge)    |
+| `max_power_target_source`   | Power-limit segment   | `max_power_target_source`                  | Network to battery             |
+| `max_power_source_target`   | Power-limit segment   | `max_power_source_target`                  | Battery to network             |
 
 ## Output Mapping
 

@@ -36,6 +36,7 @@ from custom_components.haeo.elements import (
 from custom_components.haeo.entities.haeo_number import ConfigEntityMode, HaeoInputNumber
 from custom_components.haeo.entities.haeo_switch import HaeoInputSwitch
 from custom_components.haeo.flows import HUB_SECTION_TIERS
+from custom_components.haeo.sections import SECTION_COMMON
 from custom_components.haeo.sensor_utils import get_output_sensors
 
 from .state_provider import StateProvider
@@ -123,9 +124,9 @@ async def collect_diagnostics(
         if subentry.subentry_type != "network":
             raw_data = dict(subentry.data)
             raw_data.setdefault(CONF_ELEMENT_TYPE, subentry.subentry_type)
-            basic = raw_data.get("basic")
-            if isinstance(basic, dict):
-                basic.setdefault("name", subentry.title)
+            common = raw_data.get(SECTION_COMMON)
+            if isinstance(common, dict):
+                common.setdefault("name", subentry.title)
             else:
                 raw_data.setdefault("name", subentry.title)
             config["participants"][subentry.title] = raw_data

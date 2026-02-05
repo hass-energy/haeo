@@ -22,11 +22,15 @@ from custom_components.haeo.elements.input_fields import InputFieldDefaults, Inp
 from custom_components.haeo.elements.solar import (
     CONF_CONNECTION,
     CONF_FORECAST,
-    CONF_SECTION_ADVANCED,
-    CONF_SECTION_BASIC,
+    CONF_PRICE_SOURCE_TARGET,
+    SECTION_COMMON,
+    SECTION_CURTAILMENT,
+    SECTION_FORECAST,
+    SECTION_PRICING,
 )
 from custom_components.haeo.entities.haeo_number import ConfigEntityMode
 from custom_components.haeo.entities.haeo_switch import FORECAST_UNRECORDED_ATTRIBUTES, HaeoInputSwitch
+from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON, HUB_SECTION_TIERS
 from custom_components.haeo.horizon import HorizonManager
 from custom_components.haeo.model.const import OutputType
 
@@ -40,8 +44,8 @@ def config_entry(hass: HomeAssistant) -> MockConfigEntry:
         domain=DOMAIN,
         title="Test Network",
         data={
-            "basic": {CONF_NAME: "Test Network"},
-            "tiers": {
+            HUB_SECTION_COMMON: {CONF_NAME: "Test Network"},
+            HUB_SECTION_TIERS: {
                 "tier_1_count": 2,
                 "tier_1_duration": 5,
                 "tier_2_count": 0,
@@ -51,7 +55,7 @@ def config_entry(hass: HomeAssistant) -> MockConfigEntry:
                 "tier_4_count": 0,
                 "tier_4_duration": 60,
             },
-            "advanced": {},
+            HUB_SECTION_ADVANCED: {},
         },
         entry_id="test_switch_entry",
     )
@@ -97,12 +101,17 @@ def _create_subentry(name: str, data: dict[str, Any]) -> ConfigSubentry:
         data=MappingProxyType(
             {
                 "element_type": "solar",
-                CONF_SECTION_BASIC: {
+                SECTION_COMMON: {
                     CONF_NAME: name,
                     CONF_CONNECTION: "Switchboard",
+                },
+                SECTION_FORECAST: {
                     CONF_FORECAST: ["sensor.solar_forecast"],
                 },
-                CONF_SECTION_ADVANCED: data,
+                SECTION_PRICING: {
+                    CONF_PRICE_SOURCE_TARGET: 0.0,
+                },
+                SECTION_CURTAILMENT: data,
             }
         ),
         subentry_type="solar",
@@ -432,7 +441,9 @@ async def test_unique_id_includes_all_components(
         horizon_manager=horizon_manager,
     )
 
-    expected_unique_id = f"{config_entry.entry_id}_{subentry.subentry_id}_advanced.{curtailment_field_info.field_name}"
+    expected_unique_id = (
+        f"{config_entry.entry_id}_{subentry.subentry_id}_curtailment.{curtailment_field_info.field_name}"
+    )
     assert entity.unique_id == expected_unique_id
 
 

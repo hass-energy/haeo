@@ -31,6 +31,7 @@ from custom_components.haeo.model.elements.segments import (
     POWER_LIMIT_TIME_SLICE,
 )
 from custom_components.haeo.model.output_data import OutputData
+from custom_components.haeo.sections import SECTION_COMMON, SECTION_EFFICIENCY, SECTION_POWER_LIMITS, SECTION_PRICING
 
 from .schema import (
     CONF_EFFICIENCY_SOURCE_TARGET,
@@ -39,10 +40,8 @@ from .schema import (
     CONF_MAX_POWER_TARGET_SOURCE,
     CONF_PRICE_SOURCE_TARGET,
     CONF_PRICE_TARGET_SOURCE,
-    CONF_SECTION_ADVANCED,
-    CONF_SECTION_BASIC,
-    CONF_SECTION_LIMITS,
     ELEMENT_TYPE,
+    SECTION_ENDPOINTS,
     ConnectionConfigData,
     ConnectionConfigSchema,
 )
@@ -99,12 +98,15 @@ class ConnectionAdapter:
             CONF_PRICE_TARGET_SOURCE,
         ]
 
-        limits = config[CONF_SECTION_LIMITS]
-        advanced = config[CONF_SECTION_ADVANCED]
+        limits = config[SECTION_POWER_LIMITS]
+        efficiency = config[SECTION_EFFICIENCY]
+        pricing = config[SECTION_PRICING]
         for field in optional_fields:
-            if field in limits and not ts_loader.available(hass=hass, value=limits[field]):
+            if (value := limits.get(field)) is not None and not ts_loader.available(hass=hass, value=value):
                 return False
-            if field in advanced and not ts_loader.available(hass=hass, value=advanced[field]):
+            if (value := efficiency.get(field)) is not None and not ts_loader.available(hass=hass, value=value):
+                return False
+            if (value := pricing.get(field)) is not None and not ts_loader.available(hass=hass, value=value):
                 return False
 
         return True
@@ -113,7 +115,7 @@ class ConnectionAdapter:
         """Return input field definitions for connection elements."""
         _ = config
         return {
-            CONF_SECTION_LIMITS: {
+            SECTION_POWER_LIMITS: {
                 CONF_MAX_POWER_SOURCE_TARGET: InputFieldInfo(
                     field_name=CONF_MAX_POWER_SOURCE_TARGET,
                     entity_description=NumberEntityDescription(
@@ -143,7 +145,7 @@ class ConnectionAdapter:
                     time_series=True,
                 ),
             },
-            CONF_SECTION_ADVANCED: {
+            SECTION_EFFICIENCY: {
                 CONF_EFFICIENCY_SOURCE_TARGET: InputFieldInfo(
                     field_name=CONF_EFFICIENCY_SOURCE_TARGET,
                     entity_description=NumberEntityDescription(
@@ -172,6 +174,8 @@ class ConnectionAdapter:
                     output_type=OutputType.EFFICIENCY,
                     time_series=True,
                 ),
+            },
+            SECTION_PRICING: {
                 CONF_PRICE_SOURCE_TARGET: InputFieldInfo(
                     field_name=CONF_PRICE_SOURCE_TARGET,
                     entity_description=NumberEntityDescription(
@@ -212,24 +216,24 @@ class ConnectionAdapter:
         return [
             {
                 "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
-                "name": config[CONF_SECTION_BASIC]["name"],
-                "source": config[CONF_SECTION_BASIC]["source"],
-                "target": config[CONF_SECTION_BASIC]["target"],
+                "name": config[SECTION_COMMON]["name"],
+                "source": config[SECTION_ENDPOINTS]["source"],
+                "target": config[SECTION_ENDPOINTS]["target"],
                 "segments": {
                     "efficiency": {
                         "segment_type": "efficiency",
-                        "efficiency_source_target": config[CONF_SECTION_ADVANCED].get(CONF_EFFICIENCY_SOURCE_TARGET),
-                        "efficiency_target_source": config[CONF_SECTION_ADVANCED].get(CONF_EFFICIENCY_TARGET_SOURCE),
+                        "efficiency_source_target": config[SECTION_EFFICIENCY].get(CONF_EFFICIENCY_SOURCE_TARGET),
+                        "efficiency_target_source": config[SECTION_EFFICIENCY].get(CONF_EFFICIENCY_TARGET_SOURCE),
                     },
                     "power_limit": {
                         "segment_type": "power_limit",
-                        "max_power_source_target": config[CONF_SECTION_LIMITS].get(CONF_MAX_POWER_SOURCE_TARGET),
-                        "max_power_target_source": config[CONF_SECTION_LIMITS].get(CONF_MAX_POWER_TARGET_SOURCE),
+                        "max_power_source_target": config[SECTION_POWER_LIMITS].get(CONF_MAX_POWER_SOURCE_TARGET),
+                        "max_power_target_source": config[SECTION_POWER_LIMITS].get(CONF_MAX_POWER_TARGET_SOURCE),
                     },
                     "pricing": {
                         "segment_type": "pricing",
-                        "price_source_target": config[CONF_SECTION_ADVANCED].get(CONF_PRICE_SOURCE_TARGET),
-                        "price_target_source": config[CONF_SECTION_ADVANCED].get(CONF_PRICE_TARGET_SOURCE),
+                        "price_source_target": config[SECTION_PRICING].get(CONF_PRICE_SOURCE_TARGET),
+                        "price_target_source": config[SECTION_PRICING].get(CONF_PRICE_TARGET_SOURCE),
                     },
                 },
             }
