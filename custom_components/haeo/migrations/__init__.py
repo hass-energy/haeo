@@ -1,0 +1,30 @@
+"""Config entry migrations for HAEO."""
+
+from __future__ import annotations
+
+from collections.abc import Awaitable, Callable
+
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import HomeAssistant
+
+from . import v1_3
+
+
+type MigrationHandler = Callable[[HomeAssistant, ConfigEntry], Awaitable[bool]]
+
+MIGRATIONS: tuple[tuple[int, MigrationHandler], ...] = (
+    (v1_3.MINOR_VERSION, v1_3.async_migrate_entry),
+)
+
+
+async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    """Run migrations for a config entry."""
+    if entry.version != 1:
+        return True
+
+    for target_minor, handler in MIGRATIONS:
+        if entry.minor_version < target_minor:
+            if not await handler(hass, entry):
+                return False
+
+    return True
