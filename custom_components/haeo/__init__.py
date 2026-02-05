@@ -7,7 +7,7 @@ from collections.abc import Awaitable
 from dataclasses import dataclass, field
 import logging
 from types import MappingProxyType
-from typing import TYPE_CHECKING, Any, Protocol
+from typing import TYPE_CHECKING, Protocol
 
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry
 from homeassistant.const import Platform
@@ -17,19 +17,14 @@ from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.translation import async_get_translations
 from homeassistant.helpers.typing import ConfigType
 
-from custom_components.haeo.const import (
-    CONF_ADVANCED_MODE,
-    CONF_ELEMENT_TYPE,
-    CONF_NAME,
-    DOMAIN,
-    ELEMENT_TYPE_NETWORK,
-)
+from custom_components.haeo.const import CONF_ADVANCED_MODE, CONF_ELEMENT_TYPE, CONF_NAME, DOMAIN, ELEMENT_TYPE_NETWORK
 from custom_components.haeo.coordinator import HaeoDataUpdateCoordinator
 from custom_components.haeo.elements import ELEMENT_DEVICE_NAMES_BY_TYPE
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED
 from custom_components.haeo.horizon import HorizonManager
-from . import migrations as _migrations
 from custom_components.haeo.services import async_setup_services
+
+from . import migrations as _migrations
 
 if TYPE_CHECKING:
     from custom_components.haeo.entities.auto_optimize_switch import AutoOptimizeSwitch
@@ -38,6 +33,7 @@ if TYPE_CHECKING:
 _LOGGER = logging.getLogger(__name__)
 
 async_migrate_entry = _migrations.async_migrate_entry
+MIGRATION_MINOR_VERSION = _migrations.MIGRATION_MINOR_VERSION
 
 
 class InputEntity(Protocol):
@@ -95,8 +91,6 @@ async def async_setup(hass: HomeAssistant, _config: ConfigType) -> bool:
     """
     await async_setup_services(hass)
     return True
-
-
 
 
 @dataclass(slots=True)
