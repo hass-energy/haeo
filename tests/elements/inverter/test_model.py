@@ -40,14 +40,14 @@ CREATE_CASES: Sequence[CreateCase] = [
         "description": "Inverter with efficiency",
         "data": InverterConfigData(
             element_type="inverter",
-            basic={"name": "inverter_main", "connection": "network"},
-            limits={
-                "max_power_dc_to_ac": np.array([10.0]),
-                "max_power_ac_to_dc": np.array([10.0]),
+            common={"name": "inverter_main", "connection": "network"},
+            power_limits={
+                "max_power_source_target": np.array([10.0]),
+                "max_power_target_source": np.array([10.0]),
             },
-            advanced={
-                "efficiency_dc_to_ac": np.array(1.0),
-                "efficiency_ac_to_dc": np.array(1.0),
+            efficiency={
+                "efficiency_source_target": np.array(1.0),
+                "efficiency_target_source": np.array(1.0),
             },
         ),
         "model": [
@@ -76,14 +76,14 @@ CREATE_CASES: Sequence[CreateCase] = [
         "description": "Inverter with default efficiency (100%)",
         "data": InverterConfigData(
             element_type="inverter",
-            basic={"name": "inverter_simple", "connection": "network"},
-            limits={
-                "max_power_dc_to_ac": np.array([10.0]),
-                "max_power_ac_to_dc": np.array([10.0]),
+            common={"name": "inverter_simple", "connection": "network"},
+            power_limits={
+                "max_power_source_target": np.array([10.0]),
+                "max_power_target_source": np.array([10.0]),
             },
-            advanced={
-                "efficiency_dc_to_ac": np.array(1.0),
-                "efficiency_ac_to_dc": np.array(1.0),
+            efficiency={
+                "efficiency_source_target": np.array(1.0),
+                "efficiency_target_source": np.array(1.0),
             },
         ),
         "model": [

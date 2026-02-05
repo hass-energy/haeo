@@ -13,42 +13,48 @@ from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.elements import node
 from custom_components.haeo.elements.grid import (
     CONF_CONNECTION,
-    CONF_EXPORT_LIMIT,
-    CONF_EXPORT_PRICE,
-    CONF_IMPORT_LIMIT,
-    CONF_IMPORT_PRICE,
-    CONF_SECTION_BASIC,
-    CONF_SECTION_LIMITS,
-    CONF_SECTION_PRICING,
+    CONF_MAX_POWER_SOURCE_TARGET,
+    CONF_MAX_POWER_TARGET_SOURCE,
+    CONF_PRICE_SOURCE_TARGET,
+    CONF_PRICE_TARGET_SOURCE,
     ELEMENT_TYPE,
+    SECTION_COMMON,
+    SECTION_POWER_LIMITS,
+    SECTION_PRICING,
 )
 
 from ..conftest import add_participant, create_flow
 
+CONF_IMPORT_PRICE = CONF_PRICE_SOURCE_TARGET
+CONF_EXPORT_PRICE = CONF_PRICE_TARGET_SOURCE
+CONF_IMPORT_LIMIT = CONF_MAX_POWER_SOURCE_TARGET
+CONF_EXPORT_LIMIT = CONF_MAX_POWER_TARGET_SOURCE
+SECTION_LIMITS = SECTION_POWER_LIMITS
+
 
 def _wrap_input(flat: dict[str, Any]) -> dict[str, Any]:
     """Wrap flat grid input values into sectioned config."""
-    if CONF_SECTION_BASIC in flat:
+    if SECTION_COMMON in flat:
         return dict(flat)
-    basic = {
+    common = {
         CONF_NAME: flat[CONF_NAME],
         CONF_CONNECTION: flat[CONF_CONNECTION],
     }
     pricing = {
-        CONF_IMPORT_PRICE: flat[CONF_IMPORT_PRICE],
-        CONF_EXPORT_PRICE: flat[CONF_EXPORT_PRICE],
+        CONF_PRICE_SOURCE_TARGET: flat[CONF_PRICE_SOURCE_TARGET],
+        CONF_PRICE_TARGET_SOURCE: flat[CONF_PRICE_TARGET_SOURCE],
     }
-    limits = {key: flat[key] for key in (CONF_IMPORT_LIMIT, CONF_EXPORT_LIMIT) if key in flat}
+    power_limits = {key: flat[key] for key in (CONF_MAX_POWER_SOURCE_TARGET, CONF_MAX_POWER_TARGET_SOURCE) if key in flat}
     return {
-        CONF_SECTION_BASIC: basic,
-        CONF_SECTION_PRICING: pricing,
-        CONF_SECTION_LIMITS: limits,
+        SECTION_COMMON: common,
+        SECTION_PRICING: pricing,
+        SECTION_POWER_LIMITS: power_limits,
     }
 
 
 def _wrap_config(flat: dict[str, Any]) -> dict[str, Any]:
     """Wrap flat grid config values into sectioned config with element type."""
-    if CONF_SECTION_BASIC in flat:
+    if SECTION_COMMON in flat:
         return {CONF_ELEMENT_TYPE: ELEMENT_TYPE, **flat}
     return {CONF_ELEMENT_TYPE: ELEMENT_TYPE, **_wrap_input(flat)}
 
@@ -181,8 +187,8 @@ async def test_user_step_with_constant_creates_entry(
 
     # Verify the config contains the constant values
     create_kwargs = flow.async_create_entry.call_args.kwargs
-    assert create_kwargs["data"][CONF_SECTION_PRICING][CONF_IMPORT_PRICE] == 0.25
-    assert create_kwargs["data"][CONF_SECTION_PRICING][CONF_EXPORT_PRICE] == 0.05
+    assert create_kwargs["data"][SECTION_PRICING][CONF_IMPORT_PRICE] == 0.25
+    assert create_kwargs["data"][SECTION_PRICING][CONF_EXPORT_PRICE] == 0.05
 
 
 async def test_user_step_with_entity_creates_entry(
@@ -218,8 +224,8 @@ async def test_user_step_with_entity_creates_entry(
 
     # Verify the config contains the entity IDs as strings (single entity)
     create_kwargs = flow.async_create_entry.call_args.kwargs
-    assert create_kwargs["data"][CONF_SECTION_PRICING][CONF_IMPORT_PRICE] == "sensor.import_price"
-    assert create_kwargs["data"][CONF_SECTION_PRICING][CONF_EXPORT_PRICE] == "sensor.export_price"
+    assert create_kwargs["data"][SECTION_PRICING][CONF_IMPORT_PRICE] == "sensor.import_price"
+    assert create_kwargs["data"][SECTION_PRICING][CONF_EXPORT_PRICE] == "sensor.export_price"
 
 
 # --- Tests for reconfigure flow ---
@@ -315,8 +321,8 @@ async def test_reconfigure_with_constant_updates_entry(
 
     # Verify the config contains the constant values
     update_kwargs = flow.async_update_and_abort.call_args.kwargs
-    assert update_kwargs["data"][CONF_SECTION_PRICING][CONF_IMPORT_PRICE] == 0.30
-    assert update_kwargs["data"][CONF_SECTION_PRICING][CONF_EXPORT_PRICE] == 0.08
+    assert update_kwargs["data"][SECTION_PRICING][CONF_IMPORT_PRICE] == 0.30
+    assert update_kwargs["data"][SECTION_PRICING][CONF_EXPORT_PRICE] == 0.08
 
 
 async def test_reconfigure_with_scalar_shows_constant_defaults(
@@ -357,8 +363,8 @@ async def test_reconfigure_with_scalar_shows_constant_defaults(
     defaults = flow._build_defaults("Test Grid", dict(existing_subentry.data))
 
     # Defaults should contain constant choice with values
-    assert defaults[CONF_SECTION_PRICING][CONF_IMPORT_PRICE] == 0.30
-    assert defaults[CONF_SECTION_PRICING][CONF_EXPORT_PRICE] == 0.08
+    assert defaults[SECTION_PRICING][CONF_IMPORT_PRICE] == 0.30
+    assert defaults[SECTION_PRICING][CONF_EXPORT_PRICE] == 0.08
 
 
 async def test_reconfigure_with_string_entity_id_v010_format(
@@ -399,8 +405,8 @@ async def test_reconfigure_with_string_entity_id_v010_format(
     defaults = flow._build_defaults("Test Grid", dict(existing_subentry.data))
 
     # Defaults should contain entity choice with the original entity IDs as lists
-    assert defaults[CONF_SECTION_PRICING][CONF_IMPORT_PRICE] == ["sensor.import_price"]
-    assert defaults[CONF_SECTION_PRICING][CONF_EXPORT_PRICE] == ["sensor.export_price"]
+    assert defaults[SECTION_PRICING][CONF_IMPORT_PRICE] == ["sensor.import_price"]
+    assert defaults[SECTION_PRICING][CONF_EXPORT_PRICE] == ["sensor.export_price"]
 
 
 async def test_reconfigure_with_entity_list(
@@ -435,8 +441,8 @@ async def test_reconfigure_with_entity_list(
     defaults = flow._build_defaults("Test Grid", dict(existing_subentry.data))
 
     # Defaults should contain entity choice with the entity lists
-    assert defaults[CONF_SECTION_PRICING][CONF_IMPORT_PRICE] == ["sensor.import1", "sensor.import2"]
-    assert defaults[CONF_SECTION_PRICING][CONF_EXPORT_PRICE] == ["sensor.export"]
+    assert defaults[SECTION_PRICING][CONF_IMPORT_PRICE] == ["sensor.import1", "sensor.import2"]
+    assert defaults[SECTION_PRICING][CONF_EXPORT_PRICE] == ["sensor.export"]
 
 
 # --- Tests for _is_valid_choose_value ---

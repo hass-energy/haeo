@@ -329,11 +329,11 @@ For values that don't change over time (fixed prices, baseline loads, power limi
 During element configuration, select **Constant** for the field and enter your value directly in the form.
 This is the simplest approach for truly static values.
 
-| Selection | Value | Use Case             |
-| --------- | ----- | -------------------- |
-| Constant  | 0.25  | Fixed import price   |
-| Constant  | 15    | Static power limit   |
-| Constant  | 90    | Fixed SOC percentage |
+| Selection | Value | Use Case                      |
+| --------- | ----- | ----------------------------- |
+| Constant  | 0.25  | Fixed price (source → target) |
+| Constant  | 15    | Static power limit            |
+| Constant  | 90    | Fixed SOC percentage          |
 
 ### Input number helpers
 
@@ -345,7 +345,7 @@ For values you want to adjust through the Home Assistant UI without reconfigurin
 2. Click **Create Helper** button
 3. Select **Number**
 4. Configure:
-    - **Name**: Descriptive name (e.g., "Base Load Power", "Fixed Import Price")
+    - **Name**: Descriptive name (e.g., "Base Load Power", "Fixed Price (source → target)")
     - **Unit of measurement**: Match the element's expected unit (kW, \$/kWh, %, etc.)
     - **Minimum/Maximum**: Set reasonable bounds
     - **Initial value**: Set your desired constant
@@ -355,10 +355,10 @@ For values you want to adjust through the Home Assistant UI without reconfigurin
 
 During element configuration, select the input_number entity in the entity selector:
 
-| Field            | Value                           |
-| ---------------- | ------------------------------- |
-| **Import Price** | input_number.fixed_import_price |
-| **Import Limit** | input_number.inverter_rating    |
+| Field                           | Value                                  |
+| ------------------------------- | -------------------------------------- |
+| **Price (source → target)**     | input_number.fixed_price_source_target |
+| **Max Power (source → target)** | input_number.max_power_source_target   |
 
 HAEO treats input_number helpers like any other sensor, reading the current value and repeating it across the optimization horizon.
 

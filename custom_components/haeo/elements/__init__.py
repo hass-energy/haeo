@@ -34,6 +34,7 @@ from typing import (
     NotRequired,
     Protocol,
     Required,
+    TypeAliasType,
     TypeGuard,
     Union,
     get_args,
@@ -336,6 +337,9 @@ def _conforms_to_typed_dict(
 
     def _matches_type(value_item: Any, expected_type: Any) -> bool:
         expected_type = _unwrap_required_type(expected_type)
+        if isinstance(expected_type, TypeAliasType):
+            expected_type = expected_type.__value__
+
         origin = get_origin(expected_type)
 
         # Handle Literal types by checking if value is one of the allowed values

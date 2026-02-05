@@ -23,20 +23,18 @@ from custom_components.haeo.model.elements.connection import (
 from custom_components.haeo.model.elements.node import NODE_POWER_BALANCE
 from custom_components.haeo.model.elements.segments import POWER_LIMIT_SOURCE_TARGET, POWER_LIMIT_TARGET_SOURCE
 from custom_components.haeo.model.output_data import OutputData
-
-from .schema import (
+from custom_components.haeo.sections import (
     CONF_CONNECTION,
-    CONF_EFFICIENCY_AC_TO_DC,
-    CONF_EFFICIENCY_DC_TO_AC,
-    CONF_MAX_POWER_AC_TO_DC,
-    CONF_MAX_POWER_DC_TO_AC,
-    CONF_SECTION_ADVANCED,
-    CONF_SECTION_BASIC,
-    CONF_SECTION_LIMITS,
-    ELEMENT_TYPE,
-    InverterConfigData,
-    InverterConfigSchema,
+    CONF_EFFICIENCY_SOURCE_TARGET,
+    CONF_EFFICIENCY_TARGET_SOURCE,
+    CONF_MAX_POWER_SOURCE_TARGET,
+    CONF_MAX_POWER_TARGET_SOURCE,
+    SECTION_COMMON,
+    SECTION_EFFICIENCY,
+    SECTION_POWER_LIMITS,
 )
+
+from .schema import ELEMENT_TYPE, InverterConfigData, InverterConfigSchema
 
 # Inverter output names
 type InverterOutputName = Literal[
@@ -77,21 +75,23 @@ class InverterAdapter:
     def available(self, config: InverterConfigSchema, *, hass: HomeAssistant, **_kwargs: Any) -> bool:
         """Check if inverter configuration can be loaded."""
         ts_loader = TimeSeriesLoader()
-        limits = config[CONF_SECTION_LIMITS]
-        if not ts_loader.available(hass=hass, value=limits[CONF_MAX_POWER_DC_TO_AC]):
-            return False
-        return ts_loader.available(hass=hass, value=limits[CONF_MAX_POWER_AC_TO_DC])
+        limits = config[SECTION_POWER_LIMITS]
+        return (
+            (value := limits.get(CONF_MAX_POWER_SOURCE_TARGET)) is None or ts_loader.available(hass=hass, value=value)
+        ) and (
+            (value := limits.get(CONF_MAX_POWER_TARGET_SOURCE)) is None or ts_loader.available(hass=hass, value=value)
+        )
 
     def inputs(self, config: Any) -> dict[str, dict[str, InputFieldInfo[Any]]]:
         """Return input field definitions for inverter elements."""
         _ = config
         return {
-            CONF_SECTION_LIMITS: {
-                CONF_MAX_POWER_DC_TO_AC: InputFieldInfo(
-                    field_name=CONF_MAX_POWER_DC_TO_AC,
+            SECTION_POWER_LIMITS: {
+                CONF_MAX_POWER_SOURCE_TARGET: InputFieldInfo(
+                    field_name=CONF_MAX_POWER_SOURCE_TARGET,
                     entity_description=NumberEntityDescription(
-                        key=CONF_MAX_POWER_DC_TO_AC,
-                        translation_key=f"{ELEMENT_TYPE}_{CONF_MAX_POWER_DC_TO_AC}",
+                        key=CONF_MAX_POWER_SOURCE_TARGET,
+                        translation_key=f"{ELEMENT_TYPE}_{CONF_MAX_POWER_SOURCE_TARGET}",
                         native_unit_of_measurement=UnitOfPower.KILO_WATT,
                         device_class=NumberDeviceClass.POWER,
                         native_min_value=0.0,
@@ -101,11 +101,11 @@ class InverterAdapter:
                     output_type=OutputType.POWER_LIMIT,
                     time_series=True,
                 ),
-                CONF_MAX_POWER_AC_TO_DC: InputFieldInfo(
-                    field_name=CONF_MAX_POWER_AC_TO_DC,
+                CONF_MAX_POWER_TARGET_SOURCE: InputFieldInfo(
+                    field_name=CONF_MAX_POWER_TARGET_SOURCE,
                     entity_description=NumberEntityDescription(
-                        key=CONF_MAX_POWER_AC_TO_DC,
-                        translation_key=f"{ELEMENT_TYPE}_{CONF_MAX_POWER_AC_TO_DC}",
+                        key=CONF_MAX_POWER_TARGET_SOURCE,
+                        translation_key=f"{ELEMENT_TYPE}_{CONF_MAX_POWER_TARGET_SOURCE}",
                         native_unit_of_measurement=UnitOfPower.KILO_WATT,
                         device_class=NumberDeviceClass.POWER,
                         native_min_value=0.0,
@@ -116,12 +116,12 @@ class InverterAdapter:
                     time_series=True,
                 ),
             },
-            CONF_SECTION_ADVANCED: {
-                CONF_EFFICIENCY_DC_TO_AC: InputFieldInfo(
-                    field_name=CONF_EFFICIENCY_DC_TO_AC,
+            SECTION_EFFICIENCY: {
+                CONF_EFFICIENCY_SOURCE_TARGET: InputFieldInfo(
+                    field_name=CONF_EFFICIENCY_SOURCE_TARGET,
                     entity_description=NumberEntityDescription(
-                        key=CONF_EFFICIENCY_DC_TO_AC,
-                        translation_key=f"{ELEMENT_TYPE}_{CONF_EFFICIENCY_DC_TO_AC}",
+                        key=CONF_EFFICIENCY_SOURCE_TARGET,
+                        translation_key=f"{ELEMENT_TYPE}_{CONF_EFFICIENCY_SOURCE_TARGET}",
                         native_unit_of_measurement=PERCENTAGE,
                         device_class=NumberDeviceClass.POWER_FACTOR,
                         native_min_value=50.0,
@@ -131,11 +131,11 @@ class InverterAdapter:
                     output_type=OutputType.EFFICIENCY,
                     defaults=InputFieldDefaults(mode=None, value=100.0),
                 ),
-                CONF_EFFICIENCY_AC_TO_DC: InputFieldInfo(
-                    field_name=CONF_EFFICIENCY_AC_TO_DC,
+                CONF_EFFICIENCY_TARGET_SOURCE: InputFieldInfo(
+                    field_name=CONF_EFFICIENCY_TARGET_SOURCE,
                     entity_description=NumberEntityDescription(
-                        key=CONF_EFFICIENCY_AC_TO_DC,
-                        translation_key=f"{ELEMENT_TYPE}_{CONF_EFFICIENCY_AC_TO_DC}",
+                        key=CONF_EFFICIENCY_TARGET_SOURCE,
+                        translation_key=f"{ELEMENT_TYPE}_{CONF_EFFICIENCY_TARGET_SOURCE}",
                         native_unit_of_measurement=PERCENTAGE,
                         device_class=NumberDeviceClass.POWER_FACTOR,
                         native_min_value=50.0,
@@ -154,11 +154,18 @@ class InverterAdapter:
         Creates a DC bus (Node junction) and a connection to the AC side with
         efficiency and power limits for bidirectional power conversion.
         """
+        power_limits = config[SECTION_POWER_LIMITS]
+        max_power_source_target = power_limits.get(CONF_MAX_POWER_SOURCE_TARGET)
+        max_power_target_source = power_limits.get(CONF_MAX_POWER_TARGET_SOURCE)
+        if max_power_source_target is None or max_power_target_source is None:
+            msg = "Inverter power limits missing - config flow validation failed"
+            raise RuntimeError(msg)
+
         return [
             # Create Node for the DC bus (pure junction - neither source nor sink)
             {
                 "element_type": MODEL_ELEMENT_TYPE_NODE,
-                "name": config[CONF_SECTION_BASIC]["name"],
+                "name": config[SECTION_COMMON]["name"],
                 "is_source": False,
                 "is_sink": False,
             },
@@ -167,19 +174,19 @@ class InverterAdapter:
             # target_source = AC to DC (rectifying)
             {
                 "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
-                "name": f"{config[CONF_SECTION_BASIC]['name']}:connection",
-                "source": config[CONF_SECTION_BASIC]["name"],
-                "target": config[CONF_SECTION_BASIC][CONF_CONNECTION],
+                "name": f"{config[SECTION_COMMON]['name']}:connection",
+                "source": config[SECTION_COMMON]["name"],
+                "target": config[SECTION_COMMON][CONF_CONNECTION],
                 "segments": {
                     "efficiency": {
                         "segment_type": "efficiency",
-                        "efficiency_source_target": config[CONF_SECTION_ADVANCED].get(CONF_EFFICIENCY_DC_TO_AC),
-                        "efficiency_target_source": config[CONF_SECTION_ADVANCED].get(CONF_EFFICIENCY_AC_TO_DC),
+                        "efficiency_source_target": config[SECTION_EFFICIENCY].get(CONF_EFFICIENCY_SOURCE_TARGET),
+                        "efficiency_target_source": config[SECTION_EFFICIENCY].get(CONF_EFFICIENCY_TARGET_SOURCE),
                     },
                     "power_limit": {
                         "segment_type": "power_limit",
-                        "max_power_source_target": config[CONF_SECTION_LIMITS][CONF_MAX_POWER_DC_TO_AC],
-                        "max_power_target_source": config[CONF_SECTION_LIMITS][CONF_MAX_POWER_AC_TO_DC],
+                        "max_power_source_target": max_power_source_target,
+                        "max_power_target_source": max_power_target_source,
                     },
                 },
             },

@@ -8,6 +8,13 @@ import numpy as np
 import pytest
 
 from custom_components.haeo.coordinator.network import update_element
+from custom_components.haeo.elements.connection import (
+    SECTION_COMMON,
+    SECTION_EFFICIENCY,
+    SECTION_ENDPOINTS,
+    SECTION_POWER_LIMITS,
+    SECTION_PRICING,
+)
 from custom_components.haeo.model import Network
 from custom_components.haeo.model.elements import (
     MODEL_ELEMENT_TYPE_BATTERY,
@@ -479,9 +486,11 @@ def test_network_add_connection_updates_prices() -> None:
         network,
         {
             "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
-            "basic": {"name": "conn", "source": "source", "target": "sink"},
-            "limits": {"max_power_source_target": 5.0},
-            "advanced": {"price_source_target": -0.20},
+            SECTION_COMMON: {"name": "conn"},
+            SECTION_ENDPOINTS: {"source": "source", "target": "sink"},
+            SECTION_POWER_LIMITS: {"max_power_source_target": 5.0},
+            SECTION_PRICING: {"price_source_target": -0.20},
+            SECTION_EFFICIENCY: {},
         },
     )
 

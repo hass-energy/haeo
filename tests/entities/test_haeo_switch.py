@@ -1,6 +1,8 @@
 """Tests for the HAEO switch input entity."""
 
 import asyncio
+from datetime import timedelta
+import logging
 from types import MappingProxyType
 from typing import Any
 from unittest.mock import Mock
@@ -11,7 +13,7 @@ from homeassistant.const import STATE_OFF, STATE_ON, EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceEntry
 from homeassistant.helpers.entity import Entity
-from homeassistant.helpers.entity_platform import PlatformData
+from homeassistant.helpers.entity_platform import EntityPlatform
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
@@ -20,11 +22,15 @@ from custom_components.haeo.elements.input_fields import InputFieldDefaults, Inp
 from custom_components.haeo.elements.solar import (
     CONF_CONNECTION,
     CONF_FORECAST,
-    CONF_SECTION_ADVANCED,
-    CONF_SECTION_BASIC,
+    CONF_PRICE_SOURCE_TARGET,
+    SECTION_COMMON,
+    SECTION_CURTAILMENT,
+    SECTION_FORECAST,
+    SECTION_PRICING,
 )
 from custom_components.haeo.entities.haeo_number import ConfigEntityMode
 from custom_components.haeo.entities.haeo_switch import FORECAST_UNRECORDED_ATTRIBUTES, HaeoInputSwitch
+from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON, HUB_SECTION_TIERS
 from custom_components.haeo.horizon import HorizonManager
 from custom_components.haeo.model.const import OutputType
 
@@ -38,8 +44,8 @@ def config_entry(hass: HomeAssistant) -> MockConfigEntry:
         domain=DOMAIN,
         title="Test Network",
         data={
-            "basic": {CONF_NAME: "Test Network"},
-            "tiers": {
+            HUB_SECTION_COMMON: {CONF_NAME: "Test Network"},
+            HUB_SECTION_TIERS: {
                 "tier_1_count": 2,
                 "tier_1_duration": 5,
                 "tier_2_count": 0,
@@ -49,7 +55,7 @@ def config_entry(hass: HomeAssistant) -> MockConfigEntry:
                 "tier_4_count": 0,
                 "tier_4_duration": 60,
             },
-            "advanced": {},
+            HUB_SECTION_ADVANCED: {},
         },
         entry_id="test_switch_entry",
     )
@@ -95,12 +101,17 @@ def _create_subentry(name: str, data: dict[str, Any]) -> ConfigSubentry:
         data=MappingProxyType(
             {
                 "element_type": "solar",
-                CONF_SECTION_BASIC: {
+                SECTION_COMMON: {
                     CONF_NAME: name,
                     CONF_CONNECTION: "Switchboard",
+                },
+                SECTION_FORECAST: {
                     CONF_FORECAST: ["sensor.solar_forecast"],
                 },
-                CONF_SECTION_ADVANCED: data,
+                SECTION_PRICING: {
+                    CONF_PRICE_SOURCE_TARGET: 0.0,
+                },
+                SECTION_CURTAILMENT: data,
             }
         ),
         subentry_type="solar",
@@ -109,19 +120,19 @@ def _create_subentry(name: str, data: dict[str, Any]) -> ConfigSubentry:
     )
 
 
-def _attach_platform(
-    entity: Entity,
-    hass: HomeAssistant,
-    *,
-    entity_id: str,
-    platform_domain: str,
-) -> None:
-    """Attach minimal platform data so async_write_ha_state can run."""
-    platform_data = PlatformData(hass, domain=platform_domain, platform_name=DOMAIN)
-    entity.hass = hass
-    entity.entity_id = entity_id
-    entity.platform_data = platform_data
-    entity.platform = Mock(platform_data=platform_data)
+async def _add_entity_to_hass(hass: HomeAssistant, entity: Entity) -> None:
+    """Add entity to Home Assistant via a real EntityPlatform."""
+    platform = EntityPlatform(
+        hass=hass,
+        logger=logging.getLogger(__name__),
+        domain="switch",
+        platform_name=DOMAIN,
+        platform=None,
+        scan_interval=timedelta(seconds=30),
+        entity_namespace=None,
+    )
+    await platform.async_add_entities([entity])
+    await hass.async_block_till_done()
 
 
 # --- Tests for EDITABLE mode ---
@@ -139,7 +150,6 @@ async def test_editable_mode_with_true_value(
     config_entry.runtime_data = None
 
     entity = HaeoInputSwitch(
-        hass=hass,
         config_entry=config_entry,
         subentry=subentry,
         field_info=curtailment_field_info,
@@ -171,7 +181,6 @@ async def test_editable_mode_with_false_value(
     config_entry.runtime_data = None
 
     entity = HaeoInputSwitch(
-        hass=hass,
         config_entry=config_entry,
         subentry=subentry,
         field_info=curtailment_field_info,
@@ -195,7 +204,6 @@ async def test_editable_mode_with_none_value(
     config_entry.runtime_data = None
 
     entity = HaeoInputSwitch(
-        hass=hass,
         config_entry=config_entry,
         subentry=subentry,
         field_info=curtailment_field_info,
@@ -219,19 +227,13 @@ async def test_editable_mode_turn_on(
     config_entry.runtime_data = None
 
     entity = HaeoInputSwitch(
-        hass=hass,
         config_entry=config_entry,
         subentry=subentry,
         field_info=curtailment_field_info,
         device_entry=device_entry,
         horizon_manager=horizon_manager,
     )
-    _attach_platform(
-        entity,
-        hass,
-        entity_id="switch.test_allow_curtailment",
-        platform_domain="switch",
-    )
+    await _add_entity_to_hass(hass, entity)
     hass.config_entries.async_update_subentry = Mock()
 
     await entity.async_turn_on()
@@ -256,19 +258,13 @@ async def test_editable_mode_turn_off(
     config_entry.runtime_data = None
 
     entity = HaeoInputSwitch(
-        hass=hass,
         config_entry=config_entry,
         subentry=subentry,
         field_info=curtailment_field_info,
         device_entry=device_entry,
         horizon_manager=horizon_manager,
     )
-    _attach_platform(
-        entity,
-        hass,
-        entity_id="switch.test_allow_curtailment",
-        platform_domain="switch",
-    )
+    await _add_entity_to_hass(hass, entity)
     hass.config_entries.async_update_subentry = Mock()
 
     await entity.async_turn_off()
@@ -296,7 +292,6 @@ async def test_driven_mode_with_entity_id(
     config_entry.runtime_data = None
 
     entity = HaeoInputSwitch(
-        hass=hass,
         config_entry=config_entry,
         subentry=subentry,
         field_info=curtailment_field_info,
@@ -326,7 +321,6 @@ async def test_driven_mode_ignores_turn_on(
     config_entry.runtime_data = None
 
     entity = HaeoInputSwitch(
-        hass=hass,
         config_entry=config_entry,
         subentry=subentry,
         field_info=curtailment_field_info,
@@ -355,7 +349,6 @@ async def test_driven_mode_ignores_turn_off(
     config_entry.runtime_data = None
 
     entity = HaeoInputSwitch(
-        hass=hass,
         config_entry=config_entry,
         subentry=subentry,
         field_info=curtailment_field_info,
@@ -387,7 +380,6 @@ async def test_driven_mode_loads_source_state(
     config_entry.runtime_data = None
 
     entity = HaeoInputSwitch(
-        hass=hass,
         config_entry=config_entry,
         subentry=subentry,
         field_info=curtailment_field_info,
@@ -395,8 +387,7 @@ async def test_driven_mode_loads_source_state(
         horizon_manager=horizon_manager,
     )
 
-    # Call the internal load method
-    entity._load_source_state()
+    await _add_entity_to_hass(hass, entity)
 
     assert entity.is_on is True
 
@@ -416,7 +407,6 @@ async def test_driven_mode_loads_off_state(
     config_entry.runtime_data = None
 
     entity = HaeoInputSwitch(
-        hass=hass,
         config_entry=config_entry,
         subentry=subentry,
         field_info=curtailment_field_info,
@@ -424,7 +414,7 @@ async def test_driven_mode_loads_off_state(
         horizon_manager=horizon_manager,
     )
 
-    entity._load_source_state()
+    await _add_entity_to_hass(hass, entity)
 
     assert entity.is_on is False
 
@@ -444,7 +434,6 @@ async def test_unique_id_includes_all_components(
     config_entry.runtime_data = None
 
     entity = HaeoInputSwitch(
-        hass=hass,
         config_entry=config_entry,
         subentry=subentry,
         field_info=curtailment_field_info,
@@ -452,7 +441,9 @@ async def test_unique_id_includes_all_components(
         horizon_manager=horizon_manager,
     )
 
-    expected_unique_id = f"{config_entry.entry_id}_{subentry.subentry_id}_advanced.{curtailment_field_info.field_name}"
+    expected_unique_id = (
+        f"{config_entry.entry_id}_{subentry.subentry_id}_curtailment.{curtailment_field_info.field_name}"
+    )
     assert entity.unique_id == expected_unique_id
 
 
@@ -471,7 +462,6 @@ async def test_entity_has_correct_category(
     config_entry.runtime_data = None
 
     entity = HaeoInputSwitch(
-        hass=hass,
         config_entry=config_entry,
         subentry=subentry,
         field_info=curtailment_field_info,
@@ -494,7 +484,6 @@ async def test_entity_does_not_poll(
     config_entry.runtime_data = None
 
     entity = HaeoInputSwitch(
-        hass=hass,
         config_entry=config_entry,
         subentry=subentry,
         field_info=curtailment_field_info,
@@ -524,7 +513,6 @@ async def test_translation_key_from_field_info(
     config_entry.runtime_data = None
 
     entity = HaeoInputSwitch(
-        hass=hass,
         config_entry=config_entry,
         subentry=subentry,
         field_info=field_info,
@@ -547,7 +535,6 @@ async def test_translation_key_defaults_to_field_name(
     config_entry.runtime_data = None
 
     entity = HaeoInputSwitch(
-        hass=hass,
         config_entry=config_entry,
         subentry=subentry,
         field_info=curtailment_field_info,
@@ -574,7 +561,6 @@ async def test_horizon_start_returns_first_timestamp(
     config_entry.runtime_data = None
 
     entity = HaeoInputSwitch(
-        hass=hass,
         config_entry=config_entry,
         subentry=subentry,
         field_info=curtailment_field_info,
@@ -601,7 +587,6 @@ async def test_horizon_start_returns_none_without_forecast(
     config_entry.runtime_data = None
 
     entity = HaeoInputSwitch(
-        hass=hass,
         config_entry=config_entry,
         subentry=subentry,
         field_info=curtailment_field_info,
@@ -627,7 +612,6 @@ async def test_get_values_returns_forecast_values(
     config_entry.runtime_data = None
 
     entity = HaeoInputSwitch(
-        hass=hass,
         config_entry=config_entry,
         subentry=subentry,
         field_info=curtailment_field_info,
@@ -658,7 +642,6 @@ async def test_get_values_returns_none_without_forecast(
     config_entry.runtime_data = None
 
     entity = HaeoInputSwitch(
-        hass=hass,
         config_entry=config_entry,
         subentry=subentry,
         field_info=curtailment_field_info,
@@ -687,7 +670,6 @@ async def test_async_added_to_hass_editable_uses_config_value(
     config_entry.runtime_data = None
 
     entity = HaeoInputSwitch(
-        hass=hass,
         config_entry=config_entry,
         subentry=subentry,
         field_info=curtailment_field_info,
@@ -695,7 +677,7 @@ async def test_async_added_to_hass_editable_uses_config_value(
         horizon_manager=horizon_manager,
     )
 
-    await entity.async_added_to_hass()
+    await _add_entity_to_hass(hass, entity)
 
     # Should use config value directly
     assert entity.is_on is True
@@ -714,7 +696,6 @@ async def test_async_added_to_hass_driven_subscribes_to_source(
     config_entry.runtime_data = None
 
     entity = HaeoInputSwitch(
-        hass=hass,
         config_entry=config_entry,
         subentry=subentry,
         field_info=curtailment_field_info,
@@ -722,7 +703,7 @@ async def test_async_added_to_hass_driven_subscribes_to_source(
         horizon_manager=horizon_manager,
     )
 
-    await entity.async_added_to_hass()
+    await _add_entity_to_hass(hass, entity)
 
     # Entity should have loaded state from source
     assert entity.is_on is True
@@ -743,19 +724,13 @@ async def test_handle_horizon_change_editable_updates_forecast(
     config_entry.runtime_data = None
 
     entity = HaeoInputSwitch(
-        hass=hass,
         config_entry=config_entry,
         subentry=subentry,
         field_info=curtailment_field_info,
         device_entry=device_entry,
         horizon_manager=horizon_manager,
     )
-    _attach_platform(
-        entity,
-        hass,
-        entity_id="switch.test_allow_curtailment",
-        platform_domain="switch",
-    )
+    await _add_entity_to_hass(hass, entity)
 
     # Call horizon change handler
     entity._handle_horizon_change()
@@ -782,19 +757,13 @@ async def test_horizon_change_updates_forecast_timestamps_editable(
     config_entry.runtime_data = None
 
     entity = HaeoInputSwitch(
-        hass=hass,
         config_entry=config_entry,
         subentry=subentry,
         field_info=curtailment_field_info,
         device_entry=device_entry,
         horizon_manager=horizon_manager,
     )
-    _attach_platform(
-        entity,
-        hass,
-        entity_id="switch.test_allow_curtailment",
-        platform_domain="switch",
-    )
+    await _add_entity_to_hass(hass, entity)
 
     # Build initial forecast
     entity._update_forecast()
@@ -836,19 +805,13 @@ async def test_handle_horizon_change_driven_reloads_source(
     config_entry.runtime_data = None
 
     entity = HaeoInputSwitch(
-        hass=hass,
         config_entry=config_entry,
         subentry=subentry,
         field_info=curtailment_field_info,
         device_entry=device_entry,
         horizon_manager=horizon_manager,
     )
-    _attach_platform(
-        entity,
-        hass,
-        entity_id="switch.test_allow_curtailment",
-        platform_domain="switch",
-    )
+    await _add_entity_to_hass(hass, entity)
 
     # Call horizon change handler
     entity._handle_horizon_change()
@@ -875,19 +838,13 @@ async def test_horizon_change_updates_forecast_timestamps_driven(
     config_entry.runtime_data = None
 
     entity = HaeoInputSwitch(
-        hass=hass,
         config_entry=config_entry,
         subentry=subentry,
         field_info=curtailment_field_info,
         device_entry=device_entry,
         horizon_manager=horizon_manager,
     )
-    _attach_platform(
-        entity,
-        hass,
-        entity_id="switch.test_allow_curtailment",
-        platform_domain="switch",
-    )
+    await _add_entity_to_hass(hass, entity)
 
     # Load initial state
     entity._load_source_state()
@@ -929,7 +886,6 @@ async def test_handle_source_state_change_updates_switch(
     config_entry.runtime_data = None
 
     entity = HaeoInputSwitch(
-        hass=hass,
         config_entry=config_entry,
         subentry=subentry,
         field_info=curtailment_field_info,
@@ -965,14 +921,13 @@ async def test_handle_source_state_change_ignores_none_state(
     config_entry.runtime_data = None
 
     entity = HaeoInputSwitch(
-        hass=hass,
         config_entry=config_entry,
         subentry=subentry,
         field_info=curtailment_field_info,
         device_entry=device_entry,
         horizon_manager=horizon_manager,
     )
-    entity._load_source_state()  # Load initial ON state
+    await _add_entity_to_hass(hass, entity)
     entity.async_write_ha_state = Mock()
 
     # Create a mock event with None new_state (entity deleted)
@@ -999,7 +954,6 @@ async def test_load_source_state_with_none_source_entity(
     config_entry.runtime_data = None
 
     entity = HaeoInputSwitch(
-        hass=hass,
         config_entry=config_entry,
         subentry=subentry,
         field_info=curtailment_field_info,
@@ -1029,7 +983,6 @@ async def test_is_ready_returns_true_after_data_loaded(
     config_entry.runtime_data = None
 
     entity = HaeoInputSwitch(
-        hass=hass,
         config_entry=config_entry,
         subentry=subentry,
         field_info=curtailment_field_info,
@@ -1054,7 +1007,6 @@ async def test_entity_mode_property_returns_mode(
     config_entry.runtime_data = None
 
     entity_editable = HaeoInputSwitch(
-        hass=hass,
         config_entry=config_entry,
         subentry=subentry_editable,
         field_info=curtailment_field_info,
@@ -1066,7 +1018,6 @@ async def test_entity_mode_property_returns_mode(
     # Test DRIVEN mode
     subentry_driven = _create_subentry("Test Solar", {"allow_curtailment": "input_boolean.curtail"})
     entity_driven = HaeoInputSwitch(
-        hass=hass,
         config_entry=config_entry,
         subentry=subentry_driven,
         field_info=curtailment_field_info,
@@ -1100,7 +1051,6 @@ async def test_editable_mode_uses_defaults_value_when_none(
     config_entry.runtime_data = None
 
     entity = HaeoInputSwitch(
-        hass=hass,
         config_entry=config_entry,
         subentry=subentry,
         field_info=field_info,
@@ -1112,7 +1062,7 @@ async def test_editable_mode_uses_defaults_value_when_none(
     assert entity.is_on is None
 
     # After adding to hass, defaults.value should be used
-    await entity.async_added_to_hass()
+    await _add_entity_to_hass(hass, entity)
 
     assert entity.is_on is True
 
@@ -1125,21 +1075,20 @@ async def test_wait_ready_blocks_until_data_loaded(
     horizon_manager: Mock,
 ) -> None:
     """wait_ready() blocks until data is loaded."""
-    # Use DRIVEN mode so data isn't loaded immediately
-    hass.states.async_set("input_boolean.curtail", STATE_ON)
+    # Use DRIVEN mode so data isn't loaded until source state is available
     subentry = _create_subentry("Test Solar", {"allow_curtailment": "input_boolean.curtail"})
     config_entry.runtime_data = None
 
     entity = HaeoInputSwitch(
-        hass=hass,
         config_entry=config_entry,
         subentry=subentry,
         field_info=curtailment_field_info,
         device_entry=device_entry,
         horizon_manager=horizon_manager,
     )
+    await _add_entity_to_hass(hass, entity)
 
-    # Before data is loaded, is_ready is False (DRIVEN mode, data loads in async_added_to_hass)
+    # Before data is loaded, is_ready is False (no source state yet)
     assert entity.is_ready() is False
 
     # Start wait_ready in background
@@ -1152,6 +1101,7 @@ async def test_wait_ready_blocks_until_data_loaded(
     assert not wait_task.done()
 
     # Load source state (sets the event via _update_forecast)
+    hass.states.async_set("input_boolean.curtail", STATE_ON)
     entity._load_source_state()
 
     # Now wait_ready should complete
@@ -1201,7 +1151,6 @@ async def test_unrecorded_attributes_based_on_config(
     entry.runtime_data = None
 
     entity = HaeoInputSwitch(
-        hass=hass,
         config_entry=entry,
         subentry=subentry,
         field_info=curtailment_field_info,

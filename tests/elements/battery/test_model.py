@@ -43,23 +43,31 @@ CREATE_CASES: Sequence[CreateCase] = [
         "description": "Battery with SOC pricing thresholds",
         "data": BatteryConfigData(
             element_type="battery",
-            basic={
+            common={
                 "name": "battery_main",
                 "connection": "network",
+            },
+            storage={
                 "capacity": np.array([10.0, 10.0]),
                 "initial_charge_percentage": np.array([0.5]),
             },
             limits={
                 "min_charge_percentage": np.array([0.1, 0.1]),
                 "max_charge_percentage": np.array([0.9, 0.9]),
-                "max_charge_power": np.array([5.0]),
-                "max_discharge_power": np.array([5.0]),
             },
-            advanced={
-                "efficiency": np.array([0.95]),
-                "early_charge_incentive": np.array([0.01]),
-                "discharge_cost": np.array([0.02]),
+            power_limits={
+                "max_power_source_target": np.array([5.0]),
+                "max_power_target_source": np.array([5.0]),
             },
+            pricing={
+                "price_source_target": np.array([0.03]),
+                "price_target_source": np.array([0.01]),
+            },
+            efficiency={
+                "efficiency_source_target": np.array([0.95]),
+                "efficiency_target_source": np.array([0.95]),
+            },
+            partitioning={},
             undercharge={
                 "percentage": np.array([0.05, 0.05]),
                 "cost": np.array([0.03]),
@@ -94,7 +102,7 @@ CREATE_CASES: Sequence[CreateCase] = [
                     },
                     "pricing": {
                         "segment_type": "pricing",
-                        "price_source_target": [0.03],  # early_discharge_incentive + discharge_cost
+                        "price_source_target": [0.04],
                         "price_target_source": [-0.01],
                     },
                     "soc_pricing": {
@@ -112,23 +120,31 @@ CREATE_CASES: Sequence[CreateCase] = [
         "description": "Battery with normal range only",
         "data": BatteryConfigData(
             element_type="battery",
-            basic={
+            common={
                 "name": "battery_normal",
                 "connection": "network",
+            },
+            storage={
                 "capacity": np.array([10.0, 10.0]),
                 "initial_charge_percentage": np.array([0.5]),
             },
             limits={
                 "min_charge_percentage": np.array([0.0, 0.0]),
                 "max_charge_percentage": np.array([1.0, 1.0]),
-                "max_charge_power": np.array([5.0]),
-                "max_discharge_power": np.array([5.0]),
             },
-            advanced={
-                "efficiency": np.array([0.95]),
-                "early_charge_incentive": np.array([0.001]),
-                "discharge_cost": np.array([0.002]),
+            power_limits={
+                "max_power_source_target": np.array([5.0]),
+                "max_power_target_source": np.array([5.0]),
             },
+            pricing={
+                "price_source_target": np.array([0.003]),
+                "price_target_source": np.array([0.001]),
+            },
+            efficiency={
+                "efficiency_source_target": np.array([0.95]),
+                "efficiency_target_source": np.array([0.95]),
+            },
+            partitioning={},
             undercharge={},
             overcharge={},
         ),
@@ -157,7 +173,7 @@ CREATE_CASES: Sequence[CreateCase] = [
                     },
                     "pricing": {
                         "segment_type": "pricing",
-                        "price_source_target": [0.003],  # early_discharge_incentive + discharge_cost
+                        "price_source_target": [0.004],
                         "price_target_source": [-0.001],
                     },
                 },
@@ -173,23 +189,31 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
         "name": "battery_no_balance",
         "data": BatteryConfigData(
             element_type="battery",
-            basic={
+            common={
                 "name": "battery_no_balance",
                 "connection": "network",
+            },
+            storage={
                 "capacity": np.array([10.0, 10.0]),
                 "initial_charge_percentage": np.array([0.5]),
             },
             limits={
                 "min_charge_percentage": np.array([0.0, 0.0]),
                 "max_charge_percentage": np.array([1.0, 1.0]),
-                "max_charge_power": np.array([5.0]),
-                "max_discharge_power": np.array([5.0]),
             },
-            advanced={
-                "efficiency": np.array([0.95]),
-                "early_charge_incentive": np.array([0.001]),
-                "discharge_cost": np.array([0.002]),
+            power_limits={
+                "max_power_source_target": np.array([5.0]),
+                "max_power_target_source": np.array([5.0]),
             },
+            pricing={
+                "price_source_target": np.array([0.003]),
+                "price_target_source": np.array([0.001]),
+            },
+            efficiency={
+                "efficiency_source_target": np.array([0.95]),
+                "efficiency_target_source": np.array([0.95]),
+            },
+            partitioning={},
             undercharge={},
             overcharge={},
         ),
@@ -225,23 +249,31 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
         "name": "battery_with_thresholds",
         "data": BatteryConfigData(
             element_type="battery",
-            basic={
+            common={
                 "name": "battery_with_thresholds",
                 "connection": "network",
+            },
+            storage={
                 "capacity": np.array([10.0, 10.0]),
                 "initial_charge_percentage": np.array([0.5]),
             },
             limits={
                 "min_charge_percentage": np.array([0.1, 0.1]),
                 "max_charge_percentage": np.array([0.9, 0.9]),
-                "max_charge_power": np.array([5.0]),
-                "max_discharge_power": np.array([5.0]),
             },
-            advanced={
-                "efficiency": np.array([0.95]),
-                "early_charge_incentive": np.array([0.001]),
-                "discharge_cost": np.array([0.002]),
+            power_limits={
+                "max_power_source_target": np.array([5.0]),
+                "max_power_target_source": np.array([5.0]),
             },
+            pricing={
+                "price_source_target": np.array([0.003]),
+                "price_target_source": np.array([0.001]),
+            },
+            efficiency={
+                "efficiency_source_target": np.array([0.95]),
+                "efficiency_target_source": np.array([0.95]),
+            },
+            partitioning={},
             undercharge={
                 "percentage": np.array([0.05, 0.05]),
                 "cost": np.array([0.03]),

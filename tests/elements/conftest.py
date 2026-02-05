@@ -18,6 +18,7 @@ from custom_components.haeo.const import (
     INTEGRATION_TYPE_HUB,
 )
 from custom_components.haeo.elements import ElementType
+from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON
 
 
 # Default forecast times for adapter load tests (0s, 30min)
@@ -35,8 +36,8 @@ def hub_entry(hass: HomeAssistant) -> MockConfigEntry:
         domain=DOMAIN,
         data={
             CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
-            "basic": {CONF_NAME: "Test Hub"},
-            "advanced": {CONF_ADVANCED_MODE: True},  # Enable advanced mode for all element types
+            HUB_SECTION_COMMON: {CONF_NAME: "Test Hub"},
+            HUB_SECTION_ADVANCED: {CONF_ADVANCED_MODE: True},  # Enable advanced mode for all element types
         },
         entry_id="test_hub_id",
     )

@@ -49,7 +49,7 @@ HORIZON_PRESET_5_DAYS: Final = "5_days"  # Default
 HORIZON_PRESET_7_DAYS: Final = "7_days"
 HORIZON_PRESET_CUSTOM: Final = "custom"
 
-HUB_SECTION_BASIC: Final = "basic"
+HUB_SECTION_COMMON: Final = "common"
 HUB_SECTION_ADVANCED: Final = "advanced"
 HUB_SECTION_TIERS: Final = "tiers"
 
@@ -145,7 +145,7 @@ def get_hub_setup_schema(suggested_name: str | None = None) -> vol.Schema:
 
     sections = (
         SectionDefinition(
-            key=HUB_SECTION_BASIC,
+            key=HUB_SECTION_COMMON,
             fields=(CONF_NAME, CONF_HORIZON_PRESET),
             collapsed=False,
         ),
@@ -156,7 +156,7 @@ def get_hub_setup_schema(suggested_name: str | None = None) -> vol.Schema:
         ),
     )
     field_entries = {
-        HUB_SECTION_BASIC: {
+        HUB_SECTION_COMMON: {
             CONF_NAME: (
                 name_key,
                 vol.All(
@@ -275,13 +275,13 @@ def get_hub_options_schema(config_entry: ConfigEntry) -> vol.Schema:
 
     """
     # Get stored preset, defaulting to 5_days if not stored
-    basic_data = config_entry.data.get(HUB_SECTION_BASIC, {})
+    common_data = config_entry.data.get(HUB_SECTION_COMMON, {})
     advanced_data = config_entry.data.get(HUB_SECTION_ADVANCED, {})
-    current_preset = basic_data.get(CONF_HORIZON_PRESET, HORIZON_PRESET_5_DAYS)
+    current_preset = common_data.get(CONF_HORIZON_PRESET, HORIZON_PRESET_5_DAYS)
 
     sections = (
         SectionDefinition(
-            key=HUB_SECTION_BASIC,
+            key=HUB_SECTION_COMMON,
             fields=(CONF_HORIZON_PRESET,),
             collapsed=False,
         ),
@@ -292,7 +292,7 @@ def get_hub_options_schema(config_entry: ConfigEntry) -> vol.Schema:
         ),
     )
     field_entries = {
-        HUB_SECTION_BASIC: {
+        HUB_SECTION_COMMON: {
             CONF_HORIZON_PRESET: (
                 vol.Required(CONF_HORIZON_PRESET, default=current_preset),
                 SelectSelector(

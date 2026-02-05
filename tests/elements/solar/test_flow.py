@@ -15,10 +15,12 @@ from custom_components.haeo.elements.solar import (
     CONF_CONNECTION,
     CONF_CURTAILMENT,
     CONF_FORECAST,
-    CONF_PRICE_PRODUCTION,
-    CONF_SECTION_ADVANCED,
-    CONF_SECTION_BASIC,
+    CONF_PRICE_SOURCE_TARGET,
     ELEMENT_TYPE,
+    SECTION_COMMON,
+    SECTION_CURTAILMENT,
+    SECTION_FORECAST,
+    SECTION_PRICING,
 )
 
 from ..conftest import add_participant, create_flow
@@ -26,23 +28,28 @@ from ..conftest import add_participant, create_flow
 
 def _wrap_input(flat: dict[str, Any]) -> dict[str, Any]:
     """Wrap flat solar input values into sectioned config."""
-    if CONF_SECTION_BASIC in flat:
+    if SECTION_COMMON in flat:
         return dict(flat)
-    basic = {
+    common = {
         CONF_NAME: flat[CONF_NAME],
         CONF_CONNECTION: flat[CONF_CONNECTION],
+    }
+    forecast = {
         CONF_FORECAST: flat[CONF_FORECAST],
     }
-    advanced = {key: flat[key] for key in (CONF_CURTAILMENT, CONF_PRICE_PRODUCTION) if key in flat}
+    pricing = {key: flat[key] for key in (CONF_PRICE_SOURCE_TARGET,) if key in flat}
+    curtailment = {key: flat[key] for key in (CONF_CURTAILMENT,) if key in flat}
     return {
-        CONF_SECTION_BASIC: basic,
-        CONF_SECTION_ADVANCED: advanced,
+        SECTION_COMMON: common,
+        SECTION_FORECAST: forecast,
+        SECTION_PRICING: pricing,
+        SECTION_CURTAILMENT: curtailment,
     }
 
 
 def _wrap_config(flat: dict[str, Any]) -> dict[str, Any]:
     """Wrap flat solar config values into sectioned config with element type."""
-    if CONF_SECTION_BASIC in flat:
+    if SECTION_COMMON in flat:
         return {CONF_ELEMENT_TYPE: ELEMENT_TYPE, **flat}
     return {CONF_ELEMENT_TYPE: ELEMENT_TYPE, **_wrap_input(flat)}
 
@@ -146,7 +153,7 @@ async def test_reconfigure_with_string_entity_id_v010_format(hass: HomeAssistant
     defaults = flow._build_defaults("Test Solar", dict(existing_subentry.data))
 
     # Defaults should contain entity choice with original entity ID as list
-    assert defaults[CONF_SECTION_BASIC][CONF_FORECAST] == ["sensor.solar_forecast"]
+    assert defaults[SECTION_FORECAST][CONF_FORECAST] == ["sensor.solar_forecast"]
 
 
 async def test_reconfigure_with_scalar_shows_constant_defaults(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
@@ -177,7 +184,7 @@ async def test_reconfigure_with_scalar_shows_constant_defaults(hass: HomeAssista
     defaults = flow._build_defaults("Test Solar", dict(existing_subentry.data))
 
     # Defaults should contain constant choice with the scalar value
-    assert defaults[CONF_SECTION_BASIC][CONF_FORECAST] == 100.0
+    assert defaults[SECTION_FORECAST][CONF_FORECAST] == 100.0
 
 
 async def test_user_step_with_entity_creates_entry(
@@ -197,13 +204,13 @@ async def test_user_step_with_entity_creates_entry(
     )
 
     # Submit with entity selection using choose selector format
-    # price_production and curtailment are force_required, so must be included
+    # price_source_target and curtailment are force_required, so must be included
     user_input = _wrap_input(
         {
             CONF_NAME: "Test Solar",
             CONF_CONNECTION: "TestNode",
             CONF_FORECAST: ["sensor.solar_forecast"],
-            CONF_PRICE_PRODUCTION: 0.0,
+            CONF_PRICE_SOURCE_TARGET: 0.0,
             CONF_CURTAILMENT: True,
         }
     )
@@ -213,7 +220,7 @@ async def test_user_step_with_entity_creates_entry(
 
     # Verify the config contains the entity ID as string
     create_kwargs = flow.async_create_entry.call_args.kwargs
-    assert create_kwargs["data"][CONF_SECTION_BASIC][CONF_FORECAST] == "sensor.solar_forecast"
+    assert create_kwargs["data"][SECTION_FORECAST][CONF_FORECAST] == "sensor.solar_forecast"
 
 
 async def test_user_step_with_constant_creates_entry(
@@ -233,13 +240,13 @@ async def test_user_step_with_constant_creates_entry(
     )
 
     # Submit with constant value using choose selector format
-    # price_production and curtailment are force_required, so must be included
+    # price_source_target and curtailment are force_required, so must be included
     user_input = _wrap_input(
         {
             CONF_NAME: "Test Solar",
             CONF_CONNECTION: "TestNode",
             CONF_FORECAST: 5.0,
-            CONF_PRICE_PRODUCTION: 0.0,
+            CONF_PRICE_SOURCE_TARGET: 0.0,
             CONF_CURTAILMENT: True,
         }
     )
@@ -249,7 +256,7 @@ async def test_user_step_with_constant_creates_entry(
 
     # Verify the config contains the constant value
     create_kwargs = flow.async_create_entry.call_args.kwargs
-    assert create_kwargs["data"][CONF_SECTION_BASIC][CONF_FORECAST] == 5.0
+    assert create_kwargs["data"][SECTION_FORECAST][CONF_FORECAST] == 5.0
 
 
 async def test_user_step_empty_required_field_shows_error(
@@ -266,7 +273,7 @@ async def test_user_step_empty_required_field_shows_error(
             CONF_NAME: "Test Solar",
             CONF_CONNECTION: "TestNode",
             CONF_FORECAST: [],  # Empty list = invalid
-            CONF_PRICE_PRODUCTION: 0.0,
+            CONF_PRICE_SOURCE_TARGET: 0.0,
             CONF_CURTAILMENT: True,
         }
     )
