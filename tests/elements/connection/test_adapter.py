@@ -3,6 +3,7 @@
 from homeassistant.core import HomeAssistant
 
 from custom_components.haeo.elements import connection
+from custom_components.haeo.schema import as_constant_value, as_entity_value
 
 
 def _set_sensor(hass: HomeAssistant, entity_id: str, value: str, unit: str = "kW") -> None:
@@ -39,16 +40,16 @@ async def test_available_returns_true_when_optional_sensors_exist(hass: HomeAssi
         connection.SECTION_COMMON: {"name": "c1"},
         connection.SECTION_ENDPOINTS: {"source": "node_a", "target": "node_b"},
         connection.SECTION_POWER_LIMITS: {
-            "max_power_source_target": "sensor.max_power_st",
-            "max_power_target_source": "sensor.max_power_ts",
+            "max_power_source_target": as_entity_value(["sensor.max_power_st"]),
+            "max_power_target_source": as_entity_value(["sensor.max_power_ts"]),
         },
         connection.SECTION_PRICING: {
-            "price_source_target": "sensor.price_st",
-            "price_target_source": "sensor.price_ts",
+            "price_source_target": as_entity_value(["sensor.price_st"]),
+            "price_target_source": as_entity_value(["sensor.price_ts"]),
         },
         connection.SECTION_EFFICIENCY: {
-            "efficiency_source_target": "sensor.eff_st",
-            "efficiency_target_source": "sensor.eff_ts",
+            "efficiency_source_target": as_entity_value(["sensor.eff_st"]),
+            "efficiency_target_source": as_entity_value(["sensor.eff_ts"]),
         },
     }
 
@@ -66,8 +67,8 @@ async def test_available_returns_false_when_optional_sensor_missing(hass: HomeAs
         connection.SECTION_COMMON: {"name": "c1"},
         connection.SECTION_ENDPOINTS: {"source": "node_a", "target": "node_b"},
         connection.SECTION_POWER_LIMITS: {
-            "max_power_source_target": "sensor.max_power_st",
-            "max_power_target_source": "sensor.missing",
+            "max_power_source_target": as_entity_value(["sensor.max_power_st"]),
+            "max_power_target_source": as_entity_value(["sensor.missing"]),
         },
         connection.SECTION_PRICING: {},
         connection.SECTION_EFFICIENCY: {},
@@ -86,7 +87,7 @@ async def test_available_returns_false_when_efficiency_sensor_missing(hass: Home
         connection.SECTION_POWER_LIMITS: {},
         connection.SECTION_PRICING: {},
         connection.SECTION_EFFICIENCY: {
-            "efficiency_source_target": "sensor.missing",
+            "efficiency_source_target": as_entity_value(["sensor.missing"]),
         },
     }
 
@@ -101,16 +102,16 @@ async def test_available_returns_true_with_constant_values(hass: HomeAssistant) 
         connection.SECTION_COMMON: {"name": "c1"},
         connection.SECTION_ENDPOINTS: {"source": "node_a", "target": "node_b"},
         connection.SECTION_POWER_LIMITS: {
-            "max_power_source_target": 5.0,
-            "max_power_target_source": 4.0,
+            "max_power_source_target": as_constant_value(5.0),
+            "max_power_target_source": as_constant_value(4.0),
         },
         connection.SECTION_PRICING: {
-            "price_source_target": 0.1,
-            "price_target_source": 0.2,
+            "price_source_target": as_constant_value(0.1),
+            "price_target_source": as_constant_value(0.2),
         },
         connection.SECTION_EFFICIENCY: {
-            "efficiency_source_target": 0.9,
-            "efficiency_target_source": 0.91,
+            "efficiency_source_target": as_constant_value(0.9),
+            "efficiency_target_source": as_constant_value(0.91),
         },
     }
 

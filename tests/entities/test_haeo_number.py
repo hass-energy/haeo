@@ -28,6 +28,7 @@ from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMO
 from custom_components.haeo.horizon import HorizonManager
 from custom_components.haeo.model import OutputType
 from custom_components.haeo.sections import SECTION_COMMON, SECTION_EFFICIENCY
+from custom_components.haeo.schema import as_constant_value, as_entity_value, as_none_value
 
 # --- Fixtures ---
 
@@ -153,12 +154,27 @@ def percent_field_info() -> InputFieldInfo[NumberEntityDescription]:
 
 def _create_subentry(name: str, data: dict[str, Any]) -> ConfigSubentry:
     """Create a ConfigSubentry with the given data."""
+
+    def schema_value(value: Any) -> Any:
+        if value is None:
+            return as_none_value()
+        if isinstance(value, bool):
+            return as_constant_value(value)
+        if isinstance(value, (int, float)):
+            return as_constant_value(float(value))
+        if isinstance(value, str):
+            return as_entity_value([value])
+        if isinstance(value, list) and all(isinstance(item, str) for item in value):
+            return as_entity_value(value)
+        msg = f"Unsupported schema value {value!r}"
+        raise TypeError(msg)
+
     return ConfigSubentry(
         data=MappingProxyType(
             {
                 "element_type": "battery",
                 SECTION_COMMON: {CONF_NAME: name},
-                SECTION_EFFICIENCY: data,
+                SECTION_EFFICIENCY: {key: schema_value(value) for key, value in data.items()},
             }
         ),
         subentry_type="battery",

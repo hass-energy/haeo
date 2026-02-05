@@ -23,6 +23,7 @@ from custom_components.haeo.elements.connection import (
     SECTION_POWER_LIMITS,
     SECTION_PRICING,
 )
+from custom_components.haeo.schema import as_constant_value, as_entity_value
 
 from ..conftest import add_participant, create_flow
 
@@ -179,19 +180,19 @@ async def test_get_subentry_returns_none_for_user_flow(hass: HomeAssistant, hub_
     assert subentry is None
 
 
-async def test_reconfigure_with_string_entity_id_v010_format(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
-    """Reconfigure with v0.1.0 string entity ID should show entity choice in defaults."""
+async def test_reconfigure_with_entity_value_shows_defaults(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
+    """Reconfigure with entity schema value should show entity choice in defaults."""
     add_participant(hass, hub_entry, "Battery1", battery.ELEMENT_TYPE)
     add_participant(hass, hub_entry, "Grid1", grid.ELEMENT_TYPE)
 
-    # Create existing entry with v0.1.0 format: string entity IDs (not list, not scalar)
+    # Create existing entry with entity schema values
     existing_config = _wrap_config(
         {
             CONF_NAME: "Test Connection",
             CONF_SOURCE: "Battery1",
             CONF_TARGET: "Grid1",
-            CONF_MAX_POWER_SOURCE_TARGET: "sensor.max_power_st",  # v0.1.0: single string entity ID
-            CONF_MAX_POWER_TARGET_SOURCE: "sensor.max_power_ts",  # v0.1.0: single string entity ID
+            CONF_MAX_POWER_SOURCE_TARGET: as_entity_value(["sensor.max_power_st"]),
+            CONF_MAX_POWER_TARGET_SOURCE: as_entity_value(["sensor.max_power_ts"]),
         }
     )
     existing_subentry = ConfigSubentry(
@@ -225,14 +226,14 @@ async def test_reconfigure_with_scalar_shows_constant_defaults(hass: HomeAssista
     add_participant(hass, hub_entry, "Battery1", battery.ELEMENT_TYPE)
     add_participant(hass, hub_entry, "Grid1", grid.ELEMENT_TYPE)
 
-    # Create existing entry with scalar values (from constant config)
+    # Create existing entry with constant schema values
     existing_config = _wrap_config(
         {
             CONF_NAME: "Test Connection",
             CONF_SOURCE: "Battery1",
             CONF_TARGET: "Grid1",
-            CONF_MAX_POWER_SOURCE_TARGET: 10.0,  # Scalar value
-            CONF_MAX_POWER_TARGET_SOURCE: 10.0,  # Scalar value
+            CONF_MAX_POWER_SOURCE_TARGET: as_constant_value(10.0),
+            CONF_MAX_POWER_TARGET_SOURCE: as_constant_value(10.0),
         }
     )
     existing_subentry = ConfigSubentry(
@@ -286,8 +287,8 @@ async def test_user_step_with_constant_creates_entry(
 
     # Verify the config contains the constant values
     create_kwargs = flow.async_create_entry.call_args.kwargs
-    assert create_kwargs["data"][SECTION_POWER_LIMITS][CONF_MAX_POWER_SOURCE_TARGET] == 10.0
-    assert create_kwargs["data"][SECTION_POWER_LIMITS][CONF_MAX_POWER_TARGET_SOURCE] == 10.0
+    assert create_kwargs["data"][SECTION_POWER_LIMITS][CONF_MAX_POWER_SOURCE_TARGET] == as_constant_value(10.0)
+    assert create_kwargs["data"][SECTION_POWER_LIMITS][CONF_MAX_POWER_TARGET_SOURCE] == as_constant_value(10.0)
 
 
 async def test_user_step_with_entity_creates_entry(
@@ -319,7 +320,7 @@ async def test_user_step_with_entity_creates_entry(
 
     assert result.get("type") == FlowResultType.CREATE_ENTRY
 
-    # Verify the config contains the entity IDs as strings (single entity)
+    # Verify the config contains the entity schema values (single entity)
     create_kwargs = flow.async_create_entry.call_args.kwargs
-    assert create_kwargs["data"][SECTION_POWER_LIMITS][CONF_MAX_POWER_SOURCE_TARGET] == "sensor.power_st"
-    assert create_kwargs["data"][SECTION_POWER_LIMITS][CONF_MAX_POWER_TARGET_SOURCE] == "sensor.power_ts"
+    assert create_kwargs["data"][SECTION_POWER_LIMITS][CONF_MAX_POWER_SOURCE_TARGET] == as_entity_value(["sensor.power_st"])
+    assert create_kwargs["data"][SECTION_POWER_LIMITS][CONF_MAX_POWER_TARGET_SOURCE] == as_entity_value(["sensor.power_ts"])

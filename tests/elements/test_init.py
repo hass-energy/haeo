@@ -19,6 +19,7 @@ from custom_components.haeo.elements import (
 from custom_components.haeo.elements import battery, battery_section, connection, grid, inverter, load, solar
 from custom_components.haeo.elements import node as node_schema
 from custom_components.haeo import elements as elements_module
+from custom_components.haeo.schema import as_constant_value, as_entity_value
 
 
 @pytest.mark.parametrize(
@@ -70,8 +71,8 @@ def test_is_element_config_schema_invalid_structure(input_data: dict[str, Any]) 
             "element_type": "grid",
             grid.SECTION_COMMON: {"name": "test", "connection": ["list_not_str"]},
             grid.SECTION_PRICING: {
-                "price_source_target": ["sensor.import"],
-                "price_target_source": ["sensor.export"],
+                "price_source_target": as_entity_value(["sensor.import"]),
+                "price_target_source": as_entity_value(["sensor.export"]),
             },
             grid.SECTION_POWER_LIMITS: {},
         },
@@ -85,7 +86,7 @@ def test_is_element_config_schema_invalid_structure(input_data: dict[str, Any]) 
             },
             battery.SECTION_STORAGE: {
                 "capacity": True,
-                "initial_charge_percentage": ["sensor.soc"],
+                "initial_charge_percentage": as_entity_value(["sensor.soc"]),
             },
             battery.SECTION_LIMITS: {},
             battery.SECTION_POWER_LIMITS: {},
@@ -131,19 +132,19 @@ def test_is_element_config_schema_valid_battery() -> None:
             "connection": "main_bus",
         },
         battery.SECTION_STORAGE: {
-            "capacity": "sensor.capacity",
-            "initial_charge_percentage": "sensor.soc",
+            "capacity": as_entity_value(["sensor.capacity"]),
+            "initial_charge_percentage": as_entity_value(["sensor.soc"]),
         },
         battery.SECTION_LIMITS: {
-            "min_charge_percentage": 10.0,
-            "max_charge_percentage": 90.0,
+            "min_charge_percentage": as_constant_value(10.0),
+            "max_charge_percentage": as_constant_value(90.0),
         },
         battery.SECTION_POWER_LIMITS: {
-            "max_power_source_target": 5.0,
-            "max_power_target_source": 5.0,
+            "max_power_source_target": as_constant_value(5.0),
+            "max_power_target_source": as_constant_value(5.0),
         },
         battery.SECTION_PRICING: {
-            "price_target_source": 0.05,
+            "price_target_source": as_constant_value(0.05),
         },
         battery.SECTION_EFFICIENCY: {},
         battery.SECTION_PARTITIONING: {},
@@ -159,8 +160,8 @@ def test_is_element_config_schema_valid_grid() -> None:
         "element_type": "grid",
         grid.SECTION_COMMON: {"name": "test_grid", "connection": "main_bus"},
         grid.SECTION_PRICING: {
-            "price_source_target": ["sensor.import"],  # list for chaining
-            "price_target_source": ["sensor.export"],  # list for chaining
+            "price_source_target": as_entity_value(["sensor.import"]),
+            "price_target_source": as_entity_value(["sensor.export"]),
         },
         grid.SECTION_POWER_LIMITS: {},
     }
@@ -173,8 +174,8 @@ def test_is_element_config_schema_valid_grid_minimal() -> None:
         "element_type": "grid",
         grid.SECTION_COMMON: {"name": "test_grid", "connection": "main_bus"},
         grid.SECTION_PRICING: {
-            "price_source_target": 0.25,
-            "price_target_source": 0.05,
+            "price_source_target": as_constant_value(0.25),
+            "price_target_source": as_constant_value(0.05),
         },
         grid.SECTION_POWER_LIMITS: {},
     }
@@ -204,7 +205,7 @@ def test_is_element_config_schema_valid_load() -> None:
     valid_config = {
         "element_type": "load",
         load.SECTION_COMMON: {"name": "test_load", "connection": "main_bus"},
-        load.SECTION_FORECAST: {"forecast": ["sensor.load_forecast"]},
+        load.SECTION_FORECAST: {"forecast": as_entity_value(["sensor.load_forecast"])},
     }
     assert is_element_config_schema(valid_config) is True
 
@@ -214,9 +215,9 @@ def test_is_element_config_schema_valid_solar() -> None:
     valid_config = {
         "element_type": "solar",
         solar.SECTION_COMMON: {"name": "test_solar", "connection": "main_bus"},
-        solar.SECTION_FORECAST: {"forecast": ["sensor.solar_forecast"]},
-        solar.SECTION_PRICING: {"price_source_target": 0.0},
-        solar.SECTION_CURTAILMENT: {"curtailment": True},
+        solar.SECTION_FORECAST: {"forecast": as_entity_value(["sensor.solar_forecast"])},
+        solar.SECTION_PRICING: {"price_source_target": as_constant_value(0.0)},
+        solar.SECTION_CURTAILMENT: {"curtailment": as_constant_value(value=True)},
     }
     assert is_element_config_schema(valid_config) is True
 
@@ -227,8 +228,8 @@ def test_is_element_config_schema_valid_inverter() -> None:
         "element_type": "inverter",
         inverter.SECTION_COMMON: {"name": "test_inverter", "connection": "ac_bus"},
         inverter.SECTION_POWER_LIMITS: {
-            "max_power_source_target": "sensor.dc_to_ac",
-            "max_power_target_source": "sensor.ac_to_dc",
+            "max_power_source_target": as_entity_value(["sensor.dc_to_ac"]),
+            "max_power_target_source": as_entity_value(["sensor.ac_to_dc"]),
         },
         inverter.SECTION_EFFICIENCY: {},
     }
@@ -240,7 +241,10 @@ def test_is_element_config_schema_valid_battery_section() -> None:
     valid_config = {
         "element_type": "battery_section",
         battery_section.SECTION_COMMON: {"name": "test_section"},
-        battery_section.SECTION_STORAGE: {"capacity": "sensor.capacity", "initial_charge": "sensor.charge"},
+        battery_section.SECTION_STORAGE: {
+            "capacity": as_entity_value(["sensor.capacity"]),
+            "initial_charge": as_entity_value(["sensor.charge"]),
+        },
     }
     assert is_element_config_schema(valid_config) is True
 

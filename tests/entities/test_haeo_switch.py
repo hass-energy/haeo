@@ -33,6 +33,7 @@ from custom_components.haeo.entities.haeo_switch import FORECAST_UNRECORDED_ATTR
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON, HUB_SECTION_TIERS
 from custom_components.haeo.horizon import HorizonManager
 from custom_components.haeo.model.const import OutputType
+from custom_components.haeo.schema import as_constant_value, as_entity_value
 
 # --- Fixtures ---
 
@@ -106,12 +107,12 @@ def _create_subentry(name: str, data: dict[str, Any]) -> ConfigSubentry:
                     CONF_CONNECTION: "Switchboard",
                 },
                 SECTION_FORECAST: {
-                    CONF_FORECAST: ["sensor.solar_forecast"],
+                    CONF_FORECAST: as_entity_value(["sensor.solar_forecast"]),
                 },
                 SECTION_PRICING: {
-                    CONF_PRICE_SOURCE_TARGET: 0.0,
+                    CONF_PRICE_SOURCE_TARGET: as_constant_value(0.0),
                 },
-                SECTION_CURTAILMENT: data,
+                SECTION_CURTAILMENT: {key: as_constant_value(value) for key, value in data.items()},
             }
         ),
         subentry_type="solar",

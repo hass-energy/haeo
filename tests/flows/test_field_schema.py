@@ -9,13 +9,13 @@ from homeassistant.helpers.selector import BooleanSelector, NumberSelector
 import pytest
 
 from custom_components.haeo.const import DOMAIN
+from custom_components.haeo.elements import FieldSchemaInfo
 from custom_components.haeo.elements.input_fields import InputFieldDefaults, InputFieldInfo
 from custom_components.haeo.flows.field_schema import (
     CHOICE_CONSTANT,
     CHOICE_ENTITY,
     CHOICE_NONE,
     NormalizingChooseSelector,
-    _normalize_entity_selection,
     boolean_selector_from_field,
     build_choose_selector,
     build_entity_selector,
@@ -31,6 +31,13 @@ from custom_components.haeo.flows.field_schema import (
 )
 from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.sections import SECTION_COMMON
+from custom_components.haeo.schema import (
+    EntityOrConstantValue,
+    OptionalEntityOrConstantValue,
+    as_constant_value,
+    as_entity_value,
+    as_none_value,
+)
 
 # --- Fixtures ---
 
@@ -56,6 +63,10 @@ def number_field() -> InputFieldInfo[NumberEntityDescription]:
 def _field_map(*fields: InputFieldInfo[Any]) -> dict[str, InputFieldInfo[Any]]:
     """Build an input field mapping keyed by field name."""
     return {field.field_name: field for field in fields}
+
+
+ALLOWED_CHOICES_REQUIRED = frozenset({CHOICE_ENTITY, CHOICE_CONSTANT})
+ALLOWED_CHOICES_OPTIONAL = frozenset({CHOICE_ENTITY, CHOICE_CONSTANT, CHOICE_NONE})
 
 
 # --- Tests for boolean_selector_from_field ---
@@ -124,7 +135,7 @@ def test_build_choose_selector_creates_normalizing_choose_selector(
     number_field: InputFieldInfo[NumberEntityDescription],
 ) -> None:
     """NormalizingChooseSelector is created with entity and constant choices."""
-    selector = build_choose_selector(number_field)
+    selector = build_choose_selector(number_field, allowed_choices=ALLOWED_CHOICES_REQUIRED)
     assert isinstance(selector, NormalizingChooseSelector)
 
 
@@ -132,7 +143,11 @@ def test_build_choose_selector_entity_first_by_default(
     number_field: InputFieldInfo[NumberEntityDescription],
 ) -> None:
     """Entity choice appears first when preferred_choice is entity."""
-    selector = build_choose_selector(number_field, preferred_choice=CHOICE_ENTITY)
+    selector = build_choose_selector(
+        number_field,
+        allowed_choices=ALLOWED_CHOICES_REQUIRED,
+        preferred_choice=CHOICE_ENTITY,
+    )
     config = selector.config
     choices_keys = list(config["choices"].keys())
     assert choices_keys[0] == CHOICE_ENTITY
@@ -143,7 +158,11 @@ def test_build_choose_selector_constant_first_when_preferred(
     number_field: InputFieldInfo[NumberEntityDescription],
 ) -> None:
     """Constant choice appears first when preferred_choice is constant."""
-    selector = build_choose_selector(number_field, preferred_choice=CHOICE_CONSTANT)
+    selector = build_choose_selector(
+        number_field,
+        allowed_choices=ALLOWED_CHOICES_REQUIRED,
+        preferred_choice=CHOICE_CONSTANT,
+    )
     config = selector.config
     choices_keys = list(config["choices"].keys())
     assert choices_keys[0] == CHOICE_CONSTANT
@@ -164,7 +183,7 @@ def test_get_preferred_choice_returns_entity_by_default() -> None:
         output_type=OutputType.POWER,
         defaults=None,
     )
-    result = get_preferred_choice(field)
+    result = get_preferred_choice(field, allowed_choices=ALLOWED_CHOICES_REQUIRED)
     assert result == CHOICE_ENTITY
 
 
@@ -179,7 +198,7 @@ def test_get_preferred_choice_returns_constant_for_value_defaults() -> None:
         output_type=OutputType.POWER,
         defaults=InputFieldDefaults(mode="value", value=10.0),
     )
-    result = get_preferred_choice(field)
+    result = get_preferred_choice(field, allowed_choices=ALLOWED_CHOICES_REQUIRED)
     assert result == CHOICE_CONSTANT
 
 
@@ -194,12 +213,12 @@ def test_get_preferred_choice_returns_entity_for_entity_defaults() -> None:
         output_type=OutputType.POWER,
         defaults=InputFieldDefaults(mode="entity"),
     )
-    result = get_preferred_choice(field)
+    result = get_preferred_choice(field, allowed_choices=ALLOWED_CHOICES_REQUIRED)
     assert result == CHOICE_ENTITY
 
 
-def test_get_preferred_choice_uses_current_data_string_as_entity() -> None:
-    """get_preferred_choice returns entity when current_data has string value."""
+def test_get_preferred_choice_uses_current_data_entity_value() -> None:
+    """get_preferred_choice returns entity when current_data has schema entity value."""
     field = InputFieldInfo(
         field_name="power",
         entity_description=NumberEntityDescription(
@@ -208,13 +227,13 @@ def test_get_preferred_choice_uses_current_data_string_as_entity() -> None:
         ),
         output_type=OutputType.POWER,
     )
-    current_data = {SECTION_COMMON: {"power": "sensor.power"}}
-    result = get_preferred_choice(field, current_data)
+    current_data = {SECTION_COMMON: {"power": as_entity_value(["sensor.power"])}}
+    result = get_preferred_choice(field, current_data, allowed_choices=ALLOWED_CHOICES_REQUIRED)
     assert result == CHOICE_ENTITY
 
 
-def test_get_preferred_choice_uses_current_data_list_as_entity() -> None:
-    """get_preferred_choice returns entity when current_data has list value.
+def test_get_preferred_choice_uses_current_data_entity_list() -> None:
+    """get_preferred_choice returns entity when current_data has entity list.
 
     This covers the case where multiple=True is used on EntitySelector,
     which stores entity IDs as a list (e.g., for chained sensors).
@@ -229,18 +248,15 @@ def test_get_preferred_choice_uses_current_data_list_as_entity() -> None:
     )
     current_data = {
         SECTION_COMMON: {
-            "price_source_target": ["sensor.current_price", "sensor.forecast_price"],
+            "price_source_target": as_entity_value(["sensor.current_price", "sensor.forecast_price"]),
         }
     }
-    result = get_preferred_choice(field, current_data)
+    result = get_preferred_choice(field, current_data, allowed_choices=ALLOWED_CHOICES_REQUIRED)
     assert result == CHOICE_ENTITY
 
 
-def test_get_preferred_choice_uses_current_data_single_item_list_as_entity() -> None:
-    """get_preferred_choice returns entity when current_data has single-item list.
-
-    Even a single entity stored as a list should be recognized as entity mode.
-    """
+def test_get_preferred_choice_uses_current_data_single_entity_list() -> None:
+    """get_preferred_choice returns entity when current_data has a single entity."""
     field = InputFieldInfo(
         field_name="power",
         entity_description=NumberEntityDescription(
@@ -249,13 +265,13 @@ def test_get_preferred_choice_uses_current_data_single_item_list_as_entity() -> 
         ),
         output_type=OutputType.POWER,
     )
-    current_data = {SECTION_COMMON: {"power": ["sensor.power"]}}
-    result = get_preferred_choice(field, current_data)
+    current_data = {SECTION_COMMON: {"power": as_entity_value(["sensor.power"])}}
+    result = get_preferred_choice(field, current_data, allowed_choices=ALLOWED_CHOICES_REQUIRED)
     assert result == CHOICE_ENTITY
 
 
-def test_get_preferred_choice_uses_current_data_number_as_constant() -> None:
-    """get_preferred_choice returns constant when current_data has number value."""
+def test_get_preferred_choice_uses_current_data_constant_value() -> None:
+    """get_preferred_choice returns constant when current_data has schema constant value."""
     field = InputFieldInfo(
         field_name="power",
         entity_description=NumberEntityDescription(
@@ -264,13 +280,13 @@ def test_get_preferred_choice_uses_current_data_number_as_constant() -> None:
         ),
         output_type=OutputType.POWER,
     )
-    current_data = {SECTION_COMMON: {"power": 25.5}}
-    result = get_preferred_choice(field, current_data)
+    current_data = {SECTION_COMMON: {"power": as_constant_value(25.5)}}
+    result = get_preferred_choice(field, current_data, allowed_choices=ALLOWED_CHOICES_REQUIRED)
     assert result == CHOICE_CONSTANT
 
 
-def test_get_preferred_choice_uses_current_data_boolean_as_constant() -> None:
-    """get_preferred_choice returns constant when current_data has boolean value."""
+def test_get_preferred_choice_uses_current_data_boolean_constant() -> None:
+    """get_preferred_choice returns constant when current_data has boolean constant."""
     field = InputFieldInfo(
         field_name="enabled",
         entity_description=NumberEntityDescription(
@@ -279,8 +295,8 @@ def test_get_preferred_choice_uses_current_data_boolean_as_constant() -> None:
         ),
         output_type=OutputType.STATUS,
     )
-    current_data = {SECTION_COMMON: {"enabled": True}}
-    result = get_preferred_choice(field, current_data)
+    current_data = {SECTION_COMMON: {"enabled": as_constant_value(value=True)}}
+    result = get_preferred_choice(field, current_data, allowed_choices=ALLOWED_CHOICES_REQUIRED)
     assert result == CHOICE_CONSTANT
 
 
@@ -412,7 +428,7 @@ def test_get_choose_default_uses_current_data_constant(
         ),
         output_type=OutputType.POWER,
     )
-    current_data = {SECTION_COMMON: {"power": 25.5}}
+    current_data = {SECTION_COMMON: {"power": as_constant_value(25.5)}}
     result = get_choose_default(field, current_data=current_data)
     assert result == 25.5
 
@@ -420,7 +436,7 @@ def test_get_choose_default_uses_current_data_constant(
 def test_get_choose_default_uses_current_data_entity(
     hass: HomeAssistant,
 ) -> None:
-    """get_choose_default returns entity list from current_data string."""
+    """get_choose_default returns entity list from current_data."""
     field = InputFieldInfo(
         field_name="power",
         entity_description=NumberEntityDescription(
@@ -429,7 +445,7 @@ def test_get_choose_default_uses_current_data_entity(
         ),
         output_type=OutputType.POWER,
     )
-    current_data = {SECTION_COMMON: {"power": "sensor.power"}}
+    current_data = {SECTION_COMMON: {"power": as_entity_value(["sensor.power"])}}
     result = get_choose_default(field, current_data=current_data)
     assert result == ["sensor.power"]
 
@@ -446,7 +462,7 @@ def test_get_choose_default_uses_current_data_entity_list(
         ),
         output_type=OutputType.POWER,
     )
-    current_data = {SECTION_COMMON: {"power": ["sensor.power1", "sensor.power2"]}}
+    current_data = {SECTION_COMMON: {"power": as_entity_value(["sensor.power1", "sensor.power2"])}}
     result = get_choose_default(field, current_data=current_data)
     assert result == ["sensor.power1", "sensor.power2"]
 
@@ -463,7 +479,7 @@ def test_get_choose_default_uses_current_data_boolean(
         ),
         output_type=OutputType.STATUS,
     )
-    current_data = {SECTION_COMMON: {"enabled": True}}
+    current_data = {SECTION_COMMON: {"enabled": as_constant_value(value=True)}}
     result = get_choose_default(field, current_data=current_data)
     assert result is True
 
@@ -474,7 +490,7 @@ def test_get_choose_default_uses_current_data_boolean(
 def test_convert_choose_data_constant_stored_directly(
     number_field: InputFieldInfo[NumberEntityDescription],
 ) -> None:
-    """Constant choice value is stored directly.
+    """Constant choice value is stored as a schema value.
 
     After schema validation, ChooseSelector returns the raw value.
     """
@@ -482,13 +498,13 @@ def test_convert_choose_data_constant_stored_directly(
         "test_field": 42.0,  # Raw value after ChooseSelector validation
     }
     result = convert_choose_data_to_config(user_input, _field_map(number_field))
-    assert result["test_field"] == 42.0
+    assert result["test_field"] == as_constant_value(42.0)
 
 
 def test_convert_choose_data_entity_single_stored_as_string(
     number_field: InputFieldInfo[NumberEntityDescription],
 ) -> None:
-    """Single entity is stored as string.
+    """Single entity is stored as an entity schema value.
 
     After schema validation, ChooseSelector returns the entity list.
     """
@@ -496,13 +512,13 @@ def test_convert_choose_data_entity_single_stored_as_string(
         "test_field": ["sensor.power"],  # Raw list after ChooseSelector validation
     }
     result = convert_choose_data_to_config(user_input, _field_map(number_field))
-    assert result["test_field"] == "sensor.power"
+    assert result["test_field"] == as_entity_value(["sensor.power"])
 
 
 def test_convert_choose_data_entity_multiple_stored_as_list(
     number_field: InputFieldInfo[NumberEntityDescription],
 ) -> None:
-    """Multiple entities are stored as list.
+    """Multiple entities are stored as an entity schema value.
 
     After schema validation, ChooseSelector returns the entity list.
     """
@@ -510,29 +526,29 @@ def test_convert_choose_data_entity_multiple_stored_as_list(
         "test_field": ["sensor.power1", "sensor.power2"],  # Raw list
     }
     result = convert_choose_data_to_config(user_input, _field_map(number_field))
-    assert result["test_field"] == ["sensor.power1", "sensor.power2"]
+    assert result["test_field"] == as_entity_value(["sensor.power1", "sensor.power2"])
 
 
-def test_convert_choose_data_empty_value_omitted(
+def test_convert_choose_data_empty_value_stored_as_none(
     number_field: InputFieldInfo[NumberEntityDescription],
 ) -> None:
-    """Empty entity list is omitted from config."""
+    """Empty entity list is stored as none schema value."""
     user_input: dict[str, Any] = {
         "test_field": [],  # Empty list after ChooseSelector validation
     }
     result = convert_choose_data_to_config(user_input, _field_map(number_field))
-    assert "test_field" not in result
+    assert result["test_field"] == as_none_value()
 
 
-def test_convert_choose_data_none_constant_omitted(
+def test_convert_choose_data_none_constant_stored_as_none(
     number_field: InputFieldInfo[NumberEntityDescription],
 ) -> None:
-    """None value is omitted from config."""
+    """None value is stored as none schema value."""
     user_input: dict[str, Any] = {
         "test_field": None,
     }
     result = convert_choose_data_to_config(user_input, _field_map(number_field))
-    assert "test_field" not in result
+    assert result["test_field"] == as_none_value()
 
 
 def test_convert_choose_data_respects_exclude_keys(
@@ -545,7 +561,7 @@ def test_convert_choose_data_respects_exclude_keys(
     }
     result = convert_choose_data_to_config(user_input, _field_map(number_field), exclude_keys=("name",))
     assert "name" not in result
-    assert result["test_field"] == 42.0
+    assert result["test_field"] == as_constant_value(42.0)
 
 
 def test_convert_choose_data_ignores_unknown_fields(
@@ -559,6 +575,7 @@ def test_convert_choose_data_ignores_unknown_fields(
     result = convert_choose_data_to_config(user_input, _field_map(number_field))
     assert "test_field" in result
     assert "unknown_field" not in result
+    assert result["test_field"] == as_constant_value(42.0)
 
 
 def test_convert_choose_data_boolean_constant() -> None:
@@ -578,13 +595,13 @@ def test_convert_choose_data_boolean_constant() -> None:
         "enabled": True,  # Raw boolean
     }
     result = convert_choose_data_to_config(user_input, _field_map(field))
-    assert result["enabled"] is True
+    assert result["enabled"] == as_constant_value(value=True)
 
 
-def test_convert_choose_data_none_omits_field(
+def test_convert_choose_data_none_stored_as_none(
     number_field: InputFieldInfo[NumberEntityDescription],
 ) -> None:
-    """None choice omits field from config.
+    """None choice stores none schema value.
 
     After preprocessing, the none choice is converted to None.
     """
@@ -592,7 +609,7 @@ def test_convert_choose_data_none_omits_field(
         "test_field": None,  # None from preprocessing (originally "" from ConstantSelector)
     }
     result = convert_choose_data_to_config(user_input, _field_map(number_field))
-    assert "test_field" not in result
+    assert result["test_field"] == as_none_value()
 
 
 # --- Tests for none choice in build_choose_selector ---
@@ -602,7 +619,7 @@ def test_build_choose_selector_optional_has_none_choice(
     number_field: InputFieldInfo[NumberEntityDescription],
 ) -> None:
     """Optional field selector includes none choice."""
-    selector = build_choose_selector(number_field, is_optional=True)
+    selector = build_choose_selector(number_field, allowed_choices=ALLOWED_CHOICES_OPTIONAL)
     config = selector.config
     assert CHOICE_NONE in config["choices"]
     assert CHOICE_ENTITY in config["choices"]
@@ -613,7 +630,7 @@ def test_build_choose_selector_required_has_no_none_choice(
     number_field: InputFieldInfo[NumberEntityDescription],
 ) -> None:
     """Required field selector does not include none choice."""
-    selector = build_choose_selector(number_field, is_optional=False)
+    selector = build_choose_selector(number_field, allowed_choices=ALLOWED_CHOICES_REQUIRED)
     config = selector.config
     assert CHOICE_NONE not in config["choices"]
     assert CHOICE_ENTITY in config["choices"]
@@ -624,7 +641,11 @@ def test_build_choose_selector_none_first_when_preferred(
     number_field: InputFieldInfo[NumberEntityDescription],
 ) -> None:
     """None choice appears first when preferred_choice is none."""
-    selector = build_choose_selector(number_field, is_optional=True, preferred_choice=CHOICE_NONE)
+    selector = build_choose_selector(
+        number_field,
+        allowed_choices=ALLOWED_CHOICES_OPTIONAL,
+        preferred_choice=CHOICE_NONE,
+    )
     config = selector.config
     choices_keys = list(config["choices"].keys())
     assert choices_keys[0] == CHOICE_NONE
@@ -633,8 +654,8 @@ def test_build_choose_selector_none_first_when_preferred(
 # --- Tests for none choice in get_preferred_choice ---
 
 
-def test_get_preferred_choice_returns_none_for_optional_without_data() -> None:
-    """get_preferred_choice returns none for optional field not in current_data."""
+def test_get_preferred_choice_returns_none_for_optional_with_none_value() -> None:
+    """get_preferred_choice returns none when current_data has none value."""
     field = InputFieldInfo(
         field_name="power",
         entity_description=NumberEntityDescription(
@@ -644,14 +665,13 @@ def test_get_preferred_choice_returns_none_for_optional_without_data() -> None:
         output_type=OutputType.POWER,
         defaults=None,
     )
-    # current_data exists but field is not in it (meaning it was set to none)
-    current_data = {SECTION_COMMON: {"other_field": 10.0}}
-    result = get_preferred_choice(field, current_data, is_optional=True)
+    current_data = {SECTION_COMMON: {"power": as_none_value()}}
+    result = get_preferred_choice(field, current_data, allowed_choices=ALLOWED_CHOICES_OPTIONAL)
     assert result == CHOICE_NONE
 
 
 def test_get_preferred_choice_returns_none_for_optional_new_entry_no_defaults() -> None:
-    """get_preferred_choice returns none for optional field with no defaults in new entry."""
+    """get_preferred_choice returns none for optional field with no defaults."""
     field = InputFieldInfo(
         field_name="power",
         entity_description=NumberEntityDescription(
@@ -662,7 +682,7 @@ def test_get_preferred_choice_returns_none_for_optional_new_entry_no_defaults() 
         defaults=None,
     )
     # No current_data (new entry)
-    result = get_preferred_choice(field, None, is_optional=True)
+    result = get_preferred_choice(field, None, allowed_choices=ALLOWED_CHOICES_OPTIONAL)
     assert result == CHOICE_NONE
 
 
@@ -677,12 +697,12 @@ def test_get_preferred_choice_returns_value_for_optional_with_value_defaults() -
         output_type=OutputType.POWER,
         defaults=InputFieldDefaults(mode="value", value=10.0),
     )
-    result = get_preferred_choice(field, None, is_optional=True)
+    result = get_preferred_choice(field, None, allowed_choices=ALLOWED_CHOICES_OPTIONAL)
     assert result == CHOICE_CONSTANT
 
 
-def test_get_preferred_choice_required_field_ignores_is_optional_false() -> None:
-    """get_preferred_choice for required field (is_optional=False) returns entity by default."""
+def test_get_preferred_choice_required_field_returns_entity_by_default() -> None:
+    """get_preferred_choice for required field returns entity by default."""
     field = InputFieldInfo(
         field_name="power",
         entity_description=NumberEntityDescription(
@@ -693,14 +713,14 @@ def test_get_preferred_choice_required_field_ignores_is_optional_false() -> None
         defaults=None,
     )
     # current_data exists but field is not in it
-    current_data = {SECTION_COMMON: {"other_field": 10.0}}
-    result = get_preferred_choice(field, current_data, is_optional=False)
+    current_data = {SECTION_COMMON: {"other_field": as_constant_value(10.0)}}
+    result = get_preferred_choice(field, current_data, allowed_choices=ALLOWED_CHOICES_REQUIRED)
     # Required field should NOT return none, should return entity
     assert result == CHOICE_ENTITY
 
 
 def test_get_preferred_choice_returns_none_for_defaults_mode_none() -> None:
-    """get_preferred_choice returns none when defaults.mode is None for optional field."""
+    """get_preferred_choice returns none when defaults.mode is None."""
     field = InputFieldInfo(
         field_name="efficiency",
         entity_description=NumberEntityDescription(
@@ -712,7 +732,7 @@ def test_get_preferred_choice_returns_none_for_defaults_mode_none() -> None:
         defaults=InputFieldDefaults(mode=None, value=100.0),
     )
     # No current_data (new entry)
-    result = get_preferred_choice(field, None, is_optional=True)
+    result = get_preferred_choice(field, None, allowed_choices=ALLOWED_CHOICES_OPTIONAL)
     assert result == CHOICE_NONE
 
 
@@ -727,7 +747,7 @@ def test_get_preferred_choice_returns_entity_for_defaults_mode_entity() -> None:
         output_type=OutputType.POWER,
         defaults=InputFieldDefaults(mode="entity"),
     )
-    result = get_preferred_choice(field, None, is_optional=True)
+    result = get_preferred_choice(field, None, allowed_choices=ALLOWED_CHOICES_OPTIONAL)
     assert result == CHOICE_ENTITY
 
 
@@ -758,27 +778,6 @@ def test_build_entity_selector_without_include_entities(hass: HomeAssistant) -> 
     config = selector.config
     # Even with None, HAEO input entities are added (if any exist)
     assert config["domain"] == [DOMAIN, "sensor", "input_number", "number", "switch"]
-
-
-# --- Tests for _normalize_entity_selection ---
-
-
-def test_normalize_entity_selection_with_string_returns_string() -> None:
-    """_normalize_entity_selection returns string unchanged when passed a string."""
-    result = _normalize_entity_selection("sensor.power")
-    assert result == "sensor.power"
-
-
-def test_normalize_entity_selection_single_element_list_returns_string() -> None:
-    """_normalize_entity_selection extracts single element from list."""
-    result = _normalize_entity_selection(["sensor.power"])
-    assert result == "sensor.power"
-
-
-def test_normalize_entity_selection_multi_element_list_returns_list() -> None:
-    """_normalize_entity_selection keeps multi-element list as list."""
-    result = _normalize_entity_selection(["sensor.power1", "sensor.power2"])
-    assert result == ["sensor.power1", "sensor.power2"]
 
 
 # --- Tests for preprocess_choose_selector_input ---
@@ -930,7 +929,10 @@ def test_validate_choose_fields_returns_empty_for_valid_input(
 ) -> None:
     """validate_choose_fields returns empty dict when all required fields are valid."""
     user_input = {"test_field": 42.0}
-    result = validate_choose_fields(user_input, _field_map(number_field), frozenset())
+    field_schema = {
+        "test_field": FieldSchemaInfo(value_type=EntityOrConstantValue, is_optional=False),
+    }
+    result = validate_choose_fields(user_input, _field_map(number_field), field_schema)
     assert result == {}
 
 
@@ -939,7 +941,10 @@ def test_validate_choose_fields_returns_error_for_invalid_required(
 ) -> None:
     """validate_choose_fields returns error for invalid required field."""
     user_input = {"test_field": None}
-    result = validate_choose_fields(user_input, _field_map(number_field), frozenset())
+    field_schema = {
+        "test_field": FieldSchemaInfo(value_type=EntityOrConstantValue, is_optional=False),
+    }
+    result = validate_choose_fields(user_input, _field_map(number_field), field_schema)
     assert result == {"test_field": "required"}
 
 
@@ -948,8 +953,10 @@ def test_validate_choose_fields_skips_optional_fields(
 ) -> None:
     """validate_choose_fields skips fields in optional_keys."""
     user_input = {"test_field": None}
-    # Mark test_field as optional
-    result = validate_choose_fields(user_input, _field_map(number_field), frozenset({"test_field"}))
+    field_schema = {
+        "test_field": FieldSchemaInfo(value_type=OptionalEntityOrConstantValue, is_optional=True),
+    }
+    result = validate_choose_fields(user_input, _field_map(number_field), field_schema)
     assert result == {}
 
 
@@ -958,10 +965,13 @@ def test_validate_choose_fields_skips_excluded_fields(
 ) -> None:
     """validate_choose_fields skips fields in exclude_fields."""
     user_input = {"test_field": None}
+    field_schema = {
+        "test_field": FieldSchemaInfo(value_type=EntityOrConstantValue, is_optional=False),
+    }
     result = validate_choose_fields(
         user_input,
         _field_map(number_field),
-        frozenset(),
+        field_schema,
         exclude_fields=("test_field",),
     )
     assert result == {}
@@ -974,7 +984,11 @@ def test_normalizing_choose_selector_call_with_none_choice(
     number_field: InputFieldInfo[NumberEntityDescription],
 ) -> None:
     """NormalizingChooseSelector normalizes none choice dict to empty string."""
-    selector = build_choose_selector(number_field, is_optional=True, preferred_choice=CHOICE_NONE)
+    selector = build_choose_selector(
+        number_field,
+        allowed_choices=ALLOWED_CHOICES_OPTIONAL,
+        preferred_choice=CHOICE_NONE,
+    )
     # The selector should normalize {"active_choice": "none", ...} to ""
     # and then validate it (ConstantSelector accepts "")
     result = selector({"active_choice": "none", "constant": 100})
@@ -985,7 +999,11 @@ def test_normalizing_choose_selector_call_with_entity_choice(
     number_field: InputFieldInfo[NumberEntityDescription],
 ) -> None:
     """NormalizingChooseSelector normalizes entity choice dict to entity list."""
-    selector = build_choose_selector(number_field, preferred_choice=CHOICE_ENTITY)
+    selector = build_choose_selector(
+        number_field,
+        allowed_choices=ALLOWED_CHOICES_REQUIRED,
+        preferred_choice=CHOICE_ENTITY,
+    )
     # The selector should normalize {"active_choice": "entity", "entity": [...]} to the list
     result = selector({"active_choice": "entity", "entity": ["sensor.power"]})
     assert result == ["sensor.power"]
@@ -995,7 +1013,11 @@ def test_normalizing_choose_selector_call_with_constant_choice(
     number_field: InputFieldInfo[NumberEntityDescription],
 ) -> None:
     """NormalizingChooseSelector normalizes constant choice dict to constant value."""
-    selector = build_choose_selector(number_field, preferred_choice=CHOICE_CONSTANT)
+    selector = build_choose_selector(
+        number_field,
+        allowed_choices=ALLOWED_CHOICES_REQUIRED,
+        preferred_choice=CHOICE_CONSTANT,
+    )
     # The selector should normalize {"active_choice": "constant", "constant": 42.0} to 42.0
     result = selector({"active_choice": "constant", "constant": 42.0})
     assert result == 42.0
@@ -1005,7 +1027,11 @@ def test_normalizing_choose_selector_call_passthrough_already_normalized(
     number_field: InputFieldInfo[NumberEntityDescription],
 ) -> None:
     """NormalizingChooseSelector passes through already-normalized values."""
-    selector = build_choose_selector(number_field, preferred_choice=CHOICE_CONSTANT)
+    selector = build_choose_selector(
+        number_field,
+        allowed_choices=ALLOWED_CHOICES_REQUIRED,
+        preferred_choice=CHOICE_CONSTANT,
+    )
     # Already normalized constant value should pass through
     result = selector(50.0)
     assert result == 50.0

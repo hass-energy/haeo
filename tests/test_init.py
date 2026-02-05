@@ -71,6 +71,7 @@ from custom_components.haeo.elements.grid import (
 from custom_components.haeo.elements.node import SECTION_ROLE
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON, HUB_SECTION_TIERS
 from custom_components.haeo.sections import SECTION_COMMON, SECTION_EFFICIENCY, SECTION_POWER_LIMITS, SECTION_PRICING
+from custom_components.haeo.schema import as_constant_value, as_entity_value
 
 
 @pytest.fixture
@@ -112,8 +113,8 @@ def mock_battery_subentry(hass: HomeAssistant, mock_hub_entry: MockConfigEntry) 
                     CONF_CONNECTION: "Switchboard",
                 },
                 SECTION_STORAGE: {
-                    CONF_CAPACITY: 10000,
-                    CONF_INITIAL_CHARGE_PERCENTAGE: "sensor.battery_charge",
+                    CONF_CAPACITY: as_constant_value(10000.0),
+                    CONF_INITIAL_CHARGE_PERCENTAGE: as_entity_value(["sensor.battery_charge"]),
                 },
                 SECTION_LIMITS: {},
                 SECTION_POWER_LIMITS: {},
@@ -142,12 +143,12 @@ def mock_grid_subentry(hass: HomeAssistant, mock_hub_entry: MockConfigEntry) -> 
                     CONF_CONNECTION: "Switchboard",
                 },
                 SECTION_PRICING: {
-                    CONF_PRICE_SOURCE_TARGET: ["sensor.import_price"],
-                    CONF_PRICE_TARGET_SOURCE: ["sensor.export_price"],
+                    CONF_PRICE_SOURCE_TARGET: as_entity_value(["sensor.import_price"]),
+                    CONF_PRICE_TARGET_SOURCE: as_entity_value(["sensor.export_price"]),
                 },
                 SECTION_POWER_LIMITS: {
-                    CONF_MAX_POWER_SOURCE_TARGET: 10000,
-                    CONF_MAX_POWER_TARGET_SOURCE: 5000,
+                    CONF_MAX_POWER_SOURCE_TARGET: as_constant_value(10000.0),
+                    CONF_MAX_POWER_TARGET_SOURCE: as_constant_value(5000.0),
                 },
             }
         ),

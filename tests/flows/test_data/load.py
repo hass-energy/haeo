@@ -2,6 +2,7 @@
 
 from custom_components.haeo.const import CONF_NAME
 from custom_components.haeo.elements.load import CONF_CONNECTION, CONF_FORECAST, SECTION_COMMON, SECTION_FORECAST
+from custom_components.haeo.schema import as_constant_value, as_entity_value
 
 # Test data for load flow - single-step with choose selector
 # config: Contains all field values in choose selector format
@@ -14,7 +15,7 @@ VALID_DATA = [
                 CONF_CONNECTION: "main_bus",
             },
             SECTION_FORECAST: {
-                CONF_FORECAST: ["sensor.forecast1", "sensor.forecast2"],
+                CONF_FORECAST: as_entity_value(["sensor.forecast1", "sensor.forecast2"]),
             },
         },
     },
@@ -26,7 +27,7 @@ VALID_DATA = [
                 CONF_CONNECTION: "main_bus",
             },
             SECTION_FORECAST: {
-                CONF_FORECAST: 1.5,
+                CONF_FORECAST: as_constant_value(1.5),
             },
         },
     },

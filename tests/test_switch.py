@@ -31,6 +31,7 @@ from custom_components.haeo.entities.auto_optimize_switch import AutoOptimizeSwi
 from custom_components.haeo.entities.haeo_number import ConfigEntityMode
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON, HUB_SECTION_TIERS
 from custom_components.haeo.horizon import HorizonManager
+from custom_components.haeo.schema import as_constant_value, as_entity_value, as_none_value
 from custom_components.haeo.switch import async_setup_entry
 
 
@@ -86,6 +87,21 @@ def _add_subentry(
     data: dict[str, object],
 ) -> ConfigSubentry:
     """Add a subentry to the config entry."""
+
+    def schema_value(value: object) -> object:
+        if value is None:
+            return as_none_value()
+        if isinstance(value, bool):
+            return as_constant_value(value)
+        if isinstance(value, (int, float)):
+            return as_constant_value(float(value))
+        if isinstance(value, str):
+            return as_entity_value([value])
+        if isinstance(value, list) and all(isinstance(item, str) for item in value):
+            return as_entity_value(value)
+        msg = f"Unsupported schema value {value!r}"
+        raise TypeError(msg)
+
     payload: dict[str, object] = {CONF_ELEMENT_TYPE: subentry_type}
     if subentry_type == GRID_TYPE:
         payload |= {
@@ -94,12 +110,12 @@ def _add_subentry(
                 CONF_CONNECTION: data.get("connection", "Switchboard"),
             },
             SECTION_PRICING: {
-                CONF_PRICE_SOURCE_TARGET: data.get("price_source_target"),
-                CONF_PRICE_TARGET_SOURCE: data.get("price_target_source"),
+                CONF_PRICE_SOURCE_TARGET: schema_value(data.get("price_source_target")),
+                CONF_PRICE_TARGET_SOURCE: schema_value(data.get("price_target_source")),
             },
             SECTION_POWER_LIMITS: {
-                CONF_MAX_POWER_SOURCE_TARGET: data.get("max_power_source_target"),
-                CONF_MAX_POWER_TARGET_SOURCE: data.get("max_power_target_source"),
+                CONF_MAX_POWER_SOURCE_TARGET: schema_value(data.get("max_power_source_target")),
+                CONF_MAX_POWER_TARGET_SOURCE: schema_value(data.get("max_power_target_source")),
             },
         }
     elif subentry_type == SOLAR_TYPE:
@@ -109,13 +125,13 @@ def _add_subentry(
                 CONF_CONNECTION: data.get("connection", "Switchboard"),
             },
             SECTION_FORECAST: {
-                CONF_FORECAST: data.get("forecast", ["sensor.solar_forecast"]),
+                CONF_FORECAST: schema_value(data.get("forecast", ["sensor.solar_forecast"])),
             },
             SECTION_PRICING: {
-                CONF_SOLAR_PRICE_SOURCE_TARGET: data.get("price_source_target"),
+                CONF_SOLAR_PRICE_SOURCE_TARGET: schema_value(data.get("price_source_target")),
             },
             SECTION_CURTAILMENT: {
-                CONF_CURTAILMENT: data.get("curtailment"),
+                CONF_CURTAILMENT: schema_value(data.get("curtailment")),
             },
         }
     else:

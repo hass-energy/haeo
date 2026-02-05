@@ -22,6 +22,7 @@ from custom_components.haeo.elements.battery import (
     SECTION_PRICING,
     SECTION_STORAGE,
 )
+from custom_components.haeo.schema import as_constant_value, as_entity_value
 
 # Test data for battery flow - single-step with choose selector (plus optional partition step)
 # config: Contains all field values in choose selector format
@@ -34,23 +35,23 @@ VALID_DATA = [
                 CONF_CONNECTION: "main_bus",
             },
             SECTION_STORAGE: {
-                CONF_CAPACITY: 10.0,
-                CONF_INITIAL_CHARGE_PERCENTAGE: ["sensor.battery_soc"],
+                CONF_CAPACITY: as_constant_value(10.0),
+                CONF_INITIAL_CHARGE_PERCENTAGE: as_entity_value(["sensor.battery_soc"]),
             },
             SECTION_LIMITS: {
-                CONF_MIN_CHARGE_PERCENTAGE: 10.0,
-                CONF_MAX_CHARGE_PERCENTAGE: 90.0,
+                CONF_MIN_CHARGE_PERCENTAGE: as_constant_value(10.0),
+                CONF_MAX_CHARGE_PERCENTAGE: as_constant_value(90.0),
             },
             SECTION_POWER_LIMITS: {
-                CONF_MAX_POWER_TARGET_SOURCE: 5.0,
-                CONF_MAX_POWER_SOURCE_TARGET: 5.0,
+                CONF_MAX_POWER_TARGET_SOURCE: as_constant_value(5.0),
+                CONF_MAX_POWER_SOURCE_TARGET: as_constant_value(5.0),
             },
             SECTION_PRICING: {
-                CONF_PRICE_TARGET_SOURCE: 0.01,
+                CONF_PRICE_TARGET_SOURCE: as_constant_value(0.01),
             },
             SECTION_EFFICIENCY: {
-                CONF_EFFICIENCY_SOURCE_TARGET: 95.0,
-                CONF_EFFICIENCY_TARGET_SOURCE: 95.0,
+                CONF_EFFICIENCY_SOURCE_TARGET: as_constant_value(95.0),
+                CONF_EFFICIENCY_TARGET_SOURCE: as_constant_value(95.0),
             },
             SECTION_PARTITIONING: {
                 CONF_CONFIGURE_PARTITIONS: False,
@@ -65,24 +66,24 @@ VALID_DATA = [
                 CONF_CONNECTION: "main_bus",
             },
             SECTION_STORAGE: {
-                CONF_CAPACITY: 10.0,
-                CONF_INITIAL_CHARGE_PERCENTAGE: ["sensor.battery_soc"],
+                CONF_CAPACITY: as_constant_value(10.0),
+                CONF_INITIAL_CHARGE_PERCENTAGE: as_entity_value(["sensor.battery_soc"]),
             },
             SECTION_LIMITS: {
-                CONF_MIN_CHARGE_PERCENTAGE: 10.0,
-                CONF_MAX_CHARGE_PERCENTAGE: 90.0,
+                CONF_MIN_CHARGE_PERCENTAGE: as_constant_value(10.0),
+                CONF_MAX_CHARGE_PERCENTAGE: as_constant_value(90.0),
             },
             SECTION_POWER_LIMITS: {
-                CONF_MAX_POWER_TARGET_SOURCE: 5.0,
-                CONF_MAX_POWER_SOURCE_TARGET: 5.0,
+                CONF_MAX_POWER_TARGET_SOURCE: as_constant_value(5.0),
+                CONF_MAX_POWER_SOURCE_TARGET: as_constant_value(5.0),
             },
             SECTION_PRICING: {
-                CONF_PRICE_TARGET_SOURCE: 0.05,
-                CONF_PRICE_SOURCE_TARGET: 0.03,
+                CONF_PRICE_TARGET_SOURCE: as_constant_value(0.05),
+                CONF_PRICE_SOURCE_TARGET: as_constant_value(0.03),
             },
             SECTION_EFFICIENCY: {
-                CONF_EFFICIENCY_SOURCE_TARGET: 95.0,
-                CONF_EFFICIENCY_TARGET_SOURCE: 95.0,
+                CONF_EFFICIENCY_SOURCE_TARGET: as_constant_value(95.0),
+                CONF_EFFICIENCY_TARGET_SOURCE: as_constant_value(95.0),
             },
             SECTION_PARTITIONING: {
                 CONF_CONFIGURE_PARTITIONS: False,
@@ -100,20 +101,20 @@ INVALID_DATA = [
                 CONF_CONNECTION: "main_bus",
             },
             SECTION_STORAGE: {
-                CONF_CAPACITY: 10.0,
-                CONF_INITIAL_CHARGE_PERCENTAGE: ["sensor.battery_soc"],
+                CONF_CAPACITY: as_constant_value(10.0),
+                CONF_INITIAL_CHARGE_PERCENTAGE: as_entity_value(["sensor.battery_soc"]),
             },
             SECTION_LIMITS: {},
             SECTION_POWER_LIMITS: {
-                CONF_MAX_POWER_TARGET_SOURCE: 5.0,
-                CONF_MAX_POWER_SOURCE_TARGET: 5.0,
+                CONF_MAX_POWER_TARGET_SOURCE: as_constant_value(5.0),
+                CONF_MAX_POWER_SOURCE_TARGET: as_constant_value(5.0),
             },
             SECTION_PRICING: {
-                CONF_PRICE_TARGET_SOURCE: 0.01,
+                CONF_PRICE_TARGET_SOURCE: as_constant_value(0.01),
             },
             SECTION_EFFICIENCY: {
-                CONF_EFFICIENCY_SOURCE_TARGET: 95.0,
-                CONF_EFFICIENCY_TARGET_SOURCE: 95.0,
+                CONF_EFFICIENCY_SOURCE_TARGET: as_constant_value(95.0),
+                CONF_EFFICIENCY_TARGET_SOURCE: as_constant_value(95.0),
             },
             SECTION_PARTITIONING: {
                 CONF_CONFIGURE_PARTITIONS: False,

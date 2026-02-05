@@ -18,6 +18,7 @@ from custom_components.haeo.elements.load import (
     SECTION_COMMON,
     SECTION_FORECAST,
 )
+from custom_components.haeo.schema import as_constant_value, as_entity_value
 
 from ..conftest import add_participant, create_flow
 
@@ -51,7 +52,7 @@ async def test_reconfigure_with_deleted_connection_target(hass: HomeAssistant, h
         {
             CONF_NAME: "Test Load",
             CONF_CONNECTION: "DeletedNode",  # This node no longer exists
-            CONF_FORECAST: ["sensor.power"],
+            CONF_FORECAST: as_entity_value(["sensor.power"]),
         }
     )
     existing_subentry = ConfigSubentry(
@@ -108,16 +109,16 @@ async def test_get_subentry_returns_none_for_user_flow(hass: HomeAssistant, hub_
     assert subentry is None
 
 
-async def test_reconfigure_with_string_entity_id_v010_format(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
-    """Reconfigure with v0.1.0 string entity ID should show entity in defaults."""
+async def test_reconfigure_with_schema_entity_value(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
+    """Reconfigure with schema entity value should show entity in defaults."""
     add_participant(hass, hub_entry, "TestNode", node.ELEMENT_TYPE)
 
-    # Create existing entry with v0.1.0 format: string entity ID (not list, not scalar)
+    # Create existing entry with schema entity value
     existing_config = _wrap_config(
         {
             CONF_NAME: "Test Load",
             CONF_CONNECTION: "TestNode",
-            CONF_FORECAST: "sensor.load_forecast",  # Simulating v0.1.0 single string entity ID
+            CONF_FORECAST: as_entity_value(["sensor.load_forecast"]),
         }
     )
     existing_subentry = ConfigSubentry(
@@ -149,12 +150,12 @@ async def test_reconfigure_with_scalar_shows_constant_defaults(hass: HomeAssista
     """Reconfigure with scalar value should show constant choice in defaults."""
     add_participant(hass, hub_entry, "TestNode", node.ELEMENT_TYPE)
 
-    # Create existing entry with scalar value (from constant config)
+    # Create existing entry with constant schema value
     existing_config = _wrap_config(
         {
             CONF_NAME: "Test Load",
             CONF_CONNECTION: "TestNode",
-            CONF_FORECAST: 100.0,  # Scalar value, not entity link
+            CONF_FORECAST: as_constant_value(100.0),
         }
     )
     existing_subentry = ConfigSubentry(
@@ -236,9 +237,9 @@ async def test_user_step_with_entity_creates_entry(
 
     assert result.get("type") == FlowResultType.CREATE_ENTRY
 
-    # Verify the config contains the entity ID as string
+    # Verify the config contains the entity schema value
     create_kwargs = flow.async_create_entry.call_args.kwargs
-    assert create_kwargs["data"][SECTION_FORECAST][CONF_FORECAST] == "sensor.load_forecast"
+    assert create_kwargs["data"][SECTION_FORECAST][CONF_FORECAST] == as_entity_value(["sensor.load_forecast"])
 
 
 async def test_user_step_with_constant_creates_entry(
@@ -269,9 +270,9 @@ async def test_user_step_with_constant_creates_entry(
 
     assert result.get("type") == FlowResultType.CREATE_ENTRY
 
-    # Verify the config contains the constant value
+    # Verify the config contains the constant schema value
     create_kwargs = flow.async_create_entry.call_args.kwargs
-    assert create_kwargs["data"][SECTION_FORECAST][CONF_FORECAST] == 5.0
+    assert create_kwargs["data"][SECTION_FORECAST][CONF_FORECAST] == as_constant_value(5.0)
 
 
 async def test_user_step_empty_required_field_shows_error(

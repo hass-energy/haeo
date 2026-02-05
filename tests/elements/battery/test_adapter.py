@@ -6,6 +6,7 @@ import numpy as np
 from custom_components.haeo.elements import battery
 from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_BATTERY, MODEL_ELEMENT_TYPE_CONNECTION
 from custom_components.haeo.model.elements.segments import is_efficiency_spec
+from custom_components.haeo.schema import as_constant_value, as_entity_value, as_none_value
 
 
 def _set_sensor(hass: HomeAssistant, entity_id: str, value: str, unit: str = "kW") -> None:
@@ -15,6 +16,19 @@ def _set_sensor(hass: HomeAssistant, entity_id: str, value: str, unit: str = "kW
 
 def _wrap_config(flat: dict[str, object]) -> battery.BatteryConfigSchema:
     """Wrap flat battery config values into sectioned config."""
+    def to_schema_value(value: object) -> object:
+        if value is None:
+            return as_none_value()
+        if isinstance(value, bool):
+            return as_constant_value(value)
+        if isinstance(value, (int, float)):
+            return as_constant_value(float(value))
+        if isinstance(value, str):
+            return as_entity_value([value])
+        if isinstance(value, list) and all(isinstance(item, str) for item in value):
+            return as_entity_value(value)
+        return value
+
     common: dict[str, object] = {}
     storage: dict[str, object] = {}
     limits: dict[str, object] = {}
@@ -35,30 +49,30 @@ def _wrap_config(flat: dict[str, object]) -> battery.BatteryConfigSchema:
             "capacity",
             "initial_charge_percentage",
         ):
-            storage[key] = value
+            storage[key] = to_schema_value(value)
         elif key in (
             "min_charge_percentage",
             "max_charge_percentage",
         ):
-            limits[key] = value
+            limits[key] = to_schema_value(value)
         elif key in ("efficiency_source_target", "efficiency_target_source"):
-            efficiency[key] = value
+            efficiency[key] = to_schema_value(value)
         elif key == "configure_partitions":
             partitioning[key] = value
         elif key in (
             "max_power_source_target",
             "max_power_target_source",
         ):
-            power_limits[key] = value
+            power_limits[key] = to_schema_value(value)
         elif key in (
             "price_source_target",
             "price_target_source",
         ):
-            pricing[key] = value
+            pricing[key] = to_schema_value(value)
         elif key == "undercharge" and isinstance(value, dict):
-            undercharge.update(value)
+            undercharge.update({subkey: to_schema_value(subvalue) for subkey, subvalue in value.items()})
         elif key == "overcharge" and isinstance(value, dict):
-            overcharge.update(value)
+            overcharge.update({subkey: to_schema_value(subvalue) for subkey, subvalue in value.items()})
 
     config: dict[str, object] = {
         "element_type": "battery",
