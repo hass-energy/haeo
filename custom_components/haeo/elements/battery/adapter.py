@@ -491,19 +491,25 @@ adapter = BatteryAdapter()
 def _decay_charge_price(
     value: NDArray[np.floating[Any]] | float | None,
     n_periods: int,
-) -> NDArray[np.float64] | float | None:
-    """Apply a decaying charge price when a single value is provided."""
+) -> NDArray[np.float64] | None:
+    """Apply a decaying charge price across the horizon."""
     if value is None:
         return None
 
-    value_array = np.atleast_1d(value)
-    if value_array.size <= 1:
-        start_value = float(value_array[0])
-        if n_periods <= 1:
-            return np.array([start_value], dtype=np.float64)
-        return np.linspace(start_value, 0.0, num=n_periods, dtype=np.float64)
+    value_array = np.atleast_1d(value).astype(np.float64, copy=False)
+    if value_array.size == 0:
+        msg = "Charge pricing sequence cannot be empty"
+        raise ValueError(msg)
 
-    return np.asarray(value, dtype=np.float64)
+    if n_periods <= 1:
+        return np.array([float(value_array[0])], dtype=np.float64)
+
+    decay = np.linspace(1.0, 0.0, num=n_periods, dtype=np.float64)
+    if value_array.size == 1:
+        return decay * float(value_array[0])
+
+    values = broadcast_to_sequence(value_array, n_periods)
+    return values * decay
 
 
 def _partition_input_fields(
