@@ -1,14 +1,17 @@
 """Tests for battery adapter config handling and model elements."""
 
+from collections.abc import Sequence
+
 from homeassistant.core import HomeAssistant
 import numpy as np
 
 from custom_components.haeo.elements import battery
-from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_BATTERY, MODEL_ELEMENT_TYPE_CONNECTION
+from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_BATTERY, MODEL_ELEMENT_TYPE_CONNECTION, ModelElementConfig
+from custom_components.haeo.model.elements.connection import ConnectionElementConfig
 from custom_components.haeo.model.elements.segments import is_efficiency_spec
 
 
-def _get_connection(elements: list[dict[str, object]], name: str) -> dict[str, object]:
+def _get_connection(elements: Sequence[ModelElementConfig], name: str) -> ConnectionElementConfig:
     """Extract connection element by name from model elements list."""
     connection = next(
         (e for e in elements if e.get("element_type") == MODEL_ELEMENT_TYPE_CONNECTION and e.get("name") == name),
@@ -17,7 +20,7 @@ def _get_connection(elements: list[dict[str, object]], name: str) -> dict[str, o
     if connection is None:
         msg = f"Connection '{name}' not found in elements"
         raise ValueError(msg)
-    return connection
+    return connection  # type: ignore[return-value]
 
 
 def _set_sensor(hass: HomeAssistant, entity_id: str, value: str, unit: str = "kW") -> None:
