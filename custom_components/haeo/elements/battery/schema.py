@@ -69,39 +69,32 @@ PARTITION_FIELD_NAMES: Final[frozenset[str]] = frozenset(
 )
 
 
-type LimitsValueConfig = str | float
-type LimitsValueData = NDArray[np.floating[Any]] | float
-
-type StorageValueConfig = str | float
-type StorageValueData = NDArray[np.floating[Any]]
-
-
 class StorageSocConfig(TypedDict):
     """Storage config with required SOC percentage."""
 
-    capacity: StorageValueConfig
-    initial_charge_percentage: StorageValueConfig
+    capacity: str | float
+    initial_charge_percentage: str | float
 
 
 class StorageSocData(TypedDict):
     """Loaded storage values with required SOC percentage."""
 
-    capacity: StorageValueData
-    initial_charge_percentage: StorageValueData
+    capacity: NDArray[np.floating[Any]]
+    initial_charge_percentage: NDArray[np.floating[Any]]
 
 
 class LimitsConfig(TypedDict, total=False):
     """Charge percentage limits configuration."""
 
-    min_charge_percentage: LimitsValueConfig
-    max_charge_percentage: LimitsValueConfig
+    min_charge_percentage: str | float
+    max_charge_percentage: str | float
 
 
 class LimitsData(TypedDict, total=False):
     """Loaded charge percentage limits."""
 
-    min_charge_percentage: LimitsValueData
-    max_charge_percentage: LimitsValueData
+    min_charge_percentage: NDArray[np.floating[Any]] | float
+    max_charge_percentage: NDArray[np.floating[Any]] | float
 
 
 class PartitioningConfig(TypedDict, total=False):
@@ -116,15 +109,11 @@ class PartitioningData(TypedDict, total=False):
     configure_partitions: bool
 
 
-type PartitionPercentageConfig = str | float
-type PartitionCostConfig = list[str] | str | float
-
-
 class PartitionConfig(TypedDict, total=False):
     """Partition configuration (undercharge/overcharge)."""
 
-    percentage: PartitionPercentageConfig
-    cost: PartitionCostConfig
+    percentage: str | float
+    cost: list[str] | str | float
 
 
 class PartitionData(TypedDict, total=False):

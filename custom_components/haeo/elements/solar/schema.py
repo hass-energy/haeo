@@ -25,13 +25,10 @@ CONF_CURTAILMENT: Final = "curtailment"
 OPTIONAL_INPUT_FIELDS: Final[frozenset[str]] = frozenset({CONF_CURTAILMENT, CONF_PRICE_SOURCE_TARGET})
 
 
-type CurtailmentValueConfig = str | bool
-
-
 class CurtailmentConfig(TypedDict, total=False):
     """Curtailment configuration values."""
 
-    curtailment: CurtailmentValueConfig
+    curtailment: str | bool
 
 
 class CurtailmentData(TypedDict, total=False):

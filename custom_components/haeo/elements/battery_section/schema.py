@@ -21,22 +21,18 @@ CONF_INITIAL_CHARGE: Final = "initial_charge"
 
 OPTIONAL_INPUT_FIELDS: Final[frozenset[str]] = frozenset()
 
-type StorageValueConfig = str | float
-type StorageValueData = NDArray[np.floating[Any]]
-
-
 class StorageChargeConfig(TypedDict):
     """Storage config with required initial charge."""
 
-    capacity: StorageValueConfig
-    initial_charge: StorageValueConfig
+    capacity: str | float
+    initial_charge: str | float
 
 
 class StorageChargeData(TypedDict):
     """Loaded storage values with required initial charge."""
 
-    capacity: StorageValueData
-    initial_charge: StorageValueData
+    capacity: NDArray[np.floating[Any]]
+    initial_charge: NDArray[np.floating[Any]]
 
 
 class BatterySectionConfigSchema(TypedDict):
