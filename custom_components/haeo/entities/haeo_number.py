@@ -9,7 +9,7 @@ from typing import Any
 from homeassistant.components.number import NumberEntity, NumberEntityDescription
 from homeassistant.config_entries import ConfigSubentry
 from homeassistant.const import PERCENTAGE, EntityCategory
-from homeassistant.core import Event, HomeAssistant, State, callback
+from homeassistant.core import Event, State, callback
 from homeassistant.helpers.device_registry import DeviceEntry
 from homeassistant.helpers.event import EventStateChangedData, async_track_state_change_event
 from homeassistant.util import dt as dt_util
