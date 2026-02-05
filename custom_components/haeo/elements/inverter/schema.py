@@ -14,8 +14,8 @@ from custom_components.haeo.sections import (
     ConnectedCommonData,
     EfficiencyConfig,
     EfficiencyData,
-    PowerLimitsPairConfig,
-    PowerLimitsPairData,
+    PowerLimitsConfig,
+    PowerLimitsData,
 )
 
 ELEMENT_TYPE: Final = "inverter"
@@ -28,7 +28,7 @@ class InverterConfigSchema(TypedDict):
 
     element_type: Literal["inverter"]
     common: ConnectedCommonConfig
-    power_limits: PowerLimitsPairConfig
+    power_limits: PowerLimitsConfig
     efficiency: EfficiencyConfig
 
 
@@ -37,7 +37,7 @@ class InverterConfigData(TypedDict):
 
     element_type: Literal["inverter"]
     common: ConnectedCommonData
-    power_limits: PowerLimitsPairData
+    power_limits: PowerLimitsData
     efficiency: EfficiencyData
 
 

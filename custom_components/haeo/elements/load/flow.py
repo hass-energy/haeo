@@ -27,6 +27,7 @@ from custom_components.haeo.sections import (
     SECTION_COMMON,
     SECTION_FORECAST,
     build_common_fields,
+    build_forecast_fields,
     common_section,
     forecast_section,
 )
@@ -134,15 +135,21 @@ class LoadSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             ),
         }
 
+        section_builders = {
+            SECTION_FORECAST: build_forecast_fields,
+        }
+
         for section_def in sections:
             section_fields = input_fields.get(section_def.key, {})
             if not section_fields:
                 continue
-            field_entries[section_def.key] = build_choose_field_entries(
-                section_fields,
-                optional_fields=OPTIONAL_INPUT_FIELDS,
-                inclusion_map=section_inclusion_map.get(section_def.key, {}),
-                current_data=subentry_data.get(section_def.key) if subentry_data else None,
+            field_entries.setdefault(section_def.key, {}).update(
+                section_builders.get(section_def.key, build_choose_field_entries)(
+                    section_fields,
+                    optional_fields=OPTIONAL_INPUT_FIELDS,
+                    inclusion_map=section_inclusion_map.get(section_def.key, {}),
+                    current_data=subentry_data.get(section_def.key) if subentry_data else None,
+                )
             )
 
         return vol.Schema(build_section_schema(sections, field_entries))

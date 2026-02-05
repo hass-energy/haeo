@@ -1,12 +1,14 @@
 """Shared definitions for efficiency configuration sections."""
 
+from collections.abc import Mapping
 from typing import Any, Final, TypedDict
 
 import numpy as np
 from numpy.typing import NDArray
 import voluptuous as vol
 
-from custom_components.haeo.flows.field_schema import SectionDefinition
+from custom_components.haeo.elements.input_fields import InputFieldSection
+from custom_components.haeo.flows.field_schema import SectionDefinition, build_choose_field_entries
 
 SECTION_EFFICIENCY: Final = "efficiency"
 
@@ -36,9 +38,22 @@ def efficiency_section(fields: tuple[str, ...], *, collapsed: bool = True) -> Se
     return SectionDefinition(key=SECTION_EFFICIENCY, fields=fields, collapsed=collapsed)
 
 
-def build_efficiency_fields() -> dict[str, tuple[vol.Marker, Any]]:
+def build_efficiency_fields(
+    input_fields: InputFieldSection,
+    *,
+    optional_fields: frozenset[str],
+    inclusion_map: dict[str, list[str]],
+    current_data: Mapping[str, Any] | None = None,
+) -> dict[str, tuple[vol.Marker, Any]]:
     """Build efficiency field entries for config flows."""
-    return {}
+    if not input_fields:
+        return {}
+    return build_choose_field_entries(
+        input_fields,
+        optional_fields=optional_fields,
+        inclusion_map=inclusion_map,
+        current_data=current_data,
+    )
 
 
 __all__ = [

@@ -31,6 +31,8 @@ from custom_components.haeo.sections import (
     SECTION_EFFICIENCY,
     SECTION_POWER_LIMITS,
     build_common_fields,
+    build_efficiency_fields,
+    build_power_limits_fields,
     common_section,
     efficiency_section,
     power_limits_section,
@@ -151,12 +153,17 @@ class InverterSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             ),
         }
 
+        section_builders = {
+            SECTION_EFFICIENCY: build_efficiency_fields,
+            SECTION_POWER_LIMITS: build_power_limits_fields,
+        }
+
         for section_def in sections:
             section_fields = input_fields.get(section_def.key, {})
             if not section_fields:
                 continue
             field_entries.setdefault(section_def.key, {}).update(
-                build_choose_field_entries(
+                section_builders.get(section_def.key, build_choose_field_entries)(
                     section_fields,
                     optional_fields=OPTIONAL_INPUT_FIELDS,
                     inclusion_map=section_inclusion_map.get(section_def.key, {}),

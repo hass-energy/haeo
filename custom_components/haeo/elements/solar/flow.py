@@ -29,6 +29,8 @@ from custom_components.haeo.sections import (
     SECTION_FORECAST,
     SECTION_PRICING,
     build_common_fields,
+    build_forecast_fields,
+    build_pricing_fields,
     common_section,
     forecast_section,
     pricing_section,
@@ -147,12 +149,17 @@ class SolarSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             ),
         }
 
+        section_builders = {
+            SECTION_FORECAST: build_forecast_fields,
+            SECTION_PRICING: build_pricing_fields,
+        }
+
         for section_def in sections:
             section_fields = input_fields.get(section_def.key, {})
             if not section_fields:
                 continue
             field_entries.setdefault(section_def.key, {}).update(
-                build_choose_field_entries(
+                section_builders.get(section_def.key, build_choose_field_entries)(
                     section_fields,
                     optional_fields=OPTIONAL_INPUT_FIELDS,
                     inclusion_map=section_inclusion_map.get(section_def.key, {}),
