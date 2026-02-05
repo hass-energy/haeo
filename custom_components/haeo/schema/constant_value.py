@@ -4,12 +4,9 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from numbers import Real
-from typing import TYPE_CHECKING, Any, Literal, TypedDict, TypeGuard
+from typing import Any, Literal, TypedDict, TypeGuard
 
-from .value_kinds import VALUE_TYPE_CONSTANT
-
-if TYPE_CHECKING:
-    from .types import SchemaValue
+VALUE_TYPE_CONSTANT = "constant"
 
 
 class ConstantValue(TypedDict):
@@ -36,16 +33,8 @@ def is_constant_value(value: Any) -> TypeGuard[ConstantValue]:
     return isinstance(constant, Real)
 
 
-def extract_constant(value: SchemaValue) -> float | bool | None:
-    """Extract constant scalar from a schema value."""
-    if value["type"] == VALUE_TYPE_CONSTANT:
-        return value["value"]
-    return None
-
-
 __all__ = [
     "ConstantValue",
     "as_constant_value",
-    "extract_constant",
     "is_constant_value",
 ]

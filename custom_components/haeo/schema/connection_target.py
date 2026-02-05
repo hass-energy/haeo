@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any, Literal, TypedDict, TypeGuard
 
-from .value_kinds import VALUE_TYPE_CONNECTION_TARGET
+VALUE_TYPE_CONNECTION_TARGET = "connection_target"
 
 
 class ConnectionTargetValue(TypedDict):

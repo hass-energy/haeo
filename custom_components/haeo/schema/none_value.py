@@ -3,7 +3,7 @@
 from collections.abc import Mapping
 from typing import Any, Literal, TypedDict, TypeGuard
 
-from .value_kinds import VALUE_TYPE_NONE
+VALUE_TYPE_NONE = "none"
 
 
 class NoneValue(TypedDict):

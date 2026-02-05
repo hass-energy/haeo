@@ -3,12 +3,9 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import TYPE_CHECKING, Any, Literal, TypedDict, TypeGuard
+from typing import Any, Literal, TypedDict, TypeGuard
 
-from .value_kinds import VALUE_TYPE_ENTITY
-
-if TYPE_CHECKING:
-    from .types import SchemaValue
+VALUE_TYPE_ENTITY = "entity"
 
 
 class EntityValue(TypedDict):
@@ -33,16 +30,8 @@ def is_entity_value(value: Any) -> TypeGuard[EntityValue]:
     return isinstance(entity_list, list) and all(isinstance(item, str) for item in entity_list)
 
 
-def extract_entity_ids(value: SchemaValue) -> list[str] | None:
-    """Extract entity IDs from a schema value."""
-    if value["type"] == VALUE_TYPE_ENTITY:
-        return value["value"]
-    return None
-
-
 __all__ = [
     "EntityValue",
     "as_entity_value",
-    "extract_entity_ids",
     "is_entity_value",
 ]

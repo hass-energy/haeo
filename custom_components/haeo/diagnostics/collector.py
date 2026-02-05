@@ -36,7 +36,7 @@ from custom_components.haeo.elements import (
 from custom_components.haeo.entities.haeo_number import ConfigEntityMode, HaeoInputNumber
 from custom_components.haeo.entities.haeo_switch import HaeoInputSwitch
 from custom_components.haeo.flows import HUB_SECTION_TIERS
-from custom_components.haeo.schema import as_constant_value, extract_entity_ids, is_entity_value, is_schema_value
+from custom_components.haeo.schema import as_constant_value
 from custom_components.haeo.sections import SECTION_COMMON
 from custom_components.haeo.sensor_utils import get_output_sensors
 
@@ -65,16 +65,18 @@ def _extract_entity_ids_from_config(config: ElementConfigSchema) -> set[str]:
     """
 
     def _collect(value: Any, collected: set[str]) -> None:
-        if is_entity_value(value):
-            for entity_id in extract_entity_ids(value) or []:
-                if "." in entity_id:
-                    collected.add(entity_id)
-            return
-        if is_schema_value(value):
-            return
-        if isinstance(value, dict):
-            for nested in value.values():
-                _collect(nested, collected)
+        match value:
+            case {"type": "entity", "value": entity_ids} if isinstance(entity_ids, list):
+                for entity_id in entity_ids:
+                    if "." in entity_id:
+                        collected.add(entity_id)
+            case {"type": _}:
+                return
+            case dict():
+                for nested in value.values():
+                    _collect(nested, collected)
+            case _:
+                return
 
     entity_ids: set[str] = set()
     _collect(config, entity_ids)

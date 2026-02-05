@@ -23,11 +23,6 @@ from custom_components.haeo.horizon import HorizonManager
 from custom_components.haeo.schema import (
     as_constant_value,
     as_entity_value,
-    extract_constant,
-    extract_entity_ids,
-    is_constant_value,
-    is_entity_value,
-    is_none_value,
 )
 from custom_components.haeo.util import async_update_subentry_value
 
@@ -85,25 +80,25 @@ class HaeoInputNumber(NumberEntity):
         # Determine mode from schema value type
         config_value = get_nested_config_value_by_path(subentry.data, self._field_path)
 
-        if is_entity_value(config_value):
-            # DRIVEN mode: value comes from external sensors
-            self._entity_mode = ConfigEntityMode.DRIVEN
-            self._source_entity_ids = extract_entity_ids(config_value) or []
-            self._attr_native_value = None  # Will be set when data loads
-        elif is_constant_value(config_value):
-            # EDITABLE mode: value is a constant
-            self._entity_mode = ConfigEntityMode.EDITABLE
-            self._source_entity_ids = []
-            constant = extract_constant(config_value)
-            self._attr_native_value = float(constant) if constant is not None else None
-        elif is_none_value(config_value) or config_value is None:
-            # Disabled or missing configuration
-            self._entity_mode = ConfigEntityMode.EDITABLE
-            self._source_entity_ids = []
-            self._attr_native_value = None
-        else:
-            msg = f"Invalid config value for field {field_info.field_name}"
-            raise RuntimeError(msg)
+        match config_value:
+            case {"type": "entity", "value": entity_ids} if isinstance(entity_ids, list):
+                # DRIVEN mode: value comes from external sensors
+                self._entity_mode = ConfigEntityMode.DRIVEN
+                self._source_entity_ids = entity_ids
+                self._attr_native_value = None  # Will be set when data loads
+            case {"type": "constant", "value": constant}:
+                # EDITABLE mode: value is a constant
+                self._entity_mode = ConfigEntityMode.EDITABLE
+                self._source_entity_ids = []
+                self._attr_native_value = float(constant)
+            case {"type": "none"} | None:
+                # Disabled or missing configuration
+                self._entity_mode = ConfigEntityMode.EDITABLE
+                self._source_entity_ids = []
+                self._attr_native_value = None
+            case _:
+                msg = f"Invalid config value for field {field_info.field_name}"
+                raise RuntimeError(msg)
 
         # Unique ID for multi-hub safety: entry_id + subentry_id + field_name
         field_path_key = ".".join(self._field_path)
