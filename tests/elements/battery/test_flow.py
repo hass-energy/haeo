@@ -36,6 +36,7 @@ from custom_components.haeo.elements.battery import (
     SECTION_PRICING,
     SECTION_STORAGE,
     SECTION_UNDERCHARGE,
+    adapter,
 )
 from custom_components.haeo.schema import as_connection_target, as_constant_value, as_entity_value
 
@@ -530,7 +531,8 @@ async def test_reconfigure_partition_defaults_entity_links(hass: HomeAssistant, 
     }
     flow._get_reconfigure_subentry = Mock(return_value=existing_subentry)
 
-    defaults = flow._build_partition_defaults(dict(existing_config))
+    input_fields = adapter.inputs(dict(existing_config))
+    defaults = flow._build_partition_defaults(input_fields, dict(existing_config))
 
     assert defaults[SECTION_UNDERCHARGE][CONF_PARTITION_PERCENTAGE] == ["sensor.undercharge"]
     assert defaults[SECTION_OVERCHARGE][CONF_PARTITION_PERCENTAGE] == ["sensor.overcharge"]
@@ -576,7 +578,8 @@ async def test_reconfigure_partition_defaults_scalar_values(hass: HomeAssistant,
     }
     flow._get_reconfigure_subentry = Mock(return_value=existing_subentry)
 
-    defaults = flow._build_partition_defaults(dict(existing_config))
+    input_fields = adapter.inputs(dict(existing_config))
+    defaults = flow._build_partition_defaults(input_fields, dict(existing_config))
 
     assert defaults[SECTION_UNDERCHARGE][CONF_PARTITION_PERCENTAGE] == 5.0
     assert defaults[SECTION_OVERCHARGE][CONF_PARTITION_PERCENTAGE] == 95.0
@@ -586,7 +589,8 @@ async def test_build_partition_defaults_no_existing_data(hass: HomeAssistant, hu
     """_build_partition_defaults with no existing data uses field defaults."""
     flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
 
-    defaults = flow._build_partition_defaults(None)
+    input_fields = adapter.inputs(None)
+    defaults = flow._build_partition_defaults(input_fields, None)
 
     # Partition fields have defaults (mode="value", value=0 or value=100)
     assert defaults.get(SECTION_UNDERCHARGE, {}).get(CONF_PARTITION_PERCENTAGE) == 0
@@ -607,7 +611,8 @@ async def test_defaults_with_scalar_values_shows_constant_choice(hass: HomeAssis
             CONF_EFFICIENCY_TARGET_SOURCE: as_constant_value(0.95),
         }
     )
-    defaults = flow._build_defaults("Test Battery", existing_data)
+    input_fields = adapter.inputs(existing_data)
+    defaults = flow._build_defaults("Test Battery", input_fields, existing_data)
 
     assert defaults[SECTION_STORAGE][CONF_CAPACITY] == 10.0
     assert defaults[SECTION_POWER_LIMITS][CONF_MAX_POWER_TARGET_SOURCE] == 5.0
@@ -625,7 +630,8 @@ async def test_defaults_with_entity_strings_shows_entity_choice(hass: HomeAssist
             CONF_INITIAL_CHARGE_PERCENTAGE: as_entity_value(["sensor.soc"]),
         }
     )
-    defaults = flow._build_defaults("Test Battery", existing_data)
+    input_fields = adapter.inputs(existing_data)
+    defaults = flow._build_defaults("Test Battery", input_fields, existing_data)
 
     assert defaults[SECTION_STORAGE][CONF_CAPACITY] == ["sensor.capacity"]
     assert defaults[SECTION_STORAGE][CONF_INITIAL_CHARGE_PERCENTAGE] == ["sensor.soc"]
@@ -668,7 +674,8 @@ async def test_reconfigure_with_schema_entity_value(hass: HomeAssistant, hub_ent
     assert result.get("type") == FlowResultType.FORM
     assert result.get("step_id") == "user"
 
-    defaults = flow._build_defaults("Test Battery", dict(existing_subentry.data))
+    input_fields = adapter.inputs(dict(existing_subentry.data))
+    defaults = flow._build_defaults("Test Battery", input_fields, dict(existing_subentry.data))
 
     assert defaults[SECTION_STORAGE][CONF_CAPACITY] == ["sensor.battery_capacity"]
     assert defaults[SECTION_STORAGE][CONF_INITIAL_CHARGE_PERCENTAGE] == ["sensor.battery_soc"]

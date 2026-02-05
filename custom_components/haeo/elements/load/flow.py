@@ -1,40 +1,35 @@
 """Load element configuration flows."""
 
-from collections.abc import Mapping
 from typing import Any
 
-from homeassistant.config_entries import ConfigSubentry, ConfigSubentryFlow, SubentryFlowResult, UnknownSubEntry
-from homeassistant.helpers.translation import async_get_translations
+from homeassistant.config_entries import ConfigSubentryFlow, SubentryFlowResult
 import voluptuous as vol
 
-from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME, DOMAIN, URL_HAFO
+from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME, URL_HAFO
 from custom_components.haeo.data.loader.extractors import extract_entity_metadata
-from custom_components.haeo.elements import get_input_field_schema_info, is_element_config_schema
+from custom_components.haeo.elements import get_input_field_schema_info
 from custom_components.haeo.elements.input_fields import InputFieldGroups
 from custom_components.haeo.flows.element_flow import ElementFlowMixin, build_sectioned_inclusion_map
 from custom_components.haeo.flows.field_schema import (
     SectionDefinition,
-    build_choose_field_entries,
-    build_section_schema,
+    build_sectioned_choose_defaults,
+    build_sectioned_choose_schema,
     convert_sectioned_choose_data_to_config,
-    get_choose_default,
     preprocess_sectioned_choose_input,
     validate_sectioned_choose_fields,
 )
-from custom_components.haeo.schema import as_constant_value, get_connection_target_name, normalize_connection_target
+from custom_components.haeo.schema import get_connection_target_name, normalize_connection_target
 from custom_components.haeo.sections import (
     CONF_CONNECTION,
     CONF_FORECAST,
     SECTION_COMMON,
-    SECTION_FORECAST,
     build_common_fields,
-    build_forecast_fields,
     common_section,
     forecast_section,
 )
 
 from .adapter import adapter
-from .schema import ELEMENT_TYPE, LoadConfigSchema
+from .schema import ELEMENT_TYPE
 
 
 class LoadSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
@@ -65,30 +60,10 @@ class LoadSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             if subentry_data
             else None
         )
-
-        if (
-            subentry_data is not None
-            and is_element_config_schema(subentry_data)
-            and subentry_data["element_type"] == ELEMENT_TYPE
-        ):
-            element_config = subentry_data
-        else:
-            translations = await async_get_translations(
-                self.hass, self.hass.config.language, "config_subentries", integrations=[DOMAIN]
-            )
-            default_name = translations[f"component.{DOMAIN}.config_subentries.{ELEMENT_TYPE}.flow_title"]
-            if not isinstance(current_connection, str):
-                current_connection = participants[0] if participants else ""
-            element_config: LoadConfigSchema = {
-                CONF_ELEMENT_TYPE: ELEMENT_TYPE,
-                SECTION_COMMON: {
-                    CONF_NAME: default_name,
-                    CONF_CONNECTION: normalize_connection_target(current_connection or ""),
-                },
-                SECTION_FORECAST: {CONF_FORECAST: as_constant_value(0.0)},
-            }
-
-        input_fields = adapter.inputs(element_config)
+        default_name = await self._async_get_default_name(ELEMENT_TYPE)
+        if not isinstance(current_connection, str):
+            current_connection = participants[0] if participants else ""
+        input_fields = adapter.inputs(subentry_data)
 
         sections = self._get_sections()
         user_input = preprocess_sectioned_choose_input(user_input, input_fields, sections)
@@ -100,11 +75,6 @@ class LoadSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
 
         entity_metadata = extract_entity_metadata(self.hass)
         section_inclusion_map = build_sectioned_inclusion_map(input_fields, entity_metadata)
-        translations = await async_get_translations(
-            self.hass, self.hass.config.language, "config_subentries", integrations=[DOMAIN]
-        )
-        default_name = translations[f"component.{DOMAIN}.config_subentries.{ELEMENT_TYPE}.flow_title"]
-
         schema = self._build_schema(
             participants,
             input_fields,
@@ -112,7 +82,16 @@ class LoadSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             current_connection,
             subentry_data,
         )
-        defaults = user_input if user_input is not None else self._build_defaults(default_name, subentry_data)
+        defaults = (
+            user_input
+            if user_input is not None
+            else self._build_defaults(
+                default_name,
+                input_fields,
+                subentry_data,
+                current_connection,
+            )
+        )
         schema = self.add_suggested_values_to_schema(schema, defaults)
 
         return self.async_show_form(
@@ -128,65 +107,52 @@ class LoadSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         input_fields: InputFieldGroups,
         section_inclusion_map: dict[str, dict[str, list[str]]],
         current_connection: str | None = None,
-        subentry_data: Mapping[str, Any] | None = None,
+        subentry_data: dict[str, Any] | None = None,
     ) -> vol.Schema:
         """Build the schema with name, connection, and choose selectors for inputs."""
-        sections = self._get_sections()
         field_schema = get_input_field_schema_info(ELEMENT_TYPE, input_fields)
-        field_entries: dict[str, dict[str, tuple[vol.Marker, Any]]] = {
-            SECTION_COMMON: build_common_fields(
-                include_connection=True,
-                participants=participants,
-                current_connection=current_connection,
-            ),
-        }
-
-        section_builders = {
-            SECTION_FORECAST: build_forecast_fields,
-        }
-
-        for section_def in sections:
-            section_fields = input_fields.get(section_def.key, {})
-            if not section_fields:
-                continue
-            field_entries.setdefault(section_def.key, {}).update(
-                section_builders.get(section_def.key, build_choose_field_entries)(
-                    section_fields,
-                    field_schema=field_schema.get(section_def.key, {}),
-                    inclusion_map=section_inclusion_map.get(section_def.key, {}),
-                    current_data=subentry_data.get(section_def.key) if subentry_data else None,
+        return build_sectioned_choose_schema(
+            self._get_sections(),
+            input_fields,
+            field_schema,
+            section_inclusion_map,
+            current_data=subentry_data,
+            extra_field_entries={
+                SECTION_COMMON: build_common_fields(
+                    include_connection=True,
+                    participants=participants,
+                    current_connection=current_connection,
                 )
-            )
-
-        return vol.Schema(build_section_schema(sections, field_entries))
+            },
+        )
 
     def _build_defaults(
         self,
         default_name: str,
-        subentry_data: Mapping[str, Any] | None = None,
+        input_fields: InputFieldGroups,
+        subentry_data: dict[str, Any] | None = None,
+        connection_default: str | None = None,
     ) -> dict[str, Any]:
         """Build default values for the form."""
         common_data = subentry_data.get(SECTION_COMMON, {}) if subentry_data else {}
-        connection_default = get_connection_target_name(common_data.get(CONF_CONNECTION)) if subentry_data else None
-        defaults: dict[str, Any] = {
-            SECTION_COMMON: {
-                CONF_NAME: default_name if subentry_data is None else common_data.get(CONF_NAME),
-                CONF_CONNECTION: connection_default,
+        connection_default = (
+            connection_default
+            if connection_default is not None
+            else get_connection_target_name(common_data.get(CONF_CONNECTION))
+            if subentry_data
+            else None
+        )
+        return build_sectioned_choose_defaults(
+            self._get_sections(),
+            input_fields,
+            current_data=subentry_data,
+            base_defaults={
+                SECTION_COMMON: {
+                    CONF_NAME: default_name if subentry_data is None else common_data.get(CONF_NAME),
+                    CONF_CONNECTION: connection_default,
+                }
             },
-            SECTION_FORECAST: {},
-        }
-
-        input_fields = adapter.inputs(subentry_data)
-        for section_key, section_fields in input_fields.items():
-            for field_info in section_fields.values():
-                choose_default = get_choose_default(
-                    field_info,
-                    subentry_data.get(section_key) if subentry_data else None,
-                )
-                if choose_default is not None:
-                    defaults.setdefault(section_key, {})[field_info.field_name] = choose_default
-
-        return defaults
+        )
 
     def _validate_user_input(
         self,
@@ -234,10 +200,3 @@ class LoadSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         if subentry is not None:
             return self.async_update_and_abort(self._get_entry(), subentry, title=name, data=config)
         return self.async_create_entry(title=name, data=config)
-
-    def _get_subentry(self) -> ConfigSubentry | None:
-        """Get the subentry being reconfigured, or None for new entries."""
-        try:
-            return self._get_reconfigure_subentry()
-        except (ValueError, UnknownSubEntry):
-            return None

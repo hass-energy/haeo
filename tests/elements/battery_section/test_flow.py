@@ -16,6 +16,7 @@ from custom_components.haeo.elements.battery_section import (
     ELEMENT_TYPE,
     SECTION_COMMON,
     SECTION_STORAGE,
+    adapter,
 )
 from custom_components.haeo.schema import as_constant_value, as_entity_value
 
@@ -137,7 +138,8 @@ async def test_reconfigure_with_entity_value_shows_defaults(hass: HomeAssistant,
     assert result.get("step_id") == "user"
 
     # Check defaults - should have entity choice with the string entity IDs wrapped in lists
-    defaults = flow._build_defaults("Test Battery Section", dict(existing_subentry.data))
+    input_fields = adapter.inputs(dict(existing_subentry.data))
+    defaults = flow._build_defaults("Test Battery Section", input_fields, dict(existing_subentry.data))
 
     # Defaults should contain entity choice with the original entity IDs as lists
     assert defaults[SECTION_STORAGE][CONF_CAPACITY] == ["sensor.section_capacity"]
@@ -167,7 +169,8 @@ async def test_reconfigure_with_scalar_shows_constant_defaults(hass: HomeAssista
     flow._get_reconfigure_subentry = Mock(return_value=existing_subentry)
 
     # Check defaults - should resolve to constant choice with scalar values
-    defaults = flow._build_defaults("Test Battery Section", dict(existing_subentry.data))
+    input_fields = adapter.inputs(dict(existing_subentry.data))
+    defaults = flow._build_defaults("Test Battery Section", input_fields, dict(existing_subentry.data))
 
     # Defaults should contain constant choice with the scalar values
     assert defaults[SECTION_STORAGE][CONF_CAPACITY] == 10.0
@@ -198,7 +201,8 @@ async def test_reconfigure_with_missing_field_shows_none_default(hass: HomeAssis
     flow._get_reconfigure_subentry = Mock(return_value=existing_subentry)
 
     # Check defaults - missing field should show None
-    defaults = flow._build_defaults("Test Battery Section", dict(existing_subentry.data))
+    input_fields = adapter.inputs(dict(existing_subentry.data))
+    defaults = flow._build_defaults("Test Battery Section", input_fields, dict(existing_subentry.data))
 
     # Missing field should result in None default
     assert defaults.get(SECTION_STORAGE, {}).get(CONF_INITIAL_CHARGE) is None

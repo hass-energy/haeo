@@ -22,6 +22,7 @@ from custom_components.haeo.elements.connection import (
     SECTION_ENDPOINTS,
     SECTION_POWER_LIMITS,
     SECTION_PRICING,
+    adapter,
 )
 from custom_components.haeo.schema import as_connection_target, as_constant_value, as_entity_value
 
@@ -219,7 +220,8 @@ async def test_reconfigure_with_entity_value_shows_defaults(hass: HomeAssistant,
     assert result.get("step_id") == "user"
 
     # Check defaults - should have entity choice with the string entity IDs wrapped in lists
-    defaults = flow._build_defaults("Test Connection", dict(existing_subentry.data))
+    input_fields = adapter.inputs(dict(existing_subentry.data))
+    defaults = flow._build_defaults("Test Connection", input_fields, dict(existing_subentry.data))
 
     # Defaults should contain entity choice with the original entity IDs as lists
     assert defaults[SECTION_POWER_LIMITS][CONF_MAX_POWER_SOURCE_TARGET] == ["sensor.max_power_st"]
@@ -254,7 +256,8 @@ async def test_reconfigure_with_scalar_shows_constant_defaults(hass: HomeAssista
     flow._get_reconfigure_subentry = Mock(return_value=existing_subentry)
 
     # Check defaults - should resolve to constant choice with scalar values
-    defaults = flow._build_defaults("Test Connection", dict(existing_subentry.data))
+    input_fields = adapter.inputs(dict(existing_subentry.data))
+    defaults = flow._build_defaults("Test Connection", input_fields, dict(existing_subentry.data))
 
     # Defaults should contain constant choice with scalar values
     assert defaults[SECTION_POWER_LIMITS][CONF_MAX_POWER_SOURCE_TARGET] == 10.0

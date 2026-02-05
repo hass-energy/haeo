@@ -21,6 +21,7 @@ from custom_components.haeo.elements.solar import (
     SECTION_CURTAILMENT,
     SECTION_FORECAST,
     SECTION_PRICING,
+    adapter,
 )
 from custom_components.haeo.schema import as_connection_target, as_constant_value, as_entity_value
 
@@ -154,7 +155,8 @@ async def test_reconfigure_with_schema_entity_value(hass: HomeAssistant, hub_ent
     assert result.get("step_id") == "user"
 
     # Check defaults - should have entity choice with the string entity ID wrapped in a list
-    defaults = flow._build_defaults("Test Solar", dict(existing_subentry.data))
+    input_fields = adapter.inputs(dict(existing_subentry.data))
+    defaults = flow._build_defaults("Test Solar", input_fields, dict(existing_subentry.data))
 
     # Defaults should contain entity choice with original entity ID as list
     assert defaults[SECTION_FORECAST][CONF_FORECAST] == ["sensor.solar_forecast"]
@@ -185,7 +187,8 @@ async def test_reconfigure_with_scalar_shows_constant_defaults(hass: HomeAssista
     flow._get_reconfigure_subentry = Mock(return_value=existing_subentry)
 
     # Check defaults - should resolve to constant choice with the scalar value
-    defaults = flow._build_defaults("Test Solar", dict(existing_subentry.data))
+    input_fields = adapter.inputs(dict(existing_subentry.data))
+    defaults = flow._build_defaults("Test Solar", input_fields, dict(existing_subentry.data))
 
     # Defaults should contain constant choice with the scalar value
     assert defaults[SECTION_FORECAST][CONF_FORECAST] == 100.0

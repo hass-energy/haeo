@@ -21,6 +21,7 @@ from custom_components.haeo.elements.grid import (
     SECTION_COMMON,
     SECTION_POWER_LIMITS,
     SECTION_PRICING,
+    adapter,
 )
 from custom_components.haeo.schema import as_connection_target, as_constant_value, as_entity_value
 
@@ -365,7 +366,8 @@ async def test_reconfigure_with_scalar_shows_constant_defaults(
     assert result.get("step_id") == "user"
 
     # Check defaults - should have constant choice with scalar values
-    defaults = flow._build_defaults("Test Grid", dict(existing_subentry.data))
+    input_fields = adapter.inputs(dict(existing_subentry.data))
+    defaults = flow._build_defaults("Test Grid", input_fields, dict(existing_subentry.data))
 
     # Defaults should contain constant choice with values
     assert defaults[SECTION_PRICING][CONF_IMPORT_PRICE] == 0.30
@@ -407,7 +409,8 @@ async def test_reconfigure_with_entity_value_shows_entity_defaults(
     assert result.get("step_id") == "user"
 
     # Check defaults - should have entity choice with the string entity IDs wrapped in lists
-    defaults = flow._build_defaults("Test Grid", dict(existing_subentry.data))
+    input_fields = adapter.inputs(dict(existing_subentry.data))
+    defaults = flow._build_defaults("Test Grid", input_fields, dict(existing_subentry.data))
 
     # Defaults should contain entity choice with the original entity IDs as lists
     assert defaults[SECTION_PRICING][CONF_IMPORT_PRICE] == ["sensor.import_price"]
@@ -443,7 +446,8 @@ async def test_reconfigure_with_entity_list(
     flow._get_reconfigure_subentry = Mock(return_value=existing_subentry)
 
     # Check defaults
-    defaults = flow._build_defaults("Test Grid", dict(existing_subentry.data))
+    input_fields = adapter.inputs(dict(existing_subentry.data))
+    defaults = flow._build_defaults("Test Grid", input_fields, dict(existing_subentry.data))
 
     # Defaults should contain entity choice with the entity lists
     assert defaults[SECTION_PRICING][CONF_IMPORT_PRICE] == ["sensor.import1", "sensor.import2"]

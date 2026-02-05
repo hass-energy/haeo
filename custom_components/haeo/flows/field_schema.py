@@ -465,6 +465,62 @@ def build_section_schema(
     return schema_dict
 
 
+def build_sectioned_choose_schema(
+    sections: Sequence[SectionDefinition],
+    input_fields: InputFieldGroups,
+    field_schema: Mapping[str, Mapping[str, FieldSchemaInfo]],
+    inclusion_map: Mapping[str, Mapping[str, list[str]]],
+    *,
+    current_data: Mapping[str, Any] | None = None,
+    extra_field_entries: Mapping[str, Mapping[str, tuple[vol.Marker, Any]]] | None = None,
+) -> vol.Schema:
+    """Build a sectioned schema using choose selectors for input fields."""
+    field_entries: dict[str, dict[str, tuple[vol.Marker, Any]]] = {
+        key: dict(entries) for key, entries in (extra_field_entries or {}).items()
+    }
+
+    for section_def in sections:
+        section_fields = input_fields.get(section_def.key, {})
+        if not section_fields:
+            continue
+        field_entries.setdefault(section_def.key, {}).update(
+            build_choose_field_entries(
+                section_fields,
+                field_schema=field_schema.get(section_def.key, {}),
+                inclusion_map=dict(inclusion_map.get(section_def.key, {})),
+                current_data=current_data.get(section_def.key) if current_data else None,
+            )
+        )
+
+    return vol.Schema(build_section_schema(sections, field_entries))
+
+
+def build_sectioned_choose_defaults(
+    sections: Sequence[SectionDefinition],
+    input_fields: InputFieldGroups,
+    *,
+    current_data: Mapping[str, Any] | None = None,
+    base_defaults: Mapping[str, Mapping[str, Any]] | None = None,
+    exclude_fields: tuple[str, ...] = (),
+) -> dict[str, Any]:
+    """Build sectioned defaults for choose selector fields."""
+    defaults: dict[str, dict[str, Any]] = {key: dict(values) for key, values in (base_defaults or {}).items()}
+
+    for section_def in sections:
+        section_defaults = defaults.setdefault(section_def.key, {})
+        section_fields = input_fields.get(section_def.key, {})
+        current_section = current_data.get(section_def.key) if current_data else None
+        section_data = current_section if isinstance(current_section, Mapping) else None
+        for field_info in section_fields.values():
+            if field_info.field_name in exclude_fields:
+                continue
+            choose_default = get_choose_default(field_info, section_data)
+            if choose_default is not None:
+                section_defaults.setdefault(field_info.field_name, choose_default)
+
+    return defaults
+
+
 def flatten_section_input(
     user_input: dict[str, Any] | None,
     section_keys: Collection[str],
@@ -859,6 +915,8 @@ __all__ = [
     "build_choose_selector",
     "build_entity_selector",
     "build_section_schema",
+    "build_sectioned_choose_defaults",
+    "build_sectioned_choose_schema",
     "convert_choose_data_to_config",
     "convert_sectioned_choose_data_to_config",
     "flatten_section_input",
