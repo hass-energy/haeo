@@ -6,10 +6,8 @@ from typing import Any, Final, Literal
 
 from homeassistant.components.number import NumberDeviceClass, NumberEntityDescription
 from homeassistant.const import UnitOfPower
-from homeassistant.core import HomeAssistant
 
 from custom_components.haeo.const import ConnectivityLevel
-from custom_components.haeo.elements.availability import schema_config_available
 from custom_components.haeo.elements.input_fields import InputFieldInfo
 from custom_components.haeo.elements.output_utils import expect_output_data
 from custom_components.haeo.model import ModelElementConfig, ModelOutputName, ModelOutputValue
@@ -21,7 +19,7 @@ from custom_components.haeo.model.output_data import OutputData
 from custom_components.haeo.schema import extract_connection_target
 from custom_components.haeo.sections import CONF_CONNECTION, CONF_FORECAST, SECTION_COMMON, SECTION_FORECAST
 
-from .schema import ELEMENT_TYPE, LoadConfigData, LoadConfigSchema
+from .schema import ELEMENT_TYPE, LoadConfigData
 
 # Load output names
 type LoadOutputName = Literal[
@@ -50,10 +48,6 @@ class LoadAdapter:
     element_type: str = ELEMENT_TYPE
     advanced: bool = False
     connectivity: ConnectivityLevel = ConnectivityLevel.ADVANCED
-
-    def available(self, config: LoadConfigSchema, *, hass: HomeAssistant, **_kwargs: Any) -> bool:
-        """Check if load configuration can be loaded."""
-        return schema_config_available(config, hass=hass)
 
     def inputs(self, config: Any) -> dict[str, dict[str, InputFieldInfo[Any]]]:
         """Return input field definitions for load elements."""

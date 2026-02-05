@@ -44,7 +44,6 @@ from typing import (
 )
 
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry
-from homeassistant.core import HomeAssistant
 
 from custom_components.haeo.const import (
     CONF_ELEMENT_TYPE,
@@ -191,10 +190,6 @@ class ElementAdapter(Protocol):
 
     connectivity: ConnectivityLevel
     """Visibility level in connection selectors."""
-
-    def available(self, config: Any, *, hass: HomeAssistant, **kwargs: Any) -> bool:
-        """Check if element configuration can be loaded."""
-        ...
 
     def inputs(self, config: Mapping[str, Any] | None) -> InputFieldGroups:
         """Return input field definitions for this element."""

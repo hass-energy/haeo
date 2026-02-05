@@ -3,6 +3,7 @@
 from homeassistant.core import HomeAssistant
 
 from custom_components.haeo.elements import inverter
+from custom_components.haeo.elements.availability import schema_config_available
 from custom_components.haeo.schema import as_connection_target, as_entity_value
 
 
@@ -29,7 +30,7 @@ async def test_available_returns_true_when_sensors_exist(hass: HomeAssistant) ->
         inverter.SECTION_EFFICIENCY: {},
     }
 
-    result = inverter.adapter.available(config, hass=hass)
+    result = schema_config_available(config, hass=hass)
     assert result is True
 
 
@@ -51,7 +52,7 @@ async def test_available_returns_false_when_first_sensor_missing(hass: HomeAssis
         inverter.SECTION_EFFICIENCY: {},
     }
 
-    result = inverter.adapter.available(config, hass=hass)
+    result = schema_config_available(config, hass=hass)
     assert result is False
 
 
@@ -73,7 +74,7 @@ async def test_available_returns_false_when_second_sensor_missing(hass: HomeAssi
         inverter.SECTION_EFFICIENCY: {},
     }
 
-    result = inverter.adapter.available(config, hass=hass)
+    result = schema_config_available(config, hass=hass)
     assert result is False
 
 
@@ -89,5 +90,5 @@ async def test_available_returns_true_when_limits_missing(hass: HomeAssistant) -
         inverter.SECTION_EFFICIENCY: {},
     }
 
-    result = inverter.adapter.available(config, hass=hass)
+    result = schema_config_available(config, hass=hass)
     assert result is True

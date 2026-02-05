@@ -6,12 +6,10 @@ from typing import Any, Final, Literal
 
 from homeassistant.components.number import NumberDeviceClass, NumberEntityDescription
 from homeassistant.const import PERCENTAGE, UnitOfEnergy, UnitOfPower
-from homeassistant.core import HomeAssistant
 import numpy as np
 from numpy.typing import NDArray
 
 from custom_components.haeo.const import ConnectivityLevel
-from custom_components.haeo.elements.availability import schema_config_available
 from custom_components.haeo.elements.input_fields import InputFieldDefaults, InputFieldInfo
 from custom_components.haeo.elements.output_utils import expect_output_data
 from custom_components.haeo.model import ModelElementConfig, ModelOutputName, ModelOutputValue
@@ -49,7 +47,6 @@ from .schema import (
     SECTION_STORAGE,
     SECTION_UNDERCHARGE,
     BatteryConfigData,
-    BatteryConfigSchema,
 )
 
 # Default ratio values for optional fields applied by adapter
@@ -97,10 +94,6 @@ class BatteryAdapter:
     element_type: str = ELEMENT_TYPE
     advanced: bool = False
     connectivity: ConnectivityLevel = ConnectivityLevel.ADVANCED
-
-    def available(self, config: BatteryConfigSchema, *, hass: HomeAssistant, **_kwargs: Any) -> bool:
-        """Check if battery configuration can be loaded."""
-        return schema_config_available(config, hass=hass)
 
     def inputs(self, config: Any) -> dict[str, dict[str, InputFieldInfo[Any]]]:
         """Return input field definitions for battery elements."""

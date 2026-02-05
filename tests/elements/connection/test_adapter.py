@@ -3,6 +3,7 @@
 from homeassistant.core import HomeAssistant
 
 from custom_components.haeo.elements import connection
+from custom_components.haeo.elements.availability import schema_config_available
 from custom_components.haeo.schema import as_connection_target, as_constant_value, as_entity_value
 
 
@@ -25,7 +26,7 @@ async def test_available_returns_true_with_no_optional_fields(hass: HomeAssistan
         connection.SECTION_EFFICIENCY: {},
     }
 
-    result = connection.adapter.available(config, hass=hass)
+    result = schema_config_available(config, hass=hass)
     assert result is True
 
 
@@ -59,7 +60,7 @@ async def test_available_returns_true_when_optional_sensors_exist(hass: HomeAssi
         },
     }
 
-    result = connection.adapter.available(config, hass=hass)
+    result = schema_config_available(config, hass=hass)
     assert result is True
 
 
@@ -83,7 +84,7 @@ async def test_available_returns_false_when_optional_sensor_missing(hass: HomeAs
         connection.SECTION_EFFICIENCY: {},
     }
 
-    result = connection.adapter.available(config, hass=hass)
+    result = schema_config_available(config, hass=hass)
     assert result is False
 
 
@@ -103,7 +104,7 @@ async def test_available_returns_false_when_efficiency_sensor_missing(hass: Home
         },
     }
 
-    result = connection.adapter.available(config, hass=hass)
+    result = schema_config_available(config, hass=hass)
     assert result is False
 
 
@@ -130,5 +131,5 @@ async def test_available_returns_true_with_constant_values(hass: HomeAssistant) 
         },
     }
 
-    result = connection.adapter.available(config, hass=hass)
+    result = schema_config_available(config, hass=hass)
     assert result is True

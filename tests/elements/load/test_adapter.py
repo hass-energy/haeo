@@ -3,6 +3,7 @@
 from homeassistant.core import HomeAssistant
 
 from custom_components.haeo.elements import load as load_element
+from custom_components.haeo.elements.availability import schema_config_available
 from custom_components.haeo.schema import as_connection_target, as_entity_value
 
 from ..conftest import set_sensor
@@ -21,7 +22,7 @@ async def test_available_returns_true_when_forecast_sensor_exists(hass: HomeAssi
         load_element.SECTION_FORECAST: {"forecast": as_entity_value(["sensor.power"])},
     }
 
-    result = load_element.adapter.available(config, hass=hass)
+    result = schema_config_available(config, hass=hass)
     assert result is True
 
 
@@ -36,7 +37,7 @@ async def test_available_returns_false_when_forecast_sensor_missing(hass: HomeAs
         load_element.SECTION_FORECAST: {"forecast": as_entity_value(["sensor.missing"])},
     }
 
-    result = load_element.adapter.available(config, hass=hass)
+    result = schema_config_available(config, hass=hass)
     assert result is False
 
 

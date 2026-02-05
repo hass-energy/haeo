@@ -7,10 +7,8 @@ from typing import Any, Final, Literal
 from homeassistant.components.number import NumberDeviceClass, NumberEntityDescription
 from homeassistant.components.switch import SwitchEntityDescription
 from homeassistant.const import UnitOfPower
-from homeassistant.core import HomeAssistant
 
 from custom_components.haeo.const import ConnectivityLevel
-from custom_components.haeo.elements.availability import schema_config_available
 from custom_components.haeo.elements.input_fields import InputFieldDefaults, InputFieldInfo
 from custom_components.haeo.elements.output_utils import expect_output_data
 from custom_components.haeo.model import ModelElementConfig, ModelOutputName, ModelOutputValue
@@ -29,7 +27,7 @@ from custom_components.haeo.sections import (
     SECTION_PRICING,
 )
 
-from .schema import CONF_CURTAILMENT, ELEMENT_TYPE, SECTION_CURTAILMENT, SolarConfigData, SolarConfigSchema
+from .schema import CONF_CURTAILMENT, ELEMENT_TYPE, SECTION_CURTAILMENT, SolarConfigData
 
 # Solar output names
 type SolarOutputName = Literal[
@@ -56,10 +54,6 @@ class SolarAdapter:
     element_type: str = ELEMENT_TYPE
     advanced: bool = False
     connectivity: ConnectivityLevel = ConnectivityLevel.ADVANCED
-
-    def available(self, config: SolarConfigSchema, *, hass: HomeAssistant, **_kwargs: Any) -> bool:
-        """Check if solar configuration can be loaded."""
-        return schema_config_available(config, hass=hass)
 
     def inputs(self, config: Any) -> dict[str, dict[str, InputFieldInfo[Any]]]:
         """Return input field definitions for solar elements."""

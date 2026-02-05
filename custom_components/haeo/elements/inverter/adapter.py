@@ -6,10 +6,8 @@ from typing import Any, Final, Literal
 
 from homeassistant.components.number import NumberDeviceClass, NumberEntityDescription
 from homeassistant.const import PERCENTAGE, UnitOfPower
-from homeassistant.core import HomeAssistant
 
 from custom_components.haeo.const import ConnectivityLevel
-from custom_components.haeo.elements.availability import schema_config_available
 from custom_components.haeo.elements.input_fields import InputFieldDefaults, InputFieldInfo
 from custom_components.haeo.elements.output_utils import expect_output_data
 from custom_components.haeo.model import ModelElementConfig, ModelOutputName, ModelOutputValue
@@ -35,7 +33,7 @@ from custom_components.haeo.sections import (
     SECTION_POWER_LIMITS,
 )
 
-from .schema import ELEMENT_TYPE, InverterConfigData, InverterConfigSchema
+from .schema import ELEMENT_TYPE, InverterConfigData
 
 # Inverter output names
 type InverterOutputName = Literal[
@@ -72,10 +70,6 @@ class InverterAdapter:
     element_type: str = ELEMENT_TYPE
     advanced: bool = False
     connectivity: ConnectivityLevel = ConnectivityLevel.ALWAYS
-
-    def available(self, config: InverterConfigSchema, *, hass: HomeAssistant, **_kwargs: Any) -> bool:
-        """Check if inverter configuration can be loaded."""
-        return schema_config_available(config, hass=hass)
 
     def inputs(self, config: Any) -> dict[str, dict[str, InputFieldInfo[Any]]]:
         """Return input field definitions for inverter elements."""

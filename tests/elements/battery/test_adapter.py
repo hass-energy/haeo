@@ -4,6 +4,7 @@ from homeassistant.core import HomeAssistant
 import numpy as np
 
 from custom_components.haeo.elements import battery
+from custom_components.haeo.elements.availability import schema_config_available
 from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_BATTERY, MODEL_ELEMENT_TYPE_CONNECTION
 from custom_components.haeo.model.elements.segments import is_efficiency_spec
 from custom_components.haeo.schema import (
@@ -183,7 +184,7 @@ async def test_available_returns_true_when_sensors_exist(hass: HomeAssistant) ->
         }
     )
 
-    result = battery.adapter.available(config, hass=hass)
+    result = schema_config_available(config, hass=hass)
     assert result is True
 
 
@@ -205,7 +206,7 @@ async def test_available_returns_false_when_required_power_sensor_missing(hass: 
         }
     )
 
-    result = battery.adapter.available(config, hass=hass)
+    result = schema_config_available(config, hass=hass)
     assert result is False
 
 
@@ -223,7 +224,7 @@ async def test_available_returns_false_when_capacity_sensor_missing(hass: HomeAs
         }
     )
 
-    result = battery.adapter.available(config, hass=hass)
+    result = schema_config_available(config, hass=hass)
     assert result is False
 
 
@@ -245,7 +246,7 @@ async def test_available_returns_false_when_required_sensor_missing(hass: HomeAs
         }
     )
 
-    result = battery.adapter.available(config, hass=hass)
+    result = schema_config_available(config, hass=hass)
     assert result is False
 
 
@@ -267,7 +268,7 @@ async def test_available_with_list_entity_ids_all_exist(hass: HomeAssistant) -> 
         }
     )
 
-    result = battery.adapter.available(config, hass=hass)
+    result = schema_config_available(config, hass=hass)
     assert result is True
 
 
@@ -289,7 +290,7 @@ async def test_available_with_list_entity_ids_one_missing(hass: HomeAssistant) -
         }
     )
 
-    result = battery.adapter.available(config, hass=hass)
+    result = schema_config_available(config, hass=hass)
     assert result is False
 
 
@@ -309,7 +310,7 @@ async def test_available_with_empty_list_returns_true(hass: HomeAssistant) -> No
         }
     )
 
-    result = battery.adapter.available(config, hass=hass)
+    result = schema_config_available(config, hass=hass)
     assert result is True
 
 
@@ -332,7 +333,7 @@ async def test_available_returns_true_with_constant_values(hass: HomeAssistant) 
         }
     )
 
-    result = battery.adapter.available(config, hass=hass)
+    result = schema_config_available(config, hass=hass)
     assert result is True
 
 
