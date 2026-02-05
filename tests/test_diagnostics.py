@@ -136,12 +136,16 @@ def _grid_config(
         SECTION_PRICING: {
             CONF_PRICE_SOURCE_TARGET: (
                 as_entity_value(price_source_target)
-                if isinstance(price_source_target, (list, str))
+                if isinstance(price_source_target, list)
+                else as_entity_value([price_source_target])
+                if isinstance(price_source_target, str)
                 else as_constant_value(price_source_target)
             ),
             CONF_PRICE_TARGET_SOURCE: (
                 as_entity_value(price_target_source)
-                if isinstance(price_target_source, (list, str))
+                if isinstance(price_target_source, list)
+                else as_entity_value([price_target_source])
+                if isinstance(price_target_source, str)
                 else as_constant_value(price_target_source)
             ),
         },

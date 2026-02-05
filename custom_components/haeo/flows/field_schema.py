@@ -45,7 +45,6 @@ from custom_components.haeo.schema import (
     is_entity_value,
     is_none_value,
     is_schema_value,
-    normalize_entity_ids,
 )
 
 # Choose selector choice keys (used for config flow data and translations)
@@ -701,7 +700,7 @@ def convert_choose_data_to_config(
             if not value:
                 config[field_name] = as_none_value()
                 continue
-            config[field_name] = as_entity_value(normalize_entity_ids(value))
+            config[field_name] = as_entity_value(value)
             continue
 
         # Single entity ID
