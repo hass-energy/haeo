@@ -56,7 +56,6 @@ async def async_setup_entry(
 
     # Create horizon entity that displays horizon manager state
     horizon_entity = HaeoHorizonEntity(
-        hass=hass,
         config_entry=config_entry,
         device_entry=network_device_entry,
         horizon_manager=horizon_manager,
