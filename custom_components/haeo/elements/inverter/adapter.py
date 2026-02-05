@@ -76,13 +76,11 @@ class InverterAdapter:
         """Check if inverter configuration can be loaded."""
         ts_loader = TimeSeriesLoader()
         limits = config[SECTION_POWER_LIMITS]
-        max_source_target = limits.get(CONF_MAX_POWER_SOURCE_TARGET)
-        max_target_source = limits.get(CONF_MAX_POWER_TARGET_SOURCE)
-        if max_source_target is None or max_target_source is None:
-            return False
-        if not ts_loader.available(hass=hass, value=max_source_target):
-            return False
-        return ts_loader.available(hass=hass, value=max_target_source)
+        return (
+            (value := limits.get(CONF_MAX_POWER_SOURCE_TARGET)) is None or ts_loader.available(hass=hass, value=value)
+        ) and (
+            (value := limits.get(CONF_MAX_POWER_TARGET_SOURCE)) is None or ts_loader.available(hass=hass, value=value)
+        )
 
     def inputs(self, config: Any) -> dict[str, dict[str, InputFieldInfo[Any]]]:
         """Return input field definitions for inverter elements."""

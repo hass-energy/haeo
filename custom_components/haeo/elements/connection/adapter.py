@@ -102,11 +102,11 @@ class ConnectionAdapter:
         efficiency = config[SECTION_EFFICIENCY]
         pricing = config[SECTION_PRICING]
         for field in optional_fields:
-            if field in limits and not ts_loader.available(hass=hass, value=limits[field]):
+            if (value := limits.get(field)) is not None and not ts_loader.available(hass=hass, value=value):
                 return False
-            if field in efficiency and not ts_loader.available(hass=hass, value=efficiency[field]):
+            if (value := efficiency.get(field)) is not None and not ts_loader.available(hass=hass, value=value):
                 return False
-            if field in pricing and not ts_loader.available(hass=hass, value=pricing[field]):
+            if (value := pricing.get(field)) is not None and not ts_loader.available(hass=hass, value=value):
                 return False
 
         return True
