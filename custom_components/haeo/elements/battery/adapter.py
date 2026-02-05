@@ -11,7 +11,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 from custom_components.haeo.const import ConnectivityLevel
-from custom_components.haeo.data.loader import TimeSeriesLoader
+from custom_components.haeo.elements.availability import schema_config_available
 from custom_components.haeo.elements.input_fields import InputFieldDefaults, InputFieldInfo
 from custom_components.haeo.elements.output_utils import expect_output_data
 from custom_components.haeo.model import ModelElementConfig, ModelOutputName, ModelOutputValue
@@ -21,15 +21,7 @@ from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_BATTERY, MO
 from custom_components.haeo.model.elements.segments import SegmentSpec, SocPricingSegmentSpec
 from custom_components.haeo.model.output_data import OutputData
 from custom_components.haeo.model.util import broadcast_to_sequence
-from custom_components.haeo.schema import (
-    VALUE_TYPE_CONSTANT,
-    VALUE_TYPE_ENTITY,
-    VALUE_TYPE_NONE,
-    ConstantValue,
-    EntityValue,
-    NoneValue,
-    extract_connection_target,
-)
+from custom_components.haeo.schema import extract_connection_target
 from custom_components.haeo.sections import (
     CONF_CONNECTION,
     CONF_MAX_POWER_SOURCE_TARGET,
@@ -108,52 +100,7 @@ class BatteryAdapter:
 
     def available(self, config: BatteryConfigSchema, *, hass: HomeAssistant, **_kwargs: Any) -> bool:
         """Check if battery configuration can be loaded."""
-        ts_loader = TimeSeriesLoader()
-
-        def required_available(value: EntityValue | ConstantValue | None) -> bool:
-            if value is None:
-                return False
-            if value["type"] == VALUE_TYPE_ENTITY:
-                return ts_loader.available(hass=hass, value=value)
-            return value["type"] == VALUE_TYPE_CONSTANT
-
-        def optional_available(value: EntityValue | ConstantValue | NoneValue | None) -> bool:
-            if value is None:
-                return True
-            if value["type"] == VALUE_TYPE_ENTITY:
-                return ts_loader.available(hass=hass, value=value)
-            return value["type"] in (VALUE_TYPE_CONSTANT, VALUE_TYPE_NONE)
-
-        storage = config[SECTION_STORAGE]
-        limits = config[SECTION_LIMITS]
-        power_limits = config[SECTION_POWER_LIMITS]
-        pricing = config[SECTION_PRICING]
-        efficiency = config[SECTION_EFFICIENCY]
-        undercharge = config.get(SECTION_UNDERCHARGE, {})
-        overcharge = config.get(SECTION_OVERCHARGE, {})
-
-        # Check required fields
-        if not required_available(storage.get(CONF_CAPACITY)):
-            return False
-        if not required_available(storage.get(CONF_INITIAL_CHARGE_PERCENTAGE)):
-            return False
-
-        # Check optional time series fields if present
-        optional_checks = [
-            (power_limits, CONF_MAX_POWER_SOURCE_TARGET),
-            (power_limits, CONF_MAX_POWER_TARGET_SOURCE),
-            (limits, CONF_MIN_CHARGE_PERCENTAGE),
-            (limits, CONF_MAX_CHARGE_PERCENTAGE),
-            (efficiency, CONF_EFFICIENCY_SOURCE_TARGET),
-            (efficiency, CONF_EFFICIENCY_TARGET_SOURCE),
-            (pricing, CONF_PRICE_SOURCE_TARGET),
-            (pricing, CONF_PRICE_TARGET_SOURCE),
-            (undercharge, CONF_PARTITION_PERCENTAGE),
-            (undercharge, CONF_PARTITION_COST),
-            (overcharge, CONF_PARTITION_PERCENTAGE),
-            (overcharge, CONF_PARTITION_COST),
-        ]
-        return all(optional_available(section.get(field)) for section, field in optional_checks)
+        return schema_config_available(config, hass=hass)
 
     def inputs(self, config: Any) -> dict[str, dict[str, InputFieldInfo[Any]]]:
         """Return input field definitions for battery elements."""

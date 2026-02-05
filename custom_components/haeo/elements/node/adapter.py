@@ -4,8 +4,10 @@ from collections.abc import Mapping
 from typing import Any, Final, Literal
 
 from homeassistant.components.switch import SwitchEntityDescription
+from homeassistant.core import HomeAssistant
 
 from custom_components.haeo.const import ConnectivityLevel
+from custom_components.haeo.elements.availability import schema_config_available
 from custom_components.haeo.elements.input_fields import InputFieldDefaults, InputFieldInfo
 from custom_components.haeo.elements.output_utils import expect_output_data
 from custom_components.haeo.model import ModelElementConfig, ModelOutputName, ModelOutputValue
@@ -40,11 +42,9 @@ class NodeAdapter:
     advanced: bool = True
     connectivity: ConnectivityLevel = ConnectivityLevel.ALWAYS
 
-    def available(self, config: NodeConfigSchema, **_kwargs: Any) -> bool:
+    def available(self, config: NodeConfigSchema, *, hass: HomeAssistant, **_kwargs: Any) -> bool:
         """Check if node configuration can be loaded."""
-        # Nodes only have constant fields, always available
-        _ = config  # Unused but required by protocol
-        return True
+        return schema_config_available(config, hass=hass)
 
     def inputs(self, config: Any) -> dict[str, dict[str, InputFieldInfo[Any]]]:
         """Return input field definitions for node elements."""

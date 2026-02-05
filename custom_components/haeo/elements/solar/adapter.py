@@ -10,7 +10,7 @@ from homeassistant.const import UnitOfPower
 from homeassistant.core import HomeAssistant
 
 from custom_components.haeo.const import ConnectivityLevel
-from custom_components.haeo.data.loader import TimeSeriesLoader
+from custom_components.haeo.elements.availability import schema_config_available
 from custom_components.haeo.elements.input_fields import InputFieldDefaults, InputFieldInfo
 from custom_components.haeo.elements.output_utils import expect_output_data
 from custom_components.haeo.model import ModelElementConfig, ModelOutputName, ModelOutputValue
@@ -19,7 +19,7 @@ from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION,
 from custom_components.haeo.model.elements.connection import CONNECTION_POWER_SOURCE_TARGET, CONNECTION_SEGMENTS
 from custom_components.haeo.model.elements.segments import POWER_LIMIT_SOURCE_TARGET
 from custom_components.haeo.model.output_data import OutputData
-from custom_components.haeo.schema import VALUE_TYPE_CONSTANT, VALUE_TYPE_ENTITY, extract_connection_target
+from custom_components.haeo.schema import extract_connection_target
 from custom_components.haeo.sections import (
     CONF_CONNECTION,
     CONF_FORECAST,
@@ -59,11 +59,7 @@ class SolarAdapter:
 
     def available(self, config: SolarConfigSchema, *, hass: HomeAssistant, **_kwargs: Any) -> bool:
         """Check if solar configuration can be loaded."""
-        ts_loader = TimeSeriesLoader()
-        value = config[SECTION_FORECAST][CONF_FORECAST]
-        if value["type"] == VALUE_TYPE_ENTITY:
-            return ts_loader.available(hass=hass, value=value)
-        return value["type"] == VALUE_TYPE_CONSTANT
+        return schema_config_available(config, hass=hass)
 
     def inputs(self, config: Any) -> dict[str, dict[str, InputFieldInfo[Any]]]:
         """Return input field definitions for solar elements."""

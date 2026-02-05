@@ -9,7 +9,7 @@ from homeassistant.const import UnitOfEnergy
 from homeassistant.core import HomeAssistant
 
 from custom_components.haeo.const import ConnectivityLevel
-from custom_components.haeo.data.loader import TimeSeriesLoader
+from custom_components.haeo.elements.availability import schema_config_available
 from custom_components.haeo.elements.input_fields import InputFieldInfo
 from custom_components.haeo.elements.output_utils import expect_output_data
 from custom_components.haeo.model import ModelElementConfig, ModelOutputName, ModelOutputValue
@@ -17,7 +17,6 @@ from custom_components.haeo.model import battery as model_battery
 from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_BATTERY
 from custom_components.haeo.model.output_data import OutputData
-from custom_components.haeo.schema import VALUE_TYPE_CONSTANT, VALUE_TYPE_ENTITY, ConstantValue, EntityValue
 from custom_components.haeo.sections import SECTION_COMMON
 
 from .schema import (
@@ -71,19 +70,8 @@ class BatterySectionAdapter:
 
     def available(self, config: BatterySectionConfigSchema, *, hass: HomeAssistant, **_kwargs: Any) -> bool:
         """Check if battery section configuration can be loaded."""
-        ts_loader = TimeSeriesLoader()
 
-        def required_available(value: EntityValue | ConstantValue | None) -> bool:
-            if value is None:
-                return False
-            if value["type"] == VALUE_TYPE_ENTITY:
-                return ts_loader.available(hass=hass, value=value)
-            return value["type"] == VALUE_TYPE_CONSTANT
-
-        # Check required time series fields
-        required_fields = [CONF_CAPACITY, CONF_INITIAL_CHARGE]
-        inputs = config[SECTION_STORAGE]
-        return all(required_available(inputs.get(field)) for field in required_fields)
+        return schema_config_available(config, hass=hass)
 
     def inputs(self, config: Any) -> dict[str, dict[str, InputFieldInfo[Any]]]:
         """Return input field definitions for battery section elements."""
