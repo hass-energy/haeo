@@ -9,7 +9,7 @@ import voluptuous as vol
 
 from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME, DOMAIN, URL_HAFO
 from custom_components.haeo.data.loader.extractors import extract_entity_metadata
-from custom_components.haeo.elements import is_element_config_schema
+from custom_components.haeo.elements import get_input_field_schema_info, is_element_config_schema
 from custom_components.haeo.elements.input_fields import InputFieldGroups
 from custom_components.haeo.flows.element_flow import ElementFlowMixin, build_sectioned_inclusion_map
 from custom_components.haeo.flows.field_schema import (
@@ -21,6 +21,7 @@ from custom_components.haeo.flows.field_schema import (
     preprocess_sectioned_choose_input,
     validate_sectioned_choose_fields,
 )
+from custom_components.haeo.schema import as_constant_value
 from custom_components.haeo.sections import (
     CONF_CONNECTION,
     CONF_FORECAST,
@@ -33,7 +34,7 @@ from custom_components.haeo.sections import (
 )
 
 from .adapter import adapter
-from .schema import ELEMENT_TYPE, OPTIONAL_INPUT_FIELDS, LoadConfigSchema
+from .schema import ELEMENT_TYPE, LoadConfigSchema
 
 
 class LoadSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
@@ -80,7 +81,7 @@ class LoadSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                     CONF_NAME: default_name,
                     CONF_CONNECTION: current_connection,
                 },
-                SECTION_FORECAST: {CONF_FORECAST: 0.0},
+                SECTION_FORECAST: {CONF_FORECAST: as_constant_value(0.0)},
             }
 
         input_fields = adapter.inputs(element_config)
@@ -127,6 +128,7 @@ class LoadSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
     ) -> vol.Schema:
         """Build the schema with name, connection, and choose selectors for inputs."""
         sections = self._get_sections()
+        field_schema = get_input_field_schema_info(ELEMENT_TYPE, input_fields)
         field_entries: dict[str, dict[str, tuple[vol.Marker, Any]]] = {
             SECTION_COMMON: build_common_fields(
                 include_connection=True,
@@ -146,7 +148,7 @@ class LoadSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             field_entries.setdefault(section_def.key, {}).update(
                 section_builders.get(section_def.key, build_choose_field_entries)(
                     section_fields,
-                    optional_fields=OPTIONAL_INPUT_FIELDS,
+                    field_schema=field_schema.get(section_def.key, {}),
                     inclusion_map=section_inclusion_map.get(section_def.key, {}),
                     current_data=subentry_data.get(section_def.key) if subentry_data else None,
                 )
@@ -192,11 +194,12 @@ class LoadSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         errors: dict[str, str] = {}
         common_input = user_input.get(SECTION_COMMON, {})
         self._validate_name(common_input.get(CONF_NAME), errors)
+        field_schema = get_input_field_schema_info(ELEMENT_TYPE, input_fields)
         errors.update(
             validate_sectioned_choose_fields(
                 user_input,
                 input_fields,
-                OPTIONAL_INPUT_FIELDS,
+                field_schema,
                 self._get_sections(),
             )
         )

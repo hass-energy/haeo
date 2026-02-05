@@ -26,6 +26,7 @@ from custom_components.haeo.sections import (
     PricingConfig,
     PricingData,
 )
+from custom_components.haeo.schema import EntityOrConstantValue, OptionalEntityOrConstantValue
 
 ELEMENT_TYPE: Final = "battery"
 
@@ -72,8 +73,8 @@ PARTITION_FIELD_NAMES: Final[frozenset[str]] = frozenset(
 class StorageSocConfig(TypedDict):
     """Storage config with required SOC percentage."""
 
-    capacity: str | float
-    initial_charge_percentage: str | float
+    capacity: EntityOrConstantValue
+    initial_charge_percentage: EntityOrConstantValue
 
 
 class StorageSocData(TypedDict):
@@ -86,8 +87,8 @@ class StorageSocData(TypedDict):
 class LimitsConfig(TypedDict, total=False):
     """Charge percentage limits configuration."""
 
-    min_charge_percentage: str | float
-    max_charge_percentage: str | float
+    min_charge_percentage: OptionalEntityOrConstantValue
+    max_charge_percentage: OptionalEntityOrConstantValue
 
 
 class LimitsData(TypedDict, total=False):
@@ -112,8 +113,8 @@ class PartitioningData(TypedDict, total=False):
 class PartitionConfig(TypedDict, total=False):
     """Partition configuration (undercharge/overcharge)."""
 
-    percentage: str | float
-    cost: list[str] | str | float
+    percentage: OptionalEntityOrConstantValue
+    cost: OptionalEntityOrConstantValue
 
 
 class PartitionData(TypedDict, total=False):

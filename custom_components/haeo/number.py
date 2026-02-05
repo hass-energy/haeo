@@ -13,6 +13,7 @@ from custom_components.haeo.elements import (
     is_element_config_schema,
     iter_input_field_paths,
 )
+from custom_components.haeo.schema import is_none_value
 from custom_components.haeo.entities.device import get_or_create_element_device
 from custom_components.haeo.entities.haeo_number import HaeoInputNumber
 
@@ -65,7 +66,8 @@ async def async_setup_entry(
 
         for field_path, field_info in number_fields:
             # Only create entities for configured fields
-            if get_nested_config_value_by_path(subentry.data, field_path) is None:
+            config_value = get_nested_config_value_by_path(subentry.data, field_path)
+            if config_value is None or is_none_value(config_value):
                 continue
 
             entity = HaeoInputNumber(

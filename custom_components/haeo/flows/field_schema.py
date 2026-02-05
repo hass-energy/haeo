@@ -7,6 +7,7 @@ Home Assistant's ChooseSelector, allowing users to pick between "Entity"
 
 from collections.abc import Collection, Mapping, Sequence
 from dataclasses import dataclass
+from numbers import Real
 from typing import Any
 
 from homeassistant.components.number import NumberEntityDescription
@@ -30,12 +31,27 @@ from homeassistant.helpers.selector import (
 import voluptuous as vol
 
 from custom_components.haeo.const import DOMAIN
+from custom_components.haeo.elements import FieldSchemaInfo
 from custom_components.haeo.elements.input_fields import InputFieldGroups, InputFieldInfo
+from custom_components.haeo.schema import (
+    VALUE_TYPE_CONSTANT,
+    VALUE_TYPE_ENTITY,
+    VALUE_TYPE_NONE,
+    as_constant_value,
+    as_entity_value,
+    as_none_value,
+    get_schema_value_kinds,
+    is_constant_value,
+    is_entity_value,
+    is_none_value,
+    is_schema_value,
+    normalize_entity_ids,
+)
 
 # Choose selector choice keys (used for config flow data and translations)
-CHOICE_ENTITY = "entity"
-CHOICE_CONSTANT = "constant"
-CHOICE_NONE = "none"
+CHOICE_ENTITY = VALUE_TYPE_ENTITY
+CHOICE_CONSTANT = VALUE_TYPE_CONSTANT
+CHOICE_NONE = VALUE_TYPE_NONE
 
 
 @dataclass(frozen=True, slots=True)
@@ -180,42 +196,58 @@ def build_entity_selector(
     return EntitySelector(EntitySelectorConfig(**config_kwargs))
 
 
+def _get_allowed_choices(field_schema: FieldSchemaInfo, field_info: InputFieldInfo[Any]) -> frozenset[str]:
+    kinds = get_schema_value_kinds(field_schema.value_type)
+    choices: set[str] = set()
+    if VALUE_TYPE_ENTITY in kinds:
+        choices.add(CHOICE_ENTITY)
+    if VALUE_TYPE_CONSTANT in kinds:
+        choices.add(CHOICE_CONSTANT)
+    if VALUE_TYPE_NONE in kinds and not field_info.force_required:
+        choices.add(CHOICE_NONE)
+    return frozenset(choices)
+
+
 def get_preferred_choice(
     field_info: InputFieldInfo[Any],
     current_data: Mapping[str, Any] | None = None,
     *,
-    is_optional: bool = False,
+    allowed_choices: Collection[str],
 ) -> str:
     """Determine which choice should be first in the ChooseSelector.
 
     The ChooseSelector always selects the first choice, so we order
     choices based on what should be pre-selected.
-
-    Args:
-        field_info: Input field metadata.
-        current_data: Current configuration data (for reconfigure).
-        is_optional: Whether the field is optional (enables "none" choice).
-
-    Returns:
-        CHOICE_ENTITY, CHOICE_CONSTANT, or CHOICE_NONE based on context.
-
     """
     field_name = field_info.field_name
+    choices = set(allowed_choices)
 
     # Reconfigure: infer from stored value
     if current_data is not None:
         value = _get_nested_value(current_data, field_name)
-        if value is not None:
-            return CHOICE_ENTITY if isinstance(value, (str, list)) else CHOICE_CONSTANT
-        if is_optional:
-            return CHOICE_NONE  # Field was explicitly omitted
+        if is_entity_value(value) and CHOICE_ENTITY in choices:
+            return CHOICE_ENTITY
+        if is_constant_value(value) and CHOICE_CONSTANT in choices:
+            return CHOICE_CONSTANT
+        if is_none_value(value) and CHOICE_NONE in choices:
+            return CHOICE_NONE
 
     # New entry: check for explicit default mode
-    if field_info.defaults and field_info.defaults.mode:
-        return CHOICE_CONSTANT if field_info.defaults.mode == "value" else CHOICE_ENTITY
+    if field_info.defaults is not None:
+        if field_info.defaults.mode is None and CHOICE_NONE in choices:
+            return CHOICE_NONE
+        if field_info.defaults.mode:
+            preferred = CHOICE_CONSTANT if field_info.defaults.mode == "value" else CHOICE_ENTITY
+            if preferred in choices:
+                return preferred
 
-    # Fallback: optional -> none, required -> entity
-    return CHOICE_NONE if is_optional else CHOICE_ENTITY
+    if CHOICE_NONE in choices:
+        return CHOICE_NONE
+    if CHOICE_ENTITY in choices:
+        return CHOICE_ENTITY
+    if CHOICE_CONSTANT in choices:
+        return CHOICE_CONSTANT
+    return CHOICE_NONE
 
 
 class NormalizingChooseSelector(ChooseSelector):  # type: ignore[type-arg]
@@ -248,7 +280,7 @@ class NormalizingChooseSelector(ChooseSelector):  # type: ignore[type-arg]
 def build_choose_selector(
     field_info: InputFieldInfo[Any],
     *,
-    is_optional: bool = False,
+    allowed_choices: Collection[str],
     include_entities: list[str] | None = None,
     multiple: bool = True,
     preferred_choice: str = CHOICE_ENTITY,
@@ -257,7 +289,7 @@ def build_choose_selector(
 
     Args:
         field_info: Input field metadata.
-        is_optional: Whether the field is optional (adds "none" choice).
+        allowed_choices: Choice keys allowed for this field.
         include_entities: Entity IDs to include (compatible entities from unit filtering).
         multiple: Whether to allow multiple entity selection (for chaining).
         preferred_choice: Which choice should appear first (will be pre-selected).
@@ -289,20 +321,23 @@ def build_choose_selector(
     # Build ordered choices dict with preferred choice first
     # (ChooseSelector always selects the first option)
     choices: dict[str, ChooseSelectorChoiceConfig]
-    none_selector = ConstantSelector(ConstantSelectorConfig(value=""))
-    none_choice = ChooseSelectorChoiceConfig(selector=none_selector.serialize()["selector"])
+    choice_map: dict[str, ChooseSelectorChoiceConfig] = {}
 
-    # Canonical order and mapping of choices
-    choice_order = [CHOICE_ENTITY, CHOICE_CONSTANT, CHOICE_NONE]
-    choice_map = {
-        CHOICE_ENTITY: entity_choice,
-        CHOICE_CONSTANT: constant_choice,
-        CHOICE_NONE: none_choice,
-    }
+    if CHOICE_ENTITY in allowed_choices:
+        choice_map[CHOICE_ENTITY] = entity_choice
+    if CHOICE_CONSTANT in allowed_choices:
+        choice_map[CHOICE_CONSTANT] = constant_choice
+    if CHOICE_NONE in allowed_choices:
+        none_selector = ConstantSelector(ConstantSelectorConfig(value=""))
+        choice_map[CHOICE_NONE] = ChooseSelectorChoiceConfig(
+            selector=none_selector.serialize()["selector"]
+        )
 
-    if not is_optional:
-        choice_order.remove(CHOICE_NONE)
-        del choice_map[CHOICE_NONE]
+    choice_order = [choice for choice in (CHOICE_ENTITY, CHOICE_CONSTANT, CHOICE_NONE) if choice in choice_map]
+
+    if not choice_order:
+        msg = f"No allowed choices for field '{field_info.field_name}'"
+        raise RuntimeError(msg)
 
     # Move preferred choice to the start
     # Needed in HA version 2026.1.1, as it currently only supports providing a suggested value for the first choice.
@@ -324,6 +359,7 @@ def build_choose_schema_entry(
     field_info: InputFieldInfo[Any],
     *,
     is_optional: bool,
+    allowed_choices: Collection[str],
     include_entities: list[str] | None = None,
     multiple: bool = True,
     preferred_choice: str = CHOICE_ENTITY,
@@ -333,6 +369,7 @@ def build_choose_schema_entry(
     Args:
         field_info: Input field metadata.
         is_optional: Whether the field is optional (adds "none" choice).
+        allowed_choices: Choice keys allowed for this field.
         include_entities: Entity IDs to include (compatible entities from unit filtering).
         multiple: Whether to allow multiple entity selection.
         preferred_choice: Which choice should appear first (will be pre-selected).
@@ -344,7 +381,7 @@ def build_choose_schema_entry(
     field_name = field_info.field_name
     selector = build_choose_selector(
         field_info,
-        is_optional=is_optional,
+        allowed_choices=allowed_choices,
         include_entities=include_entities,
         multiple=multiple,
         preferred_choice=preferred_choice,
@@ -358,7 +395,7 @@ def build_choose_schema_entry(
 def build_choose_field_entries(
     input_fields: Mapping[str, InputFieldInfo[Any]],
     *,
-    optional_fields: frozenset[str],
+    field_schema: Mapping[str, FieldSchemaInfo],
     inclusion_map: dict[str, list[str]],
     current_data: Mapping[str, Any] | None = None,
 ) -> dict[str, tuple[vol.Marker, Any]]:
@@ -366,7 +403,7 @@ def build_choose_field_entries(
 
     Args:
         input_fields: Mapping of InputFieldInfo keyed by field name.
-        optional_fields: Optional input field names from the config schema.
+        field_schema: Mapping of field names to schema metadata.
         inclusion_map: Mapping of field name -> compatible entity IDs.
         current_data: Current configuration data (for reconfigure).
 
@@ -377,12 +414,18 @@ def build_choose_field_entries(
     entries: dict[str, tuple[vol.Marker, Any]] = {}
 
     for field_info in input_fields.values():
-        is_optional = field_info.field_name in optional_fields and not field_info.force_required
+        schema_info = field_schema.get(field_info.field_name)
+        if schema_info is None:
+            msg = f"Missing schema metadata for field '{field_info.field_name}'"
+            raise RuntimeError(msg)
+        is_optional = schema_info.is_optional and not field_info.force_required
+        allowed_choices = _get_allowed_choices(schema_info, field_info)
         include_entities = inclusion_map.get(field_info.field_name)
-        preferred = get_preferred_choice(field_info, current_data, is_optional=is_optional)
+        preferred = get_preferred_choice(field_info, current_data, allowed_choices=allowed_choices)
         marker, selector = build_choose_schema_entry(
             field_info,
             is_optional=is_optional,
+            allowed_choices=allowed_choices,
             include_entities=include_entities,
             preferred_choice=preferred,
         )
@@ -524,7 +567,7 @@ def _nest_section_input(user_input: Mapping[str, Any], sections: Sequence[Sectio
 def validate_sectioned_choose_fields(
     user_input: Mapping[str, Any],
     input_fields: InputFieldGroups,
-    optional_fields: frozenset[str],
+    field_schema: Mapping[str, Mapping[str, FieldSchemaInfo]],
     sections: Sequence[SectionDefinition],
     *,
     exclude_fields: tuple[str, ...] = (),
@@ -540,7 +583,7 @@ def validate_sectioned_choose_fields(
             validate_choose_fields(
                 dict(section_input),
                 section_fields,
-                optional_fields,
+                field_schema.get(section_def.key, {}),
                 exclude_fields=exclude_fields,
             )
         )
@@ -598,19 +641,12 @@ def get_choose_default(
     # Check current stored data first (for reconfigure)
     current_value = _get_nested_value(current_data, field_name) if current_data is not None else None
 
-    if current_value is not None:
-        if isinstance(current_value, (float, int)) and not isinstance(current_value, bool):
-            # Constant numeric value
-            return current_value
-        if isinstance(current_value, bool):
-            # Boolean constant
-            return current_value
-        if isinstance(current_value, str):
-            # Single entity ID - wrap in list for entity selector
-            return [current_value]
-        if isinstance(current_value, list):
-            # Multiple entity IDs
-            return current_value
+    if is_entity_value(current_value):
+        return current_value["value"]
+    if is_constant_value(current_value):
+        return current_value["value"]
+    if is_none_value(current_value):
+        return None
 
     # No current data - check defaults
     if field_info.defaults is not None:
@@ -642,11 +678,10 @@ def convert_choose_data_to_config(
         exclude_keys: Keys to exclude from processing (e.g., name, connection).
 
     Returns:
-        Config dict with:
-        - Constant fields: stored as float/bool
-        - Entity fields with single entity: stored as str
-        - Entity fields with multiple entities: stored as list[str]
-        - None/Disabled fields: omitted
+        Config dict with discriminated schema values:
+        - Entity fields: stored as {"type": "entity", "value": list[str]}
+        - Constant fields: stored as {"type": "constant", "value": scalar}
+        - Disabled fields: stored as {"type": "none"}
 
     """
     config: dict[str, Any] = {}
@@ -658,33 +693,35 @@ def convert_choose_data_to_config(
         if field_name not in field_names:
             continue
 
-        # Skip None values (disabled/none choice)
+        # Disabled/none choice
         if value is None:
+            config[field_name] = as_none_value()
             continue
 
         # Entity selection: list of entity IDs
         if isinstance(value, list):
             if not value:
-                continue  # Empty list - skip
-            config[field_name] = _normalize_entity_selection(value)
-        # Constant: scalar value (number, boolean, or string)
-        elif isinstance(value, (int, float, bool, str)):
-            config[field_name] = value
+                config[field_name] = as_none_value()
+                continue
+            config[field_name] = as_entity_value(normalize_entity_ids(value))
+            continue
+
+        # Single entity ID
+        if isinstance(value, str):
+            if not value:
+                config[field_name] = as_none_value()
+                continue
+            config[field_name] = as_entity_value([value])
+            continue
+
+        # Handle numeric or boolean constants
+        if isinstance(value, bool):
+            config[field_name] = as_constant_value(value)
+            continue
+        if isinstance(value, Real):
+            config[field_name] = as_constant_value(float(value))
 
     return config
-
-
-def _normalize_entity_selection(entities: list[str] | str) -> str | list[str]:
-    """Normalize entity selection to str (single) or list[str] (multiple).
-
-    Single entity selections are stored as strings for backwards compatibility.
-    Multiple entity selections are stored as lists for chaining support.
-    """
-    if isinstance(entities, str):
-        return entities
-    if len(entities) == 1:
-        return entities[0]
-    return entities
 
 
 def preprocess_choose_selector_input(
@@ -733,6 +770,12 @@ def preprocess_choose_selector_input(
                 result[field_name] = value.get(CHOICE_ENTITY, [])
             elif choice == CHOICE_CONSTANT:
                 result[field_name] = value.get(CHOICE_CONSTANT)
+        # Handle discriminated schema values
+        elif is_schema_value(value):
+            if is_entity_value(value) or is_constant_value(value):
+                result[field_name] = value["value"]
+            else:
+                result[field_name] = None
         # Convert empty string (from ConstantSelector) to None
         elif value == "":
             result[field_name] = None
@@ -770,7 +813,7 @@ def is_valid_choose_value(value: Any) -> bool:
 def validate_choose_fields(
     user_input: dict[str, Any],
     input_fields: Mapping[str, InputFieldInfo[Any]],
-    optional_fields: frozenset[str],
+    field_schema: Mapping[str, FieldSchemaInfo],
     *,
     exclude_fields: Collection[str] = (),
 ) -> dict[str, str]:
@@ -779,7 +822,7 @@ def validate_choose_fields(
     Args:
         user_input: User input dictionary from the form.
         input_fields: Mapping of InputFieldInfo defining the fields.
-        optional_fields: Optional input field names from the config schema.
+        field_schema: Mapping of field names to schema metadata.
         exclude_fields: Field names to skip validation for.
 
     Returns:
@@ -791,8 +834,11 @@ def validate_choose_fields(
     for field_name, field_info in input_fields.items():
         if field_name in exclude_fields:
             continue
-
-        is_optional = field_name in optional_fields and not field_info.force_required
+        schema_info = field_schema.get(field_name)
+        if schema_info is None:
+            msg = f"Missing schema metadata for field '{field_name}'"
+            raise RuntimeError(msg)
+        is_optional = schema_info.is_optional and not field_info.force_required
 
         if is_optional:
             continue

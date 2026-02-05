@@ -18,6 +18,7 @@ from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_BATTERY
 from custom_components.haeo.model.output_data import OutputData
 from custom_components.haeo.sections import SECTION_COMMON
+from custom_components.haeo.schema import EntityOrConstantValue, VALUE_TYPE_CONSTANT, VALUE_TYPE_ENTITY
 
 from .schema import (
     CONF_CAPACITY,
@@ -72,10 +73,17 @@ class BatterySectionAdapter:
         """Check if battery section configuration can be loaded."""
         ts_loader = TimeSeriesLoader()
 
+        def required_available(value: EntityOrConstantValue | None) -> bool:
+            if value is None:
+                return False
+            if value["type"] == VALUE_TYPE_ENTITY:
+                return ts_loader.available(hass=hass, value=value)
+            return value["type"] == VALUE_TYPE_CONSTANT
+
         # Check required time series fields
         required_fields = [CONF_CAPACITY, CONF_INITIAL_CHARGE]
         inputs = config[SECTION_STORAGE]
-        return all(ts_loader.available(hass=hass, value=inputs[field]) for field in required_fields)
+        return all(required_available(inputs.get(field)) for field in required_fields)
 
     def inputs(self, config: Any) -> dict[str, dict[str, InputFieldInfo[Any]]]:
         """Return input field definitions for battery section elements."""

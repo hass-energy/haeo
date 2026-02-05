@@ -32,6 +32,7 @@ from custom_components.haeo.model.elements.segments import (
 )
 from custom_components.haeo.model.output_data import OutputData
 from custom_components.haeo.sections import SECTION_COMMON, SECTION_EFFICIENCY, SECTION_POWER_LIMITS, SECTION_PRICING
+from custom_components.haeo.schema import OptionalEntityOrConstantValue, VALUE_TYPE_CONSTANT, VALUE_TYPE_ENTITY, VALUE_TYPE_NONE
 
 from .schema import (
     CONF_EFFICIENCY_SOURCE_TARGET,
@@ -88,6 +89,13 @@ class ConnectionAdapter:
         """Check if connection configuration can be loaded."""
         ts_loader = TimeSeriesLoader()
 
+        def optional_available(value: OptionalEntityOrConstantValue | None) -> bool:
+            if value is None:
+                return True
+            if value["type"] == VALUE_TYPE_ENTITY:
+                return ts_loader.available(hass=hass, value=value)
+            return value["type"] in (VALUE_TYPE_CONSTANT, VALUE_TYPE_NONE)
+
         # Check all optional time series fields if present
         optional_fields = [
             CONF_MAX_POWER_SOURCE_TARGET,
@@ -102,11 +110,11 @@ class ConnectionAdapter:
         efficiency = config[SECTION_EFFICIENCY]
         pricing = config[SECTION_PRICING]
         for field in optional_fields:
-            if (value := limits.get(field)) is not None and not ts_loader.available(hass=hass, value=value):
+            if not optional_available(limits.get(field)):
                 return False
-            if (value := efficiency.get(field)) is not None and not ts_loader.available(hass=hass, value=value):
+            if not optional_available(efficiency.get(field)):
                 return False
-            if (value := pricing.get(field)) is not None and not ts_loader.available(hass=hass, value=value):
+            if not optional_available(pricing.get(field)):
                 return False
 
         return True

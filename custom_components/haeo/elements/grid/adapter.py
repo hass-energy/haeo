@@ -35,6 +35,7 @@ from custom_components.haeo.sections import (
     SECTION_POWER_LIMITS,
     SECTION_PRICING,
 )
+from custom_components.haeo.schema import OptionalEntityOrConstantValue, VALUE_TYPE_CONSTANT, VALUE_TYPE_ENTITY, VALUE_TYPE_NONE
 
 from .schema import ELEMENT_TYPE, GridConfigData, GridConfigSchema
 
@@ -84,13 +85,12 @@ class GridAdapter:
         ts_loader = TimeSeriesLoader()
 
         # Helper to check entity availability
-        def entities_available(value: list[str] | str | float | None) -> bool:
-            if value is None or isinstance(value, float | int):
-                return True  # Constants and missing values are always available
-            if isinstance(value, str):
-                return ts_loader.available(hass=hass, value=[value])
-            # At this point value is a list of strings
-            return ts_loader.available(hass=hass, value=value) if value else True
+        def entities_available(value: OptionalEntityOrConstantValue | None) -> bool:
+            if value is None:
+                return True
+            if value["type"] == VALUE_TYPE_ENTITY:
+                return ts_loader.available(hass=hass, value=value)
+            return value["type"] in (VALUE_TYPE_CONSTANT, VALUE_TYPE_NONE)
 
         pricing = config[SECTION_PRICING]
         return entities_available(pricing.get(CONF_PRICE_SOURCE_TARGET)) and entities_available(

@@ -15,6 +15,7 @@ from custom_components.haeo.sections import (
     PricingConfig,
     PricingData,
 )
+from custom_components.haeo.schema import EntityOrConstantValue
 
 ELEMENT_TYPE: Final = "solar"
 
@@ -28,7 +29,7 @@ OPTIONAL_INPUT_FIELDS: Final[frozenset[str]] = frozenset({CONF_CURTAILMENT, CONF
 class CurtailmentConfig(TypedDict, total=False):
     """Curtailment configuration values."""
 
-    curtailment: str | bool
+    curtailment: EntityOrConstantValue
 
 
 class CurtailmentData(TypedDict, total=False):

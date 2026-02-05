@@ -24,6 +24,7 @@ Sub-element Naming Convention:
 """
 
 from collections.abc import Mapping
+from dataclasses import dataclass
 import logging
 import types
 from typing import (
@@ -262,6 +263,14 @@ class ValidatedElementSubentry(NamedTuple):
     config: ElementConfigSchema
 
 
+@dataclass(frozen=True, slots=True)
+class FieldSchemaInfo:
+    """Schema metadata for a config field."""
+
+    value_type: Any
+    is_optional: bool
+
+
 # Map element types to their ConfigSchema TypedDict classes for reflection
 # Typed with ElementType keys to enable type-safe indexing after is_element_type check
 ELEMENT_CONFIG_SCHEMAS: Final[dict[ElementType, type]] = {
@@ -298,6 +307,49 @@ ELEMENT_OPTIONAL_INPUT_FIELDS: Final[dict[ElementType, frozenset[str]]] = {
     "node": node.OPTIONAL_INPUT_FIELDS,
     "solar": solar.OPTIONAL_INPUT_FIELDS,
 }
+
+
+def get_input_field_schema_info(
+    element_type: ElementType,
+    input_fields: InputFieldGroups,
+) -> dict[str, dict[str, FieldSchemaInfo]]:
+    """Return schema metadata for input fields grouped by section."""
+    schema_cls = ELEMENT_CONFIG_SCHEMAS[element_type]
+    schema_hints = get_type_hints(schema_cls)
+    schema_optional_keys: frozenset[str] = getattr(schema_cls, "__optional_keys__", frozenset())
+
+    results: dict[str, dict[str, FieldSchemaInfo]] = {}
+
+    for section_key, section_fields in input_fields.items():
+        section_hint = schema_hints.get(section_key)
+        if section_hint is None:
+            msg = f"Section '{section_key}' not found in {schema_cls.__name__}"
+            raise RuntimeError(msg)
+
+        section_type = _unwrap_required_type(section_hint)
+        if isinstance(section_type, TypeAliasType):
+            section_type = section_type.__value__
+
+        if not isinstance(section_type, type) or not hasattr(section_type, "__required_keys__"):
+            msg = f"Section '{section_key}' in {schema_cls.__name__} is not a TypedDict"
+            raise RuntimeError(msg)
+
+        section_optional_keys: frozenset[str] = getattr(section_type, "__optional_keys__", frozenset())
+        section_is_optional = section_key in schema_optional_keys
+        section_hints = get_type_hints(section_type)
+
+        section_info: dict[str, FieldSchemaInfo] = {}
+        for field_name in section_fields:
+            field_type = section_hints.get(field_name)
+            if field_type is None:
+                msg = f"Field '{section_key}.{field_name}' not found in {section_type.__name__}"
+                raise RuntimeError(msg)
+            is_optional = section_is_optional or field_name in section_optional_keys
+            section_info[field_name] = FieldSchemaInfo(value_type=field_type, is_optional=is_optional)
+
+        results[section_key] = section_info
+
+    return results
 
 
 def is_element_type(value: Any) -> TypeGuard[ElementType]:
@@ -556,6 +608,7 @@ __all__ = [
     "ElementConfigSchema",
     "ElementDeviceName",
     "ElementType",
+    "FieldSchemaInfo",
     "InputFieldGroups",
     "InputFieldInfo",
     "InputFieldPath",
@@ -565,6 +618,7 @@ __all__ = [
     "find_nested_config_path",
     "get_element_flow_classes",
     "get_input_fields",
+    "get_input_field_schema_info",
     "get_nested_config_value",
     "get_nested_config_value_by_path",
     "is_element_config_data",

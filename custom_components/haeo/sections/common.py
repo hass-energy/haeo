@@ -12,33 +12,35 @@ from custom_components.haeo.flows.field_schema import SectionDefinition
 SECTION_COMMON: Final = "common"
 CONF_CONNECTION: Final = "connection"
 
+type ConnectionTarget = str
+
 
 class CommonConfig(TypedDict):
     """Common configuration for element identity and connectivity."""
 
     name: str
-    connection: NotRequired[str]
+    connection: NotRequired[ConnectionTarget]
 
 
 class CommonData(TypedDict):
     """Loaded common values for element identity and connectivity."""
 
     name: str
-    connection: NotRequired[str]
+    connection: NotRequired[ConnectionTarget]
 
 
 class ConnectedCommonConfig(TypedDict):
     """Common configuration with a required connection target."""
 
     name: str
-    connection: str
+    connection: ConnectionTarget
 
 
 class ConnectedCommonData(TypedDict):
     """Loaded common values with a required connection target."""
 
     name: str
-    connection: str
+    connection: ConnectionTarget
 
 
 def common_section(fields: tuple[str, ...], *, collapsed: bool = False) -> SectionDefinition:
@@ -76,6 +78,7 @@ def build_common_fields(
 
 __all__ = [
     "CONF_CONNECTION",
+    "ConnectionTarget",
     "SECTION_COMMON",
     "CommonConfig",
     "CommonData",

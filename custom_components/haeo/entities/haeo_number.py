@@ -21,6 +21,15 @@ from custom_components.haeo.elements import InputFieldPath, find_nested_config_p
 from custom_components.haeo.elements.input_fields import InputFieldInfo
 from custom_components.haeo.horizon import HorizonManager
 from custom_components.haeo.util import async_update_subentry_value
+from custom_components.haeo.schema import (
+    as_constant_value,
+    as_entity_value,
+    extract_constant,
+    extract_entity_ids,
+    is_constant_value,
+    is_entity_value,
+    is_none_value,
+)
 
 # Attributes to exclude from recorder when forecast recording is disabled
 FORECAST_UNRECORDED_ATTRIBUTES: frozenset[str] = frozenset({"forecast"})
@@ -73,27 +82,28 @@ class HaeoInputNumber(NumberEntity):
         # Set device_entry to link entity to device
         self.device_entry = device_entry
 
-        # Determine mode from config value type
-        # Entity IDs can be list[str] (new format) or str (v0.1 format)
-        # Constants are stored as float from NumberSelector
+        # Determine mode from schema value type
         config_value = get_nested_config_value_by_path(subentry.data, self._field_path)
 
-        if isinstance(config_value, list) and config_value:
-            # DRIVEN mode: value comes from external sensors (list format)
+        if is_entity_value(config_value):
+            # DRIVEN mode: value comes from external sensors
             self._entity_mode = ConfigEntityMode.DRIVEN
-            self._source_entity_ids: list[str] = config_value
+            self._source_entity_ids = extract_entity_ids(config_value) or []
             self._attr_native_value = None  # Will be set when data loads
-        elif isinstance(config_value, str):
-            # DRIVEN mode: v0.1 format - single entity ID string
-            self._entity_mode = ConfigEntityMode.DRIVEN
-            self._source_entity_ids = [config_value]
-            self._attr_native_value = None  # Will be set when data loads
-        else:
+        elif is_constant_value(config_value):
             # EDITABLE mode: value is a constant
-            # Config flow ensures fields in subentry.data are either entity IDs or scalars
             self._entity_mode = ConfigEntityMode.EDITABLE
             self._source_entity_ids = []
-            self._attr_native_value = float(config_value)  # type: ignore[arg-type]
+            constant = extract_constant(config_value)
+            self._attr_native_value = float(constant) if constant is not None else None
+        elif is_none_value(config_value) or config_value is None:
+            # Disabled or missing configuration
+            self._entity_mode = ConfigEntityMode.EDITABLE
+            self._source_entity_ids = []
+            self._attr_native_value = None
+        else:
+            msg = f"Invalid config value for field {field_info.field_name}"
+            raise RuntimeError(msg)
 
         # Unique ID for multi-hub safety: entry_id + subentry_id + field_name
         field_path_key = ".".join(self._field_path)
@@ -210,14 +220,14 @@ class HaeoInputNumber(NumberEntity):
                 # Boundary fields: n+1 values at time boundaries
                 values = await self._loader.load_boundaries(
                     hass=self.hass,
-                    value=self._source_entity_ids,
+                    value=as_entity_value(self._source_entity_ids),
                     forecast_times=list(forecast_timestamps),
                 )
             else:
                 # Interval fields: n values for periods between boundaries
                 values = await self._loader.load_intervals(
                     hass=self.hass,
-                    value=self._source_entity_ids,
+                    value=as_entity_value(self._source_entity_ids),
                     forecast_times=list(forecast_timestamps),
                 )
         except Exception:
@@ -340,7 +350,7 @@ class HaeoInputNumber(NumberEntity):
             self._config_entry,
             self._subentry,
             field_path=self._field_path,
-            value=value,
+            value=as_constant_value(value),
         )
 
 

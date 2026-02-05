@@ -33,6 +33,7 @@ from custom_components.haeo.sections import (
     SECTION_EFFICIENCY,
     SECTION_POWER_LIMITS,
 )
+from custom_components.haeo.schema import OptionalEntityOrConstantValue, VALUE_TYPE_CONSTANT, VALUE_TYPE_ENTITY, VALUE_TYPE_NONE
 
 from .schema import ELEMENT_TYPE, InverterConfigData, InverterConfigSchema
 
@@ -76,10 +77,16 @@ class InverterAdapter:
         """Check if inverter configuration can be loaded."""
         ts_loader = TimeSeriesLoader()
         limits = config[SECTION_POWER_LIMITS]
-        return (
-            (value := limits.get(CONF_MAX_POWER_SOURCE_TARGET)) is None or ts_loader.available(hass=hass, value=value)
-        ) and (
-            (value := limits.get(CONF_MAX_POWER_TARGET_SOURCE)) is None or ts_loader.available(hass=hass, value=value)
+
+        def optional_available(value: OptionalEntityOrConstantValue | None) -> bool:
+            if value is None:
+                return True
+            if value["type"] == VALUE_TYPE_ENTITY:
+                return ts_loader.available(hass=hass, value=value)
+            return value["type"] in (VALUE_TYPE_CONSTANT, VALUE_TYPE_NONE)
+
+        return optional_available(limits.get(CONF_MAX_POWER_SOURCE_TARGET)) and optional_available(
+            limits.get(CONF_MAX_POWER_TARGET_SOURCE)
         )
 
     def inputs(self, config: Any) -> dict[str, dict[str, InputFieldInfo[Any]]]:

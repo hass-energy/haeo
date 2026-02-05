@@ -21,6 +21,7 @@ from custom_components.haeo.flows.field_schema import (
     preprocess_sectioned_choose_input,
     validate_sectioned_choose_fields,
 )
+from custom_components.haeo.schema import as_constant_value
 from custom_components.haeo.sections import SECTION_COMMON, build_common_fields, common_section
 
 from .adapter import adapter
@@ -28,7 +29,6 @@ from .schema import (
     CONF_CAPACITY,
     CONF_INITIAL_CHARGE,
     ELEMENT_TYPE,
-    OPTIONAL_INPUT_FIELDS,
     SECTION_STORAGE,
     BatterySectionConfigSchema,
 )
@@ -72,8 +72,8 @@ class BatterySectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                 CONF_ELEMENT_TYPE: ELEMENT_TYPE,
                 SECTION_COMMON: {CONF_NAME: default_name},
                 SECTION_STORAGE: {
-                    CONF_CAPACITY: 0.0,
-                    CONF_INITIAL_CHARGE: 0.0,
+                    CONF_CAPACITY: as_constant_value(0.0),
+                    CONF_INITIAL_CHARGE: as_constant_value(0.0),
                 },
             }
 
@@ -118,6 +118,7 @@ class BatterySectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         subentry_data: dict[str, Any] | None = None,
     ) -> vol.Schema:
         """Build the schema with name and choose selectors for inputs."""
+        field_schema = get_input_field_schema_info(ELEMENT_TYPE, input_fields)
         sections = self._get_sections()
         field_entries: dict[str, dict[str, tuple[vol.Marker, Any]]] = {
             SECTION_COMMON: build_common_fields(include_connection=False),
@@ -130,7 +131,7 @@ class BatterySectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             field_entries.setdefault(section_def.key, {}).update(
                 build_choose_field_entries(
                     section_fields,
-                    optional_fields=OPTIONAL_INPUT_FIELDS,
+                    field_schema=field_schema.get(section_def.key, {}),
                     inclusion_map=section_inclusion_map.get(section_def.key, {}),
                     current_data=subentry_data.get(section_def.key) if subentry_data else None,
                 )
@@ -175,11 +176,12 @@ class BatterySectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         errors: dict[str, str] = {}
         common_input = user_input.get(SECTION_COMMON, {})
         self._validate_name(common_input.get(CONF_NAME), errors)
+        field_schema = get_input_field_schema_info(ELEMENT_TYPE, input_fields)
         errors.update(
             validate_sectioned_choose_fields(
                 user_input,
                 input_fields,
-                OPTIONAL_INPUT_FIELDS,
+                field_schema,
                 self._get_sections(),
             )
         )

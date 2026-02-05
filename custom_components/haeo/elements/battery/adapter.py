@@ -32,6 +32,13 @@ from custom_components.haeo.sections import (
     SECTION_POWER_LIMITS,
     SECTION_PRICING,
 )
+from custom_components.haeo.schema import (
+    EntityOrConstantValue,
+    OptionalEntityOrConstantValue,
+    VALUE_TYPE_CONSTANT,
+    VALUE_TYPE_ENTITY,
+    VALUE_TYPE_NONE,
+)
 
 from .schema import (
     CONF_CAPACITY,
@@ -101,14 +108,19 @@ class BatteryAdapter:
         """Check if battery configuration can be loaded."""
         ts_loader = TimeSeriesLoader()
 
-        # Helper to check entity availability (handles all config value types)
-        def entity_available(value: list[str] | str | float | None) -> bool:
-            if value is None or isinstance(value, float | int):
-                return True  # Constants and missing values are always available
-            if isinstance(value, str):
-                return ts_loader.available(hass=hass, value=[value])
-            # list[str] for entity chaining
-            return ts_loader.available(hass=hass, value=value) if value else True
+        def required_available(value: EntityOrConstantValue | None) -> bool:
+            if value is None:
+                return False
+            if value["type"] == VALUE_TYPE_ENTITY:
+                return ts_loader.available(hass=hass, value=value)
+            return value["type"] == VALUE_TYPE_CONSTANT
+
+        def optional_available(value: OptionalEntityOrConstantValue | None) -> bool:
+            if value is None:
+                return True
+            if value["type"] == VALUE_TYPE_ENTITY:
+                return ts_loader.available(hass=hass, value=value)
+            return value["type"] in (VALUE_TYPE_CONSTANT, VALUE_TYPE_NONE)
 
         storage = config[SECTION_STORAGE]
         limits = config[SECTION_LIMITS]
@@ -119,9 +131,9 @@ class BatteryAdapter:
         overcharge = config.get(SECTION_OVERCHARGE, {})
 
         # Check required fields
-        if not entity_available(storage.get(CONF_CAPACITY)):
+        if not required_available(storage.get(CONF_CAPACITY)):
             return False
-        if not entity_available(storage.get(CONF_INITIAL_CHARGE_PERCENTAGE)):
+        if not required_available(storage.get(CONF_INITIAL_CHARGE_PERCENTAGE)):
             return False
 
         # Check optional time series fields if present
@@ -139,7 +151,10 @@ class BatteryAdapter:
             (overcharge, CONF_PARTITION_PERCENTAGE),
             (overcharge, CONF_PARTITION_COST),
         ]
-        return all(entity_available(section.get(field)) for section, field in optional_checks)
+        for section, field in optional_checks:
+            if not optional_available(section.get(field)):
+                return False
+        return True
 
     def inputs(self, config: Any) -> dict[str, dict[str, InputFieldInfo[Any]]]:
         """Return input field definitions for battery elements."""

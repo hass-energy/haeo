@@ -19,6 +19,7 @@ from custom_components.haeo.model.elements.connection import CONNECTION_POWER_TA
 from custom_components.haeo.model.elements.segments import POWER_LIMIT_TARGET_SOURCE
 from custom_components.haeo.model.output_data import OutputData
 from custom_components.haeo.sections import CONF_CONNECTION, CONF_FORECAST, SECTION_COMMON, SECTION_FORECAST
+from custom_components.haeo.schema import VALUE_TYPE_CONSTANT, VALUE_TYPE_ENTITY
 
 from .schema import ELEMENT_TYPE, LoadConfigData, LoadConfigSchema
 
@@ -53,7 +54,10 @@ class LoadAdapter:
     def available(self, config: LoadConfigSchema, *, hass: HomeAssistant, **_kwargs: Any) -> bool:
         """Check if load configuration can be loaded."""
         ts_loader = TimeSeriesLoader()
-        return ts_loader.available(hass=hass, value=config[SECTION_FORECAST][CONF_FORECAST])
+        value = config[SECTION_FORECAST][CONF_FORECAST]
+        if value["type"] == VALUE_TYPE_ENTITY:
+            return ts_loader.available(hass=hass, value=value)
+        return value["type"] == VALUE_TYPE_CONSTANT
 
     def inputs(self, config: Any) -> dict[str, dict[str, InputFieldInfo[Any]]]:
         """Return input field definitions for load elements."""
