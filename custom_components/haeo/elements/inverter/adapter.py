@@ -76,9 +76,13 @@ class InverterAdapter:
         """Check if inverter configuration can be loaded."""
         ts_loader = TimeSeriesLoader()
         limits = config[SECTION_POWER_LIMITS]
-        if not ts_loader.available(hass=hass, value=limits[CONF_MAX_POWER_SOURCE_TARGET]):
+        max_source_target = limits.get(CONF_MAX_POWER_SOURCE_TARGET)
+        max_target_source = limits.get(CONF_MAX_POWER_TARGET_SOURCE)
+        if max_source_target is None or max_target_source is None:
             return False
-        return ts_loader.available(hass=hass, value=limits[CONF_MAX_POWER_TARGET_SOURCE])
+        if not ts_loader.available(hass=hass, value=max_source_target):
+            return False
+        return ts_loader.available(hass=hass, value=max_target_source)
 
     def inputs(self, config: Any) -> dict[str, dict[str, InputFieldInfo[Any]]]:
         """Return input field definitions for inverter elements."""
@@ -152,6 +156,13 @@ class InverterAdapter:
         Creates a DC bus (Node junction) and a connection to the AC side with
         efficiency and power limits for bidirectional power conversion.
         """
+        power_limits = config[SECTION_POWER_LIMITS]
+        max_power_source_target = power_limits.get(CONF_MAX_POWER_SOURCE_TARGET)
+        max_power_target_source = power_limits.get(CONF_MAX_POWER_TARGET_SOURCE)
+        if max_power_source_target is None or max_power_target_source is None:
+            msg = "Inverter power limits missing - config flow validation failed"
+            raise RuntimeError(msg)
+
         return [
             # Create Node for the DC bus (pure junction - neither source nor sink)
             {
@@ -176,8 +187,8 @@ class InverterAdapter:
                     },
                     "power_limit": {
                         "segment_type": "power_limit",
-                        "max_power_source_target": config[SECTION_POWER_LIMITS][CONF_MAX_POWER_SOURCE_TARGET],
-                        "max_power_target_source": config[SECTION_POWER_LIMITS][CONF_MAX_POWER_TARGET_SOURCE],
+                        "max_power_source_target": max_power_source_target,
+                        "max_power_target_source": max_power_target_source,
                     },
                 },
             },
