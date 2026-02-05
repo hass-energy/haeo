@@ -8,6 +8,7 @@ from homeassistant.components.number import NumberDeviceClass, NumberEntityDescr
 from homeassistant.const import PERCENTAGE, UnitOfEnergy, UnitOfPower
 from homeassistant.core import HomeAssistant
 import numpy as np
+from numpy.typing import NDArray
 
 from custom_components.haeo.const import ConnectivityLevel
 from custom_components.haeo.data.loader import TimeSeriesLoader
@@ -373,6 +374,7 @@ class BatteryAdapter:
         # Create connection from battery to target
         price_source_target = pricing.get(CONF_PRICE_SOURCE_TARGET)
         price_target_source = pricing.get(CONF_PRICE_TARGET_SOURCE)
+        price_target_source = _decay_charge_price(price_target_source, n_periods)
         max_discharge = power_limits.get(CONF_MAX_POWER_SOURCE_TARGET)
         max_charge = power_limits.get(CONF_MAX_POWER_TARGET_SOURCE)
 
@@ -484,6 +486,24 @@ class BatteryAdapter:
 
 
 adapter = BatteryAdapter()
+
+
+def _decay_charge_price(
+    value: NDArray[np.floating[Any]] | float | None,
+    n_periods: int,
+) -> NDArray[np.float64] | float | None:
+    """Apply a decaying charge price when a single value is provided."""
+    if value is None:
+        return None
+
+    value_array = np.atleast_1d(value)
+    if value_array.size <= 1:
+        start_value = float(value_array[0])
+        if n_periods <= 1:
+            return np.array([start_value], dtype=np.float64)
+        return np.linspace(start_value, 0.0, num=n_periods, dtype=np.float64)
+
+    return value
 
 
 def _partition_input_fields(
