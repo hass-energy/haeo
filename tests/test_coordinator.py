@@ -960,9 +960,10 @@ async def test_async_update_data_returns_existing_when_concurrent(
 
     # Simulate existing data and in-progress flag
     existing_context = OptimizationContext(
+        hub_config={},
+        reference_timestamp=1000.0,
         participants={},
         source_states={},
-        forecast_timestamps=(1000.0, 2000.0),
     )
     existing_data = CoordinatorData(
         context=existing_context,
@@ -1576,6 +1577,7 @@ def test_optimization_context_build_collects_source_states() -> None:
     # Create mock horizon manager
     mock_horizon = MagicMock()
     mock_horizon.get_forecast_timestamps.return_value = (1000.0, 2000.0, 3000.0)
+    mock_horizon.periods_seconds = [300, 600]
 
     # Create mock participant configs (use Any to avoid strict TypedDict checking in tests)
     participant_configs: Any = {
@@ -1585,6 +1587,7 @@ def test_optimization_context_build_collects_source_states() -> None:
 
     # Build context
     context = OptimizationContext.build(
+        hub_config={"tier_1_count": 2, "tier_1_duration": 60},
         participant_configs=participant_configs,
         input_entities=input_entities,
         horizon_manager=mock_horizon,
@@ -1607,8 +1610,10 @@ def test_optimization_context_build_deep_copies_configs() -> None:
 
     mock_horizon = MagicMock()
     mock_horizon.get_forecast_timestamps.return_value = (1000.0,)
+    mock_horizon.periods_seconds = [300]
 
     context = OptimizationContext.build(
+        hub_config={"tier_1_count": 2, "tier_1_duration": 60},
         participant_configs=participant_configs,
         input_entities={("Battery", ("basic", "capacity")): mock_entity},
         horizon_manager=mock_horizon,
@@ -1619,27 +1624,30 @@ def test_optimization_context_build_deep_copies_configs() -> None:
     assert context.participants["Battery"]["basic"]["capacity"] == [1.0, 2.0, 3.0]  # type: ignore[typeddict-item]
 
 
-def test_optimization_context_build_captures_forecast_timestamps() -> None:
-    """OptimizationContext.build captures forecast timestamps from horizon manager."""
+def test_optimization_context_build_captures_reference_timestamp() -> None:
+    """OptimizationContext.build captures horizon reference timestamp."""
     mock_horizon = MagicMock()
     expected_timestamps = (1000.0, 2000.0, 3000.0, 4000.0)
     mock_horizon.get_forecast_timestamps.return_value = expected_timestamps
+    mock_horizon.periods_seconds = [300, 600]
 
     context = OptimizationContext.build(
+        hub_config={"tier_1_count": 2, "tier_1_duration": 60},
         participant_configs={},
         input_entities={},
         horizon_manager=mock_horizon,
     )
 
-    assert context.forecast_timestamps == expected_timestamps
+    assert context.reference_timestamp == expected_timestamps[0]
 
 
 def test_optimization_context_is_immutable() -> None:
     """OptimizationContext is frozen and cannot be modified."""
     context = OptimizationContext(
+        hub_config={},
+        reference_timestamp=1000.0,
         participants={},
         source_states={},
-        forecast_timestamps=(1000.0,),
     )
 
     with pytest.raises(AttributeError):
@@ -1649,4 +1657,4 @@ def test_optimization_context_is_immutable() -> None:
         context.source_states = {}  # type: ignore[misc]
 
     with pytest.raises(AttributeError):
-        context.forecast_timestamps = (2000.0,)  # type: ignore[misc]
+        context.reference_timestamp = 2000.0  # type: ignore[misc]

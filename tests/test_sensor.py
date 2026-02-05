@@ -48,9 +48,10 @@ def _make_coordinator_data(outputs: dict[str, Any] | None = None) -> Coordinator
     if outputs is None:
         return None
     context = OptimizationContext(
+        hub_config={},
+        reference_timestamp=1000.0,
         participants={},
         source_states={},
-        forecast_timestamps=(1000.0, 2000.0),
     )
     return CoordinatorData(
         context=context,

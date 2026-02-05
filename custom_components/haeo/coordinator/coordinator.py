@@ -688,8 +688,11 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
                 msg = "Runtime data not available"
                 raise UpdateFailed(msg)
 
+            forecast_timestamps = runtime_data.horizon_manager.get_forecast_timestamps()
+
             # Build optimization context capturing all inputs for reproducibility
             context = OptimizationContext.build(
+                hub_config=self.config_entry.data,
                 participant_configs=self._participant_configs,
                 input_entities=runtime_data.input_entities,
                 horizon_manager=runtime_data.horizon_manager,
@@ -783,7 +786,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
                         output_name: _build_coordinator_output(
                             output_name,
                             output_data,
-                            forecast_times=context.forecast_timestamps,
+                            forecast_times=forecast_timestamps,
                         )
                         for output_name, output_data in device_outputs.items()
                     }

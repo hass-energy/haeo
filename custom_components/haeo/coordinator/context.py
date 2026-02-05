@@ -3,15 +3,14 @@
 from collections.abc import Mapping
 from copy import deepcopy
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Self, cast
+from typing import TYPE_CHECKING, Any, Self, cast
 
 from homeassistant.core import State
 
 from custom_components.haeo.elements import ElementConfigSchema, InputFieldPath
 
 if TYPE_CHECKING:
-    from custom_components.haeo.entities.haeo_number import HaeoInputNumber
-    from custom_components.haeo.entities.haeo_switch import HaeoInputSwitch
+    from custom_components.haeo import InputEntity
     from custom_components.haeo.horizon import HorizonManager
 
 
@@ -22,11 +21,17 @@ class OptimizationContext:
     This class captures all inputs needed to reproduce an optimization run:
     - Element configurations (raw schemas, not processed data)
     - Source sensor states captured when entities loaded data
-    - Forecast timestamps from horizon manager
+    - Horizon reference timestamp used for period alignment
 
     The context is built at the start of each optimization run and stored
     in CoordinatorData for diagnostics and reproducibility.
     """
+
+    hub_config: Mapping[str, Any]
+    """Hub configuration used to derive periods and timestamps."""
+
+    reference_timestamp: float
+    """Horizon start timestamp used for period alignment."""
 
     participants: dict[str, ElementConfigSchema]
     """Raw element schemas (not processed ElementConfigData)."""
@@ -34,14 +39,12 @@ class OptimizationContext:
     source_states: dict[str, State]
     """Source sensor states captured when entities loaded data."""
 
-    forecast_timestamps: tuple[float, ...]
-    """Forecast timestamps from horizon manager."""
-
     @classmethod
     def build(
         cls,
+        hub_config: Mapping[str, Any],
         participant_configs: Mapping[str, ElementConfigSchema],
-        input_entities: Mapping[tuple[str, InputFieldPath], "HaeoInputNumber | HaeoInputSwitch"],
+        input_entities: Mapping[tuple[str, InputFieldPath], "InputEntity"],
         horizon_manager: "HorizonManager",
     ) -> Self:
         """Build context by pulling from existing sources.
@@ -49,6 +52,7 @@ class OptimizationContext:
         Called at start of _async_update_data() before optimization runs.
 
         Args:
+            hub_config: Config entry data used for horizon calculation
             participant_configs: Coordinator's _participant_configs dict
             input_entities: runtime_data.input_entities dict
             horizon_manager: runtime_data.horizon_manager
@@ -62,10 +66,16 @@ class OptimizationContext:
         for entity in input_entities.values():
             source_states.update(entity.get_captured_source_states())
 
+        forecast_timestamps = horizon_manager.get_forecast_timestamps()
+        if not forecast_timestamps:
+            msg = "Horizon manager has no forecast timestamps"
+            raise ValueError(msg)
+
         return cls(
+            hub_config=deepcopy(dict(hub_config)),
+            reference_timestamp=forecast_timestamps[0],
             participants=_deep_copy_config(participant_configs),
             source_states=source_states,
-            forecast_timestamps=horizon_manager.get_forecast_timestamps(),
         )
 
 

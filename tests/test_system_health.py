@@ -42,9 +42,10 @@ from custom_components.haeo.system_health import async_register, async_system_he
 def _make_coordinator_data(outputs: dict[str, Any]) -> CoordinatorData:
     """Create a CoordinatorData instance for tests."""
     context = OptimizationContext(
+        hub_config={},
+        reference_timestamp=1000.0,
         participants={},
         source_states={},
-        forecast_timestamps=(1000.0, 2000.0),
     )
     return CoordinatorData(
         context=context,
