@@ -9,12 +9,9 @@ from custom_components.haeo.schema import ConstantValue, EntityValue, NoneValue
 from custom_components.haeo.sections import (
     CONF_DEMAND_BLOCK_HOURS,
     CONF_DEMAND_CURRENT_ENERGY_SOURCE_TARGET,
-    CONF_DEMAND_CURRENT_ENERGY_TARGET_SOURCE,
     CONF_DEMAND_DAYS,
     CONF_DEMAND_PRICE_SOURCE_TARGET,
-    CONF_DEMAND_PRICE_TARGET_SOURCE,
     CONF_DEMAND_WINDOW_SOURCE_TARGET,
-    CONF_DEMAND_WINDOW_TARGET_SOURCE,
     CONF_MAX_POWER_SOURCE_TARGET,
     CONF_MAX_POWER_TARGET_SOURCE,
     CONF_PRICE_SOURCE_TARGET,
@@ -25,8 +22,6 @@ from custom_components.haeo.sections import (
     SECTION_PRICING,
     ConnectedCommonConfig,
     ConnectedCommonData,
-    DemandPricingConfig,
-    DemandPricingData,
     PowerLimitsConfig,
     PowerLimitsData,
 )
@@ -37,11 +32,8 @@ OPTIONAL_INPUT_FIELDS: Final[frozenset[str]] = frozenset(
         CONF_MAX_POWER_SOURCE_TARGET,
         CONF_MAX_POWER_TARGET_SOURCE,
         CONF_DEMAND_WINDOW_SOURCE_TARGET,
-        CONF_DEMAND_WINDOW_TARGET_SOURCE,
         CONF_DEMAND_PRICE_SOURCE_TARGET,
-        CONF_DEMAND_PRICE_TARGET_SOURCE,
         CONF_DEMAND_CURRENT_ENERGY_SOURCE_TARGET,
-        CONF_DEMAND_CURRENT_ENERGY_TARGET_SOURCE,
         CONF_DEMAND_BLOCK_HOURS,
         CONF_DEMAND_DAYS,
     }
@@ -62,13 +54,33 @@ class GridPricingData(TypedDict):
     price_target_source: NDArray[np.floating[Any]] | float
 
 
+class GridDemandPricingConfig(TypedDict, total=False):
+    """Demand pricing configuration for grid imports."""
+
+    demand_window_source_target: EntityValue | ConstantValue | NoneValue
+    demand_price_source_target: EntityValue | ConstantValue | NoneValue
+    demand_current_energy_source_target: EntityValue | ConstantValue | NoneValue
+    demand_block_hours: EntityValue | ConstantValue | NoneValue
+    demand_days: EntityValue | ConstantValue | NoneValue
+
+
+class GridDemandPricingData(TypedDict, total=False):
+    """Loaded demand pricing values for grid imports."""
+
+    demand_window_source_target: NDArray[np.floating[Any]] | float
+    demand_price_source_target: NDArray[np.floating[Any]] | float
+    demand_current_energy_source_target: NDArray[np.floating[Any]] | float
+    demand_block_hours: float
+    demand_days: float
+
+
 class GridConfigSchema(TypedDict):
     """Grid element configuration as stored in Home Assistant."""
 
     element_type: Literal["grid"]
     common: ConnectedCommonConfig
     pricing: GridPricingConfig
-    demand_pricing: DemandPricingConfig
+    demand_pricing: GridDemandPricingConfig
     power_limits: PowerLimitsConfig
 
 
@@ -78,19 +90,16 @@ class GridConfigData(TypedDict):
     element_type: Literal["grid"]
     common: ConnectedCommonData
     pricing: GridPricingData
-    demand_pricing: DemandPricingData
+    demand_pricing: GridDemandPricingData
     power_limits: PowerLimitsData
 
 
 __all__ = [
     "CONF_DEMAND_BLOCK_HOURS",
     "CONF_DEMAND_CURRENT_ENERGY_SOURCE_TARGET",
-    "CONF_DEMAND_CURRENT_ENERGY_TARGET_SOURCE",
     "CONF_DEMAND_DAYS",
     "CONF_DEMAND_PRICE_SOURCE_TARGET",
-    "CONF_DEMAND_PRICE_TARGET_SOURCE",
     "CONF_DEMAND_WINDOW_SOURCE_TARGET",
-    "CONF_DEMAND_WINDOW_TARGET_SOURCE",
     "CONF_MAX_POWER_SOURCE_TARGET",
     "CONF_MAX_POWER_TARGET_SOURCE",
     "CONF_PRICE_SOURCE_TARGET",
@@ -103,4 +112,6 @@ __all__ = [
     "SECTION_PRICING",
     "GridConfigData",
     "GridConfigSchema",
+    "GridDemandPricingConfig",
+    "GridDemandPricingData",
 ]

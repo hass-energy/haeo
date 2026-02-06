@@ -28,12 +28,9 @@ from custom_components.haeo.sections import (
     CONF_CONNECTION,
     CONF_DEMAND_BLOCK_HOURS,
     CONF_DEMAND_CURRENT_ENERGY_SOURCE_TARGET,
-    CONF_DEMAND_CURRENT_ENERGY_TARGET_SOURCE,
     CONF_DEMAND_DAYS,
     CONF_DEMAND_PRICE_SOURCE_TARGET,
-    CONF_DEMAND_PRICE_TARGET_SOURCE,
     CONF_DEMAND_WINDOW_SOURCE_TARGET,
-    CONF_DEMAND_WINDOW_TARGET_SOURCE,
     CONF_MAX_POWER_SOURCE_TARGET,
     CONF_MAX_POWER_TARGET_SOURCE,
     CONF_PRICE_SOURCE_TARGET,
@@ -125,18 +122,7 @@ class GridAdapter:
                     entity_description=NumberEntityDescription(
                         key=CONF_DEMAND_WINDOW_SOURCE_TARGET,
                         translation_key=f"{ELEMENT_TYPE}_{CONF_DEMAND_WINDOW_SOURCE_TARGET}",
-                        native_min_value=0.0,
-                        native_max_value=1.0,
-                        native_step=0.01,
-                    ),
-                    output_type=OutputType.STATUS,
-                    time_series=True,
-                ),
-                CONF_DEMAND_WINDOW_TARGET_SOURCE: InputFieldInfo(
-                    field_name=CONF_DEMAND_WINDOW_TARGET_SOURCE,
-                    entity_description=NumberEntityDescription(
-                        key=CONF_DEMAND_WINDOW_TARGET_SOURCE,
-                        translation_key=f"{ELEMENT_TYPE}_{CONF_DEMAND_WINDOW_TARGET_SOURCE}",
+                        native_unit_of_measurement="ratio",
                         native_min_value=0.0,
                         native_max_value=1.0,
                         native_step=0.01,
@@ -158,20 +144,6 @@ class GridAdapter:
                     time_series=False,
                     direction="-",
                 ),
-                CONF_DEMAND_PRICE_TARGET_SOURCE: InputFieldInfo(
-                    field_name=CONF_DEMAND_PRICE_TARGET_SOURCE,
-                    entity_description=NumberEntityDescription(
-                        key=CONF_DEMAND_PRICE_TARGET_SOURCE,
-                        translation_key=f"{ELEMENT_TYPE}_{CONF_DEMAND_PRICE_TARGET_SOURCE}",
-                        native_unit_of_measurement="$/kW",
-                        native_min_value=0.0,
-                        native_max_value=100.0,
-                        native_step=0.01,
-                    ),
-                    output_type=OutputType.COST,
-                    time_series=False,
-                    direction="+",
-                ),
                 CONF_DEMAND_CURRENT_ENERGY_SOURCE_TARGET: InputFieldInfo(
                     field_name=CONF_DEMAND_CURRENT_ENERGY_SOURCE_TARGET,
                     entity_description=NumberEntityDescription(
@@ -186,21 +158,6 @@ class GridAdapter:
                     output_type=OutputType.ENERGY,
                     time_series=False,
                     direction="-",
-                ),
-                CONF_DEMAND_CURRENT_ENERGY_TARGET_SOURCE: InputFieldInfo(
-                    field_name=CONF_DEMAND_CURRENT_ENERGY_TARGET_SOURCE,
-                    entity_description=NumberEntityDescription(
-                        key=CONF_DEMAND_CURRENT_ENERGY_TARGET_SOURCE,
-                        translation_key=f"{ELEMENT_TYPE}_{CONF_DEMAND_CURRENT_ENERGY_TARGET_SOURCE}",
-                        native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
-                        device_class=NumberDeviceClass.ENERGY,
-                        native_min_value=0.0,
-                        native_max_value=1_000_000.0,
-                        native_step=0.01,
-                    ),
-                    output_type=OutputType.ENERGY,
-                    time_series=False,
-                    direction="+",
                 ),
                 CONF_DEMAND_BLOCK_HOURS: InputFieldInfo(
                     field_name=CONF_DEMAND_BLOCK_HOURS,
@@ -297,20 +254,11 @@ class GridAdapter:
                         "demand_window_source_target": config[SECTION_DEMAND_PRICING].get(
                             CONF_DEMAND_WINDOW_SOURCE_TARGET
                         ),
-                        "demand_window_target_source": config[SECTION_DEMAND_PRICING].get(
-                            CONF_DEMAND_WINDOW_TARGET_SOURCE
-                        ),
                         "demand_price_source_target": config[SECTION_DEMAND_PRICING].get(
                             CONF_DEMAND_PRICE_SOURCE_TARGET
                         ),
-                        "demand_price_target_source": config[SECTION_DEMAND_PRICING].get(
-                            CONF_DEMAND_PRICE_TARGET_SOURCE
-                        ),
                         "demand_current_energy_source_target": config[SECTION_DEMAND_PRICING].get(
                             CONF_DEMAND_CURRENT_ENERGY_SOURCE_TARGET
-                        ),
-                        "demand_current_energy_target_source": config[SECTION_DEMAND_PRICING].get(
-                            CONF_DEMAND_CURRENT_ENERGY_TARGET_SOURCE
                         ),
                         "demand_block_hours": config[SECTION_DEMAND_PRICING].get(CONF_DEMAND_BLOCK_HOURS),
                         "demand_days": config[SECTION_DEMAND_PRICING].get(CONF_DEMAND_DAYS),

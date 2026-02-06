@@ -75,11 +75,8 @@ CREATE_CASES: Sequence[CreateCase] = [
                     "demand_pricing": {
                         "segment_type": "demand_pricing",
                         "demand_window_source_target": None,
-                        "demand_window_target_source": None,
                         "demand_price_source_target": None,
-                        "demand_price_target_source": None,
                         "demand_current_energy_source_target": None,
-                        "demand_current_energy_target_source": None,
                         "demand_block_hours": None,
                         "demand_days": None,
                     },

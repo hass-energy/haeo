@@ -34,6 +34,7 @@ Grid creates 1 device in Home Assistant:
 
 The adapter transforms user configuration into connection segments.
 Pricing fields come from the Pricing section, and demand pricing fields come from the Demand pricing section.
+Grid demand pricing uses import (source-to-target) fields only.
 
 | User Configuration                    | Segment              | Segment Field                         | Notes                                   |
 | ------------------------------------- | -------------------- | ------------------------------------- | --------------------------------------- |
@@ -42,11 +43,8 @@ Pricing fields come from the Pricing section, and demand pricing fields come fro
 | `max_power_source_target`             | PowerLimitSegment    | `max_power_source_target`             | Maximum import power (optional)         |
 | `max_power_target_source`             | PowerLimitSegment    | `max_power_target_source`             | Maximum export power (optional)         |
 | `demand_window_source_target`         | DemandPricingSegment | `demand_window_source_target`         | Optional demand window weights          |
-| `demand_window_target_source`         | DemandPricingSegment | `demand_window_target_source`         | Optional demand window weights          |
 | `demand_price_source_target`          | DemandPricingSegment | `demand_price_source_target`          | Optional demand price per kW/day        |
-| `demand_price_target_source`          | DemandPricingSegment | `demand_price_target_source`          | Optional demand price per kW/day        |
 | `demand_current_energy_source_target` | DemandPricingSegment | `demand_current_energy_source_target` | Optional, kWh already used              |
-| `demand_current_energy_target_source` | DemandPricingSegment | `demand_current_energy_target_source` | Optional, kWh already used              |
 | `demand_block_hours`                  | DemandPricingSegment | `demand_block_hours`                  | Defaults to 0.5 hours                   |
 | `demand_days`                         | DemandPricingSegment | `demand_days`                         | Defaults to 1 day                       |
 | `connection`                          | Connection           | `target`                              | Node to connect to                      |
