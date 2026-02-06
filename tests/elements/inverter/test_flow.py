@@ -20,7 +20,9 @@ from custom_components.haeo.elements.inverter import (
     SECTION_COMMON,
     SECTION_EFFICIENCY,
     SECTION_POWER_LIMITS,
+    adapter,
 )
+from custom_components.haeo.schema import as_connection_target, as_constant_value, as_entity_value
 
 from ..conftest import add_participant, create_flow
 
@@ -52,7 +54,11 @@ def _wrap_config(flat: dict[str, Any]) -> dict[str, Any]:
     """Wrap flat inverter config values into sectioned config with element type."""
     if SECTION_COMMON in flat:
         return {CONF_ELEMENT_TYPE: ELEMENT_TYPE, **flat}
-    return {CONF_ELEMENT_TYPE: ELEMENT_TYPE, **_wrap_input(flat)}
+    config = _wrap_input(flat)
+    common = config.get(SECTION_COMMON, {})
+    if CONF_CONNECTION in common and isinstance(common[CONF_CONNECTION], str):
+        common[CONF_CONNECTION] = as_connection_target(common[CONF_CONNECTION])
+    return {CONF_ELEMENT_TYPE: ELEMENT_TYPE, **config}
 
 
 async def test_reconfigure_with_deleted_connection_target(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
@@ -62,8 +68,8 @@ async def test_reconfigure_with_deleted_connection_target(hass: HomeAssistant, h
         {
             CONF_NAME: "Test Inverter",
             CONF_CONNECTION: "DeletedNode",  # This node no longer exists
-            CONF_MAX_POWER_DC_TO_AC: 10.0,
-            CONF_MAX_POWER_AC_TO_DC: 8.0,
+            CONF_MAX_POWER_DC_TO_AC: as_constant_value(10.0),
+            CONF_MAX_POWER_AC_TO_DC: as_constant_value(8.0),
         }
     )
     existing_subentry = ConfigSubentry(
@@ -181,8 +187,8 @@ async def test_user_step_with_constant_creates_entry(
 
     # Verify the config contains the constant values
     create_kwargs = flow.async_create_entry.call_args.kwargs
-    assert create_kwargs["data"][SECTION_LIMITS][CONF_MAX_POWER_DC_TO_AC] == 10.0
-    assert create_kwargs["data"][SECTION_LIMITS][CONF_MAX_POWER_AC_TO_DC] == 8.0
+    assert create_kwargs["data"][SECTION_LIMITS][CONF_MAX_POWER_DC_TO_AC] == as_constant_value(10.0)
+    assert create_kwargs["data"][SECTION_LIMITS][CONF_MAX_POWER_AC_TO_DC] == as_constant_value(8.0)
 
 
 async def test_user_step_with_entity_creates_entry(
@@ -214,10 +220,10 @@ async def test_user_step_with_entity_creates_entry(
 
     assert result.get("type") == FlowResultType.CREATE_ENTRY
 
-    # Verify the config contains the entity IDs as strings (single entity)
+    # Verify the config contains the entity schema values (single entity)
     create_kwargs = flow.async_create_entry.call_args.kwargs
-    assert create_kwargs["data"][SECTION_LIMITS][CONF_MAX_POWER_DC_TO_AC] == "sensor.dc_power"
-    assert create_kwargs["data"][SECTION_LIMITS][CONF_MAX_POWER_AC_TO_DC] == "sensor.ac_power"
+    assert create_kwargs["data"][SECTION_LIMITS][CONF_MAX_POWER_DC_TO_AC] == as_entity_value(["sensor.dc_power"])
+    assert create_kwargs["data"][SECTION_LIMITS][CONF_MAX_POWER_AC_TO_DC] == as_entity_value(["sensor.ac_power"])
 
 
 # --- Tests for reconfigure flow ---
@@ -235,8 +241,8 @@ async def test_reconfigure_empty_required_field_shows_error(
         {
             CONF_NAME: "Test Inverter",
             CONF_CONNECTION: "TestNode",
-            CONF_MAX_POWER_DC_TO_AC: "sensor.dc_power",
-            CONF_MAX_POWER_AC_TO_DC: "sensor.ac_power",
+            CONF_MAX_POWER_DC_TO_AC: as_entity_value(["sensor.dc_power"]),
+            CONF_MAX_POWER_AC_TO_DC: as_entity_value(["sensor.ac_power"]),
         }
     )
     existing_subentry = ConfigSubentry(
@@ -280,8 +286,8 @@ async def test_reconfigure_with_constant_updates_entry(
         {
             CONF_NAME: "Test Inverter",
             CONF_CONNECTION: "TestNode",
-            CONF_MAX_POWER_DC_TO_AC: "sensor.dc_power",
-            CONF_MAX_POWER_AC_TO_DC: "sensor.ac_power",
+            CONF_MAX_POWER_DC_TO_AC: as_entity_value(["sensor.dc_power"]),
+            CONF_MAX_POWER_AC_TO_DC: as_entity_value(["sensor.ac_power"]),
         }
     )
     existing_subentry = ConfigSubentry(
@@ -313,8 +319,8 @@ async def test_reconfigure_with_constant_updates_entry(
 
     # Verify the config contains the constant values
     update_kwargs = flow.async_update_and_abort.call_args.kwargs
-    assert update_kwargs["data"][SECTION_LIMITS][CONF_MAX_POWER_DC_TO_AC] == 10.0
-    assert update_kwargs["data"][SECTION_LIMITS][CONF_MAX_POWER_AC_TO_DC] == 8.0
+    assert update_kwargs["data"][SECTION_LIMITS][CONF_MAX_POWER_DC_TO_AC] == as_constant_value(10.0)
+    assert update_kwargs["data"][SECTION_LIMITS][CONF_MAX_POWER_AC_TO_DC] == as_constant_value(8.0)
 
 
 async def test_reconfigure_with_scalar_shows_constant_defaults(
@@ -324,13 +330,13 @@ async def test_reconfigure_with_scalar_shows_constant_defaults(
     """Reconfigure with scalar values should show constant choice in defaults."""
     add_participant(hass, hub_entry, "TestNode", node.ELEMENT_TYPE)
 
-    # Create existing entry with scalar values (from prior constant config)
+    # Create existing entry with constant schema values
     existing_config = _wrap_config(
         {
             CONF_NAME: "Test Inverter",
             CONF_CONNECTION: "TestNode",
-            CONF_MAX_POWER_DC_TO_AC: 10.0,  # Scalar value
-            CONF_MAX_POWER_AC_TO_DC: 8.0,  # Scalar value
+            CONF_MAX_POWER_DC_TO_AC: as_constant_value(10.0),
+            CONF_MAX_POWER_AC_TO_DC: as_constant_value(8.0),
         }
     )
     existing_subentry = ConfigSubentry(
@@ -352,27 +358,28 @@ async def test_reconfigure_with_scalar_shows_constant_defaults(
     assert result.get("step_id") == "user"
 
     # Check defaults - should have constant choice with scalar values
-    defaults = flow._build_defaults("Test Inverter", dict(existing_subentry.data))
+    input_fields = adapter.inputs(dict(existing_subentry.data))
+    defaults = flow._build_defaults("Test Inverter", input_fields, dict(existing_subentry.data))
 
     # Defaults should contain constant choice with values
     assert defaults[SECTION_LIMITS][CONF_MAX_POWER_DC_TO_AC] == 10.0
     assert defaults[SECTION_LIMITS][CONF_MAX_POWER_AC_TO_DC] == 8.0
 
 
-async def test_reconfigure_with_string_entity_id_v010_format(
+async def test_reconfigure_with_entity_value_shows_entity_defaults(
     hass: HomeAssistant,
     hub_entry: MockConfigEntry,
 ) -> None:
-    """Reconfigure with v0.1.0 string entity ID should show entity choice in defaults."""
+    """Reconfigure with entity schema value should show entity choice in defaults."""
     add_participant(hass, hub_entry, "TestNode", node.ELEMENT_TYPE)
 
-    # Create existing entry with v0.1.0 format: string entity IDs (not list, not scalar)
+    # Create existing entry with entity schema values
     existing_config = _wrap_config(
         {
             CONF_NAME: "Test Inverter",
             CONF_CONNECTION: "TestNode",
-            CONF_MAX_POWER_DC_TO_AC: "sensor.dc_to_ac_power",  # v0.1.0: single string entity ID
-            CONF_MAX_POWER_AC_TO_DC: "sensor.ac_to_dc_power",  # v0.1.0: single string entity ID
+            CONF_MAX_POWER_DC_TO_AC: as_entity_value(["sensor.dc_to_ac_power"]),
+            CONF_MAX_POWER_AC_TO_DC: as_entity_value(["sensor.ac_to_dc_power"]),
         }
     )
     existing_subentry = ConfigSubentry(
@@ -394,7 +401,8 @@ async def test_reconfigure_with_string_entity_id_v010_format(
     assert result.get("step_id") == "user"
 
     # Check defaults - should have entity choice with the string entity IDs wrapped in lists
-    defaults = flow._build_defaults("Test Inverter", dict(existing_subentry.data))
+    input_fields = adapter.inputs(dict(existing_subentry.data))
+    defaults = flow._build_defaults("Test Inverter", input_fields, dict(existing_subentry.data))
 
     # Defaults should contain entity choice with the original entity IDs as lists
     assert defaults[SECTION_LIMITS][CONF_MAX_POWER_DC_TO_AC] == ["sensor.dc_to_ac_power"]
@@ -408,13 +416,13 @@ async def test_reconfigure_with_entity_list(
     """Reconfigure with entity list should show entity choice in defaults."""
     add_participant(hass, hub_entry, "TestNode", node.ELEMENT_TYPE)
 
-    # Create existing entry with entity list format
+    # Create existing entry with entity schema values
     existing_config = _wrap_config(
         {
             CONF_NAME: "Test Inverter",
             CONF_CONNECTION: "TestNode",
-            CONF_MAX_POWER_DC_TO_AC: ["sensor.dc1", "sensor.dc2"],  # List of entities
-            CONF_MAX_POWER_AC_TO_DC: ["sensor.ac"],  # Single entity in list
+            CONF_MAX_POWER_DC_TO_AC: as_entity_value(["sensor.dc1", "sensor.dc2"]),
+            CONF_MAX_POWER_AC_TO_DC: as_entity_value(["sensor.ac"]),
         }
     )
     existing_subentry = ConfigSubentry(
@@ -430,7 +438,8 @@ async def test_reconfigure_with_entity_list(
     flow._get_reconfigure_subentry = Mock(return_value=existing_subentry)
 
     # Check defaults
-    defaults = flow._build_defaults("Test Inverter", dict(existing_subentry.data))
+    input_fields = adapter.inputs(dict(existing_subentry.data))
+    defaults = flow._build_defaults("Test Inverter", input_fields, dict(existing_subentry.data))
 
     # Defaults should contain entity choice with the entity lists
     assert defaults[SECTION_LIMITS][CONF_MAX_POWER_DC_TO_AC] == ["sensor.dc1", "sensor.dc2"]
@@ -444,13 +453,13 @@ async def test_reconfigure_selecting_entity_stores_entity_id(
     """Selecting entity in reconfigure stores the entity ID."""
     add_participant(hass, hub_entry, "TestNode", node.ELEMENT_TYPE)
 
-    # Create existing entry with scalar values
+    # Create existing entry with constant schema values
     existing_config = _wrap_config(
         {
             CONF_NAME: "Test Inverter",
             CONF_CONNECTION: "TestNode",
-            CONF_MAX_POWER_DC_TO_AC: 10.0,
-            CONF_MAX_POWER_AC_TO_DC: 8.0,
+            CONF_MAX_POWER_DC_TO_AC: as_constant_value(10.0),
+            CONF_MAX_POWER_AC_TO_DC: as_constant_value(8.0),
         }
     )
     existing_subentry = ConfigSubentry(
@@ -498,8 +507,8 @@ async def test_reconfigure_selecting_entity_stores_entity_id(
 
     # When entity mode is selected, the entity ID is stored
     update_kwargs = flow.async_update_and_abort.call_args.kwargs
-    assert update_kwargs["data"][SECTION_LIMITS][CONF_MAX_POWER_DC_TO_AC] == dc_to_ac_entity.entity_id
-    assert update_kwargs["data"][SECTION_LIMITS][CONF_MAX_POWER_AC_TO_DC] == ac_to_dc_entity.entity_id
+    assert update_kwargs["data"][SECTION_LIMITS][CONF_MAX_POWER_DC_TO_AC] == as_entity_value([dc_to_ac_entity.entity_id])
+    assert update_kwargs["data"][SECTION_LIMITS][CONF_MAX_POWER_AC_TO_DC] == as_entity_value([ac_to_dc_entity.entity_id])
 
 
 # --- Tests for _is_valid_choose_value ---

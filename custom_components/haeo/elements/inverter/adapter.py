@@ -6,10 +6,8 @@ from typing import Any, Final, Literal
 
 from homeassistant.components.number import NumberDeviceClass, NumberEntityDescription
 from homeassistant.const import PERCENTAGE, UnitOfPower
-from homeassistant.core import HomeAssistant
 
 from custom_components.haeo.const import ConnectivityLevel
-from custom_components.haeo.data.loader import TimeSeriesLoader
 from custom_components.haeo.elements.input_fields import InputFieldDefaults, InputFieldInfo
 from custom_components.haeo.elements.output_utils import expect_output_data
 from custom_components.haeo.model import ModelElementConfig, ModelOutputName, ModelOutputValue
@@ -23,6 +21,7 @@ from custom_components.haeo.model.elements.connection import (
 from custom_components.haeo.model.elements.node import NODE_POWER_BALANCE
 from custom_components.haeo.model.elements.segments import POWER_LIMIT_SOURCE_TARGET, POWER_LIMIT_TARGET_SOURCE
 from custom_components.haeo.model.output_data import OutputData
+from custom_components.haeo.schema import extract_connection_target
 from custom_components.haeo.sections import (
     CONF_CONNECTION,
     CONF_EFFICIENCY_SOURCE_TARGET,
@@ -34,7 +33,7 @@ from custom_components.haeo.sections import (
     SECTION_POWER_LIMITS,
 )
 
-from .schema import ELEMENT_TYPE, InverterConfigData, InverterConfigSchema
+from .schema import ELEMENT_TYPE, InverterConfigData
 
 # Inverter output names
 type InverterOutputName = Literal[
@@ -72,16 +71,6 @@ class InverterAdapter:
     advanced: bool = False
     connectivity: ConnectivityLevel = ConnectivityLevel.ALWAYS
 
-    def available(self, config: InverterConfigSchema, *, hass: HomeAssistant, **_kwargs: Any) -> bool:
-        """Check if inverter configuration can be loaded."""
-        ts_loader = TimeSeriesLoader()
-        limits = config[SECTION_POWER_LIMITS]
-        return (
-            (value := limits.get(CONF_MAX_POWER_SOURCE_TARGET)) is None or ts_loader.available(hass=hass, value=value)
-        ) and (
-            (value := limits.get(CONF_MAX_POWER_TARGET_SOURCE)) is None or ts_loader.available(hass=hass, value=value)
-        )
-
     def inputs(self, config: Any) -> dict[str, dict[str, InputFieldInfo[Any]]]:
         """Return input field definitions for inverter elements."""
         _ = config
@@ -100,6 +89,7 @@ class InverterAdapter:
                     ),
                     output_type=OutputType.POWER_LIMIT,
                     time_series=True,
+                    force_required=True,
                 ),
                 CONF_MAX_POWER_TARGET_SOURCE: InputFieldInfo(
                     field_name=CONF_MAX_POWER_TARGET_SOURCE,
@@ -114,6 +104,7 @@ class InverterAdapter:
                     ),
                     output_type=OutputType.POWER_LIMIT,
                     time_series=True,
+                    force_required=True,
                 ),
             },
             SECTION_EFFICIENCY: {
@@ -176,7 +167,7 @@ class InverterAdapter:
                 "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
                 "name": f"{config[SECTION_COMMON]['name']}:connection",
                 "source": config[SECTION_COMMON]["name"],
-                "target": config[SECTION_COMMON][CONF_CONNECTION],
+                "target": extract_connection_target(config[SECTION_COMMON][CONF_CONNECTION]),
                 "segments": {
                     "efficiency": {
                         "segment_type": "efficiency",

@@ -16,7 +16,9 @@ from custom_components.haeo.elements.battery_section import (
     ELEMENT_TYPE,
     SECTION_COMMON,
     SECTION_STORAGE,
+    adapter,
 )
+from custom_components.haeo.schema import as_constant_value, as_entity_value
 
 from ..conftest import create_flow
 
@@ -46,8 +48,8 @@ async def test_reconfigure_shows_form(hass: HomeAssistant, hub_entry: MockConfig
     existing_config = _wrap_config(
         {
             CONF_NAME: "Test Battery Section",
-            CONF_CAPACITY: 10.0,
-            CONF_INITIAL_CHARGE: 5.0,
+            CONF_CAPACITY: as_constant_value(10.0),
+            CONF_INITIAL_CHARGE: as_constant_value(5.0),
         }
     )
     existing_subentry = ConfigSubentry(
@@ -74,8 +76,8 @@ async def test_reconfigure_with_entity_links(hass: HomeAssistant, hub_entry: Moc
     existing_config = _wrap_config(
         {
             CONF_NAME: "Test Battery Section",
-            CONF_CAPACITY: "sensor.capacity",  # Entity link (string)
-            CONF_INITIAL_CHARGE: 5.0,  # Scalar
+            CONF_CAPACITY: as_entity_value(["sensor.capacity"]),
+            CONF_INITIAL_CHARGE: as_constant_value(5.0),
         }
     )
     existing_subentry = ConfigSubentry(
@@ -107,14 +109,14 @@ async def test_get_subentry_returns_none_for_user_flow(hass: HomeAssistant, hub_
     assert subentry is None
 
 
-async def test_reconfigure_with_string_entity_id_v010_format(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
-    """Reconfigure with v0.1.0 string entity ID should show entity choice in defaults."""
-    # Create existing entry with v0.1.0 format: string entity IDs (not list, not scalar)
+async def test_reconfigure_with_entity_value_shows_defaults(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
+    """Reconfigure with entity schema value should show entity choice in defaults."""
+    # Create existing entry with entity schema values
     existing_config = _wrap_config(
         {
             CONF_NAME: "Test Battery Section",
-            CONF_CAPACITY: "sensor.section_capacity",  # v0.1.0: single string entity ID
-            CONF_INITIAL_CHARGE: "sensor.section_charge",  # v0.1.0: single string entity ID
+            CONF_CAPACITY: as_entity_value(["sensor.section_capacity"]),
+            CONF_INITIAL_CHARGE: as_entity_value(["sensor.section_charge"]),
         }
     )
     existing_subentry = ConfigSubentry(
@@ -136,7 +138,8 @@ async def test_reconfigure_with_string_entity_id_v010_format(hass: HomeAssistant
     assert result.get("step_id") == "user"
 
     # Check defaults - should have entity choice with the string entity IDs wrapped in lists
-    defaults = flow._build_defaults("Test Battery Section", dict(existing_subentry.data))
+    input_fields = adapter.inputs(dict(existing_subentry.data))
+    defaults = flow._build_defaults("Test Battery Section", input_fields, dict(existing_subentry.data))
 
     # Defaults should contain entity choice with the original entity IDs as lists
     assert defaults[SECTION_STORAGE][CONF_CAPACITY] == ["sensor.section_capacity"]
@@ -145,12 +148,12 @@ async def test_reconfigure_with_string_entity_id_v010_format(hass: HomeAssistant
 
 async def test_reconfigure_with_scalar_shows_constant_defaults(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
     """Reconfigure with scalar value should show constant choice in defaults."""
-    # Create existing entry with scalar values (from constant config)
+    # Create existing entry with constant schema values
     existing_config = _wrap_config(
         {
             CONF_NAME: "Test Battery Section",
-            CONF_CAPACITY: 10.0,  # Scalar value
-            CONF_INITIAL_CHARGE: 5.0,  # Scalar value
+            CONF_CAPACITY: as_constant_value(10.0),
+            CONF_INITIAL_CHARGE: as_constant_value(5.0),
         }
     )
     existing_subentry = ConfigSubentry(
@@ -166,7 +169,8 @@ async def test_reconfigure_with_scalar_shows_constant_defaults(hass: HomeAssista
     flow._get_reconfigure_subentry = Mock(return_value=existing_subentry)
 
     # Check defaults - should resolve to constant choice with scalar values
-    defaults = flow._build_defaults("Test Battery Section", dict(existing_subentry.data))
+    input_fields = adapter.inputs(dict(existing_subentry.data))
+    defaults = flow._build_defaults("Test Battery Section", input_fields, dict(existing_subentry.data))
 
     # Defaults should contain constant choice with the scalar values
     assert defaults[SECTION_STORAGE][CONF_CAPACITY] == 10.0
@@ -180,7 +184,7 @@ async def test_reconfigure_with_missing_field_shows_none_default(hass: HomeAssis
         CONF_ELEMENT_TYPE: ELEMENT_TYPE,
         SECTION_COMMON: {CONF_NAME: "Test Battery Section"},
         SECTION_STORAGE: {
-            CONF_CAPACITY: 10.0,  # Only capacity set
+            CONF_CAPACITY: as_constant_value(10.0),
             # CONF_INITIAL_CHARGE intentionally missing to test else branch
         },
     }
@@ -197,7 +201,8 @@ async def test_reconfigure_with_missing_field_shows_none_default(hass: HomeAssis
     flow._get_reconfigure_subentry = Mock(return_value=existing_subentry)
 
     # Check defaults - missing field should show None
-    defaults = flow._build_defaults("Test Battery Section", dict(existing_subentry.data))
+    input_fields = adapter.inputs(dict(existing_subentry.data))
+    defaults = flow._build_defaults("Test Battery Section", input_fields, dict(existing_subentry.data))
 
     # Missing field should result in None default
     assert defaults.get(SECTION_STORAGE, {}).get(CONF_INITIAL_CHARGE) is None
@@ -231,8 +236,8 @@ async def test_user_step_with_constant_creates_entry(
 
     # Verify the config contains the constant values
     create_kwargs = flow.async_create_entry.call_args.kwargs
-    assert create_kwargs["data"][SECTION_STORAGE][CONF_CAPACITY] == 10.0
-    assert create_kwargs["data"][SECTION_STORAGE][CONF_INITIAL_CHARGE] == 5.0
+    assert create_kwargs["data"][SECTION_STORAGE][CONF_CAPACITY] == as_constant_value(10.0)
+    assert create_kwargs["data"][SECTION_STORAGE][CONF_INITIAL_CHARGE] == as_constant_value(5.0)
 
 
 async def test_user_step_with_entity_creates_entry(
@@ -261,10 +266,10 @@ async def test_user_step_with_entity_creates_entry(
 
     assert result.get("type") == FlowResultType.CREATE_ENTRY
 
-    # Verify the config contains the entity IDs as strings (single entity)
+    # Verify the config contains the entity schema values (single entity)
     create_kwargs = flow.async_create_entry.call_args.kwargs
-    assert create_kwargs["data"][SECTION_STORAGE][CONF_CAPACITY] == "sensor.capacity"
-    assert create_kwargs["data"][SECTION_STORAGE][CONF_INITIAL_CHARGE] == "sensor.charge"
+    assert create_kwargs["data"][SECTION_STORAGE][CONF_CAPACITY] == as_entity_value(["sensor.capacity"])
+    assert create_kwargs["data"][SECTION_STORAGE][CONF_INITIAL_CHARGE] == as_entity_value(["sensor.charge"])
 
 
 async def test_user_step_empty_required_field_shows_error(

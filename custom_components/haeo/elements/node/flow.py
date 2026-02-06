@@ -2,7 +2,7 @@
 
 from typing import Any
 
-from homeassistant.config_entries import ConfigSubentry, ConfigSubentryFlow, SubentryFlowResult, UnknownSubEntry
+from homeassistant.config_entries import ConfigSubentryFlow, SubentryFlowResult
 from homeassistant.helpers.selector import BooleanSelector, BooleanSelectorConfig
 import voluptuous as vol
 
@@ -102,9 +102,3 @@ class NodeSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             data_schema=schema,
             errors=errors,
         )
-
-    def _get_subentry(self) -> ConfigSubentry | None:
-        try:
-            return self._get_reconfigure_subentry()
-        except (ValueError, UnknownSubEntry):
-            return None

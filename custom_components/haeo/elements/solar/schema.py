@@ -2,6 +2,7 @@
 
 from typing import Final, Literal, TypedDict
 
+from custom_components.haeo.schema import ConstantValue, EntityValue
 from custom_components.haeo.sections import (
     CONF_FORECAST,
     CONF_PRICE_SOURCE_TARGET,
@@ -28,7 +29,7 @@ OPTIONAL_INPUT_FIELDS: Final[frozenset[str]] = frozenset({CONF_CURTAILMENT, CONF
 class CurtailmentConfig(TypedDict, total=False):
     """Curtailment configuration values."""
 
-    curtailment: str | bool
+    curtailment: EntityValue | ConstantValue
 
 
 class CurtailmentData(TypedDict, total=False):

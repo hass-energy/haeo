@@ -105,6 +105,7 @@ module.exports = {
       // Scenario config files - name and element_type first, participants last
       files: "tests/scenarios/**/config.json",
       options: {
+        objectWrap: "collapse",
         jsonSortOrder: JSON.stringify({
           name: null,
           element_type: null,

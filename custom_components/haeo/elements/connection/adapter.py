@@ -6,10 +6,8 @@ from typing import Any, Final, Literal
 
 from homeassistant.components.number import NumberDeviceClass, NumberEntityDescription
 from homeassistant.const import PERCENTAGE, UnitOfPower
-from homeassistant.core import HomeAssistant
 
 from custom_components.haeo.const import ConnectivityLevel
-from custom_components.haeo.data.loader import TimeSeriesLoader
 from custom_components.haeo.elements.input_fields import InputFieldInfo
 from custom_components.haeo.elements.output_utils import expect_output_data
 from custom_components.haeo.model import ModelElementConfig, ModelOutputName, ModelOutputValue
@@ -31,6 +29,7 @@ from custom_components.haeo.model.elements.segments import (
     POWER_LIMIT_TIME_SLICE,
 )
 from custom_components.haeo.model.output_data import OutputData
+from custom_components.haeo.schema import extract_connection_target
 from custom_components.haeo.sections import SECTION_COMMON, SECTION_EFFICIENCY, SECTION_POWER_LIMITS, SECTION_PRICING
 
 from .schema import (
@@ -43,7 +42,6 @@ from .schema import (
     ELEMENT_TYPE,
     SECTION_ENDPOINTS,
     ConnectionConfigData,
-    ConnectionConfigSchema,
 )
 
 # Adapter-synthesized output name (computed from model outputs)
@@ -83,33 +81,6 @@ class ConnectionAdapter:
     element_type: str = ELEMENT_TYPE
     advanced: bool = True
     connectivity: ConnectivityLevel = ConnectivityLevel.NEVER
-
-    def available(self, config: ConnectionConfigSchema, *, hass: HomeAssistant, **_kwargs: Any) -> bool:
-        """Check if connection configuration can be loaded."""
-        ts_loader = TimeSeriesLoader()
-
-        # Check all optional time series fields if present
-        optional_fields = [
-            CONF_MAX_POWER_SOURCE_TARGET,
-            CONF_MAX_POWER_TARGET_SOURCE,
-            CONF_EFFICIENCY_SOURCE_TARGET,
-            CONF_EFFICIENCY_TARGET_SOURCE,
-            CONF_PRICE_SOURCE_TARGET,
-            CONF_PRICE_TARGET_SOURCE,
-        ]
-
-        limits = config[SECTION_POWER_LIMITS]
-        efficiency = config[SECTION_EFFICIENCY]
-        pricing = config[SECTION_PRICING]
-        for field in optional_fields:
-            if (value := limits.get(field)) is not None and not ts_loader.available(hass=hass, value=value):
-                return False
-            if (value := efficiency.get(field)) is not None and not ts_loader.available(hass=hass, value=value):
-                return False
-            if (value := pricing.get(field)) is not None and not ts_loader.available(hass=hass, value=value):
-                return False
-
-        return True
 
     def inputs(self, config: Any) -> dict[str, dict[str, InputFieldInfo[Any]]]:
         """Return input field definitions for connection elements."""
@@ -217,8 +188,8 @@ class ConnectionAdapter:
             {
                 "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
                 "name": config[SECTION_COMMON]["name"],
-                "source": config[SECTION_ENDPOINTS]["source"],
-                "target": config[SECTION_ENDPOINTS]["target"],
+                "source": extract_connection_target(config[SECTION_ENDPOINTS]["source"]),
+                "target": extract_connection_target(config[SECTION_ENDPOINTS]["target"]),
                 "segments": {
                     "efficiency": {
                         "segment_type": "efficiency",

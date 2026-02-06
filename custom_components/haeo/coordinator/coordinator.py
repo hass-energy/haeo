@@ -34,13 +34,13 @@ from custom_components.haeo.const import (
     NetworkOutputName,
 )
 from custom_components.haeo.elements import (
-    ELEMENT_OPTIONAL_INPUT_FIELDS,
     ELEMENT_TYPES,
     ElementConfigData,
     ElementConfigSchema,
     ElementDeviceName,
     ElementOutputName,
     collect_element_subentries,
+    get_input_field_schema_info,
     get_input_fields,
     get_nested_config_value_by_path,
     is_element_config_data,
@@ -51,6 +51,7 @@ from custom_components.haeo.elements import (
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED
 from custom_components.haeo.model import ModelOutputName, Network, OutputData, OutputType
 from custom_components.haeo.repairs import dismiss_optimization_failure_issue
+from custom_components.haeo.schema import is_none_value
 from custom_components.haeo.util.forecast_times import tiers_to_periods_seconds
 
 from . import network as network_module
@@ -120,6 +121,16 @@ STATUS_OPTIONS: tuple[str, ...] = tuple(
         }
     )
 )
+
+
+def _strip_none_schema_values(data: dict[str, Any]) -> None:
+    """Remove disabled schema values from a nested config dict."""
+    for key, value in list(data.items()):
+        if is_none_value(value):
+            data.pop(key)
+            continue
+        if isinstance(value, dict):
+            _strip_none_schema_values(value)
 
 
 def _build_coordinator_output(
@@ -572,7 +583,15 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         for field_path, value in loaded_values.items():
             set_nested_config_value_by_path(element_values, field_path, value)
 
-        optional_keys = ELEMENT_OPTIONAL_INPUT_FIELDS[element_type]
+        _strip_none_schema_values(element_values)
+
+        field_schema = get_input_field_schema_info(element_type, input_field_infos)
+        optional_keys = {
+            field_name
+            for section_fields in field_schema.values()
+            for field_name, field_info in section_fields.items()
+            if field_info.is_optional
+        }
         for field_path, field_info in iter_input_field_paths(input_field_infos):
             field_name = field_info.field_name
             is_required = field_name not in optional_keys

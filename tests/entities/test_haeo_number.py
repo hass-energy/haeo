@@ -27,7 +27,8 @@ from custom_components.haeo.entities.haeo_number import (
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON, HUB_SECTION_TIERS
 from custom_components.haeo.horizon import HorizonManager
 from custom_components.haeo.model import OutputType
-from custom_components.haeo.sections import SECTION_COMMON, SECTION_EFFICIENCY
+from custom_components.haeo.schema import as_connection_target, as_constant_value, as_entity_value, as_none_value
+from custom_components.haeo.sections import CONF_CONNECTION, SECTION_COMMON, SECTION_EFFICIENCY
 
 # --- Fixtures ---
 
@@ -153,12 +154,27 @@ def percent_field_info() -> InputFieldInfo[NumberEntityDescription]:
 
 def _create_subentry(name: str, data: dict[str, Any]) -> ConfigSubentry:
     """Create a ConfigSubentry with the given data."""
+
+    def schema_value(value: Any) -> Any:
+        if value is None:
+            return as_none_value()
+        if isinstance(value, bool):
+            return as_constant_value(value)
+        if isinstance(value, (int, float)):
+            return as_constant_value(float(value))
+        if isinstance(value, str):
+            return as_entity_value([value])
+        if isinstance(value, list) and all(isinstance(item, str) for item in value):
+            return as_entity_value(value)
+        msg = f"Unsupported schema value {value!r}"
+        raise TypeError(msg)
+
     return ConfigSubentry(
         data=MappingProxyType(
             {
                 "element_type": "battery",
                 SECTION_COMMON: {CONF_NAME: name},
-                SECTION_EFFICIENCY: data,
+                SECTION_EFFICIENCY: {key: schema_value(value) for key, value in data.items()},
             }
         ),
         subentry_type="battery",
@@ -433,6 +449,42 @@ async def test_translation_placeholders_from_subentry_data(
     assert placeholders["name"] == "My Battery"
     assert placeholders["power_limit"] == "10.0"
     assert placeholders["extra_key"] == "extra_value"
+
+
+async def test_translation_placeholders_include_connection_and_none_values(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    device_entry: Mock,
+    power_field_info: InputFieldInfo[NumberEntityDescription],
+    horizon_manager: Mock,
+) -> None:
+    """Translation placeholders include connection targets and none values."""
+    subentry = ConfigSubentry(
+        data=MappingProxyType(
+            {
+                "element_type": "battery",
+                SECTION_COMMON: {CONF_NAME: "My Battery", CONF_CONNECTION: as_connection_target("Bus")},
+                SECTION_EFFICIENCY: {power_field_info.field_name: as_none_value()},
+            }
+        ),
+        subentry_type="battery",
+        title="My Battery",
+        unique_id=None,
+    )
+    config_entry.runtime_data = None
+
+    entity = HaeoInputNumber(
+        config_entry=config_entry,
+        subentry=subentry,
+        field_info=power_field_info,
+        device_entry=device_entry,
+        horizon_manager=horizon_manager,
+    )
+
+    placeholders = entity._attr_translation_placeholders
+    assert placeholders is not None
+    assert placeholders["connection"] == "Bus"
+    assert placeholders[power_field_info.field_name] == ""
 
 
 # --- Tests for entity attributes ---

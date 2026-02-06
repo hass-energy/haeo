@@ -25,6 +25,7 @@ from custom_components.haeo.elements.grid import ELEMENT_TYPE as GRID_TYPE
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON, HUB_SECTION_TIERS
 from custom_components.haeo.horizon import HorizonManager
 from custom_components.haeo.number import async_setup_entry
+from custom_components.haeo.schema import as_connection_target, as_constant_value, as_entity_value, as_none_value
 
 
 @pytest.fixture
@@ -76,21 +77,37 @@ def _add_subentry(
     data: dict[str, object],
 ) -> ConfigSubentry:
     """Add a subentry to the config entry."""
+
+    def schema_value(value: object) -> object:
+        if value is None:
+            return as_none_value()
+        if isinstance(value, bool):
+            return as_constant_value(value)
+        if isinstance(value, (int, float)):
+            return as_constant_value(float(value))
+        if isinstance(value, str):
+            return as_entity_value([value])
+        if isinstance(value, list) and all(isinstance(item, str) for item in value):
+            return as_entity_value(value)
+        msg = f"Unsupported schema value {value!r}"
+        raise TypeError(msg)
+
     payload: dict[str, object] = {CONF_ELEMENT_TYPE: subentry_type}
     if subentry_type == GRID_TYPE:
         power_limits = {}
         if data.get("max_power_source_target") is not None:
-            power_limits[CONF_MAX_POWER_SOURCE_TARGET] = data.get("max_power_source_target")
+            power_limits[CONF_MAX_POWER_SOURCE_TARGET] = schema_value(data.get("max_power_source_target"))
         if data.get("max_power_target_source") is not None:
-            power_limits[CONF_MAX_POWER_TARGET_SOURCE] = data.get("max_power_target_source")
+            power_limits[CONF_MAX_POWER_TARGET_SOURCE] = schema_value(data.get("max_power_target_source"))
+        connection_value = data.get("connection", "Switchboard")
         payload |= {
             SECTION_COMMON: {
                 CONF_NAME: title,
-                CONF_CONNECTION: data.get("connection", "Switchboard"),
+                CONF_CONNECTION: as_connection_target(str(connection_value)),
             },
             SECTION_PRICING: {
-                CONF_PRICE_SOURCE_TARGET: data.get("price_source_target"),
-                CONF_PRICE_TARGET_SOURCE: data.get("price_target_source"),
+                CONF_PRICE_SOURCE_TARGET: schema_value(data.get("price_source_target")),
+                CONF_PRICE_TARGET_SOURCE: schema_value(data.get("price_target_source")),
             },
             SECTION_POWER_LIMITS: power_limits,
         }

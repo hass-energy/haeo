@@ -19,6 +19,7 @@ from custom_components.haeo.model import Network
 from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE
 from custom_components.haeo.model.elements.connection import Connection
 from custom_components.haeo.model.elements.segments import PowerLimitSegment
+from custom_components.haeo.schema import as_connection_target
 
 
 def test_update_element_updates_tracked_params() -> None:
@@ -58,7 +59,10 @@ def test_update_element_updates_tracked_params() -> None:
     config: ElementConfigData = {
         CONF_ELEMENT_TYPE: MODEL_ELEMENT_TYPE_CONNECTION,
         SECTION_COMMON: {"name": "conn"},
-        SECTION_ENDPOINTS: {"source": "source", "target": "target"},
+        SECTION_ENDPOINTS: {
+            "source": as_connection_target("source"),
+            "target": as_connection_target("target"),
+        },
         SECTION_POWER_LIMITS: {
             CONF_MAX_POWER_SOURCE_TARGET: np.array([20.0, 20.0]),
             CONF_MAX_POWER_TARGET_SOURCE: np.array([15.0, 15.0]),
@@ -85,7 +89,10 @@ def test_update_element_raises_for_missing_model_element() -> None:
     config: ElementConfigData = {
         CONF_ELEMENT_TYPE: MODEL_ELEMENT_TYPE_CONNECTION,
         SECTION_COMMON: {"name": "nonexistent_conn"},
-        SECTION_ENDPOINTS: {"source": "source", "target": "target"},
+        SECTION_ENDPOINTS: {
+            "source": as_connection_target("source"),
+            "target": as_connection_target("target"),
+        },
         SECTION_POWER_LIMITS: {
             CONF_MAX_POWER_SOURCE_TARGET: np.array([20.0, 20.0]),
             CONF_MAX_POWER_TARGET_SOURCE: np.array([15.0, 15.0]),

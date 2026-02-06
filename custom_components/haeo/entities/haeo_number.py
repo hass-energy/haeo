@@ -20,6 +20,14 @@ from custom_components.haeo.data.loader import TimeSeriesLoader
 from custom_components.haeo.elements import InputFieldPath, find_nested_config_path, get_nested_config_value_by_path
 from custom_components.haeo.elements.input_fields import InputFieldInfo
 from custom_components.haeo.horizon import HorizonManager
+from custom_components.haeo.schema import (
+    as_constant_value,
+    as_entity_value,
+    is_connection_target,
+    is_constant_value,
+    is_entity_value,
+    is_none_value,
+)
 from custom_components.haeo.util import async_update_subentry_value
 
 # Attributes to exclude from recorder when forecast recording is disabled
@@ -73,27 +81,28 @@ class HaeoInputNumber(NumberEntity):
         # Set device_entry to link entity to device
         self.device_entry = device_entry
 
-        # Determine mode from config value type
-        # Entity IDs can be list[str] (new format) or str (v0.1 format)
-        # Constants are stored as float from NumberSelector
+        # Determine mode from schema value type
         config_value = get_nested_config_value_by_path(subentry.data, self._field_path)
 
-        if isinstance(config_value, list) and config_value:
-            # DRIVEN mode: value comes from external sensors (list format)
-            self._entity_mode = ConfigEntityMode.DRIVEN
-            self._source_entity_ids: list[str] = config_value
-            self._attr_native_value = None  # Will be set when data loads
-        elif isinstance(config_value, str):
-            # DRIVEN mode: v0.1 format - single entity ID string
-            self._entity_mode = ConfigEntityMode.DRIVEN
-            self._source_entity_ids = [config_value]
-            self._attr_native_value = None  # Will be set when data loads
-        else:
-            # EDITABLE mode: value is a constant
-            # Config flow ensures fields in subentry.data are either entity IDs or scalars
-            self._entity_mode = ConfigEntityMode.EDITABLE
-            self._source_entity_ids = []
-            self._attr_native_value = float(config_value)  # type: ignore[arg-type]
+        match config_value:
+            case {"type": "entity", "value": entity_ids} if isinstance(entity_ids, list):
+                # DRIVEN mode: value comes from external sensors
+                self._entity_mode = ConfigEntityMode.DRIVEN
+                self._source_entity_ids = entity_ids
+                self._attr_native_value = None  # Will be set when data loads
+            case {"type": "constant", "value": constant}:
+                # EDITABLE mode: value is a constant
+                self._entity_mode = ConfigEntityMode.EDITABLE
+                self._source_entity_ids = []
+                self._attr_native_value = float(constant)
+            case {"type": "none"} | None:
+                # Disabled or missing configuration
+                self._entity_mode = ConfigEntityMode.EDITABLE
+                self._source_entity_ids = []
+                self._attr_native_value = None
+            case _:
+                msg = f"Invalid config value for field {field_info.field_name}"
+                raise RuntimeError(msg)
 
         # Unique ID for multi-hub safety: entry_id + subentry_id + field_name
         field_path_key = ".".join(self._field_path)
@@ -104,12 +113,24 @@ class HaeoInputNumber(NumberEntity):
 
         # Pass subentry data as translation placeholders
         placeholders: dict[str, str] = {}
+
+        def format_placeholder(value: Any) -> str:
+            if is_entity_value(value):
+                return ", ".join(value["value"])
+            if is_constant_value(value):
+                return str(value["value"])
+            if is_none_value(value):
+                return ""
+            if is_connection_target(value):
+                return value["value"]
+            return str(value)
+
         for key, value in subentry.data.items():
             if isinstance(value, Mapping):
                 for nested_key, nested_value in value.items():
-                    placeholders.setdefault(nested_key, str(nested_value))
+                    placeholders.setdefault(nested_key, format_placeholder(nested_value))
                 continue
-            placeholders[key] = str(value)
+            placeholders[key] = format_placeholder(value)
         placeholders.setdefault("name", subentry.title)
         self._attr_translation_placeholders = placeholders
 
@@ -210,14 +231,14 @@ class HaeoInputNumber(NumberEntity):
                 # Boundary fields: n+1 values at time boundaries
                 values = await self._loader.load_boundaries(
                     hass=self.hass,
-                    value=self._source_entity_ids,
+                    value=as_entity_value(self._source_entity_ids),
                     forecast_times=list(forecast_timestamps),
                 )
             else:
                 # Interval fields: n values for periods between boundaries
                 values = await self._loader.load_intervals(
                     hass=self.hass,
-                    value=self._source_entity_ids,
+                    value=as_entity_value(self._source_entity_ids),
                     forecast_times=list(forecast_timestamps),
                 )
         except Exception:
@@ -340,7 +361,7 @@ class HaeoInputNumber(NumberEntity):
             self._config_entry,
             self._subentry,
             field_path=self._field_path,
-            value=value,
+            value=as_constant_value(value),
         )
 
 

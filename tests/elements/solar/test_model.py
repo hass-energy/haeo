@@ -14,6 +14,7 @@ from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE
 from custom_components.haeo.model.elements import connection
 from custom_components.haeo.model.output_data import OutputData
+from custom_components.haeo.schema import as_connection_target
 from tests.util.normalize import normalize_for_compare
 
 
@@ -41,7 +42,7 @@ CREATE_CASES: Sequence[CreateCase] = [
             element_type="solar",
             common={
                 "name": "pv_main",
-                "connection": "network",
+                "connection": as_connection_target("network"),
             },
             forecast={
                 "forecast": np.array([2.0, 1.5]),

@@ -1,53 +1,23 @@
 """Loader for unified time series sensor and forecast data."""
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Sequence
 from typing import Any
 
 from homeassistant.core import HomeAssistant
 
 from custom_components.haeo.data.util.forecast_combiner import combine_sensor_payloads
 from custom_components.haeo.data.util.forecast_fuser import fuse_to_boundaries, fuse_to_intervals
+from custom_components.haeo.schema import EntityValue
 
-from .sensor_loader import load_sensors, normalize_entity_ids
-
-
-def _is_constant_value(value: Any) -> bool:
-    """Return True when value is a constant (int or float) rather than entity IDs."""
-    return isinstance(value, (int, float)) and not isinstance(value, bool)
-
-
-def _collect_sensor_ids(value: Any) -> list[str]:
-    """Return all sensor entity IDs referenced by *value*.
-
-    Callers must check for constant values (int/float) before calling this function.
-    Raises TypeError for invalid input types.
-    """
-    if isinstance(value, Mapping):
-        entity_ids: list[str] = []
-        for sensors in value.values():
-            if sensors is not None and not _is_constant_value(sensors):
-                entity_ids.extend(normalize_entity_ids(sensors))
-        return entity_ids
-
-    return normalize_entity_ids(value)
+from .sensor_loader import load_sensors
 
 
 class TimeSeriesLoader:
     """Loader that merges live sensor values and forecasts into a horizon-aligned time series."""
 
-    def available(self, *, hass: HomeAssistant, value: Any, **_kwargs: Any) -> bool:
-        """Return True when every referenced sensor can supply data.
-
-        Constant values (int/float) are always available.
-        """
-        # Constant values are always available
-        if _is_constant_value(value):
-            return True
-
-        try:
-            entity_ids = _collect_sensor_ids(value)
-        except TypeError:
-            return False
+    def available(self, *, hass: HomeAssistant, value: EntityValue, **_kwargs: Any) -> bool:
+        """Return True when every referenced sensor can supply data."""
+        entity_ids = value["value"]
 
         if not entity_ids:
             return False
@@ -60,14 +30,14 @@ class TimeSeriesLoader:
         self,
         *,
         hass: HomeAssistant,
-        value: Any,
+        value: EntityValue,
         forecast_times: Sequence[float],
     ) -> list[float]:
         """Load a value as interval averages (n values for n+1 boundaries).
 
         Args:
             hass: Home Assistant instance
-            value: Entity ID(s) or constant value (must not be None)
+            value: Entity schema value describing entities
             forecast_times: Boundary timestamps (n+1 values defining n intervals)
 
         Returns:
@@ -80,13 +50,7 @@ class TimeSeriesLoader:
         if not forecast_times:
             return []
 
-        n_periods = max(0, len(forecast_times) - 1)
-
-        # Handle constant values by broadcasting to all periods
-        if _is_constant_value(value):
-            return [float(value)] * n_periods
-
-        entity_ids = _collect_sensor_ids(value)
+        entity_ids = value["value"]
 
         if not entity_ids:
             msg = "At least one sensor entity is required"
@@ -111,14 +75,14 @@ class TimeSeriesLoader:
         self,
         *,
         hass: HomeAssistant,
-        value: Any,
+        value: EntityValue,
         forecast_times: Sequence[float],
     ) -> list[float]:
         """Load a value as boundaries (n+1 point-in-time values).
 
         Args:
             hass: Home Assistant instance
-            value: Entity ID(s) or constant value (must not be None)
+            value: Entity schema value describing entities
             forecast_times: Boundary timestamps (n+1 values defining n intervals)
 
         Returns:
@@ -134,13 +98,7 @@ class TimeSeriesLoader:
         if not forecast_times:
             return []
 
-        n_boundaries = len(forecast_times)
-
-        # Handle constant values by broadcasting to all boundaries
-        if _is_constant_value(value):
-            return [float(value)] * n_boundaries
-
-        entity_ids = _collect_sensor_ids(value)
+        entity_ids = value["value"]
 
         if not entity_ids:
             msg = "At least one sensor entity is required"

@@ -2,7 +2,7 @@
 
 from datetime import UTC, datetime, timedelta, timezone
 from types import MappingProxyType
-from typing import Any
+from typing import Any, cast
 from unittest.mock import AsyncMock, Mock, patch
 
 from homeassistant.config_entries import ConfigSubentry
@@ -41,7 +41,8 @@ from custom_components.haeo.diagnostics import (
     async_get_config_entry_diagnostics,
     collect_diagnostics,
 )
-from custom_components.haeo.elements import ELEMENT_TYPE_BATTERY
+from custom_components.haeo.diagnostics.collector import _extract_entity_ids_from_config
+from custom_components.haeo.elements import ELEMENT_TYPE_BATTERY, ElementConfigSchema
 from custom_components.haeo.elements.battery import (
     CONF_CAPACITY,
     CONF_CONNECTION,
@@ -60,6 +61,7 @@ from custom_components.haeo.elements.grid import CONF_PRICE_SOURCE_TARGET, CONF_
 from custom_components.haeo.entities.haeo_number import ConfigEntityMode, HaeoInputNumber
 from custom_components.haeo.flows import HUB_SECTION_COMMON, HUB_SECTION_TIERS
 from custom_components.haeo.model import OutputType
+from custom_components.haeo.schema import as_connection_target, as_constant_value, as_entity_value
 from custom_components.haeo.sections import SECTION_COMMON, SECTION_EFFICIENCY, SECTION_POWER_LIMITS, SECTION_PRICING
 
 
@@ -82,28 +84,32 @@ def _battery_config(
     efficiency_section: dict[str, Any] = {}
     pricing: dict[str, Any] = {}
     if max_power_source_target is not None:
-        power_limits[CONF_MAX_POWER_SOURCE_TARGET] = max_power_source_target
+        power_limits[CONF_MAX_POWER_SOURCE_TARGET] = as_constant_value(max_power_source_target)
     if max_power_target_source is not None:
-        power_limits[CONF_MAX_POWER_TARGET_SOURCE] = max_power_target_source
+        power_limits[CONF_MAX_POWER_TARGET_SOURCE] = as_constant_value(max_power_target_source)
     if min_charge_percentage is not None:
-        limits[CONF_MIN_CHARGE_PERCENTAGE] = min_charge_percentage
+        limits[CONF_MIN_CHARGE_PERCENTAGE] = as_constant_value(min_charge_percentage)
     if max_charge_percentage is not None:
-        limits[CONF_MAX_CHARGE_PERCENTAGE] = max_charge_percentage
+        limits[CONF_MAX_CHARGE_PERCENTAGE] = as_constant_value(max_charge_percentage)
     if efficiency_source_target is not None:
-        efficiency_section[CONF_EFFICIENCY_SOURCE_TARGET] = efficiency_source_target
+        efficiency_section[CONF_EFFICIENCY_SOURCE_TARGET] = as_constant_value(efficiency_source_target)
     if efficiency_target_source is not None:
-        efficiency_section[CONF_EFFICIENCY_TARGET_SOURCE] = efficiency_target_source
+        efficiency_section[CONF_EFFICIENCY_TARGET_SOURCE] = as_constant_value(efficiency_target_source)
 
     storage = {
-        CONF_CAPACITY: capacity,
-        CONF_INITIAL_CHARGE_PERCENTAGE: initial_charge_percentage,
+        CONF_CAPACITY: as_entity_value([capacity]) if isinstance(capacity, str) else as_constant_value(capacity),
+        CONF_INITIAL_CHARGE_PERCENTAGE: (
+            as_entity_value([initial_charge_percentage])
+            if isinstance(initial_charge_percentage, str)
+            else as_constant_value(initial_charge_percentage)
+        ),
     }
 
     return {
         CONF_ELEMENT_TYPE: ELEMENT_TYPE_BATTERY,
         SECTION_COMMON: {
             CONF_NAME: name,
-            CONF_CONNECTION: connection,
+            CONF_CONNECTION: as_connection_target(connection),
         },
         SECTION_STORAGE: storage,
         SECTION_LIMITS: limits,
@@ -126,11 +132,23 @@ def _grid_config(
         CONF_ELEMENT_TYPE: "grid",
         SECTION_COMMON: {
             CONF_NAME: name,
-            CONF_CONNECTION: connection,
+            CONF_CONNECTION: as_connection_target(connection),
         },
         SECTION_PRICING: {
-            CONF_PRICE_SOURCE_TARGET: price_source_target,
-            CONF_PRICE_TARGET_SOURCE: price_target_source,
+            CONF_PRICE_SOURCE_TARGET: (
+                as_entity_value(price_source_target)
+                if isinstance(price_source_target, list)
+                else as_entity_value([price_source_target])
+                if isinstance(price_source_target, str)
+                else as_constant_value(price_source_target)
+            ),
+            CONF_PRICE_TARGET_SOURCE: (
+                as_entity_value(price_target_source)
+                if isinstance(price_target_source, list)
+                else as_entity_value([price_target_source])
+                if isinstance(price_target_source, str)
+                else as_constant_value(price_target_source)
+            ),
         },
         SECTION_POWER_LIMITS: {},
     }
@@ -152,6 +170,46 @@ def _hub_entry_data(name: str = "Test Hub") -> dict[str, Any]:
             CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
         },
     }
+
+
+def test_extract_entity_ids_from_config_collects_nested_entities() -> None:
+    """_extract_entity_ids_from_config collects valid entity IDs from nested config."""
+    config = {
+        CONF_ELEMENT_TYPE: "grid",
+        SECTION_COMMON: {CONF_NAME: "Grid", CONF_CONNECTION: as_connection_target("bus")},
+        SECTION_PRICING: {
+            CONF_PRICE_SOURCE_TARGET: as_entity_value(["sensor.import", "invalid"]),
+            CONF_PRICE_TARGET_SOURCE: as_constant_value(0.1),
+        },
+        "nested": {"inner": as_entity_value(["sensor.export"])},
+        "ignored": {"type": "constant", "value": 2.0},
+    }
+
+    entity_ids = _extract_entity_ids_from_config(cast("ElementConfigSchema", config))
+
+    assert entity_ids == {"sensor.import", "sensor.export"}
+
+
+async def test_collect_diagnostics_historical_skips_outputs(hass: HomeAssistant) -> None:
+    """collect_diagnostics omits outputs and marks historical data."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data=_hub_entry_data("Historical Hub"),
+        entry_id="hist_entry",
+    )
+    entry.add_to_hass(hass)
+    entry.runtime_data = None
+
+    state_provider = Mock()
+    state_provider.is_historical = True
+    state_provider.timestamp = datetime(2024, 1, 1, tzinfo=UTC)
+    state_provider.get_states = AsyncMock(return_value={})
+
+    result = await collect_diagnostics(hass, entry, state_provider)
+
+    assert result.data["outputs"] == {}
+    assert result.data["environment"]["historical"] is True
+    assert result.missing_entity_ids == []
 
 
 async def test_diagnostics_basic_structure(hass: HomeAssistant) -> None:
@@ -246,8 +304,8 @@ async def test_diagnostics_with_participants(hass: HomeAssistant) -> None:
     battery_config = participants["Battery One"]
     assert battery_config[CONF_ELEMENT_TYPE] == ELEMENT_TYPE_BATTERY
     assert battery_config[SECTION_COMMON][CONF_NAME] == "Battery One"
-    assert battery_config[SECTION_STORAGE][CONF_CAPACITY] == "sensor.battery_capacity"
-    assert battery_config[SECTION_STORAGE][CONF_INITIAL_CHARGE_PERCENTAGE] == "sensor.battery_soc"
+    assert battery_config[SECTION_STORAGE][CONF_CAPACITY] == as_entity_value(["sensor.battery_capacity"])
+    assert battery_config[SECTION_STORAGE][CONF_INITIAL_CHARGE_PERCENTAGE] == as_entity_value(["sensor.battery_soc"])
 
     # Verify input states are collected using State.as_dict()
     # Both sensor.battery_capacity and sensor.battery_soc should be collected
@@ -471,7 +529,7 @@ async def test_diagnostics_captures_editable_entity_values(hass: HomeAssistant) 
 
     # Verify that editable entity values are captured in config
     battery_config = diagnostics["config"]["participants"]["Battery One"]
-    assert battery_config[SECTION_STORAGE][CONF_CAPACITY] == 12.5  # Current entity value, not config value
+    assert battery_config[SECTION_STORAGE][CONF_CAPACITY] == as_constant_value(12.5)
 
 
 async def test_diagnostics_skips_unknown_element_in_input_entities(hass: HomeAssistant) -> None:
@@ -523,7 +581,7 @@ async def test_diagnostics_skips_unknown_element_in_input_entities(hass: HomeAss
 
     # Verify that Battery One exists unchanged (unknown element was skipped)
     battery_config = diagnostics["config"]["participants"]["Battery One"]
-    assert battery_config[SECTION_STORAGE][CONF_CAPACITY] == 10.0  # Original config value preserved
+    assert battery_config[SECTION_STORAGE][CONF_CAPACITY] == as_constant_value(10.0)
 
 
 async def test_diagnostics_skips_driven_entity_values(hass: HomeAssistant) -> None:
@@ -575,7 +633,7 @@ async def test_diagnostics_skips_driven_entity_values(hass: HomeAssistant) -> No
 
     # Verify that driven entity value is NOT captured - config value preserved
     battery_config = diagnostics["config"]["participants"]["Battery One"]
-    assert battery_config[SECTION_STORAGE][CONF_CAPACITY] == "sensor.battery_capacity"  # Original config value
+    assert battery_config[SECTION_STORAGE][CONF_CAPACITY] == as_entity_value(["sensor.battery_capacity"])
 
 
 async def test_current_state_provider_get_state(hass: HomeAssistant) -> None:
@@ -852,7 +910,7 @@ async def test_diagnostics_skips_switch_with_none_value(hass: HomeAssistant) -> 
 
     # Verify that the None value is NOT captured in config
     battery_config = diagnostics["config"]["participants"]["Battery One"]
-    assert battery_config[SECTION_STORAGE][CONF_CAPACITY] == 10.0
+    assert battery_config[SECTION_STORAGE][CONF_CAPACITY] == as_constant_value(10.0)
 
 
 async def test_collect_diagnostics_returns_missing_entity_ids(hass: HomeAssistant) -> None:

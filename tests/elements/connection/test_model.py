@@ -14,6 +14,7 @@ from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION
 from custom_components.haeo.model.elements import connection as model_connection
 from custom_components.haeo.model.output_data import OutputData
+from custom_components.haeo.schema import as_connection_target
 from tests.util.normalize import normalize_for_compare
 
 
@@ -40,7 +41,7 @@ CREATE_CASES: Sequence[CreateCase] = [
         "data": ConnectionConfigData(
             element_type="connection",
             common={"name": "c1"},
-            endpoints={"source": "s", "target": "t"},
+            endpoints={"source": as_connection_target("s"), "target": as_connection_target("t")},
             power_limits={
                 "max_power_source_target": np.array([4.0]),
                 "max_power_target_source": np.array([2.0]),
@@ -85,7 +86,7 @@ CREATE_CASES: Sequence[CreateCase] = [
         "data": ConnectionConfigData(
             element_type="connection",
             common={"name": "c_min"},
-            endpoints={"source": "s", "target": "t"},
+            endpoints={"source": as_connection_target("s"), "target": as_connection_target("t")},
             power_limits={},
             pricing={},
             efficiency={},

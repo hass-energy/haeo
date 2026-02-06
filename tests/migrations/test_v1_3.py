@@ -31,6 +31,7 @@ from custom_components.haeo.flows import (
     HUB_SECTION_TIERS,
 )
 from custom_components.haeo.migrations import async_migrate_entry, v1_3
+from custom_components.haeo.schema import as_connection_target, as_constant_value, as_entity_value
 from custom_components.haeo.sections import (
     CONF_CONNECTION,
     CONF_FORECAST,
@@ -147,15 +148,28 @@ def test_migrate_subentry_battery_with_legacy_fields() -> None:
 
     assert migrated is not None
     assert migrated[SECTION_COMMON][CONF_NAME] == "Battery"
-    assert migrated[SECTION_COMMON][CONF_CONNECTION] == "bus"
-    assert migrated[SECTION_POWER_LIMITS][CONF_MAX_POWER_SOURCE_TARGET] == 7.0
-    assert migrated[SECTION_POWER_LIMITS][CONF_MAX_POWER_TARGET_SOURCE] == 4.2
-    assert migrated[SECTION_PRICING][CONF_PRICE_SOURCE_TARGET] == 0.33
-    assert migrated[SECTION_PRICING][CONF_PRICE_TARGET_SOURCE] == 0.15
-    assert migrated[SECTION_EFFICIENCY][battery.CONF_EFFICIENCY_SOURCE_TARGET] == 0.85
-    assert migrated[SECTION_EFFICIENCY][battery.CONF_EFFICIENCY_TARGET_SOURCE] == 0.88
-    assert migrated[battery.SECTION_UNDERCHARGE][battery.CONF_PARTITION_PERCENTAGE] == 0.1
-    assert migrated[battery.SECTION_OVERCHARGE][battery.CONF_PARTITION_COST] == 0.2
+    assert migrated[SECTION_COMMON][CONF_CONNECTION] == as_connection_target("bus")
+    assert migrated[SECTION_POWER_LIMITS][CONF_MAX_POWER_SOURCE_TARGET] == as_constant_value(7.0)
+    assert migrated[SECTION_POWER_LIMITS][CONF_MAX_POWER_TARGET_SOURCE] == as_constant_value(4.2)
+    assert migrated[SECTION_PRICING][CONF_PRICE_SOURCE_TARGET] == as_constant_value(0.33)
+    assert migrated[SECTION_PRICING][CONF_PRICE_TARGET_SOURCE] == as_constant_value(0.15)
+    assert migrated[SECTION_EFFICIENCY][battery.CONF_EFFICIENCY_SOURCE_TARGET] == as_constant_value(0.85)
+    assert migrated[SECTION_EFFICIENCY][battery.CONF_EFFICIENCY_TARGET_SOURCE] == as_constant_value(0.88)
+    assert migrated[battery.SECTION_UNDERCHARGE][battery.CONF_PARTITION_PERCENTAGE] == as_constant_value(0.1)
+    assert migrated[battery.SECTION_OVERCHARGE][battery.CONF_PARTITION_COST] == as_constant_value(0.2)
+
+
+def test_migrate_subentry_battery_invalid_schema_value_raises() -> None:
+    """Battery migration should raise for unsupported schema values."""
+    data = {
+        CONF_ELEMENT_TYPE: battery.ELEMENT_TYPE,
+        CONF_NAME: "Battery",
+        battery.CONF_CAPACITY: {"invalid": "value"},
+    }
+    subentry = _create_subentry(data, subentry_type=battery.ELEMENT_TYPE)
+
+    with pytest.raises(TypeError, match="Unsupported schema value"):
+        v1_3._migrate_subentry_data(subentry)
 
 
 def test_migrate_subentry_battery_section() -> None:
@@ -172,8 +186,8 @@ def test_migrate_subentry_battery_section() -> None:
 
     assert migrated is not None
     assert migrated[SECTION_COMMON][CONF_NAME] == "Battery Section"
-    assert migrated[battery_section.SECTION_STORAGE][battery_section.CONF_CAPACITY] == 5.0
-    assert migrated[battery_section.SECTION_STORAGE][battery_section.CONF_INITIAL_CHARGE] == 2.5
+    assert migrated[battery_section.SECTION_STORAGE][battery_section.CONF_CAPACITY] == as_constant_value(5.0)
+    assert migrated[battery_section.SECTION_STORAGE][battery_section.CONF_INITIAL_CHARGE] == as_constant_value(2.5)
 
 
 def test_migrate_subentry_connection_fields() -> None:
@@ -201,10 +215,10 @@ def test_migrate_subentry_connection_fields() -> None:
 
     assert migrated is not None
     assert migrated[SECTION_COMMON][CONF_NAME] == "Connection"
-    assert migrated[connection.SECTION_ENDPOINTS][connection.CONF_SOURCE] == "node_a"
-    assert migrated[SECTION_POWER_LIMITS][connection.CONF_MAX_POWER_SOURCE_TARGET] == 4.0
-    assert migrated[SECTION_PRICING][connection.CONF_PRICE_TARGET_SOURCE] == 0.2
-    assert migrated[SECTION_EFFICIENCY][connection.CONF_EFFICIENCY_TARGET_SOURCE] == 0.91
+    assert migrated[connection.SECTION_ENDPOINTS][connection.CONF_SOURCE] == as_connection_target("node_a")
+    assert migrated[SECTION_POWER_LIMITS][connection.CONF_MAX_POWER_SOURCE_TARGET] == as_constant_value(4.0)
+    assert migrated[SECTION_PRICING][connection.CONF_PRICE_TARGET_SOURCE] == as_constant_value(0.2)
+    assert migrated[SECTION_EFFICIENCY][connection.CONF_EFFICIENCY_TARGET_SOURCE] == as_constant_value(0.91)
 
 
 def test_migrate_subentry_grid_legacy_fields() -> None:
@@ -223,11 +237,11 @@ def test_migrate_subentry_grid_legacy_fields() -> None:
     migrated = v1_3._migrate_subentry_data(subentry)
 
     assert migrated is not None
-    assert migrated[SECTION_COMMON][CONF_CONNECTION] == "bus"
-    assert migrated[SECTION_PRICING][CONF_PRICE_SOURCE_TARGET] == 0.3
-    assert migrated[SECTION_PRICING][CONF_PRICE_TARGET_SOURCE] == 0.1
-    assert migrated[SECTION_POWER_LIMITS][CONF_MAX_POWER_SOURCE_TARGET] == 5.0
-    assert migrated[SECTION_POWER_LIMITS][CONF_MAX_POWER_TARGET_SOURCE] == 4.0
+    assert migrated[SECTION_COMMON][CONF_CONNECTION] == as_connection_target("bus")
+    assert migrated[SECTION_PRICING][CONF_PRICE_SOURCE_TARGET] == as_constant_value(0.3)
+    assert migrated[SECTION_PRICING][CONF_PRICE_TARGET_SOURCE] == as_constant_value(0.1)
+    assert migrated[SECTION_POWER_LIMITS][CONF_MAX_POWER_SOURCE_TARGET] == as_constant_value(5.0)
+    assert migrated[SECTION_POWER_LIMITS][CONF_MAX_POWER_TARGET_SOURCE] == as_constant_value(4.0)
 
 
 def test_migrate_subentry_inverter_legacy_fields() -> None:
@@ -247,10 +261,10 @@ def test_migrate_subentry_inverter_legacy_fields() -> None:
 
     assert migrated is not None
     assert migrated[SECTION_COMMON][CONF_NAME] == "Inverter"
-    assert migrated[SECTION_POWER_LIMITS][CONF_MAX_POWER_SOURCE_TARGET] == 7.0
-    assert migrated[SECTION_POWER_LIMITS][CONF_MAX_POWER_TARGET_SOURCE] == 6.0
-    assert migrated[SECTION_EFFICIENCY][inverter.CONF_EFFICIENCY_SOURCE_TARGET] == 0.95
-    assert migrated[SECTION_EFFICIENCY][inverter.CONF_EFFICIENCY_TARGET_SOURCE] == 0.94
+    assert migrated[SECTION_POWER_LIMITS][CONF_MAX_POWER_SOURCE_TARGET] == as_constant_value(7.0)
+    assert migrated[SECTION_POWER_LIMITS][CONF_MAX_POWER_TARGET_SOURCE] == as_constant_value(6.0)
+    assert migrated[SECTION_EFFICIENCY][inverter.CONF_EFFICIENCY_SOURCE_TARGET] == as_constant_value(0.95)
+    assert migrated[SECTION_EFFICIENCY][inverter.CONF_EFFICIENCY_TARGET_SOURCE] == as_constant_value(0.94)
 
 
 def test_migrate_subentry_load_node_solar() -> None:
@@ -266,8 +280,8 @@ def test_migrate_subentry_load_node_solar() -> None:
     )
     load_migrated = v1_3._migrate_subentry_data(load_subentry)
     assert load_migrated is not None
-    assert load_migrated[SECTION_COMMON][CONF_CONNECTION] == "bus"
-    assert load_migrated[SECTION_FORECAST][CONF_FORECAST] == ["sensor.load"]
+    assert load_migrated[SECTION_COMMON][CONF_CONNECTION] == as_connection_target("bus")
+    assert load_migrated[SECTION_FORECAST][CONF_FORECAST] == as_entity_value(["sensor.load"])
 
     node_subentry = _create_subentry(
         {
@@ -296,10 +310,10 @@ def test_migrate_subentry_load_node_solar() -> None:
     )
     solar_migrated = v1_3._migrate_subentry_data(solar_subentry)
     assert solar_migrated is not None
-    assert solar_migrated[SECTION_COMMON][CONF_CONNECTION] == "bus"
-    assert solar_migrated[SECTION_FORECAST][CONF_FORECAST] == ["sensor.solar"]
-    assert solar_migrated[SECTION_PRICING][CONF_PRICE_SOURCE_TARGET] == 0.12
-    assert solar_migrated[solar.SECTION_CURTAILMENT][solar.CONF_CURTAILMENT] is True
+    assert solar_migrated[SECTION_COMMON][CONF_CONNECTION] == as_connection_target("bus")
+    assert solar_migrated[SECTION_FORECAST][CONF_FORECAST] == as_entity_value(["sensor.solar"])
+    assert solar_migrated[SECTION_PRICING][CONF_PRICE_SOURCE_TARGET] == as_constant_value(0.12)
+    assert solar_migrated[solar.SECTION_CURTAILMENT][solar.CONF_CURTAILMENT] == as_constant_value(True)
 
 
 async def test_async_migrate_entry_updates_entry_and_subentries(hass: HomeAssistant) -> None:
@@ -336,6 +350,18 @@ async def test_async_migrate_entry_updates_entry_and_subentries(hass: HomeAssist
     assert entry.options == {}
     migrated_subentry = next(iter(entry.subentries.values()))
     assert SECTION_PRICING in migrated_subentry.data
+
+
+async def test_async_migrate_entry_skips_when_up_to_date(hass: HomeAssistant) -> None:
+    """async_migrate_entry should return True when already at target version."""
+    entry = MockConfigEntry(domain=DOMAIN, title="Hub", data={})
+    entry.add_to_hass(hass)
+    hass.config_entries.async_update_entry(entry, minor_version=v1_3.MINOR_VERSION)
+
+    result = await v1_3.async_migrate_entry(hass, entry)
+
+    assert result is True
+    assert entry.minor_version == v1_3.MINOR_VERSION
 
 
 async def test_migrations_entry_skips_non_v1(hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch) -> None:

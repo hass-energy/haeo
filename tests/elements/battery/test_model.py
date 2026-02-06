@@ -17,6 +17,7 @@ from custom_components.haeo.model.elements import (
     MODEL_ELEMENT_TYPE_CONNECTION,
 )
 from custom_components.haeo.model.output_data import OutputData
+from custom_components.haeo.schema import as_connection_target
 from tests.util.normalize import normalize_for_compare
 
 
@@ -45,7 +46,7 @@ CREATE_CASES: Sequence[CreateCase] = [
             element_type="battery",
             common={
                 "name": "battery_main",
-                "connection": "network",
+                "connection": as_connection_target("network"),
             },
             storage={
                 "capacity": np.array([10.0, 10.0]),
@@ -122,7 +123,7 @@ CREATE_CASES: Sequence[CreateCase] = [
             element_type="battery",
             common={
                 "name": "battery_normal",
-                "connection": "network",
+                "connection": as_connection_target("network"),
             },
             storage={
                 "capacity": np.array([10.0, 10.0]),
@@ -191,7 +192,7 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
             element_type="battery",
             common={
                 "name": "battery_no_balance",
-                "connection": "network",
+                "connection": as_connection_target("network"),
             },
             storage={
                 "capacity": np.array([10.0, 10.0]),
@@ -251,7 +252,7 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
             element_type="battery",
             common={
                 "name": "battery_with_thresholds",
-                "connection": "network",
+                "connection": as_connection_target("network"),
             },
             storage={
                 "capacity": np.array([10.0, 10.0]),

@@ -8,29 +8,15 @@ Lower-level fusion and cycling logic is tested in:
 """
 
 from collections.abc import Sequence
+from typing import cast
 
 from homeassistant.core import HomeAssistant
 import pytest
 
 from custom_components.haeo.data.loader import time_series_loader as tsl
 from custom_components.haeo.data.loader.sensor_loader import normalize_entity_ids
-from custom_components.haeo.data.loader.time_series_loader import TimeSeriesLoader, _collect_sensor_ids
-
-
-def test_collect_sensor_ids_from_mapping() -> None:
-    """Ensure mapping inputs expand into a flattened sensor list."""
-
-    value = {
-        "present": "sensor.present_power",
-        "forecast": ("sensor.forecast_day", "sensor.forecast_night"),
-        "optional": None,
-    }
-
-    assert _collect_sensor_ids(value) == [
-        "sensor.present_power",
-        "sensor.forecast_day",
-        "sensor.forecast_night",
-    ]
+from custom_components.haeo.data.loader.time_series_loader import TimeSeriesLoader
+from custom_components.haeo.schema import EntityValue, as_entity_value
 
 
 def test_normalize_entity_ids_rejects_invalid_type() -> None:
@@ -52,11 +38,7 @@ def test_time_series_loader_available_counts_every_sensor(hass: HomeAssistant, m
 
     monkeypatch.setattr(tsl, "load_sensors", fake_load_sensors)
 
-    value = {
-        "present": "sensor.present_power",
-        "forecast": ("sensor.forecast_day",),
-        "ignored": None,
-    }
+    value = as_entity_value(["sensor.present_power", "sensor.forecast_day"])
 
     assert loader.available(hass=hass, value=value)
     assert captured == ["sensor.present_power", "sensor.forecast_day"]
@@ -72,11 +54,11 @@ def test_time_series_loader_available_missing_payloads(hass: HomeAssistant, monk
 
     monkeypatch.setattr(tsl, "load_sensors", fake_load_sensors)
 
-    assert not loader.available(hass=hass, value=["sensor.one", "sensor.two"])
+    assert not loader.available(hass=hass, value=as_entity_value(["sensor.one", "sensor.two"]))
 
 
 def test_time_series_loader_available_invalid_value(hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch) -> None:
-    """available() should gracefully reject invalid value types."""
+    """available() should error when given invalid value types."""
 
     loader = TimeSeriesLoader()
 
@@ -85,7 +67,8 @@ def test_time_series_loader_available_invalid_value(hass: HomeAssistant, monkeyp
 
     monkeypatch.setattr(tsl, "load_sensors", fail_load_sensors)
 
-    assert not loader.available(hass=hass, value=object())
+    with pytest.raises(TypeError):
+        loader.available(hass=hass, value=cast(EntityValue, object()))  # noqa: TC006
 
 
 @pytest.mark.asyncio
@@ -112,7 +95,7 @@ async def test_time_series_loader_load_merges_present_and_forecast(
 
     result = await loader.load_intervals(
         hass=hass,
-        value=["sensor.present_power", "sensor.forecast_day", "sensor.forecast_night"],
+        value=as_entity_value(["sensor.present_power", "sensor.forecast_day", "sensor.forecast_night"]),
         forecast_times=[100, 250, 400, 700, 850],
     )
 
@@ -137,7 +120,7 @@ async def test_time_series_loader_load_present_only(hass: HomeAssistant, monkeyp
 
     result = await loader.load_intervals(
         hass=hass,
-        value=["sensor.a", "sensor.b"],
+        value=as_entity_value(["sensor.a", "sensor.b"]),
         forecast_times=[0, 60, 120],
     )
 
@@ -153,7 +136,7 @@ async def test_time_series_loader_load_returns_empty_for_missing_horizon(hass: H
 
     result = await loader.load_intervals(
         hass=hass,
-        value="sensor.any",
+        value=as_entity_value(["sensor.any"]),
         forecast_times=[],
     )
 
@@ -169,7 +152,7 @@ async def test_time_series_loader_load_requires_entity_ids(hass: HomeAssistant) 
     with pytest.raises(ValueError, match="At least one sensor entity is required"):
         await loader.load_intervals(
             hass=hass,
-            value=(),
+            value=as_entity_value([]),
             forecast_times=[0, 60],
         )
 
@@ -190,7 +173,7 @@ async def test_time_series_loader_load_fails_when_no_payloads(
     with pytest.raises(ValueError, match="No time series data available"):
         await loader.load_intervals(
             hass=hass,
-            value=["sensor.present", "sensor.forecast"],
+            value=as_entity_value(["sensor.present", "sensor.forecast"]),
             forecast_times=[0, 60],
         )
 
@@ -211,6 +194,6 @@ async def test_time_series_loader_load_fails_when_sensor_missing(
     with pytest.raises(ValueError, match=r"sensor\.missing"):
         await loader.load_intervals(
             hass=hass,
-            value=["sensor.present", "sensor.missing"],
+            value=as_entity_value(["sensor.present", "sensor.missing"]),
             forecast_times=[0, 60],
         )

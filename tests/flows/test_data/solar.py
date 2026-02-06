@@ -11,6 +11,7 @@ from custom_components.haeo.elements.solar import (
     SECTION_FORECAST,
     SECTION_PRICING,
 )
+from custom_components.haeo.schema import as_connection_target, as_constant_value, as_entity_value
 
 # Test data for solar flow - single-step with choose selector
 # config: Contains all field values in choose selector format
@@ -21,16 +22,16 @@ VALID_DATA = [
         "config": {
             SECTION_COMMON: {
                 CONF_NAME: "Test Solar",
-                CONF_CONNECTION: "main_bus",
+                CONF_CONNECTION: as_connection_target("main_bus"),
             },
             SECTION_FORECAST: {
-                CONF_FORECAST: 5.0,
+                CONF_FORECAST: as_constant_value(5.0),
             },
             SECTION_PRICING: {
-                CONF_PRICE_SOURCE_TARGET: 0.0,
+                CONF_PRICE_SOURCE_TARGET: as_constant_value(0.0),
             },
             SECTION_CURTAILMENT: {
-                CONF_CURTAILMENT: False,
+                CONF_CURTAILMENT: as_constant_value(value=False),
             },
         },
     },
@@ -39,16 +40,16 @@ VALID_DATA = [
         "config": {
             SECTION_COMMON: {
                 CONF_NAME: "Rooftop Solar",
-                CONF_CONNECTION: "main_bus",
+                CONF_CONNECTION: as_connection_target("main_bus"),
             },
             SECTION_FORECAST: {
-                CONF_FORECAST: ["sensor.solar_power"],
+                CONF_FORECAST: as_entity_value(["sensor.solar_power"]),
             },
             SECTION_PRICING: {
-                CONF_PRICE_SOURCE_TARGET: 0.04,
+                CONF_PRICE_SOURCE_TARGET: as_constant_value(0.04),
             },
             SECTION_CURTAILMENT: {
-                CONF_CURTAILMENT: True,
+                CONF_CURTAILMENT: as_constant_value(value=True),
             },
         },
     },

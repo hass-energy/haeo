@@ -3,6 +3,8 @@
 from homeassistant.core import HomeAssistant
 
 from custom_components.haeo.elements import solar
+from custom_components.haeo.elements.availability import schema_config_available
+from custom_components.haeo.schema import as_connection_target, as_constant_value, as_entity_value
 
 from ..conftest import set_forecast_sensor
 
@@ -13,13 +15,16 @@ async def test_available_returns_true_when_forecast_sensor_exists(hass: HomeAssi
 
     config: solar.SolarConfigSchema = {
         "element_type": "solar",
-        solar.SECTION_COMMON: {"name": "test_solar", "connection": "dc_bus"},
-        solar.SECTION_FORECAST: {"forecast": ["sensor.forecast"]},
-        solar.SECTION_PRICING: {"price_source_target": 0.0},
-        solar.SECTION_CURTAILMENT: {"curtailment": True},
+        solar.SECTION_COMMON: {
+            "name": "test_solar",
+            "connection": as_connection_target("dc_bus"),
+        },
+        solar.SECTION_FORECAST: {"forecast": as_entity_value(["sensor.forecast"])},
+        solar.SECTION_PRICING: {"price_source_target": as_constant_value(0.0)},
+        solar.SECTION_CURTAILMENT: {"curtailment": as_constant_value(value=True)},
     }
 
-    result = solar.adapter.available(config, hass=hass)
+    result = schema_config_available(config, hass=hass)
     assert result is True
 
 
@@ -27,11 +32,14 @@ async def test_available_returns_false_when_forecast_sensor_missing(hass: HomeAs
     """Solar available() should return False when forecast sensor is missing."""
     config: solar.SolarConfigSchema = {
         "element_type": "solar",
-        solar.SECTION_COMMON: {"name": "test_solar", "connection": "dc_bus"},
-        solar.SECTION_FORECAST: {"forecast": ["sensor.missing"]},
-        solar.SECTION_PRICING: {"price_source_target": 0.0},
-        solar.SECTION_CURTAILMENT: {"curtailment": True},
+        solar.SECTION_COMMON: {
+            "name": "test_solar",
+            "connection": as_connection_target("dc_bus"),
+        },
+        solar.SECTION_FORECAST: {"forecast": as_entity_value(["sensor.missing"])},
+        solar.SECTION_PRICING: {"price_source_target": as_constant_value(0.0)},
+        solar.SECTION_CURTAILMENT: {"curtailment": as_constant_value(value=True)},
     }
 
-    result = solar.adapter.available(config, hass=hass)
+    result = schema_config_available(config, hass=hass)
     assert result is False

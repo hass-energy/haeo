@@ -1,5 +1,6 @@
 """Core diagnostics collection logic."""
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any
 
@@ -36,6 +37,7 @@ from custom_components.haeo.elements import (
 from custom_components.haeo.entities.haeo_number import ConfigEntityMode, HaeoInputNumber
 from custom_components.haeo.entities.haeo_switch import HaeoInputSwitch
 from custom_components.haeo.flows import HUB_SECTION_TIERS
+from custom_components.haeo.schema import SchemaValue, as_constant_value, is_schema_value
 from custom_components.haeo.sections import SECTION_COMMON
 from custom_components.haeo.sensor_utils import get_output_sensors
 
@@ -63,21 +65,25 @@ def _extract_entity_ids_from_config(config: ElementConfigSchema) -> set[str]:
     This function iterates over all config values and collects entity IDs.
     """
 
-    def _collect(value: Any, collected: set[str]) -> None:
-        if isinstance(value, str):
-            if "." in value:
-                collected.add(value)
-            return
-        if isinstance(value, list):
-            if all(isinstance(item, str) for item in value):
-                collected.update(item for item in value if "." in item)
-            return
-        if isinstance(value, dict):
-            for nested in value.values():
-                _collect(nested, collected)
+    def _collect(value: SchemaValue | Mapping[str, Any], collected: set[str]) -> None:
+        match value:
+            case {"type": "entity", "value": entity_ids} if isinstance(entity_ids, list):
+                for entity_id in entity_ids:
+                    if isinstance(entity_id, str) and "." in entity_id:
+                        collected.add(entity_id)
+            case {"type": _}:
+                return
+            case Mapping():
+                for nested in value.values():
+                    if is_schema_value(nested):
+                        _collect(nested, collected)
+                    elif isinstance(nested, Mapping):
+                        _collect(dict(nested), collected)
+            case _:
+                return
 
     entity_ids: set[str] = set()
-    _collect(config, entity_ids)
+    _collect(dict(config), entity_ids)
     return entity_ids
 
 
@@ -146,9 +152,9 @@ async def collect_diagnostics(
                 continue
 
             if isinstance(entity, HaeoInputNumber) and entity.native_value is not None:
-                set_nested_config_value_by_path(participant, field_path, entity.native_value)
+                set_nested_config_value_by_path(participant, field_path, as_constant_value(entity.native_value))
             elif isinstance(entity, HaeoInputSwitch) and entity.is_on is not None:
-                set_nested_config_value_by_path(participant, field_path, entity.is_on)
+                set_nested_config_value_by_path(participant, field_path, as_constant_value(entity.is_on))
 
     # Collect input sensor states for all entities used in the configuration
     all_entity_ids: set[str] = set()

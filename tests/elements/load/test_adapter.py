@@ -3,6 +3,8 @@
 from homeassistant.core import HomeAssistant
 
 from custom_components.haeo.elements import load as load_element
+from custom_components.haeo.elements.availability import schema_config_available
+from custom_components.haeo.schema import as_connection_target, as_entity_value
 
 from ..conftest import set_sensor
 
@@ -13,11 +15,14 @@ async def test_available_returns_true_when_forecast_sensor_exists(hass: HomeAssi
 
     config: load_element.LoadConfigSchema = {
         "element_type": "load",
-        load_element.SECTION_COMMON: {"name": "test_load", "connection": "main_bus"},
-        load_element.SECTION_FORECAST: {"forecast": ["sensor.power"]},
+        load_element.SECTION_COMMON: {
+            "name": "test_load",
+            "connection": as_connection_target("main_bus"),
+        },
+        load_element.SECTION_FORECAST: {"forecast": as_entity_value(["sensor.power"])},
     }
 
-    result = load_element.adapter.available(config, hass=hass)
+    result = schema_config_available(config, hass=hass)
     assert result is True
 
 
@@ -25,11 +30,14 @@ async def test_available_returns_false_when_forecast_sensor_missing(hass: HomeAs
     """Load available() should return False when forecast sensor is missing."""
     config: load_element.LoadConfigSchema = {
         "element_type": "load",
-        load_element.SECTION_COMMON: {"name": "test_load", "connection": "main_bus"},
-        load_element.SECTION_FORECAST: {"forecast": ["sensor.missing"]},
+        load_element.SECTION_COMMON: {
+            "name": "test_load",
+            "connection": as_connection_target("main_bus"),
+        },
+        load_element.SECTION_FORECAST: {"forecast": as_entity_value(["sensor.missing"])},
     }
 
-    result = load_element.adapter.available(config, hass=hass)
+    result = schema_config_available(config, hass=hass)
     assert result is False
 
 
@@ -37,8 +45,11 @@ def test_inputs_returns_input_fields() -> None:
     """inputs() should return input field definitions for load."""
     config: load_element.LoadConfigSchema = {
         "element_type": "load",
-        load_element.SECTION_COMMON: {"name": "test_load", "connection": "main_bus"},
-        load_element.SECTION_FORECAST: {"forecast": ["sensor.power"]},
+        load_element.SECTION_COMMON: {
+            "name": "test_load",
+            "connection": as_connection_target("main_bus"),
+        },
+        load_element.SECTION_FORECAST: {"forecast": as_entity_value(["sensor.power"])},
     }
 
     input_fields = load_element.adapter.inputs(config)

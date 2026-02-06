@@ -24,6 +24,7 @@ from custom_components.haeo.model.elements import (
 from custom_components.haeo.model.elements.battery import Battery
 from custom_components.haeo.model.elements.connection import Connection
 from custom_components.haeo.model.elements.segments import PowerLimitSegment, PricingSegment
+from custom_components.haeo.schema import as_connection_target
 
 # Battery reactive update tests
 
@@ -487,7 +488,10 @@ def test_network_add_connection_updates_prices() -> None:
         {
             "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
             SECTION_COMMON: {"name": "conn"},
-            SECTION_ENDPOINTS: {"source": "source", "target": "sink"},
+            SECTION_ENDPOINTS: {
+                "source": as_connection_target("source"),
+                "target": as_connection_target("sink"),
+            },
             SECTION_POWER_LIMITS: {"max_power_source_target": 5.0},
             SECTION_PRICING: {"price_source_target": -0.20},
             SECTION_EFFICIENCY: {},

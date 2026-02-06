@@ -70,6 +70,7 @@ from custom_components.haeo.elements.grid import (
 )
 from custom_components.haeo.elements.node import SECTION_ROLE
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON, HUB_SECTION_TIERS
+from custom_components.haeo.schema import as_connection_target, as_constant_value, as_entity_value
 from custom_components.haeo.sections import SECTION_COMMON, SECTION_EFFICIENCY, SECTION_POWER_LIMITS, SECTION_PRICING
 
 
@@ -109,11 +110,11 @@ def mock_battery_subentry(hass: HomeAssistant, mock_hub_entry: MockConfigEntry) 
                 CONF_ELEMENT_TYPE: ELEMENT_TYPE_BATTERY,
                 SECTION_COMMON: {
                     CONF_NAME: "Test Battery",
-                    CONF_CONNECTION: "Switchboard",
+                    CONF_CONNECTION: as_connection_target("Switchboard"),
                 },
                 SECTION_STORAGE: {
-                    CONF_CAPACITY: 10000,
-                    CONF_INITIAL_CHARGE_PERCENTAGE: "sensor.battery_charge",
+                    CONF_CAPACITY: as_constant_value(10000.0),
+                    CONF_INITIAL_CHARGE_PERCENTAGE: as_entity_value(["sensor.battery_charge"]),
                 },
                 SECTION_LIMITS: {},
                 SECTION_POWER_LIMITS: {},
@@ -139,15 +140,15 @@ def mock_grid_subentry(hass: HomeAssistant, mock_hub_entry: MockConfigEntry) -> 
                 CONF_ELEMENT_TYPE: ELEMENT_TYPE_GRID,
                 SECTION_COMMON: {
                     CONF_NAME: "Test Grid",
-                    CONF_CONNECTION: "Switchboard",
+                    CONF_CONNECTION: as_connection_target("Switchboard"),
                 },
                 SECTION_PRICING: {
-                    CONF_PRICE_SOURCE_TARGET: ["sensor.import_price"],
-                    CONF_PRICE_TARGET_SOURCE: ["sensor.export_price"],
+                    CONF_PRICE_SOURCE_TARGET: as_entity_value(["sensor.import_price"]),
+                    CONF_PRICE_TARGET_SOURCE: as_entity_value(["sensor.export_price"]),
                 },
                 SECTION_POWER_LIMITS: {
-                    CONF_MAX_POWER_SOURCE_TARGET: 10000,
-                    CONF_MAX_POWER_TARGET_SOURCE: 5000,
+                    CONF_MAX_POWER_SOURCE_TARGET: as_constant_value(10000.0),
+                    CONF_MAX_POWER_TARGET_SOURCE: as_constant_value(5000.0),
                 },
             }
         ),
@@ -170,8 +171,8 @@ def mock_connection_subentry(hass: HomeAssistant, mock_hub_entry: MockConfigEntr
                     CONF_NAME: "Battery to Grid",
                 },
                 SECTION_ENDPOINTS: {
-                    CONF_SOURCE: "Test Battery",
-                    CONF_TARGET: "Test Grid",
+                    CONF_SOURCE: as_connection_target("Test Battery"),
+                    CONF_TARGET: as_connection_target("Test Grid"),
                 },
                 SECTION_POWER_LIMITS: {},
                 SECTION_PRICING: {},

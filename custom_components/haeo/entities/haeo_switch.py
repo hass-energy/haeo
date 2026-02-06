@@ -19,6 +19,13 @@ from custom_components.haeo.elements import InputFieldPath, find_nested_config_p
 from custom_components.haeo.elements.input_fields import InputFieldInfo
 from custom_components.haeo.entities.haeo_number import ConfigEntityMode
 from custom_components.haeo.horizon import HorizonManager
+from custom_components.haeo.schema import (
+    as_constant_value,
+    is_connection_target,
+    is_constant_value,
+    is_entity_value,
+    is_none_value,
+)
 from custom_components.haeo.util import async_update_subentry_value
 
 # Attributes to exclude from recorder when forecast recording is disabled
@@ -65,21 +72,32 @@ class HaeoInputSwitch(SwitchEntity):
         # Set device_entry to link entity to device
         self.device_entry = device_entry
 
-        # Determine mode from config value type
-        # Entity IDs are stored as str from EntitySelector
-        # Boolean constants are stored as bool from BooleanSelector
+        # Determine mode from schema value type
         config_value = get_nested_config_value_by_path(subentry.data, self._field_path)
 
-        if isinstance(config_value, str):
-            # DRIVEN mode: value comes from external sensor
-            self._entity_mode = ConfigEntityMode.DRIVEN
-            self._source_entity_id: str | None = config_value
-            self._attr_is_on = None  # Will be set when data loads
-        else:
-            # EDITABLE mode: value is a boolean or None (optional field)
-            self._entity_mode = ConfigEntityMode.EDITABLE
-            self._source_entity_id = None
-            self._attr_is_on = bool(config_value) if config_value is not None else None
+        match config_value:
+            case {"type": "entity", "value": entity_ids} if isinstance(entity_ids, list):
+                # DRIVEN mode: value comes from external sensor
+                self._entity_mode = ConfigEntityMode.DRIVEN
+                self._source_entity_id = entity_ids[0] if entity_ids else None
+                self._attr_is_on = None  # Will be set when data loads
+            case {"type": "constant", "value": constant}:
+                # EDITABLE mode: value is a boolean constant
+                self._entity_mode = ConfigEntityMode.EDITABLE
+                self._source_entity_id = None
+                self._attr_is_on = bool(constant)
+            case bool() as constant:
+                self._entity_mode = ConfigEntityMode.EDITABLE
+                self._source_entity_id = None
+                self._attr_is_on = constant
+            case {"type": "none"} | None:
+                # Disabled or missing configuration
+                self._entity_mode = ConfigEntityMode.EDITABLE
+                self._source_entity_id = None
+                self._attr_is_on = None
+            case _:
+                msg = f"Invalid config value for field {field_info.field_name}"
+                raise RuntimeError(msg)
 
         # Unique ID for multi-hub safety: entry_id + subentry_id + field_name
         field_path_key = ".".join(self._field_path)
@@ -90,12 +108,24 @@ class HaeoInputSwitch(SwitchEntity):
 
         # Pass subentry data as translation placeholders
         placeholders: dict[str, str] = {}
+
+        def format_placeholder(value: Any) -> str:
+            if is_entity_value(value):
+                return ", ".join(value["value"])
+            if is_constant_value(value):
+                return str(value["value"])
+            if is_none_value(value):
+                return ""
+            if is_connection_target(value):
+                return value["value"]
+            return str(value)
+
         for key, value in subentry.data.items():
             if isinstance(value, Mapping):
                 for nested_key, nested_value in value.items():
-                    placeholders.setdefault(nested_key, str(nested_value))
+                    placeholders.setdefault(nested_key, format_placeholder(nested_value))
                 continue
-            placeholders[key] = str(value)
+            placeholders[key] = format_placeholder(value)
         placeholders.setdefault("name", subentry.title)
         self._attr_translation_placeholders = placeholders
 
@@ -268,7 +298,7 @@ class HaeoInputSwitch(SwitchEntity):
             self._config_entry,
             self._subentry,
             field_path=self._field_path,
-            value=True,
+            value=as_constant_value(value=True),
         )
 
     async def async_turn_off(self, **_kwargs: Any) -> None:
@@ -294,7 +324,7 @@ class HaeoInputSwitch(SwitchEntity):
             self._config_entry,
             self._subentry,
             field_path=self._field_path,
-            value=False,
+            value=as_constant_value(value=False),
         )
 
 
