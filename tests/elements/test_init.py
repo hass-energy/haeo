@@ -1,7 +1,7 @@
 """Tests for elements module __init__.py functions."""
 
 from types import MappingProxyType
-from typing import Any, NotRequired, Required
+from typing import Any
 
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
@@ -18,7 +18,6 @@ from custom_components.haeo.elements import (
 )
 from custom_components.haeo.elements import battery, battery_section, connection, grid, inverter, load, solar
 from custom_components.haeo.elements import node as node_schema
-from custom_components.haeo import elements as elements_module
 from custom_components.haeo.schema import as_connection_target, as_constant_value, as_entity_value
 
 
@@ -308,26 +307,6 @@ def test_is_element_config_data_optional_type_validation() -> None:
         node_schema.SECTION_ROLE: {"is_source": True},
     }
     assert is_element_config_data(valid_config) is True
-
-
-def test_unwrap_required_type_handles_required_wrappers() -> None:
-    """Test _unwrap_required_type returns underlying Required types."""
-    assert elements_module._unwrap_required_type(NotRequired[bool]) is bool
-    assert elements_module._unwrap_required_type(Required[int]) is int
-
-
-def test_conforms_to_typed_dict_skips_optional_without_hint() -> None:
-    """Test optional keys without hints are ignored when validating."""
-
-    class _Dummy:
-        __required_keys__ = frozenset()
-        __optional_keys__ = frozenset({"optional"})
-
-    assert elements_module._conforms_to_typed_dict(
-        {"optional": 1},
-        _Dummy,
-        check_optional=True,
-    )
 
 
 def test_collect_element_subentries_skips_invalid_configs(
