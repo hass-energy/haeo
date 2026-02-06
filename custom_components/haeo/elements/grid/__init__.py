@@ -1,5 +1,7 @@
 """Grid element for HAEO integration."""
 
+from custom_components.haeo.sections import CONF_CONNECTION
+
 from .adapter import (
     GRID_COST_IMPORT,
     GRID_COST_NET,
@@ -18,7 +20,6 @@ from .adapter import (
     adapter,
 )
 from .schema import (
-    CONF_CONNECTION,
     CONF_DEMAND_BLOCK_HOURS,
     CONF_DEMAND_CURRENT_ENERGY_SOURCE_TARGET,
     CONF_DEMAND_CURRENT_ENERGY_TARGET_SOURCE,

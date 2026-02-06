@@ -91,6 +91,8 @@ class GridConfigData(TypedDict):
     common: ConnectedCommonData
     pricing: GridPricingData
     power_limits: PowerLimitsData
+
+
 __all__ = [
     "CONF_DEMAND_BLOCK_HOURS",
     "CONF_DEMAND_CURRENT_ENERGY_SOURCE_TARGET",

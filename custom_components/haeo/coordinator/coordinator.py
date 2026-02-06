@@ -12,7 +12,7 @@ from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import STATE_ON, EntityCategory, UnitOfTime
 from homeassistant.core import CALLBACK_TYPE, Event, HomeAssistant, callback
-from homeassistant.helpers.event import async_call_later, async_track_state_change_event, EventStateChangedData
+from homeassistant.helpers.event import EventStateChangedData, async_call_later, async_track_state_change_event
 from homeassistant.helpers.translation import async_get_translations
 from homeassistant.helpers.typing import StateType
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
@@ -25,22 +25,21 @@ from custom_components.haeo.const import (
     DEFAULT_DEBOUNCE_SECONDS,
     DOMAIN,
     ELEMENT_TYPE_NETWORK,
-    NetworkOutputName,
     OPTIMIZATION_STATUS_FAILED,
     OPTIMIZATION_STATUS_PENDING,
     OPTIMIZATION_STATUS_SUCCESS,
     OUTPUT_NAME_OPTIMIZATION_COST,
     OUTPUT_NAME_OPTIMIZATION_DURATION,
     OUTPUT_NAME_OPTIMIZATION_STATUS,
+    NetworkOutputName,
 )
 from custom_components.haeo.elements import (
-    collect_element_subentries,
-    ELEMENT_CONFIG_SCHEMAS,
     ELEMENT_TYPES,
     ElementConfigData,
     ElementConfigSchema,
     ElementDeviceName,
     ElementOutputName,
+    collect_element_subentries,
     get_input_field_schema_info,
     get_input_fields,
     get_nested_config_value_by_path,

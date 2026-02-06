@@ -1,6 +1,6 @@
 """Demand pricing segment for peak demand tariffs."""
 
-from datetime import datetime, tzinfo
+from datetime import UTC, datetime, tzinfo
 from typing import Any, Final, Literal, NotRequired
 
 from highspy import Highs
@@ -17,6 +17,7 @@ from .segment import Segment
 
 DEFAULT_DEMAND_BLOCK_HOURS: Final = 0.5
 DEFAULT_DEMAND_DAYS: Final = 1.0
+BLOCK_TIME_EPSILON: Final = 1e-9
 
 
 type DemandPricingSegmentType = Literal["demand_pricing"]
@@ -71,6 +72,8 @@ class DemandPricingSegment(Segment):
             segment_id: Unique identifier for naming LP variables
             n_periods: Number of optimization periods
             periods: Time period durations in hours
+            period_start_time: Start timestamp for the optimization horizon (epoch seconds)
+            timezone: Timezone for the optimization horizon timestamps
             solver: HiGHS solver instance
             spec: Demand pricing segment specification
             source_element: Connected source element reference
@@ -199,7 +202,7 @@ class DemandPricingSegment(Segment):
                 if not np.any(mask):
                     continue
                 block_windows = window_values[mask]
-                if float(block_windows.max() - block_windows.min()) > 1e-9:
+                if float(block_windows.max() - block_windows.min()) > BLOCK_TIME_EPSILON:
                     continue
                 window_weight = float(block_windows[0])
                 if window_weight <= 0:
@@ -223,7 +226,7 @@ class DemandPricingSegment(Segment):
         offset = self._block_anchor_offset(block_hours)
         block_start = -offset
         is_first_block = True
-        while block_start < total_hours - 1e-9:
+        while block_start < total_hours - BLOCK_TIME_EPSILON:
             block_end = block_start + block_hours
             if block_end <= 0:
                 block_start = block_end
@@ -247,15 +250,9 @@ class DemandPricingSegment(Segment):
         if self._period_start_time is None:
             return 0.0
         start_time = float(self._period_start_time)
-        if self._period_start_timezone is None:
-            start_dt = datetime.fromtimestamp(start_time)
-        else:
-            start_dt = datetime.fromtimestamp(start_time, tz=self._period_start_timezone)
+        start_dt = datetime.fromtimestamp(start_time, tz=self._period_start_timezone or UTC)
         hours_since_midnight = (
-            start_dt.hour
-            + start_dt.minute / 60.0
-            + start_dt.second / 3600.0
-            + start_dt.microsecond / 3_600_000_000.0
+            start_dt.hour + start_dt.minute / 60.0 + start_dt.second / 3600.0 + start_dt.microsecond / 3_600_000_000.0
         )
         return hours_since_midnight % block_hours
 

@@ -92,6 +92,8 @@ class ConnectionConfigData(TypedDict):
     power_limits: PowerLimitsData
     pricing: PricingData
     efficiency: EfficiencyData
+
+
 __all__ = [
     "CONF_DEMAND_BLOCK_HOURS",
     "CONF_DEMAND_CURRENT_ENERGY_SOURCE_TARGET",

@@ -45,6 +45,8 @@ class Element[OutputNameT: str]:
         Args:
             name: Name of the entity
             periods: Array of time period durations in hours (one per optimization interval)
+            period_start_time: Start timestamp for the optimization horizon (epoch seconds)
+            timezone: Timezone for the optimization horizon timestamps
             solver: The HiGHS solver instance for creating variables and constraints
             output_names: Frozenset of valid output names for this element type (used for type narrowing)
 

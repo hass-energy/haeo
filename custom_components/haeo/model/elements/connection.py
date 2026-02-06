@@ -99,6 +99,8 @@ class Connection[TOutputName: str](Element[TOutputName]):
         Args:
             name: Name of the connection
             periods: Array of time period durations in hours (one per optimization interval)
+            period_start_time: Start timestamp for the optimization horizon (epoch seconds)
+            timezone: Timezone for the optimization horizon timestamps
             solver: The HiGHS solver instance for creating variables and constraints
             source: Name of the source element
             target: Name of the target element

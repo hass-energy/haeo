@@ -85,6 +85,7 @@ class GridAdapter:
     element_type: str = ELEMENT_TYPE
     advanced: bool = False
     connectivity: ConnectivityLevel = ConnectivityLevel.ADVANCED
+
     def inputs(self, config: Any) -> dict[str, dict[str, InputFieldInfo[Any]]]:
         """Return input field definitions for grid elements."""
         _ = config
@@ -290,12 +291,8 @@ class GridAdapter:
                     },
                     "demand_pricing": {
                         "segment_type": "demand_pricing",
-                        "demand_window_source_target": config[SECTION_PRICING].get(
-                            CONF_DEMAND_WINDOW_SOURCE_TARGET
-                        ),
-                        "demand_window_target_source": config[SECTION_PRICING].get(
-                            CONF_DEMAND_WINDOW_TARGET_SOURCE
-                        ),
+                        "demand_window_source_target": config[SECTION_PRICING].get(CONF_DEMAND_WINDOW_SOURCE_TARGET),
+                        "demand_window_target_source": config[SECTION_PRICING].get(CONF_DEMAND_WINDOW_TARGET_SOURCE),
                         "demand_price_source_target": config[SECTION_PRICING].get(CONF_DEMAND_PRICE_SOURCE_TARGET),
                         "demand_price_target_source": config[SECTION_PRICING].get(CONF_DEMAND_PRICE_TARGET_SOURCE),
                         "demand_current_energy_source_target": config[SECTION_PRICING].get(

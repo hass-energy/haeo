@@ -10,8 +10,8 @@ Each segment type applies a specific transformation or constraint to power flow:
 """
 
 from collections.abc import Callable
-from datetime import tzinfo
 from dataclasses import dataclass
+from datetime import tzinfo
 from typing import Any, Final, Literal, TypeGuard
 
 from highspy import Highs
@@ -19,15 +19,8 @@ import numpy as np
 from numpy.typing import NDArray
 
 from custom_components.haeo.model.element import Element
-from .battery_balance import (
-    BALANCE_ABSORBED_EXCESS,
-    BALANCE_POWER_DOWN,
-    BALANCE_POWER_UP,
-    BALANCE_UNMET_DEMAND,
-    BatteryBalanceOutputName,
-    BatteryBalanceSegment,
-    BatteryBalanceSegmentSpec,
-)
+
+from .battery_balance import BatteryBalanceOutputName, BatteryBalanceSegment, BatteryBalanceSegmentSpec
 from .demand_pricing import DemandPricingSegment, DemandPricingSegmentSpec
 from .efficiency import EfficiencySegment, EfficiencySegmentSpec
 from .passthrough import PassthroughSegment, PassthroughSegmentSpec
@@ -136,11 +129,12 @@ def create_segment(
         periods,
         period_start_time=period_start_time,
         timezone=timezone,
-        solver,
+        solver=solver,
         spec=spec,
         source_element=source_element,
         target_element=target_element,
     )
+
 
 __all__ = [
     "POWER_LIMIT_SOURCE_TARGET",

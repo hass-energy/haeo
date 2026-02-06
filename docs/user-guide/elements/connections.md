@@ -195,22 +195,22 @@ The optimizer will only schedule charging when the sensor value is non-zero.
 Each configuration field creates a corresponding input entity in Home Assistant.
 Input entities appear as Number entities with the `config` entity category.
 
-| Input                                       | Unit   | Description                                  |
-| ------------------------------------------- | ------ | -------------------------------------------- |
-| `number.{name}_max_power_source_target`     | kW     | Maximum forward power (if configured)        |
-| `number.{name}_max_power_target_source`     | kW     | Maximum reverse power (if configured)        |
-| `number.{name}_efficiency_source_target`    | %      | Forward efficiency (if configured)           |
-| `number.{name}_efficiency_target_source`    | %      | Reverse efficiency (if configured)           |
-| `number.{name}_price_source_target`         | \$/kWh | Forward transfer price (if configured)       |
-| `number.{name}_price_target_source`         | \$/kWh | Reverse transfer price (if configured)       |
-| `number.{name}_demand_window_source_target` | -      | Forward demand window weight (if configured) |
-| `number.{name}_demand_window_target_source` | -      | Reverse demand window weight (if configured) |
-| `number.{name}_demand_price_source_target`  | \$/kW  | Forward demand price (if configured)         |
-| `number.{name}_demand_price_target_source`  | \$/kW  | Reverse demand price (if configured)         |
-| `number.{name}_demand_current_energy_source_target` | kWh | Forward demand energy so far (if configured) |
-| `number.{name}_demand_current_energy_target_source` | kWh | Reverse demand energy so far (if configured) |
-| `number.{name}_demand_block_hours`          | h      | Demand block hours (if configured)           |
-| `number.{name}_demand_days`                 | d      | Demand billing days (if configured)          |
+| Input                                               | Unit   | Description                                  |
+| --------------------------------------------------- | ------ | -------------------------------------------- |
+| `number.{name}_max_power_source_target`             | kW     | Maximum forward power (if configured)        |
+| `number.{name}_max_power_target_source`             | kW     | Maximum reverse power (if configured)        |
+| `number.{name}_efficiency_source_target`            | %      | Forward efficiency (if configured)           |
+| `number.{name}_efficiency_target_source`            | %      | Reverse efficiency (if configured)           |
+| `number.{name}_price_source_target`                 | \$/kWh | Forward transfer price (if configured)       |
+| `number.{name}_price_target_source`                 | \$/kWh | Reverse transfer price (if configured)       |
+| `number.{name}_demand_window_source_target`         | -      | Forward demand window weight (if configured) |
+| `number.{name}_demand_window_target_source`         | -      | Reverse demand window weight (if configured) |
+| `number.{name}_demand_price_source_target`          | \$/kW  | Forward demand price (if configured)         |
+| `number.{name}_demand_price_target_source`          | \$/kW  | Reverse demand price (if configured)         |
+| `number.{name}_demand_current_energy_source_target` | kWh    | Forward demand energy so far (if configured) |
+| `number.{name}_demand_current_energy_target_source` | kWh    | Reverse demand energy so far (if configured) |
+| `number.{name}_demand_block_hours`                  | h      | Demand block hours (if configured)           |
+| `number.{name}_demand_days`                         | d      | Demand billing days (if configured)          |
 
 Input entities include a `forecast` attribute showing values for each optimization period.
 See the [Input Entities developer guide](../../developer-guide/inputs.md) for details on input entity behavior.

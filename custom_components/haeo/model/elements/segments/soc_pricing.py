@@ -1,5 +1,6 @@
 """SOC-based pricing segment for battery level penalties."""
 
+from datetime import tzinfo
 from typing import Any, Literal, NotRequired
 
 from highspy import Highs
@@ -35,6 +36,8 @@ class SocPricingSegment(Segment):
         periods: NDArray[np.floating[Any]],
         solver: Highs,
         *,
+        period_start_time: float | None = None,
+        timezone: tzinfo | None = None,
         spec: SocPricingSegmentSpec,
         source_element: Element[Any],
         target_element: Element[Any],
@@ -45,6 +48,8 @@ class SocPricingSegment(Segment):
             n_periods,
             periods,
             solver,
+            period_start_time=period_start_time,
+            timezone=timezone,
             source_element=source_element,
             target_element=target_element,
         )

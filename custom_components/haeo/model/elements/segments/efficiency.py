@@ -62,6 +62,8 @@ class EfficiencySegment(Segment):
             segment_id: Unique identifier for naming LP variables
             n_periods: Number of optimization periods
             periods: Time period durations in hours
+            period_start_time: Start timestamp for the optimization horizon (epoch seconds)
+            timezone: Timezone for the optimization horizon timestamps
             solver: HiGHS solver instance
             spec: Efficiency segment specification.
             source_element: Connected source element reference

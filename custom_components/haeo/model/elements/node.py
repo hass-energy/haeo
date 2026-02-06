@@ -61,6 +61,8 @@ class Node(Element[NodeOutputName]):
         Args:
             name: Name of the node
             periods: Array of time period durations in hours
+            period_start_time: Start timestamp for the optimization horizon (epoch seconds)
+            timezone: Timezone for the optimization horizon timestamps
             solver: The HiGHS solver instance for creating variables and constraints
             is_source: Whether this element can produce power (source behavior)
             is_sink: Whether this element can consume power (sink behavior)

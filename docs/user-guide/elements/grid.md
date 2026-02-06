@@ -160,20 +160,20 @@ For more examples and sensor configuration, see the [Forecasts and Sensors guide
 Each configured field creates a corresponding input entity in Home Assistant.
 Input entities appear as Number entities with the `config` entity category.
 
-| Input                                           | Unit   | Description                               |
-| ----------------------------------------------- | ------ | ----------------------------------------- |
-| `number.{name}_price_source_target`             | \$/kWh | Import price from configured value/sensor |
-| `number.{name}_price_target_source`             | \$/kWh | Export price from configured value/sensor |
-| `number.{name}_max_power_source_target`         | kW     | Maximum import power (if configured)      |
-| `number.{name}_max_power_target_source`         | kW     | Maximum export power (if configured)      |
-| `number.{name}_demand_window_source_target`     | -      | Import demand window weight (if configured) |
-| `number.{name}_demand_window_target_source`     | -      | Export demand window weight (if configured) |
-| `number.{name}_demand_price_source_target`      | \$/kW  | Import demand price (if configured)       |
-| `number.{name}_demand_price_target_source`      | \$/kW  | Export demand price (if configured)       |
-| `number.{name}_demand_current_energy_source_target` | kWh | Import demand energy so far (if configured) |
-| `number.{name}_demand_current_energy_target_source` | kWh | Export demand energy so far (if configured) |
-| `number.{name}_demand_block_hours`              | h      | Demand block hours (if configured)        |
-| `number.{name}_demand_days`                     | d      | Demand billing days (if configured)       |
+| Input                                               | Unit   | Description                                 |
+| --------------------------------------------------- | ------ | ------------------------------------------- |
+| `number.{name}_price_source_target`                 | \$/kWh | Import price from configured value/sensor   |
+| `number.{name}_price_target_source`                 | \$/kWh | Export price from configured value/sensor   |
+| `number.{name}_max_power_source_target`             | kW     | Maximum import power (if configured)        |
+| `number.{name}_max_power_target_source`             | kW     | Maximum export power (if configured)        |
+| `number.{name}_demand_window_source_target`         | -      | Import demand window weight (if configured) |
+| `number.{name}_demand_window_target_source`         | -      | Export demand window weight (if configured) |
+| `number.{name}_demand_price_source_target`          | \$/kW  | Import demand price (if configured)         |
+| `number.{name}_demand_price_target_source`          | \$/kW  | Export demand price (if configured)         |
+| `number.{name}_demand_current_energy_source_target` | kWh    | Import demand energy so far (if configured) |
+| `number.{name}_demand_current_energy_target_source` | kWh    | Export demand energy so far (if configured) |
+| `number.{name}_demand_block_hours`                  | h      | Demand block hours (if configured)          |
+| `number.{name}_demand_days`                         | d      | Demand billing days (if configured)         |
 
 Input entities are only created for fields you configure with "Constant".
 If you set an optional field to "None", no input entity is created for that field.

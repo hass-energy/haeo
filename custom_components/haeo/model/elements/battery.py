@@ -93,6 +93,8 @@ class Battery(Element[BatteryOutputName]):
         Args:
             name: Name of the battery
             periods: Array of time period durations in hours
+            period_start_time: Start timestamp for the optimization horizon (epoch seconds)
+            timezone: Timezone for the optimization horizon timestamps
             solver: The HiGHS solver instance for creating variables and constraints
             capacity: Battery capacity in kWh per period (T+1 values for energy boundaries)
             initial_charge: Initial charge in kWh
