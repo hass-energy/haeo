@@ -218,10 +218,6 @@
               "name": "Connection efficiency"
             },
             "endpoints": { "data": { "source": "Source Device", "target": "Target Device" }, "name": "Endpoints" },
-            "segment_order": {
-              "data": { "mirror_segment_order": "Mirror segment order" },
-              "name": "Segment order"
-            },
             "power_limits": {
               "data": {
                 "max_power_source_target": "Max Power Source to Target",
@@ -235,7 +231,8 @@
                 "price_target_source": "Price Target to Source"
               },
               "name": "Pricing"
-            }
+            },
+            "segment_order": { "data": { "mirror_segment_order": "Mirror segment order" }, "name": "Segment order" }
           }
         }
       },
