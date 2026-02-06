@@ -186,10 +186,26 @@ def _solve_connection_scenario(case: ConnectionScenario) -> dict[str, ExpectedVa
     h = create_solver()
     periods = np.asarray(case["periods"], dtype=np.float64)
     segments = case["segments"]
+    mirror_segment_order = bool(case.get("mirror_segment_order", False))
     if segments is None:
-        conn = Connection(name="conn", periods=periods, solver=h, source="src", target="tgt")
+        conn = Connection(
+            name="conn",
+            periods=periods,
+            solver=h,
+            source="src",
+            target="tgt",
+            mirror_segment_order=mirror_segment_order,
+        )
     else:
-        conn = Connection(name="conn", periods=periods, solver=h, source="src", target="tgt", segments=segments)
+        conn = Connection(
+            name="conn",
+            periods=periods,
+            solver=h,
+            source="src",
+            target="tgt",
+            segments=segments,
+            mirror_segment_order=mirror_segment_order,
+        )
     source = DummyElement("src", periods, h)
     target = DummyElement("tgt", periods, h)
     conn.set_endpoints(source, target)

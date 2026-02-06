@@ -37,10 +37,12 @@ from .schema import (
     CONF_EFFICIENCY_TARGET_SOURCE,
     CONF_MAX_POWER_SOURCE_TARGET,
     CONF_MAX_POWER_TARGET_SOURCE,
+    CONF_MIRROR_SEGMENT_ORDER,
     CONF_PRICE_SOURCE_TARGET,
     CONF_PRICE_TARGET_SOURCE,
     ELEMENT_TYPE,
     SECTION_ENDPOINTS,
+    SECTION_SEGMENT_ORDER,
     ConnectionConfigData,
 )
 
@@ -184,12 +186,15 @@ class ConnectionAdapter:
         """
         # Build segments using explicit None for missing parameters.
         # Efficiency values are ratios (0-1) after input normalization.
+        segment_order = config.get(SECTION_SEGMENT_ORDER, {})
+        mirror_segment_order = bool(segment_order.get(CONF_MIRROR_SEGMENT_ORDER, False))
         return [
             {
                 "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
                 "name": config[SECTION_COMMON]["name"],
                 "source": extract_connection_target(config[SECTION_ENDPOINTS]["source"]),
                 "target": extract_connection_target(config[SECTION_ENDPOINTS]["target"]),
+                "mirror_segment_order": mirror_segment_order,
                 "segments": {
                     "efficiency": {
                         "segment_type": "efficiency",

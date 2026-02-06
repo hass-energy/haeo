@@ -20,6 +20,7 @@ Connections define how power flows between elements in your network with support
 | **Name**                     | String                                   | Yes      | -         | Unique identifier for this connection                                  |
 | **Source**                   | Element                                  | Yes      | -         | Element where power can flow from (in source→target direction)         |
 | **Target**                   | Element                                  | Yes      | -         | Element where power can flow to (in source→target direction)           |
+| **Mirror segment order**     | Boolean                                  | No       | Off       | Use the same segment order for target→source flow                      |
 | **Max Power Source→Target**  | [sensor](../forecasts-and-sensors.md)    | No       | Unlimited | Maximum power flow from source to target (kW)                          |
 | **Max Power Target→Source**  | [sensor](../forecasts-and-sensors.md)    | No       | Unlimited | Maximum power flow from target to source (kW)                          |
 | **Efficiency Source→Target** | [sensor](../forecasts-and-sensors.md)    | No       | 100%      | Efficiency percentage (0-100) for power transfer from source to target |
@@ -33,6 +34,10 @@ Connections define how power flows between elements in your network with support
 
     **Segment-based behavior**: Connections compose internal segments for limits, efficiency, and pricing.
     You configure the fields above, and the model applies the corresponding segment behavior automatically.
+
+    **Segment order**: Source→target uses the segment order you provide.
+    Target→source uses the reverse order by default.
+    Enable `Mirror segment order` to apply the same order in both directions.
 
     **Using constant values**: All sensor fields require sensor entities.
 

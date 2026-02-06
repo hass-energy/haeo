@@ -63,5 +63,6 @@ class ConnectionScenario(TypedDict):
     description: str
     periods: NDArray[np.floating[Any]]
     segments: dict[str, SegmentSpec] | None
+    mirror_segment_order: NotRequired[bool]
     inputs: ConnectionScenarioInputs
     expected_outputs: dict[str, ExpectedValue]
