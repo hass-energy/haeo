@@ -1,36 +1,44 @@
 """Load element schema definitions."""
 
-from typing import Any, Final, Literal, TypedDict
+from typing import Final, Literal, TypedDict
 
-import numpy as np
-from numpy.typing import NDArray
+from custom_components.haeo.sections import (
+    CONF_FORECAST,
+    SECTION_COMMON,
+    SECTION_FORECAST,
+    ConnectedCommonConfig,
+    ConnectedCommonData,
+    ForecastConfig,
+    ForecastData,
+)
 
 ELEMENT_TYPE: Final = "load"
 
-# Configuration field names
-CONF_FORECAST: Final = "forecast"
-CONF_CONNECTION: Final = "connection"
+OPTIONAL_INPUT_FIELDS: Final[frozenset[str]] = frozenset()
 
 
 class LoadConfigSchema(TypedDict):
-    """Load element configuration as stored in Home Assistant.
-
-    Schema mode contains entity IDs for forecast sensors or constant values.
-    """
+    """Load element configuration as stored in Home Assistant."""
 
     element_type: Literal["load"]
-    name: str
-    connection: str  # Element name to connect to
-    forecast: list[str] | str | float  # Entity ID(s) or constant kW - list for chaining
+    common: ConnectedCommonConfig
+    forecast: ForecastConfig
 
 
 class LoadConfigData(TypedDict):
-    """Load element configuration with loaded values.
-
-    Data mode contains resolved sensor values for optimization.
-    """
+    """Load element configuration with loaded values."""
 
     element_type: Literal["load"]
-    name: str
-    connection: str  # Element name to connect to
-    forecast: NDArray[np.floating[Any]] | float  # Loaded power values per period (kW)
+    common: ConnectedCommonData
+    forecast: ForecastData
+
+
+__all__ = [
+    "CONF_FORECAST",
+    "ELEMENT_TYPE",
+    "OPTIONAL_INPUT_FIELDS",
+    "SECTION_COMMON",
+    "SECTION_FORECAST",
+    "LoadConfigData",
+    "LoadConfigSchema",
+]

@@ -17,16 +17,20 @@ from custom_components.haeo import HaeoRuntimeData
 from custom_components.haeo.const import (
     CONF_ELEMENT_TYPE,
     CONF_NAME,
+    CONF_RECORD_FORECASTS,
     DOMAIN,
     ELEMENT_TYPE_NETWORK,
     OUTPUT_NAME_OPTIMIZATION_DURATION,
     OUTPUT_NAME_OPTIMIZATION_STATUS,
 )
 from custom_components.haeo.coordinator import CoordinatorOutput, ForecastPoint
-from custom_components.haeo.elements.battery import BATTERY_STATE_OF_CHARGE
+from custom_components.haeo.elements.battery import BATTERY_STATE_OF_CHARGE, SECTION_LIMITS
 from custom_components.haeo.elements.battery import ELEMENT_TYPE as BATTERY_TYPE
+from custom_components.haeo.elements.battery import SECTION_COMMON as BATTERY_SECTION_COMMON
 from custom_components.haeo.elements.load import LOAD_POWER
 from custom_components.haeo.entities import HaeoSensor
+from custom_components.haeo.entities.haeo_sensor import FORECAST_UNRECORDED_ATTRIBUTES
+from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON, HUB_SECTION_TIERS
 from custom_components.haeo.model import OutputType
 from custom_components.haeo.sensor import async_setup_entry
 
@@ -94,15 +98,18 @@ def config_entry(hass: HomeAssistant) -> MockConfigEntry:
         domain=DOMAIN,
         title="Mock Network",
         data={
-            "name": "Mock Network",
-            "tier_1_count": 5,
-            "tier_1_duration": 1,
-            "tier_2_count": 11,
-            "tier_2_duration": 5,
-            "tier_3_count": 0,
-            "tier_3_duration": 30,
-            "tier_4_count": 0,
-            "tier_4_duration": 60,
+            HUB_SECTION_COMMON: {CONF_NAME: "Mock Network"},
+            HUB_SECTION_TIERS: {
+                "tier_1_count": 5,
+                "tier_1_duration": 1,
+                "tier_2_count": 11,
+                "tier_2_duration": 5,
+                "tier_3_count": 0,
+                "tier_3_duration": 30,
+                "tier_4_count": 0,
+                "tier_4_duration": 60,
+            },
+            HUB_SECTION_ADVANCED: {},
         },
         entry_id="mock_entry",
     )
@@ -115,7 +122,19 @@ def config_entry(hass: HomeAssistant) -> MockConfigEntry:
         unique_id=None,
     )
     battery_subentry = ConfigSubentry(
-        data=MappingProxyType({CONF_ELEMENT_TYPE: BATTERY_TYPE, CONF_NAME: "Battery"}),
+        data=MappingProxyType(
+            {
+                CONF_ELEMENT_TYPE: BATTERY_TYPE,
+                BATTERY_SECTION_COMMON: {
+                    CONF_NAME: "Battery",
+                    "connection": "Switchboard",
+                    "capacity": 10.0,
+                    "initial_charge_percentage": 50.0,
+                },
+                SECTION_LIMITS: {},
+                "advanced": {},
+            }
+        ),
         subentry_type=BATTERY_TYPE,
         title="Battery",
         unique_id=None,
@@ -597,3 +616,53 @@ def test_handle_coordinator_update_missing_output_clears_value(device_entry: Dev
     coordinator.data = {"battery": {}}
     sensor._handle_coordinator_update()
     assert sensor.native_value is None
+
+
+# --- Recorder Filtering Tests ---
+
+
+@pytest.mark.parametrize(
+    ("record_forecasts", "expect_unrecorded"),
+    [
+        (False, True),  # Default: forecasts are excluded from recorder
+        (True, False),  # When enabled: forecasts are recorded
+    ],
+)
+def test_unrecorded_attributes_based_on_config(
+    device_entry: DeviceEntry,
+    record_forecasts: bool,
+    expect_unrecorded: bool,
+) -> None:
+    """Sensor sets _unrecorded_attributes based on record_forecasts config."""
+    coordinator = _create_mock_coordinator()
+    # Mock the config_entry.data.get behavior
+    coordinator.config_entry = Mock()
+    coordinator.config_entry.data = {CONF_RECORD_FORECASTS: record_forecasts}
+
+    output = _make_output(
+        type_=OutputType.POWER,
+        unit="kW",
+        state=1.0,
+        forecast=None,
+        entity_category=None,
+        device_class=SensorDeviceClass.POWER,
+        state_class=SensorStateClass.MEASUREMENT,
+        options=None,
+    )
+
+    sensor = HaeoSensor(
+        coordinator,
+        device_entry=device_entry,
+        subentry_key="battery",
+        device_key="battery",
+        element_title="Battery",
+        element_type=BATTERY_TYPE,
+        output_name=LOAD_POWER,
+        output_data=output,
+        unique_id="sensor-id",
+    )
+
+    if expect_unrecorded:
+        assert sensor._unrecorded_attributes == FORECAST_UNRECORDED_ATTRIBUTES
+    else:
+        assert not hasattr(sensor, "_unrecorded_attributes") or sensor._unrecorded_attributes == frozenset()

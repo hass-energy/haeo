@@ -1,5 +1,7 @@
 """Inverter element for HAEO integration."""
 
+from custom_components.haeo.sections import CONF_CONNECTION
+
 from .adapter import (
     INVERTER_DC_BUS_POWER_BALANCE,
     INVERTER_DEVICE_INVERTER,
@@ -16,22 +18,25 @@ from .adapter import (
     adapter,
 )
 from .schema import (
-    CONF_CONNECTION,
-    CONF_EFFICIENCY_AC_TO_DC,
-    CONF_EFFICIENCY_DC_TO_AC,
-    CONF_MAX_POWER_AC_TO_DC,
-    CONF_MAX_POWER_DC_TO_AC,
+    CONF_EFFICIENCY_SOURCE_TARGET,
+    CONF_EFFICIENCY_TARGET_SOURCE,
+    CONF_MAX_POWER_SOURCE_TARGET,
+    CONF_MAX_POWER_TARGET_SOURCE,
     ELEMENT_TYPE,
+    OPTIONAL_INPUT_FIELDS,
+    SECTION_COMMON,
+    SECTION_EFFICIENCY,
+    SECTION_POWER_LIMITS,
     InverterConfigData,
     InverterConfigSchema,
 )
 
 __all__ = [
     "CONF_CONNECTION",
-    "CONF_EFFICIENCY_AC_TO_DC",
-    "CONF_EFFICIENCY_DC_TO_AC",
-    "CONF_MAX_POWER_AC_TO_DC",
-    "CONF_MAX_POWER_DC_TO_AC",
+    "CONF_EFFICIENCY_SOURCE_TARGET",
+    "CONF_EFFICIENCY_TARGET_SOURCE",
+    "CONF_MAX_POWER_SOURCE_TARGET",
+    "CONF_MAX_POWER_TARGET_SOURCE",
     "ELEMENT_TYPE",
     "INVERTER_DC_BUS_POWER_BALANCE",
     "INVERTER_DEVICE_INVERTER",
@@ -42,6 +47,10 @@ __all__ = [
     "INVERTER_POWER_ACTIVE",
     "INVERTER_POWER_AC_TO_DC",
     "INVERTER_POWER_DC_TO_AC",
+    "OPTIONAL_INPUT_FIELDS",
+    "SECTION_COMMON",
+    "SECTION_EFFICIENCY",
+    "SECTION_POWER_LIMITS",
     "InverterAdapter",
     "InverterConfigData",
     "InverterConfigSchema",

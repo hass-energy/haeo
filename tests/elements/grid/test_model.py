@@ -15,6 +15,7 @@ from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE
 from custom_components.haeo.model.elements import connection
 from custom_components.haeo.model.output_data import OutputData
+from custom_components.haeo.schema import as_connection_target
 from tests.util.normalize import normalize_for_compare
 
 
@@ -42,12 +43,15 @@ CREATE_CASES: Sequence[CreateCase] = [
         "description": "Grid with import and export limits",
         "data": GridConfigData(
             element_type="grid",
-            name="grid_main",
-            connection="network",
-            import_price=np.array([0.1]),
-            export_price=np.array([0.05]),
-            import_limit=np.array([5.0]),
-            export_limit=np.array([3.0]),
+            common={"name": "grid_main", "connection": as_connection_target("network")},
+            pricing={
+                "price_source_target": np.array([0.1]),
+                "price_target_source": np.array([0.05]),
+            },
+            power_limits={
+                "max_power_source_target": np.array([5.0]),
+                "max_power_target_source": np.array([3.0]),
+            },
         ),
         "model": [
             {"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "grid_main", "is_source": True, "is_sink": True},
@@ -73,6 +77,8 @@ CREATE_CASES: Sequence[CreateCase] = [
                         "demand_window_target_source": None,
                         "demand_price_source_target": None,
                         "demand_price_target_source": None,
+                        "demand_current_energy_source_target": None,
+                        "demand_current_energy_target_source": None,
                         "demand_block_hours": None,
                         "demand_days": None,
                     },
@@ -89,10 +95,12 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
         "name": "grid_main",
         "config": GridConfigData(
             element_type="grid",
-            name="grid_main",
-            connection="network",
-            import_price=np.array([0.10]),
-            export_price=np.array([0.05]),
+            common={"name": "grid_main", "connection": as_connection_target("network")},
+            pricing={
+                "price_source_target": np.array([0.10]),
+                "price_target_source": np.array([0.05]),
+            },
+            power_limits={},
         ),
         "model_outputs": {
             "grid_main:connection": {
@@ -130,10 +138,12 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
         "name": "grid_multi",
         "config": GridConfigData(
             element_type="grid",
-            name="grid_multi",
-            connection="network",
-            import_price=np.array([0.10, 0.20]),
-            export_price=np.array([0.05, 0.05]),
+            common={"name": "grid_multi", "connection": as_connection_target("network")},
+            pricing={
+                "price_source_target": np.array([0.10, 0.20]),
+                "price_target_source": np.array([0.05, 0.05]),
+            },
+            power_limits={},
         ),
         "model_outputs": {
             "grid_multi:connection": {

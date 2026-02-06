@@ -19,6 +19,7 @@ CONF_ELEMENT_TYPE: Final = "element_type"
 CONF_DEBOUNCE_SECONDS: Final = "debounce_seconds"
 CONF_HORIZON_PRESET: Final = "horizon_preset"
 CONF_ADVANCED_MODE: Final = "advanced_mode"
+CONF_RECORD_FORECASTS: Final = "record_forecasts"
 
 ELEMENT_TYPE_NETWORK: Final = "network"
 

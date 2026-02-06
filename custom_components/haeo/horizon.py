@@ -85,6 +85,31 @@ class HorizonManager:
         # Clear all subscribers to prevent stale callbacks during reload
         self._subscribers.clear()
 
+    def pause(self) -> None:
+        """Pause scheduled updates without clearing subscribers.
+
+        Used when auto-optimize is disabled to freeze the horizon in time.
+        Call resume() to restart updates.
+        """
+        if self._unsub_timer is not None:
+            self._unsub_timer()
+            self._unsub_timer = None
+
+    def resume(self) -> None:
+        """Resume scheduled updates after being paused.
+
+        Updates timestamps to current time, notifies all subscribers,
+        and restarts the update timer.
+        """
+        self._update_timestamps()
+
+        # Notify all subscribers of the resumed horizon
+        for subscriber in self._subscribers:
+            subscriber()
+
+        # Restart the timer
+        self._schedule_next_update()
+
     def _schedule_next_update(self) -> None:
         """Schedule the next horizon update at the next period boundary."""
         now = dt_util.utcnow()

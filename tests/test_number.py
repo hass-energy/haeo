@@ -11,9 +11,21 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 from custom_components.haeo import HaeoRuntimeData
 from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME, DOMAIN, ELEMENT_TYPE_NETWORK
 from custom_components.haeo.coordinator import HaeoDataUpdateCoordinator
+from custom_components.haeo.elements.grid import (
+    CONF_CONNECTION,
+    CONF_MAX_POWER_SOURCE_TARGET,
+    CONF_MAX_POWER_TARGET_SOURCE,
+    CONF_PRICE_SOURCE_TARGET,
+    CONF_PRICE_TARGET_SOURCE,
+    SECTION_COMMON,
+    SECTION_POWER_LIMITS,
+    SECTION_PRICING,
+)
 from custom_components.haeo.elements.grid import ELEMENT_TYPE as GRID_TYPE
+from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON, HUB_SECTION_TIERS
 from custom_components.haeo.horizon import HorizonManager
 from custom_components.haeo.number import async_setup_entry
+from custom_components.haeo.schema import as_connection_target, as_constant_value, as_entity_value, as_none_value
 
 
 @pytest.fixture
@@ -32,15 +44,18 @@ def config_entry(hass: HomeAssistant, horizon_manager: Mock) -> MockConfigEntry:
         domain=DOMAIN,
         title="Test Network",
         data={
-            "name": "Test Network",
-            "tier_1_count": 2,
-            "tier_1_duration": 5,
-            "tier_2_count": 0,
-            "tier_2_duration": 15,
-            "tier_3_count": 0,
-            "tier_3_duration": 30,
-            "tier_4_count": 0,
-            "tier_4_duration": 60,
+            HUB_SECTION_COMMON: {CONF_NAME: "Test Network"},
+            HUB_SECTION_TIERS: {
+                "tier_1_count": 2,
+                "tier_1_duration": 5,
+                "tier_2_count": 0,
+                "tier_2_duration": 15,
+                "tier_3_count": 0,
+                "tier_3_duration": 30,
+                "tier_4_count": 0,
+                "tier_4_duration": 60,
+            },
+            HUB_SECTION_ADVANCED: {},
         },
         entry_id="test_number_platform_entry",
     )
@@ -62,8 +77,45 @@ def _add_subentry(
     data: dict[str, object],
 ) -> ConfigSubentry:
     """Add a subentry to the config entry."""
+
+    def schema_value(value: object) -> object:
+        if value is None:
+            return as_none_value()
+        if isinstance(value, bool):
+            return as_constant_value(value)
+        if isinstance(value, (int, float)):
+            return as_constant_value(float(value))
+        if isinstance(value, str):
+            return as_entity_value([value])
+        if isinstance(value, list) and all(isinstance(item, str) for item in value):
+            return as_entity_value(value)
+        msg = f"Unsupported schema value {value!r}"
+        raise TypeError(msg)
+
+    payload: dict[str, object] = {CONF_ELEMENT_TYPE: subentry_type}
+    if subentry_type == GRID_TYPE:
+        power_limits = {}
+        if data.get("max_power_source_target") is not None:
+            power_limits[CONF_MAX_POWER_SOURCE_TARGET] = schema_value(data.get("max_power_source_target"))
+        if data.get("max_power_target_source") is not None:
+            power_limits[CONF_MAX_POWER_TARGET_SOURCE] = schema_value(data.get("max_power_target_source"))
+        connection_value = data.get("connection", "Switchboard")
+        payload |= {
+            SECTION_COMMON: {
+                CONF_NAME: title,
+                CONF_CONNECTION: as_connection_target(str(connection_value)),
+            },
+            SECTION_PRICING: {
+                CONF_PRICE_SOURCE_TARGET: schema_value(data.get("price_source_target")),
+                CONF_PRICE_TARGET_SOURCE: schema_value(data.get("price_target_source")),
+            },
+            SECTION_POWER_LIMITS: power_limits,
+        }
+    else:
+        payload[CONF_NAME] = title
+        payload |= data
     subentry = ConfigSubentry(
-        data=MappingProxyType({CONF_ELEMENT_TYPE: subentry_type, CONF_NAME: title, **data}),
+        data=MappingProxyType(payload),
         subentry_type=subentry_type,
         title=title,
         unique_id=None,
@@ -80,7 +132,7 @@ async def test_setup_creates_number_entities_for_grid(
     # Add network subentry (required)
     _add_subentry(hass, config_entry, ELEMENT_TYPE_NETWORK, "Test Network", {})
 
-    # Add grid with import/export prices (these become number entities)
+    # Add grid with directional prices (these become number entities)
     _add_subentry(
         hass,
         config_entry,
@@ -88,10 +140,10 @@ async def test_setup_creates_number_entities_for_grid(
         "Main Grid",
         {
             "connection": "main_bus",
-            "import_price": 0.30,  # Static value becomes editable number
-            "export_price": 0.05,
-            "import_limit": 10.0,
-            "export_limit": 5.0,
+            "price_source_target": 0.30,  # Static value becomes editable number
+            "price_target_source": 0.05,
+            "max_power_source_target": 10.0,
+            "max_power_target_source": 5.0,
         },
     )
 
@@ -102,7 +154,7 @@ async def test_setup_creates_number_entities_for_grid(
     entities = list(async_add_entities.call_args.args[0])
 
     # Grid should have number entities for price and limit fields
-    assert len(entities) >= 2  # At least import_price and export_price
+    assert len(entities) >= 2  # At least directional pricing fields
 
 
 async def test_setup_skips_network_subentry(
@@ -151,9 +203,9 @@ async def test_setup_skips_missing_fields_in_config(
         "Basic Grid",
         {
             "connection": "main_bus",
-            "import_price": 0.30,
-            "export_price": 0.05,
-            # No import_limit or export_limit
+            "price_source_target": 0.30,
+            "price_target_source": 0.05,
+            # No directional power limits
         },
     )
 
@@ -164,11 +216,11 @@ async def test_setup_skips_missing_fields_in_config(
         entities = list(async_add_entities.call_args.args[0])
         # Should only have entities for configured fields
         field_names = {e._field_info.field_name for e in entities}
-        assert "import_price" in field_names
-        assert "export_price" in field_names
+        assert "price_source_target" in field_names
+        assert "price_target_source" in field_names
         # Optional unconfigured fields should NOT have entities created
-        assert "import_limit" not in field_names
-        assert "export_limit" not in field_names
+        assert "max_power_source_target" not in field_names
+        assert "max_power_target_source" not in field_names
 
 
 async def test_setup_creates_correct_device_identifiers(
@@ -184,8 +236,8 @@ async def test_setup_creates_correct_device_identifiers(
         "My Grid",
         {
             "connection": "main_bus",
-            "import_price": 0.30,
-            "export_price": 0.05,
+            "price_source_target": 0.30,
+            "price_target_source": 0.05,
         },
     )
 
@@ -213,8 +265,8 @@ async def test_setup_handles_multiple_elements(
         "Grid 1",
         {
             "connection": "bus1",
-            "import_price": 0.30,
-            "export_price": 0.05,
+            "price_source_target": 0.30,
+            "price_target_source": 0.05,
         },
     )
     _add_subentry(
@@ -224,8 +276,8 @@ async def test_setup_handles_multiple_elements(
         "Grid 2",
         {
             "connection": "bus2",
-            "import_price": 0.25,
-            "export_price": 0.08,
+            "price_source_target": 0.25,
+            "price_target_source": 0.08,
         },
     )
 

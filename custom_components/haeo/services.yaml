@@ -9,3 +9,11 @@ save_diagnostics:
       required: false
       selector:
         datetime:
+
+optimize:
+  fields:
+    config_entry:
+      required: true
+      selector:
+        config_entry:
+          integration: haeo

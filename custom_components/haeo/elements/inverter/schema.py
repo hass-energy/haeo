@@ -1,53 +1,56 @@
 """Inverter element schema definitions."""
 
-from typing import Any, Final, Literal, NotRequired, TypedDict
+from typing import Final, Literal, TypedDict
 
-import numpy as np
-from numpy.typing import NDArray
+from custom_components.haeo.sections import (
+    CONF_EFFICIENCY_SOURCE_TARGET,
+    CONF_EFFICIENCY_TARGET_SOURCE,
+    CONF_MAX_POWER_SOURCE_TARGET,
+    CONF_MAX_POWER_TARGET_SOURCE,
+    SECTION_COMMON,
+    SECTION_EFFICIENCY,
+    SECTION_POWER_LIMITS,
+    ConnectedCommonConfig,
+    ConnectedCommonData,
+    EfficiencyConfig,
+    EfficiencyData,
+    PowerLimitsConfig,
+    PowerLimitsData,
+)
 
 ELEMENT_TYPE: Final = "inverter"
 
-# Configuration field names
-CONF_CONNECTION: Final = "connection"
-CONF_EFFICIENCY_DC_TO_AC: Final = "efficiency_dc_to_ac"
-CONF_EFFICIENCY_AC_TO_DC: Final = "efficiency_ac_to_dc"
-CONF_MAX_POWER_DC_TO_AC: Final = "max_power_dc_to_ac"
-CONF_MAX_POWER_AC_TO_DC: Final = "max_power_ac_to_dc"
+OPTIONAL_INPUT_FIELDS: Final[frozenset[str]] = frozenset({CONF_EFFICIENCY_SOURCE_TARGET, CONF_EFFICIENCY_TARGET_SOURCE})
 
 
 class InverterConfigSchema(TypedDict):
-    """Inverter element configuration as stored in Home Assistant.
-
-    Schema mode contains entity IDs and constant values from the config flow.
-    Values can be:
-    - str: Entity ID when linking to a sensor
-    - float: Constant value when using HAEO Configurable
-    - NotRequired: Field not present when using default
-    """
+    """Inverter element configuration as stored in Home Assistant."""
 
     element_type: Literal["inverter"]
-    name: str
-    connection: str  # AC side node to connect to
-
-    # Power limit fields: required (user must select an entity or enter a value)
-    max_power_dc_to_ac: str | float  # Entity ID or constant kW
-    max_power_ac_to_dc: str | float  # Entity ID or constant kW
-
-    # Efficiency fields (optional)
-    efficiency_dc_to_ac: NotRequired[str | float]  # Entity ID or constant %
-    efficiency_ac_to_dc: NotRequired[str | float]  # Entity ID or constant %
+    common: ConnectedCommonConfig
+    power_limits: PowerLimitsConfig
+    efficiency: EfficiencyConfig
 
 
 class InverterConfigData(TypedDict):
-    """Inverter element configuration with loaded values.
-
-    Data mode contains resolved sensor values for optimization.
-    """
+    """Inverter element configuration with loaded values."""
 
     element_type: Literal["inverter"]
-    name: str
-    connection: str  # AC side node to connect to
-    max_power_dc_to_ac: NDArray[np.floating[Any]] | float  # Loaded power limit per period (kW)
-    max_power_ac_to_dc: NDArray[np.floating[Any]] | float  # Loaded power limit per period (kW)
-    efficiency_dc_to_ac: NotRequired[NDArray[np.floating[Any]] | float]  # Ratio (0-1), defaults to 1.0 (no loss)
-    efficiency_ac_to_dc: NotRequired[NDArray[np.floating[Any]] | float]  # Ratio (0-1), defaults to 1.0 (no loss)
+    common: ConnectedCommonData
+    power_limits: PowerLimitsData
+    efficiency: EfficiencyData
+
+
+__all__ = [
+    "CONF_EFFICIENCY_SOURCE_TARGET",
+    "CONF_EFFICIENCY_TARGET_SOURCE",
+    "CONF_MAX_POWER_SOURCE_TARGET",
+    "CONF_MAX_POWER_TARGET_SOURCE",
+    "ELEMENT_TYPE",
+    "OPTIONAL_INPUT_FIELDS",
+    "SECTION_COMMON",
+    "SECTION_EFFICIENCY",
+    "SECTION_POWER_LIMITS",
+    "InverterConfigData",
+    "InverterConfigSchema",
+]

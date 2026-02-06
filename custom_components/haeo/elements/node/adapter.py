@@ -13,8 +13,9 @@ from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_NODE
 from custom_components.haeo.model.elements.node import NODE_POWER_BALANCE
 from custom_components.haeo.model.output_data import OutputData
+from custom_components.haeo.sections import SECTION_COMMON
 
-from .schema import CONF_IS_SINK, CONF_IS_SOURCE, ELEMENT_TYPE, NodeConfigData, NodeConfigSchema
+from .schema import CONF_IS_SINK, CONF_IS_SOURCE, ELEMENT_TYPE, SECTION_ROLE, NodeConfigData
 
 # Defaults for absent optional fields (no-op values: pure junction behavior)
 DEFAULT_IS_SOURCE: Final[bool] = False
@@ -39,34 +40,30 @@ class NodeAdapter:
     advanced: bool = True
     connectivity: ConnectivityLevel = ConnectivityLevel.ALWAYS
 
-    def available(self, config: NodeConfigSchema, **_kwargs: Any) -> bool:
-        """Check if node configuration can be loaded."""
-        # Nodes only have constant fields, always available
-        _ = config  # Unused but required by protocol
-        return True
-
-    def inputs(self, config: Any) -> dict[str, InputFieldInfo[Any]]:
+    def inputs(self, config: Any) -> dict[str, dict[str, InputFieldInfo[Any]]]:
         """Return input field definitions for node elements."""
         _ = config
         return {
-            CONF_IS_SOURCE: InputFieldInfo(
-                field_name=CONF_IS_SOURCE,
-                entity_description=SwitchEntityDescription(
-                    key=CONF_IS_SOURCE,
-                    translation_key=f"{ELEMENT_TYPE}_{CONF_IS_SOURCE}",
+            SECTION_ROLE: {
+                CONF_IS_SOURCE: InputFieldInfo(
+                    field_name=CONF_IS_SOURCE,
+                    entity_description=SwitchEntityDescription(
+                        key=CONF_IS_SOURCE,
+                        translation_key=f"{ELEMENT_TYPE}_{CONF_IS_SOURCE}",
+                    ),
+                    output_type=OutputType.STATUS,
+                    defaults=InputFieldDefaults(mode="value", value=False),
                 ),
-                output_type=OutputType.STATUS,
-                defaults=InputFieldDefaults(mode="value", value=False),
-            ),
-            CONF_IS_SINK: InputFieldInfo(
-                field_name=CONF_IS_SINK,
-                entity_description=SwitchEntityDescription(
-                    key=CONF_IS_SINK,
-                    translation_key=f"{ELEMENT_TYPE}_{CONF_IS_SINK}",
+                CONF_IS_SINK: InputFieldInfo(
+                    field_name=CONF_IS_SINK,
+                    entity_description=SwitchEntityDescription(
+                        key=CONF_IS_SINK,
+                        translation_key=f"{ELEMENT_TYPE}_{CONF_IS_SINK}",
+                    ),
+                    output_type=OutputType.STATUS,
+                    defaults=InputFieldDefaults(mode="value", value=False),
                 ),
-                output_type=OutputType.STATUS,
-                defaults=InputFieldDefaults(mode="value", value=False),
-            ),
+            },
         }
 
     def model_elements(self, config: NodeConfigData) -> list[ModelElementConfig]:
@@ -74,9 +71,9 @@ class NodeAdapter:
         return [
             {
                 "element_type": MODEL_ELEMENT_TYPE_NODE,
-                "name": config["name"],
-                "is_source": config.get(CONF_IS_SOURCE, DEFAULT_IS_SOURCE),
-                "is_sink": config.get(CONF_IS_SINK, DEFAULT_IS_SINK),
+                "name": config[SECTION_COMMON]["name"],
+                "is_source": config[SECTION_ROLE].get(CONF_IS_SOURCE, DEFAULT_IS_SOURCE),
+                "is_sink": config[SECTION_ROLE].get(CONF_IS_SINK, DEFAULT_IS_SINK),
             }
         ]
 

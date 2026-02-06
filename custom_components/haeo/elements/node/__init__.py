@@ -10,7 +10,16 @@ from .adapter import (
     NodeOutputName,
     adapter,
 )
-from .schema import CONF_IS_SINK, CONF_IS_SOURCE, ELEMENT_TYPE, NodeConfigData, NodeConfigSchema
+from .schema import (
+    CONF_IS_SINK,
+    CONF_IS_SOURCE,
+    ELEMENT_TYPE,
+    OPTIONAL_INPUT_FIELDS,
+    SECTION_COMMON,
+    SECTION_ROLE,
+    NodeConfigData,
+    NodeConfigSchema,
+)
 
 __all__ = [
     "CONF_IS_SINK",
@@ -20,6 +29,9 @@ __all__ = [
     "NODE_DEVICE_NODE",
     "NODE_OUTPUT_NAMES",
     "NODE_POWER_BALANCE",
+    "OPTIONAL_INPUT_FIELDS",
+    "SECTION_COMMON",
+    "SECTION_ROLE",
     "NodeAdapter",
     "NodeConfigData",
     "NodeConfigSchema",

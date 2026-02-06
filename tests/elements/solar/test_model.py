@@ -14,6 +14,7 @@ from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE
 from custom_components.haeo.model.elements import connection
 from custom_components.haeo.model.output_data import OutputData
+from custom_components.haeo.schema import as_connection_target
 from tests.util.normalize import normalize_for_compare
 
 
@@ -39,11 +40,19 @@ CREATE_CASES: Sequence[CreateCase] = [
         "description": "Solar with production price",
         "data": SolarConfigData(
             element_type="solar",
-            name="pv_main",
-            connection="network",
-            forecast=np.array([2.0, 1.5]),
-            price_production=np.array([0.15, 0.15]),
-            curtailment=False,
+            common={
+                "name": "pv_main",
+                "connection": as_connection_target("network"),
+            },
+            forecast={
+                "forecast": np.array([2.0, 1.5]),
+            },
+            pricing={
+                "price_source_target": np.array([0.15, 0.15]),
+            },
+            curtailment={
+                "curtailment": False,
+            },
         ),
         "model": [
             {"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "pv_main", "is_source": True, "is_sink": False},

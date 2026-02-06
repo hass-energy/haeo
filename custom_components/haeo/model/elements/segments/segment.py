@@ -26,7 +26,7 @@ from numpy.typing import NDArray
 
 from custom_components.haeo.model.element import Element
 from custom_components.haeo.model.output_data import OutputData
-from custom_components.haeo.model.reactive import OutputMethod, ReactiveConstraint, ReactiveCost
+from custom_components.haeo.model.reactive import OutputMethod, ReactiveConstraint, ReactiveCost, TrackedParam
 
 
 class Segment(ABC):
@@ -42,6 +42,9 @@ class Segment(ABC):
     For simple segments, power_in and power_out can return the same variable.
     For segments with losses, power_out = power_in * efficiency (via constraint).
     """
+
+    # TrackedParam for periods - enables reactive invalidation when periods change
+    periods: TrackedParam[NDArray[np.floating[Any]]] = TrackedParam()
 
     def __init__(
         self,
@@ -68,7 +71,9 @@ class Segment(ABC):
         """
         self._segment_id = segment_id
         self._n_periods = n_periods
-        self._periods = periods
+        periods_array = np.asarray(periods, dtype=float)
+        self._periods = periods_array
+        self.periods = periods_array
         self._period_start_time = period_start_time
         self._period_start_timezone = timezone
         self._solver = solver
@@ -84,11 +89,6 @@ class Segment(ABC):
     def n_periods(self) -> int:
         """Return the number of optimization periods."""
         return self._n_periods
-
-    @property
-    def periods(self) -> NDArray[np.floating[Any]]:
-        """Return time period durations in hours."""
-        return self._periods
 
     @property
     def source_element(self) -> Element[Any]:

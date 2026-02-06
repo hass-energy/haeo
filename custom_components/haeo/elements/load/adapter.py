@@ -6,10 +6,8 @@ from typing import Any, Final, Literal
 
 from homeassistant.components.number import NumberDeviceClass, NumberEntityDescription
 from homeassistant.const import UnitOfPower
-from homeassistant.core import HomeAssistant
 
 from custom_components.haeo.const import ConnectivityLevel
-from custom_components.haeo.data.loader import TimeSeriesLoader
 from custom_components.haeo.elements.input_fields import InputFieldInfo
 from custom_components.haeo.elements.output_utils import expect_output_data
 from custom_components.haeo.model import ModelElementConfig, ModelOutputName, ModelOutputValue
@@ -18,8 +16,10 @@ from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION,
 from custom_components.haeo.model.elements.connection import CONNECTION_POWER_TARGET_SOURCE, CONNECTION_SEGMENTS
 from custom_components.haeo.model.elements.segments import POWER_LIMIT_TARGET_SOURCE
 from custom_components.haeo.model.output_data import OutputData
+from custom_components.haeo.schema import extract_connection_target
+from custom_components.haeo.sections import CONF_CONNECTION, CONF_FORECAST, SECTION_COMMON, SECTION_FORECAST
 
-from .schema import CONF_FORECAST, ELEMENT_TYPE, LoadConfigData, LoadConfigSchema
+from .schema import ELEMENT_TYPE, LoadConfigData
 
 # Load output names
 type LoadOutputName = Literal[
@@ -49,48 +49,50 @@ class LoadAdapter:
     advanced: bool = False
     connectivity: ConnectivityLevel = ConnectivityLevel.ADVANCED
 
-    def available(self, config: LoadConfigSchema, *, hass: HomeAssistant, **_kwargs: Any) -> bool:
-        """Check if load configuration can be loaded."""
-        ts_loader = TimeSeriesLoader()
-        return ts_loader.available(hass=hass, value=config[CONF_FORECAST])
-
-    def inputs(self, config: Any) -> dict[str, InputFieldInfo[Any]]:
+    def inputs(self, config: Any) -> dict[str, dict[str, InputFieldInfo[Any]]]:
         """Return input field definitions for load elements."""
         _ = config
         return {
-            CONF_FORECAST: InputFieldInfo(
-                field_name=CONF_FORECAST,
-                entity_description=NumberEntityDescription(
-                    key=CONF_FORECAST,
-                    translation_key=f"{ELEMENT_TYPE}_{CONF_FORECAST}",
-                    native_unit_of_measurement=UnitOfPower.KILO_WATT,
-                    device_class=NumberDeviceClass.POWER,
-                    native_min_value=0.0,
-                    native_max_value=1000.0,
-                    native_step=0.01,
+            SECTION_FORECAST: {
+                CONF_FORECAST: InputFieldInfo(
+                    field_name=CONF_FORECAST,
+                    entity_description=NumberEntityDescription(
+                        key=CONF_FORECAST,
+                        translation_key=f"{ELEMENT_TYPE}_{CONF_FORECAST}",
+                        native_unit_of_measurement=UnitOfPower.KILO_WATT,
+                        device_class=NumberDeviceClass.POWER,
+                        native_min_value=0.0,
+                        native_max_value=1000.0,
+                        native_step=0.01,
+                    ),
+                    output_type=OutputType.POWER,
+                    direction="+",
+                    time_series=True,
                 ),
-                output_type=OutputType.POWER,
-                direction="+",
-                time_series=True,
-            ),
+            },
         }
 
     def model_elements(self, config: LoadConfigData) -> list[ModelElementConfig]:
         """Create model elements for Load configuration."""
         return [
             # Create Node for the load (sink only - consumes power)
-            {"element_type": MODEL_ELEMENT_TYPE_NODE, "name": config["name"], "is_source": False, "is_sink": True},
+            {
+                "element_type": MODEL_ELEMENT_TYPE_NODE,
+                "name": config[SECTION_COMMON]["name"],
+                "is_source": False,
+                "is_sink": True,
+            },
             # Create Connection from node to load (power flows TO the load)
             {
                 "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
-                "name": f"{config['name']}:connection",
-                "source": config["name"],
-                "target": config["connection"],
+                "name": f"{config[SECTION_COMMON]['name']}:connection",
+                "source": config[SECTION_COMMON]["name"],
+                "target": extract_connection_target(config[SECTION_COMMON][CONF_CONNECTION]),
                 "segments": {
                     "power_limit": {
                         "segment_type": "power_limit",
                         "max_power_source_target": 0.0,
-                        "max_power_target_source": config["forecast"],
+                        "max_power_target_source": config[SECTION_FORECAST][CONF_FORECAST],
                         "fixed": True,
                     }
                 },

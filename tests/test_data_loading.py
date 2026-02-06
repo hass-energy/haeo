@@ -10,9 +10,17 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME, DOMAIN
 from custom_components.haeo.coordinator import create_network
 from custom_components.haeo.elements import ElementConfigData
-from custom_components.haeo.elements.connection import CONF_SOURCE, CONF_TARGET
+from custom_components.haeo.elements.connection import CONF_SOURCE, CONF_TARGET, SECTION_ENDPOINTS
 from custom_components.haeo.elements.load import CONF_CONNECTION
-from custom_components.haeo.elements.node import CONF_IS_SINK, CONF_IS_SOURCE
+from custom_components.haeo.elements.node import CONF_IS_SINK, CONF_IS_SOURCE, SECTION_ROLE
+from custom_components.haeo.schema import as_connection_target
+from custom_components.haeo.sections import (
+    SECTION_COMMON,
+    SECTION_EFFICIENCY,
+    SECTION_FORECAST,
+    SECTION_POWER_LIMITS,
+    SECTION_PRICING,
+)
 
 
 async def test_create_network_successful_loads_load_participant(hass: HomeAssistant) -> None:
@@ -27,15 +35,15 @@ async def test_create_network_successful_loads_load_participant(hass: HomeAssist
         {
             "main_bus": {
                 CONF_ELEMENT_TYPE: "node",
-                CONF_NAME: "main_bus",
-                CONF_IS_SOURCE: False,
-                CONF_IS_SINK: False,
+                SECTION_COMMON: {CONF_NAME: "main_bus"},
+                SECTION_ROLE: {CONF_IS_SOURCE: False, CONF_IS_SINK: False},
             },
             "Baseload": {
                 CONF_ELEMENT_TYPE: "load",
-                CONF_NAME: "Baseload",
-                CONF_CONNECTION: "main_bus",
-                "forecast": [2.5, 2.5, 2.5, 2.5],  # Pre-loaded values in kW
+                SECTION_COMMON: {CONF_NAME: "Baseload", CONF_CONNECTION: as_connection_target("main_bus")},
+                SECTION_FORECAST: {
+                    "forecast": [2.5, 2.5, 2.5, 2.5],  # Pre-loaded values in kW
+                },
             },
         },
     )
@@ -78,21 +86,26 @@ async def test_create_network_sorts_connections_after_elements(hass: HomeAssista
         {
             "line": {
                 CONF_ELEMENT_TYPE: "connection",
-                CONF_NAME: "line",
-                CONF_SOURCE: "node_a",
-                CONF_TARGET: "node_b",
+                SECTION_COMMON: {
+                    CONF_NAME: "line",
+                },
+                SECTION_ENDPOINTS: {
+                    CONF_SOURCE: as_connection_target("node_a"),
+                    CONF_TARGET: as_connection_target("node_b"),
+                },
+                SECTION_POWER_LIMITS: {},
+                SECTION_PRICING: {},
+                SECTION_EFFICIENCY: {},
             },
             "node_a": {
                 CONF_ELEMENT_TYPE: "node",
-                CONF_NAME: "node_a",
-                CONF_IS_SOURCE: False,
-                CONF_IS_SINK: False,
+                SECTION_COMMON: {CONF_NAME: "node_a"},
+                SECTION_ROLE: {CONF_IS_SOURCE: False, CONF_IS_SINK: False},
             },
             "node_b": {
                 CONF_ELEMENT_TYPE: "node",
-                CONF_NAME: "node_b",
-                CONF_IS_SOURCE: False,
-                CONF_IS_SINK: False,
+                SECTION_COMMON: {CONF_NAME: "node_b"},
+                SECTION_ROLE: {CONF_IS_SOURCE: False, CONF_IS_SINK: False},
             },
         },
     )
@@ -116,7 +129,11 @@ async def test_create_network_add_failure_is_wrapped(hass: HomeAssistant, monkey
     participants = cast(
         "dict[str, ElementConfigData]",
         {
-            "node": {CONF_ELEMENT_TYPE: "node", CONF_NAME: "node", CONF_IS_SOURCE: False, CONF_IS_SINK: False},
+            "node": {
+                CONF_ELEMENT_TYPE: "node",
+                SECTION_COMMON: {CONF_NAME: "node"},
+                SECTION_ROLE: {CONF_IS_SOURCE: False, CONF_IS_SINK: False},
+            },
         },
     )
 

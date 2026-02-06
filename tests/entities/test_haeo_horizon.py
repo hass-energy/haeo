@@ -1,17 +1,21 @@
 """Tests for the HAEO horizon entity."""
 
-from datetime import datetime
+from datetime import datetime, timedelta
+import logging
 from unittest.mock import Mock
 
 from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceEntry
+from homeassistant.helpers.entity import Entity
+from homeassistant.helpers.entity_platform import EntityPlatform
 from homeassistant.util import dt as dt_util
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.haeo.const import DOMAIN
+from custom_components.haeo.const import CONF_NAME, DOMAIN
 from custom_components.haeo.entities.haeo_horizon import HaeoHorizonEntity
+from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON, HUB_SECTION_TIERS
 from custom_components.haeo.horizon import HorizonManager
 
 # --- Fixtures ---
@@ -24,15 +28,18 @@ def config_entry(hass: HomeAssistant) -> MockConfigEntry:
         domain=DOMAIN,
         title="Test Network",
         data={
-            "name": "Test Network",
-            "tier_1_count": 2,
-            "tier_1_duration": 5,  # 5 minutes
-            "tier_2_count": 1,
-            "tier_2_duration": 15,  # 15 minutes
-            "tier_3_count": 0,
-            "tier_3_duration": 30,
-            "tier_4_count": 0,
-            "tier_4_duration": 60,
+            HUB_SECTION_COMMON: {CONF_NAME: "Test Network"},
+            HUB_SECTION_TIERS: {
+                "tier_1_count": 2,
+                "tier_1_duration": 5,  # 5 minutes
+                "tier_2_count": 1,
+                "tier_2_duration": 15,  # 15 minutes
+                "tier_3_count": 0,
+                "tier_3_duration": 30,
+                "tier_4_count": 0,
+                "tier_4_duration": 60,
+            },
+            HUB_SECTION_ADVANCED: {},
         },
         entry_id="test_horizon_entry",
     )
@@ -54,6 +61,21 @@ def device_entry() -> Mock:
     return device
 
 
+async def _add_entity_to_hass(hass: HomeAssistant, entity: Entity) -> None:
+    """Add entity to Home Assistant via a real EntityPlatform."""
+    platform = EntityPlatform(
+        hass=hass,
+        logger=logging.getLogger(__name__),
+        domain="sensor",
+        platform_name=DOMAIN,
+        platform=None,
+        scan_interval=timedelta(seconds=30),
+        entity_namespace=None,
+    )
+    await platform.async_add_entities([entity])
+    await hass.async_block_till_done()
+
+
 # --- Tests for initialization ---
 
 
@@ -65,7 +87,6 @@ def test_horizon_entity_initialization(
 ) -> None:
     """Horizon entity initializes with correct attributes."""
     entity = HaeoHorizonEntity(
-        hass=hass,
         config_entry=config_entry,
         device_entry=device_entry,
         horizon_manager=horizon_manager,
@@ -88,7 +109,6 @@ def test_entity_reflects_horizon_manager_timestamps(
 ) -> None:
     """Entity reflects timestamps from horizon manager."""
     entity = HaeoHorizonEntity(
-        hass=hass,
         config_entry=config_entry,
         device_entry=device_entry,
         horizon_manager=horizon_manager,
@@ -122,7 +142,6 @@ def test_extra_state_attributes(
 ) -> None:
     """Entity has expected extra state attributes."""
     entity = HaeoHorizonEntity(
-        hass=hass,
         config_entry=config_entry,
         device_entry=device_entry,
         horizon_manager=horizon_manager,
@@ -146,7 +165,6 @@ def test_forecast_attribute_contains_timestamps(
 ) -> None:
     """Forecast attribute contains list of timestamp dicts."""
     entity = HaeoHorizonEntity(
-        hass=hass,
         config_entry=config_entry,
         device_entry=device_entry,
         horizon_manager=horizon_manager,
@@ -175,7 +193,6 @@ def test_native_value_is_start_time_iso(
 ) -> None:
     """Native value is the start timestamp in ISO format."""
     entity = HaeoHorizonEntity(
-        hass=hass,
         config_entry=config_entry,
         device_entry=device_entry,
         horizon_manager=horizon_manager,
@@ -197,7 +214,6 @@ def test_entity_category_is_diagnostic(
 ) -> None:
     """Entity should be DIAGNOSTIC category."""
     entity = HaeoHorizonEntity(
-        hass=hass,
         config_entry=config_entry,
         device_entry=device_entry,
         horizon_manager=horizon_manager,
@@ -217,13 +233,12 @@ async def test_async_added_to_hass_subscribes_to_manager(
 ) -> None:
     """Adding entity to hass subscribes to horizon manager."""
     entity = HaeoHorizonEntity(
-        hass=hass,
         config_entry=config_entry,
         device_entry=device_entry,
         horizon_manager=horizon_manager,
     )
 
-    await entity.async_added_to_hass()
+    await _add_entity_to_hass(hass, entity)
 
     # Entity should have state attributes after being added
     assert entity.extra_state_attributes is not None
@@ -237,7 +252,6 @@ async def test_horizon_entity_updates_on_manager_change(
 ) -> None:
     """Entity updates state when horizon manager changes."""
     entity = HaeoHorizonEntity(
-        hass=hass,
         config_entry=config_entry,
         device_entry=device_entry,
         horizon_manager=horizon_manager,
@@ -246,7 +260,8 @@ async def test_horizon_entity_updates_on_manager_change(
     # Mock async_write_ha_state
     entity.async_write_ha_state = Mock()  # type: ignore[method-assign]
 
-    await entity.async_added_to_hass()
+    await _add_entity_to_hass(hass, entity)
+    entity.async_write_ha_state.reset_mock()
 
     # Call the horizon change handler directly
     entity._async_horizon_changed()
@@ -331,4 +346,130 @@ async def test_horizon_manager_scheduled_update_reschedules(
     # Timer should be rescheduled
     assert manager._unsub_timer is not None
 
+    manager.stop()
+
+
+# --- Tests for pause/resume ---
+
+
+async def test_horizon_manager_pause_cancels_timer(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+) -> None:
+    """HorizonManager pause cancels the update timer."""
+    manager = HorizonManager(hass, config_entry)
+    manager.start()
+
+    # Verify timer is running
+    assert manager._unsub_timer is not None
+
+    # Pause should cancel the timer
+    manager.pause()
+
+    assert manager._unsub_timer is None
+
+    # Clean up
+    manager.stop()
+
+
+async def test_horizon_manager_pause_preserves_subscribers(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+) -> None:
+    """HorizonManager pause preserves subscribers unlike stop."""
+    manager = HorizonManager(hass, config_entry)
+    manager.start()
+
+    callback_count = 0
+
+    def test_callback() -> None:
+        nonlocal callback_count
+        callback_count += 1
+
+    manager.subscribe(test_callback)
+
+    # Pause should preserve subscribers
+    manager.pause()
+
+    # Subscribers should still be registered
+    assert len(manager._subscribers) == 1
+
+    # Clean up
+    manager.stop()
+
+
+async def test_horizon_manager_resume_updates_timestamps(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+) -> None:
+    """HorizonManager resume updates timestamps to current time."""
+    manager = HorizonManager(hass, config_entry)
+    manager.start()
+
+    # Get initial timestamps
+    initial_timestamps = manager.get_forecast_timestamps()
+
+    # Pause
+    manager.pause()
+
+    # Resume should update timestamps
+    manager.resume()
+
+    resumed_timestamps = manager.get_forecast_timestamps()
+
+    # Timestamps may have changed if time passed, or be the same if within same period
+    # But they should be valid (not empty)
+    assert len(resumed_timestamps) > 0
+    assert len(resumed_timestamps) == len(initial_timestamps)
+
+    # Clean up
+    manager.stop()
+
+
+async def test_horizon_manager_resume_notifies_subscribers(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+) -> None:
+    """HorizonManager resume notifies all subscribers."""
+    manager = HorizonManager(hass, config_entry)
+    manager.start()
+
+    callback_count = 0
+
+    def test_callback() -> None:
+        nonlocal callback_count
+        callback_count += 1
+
+    manager.subscribe(test_callback)
+
+    # Pause
+    manager.pause()
+
+    # Resume should notify subscribers
+    manager.resume()
+
+    assert callback_count == 1
+
+    # Clean up
+    manager.stop()
+
+
+async def test_horizon_manager_resume_restarts_timer(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+) -> None:
+    """HorizonManager resume restarts the update timer."""
+    manager = HorizonManager(hass, config_entry)
+    manager.start()
+
+    # Pause cancels timer
+    manager.pause()
+    assert manager._unsub_timer is None
+
+    # Resume should restart timer
+    manager.resume()
+
+    assert manager._unsub_timer is not None
+
+    # Clean up
     manager.stop()

@@ -15,6 +15,7 @@ from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION,
 from custom_components.haeo.model.elements import connection
 from custom_components.haeo.model.elements.node import NODE_POWER_BALANCE
 from custom_components.haeo.model.output_data import OutputData
+from custom_components.haeo.schema import as_connection_target
 from tests.util.normalize import normalize_for_compare
 
 
@@ -40,12 +41,15 @@ CREATE_CASES: Sequence[CreateCase] = [
         "description": "Inverter with efficiency",
         "data": InverterConfigData(
             element_type="inverter",
-            name="inverter_main",
-            connection="network",
-            max_power_dc_to_ac=np.array([10.0]),
-            max_power_ac_to_dc=np.array([10.0]),
-            efficiency_dc_to_ac=np.array(1.0),
-            efficiency_ac_to_dc=np.array(1.0),
+            common={"name": "inverter_main", "connection": as_connection_target("network")},
+            power_limits={
+                "max_power_source_target": np.array([10.0]),
+                "max_power_target_source": np.array([10.0]),
+            },
+            efficiency={
+                "efficiency_source_target": np.array(1.0),
+                "efficiency_target_source": np.array(1.0),
+            },
         ),
         "model": [
             {"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "inverter_main", "is_source": False, "is_sink": False},
@@ -73,12 +77,15 @@ CREATE_CASES: Sequence[CreateCase] = [
         "description": "Inverter with default efficiency (100%)",
         "data": InverterConfigData(
             element_type="inverter",
-            name="inverter_simple",
-            connection="network",
-            max_power_dc_to_ac=np.array([10.0]),
-            max_power_ac_to_dc=np.array([10.0]),
-            efficiency_dc_to_ac=np.array(1.0),
-            efficiency_ac_to_dc=np.array(1.0),
+            common={"name": "inverter_simple", "connection": as_connection_target("network")},
+            power_limits={
+                "max_power_source_target": np.array([10.0]),
+                "max_power_target_source": np.array([10.0]),
+            },
+            efficiency={
+                "efficiency_source_target": np.array(1.0),
+                "efficiency_target_source": np.array(1.0),
+            },
         ),
         "model": [
             {"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "inverter_simple", "is_source": False, "is_sink": False},

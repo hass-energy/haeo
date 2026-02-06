@@ -1,5 +1,7 @@
 """Load element for HAEO integration."""
 
+from custom_components.haeo.sections import CONF_CONNECTION
+
 from .adapter import (
     LOAD_DEVICE_LOAD,
     LOAD_DEVICE_NAMES,
@@ -11,7 +13,15 @@ from .adapter import (
     LoadOutputName,
     adapter,
 )
-from .schema import CONF_CONNECTION, CONF_FORECAST, ELEMENT_TYPE, LoadConfigData, LoadConfigSchema
+from .schema import (
+    CONF_FORECAST,
+    ELEMENT_TYPE,
+    OPTIONAL_INPUT_FIELDS,
+    SECTION_COMMON,
+    SECTION_FORECAST,
+    LoadConfigData,
+    LoadConfigSchema,
+)
 
 __all__ = [
     "CONF_CONNECTION",
@@ -22,6 +32,9 @@ __all__ = [
     "LOAD_FORECAST_LIMIT_PRICE",
     "LOAD_OUTPUT_NAMES",
     "LOAD_POWER",
+    "OPTIONAL_INPUT_FIELDS",
+    "SECTION_COMMON",
+    "SECTION_FORECAST",
     "LoadAdapter",
     "LoadConfigData",
     "LoadConfigSchema",

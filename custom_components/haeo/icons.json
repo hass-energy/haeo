@@ -1,5 +1,8 @@
 {
   "services": {
+    "optimize": {
+      "service": "mdi:chart-timeline-variant-shimmer"
+    },
     "save_diagnostics": {
       "service": "mdi:bug"
     }

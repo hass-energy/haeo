@@ -27,6 +27,9 @@ class Element[OutputNameT: str]:
     Dependency tracking is automatic.
     """
 
+    # TrackedParam for periods - enables reactive invalidation when periods change
+    periods: TrackedParam[NDArray[np.floating[Any]]] = TrackedParam()
+
     def __init__(
         self,
         name: str,
@@ -47,7 +50,7 @@ class Element[OutputNameT: str]:
 
         """
         self.name = name
-        self.periods = np.asarray(periods)
+        self.periods = np.asarray(periods, dtype=float)
         self.period_start_time = period_start_time
         self.period_start_timezone = timezone
         self._solver = solver

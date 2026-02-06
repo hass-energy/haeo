@@ -53,14 +53,25 @@ from custom_components.haeo.elements import (
     ELEMENT_TYPE_GRID,
     ELEMENT_TYPE_NODE,
 )
-from custom_components.haeo.elements.battery import CONF_CAPACITY, CONF_INITIAL_CHARGE_PERCENTAGE
-from custom_components.haeo.elements.connection import CONF_SOURCE, CONF_TARGET
-from custom_components.haeo.elements.grid import (
-    CONF_EXPORT_LIMIT,
-    CONF_EXPORT_PRICE,
-    CONF_IMPORT_LIMIT,
-    CONF_IMPORT_PRICE,
+from custom_components.haeo.elements.battery import (
+    CONF_CAPACITY,
+    CONF_CONNECTION,
+    CONF_INITIAL_CHARGE_PERCENTAGE,
+    SECTION_LIMITS,
+    SECTION_PARTITIONING,
+    SECTION_STORAGE,
 )
+from custom_components.haeo.elements.connection import CONF_SOURCE, CONF_TARGET, SECTION_ENDPOINTS
+from custom_components.haeo.elements.grid import (
+    CONF_MAX_POWER_SOURCE_TARGET,
+    CONF_MAX_POWER_TARGET_SOURCE,
+    CONF_PRICE_SOURCE_TARGET,
+    CONF_PRICE_TARGET_SOURCE,
+)
+from custom_components.haeo.elements.node import SECTION_ROLE
+from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON, HUB_SECTION_TIERS
+from custom_components.haeo.schema import as_connection_target, as_constant_value, as_entity_value
+from custom_components.haeo.sections import SECTION_COMMON, SECTION_EFFICIENCY, SECTION_POWER_LIMITS, SECTION_PRICING
 
 
 @pytest.fixture
@@ -70,15 +81,18 @@ def mock_hub_entry(hass: HomeAssistant) -> MockConfigEntry:
         domain=DOMAIN,
         data={
             CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
-            CONF_NAME: "Test Network",
-            CONF_TIER_1_COUNT: DEFAULT_TIER_1_COUNT,
-            CONF_TIER_1_DURATION: DEFAULT_TIER_1_DURATION,
-            CONF_TIER_2_COUNT: DEFAULT_TIER_2_COUNT,
-            CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
-            CONF_TIER_3_COUNT: DEFAULT_TIER_3_COUNT,
-            CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
-            CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
-            CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
+            HUB_SECTION_COMMON: {CONF_NAME: "Test Network"},
+            HUB_SECTION_TIERS: {
+                CONF_TIER_1_COUNT: DEFAULT_TIER_1_COUNT,
+                CONF_TIER_1_DURATION: DEFAULT_TIER_1_DURATION,
+                CONF_TIER_2_COUNT: DEFAULT_TIER_2_COUNT,
+                CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
+                CONF_TIER_3_COUNT: DEFAULT_TIER_3_COUNT,
+                CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
+                CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
+                CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
+            },
+            HUB_SECTION_ADVANCED: {},
         },
         entry_id="hub_entry_id",
         title="Test HAEO Integration",
@@ -94,8 +108,19 @@ def mock_battery_subentry(hass: HomeAssistant, mock_hub_entry: MockConfigEntry) 
         data=MappingProxyType(
             {
                 CONF_ELEMENT_TYPE: ELEMENT_TYPE_BATTERY,
-                CONF_CAPACITY: 10000,
-                CONF_INITIAL_CHARGE_PERCENTAGE: "sensor.battery_charge",
+                SECTION_COMMON: {
+                    CONF_NAME: "Test Battery",
+                    CONF_CONNECTION: as_connection_target("Switchboard"),
+                },
+                SECTION_STORAGE: {
+                    CONF_CAPACITY: as_constant_value(10000.0),
+                    CONF_INITIAL_CHARGE_PERCENTAGE: as_entity_value(["sensor.battery_charge"]),
+                },
+                SECTION_LIMITS: {},
+                SECTION_POWER_LIMITS: {},
+                SECTION_PRICING: {},
+                SECTION_EFFICIENCY: {},
+                SECTION_PARTITIONING: {},
             }
         ),
         subentry_type=ELEMENT_TYPE_BATTERY,
@@ -113,15 +138,17 @@ def mock_grid_subentry(hass: HomeAssistant, mock_hub_entry: MockConfigEntry) -> 
         data=MappingProxyType(
             {
                 CONF_ELEMENT_TYPE: ELEMENT_TYPE_GRID,
-                CONF_IMPORT_LIMIT: 10000,
-                CONF_EXPORT_LIMIT: 5000,
-                CONF_IMPORT_PRICE: {
-                    "live": ["sensor.import_price"],
-                    "forecast": ["sensor.import_price"],
+                SECTION_COMMON: {
+                    CONF_NAME: "Test Grid",
+                    CONF_CONNECTION: as_connection_target("Switchboard"),
                 },
-                CONF_EXPORT_PRICE: {
-                    "live": ["sensor.export_price"],
-                    "forecast": ["sensor.export_price"],
+                SECTION_PRICING: {
+                    CONF_PRICE_SOURCE_TARGET: as_entity_value(["sensor.import_price"]),
+                    CONF_PRICE_TARGET_SOURCE: as_entity_value(["sensor.export_price"]),
+                },
+                SECTION_POWER_LIMITS: {
+                    CONF_MAX_POWER_SOURCE_TARGET: as_constant_value(10000.0),
+                    CONF_MAX_POWER_TARGET_SOURCE: as_constant_value(5000.0),
                 },
             }
         ),
@@ -140,8 +167,16 @@ def mock_connection_subentry(hass: HomeAssistant, mock_hub_entry: MockConfigEntr
         data=MappingProxyType(
             {
                 CONF_ELEMENT_TYPE: ELEMENT_TYPE_CONNECTION,
-                CONF_SOURCE: "test_battery",
-                CONF_TARGET: "test_grid",
+                SECTION_COMMON: {
+                    CONF_NAME: "Battery to Grid",
+                },
+                SECTION_ENDPOINTS: {
+                    CONF_SOURCE: as_connection_target("Test Battery"),
+                    CONF_TARGET: as_connection_target("Test Grid"),
+                },
+                SECTION_POWER_LIMITS: {},
+                SECTION_PRICING: {},
+                SECTION_EFFICIENCY: {},
             }
         ),
         subentry_type=ELEMENT_TYPE_CONNECTION,
@@ -213,6 +248,7 @@ async def test_async_setup_entry_initializes_coordinator(
             self.async_initialize = AsyncMock()
             self.async_refresh = AsyncMock()
             self.cleanup = Mock()
+            self.auto_optimize_enabled = True
 
     created: list[DummyCoordinator] = []
 
@@ -307,9 +343,11 @@ async def test_ensure_required_subentries_creates_switchboard_non_advanced(
 
     # Verify the created node has correct configuration
     node_subentry = next(sub for sub in mock_hub_entry.subentries.values() if sub.subentry_type == ELEMENT_TYPE_NODE)
-    assert node_subentry.data[CONF_NAME] == "Switchboard"  # Default name when translations not available
-    assert node_subentry.data["is_source"] is False
-    assert node_subentry.data["is_sink"] is False
+    assert (
+        node_subentry.data[SECTION_COMMON][CONF_NAME] == "Switchboard"
+    )  # Default name when translations not available
+    assert node_subentry.data[SECTION_ROLE]["is_source"] is False
+    assert node_subentry.data[SECTION_ROLE]["is_sink"] is False
 
 
 async def test_ensure_required_subentries_skips_switchboard_advanced_mode(
@@ -321,8 +359,9 @@ async def test_ensure_required_subentries_skips_switchboard_advanced_mode(
         domain=DOMAIN,
         data={
             CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
-            CONF_NAME: "Test Network",
-            CONF_ADVANCED_MODE: True,
+            HUB_SECTION_COMMON: {CONF_NAME: "Test Network"},
+            HUB_SECTION_ADVANCED: {CONF_ADVANCED_MODE: True},
+            HUB_SECTION_TIERS: {},
         },
         entry_id="hub_entry_id",
         title="Test HAEO Integration",
@@ -429,7 +468,7 @@ async def test_async_update_listener_value_update_in_progress(
 ) -> None:
     """Test async_update_listener skips reload when value update is in progress."""
     # Set up runtime_data with value_update_in_progress=True
-    mock_coordinator = AsyncMock()
+    mock_coordinator = Mock()
     mock_hub_entry.runtime_data = HaeoRuntimeData(
         horizon_manager=_create_mock_horizon_manager(),
         coordinator=mock_coordinator,
@@ -449,9 +488,9 @@ async def test_async_update_listener_value_update_in_progress(
     # Call update listener
     await async_update_listener(hass, mock_hub_entry)
 
-    # Verify: flag should be cleared, coordinator refreshed, NO reload
+    # Verify: flag should be cleared, optimization signaled stale, NO reload
     assert mock_hub_entry.runtime_data.value_update_in_progress is False
-    mock_coordinator.async_refresh.assert_called_once()
+    mock_coordinator.signal_optimization_stale.assert_called_once()
     assert not reload_called
 
 
@@ -537,7 +576,7 @@ async def test_async_setup_entry_raises_config_entry_not_ready_on_timeout(
     class MockRuntimeData:
         def __init__(self) -> None:
             self.horizon_manager = mock_horizon
-            self.input_entities = {("Test Element", "field"): never_ready_entity}
+            self.input_entities = {("Test Element", (SECTION_COMMON, "field")): never_ready_entity}
             self.coordinator = None
             self.value_update_in_progress = False
 
@@ -630,7 +669,7 @@ async def test_setup_reentry_after_timeout_failure(
     class MockRuntimeData:
         def __init__(self, horizon_manager: object) -> None:
             self.horizon_manager = horizon_manager
-            self.input_entities = {("Test Element", "field"): entity}
+            self.input_entities = {("Test Element", (SECTION_COMMON, "field")): entity}
             self.coordinator = None
             self.value_update_in_progress = False
 
@@ -675,6 +714,7 @@ async def test_setup_reentry_after_timeout_failure(
             self.async_initialize = AsyncMock()
             self.async_refresh = AsyncMock()
             self.cleanup = Mock()
+            self.auto_optimize_enabled = True
 
     monkeypatch.setattr("custom_components.haeo.HaeoDataUpdateCoordinator", DummyCoordinator)
 
@@ -717,8 +757,8 @@ async def test_setup_cleanup_on_coordinator_error(
 
     # Mock coordinator that fails on initialize
     class FailingCoordinator:
-        def __init__(self, hass_param: HomeAssistant, entry_param: ConfigEntry) -> None:
-            pass
+        def __init__(self, _hass: HomeAssistant, _entry: ConfigEntry) -> None:
+            self.auto_optimize_enabled = True
 
         def cleanup(self) -> None:
             pass
@@ -768,8 +808,8 @@ async def test_async_setup_entry_raises_config_entry_error_on_permanent_failure(
 
     # Mock coordinator that fails with ValueError (permanent failure)
     class FailingCoordinator:
-        def __init__(self, hass_param: HomeAssistant, entry_param: ConfigEntry) -> None:
-            pass
+        def __init__(self, _hass: HomeAssistant, _entry: ConfigEntry) -> None:
+            self.auto_optimize_enabled = True
 
         def cleanup(self) -> None:
             pass
@@ -827,8 +867,8 @@ async def test_setup_preserves_config_entry_not_ready_exception(
 
     # Mock coordinator that raises ConfigEntryNotReady with custom translation key
     class FailingCoordinator:
-        def __init__(self, hass_param: HomeAssistant, entry_param: ConfigEntry) -> None:
-            pass
+        def __init__(self, _hass: HomeAssistant, _entry: ConfigEntry) -> None:
+            self.auto_optimize_enabled = True
 
         def cleanup(self) -> None:
             pass
@@ -889,8 +929,8 @@ async def test_setup_preserves_config_entry_error_exception(
 
     # Mock coordinator that raises ConfigEntryError with custom translation key
     class FailingCoordinator:
-        def __init__(self, hass_param: HomeAssistant, entry_param: ConfigEntry) -> None:
-            pass
+        def __init__(self, _hass: HomeAssistant, _entry: ConfigEntry) -> None:
+            self.auto_optimize_enabled = True
 
         def cleanup(self) -> None:
             pass

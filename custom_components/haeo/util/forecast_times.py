@@ -220,7 +220,7 @@ def calculate_total_steps(
     return sum(min_counts) + base_t4_steps + alignment_buffer
 
 
-def tiers_to_periods_seconds(config: Mapping[str, int | str]) -> list[int]:
+def tiers_to_periods_seconds(config: Mapping[str, int | str | Mapping[str, int | str]]) -> list[int]:
     """Convert tier configuration to list of period durations in seconds.
 
     Uses dynamic time alignment when a preset is selected (2/3/5/7 days).
@@ -234,8 +234,14 @@ def tiers_to_periods_seconds(config: Mapping[str, int | str]) -> list[int]:
         List of period durations in seconds.
 
     """
+    # Support sectioned hub config by reading from nested sections when present
+    common = config.get("common") if isinstance(config.get("common"), Mapping) else None
+    tiers_section = config.get("tiers") if isinstance(config.get("tiers"), Mapping) else None
+
     # Check if using a preset (enables time alignment)
-    horizon_preset = config.get("horizon_preset")
+    horizon_preset = (
+        (common or {}).get("horizon_preset") if isinstance(common, Mapping) else config.get("horizon_preset")
+    )
 
     if horizon_preset and horizon_preset in _PRESET_DAYS:
         # Preset mode: use dynamic time alignment with fixed tier configuration
@@ -259,13 +265,19 @@ def tiers_to_periods_seconds(config: Mapping[str, int | str]) -> list[int]:
         return periods_seconds
 
     # Custom/legacy mode: use fixed tier counts from config
+    if isinstance(tiers_section, Mapping):
+        tier_config: Mapping[str, int | str] = tiers_section
+    else:
+        tier_config = {key: value for key, value in config.items() if isinstance(value, int | str)}
     periods: list[int] = []
     for tier in [1, 2, 3, 4]:
         count_key = f"tier_{tier}_count"
         duration_key = f"tier_{tier}_duration"
-        if count_key in config:
-            count = int(config[count_key])
-            duration_seconds = int(config[duration_key]) * 60
+        count_value = tier_config.get(count_key)
+        duration_value = tier_config.get(duration_key)
+        if count_value is not None and duration_value is not None:
+            count = int(count_value)
+            duration_seconds = int(duration_value) * 60
             periods.extend([duration_seconds] * count)
     return periods
 

@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Awaitable
 from dataclasses import dataclass, field
 import logging
 from types import MappingProxyType
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Protocol
 
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry
 from homeassistant.const import Platform
@@ -18,14 +19,58 @@ from homeassistant.helpers.typing import ConfigType
 
 from custom_components.haeo.const import CONF_ADVANCED_MODE, CONF_ELEMENT_TYPE, CONF_NAME, DOMAIN, ELEMENT_TYPE_NETWORK
 from custom_components.haeo.coordinator import HaeoDataUpdateCoordinator
+from custom_components.haeo.elements import ELEMENT_DEVICE_NAMES_BY_TYPE
+from custom_components.haeo.flows import HUB_SECTION_ADVANCED
 from custom_components.haeo.horizon import HorizonManager
 from custom_components.haeo.services import async_setup_services
 
+from . import migrations as _migrations
+
 if TYPE_CHECKING:
-    from custom_components.haeo.entities.haeo_number import HaeoInputNumber
-    from custom_components.haeo.entities.haeo_switch import HaeoInputSwitch
+    from custom_components.haeo.entities.auto_optimize_switch import AutoOptimizeSwitch
+    from custom_components.haeo.entities.haeo_number import ConfigEntityMode
 
 _LOGGER = logging.getLogger(__name__)
+
+async_migrate_entry = _migrations.async_migrate_entry
+MIGRATION_MINOR_VERSION = _migrations.MIGRATION_MINOR_VERSION
+
+
+class InputEntity(Protocol):
+    """Protocol for input entities tracked by the runtime data."""
+
+    entity_id: str
+
+    @property
+    def entity_mode(self) -> ConfigEntityMode:
+        """Return the entity's operating mode."""
+        ...
+
+    @property
+    def horizon_start(self) -> float | None:
+        """Return the first forecast timestamp, or None if not loaded."""
+        ...
+
+    def is_ready(self) -> bool:
+        """Return True if data has been loaded and entity is ready."""
+        ...
+
+    def wait_ready(self) -> Awaitable[None]:
+        """Wait for data to be ready."""
+        ...
+
+    def get_values(self) -> tuple[float | bool, ...] | None:
+        """Return forecast values or None if not loaded."""
+        ...
+
+
+type InputEntityKey = tuple[str, tuple[str, ...]]
+type InputEntityMap = dict[InputEntityKey, InputEntity]
+
+
+def _create_input_entities() -> InputEntityMap:
+    return {}
+
 
 PLATFORMS: list[Platform] = [Platform.SENSOR, Platform.NUMBER, Platform.SWITCH]
 
@@ -34,6 +79,9 @@ INPUT_PLATFORMS: list[Platform] = [Platform.NUMBER, Platform.SWITCH]
 
 # Platforms that consume coordinator data (set up after coordinator)
 OUTPUT_PLATFORMS: list[Platform] = [Platform.SENSOR]
+
+# Timeout in seconds for waiting for input entities to be ready
+INPUT_ENTITY_READY_TIMEOUT = 5
 
 
 async def async_setup(hass: HomeAssistant, _config: ConfigType) -> bool:
@@ -51,14 +99,16 @@ class HaeoRuntimeData:
 
     Attributes:
         horizon_manager: Manager providing forecast time windows.
-        input_entities: Dict of input entities keyed by (element_name, field_name).
+        input_entities: Dict of input entities keyed by (element_name, field_path).
+        auto_optimize_switch: Switch controlling automatic optimization.
         coordinator: Coordinator for network-level optimization (set after input platforms).
         value_update_in_progress: Flag to skip reload when updating entity values.
 
     """
 
     horizon_manager: HorizonManager
-    input_entities: dict[tuple[str, str], HaeoInputNumber | HaeoInputSwitch] = field(default_factory=dict)
+    input_entities: InputEntityMap = field(default_factory=_create_input_entities)
+    auto_optimize_switch: AutoOptimizeSwitch | None = field(default=None)
     coordinator: HaeoDataUpdateCoordinator | None = field(default=None)
     value_update_in_progress: bool = field(default=False)
 
@@ -73,7 +123,12 @@ async def _ensure_required_subentries(hass: HomeAssistant, hub_entry: ConfigEntr
     In non-advanced mode, also creates a Switchboard node if missing.
     """
     from custom_components.haeo.elements import ELEMENT_TYPE_NODE  # noqa: PLC0415
-    from custom_components.haeo.elements.node import CONF_IS_SINK, CONF_IS_SOURCE  # noqa: PLC0415
+    from custom_components.haeo.elements.node import (  # noqa: PLC0415
+        CONF_IS_SINK,
+        CONF_IS_SOURCE,
+        SECTION_COMMON,
+        SECTION_ROLE,
+    )
 
     # Check if Network subentry already exists
     has_network = False
@@ -104,7 +159,7 @@ async def _ensure_required_subentries(hass: HomeAssistant, hub_entry: ConfigEntr
         _LOGGER.debug("Network subentry created successfully")
 
     # In non-advanced mode, ensure switchboard node exists
-    advanced_mode = hub_entry.data.get(CONF_ADVANCED_MODE, False)
+    advanced_mode = hub_entry.data.get(HUB_SECTION_ADVANCED, {}).get(CONF_ADVANCED_MODE, False)
     if not advanced_mode and not has_node:
         _LOGGER.info("Creating Switchboard node for hub %s (non-advanced mode)", hub_entry.entry_id)
         switchboard_name = translations.get(f"component.{DOMAIN}.common.switchboard_node_name", "Switchboard")
@@ -112,10 +167,12 @@ async def _ensure_required_subentries(hass: HomeAssistant, hub_entry: ConfigEntr
         switchboard_subentry = ConfigSubentry(
             data=MappingProxyType(
                 {
-                    CONF_NAME: switchboard_name,
                     CONF_ELEMENT_TYPE: ELEMENT_TYPE_NODE,
-                    CONF_IS_SOURCE: False,
-                    CONF_IS_SINK: False,
+                    SECTION_COMMON: {CONF_NAME: switchboard_name},
+                    SECTION_ROLE: {
+                        CONF_IS_SOURCE: False,
+                        CONF_IS_SINK: False,
+                    },
                 }
             ),
             subentry_type=ELEMENT_TYPE_NODE,
@@ -130,12 +187,13 @@ async def async_update_listener(hass: HomeAssistant, entry: HaeoConfigEntry) -> 
     """Handle options update or subentry changes."""
     # Check if this is a value-only update from an input entity
     runtime_data = entry.runtime_data
-    if runtime_data is not None and runtime_data.value_update_in_progress:
-        # Clear the flag and skip reload - just refresh coordinator
+    if runtime_data and runtime_data.value_update_in_progress:
+        # Clear the flag and skip reload - signal optimization is stale
         runtime_data.value_update_in_progress = False
-        _LOGGER.debug("Value update detected, refreshing coordinator without reload")
-        if runtime_data.coordinator is not None:
-            await runtime_data.coordinator.async_refresh()
+        coordinator = runtime_data.coordinator
+        if coordinator:
+            _LOGGER.debug("Value update detected, signaling optimization stale")
+            coordinator.signal_optimization_stale()
         return
 
     await _ensure_required_subentries(hass, entry)
@@ -194,14 +252,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> bool
     # Each entity signals via asyncio.Event when its forecast data is loaded
     _LOGGER.debug("Waiting for %d input entities to be ready", len(runtime_data.input_entities))
     try:
-        async with asyncio.timeout(30):
+        async with asyncio.timeout(INPUT_ENTITY_READY_TIMEOUT):
             await asyncio.gather(*[entity.wait_ready() for entity in runtime_data.input_entities.values()])
     except TimeoutError:
         not_ready = [key for key, entity in runtime_data.input_entities.items() if not entity.is_ready()]
         raise ConfigEntryNotReady(
             translation_domain=DOMAIN,
             translation_key="input_entities_not_ready",
-            translation_placeholders={"not_ready": str(not_ready)},
+            translation_placeholders={
+                "not_ready": str(not_ready),
+                "timeout": str(INPUT_ENTITY_READY_TIMEOUT),
+            },
         ) from None
     _LOGGER.debug("All input entities ready")
 
@@ -295,8 +356,8 @@ async def async_remove_config_entry_device(
         # Device already removed or does not exist; nothing to clean up
         return False
 
-    # Get all current subentry IDs (devices are keyed by subentry_id, not element name)
-    current_subentry_ids = {subentry.subentry_id for subentry in config_entry.subentries.values()}
+    # Get all current subentries (devices are keyed by subentry_id, not element name)
+    subentries_by_id = {subentry.subentry_id: subentry for subentry in config_entry.subentries.values()}
 
     # Check if this device's identifier matches any current subentry
     has_haeo_identifier = False
@@ -316,18 +377,29 @@ async def async_remove_config_entry_device(
 
                 # Check if any current subentry_id is a prefix of the suffix
                 # The suffix is subentry_id_device_name, so we check for subentry_id_
-                for subentry_id in current_subentry_ids:
-                    if suffix.startswith(f"{subentry_id}_"):
+                for subentry_id, subentry in subentries_by_id.items():
+                    prefix = f"{subentry_id}_"
+                    if not suffix.startswith(prefix):
+                        continue
+
+                    device_name = suffix.removeprefix(prefix)
+                    allowed_device_names = ELEMENT_DEVICE_NAMES_BY_TYPE.get(subentry.subentry_type)
+                    if allowed_device_names is None:
+                        # Unknown subentry type - keep device to avoid accidental removal
+                        return False
+                    if device_name in allowed_device_names:
                         # Device belongs to an existing subentry - keep it
                         return False
+                    # Device name no longer created for this subentry
+                    break
 
     # If device has no HAEO identifiers, it's not managed by us - keep it
     if not has_haeo_identifier:
         return False
 
-    # Device doesn't match any current subentry - allow removal
+    # Device doesn't match any current subentry or device name - allow removal
     _LOGGER.info(
-        "Removing stale device %s (was associated with removed element)",
+        "Removing stale device %s (no longer created by this entry)",
         device_entry.name,
     )
     return True

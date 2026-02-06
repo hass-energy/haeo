@@ -6,6 +6,7 @@ Each segment type applies a specific transformation or constraint to power flow:
 - PassthroughSegment: Lossless passthrough (no constraints)
 - PowerLimitSegment: Limits power flow with optional time-slice constraint
 - PricingSegment: Adds transfer pricing costs
+- SocPricingSegment: Adds SOC-based pricing penalties
 """
 
 from collections.abc import Callable
@@ -18,7 +19,6 @@ import numpy as np
 from numpy.typing import NDArray
 
 from custom_components.haeo.model.element import Element
-
 from .battery_balance import (
     BALANCE_ABSORBED_EXCESS,
     BALANCE_POWER_DOWN,
@@ -41,6 +41,7 @@ from .power_limit import (
 )
 from .pricing import PricingSegment, PricingSegmentSpec
 from .segment import Segment
+from .soc_pricing import SocPricingSegment, SocPricingSegmentSpec
 
 # Discriminated union of segment type strings
 type SegmentType = Literal[
@@ -50,6 +51,7 @@ type SegmentType = Literal[
     "passthrough",
     "power_limit",
     "pricing",
+    "soc_pricing",
 ]
 
 # Union type for all segment specifications
@@ -60,6 +62,7 @@ type SegmentSpec = (
     | PassthroughSegmentSpec
     | PowerLimitSegmentSpec
     | PricingSegmentSpec
+    | SocPricingSegmentSpec
 )
 
 
@@ -88,6 +91,11 @@ def is_demand_pricing_spec(spec: SegmentSpec) -> TypeGuard[DemandPricingSegmentS
     return spec["segment_type"] == "demand_pricing"
 
 
+def is_soc_pricing_spec(spec: SegmentSpec) -> TypeGuard[SocPricingSegmentSpec]:
+    """Return True when spec is for a SOC pricing segment."""
+    return spec["segment_type"] == "soc_pricing"
+
+
 @dataclass(frozen=True, slots=True)
 class SegmentSpecEntry:
     """Specification for a segment type."""
@@ -103,6 +111,7 @@ SEGMENTS: Final[dict[SegmentType, SegmentSpecEntry]] = {
     "passthrough": SegmentSpecEntry(factory=PassthroughSegment),
     "power_limit": SegmentSpecEntry(factory=PowerLimitSegment),
     "pricing": SegmentSpecEntry(factory=PricingSegment),
+    "soc_pricing": SegmentSpecEntry(factory=SocPricingSegment),
 }
 
 
@@ -134,10 +143,6 @@ def create_segment(
     )
 
 __all__ = [
-    "BALANCE_ABSORBED_EXCESS",
-    "BALANCE_POWER_DOWN",
-    "BALANCE_POWER_UP",
-    "BALANCE_UNMET_DEMAND",
     "POWER_LIMIT_SOURCE_TARGET",
     "POWER_LIMIT_TARGET_SOURCE",
     "POWER_LIMIT_TIME_SLICE",
@@ -160,10 +165,13 @@ __all__ = [
     "SegmentSpec",
     "SegmentSpecEntry",
     "SegmentType",
+    "SocPricingSegment",
+    "SocPricingSegmentSpec",
     "create_segment",
     "is_demand_pricing_spec",
     "is_efficiency_spec",
     "is_passthrough_spec",
     "is_power_limit_spec",
     "is_pricing_spec",
+    "is_soc_pricing_spec",
 ]

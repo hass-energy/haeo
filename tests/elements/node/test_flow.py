@@ -12,9 +12,32 @@ import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME
-from custom_components.haeo.elements.node import CONF_IS_SINK, CONF_IS_SOURCE, ELEMENT_TYPE
+from custom_components.haeo.elements.node import (
+    CONF_IS_SINK,
+    CONF_IS_SOURCE,
+    ELEMENT_TYPE,
+    SECTION_COMMON,
+    SECTION_ROLE,
+)
 
 from ..conftest import create_flow
+
+
+def _wrap_input(flat: dict[str, Any]) -> dict[str, Any]:
+    """Wrap flat node input values into sectioned config."""
+    if SECTION_COMMON in flat:
+        return dict(flat)
+    return {
+        SECTION_COMMON: {CONF_NAME: flat[CONF_NAME]},
+        SECTION_ROLE: {key: flat[key] for key in (CONF_IS_SOURCE, CONF_IS_SINK) if key in flat},
+    }
+
+
+def _wrap_config(flat: dict[str, Any]) -> dict[str, Any]:
+    """Wrap flat node config values into sectioned config with element type."""
+    if SECTION_COMMON in flat:
+        return {CONF_ELEMENT_TYPE: ELEMENT_TYPE, **flat}
+    return {CONF_ELEMENT_TYPE: ELEMENT_TYPE, **_wrap_input(flat)}
 
 
 class ValidFlowCase(TypedDict):
@@ -35,22 +58,22 @@ class InvalidFlowCase(TypedDict):
 VALID_CASES: Sequence[ValidFlowCase] = [
     {
         "description": "Node with defaults",
-        "config": {CONF_NAME: "Test Node"},
+        "config": _wrap_input({CONF_NAME: "Test Node"}),
     },
     {
         "description": "Node as source",
-        "config": {CONF_NAME: "Source Node", CONF_IS_SOURCE: True, CONF_IS_SINK: False},
+        "config": _wrap_input({CONF_NAME: "Source Node", CONF_IS_SOURCE: True, CONF_IS_SINK: False}),
     },
     {
         "description": "Node as sink",
-        "config": {CONF_NAME: "Sink Node", CONF_IS_SOURCE: False, CONF_IS_SINK: True},
+        "config": _wrap_input({CONF_NAME: "Sink Node", CONF_IS_SOURCE: False, CONF_IS_SINK: True}),
     },
 ]
 
 INVALID_CASES: Sequence[InvalidFlowCase] = [
     {
         "description": "Empty name",
-        "config": {CONF_NAME: ""},
+        "config": _wrap_input({CONF_NAME: ""}),
         "error_field": CONF_NAME,
     },
 ]
@@ -81,7 +104,7 @@ async def test_user_step_rejects_duplicate_name(hass: HomeAssistant, hub_entry: 
     """Node user step should reject duplicate names."""
     # Add existing node
     existing = ConfigSubentry(
-        data=MappingProxyType({CONF_ELEMENT_TYPE: ELEMENT_TYPE, CONF_NAME: "ExistingNode"}),
+        data=MappingProxyType(_wrap_config({CONF_NAME: "ExistingNode"})),
         subentry_type=ELEMENT_TYPE,
         title="ExistingNode",
         unique_id=None,
@@ -90,7 +113,7 @@ async def test_user_step_rejects_duplicate_name(hass: HomeAssistant, hub_entry: 
 
     flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
 
-    result = await flow.async_step_user(user_input={CONF_NAME: "ExistingNode"})
+    result = await flow.async_step_user(user_input=_wrap_input({CONF_NAME: "ExistingNode"}))
 
     assert result.get("type") == FlowResultType.FORM
     assert CONF_NAME in result.get("errors", {})
@@ -100,7 +123,7 @@ async def test_user_step_rejects_duplicate_name(hass: HomeAssistant, hub_entry: 
 async def test_reconfigure_step_updates_entry(hass: HomeAssistant, hub_entry: MockConfigEntry, case: ValidFlowCase) -> None:
     """Node reconfigure step should update entry with valid input."""
     existing = ConfigSubentry(
-        data=MappingProxyType({CONF_ELEMENT_TYPE: ELEMENT_TYPE, CONF_NAME: "OldName"}),
+        data=MappingProxyType(_wrap_config({CONF_NAME: "OldName"})),
         subentry_type=ELEMENT_TYPE,
         title="OldName",
         unique_id=None,
@@ -120,7 +143,7 @@ async def test_reconfigure_step_updates_entry(hass: HomeAssistant, hub_entry: Mo
 async def test_reconfigure_step_shows_form_initially(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
     """Node reconfigure step should show form with current values."""
     existing = ConfigSubentry(
-        data=MappingProxyType({CONF_ELEMENT_TYPE: ELEMENT_TYPE, CONF_NAME: "TestNode", CONF_IS_SOURCE: True, CONF_IS_SINK: False}),
+        data=MappingProxyType(_wrap_config({CONF_NAME: "TestNode", CONF_IS_SOURCE: True, CONF_IS_SINK: False})),
         subentry_type=ELEMENT_TYPE,
         title="TestNode",
         unique_id=None,

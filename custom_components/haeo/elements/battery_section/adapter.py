@@ -6,10 +6,8 @@ from typing import Any, Final, Literal
 
 from homeassistant.components.number import NumberDeviceClass, NumberEntityDescription
 from homeassistant.const import UnitOfEnergy
-from homeassistant.core import HomeAssistant
 
 from custom_components.haeo.const import ConnectivityLevel
-from custom_components.haeo.data.loader import TimeSeriesLoader
 from custom_components.haeo.elements.input_fields import InputFieldInfo
 from custom_components.haeo.elements.output_utils import expect_output_data
 from custom_components.haeo.model import ModelElementConfig, ModelOutputName, ModelOutputValue
@@ -17,14 +15,9 @@ from custom_components.haeo.model import battery as model_battery
 from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_BATTERY
 from custom_components.haeo.model.output_data import OutputData
+from custom_components.haeo.sections import SECTION_COMMON
 
-from .schema import (
-    CONF_CAPACITY,
-    CONF_INITIAL_CHARGE,
-    ELEMENT_TYPE,
-    BatterySectionConfigData,
-    BatterySectionConfigSchema,
-)
+from .schema import CONF_CAPACITY, CONF_INITIAL_CHARGE, ELEMENT_TYPE, SECTION_STORAGE, BatterySectionConfigData
 
 type BatterySectionOutputName = Literal[
     "battery_section_power_charge",
@@ -66,46 +59,40 @@ class BatterySectionAdapter:
     advanced: bool = True
     connectivity: ConnectivityLevel = ConnectivityLevel.ADVANCED
 
-    def available(self, config: BatterySectionConfigSchema, *, hass: HomeAssistant, **_kwargs: Any) -> bool:
-        """Check if battery section configuration can be loaded."""
-        ts_loader = TimeSeriesLoader()
-
-        # Check required time series fields
-        required_fields = [CONF_CAPACITY, CONF_INITIAL_CHARGE]
-        return all(ts_loader.available(hass=hass, value=config[field]) for field in required_fields)
-
-    def inputs(self, config: Any) -> dict[str, InputFieldInfo[Any]]:
+    def inputs(self, config: Any) -> dict[str, dict[str, InputFieldInfo[Any]]]:
         """Return input field definitions for battery section elements."""
         _ = config
         return {
-            CONF_CAPACITY: InputFieldInfo(
-                field_name=CONF_CAPACITY,
-                entity_description=NumberEntityDescription(
-                    key=CONF_CAPACITY,
-                    translation_key=f"{ELEMENT_TYPE}_{CONF_CAPACITY}",
-                    native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
-                    device_class=NumberDeviceClass.ENERGY_STORAGE,
-                    native_min_value=0.1,
-                    native_max_value=1000.0,
-                    native_step=0.1,
+            SECTION_STORAGE: {
+                CONF_CAPACITY: InputFieldInfo(
+                    field_name=CONF_CAPACITY,
+                    entity_description=NumberEntityDescription(
+                        key=CONF_CAPACITY,
+                        translation_key=f"{ELEMENT_TYPE}_{CONF_CAPACITY}",
+                        native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
+                        device_class=NumberDeviceClass.ENERGY_STORAGE,
+                        native_min_value=0.1,
+                        native_max_value=1000.0,
+                        native_step=0.1,
+                    ),
+                    output_type=OutputType.ENERGY,
+                    time_series=True,
                 ),
-                output_type=OutputType.ENERGY,
-                time_series=True,
-            ),
-            CONF_INITIAL_CHARGE: InputFieldInfo(
-                field_name=CONF_INITIAL_CHARGE,
-                entity_description=NumberEntityDescription(
-                    key=CONF_INITIAL_CHARGE,
-                    translation_key=f"{ELEMENT_TYPE}_{CONF_INITIAL_CHARGE}",
-                    native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
-                    device_class=NumberDeviceClass.ENERGY_STORAGE,
-                    native_min_value=0.0,
-                    native_max_value=1000.0,
-                    native_step=0.1,
+                CONF_INITIAL_CHARGE: InputFieldInfo(
+                    field_name=CONF_INITIAL_CHARGE,
+                    entity_description=NumberEntityDescription(
+                        key=CONF_INITIAL_CHARGE,
+                        translation_key=f"{ELEMENT_TYPE}_{CONF_INITIAL_CHARGE}",
+                        native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
+                        device_class=NumberDeviceClass.ENERGY_STORAGE,
+                        native_min_value=0.0,
+                        native_max_value=1000.0,
+                        native_step=0.1,
+                    ),
+                    output_type=OutputType.ENERGY,
+                    time_series=True,
                 ),
-                output_type=OutputType.ENERGY,
-                time_series=True,
-            ),
+            },
         }
 
     def model_elements(self, config: BatterySectionConfigData) -> list[ModelElementConfig]:
@@ -116,9 +103,9 @@ class BatterySectionAdapter:
         return [
             {
                 "element_type": MODEL_ELEMENT_TYPE_BATTERY,
-                "name": config["name"],
-                "capacity": config["capacity"],
-                "initial_charge": config["initial_charge"][0],
+                "name": config[SECTION_COMMON]["name"],
+                "capacity": config[SECTION_STORAGE][CONF_CAPACITY],
+                "initial_charge": config[SECTION_STORAGE][CONF_INITIAL_CHARGE][0],
             }
         ]
 

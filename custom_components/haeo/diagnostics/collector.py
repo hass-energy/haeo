@@ -1,5 +1,6 @@
 """Core diagnostics collection logic."""
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any
 
@@ -19,10 +20,25 @@ from custom_components.haeo.const import (
     CONF_TIER_3_DURATION,
     CONF_TIER_4_COUNT,
     CONF_TIER_4_DURATION,
+    DEFAULT_TIER_1_COUNT,
+    DEFAULT_TIER_1_DURATION,
+    DEFAULT_TIER_2_COUNT,
+    DEFAULT_TIER_2_DURATION,
+    DEFAULT_TIER_3_COUNT,
+    DEFAULT_TIER_3_DURATION,
+    DEFAULT_TIER_4_COUNT,
+    DEFAULT_TIER_4_DURATION,
 )
-from custom_components.haeo.elements import ElementConfigSchema, is_element_config_schema
+from custom_components.haeo.elements import (
+    ElementConfigSchema,
+    is_element_config_schema,
+    set_nested_config_value_by_path,
+)
 from custom_components.haeo.entities.haeo_number import ConfigEntityMode, HaeoInputNumber
 from custom_components.haeo.entities.haeo_switch import HaeoInputSwitch
+from custom_components.haeo.flows import HUB_SECTION_TIERS
+from custom_components.haeo.schema import SchemaValue, as_constant_value, is_schema_value
+from custom_components.haeo.sections import SECTION_COMMON
 from custom_components.haeo.sensor_utils import get_output_sensors
 
 from .state_provider import StateProvider
@@ -48,14 +64,26 @@ def _extract_entity_ids_from_config(config: ElementConfigSchema) -> set[str]:
 
     This function iterates over all config values and collects entity IDs.
     """
+
+    def _collect(value: SchemaValue | Mapping[str, Any], collected: set[str]) -> None:
+        match value:
+            case {"type": "entity", "value": entity_ids} if isinstance(entity_ids, list):
+                for entity_id in entity_ids:
+                    if isinstance(entity_id, str) and "." in entity_id:
+                        collected.add(entity_id)
+            case {"type": _}:
+                return
+            case Mapping():
+                for nested in value.values():
+                    if is_schema_value(nested):
+                        _collect(nested, collected)
+                    elif isinstance(nested, Mapping):
+                        _collect(dict(nested), collected)
+            case _:
+                return
+
     entity_ids: set[str] = set()
-    for value in config.values():
-        if isinstance(value, str) and "." in value:
-            # Single entity ID string
-            entity_ids.add(value)
-        elif isinstance(value, list) and all(isinstance(item, str) for item in value):
-            # List of entity IDs (for chained forecasts/prices)
-            entity_ids.update(item for item in value if "." in item)
+    _collect(dict(config), entity_ids)
     return entity_ids
 
 
@@ -81,24 +109,32 @@ async def collect_diagnostics(
     at that past time with different inputs.
     """
     # Build config section with participants
+    tiers_section = config_entry.data.get(HUB_SECTION_TIERS)
+    tiers = tiers_section if isinstance(tiers_section, dict) else {}
     config: dict[str, Any] = {
         "participants": {},
-        CONF_TIER_1_COUNT: config_entry.data.get(CONF_TIER_1_COUNT),
-        CONF_TIER_1_DURATION: config_entry.data.get(CONF_TIER_1_DURATION),
-        CONF_TIER_2_COUNT: config_entry.data.get(CONF_TIER_2_COUNT),
-        CONF_TIER_2_DURATION: config_entry.data.get(CONF_TIER_2_DURATION),
-        CONF_TIER_3_COUNT: config_entry.data.get(CONF_TIER_3_COUNT),
-        CONF_TIER_3_DURATION: config_entry.data.get(CONF_TIER_3_DURATION),
-        CONF_TIER_4_COUNT: config_entry.data.get(CONF_TIER_4_COUNT),
-        CONF_TIER_4_DURATION: config_entry.data.get(CONF_TIER_4_DURATION),
+        HUB_SECTION_TIERS: {
+            CONF_TIER_1_COUNT: tiers.get(CONF_TIER_1_COUNT, DEFAULT_TIER_1_COUNT),
+            CONF_TIER_1_DURATION: tiers.get(CONF_TIER_1_DURATION, DEFAULT_TIER_1_DURATION),
+            CONF_TIER_2_COUNT: tiers.get(CONF_TIER_2_COUNT, DEFAULT_TIER_2_COUNT),
+            CONF_TIER_2_DURATION: tiers.get(CONF_TIER_2_DURATION, DEFAULT_TIER_2_DURATION),
+            CONF_TIER_3_COUNT: tiers.get(CONF_TIER_3_COUNT, DEFAULT_TIER_3_COUNT),
+            CONF_TIER_3_DURATION: tiers.get(CONF_TIER_3_DURATION, DEFAULT_TIER_3_DURATION),
+            CONF_TIER_4_COUNT: tiers.get(CONF_TIER_4_COUNT, DEFAULT_TIER_4_COUNT),
+            CONF_TIER_4_DURATION: tiers.get(CONF_TIER_4_DURATION, DEFAULT_TIER_4_DURATION),
+        },
     }
 
     # Transform subentries into participants dict
     for subentry in config_entry.subentries.values():
         if subentry.subentry_type != "network":
             raw_data = dict(subentry.data)
-            raw_data.setdefault("name", subentry.title)
             raw_data.setdefault(CONF_ELEMENT_TYPE, subentry.subentry_type)
+            common = raw_data.get(SECTION_COMMON)
+            if isinstance(common, dict):
+                common.setdefault("name", subentry.title)
+            else:
+                raw_data.setdefault("name", subentry.title)
             config["participants"][subentry.title] = raw_data
 
     # Capture current values from editable input entities
@@ -106,7 +142,7 @@ async def collect_diagnostics(
     # Only do this for current state (not historical)
     runtime_data = config_entry.runtime_data
     if not state_provider.is_historical and isinstance(runtime_data, HaeoRuntimeData):
-        for (element_name, field_name), entity in runtime_data.input_entities.items():
+        for (element_name, field_path), entity in runtime_data.input_entities.items():
             if element_name not in config["participants"]:
                 continue
             participant = config["participants"][element_name]
@@ -116,9 +152,9 @@ async def collect_diagnostics(
                 continue
 
             if isinstance(entity, HaeoInputNumber) and entity.native_value is not None:
-                participant[field_name] = entity.native_value
+                set_nested_config_value_by_path(participant, field_path, as_constant_value(entity.native_value))
             elif isinstance(entity, HaeoInputSwitch) and entity.is_on is not None:
-                participant[field_name] = entity.is_on
+                set_nested_config_value_by_path(participant, field_path, as_constant_value(entity.is_on))
 
     # Collect input sensor states for all entities used in the configuration
     all_entity_ids: set[str] = set()

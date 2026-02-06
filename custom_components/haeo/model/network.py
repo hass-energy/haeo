@@ -61,6 +61,27 @@ class Network:
         """Return the number of optimization periods."""
         return len(self.periods)
 
+    def update_periods(self, new_periods: NDArray[np.floating[Any]]) -> None:
+        """Update period durations across the network.
+
+        Propagates the new periods to all elements and their segments,
+        triggering reactive invalidation of dependent constraints and costs.
+
+        Args:
+            new_periods: New array of time period durations in hours
+
+        """
+        self.periods = np.asarray(new_periods, dtype=float)
+
+        # Propagate to all elements (triggers TrackedParam invalidation)
+        for element in self.elements.values():
+            element.periods = self.periods
+
+            # For Connection elements, also update their segments
+            if isinstance(element, Connection):
+                for segment in element.segments.values():
+                    segment.periods = self.periods
+
     @overload
     def add(self, element_config: BatteryElementConfig) -> Battery: ...
 

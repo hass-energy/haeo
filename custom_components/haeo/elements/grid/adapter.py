@@ -6,12 +6,10 @@ from typing import Any, Final, Literal
 
 from homeassistant.components.number import NumberDeviceClass, NumberEntityDescription
 from homeassistant.const import UnitOfEnergy, UnitOfPower, UnitOfTime
-from homeassistant.core import HomeAssistant
 import numpy as np
 from numpy.typing import NDArray
 
 from custom_components.haeo.const import ConnectivityLevel
-from custom_components.haeo.data.loader import TimeSeriesLoader
 from custom_components.haeo.elements.input_fields import InputFieldDefaults, InputFieldInfo
 from custom_components.haeo.elements.output_utils import expect_output_data
 from custom_components.haeo.model import ModelElementConfig, ModelOutputName, ModelOutputValue
@@ -25,24 +23,27 @@ from custom_components.haeo.model.elements.connection import (
 from custom_components.haeo.model.elements.segments import POWER_LIMIT_SOURCE_TARGET, POWER_LIMIT_TARGET_SOURCE
 from custom_components.haeo.model.output_data import OutputData
 from custom_components.haeo.model.util import broadcast_to_sequence
-
-from .schema import (
+from custom_components.haeo.schema import extract_connection_target
+from custom_components.haeo.sections import (
+    CONF_CONNECTION,
     CONF_DEMAND_BLOCK_HOURS,
-    CONF_DEMAND_CURRENT_ENERGY_EXPORT,
-    CONF_DEMAND_CURRENT_ENERGY_IMPORT,
+    CONF_DEMAND_CURRENT_ENERGY_SOURCE_TARGET,
+    CONF_DEMAND_CURRENT_ENERGY_TARGET_SOURCE,
     CONF_DEMAND_DAYS,
-    CONF_DEMAND_PRICE_EXPORT,
-    CONF_DEMAND_PRICE_IMPORT,
-    CONF_DEMAND_WINDOW_EXPORT,
-    CONF_DEMAND_WINDOW_IMPORT,
-    CONF_EXPORT_LIMIT,
-    CONF_EXPORT_PRICE,
-    CONF_IMPORT_LIMIT,
-    CONF_IMPORT_PRICE,
-    ELEMENT_TYPE,
-    GridConfigData,
-    GridConfigSchema,
+    CONF_DEMAND_PRICE_SOURCE_TARGET,
+    CONF_DEMAND_PRICE_TARGET_SOURCE,
+    CONF_DEMAND_WINDOW_SOURCE_TARGET,
+    CONF_DEMAND_WINDOW_TARGET_SOURCE,
+    CONF_MAX_POWER_SOURCE_TARGET,
+    CONF_MAX_POWER_TARGET_SOURCE,
+    CONF_PRICE_SOURCE_TARGET,
+    CONF_PRICE_TARGET_SOURCE,
+    SECTION_COMMON,
+    SECTION_POWER_LIMITS,
+    SECTION_PRICING,
 )
+
+from .schema import ELEMENT_TYPE, GridConfigData
 
 # Grid-specific output names for translation/sensor mapping
 type GridOutputName = Literal[
@@ -84,212 +85,180 @@ class GridAdapter:
     element_type: str = ELEMENT_TYPE
     advanced: bool = False
     connectivity: ConnectivityLevel = ConnectivityLevel.ADVANCED
-
-    def available(self, config: GridConfigSchema, *, hass: HomeAssistant, **_kwargs: Any) -> bool:
-        """Check if grid configuration can be loaded."""
-        ts_loader = TimeSeriesLoader()
-
-        # Helper to check entity availability
-        def entities_available(value: list[str] | str | float | None) -> bool:
-            if value is None or isinstance(value, float | int):
-                return True  # Constants and missing values are always available
-            if isinstance(value, str):
-                return ts_loader.available(hass=hass, value=[value])
-            # At this point value is a list of strings
-            return ts_loader.available(hass=hass, value=value) if value else True
-
-        optional_fields = [
-            CONF_IMPORT_LIMIT,
-            CONF_EXPORT_LIMIT,
-            CONF_DEMAND_WINDOW_IMPORT,
-            CONF_DEMAND_WINDOW_EXPORT,
-            CONF_DEMAND_PRICE_IMPORT,
-            CONF_DEMAND_PRICE_EXPORT,
-            CONF_DEMAND_CURRENT_ENERGY_IMPORT,
-            CONF_DEMAND_CURRENT_ENERGY_EXPORT,
-            CONF_DEMAND_BLOCK_HOURS,
-            CONF_DEMAND_DAYS,
-        ]
-
-        if not (entities_available(config.get("import_price")) and entities_available(config.get("export_price"))):
-            return False
-
-        for field in optional_fields:
-            if field in config and not ts_loader.available(hass=hass, value=config[field]):
-                return False
-
-        return True
-
-    def inputs(self, config: Any) -> dict[str, InputFieldInfo[Any]]:
+    def inputs(self, config: Any) -> dict[str, dict[str, InputFieldInfo[Any]]]:
         """Return input field definitions for grid elements."""
         _ = config
         return {
-            CONF_IMPORT_PRICE: InputFieldInfo(
-                field_name=CONF_IMPORT_PRICE,
-                entity_description=NumberEntityDescription(
-                    key=CONF_IMPORT_PRICE,
-                    translation_key=f"{ELEMENT_TYPE}_{CONF_IMPORT_PRICE}",
-                    native_min_value=-1.0,
-                    native_max_value=10.0,
-                    native_step=0.001,
+            SECTION_PRICING: {
+                CONF_PRICE_SOURCE_TARGET: InputFieldInfo(
+                    field_name=CONF_PRICE_SOURCE_TARGET,
+                    entity_description=NumberEntityDescription(
+                        key=CONF_PRICE_SOURCE_TARGET,
+                        translation_key=f"{ELEMENT_TYPE}_{CONF_PRICE_SOURCE_TARGET}",
+                        native_min_value=-1.0,
+                        native_max_value=10.0,
+                        native_step=0.001,
+                    ),
+                    output_type=OutputType.PRICE,
+                    time_series=True,
+                    direction="-",  # Import = consuming from grid = cost
                 ),
-                output_type=OutputType.PRICE,
-                time_series=True,
-                direction="-",  # Import = consuming from grid = cost
-            ),
-            CONF_EXPORT_PRICE: InputFieldInfo(
-                field_name=CONF_EXPORT_PRICE,
-                entity_description=NumberEntityDescription(
-                    key=CONF_EXPORT_PRICE,
-                    translation_key=f"{ELEMENT_TYPE}_{CONF_EXPORT_PRICE}",
-                    native_min_value=-1.0,
-                    native_max_value=10.0,
-                    native_step=0.001,
+                CONF_PRICE_TARGET_SOURCE: InputFieldInfo(
+                    field_name=CONF_PRICE_TARGET_SOURCE,
+                    entity_description=NumberEntityDescription(
+                        key=CONF_PRICE_TARGET_SOURCE,
+                        translation_key=f"{ELEMENT_TYPE}_{CONF_PRICE_TARGET_SOURCE}",
+                        native_min_value=-1.0,
+                        native_max_value=10.0,
+                        native_step=0.001,
+                    ),
+                    output_type=OutputType.PRICE,
+                    time_series=True,
+                    direction="+",  # Export = producing to grid = revenue
                 ),
-                output_type=OutputType.PRICE,
-                time_series=True,
-                direction="+",  # Export = producing to grid = revenue
-            ),
-            CONF_IMPORT_LIMIT: InputFieldInfo(
-                field_name=CONF_IMPORT_LIMIT,
-                entity_description=NumberEntityDescription(
-                    key=CONF_IMPORT_LIMIT,
-                    translation_key=f"{ELEMENT_TYPE}_{CONF_IMPORT_LIMIT}",
-                    native_unit_of_measurement=UnitOfPower.KILO_WATT,
-                    device_class=NumberDeviceClass.POWER,
-                    native_min_value=0.0,
-                    native_max_value=1000.0,
-                    native_step=0.1,
+                CONF_DEMAND_WINDOW_SOURCE_TARGET: InputFieldInfo(
+                    field_name=CONF_DEMAND_WINDOW_SOURCE_TARGET,
+                    entity_description=NumberEntityDescription(
+                        key=CONF_DEMAND_WINDOW_SOURCE_TARGET,
+                        translation_key=f"{ELEMENT_TYPE}_{CONF_DEMAND_WINDOW_SOURCE_TARGET}",
+                        native_min_value=0.0,
+                        native_max_value=1.0,
+                        native_step=0.01,
+                    ),
+                    output_type=OutputType.STATUS,
+                    time_series=True,
                 ),
-                output_type=OutputType.POWER_LIMIT,
-                time_series=True,
-                direction="+",
-                defaults=InputFieldDefaults(mode="value", value=100.0),
-            ),
-            CONF_EXPORT_LIMIT: InputFieldInfo(
-                field_name=CONF_EXPORT_LIMIT,
-                entity_description=NumberEntityDescription(
-                    key=CONF_EXPORT_LIMIT,
-                    translation_key=f"{ELEMENT_TYPE}_{CONF_EXPORT_LIMIT}",
-                    native_unit_of_measurement=UnitOfPower.KILO_WATT,
-                    device_class=NumberDeviceClass.POWER,
-                    native_min_value=0.0,
-                    native_max_value=1000.0,
-                    native_step=0.1,
+                CONF_DEMAND_WINDOW_TARGET_SOURCE: InputFieldInfo(
+                    field_name=CONF_DEMAND_WINDOW_TARGET_SOURCE,
+                    entity_description=NumberEntityDescription(
+                        key=CONF_DEMAND_WINDOW_TARGET_SOURCE,
+                        translation_key=f"{ELEMENT_TYPE}_{CONF_DEMAND_WINDOW_TARGET_SOURCE}",
+                        native_min_value=0.0,
+                        native_max_value=1.0,
+                        native_step=0.01,
+                    ),
+                    output_type=OutputType.STATUS,
+                    time_series=True,
                 ),
-                output_type=OutputType.POWER_LIMIT,
-                time_series=True,
-                direction="-",
-                defaults=InputFieldDefaults(mode="value", value=100.0),
-            ),
-            CONF_DEMAND_WINDOW_IMPORT: InputFieldInfo(
-                field_name=CONF_DEMAND_WINDOW_IMPORT,
-                entity_description=NumberEntityDescription(
-                    key=CONF_DEMAND_WINDOW_IMPORT,
-                    translation_key=f"{ELEMENT_TYPE}_{CONF_DEMAND_WINDOW_IMPORT}",
-                    native_min_value=0.0,
-                    native_max_value=1.0,
-                    native_step=0.01,
+                CONF_DEMAND_PRICE_SOURCE_TARGET: InputFieldInfo(
+                    field_name=CONF_DEMAND_PRICE_SOURCE_TARGET,
+                    entity_description=NumberEntityDescription(
+                        key=CONF_DEMAND_PRICE_SOURCE_TARGET,
+                        translation_key=f"{ELEMENT_TYPE}_{CONF_DEMAND_PRICE_SOURCE_TARGET}",
+                        native_unit_of_measurement="$/kW",
+                        native_min_value=0.0,
+                        native_max_value=100.0,
+                        native_step=0.01,
+                    ),
+                    output_type=OutputType.COST,
+                    time_series=False,
+                    direction="-",
                 ),
-                output_type=OutputType.STATUS,
-                time_series=True,
-            ),
-            CONF_DEMAND_WINDOW_EXPORT: InputFieldInfo(
-                field_name=CONF_DEMAND_WINDOW_EXPORT,
-                entity_description=NumberEntityDescription(
-                    key=CONF_DEMAND_WINDOW_EXPORT,
-                    translation_key=f"{ELEMENT_TYPE}_{CONF_DEMAND_WINDOW_EXPORT}",
-                    native_min_value=0.0,
-                    native_max_value=1.0,
-                    native_step=0.01,
+                CONF_DEMAND_PRICE_TARGET_SOURCE: InputFieldInfo(
+                    field_name=CONF_DEMAND_PRICE_TARGET_SOURCE,
+                    entity_description=NumberEntityDescription(
+                        key=CONF_DEMAND_PRICE_TARGET_SOURCE,
+                        translation_key=f"{ELEMENT_TYPE}_{CONF_DEMAND_PRICE_TARGET_SOURCE}",
+                        native_unit_of_measurement="$/kW",
+                        native_min_value=0.0,
+                        native_max_value=100.0,
+                        native_step=0.01,
+                    ),
+                    output_type=OutputType.COST,
+                    time_series=False,
+                    direction="+",
                 ),
-                output_type=OutputType.STATUS,
-                time_series=True,
-            ),
-            CONF_DEMAND_PRICE_IMPORT: InputFieldInfo(
-                field_name=CONF_DEMAND_PRICE_IMPORT,
-                entity_description=NumberEntityDescription(
-                    key=CONF_DEMAND_PRICE_IMPORT,
-                    translation_key=f"{ELEMENT_TYPE}_{CONF_DEMAND_PRICE_IMPORT}",
-                    native_unit_of_measurement="$/kW",
-                    native_min_value=0.0,
-                    native_max_value=100.0,
-                    native_step=0.01,
+                CONF_DEMAND_CURRENT_ENERGY_SOURCE_TARGET: InputFieldInfo(
+                    field_name=CONF_DEMAND_CURRENT_ENERGY_SOURCE_TARGET,
+                    entity_description=NumberEntityDescription(
+                        key=CONF_DEMAND_CURRENT_ENERGY_SOURCE_TARGET,
+                        translation_key=f"{ELEMENT_TYPE}_{CONF_DEMAND_CURRENT_ENERGY_SOURCE_TARGET}",
+                        native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
+                        device_class=NumberDeviceClass.ENERGY,
+                        native_min_value=0.0,
+                        native_max_value=1_000_000.0,
+                        native_step=0.01,
+                    ),
+                    output_type=OutputType.ENERGY,
+                    time_series=False,
+                    direction="-",
                 ),
-                output_type=OutputType.COST,
-                time_series=False,
-                direction="-",
-            ),
-            CONF_DEMAND_PRICE_EXPORT: InputFieldInfo(
-                field_name=CONF_DEMAND_PRICE_EXPORT,
-                entity_description=NumberEntityDescription(
-                    key=CONF_DEMAND_PRICE_EXPORT,
-                    translation_key=f"{ELEMENT_TYPE}_{CONF_DEMAND_PRICE_EXPORT}",
-                    native_unit_of_measurement="$/kW",
-                    native_min_value=0.0,
-                    native_max_value=100.0,
-                    native_step=0.01,
+                CONF_DEMAND_CURRENT_ENERGY_TARGET_SOURCE: InputFieldInfo(
+                    field_name=CONF_DEMAND_CURRENT_ENERGY_TARGET_SOURCE,
+                    entity_description=NumberEntityDescription(
+                        key=CONF_DEMAND_CURRENT_ENERGY_TARGET_SOURCE,
+                        translation_key=f"{ELEMENT_TYPE}_{CONF_DEMAND_CURRENT_ENERGY_TARGET_SOURCE}",
+                        native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
+                        device_class=NumberDeviceClass.ENERGY,
+                        native_min_value=0.0,
+                        native_max_value=1_000_000.0,
+                        native_step=0.01,
+                    ),
+                    output_type=OutputType.ENERGY,
+                    time_series=False,
+                    direction="+",
                 ),
-                output_type=OutputType.COST,
-                time_series=False,
-                direction="+",
-            ),
-            CONF_DEMAND_CURRENT_ENERGY_IMPORT: InputFieldInfo(
-                field_name=CONF_DEMAND_CURRENT_ENERGY_IMPORT,
-                entity_description=NumberEntityDescription(
-                    key=CONF_DEMAND_CURRENT_ENERGY_IMPORT,
-                    translation_key=f"{ELEMENT_TYPE}_{CONF_DEMAND_CURRENT_ENERGY_IMPORT}",
-                    native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
-                    device_class=NumberDeviceClass.ENERGY,
-                    native_min_value=0.0,
-                    native_max_value=1_000_000.0,
-                    native_step=0.01,
+                CONF_DEMAND_BLOCK_HOURS: InputFieldInfo(
+                    field_name=CONF_DEMAND_BLOCK_HOURS,
+                    entity_description=NumberEntityDescription(
+                        key=CONF_DEMAND_BLOCK_HOURS,
+                        translation_key=f"{ELEMENT_TYPE}_{CONF_DEMAND_BLOCK_HOURS}",
+                        native_unit_of_measurement=UnitOfTime.HOURS,
+                        native_min_value=0.01,
+                        native_max_value=24.0,
+                        native_step=0.01,
+                    ),
+                    output_type=OutputType.DURATION,
+                    time_series=False,
                 ),
-                output_type=OutputType.ENERGY,
-                time_series=False,
-                direction="-",
-            ),
-            CONF_DEMAND_CURRENT_ENERGY_EXPORT: InputFieldInfo(
-                field_name=CONF_DEMAND_CURRENT_ENERGY_EXPORT,
-                entity_description=NumberEntityDescription(
-                    key=CONF_DEMAND_CURRENT_ENERGY_EXPORT,
-                    translation_key=f"{ELEMENT_TYPE}_{CONF_DEMAND_CURRENT_ENERGY_EXPORT}",
-                    native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
-                    device_class=NumberDeviceClass.ENERGY,
-                    native_min_value=0.0,
-                    native_max_value=1_000_000.0,
-                    native_step=0.01,
+                CONF_DEMAND_DAYS: InputFieldInfo(
+                    field_name=CONF_DEMAND_DAYS,
+                    entity_description=NumberEntityDescription(
+                        key=CONF_DEMAND_DAYS,
+                        translation_key=f"{ELEMENT_TYPE}_{CONF_DEMAND_DAYS}",
+                        native_unit_of_measurement=UnitOfTime.DAYS,
+                        native_min_value=0.0,
+                        native_max_value=365.0,
+                        native_step=1.0,
+                    ),
+                    output_type=OutputType.DURATION,
+                    time_series=False,
                 ),
-                output_type=OutputType.ENERGY,
-                time_series=False,
-                direction="+",
-            ),
-            CONF_DEMAND_BLOCK_HOURS: InputFieldInfo(
-                field_name=CONF_DEMAND_BLOCK_HOURS,
-                entity_description=NumberEntityDescription(
-                    key=CONF_DEMAND_BLOCK_HOURS,
-                    translation_key=f"{ELEMENT_TYPE}_{CONF_DEMAND_BLOCK_HOURS}",
-                    native_unit_of_measurement=UnitOfTime.HOURS,
-                    native_min_value=0.01,
-                    native_max_value=24.0,
-                    native_step=0.01,
+            },
+            SECTION_POWER_LIMITS: {
+                CONF_MAX_POWER_SOURCE_TARGET: InputFieldInfo(
+                    field_name=CONF_MAX_POWER_SOURCE_TARGET,
+                    entity_description=NumberEntityDescription(
+                        key=CONF_MAX_POWER_SOURCE_TARGET,
+                        translation_key=f"{ELEMENT_TYPE}_{CONF_MAX_POWER_SOURCE_TARGET}",
+                        native_unit_of_measurement=UnitOfPower.KILO_WATT,
+                        device_class=NumberDeviceClass.POWER,
+                        native_min_value=0.0,
+                        native_max_value=1000.0,
+                        native_step=0.1,
+                    ),
+                    output_type=OutputType.POWER_LIMIT,
+                    time_series=True,
+                    direction="+",
+                    defaults=InputFieldDefaults(mode="value", value=100.0),
                 ),
-                output_type=OutputType.DURATION,
-                time_series=False,
-            ),
-            CONF_DEMAND_DAYS: InputFieldInfo(
-                field_name=CONF_DEMAND_DAYS,
-                entity_description=NumberEntityDescription(
-                    key=CONF_DEMAND_DAYS,
-                    translation_key=f"{ELEMENT_TYPE}_{CONF_DEMAND_DAYS}",
-                    native_unit_of_measurement=UnitOfTime.DAYS,
-                    native_min_value=0.0,
-                    native_max_value=365.0,
-                    native_step=1.0,
+                CONF_MAX_POWER_TARGET_SOURCE: InputFieldInfo(
+                    field_name=CONF_MAX_POWER_TARGET_SOURCE,
+                    entity_description=NumberEntityDescription(
+                        key=CONF_MAX_POWER_TARGET_SOURCE,
+                        translation_key=f"{ELEMENT_TYPE}_{CONF_MAX_POWER_TARGET_SOURCE}",
+                        native_unit_of_measurement=UnitOfPower.KILO_WATT,
+                        device_class=NumberDeviceClass.POWER,
+                        native_min_value=0.0,
+                        native_max_value=1000.0,
+                        native_step=0.1,
+                    ),
+                    output_type=OutputType.POWER_LIMIT,
+                    time_series=True,
+                    direction="-",
+                    defaults=InputFieldDefaults(mode="value", value=100.0),
                 ),
-                output_type=OutputType.DURATION,
-                time_series=False,
-            ),
+            },
         }
 
     def model_elements(self, config: GridConfigData) -> list[ModelElementConfig]:
@@ -298,37 +267,45 @@ class GridAdapter:
             # Create Node for the grid (both source and sink - can import and export)
             {
                 "element_type": MODEL_ELEMENT_TYPE_NODE,
-                "name": config["name"],
+                "name": config[SECTION_COMMON]["name"],
                 "is_source": True,
                 "is_sink": True,
             },
             # Create a connection from system node to grid
             {
                 "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
-                "name": f"{config['name']}:connection",
-                "source": config["name"],
-                "target": config["connection"],
+                "name": f"{config[SECTION_COMMON]['name']}:connection",
+                "source": config[SECTION_COMMON]["name"],
+                "target": extract_connection_target(config[SECTION_COMMON][CONF_CONNECTION]),
                 "segments": {
                     "power_limit": {
                         "segment_type": "power_limit",
-                        "max_power_source_target": config.get("import_limit"),
-                        "max_power_target_source": config.get("export_limit"),
+                        "max_power_source_target": config[SECTION_POWER_LIMITS].get(CONF_MAX_POWER_SOURCE_TARGET),
+                        "max_power_target_source": config[SECTION_POWER_LIMITS].get(CONF_MAX_POWER_TARGET_SOURCE),
                     },
                     "pricing": {
                         "segment_type": "pricing",
-                        "price_source_target": config["import_price"],
-                        "price_target_source": -config["export_price"],
+                        "price_source_target": config[SECTION_PRICING][CONF_PRICE_SOURCE_TARGET],
+                        "price_target_source": -config[SECTION_PRICING][CONF_PRICE_TARGET_SOURCE],
                     },
                     "demand_pricing": {
                         "segment_type": "demand_pricing",
-                        "demand_window_source_target": config.get("demand_window_import"),
-                        "demand_window_target_source": config.get("demand_window_export"),
-                        "demand_price_source_target": config.get("demand_price_import"),
-                        "demand_price_target_source": config.get("demand_price_export"),
-                    "demand_current_energy_source_target": config.get("demand_current_energy_import"),
-                    "demand_current_energy_target_source": config.get("demand_current_energy_export"),
-                        "demand_block_hours": config.get("demand_block_hours"),
-                        "demand_days": config.get("demand_days"),
+                        "demand_window_source_target": config[SECTION_PRICING].get(
+                            CONF_DEMAND_WINDOW_SOURCE_TARGET
+                        ),
+                        "demand_window_target_source": config[SECTION_PRICING].get(
+                            CONF_DEMAND_WINDOW_TARGET_SOURCE
+                        ),
+                        "demand_price_source_target": config[SECTION_PRICING].get(CONF_DEMAND_PRICE_SOURCE_TARGET),
+                        "demand_price_target_source": config[SECTION_PRICING].get(CONF_DEMAND_PRICE_TARGET_SOURCE),
+                        "demand_current_energy_source_target": config[SECTION_PRICING].get(
+                            CONF_DEMAND_CURRENT_ENERGY_SOURCE_TARGET
+                        ),
+                        "demand_current_energy_target_source": config[SECTION_PRICING].get(
+                            CONF_DEMAND_CURRENT_ENERGY_TARGET_SOURCE
+                        ),
+                        "demand_block_hours": config[SECTION_PRICING].get(CONF_DEMAND_BLOCK_HOURS),
+                        "demand_days": config[SECTION_PRICING].get(CONF_DEMAND_DAYS),
                     },
                 },
             },
@@ -366,8 +343,8 @@ class GridAdapter:
 
         # Calculate cost outputs in adapter layer: cost = power * price * period
         # This is a derived calculation, not from model layer outputs
-        import_prices = broadcast_to_sequence(config["import_price"], len(periods))
-        export_prices = broadcast_to_sequence(config["export_price"], len(periods))
+        import_prices = broadcast_to_sequence(config[SECTION_PRICING][CONF_PRICE_SOURCE_TARGET], len(periods))
+        export_prices = broadcast_to_sequence(config[SECTION_PRICING][CONF_PRICE_TARGET_SOURCE], len(periods))
 
         # Import cost: positive = money spent (power from grid * price * period)
         import_cost_values = tuple(

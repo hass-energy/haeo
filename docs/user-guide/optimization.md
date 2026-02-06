@@ -45,7 +45,7 @@ When status is `failed`, check the Home Assistant logs for detailed error messag
 
 Time taken to solve the optimization in seconds.
 If this value climbs higher than you expect, adjust the interval tiers, simplify the network, or try another solver.
-Review the [interval tier guidance](configuration.md#interval-tiers) before changing that value.
+Review the [custom tier guidance](configuration.md#custom-tiers) before changing that value.
 
 ## Element Sensors
 
@@ -101,31 +101,31 @@ automation:
   - alias: Follow HAEO Battery Charge Schedule
     trigger:
       - platform: state
-        entity_id: sensor.main_battery_power_consumed
+        entity_id: sensor.main_battery_power_charge
     condition:
       - condition: template
-        value_template: "{{ states('sensor.main_battery_power_consumed') | float >
-          0 }}"
+        value_template: "{{ states('sensor.main_battery_power_charge') | float > 0
+          }}"
     action:
       - service: battery.set_charge_power
         data:
-          power: "{{ states('sensor.main_battery_power_consumed') | float }}"
+          power: "{{ states('sensor.main_battery_power_charge') | float }}"
 
   - alias: Follow HAEO Battery Discharge Schedule
     trigger:
       - platform: state
-        entity_id: sensor.main_battery_power_produced
+        entity_id: sensor.main_battery_power_discharge
     condition:
       - condition: template
-        value_template: "{{ states('sensor.main_battery_power_produced') | float >
-          0 }}"
+        value_template: "{{ states('sensor.main_battery_power_discharge') | float
+          > 0 }}"
     action:
       - service: battery.set_discharge_power
         data:
-          power: "{{ states('sensor.main_battery_power_produced') | float }}"
+          power: "{{ states('sensor.main_battery_power_discharge') | float }}"
 ```
 
-**Note**: Battery elements create separate sensors for charging (`power_consumed`) and discharging (`power_produced`).
+**Note**: Battery elements create separate sensors for charging (`power_charge`) and discharging (`power_discharge`).
 See the [battery documentation](elements/battery.md) for complete details.
 
 ## Performance Considerations
@@ -136,7 +136,7 @@ Monitor the optimization duration sensor to keep solve times reasonable (typical
 
 If optimization takes too long:
 
-1. **Adjust interval tiers**: Reduce tier 4 count or increase tier durations for faster solving (see [interval tier guidance](configuration.md#interval-tiers))
+1. **Adjust interval tiers**: Reduce tier 4 count or increase tier durations for faster solving (see [custom tier guidance](configuration.md#custom-tiers))
 2. **Increase tier durations**: Fewer time steps reduce problem size
 3. **Simplify network**: Remove unnecessary elements or connections
 4. **Check configuration**: Verify all sensors are available and providing valid data

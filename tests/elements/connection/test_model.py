@@ -14,6 +14,7 @@ from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION
 from custom_components.haeo.model.elements import connection as model_connection
 from custom_components.haeo.model.output_data import OutputData
+from custom_components.haeo.schema import as_connection_target
 from tests.util.normalize import normalize_for_compare
 
 
@@ -39,21 +40,26 @@ CREATE_CASES: Sequence[CreateCase] = [
         "description": "Connection with all optional fields",
         "data": ConnectionConfigData(
             element_type="connection",
-            name="c1",
-            source="s",
-            target="t",
-            max_power_source_target=np.array([4.0]),
-            max_power_target_source=np.array([2.0]),
-            efficiency_source_target=np.array([0.95]),
-            efficiency_target_source=np.array([0.90]),
-            price_source_target=np.array([0.1]),
-            price_target_source=np.array([0.05]),
-            demand_window_source_target=np.array([1.0]),
-            demand_window_target_source=np.array([0.0]),
-            demand_price_source_target=10.0,
-            demand_price_target_source=5.0,
-            demand_block_hours=0.5,
-            demand_days=30.0,
+            common={"name": "c1"},
+            endpoints={"source": as_connection_target("s"), "target": as_connection_target("t")},
+            power_limits={
+                "max_power_source_target": np.array([4.0]),
+                "max_power_target_source": np.array([2.0]),
+            },
+            pricing={
+                "price_source_target": np.array([0.1]),
+                "price_target_source": np.array([0.05]),
+                "demand_window_source_target": np.array([1.0]),
+                "demand_window_target_source": np.array([0.0]),
+                "demand_price_source_target": 10.0,
+                "demand_price_target_source": 5.0,
+                "demand_block_hours": 0.5,
+                "demand_days": 30.0,
+            },
+            efficiency={
+                "efficiency_source_target": np.array([0.95]),
+                "efficiency_target_source": np.array([0.90]),
+            },
         ),
         "model": [
             {
@@ -83,6 +89,8 @@ CREATE_CASES: Sequence[CreateCase] = [
                         "demand_window_target_source": [0.0],
                         "demand_price_source_target": 10.0,
                         "demand_price_target_source": 5.0,
+                        "demand_current_energy_source_target": None,
+                        "demand_current_energy_target_source": None,
                         "demand_block_hours": 0.5,
                         "demand_days": 30.0,
                     },
@@ -94,9 +102,11 @@ CREATE_CASES: Sequence[CreateCase] = [
         "description": "Connection without optional fields",
         "data": ConnectionConfigData(
             element_type="connection",
-            name="c_min",
-            source="s",
-            target="t",
+            common={"name": "c_min"},
+            endpoints={"source": as_connection_target("s"), "target": as_connection_target("t")},
+            power_limits={},
+            pricing={},
+            efficiency={},
         ),
         "model": [
             {
@@ -126,6 +136,8 @@ CREATE_CASES: Sequence[CreateCase] = [
                         "demand_window_target_source": None,
                         "demand_price_source_target": None,
                         "demand_price_target_source": None,
+                        "demand_current_energy_source_target": None,
+                        "demand_current_energy_target_source": None,
                         "demand_block_hours": None,
                         "demand_days": None,
                     },

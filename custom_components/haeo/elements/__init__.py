@@ -19,10 +19,7 @@ Sub-element Naming Convention:
     Adapters may create multiple model elements and devices from a single config element.
     Sub-elements follow the pattern: {main_element}:{subname}
     Example: Battery "home_battery" creates:
-        - "home_battery" (aggregate device)
-        - "home_battery:undercharge" (undercharge region device)
-        - "home_battery:normal" (normal region device)
-        - "home_battery:overcharge" (overcharge region device)
+        - "home_battery" (battery device)
         - "home_battery:connection" (implicit connection to network)
 """
 
@@ -37,6 +34,7 @@ from typing import (
     NotRequired,
     Protocol,
     Required,
+    TypeAliasType,
     TypeGuard,
     Union,
     get_args,
@@ -46,10 +44,10 @@ from typing import (
 )
 
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry
-from homeassistant.core import HomeAssistant
 
 from custom_components.haeo.const import (
     CONF_ELEMENT_TYPE,
+    ELEMENT_TYPE_NETWORK,
     NETWORK_OUTPUT_NAMES,
     ConnectivityLevel,
     NetworkDeviceName,
@@ -59,7 +57,8 @@ from custom_components.haeo.model import ModelElementConfig, ModelOutputName
 from custom_components.haeo.model.output_data import ModelOutputValue, OutputData
 
 from . import battery, battery_section, connection, grid, inverter, load, node, solar
-from .input_fields import InputFieldInfo
+from .field_schema import FieldSchemaInfo
+from .input_fields import InputFieldGroups, InputFieldInfo, InputFieldPath, InputFieldSection
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -158,6 +157,18 @@ ELEMENT_DEVICE_NAMES: Final[frozenset[ElementDeviceName]] = frozenset(
     | NETWORK_DEVICE_NAMES
 )
 
+ELEMENT_DEVICE_NAMES_BY_TYPE: Final[dict[str, frozenset[ElementDeviceName]]] = {
+    inverter.ELEMENT_TYPE: frozenset(inverter.INVERTER_DEVICE_NAMES),
+    battery.ELEMENT_TYPE: frozenset(battery.BATTERY_DEVICE_NAMES),
+    battery_section.ELEMENT_TYPE: frozenset(battery_section.BATTERY_SECTION_DEVICE_NAMES),
+    connection.ELEMENT_TYPE: frozenset(connection.CONNECTION_DEVICE_NAMES),
+    grid.ELEMENT_TYPE: frozenset(grid.GRID_DEVICE_NAMES),
+    load.ELEMENT_TYPE: frozenset(load.LOAD_DEVICE_NAMES),
+    node.ELEMENT_TYPE: frozenset(node.NODE_DEVICE_NAMES),
+    solar.ELEMENT_TYPE: frozenset(solar.SOLAR_DEVICE_NAMES),
+    ELEMENT_TYPE_NETWORK: frozenset(NETWORK_DEVICE_NAMES),
+}
+
 
 @runtime_checkable
 class ElementAdapter(Protocol):
@@ -180,11 +191,7 @@ class ElementAdapter(Protocol):
     connectivity: ConnectivityLevel
     """Visibility level in connection selectors."""
 
-    def available(self, config: Any, *, hass: HomeAssistant, **kwargs: Any) -> bool:
-        """Check if element configuration can be loaded."""
-        ...
-
-    def inputs(self, config: Mapping[str, Any] | None) -> dict[str, InputFieldInfo[Any]]:
+    def inputs(self, config: Mapping[str, Any] | None) -> InputFieldGroups:
         """Return input field definitions for this element."""
         ...
 
@@ -276,6 +283,61 @@ ELEMENT_CONFIG_DATA: Final[dict[ElementType, type]] = {
     "solar": solar.SolarConfigData,
 }
 
+# Optional input fields per element type (used for required field checks)
+ELEMENT_OPTIONAL_INPUT_FIELDS: Final[dict[ElementType, frozenset[str]]] = {
+    "battery": battery.OPTIONAL_INPUT_FIELDS,
+    "battery_section": battery_section.OPTIONAL_INPUT_FIELDS,
+    "connection": connection.OPTIONAL_INPUT_FIELDS,
+    "grid": grid.OPTIONAL_INPUT_FIELDS,
+    "inverter": inverter.OPTIONAL_INPUT_FIELDS,
+    "load": load.OPTIONAL_INPUT_FIELDS,
+    "node": node.OPTIONAL_INPUT_FIELDS,
+    "solar": solar.OPTIONAL_INPUT_FIELDS,
+}
+
+
+def get_input_field_schema_info(
+    element_type: ElementType,
+    input_fields: InputFieldGroups,
+) -> dict[str, dict[str, FieldSchemaInfo]]:
+    """Return schema metadata for input fields grouped by section."""
+    schema_cls = ELEMENT_CONFIG_SCHEMAS[element_type]
+    schema_hints = get_type_hints(schema_cls)
+    schema_optional_keys: frozenset[str] = getattr(schema_cls, "__optional_keys__", frozenset())
+
+    results: dict[str, dict[str, FieldSchemaInfo]] = {}
+
+    for section_key, section_fields in input_fields.items():
+        section_hint = schema_hints.get(section_key)
+        if section_hint is None:
+            msg = f"Section '{section_key}' not found in {schema_cls.__name__}"
+            raise RuntimeError(msg)
+
+        section_type = _unwrap_required_type(section_hint)
+        if isinstance(section_type, TypeAliasType):
+            section_type = section_type.__value__
+
+        if not isinstance(section_type, type) or not hasattr(section_type, "__required_keys__"):
+            msg = f"Section '{section_key}' in {schema_cls.__name__} is not a TypedDict"
+            raise RuntimeError(msg)
+
+        section_optional_keys: frozenset[str] = getattr(section_type, "__optional_keys__", frozenset())
+        section_is_optional = section_key in schema_optional_keys
+        section_hints = get_type_hints(section_type)
+
+        section_info: dict[str, FieldSchemaInfo] = {}
+        for field_name in section_fields:
+            field_type = section_hints.get(field_name)
+            if field_type is None:
+                msg = f"Field '{section_key}.{field_name}' not found in {section_type.__name__}"
+                raise RuntimeError(msg)
+            is_optional = section_is_optional or field_name in section_optional_keys
+            section_info[field_name] = FieldSchemaInfo(value_type=field_type, is_optional=is_optional)
+
+        results[section_key] = section_info
+
+    return results
+
 
 def is_element_type(value: Any) -> TypeGuard[ElementType]:
     """Return True when value is a valid ElementType literal.
@@ -314,24 +376,32 @@ def _conforms_to_typed_dict(
 
     def _matches_type(value_item: Any, expected_type: Any) -> bool:
         expected_type = _unwrap_required_type(expected_type)
-        # Get the origin type for generic types (e.g., list[str] -> list)
+        if isinstance(expected_type, TypeAliasType):
+            expected_type = expected_type.__value__
+
         origin = get_origin(expected_type)
-        check_type = origin if origin is not None else expected_type
 
         # Handle Literal types by checking if value is one of the allowed values
         # For Literal, we don't do isinstance check - just ensure the field exists
-        if check_type is Literal:
+        if origin is Literal:
             return True
 
-        if check_type in (types.UnionType, Union):
-            # Handle union types (e.g., list[str] | float)
-            # Use the origin for generic args (e.g., list[str] -> list); for primitive
-            # types (e.g., float, int) get_origin() returns None so we fall back to arg
-            # itself, producing a tuple like (list, float) suitable for isinstance().
+        if origin in (types.UnionType, Union):
             union_args = get_args(expected_type)
-            allowed_types = tuple(get_origin(arg) or arg for arg in union_args)
-            return isinstance(value_item, allowed_types)
+            return any(_matches_type(value_item, arg) for arg in union_args)
 
+        if expected_type is float and isinstance(value_item, int):
+            return True
+
+        if isinstance(expected_type, type) and hasattr(expected_type, "__required_keys__"):
+            return isinstance(value_item, Mapping) and _conforms_to_typed_dict(
+                value_item,
+                expected_type,
+                check_optional=True,
+            )
+
+        # Get the origin type for generic types (e.g., list[str] -> list)
+        check_type = origin if origin is not None else expected_type
         return isinstance(value_item, check_type)
 
     for key in required_keys:
@@ -425,16 +495,91 @@ def collect_element_subentries(entry: ConfigEntry) -> list[ValidatedElementSuben
     return result
 
 
-def get_input_fields(element_config: ElementConfigSchema) -> dict[str, InputFieldInfo[Any]]:
+def get_input_fields(element_config: ElementConfigSchema) -> InputFieldGroups:
     """Return input field definitions for an element config."""
     element_type = element_config[CONF_ELEMENT_TYPE]
     adapter = ELEMENT_TYPES[element_type]
     return adapter.inputs(element_config)
 
 
+def iter_input_field_paths(input_fields: InputFieldGroups) -> list[tuple[InputFieldPath, InputFieldInfo[Any]]]:
+    """Return (field_path, InputFieldInfo) pairs from nested input fields."""
+    results: list[tuple[InputFieldPath, InputFieldInfo[Any]]] = []
+    for section_key, section_fields in input_fields.items():
+        for field_name, field_info in section_fields.items():
+            results.append(((section_key, field_name), field_info))
+    return results
+
+
+def get_nested_config_value(config: Mapping[str, Any], field_name: str) -> Any | None:
+    """Find a field value in a nested element config."""
+    for value in config.values():
+        if isinstance(value, Mapping):
+            if field_name in value:
+                return value[field_name]
+            nested_value = get_nested_config_value(value, field_name)
+            if nested_value is not None:
+                return nested_value
+    return None
+
+
+def find_nested_config_path(config: Mapping[str, Any], field_name: str) -> InputFieldPath | None:
+    """Find the path to a field in a nested element config."""
+    for key, value in config.items():
+        if key == field_name:
+            return (key,)
+        if isinstance(value, Mapping):
+            nested = find_nested_config_path(value, field_name)
+            if nested is not None:
+                return (key, *nested)
+    return None
+
+
+def get_nested_config_value_by_path(config: Mapping[str, Any], field_path: InputFieldPath) -> Any | None:
+    """Find a field value in a nested element config using a path."""
+    current: Any = config
+    for key in field_path:
+        if not isinstance(current, Mapping):
+            return None
+        if key not in current:
+            return None
+        current = current[key]
+    return current
+
+
+def set_nested_config_value(config: dict[str, Any], field_name: str, value: Any) -> bool:
+    """Set a field value in a nested element config."""
+    for nested in config.values():
+        if isinstance(nested, dict):
+            if field_name in nested:
+                nested[field_name] = value
+                return True
+            if set_nested_config_value(nested, field_name, value):
+                return True
+    return False
+
+
+def set_nested_config_value_by_path(config: dict[str, Any], field_path: InputFieldPath, value: Any) -> bool:
+    """Set a field value in a nested element config using a path."""
+    current: Any = config
+    for key in field_path[:-1]:
+        if not isinstance(current, dict):
+            return False
+        next_value = current.get(key)
+        if not isinstance(next_value, dict):
+            return False
+        current = next_value
+    if not isinstance(current, dict):
+        return False
+    current[field_path[-1]] = value
+    return True
+
+
 __all__ = [
     "ELEMENT_CONFIG_SCHEMAS",
     "ELEMENT_DEVICE_NAMES",
+    "ELEMENT_DEVICE_NAMES_BY_TYPE",
+    "ELEMENT_OPTIONAL_INPUT_FIELDS",
     "ELEMENT_TYPES",
     "ELEMENT_TYPE_BATTERY",
     "ELEMENT_TYPE_BATTERY_SECTION",
@@ -450,12 +595,23 @@ __all__ = [
     "ElementConfigSchema",
     "ElementDeviceName",
     "ElementType",
+    "FieldSchemaInfo",
+    "InputFieldGroups",
     "InputFieldInfo",
+    "InputFieldPath",
+    "InputFieldSection",
     "ValidatedElementSubentry",
     "collect_element_subentries",
+    "find_nested_config_path",
     "get_element_flow_classes",
+    "get_input_field_schema_info",
     "get_input_fields",
+    "get_nested_config_value",
+    "get_nested_config_value_by_path",
     "is_element_config_data",
     "is_element_config_schema",
     "is_element_type",
+    "iter_input_field_paths",
+    "set_nested_config_value",
+    "set_nested_config_value_by_path",
 ]

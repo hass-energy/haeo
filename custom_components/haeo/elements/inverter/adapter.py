@@ -6,10 +6,8 @@ from typing import Any, Final, Literal
 
 from homeassistant.components.number import NumberDeviceClass, NumberEntityDescription
 from homeassistant.const import PERCENTAGE, UnitOfPower
-from homeassistant.core import HomeAssistant
 
 from custom_components.haeo.const import ConnectivityLevel
-from custom_components.haeo.data.loader import TimeSeriesLoader
 from custom_components.haeo.elements.input_fields import InputFieldDefaults, InputFieldInfo
 from custom_components.haeo.elements.output_utils import expect_output_data
 from custom_components.haeo.model import ModelElementConfig, ModelOutputName, ModelOutputValue
@@ -23,16 +21,19 @@ from custom_components.haeo.model.elements.connection import (
 from custom_components.haeo.model.elements.node import NODE_POWER_BALANCE
 from custom_components.haeo.model.elements.segments import POWER_LIMIT_SOURCE_TARGET, POWER_LIMIT_TARGET_SOURCE
 from custom_components.haeo.model.output_data import OutputData
-
-from .schema import (
-    CONF_EFFICIENCY_AC_TO_DC,
-    CONF_EFFICIENCY_DC_TO_AC,
-    CONF_MAX_POWER_AC_TO_DC,
-    CONF_MAX_POWER_DC_TO_AC,
-    ELEMENT_TYPE,
-    InverterConfigData,
-    InverterConfigSchema,
+from custom_components.haeo.schema import extract_connection_target
+from custom_components.haeo.sections import (
+    CONF_CONNECTION,
+    CONF_EFFICIENCY_SOURCE_TARGET,
+    CONF_EFFICIENCY_TARGET_SOURCE,
+    CONF_MAX_POWER_SOURCE_TARGET,
+    CONF_MAX_POWER_TARGET_SOURCE,
+    SECTION_COMMON,
+    SECTION_EFFICIENCY,
+    SECTION_POWER_LIMITS,
 )
+
+from .schema import ELEMENT_TYPE, InverterConfigData
 
 # Inverter output names
 type InverterOutputName = Literal[
@@ -70,73 +71,72 @@ class InverterAdapter:
     advanced: bool = False
     connectivity: ConnectivityLevel = ConnectivityLevel.ALWAYS
 
-    def available(self, config: InverterConfigSchema, *, hass: HomeAssistant, **_kwargs: Any) -> bool:
-        """Check if inverter configuration can be loaded."""
-        ts_loader = TimeSeriesLoader()
-        if not ts_loader.available(hass=hass, value=config[CONF_MAX_POWER_DC_TO_AC]):
-            return False
-        return ts_loader.available(hass=hass, value=config[CONF_MAX_POWER_AC_TO_DC])
-
-    def inputs(self, config: Any) -> dict[str, InputFieldInfo[Any]]:
+    def inputs(self, config: Any) -> dict[str, dict[str, InputFieldInfo[Any]]]:
         """Return input field definitions for inverter elements."""
         _ = config
         return {
-            CONF_MAX_POWER_DC_TO_AC: InputFieldInfo(
-                field_name=CONF_MAX_POWER_DC_TO_AC,
-                entity_description=NumberEntityDescription(
-                    key=CONF_MAX_POWER_DC_TO_AC,
-                    translation_key=f"{ELEMENT_TYPE}_{CONF_MAX_POWER_DC_TO_AC}",
-                    native_unit_of_measurement=UnitOfPower.KILO_WATT,
-                    device_class=NumberDeviceClass.POWER,
-                    native_min_value=0.0,
-                    native_max_value=1000.0,
-                    native_step=0.1,
+            SECTION_POWER_LIMITS: {
+                CONF_MAX_POWER_SOURCE_TARGET: InputFieldInfo(
+                    field_name=CONF_MAX_POWER_SOURCE_TARGET,
+                    entity_description=NumberEntityDescription(
+                        key=CONF_MAX_POWER_SOURCE_TARGET,
+                        translation_key=f"{ELEMENT_TYPE}_{CONF_MAX_POWER_SOURCE_TARGET}",
+                        native_unit_of_measurement=UnitOfPower.KILO_WATT,
+                        device_class=NumberDeviceClass.POWER,
+                        native_min_value=0.0,
+                        native_max_value=1000.0,
+                        native_step=0.1,
+                    ),
+                    output_type=OutputType.POWER_LIMIT,
+                    time_series=True,
+                    force_required=True,
                 ),
-                output_type=OutputType.POWER_LIMIT,
-                time_series=True,
-            ),
-            CONF_MAX_POWER_AC_TO_DC: InputFieldInfo(
-                field_name=CONF_MAX_POWER_AC_TO_DC,
-                entity_description=NumberEntityDescription(
-                    key=CONF_MAX_POWER_AC_TO_DC,
-                    translation_key=f"{ELEMENT_TYPE}_{CONF_MAX_POWER_AC_TO_DC}",
-                    native_unit_of_measurement=UnitOfPower.KILO_WATT,
-                    device_class=NumberDeviceClass.POWER,
-                    native_min_value=0.0,
-                    native_max_value=1000.0,
-                    native_step=0.1,
+                CONF_MAX_POWER_TARGET_SOURCE: InputFieldInfo(
+                    field_name=CONF_MAX_POWER_TARGET_SOURCE,
+                    entity_description=NumberEntityDescription(
+                        key=CONF_MAX_POWER_TARGET_SOURCE,
+                        translation_key=f"{ELEMENT_TYPE}_{CONF_MAX_POWER_TARGET_SOURCE}",
+                        native_unit_of_measurement=UnitOfPower.KILO_WATT,
+                        device_class=NumberDeviceClass.POWER,
+                        native_min_value=0.0,
+                        native_max_value=1000.0,
+                        native_step=0.1,
+                    ),
+                    output_type=OutputType.POWER_LIMIT,
+                    time_series=True,
+                    force_required=True,
                 ),
-                output_type=OutputType.POWER_LIMIT,
-                time_series=True,
-            ),
-            CONF_EFFICIENCY_DC_TO_AC: InputFieldInfo(
-                field_name=CONF_EFFICIENCY_DC_TO_AC,
-                entity_description=NumberEntityDescription(
-                    key=CONF_EFFICIENCY_DC_TO_AC,
-                    translation_key=f"{ELEMENT_TYPE}_{CONF_EFFICIENCY_DC_TO_AC}",
-                    native_unit_of_measurement=PERCENTAGE,
-                    device_class=NumberDeviceClass.POWER_FACTOR,
-                    native_min_value=50.0,
-                    native_max_value=100.0,
-                    native_step=0.1,
+            },
+            SECTION_EFFICIENCY: {
+                CONF_EFFICIENCY_SOURCE_TARGET: InputFieldInfo(
+                    field_name=CONF_EFFICIENCY_SOURCE_TARGET,
+                    entity_description=NumberEntityDescription(
+                        key=CONF_EFFICIENCY_SOURCE_TARGET,
+                        translation_key=f"{ELEMENT_TYPE}_{CONF_EFFICIENCY_SOURCE_TARGET}",
+                        native_unit_of_measurement=PERCENTAGE,
+                        device_class=NumberDeviceClass.POWER_FACTOR,
+                        native_min_value=50.0,
+                        native_max_value=100.0,
+                        native_step=0.1,
+                    ),
+                    output_type=OutputType.EFFICIENCY,
+                    defaults=InputFieldDefaults(mode=None, value=100.0),
                 ),
-                output_type=OutputType.EFFICIENCY,
-                defaults=InputFieldDefaults(mode=None, value=100.0),
-            ),
-            CONF_EFFICIENCY_AC_TO_DC: InputFieldInfo(
-                field_name=CONF_EFFICIENCY_AC_TO_DC,
-                entity_description=NumberEntityDescription(
-                    key=CONF_EFFICIENCY_AC_TO_DC,
-                    translation_key=f"{ELEMENT_TYPE}_{CONF_EFFICIENCY_AC_TO_DC}",
-                    native_unit_of_measurement=PERCENTAGE,
-                    device_class=NumberDeviceClass.POWER_FACTOR,
-                    native_min_value=50.0,
-                    native_max_value=100.0,
-                    native_step=0.1,
+                CONF_EFFICIENCY_TARGET_SOURCE: InputFieldInfo(
+                    field_name=CONF_EFFICIENCY_TARGET_SOURCE,
+                    entity_description=NumberEntityDescription(
+                        key=CONF_EFFICIENCY_TARGET_SOURCE,
+                        translation_key=f"{ELEMENT_TYPE}_{CONF_EFFICIENCY_TARGET_SOURCE}",
+                        native_unit_of_measurement=PERCENTAGE,
+                        device_class=NumberDeviceClass.POWER_FACTOR,
+                        native_min_value=50.0,
+                        native_max_value=100.0,
+                        native_step=0.1,
+                    ),
+                    output_type=OutputType.EFFICIENCY,
+                    defaults=InputFieldDefaults(mode=None, value=100.0),
                 ),
-                output_type=OutputType.EFFICIENCY,
-                defaults=InputFieldDefaults(mode=None, value=100.0),
-            ),
+            },
         }
 
     def model_elements(self, config: InverterConfigData) -> list[ModelElementConfig]:
@@ -145,27 +145,39 @@ class InverterAdapter:
         Creates a DC bus (Node junction) and a connection to the AC side with
         efficiency and power limits for bidirectional power conversion.
         """
+        power_limits = config[SECTION_POWER_LIMITS]
+        max_power_source_target = power_limits.get(CONF_MAX_POWER_SOURCE_TARGET)
+        max_power_target_source = power_limits.get(CONF_MAX_POWER_TARGET_SOURCE)
+        if max_power_source_target is None or max_power_target_source is None:
+            msg = "Inverter power limits missing - config flow validation failed"
+            raise RuntimeError(msg)
+
         return [
             # Create Node for the DC bus (pure junction - neither source nor sink)
-            {"element_type": MODEL_ELEMENT_TYPE_NODE, "name": config["name"], "is_source": False, "is_sink": False},
+            {
+                "element_type": MODEL_ELEMENT_TYPE_NODE,
+                "name": config[SECTION_COMMON]["name"],
+                "is_source": False,
+                "is_sink": False,
+            },
             # Create a connection from DC bus to AC node
             # source_target = DC to AC (inverting)
             # target_source = AC to DC (rectifying)
             {
                 "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
-                "name": f"{config['name']}:connection",
-                "source": config["name"],
-                "target": config["connection"],
+                "name": f"{config[SECTION_COMMON]['name']}:connection",
+                "source": config[SECTION_COMMON]["name"],
+                "target": extract_connection_target(config[SECTION_COMMON][CONF_CONNECTION]),
                 "segments": {
                     "efficiency": {
                         "segment_type": "efficiency",
-                        "efficiency_source_target": config.get("efficiency_dc_to_ac"),
-                        "efficiency_target_source": config.get("efficiency_ac_to_dc"),
+                        "efficiency_source_target": config[SECTION_EFFICIENCY].get(CONF_EFFICIENCY_SOURCE_TARGET),
+                        "efficiency_target_source": config[SECTION_EFFICIENCY].get(CONF_EFFICIENCY_TARGET_SOURCE),
                     },
                     "power_limit": {
                         "segment_type": "power_limit",
-                        "max_power_source_target": config["max_power_dc_to_ac"],
-                        "max_power_target_source": config["max_power_ac_to_dc"],
+                        "max_power_source_target": max_power_source_target,
+                        "max_power_target_source": max_power_target_source,
                     },
                 },
             },

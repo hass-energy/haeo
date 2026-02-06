@@ -4,16 +4,30 @@ from collections.abc import Sequence
 from typing import Any
 
 from highspy import Highs
+from highspy.highs import HighspyArray, highs_linear_expression
 import numpy as np
 from numpy.typing import NDArray
 import pytest
 
+from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.element import Element
 from custom_components.haeo.model.elements.connection import Connection
-from custom_components.haeo.model.elements.segments import PowerLimitSegment, PricingSegment
+from custom_components.haeo.model.elements.segments import (
+    PowerLimitSegment,
+    PricingSegment,
+    SocPricingSegment,
+    is_efficiency_spec,
+    is_passthrough_spec,
+    is_power_limit_spec,
+    is_pricing_spec,
+    is_soc_pricing_spec,
+)
+from custom_components.haeo.model.elements.segments.segment import Segment
+from custom_components.haeo.model.output_data import OutputData
+from custom_components.haeo.model.reactive import cost, output
 
 from . import test_data
-from .test_data.segment_types import ConnectionScenario, ExpectedValue, SegmentScenario
+from .test_data.segment_types import ConnectionScenario, ExpectedValue, SegmentErrorScenario, SegmentScenario
 
 
 def create_solver() -> Highs:
@@ -30,6 +44,65 @@ class DummyElement(Element[str]):
     def __init__(self, name: str, periods: NDArray[np.floating[Any]], solver: Highs) -> None:
         """Create a dummy element with no outputs."""
         super().__init__(name=name, periods=periods, solver=solver, output_names=frozenset())
+
+
+class DummySegment(Segment):
+    """Minimal segment for coverage of base helpers."""
+
+    def __init__(
+        self,
+        segment_id: str,
+        n_periods: int,
+        periods: NDArray[np.floating[Any]],
+        solver: Highs,
+        *,
+        source_element: Element[Any],
+        target_element: Element[Any],
+    ) -> None:
+        """Initialize a dummy segment with a shared power variable."""
+        super().__init__(
+            segment_id,
+            n_periods,
+            periods,
+            solver,
+            source_element=source_element,
+            target_element=target_element,
+        )
+        self._power = solver.addVariables(n_periods, lb=0, name_prefix=f"{segment_id}_p_", out_array=True)
+        self._cost_var = solver.addVariables(1, lb=0, name_prefix=f"{segment_id}_c_", out_array=True)
+
+    @property
+    def power_in_st(self) -> HighspyArray:
+        """Return power entering the segment source to target."""
+        return self._power
+
+    @property
+    def power_out_st(self) -> HighspyArray:
+        """Return power leaving the segment source to target."""
+        return self._power
+
+    @property
+    def power_in_ts(self) -> HighspyArray:
+        """Return power entering the segment target to source."""
+        return self._power
+
+    @property
+    def power_out_ts(self) -> HighspyArray:
+        """Return power leaving the segment target to source."""
+        return self._power
+
+    @output
+    def coverage_output(self) -> OutputData:
+        """Expose a dummy output for Segment.outputs coverage."""
+        return OutputData(type=OutputType.POWER, unit="kW", values=tuple(0.0 for _ in range(self.n_periods)))
+
+    @cost
+    def list_cost(self) -> list[highs_linear_expression]:
+        """Return multiple cost terms to exercise cost aggregation."""
+        return [
+            Highs.qsum(self._cost_var),
+            Highs.qsum(self._cost_var),
+        ]
 
 
 def _assert_expected_value(actual: ExpectedValue, expected: ExpectedValue) -> None:
@@ -60,8 +133,12 @@ def _assert_expected_outputs(actual: dict[str, ExpectedValue], expected: dict[st
 def _solve_segment_scenario(case: SegmentScenario) -> dict[str, ExpectedValue]:
     h = create_solver()
     periods = np.asarray(case["periods"], dtype=np.float64)
-    source = DummyElement("source", periods, h)
-    target = DummyElement("target", periods, h)
+    endpoint_factory = case.get("endpoint_factory")
+    if endpoint_factory is None:
+        source = DummyElement("source", periods, h)
+        target = DummyElement("target", periods, h)
+    else:
+        source, target = endpoint_factory(h, periods)
     seg = case["factory"](
         "seg",
         len(periods),
@@ -205,3 +282,89 @@ def test_connection_scenarios(case: ConnectionScenario) -> None:
     """Connections should match expected inputs/outputs."""
     outputs = _solve_connection_scenario(case)
     _assert_expected_outputs(outputs, case["expected_outputs"])
+
+
+@pytest.mark.parametrize("case", test_data.SEGMENT_ERROR_SCENARIOS, ids=lambda c: c["description"])
+def test_segment_error_scenarios(case: SegmentErrorScenario) -> None:
+    """Segments should raise errors for invalid configurations."""
+    h = create_solver()
+    periods = np.asarray(case["periods"], dtype=np.float64)
+    endpoint_factory = case.get("endpoint_factory")
+    if endpoint_factory is None:
+        source = DummyElement("source", periods, h)
+        target = DummyElement("target", periods, h)
+    else:
+        source, target = endpoint_factory(h, periods)
+
+    match = case["match"]
+    if match is None:
+        with pytest.raises(case["error"]):
+            case["factory"](
+                "seg",
+                len(periods),
+                periods,
+                h,
+                spec=case["spec"],
+                source_element=source,
+                target_element=target,
+            )
+    else:
+        with pytest.raises(case["error"], match=match):
+            case["factory"](
+                "seg",
+                len(periods),
+                periods,
+                h,
+                spec=case["spec"],
+                source_element=source,
+                target_element=target,
+            )
+
+
+def test_segment_spec_typeguards() -> None:
+    """Type guard helpers identify segment specs by type."""
+    assert is_efficiency_spec(
+        {"segment_type": "efficiency", "efficiency_source_target": None, "efficiency_target_source": None}
+    )
+    assert is_passthrough_spec({"segment_type": "passthrough"})
+    assert is_power_limit_spec({"segment_type": "power_limit"})
+    assert is_pricing_spec({"segment_type": "pricing", "price_source_target": None, "price_target_source": None})
+    assert is_soc_pricing_spec({"segment_type": "soc_pricing"})
+
+
+def test_segment_outputs_and_cost_coverage() -> None:
+    """Segment helpers expose outputs, costs, and period metadata."""
+    h = create_solver()
+    periods = np.asarray([1.0, 1.0], dtype=np.float64)
+    source = DummyElement("source", periods, h)
+    target = DummyElement("target", periods, h)
+    segment = DummySegment("seg", len(periods), periods, h, source_element=source, target_element=target)
+
+    np.testing.assert_array_equal(segment.periods, periods)
+
+    outputs = segment.outputs()
+    assert "coverage_output" in outputs
+
+    cost_value = segment.cost()
+    assert cost_value is not None
+
+
+def test_soc_pricing_cost_none_without_prices() -> None:
+    """SOC pricing cost returns None when no prices are configured."""
+    h = create_solver()
+    periods = np.asarray([1.0], dtype=np.float64)
+    stored_energy = h.addVariables(2, lb=0, name_prefix="battery_e_", out_array=True)
+    battery = DummyElement("battery", periods, h)
+    battery.stored_energy = stored_energy  # type: ignore[attr-defined]
+    target = DummyElement("target", periods, h)
+    segment = SocPricingSegment(
+        "seg",
+        len(periods),
+        periods,
+        h,
+        spec={"segment_type": "soc_pricing"},
+        source_element=battery,
+        target_element=target,
+    )
+
+    assert segment.cost() is None

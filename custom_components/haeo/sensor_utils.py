@@ -150,6 +150,8 @@ def get_output_sensors(hass: HomeAssistant, config_entry: ConfigEntry) -> dict[s
         # Make attributes dict mutable and remove unstable fields
         if "attributes" in state_dict and isinstance(state_dict["attributes"], dict):
             state_dict["attributes"] = dict(state_dict["attributes"])
+            # Drop internal-only attributes to keep snapshots stable.
+            state_dict["attributes"].pop("field_path", None)
 
         # Remove timestamp-based fields that aren't relevant for functional comparison
         state_dict.pop("last_changed", None)
