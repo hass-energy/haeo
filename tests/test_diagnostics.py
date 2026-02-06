@@ -2,7 +2,7 @@
 
 from datetime import UTC, datetime, timedelta, timezone
 from types import MappingProxyType
-from typing import Any
+from typing import Any, cast
 from unittest.mock import AsyncMock, Mock, patch
 
 from homeassistant.config_entries import ConfigSubentry
@@ -42,7 +42,7 @@ from custom_components.haeo.diagnostics import (
     collect_diagnostics,
 )
 from custom_components.haeo.diagnostics.collector import _extract_entity_ids_from_config
-from custom_components.haeo.elements import ELEMENT_TYPE_BATTERY
+from custom_components.haeo.elements import ELEMENT_TYPE_BATTERY, ElementConfigSchema
 from custom_components.haeo.elements.battery import (
     CONF_CAPACITY,
     CONF_CONNECTION,
@@ -185,7 +185,7 @@ def test_extract_entity_ids_from_config_collects_nested_entities() -> None:
         "ignored": {"type": "constant", "value": 2.0},
     }
 
-    entity_ids = _extract_entity_ids_from_config(config)
+    entity_ids = _extract_entity_ids_from_config(cast("ElementConfigSchema", config))
 
     assert entity_ids == {"sensor.import", "sensor.export"}
 
@@ -202,7 +202,7 @@ async def test_collect_diagnostics_historical_skips_outputs(hass: HomeAssistant)
 
     state_provider = Mock()
     state_provider.is_historical = True
-    state_provider.timestamp = datetime(2024, 1, 1, tzinfo=timezone.utc)
+    state_provider.timestamp = datetime(2024, 1, 1, tzinfo=UTC)
     state_provider.get_states = AsyncMock(return_value={})
 
     result = await collect_diagnostics(hass, entry, state_provider)

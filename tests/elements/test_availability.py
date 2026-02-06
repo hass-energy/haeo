@@ -51,7 +51,7 @@ def test_schema_config_available_handles_nested_entity(
 
     monkeypatch.setattr(TimeSeriesLoader, "available", _fake_available)
 
-    config = {"nested": {"sensor": as_entity_value(["sensor.test"])} }
+    config = {"nested": {"sensor": as_entity_value(["sensor.test"])}}
 
     assert schema_config_available(config, hass=hass) is True
     assert calls

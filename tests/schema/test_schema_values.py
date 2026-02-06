@@ -1,18 +1,16 @@
 """Tests for schema value utilities."""
 
-from typing import TypeAliasType
-
 from custom_components.haeo.schema import (
-    ConstantValue,
-    EntityValue,
-    NoneValue,
     VALUE_TYPE_CONSTANT,
     VALUE_TYPE_ENTITY,
     VALUE_TYPE_NONE,
+    ConstantValue,
+    EntityValue,
+    NoneValue,
     get_schema_value_kinds,
 )
 
-ValueAlias = TypeAliasType("ValueAlias", EntityValue | NoneValue)
+type ValueAlias = EntityValue | NoneValue
 
 
 def test_get_schema_value_kinds_handles_union_and_alias() -> None:

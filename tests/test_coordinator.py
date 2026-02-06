@@ -4,7 +4,7 @@ from collections.abc import Generator
 from datetime import UTC, datetime, timedelta
 import time
 from types import MappingProxyType
-from typing import Any
+from typing import Any, cast
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 from homeassistant.components.number import NumberEntityDescription
@@ -19,6 +19,7 @@ import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.haeo import HaeoRuntimeData
+from custom_components.haeo import elements as elements_module
 from custom_components.haeo.const import (
     CONF_DEBOUNCE_SECONDS,
     CONF_ELEMENT_TYPE,
@@ -50,12 +51,12 @@ from custom_components.haeo.coordinator import (
     _build_coordinator_output,
 )
 from custom_components.haeo.coordinator.coordinator import _strip_none_schema_values
-from custom_components.haeo import elements as elements_module
 from custom_components.haeo.elements import (
     ELEMENT_TYPE_BATTERY,
     ELEMENT_TYPE_CONNECTION,
     ELEMENT_TYPE_GRID,
     ELEMENT_TYPES,
+    ElementConfigSchema,
 )
 from custom_components.haeo.elements.battery import (
     BATTERY_DEVICE_BATTERY,
@@ -85,13 +86,19 @@ from custom_components.haeo.elements.grid import CONF_CONNECTION as CONF_CONNECT
 from custom_components.haeo.elements.grid import CONF_MAX_POWER_SOURCE_TARGET as CONF_GRID_MAX_POWER_SOURCE_TARGET
 from custom_components.haeo.elements.grid import CONF_MAX_POWER_TARGET_SOURCE as CONF_GRID_MAX_POWER_TARGET_SOURCE
 from custom_components.haeo.elements.grid import CONF_PRICE_SOURCE_TARGET, CONF_PRICE_TARGET_SOURCE
+from custom_components.haeo.elements.input_fields import InputFieldInfo
 from custom_components.haeo.elements.solar import SOLAR_POWER
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON, HUB_SECTION_TIERS
 from custom_components.haeo.model import Network, OutputData, OutputType
 from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_NODE
-from custom_components.haeo.schema import EntityValue, as_connection_target, as_constant_value, as_entity_value, as_none_value
+from custom_components.haeo.schema import (
+    EntityValue,
+    as_connection_target,
+    as_constant_value,
+    as_entity_value,
+    as_none_value,
+)
 from custom_components.haeo.sections import SECTION_COMMON, SECTION_EFFICIENCY, SECTION_POWER_LIMITS, SECTION_PRICING
-from custom_components.haeo.elements.input_fields import InputFieldInfo
 
 
 @pytest.fixture
@@ -660,7 +667,9 @@ def test_load_element_config_raises_on_required_none_value(
 ) -> None:
     """_load_element_config raises when required fields resolve to None."""
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
-    coordinator._participant_configs = {"Test Battery": {CONF_ELEMENT_TYPE: ELEMENT_TYPE_BATTERY}}
+    coordinator._participant_configs = {
+        "Test Battery": cast("ElementConfigSchema", {CONF_ELEMENT_TYPE: ELEMENT_TYPE_BATTERY}),
+    }
 
     field_info = InputFieldInfo(
         field_name="required",
