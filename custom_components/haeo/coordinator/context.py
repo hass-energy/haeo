@@ -3,9 +3,11 @@
 from collections.abc import Mapping
 from copy import deepcopy
 from dataclasses import dataclass
+from datetime import datetime
 from typing import TYPE_CHECKING, Any, Self, cast
 
 from homeassistant.core import State
+from homeassistant.util import dt as dt_util
 
 from custom_components.haeo.elements import ElementConfigSchema, InputFieldPath
 
@@ -21,7 +23,7 @@ class OptimizationContext:
     This class captures all inputs needed to reproduce an optimization run:
     - Element configurations (raw schemas, not processed data)
     - Source sensor states captured when entities loaded data
-    - Horizon reference timestamp used for period alignment
+    - Horizon reference time used for period alignment
 
     The context is built at the start of each optimization run and stored
     in CoordinatorData for diagnostics and reproducibility.
@@ -30,8 +32,8 @@ class OptimizationContext:
     hub_config: Mapping[str, Any]
     """Hub configuration used to derive periods and timestamps."""
 
-    reference_timestamp: float
-    """Horizon start timestamp used for period alignment."""
+    horizon_start: datetime
+    """Horizon start time used for period alignment."""
 
     participants: dict[str, ElementConfigSchema]
     """Raw element schemas (not processed ElementConfigData)."""
@@ -66,9 +68,13 @@ class OptimizationContext:
         for entity in input_entities.values():
             source_states.update(entity.get_captured_source_states())
 
+        start_time = horizon_manager.current_start_time
+        if start_time is None:
+            start_time = dt_util.utcnow()
+
         return cls(
             hub_config=deepcopy(dict(hub_config)),
-            reference_timestamp=horizon_manager.reference_timestamp,
+            horizon_start=start_time,
             participants=_deep_copy_config(participant_configs),
             source_states=source_states,
         )

@@ -6,6 +6,7 @@ from unittest.mock import MagicMock, Mock, patch
 
 from homeassistant.components.system_health import SystemHealthRegistration
 from homeassistant.core import HomeAssistant
+from homeassistant.util import dt as dt_util
 import pytest
 
 from custom_components.haeo.const import (
@@ -43,7 +44,7 @@ def _make_coordinator_data(outputs: dict[str, Any]) -> CoordinatorData:
     """Create a CoordinatorData instance for tests."""
     context = OptimizationContext(
         hub_config={},
-        reference_timestamp=1000.0,
+        horizon_start=datetime.fromtimestamp(1000.0, tz=dt_util.UTC),
         participants={},
         source_states={},
     )

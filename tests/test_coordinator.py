@@ -961,7 +961,7 @@ async def test_async_update_data_returns_existing_when_concurrent(
     # Simulate existing data and in-progress flag
     existing_context = OptimizationContext(
         hub_config={},
-        reference_timestamp=1000.0,
+        horizon_start=datetime.fromtimestamp(1000.0, tz=dt_util.UTC),
         participants={},
         source_states={},
     )
@@ -1578,7 +1578,7 @@ def test_optimization_context_build_collects_source_states() -> None:
     mock_horizon = MagicMock()
     mock_horizon.get_forecast_timestamps.return_value = (1000.0, 2000.0, 3000.0)
     mock_horizon.periods_seconds = [300, 600]
-    mock_horizon.reference_timestamp = 1000.0
+    mock_horizon.current_start_time = datetime.fromtimestamp(1000.0, tz=dt_util.UTC)
 
     # Create mock participant configs (use Any to avoid strict TypedDict checking in tests)
     participant_configs: Any = {
@@ -1612,7 +1612,7 @@ def test_optimization_context_build_deep_copies_configs() -> None:
     mock_horizon = MagicMock()
     mock_horizon.get_forecast_timestamps.return_value = (1000.0,)
     mock_horizon.periods_seconds = [300]
-    mock_horizon.reference_timestamp = 1000.0
+    mock_horizon.current_start_time = datetime.fromtimestamp(1000.0, tz=dt_util.UTC)
 
     context = OptimizationContext.build(
         hub_config={"tier_1_count": 2, "tier_1_duration": 60},
@@ -1626,13 +1626,11 @@ def test_optimization_context_build_deep_copies_configs() -> None:
     assert context.participants["Battery"]["basic"]["capacity"] == [1.0, 2.0, 3.0]  # type: ignore[typeddict-item]
 
 
-def test_optimization_context_build_captures_reference_timestamp() -> None:
-    """OptimizationContext.build captures horizon reference timestamp."""
+def test_optimization_context_build_captures_horizon_start() -> None:
+    """OptimizationContext.build captures horizon start time as datetime."""
     mock_horizon = MagicMock()
-    expected_timestamps = (1000.0, 2000.0, 3000.0, 4000.0)
-    mock_horizon.get_forecast_timestamps.return_value = expected_timestamps
-    mock_horizon.periods_seconds = [300, 600]
-    mock_horizon.reference_timestamp = expected_timestamps[0]
+    expected_time = datetime.fromtimestamp(1000.0, tz=dt_util.UTC)
+    mock_horizon.current_start_time = expected_time
 
     context = OptimizationContext.build(
         hub_config={"tier_1_count": 2, "tier_1_duration": 60},
@@ -1641,14 +1639,14 @@ def test_optimization_context_build_captures_reference_timestamp() -> None:
         horizon_manager=mock_horizon,
     )
 
-    assert context.reference_timestamp == expected_timestamps[0]
+    assert context.horizon_start == expected_time
 
 
 def test_optimization_context_is_immutable() -> None:
     """OptimizationContext is frozen and cannot be modified."""
     context = OptimizationContext(
         hub_config={},
-        reference_timestamp=1000.0,
+        horizon_start=datetime.fromtimestamp(1000.0, tz=dt_util.UTC),
         participants={},
         source_states={},
     )
@@ -1660,4 +1658,4 @@ def test_optimization_context_is_immutable() -> None:
         context.source_states = {}  # type: ignore[misc]
 
     with pytest.raises(AttributeError):
-        context.reference_timestamp = 2000.0  # type: ignore[misc]
+        context.horizon_start = datetime.fromtimestamp(2000.0, tz=dt_util.UTC)  # type: ignore[misc]

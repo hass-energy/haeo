@@ -10,6 +10,7 @@ from homeassistant.config_entries import ConfigSubentry
 from homeassistant.const import EntityCategory, UnitOfTime
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceEntry
+from homeassistant.util import dt as dt_util
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
@@ -49,7 +50,7 @@ def _make_coordinator_data(outputs: dict[str, Any] | None = None) -> Coordinator
         return None
     context = OptimizationContext(
         hub_config={},
-        reference_timestamp=1000.0,
+        horizon_start=datetime.fromtimestamp(1000.0, tz=dt_util.UTC),
         participants={},
         source_states={},
     )

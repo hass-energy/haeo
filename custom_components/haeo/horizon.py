@@ -55,7 +55,6 @@ class HorizonManager:
 
         # Current forecast timestamps (cached)
         self._forecast_timestamps: tuple[float, ...] = ()
-        self._reference_timestamp: float = 0.0
 
         # Initialize timestamps
         self._update_timestamps()
@@ -63,7 +62,7 @@ class HorizonManager:
     def _update_timestamps(self) -> None:
         """Update the cached forecast timestamps."""
         self._periods_seconds = tiers_to_periods_seconds(self._config_entry.data)
-        self._forecast_timestamps, self._reference_timestamp = generate_forecast_timestamps(self._periods_seconds)
+        self._forecast_timestamps, _ = generate_forecast_timestamps(self._periods_seconds)
 
     def start(self) -> Callable[[], None]:
         """Start the scheduled updates.
@@ -165,11 +164,6 @@ class HorizonManager:
         Returns boundary timestamps for the horizon (n_periods + 1 values).
         """
         return self._forecast_timestamps
-
-    @property
-    def reference_timestamp(self) -> float:
-        """Get the reference timestamp used for period alignment."""
-        return self._reference_timestamp
 
     @property
     def periods_seconds(self) -> list[int]:
