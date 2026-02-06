@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING, Protocol
 
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry
 from homeassistant.const import Platform
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, State
 from homeassistant.exceptions import ConfigEntryError, ConfigEntryNotReady
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.translation import async_get_translations
@@ -61,6 +61,10 @@ class InputEntity(Protocol):
 
     def get_values(self) -> tuple[float | bool, ...] | None:
         """Return forecast values or None if not loaded."""
+        ...
+
+    def get_captured_source_states(self) -> dict[str, State]:
+        """Return captured source states from the last data load."""
         ...
 
 

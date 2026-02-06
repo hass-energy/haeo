@@ -282,7 +282,9 @@ def tiers_to_periods_seconds(config: Mapping[str, int | str | Mapping[str, int |
     return periods
 
 
-def generate_forecast_timestamps(periods_seconds: Sequence[int], start_time: float | None = None) -> tuple[float, ...]:
+def generate_forecast_timestamps(
+    periods_seconds: Sequence[int], start_time: float | None = None
+) -> tuple[tuple[float, ...], float]:
     """Generate forecast timestamps as period boundaries.
 
     Creates n_periods+1 timestamps representing the start of each period plus
@@ -294,11 +296,11 @@ def generate_forecast_timestamps(periods_seconds: Sequence[int], start_time: flo
             time rounded down to the smallest period boundary.
 
     Returns:
-        Tuple of timestamps for each boundary.
+        Tuple of (timestamps, start_time).
 
     Example:
         >>> generate_forecast_timestamps([60, 60, 300], 0.0)
-        (0.0, 60.0, 120.0, 420.0)
+        ((0.0, 60.0, 120.0, 420.0), 0.0)
 
     """
     if start_time is None:
@@ -309,10 +311,10 @@ def generate_forecast_timestamps(periods_seconds: Sequence[int], start_time: flo
     timestamps: list[float] = [start_time]
     for period in periods_seconds:
         timestamps.append(timestamps[-1] + period)
-    return tuple(timestamps)
+    return tuple(timestamps), start_time
 
 
-def generate_forecast_timestamps_from_config(config: Mapping[str, int | str]) -> tuple[float, ...]:
+def generate_forecast_timestamps_from_config(config: Mapping[str, int | str]) -> tuple[tuple[float, ...], float]:
     """Generate forecast timestamps from tier configuration.
 
     Converts tier config to period durations and generates boundary timestamps
@@ -322,7 +324,7 @@ def generate_forecast_timestamps_from_config(config: Mapping[str, int | str]) ->
         config: Tier configuration with tier_N_count and tier_N_duration keys.
 
     Returns:
-        Tuple of timestamps for each boundary.
+        Tuple of (timestamps, start_time).
 
     """
     periods_seconds = tiers_to_periods_seconds(config)
