@@ -20,7 +20,6 @@ from numpy.typing import NDArray
 
 from custom_components.haeo.model.element import Element
 
-from .battery_balance import BatteryBalanceOutputName, BatteryBalanceSegment, BatteryBalanceSegmentSpec
 from .demand_pricing import DemandPricingSegment, DemandPricingSegmentSpec
 from .efficiency import EfficiencySegment, EfficiencySegmentSpec
 from .passthrough import PassthroughSegment, PassthroughSegmentSpec
@@ -38,7 +37,6 @@ from .soc_pricing import SocPricingSegment, SocPricingSegmentSpec
 
 # Discriminated union of segment type strings
 type SegmentType = Literal[
-    "battery_balance",
     "demand_pricing",
     "efficiency",
     "passthrough",
@@ -49,8 +47,7 @@ type SegmentType = Literal[
 
 # Union type for all segment specifications
 type SegmentSpec = (
-    BatteryBalanceSegmentSpec
-    | DemandPricingSegmentSpec
+    DemandPricingSegmentSpec
     | EfficiencySegmentSpec
     | PassthroughSegmentSpec
     | PowerLimitSegmentSpec
@@ -98,7 +95,6 @@ class SegmentSpecEntry:
 
 # Registry mapping segment type strings to segment factories
 SEGMENTS: Final[dict[SegmentType, SegmentSpecEntry]] = {
-    "battery_balance": SegmentSpecEntry(factory=BatteryBalanceSegment),
     "demand_pricing": SegmentSpecEntry(factory=DemandPricingSegment),
     "efficiency": SegmentSpecEntry(factory=EfficiencySegment),
     "passthrough": SegmentSpecEntry(factory=PassthroughSegment),
@@ -141,9 +137,6 @@ __all__ = [
     "POWER_LIMIT_TARGET_SOURCE",
     "POWER_LIMIT_TIME_SLICE",
     "SEGMENTS",
-    "BatteryBalanceOutputName",
-    "BatteryBalanceSegment",
-    "BatteryBalanceSegmentSpec",
     "DemandPricingSegment",
     "DemandPricingSegmentSpec",
     "EfficiencySegment",
