@@ -41,6 +41,7 @@ from custom_components.haeo.diagnostics import (
     async_get_config_entry_diagnostics,
     collect_diagnostics,
 )
+from custom_components.haeo.diagnostics.collector import _extract_entity_ids_from_config
 from custom_components.haeo.elements import ELEMENT_TYPE_BATTERY
 from custom_components.haeo.elements.battery import (
     CONF_CAPACITY,
@@ -169,6 +170,46 @@ def _hub_entry_data(name: str = "Test Hub") -> dict[str, Any]:
             CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
         },
     }
+
+
+def test_extract_entity_ids_from_config_collects_nested_entities() -> None:
+    """_extract_entity_ids_from_config collects valid entity IDs from nested config."""
+    config = {
+        CONF_ELEMENT_TYPE: "grid",
+        SECTION_COMMON: {CONF_NAME: "Grid", CONF_CONNECTION: as_connection_target("bus")},
+        SECTION_PRICING: {
+            CONF_PRICE_SOURCE_TARGET: as_entity_value(["sensor.import", "invalid"]),
+            CONF_PRICE_TARGET_SOURCE: as_constant_value(0.1),
+        },
+        "nested": {"inner": as_entity_value(["sensor.export"])},
+        "ignored": {"type": "constant", "value": 2.0},
+    }
+
+    entity_ids = _extract_entity_ids_from_config(config)
+
+    assert entity_ids == {"sensor.import", "sensor.export"}
+
+
+async def test_collect_diagnostics_historical_skips_outputs(hass: HomeAssistant) -> None:
+    """collect_diagnostics omits outputs and marks historical data."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data=_hub_entry_data("Historical Hub"),
+        entry_id="hist_entry",
+    )
+    entry.add_to_hass(hass)
+    entry.runtime_data = None
+
+    state_provider = Mock()
+    state_provider.is_historical = True
+    state_provider.timestamp = datetime(2024, 1, 1, tzinfo=timezone.utc)
+    state_provider.get_states = AsyncMock(return_value={})
+
+    result = await collect_diagnostics(hass, entry, state_provider)
+
+    assert result.data["outputs"] == {}
+    assert result.data["environment"]["historical"] is True
+    assert result.missing_entity_ids == []
 
 
 async def test_diagnostics_basic_structure(hass: HomeAssistant) -> None:

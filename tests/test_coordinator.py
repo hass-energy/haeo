@@ -7,6 +7,7 @@ from types import MappingProxyType
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
+from homeassistant.components.number import NumberEntityDescription
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry
 from homeassistant.const import STATE_OFF, STATE_ON, UnitOfEnergy
 from homeassistant.core import HomeAssistant, State
@@ -48,6 +49,8 @@ from custom_components.haeo.coordinator import (
     HaeoDataUpdateCoordinator,
     _build_coordinator_output,
 )
+from custom_components.haeo.coordinator.coordinator import _strip_none_schema_values
+from custom_components.haeo import elements as elements_module
 from custom_components.haeo.elements import (
     ELEMENT_TYPE_BATTERY,
     ELEMENT_TYPE_CONNECTION,
@@ -86,8 +89,9 @@ from custom_components.haeo.elements.solar import SOLAR_POWER
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON, HUB_SECTION_TIERS
 from custom_components.haeo.model import Network, OutputData, OutputType
 from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_NODE
-from custom_components.haeo.schema import as_connection_target, as_constant_value, as_entity_value
+from custom_components.haeo.schema import EntityValue, as_connection_target, as_constant_value, as_entity_value, as_none_value
 from custom_components.haeo.sections import SECTION_COMMON, SECTION_EFFICIENCY, SECTION_POWER_LIMITS, SECTION_PRICING
+from custom_components.haeo.elements.input_fields import InputFieldInfo
 
 
 @pytest.fixture
@@ -632,6 +636,60 @@ def test_build_coordinator_output_handles_empty_values() -> None:
 
     assert output.state is None
     assert output.forecast is None
+
+
+def test_strip_none_schema_values_removes_disabled_values() -> None:
+    """_strip_none_schema_values removes disabled schema values recursively."""
+    data = {
+        "disabled": as_none_value(),
+        "nested": {"keep": as_constant_value(1.0), "disabled": as_none_value()},
+    }
+
+    _strip_none_schema_values(data)
+
+    assert "disabled" not in data
+    assert "disabled" not in data["nested"]
+
+
+@pytest.mark.usefixtures("mock_battery_subentry")
+def test_load_element_config_raises_on_required_none_value(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+    mock_runtime_data: HaeoRuntimeData,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """_load_element_config raises when required fields resolve to None."""
+    coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
+    coordinator._participant_configs = {"Test Battery": {CONF_ELEMENT_TYPE: ELEMENT_TYPE_BATTERY}}
+
+    field_info = InputFieldInfo(
+        field_name="required",
+        entity_description=NumberEntityDescription(key="required"),
+        output_type=OutputType.POWER,
+        time_series=False,
+    )
+
+    def _fake_input_fields(_config: Any) -> dict[str, dict[str, InputFieldInfo[Any]]]:
+        return {"section": {"required": field_info}}
+
+    def _fake_field_schema(_element_type: Any, _input_fields: Any) -> dict[str, dict[str, Any]]:
+        return {"section": {"required": elements_module.FieldSchemaInfo(value_type=EntityValue, is_optional=False)}}
+
+    monkeypatch.setattr(
+        "custom_components.haeo.coordinator.coordinator.get_input_fields",
+        _fake_input_fields,
+    )
+    monkeypatch.setattr(
+        "custom_components.haeo.coordinator.coordinator.get_input_field_schema_info",
+        _fake_field_schema,
+    )
+
+    mock_entity = MagicMock()
+    mock_entity.get_values.return_value = ()
+    mock_runtime_data.input_entities[("Test Battery", ("section", "required"))] = mock_entity
+
+    with pytest.raises(ValueError, match="Missing required field"):
+        coordinator._load_element_config("Test Battery")
 
 
 def test_coordinator_cleanup_invokes_listener(

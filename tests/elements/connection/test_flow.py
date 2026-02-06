@@ -186,6 +186,25 @@ async def test_get_subentry_returns_none_for_user_flow(hass: HomeAssistant, hub_
     assert subentry is None
 
 
+def test_build_config_normalizes_endpoints(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
+    """_build_config normalizes endpoint strings into connection targets."""
+    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
+
+    user_input = _wrap_input(
+        {
+            CONF_NAME: "Test Connection",
+            CONF_SOURCE: "Node1",
+            CONF_TARGET: "Node2",
+        }
+    )
+
+    config = flow._build_config(user_input)
+
+    endpoints = config[SECTION_ENDPOINTS]
+    assert endpoints[CONF_SOURCE] == as_connection_target("Node1")
+    assert endpoints[CONF_TARGET] == as_connection_target("Node2")
+
+
 async def test_reconfigure_with_entity_value_shows_defaults(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
     """Reconfigure with entity schema value should show entity choice in defaults."""
     add_participant(hass, hub_entry, "Battery1", battery.ELEMENT_TYPE)

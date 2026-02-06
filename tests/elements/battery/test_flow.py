@@ -407,6 +407,42 @@ async def test_partition_flow_with_constant_values_creates_entry(hass: HomeAssis
     assert overcharge[CONF_PARTITION_COST] == as_constant_value(0.10)
 
 
+async def test_build_config_normalizes_connection_target_and_partitions(
+    hass: HomeAssistant,
+    hub_entry: MockConfigEntry,
+) -> None:
+    """_build_config should normalize connection targets and include partitions."""
+    add_participant(hass, hub_entry, "main_bus", node.ELEMENT_TYPE)
+    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
+
+    main_input = _wrap_main_input(
+        {
+            CONF_NAME: "Test Battery",
+            CONF_CONNECTION: "main_bus",
+            CONF_CAPACITY: 10.0,
+            CONF_INITIAL_CHARGE_PERCENTAGE: 50.0,
+            CONF_CONFIGURE_PARTITIONS: True,
+        },
+        as_schema=True,
+    )
+    partition_input = _wrap_partition_input(
+        {
+            CONF_PARTITION_PERCENTAGE: 5.0,
+            CONF_PARTITION_COST: 0.10,
+        },
+        {
+            CONF_PARTITION_PERCENTAGE: 95.0,
+            CONF_PARTITION_COST: 0.10,
+        },
+    )
+
+    config = flow._build_config(main_input, partition_input)
+
+    assert config[SECTION_COMMON][CONF_CONNECTION] == as_connection_target("main_bus")
+    assert config[SECTION_UNDERCHARGE][CONF_PARTITION_PERCENTAGE] == as_constant_value(5.0)
+    assert config[SECTION_OVERCHARGE][CONF_PARTITION_PERCENTAGE] == as_constant_value(95.0)
+
+
 async def test_partition_disabled_skips_partition_step(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
     """When configure_partitions is False, flow skips directly to create_entry."""
     add_participant(hass, hub_entry, "main_bus", node.ELEMENT_TYPE)

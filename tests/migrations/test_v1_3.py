@@ -159,6 +159,19 @@ def test_migrate_subentry_battery_with_legacy_fields() -> None:
     assert migrated[battery.SECTION_OVERCHARGE][battery.CONF_PARTITION_COST] == as_constant_value(0.2)
 
 
+def test_migrate_subentry_battery_invalid_schema_value_raises() -> None:
+    """Battery migration should raise for unsupported schema values."""
+    data = {
+        CONF_ELEMENT_TYPE: battery.ELEMENT_TYPE,
+        CONF_NAME: "Battery",
+        battery.CONF_CAPACITY: {"invalid": "value"},
+    }
+    subentry = _create_subentry(data, subentry_type=battery.ELEMENT_TYPE)
+
+    with pytest.raises(TypeError, match="Unsupported schema value"):
+        v1_3._migrate_subentry_data(subentry)
+
+
 def test_migrate_subentry_battery_section() -> None:
     """Battery section migration should map storage values."""
     data = {
@@ -337,6 +350,18 @@ async def test_async_migrate_entry_updates_entry_and_subentries(hass: HomeAssist
     assert entry.options == {}
     migrated_subentry = next(iter(entry.subentries.values()))
     assert SECTION_PRICING in migrated_subentry.data
+
+
+async def test_async_migrate_entry_skips_when_up_to_date(hass: HomeAssistant) -> None:
+    """async_migrate_entry should return True when already at target version."""
+    entry = MockConfigEntry(domain=DOMAIN, title="Hub", data={})
+    entry.add_to_hass(hass)
+    hass.config_entries.async_update_entry(entry, minor_version=v1_3.MINOR_VERSION)
+
+    result = await v1_3.async_migrate_entry(hass, entry)
+
+    assert result is True
+    assert entry.minor_version == v1_3.MINOR_VERSION
 
 
 async def test_migrations_entry_skips_non_v1(hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch) -> None:
