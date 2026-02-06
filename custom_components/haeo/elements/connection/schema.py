@@ -19,11 +19,14 @@ from custom_components.haeo.sections import (
     CONF_PRICE_SOURCE_TARGET,
     CONF_PRICE_TARGET_SOURCE,
     SECTION_COMMON,
+    SECTION_DEMAND_PRICING,
     SECTION_EFFICIENCY,
     SECTION_POWER_LIMITS,
     SECTION_PRICING,
     CommonConfig,
     CommonData,
+    DemandPricingConfig,
+    DemandPricingData,
     EfficiencyConfig,
     EfficiencyData,
     PowerLimitsConfig,
@@ -80,6 +83,7 @@ class ConnectionConfigSchema(TypedDict):
     endpoints: EndpointsConfig
     power_limits: PowerLimitsConfig
     pricing: PricingConfig
+    demand_pricing: DemandPricingConfig
     efficiency: EfficiencyConfig
 
 
@@ -91,6 +95,7 @@ class ConnectionConfigData(TypedDict):
     endpoints: EndpointsData
     power_limits: PowerLimitsData
     pricing: PricingData
+    demand_pricing: DemandPricingData
     efficiency: EfficiencyData
 
 
@@ -114,6 +119,7 @@ __all__ = [
     "ELEMENT_TYPE",
     "OPTIONAL_INPUT_FIELDS",
     "SECTION_COMMON",
+    "SECTION_DEMAND_PRICING",
     "SECTION_EFFICIENCY",
     "SECTION_ENDPOINTS",
     "SECTION_POWER_LIMITS",

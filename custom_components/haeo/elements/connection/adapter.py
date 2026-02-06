@@ -30,7 +30,13 @@ from custom_components.haeo.model.elements.segments import (
 )
 from custom_components.haeo.model.output_data import OutputData
 from custom_components.haeo.schema import extract_connection_target
-from custom_components.haeo.sections import SECTION_COMMON, SECTION_EFFICIENCY, SECTION_POWER_LIMITS, SECTION_PRICING
+from custom_components.haeo.sections import (
+    SECTION_COMMON,
+    SECTION_DEMAND_PRICING,
+    SECTION_EFFICIENCY,
+    SECTION_POWER_LIMITS,
+    SECTION_PRICING,
+)
 
 from .schema import (
     CONF_DEMAND_BLOCK_HOURS,
@@ -181,6 +187,8 @@ class ConnectionAdapter:
                     direction="-",
                     time_series=True,
                 ),
+            },
+            SECTION_DEMAND_PRICING: {
                 CONF_DEMAND_WINDOW_SOURCE_TARGET: InputFieldInfo(
                     field_name=CONF_DEMAND_WINDOW_SOURCE_TARGET,
                     entity_description=NumberEntityDescription(
@@ -320,18 +328,26 @@ class ConnectionAdapter:
                     },
                     "demand_pricing": {
                         "segment_type": "demand_pricing",
-                        "demand_window_source_target": config[SECTION_PRICING].get(CONF_DEMAND_WINDOW_SOURCE_TARGET),
-                        "demand_window_target_source": config[SECTION_PRICING].get(CONF_DEMAND_WINDOW_TARGET_SOURCE),
-                        "demand_price_source_target": config[SECTION_PRICING].get(CONF_DEMAND_PRICE_SOURCE_TARGET),
-                        "demand_price_target_source": config[SECTION_PRICING].get(CONF_DEMAND_PRICE_TARGET_SOURCE),
-                        "demand_current_energy_source_target": config[SECTION_PRICING].get(
+                        "demand_window_source_target": config[SECTION_DEMAND_PRICING].get(
+                            CONF_DEMAND_WINDOW_SOURCE_TARGET
+                        ),
+                        "demand_window_target_source": config[SECTION_DEMAND_PRICING].get(
+                            CONF_DEMAND_WINDOW_TARGET_SOURCE
+                        ),
+                        "demand_price_source_target": config[SECTION_DEMAND_PRICING].get(
+                            CONF_DEMAND_PRICE_SOURCE_TARGET
+                        ),
+                        "demand_price_target_source": config[SECTION_DEMAND_PRICING].get(
+                            CONF_DEMAND_PRICE_TARGET_SOURCE
+                        ),
+                        "demand_current_energy_source_target": config[SECTION_DEMAND_PRICING].get(
                             CONF_DEMAND_CURRENT_ENERGY_SOURCE_TARGET
                         ),
-                        "demand_current_energy_target_source": config[SECTION_PRICING].get(
+                        "demand_current_energy_target_source": config[SECTION_DEMAND_PRICING].get(
                             CONF_DEMAND_CURRENT_ENERGY_TARGET_SOURCE
                         ),
-                        "demand_block_hours": config[SECTION_PRICING].get(CONF_DEMAND_BLOCK_HOURS),
-                        "demand_days": config[SECTION_PRICING].get(CONF_DEMAND_DAYS),
+                        "demand_block_hours": config[SECTION_DEMAND_PRICING].get(CONF_DEMAND_BLOCK_HOURS),
+                        "demand_days": config[SECTION_DEMAND_PRICING].get(CONF_DEMAND_DAYS),
                     },
                 },
             }

@@ -98,7 +98,13 @@ from custom_components.haeo.schema import (
     as_entity_value,
     as_none_value,
 )
-from custom_components.haeo.sections import SECTION_COMMON, SECTION_EFFICIENCY, SECTION_POWER_LIMITS, SECTION_PRICING
+from custom_components.haeo.sections import (
+    SECTION_COMMON,
+    SECTION_DEMAND_PRICING,
+    SECTION_EFFICIENCY,
+    SECTION_POWER_LIMITS,
+    SECTION_PRICING,
+)
 
 
 @pytest.fixture
@@ -185,6 +191,7 @@ def mock_grid_subentry(hass: HomeAssistant, mock_hub_entry: MockConfigEntry) -> 
                     CONF_PRICE_SOURCE_TARGET: as_entity_value(["sensor.import_price"]),
                     CONF_PRICE_TARGET_SOURCE: as_entity_value(["sensor.export_price"]),
                 },
+                SECTION_DEMAND_PRICING: {},
                 SECTION_POWER_LIMITS: {
                     CONF_GRID_MAX_POWER_SOURCE_TARGET: as_constant_value(10000),
                     CONF_GRID_MAX_POWER_TARGET_SOURCE: as_constant_value(5000),
@@ -215,6 +222,7 @@ def mock_connection_subentry(hass: HomeAssistant, mock_hub_entry: MockConfigEntr
                 },
                 SECTION_POWER_LIMITS: {},
                 SECTION_PRICING: {},
+                SECTION_DEMAND_PRICING: {},
                 SECTION_EFFICIENCY: {},
             }
         ),
@@ -376,6 +384,7 @@ async def test_async_update_data_returns_outputs(
             },
             SECTION_POWER_LIMITS: {},
             SECTION_PRICING: {},
+            SECTION_DEMAND_PRICING: {},
             SECTION_EFFICIENCY: {},
         },
     }

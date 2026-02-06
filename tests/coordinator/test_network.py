@@ -10,6 +10,7 @@ from custom_components.haeo.elements.connection import (
     CONF_MAX_POWER_SOURCE_TARGET,
     CONF_MAX_POWER_TARGET_SOURCE,
     SECTION_COMMON,
+    SECTION_DEMAND_PRICING,
     SECTION_EFFICIENCY,
     SECTION_ENDPOINTS,
     SECTION_POWER_LIMITS,
@@ -68,6 +69,7 @@ def test_update_element_updates_tracked_params() -> None:
             CONF_MAX_POWER_TARGET_SOURCE: np.array([15.0, 15.0]),
         },
         SECTION_PRICING: {},
+        SECTION_DEMAND_PRICING: {},
         SECTION_EFFICIENCY: {},
     }
     update_element(network, config)
@@ -98,6 +100,7 @@ def test_update_element_raises_for_missing_model_element() -> None:
             CONF_MAX_POWER_TARGET_SOURCE: np.array([15.0, 15.0]),
         },
         SECTION_PRICING: {},
+        SECTION_DEMAND_PRICING: {},
         SECTION_EFFICIENCY: {},
     }
 

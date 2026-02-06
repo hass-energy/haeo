@@ -1,6 +1,6 @@
 """Grid element schema definitions."""
 
-from typing import Any, Final, Literal, NotRequired, TypedDict
+from typing import Any, Final, Literal, TypedDict
 
 import numpy as np
 from numpy.typing import NDArray
@@ -20,10 +20,13 @@ from custom_components.haeo.sections import (
     CONF_PRICE_SOURCE_TARGET,
     CONF_PRICE_TARGET_SOURCE,
     SECTION_COMMON,
+    SECTION_DEMAND_PRICING,
     SECTION_POWER_LIMITS,
     SECTION_PRICING,
     ConnectedCommonConfig,
     ConnectedCommonData,
+    DemandPricingConfig,
+    DemandPricingData,
     PowerLimitsConfig,
     PowerLimitsData,
 )
@@ -50,14 +53,6 @@ class GridPricingConfig(TypedDict):
 
     price_source_target: EntityValue | ConstantValue | NoneValue
     price_target_source: EntityValue | ConstantValue | NoneValue
-    demand_window_source_target: NotRequired[EntityValue | ConstantValue | NoneValue]
-    demand_window_target_source: NotRequired[EntityValue | ConstantValue | NoneValue]
-    demand_price_source_target: NotRequired[EntityValue | ConstantValue | NoneValue]
-    demand_price_target_source: NotRequired[EntityValue | ConstantValue | NoneValue]
-    demand_current_energy_source_target: NotRequired[EntityValue | ConstantValue | NoneValue]
-    demand_current_energy_target_source: NotRequired[EntityValue | ConstantValue | NoneValue]
-    demand_block_hours: NotRequired[EntityValue | ConstantValue | NoneValue]
-    demand_days: NotRequired[EntityValue | ConstantValue | NoneValue]
 
 
 class GridPricingData(TypedDict):
@@ -65,14 +60,6 @@ class GridPricingData(TypedDict):
 
     price_source_target: NDArray[np.floating[Any]] | float
     price_target_source: NDArray[np.floating[Any]] | float
-    demand_window_source_target: NotRequired[NDArray[np.floating[Any]] | float]
-    demand_window_target_source: NotRequired[NDArray[np.floating[Any]] | float]
-    demand_price_source_target: NotRequired[NDArray[np.floating[Any]] | float]
-    demand_price_target_source: NotRequired[NDArray[np.floating[Any]] | float]
-    demand_current_energy_source_target: NotRequired[NDArray[np.floating[Any]] | float]
-    demand_current_energy_target_source: NotRequired[NDArray[np.floating[Any]] | float]
-    demand_block_hours: NotRequired[float]
-    demand_days: NotRequired[float]
 
 
 class GridConfigSchema(TypedDict):
@@ -81,6 +68,7 @@ class GridConfigSchema(TypedDict):
     element_type: Literal["grid"]
     common: ConnectedCommonConfig
     pricing: GridPricingConfig
+    demand_pricing: DemandPricingConfig
     power_limits: PowerLimitsConfig
 
 
@@ -90,6 +78,7 @@ class GridConfigData(TypedDict):
     element_type: Literal["grid"]
     common: ConnectedCommonData
     pricing: GridPricingData
+    demand_pricing: DemandPricingData
     power_limits: PowerLimitsData
 
 
@@ -109,6 +98,7 @@ __all__ = [
     "ELEMENT_TYPE",
     "OPTIONAL_INPUT_FIELDS",
     "SECTION_COMMON",
+    "SECTION_DEMAND_PRICING",
     "SECTION_POWER_LIMITS",
     "SECTION_PRICING",
     "GridConfigData",

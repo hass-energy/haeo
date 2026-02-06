@@ -8,6 +8,7 @@ from custom_components.haeo.elements.grid import (
     CONF_PRICE_SOURCE_TARGET,
     CONF_PRICE_TARGET_SOURCE,
     SECTION_COMMON,
+    SECTION_DEMAND_PRICING,
     SECTION_POWER_LIMITS,
     SECTION_PRICING,
 )
@@ -27,6 +28,7 @@ VALID_DATA = [
                 CONF_PRICE_SOURCE_TARGET: as_constant_value(0.30),
                 CONF_PRICE_TARGET_SOURCE: as_constant_value(0.05),
             },
+            SECTION_DEMAND_PRICING: {},
             SECTION_POWER_LIMITS: {
                 CONF_MAX_POWER_SOURCE_TARGET: as_constant_value(10.0),
                 CONF_MAX_POWER_TARGET_SOURCE: as_constant_value(10.0),

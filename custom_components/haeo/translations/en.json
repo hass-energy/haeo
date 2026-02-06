@@ -217,6 +217,19 @@
           },
           "sections": {
             "common": { "data": { "name": "Connection Name" }, "name": "Common settings" },
+            "demand_pricing": {
+              "data": {
+                "demand_block_hours": "Demand Block Hours",
+                "demand_current_energy_source_target": "Demand Current Energy Source to Target",
+                "demand_current_energy_target_source": "Demand Current Energy Target to Source",
+                "demand_days": "Demand Billing Days",
+                "demand_price_source_target": "Demand Price Source to Target",
+                "demand_price_target_source": "Demand Price Target to Source",
+                "demand_window_source_target": "Demand Window Source to Target",
+                "demand_window_target_source": "Demand Window Target to Source"
+              },
+              "name": "Demand pricing"
+            },
             "efficiency": {
               "data": {
                 "efficiency_source_target": "Efficiency Source to Target",
@@ -234,14 +247,6 @@
             },
             "pricing": {
               "data": {
-                "demand_block_hours": "Demand Block Hours",
-                "demand_current_energy_source_target": "Demand Current Energy Source to Target",
-                "demand_current_energy_target_source": "Demand Current Energy Target to Source",
-                "demand_days": "Demand Billing Days",
-                "demand_price_source_target": "Demand Price Source to Target",
-                "demand_price_target_source": "Demand Price Target to Source",
-                "demand_window_source_target": "Demand Window Source to Target",
-                "demand_window_target_source": "Demand Window Target to Source",
                 "price_source_target": "Price Source to Target",
                 "price_target_source": "Price Target to Source"
               },
@@ -286,11 +291,7 @@
           },
           "sections": {
             "common": { "data": { "connection": "Connection", "name": "Grid Name" }, "name": "Common settings" },
-            "power_limits": {
-              "data": { "max_power_source_target": "Import limit", "max_power_target_source": "Export limit" },
-              "name": "Power limits"
-            },
-            "pricing": {
+            "demand_pricing": {
               "data": {
                 "demand_block_hours": "Demand block hours",
                 "demand_current_energy_source_target": "Import demand energy so far",
@@ -299,10 +300,16 @@
                 "demand_price_source_target": "Import demand price",
                 "demand_price_target_source": "Export demand price",
                 "demand_window_source_target": "Import demand window",
-                "demand_window_target_source": "Export demand window",
-                "price_source_target": "Import price",
-                "price_target_source": "Export price"
+                "demand_window_target_source": "Export demand window"
               },
+              "name": "Demand pricing"
+            },
+            "power_limits": {
+              "data": { "max_power_source_target": "Import limit", "max_power_target_source": "Export limit" },
+              "name": "Power limits"
+            },
+            "pricing": {
+              "data": { "price_source_target": "Import price", "price_target_source": "Export price" },
               "name": "Pricing"
             }
           }

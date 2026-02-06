@@ -15,14 +15,6 @@ from custom_components.haeo.schema import ConstantValue, EntityValue, NoneValue
 SECTION_PRICING: Final = "pricing"
 CONF_PRICE_SOURCE_TARGET: Final = "price_source_target"
 CONF_PRICE_TARGET_SOURCE: Final = "price_target_source"
-CONF_DEMAND_WINDOW_SOURCE_TARGET: Final = "demand_window_source_target"
-CONF_DEMAND_WINDOW_TARGET_SOURCE: Final = "demand_window_target_source"
-CONF_DEMAND_PRICE_SOURCE_TARGET: Final = "demand_price_source_target"
-CONF_DEMAND_PRICE_TARGET_SOURCE: Final = "demand_price_target_source"
-CONF_DEMAND_CURRENT_ENERGY_SOURCE_TARGET: Final = "demand_current_energy_source_target"
-CONF_DEMAND_CURRENT_ENERGY_TARGET_SOURCE: Final = "demand_current_energy_target_source"
-CONF_DEMAND_BLOCK_HOURS: Final = "demand_block_hours"
-CONF_DEMAND_DAYS: Final = "demand_days"
 
 
 class PricingConfig(TypedDict, total=False):
@@ -30,14 +22,6 @@ class PricingConfig(TypedDict, total=False):
 
     price_source_target: EntityValue | ConstantValue | NoneValue
     price_target_source: EntityValue | ConstantValue | NoneValue
-    demand_window_source_target: EntityValue | ConstantValue | NoneValue
-    demand_window_target_source: EntityValue | ConstantValue | NoneValue
-    demand_price_source_target: EntityValue | ConstantValue | NoneValue
-    demand_price_target_source: EntityValue | ConstantValue | NoneValue
-    demand_current_energy_source_target: EntityValue | ConstantValue | NoneValue
-    demand_current_energy_target_source: EntityValue | ConstantValue | NoneValue
-    demand_block_hours: EntityValue | ConstantValue | NoneValue
-    demand_days: EntityValue | ConstantValue | NoneValue
 
 
 class PricingData(TypedDict, total=False):
@@ -45,14 +29,6 @@ class PricingData(TypedDict, total=False):
 
     price_source_target: NDArray[np.floating[Any]] | float
     price_target_source: NDArray[np.floating[Any]] | float
-    demand_window_source_target: NDArray[np.floating[Any]] | float
-    demand_window_target_source: NDArray[np.floating[Any]] | float
-    demand_price_source_target: NDArray[np.floating[Any]] | float
-    demand_price_target_source: NDArray[np.floating[Any]] | float
-    demand_current_energy_source_target: NDArray[np.floating[Any]] | float
-    demand_current_energy_target_source: NDArray[np.floating[Any]] | float
-    demand_block_hours: float
-    demand_days: float
 
 
 def pricing_section(fields: tuple[str, ...], *, collapsed: bool = False) -> SectionDefinition:
@@ -79,14 +55,6 @@ def build_pricing_fields(
 
 
 __all__ = [
-    "CONF_DEMAND_BLOCK_HOURS",
-    "CONF_DEMAND_CURRENT_ENERGY_SOURCE_TARGET",
-    "CONF_DEMAND_CURRENT_ENERGY_TARGET_SOURCE",
-    "CONF_DEMAND_DAYS",
-    "CONF_DEMAND_PRICE_SOURCE_TARGET",
-    "CONF_DEMAND_PRICE_TARGET_SOURCE",
-    "CONF_DEMAND_WINDOW_SOURCE_TARGET",
-    "CONF_DEMAND_WINDOW_TARGET_SOURCE",
     "CONF_PRICE_SOURCE_TARGET",
     "CONF_PRICE_TARGET_SOURCE",
     "SECTION_PRICING",

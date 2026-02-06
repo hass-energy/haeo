@@ -49,6 +49,8 @@ CREATE_CASES: Sequence[CreateCase] = [
             pricing={
                 "price_source_target": np.array([0.1]),
                 "price_target_source": np.array([0.05]),
+            },
+            demand_pricing={
                 "demand_window_source_target": np.array([1.0]),
                 "demand_window_target_source": np.array([0.0]),
                 "demand_price_source_target": 10.0,
@@ -106,6 +108,7 @@ CREATE_CASES: Sequence[CreateCase] = [
             endpoints={"source": as_connection_target("s"), "target": as_connection_target("t")},
             power_limits={},
             pricing={},
+            demand_pricing={},
             efficiency={},
         ),
         "model": [

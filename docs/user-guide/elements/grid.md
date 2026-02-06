@@ -11,6 +11,7 @@ It allows bidirectional power flow: importing (buying) and exporting (selling) e
 
 Grid configuration uses a single-step flow where you enter the name and configure each input field.
 For each field, select "Entity" to link to a sensor, "Constant" to enter a fixed value, or "None" for optional fields you don't need.
+Pricing and demand pricing fields appear in separate sections in the UI.
 
 | Field                                       | Type   | Required | Default | Description                                                |
 | ------------------------------------------- | ------ | -------- | ------- | ---------------------------------------------------------- |

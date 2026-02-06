@@ -36,6 +36,7 @@ from custom_components.haeo.sections import (
     SECTION_COMMON,
     build_common_fields,
     common_section,
+    demand_pricing_section,
     power_limits_section,
     pricing_section,
 )
@@ -51,10 +52,9 @@ class GridSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         """Return sections for the configuration step."""
         return (
             common_section((CONF_NAME, CONF_CONNECTION), collapsed=False),
-            pricing_section(
+            pricing_section((CONF_PRICE_SOURCE_TARGET, CONF_PRICE_TARGET_SOURCE), collapsed=False),
+            demand_pricing_section(
                 (
-                    CONF_PRICE_SOURCE_TARGET,
-                    CONF_PRICE_TARGET_SOURCE,
                     CONF_DEMAND_WINDOW_SOURCE_TARGET,
                     CONF_DEMAND_WINDOW_TARGET_SOURCE,
                     CONF_DEMAND_PRICE_SOURCE_TARGET,
@@ -64,7 +64,7 @@ class GridSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                     CONF_DEMAND_BLOCK_HOURS,
                     CONF_DEMAND_DAYS,
                 ),
-                collapsed=False,
+                collapsed=True,
             ),
             power_limits_section(
                 (CONF_MAX_POWER_SOURCE_TARGET, CONF_MAX_POWER_TARGET_SOURCE),

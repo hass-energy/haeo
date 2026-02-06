@@ -15,6 +15,8 @@ Connections define how power flows between elements in your network with support
 
 ## Configuration
 
+Pricing and demand pricing fields appear in separate sections in the UI.
+
 | Field                           | Type                                     | Required | Default   | Description                                                            |
 | ------------------------------- | ---------------------------------------- | -------- | --------- | ---------------------------------------------------------------------- |
 | **Name**                        | String                                   | Yes      | -         | Unique identifier for this connection                                  |

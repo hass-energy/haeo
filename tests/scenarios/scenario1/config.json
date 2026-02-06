@@ -54,7 +54,8 @@
           "type": "entity",
           "value": ["sensor.home_feed_in_price", "sensor.home_feed_in_forecast"]
         }
-      }
+      },
+      "demand_pricing": {}
     },
     "Inverter": {
       "element_type": "inverter",

@@ -32,7 +32,8 @@ Grid creates 1 device in Home Assistant:
 
 ## Parameter mapping
 
-The adapter transforms user configuration into connection segments:
+The adapter transforms user configuration into connection segments.
+Pricing fields come from the Pricing section, and demand pricing fields come from the Demand pricing section.
 
 | User Configuration                    | Segment              | Segment Field                         | Notes                                   |
 | ------------------------------------- | -------------------- | ------------------------------------- | --------------------------------------- |

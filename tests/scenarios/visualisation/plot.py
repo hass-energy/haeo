@@ -445,12 +445,14 @@ def create_stacked_visualization(output_sensors: Mapping[str, Mapping[str, Any]]
         for label, data in sorted_data
         if any(key in data for key in STACKED_FORECAST_TYPES)
     ]
-    ax_power.legend(handles=legend_handles, loc="upper left", fontsize=9, framealpha=0.9)
+    if legend_handles:
+        ax_power.legend(handles=legend_handles, loc="upper left", fontsize=9, framealpha=0.9)
 
     ax_price.set_ylabel("Price", fontsize=11)
     ax_price.grid(alpha=0.3, linestyle=":", linewidth=0.5)
     ax_price.tick_params(axis="y", labelsize=9)
-    ax_price.legend(loc="upper left", fontsize=9, framealpha=0.9)
+    if price_series:
+        ax_price.legend(loc="upper left", fontsize=9, framealpha=0.9)
 
     fig.subplots_adjust(top=0.93, bottom=0.10, left=0.08, right=0.95, hspace=0.15)
 

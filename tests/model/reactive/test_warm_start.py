@@ -10,6 +10,7 @@ import pytest
 from custom_components.haeo.coordinator.network import update_element
 from custom_components.haeo.elements.connection import (
     SECTION_COMMON,
+    SECTION_DEMAND_PRICING,
     SECTION_EFFICIENCY,
     SECTION_ENDPOINTS,
     SECTION_POWER_LIMITS,
@@ -494,6 +495,7 @@ def test_network_add_connection_updates_prices() -> None:
             },
             SECTION_POWER_LIMITS: {"max_power_source_target": 5.0},
             SECTION_PRICING: {"price_source_target": -0.20},
+            SECTION_DEMAND_PRICING: {},
             SECTION_EFFICIENCY: {},
         },
     )
