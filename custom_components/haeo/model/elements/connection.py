@@ -31,6 +31,7 @@ class ConnectionElementConfig(TypedDict):
     name: str
     source: str
     target: str
+    mirror_segment_order: NotRequired[bool]
     segments: NotRequired[dict[str, SegmentSpec]]
 
 
@@ -74,6 +75,10 @@ class Connection[TOutputName: str](Element[TOutputName]):
     Segments are chained in the order provided. The connection links adjacent
     segments by constraining their output to the next segment's input.
 
+    Source→target flow always uses the order provided.
+    Target→source flow uses the reverse order by default, or mirrors the
+    source→target order when mirror_segment_order is enabled.
+
     For parameter updates, access segments via indexing:
         connection["power_limit"].max_power_source_target = new_value
         connection[0].max_power_source_target = new_value  # by index
@@ -89,6 +94,7 @@ class Connection[TOutputName: str](Element[TOutputName]):
         source: str,
         target: str,
         segments: dict[str, SegmentSpec] | None = None,
+        mirror_segment_order: bool = False,
         output_names: frozenset[TOutputName] | None = None,
     ) -> None:
         """Initialize a connection.
@@ -101,6 +107,7 @@ class Connection[TOutputName: str](Element[TOutputName]):
             target: Name of the target element
             segments: Dict of segment names to SegmentSpec TypedDicts.
                 Each spec has segment_type plus segment-specific parameters.
+            mirror_segment_order: Use the same segment order for target→source flow.
             output_names: Output names for this connection type
 
         """
@@ -116,6 +123,7 @@ class Connection[TOutputName: str](Element[TOutputName]):
         self._target = target
         self._source_element: Element[Any] | None = None
         self._target_element: Element[Any] | None = None
+        self._mirror_segment_order = mirror_segment_order
 
         # Segments stored in OrderedDict for name-based and index-based access
         self._segment_specs: OrderedDict[str, SegmentSpec] = OrderedDict(segments or {})
@@ -169,18 +177,36 @@ class Connection[TOutputName: str](Element[TOutputName]):
     @property
     def _first(self) -> Segment:
         """Return the first segment in the chain."""
-        if not self._segments:
-            msg = f"{type(self).__name__} has no segments configured"
-            raise RuntimeError(msg)
-        return next(iter(self._segments.values()))
+        return self._segment_list_st()[0]
 
     @property
     def _last(self) -> Segment:
         """Return the last segment in the chain."""
+        return self._segment_list_st()[-1]
+
+    def _segment_list_st(self) -> list[Segment]:
+        """Return the segment list for source→target flow."""
         if not self._segments:
             msg = f"{type(self).__name__} has no segments configured"
             raise RuntimeError(msg)
-        return next(reversed(self._segments.values()))
+        return list(self._segments.values())
+
+    def _segment_list_ts(self) -> list[Segment]:
+        """Return the segment list for target→source flow."""
+        segment_list = self._segment_list_st()
+        if self._mirror_segment_order:
+            return segment_list
+        return list(reversed(segment_list))
+
+    @property
+    def _first_ts(self) -> Segment:
+        """Return the first segment for target→source flow."""
+        return self._segment_list_ts()[0]
+
+    @property
+    def _last_ts(self) -> Segment:
+        """Return the last segment for target→source flow."""
+        return self._segment_list_ts()[-1]
 
     @property
     def source(self) -> str:
@@ -200,7 +226,7 @@ class Connection[TOutputName: str](Element[TOutputName]):
     @property
     def power_target_source(self) -> HighspyArray:
         """Return power flowing from target to source (input to first segment from t→s direction)."""
-        return self._first.power_in_ts
+        return self._first_ts.power_in_ts
 
     @property
     def power_into_source(self) -> HighspyArray:
@@ -209,7 +235,7 @@ class Connection[TOutputName: str](Element[TOutputName]):
         This is the t→s output from the last segment minus the s→t input to the first segment.
 
         """
-        return self._last.power_out_ts - self._first.power_in_st
+        return self._last_ts.power_out_ts - self._first.power_in_st
 
     @property
     def power_into_target(self) -> HighspyArray:
@@ -218,7 +244,7 @@ class Connection[TOutputName: str](Element[TOutputName]):
         This is the s→t output from the last segment minus the t→s input to the first segment.
 
         """
-        return self._last.power_out_st - self._first.power_in_ts
+        return self._last.power_out_st - self._first_ts.power_in_ts
 
     # --- Constraint and cost delegation to segments ---
 
@@ -275,7 +301,7 @@ class Connection[TOutputName: str](Element[TOutputName]):
             return None
 
         constraints = []
-        segment_list = list(self._segments.values())
+        segment_list = self._segment_list_st()
         for i in range(len(segment_list) - 1):
             curr = segment_list[i]
             next_seg = segment_list[i + 1]
@@ -290,7 +316,7 @@ class Connection[TOutputName: str](Element[TOutputName]):
             return None
 
         constraints = []
-        segment_list = list(self._segments.values())
+        segment_list = self._segment_list_ts()
         for i in range(len(segment_list) - 1):
             curr = segment_list[i]
             next_seg = segment_list[i + 1]

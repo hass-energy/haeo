@@ -37,6 +37,27 @@ CONNECTION_SCENARIOS: Sequence[ConnectionScenario] = [
         "expected_outputs": {"power_target_source": [3.0, 3.0]},
     },
     {
+        "description": "Connection reverses segment order for target-to-source flow",
+        "periods": np.array([1.0]),
+        "segments": {
+            "efficiency": {"segment_type": "efficiency", "efficiency_target_source": np.array([0.5])},
+            "power_limit": {"segment_type": "power_limit", "max_power_target_source": np.array([10.0])},
+        },
+        "inputs": {"maximize": {"power_target_source": 1.0}},
+        "expected_outputs": {"power_target_source": [10.0]},
+    },
+    {
+        "description": "Connection mirrors segment order when configured",
+        "periods": np.array([1.0]),
+        "segments": {
+            "efficiency": {"segment_type": "efficiency", "efficiency_target_source": np.array([0.5])},
+            "power_limit": {"segment_type": "power_limit", "max_power_target_source": np.array([10.0])},
+        },
+        "mirror_segment_order": True,
+        "inputs": {"maximize": {"power_target_source": 1.0}},
+        "expected_outputs": {"power_target_source": [20.0]},
+    },
+    {
         "description": "Connection efficiency reduces power into target",
         "periods": np.array([1.0]),
         "segments": {"efficiency": {"segment_type": "efficiency", "efficiency_source_target": np.array([0.90])}},
