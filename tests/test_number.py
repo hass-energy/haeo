@@ -173,23 +173,6 @@ async def test_setup_skips_network_subentry(
     async_add_entities.assert_not_called()
 
 
-async def test_setup_skips_elements_without_number_fields(
-    hass: HomeAssistant,
-    config_entry: MockConfigEntry,
-) -> None:
-    """Setup skips elements that have no number-type input fields."""
-    _add_subentry(hass, config_entry, ELEMENT_TYPE_NETWORK, "Test Network", {})
-
-    # Add a minimal element that might not have number fields exposed
-    # This depends on what the element's input_fields() returns
-
-    async_add_entities = Mock()
-    await async_setup_entry(hass, config_entry, async_add_entities)
-
-    # If no number fields defined, no entities created
-    # (actual behavior depends on element definitions)
-
-
 async def test_setup_skips_missing_fields_in_config(
     hass: HomeAssistant,
     config_entry: MockConfigEntry,

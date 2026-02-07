@@ -1,6 +1,7 @@
 """Tests for network connectivity validation."""
 
 import numpy as np
+import pytest
 
 from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.elements import ElementConfigData
@@ -131,8 +132,18 @@ def test_validate_network_topology_detects_disconnected() -> None:
     assert result.num_components == 2
 
 
-def test_validate_network_topology_with_battery() -> None:
-    """Battery element works in validation with loaded config data."""
+@pytest.mark.parametrize(
+    ("include_grid", "include_partitions"),
+    [
+        pytest.param(True, False, id="with_grid"),
+        pytest.param(False, True, id="with_under_overcharge"),
+    ],
+)
+def test_validate_network_topology_with_battery(
+    include_grid: bool,
+    include_partitions: bool,
+) -> None:
+    """Battery element validation works with optional grid and partition sections."""
     main_node: NodeConfigData = {
         CONF_ELEMENT_TYPE: "node",
         SECTION_COMMON: {CONF_NAME: "main"},
@@ -173,64 +184,22 @@ def test_validate_network_topology_with_battery() -> None:
         },
         SECTION_PARTITIONING: {},
     }
-    participants: dict[str, ElementConfigData] = {
-        "main_node": main_node,
-        "grid": grid,
-        "battery": battery,
-    }
-
-    result = validate_network_topology(participants)
-
-    assert result.is_connected is True
-    components_str = str(result.components)
-    assert "battery" in components_str
-    assert "main" in components_str
-
-
-def test_validate_network_topology_with_battery_all_sections() -> None:
-    """Battery with undercharge/overcharge sections works in validation."""
-    main_node: NodeConfigData = {
-        CONF_ELEMENT_TYPE: "node",
-        SECTION_COMMON: {CONF_NAME: "main"},
-        SECTION_ROLE: {CONF_IS_SOURCE: False, CONF_IS_SINK: False},
-    }
-    battery: BatteryConfigData = {
-        CONF_ELEMENT_TYPE: "battery",
-        SECTION_COMMON: {
-            CONF_NAME: "battery",
-            BATTERY_CONF_CONNECTION: as_connection_target("main"),
-        },
-        SECTION_STORAGE: {
-            CONF_CAPACITY: np.array([10.0, 10.0, 10.0]),
-            CONF_INITIAL_CHARGE_PERCENTAGE: np.array([50.0, 50.0]),
-        },
-        SECTION_LIMITS: {
-            CONF_MIN_CHARGE_PERCENTAGE: np.array([10.0, 10.0, 10.0]),
-            CONF_MAX_CHARGE_PERCENTAGE: np.array([90.0, 90.0, 90.0]),
-        },
-        SECTION_POWER_LIMITS: {
-            CONF_MAX_POWER_SOURCE_TARGET: np.array([5.0, 5.0]),
-            CONF_MAX_POWER_TARGET_SOURCE: np.array([5.0, 5.0]),
-        },
-        SECTION_PRICING: {},
-        SECTION_EFFICIENCY: {
-            CONF_EFFICIENCY_SOURCE_TARGET: np.array([95.0, 95.0]),
-            CONF_EFFICIENCY_TARGET_SOURCE: np.array([95.0, 95.0]),
-        },
-        SECTION_PARTITIONING: {},
-        SECTION_UNDERCHARGE: {
+    if include_partitions:
+        battery[SECTION_UNDERCHARGE] = {
             CONF_PARTITION_PERCENTAGE: np.array([5.0, 5.0, 5.0]),
             CONF_PARTITION_COST: np.array([0.05, 0.05]),
-        },
-        SECTION_OVERCHARGE: {
+        }
+        battery[SECTION_OVERCHARGE] = {
             CONF_PARTITION_PERCENTAGE: np.array([95.0, 95.0, 95.0]),
             CONF_PARTITION_COST: np.array([0.02, 0.02]),
-        },
-    }
+        }
+
     participants: dict[str, ElementConfigData] = {
         "main_node": main_node,
         "battery": battery,
     }
+    if include_grid:
+        participants["grid"] = grid
 
     result = validate_network_topology(participants)
 

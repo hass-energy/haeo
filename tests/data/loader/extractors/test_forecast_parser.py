@@ -70,43 +70,35 @@ def test_invalid_sensor_handling(hass: HomeAssistant, parser_type: str, sensor_d
     assert isinstance(result.data, float)
 
 
-def test_extract_empty_data(hass: HomeAssistant) -> None:
-    """Test extraction with empty attributes falls back to simple value."""
-    state = _create_sensor_state(hass, "sensor.empty", "42.0", {})
+@pytest.mark.parametrize(
+    ("state_value", "attributes", "expected_value", "expected_unit"),
+    [
+        pytest.param("42.0", {}, 42.0, None, id="empty_attributes"),
+        pytest.param("42.5", {"unknown_field": "value"}, 42.5, None, id="unknown_attributes"),
+        pytest.param(
+            "42.0",
+            {"unit_of_measurement": "test_unit"},
+            42.0,
+            "test_unit",
+            id="unknown_with_unit",
+        ),
+    ],
+)
+def test_extract_unknown_format_fallback(
+    hass: HomeAssistant,
+    state_value: str,
+    attributes: dict[str, Any],
+    expected_value: float,
+    expected_unit: str | None,
+) -> None:
+    """Unknown attributes fall back to simple value extraction."""
+    state = _create_sensor_state(hass, "sensor.unknown", state_value, attributes)
 
     result = extractors.extract(state)
 
     assert isinstance(result.data, float)
-    assert result.data == 42.0
-
-
-def test_extract_unknown_format_falls_back_to_simple_value(hass: HomeAssistant) -> None:
-    """Test that extracting from unknown format falls back to simple value."""
-    entity_id = "sensor.unknown"
-    state = _create_sensor_state(hass, entity_id, "42.5", {"unknown_field": "value"})
-
-    result = extractors.extract(state)
-
-    assert result.data is not None
-    # Simple value extraction returns a float directly
-    assert isinstance(result.data, float)
-    assert result.data == 42.5
-
-
-def test_extract_unknown_format_returns_unit() -> None:
-    """Extract should return sensor unit when no parser matches."""
-
-    state = State(
-        "sensor.unknown",
-        "42.0",
-        {
-            "unit_of_measurement": "test_unit",
-        },
-    )
-
-    result = extractors.extract(state)
-    assert isinstance(result.data, float)
-    assert result == extractors.ExtractedData(42.0, "test_unit")
+    assert result.data == expected_value
+    assert result.unit == expected_unit
 
 
 def test_extract_raises_for_non_numeric_state(hass: HomeAssistant) -> None:
@@ -141,40 +133,28 @@ PARSER_MAP: dict[str, extractors.DataExtractor] = {
 class TestInterpolationModeExtraction:
     """Tests for interpolation_mode attribute extraction."""
 
-    def test_no_interpolation_mode_uses_linear(self, hass: HomeAssistant) -> None:
-        """When no interpolation_mode attribute, data is unchanged (linear)."""
+    @pytest.mark.parametrize(
+        "interpolation_mode",
+        [None, "linear"],
+        ids=["default_linear", "explicit_linear"],
+    )
+    def test_linear_modes_leave_data_unchanged(self, hass: HomeAssistant, interpolation_mode: str | None) -> None:
+        """Missing or explicit linear interpolation leaves data unchanged."""
+        attributes: dict[str, Any] = {
+            "forecast": [
+                {"time": "2024-01-01T00:00:00+00:00", "value": 100.0},
+                {"time": "2024-01-01T01:00:00+00:00", "value": 200.0},
+            ],
+            "unit_of_measurement": "kW",
+        }
+        if interpolation_mode is not None:
+            attributes["interpolation_mode"] = interpolation_mode
+
         state = _create_sensor_state(
             hass,
             "sensor.haeo_forecast",
             "100.0",
-            {
-                "forecast": [
-                    {"time": "2024-01-01T00:00:00+00:00", "value": 100.0},
-                    {"time": "2024-01-01T01:00:00+00:00", "value": 200.0},
-                ],
-                "unit_of_measurement": "kW",
-            },
-        )
-
-        result = extractors.extract(state)
-        assert isinstance(result.data, list)
-        # Linear mode: only the original 2 points
-        assert len(result.data) == 2
-
-    def test_linear_mode_explicit(self, hass: HomeAssistant) -> None:
-        """Explicit linear mode leaves data unchanged."""
-        state = _create_sensor_state(
-            hass,
-            "sensor.haeo_forecast",
-            "100.0",
-            {
-                "forecast": [
-                    {"time": "2024-01-01T00:00:00+00:00", "value": 100.0},
-                    {"time": "2024-01-01T01:00:00+00:00", "value": 200.0},
-                ],
-                "unit_of_measurement": "kW",
-                "interpolation_mode": "linear",
-            },
+            attributes,
         )
 
         result = extractors.extract(state)

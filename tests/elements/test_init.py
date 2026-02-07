@@ -56,52 +56,6 @@ def test_is_element_config_schema_invalid_structure(input_data: dict[str, Any]) 
     assert is_element_config_schema(input_data) is False
 
 
-@pytest.mark.parametrize(
-    "input_data",
-    [
-        # Wrong type for name (should be str)
-        {
-            "element_type": "node",
-            node_schema.SECTION_COMMON: {"name": 123},
-            node_schema.SECTION_ROLE: {"is_source": False, "is_sink": False},
-        },
-        # Wrong type for connection (should be connection target)
-        {
-            "element_type": "grid",
-            grid.SECTION_COMMON: {"name": "test", "connection": ["list_not_str"]},
-            grid.SECTION_PRICING: {
-                "price_source_target": as_entity_value(["sensor.import"]),
-                "price_target_source": as_entity_value(["sensor.export"]),
-            },
-            grid.SECTION_DEMAND_PRICING: {},
-            grid.SECTION_POWER_LIMITS: {},
-        },
-        # Wrong type for capacity (bool is rejected - bools are explicitly excluded from
-        # constant value handling even though bool is a subclass of int in Python)
-        {
-            "element_type": "battery",
-            battery.SECTION_COMMON: {
-                "name": "test",
-                "connection": as_connection_target("bus"),
-            },
-            battery.SECTION_STORAGE: {
-                "capacity": True,
-                "initial_charge_percentage": as_entity_value(["sensor.soc"]),
-            },
-            battery.SECTION_LIMITS: {},
-            battery.SECTION_POWER_LIMITS: {},
-            battery.SECTION_PRICING: {},
-            battery.SECTION_EFFICIENCY: {},
-            battery.SECTION_PARTITIONING: {},
-            battery.SECTION_UNDERCHARGE: {},
-            battery.SECTION_OVERCHARGE: {},
-        },
-    ],
-)
-def test_is_element_config_schema_wrong_field_types(input_data: dict[str, Any]) -> None:
-    """Test is_element_config_schema rejects fields with wrong types for required fields."""
-
-
 def test_is_element_config_schema_valid_node() -> None:
     """Test is_element_config_schema with valid node config."""
     valid_config = {
