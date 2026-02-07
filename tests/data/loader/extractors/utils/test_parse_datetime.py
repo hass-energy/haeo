@@ -15,19 +15,27 @@ def test_parse_datetime_string() -> None:
     assert result == int(datetime(2025, 10, 5, 13, 0, 0, tzinfo=UTC).timestamp())
 
 
-def test_parse_datetime_object() -> None:
-    """Test parsing datetime objects directly."""
-    dt = datetime(2025, 10, 6, 0, 0, 0, tzinfo=UTC)
+@pytest.mark.parametrize(
+    ("dt", "expected"),
+    [
+        pytest.param(
+            datetime(2025, 10, 6, 0, 0, 0, tzinfo=UTC),
+            int(datetime(2025, 10, 6, 0, 0, 0, tzinfo=UTC).timestamp()),
+            id="aware_datetime",
+        ),
+        pytest.param(
+            datetime(2025, 10, 6, 12, 30, 0),
+            None,
+            id="naive_datetime",
+        ),
+    ],
+)
+def test_parse_datetime_object_variants(dt: datetime, expected: int | None) -> None:
+    """Test parsing datetime objects directly (aware and naive)."""
     result = parse_datetime_to_timestamp(dt)
     assert isinstance(result, int)
-    assert result == int(dt.timestamp())
-
-
-def test_parse_datetime_object_no_timezone() -> None:
-    """Test parsing naive datetime objects (no timezone info)."""
-    dt = datetime(2025, 10, 6, 12, 30, 0, tzinfo=UTC)
-    result = parse_datetime_to_timestamp(dt)
-    assert isinstance(result, int)
+    if expected is not None:
+        assert result == expected
 
 
 def test_parse_invalid_string_raises_error() -> None:

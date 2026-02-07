@@ -121,6 +121,7 @@ def _add_subentry(
         }
     elif subentry_type == SOLAR_TYPE:
         connection_value = data.get("connection", "Switchboard")
+        curtailment_value = data.get("allow_curtailment", data.get("curtailment"))
         payload |= {
             SOLAR_SECTION_COMMON: {
                 CONF_NAME: title,
@@ -133,7 +134,7 @@ def _add_subentry(
                 CONF_SOLAR_PRICE_SOURCE_TARGET: schema_value(data.get("price_source_target")),
             },
             SECTION_CURTAILMENT: {
-                CONF_CURTAILMENT: schema_value(data.get("curtailment")),
+                CONF_CURTAILMENT: schema_value(curtailment_value),
             },
         }
     else:
@@ -183,34 +184,71 @@ async def test_setup_creates_auto_optimize_switch_for_network(
     assert isinstance(entities[0], AutoOptimizeSwitch)
 
 
-async def test_setup_skips_element_without_switch_fields(
+@pytest.mark.parametrize(
+    ("subentry_type", "title", "data", "expect_field", "expect_mode"),
+    [
+        pytest.param(
+            GRID_TYPE,
+            "Main Grid",
+            {
+                "connection": "main_bus",
+                "price_source_target": 0.30,
+                "price_target_source": 0.05,
+            },
+            None,
+            None,
+            id="grid_no_switch_fields",
+        ),
+        pytest.param(
+            SOLAR_TYPE,
+            "Basic Solar",
+            {
+                "connection": "main_bus",
+                "forecast": "sensor.solar_forecast",
+            },
+            None,
+            None,
+            id="solar_missing_switch_field",
+        ),
+        pytest.param(
+            SOLAR_TYPE,
+            "Dynamic Solar",
+            {
+                "connection": "main_bus",
+                "forecast": "sensor.solar_forecast",
+                CONF_CURTAILMENT: "input_boolean.curtail_solar",
+            },
+            CONF_CURTAILMENT,
+            ConfigEntityMode.DRIVEN,
+            id="solar_driven_switch",
+        ),
+    ],
+)
+async def test_setup_handles_switch_field_variants(
     hass: HomeAssistant,
     config_entry: MockConfigEntry,
+    subentry_type: str,
+    title: str,
+    data: dict[str, object],
+    expect_field: str | None,
+    expect_mode: ConfigEntityMode | None,
 ) -> None:
-    """Setup skips elements that have no switch fields (like grid)."""
+    """Setup handles elements with missing, absent, or driven switch fields."""
     _add_subentry(hass, config_entry, ELEMENT_TYPE_NETWORK, "Test Network", {})
-
-    # Add grid element - it has no switch fields
-    _add_subentry(
-        hass,
-        config_entry,
-        GRID_TYPE,
-        "Main Grid",
-        {
-            "connection": "main_bus",
-            "price_source_target": 0.30,
-            "price_target_source": 0.05,
-        },
-    )
+    _add_subentry(hass, config_entry, subentry_type, title, data)
 
     async_add_entities = Mock()
     await async_setup_entry(hass, config_entry, async_add_entities)
 
-    # Only the auto-optimize switch is created (grid has no switch fields)
-    async_add_entities.assert_called_once()
-    entities = list(async_add_entities.call_args.args[0])
-    assert len(entities) == 1
-    assert isinstance(entities[0], AutoOptimizeSwitch)
+    entities = list(async_add_entities.call_args.args[0]) if async_add_entities.called else []
+    input_switches = [e for e in entities if hasattr(e, "_field_info")]
+
+    if expect_field is None:
+        assert not any(getattr(e._field_info, "field_name", None) == "allow_curtailment" for e in input_switches)
+    else:
+        matches = [e for e in input_switches if e._field_info.field_name == expect_field]
+        assert matches
+        assert matches[0]._entity_mode == expect_mode
 
 
 async def test_setup_creates_switch_entities_for_solar_curtailment(
@@ -229,7 +267,7 @@ async def test_setup_creates_switch_entities_for_solar_curtailment(
         {
             "connection": "main_bus",
             "forecast": "sensor.solar_forecast",
-            "allow_curtailment": True,  # Boolean becomes switch
+            CONF_CURTAILMENT: True,  # Boolean becomes switch
         },
     )
 
@@ -244,38 +282,6 @@ async def test_setup_creates_switch_entities_for_solar_curtailment(
         field_names = {e._field_info.field_name for e in input_switches}
         if "allow_curtailment" in field_names:
             assert len(input_switches) >= 1
-
-
-async def test_setup_skips_missing_switch_fields_in_config(
-    hass: HomeAssistant,
-    config_entry: MockConfigEntry,
-) -> None:
-    """Setup only creates entities for switch fields present in config data."""
-    _add_subentry(hass, config_entry, ELEMENT_TYPE_NETWORK, "Test Network", {})
-
-    # Add solar without the optional curtailment field
-    _add_subentry(
-        hass,
-        config_entry,
-        SOLAR_TYPE,
-        "Basic Solar",
-        {
-            "connection": "main_bus",
-            "forecast": "sensor.solar_forecast",
-            # No allow_curtailment field
-        },
-    )
-
-    async_add_entities = Mock()
-    await async_setup_entry(hass, config_entry, async_add_entities)
-
-    # If called, check that curtailment field is not present in input switches
-    if async_add_entities.called:
-        entities = list(async_add_entities.call_args.args[0])
-        # Filter out AutoOptimizeSwitch to get only input switches
-        input_switches = [e for e in entities if hasattr(e, "_field_info")]
-        field_names = {e._field_info.field_name for e in input_switches}
-        assert "allow_curtailment" not in field_names
 
 
 async def test_setup_creates_correct_device_identifiers(
@@ -351,37 +357,6 @@ async def test_setup_handles_multiple_solar_elements(
             assert "Solar North" in element_names or "Solar South" in element_names
 
 
-async def test_setup_with_entity_id_creates_driven_mode_entity(
-    hass: HomeAssistant,
-    config_entry: MockConfigEntry,
-) -> None:
-    """Setup creates DRIVEN mode entity when config contains entity ID."""
-    _add_subentry(hass, config_entry, ELEMENT_TYPE_NETWORK, "Test Network", {})
-
-    _add_subentry(
-        hass,
-        config_entry,
-        SOLAR_TYPE,
-        "Dynamic Solar",
-        {
-            "connection": "main_bus",
-            "forecast": "sensor.solar_forecast",
-            "allow_curtailment": "input_boolean.curtail_solar",  # Entity ID
-        },
-    )
-
-    async_add_entities = Mock()
-    await async_setup_entry(hass, config_entry, async_add_entities)
-
-    if async_add_entities.called:
-        entities = list(async_add_entities.call_args.args[0])
-        # Filter out AutoOptimizeSwitch to get only input switches
-        input_switches = [e for e in entities if hasattr(e, "_field_info")]
-        curtailment_entities = [e for e in input_switches if e._field_info.field_name == "allow_curtailment"]
-        if curtailment_entities:
-            assert curtailment_entities[0]._entity_mode == ConfigEntityMode.DRIVEN
-
-
 # ===== Tests for AutoOptimizeSwitch =====
 
 
@@ -390,8 +365,20 @@ def _create_mock_device_entry() -> DeviceEntry:
     return DeviceEntry(id="test_device_id")
 
 
-async def test_auto_optimize_switch_turn_on(hass: HomeAssistant) -> None:
-    """Test turning on the auto-optimize switch updates state."""
+@pytest.mark.parametrize(
+    ("initial_state", "method", "expected"),
+    [
+        pytest.param(False, "on", True, id="turn_on"),
+        pytest.param(True, "off", False, id="turn_off"),
+    ],
+)
+async def test_auto_optimize_switch_toggle(
+    hass: HomeAssistant,
+    initial_state: bool,
+    method: str,
+    expected: bool,
+) -> None:
+    """Turning the auto-optimize switch updates state."""
     entry = MockConfigEntry(domain=DOMAIN, entry_id="test_entry")
     entry.add_to_hass(hass)
 
@@ -399,43 +386,31 @@ async def test_auto_optimize_switch_turn_on(hass: HomeAssistant) -> None:
         config_entry=entry,
         device_entry=_create_mock_device_entry(),
     )
-    # Set initial state to off
-    switch._attr_is_on = False
-    # Mock async_write_ha_state to avoid entity registration requirements
+    switch._attr_is_on = initial_state
     switch.async_write_ha_state = Mock()  # type: ignore[method-assign]
 
-    # Turn on the switch
-    await switch.async_turn_on()
+    if method == "on":
+        await switch.async_turn_on()
+    else:
+        await switch.async_turn_off()
 
-    # Verify switch state was updated
-    assert switch.is_on is True
+    assert switch.is_on is expected
     switch.async_write_ha_state.assert_called_once()
 
 
-async def test_auto_optimize_switch_turn_off(hass: HomeAssistant) -> None:
-    """Test turning off the auto-optimize switch updates state."""
-    entry = MockConfigEntry(domain=DOMAIN, entry_id="test_entry")
-    entry.add_to_hass(hass)
-
-    switch = AutoOptimizeSwitch(
-        config_entry=entry,
-        device_entry=_create_mock_device_entry(),
-    )
-    # Set initial state to on
-    switch._attr_is_on = True
-    # Mock async_write_ha_state to avoid entity registration requirements
-    switch.async_write_ha_state = Mock()  # type: ignore[method-assign]
-
-    # Turn off the switch
-    await switch.async_turn_off()
-
-    # Verify switch state was updated
-    assert switch.is_on is False
-    switch.async_write_ha_state.assert_called_once()
-
-
-async def test_auto_optimize_switch_restores_on_state(hass: HomeAssistant) -> None:
-    """Test switch restores ON state from previous session."""
+@pytest.mark.parametrize(
+    ("restored_state", "expected"),
+    [
+        pytest.param(STATE_ON, True, id="restores_on"),
+        pytest.param(STATE_OFF, False, id="restores_off"),
+    ],
+)
+async def test_auto_optimize_switch_restores_state(
+    hass: HomeAssistant,
+    restored_state: str,
+    expected: bool,
+) -> None:
+    """Switch restores state from previous session."""
     entry = MockConfigEntry(domain=DOMAIN, entry_id="test_entry")
     entry.add_to_hass(hass)
 
@@ -444,40 +419,14 @@ async def test_auto_optimize_switch_restores_on_state(hass: HomeAssistant) -> No
         device_entry=_create_mock_device_entry(),
     )
 
-    # Mock the restore state mechanism
     async def mock_get_last_state() -> State:
-        return State("switch.test", STATE_ON)
+        return State("switch.test", restored_state)
 
     switch.async_get_last_state = mock_get_last_state  # type: ignore[method-assign]
 
-    # Call async_added_to_hass which triggers state restoration
     await switch.async_added_to_hass()
 
-    # Verify state was restored to ON
-    assert switch.is_on is True
-
-
-async def test_auto_optimize_switch_restores_off_state(hass: HomeAssistant) -> None:
-    """Test switch restores OFF state from previous session."""
-    entry = MockConfigEntry(domain=DOMAIN, entry_id="test_entry")
-    entry.add_to_hass(hass)
-
-    switch = AutoOptimizeSwitch(
-        config_entry=entry,
-        device_entry=_create_mock_device_entry(),
-    )
-
-    # Mock the restore state mechanism
-    async def mock_get_last_state() -> State:
-        return State("switch.test", STATE_OFF)
-
-    switch.async_get_last_state = mock_get_last_state  # type: ignore[method-assign]
-
-    # Call async_added_to_hass which triggers state restoration
-    await switch.async_added_to_hass()
-
-    # Verify state was restored to OFF
-    assert switch.is_on is False
+    assert switch.is_on is expected
 
 
 async def test_auto_optimize_switch_defaults_to_on_without_previous_state(hass: HomeAssistant) -> None:

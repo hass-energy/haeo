@@ -2,7 +2,6 @@
 
 import asyncio
 from collections.abc import Iterable
-from contextlib import suppress
 from types import MappingProxyType
 from unittest.mock import AsyncMock, Mock
 
@@ -17,7 +16,6 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 from custom_components.haeo import (
     HaeoRuntimeData,
     _ensure_required_subentries,
-    async_reload_entry,
     async_remove_config_entry_device,
     async_setup_entry,
     async_unload_entry,
@@ -201,16 +199,6 @@ def _create_mock_runtime_data(coordinator: Mock) -> HaeoRuntimeData:
     return HaeoRuntimeData(horizon_manager=horizon, coordinator=coordinator)
 
 
-async def test_setup_hub_entry(hass: HomeAssistant, mock_hub_entry: MockConfigEntry) -> None:
-    """Test setting up a hub entry."""
-    # Test basic hub setup functionality
-    with suppress(Exception):
-        await async_setup_entry(hass, mock_hub_entry)
-
-    # Hub entries set up platforms
-    assert True
-
-
 async def test_unload_hub_entry(hass: HomeAssistant, mock_hub_entry: MockConfigEntry) -> None:
     """Test unloading a hub entry.
 
@@ -276,21 +264,6 @@ async def test_async_setup_entry_initializes_coordinator(
     assert forward_mock.await_count == 2
 
 
-async def test_reload_hub_entry(hass: HomeAssistant, mock_hub_entry: MockConfigEntry) -> None:
-    """Test reloading a hub entry."""
-
-    # Set up initial mock coordinator with sync cleanup method
-    mock_coordinator = Mock()
-    mock_coordinator.cleanup = Mock()  # cleanup is a sync method
-    mock_hub_entry.runtime_data = _create_mock_runtime_data(mock_coordinator)
-
-    # Test that reload works
-    with suppress(Exception):
-        await async_reload_entry(hass, mock_hub_entry)
-
-    assert True
-
-
 async def test_ensure_required_subentries_network_already_exists(
     hass: HomeAssistant, mock_hub_entry: MockConfigEntry
 ) -> None:
@@ -326,28 +299,41 @@ async def test_ensure_required_subentries_creates_network(hass: HomeAssistant, m
     assert network_count == 1
 
 
-async def test_ensure_required_subentries_creates_switchboard_non_advanced(
-    hass: HomeAssistant, mock_hub_entry: MockConfigEntry
+@pytest.mark.parametrize(
+    "existing_node",
+    [False, True],
+    ids=["creates_switchboard", "skips_existing"],
+)
+async def test_ensure_required_subentries_switchboard_handling(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+    existing_node: bool,
 ) -> None:
-    """Test that _ensure_required_subentries creates switchboard node in non-advanced mode."""
-    # Verify no node subentry exists initially
-    node_count = sum(1 for sub in mock_hub_entry.subentries.values() if sub.subentry_type == ELEMENT_TYPE_NODE)
-    assert node_count == 0
+    """_ensure_required_subentries creates a switchboard only when missing."""
+    if existing_node:
+        node_subentry = ConfigSubentry(
+            data=MappingProxyType(
+                {
+                    CONF_ELEMENT_TYPE: ELEMENT_TYPE_NODE,
+                    SECTION_COMMON: {CONF_NAME: "Existing Node"},
+                }
+            ),
+            subentry_type=ELEMENT_TYPE_NODE,
+            title="Existing Node",
+            unique_id=None,
+        )
+        hass.config_entries.async_add_subentry(mock_hub_entry, node_subentry)
 
-    # Call ensure - should create switchboard node in non-advanced mode
     await _ensure_required_subentries(hass, mock_hub_entry)
 
-    # Verify node subentry was created
     node_count = sum(1 for sub in mock_hub_entry.subentries.values() if sub.subentry_type == ELEMENT_TYPE_NODE)
     assert node_count == 1
 
-    # Verify the created node has correct configuration
     node_subentry = next(sub for sub in mock_hub_entry.subentries.values() if sub.subentry_type == ELEMENT_TYPE_NODE)
-    assert (
-        node_subentry.data[SECTION_COMMON][CONF_NAME] == "Switchboard"
-    )  # Default name when translations not available
-    assert node_subentry.data[SECTION_ROLE]["is_source"] is False
-    assert node_subentry.data[SECTION_ROLE]["is_sink"] is False
+    assert node_subentry.data[SECTION_COMMON][CONF_NAME] == ("Existing Node" if existing_node else "Switchboard")
+    if not existing_node:
+        assert node_subentry.data[SECTION_ROLE]["is_source"] is False
+        assert node_subentry.data[SECTION_ROLE]["is_sink"] is False
 
 
 async def test_ensure_required_subentries_skips_switchboard_advanced_mode(
@@ -378,50 +364,6 @@ async def test_ensure_required_subentries_skips_switchboard_advanced_mode(
     # Verify no node subentry was created
     node_count = sum(1 for sub in advanced_hub_entry.subentries.values() if sub.subentry_type == ELEMENT_TYPE_NODE)
     assert node_count == 0
-
-
-async def test_ensure_required_subentries_skips_switchboard_if_exists(
-    hass: HomeAssistant, mock_hub_entry: MockConfigEntry
-) -> None:
-    """Test that _ensure_required_subentries does not duplicate nodes if one exists."""
-    # Create a node subentry first
-    node_subentry = ConfigSubentry(
-        data=MappingProxyType({CONF_NAME: "Existing Node", CONF_ELEMENT_TYPE: ELEMENT_TYPE_NODE}),
-        subentry_type=ELEMENT_TYPE_NODE,
-        title="Existing Node",
-        unique_id=None,
-    )
-    hass.config_entries.async_add_subentry(mock_hub_entry, node_subentry)
-
-    # Verify one node subentry exists
-    node_count = sum(1 for sub in mock_hub_entry.subentries.values() if sub.subentry_type == ELEMENT_TYPE_NODE)
-    assert node_count == 1
-
-    # Call ensure - should not create another one
-    await _ensure_required_subentries(hass, mock_hub_entry)
-
-    # Verify still only one node subentry
-    node_count = sum(1 for sub in mock_hub_entry.subentries.values() if sub.subentry_type == ELEMENT_TYPE_NODE)
-    assert node_count == 1
-
-
-async def test_reload_entry_failure_handling(hass: HomeAssistant, mock_hub_entry: MockConfigEntry) -> None:
-    """Test reload handles setup failures gracefully."""
-    # Mock runtime data with sync cleanup method
-    mock_coordinator = Mock()
-    mock_coordinator.cleanup = Mock()  # cleanup is a sync method
-    mock_hub_entry.runtime_data = _create_mock_runtime_data(mock_coordinator)
-
-    # Attempt reload - should work but may have warnings about state
-    try:
-        await async_reload_entry(hass, mock_hub_entry)
-    except Exception:
-        # Some setup steps may fail without full mocks
-        pass
-
-    # Verify a new coordinator was created or entry was unloaded
-    # The important part is that reload doesn't crash
-    assert True
 
 
 async def test_async_update_listener(
@@ -461,39 +403,6 @@ async def test_async_update_listener(
     assert ensure_called
 
 
-async def test_async_update_listener_value_update_in_progress(
-    hass: HomeAssistant,
-    mock_hub_entry: MockConfigEntry,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Test async_update_listener skips reload when value update is in progress."""
-    # Set up runtime_data with value_update_in_progress=True
-    mock_coordinator = Mock()
-    mock_hub_entry.runtime_data = HaeoRuntimeData(
-        horizon_manager=_create_mock_horizon_manager(),
-        coordinator=mock_coordinator,
-        value_update_in_progress=True,
-    )
-
-    # Mock the reload function to track if it's called
-    reload_called = False
-
-    async def mock_reload(entry_id: str) -> bool:
-        nonlocal reload_called
-        reload_called = True
-        return True
-
-    hass.config_entries.async_reload = mock_reload
-
-    # Call update listener
-    await async_update_listener(hass, mock_hub_entry)
-
-    # Verify: flag should be cleared, optimization signaled stale, NO reload
-    assert mock_hub_entry.runtime_data.value_update_in_progress is False
-    mock_coordinator.signal_optimization_stale.assert_called_once()
-    assert not reload_called
-
-
 async def test_async_remove_config_entry_device(hass: HomeAssistant, mock_hub_entry: MockConfigEntry) -> None:
     """Test device removal when config entry is removed."""
     device_registry = dr.async_get(hass)
@@ -517,20 +426,27 @@ async def test_async_remove_config_entry_device(hass: HomeAssistant, mock_hub_en
     assert result is False
 
 
-async def test_async_update_listener_value_update_skips_refresh_without_coordinator(
+@pytest.mark.parametrize(
+    ("with_coordinator", "expect_signal"),
+    [
+        pytest.param(True, True, id="with_coordinator"),
+        pytest.param(False, False, id="no_coordinator"),
+    ],
+)
+async def test_async_update_listener_value_update_in_progress(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
-    monkeypatch: pytest.MonkeyPatch,
+    with_coordinator: bool,
+    expect_signal: bool,
 ) -> None:
-    """Test async_update_listener skips coordinator refresh when coordinator is None."""
-    # Set up runtime_data with value_update_in_progress=True but NO coordinator
+    """async_update_listener clears the flag and skips reload during value updates."""
+    mock_coordinator = Mock() if with_coordinator else None
     mock_hub_entry.runtime_data = HaeoRuntimeData(
         horizon_manager=_create_mock_horizon_manager(),
-        coordinator=None,  # No coordinator
+        coordinator=mock_coordinator,
         value_update_in_progress=True,
     )
 
-    # Mock the reload function to track if it's called
     reload_called = False
 
     async def mock_reload(entry_id: str) -> bool:
@@ -540,12 +456,12 @@ async def test_async_update_listener_value_update_skips_refresh_without_coordina
 
     hass.config_entries.async_reload = mock_reload
 
-    # Call update listener
     await async_update_listener(hass, mock_hub_entry)
 
-    # Verify: flag should be cleared, NO reload
     assert mock_hub_entry.runtime_data.value_update_in_progress is False
     assert not reload_called
+    if expect_signal:
+        mock_coordinator.signal_optimization_stale.assert_called_once()
 
 
 async def test_async_setup_entry_raises_config_entry_not_ready_on_timeout(

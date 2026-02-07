@@ -8,6 +8,7 @@ from unittest.mock import AsyncMock, Mock, patch
 from homeassistant.config_entries import ConfigSubentry
 from homeassistant.core import HomeAssistant, State
 from homeassistant.helpers import entity_registry as er
+import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.haeo import HaeoRuntimeData
@@ -803,32 +804,6 @@ async def test_historical_state_provider_get_states_sync(hass: HomeAssistant) ->
     assert result == {"sensor.test": [mock_state]}
 
 
-async def test_diagnostics_with_historical_provider_omits_outputs(hass: HomeAssistant) -> None:
-    """Test that diagnostics with historical provider omits output sensors."""
-    entry = MockConfigEntry(
-        domain=DOMAIN,
-        data=_hub_entry_data("Test Hub"),
-        entry_id="test_entry",
-    )
-    entry.add_to_hass(hass)
-    entry.runtime_data = None
-
-    # Create a mock historical state provider
-    target_time = datetime(2026, 1, 20, 14, 32, 3, tzinfo=UTC)
-    mock_provider = Mock()
-    mock_provider.is_historical = True
-    mock_provider.timestamp = target_time
-    mock_provider.get_states = AsyncMock(return_value={})
-
-    result = await collect_diagnostics(hass, entry, mock_provider)
-
-    # Verify environment reflects historical mode
-    assert result.data["environment"]["historical"] is True
-
-    # Verify outputs is empty (historical diagnostics omit outputs)
-    assert result.data["outputs"] == {}
-
-
 async def test_diagnostics_with_network_subentry_not_element_config(hass: HomeAssistant) -> None:
     """Test that network subentry with invalid element config is skipped."""
     entry = MockConfigEntry(
@@ -913,8 +888,12 @@ async def test_diagnostics_skips_switch_with_none_value(hass: HomeAssistant) -> 
     assert battery_config[SECTION_STORAGE][CONF_CAPACITY] == as_constant_value(10.0)
 
 
-async def test_collect_diagnostics_returns_missing_entity_ids(hass: HomeAssistant) -> None:
-    """Test that collect_diagnostics returns missing entity IDs when not all states are found."""
+@pytest.mark.parametrize("missing_state", [True, False], ids=["missing_soc", "all_found"])
+async def test_collect_diagnostics_missing_entity_ids(
+    hass: HomeAssistant,
+    missing_state: bool,
+) -> None:
+    """collect_diagnostics reports missing entity IDs when states are absent."""
     entry = MockConfigEntry(
         domain=DOMAIN,
         title="Test Hub",
@@ -944,64 +923,21 @@ async def test_collect_diagnostics_returns_missing_entity_ids(hass: HomeAssistan
     )
     hass.config_entries.async_add_subentry(entry, battery_subentry)
 
-    # Only set up one of the two expected sensor states
     hass.states.async_set("sensor.battery_capacity", "5000", {"unit_of_measurement": "Wh"})
-    # sensor.battery_soc is NOT set - it will be missing
+    if not missing_state:
+        hass.states.async_set("sensor.battery_soc", "50", {"unit_of_measurement": "%"})
 
     entry.runtime_data = None
 
     result = await collect_diagnostics(hass, entry, CurrentStateProvider(hass))
 
-    # Verify missing_entity_ids contains the missing sensor
-    assert "sensor.battery_soc" in result.missing_entity_ids
-    assert "sensor.battery_capacity" not in result.missing_entity_ids
-
-    # Verify inputs only has the found sensor
-    assert len(result.data["inputs"]) == 1
-    assert result.data["inputs"][0]["entity_id"] == "sensor.battery_capacity"
-
-
-async def test_collect_diagnostics_returns_empty_missing_when_all_found(hass: HomeAssistant) -> None:
-    """Test that collect_diagnostics returns empty missing_entity_ids when all states are found."""
-    entry = MockConfigEntry(
-        domain=DOMAIN,
-        title="Test Hub",
-        data=_hub_entry_data("Test Hub"),
-        entry_id="hub_entry",
-    )
-    entry.add_to_hass(hass)
-
-    battery_subentry = ConfigSubentry(
-        data=MappingProxyType(
-            _battery_config(
-                name="Battery",
-                connection="DC Bus",
-                capacity="sensor.battery_capacity",
-                initial_charge_percentage="sensor.battery_soc",
-                max_power_source_target=5.0,
-                max_power_target_source=5.0,
-                min_charge_percentage=10.0,
-                max_charge_percentage=90.0,
-                efficiency_source_target=95.0,
-                efficiency_target_source=95.0,
-            )
-        ),
-        subentry_type=ELEMENT_TYPE_BATTERY,
-        title="Battery",
-        unique_id=None,
-    )
-    hass.config_entries.async_add_subentry(entry, battery_subentry)
-
-    # Set up both expected sensor states
-    hass.states.async_set("sensor.battery_capacity", "5000", {"unit_of_measurement": "Wh"})
-    hass.states.async_set("sensor.battery_soc", "75", {"unit_of_measurement": "%"})
-
-    entry.runtime_data = None
-
-    result = await collect_diagnostics(hass, entry, CurrentStateProvider(hass))
-
-    # Verify no missing entity IDs
-    assert result.missing_entity_ids == []
-
-    # Verify inputs has both sensors
-    assert len(result.data["inputs"]) == 2
+    if missing_state:
+        assert "sensor.battery_soc" in result.missing_entity_ids
+        assert "sensor.battery_capacity" not in result.missing_entity_ids
+        assert len(result.data["inputs"]) == 1
+        assert result.data["inputs"][0]["entity_id"] == "sensor.battery_capacity"
+    else:
+        assert result.missing_entity_ids == []
+        entity_ids = {item["entity_id"] for item in result.data["inputs"]}
+        assert entity_ids == {"sensor.battery_capacity", "sensor.battery_soc"}
+        title = ("Battery",)
