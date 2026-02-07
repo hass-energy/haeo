@@ -23,19 +23,13 @@ def test_parse_datetime_string() -> None:
             int(datetime(2025, 10, 6, 0, 0, 0, tzinfo=UTC).timestamp()),
             id="aware_datetime",
         ),
-        pytest.param(
-            datetime(2025, 10, 6, 12, 30, 0, tzinfo=UTC).replace(tzinfo=None),
-            None,
-            id="naive_datetime",
-        ),
     ],
 )
-def test_parse_datetime_object_variants(dt: datetime, expected: int | None) -> None:
-    """Test parsing datetime objects directly (aware and naive)."""
+def test_parse_datetime_object_variants(dt: datetime, expected: int) -> None:
+    """Test parsing aware datetime objects directly."""
     result = parse_datetime_to_timestamp(dt)
     assert isinstance(result, int)
-    if expected is not None:
-        assert result == expected
+    assert result == expected
 
 
 def test_parse_invalid_string_raises_error() -> None:

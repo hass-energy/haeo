@@ -244,7 +244,7 @@ async def test_setup_handles_switch_field_variants(
     input_switches = [e for e in entities if hasattr(e, "_field_info")]
 
     if expect_field is None:
-        assert not any(getattr(e._field_info, "field_name", None) == "allow_curtailment" for e in input_switches)
+        assert not any(getattr(e._field_info, "field_name", None) == CONF_CURTAILMENT for e in input_switches)
     else:
         matches = [e for e in input_switches if e._field_info.field_name == expect_field]
         assert matches
@@ -280,8 +280,7 @@ async def test_setup_creates_switch_entities_for_solar_curtailment(
         input_switches = [e for e in entities if hasattr(e, "_field_info")]
         # Check if any switch entity was created for curtailment
         field_names = {e._field_info.field_name for e in input_switches}
-        if "allow_curtailment" in field_names:
-            assert len(input_switches) >= 1
+        assert CONF_CURTAILMENT in field_names
 
 
 async def test_setup_creates_correct_device_identifiers(
@@ -298,7 +297,7 @@ async def test_setup_creates_correct_device_identifiers(
         {
             "connection": "main_bus",
             "forecast": "sensor.solar_forecast",
-            "allow_curtailment": True,
+            CONF_CURTAILMENT: True,
         },
     )
 
@@ -327,7 +326,7 @@ async def test_setup_handles_multiple_solar_elements(
         {
             "connection": "bus1",
             "forecast": "sensor.solar_north",
-            "allow_curtailment": True,
+            CONF_CURTAILMENT: True,
         },
     )
     _add_subentry(
@@ -338,7 +337,7 @@ async def test_setup_handles_multiple_solar_elements(
         {
             "connection": "bus2",
             "forecast": "sensor.solar_south",
-            "allow_curtailment": False,
+            CONF_CURTAILMENT: False,
         },
     )
 
