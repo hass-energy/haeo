@@ -1,0 +1,1475 @@
+============================= test session starts ==============================
+platform darwin -- Python 3.13.3, pytest-9.0.0, pluggy-1.6.0
+rootdir: /Users/trenthouliston/Code/gaeo
+configfile: pyproject.toml
+testpaths: tests
+plugins: respx-0.22.0, pytest_freezer-0.4.9, unordered-0.7.0, anyio-4.12.0, sugar-1.0.0, socket-0.7.0, xdist-3.8.0, timeout-2.4.0, homeassistant-custom-component-0.13.306, github-actions-annotate-failures-0.3.0, asyncio-1.3.0, aiohttp-1.1.0, picked-0.5.1, requests-mock-1.12.1, cov-7.0.0, syrupy-5.0.0
+timeout: 5.0s
+timeout method: signal
+timeout func_only: False
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collected 1345 items / 5 deselected / 1340 selected
+
+<Dir gaeo>
+  <Package tests>
+    <Package coordinator>
+      <Module test_network.py>
+        <Function test_update_element_updates_tracked_params>
+        <Function test_update_element_raises_for_missing_model_element>
+    <Package data>
+      <Package loader>
+        <Package extractors>
+          <Module test_forecast_parser.py>
+            <Function test_extract_valid_sensors[amber2mqtt-Single Amber2MQTT forecast entry (consumption)]>
+            <Function test_extract_valid_sensors[amber2mqtt-Multiple Amber2MQTT forecast entries]>
+            <Function test_extract_valid_sensors[amber2mqtt-Amber2MQTT feed-in sensor (advanced_price_predicted should be negated)]>
+            <Function test_extract_valid_sensors[amber2mqtt-Amber2MQTT feedin sensor (alternative naming, advanced_price_predicted should be negated)]>
+            <Function test_extract_valid_sensors[amber2mqtt-Amber2MQTT forecast with datetime objects instead of strings]>
+            <Function test_extract_valid_sensors[amberelectric-Single Amber forecast entry]>
+            <Function test_extract_valid_sensors[amberelectric-Multiple Amber forecast entries]>
+            <Function test_extract_valid_sensors[amberelectric-Amber forecast with timezone conversion]>
+            <Function test_extract_valid_sensors[amberelectric-Amber forecast with datetime objects instead of strings]>
+            <Function test_extract_valid_sensors[aemo_nem-Single AEMO forecast entry]>
+            <Function test_extract_valid_sensors[aemo_nem-Multiple AEMO forecast entries]>
+            <Function test_extract_valid_sensors[emhass-EMHASS load forecast with forecasts attribute]>
+            <Function test_extract_valid_sensors[emhass-EMHASS deferrable load with deferrables_schedule attribute]>
+            <Function test_extract_valid_sensors[emhass-EMHASS forecast with numeric values (not strings)]>
+            <Function test_extract_valid_sensors[emhass-EMHASS battery power with battery_scheduled_power attribute]>
+            <Function test_extract_valid_sensors[emhass-EMHASS battery SOC with battery_scheduled_soc attribute]>
+            <Function test_extract_valid_sensors[emhass-EMHASS unit cost forecast with unit_load_cost_forecasts attribute]>
+            <Function test_extract_valid_sensors[emhass-EMHASS ML forecaster with scheduled_forecast attribute]>
+            <Function test_extract_valid_sensors[emhass-EMHASS temperature forecast with predicted_temperatures attribute]>
+            <Function test_extract_valid_sensors[flow_power-Flow Power export price with two periods]>
+            <Function test_extract_valid_sensors[haeo-Single HAEO forecast entry with power]>
+            <Function test_extract_valid_sensors[haeo-Multiple HAEO forecast entries]>
+            <Function test_extract_valid_sensors[haeo-HAEO forecast with datetime objects]>
+            <Function test_extract_valid_sensors[haeo-HAEO forecast with energy device class]>
+            <Function test_extract_valid_sensors[haeo-HAEO forecast without device_class attribute]>
+            <Function test_extract_valid_sensors[haeo-HAEO forecast with integer values (should be converted to float)]>
+            <Function test_extract_valid_sensors[haeo-HAEO forecast with invalid device_class (should be ignored)]>
+            <Function test_extract_valid_sensors[solcast_solar-Single Solcast forecast entry]>
+            <Function test_extract_valid_sensors[solcast_solar-Multiple Solcast forecast entries]>
+            <Function test_extract_valid_sensors[solcast_solar-Solcast forecast with datetime objects instead of strings]>
+            <Function test_extract_valid_sensors[solcast_solar-Solcast forecast with mixed string and datetime object timestamps]>
+            <Function test_extract_valid_sensors[open_meteo_solar_forecast-Open-Meteo forecast with watts dict]>
+            <Function test_extract_valid_sensors[open_meteo_solar_forecast-Multiple Open-Meteo forecast entries]>
+            <Function test_invalid_sensor_handling[amber2mqtt-Amber2MQTT forecast with invalid/missing fields]>
+            <Function test_invalid_sensor_handling[amber2mqtt-Amber2MQTT forecast missing end_time]>
+            <Function test_invalid_sensor_handling[amber2mqtt-Amber2MQTT forecast with invalid timestamp]>
+            <Function test_invalid_sensor_handling[amber2mqtt-Amber2MQTT sensor missing Forecasts attribute]>
+            <Function test_invalid_sensor_handling[amber2mqtt-Amber2MQTT sensor with Forecasts not being a list]>
+            <Function test_invalid_sensor_handling[amber2mqtt-Amber2MQTT sensor with empty Forecasts list]>
+            <Function test_invalid_sensor_handling[amberelectric-Amber forecast with invalid/missing fields]>
+            <Function test_invalid_sensor_handling[amberelectric-Amber forecast missing end_time]>
+            <Function test_invalid_sensor_handling[amberelectric-Amber forecast with invalid timestamp]>
+            <Function test_invalid_sensor_handling[amberelectric-Amber sensor missing forecasts attribute]>
+            <Function test_invalid_sensor_handling[amberelectric-Amber sensor with forecasts not being a list]>
+            <Function test_invalid_sensor_handling[amberelectric-Amber sensor with empty forecasts list]>
+            <Function test_invalid_sensor_handling[amberelectric-Amber forecast containing both valid and invalid rows]>
+            <Function test_invalid_sensor_handling[amberelectric-Amber forecast containing a non-mapping item]>
+            <Function test_invalid_sensor_handling[aemo_nem-AEMO sensor missing forecast attribute]>
+            <Function test_invalid_sensor_handling[aemo_nem-AEMO sensor with forecast not being a list]>
+            <Function test_invalid_sensor_handling[aemo_nem-AEMO sensor with empty forecast list]>
+            <Function test_invalid_sensor_handling[aemo_nem-AEMO sensor with non-dict items alongside a valid row]>
+            <Function test_invalid_sensor_handling[aemo_nem-AEMO sensor with items missing required fields]>
+            <Function test_invalid_sensor_handling[aemo_nem-AEMO sensor with invalid timestamp]>
+            <Function test_invalid_sensor_handling[emhass-EMHASS sensor missing forecast attribute]>
+            <Function test_invalid_sensor_handling[emhass-EMHASS sensor with empty forecasts list]>
+            <Function test_invalid_sensor_handling[emhass-EMHASS sensor with forecasts not being a list]>
+            <Function test_invalid_sensor_handling[emhass-EMHASS sensor with wrong value key (doesn't match entity name)]>
+            <Function test_invalid_sensor_handling[emhass-EMHASS sensor with invalid timestamp]>
+            <Function test_invalid_sensor_handling[emhass-EMHASS sensor with non-numeric value]>
+            <Function test_invalid_sensor_handling[emhass-EMHASS sensor with missing date key]>
+            <Function test_invalid_sensor_handling[emhass-EMHASS sensor with mixed valid and invalid entries]>
+            <Function test_invalid_sensor_handling[emhass-EMHASS sensor with value that is a list instead of numeric]>
+            <Function test_invalid_sensor_handling[flow_power-Flow Power sensor missing forecast_dict attribute]>
+            <Function test_invalid_sensor_handling[flow_power-Flow Power sensor with forecast_dict not being a mapping]>
+            <Function test_invalid_sensor_handling[flow_power-Flow Power sensor with empty forecast_dict]>
+            <Function test_invalid_sensor_handling[flow_power-Flow Power sensor with single entry (requires at least 2)]>
+            <Function test_invalid_sensor_handling[flow_power-Flow Power sensor with invalid timestamp key]>
+            <Function test_invalid_sensor_handling[flow_power-Flow Power sensor with non-numeric price value]>
+            <Function test_invalid_sensor_handling[haeo-HAEO sensor missing forecast attribute]>
+            <Function test_invalid_sensor_handling[haeo-HAEO sensor with empty forecast list]>
+            <Function test_invalid_sensor_handling[haeo-HAEO sensor with forecast as dict instead of list]>
+            <Function test_invalid_sensor_handling[haeo-HAEO sensor with invalid timestamp]>
+            <Function test_invalid_sensor_handling[haeo-HAEO sensor with non-numeric forecast value]>
+            <Function test_invalid_sensor_handling[haeo-HAEO forecast entry missing time field]>
+            <Function test_invalid_sensor_handling[haeo-HAEO forecast entry missing value field]>
+            <Function test_invalid_sensor_handling[haeo-HAEO sensor missing unit_of_measurement attribute]>
+            <Function test_invalid_sensor_handling[haeo-HAEO sensor with non-string unit_of_measurement]>
+            <Function test_invalid_sensor_handling[haeo-HAEO sensor with empty string unit_of_measurement]>
+            <Function test_invalid_sensor_handling[solcast_solar-Solcast sensor missing detailedForecast attribute]>
+            <Function test_invalid_sensor_handling[solcast_solar-Solcast sensor with detailedForecast not being a list]>
+            <Function test_invalid_sensor_handling[solcast_solar-Solcast sensor with empty detailedForecast list]>
+            <Function test_invalid_sensor_handling[solcast_solar-Solcast sensor with invalid timestamp]>
+            <Function test_invalid_sensor_handling[solcast_solar-Solcast forecast containing both valid and invalid rows]>
+            <Function test_invalid_sensor_handling[solcast_solar-Solcast forecast containing a non-mapping item]>
+            <Function test_invalid_sensor_handling[solcast_solar-Solcast forecast missing required fields]>
+            <Function test_invalid_sensor_handling[open_meteo_solar_forecast-Open-Meteo sensor missing watts attribute]>
+            <Function test_invalid_sensor_handling[open_meteo_solar_forecast-Open-Meteo sensor with watts not being a dict]>
+            <Function test_invalid_sensor_handling[open_meteo_solar_forecast-Open-Meteo sensor with invalid timestamp]>
+            <Function test_invalid_sensor_handling[open_meteo_solar_forecast-Open-Meteo forecast containing both valid and invalid rows]>
+            <Function test_invalid_sensor_handling[open_meteo_solar_forecast-Open-Meteo forecast containing a non-string timestamp key]>
+            <Function test_extract_empty_data>
+            <Function test_extract_unknown_format_falls_back_to_simple_value>
+            <Function test_extract_unknown_format_returns_unit>
+            <Function test_extract_raises_for_non_numeric_state>
+            <Class TestInterpolationModeExtraction>
+              <Function test_no_interpolation_mode_uses_linear>
+              <Function test_linear_mode_explicit>
+              <Function test_previous_mode_adds_synthetic_points>
+              <Function test_next_mode_adds_synthetic_points>
+              <Function test_nearest_mode_adds_synthetic_points>
+              <Function test_invalid_mode_falls_back_to_linear>
+              <Function test_simple_value_ignores_interpolation_mode>
+          <Package utils>
+            <Module test_base_unit.py>
+              <Function test_base_unit_for_device_class[power-kW]>
+              <Function test_base_unit_for_device_class[energy-kWh]>
+              <Function test_base_unit_for_device_class[energy_storage-kWh]>
+              <Function test_base_unit_for_device_class[temperature-None]>
+              <Function test_base_unit_for_device_class[humidity-None]>
+              <Function test_base_unit_for_device_class[pressure-None]>
+              <Function test_base_unit_for_device_class[None-None]>
+              <Function test_convert_to_base_unit[1000.0-W-power-1.0]>
+              <Function test_convert_to_base_unit[1.0-MW-power-1000.0]>
+              <Function test_convert_to_base_unit[1.0-W-power-0.001]>
+              <Function test_convert_to_base_unit[1.0-kW-power-1.0]>
+              <Function test_convert_to_base_unit[1000.0-Wh-energy-1.0]>
+              <Function test_convert_to_base_unit[1.0-MWh-energy-1000.0]>
+              <Function test_convert_to_base_unit[5.0-kWh-energy-5.0]>
+              <Function test_convert_to_base_unit[1000.0-Wh-energy_storage-1.0]>
+              <Function test_convert_to_base_unit[5.0-kW-power-5.0]>
+              <Function test_convert_to_base_unit[100.0-W-None-100.0]>
+              <Function test_convert_to_base_unit[25.0-\xb0C-temperature-25.0]>
+              <Function test_convert_to_base_unit[50.0-%-humidity-50.0]>
+              <Function test_convert_to_base_unit[75.0-%-battery-75.0]>
+              <Function test_convert_to_base_unit[100.0-$-monetary-100.0]>
+              <Function test_convert_to_base_unit[100.0-None-power-100.0]>
+            <Module test_entity_metadata.py>
+              <Function test_entity_metadata_is_compatible_with_none_unit>
+              <Function test_entity_metadata_is_compatible_with_string_constant>
+              <Function test_entity_metadata_is_compatible_with_enum>
+              <Function test_entity_metadata_is_compatible_with_tuple_pattern>
+              <Function test_entity_metadata_is_compatible_with_list_of_specs>
+              <Function test_entity_metadata_is_compatible_with_list_of_patterns>
+              <Coroutine test_extract_entity_metadata_filters_domain>
+              <Coroutine test_extract_entity_metadata_skips_none_state>
+              <Coroutine test_extract_entity_metadata_includes_none_unit>
+              <Coroutine test_extract_entity_metadata_uses_get_extracted_units>
+            <Module test_parse_datetime.py>
+              <Function test_parse_datetime_string>
+              <Function test_parse_datetime_object>
+              <Function test_parse_datetime_object_no_timezone>
+              <Function test_parse_invalid_string_raises_error>
+              <Function test_parse_none_raises_error>
+              <Function test_parse_non_datetime_type_raises_error>
+            <Module test_separate_timestamps.py>
+              <Function test_separate_duplicate_timestamps[empty]>
+              <Function test_separate_duplicate_timestamps[single_entry]>
+              <Function test_separate_duplicate_timestamps[no_duplicates]>
+              <Function test_separate_duplicate_timestamps[one_duplicate_pair]>
+              <Function test_separate_duplicate_timestamps[multiple_duplicate_pairs]>
+              <Function test_separate_duplicate_timestamps[amber_step_function]>
+              <Function test_separate_duplicate_timestamps[mixed_pattern]>
+              <Function test_separate_duplicate_timestamps[three_consecutive_duplicates]>
+              <Function test_separate_duplicate_timestamps[four_consecutive_duplicates]>
+              <Function test_separate_duplicate_timestamps[five_consecutive_duplicates]>
+              <Function test_separate_duplicate_timestamps_preserves_value_order>
+        <Module test_constant_loader.py>
+          <Coroutine test_constant_loader>
+          <Coroutine test_constant_loader_wrong_type_available>
+          <Coroutine test_constant_loader_wrong_type_load>
+          <Coroutine test_constant_loader_type_guard>
+          <Coroutine test_constant_loader_invalid_type>
+          <Coroutine test_constant_loader_float_conversion>
+          <Coroutine test_constant_loader_type_validation>
+        <Module test_sensor_loader.py>
+          <Function test_normalize_entity_ids_accepts_str_and_sequence>
+          <Function test_load_sensor_forecast_returns_series>
+          <Function test_load_sensor_returns_none_when_unavailable>
+          <Function test_load_sensor_returns_none_when_missing>
+          <Coroutine test_load_sensors_returns_mapping>
+          <Coroutine test_load_sensors_excludes_unavailable>
+        <Module test_time_series_loader.py>
+          <Coroutine test_time_series_loader_available_handles_missing_sensor>
+          <Coroutine test_time_series_loader_available_requires_valid_sensor_data>
+          <Coroutine test_time_series_loader_requires_sensor_entities>
+          <Coroutine test_time_series_loader_loads_mixed_live_and_forecast>
+          <Coroutine test_time_series_loader_returns_empty_series_for_empty_horizon>
+          <Coroutine test_load_boundaries_returns_n_plus_1_values>
+          <Coroutine test_load_boundaries_empty_horizon_returns_empty>
+          <Coroutine test_load_boundaries_raises_when_empty_entity_ids>
+          <Coroutine test_load_boundaries_raises_when_no_data_available>
+          <Coroutine test_load_boundaries_raises_when_sensors_missing>
+        <Module test_time_series_loader_unit.py>
+          <Function test_normalize_entity_ids_rejects_invalid_type>
+          <Function test_time_series_loader_available_counts_every_sensor>
+          <Function test_time_series_loader_available_missing_payloads>
+          <Function test_time_series_loader_available_invalid_value>
+          <Coroutine test_time_series_loader_load_merges_present_and_forecast>
+          <Coroutine test_time_series_loader_load_present_only>
+          <Coroutine test_time_series_loader_load_returns_empty_for_missing_horizon>
+          <Coroutine test_time_series_loader_load_requires_entity_ids>
+          <Coroutine test_time_series_loader_load_fails_when_no_payloads>
+          <Coroutine test_time_series_loader_load_fails_when_sensor_missing>
+      <Package util>
+        <Module test_forecast_combiner.py>
+          <Function test_combine_sensor_payloads[interpolate_and_sum_two_forecasts]>
+          <Function test_combine_sensor_payloads[non_overlapping_forecast_ranges]>
+          <Function test_combine_sensor_payloads[single_forecast_sensor]>
+          <Function test_combine_sensor_payloads[interpolate_at_intermediate_points]>
+          <Function test_combine_sensor_payloads[separate_present_and_forecast_values]>
+          <Function test_combine_sensor_payloads[only_present_values]>
+          <Function test_combine_sensor_payloads[single_present_value]>
+          <Function test_combine_sensor_payloads[empty_payloads]>
+          <Function test_combine_sensor_payloads[mixed_present_and_multiple_forecasts]>
+          <Function test_combine_sensor_payloads[step_function_preserved]>
+          <Function test_combine_sensor_payloads[step_functions_combine]>
+          <Function test_combine_sensor_payloads[step_function_with_gap_preserved]>
+        <Module test_forecast_cycle.py>
+          <Function test_normalize_forecast_cycle[24 hour forecast starting from now-offset_hours=0-offset_cycles=0]>
+          <Function test_normalize_forecast_cycle[24 hour forecast starting from now-offset_hours=0-offset_cycles=5]>
+          <Function test_normalize_forecast_cycle[24 hour forecast starting from now-offset_hours=0-offset_cycles=-5]>
+          <Function test_normalize_forecast_cycle[24 hour forecast starting from now-offset_hours=1-offset_cycles=0]>
+          <Function test_normalize_forecast_cycle[24 hour forecast starting from now-offset_hours=1-offset_cycles=5]>
+          <Function test_normalize_forecast_cycle[24 hour forecast starting from now-offset_hours=1-offset_cycles=-5]>
+          <Function test_normalize_forecast_cycle[24 hour forecast starting from now-offset_hours=24-offset_cycles=0]>
+          <Function test_normalize_forecast_cycle[24 hour forecast starting from now-offset_hours=24-offset_cycles=5]>
+          <Function test_normalize_forecast_cycle[24 hour forecast starting from now-offset_hours=24-offset_cycles=-5]>
+          <Function test_normalize_forecast_cycle[24 hour forecast starting from now-offset_hours=39-offset_cycles=0]>
+          <Function test_normalize_forecast_cycle[24 hour forecast starting from now-offset_hours=39-offset_cycles=5]>
+          <Function test_normalize_forecast_cycle[24 hour forecast starting from now-offset_hours=39-offset_cycles=-5]>
+          <Function test_normalize_forecast_cycle[24 hour forecast starting mid way through-offset_hours=0-offset_cycles=0]>
+          <Function test_normalize_forecast_cycle[24 hour forecast starting mid way through-offset_hours=0-offset_cycles=5]>
+          <Function test_normalize_forecast_cycle[24 hour forecast starting mid way through-offset_hours=0-offset_cycles=-5]>
+          <Function test_normalize_forecast_cycle[24 hour forecast starting mid way through-offset_hours=1-offset_cycles=0]>
+          <Function test_normalize_forecast_cycle[24 hour forecast starting mid way through-offset_hours=1-offset_cycles=5]>
+          <Function test_normalize_forecast_cycle[24 hour forecast starting mid way through-offset_hours=1-offset_cycles=-5]>
+          <Function test_normalize_forecast_cycle[24 hour forecast starting mid way through-offset_hours=24-offset_cycles=0]>
+          <Function test_normalize_forecast_cycle[24 hour forecast starting mid way through-offset_hours=24-offset_cycles=5]>
+          <Function test_normalize_forecast_cycle[24 hour forecast starting mid way through-offset_hours=24-offset_cycles=-5]>
+          <Function test_normalize_forecast_cycle[24 hour forecast starting mid way through-offset_hours=39-offset_cycles=0]>
+          <Function test_normalize_forecast_cycle[24 hour forecast starting mid way through-offset_hours=39-offset_cycles=5]>
+          <Function test_normalize_forecast_cycle[24 hour forecast starting mid way through-offset_hours=39-offset_cycles=-5]>
+          <Function test_normalize_forecast_cycle[48 hour forecast starting from now-offset_hours=0-offset_cycles=0]>
+          <Function test_normalize_forecast_cycle[48 hour forecast starting from now-offset_hours=0-offset_cycles=5]>
+          <Function test_normalize_forecast_cycle[48 hour forecast starting from now-offset_hours=0-offset_cycles=-5]>
+          <Function test_normalize_forecast_cycle[48 hour forecast starting from now-offset_hours=1-offset_cycles=0]>
+          <Function test_normalize_forecast_cycle[48 hour forecast starting from now-offset_hours=1-offset_cycles=5]>
+          <Function test_normalize_forecast_cycle[48 hour forecast starting from now-offset_hours=1-offset_cycles=-5]>
+          <Function test_normalize_forecast_cycle[48 hour forecast starting from now-offset_hours=24-offset_cycles=0]>
+          <Function test_normalize_forecast_cycle[48 hour forecast starting from now-offset_hours=24-offset_cycles=5]>
+          <Function test_normalize_forecast_cycle[48 hour forecast starting from now-offset_hours=24-offset_cycles=-5]>
+          <Function test_normalize_forecast_cycle[48 hour forecast starting from now-offset_hours=39-offset_cycles=0]>
+          <Function test_normalize_forecast_cycle[48 hour forecast starting from now-offset_hours=39-offset_cycles=5]>
+          <Function test_normalize_forecast_cycle[48 hour forecast starting from now-offset_hours=39-offset_cycles=-5]>
+          <Function test_normalize_forecast_cycle[48 hour forecast starting mid way through-offset_hours=0-offset_cycles=0]>
+          <Function test_normalize_forecast_cycle[48 hour forecast starting mid way through-offset_hours=0-offset_cycles=5]>
+          <Function test_normalize_forecast_cycle[48 hour forecast starting mid way through-offset_hours=0-offset_cycles=-5]>
+          <Function test_normalize_forecast_cycle[48 hour forecast starting mid way through-offset_hours=1-offset_cycles=0]>
+          <Function test_normalize_forecast_cycle[48 hour forecast starting mid way through-offset_hours=1-offset_cycles=5]>
+          <Function test_normalize_forecast_cycle[48 hour forecast starting mid way through-offset_hours=1-offset_cycles=-5]>
+          <Function test_normalize_forecast_cycle[48 hour forecast starting mid way through-offset_hours=24-offset_cycles=0]>
+          <Function test_normalize_forecast_cycle[48 hour forecast starting mid way through-offset_hours=24-offset_cycles=5]>
+          <Function test_normalize_forecast_cycle[48 hour forecast starting mid way through-offset_hours=24-offset_cycles=-5]>
+          <Function test_normalize_forecast_cycle[48 hour forecast starting mid way through-offset_hours=39-offset_cycles=0]>
+          <Function test_normalize_forecast_cycle[48 hour forecast starting mid way through-offset_hours=39-offset_cycles=5]>
+          <Function test_normalize_forecast_cycle[48 hour forecast starting mid way through-offset_hours=39-offset_cycles=-5]>
+          <Function test_normalize_forecast_cycle[Single value forecast starting at now-offset_hours=0-offset_cycles=0]>
+          <Function test_normalize_forecast_cycle[Single value forecast starting at now-offset_hours=0-offset_cycles=5]>
+          <Function test_normalize_forecast_cycle[Single value forecast starting at now-offset_hours=0-offset_cycles=-5]>
+          <Function test_normalize_forecast_cycle[Single value forecast starting at now-offset_hours=1-offset_cycles=0]>
+          <Function test_normalize_forecast_cycle[Single value forecast starting at now-offset_hours=1-offset_cycles=5]>
+          <Function test_normalize_forecast_cycle[Single value forecast starting at now-offset_hours=1-offset_cycles=-5]>
+          <Function test_normalize_forecast_cycle[Single value forecast starting at now-offset_hours=24-offset_cycles=0]>
+          <Function test_normalize_forecast_cycle[Single value forecast starting at now-offset_hours=24-offset_cycles=5]>
+          <Function test_normalize_forecast_cycle[Single value forecast starting at now-offset_hours=24-offset_cycles=-5]>
+          <Function test_normalize_forecast_cycle[Single value forecast starting at now-offset_hours=39-offset_cycles=0]>
+          <Function test_normalize_forecast_cycle[Single value forecast starting at now-offset_hours=39-offset_cycles=5]>
+          <Function test_normalize_forecast_cycle[Single value forecast starting at now-offset_hours=39-offset_cycles=-5]>
+          <Function test_normalize_forecast_cycle[Single value forecast starting at a different time-offset_hours=0-offset_cycles=0]>
+          <Function test_normalize_forecast_cycle[Single value forecast starting at a different time-offset_hours=0-offset_cycles=5]>
+          <Function test_normalize_forecast_cycle[Single value forecast starting at a different time-offset_hours=0-offset_cycles=-5]>
+          <Function test_normalize_forecast_cycle[Single value forecast starting at a different time-offset_hours=1-offset_cycles=0]>
+          <Function test_normalize_forecast_cycle[Single value forecast starting at a different time-offset_hours=1-offset_cycles=5]>
+          <Function test_normalize_forecast_cycle[Single value forecast starting at a different time-offset_hours=1-offset_cycles=-5]>
+          <Function test_normalize_forecast_cycle[Single value forecast starting at a different time-offset_hours=24-offset_cycles=0]>
+          <Function test_normalize_forecast_cycle[Single value forecast starting at a different time-offset_hours=24-offset_cycles=5]>
+          <Function test_normalize_forecast_cycle[Single value forecast starting at a different time-offset_hours=24-offset_cycles=-5]>
+          <Function test_normalize_forecast_cycle[Single value forecast starting at a different time-offset_hours=39-offset_cycles=0]>
+          <Function test_normalize_forecast_cycle[Single value forecast starting at a different time-offset_hours=39-offset_cycles=5]>
+          <Function test_normalize_forecast_cycle[Single value forecast starting at a different time-offset_hours=39-offset_cycles=-5]>
+          <Function test_normalize_forecast_cycle[12 hour forecast starting from now-offset_hours=0-offset_cycles=0]>
+          <Function test_normalize_forecast_cycle[12 hour forecast starting from now-offset_hours=0-offset_cycles=5]>
+          <Function test_normalize_forecast_cycle[12 hour forecast starting from now-offset_hours=0-offset_cycles=-5]>
+          <Function test_normalize_forecast_cycle[12 hour forecast starting from now-offset_hours=1-offset_cycles=0]>
+          <Function test_normalize_forecast_cycle[12 hour forecast starting from now-offset_hours=1-offset_cycles=5]>
+          <Function test_normalize_forecast_cycle[12 hour forecast starting from now-offset_hours=1-offset_cycles=-5]>
+          <Function test_normalize_forecast_cycle[12 hour forecast starting from now-offset_hours=24-offset_cycles=0]>
+          <Function test_normalize_forecast_cycle[12 hour forecast starting from now-offset_hours=24-offset_cycles=5]>
+          <Function test_normalize_forecast_cycle[12 hour forecast starting from now-offset_hours=24-offset_cycles=-5]>
+          <Function test_normalize_forecast_cycle[12 hour forecast starting from now-offset_hours=39-offset_cycles=0]>
+          <Function test_normalize_forecast_cycle[12 hour forecast starting from now-offset_hours=39-offset_cycles=5]>
+          <Function test_normalize_forecast_cycle[12 hour forecast starting from now-offset_hours=39-offset_cycles=-5]>
+          <Function test_normalize_forecast_cycle[12 hour forecast starting mid way through-offset_hours=0-offset_cycles=0]>
+          <Function test_normalize_forecast_cycle[12 hour forecast starting mid way through-offset_hours=0-offset_cycles=5]>
+          <Function test_normalize_forecast_cycle[12 hour forecast starting mid way through-offset_hours=0-offset_cycles=-5]>
+          <Function test_normalize_forecast_cycle[12 hour forecast starting mid way through-offset_hours=1-offset_cycles=0]>
+          <Function test_normalize_forecast_cycle[12 hour forecast starting mid way through-offset_hours=1-offset_cycles=5]>
+          <Function test_normalize_forecast_cycle[12 hour forecast starting mid way through-offset_hours=1-offset_cycles=-5]>
+          <Function test_normalize_forecast_cycle[12 hour forecast starting mid way through-offset_hours=24-offset_cycles=0]>
+          <Function test_normalize_forecast_cycle[12 hour forecast starting mid way through-offset_hours=24-offset_cycles=5]>
+          <Function test_normalize_forecast_cycle[12 hour forecast starting mid way through-offset_hours=24-offset_cycles=-5]>
+          <Function test_normalize_forecast_cycle[12 hour forecast starting mid way through-offset_hours=39-offset_cycles=0]>
+          <Function test_normalize_forecast_cycle[12 hour forecast starting mid way through-offset_hours=39-offset_cycles=5]>
+          <Function test_normalize_forecast_cycle[12 hour forecast starting mid way through-offset_hours=39-offset_cycles=-5]>
+          <Function test_normalize_forecast_cycle[36 hour forecast starting from now-offset_hours=0-offset_cycles=0]>
+          <Function test_normalize_forecast_cycle[36 hour forecast starting from now-offset_hours=0-offset_cycles=5]>
+          <Function test_normalize_forecast_cycle[36 hour forecast starting from now-offset_hours=0-offset_cycles=-5]>
+          <Function test_normalize_forecast_cycle[36 hour forecast starting from now-offset_hours=1-offset_cycles=0]>
+          <Function test_normalize_forecast_cycle[36 hour forecast starting from now-offset_hours=1-offset_cycles=5]>
+          <Function test_normalize_forecast_cycle[36 hour forecast starting from now-offset_hours=1-offset_cycles=-5]>
+          <Function test_normalize_forecast_cycle[36 hour forecast starting from now-offset_hours=24-offset_cycles=0]>
+          <Function test_normalize_forecast_cycle[36 hour forecast starting from now-offset_hours=24-offset_cycles=5]>
+          <Function test_normalize_forecast_cycle[36 hour forecast starting from now-offset_hours=24-offset_cycles=-5]>
+          <Function test_normalize_forecast_cycle[36 hour forecast starting from now-offset_hours=39-offset_cycles=0]>
+          <Function test_normalize_forecast_cycle[36 hour forecast starting from now-offset_hours=39-offset_cycles=5]>
+          <Function test_normalize_forecast_cycle[36 hour forecast starting from now-offset_hours=39-offset_cycles=-5]>
+          <Function test_normalize_forecast_cycle[36 hour forecast starting mid way through-offset_hours=0-offset_cycles=0]>
+          <Function test_normalize_forecast_cycle[36 hour forecast starting mid way through-offset_hours=0-offset_cycles=5]>
+          <Function test_normalize_forecast_cycle[36 hour forecast starting mid way through-offset_hours=0-offset_cycles=-5]>
+          <Function test_normalize_forecast_cycle[36 hour forecast starting mid way through-offset_hours=1-offset_cycles=0]>
+          <Function test_normalize_forecast_cycle[36 hour forecast starting mid way through-offset_hours=1-offset_cycles=5]>
+          <Function test_normalize_forecast_cycle[36 hour forecast starting mid way through-offset_hours=1-offset_cycles=-5]>
+          <Function test_normalize_forecast_cycle[36 hour forecast starting mid way through-offset_hours=24-offset_cycles=0]>
+          <Function test_normalize_forecast_cycle[36 hour forecast starting mid way through-offset_hours=24-offset_cycles=5]>
+          <Function test_normalize_forecast_cycle[36 hour forecast starting mid way through-offset_hours=24-offset_cycles=-5]>
+          <Function test_normalize_forecast_cycle[36 hour forecast starting mid way through-offset_hours=39-offset_cycles=0]>
+          <Function test_normalize_forecast_cycle[36 hour forecast starting mid way through-offset_hours=39-offset_cycles=5]>
+          <Function test_normalize_forecast_cycle[36 hour forecast starting mid way through-offset_hours=39-offset_cycles=-5]>
+          <Function test_normalize_forecast_cycle[37 hour forecast starting from now-offset_hours=0-offset_cycles=0]>
+          <Function test_normalize_forecast_cycle[37 hour forecast starting from now-offset_hours=0-offset_cycles=5]>
+          <Function test_normalize_forecast_cycle[37 hour forecast starting from now-offset_hours=0-offset_cycles=-5]>
+          <Function test_normalize_forecast_cycle[37 hour forecast starting from now-offset_hours=1-offset_cycles=0]>
+          <Function test_normalize_forecast_cycle[37 hour forecast starting from now-offset_hours=1-offset_cycles=5]>
+          <Function test_normalize_forecast_cycle[37 hour forecast starting from now-offset_hours=1-offset_cycles=-5]>
+          <Function test_normalize_forecast_cycle[37 hour forecast starting from now-offset_hours=24-offset_cycles=0]>
+          <Function test_normalize_forecast_cycle[37 hour forecast starting from now-offset_hours=24-offset_cycles=5]>
+          <Function test_normalize_forecast_cycle[37 hour forecast starting from now-offset_hours=24-offset_cycles=-5]>
+          <Function test_normalize_forecast_cycle[37 hour forecast starting from now-offset_hours=39-offset_cycles=0]>
+          <Function test_normalize_forecast_cycle[37 hour forecast starting from now-offset_hours=39-offset_cycles=5]>
+          <Function test_normalize_forecast_cycle[37 hour forecast starting from now-offset_hours=39-offset_cycles=-5]>
+          <Function test_normalize_forecast_cycle[37 hour forecast starting mid way through-offset_hours=0-offset_cycles=0]>
+          <Function test_normalize_forecast_cycle[37 hour forecast starting mid way through-offset_hours=0-offset_cycles=5]>
+          <Function test_normalize_forecast_cycle[37 hour forecast starting mid way through-offset_hours=0-offset_cycles=-5]>
+          <Function test_normalize_forecast_cycle[37 hour forecast starting mid way through-offset_hours=1-offset_cycles=0]>
+          <Function test_normalize_forecast_cycle[37 hour forecast starting mid way through-offset_hours=1-offset_cycles=5]>
+          <Function test_normalize_forecast_cycle[37 hour forecast starting mid way through-offset_hours=1-offset_cycles=-5]>
+          <Function test_normalize_forecast_cycle[37 hour forecast starting mid way through-offset_hours=24-offset_cycles=0]>
+          <Function test_normalize_forecast_cycle[37 hour forecast starting mid way through-offset_hours=24-offset_cycles=5]>
+          <Function test_normalize_forecast_cycle[37 hour forecast starting mid way through-offset_hours=24-offset_cycles=-5]>
+          <Function test_normalize_forecast_cycle[37 hour forecast starting mid way through-offset_hours=39-offset_cycles=0]>
+          <Function test_normalize_forecast_cycle[37 hour forecast starting mid way through-offset_hours=39-offset_cycles=5]>
+          <Function test_normalize_forecast_cycle[37 hour forecast starting mid way through-offset_hours=39-offset_cycles=-5]>
+          <Function test_normalize_forecast_cycle[85 hour forecast starting mid way through-offset_hours=0-offset_cycles=0]>
+          <Function test_normalize_forecast_cycle[85 hour forecast starting mid way through-offset_hours=0-offset_cycles=5]>
+          <Function test_normalize_forecast_cycle[85 hour forecast starting mid way through-offset_hours=0-offset_cycles=-5]>
+          <Function test_normalize_forecast_cycle[85 hour forecast starting mid way through-offset_hours=1-offset_cycles=0]>
+          <Function test_normalize_forecast_cycle[85 hour forecast starting mid way through-offset_hours=1-offset_cycles=5]>
+          <Function test_normalize_forecast_cycle[85 hour forecast starting mid way through-offset_hours=1-offset_cycles=-5]>
+          <Function test_normalize_forecast_cycle[85 hour forecast starting mid way through-offset_hours=24-offset_cycles=0]>
+          <Function test_normalize_forecast_cycle[85 hour forecast starting mid way through-offset_hours=24-offset_cycles=5]>
+          <Function test_normalize_forecast_cycle[85 hour forecast starting mid way through-offset_hours=24-offset_cycles=-5]>
+          <Function test_normalize_forecast_cycle[85 hour forecast starting mid way through-offset_hours=39-offset_cycles=0]>
+          <Function test_normalize_forecast_cycle[85 hour forecast starting mid way through-offset_hours=39-offset_cycles=5]>
+          <Function test_normalize_forecast_cycle[85 hour forecast starting mid way through-offset_hours=39-offset_cycles=-5]>
+        <Module test_forecast_fuser.py>
+          <Function test_fuse_to_intervals[present_overrides_forecast_at_t0]>
+          <Function test_fuse_to_intervals[zero_present_value]>
+          <Function test_fuse_to_intervals[only_present_value_no_forecast]>
+          <Function test_fuse_to_intervals[zero_present_no_forecast_returns_zeros]>
+          <Function test_fuse_to_intervals[present_at_t0_overrides_forecast]>
+          <Function test_fuse_to_intervals[present_zero_with_forecast]>
+          <Function test_fuse_to_intervals[complete_forecast_coverage]>
+          <Function test_fuse_to_intervals[forecast_cycles_beyond_range]>
+          <Function test_fuse_to_intervals[present_overrides_constant_forecast]>
+          <Function test_fuse_to_intervals[interpolation_between_forecast_points]>
+          <Function test_fuse_to_intervals[forecast_straddles_present_time]>
+          <Function test_fuse_to_intervals[horizon_starts_before_forecast]>
+          <Function test_fuse_to_intervals[sparse_forecast_multiple_interpolations]>
+          <Function test_fuse_to_intervals[forecast_before_and_after_present_override]>
+          <Function test_fuse_to_intervals[step_function_integration]>
+          <Function test_empty_horizon_times>
+          <Function test_neither_forecast_nor_present_value_raises_error>
+          <Function test_fuse_to_boundaries[present_overrides_first_boundary]>
+          <Function test_fuse_to_boundaries[zero_present_value]>
+          <Function test_fuse_to_boundaries[only_present_value_no_forecast]>
+          <Function test_fuse_to_boundaries[interpolation_with_present_override]>
+          <Function test_fuse_to_boundaries[no_present_value_uses_forecast]>
+          <Function test_fuse_to_boundaries_empty_horizon>
+          <Function test_fuse_to_boundaries_present_only>
+          <Function test_fuse_to_boundaries_raises_when_no_data>
+    <Package elements>
+      <Package battery>
+        <Module test_adapter.py>
+          <Coroutine test_available_returns_true_when_sensors_exist>
+          <Coroutine test_available_returns_false_when_required_power_sensor_missing>
+          <Coroutine test_available_returns_false_when_capacity_sensor_missing>
+          <Coroutine test_available_returns_false_when_required_sensor_missing>
+          <Coroutine test_available_with_list_entity_ids_all_exist>
+          <Coroutine test_available_with_list_entity_ids_one_missing>
+          <Coroutine test_available_with_empty_list_returns_true>
+          <Coroutine test_available_returns_true_with_constant_values>
+          <Function test_model_elements_omits_efficiency_when_missing>
+          <Function test_model_elements_passes_efficiency_when_present>
+          <Function test_model_elements_overcharge_only_adds_soc_pricing>
+          <Function test_discharge_respects_power_limit_with_efficiency>
+          <Function test_charge_respects_power_limit_with_efficiency>
+        <Module test_flow.py>
+          <Coroutine test_reconfigure_with_deleted_connection_target>
+          <Coroutine test_get_participant_names_skips_unknown_element_types>
+          <Coroutine test_get_subentry_returns_none_for_user_flow>
+          <Coroutine test_user_step_with_constant_values_creates_entry>
+          <Coroutine test_user_step_with_entity_values_creates_entry>
+          <Coroutine test_user_step_empty_required_field_shows_error>
+          <Coroutine test_partition_flow_enabled_shows_partition_step>
+          <Coroutine test_partition_flow_with_entity_links_creates_entry>
+          <Coroutine test_partition_flow_with_constant_values_creates_entry>
+          <Coroutine test_build_config_normalizes_connection_target_and_partitions>
+          <Coroutine test_partition_disabled_skips_partition_step>
+          <Coroutine test_reconfigure_with_existing_partitions_shows_form>
+          <Coroutine test_reconfigure_partition_defaults_entity_links>
+          <Coroutine test_reconfigure_partition_defaults_scalar_values>
+          <Coroutine test_build_partition_defaults_no_existing_data>
+          <Coroutine test_defaults_with_scalar_values_shows_constant_choice>
+          <Coroutine test_defaults_with_entity_strings_shows_entity_choice>
+          <Coroutine test_reconfigure_with_schema_entity_value>
+          <Coroutine test_reconfigure_updates_existing_battery>
+        <Module test_model.py>
+          <Function test_model_elements[Battery with SOC pricing thresholds]>
+          <Function test_model_elements[Battery with normal range only]>
+          <Function test_outputs_mapping[Battery normal range outputs]>
+          <Function test_outputs_mapping[Battery outputs include undercharge offset]>
+      <Package battery_section>
+        <Module test_adapter.py>
+          <Coroutine test_available_returns_true_when_sensors_exist>
+          <Coroutine test_available_returns_false_when_sensor_missing>
+        <Module test_flow.py>
+          <Coroutine test_reconfigure_shows_form>
+          <Coroutine test_reconfigure_with_entity_links>
+          <Coroutine test_get_subentry_returns_none_for_user_flow>
+          <Coroutine test_reconfigure_with_entity_value_shows_defaults>
+          <Coroutine test_reconfigure_with_scalar_shows_constant_defaults>
+          <Coroutine test_reconfigure_with_missing_field_shows_none_default>
+          <Coroutine test_user_step_with_constant_creates_entry>
+          <Coroutine test_user_step_with_entity_creates_entry>
+          <Coroutine test_user_step_empty_required_field_shows_error>
+        <Module test_model.py>
+          <Function test_model_elements[Battery section basic]>
+          <Function test_outputs_mapping[Battery section with all shadow prices]>
+          <Function test_outputs_mapping[Battery section without optional shadow prices]>
+      <Package connection>
+        <Module test_adapter.py>
+          <Coroutine test_available_returns_true_with_no_optional_fields>
+          <Coroutine test_available_returns_true_when_optional_sensors_exist>
+          <Coroutine test_available_returns_false_when_optional_sensor_missing>
+          <Coroutine test_available_returns_false_when_efficiency_sensor_missing>
+          <Coroutine test_available_returns_true_with_constant_values>
+        <Module test_flow.py>
+          <Coroutine test_flow_source_equals_target_error>
+          <Coroutine test_reconfigure_source_equals_target_error>
+          <Coroutine test_reconfigure_with_deleted_participant>
+          <Coroutine test_get_participant_names_skips_unknown_element_types>
+          <Coroutine test_get_subentry_returns_none_for_user_flow>
+          <Function test_build_config_normalizes_endpoints>
+          <Coroutine test_reconfigure_with_entity_value_shows_defaults>
+          <Coroutine test_reconfigure_with_scalar_shows_constant_defaults>
+          <Coroutine test_user_step_with_constant_creates_entry>
+          <Coroutine test_user_step_with_entity_creates_entry>
+        <Module test_model.py>
+          <Function test_model_elements[Connection with all optional fields]>
+          <Function test_model_elements[Connection without optional fields]>
+          <Function test_outputs_mapping[Connection with all optional fields]>
+          <Function test_outputs_mapping[Connection without optional fields]>
+      <Package grid>
+        <Module test_adapter.py>
+          <Coroutine test_available_returns_true_when_sensors_exist>
+          <Coroutine test_available_returns_false_when_import_price_missing>
+          <Coroutine test_available_returns_false_when_export_price_missing>
+          <Coroutine test_available_with_constant_prices>
+          <Coroutine test_available_with_entity_schema_value>
+        <Module test_flow.py>
+          <Coroutine test_reconfigure_with_deleted_connection_target>
+          <Coroutine test_get_participant_names_skips_unknown_element_types>
+          <Coroutine test_get_current_subentry_id_returns_none_for_user_flow>
+          <Coroutine test_user_step_empty_required_field_shows_error>
+          <Coroutine test_user_step_with_constant_creates_entry>
+          <Coroutine test_user_step_with_entity_creates_entry>
+          <Coroutine test_reconfigure_empty_required_field_shows_error>
+          <Coroutine test_reconfigure_with_constant_updates_entry>
+          <Coroutine test_reconfigure_with_scalar_shows_constant_defaults>
+          <Coroutine test_reconfigure_with_entity_value_shows_entity_defaults>
+          <Coroutine test_reconfigure_with_entity_list>
+        <Module test_model.py>
+          <Function test_model_elements[Grid with import and export limits]>
+          <Function test_outputs_mapping[Grid with import and export - cost/revenue calculated from power \xd7 price \xd7 period]>
+          <Function test_outputs_mapping[Grid with multiple periods - cumulative cost/revenue]>
+      <Package inverter>
+        <Module test_adapter.py>
+          <Coroutine test_available_returns_true_when_sensors_exist>
+          <Coroutine test_available_returns_false_when_first_sensor_missing>
+          <Coroutine test_available_returns_false_when_second_sensor_missing>
+          <Coroutine test_available_returns_true_when_limits_missing>
+        <Module test_flow.py>
+          <Coroutine test_reconfigure_with_deleted_connection_target>
+          <Coroutine test_get_participant_names_skips_unknown_element_types>
+          <Coroutine test_get_current_subentry_id_returns_none_for_user_flow>
+          <Coroutine test_user_step_empty_required_field_shows_error>
+          <Coroutine test_user_step_with_constant_creates_entry>
+          <Coroutine test_user_step_with_entity_creates_entry>
+          <Coroutine test_reconfigure_empty_required_field_shows_error>
+          <Coroutine test_reconfigure_with_constant_updates_entry>
+          <Coroutine test_reconfigure_with_scalar_shows_constant_defaults>
+          <Coroutine test_reconfigure_with_entity_value_shows_entity_defaults>
+          <Coroutine test_reconfigure_with_entity_list>
+          <Coroutine test_reconfigure_selecting_entity_stores_entity_id>
+        <Module test_model.py>
+          <Function test_model_elements[Inverter with efficiency]>
+          <Function test_model_elements[Inverter with default efficiency (100%)]>
+          <Function test_outputs_mapping[Inverter with all outputs]>
+      <Package load>
+        <Module test_adapter.py>
+          <Coroutine test_available_returns_true_when_forecast_sensor_exists>
+          <Coroutine test_available_returns_false_when_forecast_sensor_missing>
+          <Function test_inputs_returns_input_fields>
+        <Module test_flow.py>
+          <Coroutine test_reconfigure_with_deleted_connection_target>
+          <Coroutine test_get_participant_names_skips_unknown_element_types>
+          <Coroutine test_get_subentry_returns_none_for_user_flow>
+          <Coroutine test_reconfigure_with_schema_entity_value>
+          <Coroutine test_reconfigure_with_scalar_shows_constant_defaults>
+          <Coroutine test_reconfigure_with_missing_field_shows_none_default>
+          <Coroutine test_user_step_with_entity_creates_entry>
+          <Coroutine test_user_step_with_constant_creates_entry>
+          <Coroutine test_user_step_empty_required_field_shows_error>
+        <Module test_model.py>
+          <Function test_model_elements[Load with forecast]>
+          <Function test_outputs_mapping[Load with forecast]>
+      <Package node>
+        <Module test_adapter.py>
+          <Coroutine test_available_returns_true>
+          <Function test_model_elements_applies_default_flags>
+        <Module test_flow.py>
+          <Coroutine test_user_step_shows_error[Empty name]>
+          <Coroutine test_user_step_shows_form_initially>
+          <Coroutine test_user_step_rejects_duplicate_name>
+          <Coroutine test_reconfigure_step_updates_entry[Node with defaults]>
+          <Coroutine test_reconfigure_step_updates_entry[Node as source]>
+          <Coroutine test_reconfigure_step_updates_entry[Node as sink]>
+          <Coroutine test_reconfigure_step_shows_form_initially>
+        <Module test_model.py>
+          <Function test_model_elements[Node as passthrough]>
+          <Function test_outputs_mapping[Node with power balance]>
+      <Package solar>
+        <Module test_adapter.py>
+          <Coroutine test_available_returns_true_when_forecast_sensor_exists>
+          <Coroutine test_available_returns_false_when_forecast_sensor_missing>
+        <Module test_flow.py>
+          <Coroutine test_reconfigure_with_deleted_connection_target>
+          <Coroutine test_get_participant_names_skips_unknown_element_types>
+          <Coroutine test_get_subentry_returns_none_for_user_flow>
+          <Coroutine test_reconfigure_with_schema_entity_value>
+          <Coroutine test_reconfigure_with_scalar_shows_constant_defaults>
+          <Coroutine test_user_step_with_entity_creates_entry>
+          <Coroutine test_user_step_with_constant_creates_entry>
+          <Coroutine test_user_step_empty_required_field_shows_error>
+        <Module test_model.py>
+          <Function test_model_elements[Solar with production price]>
+          <Function test_outputs_mapping[Solar with forecast limit]>
+          <Function test_outputs_mapping[Solar with shadow price output]>
+      <Module test_availability.py>
+        <Function test_schema_config_available_allows_constants_and_none>
+        <Function test_schema_config_available_returns_false_for_unavailable_entity>
+        <Function test_schema_config_available_handles_nested_entity>
+      <Module test_init.py>
+        <Function test_is_not_element_config_schema[input_data0]>
+        <Function test_is_not_element_config_schema[not a config]>
+        <Function test_is_not_element_config_schema[None]>
+        <Function test_is_element_config_schema_invalid_structure[input_data0]>
+        <Function test_is_element_config_schema_invalid_structure[input_data1]>
+        <Function test_is_element_config_schema_invalid_structure[input_data2]>
+        <Function test_is_element_config_schema_invalid_structure[input_data3]>
+        <Function test_is_element_config_schema_invalid_structure[input_data4]>
+        <Function test_is_element_config_schema_wrong_field_types[input_data0]>
+        <Function test_is_element_config_schema_wrong_field_types[input_data1]>
+        <Function test_is_element_config_schema_wrong_field_types[input_data2]>
+        <Function test_is_element_config_schema_valid_node>
+        <Function test_is_element_config_schema_valid_node_minimal>
+        <Function test_is_element_config_schema_valid_battery>
+        <Function test_is_element_config_schema_valid_grid>
+        <Function test_is_element_config_schema_valid_grid_minimal>
+        <Function test_is_element_config_schema_valid_connection>
+        <Function test_is_element_config_schema_valid_load>
+        <Function test_is_element_config_schema_valid_solar>
+        <Function test_is_element_config_schema_valid_inverter>
+        <Function test_is_element_config_schema_valid_battery_section>
+        <Function test_is_not_element_config_data[input_data0]>
+        <Function test_is_not_element_config_data[not a config]>
+        <Function test_is_not_element_config_data[None]>
+        <Function test_is_element_config_data_invalid_element_type[input_data0]>
+        <Function test_is_element_config_data_invalid_element_type[input_data1]>
+        <Function test_is_element_config_data_missing_required_keys>
+        <Function test_is_element_config_data_valid_node>
+        <Function test_is_element_config_data_optional_type_validation>
+        <Function test_collect_element_subentries_skips_invalid_configs>
+        <Function test_config_schemas_match_element_types>
+      <Module test_nested_config.py>
+        <Function test_nested_config_helpers_find_values_and_paths>
+        <Function test_nested_config_value_by_path_and_setters>
+      <Module test_schema_helpers.py>
+        <Function test_get_input_field_schema_info_marks_optional_fields>
+        <Function test_get_input_field_schema_info_missing_section>
+        <Function test_get_input_field_schema_info_section_not_typed_dict>
+        <Function test_get_input_field_schema_info_missing_field>
+        <Function test_get_input_field_schema_info_type_alias>
+        <Function test_unwrap_required_type_handles_required_wrappers>
+        <Function test_unwrap_required_type_returns_original_type>
+        <Function test_conforms_to_typed_dict_skips_optional_without_hint>
+    <Package entities>
+      <Module test_device.py>
+        <Class TestGetOrCreateElementDevice>
+          <Coroutine test_main_device_identifier_pattern>
+          <Coroutine test_same_device_returned_on_subsequent_calls>
+        <Class TestGetOrCreateNetworkDevice>
+          <Coroutine test_network_device_identifier_pattern>
+        <Class TestBuildDeviceIdentifier>
+          <Coroutine test_main_device_identifier>
+        <Class TestDeviceConsistency>
+          <Coroutine test_input_and_output_use_same_device>
+          <Coroutine test_identifier_matches_built_identifier>
+          <Coroutine test_different_elements_get_different_devices>
+          <Coroutine test_network_device_separate_from_element_devices>
+      <Module test_haeo_horizon.py>
+        <Function test_horizon_entity_initialization>
+        <Function test_entity_reflects_horizon_manager_timestamps>
+        <Function test_extra_state_attributes>
+        <Function test_forecast_attribute_contains_timestamps>
+        <Function test_native_value_is_start_time_iso>
+        <Function test_entity_category_is_diagnostic>
+        <Coroutine test_async_added_to_hass_subscribes_to_manager>
+        <Coroutine test_horizon_entity_updates_on_manager_change>
+        <Function test_horizon_manager_current_start_time>
+        <Function test_horizon_manager_current_start_time_none_when_no_timestamps>
+        <Coroutine test_horizon_manager_scheduled_update_notifies_subscribers>
+        <Coroutine test_horizon_manager_scheduled_update_reschedules>
+        <Coroutine test_horizon_manager_pause_cancels_timer>
+        <Coroutine test_horizon_manager_pause_preserves_subscribers>
+        <Coroutine test_horizon_manager_resume_updates_timestamps>
+        <Coroutine test_horizon_manager_resume_notifies_subscribers>
+        <Coroutine test_horizon_manager_resume_restarts_timer>
+      <Module test_haeo_number.py>
+        <Coroutine test_editable_mode_with_static_value>
+        <Coroutine test_editable_mode_set_native_value>
+        <Coroutine test_editable_mode_set_native_value_with_runtime_data>
+        <Coroutine test_driven_mode_with_single_entity>
+        <Coroutine test_driven_mode_with_multiple_entities>
+        <Coroutine test_driven_mode_ignores_user_set_value>
+        <Coroutine test_unique_id_includes_all_components>
+        <Coroutine test_translation_placeholders_from_subentry_data>
+        <Coroutine test_translation_placeholders_include_connection_and_none_values>
+        <Coroutine test_entity_has_correct_category>
+        <Coroutine test_entity_does_not_poll>
+        <Coroutine test_horizon_start_returns_first_timestamp>
+        <Coroutine test_horizon_start_returns_none_without_forecast>
+        <Coroutine test_get_values_returns_forecast_values>
+        <Coroutine test_get_values_scales_percentage_fields>
+        <Coroutine test_get_values_returns_none_without_forecast>
+        <Coroutine test_async_added_to_hass_editable_uses_config_value>
+        <Coroutine test_async_added_to_hass_driven_subscribes_to_source>
+        <Coroutine test_handle_horizon_change_editable_updates_forecast>
+        <Coroutine test_horizon_change_updates_forecast_timestamps_editable>
+        <Coroutine test_handle_horizon_change_driven_triggers_reload>
+        <Coroutine test_horizon_change_updates_forecast_timestamps_driven>
+        <Coroutine test_handle_source_state_change_triggers_reload>
+        <Coroutine test_async_load_data_handles_load_failure>
+        <Coroutine test_async_load_data_handles_empty_values>
+        <Coroutine test_editable_mode_with_boundaries_field>
+        <Coroutine test_async_load_data_with_boundaries_field>
+        <Coroutine test_entity_mode_property>
+        <Coroutine test_async_load_data_with_empty_values_list>
+        <Coroutine test_is_ready_returns_true_after_data_loaded>
+        <Coroutine test_driven_mode_with_v01_single_entity_string>
+        <Coroutine test_wait_ready_blocks_until_data_loaded>
+        <Coroutine test_unrecorded_attributes_based_on_config[False-True]>
+        <Coroutine test_unrecorded_attributes_based_on_config[True-False]>
+      <Module test_haeo_switch.py>
+        <Coroutine test_editable_mode_with_true_value>
+        <Coroutine test_editable_mode_with_raw_boolean>
+        <Coroutine test_editable_mode_with_false_value>
+        <Coroutine test_editable_mode_with_none_value>
+        <Coroutine test_editable_mode_turn_on>
+        <Coroutine test_editable_mode_turn_off>
+        <Coroutine test_driven_mode_with_entity_id>
+        <Coroutine test_driven_mode_ignores_turn_on>
+        <Coroutine test_driven_mode_ignores_turn_off>
+        <Coroutine test_driven_mode_loads_source_state>
+        <Coroutine test_driven_mode_loads_off_state>
+        <Coroutine test_unique_id_includes_all_components>
+        <Coroutine test_entity_has_correct_category>
+        <Coroutine test_entity_does_not_poll>
+        <Coroutine test_translation_key_from_field_info>
+        <Coroutine test_translation_key_defaults_to_field_name>
+        <Coroutine test_horizon_start_returns_first_timestamp>
+        <Coroutine test_horizon_start_returns_none_without_forecast>
+        <Coroutine test_get_values_returns_forecast_values>
+        <Coroutine test_get_values_returns_none_without_forecast>
+        <Coroutine test_async_added_to_hass_editable_uses_config_value>
+        <Coroutine test_async_added_to_hass_applies_default_when_missing>
+        <Coroutine test_async_added_to_hass_driven_subscribes_to_source>
+        <Coroutine test_handle_horizon_change_editable_updates_forecast>
+        <Coroutine test_horizon_change_updates_forecast_timestamps_editable>
+        <Coroutine test_handle_horizon_change_driven_reloads_source>
+        <Coroutine test_horizon_change_updates_forecast_timestamps_driven>
+        <Coroutine test_handle_source_state_change_updates_switch>
+        <Coroutine test_handle_source_state_change_ignores_none_state>
+        <Coroutine test_load_source_state_with_none_source_entity>
+        <Coroutine test_is_ready_returns_true_after_data_loaded>
+        <Coroutine test_entity_mode_property_returns_mode>
+        <Coroutine test_editable_mode_uses_defaults_value_when_none>
+        <Coroutine test_wait_ready_blocks_until_data_loaded>
+        <Coroutine test_unrecorded_attributes_based_on_config[False-True]>
+        <Coroutine test_unrecorded_attributes_based_on_config[True-False]>
+    <Package flows>
+      <Module test_element.py>
+        <Coroutine test_subentry_flow_classes_have_correct_attributes>
+      <Module test_element_flows.py>
+        <Coroutine test_element_flow_user_step_success[grid]>
+        <Coroutine test_element_flow_user_step_success[load]>
+        <Coroutine test_element_flow_user_step_success[inverter]>
+        <Coroutine test_element_flow_user_step_success[solar]>
+        <Coroutine test_element_flow_user_step_success[battery]>
+        <Coroutine test_element_flow_user_step_success[connection]>
+        <Coroutine test_element_flow_user_step_success[node]>
+        <Coroutine test_element_flow_user_step_success[battery_section]>
+        <Coroutine test_element_flow_user_step_missing_name[grid]>
+        <Coroutine test_element_flow_user_step_missing_name[load]>
+        <Coroutine test_element_flow_user_step_missing_name[inverter]>
+        <Coroutine test_element_flow_user_step_missing_name[solar]>
+        <Coroutine test_element_flow_user_step_missing_name[battery]>
+        <Coroutine test_element_flow_user_step_missing_name[connection]>
+        <Coroutine test_element_flow_user_step_missing_name[node]>
+        <Coroutine test_element_flow_user_step_missing_name[battery_section]>
+        <Coroutine test_element_flow_user_step_duplicate_name[grid]>
+        <Coroutine test_element_flow_user_step_duplicate_name[load]>
+        <Coroutine test_element_flow_user_step_duplicate_name[inverter]>
+        <Coroutine test_element_flow_user_step_duplicate_name[solar]>
+        <Coroutine test_element_flow_user_step_duplicate_name[battery]>
+        <Coroutine test_element_flow_user_step_duplicate_name[connection]>
+        <Coroutine test_element_flow_user_step_duplicate_name[node]>
+        <Coroutine test_element_flow_user_step_duplicate_name[battery_section]>
+        <Coroutine test_element_flow_reconfigure_success[grid]>
+        <Coroutine test_element_flow_reconfigure_success[load]>
+        <Coroutine test_element_flow_reconfigure_success[inverter]>
+        <Coroutine test_element_flow_reconfigure_success[solar]>
+        <Coroutine test_element_flow_reconfigure_success[battery]>
+        <Coroutine test_element_flow_reconfigure_success[connection]>
+        <Coroutine test_element_flow_reconfigure_success[node]>
+        <Coroutine test_element_flow_reconfigure_success[battery_section]>
+        <Coroutine test_element_flow_reconfigure_rename[grid]>
+        <Coroutine test_element_flow_reconfigure_rename[load]>
+        <Coroutine test_element_flow_reconfigure_rename[inverter]>
+        <Coroutine test_element_flow_reconfigure_rename[solar]>
+        <Coroutine test_element_flow_reconfigure_rename[battery]>
+        <Coroutine test_element_flow_reconfigure_rename[connection]>
+        <Coroutine test_element_flow_reconfigure_rename[node]>
+        <Coroutine test_element_flow_reconfigure_rename[battery_section]>
+        <Coroutine test_element_flow_reconfigure_missing_name[grid]>
+        <Coroutine test_element_flow_reconfigure_missing_name[load]>
+        <Coroutine test_element_flow_reconfigure_missing_name[inverter]>
+        <Coroutine test_element_flow_reconfigure_missing_name[solar]>
+        <Coroutine test_element_flow_reconfigure_missing_name[battery]>
+        <Coroutine test_element_flow_reconfigure_missing_name[connection]>
+        <Coroutine test_element_flow_reconfigure_missing_name[node]>
+        <Coroutine test_element_flow_reconfigure_missing_name[battery_section]>
+        <Coroutine test_element_flow_reconfigure_duplicate_name[grid]>
+        <Coroutine test_element_flow_reconfigure_duplicate_name[load]>
+        <Coroutine test_element_flow_reconfigure_duplicate_name[inverter]>
+        <Coroutine test_element_flow_reconfigure_duplicate_name[solar]>
+        <Coroutine test_element_flow_reconfigure_duplicate_name[battery]>
+        <Coroutine test_element_flow_reconfigure_duplicate_name[connection]>
+        <Coroutine test_element_flow_reconfigure_duplicate_name[node]>
+        <Coroutine test_element_flow_reconfigure_duplicate_name[battery_section]>
+      <Module test_field_schema.py>
+        <Function test_boolean_selector_from_field_returns_boolean_selector>
+        <Function test_number_selector_from_field_creates_selector>
+        <Function test_number_selector_from_field_without_min_max_values>
+        <Function test_number_selector_from_field_without_unit>
+        <Function test_build_choose_selector_creates_normalizing_choose_selector>
+        <Function test_build_choose_selector_entity_first_by_default>
+        <Function test_build_choose_selector_constant_first_when_preferred>
+        <Function test_get_preferred_choice_returns_entity_by_default>
+        <Function test_get_preferred_choice_returns_constant_for_value_defaults>
+        <Function test_get_preferred_choice_returns_entity_for_entity_defaults>
+        <Function test_get_preferred_choice_uses_current_data_entity_value>
+        <Function test_get_preferred_choice_uses_current_data_entity_list>
+        <Function test_get_preferred_choice_uses_current_data_single_entity_list>
+        <Function test_get_preferred_choice_uses_current_data_constant_value>
+        <Function test_get_preferred_choice_uses_current_data_boolean_constant>
+        <Function test_get_haeo_input_entity_ids_returns_empty_for_no_haeo_entities>
+        <Function test_get_haeo_input_entity_ids_includes_haeo_number_and_switch>
+        <Function test_get_haeo_input_entity_ids_excludes_haeo_sensors>
+        <Function test_get_choose_default_returns_none_when_no_defaults>
+        <Function test_get_choose_default_returns_constant_for_value_mode>
+        <Function test_get_choose_default_returns_empty_list_for_entity_mode>
+        <Function test_get_choose_default_uses_current_data_constant>
+        <Function test_get_choose_default_uses_current_data_entity>
+        <Function test_get_choose_default_uses_current_data_entity_list>
+        <Function test_get_choose_default_uses_current_data_boolean>
+        <Function test_get_choose_default_uses_current_data_none>
+        <Function test_get_choose_default_uses_nested_current_data>
+        <Function test_convert_choose_data_constant_stored_directly>
+        <Function test_convert_choose_data_entity_single_stored_as_string>
+        <Function test_convert_choose_data_entity_string_stored_as_list>
+        <Function test_convert_choose_data_empty_string_stored_as_none>
+        <Function test_convert_choose_data_entity_multiple_stored_as_list>
+        <Function test_convert_choose_data_empty_value_stored_as_none>
+        <Function test_convert_choose_data_none_constant_stored_as_none>
+        <Function test_convert_choose_data_respects_exclude_keys>
+        <Function test_convert_choose_data_ignores_unknown_fields>
+        <Function test_convert_choose_data_ignores_unsupported_value_types>
+        <Function test_convert_choose_data_boolean_constant>
+        <Function test_convert_choose_data_none_stored_as_none>
+        <Function test_build_choose_selector_optional_has_none_choice>
+        <Function test_build_choose_selector_required_has_no_none_choice>
+        <Function test_build_choose_selector_none_first_when_preferred>
+        <Function test_build_choose_selector_only_none_choice>
+        <Function test_build_choose_selector_raises_when_no_allowed_choices>
+        <Function test_build_choose_field_entries_missing_schema_metadata>
+        <Function test_build_choose_field_entries_none_only_value_type>
+        <Function test_get_preferred_choice_returns_none_for_optional_with_none_value>
+        <Function test_get_preferred_choice_returns_none_for_optional_new_entry_no_defaults>
+        <Function test_get_preferred_choice_returns_value_for_optional_with_value_defaults>
+        <Function test_get_preferred_choice_required_field_returns_entity_by_default>
+        <Function test_get_preferred_choice_skips_unavailable_default>
+        <Function test_get_preferred_choice_constant_only_allowed>
+        <Function test_get_preferred_choice_returns_none_for_defaults_mode_none>
+        <Function test_get_preferred_choice_defaults_mode_none_without_none_allowed>
+        <Function test_get_preferred_choice_returns_entity_for_defaults_mode_entity>
+        <Function test_get_preferred_choice_returns_none_when_no_choices>
+        <Function test_resolve_haeo_input_entity_id_returns_none_when_not_found>
+        <Function test_build_entity_selector_with_include_entities>
+        <Function test_build_entity_selector_without_include_entities>
+        <Function test_preprocess_choose_selector_input_none_returns_none>
+        <Function test_preprocess_choose_selector_input_none_choice_returns_none>
+        <Function test_preprocess_choose_selector_input_entity_choice_extracts_entities>
+        <Function test_preprocess_choose_selector_input_constant_choice_extracts_value>
+        <Function test_preprocess_choose_selector_input_unknown_choice_passthrough>
+        <Function test_preprocess_choose_selector_input_schema_none_value>
+        <Function test_preprocess_choose_selector_input_already_normalized_passthrough>
+        <Function test_preprocess_choose_selector_input_ignores_non_field_keys>
+        <Function test_preprocess_choose_selector_input_entity_choice_empty_list>
+        <Function test_is_valid_choose_value_with_none>
+        <Function test_is_valid_choose_value_with_entity_list>
+        <Function test_is_valid_choose_value_with_string_entity_id>
+        <Function test_is_valid_choose_value_with_numeric_constants>
+        <Function test_is_valid_choose_value_with_boolean>
+        <Function test_is_valid_choose_value_with_unexpected_types>
+        <Function test_validate_choose_fields_returns_empty_for_valid_input>
+        <Function test_validate_choose_fields_returns_error_for_invalid_required>
+        <Function test_validate_choose_fields_skips_optional_fields>
+        <Function test_validate_choose_fields_skips_excluded_fields>
+        <Function test_validate_choose_fields_raises_missing_schema_metadata>
+        <Function test_normalizing_choose_selector_call_with_none_choice>
+        <Function test_normalizing_choose_selector_call_with_entity_choice>
+        <Function test_normalizing_choose_selector_call_with_constant_choice>
+        <Function test_normalizing_choose_selector_call_passthrough_already_normalized>
+        <Function test_normalizing_choose_selector_normalize_unknown_choice>
+        <Function test_build_section_schema_includes_sections>
+        <Function test_build_sectioned_choose_schema_merges_extra_entries>
+        <Function test_build_sectioned_choose_defaults_merges_base_and_excludes>
+        <Function test_preprocess_sectioned_choose_input_nests_and_normalizes>
+        <Function test_preprocess_sectioned_choose_input_returns_none>
+        <Function test_preprocess_sectioned_choose_input_skips_non_mapping_section>
+        <Function test_validate_sectioned_choose_fields_skips_non_mapping_section>
+        <Function test_convert_sectioned_choose_data_to_config_handles_non_mapping_section>
+      <Module test_hub.py>
+        <Coroutine test_user_step_translations_loadable>
+        <Coroutine test_custom_tiers_step_translations_loadable>
+        <Coroutine test_user_step_form_has_translations>
+        <Coroutine test_config_error_translations_exist>
+        <Coroutine test_config_abort_translations_exist>
+        <Coroutine test_hub_setup_schema_has_expected_fields>
+        <Coroutine test_custom_tiers_schema_has_tier_fields>
+        <Coroutine test_schema_coerces_floats_to_integers>
+        <Coroutine test_hub_setup_schema_default_preset>
+        <Function test_create_horizon_preset_raises_on_invalid_days>
+      <Module test_hub_flow.py>
+        <Coroutine test_user_flow_success_with_preset>
+        <Coroutine test_user_flow_custom_preset_shows_second_step>
+        <Coroutine test_user_flow_custom_tiers_creates_entry>
+        <Coroutine test_user_flow_different_presets>
+        <Coroutine test_user_flow_duplicate_name>
+        <Coroutine test_user_flow_unique_id_prevents_duplicate>
+        <Coroutine test_user_flow_default_values>
+        <Coroutine test_hub_supports_subentry_types>
+        <Coroutine test_subentry_translations_exist>
+      <Module test_options_flow.py>
+        <Coroutine test_options_flow_init>
+        <Coroutine test_options_flow_select_preset>
+        <Coroutine test_options_flow_custom_tiers>
+    <Package migrations>
+      <Module test_v1_3.py>
+        <Function test_migrate_hub_data_moves_basic_and_builds_sections>
+        <Function test_migrate_hub_data_skips_when_sections_present>
+        <Function test_migrate_subentry_returns_none_for_non_elements[None]>
+        <Function test_migrate_subentry_returns_none_for_non_elements[network]>
+        <Function test_migrate_subentry_battery_with_legacy_fields>
+        <Function test_migrate_subentry_battery_invalid_schema_value_raises>
+        <Function test_migrate_subentry_battery_section>
+        <Function test_migrate_subentry_connection_fields>
+        <Function test_migrate_subentry_grid_legacy_fields>
+        <Function test_migrate_subentry_inverter_legacy_fields>
+        <Function test_migrate_subentry_load_node_solar>
+        <Coroutine test_async_migrate_entry_updates_entry_and_subentries>
+        <Coroutine test_async_migrate_entry_skips_when_up_to_date>
+        <Coroutine test_migrations_entry_skips_non_v1>
+        <Coroutine test_migrations_entry_runs_handlers>
+    <Package model>
+      <Package reactive>
+        <Module test_decorators.py>
+          <Function test_cached_constraint_caches_result>
+          <Function test_cached_constraint_recomputes_when_invalidated>
+          <Function test_cached_constraint_tracks_multiple_dependencies>
+          <Function test_cached_constraint_class_access_returns_descriptor>
+          <Function test_cached_cost_caches_result>
+          <Function test_cached_cost_recomputes_when_invalidated>
+          <Function test_cached_cost_class_access_returns_descriptor>
+          <Function test_element_reactive_initialization>
+          <Function test_element_reactive_invalidate_dependents_constraints>
+          <Function test_element_reactive_invalidate_dependents_costs>
+          <Function test_constraints_adds_new_constraint>
+          <Function test_constraints_skips_none_result>
+          <Function test_reactive_workflow>
+          <Function test_constraint_without_output_flag>
+        <Module test_tracked_param.py>
+          <Function test_tracked_param_set_and_get_value>
+          <Function test_tracked_param_set_initial_value_does_not_invalidate>
+          <Function test_tracked_param_change_value_invalidates_dependents>
+          <Function test_tracked_param_same_value_does_not_invalidate>
+          <Function test_tracked_param_class_access_returns_descriptor>
+          <Function test_dict_access_getitem_returns_tracked_param_value>
+          <Function test_dict_access_setitem_sets_tracked_param_value>
+          <Function test_dict_access_setitem_triggers_invalidation>
+          <Function test_dict_access_getitem_unknown_key_raises_keyerror>
+          <Function test_dict_access_setitem_unknown_key_raises_keyerror>
+          <Function test_dict_access_getitem_regular_attribute_returns_value>
+        <Module test_types.py>
+          <Function test_unset_raises_attribute_error>
+          <Function test_is_set_returns_true_after_setting>
+          <Function test_getitem_raises_for_unset_param>
+          <Function test_values_equal_handles_comparison_errors>
+        <Module test_warm_start.py>
+          <Function test_battery_update_capacity_modifies_soc_constraints>
+          <Function test_battery_update_initial_charge_modifies_constraint>
+          <Function test_battery_update_with_sequence_capacity>
+          <Function test_connection_update_max_power_source_target>
+          <Function test_connection_update_price_source_target>
+          <Function test_connection_update_max_power_target_source>
+          <Function test_connection_update_price_target_source>
+          <Function test_connection_update_with_sequence_values>
+          <Function test_warm_start_produces_same_result>
+          <Function test_network_add_connection_updates_prices>
+          <Function test_solver_structure_unchanged_after_update>
+      <Module test_connections.py>
+        <Function test_connection_outputs[connection_with_forward_flow_only]>
+        <Function test_connection_outputs[connection_with_reverse_flow_only]>
+        <Function test_connection_outputs[connection_respecting_forward_power_limit]>
+        <Function test_connection_outputs[connection_with_efficiency_losses]>
+        <Function test_connection_outputs[connection_with_transfer_pricing_and_power_flow]>
+        <Function test_connection_outputs[connection_with_time-varying_limits]>
+        <Function test_connection_outputs[connection_with_bidirectional_transfer_pricing_and_forward_flow]>
+        <Function test_connection_outputs[connection_with_bidirectional_efficiency_losses]>
+        <Function test_connection_outputs[connection_with_fixed_power_in_reverse_direction]>
+        <Function test_connection_validation[NOTSET]>
+        <Function test_base_connection_power_into_properties>
+      <Module test_element_base.py>
+        <Function test_connection_power_with_target_end>
+        <Function test_connection_power_with_source_end>
+        <Function test_constraints_populates_constraint_state>
+        <Function test_connection_power_with_multiple_connections>
+        <Function test_element_default_outputs>
+      <Module test_elements.py>
+        <Function test_element_outputs[battery_charging_with_fixed_input]>
+        <Function test_element_outputs[battery_discharging_with_fixed_output]>
+        <Function test_element_outputs[battery_with_fixed_load_pattern]>
+        <Function test_element_outputs[node_with_basic_configuration]>
+        <Function test_element_outputs[node_with_shadow_prices]>
+        <Function test_element_validation[NOTSET]>
+        <Function test_extract_values_converts_highs_variables>
+        <Function test_extract_values_handles_none>
+      <Module test_network.py>
+        <Function test_network_initialization>
+        <Function test_network_add_duplicate_element>
+        <Function test_connect_entities>
+        <Function test_connect_nonexistent_entities>
+        <Function test_connect_nonexistent_target_entity>
+        <Function test_connect_source_is_connection>
+        <Function test_connect_target_is_connection>
+        <Function test_validate_raises_when_source_missing>
+        <Function test_validate_raises_when_target_missing>
+        <Function test_validate_raises_when_endpoints_are_connections>
+        <Function test_constraints_returns_empty_when_no_elements>
+        <Function test_network_constraint_generation_error>
+        <Function test_network_optimize_validates_before_running>
+        <Function test_network_optimize_constraints_error>
+        <Function test_network_optimize_success_logs_solver_output>
+        <Function test_log_callback_handles_empty_message>
+        <Function test_network_optimize_raises_on_solver_failure>
+        <Function test_network_optimize_raises_on_infeasible_network>
+        <Function test_add_soc_pricing_connection>
+        <Function test_add_soc_pricing_connection_without_battery>
+        <Function test_network_cost_with_multiple_elements>
+        <Function test_network_cost_returns_none_when_no_costs>
+        <Function test_network_constraints_empty_when_no_elements>
+      <Module test_output_completeness.py>
+        <Function test_output_methods_match_declarations[battery-Battery]>
+        <Function test_output_methods_match_declarations[node-Node]>
+        <Function test_output_methods_match_declarations[connection-Connection]>
+      <Module test_output_data.py>
+        <Function test_single_value>
+        <Function test_sequence>
+        <Function test_numpy_array>
+      <Module test_period_updates.py>
+        <Class TestNetworkUpdatePeriods>
+          <Function test_update_periods_updates_network>
+          <Function test_update_periods_propagates_to_elements>
+          <Function test_update_periods_propagates_to_segments>
+        <Class TestPeriodUpdateInvalidation>
+          <Function test_battery_constraint_rebuilt_after_period_update>
+          <Function test_pricing_cost_rebuilt_after_period_update>
+          <Function test_solver_structure_unchanged_after_period_update>
+        <Class TestPeriodUpdateWithOtherParams>
+          <Function test_period_update_with_price_update>
+          <Function test_period_update_with_capacity_update>
+      <Module test_scenarios.py>
+        <Function test_simple_optimization>
+        <Function test_network_validation>
+      <Module test_segments.py>
+        <Function test_segment_scenarios[Passthrough forwards power unchanged]>
+        <Function test_segment_scenarios[Efficiency scales output power]>
+        <Function test_segment_scenarios[Power limit caps source-to-target flow]>
+        <Function test_segment_scenarios[Power limit caps target-to-source flow]>
+        <Function test_segment_scenarios[Fixed power limits enforce equality]>
+        <Function test_segment_scenarios[Time-slice constraint limits bidirectional flow]>
+        <Function test_segment_scenarios[Pricing adds cost to objective]>
+        <Function test_segment_scenarios[SOC pricing applies costs outside thresholds]>
+        <Function test_segment_scenarios[SOC pricing supports discharge-only penalty]>
+        <Function test_segment_scenarios[SOC pricing supports charge-only penalty]>
+        <Function test_segment_scenarios[SOC pricing passes through power]>
+        <Function test_connection_scenarios[Connection uses dict keys for segment names]>
+        <Function test_connection_scenarios[Connection defaults to passthrough segment]>
+        <Function test_connection_scenarios[Connection caps source-to-target flow]>
+        <Function test_connection_scenarios[Connection caps target-to-source flow]>
+        <Function test_connection_scenarios[Connection efficiency reduces power into target]>
+        <Function test_connection_scenarios[Connection pricing adds cost to objective]>
+        <Function test_connection_scenarios[Connection segments support name and index access]>
+        <Function test_segment_error_scenarios[SOC pricing requires a battery endpoint]>
+        <Function test_segment_error_scenarios[SOC pricing requires discharge threshold with price]>
+        <Function test_segment_error_scenarios[SOC pricing requires charge threshold with price]>
+        <Function test_segment_spec_typeguards>
+        <Function test_segment_outputs_and_cost_coverage>
+        <Function test_soc_pricing_cost_none_without_prices>
+      <Package util>
+        <Module test_broadcast_to_sequence.py>
+          <Function test_truncates_longer_sequence>
+          <Function test_extends_shorter_sequence>
+          <Function test_broadcasts_single_value>
+          <Function test_exact_length_unchanged>
+          <Function test_none_returns_none>
+          <Function test_empty_raises>
+    <Package schema>
+      <Module test_connection_target.py>
+        <Function test_is_connection_target_checks_mapping>
+        <Function test_normalize_connection_target_handles_str_and_schema_value>
+        <Function test_normalize_connection_target_rejects_invalid_type>
+        <Function test_get_connection_target_name_handles_variants>
+        <Function test_get_connection_target_name_rejects_invalid_type>
+      <Module test_schema_values.py>
+        <Function test_get_schema_value_kinds_handles_union_and_alias>
+        <Function test_get_schema_value_kinds_handles_direct_types>
+        <Function test_get_schema_value_kinds_returns_empty_for_unknown>
+      <Module test_util.py>
+        <Function test_matches_unit_spec[kW-kW-True]>
+        <Function test_matches_unit_spec[kW-W-False]>
+        <Function test_matches_unit_spec[kWh-kWh-True0]>
+        <Function test_matches_unit_spec[Wh-kWh-False]>
+        <Function test_matches_unit_spec[$/kWh-pattern4-True]>
+        <Function test_matches_unit_spec[AUD/kWh-pattern5-True]>
+        <Function test_matches_unit_spec[EUR/kWh-pattern6-True]>
+        <Function test_matches_unit_spec[USD/kWh-pattern7-True]>
+        <Function test_matches_unit_spec[GBP/kWh-pattern8-True]>
+        <Function test_matches_unit_spec[\xa2/kWh-pattern9-True]>
+        <Function test_matches_unit_spec[kWh-pattern10-False]>
+        <Function test_matches_unit_spec[$/MWh-pattern11-False]>
+        <Function test_matches_unit_spec[kW-pattern12-False]>
+        <Function test_matches_unit_spec[$/kWh-pattern13-False]>
+        <Function test_matches_unit_spec[kWh/day-pattern14-True]>
+        <Function test_matches_unit_spec[kWh/$-pattern15-True]>
+        <Function test_matches_unit_spec[Wh/day-pattern16-False]>
+        <Function test_matches_unit_spec[$/kWh-pattern17-True]>
+        <Function test_matches_unit_spec[$/MWh-pattern18-True]>
+        <Function test_matches_unit_spec[AUD/kWh-pattern19-False]>
+        <Function test_matches_unit_spec[prefix_MIDDLE_suffix-pattern20-True]>
+        <Function test_matches_unit_spec[prefix_MIDDLE_suffix_END-pattern21-True]>
+        <Function test_matches_unit_spec[ABC_DEF_GHI-pattern22-True]>
+        <Function test_matches_unit_spec[--True]>
+        <Function test_matches_unit_spec[kWh--False]>
+        <Function test_matches_unit_spec[-kWh-False]>
+        <Function test_matches_unit_spec[-pattern26-True]>
+        <Function test_matches_unit_spec[kWh-pattern27-False]>
+        <Function test_matches_unit_spec[kWh-kWh-True1]>
+        <Function test_matches_unit_spec[KWH-kWh-False]>
+        <Function test_matches_unit_spec[kwh-kWh-False]>
+        <Function test_matches_unit_spec[kW-UnitOfPower-True]>
+        <Function test_matches_unit_spec[MW-UnitOfPower-True]>
+        <Function test_matches_unit_spec[W-UnitOfPower-True]>
+        <Function test_matches_unit_spec[definitely_not_a_unit_xyz-UnitOfPower-False]>
+        <Function test_matches_unit_spec[kWh-UnitOfPower-False]>
+        <Function test_matches_unit_spec[$/kWh-UnitOfPower-False]>
+        <Function test_matches_unit_spec[$/kWh-pattern37-True]>
+        <Function test_matches_unit_spec[AUD/kWh-pattern38-False]>
+        <Function test_matches_unit_spec[$/Wh-pattern39-False]>
+        <Function test_matches_unit_spec[$/MWh-pattern40-False]>
+        <Function test_matches_unit_spec[$/kWh-pattern41-True]>
+        <Function test_matches_unit_spec[AUD/kWh-pattern42-True]>
+        <Function test_matches_unit_spec[EUR/kWh-pattern43-True]>
+        <Function test_matches_unit_spec[$/Wh-pattern44-False]>
+        <Function test_matches_unit_spec[$/MWh-pattern45-False]>
+        <Function test_matches_unit_spec[kW-pattern46-False]>
+        <Function test_matches_unit_spec[kWh-pattern47-False]>
+        <Function test_matches_unit_spec[a/b/c-pattern48-False]>
+        <Function test_matches_unit_spec[a/b-pattern49-False]>
+        <Function test_matches_unit_spec[$/kWh-pattern50-True]>
+        <Function test_matches_unit_spec[$/MWh-pattern51-True]>
+        <Function test_matches_unit_spec[$/Wh-pattern52-True]>
+        <Function test_matches_unit_spec[AUD/kWh-pattern53-False]>
+        <Function test_price_patterns_match_common_currencies[price_pattern0]>
+        <Function test_price_patterns_match_common_currencies[price_pattern1]>
+        <Function test_price_patterns_match_common_currencies[price_pattern2]>
+    <Module test_coordinator.py>
+      <Function test_coordinator_initialization_collects_participants>
+      <Function test_update_interval_is_none_for_event_driven>
+      <Coroutine test_async_update_data_returns_outputs>
+      <Coroutine test_async_initialize_with_empty_input_entities>
+      <Coroutine test_async_update_data_propagates_update_failed>
+      <Coroutine test_async_update_data_propagates_value_error>
+      <Coroutine test_async_update_data_raises_on_missing_model_element>
+      <Function test_build_coordinator_output_emits_forecast_entries>
+      <Function test_build_coordinator_output_handles_timestamp_errors>
+      <Function test_build_coordinator_output_sets_status_options>
+      <Function test_build_coordinator_output_skips_forecast_for_single_value>
+      <Function test_build_coordinator_output_uses_last_value_when_state_last>
+      <Function test_build_coordinator_output_handles_empty_values>
+      <Function test_strip_none_schema_values_removes_disabled_values>
+      <Function test_load_element_config_raises_on_required_none_value>
+      <Function test_coordinator_cleanup_invokes_listener>
+      <Function test_element_state_change_defers_update_and_triggers_optimization>
+      <Function test_horizon_change_triggers_optimization>
+      <Function test_signal_optimization_stale_marks_pending_when_in_progress>
+      <Function test_signal_optimization_stale_schedules_timer_in_cooldown>
+      <Function test_signal_optimization_stale_reuses_existing_timer>
+      <Function test_debounce_timer_callback_clears_timer>
+      <Function test_debounce_timer_callback_triggers_refresh_if_pending>
+      <Function test_maybe_trigger_refresh_skips_when_not_aligned>
+      <Function test_maybe_trigger_refresh_creates_task_when_aligned>
+      <Function test_are_inputs_aligned_returns_false_without_runtime_data>
+      <Function test_are_inputs_aligned_returns_false_without_horizon>
+      <Function test_are_inputs_aligned_returns_false_with_none_horizon_start>
+      <Function test_are_inputs_aligned_returns_false_with_misaligned_horizon>
+      <Function test_are_inputs_aligned_returns_true_when_aligned>
+      <Coroutine test_async_update_data_returns_existing_when_concurrent>
+      <Coroutine test_async_update_data_raises_on_concurrent_first_refresh>
+      <Coroutine test_async_update_data_clears_flags_in_finally>
+      <Coroutine test_load_from_input_entities_raises_without_runtime_data>
+      <Function test_subscribe_to_input_entities_no_op_without_runtime_data>
+      <Function test_cleanup_clears_debounce_timer>
+      <Function test_signal_optimization_stale_optimizes_immediately_outside_cooldown>
+      <Function test_load_from_input_entities_raises_when_required_input_missing>
+      <Function test_load_from_input_entities_loads_time_series_fields>
+      <Function test_load_from_input_entities_raises_when_required_field_returns_none>
+      <Coroutine test_async_update_data_raises_when_runtime_data_none_in_body>
+      <Function test_load_from_input_entities_raises_for_invalid_element_type>
+      <Function test_load_from_input_entities_raises_for_invalid_config_data>
+      <Coroutine test_async_initialize_raises_without_runtime_data>
+      <Function test_handle_element_update_logs_and_returns_on_load_error>
+      <Function test_load_element_config_raises_for_unknown_element>
+      <Function test_load_element_config_raises_without_runtime_data>
+      <Function test_element_update_callback_calls_handle_element_update>
+      <Function test_auto_optimize_enabled_raises_when_no_switch>
+      <Function test_auto_optimize_enabled_reads_from_switch>
+      <Function test_signal_optimization_stale_skips_when_auto_optimize_disabled>
+      <Function test_apply_auto_optimize_state_pauses_horizon_manager>
+      <Function test_apply_auto_optimize_state_resumes_horizon_manager>
+      <Function test_apply_auto_optimize_state_no_op_without_runtime_data>
+      <Function test_handle_auto_optimize_switch_change_on_enables>
+      <Function test_handle_auto_optimize_switch_change_off_pauses>
+      <Function test_handle_auto_optimize_switch_change_none_state_returns_early>
+      <Coroutine test_async_run_optimization_runs_when_inputs_aligned>
+      <Coroutine test_async_run_optimization_skips_when_inputs_not_aligned>
+    <Module test_data_loading.py>
+      <Coroutine test_create_network_successful_loads_load_participant>
+      <Coroutine test_create_network_without_participants_returns_empty_network>
+      <Coroutine test_create_network_sorts_connections_after_elements>
+      <Coroutine test_create_network_add_failure_is_wrapped>
+    <Module test_device_removal.py>
+      <Coroutine test_keep_device_for_existing_element>
+      <Coroutine test_remove_device_for_deleted_element>
+      <Coroutine test_remove_device_with_stale_device_name_for_existing_element>
+      <Coroutine test_keep_hub_device>
+      <Coroutine test_multiple_elements_device_cleanup>
+      <Coroutine test_device_with_wrong_domain>
+      <Coroutine test_keep_device_for_unknown_subentry_type>
+      <Coroutine test_remove_device_with_unrelated_haeo_identifier>
+    <Module test_diagnostics.py>
+      <Function test_extract_entity_ids_from_config_collects_nested_entities>
+      <Coroutine test_collect_diagnostics_historical_skips_outputs>
+      <Coroutine test_diagnostics_basic_structure>
+      <Coroutine test_diagnostics_with_participants>
+      <Coroutine test_diagnostics_skips_network_subentry>
+      <Coroutine test_diagnostics_with_outputs>
+      <Coroutine test_diagnostics_captures_editable_entity_values>
+      <Coroutine test_diagnostics_skips_unknown_element_in_input_entities>
+      <Coroutine test_diagnostics_skips_driven_entity_values>
+      <Coroutine test_current_state_provider_get_state>
+      <Coroutine test_current_state_provider_properties>
+      <Coroutine test_historical_state_provider_properties>
+      <Coroutine test_historical_state_provider_get_state>
+      <Coroutine test_historical_state_provider_get_state_not_found>
+      <Coroutine test_historical_state_provider_get_states>
+      <Coroutine test_historical_state_provider_get_states_empty>
+      <Coroutine test_historical_state_provider_get_states_sync>
+      <Coroutine test_diagnostics_with_historical_provider_omits_outputs>
+      <Coroutine test_diagnostics_with_network_subentry_not_element_config>
+      <Coroutine test_diagnostics_skips_switch_with_none_value>
+      <Coroutine test_collect_diagnostics_returns_missing_entity_ids>
+      <Coroutine test_collect_diagnostics_returns_empty_missing_when_all_found>
+    <Module test_init.py>
+      <Coroutine test_setup_hub_entry>
+      <Coroutine test_unload_hub_entry>
+      <Coroutine test_async_setup_entry_initializes_coordinator>
+      <Coroutine test_reload_hub_entry>
+      <Coroutine test_ensure_required_subentries_network_already_exists>
+      <Coroutine test_ensure_required_subentries_creates_network>
+      <Coroutine test_ensure_required_subentries_creates_switchboard_non_advanced>
+      <Coroutine test_ensure_required_subentries_skips_switchboard_advanced_mode>
+      <Coroutine test_ensure_required_subentries_skips_switchboard_if_exists>
+      <Coroutine test_reload_entry_failure_handling>
+      <Coroutine test_async_update_listener>
+      <Coroutine test_async_update_listener_value_update_in_progress>
+      <Coroutine test_async_remove_config_entry_device>
+      <Coroutine test_async_update_listener_value_update_skips_refresh_without_coordinator>
+      <Coroutine test_async_setup_entry_raises_config_entry_not_ready_on_timeout>
+      <Coroutine test_async_setup_entry_returns_false_when_network_subentry_missing>
+      <Coroutine test_setup_reentry_after_timeout_failure>
+      <Coroutine test_setup_cleanup_on_coordinator_error>
+      <Coroutine test_async_setup_entry_raises_config_entry_error_on_permanent_failure>
+      <Coroutine test_setup_preserves_config_entry_not_ready_exception>
+      <Coroutine test_setup_preserves_config_entry_error_exception>
+    <Module test_network.py>
+      <Coroutine test_evaluate_network_connectivity_connected>
+      <Coroutine test_evaluate_network_connectivity_disconnected>
+      <Coroutine test_evaluate_network_connectivity_resolves_issue>
+    <Module test_network_validation.py>
+      <Function test_format_component_summary>
+      <Function test_format_component_summary_custom_separator>
+      <Function test_validate_network_topology_empty>
+      <Function test_validate_network_topology_with_implicit_connection>
+      <Function test_validate_network_topology_detects_disconnected>
+      <Function test_validate_network_topology_with_battery>
+      <Function test_validate_network_topology_with_battery_all_sections>
+    <Module test_number.py>
+      <Coroutine test_setup_creates_number_entities_for_grid>
+      <Coroutine test_setup_skips_network_subentry>
+      <Coroutine test_setup_skips_elements_without_number_fields>
+      <Coroutine test_setup_skips_missing_fields_in_config>
+      <Coroutine test_setup_creates_correct_device_identifiers>
+      <Coroutine test_setup_handles_multiple_elements>
+    <Module test_repairs.py>
+      <Coroutine test_create_missing_sensor_issue>
+      <Coroutine test_dismiss_missing_sensor_issue>
+      <Coroutine test_dismiss_missing_sensor_issue_not_exists>
+      <Coroutine test_create_optimization_failure_issue>
+      <Coroutine test_dismiss_optimization_failure_issue>
+      <Coroutine test_dismiss_optimization_failure_issue_not_exists>
+      <Coroutine test_create_invalid_config_issue>
+      <Coroutine test_multiple_missing_sensor_issues>
+      <Coroutine test_repair_issue_translation_keys>
+      <Coroutine test_create_disconnected_network_issue>
+      <Coroutine test_dismiss_disconnected_network_issue>
+      <Coroutine test_dismiss_nonexistent_disconnected_network_issue>
+      <Coroutine test_dismiss_nonexistent_missing_sensor_issue>
+      <Coroutine test_dismiss_nonexistent_optimization_failure_issue>
+    <Module test_sections.py>
+      <Function test_efficiency_section_helpers>
+      <Function test_forecast_section_helpers>
+      <Function test_power_limits_section_helpers>
+      <Function test_pricing_section_helpers>
+    <Module test_sensor.py>
+      <Coroutine test_async_setup_entry_creates_sensors_with_metadata>
+      <Coroutine test_async_setup_entry_raises_when_runtime_data_missing>
+      <Coroutine test_async_setup_entry_creates_horizon_when_no_outputs>
+      <Function test_handle_coordinator_update_reapplies_metadata>
+      <Function test_handle_coordinator_update_scales_percentage_outputs>
+      <Function test_handle_coordinator_update_without_data_leaves_sensor_empty>
+      <Function test_sensor_availability_follows_coordinator>
+      <Coroutine test_sensor_async_added_to_hass_runs_initial_update>
+      <Coroutine test_async_setup_entry_creates_sub_device_sensors>
+      <Function test_handle_coordinator_update_sets_direction>
+      <Function test_handle_coordinator_update_missing_output_clears_value>
+      <Function test_unrecorded_attributes_based_on_config[False-True]>
+      <Function test_unrecorded_attributes_based_on_config[True-False]>
+    <Module test_sensor_utils.py>
+      <Coroutine test_get_output_sensors_excludes_other_platforms>
+      <Coroutine test_get_output_sensors_excludes_entities_without_state>
+      <Coroutine test_get_output_sensors_handles_forecast_attributes>
+      <Coroutine test_get_output_sensors_handles_non_numeric_states>
+      <Coroutine test_get_output_sensors_handles_zero_values>
+      <Coroutine test_get_output_sensors_handles_non_numeric_forecast_values>
+    <Module test_services.py>
+      <Coroutine test_async_setup_registers_service>
+      <Coroutine test_save_diagnostics_service_success>
+      <Coroutine test_save_diagnostics_service_entry_not_found>
+      <Coroutine test_save_diagnostics_service_wrong_domain>
+      <Coroutine test_save_diagnostics_service_entry_not_loaded>
+      <Coroutine test_save_diagnostics_filename_format>
+      <Function test_format_manifest_strips_codeowner_prefix>
+      <Function test_format_manifest_no_codeowners>
+      <Coroutine test_save_diagnostics_with_historical_time>
+      <Coroutine test_save_diagnostics_schema_includes_time_when_recorder_available>
+      <Coroutine test_save_diagnostics_schema_excludes_time_when_recorder_unavailable>
+      <Coroutine test_save_diagnostics_historical_missing_entities_raises_error>
+      <Coroutine test_async_setup_registers_optimize_service>
+      <Coroutine test_optimize_service_success>
+      <Coroutine test_optimize_service_entry_not_found>
+      <Coroutine test_optimize_service_wrong_domain>
+      <Coroutine test_optimize_service_entry_not_loaded>
+      <Coroutine test_optimize_service_no_coordinator>
+    <Module test_switch.py>
+      <Coroutine test_setup_raises_error_when_runtime_data_missing>
+      <Coroutine test_setup_creates_auto_optimize_switch_for_network>
+      <Coroutine test_setup_skips_element_without_switch_fields>
+      <Coroutine test_setup_creates_switch_entities_for_solar_curtailment>
+      <Coroutine test_setup_skips_missing_switch_fields_in_config>
+      <Coroutine test_setup_creates_correct_device_identifiers>
+      <Coroutine test_setup_handles_multiple_solar_elements>
+      <Coroutine test_setup_with_entity_id_creates_driven_mode_entity>
+      <Coroutine test_auto_optimize_switch_turn_on>
+      <Coroutine test_auto_optimize_switch_turn_off>
+      <Coroutine test_auto_optimize_switch_restores_on_state>
+      <Coroutine test_auto_optimize_switch_restores_off_state>
+      <Coroutine test_auto_optimize_switch_defaults_to_on_without_previous_state>
+    <Module test_system_health.py>
+      <Coroutine test_async_register_callback>
+      <Coroutine test_system_health_no_config_entries>
+      <Coroutine test_system_health_coordinator_not_initialized>
+      <Coroutine test_system_health_reports_coordinator_state>
+      <Coroutine test_system_health_detects_failed_updates>
+    <Module test_transform_sensor.py>
+      <Function test_transform_utc_timestamp>
+      <Function test_transform_timezone_aware_timestamp>
+      <Function test_transform_invalid_timestamp>
+      <Function test_transform_string_value>
+      <Function test_transform_dict_keys_and_values>
+      <Function test_transform_list_items>
+      <Function test_transform_nested_structure>
+      <Function test_transform_non_string_value>
+      <Function test_shift_zero_days>
+      <Function test_shift_one_day>
+      <Function test_shift_preserves_time_of_day>
+      <Function test_shift_preserves_values>
+      <Function test_parse_valid_forecasts>
+      <Function test_parse_empty_forecasts>
+      <Function test_parse_forecasts_missing_time_field>
+      <Function test_parse_forecasts_invalid_timestamp>
+      <Function test_parse_forecasts_sorted_by_time>
+      <Function test_find_exact_match>
+      <Function test_find_closest_before>
+      <Function test_find_closest_after>
+      <Function test_transform_all_timestamp_fields>
+      <Function test_transform_preserves_z_suffix>
+      <Function test_transform_creates_copy>
+      <Function test_wrap_forecasts_basic>
+      <Function test_wrap_forecasts_missing_attributes>
+      <Function test_wrap_forecasts_empty_list>
+      <Function test_passthrough_returns_unchanged>
+      <Function test_passthrough_is_same_object>
+      <Function test_read_valid_json>
+      <Function test_read_nonexistent_file>
+      <Function test_read_invalid_json>
+      <Function test_apply_day_offset_transform>
+      <Function test_apply_day_offset_without_parameter>
+      <Function test_apply_wrap_forecasts_transform>
+      <Function test_apply_passthrough_transform>
+      <Function test_apply_unknown_transform>
+      <Function test_parser_accepts_valid_args>
+      <Function test_parser_accepts_wrap_forecasts>
+      <Function test_parser_accepts_passthrough>
+      <Function test_parser_rejects_invalid_transform>
+      <Function test_parser_verbose_flag>
+      <Function test_main_success>
+      <Function test_main_file_not_found>
+      <Function test_main_invalid_json>
+      <Function test_main_invalid_transform>
+      <Function test_main_with_day_offset>
+      <Function test_main_verbose_mode>
+      <Function test_solar_forecast_transformation_workflow>
+      <Function test_amber_forecast_transformation_workflow>
+      <Function test_transform_forecast_timestamps_handles_invalid_timestamp>
+      <Function test_transform_forecast_timestamps_handles_invalid_date>
+      <Function test_transform_forecast_timestamps_handles_date_with_time>
+      <Function test_main_handles_unexpected_exception>
+    <Module test_translations.py>
+      <Function test_all_output_names_have_translations>
+      <Function test_no_unused_translations>
+      <Function test_all_device_names_have_translations>
+      <Function test_no_unused_device_translations>
+    <Package util>
+      <Module test_forecast_times.py>
+        <Function test_tiers_to_periods_seconds[single_tier]>
+        <Function test_tiers_to_periods_seconds[multiple_tiers]>
+        <Function test_tiers_to_periods_seconds[all_tiers]>
+        <Function test_tiers_to_periods_seconds[empty_tiers]>
+        <Function test_generate_forecast_timestamps[single_period]>
+        <Function test_generate_forecast_timestamps[multiple_periods]>
+        <Function test_generate_forecast_timestamps[empty_periods]>
+        <Function test_generate_forecast_timestamps[nonzero_start]>
+        <Function test_generate_forecast_timestamps[float_start]>
+        <Function test_generate_forecast_timestamps_default_start_time>
+        <Function test_generate_forecast_timestamps_from_config>
+        <Function test_alignment_tier_counts_aligned_start>
+        <Function test_alignment_tier_counts_mid_hour_start>
+        <Function test_minutes_to_next_boundary>
+        <Function test_calculate_total_steps>
+        <Function test_alignment_no_extra_steps>
+        <Function test_tiers_to_periods_with_preset>
+        <Function test_tiers_to_periods_with_custom>
+        <Function test_tiers_to_periods_with_missing_tiers>
+        <Function test_preset_produces_constant_step_count_for_all_minutes[2_days]>
+        <Function test_preset_produces_constant_step_count_for_all_minutes[3_days]>
+        <Function test_preset_produces_constant_step_count_for_all_minutes[5_days]>
+        <Function test_preset_produces_constant_step_count_for_all_minutes[7_days]>
+        <Function test_preset_produces_exact_horizon_duration[2_days]>
+        <Function test_preset_produces_exact_horizon_duration[3_days]>
+        <Function test_preset_produces_exact_horizon_duration[5_days]>
+        <Function test_preset_produces_exact_horizon_duration[7_days]>
+      <Module test_graph.py>
+        <Function test_find_connected_components[empty]>
+        <Function test_find_connected_components[single_node]>
+        <Function test_find_connected_components[connected_pair]>
+        <Function test_find_connected_components[disconnected_pair]>
+        <Function test_find_connected_components[chain]>
+        <Function test_find_connected_components[cycle]>
+        <Function test_find_connected_components[multiple_clusters]>
+
+============== 1340/1345 tests collected (5 deselected) in 0.65s ===============
