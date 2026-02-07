@@ -1,5 +1,8 @@
+"""Check audit coverage for collected pytest nodeids."""
+
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 import re
 
@@ -7,12 +10,16 @@ ROOT = Path("/Users/trenthouliston/Code/gaeo")
 NODEIDS_PATH = ROOT / ".plans/pytest-collect-nodeids.txt"
 AUDIT_ROOT = ROOT / "test_audit"
 
+LOGGER = logging.getLogger(__name__)
+
 
 def main() -> None:
+    """Report missing audit files for collected pytest nodeids."""
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
     nodeids: list[str] = []
     with NODEIDS_PATH.open("r", encoding="utf-8") as handle:
-        for line in handle:
-            line = line.strip()
+        for raw_line in handle:
+            line = raw_line.strip()
             if not line:
                 continue
             if not line.startswith("tests/"):
@@ -49,10 +56,10 @@ def main() -> None:
         if not audit_path.exists():
             missing.append(str(audit_path))
 
-    print(f"Base tests: {len(param_map)}")
-    print(f"Missing audit files: {len(missing)}")
+    LOGGER.info("Base tests: %s", len(param_map))
+    LOGGER.info("Missing audit files: %s", len(missing))
     for path in missing[:10]:
-        print(path)
+        LOGGER.info(path)
 
 
 if __name__ == "__main__":

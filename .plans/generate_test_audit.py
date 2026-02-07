@@ -1,5 +1,8 @@
+"""Generate markdown audit files for collected pytest tests and fixtures."""
+
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 import re
 
@@ -7,13 +10,15 @@ ROOT = Path("/Users/trenthouliston/Code/gaeo")
 NODEIDS_PATH = ROOT / ".plans/pytest-collect-nodeids.txt"
 AUDIT_ROOT = ROOT / "test_audit"
 
+LOGGER = logging.getLogger(__name__)
+
 
 def load_nodeids() -> list[str]:
     """Load pytest nodeids from the collection output file."""
     nodeids: list[str] = []
     with NODEIDS_PATH.open("r", encoding="utf-8") as handle:
-        for line in handle:
-            line = line.strip()
+        for raw_line in handle:
+            line = raw_line.strip()
             if not line:
                 continue
             if not line.startswith("tests/"):
@@ -144,6 +149,7 @@ notes:
 
 def main() -> None:
     """Generate audit files for all collected tests and conftest fixtures."""
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
     nodeids = load_nodeids()
     param_map = build_param_map(nodeids)
 
@@ -192,7 +198,7 @@ def main() -> None:
         write_conftest_audit(audit_path, conftest)
         created += 1
 
-    print(f"Created {created} audit files.")
+    LOGGER.info("Created %s audit files.", created)
 
 
 if __name__ == "__main__":

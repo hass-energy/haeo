@@ -940,4 +940,3 @@ async def test_collect_diagnostics_missing_entity_ids(
         assert result.missing_entity_ids == []
         entity_ids = {item["entity_id"] for item in result.data["inputs"]}
         assert entity_ids == {"sensor.battery_capacity", "sensor.battery_soc"}
-        title = ("Battery",)

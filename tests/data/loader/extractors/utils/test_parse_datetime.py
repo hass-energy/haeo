@@ -24,7 +24,7 @@ def test_parse_datetime_string() -> None:
             id="aware_datetime",
         ),
         pytest.param(
-            datetime(2025, 10, 6, 12, 30, 0),
+            datetime(2025, 10, 6, 12, 30, 0, tzinfo=UTC).replace(tzinfo=None),
             None,
             id="naive_datetime",
         ),

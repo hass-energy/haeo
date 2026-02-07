@@ -461,6 +461,7 @@ async def test_async_update_listener_value_update_in_progress(
     assert mock_hub_entry.runtime_data.value_update_in_progress is False
     assert not reload_called
     if expect_signal:
+        assert mock_coordinator is not None
         mock_coordinator.signal_optimization_stale.assert_called_once()
 
 

@@ -27,10 +27,11 @@ async def test_constant_loader_rejects_wrong_type(
 ) -> None:
     """ConstantLoader raises TypeError for wrong types across available/load."""
     constant_loader = ConstantLoader(loader_type)
-    with pytest.raises(TypeError, match="Value must be of type"):
-        if method == "available":
+    if method == "available":
+        with pytest.raises(TypeError, match="Value must be of type"):
             constant_loader.available(value=value)
-        else:
+    else:
+        with pytest.raises(TypeError, match="Value must be of type"):
             await constant_loader.load(value=value)
 
 
