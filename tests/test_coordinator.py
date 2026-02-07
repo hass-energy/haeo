@@ -468,14 +468,23 @@ async def test_async_initialize_with_empty_input_entities(
         mock_load.assert_called_once()
 
 
-async def test_async_update_data_propagates_update_failed(
+@pytest.mark.parametrize(
+    ("error", "match"),
+    [
+        pytest.param(UpdateFailed("missing data"), "missing data", id="update_failed"),
+        pytest.param(ValueError("invalid config"), "invalid config", id="value_error"),
+    ],
+)
+async def test_async_update_data_propagates_errors(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
     mock_battery_subentry: ConfigSubentry,
     mock_grid_subentry: ConfigSubentry,
     mock_runtime_data: HaeoRuntimeData,
+    error: Exception,
+    match: str,
 ) -> None:
-    """Coordinator surfaces UpdateFailed exceptions from optimization."""
+    """Coordinator surfaces optimization errors to callers."""
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
     coordinator.network = MagicMock()
 
@@ -485,33 +494,9 @@ async def test_async_update_data_propagates_update_failed(
             hass,
             "async_add_executor_job",
             new_callable=AsyncMock,
-            side_effect=UpdateFailed("missing data"),
+            side_effect=error,
         ),
-        pytest.raises(UpdateFailed, match="missing data"),
-    ):
-        await coordinator._async_update_data()
-
-
-async def test_async_update_data_propagates_value_error(
-    hass: HomeAssistant,
-    mock_hub_entry: MockConfigEntry,
-    mock_battery_subentry: ConfigSubentry,
-    mock_grid_subentry: ConfigSubentry,
-    mock_runtime_data: HaeoRuntimeData,
-) -> None:
-    """Coordinator allows unexpected optimization errors to bubble up."""
-    coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
-    coordinator.network = MagicMock()
-
-    with (
-        patch.object(coordinator, "_load_from_input_entities", return_value={}),
-        patch.object(
-            hass,
-            "async_add_executor_job",
-            new_callable=AsyncMock,
-            side_effect=ValueError("invalid config"),
-        ),
-        pytest.raises(ValueError, match="invalid config"),
+        pytest.raises(type(error), match=match),
     ):
         await coordinator._async_update_data()
 
