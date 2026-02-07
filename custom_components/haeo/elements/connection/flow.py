@@ -35,9 +35,11 @@ from custom_components.haeo.sections import (
 
 from .adapter import adapter
 from .schema import (
-    CONF_DEMAND_BLOCK_HOURS,
+    CONF_DEMAND_BLOCK_MINUTES,
     CONF_DEMAND_CURRENT_ENERGY_SOURCE_TARGET,
     CONF_DEMAND_CURRENT_ENERGY_TARGET_SOURCE,
+    CONF_DEMAND_PEAK_ENERGY_SOURCE_TARGET,
+    CONF_DEMAND_PEAK_ENERGY_TARGET_SOURCE,
     CONF_DEMAND_PRICE_SOURCE_TARGET,
     CONF_DEMAND_PRICE_TARGET_SOURCE,
     CONF_EFFICIENCY_SOURCE_TARGET,
@@ -85,9 +87,11 @@ class ConnectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                 (
                     CONF_DEMAND_PRICE_SOURCE_TARGET,
                     CONF_DEMAND_PRICE_TARGET_SOURCE,
+                    CONF_DEMAND_BLOCK_MINUTES,
                     CONF_DEMAND_CURRENT_ENERGY_SOURCE_TARGET,
                     CONF_DEMAND_CURRENT_ENERGY_TARGET_SOURCE,
-                    CONF_DEMAND_BLOCK_HOURS,
+                    CONF_DEMAND_PEAK_ENERGY_SOURCE_TARGET,
+                    CONF_DEMAND_PEAK_ENERGY_TARGET_SOURCE,
                 ),
                 collapsed=True,
             ),

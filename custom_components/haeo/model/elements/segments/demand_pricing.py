@@ -30,6 +30,8 @@ class DemandPricingSegmentSpec(TypedDict):
     demand_price_target_source: NotRequired[NDArray[np.floating[Any]] | float | None]
     demand_current_energy_source_target: NotRequired[NDArray[np.floating[Any]] | float | None]
     demand_current_energy_target_source: NotRequired[NDArray[np.floating[Any]] | float | None]
+    demand_peak_energy_source_target: NotRequired[NDArray[np.floating[Any]] | float | None]
+    demand_peak_energy_target_source: NotRequired[NDArray[np.floating[Any]] | float | None]
     demand_block_hours: NotRequired[float | None]
 
 
@@ -44,6 +46,8 @@ class DemandPricingSegment(Segment):
     demand_price_target_source: TrackedParam[NDArray[np.float64] | None] = TrackedParam()
     demand_current_energy_source_target: TrackedParam[float | None] = TrackedParam()
     demand_current_energy_target_source: TrackedParam[float | None] = TrackedParam()
+    demand_peak_energy_source_target: TrackedParam[float | None] = TrackedParam()
+    demand_peak_energy_target_source: TrackedParam[float | None] = TrackedParam()
     demand_block_hours: TrackedParam[float] = TrackedParam()
 
     def __init__(
@@ -91,6 +95,8 @@ class DemandPricingSegment(Segment):
         self.demand_price_target_source = broadcast_to_sequence(spec.get("demand_price_target_source"), n_periods)
         self.demand_current_energy_source_target = _as_float(spec.get("demand_current_energy_source_target"))
         self.demand_current_energy_target_source = _as_float(spec.get("demand_current_energy_target_source"))
+        self.demand_peak_energy_source_target = _as_float(spec.get("demand_peak_energy_source_target"))
+        self.demand_peak_energy_target_source = _as_float(spec.get("demand_peak_energy_target_source"))
         block_hours = _as_float(spec.get("demand_block_hours"))
         self.demand_block_hours = DEFAULT_DEMAND_BLOCK_HOURS if block_hours is None else block_hours
 
@@ -127,6 +133,7 @@ class DemandPricingSegment(Segment):
             price=self.demand_price_source_target,
             peak=self._peak_st,
             initial_energy=self.demand_current_energy_source_target,
+            peak_energy=self.demand_peak_energy_source_target,
         )
 
     @constraint
@@ -139,6 +146,7 @@ class DemandPricingSegment(Segment):
             price=self.demand_price_target_source,
             peak=self._peak_ts,
             initial_energy=self.demand_current_energy_target_source,
+            peak_energy=self.demand_peak_energy_target_source,
         )
 
     @cost
@@ -164,6 +172,7 @@ class DemandPricingSegment(Segment):
         price: NDArray[np.float64],
         peak: highs_var,
         initial_energy: float | None,
+        peak_energy: float | None,
     ) -> list[highs_linear_expression] | None:
         block_hours = self.demand_block_hours
         if block_hours <= 0:
@@ -183,6 +192,8 @@ class DemandPricingSegment(Segment):
             if is_first_block and initial_energy:
                 block_average += float(initial_energy) / block_hours
             constraints.append(peak >= block_average * block_price)
+            if peak_energy is not None and peak_energy > 0:
+                constraints.append(peak >= (float(peak_energy) / block_hours) * block_price)
 
         return constraints or None
 

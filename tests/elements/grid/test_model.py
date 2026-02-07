@@ -48,7 +48,12 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "price_source_target": np.array([0.1]),
                 "price_target_source": np.array([0.05]),
             },
-            demand_pricing={},
+            demand_pricing={
+                "demand_price_source_target": 10.0,
+                "demand_current_energy_source_target": 1.0,
+                "demand_peak_energy_source_target": 4.0,
+                "demand_block_minutes": 30.0,
+            },
             power_limits={
                 "max_power_source_target": np.array([5.0]),
                 "max_power_target_source": np.array([3.0]),
@@ -74,9 +79,10 @@ CREATE_CASES: Sequence[CreateCase] = [
                     },
                     "demand_pricing": {
                         "segment_type": "demand_pricing",
-                        "demand_price_source_target": None,
-                        "demand_current_energy_source_target": None,
-                        "demand_block_hours": None,
+                        "demand_price_source_target": 10.0,
+                        "demand_current_energy_source_target": 1.0,
+                        "demand_peak_energy_source_target": 4.0,
+                        "demand_block_hours": 0.5,
                     },
                 },
             },

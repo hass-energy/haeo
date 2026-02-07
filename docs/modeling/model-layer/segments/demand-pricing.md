@@ -13,6 +13,8 @@ It models tariffs that charge for the highest average kW within a demand price s
 | $c_{t \rightarrow s}(t)$ | Demand price schedule for target to source (\$/kW) | None    |
 | $E_{s \rightarrow t}$    | Demand energy already used in current block (kWh)  | 0       |
 | $E_{t \rightarrow s}$    | Demand energy already used in current block (kWh)  | 0       |
+| $E^{\max}_{s \rightarrow t}$ | Peak demand energy in current billing cycle (kWh) | 0       |
+| $E^{\max}_{t \rightarrow s}$ | Peak demand energy in current billing cycle (kWh) | 0       |
 | $B$                      | Demand block duration (hours)                      | 0.5     |
 
 Demand prices can be time-varying.
@@ -45,6 +47,12 @@ For each block $b$:
 
 $$
 C_{\text{peak}} \ge \bar{c}_b \cdot \bar{P}_b
+$$
+
+If $E^{\max}$ is provided, the peak cost also respects the existing billing cycle peak:
+
+$$
+C_{\text{peak}} \ge \bar{c}_b \cdot \frac{E^{\max}}{B}
 $$
 
 Block prices $\bar{c}_b$ are derived from the demand price schedule using the same block weights.

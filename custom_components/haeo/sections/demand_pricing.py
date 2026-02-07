@@ -17,7 +17,9 @@ CONF_DEMAND_PRICE_SOURCE_TARGET: Final = "demand_price_source_target"
 CONF_DEMAND_PRICE_TARGET_SOURCE: Final = "demand_price_target_source"
 CONF_DEMAND_CURRENT_ENERGY_SOURCE_TARGET: Final = "demand_current_energy_source_target"
 CONF_DEMAND_CURRENT_ENERGY_TARGET_SOURCE: Final = "demand_current_energy_target_source"
-CONF_DEMAND_BLOCK_HOURS: Final = "demand_block_hours"
+CONF_DEMAND_PEAK_ENERGY_SOURCE_TARGET: Final = "demand_peak_energy_source_target"
+CONF_DEMAND_PEAK_ENERGY_TARGET_SOURCE: Final = "demand_peak_energy_target_source"
+CONF_DEMAND_BLOCK_MINUTES: Final = "demand_block_minutes"
 
 
 class DemandPricingConfig(TypedDict, total=False):
@@ -27,7 +29,9 @@ class DemandPricingConfig(TypedDict, total=False):
     demand_price_target_source: EntityValue | ConstantValue | NoneValue
     demand_current_energy_source_target: EntityValue | ConstantValue | NoneValue
     demand_current_energy_target_source: EntityValue | ConstantValue | NoneValue
-    demand_block_hours: EntityValue | ConstantValue | NoneValue
+    demand_peak_energy_source_target: EntityValue | ConstantValue | NoneValue
+    demand_peak_energy_target_source: EntityValue | ConstantValue | NoneValue
+    demand_block_minutes: EntityValue | ConstantValue | NoneValue
 
 
 class DemandPricingData(TypedDict, total=False):
@@ -37,7 +41,9 @@ class DemandPricingData(TypedDict, total=False):
     demand_price_target_source: NDArray[np.floating[Any]] | float
     demand_current_energy_source_target: NDArray[np.floating[Any]] | float
     demand_current_energy_target_source: NDArray[np.floating[Any]] | float
-    demand_block_hours: float
+    demand_peak_energy_source_target: NDArray[np.floating[Any]] | float
+    demand_peak_energy_target_source: NDArray[np.floating[Any]] | float
+    demand_block_minutes: float
 
 
 def demand_pricing_section(fields: tuple[str, ...], *, collapsed: bool = False) -> SectionDefinition:
@@ -64,9 +70,11 @@ def build_demand_pricing_fields(
 
 
 __all__ = [
-    "CONF_DEMAND_BLOCK_HOURS",
+    "CONF_DEMAND_BLOCK_MINUTES",
     "CONF_DEMAND_CURRENT_ENERGY_SOURCE_TARGET",
     "CONF_DEMAND_CURRENT_ENERGY_TARGET_SOURCE",
+    "CONF_DEMAND_PEAK_ENERGY_SOURCE_TARGET",
+    "CONF_DEMAND_PEAK_ENERGY_TARGET_SOURCE",
     "CONF_DEMAND_PRICE_SOURCE_TARGET",
     "CONF_DEMAND_PRICE_TARGET_SOURCE",
     "SECTION_DEMAND_PRICING",

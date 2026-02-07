@@ -197,9 +197,11 @@
           "title": "Connection Configuration",
           "description": "Configure connection parameters between devices",
           "data": {
-            "demand_block_hours": "Demand Block Hours",
+            "demand_block_minutes": "Demand block minutes",
             "demand_current_energy_source_target": "Demand Current Energy Source to Target",
             "demand_current_energy_target_source": "Demand Current Energy Target to Source",
+            "demand_peak_energy_source_target": "Highest demand energy source to target this cycle",
+            "demand_peak_energy_target_source": "Highest demand energy target to source this cycle",
             "demand_price_source_target": "Demand Price Source to Target",
             "demand_price_target_source": "Demand Price Target to Source",
             "efficiency_source_target": "Efficiency Source to Target",
@@ -216,9 +218,11 @@
             "common": { "data": { "name": "Connection Name" }, "name": "Common settings" },
             "demand_pricing": {
               "data": {
-                "demand_block_hours": "Demand Block Hours",
+                "demand_block_minutes": "Demand block minutes",
                 "demand_current_energy_source_target": "Demand Current Energy Source to Target",
                 "demand_current_energy_target_source": "Demand Current Energy Target to Source",
+                "demand_peak_energy_source_target": "Highest demand energy source to target this cycle",
+                "demand_peak_energy_target_source": "Highest demand energy target to source this cycle",
                 "demand_price_source_target": "Demand Price Source to Target",
                 "demand_price_target_source": "Demand Price Target to Source"
               },
@@ -269,8 +273,9 @@
           "description": "Configure grid import/export parameters and pricing",
           "data": {
             "connection": "Connection",
-            "demand_block_hours": "Demand block hours",
+            "demand_block_minutes": "Demand block minutes",
             "demand_current_energy_source_target": "Import demand energy so far",
+            "demand_peak_energy_source_target": "Highest import demand energy this cycle",
             "demand_price_source_target": "Import demand price",
             "max_power_source_target": "Import limit",
             "max_power_target_source": "Export limit",
@@ -282,8 +287,9 @@
             "common": { "data": { "connection": "Connection", "name": "Grid Name" }, "name": "Common settings" },
             "demand_pricing": {
               "data": {
-                "demand_block_hours": "Demand block hours",
+                "demand_block_minutes": "Demand block minutes",
                 "demand_current_energy_source_target": "Import demand energy so far",
+                "demand_peak_energy_source_target": "Highest import demand energy this cycle",
                 "demand_price_source_target": "Import demand price"
               },
               "name": "Demand pricing"
@@ -446,9 +452,11 @@
       "battery_percentage": { "name": "Percentage" },
       "battery_price_source_target": { "name": "Discharge price" },
       "battery_price_target_source": { "name": "Charge price" },
-      "connection_demand_block_hours": { "name": "Demand block hours" },
+      "connection_demand_block_minutes": { "name": "Demand block minutes" },
       "connection_demand_current_energy_source_target": { "name": "Source to target demand energy so far" },
       "connection_demand_current_energy_target_source": { "name": "Target to source demand energy so far" },
+      "connection_demand_peak_energy_source_target": { "name": "Highest source to target demand energy this cycle" },
+      "connection_demand_peak_energy_target_source": { "name": "Highest target to source demand energy this cycle" },
       "connection_demand_price_source_target": { "name": "Source to target demand price" },
       "connection_demand_price_target_source": { "name": "Target to source demand price" },
       "connection_efficiency_source_target": { "name": "Source to target efficiency" },
@@ -457,8 +465,9 @@
       "connection_max_power_target_source": { "name": "Max target to source power" },
       "connection_price_source_target": { "name": "Source to target price" },
       "connection_price_target_source": { "name": "Target to source price" },
-      "grid_demand_block_hours": { "name": "Demand block hours" },
+      "grid_demand_block_minutes": { "name": "Demand block minutes" },
       "grid_demand_current_energy_source_target": { "name": "Import demand energy so far" },
+      "grid_demand_peak_energy_source_target": { "name": "Highest import demand energy this cycle" },
       "grid_demand_price_source_target": { "name": "Import demand price" },
       "grid_max_power_source_target": { "name": "Import limit" },
       "grid_max_power_target_source": { "name": "Export limit" },

@@ -32,7 +32,9 @@ Pricing and demand pricing fields appear in separate sections in the UI.
 | **Demand Price Target→Source**  | Number                                   | No       | -         | Demand price (\$/kW) for target to source peak blocks                  |
 | **Demand Energy Source→Target** | Number                                   | No       | -         | Energy already used in the current source to target block (kWh)        |
 | **Demand Energy Target→Source** | Number                                   | No       | -         | Energy already used in the current target to source block (kWh)        |
-| **Demand Block Hours**          | Number                                   | No       | 0.5       | Block size in hours used for demand averaging                          |
+| **Highest Demand Energy Source→Target** | Number                             | No       | -         | Highest energy used in any source to target demand block this cycle (kWh) |
+| **Highest Demand Energy Target→Source** | Number                             | No       | -         | Highest energy used in any target to source demand block this cycle (kWh) |
+| **Demand Block Minutes**        | Number                                   | No       | 30        | Block size in minutes used for demand averaging                        |
 
 !!! tip "Configuration tips"
 
@@ -101,7 +103,8 @@ Connection pricing models fees for using a power transfer path (wheeling charges
 **Demand pricing:**
 Demand pricing uses the maximum block-average power within the demand price schedule.
 Set the demand price to a nonzero value for periods you want to include and `0` elsewhere.
-Demand block hours controls the averaging block size, such as `0.5` for 30-minute blocks.
+Demand block minutes controls the averaging block size, such as `30` for 30-minute blocks.
+Highest demand energy values set the minimum starting peak within the current billing cycle.
 Scale the demand price to match your billing period if needed.
 
 ## Common Patterns
@@ -206,7 +209,9 @@ Input entities appear as Number entities with the `config` entity category.
 | `number.{name}_demand_price_target_source`          | \$/kW  | Reverse demand price (if configured)         |
 | `number.{name}_demand_current_energy_source_target` | kWh    | Forward demand energy so far (if configured) |
 | `number.{name}_demand_current_energy_target_source` | kWh    | Reverse demand energy so far (if configured) |
-| `number.{name}_demand_block_hours`                  | h      | Demand block hours (if configured)           |
+| `number.{name}_demand_peak_energy_source_target`    | kWh    | Forward demand peak energy (if configured)   |
+| `number.{name}_demand_peak_energy_target_source`    | kWh    | Reverse demand peak energy (if configured)   |
+| `number.{name}_demand_block_minutes`                | min    | Demand block minutes (if configured)         |
 
 Input entities include a `forecast` attribute showing values for each optimization period.
 See the [Input Entities developer guide](../../developer-guide/inputs.md) for details on input entity behavior.

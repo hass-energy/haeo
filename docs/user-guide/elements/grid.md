@@ -20,9 +20,10 @@ Pricing and demand pricing fields appear in separate sections in the UI.
 | **[Export Price](#export-price)**           | Price  | Yes      | -       | Revenue per kWh for exporting electricity to grid (\$/kWh) |
 | **[Import Limit](#import-limit)**           | Power  | No       | -       | Maximum import power from grid                             |
 | **[Export Limit](#export-limit)**           | Power  | No       | -       | Maximum export power to grid                               |
-| **[Import Demand Price](#demand-pricing)**  | Number | No       | -       | Demand price (\$/kW) for import peak blocks                |
-| **[Import Demand Energy](#demand-pricing)** | Number | No       | -       | Energy already used in the current import block (kWh)      |
-| **[Demand Block Hours](#demand-pricing)**   | Number | No       | 0.5     | Block size in hours used for demand averaging              |
+| **[Import Demand Price](#demand-pricing)**        | Number | No       | -       | Demand price (\$/kW) for import peak blocks                      |
+| **[Import Demand Energy](#demand-pricing)**       | Number | No       | -       | Energy already used in the current import block (kWh)            |
+| **[Highest Import Demand Energy](#demand-pricing)** | Number | No       | -       | Highest energy used in any import demand block this cycle (kWh) |
+| **[Demand Block Minutes](#demand-pricing)**       | Number | No       | 30      | Block size in minutes used for demand averaging                  |
 
 ## Name
 
@@ -117,7 +118,8 @@ Use this to model:
 
 Demand pricing charges based on the maximum average power within the demand price schedule.
 Set the demand price to a nonzero value for periods you want to include and `0` elsewhere.
-Demand block hours sets the averaging block size, such as `0.5` for 30-minute blocks.
+Demand block minutes sets the averaging block size, such as `30` for 30-minute blocks.
+Highest import demand energy sets the minimum starting value for the peak within the current billing cycle.
 Scale the demand price to match your billing period (for example, multiply by billing days if needed).
 
 Grid demand pricing applies to imports only.
@@ -163,7 +165,8 @@ Input entities appear as Number entities with the `config` entity category.
 | `number.{name}_max_power_target_source`             | kW     | Maximum export power (if configured)        |
 | `number.{name}_demand_price_source_target`          | \$/kW  | Import demand price (if configured)         |
 | `number.{name}_demand_current_energy_source_target` | kWh    | Import demand energy so far (if configured) |
-| `number.{name}_demand_block_hours`                  | h      | Demand block hours (if configured)          |
+| `number.{name}_demand_peak_energy_source_target`    | kWh    | Highest import demand energy (if configured) |
+| `number.{name}_demand_block_minutes`                | min    | Demand block minutes (if configured)        |
 
 Input entities are only created for fields you configure with "Constant".
 If you set an optional field to "None", no input entity is created for that field.

@@ -43,6 +43,23 @@ SCENARIOS: list[SegmentScenario] = [
         "expected_outputs": {"objective_value": 10.0},
     },
     {
+        "description": "Demand pricing honors prior peak energy",
+        "factory": DemandPricingSegment,
+        "spec": {
+            "segment_type": "demand_pricing",
+            "demand_price_source_target": 10.0,
+            "demand_peak_energy_source_target": 4.0,
+            "demand_block_hours": 1.0,
+        },
+        "periods": np.array([1.0]),
+        "inputs": {
+            "power_in_st": [0.0],
+            "power_in_ts": [0.0],
+            "minimize_cost": True,
+        },
+        "expected_outputs": {"objective_value": 40.0},
+    },
+    {
         "description": "Demand pricing scales by block price weights",
         "factory": DemandPricingSegment,
         "spec": {

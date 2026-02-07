@@ -26,8 +26,9 @@ from custom_components.haeo.model.util import broadcast_to_sequence
 from custom_components.haeo.schema import extract_connection_target
 from custom_components.haeo.sections import (
     CONF_CONNECTION,
-    CONF_DEMAND_BLOCK_HOURS,
+    CONF_DEMAND_BLOCK_MINUTES,
     CONF_DEMAND_CURRENT_ENERGY_SOURCE_TARGET,
+    CONF_DEMAND_PEAK_ENERGY_SOURCE_TARGET,
     CONF_DEMAND_PRICE_SOURCE_TARGET,
     CONF_MAX_POWER_SOURCE_TARGET,
     CONF_MAX_POWER_TARGET_SOURCE,
@@ -144,15 +145,30 @@ class GridAdapter:
                     time_series=False,
                     direction="-",
                 ),
-                CONF_DEMAND_BLOCK_HOURS: InputFieldInfo(
-                    field_name=CONF_DEMAND_BLOCK_HOURS,
+                CONF_DEMAND_PEAK_ENERGY_SOURCE_TARGET: InputFieldInfo(
+                    field_name=CONF_DEMAND_PEAK_ENERGY_SOURCE_TARGET,
                     entity_description=NumberEntityDescription(
-                        key=CONF_DEMAND_BLOCK_HOURS,
-                        translation_key=f"{ELEMENT_TYPE}_{CONF_DEMAND_BLOCK_HOURS}",
-                        native_unit_of_measurement=UnitOfTime.HOURS,
-                        native_min_value=0.01,
-                        native_max_value=24.0,
+                        key=CONF_DEMAND_PEAK_ENERGY_SOURCE_TARGET,
+                        translation_key=f"{ELEMENT_TYPE}_{CONF_DEMAND_PEAK_ENERGY_SOURCE_TARGET}",
+                        native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
+                        device_class=NumberDeviceClass.ENERGY,
+                        native_min_value=0.0,
+                        native_max_value=1_000_000.0,
                         native_step=0.01,
+                    ),
+                    output_type=OutputType.ENERGY,
+                    time_series=False,
+                    direction="-",
+                ),
+                CONF_DEMAND_BLOCK_MINUTES: InputFieldInfo(
+                    field_name=CONF_DEMAND_BLOCK_MINUTES,
+                    entity_description=NumberEntityDescription(
+                        key=CONF_DEMAND_BLOCK_MINUTES,
+                        translation_key=f"{ELEMENT_TYPE}_{CONF_DEMAND_BLOCK_MINUTES}",
+                        native_unit_of_measurement=UnitOfTime.MINUTES,
+                        native_min_value=1.0,
+                        native_max_value=1440.0,
+                        native_step=1.0,
                     ),
                     output_type=OutputType.DURATION,
                     time_series=False,
@@ -196,6 +212,8 @@ class GridAdapter:
 
     def model_elements(self, config: GridConfigData) -> list[ModelElementConfig]:
         """Create model elements for Grid configuration."""
+        demand_block_minutes = config[SECTION_DEMAND_PRICING].get(CONF_DEMAND_BLOCK_MINUTES)
+        demand_block_hours = demand_block_minutes / 60.0 if demand_block_minutes is not None else None
         return [
             # Create Node for the grid (both source and sink - can import and export)
             {
@@ -229,7 +247,10 @@ class GridAdapter:
                         "demand_current_energy_source_target": config[SECTION_DEMAND_PRICING].get(
                             CONF_DEMAND_CURRENT_ENERGY_SOURCE_TARGET
                         ),
-                        "demand_block_hours": config[SECTION_DEMAND_PRICING].get(CONF_DEMAND_BLOCK_HOURS),
+                        "demand_peak_energy_source_target": config[SECTION_DEMAND_PRICING].get(
+                            CONF_DEMAND_PEAK_ENERGY_SOURCE_TARGET
+                        ),
+                        "demand_block_hours": demand_block_hours,
                     },
                 },
             },

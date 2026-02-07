@@ -52,7 +52,9 @@ Pricing fields come from the Pricing section, and demand pricing fields come fro
 | `demand_price_target_source`          | DemandPricingSegment | `demand_price_target_source`          | Optional, no cost if not set   |
 | `demand_current_energy_source_target` | DemandPricingSegment | `demand_current_energy_source_target` | Optional, kWh already used     |
 | `demand_current_energy_target_source` | DemandPricingSegment | `demand_current_energy_target_source` | Optional, kWh already used     |
-| `demand_block_hours`                  | DemandPricingSegment | `demand_block_hours`                  | Defaults to 0.5 hours          |
+| `demand_peak_energy_source_target`    | DemandPricingSegment | `demand_peak_energy_source_target`    | Optional, kWh peak so far      |
+| `demand_peak_energy_target_source`    | DemandPricingSegment | `demand_peak_energy_target_source`    | Optional, kWh peak so far      |
+| `demand_block_minutes`                | DemandPricingSegment | `demand_block_hours`                  | Converted to hours (0.5 h)     |
 
 If a field is omitted, the corresponding segment defaults apply.
 Power limits and pricing are skipped when values are `None`.
