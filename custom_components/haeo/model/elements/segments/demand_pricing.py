@@ -16,7 +16,6 @@ from custom_components.haeo.model.util import broadcast_to_sequence
 from .segment import Segment
 
 DEFAULT_DEMAND_BLOCK_HOURS: Final = 0.5
-DEFAULT_DEMAND_DAYS: Final = 1.0
 BLOCK_TIME_EPSILON: Final = 1e-9
 
 
@@ -27,31 +26,25 @@ class DemandPricingSegmentSpec(TypedDict):
     """Specification for creating a DemandPricingSegment."""
 
     segment_type: DemandPricingSegmentType
-    demand_window_source_target: NotRequired[NDArray[np.floating[Any]] | float | None]
-    demand_window_target_source: NotRequired[NDArray[np.floating[Any]] | float | None]
     demand_price_source_target: NotRequired[NDArray[np.floating[Any]] | float | None]
     demand_price_target_source: NotRequired[NDArray[np.floating[Any]] | float | None]
     demand_current_energy_source_target: NotRequired[NDArray[np.floating[Any]] | float | None]
     demand_current_energy_target_source: NotRequired[NDArray[np.floating[Any]] | float | None]
     demand_block_hours: NotRequired[float | None]
-    demand_days: NotRequired[float | None]
 
 
 class DemandPricingSegment(Segment):
     """Segment that adds demand-based peak pricing.
 
-    Demand pricing applies the maximum block-average power within demand windows.
+    Demand pricing applies the maximum block-average power weighted by the demand price.
     Block averages are computed during model setup to keep the formulation linear.
     """
 
-    demand_window_source_target: TrackedParam[NDArray[np.float64] | None] = TrackedParam()
-    demand_window_target_source: TrackedParam[NDArray[np.float64] | None] = TrackedParam()
-    demand_price_source_target: TrackedParam[float | None] = TrackedParam()
-    demand_price_target_source: TrackedParam[float | None] = TrackedParam()
+    demand_price_source_target: TrackedParam[NDArray[np.float64] | None] = TrackedParam()
+    demand_price_target_source: TrackedParam[NDArray[np.float64] | None] = TrackedParam()
     demand_current_energy_source_target: TrackedParam[float | None] = TrackedParam()
     demand_current_energy_target_source: TrackedParam[float | None] = TrackedParam()
     demand_block_hours: TrackedParam[float] = TrackedParam()
-    demand_days: TrackedParam[float] = TrackedParam()
 
     def __init__(
         self,
@@ -94,27 +87,15 @@ class DemandPricingSegment(Segment):
         self._power_st = solver.addVariables(n_periods, lb=0, name_prefix=f"{segment_id}_st_", out_array=True)
         self._power_ts = solver.addVariables(n_periods, lb=0, name_prefix=f"{segment_id}_ts_", out_array=True)
 
-        self.demand_window_source_target = broadcast_to_sequence(spec.get("demand_window_source_target"), n_periods)
-        self.demand_window_target_source = broadcast_to_sequence(spec.get("demand_window_target_source"), n_periods)
-        self.demand_price_source_target = _as_float(spec.get("demand_price_source_target"))
-        self.demand_price_target_source = _as_float(spec.get("demand_price_target_source"))
+        self.demand_price_source_target = broadcast_to_sequence(spec.get("demand_price_source_target"), n_periods)
+        self.demand_price_target_source = broadcast_to_sequence(spec.get("demand_price_target_source"), n_periods)
         self.demand_current_energy_source_target = _as_float(spec.get("demand_current_energy_source_target"))
         self.demand_current_energy_target_source = _as_float(spec.get("demand_current_energy_target_source"))
         block_hours = _as_float(spec.get("demand_block_hours"))
         self.demand_block_hours = DEFAULT_DEMAND_BLOCK_HOURS if block_hours is None else block_hours
-        demand_days = _as_float(spec.get("demand_days"))
-        self.demand_days = DEFAULT_DEMAND_DAYS if demand_days is None else demand_days
 
-        self._peak_st: highs_var | None = (
-            solver.addVariable(lb=0, name=f"{segment_id}_peak_st")
-            if self.demand_price_source_target is not None
-            else None
-        )
-        self._peak_ts: highs_var | None = (
-            solver.addVariable(lb=0, name=f"{segment_id}_peak_ts")
-            if self.demand_price_target_source is not None
-            else None
-        )
+        self._peak_st = self._create_peak_variable(segment_id, "st", self.demand_price_source_target)
+        self._peak_ts = self._create_peak_variable(segment_id, "ts", self.demand_price_target_source)
 
     @property
     def power_in_st(self) -> HighspyArray:
@@ -143,7 +124,7 @@ class DemandPricingSegment(Segment):
             return None
         return self._build_peak_constraints(
             power=self._power_st,
-            window=self.demand_window_source_target,
+            price=self.demand_price_source_target,
             peak=self._peak_st,
             initial_energy=self.demand_current_energy_source_target,
         )
@@ -155,7 +136,7 @@ class DemandPricingSegment(Segment):
             return None
         return self._build_peak_constraints(
             power=self._power_ts,
-            window=self.demand_window_target_source,
+            price=self.demand_price_target_source,
             peak=self._peak_ts,
             initial_energy=self.demand_current_energy_target_source,
         )
@@ -165,10 +146,10 @@ class DemandPricingSegment(Segment):
         """Return cost expression for demand pricing."""
         cost_terms: list[highs_linear_expression] = []
 
-        if self._peak_st is not None and self.demand_price_source_target is not None:
-            cost_terms.append(self._peak_st * self.demand_price_source_target * self.demand_days)
-        if self._peak_ts is not None and self.demand_price_target_source is not None:
-            cost_terms.append(self._peak_ts * self.demand_price_target_source * self.demand_days)
+        if self._peak_st is not None:
+            cost_terms.append(self._peak_st)
+        if self._peak_ts is not None:
+            cost_terms.append(self._peak_ts)
 
         if not cost_terms:
             return None
@@ -180,7 +161,7 @@ class DemandPricingSegment(Segment):
         self,
         *,
         power: HighspyArray,
-        window: NDArray[np.float64] | None,
+        price: NDArray[np.float64],
         peak: highs_var,
         initial_energy: float | None,
     ) -> list[highs_linear_expression] | None:
@@ -193,28 +174,27 @@ class DemandPricingSegment(Segment):
         if not weights:
             return None
 
-        window_values = np.ones(self._n_periods, dtype=np.float64) if window is None else window
-
         constraints: list[highs_linear_expression] = []
         for weight, is_first_block in weights:
-            if window is not None:
-                mask = weight > 0
-                if not np.any(mask):
-                    continue
-                block_windows = window_values[mask]
-                if float(block_windows.max() - block_windows.min()) > BLOCK_TIME_EPSILON:
-                    continue
-                window_weight = float(block_windows[0])
-                if window_weight <= 0:
-                    continue
-            else:
-                window_weight = 1.0
+            block_price = float(np.dot(price, weight))
+            if block_price <= 0:
+                continue
             block_average = Highs.qsum(power * weight)
             if is_first_block and initial_energy:
                 block_average += float(initial_energy) / block_hours
-            constraints.append(peak >= block_average * window_weight)
+            constraints.append(peak >= block_average * block_price)
 
         return constraints or None
+
+    def _create_peak_variable(
+        self,
+        segment_id: str,
+        suffix: str,
+        price: NDArray[np.float64] | None,
+    ) -> highs_var | None:
+        if price is None or not np.any(price):
+            return None
+        return self._solver.addVariable(lb=0, name=f"{segment_id}_peak_{suffix}")
 
     def _block_weights(self, block_hours: float) -> list[tuple[NDArray[np.float64], bool]]:
         boundaries = np.concatenate(([0.0], np.cumsum(self._periods, dtype=np.float64)))
@@ -269,7 +249,6 @@ def _as_float(value: NDArray[np.floating[Any]] | float | None) -> float | None:
 
 __all__ = [
     "DEFAULT_DEMAND_BLOCK_HOURS",
-    "DEFAULT_DEMAND_DAYS",
     "DemandPricingSegment",
     "DemandPricingSegmentSpec",
     "DemandPricingSegmentType",

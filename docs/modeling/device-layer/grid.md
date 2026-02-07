@@ -42,11 +42,9 @@ Grid demand pricing uses import (source-to-target) fields only.
 | `price_target_source`                 | PricingSegment       | `price_target_source`                 | Stored as negative to represent revenue |
 | `max_power_source_target`             | PowerLimitSegment    | `max_power_source_target`             | Maximum import power (optional)         |
 | `max_power_target_source`             | PowerLimitSegment    | `max_power_target_source`             | Maximum export power (optional)         |
-| `demand_window_source_target`         | DemandPricingSegment | `demand_window_source_target`         | Optional demand window weights          |
-| `demand_price_source_target`          | DemandPricingSegment | `demand_price_source_target`          | Optional demand price per kW/day        |
+| `demand_price_source_target`          | DemandPricingSegment | `demand_price_source_target`          | Optional demand price per kW            |
 | `demand_current_energy_source_target` | DemandPricingSegment | `demand_current_energy_source_target` | Optional, kWh already used              |
 | `demand_block_hours`                  | DemandPricingSegment | `demand_block_hours`                  | Defaults to 0.5 hours                   |
-| `demand_days`                         | DemandPricingSegment | `demand_days`                         | Defaults to 1 day                       |
 | `connection`                          | Connection           | `target`                              | Node to connect to                      |
 | —                                     | Node                 | `is_source=true`                      | Grid can supply power                   |
 | —                                     | Node                 | `is_sink=true`                        | Grid can absorb power                   |

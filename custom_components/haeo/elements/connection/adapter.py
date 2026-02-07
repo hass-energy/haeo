@@ -42,11 +42,8 @@ from .schema import (
     CONF_DEMAND_BLOCK_HOURS,
     CONF_DEMAND_CURRENT_ENERGY_SOURCE_TARGET,
     CONF_DEMAND_CURRENT_ENERGY_TARGET_SOURCE,
-    CONF_DEMAND_DAYS,
     CONF_DEMAND_PRICE_SOURCE_TARGET,
     CONF_DEMAND_PRICE_TARGET_SOURCE,
-    CONF_DEMAND_WINDOW_SOURCE_TARGET,
-    CONF_DEMAND_WINDOW_TARGET_SOURCE,
     CONF_EFFICIENCY_SOURCE_TARGET,
     CONF_EFFICIENCY_TARGET_SOURCE,
     CONF_MAX_POWER_SOURCE_TARGET,
@@ -189,30 +186,6 @@ class ConnectionAdapter:
                 ),
             },
             SECTION_DEMAND_PRICING: {
-                CONF_DEMAND_WINDOW_SOURCE_TARGET: InputFieldInfo(
-                    field_name=CONF_DEMAND_WINDOW_SOURCE_TARGET,
-                    entity_description=NumberEntityDescription(
-                        key=CONF_DEMAND_WINDOW_SOURCE_TARGET,
-                        translation_key=f"{ELEMENT_TYPE}_{CONF_DEMAND_WINDOW_SOURCE_TARGET}",
-                        native_min_value=0.0,
-                        native_max_value=1.0,
-                        native_step=0.01,
-                    ),
-                    output_type=OutputType.STATUS,
-                    time_series=True,
-                ),
-                CONF_DEMAND_WINDOW_TARGET_SOURCE: InputFieldInfo(
-                    field_name=CONF_DEMAND_WINDOW_TARGET_SOURCE,
-                    entity_description=NumberEntityDescription(
-                        key=CONF_DEMAND_WINDOW_TARGET_SOURCE,
-                        translation_key=f"{ELEMENT_TYPE}_{CONF_DEMAND_WINDOW_TARGET_SOURCE}",
-                        native_min_value=0.0,
-                        native_max_value=1.0,
-                        native_step=0.01,
-                    ),
-                    output_type=OutputType.STATUS,
-                    time_series=True,
-                ),
                 CONF_DEMAND_PRICE_SOURCE_TARGET: InputFieldInfo(
                     field_name=CONF_DEMAND_PRICE_SOURCE_TARGET,
                     entity_description=NumberEntityDescription(
@@ -224,7 +197,7 @@ class ConnectionAdapter:
                         native_step=0.01,
                     ),
                     output_type=OutputType.COST,
-                    time_series=False,
+                    time_series=True,
                 ),
                 CONF_DEMAND_PRICE_TARGET_SOURCE: InputFieldInfo(
                     field_name=CONF_DEMAND_PRICE_TARGET_SOURCE,
@@ -237,7 +210,7 @@ class ConnectionAdapter:
                         native_step=0.01,
                     ),
                     output_type=OutputType.COST,
-                    time_series=False,
+                    time_series=True,
                 ),
                 CONF_DEMAND_CURRENT_ENERGY_SOURCE_TARGET: InputFieldInfo(
                     field_name=CONF_DEMAND_CURRENT_ENERGY_SOURCE_TARGET,
@@ -280,19 +253,6 @@ class ConnectionAdapter:
                     output_type=OutputType.DURATION,
                     time_series=False,
                 ),
-                CONF_DEMAND_DAYS: InputFieldInfo(
-                    field_name=CONF_DEMAND_DAYS,
-                    entity_description=NumberEntityDescription(
-                        key=CONF_DEMAND_DAYS,
-                        translation_key=f"{ELEMENT_TYPE}_{CONF_DEMAND_DAYS}",
-                        native_unit_of_measurement=UnitOfTime.DAYS,
-                        native_min_value=0.0,
-                        native_max_value=365.0,
-                        native_step=1.0,
-                    ),
-                    output_type=OutputType.DURATION,
-                    time_series=False,
-                ),
             },
         }
 
@@ -328,12 +288,6 @@ class ConnectionAdapter:
                     },
                     "demand_pricing": {
                         "segment_type": "demand_pricing",
-                        "demand_window_source_target": config[SECTION_DEMAND_PRICING].get(
-                            CONF_DEMAND_WINDOW_SOURCE_TARGET
-                        ),
-                        "demand_window_target_source": config[SECTION_DEMAND_PRICING].get(
-                            CONF_DEMAND_WINDOW_TARGET_SOURCE
-                        ),
                         "demand_price_source_target": config[SECTION_DEMAND_PRICING].get(
                             CONF_DEMAND_PRICE_SOURCE_TARGET
                         ),
@@ -347,7 +301,6 @@ class ConnectionAdapter:
                             CONF_DEMAND_CURRENT_ENERGY_TARGET_SOURCE
                         ),
                         "demand_block_hours": config[SECTION_DEMAND_PRICING].get(CONF_DEMAND_BLOCK_HOURS),
-                        "demand_days": config[SECTION_DEMAND_PRICING].get(CONF_DEMAND_DAYS),
                     },
                 },
             }

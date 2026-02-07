@@ -23,9 +23,7 @@ from custom_components.haeo.sections import (
     CONF_CONNECTION,
     CONF_DEMAND_BLOCK_HOURS,
     CONF_DEMAND_CURRENT_ENERGY_SOURCE_TARGET,
-    CONF_DEMAND_DAYS,
     CONF_DEMAND_PRICE_SOURCE_TARGET,
-    CONF_DEMAND_WINDOW_SOURCE_TARGET,
     CONF_MAX_POWER_SOURCE_TARGET,
     CONF_MAX_POWER_TARGET_SOURCE,
     CONF_PRICE_SOURCE_TARGET,
@@ -52,11 +50,9 @@ class GridSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             pricing_section((CONF_PRICE_SOURCE_TARGET, CONF_PRICE_TARGET_SOURCE), collapsed=False),
             demand_pricing_section(
                 (
-                    CONF_DEMAND_WINDOW_SOURCE_TARGET,
                     CONF_DEMAND_PRICE_SOURCE_TARGET,
                     CONF_DEMAND_CURRENT_ENERGY_SOURCE_TARGET,
                     CONF_DEMAND_BLOCK_HOURS,
-                    CONF_DEMAND_DAYS,
                 ),
                 collapsed=True,
             ),

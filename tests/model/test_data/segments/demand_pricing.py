@@ -15,9 +15,7 @@ SCENARIOS: list[SegmentScenario] = [
         "spec": {
             "segment_type": "demand_pricing",
             "demand_price_source_target": 10.0,
-            "demand_window_source_target": np.array([1.0]),
             "demand_block_hours": 1.0,
-            "demand_days": 30.0,
         },
         "periods": np.array([1.0]),
         "inputs": {
@@ -25,7 +23,7 @@ SCENARIOS: list[SegmentScenario] = [
             "power_in_ts": [0.0],
             "minimize_cost": True,
         },
-        "expected_outputs": {"objective_value": 1500.0},
+        "expected_outputs": {"objective_value": 50.0},
     },
     {
         "description": "Demand pricing includes prior energy in first block",
@@ -33,10 +31,8 @@ SCENARIOS: list[SegmentScenario] = [
         "spec": {
             "segment_type": "demand_pricing",
             "demand_price_source_target": 10.0,
-            "demand_window_source_target": np.array([1.0]),
             "demand_current_energy_source_target": 1.0,
             "demand_block_hours": 1.0,
-            "demand_days": 1.0,
         },
         "periods": np.array([1.0]),
         "inputs": {
@@ -47,14 +43,12 @@ SCENARIOS: list[SegmentScenario] = [
         "expected_outputs": {"objective_value": 10.0},
     },
     {
-        "description": "Demand pricing ignores mixed-window blocks",
+        "description": "Demand pricing scales by block price weights",
         "factory": DemandPricingSegment,
         "spec": {
             "segment_type": "demand_pricing",
-            "demand_price_source_target": 10.0,
-            "demand_window_source_target": np.array([1.0, 0.0, 1.0, 1.0]),
+            "demand_price_source_target": np.array([10.0, 0.0, 10.0, 10.0]),
             "demand_block_hours": 0.5,
-            "demand_days": 1.0,
         },
         "periods": np.array([0.25, 0.25, 0.25, 0.25]),
         "inputs": {
@@ -62,7 +56,7 @@ SCENARIOS: list[SegmentScenario] = [
             "power_in_ts": [0.0, 0.0, 0.0, 0.0],
             "minimize_cost": True,
         },
-        "expected_outputs": {"objective_value": 10.0},
+        "expected_outputs": {"objective_value": 25.0},
     },
     {
         "description": "Demand pricing aligns to wall-clock blocks",
@@ -70,9 +64,7 @@ SCENARIOS: list[SegmentScenario] = [
         "spec": {
             "segment_type": "demand_pricing",
             "demand_price_source_target": 1.0,
-            "demand_window_source_target": np.array([1.0, 1.0]),
             "demand_block_hours": 0.5,
-            "demand_days": 1.0,
         },
         "periods": np.array([0.5, 0.5]),
         "period_start_time": 900.0,

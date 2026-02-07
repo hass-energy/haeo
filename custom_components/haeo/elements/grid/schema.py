@@ -9,9 +9,7 @@ from custom_components.haeo.schema import ConstantValue, EntityValue, NoneValue
 from custom_components.haeo.sections import (
     CONF_DEMAND_BLOCK_HOURS,
     CONF_DEMAND_CURRENT_ENERGY_SOURCE_TARGET,
-    CONF_DEMAND_DAYS,
     CONF_DEMAND_PRICE_SOURCE_TARGET,
-    CONF_DEMAND_WINDOW_SOURCE_TARGET,
     CONF_MAX_POWER_SOURCE_TARGET,
     CONF_MAX_POWER_TARGET_SOURCE,
     CONF_PRICE_SOURCE_TARGET,
@@ -31,11 +29,9 @@ OPTIONAL_INPUT_FIELDS: Final[frozenset[str]] = frozenset(
     {
         CONF_MAX_POWER_SOURCE_TARGET,
         CONF_MAX_POWER_TARGET_SOURCE,
-        CONF_DEMAND_WINDOW_SOURCE_TARGET,
         CONF_DEMAND_PRICE_SOURCE_TARGET,
         CONF_DEMAND_CURRENT_ENERGY_SOURCE_TARGET,
         CONF_DEMAND_BLOCK_HOURS,
-        CONF_DEMAND_DAYS,
     }
 )
 
@@ -57,21 +53,17 @@ class GridPricingData(TypedDict):
 class GridDemandPricingConfig(TypedDict, total=False):
     """Demand pricing configuration for grid imports."""
 
-    demand_window_source_target: EntityValue | ConstantValue | NoneValue
     demand_price_source_target: EntityValue | ConstantValue | NoneValue
     demand_current_energy_source_target: EntityValue | ConstantValue | NoneValue
     demand_block_hours: EntityValue | ConstantValue | NoneValue
-    demand_days: EntityValue | ConstantValue | NoneValue
 
 
 class GridDemandPricingData(TypedDict, total=False):
     """Loaded demand pricing values for grid imports."""
 
-    demand_window_source_target: NDArray[np.floating[Any]] | float
     demand_price_source_target: NDArray[np.floating[Any]] | float
     demand_current_energy_source_target: NDArray[np.floating[Any]] | float
     demand_block_hours: float
-    demand_days: float
 
 
 class GridConfigSchema(TypedDict):
@@ -97,9 +89,7 @@ class GridConfigData(TypedDict):
 __all__ = [
     "CONF_DEMAND_BLOCK_HOURS",
     "CONF_DEMAND_CURRENT_ENERGY_SOURCE_TARGET",
-    "CONF_DEMAND_DAYS",
     "CONF_DEMAND_PRICE_SOURCE_TARGET",
-    "CONF_DEMAND_WINDOW_SOURCE_TARGET",
     "CONF_MAX_POWER_SOURCE_TARGET",
     "CONF_MAX_POWER_TARGET_SOURCE",
     "CONF_PRICE_SOURCE_TARGET",

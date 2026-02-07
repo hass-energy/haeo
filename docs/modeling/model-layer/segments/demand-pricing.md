@@ -1,7 +1,7 @@
 # Demand pricing segment
 
 The `DemandPricingSegment` adds peak demand charges based on block-average power.
-It models tariffs that charge for the highest average kW within demand windows.
+It models tariffs that charge for the highest average kW within a demand price schedule.
 
 ## Model formulation
 
@@ -9,24 +9,21 @@ It models tariffs that charge for the highest average kW within demand windows.
 
 | Parameter                | Description                                        | Default |
 | ------------------------ | -------------------------------------------------- | ------- |
-| $w_{s \rightarrow t}(t)$ | Demand window weight for source to target periods  | None    |
-| $w_{t \rightarrow s}(t)$ | Demand window weight for target to source periods  | None    |
-| $c_{s \rightarrow t}$    | Demand price for source to target peak (\$/kW/day) | None    |
-| $c_{t \rightarrow s}$    | Demand price for target to source peak (\$/kW/day) | None    |
+| $c_{s \rightarrow t}(t)$ | Demand price schedule for source to target (\$/kW) | None    |
+| $c_{t \rightarrow s}(t)$ | Demand price schedule for target to source (\$/kW) | None    |
 | $E_{s \rightarrow t}$    | Demand energy already used in current block (kWh)  | 0       |
 | $E_{t \rightarrow s}$    | Demand energy already used in current block (kWh)  | 0       |
 | $B$                      | Demand block duration (hours)                      | 0.5     |
-| $D$                      | Billing days multiplier                            | 1       |
 
-Window weights are normalized to $[0, 1]$ and can be time-varying.
-Block duration and billing days are scalars.
+Demand prices can be time-varying.
+Block duration is a scalar.
 
 ### Decision variables
 
-| Variable                          | Domain                | Description                                        |
-| --------------------------------- | --------------------- | -------------------------------------------------- |
-| $P_{\text{peak},s \rightarrow t}$ | $\mathbb{R}_{\geq 0}$ | Peak block-average power for source to target flow |
-| $P_{\text{peak},t \rightarrow s}$ | $\mathbb{R}_{\geq 0}$ | Peak block-average power for target to source flow |
+| Variable                          | Domain                | Description                                              |
+| --------------------------------- | --------------------- | -------------------------------------------------------- |
+| $C_{\text{peak},s \rightarrow t}$ | $\mathbb{R}_{\geq 0}$ | Peak block-average demand cost for source to target flow |
+| $C_{\text{peak},t \rightarrow s}$ | $\mathbb{R}_{\geq 0}$ | Peak block-average demand cost for target to source flow |
 
 ### Block averages
 
@@ -47,18 +44,18 @@ If $E$ is provided, it is added to the first block energy before averaging.
 For each block $b$:
 
 $$
-P_{\text{peak}} \ge w_b \cdot \bar{P}_b
+C_{\text{peak}} \ge \bar{c}_b \cdot \bar{P}_b
 $$
 
-Window weights $w_b$ are derived from the demand window time series.
-Blocks outside demand windows use $w_b = 0$ and do not affect the peak.
+Block prices $\bar{c}_b$ are derived from the demand price schedule using the same block weights.
+Blocks with zero demand price do not affect the peak cost.
 
 ### Cost contribution
 
 If demand pricing is configured, the segment contributes:
 
 $$
-\text{Cost} = P_{\text{peak}} \cdot c_{\text{demand}} \cdot D
+	ext{Cost} = C_{\text{peak}}
 $$
 
 The formulation is linear and uses a single peak variable per direction.
@@ -66,7 +63,7 @@ The formulation is linear and uses a single peak variable per direction.
 ## Physical interpretation
 
 Demand pricing models peak demand charges commonly used by utilities.
-The optimizer avoids high block-average imports during demand windows when the price is significant.
+The optimizer avoids high block-average imports during periods with nonzero demand prices.
 
 ## Next steps
 

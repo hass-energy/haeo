@@ -200,11 +200,8 @@
             "demand_block_hours": "Demand Block Hours",
             "demand_current_energy_source_target": "Demand Current Energy Source to Target",
             "demand_current_energy_target_source": "Demand Current Energy Target to Source",
-            "demand_days": "Demand Billing Days",
             "demand_price_source_target": "Demand Price Source to Target",
             "demand_price_target_source": "Demand Price Target to Source",
-            "demand_window_source_target": "Demand Window Source to Target",
-            "demand_window_target_source": "Demand Window Target to Source",
             "efficiency_source_target": "Efficiency Source to Target",
             "efficiency_target_source": "Efficiency Target to Source",
             "max_power_source_target": "Max Power Source to Target",
@@ -222,11 +219,8 @@
                 "demand_block_hours": "Demand Block Hours",
                 "demand_current_energy_source_target": "Demand Current Energy Source to Target",
                 "demand_current_energy_target_source": "Demand Current Energy Target to Source",
-                "demand_days": "Demand Billing Days",
                 "demand_price_source_target": "Demand Price Source to Target",
-                "demand_price_target_source": "Demand Price Target to Source",
-                "demand_window_source_target": "Demand Window Source to Target",
-                "demand_window_target_source": "Demand Window Target to Source"
+                "demand_price_target_source": "Demand Price Target to Source"
               },
               "name": "Demand pricing"
             },
@@ -277,9 +271,7 @@
             "connection": "Connection",
             "demand_block_hours": "Demand block hours",
             "demand_current_energy_source_target": "Import demand energy so far",
-            "demand_days": "Demand billing days",
             "demand_price_source_target": "Import demand price",
-            "demand_window_source_target": "Import demand window",
             "max_power_source_target": "Import limit",
             "max_power_target_source": "Export limit",
             "name": "Grid Name",
@@ -292,9 +284,7 @@
               "data": {
                 "demand_block_hours": "Demand block hours",
                 "demand_current_energy_source_target": "Import demand energy so far",
-                "demand_days": "Demand billing days",
-                "demand_price_source_target": "Import demand price",
-                "demand_window_source_target": "Import demand window"
+                "demand_price_source_target": "Import demand price"
               },
               "name": "Demand pricing"
             },
@@ -459,11 +449,8 @@
       "connection_demand_block_hours": { "name": "Demand block hours" },
       "connection_demand_current_energy_source_target": { "name": "Source to target demand energy so far" },
       "connection_demand_current_energy_target_source": { "name": "Target to source demand energy so far" },
-      "connection_demand_days": { "name": "Demand billing days" },
       "connection_demand_price_source_target": { "name": "Source to target demand price" },
       "connection_demand_price_target_source": { "name": "Target to source demand price" },
-      "connection_demand_window_source_target": { "name": "Source to target demand window" },
-      "connection_demand_window_target_source": { "name": "Target to source demand window" },
       "connection_efficiency_source_target": { "name": "Source to target efficiency" },
       "connection_efficiency_target_source": { "name": "Target to source efficiency" },
       "connection_max_power_source_target": { "name": "Max source to target power" },
@@ -472,9 +459,7 @@
       "connection_price_target_source": { "name": "Target to source price" },
       "grid_demand_block_hours": { "name": "Demand block hours" },
       "grid_demand_current_energy_source_target": { "name": "Import demand energy so far" },
-      "grid_demand_days": { "name": "Demand billing days" },
       "grid_demand_price_source_target": { "name": "Import demand price" },
-      "grid_demand_window_source_target": { "name": "Import demand window" },
       "grid_max_power_source_target": { "name": "Import limit" },
       "grid_max_power_target_source": { "name": "Export limit" },
       "grid_price_source_target": { "name": "Import price" },
