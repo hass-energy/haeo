@@ -20,6 +20,7 @@ from custom_components.haeo.elements.grid import (
     CONF_PRICE_TARGET_SOURCE,
     ELEMENT_TYPE,
     SECTION_COMMON,
+    SECTION_DEMAND_PRICING,
     SECTION_POWER_LIMITS,
     SECTION_PRICING,
     adapter,
@@ -51,6 +52,7 @@ def _wrap_input(flat: dict[str, Any]) -> dict[str, Any]:
     return {
         SECTION_COMMON: common,
         SECTION_PRICING: pricing,
+        SECTION_DEMAND_PRICING: {},
         SECTION_POWER_LIMITS: power_limits,
     }
 

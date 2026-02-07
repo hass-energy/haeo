@@ -27,6 +27,7 @@ async def test_available_returns_true_when_sensors_exist(hass: HomeAssistant) ->
             "price_source_target": as_entity_value(["sensor.import_price"]),
             "price_target_source": as_entity_value(["sensor.export_price"]),
         },
+        grid.SECTION_DEMAND_PRICING: {},
         grid.SECTION_POWER_LIMITS: {},
     }
 
@@ -48,6 +49,7 @@ async def test_available_returns_false_when_import_price_missing(hass: HomeAssis
             "price_source_target": as_entity_value(["sensor.missing"]),
             "price_target_source": as_entity_value(["sensor.export_price"]),
         },
+        grid.SECTION_DEMAND_PRICING: {},
         grid.SECTION_POWER_LIMITS: {},
     }
 
@@ -69,6 +71,7 @@ async def test_available_returns_false_when_export_price_missing(hass: HomeAssis
             "price_source_target": as_entity_value(["sensor.import_price"]),
             "price_target_source": as_entity_value(["sensor.missing"]),
         },
+        grid.SECTION_DEMAND_PRICING: {},
         grid.SECTION_POWER_LIMITS: {},
     }
 
@@ -88,6 +91,7 @@ async def test_available_with_constant_prices(hass: HomeAssistant) -> None:
             "price_source_target": as_constant_value(0.30),
             "price_target_source": as_constant_value(0.05),
         },
+        grid.SECTION_DEMAND_PRICING: {},
         grid.SECTION_POWER_LIMITS: {},
     }
 
@@ -109,6 +113,7 @@ async def test_available_with_entity_schema_value(hass: HomeAssistant) -> None:
             "price_source_target": as_entity_value(["sensor.import_price"]),
             "price_target_source": as_constant_value(0.05),
         },
+        grid.SECTION_DEMAND_PRICING: {},
         grid.SECTION_POWER_LIMITS: {},
     }
 

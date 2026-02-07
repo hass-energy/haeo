@@ -5,6 +5,7 @@ to model various connection behaviors.
 """
 
 from collections import OrderedDict
+from datetime import tzinfo
 from typing import Any, Final, Literal, NotRequired, TypedDict
 
 from highspy import Highs
@@ -85,6 +86,8 @@ class Connection[TOutputName: str](Element[TOutputName]):
         name: str,
         periods: NDArray[np.floating[Any]],
         *,
+        period_start_time: float | None = None,
+        timezone: tzinfo | None = None,
         solver: Highs,
         source: str,
         target: str,
@@ -96,6 +99,8 @@ class Connection[TOutputName: str](Element[TOutputName]):
         Args:
             name: Name of the connection
             periods: Array of time period durations in hours (one per optimization interval)
+            period_start_time: Start timestamp for the optimization horizon (epoch seconds)
+            timezone: Timezone for the optimization horizon timestamps
             solver: The HiGHS solver instance for creating variables and constraints
             source: Name of the source element
             target: Name of the target element
@@ -109,6 +114,8 @@ class Connection[TOutputName: str](Element[TOutputName]):
         super().__init__(
             name=name,
             periods=periods,
+            period_start_time=period_start_time,
+            timezone=timezone,
             solver=solver,
             output_names=actual_output_names,
         )
@@ -147,6 +154,8 @@ class Connection[TOutputName: str](Element[TOutputName]):
                 segment_id=segment_id,
                 n_periods=self.n_periods,
                 periods=self.periods,
+                period_start_time=self.period_start_time,
+                timezone=self.period_start_timezone,
                 solver=self._solver,
                 spec=segment_spec,
                 source_element=source_element,
@@ -160,6 +169,8 @@ class Connection[TOutputName: str](Element[TOutputName]):
                 segment_id=f"{self.name}_passthrough",
                 n_periods=self.n_periods,
                 periods=self.periods,
+                period_start_time=self.period_start_time,
+                timezone=self.period_start_timezone,
                 solver=self._solver,
                 spec={"segment_type": "passthrough"},
                 source_element=source_element,

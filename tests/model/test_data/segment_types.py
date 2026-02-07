@@ -1,6 +1,7 @@
 """Test data types for segment scenarios."""
 
 from collections.abc import Callable, Sequence
+from datetime import tzinfo
 from typing import Any, Literal, NotRequired, TypedDict
 
 from highspy import Highs
@@ -30,6 +31,8 @@ class SegmentScenario(TypedDict):
     factory: type
     spec: SegmentSpec
     periods: NDArray[np.floating[Any]]
+    period_start_time: NotRequired[float]
+    period_start_timezone: NotRequired[tzinfo]
     inputs: SegmentScenarioInputs
     expected_outputs: dict[str, ExpectedValue]
     endpoint_factory: NotRequired[SegmentEndpointFactory]

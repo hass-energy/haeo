@@ -4,6 +4,7 @@ Adds cost proportional to power flow:
     cost = power * price * period_duration
 """
 
+from datetime import tzinfo
 from typing import Any, Literal, NotRequired
 
 from highspy import Highs
@@ -52,6 +53,8 @@ class PricingSegment(Segment):
         periods: NDArray[np.floating[Any]],
         solver: Highs,
         *,
+        period_start_time: float | None = None,
+        timezone: tzinfo | None = None,
         spec: PricingSegmentSpec,
         source_element: Element[Any],
         target_element: Element[Any],
@@ -62,6 +65,8 @@ class PricingSegment(Segment):
             segment_id: Unique identifier for naming LP variables
             n_periods: Number of optimization periods
             periods: Time period durations in hours
+            period_start_time: Start timestamp for the optimization horizon (epoch seconds)
+            timezone: Timezone for the optimization horizon timestamps
             solver: HiGHS solver instance
             spec: Pricing segment specification.
             source_element: Connected source element reference
@@ -73,6 +78,8 @@ class PricingSegment(Segment):
             n_periods,
             periods,
             solver,
+            period_start_time=period_start_time,
+            timezone=timezone,
             source_element=source_element,
             target_element=target_element,
         )
