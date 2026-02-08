@@ -14,8 +14,10 @@ from numpy.typing import NDArray
 
 from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.element import Element
+from custom_components.haeo.model.objective import ObjectiveCost, as_objective_cost, combine_objectives
 from custom_components.haeo.model.output_data import OutputData
 from custom_components.haeo.model.reactive import constraint, output
+from custom_components.haeo.model.util import time_preference_weights
 
 from .segments import Segment, SegmentSpec, create_segment
 
@@ -246,25 +248,49 @@ class Connection[TOutputName: str](Element[TOutputName]):
 
         return result
 
-    def cost(self) -> Any:  # type: ignore[override]  # Intentionally override Element's @cost with segment delegation
-        """Return aggregated cost expression from this connection's segments.
+    def cost(self) -> ObjectiveCost | None:  # type: ignore[override]  # Intentionally override Element's @cost with segment delegation
+        """Return aggregated objective expressions from this connection.
 
-        Collects costs from all segments and aggregates them.
-
-        Note: Specialized connections can override to include their own costs.
+        Collects costs from all segments and adds a time-preference objective to
+        prefer earlier energy transfer when primary costs are equal.
 
         Returns:
-            Aggregated cost expression or None if no costs
+            ObjectiveCost container or None if no objectives are defined
 
         """
+        costs: list[ObjectiveCost] = []
+
         # Collect costs from all segments
-        costs = [segment_cost for segment in self._segments.values() if (segment_cost := segment.cost()) is not None]
+        for segment in self._segments.values():
+            if (segment_cost := segment.cost()) is not None:
+                costs.append(as_objective_cost(segment_cost))
+
+        # Add time preference objective (secondary only)
+        if (time_preference := self._time_preference_objective()) is not None:
+            costs.append(time_preference)
 
         if not costs:
             return None
-        if len(costs) == 1:
-            return costs[0]
-        return Highs.qsum(costs)
+
+        combined = combine_objectives(costs)
+        return None if combined.is_empty else combined
+
+    def _time_preference_objective(self) -> ObjectiveCost | None:
+        """Return secondary objective that prefers earlier energy transfer."""
+        if self.n_periods == 0:
+            return None
+
+        weights = time_preference_weights(self.periods)
+        energy_st = self.power_source_target * self.periods
+        energy_ts = self.power_target_source * self.periods
+
+        secondary_terms = [
+            Highs.qsum(energy_st * weights),
+            Highs.qsum(energy_ts * weights),
+        ]
+
+        secondary = Highs.qsum(secondary_terms) if len(secondary_terms) > 1 else secondary_terms[0]
+        return ObjectiveCost(primary=None, secondary=secondary)
 
     # --- Segment linking constraints ---
 

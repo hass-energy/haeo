@@ -14,6 +14,7 @@ from .elements import ELEMENTS, ModelElementConfig
 from .elements.battery import Battery, BatteryElementConfig
 from .elements.connection import Connection, ConnectionElementConfig, ConnectionOutputName
 from .elements.node import Node, NodeElementConfig
+from .objective import ObjectiveCost, as_objective_cost, combine_objectives
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -35,6 +36,7 @@ class Network:
     periods: NDArray[np.floating[Any]]  # Period durations in hours (one per optimization interval)
     elements: dict[str, Element[Any]] = field(default_factory=dict)
     _solver: Highs = field(default_factory=Highs, repr=False)
+    _primary_objective_constraint: highs_cons | None = field(default=None, init=False, repr=False)
 
     def __post_init__(self) -> None:
         """Set up the solver with logging callback."""
@@ -138,29 +140,30 @@ class Network:
 
         return element_instance
 
-    def cost(self) -> highs_linear_expression | None:
-        """Return aggregated cost expression from all elements in the network.
+    def cost(self) -> ObjectiveCost | None:
+        """Return aggregated objective expressions from all elements in the network.
 
-        Discovers and calls all element cost() methods, summing their results into
-        a single expression. Element costs are cached individually, so this aggregation
-        is inexpensive.
+        Discovers and calls all element cost() methods, combining their results into
+        a multiobjective container. Element costs are cached individually, so this
+        aggregation is inexpensive.
 
         Returns:
-            Single aggregated cost expression or None if no costs
+            ObjectiveCost container or None if no objectives are defined
 
         """
-        # Collect costs from all elements
-        costs = [element_cost for element in self.elements.values() if (element_cost := element.cost()) is not None]
+        costs: list[ObjectiveCost] = []
+        for element in self.elements.values():
+            if (element_cost := element.cost()) is not None:
+                costs.append(as_objective_cost(element_cost))
 
-        # Aggregate into a single expression
         if not costs:
             return None
-        if len(costs) == 1:
-            return costs[0]
-        return Highs.qsum(costs)
+
+        combined = combine_objectives(costs)
+        return None if combined.is_empty else combined
 
     def optimize(self) -> float:
-        """Solve the optimization problem and return the cost.
+        """Solve the optimization problem and return the primary objective value.
 
         After optimization, access optimized values directly from elements and connections.
 
@@ -186,20 +189,102 @@ class Network:
                 msg = f"Failed to apply constraints for element '{element_name}'"
                 raise ValueError(msg) from e
 
-        # Get aggregated cost from network (reactive - only rebuilds if any element cost invalidated)
-        if (total_cost := self.cost()) is not None:
-            h.minimize(total_cost)
-        else:
-            # No cost terms - just run to check feasibility
+        # Get aggregated objectives from network (reactive - only rebuilds if any element cost invalidated)
+        objectives = self.cost()
+
+        if objectives is None:
+            # No objectives - just run to check feasibility
             h.run()
+            self._clear_primary_objective_constraint()
+            return self._ensure_optimal(status=h.getModelStatus())
 
-        # Check optimization status
-        status = h.getModelStatus()
-        if status == HighsModelStatus.kOptimal:
-            return h.getObjectiveValue()
+        primary = objectives.primary
+        secondary = objectives.secondary
 
-        msg = f"Optimization failed with status: {h.modelStatusToString(status)}"
-        raise ValueError(msg)
+        if primary is None and secondary is not None:
+            h.minimize(secondary)
+            self._clear_primary_objective_constraint()
+            self._ensure_optimal(status=h.getModelStatus())
+            return 0.0
+
+        if primary is None:
+            h.run()
+            self._clear_primary_objective_constraint()
+            return self._ensure_optimal(status=h.getModelStatus())
+
+        h.minimize(primary)
+        primary_value = self._ensure_optimal(status=h.getModelStatus(), solver=h)
+
+        if secondary is None:
+            self._clear_primary_objective_constraint()
+            return primary_value
+
+        # Lock primary objective within epsilon, then minimize secondary
+        self._apply_primary_objective_constraint(primary, primary_value)
+        h.minimize(secondary)
+        self._ensure_optimal(status=h.getModelStatus(), solver=h)
+        return primary_value
+
+    def _apply_primary_objective_constraint(
+        self,
+        objective: highs_linear_expression,
+        optimal_value: float,
+    ) -> None:
+        """Constrain the primary objective for lexicographic optimization."""
+        epsilon = _objective_epsilon(optimal_value)
+        constraint_expr = objective <= (optimal_value + epsilon)
+
+        if self._primary_objective_constraint is None:
+            self._primary_objective_constraint = self._solver.addConstr(constraint_expr)
+            return
+
+        self._update_constraint(self._primary_objective_constraint, constraint_expr)
+
+    def _clear_primary_objective_constraint(self) -> None:
+        """Disable the primary objective constraint if it exists."""
+        if self._primary_objective_constraint is None:
+            return
+
+        cons = self._primary_objective_constraint
+        expr = self._solver.getExpr(cons)
+        self._solver.changeRowBounds(cons.index, float("-inf"), float("inf"))
+        for var_idx in expr.idxs:
+            self._solver.changeCoeff(cons.index, var_idx, 0.0)
+
+    def _update_constraint(
+        self,
+        cons: highs_cons,
+        expr: highs_linear_expression,
+    ) -> None:
+        """Update an existing constraint with a new expression."""
+        old_expr = self._solver.getExpr(cons)
+        old_bounds = old_expr.bounds
+        new_bounds = expr.bounds
+
+        if old_bounds != new_bounds:
+            if new_bounds is not None:
+                self._solver.changeRowBounds(cons.index, new_bounds[0], new_bounds[1])
+            elif old_bounds is not None:
+                self._solver.changeRowBounds(cons.index, float("-inf"), float("inf"))
+
+        old_coeffs = dict(zip(old_expr.idxs, old_expr.vals, strict=True))
+        new_coeffs = dict(zip(expr.idxs, expr.vals, strict=True))
+        all_vars = set(old_coeffs) | set(new_coeffs)
+
+        for var_idx in all_vars:
+            old_val = old_coeffs.get(var_idx, 0.0)
+            new_val = new_coeffs.get(var_idx, 0.0)
+            if old_val != new_val:
+                self._solver.changeCoeff(cons.index, var_idx, new_val)
+
+    def _ensure_optimal(self, *, status: HighsModelStatus, solver: Highs | None = None) -> float:
+        """Validate solver status and return the objective value."""
+        if status != HighsModelStatus.kOptimal:
+            msg = f"Optimization failed with status: {self._solver.modelStatusToString(status)}"
+            raise ValueError(msg)
+
+        active_solver = solver or self._solver
+        return active_solver.getObjectiveValue()
 
     def validate(self) -> None:
         """Validate the network."""
@@ -232,3 +317,8 @@ class Network:
             if element_constraints := element.constraints():
                 result[element_name] = element_constraints
         return result
+
+
+def _objective_epsilon(value: float) -> float:
+    """Return a small epsilon for lexicographic objective constraints."""
+    return max(1e-6, abs(value) * 1e-9)
