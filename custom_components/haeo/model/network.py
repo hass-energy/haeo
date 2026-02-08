@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass, field
 import logging
-from typing import Any, overload
+from typing import Any, cast, overload
 
 from highspy import Highs, HighsModelStatus
 from highspy.highs import highs_cons, highs_linear_expression, highs_var
@@ -35,7 +35,7 @@ class Network:
     periods: NDArray[np.floating[Any]]  # Period durations in hours (one per optimization interval)
     elements: dict[str, Element[Any]] = field(default_factory=dict)
     _solver: Highs = field(default_factory=Highs, repr=False)
-    _primary_objective_constraint: highs_cons | None = field(default=None, init=False, repr=False)
+    _lexicographic_constraints: list[highs_cons] = field(default_factory=list, init=False, repr=False)
 
     def __post_init__(self) -> None:
         """Set up the solver with logging callback."""
@@ -190,70 +190,58 @@ class Network:
         # Get aggregated objectives from network (reactive - only rebuilds if any element cost invalidated)
         objectives = self.cost()
 
-        h.clearLinearObjectives()
+        _clear_linear_objectives(h)
 
         if objectives is None:
             h.run()
-            self._clear_primary_objective_constraint()
+            self._clear_lexicographic_constraints()
             return _ensure_optimal(h)
 
-        primary = objectives[0] if objectives else None
-        secondary: highs_linear_expression | highs_var | None
-        if len(objectives) <= 1:
-            secondary = None
-        elif len(objectives) == 2:
-            secondary = objectives[1]
-        else:
-            secondary = Highs.qsum(objectives[1:])
+        primary_value = None
+        required_constraints = max(len(objectives) - 1, 0)
+        if len(self._lexicographic_constraints) > required_constraints:
+            self._clear_lexicographic_constraints(required_constraints)
 
-        if primary is None and secondary is not None:
-            h.minimize(secondary)
-            self._clear_primary_objective_constraint()
-            _ensure_optimal(h)
-            return 0.0
+        for index, objective in enumerate(objectives):
+            h.minimize(objective)
+            value = _ensure_optimal(h)
+            if index == 0:
+                primary_value = value
+            if index < len(objectives) - 1:
+                self._apply_objective_constraint(index, objective, value)
 
-        if primary is None:
-            h.run()
-            self._clear_primary_objective_constraint()
-            return _ensure_optimal(h)
+        return 0.0 if primary_value is None else primary_value
 
-        h.minimize(primary)
-        primary_value = _ensure_optimal(h)
-        if secondary is None:
-            self._clear_primary_objective_constraint()
-            return primary_value
-
-        self._apply_primary_objective_constraint(primary, primary_value)
-        h.minimize(secondary)
-        _ensure_optimal(h)
-        return primary_value
-
-    def _apply_primary_objective_constraint(
+    def _apply_objective_constraint(
         self,
+        index: int,
         objective: highs_linear_expression | highs_var,
         optimal_value: float,
     ) -> None:
-        """Constrain the primary objective for lexicographic optimization."""
+        """Constrain an objective value for lexicographic optimization."""
         epsilon = _objective_epsilon(optimal_value)
         expression = _as_linear_expression(objective)
         constraint_expr = expression <= (optimal_value + epsilon)
 
-        if self._primary_objective_constraint is None:
-            self._primary_objective_constraint = self._solver.addConstr(constraint_expr)
+        if index >= len(self._lexicographic_constraints):
+            cons = self._solver.addConstr(constraint_expr)
+            self._lexicographic_constraints.append(cons)
             return
 
-        self._update_constraint(self._primary_objective_constraint, constraint_expr)
+        self._update_constraint(self._lexicographic_constraints[index], constraint_expr)
 
-    def _clear_primary_objective_constraint(self) -> None:
-        """Disable the primary objective constraint if it exists."""
-        if self._primary_objective_constraint is None:
+    def _clear_lexicographic_constraints(self, keep: int = 0) -> None:
+        """Disable lexicographic constraints beyond the count to keep."""
+        if len(self._lexicographic_constraints) <= keep:
             return
 
-        cons = self._primary_objective_constraint
-        expr = self._solver.getExpr(cons)
-        self._solver.changeRowBounds(cons.index, float("-inf"), float("inf"))
-        for var_idx in expr.idxs:
-            self._solver.changeCoeff(cons.index, var_idx, 0.0)
+        for cons in self._lexicographic_constraints[keep:]:
+            expr = self._solver.getExpr(cons)
+            self._solver.changeRowBounds(cons.index, float("-inf"), float("inf"))
+            for var_idx in expr.idxs:
+                self._solver.changeCoeff(cons.index, var_idx, 0.0)
+
+        del self._lexicographic_constraints[keep:]
 
     def _update_constraint(
         self,
@@ -339,6 +327,11 @@ def _as_linear_expression(expression: highs_linear_expression | highs_var) -> hi
     if isinstance(expression, highs_linear_expression):
         return expression
     return Highs.qsum([expression])
+
+
+def _clear_linear_objectives(solver: Highs) -> None:
+    """Clear any multiobjective state if the API is available."""
+    cast("Any", solver).clearLinearObjectives()
 
 
 def _ensure_optimal(solver: Highs) -> float:
