@@ -278,9 +278,22 @@ def _combine_objective_lists(objectives: list[list[Any]]) -> list[Any]:
     return combined
 
 
-def _objective_signature(objectives: list[list[Any]]) -> tuple[tuple[int, ...], ...]:
-    """Create a stable signature for objective expressions based on object identity."""
-    return tuple(tuple(id(item) for item in objective) for objective in objectives)
+def _objective_signature(objectives: list[list[Any]]) -> tuple[tuple[tuple[Any, ...], ...], ...]:
+    """Create a stable signature for objective expressions based on expression contents."""
+    return tuple(tuple(_expression_signature(item) for item in objective) for objective in objectives)
+
+
+def _expression_signature(expression: Any) -> tuple[Any, ...]:
+    """Return a signature tuple for a linear objective expression."""
+    if isinstance(expression, highs_var):
+        return ("var", int(expression.index))
+    if isinstance(expression, highs_linear_expression):
+        idxs = tuple(int(idx) for idx in expression.idxs)
+        vals = tuple(float(val) for val in expression.vals)
+        constant = 0.0 if expression.constant is None else float(expression.constant)
+        return ("expr", idxs, vals, constant)
+    msg = f"Unsupported objective expression type: {type(expression).__name__}"
+    raise TypeError(msg)
 
 
 def _iter_objectives(objectives: list[Any]) -> list[tuple[int, highs_linear_expression]]:
