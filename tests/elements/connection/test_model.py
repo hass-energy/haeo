@@ -61,6 +61,7 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "name": "c1",
                 "source": "s",
                 "target": "t",
+                "mirror_segment_order": False,
                 "segments": {
                     "efficiency": {
                         "segment_type": "efficiency",
@@ -97,6 +98,7 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "name": "c_min",
                 "source": "s",
                 "target": "t",
+                "mirror_segment_order": False,
                 "segments": {
                     "efficiency": {
                         "segment_type": "efficiency",
