@@ -8,6 +8,7 @@ from highspy.highs import HighspyArray, highs_cons
 import numpy as np
 from numpy.typing import NDArray
 
+from .objective import ObjectiveCost, as_objective_cost, combine_objectives
 from .output_data import OutputData
 from .reactive import OutputMethod, ReactiveConstraint, ReactiveCost, TrackedParam, cost
 
@@ -227,22 +228,22 @@ class Element[OutputNameT: str]:
         return result
 
     @cost
-    def cost(self) -> Any:
-        """Return aggregated cost expression from this element.
+    def cost(self) -> ObjectiveCost | None:
+        """Return aggregated objective expressions from this element.
 
-        Discovers and calls all @cost decorated methods, summing their results into
-        a single expression. The result is cached by the @cost decorator, which
+        Discovers and calls all @cost decorated methods, combining their results into
+        a multiobjective container. The result is cached by the @cost decorator, which
         automatically tracks dependencies on all underlying @cost methods.
 
         Returns:
-            Single aggregated cost expression (highs_linear_expression) or None if no costs
+            ObjectiveCost container or None if no costs are defined
 
         """
         # Get this method's name from the decorator to avoid hardcoding
         this_method_name = type(self).cost._name  # type: ignore[attr-defined]  # noqa: SLF001 (intentional access to decorator's name)
 
         # Collect all cost expressions from @cost methods (excluding this one)
-        costs: list[Any] = []
+        costs: list[ObjectiveCost] = []
         for name in dir(type(self)):
             # Skip self to avoid infinite recursion
             if name == this_method_name:
@@ -255,14 +256,15 @@ class Element[OutputNameT: str]:
             method = getattr(self, name)
             if (cost_value := method()) is not None:
                 if isinstance(cost_value, list):
-                    costs.extend(cost_value)
+                    for item in cost_value:
+                        if item is None:
+                            continue
+                        costs.append(as_objective_cost(item))
                 else:
-                    costs.append(cost_value)
+                    costs.append(as_objective_cost(cost_value))
 
-        # Aggregate costs into a single expression
         if not costs:
             return None
-        if len(costs) == 1:
-            return costs[0]
-        # Sum all cost expressions
-        return sum(costs[1:], costs[0])
+
+        combined = combine_objectives(costs)
+        return None if combined.is_empty else combined
