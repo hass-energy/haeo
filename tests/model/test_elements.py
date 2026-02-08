@@ -62,11 +62,8 @@ def _solve_element_scenario(element: Any, inputs: ElementTestCaseInputs | None) 
 
         # Collect cost from element (aggregates all @cost methods)
         element_costs: list[Any] = []
-        if (element_cost := element.cost()) is not None:
-            if element_cost.primary is not None:
-                element_costs.append(element_cost.primary)
-            elif element_cost.secondary is not None:
-                element_costs.append(element_cost.secondary)
+        if (element_cost := element.cost()) is not None and element_cost.primary is not None:
+            element_costs.append(element_cost.primary)
 
         input_cost = broadcast_to_sequence(inputs.get("input_cost", 0.0), n_periods)
         output_cost = broadcast_to_sequence(inputs.get("output_cost", 0.0), n_periods)

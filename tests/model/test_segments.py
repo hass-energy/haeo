@@ -162,8 +162,6 @@ def _solve_segment_scenario(case: SegmentScenario) -> dict[str, ExpectedValue]:
         assert cost is not None
         if cost.primary is not None:
             objective_terms.append(cost.primary)
-        elif cost.secondary is not None:
-            objective_terms.append(cost.secondary)
 
     maximize = inputs.get("maximize", {})
     for name, weight in maximize.items():
@@ -215,8 +213,6 @@ def _solve_connection_scenario(case: ConnectionScenario) -> dict[str, ExpectedVa
         assert cost is not None
         if cost.primary is not None:
             objective_terms.append(cost.primary)
-        elif cost.secondary is not None:
-            objective_terms.append(cost.secondary)
 
     maximize = inputs.get("maximize", {})
     for name, weight in maximize.items():
