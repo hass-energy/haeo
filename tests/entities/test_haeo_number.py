@@ -803,35 +803,6 @@ async def test_horizon_change_updates_forecast_timestamps_editable(
     assert [point["time"].timestamp() for point in written_forecast] == [100.0, 400.0]
 
 
-async def test_handle_horizon_change_driven_triggers_reload(
-    hass: HomeAssistant,
-    config_entry: MockConfigEntry,
-    device_entry: Mock,
-    power_field_info: InputFieldInfo[NumberEntityDescription],
-    horizon_manager: Mock,
-) -> None:
-    """_handle_horizon_change creates task to reload data in DRIVEN mode."""
-    hass.states.async_set("sensor.power", "10.0")
-    subentry = _create_subentry("Test Battery", {"power_limit": ["sensor.power"]})
-    config_entry.runtime_data = None
-
-    entity = HaeoInputNumber(
-        config_entry=config_entry,
-        subentry=subentry,
-        field_info=power_field_info,
-        device_entry=device_entry,
-        horizon_manager=horizon_manager,
-    )
-    entity._loader.load_intervals = AsyncMock(return_value=[1.0, 2.0])
-    await _add_entity_to_hass(hass, entity)
-
-    # Call horizon change handler - should create task
-    entity._handle_horizon_change()
-    await hass.async_block_till_done()
-
-    # Task should have been created (test doesn't fail means task was created)
-
-
 async def test_horizon_change_updates_forecast_timestamps_driven(
     hass: HomeAssistant,
     config_entry: MockConfigEntry,
@@ -891,14 +862,23 @@ async def test_horizon_change_updates_forecast_timestamps_driven(
     assert [point["time"].timestamp() for point in written_forecast] == [100.0, 400.0]
 
 
-async def test_handle_source_state_change_triggers_reload(
+@pytest.mark.parametrize(
+    ("handler", "event"),
+    [
+        pytest.param("horizon", None, id="horizon_change"),
+        pytest.param("source_state", Mock(), id="source_state_change"),
+    ],
+)
+async def test_driven_mode_triggers_reload_task(
     hass: HomeAssistant,
     config_entry: MockConfigEntry,
     device_entry: Mock,
     power_field_info: InputFieldInfo[NumberEntityDescription],
     horizon_manager: Mock,
+    handler: str,
+    event: Mock | None,
 ) -> None:
-    """_handle_source_state_change creates task to reload data."""
+    """Driven-mode handlers schedule data reload tasks."""
     hass.states.async_set("sensor.power", "10.0")
     subentry = _create_subentry("Test Battery", {"power_limit": ["sensor.power"]})
     config_entry.runtime_data = None
@@ -910,26 +890,39 @@ async def test_handle_source_state_change_triggers_reload(
         device_entry=device_entry,
         horizon_manager=horizon_manager,
     )
+    entity._async_load_data_and_update = AsyncMock()
     entity._loader.load_intervals = AsyncMock(return_value=[1.0, 2.0])
     await _add_entity_to_hass(hass, entity)
 
-    # Create a mock event
-    mock_event = Mock()
-    mock_event.data = {"new_state": Mock(state="20.0")}
+    if handler == "horizon":
+        entity._handle_horizon_change()
+    else:
+        mock_event = event or Mock()
+        mock_event.data = {"new_state": Mock(state="20.0")}
+        entity._handle_source_state_change(mock_event)
 
-    # Call source state change handler
-    entity._handle_source_state_change(mock_event)
     await hass.async_block_till_done()
 
+    entity._async_load_data_and_update.assert_awaited_once()
 
-async def test_async_load_data_handles_load_failure(
+
+@pytest.mark.parametrize(
+    ("load_result", "load_error"),
+    [
+        pytest.param([], None, id="empty_values"),
+        pytest.param(None, Exception("Load failed"), id="load_failure"),
+    ],
+)
+async def test_async_load_data_handles_empty_or_failure(
     hass: HomeAssistant,
     config_entry: MockConfigEntry,
     device_entry: Mock,
     power_field_info: InputFieldInfo[NumberEntityDescription],
     horizon_manager: Mock,
+    load_result: list[float] | None,
+    load_error: Exception | None,
 ) -> None:
-    """_async_load_data handles loader exceptions gracefully."""
+    """_async_load_data handles empty values or loader failures gracefully."""
     subentry = _create_subentry("Test Battery", {"power_limit": ["sensor.power"]})
     config_entry.runtime_data = None
 
@@ -941,46 +934,15 @@ async def test_async_load_data_handles_load_failure(
         horizon_manager=horizon_manager,
     )
 
-    # Mock loader to raise an exception
     entity._loader = Mock()
-    entity._loader.load = Mock(side_effect=Exception("Load failed"))
+    if load_error is not None:
+        entity._loader.load_intervals = AsyncMock(side_effect=load_error)
+    else:
+        entity._loader.load_intervals = AsyncMock(return_value=load_result)
     await _add_entity_to_hass(hass, entity)
 
-    # Should not raise
     await entity._async_load_data()
 
-    # State should not have changed
-    assert entity.native_value is None
-
-
-async def test_async_load_data_handles_empty_values(
-    hass: HomeAssistant,
-    config_entry: MockConfigEntry,
-    device_entry: Mock,
-    power_field_info: InputFieldInfo[NumberEntityDescription],
-    horizon_manager: Mock,
-) -> None:
-    """_async_load_data handles empty values gracefully."""
-    subentry = _create_subentry("Test Battery", {"power_limit": ["sensor.power"]})
-    config_entry.runtime_data = None
-
-    entity = HaeoInputNumber(
-        config_entry=config_entry,
-        subentry=subentry,
-        field_info=power_field_info,
-        device_entry=device_entry,
-        horizon_manager=horizon_manager,
-    )
-
-    # Mock loader to return empty list
-    entity._loader = Mock()
-    entity._loader.load = Mock(return_value=[])
-    await _add_entity_to_hass(hass, entity)
-
-    # Should not raise
-    await entity._async_load_data()
-
-    # State should not have changed
     assert entity.native_value is None
 
 

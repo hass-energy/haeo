@@ -193,30 +193,18 @@ def test_transform_non_string_value() -> None:
 # Tests for shift_day_offset
 
 
-def test_shift_zero_days(sample_solar_data: JSONDict) -> None:
-    """Test shifting by zero days (today)."""
-    result = transform_sensor.shift_day_offset(sample_solar_data, 0)
+@pytest.mark.parametrize("day_offset", [0, 1], ids=["today", "tomorrow"])
+def test_shift_day_offset(sample_solar_data: JSONDict, day_offset: int) -> None:
+    """Shifted timestamps match the expected day offset."""
+    result = transform_sensor.shift_day_offset(sample_solar_data, day_offset)
 
-    # Should have same structure
     assert "attributes" in result
     assert "watts" in result["attributes"]
 
-    # Timestamps should be shifted to today
-    today = datetime.now(UTC).date()
+    expected_date = (datetime.now(UTC) + timedelta(days=day_offset)).date()
     for timestamp_str in result["attributes"]["watts"]:
         ts = datetime.fromisoformat(timestamp_str)
-        assert ts.date() == today
-
-
-def test_shift_one_day(sample_solar_data: JSONDict) -> None:
-    """Test shifting by one day (tomorrow)."""
-    result = transform_sensor.shift_day_offset(sample_solar_data, 1)
-
-    # Timestamps should be shifted to tomorrow
-    tomorrow = (datetime.now(UTC) + timedelta(days=1)).date()
-    for timestamp_str in result["attributes"]["watts"]:
-        ts = datetime.fromisoformat(timestamp_str)
-        assert ts.date() == tomorrow
+        assert ts.date() == expected_date
 
 
 def test_shift_preserves_time_of_day(sample_solar_data: JSONDict) -> None:
@@ -265,25 +253,27 @@ def test_parse_empty_forecasts() -> None:
     assert result == []
 
 
-def test_parse_forecasts_missing_time_field() -> None:
-    """Test parsing forecasts with missing time fields."""
-    forecasts = [
-        {"per_kwh": 10.5, "date": "2024-10-13"},
-        {"start_time": "2024-10-13T00:30:00Z", "per_kwh": 11.2},
-    ]
-
-    result = transform_sensor._parse_forecast_times(forecasts)
-
-    assert len(result) == 1
-
-
-def test_parse_forecasts_invalid_timestamp() -> None:
-    """Test parsing forecasts with invalid timestamps."""
-    forecasts = [
-        {"start_time": "invalid-timestamp", "per_kwh": 10.5},
-        {"start_time": "2024-10-13T00:30:00Z", "per_kwh": 11.2},
-    ]
-
+@pytest.mark.parametrize(
+    "forecasts",
+    [
+        pytest.param(
+            [
+                {"per_kwh": 10.5, "date": "2024-10-13"},
+                {"start_time": "2024-10-13T00:30:00Z", "per_kwh": 11.2},
+            ],
+            id="missing_time_field",
+        ),
+        pytest.param(
+            [
+                {"start_time": "invalid-timestamp", "per_kwh": 10.5},
+                {"start_time": "2024-10-13T00:30:00Z", "per_kwh": 11.2},
+            ],
+            id="invalid_timestamp",
+        ),
+    ],
+)
+def test_parse_forecasts_skips_invalid_entries(forecasts: list[JSONDict]) -> None:
+    """Invalid forecast entries are skipped during parsing."""
     result = transform_sensor._parse_forecast_times(forecasts)
 
     assert len(result) == 1
@@ -320,9 +310,15 @@ def test_find_exact_match() -> None:
     assert result == 1
 
 
-def test_find_closest_before() -> None:
-    """Test finding closest time-of-day before current."""
-    now = datetime(2024, 10, 14, 13, 30, 0, tzinfo=UTC)
+@pytest.mark.parametrize(
+    ("now", "expected"),
+    [
+        pytest.param(datetime(2024, 10, 14, 13, 30, 0, tzinfo=UTC), 1, id="closest_before"),
+        pytest.param(datetime(2024, 10, 14, 16, 0, 0, tzinfo=UTC), 2, id="closest_after"),
+    ],
+)
+def test_find_closest_before_or_after(now: datetime, expected: int) -> None:
+    """Closest time-of-day selection handles before/after cases."""
     forecast_times: list[tuple[datetime, JSONDict]] = [
         (datetime(2024, 10, 13, 6, 0, 0, tzinfo=UTC), {}),
         (datetime(2024, 10, 13, 12, 0, 0, tzinfo=UTC), {}),
@@ -331,21 +327,7 @@ def test_find_closest_before() -> None:
 
     result = transform_sensor._find_closest_time_of_day_index(forecast_times, now)
 
-    assert result == 1
-
-
-def test_find_closest_after() -> None:
-    """Test finding closest time-of-day after current."""
-    now = datetime(2024, 10, 14, 16, 0, 0, tzinfo=UTC)
-    forecast_times: list[tuple[datetime, JSONDict]] = [
-        (datetime(2024, 10, 13, 6, 0, 0, tzinfo=UTC), {}),
-        (datetime(2024, 10, 13, 12, 0, 0, tzinfo=UTC), {}),
-        (datetime(2024, 10, 13, 18, 0, 0, tzinfo=UTC), {}),
-    ]
-
-    result = transform_sensor._find_closest_time_of_day_index(forecast_times, now)
-
-    assert result == 2
+    assert result == expected
 
 
 # Tests for _transform_forecast_timestamps
@@ -403,23 +385,22 @@ def test_wrap_forecasts_basic(sample_amber_forecast_data: JSONDict) -> None:
     assert len(result["attributes"]["forecasts"]) == 3
 
 
-def test_wrap_forecasts_missing_attributes() -> None:
-    """Test wrapping when attributes missing."""
-    data = {"entity_id": "sensor.test", "state": "10"}
-
-    result = transform_sensor.wrap_forecasts(data)
-
-    assert result == data
-
-
-def test_wrap_forecasts_empty_list() -> None:
-    """Test wrapping empty forecast list."""
-    data = {
-        "entity_id": "sensor.test",
-        "state": "10",
-        "attributes": {"forecasts": []},
-    }
-
+@pytest.mark.parametrize(
+    "data",
+    [
+        pytest.param({"entity_id": "sensor.test", "state": "10"}, id="missing_attributes"),
+        pytest.param(
+            {
+                "entity_id": "sensor.test",
+                "state": "10",
+                "attributes": {"forecasts": []},
+            },
+            id="empty_forecasts",
+        ),
+    ],
+)
+def test_wrap_forecasts_missing_or_empty(data: JSONDict) -> None:
+    """wrap_forecasts returns input when no forecast data is present."""
     result = transform_sensor.wrap_forecasts(data)
 
     assert result == data
@@ -433,12 +414,6 @@ def test_passthrough_returns_unchanged(sample_sigen_data: JSONDict) -> None:
     result = transform_sensor.passthrough(sample_sigen_data)
 
     assert result == sample_sigen_data
-
-
-def test_passthrough_is_same_object(sample_sigen_data: JSONDict) -> None:
-    """Test that passthrough returns same object reference."""
-    result = transform_sensor.passthrough(sample_sigen_data)
-
     assert result is sample_sigen_data
 
 
@@ -524,22 +499,14 @@ def test_parser_accepts_valid_args() -> None:
     assert args.day_offset == 1
 
 
-def test_parser_accepts_wrap_forecasts() -> None:
-    """Test parser accepts wrap_forecasts."""
+@pytest.mark.parametrize("transform_type", ["wrap_forecasts", "passthrough"], ids=["wrap", "passthrough"])
+def test_parser_accepts_transform_types(transform_type: str) -> None:
+    """Parser accepts supported transform types."""
     parser = transform_sensor._create_argument_parser()
 
-    args = parser.parse_args(["test.json", "wrap_forecasts"])
+    args = parser.parse_args(["test.json", transform_type])
 
-    assert args.transform_type == "wrap_forecasts"
-
-
-def test_parser_accepts_passthrough() -> None:
-    """Test parser accepts passthrough."""
-    parser = transform_sensor._create_argument_parser()
-
-    args = parser.parse_args(["test.json", "passthrough"])
-
-    assert args.transform_type == "passthrough"
+    assert args.transform_type == transform_type
 
 
 def test_parser_rejects_invalid_transform() -> None:
@@ -562,21 +529,34 @@ def test_parser_verbose_flag() -> None:
 # Tests for main function
 
 
-def test_main_success(tmp_path: Path, sample_solar_data: JSONDict) -> None:
-    """Test main function success path."""
+@pytest.mark.parametrize(
+    ("args", "expect_output"),
+    [
+        pytest.param(["passthrough"], True, id="passthrough"),
+        pytest.param(["day_offset", "--day-offset", "1"], False, id="day_offset"),
+    ],
+)
+def test_main_success(
+    tmp_path: Path,
+    sample_solar_data: JSONDict,
+    args: list[str],
+    expect_output: bool,
+) -> None:
+    """Test main function success paths."""
     json_file = tmp_path / "test.json"
     json_file.write_text(json.dumps(sample_solar_data))
 
     with (
-        patch.object(sys, "argv", ["transform_sensor.py", str(json_file), "passthrough"]),
+        patch.object(sys, "argv", ["transform_sensor.py", str(json_file), *args]),
         patch("builtins.print") as mock_print,
     ):
         exit_code = transform_sensor.main()
 
     assert exit_code == 0
     mock_print.assert_called_once()
-    output = json.loads(mock_print.call_args[0][0])
-    assert output == sample_solar_data
+    if expect_output:
+        output = json.loads(mock_print.call_args[0][0])
+        assert output == sample_solar_data
 
 
 def test_main_file_not_found(tmp_path: Path) -> None:
@@ -609,21 +589,6 @@ def test_main_invalid_transform(tmp_path: Path, sample_solar_data: JSONDict) -> 
         exit_code = transform_sensor.main()
 
     assert exit_code == 1
-
-
-def test_main_with_day_offset(tmp_path: Path, sample_solar_data: JSONDict) -> None:
-    """Test main function with day_offset transform."""
-    json_file = tmp_path / "test.json"
-    json_file.write_text(json.dumps(sample_solar_data))
-
-    with (
-        patch.object(sys, "argv", ["transform_sensor.py", str(json_file), "day_offset", "--day-offset", "1"]),
-        patch("builtins.print") as mock_print,
-    ):
-        exit_code = transform_sensor.main()
-
-    assert exit_code == 0
-    mock_print.assert_called_once()
 
 
 def test_main_verbose_mode(tmp_path: Path, sample_solar_data: JSONDict, caplog: pytest.LogCaptureFixture) -> None:
@@ -712,40 +677,47 @@ def test_amber_forecast_transformation_workflow(tmp_path: Path) -> None:
     assert len(output["attributes"]["forecasts"]) == 2
 
 
-def test_transform_forecast_timestamps_handles_invalid_timestamp() -> None:
-    """Test that invalid timestamps are logged and skipped."""
-    # Arrange
-    forecast = {
-        "start_time": "not-a-valid-timestamp",
-        "end_time": "2024-01-15T12:30:00Z",
-    }
+@pytest.mark.parametrize(
+    ("forecast", "invalid_key", "invalid_value", "valid_key", "expected_valid"),
+    [
+        pytest.param(
+            {
+                "start_time": "not-a-valid-timestamp",
+                "end_time": "2024-01-15T12:30:00Z",
+            },
+            "start_time",
+            "not-a-valid-timestamp",
+            "end_time",
+            "2024-01-16T12:30:00Z",
+            id="invalid_timestamp",
+        ),
+        pytest.param(
+            {
+                "date": "not-a-valid-date",
+                "start_time": "2024-01-15T12:30:00Z",
+            },
+            "date",
+            "not-a-valid-date",
+            "start_time",
+            "2024-01-16T12:30:00Z",
+            id="invalid_date",
+        ),
+    ],
+)
+def test_transform_forecast_timestamps_handles_invalid_values(
+    forecast: JSONDict,
+    invalid_key: str,
+    invalid_value: str,
+    valid_key: str,
+    expected_valid: str,
+) -> None:
+    """Invalid date/time strings are preserved while valid timestamps shift."""
     time_delta = timedelta(days=1)
 
-    # Act
     result = transform_sensor._transform_forecast_timestamps(forecast, time_delta)
 
-    # Assert - invalid timestamp preserved
-    assert result["start_time"] == "not-a-valid-timestamp"
-    # Valid timestamp transformed
-    assert result["end_time"] == "2024-01-16T12:30:00Z"
-
-
-def test_transform_forecast_timestamps_handles_invalid_date() -> None:
-    """Test that invalid date fields are logged and skipped."""
-    # Arrange
-    forecast = {
-        "date": "not-a-valid-date",
-        "start_time": "2024-01-15T12:30:00Z",
-    }
-    time_delta = timedelta(days=1)
-
-    # Act
-    result = transform_sensor._transform_forecast_timestamps(forecast, time_delta)
-
-    # Assert - invalid date preserved
-    assert result["date"] == "not-a-valid-date"
-    # Valid timestamp transformed
-    assert result["start_time"] == "2024-01-16T12:30:00Z"
+    assert result[invalid_key] == invalid_value
+    assert result[valid_key] == expected_valid
 
 
 def test_transform_forecast_timestamps_handles_date_with_time() -> None:
