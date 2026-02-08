@@ -16,7 +16,7 @@ def time_preference_weights(periods: NDArray[np.floating[Any]]) -> NDArray[np.fl
     n_periods = len(periods)
     if n_periods <= 0:
         return np.zeros(0, dtype=np.float64)
-    return 1e-3 * (np.arange(1, n_periods + 1, dtype=np.float64) / float(n_periods))
+    return 1e-4 * (np.arange(1, n_periods + 1, dtype=np.float64) / float(n_periods))
 
 
 __all__ = ["time_preference_weights"]
