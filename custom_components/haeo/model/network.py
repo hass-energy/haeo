@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 import logging
 from typing import Any, overload
 
-from highspy import Highs, HighsLinearObjective, HighsModelStatus
+from highspy import Highs, HighsModelStatus
 from highspy.highs import highs_cons, highs_linear_expression, highs_var
 import numpy as np
 from numpy.typing import NDArray
@@ -35,11 +35,7 @@ class Network:
     periods: NDArray[np.floating[Any]]  # Period durations in hours (one per optimization interval)
     elements: dict[str, Element[Any]] = field(default_factory=dict)
     _solver: Highs = field(default_factory=Highs, repr=False)
-    _objective_cache: list[Any] | None = field(default=None, init=False, repr=False)
-    _objective_signature: tuple[tuple[int, ...], ...] | None = field(default=None, init=False, repr=False)
-    _solver_objective_signature: tuple[tuple[int, ...], ...] | None = field(
-        default=None, init=False, repr=False
-    )
+    _primary_objective_constraint: highs_cons | None = field(default=None, init=False, repr=False)
 
     def __post_init__(self) -> None:
         """Set up the solver with logging callback."""
@@ -159,23 +155,10 @@ class Network:
         ]
 
         if not objectives:
-            self._objective_cache = None
-            self._objective_signature = None
             return None
-
-        signature = _objective_signature(objectives)
-        if signature == self._objective_signature and self._objective_cache is not None:
-            return self._objective_cache
 
         combined = _combine_objective_lists(objectives)
-        if not combined:
-            self._objective_cache = None
-            self._objective_signature = None
-            return None
-
-        self._objective_cache = combined
-        self._objective_signature = signature
-        return combined
+        return combined or None
 
     def optimize(self) -> float:
         """Solve the optimization problem and return the primary objective value.
@@ -207,28 +190,96 @@ class Network:
         # Get aggregated objectives from network (reactive - only rebuilds if any element cost invalidated)
         objectives = self.cost()
 
+        h.clearLinearObjectives()
+
         if objectives is None:
-            if self._solver_objective_signature is not None:
-                h.clearLinearObjectives()
-                self._solver_objective_signature = None
             h.run()
+            self._clear_primary_objective_constraint()
             return _ensure_optimal(h)
 
-        if self._objective_signature != self._solver_objective_signature:
-            h.clearLinearObjectives()
-            blend_multi_objectives = False
-            h.setOptionValue("blend_multi_objectives", blend_multi_objectives)
+        primary = objectives[0] if objectives else None
+        secondary: highs_linear_expression | highs_var | None
+        if len(objectives) <= 1:
+            secondary = None
+        elif len(objectives) == 2:
+            secondary = objectives[1]
+        else:
+            secondary = Highs.qsum(objectives[1:])
 
-            for priority, expression in _iter_objectives(objectives):
-                objective = _linear_objective_from_expression(h, expression)
-                objective.priority = priority
-                objective.weight = 1.0
-                h.addLinearObjective(objective)
+        if primary is None and secondary is not None:
+            h.minimize(secondary)
+            self._clear_primary_objective_constraint()
+            _ensure_optimal(h)
+            return 0.0
 
-            self._solver_objective_signature = self._objective_signature
+        if primary is None:
+            h.run()
+            self._clear_primary_objective_constraint()
+            return _ensure_optimal(h)
 
-        h.run()
-        return _ensure_optimal(h)
+        h.minimize(primary)
+        primary_value = _ensure_optimal(h)
+        if secondary is None:
+            self._clear_primary_objective_constraint()
+            return primary_value
+
+        self._apply_primary_objective_constraint(primary, primary_value)
+        h.minimize(secondary)
+        _ensure_optimal(h)
+        return primary_value
+
+    def _apply_primary_objective_constraint(
+        self,
+        objective: highs_linear_expression | highs_var,
+        optimal_value: float,
+    ) -> None:
+        """Constrain the primary objective for lexicographic optimization."""
+        epsilon = _objective_epsilon(optimal_value)
+        expression = _as_linear_expression(objective)
+        constraint_expr = expression <= (optimal_value + epsilon)
+
+        if self._primary_objective_constraint is None:
+            self._primary_objective_constraint = self._solver.addConstr(constraint_expr)
+            return
+
+        self._update_constraint(self._primary_objective_constraint, constraint_expr)
+
+    def _clear_primary_objective_constraint(self) -> None:
+        """Disable the primary objective constraint if it exists."""
+        if self._primary_objective_constraint is None:
+            return
+
+        cons = self._primary_objective_constraint
+        expr = self._solver.getExpr(cons)
+        self._solver.changeRowBounds(cons.index, float("-inf"), float("inf"))
+        for var_idx in expr.idxs:
+            self._solver.changeCoeff(cons.index, var_idx, 0.0)
+
+    def _update_constraint(
+        self,
+        cons: highs_cons,
+        expr: highs_linear_expression,
+    ) -> None:
+        """Update an existing constraint with a new expression."""
+        old_expr = self._solver.getExpr(cons)
+        old_bounds = old_expr.bounds
+        new_bounds = expr.bounds
+
+        if old_bounds != new_bounds:
+            if new_bounds is not None:
+                self._solver.changeRowBounds(cons.index, new_bounds[0], new_bounds[1])
+            elif old_bounds is not None:
+                self._solver.changeRowBounds(cons.index, float("-inf"), float("inf"))
+
+        old_coeffs = dict(zip(old_expr.idxs, old_expr.vals, strict=True))
+        new_coeffs = dict(zip(expr.idxs, expr.vals, strict=True))
+        all_vars = set(old_coeffs) | set(new_coeffs)
+
+        for var_idx in all_vars:
+            old_val = old_coeffs.get(var_idx, 0.0)
+            new_val = new_coeffs.get(var_idx, 0.0)
+            if old_val != new_val:
+                self._solver.changeCoeff(cons.index, var_idx, new_val)
 
     def validate(self) -> None:
         """Validate the network."""
@@ -278,50 +329,16 @@ def _combine_objective_lists(objectives: list[list[Any]]) -> list[Any]:
     return combined
 
 
-def _objective_signature(objectives: list[list[Any]]) -> tuple[tuple[tuple[Any, ...], ...], ...]:
-    """Create a stable signature for objective expressions based on expression contents."""
-    return tuple(tuple(_expression_signature(item) for item in objective) for objective in objectives)
+def _objective_epsilon(value: float) -> float:
+    """Return a small epsilon for lexicographic objective constraints."""
+    return max(1e-6, abs(value) * 1e-9)
 
 
-def _expression_signature(expression: Any) -> tuple[Any, ...]:
-    """Return a signature tuple for a linear objective expression."""
-    if isinstance(expression, highs_var):
-        return ("var", int(expression.index))
+def _as_linear_expression(expression: highs_linear_expression | highs_var) -> highs_linear_expression:
+    """Coerce a variable to a linear expression when needed."""
     if isinstance(expression, highs_linear_expression):
-        idxs = tuple(int(idx) for idx in expression.idxs)
-        vals = tuple(float(val) for val in expression.vals)
-        constant = 0.0 if expression.constant is None else float(expression.constant)
-        return ("expr", idxs, vals, constant)
-    msg = f"Unsupported objective expression type: {type(expression).__name__}"
-    raise TypeError(msg)
-
-
-def _iter_objectives(objectives: list[Any]) -> list[tuple[int, highs_linear_expression]]:
-    """Assign priorities to objectives in order of appearance."""
-    priorities = list(range(len(objectives), 0, -1))
-    return list(zip(priorities, objectives, strict=True))
-
-
-def _linear_objective_from_expression(
-    solver: Highs,
-    expression: highs_linear_expression | highs_var,
-) -> HighsLinearObjective:
-    """Build a HiGHS linear objective from a linear expression."""
-    num_cols = solver.getNumCol()
-    coefficients = [0.0] * num_cols
-    offset = 0.0
-
-    if isinstance(expression, highs_var):
-        coefficients[expression.index] = 1.0
-    else:
-        for idx, val in zip(expression.idxs, expression.vals, strict=True):
-            coefficients[idx] = float(val)
-        offset = 0.0 if expression.constant is None else float(expression.constant)
-
-    objective = HighsLinearObjective()
-    objective.coefficients = coefficients
-    objective.offset = offset
-    return objective
+        return expression
+    return Highs.qsum([expression])
 
 
 def _ensure_optimal(solver: Highs) -> float:
