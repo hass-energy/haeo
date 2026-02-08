@@ -268,9 +268,7 @@ class Connection[TOutputName: str](Element[TOutputName]):
             if len(combined) <= SECONDARY_OBJECTIVE_INDEX:
                 combined.append(time_preference)
             else:
-                combined[SECONDARY_OBJECTIVE_INDEX] = Highs.qsum(
-                    [combined[SECONDARY_OBJECTIVE_INDEX], time_preference]
-                )
+                combined[SECONDARY_OBJECTIVE_INDEX] = Highs.qsum([combined[SECONDARY_OBJECTIVE_INDEX], time_preference])
 
         return combined or None
 
