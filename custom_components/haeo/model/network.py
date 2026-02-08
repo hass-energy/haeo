@@ -35,6 +35,11 @@ class Network:
     periods: NDArray[np.floating[Any]]  # Period durations in hours (one per optimization interval)
     elements: dict[str, Element[Any]] = field(default_factory=dict)
     _solver: Highs = field(default_factory=Highs, repr=False)
+    _objective_cache: list[Any] | None = field(default=None, init=False, repr=False)
+    _objective_signature: tuple[tuple[int, ...], ...] | None = field(default=None, init=False, repr=False)
+    _solver_objective_signature: tuple[tuple[int, ...], ...] | None = field(
+        default=None, init=False, repr=False
+    )
 
     def __post_init__(self) -> None:
         """Set up the solver with logging callback."""
@@ -154,10 +159,23 @@ class Network:
         ]
 
         if not objectives:
+            self._objective_cache = None
+            self._objective_signature = None
             return None
 
+        signature = _objective_signature(objectives)
+        if signature == self._objective_signature and self._objective_cache is not None:
+            return self._objective_cache
+
         combined = _combine_objective_lists(objectives)
-        return combined or None
+        if not combined:
+            self._objective_cache = None
+            self._objective_signature = None
+            return None
+
+        self._objective_cache = combined
+        self._objective_signature = signature
+        return combined
 
     def optimize(self) -> float:
         """Solve the optimization problem and return the primary objective value.
@@ -189,20 +207,25 @@ class Network:
         # Get aggregated objectives from network (reactive - only rebuilds if any element cost invalidated)
         objectives = self.cost()
 
-        h.clearLinearObjectives()
-
         if objectives is None:
+            if self._solver_objective_signature is not None:
+                h.clearLinearObjectives()
+                self._solver_objective_signature = None
             h.run()
             return _ensure_optimal(h)
 
-        blend_multi_objectives = False
-        h.setOptionValue("blend_multi_objectives", blend_multi_objectives)
+        if self._objective_signature != self._solver_objective_signature:
+            h.clearLinearObjectives()
+            blend_multi_objectives = False
+            h.setOptionValue("blend_multi_objectives", blend_multi_objectives)
 
-        for priority, expression in _iter_objectives(objectives):
-            objective = _linear_objective_from_expression(h, expression)
-            objective.priority = priority
-            objective.weight = 1.0
-            h.addLinearObjective(objective)
+            for priority, expression in _iter_objectives(objectives):
+                objective = _linear_objective_from_expression(h, expression)
+                objective.priority = priority
+                objective.weight = 1.0
+                h.addLinearObjective(objective)
+
+            self._solver_objective_signature = self._objective_signature
 
         h.run()
         return _ensure_optimal(h)
@@ -253,6 +276,11 @@ def _combine_objective_lists(objectives: list[list[Any]]) -> list[Any]:
         else:
             combined.append(Highs.qsum(terms))
     return combined
+
+
+def _objective_signature(objectives: list[list[Any]]) -> tuple[tuple[int, ...], ...]:
+    """Create a stable signature for objective expressions based on object identity."""
+    return tuple(tuple(id(item) for item in objective) for objective in objectives)
 
 
 def _iter_objectives(objectives: list[Any]) -> list[tuple[int, highs_linear_expression]]:
