@@ -24,7 +24,6 @@ import numpy as np
 from numpy.typing import NDArray
 
 from custom_components.haeo.model.element import Element
-from custom_components.haeo.model.objective import ObjectiveCost, as_objective_cost, combine_objectives
 from custom_components.haeo.model.output_data import OutputData
 from custom_components.haeo.model.reactive import OutputMethod, ReactiveConstraint, ReactiveCost, TrackedParam
 
@@ -161,17 +160,17 @@ class Segment(ABC):
                 result[output_name] = output_data
         return result
 
-    def cost(self) -> ObjectiveCost | None:
+    def cost(self) -> list[Any] | None:
         """Return aggregated objective expressions from this segment.
 
         Discovers and calls all @cost decorated methods, combining their results
-        into a multiobjective container.
+        into a list of objective expressions.
 
         Returns:
-            ObjectiveCost container or None if no costs
+            List of objective expressions or None if no costs
 
         """
-        costs: list[ObjectiveCost] = []
+        costs: list[list[Any]] = []
         for name in dir(type(self)):
             attr = getattr(type(self), name, None)
             if not isinstance(attr, ReactiveCost):
@@ -181,18 +180,30 @@ class Segment(ABC):
             method = getattr(self, name)
             if (cost_value := method()) is not None:
                 if isinstance(cost_value, list):
-                    for item in cost_value:
-                        if item is None:
-                            continue
-                        costs.append(as_objective_cost(item))
+                    costs.append([item for item in cost_value if item is not None])
                 else:
-                    costs.append(as_objective_cost(cost_value))
+                    costs.append([cost_value])
 
         if not costs:
             return None
 
-        combined = combine_objectives(costs)
-        return None if combined.is_empty else combined
+        combined = _combine_objective_lists(costs)
+        return combined or None
+
+
+def _combine_objective_lists(objectives: list[list[Any]]) -> list[Any]:
+    """Combine objective expression lists by summing expressions at each index."""
+    max_len = max((len(items) for items in objectives), default=0)
+    combined: list[Any] = []
+    for index in range(max_len):
+        terms = [items[index] for items in objectives if len(items) > index]
+        if not terms:
+            continue
+        if len(terms) == 1:
+            combined.append(terms[0])
+        else:
+            combined.append(Highs.qsum(terms))
+    return combined
 
 
 __all__ = ["Segment"]

@@ -477,9 +477,9 @@ def test_network_cost_with_multiple_elements() -> None:
     # Get aggregated cost - should use Highs.qsum for multiple costs
     cost = network.cost()
 
-    # Should return a combined ObjectiveCost
+    # Should return a combined objective list
     assert cost is not None
-    assert cost.primary is not None
+    assert cost
 
 
 def test_network_cost_returns_none_when_no_costs() -> None:
