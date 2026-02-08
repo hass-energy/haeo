@@ -107,14 +107,17 @@ Leave the fields blank when no practical limit applies.
 Base price in \$/kWh applied to all battery charging operations.
 Use positive values to discourage charging or negative values to incentivize charging.
 
-**Default**: 0 \$/kWh (no added cost)
+**Default**: None (no added cost)
 
 ### Discharge Price
 
 Base price in \$/kWh applied to all battery discharge operations.
 Models battery degradation or other discharge penalties.
 
-**Default**: 0 \$/kWh (no added cost)
+**Default**: None (no added cost)
+
+When charge and discharge prices are flat, HAEO uses time-preference ordering to favor earlier charging and discharging.
+This secondary ordering does not change the reported optimization cost.
 
 ### Configure battery partitions
 

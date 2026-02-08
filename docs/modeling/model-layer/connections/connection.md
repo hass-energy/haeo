@@ -74,6 +74,8 @@ Elements do not need to account for them directly.
 
 Connection aggregates cost expressions from all segments.
 PricingSegment instances contribute directional energy costs.
+Connections also contribute a secondary time-preference objective that weights energy transfer with a linear ramp.
+This secondary ordering prefers earlier transfers when primary costs are equal.
 
 ## Outputs
 
