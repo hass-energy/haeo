@@ -41,6 +41,7 @@
     "Grid": {
       "element_type": "grid",
       "common": { "name": "Grid", "connection": { "type": "connection_target", "value": "Switchboard" } },
+      "demand_pricing": {},
       "power_limits": {
         "max_power_source_target": { "type": "constant", "value": 55.0 },
         "max_power_target_source": { "type": "constant", "value": 30.0 }
@@ -54,8 +55,7 @@
           "type": "entity",
           "value": ["sensor.home_feed_in_price", "sensor.home_feed_in_forecast"]
         }
-      },
-      "demand_pricing": {}
+      }
     },
     "Inverter": {
       "element_type": "inverter",

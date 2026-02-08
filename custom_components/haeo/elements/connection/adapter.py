@@ -42,8 +42,8 @@ from .schema import (
     CONF_DEMAND_BLOCK_MINUTES,
     CONF_DEMAND_CURRENT_ENERGY_SOURCE_TARGET,
     CONF_DEMAND_CURRENT_ENERGY_TARGET_SOURCE,
-    CONF_DEMAND_PEAK_ENERGY_SOURCE_TARGET,
-    CONF_DEMAND_PEAK_ENERGY_TARGET_SOURCE,
+    CONF_DEMAND_PEAK_COST_SOURCE_TARGET,
+    CONF_DEMAND_PEAK_COST_TARGET_SOURCE,
     CONF_DEMAND_PRICE_SOURCE_TARGET,
     CONF_DEMAND_PRICE_TARGET_SOURCE,
     CONF_EFFICIENCY_SOURCE_TARGET,
@@ -242,32 +242,30 @@ class ConnectionAdapter:
                     output_type=OutputType.ENERGY,
                     time_series=False,
                 ),
-                CONF_DEMAND_PEAK_ENERGY_SOURCE_TARGET: InputFieldInfo(
-                    field_name=CONF_DEMAND_PEAK_ENERGY_SOURCE_TARGET,
+                CONF_DEMAND_PEAK_COST_SOURCE_TARGET: InputFieldInfo(
+                    field_name=CONF_DEMAND_PEAK_COST_SOURCE_TARGET,
                     entity_description=NumberEntityDescription(
-                        key=CONF_DEMAND_PEAK_ENERGY_SOURCE_TARGET,
-                        translation_key=f"{ELEMENT_TYPE}_{CONF_DEMAND_PEAK_ENERGY_SOURCE_TARGET}",
-                        native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
-                        device_class=NumberDeviceClass.ENERGY,
+                        key=CONF_DEMAND_PEAK_COST_SOURCE_TARGET,
+                        translation_key=f"{ELEMENT_TYPE}_{CONF_DEMAND_PEAK_COST_SOURCE_TARGET}",
+                        native_unit_of_measurement="$",
                         native_min_value=0.0,
                         native_max_value=1_000_000.0,
                         native_step=0.01,
                     ),
-                    output_type=OutputType.ENERGY,
+                    output_type=OutputType.COST,
                     time_series=False,
                 ),
-                CONF_DEMAND_PEAK_ENERGY_TARGET_SOURCE: InputFieldInfo(
-                    field_name=CONF_DEMAND_PEAK_ENERGY_TARGET_SOURCE,
+                CONF_DEMAND_PEAK_COST_TARGET_SOURCE: InputFieldInfo(
+                    field_name=CONF_DEMAND_PEAK_COST_TARGET_SOURCE,
                     entity_description=NumberEntityDescription(
-                        key=CONF_DEMAND_PEAK_ENERGY_TARGET_SOURCE,
-                        translation_key=f"{ELEMENT_TYPE}_{CONF_DEMAND_PEAK_ENERGY_TARGET_SOURCE}",
-                        native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
-                        device_class=NumberDeviceClass.ENERGY,
+                        key=CONF_DEMAND_PEAK_COST_TARGET_SOURCE,
+                        translation_key=f"{ELEMENT_TYPE}_{CONF_DEMAND_PEAK_COST_TARGET_SOURCE}",
+                        native_unit_of_measurement="$",
                         native_min_value=0.0,
                         native_max_value=1_000_000.0,
                         native_step=0.01,
                     ),
-                    output_type=OutputType.ENERGY,
+                    output_type=OutputType.COST,
                     time_series=False,
                 ),
                 CONF_DEMAND_BLOCK_MINUTES: InputFieldInfo(
@@ -332,11 +330,11 @@ class ConnectionAdapter:
                         "demand_current_energy_target_source": config[SECTION_DEMAND_PRICING].get(
                             CONF_DEMAND_CURRENT_ENERGY_TARGET_SOURCE
                         ),
-                        "demand_peak_energy_source_target": config[SECTION_DEMAND_PRICING].get(
-                            CONF_DEMAND_PEAK_ENERGY_SOURCE_TARGET
+                        "demand_peak_cost_source_target": config[SECTION_DEMAND_PRICING].get(
+                            CONF_DEMAND_PEAK_COST_SOURCE_TARGET
                         ),
-                        "demand_peak_energy_target_source": config[SECTION_DEMAND_PRICING].get(
-                            CONF_DEMAND_PEAK_ENERGY_TARGET_SOURCE
+                        "demand_peak_cost_target_source": config[SECTION_DEMAND_PRICING].get(
+                            CONF_DEMAND_PEAK_COST_TARGET_SOURCE
                         ),
                         "demand_block_hours": demand_block_hours,
                     },

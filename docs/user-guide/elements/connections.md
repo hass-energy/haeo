@@ -17,24 +17,24 @@ Connections define how power flows between elements in your network with support
 
 Pricing and demand pricing fields appear in separate sections in the UI.
 
-| Field                           | Type                                     | Required | Default   | Description                                                            |
-| ------------------------------- | ---------------------------------------- | -------- | --------- | ---------------------------------------------------------------------- |
-| **Name**                        | String                                   | Yes      | -         | Unique identifier for this connection                                  |
-| **Source**                      | Element                                  | Yes      | -         | Element where power can flow from (in source→target direction)         |
-| **Target**                      | Element                                  | Yes      | -         | Element where power can flow to (in source→target direction)           |
-| **Max Power Source→Target**     | [sensor](../forecasts-and-sensors.md)    | No       | Unlimited | Maximum power flow from source to target (kW)                          |
-| **Max Power Target→Source**     | [sensor](../forecasts-and-sensors.md)    | No       | Unlimited | Maximum power flow from target to source (kW)                          |
-| **Efficiency Source→Target**    | [sensor](../forecasts-and-sensors.md)    | No       | 100%      | Efficiency percentage (0-100) for power transfer from source to target |
-| **Efficiency Target→Source**    | [sensor](../forecasts-and-sensors.md)    | No       | 100%      | Efficiency percentage (0-100) for power transfer from target to source |
-| **Price Source→Target**         | [sensor(s)](../forecasts-and-sensors.md) | No       | 0         | Price (\$/kWh) for transferring power from source to target            |
-| **Price Target→Source**         | [sensor(s)](../forecasts-and-sensors.md) | No       | 0         | Price (\$/kWh) for transferring power from target to source            |
-| **Demand Price Source→Target**  | Number                                   | No       | -         | Demand price (\$/kW) for source to target peak blocks                  |
-| **Demand Price Target→Source**  | Number                                   | No       | -         | Demand price (\$/kW) for target to source peak blocks                  |
-| **Demand Energy Source→Target** | Number                                   | No       | -         | Energy already used in the current source to target block (kWh)        |
-| **Demand Energy Target→Source** | Number                                   | No       | -         | Energy already used in the current target to source block (kWh)        |
-| **Highest Demand Energy Source→Target** | Number                             | No       | -         | Highest energy used in any source to target demand block this cycle (kWh) |
-| **Highest Demand Energy Target→Source** | Number                             | No       | -         | Highest energy used in any target to source demand block this cycle (kWh) |
-| **Demand Block Minutes**        | Number                                   | No       | 30        | Block size in minutes used for demand averaging                        |
+| Field                                   | Type                                     | Required | Default   | Description                                                            |
+| --------------------------------------- | ---------------------------------------- | -------- | --------- | ---------------------------------------------------------------------- |
+| **Name**                                | String                                   | Yes      | -         | Unique identifier for this connection                                  |
+| **Source**                              | Element                                  | Yes      | -         | Element where power can flow from (in source→target direction)         |
+| **Target**                              | Element                                  | Yes      | -         | Element where power can flow to (in source→target direction)           |
+| **Max Power Source→Target**             | [sensor](../forecasts-and-sensors.md)    | No       | Unlimited | Maximum power flow from source to target (kW)                          |
+| **Max Power Target→Source**             | [sensor](../forecasts-and-sensors.md)    | No       | Unlimited | Maximum power flow from target to source (kW)                          |
+| **Efficiency Source→Target**            | [sensor](../forecasts-and-sensors.md)    | No       | 100%      | Efficiency percentage (0-100) for power transfer from source to target |
+| **Efficiency Target→Source**            | [sensor](../forecasts-and-sensors.md)    | No       | 100%      | Efficiency percentage (0-100) for power transfer from target to source |
+| **Price Source→Target**                 | [sensor(s)](../forecasts-and-sensors.md) | No       | 0         | Price (\$/kWh) for transferring power from source to target            |
+| **Price Target→Source**                 | [sensor(s)](../forecasts-and-sensors.md) | No       | 0         | Price (\$/kWh) for transferring power from target to source            |
+| **Demand Price Source→Target**          | Number                                   | No       | -         | Demand price (\$/kW) for source to target peak blocks                  |
+| **Demand Price Target→Source**          | Number                                   | No       | -         | Demand price (\$/kW) for target to source peak blocks                  |
+| **Demand Energy Source→Target**         | Number                                   | No       | -         | Energy already used in the current source to target block (kWh)        |
+| **Demand Energy Target→Source**         | Number                                   | No       | -         | Energy already used in the current target to source block (kWh)        |
+| **Highest Demand Charge Source→Target** | Number                                   | No       | -         | Highest demand charge for source to target this cycle (\$)             |
+| **Highest Demand Charge Target→Source** | Number                                   | No       | -         | Highest demand charge for target to source this cycle (\$)             |
+| **Demand Block Minutes**                | Number                                   | No       | 30        | Block size in minutes used for demand averaging                        |
 
 !!! tip "Configuration tips"
 
@@ -104,7 +104,8 @@ Connection pricing models fees for using a power transfer path (wheeling charges
 Demand pricing uses the maximum block-average power within the demand price schedule.
 Set the demand price to a nonzero value for periods you want to include and `0` elsewhere.
 Demand block minutes controls the averaging block size, such as `30` for 30-minute blocks.
-Highest demand energy values set the minimum starting peak within the current billing cycle.
+Highest demand charge values set the minimum starting peak within the current billing cycle.
+You can calculate this from sensor history by multiplying demand energy by the demand price schedule.
 Scale the demand price to match your billing period if needed.
 
 ## Common Patterns
@@ -209,8 +210,8 @@ Input entities appear as Number entities with the `config` entity category.
 | `number.{name}_demand_price_target_source`          | \$/kW  | Reverse demand price (if configured)         |
 | `number.{name}_demand_current_energy_source_target` | kWh    | Forward demand energy so far (if configured) |
 | `number.{name}_demand_current_energy_target_source` | kWh    | Reverse demand energy so far (if configured) |
-| `number.{name}_demand_peak_energy_source_target`    | kWh    | Forward demand peak energy (if configured)   |
-| `number.{name}_demand_peak_energy_target_source`    | kWh    | Reverse demand peak energy (if configured)   |
+| `number.{name}_demand_peak_cost_source_target`      | \$     | Forward demand peak charge (if configured)   |
+| `number.{name}_demand_peak_cost_target_source`      | \$     | Reverse demand peak charge (if configured)   |
 | `number.{name}_demand_block_minutes`                | min    | Demand block minutes (if configured)         |
 
 Input entities include a `forecast` attribute showing values for each optimization period.

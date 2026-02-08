@@ -9,7 +9,7 @@ from custom_components.haeo.schema import ConstantValue, EntityValue, NoneValue
 from custom_components.haeo.sections import (
     CONF_DEMAND_BLOCK_MINUTES,
     CONF_DEMAND_CURRENT_ENERGY_SOURCE_TARGET,
-    CONF_DEMAND_PEAK_ENERGY_SOURCE_TARGET,
+    CONF_DEMAND_PEAK_COST_SOURCE_TARGET,
     CONF_DEMAND_PRICE_SOURCE_TARGET,
     CONF_MAX_POWER_SOURCE_TARGET,
     CONF_MAX_POWER_TARGET_SOURCE,
@@ -32,7 +32,7 @@ OPTIONAL_INPUT_FIELDS: Final[frozenset[str]] = frozenset(
         CONF_MAX_POWER_TARGET_SOURCE,
         CONF_DEMAND_PRICE_SOURCE_TARGET,
         CONF_DEMAND_CURRENT_ENERGY_SOURCE_TARGET,
-        CONF_DEMAND_PEAK_ENERGY_SOURCE_TARGET,
+        CONF_DEMAND_PEAK_COST_SOURCE_TARGET,
         CONF_DEMAND_BLOCK_MINUTES,
     }
 )
@@ -57,7 +57,7 @@ class GridDemandPricingConfig(TypedDict, total=False):
 
     demand_price_source_target: EntityValue | ConstantValue | NoneValue
     demand_current_energy_source_target: EntityValue | ConstantValue | NoneValue
-    demand_peak_energy_source_target: EntityValue | ConstantValue | NoneValue
+    demand_peak_cost_source_target: EntityValue | ConstantValue | NoneValue
     demand_block_minutes: EntityValue | ConstantValue | NoneValue
 
 
@@ -66,7 +66,7 @@ class GridDemandPricingData(TypedDict, total=False):
 
     demand_price_source_target: NDArray[np.floating[Any]] | float
     demand_current_energy_source_target: NDArray[np.floating[Any]] | float
-    demand_peak_energy_source_target: NDArray[np.floating[Any]] | float
+    demand_peak_cost_source_target: NDArray[np.floating[Any]] | float
     demand_block_minutes: float
 
 
@@ -93,7 +93,7 @@ class GridConfigData(TypedDict):
 __all__ = [
     "CONF_DEMAND_BLOCK_MINUTES",
     "CONF_DEMAND_CURRENT_ENERGY_SOURCE_TARGET",
-    "CONF_DEMAND_PEAK_ENERGY_SOURCE_TARGET",
+    "CONF_DEMAND_PEAK_COST_SOURCE_TARGET",
     "CONF_DEMAND_PRICE_SOURCE_TARGET",
     "CONF_MAX_POWER_SOURCE_TARGET",
     "CONF_MAX_POWER_TARGET_SOURCE",

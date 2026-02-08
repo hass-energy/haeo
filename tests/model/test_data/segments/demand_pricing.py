@@ -43,12 +43,12 @@ SCENARIOS: list[SegmentScenario] = [
         "expected_outputs": {"objective_value": 10.0},
     },
     {
-        "description": "Demand pricing honors prior peak energy",
+        "description": "Demand pricing honors prior peak charge",
         "factory": DemandPricingSegment,
         "spec": {
             "segment_type": "demand_pricing",
             "demand_price_source_target": 10.0,
-            "demand_peak_energy_source_target": 4.0,
+            "demand_peak_cost_source_target": 40.0,
             "demand_block_hours": 1.0,
         },
         "periods": np.array([1.0]),
