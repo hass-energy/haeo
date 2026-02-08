@@ -258,12 +258,12 @@ class Connection[TOutputName: str](Element[TOutputName]):
             ObjectiveCost container or None if no objectives are defined
 
         """
-        costs: list[ObjectiveCost] = []
-
         # Collect costs from all segments
-        for segment in self._segments.values():
-            if (segment_cost := segment.cost()) is not None:
-                costs.append(as_objective_cost(segment_cost))
+        costs = [
+            as_objective_cost(segment_cost)
+            for segment in self._segments.values()
+            if (segment_cost := segment.cost()) is not None
+        ]
 
         # Add time preference objective (secondary only)
         if (time_preference := self._time_preference_objective()) is not None:

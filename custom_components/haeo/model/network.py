@@ -151,10 +151,11 @@ class Network:
             ObjectiveCost container or None if no objectives are defined
 
         """
-        costs: list[ObjectiveCost] = []
-        for element in self.elements.values():
-            if (element_cost := element.cost()) is not None:
-                costs.append(as_objective_cost(element_cost))
+        costs = [
+            as_objective_cost(element_cost)
+            for element in self.elements.values()
+            if (element_cost := element.cost()) is not None
+        ]
 
         if not costs:
             return None
