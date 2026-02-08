@@ -76,8 +76,8 @@ class Connection[TOutputName: str](Element[TOutputName]):
     segments by constraining their output to the next segment's input.
 
     Source→target flow always uses the order provided.
-    Target→source flow uses the reverse order by default, or mirrors the
-    source→target order when mirror_segment_order is enabled.
+    Target→source flow uses the reverse order by default.
+    Enable `mirror_segment_order` to use the same segment order for both flow directions.
 
     For parameter updates, access segments via indexing:
         connection["power_limit"].max_power_source_target = new_value
@@ -107,7 +107,7 @@ class Connection[TOutputName: str](Element[TOutputName]):
             target: Name of the target element
             segments: Dict of segment names to SegmentSpec TypedDicts.
                 Each spec has segment_type plus segment-specific parameters.
-            mirror_segment_order: Use the same segment order for target→source flow.
+            mirror_segment_order: Use the same segment order for both flow directions.
             output_names: Output names for this connection type
 
         """
