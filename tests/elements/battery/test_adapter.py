@@ -4,8 +4,10 @@ from collections.abc import Sequence
 
 from homeassistant.core import HomeAssistant
 import numpy as np
+import pytest
 
 from custom_components.haeo.elements import battery
+from custom_components.haeo.elements.battery.adapter import _resolve_salvage_value, _resolve_scalar_value
 from custom_components.haeo.elements.availability import schema_config_available
 from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_BATTERY, MODEL_ELEMENT_TYPE_CONNECTION
 from custom_components.haeo.model.elements import ModelElementConfig
@@ -266,6 +268,25 @@ async def test_available_returns_false_when_required_sensor_missing(hass: HomeAs
 
     result = schema_config_available(config, hass=hass)
     assert result is False
+
+
+def test_resolve_scalar_value_handles_series_and_scalar() -> None:
+    """Scalar value helper returns first value or scalar."""
+    assert _resolve_scalar_value(np.array([0.4, 0.5])) == 0.4
+    assert _resolve_scalar_value(0.75) == 0.75
+
+
+def test_resolve_scalar_value_raises_on_empty_series() -> None:
+    """Scalar helper rejects empty series inputs."""
+    with pytest.raises(ValueError, match="Scalar input series cannot be empty"):
+        _resolve_scalar_value(np.array([]))
+
+
+def test_resolve_salvage_value_handles_series_and_scalar() -> None:
+    """Salvage value helper returns final value or scalar."""
+    assert _resolve_salvage_value(np.array([0.1, 0.2])) == 0.2
+    assert _resolve_salvage_value(0.35) == 0.35
+    assert _resolve_salvage_value(np.array([])) is None
 
 
 async def test_available_with_list_entity_ids_all_exist(hass: HomeAssistant) -> None:

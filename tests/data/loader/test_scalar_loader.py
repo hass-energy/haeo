@@ -15,11 +15,35 @@ async def test_scalar_loader_available_missing_sensor(hass: HomeAssistant) -> No
     assert loader.available(hass=hass, value=as_entity_value(["sensor.missing"])) is False
 
 
+async def test_scalar_loader_available_false_for_non_numeric_state(hass: HomeAssistant) -> None:
+    """Scalar loader reports unavailable for non-numeric state values."""
+    loader = ScalarLoader()
+    hass.states.async_set("sensor.bad_state", "unknown", {})
+
+    assert loader.available(hass=hass, value=as_entity_value(["sensor.bad_state"])) is False
+
+
 async def test_scalar_loader_load_requires_entity_ids(hass: HomeAssistant) -> None:
     """Scalar loader raises when no sensors are provided."""
     loader = ScalarLoader()
     with pytest.raises(ValueError, match="At least one sensor entity is required"):
         await loader.load(hass=hass, value=as_entity_value([]))
+
+
+async def test_scalar_loader_load_raises_when_sensor_missing(hass: HomeAssistant) -> None:
+    """Scalar loader raises when a sensor entity is missing."""
+    loader = ScalarLoader()
+    with pytest.raises(ValueError, match=r"Sensor sensor\.missing not found or unavailable"):
+        await loader.load(hass=hass, value=as_entity_value(["sensor.missing"]))
+
+
+async def test_scalar_loader_load_raises_for_non_numeric_state(hass: HomeAssistant) -> None:
+    """Scalar loader raises when sensor state is not numeric."""
+    loader = ScalarLoader()
+    hass.states.async_set("sensor.bad_state", "unknown", {})
+
+    with pytest.raises(ValueError, match=r"Sensor sensor\.bad_state has no numeric state"):
+        await loader.load(hass=hass, value=as_entity_value(["sensor.bad_state"]))
 
 
 async def test_scalar_loader_loads_and_converts_units(hass: HomeAssistant) -> None:

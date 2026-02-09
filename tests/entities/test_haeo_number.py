@@ -116,6 +116,24 @@ def scalar_field_info() -> InputFieldInfo[NumberEntityDescription]:
 
 
 @pytest.fixture
+def scalar_percent_field_info() -> InputFieldInfo[NumberEntityDescription]:
+    """Return a sample InputFieldInfo for a scalar percentage field."""
+    return InputFieldInfo(
+        field_name="soc",
+        entity_description=NumberEntityDescription(
+            key="soc",
+            translation_key="soc",
+            native_unit_of_measurement="%",
+            native_min_value=0.0,
+            native_max_value=100.0,
+            native_step=1.0,
+        ),
+        output_type=OutputType.STATE_OF_CHARGE,
+        time_series=False,
+    )
+
+
+@pytest.fixture
 def boundary_field_info() -> InputFieldInfo[NumberEntityDescription]:
     """Return a sample InputFieldInfo for a boundary field (energy state at time points)."""
     return InputFieldInfo(
@@ -944,6 +962,114 @@ async def test_async_load_data_handles_empty_or_failure(
     await entity._async_load_data()
 
     assert entity.native_value is None
+
+
+# --- Tests for scalar mode ---
+
+
+async def test_scalar_driven_loads_current_value(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    device_entry: Mock,
+    scalar_field_info: InputFieldInfo[NumberEntityDescription],
+    horizon_manager: Mock,
+) -> None:
+    """Scalar fields load current values without forecasting."""
+    subentry = _create_subentry("Test Battery", {"capacity": ["sensor.capacity"]})
+    config_entry.runtime_data = None
+
+    entity = HaeoInputNumber(
+        config_entry=config_entry,
+        subentry=subentry,
+        field_info=scalar_field_info,
+        device_entry=device_entry,
+        horizon_manager=horizon_manager,
+    )
+
+    entity._scalar_loader.load = AsyncMock(return_value=12.0)
+    await _add_entity_to_hass(hass, entity)
+    entity._scalar_loader.load.reset_mock()
+
+    await entity._async_load_data()
+
+    assert entity.native_value == 12.0
+    assert entity.get_values() == (12.0,)
+    assert "forecast" not in entity.extra_state_attributes
+    entity._scalar_loader.load.assert_awaited_once()
+
+
+async def test_scalar_horizon_change_noop(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    device_entry: Mock,
+    scalar_field_info: InputFieldInfo[NumberEntityDescription],
+    horizon_manager: Mock,
+) -> None:
+    """Horizon changes do not trigger reloads for scalar fields."""
+    subentry = _create_subentry("Test Battery", {"capacity": ["sensor.capacity"]})
+    config_entry.runtime_data = None
+
+    entity = HaeoInputNumber(
+        config_entry=config_entry,
+        subentry=subentry,
+        field_info=scalar_field_info,
+        device_entry=device_entry,
+        horizon_manager=horizon_manager,
+    )
+    entity._async_load_data_and_update = AsyncMock()
+
+    entity._handle_horizon_change()
+    await hass.async_block_till_done()
+
+    entity._async_load_data_and_update.assert_not_awaited()
+
+
+async def test_scalar_editable_forecast_omitted(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    device_entry: Mock,
+    scalar_field_info: InputFieldInfo[NumberEntityDescription],
+    horizon_manager: Mock,
+) -> None:
+    """Editable scalar fields do not add forecast attributes."""
+    subentry = _create_subentry("Test Battery", {"capacity": 7.5})
+    config_entry.runtime_data = None
+
+    entity = HaeoInputNumber(
+        config_entry=config_entry,
+        subentry=subentry,
+        field_info=scalar_field_info,
+        device_entry=device_entry,
+        horizon_manager=horizon_manager,
+    )
+
+    entity._update_editable_forecast()
+
+    assert entity.get_values() == (7.5,)
+    assert "forecast" not in entity.extra_state_attributes
+
+
+async def test_scalar_get_values_percent(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    device_entry: Mock,
+    scalar_percent_field_info: InputFieldInfo[NumberEntityDescription],
+    horizon_manager: Mock,
+) -> None:
+    """Scalar percentage values are returned as ratios."""
+    subentry = _create_subentry("Test Battery", {"soc": 50.0})
+    config_entry.runtime_data = None
+
+    entity = HaeoInputNumber(
+        config_entry=config_entry,
+        subentry=subentry,
+        field_info=scalar_percent_field_info,
+        device_entry=device_entry,
+        horizon_manager=horizon_manager,
+    )
+
+    assert entity.get_values() == (0.5,)
+    assert "forecast" not in entity.extra_state_attributes
 
 
 # --- Tests for boundaries mode ---
