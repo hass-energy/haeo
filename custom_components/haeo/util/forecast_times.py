@@ -252,7 +252,7 @@ def tiers_to_periods_seconds(config: Mapping[str, int | str | Mapping[str, int |
         tier_durations = (1, 5, 30, 60)
         min_counts = (5, 6, 4)
 
-        now = dt_util.utcnow()
+        now = dt_util.now()
         total_steps = calculate_total_steps(min_counts, horizon_minutes)
 
         periods_seconds, _ = calculate_aligned_tier_counts(
@@ -302,9 +302,12 @@ def generate_forecast_timestamps(periods_seconds: Sequence[int], start_time: flo
 
     """
     if start_time is None:
-        epoch_seconds = dt_util.utcnow().timestamp()
+        now = dt_util.now()
+        epoch_seconds = now.timestamp()
         smallest_period = min(periods_seconds) if periods_seconds else 60
-        start_time = epoch_seconds // smallest_period * smallest_period
+        offset = now.utcoffset()
+        offset_seconds = offset.total_seconds() if offset is not None else 0.0
+        start_time = ((epoch_seconds + offset_seconds) // smallest_period) * smallest_period - offset_seconds
 
     timestamps: list[float] = [start_time]
     for period in periods_seconds:
