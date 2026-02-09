@@ -16,6 +16,7 @@ from custom_components.haeo.elements.node import CONF_IS_SINK, CONF_IS_SOURCE, S
 from custom_components.haeo.schema import as_connection_target
 from custom_components.haeo.sections import (
     SECTION_COMMON,
+    SECTION_CURTAILMENT,
     SECTION_EFFICIENCY,
     SECTION_FORECAST,
     SECTION_POWER_LIMITS,
@@ -44,6 +45,8 @@ async def test_create_network_successful_loads_load_participant(hass: HomeAssist
                 SECTION_FORECAST: {
                     "forecast": [2.5, 2.5, 2.5, 2.5],  # Pre-loaded values in kW
                 },
+                SECTION_PRICING: {},
+                SECTION_CURTAILMENT: {},
             },
         },
     )

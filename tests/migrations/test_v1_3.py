@@ -34,12 +34,14 @@ from custom_components.haeo.migrations import async_migrate_entry, v1_3
 from custom_components.haeo.schema import as_connection_target, as_constant_value, as_entity_value
 from custom_components.haeo.sections import (
     CONF_CONNECTION,
+    CONF_CURTAILMENT,
     CONF_FORECAST,
     CONF_MAX_POWER_SOURCE_TARGET,
     CONF_MAX_POWER_TARGET_SOURCE,
     CONF_PRICE_SOURCE_TARGET,
     CONF_PRICE_TARGET_SOURCE,
     SECTION_COMMON,
+    SECTION_CURTAILMENT,
     SECTION_EFFICIENCY,
     SECTION_FORECAST,
     SECTION_POWER_LIMITS,
@@ -282,6 +284,8 @@ def test_migrate_subentry_load_node_solar() -> None:
     assert load_migrated is not None
     assert load_migrated[SECTION_COMMON][CONF_CONNECTION] == as_connection_target("bus")
     assert load_migrated[SECTION_FORECAST][CONF_FORECAST] == as_entity_value(["sensor.load"])
+    assert load_migrated[SECTION_PRICING] == {}
+    assert load_migrated[SECTION_CURTAILMENT] == {}
 
     node_subentry = _create_subentry(
         {
@@ -314,6 +318,23 @@ def test_migrate_subentry_load_node_solar() -> None:
     assert solar_migrated[SECTION_FORECAST][CONF_FORECAST] == as_entity_value(["sensor.solar"])
     assert solar_migrated[SECTION_PRICING][CONF_PRICE_SOURCE_TARGET] == as_constant_value(0.12)
     assert solar_migrated[solar.SECTION_CURTAILMENT][solar.CONF_CURTAILMENT] == as_constant_value(True)
+
+
+def test_migrate_subentry_load_maps_legacy_shedding() -> None:
+    """Load migration should map legacy shedding -> curtailment."""
+    load_subentry = _create_subentry(
+        {
+            CONF_ELEMENT_TYPE: load.ELEMENT_TYPE,
+            CONF_NAME: "Load",
+            CONF_CONNECTION: "bus",
+            CONF_FORECAST: ["sensor.load"],
+            "shedding": {"shedding": True},
+        },
+        subentry_type=load.ELEMENT_TYPE,
+    )
+    migrated = v1_3._migrate_subentry_data(load_subentry)
+    assert migrated is not None
+    assert migrated[SECTION_CURTAILMENT][CONF_CURTAILMENT] == as_constant_value(True)
 
 
 async def test_async_migrate_entry_updates_entry_and_subentries(hass: HomeAssistant) -> None:

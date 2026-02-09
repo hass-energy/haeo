@@ -124,12 +124,14 @@ def _migrate_subentry_data(subentry: ConfigSubentry) -> dict[str, Any] | None:
     )
     from custom_components.haeo.sections import (  # noqa: PLC0415
         CONF_CONNECTION,
+        CONF_CURTAILMENT,
         CONF_FORECAST,
         CONF_MAX_POWER_SOURCE_TARGET,
         CONF_MAX_POWER_TARGET_SOURCE,
         CONF_PRICE_SOURCE_TARGET,
         CONF_PRICE_TARGET_SOURCE,
         SECTION_COMMON,
+        SECTION_CURTAILMENT,
         SECTION_EFFICIENCY,
         SECTION_FORECAST,
         SECTION_POWER_LIMITS,
@@ -328,14 +330,35 @@ def _migrate_subentry_data(subentry: ConfigSubentry) -> dict[str, Any] | None:
     if element_type == load.ELEMENT_TYPE:
         common: dict[str, Any] = {}
         forecast: dict[str, Any] = {}
+        pricing: dict[str, Any] = {}
+        curtailment: dict[str, Any] = {}
         for key in (CONF_NAME, CONF_CONNECTION):
             add_if_present(common, key)
         if CONF_CONNECTION in common:
             common[CONF_CONNECTION] = normalize_connection_target(common[CONF_CONNECTION])
         add_if_present(forecast, CONF_FORECAST, convert=True)
+
+        # Backfill required sections introduced after 1.3's original load schema.
+        #
+        # Pricing is optional/disableable (NoneValue) but the section itself is required.
+        if isinstance(data.get(SECTION_PRICING), dict):
+            pricing.update(data[SECTION_PRICING])
+        convert_section_values(pricing, (CONF_PRICE_TARGET_SOURCE,))
+
+        if isinstance(data.get(SECTION_CURTAILMENT), dict):
+            curtailment.update(data[SECTION_CURTAILMENT])
+        # Legacy section/field name (from early development) was "shedding".
+        if isinstance(data.get("shedding"), dict) and CONF_CURTAILMENT not in curtailment:
+            legacy = data["shedding"]
+            if "shedding" in legacy:
+                curtailment[CONF_CURTAILMENT] = to_schema_value(legacy["shedding"])
+        convert_section_values(curtailment, (CONF_CURTAILMENT,))
+
         migrated |= {
             SECTION_COMMON: common,
             SECTION_FORECAST: forecast,
+            SECTION_PRICING: pricing,
+            SECTION_CURTAILMENT: curtailment,
         }
         return migrated
 

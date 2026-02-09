@@ -14,10 +14,14 @@ from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.elements import node
 from custom_components.haeo.elements.load import (
     CONF_CONNECTION,
+    CONF_CURTAILMENT,
     CONF_FORECAST,
+    CONF_PRICE_TARGET_SOURCE,
     ELEMENT_TYPE,
     SECTION_COMMON,
+    SECTION_CURTAILMENT,
     SECTION_FORECAST,
+    SECTION_PRICING,
     adapter,
 )
 from custom_components.haeo.schema import as_connection_target, as_constant_value, as_entity_value
@@ -37,17 +41,24 @@ def _wrap_input(flat: dict[str, Any]) -> dict[str, Any]:
         SECTION_FORECAST: {
             CONF_FORECAST: flat[CONF_FORECAST],
         },
+        SECTION_PRICING: {key: flat[key] for key in (CONF_PRICE_TARGET_SOURCE,) if key in flat},
+        SECTION_CURTAILMENT: {key: flat[key] for key in (CONF_CURTAILMENT,) if key in flat},
     }
 
 
 def _wrap_config(flat: dict[str, Any]) -> dict[str, Any]:
     """Wrap flat load config values into sectioned config with element type."""
     if SECTION_COMMON in flat:
-        return {CONF_ELEMENT_TYPE: ELEMENT_TYPE, **flat}
+        data = {CONF_ELEMENT_TYPE: ELEMENT_TYPE, **flat}
+        data.setdefault(SECTION_PRICING, {})
+        data.setdefault(SECTION_CURTAILMENT, {})
+        return data
     config = _wrap_input(flat)
     common = config.get(SECTION_COMMON, {})
     if CONF_CONNECTION in common and isinstance(common[CONF_CONNECTION], str):
         common[CONF_CONNECTION] = as_connection_target(common[CONF_CONNECTION])
+    config.setdefault(SECTION_PRICING, {})
+    config.setdefault(SECTION_CURTAILMENT, {})
     return {CONF_ELEMENT_TYPE: ELEMENT_TYPE, **config}
 
 
@@ -81,6 +92,8 @@ def _wrap_config(flat: dict[str, Any]) -> dict[str, Any]:
                     CONF_CONNECTION: as_connection_target("TestNode"),
                 },
                 SECTION_FORECAST: {},
+                SECTION_PRICING: {},
+                SECTION_CURTAILMENT: {},
             },
             None,
             True,
@@ -166,6 +179,7 @@ async def test_user_step_with_entity_creates_entry(
             CONF_NAME: "Test Load",
             CONF_CONNECTION: "TestNode",
             CONF_FORECAST: [],
+            CONF_CURTAILMENT: False,
         }
     )
     invalid_result = await flow.async_step_user(user_input=invalid_input)
@@ -178,6 +192,7 @@ async def test_user_step_with_entity_creates_entry(
             CONF_NAME: "Test Load",
             CONF_CONNECTION: "TestNode",
             CONF_FORECAST: ["sensor.load_forecast"],
+            CONF_CURTAILMENT: False,
         }
     )
     result = await flow.async_step_user(user_input=user_input)
@@ -211,6 +226,7 @@ async def test_user_step_with_constant_creates_entry(
             CONF_NAME: "Test Load",
             CONF_CONNECTION: "TestNode",
             CONF_FORECAST: 5.0,
+            CONF_CURTAILMENT: False,
         }
     )
     result = await flow.async_step_user(user_input=user_input)

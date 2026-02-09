@@ -159,6 +159,8 @@ def test_is_element_config_schema_valid_load() -> None:
         "element_type": "load",
         load.SECTION_COMMON: {"name": "test_load", "connection": as_connection_target("main_bus")},
         load.SECTION_FORECAST: {"forecast": as_entity_value(["sensor.load_forecast"])},
+        load.SECTION_PRICING: {},
+        load.SECTION_CURTAILMENT: {},
     }
     assert is_element_config_schema(valid_config) is True
 
