@@ -45,6 +45,7 @@ CONF_CONFIGURE_PARTITIONS: Final = "configure_partitions"
 
 CONF_PARTITION_PERCENTAGE: Final = "percentage"
 CONF_PARTITION_COST: Final = "cost"
+CONF_SALVAGE_VALUE: Final = "salvage_value"
 
 OPTIONAL_INPUT_FIELDS: Final[frozenset[str]] = frozenset(
     {
@@ -56,6 +57,7 @@ OPTIONAL_INPUT_FIELDS: Final[frozenset[str]] = frozenset(
         CONF_EFFICIENCY_TARGET_SOURCE,
         CONF_PRICE_SOURCE_TARGET,
         CONF_PRICE_TARGET_SOURCE,
+        CONF_SALVAGE_VALUE,
         CONF_PARTITION_PERCENTAGE,
         CONF_PARTITION_COST,
     }
@@ -81,7 +83,7 @@ class StorageSocData(TypedDict):
     """Loaded storage values with required SOC percentage."""
 
     capacity: NDArray[np.floating[Any]]
-    initial_charge_percentage: NDArray[np.floating[Any]]
+    initial_charge_percentage: NDArray[np.floating[Any]] | float
 
 
 class LimitsConfig(TypedDict, total=False):
@@ -124,6 +126,18 @@ class PartitionData(TypedDict, total=False):
     cost: NDArray[np.floating[Any]] | float
 
 
+class BatteryPricingConfig(PricingConfig, total=False):
+    """Battery pricing configuration values."""
+
+    salvage_value: EntityValue | ConstantValue | NoneValue
+
+
+class BatteryPricingData(PricingData, total=False):
+    """Loaded battery pricing values."""
+
+    salvage_value: NDArray[np.floating[Any]] | float
+
+
 class BatteryConfigSchema(TypedDict):
     """Battery element configuration as stored in Home Assistant."""
 
@@ -132,7 +146,7 @@ class BatteryConfigSchema(TypedDict):
     storage: StorageSocConfig
     limits: LimitsConfig
     power_limits: PowerLimitsConfig
-    pricing: PricingConfig
+    pricing: BatteryPricingConfig
     efficiency: EfficiencyConfig
     partitioning: PartitioningConfig
     undercharge: NotRequired[PartitionConfig]
@@ -147,7 +161,7 @@ class BatteryConfigData(TypedDict):
     storage: StorageSocData
     limits: LimitsData
     power_limits: PowerLimitsData
-    pricing: PricingData
+    pricing: BatteryPricingData
     efficiency: EfficiencyData
     partitioning: PartitioningData
     undercharge: NotRequired[PartitionData]
@@ -167,6 +181,7 @@ __all__ = [
     "CONF_MIN_CHARGE_PERCENTAGE",
     "CONF_PARTITION_COST",
     "CONF_PARTITION_PERCENTAGE",
+    "CONF_SALVAGE_VALUE",
     "ELEMENT_TYPE",
     "OPTIONAL_INPUT_FIELDS",
     "PARTITION_FIELD_NAMES",
@@ -181,4 +196,6 @@ __all__ = [
     "SECTION_UNDERCHARGE",
     "BatteryConfigData",
     "BatteryConfigSchema",
+    "BatteryPricingConfig",
+    "BatteryPricingData",
 ]

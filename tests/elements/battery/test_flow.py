@@ -27,6 +27,7 @@ from custom_components.haeo.elements.battery import (
     CONF_PARTITION_PERCENTAGE,
     CONF_PRICE_SOURCE_TARGET,
     CONF_PRICE_TARGET_SOURCE,
+    CONF_SALVAGE_VALUE,
     ELEMENT_TYPE,
     SECTION_COMMON,
     SECTION_EFFICIENCY,
@@ -88,6 +89,7 @@ def _wrap_main_input(user_input: dict[str, Any], *, as_schema: bool = False) -> 
             for key in (
                 CONF_PRICE_SOURCE_TARGET,
                 CONF_PRICE_TARGET_SOURCE,
+                CONF_SALVAGE_VALUE,
             )
             if key in user_input
         },

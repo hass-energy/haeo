@@ -181,6 +181,72 @@ CREATE_CASES: Sequence[CreateCase] = [
             },
         ],
     },
+    {
+        "description": "Battery with salvage value",
+        "data": BatteryConfigData(
+            element_type="battery",
+            common={
+                "name": "battery_salvage",
+                "connection": as_connection_target("network"),
+            },
+            storage={
+                "capacity": np.array([8.0, 8.0]),
+                "initial_charge_percentage": np.array([0.5]),
+            },
+            limits={
+                "min_charge_percentage": np.array([0.0, 0.0]),
+                "max_charge_percentage": np.array([1.0, 1.0]),
+            },
+            power_limits={
+                "max_power_source_target": np.array([4.0]),
+                "max_power_target_source": np.array([4.0]),
+            },
+            pricing={
+                "price_source_target": np.array([0.02]),
+                "price_target_source": np.array([0.01]),
+                "salvage_value": np.array([0.05]),
+            },
+            efficiency={
+                "efficiency_source_target": np.array([0.95]),
+                "efficiency_target_source": np.array([0.95]),
+            },
+            partitioning={},
+            undercharge={},
+            overcharge={},
+        ),
+        "model": [
+            {
+                "element_type": MODEL_ELEMENT_TYPE_BATTERY,
+                "name": "battery_salvage",
+                "capacity": [8.0, 8.0],
+                "initial_charge": 4.0,
+                "salvage_value": 0.05,
+            },
+            {
+                "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
+                "name": "battery_salvage:connection",
+                "source": "battery_salvage",
+                "target": "network",
+                "segments": {
+                    "efficiency": {
+                        "segment_type": "efficiency",
+                        "efficiency_source_target": [0.95],
+                        "efficiency_target_source": [0.95],
+                    },
+                    "power_limit": {
+                        "segment_type": "power_limit",
+                        "max_power_source_target": [4.0],
+                        "max_power_target_source": [4.0],
+                    },
+                    "pricing": {
+                        "segment_type": "pricing",
+                        "price_source_target": [0.03],
+                        "price_target_source": [-0.01],
+                    },
+                },
+            },
+        ],
+    },
 ]
 
 

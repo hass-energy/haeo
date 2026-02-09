@@ -110,7 +110,8 @@
             "min_charge_percentage": "Min Charge Level",
             "name": "Battery Name",
             "price_source_target": "Discharge price",
-            "price_target_source": "Charge price"
+            "price_target_source": "Charge price",
+            "salvage_value": "Salvage value"
           },
           "sections": {
             "common": { "data": { "connection": "Connection", "name": "Battery Name" }, "name": "Common settings" },
@@ -137,7 +138,11 @@
               "name": "Power limits"
             },
             "pricing": {
-              "data": { "price_source_target": "Discharge price", "price_target_source": "Charge price" },
+              "data": {
+                "price_source_target": "Discharge price",
+                "price_target_source": "Charge price",
+                "salvage_value": "Salvage value"
+              },
               "name": "Pricing"
             },
             "storage": {
@@ -420,6 +425,7 @@
       "battery_percentage": { "name": "Percentage" },
       "battery_price_source_target": { "name": "Discharge price" },
       "battery_price_target_source": { "name": "Charge price" },
+      "battery_salvage_value": { "name": "Salvage value" },
       "connection_efficiency_source_target": { "name": "Source to target efficiency" },
       "connection_efficiency_target_source": { "name": "Target to source efficiency" },
       "connection_max_power_source_target": { "name": "Max source to target power" },

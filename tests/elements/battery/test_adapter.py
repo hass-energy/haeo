@@ -95,6 +95,7 @@ def _wrap_config(flat: dict[str, object]) -> battery.BatteryConfigSchema:
         elif key in (
             "price_source_target",
             "price_target_source",
+            "salvage_value",
         ):
             pricing[key] = to_schema_value(value)
         elif key == "undercharge" and isinstance(value, dict):
@@ -160,6 +161,7 @@ def _wrap_data(flat: dict[str, object]) -> battery.BatteryConfigData:
         elif key in (
             "price_source_target",
             "price_target_source",
+            "salvage_value",
         ):
             pricing[key] = value
         elif key == "undercharge" and isinstance(value, dict):
