@@ -46,7 +46,7 @@ See the [Forecasts and Sensors guide](../forecasts-and-sensors.md) for details o
 ## Consumption value
 
 Optional value per kWh of this load when it is running.
-This is used only when [Shedding](#shedding) is enabled.
+This value always applies when configured, regardless of whether [Shedding](#shedding) is enabled.
 
 **Default**: Disabled.
 
@@ -260,6 +260,15 @@ When shedding is enabled, this may be lower than the forecast if the optimizer d
 **For variable loads**: The sensor reflects the forecast values for each period from the configured sensor(s).
 
 **Example**: A value of 2.5 kW means this load requires 2.5 kW at this time period, which the optimization must supply from available sources.
+
+!!! note "Interpreting partial power"
+
+    HAEO models average power for each time period.
+    When the optimized power is lower than the configured forecast, HAEO does not distinguish between:
+
+    - a load running at 50% for the whole period, and
+    - a load running at 100% for half the period.
+        Interpret the reduced power in whatever way makes sense for the device you are controlling.
 
 ### Forecast Limit Price
 

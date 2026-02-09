@@ -94,6 +94,9 @@ Load represents power consumption that the system can choose to satisfy up to a 
 When curtailment (shedding) is disabled, the forecast is enforced exactly.
 When enabled, the optimizer may shed the load if that reduces total system cost.
 
+The model represents average power within each optimization period.
+This means reduced power can be interpreted as partial operation in whatever way fits the physical device (duty cycle, throttling, staging, etc.).
+
 ### Configuration Guidelines
 
 - **Forecast Accuracy**:
