@@ -16,6 +16,7 @@ from custom_components.haeo.elements.battery import (
     CONF_MIN_CHARGE_PERCENTAGE,
     CONF_PARTITION_COST,
     CONF_PARTITION_PERCENTAGE,
+    CONF_SALVAGE_VALUE,
     SECTION_LIMITS,
     SECTION_OVERCHARGE,
     SECTION_PARTITIONING,
@@ -157,7 +158,7 @@ def test_validate_network_topology_with_battery(
         },
         SECTION_STORAGE: {
             CONF_CAPACITY: np.array([10.0, 10.0, 10.0]),
-            CONF_INITIAL_CHARGE_PERCENTAGE: np.array([50.0, 50.0]),
+            CONF_INITIAL_CHARGE_PERCENTAGE: 0.5,
         },
         SECTION_LIMITS: {
             CONF_MIN_CHARGE_PERCENTAGE: np.array([10.0, 10.0, 10.0]),
@@ -167,7 +168,9 @@ def test_validate_network_topology_with_battery(
             CONF_MAX_POWER_SOURCE_TARGET: np.array([5.0, 5.0]),
             CONF_MAX_POWER_TARGET_SOURCE: np.array([5.0, 5.0]),
         },
-        SECTION_PRICING: {},
+        SECTION_PRICING: {
+            CONF_SALVAGE_VALUE: 0.0,
+        },
         SECTION_EFFICIENCY: {
             CONF_EFFICIENCY_SOURCE_TARGET: np.array([95.0, 95.0]),
             CONF_EFFICIENCY_TARGET_SOURCE: np.array([95.0, 95.0]),

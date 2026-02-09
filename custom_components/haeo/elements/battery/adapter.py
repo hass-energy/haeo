@@ -41,6 +41,7 @@ from .schema import (
     CONF_MIN_CHARGE_PERCENTAGE,
     CONF_PARTITION_COST,
     CONF_PARTITION_PERCENTAGE,
+    CONF_SALVAGE_VALUE,
     ELEMENT_TYPE,
     SECTION_LIMITS,
     SECTION_OVERCHARGE,
@@ -127,7 +128,7 @@ class BatteryAdapter:
                         native_step=0.1,
                     ),
                     output_type=OutputType.STATE_OF_CHARGE,
-                    time_series=True,
+                    time_series=False,
                 ),
             },
             SECTION_POWER_LIMITS: {
@@ -259,6 +260,19 @@ class BatteryAdapter:
                     time_series=True,
                     defaults=InputFieldDefaults(mode=None, value=0.0),
                 ),
+                CONF_SALVAGE_VALUE: InputFieldInfo(
+                    field_name=CONF_SALVAGE_VALUE,
+                    entity_description=NumberEntityDescription(
+                        key=CONF_SALVAGE_VALUE,
+                        translation_key=f"{ELEMENT_TYPE}_{CONF_SALVAGE_VALUE}",
+                        native_min_value=-1.0,
+                        native_max_value=10.0,
+                        native_step=0.001,
+                    ),
+                    output_type=OutputType.PRICE,
+                    time_series=False,
+                    defaults=InputFieldDefaults(mode=None, value=0.0),
+                ),
             },
             SECTION_UNDERCHARGE: _partition_input_fields(
                 percentage_default=0,
@@ -294,7 +308,7 @@ class BatteryAdapter:
 
         capacity = storage[CONF_CAPACITY]
         capacity_first = float(capacity[0])
-        initial_soc = float(storage[CONF_INITIAL_CHARGE_PERCENTAGE][0])
+        initial_soc = storage[CONF_INITIAL_CHARGE_PERCENTAGE]
 
         min_charge_percentage = limits.get(CONF_MIN_CHARGE_PERCENTAGE, DEFAULTS[CONF_MIN_CHARGE_PERCENTAGE])
         max_charge_percentage = limits.get(CONF_MAX_CHARGE_PERCENTAGE, DEFAULTS[CONF_MAX_CHARGE_PERCENTAGE])
@@ -322,6 +336,7 @@ class BatteryAdapter:
                 "name": name,
                 "capacity": capacity_range,
                 "initial_charge": initial_charge,
+                "salvage_value": pricing.get(CONF_SALVAGE_VALUE, 0.0),
             }
         )
 

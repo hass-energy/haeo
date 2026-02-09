@@ -52,6 +52,7 @@ Optional fields set to "None" are omitted from the optimization entirely.
 | **[Max Discharge Power](#max-charge-and-discharge-power)**        | Power      | No       | -       | Maximum discharging power                                  |
 | **[Charge Price](#charge-price)**                                 | Price      | No       | 0       | Base price applied when charging                           |
 | **[Discharge Price](#discharge-price)**                           | Price      | No       | 0       | Base price applied when discharging                        |
+| **[Salvage Value](#salvage-value)**                               | Price      | No       | 0       | Value assigned to stored energy at the horizon end         |
 
 If not specified, power is unconstrained (limited only by other system constraints).
 
@@ -115,6 +116,16 @@ Base price in \$/kWh applied to all battery discharge operations.
 Models battery degradation or other discharge penalties.
 
 **Default**: 0 \$/kWh (no added cost)
+
+### Salvage Value
+
+Value in \$/kWh assigned to stored energy at the end of the optimization horizon.
+This prevents the optimizer from draining the battery to zero when future value is still expected.
+
+**Default**: 0 \$/kWh (no terminal value)
+
+**How it works**: The optimizer credits the final stored energy by this amount.
+Higher values encourage retaining energy for periods beyond the horizon.
 
 ### Configure battery partitions
 

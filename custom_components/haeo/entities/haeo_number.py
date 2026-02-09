@@ -16,7 +16,7 @@ from homeassistant.util import dt as dt_util
 
 from custom_components.haeo import HaeoConfigEntry
 from custom_components.haeo.const import CONF_RECORD_FORECASTS
-from custom_components.haeo.data.loader import TimeSeriesLoader
+from custom_components.haeo.data.loader import ScalarLoader, TimeSeriesLoader
 from custom_components.haeo.elements import InputFieldPath, find_nested_config_path, get_nested_config_value_by_path
 from custom_components.haeo.elements.input_fields import InputFieldInfo
 from custom_components.haeo.horizon import HorizonManager
@@ -77,6 +77,7 @@ class HaeoInputNumber(NumberEntity):
             field_path or find_nested_config_path(subentry.data, field_info.field_name) or (field_info.field_name,)
         )
         self._horizon_manager = horizon_manager
+        self._uses_forecast = field_info.time_series
 
         # Set device_entry to link entity to device
         self.device_entry = device_entry
@@ -150,8 +151,10 @@ class HaeoInputNumber(NumberEntity):
             self._base_extra_attrs["direction"] = field_info.direction
         self._attr_extra_state_attributes = dict(self._base_extra_attrs)
 
-        # Loader for time series data
-        self._loader = TimeSeriesLoader()
+        # Loaders for time series and scalar data
+        self._time_series_loader = TimeSeriesLoader()
+        self._scalar_loader = ScalarLoader()
+        self._loader = self._time_series_loader
 
         # Event that signals data is ready for coordinator access
         self._data_ready = asyncio.Event()
@@ -175,7 +178,8 @@ class HaeoInputNumber(NumberEntity):
         await super().async_added_to_hass()
 
         # Subscribe to horizon manager for consistent time windows
-        self.async_on_remove(self._horizon_manager.subscribe(self._handle_horizon_change))
+        if self._uses_forecast:
+            self.async_on_remove(self._horizon_manager.subscribe(self._handle_horizon_change))
 
         if self._entity_mode == ConfigEntityMode.EDITABLE:
             # Update forecast for initial value
@@ -195,6 +199,8 @@ class HaeoInputNumber(NumberEntity):
     @callback
     def _handle_horizon_change(self) -> None:
         """Handle horizon change - refresh forecast with new time windows."""
+        if not self._uses_forecast:
+            return
         if self._entity_mode == ConfigEntityMode.EDITABLE:
             self._update_editable_forecast()
             self.async_write_ha_state()
@@ -224,19 +230,35 @@ class HaeoInputNumber(NumberEntity):
         state. Do not write state from async_added_to_hass(); Home Assistant
         will handle initial state once the entity has been fully added.
         """
+        if not self._uses_forecast:
+            if not self._source_entity_ids:
+                return
+            try:
+                scalar_value = await self._scalar_loader.load(
+                    hass=self.hass,
+                    value=as_entity_value(self._source_entity_ids),
+                )
+            except Exception:
+                return
+
+            self._attr_native_value = scalar_value
+            self._attr_extra_state_attributes = dict(self._base_extra_attrs)
+            self._data_ready.set()
+            return
+
         forecast_timestamps = self._get_forecast_timestamps()
 
         try:
             if self._field_info.boundaries:
                 # Boundary fields: n+1 values at time boundaries
-                values = await self._loader.load_boundaries(
+                values = await self._time_series_loader.load_boundaries(
                     hass=self.hass,
                     value=as_entity_value(self._source_entity_ids),
                     forecast_times=list(forecast_timestamps),
                 )
             else:
                 # Interval fields: n values for periods between boundaries
-                values = await self._loader.load_intervals(
+                values = await self._time_series_loader.load_intervals(
                     hass=self.hass,
                     value=as_entity_value(self._source_entity_ids),
                     forecast_times=list(forecast_timestamps),
@@ -276,11 +298,11 @@ class HaeoInputNumber(NumberEntity):
 
     def _update_editable_forecast(self) -> None:
         """Update forecast attribute for editable mode with constant value."""
-        forecast_timestamps = self._get_forecast_timestamps()
-
         extra_attrs = dict(self._base_extra_attrs)
 
-        if self._attr_native_value is not None:
+        if self._attr_native_value is not None and self._uses_forecast:
+            forecast_timestamps = self._get_forecast_timestamps()
+
             # Build forecast as list of ForecastPoint-style dicts with constant value.
             # For boundaries: n+1 values at each timestamp
             # For intervals: n values corresponding to periods (use timestamps[:-1])
@@ -329,6 +351,13 @@ class HaeoInputNumber(NumberEntity):
 
     def get_values(self) -> tuple[float, ...] | None:
         """Return the forecast values as a tuple, or None if not loaded."""
+        if not self._uses_forecast:
+            if self._attr_native_value is None:
+                return None
+            value = float(self._attr_native_value)
+            if self.entity_description.native_unit_of_measurement == PERCENTAGE:
+                return (value / 100.0,)
+            return (value,)
         forecast = self._attr_extra_state_attributes.get("forecast")
         if forecast:
             values = tuple(point["value"] for point in forecast if isinstance(point, dict) and "value" in point)

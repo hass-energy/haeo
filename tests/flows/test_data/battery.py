@@ -14,6 +14,7 @@ from custom_components.haeo.elements.battery import (
     CONF_MIN_CHARGE_PERCENTAGE,
     CONF_PRICE_SOURCE_TARGET,
     CONF_PRICE_TARGET_SOURCE,
+    CONF_SALVAGE_VALUE,
     SECTION_COMMON,
     SECTION_EFFICIENCY,
     SECTION_LIMITS,
@@ -48,6 +49,7 @@ VALID_DATA = [
             },
             SECTION_PRICING: {
                 CONF_PRICE_TARGET_SOURCE: as_constant_value(0.01),
+                CONF_SALVAGE_VALUE: as_constant_value(0.0),
             },
             SECTION_EFFICIENCY: {
                 CONF_EFFICIENCY_SOURCE_TARGET: as_constant_value(95.0),
@@ -80,6 +82,7 @@ VALID_DATA = [
             SECTION_PRICING: {
                 CONF_PRICE_TARGET_SOURCE: as_constant_value(0.05),
                 CONF_PRICE_SOURCE_TARGET: as_constant_value(0.03),
+                CONF_SALVAGE_VALUE: as_constant_value(0.02),
             },
             SECTION_EFFICIENCY: {
                 CONF_EFFICIENCY_SOURCE_TARGET: as_constant_value(95.0),
@@ -111,6 +114,7 @@ INVALID_DATA = [
             },
             SECTION_PRICING: {
                 CONF_PRICE_TARGET_SOURCE: as_constant_value(0.01),
+                CONF_SALVAGE_VALUE: as_constant_value(0.0),
             },
             SECTION_EFFICIENCY: {
                 CONF_EFFICIENCY_SOURCE_TARGET: as_constant_value(95.0),

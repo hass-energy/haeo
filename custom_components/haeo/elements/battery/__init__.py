@@ -35,6 +35,7 @@ from .schema import (
     CONF_PARTITION_PERCENTAGE,
     CONF_PRICE_SOURCE_TARGET,
     CONF_PRICE_TARGET_SOURCE,
+    CONF_SALVAGE_VALUE,
     ELEMENT_TYPE,
     OPTIONAL_INPUT_FIELDS,
     PARTITION_FIELD_NAMES,
@@ -49,6 +50,8 @@ from .schema import (
     SECTION_UNDERCHARGE,
     BatteryConfigData,
     BatteryConfigSchema,
+    BatteryPricingConfig,
+    BatteryPricingData,
 )
 
 __all__ = [
@@ -79,6 +82,7 @@ __all__ = [
     "CONF_PARTITION_PERCENTAGE",
     "CONF_PRICE_SOURCE_TARGET",
     "CONF_PRICE_TARGET_SOURCE",
+    "CONF_SALVAGE_VALUE",
     "ELEMENT_TYPE",
     "OPTIONAL_INPUT_FIELDS",
     "PARTITION_FIELD_NAMES",
@@ -96,5 +100,7 @@ __all__ = [
     "BatteryConfigSchema",
     "BatteryDeviceName",
     "BatteryOutputName",
+    "BatteryPricingConfig",
+    "BatteryPricingData",
     "adapter",
 ]

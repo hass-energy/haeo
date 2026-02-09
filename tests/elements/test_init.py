@@ -98,6 +98,7 @@ def test_is_element_config_schema_valid_battery() -> None:
         },
         battery.SECTION_PRICING: {
             "price_target_source": as_constant_value(0.05),
+            "salvage_value": as_constant_value(0.0),
         },
         battery.SECTION_EFFICIENCY: {},
         battery.SECTION_PARTITIONING: {},

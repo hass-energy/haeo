@@ -26,7 +26,8 @@
       },
       "pricing": {
         "price_source_target": { "type": "constant", "value": 0.02 },
-        "price_target_source": { "type": "constant", "value": 0.001 }
+        "price_target_source": { "type": "constant", "value": 0.001 },
+        "salvage_value": { "type": "constant", "value": 0.0 }
       },
       "storage": {
         "capacity": { "type": "entity", "value": ["sensor.sigen_plant_rated_energy_capacity"] },

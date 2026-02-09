@@ -54,6 +54,7 @@ from custom_components.haeo.elements.battery import (
     CONF_MAX_POWER_SOURCE_TARGET,
     CONF_MAX_POWER_TARGET_SOURCE,
     CONF_MIN_CHARGE_PERCENTAGE,
+    CONF_SALVAGE_VALUE,
     SECTION_LIMITS,
     SECTION_PARTITIONING,
     SECTION_STORAGE,
@@ -78,12 +79,13 @@ def _battery_config(
     max_charge_percentage: float | None = None,
     efficiency_source_target: float | None = None,
     efficiency_target_source: float | None = None,
+    salvage_value: float = 0.0,
 ) -> dict[str, Any]:
     """Build a sectioned battery config dict for diagnostics tests."""
     limits: dict[str, Any] = {}
     power_limits: dict[str, Any] = {}
     efficiency_section: dict[str, Any] = {}
-    pricing: dict[str, Any] = {}
+    pricing: dict[str, Any] = {CONF_SALVAGE_VALUE: as_constant_value(salvage_value)}
     if max_power_source_target is not None:
         power_limits[CONF_MAX_POWER_SOURCE_TARGET] = as_constant_value(max_power_source_target)
     if max_power_target_source is not None:

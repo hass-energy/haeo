@@ -95,12 +95,15 @@ def _wrap_config(flat: dict[str, object]) -> battery.BatteryConfigSchema:
         elif key in (
             "price_source_target",
             "price_target_source",
+            "salvage_value",
         ):
             pricing[key] = to_schema_value(value)
         elif key == "undercharge" and isinstance(value, dict):
             undercharge.update({subkey: to_schema_value(subvalue) for subkey, subvalue in value.items()})
         elif key == "overcharge" and isinstance(value, dict):
             overcharge.update({subkey: to_schema_value(subvalue) for subkey, subvalue in value.items()})
+
+    pricing.setdefault("salvage_value", as_constant_value(0.0))
 
     config: dict[str, object] = {
         "element_type": "battery",
@@ -160,12 +163,15 @@ def _wrap_data(flat: dict[str, object]) -> battery.BatteryConfigData:
         elif key in (
             "price_source_target",
             "price_target_source",
+            "salvage_value",
         ):
             pricing[key] = value
         elif key == "undercharge" and isinstance(value, dict):
             undercharge.update(value)
         elif key == "overcharge" and isinstance(value, dict):
             overcharge.update(value)
+
+    pricing.setdefault(battery.CONF_SALVAGE_VALUE, 0.0)
 
     config: dict[str, object] = {
         "element_type": "battery",
@@ -360,7 +366,7 @@ def test_model_elements_omits_efficiency_when_missing() -> None:
             "name": "test_battery",
             "connection": "main_bus",
             "capacity": np.array([10.0, 10.0, 10.0]),
-            "initial_charge_percentage": np.array([0.5, 0.5]),
+            "initial_charge_percentage": 0.5,
         }
     )
 
@@ -386,7 +392,7 @@ def test_model_elements_passes_efficiency_when_present() -> None:
             "name": "test_battery",
             "connection": "main_bus",
             "capacity": np.array([10.0, 10.0, 10.0]),
-            "initial_charge_percentage": np.array([0.5, 0.5]),
+            "initial_charge_percentage": 0.5,
             "efficiency_source_target": np.array([0.95, 0.95]),
             "efficiency_target_source": np.array([0.95, 0.95]),
         }
@@ -415,7 +421,7 @@ def test_model_elements_overcharge_only_adds_soc_pricing() -> None:
             "name": "test_battery",
             "connection": "main_bus",
             "capacity": np.array([10.0, 10.0, 10.0]),
-            "initial_charge_percentage": np.array([0.5, 0.5]),
+            "initial_charge_percentage": 0.5,
             "min_charge_percentage": np.array([0.1, 0.1, 0.1]),
             "max_charge_percentage": np.array([0.9, 0.9, 0.9]),
             "overcharge": {

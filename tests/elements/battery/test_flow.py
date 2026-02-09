@@ -27,6 +27,7 @@ from custom_components.haeo.elements.battery import (
     CONF_PARTITION_PERCENTAGE,
     CONF_PRICE_SOURCE_TARGET,
     CONF_PRICE_TARGET_SOURCE,
+    CONF_SALVAGE_VALUE,
     ELEMENT_TYPE,
     SECTION_COMMON,
     SECTION_EFFICIENCY,
@@ -57,6 +58,17 @@ def _wrap_main_input(user_input: dict[str, Any], *, as_schema: bool = False) -> 
     has_schema_values = any(isinstance(value, dict) and "type" in value for value in user_input.values())
     if (as_schema or has_schema_values) and isinstance(common.get(CONF_CONNECTION), str):
         common[CONF_CONNECTION] = as_connection_target(common[CONF_CONNECTION])
+    pricing = {
+        key: user_input[key]
+        for key in (
+            CONF_PRICE_SOURCE_TARGET,
+            CONF_PRICE_TARGET_SOURCE,
+            CONF_SALVAGE_VALUE,
+        )
+        if key in user_input
+    }
+    pricing.setdefault(CONF_SALVAGE_VALUE, 0.0)
+
     return {
         SECTION_COMMON: common,
         SECTION_STORAGE: {
@@ -83,14 +95,7 @@ def _wrap_main_input(user_input: dict[str, Any], *, as_schema: bool = False) -> 
             )
             if key in user_input
         },
-        SECTION_PRICING: {
-            key: user_input[key]
-            for key in (
-                CONF_PRICE_SOURCE_TARGET,
-                CONF_PRICE_TARGET_SOURCE,
-            )
-            if key in user_input
-        },
+        SECTION_PRICING: pricing,
         SECTION_EFFICIENCY: {key: user_input[key] for key in (CONF_EFFICIENCY_SOURCE_TARGET, CONF_EFFICIENCY_TARGET_SOURCE) if key in user_input},
         SECTION_PARTITIONING: {key: user_input[key] for key in (CONF_CONFIGURE_PARTITIONS,) if key in user_input},
     }

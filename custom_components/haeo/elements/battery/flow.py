@@ -45,6 +45,7 @@ from .schema import (
     CONF_MIN_CHARGE_PERCENTAGE,
     CONF_PARTITION_COST,
     CONF_PARTITION_PERCENTAGE,
+    CONF_SALVAGE_VALUE,
     ELEMENT_TYPE,
     PARTITION_FIELD_NAMES,
     SECTION_LIMITS,
@@ -92,7 +93,7 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                 collapsed=False,
             ),
             power_limits_section((CONF_MAX_POWER_TARGET_SOURCE, CONF_MAX_POWER_SOURCE_TARGET), collapsed=False),
-            pricing_section((CONF_PRICE_SOURCE_TARGET, CONF_PRICE_TARGET_SOURCE), collapsed=False),
+            pricing_section((CONF_PRICE_SOURCE_TARGET, CONF_PRICE_TARGET_SOURCE, CONF_SALVAGE_VALUE), collapsed=False),
             efficiency_section((CONF_EFFICIENCY_SOURCE_TARGET, CONF_EFFICIENCY_TARGET_SOURCE), collapsed=True),
             SectionDefinition(key=SECTION_PARTITIONING, fields=(CONF_CONFIGURE_PARTITIONS,), collapsed=True),
         )
