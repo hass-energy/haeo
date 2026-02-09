@@ -55,6 +55,7 @@ from custom_components.haeo.elements.battery import (
     CONF_CAPACITY,
     CONF_CONNECTION,
     CONF_INITIAL_CHARGE_PERCENTAGE,
+    CONF_SALVAGE_VALUE,
     SECTION_LIMITS,
     SECTION_PARTITIONING,
     SECTION_STORAGE,
@@ -116,7 +117,9 @@ def mock_battery_subentry(hass: HomeAssistant, mock_hub_entry: MockConfigEntry) 
                 },
                 SECTION_LIMITS: {},
                 SECTION_POWER_LIMITS: {},
-                SECTION_PRICING: {},
+                SECTION_PRICING: {
+                    CONF_SALVAGE_VALUE: as_constant_value(0.0),
+                },
                 SECTION_EFFICIENCY: {},
                 SECTION_PARTITIONING: {},
             }

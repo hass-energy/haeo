@@ -70,6 +70,7 @@ from custom_components.haeo.elements.battery import (
     CONF_MAX_POWER_SOURCE_TARGET,
     CONF_MAX_POWER_TARGET_SOURCE,
     CONF_MIN_CHARGE_PERCENTAGE,
+    CONF_SALVAGE_VALUE,
     SECTION_LIMITS,
     SECTION_PARTITIONING,
     SECTION_STORAGE,
@@ -154,7 +155,9 @@ def mock_battery_subentry(hass: HomeAssistant, mock_hub_entry: MockConfigEntry) 
                     CONF_MAX_POWER_TARGET_SOURCE: as_constant_value(5.0),
                     CONF_MAX_POWER_SOURCE_TARGET: as_constant_value(5.0),
                 },
-                SECTION_PRICING: {},
+                SECTION_PRICING: {
+                    CONF_SALVAGE_VALUE: as_constant_value(0.0),
+                },
                 SECTION_EFFICIENCY: {
                     CONF_EFFICIENCY_SOURCE_TARGET: as_constant_value(95.0),
                     CONF_EFFICIENCY_TARGET_SOURCE: as_constant_value(95.0),
@@ -1240,7 +1243,9 @@ def test_load_from_input_entities_raises_for_invalid_config_data(
             },
             SECTION_LIMITS: {},
             SECTION_POWER_LIMITS: {},
-            SECTION_PRICING: {},
+            SECTION_PRICING: {
+                CONF_SALVAGE_VALUE: as_constant_value(0.0),
+            },
             SECTION_EFFICIENCY: {},
             SECTION_PARTITIONING: {},
         }
