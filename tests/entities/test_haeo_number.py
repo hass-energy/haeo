@@ -999,6 +999,58 @@ async def test_scalar_driven_loads_current_value(
     entity._scalar_loader.load.assert_awaited_once()
 
 
+async def test_scalar_load_data_returns_without_sources(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    device_entry: Mock,
+    scalar_field_info: InputFieldInfo[NumberEntityDescription],
+    horizon_manager: Mock,
+) -> None:
+    """Scalar load returns early when no source entities are configured."""
+    subentry = _create_subentry("Test Battery", {"capacity": None})
+    config_entry.runtime_data = None
+
+    entity = HaeoInputNumber(
+        config_entry=config_entry,
+        subentry=subentry,
+        field_info=scalar_field_info,
+        device_entry=device_entry,
+        horizon_manager=horizon_manager,
+    )
+
+    await entity._async_load_data()
+
+    assert entity.is_ready() is False
+    assert entity.native_value is None
+    assert entity.get_values() is None
+
+
+async def test_scalar_load_data_handles_loader_error(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    device_entry: Mock,
+    scalar_field_info: InputFieldInfo[NumberEntityDescription],
+    horizon_manager: Mock,
+) -> None:
+    """Scalar load errors do not update entity state."""
+    subentry = _create_subentry("Test Battery", {"capacity": ["sensor.capacity"]})
+    config_entry.runtime_data = None
+
+    entity = HaeoInputNumber(
+        config_entry=config_entry,
+        subentry=subentry,
+        field_info=scalar_field_info,
+        device_entry=device_entry,
+        horizon_manager=horizon_manager,
+    )
+    entity._scalar_loader.load = AsyncMock(side_effect=RuntimeError("Load failed"))
+
+    await _add_entity_to_hass(hass, entity)
+
+    assert entity.is_ready() is False
+    assert entity.native_value is None
+
+
 async def test_scalar_horizon_change_noop(
     hass: HomeAssistant,
     config_entry: MockConfigEntry,
