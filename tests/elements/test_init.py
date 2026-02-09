@@ -102,8 +102,6 @@ def test_is_element_config_schema_valid_battery() -> None:
         },
         battery.SECTION_EFFICIENCY: {},
         battery.SECTION_PARTITIONING: {},
-        battery.SECTION_UNDERCHARGE: {},
-        battery.SECTION_OVERCHARGE: {},
     }
     assert is_element_config_schema(valid_config) is True
 

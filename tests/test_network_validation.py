@@ -14,14 +14,14 @@ from custom_components.haeo.elements.battery import (
     CONF_MAX_POWER_SOURCE_TARGET,
     CONF_MAX_POWER_TARGET_SOURCE,
     CONF_MIN_CHARGE_PERCENTAGE,
-    CONF_PARTITION_COST,
-    CONF_PARTITION_PERCENTAGE,
+    CONF_CHARGE_PRICE,
+    CONF_DISCHARGE_PRICE,
+    CONF_THRESHOLD_KWH,
     CONF_SALVAGE_VALUE,
     SECTION_LIMITS,
-    SECTION_OVERCHARGE,
     SECTION_PARTITIONING,
+    SECTION_PARTITIONS,
     SECTION_STORAGE,
-    SECTION_UNDERCHARGE,
     BatteryConfigData,
 )
 from custom_components.haeo.elements.battery import CONF_CONNECTION as BATTERY_CONF_CONNECTION
@@ -128,7 +128,7 @@ def test_validate_network_topology_detects_disconnected() -> None:
     ("include_grid", "include_partitions"),
     [
         pytest.param(True, False, id="with_grid"),
-        pytest.param(False, True, id="with_under_overcharge"),
+        pytest.param(False, True, id="with_partitions"),
     ],
 )
 def test_validate_network_topology_with_battery(
@@ -178,13 +178,15 @@ def test_validate_network_topology_with_battery(
         SECTION_PARTITIONING: {},
     }
     if include_partitions:
-        battery[SECTION_UNDERCHARGE] = {
-            CONF_PARTITION_PERCENTAGE: np.array([5.0, 5.0, 5.0]),
-            CONF_PARTITION_COST: np.array([0.05, 0.05]),
-        }
-        battery[SECTION_OVERCHARGE] = {
-            CONF_PARTITION_PERCENTAGE: np.array([95.0, 95.0, 95.0]),
-            CONF_PARTITION_COST: np.array([0.02, 0.02]),
+        battery[SECTION_PARTITIONS] = {
+            "Reserve": {
+                CONF_THRESHOLD_KWH: np.array([2.0, 2.0]),
+                CONF_DISCHARGE_PRICE: np.array([0.05, 0.05]),
+            },
+            "Headroom": {
+                CONF_THRESHOLD_KWH: np.array([8.0, 8.0]),
+                CONF_CHARGE_PRICE: np.array([0.02, 0.02]),
+            },
         }
 
     participants: dict[str, ElementConfigData] = {
