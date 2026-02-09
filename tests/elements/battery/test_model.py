@@ -105,8 +105,8 @@ CREATE_CASES: Sequence[CreateCase] = [
                     },
                     "pricing": {
                         "segment_type": "pricing",
-                        "price_source_target": [0.04],
-                        "price_target_source": [-0.01],
+                        "price_source_target": [0.03],
+                        "price_target_source": [0.01],
                     },
                     "soc_pricing": {
                         "segment_type": "soc_pricing",
@@ -178,8 +178,8 @@ CREATE_CASES: Sequence[CreateCase] = [
                     },
                     "pricing": {
                         "segment_type": "pricing",
-                        "price_source_target": [0.004],
-                        "price_target_source": [-0.001],
+                        "price_source_target": [0.003],
+                        "price_target_source": [0.001],
                     },
                 },
             },

@@ -16,6 +16,7 @@ from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.element import Element
 from custom_components.haeo.model.output_data import OutputData
 from custom_components.haeo.model.reactive import constraint, output
+from custom_components.haeo.model.util import time_preference_weights
 
 from .segments import Segment, SegmentSpec, create_segment
 
@@ -50,6 +51,7 @@ CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET: Final = "connection_shadow_power_max_
 CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE: Final = "connection_shadow_power_max_target_source"
 CONNECTION_TIME_SLICE: Final = "connection_time_slice"
 CONNECTION_SEGMENTS: Final = "segments"
+SECONDARY_OBJECTIVE_INDEX: Final = 1
 
 type ConnectionSegmentOutputs = dict[str, dict[str, OutputData]]
 type ConnectionOutputValue = OutputData | ConnectionSegmentOutputs
@@ -246,25 +248,45 @@ class Connection[TOutputName: str](Element[TOutputName]):
 
         return result
 
-    def cost(self) -> Any:  # type: ignore[override]  # Intentionally override Element's @cost with segment delegation
-        """Return aggregated cost expression from this connection's segments.
+    def cost(self) -> list[Any] | None:  # type: ignore[override]  # Intentionally override Element's @cost with segment delegation
+        """Return aggregated objective expressions from this connection.
 
-        Collects costs from all segments and aggregates them.
-
-        Note: Specialized connections can override to include their own costs.
+        Collects costs from all segments and adds a time-preference objective to
+        prefer earlier energy transfer when primary costs are equal.
 
         Returns:
-            Aggregated cost expression or None if no costs
+            List of objective expressions or None if no objectives are defined
 
         """
-        # Collect costs from all segments
-        costs = [segment_cost for segment in self._segments.values() if (segment_cost := segment.cost()) is not None]
+        segment_objectives = [
+            segment_cost for segment in self._segments.values() if (segment_cost := segment.cost()) is not None
+        ]
+        combined = _combine_objective_lists(segment_objectives)
 
-        if not costs:
+        # Add time preference objective as the next objective
+        if (time_preference := self._time_preference_objective()) is not None:
+            if len(combined) <= SECONDARY_OBJECTIVE_INDEX:
+                combined.append(time_preference)
+            else:
+                combined[SECONDARY_OBJECTIVE_INDEX] = Highs.qsum([combined[SECONDARY_OBJECTIVE_INDEX], time_preference])
+
+        return combined or None
+
+    def _time_preference_objective(self) -> highs_linear_expression | None:
+        """Return secondary objective that prefers earlier energy transfer."""
+        if self.n_periods == 0:
             return None
-        if len(costs) == 1:
-            return costs[0]
-        return Highs.qsum(costs)
+
+        weights = time_preference_weights(self.periods)
+        energy_st = self.power_source_target * self.periods
+        energy_ts = self.power_target_source * self.periods
+
+        secondary_terms = [
+            Highs.qsum(energy_st * weights),
+            Highs.qsum(energy_ts * weights),
+        ]
+
+        return Highs.qsum(secondary_terms) if len(secondary_terms) > 1 else secondary_terms[0]
 
     # --- Segment linking constraints ---
 
@@ -336,6 +358,21 @@ class Connection[TOutputName: str](Element[TOutputName]):
         """Return outputs grouped by segment."""
         segment_outputs = self._segment_outputs()
         return segment_outputs or None
+
+
+def _combine_objective_lists(objectives: list[list[Any]]) -> list[Any]:
+    """Combine objective expression lists by summing expressions at each index."""
+    max_len = max((len(items) for items in objectives), default=0)
+    combined: list[Any] = []
+    for index in range(max_len):
+        terms = [items[index] for items in objectives if len(items) > index]
+        if not terms:
+            continue
+        if len(terms) == 1:
+            combined.append(terms[0])
+        else:
+            combined.append(Highs.qsum(terms))
+    return combined
 
 
 __all__ = [

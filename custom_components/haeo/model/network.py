@@ -2,10 +2,10 @@
 
 from dataclasses import dataclass, field
 import logging
-from typing import Any, overload
+from typing import Any, cast, overload
 
 from highspy import Highs, HighsModelStatus
-from highspy.highs import highs_cons, highs_linear_expression
+from highspy.highs import highs_cons, highs_linear_expression, highs_var
 import numpy as np
 from numpy.typing import NDArray
 
@@ -35,6 +35,7 @@ class Network:
     periods: NDArray[np.floating[Any]]  # Period durations in hours (one per optimization interval)
     elements: dict[str, Element[Any]] = field(default_factory=dict)
     _solver: Highs = field(default_factory=Highs, repr=False)
+    _lexicographic_constraints: list[highs_cons] = field(default_factory=list, init=False, repr=False)
 
     def __post_init__(self) -> None:
         """Set up the solver with logging callback."""
@@ -138,29 +139,29 @@ class Network:
 
         return element_instance
 
-    def cost(self) -> highs_linear_expression | None:
-        """Return aggregated cost expression from all elements in the network.
+    def cost(self) -> list[Any] | None:
+        """Return aggregated objective expressions from all elements in the network.
 
-        Discovers and calls all element cost() methods, summing their results into
-        a single expression. Element costs are cached individually, so this aggregation
-        is inexpensive.
+        Discovers and calls all element cost() methods, combining their results into
+        a list of objective expressions. Element costs are cached individually, so this
+        aggregation is inexpensive.
 
         Returns:
-            Single aggregated cost expression or None if no costs
+            List of objective expressions or None if no objectives are defined
 
         """
-        # Collect costs from all elements
-        costs = [element_cost for element in self.elements.values() if (element_cost := element.cost()) is not None]
+        objectives = [
+            element_cost for element in self.elements.values() if (element_cost := element.cost()) is not None
+        ]
 
-        # Aggregate into a single expression
-        if not costs:
+        if not objectives:
             return None
-        if len(costs) == 1:
-            return costs[0]
-        return Highs.qsum(costs)
+
+        combined = _combine_objective_lists(objectives)
+        return combined or None
 
     def optimize(self) -> float:
-        """Solve the optimization problem and return the cost.
+        """Solve the optimization problem and return the primary objective value.
 
         After optimization, access optimized values directly from elements and connections.
 
@@ -186,20 +187,87 @@ class Network:
                 msg = f"Failed to apply constraints for element '{element_name}'"
                 raise ValueError(msg) from e
 
-        # Get aggregated cost from network (reactive - only rebuilds if any element cost invalidated)
-        if (total_cost := self.cost()) is not None:
-            h.minimize(total_cost)
-        else:
-            # No cost terms - just run to check feasibility
+        # Get aggregated objectives from network (reactive - only rebuilds if any element cost invalidated)
+        objectives = self.cost()
+
+        _clear_linear_objectives(h)
+
+        if objectives is None:
             h.run()
+            self._clear_lexicographic_constraints()
+            return _ensure_optimal(h)
 
-        # Check optimization status
-        status = h.getModelStatus()
-        if status == HighsModelStatus.kOptimal:
-            return h.getObjectiveValue()
+        primary_value = None
+        required_constraints = max(len(objectives) - 1, 0)
+        if len(self._lexicographic_constraints) > required_constraints:
+            self._clear_lexicographic_constraints(required_constraints)
 
-        msg = f"Optimization failed with status: {h.modelStatusToString(status)}"
-        raise ValueError(msg)
+        for index, objective in enumerate(objectives):
+            h.minimize(objective)
+            value = _ensure_optimal(h)
+            if index == 0:
+                primary_value = value
+            if index < len(objectives) - 1:
+                self._apply_objective_constraint(index, objective, value)
+
+        return 0.0 if primary_value is None else primary_value
+
+    def _apply_objective_constraint(
+        self,
+        index: int,
+        objective: highs_linear_expression | highs_var,
+        optimal_value: float,
+    ) -> None:
+        """Constrain an objective value for lexicographic optimization."""
+        epsilon = _objective_epsilon(optimal_value)
+        expression = _as_linear_expression(objective)
+        constraint_expr = expression <= (optimal_value + epsilon)
+
+        if index >= len(self._lexicographic_constraints):
+            cons = self._solver.addConstr(constraint_expr)
+            self._lexicographic_constraints.append(cons)
+            return
+
+        self._update_constraint(self._lexicographic_constraints[index], constraint_expr)
+
+    def _clear_lexicographic_constraints(self, keep: int = 0) -> None:
+        """Disable lexicographic constraints beyond the count to keep."""
+        if len(self._lexicographic_constraints) <= keep:
+            return
+
+        for cons in self._lexicographic_constraints[keep:]:
+            expr = self._solver.getExpr(cons)
+            self._solver.changeRowBounds(cons.index, float("-inf"), float("inf"))
+            for var_idx in expr.idxs:
+                self._solver.changeCoeff(cons.index, var_idx, 0.0)
+
+        del self._lexicographic_constraints[keep:]
+
+    def _update_constraint(
+        self,
+        cons: highs_cons,
+        expr: highs_linear_expression,
+    ) -> None:
+        """Update an existing constraint with a new expression."""
+        old_expr = self._solver.getExpr(cons)
+        old_bounds = old_expr.bounds
+        new_bounds = expr.bounds
+
+        if old_bounds != new_bounds:
+            if new_bounds is not None:
+                self._solver.changeRowBounds(cons.index, new_bounds[0], new_bounds[1])
+            elif old_bounds is not None:
+                self._solver.changeRowBounds(cons.index, float("-inf"), float("inf"))
+
+        old_coeffs = dict(zip(old_expr.idxs, old_expr.vals, strict=True))
+        new_coeffs = dict(zip(expr.idxs, expr.vals, strict=True))
+        all_vars = set(old_coeffs) | set(new_coeffs)
+
+        for var_idx in all_vars:
+            old_val = old_coeffs.get(var_idx, 0.0)
+            new_val = new_coeffs.get(var_idx, 0.0)
+            if old_val != new_val:
+                self._solver.changeCoeff(cons.index, var_idx, new_val)
 
     def validate(self) -> None:
         """Validate the network."""
@@ -232,3 +300,44 @@ class Network:
             if element_constraints := element.constraints():
                 result[element_name] = element_constraints
         return result
+
+
+def _combine_objective_lists(objectives: list[list[Any]]) -> list[Any]:
+    """Combine objective expression lists by summing expressions at each index."""
+    max_len = max((len(items) for items in objectives), default=0)
+    combined: list[Any] = []
+    for index in range(max_len):
+        terms = [items[index] for items in objectives if len(items) > index]
+        if not terms:
+            continue
+        if len(terms) == 1:
+            combined.append(terms[0])
+        else:
+            combined.append(Highs.qsum(terms))
+    return combined
+
+
+def _objective_epsilon(value: float) -> float:
+    """Return a small epsilon for lexicographic objective constraints."""
+    return max(1e-6, abs(value) * 1e-9)
+
+
+def _as_linear_expression(expression: highs_linear_expression | highs_var) -> highs_linear_expression:
+    """Coerce a variable to a linear expression when needed."""
+    if isinstance(expression, highs_linear_expression):
+        return expression
+    return Highs.qsum([expression])
+
+
+def _clear_linear_objectives(solver: Highs) -> None:
+    """Clear any multiobjective state if the API is available."""
+    cast("Any", solver).clearLinearObjectives()
+
+
+def _ensure_optimal(solver: Highs) -> float:
+    """Validate solver status and return the objective value."""
+    status = solver.getModelStatus()
+    if status != HighsModelStatus.kOptimal:
+        msg = f"Optimization failed with status: {solver.modelStatusToString(status)}"
+        raise ValueError(msg)
+    return solver.getObjectiveValue()

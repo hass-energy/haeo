@@ -227,22 +227,22 @@ class Element[OutputNameT: str]:
         return result
 
     @cost
-    def cost(self) -> Any:
-        """Return aggregated cost expression from this element.
+    def cost(self) -> list[Any] | None:
+        """Return aggregated objective expressions from this element.
 
-        Discovers and calls all @cost decorated methods, summing their results into
-        a single expression. The result is cached by the @cost decorator, which
-        automatically tracks dependencies on all underlying @cost methods.
+        Discovers and calls all @cost decorated methods, combining their results into
+        a list of objective expressions. The result is cached by the @cost decorator,
+        which automatically tracks dependencies on all underlying @cost methods.
 
         Returns:
-            Single aggregated cost expression (highs_linear_expression) or None if no costs
+            List of objective expressions or None if no costs are defined
 
         """
         # Get this method's name from the decorator to avoid hardcoding
         this_method_name = type(self).cost._name  # type: ignore[attr-defined]  # noqa: SLF001 (intentional access to decorator's name)
 
         # Collect all cost expressions from @cost methods (excluding this one)
-        costs: list[Any] = []
+        costs: list[list[Any]] = []
         for name in dir(type(self)):
             # Skip self to avoid infinite recursion
             if name == this_method_name:
@@ -255,14 +255,27 @@ class Element[OutputNameT: str]:
             method = getattr(self, name)
             if (cost_value := method()) is not None:
                 if isinstance(cost_value, list):
-                    costs.extend(cost_value)
+                    costs.append([item for item in cost_value if item is not None])
                 else:
-                    costs.append(cost_value)
+                    costs.append([cost_value])
 
-        # Aggregate costs into a single expression
         if not costs:
             return None
-        if len(costs) == 1:
-            return costs[0]
-        # Sum all cost expressions
-        return sum(costs[1:], costs[0])
+
+        combined = _combine_objective_lists(costs)
+        return combined or None
+
+
+def _combine_objective_lists(objectives: list[list[Any]]) -> list[Any]:
+    """Combine objective expression lists by summing expressions at each index."""
+    max_len = max((len(items) for items in objectives), default=0)
+    combined: list[Any] = []
+    for index in range(max_len):
+        terms = [items[index] for items in objectives if len(items) > index]
+        if not terms:
+            continue
+        if len(terms) == 1:
+            combined.append(terms[0])
+        else:
+            combined.append(Highs.qsum(terms))
+    return combined
