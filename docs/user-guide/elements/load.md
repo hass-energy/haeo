@@ -9,10 +9,12 @@ The Load element uses forecast data to model any type of consumption pattern fro
 
 ## Configuration
 
-| Field                     | Type                                     | Required | Default | Description                               |
-| ------------------------- | ---------------------------------------- | -------- | ------- | ----------------------------------------- |
-| **[Name](#name)**         | String                                   | Yes      | -       | Unique identifier for this load           |
-| **[Forecast](#forecast)** | [sensor(s)](../forecasts-and-sensors.md) | Yes      | -       | Power consumption forecast sensor(s) (kW) |
+| Field                                       | Type                                     | Required | Default  | Description                                                                 |
+| ------------------------------------------- | ---------------------------------------- | -------- | -------- | --------------------------------------------------------------------------- |
+| **[Name](#name)**                           | String                                   | Yes      | -        | Unique identifier for this load                                             |
+| **[Forecast](#forecast)**                   | [sensor(s)](../forecasts-and-sensors.md) | Yes      | -        | Power consumption forecast sensor(s) (kW)                                   |
+| **[Consumption value](#consumption-value)** | Number (\$/kWh)                          | No       | Disabled | Value per kWh of this load when it runs                                     |
+| **[Shedding](#shedding)**                   | Boolean                                  | No       | false    | Allow the optimizer to reduce load below the forecast when it is uneconomic |
 
 ## Name
 
@@ -40,6 +42,30 @@ The Load element is flexible and works with both constant and time-varying patte
 
 Provide all load forecasts to get accurate total consumption predictions.
 See the [Forecasts and Sensors guide](../forecasts-and-sensors.md) for details on how HAEO processes sensor data.
+
+## Consumption value
+
+Optional value per kWh of this load when it is running.
+This is used only when [Shedding](#shedding) is enabled.
+
+**Default**: Disabled.
+
+**How to choose a value**:
+
+- Use a higher value for loads you strongly prefer to keep on.
+- Use a lower value for loads you are comfortable shedding during expensive periods.
+
+!!! tip "Why this matters"
+
+    If shedding is enabled and no value is set, the optimizer will usually shed the load because supplying power has a cost.
+
+## Shedding
+
+Allow HAEO to reduce load consumption below the forecast.
+
+**Default**: Disabled (load follows the forecast exactly).
+
+**When enabled**: HAEO can shed the load when supplying energy is more expensive than the configured [Consumption value](#consumption-value).
 
 ## Constant Load Pattern
 
@@ -200,11 +226,13 @@ Combine multiple consumption sources:
 ### Input Entities
 
 Each configuration field creates a corresponding input entity in Home Assistant.
-Input entities appear as Number entities with the `config` entity category.
+Input entities appear as Number or Switch entities with the `config` entity category.
 
-| Input                    | Unit | Description                                   |
-| ------------------------ | ---- | --------------------------------------------- |
-| `number.{name}_forecast` | kW   | Load power forecast from configured sensor(s) |
+| Input                               | Unit   | Description                                    |
+| ----------------------------------- | ------ | ---------------------------------------------- |
+| `number.{name}_forecast`            | kW     | Load power forecast from configured sensor(s)  |
+| `number.{name}_price_target_source` | \$/kWh | Consumption value from configured value/sensor |
+| `switch.{name}_curtailment`         | -      | Whether shedding is permitted                  |
 
 Input entities include a `forecast` attribute showing values for each optimization period.
 See the [Input Entities developer guide](../../developer-guide/inputs.md) for details on input entity behavior.
@@ -215,18 +243,17 @@ See the [Input Entities developer guide](../../developer-guide/inputs.md) for de
 
 A Load element creates 1 device in Home Assistant with the following sensors.
 
-| Sensor                                                        | Unit  | Description                           |
-| ------------------------------------------------------------- | ----- | ------------------------------------- |
-| [`sensor.{name}_power`](#power)                               | kW    | Power consumed by load                |
-| [`sensor.{name}_power_possible`](#power-possible)             | kW    | Maximum possible load (from forecast) |
-| [`sensor.{name}_forecast_limit_price`](#forecast-limit-price) | \$/kW | Marginal cost of serving this load    |
+| Sensor                                                        | Unit  | Description                                     |
+| ------------------------------------------------------------- | ----- | ----------------------------------------------- |
+| [`sensor.{name}_power`](#power)                               | kW    | Power consumed by load                          |
+| [`sensor.{name}_forecast_limit_price`](#forecast-limit-price) | \$/kW | Shadow price of the load power limit constraint |
 
 ### Power
 
 The optimal power consumed by this load at each time period.
 
-Since loads are not controllable in HAEO, this value matches the forecast or constant value provided in the configuration.
-The optimization determines how to supply this power (from grid, battery, or solar), but the load consumption itself is fixed.
+When [Shedding](#shedding) is disabled, this matches the configured forecast or constant value.
+When shedding is enabled, this may be lower than the forecast if the optimizer determines shedding reduces total system cost.
 
 **For constant loads**: The sensor shows the same value for all periods (the configured constant power).
 
@@ -234,24 +261,17 @@ The optimization determines how to supply this power (from grid, battery, or sol
 
 **Example**: A value of 2.5 kW means this load requires 2.5 kW at this time period, which the optimization must supply from available sources.
 
-### Power Possible
-
-The maximum possible load from the forecast configuration.
-
-For loads, this equals the power sensor since load consumption is fixed.
-Shows the value from the configured forecast sensor(s).
-
 ### Forecast Limit Price
 
-The marginal cost of supplying power to this load at each time period.
+Shadow price of the load power limit constraint at each time period.
 See the [Shadow Prices modeling guide](../../modeling/shadow-prices.md) for general shadow price concepts.
 
-This shadow price represents the cost of the most expensive power source needed to satisfy this load.
-It reflects what it costs the system to deliver 1 kW to this load location.
+This reflects the marginal impact of increasing the allowed load power by 1 kW for the time period.
+When shedding is disabled (fixed forecast), it is commonly interpreted as the marginal cost of serving the load.
 
 **Interpretation**:
 
-- **Positive value**: Represents the cost of serving this load (typically grid import price when importing)
+- **Positive value**: Increasing allowed load would increase total cost (power is expensive or constrained)
 - **Higher values**: Indicate serving the load is expensive (peak grid prices, battery constraints, etc.)
 - **Lower values**: Indicate serving the load is cheap (off-peak prices, excess solar, etc.)
 - **Magnitude**: Shows the economic pressure at this load point in the network
@@ -301,11 +321,17 @@ If optimization fails with loads:
 
 **Problem**: Optimizer shows lower consumption than expected
 
-**Cause**: Loads in HAEO represent required consumption that must be met.
-If your forecast includes optional or deferrable loads, the optimizer may schedule them differently.
+**Common causes**:
 
-**Solution**: Only include loads that represent actual required consumption in the Load element.
-For controllable/deferrable loads, model them separately with appropriate constraints.
+- Shedding is enabled and the [Consumption value](#consumption-value) is low (or disabled), so the optimizer prefers to shed the load.
+- Your forecast includes optional or deferrable load that you expect to be scheduled, not modeled as always-on consumption.
+
+**Solutions**:
+
+- Disable [Shedding](#shedding) for loads that must always run.
+- Set an appropriate [Consumption value](#consumption-value) for loads that can be shed but are still valuable.
+- Only include loads that represent required consumption in the Load element.
+    For controllable/deferrable loads, model them separately with appropriate constraints.
 
 ## Next Steps
 
