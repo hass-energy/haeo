@@ -27,6 +27,7 @@ from custom_components.haeo.sections import (
     SECTION_COMMON,
     build_common_fields,
     common_section,
+    demand_pricing_section,
     efficiency_section,
     power_limits_section,
     pricing_section,
@@ -34,6 +35,13 @@ from custom_components.haeo.sections import (
 
 from .adapter import adapter
 from .schema import (
+    CONF_DEMAND_BLOCK_MINUTES,
+    CONF_DEMAND_CURRENT_ENERGY_SOURCE_TARGET,
+    CONF_DEMAND_CURRENT_ENERGY_TARGET_SOURCE,
+    CONF_DEMAND_PEAK_COST_SOURCE_TARGET,
+    CONF_DEMAND_PEAK_COST_TARGET_SOURCE,
+    CONF_DEMAND_PRICE_SOURCE_TARGET,
+    CONF_DEMAND_PRICE_TARGET_SOURCE,
     CONF_EFFICIENCY_SOURCE_TARGET,
     CONF_EFFICIENCY_TARGET_SOURCE,
     CONF_MAX_POWER_SOURCE_TARGET,
@@ -75,6 +83,18 @@ class ConnectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             SectionDefinition(key=SECTION_ENDPOINTS, fields=(CONF_SOURCE, CONF_TARGET), collapsed=False),
             power_limits_section((CONF_MAX_POWER_SOURCE_TARGET, CONF_MAX_POWER_TARGET_SOURCE), collapsed=False),
             pricing_section((CONF_PRICE_SOURCE_TARGET, CONF_PRICE_TARGET_SOURCE), collapsed=False),
+            demand_pricing_section(
+                (
+                    CONF_DEMAND_PRICE_SOURCE_TARGET,
+                    CONF_DEMAND_PRICE_TARGET_SOURCE,
+                    CONF_DEMAND_BLOCK_MINUTES,
+                    CONF_DEMAND_CURRENT_ENERGY_SOURCE_TARGET,
+                    CONF_DEMAND_CURRENT_ENERGY_TARGET_SOURCE,
+                    CONF_DEMAND_PEAK_COST_SOURCE_TARGET,
+                    CONF_DEMAND_PEAK_COST_TARGET_SOURCE,
+                ),
+                collapsed=True,
+            ),
             efficiency_section((CONF_EFFICIENCY_SOURCE_TARGET, CONF_EFFICIENCY_TARGET_SOURCE), collapsed=True),
         )
 

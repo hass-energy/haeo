@@ -16,6 +16,7 @@ from custom_components.haeo.elements.node import CONF_IS_SINK, CONF_IS_SOURCE, S
 from custom_components.haeo.schema import as_connection_target
 from custom_components.haeo.sections import (
     SECTION_COMMON,
+    SECTION_DEMAND_PRICING,
     SECTION_EFFICIENCY,
     SECTION_FORECAST,
     SECTION_POWER_LIMITS,
@@ -95,6 +96,7 @@ async def test_create_network_sorts_connections_after_elements(hass: HomeAssista
                 },
                 SECTION_POWER_LIMITS: {},
                 SECTION_PRICING: {},
+                SECTION_DEMAND_PRICING: {},
                 SECTION_EFFICIENCY: {},
             },
             "node_a": {

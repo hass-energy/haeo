@@ -112,11 +112,14 @@ class HorizonManager:
 
     def _schedule_next_update(self) -> None:
         """Schedule the next horizon update at the next period boundary."""
-        now = dt_util.utcnow()
+        now = dt_util.now()
         epoch_seconds = now.timestamp()
+        offset = now.utcoffset()
+        offset_seconds = offset.total_seconds() if offset is not None else 0.0
 
-        # Calculate next period boundary
-        current_boundary = epoch_seconds // self._smallest_period * self._smallest_period
+        # Calculate next period boundary aligned to local time
+        current_boundary = ((epoch_seconds + offset_seconds) // self._smallest_period) * self._smallest_period
+        current_boundary -= offset_seconds
         next_boundary = current_boundary + self._smallest_period
 
         # Convert to datetime for scheduling

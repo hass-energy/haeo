@@ -4,6 +4,13 @@ from typing import Final, Literal, TypedDict
 
 from custom_components.haeo.schema import ConnectionTarget
 from custom_components.haeo.sections import (
+    CONF_DEMAND_BLOCK_MINUTES,
+    CONF_DEMAND_CURRENT_ENERGY_SOURCE_TARGET,
+    CONF_DEMAND_CURRENT_ENERGY_TARGET_SOURCE,
+    CONF_DEMAND_PEAK_COST_SOURCE_TARGET,
+    CONF_DEMAND_PEAK_COST_TARGET_SOURCE,
+    CONF_DEMAND_PRICE_SOURCE_TARGET,
+    CONF_DEMAND_PRICE_TARGET_SOURCE,
     CONF_EFFICIENCY_SOURCE_TARGET,
     CONF_EFFICIENCY_TARGET_SOURCE,
     CONF_MAX_POWER_SOURCE_TARGET,
@@ -11,11 +18,14 @@ from custom_components.haeo.sections import (
     CONF_PRICE_SOURCE_TARGET,
     CONF_PRICE_TARGET_SOURCE,
     SECTION_COMMON,
+    SECTION_DEMAND_PRICING,
     SECTION_EFFICIENCY,
     SECTION_POWER_LIMITS,
     SECTION_PRICING,
     CommonConfig,
     CommonData,
+    DemandPricingConfig,
+    DemandPricingData,
     EfficiencyConfig,
     EfficiencyData,
     PowerLimitsConfig,
@@ -30,7 +40,6 @@ SECTION_ENDPOINTS: Final = "endpoints"
 
 CONF_SOURCE: Final = "source"
 CONF_TARGET: Final = "target"
-
 OPTIONAL_INPUT_FIELDS: Final[frozenset[str]] = frozenset(
     {
         CONF_MAX_POWER_SOURCE_TARGET,
@@ -39,6 +48,13 @@ OPTIONAL_INPUT_FIELDS: Final[frozenset[str]] = frozenset(
         CONF_EFFICIENCY_TARGET_SOURCE,
         CONF_PRICE_SOURCE_TARGET,
         CONF_PRICE_TARGET_SOURCE,
+        CONF_DEMAND_PRICE_SOURCE_TARGET,
+        CONF_DEMAND_PRICE_TARGET_SOURCE,
+        CONF_DEMAND_CURRENT_ENERGY_SOURCE_TARGET,
+        CONF_DEMAND_CURRENT_ENERGY_TARGET_SOURCE,
+        CONF_DEMAND_PEAK_COST_SOURCE_TARGET,
+        CONF_DEMAND_PEAK_COST_TARGET_SOURCE,
+        CONF_DEMAND_BLOCK_MINUTES,
     }
 )
 
@@ -65,6 +81,7 @@ class ConnectionConfigSchema(TypedDict):
     endpoints: EndpointsConfig
     power_limits: PowerLimitsConfig
     pricing: PricingConfig
+    demand_pricing: DemandPricingConfig
     efficiency: EfficiencyConfig
 
 
@@ -76,10 +93,18 @@ class ConnectionConfigData(TypedDict):
     endpoints: EndpointsData
     power_limits: PowerLimitsData
     pricing: PricingData
+    demand_pricing: DemandPricingData
     efficiency: EfficiencyData
 
 
 __all__ = [
+    "CONF_DEMAND_BLOCK_MINUTES",
+    "CONF_DEMAND_CURRENT_ENERGY_SOURCE_TARGET",
+    "CONF_DEMAND_CURRENT_ENERGY_TARGET_SOURCE",
+    "CONF_DEMAND_PEAK_COST_SOURCE_TARGET",
+    "CONF_DEMAND_PEAK_COST_TARGET_SOURCE",
+    "CONF_DEMAND_PRICE_SOURCE_TARGET",
+    "CONF_DEMAND_PRICE_TARGET_SOURCE",
     "CONF_EFFICIENCY_SOURCE_TARGET",
     "CONF_EFFICIENCY_TARGET_SOURCE",
     "CONF_MAX_POWER_SOURCE_TARGET",
@@ -91,6 +116,7 @@ __all__ = [
     "ELEMENT_TYPE",
     "OPTIONAL_INPUT_FIELDS",
     "SECTION_COMMON",
+    "SECTION_DEMAND_PRICING",
     "SECTION_EFFICIENCY",
     "SECTION_ENDPOINTS",
     "SECTION_POWER_LIMITS",

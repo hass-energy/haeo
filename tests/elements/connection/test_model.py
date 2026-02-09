@@ -50,6 +50,15 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "price_source_target": np.array([0.1]),
                 "price_target_source": np.array([0.05]),
             },
+            demand_pricing={
+                "demand_price_source_target": 10.0,
+                "demand_price_target_source": 5.0,
+                "demand_current_energy_source_target": 1.0,
+                "demand_current_energy_target_source": 2.0,
+                "demand_peak_cost_source_target": 30.0,
+                "demand_peak_cost_target_source": 20.0,
+                "demand_block_minutes": 30.0,
+            },
             efficiency={
                 "efficiency_source_target": np.array([0.95]),
                 "efficiency_target_source": np.array([0.90]),
@@ -77,6 +86,16 @@ CREATE_CASES: Sequence[CreateCase] = [
                         "price_source_target": [0.1],
                         "price_target_source": [0.05],
                     },
+                    "demand_pricing": {
+                        "segment_type": "demand_pricing",
+                        "demand_price_source_target": 10.0,
+                        "demand_price_target_source": 5.0,
+                        "demand_current_energy_source_target": 1.0,
+                        "demand_current_energy_target_source": 2.0,
+                        "demand_peak_cost_source_target": 30.0,
+                        "demand_peak_cost_target_source": 20.0,
+                        "demand_block_hours": 0.5,
+                    },
                 },
             }
         ],
@@ -89,6 +108,7 @@ CREATE_CASES: Sequence[CreateCase] = [
             endpoints={"source": as_connection_target("s"), "target": as_connection_target("t")},
             power_limits={},
             pricing={},
+            demand_pricing={},
             efficiency={},
         ),
         "model": [
@@ -112,6 +132,16 @@ CREATE_CASES: Sequence[CreateCase] = [
                         "segment_type": "pricing",
                         "price_source_target": None,
                         "price_target_source": None,
+                    },
+                    "demand_pricing": {
+                        "segment_type": "demand_pricing",
+                        "demand_price_source_target": None,
+                        "demand_price_target_source": None,
+                        "demand_current_energy_source_target": None,
+                        "demand_current_energy_target_source": None,
+                        "demand_peak_cost_source_target": None,
+                        "demand_peak_cost_target_source": None,
+                        "demand_block_hours": None,
                     },
                 },
             }

@@ -1,6 +1,7 @@
 """Generic electrical entity for energy system modeling."""
 
 from collections.abc import Mapping, Sequence
+from datetime import tzinfo
 from typing import Any, Literal
 
 from highspy import Highs
@@ -34,6 +35,8 @@ class Element[OutputNameT: str]:
         name: str,
         periods: NDArray[np.floating[Any]],
         *,
+        period_start_time: float | None = None,
+        timezone: tzinfo | None = None,
         solver: Highs,
         output_names: frozenset[OutputNameT],
     ) -> None:
@@ -42,12 +45,16 @@ class Element[OutputNameT: str]:
         Args:
             name: Name of the entity
             periods: Array of time period durations in hours (one per optimization interval)
+            period_start_time: Start timestamp for the optimization horizon (epoch seconds)
+            timezone: Timezone for the optimization horizon timestamps
             solver: The HiGHS solver instance for creating variables and constraints
             output_names: Frozenset of valid output names for this element type (used for type narrowing)
 
         """
         self.name = name
         self.periods = np.asarray(periods, dtype=float)
+        self.period_start_time = period_start_time
+        self.period_start_timezone = timezone
         self._solver = solver
         self._output_names = output_names
 

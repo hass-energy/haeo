@@ -21,6 +21,7 @@ This pattern keeps the connection model simple while making behavior explicit an
 - **[Efficiency segment](efficiency.md)** for direction-specific loss modeling.
 - **[Power limit segment](power-limit.md)** for directional limits and time-slice coupling.
 - **[Pricing segment](pricing.md)** for transfer costs and fees.
+- **[Demand pricing segment](demand-pricing.md)** for peak demand charges from price schedules.
 - **[Passthrough segment](passthrough.md)** for lossless flow with no constraints or cost.
 
 ## Next steps

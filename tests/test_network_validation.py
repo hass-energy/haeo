@@ -28,7 +28,13 @@ from custom_components.haeo.elements.grid import CONF_CONNECTION as GRID_CONF_CO
 from custom_components.haeo.elements.grid import CONF_PRICE_SOURCE_TARGET, CONF_PRICE_TARGET_SOURCE, GridConfigData
 from custom_components.haeo.elements.node import CONF_IS_SINK, CONF_IS_SOURCE, SECTION_ROLE, NodeConfigData
 from custom_components.haeo.schema import as_connection_target
-from custom_components.haeo.sections import SECTION_COMMON, SECTION_EFFICIENCY, SECTION_POWER_LIMITS, SECTION_PRICING
+from custom_components.haeo.sections import (
+    SECTION_COMMON,
+    SECTION_DEMAND_PRICING,
+    SECTION_EFFICIENCY,
+    SECTION_POWER_LIMITS,
+    SECTION_PRICING,
+)
 from custom_components.haeo.validation import format_component_summary, validate_network_topology
 
 
@@ -69,6 +75,7 @@ def test_validate_network_topology_with_implicit_connection() -> None:
             CONF_PRICE_SOURCE_TARGET: np.array([0.30, 0.30]),
             CONF_PRICE_TARGET_SOURCE: np.array([0.10, 0.10]),
         },
+        SECTION_DEMAND_PRICING: {},
         SECTION_POWER_LIMITS: {},
     }
     participants: dict[str, ElementConfigData] = {"main_node": main_node, "grid": grid}
@@ -98,6 +105,7 @@ def test_validate_network_topology_detects_disconnected() -> None:
             CONF_PRICE_SOURCE_TARGET: np.array([0.30, 0.30]),
             CONF_PRICE_TARGET_SOURCE: np.array([0.10, 0.10]),
         },
+        SECTION_DEMAND_PRICING: {},
         SECTION_POWER_LIMITS: {},
     }
     grid_b: GridConfigData = {
@@ -107,6 +115,7 @@ def test_validate_network_topology_detects_disconnected() -> None:
             CONF_PRICE_SOURCE_TARGET: np.array([0.30, 0.30]),
             CONF_PRICE_TARGET_SOURCE: np.array([0.10, 0.10]),
         },
+        SECTION_DEMAND_PRICING: {},
         SECTION_POWER_LIMITS: {},
     }
     participants: dict[str, ElementConfigData] = {
@@ -147,6 +156,7 @@ def test_validate_network_topology_with_battery(
             CONF_PRICE_SOURCE_TARGET: np.array([0.30, 0.30]),
             CONF_PRICE_TARGET_SOURCE: np.array([0.10, 0.10]),
         },
+        SECTION_DEMAND_PRICING: {},
         SECTION_POWER_LIMITS: {},
     }
     battery: BatteryConfigData = {

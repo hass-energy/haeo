@@ -32,17 +32,23 @@ Grid creates 1 device in Home Assistant:
 
 ## Parameter mapping
 
-The adapter transforms user configuration into connection segments:
+The adapter transforms user configuration into connection segments.
+Pricing fields come from the Pricing section, and demand pricing fields come from the Demand pricing section.
+Grid demand pricing uses import (source-to-target) fields only.
 
-| User Configuration        | Segment           | Segment Field             | Notes                                   |
-| ------------------------- | ----------------- | ------------------------- | --------------------------------------- |
-| `price_source_target`     | PricingSegment    | `price_source_target`     | Cost per kWh imported                   |
-| `price_target_source`     | PricingSegment    | `price_target_source`     | Stored as negative to represent revenue |
-| `max_power_source_target` | PowerLimitSegment | `max_power_source_target` | Maximum import power (optional)         |
-| `max_power_target_source` | PowerLimitSegment | `max_power_target_source` | Maximum export power (optional)         |
-| `connection`              | Connection        | `target`                  | Node to connect to                      |
-| —                         | Node              | `is_source=true`          | Grid can supply power                   |
-| —                         | Node              | `is_sink=true`            | Grid can absorb power                   |
+| User Configuration                    | Segment              | Segment Field                         | Notes                                   |
+| ------------------------------------- | -------------------- | ------------------------------------- | --------------------------------------- |
+| `price_source_target`                 | PricingSegment       | `price_source_target`                 | Cost per kWh imported                   |
+| `price_target_source`                 | PricingSegment       | `price_target_source`                 | Stored as negative to represent revenue |
+| `max_power_source_target`             | PowerLimitSegment    | `max_power_source_target`             | Maximum import power (optional)         |
+| `max_power_target_source`             | PowerLimitSegment    | `max_power_target_source`             | Maximum export power (optional)         |
+| `demand_price_source_target`          | DemandPricingSegment | `demand_price_source_target`          | Optional demand price per kW            |
+| `demand_current_energy_source_target` | DemandPricingSegment | `demand_current_energy_source_target` | Optional, kWh already used              |
+| `demand_peak_cost_source_target`      | DemandPricingSegment | `demand_peak_cost_source_target`      | Optional, peak demand charge            |
+| `demand_block_minutes`                | DemandPricingSegment | `demand_block_hours`                  | Converted to hours (defaults to 0.5 h)  |
+| `connection`                          | Connection           | `target`                              | Node to connect to                      |
+| —                                     | Node                 | `is_source=true`                      | Grid can supply power                   |
+| —                                     | Node                 | `is_sink=true`                        | Grid can absorb power                   |
 
 ## Sensors Created
 

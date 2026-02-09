@@ -18,6 +18,7 @@ from custom_components.haeo.elements.grid import (
     CONF_PRICE_SOURCE_TARGET,
     CONF_PRICE_TARGET_SOURCE,
     SECTION_COMMON,
+    SECTION_DEMAND_PRICING,
     SECTION_POWER_LIMITS,
     SECTION_PRICING,
 )
@@ -109,6 +110,7 @@ def _add_subentry(
                 CONF_PRICE_SOURCE_TARGET: schema_value(data.get("price_source_target")),
                 CONF_PRICE_TARGET_SOURCE: schema_value(data.get("price_target_source")),
             },
+            SECTION_DEMAND_PRICING: {},
             SECTION_POWER_LIMITS: power_limits,
         }
     else:

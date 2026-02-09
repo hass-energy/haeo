@@ -5,7 +5,7 @@ from dataclasses import replace
 from typing import Any, Final, Literal
 
 from homeassistant.components.number import NumberDeviceClass, NumberEntityDescription
-from homeassistant.const import PERCENTAGE, UnitOfPower
+from homeassistant.const import PERCENTAGE, UnitOfEnergy, UnitOfPower, UnitOfTime
 
 from custom_components.haeo.const import ConnectivityLevel
 from custom_components.haeo.elements.input_fields import InputFieldInfo
@@ -30,9 +30,22 @@ from custom_components.haeo.model.elements.segments import (
 )
 from custom_components.haeo.model.output_data import OutputData
 from custom_components.haeo.schema import extract_connection_target
-from custom_components.haeo.sections import SECTION_COMMON, SECTION_EFFICIENCY, SECTION_POWER_LIMITS, SECTION_PRICING
+from custom_components.haeo.sections import (
+    SECTION_COMMON,
+    SECTION_DEMAND_PRICING,
+    SECTION_EFFICIENCY,
+    SECTION_POWER_LIMITS,
+    SECTION_PRICING,
+)
 
 from .schema import (
+    CONF_DEMAND_BLOCK_MINUTES,
+    CONF_DEMAND_CURRENT_ENERGY_SOURCE_TARGET,
+    CONF_DEMAND_CURRENT_ENERGY_TARGET_SOURCE,
+    CONF_DEMAND_PEAK_COST_SOURCE_TARGET,
+    CONF_DEMAND_PEAK_COST_TARGET_SOURCE,
+    CONF_DEMAND_PRICE_SOURCE_TARGET,
+    CONF_DEMAND_PRICE_TARGET_SOURCE,
     CONF_EFFICIENCY_SOURCE_TARGET,
     CONF_EFFICIENCY_TARGET_SOURCE,
     CONF_MAX_POWER_SOURCE_TARGET,
@@ -174,6 +187,101 @@ class ConnectionAdapter:
                     time_series=True,
                 ),
             },
+            SECTION_DEMAND_PRICING: {
+                CONF_DEMAND_PRICE_SOURCE_TARGET: InputFieldInfo(
+                    field_name=CONF_DEMAND_PRICE_SOURCE_TARGET,
+                    entity_description=NumberEntityDescription(
+                        key=CONF_DEMAND_PRICE_SOURCE_TARGET,
+                        translation_key=f"{ELEMENT_TYPE}_{CONF_DEMAND_PRICE_SOURCE_TARGET}",
+                        native_unit_of_measurement="$/kW",
+                        native_min_value=0.0,
+                        native_max_value=100.0,
+                        native_step=0.01,
+                    ),
+                    output_type=OutputType.COST,
+                    time_series=True,
+                ),
+                CONF_DEMAND_PRICE_TARGET_SOURCE: InputFieldInfo(
+                    field_name=CONF_DEMAND_PRICE_TARGET_SOURCE,
+                    entity_description=NumberEntityDescription(
+                        key=CONF_DEMAND_PRICE_TARGET_SOURCE,
+                        translation_key=f"{ELEMENT_TYPE}_{CONF_DEMAND_PRICE_TARGET_SOURCE}",
+                        native_unit_of_measurement="$/kW",
+                        native_min_value=0.0,
+                        native_max_value=100.0,
+                        native_step=0.01,
+                    ),
+                    output_type=OutputType.COST,
+                    time_series=True,
+                ),
+                CONF_DEMAND_CURRENT_ENERGY_SOURCE_TARGET: InputFieldInfo(
+                    field_name=CONF_DEMAND_CURRENT_ENERGY_SOURCE_TARGET,
+                    entity_description=NumberEntityDescription(
+                        key=CONF_DEMAND_CURRENT_ENERGY_SOURCE_TARGET,
+                        translation_key=f"{ELEMENT_TYPE}_{CONF_DEMAND_CURRENT_ENERGY_SOURCE_TARGET}",
+                        native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
+                        device_class=NumberDeviceClass.ENERGY,
+                        native_min_value=0.0,
+                        native_max_value=1_000_000.0,
+                        native_step=0.01,
+                    ),
+                    output_type=OutputType.ENERGY,
+                    time_series=False,
+                ),
+                CONF_DEMAND_CURRENT_ENERGY_TARGET_SOURCE: InputFieldInfo(
+                    field_name=CONF_DEMAND_CURRENT_ENERGY_TARGET_SOURCE,
+                    entity_description=NumberEntityDescription(
+                        key=CONF_DEMAND_CURRENT_ENERGY_TARGET_SOURCE,
+                        translation_key=f"{ELEMENT_TYPE}_{CONF_DEMAND_CURRENT_ENERGY_TARGET_SOURCE}",
+                        native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
+                        device_class=NumberDeviceClass.ENERGY,
+                        native_min_value=0.0,
+                        native_max_value=1_000_000.0,
+                        native_step=0.01,
+                    ),
+                    output_type=OutputType.ENERGY,
+                    time_series=False,
+                ),
+                CONF_DEMAND_PEAK_COST_SOURCE_TARGET: InputFieldInfo(
+                    field_name=CONF_DEMAND_PEAK_COST_SOURCE_TARGET,
+                    entity_description=NumberEntityDescription(
+                        key=CONF_DEMAND_PEAK_COST_SOURCE_TARGET,
+                        translation_key=f"{ELEMENT_TYPE}_{CONF_DEMAND_PEAK_COST_SOURCE_TARGET}",
+                        native_unit_of_measurement="$",
+                        native_min_value=0.0,
+                        native_max_value=1_000_000.0,
+                        native_step=0.01,
+                    ),
+                    output_type=OutputType.COST,
+                    time_series=False,
+                ),
+                CONF_DEMAND_PEAK_COST_TARGET_SOURCE: InputFieldInfo(
+                    field_name=CONF_DEMAND_PEAK_COST_TARGET_SOURCE,
+                    entity_description=NumberEntityDescription(
+                        key=CONF_DEMAND_PEAK_COST_TARGET_SOURCE,
+                        translation_key=f"{ELEMENT_TYPE}_{CONF_DEMAND_PEAK_COST_TARGET_SOURCE}",
+                        native_unit_of_measurement="$",
+                        native_min_value=0.0,
+                        native_max_value=1_000_000.0,
+                        native_step=0.01,
+                    ),
+                    output_type=OutputType.COST,
+                    time_series=False,
+                ),
+                CONF_DEMAND_BLOCK_MINUTES: InputFieldInfo(
+                    field_name=CONF_DEMAND_BLOCK_MINUTES,
+                    entity_description=NumberEntityDescription(
+                        key=CONF_DEMAND_BLOCK_MINUTES,
+                        translation_key=f"{ELEMENT_TYPE}_{CONF_DEMAND_BLOCK_MINUTES}",
+                        native_unit_of_measurement=UnitOfTime.MINUTES,
+                        native_min_value=1.0,
+                        native_max_value=1440.0,
+                        native_step=1.0,
+                    ),
+                    output_type=OutputType.DURATION,
+                    time_series=False,
+                ),
+            },
         }
 
     def model_elements(self, config: ConnectionConfigData) -> list[ModelElementConfig]:
@@ -182,6 +290,8 @@ class ConnectionAdapter:
         Builds the segments dictionary for the Connection model element with
         explicit None values for missing configuration fields.
         """
+        demand_block_minutes = config[SECTION_DEMAND_PRICING].get(CONF_DEMAND_BLOCK_MINUTES)
+        demand_block_hours = demand_block_minutes / 60.0 if demand_block_minutes is not None else None
         # Build segments using explicit None for missing parameters.
         # Efficiency values are ratios (0-1) after input normalization.
         return [
@@ -205,6 +315,28 @@ class ConnectionAdapter:
                         "segment_type": "pricing",
                         "price_source_target": config[SECTION_PRICING].get(CONF_PRICE_SOURCE_TARGET),
                         "price_target_source": config[SECTION_PRICING].get(CONF_PRICE_TARGET_SOURCE),
+                    },
+                    "demand_pricing": {
+                        "segment_type": "demand_pricing",
+                        "demand_price_source_target": config[SECTION_DEMAND_PRICING].get(
+                            CONF_DEMAND_PRICE_SOURCE_TARGET
+                        ),
+                        "demand_price_target_source": config[SECTION_DEMAND_PRICING].get(
+                            CONF_DEMAND_PRICE_TARGET_SOURCE
+                        ),
+                        "demand_current_energy_source_target": config[SECTION_DEMAND_PRICING].get(
+                            CONF_DEMAND_CURRENT_ENERGY_SOURCE_TARGET
+                        ),
+                        "demand_current_energy_target_source": config[SECTION_DEMAND_PRICING].get(
+                            CONF_DEMAND_CURRENT_ENERGY_TARGET_SOURCE
+                        ),
+                        "demand_peak_cost_source_target": config[SECTION_DEMAND_PRICING].get(
+                            CONF_DEMAND_PEAK_COST_SOURCE_TARGET
+                        ),
+                        "demand_peak_cost_target_source": config[SECTION_DEMAND_PRICING].get(
+                            CONF_DEMAND_PEAK_COST_TARGET_SOURCE
+                        ),
+                        "demand_block_hours": demand_block_hours,
                     },
                 },
             }

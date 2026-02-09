@@ -1,5 +1,6 @@
 """Battery entity for electrical system modeling."""
 
+from datetime import tzinfo
 from typing import Any, Final, Literal, TypedDict
 
 from highspy import Highs
@@ -81,6 +82,8 @@ class Battery(Element[BatteryOutputName]):
         name: str,
         periods: NDArray[np.floating[Any]],
         *,
+        period_start_time: float | None = None,
+        timezone: tzinfo | None = None,
         solver: Highs,
         capacity: NDArray[np.floating[Any]] | float,
         initial_charge: float,
@@ -90,12 +93,21 @@ class Battery(Element[BatteryOutputName]):
         Args:
             name: Name of the battery
             periods: Array of time period durations in hours
+            period_start_time: Start timestamp for the optimization horizon (epoch seconds)
+            timezone: Timezone for the optimization horizon timestamps
             solver: The HiGHS solver instance for creating variables and constraints
             capacity: Battery capacity in kWh per period (T+1 values for energy boundaries)
             initial_charge: Initial charge in kWh
 
         """
-        super().__init__(name=name, periods=periods, solver=solver, output_names=BATTERY_OUTPUT_NAMES)
+        super().__init__(
+            name=name,
+            periods=periods,
+            period_start_time=period_start_time,
+            timezone=timezone,
+            solver=solver,
+            output_names=BATTERY_OUTPUT_NAMES,
+        )
         n_periods = self.n_periods
 
         # Set tracked parameters (broadcasts capacity to n_periods + 1)

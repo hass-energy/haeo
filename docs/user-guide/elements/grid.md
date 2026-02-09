@@ -11,14 +11,19 @@ It allows bidirectional power flow: importing (buying) and exporting (selling) e
 
 Grid configuration uses a single-step flow where you enter the name and configure each input field.
 For each field, select "Entity" to link to a sensor, "Constant" to enter a fixed value, or "None" for optional fields you don't need.
+Pricing and demand pricing fields appear in separate sections in the UI.
 
-| Field                             | Type   | Required | Default | Description                                                |
-| --------------------------------- | ------ | -------- | ------- | ---------------------------------------------------------- |
-| **[Name](#name)**                 | String | Yes      | -       | Unique identifier for this grid                            |
-| **[Import Price](#import-price)** | Price  | Yes      | -       | Price per kWh for importing electricity from grid (\$/kWh) |
-| **[Export Price](#export-price)** | Price  | Yes      | -       | Revenue per kWh for exporting electricity to grid (\$/kWh) |
-| **[Import Limit](#import-limit)** | Power  | No       | -       | Maximum import power from grid                             |
-| **[Export Limit](#export-limit)** | Power  | No       | -       | Maximum export power to grid                               |
+| Field                                               | Type   | Required | Default | Description                                                |
+| --------------------------------------------------- | ------ | -------- | ------- | ---------------------------------------------------------- |
+| **[Name](#name)**                                   | String | Yes      | -       | Unique identifier for this grid                            |
+| **[Import Price](#import-price)**                   | Price  | Yes      | -       | Price per kWh for importing electricity from grid (\$/kWh) |
+| **[Export Price](#export-price)**                   | Price  | Yes      | -       | Revenue per kWh for exporting electricity to grid (\$/kWh) |
+| **[Import Limit](#import-limit)**                   | Power  | No       | -       | Maximum import power from grid                             |
+| **[Export Limit](#export-limit)**                   | Power  | No       | -       | Maximum export power to grid                               |
+| **[Import Demand Price](#demand-pricing)**          | Number | No       | -       | Demand price (\$/kW) for import peak blocks                |
+| **[Import Demand Energy](#demand-pricing)**         | Number | No       | -       | Energy already used in the current import block (kWh)      |
+| **[Highest Import Demand Charge](#demand-pricing)** | Number | No       | -       | Highest import demand charge in this cycle (\$)            |
+| **[Demand Block Minutes](#demand-pricing)**         | Number | No       | 30      | Block size in minutes used for demand averaging            |
 
 ## Name
 
@@ -109,6 +114,17 @@ Use this to model:
 
 **Zero export**: Set to `0` to prevent any grid export (self-consumption only mode)
 
+## Demand pricing
+
+Demand pricing charges based on the maximum average power within the demand price schedule.
+Set the demand price to a nonzero value for periods you want to include and `0` elsewhere.
+Demand block minutes sets the averaging block size, such as `30` for 30-minute blocks.
+Highest import demand charge sets the minimum starting value for the peak within the current billing cycle.
+You can calculate this from sensor history by multiplying import demand energy by the demand price schedule.
+Scale the demand price to match your billing period (for example, multiply by billing days if needed).
+
+Grid demand pricing applies to imports only.
+
 ## Configuration Examples
 
 ### Dynamic Pricing with Forecasts
@@ -142,12 +158,16 @@ For more examples and sensor configuration, see the [Forecasts and Sensors guide
 Each configured field creates a corresponding input entity in Home Assistant.
 Input entities appear as Number entities with the `config` entity category.
 
-| Input                                   | Unit   | Description                               |
-| --------------------------------------- | ------ | ----------------------------------------- |
-| `number.{name}_price_source_target`     | \$/kWh | Import price from configured value/sensor |
-| `number.{name}_price_target_source`     | \$/kWh | Export price from configured value/sensor |
-| `number.{name}_max_power_source_target` | kW     | Maximum import power (if configured)      |
-| `number.{name}_max_power_target_source` | kW     | Maximum export power (if configured)      |
+| Input                                               | Unit   | Description                                  |
+| --------------------------------------------------- | ------ | -------------------------------------------- |
+| `number.{name}_price_source_target`                 | \$/kWh | Import price from configured value/sensor    |
+| `number.{name}_price_target_source`                 | \$/kWh | Export price from configured value/sensor    |
+| `number.{name}_max_power_source_target`             | kW     | Maximum import power (if configured)         |
+| `number.{name}_max_power_target_source`             | kW     | Maximum export power (if configured)         |
+| `number.{name}_demand_price_source_target`          | \$/kW  | Import demand price (if configured)          |
+| `number.{name}_demand_current_energy_source_target` | kWh    | Import demand energy so far (if configured)  |
+| `number.{name}_demand_peak_cost_source_target`      | \$     | Highest import demand charge (if configured) |
+| `number.{name}_demand_block_minutes`                | min    | Demand block minutes (if configured)         |
 
 Input entities are only created for fields you configure with "Constant".
 If you set an optional field to "None", no input entity is created for that field.

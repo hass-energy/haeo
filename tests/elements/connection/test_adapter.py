@@ -23,6 +23,7 @@ async def test_available_returns_true_with_no_optional_fields(hass: HomeAssistan
         },
         connection.SECTION_POWER_LIMITS: {},
         connection.SECTION_PRICING: {},
+        connection.SECTION_DEMAND_PRICING: {},
         connection.SECTION_EFFICIENCY: {},
     }
 
@@ -54,6 +55,7 @@ async def test_available_returns_true_when_optional_sensors_exist(hass: HomeAssi
             "price_source_target": as_entity_value(["sensor.price_st"]),
             "price_target_source": as_entity_value(["sensor.price_ts"]),
         },
+        connection.SECTION_DEMAND_PRICING: {},
         connection.SECTION_EFFICIENCY: {
             "efficiency_source_target": as_entity_value(["sensor.eff_st"]),
             "efficiency_target_source": as_entity_value(["sensor.eff_ts"]),
@@ -81,6 +83,7 @@ async def test_available_returns_false_when_optional_sensor_missing(hass: HomeAs
             "max_power_target_source": as_entity_value(["sensor.missing"]),
         },
         connection.SECTION_PRICING: {},
+        connection.SECTION_DEMAND_PRICING: {},
         connection.SECTION_EFFICIENCY: {},
     }
 
@@ -99,6 +102,7 @@ async def test_available_returns_false_when_efficiency_sensor_missing(hass: Home
         },
         connection.SECTION_POWER_LIMITS: {},
         connection.SECTION_PRICING: {},
+        connection.SECTION_DEMAND_PRICING: {},
         connection.SECTION_EFFICIENCY: {
             "efficiency_source_target": as_entity_value(["sensor.missing"]),
         },
@@ -125,6 +129,7 @@ async def test_available_returns_true_with_constant_values(hass: HomeAssistant) 
             "price_source_target": as_constant_value(0.1),
             "price_target_source": as_constant_value(0.2),
         },
+        connection.SECTION_DEMAND_PRICING: {},
         connection.SECTION_EFFICIENCY: {
             "efficiency_source_target": as_constant_value(0.9),
             "efficiency_target_source": as_constant_value(0.91),

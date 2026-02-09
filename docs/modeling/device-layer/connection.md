@@ -23,7 +23,7 @@ graph LR
 | [Connection](../model-layer/connections/connection.md) | `{name}` | Source, target, and segment specifications |
 
 The Connection device creates a `Connection` model element with a segment chain.
-The adapter builds power-limit, efficiency, and pricing segments based on configured fields.
+The adapter builds power-limit, efficiency, pricing, and demand pricing segments based on configured fields.
 
 ## Devices Created
 
@@ -35,18 +35,26 @@ Connection creates 1 device in Home Assistant:
 
 ## Parameter mapping
 
-The adapter maps configuration into connection segments:
+The adapter maps configuration into connection segments.
+Pricing fields come from the Pricing section, and demand pricing fields come from the Demand pricing section.
 
-| User Configuration         | Segment           | Segment Field              | Notes                          |
-| -------------------------- | ----------------- | -------------------------- | ------------------------------ |
-| `source`                   | Connection        | `source`                   | Source element name            |
-| `target`                   | Connection        | `target`                   | Target element name            |
-| `max_power_source_target`  | PowerLimitSegment | `max_power_source_target`  | Optional, unlimited if not set |
-| `max_power_target_source`  | PowerLimitSegment | `max_power_target_source`  | Optional, unlimited if not set |
-| `efficiency_source_target` | EfficiencySegment | `efficiency_source_target` | Percent converted to ratio     |
-| `efficiency_target_source` | EfficiencySegment | `efficiency_target_source` | Percent converted to ratio     |
-| `price_source_target`      | PricingSegment    | `price_source_target`      | Optional, no cost if not set   |
-| `price_target_source`      | PricingSegment    | `price_target_source`      | Optional, no cost if not set   |
+| User Configuration                    | Segment              | Segment Field                         | Notes                          |
+| ------------------------------------- | -------------------- | ------------------------------------- | ------------------------------ |
+| `source`                              | Connection           | `source`                              | Source element name            |
+| `target`                              | Connection           | `target`                              | Target element name            |
+| `max_power_source_target`             | PowerLimitSegment    | `max_power_source_target`             | Optional, unlimited if not set |
+| `max_power_target_source`             | PowerLimitSegment    | `max_power_target_source`             | Optional, unlimited if not set |
+| `efficiency_source_target`            | EfficiencySegment    | `efficiency_source_target`            | Percent converted to ratio     |
+| `efficiency_target_source`            | EfficiencySegment    | `efficiency_target_source`            | Percent converted to ratio     |
+| `price_source_target`                 | PricingSegment       | `price_source_target`                 | Optional, no cost if not set   |
+| `price_target_source`                 | PricingSegment       | `price_target_source`                 | Optional, no cost if not set   |
+| `demand_price_source_target`          | DemandPricingSegment | `demand_price_source_target`          | Optional, no cost if not set   |
+| `demand_price_target_source`          | DemandPricingSegment | `demand_price_target_source`          | Optional, no cost if not set   |
+| `demand_current_energy_source_target` | DemandPricingSegment | `demand_current_energy_source_target` | Optional, kWh already used     |
+| `demand_current_energy_target_source` | DemandPricingSegment | `demand_current_energy_target_source` | Optional, kWh already used     |
+| `demand_peak_cost_source_target`      | DemandPricingSegment | `demand_peak_cost_source_target`      | Optional, peak demand charge   |
+| `demand_peak_cost_target_source`      | DemandPricingSegment | `demand_peak_cost_target_source`      | Optional, peak demand charge   |
+| `demand_block_minutes`                | DemandPricingSegment | `demand_block_hours`                  | Converted to hours (0.5 h)     |
 
 If a field is omitted, the corresponding segment defaults apply.
 Power limits and pricing are skipped when values are `None`.

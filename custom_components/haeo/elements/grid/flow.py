@@ -21,6 +21,10 @@ from custom_components.haeo.flows.field_schema import (
 from custom_components.haeo.schema import get_connection_target_name, normalize_connection_target
 from custom_components.haeo.sections import (
     CONF_CONNECTION,
+    CONF_DEMAND_BLOCK_MINUTES,
+    CONF_DEMAND_CURRENT_ENERGY_SOURCE_TARGET,
+    CONF_DEMAND_PEAK_COST_SOURCE_TARGET,
+    CONF_DEMAND_PRICE_SOURCE_TARGET,
     CONF_MAX_POWER_SOURCE_TARGET,
     CONF_MAX_POWER_TARGET_SOURCE,
     CONF_PRICE_SOURCE_TARGET,
@@ -28,6 +32,7 @@ from custom_components.haeo.sections import (
     SECTION_COMMON,
     build_common_fields,
     common_section,
+    demand_pricing_section,
     power_limits_section,
     pricing_section,
 )
@@ -44,6 +49,15 @@ class GridSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         return (
             common_section((CONF_NAME, CONF_CONNECTION), collapsed=False),
             pricing_section((CONF_PRICE_SOURCE_TARGET, CONF_PRICE_TARGET_SOURCE), collapsed=False),
+            demand_pricing_section(
+                (
+                    CONF_DEMAND_PRICE_SOURCE_TARGET,
+                    CONF_DEMAND_BLOCK_MINUTES,
+                    CONF_DEMAND_CURRENT_ENERGY_SOURCE_TARGET,
+                    CONF_DEMAND_PEAK_COST_SOURCE_TARGET,
+                ),
+                collapsed=True,
+            ),
             power_limits_section(
                 (CONF_MAX_POWER_SOURCE_TARGET, CONF_MAX_POWER_TARGET_SOURCE),
                 collapsed=True,

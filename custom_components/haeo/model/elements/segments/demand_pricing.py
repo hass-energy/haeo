@@ -1,0 +1,266 @@
+"""Demand pricing segment for peak demand tariffs."""
+
+from datetime import UTC, datetime, tzinfo
+from typing import Any, Final, Literal, NotRequired
+
+from highspy import Highs
+from highspy.highs import HighspyArray, highs_linear_expression, highs_var
+import numpy as np
+from numpy.typing import NDArray
+from typing_extensions import TypedDict
+
+from custom_components.haeo.model.element import Element
+from custom_components.haeo.model.reactive import TrackedParam, constraint, cost
+from custom_components.haeo.model.util import broadcast_to_sequence
+
+from .segment import Segment
+
+DEFAULT_DEMAND_BLOCK_HOURS: Final = 0.5
+BLOCK_TIME_EPSILON: Final = 1e-9
+
+
+type DemandPricingSegmentType = Literal["demand_pricing"]
+
+
+class DemandPricingSegmentSpec(TypedDict):
+    """Specification for creating a DemandPricingSegment."""
+
+    segment_type: DemandPricingSegmentType
+    demand_price_source_target: NotRequired[NDArray[np.floating[Any]] | float | None]
+    demand_price_target_source: NotRequired[NDArray[np.floating[Any]] | float | None]
+    demand_current_energy_source_target: NotRequired[NDArray[np.floating[Any]] | float | None]
+    demand_current_energy_target_source: NotRequired[NDArray[np.floating[Any]] | float | None]
+    demand_peak_cost_source_target: NotRequired[NDArray[np.floating[Any]] | float | None]
+    demand_peak_cost_target_source: NotRequired[NDArray[np.floating[Any]] | float | None]
+    demand_block_hours: NotRequired[float | None]
+
+
+class DemandPricingSegment(Segment):
+    """Segment that adds demand-based peak pricing.
+
+    Demand pricing applies the maximum block-average power weighted by the demand price.
+    Block averages are computed during model setup to keep the formulation linear.
+    """
+
+    demand_price_source_target: TrackedParam[NDArray[np.float64] | None] = TrackedParam()
+    demand_price_target_source: TrackedParam[NDArray[np.float64] | None] = TrackedParam()
+    demand_current_energy_source_target: TrackedParam[float | None] = TrackedParam()
+    demand_current_energy_target_source: TrackedParam[float | None] = TrackedParam()
+    demand_peak_cost_source_target: TrackedParam[float | None] = TrackedParam()
+    demand_peak_cost_target_source: TrackedParam[float | None] = TrackedParam()
+    demand_block_hours: TrackedParam[float] = TrackedParam()
+
+    def __init__(
+        self,
+        segment_id: str,
+        n_periods: int,
+        periods: NDArray[np.floating[Any]],
+        solver: Highs,
+        *,
+        period_start_time: float | None = None,
+        timezone: tzinfo | None = None,
+        spec: DemandPricingSegmentSpec,
+        source_element: Element[Any],
+        target_element: Element[Any],
+    ) -> None:
+        """Initialize demand pricing segment.
+
+        Args:
+            segment_id: Unique identifier for naming LP variables
+            n_periods: Number of optimization periods
+            periods: Time period durations in hours
+            period_start_time: Start timestamp for the optimization horizon (epoch seconds)
+            timezone: Timezone for the optimization horizon timestamps
+            solver: HiGHS solver instance
+            spec: Demand pricing segment specification
+            source_element: Connected source element reference
+            target_element: Connected target element reference
+
+        """
+        super().__init__(
+            segment_id,
+            n_periods,
+            periods,
+            solver,
+            period_start_time=period_start_time,
+            timezone=timezone,
+            source_element=source_element,
+            target_element=target_element,
+        )
+
+        self._power_st = solver.addVariables(n_periods, lb=0, name_prefix=f"{segment_id}_st_", out_array=True)
+        self._power_ts = solver.addVariables(n_periods, lb=0, name_prefix=f"{segment_id}_ts_", out_array=True)
+
+        self.demand_price_source_target = broadcast_to_sequence(spec.get("demand_price_source_target"), n_periods)
+        self.demand_price_target_source = broadcast_to_sequence(spec.get("demand_price_target_source"), n_periods)
+        self.demand_current_energy_source_target = _as_float(spec.get("demand_current_energy_source_target"))
+        self.demand_current_energy_target_source = _as_float(spec.get("demand_current_energy_target_source"))
+        self.demand_peak_cost_source_target = _as_float(spec.get("demand_peak_cost_source_target"))
+        self.demand_peak_cost_target_source = _as_float(spec.get("demand_peak_cost_target_source"))
+        block_hours = _as_float(spec.get("demand_block_hours"))
+        self.demand_block_hours = DEFAULT_DEMAND_BLOCK_HOURS if block_hours is None else block_hours
+
+        self._peak_st = self._create_peak_variable(segment_id, "st", self.demand_price_source_target)
+        self._peak_ts = self._create_peak_variable(segment_id, "ts", self.demand_price_target_source)
+
+    @property
+    def power_in_st(self) -> HighspyArray:
+        """Power entering segment in source→target direction."""
+        return self._power_st
+
+    @property
+    def power_out_st(self) -> HighspyArray:
+        """Power leaving segment in source→target direction (same as in, lossless)."""
+        return self._power_st
+
+    @property
+    def power_in_ts(self) -> HighspyArray:
+        """Power entering segment in target→source direction."""
+        return self._power_ts
+
+    @property
+    def power_out_ts(self) -> HighspyArray:
+        """Power leaving segment in target→source direction (same as in, lossless)."""
+        return self._power_ts
+
+    @constraint
+    def peak_source_target(self) -> list[highs_linear_expression] | None:
+        """Peak demand constraints for source→target direction."""
+        if self._peak_st is None or self.demand_price_source_target is None:
+            return None
+        return self._build_peak_constraints(
+            power=self._power_st,
+            price=self.demand_price_source_target,
+            peak=self._peak_st,
+            initial_energy=self.demand_current_energy_source_target,
+            peak_cost=self.demand_peak_cost_source_target,
+        )
+
+    @constraint
+    def peak_target_source(self) -> list[highs_linear_expression] | None:
+        """Peak demand constraints for target→source direction."""
+        if self._peak_ts is None or self.demand_price_target_source is None:
+            return None
+        return self._build_peak_constraints(
+            power=self._power_ts,
+            price=self.demand_price_target_source,
+            peak=self._peak_ts,
+            initial_energy=self.demand_current_energy_target_source,
+            peak_cost=self.demand_peak_cost_target_source,
+        )
+
+    @cost
+    def demand_cost(self) -> highs_linear_expression | None:
+        """Return cost expression for demand pricing."""
+        cost_terms: list[highs_linear_expression] = []
+
+        if self._peak_st is not None:
+            cost_terms.append(Highs.qsum([self._peak_st]))
+        if self._peak_ts is not None:
+            cost_terms.append(Highs.qsum([self._peak_ts]))
+
+        if not cost_terms:
+            return None
+        if len(cost_terms) == 1:
+            return cost_terms[0]
+        return Highs.qsum(cost_terms)
+
+    def _build_peak_constraints(
+        self,
+        *,
+        power: HighspyArray,
+        price: NDArray[np.float64],
+        peak: highs_var,
+        initial_energy: float | None,
+        peak_cost: float | None,
+    ) -> list[highs_linear_expression] | None:
+        block_hours = self.demand_block_hours
+        if block_hours <= 0:
+            msg = "demand_block_hours must be positive"
+            raise ValueError(msg)
+
+        weights = self._block_weights(block_hours)
+        if not weights:
+            return None
+
+        constraints: list[highs_linear_expression] = []
+        for weight, is_first_block in weights:
+            block_price = float(np.dot(price, weight))
+            if block_price <= 0:
+                continue
+            block_average = Highs.qsum(power * weight)
+            if is_first_block and initial_energy:
+                block_average += float(initial_energy) / block_hours
+            constraints.append(peak >= block_average * block_price)
+        if peak_cost is not None and peak_cost > 0:
+            constraints.append(peak >= float(peak_cost))
+
+        return constraints or None
+
+    def _create_peak_variable(
+        self,
+        segment_id: str,
+        suffix: str,
+        price: NDArray[np.float64] | None,
+    ) -> highs_var | None:
+        if price is None or not np.any(price):
+            return None
+        return self._solver.addVariable(lb=0, name=f"{segment_id}_peak_{suffix}")
+
+    def _block_weights(self, block_hours: float) -> list[tuple[NDArray[np.float64], bool]]:
+        boundaries = np.concatenate(([0.0], np.cumsum(self._periods, dtype=np.float64)))
+        total_hours = float(boundaries[-1])
+        if total_hours <= 0:
+            return []
+
+        weights: list[tuple[NDArray[np.float64], bool]] = []
+        offset = self._block_anchor_offset(block_hours)
+        block_start = -offset
+        is_first_block = True
+        while block_start < total_hours - BLOCK_TIME_EPSILON:
+            block_end = block_start + block_hours
+            if block_end <= 0:
+                block_start = block_end
+                continue
+            overlap_start = max(0.0, block_start)
+            overlap_end = min(total_hours, block_end)
+            if overlap_end <= overlap_start:
+                block_start = block_end
+                continue
+            overlaps = np.minimum(boundaries[1:], block_end) - np.maximum(boundaries[:-1], block_start)
+            overlaps = np.clip(overlaps, 0.0, None)
+            weights.append(((overlaps / block_hours).astype(np.float64), is_first_block))
+            is_first_block = False
+            block_start = block_end
+
+        return weights
+
+    def _block_anchor_offset(self, block_hours: float) -> float:
+        if block_hours <= 0:
+            return 0.0
+        if self._period_start_time is None:
+            return 0.0
+        start_time = float(self._period_start_time)
+        start_dt = datetime.fromtimestamp(start_time, tz=self._period_start_timezone or UTC)
+        hours_since_midnight = (
+            start_dt.hour + start_dt.minute / 60.0 + start_dt.second / 3600.0 + start_dt.microsecond / 3_600_000_000.0
+        )
+        return hours_since_midnight % block_hours
+
+
+def _as_float(value: NDArray[np.floating[Any]] | float | None) -> float | None:
+    if value is None:
+        return None
+    if isinstance(value, np.ndarray):
+        if value.size == 0:
+            return None
+        return float(value.flat[0])
+    return float(value)
+
+
+__all__ = [
+    "DEFAULT_DEMAND_BLOCK_HOURS",
+    "DemandPricingSegment",
+    "DemandPricingSegmentSpec",
+    "DemandPricingSegmentType",
+]

@@ -144,6 +144,8 @@ def _solve_segment_scenario(case: SegmentScenario) -> dict[str, ExpectedValue]:
         len(periods),
         periods,
         h,
+        period_start_time=case.get("period_start_time"),
+        timezone=case.get("period_start_timezone"),
         spec=case["spec"],
         source_element=source,
         target_element=target,

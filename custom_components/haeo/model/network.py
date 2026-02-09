@@ -1,6 +1,7 @@
 """Network class for electrical system modeling and optimization."""
 
 from dataclasses import dataclass, field
+from datetime import tzinfo
 import logging
 from typing import Any, overload
 
@@ -33,6 +34,8 @@ class Network:
 
     name: str
     periods: NDArray[np.floating[Any]]  # Period durations in hours (one per optimization interval)
+    period_start_time: float | None = None  # Start timestamp for horizon (epoch seconds)
+    timezone: tzinfo | None = None
     elements: dict[str, Element[Any]] = field(default_factory=dict)
     _solver: Highs = field(default_factory=Highs, repr=False)
 
@@ -109,7 +112,12 @@ class Network:
         # Create new element using registry
         element_spec = ELEMENTS[element_type]
         element_instance: Element[Any] = element_spec.factory(
-            name=name, periods=self.periods, solver=self._solver, **kwargs
+            name=name,
+            periods=self.periods,
+            period_start_time=self.period_start_time,
+            timezone=self.timezone,
+            solver=self._solver,
+            **kwargs,
         )
         self.elements[name] = element_instance
 

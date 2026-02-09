@@ -116,6 +116,7 @@ def test_is_element_config_schema_valid_grid() -> None:
             "price_source_target": as_entity_value(["sensor.import"]),
             "price_target_source": as_entity_value(["sensor.export"]),
         },
+        grid.SECTION_DEMAND_PRICING: {},
         grid.SECTION_POWER_LIMITS: {},
     }
     assert is_element_config_schema(valid_config) is True
@@ -130,6 +131,7 @@ def test_is_element_config_schema_valid_grid_minimal() -> None:
             "price_source_target": as_constant_value(0.25),
             "price_target_source": as_constant_value(0.05),
         },
+        grid.SECTION_DEMAND_PRICING: {},
         grid.SECTION_POWER_LIMITS: {},
     }
     assert is_element_config_schema(valid_config) is True
@@ -148,6 +150,7 @@ def test_is_element_config_schema_valid_connection() -> None:
         },
         connection.SECTION_POWER_LIMITS: {},
         connection.SECTION_PRICING: {},
+        connection.SECTION_DEMAND_PRICING: {},
         connection.SECTION_EFFICIENCY: {},
     }
     assert is_element_config_schema(valid_config) is True

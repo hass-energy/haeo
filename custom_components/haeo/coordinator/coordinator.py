@@ -273,10 +273,15 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
 
         _LOGGER.debug("Initializing network with %d participants", len(loaded_configs))
 
+        horizon = runtime_data.horizon_manager.get_forecast_timestamps()
+        start_time = horizon[0] if horizon else None
+
         self.network = await network_module.create_network(
             self.config_entry,
             periods_seconds=periods_seconds,
             participants=loaded_configs,
+            period_start_time=start_time,
+            timezone=dt_util.get_default_time_zone(),
         )
         await network_module.evaluate_network_connectivity(
             self.hass,
