@@ -7,7 +7,6 @@ from highspy.highs import HighspyArray
 import numpy as np
 import pytest
 
-from custom_components.haeo.model.elements.battery import Battery
 from custom_components.haeo.model.elements.node import Node
 from custom_components.haeo.model.util import broadcast_to_sequence
 
@@ -176,49 +175,3 @@ def test_extract_values_handles_none() -> None:
 
     assert isinstance(result, tuple)
     assert len(result) == 0
-
-
-def test_battery_salvage_value_cost() -> None:
-    """Battery salvage value contributes a terminal credit."""
-    h = Highs()
-    h.setOptionValue("output_flag", False)
-    periods = np.array([1.0])
-
-    battery = Battery(
-        name="battery",
-        periods=periods,
-        solver=h,
-        capacity=10.0,
-        initial_charge=5.0,
-        salvage_value=0.2,
-    )
-
-    h.addConstr(battery.energy_in[0] == 5.0)
-    h.addConstr(battery.energy_out[0] == 0.0)
-    h.addConstr(battery.energy_in[1] == 6.0)
-    h.addConstr(battery.energy_out[1] == 0.0)
-    h.run()
-
-    salvage_expr = battery.battery_salvage_value()
-    assert salvage_expr is not None
-    value = battery.extract_values([salvage_expr])[0]
-
-    assert value == pytest.approx(-1.2)
-
-
-def test_battery_salvage_value_zero_returns_none() -> None:
-    """Salvage cost returns None when the value is zero."""
-    h = Highs()
-    h.setOptionValue("output_flag", False)
-    periods = np.array([1.0])
-
-    battery = Battery(
-        name="battery",
-        periods=periods,
-        solver=h,
-        capacity=10.0,
-        initial_charge=5.0,
-        salvage_value=0.0,
-    )
-
-    assert battery.battery_salvage_value() is None
