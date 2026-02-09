@@ -308,7 +308,7 @@ class BatteryAdapter:
 
         capacity = storage[CONF_CAPACITY]
         capacity_first = float(capacity[0])
-        initial_soc = _resolve_scalar_value(storage[CONF_INITIAL_CHARGE_PERCENTAGE])
+        initial_soc = storage[CONF_INITIAL_CHARGE_PERCENTAGE]
 
         min_charge_percentage = limits.get(CONF_MIN_CHARGE_PERCENTAGE, DEFAULTS[CONF_MIN_CHARGE_PERCENTAGE])
         max_charge_percentage = limits.get(CONF_MAX_CHARGE_PERCENTAGE, DEFAULTS[CONF_MAX_CHARGE_PERCENTAGE])
@@ -330,18 +330,15 @@ class BatteryAdapter:
 
         initial_charge = max(min((initial_soc - lower_ratio_first) * capacity_first, capacity_range_first), 0.0)
 
-        salvage_value = _resolve_salvage_value(pricing.get(CONF_SALVAGE_VALUE))
-
-        battery_element: ModelElementConfig = {
-            "element_type": MODEL_ELEMENT_TYPE_BATTERY,
-            "name": name,
-            "capacity": capacity_range,
-            "initial_charge": initial_charge,
-        }
-        if salvage_value is not None:
-            battery_element["salvage_value"] = salvage_value
-
-        elements.append(battery_element)
+        elements.append(
+            {
+                "element_type": MODEL_ELEMENT_TYPE_BATTERY,
+                "name": name,
+                "capacity": capacity_range,
+                "initial_charge": initial_charge,
+                "salvage_value": pricing.get(CONF_SALVAGE_VALUE, 0.0),
+            }
+        )
 
         # Create connection from battery to target
         price_source_target = pricing.get(CONF_PRICE_SOURCE_TARGET)
@@ -534,27 +531,6 @@ def _partition_input_fields(
             defaults=InputFieldDefaults(mode="value", value=cost_default),
         ),
     }
-
-
-def _resolve_scalar_value(value: NDArray[np.floating[Any]] | float) -> float:
-    """Return a scalar value from a series or scalar input."""
-    if isinstance(value, np.ndarray):
-        if value.size == 0:
-            msg = "Scalar input series cannot be empty"
-            raise ValueError(msg)
-        return float(value[0])
-    return float(value)
-
-
-def _resolve_salvage_value(value: NDArray[np.floating[Any]] | float | None) -> float | None:
-    """Return the salvage value for the final horizon period."""
-    if value is None:
-        return None
-    if isinstance(value, np.ndarray):
-        if value.size == 0:
-            return None
-        return float(value[-1])
-    return float(value)
 
 
 def _calculate_total_energy(aggregate_energy: OutputData, config: BatteryConfigData) -> OutputData:

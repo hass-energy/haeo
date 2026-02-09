@@ -50,7 +50,7 @@ CREATE_CASES: Sequence[CreateCase] = [
             },
             storage={
                 "capacity": np.array([10.0, 10.0]),
-                "initial_charge_percentage": np.array([0.5]),
+                "initial_charge_percentage": 0.5,
             },
             limits={
                 "min_charge_percentage": np.array([0.1, 0.1]),
@@ -84,6 +84,7 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "name": "battery_main",
                 "capacity": [9.0, 9.0],
                 "initial_charge": 4.5,
+                "salvage_value": 0.0,
             },
             {
                 "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
@@ -127,7 +128,7 @@ CREATE_CASES: Sequence[CreateCase] = [
             },
             storage={
                 "capacity": np.array([10.0, 10.0]),
-                "initial_charge_percentage": np.array([0.5]),
+                "initial_charge_percentage": 0.5,
             },
             limits={
                 "min_charge_percentage": np.array([0.0, 0.0]),
@@ -155,6 +156,7 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "name": "battery_normal",
                 "capacity": [10.0, 10.0],
                 "initial_charge": 5.0,
+                "salvage_value": 0.0,
             },
             {
                 "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
@@ -191,7 +193,7 @@ CREATE_CASES: Sequence[CreateCase] = [
             },
             storage={
                 "capacity": np.array([8.0, 8.0]),
-                "initial_charge_percentage": np.array([0.5]),
+                "initial_charge_percentage": 0.5,
             },
             limits={
                 "min_charge_percentage": np.array([0.0, 0.0]),
@@ -204,7 +206,7 @@ CREATE_CASES: Sequence[CreateCase] = [
             pricing={
                 "price_source_target": np.array([0.02]),
                 "price_target_source": np.array([0.01]),
-                "salvage_value": np.array([0.05]),
+                "salvage_value": 0.05,
             },
             efficiency={
                 "efficiency_source_target": np.array([0.95]),
@@ -262,7 +264,7 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
             },
             storage={
                 "capacity": np.array([10.0, 10.0]),
-                "initial_charge_percentage": np.array([0.5]),
+                "initial_charge_percentage": 0.5,
             },
             limits={
                 "min_charge_percentage": np.array([0.0, 0.0]),
@@ -322,7 +324,7 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
             },
             storage={
                 "capacity": np.array([10.0, 10.0]),
-                "initial_charge_percentage": np.array([0.5]),
+                "initial_charge_percentage": 0.5,
             },
             limits={
                 "min_charge_percentage": np.array([0.1, 0.1]),

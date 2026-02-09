@@ -157,7 +157,7 @@ def test_validate_network_topology_with_battery(
         },
         SECTION_STORAGE: {
             CONF_CAPACITY: np.array([10.0, 10.0, 10.0]),
-            CONF_INITIAL_CHARGE_PERCENTAGE: np.array([50.0, 50.0]),
+            CONF_INITIAL_CHARGE_PERCENTAGE: 0.5,
         },
         SECTION_LIMITS: {
             CONF_MIN_CHARGE_PERCENTAGE: np.array([10.0, 10.0, 10.0]),

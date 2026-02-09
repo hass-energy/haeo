@@ -4,10 +4,8 @@ from collections.abc import Sequence
 
 from homeassistant.core import HomeAssistant
 import numpy as np
-import pytest
 
 from custom_components.haeo.elements import battery
-from custom_components.haeo.elements.battery.adapter import _resolve_salvage_value, _resolve_scalar_value
 from custom_components.haeo.elements.availability import schema_config_available
 from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_BATTERY, MODEL_ELEMENT_TYPE_CONNECTION
 from custom_components.haeo.model.elements import ModelElementConfig
@@ -270,25 +268,6 @@ async def test_available_returns_false_when_required_sensor_missing(hass: HomeAs
     assert result is False
 
 
-def test_resolve_scalar_value_handles_series_and_scalar() -> None:
-    """Scalar value helper returns first value or scalar."""
-    assert _resolve_scalar_value(np.array([0.4, 0.5])) == 0.4
-    assert _resolve_scalar_value(0.75) == 0.75
-
-
-def test_resolve_scalar_value_raises_on_empty_series() -> None:
-    """Scalar helper rejects empty series inputs."""
-    with pytest.raises(ValueError, match="Scalar input series cannot be empty"):
-        _resolve_scalar_value(np.array([]))
-
-
-def test_resolve_salvage_value_handles_series_and_scalar() -> None:
-    """Salvage value helper returns final value or scalar."""
-    assert _resolve_salvage_value(np.array([0.1, 0.2])) == 0.2
-    assert _resolve_salvage_value(0.35) == 0.35
-    assert _resolve_salvage_value(np.array([])) is None
-
-
 async def test_available_with_list_entity_ids_all_exist(hass: HomeAssistant) -> None:
     """Battery available() returns True when list[str] entity IDs all exist."""
     _set_sensor(hass, "sensor.capacity", "10.0", "kWh")
@@ -383,7 +362,7 @@ def test_model_elements_omits_efficiency_when_missing() -> None:
             "name": "test_battery",
             "connection": "main_bus",
             "capacity": np.array([10.0, 10.0, 10.0]),
-            "initial_charge_percentage": np.array([0.5, 0.5]),
+            "initial_charge_percentage": 0.5,
         }
     )
 
@@ -409,7 +388,7 @@ def test_model_elements_passes_efficiency_when_present() -> None:
             "name": "test_battery",
             "connection": "main_bus",
             "capacity": np.array([10.0, 10.0, 10.0]),
-            "initial_charge_percentage": np.array([0.5, 0.5]),
+            "initial_charge_percentage": 0.5,
             "efficiency_source_target": np.array([0.95, 0.95]),
             "efficiency_target_source": np.array([0.95, 0.95]),
         }
@@ -438,7 +417,7 @@ def test_model_elements_overcharge_only_adds_soc_pricing() -> None:
             "name": "test_battery",
             "connection": "main_bus",
             "capacity": np.array([10.0, 10.0, 10.0]),
-            "initial_charge_percentage": np.array([0.5, 0.5]),
+            "initial_charge_percentage": 0.5,
             "min_charge_percentage": np.array([0.1, 0.1, 0.1]),
             "max_charge_percentage": np.array([0.9, 0.9, 0.9]),
             "overcharge": {

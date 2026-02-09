@@ -183,10 +183,8 @@ class Battery(Element[BatteryOutputName]):
         return list(self.connection_power() == self.power_consumption - self.power_production)
 
     @cost
-    def battery_salvage_value(self) -> highs_linear_expression | None:
+    def battery_salvage_value(self) -> highs_linear_expression:
         """Cost: salvage value of stored energy at the end of the horizon."""
-        if self.salvage_value == 0.0:
-            return None
         return -self.salvage_value * self.stored_energy[-1]
 
     # Output methods

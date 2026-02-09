@@ -83,7 +83,7 @@ class StorageSocData(TypedDict):
     """Loaded storage values with required SOC percentage."""
 
     capacity: NDArray[np.floating[Any]]
-    initial_charge_percentage: NDArray[np.floating[Any]] | float
+    initial_charge_percentage: float
 
 
 class LimitsConfig(TypedDict, total=False):
@@ -135,7 +135,7 @@ class BatteryPricingConfig(PricingConfig, total=False):
 class BatteryPricingData(PricingData, total=False):
     """Loaded battery pricing values."""
 
-    salvage_value: NDArray[np.floating[Any]] | float
+    salvage_value: float
 
 
 class BatteryConfigSchema(TypedDict):
