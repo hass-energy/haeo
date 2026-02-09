@@ -21,11 +21,16 @@ from custom_components.haeo.flows.field_schema import (
 from custom_components.haeo.schema import get_connection_target_name, normalize_connection_target
 from custom_components.haeo.sections import (
     CONF_CONNECTION,
+    CONF_CURTAILMENT,
     CONF_FORECAST,
+    CONF_PRICE_TARGET_SOURCE,
     SECTION_COMMON,
+    SECTION_CURTAILMENT,
+    SECTION_PRICING,
     build_common_fields,
     common_section,
     forecast_section,
+    pricing_section,
 )
 
 from .adapter import adapter
@@ -40,6 +45,8 @@ class LoadSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         return (
             common_section((CONF_NAME, CONF_CONNECTION), collapsed=False),
             forecast_section((CONF_FORECAST,), collapsed=False),
+            pricing_section((CONF_PRICE_TARGET_SOURCE,), collapsed=True),
+            SectionDefinition(key=SECTION_CURTAILMENT, fields=(CONF_CURTAILMENT,), collapsed=True),
         )
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> SubentryFlowResult:
@@ -150,7 +157,9 @@ class LoadSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                 SECTION_COMMON: {
                     CONF_NAME: default_name if subentry_data is None else common_data.get(CONF_NAME),
                     CONF_CONNECTION: connection_default,
-                }
+                },
+                SECTION_PRICING: {},
+                SECTION_CURTAILMENT: {},
             },
         )
 

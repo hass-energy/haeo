@@ -42,6 +42,8 @@ CREATE_CASES: Sequence[CreateCase] = [
             element_type="load",
             common={"name": "load_main", "connection": as_connection_target("network")},
             forecast={"forecast": np.array([1.0, 2.0])},
+            pricing={},
+            curtailment={},
         ),
         "model": [
             {"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "load_main", "is_source": False, "is_sink": True},
@@ -56,7 +58,49 @@ CREATE_CASES: Sequence[CreateCase] = [
                         "max_power_source_target": 0.0,
                         "max_power_target_source": [1.0, 2.0],
                         "fixed": True,
-                    }
+                    },
+                    "pricing": {
+                        "segment_type": "pricing",
+                        "price_source_target": None,
+                        "price_target_source": None,
+                    },
+                },
+            },
+        ],
+    },
+    {
+        "description": "Sheddable load with value",
+        "data": LoadConfigData(
+            element_type="load",
+            common={"name": "load_sheddable", "connection": as_connection_target("network")},
+            forecast={"forecast": np.array([1.0, 2.0])},
+            pricing={"price_target_source": 0.5},
+            curtailment={"curtailment": True},
+        ),
+        "model": [
+            {
+                "element_type": MODEL_ELEMENT_TYPE_NODE,
+                "name": "load_sheddable",
+                "is_source": False,
+                "is_sink": True,
+            },
+            {
+                "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
+                "name": "load_sheddable:connection",
+                "source": "load_sheddable",
+                "target": "network",
+                "segments": {
+                    "power_limit": {
+                        "segment_type": "power_limit",
+                        "max_power_source_target": 0.0,
+                        "max_power_target_source": [1.0, 2.0],
+                        "fixed": False,
+                    },
+                    "pricing": {
+                        "segment_type": "pricing",
+                        "price_source_target": None,
+                        "price_target_source": -0.5,
+                    },
                 },
             },
         ],
