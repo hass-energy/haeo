@@ -994,7 +994,8 @@ async def test_scalar_driven_loads_current_value(
 
     assert entity.native_value == 12.0
     assert entity.get_values() == (12.0,)
-    assert "forecast" not in entity.extra_state_attributes
+    attributes = entity.extra_state_attributes or {}
+    assert "forecast" not in attributes
     entity._scalar_loader.load.assert_awaited_once()
 
 
@@ -1046,7 +1047,8 @@ async def test_scalar_editable_forecast_omitted(
     entity._update_editable_forecast()
 
     assert entity.get_values() == (7.5,)
-    assert "forecast" not in entity.extra_state_attributes
+    attributes = entity.extra_state_attributes or {}
+    assert "forecast" not in attributes
 
 
 async def test_scalar_get_values_percent(
@@ -1069,7 +1071,8 @@ async def test_scalar_get_values_percent(
     )
 
     assert entity.get_values() == (0.5,)
-    assert "forecast" not in entity.extra_state_attributes
+    attributes = entity.extra_state_attributes or {}
+    assert "forecast" not in attributes
 
 
 # --- Tests for boundaries mode ---
