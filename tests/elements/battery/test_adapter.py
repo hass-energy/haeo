@@ -103,6 +103,8 @@ def _wrap_config(flat: dict[str, object]) -> battery.BatteryConfigSchema:
         elif key == "overcharge" and isinstance(value, dict):
             overcharge.update({subkey: to_schema_value(subvalue) for subkey, subvalue in value.items()})
 
+    pricing.setdefault("salvage_value", as_constant_value(0.0))
+
     config: dict[str, object] = {
         "element_type": "battery",
         battery.SECTION_COMMON: common,
@@ -168,6 +170,8 @@ def _wrap_data(flat: dict[str, object]) -> battery.BatteryConfigData:
             undercharge.update(value)
         elif key == "overcharge" and isinstance(value, dict):
             overcharge.update(value)
+
+    pricing.setdefault(battery.CONF_SALVAGE_VALUE, 0.0)
 
     config: dict[str, object] = {
         "element_type": "battery",

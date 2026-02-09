@@ -63,6 +63,7 @@ CREATE_CASES: Sequence[CreateCase] = [
             pricing={
                 "price_source_target": np.array([0.03]),
                 "price_target_source": np.array([0.01]),
+                "salvage_value": 0.0,
             },
             efficiency={
                 "efficiency_source_target": np.array([0.95]),
@@ -141,6 +142,7 @@ CREATE_CASES: Sequence[CreateCase] = [
             pricing={
                 "price_source_target": np.array([0.003]),
                 "price_target_source": np.array([0.001]),
+                "salvage_value": 0.0,
             },
             efficiency={
                 "efficiency_source_target": np.array([0.95]),
@@ -277,6 +279,7 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
             pricing={
                 "price_source_target": np.array([0.003]),
                 "price_target_source": np.array([0.001]),
+                "salvage_value": 0.0,
             },
             efficiency={
                 "efficiency_source_target": np.array([0.95]),
@@ -337,6 +340,7 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
             pricing={
                 "price_source_target": np.array([0.003]),
                 "price_target_source": np.array([0.001]),
+                "salvage_value": 0.0,
             },
             efficiency={
                 "efficiency_source_target": np.array([0.95]),

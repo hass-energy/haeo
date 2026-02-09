@@ -57,7 +57,6 @@ OPTIONAL_INPUT_FIELDS: Final[frozenset[str]] = frozenset(
         CONF_EFFICIENCY_TARGET_SOURCE,
         CONF_PRICE_SOURCE_TARGET,
         CONF_PRICE_TARGET_SOURCE,
-        CONF_SALVAGE_VALUE,
         CONF_PARTITION_PERCENTAGE,
         CONF_PARTITION_COST,
     }
@@ -126,13 +125,13 @@ class PartitionData(TypedDict, total=False):
     cost: NDArray[np.floating[Any]] | float
 
 
-class BatteryPricingConfig(PricingConfig, total=False):
+class BatteryPricingConfig(PricingConfig):
     """Battery pricing configuration values."""
 
     salvage_value: EntityValue | ConstantValue | NoneValue
 
 
-class BatteryPricingData(PricingData, total=False):
+class BatteryPricingData(PricingData):
     """Loaded battery pricing values."""
 
     salvage_value: float
