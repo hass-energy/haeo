@@ -16,17 +16,8 @@ from homeassistant.core import HomeAssistant
 
 from custom_components.haeo.const import CONF_ELEMENT_TYPE, DOMAIN
 from custom_components.haeo.elements import load, solar
-from custom_components.haeo.schema import (
-    as_constant_value,
-    as_entity_value,
-    is_schema_value,
-)
-from custom_components.haeo.sections import (
-    CONF_CURTAILMENT,
-    CONF_PRICE_TARGET_SOURCE,
-    SECTION_CURTAILMENT,
-    SECTION_PRICING,
-)
+from custom_components.haeo.schema import as_constant_value, as_entity_value, is_schema_value
+from custom_components.haeo.sections import CONF_CURTAILMENT, SECTION_CURTAILMENT, SECTION_PRICING
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -68,9 +59,12 @@ def _migrate_subentry_data(subentry: ConfigSubentry) -> dict[str, Any] | None:
         if not isinstance(curtailment_section, dict):
             curtailment_section = {}
 
-        if isinstance(legacy_shedding_section, dict) and CONF_CURTAILMENT not in curtailment_section:
-            if "shedding" in legacy_shedding_section:
-                curtailment_section[CONF_CURTAILMENT] = _to_schema_value(legacy_shedding_section["shedding"])
+        if (
+            isinstance(legacy_shedding_section, dict)
+            and CONF_CURTAILMENT not in curtailment_section
+            and "shedding" in legacy_shedding_section
+        ):
+            curtailment_section[CONF_CURTAILMENT] = _to_schema_value(legacy_shedding_section["shedding"])
 
         migrated[SECTION_CURTAILMENT] = curtailment_section
         return migrated
@@ -107,4 +101,3 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     _LOGGER.info("Migration complete for %s entry %s", DOMAIN, entry.entry_id)
     return True
-

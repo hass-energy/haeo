@@ -36,9 +36,9 @@
     "Constant Load": {
       "element_type": "load",
       "common": { "name": "Constant Load", "connection": { "type": "connection_target", "value": "Switchboard" } },
+      "curtailment": {},
       "forecast": { "forecast": { "type": "constant", "value": 1.0 } },
-      "pricing": {},
-      "curtailment": {}
+      "pricing": {}
     },
     "Grid": {
       "element_type": "grid",

@@ -62,4 +62,3 @@ __all__ = [
     "build_curtailment_fields",
     "curtailment_section",
 ]
-

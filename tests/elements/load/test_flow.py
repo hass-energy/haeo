@@ -41,12 +41,8 @@ def _wrap_input(flat: dict[str, Any]) -> dict[str, Any]:
         SECTION_FORECAST: {
             CONF_FORECAST: flat[CONF_FORECAST],
         },
-        SECTION_PRICING: {
-            key: flat[key] for key in (CONF_PRICE_TARGET_SOURCE,) if key in flat
-        },
-        SECTION_CURTAILMENT: {
-            key: flat[key] for key in (CONF_CURTAILMENT,) if key in flat
-        },
+        SECTION_PRICING: {key: flat[key] for key in (CONF_PRICE_TARGET_SOURCE,) if key in flat},
+        SECTION_CURTAILMENT: {key: flat[key] for key in (CONF_CURTAILMENT,) if key in flat},
     }
 
 

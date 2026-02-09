@@ -498,10 +498,10 @@
       "solar_power": { "name": "Power" }
     },
     "switch": {
+      "load_curtailment": { "name": "Shedding" },
       "network_auto_optimize": { "name": "Auto optimize" },
       "node_is_sink": { "name": "Is sink" },
       "node_is_source": { "name": "Is source" },
-      "load_curtailment": { "name": "Shedding" },
       "solar_curtailment": { "name": "Curtailment" }
     }
   },

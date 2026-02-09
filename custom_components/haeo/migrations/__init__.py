@@ -7,8 +7,7 @@ from collections.abc import Awaitable, Callable
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 
-from . import v1_3
-from . import v1_4
+from . import v1_3, v1_4
 
 type MigrationHandler = Callable[[HomeAssistant, ConfigEntry], Awaitable[bool]]
 
