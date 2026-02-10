@@ -6,12 +6,10 @@ from typing import Any, Final, Literal
 
 from homeassistant.components.number import NumberDeviceClass, NumberEntityDescription
 from homeassistant.const import PERCENTAGE, UnitOfEnergy, UnitOfPower
-from homeassistant.core import HomeAssistant
 import numpy as np
 from numpy.typing import NDArray
 
 from custom_components.haeo.const import ConnectivityLevel
-from custom_components.haeo.data.loader import TimeSeriesLoader
 from custom_components.haeo.elements.input_fields import InputFieldDefaults, InputFieldInfo
 from custom_components.haeo.elements.output_utils import expect_output_data
 from custom_components.haeo.model import ModelElementConfig, ModelOutputName, ModelOutputValue
@@ -21,6 +19,7 @@ from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_BATTERY, MO
 from custom_components.haeo.model.elements.segments import SegmentSpec, SocPricingSegmentSpec
 from custom_components.haeo.model.output_data import OutputData
 from custom_components.haeo.model.util import broadcast_to_sequence
+from custom_components.haeo.schema import extract_connection_target
 from custom_components.haeo.sections import (
     CONF_CONNECTION,
     CONF_MAX_POWER_SOURCE_TARGET,
@@ -42,13 +41,13 @@ from .schema import (
     CONF_MIN_CHARGE_PERCENTAGE,
     CONF_PARTITION_COST,
     CONF_PARTITION_PERCENTAGE,
+    CONF_SALVAGE_VALUE,
     ELEMENT_TYPE,
     SECTION_LIMITS,
     SECTION_OVERCHARGE,
     SECTION_STORAGE,
     SECTION_UNDERCHARGE,
     BatteryConfigData,
-    BatteryConfigSchema,
 )
 
 # Default ratio values for optional fields applied by adapter
@@ -97,50 +96,6 @@ class BatteryAdapter:
     advanced: bool = False
     connectivity: ConnectivityLevel = ConnectivityLevel.ADVANCED
 
-    def available(self, config: BatteryConfigSchema, *, hass: HomeAssistant, **_kwargs: Any) -> bool:
-        """Check if battery configuration can be loaded."""
-        ts_loader = TimeSeriesLoader()
-
-        # Helper to check entity availability (handles all config value types)
-        def entity_available(value: list[str] | str | float | None) -> bool:
-            if value is None or isinstance(value, float | int):
-                return True  # Constants and missing values are always available
-            if isinstance(value, str):
-                return ts_loader.available(hass=hass, value=[value])
-            # list[str] for entity chaining
-            return ts_loader.available(hass=hass, value=value) if value else True
-
-        storage = config[SECTION_STORAGE]
-        limits = config[SECTION_LIMITS]
-        power_limits = config[SECTION_POWER_LIMITS]
-        pricing = config[SECTION_PRICING]
-        efficiency = config[SECTION_EFFICIENCY]
-        undercharge = config.get(SECTION_UNDERCHARGE, {})
-        overcharge = config.get(SECTION_OVERCHARGE, {})
-
-        # Check required fields
-        if not entity_available(storage.get(CONF_CAPACITY)):
-            return False
-        if not entity_available(storage.get(CONF_INITIAL_CHARGE_PERCENTAGE)):
-            return False
-
-        # Check optional time series fields if present
-        optional_checks = [
-            (power_limits, CONF_MAX_POWER_SOURCE_TARGET),
-            (power_limits, CONF_MAX_POWER_TARGET_SOURCE),
-            (limits, CONF_MIN_CHARGE_PERCENTAGE),
-            (limits, CONF_MAX_CHARGE_PERCENTAGE),
-            (efficiency, CONF_EFFICIENCY_SOURCE_TARGET),
-            (efficiency, CONF_EFFICIENCY_TARGET_SOURCE),
-            (pricing, CONF_PRICE_SOURCE_TARGET),
-            (pricing, CONF_PRICE_TARGET_SOURCE),
-            (undercharge, CONF_PARTITION_PERCENTAGE),
-            (undercharge, CONF_PARTITION_COST),
-            (overcharge, CONF_PARTITION_PERCENTAGE),
-            (overcharge, CONF_PARTITION_COST),
-        ]
-        return all(entity_available(section.get(field)) for section, field in optional_checks)
-
     def inputs(self, config: Any) -> dict[str, dict[str, InputFieldInfo[Any]]]:
         """Return input field definitions for battery elements."""
         _ = config
@@ -173,7 +128,7 @@ class BatteryAdapter:
                         native_step=0.1,
                     ),
                     output_type=OutputType.STATE_OF_CHARGE,
-                    time_series=True,
+                    time_series=False,
                 ),
             },
             SECTION_POWER_LIMITS: {
@@ -305,6 +260,19 @@ class BatteryAdapter:
                     time_series=True,
                     defaults=InputFieldDefaults(mode=None, value=0.0),
                 ),
+                CONF_SALVAGE_VALUE: InputFieldInfo(
+                    field_name=CONF_SALVAGE_VALUE,
+                    entity_description=NumberEntityDescription(
+                        key=CONF_SALVAGE_VALUE,
+                        translation_key=f"{ELEMENT_TYPE}_{CONF_SALVAGE_VALUE}",
+                        native_min_value=-1.0,
+                        native_max_value=10.0,
+                        native_step=0.001,
+                    ),
+                    output_type=OutputType.PRICE,
+                    time_series=False,
+                    defaults=InputFieldDefaults(mode=None, value=0.0),
+                ),
             },
             SECTION_UNDERCHARGE: _partition_input_fields(
                 percentage_default=0,
@@ -340,7 +308,7 @@ class BatteryAdapter:
 
         capacity = storage[CONF_CAPACITY]
         capacity_first = float(capacity[0])
-        initial_soc = float(storage[CONF_INITIAL_CHARGE_PERCENTAGE][0])
+        initial_soc = storage[CONF_INITIAL_CHARGE_PERCENTAGE]
 
         min_charge_percentage = limits.get(CONF_MIN_CHARGE_PERCENTAGE, DEFAULTS[CONF_MIN_CHARGE_PERCENTAGE])
         max_charge_percentage = limits.get(CONF_MAX_CHARGE_PERCENTAGE, DEFAULTS[CONF_MAX_CHARGE_PERCENTAGE])
@@ -368,6 +336,7 @@ class BatteryAdapter:
                 "name": name,
                 "capacity": capacity_range,
                 "initial_charge": initial_charge,
+                "salvage_value": pricing.get(CONF_SALVAGE_VALUE, 0.0),
             }
         )
 
@@ -432,7 +401,7 @@ class BatteryAdapter:
                 "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
                 "name": f"{name}:connection",
                 "source": name,
-                "target": common[CONF_CONNECTION],
+                "target": extract_connection_target(common[CONF_CONNECTION]),
                 "segments": segments,
             }
         )

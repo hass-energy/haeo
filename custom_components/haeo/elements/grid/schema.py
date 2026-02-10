@@ -1,7 +1,11 @@
 """Grid element schema definitions."""
 
-from typing import Final, Literal, TypedDict
+from typing import Any, Final, Literal, TypedDict
 
+import numpy as np
+from numpy.typing import NDArray
+
+from custom_components.haeo.schema import ConstantValue, EntityValue, NoneValue
 from custom_components.haeo.sections import (
     CONF_MAX_POWER_SOURCE_TARGET,
     CONF_MAX_POWER_TARGET_SOURCE,
@@ -15,7 +19,6 @@ from custom_components.haeo.sections import (
     PowerLimitsConfig,
     PowerLimitsData,
 )
-from custom_components.haeo.sections.pricing import PricingValueConfig, PricingValueData
 
 ELEMENT_TYPE: Final = "grid"
 
@@ -30,15 +33,15 @@ OPTIONAL_INPUT_FIELDS: Final[frozenset[str]] = frozenset(
 class GridPricingConfig(TypedDict):
     """Directional pricing configuration with required values."""
 
-    price_source_target: PricingValueConfig
-    price_target_source: PricingValueConfig
+    price_source_target: EntityValue | ConstantValue | NoneValue
+    price_target_source: EntityValue | ConstantValue | NoneValue
 
 
 class GridPricingData(TypedDict):
     """Loaded directional pricing values with required entries."""
 
-    price_source_target: PricingValueData
-    price_target_source: PricingValueData
+    price_source_target: NDArray[np.floating[Any]] | float
+    price_target_source: NDArray[np.floating[Any]] | float
 
 
 class GridConfigSchema(TypedDict):

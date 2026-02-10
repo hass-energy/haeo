@@ -5,12 +5,11 @@ from dataclasses import replace
 from typing import Any, Final, Literal
 
 from homeassistant.components.number import NumberDeviceClass, NumberEntityDescription
+from homeassistant.components.switch import SwitchEntityDescription
 from homeassistant.const import UnitOfPower
-from homeassistant.core import HomeAssistant
 
 from custom_components.haeo.const import ConnectivityLevel
-from custom_components.haeo.data.loader import TimeSeriesLoader
-from custom_components.haeo.elements.input_fields import InputFieldInfo
+from custom_components.haeo.elements.input_fields import InputFieldDefaults, InputFieldInfo
 from custom_components.haeo.elements.output_utils import expect_output_data
 from custom_components.haeo.model import ModelElementConfig, ModelOutputName, ModelOutputValue
 from custom_components.haeo.model.const import OutputType
@@ -18,9 +17,19 @@ from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION,
 from custom_components.haeo.model.elements.connection import CONNECTION_POWER_TARGET_SOURCE, CONNECTION_SEGMENTS
 from custom_components.haeo.model.elements.segments import POWER_LIMIT_TARGET_SOURCE
 from custom_components.haeo.model.output_data import OutputData
-from custom_components.haeo.sections import CONF_CONNECTION, CONF_FORECAST, SECTION_COMMON, SECTION_FORECAST
+from custom_components.haeo.schema import extract_connection_target
+from custom_components.haeo.sections import (
+    CONF_CONNECTION,
+    CONF_CURTAILMENT,
+    CONF_FORECAST,
+    CONF_PRICE_TARGET_SOURCE,
+    SECTION_COMMON,
+    SECTION_CURTAILMENT,
+    SECTION_FORECAST,
+    SECTION_PRICING,
+)
 
-from .schema import ELEMENT_TYPE, LoadConfigData, LoadConfigSchema
+from .schema import ELEMENT_TYPE, LoadConfigData
 
 # Load output names
 type LoadOutputName = Literal[
@@ -50,11 +59,6 @@ class LoadAdapter:
     advanced: bool = False
     connectivity: ConnectivityLevel = ConnectivityLevel.ADVANCED
 
-    def available(self, config: LoadConfigSchema, *, hass: HomeAssistant, **_kwargs: Any) -> bool:
-        """Check if load configuration can be loaded."""
-        ts_loader = TimeSeriesLoader()
-        return ts_loader.available(hass=hass, value=config[SECTION_FORECAST][CONF_FORECAST])
-
     def inputs(self, config: Any) -> dict[str, dict[str, InputFieldInfo[Any]]]:
         """Return input field definitions for load elements."""
         _ = config
@@ -76,10 +80,40 @@ class LoadAdapter:
                     time_series=True,
                 ),
             },
+            SECTION_PRICING: {
+                CONF_PRICE_TARGET_SOURCE: InputFieldInfo(
+                    field_name=CONF_PRICE_TARGET_SOURCE,
+                    entity_description=NumberEntityDescription(
+                        key=CONF_PRICE_TARGET_SOURCE,
+                        translation_key=f"{ELEMENT_TYPE}_{CONF_PRICE_TARGET_SOURCE}",
+                        native_min_value=-1.0,
+                        native_max_value=10.0,
+                        native_step=0.001,
+                    ),
+                    output_type=OutputType.PRICE,
+                    direction="+",
+                    time_series=True,
+                    defaults=InputFieldDefaults(mode=None, value=0.0),
+                ),
+            },
+            SECTION_CURTAILMENT: {
+                CONF_CURTAILMENT: InputFieldInfo(
+                    field_name=CONF_CURTAILMENT,
+                    entity_description=SwitchEntityDescription(
+                        key=CONF_CURTAILMENT,
+                        translation_key=f"{ELEMENT_TYPE}_{CONF_CURTAILMENT}",
+                    ),
+                    output_type=OutputType.STATUS,
+                    defaults=InputFieldDefaults(mode="value", value=False),
+                    force_required=True,
+                ),
+            },
         }
 
     def model_elements(self, config: LoadConfigData) -> list[ModelElementConfig]:
         """Create model elements for Load configuration."""
+        value = config[SECTION_PRICING].get(CONF_PRICE_TARGET_SOURCE)
+
         return [
             # Create Node for the load (sink only - consumes power)
             {
@@ -93,14 +127,19 @@ class LoadAdapter:
                 "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
                 "name": f"{config[SECTION_COMMON]['name']}:connection",
                 "source": config[SECTION_COMMON]["name"],
-                "target": config[SECTION_COMMON][CONF_CONNECTION],
+                "target": extract_connection_target(config[SECTION_COMMON][CONF_CONNECTION]),
                 "segments": {
                     "power_limit": {
                         "segment_type": "power_limit",
                         "max_power_source_target": 0.0,
                         "max_power_target_source": config[SECTION_FORECAST][CONF_FORECAST],
-                        "fixed": True,
-                    }
+                        "fixed": not config[SECTION_CURTAILMENT].get(CONF_CURTAILMENT, False),
+                    },
+                    "pricing": {
+                        "segment_type": "pricing",
+                        "price_source_target": None,
+                        "price_target_source": -value if value is not None else None,
+                    },
                 },
             },
         ]

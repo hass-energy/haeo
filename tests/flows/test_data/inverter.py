@@ -11,6 +11,7 @@ from custom_components.haeo.elements.inverter import (
     SECTION_EFFICIENCY,
     SECTION_POWER_LIMITS,
 )
+from custom_components.haeo.schema import as_connection_target, as_constant_value
 
 # Test data for inverter flow - single-step with choose selector
 # config: Contains all field values in choose selector format
@@ -20,15 +21,15 @@ VALID_DATA = [
         "config": {
             SECTION_COMMON: {
                 CONF_NAME: "Test Inverter",
-                CONF_CONNECTION: "main_bus",
+                CONF_CONNECTION: as_connection_target("main_bus"),
             },
             SECTION_POWER_LIMITS: {
-                CONF_MAX_POWER_SOURCE_TARGET: 5.0,
-                CONF_MAX_POWER_TARGET_SOURCE: 5.0,
+                CONF_MAX_POWER_SOURCE_TARGET: as_constant_value(5.0),
+                CONF_MAX_POWER_TARGET_SOURCE: as_constant_value(5.0),
             },
             SECTION_EFFICIENCY: {
-                CONF_EFFICIENCY_SOURCE_TARGET: 95.0,
-                CONF_EFFICIENCY_TARGET_SOURCE: 95.0,
+                CONF_EFFICIENCY_SOURCE_TARGET: as_constant_value(95.0),
+                CONF_EFFICIENCY_TARGET_SOURCE: as_constant_value(95.0),
             },
         },
     },

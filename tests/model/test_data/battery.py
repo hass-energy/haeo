@@ -33,6 +33,32 @@ VALID_CASES: list[ElementTestCase] = [
         },
     },
     {
+        "description": "Battery charging with salvage value",
+        "factory": Battery,
+        "data": {
+            "name": "battery_charging_salvage",
+            "periods": np.array([1.0] * 3),
+            "capacity": 10.0,
+            "initial_charge": 2.0,
+            "salvage_value": 0.2,
+        },
+        "inputs": {
+            "power": [5.0, 2.0, 0.0],
+            "input_cost": 0.0,
+            "output_cost": 0.0,
+        },
+        "expected_outputs": {
+            "battery_energy_stored": {"type": "energy", "unit": "kWh", "values": (2.0, 7.0, 9.0, 9.0)},
+            "battery_power_charge": {"type": "power", "unit": "kW", "values": (5.0, 2.0, 0.0)},
+            "battery_power_discharge": {"type": "power", "unit": "kW", "values": (0.0, 0.0, 0.0)},
+            "battery_power_balance": {"type": "shadow_price", "unit": "$/kW", "values": (0.2, 0.2, 0.2)},
+            "battery_energy_in_flow": {"type": "shadow_price", "unit": "$/kWh", "values": (0.0, 0.0, 0.0)},
+            "battery_energy_out_flow": {"type": "shadow_price", "unit": "$/kWh", "values": (0.0, 0.0, 0.0)},
+            "battery_soc_max": {"type": "shadow_price", "unit": "$/kWh", "values": (0.0, 0.0, 0.0)},
+            "battery_soc_min": {"type": "shadow_price", "unit": "$/kWh", "values": (0.0, 0.0, 0.0)},
+        },
+    },
+    {
         "description": "Battery discharging with fixed output",
         "factory": Battery,
         "data": {

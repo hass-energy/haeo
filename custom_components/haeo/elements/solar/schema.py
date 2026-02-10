@@ -3,13 +3,17 @@
 from typing import Final, Literal, TypedDict
 
 from custom_components.haeo.sections import (
+    CONF_CURTAILMENT,
     CONF_FORECAST,
     CONF_PRICE_SOURCE_TARGET,
     SECTION_COMMON,
+    SECTION_CURTAILMENT,
     SECTION_FORECAST,
     SECTION_PRICING,
     ConnectedCommonConfig,
     ConnectedCommonData,
+    CurtailmentConfig,
+    CurtailmentData,
     ForecastConfig,
     ForecastData,
     PricingConfig,
@@ -18,23 +22,7 @@ from custom_components.haeo.sections import (
 
 ELEMENT_TYPE: Final = "solar"
 
-SECTION_CURTAILMENT: Final = "curtailment"
-
-CONF_CURTAILMENT: Final = "curtailment"
-
 OPTIONAL_INPUT_FIELDS: Final[frozenset[str]] = frozenset({CONF_CURTAILMENT, CONF_PRICE_SOURCE_TARGET})
-
-
-class CurtailmentConfig(TypedDict, total=False):
-    """Curtailment configuration values."""
-
-    curtailment: str | bool
-
-
-class CurtailmentData(TypedDict, total=False):
-    """Loaded curtailment values."""
-
-    curtailment: bool
 
 
 class SolarConfigSchema(TypedDict):

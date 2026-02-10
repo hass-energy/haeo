@@ -10,6 +10,7 @@ from typing import Any, Final, Literal, TypedDict
 import numpy as np
 from numpy.typing import NDArray
 
+from custom_components.haeo.schema import ConstantValue, EntityValue
 from custom_components.haeo.sections import SECTION_COMMON, CommonConfig, CommonData
 
 ELEMENT_TYPE: Final = "battery_section"
@@ -25,8 +26,8 @@ OPTIONAL_INPUT_FIELDS: Final[frozenset[str]] = frozenset()
 class StorageChargeConfig(TypedDict):
     """Storage config with required initial charge."""
 
-    capacity: str | float
-    initial_charge: str | float
+    capacity: EntityValue | ConstantValue
+    initial_charge: EntityValue | ConstantValue
 
 
 class StorageChargeData(TypedDict):

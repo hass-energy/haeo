@@ -15,6 +15,7 @@ from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION,
 from custom_components.haeo.model.elements import connection
 from custom_components.haeo.model.elements.node import NODE_POWER_BALANCE
 from custom_components.haeo.model.output_data import OutputData
+from custom_components.haeo.schema import as_connection_target
 from tests.util.normalize import normalize_for_compare
 
 
@@ -40,7 +41,7 @@ CREATE_CASES: Sequence[CreateCase] = [
         "description": "Inverter with efficiency",
         "data": InverterConfigData(
             element_type="inverter",
-            common={"name": "inverter_main", "connection": "network"},
+            common={"name": "inverter_main", "connection": as_connection_target("network")},
             power_limits={
                 "max_power_source_target": np.array([10.0]),
                 "max_power_target_source": np.array([10.0]),
@@ -76,7 +77,7 @@ CREATE_CASES: Sequence[CreateCase] = [
         "description": "Inverter with default efficiency (100%)",
         "data": InverterConfigData(
             element_type="inverter",
-            common={"name": "inverter_simple", "connection": "network"},
+            common={"name": "inverter_simple", "connection": as_connection_target("network")},
             power_limits={
                 "max_power_source_target": np.array([10.0]),
                 "max_power_target_source": np.array([10.0]),

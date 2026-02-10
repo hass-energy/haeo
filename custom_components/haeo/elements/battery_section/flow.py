@@ -1,37 +1,27 @@
 """Battery section element configuration flows."""
 
-from collections.abc import Mapping
 from typing import Any
 
-from homeassistant.config_entries import ConfigSubentry, ConfigSubentryFlow, SubentryFlowResult, UnknownSubEntry
-from homeassistant.helpers.translation import async_get_translations
+from homeassistant.config_entries import ConfigSubentryFlow, SubentryFlowResult
 import voluptuous as vol
 
-from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME, DOMAIN
+from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.data.loader.extractors import extract_entity_metadata
-from custom_components.haeo.elements import is_element_config_schema
+from custom_components.haeo.elements import get_input_field_schema_info
 from custom_components.haeo.elements.input_fields import InputFieldGroups
 from custom_components.haeo.flows.element_flow import ElementFlowMixin, build_sectioned_inclusion_map
 from custom_components.haeo.flows.field_schema import (
     SectionDefinition,
-    build_choose_field_entries,
-    build_section_schema,
+    build_sectioned_choose_defaults,
+    build_sectioned_choose_schema,
     convert_sectioned_choose_data_to_config,
-    get_choose_default,
     preprocess_sectioned_choose_input,
     validate_sectioned_choose_fields,
 )
 from custom_components.haeo.sections import SECTION_COMMON, build_common_fields, common_section
 
 from .adapter import adapter
-from .schema import (
-    CONF_CAPACITY,
-    CONF_INITIAL_CHARGE,
-    ELEMENT_TYPE,
-    OPTIONAL_INPUT_FIELDS,
-    SECTION_STORAGE,
-    BatterySectionConfigSchema,
-)
+from .schema import CONF_CAPACITY, CONF_INITIAL_CHARGE, ELEMENT_TYPE, SECTION_STORAGE
 
 
 class BatterySectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
@@ -56,28 +46,8 @@ class BatterySectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         """Shared logic for user and reconfigure steps."""
         subentry = self._get_subentry()
         subentry_data = dict(subentry.data) if subentry else None
-
-        if (
-            subentry_data is not None
-            and is_element_config_schema(subentry_data)
-            and subentry_data["element_type"] == ELEMENT_TYPE
-        ):
-            element_config = subentry_data
-        else:
-            translations = await async_get_translations(
-                self.hass, self.hass.config.language, "config_subentries", integrations=[DOMAIN]
-            )
-            default_name = translations[f"component.{DOMAIN}.config_subentries.{ELEMENT_TYPE}.flow_title"]
-            element_config: BatterySectionConfigSchema = {
-                CONF_ELEMENT_TYPE: ELEMENT_TYPE,
-                SECTION_COMMON: {CONF_NAME: default_name},
-                SECTION_STORAGE: {
-                    CONF_CAPACITY: 0.0,
-                    CONF_INITIAL_CHARGE: 0.0,
-                },
-            }
-
-        input_fields = adapter.inputs(element_config)
+        default_name = await self._async_get_default_name(ELEMENT_TYPE)
+        input_fields = adapter.inputs(subentry_data)
 
         sections = self._get_sections()
         user_input = preprocess_sectioned_choose_input(user_input, input_fields, sections)
@@ -89,23 +59,14 @@ class BatterySectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
 
         entity_metadata = extract_entity_metadata(self.hass)
         section_inclusion_map = build_sectioned_inclusion_map(input_fields, entity_metadata)
-        translations = await async_get_translations(
-            self.hass, self.hass.config.language, "config_subentries", integrations=[DOMAIN]
-        )
-        default_name = translations[f"component.{DOMAIN}.config_subentries.{ELEMENT_TYPE}.flow_title"]
 
         schema = self._build_schema(
             input_fields,
             section_inclusion_map,
-            dict(subentry_data) if subentry_data is not None else None,
+            subentry_data,
         )
         defaults = (
-            user_input
-            if user_input is not None
-            else self._build_defaults(
-                default_name,
-                dict(subentry_data) if subentry_data is not None else None,
-            )
+            user_input if user_input is not None else self._build_defaults(default_name, input_fields, subentry_data)
         )
         schema = self.add_suggested_values_to_schema(schema, defaults)
 
@@ -118,51 +79,37 @@ class BatterySectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         subentry_data: dict[str, Any] | None = None,
     ) -> vol.Schema:
         """Build the schema with name and choose selectors for inputs."""
+        field_schema = get_input_field_schema_info(ELEMENT_TYPE, input_fields)
         sections = self._get_sections()
-        field_entries: dict[str, dict[str, tuple[vol.Marker, Any]]] = {
-            SECTION_COMMON: build_common_fields(include_connection=False),
-        }
-
-        for section_def in sections:
-            section_fields = input_fields.get(section_def.key, {})
-            if not section_fields:
-                continue
-            field_entries.setdefault(section_def.key, {}).update(
-                build_choose_field_entries(
-                    section_fields,
-                    optional_fields=OPTIONAL_INPUT_FIELDS,
-                    inclusion_map=section_inclusion_map.get(section_def.key, {}),
-                    current_data=subentry_data.get(section_def.key) if subentry_data else None,
-                )
-            )
-
-        return vol.Schema(build_section_schema(sections, field_entries))
+        return build_sectioned_choose_schema(
+            sections,
+            input_fields,
+            field_schema,
+            section_inclusion_map,
+            current_data=subentry_data,
+            extra_field_entries={
+                SECTION_COMMON: build_common_fields(include_connection=False),
+            },
+        )
 
     def _build_defaults(
         self,
         default_name: str,
-        subentry_data: Mapping[str, Any] | None = None,
+        input_fields: InputFieldGroups,
+        subentry_data: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Build default values for the form."""
         common_data = subentry_data.get(SECTION_COMMON, {}) if subentry_data else {}
-        defaults: dict[str, Any] = {
-            SECTION_COMMON: {
-                CONF_NAME: default_name if subentry_data is None else common_data.get(CONF_NAME),
+        return build_sectioned_choose_defaults(
+            self._get_sections(),
+            input_fields,
+            current_data=subentry_data,
+            base_defaults={
+                SECTION_COMMON: {
+                    CONF_NAME: default_name if subentry_data is None else common_data.get(CONF_NAME),
+                }
             },
-            SECTION_STORAGE: {},
-        }
-
-        input_fields = adapter.inputs(subentry_data)
-        for section_key, section_fields in input_fields.items():
-            for field_info in section_fields.values():
-                choose_default = get_choose_default(
-                    field_info,
-                    subentry_data.get(section_key) if subentry_data else None,
-                )
-                if choose_default is not None:
-                    defaults.setdefault(section_key, {})[field_info.field_name] = choose_default
-
-        return defaults
+        )
 
     def _validate_user_input(
         self,
@@ -175,11 +122,12 @@ class BatterySectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         errors: dict[str, str] = {}
         common_input = user_input.get(SECTION_COMMON, {})
         self._validate_name(common_input.get(CONF_NAME), errors)
+        field_schema = get_input_field_schema_info(ELEMENT_TYPE, input_fields)
         errors.update(
             validate_sectioned_choose_fields(
                 user_input,
                 input_fields,
-                OPTIONAL_INPUT_FIELDS,
+                field_schema,
                 self._get_sections(),
             )
         )
@@ -206,10 +154,3 @@ class BatterySectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         if subentry is not None:
             return self.async_update_and_abort(self._get_entry(), subentry, title=name, data=config)
         return self.async_create_entry(title=name, data=config)
-
-    def _get_subentry(self) -> ConfigSubentry | None:
-        """Get the subentry being reconfigured, or None for new entries."""
-        try:
-            return self._get_reconfigure_subentry()
-        except (ValueError, UnknownSubEntry):
-            return None

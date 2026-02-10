@@ -32,7 +32,7 @@ from custom_components.haeo.elements.load import LOAD_POWER
 from custom_components.haeo.entities import HaeoSensor
 from custom_components.haeo.entities.haeo_sensor import FORECAST_UNRECORDED_ATTRIBUTES
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON, HUB_SECTION_TIERS
-from custom_components.haeo.model import OutputType
+from custom_components.haeo.model import OutputData, OutputType
 from custom_components.haeo.sensor import async_setup_entry
 
 
@@ -399,7 +399,18 @@ def test_handle_coordinator_update_scales_percentage_outputs(device_entry: Devic
     assert attributes["forecast"] == [{"time": forecast_time, "value": 50.0}]
 
 
-def test_handle_coordinator_update_without_data_leaves_sensor_empty(device_entry: DeviceEntry) -> None:
+@pytest.mark.parametrize(
+    "coordinator_data",
+    [
+        pytest.param({}, id="no_data"),
+        pytest.param({"battery": {"battery": {}}}, id="missing_output"),
+        pytest.param({"battery": {}}, id="missing_device"),
+    ],
+)
+def test_handle_coordinator_update_clears_value_when_missing_data(
+    device_entry: DeviceEntry,
+    coordinator_data: dict[str, dict[str, dict[str, OutputData]]],
+) -> None:
     """Missing coordinator data clears the sensor value while keeping base attributes."""
 
     coordinator = _create_mock_coordinator()
@@ -427,7 +438,7 @@ def test_handle_coordinator_update_without_data_leaves_sensor_empty(device_entry
     )
     sensor.async_write_ha_state = Mock()
 
-    coordinator.data = _make_coordinator_data({})
+    coordinator.data = _make_coordinator_data(coordinator_data)
     sensor._handle_coordinator_update()
 
     assert sensor.native_value is None
@@ -605,47 +616,6 @@ def test_handle_coordinator_update_sets_direction(device_entry: DeviceEntry) -> 
     attributes = sensor.extra_state_attributes
     assert attributes is not None
     assert attributes["direction"] == "+"
-
-
-def test_handle_coordinator_update_missing_output_clears_value(device_entry: DeviceEntry) -> None:
-    """If the specific output is missing from data, sensor value is cleared."""
-    coordinator = _create_mock_coordinator()
-    initial_output = _make_output(
-        type_=OutputType.POWER,
-        unit="kW",
-        state=1.0,
-        forecast=None,
-        entity_category=None,
-        device_class=SensorDeviceClass.POWER,
-        state_class=SensorStateClass.MEASUREMENT,
-        options=None,
-    )
-
-    sensor = HaeoSensor(
-        coordinator,
-        device_entry=device_entry,
-        subentry_key="battery",
-        device_key="battery",
-        element_title="Battery",
-        element_type=BATTERY_TYPE,
-        output_name=LOAD_POWER,
-        output_data=initial_output,
-        unique_id="sensor-id",
-    )
-    sensor.async_write_ha_state = Mock()
-
-    # Case 1: Subentry exists, device exists, but output missing
-    coordinator.data = _make_coordinator_data({"battery": {"battery": {}}})
-    sensor._handle_coordinator_update()
-    assert sensor.native_value is None
-
-    # Reset
-    sensor._apply_output(initial_output)
-
-    # Case 2: Subentry exists, device missing
-    coordinator.data = _make_coordinator_data({"battery": {}})
-    sensor._handle_coordinator_update()
-    assert sensor.native_value is None
 
 
 # --- Recorder Filtering Tests ---

@@ -7,7 +7,8 @@ Individual loaders are defined in their respective modules and should not be imp
 from typing import Any
 
 from .constant_loader import ConstantLoader as ConstantLoader
+from .scalar_loader import ScalarLoader as ScalarLoader
 from .time_series_loader import TimeSeriesLoader as TimeSeriesLoader
 
 # Union of all concrete loader types
-Loader = ConstantLoader[Any] | TimeSeriesLoader
+Loader = ConstantLoader[Any] | ScalarLoader | TimeSeriesLoader

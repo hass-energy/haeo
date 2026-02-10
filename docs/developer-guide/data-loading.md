@@ -58,6 +58,7 @@ graph LR
 ```
 
 Each stage has a single responsibility and clear interfaces, making the system testable and extensible.
+Scalar-only fields bypass this pipeline and use a dedicated loader to read current values without forecasting.
 
 ### Design Decisions
 
@@ -114,6 +115,13 @@ Both support a `default` parameter for optional fields with fallback values.
 
 Values use HAEO base units: kilowatts (kW) for power, kilowatt-hours (kWh) for energy, \$/kWh for prices.
 See [Units documentation](units.md) for conversion details.
+
+## ScalarLoader
+
+The [`ScalarLoader`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/data/loader/scalar_loader.py) handles fields with `time_series` set to `False`.
+These inputs represent point-in-time values, such as initial SOC.
+The loader reads the current sensor state, converts to base units, and sums multiple sensors when provided.
+Scalar loading skips extraction, combination, and fusion because there is no horizon alignment step.
 
 ## Sensor Extraction
 

@@ -15,7 +15,7 @@ from custom_components.haeo.model.elements.node import NODE_POWER_BALANCE
 from custom_components.haeo.model.output_data import OutputData
 from custom_components.haeo.sections import SECTION_COMMON
 
-from .schema import CONF_IS_SINK, CONF_IS_SOURCE, ELEMENT_TYPE, SECTION_ROLE, NodeConfigData, NodeConfigSchema
+from .schema import CONF_IS_SINK, CONF_IS_SOURCE, ELEMENT_TYPE, SECTION_ROLE, NodeConfigData
 
 # Defaults for absent optional fields (no-op values: pure junction behavior)
 DEFAULT_IS_SOURCE: Final[bool] = False
@@ -39,12 +39,6 @@ class NodeAdapter:
     element_type: str = ELEMENT_TYPE
     advanced: bool = True
     connectivity: ConnectivityLevel = ConnectivityLevel.ALWAYS
-
-    def available(self, config: NodeConfigSchema, **_kwargs: Any) -> bool:
-        """Check if node configuration can be loaded."""
-        # Nodes only have constant fields, always available
-        _ = config  # Unused but required by protocol
-        return True
 
     def inputs(self, config: Any) -> dict[str, dict[str, InputFieldInfo[Any]]]:
         """Return input field definitions for node elements."""

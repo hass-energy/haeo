@@ -205,6 +205,13 @@ def test_neither_forecast_nor_present_value_raises_error() -> None:
         ),
         pytest.param(
             50.0,
+            [],
+            [0, 1000, 2000, 3000],
+            [50.0, 50.0, 50.0, 50.0],
+            id="present_only_no_forecast",
+        ),
+        pytest.param(
+            50.0,
             [(0, 100.0), (1000, 150.0), (2000, 200.0)],
             [0, 500, 1000, 1500, 2000],
             [50.0, 125.0, 150.0, 175.0, 200.0],
@@ -240,12 +247,6 @@ def test_fuse_to_boundaries_empty_horizon() -> None:
     """Test that empty horizon_times returns empty list."""
     result = fuse_to_boundaries(42.0, [(0, 100.0)], [])
     assert result == []
-
-
-def test_fuse_to_boundaries_present_only() -> None:
-    """Test boundaries with only present value (no forecast)."""
-    result = fuse_to_boundaries(50.0, [], [0, 1000, 2000, 3000])
-    assert result == [50.0, 50.0, 50.0, 50.0]
 
 
 def test_fuse_to_boundaries_raises_when_no_data() -> None:

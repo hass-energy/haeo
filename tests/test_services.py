@@ -63,12 +63,13 @@ def mock_hub_entry(hass: HomeAssistant) -> MockConfigEntry:
     return entry
 
 
-async def test_async_setup_registers_service(hass: HomeAssistant) -> None:
-    """Test that async_setup registers the save_diagnostics service."""
+async def test_async_setup_registers_services(hass: HomeAssistant) -> None:
+    """Test that async_setup registers HAEO services."""
     result = await async_setup(hass, {})
 
     assert result is True
     assert hass.services.has_service(DOMAIN, "save_diagnostics")
+    assert hass.services.has_service(DOMAIN, "optimize")
 
 
 async def test_save_diagnostics_service_success(
@@ -115,6 +116,17 @@ async def test_save_diagnostics_service_success(
     files = list(tmp_path.glob("haeo/diagnostics/diagnostics_*.json"))
     assert len(files) == 1
 
+    filename = files[0].name
+    assert filename.startswith("diagnostics_")
+    assert filename.endswith(".json")
+
+    timestamp_part = filename.replace("diagnostics_", "").replace(".json", "")
+    assert len(timestamp_part) == 24
+    assert timestamp_part[4] == "-"
+    assert timestamp_part[7] == "-"
+    assert timestamp_part[10] == "_"
+    assert "." in timestamp_part
+
     # Verify file content matches Home Assistant's full diagnostics format
     with files[0].open() as f:
         saved_data = json.load(f)
@@ -130,119 +142,46 @@ async def test_save_diagnostics_service_success(
     assert saved_data["data"] == mock_diagnostics.data
 
 
-async def test_save_diagnostics_service_entry_not_found(hass: HomeAssistant) -> None:
-    """Test save_diagnostics raises error when config entry not found."""
-    # Set up the service
-    await async_setup(hass, {})
-
-    # Call the service with non-existent entry ID
-    with pytest.raises(ServiceValidationError) as exc_info:
-        await hass.services.async_call(
-            DOMAIN,
-            "save_diagnostics",
-            {"config_entry": "non_existent_entry"},
-            blocking=True,
-        )
-
-    assert exc_info.value.translation_key == "config_entry_not_found"
-
-
-async def test_save_diagnostics_service_wrong_domain(hass: HomeAssistant) -> None:
-    """Test save_diagnostics raises error when config entry is not HAEO."""
-    # Set up the service
-    await async_setup(hass, {})
-
-    # Create a config entry for a different domain
-    other_entry = MockConfigEntry(
-        domain="other_integration",
-        data={},
-        entry_id="other_entry_id",
-    )
-    other_entry.add_to_hass(hass)
-
-    # Call the service with wrong domain entry
-    with pytest.raises(ServiceValidationError) as exc_info:
-        await hass.services.async_call(
-            DOMAIN,
-            "save_diagnostics",
-            {"config_entry": other_entry.entry_id},
-            blocking=True,
-        )
-
-    assert exc_info.value.translation_key == "config_entry_wrong_domain"
-
-
-async def test_save_diagnostics_service_entry_not_loaded(
+@pytest.mark.parametrize(
+    ("scenario", "expected_key"),
+    [
+        pytest.param("missing_entry", "config_entry_not_found", id="entry_not_found"),
+        pytest.param("wrong_domain", "config_entry_wrong_domain", id="wrong_domain"),
+        pytest.param("not_loaded", "config_entry_not_loaded", id="entry_not_loaded"),
+    ],
+)
+async def test_save_diagnostics_service_validation_errors(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
+    scenario: str,
+    expected_key: str,
 ) -> None:
-    """Test save_diagnostics raises error when config entry not loaded."""
-    # Set up the service
+    """save_diagnostics validates config entry references consistently."""
     await async_setup(hass, {})
 
-    # Entry is NOT_LOADED by default (not explicitly set to LOADED)
-    # Ensure it's in a non-loaded state
-    mock_hub_entry._async_set_state(hass, ConfigEntryState.NOT_LOADED, None)
+    if scenario == "missing_entry":
+        entry_id = "non_existent_entry"
+    elif scenario == "wrong_domain":
+        other_entry = MockConfigEntry(
+            domain="other_integration",
+            data={},
+            entry_id="other_entry_id",
+        )
+        other_entry.add_to_hass(hass)
+        entry_id = other_entry.entry_id
+    else:
+        mock_hub_entry._async_set_state(hass, ConfigEntryState.NOT_LOADED, None)
+        entry_id = mock_hub_entry.entry_id
 
-    # Call the service with unloaded entry
     with pytest.raises(ServiceValidationError) as exc_info:
         await hass.services.async_call(
             DOMAIN,
             "save_diagnostics",
-            {"config_entry": mock_hub_entry.entry_id},
+            {"config_entry": entry_id},
             blocking=True,
         )
 
-    assert exc_info.value.translation_key == "config_entry_not_loaded"
-
-
-async def test_save_diagnostics_filename_format(
-    hass: HomeAssistant,
-    mock_hub_entry: MockConfigEntry,
-    tmp_path: Path,
-) -> None:
-    """Test save_diagnostics creates file with correct naming format."""
-    # Set up the service
-    await async_setup(hass, {})
-
-    # Mock the entry state as loaded
-    mock_hub_entry._async_set_state(hass, ConfigEntryState.LOADED, None)
-    mock_hub_entry.runtime_data = None
-
-    # Mock config path
-    hass.config.config_dir = str(tmp_path)
-
-    with patch(
-        "custom_components.haeo.diagnostics.collect_diagnostics",
-        new_callable=AsyncMock,
-        return_value=DiagnosticsResult(
-            data={"config": {}, "environment": {}, "inputs": [], "outputs": {}},
-            missing_entity_ids=[],
-        ),
-    ):
-        await hass.services.async_call(
-            DOMAIN,
-            "save_diagnostics",
-            {"config_entry": mock_hub_entry.entry_id},
-            blocking=True,
-        )
-
-    # Verify filename format: diagnostics_<timestamp>.json in haeo/diagnostics/
-    files = list(tmp_path.glob("haeo/diagnostics/diagnostics_*.json"))
-    assert len(files) == 1
-
-    filename = files[0].name
-    assert filename.startswith("diagnostics_")
-    assert filename.endswith(".json")
-
-    # Verify timestamp format in filename (YYYY-MM-DD_HHMMSS.microseconds)
-    timestamp_part = filename.replace("diagnostics_", "").replace(".json", "")
-    # Format: 2026-01-19_155018.452421 (27 chars: 10 date + 1 underscore + 6 time + 1 dot + 6 microseconds)
-    assert len(timestamp_part) == 24
-    assert timestamp_part[4] == "-"  # Year-month separator
-    assert timestamp_part[7] == "-"  # Month-day separator
-    assert timestamp_part[10] == "_"  # Date/time separator
-    assert "." in timestamp_part  # Microseconds separator
+    assert exc_info.value.translation_key == expected_key
 
 
 def test_format_manifest_strips_codeowner_prefix() -> None:
@@ -344,49 +283,36 @@ async def test_save_diagnostics_with_historical_time(
     assert "2026-01-20" in files[0].name
 
 
-async def test_save_diagnostics_schema_includes_time_when_recorder_available(
+@pytest.mark.parametrize(
+    ("recorder_loaded", "expect_time"),
+    [
+        pytest.param(True, True, id="recorder_loaded"),
+        pytest.param(False, False, id="recorder_missing"),
+    ],
+)
+async def test_save_diagnostics_schema_time_field(
     hass: HomeAssistant,
+    recorder_loaded: bool,
+    expect_time: bool,
 ) -> None:
-    """Test that time parameter is available when recorder is loaded."""
-    # Add recorder to components
-    hass.config.components.add("recorder")
+    """save_diagnostics exposes time only when recorder is loaded."""
+    if recorder_loaded:
+        hass.config.components.add("recorder")
 
     await async_setup(hass, {})
 
-    # Get the registered service schema
     service = hass.services._services.get(DOMAIN, {}).get("save_diagnostics")
     assert service is not None
 
     schema = service.schema
     assert schema is not None
 
-    # The schema should include the optional time field
-    # We can verify by checking that the schema accepts a time
-    schema({"config_entry": "test_entry", "time": "2026-01-20T14:32:03+00:00"})
-
-
-async def test_save_diagnostics_schema_excludes_time_when_recorder_unavailable(
-    hass: HomeAssistant,
-) -> None:
-    """Test that time parameter is not available when recorder is not loaded."""
-    # By default, recorder is not in components
-    assert "recorder" not in hass.config.components
-
-    await async_setup(hass, {})
-
-    # Get the registered service schema
-    service = hass.services._services.get(DOMAIN, {}).get("save_diagnostics")
-    assert service is not None
-
-    schema = service.schema
-    assert schema is not None
-
-    # The schema should not include the time field
-    # Verify the schema only requires config_entry (timestamp would fail)
-    result = schema({"config_entry": "test_entry"})
-    assert "config_entry" in result
-    # Time should not be parsed since it's not in the schema
-    assert "time" not in result
+    if expect_time:
+        schema({"config_entry": "test_entry", "time": "2026-01-20T14:32:03+00:00"})
+    else:
+        result = schema({"config_entry": "test_entry"})
+        assert "config_entry" in result
+        assert "time" not in result
 
 
 async def test_save_diagnostics_historical_missing_entities_raises_error(
@@ -456,14 +382,6 @@ async def test_save_diagnostics_historical_missing_entities_raises_error(
 # ===== Tests for the optimize service =====
 
 
-async def test_async_setup_registers_optimize_service(hass: HomeAssistant) -> None:
-    """Test that async_setup registers the optimize service."""
-    result = await async_setup(hass, {})
-
-    assert result is True
-    assert hass.services.has_service(DOMAIN, "optimize")
-
-
 async def test_optimize_service_success(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
@@ -495,61 +413,46 @@ async def test_optimize_service_success(
     mock_coordinator.async_run_optimization.assert_called_once()
 
 
-async def test_optimize_service_entry_not_found(hass: HomeAssistant) -> None:
-    """Test optimize raises error when config entry not found."""
-    await async_setup(hass, {})
-
-    with pytest.raises(ServiceValidationError) as exc_info:
-        await hass.services.async_call(
-            DOMAIN,
-            "optimize",
-            {"config_entry": "non_existent_entry"},
-            blocking=True,
-        )
-
-    assert exc_info.value.translation_key == "config_entry_not_found"
-
-
-async def test_optimize_service_wrong_domain(hass: HomeAssistant) -> None:
-    """Test optimize raises error when config entry is not HAEO."""
-    await async_setup(hass, {})
-
-    other_entry = MockConfigEntry(
-        domain="other_integration",
-        data={},
-        entry_id="other_entry_id",
-    )
-    other_entry.add_to_hass(hass)
-
-    with pytest.raises(ServiceValidationError) as exc_info:
-        await hass.services.async_call(
-            DOMAIN,
-            "optimize",
-            {"config_entry": other_entry.entry_id},
-            blocking=True,
-        )
-
-    assert exc_info.value.translation_key == "config_entry_wrong_domain"
-
-
-async def test_optimize_service_entry_not_loaded(
+@pytest.mark.parametrize(
+    ("scenario", "expected_key"),
+    [
+        pytest.param("missing_entry", "config_entry_not_found", id="entry_not_found"),
+        pytest.param("wrong_domain", "config_entry_wrong_domain", id="wrong_domain"),
+        pytest.param("not_loaded", "config_entry_not_loaded", id="entry_not_loaded"),
+    ],
+)
+async def test_optimize_service_validation_errors(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
+    scenario: str,
+    expected_key: str,
 ) -> None:
-    """Test optimize raises error when config entry not loaded."""
+    """Optimize validates config entry references consistently."""
     await async_setup(hass, {})
 
-    mock_hub_entry._async_set_state(hass, ConfigEntryState.NOT_LOADED, None)
+    if scenario == "missing_entry":
+        entry_id = "non_existent_entry"
+    elif scenario == "wrong_domain":
+        other_entry = MockConfigEntry(
+            domain="other_integration",
+            data={},
+            entry_id="other_entry_id",
+        )
+        other_entry.add_to_hass(hass)
+        entry_id = other_entry.entry_id
+    else:
+        mock_hub_entry._async_set_state(hass, ConfigEntryState.NOT_LOADED, None)
+        entry_id = mock_hub_entry.entry_id
 
     with pytest.raises(ServiceValidationError) as exc_info:
         await hass.services.async_call(
             DOMAIN,
             "optimize",
-            {"config_entry": mock_hub_entry.entry_id},
+            {"config_entry": entry_id},
             blocking=True,
         )
 
-    assert exc_info.value.translation_key == "config_entry_not_loaded"
+    assert exc_info.value.translation_key == expected_key
 
 
 async def test_optimize_service_no_coordinator(

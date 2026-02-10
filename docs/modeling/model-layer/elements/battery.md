@@ -43,6 +43,10 @@ For each time step $t \in \{0, 1, \ldots, T\}$ (note: $T+1$ time points for ener
 - $E_{\text{initial}}$: Initial charge in kWh - `initial_charge`
 - $\Delta t$: Time step duration (hours) - `period`
 
+**Optional parameters**:
+
+- $v_{\text{salvage}}$: Terminal value of stored energy (\$/kWh) - `salvage_value`
+
 ### Constraints
 
 #### 1. Energy Flow Constraints
@@ -91,8 +95,14 @@ Where:
 
 ### Cost Contribution
 
-The single-section battery model has no inherent costs.
-Costs (efficiency losses, degradation penalties, SOC pricing) are applied through [Connection](../connections/index.md) elements in the device adapter layer.
+The battery model can include an optional terminal salvage value.
+When configured, it credits the final stored energy at time $T$:
+
+$$
+-v_{\text{salvage}} \cdot \left(E_{\text{in}}(T) - E_{\text{out}}(T)\right)
+$$
+
+Other costs (efficiency losses, degradation penalties, SOC pricing) are applied through [Connection](../connections/index.md) elements in the device adapter layer.
 
 ## Physical Interpretation
 

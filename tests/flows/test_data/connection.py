@@ -13,6 +13,7 @@ from custom_components.haeo.elements.connection import (
     SECTION_POWER_LIMITS,
     SECTION_PRICING,
 )
+from custom_components.haeo.schema import as_connection_target, as_constant_value
 
 # Test data for connection flow - single-step with choose selector
 # config: Contains all field values in choose selector format
@@ -24,8 +25,8 @@ VALID_DATA = [
                 CONF_NAME: "Battery to Grid",
             },
             SECTION_ENDPOINTS: {
-                CONF_SOURCE: "Battery1",
-                CONF_TARGET: "Grid1",
+                CONF_SOURCE: as_connection_target("Battery1"),
+                CONF_TARGET: as_connection_target("Grid1"),
             },
             SECTION_POWER_LIMITS: {},
             SECTION_PRICING: {},
@@ -39,16 +40,16 @@ VALID_DATA = [
                 CONF_NAME: "Battery to Grid",
             },
             SECTION_ENDPOINTS: {
-                CONF_SOURCE: "Battery1",
-                CONF_TARGET: "Grid1",
+                CONF_SOURCE: as_connection_target("Battery1"),
+                CONF_TARGET: as_connection_target("Grid1"),
             },
             SECTION_POWER_LIMITS: {
-                CONF_MAX_POWER_SOURCE_TARGET: 10.0,
-                CONF_MAX_POWER_TARGET_SOURCE: 10.0,
+                CONF_MAX_POWER_SOURCE_TARGET: as_constant_value(10.0),
+                CONF_MAX_POWER_TARGET_SOURCE: as_constant_value(10.0),
             },
             SECTION_PRICING: {},
             SECTION_EFFICIENCY: {
-                CONF_EFFICIENCY_SOURCE_TARGET: 95.0,
+                CONF_EFFICIENCY_SOURCE_TARGET: as_constant_value(95.0),
             },
         },
     },

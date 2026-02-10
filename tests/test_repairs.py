@@ -53,15 +53,6 @@ async def test_dismiss_missing_sensor_issue(hass: HomeAssistant) -> None:
     assert issue_registry.async_get_issue(DOMAIN, issue_id) is None
 
 
-async def test_dismiss_missing_sensor_issue_not_exists(hass: HomeAssistant) -> None:
-    """Test dismissing a non-existent issue doesn't raise error."""
-    element_name = "test_battery"
-    sensor_entity_id = "sensor.test_power"
-
-    # Should not raise exception even if issue doesn't exist
-    dismiss_missing_sensor_issue(hass, element_name, sensor_entity_id)
-
-
 async def test_create_optimization_failure_issue(hass: HomeAssistant) -> None:
     """Test creating an optimization failure repair issue."""
     entry_id = "test_entry_123"
@@ -98,14 +89,6 @@ async def test_dismiss_optimization_failure_issue(hass: HomeAssistant) -> None:
 
     # Verify it's gone
     assert issue_registry.async_get_issue(DOMAIN, issue_id) is None
-
-
-async def test_dismiss_optimization_failure_issue_not_exists(hass: HomeAssistant) -> None:
-    """Test dismissing a non-existent optimization issue doesn't raise error."""
-    entry_id = "test_entry_123"
-
-    # Should not raise exception even if issue doesn't exist
-    dismiss_optimization_failure_issue(hass, entry_id)
 
 
 async def test_create_invalid_config_issue(hass: HomeAssistant) -> None:

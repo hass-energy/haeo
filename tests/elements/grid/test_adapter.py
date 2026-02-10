@@ -3,6 +3,8 @@
 from homeassistant.core import HomeAssistant
 
 from custom_components.haeo.elements import grid
+from custom_components.haeo.elements.availability import schema_config_available
+from custom_components.haeo.schema import as_connection_target, as_constant_value, as_entity_value
 
 
 def _set_sensor(hass: HomeAssistant, entity_id: str, value: str, unit: str = "kW") -> None:
@@ -17,15 +19,18 @@ async def test_available_returns_true_when_sensors_exist(hass: HomeAssistant) ->
 
     config: grid.GridConfigSchema = {
         "element_type": "grid",
-        grid.SECTION_COMMON: {"name": "test_grid", "connection": "main_bus"},
+        grid.SECTION_COMMON: {
+            "name": "test_grid",
+            "connection": as_connection_target("main_bus"),
+        },
         grid.SECTION_PRICING: {
-            "price_source_target": ["sensor.import_price"],
-            "price_target_source": ["sensor.export_price"],
+            "price_source_target": as_entity_value(["sensor.import_price"]),
+            "price_target_source": as_entity_value(["sensor.export_price"]),
         },
         grid.SECTION_POWER_LIMITS: {},
     }
 
-    result = grid.adapter.available(config, hass=hass)
+    result = schema_config_available(config, hass=hass)
     assert result is True
 
 
@@ -35,15 +40,18 @@ async def test_available_returns_false_when_import_price_missing(hass: HomeAssis
 
     config: grid.GridConfigSchema = {
         "element_type": "grid",
-        grid.SECTION_COMMON: {"name": "test_grid", "connection": "main_bus"},
+        grid.SECTION_COMMON: {
+            "name": "test_grid",
+            "connection": as_connection_target("main_bus"),
+        },
         grid.SECTION_PRICING: {
-            "price_source_target": ["sensor.missing"],
-            "price_target_source": ["sensor.export_price"],
+            "price_source_target": as_entity_value(["sensor.missing"]),
+            "price_target_source": as_entity_value(["sensor.export_price"]),
         },
         grid.SECTION_POWER_LIMITS: {},
     }
 
-    result = grid.adapter.available(config, hass=hass)
+    result = schema_config_available(config, hass=hass)
     assert result is False
 
 
@@ -53,15 +61,18 @@ async def test_available_returns_false_when_export_price_missing(hass: HomeAssis
 
     config: grid.GridConfigSchema = {
         "element_type": "grid",
-        grid.SECTION_COMMON: {"name": "test_grid", "connection": "main_bus"},
+        grid.SECTION_COMMON: {
+            "name": "test_grid",
+            "connection": as_connection_target("main_bus"),
+        },
         grid.SECTION_PRICING: {
-            "price_source_target": ["sensor.import_price"],
-            "price_target_source": ["sensor.missing"],
+            "price_source_target": as_entity_value(["sensor.import_price"]),
+            "price_target_source": as_entity_value(["sensor.missing"]),
         },
         grid.SECTION_POWER_LIMITS: {},
     }
 
-    result = grid.adapter.available(config, hass=hass)
+    result = schema_config_available(config, hass=hass)
     assert result is False
 
 
@@ -69,31 +80,37 @@ async def test_available_with_constant_prices(hass: HomeAssistant) -> None:
     """Grid available() returns True when prices are constants (no sensors needed)."""
     config: grid.GridConfigSchema = {
         "element_type": "grid",
-        grid.SECTION_COMMON: {"name": "test_grid", "connection": "main_bus"},
+        grid.SECTION_COMMON: {
+            "name": "test_grid",
+            "connection": as_connection_target("main_bus"),
+        },
         grid.SECTION_PRICING: {
-            "price_source_target": 0.30,  # Constant
-            "price_target_source": 0.05,  # Constant
+            "price_source_target": as_constant_value(0.30),
+            "price_target_source": as_constant_value(0.05),
         },
         grid.SECTION_POWER_LIMITS: {},
     }
 
-    result = grid.adapter.available(config, hass=hass)
+    result = schema_config_available(config, hass=hass)
     assert result is True
 
 
-async def test_available_with_single_entity_string(hass: HomeAssistant) -> None:
-    """Grid available() returns True when price is a single entity string."""
+async def test_available_with_entity_schema_value(hass: HomeAssistant) -> None:
+    """Grid available() returns True when price uses entity schema value."""
     _set_sensor(hass, "sensor.import_price", "0.30", "$/kWh")
 
     config: grid.GridConfigSchema = {
         "element_type": "grid",
-        grid.SECTION_COMMON: {"name": "test_grid", "connection": "main_bus"},
+        grid.SECTION_COMMON: {
+            "name": "test_grid",
+            "connection": as_connection_target("main_bus"),
+        },
         grid.SECTION_PRICING: {
-            "price_source_target": "sensor.import_price",  # Single string, not list
-            "price_target_source": 0.05,  # Constant
+            "price_source_target": as_entity_value(["sensor.import_price"]),
+            "price_target_source": as_constant_value(0.05),
         },
         grid.SECTION_POWER_LIMITS: {},
     }
 
-    result = grid.adapter.available(config, hass=hass)
+    result = schema_config_available(config, hass=hass)
     assert result is True

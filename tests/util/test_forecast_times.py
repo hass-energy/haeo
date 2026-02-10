@@ -323,28 +323,6 @@ def test_alignment_no_extra_steps() -> None:
     assert tier_counts[3] == total_steps - (tier_counts[0] + tier_counts[1] + tier_counts[2])
 
 
-def test_tiers_to_periods_with_preset() -> None:
-    """Test that tiers_to_periods_seconds uses alignment for presets."""
-    config = {
-        "horizon_preset": "5_days",
-        "tier_1_duration": 1,
-        "tier_2_duration": 5,
-        "tier_3_duration": 30,
-        "tier_4_duration": 60,
-    }
-
-    # Mock utcnow to return a known time
-    mock_time = datetime(2025, 1, 1, 12, 0, 0, tzinfo=UTC)
-
-    with patch("custom_components.haeo.util.forecast_times.dt_util.utcnow", return_value=mock_time):
-        periods = tiers_to_periods_seconds(config)
-
-    # Should have periods
-    assert len(periods) > 0
-    # First periods should be 60 seconds (tier 1)
-    assert periods[0] == 60
-
-
 def test_tiers_to_periods_with_custom() -> None:
     """Test that tiers_to_periods_seconds uses fixed counts for custom preset."""
     config = {
@@ -403,6 +381,11 @@ def test_preset_produces_constant_step_count_for_all_minutes(preset: str) -> Non
         "tier_3_duration": 30,
         "tier_4_duration": 60,
     }
+
+    with freeze_time(datetime(2025, 1, 1, 12, 0, 0, tzinfo=UTC)):
+        periods = tiers_to_periods_seconds(config)
+        assert len(periods) > 0
+        assert periods[0] == 60
 
     step_counts: list[int] = []
 

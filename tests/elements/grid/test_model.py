@@ -15,6 +15,7 @@ from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE
 from custom_components.haeo.model.elements import connection
 from custom_components.haeo.model.output_data import OutputData
+from custom_components.haeo.schema import as_connection_target
 from tests.util.normalize import normalize_for_compare
 
 
@@ -42,7 +43,7 @@ CREATE_CASES: Sequence[CreateCase] = [
         "description": "Grid with import and export limits",
         "data": GridConfigData(
             element_type="grid",
-            common={"name": "grid_main", "connection": "network"},
+            common={"name": "grid_main", "connection": as_connection_target("network")},
             pricing={
                 "price_source_target": np.array([0.1]),
                 "price_target_source": np.array([0.05]),
@@ -83,7 +84,7 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
         "name": "grid_main",
         "config": GridConfigData(
             element_type="grid",
-            common={"name": "grid_main", "connection": "network"},
+            common={"name": "grid_main", "connection": as_connection_target("network")},
             pricing={
                 "price_source_target": np.array([0.10]),
                 "price_target_source": np.array([0.05]),
@@ -126,7 +127,7 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
         "name": "grid_multi",
         "config": GridConfigData(
             element_type="grid",
-            common={"name": "grid_multi", "connection": "network"},
+            common={"name": "grid_multi", "connection": as_connection_target("network")},
             pricing={
                 "price_source_target": np.array([0.10, 0.20]),
                 "price_target_source": np.array([0.05, 0.05]),

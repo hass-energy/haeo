@@ -1,6 +1,6 @@
 """Battery entity for electrical system modeling."""
 
-from typing import Any, Final, Literal, TypedDict
+from typing import Any, Final, Literal, NotRequired, TypedDict
 
 from highspy import Highs
 from highspy.highs import HighspyArray, highs_linear_expression
@@ -10,7 +10,7 @@ from numpy.typing import NDArray
 from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.element import Element
 from custom_components.haeo.model.output_data import OutputData
-from custom_components.haeo.model.reactive import TrackedParam, constraint, output
+from custom_components.haeo.model.reactive import TrackedParam, constraint, cost, output
 from custom_components.haeo.model.util import broadcast_to_sequence
 
 # Model element type for batteries
@@ -63,6 +63,7 @@ class BatteryElementConfig(TypedDict):
     name: str
     capacity: NDArray[np.floating[Any]] | float
     initial_charge: float
+    salvage_value: NotRequired[float]
 
 
 class Battery(Element[BatteryOutputName]):
@@ -75,6 +76,7 @@ class Battery(Element[BatteryOutputName]):
     # Parameters
     capacity: TrackedParam[NDArray[np.float64]] = TrackedParam()
     initial_charge: TrackedParam[float] = TrackedParam()
+    salvage_value: TrackedParam[float] = TrackedParam()
 
     def __init__(
         self,
@@ -84,6 +86,7 @@ class Battery(Element[BatteryOutputName]):
         solver: Highs,
         capacity: NDArray[np.floating[Any]] | float,
         initial_charge: float,
+        salvage_value: float = 0.0,
     ) -> None:
         """Initialize a battery entity.
 
@@ -93,6 +96,7 @@ class Battery(Element[BatteryOutputName]):
             solver: The HiGHS solver instance for creating variables and constraints
             capacity: Battery capacity in kWh per period (T+1 values for energy boundaries)
             initial_charge: Initial charge in kWh
+            salvage_value: Terminal value applied to stored energy in $/kWh
 
         """
         super().__init__(name=name, periods=periods, solver=solver, output_names=BATTERY_OUTPUT_NAMES)
@@ -101,6 +105,7 @@ class Battery(Element[BatteryOutputName]):
         # Set tracked parameters (broadcasts capacity to n_periods + 1)
         self.capacity = broadcast_to_sequence(capacity, n_periods + 1)
         self.initial_charge = initial_charge
+        self.salvage_value = salvage_value
 
         # Create all energy variables (including initial state at t=0)
         self.energy_in = solver.addVariables(n_periods + 1, lb=0.0, name_prefix=f"{name}_energy_in_", out_array=True)
@@ -176,6 +181,11 @@ class Battery(Element[BatteryOutputName]):
         Output: shadow price indicating the marginal value of power balance constraint.
         """
         return list(self.connection_power() == self.power_consumption - self.power_production)
+
+    @cost
+    def battery_salvage_value(self) -> highs_linear_expression:
+        """Cost: salvage value of stored energy at the end of the horizon."""
+        return -self.salvage_value * self.stored_energy[-1]
 
     # Output methods
 

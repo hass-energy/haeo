@@ -7,10 +7,8 @@ from typing import Any, Final, Literal
 from homeassistant.components.number import NumberDeviceClass, NumberEntityDescription
 from homeassistant.components.switch import SwitchEntityDescription
 from homeassistant.const import UnitOfPower
-from homeassistant.core import HomeAssistant
 
 from custom_components.haeo.const import ConnectivityLevel
-from custom_components.haeo.data.loader import TimeSeriesLoader
 from custom_components.haeo.elements.input_fields import InputFieldDefaults, InputFieldInfo
 from custom_components.haeo.elements.output_utils import expect_output_data
 from custom_components.haeo.model import ModelElementConfig, ModelOutputName, ModelOutputValue
@@ -19,6 +17,7 @@ from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION,
 from custom_components.haeo.model.elements.connection import CONNECTION_POWER_SOURCE_TARGET, CONNECTION_SEGMENTS
 from custom_components.haeo.model.elements.segments import POWER_LIMIT_SOURCE_TARGET
 from custom_components.haeo.model.output_data import OutputData
+from custom_components.haeo.schema import extract_connection_target
 from custom_components.haeo.sections import (
     CONF_CONNECTION,
     CONF_FORECAST,
@@ -28,7 +27,7 @@ from custom_components.haeo.sections import (
     SECTION_PRICING,
 )
 
-from .schema import CONF_CURTAILMENT, ELEMENT_TYPE, SECTION_CURTAILMENT, SolarConfigData, SolarConfigSchema
+from .schema import CONF_CURTAILMENT, ELEMENT_TYPE, SECTION_CURTAILMENT, SolarConfigData
 
 # Solar output names
 type SolarOutputName = Literal[
@@ -55,11 +54,6 @@ class SolarAdapter:
     element_type: str = ELEMENT_TYPE
     advanced: bool = False
     connectivity: ConnectivityLevel = ConnectivityLevel.ADVANCED
-
-    def available(self, config: SolarConfigSchema, *, hass: HomeAssistant, **_kwargs: Any) -> bool:
-        """Check if solar configuration can be loaded."""
-        ts_loader = TimeSeriesLoader()
-        return ts_loader.available(hass=hass, value=config[SECTION_FORECAST][CONF_FORECAST])
 
     def inputs(self, config: Any) -> dict[str, dict[str, InputFieldInfo[Any]]]:
         """Return input field definitions for solar elements."""
@@ -125,7 +119,7 @@ class SolarAdapter:
                 "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
                 "name": f"{config[SECTION_COMMON]['name']}:connection",
                 "source": config[SECTION_COMMON]["name"],
-                "target": config[SECTION_COMMON][CONF_CONNECTION],
+                "target": extract_connection_target(config[SECTION_COMMON][CONF_CONNECTION]),
                 "segments": {
                     "power_limit": {
                         "segment_type": "power_limit",

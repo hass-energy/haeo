@@ -6,12 +6,10 @@ from typing import Any, Final, Literal
 
 from homeassistant.components.number import NumberDeviceClass, NumberEntityDescription
 from homeassistant.const import UnitOfPower
-from homeassistant.core import HomeAssistant
 import numpy as np
 from numpy.typing import NDArray
 
 from custom_components.haeo.const import ConnectivityLevel
-from custom_components.haeo.data.loader import TimeSeriesLoader
 from custom_components.haeo.elements.input_fields import InputFieldDefaults, InputFieldInfo
 from custom_components.haeo.elements.output_utils import expect_output_data
 from custom_components.haeo.model import ModelElementConfig, ModelOutputName, ModelOutputValue
@@ -25,6 +23,7 @@ from custom_components.haeo.model.elements.connection import (
 from custom_components.haeo.model.elements.segments import POWER_LIMIT_SOURCE_TARGET, POWER_LIMIT_TARGET_SOURCE
 from custom_components.haeo.model.output_data import OutputData
 from custom_components.haeo.model.util import broadcast_to_sequence
+from custom_components.haeo.schema import extract_connection_target
 from custom_components.haeo.sections import (
     CONF_CONNECTION,
     CONF_MAX_POWER_SOURCE_TARGET,
@@ -36,7 +35,7 @@ from custom_components.haeo.sections import (
     SECTION_PRICING,
 )
 
-from .schema import ELEMENT_TYPE, GridConfigData, GridConfigSchema
+from .schema import ELEMENT_TYPE, GridConfigData
 
 # Grid-specific output names for translation/sensor mapping
 type GridOutputName = Literal[
@@ -78,24 +77,6 @@ class GridAdapter:
     element_type: str = ELEMENT_TYPE
     advanced: bool = False
     connectivity: ConnectivityLevel = ConnectivityLevel.ADVANCED
-
-    def available(self, config: GridConfigSchema, *, hass: HomeAssistant, **_kwargs: Any) -> bool:
-        """Check if grid configuration can be loaded."""
-        ts_loader = TimeSeriesLoader()
-
-        # Helper to check entity availability
-        def entities_available(value: list[str] | str | float | None) -> bool:
-            if value is None or isinstance(value, float | int):
-                return True  # Constants and missing values are always available
-            if isinstance(value, str):
-                return ts_loader.available(hass=hass, value=[value])
-            # At this point value is a list of strings
-            return ts_loader.available(hass=hass, value=value) if value else True
-
-        pricing = config[SECTION_PRICING]
-        return entities_available(pricing.get(CONF_PRICE_SOURCE_TARGET)) and entities_available(
-            pricing.get(CONF_PRICE_TARGET_SOURCE)
-        )
 
     def inputs(self, config: Any) -> dict[str, dict[str, InputFieldInfo[Any]]]:
         """Return input field definitions for grid elements."""
@@ -180,7 +161,7 @@ class GridAdapter:
                 "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
                 "name": f"{config[SECTION_COMMON]['name']}:connection",
                 "source": config[SECTION_COMMON]["name"],
-                "target": config[SECTION_COMMON][CONF_CONNECTION],
+                "target": extract_connection_target(config[SECTION_COMMON][CONF_CONNECTION]),
                 "segments": {
                     "power_limit": {
                         "segment_type": "power_limit",

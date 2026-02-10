@@ -110,7 +110,8 @@
             "min_charge_percentage": "Min Charge Level",
             "name": "Battery Name",
             "price_source_target": "Discharge price",
-            "price_target_source": "Charge price"
+            "price_target_source": "Charge price",
+            "salvage_value": "Salvage value"
           },
           "sections": {
             "common": { "data": { "connection": "Connection", "name": "Battery Name" }, "name": "Common settings" },
@@ -137,7 +138,11 @@
               "name": "Power limits"
             },
             "pricing": {
-              "data": { "price_source_target": "Discharge price", "price_target_source": "Charge price" },
+              "data": {
+                "price_source_target": "Discharge price",
+                "price_target_source": "Charge price",
+                "salvage_value": "Salvage value"
+              },
               "name": "Pricing"
             },
             "storage": {
@@ -322,10 +327,18 @@
         "user": {
           "title": "Load Configuration",
           "description": "Configure a load with forecast or constant power.\n\n[HAFO]({hafo_url}) can be used to generate forecast sensors.",
-          "data": { "connection": "Connection", "forecast": "Forecast", "name": "Load Name" },
+          "data": {
+            "connection": "Connection",
+            "curtailment": "Allow shedding",
+            "forecast": "Forecast",
+            "name": "Load Name",
+            "price_target_source": "Consumption value"
+          },
           "sections": {
             "common": { "data": { "connection": "Connection", "name": "Load Name" }, "name": "Common settings" },
-            "forecast": { "data": { "forecast": "Forecast" }, "name": "Forecast" }
+            "curtailment": { "data": { "curtailment": "Allow shedding" }, "name": "Shedding" },
+            "forecast": { "data": { "forecast": "Forecast" }, "name": "Forecast" },
+            "pricing": { "data": { "price_target_source": "Consumption value" }, "name": "Value" }
           }
         }
       },
@@ -420,6 +433,7 @@
       "battery_percentage": { "name": "Percentage" },
       "battery_price_source_target": { "name": "Discharge price" },
       "battery_price_target_source": { "name": "Charge price" },
+      "battery_salvage_value": { "name": "Salvage value" },
       "connection_efficiency_source_target": { "name": "Source to target efficiency" },
       "connection_efficiency_target_source": { "name": "Target to source efficiency" },
       "connection_max_power_source_target": { "name": "Max source to target power" },
@@ -435,6 +449,7 @@
       "inverter_max_power_source_target": { "name": "Max DC to AC power" },
       "inverter_max_power_target_source": { "name": "Max AC to DC power" },
       "load_forecast": { "name": "Forecast" },
+      "load_price_target_source": { "name": "Consumption value" },
       "solar_forecast": { "name": "Forecast" },
       "solar_price_source_target": { "name": "Production price" }
     },
@@ -489,6 +504,7 @@
       "solar_power": { "name": "Power" }
     },
     "switch": {
+      "load_curtailment": { "name": "Shedding" },
       "network_auto_optimize": { "name": "Auto optimize" },
       "node_is_sink": { "name": "Is sink" },
       "node_is_source": { "name": "Is source" },

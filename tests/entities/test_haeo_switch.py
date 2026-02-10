@@ -33,6 +33,7 @@ from custom_components.haeo.entities.haeo_switch import FORECAST_UNRECORDED_ATTR
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON, HUB_SECTION_TIERS
 from custom_components.haeo.horizon import HorizonManager
 from custom_components.haeo.model.const import OutputType
+from custom_components.haeo.schema import as_connection_target, as_constant_value, as_entity_value, as_none_value
 
 # --- Fixtures ---
 
@@ -97,21 +98,36 @@ def curtailment_field_info() -> InputFieldInfo[SwitchEntityDescription]:
 
 def _create_subentry(name: str, data: dict[str, Any]) -> ConfigSubentry:
     """Create a ConfigSubentry with the given data."""
+
+    def schema_value(value: Any) -> Any:
+        if value is None:
+            return as_none_value()
+        if isinstance(value, bool):
+            return as_constant_value(value)
+        if isinstance(value, (int, float)):
+            return as_constant_value(float(value))
+        if isinstance(value, str):
+            return as_entity_value([value])
+        if isinstance(value, list) and all(isinstance(item, str) for item in value):
+            return as_entity_value(value)
+        msg = f"Unsupported schema value {value!r}"
+        raise TypeError(msg)
+
     return ConfigSubentry(
         data=MappingProxyType(
             {
                 "element_type": "solar",
                 SECTION_COMMON: {
                     CONF_NAME: name,
-                    CONF_CONNECTION: "Switchboard",
+                    CONF_CONNECTION: as_connection_target("Switchboard"),
                 },
                 SECTION_FORECAST: {
-                    CONF_FORECAST: ["sensor.solar_forecast"],
+                    CONF_FORECAST: as_entity_value(["sensor.solar_forecast"]),
                 },
                 SECTION_PRICING: {
-                    CONF_PRICE_SOURCE_TARGET: 0.0,
+                    CONF_PRICE_SOURCE_TARGET: as_constant_value(0.0),
                 },
-                SECTION_CURTAILMENT: data,
+                SECTION_CURTAILMENT: {key: schema_value(value) for key, value in data.items()},
             }
         ),
         subentry_type="solar",
@@ -167,6 +183,42 @@ async def test_editable_mode_with_true_value(
     assert attrs["element_name"] == "Test Solar"
     assert attrs["element_type"] == "solar"
     assert attrs["field_name"] == "allow_curtailment"
+
+
+async def test_editable_mode_with_raw_boolean(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    device_entry: Mock,
+    curtailment_field_info: InputFieldInfo[SwitchEntityDescription],
+    horizon_manager: Mock,
+) -> None:
+    """Switch entity handles raw boolean config values."""
+    subentry = ConfigSubentry(
+        data=MappingProxyType(
+            {
+                "element_type": "solar",
+                SECTION_COMMON: {CONF_NAME: "Raw Bool", CONF_CONNECTION: as_connection_target("Switchboard")},
+                SECTION_FORECAST: {CONF_FORECAST: as_entity_value(["sensor.solar_forecast"])},
+                SECTION_PRICING: {CONF_PRICE_SOURCE_TARGET: as_constant_value(0.0)},
+                SECTION_CURTAILMENT: {curtailment_field_info.field_name: True},
+            }
+        ),
+        subentry_type="solar",
+        title="Raw Bool",
+        unique_id=None,
+    )
+    config_entry.runtime_data = None
+
+    entity = HaeoInputSwitch(
+        config_entry=config_entry,
+        subentry=subentry,
+        field_info=curtailment_field_info,
+        device_entry=device_entry,
+        horizon_manager=horizon_manager,
+    )
+
+    assert entity._entity_mode == ConfigEntityMode.EDITABLE
+    assert entity.is_on is True
 
 
 async def test_editable_mode_with_false_value(
@@ -680,6 +732,38 @@ async def test_async_added_to_hass_editable_uses_config_value(
     await _add_entity_to_hass(hass, entity)
 
     # Should use config value directly
+    assert entity.is_on is True
+
+
+async def test_async_added_to_hass_applies_default_when_missing(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    device_entry: Mock,
+    horizon_manager: Mock,
+) -> None:
+    """async_added_to_hass applies defaults when editable value is missing."""
+    field_info = InputFieldInfo(
+        field_name="allow_curtailment",
+        entity_description=SwitchEntityDescription(
+            key="allow_curtailment",
+            translation_key="allow_curtailment",
+        ),
+        output_type=OutputType.STATUS,
+        defaults=InputFieldDefaults(mode="value", value=True),
+    )
+    subentry = _create_subentry("Test Solar", {"allow_curtailment": None})
+    config_entry.runtime_data = None
+
+    entity = HaeoInputSwitch(
+        config_entry=config_entry,
+        subentry=subentry,
+        field_info=field_info,
+        device_entry=device_entry,
+        horizon_manager=horizon_manager,
+    )
+
+    await _add_entity_to_hass(hass, entity)
+
     assert entity.is_on is True
 
 

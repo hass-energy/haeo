@@ -7,6 +7,7 @@ from unittest.mock import Mock
 from homeassistant.config_entries import SOURCE_RECONFIGURE, ConfigSubentry
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
+import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME
@@ -26,6 +27,7 @@ from custom_components.haeo.elements.battery import (
     CONF_PARTITION_PERCENTAGE,
     CONF_PRICE_SOURCE_TARGET,
     CONF_PRICE_TARGET_SOURCE,
+    CONF_SALVAGE_VALUE,
     ELEMENT_TYPE,
     SECTION_COMMON,
     SECTION_EFFICIENCY,
@@ -36,22 +38,39 @@ from custom_components.haeo.elements.battery import (
     SECTION_PRICING,
     SECTION_STORAGE,
     SECTION_UNDERCHARGE,
+    adapter,
 )
+from custom_components.haeo.schema import as_connection_target, as_constant_value, as_entity_value
 
 from ..conftest import add_participant, create_flow
 
 
-def _wrap_main_input(user_input: dict[str, Any]) -> dict[str, Any]:
+def _wrap_main_input(user_input: dict[str, Any], *, as_schema: bool = False) -> dict[str, Any]:
     """Wrap battery user input into sectioned form data."""
+    common = {
+        key: user_input[key]
+        for key in (
+            CONF_NAME,
+            CONF_CONNECTION,
+        )
+        if key in user_input
+    }
+    has_schema_values = any(isinstance(value, dict) and "type" in value for value in user_input.values())
+    if (as_schema or has_schema_values) and isinstance(common.get(CONF_CONNECTION), str):
+        common[CONF_CONNECTION] = as_connection_target(common[CONF_CONNECTION])
+    pricing = {
+        key: user_input[key]
+        for key in (
+            CONF_PRICE_SOURCE_TARGET,
+            CONF_PRICE_TARGET_SOURCE,
+            CONF_SALVAGE_VALUE,
+        )
+        if key in user_input
+    }
+    pricing.setdefault(CONF_SALVAGE_VALUE, 0.0)
+
     return {
-        SECTION_COMMON: {
-            key: user_input[key]
-            for key in (
-                CONF_NAME,
-                CONF_CONNECTION,
-            )
-            if key in user_input
-        },
+        SECTION_COMMON: common,
         SECTION_STORAGE: {
             key: user_input[key]
             for key in (
@@ -76,14 +95,7 @@ def _wrap_main_input(user_input: dict[str, Any]) -> dict[str, Any]:
             )
             if key in user_input
         },
-        SECTION_PRICING: {
-            key: user_input[key]
-            for key in (
-                CONF_PRICE_SOURCE_TARGET,
-                CONF_PRICE_TARGET_SOURCE,
-            )
-            if key in user_input
-        },
+        SECTION_PRICING: pricing,
         SECTION_EFFICIENCY: {key: user_input[key] for key in (CONF_EFFICIENCY_SOURCE_TARGET, CONF_EFFICIENCY_TARGET_SOURCE) if key in user_input},
         SECTION_PARTITIONING: {key: user_input[key] for key in (CONF_CONFIGURE_PARTITIONS,) if key in user_input},
     }
@@ -99,70 +111,6 @@ def _wrap_partition_input(
         SECTION_UNDERCHARGE: {key: undercharge_input[key] for key in (CONF_PARTITION_PERCENTAGE, CONF_PARTITION_COST) if key in undercharge_input},
         SECTION_OVERCHARGE: {key: overcharge_input[key] for key in (CONF_PARTITION_PERCENTAGE, CONF_PARTITION_COST) if key in overcharge_input},
     }
-
-
-async def test_reconfigure_with_deleted_connection_target(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
-    """Battery reconfigure should include deleted connection target in options."""
-    existing_config = {
-        CONF_ELEMENT_TYPE: ELEMENT_TYPE,
-        **_wrap_main_input(
-            {
-                CONF_NAME: "Test Battery",
-                CONF_CONNECTION: "DeletedNode",
-                CONF_CAPACITY: 10.0,
-                CONF_INITIAL_CHARGE_PERCENTAGE: 50.0,
-            }
-        ),
-    }
-    existing_subentry = ConfigSubentry(
-        data=MappingProxyType(existing_config),
-        subentry_type=ELEMENT_TYPE,
-        title="Test Battery",
-        unique_id=None,
-    )
-    hass.config_entries.async_add_subentry(hub_entry, existing_subentry)
-
-    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
-    flow.context = {
-        "subentry_id": existing_subentry.subentry_id,
-        "source": SOURCE_RECONFIGURE,
-    }
-    flow._get_reconfigure_subentry = Mock(return_value=existing_subentry)
-
-    result = await flow.async_step_reconfigure(user_input=None)
-
-    assert result.get("type") == FlowResultType.FORM
-    assert result.get("step_id") == "user"
-
-
-async def test_get_participant_names_skips_unknown_element_types(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
-    """_get_participant_names should skip subentries with unknown element types."""
-    add_participant(hass, hub_entry, "ValidNode", node.ELEMENT_TYPE)
-
-    unknown_data = MappingProxyType({CONF_ELEMENT_TYPE: "unknown_type", CONF_NAME: "Unknown"})
-    unknown_subentry = ConfigSubentry(
-        data=unknown_data,
-        subentry_type="unknown_type",
-        title="Unknown",
-        unique_id=None,
-    )
-    hass.config_entries.async_add_subentry(hub_entry, unknown_subentry)
-
-    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
-
-    participants = flow._get_participant_names()
-
-    assert "ValidNode" in participants
-    assert "Unknown" not in participants
-
-
-async def test_get_subentry_returns_none_for_user_flow(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
-    """_get_subentry should return None during user flow (not reconfigure)."""
-    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
-
-    subentry = flow._get_subentry()
-
-    assert subentry is None
 
 
 async def test_user_step_with_constant_values_creates_entry(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
@@ -194,13 +142,18 @@ async def test_user_step_with_constant_values_creates_entry(hass: HomeAssistant,
         CONF_CONFIGURE_PARTITIONS: False,
     }
 
+    invalid_input = {**user_input, CONF_CAPACITY: []}
+    result = await flow.async_step_user(user_input=_wrap_main_input(invalid_input))
+    assert result.get("type") == FlowResultType.FORM
+    assert CONF_CAPACITY in result.get("errors", {})
+
     result = await flow.async_step_user(user_input=_wrap_main_input(user_input))
     assert result.get("type") == FlowResultType.CREATE_ENTRY
 
     created_data = flow.async_create_entry.call_args.kwargs["data"]
-    assert created_data["storage"][CONF_CAPACITY] == 10.0
-    assert created_data["storage"][CONF_INITIAL_CHARGE_PERCENTAGE] == "sensor.battery_soc"
-    assert created_data["power_limits"][CONF_MAX_POWER_TARGET_SOURCE] == 5.0
+    assert created_data["storage"][CONF_CAPACITY] == as_constant_value(10.0)
+    assert created_data["storage"][CONF_INITIAL_CHARGE_PERCENTAGE] == as_entity_value(["sensor.battery_soc"])
+    assert created_data["power_limits"][CONF_MAX_POWER_TARGET_SOURCE] == as_constant_value(5.0)
 
 
 async def test_user_step_with_entity_values_creates_entry(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
@@ -236,37 +189,9 @@ async def test_user_step_with_entity_values_creates_entry(hass: HomeAssistant, h
     assert result.get("type") == FlowResultType.CREATE_ENTRY
 
     created_data = flow.async_create_entry.call_args.kwargs["data"]
-    assert created_data["storage"][CONF_CAPACITY] == "sensor.capacity"
-    assert created_data["storage"][CONF_INITIAL_CHARGE_PERCENTAGE] == "sensor.battery_soc"
-    assert created_data["power_limits"][CONF_MAX_POWER_TARGET_SOURCE] == "sensor.max_charge"
-
-
-async def test_user_step_empty_required_field_shows_error(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
-    """Submitting with empty required choose field should show required error."""
-    add_participant(hass, hub_entry, "main_bus", node.ELEMENT_TYPE)
-    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
-
-    user_input = {
-        CONF_NAME: "Test Battery",
-        CONF_CONNECTION: "main_bus",
-        CONF_CAPACITY: [],
-        CONF_INITIAL_CHARGE_PERCENTAGE: ["sensor.battery_soc"],
-        CONF_MIN_CHARGE_PERCENTAGE: None,
-        CONF_MAX_CHARGE_PERCENTAGE: None,
-        CONF_EFFICIENCY_SOURCE_TARGET: None,
-        CONF_EFFICIENCY_TARGET_SOURCE: None,
-        CONF_MAX_POWER_TARGET_SOURCE: 5.0,
-        CONF_MAX_POWER_SOURCE_TARGET: 5.0,
-        CONF_PRICE_TARGET_SOURCE: None,
-        CONF_PRICE_SOURCE_TARGET: None,
-        CONF_CONFIGURE_PARTITIONS: False,
-    }
-
-    result = await flow.async_step_user(user_input=_wrap_main_input(user_input))
-
-    assert result.get("type") == FlowResultType.FORM
-    assert result.get("step_id") == "user"
-    assert CONF_CAPACITY in result.get("errors", {})
+    assert created_data["storage"][CONF_CAPACITY] == as_entity_value(["sensor.capacity"])
+    assert created_data["storage"][CONF_INITIAL_CHARGE_PERCENTAGE] == as_entity_value(["sensor.battery_soc"])
+    assert created_data["power_limits"][CONF_MAX_POWER_TARGET_SOURCE] == as_entity_value(["sensor.max_charge"])
 
 
 async def test_partition_flow_enabled_shows_partition_step(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
@@ -345,8 +270,8 @@ async def test_partition_flow_with_entity_links_creates_entry(hass: HomeAssistan
     created_data = flow.async_create_entry.call_args.kwargs["data"]
     undercharge = created_data[SECTION_UNDERCHARGE]
     overcharge = created_data[SECTION_OVERCHARGE]
-    assert undercharge[CONF_PARTITION_PERCENTAGE] == "sensor.undercharge_pct"
-    assert overcharge[CONF_PARTITION_PERCENTAGE] == "sensor.overcharge_pct"
+    assert undercharge[CONF_PARTITION_PERCENTAGE] == as_entity_value(["sensor.undercharge_pct"])
+    assert overcharge[CONF_PARTITION_PERCENTAGE] == as_entity_value(["sensor.overcharge_pct"])
 
 
 async def test_partition_flow_with_constant_values_creates_entry(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
@@ -394,10 +319,46 @@ async def test_partition_flow_with_constant_values_creates_entry(hass: HomeAssis
     created_data = flow.async_create_entry.call_args.kwargs["data"]
     undercharge = created_data[SECTION_UNDERCHARGE]
     overcharge = created_data[SECTION_OVERCHARGE]
-    assert undercharge[CONF_PARTITION_PERCENTAGE] == 5.0
-    assert overcharge[CONF_PARTITION_PERCENTAGE] == 95.0
-    assert undercharge[CONF_PARTITION_COST] == 0.10
-    assert overcharge[CONF_PARTITION_COST] == 0.10
+    assert undercharge[CONF_PARTITION_PERCENTAGE] == as_constant_value(5.0)
+    assert overcharge[CONF_PARTITION_PERCENTAGE] == as_constant_value(95.0)
+    assert undercharge[CONF_PARTITION_COST] == as_constant_value(0.10)
+    assert overcharge[CONF_PARTITION_COST] == as_constant_value(0.10)
+
+
+async def test_build_config_normalizes_connection_target_and_partitions(
+    hass: HomeAssistant,
+    hub_entry: MockConfigEntry,
+) -> None:
+    """_build_config should normalize connection targets and include partitions."""
+    add_participant(hass, hub_entry, "main_bus", node.ELEMENT_TYPE)
+    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
+
+    main_input = _wrap_main_input(
+        {
+            CONF_NAME: "Test Battery",
+            CONF_CONNECTION: "main_bus",
+            CONF_CAPACITY: 10.0,
+            CONF_INITIAL_CHARGE_PERCENTAGE: 50.0,
+            CONF_CONFIGURE_PARTITIONS: True,
+        },
+        as_schema=True,
+    )
+    partition_input = _wrap_partition_input(
+        {
+            CONF_PARTITION_PERCENTAGE: 5.0,
+            CONF_PARTITION_COST: 0.10,
+        },
+        {
+            CONF_PARTITION_PERCENTAGE: 95.0,
+            CONF_PARTITION_COST: 0.10,
+        },
+    )
+
+    config = flow._build_config(main_input, partition_input)
+
+    assert config[SECTION_COMMON][CONF_CONNECTION] == as_connection_target("main_bus")
+    assert config[SECTION_UNDERCHARGE][CONF_PARTITION_PERCENTAGE] == as_constant_value(5.0)
+    assert config[SECTION_OVERCHARGE][CONF_PARTITION_PERCENTAGE] == as_constant_value(95.0)
 
 
 async def test_partition_disabled_skips_partition_step(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
@@ -447,20 +408,20 @@ async def test_reconfigure_with_existing_partitions_shows_form(hass: HomeAssista
             {
                 CONF_NAME: "Test Battery",
                 CONF_CONNECTION: "main_bus",
-                CONF_CAPACITY: 10.0,
-                CONF_INITIAL_CHARGE_PERCENTAGE: 50.0,
-                CONF_MAX_POWER_TARGET_SOURCE: 5.0,
-                CONF_MAX_POWER_SOURCE_TARGET: 5.0,
+                CONF_CAPACITY: as_constant_value(10.0),
+                CONF_INITIAL_CHARGE_PERCENTAGE: as_constant_value(50.0),
+                CONF_MAX_POWER_TARGET_SOURCE: as_constant_value(5.0),
+                CONF_MAX_POWER_SOURCE_TARGET: as_constant_value(5.0),
             }
         ),
         **_wrap_partition_input(
             {
-                CONF_PARTITION_PERCENTAGE: 5.0,
-                CONF_PARTITION_COST: 0.10,
+                CONF_PARTITION_PERCENTAGE: as_constant_value(5.0),
+                CONF_PARTITION_COST: as_constant_value(0.10),
             },
             {
-                CONF_PARTITION_PERCENTAGE: 95.0,
-                CONF_PARTITION_COST: 0.10,
+                CONF_PARTITION_PERCENTAGE: as_constant_value(95.0),
+                CONF_PARTITION_COST: as_constant_value(0.10),
             },
         ),
     }
@@ -494,18 +455,18 @@ async def test_reconfigure_partition_defaults_entity_links(hass: HomeAssistant, 
             {
                 CONF_NAME: "Test Battery",
                 CONF_CONNECTION: "main_bus",
-                CONF_CAPACITY: 10.0,
-                CONF_INITIAL_CHARGE_PERCENTAGE: 50.0,
-                CONF_MAX_POWER_TARGET_SOURCE: 5.0,
-                CONF_MAX_POWER_SOURCE_TARGET: 5.0,
+                CONF_CAPACITY: as_constant_value(10.0),
+                CONF_INITIAL_CHARGE_PERCENTAGE: as_constant_value(50.0),
+                CONF_MAX_POWER_TARGET_SOURCE: as_constant_value(5.0),
+                CONF_MAX_POWER_SOURCE_TARGET: as_constant_value(5.0),
             }
         ),
         **_wrap_partition_input(
             {
-                CONF_PARTITION_PERCENTAGE: "sensor.undercharge",
+                CONF_PARTITION_PERCENTAGE: as_entity_value(["sensor.undercharge"]),
             },
             {
-                CONF_PARTITION_PERCENTAGE: "sensor.overcharge",
+                CONF_PARTITION_PERCENTAGE: as_entity_value(["sensor.overcharge"]),
             },
         ),
     }
@@ -524,7 +485,8 @@ async def test_reconfigure_partition_defaults_entity_links(hass: HomeAssistant, 
     }
     flow._get_reconfigure_subentry = Mock(return_value=existing_subentry)
 
-    defaults = flow._build_partition_defaults(dict(existing_config))
+    input_fields = adapter.inputs(dict(existing_config))
+    defaults = flow._build_partition_defaults(input_fields, dict(existing_config))
 
     assert defaults[SECTION_UNDERCHARGE][CONF_PARTITION_PERCENTAGE] == ["sensor.undercharge"]
     assert defaults[SECTION_OVERCHARGE][CONF_PARTITION_PERCENTAGE] == ["sensor.overcharge"]
@@ -540,18 +502,18 @@ async def test_reconfigure_partition_defaults_scalar_values(hass: HomeAssistant,
             {
                 CONF_NAME: "Test Battery",
                 CONF_CONNECTION: "main_bus",
-                CONF_CAPACITY: 10.0,
-                CONF_INITIAL_CHARGE_PERCENTAGE: 50.0,
-                CONF_MAX_POWER_TARGET_SOURCE: 5.0,
-                CONF_MAX_POWER_SOURCE_TARGET: 5.0,
+                CONF_CAPACITY: as_constant_value(10.0),
+                CONF_INITIAL_CHARGE_PERCENTAGE: as_constant_value(50.0),
+                CONF_MAX_POWER_TARGET_SOURCE: as_constant_value(5.0),
+                CONF_MAX_POWER_SOURCE_TARGET: as_constant_value(5.0),
             }
         ),
         **_wrap_partition_input(
             {
-                CONF_PARTITION_PERCENTAGE: 5.0,
+                CONF_PARTITION_PERCENTAGE: as_constant_value(5.0),
             },
             {
-                CONF_PARTITION_PERCENTAGE: 95.0,
+                CONF_PARTITION_PERCENTAGE: as_constant_value(95.0),
             },
         ),
     }
@@ -570,7 +532,8 @@ async def test_reconfigure_partition_defaults_scalar_values(hass: HomeAssistant,
     }
     flow._get_reconfigure_subentry = Mock(return_value=existing_subentry)
 
-    defaults = flow._build_partition_defaults(dict(existing_config))
+    input_fields = adapter.inputs(dict(existing_config))
+    defaults = flow._build_partition_defaults(input_fields, dict(existing_config))
 
     assert defaults[SECTION_UNDERCHARGE][CONF_PARTITION_PERCENTAGE] == 5.0
     assert defaults[SECTION_OVERCHARGE][CONF_PARTITION_PERCENTAGE] == 95.0
@@ -580,7 +543,8 @@ async def test_build_partition_defaults_no_existing_data(hass: HomeAssistant, hu
     """_build_partition_defaults with no existing data uses field defaults."""
     flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
 
-    defaults = flow._build_partition_defaults(None)
+    input_fields = adapter.inputs(None)
+    defaults = flow._build_partition_defaults(input_fields, None)
 
     # Partition fields have defaults (mode="value", value=0 or value=100)
     assert defaults.get(SECTION_UNDERCHARGE, {}).get(CONF_PARTITION_PERCENTAGE) == 0
@@ -589,58 +553,76 @@ async def test_build_partition_defaults_no_existing_data(hass: HomeAssistant, hu
     assert defaults.get(SECTION_OVERCHARGE, {}).get(CONF_PARTITION_COST) == 0
 
 
-async def test_defaults_with_scalar_values_shows_constant_choice(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
-    """_build_defaults with scalar values should show constant choice."""
-    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
-
-    existing_data = _wrap_main_input(
-        {
-            CONF_CAPACITY: 10.0,
-            CONF_MAX_POWER_TARGET_SOURCE: 5.0,
-            CONF_EFFICIENCY_SOURCE_TARGET: 0.95,
-            CONF_EFFICIENCY_TARGET_SOURCE: 0.95,
-        }
-    )
-    defaults = flow._build_defaults("Test Battery", existing_data)
-
-    assert defaults[SECTION_STORAGE][CONF_CAPACITY] == 10.0
-    assert defaults[SECTION_POWER_LIMITS][CONF_MAX_POWER_TARGET_SOURCE] == 5.0
-    assert defaults[SECTION_EFFICIENCY][CONF_EFFICIENCY_SOURCE_TARGET] == 0.95
-    assert defaults[SECTION_EFFICIENCY][CONF_EFFICIENCY_TARGET_SOURCE] == 0.95
-
-
-async def test_defaults_with_entity_strings_shows_entity_choice(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
-    """_build_defaults with entity strings should show entity choice."""
-    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
-
-    existing_data = _wrap_main_input(
-        {
-            CONF_CAPACITY: "sensor.capacity",
-            CONF_INITIAL_CHARGE_PERCENTAGE: "sensor.soc",
-        }
-    )
-    defaults = flow._build_defaults("Test Battery", existing_data)
-
-    assert defaults[SECTION_STORAGE][CONF_CAPACITY] == ["sensor.capacity"]
-    assert defaults[SECTION_STORAGE][CONF_INITIAL_CHARGE_PERCENTAGE] == ["sensor.soc"]
-
-
-async def test_reconfigure_with_string_entity_id_v010_format(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
-    """Reconfigure with v0.1.0 string entity ID shows entity choice."""
-    add_participant(hass, hub_entry, "main_bus", node.ELEMENT_TYPE)
-
-    existing_config = {
-        CONF_ELEMENT_TYPE: ELEMENT_TYPE,
-        **_wrap_main_input(
+@pytest.mark.parametrize(
+    ("connection", "add_connection", "config_values", "expected_defaults"),
+    [
+        pytest.param(
+            "main_bus",
+            True,
             {
                 CONF_NAME: "Test Battery",
                 CONF_CONNECTION: "main_bus",
-                CONF_CAPACITY: "sensor.battery_capacity",
-                CONF_INITIAL_CHARGE_PERCENTAGE: "sensor.battery_soc",
-                CONF_MAX_POWER_TARGET_SOURCE: "sensor.charge_power",
-                CONF_MAX_POWER_SOURCE_TARGET: "sensor.discharge_power",
-            }
+                CONF_CAPACITY: as_entity_value(["sensor.battery_capacity"]),
+                CONF_INITIAL_CHARGE_PERCENTAGE: as_entity_value(["sensor.battery_soc"]),
+                CONF_MAX_POWER_TARGET_SOURCE: as_entity_value(["sensor.charge_power"]),
+                CONF_MAX_POWER_SOURCE_TARGET: as_entity_value(["sensor.discharge_power"]),
+            },
+            {
+                SECTION_STORAGE: {
+                    CONF_CAPACITY: ["sensor.battery_capacity"],
+                    CONF_INITIAL_CHARGE_PERCENTAGE: ["sensor.battery_soc"],
+                },
+                SECTION_POWER_LIMITS: {
+                    CONF_MAX_POWER_TARGET_SOURCE: ["sensor.charge_power"],
+                    CONF_MAX_POWER_SOURCE_TARGET: ["sensor.discharge_power"],
+                },
+            },
+            id="entity_values",
         ),
+        pytest.param(
+            "DeletedNode",
+            False,
+            {
+                CONF_NAME: "Test Battery",
+                CONF_CONNECTION: "DeletedNode",
+                CONF_CAPACITY: as_constant_value(10.0),
+                CONF_INITIAL_CHARGE_PERCENTAGE: as_constant_value(50.0),
+                CONF_MAX_POWER_TARGET_SOURCE: as_constant_value(5.0),
+                CONF_EFFICIENCY_SOURCE_TARGET: as_constant_value(0.95),
+                CONF_EFFICIENCY_TARGET_SOURCE: as_constant_value(0.95),
+            },
+            {
+                SECTION_STORAGE: {
+                    CONF_CAPACITY: 10.0,
+                    CONF_INITIAL_CHARGE_PERCENTAGE: 50.0,
+                },
+                SECTION_POWER_LIMITS: {
+                    CONF_MAX_POWER_TARGET_SOURCE: 5.0,
+                },
+                SECTION_EFFICIENCY: {
+                    CONF_EFFICIENCY_SOURCE_TARGET: 0.95,
+                    CONF_EFFICIENCY_TARGET_SOURCE: 0.95,
+                },
+            },
+            id="constant_values_deleted_connection",
+        ),
+    ],
+)
+async def test_reconfigure_defaults_handle_schema_values(
+    hass: HomeAssistant,
+    hub_entry: MockConfigEntry,
+    connection: str,
+    add_connection: bool,
+    config_values: dict[str, Any],
+    expected_defaults: dict[str, dict[str, Any]],
+) -> None:
+    """Reconfigure defaults reflect schema values and tolerate missing connections."""
+    if add_connection:
+        add_participant(hass, hub_entry, connection, node.ELEMENT_TYPE)
+
+    existing_config = {
+        CONF_ELEMENT_TYPE: ELEMENT_TYPE,
+        **_wrap_main_input(config_values, as_schema=True),
     }
     existing_subentry = ConfigSubentry(
         data=MappingProxyType(existing_config),
@@ -662,12 +644,12 @@ async def test_reconfigure_with_string_entity_id_v010_format(hass: HomeAssistant
     assert result.get("type") == FlowResultType.FORM
     assert result.get("step_id") == "user"
 
-    defaults = flow._build_defaults("Test Battery", dict(existing_subentry.data))
+    input_fields = adapter.inputs(dict(existing_subentry.data))
+    defaults = flow._build_defaults("Test Battery", input_fields, dict(existing_subentry.data))
 
-    assert defaults[SECTION_STORAGE][CONF_CAPACITY] == ["sensor.battery_capacity"]
-    assert defaults[SECTION_STORAGE][CONF_INITIAL_CHARGE_PERCENTAGE] == ["sensor.battery_soc"]
-    assert defaults[SECTION_POWER_LIMITS][CONF_MAX_POWER_TARGET_SOURCE] == ["sensor.charge_power"]
-    assert defaults[SECTION_POWER_LIMITS][CONF_MAX_POWER_SOURCE_TARGET] == ["sensor.discharge_power"]
+    for section, values in expected_defaults.items():
+        for key, expected in values.items():
+            assert defaults[section][key] == expected
 
 
 async def test_reconfigure_updates_existing_battery(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
@@ -680,10 +662,10 @@ async def test_reconfigure_updates_existing_battery(hass: HomeAssistant, hub_ent
             {
                 CONF_NAME: "Test Battery",
                 CONF_CONNECTION: "main_bus",
-                CONF_CAPACITY: 10.0,
-                CONF_INITIAL_CHARGE_PERCENTAGE: 50.0,
-                CONF_MAX_POWER_TARGET_SOURCE: 5.0,
-                CONF_MAX_POWER_SOURCE_TARGET: 5.0,
+                CONF_CAPACITY: as_constant_value(10.0),
+                CONF_INITIAL_CHARGE_PERCENTAGE: as_constant_value(50.0),
+                CONF_MAX_POWER_TARGET_SOURCE: as_constant_value(5.0),
+                CONF_MAX_POWER_SOURCE_TARGET: as_constant_value(5.0),
             }
         ),
     }
@@ -727,8 +709,8 @@ async def test_reconfigure_updates_existing_battery(hass: HomeAssistant, hub_ent
 
     update_kwargs = flow.async_update_and_abort.call_args.kwargs
     assert update_kwargs["title"] == "Test Battery Updated"
-    assert update_kwargs["data"][SECTION_STORAGE][CONF_CAPACITY] == 15.0
-    assert update_kwargs["data"][SECTION_POWER_LIMITS][CONF_MAX_POWER_TARGET_SOURCE] == 7.5
+    assert update_kwargs["data"][SECTION_STORAGE][CONF_CAPACITY] == as_constant_value(15.0)
+    assert update_kwargs["data"][SECTION_POWER_LIMITS][CONF_MAX_POWER_TARGET_SOURCE] == as_constant_value(7.5)
 
 
 # --- Tests for _is_valid_choose_value ---

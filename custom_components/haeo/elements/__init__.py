@@ -44,7 +44,6 @@ from typing import (
 )
 
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry
-from homeassistant.core import HomeAssistant
 
 from custom_components.haeo.const import (
     CONF_ELEMENT_TYPE,
@@ -58,6 +57,7 @@ from custom_components.haeo.model import ModelElementConfig, ModelOutputName
 from custom_components.haeo.model.output_data import ModelOutputValue, OutputData
 
 from . import battery, battery_section, connection, grid, inverter, load, node, solar
+from .field_schema import FieldSchemaInfo
 from .input_fields import InputFieldGroups, InputFieldInfo, InputFieldPath, InputFieldSection
 
 _LOGGER = logging.getLogger(__name__)
@@ -191,10 +191,6 @@ class ElementAdapter(Protocol):
     connectivity: ConnectivityLevel
     """Visibility level in connection selectors."""
 
-    def available(self, config: Any, *, hass: HomeAssistant, **kwargs: Any) -> bool:
-        """Check if element configuration can be loaded."""
-        ...
-
     def inputs(self, config: Mapping[str, Any] | None) -> InputFieldGroups:
         """Return input field definitions for this element."""
         ...
@@ -298,6 +294,49 @@ ELEMENT_OPTIONAL_INPUT_FIELDS: Final[dict[ElementType, frozenset[str]]] = {
     "node": node.OPTIONAL_INPUT_FIELDS,
     "solar": solar.OPTIONAL_INPUT_FIELDS,
 }
+
+
+def get_input_field_schema_info(
+    element_type: ElementType,
+    input_fields: InputFieldGroups,
+) -> dict[str, dict[str, FieldSchemaInfo]]:
+    """Return schema metadata for input fields grouped by section."""
+    schema_cls = ELEMENT_CONFIG_SCHEMAS[element_type]
+    schema_hints = get_type_hints(schema_cls)
+    schema_optional_keys: frozenset[str] = getattr(schema_cls, "__optional_keys__", frozenset())
+
+    results: dict[str, dict[str, FieldSchemaInfo]] = {}
+
+    for section_key, section_fields in input_fields.items():
+        section_hint = schema_hints.get(section_key)
+        if section_hint is None:
+            msg = f"Section '{section_key}' not found in {schema_cls.__name__}"
+            raise RuntimeError(msg)
+
+        section_type = _unwrap_required_type(section_hint)
+        if isinstance(section_type, TypeAliasType):
+            section_type = section_type.__value__
+
+        if not isinstance(section_type, type) or not hasattr(section_type, "__required_keys__"):
+            msg = f"Section '{section_key}' in {schema_cls.__name__} is not a TypedDict"
+            raise RuntimeError(msg)
+
+        section_optional_keys: frozenset[str] = getattr(section_type, "__optional_keys__", frozenset())
+        section_is_optional = section_key in schema_optional_keys
+        section_hints = get_type_hints(section_type)
+
+        section_info: dict[str, FieldSchemaInfo] = {}
+        for field_name in section_fields:
+            field_type = section_hints.get(field_name)
+            if field_type is None:
+                msg = f"Field '{section_key}.{field_name}' not found in {section_type.__name__}"
+                raise RuntimeError(msg)
+            is_optional = section_is_optional or field_name in section_optional_keys
+            section_info[field_name] = FieldSchemaInfo(value_type=field_type, is_optional=is_optional)
+
+        results[section_key] = section_info
+
+    return results
 
 
 def is_element_type(value: Any) -> TypeGuard[ElementType]:
@@ -556,6 +595,7 @@ __all__ = [
     "ElementConfigSchema",
     "ElementDeviceName",
     "ElementType",
+    "FieldSchemaInfo",
     "InputFieldGroups",
     "InputFieldInfo",
     "InputFieldPath",
@@ -564,6 +604,7 @@ __all__ = [
     "collect_element_subentries",
     "find_nested_config_path",
     "get_element_flow_classes",
+    "get_input_field_schema_info",
     "get_input_fields",
     "get_nested_config_value",
     "get_nested_config_value_by_path",

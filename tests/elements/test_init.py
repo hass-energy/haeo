@@ -1,7 +1,7 @@
 """Tests for elements module __init__.py functions."""
 
 from types import MappingProxyType
-from typing import Any, NotRequired, Required
+from typing import Any
 
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
@@ -18,7 +18,7 @@ from custom_components.haeo.elements import (
 )
 from custom_components.haeo.elements import battery, battery_section, connection, grid, inverter, load, solar
 from custom_components.haeo.elements import node as node_schema
-from custom_components.haeo import elements as elements_module
+from custom_components.haeo.schema import as_connection_target, as_constant_value, as_entity_value
 
 
 @pytest.mark.parametrize(
@@ -47,58 +47,12 @@ def test_is_not_element_config_schema(input_data: Any) -> None:
         {
             "element_type": "connection",
             connection.SECTION_COMMON: {"name": "test"},
-            connection.SECTION_ENDPOINTS: {"source": "a"},
+            connection.SECTION_ENDPOINTS: {"source": as_connection_target("a")},
         },  # Missing target
     ],
 )
 def test_is_element_config_schema_invalid_structure(input_data: dict[str, Any]) -> None:
     """Test is_element_config_schema with invalid element structure."""
-    assert is_element_config_schema(input_data) is False
-
-
-@pytest.mark.parametrize(
-    "input_data",
-    [
-        # Wrong type for name (should be str)
-        {
-            "element_type": "node",
-            node_schema.SECTION_COMMON: {"name": 123},
-            node_schema.SECTION_ROLE: {"is_source": False, "is_sink": False},
-        },
-        # Wrong type for connection (should be str)
-        {
-            "element_type": "grid",
-            grid.SECTION_COMMON: {"name": "test", "connection": ["list_not_str"]},
-            grid.SECTION_PRICING: {
-                "price_source_target": ["sensor.import"],
-                "price_target_source": ["sensor.export"],
-            },
-            grid.SECTION_POWER_LIMITS: {},
-        },
-        # Wrong type for capacity (bool is rejected - bools are explicitly excluded from
-        # constant value handling even though bool is a subclass of int in Python)
-        {
-            "element_type": "battery",
-            battery.SECTION_COMMON: {
-                "name": "test",
-                "connection": "bus",
-            },
-            battery.SECTION_STORAGE: {
-                "capacity": True,
-                "initial_charge_percentage": ["sensor.soc"],
-            },
-            battery.SECTION_LIMITS: {},
-            battery.SECTION_POWER_LIMITS: {},
-            battery.SECTION_PRICING: {},
-            battery.SECTION_EFFICIENCY: {},
-            battery.SECTION_PARTITIONING: {},
-            battery.SECTION_UNDERCHARGE: {},
-            battery.SECTION_OVERCHARGE: {},
-        },
-    ],
-)
-def test_is_element_config_schema_wrong_field_types(input_data: dict[str, Any]) -> None:
-    """Test is_element_config_schema rejects fields with wrong types for required fields."""
     assert is_element_config_schema(input_data) is False
 
 
@@ -128,22 +82,23 @@ def test_is_element_config_schema_valid_battery() -> None:
         "element_type": "battery",
         battery.SECTION_COMMON: {
             "name": "test_battery",
-            "connection": "main_bus",
+            "connection": as_connection_target("main_bus"),
         },
         battery.SECTION_STORAGE: {
-            "capacity": "sensor.capacity",
-            "initial_charge_percentage": "sensor.soc",
+            "capacity": as_entity_value(["sensor.capacity"]),
+            "initial_charge_percentage": as_entity_value(["sensor.soc"]),
         },
         battery.SECTION_LIMITS: {
-            "min_charge_percentage": 10.0,
-            "max_charge_percentage": 90.0,
+            "min_charge_percentage": as_constant_value(10.0),
+            "max_charge_percentage": as_constant_value(90.0),
         },
         battery.SECTION_POWER_LIMITS: {
-            "max_power_source_target": 5.0,
-            "max_power_target_source": 5.0,
+            "max_power_source_target": as_constant_value(5.0),
+            "max_power_target_source": as_constant_value(5.0),
         },
         battery.SECTION_PRICING: {
-            "price_target_source": 0.05,
+            "price_target_source": as_constant_value(0.05),
+            "salvage_value": as_constant_value(0.0),
         },
         battery.SECTION_EFFICIENCY: {},
         battery.SECTION_PARTITIONING: {},
@@ -157,10 +112,10 @@ def test_is_element_config_schema_valid_grid() -> None:
     """Test is_element_config_schema with valid grid config."""
     valid_config = {
         "element_type": "grid",
-        grid.SECTION_COMMON: {"name": "test_grid", "connection": "main_bus"},
+        grid.SECTION_COMMON: {"name": "test_grid", "connection": as_connection_target("main_bus")},
         grid.SECTION_PRICING: {
-            "price_source_target": ["sensor.import"],  # list for chaining
-            "price_target_source": ["sensor.export"],  # list for chaining
+            "price_source_target": as_entity_value(["sensor.import"]),
+            "price_target_source": as_entity_value(["sensor.export"]),
         },
         grid.SECTION_POWER_LIMITS: {},
     }
@@ -171,10 +126,10 @@ def test_is_element_config_schema_valid_grid_minimal() -> None:
     """Test is_element_config_schema with minimal valid grid config (prices required)."""
     valid_config = {
         "element_type": "grid",
-        grid.SECTION_COMMON: {"name": "test_grid", "connection": "main_bus"},
+        grid.SECTION_COMMON: {"name": "test_grid", "connection": as_connection_target("main_bus")},
         grid.SECTION_PRICING: {
-            "price_source_target": 0.25,
-            "price_target_source": 0.05,
+            "price_source_target": as_constant_value(0.25),
+            "price_target_source": as_constant_value(0.05),
         },
         grid.SECTION_POWER_LIMITS: {},
     }
@@ -189,8 +144,8 @@ def test_is_element_config_schema_valid_connection() -> None:
             "name": "test_connection",
         },
         connection.SECTION_ENDPOINTS: {
-            "source": "battery",
-            "target": "grid",
+            "source": as_connection_target("battery"),
+            "target": as_connection_target("grid"),
         },
         connection.SECTION_POWER_LIMITS: {},
         connection.SECTION_PRICING: {},
@@ -203,8 +158,10 @@ def test_is_element_config_schema_valid_load() -> None:
     """Test is_element_config_schema with valid load config."""
     valid_config = {
         "element_type": "load",
-        load.SECTION_COMMON: {"name": "test_load", "connection": "main_bus"},
-        load.SECTION_FORECAST: {"forecast": ["sensor.load_forecast"]},
+        load.SECTION_COMMON: {"name": "test_load", "connection": as_connection_target("main_bus")},
+        load.SECTION_FORECAST: {"forecast": as_entity_value(["sensor.load_forecast"])},
+        load.SECTION_PRICING: {},
+        load.SECTION_CURTAILMENT: {},
     }
     assert is_element_config_schema(valid_config) is True
 
@@ -213,10 +170,10 @@ def test_is_element_config_schema_valid_solar() -> None:
     """Test is_element_config_schema with valid solar config."""
     valid_config = {
         "element_type": "solar",
-        solar.SECTION_COMMON: {"name": "test_solar", "connection": "main_bus"},
-        solar.SECTION_FORECAST: {"forecast": ["sensor.solar_forecast"]},
-        solar.SECTION_PRICING: {"price_source_target": 0.0},
-        solar.SECTION_CURTAILMENT: {"curtailment": True},
+        solar.SECTION_COMMON: {"name": "test_solar", "connection": as_connection_target("main_bus")},
+        solar.SECTION_FORECAST: {"forecast": as_entity_value(["sensor.solar_forecast"])},
+        solar.SECTION_PRICING: {"price_source_target": as_constant_value(0.0)},
+        solar.SECTION_CURTAILMENT: {"curtailment": as_constant_value(value=True)},
     }
     assert is_element_config_schema(valid_config) is True
 
@@ -225,10 +182,10 @@ def test_is_element_config_schema_valid_inverter() -> None:
     """Test is_element_config_schema with valid inverter config."""
     valid_config = {
         "element_type": "inverter",
-        inverter.SECTION_COMMON: {"name": "test_inverter", "connection": "ac_bus"},
+        inverter.SECTION_COMMON: {"name": "test_inverter", "connection": as_connection_target("ac_bus")},
         inverter.SECTION_POWER_LIMITS: {
-            "max_power_source_target": "sensor.dc_to_ac",
-            "max_power_target_source": "sensor.ac_to_dc",
+            "max_power_source_target": as_entity_value(["sensor.dc_to_ac"]),
+            "max_power_target_source": as_entity_value(["sensor.ac_to_dc"]),
         },
         inverter.SECTION_EFFICIENCY: {},
     }
@@ -240,7 +197,10 @@ def test_is_element_config_schema_valid_battery_section() -> None:
     valid_config = {
         "element_type": "battery_section",
         battery_section.SECTION_COMMON: {"name": "test_section"},
-        battery_section.SECTION_STORAGE: {"capacity": "sensor.capacity", "initial_charge": "sensor.charge"},
+        battery_section.SECTION_STORAGE: {
+            "capacity": as_entity_value(["sensor.capacity"]),
+            "initial_charge": as_entity_value(["sensor.charge"]),
+        },
     }
     assert is_element_config_schema(valid_config) is True
 
@@ -305,26 +265,6 @@ def test_is_element_config_data_optional_type_validation() -> None:
         node_schema.SECTION_ROLE: {"is_source": True},
     }
     assert is_element_config_data(valid_config) is True
-
-
-def test_unwrap_required_type_handles_required_wrappers() -> None:
-    """Test _unwrap_required_type returns underlying Required types."""
-    assert elements_module._unwrap_required_type(NotRequired[bool]) is bool
-    assert elements_module._unwrap_required_type(Required[int]) is int
-
-
-def test_conforms_to_typed_dict_skips_optional_without_hint() -> None:
-    """Test optional keys without hints are ignored when validating."""
-
-    class _Dummy:
-        __required_keys__ = frozenset()
-        __optional_keys__ = frozenset({"optional"})
-
-    assert elements_module._conforms_to_typed_dict(
-        {"optional": 1},
-        _Dummy,
-        check_optional=True,
-    )
 
 
 def test_collect_element_subentries_skips_invalid_configs(

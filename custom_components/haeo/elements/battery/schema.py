@@ -5,6 +5,7 @@ from typing import Any, Final, Literal, NotRequired, TypedDict
 import numpy as np
 from numpy.typing import NDArray
 
+from custom_components.haeo.schema import ConstantValue, EntityValue, NoneValue
 from custom_components.haeo.sections import (
     CONF_CONNECTION,
     CONF_EFFICIENCY_SOURCE_TARGET,
@@ -44,6 +45,7 @@ CONF_CONFIGURE_PARTITIONS: Final = "configure_partitions"
 
 CONF_PARTITION_PERCENTAGE: Final = "percentage"
 CONF_PARTITION_COST: Final = "cost"
+CONF_SALVAGE_VALUE: Final = "salvage_value"
 
 OPTIONAL_INPUT_FIELDS: Final[frozenset[str]] = frozenset(
     {
@@ -72,22 +74,22 @@ PARTITION_FIELD_NAMES: Final[frozenset[str]] = frozenset(
 class StorageSocConfig(TypedDict):
     """Storage config with required SOC percentage."""
 
-    capacity: str | float
-    initial_charge_percentage: str | float
+    capacity: EntityValue | ConstantValue
+    initial_charge_percentage: EntityValue | ConstantValue
 
 
 class StorageSocData(TypedDict):
     """Loaded storage values with required SOC percentage."""
 
     capacity: NDArray[np.floating[Any]]
-    initial_charge_percentage: NDArray[np.floating[Any]]
+    initial_charge_percentage: float
 
 
 class LimitsConfig(TypedDict, total=False):
     """Charge percentage limits configuration."""
 
-    min_charge_percentage: str | float
-    max_charge_percentage: str | float
+    min_charge_percentage: EntityValue | ConstantValue | NoneValue
+    max_charge_percentage: EntityValue | ConstantValue | NoneValue
 
 
 class LimitsData(TypedDict, total=False):
@@ -112,8 +114,8 @@ class PartitioningData(TypedDict, total=False):
 class PartitionConfig(TypedDict, total=False):
     """Partition configuration (undercharge/overcharge)."""
 
-    percentage: str | float
-    cost: list[str] | str | float
+    percentage: EntityValue | ConstantValue | NoneValue
+    cost: EntityValue | ConstantValue | NoneValue
 
 
 class PartitionData(TypedDict, total=False):
@@ -121,6 +123,18 @@ class PartitionData(TypedDict, total=False):
 
     percentage: NDArray[np.floating[Any]] | float
     cost: NDArray[np.floating[Any]] | float
+
+
+class BatteryPricingConfig(PricingConfig):
+    """Battery pricing configuration values."""
+
+    salvage_value: EntityValue | ConstantValue | NoneValue
+
+
+class BatteryPricingData(PricingData):
+    """Loaded battery pricing values."""
+
+    salvage_value: float
 
 
 class BatteryConfigSchema(TypedDict):
@@ -131,7 +145,7 @@ class BatteryConfigSchema(TypedDict):
     storage: StorageSocConfig
     limits: LimitsConfig
     power_limits: PowerLimitsConfig
-    pricing: PricingConfig
+    pricing: BatteryPricingConfig
     efficiency: EfficiencyConfig
     partitioning: PartitioningConfig
     undercharge: NotRequired[PartitionConfig]
@@ -146,7 +160,7 @@ class BatteryConfigData(TypedDict):
     storage: StorageSocData
     limits: LimitsData
     power_limits: PowerLimitsData
-    pricing: PricingData
+    pricing: BatteryPricingData
     efficiency: EfficiencyData
     partitioning: PartitioningData
     undercharge: NotRequired[PartitionData]
@@ -166,6 +180,7 @@ __all__ = [
     "CONF_MIN_CHARGE_PERCENTAGE",
     "CONF_PARTITION_COST",
     "CONF_PARTITION_PERCENTAGE",
+    "CONF_SALVAGE_VALUE",
     "ELEMENT_TYPE",
     "OPTIONAL_INPUT_FIELDS",
     "PARTITION_FIELD_NAMES",
@@ -180,4 +195,6 @@ __all__ = [
     "SECTION_UNDERCHARGE",
     "BatteryConfigData",
     "BatteryConfigSchema",
+    "BatteryPricingConfig",
+    "BatteryPricingData",
 ]

@@ -13,8 +13,10 @@ from custom_components.haeo.elements import ElementConfigData
 from custom_components.haeo.elements.connection import CONF_SOURCE, CONF_TARGET, SECTION_ENDPOINTS
 from custom_components.haeo.elements.load import CONF_CONNECTION
 from custom_components.haeo.elements.node import CONF_IS_SINK, CONF_IS_SOURCE, SECTION_ROLE
+from custom_components.haeo.schema import as_connection_target
 from custom_components.haeo.sections import (
     SECTION_COMMON,
+    SECTION_CURTAILMENT,
     SECTION_EFFICIENCY,
     SECTION_FORECAST,
     SECTION_POWER_LIMITS,
@@ -39,10 +41,12 @@ async def test_create_network_successful_loads_load_participant(hass: HomeAssist
             },
             "Baseload": {
                 CONF_ELEMENT_TYPE: "load",
-                SECTION_COMMON: {CONF_NAME: "Baseload", CONF_CONNECTION: "main_bus"},
+                SECTION_COMMON: {CONF_NAME: "Baseload", CONF_CONNECTION: as_connection_target("main_bus")},
                 SECTION_FORECAST: {
                     "forecast": [2.5, 2.5, 2.5, 2.5],  # Pre-loaded values in kW
                 },
+                SECTION_PRICING: {},
+                SECTION_CURTAILMENT: {},
             },
         },
     )
@@ -89,8 +93,8 @@ async def test_create_network_sorts_connections_after_elements(hass: HomeAssista
                     CONF_NAME: "line",
                 },
                 SECTION_ENDPOINTS: {
-                    CONF_SOURCE: "node_a",
-                    CONF_TARGET: "node_b",
+                    CONF_SOURCE: as_connection_target("node_a"),
+                    CONF_TARGET: as_connection_target("node_b"),
                 },
                 SECTION_POWER_LIMITS: {},
                 SECTION_PRICING: {},
