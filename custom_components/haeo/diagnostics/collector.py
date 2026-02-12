@@ -20,8 +20,6 @@ from custom_components.haeo.schema import SchemaValue, is_schema_value
 from custom_components.haeo.sections import SECTION_COMMON
 from custom_components.haeo.sensor_utils import get_duration_sensor_entity_id, get_output_sensors
 
-# How far back to search for the last optimization run in the recorder
-_LOOKBACK = timedelta(days=30)
 
 
 @dataclass
@@ -151,7 +149,7 @@ async def _fetch_inputs_at(
         result = recorder_history.get_significant_states(
             hass,
             start_time=target_time,
-            end_time=target_time + timedelta(seconds=1),
+            end_time=target_time,
             entity_ids=entity_id_list,
             include_start_time_state=True,
             significant_changes_only=False,
@@ -193,8 +191,8 @@ async def _get_last_run_before(
     def _query() -> dict[str, list[State]]:
         result = recorder_history.get_significant_states(
             hass,
-            start_time=before_time - _LOOKBACK,
-            end_time=before_time + timedelta(seconds=1),
+            start_time=before_time,
+            end_time=before_time,
             entity_ids=[duration_entity_id],
             include_start_time_state=True,
             significant_changes_only=False,
@@ -208,8 +206,8 @@ async def _get_last_run_before(
     if not state_list:
         return None
 
-    # Take the most recent state (last in the list)
-    last_state = state_list[-1]
+    # include_start_time_state gives us the state at or before before_time first
+    last_state = state_list[0]
 
     try:
         duration_seconds = float(last_state.state)

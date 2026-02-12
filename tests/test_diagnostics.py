@@ -889,7 +889,7 @@ async def test_historical_state_provider_get_states_sync(hass: HomeAssistant) ->
     mock_get_states.assert_called_once_with(
         hass,
         start_time=target_time,
-        end_time=target_time + timedelta(seconds=1),
+        end_time=target_time,
         entity_ids=["sensor.test"],
         include_start_time_state=True,
         significant_changes_only=False,
