@@ -1475,3 +1475,32 @@ async def test_get_captured_source_states_driven_mode(
     # Verify it's a copy (modifications don't affect internal state)
     captured["sensor.new_entity"] = Mock()
     assert "sensor.new_entity" not in entity.get_captured_source_states()
+
+
+async def test_get_captured_source_states_scalar_driven_mode(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    device_entry: Mock,
+    scalar_field_info: InputFieldInfo[NumberEntityDescription],
+    horizon_manager: Mock,
+) -> None:
+    """Scalar DRIVEN entity captures source states despite not using forecasts."""
+    hass.states.async_set("sensor.capacity", "10.0")
+
+    subentry = _create_subentry("Test Battery", {"capacity": ["sensor.capacity"]})
+
+    entity = HaeoInputNumber(
+        config_entry=config_entry,
+        subentry=subentry,
+        field_info=scalar_field_info,
+        device_entry=device_entry,
+        horizon_manager=horizon_manager,
+    )
+
+    assert entity.get_captured_source_states() == {}
+
+    await _add_entity_to_hass(hass, entity)
+
+    captured = entity.get_captured_source_states()
+    assert "sensor.capacity" in captured
+    assert isinstance(captured["sensor.capacity"], State)

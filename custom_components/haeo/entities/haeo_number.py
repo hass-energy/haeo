@@ -233,6 +233,11 @@ class HaeoInputNumber(NumberEntity):
         state. Do not write state from async_added_to_hass(); Home Assistant
         will handle initial state once the entity has been fully added.
         """
+        # Capture source states before loading for reproducibility
+        self._captured_source_states = {
+            eid: state for eid in self._source_entity_ids if (state := self.hass.states.get(eid)) is not None
+        }
+
         if not self._uses_forecast:
             if not self._source_entity_ids:
                 return
@@ -250,11 +255,6 @@ class HaeoInputNumber(NumberEntity):
             return
 
         forecast_timestamps = self._get_forecast_timestamps()
-
-        # Capture source states before loading for reproducibility
-        self._captured_source_states = {
-            eid: state for eid in self._source_entity_ids if (state := self.hass.states.get(eid)) is not None
-        }
 
         try:
             if self._field_info.boundaries:
