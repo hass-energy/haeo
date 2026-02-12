@@ -1700,6 +1700,23 @@ def test_optimization_context_build_captures_horizon_start() -> None:
     assert context.horizon_start == expected_time
 
 
+def test_optimization_context_build_falls_back_to_utcnow_when_no_start_time() -> None:
+    """OptimizationContext.build uses utcnow() when horizon has no start time."""
+    mock_horizon = MagicMock()
+    mock_horizon.current_start_time = None
+
+    context = OptimizationContext.build(
+        hub_config={"tier_1_count": 2, "tier_1_duration": 60},
+        participant_configs={},
+        input_entities={},
+        horizon_manager=mock_horizon,
+    )
+
+    # Should have a recent timestamp (not None)
+    assert context.horizon_start is not None
+    assert isinstance(context.horizon_start, datetime)
+
+
 def test_optimization_context_is_immutable() -> None:
     """OptimizationContext is frozen and cannot be modified."""
     context = OptimizationContext(
