@@ -62,7 +62,7 @@ class HorizonManager:
     def _update_timestamps(self) -> None:
         """Update the cached forecast timestamps."""
         self._periods_seconds = tiers_to_periods_seconds(self._config_entry.data)
-        self._forecast_timestamps, _ = generate_forecast_timestamps(self._periods_seconds)
+        self._forecast_timestamps = generate_forecast_timestamps(self._periods_seconds)
 
     def start(self) -> Callable[[], None]:
         """Start the scheduled updates.
