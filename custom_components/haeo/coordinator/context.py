@@ -68,13 +68,13 @@ class OptimizationContext:
         for entity in input_entities.values():
             source_states.update(entity.captured_source_states)
 
-        start_time = horizon_manager.current_start_time
-        if start_time is None:
-            start_time = dt_util.utcnow()
+        horizon_start = horizon_manager.current_start_time
+        if horizon_start is None:
+            horizon_start = dt_util.utcnow()
 
         return cls(
             hub_config=deepcopy(dict(hub_config)),
-            horizon_start=start_time,
+            horizon_start=horizon_start,
             participants=_deep_copy_config(participant_configs),
             source_states=source_states,
         )
