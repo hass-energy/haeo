@@ -2,6 +2,7 @@
 
 from collections.abc import Mapping
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Any
 
 from homeassistant.const import __version__ as ha_version
@@ -10,25 +11,8 @@ from homeassistant.loader import async_get_integration
 from homeassistant.util import dt as dt_util
 
 from custom_components.haeo import HaeoConfigEntry, HaeoRuntimeData
-from custom_components.haeo.const import (
-    CONF_ELEMENT_TYPE,
-    CONF_TIER_1_COUNT,
-    CONF_TIER_1_DURATION,
-    CONF_TIER_2_COUNT,
-    CONF_TIER_2_DURATION,
-    CONF_TIER_3_COUNT,
-    CONF_TIER_3_DURATION,
-    CONF_TIER_4_COUNT,
-    CONF_TIER_4_DURATION,
-    DEFAULT_TIER_1_COUNT,
-    DEFAULT_TIER_1_DURATION,
-    DEFAULT_TIER_2_COUNT,
-    DEFAULT_TIER_2_DURATION,
-    DEFAULT_TIER_3_COUNT,
-    DEFAULT_TIER_3_DURATION,
-    DEFAULT_TIER_4_COUNT,
-    DEFAULT_TIER_4_DURATION,
-)
+from custom_components.haeo.const import CONF_ELEMENT_TYPE
+from custom_components.haeo.coordinator.context import OptimizationContext
 from custom_components.haeo.elements import (
     ElementConfigSchema,
     is_element_config_schema,
@@ -36,7 +20,6 @@ from custom_components.haeo.elements import (
 )
 from custom_components.haeo.entities.haeo_number import ConfigEntityMode, HaeoInputNumber
 from custom_components.haeo.entities.haeo_switch import HaeoInputSwitch
-from custom_components.haeo.flows import HUB_SECTION_TIERS
 from custom_components.haeo.schema import SchemaValue, as_constant_value, is_schema_value
 from custom_components.haeo.sections import SECTION_COMMON
 from custom_components.haeo.sensor_utils import get_output_sensors
@@ -53,6 +36,31 @@ class DiagnosticsResult:
 
     missing_entity_ids: list[str]
     """Entity IDs that were expected but not found in state provider."""
+
+
+def _config_from_context(context: OptimizationContext) -> dict[str, Any]:
+    """Build diagnostics config section from OptimizationContext.
+
+    Uses the exact hub configuration and participant schemas the optimizer used,
+    rather than re-deriving from the config entry. This captures everything:
+    tiers, horizon preset, advanced settings, etc.
+    """
+    return {
+        **dict(context.hub_config),
+        "participants": dict(context.participants),
+    }
+
+
+def _inputs_from_context(context: OptimizationContext) -> list[dict[str, Any]]:
+    """Build diagnostics inputs section from OptimizationContext.
+
+    Uses the exact source states captured when entities loaded data,
+    rather than re-fetching from the state machine.
+    """
+    return [
+        state.as_dict()
+        for _entity_id, state in sorted(context.source_states.items())
+    ]
 
 
 def _extract_entity_ids_from_config(config: ElementConfigSchema) -> set[str]:
@@ -87,42 +95,23 @@ def _extract_entity_ids_from_config(config: ElementConfigSchema) -> set[str]:
     return entity_ids
 
 
-async def collect_diagnostics(
-    hass: HomeAssistant,
+async def _config_and_inputs_from_state_provider(
     config_entry: HaeoConfigEntry,
     state_provider: StateProvider,
-) -> DiagnosticsResult:
-    """Collect diagnostics using the provided state provider.
+    runtime_data: HaeoRuntimeData | None,
+) -> tuple[dict[str, Any], list[dict[str, Any]], list[str]]:
+    """Build config and inputs by fetching from config entry and StateProvider.
 
-    Returns a dict with four main keys:
-    - config: HAEO configuration (participants, horizon, period)
-    - inputs: Input sensor states used in optimization
-    - outputs: Output sensor states from optimization results (omitted for historical)
-    - environment: Environment information (HA version, HAEO version, timestamp)
+    Fallback path used for historical diagnostics or when no optimization
+    has run yet (no OptimizationContext available).
 
-    For editable input entities (constants rather than sensor-driven), the current
-    entity value is captured in the participant config. This allows diagnostics
-    exports to be used as configuration defaults.
+    Returns:
+        Tuple of (config, inputs, missing_entity_ids).
 
-    For historical diagnostics (when state_provider.is_historical is True),
-    output sensors are omitted because they reflect the optimization that ran
-    at that past time with different inputs.
     """
-    # Build config section with participants
-    tiers_section = config_entry.data.get(HUB_SECTION_TIERS)
-    tiers = tiers_section if isinstance(tiers_section, dict) else {}
     config: dict[str, Any] = {
+        **dict(config_entry.data),
         "participants": {},
-        HUB_SECTION_TIERS: {
-            CONF_TIER_1_COUNT: tiers.get(CONF_TIER_1_COUNT, DEFAULT_TIER_1_COUNT),
-            CONF_TIER_1_DURATION: tiers.get(CONF_TIER_1_DURATION, DEFAULT_TIER_1_DURATION),
-            CONF_TIER_2_COUNT: tiers.get(CONF_TIER_2_COUNT, DEFAULT_TIER_2_COUNT),
-            CONF_TIER_2_DURATION: tiers.get(CONF_TIER_2_DURATION, DEFAULT_TIER_2_DURATION),
-            CONF_TIER_3_COUNT: tiers.get(CONF_TIER_3_COUNT, DEFAULT_TIER_3_COUNT),
-            CONF_TIER_3_DURATION: tiers.get(CONF_TIER_3_DURATION, DEFAULT_TIER_3_DURATION),
-            CONF_TIER_4_COUNT: tiers.get(CONF_TIER_4_COUNT, DEFAULT_TIER_4_COUNT),
-            CONF_TIER_4_DURATION: tiers.get(CONF_TIER_4_DURATION, DEFAULT_TIER_4_DURATION),
-        },
     }
 
     # Transform subentries into participants dict
@@ -140,7 +129,6 @@ async def collect_diagnostics(
     # Capture current values from editable input entities
     # This allows diagnostics to be used as configuration defaults
     # Only do this for current state (not historical)
-    runtime_data = config_entry.runtime_data
     if not state_provider.is_historical and isinstance(runtime_data, HaeoRuntimeData):
         for (element_name, field_path), entity in runtime_data.input_entities.items():
             if element_name not in config["participants"]:
@@ -180,31 +168,86 @@ async def collect_diagnostics(
         state.as_dict() for entity_id in sorted(all_entity_ids) if (state := entity_states.get(entity_id)) is not None
     ]
 
+    return config, inputs, missing_entity_ids
+
+
+async def _build_environment(
+    hass: HomeAssistant,
+    config_entry: HaeoConfigEntry,
+    timestamp: datetime,
+    is_historical: bool,
+) -> dict[str, Any]:
+    """Build the environment section of diagnostics."""
+    integration = await async_get_integration(hass, config_entry.domain)
+    haeo_version = integration.version or "unknown"
+
+    # Convert to local timezone to ensure offset is included for unambiguous parsing
+    environment: dict[str, Any] = {
+        "ha_version": ha_version,
+        "haeo_version": haeo_version,
+        "timestamp": dt_util.as_local(timestamp).isoformat(),
+        "timezone": str(dt_util.get_default_time_zone()),
+    }
+
+    if is_historical:
+        environment["historical"] = True
+
+    return environment
+
+
+async def collect_diagnostics(
+    hass: HomeAssistant,
+    config_entry: HaeoConfigEntry,
+    state_provider: StateProvider,
+) -> DiagnosticsResult:
+    """Collect diagnostics using the provided state provider.
+
+    Returns a dict with four main keys:
+    - config: HAEO configuration (participants, tiers)
+    - inputs: Input sensor states used in optimization
+    - outputs: Output sensor states from optimization results (omitted for historical)
+    - environment: Environment information (HA version, HAEO version, timestamp)
+
+    When OptimizationContext is available (non-historical, optimization has run),
+    config and inputs are pulled directly from the context. This faithfully
+    represents what the optimizer actually used, not what happens to be in the
+    state machine right now.
+
+    For historical diagnostics or when no optimization has run yet, falls back
+    to deriving config from the config entry and fetching states via StateProvider.
+    """
+    runtime_data = config_entry.runtime_data
+
+    # When OptimizationContext is available, use it directly for config and inputs.
+    # This captures exactly what the optimizer used for reproducibility.
+    coordinator_data = (
+        runtime_data.coordinator.data
+        if not state_provider.is_historical
+        and isinstance(runtime_data, HaeoRuntimeData)
+        and runtime_data.coordinator
+        else None
+    )
+
+    if coordinator_data is not None:
+        config = _config_from_context(coordinator_data.context)
+        inputs = _inputs_from_context(coordinator_data.context)
+        missing_entity_ids: list[str] = []
+        timestamp = coordinator_data.started_at
+    else:
+        # Fallback: derive from config entry and StateProvider
+        fallback_runtime = runtime_data if isinstance(runtime_data, HaeoRuntimeData) else None
+        config, inputs, missing_entity_ids = await _config_and_inputs_from_state_provider(
+            config_entry, state_provider, fallback_runtime
+        )
+        timestamp = state_provider.timestamp or dt_util.now()
+
     # Get output sensors - only for current state, omit for historical
     outputs: dict[str, Any] = {}
     if not state_provider.is_historical:
         outputs = get_output_sensors(hass, config_entry)
 
-    # Get HAEO version from integration metadata
-    integration = await async_get_integration(hass, config_entry.domain)
-    haeo_version = integration.version or "unknown"
+    environment = await _build_environment(hass, config_entry, timestamp, state_provider.is_historical)
 
-    # Use provider's timestamp if available, otherwise current time
-    # Convert to local timezone to ensure offset is included for unambiguous parsing
-    timestamp = dt_util.as_local(state_provider.timestamp or dt_util.now()).isoformat()
-
-    # Build environment section
-    environment: dict[str, Any] = {
-        "ha_version": ha_version,
-        "haeo_version": haeo_version,
-        "timestamp": timestamp,
-        "timezone": str(dt_util.get_default_time_zone()),
-    }
-
-    if state_provider.is_historical:
-        environment["historical"] = True
-
-    # Return result with data and missing entity info
     return DiagnosticsResult(
         data={
             "config": config,

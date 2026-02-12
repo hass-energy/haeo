@@ -35,7 +35,13 @@ from custom_components.haeo.const import (
     DOMAIN,
     INTEGRATION_TYPE_HUB,
 )
-from custom_components.haeo.coordinator import CoordinatorOutput, ForecastPoint, HaeoDataUpdateCoordinator
+from custom_components.haeo.coordinator import (
+    CoordinatorData,
+    CoordinatorOutput,
+    ForecastPoint,
+    HaeoDataUpdateCoordinator,
+    OptimizationContext,
+)
 from custom_components.haeo.diagnostics import (
     CurrentStateProvider,
     HistoricalStateProvider,
@@ -942,3 +948,227 @@ async def test_collect_diagnostics_missing_entity_ids(
         assert result.missing_entity_ids == []
         entity_ids = {item["entity_id"] for item in result.data["inputs"]}
         assert entity_ids == {"sensor.battery_capacity", "sensor.battery_soc"}
+
+
+# --- OptimizationContext-based diagnostics tests ---
+
+
+def _make_coordinator_data(
+    participants: dict[str, Any],
+    source_states: dict[str, State] | None = None,
+    hub_config: dict[str, Any] | None = None,
+) -> CoordinatorData:
+    """Build a CoordinatorData with an OptimizationContext for testing."""
+    context = OptimizationContext(
+        hub_config=hub_config or _hub_entry_data(),
+        horizon_start=datetime(2024, 1, 1, tzinfo=UTC),
+        participants=participants,
+        source_states=source_states or {},
+    )
+    now = datetime(2024, 1, 1, 0, 5, tzinfo=UTC)
+    return CoordinatorData(
+        context=context,
+        outputs={},
+        started_at=now,
+        completed_at=now,
+    )
+
+
+async def test_diagnostics_uses_context_when_coordinator_data_available(hass: HomeAssistant) -> None:
+    """Diagnostics pulls config and inputs from OptimizationContext when available."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        title="Test Hub",
+        data=_hub_entry_data("Test Hub"),
+        entry_id="hub_entry",
+    )
+    entry.add_to_hass(hass)
+
+    # Set up a battery subentry (should NOT be used — context takes precedence)
+    battery_subentry = ConfigSubentry(
+        data=MappingProxyType(
+            _battery_config(
+                name="Battery One",
+                connection="DC Bus",
+                capacity="sensor.battery_capacity",
+                initial_charge_percentage="sensor.battery_soc",
+                max_power_source_target=5.0,
+                max_power_target_source=5.0,
+                min_charge_percentage=10.0,
+                max_charge_percentage=90.0,
+                efficiency_source_target=95.0,
+                efficiency_target_source=95.0,
+            )
+        ),
+        subentry_type=ELEMENT_TYPE_BATTERY,
+        title="Battery One",
+        unique_id=None,
+    )
+    hass.config_entries.async_add_subentry(entry, battery_subentry)
+
+    # Build context with different participants than the subentry
+    context_participants = {
+        "Context Battery": cast(
+            "ElementConfigSchema",
+            _battery_config(
+                name="Context Battery",
+                connection="DC Bus",
+                capacity=20.0,
+                initial_charge_percentage=80.0,
+                max_power_source_target=10.0,
+                max_power_target_source=10.0,
+                min_charge_percentage=5.0,
+                max_charge_percentage=95.0,
+                efficiency_source_target=90.0,
+                efficiency_target_source=90.0,
+            ),
+        )
+    }
+    context_source_states = {
+        "sensor.power": State("sensor.power", "100", {"unit_of_measurement": "W"}),
+    }
+
+    coordinator_data = _make_coordinator_data(context_participants, context_source_states)
+
+    coordinator = Mock(spec=HaeoDataUpdateCoordinator)
+    coordinator.data = coordinator_data
+
+    runtime_data = HaeoRuntimeData(horizon_manager=Mock(), coordinator=coordinator)
+    entry.runtime_data = runtime_data
+
+    state_provider = Mock()
+    state_provider.is_historical = False
+    state_provider.timestamp = None
+    state_provider.get_states = AsyncMock(return_value={})
+
+    result = await collect_diagnostics(hass, entry, state_provider)
+
+    # Config should come from context, NOT from subentries
+    participants = result.data["config"]["participants"]
+    assert "Context Battery" in participants
+    assert "Battery One" not in participants
+    assert participants["Context Battery"][SECTION_STORAGE][CONF_CAPACITY] == as_constant_value(20.0)
+
+    # Inputs should come from context source_states
+    inputs = result.data["inputs"]
+    assert len(inputs) == 1
+    assert inputs[0]["entity_id"] == "sensor.power"
+    assert inputs[0]["state"] == "100"
+
+    # StateProvider should NOT have been called
+    state_provider.get_states.assert_not_called()
+
+    # No missing entity IDs on the context path
+    assert result.missing_entity_ids == []
+
+    # Environment timestamp should come from the coordinator's started_at, not state_provider
+    # The exact string depends on timezone conversion, so just verify it's a valid ISO timestamp
+    env_timestamp = datetime.fromisoformat(result.data["environment"]["timestamp"])
+    assert env_timestamp == coordinator_data.started_at.astimezone()
+
+
+async def test_diagnostics_falls_back_when_no_coordinator_data(hass: HomeAssistant) -> None:
+    """Diagnostics falls back to StateProvider when coordinator has no data."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        title="Test Hub",
+        data=_hub_entry_data("Test Hub"),
+        entry_id="hub_entry",
+    )
+    entry.add_to_hass(hass)
+
+    battery_subentry = ConfigSubentry(
+        data=MappingProxyType(
+            _battery_config(
+                name="Battery",
+                connection="DC Bus",
+                capacity="sensor.battery_capacity",
+                initial_charge_percentage=50.0,
+                max_power_source_target=5.0,
+                max_power_target_source=5.0,
+                min_charge_percentage=10.0,
+                max_charge_percentage=90.0,
+                efficiency_source_target=95.0,
+                efficiency_target_source=95.0,
+            )
+        ),
+        subentry_type=ELEMENT_TYPE_BATTERY,
+        title="Battery",
+        unique_id=None,
+    )
+    hass.config_entries.async_add_subentry(entry, battery_subentry)
+
+    hass.states.async_set("sensor.battery_capacity", "5000", {"unit_of_measurement": "Wh"})
+
+    # Coordinator exists but has no data (optimization hasn't run yet)
+    coordinator = Mock(spec=HaeoDataUpdateCoordinator)
+    coordinator.data = None
+
+    runtime_data = HaeoRuntimeData(horizon_manager=Mock(), coordinator=coordinator)
+    entry.runtime_data = runtime_data
+
+    diagnostics = await async_get_config_entry_diagnostics(hass, entry)
+
+    # Should fall back to subentry-based config
+    participants = diagnostics["config"]["participants"]
+    assert "Battery" in participants
+
+    # Should fall back to StateProvider-based inputs
+    inputs = diagnostics["inputs"]
+    entity_ids = [inp["entity_id"] for inp in inputs]
+    assert "sensor.battery_capacity" in entity_ids
+
+
+async def test_diagnostics_historical_ignores_context(hass: HomeAssistant) -> None:
+    """Historical diagnostics always uses StateProvider, even when context exists."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        title="Test Hub",
+        data=_hub_entry_data("Test Hub"),
+        entry_id="hub_entry",
+    )
+    entry.add_to_hass(hass)
+
+    # Coordinator with data IS available
+    context_participants = {
+        "Context Battery": cast(
+            "ElementConfigSchema",
+            _battery_config(
+                name="Context Battery",
+                connection="DC Bus",
+                capacity=20.0,
+                initial_charge_percentage=80.0,
+                max_power_source_target=10.0,
+                max_power_target_source=10.0,
+                min_charge_percentage=5.0,
+                max_charge_percentage=95.0,
+                efficiency_source_target=90.0,
+                efficiency_target_source=90.0,
+            ),
+        )
+    }
+    coordinator_data = _make_coordinator_data(context_participants)
+
+    coordinator = Mock(spec=HaeoDataUpdateCoordinator)
+    coordinator.data = coordinator_data
+
+    runtime_data = HaeoRuntimeData(horizon_manager=Mock(), coordinator=coordinator)
+    entry.runtime_data = runtime_data
+
+    # Historical provider should be used instead of context
+    state_provider = Mock()
+    state_provider.is_historical = True
+    state_provider.timestamp = datetime(2024, 1, 1, tzinfo=UTC)
+    state_provider.get_states = AsyncMock(return_value={})
+
+    result = await collect_diagnostics(hass, entry, state_provider)
+
+    # Should NOT use context — should use fallback path
+    participants = result.data["config"]["participants"]
+    assert "Context Battery" not in participants
+
+    # StateProvider SHOULD have been called
+    state_provider.get_states.assert_called_once()
+
+    # Historical flag should be set
+    assert result.data["environment"]["historical"] is True
