@@ -220,7 +220,7 @@ async def test_save_diagnostics_with_historical_time(
     mock_hub_entry: MockConfigEntry,
     tmp_path: Path,
 ) -> None:
-    """Test save_diagnostics service with historical time uses HistoricalStateProvider."""
+    """Test save_diagnostics service with historical time passes as_of to collector."""
     # Set up the service - need to register recorder component first
     hass.config.components.add("recorder")
     await async_setup(hass, {})
@@ -237,27 +237,17 @@ async def test_save_diagnostics_with_historical_time(
     mock_diagnostics = DiagnosticsResult(
         data={
             "config": {"participants": {}},
-            "environment": {"ha_version": "2024.1.0", "historical": True},
+            "environment": {"ha_version": "2024.1.0"},
             "inputs": [{"entity_id": "sensor.test"}],  # Non-empty to pass validation
-            "outputs": {},
         },
         missing_entity_ids=[],
     )
 
-    mock_historical_provider = Mock()
-    mock_historical_provider.timestamp = target_timestamp
-
-    with (
-        patch(
-            "custom_components.haeo.diagnostics.collect_diagnostics",
-            new_callable=AsyncMock,
-            return_value=mock_diagnostics,
-        ) as mock_collect,
-        patch(
-            "custom_components.haeo.diagnostics.HistoricalStateProvider",
-            return_value=mock_historical_provider,
-        ) as mock_provider_class,
-    ):
+    with patch(
+        "custom_components.haeo.diagnostics.collect_diagnostics",
+        new_callable=AsyncMock,
+        return_value=mock_diagnostics,
+    ) as mock_collect:
         await hass.services.async_call(
             DOMAIN,
             "save_diagnostics",
@@ -268,13 +258,10 @@ async def test_save_diagnostics_with_historical_time(
             blocking=True,
         )
 
-    # Verify HistoricalStateProvider was created with correct timestamp
-    mock_provider_class.assert_called_once_with(hass, target_timestamp)
-
-    # Verify collect_diagnostics was called with the historical provider
+    # Verify collect_diagnostics was called with as_of=target_timestamp
     mock_collect.assert_called_once()
     call_args = mock_collect.call_args
-    assert call_args[0][2] == mock_historical_provider
+    assert call_args.kwargs["as_of"] == target_timestamp
 
     # Verify file was created with the historical timestamp in filename
     files = list(tmp_path.glob("haeo/diagnostics/diagnostics_*.json"))
@@ -345,18 +332,11 @@ async def test_save_diagnostics_historical_missing_entities_raises_error(
         missing_entity_ids=["sensor.battery_soc", "sensor.grid_price"],
     )
 
-    mock_historical_provider = Mock()
-    mock_historical_provider.timestamp = target_timestamp
-
     with (
         patch(
             "custom_components.haeo.diagnostics.collect_diagnostics",
             new_callable=AsyncMock,
             return_value=mock_diagnostics,
-        ),
-        patch(
-            "custom_components.haeo.diagnostics.HistoricalStateProvider",
-            return_value=mock_historical_provider,
         ),
         pytest.raises(ServiceValidationError) as exc_info,
     ):

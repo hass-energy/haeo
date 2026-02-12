@@ -7,7 +7,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 
-from .const import DOMAIN
+from .const import DOMAIN, OUTPUT_NAME_OPTIMIZATION_DURATION
 
 # Default decimal places for values without a unit
 _DEFAULT_DECIMAL_PLACES = 4
@@ -114,6 +114,22 @@ def _apply_smart_rounding(output_sensors: dict[str, SensorStateDict]) -> None:
             val = _try_parse_float(item["value"])
             if val is not None:
                 item["value"] = round(val, decimal_places) + 0.0  # Makes -0.0 into 0.0
+
+
+def get_duration_sensor_entity_id(hass: HomeAssistant, config_entry: ConfigEntry) -> str | None:
+    """Get the entity_id of the optimization duration sensor for this config entry.
+
+    Returns None if the sensor hasn't been created yet (no optimization has ever run).
+    """
+    entity_registry = er.async_get(hass)
+    for entity_entry in er.async_entries_for_config_entry(entity_registry, config_entry.entry_id):
+        if (
+            entity_entry.platform == DOMAIN
+            and entity_entry.unique_id is not None
+            and entity_entry.unique_id.endswith(f"_{OUTPUT_NAME_OPTIMIZATION_DURATION}")
+        ):
+            return entity_entry.entity_id
+    return None
 
 
 def get_output_sensors(hass: HomeAssistant, config_entry: ConfigEntry) -> dict[str, SensorStateDict]:

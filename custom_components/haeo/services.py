@@ -84,7 +84,7 @@ async def async_setup_services(hass: HomeAssistant) -> None:
     async def async_handle_save_diagnostics(call: ServiceCall) -> None:
         """Handle the save_diagnostics service call."""
         # Import diagnostics module here to avoid circular imports
-        from .diagnostics import CurrentStateProvider, HistoricalStateProvider, collect_diagnostics  # noqa: PLC0415
+        from .diagnostics import collect_diagnostics  # noqa: PLC0415
 
         entry_id = call.data[ATTR_CONFIG_ENTRY]
         target_timestamp: datetime | None = call.data.get(ATTR_TIMESTAMP)
@@ -114,16 +114,8 @@ async def async_setup_services(hass: HomeAssistant) -> None:
                 translation_placeholders={"entry_id": entry_id, "state": str(entry.state)},
             )
 
-        # Create state provider based on timestamp presence
-        # Note: timestamp is only in schema when recorder is available,
-        # and HistoricalStateProvider imports recorder at module level
-        if target_timestamp is not None:
-            state_provider = HistoricalStateProvider(hass, target_timestamp)
-        else:
-            state_provider = CurrentStateProvider(hass)
-
-        # Get diagnostics data using the appropriate provider
-        result = await collect_diagnostics(hass, entry, state_provider)
+        # Get diagnostics data — pass as_of for historical, omit for current
+        result = await collect_diagnostics(hass, entry, as_of=target_timestamp)
 
         # Validate that historical queries returned all expected data
         if target_timestamp is not None and result.missing_entity_ids:
@@ -137,7 +129,7 @@ async def async_setup_services(hass: HomeAssistant) -> None:
             )
 
         # Generate filename with timestamp (microseconds for uniqueness)
-        file_timestamp = (state_provider.timestamp or dt_util.now()).strftime("%Y-%m-%d_%H%M%S.%f")
+        file_timestamp = (target_timestamp or dt_util.now()).strftime("%Y-%m-%d_%H%M%S.%f")
         filename = f"diagnostics_{file_timestamp}.json"
         filepath = Path(hass.config.path("haeo", "diagnostics", filename))
 

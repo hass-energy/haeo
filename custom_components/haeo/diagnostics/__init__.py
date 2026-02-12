@@ -17,10 +17,9 @@ async def async_get_config_entry_diagnostics(
 ) -> dict[str, Any]:
     """Return diagnostics for a HAEO config entry.
 
-    This is the Home Assistant entry point for diagnostics.
-    It delegates to collect_diagnostics with a CurrentStateProvider.
+    This is the Home Assistant entry point for diagnostics (current, not historical).
     """
-    result = await collect_diagnostics(hass, config_entry, CurrentStateProvider(hass))
+    result = await collect_diagnostics(hass, config_entry)
     return result.data
 
 
