@@ -140,8 +140,8 @@ TIMESTAMP_TEST_CASES: dict[str, TimestampTestCase] = {
 def test_generate_forecast_timestamps(case_id: str) -> None:
     """Verify forecast timestamp generation."""
     case = TIMESTAMP_TEST_CASES[case_id]
-    timestamps = generate_forecast_timestamps(case["periods_seconds"], case["start_time"])
-    assert timestamps == case["expected"], case["description"]
+    result = generate_forecast_timestamps(case["periods_seconds"], case["start_time"])
+    assert result == case["expected"], case["description"]
 
 
 def test_generate_forecast_timestamps_default_start_time() -> None:
@@ -153,12 +153,12 @@ def test_generate_forecast_timestamps_default_start_time() -> None:
     expected_start = 1735732800.0  # 2025-01-01 12:00:00 UTC (rounded from 12:00:30)
 
     with patch("custom_components.haeo.util.forecast_times.dt_util.utcnow", return_value=mock_time):
-        timestamps = generate_forecast_timestamps(periods_seconds)
+        result = generate_forecast_timestamps(periods_seconds)
 
-    assert timestamps[0] == expected_start
-    assert len(timestamps) == 3  # 2 periods + 1 = 3 boundaries
-    assert timestamps[1] == expected_start + 60.0
-    assert timestamps[2] == expected_start + 120.0
+    assert result[0] == expected_start
+    assert len(result) == 3  # 2 periods + 1 = 3 boundaries
+    assert result[1] == expected_start + 60.0
+    assert result[2] == expected_start + 120.0
 
 
 def test_generate_forecast_timestamps_from_config() -> None:
@@ -179,12 +179,12 @@ def test_generate_forecast_timestamps_from_config() -> None:
     expected_start = 1735732800.0  # 2025-01-01 12:00:00 UTC (rounded from 12:00:30)
 
     with patch("custom_components.haeo.util.forecast_times.dt_util.utcnow", return_value=mock_time):
-        timestamps = generate_forecast_timestamps_from_config(config)
+        result = generate_forecast_timestamps_from_config(config)
 
-    assert timestamps[0] == expected_start
-    assert len(timestamps) == 3  # 2 periods + 1 = 3 boundaries
-    assert timestamps[1] == expected_start + 60.0
-    assert timestamps[2] == expected_start + 120.0
+    assert result[0] == expected_start
+    assert len(result) == 3  # 2 periods + 1 = 3 boundaries
+    assert result[1] == expected_start + 60.0
+    assert result[2] == expected_start + 120.0
 
 
 # ============================================================================
