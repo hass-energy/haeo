@@ -13,14 +13,8 @@ from homeassistant.util import dt as dt_util
 from custom_components.haeo import HaeoConfigEntry, HaeoRuntimeData
 from custom_components.haeo.const import CONF_ELEMENT_TYPE
 from custom_components.haeo.coordinator.context import OptimizationContext
-from custom_components.haeo.elements import (
-    ElementConfigSchema,
-    is_element_config_schema,
-    set_nested_config_value_by_path,
-)
-from custom_components.haeo.entities.haeo_number import ConfigEntityMode, HaeoInputNumber
-from custom_components.haeo.entities.haeo_switch import HaeoInputSwitch
-from custom_components.haeo.schema import SchemaValue, as_constant_value, is_schema_value
+from custom_components.haeo.elements import ElementConfigSchema, is_element_config_schema
+from custom_components.haeo.schema import SchemaValue, is_schema_value
 from custom_components.haeo.sections import SECTION_COMMON
 from custom_components.haeo.sensor_utils import get_output_sensors
 
@@ -95,15 +89,14 @@ def _extract_entity_ids_from_config(config: ElementConfigSchema) -> set[str]:
     return entity_ids
 
 
-async def _config_and_inputs_from_state_provider(
+async def _config_and_inputs_for_historical(
     config_entry: HaeoConfigEntry,
     state_provider: StateProvider,
-    runtime_data: HaeoRuntimeData | None,
 ) -> tuple[dict[str, Any], list[dict[str, Any]], list[str]]:
     """Build config and inputs by fetching from config entry and StateProvider.
 
-    Fallback path used for historical diagnostics or when no optimization
-    has run yet (no OptimizationContext available).
+    Used for historical diagnostics where we need to fetch states from the
+    recorder at a specific point in time.
 
     Returns:
         Tuple of (config, inputs, missing_entity_ids).
@@ -126,44 +119,21 @@ async def _config_and_inputs_from_state_provider(
                 raw_data.setdefault("name", subentry.title)
             config["participants"][subentry.title] = raw_data
 
-    # Capture current values from editable input entities
-    # This allows diagnostics to be used as configuration defaults
-    # Only do this for current state (not historical)
-    if not state_provider.is_historical and isinstance(runtime_data, HaeoRuntimeData):
-        for (element_name, field_path), entity in runtime_data.input_entities.items():
-            if element_name not in config["participants"]:
-                continue
-            participant = config["participants"][element_name]
-
-            # Only capture editable entities (constants, not sensor-driven)
-            if entity.entity_mode != ConfigEntityMode.EDITABLE:
-                continue
-
-            if isinstance(entity, HaeoInputNumber) and entity.native_value is not None:
-                set_nested_config_value_by_path(participant, field_path, as_constant_value(entity.native_value))
-            elif isinstance(entity, HaeoInputSwitch) and entity.is_on is not None:
-                set_nested_config_value_by_path(participant, field_path, as_constant_value(entity.is_on))
-
     # Collect input sensor states for all entities used in the configuration
     all_entity_ids: set[str] = set()
     for subentry in config_entry.subentries.values():
         if subentry.subentry_type == "network":
             continue
-        # Create config dict with element_type
         participant_config = dict(subentry.data)
         participant_config[CONF_ELEMENT_TYPE] = subentry.subentry_type
-        # Extract entity IDs from valid element configs only
         if is_element_config_schema(participant_config):
-            extracted_ids = _extract_entity_ids_from_config(participant_config)
-            all_entity_ids.update(extracted_ids)
+            all_entity_ids.update(_extract_entity_ids_from_config(participant_config))
 
-    # Get states using the provider (current or historical)
+    # Get states from the recorder at the target time
     entity_states = await state_provider.get_states(sorted(all_entity_ids))
 
-    # Calculate which entities were expected but not found
     missing_entity_ids = sorted(all_entity_ids - set(entity_states.keys()))
 
-    # Extract input states as dicts
     inputs: list[dict[str, Any]] = [
         state.as_dict() for entity_id in sorted(all_entity_ids) if (state := entity_states.get(entity_id)) is not None
     ]
@@ -181,7 +151,6 @@ async def _build_environment(
     integration = await async_get_integration(hass, config_entry.domain)
     haeo_version = integration.version or "unknown"
 
-    # Convert to local timezone to ensure offset is included for unambiguous parsing
     environment: dict[str, Any] = {
         "ha_version": ha_version,
         "haeo_version": haeo_version,
@@ -203,47 +172,41 @@ async def collect_diagnostics(
     """Collect diagnostics using the provided state provider.
 
     Returns a dict with four main keys:
-    - config: HAEO configuration (participants, tiers)
+    - config: HAEO configuration (hub settings, participants)
     - inputs: Input sensor states used in optimization
     - outputs: Output sensor states from optimization results (omitted for historical)
     - environment: Environment information (HA version, HAEO version, timestamp)
 
-    When OptimizationContext is available (non-historical, optimization has run),
-    config and inputs are pulled directly from the context. This faithfully
-    represents what the optimizer actually used, not what happens to be in the
-    state machine right now.
+    Two modes:
+    - Historical: fetches config from the config entry and states from the recorder.
+    - Current: pulls config and inputs from OptimizationContext (what the optimizer
+      actually used). Requires at least one optimization to have completed.
 
-    For historical diagnostics or when no optimization has run yet, falls back
-    to deriving config from the config entry and fetching states via StateProvider.
+    Raises:
+        RuntimeError: If non-historical and no optimization has run yet.
+
     """
-    runtime_data = config_entry.runtime_data
-
-    # When OptimizationContext is available, use it directly for config and inputs.
-    # This captures exactly what the optimizer used for reproducibility.
-    coordinator_data = (
-        runtime_data.coordinator.data
-        if not state_provider.is_historical
-        and isinstance(runtime_data, HaeoRuntimeData)
-        and runtime_data.coordinator
-        else None
-    )
-
-    if coordinator_data is not None:
-        config = _config_from_context(coordinator_data.context)
-        inputs = _inputs_from_context(coordinator_data.context)
-        missing_entity_ids: list[str] = []
-        timestamp = coordinator_data.started_at
-    else:
-        # Fallback: derive from config entry and StateProvider
-        fallback_runtime = runtime_data if isinstance(runtime_data, HaeoRuntimeData) else None
-        config, inputs, missing_entity_ids = await _config_and_inputs_from_state_provider(
-            config_entry, state_provider, fallback_runtime
+    if state_provider.is_historical:
+        config, inputs, missing_entity_ids = await _config_and_inputs_for_historical(
+            config_entry, state_provider
         )
         timestamp = state_provider.timestamp or dt_util.now()
+        outputs: dict[str, Any] = {}
+    else:
+        runtime_data = config_entry.runtime_data
+        if (
+            not isinstance(runtime_data, HaeoRuntimeData)
+            or not runtime_data.coordinator
+            or not runtime_data.coordinator.data
+        ):
+            msg = "Cannot collect diagnostics: no optimization has completed yet"
+            raise RuntimeError(msg)
 
-    # Get output sensors - only for current state, omit for historical
-    outputs: dict[str, Any] = {}
-    if not state_provider.is_historical:
+        coordinator_data = runtime_data.coordinator.data
+        config = _config_from_context(coordinator_data.context)
+        inputs = _inputs_from_context(coordinator_data.context)
+        missing_entity_ids = []
+        timestamp = coordinator_data.started_at
         outputs = get_output_sensors(hass, config_entry)
 
     environment = await _build_environment(hass, config_entry, timestamp, state_provider.is_historical)
