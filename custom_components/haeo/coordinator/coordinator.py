@@ -211,8 +211,11 @@ class CoordinatorData:
     outputs: dict[str, SubentryDevices]
     """Element outputs organized by element_name -> device_name -> output_name."""
 
-    timestamp: datetime
-    """When the optimization ran."""
+    started_at: datetime
+    """When the optimization started."""
+
+    completed_at: datetime
+    """When the optimization completed."""
 
 
 class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
@@ -690,7 +693,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             raise UpdateFailed(msg)
 
         start_time = time.time()
-        start_timestamp = dt_util.utc_from_timestamp(start_time).astimezone()
+        started_at = dt_util.utc_from_timestamp(start_time).astimezone()
 
         # Set flag to prevent concurrent optimization triggers from callbacks
         # This is cleared in the finally block
@@ -816,10 +819,13 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
                 if subentry_devices:
                     outputs[element_name] = subentry_devices
 
+            completed_at = dt_util.utc_from_timestamp(end_time).astimezone()
+
             return CoordinatorData(
                 context=context,
                 outputs=outputs,
-                timestamp=start_timestamp,
+                started_at=started_at,
+                completed_at=completed_at,
             )
         finally:
             # Always clear the in-progress flag

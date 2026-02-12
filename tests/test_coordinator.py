@@ -417,7 +417,9 @@ async def test_async_update_data_returns_outputs(
 
     # Verify result is a CoordinatorData dataclass
     assert result.context is not None
-    assert result.timestamp is not None
+    assert result.started_at is not None
+    assert result.completed_at is not None
+    assert result.completed_at >= result.started_at
     assert isinstance(result.outputs, dict)
 
     network_outputs = result.outputs["System"][ELEMENT_TYPE_NETWORK]
@@ -1024,7 +1026,8 @@ async def test_async_update_data_returns_existing_when_concurrent(
     existing_data = CoordinatorData(
         context=existing_context,
         outputs={"existing": {}},
-        timestamp=datetime.now(UTC),
+        started_at=datetime.now(UTC),
+        completed_at=datetime.now(UTC),
     )
     coordinator.data = existing_data
     coordinator._optimization_in_progress = True
