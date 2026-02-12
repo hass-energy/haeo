@@ -34,6 +34,7 @@ from custom_components.haeo.const import (
     DEFAULT_TIER_4_DURATION,
     DOMAIN,
     INTEGRATION_TYPE_HUB,
+    OUTPUT_NAME_OPTIMIZATION_DURATION,
 )
 from custom_components.haeo.coordinator import CoordinatorData, HaeoDataUpdateCoordinator, OptimizationContext
 from custom_components.haeo.diagnostics import (
@@ -42,7 +43,12 @@ from custom_components.haeo.diagnostics import (
     async_get_config_entry_diagnostics,
     collect_diagnostics,
 )
-from custom_components.haeo.diagnostics.collector import _extract_entity_ids_from_config
+from custom_components.haeo.diagnostics.collector import (
+    _collect_entity_ids_from_entry,
+    _extract_entity_ids_from_config,
+    _fetch_inputs_at,
+    _get_last_run_before,
+)
 from custom_components.haeo.elements import ELEMENT_TYPE_BATTERY, ElementConfigSchema
 from custom_components.haeo.elements.battery import (
     CONF_CAPACITY,
@@ -63,6 +69,7 @@ from custom_components.haeo.elements.grid import CONF_PRICE_SOURCE_TARGET, CONF_
 from custom_components.haeo.flows import HUB_SECTION_COMMON, HUB_SECTION_TIERS
 from custom_components.haeo.schema import as_connection_target, as_constant_value, as_entity_value
 from custom_components.haeo.sections import SECTION_COMMON, SECTION_EFFICIENCY, SECTION_POWER_LIMITS, SECTION_PRICING
+from custom_components.haeo.sensor_utils import get_duration_sensor_entity_id
 
 
 def _battery_config(
@@ -899,3 +906,368 @@ async def test_historical_state_provider_get_states_sync(hass: HomeAssistant) ->
     )
 
     assert result == {"sensor.test": [mock_state]}
+
+
+# --- Internal function tests ---
+
+
+def test_extract_entity_ids_handles_non_dict_values() -> None:
+    """_extract_entity_ids_from_config ignores non-dict/non-schema values."""
+    config = cast(
+        "ElementConfigSchema",
+        {
+            CONF_ELEMENT_TYPE: "grid",
+            "plain_string": "not_a_schema_value",
+            "plain_number": 42,
+        },
+    )
+    entity_ids = _extract_entity_ids_from_config(config)
+    assert entity_ids == set()
+
+
+def test_collect_entity_ids_from_entry_with_battery_subentry(hass: HomeAssistant) -> None:
+    """_collect_entity_ids_from_entry collects entity IDs from battery subentry."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data=_hub_entry_data(),
+        entry_id="hub_entry",
+    )
+    entry.add_to_hass(hass)
+
+    battery_subentry = ConfigSubentry(
+        data=MappingProxyType(
+            _battery_config(
+                name="Battery",
+                connection="DC Bus",
+                capacity="sensor.battery_capacity",
+                initial_charge_percentage="sensor.battery_soc",
+            )
+        ),
+        subentry_type=ELEMENT_TYPE_BATTERY,
+        title="Battery",
+        unique_id=None,
+    )
+    hass.config_entries.async_add_subentry(entry, battery_subentry)
+
+    entity_ids = _collect_entity_ids_from_entry(entry)
+
+    assert "sensor.battery_capacity" in entity_ids
+    assert "sensor.battery_soc" in entity_ids
+
+
+def test_collect_entity_ids_from_entry_skips_network_subentry(hass: HomeAssistant) -> None:
+    """_collect_entity_ids_from_entry skips network subentries."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data=_hub_entry_data(),
+        entry_id="hub_entry",
+    )
+    entry.add_to_hass(hass)
+
+    network_subentry = ConfigSubentry(
+        data=MappingProxyType({"some_config": "value"}),
+        subentry_type="network",
+        title="Network",
+        unique_id=None,
+    )
+    hass.config_entries.async_add_subentry(entry, network_subentry)
+
+    entity_ids = _collect_entity_ids_from_entry(entry)
+    assert entity_ids == set()
+
+
+def test_collect_entity_ids_from_entry_skips_invalid_element(hass: HomeAssistant) -> None:
+    """_collect_entity_ids_from_entry skips subentries that don't pass is_element_config_schema."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data=_hub_entry_data(),
+        entry_id="hub_entry",
+    )
+    entry.add_to_hass(hass)
+
+    invalid_subentry = ConfigSubentry(
+        data=MappingProxyType({"random_field": "value"}),
+        subentry_type="unknown_type",
+        title="Invalid",
+        unique_id=None,
+    )
+    hass.config_entries.async_add_subentry(entry, invalid_subentry)
+
+    entity_ids = _collect_entity_ids_from_entry(entry)
+    assert entity_ids == set()
+
+
+async def test_fetch_inputs_at_returns_states(hass: HomeAssistant) -> None:
+    """_fetch_inputs_at fetches recorder states for entity IDs in subentries."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data=_hub_entry_data(),
+        entry_id="hub_entry",
+    )
+    entry.add_to_hass(hass)
+
+    battery_subentry = ConfigSubentry(
+        data=MappingProxyType(
+            _battery_config(
+                name="Battery",
+                connection="DC Bus",
+                capacity="sensor.battery_capacity",
+                initial_charge_percentage="sensor.battery_soc",
+            )
+        ),
+        subentry_type=ELEMENT_TYPE_BATTERY,
+        title="Battery",
+        unique_id=None,
+    )
+    hass.config_entries.async_add_subentry(entry, battery_subentry)
+
+    target_time = datetime(2024, 1, 1, tzinfo=UTC)
+    cap_state = State("sensor.battery_capacity", "5000", {"unit_of_measurement": "Wh"})
+    soc_state = State("sensor.battery_soc", "75", {"unit_of_measurement": "%"})
+
+    mock_recorder = Mock()
+    mock_recorder.async_add_executor_job = AsyncMock(side_effect=lambda fn: fn())
+
+    with (
+        patch(
+            "custom_components.haeo.diagnostics.collector.get_recorder_instance",
+            return_value=mock_recorder,
+        ),
+        patch(
+            "custom_components.haeo.diagnostics.collector.recorder_history.get_significant_states",
+            return_value={
+                "sensor.battery_capacity": [cap_state],
+                "sensor.battery_soc": [soc_state],
+            },
+        ),
+    ):
+        inputs, missing = await _fetch_inputs_at(hass, entry, target_time)
+
+    assert len(inputs) == 2
+    assert missing == []
+    entity_ids = [inp["entity_id"] for inp in inputs]
+    assert "sensor.battery_capacity" in entity_ids
+    assert "sensor.battery_soc" in entity_ids
+
+
+async def test_fetch_inputs_at_reports_missing_entities(hass: HomeAssistant) -> None:
+    """_fetch_inputs_at reports entities not found in recorder."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data=_hub_entry_data(),
+        entry_id="hub_entry",
+    )
+    entry.add_to_hass(hass)
+
+    battery_subentry = ConfigSubentry(
+        data=MappingProxyType(
+            _battery_config(
+                name="Battery",
+                connection="DC Bus",
+                capacity="sensor.battery_capacity",
+                initial_charge_percentage="sensor.battery_soc",
+            )
+        ),
+        subentry_type=ELEMENT_TYPE_BATTERY,
+        title="Battery",
+        unique_id=None,
+    )
+    hass.config_entries.async_add_subentry(entry, battery_subentry)
+
+    target_time = datetime(2024, 1, 1, tzinfo=UTC)
+    cap_state = State("sensor.battery_capacity", "5000")
+
+    mock_recorder = Mock()
+    mock_recorder.async_add_executor_job = AsyncMock(side_effect=lambda fn: fn())
+
+    with (
+        patch(
+            "custom_components.haeo.diagnostics.collector.get_recorder_instance",
+            return_value=mock_recorder,
+        ),
+        patch(
+            "custom_components.haeo.diagnostics.collector.recorder_history.get_significant_states",
+            return_value={"sensor.battery_capacity": [cap_state]},
+        ),
+    ):
+        inputs, missing = await _fetch_inputs_at(hass, entry, target_time)
+
+    assert len(inputs) == 1
+    assert "sensor.battery_soc" in missing
+
+
+async def test_fetch_inputs_at_empty_subentries(hass: HomeAssistant) -> None:
+    """_fetch_inputs_at returns empty when no entity IDs found in subentries."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data=_hub_entry_data(),
+        entry_id="hub_entry",
+    )
+    entry.add_to_hass(hass)
+
+    inputs, missing = await _fetch_inputs_at(hass, entry, datetime(2024, 1, 1, tzinfo=UTC))
+
+    assert inputs == []
+    assert missing == []
+
+
+async def test_get_last_run_before_finds_run(hass: HomeAssistant) -> None:
+    """_get_last_run_before returns (started_at, completed_at) from duration sensor."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data=_hub_entry_data(),
+        entry_id="hub_entry",
+    )
+    entry.add_to_hass(hass)
+
+    completed_at = datetime(2024, 1, 1, 12, 0, tzinfo=UTC)
+    duration_seconds = 2.5
+    duration_state = State(
+        "sensor.haeo_optimization_duration",
+        str(duration_seconds),
+        last_updated=completed_at,
+    )
+
+    mock_recorder = Mock()
+    mock_recorder.async_add_executor_job = AsyncMock(side_effect=lambda fn: fn())
+
+    with (
+        patch(
+            "custom_components.haeo.diagnostics.collector.get_duration_sensor_entity_id",
+            return_value="sensor.haeo_optimization_duration",
+        ),
+        patch(
+            "custom_components.haeo.diagnostics.collector.get_recorder_instance",
+            return_value=mock_recorder,
+        ),
+        patch(
+            "custom_components.haeo.diagnostics.collector.recorder_history.get_significant_states",
+            return_value={"sensor.haeo_optimization_duration": [duration_state]},
+        ),
+    ):
+        result = await _get_last_run_before(hass, entry, datetime(2024, 1, 1, 13, 0, tzinfo=UTC))
+
+    assert result is not None
+    started_at, returned_completed = result
+    assert returned_completed == completed_at
+    assert started_at == completed_at - timedelta(seconds=duration_seconds)
+
+
+async def test_get_last_run_before_no_duration_sensor(hass: HomeAssistant) -> None:
+    """_get_last_run_before returns None when no duration sensor exists."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data=_hub_entry_data(),
+        entry_id="hub_entry",
+    )
+    entry.add_to_hass(hass)
+
+    with patch(
+        "custom_components.haeo.diagnostics.collector.get_duration_sensor_entity_id",
+        return_value=None,
+    ):
+        result = await _get_last_run_before(hass, entry, datetime(2024, 1, 1, tzinfo=UTC))
+
+    assert result is None
+
+
+async def test_get_last_run_before_no_recorder_state(hass: HomeAssistant) -> None:
+    """_get_last_run_before returns None when recorder has no state for duration sensor."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data=_hub_entry_data(),
+        entry_id="hub_entry",
+    )
+    entry.add_to_hass(hass)
+
+    mock_recorder = Mock()
+    mock_recorder.async_add_executor_job = AsyncMock(side_effect=lambda fn: fn())
+
+    with (
+        patch(
+            "custom_components.haeo.diagnostics.collector.get_duration_sensor_entity_id",
+            return_value="sensor.haeo_optimization_duration",
+        ),
+        patch(
+            "custom_components.haeo.diagnostics.collector.get_recorder_instance",
+            return_value=mock_recorder,
+        ),
+        patch(
+            "custom_components.haeo.diagnostics.collector.recorder_history.get_significant_states",
+            return_value={},
+        ),
+    ):
+        result = await _get_last_run_before(hass, entry, datetime(2024, 1, 1, tzinfo=UTC))
+
+    assert result is None
+
+
+async def test_get_last_run_before_invalid_duration_state(hass: HomeAssistant) -> None:
+    """_get_last_run_before returns None when duration state is not a valid number."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data=_hub_entry_data(),
+        entry_id="hub_entry",
+    )
+    entry.add_to_hass(hass)
+
+    invalid_state = State("sensor.haeo_optimization_duration", "unavailable")
+
+    mock_recorder = Mock()
+    mock_recorder.async_add_executor_job = AsyncMock(side_effect=lambda fn: fn())
+
+    with (
+        patch(
+            "custom_components.haeo.diagnostics.collector.get_duration_sensor_entity_id",
+            return_value="sensor.haeo_optimization_duration",
+        ),
+        patch(
+            "custom_components.haeo.diagnostics.collector.get_recorder_instance",
+            return_value=mock_recorder,
+        ),
+        patch(
+            "custom_components.haeo.diagnostics.collector.recorder_history.get_significant_states",
+            return_value={"sensor.haeo_optimization_duration": [invalid_state]},
+        ),
+    ):
+        result = await _get_last_run_before(hass, entry, datetime(2024, 1, 1, tzinfo=UTC))
+
+    assert result is None
+
+
+# --- get_duration_sensor_entity_id tests ---
+
+
+def test_get_duration_sensor_entity_id_found(hass: HomeAssistant) -> None:
+    """get_duration_sensor_entity_id returns entity_id when duration sensor exists."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data=_hub_entry_data(),
+        entry_id="hub_entry",
+    )
+    entry.add_to_hass(hass)
+
+    entity_registry = er.async_get(hass)
+    entity_registry.async_get_or_create(
+        domain="sensor",
+        platform=DOMAIN,
+        unique_id=f"hub_entry_{OUTPUT_NAME_OPTIMIZATION_DURATION}",
+        config_entry=entry,
+    )
+
+    result = get_duration_sensor_entity_id(hass, entry)
+    assert result is not None
+    assert OUTPUT_NAME_OPTIMIZATION_DURATION in result
+
+
+def test_get_duration_sensor_entity_id_not_found(hass: HomeAssistant) -> None:
+    """get_duration_sensor_entity_id returns None when no duration sensor exists."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data=_hub_entry_data(),
+        entry_id="hub_entry",
+    )
+    entry.add_to_hass(hass)
+
+    result = get_duration_sensor_entity_id(hass, entry)
+    assert result is None
