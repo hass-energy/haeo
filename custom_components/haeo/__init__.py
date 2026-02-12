@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Awaitable
+from collections.abc import Awaitable, Mapping
 from dataclasses import dataclass, field
 import logging
 from types import MappingProxyType
@@ -63,7 +63,7 @@ class InputEntity(Protocol):
         """Return forecast values or None if not loaded."""
         ...
 
-    def get_captured_source_states(self) -> dict[str, State]:
+    def get_captured_source_states(self) -> Mapping[str, State]:
         """Return captured source states from the last data load."""
         ...
 

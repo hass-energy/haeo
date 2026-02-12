@@ -38,7 +38,7 @@ class OptimizationContext:
     participants: dict[str, ElementConfigSchema]
     """Raw element schemas (not processed ElementConfigData)."""
 
-    source_states: dict[str, State]
+    source_states: Mapping[str, State]
     """Source sensor states captured when entities loaded data."""
 
     @classmethod

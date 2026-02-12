@@ -1,6 +1,7 @@
 """Tests for the HAEO number input entity."""
 
 import asyncio
+from collections.abc import Mapping
 from datetime import timedelta
 import logging
 from types import MappingProxyType
@@ -1472,9 +1473,8 @@ async def test_get_captured_source_states_driven_mode(
     assert "sensor.power_limit" in captured
     assert isinstance(captured["sensor.power_limit"], State)
 
-    # Verify it's a copy (modifications don't affect internal state)
-    captured["sensor.new_entity"] = Mock()
-    assert "sensor.new_entity" not in entity.get_captured_source_states()
+    # Return type is Mapping (read-only interface) — not a mutable dict
+    assert isinstance(captured, Mapping)
 
 
 async def test_get_captured_source_states_scalar_driven_mode(

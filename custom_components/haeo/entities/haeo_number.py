@@ -160,7 +160,7 @@ class HaeoInputNumber(NumberEntity):
         self._data_ready = asyncio.Event()
 
         # Captured source states for reproducibility (populated when loading data)
-        self._captured_source_states: dict[str, State] = {}
+        self._captured_source_states: Mapping[str, State] = {}
 
         # Exclude forecast from recorder unless explicitly enabled
         if not config_entry.data.get(CONF_RECORD_FORECASTS, False):
@@ -374,7 +374,7 @@ class HaeoInputNumber(NumberEntity):
             return values
         return None
 
-    def get_captured_source_states(self) -> dict[str, State]:
+    def get_captured_source_states(self) -> Mapping[str, State]:
         """Return source states captured when data was last loaded.
 
         Returns:
@@ -382,7 +382,7 @@ class HaeoInputNumber(NumberEntity):
             Empty dict for EDITABLE mode entities (no source entities).
 
         """
-        return dict(self._captured_source_states)
+        return self._captured_source_states
 
     async def async_set_native_value(self, value: float) -> None:
         """Handle user setting a value.

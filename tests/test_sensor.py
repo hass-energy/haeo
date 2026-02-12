@@ -57,7 +57,8 @@ def _make_coordinator_data(outputs: dict[str, Any] | None = None) -> Coordinator
     return CoordinatorData(
         context=context,
         outputs=outputs,
-        timestamp=datetime.now(UTC),
+        started_at=datetime.now(UTC),
+        completed_at=datetime.now(UTC),
     )
 
 

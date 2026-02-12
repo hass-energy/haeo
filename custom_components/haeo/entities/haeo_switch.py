@@ -146,7 +146,7 @@ class HaeoInputSwitch(SwitchEntity):
         self._data_ready = asyncio.Event()
 
         # Captured source states for reproducibility (populated when loading data)
-        self._captured_source_states: dict[str, State] = {}
+        self._captured_source_states: Mapping[str, State] = {}
 
         # Exclude forecast from recorder unless explicitly enabled
         if not config_entry.data.get(CONF_RECORD_FORECASTS, False):
@@ -282,7 +282,7 @@ class HaeoInputSwitch(SwitchEntity):
             return tuple(point["value"] for point in forecast if isinstance(point, dict) and "value" in point)
         return None
 
-    def get_captured_source_states(self) -> dict[str, State]:
+    def get_captured_source_states(self) -> Mapping[str, State]:
         """Return source states captured when data was last loaded.
 
         Returns:
@@ -290,7 +290,7 @@ class HaeoInputSwitch(SwitchEntity):
             Empty dict for EDITABLE mode entities (no source entities).
 
         """
-        return dict(self._captured_source_states)
+        return self._captured_source_states
 
     async def async_turn_on(self, **_kwargs: Any) -> None:
         """Handle user turning switch on.
