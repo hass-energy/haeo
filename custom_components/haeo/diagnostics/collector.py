@@ -21,7 +21,6 @@ from custom_components.haeo.sections import SECTION_COMMON
 from custom_components.haeo.sensor_utils import get_duration_sensor_entity_id, get_output_sensors
 
 
-
 @dataclass
 class DiagnosticsResult:
     """Result of collecting diagnostics."""
@@ -52,10 +51,7 @@ def _inputs_from_context(context: OptimizationContext) -> list[dict[str, Any]]:
     Uses the exact source states captured when entities loaded data,
     rather than re-fetching from the state machine.
     """
-    return [
-        state.as_dict()
-        for _entity_id, state in sorted(context.source_states.items())
-    ]
+    return [state.as_dict() for _entity_id, state in sorted(context.source_states.items())]
 
 
 def _extract_entity_ids_from_config(config: ElementConfigSchema) -> set[str]:

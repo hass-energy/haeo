@@ -493,13 +493,15 @@ async def test_historical_diagnostics_no_run_found_errors(hass: HomeAssistant) -
     entry.add_to_hass(hass)
     entry.runtime_data = None
 
-    with patch(
-        "custom_components.haeo.diagnostics.collector._get_last_run_before",
-        new_callable=AsyncMock,
-        return_value=None,
+    with (
+        patch(
+            "custom_components.haeo.diagnostics.collector._get_last_run_before",
+            new_callable=AsyncMock,
+            return_value=None,
+        ),
+        pytest.raises(RuntimeError, match="no optimization run found"),
     ):
-        with pytest.raises(RuntimeError, match="no optimization run found"):
-            await collect_diagnostics(hass, entry, as_of=datetime(2024, 1, 1, tzinfo=UTC))
+        await collect_diagnostics(hass, entry, as_of=datetime(2024, 1, 1, tzinfo=UTC))
 
 
 async def test_historical_diagnostics_ignores_context(hass: HomeAssistant) -> None:
