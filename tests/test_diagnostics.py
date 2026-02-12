@@ -208,8 +208,10 @@ async def test_collect_diagnostics_historical_skips_outputs(hass: HomeAssistant)
 
     result = await collect_diagnostics(hass, entry, state_provider)
 
-    assert result.data["outputs"] == {}
-    assert result.data["environment"]["historical"] is True
+    assert "outputs" not in result.data
+    assert result.data["info"]["historical"] is True
+    meta_timestamp = datetime.fromisoformat(result.data["info"]["timestamp"])
+    assert meta_timestamp == datetime(2024, 1, 1, tzinfo=UTC).astimezone()
     assert result.missing_entity_ids == []
 
 
@@ -495,22 +497,29 @@ async def test_diagnostics_basic_structure(hass: HomeAssistant) -> None:
 
     diagnostics = await async_get_config_entry_diagnostics(hass, entry)
 
-    # Verify the four main keys
+    # Verify the five main keys
     assert "config" in diagnostics
-    assert "inputs" in diagnostics
-    assert "outputs" in diagnostics
     assert "environment" in diagnostics
+    assert "inputs" in diagnostics
+    assert "info" in diagnostics
+    assert "outputs" in diagnostics
 
     # Verify hub config is captured (tiers, common, etc.)
     assert diagnostics["config"][HUB_SECTION_TIERS][CONF_TIER_1_COUNT] == DEFAULT_TIER_1_COUNT
     assert diagnostics["config"][HUB_SECTION_TIERS][CONF_TIER_1_DURATION] == DEFAULT_TIER_1_DURATION
     assert "participants" in diagnostics["config"]
 
-    # Verify environment
+    # Verify environment has static info only
     assert "ha_version" in diagnostics["environment"]
     assert "haeo_version" in diagnostics["environment"]
-    assert "timestamp" in diagnostics["environment"]
     assert "timezone" in diagnostics["environment"]
+
+    # Verify meta has per-snapshot context
+    info = diagnostics["info"]
+    assert info["historical"] is False
+    assert "horizon_start" in info
+    assert "started_at" in info
+    assert "completed_at" in info
 
 
 async def test_diagnostics_uses_context_for_config_and_inputs(hass: HomeAssistant) -> None:
@@ -568,9 +577,12 @@ async def test_diagnostics_uses_context_for_config_and_inputs(hass: HomeAssistan
     # No missing entity IDs on the context path
     assert result.missing_entity_ids == []
 
-    # Environment timestamp comes from coordinator's started_at
-    env_timestamp = datetime.fromisoformat(result.data["environment"]["timestamp"])
-    assert env_timestamp == coordinator_data.started_at.astimezone()
+    # Info has optimization timestamps
+    info = result.data["info"]
+    assert info["historical"] is False
+    assert datetime.fromisoformat(info["started_at"]) == coordinator_data.started_at.astimezone()
+    assert datetime.fromisoformat(info["completed_at"]) == coordinator_data.completed_at.astimezone()
+    assert datetime.fromisoformat(info["horizon_start"]) == coordinator_data.context.horizon_start.astimezone()
 
 
 async def test_diagnostics_with_outputs(hass: HomeAssistant) -> None:
@@ -674,7 +686,8 @@ async def test_diagnostics_historical_ignores_context(hass: HomeAssistant) -> No
     # StateProvider SHOULD have been called
     state_provider.get_states.assert_called_once()
 
-    assert result.data["environment"]["historical"] is True
+    assert result.data["info"]["historical"] is True
+    assert "started_at" not in result.data["info"]  # historical has timestamp only
 
 
 # --- StateProvider tests ---

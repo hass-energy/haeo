@@ -144,24 +144,24 @@ async def _config_and_inputs_for_historical(
 async def _build_environment(
     hass: HomeAssistant,
     config_entry: HaeoConfigEntry,
-    timestamp: datetime,
-    is_historical: bool,
 ) -> dict[str, Any]:
-    """Build the environment section of diagnostics."""
+    """Build the environment section of diagnostics.
+
+    Static facts about the runtime — does not vary per invocation.
+    """
     integration = await async_get_integration(hass, config_entry.domain)
     haeo_version = integration.version or "unknown"
 
-    environment: dict[str, Any] = {
+    return {
         "ha_version": ha_version,
         "haeo_version": haeo_version,
-        "timestamp": dt_util.as_local(timestamp).isoformat(),
         "timezone": str(dt_util.get_default_time_zone()),
     }
 
-    if is_historical:
-        environment["historical"] = True
 
-    return environment
+def _to_local_iso(dt: datetime) -> str:
+    """Format a datetime as a local-timezone ISO 8601 string."""
+    return dt_util.as_local(dt).isoformat()
 
 
 async def collect_diagnostics(
@@ -171,11 +171,12 @@ async def collect_diagnostics(
 ) -> DiagnosticsResult:
     """Collect diagnostics using the provided state provider.
 
-    Returns a dict with four main keys:
+    Returns a dict with five main keys:
     - config: HAEO configuration (hub settings, participants)
+    - environment: Static runtime info (HA version, HAEO version, timezone)
     - inputs: Input sensor states used in optimization
+    - info: Per-snapshot context (timestamps, historical flag)
     - outputs: Output sensor states from optimization results (omitted for historical)
-    - environment: Environment information (HA version, HAEO version, timestamp)
 
     Two modes:
     - Historical: fetches config from the config entry and states from the recorder.
@@ -191,7 +192,10 @@ async def collect_diagnostics(
             config_entry, state_provider
         )
         timestamp = state_provider.timestamp or dt_util.now()
-        outputs: dict[str, Any] = {}
+        info: dict[str, Any] = {
+            "historical": True,
+            "timestamp": _to_local_iso(timestamp),
+        }
     else:
         runtime_data = config_entry.runtime_data
         if (
@@ -206,18 +210,26 @@ async def collect_diagnostics(
         config = _config_from_context(coordinator_data.context)
         inputs = _inputs_from_context(coordinator_data.context)
         missing_entity_ids = []
-        timestamp = coordinator_data.started_at
-        outputs = get_output_sensors(hass, config_entry)
+        info = {
+            "historical": False,
+            "horizon_start": _to_local_iso(coordinator_data.context.horizon_start),
+            "started_at": _to_local_iso(coordinator_data.started_at),
+            "completed_at": _to_local_iso(coordinator_data.completed_at),
+        }
 
-    environment = await _build_environment(hass, config_entry, timestamp, state_provider.is_historical)
+    environment = await _build_environment(hass, config_entry)
+
+    data: dict[str, Any] = {
+        "config": config,
+        "environment": environment,
+        "inputs": inputs,
+        "info": info,
+    }
+    if not state_provider.is_historical:
+        data["outputs"] = get_output_sensors(hass, config_entry)
 
     return DiagnosticsResult(
-        data={
-            "config": config,
-            "environment": environment,
-            "inputs": inputs,
-            "outputs": outputs,
-        },
+        data=data,
         missing_entity_ids=missing_entity_ids,
     )
 
