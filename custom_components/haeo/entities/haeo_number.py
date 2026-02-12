@@ -374,8 +374,9 @@ class HaeoInputNumber(NumberEntity):
             return values
         return None
 
-    def get_captured_source_states(self) -> Mapping[str, State]:
-        """Return source states captured when data was last loaded.
+    @property
+    def captured_source_states(self) -> Mapping[str, State]:
+        """Source states captured when data was last loaded.
 
         Returns:
             Dict mapping source entity IDs to their State objects at load time.

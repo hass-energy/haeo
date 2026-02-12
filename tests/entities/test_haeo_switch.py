@@ -1249,14 +1249,14 @@ async def test_unrecorded_attributes_based_on_config(
         assert not hasattr(entity, "_unrecorded_attributes") or entity._unrecorded_attributes == frozenset()
 
 
-async def test_get_captured_source_states_editable_mode(
+async def test_captured_source_states_editable_mode(
     hass: HomeAssistant,
     config_entry: MockConfigEntry,
     device_entry: Mock,
     curtailment_field_info: InputFieldInfo[SwitchEntityDescription],
     horizon_manager: Mock,
 ) -> None:
-    """EDITABLE mode entity returns empty dict from get_captured_source_states."""
+    """EDITABLE mode entity returns empty captured_source_states."""
     subentry = _create_subentry("Test Solar", {"curtailment": True})
 
     entity = HaeoInputSwitch(
@@ -1268,10 +1268,10 @@ async def test_get_captured_source_states_editable_mode(
     )
 
     # EDITABLE mode has no source entities
-    assert entity.get_captured_source_states() == {}
+    assert entity.captured_source_states == {}
 
 
-async def test_get_captured_source_states_driven_mode(
+async def test_captured_source_states_driven_mode(
     hass: HomeAssistant,
     config_entry: MockConfigEntry,
     device_entry: Mock,
@@ -1296,13 +1296,13 @@ async def test_get_captured_source_states_driven_mode(
     )
 
     # Before adding to hass, captured states should be empty
-    assert entity.get_captured_source_states() == {}
+    assert entity.captured_source_states == {}
 
     # Add to hass which triggers async_added_to_hass -> _load_source_state
     await _add_entity_to_hass(hass, entity)
 
     # After loading, captured states should include the source entity
-    captured = entity.get_captured_source_states()
+    captured = entity.captured_source_states
     assert "input_boolean.allow_curtailment" in captured
     assert isinstance(captured["input_boolean.allow_curtailment"], State)
 

@@ -63,8 +63,9 @@ class InputEntity(Protocol):
         """Return forecast values or None if not loaded."""
         ...
 
-    def get_captured_source_states(self) -> Mapping[str, State]:
-        """Return captured source states from the last data load."""
+    @property
+    def captured_source_states(self) -> Mapping[str, State]:
+        """Source states captured from the last data load."""
         ...
 
 

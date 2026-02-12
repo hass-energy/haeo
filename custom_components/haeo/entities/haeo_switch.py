@@ -282,8 +282,9 @@ class HaeoInputSwitch(SwitchEntity):
             return tuple(point["value"] for point in forecast if isinstance(point, dict) and "value" in point)
         return None
 
-    def get_captured_source_states(self) -> Mapping[str, State]:
-        """Return source states captured when data was last loaded.
+    @property
+    def captured_source_states(self) -> Mapping[str, State]:
+        """Source states captured when data was last loaded.
 
         Returns:
             Dict mapping source entity IDs to their State objects at load time.

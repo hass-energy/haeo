@@ -66,7 +66,7 @@ class OptimizationContext:
         # Pull source states from all input entities (they captured these when loading data)
         source_states: dict[str, State] = {}
         for entity in input_entities.values():
-            source_states.update(entity.get_captured_source_states())
+            source_states.update(entity.captured_source_states)
 
         start_time = horizon_manager.current_start_time
         if start_time is None:

@@ -1625,10 +1625,10 @@ def test_optimization_context_build_collects_source_states() -> None:
     mock_state2 = State("sensor.power2", "200")
 
     mock_entity1 = MagicMock()
-    mock_entity1.get_captured_source_states.return_value = {"sensor.power1": mock_state1}
+    mock_entity1.captured_source_states = {"sensor.power1": mock_state1}
 
     mock_entity2 = MagicMock()
-    mock_entity2.get_captured_source_states.return_value = {"sensor.power2": mock_state2}
+    mock_entity2.captured_source_states = {"sensor.power2": mock_state2}
 
     input_entities = {
         ("Battery", ("basic", "power")): mock_entity1,
@@ -1668,7 +1668,7 @@ def test_optimization_context_build_deep_copies_configs() -> None:
     participant_configs: Any = {"Battery": nested_config}
 
     mock_entity = MagicMock()
-    mock_entity.get_captured_source_states.return_value = {}
+    mock_entity.captured_source_states = {}
 
     mock_horizon = MagicMock()
     mock_horizon.get_forecast_timestamps.return_value = (1000.0,)
