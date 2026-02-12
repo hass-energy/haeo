@@ -18,7 +18,11 @@ from custom_components.haeo.coordinator.context import OptimizationContext
 from custom_components.haeo.elements import ElementConfigSchema, is_element_config_schema
 from custom_components.haeo.schema import SchemaValue, is_schema_value
 from custom_components.haeo.sections import SECTION_COMMON
-from custom_components.haeo.sensor_utils import get_duration_sensor_entity_id, get_output_sensors
+from custom_components.haeo.sensor_utils import (
+    get_duration_sensor_entity_id,
+    get_horizon_sensor_entity_id,
+    get_output_sensors,
+)
 
 
 @dataclass
@@ -215,6 +219,41 @@ async def _get_last_run_before(
     return started_at, completed_at
 
 
+async def _get_horizon_start_at(
+    hass: HomeAssistant,
+    config_entry: HaeoConfigEntry,
+    target_time: datetime,
+) -> str | None:
+    """Get the horizon sensor state from the recorder at a specific time.
+
+    Returns the ISO timestamp string from the sensor, or None if unavailable.
+    """
+    entity_id = get_horizon_sensor_entity_id(hass, config_entry)
+    if entity_id is None:
+        return None
+
+    recorder = get_recorder_instance(hass)
+
+    def _query() -> dict[str, list[State]]:
+        result = recorder_history.get_significant_states(
+            hass,
+            start_time=target_time,
+            end_time=target_time,
+            entity_ids=[entity_id],
+            include_start_time_state=True,
+            significant_changes_only=False,
+            no_attributes=False,
+        )
+        return cast("dict[str, list[State]]", result)
+
+    states = await recorder.async_add_executor_job(_query)
+    state_list = states.get(entity_id, [])
+    if not state_list:
+        return None
+
+    return state_list[0].state
+
+
 async def _build_environment(
     hass: HomeAssistant,
     config_entry: HaeoConfigEntry,
@@ -250,7 +289,7 @@ async def collect_diagnostics(
     - config: HAEO configuration (hub settings, participants)
     - environment: Static runtime info (HA version, HAEO version, timezone)
     - inputs: Input sensor states used in optimization
-    - info: Per-snapshot context (timestamps, always the same four keys)
+    - info: Per-snapshot context (standardized timestamps plus horizon_start)
     - outputs: Output sensor states (current only)
 
     Two modes:
@@ -275,11 +314,13 @@ async def collect_diagnostics(
         started_at, completed_at = run
         config = _config_from_entry(config_entry)
         inputs, missing_entity_ids = await _fetch_inputs_at(hass, config_entry, started_at)
+        horizon_start = await _get_horizon_start_at(hass, config_entry, started_at)
         info: dict[str, Any] = {
             "diagnostic_target_time": _to_local_iso(as_of),
             "diagnostic_request_time": _to_local_iso(dt_util.utcnow()),
             "optimization_start": _to_local_iso(started_at),
             "optimization_end": _to_local_iso(completed_at),
+            "horizon_start": horizon_start,
         }
     else:
         runtime_data = config_entry.runtime_data
@@ -296,10 +337,11 @@ async def collect_diagnostics(
         inputs = _inputs_from_context(coordinator_data.context)
         missing_entity_ids = []
         info = {
-            "diagnostic_target_time": _to_local_iso(coordinator_data.context.horizon_start),
+            "diagnostic_target_time": _to_local_iso(dt_util.utcnow()),
             "diagnostic_request_time": _to_local_iso(dt_util.utcnow()),
             "optimization_start": _to_local_iso(coordinator_data.started_at),
             "optimization_end": _to_local_iso(coordinator_data.completed_at),
+            "horizon_start": _to_local_iso(coordinator_data.context.horizon_start),
         }
 
     environment = await _build_environment(hass, config_entry)

@@ -262,6 +262,7 @@ async def test_diagnostics_basic_structure(hass: HomeAssistant) -> None:
     assert "diagnostic_request_time" in info
     assert "optimization_start" in info
     assert "optimization_end" in info
+    assert "horizon_start" in info
 
 
 async def test_diagnostics_errors_when_no_optimization_has_run(hass: HomeAssistant) -> None:
@@ -351,7 +352,8 @@ async def test_diagnostics_uses_context_for_config_and_inputs(hass: HomeAssistan
     info = result.data["info"]
     assert datetime.fromisoformat(info["optimization_start"]) == coordinator_data.started_at.astimezone()
     assert datetime.fromisoformat(info["optimization_end"]) == coordinator_data.completed_at.astimezone()
-    assert datetime.fromisoformat(info["diagnostic_target_time"]) == coordinator_data.context.horizon_start.astimezone()
+    assert info["diagnostic_target_time"] is None
+    assert datetime.fromisoformat(info["horizon_start"]) == coordinator_data.context.horizon_start.astimezone()
     assert "diagnostic_request_time" in info
 
 
@@ -448,6 +450,7 @@ async def test_historical_diagnostics_uses_last_run(hass: HomeAssistant) -> None
     run_duration = 0.5  # seconds
     run_started = run_completed - timedelta(seconds=run_duration)
 
+    horizon_iso = "2024-01-01T11:50:00+00:00"
     with (
         patch(
             "custom_components.haeo.diagnostics.collector._get_last_run_before",
@@ -462,6 +465,11 @@ async def test_historical_diagnostics_uses_last_run(hass: HomeAssistant) -> None
                 ["sensor.battery_soc"],
             ),
         ) as mock_fetch_inputs,
+        patch(
+            "custom_components.haeo.diagnostics.collector._get_horizon_start_at",
+            new_callable=AsyncMock,
+            return_value=horizon_iso,
+        ),
     ):
         result = await collect_diagnostics(hass, entry, as_of=as_of)
 
@@ -485,6 +493,7 @@ async def test_historical_diagnostics_uses_last_run(hass: HomeAssistant) -> None
     assert datetime.fromisoformat(info["optimization_start"]) == run_started.astimezone()
     assert datetime.fromisoformat(info["optimization_end"]) == run_completed.astimezone()
     assert "diagnostic_request_time" in info
+    assert info["horizon_start"] == horizon_iso
 
     # No outputs for historical
     assert "outputs" not in result.data
@@ -559,6 +568,11 @@ async def test_historical_diagnostics_ignores_context(hass: HomeAssistant) -> No
             new_callable=AsyncMock,
             return_value=([], []),
         ),
+        patch(
+            "custom_components.haeo.diagnostics.collector._get_horizon_start_at",
+            new_callable=AsyncMock,
+            return_value=None,
+        ),
     ):
         result = await collect_diagnostics(hass, entry, as_of=as_of)
 
@@ -622,6 +636,11 @@ async def test_historical_diagnostics_with_participants(hass: HomeAssistant) -> 
                 [capacity_state.as_dict(), soc_state.as_dict()],
                 [],
             ),
+        ),
+        patch(
+            "custom_components.haeo.diagnostics.collector._get_horizon_start_at",
+            new_callable=AsyncMock,
+            return_value=None,
         ),
     ):
         result = await collect_diagnostics(hass, entry, as_of=as_of)
@@ -692,6 +711,11 @@ async def test_historical_diagnostics_skips_network_subentry(hass: HomeAssistant
             new_callable=AsyncMock,
             return_value=([], []),
         ),
+        patch(
+            "custom_components.haeo.diagnostics.collector._get_horizon_start_at",
+            new_callable=AsyncMock,
+            return_value=None,
+        ),
     ):
         result = await collect_diagnostics(hass, entry, as_of=datetime(2024, 1, 1, tzinfo=UTC))
 
@@ -729,6 +753,11 @@ async def test_historical_diagnostics_invalid_element_config(hass: HomeAssistant
             "custom_components.haeo.diagnostics.collector._fetch_inputs_at",
             new_callable=AsyncMock,
             return_value=([], []),
+        ),
+        patch(
+            "custom_components.haeo.diagnostics.collector._get_horizon_start_at",
+            new_callable=AsyncMock,
+            return_value=None,
         ),
     ):
         result = await collect_diagnostics(hass, entry, as_of=datetime(2024, 1, 1, tzinfo=UTC))

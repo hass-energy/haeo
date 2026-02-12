@@ -9,6 +9,9 @@ from homeassistant.helpers import entity_registry as er
 
 from .const import DOMAIN, OUTPUT_NAME_OPTIMIZATION_DURATION
 
+# Unique ID suffix for the horizon sensor entity
+_HORIZON_UNIQUE_ID_SUFFIX = "_horizon"
+
 # Default decimal places for values without a unit
 _DEFAULT_DECIMAL_PLACES = 4
 
@@ -124,6 +127,18 @@ def get_duration_sensor_entity_id(hass: HomeAssistant, config_entry: ConfigEntry
     entity_registry = er.async_get(hass)
     for entity_entry in er.async_entries_for_config_entry(entity_registry, config_entry.entry_id):
         if entity_entry.platform == DOMAIN and entity_entry.unique_id.endswith(f"_{OUTPUT_NAME_OPTIMIZATION_DURATION}"):
+            return entity_entry.entity_id
+    return None
+
+
+def get_horizon_sensor_entity_id(hass: HomeAssistant, config_entry: ConfigEntry) -> str | None:
+    """Get the entity_id of the forecast horizon sensor for this config entry.
+
+    Returns None if the sensor hasn't been created yet.
+    """
+    entity_registry = er.async_get(hass)
+    for entity_entry in er.async_entries_for_config_entry(entity_registry, config_entry.entry_id):
+        if entity_entry.platform == DOMAIN and entity_entry.unique_id.endswith(_HORIZON_UNIQUE_ID_SUFFIX):
             return entity_entry.entity_id
     return None
 
