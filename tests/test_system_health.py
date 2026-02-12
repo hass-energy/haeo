@@ -1,10 +1,12 @@
 """Tests for HAEO system health reporting."""
 
 from datetime import UTC, datetime
+from typing import Any
 from unittest.mock import MagicMock, Mock, patch
 
 from homeassistant.components.system_health import SystemHealthRegistration
 from homeassistant.core import HomeAssistant
+from homeassistant.util import dt as dt_util
 import pytest
 
 from custom_components.haeo.const import (
@@ -28,9 +30,30 @@ from custom_components.haeo.const import (
     OUTPUT_NAME_OPTIMIZATION_DURATION,
     OUTPUT_NAME_OPTIMIZATION_STATUS,
 )
-from custom_components.haeo.coordinator import CoordinatorOutput, HaeoDataUpdateCoordinator
+from custom_components.haeo.coordinator import (
+    CoordinatorData,
+    CoordinatorOutput,
+    HaeoDataUpdateCoordinator,
+    OptimizationContext,
+)
 from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.system_health import async_register, async_system_health_info
+
+
+def _make_coordinator_data(outputs: dict[str, Any]) -> CoordinatorData:
+    """Create a CoordinatorData instance for tests."""
+    context = OptimizationContext(
+        hub_config={},
+        horizon_start=datetime.fromtimestamp(1000.0, tz=dt_util.UTC),
+        participants={},
+        source_states={},
+    )
+    return CoordinatorData(
+        context=context,
+        outputs=outputs,
+        started_at=datetime.now(UTC),
+        completed_at=datetime.now(UTC),
+    )
 
 
 async def test_async_register_callback(hass: HomeAssistant) -> None:
@@ -66,20 +89,22 @@ async def test_system_health_reports_coordinator_state(hass: HomeAssistant) -> N
     coordinator = Mock(spec=HaeoDataUpdateCoordinator)
     coordinator.last_update_success = True
     coordinator.last_update_success_time = datetime(2024, 1, 1, 12, 0, tzinfo=UTC)
-    coordinator.data = {
-        "HAEO Hub": {
-            OUTPUT_NAME_OPTIMIZATION_STATUS: CoordinatorOutput(
-                type=OutputType.STATUS, unit=None, state="success", forecast=None
-            ),
-            OUTPUT_NAME_OPTIMIZATION_COST: CoordinatorOutput(
-                type=OutputType.COST, unit="$", state=42.75, forecast=None
-            ),
-            OUTPUT_NAME_OPTIMIZATION_DURATION: CoordinatorOutput(
-                type=OutputType.DURATION, unit="s", state=1.234, forecast=None
-            ),
-        },
-        "Battery": {"soc": CoordinatorOutput(type=OutputType.STATUS, unit=None, state=50, forecast=None)},
-    }
+    coordinator.data = _make_coordinator_data(
+        {
+            "HAEO Hub": {
+                OUTPUT_NAME_OPTIMIZATION_STATUS: CoordinatorOutput(
+                    type=OutputType.STATUS, unit=None, state="success", forecast=None
+                ),
+                OUTPUT_NAME_OPTIMIZATION_COST: CoordinatorOutput(
+                    type=OutputType.COST, unit="$", state=42.75, forecast=None
+                ),
+                OUTPUT_NAME_OPTIMIZATION_DURATION: CoordinatorOutput(
+                    type=OutputType.DURATION, unit="s", state=1.234, forecast=None
+                ),
+            },
+            "Battery": {"soc": CoordinatorOutput(type=OutputType.STATUS, unit=None, state=50, forecast=None)},
+        }
+    )
 
     entry = MagicMock()
     entry.title = "HAEO Hub"
@@ -113,7 +138,7 @@ async def test_system_health_detects_failed_updates(hass: HomeAssistant) -> None
 
     coordinator = Mock(spec=HaeoDataUpdateCoordinator)
     coordinator.last_update_success = False
-    coordinator.data = {}
+    coordinator.data = _make_coordinator_data({})
     coordinator.last_update_success_time = None
 
     entry = MagicMock()

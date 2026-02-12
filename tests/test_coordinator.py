@@ -46,8 +46,10 @@ from custom_components.haeo.const import (
 )
 from custom_components.haeo.coordinator import (
     STATUS_OPTIONS,
+    CoordinatorData,
     ForecastPoint,
     HaeoDataUpdateCoordinator,
+    OptimizationContext,
     _build_coordinator_output,
 )
 from custom_components.haeo.coordinator.coordinator import _strip_none_schema_values
@@ -413,7 +415,14 @@ async def test_async_update_data_returns_outputs(
 
     mock_executor.assert_awaited_once_with(fake_network.optimize)
 
-    network_outputs = result["System"][ELEMENT_TYPE_NETWORK]
+    # Verify result is a CoordinatorData dataclass
+    assert result.context is not None
+    assert result.started_at is not None
+    assert result.completed_at is not None
+    assert result.completed_at >= result.started_at
+    assert isinstance(result.outputs, dict)
+
+    network_outputs = result.outputs["System"][ELEMENT_TYPE_NETWORK]
     cost_output = network_outputs[OUTPUT_NAME_OPTIMIZATION_COST]
     assert cost_output.type == OutputType.COST
     assert cost_output.unit == hass.config.currency
@@ -431,7 +440,7 @@ async def test_async_update_data_returns_outputs(
     assert duration_output.state is not None
     assert duration_output.forecast is None
 
-    battery_outputs = result["Test Battery"][BATTERY_DEVICE_BATTERY]
+    battery_outputs = result.outputs["Test Battery"][BATTERY_DEVICE_BATTERY]
     battery_output = battery_outputs[BATTERY_POWER_CHARGE]
     assert battery_output.type == OutputType.POWER
     assert battery_output.unit == "kW"
@@ -1008,8 +1017,19 @@ async def test_async_update_data_returns_existing_when_concurrent(
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
 
     # Simulate existing data and in-progress flag
-    existing_data = {"existing": "data"}
-    coordinator.data = existing_data  # type: ignore[assignment]
+    existing_context = OptimizationContext(
+        hub_config={},
+        horizon_start=datetime.fromtimestamp(1000.0, tz=dt_util.UTC),
+        participants={},
+        source_states={},
+    )
+    existing_data = CoordinatorData(
+        context=existing_context,
+        outputs={"existing": {}},
+        started_at=datetime.now(UTC),
+        completed_at=datetime.now(UTC),
+    )
+    coordinator.data = existing_data
     coordinator._optimization_in_progress = True
 
     result = await coordinator._async_update_data()
@@ -1593,3 +1613,127 @@ async def test_async_run_optimization_skips_when_inputs_not_aligned(
 
     # async_refresh should not be called
     refresh_mock.assert_not_called()
+
+
+# --- OptimizationContext tests ---
+
+
+def test_optimization_context_build_collects_source_states() -> None:
+    """OptimizationContext.build collects source states from all input entities."""
+    # Create mock input entities with captured states
+    mock_state1 = State("sensor.power1", "100")
+    mock_state2 = State("sensor.power2", "200")
+
+    mock_entity1 = MagicMock()
+    mock_entity1.captured_source_states = {"sensor.power1": mock_state1}
+
+    mock_entity2 = MagicMock()
+    mock_entity2.captured_source_states = {"sensor.power2": mock_state2}
+
+    input_entities = {
+        ("Battery", ("basic", "power")): mock_entity1,
+        ("Solar", ("basic", "forecast")): mock_entity2,
+    }
+
+    # Create mock horizon manager
+    mock_horizon = MagicMock()
+    mock_horizon.get_forecast_timestamps.return_value = (1000.0, 2000.0, 3000.0)
+    mock_horizon.periods_seconds = [300, 600]
+    mock_horizon.current_start_time = datetime.fromtimestamp(1000.0, tz=dt_util.UTC)
+
+    # Create mock participant configs (use Any to avoid strict TypedDict checking in tests)
+    participant_configs: Any = {
+        "Battery": {"element_type": "battery", "basic": {"capacity": 10.0}},
+        "Solar": {"element_type": "solar", "basic": {"forecast": "sensor.solar"}},
+    }
+
+    # Build context
+    context = OptimizationContext.build(
+        hub_config={"tier_1_count": 2, "tier_1_duration": 60},
+        participant_configs=participant_configs,
+        input_entities=input_entities,
+        horizon_manager=mock_horizon,
+    )
+
+    # Verify source states are collected
+    assert "sensor.power1" in context.source_states
+    assert "sensor.power2" in context.source_states
+    assert context.source_states["sensor.power1"] == mock_state1
+    assert context.source_states["sensor.power2"] == mock_state2
+
+
+def test_optimization_context_build_deep_copies_configs() -> None:
+    """OptimizationContext.build deep copies participant configs."""
+    nested_config: Any = {"element_type": "battery", "basic": {"capacity": [1.0, 2.0, 3.0]}}
+    participant_configs: Any = {"Battery": nested_config}
+
+    mock_entity = MagicMock()
+    mock_entity.captured_source_states = {}
+
+    mock_horizon = MagicMock()
+    mock_horizon.get_forecast_timestamps.return_value = (1000.0,)
+    mock_horizon.periods_seconds = [300]
+    mock_horizon.current_start_time = datetime.fromtimestamp(1000.0, tz=dt_util.UTC)
+
+    context = OptimizationContext.build(
+        hub_config={"tier_1_count": 2, "tier_1_duration": 60},
+        participant_configs=participant_configs,
+        input_entities={("Battery", ("basic", "capacity")): mock_entity},
+        horizon_manager=mock_horizon,
+    )
+
+    # Verify deep copy - modifying original doesn't affect context
+    nested_config["basic"]["capacity"].append(4.0)
+    assert context.participants["Battery"]["basic"]["capacity"] == [1.0, 2.0, 3.0]  # type: ignore[typeddict-item]
+
+
+def test_optimization_context_build_captures_horizon_start() -> None:
+    """OptimizationContext.build captures horizon start time as datetime."""
+    mock_horizon = MagicMock()
+    expected_time = datetime.fromtimestamp(1000.0, tz=dt_util.UTC)
+    mock_horizon.current_start_time = expected_time
+
+    context = OptimizationContext.build(
+        hub_config={"tier_1_count": 2, "tier_1_duration": 60},
+        participant_configs={},
+        input_entities={},
+        horizon_manager=mock_horizon,
+    )
+
+    assert context.horizon_start == expected_time
+
+
+def test_optimization_context_build_falls_back_to_utcnow_when_no_start_time() -> None:
+    """OptimizationContext.build uses utcnow() when horizon has no start time."""
+    mock_horizon = MagicMock()
+    mock_horizon.current_start_time = None
+
+    context = OptimizationContext.build(
+        hub_config={"tier_1_count": 2, "tier_1_duration": 60},
+        participant_configs={},
+        input_entities={},
+        horizon_manager=mock_horizon,
+    )
+
+    # Should have a recent timestamp (not None)
+    assert context.horizon_start is not None
+    assert isinstance(context.horizon_start, datetime)
+
+
+def test_optimization_context_is_immutable() -> None:
+    """OptimizationContext is frozen and cannot be modified."""
+    context = OptimizationContext(
+        hub_config={},
+        horizon_start=datetime.fromtimestamp(1000.0, tz=dt_util.UTC),
+        participants={},
+        source_states={},
+    )
+
+    with pytest.raises(AttributeError):
+        context.participants = {}  # type: ignore[misc]
+
+    with pytest.raises(AttributeError):
+        context.source_states = {}  # type: ignore[misc]
+
+    with pytest.raises(AttributeError):
+        context.horizon_start = datetime.fromtimestamp(2000.0, tz=dt_util.UTC)  # type: ignore[misc]

@@ -55,6 +55,7 @@ from custom_components.haeo.schema import is_none_value
 from custom_components.haeo.util.forecast_times import tiers_to_periods_seconds
 
 from . import network as network_module
+from .context import OptimizationContext
 
 if TYPE_CHECKING:
     from custom_components.haeo import HaeoConfigEntry, HaeoRuntimeData
@@ -198,7 +199,23 @@ def _build_coordinator_output(
 
 
 type SubentryDevices = dict[ElementDeviceName, dict[ElementOutputName | NetworkOutputName, CoordinatorOutput]]
-type CoordinatorData = dict[str, SubentryDevices]
+
+
+@dataclass(slots=True)
+class CoordinatorData:
+    """Result of an optimization run including inputs and outputs."""
+
+    context: OptimizationContext
+    """Immutable snapshot of all inputs used for this optimization."""
+
+    outputs: dict[str, SubentryDevices]
+    """Element outputs organized by element_name -> device_name -> output_name."""
+
+    started_at: datetime
+    """When the optimization started."""
+
+    completed_at: datetime
+    """When the optimization completed."""
 
 
 class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
@@ -676,6 +693,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             raise UpdateFailed(msg)
 
         start_time = time.time()
+        started_at = dt_util.utc_from_timestamp(start_time).astimezone()
 
         # Set flag to prevent concurrent optimization triggers from callbacks
         # This is cleared in the finally block
@@ -693,6 +711,14 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
                 raise UpdateFailed(msg)
 
             forecast_timestamps = runtime_data.horizon_manager.get_forecast_timestamps()
+
+            # Build optimization context capturing all inputs for reproducibility
+            context = OptimizationContext.build(
+                hub_config=self.config_entry.data,
+                participant_configs=self._participant_configs,
+                input_entities=runtime_data.input_entities,
+                horizon_manager=runtime_data.horizon_manager,
+            )
 
             # Load element configurations from input entities
             # All input entities are guaranteed to be fully loaded by the time we get here
@@ -736,7 +762,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             )
             network_subentry_name = translations[f"component.{DOMAIN}.common.network_subentry_name"]
 
-            result: CoordinatorData = {
+            outputs: dict[str, SubentryDevices] = {
                 # HAEO outputs use network subentry name as key, network element type as device
                 network_subentry_name: {
                     ELEMENT_TYPE_NETWORK: {
@@ -752,7 +778,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             }
 
             # Process each config element using its outputs function to transform model outputs into device outputs
-            for element_name, element_config in self._participant_configs.items():
+            for element_name, element_config in context.participants.items():
                 element_type = element_config[CONF_ELEMENT_TYPE]
                 outputs_fn = ELEMENT_TYPES[element_type].outputs
 
@@ -791,9 +817,16 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
                         subentry_devices[device_name] = processed_outputs
 
                 if subentry_devices:
-                    result[element_name] = subentry_devices
+                    outputs[element_name] = subentry_devices
 
-            return result
+            completed_at = dt_util.utc_from_timestamp(end_time).astimezone()
+
+            return CoordinatorData(
+                context=context,
+                outputs=outputs,
+                started_at=started_at,
+                completed_at=completed_at,
+            )
         finally:
             # Always clear the in-progress flag
             self._optimization_in_progress = False
@@ -807,5 +840,6 @@ __all__ = [
     "CoordinatorOutput",
     "ForecastPoint",
     "HaeoDataUpdateCoordinator",
+    "OptimizationContext",
     "_build_coordinator_output",
 ]
