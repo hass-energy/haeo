@@ -250,7 +250,7 @@ async def collect_diagnostics(
     - config: HAEO configuration (hub settings, participants)
     - environment: Static runtime info (HA version, HAEO version, timezone)
     - inputs: Input sensor states used in optimization
-    - info: Per-snapshot context (timestamps; as_of_timestamp when historical)
+    - info: Per-snapshot context (timestamps, always the same four keys)
     - outputs: Output sensor states (current only)
 
     Two modes:
@@ -276,9 +276,10 @@ async def collect_diagnostics(
         config = _config_from_entry(config_entry)
         inputs, missing_entity_ids = await _fetch_inputs_at(hass, config_entry, started_at)
         info: dict[str, Any] = {
-            "as_of_timestamp": _to_local_iso(as_of),
-            "started_at": _to_local_iso(started_at),
-            "completed_at": _to_local_iso(completed_at),
+            "diagnostic_target_time": _to_local_iso(as_of),
+            "diagnostic_request_time": _to_local_iso(dt_util.utcnow()),
+            "optimization_start": _to_local_iso(started_at),
+            "optimization_end": _to_local_iso(completed_at),
         }
     else:
         runtime_data = config_entry.runtime_data
@@ -294,12 +295,11 @@ async def collect_diagnostics(
         config = _config_from_context(coordinator_data.context)
         inputs = _inputs_from_context(coordinator_data.context)
         missing_entity_ids = []
-        # horizon_start: aligned start of the forecast window (from HorizonManager, updated at
-        # period boundaries). started_at/completed_at: wall-clock when this run actually ran.
         info = {
-            "horizon_start": _to_local_iso(coordinator_data.context.horizon_start),
-            "started_at": _to_local_iso(coordinator_data.started_at),
-            "completed_at": _to_local_iso(coordinator_data.completed_at),
+            "diagnostic_target_time": _to_local_iso(coordinator_data.context.horizon_start),
+            "diagnostic_request_time": _to_local_iso(dt_util.utcnow()),
+            "optimization_start": _to_local_iso(coordinator_data.started_at),
+            "optimization_end": _to_local_iso(coordinator_data.completed_at),
         }
 
     environment = await _build_environment(hass, config_entry)

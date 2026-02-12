@@ -256,12 +256,12 @@ async def test_diagnostics_basic_structure(hass: HomeAssistant) -> None:
     assert "haeo_version" in diagnostics["environment"]
     assert "timezone" in diagnostics["environment"]
 
-    # Verify info has per-snapshot context — no historical fields
+    # Verify info has per-snapshot context
     info = diagnostics["info"]
-    assert "as_of_timestamp" not in info
-    assert "horizon_start" in info
-    assert "started_at" in info
-    assert "completed_at" in info
+    assert "diagnostic_target_time" in info
+    assert "diagnostic_request_time" in info
+    assert "optimization_start" in info
+    assert "optimization_end" in info
 
 
 async def test_diagnostics_errors_when_no_optimization_has_run(hass: HomeAssistant) -> None:
@@ -347,12 +347,12 @@ async def test_diagnostics_uses_context_for_config_and_inputs(hass: HomeAssistan
     # No missing entity IDs on the context path
     assert result.missing_entity_ids == []
 
-    # Info has optimization timestamps, no as_of_timestamp
+    # Info has standardized timestamps
     info = result.data["info"]
-    assert "as_of_timestamp" not in info
-    assert datetime.fromisoformat(info["started_at"]) == coordinator_data.started_at.astimezone()
-    assert datetime.fromisoformat(info["completed_at"]) == coordinator_data.completed_at.astimezone()
-    assert datetime.fromisoformat(info["horizon_start"]) == coordinator_data.context.horizon_start.astimezone()
+    assert datetime.fromisoformat(info["optimization_start"]) == coordinator_data.started_at.astimezone()
+    assert datetime.fromisoformat(info["optimization_end"]) == coordinator_data.completed_at.astimezone()
+    assert datetime.fromisoformat(info["diagnostic_target_time"]) == coordinator_data.context.horizon_start.astimezone()
+    assert "diagnostic_request_time" in info
 
 
 async def test_diagnostics_with_outputs(hass: HomeAssistant) -> None:
@@ -479,12 +479,12 @@ async def test_historical_diagnostics_uses_last_run(hass: HomeAssistant) -> None
     # Missing entities reported
     assert "sensor.battery_soc" in result.missing_entity_ids
 
-    # Info has as_of_timestamp plus the inferred run timestamps
+    # Info has standardized timestamps
     info = result.data["info"]
-    assert datetime.fromisoformat(info["as_of_timestamp"]) == as_of.astimezone()
-    assert datetime.fromisoformat(info["started_at"]) == run_started.astimezone()
-    assert datetime.fromisoformat(info["completed_at"]) == run_completed.astimezone()
-    assert "horizon_start" not in info
+    assert datetime.fromisoformat(info["diagnostic_target_time"]) == as_of.astimezone()
+    assert datetime.fromisoformat(info["optimization_start"]) == run_started.astimezone()
+    assert datetime.fromisoformat(info["optimization_end"]) == run_completed.astimezone()
+    assert "diagnostic_request_time" in info
 
     # No outputs for historical
     assert "outputs" not in result.data
@@ -566,8 +566,8 @@ async def test_historical_diagnostics_ignores_context(hass: HomeAssistant) -> No
     participants = result.data["config"]["participants"]
     assert "Context Battery" not in participants
 
-    # Has as_of_timestamp
-    assert "as_of_timestamp" in result.data["info"]
+    # Has standardized timestamps
+    assert "diagnostic_target_time" in result.data["info"]
 
 
 async def test_historical_diagnostics_with_participants(hass: HomeAssistant) -> None:
