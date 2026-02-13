@@ -7,7 +7,8 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 
-from .const import DOMAIN
+from .const import DOMAIN, ELEMENT_TYPE_NETWORK, OUTPUT_NAME_HORIZON, OUTPUT_NAME_OPTIMIZATION_DURATION
+from .entities.device import build_device_identifier
 
 # Default decimal places for values without a unit
 _DEFAULT_DECIMAL_PLACES = 4
@@ -114,6 +115,31 @@ def _apply_smart_rounding(output_sensors: dict[str, SensorStateDict]) -> None:
             val = _try_parse_float(item["value"])
             if val is not None:
                 item["value"] = round(val, decimal_places) + 0.0  # Makes -0.0 into 0.0
+
+
+def get_duration_sensor_entity_id(hass: HomeAssistant, config_entry: ConfigEntry) -> str | None:
+    """Get the entity_id of the optimization duration sensor for this config entry.
+
+    Returns None if the sensor hasn't been created yet (no optimization has ever run).
+    """
+    network_subentry = next(
+        (s for s in config_entry.subentries.values() if s.subentry_type == ELEMENT_TYPE_NETWORK),
+        None,
+    )
+    if network_subentry is None:
+        return None
+    device_id = build_device_identifier(config_entry, network_subentry, ELEMENT_TYPE_NETWORK)[1]
+    unique_id = f"{device_id}_{OUTPUT_NAME_OPTIMIZATION_DURATION}"
+    return er.async_get(hass).async_get_entity_id("sensor", DOMAIN, unique_id)
+
+
+def get_horizon_sensor_entity_id(hass: HomeAssistant, config_entry: ConfigEntry) -> str | None:
+    """Get the entity_id of the forecast horizon sensor for this config entry.
+
+    Returns None if the sensor hasn't been created yet.
+    """
+    unique_id = f"{config_entry.entry_id}_{OUTPUT_NAME_HORIZON}"
+    return er.async_get(hass).async_get_entity_id("sensor", DOMAIN, unique_id)
 
 
 def get_output_sensors(hass: HomeAssistant, config_entry: ConfigEntry) -> dict[str, SensorStateDict]:

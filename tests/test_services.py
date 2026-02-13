@@ -35,7 +35,7 @@ from custom_components.haeo.const import (
     DOMAIN,
     INTEGRATION_TYPE_HUB,
 )
-from custom_components.haeo.diagnostics import DiagnosticsResult
+from custom_components.haeo.diagnostics import DiagnosticsInfo, DiagnosticsResult, EnvironmentInfo
 from custom_components.haeo.services import _format_manifest
 
 
@@ -87,13 +87,18 @@ async def test_save_diagnostics_service_success(
 
     # Mock the diagnostics function
     mock_diagnostics = DiagnosticsResult(
-        data={
-            "config": {"participants": {}},
-            "environment": {"ha_version": "2024.1.0"},
-            "inputs": [],
-            "outputs": {},
-        },
-        missing_entity_ids=[],
+        config={"participants": {}},
+        environment=EnvironmentInfo(ha_version="2024.1.0", haeo_version="0.0.0", timezone="UTC"),
+        inputs=[],
+        info=DiagnosticsInfo(
+            diagnostic_request_time="2024-01-01T00:00:00",
+            diagnostic_target_time=None,
+            optimization_start_time="2024-01-01T00:00:00",
+            optimization_end_time="2024-01-01T00:00:01",
+            horizon_start="2024-01-01T00:00:00",
+        ),
+        outputs={},
+        missing_entity_ids=(),
     )
 
     # Mock config path to use tmp_path
@@ -139,7 +144,7 @@ async def test_save_diagnostics_service_success(
     assert "data" in saved_data
 
     # Verify the actual diagnostics data is in the "data" key
-    assert saved_data["data"] == mock_diagnostics.data
+    assert saved_data["data"] == mock_diagnostics.to_dict()
 
 
 @pytest.mark.parametrize(
@@ -220,7 +225,7 @@ async def test_save_diagnostics_with_historical_time(
     mock_hub_entry: MockConfigEntry,
     tmp_path: Path,
 ) -> None:
-    """Test save_diagnostics service with historical time uses HistoricalStateProvider."""
+    """Test save_diagnostics service with historical time passes target_time to collector."""
     # Set up the service - need to register recorder component first
     hass.config.components.add("recorder")
     await async_setup(hass, {})
@@ -235,29 +240,25 @@ async def test_save_diagnostics_with_historical_time(
     target_timestamp = datetime(2026, 1, 20, 14, 32, 3, tzinfo=UTC)
 
     mock_diagnostics = DiagnosticsResult(
-        data={
-            "config": {"participants": {}},
-            "environment": {"ha_version": "2024.1.0", "historical": True},
-            "inputs": [{"entity_id": "sensor.test"}],  # Non-empty to pass validation
-            "outputs": {},
-        },
-        missing_entity_ids=[],
+        config={"participants": {}},
+        environment=EnvironmentInfo(ha_version="2024.1.0", haeo_version="0.0.0", timezone="UTC"),
+        inputs=[{"entity_id": "sensor.test"}],
+        info=DiagnosticsInfo(
+            diagnostic_request_time="2024-01-01T00:00:00",
+            diagnostic_target_time="2026-01-20T14:32:03+00:00",
+            optimization_start_time="2024-01-01T00:00:00",
+            optimization_end_time="2024-01-01T00:00:01",
+            horizon_start="2024-01-01T00:00:00",
+        ),
+        outputs=None,
+        missing_entity_ids=(),
     )
 
-    mock_historical_provider = Mock()
-    mock_historical_provider.timestamp = target_timestamp
-
-    with (
-        patch(
-            "custom_components.haeo.diagnostics.collect_diagnostics",
-            new_callable=AsyncMock,
-            return_value=mock_diagnostics,
-        ) as mock_collect,
-        patch(
-            "custom_components.haeo.diagnostics.HistoricalStateProvider",
-            return_value=mock_historical_provider,
-        ) as mock_provider_class,
-    ):
+    with patch(
+        "custom_components.haeo.diagnostics.collect_diagnostics",
+        new_callable=AsyncMock,
+        return_value=mock_diagnostics,
+    ) as mock_collect:
         await hass.services.async_call(
             DOMAIN,
             "save_diagnostics",
@@ -268,13 +269,10 @@ async def test_save_diagnostics_with_historical_time(
             blocking=True,
         )
 
-    # Verify HistoricalStateProvider was created with correct timestamp
-    mock_provider_class.assert_called_once_with(hass, target_timestamp)
-
-    # Verify collect_diagnostics was called with the historical provider
+    # Verify collect_diagnostics was called with as_of=target_timestamp
     mock_collect.assert_called_once()
     call_args = mock_collect.call_args
-    assert call_args[0][2] == mock_historical_provider
+    assert call_args.kwargs["target_time"] == target_timestamp
 
     # Verify file was created with the historical timestamp in filename
     files = list(tmp_path.glob("haeo/diagnostics/diagnostics_*.json"))
@@ -336,27 +334,25 @@ async def test_save_diagnostics_historical_missing_entities_raises_error(
 
     # Mock diagnostics with missing entities
     mock_diagnostics = DiagnosticsResult(
-        data={
-            "config": {"participants": {}},
-            "environment": {"ha_version": "2024.1.0", "historical": True},
-            "inputs": [],  # No inputs found
-            "outputs": {},
-        },
-        missing_entity_ids=["sensor.battery_soc", "sensor.grid_price"],
+        config={"participants": {}},
+        environment=EnvironmentInfo(ha_version="2024.1.0", haeo_version="0.0.0", timezone="UTC"),
+        inputs=[],
+        info=DiagnosticsInfo(
+            diagnostic_request_time="2024-01-01T00:00:00",
+            diagnostic_target_time="2026-01-20T14:32:03+00:00",
+            optimization_start_time="2024-01-01T00:00:00",
+            optimization_end_time="2024-01-01T00:00:01",
+            horizon_start="2024-01-01T00:00:00",
+        ),
+        outputs=None,
+        missing_entity_ids=("sensor.battery_soc", "sensor.grid_price"),
     )
-
-    mock_historical_provider = Mock()
-    mock_historical_provider.timestamp = target_timestamp
 
     with (
         patch(
             "custom_components.haeo.diagnostics.collect_diagnostics",
             new_callable=AsyncMock,
             return_value=mock_diagnostics,
-        ),
-        patch(
-            "custom_components.haeo.diagnostics.HistoricalStateProvider",
-            return_value=mock_historical_provider,
         ),
         pytest.raises(ServiceValidationError) as exc_info,
     ):
