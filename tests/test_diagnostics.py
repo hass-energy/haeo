@@ -69,7 +69,7 @@ from custom_components.haeo.elements.grid import CONF_PRICE_SOURCE_TARGET, CONF_
 from custom_components.haeo.flows import HUB_SECTION_COMMON, HUB_SECTION_TIERS
 from custom_components.haeo.schema import as_connection_target, as_constant_value, as_entity_value
 from custom_components.haeo.sections import SECTION_COMMON, SECTION_EFFICIENCY, SECTION_POWER_LIMITS, SECTION_PRICING
-from custom_components.haeo.sensor_utils import get_duration_sensor_entity_id
+from custom_components.haeo.sensor_utils import get_duration_sensor_entity_id, get_horizon_sensor_entity_id
 
 
 def _battery_config(
@@ -1325,6 +1325,13 @@ def test_get_duration_sensor_entity_id_found(hass: HomeAssistant) -> None:
     entry.add_to_hass(hass)
 
     entity_registry = er.async_get(hass)
+    # Non-matching entity to exercise the loop-continue branch
+    entity_registry.async_get_or_create(
+        domain="sensor",
+        platform=DOMAIN,
+        unique_id="hub_entry_other_sensor",
+        config_entry=entry,
+    )
     entity_registry.async_get_or_create(
         domain="sensor",
         platform=DOMAIN,
@@ -1347,4 +1354,46 @@ def test_get_duration_sensor_entity_id_not_found(hass: HomeAssistant) -> None:
     entry.add_to_hass(hass)
 
     result = get_duration_sensor_entity_id(hass, entry)
+    assert result is None
+
+
+def test_get_horizon_sensor_entity_id_found(hass: HomeAssistant) -> None:
+    """get_horizon_sensor_entity_id returns entity_id when horizon sensor exists."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data=_hub_entry_data(),
+        entry_id="hub_entry",
+    )
+    entry.add_to_hass(hass)
+
+    entity_registry = er.async_get(hass)
+    # Non-matching entity to exercise the loop-continue branch
+    entity_registry.async_get_or_create(
+        domain="sensor",
+        platform=DOMAIN,
+        unique_id="hub_entry_other_sensor",
+        config_entry=entry,
+    )
+    entity_registry.async_get_or_create(
+        domain="sensor",
+        platform=DOMAIN,
+        unique_id="hub_entry_horizon",
+        config_entry=entry,
+    )
+
+    result = get_horizon_sensor_entity_id(hass, entry)
+    assert result is not None
+    assert "horizon" in result
+
+
+def test_get_horizon_sensor_entity_id_not_found(hass: HomeAssistant) -> None:
+    """get_horizon_sensor_entity_id returns None when no horizon sensor exists."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data=_hub_entry_data(),
+        entry_id="hub_entry",
+    )
+    entry.add_to_hass(hass)
+
+    result = get_horizon_sensor_entity_id(hass, entry)
     assert result is None
