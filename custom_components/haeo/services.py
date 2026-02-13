@@ -114,8 +114,8 @@ async def async_setup_services(hass: HomeAssistant) -> None:
                 translation_placeholders={"entry_id": entry_id, "state": str(entry.state)},
             )
 
-        # Get diagnostics data — pass as_of for historical, omit for current
-        result = await collect_diagnostics(hass, entry, as_of=target_timestamp)
+        # Get diagnostics data — pass target_time for historical, omit for current
+        result = await collect_diagnostics(hass, entry, target_time=target_timestamp)
 
         # Validate that historical queries returned all expected data
         if target_timestamp is not None and result.missing_entity_ids:

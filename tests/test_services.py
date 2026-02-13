@@ -225,7 +225,7 @@ async def test_save_diagnostics_with_historical_time(
     mock_hub_entry: MockConfigEntry,
     tmp_path: Path,
 ) -> None:
-    """Test save_diagnostics service with historical time passes as_of to collector."""
+    """Test save_diagnostics service with historical time passes target_time to collector."""
     # Set up the service - need to register recorder component first
     hass.config.components.add("recorder")
     await async_setup(hass, {})
@@ -272,7 +272,7 @@ async def test_save_diagnostics_with_historical_time(
     # Verify collect_diagnostics was called with as_of=target_timestamp
     mock_collect.assert_called_once()
     call_args = mock_collect.call_args
-    assert call_args.kwargs["as_of"] == target_timestamp
+    assert call_args.kwargs["target_time"] == target_timestamp
 
     # Verify file was created with the historical timestamp in filename
     files = list(tmp_path.glob("haeo/diagnostics/diagnostics_*.json"))

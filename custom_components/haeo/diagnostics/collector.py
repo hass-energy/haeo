@@ -229,7 +229,7 @@ async def _fetch_inputs_at(
 async def _get_last_run_before(
     hass: HomeAssistant,
     config_entry: HaeoConfigEntry,
-    before_time: datetime,
+    target_time: datetime,
 ) -> tuple[datetime, datetime, str] | None:
     """Find the last optimization run that completed at or before a given time.
 
@@ -253,8 +253,8 @@ async def _get_last_run_before(
     def _query_duration() -> dict[str, list[State]]:
         result = recorder_history.get_significant_states(
             hass,
-            start_time=before_time,
-            end_time=before_time,
+            start_time=target_time,
+            end_time=target_time,
             entity_ids=[duration_entity_id],
             include_start_time_state=True,
             significant_changes_only=False,
@@ -268,7 +268,7 @@ async def _get_last_run_before(
     if not state_list:
         return None
 
-    # include_start_time_state gives us the state at or before before_time first
+    # include_start_time_state gives us the state at or before target_time first
     last_state = state_list[0]
 
     try:
@@ -330,16 +330,16 @@ async def collect_diagnostics(
     hass: HomeAssistant,
     config_entry: HaeoConfigEntry,
     *,
-    as_of: datetime | None = None,
+    target_time: datetime | None = None,
 ) -> DiagnosticsResult:
     """Collect diagnostics for a config entry.
 
     Two modes:
-    - Current (as_of is None): pulls config and inputs from OptimizationContext
+    - Current (target_time is None): pulls config and inputs from OptimizationContext
       (what the optimizer actually used). Requires at least one optimization
       to have completed.
-    - Historical (as_of provided): finds the last optimization run that
-      completed at or before as_of, fetches inputs from the recorder at that
+    - Historical (target_time provided): finds the last optimization run that
+      completed at or before target_time, fetches inputs from the recorder at that
       run's start time. Config is always current.
 
     Raises:
@@ -349,8 +349,8 @@ async def collect_diagnostics(
     """
     now = _to_local_iso(dt_util.utcnow())
 
-    if as_of is not None:
-        run = await _get_last_run_before(hass, config_entry, as_of)
+    if target_time is not None:
+        run = await _get_last_run_before(hass, config_entry, target_time)
         if run is None:
             msg = "Cannot collect diagnostics: no optimization run found before the requested time"
             raise RuntimeError(msg)
@@ -360,7 +360,7 @@ async def collect_diagnostics(
         inputs, missing = await _fetch_inputs_at(hass, config_entry, started_at)
         info = DiagnosticsInfo(
             diagnostic_request_time=now,
-            diagnostic_target_time=_to_local_iso(as_of),
+            diagnostic_target_time=_to_local_iso(target_time),
             optimization_start_time=_to_local_iso(started_at),
             optimization_end_time=_to_local_iso(completed_at),
             horizon_start=horizon_start,

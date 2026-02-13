@@ -440,7 +440,7 @@ async def test_historical_diagnostics_uses_last_run(hass: HomeAssistant) -> None
     hass.config_entries.async_add_subentry(entry, battery_subentry)
     entry.runtime_data = None
 
-    as_of = datetime(2024, 1, 1, 12, 0, tzinfo=UTC)
+    target_time = datetime(2024, 1, 1, 12, 0, tzinfo=UTC)
     run_completed = datetime(2024, 1, 1, 11, 55, tzinfo=UTC)
     run_duration = 0.5  # seconds
     run_started = run_completed - timedelta(seconds=run_duration)
@@ -461,7 +461,7 @@ async def test_historical_diagnostics_uses_last_run(hass: HomeAssistant) -> None
             ),
         ) as mock_fetch_inputs,
     ):
-        result = await collect_diagnostics(hass, entry, as_of=as_of)
+        result = await collect_diagnostics(hass, entry, target_time=target_time)
 
     # Inputs should have been fetched at started_at (the run's start time)
     mock_fetch_inputs.assert_called_once_with(hass, entry, run_started)
@@ -478,7 +478,7 @@ async def test_historical_diagnostics_uses_last_run(hass: HomeAssistant) -> None
 
     # Info has typed timestamp fields
     assert result.info.diagnostic_target_time is not None
-    assert datetime.fromisoformat(result.info.diagnostic_target_time) == as_of.astimezone()
+    assert datetime.fromisoformat(result.info.diagnostic_target_time) == target_time.astimezone()
     assert datetime.fromisoformat(result.info.optimization_start_time) == run_started.astimezone()
     assert datetime.fromisoformat(result.info.optimization_end_time) == run_completed.astimezone()
     assert result.info.diagnostic_request_time is not None
@@ -506,7 +506,7 @@ async def test_historical_diagnostics_no_run_found_errors(hass: HomeAssistant) -
         ),
         pytest.raises(RuntimeError, match="no optimization run found"),
     ):
-        await collect_diagnostics(hass, entry, as_of=datetime(2024, 1, 1, tzinfo=UTC))
+        await collect_diagnostics(hass, entry, target_time=datetime(2024, 1, 1, tzinfo=UTC))
 
 
 async def test_historical_diagnostics_ignores_context(hass: HomeAssistant) -> None:
@@ -541,7 +541,7 @@ async def test_historical_diagnostics_ignores_context(hass: HomeAssistant) -> No
     coordinator.data = coordinator_data
     entry.runtime_data = HaeoRuntimeData(horizon_manager=Mock(), coordinator=coordinator)
 
-    as_of = datetime(2024, 1, 1, tzinfo=UTC)
+    target_time = datetime(2024, 1, 1, tzinfo=UTC)
     run_completed = datetime(2024, 1, 1, 0, 0, tzinfo=UTC)
     run_started = run_completed - timedelta(seconds=0.1)
 
@@ -557,7 +557,7 @@ async def test_historical_diagnostics_ignores_context(hass: HomeAssistant) -> No
             return_value=([], []),
         ),
     ):
-        result = await collect_diagnostics(hass, entry, as_of=as_of)
+        result = await collect_diagnostics(hass, entry, target_time=target_time)
 
     # Should NOT use context — should use entry-based config
     assert "Context Battery" not in result.config["participants"]
@@ -598,7 +598,7 @@ async def test_historical_diagnostics_with_participants(hass: HomeAssistant) -> 
     hass.config_entries.async_add_subentry(entry, battery_subentry)
     entry.runtime_data = None
 
-    as_of = datetime(2024, 1, 1, tzinfo=UTC)
+    target_time = datetime(2024, 1, 1, tzinfo=UTC)
     run_completed = datetime(2024, 1, 1, 0, 0, tzinfo=UTC)
     run_started = run_completed - timedelta(seconds=0.2)
 
@@ -620,7 +620,7 @@ async def test_historical_diagnostics_with_participants(hass: HomeAssistant) -> 
             ),
         ),
     ):
-        result = await collect_diagnostics(hass, entry, as_of=as_of)
+        result = await collect_diagnostics(hass, entry, target_time=target_time)
 
     participants = result.config["participants"]
     assert "Battery One" in participants
@@ -686,7 +686,7 @@ async def test_historical_diagnostics_skips_network_subentry(hass: HomeAssistant
             return_value=([], []),
         ),
     ):
-        result = await collect_diagnostics(hass, entry, as_of=datetime(2024, 1, 1, tzinfo=UTC))
+        result = await collect_diagnostics(hass, entry, target_time=datetime(2024, 1, 1, tzinfo=UTC))
 
     assert "Network Config" not in result.config["participants"]
     assert "Battery" in result.config["participants"]
@@ -723,7 +723,7 @@ async def test_historical_diagnostics_invalid_element_config(hass: HomeAssistant
             return_value=([], []),
         ),
     ):
-        result = await collect_diagnostics(hass, entry, as_of=datetime(2024, 1, 1, tzinfo=UTC))
+        result = await collect_diagnostics(hass, entry, target_time=datetime(2024, 1, 1, tzinfo=UTC))
 
     assert "Unknown Element" in result.config["participants"]
     assert result.inputs == []
