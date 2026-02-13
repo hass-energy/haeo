@@ -196,8 +196,11 @@ def load_element_data(
     adapter = ELEMENT_TYPES[element_type]
     input_fields = adapter.inputs(element_config)
 
-    # Start with the base config
-    loaded_config: dict[str, Any] = dict(element_config)
+    # Start with a shallow copy and clone nested section dictionaries so we can
+    # safely mutate loaded values without mutating the original input config.
+    loaded_config: dict[str, Any] = {
+        key: dict(value) if isinstance(value, dict) else value for key, value in element_config.items()
+    }
     loaded_config.setdefault(SECTION_COMMON, {})["name"] = element_name
 
     # Load each input field (nested: section → field → InputFieldInfo)
@@ -213,6 +216,9 @@ def load_element_data(
 
             # Unwrap structured schema values ({"type": "entity/constant/none", "value": ...})
             if is_none_value(value):
+                loaded_section = loaded_config.get(section_name)
+                if isinstance(loaded_section, dict):
+                    loaded_section.pop(field_name, None)
                 continue
             if is_constant_value(value) or is_entity_value(value):
                 value = value["value"]
