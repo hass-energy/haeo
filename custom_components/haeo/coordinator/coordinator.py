@@ -514,10 +514,14 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         self.hass.async_create_task(self.async_refresh())
 
     def _are_inputs_aligned(self) -> bool:
-        """Check if all input entities have the same horizon start time.
+        """Check if all forecast input entities have the same horizon start time.
 
-        Returns True if all inputs are loaded and aligned to the same horizon.
-        Returns False if any input is missing data or horizons don't match.
+        Scalar (non-forecast) inputs are alignment-neutral since they have no
+        time-series data to align. Only forecast-based inputs must match the
+        horizon manager's current start time.
+
+        Returns True if all forecast inputs are loaded and aligned to the same horizon.
+        Returns False if any forecast input is missing data or horizons don't match.
         """
         runtime_data = self._get_runtime_data()
         if runtime_data is None:
@@ -529,13 +533,22 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             return False
         expected_start = expected_horizon[0]
 
-        # Check all input entities have values and matching horizon
+        # Check forecast input entities have values and matching horizon
         for entity in runtime_data.input_entities.values():
+            if not entity.uses_forecast:
+                continue
             entity_horizon = entity.horizon_start
             if entity_horizon is None:
+                _LOGGER.debug("Input %s has no horizon data yet", entity.entity_id)
                 return False
             # Allow small floating point tolerance
             if abs(entity_horizon - expected_start) > 1.0:
+                _LOGGER.debug(
+                    "Input %s horizon %.1f misaligned with expected %.1f",
+                    entity.entity_id,
+                    entity_horizon,
+                    expected_start,
+                )
                 return False
 
         return True

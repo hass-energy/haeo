@@ -264,6 +264,11 @@ class HaeoInputSwitch(SwitchEntity):
         return self._entity_mode
 
     @property
+    def uses_forecast(self) -> bool:
+        """Return True if this entity produces time-series forecast data."""
+        return True
+
+    @property
     def horizon_start(self) -> float | None:
         """Return the first forecast timestamp, or None if not loaded."""
         forecast = self._attr_extra_state_attributes.get("forecast")
