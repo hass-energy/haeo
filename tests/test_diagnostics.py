@@ -1169,6 +1169,30 @@ async def test_get_last_run_before_no_duration_sensor(hass: HomeAssistant) -> No
     assert result is None
 
 
+async def test_get_last_run_before_no_horizon_sensor(hass: HomeAssistant) -> None:
+    """_get_last_run_before returns None when no horizon sensor exists."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data=_hub_entry_data(),
+        entry_id="hub_entry",
+    )
+    entry.add_to_hass(hass)
+
+    with (
+        patch(
+            "custom_components.haeo.diagnostics.collector.get_duration_sensor_entity_id",
+            return_value="sensor.haeo_optimization_duration",
+        ),
+        patch(
+            "custom_components.haeo.diagnostics.collector.get_horizon_sensor_entity_id",
+            return_value=None,
+        ),
+    ):
+        result = await _get_last_run_before(hass, entry, datetime(2024, 1, 1, tzinfo=UTC))
+
+    assert result is None
+
+
 async def test_get_last_run_before_no_recorder_state(hass: HomeAssistant) -> None:
     """_get_last_run_before returns None when recorder has no state for duration sensor."""
     entry = MockConfigEntry(
@@ -1185,6 +1209,10 @@ async def test_get_last_run_before_no_recorder_state(hass: HomeAssistant) -> Non
         patch(
             "custom_components.haeo.diagnostics.collector.get_duration_sensor_entity_id",
             return_value="sensor.haeo_optimization_duration",
+        ),
+        patch(
+            "custom_components.haeo.diagnostics.collector.get_horizon_sensor_entity_id",
+            return_value="sensor.haeo_forecast_horizon",
         ),
         patch(
             "custom_components.haeo.diagnostics.collector.get_recorder_instance",
@@ -1220,15 +1248,66 @@ async def test_get_last_run_before_invalid_duration_state(hass: HomeAssistant) -
             return_value="sensor.haeo_optimization_duration",
         ),
         patch(
+            "custom_components.haeo.diagnostics.collector.get_horizon_sensor_entity_id",
+            return_value="sensor.haeo_forecast_horizon",
+        ),
+        patch(
             "custom_components.haeo.diagnostics.collector.get_recorder_instance",
             return_value=mock_recorder,
         ),
         patch(
             "custom_components.haeo.diagnostics.collector.recorder_history.get_significant_states",
-            return_value={"sensor.haeo_optimization_duration": [invalid_state]},
+            return_value={
+                "sensor.haeo_optimization_duration": [invalid_state],
+                "sensor.haeo_forecast_horizon": [State("sensor.haeo_forecast_horizon", "2024-01-01T00:00:00+00:00")],
+            },
         ),
     ):
         result = await _get_last_run_before(hass, entry, datetime(2024, 1, 1, tzinfo=UTC))
+
+    assert result is None
+
+
+async def test_get_last_run_before_no_horizon_state(hass: HomeAssistant) -> None:
+    """_get_last_run_before returns None when horizon sensor has no recorded state."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data=_hub_entry_data(),
+        entry_id="hub_entry",
+    )
+    entry.add_to_hass(hass)
+
+    completed_at = datetime(2024, 1, 1, 12, 0, tzinfo=UTC)
+    duration_state = State(
+        "sensor.haeo_optimization_duration",
+        "2.5",
+        last_updated=completed_at,
+    )
+
+    mock_recorder = Mock()
+    mock_recorder.async_add_executor_job = AsyncMock(side_effect=lambda fn: fn())
+
+    with (
+        patch(
+            "custom_components.haeo.diagnostics.collector.get_duration_sensor_entity_id",
+            return_value="sensor.haeo_optimization_duration",
+        ),
+        patch(
+            "custom_components.haeo.diagnostics.collector.get_horizon_sensor_entity_id",
+            return_value="sensor.haeo_forecast_horizon",
+        ),
+        patch(
+            "custom_components.haeo.diagnostics.collector.get_recorder_instance",
+            return_value=mock_recorder,
+        ),
+        patch(
+            "custom_components.haeo.diagnostics.collector.recorder_history.get_significant_states",
+            return_value={
+                "sensor.haeo_optimization_duration": [duration_state],
+            },
+        ),
+    ):
+        result = await _get_last_run_before(hass, entry, datetime(2024, 1, 1, 13, 0, tzinfo=UTC))
 
     assert result is None
 

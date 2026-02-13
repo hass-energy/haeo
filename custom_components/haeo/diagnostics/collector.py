@@ -141,8 +141,6 @@ def _extract_entity_ids_from_config(config: ElementConfigSchema) -> set[str]:
                         _collect(nested, collected)
                     elif isinstance(nested, Mapping):
                         _collect(dict(nested), collected)
-            case _:
-                return
 
     entity_ids: set[str] = set()
     _collect(dict(config), entity_ids)
