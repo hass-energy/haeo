@@ -85,10 +85,10 @@ class DiagnosticsResult:
     def to_dict(self) -> dict[str, Any]:
         """Serialize to a JSON-compatible dict for HA diagnostics output."""
         data: dict[str, Any] = {
-            "config": self.config,
             "environment": asdict(self.environment),
-            "inputs": self.inputs,
             "info": asdict(self.info),
+            "config": self.config,
+            "inputs": self.inputs,
         }
         if self.outputs is not None:
             data["outputs"] = self.outputs
