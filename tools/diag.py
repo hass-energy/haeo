@@ -219,8 +219,13 @@ def load_element_data(
             elif is_entity_value(value):
                 value = value["value"]
 
-            # Handle constant values
-            if isinstance(value, (int, float)) and not isinstance(value, bool):
+            # Handle boolean constants (store directly, no conversion needed)
+            if isinstance(value, bool):
+                loaded_config.setdefault(section_name, {})[field_name] = value
+                continue
+
+            # Handle numeric constant values
+            if isinstance(value, (int, float)):
                 # Convert percentage values to ratios (0-1 range)
                 unit = getattr(field_info.entity_description, "native_unit_of_measurement", None)
                 converted_value = float(value) / 100.0 if unit == PERCENTAGE else float(value)
