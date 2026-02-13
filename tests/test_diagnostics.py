@@ -678,7 +678,11 @@ async def test_historical_diagnostics_skips_network_subentry(hass: HomeAssistant
         patch(
             "custom_components.haeo.diagnostics.collector._get_last_run_before",
             new_callable=AsyncMock,
-            return_value=(datetime(2024, 1, 1, tzinfo=UTC), datetime(2024, 1, 1, tzinfo=UTC), "2024-01-01T00:00:00+00:00"),
+            return_value=(
+                datetime(2024, 1, 1, tzinfo=UTC),
+                datetime(2024, 1, 1, tzinfo=UTC),
+                "2024-01-01T00:00:00+00:00",
+            ),
         ),
         patch(
             "custom_components.haeo.diagnostics.collector._fetch_inputs_at",
@@ -715,7 +719,11 @@ async def test_historical_diagnostics_invalid_element_config(hass: HomeAssistant
         patch(
             "custom_components.haeo.diagnostics.collector._get_last_run_before",
             new_callable=AsyncMock,
-            return_value=(datetime(2024, 1, 1, tzinfo=UTC), datetime(2024, 1, 1, tzinfo=UTC), "2024-01-01T00:00:00+00:00"),
+            return_value=(
+                datetime(2024, 1, 1, tzinfo=UTC),
+                datetime(2024, 1, 1, tzinfo=UTC),
+                "2024-01-01T00:00:00+00:00",
+            ),
         ),
         patch(
             "custom_components.haeo.diagnostics.collector._fetch_inputs_at",
