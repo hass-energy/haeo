@@ -9,11 +9,11 @@ import pytest
 from .syrupy_json_extension import ScenarioJSONExtension
 
 
-@pytest.fixture(autouse=True, scope="session")
-def expand_diagnostics_scenario() -> None:
+def _expand_diagnostics_scenarios() -> None:
     """Migrate any unified diagnostics.json files to split format.
 
-    This runs once per test session and splits scenario.json into:
+    This runs at module import time (before test discovery) and splits
+    scenario.json into:
     - config.json
     - environment.json
     - inputs.json
@@ -36,7 +36,7 @@ def expand_diagnostics_scenario() -> None:
 
             # Validate structure
             required_keys = {"config", "environment", "inputs", "outputs"}
-            if required_keys <= diagnostics.keys() is False:
+            if not required_keys <= diagnostics.keys():
                 msg = f"Scenario file {scenario_file} missing required keys: {required_keys - diagnostics.keys()}"
                 raise ValueError(msg)
 
@@ -51,6 +51,10 @@ def expand_diagnostics_scenario() -> None:
             scenario_file.unlink()
 
             print(f"Migrated {scenario_file.name} to split format in {scenario_path.name}")  # noqa: T201
+
+
+# Run expansion at module import time, before test discovery
+_expand_diagnostics_scenarios()
 
 
 class ScenarioData(TypedDict):

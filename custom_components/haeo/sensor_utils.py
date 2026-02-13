@@ -43,7 +43,7 @@ class SensorStateDict(TypedDict):
     attributes: SensorAttributes
 
 
-def _get_decimal_places(max_abs_value: float) -> int:
+def get_decimal_places(max_abs_value: float) -> int:
     """Calculate decimal places needed for approximately 4 significant figures."""
     if max_abs_value == 0:
         return _DEFAULT_DECIMAL_PLACES
@@ -95,7 +95,7 @@ def _apply_smart_rounding(output_sensors: dict[str, SensorStateDict]) -> None:
 
     # Calculate decimal places for each unit
     unit_decimal_places: dict[str | None, int] = {
-        unit: _get_decimal_places(max(values)) if values else _DEFAULT_DECIMAL_PLACES
+        unit: get_decimal_places(max(values)) if values else _DEFAULT_DECIMAL_PLACES
         for unit, values in unit_values.items()
     }
 

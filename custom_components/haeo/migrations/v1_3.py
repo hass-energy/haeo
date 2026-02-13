@@ -105,7 +105,7 @@ def _migrate_hub_data(entry: ConfigEntry) -> tuple[dict[str, Any], dict[str, Any
     return data, {}
 
 
-def _migrate_subentry_data(subentry: ConfigSubentry) -> dict[str, Any] | None:
+def migrate_subentry_data(subentry: ConfigSubentry) -> dict[str, Any] | None:
     """Migrate a subentry's data to sectioned config if needed."""
     data = dict(subentry.data)
     element_type = data.get(CONF_ELEMENT_TYPE)
@@ -420,7 +420,7 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     )
 
     for subentry in entry.subentries.values():
-        migrated = _migrate_subentry_data(subentry)
+        migrated = migrate_subentry_data(subentry)
         if migrated is not None:
             hass.config_entries.async_update_subentry(entry, subentry, data=migrated)
 
