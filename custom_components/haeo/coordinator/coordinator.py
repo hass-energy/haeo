@@ -661,6 +661,23 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
 
         return loaded_configs
 
+    def _collect_source_entity_ids(self) -> set[str]:
+        """Collect all source entity IDs from participant configurations.
+
+        Extracts entity IDs that are configured as data sources (sensors, prices, etc.)
+        from all participant element configurations.
+        """
+        entity_ids: set[str] = set()
+        for config in self._participant_configs.values():
+            for value in config.values():
+                if isinstance(value, str) and "." in value:
+                    # Single entity ID string
+                    entity_ids.add(value)
+                elif isinstance(value, list) and all(isinstance(item, str) for item in value):
+                    # List of entity IDs (for chained forecasts/prices)
+                    entity_ids.update(item for item in value if "." in item)
+        return entity_ids
+
     def cleanup(self) -> None:
         """Clean up coordinator resources when unloading."""
         for unsub in self._state_change_unsubs:
