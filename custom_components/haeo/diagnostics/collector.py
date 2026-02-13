@@ -42,8 +42,8 @@ class DiagnosticsInfo:
     optimization_end_time: str
     """When the optimization run completed (ISO 8601)."""
 
-    horizon_start: str | None
-    """Aligned start of the forecast window (ISO 8601, None if unavailable)."""
+    horizon_start: str
+    """Aligned start of the forecast window (ISO 8601)."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -216,24 +216,27 @@ async def _get_last_run_before(
     hass: HomeAssistant,
     config_entry: HaeoConfigEntry,
     before_time: datetime,
-) -> tuple[datetime, datetime] | None:
+) -> tuple[datetime, datetime, str] | None:
     """Find the last optimization run that completed at or before a given time.
 
     Uses the recorder to look up the optimization_duration sensor's state
     at the target time. The sensor's last_updated is when the run completed,
-    and its state is the duration in seconds.
+    and its state is the duration in seconds. Then fetches the horizon sensor
+    state at the inferred started_at.
 
     Returns:
-        Tuple of (started_at, completed_at) or None if no run found.
+        Tuple of (started_at, completed_at, horizon_start) or None if no run found.
 
     """
     duration_entity_id = get_duration_sensor_entity_id(hass, config_entry)
     if duration_entity_id is None:
         return None
 
+    horizon_entity_id = get_horizon_sensor_entity_id(hass, config_entry)
+
     recorder = get_recorder_instance(hass)
 
-    def _query() -> dict[str, list[State]]:
+    def _query_duration() -> dict[str, list[State]]:
         result = recorder_history.get_significant_states(
             hass,
             start_time=before_time,
@@ -245,7 +248,7 @@ async def _get_last_run_before(
         )
         return cast("dict[str, list[State]]", result)
 
-    states = await recorder.async_add_executor_job(_query)
+    states = await recorder.async_add_executor_job(_query_duration)
 
     state_list = states.get(duration_entity_id, [])
     if not state_list:
@@ -261,42 +264,29 @@ async def _get_last_run_before(
 
     completed_at = last_state.last_updated
     started_at = completed_at - timedelta(seconds=duration_seconds)
-    return started_at, completed_at
 
-
-async def _get_horizon_start_at(
-    hass: HomeAssistant,
-    config_entry: HaeoConfigEntry,
-    target_time: datetime,
-) -> str | None:
-    """Get the horizon sensor state from the recorder at a specific time.
-
-    Returns the ISO timestamp string from the sensor, or None if unavailable.
-    """
-    entity_id = get_horizon_sensor_entity_id(hass, config_entry)
-    if entity_id is None:
+    # Fetch horizon sensor state at the run's start time
+    if horizon_entity_id is None:
         return None
 
-    recorder = get_recorder_instance(hass)
-
-    def _query() -> dict[str, list[State]]:
+    def _query_horizon() -> dict[str, list[State]]:
         result = recorder_history.get_significant_states(
             hass,
-            start_time=target_time,
-            end_time=target_time,
-            entity_ids=[entity_id],
+            start_time=started_at,
+            end_time=started_at,
+            entity_ids=[horizon_entity_id],
             include_start_time_state=True,
             significant_changes_only=False,
             no_attributes=False,
         )
         return cast("dict[str, list[State]]", result)
 
-    states = await recorder.async_add_executor_job(_query)
-    state_list = states.get(entity_id, [])
-    if not state_list:
+    horizon_states = await recorder.async_add_executor_job(_query_horizon)
+    horizon_list = horizon_states.get(horizon_entity_id, [])
+    if not horizon_list:
         return None
 
-    return state_list[0].state
+    return started_at, completed_at, horizon_list[0].state
 
 
 async def _build_environment(
@@ -351,10 +341,9 @@ async def collect_diagnostics(
             msg = "Cannot collect diagnostics: no optimization run found before the requested time"
             raise RuntimeError(msg)
 
-        started_at, completed_at = run
+        started_at, completed_at, horizon_start = run
         config = _config_from_entry(config_entry)
         inputs, missing = await _fetch_inputs_at(hass, config_entry, started_at)
-        horizon_start = await _get_horizon_start_at(hass, config_entry, started_at)
         info = DiagnosticsInfo(
             diagnostic_request_time=now,
             diagnostic_target_time=_to_local_iso(as_of),

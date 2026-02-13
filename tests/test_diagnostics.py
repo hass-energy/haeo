@@ -257,8 +257,8 @@ async def test_diagnostics_basic_structure(hass: HomeAssistant) -> None:
     info = diagnostics["info"]
     assert "diagnostic_request_time" in info
     assert info["diagnostic_target_time"] is None
-    assert "optimization_start" in info
-    assert "optimization_end" in info
+    assert "optimization_start_time" in info
+    assert "optimization_end_time" in info
     assert "horizon_start" in info
 
 
@@ -347,7 +347,7 @@ async def test_diagnostics_uses_context_for_config_and_inputs(hass: HomeAssistan
     assert result.info.diagnostic_target_time is None
     assert datetime.fromisoformat(result.info.optimization_start_time) == coordinator_data.started_at.astimezone()
     assert datetime.fromisoformat(result.info.optimization_end_time) == coordinator_data.completed_at.astimezone()
-    assert datetime.fromisoformat(result.info.horizon_start_time) == coordinator_data.context.horizon_start.astimezone()
+    assert datetime.fromisoformat(result.info.horizon_start) == coordinator_data.context.horizon_start.astimezone()
 
     # Outputs present for current
     assert result.outputs is not None
@@ -450,7 +450,7 @@ async def test_historical_diagnostics_uses_last_run(hass: HomeAssistant) -> None
         patch(
             "custom_components.haeo.diagnostics.collector._get_last_run_before",
             new_callable=AsyncMock,
-            return_value=(run_started, run_completed),
+            return_value=(run_started, run_completed, horizon_iso),
         ),
         patch(
             "custom_components.haeo.diagnostics.collector._fetch_inputs_at",
@@ -460,11 +460,6 @@ async def test_historical_diagnostics_uses_last_run(hass: HomeAssistant) -> None
                 ["sensor.battery_soc"],
             ),
         ) as mock_fetch_inputs,
-        patch(
-            "custom_components.haeo.diagnostics.collector._get_horizon_start_at",
-            new_callable=AsyncMock,
-            return_value=horizon_iso,
-        ),
     ):
         result = await collect_diagnostics(hass, entry, as_of=as_of)
 
@@ -482,11 +477,12 @@ async def test_historical_diagnostics_uses_last_run(hass: HomeAssistant) -> None
     assert "sensor.battery_soc" in result.missing_entity_ids
 
     # Info has typed timestamp fields
+    assert result.info.diagnostic_target_time is not None
     assert datetime.fromisoformat(result.info.diagnostic_target_time) == as_of.astimezone()
     assert datetime.fromisoformat(result.info.optimization_start_time) == run_started.astimezone()
     assert datetime.fromisoformat(result.info.optimization_end_time) == run_completed.astimezone()
     assert result.info.diagnostic_request_time is not None
-    assert result.info.horizon_start_time == horizon_iso
+    assert result.info.horizon_start == horizon_iso
 
     # No outputs for historical
     assert result.outputs is None
@@ -553,17 +549,12 @@ async def test_historical_diagnostics_ignores_context(hass: HomeAssistant) -> No
         patch(
             "custom_components.haeo.diagnostics.collector._get_last_run_before",
             new_callable=AsyncMock,
-            return_value=(run_started, run_completed),
+            return_value=(run_started, run_completed, "2024-01-01T00:00:00+00:00"),
         ),
         patch(
             "custom_components.haeo.diagnostics.collector._fetch_inputs_at",
             new_callable=AsyncMock,
             return_value=([], []),
-        ),
-        patch(
-            "custom_components.haeo.diagnostics.collector._get_horizon_start_at",
-            new_callable=AsyncMock,
-            return_value=None,
         ),
     ):
         result = await collect_diagnostics(hass, entry, as_of=as_of)
@@ -618,7 +609,7 @@ async def test_historical_diagnostics_with_participants(hass: HomeAssistant) -> 
         patch(
             "custom_components.haeo.diagnostics.collector._get_last_run_before",
             new_callable=AsyncMock,
-            return_value=(run_started, run_completed),
+            return_value=(run_started, run_completed, "2024-01-01T00:00:00+00:00"),
         ),
         patch(
             "custom_components.haeo.diagnostics.collector._fetch_inputs_at",
@@ -627,11 +618,6 @@ async def test_historical_diagnostics_with_participants(hass: HomeAssistant) -> 
                 [capacity_state.as_dict(), soc_state.as_dict()],
                 [],
             ),
-        ),
-        patch(
-            "custom_components.haeo.diagnostics.collector._get_horizon_start_at",
-            new_callable=AsyncMock,
-            return_value=None,
         ),
     ):
         result = await collect_diagnostics(hass, entry, as_of=as_of)
@@ -692,17 +678,12 @@ async def test_historical_diagnostics_skips_network_subentry(hass: HomeAssistant
         patch(
             "custom_components.haeo.diagnostics.collector._get_last_run_before",
             new_callable=AsyncMock,
-            return_value=(datetime(2024, 1, 1, tzinfo=UTC), datetime(2024, 1, 1, tzinfo=UTC)),
+            return_value=(datetime(2024, 1, 1, tzinfo=UTC), datetime(2024, 1, 1, tzinfo=UTC), "2024-01-01T00:00:00+00:00"),
         ),
         patch(
             "custom_components.haeo.diagnostics.collector._fetch_inputs_at",
             new_callable=AsyncMock,
             return_value=([], []),
-        ),
-        patch(
-            "custom_components.haeo.diagnostics.collector._get_horizon_start_at",
-            new_callable=AsyncMock,
-            return_value=None,
         ),
     ):
         result = await collect_diagnostics(hass, entry, as_of=datetime(2024, 1, 1, tzinfo=UTC))
@@ -734,17 +715,12 @@ async def test_historical_diagnostics_invalid_element_config(hass: HomeAssistant
         patch(
             "custom_components.haeo.diagnostics.collector._get_last_run_before",
             new_callable=AsyncMock,
-            return_value=(datetime(2024, 1, 1, tzinfo=UTC), datetime(2024, 1, 1, tzinfo=UTC)),
+            return_value=(datetime(2024, 1, 1, tzinfo=UTC), datetime(2024, 1, 1, tzinfo=UTC), "2024-01-01T00:00:00+00:00"),
         ),
         patch(
             "custom_components.haeo.diagnostics.collector._fetch_inputs_at",
             new_callable=AsyncMock,
             return_value=([], []),
-        ),
-        patch(
-            "custom_components.haeo.diagnostics.collector._get_horizon_start_at",
-            new_callable=AsyncMock,
-            return_value=None,
         ),
     ):
         result = await collect_diagnostics(hass, entry, as_of=datetime(2024, 1, 1, tzinfo=UTC))
@@ -1116,7 +1092,7 @@ async def test_fetch_inputs_at_empty_subentries(hass: HomeAssistant) -> None:
 
 
 async def test_get_last_run_before_finds_run(hass: HomeAssistant) -> None:
-    """_get_last_run_before returns (started_at, completed_at) from duration sensor."""
+    """_get_last_run_before returns (started_at, completed_at, horizon_start) from recorder."""
     entry = MockConfigEntry(
         domain=DOMAIN,
         data=_hub_entry_data(),
@@ -1131,6 +1107,8 @@ async def test_get_last_run_before_finds_run(hass: HomeAssistant) -> None:
         str(duration_seconds),
         last_updated=completed_at,
     )
+    horizon_iso = "2024-01-01T12:00:00+00:00"
+    horizon_state = State("sensor.haeo_forecast_horizon", horizon_iso)
 
     mock_recorder = Mock()
     mock_recorder.async_add_executor_job = AsyncMock(side_effect=lambda fn: fn())
@@ -1141,20 +1119,28 @@ async def test_get_last_run_before_finds_run(hass: HomeAssistant) -> None:
             return_value="sensor.haeo_optimization_duration",
         ),
         patch(
+            "custom_components.haeo.diagnostics.collector.get_horizon_sensor_entity_id",
+            return_value="sensor.haeo_forecast_horizon",
+        ),
+        patch(
             "custom_components.haeo.diagnostics.collector.get_recorder_instance",
             return_value=mock_recorder,
         ),
         patch(
             "custom_components.haeo.diagnostics.collector.recorder_history.get_significant_states",
-            return_value={"sensor.haeo_optimization_duration": [duration_state]},
+            side_effect=[
+                {"sensor.haeo_optimization_duration": [duration_state]},
+                {"sensor.haeo_forecast_horizon": [horizon_state]},
+            ],
         ),
     ):
         result = await _get_last_run_before(hass, entry, datetime(2024, 1, 1, 13, 0, tzinfo=UTC))
 
     assert result is not None
-    started_at, returned_completed = result
+    started_at, returned_completed, returned_horizon = result
     assert returned_completed == completed_at
     assert started_at == completed_at - timedelta(seconds=duration_seconds)
+    assert returned_horizon == horizon_iso
 
 
 async def test_get_last_run_before_no_duration_sensor(hass: HomeAssistant) -> None:
