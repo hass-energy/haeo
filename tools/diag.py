@@ -40,6 +40,9 @@ from custom_components.haeo.elements import ELEMENT_TYPES, ElementConfigData, is
 from custom_components.haeo.migrations.v1_3 import migrate_subentry_data
 from custom_components.haeo.model import Network
 from custom_components.haeo.model.output_data import OutputData
+from custom_components.haeo.schema.constant_value import is_constant_value
+from custom_components.haeo.schema.entity_value import is_entity_value
+from custom_components.haeo.schema.none_value import is_none_value
 from custom_components.haeo.sections import SECTION_COMMON, SECTION_PRICING
 from custom_components.haeo.util.forecast_times import generate_forecast_timestamps, tiers_to_periods_seconds
 
@@ -69,6 +72,7 @@ class DiagnosticsData:
 
     config: dict[str, Any]
     environment: dict[str, Any]
+    info: dict[str, Any]
     inputs: list[dict[str, Any]]
     outputs: dict[str, Any]
 
@@ -88,6 +92,7 @@ class DiagnosticsData:
         return cls(
             config=data.get("config", {}),
             environment=data.get("environment", {}),
+            info=data.get("info", {}),
             inputs=data.get("inputs", []),
             outputs=data.get("outputs", {}),
         )
@@ -97,6 +102,7 @@ class DiagnosticsData:
         """Load diagnostics from split JSON files (config.json, environment.json, etc.)."""
         config_file = directory / "config.json"
         environment_file = directory / "environment.json"
+        info_file = directory / "info.json"
         inputs_file = directory / "inputs.json"
         outputs_file = directory / "outputs.json"
 
@@ -107,12 +113,17 @@ class DiagnosticsData:
         with inputs_file.open() as f:
             inputs = json.load(f)
 
+        info: dict[str, Any] = {}
+        if info_file.exists():
+            with info_file.open() as f:
+                info = json.load(f)
+
         outputs: dict[str, Any] = {}
         if outputs_file.exists():
             with outputs_file.open() as f:
                 outputs = json.load(f)
 
-        return cls(config=config, environment=environment, inputs=inputs, outputs=outputs)
+        return cls(config=config, environment=environment, info=info, inputs=inputs, outputs=outputs)
 
 
 class DiagnosticsStateProvider:
@@ -200,6 +211,14 @@ def load_element_data(
             if value is None:
                 continue
 
+            # Unwrap structured schema values ({"type": "entity/constant/none", "value": ...})
+            if is_none_value(value):
+                continue
+            if is_constant_value(value):
+                value = value["value"]
+            elif is_entity_value(value):
+                value = value["value"]
+
             # Handle constant values
             if isinstance(value, (int, float)) and not isinstance(value, bool):
                 # Convert percentage values to ratios (0-1 range)
@@ -238,19 +257,27 @@ def load_element_data(
             # Combine sensor payloads (handles multiple sensors, e.g. multi-string solar)
             present_value, forecast_series = combine_sensor_payloads(payloads)
 
-            # Fuse to horizon timestamps
-            if field_info.boundaries:
-                values = fuse_to_boundaries(present_value, forecast_series, list(forecast_times))
-            else:
-                values = fuse_to_intervals(present_value, forecast_series, list(forecast_times))
-
             # Convert percentage values to ratios (0-1 range)
             # This matches what HaeoInputNumber.get_values() does
             unit = getattr(field_info.entity_description, "native_unit_of_measurement", None)
-            if unit == PERCENTAGE:
-                values = [v / 100.0 for v in values]
 
-            loaded_config.setdefault(section_name, {})[field_name] = np.array(values)
+            if not field_info.time_series:
+                # Scalar field: use present value directly
+                scalar = present_value if present_value is not None else 0.0
+                if unit == PERCENTAGE:
+                    scalar /= 100.0
+                loaded_config.setdefault(section_name, {})[field_name] = scalar
+            else:
+                # Time series: fuse to horizon timestamps
+                if field_info.boundaries:
+                    values = fuse_to_boundaries(present_value, forecast_series, list(forecast_times))
+                else:
+                    values = fuse_to_intervals(present_value, forecast_series, list(forecast_times))
+
+                if unit == PERCENTAGE:
+                    values = [v / 100.0 for v in values]
+
+                loaded_config.setdefault(section_name, {})[field_name] = np.array(values)
 
     return loaded_config  # type: ignore[return-value]
 
@@ -328,8 +355,8 @@ def format_output_table_from_diagnostics(outputs: dict[str, Any], timezone_str: 
 
     # Extract forecast data using element_name and field_name/output_name attributes
     # Prices use field_name (number.* entities), sensors use output_name (sensor.* entities)
-    buy_prices = get_forecast_by_field(outputs, grid_name, "import_price")
-    sell_prices = get_forecast_by_field(outputs, grid_name, "export_price")
+    buy_prices = get_forecast_by_field(outputs, grid_name, "price_source_target")
+    sell_prices = get_forecast_by_field(outputs, grid_name, "price_target_source")
     battery_power = get_forecast_by_field(outputs, battery_name, "battery_power_active")
     grid_power = get_forecast_by_field(outputs, grid_name, "grid_power_active")
     load_power = get_forecast_by_field(outputs, load_name, "load_power")
@@ -337,8 +364,13 @@ def format_output_table_from_diagnostics(outputs: dict[str, Any], timezone_str: 
     soc = get_forecast_by_field(outputs, battery_name, "battery_state_of_charge")
     grid_cost_net = get_forecast_by_field(outputs, grid_name, "grid_cost_net")
 
-    # Get all unique times (sorted)
-    all_times = sorted(set(buy_prices.keys()))
+    # Get all unique times from any available series (sorted)
+    all_times = sorted(
+        set(buy_prices.keys())
+        | set(grid_power.keys())
+        | set(battery_power.keys())
+        | set(soc.keys())
+    )
 
     headers = ["Time", "Buy", "Sell", "Battery", "Grid", "Load", "Solar", "SoC", "Profit"]
     rows: list[list[str]] = []
@@ -564,8 +596,8 @@ def extract_rows_from_diagnostics(outputs: dict[str, Any], _timezone_str: str, c
 
     # Extract forecast data using element_name and field_name/output_name attributes
     # Prices use field_name (number.* entities), sensors use output_name (sensor.* entities)
-    buy_prices = get_forecast_by_field(outputs, grid_name, "import_price")
-    sell_prices = get_forecast_by_field(outputs, grid_name, "export_price")
+    buy_prices = get_forecast_by_field(outputs, grid_name, "price_source_target")
+    sell_prices = get_forecast_by_field(outputs, grid_name, "price_target_source")
     battery_power = get_forecast_by_field(outputs, battery_name, "battery_power_active")
     grid_power = get_forecast_by_field(outputs, grid_name, "grid_power_active")
     load_power = get_forecast_by_field(outputs, load_name, "load_power")
@@ -573,8 +605,13 @@ def extract_rows_from_diagnostics(outputs: dict[str, Any], _timezone_str: str, c
     soc = get_forecast_by_field(outputs, battery_name, "battery_state_of_charge")
     grid_cost_net = get_forecast_by_field(outputs, grid_name, "grid_cost_net")
 
-    # Get all unique times (sorted)
-    all_times = sorted(set(buy_prices.keys()))
+    # Get all unique times from any available series (sorted)
+    all_times = sorted(
+        set(buy_prices.keys())
+        | set(grid_power.keys())
+        | set(battery_power.keys())
+        | set(soc.keys())
+    )
 
     rows: list[RowData] = []
     for time_str in all_times:
@@ -916,6 +953,26 @@ def run_diagnostics(
         print(table)
         return
 
+    # Determine the optimization start time for tier alignment.
+    # Priority: info.horizon_start > inferred from outputs > environment timestamp > now
+    horizon_start_str = diag.info.get("horizon_start")
+    if horizon_start_str:
+        start_dt = datetime.fromisoformat(horizon_start_str)
+        print(f"Horizon start: {horizon_start_str}")
+    else:
+        # Try to infer start time from output forecast timestamps
+        start_dt = None
+        if diag.outputs:
+            for entity in diag.outputs.values():
+                forecast = entity.get("attributes", {}).get("forecast", [])
+                if forecast and "time" in forecast[0]:
+                    first_time_str = forecast[0]["time"]
+                    start_dt = datetime.fromisoformat(first_time_str)
+                    print(f"Inferred start time from outputs: {first_time_str}")
+                    break
+        if start_dt is None:
+            start_dt = datetime.fromisoformat(timestamp_str) if timestamp_str else None
+
     # Use forecast_timestamps from environment if available (for exact reproducibility)
     # Otherwise fall back to generating from tier config (backward compatibility)
     if "forecast_timestamps" in environment:
@@ -925,8 +982,6 @@ def run_diagnostics(
         print(f"Optimization periods: {len(periods_seconds)} intervals (from diagnostics)")
         print(f"Forecast horizon: {len(forecast_times)} boundaries (from diagnostics)")
     else:
-        # Fall back to tier config - use environment timestamp for alignment
-        start_dt = datetime.fromisoformat(timestamp_str) if timestamp_str else None
         # Apply preset override if provided via CLI
         effective_config = dict(config)
         if preset:
@@ -939,19 +994,7 @@ def run_diagnostics(
             print("Error: No periods configured")
             sys.exit(1)
 
-        # Try to infer start time from output forecast timestamps for backward compatibility
-        inferred_start = None
-        if diag.outputs:
-            for entity_id in ["number.grid_import_price", "sensor.grid_active_power", "sensor.battery_active_power"]:
-                entity = diag.outputs.get(entity_id, {})
-                forecast = entity.get("attributes", {}).get("forecast", [])
-                if forecast and "time" in forecast[0]:
-                    first_time_str = forecast[0]["time"]
-                    inferred_start = parse_datetime_to_timestamp(first_time_str)
-                    print(f"Inferred start time from outputs: {first_time_str}")
-                    break
-
-        effective_start = inferred_start if inferred_start is not None else start_time
+        effective_start = start_dt.timestamp() if start_dt else start_time
         forecast_times = generate_forecast_timestamps(periods_seconds, effective_start)
         print(f"Forecast horizon: {len(forecast_times)} boundaries (generated)")
 
