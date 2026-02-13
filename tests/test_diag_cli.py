@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
 import pytest
 
-import tools.diag as diag
+from custom_components.haeo.elements import battery
+from tools import diag
 
 
 def _base_battery_config() -> dict[str, Any]:
@@ -36,16 +37,19 @@ def test_load_element_data_unwraps_constant_wrappers() -> None:
         "initial_charge_percentage": {"type": "constant", "value": 50.0},
     }
 
-    loaded = diag.load_element_data(
-        "Battery",
-        config,
-        diag.DiagnosticsStateProvider([]),
-        (0.0, 1800.0, 3600.0),
+    loaded = cast(
+        "battery.BatteryConfigData",
+        diag.load_element_data(
+            "Battery",
+            config,
+            diag.DiagnosticsStateProvider([]),
+            (0.0, 1800.0, 3600.0),
+        ),
     )
 
     np.testing.assert_allclose(loaded["storage"]["capacity"], np.array([13.5, 13.5, 13.5]))
     assert loaded["storage"]["initial_charge_percentage"] == pytest.approx(0.5)
-    assert loaded["common"]["connection"] == {"type": "connection_target", "value": "Inverter"}
+    assert loaded["common"].get("connection") == {"type": "connection_target", "value": "Inverter"}
 
 
 def test_load_element_data_uses_present_value_for_scalar_entities(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -77,11 +81,14 @@ def test_load_element_data_uses_present_value_for_scalar_entities(monkeypatch: p
         lambda *_args, **_kwargs: pytest.fail("fuse_to_intervals should not run for scalar fields"),
     )
 
-    loaded = diag.load_element_data(
-        "Battery",
-        config,
-        diag.DiagnosticsStateProvider([]),
-        (0.0, 1800.0, 3600.0),
+    loaded = cast(
+        "battery.BatteryConfigData",
+        diag.load_element_data(
+            "Battery",
+            config,
+            diag.DiagnosticsStateProvider([]),
+            (0.0, 1800.0, 3600.0),
+        ),
     )
 
     assert loaded["storage"]["initial_charge_percentage"] == pytest.approx(0.75)
@@ -111,11 +118,14 @@ def test_load_element_data_unwraps_entity_wrappers_for_time_series(monkeypatch: 
         lambda *_args, **_kwargs: [13.5, 13.4, 13.3],
     )
 
-    loaded = diag.load_element_data(
-        "Battery",
-        config,
-        diag.DiagnosticsStateProvider([]),
-        (0.0, 1800.0, 3600.0),
+    loaded = cast(
+        "battery.BatteryConfigData",
+        diag.load_element_data(
+            "Battery",
+            config,
+            diag.DiagnosticsStateProvider([]),
+            (0.0, 1800.0, 3600.0),
+        ),
     )
 
     np.testing.assert_allclose(loaded["storage"]["capacity"], np.array([13.5, 13.4, 13.3]))
@@ -132,11 +142,14 @@ def test_load_element_data_drops_none_wrappers() -> None:
         "price_target_source": {"type": "none"},
     }
 
-    loaded = diag.load_element_data(
-        "Battery",
-        config,
-        diag.DiagnosticsStateProvider([]),
-        (0.0, 1800.0, 3600.0),
+    loaded = cast(
+        "battery.BatteryConfigData",
+        diag.load_element_data(
+            "Battery",
+            config,
+            diag.DiagnosticsStateProvider([]),
+            (0.0, 1800.0, 3600.0),
+        ),
     )
 
     assert "price_target_source" not in loaded["pricing"]

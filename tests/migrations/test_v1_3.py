@@ -171,7 +171,7 @@ def test_migrate_subentry_battery_invalid_schema_value_raises() -> None:
     subentry = _create_subentry(data, subentry_type=battery.ELEMENT_TYPE)
 
     with pytest.raises(TypeError, match="Unsupported schema value"):
-        v1_3._migrate_subentry_data(subentry)
+        v1_3.migrate_subentry_data(subentry)
 
 
 def test_migrate_subentry_battery_section() -> None:
@@ -332,7 +332,7 @@ def test_migrate_subentry_load_maps_legacy_shedding() -> None:
         },
         subentry_type=load.ELEMENT_TYPE,
     )
-    migrated = v1_3._migrate_subentry_data(load_subentry)
+    migrated = v1_3.migrate_subentry_data(load_subentry)
     assert migrated is not None
     assert migrated[SECTION_CURTAILMENT][CONF_CURTAILMENT] == as_constant_value(True)
 

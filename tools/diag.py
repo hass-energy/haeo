@@ -214,9 +214,7 @@ def load_element_data(
             # Unwrap structured schema values ({"type": "entity/constant/none", "value": ...})
             if is_none_value(value):
                 continue
-            if is_constant_value(value):
-                value = value["value"]
-            elif is_entity_value(value):
+            if is_constant_value(value) or is_entity_value(value):
                 value = value["value"]
 
             # Handle boolean constants (store directly, no conversion needed)
@@ -370,12 +368,7 @@ def format_output_table_from_diagnostics(outputs: dict[str, Any], timezone_str: 
     grid_cost_net = get_forecast_by_field(outputs, grid_name, "grid_cost_net")
 
     # Get all unique times from any available series (sorted)
-    all_times = sorted(
-        set(buy_prices.keys())
-        | set(grid_power.keys())
-        | set(battery_power.keys())
-        | set(soc.keys())
-    )
+    all_times = sorted(set(buy_prices.keys()) | set(grid_power.keys()) | set(battery_power.keys()) | set(soc.keys()))
 
     headers = ["Time", "Buy", "Sell", "Battery", "Grid", "Load", "Solar", "SoC", "Profit"]
     rows: list[list[str]] = []
@@ -611,12 +604,7 @@ def extract_rows_from_diagnostics(outputs: dict[str, Any], _timezone_str: str, c
     grid_cost_net = get_forecast_by_field(outputs, grid_name, "grid_cost_net")
 
     # Get all unique times from any available series (sorted)
-    all_times = sorted(
-        set(buy_prices.keys())
-        | set(grid_power.keys())
-        | set(battery_power.keys())
-        | set(soc.keys())
-    )
+    all_times = sorted(set(buy_prices.keys()) | set(grid_power.keys()) | set(battery_power.keys()) | set(soc.keys()))
 
     rows: list[RowData] = []
     for time_str in all_times:
