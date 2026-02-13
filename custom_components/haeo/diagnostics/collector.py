@@ -34,7 +34,7 @@ class DiagnosticsInfo:
     """Wall-clock time when the diagnostic was requested (ISO 8601)."""
 
     diagnostic_target_time: str | None
-    """The historical time the user asked for (None for current diagnostics)."""
+    """The historical time the user asked for (ISO 8601, None for current diagnostics)."""
 
     optimization_start_time: str
     """When the optimization run started (ISO 8601)."""
