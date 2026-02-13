@@ -21,6 +21,7 @@ from custom_components.haeo.model.const import OutputType
 
 from .colors import ColorMapper
 from .graph import create_graph_visualization
+from .svg_normalize import normalize_svg_file_clip_paths
 
 # Use non-GUI backend
 mpl.use("Agg")
@@ -456,6 +457,7 @@ def create_stacked_visualization(output_sensors: Mapping[str, Mapping[str, Any]]
 
     # Save as SVG
     fig.savefig(output_path, format="svg", bbox_inches="tight", pad_inches=0.3, metadata={"Date": None})
+    normalize_svg_file_clip_paths(Path(output_path))
     _LOGGER.info("Visualization saved to %s", output_path)
 
     # Also save as PNG for easier viewing
@@ -510,6 +512,7 @@ def create_shadow_price_visualization(
     fig.subplots_adjust(top=0.90, bottom=0.18, left=0.08, right=0.95)
 
     fig.savefig(output_path, format="svg", bbox_inches="tight", pad_inches=0.3)
+    normalize_svg_file_clip_paths(Path(output_path))
     _LOGGER.info("Shadow price visualization saved to %s", output_path)
 
     png_path = output_path.replace(".svg", ".png")

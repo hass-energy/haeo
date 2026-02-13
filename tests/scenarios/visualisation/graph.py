@@ -20,6 +20,8 @@ from custom_components.haeo.model import Network
 from custom_components.haeo.model.element import Element
 from custom_components.haeo.model.elements import Battery, Connection, Node
 
+from .svg_normalize import normalize_svg_file_clip_paths
+
 # Use non-GUI backend
 mpl.use("Agg")
 
@@ -479,7 +481,7 @@ def create_graph_visualization(
 
     # Build graph
     graph, device_groups = build_graph(network, style)
-    if len(graph.nodes()) == 0:
+    if graph.number_of_nodes() == 0:
         _LOGGER.warning("No nodes to visualize")
         return
 
@@ -512,6 +514,7 @@ def create_graph_visualization(
     output_dir.mkdir(parents=True, exist_ok=True)
 
     plt.savefig(output_path, format="svg", bbox_inches="tight", dpi=300, metadata={"Date": None})
+    normalize_svg_file_clip_paths(Path(output_path))
     _LOGGER.info("Graph visualization saved to %s", output_path)
 
     if generate_png:
