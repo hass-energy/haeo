@@ -1,7 +1,7 @@
 """Core diagnostics collection logic."""
 
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
 from typing import Any, cast
 
@@ -19,21 +19,66 @@ from custom_components.haeo.elements import ElementConfigSchema, is_element_conf
 from custom_components.haeo.schema import SchemaValue, is_schema_value
 from custom_components.haeo.sections import SECTION_COMMON
 from custom_components.haeo.sensor_utils import (
+    SensorStateDict,
     get_duration_sensor_entity_id,
     get_horizon_sensor_entity_id,
     get_output_sensors,
 )
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
+class DiagnosticsInfo:
+    """Timestamps and context for a diagnostics snapshot."""
+
+    diagnostic_request_time: str
+    """Wall-clock time when the diagnostic was requested (ISO 8601)."""
+
+    diagnostic_target_time: str | None
+    """The historical time the user asked for (None for current diagnostics)."""
+
+    optimization_start_time: str
+    """When the optimization run started (ISO 8601)."""
+
+    optimization_end_time: str
+    """When the optimization run completed (ISO 8601)."""
+
+    horizon_start: str | None
+    """Aligned start of the forecast window (ISO 8601, None if unavailable)."""
+
+
+@dataclass(frozen=True, slots=True)
 class DiagnosticsResult:
     """Result of collecting diagnostics."""
 
-    data: dict[str, Any]
-    """The diagnostics data to be saved."""
+    config: dict[str, Any]
+    """HAEO configuration (hub settings, participants)."""
 
-    missing_entity_ids: list[str]
-    """Entity IDs that were expected but not found in state provider."""
+    environment: dict[str, Any]
+    """Static runtime info (HA version, HAEO version, timezone)."""
+
+    inputs: list[dict[str, Any]]
+    """Input sensor states used in optimization."""
+
+    info: DiagnosticsInfo
+    """Per-snapshot context (timestamps, horizon)."""
+
+    outputs: dict[str, SensorStateDict] | None
+    """Output sensor states (None for historical diagnostics)."""
+
+    missing_entity_ids: tuple[str, ...]
+    """Entity IDs that were expected but not found in the recorder."""
+
+    def to_dict(self) -> dict[str, Any]:
+        """Serialize to a JSON-compatible dict for HA diagnostics output."""
+        data: dict[str, Any] = {
+            "config": self.config,
+            "environment": self.environment,
+            "inputs": self.inputs,
+            "info": asdict(self.info),
+        }
+        if self.outputs is not None:
+            data["outputs"] = self.outputs
+        return data
 
 
 def _config_from_context(context: OptimizationContext) -> dict[str, Any]:
@@ -285,13 +330,6 @@ async def collect_diagnostics(
 ) -> DiagnosticsResult:
     """Collect diagnostics for a config entry.
 
-    Returns a dict with these keys:
-    - config: HAEO configuration (hub settings, participants)
-    - environment: Static runtime info (HA version, HAEO version, timezone)
-    - inputs: Input sensor states used in optimization
-    - info: Per-snapshot context (standardized timestamps plus horizon_start)
-    - outputs: Output sensor states (current only)
-
     Two modes:
     - Current (as_of is None): pulls config and inputs from OptimizationContext
       (what the optimizer actually used). Requires at least one optimization
@@ -305,6 +343,8 @@ async def collect_diagnostics(
             before the requested time (historical).
 
     """
+    now = _to_local_iso(dt_util.utcnow())
+
     if as_of is not None:
         run = await _get_last_run_before(hass, config_entry, as_of)
         if run is None:
@@ -313,15 +353,16 @@ async def collect_diagnostics(
 
         started_at, completed_at = run
         config = _config_from_entry(config_entry)
-        inputs, missing_entity_ids = await _fetch_inputs_at(hass, config_entry, started_at)
+        inputs, missing = await _fetch_inputs_at(hass, config_entry, started_at)
         horizon_start = await _get_horizon_start_at(hass, config_entry, started_at)
-        info: dict[str, Any] = {
-            "diagnostic_target_time": _to_local_iso(as_of),
-            "diagnostic_request_time": _to_local_iso(dt_util.utcnow()),
-            "optimization_start": _to_local_iso(started_at),
-            "optimization_end": _to_local_iso(completed_at),
-            "horizon_start": horizon_start,
-        }
+        info = DiagnosticsInfo(
+            diagnostic_request_time=now,
+            diagnostic_target_time=_to_local_iso(as_of),
+            optimization_start_time=_to_local_iso(started_at),
+            optimization_end_time=_to_local_iso(completed_at),
+            horizon_start=horizon_start,
+        )
+        outputs = None
     else:
         runtime_data = config_entry.runtime_data
         if (
@@ -335,30 +376,26 @@ async def collect_diagnostics(
         coordinator_data = runtime_data.coordinator.data
         config = _config_from_context(coordinator_data.context)
         inputs = _inputs_from_context(coordinator_data.context)
-        missing_entity_ids = []
-        info = {
-            "diagnostic_target_time": _to_local_iso(dt_util.utcnow()),
-            "diagnostic_request_time": _to_local_iso(dt_util.utcnow()),
-            "optimization_start": _to_local_iso(coordinator_data.started_at),
-            "optimization_end": _to_local_iso(coordinator_data.completed_at),
-            "horizon_start": _to_local_iso(coordinator_data.context.horizon_start),
-        }
+        missing = []
+        info = DiagnosticsInfo(
+            diagnostic_request_time=now,
+            diagnostic_target_time=None,
+            optimization_start_time=_to_local_iso(coordinator_data.started_at),
+            optimization_end_time=_to_local_iso(coordinator_data.completed_at),
+            horizon_start=_to_local_iso(coordinator_data.context.horizon_start),
+        )
+        outputs = get_output_sensors(hass, config_entry)
 
     environment = await _build_environment(hass, config_entry)
 
-    data: dict[str, Any] = {
-        "config": config,
-        "environment": environment,
-        "inputs": inputs,
-        "info": info,
-    }
-    if as_of is None:
-        data["outputs"] = get_output_sensors(hass, config_entry)
-
     return DiagnosticsResult(
-        data=data,
-        missing_entity_ids=missing_entity_ids,
+        config=config,
+        environment=environment,
+        inputs=inputs,
+        info=info,
+        outputs=outputs,
+        missing_entity_ids=tuple(missing),
     )
 
 
-__all__ = ["DiagnosticsResult", "collect_diagnostics"]
+__all__ = ["DiagnosticsInfo", "DiagnosticsResult", "collect_diagnostics"]

@@ -223,7 +223,7 @@ def _make_coordinator_data(
 
 
 async def test_diagnostics_basic_structure(hass: HomeAssistant) -> None:
-    """Diagnostics returns correct structure with main keys."""
+    """Diagnostics returns correct structure with main keys via HA entry point."""
     hub_config = _hub_entry_data("Test Hub")
     entry = MockConfigEntry(
         domain=DOMAIN,
@@ -237,29 +237,26 @@ async def test_diagnostics_basic_structure(hass: HomeAssistant) -> None:
     coordinator.data = coordinator_data
     entry.runtime_data = HaeoRuntimeData(horizon_manager=Mock(), coordinator=coordinator)
 
+    # HA entry point returns a dict (via to_dict)
     diagnostics = await async_get_config_entry_diagnostics(hass, entry)
 
-    # Verify the main keys
     assert "config" in diagnostics
     assert "environment" in diagnostics
     assert "inputs" in diagnostics
     assert "info" in diagnostics
     assert "outputs" in diagnostics
 
-    # Verify hub config is captured (tiers, common, etc.)
     assert diagnostics["config"][HUB_SECTION_TIERS][CONF_TIER_1_COUNT] == DEFAULT_TIER_1_COUNT
     assert diagnostics["config"][HUB_SECTION_TIERS][CONF_TIER_1_DURATION] == DEFAULT_TIER_1_DURATION
     assert "participants" in diagnostics["config"]
 
-    # Verify environment has static info only
     assert "ha_version" in diagnostics["environment"]
     assert "haeo_version" in diagnostics["environment"]
     assert "timezone" in diagnostics["environment"]
 
-    # Verify info has per-snapshot context
     info = diagnostics["info"]
-    assert "diagnostic_target_time" in info
     assert "diagnostic_request_time" in info
+    assert info["diagnostic_target_time"] is None
     assert "optimization_start" in info
     assert "optimization_end" in info
     assert "horizon_start" in info
@@ -335,26 +332,25 @@ async def test_diagnostics_uses_context_for_config_and_inputs(hass: HomeAssistan
     result = await collect_diagnostics(hass, entry)
 
     # Config comes from context
-    participants = result.data["config"]["participants"]
-    assert "Context Battery" in participants
-    assert participants["Context Battery"][SECTION_STORAGE][CONF_CAPACITY] == as_constant_value(20.0)
+    assert "Context Battery" in result.config["participants"]
+    assert result.config["participants"]["Context Battery"][SECTION_STORAGE][CONF_CAPACITY] == as_constant_value(20.0)
 
     # Inputs come from context source_states
-    inputs = result.data["inputs"]
-    assert len(inputs) == 1
-    assert inputs[0]["entity_id"] == "sensor.power"
-    assert inputs[0]["state"] == "100"
+    assert len(result.inputs) == 1
+    assert result.inputs[0]["entity_id"] == "sensor.power"
+    assert result.inputs[0]["state"] == "100"
 
     # No missing entity IDs on the context path
-    assert result.missing_entity_ids == []
+    assert result.missing_entity_ids == ()
 
-    # Info has standardized timestamps
-    info = result.data["info"]
-    assert datetime.fromisoformat(info["optimization_start"]) == coordinator_data.started_at.astimezone()
-    assert datetime.fromisoformat(info["optimization_end"]) == coordinator_data.completed_at.astimezone()
-    assert info["diagnostic_target_time"] is None
-    assert datetime.fromisoformat(info["horizon_start"]) == coordinator_data.context.horizon_start.astimezone()
-    assert "diagnostic_request_time" in info
+    # Info has typed fields
+    assert result.info.diagnostic_target_time is None
+    assert datetime.fromisoformat(result.info.optimization_start_time) == coordinator_data.started_at.astimezone()
+    assert datetime.fromisoformat(result.info.optimization_end_time) == coordinator_data.completed_at.astimezone()
+    assert datetime.fromisoformat(result.info.horizon_start_time) == coordinator_data.context.horizon_start.astimezone()
+
+    # Outputs present for current
+    assert result.outputs is not None
 
 
 async def test_diagnostics_with_outputs(hass: HomeAssistant) -> None:
@@ -382,7 +378,6 @@ async def test_diagnostics_with_outputs(hass: HomeAssistant) -> None:
     )
     hass.config_entries.async_add_subentry(entry, grid_subentry)
 
-    # Register output sensor in entity registry (required for get_output_sensors)
     entity_registry = er.async_get(hass)
     output_entity_id = f"sensor.{DOMAIN}_hub_entry_{grid_subentry.subentry_id}_{GRID_POWER_IMPORT}"
     entity_registry.async_get_or_create(
@@ -477,26 +472,24 @@ async def test_historical_diagnostics_uses_last_run(hass: HomeAssistant) -> None
     mock_fetch_inputs.assert_called_once_with(hass, entry, run_started)
 
     # Config should be current config from the entry
-    participants = result.data["config"]["participants"]
-    assert "Battery" in participants
+    assert "Battery" in result.config["participants"]
 
     # Inputs come from recorder at the run's started_at
-    assert len(result.data["inputs"]) == 1
-    assert result.data["inputs"][0]["entity_id"] == "sensor.battery_capacity"
+    assert len(result.inputs) == 1
+    assert result.inputs[0]["entity_id"] == "sensor.battery_capacity"
 
     # Missing entities reported
     assert "sensor.battery_soc" in result.missing_entity_ids
 
-    # Info has standardized timestamps
-    info = result.data["info"]
-    assert datetime.fromisoformat(info["diagnostic_target_time"]) == as_of.astimezone()
-    assert datetime.fromisoformat(info["optimization_start"]) == run_started.astimezone()
-    assert datetime.fromisoformat(info["optimization_end"]) == run_completed.astimezone()
-    assert "diagnostic_request_time" in info
-    assert info["horizon_start"] == horizon_iso
+    # Info has typed timestamp fields
+    assert datetime.fromisoformat(result.info.diagnostic_target_time) == as_of.astimezone()
+    assert datetime.fromisoformat(result.info.optimization_start_time) == run_started.astimezone()
+    assert datetime.fromisoformat(result.info.optimization_end_time) == run_completed.astimezone()
+    assert result.info.diagnostic_request_time is not None
+    assert result.info.horizon_start_time == horizon_iso
 
     # No outputs for historical
-    assert "outputs" not in result.data
+    assert result.outputs is None
 
 
 async def test_historical_diagnostics_no_run_found_errors(hass: HomeAssistant) -> None:
@@ -530,7 +523,6 @@ async def test_historical_diagnostics_ignores_context(hass: HomeAssistant) -> No
     )
     entry.add_to_hass(hass)
 
-    # Coordinator with data IS available
     context_participants = {
         "Context Battery": cast(
             "ElementConfigSchema",
@@ -577,11 +569,10 @@ async def test_historical_diagnostics_ignores_context(hass: HomeAssistant) -> No
         result = await collect_diagnostics(hass, entry, as_of=as_of)
 
     # Should NOT use context — should use entry-based config
-    participants = result.data["config"]["participants"]
-    assert "Context Battery" not in participants
+    assert "Context Battery" not in result.config["participants"]
 
-    # Has standardized timestamps
-    assert "diagnostic_target_time" in result.data["info"]
+    # Has typed info with target time
+    assert result.info.diagnostic_target_time is not None
 
 
 async def test_historical_diagnostics_with_participants(hass: HomeAssistant) -> None:
@@ -645,15 +636,12 @@ async def test_historical_diagnostics_with_participants(hass: HomeAssistant) -> 
     ):
         result = await collect_diagnostics(hass, entry, as_of=as_of)
 
-    # Config has participants (current config)
-    participants = result.data["config"]["participants"]
+    participants = result.config["participants"]
     assert "Battery One" in participants
-    battery_config = participants["Battery One"]
-    assert battery_config[CONF_ELEMENT_TYPE] == ELEMENT_TYPE_BATTERY
-    assert battery_config[SECTION_COMMON][CONF_NAME] == "Battery One"
+    assert participants["Battery One"][CONF_ELEMENT_TYPE] == ELEMENT_TYPE_BATTERY
+    assert participants["Battery One"][SECTION_COMMON][CONF_NAME] == "Battery One"
 
-    # Inputs from recorder
-    inputs = result.data["inputs"]
+    inputs = result.inputs
     assert len(inputs) == 2
     entity_ids = [inp["entity_id"] for inp in inputs]
     assert "sensor.battery_capacity" in entity_ids
@@ -719,9 +707,8 @@ async def test_historical_diagnostics_skips_network_subentry(hass: HomeAssistant
     ):
         result = await collect_diagnostics(hass, entry, as_of=datetime(2024, 1, 1, tzinfo=UTC))
 
-    participants = result.data["config"]["participants"]
-    assert "Network Config" not in participants
-    assert "Battery" in participants
+    assert "Network Config" not in result.config["participants"]
+    assert "Battery" in result.config["participants"]
 
 
 async def test_historical_diagnostics_invalid_element_config(hass: HomeAssistant) -> None:
@@ -762,9 +749,8 @@ async def test_historical_diagnostics_invalid_element_config(hass: HomeAssistant
     ):
         result = await collect_diagnostics(hass, entry, as_of=datetime(2024, 1, 1, tzinfo=UTC))
 
-    participants = result.data["config"]["participants"]
-    assert "Unknown Element" in participants
-    assert result.data["inputs"] == []
+    assert "Unknown Element" in result.config["participants"]
+    assert result.inputs == []
 
 
 # --- StateProvider tests ---
@@ -772,7 +758,6 @@ async def test_historical_diagnostics_invalid_element_config(hass: HomeAssistant
 
 async def test_current_state_provider_get_state(hass: HomeAssistant) -> None:
     """Test CurrentStateProvider.get_state returns single entity state."""
-    # Set up an entity state
     hass.states.async_set(
         "sensor.test_entity",
         "42",
@@ -781,12 +766,10 @@ async def test_current_state_provider_get_state(hass: HomeAssistant) -> None:
 
     provider = CurrentStateProvider(hass)
 
-    # Test get_state for existing entity
     state = await provider.get_state("sensor.test_entity")
     assert state is not None
     assert state.state == "42"
 
-    # Test get_state for non-existent entity
     state = await provider.get_state("sensor.nonexistent")
     assert state is None
 
@@ -803,7 +786,6 @@ async def test_historical_state_provider_properties(hass: HomeAssistant) -> None
     """Test HistoricalStateProvider properties."""
     target_time = datetime(2026, 1, 20, 14, 32, 3, tzinfo=timezone(timedelta(hours=11)))
 
-    # Mock the recorder instance
     mock_recorder = Mock()
     with patch(
         "custom_components.haeo.diagnostics.historical_state_provider.get_recorder_instance",
@@ -819,10 +801,8 @@ async def test_historical_state_provider_get_state(hass: HomeAssistant) -> None:
     """Test HistoricalStateProvider.get_state returns single entity state."""
     target_time = datetime(2026, 1, 20, 14, 32, 3, tzinfo=timezone(timedelta(hours=11)))
 
-    # Create a mock State
     mock_state = State("sensor.test_entity", "42", {"unit_of_measurement": "kW"})
 
-    # Mock the recorder instance
     mock_recorder = Mock()
     mock_recorder.async_add_executor_job = AsyncMock(return_value={"sensor.test_entity": [mock_state]})
 
@@ -841,7 +821,6 @@ async def test_historical_state_provider_get_state_not_found(hass: HomeAssistant
     """Test HistoricalStateProvider.get_state returns None when entity not found."""
     target_time = datetime(2026, 1, 20, 14, 32, 3, tzinfo=timezone(timedelta(hours=11)))
 
-    # Mock the recorder instance returning empty result
     mock_recorder = Mock()
     mock_recorder.async_add_executor_job = AsyncMock(return_value={})
 
@@ -859,11 +838,9 @@ async def test_historical_state_provider_get_states(hass: HomeAssistant) -> None
     """Test HistoricalStateProvider.get_states returns multiple entity states."""
     target_time = datetime(2026, 1, 20, 14, 32, 3, tzinfo=timezone(timedelta(hours=11)))
 
-    # Create mock States
     mock_state_1 = State("sensor.entity_1", "100", {"unit_of_measurement": "kW"})
     mock_state_2 = State("sensor.entity_2", "200", {"unit_of_measurement": "kWh"})
 
-    # Mock the recorder instance
     mock_recorder = Mock()
     mock_recorder.async_add_executor_job = AsyncMock(
         return_value={
@@ -898,7 +875,6 @@ async def test_historical_state_provider_get_states_empty(hass: HomeAssistant) -
         states = await provider.get_states([])
 
     assert states == {}
-    # Verify that async_add_executor_job was not called
     mock_recorder.async_add_executor_job.assert_not_called()
 
 
@@ -923,7 +899,6 @@ async def test_historical_state_provider_get_states_sync(hass: HomeAssistant) ->
         provider = HistoricalStateProvider(hass, target_time)
         result = provider._get_states_sync(["sensor.test"])
 
-    # Verify get_significant_states was called with correct parameters
     mock_get_states.assert_called_once_with(
         hass,
         start_time=target_time,

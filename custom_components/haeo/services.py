@@ -134,7 +134,7 @@ async def async_setup_services(hass: HomeAssistant) -> None:
         filepath = Path(hass.config.path("haeo", "diagnostics", filename))
 
         # Build full diagnostics payload matching Home Assistant's format
-        output = await _build_diagnostics_payload(hass, result.data)
+        output = await _build_diagnostics_payload(hass, result.to_dict())
 
         # Write to file (in executor to avoid blocking)
         def write_diagnostics() -> None:
