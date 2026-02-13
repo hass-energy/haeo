@@ -33,7 +33,9 @@ from custom_components.haeo.const import (
     DEFAULT_TIER_4_COUNT,
     DEFAULT_TIER_4_DURATION,
     DOMAIN,
+    ELEMENT_TYPE_NETWORK,
     INTEGRATION_TYPE_HUB,
+    OUTPUT_NAME_HORIZON,
     OUTPUT_NAME_OPTIMIZATION_DURATION,
 )
 from custom_components.haeo.coordinator import CoordinatorData, HaeoDataUpdateCoordinator, OptimizationContext
@@ -50,6 +52,7 @@ from custom_components.haeo.diagnostics.collector import (
     _get_last_run_before,
 )
 from custom_components.haeo.elements import ELEMENT_TYPE_BATTERY, ElementConfigSchema
+from custom_components.haeo.entities.device import build_device_identifier
 from custom_components.haeo.elements.battery import (
     CONF_CAPACITY,
     CONF_CONNECTION,
@@ -1324,18 +1327,22 @@ def test_get_duration_sensor_entity_id_found(hass: HomeAssistant) -> None:
     )
     entry.add_to_hass(hass)
 
-    entity_registry = er.async_get(hass)
-    # Non-matching entity to exercise the loop-continue branch
-    entity_registry.async_get_or_create(
-        domain="sensor",
-        platform=DOMAIN,
-        unique_id="hub_entry_other_sensor",
-        config_entry=entry,
+    network_subentry = ConfigSubentry(
+        data=MappingProxyType({}),
+        subentry_type=ELEMENT_TYPE_NETWORK,
+        title="Network",
+        unique_id=None,
     )
-    entity_registry.async_get_or_create(
+    hass.config_entries.async_add_subentry(entry, network_subentry)
+
+    network_sub = next(s for s in entry.subentries.values() if s.subentry_type == ELEMENT_TYPE_NETWORK)
+    device_id = build_device_identifier(entry, network_sub, ELEMENT_TYPE_NETWORK)[1]
+    unique_id = f"{device_id}_{OUTPUT_NAME_OPTIMIZATION_DURATION}"
+
+    er.async_get(hass).async_get_or_create(
         domain="sensor",
         platform=DOMAIN,
-        unique_id=f"hub_entry_{OUTPUT_NAME_OPTIMIZATION_DURATION}",
+        unique_id=unique_id,
         config_entry=entry,
     )
 
@@ -1344,8 +1351,8 @@ def test_get_duration_sensor_entity_id_found(hass: HomeAssistant) -> None:
     assert OUTPUT_NAME_OPTIMIZATION_DURATION in result
 
 
-def test_get_duration_sensor_entity_id_not_found(hass: HomeAssistant) -> None:
-    """get_duration_sensor_entity_id returns None when no duration sensor exists."""
+def test_get_duration_sensor_entity_id_no_network_subentry(hass: HomeAssistant) -> None:
+    """get_duration_sensor_entity_id returns None when no network subentry exists."""
     entry = MockConfigEntry(
         domain=DOMAIN,
         data=_hub_entry_data(),
@@ -1353,8 +1360,7 @@ def test_get_duration_sensor_entity_id_not_found(hass: HomeAssistant) -> None:
     )
     entry.add_to_hass(hass)
 
-    result = get_duration_sensor_entity_id(hass, entry)
-    assert result is None
+    assert get_duration_sensor_entity_id(hass, entry) is None
 
 
 def test_get_horizon_sensor_entity_id_found(hass: HomeAssistant) -> None:
@@ -1366,24 +1372,17 @@ def test_get_horizon_sensor_entity_id_found(hass: HomeAssistant) -> None:
     )
     entry.add_to_hass(hass)
 
-    entity_registry = er.async_get(hass)
-    # Non-matching entity to exercise the loop-continue branch
-    entity_registry.async_get_or_create(
+    unique_id = f"{entry.entry_id}_{OUTPUT_NAME_HORIZON}"
+    er.async_get(hass).async_get_or_create(
         domain="sensor",
         platform=DOMAIN,
-        unique_id="hub_entry_other_sensor",
-        config_entry=entry,
-    )
-    entity_registry.async_get_or_create(
-        domain="sensor",
-        platform=DOMAIN,
-        unique_id="hub_entry_horizon",
+        unique_id=unique_id,
         config_entry=entry,
     )
 
     result = get_horizon_sensor_entity_id(hass, entry)
     assert result is not None
-    assert "horizon" in result
+    assert OUTPUT_NAME_HORIZON in result
 
 
 def test_get_horizon_sensor_entity_id_not_found(hass: HomeAssistant) -> None:
@@ -1395,5 +1394,4 @@ def test_get_horizon_sensor_entity_id_not_found(hass: HomeAssistant) -> None:
     )
     entry.add_to_hass(hass)
 
-    result = get_horizon_sensor_entity_id(hass, entry)
-    assert result is None
+    assert get_horizon_sensor_entity_id(hass, entry) is None

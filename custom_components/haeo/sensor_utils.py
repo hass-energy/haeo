@@ -7,10 +7,8 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 
-from .const import DOMAIN, OUTPUT_NAME_OPTIMIZATION_DURATION
-
-# Unique ID suffix for the horizon sensor entity
-_HORIZON_UNIQUE_ID_SUFFIX = "_horizon"
+from .const import DOMAIN, ELEMENT_TYPE_NETWORK, OUTPUT_NAME_HORIZON, OUTPUT_NAME_OPTIMIZATION_DURATION
+from .entities.device import build_device_identifier
 
 # Default decimal places for values without a unit
 _DEFAULT_DECIMAL_PLACES = 4
@@ -124,11 +122,15 @@ def get_duration_sensor_entity_id(hass: HomeAssistant, config_entry: ConfigEntry
 
     Returns None if the sensor hasn't been created yet (no optimization has ever run).
     """
-    entity_registry = er.async_get(hass)
-    for entity_entry in er.async_entries_for_config_entry(entity_registry, config_entry.entry_id):
-        if entity_entry.platform == DOMAIN and entity_entry.unique_id.endswith(f"_{OUTPUT_NAME_OPTIMIZATION_DURATION}"):
-            return entity_entry.entity_id
-    return None
+    network_subentry = next(
+        (s for s in config_entry.subentries.values() if s.subentry_type == ELEMENT_TYPE_NETWORK),
+        None,
+    )
+    if network_subentry is None:
+        return None
+    device_id = build_device_identifier(config_entry, network_subentry, ELEMENT_TYPE_NETWORK)[1]
+    unique_id = f"{device_id}_{OUTPUT_NAME_OPTIMIZATION_DURATION}"
+    return er.async_get(hass).async_get_entity_id("sensor", DOMAIN, unique_id)
 
 
 def get_horizon_sensor_entity_id(hass: HomeAssistant, config_entry: ConfigEntry) -> str | None:
@@ -136,11 +138,8 @@ def get_horizon_sensor_entity_id(hass: HomeAssistant, config_entry: ConfigEntry)
 
     Returns None if the sensor hasn't been created yet.
     """
-    entity_registry = er.async_get(hass)
-    for entity_entry in er.async_entries_for_config_entry(entity_registry, config_entry.entry_id):
-        if entity_entry.platform == DOMAIN and entity_entry.unique_id.endswith(_HORIZON_UNIQUE_ID_SUFFIX):
-            return entity_entry.entity_id
-    return None
+    unique_id = f"{config_entry.entry_id}_{OUTPUT_NAME_HORIZON}"
+    return er.async_get(hass).async_get_entity_id("sensor", DOMAIN, unique_id)
 
 
 def get_output_sensors(hass: HomeAssistant, config_entry: ConfigEntry) -> dict[str, SensorStateDict]:
