@@ -1007,6 +1007,43 @@ def test_are_inputs_aligned_returns_true_when_aligned(
     assert result is True
 
 
+@pytest.mark.usefixtures("mock_battery_subentry", "mock_grid_subentry")
+def test_are_inputs_aligned_ignores_scalar_inputs(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+    mock_runtime_data: HaeoRuntimeData,
+) -> None:
+    """Scalar (non-forecast) input entities should not block alignment.
+
+    Real-world bug: battery initial_charge_percentage and salvage_value are
+    scalar inputs (time_series=False) whose horizon_start is always None.
+    The alignment check was treating None as "not aligned", permanently
+    blocking all subsequent optimizations after startup.
+    """
+    expected_start = 1000.0
+    _get_mock_horizon(mock_runtime_data).get_forecast_timestamps.return_value = (expected_start, 2000.0)
+
+    # Forecast entity: aligned, has horizon_start
+    forecast_entity = MagicMock()
+    forecast_entity.uses_forecast = True
+    forecast_entity.horizon_start = expected_start + 0.5
+    mock_runtime_data.input_entities[("Test Battery", (SECTION_STORAGE, CONF_CAPACITY))] = forecast_entity
+
+    # Scalar entity: no forecast, horizon_start is None (like initial_charge_percentage)
+    scalar_entity = MagicMock()
+    scalar_entity.uses_forecast = False
+    scalar_entity.horizon_start = None
+    mock_runtime_data.input_entities[("Test Battery", (SECTION_STORAGE, CONF_INITIAL_CHARGE_PERCENTAGE))] = (
+        scalar_entity
+    )
+
+    coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
+
+    result = coordinator._are_inputs_aligned()
+
+    assert result is True
+
+
 @pytest.mark.usefixtures("mock_battery_subentry")
 async def test_async_update_data_returns_existing_when_concurrent(
     hass: HomeAssistant,

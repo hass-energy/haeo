@@ -346,6 +346,11 @@ class HaeoInputNumber(NumberEntity):
         return self._entity_mode
 
     @property
+    def uses_forecast(self) -> bool:
+        """Return True if this entity produces time-series forecast data."""
+        return self._uses_forecast
+
+    @property
     def horizon_start(self) -> float | None:
         """Return the first forecast timestamp, or None if not loaded."""
         forecast = self._attr_extra_state_attributes.get("forecast")

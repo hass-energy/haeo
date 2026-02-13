@@ -1112,6 +1112,27 @@ async def test_entity_mode_property_returns_mode(
     assert entity_driven.entity_mode == ConfigEntityMode.DRIVEN
 
 
+async def test_uses_forecast_reflects_field_info(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    device_entry: Mock,
+    curtailment_field_info: InputFieldInfo[SwitchEntityDescription],
+    horizon_manager: Mock,
+) -> None:
+    """uses_forecast reflects the field_info.time_series flag."""
+    config_entry.runtime_data = None
+
+    # curtailment_field_info has time_series=False (the default)
+    entity = HaeoInputSwitch(
+        config_entry=config_entry,
+        subentry=_create_subentry("Test Solar", {"allow_curtailment": True}),
+        field_info=curtailment_field_info,
+        device_entry=device_entry,
+        horizon_manager=horizon_manager,
+    )
+    assert entity.uses_forecast is False
+
+
 async def test_editable_mode_uses_defaults_value_when_none(
     hass: HomeAssistant,
     config_entry: MockConfigEntry,

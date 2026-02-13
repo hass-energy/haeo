@@ -68,6 +68,7 @@ class HaeoInputSwitch(SwitchEntity):
             field_path or find_nested_config_path(subentry.data, field_info.field_name) or (field_info.field_name,)
         )
         self._horizon_manager = horizon_manager
+        self._uses_forecast = field_info.time_series
 
         # Set device_entry to link entity to device
         self.device_entry = device_entry
@@ -262,6 +263,11 @@ class HaeoInputSwitch(SwitchEntity):
     def entity_mode(self) -> ConfigEntityMode:
         """Return the entity's operating mode (EDITABLE or DRIVEN)."""
         return self._entity_mode
+
+    @property
+    def uses_forecast(self) -> bool:
+        """Return True if this entity produces time-series forecast data."""
+        return self._uses_forecast
 
     @property
     def horizon_start(self) -> float | None:
