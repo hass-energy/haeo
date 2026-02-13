@@ -1234,6 +1234,36 @@ async def test_entity_mode_property(
     assert entity_driven.entity_mode == ConfigEntityMode.DRIVEN
 
 
+async def test_uses_forecast_reflects_field_info(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    device_entry: Mock,
+    power_field_info: InputFieldInfo[NumberEntityDescription],
+    scalar_field_info: InputFieldInfo[NumberEntityDescription],
+    horizon_manager: Mock,
+) -> None:
+    """uses_forecast is True for time-series fields, False for scalar fields."""
+    config_entry.runtime_data = None
+
+    forecast_entity = HaeoInputNumber(
+        config_entry=config_entry,
+        subentry=_create_subentry("Test Battery", {"power_limit": 10.0}),
+        field_info=power_field_info,
+        device_entry=device_entry,
+        horizon_manager=horizon_manager,
+    )
+    assert forecast_entity.uses_forecast is True
+
+    scalar_entity = HaeoInputNumber(
+        config_entry=config_entry,
+        subentry=_create_subentry("Test Battery", {"capacity": 13.5}),
+        field_info=scalar_field_info,
+        device_entry=device_entry,
+        horizon_manager=horizon_manager,
+    )
+    assert scalar_entity.uses_forecast is False
+
+
 async def test_async_load_data_with_empty_values_list(
     hass: HomeAssistant,
     config_entry: MockConfigEntry,
