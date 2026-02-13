@@ -52,7 +52,6 @@ from custom_components.haeo.diagnostics.collector import (
     _get_last_run_before,
 )
 from custom_components.haeo.elements import ELEMENT_TYPE_BATTERY, ElementConfigSchema
-from custom_components.haeo.entities.device import build_device_identifier
 from custom_components.haeo.elements.battery import (
     CONF_CAPACITY,
     CONF_CONNECTION,
@@ -69,6 +68,7 @@ from custom_components.haeo.elements.battery import (
     SECTION_STORAGE,
 )
 from custom_components.haeo.elements.grid import CONF_PRICE_SOURCE_TARGET, CONF_PRICE_TARGET_SOURCE, GRID_POWER_IMPORT
+from custom_components.haeo.entities.device import build_device_identifier
 from custom_components.haeo.flows import HUB_SECTION_COMMON, HUB_SECTION_TIERS
 from custom_components.haeo.schema import as_connection_target, as_constant_value, as_entity_value
 from custom_components.haeo.sections import SECTION_COMMON, SECTION_EFFICIENCY, SECTION_POWER_LIMITS, SECTION_PRICING
