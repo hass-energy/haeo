@@ -13,7 +13,7 @@ from homeassistant.loader import async_get_integration
 from homeassistant.util import dt as dt_util
 
 from custom_components.haeo import HaeoConfigEntry, HaeoRuntimeData
-from custom_components.haeo.const import CONF_ELEMENT_TYPE
+from custom_components.haeo.const import CONF_ELEMENT_TYPE, ELEMENT_TYPE_NETWORK
 from custom_components.haeo.coordinator.context import OptimizationContext
 from custom_components.haeo.elements import ElementConfigSchema, is_element_config_schema
 from custom_components.haeo.schema import SchemaValue, is_schema_value
@@ -160,7 +160,7 @@ def _config_from_entry(config_entry: HaeoConfigEntry) -> dict[str, Any]:
     }
 
     for subentry in config_entry.subentries.values():
-        if subentry.subentry_type != "network":
+        if subentry.subentry_type != ELEMENT_TYPE_NETWORK:
             raw_data = dict(subentry.data)
             raw_data.setdefault(CONF_ELEMENT_TYPE, subentry.subentry_type)
             common = raw_data.get(SECTION_COMMON)
@@ -177,7 +177,7 @@ def _collect_entity_ids_from_entry(config_entry: HaeoConfigEntry) -> set[str]:
     """Collect all input entity IDs referenced in config entry subentries."""
     all_entity_ids: set[str] = set()
     for subentry in config_entry.subentries.values():
-        if subentry.subentry_type == "network":
+        if subentry.subentry_type == ELEMENT_TYPE_NETWORK:
             continue
         participant_config = dict(subentry.data)
         participant_config[CONF_ELEMENT_TYPE] = subentry.subentry_type
