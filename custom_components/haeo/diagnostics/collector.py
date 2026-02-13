@@ -47,13 +47,27 @@ class DiagnosticsInfo:
 
 
 @dataclass(frozen=True, slots=True)
+class EnvironmentInfo:
+    """Static runtime environment facts."""
+
+    ha_version: str
+    """Home Assistant version."""
+
+    haeo_version: str
+    """HAEO integration version."""
+
+    timezone: str
+    """System timezone."""
+
+
+@dataclass(frozen=True, slots=True)
 class DiagnosticsResult:
     """Result of collecting diagnostics."""
 
     config: dict[str, Any]
     """HAEO configuration (hub settings, participants)."""
 
-    environment: dict[str, Any]
+    environment: EnvironmentInfo
     """Static runtime info (HA version, HAEO version, timezone)."""
 
     inputs: list[dict[str, Any]]
@@ -72,7 +86,7 @@ class DiagnosticsResult:
         """Serialize to a JSON-compatible dict for HA diagnostics output."""
         data: dict[str, Any] = {
             "config": self.config,
-            "environment": self.environment,
+            "environment": asdict(self.environment),
             "inputs": self.inputs,
             "info": asdict(self.info),
         }
@@ -292,7 +306,7 @@ async def _get_last_run_before(
 async def _build_environment(
     hass: HomeAssistant,
     config_entry: HaeoConfigEntry,
-) -> dict[str, Any]:
+) -> EnvironmentInfo:
     """Build the environment section of diagnostics.
 
     Static facts about the runtime — does not vary per invocation.
@@ -300,11 +314,11 @@ async def _build_environment(
     integration = await async_get_integration(hass, config_entry.domain)
     haeo_version = integration.version or "unknown"
 
-    return {
-        "ha_version": ha_version,
-        "haeo_version": haeo_version,
-        "timezone": str(dt_util.get_default_time_zone()),
-    }
+    return EnvironmentInfo(
+        ha_version=ha_version,
+        haeo_version=haeo_version,
+        timezone=str(dt_util.get_default_time_zone()),
+    )
 
 
 def _to_local_iso(dt: datetime) -> str:
@@ -387,4 +401,4 @@ async def collect_diagnostics(
     )
 
 
-__all__ = ["DiagnosticsInfo", "DiagnosticsResult", "collect_diagnostics"]
+__all__ = ["DiagnosticsInfo", "DiagnosticsResult", "EnvironmentInfo", "collect_diagnostics"]

@@ -35,7 +35,7 @@ from custom_components.haeo.const import (
     DOMAIN,
     INTEGRATION_TYPE_HUB,
 )
-from custom_components.haeo.diagnostics import DiagnosticsInfo, DiagnosticsResult
+from custom_components.haeo.diagnostics import DiagnosticsInfo, DiagnosticsResult, EnvironmentInfo
 from custom_components.haeo.services import _format_manifest
 
 
@@ -88,7 +88,7 @@ async def test_save_diagnostics_service_success(
     # Mock the diagnostics function
     mock_diagnostics = DiagnosticsResult(
         config={"participants": {}},
-        environment={"ha_version": "2024.1.0"},
+        environment=EnvironmentInfo(ha_version="2024.1.0", haeo_version="0.0.0", timezone="UTC"),
         inputs=[],
         info=DiagnosticsInfo(
             diagnostic_request_time="2024-01-01T00:00:00",
@@ -241,7 +241,7 @@ async def test_save_diagnostics_with_historical_time(
 
     mock_diagnostics = DiagnosticsResult(
         config={"participants": {}},
-        environment={"ha_version": "2024.1.0"},
+        environment=EnvironmentInfo(ha_version="2024.1.0", haeo_version="0.0.0", timezone="UTC"),
         inputs=[{"entity_id": "sensor.test"}],
         info=DiagnosticsInfo(
             diagnostic_request_time="2024-01-01T00:00:00",
@@ -335,7 +335,7 @@ async def test_save_diagnostics_historical_missing_entities_raises_error(
     # Mock diagnostics with missing entities
     mock_diagnostics = DiagnosticsResult(
         config={"participants": {}},
-        environment={"ha_version": "2024.1.0"},
+        environment=EnvironmentInfo(ha_version="2024.1.0", haeo_version="0.0.0", timezone="UTC"),
         inputs=[],
         info=DiagnosticsInfo(
             diagnostic_request_time="2024-01-01T00:00:00",

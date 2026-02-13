@@ -6,7 +6,7 @@ from homeassistant.core import HomeAssistant
 
 from custom_components.haeo import HaeoConfigEntry
 
-from .collector import DiagnosticsInfo, DiagnosticsResult, collect_diagnostics
+from .collector import DiagnosticsInfo, DiagnosticsResult, EnvironmentInfo, collect_diagnostics
 from .historical_state_provider import HistoricalStateProvider
 from .state_provider import CurrentStateProvider, StateProvider
 
@@ -27,6 +27,7 @@ __all__ = [
     "CurrentStateProvider",
     "DiagnosticsInfo",
     "DiagnosticsResult",
+    "EnvironmentInfo",
     "HistoricalStateProvider",
     "StateProvider",
     "async_get_config_entry_diagnostics",
