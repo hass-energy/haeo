@@ -539,16 +539,9 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
                 continue
             entity_horizon = entity.horizon_start
             if entity_horizon is None:
-                _LOGGER.debug("Input %s has no horizon data yet", entity.entity_id)
                 return False
             # Allow small floating point tolerance
             if abs(entity_horizon - expected_start) > 1.0:
-                _LOGGER.debug(
-                    "Input %s horizon %.1f misaligned with expected %.1f",
-                    entity.entity_id,
-                    entity_horizon,
-                    expected_start,
-                )
                 return False
 
         return True
