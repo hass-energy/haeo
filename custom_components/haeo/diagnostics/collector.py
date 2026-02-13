@@ -247,56 +247,41 @@ async def _get_last_run_before(
         return None
 
     horizon_entity_id = get_horizon_sensor_entity_id(hass, config_entry)
+    if horizon_entity_id is None:
+        return None
 
     recorder = get_recorder_instance(hass)
 
-    def _query_duration() -> dict[str, list[State]]:
+    def _query() -> dict[str, list[State]]:
         result = recorder_history.get_significant_states(
             hass,
             start_time=target_time,
             end_time=target_time,
-            entity_ids=[duration_entity_id],
+            entity_ids=[duration_entity_id, horizon_entity_id],
             include_start_time_state=True,
             significant_changes_only=False,
             no_attributes=False,
         )
         return cast("dict[str, list[State]]", result)
 
-    states = await recorder.async_add_executor_job(_query_duration)
+    states = await recorder.async_add_executor_job(_query)
 
-    state_list = states.get(duration_entity_id, [])
-    if not state_list:
+    duration_list = states.get(duration_entity_id, [])
+    if not duration_list:
         return None
 
     # include_start_time_state gives us the state at or before target_time first
-    last_state = state_list[0]
+    duration_state = duration_list[0]
 
     try:
-        duration_seconds = float(last_state.state)
+        duration_seconds = float(duration_state.state)
     except (ValueError, TypeError):
         return None
 
-    completed_at = last_state.last_updated
+    completed_at = duration_state.last_updated
     started_at = completed_at - timedelta(seconds=duration_seconds)
 
-    # Fetch horizon sensor state at the run's start time
-    if horizon_entity_id is None:
-        return None
-
-    def _query_horizon() -> dict[str, list[State]]:
-        result = recorder_history.get_significant_states(
-            hass,
-            start_time=started_at,
-            end_time=started_at,
-            entity_ids=[horizon_entity_id],
-            include_start_time_state=True,
-            significant_changes_only=False,
-            no_attributes=False,
-        )
-        return cast("dict[str, list[State]]", result)
-
-    horizon_states = await recorder.async_add_executor_job(_query_horizon)
-    horizon_list = horizon_states.get(horizon_entity_id, [])
+    horizon_list = states.get(horizon_entity_id, [])
     if not horizon_list:
         return None
 

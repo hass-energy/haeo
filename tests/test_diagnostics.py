@@ -1128,10 +1128,10 @@ async def test_get_last_run_before_finds_run(hass: HomeAssistant) -> None:
         ),
         patch(
             "custom_components.haeo.diagnostics.collector.recorder_history.get_significant_states",
-            side_effect=[
-                {"sensor.haeo_optimization_duration": [duration_state]},
-                {"sensor.haeo_forecast_horizon": [horizon_state]},
-            ],
+            return_value={
+                "sensor.haeo_optimization_duration": [duration_state],
+                "sensor.haeo_forecast_horizon": [horizon_state],
+            },
         ),
     ):
         result = await _get_last_run_before(hass, entry, datetime(2024, 1, 1, 13, 0, tzinfo=UTC))
