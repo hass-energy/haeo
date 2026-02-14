@@ -141,8 +141,9 @@ def test_migrate_subentry_battery_with_legacy_fields() -> None:
         "efficiency": 0.92,
         SECTION_POWER_LIMITS: {CONF_MAX_POWER_SOURCE_TARGET: 7.0},
         SECTION_PRICING: {CONF_PRICE_SOURCE_TARGET: 0.33},
-        battery.SECTION_UNDERCHARGE: {battery.CONF_PARTITION_PERCENTAGE: 0.1},
-        battery.SECTION_OVERCHARGE: {battery.CONF_PARTITION_COST: 0.2},
+        # Legacy partitioning sections should not break migration.
+        "undercharge": {"percentage": 0.1},
+        "overcharge": {"cost": 0.2},
     }
     subentry = _create_subentry(data, subentry_type=battery.ELEMENT_TYPE)
 
@@ -157,8 +158,7 @@ def test_migrate_subentry_battery_with_legacy_fields() -> None:
     assert migrated[SECTION_PRICING][CONF_PRICE_TARGET_SOURCE] == as_constant_value(0.15)
     assert migrated[SECTION_EFFICIENCY][battery.CONF_EFFICIENCY_SOURCE_TARGET] == as_constant_value(0.85)
     assert migrated[SECTION_EFFICIENCY][battery.CONF_EFFICIENCY_TARGET_SOURCE] == as_constant_value(0.88)
-    assert migrated[battery.SECTION_UNDERCHARGE][battery.CONF_PARTITION_PERCENTAGE] == as_constant_value(0.1)
-    assert migrated[battery.SECTION_OVERCHARGE][battery.CONF_PARTITION_COST] == as_constant_value(0.2)
+    assert battery.SECTION_PARTITIONS not in migrated
 
 
 def test_migrate_subentry_battery_invalid_schema_value_raises() -> None:

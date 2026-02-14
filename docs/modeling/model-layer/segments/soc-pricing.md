@@ -1,9 +1,9 @@
 # SOC pricing segment
 
-The `SocPricingSegment` adds cost terms when a connected battery's stored energy violates discharge
-energy thresholds or charge capacity thresholds.
-It uses slack variables to represent energy below or above thresholds and adds those slacks to the
-objective.
+The `SocPricingSegment` adds cost terms when a connected battery's stored energy is above or below
+a configured energy threshold.
+It uses slack variables to represent energy above and below the threshold and adds those slacks to
+the objective.
 This is intended for soft, price-based incentives rather than hard operating limits.
 
 ## Model formulation
@@ -12,10 +12,9 @@ This is intended for soft, price-based incentives rather than hard operating lim
 
 | Parameter              | Description                              | Units  |
 | ---------------------- | ---------------------------------------- | ------ |
-| $E_{\text{dis}}(t)$    | Discharge energy threshold               | kWh    |
-| $E_{\text{chg}}(t)$    | Charge capacity threshold                | kWh    |
-| $c_{\text{dis}}(t)$    | Discharge threshold penalty price        | \$/kWh |
-| $c_{\text{chg}}(t)$    | Charge threshold penalty price           | \$/kWh |
+| $E_{\text{thr}}(t)$    | Energy threshold                         | kWh    |
+| $c_{\text{dis}}(t)$    | Penalty price below threshold            | \$/kWh |
+| $c_{\text{chg}}(t)$    | Penalty price above threshold            | \$/kWh |
 | $E_{\text{stored}}(t)$ | Battery stored energy (model coordinate) | kWh    |
 
 Thresholds are provided in the model coordinate system.
@@ -42,23 +41,23 @@ segment.
 
 ### Decision variables
 
-| Variable            | Domain                | Description                            |
-| ------------------- | --------------------- | -------------------------------------- |
-| $S_{\text{dis}}(t)$ | $\mathbb{R}_{\geq 0}$ | Energy below discharge threshold       |
-| $S_{\text{chg}}(t)$ | $\mathbb{R}_{\geq 0}$ | Energy above charge capacity threshold |
+| Variable             | Domain                | Description                  |
+| -------------------- | --------------------- | ---------------------------- |
+| $S_{\text{dis}}(t)$  | $\mathbb{R}_{\geq 0}$ | Energy below the threshold   |
+| $S_{\text{chg}}(t)$  | $\mathbb{R}_{\geq 0}$ | Energy above the threshold   |
 
 ### Constraints
 
-Discharge threshold slack:
+Below-threshold slack:
 
 $$
-S_{\text{dis}}(t) \geq E_{\text{dis}}(t) - E_{\text{stored}}(t)
+S_{\text{dis}}(t) \geq E_{\text{thr}}(t) - E_{\text{stored}}(t)
 $$
 
-Charge threshold slack:
+Above-threshold slack:
 
 $$
-S_{\text{chg}}(t) \geq E_{\text{stored}}(t) - E_{\text{chg}}(t)
+S_{\text{chg}}(t) \geq E_{\text{stored}}(t) - E_{\text{thr}}(t)
 $$
 
 ### Cost contribution
@@ -74,17 +73,16 @@ These are soft constraints: the optimizer can violate thresholds when prices jus
 
 ## Pricing partitions with opposing thresholds
 
-You can model pricing for a specific energy band by pairing two SOC pricing segments with opposite
-signs at different thresholds.
-One segment can penalize energy below a lower threshold, while another provides a negative price
-above an upper threshold.
-The combination creates a net incentive to keep energy inside a band, while still allowing
-economically justified deviations.
+You can model pricing for a specific energy band by pairing two SOC pricing segments with
+different thresholds and using one-sided prices:
+
+- A segment at the lower threshold with `discharge_price > 0` and `charge_price = 0` penalizes being below the band.
+- A segment at the upper threshold with `charge_price > 0` and `discharge_price = 0` penalizes being above the band.
 
 For example, to encourage the battery to stay between `E_low` and `E_high`:
 
-- Set a positive `discharge_energy_price` below `E_low`.
-- Set a negative `charge_capacity_price` above `E_high`.
+- Configure a segment with threshold `E_low` and a positive below-threshold penalty (`discharge_price`).
+- Configure a segment with threshold `E_high` and a positive above-threshold penalty (`charge_price`).
 
 This produces a "reward" for staying within the band and a "cost" for leaving it.
 It is still a soft signal, so it will not block solutions if other costs dominate.

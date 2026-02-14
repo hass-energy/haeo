@@ -61,8 +61,7 @@ def _wrap_config(flat: dict[str, object]) -> battery.BatteryConfigSchema:
     pricing: dict[str, object] = {}
     efficiency: dict[str, object] = {}
     partitioning: dict[str, object] = {}
-    undercharge: dict[str, object] = {}
-    overcharge: dict[str, object] = {}
+    partitions: dict[str, object] = {}
 
     for key, value in flat.items():
         if key in (
@@ -98,10 +97,11 @@ def _wrap_config(flat: dict[str, object]) -> battery.BatteryConfigSchema:
             "salvage_value",
         ):
             pricing[key] = to_schema_value(value)
-        elif key == "undercharge" and isinstance(value, dict):
-            undercharge.update({subkey: to_schema_value(subvalue) for subkey, subvalue in value.items()})
-        elif key == "overcharge" and isinstance(value, dict):
-            overcharge.update({subkey: to_schema_value(subvalue) for subkey, subvalue in value.items()})
+        elif key == "partitions" and isinstance(value, dict):
+            for zone_name, zone_value in value.items():
+                if not isinstance(zone_name, str) or not isinstance(zone_value, dict):
+                    continue
+                partitions[zone_name] = {subkey: to_schema_value(subvalue) for subkey, subvalue in zone_value.items()}
 
     pricing.setdefault("salvage_value", as_constant_value(0.0))
 
@@ -114,9 +114,9 @@ def _wrap_config(flat: dict[str, object]) -> battery.BatteryConfigSchema:
         battery.SECTION_PRICING: pricing,
         battery.SECTION_EFFICIENCY: efficiency,
         battery.SECTION_PARTITIONING: partitioning,
-        battery.SECTION_UNDERCHARGE: undercharge,
-        battery.SECTION_OVERCHARGE: overcharge,
     }
+    if partitions:
+        config[battery.SECTION_PARTITIONS] = partitions
     return config  # type: ignore[return-value]
 
 
@@ -129,8 +129,7 @@ def _wrap_data(flat: dict[str, object]) -> battery.BatteryConfigData:
     pricing: dict[str, object] = {}
     efficiency: dict[str, object] = {}
     partitioning: dict[str, object] = {}
-    undercharge: dict[str, object] = {}
-    overcharge: dict[str, object] = {}
+    partitions: dict[str, object] = {}
 
     for key, value in flat.items():
         if key in (
@@ -166,10 +165,8 @@ def _wrap_data(flat: dict[str, object]) -> battery.BatteryConfigData:
             "salvage_value",
         ):
             pricing[key] = value
-        elif key == "undercharge" and isinstance(value, dict):
-            undercharge.update(value)
-        elif key == "overcharge" and isinstance(value, dict):
-            overcharge.update(value)
+        elif key == "partitions" and isinstance(value, dict):
+            partitions.update(value)
 
     pricing.setdefault(battery.CONF_SALVAGE_VALUE, 0.0)
 
@@ -182,9 +179,9 @@ def _wrap_data(flat: dict[str, object]) -> battery.BatteryConfigData:
         battery.SECTION_PRICING: pricing,
         battery.SECTION_EFFICIENCY: efficiency,
         battery.SECTION_PARTITIONING: partitioning,
-        battery.SECTION_UNDERCHARGE: undercharge,
-        battery.SECTION_OVERCHARGE: overcharge,
     }
+    if partitions:
+        config[battery.SECTION_PARTITIONS] = partitions
     return config  # type: ignore[return-value]
 
 
@@ -350,8 +347,9 @@ async def test_available_returns_true_with_constant_values(hass: HomeAssistant) 
             "price_target_source": 0.05,
             "efficiency_source_target": 0.95,
             "efficiency_target_source": 0.94,
-            "undercharge": {"partition_percentage": 0.1, "partition_cost": 0.2},
-            "overcharge": {"partition_percentage": 0.05, "partition_cost": 0.15},
+            "partitions": {
+                "Reserve": {"threshold_kwh": 2.0, "discharge_price": 0.2},
+            },
         }
     )
 
@@ -414,8 +412,8 @@ def test_model_elements_passes_efficiency_when_present() -> None:
     np.testing.assert_array_equal(efficiency_target_source, [0.95, 0.95])
 
 
-def test_model_elements_overcharge_only_adds_soc_pricing() -> None:
-    """SOC pricing is added when only overcharge inputs are configured."""
+def test_model_elements_multiple_zones_add_soc_pricing_segments() -> None:
+    """SOC pricing segments are added for each configured zone."""
     config_data: battery.BatteryConfigData = _wrap_data(
         {
             "name": "test_battery",
@@ -424,9 +422,15 @@ def test_model_elements_overcharge_only_adds_soc_pricing() -> None:
             "initial_charge_percentage": 0.5,
             "min_charge_percentage": np.array([0.1, 0.1, 0.1]),
             "max_charge_percentage": np.array([0.9, 0.9, 0.9]),
-            "overcharge": {
-                "percentage": np.array([0.95, 0.95, 0.95]),
-                "cost": np.array([0.2, 0.2]),
+            "partitions": {
+                "Reserve": {
+                    "threshold_kwh": np.array([2.0, 2.0]),
+                    "discharge_price": np.array([0.2, 0.2]),
+                },
+                "Headroom": {
+                    "threshold_kwh": np.array([8.0, 8.0]),
+                    "charge_price": np.array([0.1, 0.1]),
+                },
             },
         }
     )
@@ -435,10 +439,20 @@ def test_model_elements_overcharge_only_adds_soc_pricing() -> None:
     connection = _get_connection(elements, "test_battery:connection")
     segments = connection.get("segments")
     assert segments is not None
-    soc_pricing = segments.get("soc_pricing")
-    assert soc_pricing is not None
-    assert soc_pricing.get("discharge_energy_threshold") is None
-    assert soc_pricing.get("charge_capacity_threshold") is not None
+    reserve = segments.get("soc_pricing_Reserve")
+    assert reserve is not None
+    assert reserve.get("threshold") is not None
+    # 2.0kWh threshold, 10% min SOC => model threshold = 2.0 - 1.0 = 1.0
+    np.testing.assert_allclose(reserve["threshold"], np.array([1.0, 1.0]))
+    assert reserve.get("discharge_price") is not None
+    assert reserve.get("charge_price") is None
+
+    headroom = segments.get("soc_pricing_Headroom")
+    assert headroom is not None
+    # 8.0kWh threshold, 10% min SOC => model threshold = 8.0 - 1.0 = 7.0
+    np.testing.assert_allclose(headroom["threshold"], np.array([7.0, 7.0]))
+    assert headroom.get("charge_price") is not None
+    assert headroom.get("discharge_price") is None
 
 
 def test_discharge_respects_power_limit_with_efficiency() -> None:

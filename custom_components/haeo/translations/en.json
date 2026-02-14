@@ -99,7 +99,7 @@
           "description": "Configure battery parameters for energy optimization",
           "data": {
             "capacity": "Capacity",
-            "configure_partitions": "Configure battery partitions",
+            "configure_partitions": "Configure SOC zones",
             "connection": "Connection",
             "efficiency_source_target": "Discharge efficiency",
             "efficiency_target_source": "Charge efficiency",
@@ -127,8 +127,8 @@
               "name": "Limits"
             },
             "partitioning": {
-              "data": { "configure_partitions": "Configure battery partitions" },
-              "name": "Battery partitions"
+              "data": { "configure_partitions": "Configure SOC zones" },
+              "name": "SOC zones"
             },
             "power_limits": {
               "data": {
@@ -151,28 +151,37 @@
             }
           }
         },
-        "partition_values": {
-          "title": "Battery Partition Values",
-          "description": "Enter values for the partition input sources",
-          "data": { "cost": "Cost", "percentage": "Percentage" }
+        "partition_names": {
+          "title": "SOC zone names",
+          "description": "Enter one SOC zone name per line. You will configure each zone on the next step.",
+          "data": { "partition_names": "SOC zone names" }
         },
-        "partitions": {
-          "title": "Battery Partitions",
-          "description": "Select entities for undercharge and overcharge regions",
-          "data": { "cost": "Cost", "percentage": "Percentage" },
+        "partition": {
+          "title": "Configure {partition_name}",
+          "description": "Set the threshold and pricing for the {partition_name} zone.",
+          "data": {
+            "charge_price": "Charge price",
+            "discharge_price": "Discharge price",
+            "threshold_kwh": "Threshold"
+          },
           "sections": {
-            "overcharge": {
-              "data": { "cost": "Overcharge cost", "percentage": "Overcharge percentage" },
-              "name": "Overcharge settings"
-            },
-            "undercharge": {
-              "data": { "cost": "Undercharge cost", "percentage": "Undercharge percentage" },
-              "name": "Undercharge settings"
+            "zone": {
+              "data": {
+                "charge_price": "Charge price",
+                "discharge_price": "Discharge price",
+                "threshold_kwh": "Threshold"
+              },
+              "name": "Zone configuration"
             }
           }
         }
       },
-      "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" },
+      "error": {
+        "duplicate_names": "Zone names must be unique",
+        "missing_name": "Name is required",
+        "missing_zone_price": "At least one of charge price or discharge price must be set",
+        "name_exists": "A device with this name already exists"
+      },
       "abort": { "reconfigure_successful": "Configuration updated successfully" }
     },
     "battery_section": {

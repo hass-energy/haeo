@@ -31,10 +31,9 @@ from custom_components.haeo.sections import (
 ELEMENT_TYPE: Final = "battery"
 
 SECTION_STORAGE: Final = "storage"
-SECTION_UNDERCHARGE: Final = "undercharge"
-SECTION_OVERCHARGE: Final = "overcharge"
 SECTION_LIMITS: Final = "limits"
 SECTION_PARTITIONING: Final = "partitioning"
+SECTION_PARTITIONS: Final = "partitions"
 
 CONF_CAPACITY: Final = "capacity"
 CONF_INITIAL_CHARGE_PERCENTAGE: Final = "initial_charge_percentage"
@@ -43,8 +42,10 @@ CONF_MIN_CHARGE_PERCENTAGE: Final = "min_charge_percentage"
 CONF_MAX_CHARGE_PERCENTAGE: Final = "max_charge_percentage"
 CONF_CONFIGURE_PARTITIONS: Final = "configure_partitions"
 
-CONF_PARTITION_PERCENTAGE: Final = "percentage"
-CONF_PARTITION_COST: Final = "cost"
+CONF_PARTITION_NAMES: Final = "partition_names"
+CONF_THRESHOLD_KWH: Final = "threshold_kwh"
+CONF_CHARGE_PRICE: Final = "charge_price"
+CONF_DISCHARGE_PRICE: Final = "discharge_price"
 CONF_SALVAGE_VALUE: Final = "salvage_value"
 
 OPTIONAL_INPUT_FIELDS: Final[frozenset[str]] = frozenset(
@@ -57,17 +58,8 @@ OPTIONAL_INPUT_FIELDS: Final[frozenset[str]] = frozenset(
         CONF_EFFICIENCY_TARGET_SOURCE,
         CONF_PRICE_SOURCE_TARGET,
         CONF_PRICE_TARGET_SOURCE,
-        CONF_PARTITION_PERCENTAGE,
-        CONF_PARTITION_COST,
+        CONF_SALVAGE_VALUE,
     }
-)
-
-# Partition field names (hidden behind checkbox)
-PARTITION_FIELD_NAMES: Final[frozenset[str]] = frozenset(
-    (
-        CONF_PARTITION_PERCENTAGE,
-        CONF_PARTITION_COST,
-    )
 )
 
 
@@ -111,18 +103,20 @@ class PartitioningData(TypedDict, total=False):
     configure_partitions: bool
 
 
-class PartitionConfig(TypedDict, total=False):
-    """Partition configuration (undercharge/overcharge)."""
+class ZoneConfig(TypedDict):
+    """SOC pricing zone configuration."""
 
-    percentage: EntityValue | ConstantValue | NoneValue
-    cost: EntityValue | ConstantValue | NoneValue
+    threshold_kwh: EntityValue | ConstantValue
+    charge_price: NotRequired[EntityValue | ConstantValue | NoneValue]
+    discharge_price: NotRequired[EntityValue | ConstantValue | NoneValue]
 
 
-class PartitionData(TypedDict, total=False):
-    """Loaded partition values (undercharge/overcharge)."""
+class ZoneData(TypedDict):
+    """Loaded SOC pricing zone values."""
 
-    percentage: NDArray[np.floating[Any]] | float
-    cost: NDArray[np.floating[Any]] | float
+    threshold_kwh: NDArray[np.floating[Any]] | float
+    charge_price: NotRequired[NDArray[np.floating[Any]] | float]
+    discharge_price: NotRequired[NDArray[np.floating[Any]] | float]
 
 
 class BatteryPricingConfig(PricingConfig):
@@ -148,8 +142,7 @@ class BatteryConfigSchema(TypedDict):
     pricing: BatteryPricingConfig
     efficiency: EfficiencyConfig
     partitioning: PartitioningConfig
-    undercharge: NotRequired[PartitionConfig]
-    overcharge: NotRequired[PartitionConfig]
+    partitions: NotRequired[dict[str, ZoneConfig]]
 
 
 class BatteryConfigData(TypedDict):
@@ -163,38 +156,39 @@ class BatteryConfigData(TypedDict):
     pricing: BatteryPricingData
     efficiency: EfficiencyData
     partitioning: PartitioningData
-    undercharge: NotRequired[PartitionData]
-    overcharge: NotRequired[PartitionData]
+    partitions: NotRequired[dict[str, ZoneData]]
 
 
 __all__ = [
     "CONF_CAPACITY",
     "CONF_CONFIGURE_PARTITIONS",
     "CONF_CONNECTION",
+    "CONF_DISCHARGE_PRICE",
     "CONF_EFFICIENCY_SOURCE_TARGET",
     "CONF_EFFICIENCY_TARGET_SOURCE",
     "CONF_INITIAL_CHARGE_PERCENTAGE",
+    "CONF_CHARGE_PRICE",
     "CONF_MAX_CHARGE_PERCENTAGE",
     "CONF_MAX_POWER_SOURCE_TARGET",
     "CONF_MAX_POWER_TARGET_SOURCE",
     "CONF_MIN_CHARGE_PERCENTAGE",
-    "CONF_PARTITION_COST",
-    "CONF_PARTITION_PERCENTAGE",
+    "CONF_PARTITION_NAMES",
     "CONF_SALVAGE_VALUE",
+    "CONF_THRESHOLD_KWH",
     "ELEMENT_TYPE",
     "OPTIONAL_INPUT_FIELDS",
-    "PARTITION_FIELD_NAMES",
     "SECTION_COMMON",
     "SECTION_EFFICIENCY",
     "SECTION_LIMITS",
-    "SECTION_OVERCHARGE",
     "SECTION_PARTITIONING",
+    "SECTION_PARTITIONS",
     "SECTION_POWER_LIMITS",
     "SECTION_PRICING",
     "SECTION_STORAGE",
-    "SECTION_UNDERCHARGE",
     "BatteryConfigData",
     "BatteryConfigSchema",
     "BatteryPricingConfig",
     "BatteryPricingData",
+    "ZoneConfig",
+    "ZoneData",
 ]

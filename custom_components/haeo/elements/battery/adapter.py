@@ -34,19 +34,19 @@ from custom_components.haeo.sections import (
 
 from .schema import (
     CONF_CAPACITY,
+    CONF_CHARGE_PRICE,
+    CONF_DISCHARGE_PRICE,
     CONF_EFFICIENCY_SOURCE_TARGET,
     CONF_EFFICIENCY_TARGET_SOURCE,
     CONF_INITIAL_CHARGE_PERCENTAGE,
     CONF_MAX_CHARGE_PERCENTAGE,
     CONF_MIN_CHARGE_PERCENTAGE,
-    CONF_PARTITION_COST,
-    CONF_PARTITION_PERCENTAGE,
     CONF_SALVAGE_VALUE,
+    CONF_THRESHOLD_KWH,
     ELEMENT_TYPE,
     SECTION_LIMITS,
-    SECTION_OVERCHARGE,
+    SECTION_PARTITIONS,
     SECTION_STORAGE,
-    SECTION_UNDERCHARGE,
     BatteryConfigData,
 )
 
@@ -87,6 +87,8 @@ BATTERY_OUTPUT_NAMES: Final[frozenset[BatteryOutputName]] = frozenset(
 type BatteryDeviceName = Literal["battery"]
 
 BATTERY_DEVICE_NAMES: Final[frozenset[BatteryDeviceName]] = frozenset((BATTERY_DEVICE_BATTERY := "battery",))
+
+SECTION_ZONE: Final = "zone"
 
 
 class BatteryAdapter:
@@ -274,17 +276,11 @@ class BatteryAdapter:
                     defaults=InputFieldDefaults(mode=None, value=0.0),
                 ),
             },
-            SECTION_UNDERCHARGE: _partition_input_fields(
-                percentage_default=0,
-                cost_default=0,
-                cost_direction="-",
-            ),
-            SECTION_OVERCHARGE: _partition_input_fields(
-                percentage_default=100,
-                cost_default=0,
-                cost_direction="-",
-            ),
         }
+
+    def zone_inputs(self) -> dict[str, dict[str, InputFieldInfo[Any]]]:
+        """Return input field definitions for SOC zone configuration."""
+        return {SECTION_ZONE: _zone_input_fields()}
 
     def model_elements(self, config: BatteryConfigData) -> list[ModelElementConfig]:
         """Create model elements for Battery configuration.
@@ -297,8 +293,7 @@ class BatteryAdapter:
         power_limits = config[SECTION_POWER_LIMITS]
         pricing = config[SECTION_PRICING]
         efficiency_section = config[SECTION_EFFICIENCY]
-        undercharge = config.get(SECTION_UNDERCHARGE, {})
-        overcharge = config.get(SECTION_OVERCHARGE, {})
+        partitions = config.get(SECTION_PARTITIONS, {})
 
         name = common["name"]
         elements: list[ModelElementConfig] = []
@@ -315,13 +310,8 @@ class BatteryAdapter:
         efficiency_source_target = efficiency_section.get(CONF_EFFICIENCY_SOURCE_TARGET)
         efficiency_target_source = efficiency_section.get(CONF_EFFICIENCY_TARGET_SOURCE)
 
-        undercharge_cost = undercharge.get(CONF_PARTITION_COST)
-        overcharge_cost = overcharge.get(CONF_PARTITION_COST)
-        undercharge_percentage = undercharge.get(CONF_PARTITION_PERCENTAGE) if undercharge_cost is not None else None
-        overcharge_percentage = overcharge.get(CONF_PARTITION_PERCENTAGE) if overcharge_cost is not None else None
-
-        lower_ratio = undercharge_percentage if undercharge_percentage is not None else min_charge_percentage
-        upper_ratio = overcharge_percentage if overcharge_percentage is not None else max_charge_percentage
+        lower_ratio = min_charge_percentage
+        upper_ratio = max_charge_percentage
 
         lower_ratio_first = float(lower_ratio[0]) if isinstance(lower_ratio, np.ndarray) else float(lower_ratio)
 
@@ -348,34 +338,6 @@ class BatteryAdapter:
         max_discharge = power_limits.get(CONF_MAX_POWER_SOURCE_TARGET)
         max_charge = power_limits.get(CONF_MAX_POWER_TARGET_SOURCE)
 
-        soc_pricing_spec: SocPricingSegmentSpec | None = None
-        if undercharge_percentage is not None and undercharge_cost is not None:
-            min_ratio_series = broadcast_to_sequence(min_charge_percentage, n_periods + 1)[1:]
-            lower_ratio_series = broadcast_to_sequence(lower_ratio, n_periods + 1)[1:]
-            discharge_energy_threshold = (min_ratio_series - lower_ratio_series) * capacity[1:]
-            soc_pricing_spec = {
-                "segment_type": "soc_pricing",
-                "discharge_energy_threshold": discharge_energy_threshold,
-                "discharge_energy_price": undercharge_cost,
-            }
-
-        if overcharge_percentage is not None and overcharge_cost is not None:
-            max_ratio_series = broadcast_to_sequence(max_charge_percentage, n_periods + 1)[1:]
-            lower_ratio_series = broadcast_to_sequence(lower_ratio, n_periods + 1)[1:]
-            charge_capacity_threshold = (max_ratio_series - lower_ratio_series) * capacity[1:]
-            if soc_pricing_spec is None:
-                soc_pricing_spec = {
-                    "segment_type": "soc_pricing",
-                    "charge_capacity_threshold": charge_capacity_threshold,
-                    "charge_capacity_price": overcharge_cost,
-                }
-            else:
-                soc_pricing_spec = {
-                    **soc_pricing_spec,
-                    "charge_capacity_threshold": charge_capacity_threshold,
-                    "charge_capacity_price": overcharge_cost,
-                }
-
         segments: dict[str, SegmentSpec] = {
             "power_limit": {
                 "segment_type": "power_limit",
@@ -393,8 +355,36 @@ class BatteryAdapter:
                 "efficiency_target_source": efficiency_target_source,  # Network to battery (charge)
             },
         }
-        if soc_pricing_spec is not None:
-            segments["soc_pricing"] = soc_pricing_spec
+
+        if isinstance(partitions, dict) and partitions:
+            min_ratio_series = broadcast_to_sequence(min_charge_percentage, n_periods + 1)[1:]
+            min_energy_offset = min_ratio_series * capacity[1:]
+            for zone_name, zone in partitions.items():
+                if not isinstance(zone, dict):
+                    continue
+                threshold_kwh = zone.get(CONF_THRESHOLD_KWH)
+                if threshold_kwh is None:
+                    continue
+                charge_price = zone.get(CONF_CHARGE_PRICE)
+                discharge_price = zone.get(CONF_DISCHARGE_PRICE)
+                if charge_price is None and discharge_price is None:
+                    continue
+
+                threshold_series = broadcast_to_sequence(threshold_kwh, n_periods)
+                if threshold_series is None:
+                    continue
+                threshold_model = threshold_series - min_energy_offset
+
+                spec: SocPricingSegmentSpec = {
+                    "segment_type": "soc_pricing",
+                    "threshold": threshold_model,
+                }
+                if charge_price is not None:
+                    spec["charge_price"] = charge_price
+                if discharge_price is not None:
+                    spec["discharge_price"] = discharge_price
+
+                segments[f"soc_pricing_{zone_name}"] = spec
 
         elements.append(
             {
@@ -492,43 +482,50 @@ def _build_discharge_pricing(
     return base + discharge_incentive
 
 
-def _partition_input_fields(
-    *,
-    percentage_default: int,
-    cost_default: int,
-    cost_direction: str,
-) -> dict[str, InputFieldInfo[Any]]:
-    """Build shared input field definitions for partition sections."""
+def _zone_input_fields() -> dict[str, InputFieldInfo[Any]]:
+    """Build input field definitions for SOC pricing zones."""
     return {
-        CONF_PARTITION_PERCENTAGE: InputFieldInfo(
-            field_name=CONF_PARTITION_PERCENTAGE,
+        CONF_THRESHOLD_KWH: InputFieldInfo(
+            field_name=CONF_THRESHOLD_KWH,
             entity_description=NumberEntityDescription(
-                key=CONF_PARTITION_PERCENTAGE,
-                translation_key=f"{ELEMENT_TYPE}_{CONF_PARTITION_PERCENTAGE}",
-                native_unit_of_measurement=PERCENTAGE,
-                device_class=NumberDeviceClass.BATTERY,
+                key=CONF_THRESHOLD_KWH,
+                translation_key=f"{ELEMENT_TYPE}_{CONF_THRESHOLD_KWH}",
+                native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
+                device_class=NumberDeviceClass.ENERGY_STORAGE,
                 native_min_value=0.0,
-                native_max_value=100.0,
-                native_step=1.0,
+                native_max_value=1000.0,
+                native_step=0.1,
             ),
-            output_type=OutputType.STATE_OF_CHARGE,
+            output_type=OutputType.ENERGY,
             time_series=True,
-            boundaries=True,
-            defaults=InputFieldDefaults(mode="value", value=percentage_default),
+            boundaries=False,
+            defaults=InputFieldDefaults(mode="value", value=0.0),
         ),
-        CONF_PARTITION_COST: InputFieldInfo(
-            field_name=CONF_PARTITION_COST,
+        CONF_CHARGE_PRICE: InputFieldInfo(
+            field_name=CONF_CHARGE_PRICE,
             entity_description=NumberEntityDescription(
-                key=CONF_PARTITION_COST,
-                translation_key=f"{ELEMENT_TYPE}_{CONF_PARTITION_COST}",
-                native_min_value=0.0,
+                key=CONF_CHARGE_PRICE,
+                translation_key=f"{ELEMENT_TYPE}_{CONF_CHARGE_PRICE}",
+                native_min_value=-1.0,
                 native_max_value=10.0,
                 native_step=0.001,
             ),
             output_type=OutputType.PRICE,
-            direction=cost_direction,
             time_series=True,
-            defaults=InputFieldDefaults(mode="value", value=cost_default),
+            defaults=InputFieldDefaults(mode="value", value=0.0),
+        ),
+        CONF_DISCHARGE_PRICE: InputFieldInfo(
+            field_name=CONF_DISCHARGE_PRICE,
+            entity_description=NumberEntityDescription(
+                key=CONF_DISCHARGE_PRICE,
+                translation_key=f"{ELEMENT_TYPE}_{CONF_DISCHARGE_PRICE}",
+                native_min_value=-1.0,
+                native_max_value=10.0,
+                native_step=0.001,
+            ),
+            output_type=OutputType.PRICE,
+            time_series=True,
+            defaults=InputFieldDefaults(mode="value", value=0.0),
         ),
     }
 
@@ -543,10 +540,7 @@ def _calculate_total_energy(aggregate_energy: OutputData, config: BatteryConfigD
         CONF_MIN_CHARGE_PERCENTAGE,
         DEFAULTS[CONF_MIN_CHARGE_PERCENTAGE],
     )
-    undercharge = config.get(SECTION_UNDERCHARGE, {})
-    undercharge_cost = undercharge.get(CONF_PARTITION_COST)
-    undercharge_pct = undercharge.get(CONF_PARTITION_PERCENTAGE) if undercharge_cost is not None else None
-    unusable_ratio = undercharge_pct if undercharge_pct is not None else min_charge_percentage
+    unusable_ratio = min_charge_percentage
 
     # Both energy values and capacity/ratios are now boundaries (n+1 values)
     inaccessible_energy = unusable_ratio * capacity
