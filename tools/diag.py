@@ -177,6 +177,36 @@ def load_sensors(
     return payloads
 
 
+def _needs_subentry_migration(element_config: dict[str, Any]) -> bool:
+    """Return True when a participant config looks legacy or mixed."""
+    if SECTION_COMMON not in element_config:
+        return True
+
+    for key, value in element_config.items():
+        if key == CONF_ELEMENT_TYPE:
+            continue
+        # Sectioned configs should store section payloads as dictionaries.
+        if not isinstance(value, dict):
+            return True
+
+    return False
+
+
+def normalize_participant_config_for_diag(element_name: str, element_config: dict[str, Any]) -> dict[str, Any]:
+    """Normalize a participant config to sectioned format for diagnostics CLI."""
+    if not _needs_subentry_migration(element_config):
+        return element_config
+
+    subentry = ConfigSubentry(
+        data=MappingProxyType(element_config),
+        subentry_type=element_config.get(CONF_ELEMENT_TYPE, ""),
+        title=element_name,
+        unique_id=None,
+    )
+    migrated = migrate_subentry_data(subentry)
+    return migrated if migrated is not None else element_config
+
+
 def load_element_data(
     element_name: str,
     element_config: dict[str, Any],
@@ -338,6 +368,45 @@ def get_forecast_by_field(outputs: dict[str, Any], element_name: str, field_or_o
     return {item["time"]: item["value"] for item in forecast}
 
 
+def get_forecast_by_fields(
+    outputs: dict[str, Any],
+    element_name: str,
+    field_or_output_names: Sequence[str],
+) -> dict[str, float]:
+    """Extract forecast values using multiple field/output aliases, in order."""
+    for field_or_output_name in field_or_output_names:
+        values = get_forecast_by_field(outputs, element_name, field_or_output_name)
+        if values:
+            return values
+    return {}
+
+
+def infer_interval_starts_from_outputs(outputs: dict[str, Any], config: dict[str, Any]) -> list[float]:
+    """Infer interval start timestamps from diagnostics outputs."""
+    participants = config.get("participants", {})
+    grid_name = next((name for name, cfg in participants.items() if cfg.get("element_type") == "grid"), "Grid")
+    battery_name = next((name for name, cfg in participants.items() if cfg.get("element_type") == "battery"), "Battery")
+    load_name = next((name for name, cfg in participants.items() if cfg.get("element_type") == "load"), "Load")
+    solar_name = next((name for name, cfg in participants.items() if cfg.get("element_type") == "solar"), "Solar")
+
+    candidates = (
+        get_forecast_by_field(outputs, grid_name, "grid_power_active"),
+        get_forecast_by_field(outputs, grid_name, "grid_cost_net"),
+        get_forecast_by_fields(outputs, grid_name, ("price_source_target", "import_price")),
+        get_forecast_by_field(outputs, battery_name, "battery_power_active"),
+        get_forecast_by_field(outputs, load_name, "load_power"),
+        get_forecast_by_field(outputs, solar_name, "solar_power"),
+    )
+
+    for series in candidates:
+        if len(series) < 2:
+            continue
+        timestamps = sorted(parse_datetime_to_timestamp(time_str) for time_str in series)
+        if len(timestamps) >= 2:
+            return [float(timestamp) for timestamp in timestamps]
+    return []
+
+
 def get_forecast_values(outputs: dict[str, Any], entity_id: str) -> dict[str, float]:
     """Extract forecast values from a diagnostics output entity by entity_id.
 
@@ -364,8 +433,8 @@ def format_output_table_from_diagnostics(outputs: dict[str, Any], timezone_str: 
 
     # Extract forecast data using element_name and field_name/output_name attributes
     # Prices use field_name (number.* entities), sensors use output_name (sensor.* entities)
-    buy_prices = get_forecast_by_field(outputs, grid_name, "price_source_target")
-    sell_prices = get_forecast_by_field(outputs, grid_name, "price_target_source")
+    buy_prices = get_forecast_by_fields(outputs, grid_name, ("price_source_target", "import_price"))
+    sell_prices = get_forecast_by_fields(outputs, grid_name, ("price_target_source", "export_price"))
     battery_power = get_forecast_by_field(outputs, battery_name, "battery_power_active")
     grid_power = get_forecast_by_field(outputs, grid_name, "grid_power_active")
     load_power = get_forecast_by_field(outputs, load_name, "load_power")
@@ -600,8 +669,8 @@ def extract_rows_from_diagnostics(outputs: dict[str, Any], _timezone_str: str, c
 
     # Extract forecast data using element_name and field_name/output_name attributes
     # Prices use field_name (number.* entities), sensors use output_name (sensor.* entities)
-    buy_prices = get_forecast_by_field(outputs, grid_name, "price_source_target")
-    sell_prices = get_forecast_by_field(outputs, grid_name, "price_target_source")
+    buy_prices = get_forecast_by_fields(outputs, grid_name, ("price_source_target", "import_price"))
+    sell_prices = get_forecast_by_fields(outputs, grid_name, ("price_target_source", "export_price"))
     battery_power = get_forecast_by_field(outputs, battery_name, "battery_power_active")
     grid_power = get_forecast_by_field(outputs, grid_name, "grid_power_active")
     load_power = get_forecast_by_field(outputs, load_name, "load_power")
@@ -776,11 +845,20 @@ def format_comparison_table(
     ansi_invert = "\033[7m"
     ansi_reset = "\033[0m"
 
-    def highlight_if_diff(diag_str: str, rerun_str: str) -> str:
+    def highlight_if_diff(diag_str: str, rerun_str: str, *, comparable: bool) -> str:
         """Highlight rerun value if its formatted string differs from diagnostics."""
-        if diag_str != rerun_str:
+        if comparable and diag_str != rerun_str:
             return f"{ansi_invert}{rerun_str}{ansi_reset}"
         return rerun_str
+
+    def fmt_2(value: float | None) -> str:
+        return f"{value:.2f}" if value is not None else "N/A"
+
+    def fmt_1(value: float | None) -> str:
+        return f"{value:.1f}" if value is not None else "N/A"
+
+    def fmt_currency(value: float | None) -> str:
+        return format_currency(value) if value is not None else "N/A"
 
     # Match rows by timestamp
     diag_by_ts = {r.timestamp: r for r in diag_rows}
@@ -807,75 +885,77 @@ def format_comparison_table(
 
     rows: list[list[str]] = []
     total_diffs = {"battery": 0.0, "grid": 0.0, "soc": 0.0, "profit": 0.0}
-    diff_count = 0
+    overlap_count = 0
 
     for ts in all_timestamps:
         d = diag_by_ts.get(ts)
         r = rerun_by_ts.get(ts)
 
         time_str = d.time if d else (r.time if r else "??:??")
+        is_overlap = d is not None and r is not None
 
         # Get values or defaults
-        d_buy = d.buy if d else 0.0
-        d_sell = d.sell if d else 0.0
-        d_battery = d.battery if d else 0.0
-        d_grid = d.grid if d else 0.0
-        d_soc = d.soc if d else 0.0
-        d_profit = d.profit if d else 0.0
+        d_buy = d.buy if d else None
+        d_sell = d.sell if d else None
+        d_battery = d.battery if d else None
+        d_grid = d.grid if d else None
+        d_soc = d.soc if d else None
+        d_profit = d.profit if d else None
 
-        r_buy = r.buy if r else 0.0
-        r_sell = r.sell if r else 0.0
-        r_battery = r.battery if r else 0.0
-        r_grid = r.grid if r else 0.0
-        r_soc = r.soc if r else 0.0
-        r_profit = r.profit if r else 0.0
+        r_buy = r.buy if r else None
+        r_sell = r.sell if r else None
+        r_battery = r.battery if r else None
+        r_grid = r.grid if r else None
+        r_soc = r.soc if r else None
+        r_profit = r.profit if r else None
 
-        # Track totals for summary
-        total_diffs["battery"] += abs(r_battery - d_battery)
-        total_diffs["grid"] += abs(r_grid - d_grid)
-        total_diffs["soc"] += abs(r_soc - d_soc)
-        total_diffs["profit"] += abs(r_profit - d_profit)
-        diff_count += 1
+        # Track totals for summary using only overlapping rows.
+        if d is not None and r is not None:
+            total_diffs["battery"] += abs(r.battery - d.battery)
+            total_diffs["grid"] += abs(r.grid - d.grid)
+            total_diffs["soc"] += abs(r.soc - d.soc)
+            total_diffs["profit"] += abs(r.profit - d.profit)
+            overlap_count += 1
 
         # Format values
-        d_buy_str = f"{d_buy:.2f}"
-        r_buy_str = f"{r_buy:.2f}"
-        d_sell_str = f"{d_sell:.2f}"
-        r_sell_str = f"{r_sell:.2f}"
-        d_batt_str = f"{d_battery:.1f}"
-        r_batt_str = f"{r_battery:.1f}"
-        d_grid_str = f"{d_grid:.1f}"
-        r_grid_str = f"{r_grid:.1f}"
-        d_soc_str = f"{d_soc:.1f}"
-        r_soc_str = f"{r_soc:.1f}"
-        d_profit_str = format_currency(d_profit)
-        r_profit_str = format_currency(r_profit)
+        d_buy_str = fmt_2(d_buy)
+        r_buy_str = fmt_2(r_buy)
+        d_sell_str = fmt_2(d_sell)
+        r_sell_str = fmt_2(r_sell)
+        d_batt_str = fmt_1(d_battery)
+        r_batt_str = fmt_1(r_battery)
+        d_grid_str = fmt_1(d_grid)
+        r_grid_str = fmt_1(r_grid)
+        d_soc_str = fmt_1(d_soc)
+        r_soc_str = fmt_1(r_soc)
+        d_profit_str = fmt_currency(d_profit)
+        r_profit_str = fmt_currency(r_profit)
 
         # Build row, highlighting rerun values if different
         rows.append(
             [
                 time_str,
                 d_buy_str,
-                highlight_if_diff(d_buy_str, r_buy_str),
+                highlight_if_diff(d_buy_str, r_buy_str, comparable=is_overlap),
                 d_sell_str,
-                highlight_if_diff(d_sell_str, r_sell_str),
+                highlight_if_diff(d_sell_str, r_sell_str, comparable=is_overlap),
                 d_batt_str,
-                highlight_if_diff(d_batt_str, r_batt_str),
+                highlight_if_diff(d_batt_str, r_batt_str, comparable=is_overlap),
                 d_grid_str,
-                highlight_if_diff(d_grid_str, r_grid_str),
+                highlight_if_diff(d_grid_str, r_grid_str, comparable=is_overlap),
                 d_soc_str,
-                highlight_if_diff(d_soc_str, r_soc_str),
+                highlight_if_diff(d_soc_str, r_soc_str, comparable=is_overlap),
                 d_profit_str,
-                highlight_if_diff(d_profit_str, r_profit_str),
+                highlight_if_diff(d_profit_str, r_profit_str, comparable=is_overlap),
             ]
         )
 
     # Summary
-    avg_diffs = {k: v / diff_count if diff_count > 0 else 0.0 for k, v in total_diffs.items()}
+    avg_diffs = {k: v / overlap_count if overlap_count > 0 else 0.0 for k, v in total_diffs.items()}
 
     result_parts: list[str] = [
         f"\nHAEO Comparison: Diagnostics (D) vs Rerun (R) [{timezone_str}]",
-        f"Rows compared: {len(rows)}",
+        f"Rows compared: {overlap_count} overlap / {len(rows)} total",
         f"Mean absolute differences: Battery={avg_diffs['battery']:.2f}kW, "
         f"Grid={avg_diffs['grid']:.2f}kW, SoC={avg_diffs['soc']:.2f}%, "
         f"Profit=${avg_diffs['profit']:.3f}",
@@ -972,14 +1052,54 @@ def run_diagnostics(
         if start_dt is None:
             start_dt = datetime.fromisoformat(timestamp_str) if timestamp_str else None
 
-    # Use forecast_timestamps from environment if available (for exact reproducibility)
-    # Otherwise fall back to generating from tier config (backward compatibility)
+    # Build forecast timeline.
+    # Priority:
+    # 1) environment.forecast_timestamps for exact reproducibility,
+    # 2) in compare mode, infer interval starts from diagnostics outputs,
+    # 3) otherwise generate from tier config.
+    periods_seconds: list[int] = []
+    forecast_times: tuple[float, ...] = ()
+
     if "forecast_timestamps" in environment:
         forecast_times = tuple(environment["forecast_timestamps"])
         # Derive periods_seconds from the actual forecast timestamps
         periods_seconds = [int(forecast_times[i + 1] - forecast_times[i]) for i in range(len(forecast_times) - 1)]
         print(f"Optimization periods: {len(periods_seconds)} intervals (from diagnostics)")
         print(f"Forecast horizon: {len(forecast_times)} boundaries (from diagnostics)")
+    elif compare and diag.outputs:
+        interval_starts = infer_interval_starts_from_outputs(diag.outputs, config)
+        if len(interval_starts) >= 2:
+            periods_seconds = [
+                round(interval_starts[i + 1] - interval_starts[i]) for i in range(len(interval_starts) - 1)
+            ]
+            if periods_seconds and all(period > 0 for period in periods_seconds):
+                # Interval-start series has n starts for n intervals; append the last step.
+                last_step = periods_seconds[-1]
+                periods_seconds.append(last_step)
+                forecast_times = (*interval_starts, interval_starts[-1] + last_step)
+                print(f"Optimization periods: {len(periods_seconds)} intervals (from diagnostics outputs)")
+                print(f"Forecast horizon: {len(forecast_times)} boundaries (from diagnostics outputs)")
+                if preset:
+                    print("Ignoring preset override in compare mode to preserve diagnostics alignment")
+            else:
+                interval_starts = []
+        if len(interval_starts) < 2:
+            print("Warning: Could not infer output-aligned timeline, falling back to config tiers")
+            # Apply preset override if provided via CLI
+            effective_config = dict(config)
+            if preset:
+                effective_config["horizon_preset"] = preset
+                print(f"Using preset override: {preset}")
+            periods_seconds = tiers_to_periods_seconds(effective_config, start_time=start_dt)
+            print(f"Optimization periods: {len(periods_seconds)} intervals (from config)")
+
+            if not periods_seconds:
+                print("Error: No periods configured")
+                sys.exit(1)
+
+            effective_start = start_dt.timestamp() if start_dt else start_time
+            forecast_times = generate_forecast_timestamps(periods_seconds, effective_start)
+            print(f"Forecast horizon: {len(forecast_times)} boundaries (generated)")
     else:
         # Apply preset override if provided via CLI
         effective_config = dict(config)
@@ -997,18 +1117,15 @@ def run_diagnostics(
         forecast_times = generate_forecast_timestamps(periods_seconds, effective_start)
         print(f"Forecast horizon: {len(forecast_times)} boundaries (generated)")
 
-    # Migrate flat (legacy) participant configs to sectioned format
+    if not periods_seconds or not forecast_times:
+        print("Error: Failed to build forecast timeline")
+        sys.exit(1)
+
+    # Normalize participant config shape before loading values:
+    # - migration handles legacy/mixed config layout
+    # - load_element_data handles schema value unwrapping and sensor resolution
     for element_name, element_config in list(participants_config.items()):
-        if SECTION_COMMON not in element_config:
-            subentry = ConfigSubentry(
-                data=MappingProxyType(element_config),
-                subentry_type=element_config.get(CONF_ELEMENT_TYPE, ""),
-                title=element_name,
-                unique_id=None,
-            )
-            migrated = migrate_subentry_data(subentry)
-            if migrated is not None:
-                participants_config[element_name] = migrated
+        participants_config[element_name] = normalize_participant_config_for_diag(element_name, element_config)
 
     # Create state provider from inputs (uses HAEO extractors)
     state_provider = DiagnosticsStateProvider(diag.inputs)
