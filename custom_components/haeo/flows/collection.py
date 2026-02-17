@@ -21,6 +21,7 @@ def build_collection_names_schema(text_label: str) -> vol.Schema:
 
     Returns:
         A voluptuous schema containing a single multiline text field.
+
     """
 
     return vol.Schema({vol.Required(text_label): TextSelector(TextSelectorConfig(multiline=True))})
@@ -38,6 +39,7 @@ def parse_collection_names(text: str) -> list[str]:
 
     Returns:
         List of cleaned names in the order provided.
+
     """
 
     return [line.strip() for line in text.splitlines() if line.strip()]
@@ -52,6 +54,7 @@ def validate_collection_names(names: Sequence[str]) -> dict[str, str] | None:
 
     Returns:
         None when valid, otherwise an errors mapping suitable for config flows.
+
     """
 
     if not names:
@@ -71,4 +74,3 @@ __all__ = [
     "parse_collection_names",
     "validate_collection_names",
 ]
-

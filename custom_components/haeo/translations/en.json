@@ -152,19 +152,19 @@
           "title": "Configure {partition_name}",
           "description": "Set the threshold, violation pricing, and optional movement pricing for the {partition_name} zone.",
           "data": {
-            "charge_violation_price": "Charge violation price",
-            "discharge_violation_price": "Discharge violation price",
             "charge_price": "Charge movement price",
+            "charge_violation_price": "Charge violation price",
             "discharge_price": "Discharge movement price",
+            "discharge_violation_price": "Discharge violation price",
             "threshold_kwh": "Threshold"
           },
           "sections": {
             "zone": {
               "data": {
-                "charge_violation_price": "Charge violation price",
-                "discharge_violation_price": "Discharge violation price",
                 "charge_price": "Charge movement price",
+                "charge_violation_price": "Charge violation price",
                 "discharge_price": "Discharge movement price",
+                "discharge_violation_price": "Discharge violation price",
                 "threshold_kwh": "Threshold"
               },
               "name": "Zone configuration"

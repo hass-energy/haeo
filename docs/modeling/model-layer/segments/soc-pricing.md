@@ -12,25 +12,25 @@ This keeps the formulation linear (LP), while giving practical control over both
 
 ### Parameters
 
-| Parameter | Description | Units |
-| --- | --- | --- |
-| $E_{thr}(t)$ | SOC threshold (model coordinate) | kWh |
-| $c_{dis}^{inv}(t)$ | Below-threshold inventory price | \$/kWh |
-| $c_{chg}^{inv}(t)$ | Above-threshold inventory price | \$/kWh |
-| $c_{dis}^{mov}(t)$ | Discharge movement price | \$/kWh |
-| $c_{chg}^{mov}(t)$ | Charge movement price | \$/kWh |
-| $E_{stored}(t)$ | Battery stored energy | kWh |
+| Parameter          | Description                      | Units  |
+| ------------------ | -------------------------------- | ------ |
+| $E_{thr}(t)$       | SOC threshold (model coordinate) | kWh    |
+| $c_{dis}^{inv}(t)$ | Below-threshold inventory price  | \$/kWh |
+| $c_{chg}^{inv}(t)$ | Above-threshold inventory price  | \$/kWh |
+| $c_{dis}^{mov}(t)$ | Discharge movement price         | \$/kWh |
+| $c_{chg}^{mov}(t)$ | Charge movement price            | \$/kWh |
+| $E_{stored}(t)$    | Battery stored energy            | kWh    |
 
 ### Decision variables
 
-| Variable | Domain | Description |
-| --- | --- | --- |
-| $S_{dis}(t)$ | $\mathbb{R}_{\geq 0}$ | Below-threshold slack (violation depth) |
-| $S_{chg}(t)$ | $\mathbb{R}_{\geq 0}$ | Above-threshold slack (violation depth) |
+| Variable     | Domain                | Description                                           |
+| ------------ | --------------------- | ----------------------------------------------------- |
+| $S_{dis}(t)$ | $\mathbb{R}_{\geq 0}$ | Below-threshold slack (violation depth)               |
+| $S_{chg}(t)$ | $\mathbb{R}_{\geq 0}$ | Above-threshold slack (violation depth)               |
 | $U_{dis}(t)$ | $\mathbb{R}_{\geq 0}$ | Movement entering/deepening below-threshold violation |
-| $V_{dis}(t)$ | $\mathbb{R}_{\geq 0}$ | Movement recovering below-threshold violation |
+| $V_{dis}(t)$ | $\mathbb{R}_{\geq 0}$ | Movement recovering below-threshold violation         |
 | $U_{chg}(t)$ | $\mathbb{R}_{\geq 0}$ | Movement entering/deepening above-threshold violation |
-| $V_{chg}(t)$ | $\mathbb{R}_{\geq 0}$ | Movement recovering above-threshold violation |
+| $V_{chg}(t)$ | $\mathbb{R}_{\geq 0}$ | Movement recovering above-threshold violation         |
 
 Movement variables are created only when movement pricing is configured.
 

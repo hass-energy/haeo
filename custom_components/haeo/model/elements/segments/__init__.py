@@ -37,11 +37,7 @@ type SegmentType = Literal["efficiency", "passthrough", "power_limit", "pricing"
 
 # Union type for all segment specifications
 type SegmentSpec = (
-    EfficiencySegmentSpec
-    | PassthroughSegmentSpec
-    | PowerLimitSegmentSpec
-    | PricingSegmentSpec
-    | SocPricingSegmentSpec
+    EfficiencySegmentSpec | PassthroughSegmentSpec | PowerLimitSegmentSpec | PricingSegmentSpec | SocPricingSegmentSpec
 )
 
 

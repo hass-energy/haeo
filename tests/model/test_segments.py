@@ -366,5 +366,3 @@ def test_soc_pricing_cost_none_without_prices() -> None:
     )
 
     assert segment.cost() is None
-
-

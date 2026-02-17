@@ -78,7 +78,9 @@ class SocPricingSegment(Segment):
         if self._below_slack is not None and (
             self._discharge_movement_price is not None or self._charge_movement_price is not None
         ):
-            self._below_enter = solver.addVariables(n_periods, lb=0, name_prefix=f"{segment_id}_below_enter_", out_array=True)
+            self._below_enter = solver.addVariables(
+                n_periods, lb=0, name_prefix=f"{segment_id}_below_enter_", out_array=True
+            )
             self._below_recover = solver.addVariables(
                 n_periods, lb=0, name_prefix=f"{segment_id}_below_recover_", out_array=True
             )
@@ -88,7 +90,9 @@ class SocPricingSegment(Segment):
         if self._above_slack is not None and (
             self._charge_movement_price is not None or self._discharge_movement_price is not None
         ):
-            self._above_enter = solver.addVariables(n_periods, lb=0, name_prefix=f"{segment_id}_above_enter_", out_array=True)
+            self._above_enter = solver.addVariables(
+                n_periods, lb=0, name_prefix=f"{segment_id}_above_enter_", out_array=True
+            )
             self._above_recover = solver.addVariables(
                 n_periods, lb=0, name_prefix=f"{segment_id}_above_recover_", out_array=True
             )

@@ -442,17 +442,20 @@ def test_model_elements_multiple_zones_add_soc_pricing_segments() -> None:
     reserve = segments.get("soc_pricing_Reserve")
     assert reserve is not None
     assert reserve.get("segment_type") == "soc_pricing"
-    assert reserve.get("threshold") is not None
+    reserve_threshold = reserve.get("threshold")
+    assert reserve_threshold is not None
     # 2.0kWh threshold, 10% min SOC => model threshold = 2.0 - 1.0 = 1.0
-    np.testing.assert_allclose(reserve["threshold"], np.array([1.0, 1.0]))
+    np.testing.assert_allclose(reserve_threshold, np.array([1.0, 1.0]))
     assert reserve.get("discharge_movement_price") is not None
     assert reserve.get("charge_movement_price") is None
 
     headroom = segments.get("soc_pricing_Headroom")
     assert headroom is not None
     assert headroom.get("segment_type") == "soc_pricing"
+    headroom_threshold = headroom.get("threshold")
+    assert headroom_threshold is not None
     # 8.0kWh threshold, 10% min SOC => model threshold = 8.0 - 1.0 = 7.0
-    np.testing.assert_allclose(headroom["threshold"], np.array([7.0, 7.0]))
+    np.testing.assert_allclose(headroom_threshold, np.array([7.0, 7.0]))
     assert headroom.get("charge_movement_price") is not None
     assert headroom.get("discharge_movement_price") is None
 

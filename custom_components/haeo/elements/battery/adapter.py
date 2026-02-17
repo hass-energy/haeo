@@ -358,15 +358,11 @@ class BatteryAdapter:
             },
         }
 
-        if isinstance(partitions, dict) and partitions:
+        if partitions:
             min_ratio_series = broadcast_to_sequence(min_charge_percentage, n_periods + 1)[1:]
             min_energy_offset = min_ratio_series * capacity[1:]
             for zone_name, zone in partitions.items():
-                if not isinstance(zone, dict):
-                    continue
-                threshold_kwh = zone.get(CONF_THRESHOLD_KWH)
-                if threshold_kwh is None:
-                    continue
+                threshold_kwh = zone[CONF_THRESHOLD_KWH]
                 charge_violation_price = zone.get(CONF_CHARGE_VIOLATION_PRICE)
                 discharge_violation_price = zone.get(CONF_DISCHARGE_VIOLATION_PRICE)
                 charge_price = _nonzero_series(zone.get(CONF_CHARGE_PRICE), n_periods)
@@ -374,15 +370,12 @@ class BatteryAdapter:
                 if (
                     charge_violation_price is None
                     and discharge_violation_price is None
-                    and
-                    charge_price is None
+                    and charge_price is None
                     and discharge_price is None
                 ):
                     continue
 
                 threshold_series = broadcast_to_sequence(threshold_kwh, n_periods)
-                if threshold_series is None:
-                    continue
                 threshold_model = threshold_series - min_energy_offset
 
                 spec: SocPricingSegmentSpec = {
@@ -504,8 +497,6 @@ def _nonzero_series(
     if value is None:
         return None
     values = broadcast_to_sequence(value, n_periods)
-    if values is None:
-        return None
     if not np.any(values):
         return None
     return values

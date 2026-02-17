@@ -162,16 +162,12 @@ async def test_partition_flow_two_zones_creates_entry(hass: HomeAssistant, hub_e
     assert result.get("step_id") == "partition"
 
     # Reserve
-    result = await flow.async_step_partition(
-        user_input=_wrap_zone_input(threshold_kwh=2.0, discharge_violation_price=0.2, charge_price=0.05)
-    )
+    result = await flow.async_step_partition(user_input=_wrap_zone_input(threshold_kwh=2.0, discharge_violation_price=0.2, charge_price=0.05))
     assert result.get("type") == FlowResultType.FORM
     assert result.get("step_id") == "partition"
 
     # Headroom
-    result = await flow.async_step_partition(
-        user_input=_wrap_zone_input(threshold_kwh=8.0, charge_violation_price=0.1, discharge_price=0.04)
-    )
+    result = await flow.async_step_partition(user_input=_wrap_zone_input(threshold_kwh=8.0, charge_violation_price=0.1, discharge_price=0.04))
     assert result.get("type") == FlowResultType.CREATE_ENTRY
 
     created_data = flow.async_create_entry.call_args.kwargs["data"]
@@ -214,4 +210,3 @@ async def test_partition_zone_requires_price(hass: HomeAssistant, hub_entry: Moc
     assert result.get("type") == FlowResultType.FORM
     assert result.get("step_id") == "partition"
     assert result.get("errors", {}).get("base") == "missing_zone_violation_price"
-

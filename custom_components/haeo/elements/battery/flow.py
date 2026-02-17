@@ -8,8 +8,8 @@ import voluptuous as vol
 
 from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.data.loader.extractors import extract_entity_metadata
-from custom_components.haeo.elements.field_schema import FieldSchemaInfo
 from custom_components.haeo.elements import get_input_field_schema_info
+from custom_components.haeo.elements.field_schema import FieldSchemaInfo
 from custom_components.haeo.elements.input_fields import InputFieldGroups
 from custom_components.haeo.flows.collection import (
     build_collection_names_schema,
@@ -22,9 +22,9 @@ from custom_components.haeo.flows.field_schema import (
     build_sectioned_choose_defaults,
     build_sectioned_choose_schema,
     convert_sectioned_choose_data_to_config,
+    is_valid_choose_value,
     preprocess_sectioned_choose_input,
     validate_sectioned_choose_fields,
-    is_valid_choose_value,
 )
 from custom_components.haeo.schema import (
     ConstantValue,
@@ -89,7 +89,9 @@ ZONE_SECTION_DEFINITION = (
 ZONE_FIELD_SCHEMA: dict[str, dict[str, FieldSchemaInfo]] = {
     SECTION_ZONE: {
         CONF_THRESHOLD_KWH: FieldSchemaInfo(value_type=EntityValue | ConstantValue, is_optional=False),
-        CONF_CHARGE_VIOLATION_PRICE: FieldSchemaInfo(value_type=EntityValue | ConstantValue | NoneValue, is_optional=True),
+        CONF_CHARGE_VIOLATION_PRICE: FieldSchemaInfo(
+            value_type=EntityValue | ConstantValue | NoneValue, is_optional=True
+        ),
         CONF_DISCHARGE_VIOLATION_PRICE: FieldSchemaInfo(
             value_type=EntityValue | ConstantValue | NoneValue, is_optional=True
         ),

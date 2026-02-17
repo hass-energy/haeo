@@ -284,8 +284,6 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
                 "efficiency_target_source": np.array([0.95]),
             },
             partitioning={},
-            undercharge={},
-            overcharge={},
         ),
         "model_outputs": {
             "battery_no_balance": {
