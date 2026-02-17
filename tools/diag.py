@@ -49,6 +49,8 @@ from custom_components.haeo.util.forecast_times import generate_forecast_timesta
 type ForecastSeries = Sequence[tuple[float, float]]
 type SensorPayload = float | ForecastSeries
 
+MIN_INTERVAL_POINTS = 2
+
 
 @dataclass
 class RowData:
@@ -399,10 +401,10 @@ def infer_interval_starts_from_outputs(outputs: dict[str, Any], config: dict[str
     )
 
     for series in candidates:
-        if len(series) < 2:
+        if len(series) < MIN_INTERVAL_POINTS:
             continue
         timestamps = sorted(parse_datetime_to_timestamp(time_str) for time_str in series)
-        if len(timestamps) >= 2:
+        if len(timestamps) >= MIN_INTERVAL_POINTS:
             return [float(timestamp) for timestamp in timestamps]
     return []
 
@@ -1068,7 +1070,7 @@ def run_diagnostics(
         print(f"Forecast horizon: {len(forecast_times)} boundaries (from diagnostics)")
     elif compare and diag.outputs:
         interval_starts = infer_interval_starts_from_outputs(diag.outputs, config)
-        if len(interval_starts) >= 2:
+        if len(interval_starts) >= MIN_INTERVAL_POINTS:
             periods_seconds = [
                 round(interval_starts[i + 1] - interval_starts[i]) for i in range(len(interval_starts) - 1)
             ]
@@ -1083,7 +1085,7 @@ def run_diagnostics(
                     print("Ignoring preset override in compare mode to preserve diagnostics alignment")
             else:
                 interval_starts = []
-        if len(interval_starts) < 2:
+        if len(interval_starts) < MIN_INTERVAL_POINTS:
             print("Warning: Could not infer output-aligned timeline, falling back to config tiers")
             # Apply preset override if provided via CLI
             effective_config = dict(config)
