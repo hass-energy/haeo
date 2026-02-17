@@ -118,7 +118,7 @@ def test_migrate_subentry_returns_none_for_non_elements(element_type: str | None
 
     subentry = _create_subentry(data, subentry_type="network")
 
-    assert v1_3._migrate_subentry_data(subentry) is None
+    assert v1_3.migrate_subentry_data(subentry) is None
 
 
 def test_migrate_subentry_battery_with_legacy_fields() -> None:
@@ -146,7 +146,7 @@ def test_migrate_subentry_battery_with_legacy_fields() -> None:
     }
     subentry = _create_subentry(data, subentry_type=battery.ELEMENT_TYPE)
 
-    migrated = v1_3._migrate_subentry_data(subentry)
+    migrated = v1_3.migrate_subentry_data(subentry)
 
     assert migrated is not None
     assert migrated[SECTION_COMMON][CONF_NAME] == "Battery"
@@ -171,7 +171,7 @@ def test_migrate_subentry_battery_invalid_schema_value_raises() -> None:
     subentry = _create_subentry(data, subentry_type=battery.ELEMENT_TYPE)
 
     with pytest.raises(TypeError, match="Unsupported schema value"):
-        v1_3._migrate_subentry_data(subentry)
+        v1_3.migrate_subentry_data(subentry)
 
 
 def test_migrate_subentry_battery_section() -> None:
@@ -184,7 +184,7 @@ def test_migrate_subentry_battery_section() -> None:
     }
     subentry = _create_subentry(data, subentry_type=battery_section.ELEMENT_TYPE)
 
-    migrated = v1_3._migrate_subentry_data(subentry)
+    migrated = v1_3.migrate_subentry_data(subentry)
 
     assert migrated is not None
     assert migrated[SECTION_COMMON][CONF_NAME] == "Battery Section"
@@ -213,7 +213,7 @@ def test_migrate_subentry_connection_fields() -> None:
     }
     subentry = _create_subentry(data, subentry_type=connection.ELEMENT_TYPE)
 
-    migrated = v1_3._migrate_subentry_data(subentry)
+    migrated = v1_3.migrate_subentry_data(subentry)
 
     assert migrated is not None
     assert migrated[SECTION_COMMON][CONF_NAME] == "Connection"
@@ -236,7 +236,7 @@ def test_migrate_subentry_grid_legacy_fields() -> None:
     }
     subentry = _create_subentry(data, subentry_type=grid.ELEMENT_TYPE)
 
-    migrated = v1_3._migrate_subentry_data(subentry)
+    migrated = v1_3.migrate_subentry_data(subentry)
 
     assert migrated is not None
     assert migrated[SECTION_COMMON][CONF_CONNECTION] == as_connection_target("bus")
@@ -259,7 +259,7 @@ def test_migrate_subentry_inverter_legacy_fields() -> None:
     }
     subentry = _create_subentry(data, subentry_type=inverter.ELEMENT_TYPE)
 
-    migrated = v1_3._migrate_subentry_data(subentry)
+    migrated = v1_3.migrate_subentry_data(subentry)
 
     assert migrated is not None
     assert migrated[SECTION_COMMON][CONF_NAME] == "Inverter"
@@ -280,7 +280,7 @@ def test_migrate_subentry_load_node_solar() -> None:
         },
         subentry_type=load.ELEMENT_TYPE,
     )
-    load_migrated = v1_3._migrate_subentry_data(load_subentry)
+    load_migrated = v1_3.migrate_subentry_data(load_subentry)
     assert load_migrated is not None
     assert load_migrated[SECTION_COMMON][CONF_CONNECTION] == as_connection_target("bus")
     assert load_migrated[SECTION_FORECAST][CONF_FORECAST] == as_entity_value(["sensor.load"])
@@ -296,7 +296,7 @@ def test_migrate_subentry_load_node_solar() -> None:
         },
         subentry_type=node.ELEMENT_TYPE,
     )
-    node_migrated = v1_3._migrate_subentry_data(node_subentry)
+    node_migrated = v1_3.migrate_subentry_data(node_subentry)
     assert node_migrated is not None
     assert node_migrated[node.SECTION_ROLE][node.CONF_IS_SOURCE] is True
     assert node_migrated[node.SECTION_ROLE][node.CONF_IS_SINK] is False
@@ -312,7 +312,7 @@ def test_migrate_subentry_load_node_solar() -> None:
         },
         subentry_type=solar.ELEMENT_TYPE,
     )
-    solar_migrated = v1_3._migrate_subentry_data(solar_subentry)
+    solar_migrated = v1_3.migrate_subentry_data(solar_subentry)
     assert solar_migrated is not None
     assert solar_migrated[SECTION_COMMON][CONF_CONNECTION] == as_connection_target("bus")
     assert solar_migrated[SECTION_FORECAST][CONF_FORECAST] == as_entity_value(["sensor.solar"])
@@ -332,7 +332,7 @@ def test_migrate_subentry_load_maps_legacy_shedding() -> None:
         },
         subentry_type=load.ELEMENT_TYPE,
     )
-    migrated = v1_3._migrate_subentry_data(load_subentry)
+    migrated = v1_3.migrate_subentry_data(load_subentry)
     assert migrated is not None
     assert migrated[SECTION_CURTAILMENT][CONF_CURTAILMENT] == as_constant_value(True)
 
