@@ -73,8 +73,10 @@ CREATE_CASES: Sequence[CreateCase] = [
             partitions={
                 "Reserve": {
                     "threshold_kwh": np.array([2.0]),
-                    "charge_price": np.array([0.04]),
-                    "discharge_price": np.array([0.03]),
+                    "charge_violation_price": np.array([0.04]),
+                    "discharge_violation_price": np.array([0.03]),
+                    "charge_price": np.array([0.02]),
+                    "discharge_price": np.array([0.01]),
                 }
             },
         ),
@@ -110,8 +112,10 @@ CREATE_CASES: Sequence[CreateCase] = [
                     "soc_pricing_Reserve": {
                         "segment_type": "soc_pricing",
                         "threshold": [1.0],
-                        "discharge_price": [0.03],
-                        "charge_price": [0.04],
+                        "discharge_violation_price": [0.03],
+                        "charge_violation_price": [0.04],
+                        "discharge_movement_price": [0.01],
+                        "charge_movement_price": [0.02],
                     },
                 },
             },

@@ -441,18 +441,51 @@ def test_model_elements_multiple_zones_add_soc_pricing_segments() -> None:
     assert segments is not None
     reserve = segments.get("soc_pricing_Reserve")
     assert reserve is not None
+    assert reserve.get("segment_type") == "soc_pricing"
     assert reserve.get("threshold") is not None
     # 2.0kWh threshold, 10% min SOC => model threshold = 2.0 - 1.0 = 1.0
     np.testing.assert_allclose(reserve["threshold"], np.array([1.0, 1.0]))
-    assert reserve.get("discharge_price") is not None
-    assert reserve.get("charge_price") is None
+    assert reserve.get("discharge_movement_price") is not None
+    assert reserve.get("charge_movement_price") is None
 
     headroom = segments.get("soc_pricing_Headroom")
     assert headroom is not None
+    assert headroom.get("segment_type") == "soc_pricing"
     # 8.0kWh threshold, 10% min SOC => model threshold = 8.0 - 1.0 = 7.0
     np.testing.assert_allclose(headroom["threshold"], np.array([7.0, 7.0]))
-    assert headroom.get("charge_price") is not None
-    assert headroom.get("discharge_price") is None
+    assert headroom.get("charge_movement_price") is not None
+    assert headroom.get("discharge_movement_price") is None
+
+
+def test_model_elements_zone_adds_violation_and_movement_prices() -> None:
+    """SOC pricing includes both violation and movement pricing when configured."""
+    config_data: battery.BatteryConfigData = _wrap_data(
+        {
+            "name": "test_battery",
+            "connection": "main_bus",
+            "capacity": np.array([10.0, 10.0, 10.0]),
+            "initial_charge_percentage": 0.5,
+            "min_charge_percentage": np.array([0.1, 0.1, 0.1]),
+            "max_charge_percentage": np.array([0.9, 0.9, 0.9]),
+            "partitions": {
+                "Reserve": {
+                    "threshold_kwh": np.array([2.0, 2.0]),
+                    "discharge_violation_price": np.array([0.4, 0.4]),
+                    "discharge_price": np.array([0.2, 0.2]),
+                }
+            },
+        }
+    )
+
+    elements = battery.adapter.model_elements(config_data)
+    connection = _get_connection(elements, "test_battery:connection")
+    segments = connection.get("segments")
+    assert segments is not None
+    reserve = segments.get("soc_pricing_Reserve")
+    assert reserve is not None
+    assert reserve.get("segment_type") == "soc_pricing"
+    assert reserve.get("discharge_violation_price") is not None
+    assert reserve.get("discharge_movement_price") is not None
 
 
 def test_discharge_respects_power_limit_with_efficiency() -> None:

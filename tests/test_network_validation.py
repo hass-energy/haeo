@@ -7,6 +7,7 @@ from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.elements import ElementConfigData
 from custom_components.haeo.elements.battery import (
     CONF_CAPACITY,
+    CONF_CHARGE_VIOLATION_PRICE,
     CONF_EFFICIENCY_SOURCE_TARGET,
     CONF_EFFICIENCY_TARGET_SOURCE,
     CONF_INITIAL_CHARGE_PERCENTAGE,
@@ -14,8 +15,7 @@ from custom_components.haeo.elements.battery import (
     CONF_MAX_POWER_SOURCE_TARGET,
     CONF_MAX_POWER_TARGET_SOURCE,
     CONF_MIN_CHARGE_PERCENTAGE,
-    CONF_CHARGE_PRICE,
-    CONF_DISCHARGE_PRICE,
+    CONF_DISCHARGE_VIOLATION_PRICE,
     CONF_THRESHOLD_KWH,
     CONF_SALVAGE_VALUE,
     SECTION_LIMITS,
@@ -181,11 +181,11 @@ def test_validate_network_topology_with_battery(
         battery[SECTION_PARTITIONS] = {
             "Reserve": {
                 CONF_THRESHOLD_KWH: np.array([2.0, 2.0]),
-                CONF_DISCHARGE_PRICE: np.array([0.05, 0.05]),
+                CONF_DISCHARGE_VIOLATION_PRICE: np.array([0.05, 0.05]),
             },
             "Headroom": {
                 CONF_THRESHOLD_KWH: np.array([8.0, 8.0]),
-                CONF_CHARGE_PRICE: np.array([0.02, 0.02]),
+                CONF_CHARGE_VIOLATION_PRICE: np.array([0.02, 0.02]),
             },
         }
 

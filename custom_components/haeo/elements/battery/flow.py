@@ -26,7 +26,13 @@ from custom_components.haeo.flows.field_schema import (
     validate_sectioned_choose_fields,
     is_valid_choose_value,
 )
-from custom_components.haeo.schema import ConstantValue, EntityValue, NoneValue, get_connection_target_name, normalize_connection_target
+from custom_components.haeo.schema import (
+    ConstantValue,
+    EntityValue,
+    NoneValue,
+    get_connection_target_name,
+    normalize_connection_target,
+)
 from custom_components.haeo.sections import (
     CONF_CONNECTION,
     CONF_MAX_POWER_SOURCE_TARGET,
@@ -45,8 +51,10 @@ from .adapter import adapter
 from .schema import (
     CONF_CAPACITY,
     CONF_CHARGE_PRICE,
+    CONF_CHARGE_VIOLATION_PRICE,
     CONF_CONFIGURE_PARTITIONS,
     CONF_DISCHARGE_PRICE,
+    CONF_DISCHARGE_VIOLATION_PRICE,
     CONF_EFFICIENCY_SOURCE_TARGET,
     CONF_EFFICIENCY_TARGET_SOURCE,
     CONF_INITIAL_CHARGE_PERCENTAGE,
@@ -67,7 +75,13 @@ SECTION_ZONE = "zone"
 ZONE_SECTION_DEFINITION = (
     SectionDefinition(
         key=SECTION_ZONE,
-        fields=(CONF_THRESHOLD_KWH, CONF_CHARGE_PRICE, CONF_DISCHARGE_PRICE),
+        fields=(
+            CONF_THRESHOLD_KWH,
+            CONF_CHARGE_VIOLATION_PRICE,
+            CONF_DISCHARGE_VIOLATION_PRICE,
+            CONF_CHARGE_PRICE,
+            CONF_DISCHARGE_PRICE,
+        ),
         collapsed=False,
     ),
 )
@@ -75,6 +89,10 @@ ZONE_SECTION_DEFINITION = (
 ZONE_FIELD_SCHEMA: dict[str, dict[str, FieldSchemaInfo]] = {
     SECTION_ZONE: {
         CONF_THRESHOLD_KWH: FieldSchemaInfo(value_type=EntityValue | ConstantValue, is_optional=False),
+        CONF_CHARGE_VIOLATION_PRICE: FieldSchemaInfo(value_type=EntityValue | ConstantValue | NoneValue, is_optional=True),
+        CONF_DISCHARGE_VIOLATION_PRICE: FieldSchemaInfo(
+            value_type=EntityValue | ConstantValue | NoneValue, is_optional=True
+        ),
         CONF_CHARGE_PRICE: FieldSchemaInfo(value_type=EntityValue | ConstantValue | NoneValue, is_optional=True),
         CONF_DISCHARGE_PRICE: FieldSchemaInfo(value_type=EntityValue | ConstantValue | NoneValue, is_optional=True),
     }
@@ -324,7 +342,9 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             },
         )
 
-    def _build_zone_defaults(self, input_fields: InputFieldGroups, current_zone: dict[str, Any] | None) -> dict[str, Any]:
+    def _build_zone_defaults(
+        self, input_fields: InputFieldGroups, current_zone: dict[str, Any] | None
+    ) -> dict[str, Any]:
         """Build default values for a single zone form."""
         return build_sectioned_choose_defaults(
             ZONE_SECTION_DEFINITION,
@@ -368,10 +388,10 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
 
         zone_input = user_input.get(SECTION_ZONE, {})
         if isinstance(zone_input, dict):
-            has_charge = is_valid_choose_value(zone_input.get(CONF_CHARGE_PRICE))
-            has_discharge = is_valid_choose_value(zone_input.get(CONF_DISCHARGE_PRICE))
-            if not has_charge and not has_discharge:
-                errors["base"] = "missing_zone_price"
+            has_charge_violation = is_valid_choose_value(zone_input.get(CONF_CHARGE_VIOLATION_PRICE))
+            has_discharge_violation = is_valid_choose_value(zone_input.get(CONF_DISCHARGE_VIOLATION_PRICE))
+            if not has_charge_violation and not has_discharge_violation:
+                errors["base"] = "missing_zone_violation_price"
 
         return errors if errors else None
 

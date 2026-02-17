@@ -35,7 +35,9 @@ from custom_components.haeo.sections import (
 from .schema import (
     CONF_CAPACITY,
     CONF_CHARGE_PRICE,
+    CONF_CHARGE_VIOLATION_PRICE,
     CONF_DISCHARGE_PRICE,
+    CONF_DISCHARGE_VIOLATION_PRICE,
     CONF_EFFICIENCY_SOURCE_TARGET,
     CONF_EFFICIENCY_TARGET_SOURCE,
     CONF_INITIAL_CHARGE_PERCENTAGE,
@@ -365,9 +367,17 @@ class BatteryAdapter:
                 threshold_kwh = zone.get(CONF_THRESHOLD_KWH)
                 if threshold_kwh is None:
                     continue
-                charge_price = zone.get(CONF_CHARGE_PRICE)
-                discharge_price = zone.get(CONF_DISCHARGE_PRICE)
-                if charge_price is None and discharge_price is None:
+                charge_violation_price = zone.get(CONF_CHARGE_VIOLATION_PRICE)
+                discharge_violation_price = zone.get(CONF_DISCHARGE_VIOLATION_PRICE)
+                charge_price = _nonzero_series(zone.get(CONF_CHARGE_PRICE), n_periods)
+                discharge_price = _nonzero_series(zone.get(CONF_DISCHARGE_PRICE), n_periods)
+                if (
+                    charge_violation_price is None
+                    and discharge_violation_price is None
+                    and
+                    charge_price is None
+                    and discharge_price is None
+                ):
                     continue
 
                 threshold_series = broadcast_to_sequence(threshold_kwh, n_periods)
@@ -379,10 +389,14 @@ class BatteryAdapter:
                     "segment_type": "soc_pricing",
                     "threshold": threshold_model,
                 }
+                if charge_violation_price is not None:
+                    spec["charge_violation_price"] = charge_violation_price
+                if discharge_violation_price is not None:
+                    spec["discharge_violation_price"] = discharge_violation_price
                 if charge_price is not None:
-                    spec["charge_price"] = charge_price
+                    spec["charge_movement_price"] = charge_price
                 if discharge_price is not None:
-                    spec["discharge_price"] = discharge_price
+                    spec["discharge_movement_price"] = discharge_price
 
                 segments[f"soc_pricing_{zone_name}"] = spec
 
@@ -482,6 +496,21 @@ def _build_discharge_pricing(
     return base + discharge_incentive
 
 
+def _nonzero_series(
+    value: NDArray[np.floating[Any]] | float | None,
+    n_periods: int,
+) -> NDArray[np.float64] | None:
+    """Return series only when at least one value is non-zero."""
+    if value is None:
+        return None
+    values = broadcast_to_sequence(value, n_periods)
+    if values is None:
+        return None
+    if not np.any(values):
+        return None
+    return values
+
+
 def _zone_input_fields() -> dict[str, InputFieldInfo[Any]]:
     """Build input field definitions for SOC pricing zones."""
     return {
@@ -499,6 +528,32 @@ def _zone_input_fields() -> dict[str, InputFieldInfo[Any]]:
             output_type=OutputType.ENERGY,
             time_series=True,
             boundaries=False,
+            defaults=InputFieldDefaults(mode="value", value=0.0),
+        ),
+        CONF_CHARGE_VIOLATION_PRICE: InputFieldInfo(
+            field_name=CONF_CHARGE_VIOLATION_PRICE,
+            entity_description=NumberEntityDescription(
+                key=CONF_CHARGE_VIOLATION_PRICE,
+                translation_key=f"{ELEMENT_TYPE}_{CONF_CHARGE_VIOLATION_PRICE}",
+                native_min_value=-1.0,
+                native_max_value=10.0,
+                native_step=0.001,
+            ),
+            output_type=OutputType.PRICE,
+            time_series=True,
+            defaults=InputFieldDefaults(mode="value", value=0.0),
+        ),
+        CONF_DISCHARGE_VIOLATION_PRICE: InputFieldInfo(
+            field_name=CONF_DISCHARGE_VIOLATION_PRICE,
+            entity_description=NumberEntityDescription(
+                key=CONF_DISCHARGE_VIOLATION_PRICE,
+                translation_key=f"{ELEMENT_TYPE}_{CONF_DISCHARGE_VIOLATION_PRICE}",
+                native_min_value=-1.0,
+                native_max_value=10.0,
+                native_step=0.001,
+            ),
+            output_type=OutputType.PRICE,
+            time_series=True,
             defaults=InputFieldDefaults(mode="value", value=0.0),
         ),
         CONF_CHARGE_PRICE: InputFieldInfo(

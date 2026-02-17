@@ -12,9 +12,11 @@ from custom_components.haeo.elements import node
 from custom_components.haeo.elements.battery import (
     CONF_CAPACITY,
     CONF_CHARGE_PRICE,
+    CONF_CHARGE_VIOLATION_PRICE,
     CONF_CONFIGURE_PARTITIONS,
     CONF_CONNECTION,
     CONF_DISCHARGE_PRICE,
+    CONF_DISCHARGE_VIOLATION_PRICE,
     CONF_EFFICIENCY_SOURCE_TARGET,
     CONF_EFFICIENCY_TARGET_SOURCE,
     CONF_INITIAL_CHARGE_PERCENTAGE,
@@ -64,8 +66,23 @@ def _wrap_partition_names(names: str) -> dict[str, Any]:
     return {CONF_PARTITION_NAMES: names}
 
 
-def _wrap_zone_input(*, threshold_kwh: Any, charge_price: Any = None, discharge_price: Any = None) -> dict[str, Any]:
-    return {"zone": {CONF_THRESHOLD_KWH: threshold_kwh, CONF_CHARGE_PRICE: charge_price, CONF_DISCHARGE_PRICE: discharge_price}}
+def _wrap_zone_input(
+    *,
+    threshold_kwh: Any,
+    charge_violation_price: Any = None,
+    discharge_violation_price: Any = None,
+    charge_price: Any = None,
+    discharge_price: Any = None,
+) -> dict[str, Any]:
+    return {
+        "zone": {
+            CONF_THRESHOLD_KWH: threshold_kwh,
+            CONF_CHARGE_VIOLATION_PRICE: charge_violation_price,
+            CONF_DISCHARGE_VIOLATION_PRICE: discharge_violation_price,
+            CONF_CHARGE_PRICE: charge_price,
+            CONF_DISCHARGE_PRICE: discharge_price,
+        }
+    }
 
 
 async def test_user_step_with_constant_values_creates_entry(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
@@ -145,12 +162,16 @@ async def test_partition_flow_two_zones_creates_entry(hass: HomeAssistant, hub_e
     assert result.get("step_id") == "partition"
 
     # Reserve
-    result = await flow.async_step_partition(user_input=_wrap_zone_input(threshold_kwh=2.0, discharge_price=0.2, charge_price=None))
+    result = await flow.async_step_partition(
+        user_input=_wrap_zone_input(threshold_kwh=2.0, discharge_violation_price=0.2, charge_price=0.05)
+    )
     assert result.get("type") == FlowResultType.FORM
     assert result.get("step_id") == "partition"
 
     # Headroom
-    result = await flow.async_step_partition(user_input=_wrap_zone_input(threshold_kwh=8.0, charge_price=0.1, discharge_price=None))
+    result = await flow.async_step_partition(
+        user_input=_wrap_zone_input(threshold_kwh=8.0, charge_violation_price=0.1, discharge_price=0.04)
+    )
     assert result.get("type") == FlowResultType.CREATE_ENTRY
 
     created_data = flow.async_create_entry.call_args.kwargs["data"]
@@ -158,10 +179,12 @@ async def test_partition_flow_two_zones_creates_entry(hass: HomeAssistant, hub_e
     partitions = created_data[SECTION_PARTITIONS]
     assert "Reserve" in partitions
     assert partitions["Reserve"][CONF_THRESHOLD_KWH] == as_constant_value(2.0)
-    assert partitions["Reserve"][CONF_DISCHARGE_PRICE] == as_constant_value(0.2)
+    assert partitions["Reserve"][CONF_DISCHARGE_VIOLATION_PRICE] == as_constant_value(0.2)
+    assert partitions["Reserve"][CONF_CHARGE_PRICE] == as_constant_value(0.05)
     assert "Headroom" in partitions
     assert partitions["Headroom"][CONF_THRESHOLD_KWH] == as_constant_value(8.0)
-    assert partitions["Headroom"][CONF_CHARGE_PRICE] == as_constant_value(0.1)
+    assert partitions["Headroom"][CONF_CHARGE_VIOLATION_PRICE] == as_constant_value(0.1)
+    assert partitions["Headroom"][CONF_DISCHARGE_PRICE] == as_constant_value(0.04)
 
 
 async def test_partition_zone_requires_price(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
@@ -179,8 +202,16 @@ async def test_partition_zone_requires_price(hass: HomeAssistant, hub_entry: Moc
     await flow.async_step_user(user_input=_wrap_main_input(step1_input))
     await flow.async_step_partition_names(user_input=_wrap_partition_names("Reserve"))
 
-    result = await flow.async_step_partition(user_input=_wrap_zone_input(threshold_kwh=2.0, charge_price=None, discharge_price=None))
+    result = await flow.async_step_partition(
+        user_input=_wrap_zone_input(
+            threshold_kwh=2.0,
+            charge_violation_price=None,
+            discharge_violation_price=None,
+            charge_price=0.1,
+            discharge_price=None,
+        )
+    )
     assert result.get("type") == FlowResultType.FORM
     assert result.get("step_id") == "partition"
-    assert result.get("errors", {}).get("base") == "missing_zone_price"
+    assert result.get("errors", {}).get("base") == "missing_zone_violation_price"
 

@@ -44,8 +44,12 @@ CONF_CONFIGURE_PARTITIONS: Final = "configure_partitions"
 
 CONF_PARTITION_NAMES: Final = "partition_names"
 CONF_THRESHOLD_KWH: Final = "threshold_kwh"
+CONF_CHARGE_VIOLATION_PRICE: Final = "charge_violation_price"
+CONF_DISCHARGE_VIOLATION_PRICE: Final = "discharge_violation_price"
 CONF_CHARGE_PRICE: Final = "charge_price"
 CONF_DISCHARGE_PRICE: Final = "discharge_price"
+CONF_CHARGE_RECOVERY_REWARD: Final = "charge_recovery_reward"
+CONF_DISCHARGE_RECOVERY_REWARD: Final = "discharge_recovery_reward"
 CONF_SALVAGE_VALUE: Final = "salvage_value"
 
 OPTIONAL_INPUT_FIELDS: Final[frozenset[str]] = frozenset(
@@ -107,16 +111,24 @@ class ZoneConfig(TypedDict):
     """SOC pricing zone configuration."""
 
     threshold_kwh: EntityValue | ConstantValue
+    charge_violation_price: NotRequired[EntityValue | ConstantValue | NoneValue]
+    discharge_violation_price: NotRequired[EntityValue | ConstantValue | NoneValue]
     charge_price: NotRequired[EntityValue | ConstantValue | NoneValue]
     discharge_price: NotRequired[EntityValue | ConstantValue | NoneValue]
+    charge_recovery_reward: NotRequired[EntityValue | ConstantValue | NoneValue]
+    discharge_recovery_reward: NotRequired[EntityValue | ConstantValue | NoneValue]
 
 
 class ZoneData(TypedDict):
     """Loaded SOC pricing zone values."""
 
     threshold_kwh: NDArray[np.floating[Any]] | float
+    charge_violation_price: NotRequired[NDArray[np.floating[Any]] | float]
+    discharge_violation_price: NotRequired[NDArray[np.floating[Any]] | float]
     charge_price: NotRequired[NDArray[np.floating[Any]] | float]
     discharge_price: NotRequired[NDArray[np.floating[Any]] | float]
+    charge_recovery_reward: NotRequired[NDArray[np.floating[Any]] | float]
+    discharge_recovery_reward: NotRequired[NDArray[np.floating[Any]] | float]
 
 
 class BatteryPricingConfig(PricingConfig):
@@ -163,7 +175,11 @@ __all__ = [
     "CONF_CAPACITY",
     "CONF_CONFIGURE_PARTITIONS",
     "CONF_CONNECTION",
+    "CONF_CHARGE_RECOVERY_REWARD",
+    "CONF_CHARGE_VIOLATION_PRICE",
     "CONF_DISCHARGE_PRICE",
+    "CONF_DISCHARGE_RECOVERY_REWARD",
+    "CONF_DISCHARGE_VIOLATION_PRICE",
     "CONF_EFFICIENCY_SOURCE_TARGET",
     "CONF_EFFICIENCY_TARGET_SOURCE",
     "CONF_INITIAL_CHARGE_PERCENTAGE",
