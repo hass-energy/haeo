@@ -406,7 +406,7 @@ def test_add_soc_pricing_connection() -> None:
                 "soc": {
                     "segment_type": "soc_pricing",
                     "threshold": np.array([1.0, 1.0, 1.0]),
-                    "discharge_price": np.array([0.1, 0.1, 0.1]),
+                    "discharge_violation_price": np.array([0.1, 0.1, 0.1]),
                 }
             },
         }
@@ -435,7 +435,7 @@ def test_add_soc_pricing_connection_without_battery() -> None:
                     "soc": {
                         "segment_type": "soc_pricing",
                         "threshold": np.array([1.0, 1.0, 1.0]),
-                        "discharge_price": np.array([0.1, 0.1, 0.1]),
+                        "discharge_violation_price": np.array([0.1, 0.1, 0.1]),
                     }
                 },
             }
