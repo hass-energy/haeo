@@ -256,11 +256,10 @@ def tiers_to_periods_seconds(
         tier_durations = (1, 5, 30, 60)
         min_counts = (5, 6, 4)
 
-        effective_start = start_time if start_time is not None else dt_util.utcnow()
         total_steps = calculate_total_steps(min_counts, horizon_minutes)
 
         periods_seconds, _ = calculate_aligned_tier_counts(
-            start_time=effective_start,
+            start_time=start_time or dt_util.utcnow(),
             tier_durations=tier_durations,
             min_counts=min_counts,
             total_steps=total_steps,
