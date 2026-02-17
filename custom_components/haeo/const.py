@@ -71,6 +71,9 @@ NETWORK_OUTPUT_NAMES: Final[frozenset[NetworkOutputName]] = frozenset(
     ]
 )
 
+# Horizon entity unique ID suffix
+OUTPUT_NAME_HORIZON: Final = "horizon"
+
 type NetworkDeviceName = Literal["network"]
 
 NETWORK_DEVICE_NAMES: Final[frozenset[NetworkDeviceName]] = frozenset(

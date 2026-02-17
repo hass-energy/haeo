@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Awaitable
+from collections.abc import Awaitable, Mapping
 from dataclasses import dataclass, field
 import logging
 from types import MappingProxyType
@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING, Protocol
 
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry
 from homeassistant.const import Platform
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, State
 from homeassistant.exceptions import ConfigEntryError, ConfigEntryNotReady
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.translation import async_get_translations
@@ -47,6 +47,11 @@ class InputEntity(Protocol):
         ...
 
     @property
+    def uses_forecast(self) -> bool:
+        """Return True if this entity produces time-series forecast data."""
+        ...
+
+    @property
     def horizon_start(self) -> float | None:
         """Return the first forecast timestamp, or None if not loaded."""
         ...
@@ -61,6 +66,11 @@ class InputEntity(Protocol):
 
     def get_values(self) -> tuple[float | bool, ...] | None:
         """Return forecast values or None if not loaded."""
+        ...
+
+    @property
+    def captured_source_states(self) -> Mapping[str, State]:
+        """Source states captured from the last data load."""
         ...
 
 

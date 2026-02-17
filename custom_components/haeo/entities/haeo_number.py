@@ -9,7 +9,7 @@ from typing import Any
 from homeassistant.components.number import NumberEntity, NumberEntityDescription
 from homeassistant.config_entries import ConfigSubentry
 from homeassistant.const import PERCENTAGE, EntityCategory
-from homeassistant.core import Event, callback
+from homeassistant.core import Event, State, callback
 from homeassistant.helpers.device_registry import DeviceEntry
 from homeassistant.helpers.event import EventStateChangedData, async_track_state_change_event
 from homeassistant.util import dt as dt_util
@@ -159,6 +159,9 @@ class HaeoInputNumber(NumberEntity):
         # Event that signals data is ready for coordinator access
         self._data_ready = asyncio.Event()
 
+        # Captured source states for reproducibility (populated when loading data)
+        self._captured_source_states: Mapping[str, State] = {}
+
         # Exclude forecast from recorder unless explicitly enabled
         if not config_entry.data.get(CONF_RECORD_FORECASTS, False):
             self._unrecorded_attributes = FORECAST_UNRECORDED_ATTRIBUTES
@@ -230,6 +233,11 @@ class HaeoInputNumber(NumberEntity):
         state. Do not write state from async_added_to_hass(); Home Assistant
         will handle initial state once the entity has been fully added.
         """
+        # Capture source states before loading for reproducibility
+        self._captured_source_states = {
+            eid: state for eid in self._source_entity_ids if (state := self.hass.states.get(eid)) is not None
+        }
+
         if not self._uses_forecast:
             if not self._source_entity_ids:
                 return
@@ -338,6 +346,11 @@ class HaeoInputNumber(NumberEntity):
         return self._entity_mode
 
     @property
+    def uses_forecast(self) -> bool:
+        """Return True if this entity produces time-series forecast data."""
+        return self._uses_forecast
+
+    @property
     def horizon_start(self) -> float | None:
         """Return the first forecast timestamp, or None if not loaded."""
         forecast = self._attr_extra_state_attributes.get("forecast")
@@ -365,6 +378,17 @@ class HaeoInputNumber(NumberEntity):
                 return tuple(float(value) / 100.0 for value in values)
             return values
         return None
+
+    @property
+    def captured_source_states(self) -> Mapping[str, State]:
+        """Source states captured when data was last loaded.
+
+        Returns:
+            Dict mapping source entity IDs to their State objects at load time.
+            Empty dict for EDITABLE mode entities (no source entities).
+
+        """
+        return self._captured_source_states
 
     async def async_set_native_value(self, value: float) -> None:
         """Handle user setting a value.

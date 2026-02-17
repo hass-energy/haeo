@@ -1,6 +1,7 @@
 """Tests for the HAEO switch input entity."""
 
 import asyncio
+from collections.abc import Mapping
 from datetime import timedelta
 import logging
 from types import MappingProxyType
@@ -10,7 +11,7 @@ from unittest.mock import Mock
 from homeassistant.components.switch import SwitchEntityDescription
 from homeassistant.config_entries import ConfigSubentry
 from homeassistant.const import STATE_OFF, STATE_ON, EntityCategory
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, State
 from homeassistant.helpers.device_registry import DeviceEntry
 from homeassistant.helpers.entity import Entity
 from homeassistant.helpers.entity_platform import EntityPlatform
@@ -1111,6 +1112,27 @@ async def test_entity_mode_property_returns_mode(
     assert entity_driven.entity_mode == ConfigEntityMode.DRIVEN
 
 
+async def test_uses_forecast_reflects_field_info(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    device_entry: Mock,
+    curtailment_field_info: InputFieldInfo[SwitchEntityDescription],
+    horizon_manager: Mock,
+) -> None:
+    """uses_forecast reflects the field_info.time_series flag."""
+    config_entry.runtime_data = None
+
+    # curtailment_field_info has time_series=False (the default)
+    entity = HaeoInputSwitch(
+        config_entry=config_entry,
+        subentry=_create_subentry("Test Solar", {"allow_curtailment": True}),
+        field_info=curtailment_field_info,
+        device_entry=device_entry,
+        horizon_manager=horizon_manager,
+    )
+    assert entity.uses_forecast is False
+
+
 async def test_editable_mode_uses_defaults_value_when_none(
     hass: HomeAssistant,
     config_entry: MockConfigEntry,
@@ -1246,3 +1268,64 @@ async def test_unrecorded_attributes_based_on_config(
         assert entity._unrecorded_attributes == FORECAST_UNRECORDED_ATTRIBUTES
     else:
         assert not hasattr(entity, "_unrecorded_attributes") or entity._unrecorded_attributes == frozenset()
+
+
+async def test_captured_source_states_editable_mode(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    device_entry: Mock,
+    curtailment_field_info: InputFieldInfo[SwitchEntityDescription],
+    horizon_manager: Mock,
+) -> None:
+    """EDITABLE mode entity returns empty captured_source_states."""
+    subentry = _create_subentry("Test Solar", {"curtailment": True})
+
+    entity = HaeoInputSwitch(
+        config_entry=config_entry,
+        subentry=subentry,
+        field_info=curtailment_field_info,
+        device_entry=device_entry,
+        horizon_manager=horizon_manager,
+    )
+
+    # EDITABLE mode has no source entities
+    assert entity.captured_source_states == {}
+
+
+async def test_captured_source_states_driven_mode(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    device_entry: Mock,
+    curtailment_field_info: InputFieldInfo[SwitchEntityDescription],
+    horizon_manager: Mock,
+) -> None:
+    """DRIVEN mode entity captures source state when loading data."""
+    # Set up source entity
+    hass.states.async_set("input_boolean.allow_curtailment", STATE_ON)
+    source_state = hass.states.get("input_boolean.allow_curtailment")
+    assert source_state is not None
+
+    # Use allow_curtailment key to match curtailment_field_info.field_name
+    subentry = _create_subentry("Test Solar", {"allow_curtailment": "input_boolean.allow_curtailment"})
+
+    entity = HaeoInputSwitch(
+        config_entry=config_entry,
+        subentry=subentry,
+        field_info=curtailment_field_info,
+        device_entry=device_entry,
+        horizon_manager=horizon_manager,
+    )
+
+    # Before adding to hass, captured states should be empty
+    assert entity.captured_source_states == {}
+
+    # Add to hass which triggers async_added_to_hass -> _load_source_state
+    await _add_entity_to_hass(hass, entity)
+
+    # After loading, captured states should include the source entity
+    captured = entity.captured_source_states
+    assert "input_boolean.allow_curtailment" in captured
+    assert isinstance(captured["input_boolean.allow_curtailment"], State)
+
+    # Return type is Mapping (read-only interface) — not a mutable dict
+    assert isinstance(captured, Mapping)
