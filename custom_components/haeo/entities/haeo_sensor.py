@@ -61,9 +61,7 @@ class HaeoSensor(CoordinatorEntity[HaeoDataUpdateCoordinator], SensorEntity):
             self._attr_translation_placeholders = translation_placeholders
         self._apply_output(output_data)
 
-        # Exclude forecast from recorder unless explicitly enabled
-        if not coordinator.config_entry.data.get(CONF_RECORD_FORECASTS, False):
-            self._unrecorded_attributes = FORECAST_UNRECORDED_ATTRIBUTES
+        self._record_forecasts = coordinator.config_entry.data.get(CONF_RECORD_FORECASTS, False)
 
     @property
     def available(self) -> bool:  # pyright: ignore[reportIncompatibleVariableOverride]
@@ -108,7 +106,14 @@ class HaeoSensor(CoordinatorEntity[HaeoDataUpdateCoordinator], SensorEntity):
     async def async_added_to_hass(self) -> None:
         """Finalize setup when entity is added to Home Assistant."""
         await super().async_added_to_hass()
+        self._apply_recorder_attribute_filtering()
         self._handle_coordinator_update()
+
+    def _apply_recorder_attribute_filtering(self) -> None:
+        """Apply recorder filtering to this entity's runtime state info."""
+        if self._record_forecasts:
+            return
+        self._state_info["unrecorded_attributes"] = FORECAST_UNRECORDED_ATTRIBUTES
 
     def _apply_output(self, output: CoordinatorOutput) -> None:
         """Apply device class, options, and unit metadata for an output."""

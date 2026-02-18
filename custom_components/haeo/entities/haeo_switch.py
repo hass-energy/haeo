@@ -149,10 +149,7 @@ class HaeoInputSwitch(SwitchEntity):
         # Captured source states for reproducibility (populated when loading data)
         self._captured_source_states: Mapping[str, State] = {}
 
-        # Exclude forecast from recorder unless explicitly enabled
-        if not config_entry.data.get(CONF_RECORD_FORECASTS, False):
-            self._unrecorded_attributes = FORECAST_UNRECORDED_ATTRIBUTES
-
+        self._record_forecasts = config_entry.data.get(CONF_RECORD_FORECASTS, False)
         # Initialize forecast immediately for EDITABLE mode entities
         # This ensures get_values() returns data before async_added_to_hass() is called
         # DRIVEN mode entities load data in async_added_to_hass() - the coordinator
@@ -173,6 +170,7 @@ class HaeoInputSwitch(SwitchEntity):
         access after async_block_till_done() completes.
         """
         await super().async_added_to_hass()
+        self._apply_recorder_attribute_filtering()
 
         # Subscribe to horizon manager for time window changes
         self.async_on_remove(self._horizon_manager.subscribe(self._handle_horizon_change))
@@ -196,6 +194,12 @@ class HaeoInputSwitch(SwitchEntity):
                 )
             # Load initial state from source
             self._load_source_state()
+
+    def _apply_recorder_attribute_filtering(self) -> None:
+        """Apply recorder filtering to this entity's runtime state info."""
+        if self._record_forecasts:
+            return
+        self._state_info["unrecorded_attributes"] = FORECAST_UNRECORDED_ATTRIBUTES
 
     @callback
     def _handle_horizon_change(self) -> None:

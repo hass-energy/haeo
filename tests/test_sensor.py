@@ -634,7 +634,7 @@ def test_unrecorded_attributes_based_on_config(
     record_forecasts: bool,
     expect_unrecorded: bool,
 ) -> None:
-    """Sensor sets _unrecorded_attributes based on record_forecasts config."""
+    """Sensor applies recorder filtering based on record_forecasts config."""
     coordinator = _create_mock_coordinator()
     # Mock the config_entry.data.get behavior
     coordinator.config_entry = Mock()
@@ -663,7 +663,9 @@ def test_unrecorded_attributes_based_on_config(
         unique_id="sensor-id",
     )
 
+    sensor._state_info = {"unrecorded_attributes": frozenset()}
+    sensor._apply_recorder_attribute_filtering()
     if expect_unrecorded:
-        assert sensor._unrecorded_attributes == FORECAST_UNRECORDED_ATTRIBUTES
+        assert sensor._state_info["unrecorded_attributes"] == FORECAST_UNRECORDED_ATTRIBUTES
     else:
-        assert not hasattr(sensor, "_unrecorded_attributes") or sensor._unrecorded_attributes == frozenset()
+        assert sensor._state_info["unrecorded_attributes"] == frozenset()
