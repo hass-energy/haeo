@@ -162,9 +162,7 @@ class HaeoInputNumber(NumberEntity):
         # Captured source states for reproducibility (populated when loading data)
         self._captured_source_states: Mapping[str, State] = {}
 
-        # Exclude forecast from recorder unless explicitly enabled
-        if not config_entry.data.get(CONF_RECORD_FORECASTS, False):
-            self._unrecorded_attributes = FORECAST_UNRECORDED_ATTRIBUTES
+        self._record_forecasts = config_entry.data.get(CONF_RECORD_FORECASTS, False)
 
     def _get_forecast_timestamps(self) -> tuple[float, ...]:
         """Get forecast timestamps from horizon manager."""
@@ -179,6 +177,7 @@ class HaeoInputNumber(NumberEntity):
         access after async_block_till_done() completes.
         """
         await super().async_added_to_hass()
+        self._apply_recorder_attribute_filtering()
 
         # Subscribe to horizon manager for consistent time windows
         if self._uses_forecast:
@@ -198,6 +197,12 @@ class HaeoInputNumber(NumberEntity):
             )
             # Load initial data - await ensures entity is ready when added_to_hass completes
             await self._async_load_data()
+
+    def _apply_recorder_attribute_filtering(self) -> None:
+        """Apply recorder filtering to this entity's runtime state info."""
+        if self._record_forecasts:
+            return
+        self._state_info["unrecorded_attributes"] = FORECAST_UNRECORDED_ATTRIBUTES
 
     @callback
     def _handle_horizon_change(self) -> None:
