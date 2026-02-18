@@ -1205,7 +1205,7 @@ async def test_unrecorded_attributes_based_on_config(
     record_forecasts: bool,
     expect_unrecorded: bool,
 ) -> None:
-    """Number entity sets _unrecorded_attributes based on record_forecasts config."""
+    """Number entity applies recorder filtering based on record_forecasts config."""
     entry = MockConfigEntry(
         domain=DOMAIN,
         title="Test Network",
@@ -1236,7 +1236,9 @@ async def test_unrecorded_attributes_based_on_config(
         horizon_manager=horizon_manager,
     )
 
+    entity._state_info = {"unrecorded_attributes": frozenset()}
+    entity._apply_recorder_attribute_filtering()
     if expect_unrecorded:
-        assert entity._unrecorded_attributes == FORECAST_UNRECORDED_ATTRIBUTES
+        assert entity._state_info["unrecorded_attributes"] == FORECAST_UNRECORDED_ATTRIBUTES
     else:
-        assert not hasattr(entity, "_unrecorded_attributes") or entity._unrecorded_attributes == frozenset()
+        assert entity._state_info["unrecorded_attributes"] == frozenset()
