@@ -4,7 +4,7 @@ from typing import Any
 
 from homeassistant.core import HomeAssistant
 
-from custom_components.haeo.core.units import normalize_measurement
+from custom_components.haeo.core.units import convert_to_base_unit
 from custom_components.haeo.schema import EntityValue
 
 from .sensor_loader import normalize_entity_ids
@@ -79,8 +79,8 @@ def _coerce_state_value(state_value: Any, unit: str | None, device_class: str | 
     except (TypeError, ValueError):
         return None
 
-    normalized_value, _, _ = normalize_measurement(value, unit, device_class)
-    return normalized_value
+    converted_value, _, _ = convert_to_base_unit(value, unit, device_class)
+    return converted_value
 
 
 __all__ = ["ScalarLoader"]

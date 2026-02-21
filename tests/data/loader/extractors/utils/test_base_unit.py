@@ -5,9 +5,9 @@ import pytest
 from custom_components.haeo.core.units import (
     DeviceClass,
     UnitOfMeasurement,
+    _convert_value,
     base_unit_for_device_class,
     convert_to_base_unit,
-    normalize_measurement,
 )
 
 
@@ -54,14 +54,14 @@ def test_base_unit_for_device_class(device_class: DeviceClass | None, expected: 
         (100.0, None, DeviceClass.POWER, 100.0),
     ],
 )
-def test_convert_to_base_unit(
+def test_convert_value(
     value: float,
     unit: UnitOfMeasurement | None,
     device_class: DeviceClass | None,
     expected: float,
 ) -> None:
     """Test unit conversion to base units for various device classes and units."""
-    assert convert_to_base_unit(value, unit, device_class) == pytest.approx(expected)
+    assert _convert_value(value, unit, device_class) == pytest.approx(expected)
 
 
 @pytest.mark.parametrize(
@@ -99,15 +99,15 @@ def test_convert_to_base_unit(
         ),
     ],
 )
-def test_normalize_measurement(
+def test_convert_to_base_unit(
     value: float,
     unit: str | UnitOfMeasurement | None,
     device_class: str | DeviceClass | None,
     expected: tuple[float, UnitOfMeasurement | str | None, DeviceClass | None],
 ) -> None:
-    """Normalize value and metadata consistently in one call."""
-    normalized_value, normalized_unit, normalized_device_class = normalize_measurement(value, unit, device_class)
+    """Convert value to base unit, parsing string unit/device_class if needed."""
+    result_value, result_unit, result_device_class = convert_to_base_unit(value, unit, device_class)
     expected_value, expected_unit, expected_device_class = expected
-    assert normalized_value == pytest.approx(expected_value)
-    assert normalized_unit == expected_unit
-    assert normalized_device_class == expected_device_class
+    assert result_value == pytest.approx(expected_value)
+    assert result_unit == expected_unit
+    assert result_device_class == expected_device_class

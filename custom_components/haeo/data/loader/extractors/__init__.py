@@ -5,7 +5,7 @@ from enum import StrEnum
 from typing import NamedTuple
 
 from custom_components.haeo.core.state import EntityState
-from custom_components.haeo.core.units import DeviceClass, UnitOfMeasurement, normalize_measurement
+from custom_components.haeo.core.units import DeviceClass, UnitOfMeasurement, convert_to_base_unit
 
 from . import aemo_nem, amber2mqtt, amberelectric, emhass, flow_power, haeo, open_meteo_solar_forecast, solcast_solar
 from .utils import EntityMetadata, extract_entity_metadata, separate_duplicate_timestamps
@@ -94,22 +94,22 @@ def extract(state: EntityState) -> ExtractedData:
     # Convert values to base units
     if isinstance(data, Sequence):
         converted_data: list[tuple[int, float]] = []
-        normalized_unit: UnitOfMeasurement | str | None = unit_str
+        base_unit: UnitOfMeasurement | str | None = unit_str
         for ts, point_value in data:
-            normalized_value, normalized_unit, _ = normalize_measurement(
+            converted_value, base_unit, _ = convert_to_base_unit(
                 point_value,
                 unit_str,
                 device_class,
             )
-            converted_data.append((ts, normalized_value))
+            converted_data.append((ts, converted_value))
 
         # Separate duplicate timestamps to prevent interpolation (also converts int timestamps to float)
         separated_data = separate_duplicate_timestamps(converted_data)
-        return ExtractedData(separated_data, normalized_unit)
+        return ExtractedData(separated_data, base_unit)
 
     # Convert single value
-    converted_value, normalized_unit, _ = normalize_measurement(data, unit_str, device_class)
-    return ExtractedData(converted_value, normalized_unit)
+    converted_value, base_unit, _ = convert_to_base_unit(data, unit_str, device_class)
+    return ExtractedData(converted_value, base_unit)
 
 
 __all__ = [

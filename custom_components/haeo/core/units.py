@@ -91,7 +91,7 @@ def base_unit_for_device_class(device_class: DeviceClass | None) -> UnitOfMeasur
     return BASE_UNITS.get(device_class) if device_class is not None else None
 
 
-def convert_to_base_unit(
+def _convert_value(
     value: float,
     from_unit: UnitOfMeasurement | None,
     device_class: DeviceClass | None,
@@ -116,17 +116,17 @@ def convert_to_base_unit(
     return value
 
 
-def normalize_measurement(
+def convert_to_base_unit(
     value: float,
     unit: str | UnitOfMeasurement | None,
     device_class: str | DeviceClass | None,
 ) -> tuple[float, UnitOfMeasurement | str | None, DeviceClass | None]:
-    """Normalize value and unit while preserving only parsed device-class metadata."""
+    """Convert value to base unit, parsing string unit/device_class if needed."""
     parsed_unit = UnitOfMeasurement.of(unit)
     parsed_device_class = DeviceClass.of(device_class)
     effective_device_class = parsed_device_class or _infer_device_class_from_unit(parsed_unit)
 
-    normalized_value = convert_to_base_unit(value, parsed_unit, parsed_device_class)
-    normalized_unit = base_unit_for_device_class(effective_device_class) or parsed_unit or unit
+    converted_value = _convert_value(value, parsed_unit, parsed_device_class)
+    base_unit = base_unit_for_device_class(effective_device_class) or parsed_unit or unit
 
-    return normalized_value, normalized_unit, parsed_device_class
+    return converted_value, base_unit, parsed_device_class
