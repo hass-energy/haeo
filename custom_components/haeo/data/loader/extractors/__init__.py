@@ -62,7 +62,7 @@ def extract(state: EntityState) -> ExtractedData:
 
     # Extract raw data and unit
     data: Sequence[tuple[int, float]] | float
-    unit: UnitOfMeasurement | str | StrEnum | None
+    unit: UnitOfMeasurement | str | None
     device_class: DeviceClass | None
 
     if aemo_nem.Parser.detect(state):
