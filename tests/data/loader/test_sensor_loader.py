@@ -3,13 +3,11 @@
 from datetime import UTC, datetime, timedelta
 from unittest.mock import patch
 
-from homeassistant.components.sensor.const import SensorDeviceClass
-from homeassistant.const import UnitOfPower
-from homeassistant.core import HomeAssistant
 import pytest
 
 from custom_components.haeo.data.loader.extractors import ExtractedData
 from custom_components.haeo.data.loader.sensor_loader import load_sensor, load_sensors, normalize_entity_ids
+from tests.conftest import FakeEntityState, FakeStateMachine
 
 
 def test_normalize_entity_ids_accepts_str_and_sequence() -> None:
@@ -22,17 +20,18 @@ def test_normalize_entity_ids_accepts_str_and_sequence() -> None:
         normalize_entity_ids(123)
 
 
-def test_load_sensor_forecast_returns_series(hass: HomeAssistant) -> None:
+def test_load_sensor_forecast_returns_series() -> None:
     """Forecast sensors return raw timestamp/value pairs."""
 
     start = datetime(2024, 1, 1, tzinfo=UTC)
-    hass.states.async_set(
-        "sensor.forecast",
-        "0.0",
+    sm = FakeStateMachine(
         {
-            "device_class": SensorDeviceClass.POWER,
-            "unit_of_measurement": UnitOfPower.KILO_WATT,
-        },
+            "sensor.forecast": FakeEntityState(
+                entity_id="sensor.forecast",
+                state="0.0",
+                attributes={"device_class": "power", "unit_of_measurement": "kW"},
+            )
+        }
     )
 
     with patch(
@@ -42,47 +41,58 @@ def test_load_sensor_forecast_returns_series(hass: HomeAssistant) -> None:
                 (int((start + timedelta(hours=1)).timestamp()), 1.5),
                 (int((start + timedelta(hours=2)).timestamp()), 2.5),
             ],
-            unit=UnitOfPower.KILO_WATT,
+            unit="kW",
         ),
     ):
-        payload = load_sensor(hass, "sensor.forecast")
+        payload = load_sensor(sm, "sensor.forecast")
         assert payload == [
             (int((start + timedelta(hours=1)).timestamp()), 1.5),
             (int((start + timedelta(hours=2)).timestamp()), 2.5),
         ]
 
 
-def test_load_sensor_returns_none_when_unavailable(hass: HomeAssistant) -> None:
+def test_load_sensor_returns_none_when_unavailable() -> None:
     """Load sensor returns None when sensor data is unavailable."""
 
-    hass.states.async_set("sensor.unavailable", "unavailable", {})
-
-    payload = load_sensor(hass, "sensor.unavailable")
+    sm = FakeStateMachine(
+        {
+            "sensor.unavailable": FakeEntityState(
+                entity_id="sensor.unavailable",
+                state="unavailable",
+                attributes={},
+            )
+        }
+    )
+    payload = load_sensor(sm, "sensor.unavailable")
     assert payload is None
 
 
-def test_load_sensor_returns_none_when_missing(hass: HomeAssistant) -> None:
+def test_load_sensor_returns_none_when_missing() -> None:
     """Load sensor returns None when sensor does not exist."""
 
-    payload = load_sensor(hass, "sensor.missing")
+    payload = load_sensor(FakeStateMachine({}), "sensor.missing")
     assert payload is None
 
 
-async def test_load_sensors_returns_mapping(hass: HomeAssistant) -> None:
+async def test_load_sensors_returns_mapping() -> None:
     """Load sensors returns the raw payload for each available sensor ID."""
 
-    hass.states.async_set(
-        "sensor.a",
-        "1",
-        {"device_class": SensorDeviceClass.POWER, "unit_of_measurement": UnitOfPower.KILO_WATT},
-    )
-    hass.states.async_set(
-        "sensor.b",
-        "500",
-        {"device_class": SensorDeviceClass.POWER, "unit_of_measurement": UnitOfPower.WATT},
+    sm = FakeStateMachine(
+        {
+            "sensor.a": FakeEntityState(
+                entity_id="sensor.a",
+                state="1",
+                attributes={"device_class": "power", "unit_of_measurement": "kW"},
+            ),
+            "sensor.b": FakeEntityState(
+                entity_id="sensor.b",
+                state="500",
+                attributes={"device_class": "power", "unit_of_measurement": "W"},
+            ),
+        }
     )
 
-    payloads = load_sensors(hass, ["sensor.a", "sensor.b"])
+    payloads = load_sensors(sm, ["sensor.a", "sensor.b"])
 
     assert "sensor.a" in payloads
     assert "sensor.b" in payloads
@@ -93,17 +103,25 @@ async def test_load_sensors_returns_mapping(hass: HomeAssistant) -> None:
     assert payloads["sensor.b"] == 0.5
 
 
-async def test_load_sensors_excludes_unavailable(hass: HomeAssistant) -> None:
+async def test_load_sensors_excludes_unavailable() -> None:
     """Load sensors excludes sensors that are unavailable or missing."""
 
-    hass.states.async_set(
-        "sensor.a",
-        "1",
-        {"device_class": SensorDeviceClass.POWER, "unit_of_measurement": UnitOfPower.KILO_WATT},
+    sm = FakeStateMachine(
+        {
+            "sensor.a": FakeEntityState(
+                entity_id="sensor.a",
+                state="1",
+                attributes={"device_class": "power", "unit_of_measurement": "kW"},
+            ),
+            "sensor.unavailable": FakeEntityState(
+                entity_id="sensor.unavailable",
+                state="unavailable",
+                attributes={},
+            ),
+        }
     )
-    hass.states.async_set("sensor.unavailable", "unavailable", {})
 
-    payloads = load_sensors(hass, ["sensor.a", "sensor.unavailable", "sensor.missing"])
+    payloads = load_sensors(sm, ["sensor.a", "sensor.unavailable", "sensor.missing"])
 
     assert "sensor.a" in payloads
     assert "sensor.unavailable" not in payloads

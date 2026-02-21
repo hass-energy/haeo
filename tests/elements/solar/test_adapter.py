@@ -24,7 +24,7 @@ async def test_available_returns_true_when_forecast_sensor_exists(hass: HomeAssi
         solar.SECTION_CURTAILMENT: {"curtailment": as_constant_value(value=True)},
     }
 
-    result = schema_config_available(config, hass=hass)
+    result = schema_config_available(config, sm=hass.states)
     assert result is True
 
 
@@ -41,5 +41,5 @@ async def test_available_returns_false_when_forecast_sensor_missing(hass: HomeAs
         solar.SECTION_CURTAILMENT: {"curtailment": as_constant_value(value=True)},
     }
 
-    result = schema_config_available(config, hass=hass)
+    result = schema_config_available(config, sm=hass.states)
     assert result is False

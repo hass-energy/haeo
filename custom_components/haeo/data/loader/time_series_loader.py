@@ -3,8 +3,7 @@
 from collections.abc import Sequence
 from typing import Any
 
-from homeassistant.core import HomeAssistant
-
+from custom_components.haeo.core.state import StateMachine
 from custom_components.haeo.data.util.forecast_combiner import combine_sensor_payloads
 from custom_components.haeo.data.util.forecast_fuser import fuse_to_boundaries, fuse_to_intervals
 from custom_components.haeo.schema import EntityValue
@@ -15,28 +14,28 @@ from .sensor_loader import load_sensors
 class TimeSeriesLoader:
     """Loader that merges live sensor values and forecasts into a horizon-aligned time series."""
 
-    def available(self, *, hass: HomeAssistant, value: EntityValue, **_kwargs: Any) -> bool:
+    def available(self, *, sm: StateMachine, value: EntityValue, **_kwargs: Any) -> bool:
         """Return True when every referenced sensor can supply data."""
         entity_ids = value["value"]
 
         if not entity_ids:
             return False
 
-        payloads = load_sensors(hass, entity_ids)
+        payloads = load_sensors(sm, entity_ids)
 
         return len(payloads) == len(entity_ids)
 
     async def load_intervals(
         self,
         *,
-        hass: HomeAssistant,
+        sm: StateMachine,
         value: EntityValue,
         forecast_times: Sequence[float],
     ) -> list[float]:
         """Load a value as interval averages (n values for n+1 boundaries).
 
         Args:
-            hass: Home Assistant instance
+            sm: State machine implementation
             value: Entity schema value describing entities
             forecast_times: Boundary timestamps (n+1 values defining n intervals)
 
@@ -56,7 +55,7 @@ class TimeSeriesLoader:
             msg = "At least one sensor entity is required"
             raise ValueError(msg)
 
-        payloads = load_sensors(hass, entity_ids)
+        payloads = load_sensors(sm, entity_ids)
 
         if not payloads:
             msg = "No time series data available"
@@ -74,14 +73,14 @@ class TimeSeriesLoader:
     async def load_boundaries(
         self,
         *,
-        hass: HomeAssistant,
+        sm: StateMachine,
         value: EntityValue,
         forecast_times: Sequence[float],
     ) -> list[float]:
         """Load a value as boundaries (n+1 point-in-time values).
 
         Args:
-            hass: Home Assistant instance
+            sm: State machine implementation
             value: Entity schema value describing entities
             forecast_times: Boundary timestamps (n+1 values defining n intervals)
 
@@ -104,7 +103,7 @@ class TimeSeriesLoader:
             msg = "At least one sensor entity is required"
             raise ValueError(msg)
 
-        payloads = load_sensors(hass, entity_ids)
+        payloads = load_sensors(sm, entity_ids)
 
         if not payloads:
             msg = "No time series data available"

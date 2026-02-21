@@ -2,8 +2,7 @@
 
 from typing import Any
 
-from homeassistant.core import HomeAssistant
-
+from custom_components.haeo.core.state import StateMachine
 from custom_components.haeo.core.units import convert_to_base_unit
 from custom_components.haeo.schema import EntityValue
 
@@ -13,7 +12,7 @@ from .sensor_loader import normalize_entity_ids
 class ScalarLoader:
     """Loader that reads current sensor state without forecasting."""
 
-    def available(self, *, hass: HomeAssistant, value: EntityValue, **_kwargs: Any) -> bool:
+    def available(self, *, sm: StateMachine, value: EntityValue, **_kwargs: Any) -> bool:
         """Return True when every referenced sensor has a usable state."""
         entity_ids = value["value"]
         if not entity_ids:
@@ -25,7 +24,7 @@ class ScalarLoader:
             return False
 
         for entity_id in normalized:
-            state = hass.states.get(entity_id)
+            state = sm.get(entity_id)
             if state is None:
                 return False
             if (
@@ -40,7 +39,7 @@ class ScalarLoader:
 
         return True
 
-    async def load(self, *, hass: HomeAssistant, value: EntityValue, **_kwargs: Any) -> float:
+    async def load(self, *, sm: StateMachine, value: EntityValue, **_kwargs: Any) -> float:
         """Load current scalar values and return the sum.
 
         Raises:
@@ -55,7 +54,7 @@ class ScalarLoader:
         normalized = normalize_entity_ids(entity_ids)
         total = 0.0
         for entity_id in normalized:
-            state = hass.states.get(entity_id)
+            state = sm.get(entity_id)
             if state is None:
                 msg = f"Sensor {entity_id} not found or unavailable"
                 raise ValueError(msg)

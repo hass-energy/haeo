@@ -19,6 +19,7 @@ from custom_components.haeo.const import CONF_RECORD_FORECASTS
 from custom_components.haeo.data.loader import ScalarLoader, TimeSeriesLoader
 from custom_components.haeo.elements import InputFieldPath, find_nested_config_path, get_nested_config_value_by_path
 from custom_components.haeo.elements.input_fields import InputFieldInfo
+from custom_components.haeo.ha_state_machine import HomeAssistantStateMachine
 from custom_components.haeo.horizon import HorizonManager
 from custom_components.haeo.schema import (
     as_constant_value,
@@ -243,12 +244,14 @@ class HaeoInputNumber(NumberEntity):
             eid: state for eid in self._source_entity_ids if (state := self.hass.states.get(eid)) is not None
         }
 
+        sm = HomeAssistantStateMachine(self.hass)
+
         if not self._uses_forecast:
             if not self._source_entity_ids:
                 return
             try:
                 scalar_value = await self._scalar_loader.load(
-                    hass=self.hass,
+                    sm=sm,
                     value=as_entity_value(self._source_entity_ids),
                 )
             except Exception:
@@ -265,14 +268,14 @@ class HaeoInputNumber(NumberEntity):
             if self._field_info.boundaries:
                 # Boundary fields: n+1 values at time boundaries
                 values = await self._time_series_loader.load_boundaries(
-                    hass=self.hass,
+                    sm=sm,
                     value=as_entity_value(self._source_entity_ids),
                     forecast_times=list(forecast_timestamps),
                 )
             else:
                 # Interval fields: n values for periods between boundaries
                 values = await self._time_series_loader.load_intervals(
-                    hass=self.hass,
+                    sm=sm,
                     value=as_entity_value(self._source_entity_ids),
                     forecast_times=list(forecast_timestamps),
                 )

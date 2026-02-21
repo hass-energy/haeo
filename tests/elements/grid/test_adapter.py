@@ -30,7 +30,7 @@ async def test_available_returns_true_when_sensors_exist(hass: HomeAssistant) ->
         grid.SECTION_POWER_LIMITS: {},
     }
 
-    result = schema_config_available(config, hass=hass)
+    result = schema_config_available(config, sm=hass.states)
     assert result is True
 
 
@@ -51,7 +51,7 @@ async def test_available_returns_false_when_import_price_missing(hass: HomeAssis
         grid.SECTION_POWER_LIMITS: {},
     }
 
-    result = schema_config_available(config, hass=hass)
+    result = schema_config_available(config, sm=hass.states)
     assert result is False
 
 
@@ -72,7 +72,7 @@ async def test_available_returns_false_when_export_price_missing(hass: HomeAssis
         grid.SECTION_POWER_LIMITS: {},
     }
 
-    result = schema_config_available(config, hass=hass)
+    result = schema_config_available(config, sm=hass.states)
     assert result is False
 
 
@@ -91,7 +91,7 @@ async def test_available_with_constant_prices(hass: HomeAssistant) -> None:
         grid.SECTION_POWER_LIMITS: {},
     }
 
-    result = schema_config_available(config, hass=hass)
+    result = schema_config_available(config, sm=hass.states)
     assert result is True
 
 
@@ -112,5 +112,5 @@ async def test_available_with_entity_schema_value(hass: HomeAssistant) -> None:
         grid.SECTION_POWER_LIMITS: {},
     }
 
-    result = schema_config_available(config, hass=hass)
+    result = schema_config_available(config, sm=hass.states)
     assert result is True

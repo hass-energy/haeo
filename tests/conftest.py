@@ -1,6 +1,6 @@
 """Test configuration and fixtures."""
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from importlib import import_module
 from logging import config as logging_config_module
@@ -30,6 +30,35 @@ class ElementTestData:
 
     valid: tuple[FlowTestCase, ...]
     invalid: tuple[FlowTestCase, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class FakeEntityState:
+    """Minimal entity state used by core loader tests."""
+
+    entity_id: str
+    state: str
+    attributes: Mapping[str, Any]
+
+    def as_dict(self) -> dict[str, Any]:
+        """Return dictionary representation compatible with EntityState."""
+        return {
+            "entity_id": self.entity_id,
+            "state": self.state,
+            "attributes": dict(self.attributes),
+        }
+
+
+class FakeStateMachine:
+    """State machine test double with deterministic lookups."""
+
+    def __init__(self, states: Mapping[str, FakeEntityState]) -> None:
+        """Initialize with preloaded states keyed by entity ID."""
+        self._states = dict(states)
+
+    def get(self, entity_id: str) -> FakeEntityState | None:
+        """Return state for entity when present."""
+        return self._states.get(entity_id)
 
 
 def _load_flow_cases(cases: Iterable[dict[str, Any]], *, include_error: bool) -> tuple[FlowTestCase, ...]:

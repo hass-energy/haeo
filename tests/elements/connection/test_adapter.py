@@ -26,7 +26,7 @@ async def test_available_returns_true_with_no_optional_fields(hass: HomeAssistan
         connection.SECTION_EFFICIENCY: {},
     }
 
-    result = schema_config_available(config, hass=hass)
+    result = schema_config_available(config, sm=hass.states)
     assert result is True
 
 
@@ -60,7 +60,7 @@ async def test_available_returns_true_when_optional_sensors_exist(hass: HomeAssi
         },
     }
 
-    result = schema_config_available(config, hass=hass)
+    result = schema_config_available(config, sm=hass.states)
     assert result is True
 
 
@@ -84,7 +84,7 @@ async def test_available_returns_false_when_optional_sensor_missing(hass: HomeAs
         connection.SECTION_EFFICIENCY: {},
     }
 
-    result = schema_config_available(config, hass=hass)
+    result = schema_config_available(config, sm=hass.states)
     assert result is False
 
 
@@ -104,7 +104,7 @@ async def test_available_returns_false_when_efficiency_sensor_missing(hass: Home
         },
     }
 
-    result = schema_config_available(config, hass=hass)
+    result = schema_config_available(config, sm=hass.states)
     assert result is False
 
 
@@ -131,5 +131,5 @@ async def test_available_returns_true_with_constant_values(hass: HomeAssistant) 
         },
     }
 
-    result = schema_config_available(config, hass=hass)
+    result = schema_config_available(config, sm=hass.states)
     assert result is True
