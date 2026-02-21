@@ -3,12 +3,10 @@
 from collections.abc import Mapping
 from copy import deepcopy
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any, Self, cast
 
-from homeassistant.core import State
-from homeassistant.util import dt as dt_util
-
+from custom_components.haeo.core.state import EntityState
 from custom_components.haeo.elements import ElementConfigSchema, InputFieldPath
 
 if TYPE_CHECKING:
@@ -38,7 +36,7 @@ class OptimizationContext:
     participants: dict[str, ElementConfigSchema]
     """Raw element schemas (not processed ElementConfigData)."""
 
-    source_states: Mapping[str, State]
+    source_states: Mapping[str, EntityState]
     """Source sensor states captured when entities loaded data."""
 
     @classmethod
@@ -63,14 +61,13 @@ class OptimizationContext:
             Immutable OptimizationContext with all inputs captured.
 
         """
-        # Pull source states from all input entities (they captured these when loading data)
-        source_states: dict[str, State] = {}
+        source_states: dict[str, EntityState] = {}
         for entity in input_entities.values():
             source_states.update(entity.captured_source_states)
 
         horizon_start = horizon_manager.current_start_time
         if horizon_start is None:
-            horizon_start = dt_util.utcnow()
+            horizon_start = datetime.now(UTC)
 
         return cls(
             hub_config=deepcopy(dict(hub_config)),
