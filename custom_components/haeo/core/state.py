@@ -25,3 +25,14 @@ class EntityState(Protocol):
     def as_dict(self) -> dict[str, Any]:
         """Return serialized state representation."""
         ...
+
+
+class StateMachine(Protocol):
+    """Minimal state lookup interface for core data-loading code."""
+
+    def get(self, entity_id: str) -> EntityState | None:
+        """Return entity state for *entity_id* when available."""
+        ...
+
+
+__all__ = ["EntityState", "StateMachine"]

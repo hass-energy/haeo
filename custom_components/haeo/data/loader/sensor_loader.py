@@ -3,7 +3,7 @@
 from collections.abc import Sequence
 from typing import Any, TypeGuard
 
-from homeassistant.core import HomeAssistant
+from custom_components.haeo.core.state import StateMachine
 
 from .extractors import extract
 
@@ -38,14 +38,14 @@ def normalize_entity_ids(value: Any) -> list[str]:
     raise TypeError(msg)
 
 
-def load_sensor(hass: HomeAssistant, entity_id: str) -> SensorPayload | None:
+def load_sensor(sm: StateMachine, entity_id: str) -> SensorPayload | None:
     """Load sensor data for a single entity ID.
 
     Checks if the sensor is a forecast sensor and loads it using forecast extraction,
     or falls back to the state value if no forecast is available.
 
     Args:
-        hass: Home Assistant instance
+        sm: State machine implementation
         entity_id: The entity ID to load
 
     Returns:
@@ -53,7 +53,7 @@ def load_sensor(hass: HomeAssistant, entity_id: str) -> SensorPayload | None:
         (for forecast data), or None if no data is available
 
     """
-    state = hass.states.get(entity_id)
+    state = sm.get(entity_id)
     if state is None:
         return None
 
@@ -63,11 +63,11 @@ def load_sensor(hass: HomeAssistant, entity_id: str) -> SensorPayload | None:
         return None
 
 
-def load_sensors(hass: HomeAssistant, entity_ids: Sequence[str]) -> dict[str, SensorPayload]:
+def load_sensors(sm: StateMachine, entity_ids: Sequence[str]) -> dict[str, SensorPayload]:
     """Load sensor data for multiple entity IDs.
 
     Args:
-        hass: Home Assistant instance
+        sm: State machine implementation
         entity_ids: List of entity IDs to load
 
     Returns:
@@ -78,7 +78,7 @@ def load_sensors(hass: HomeAssistant, entity_ids: Sequence[str]) -> dict[str, Se
     payloads: dict[str, SensorPayload] = {}
 
     for entity_id in entity_ids:
-        payload = load_sensor(hass, entity_id)
+        payload = load_sensor(sm, entity_id)
         if payload is not None:
             payloads[entity_id] = payload
 

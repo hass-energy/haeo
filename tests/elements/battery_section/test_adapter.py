@@ -26,7 +26,7 @@ async def test_available_returns_true_when_sensors_exist(hass: HomeAssistant) ->
         },
     }
 
-    result = schema_config_available(config, hass=hass)
+    result = schema_config_available(config, sm=hass.states)
     assert result is True
 
 
@@ -44,5 +44,5 @@ async def test_available_returns_false_when_sensor_missing(hass: HomeAssistant) 
         },
     }
 
-    result = schema_config_available(config, hass=hass)
+    result = schema_config_available(config, sm=hass.states)
     assert result is False

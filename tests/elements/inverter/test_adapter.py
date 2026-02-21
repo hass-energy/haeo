@@ -30,7 +30,7 @@ async def test_available_returns_true_when_sensors_exist(hass: HomeAssistant) ->
         inverter.SECTION_EFFICIENCY: {},
     }
 
-    result = schema_config_available(config, hass=hass)
+    result = schema_config_available(config, sm=hass.states)
     assert result is True
 
 
@@ -52,7 +52,7 @@ async def test_available_returns_false_when_first_sensor_missing(hass: HomeAssis
         inverter.SECTION_EFFICIENCY: {},
     }
 
-    result = schema_config_available(config, hass=hass)
+    result = schema_config_available(config, sm=hass.states)
     assert result is False
 
 
@@ -74,7 +74,7 @@ async def test_available_returns_false_when_second_sensor_missing(hass: HomeAssi
         inverter.SECTION_EFFICIENCY: {},
     }
 
-    result = schema_config_available(config, hass=hass)
+    result = schema_config_available(config, sm=hass.states)
     assert result is False
 
 
@@ -90,5 +90,5 @@ async def test_available_returns_true_when_limits_missing(hass: HomeAssistant) -
         inverter.SECTION_EFFICIENCY: {},
     }
 
-    result = schema_config_available(config, hass=hass)
+    result = schema_config_available(config, sm=hass.states)
     assert result is True

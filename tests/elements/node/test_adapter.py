@@ -14,7 +14,7 @@ async def test_available_returns_true(hass: HomeAssistant) -> None:
         node.SECTION_ROLE: {"is_source": False, "is_sink": False},
     }
 
-    result = schema_config_available(config, hass=hass)
+    result = schema_config_available(config, sm=hass.states)
     assert result is True
 
 
