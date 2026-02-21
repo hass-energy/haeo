@@ -21,3 +21,7 @@ class EntityState(Protocol):
     def attributes(self) -> Mapping[str, Any]:
         """Entity attributes."""
         ...
+
+    def as_dict(self) -> dict[str, Any]:
+        """Return serialized state representation."""
+        ...

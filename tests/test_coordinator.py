@@ -1741,7 +1741,7 @@ def test_optimization_context_build_captures_horizon_start() -> None:
 
 
 def test_optimization_context_build_falls_back_to_utcnow_when_no_start_time() -> None:
-    """OptimizationContext.build uses utcnow() when horizon has no start time."""
+    """OptimizationContext.build uses datetime.now(UTC) when horizon has no start time."""
     mock_horizon = MagicMock()
     mock_horizon.current_start_time = None
 

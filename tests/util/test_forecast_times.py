@@ -2,7 +2,6 @@
 
 from datetime import UTC, datetime
 from typing import TypedDict
-from unittest.mock import patch
 
 from freezegun import freeze_time
 import pytest
@@ -144,16 +143,13 @@ def test_generate_forecast_timestamps(case_id: str) -> None:
     assert result == case["expected"], case["description"]
 
 
+@freeze_time(datetime(2025, 1, 1, 12, 0, 30, tzinfo=UTC))
 def test_generate_forecast_timestamps_default_start_time() -> None:
     """Verify default start_time uses current time with rounding."""
     periods_seconds = [60, 60]
-
-    # Mock utcnow to return a known time
-    mock_time = datetime(2025, 1, 1, 12, 0, 30, tzinfo=UTC)
     expected_start = 1735732800.0  # 2025-01-01 12:00:00 UTC (rounded from 12:00:30)
 
-    with patch("custom_components.haeo.util.forecast_times.dt_util.utcnow", return_value=mock_time):
-        result = generate_forecast_timestamps(periods_seconds)
+    result = generate_forecast_timestamps(periods_seconds)
 
     assert result[0] == expected_start
     assert len(result) == 3  # 2 periods + 1 = 3 boundaries
@@ -161,6 +157,7 @@ def test_generate_forecast_timestamps_default_start_time() -> None:
     assert result[2] == expected_start + 120.0
 
 
+@freeze_time(datetime(2025, 1, 1, 12, 0, 30, tzinfo=UTC))
 def test_generate_forecast_timestamps_from_config() -> None:
     """Verify timestamps generated from config use proper rounding."""
     config = {
@@ -173,13 +170,9 @@ def test_generate_forecast_timestamps_from_config() -> None:
         "tier_4_count": 0,
         "tier_4_duration": 60,
     }
-
-    # Mock utcnow to return a known time
-    mock_time = datetime(2025, 1, 1, 12, 0, 30, tzinfo=UTC)
     expected_start = 1735732800.0  # 2025-01-01 12:00:00 UTC (rounded from 12:00:30)
 
-    with patch("custom_components.haeo.util.forecast_times.dt_util.utcnow", return_value=mock_time):
-        result = generate_forecast_timestamps_from_config(config)
+    result = generate_forecast_timestamps_from_config(config)
 
     assert result[0] == expected_start
     assert len(result) == 3  # 2 periods + 1 = 3 boundaries

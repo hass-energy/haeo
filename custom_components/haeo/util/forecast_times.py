@@ -1,11 +1,8 @@
 """Forecast time generation utilities."""
 
 from collections.abc import Mapping, Sequence
-from datetime import datetime
+from datetime import UTC, datetime
 
-from homeassistant.util import dt as dt_util
-
-# Preset name to days mapping for aligned mode
 _PRESET_DAYS: dict[str, int] = {
     "2_days": 2,
     "3_days": 3,
@@ -259,7 +256,7 @@ def tiers_to_periods_seconds(
         total_steps = calculate_total_steps(min_counts, horizon_minutes)
 
         periods_seconds, _ = calculate_aligned_tier_counts(
-            start_time=start_time or dt_util.utcnow(),
+            start_time=start_time or datetime.now(UTC),
             tier_durations=tier_durations,
             min_counts=min_counts,
             total_steps=total_steps,
@@ -305,7 +302,7 @@ def generate_forecast_timestamps(periods_seconds: Sequence[int], start_time: flo
 
     """
     if start_time is None:
-        epoch_seconds = dt_util.utcnow().timestamp()
+        epoch_seconds = datetime.now(UTC).timestamp()
         smallest_period = min(periods_seconds) if periods_seconds else 60
         start_time = epoch_seconds // smallest_period * smallest_period
 
