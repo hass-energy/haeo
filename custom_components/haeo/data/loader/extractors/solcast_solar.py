@@ -5,9 +5,8 @@ from datetime import datetime
 import logging
 from typing import Literal, Protocol, TypedDict, TypeGuard
 
-from homeassistant.components.sensor import SensorDeviceClass
-from homeassistant.const import UnitOfPower
-from homeassistant.core import State
+from custom_components.haeo.core.state import EntityState
+from custom_components.haeo.core.units import DeviceClass, UnitOfMeasurement
 
 from .utils import is_parsable_to_datetime, parse_datetime_to_timestamp
 
@@ -40,11 +39,11 @@ class Parser:
     """Parser for Solcast solar forecast data."""
 
     DOMAIN: Format = DOMAIN
-    UNIT: str = UnitOfPower.KILO_WATT  # Solcast returns kW
-    DEVICE_CLASS: SensorDeviceClass = SensorDeviceClass.POWER
+    UNIT: UnitOfMeasurement = UnitOfMeasurement.KILO_WATT  # Solcast returns kW
+    DEVICE_CLASS: DeviceClass = DeviceClass.POWER
 
     @staticmethod
-    def detect(state: State) -> TypeGuard[SolcastSolarState]:
+    def detect(state: EntityState) -> TypeGuard[SolcastSolarState]:
         """Check if data matches Solcast solar forecast format and narrow type."""
 
         if "detailedForecast" not in state.attributes:
@@ -67,7 +66,7 @@ class Parser:
         )
 
     @staticmethod
-    def extract(state: SolcastSolarState) -> tuple[Sequence[tuple[int, float]], str, SensorDeviceClass]:
+    def extract(state: SolcastSolarState) -> tuple[Sequence[tuple[int, float]], UnitOfMeasurement, DeviceClass]:
         """Extract forecast data from Solcast solar forecast format.
 
         State has been validated by detect(), so all entries are guaranteed to be valid.

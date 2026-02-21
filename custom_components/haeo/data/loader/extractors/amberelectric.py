@@ -5,8 +5,8 @@ from datetime import datetime
 import logging
 from typing import Literal, Protocol, TypedDict, TypeGuard
 
-from homeassistant.components.sensor import SensorDeviceClass
-from homeassistant.core import State
+from custom_components.haeo.core.state import EntityState
+from custom_components.haeo.core.units import DeviceClass, UnitOfMeasurement
 
 from .utils import is_parsable_to_datetime, parse_datetime_to_timestamp
 
@@ -40,11 +40,11 @@ class Parser:
     """Parser for Amber Electric pricing forecast data."""
 
     DOMAIN: Format = DOMAIN
-    UNIT: str = "$/kWh"  # Amber Electric prices are in $/kWh
-    DEVICE_CLASS: SensorDeviceClass = SensorDeviceClass.MONETARY
+    UNIT: UnitOfMeasurement = UnitOfMeasurement.DOLLAR_PER_KWH  # Amber Electric prices are in $/kWh
+    DEVICE_CLASS: DeviceClass = DeviceClass.MONETARY
 
     @staticmethod
-    def detect(state: State) -> TypeGuard[AmberElectricState]:
+    def detect(state: EntityState) -> TypeGuard[AmberElectricState]:
         """Check if data matches Amber Electric (amberelectric) pricing format and narrow type."""
 
         if "forecasts" not in state.attributes:
@@ -72,7 +72,7 @@ class Parser:
         return int(round(raw / 60.0) * 60.0)
 
     @staticmethod
-    def extract(state: AmberElectricState) -> tuple[Sequence[tuple[int, float]], str, SensorDeviceClass]:
+    def extract(state: AmberElectricState) -> tuple[Sequence[tuple[int, float]], UnitOfMeasurement, DeviceClass]:
         """Extract forecast data from Amber Electric pricing format.
 
         Emits boundary prices to create step functions: each window produces two points

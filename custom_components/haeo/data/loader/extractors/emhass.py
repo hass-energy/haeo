@@ -10,8 +10,8 @@ EMHASS (Energy Management for Home Assistant) provides forecasts with a unique f
 from collections.abc import Mapping, Sequence
 from typing import Literal, Protocol, TypeGuard
 
-from homeassistant.components.sensor import SensorDeviceClass
-from homeassistant.core import State
+from custom_components.haeo.core.state import EntityState
+from custom_components.haeo.core.units import DeviceClass, UnitOfMeasurement
 
 from .utils import is_parsable_to_datetime, parse_datetime_to_timestamp
 
@@ -70,7 +70,7 @@ class Parser:
         return entity_id.split(".", 1)[1] if "." in entity_id else entity_id
 
     @staticmethod
-    def _get_forecast_attribute(state: State) -> Sequence[object] | None:
+    def _get_forecast_attribute(state: EntityState) -> Sequence[object] | None:
         """Find the forecast sequence from state attributes.
 
         Returns the first non-empty sequence attribute that matches an EMHASS forecast key.
@@ -84,7 +84,7 @@ class Parser:
         return None
 
     @staticmethod
-    def detect(state: State) -> TypeGuard[EmhassState]:
+    def detect(state: EntityState) -> TypeGuard[EmhassState]:
         """Check if data matches EMHASS forecast format."""
         forecast = Parser._get_forecast_attribute(state)
         if forecast is None:
@@ -112,7 +112,7 @@ class Parser:
     @staticmethod
     def extract(
         state: EmhassState,
-    ) -> tuple[Sequence[tuple[int, float]], str | None, SensorDeviceClass | None]:
+    ) -> tuple[Sequence[tuple[int, float]], UnitOfMeasurement | str | None, DeviceClass | None]:
         """Extract forecast data from EMHASS format.
 
         Returns: (parsed_data, unit, device_class)
@@ -134,15 +134,12 @@ class Parser:
         # Read unit and device_class from state attributes (EMHASS sets these)
         unit = state.attributes.get("unit_of_measurement")
         unit_str = str(unit) if unit is not None else None
+        parsed_unit = UnitOfMeasurement.of(unit_str)
 
         device_class_attr = state.attributes.get("device_class")
-        device_class = (
-            SensorDeviceClass(device_class_attr)
-            if device_class_attr and device_class_attr in SensorDeviceClass
-            else None
-        )
+        device_class = DeviceClass.of(device_class_attr)
 
-        return parsed, unit_str, device_class
+        return parsed, parsed_unit or unit_str, device_class
 
 
 def _is_numeric_or_numeric_string(value: object) -> bool:
