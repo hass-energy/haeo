@@ -4,17 +4,11 @@ from collections.abc import Sequence
 from enum import StrEnum
 from typing import NamedTuple
 
-from homeassistant.components.sensor import SensorDeviceClass
-from homeassistant.core import State
+from custom_components.haeo.core.state import EntityState
+from custom_components.haeo.core.units import DeviceClass, UnitOfMeasurement, normalize_measurement
 
 from . import aemo_nem, amber2mqtt, amberelectric, emhass, flow_power, haeo, open_meteo_solar_forecast, solcast_solar
-from .utils import (
-    EntityMetadata,
-    base_unit_for_device_class,
-    convert_to_base_unit,
-    extract_entity_metadata,
-    separate_duplicate_timestamps,
-)
+from .utils import EntityMetadata, extract_entity_metadata, separate_duplicate_timestamps
 
 # Union of all domain literal types from the extractor modules
 ExtractorFormat = (
@@ -59,17 +53,17 @@ class ExtractedData(NamedTuple):
 
     data: Sequence[tuple[float, float]] | float
     """Extracted forecast data, either a sequence of (timestamp, value) tuples or a single float value."""
-    unit: str | None
+    unit: UnitOfMeasurement | str | None
     """Unit of measurement after conversion to base units. (None if unknown)"""
 
 
-def extract(state: State) -> ExtractedData:
+def extract(state: EntityState) -> ExtractedData:
     """Extract data from a State object and convert to base units."""
 
     # Extract raw data and unit
     data: Sequence[tuple[int, float]] | float
-    unit: str | StrEnum | None
-    device_class: SensorDeviceClass | None
+    unit: UnitOfMeasurement | str | StrEnum | None
+    device_class: DeviceClass | None
 
     if aemo_nem.Parser.detect(state):
         data, unit, device_class = aemo_nem.Parser.extract(state)
@@ -92,27 +86,30 @@ def extract(state: State) -> ExtractedData:
         data = float(state.state)
         unit = state.attributes.get("unit_of_measurement")
         device_class_attr = state.attributes.get("device_class")
-        device_class = SensorDeviceClass(device_class_attr) if device_class_attr else None
+        device_class = DeviceClass.of(device_class_attr)
 
     # Normalize unit to string (handle enum values with .value attribute)
     unit_str: str | None = unit.value if isinstance(unit, StrEnum) else unit
 
-    # Get base unit for the device class (if one exists)
-    base_unit = base_unit_for_device_class(device_class) or unit_str
-
     # Convert values to base units
     if isinstance(data, Sequence):
-        # Convert each value in the forecast series
-        converted_data: list[tuple[int, float]] = [
-            (ts, convert_to_base_unit(value, unit_str, device_class)) for ts, value in data
-        ]
+        converted_data: list[tuple[int, float]] = []
+        normalized_unit: UnitOfMeasurement | str | None = unit_str
+        for ts, point_value in data:
+            normalized_value, normalized_unit, _ = normalize_measurement(
+                point_value,
+                unit_str,
+                device_class,
+            )
+            converted_data.append((ts, normalized_value))
+
         # Separate duplicate timestamps to prevent interpolation (also converts int timestamps to float)
         separated_data = separate_duplicate_timestamps(converted_data)
-        return ExtractedData(separated_data, base_unit)
+        return ExtractedData(separated_data, normalized_unit)
 
     # Convert single value
-    converted_value = convert_to_base_unit(data, unit_str, device_class)
-    return ExtractedData(converted_value, base_unit)
+    converted_value, normalized_unit, _ = normalize_measurement(data, unit_str, device_class)
+    return ExtractedData(converted_value, normalized_unit)
 
 
 __all__ = [

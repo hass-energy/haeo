@@ -74,8 +74,8 @@ VALID: list[dict[str, Any]] = [
             "unit_of_measurement": "W",
         },
         "expected_format": "haeo",
-        "expected_unit": "W",
-        "expected_data": [(1759669200.0, 5.0)],
+        "expected_unit": "kW",
+        "expected_data": [(1759669200.0, 0.005)],
         "description": "HAEO forecast without device_class attribute",
     },
     {
@@ -103,8 +103,8 @@ VALID: list[dict[str, Any]] = [
             "device_class": "invalid_device_class",
         },
         "expected_format": "haeo",
-        "expected_unit": "W",
-        "expected_data": [(1759669200.0, 100.0)],
+        "expected_unit": "kW",
+        "expected_data": [(1759669200.0, 0.1)],
         "description": "HAEO forecast with invalid device_class (should be ignored)",
     },
 ]

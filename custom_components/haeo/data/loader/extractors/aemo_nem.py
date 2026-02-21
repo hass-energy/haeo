@@ -5,8 +5,8 @@ from datetime import datetime
 import logging
 from typing import Literal, Protocol, TypedDict, TypeGuard
 
-from homeassistant.components.sensor import SensorDeviceClass
-from homeassistant.core import State
+from custom_components.haeo.core.state import EntityState
+from custom_components.haeo.core.units import DeviceClass, UnitOfMeasurement
 
 from .utils import is_parsable_to_datetime, parse_datetime_to_timestamp
 
@@ -39,11 +39,11 @@ class Parser:
     """Parser for AEMO energy market forecast data."""
 
     DOMAIN: Format = DOMAIN
-    UNIT: str = "$/kWh"  # AEMO prices are in $/kWh
-    DEVICE_CLASS: SensorDeviceClass = SensorDeviceClass.MONETARY
+    UNIT: UnitOfMeasurement = UnitOfMeasurement.DOLLAR_PER_KWH  # AEMO prices are in $/kWh
+    DEVICE_CLASS: DeviceClass = DeviceClass.MONETARY
 
     @staticmethod
-    def detect(state: State) -> TypeGuard[AemoNemState]:
+    def detect(state: EntityState) -> TypeGuard[AemoNemState]:
         """Check if data matches AEMO energy market format and narrow type."""
 
         if "forecast" not in state.attributes:
@@ -63,7 +63,7 @@ class Parser:
         )
 
     @staticmethod
-    def extract(state: AemoNemState) -> tuple[Sequence[tuple[int, float]], str, SensorDeviceClass]:
+    def extract(state: AemoNemState) -> tuple[Sequence[tuple[int, float]], UnitOfMeasurement, DeviceClass]:
         """Extract forecast data from AEMO energy market format."""
         parsed: list[tuple[int, float]] = [
             (parse_datetime_to_timestamp(item["start_time"]), item["price"]) for item in state.attributes["forecast"]

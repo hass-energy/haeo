@@ -5,14 +5,13 @@ attribute containing a mapping of datetime keys to float values.
 """
 
 from collections.abc import Mapping, Sequence
-from contextlib import suppress
 from datetime import datetime
 from itertools import pairwise
 import logging
 from typing import Literal, NotRequired, Protocol, TypedDict, TypeGuard
 
-from homeassistant.components.sensor import SensorDeviceClass
-from homeassistant.core import State
+from custom_components.haeo.core.state import EntityState
+from custom_components.haeo.core.units import DeviceClass, UnitOfMeasurement
 
 from .utils import is_parsable_to_datetime, parse_datetime_to_timestamp
 
@@ -54,7 +53,7 @@ class Parser:
     DOMAIN: Format = DOMAIN
 
     @staticmethod
-    def detect(state: State) -> TypeGuard[HaeoForecastState]:
+    def detect(state: EntityState) -> TypeGuard[HaeoForecastState]:
         """Check if data matches HAEO forecast format and narrow type."""
         # Check for required forecast attribute
         if "forecast" not in state.attributes:
@@ -90,7 +89,9 @@ class Parser:
         return device_class is None or isinstance(device_class, str)
 
     @staticmethod
-    def extract(state: HaeoForecastState) -> tuple[Sequence[tuple[int, float]], str, SensorDeviceClass | None]:
+    def extract(
+        state: HaeoForecastState,
+    ) -> tuple[Sequence[tuple[int, float]], UnitOfMeasurement | str, DeviceClass | None]:
         """Extract forecast data from HAEO forecast format.
 
         Expects list format: list of {"time": ..., "value": ...} dicts.
@@ -109,13 +110,11 @@ class Parser:
         # Apply interpolation mode if specified
         parsed = _apply_interpolation_mode(parsed, state.attributes.get("interpolation_mode"))
 
-        unit = state.attributes["unit_of_measurement"]
+        unit_attr = state.attributes["unit_of_measurement"]
+        unit: UnitOfMeasurement | str = UnitOfMeasurement.of(unit_attr) or unit_attr
 
         device_class_attr = state.attributes.get("device_class")
-        device_class: SensorDeviceClass | None = None
-        if device_class_attr:
-            with suppress(ValueError):
-                device_class = SensorDeviceClass(device_class_attr)
+        device_class = DeviceClass.of(device_class_attr)
 
         return parsed, unit, device_class
 

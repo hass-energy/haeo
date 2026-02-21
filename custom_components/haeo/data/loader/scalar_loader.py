@@ -2,12 +2,11 @@
 
 from typing import Any
 
-from homeassistant.components.sensor.const import SensorDeviceClass
 from homeassistant.core import HomeAssistant
 
+from custom_components.haeo.core.units import normalize_measurement
 from custom_components.haeo.schema import EntityValue
 
-from .extractors.utils import convert_to_base_unit
 from .sensor_loader import normalize_entity_ids
 
 
@@ -80,14 +79,8 @@ def _coerce_state_value(state_value: Any, unit: str | None, device_class: str | 
     except (TypeError, ValueError):
         return None
 
-    sensor_class: SensorDeviceClass | None = None
-    if device_class:
-        try:
-            sensor_class = SensorDeviceClass(device_class)
-        except ValueError:
-            sensor_class = None
-
-    return convert_to_base_unit(value, unit, sensor_class)
+    normalized_value, _, _ = normalize_measurement(value, unit, device_class)
+    return normalized_value
 
 
 __all__ = ["ScalarLoader"]

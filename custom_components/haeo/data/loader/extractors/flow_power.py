@@ -9,8 +9,8 @@ from itertools import pairwise
 import logging
 from typing import Literal, Protocol, TypedDict, TypeGuard
 
-from homeassistant.components.sensor import SensorDeviceClass
-from homeassistant.core import State
+from custom_components.haeo.core.state import EntityState
+from custom_components.haeo.core.units import DeviceClass, UnitOfMeasurement
 
 from .utils import is_parsable_to_datetime, parse_datetime_to_timestamp
 
@@ -40,11 +40,11 @@ class Parser:
     """
 
     DOMAIN: Format = DOMAIN
-    UNIT: str = "$/kWh"  # Flow Power prices are in $/kWh
-    DEVICE_CLASS: SensorDeviceClass = SensorDeviceClass.MONETARY
+    UNIT: UnitOfMeasurement = UnitOfMeasurement.DOLLAR_PER_KWH  # Flow Power prices are in $/kWh
+    DEVICE_CLASS: DeviceClass = DeviceClass.MONETARY
 
     @staticmethod
-    def detect(state: State) -> TypeGuard[FlowPowerState]:
+    def detect(state: EntityState) -> TypeGuard[FlowPowerState]:
         """Check if data matches Flow Power format and narrow type.
 
         Requires at least 2 entries to determine period length.
@@ -63,7 +63,7 @@ class Parser:
         )
 
     @staticmethod
-    def extract(state: FlowPowerState) -> tuple[Sequence[tuple[int, float]], str, SensorDeviceClass]:
+    def extract(state: FlowPowerState) -> tuple[Sequence[tuple[int, float]], UnitOfMeasurement, DeviceClass]:
         """Extract forecast data from Flow Power format.
 
         Flow Power provides prices at the start of each period. Emits boundary prices

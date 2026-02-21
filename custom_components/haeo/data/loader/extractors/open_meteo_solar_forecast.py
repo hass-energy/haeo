@@ -5,9 +5,8 @@ from datetime import datetime
 import logging
 from typing import Literal, Protocol, TypedDict, TypeGuard
 
-from homeassistant.components.sensor import SensorDeviceClass
-from homeassistant.const import UnitOfPower
-from homeassistant.core import State
+from custom_components.haeo.core.state import EntityState
+from custom_components.haeo.core.units import DeviceClass, UnitOfMeasurement
 
 from .utils import is_parsable_to_datetime, parse_datetime_to_timestamp
 
@@ -33,11 +32,11 @@ class Parser:
     """Parser for Open-Meteo solar forecast data."""
 
     DOMAIN: Format = DOMAIN
-    UNIT: str = UnitOfPower.WATT  # Data is in watts
-    DEVICE_CLASS: SensorDeviceClass = SensorDeviceClass.POWER
+    UNIT: UnitOfMeasurement = UnitOfMeasurement.WATT  # Data is in watts
+    DEVICE_CLASS: DeviceClass = DeviceClass.POWER
 
     @staticmethod
-    def detect(state: State) -> TypeGuard[OpenMeteoSolarState]:
+    def detect(state: EntityState) -> TypeGuard[OpenMeteoSolarState]:
         """Check if data matches Open-Meteo solar forecast format and narrow type."""
 
         if "watts" not in state.attributes:
@@ -50,7 +49,7 @@ class Parser:
         return all(is_parsable_to_datetime(k) and isinstance(v, (int, float)) for k, v in watts.items())
 
     @staticmethod
-    def extract(state: OpenMeteoSolarState) -> tuple[Sequence[tuple[int, float]], str, SensorDeviceClass]:
+    def extract(state: OpenMeteoSolarState) -> tuple[Sequence[tuple[int, float]], UnitOfMeasurement, DeviceClass]:
         """Extract forecast data from Open-Meteo solar forecast format."""
         parsed: list[tuple[int, float]] = [
             (parse_datetime_to_timestamp(time), value) for time, value in state.attributes["watts"].items()

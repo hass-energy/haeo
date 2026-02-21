@@ -1,9 +1,7 @@
 """Utility functions for datetime parsing in forecast extractors."""
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
-
-from homeassistant.util.dt import as_utc
 
 
 def parse_datetime_to_timestamp(value: Any) -> int:
@@ -21,12 +19,13 @@ def parse_datetime_to_timestamp(value: Any) -> int:
     """
     # Handle datetime objects directly
     if isinstance(value, datetime):
-        dt = as_utc(value)
+        dt = value.replace(tzinfo=UTC) if value.tzinfo is None else value.astimezone(UTC)
         return int(dt.timestamp())
 
     # Handle string datetime values
     if isinstance(value, str):
-        dt = as_utc(datetime.fromisoformat(value))
+        parsed = datetime.fromisoformat(value)
+        dt = parsed.replace(tzinfo=UTC) if parsed.tzinfo is None else parsed.astimezone(UTC)
         return int(dt.timestamp())
 
     msg = f"Expected datetime or string, got {type(value).__name__}"
