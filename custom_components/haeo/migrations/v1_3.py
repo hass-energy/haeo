@@ -182,8 +182,6 @@ def migrate_subentry_data(subentry: ConfigSubentry) -> dict[str, Any] | None:
         pricing: dict[str, Any] = {}
         efficiency: dict[str, Any] = {}
         partitioning: dict[str, Any] = {}
-        undercharge: dict[str, Any] = {}
-        overcharge: dict[str, Any] = {}
 
         for key in (CONF_NAME, CONF_CONNECTION):
             add_if_present(common, key)
@@ -214,12 +212,6 @@ def migrate_subentry_data(subentry: ConfigSubentry) -> dict[str, Any] | None:
             efficiency.setdefault(battery.CONF_EFFICIENCY_SOURCE_TARGET, to_schema_value(legacy_efficiency))
             efficiency.setdefault(battery.CONF_EFFICIENCY_TARGET_SOURCE, to_schema_value(legacy_efficiency))
         add_if_present(partitioning, battery.CONF_CONFIGURE_PARTITIONS)
-        if isinstance(data.get(battery.SECTION_UNDERCHARGE), dict):
-            undercharge.update(data[battery.SECTION_UNDERCHARGE])
-        if isinstance(data.get(battery.SECTION_OVERCHARGE), dict):
-            overcharge.update(data[battery.SECTION_OVERCHARGE])
-        convert_section_values(undercharge, (battery.CONF_PARTITION_PERCENTAGE, battery.CONF_PARTITION_COST))
-        convert_section_values(overcharge, (battery.CONF_PARTITION_PERCENTAGE, battery.CONF_PARTITION_COST))
 
         migrated |= {
             SECTION_COMMON: common,
@@ -229,8 +221,6 @@ def migrate_subentry_data(subentry: ConfigSubentry) -> dict[str, Any] | None:
             SECTION_PRICING: pricing,
             SECTION_EFFICIENCY: efficiency,
             battery.SECTION_PARTITIONING: partitioning,
-            battery.SECTION_UNDERCHARGE: undercharge,
-            battery.SECTION_OVERCHARGE: overcharge,
         }
         return migrated
 

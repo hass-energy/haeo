@@ -5,7 +5,7 @@ Each segment type applies a specific transformation or constraint to power flow:
 - PassthroughSegment: Lossless passthrough (no constraints)
 - PowerLimitSegment: Limits power flow with optional time-slice constraint
 - PricingSegment: Adds transfer pricing costs
-- SocPricingSegment: Adds SOC-based pricing penalties
+- SocPricingSegment: Adds SOC inventory and movement pricing costs
 """
 
 from collections.abc import Callable

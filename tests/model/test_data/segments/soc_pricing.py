@@ -38,14 +38,33 @@ class DummyElement(Element[str]):
         super().__init__(name=name, periods=periods, solver=solver, output_names=frozenset())
 
 
-def _battery_endpoints_fixed(solver: Highs, periods: NDArray[np.floating[Any]]) -> tuple[Element[Any], Element[Any]]:
+def _battery_endpoints_with_values(
+    solver: Highs,
+    periods: NDArray[np.floating[Any]],
+    stored_energy_values: list[float],
+) -> tuple[Element[Any], Element[Any]]:
     stored_energy = solver.addVariables(len(periods) + 1, lb=0, name_prefix="battery_e_", out_array=True)
-    solver.addConstr(stored_energy[0] == 5.0)
-    solver.addConstr(stored_energy[1] == 2.0)
-    solver.addConstr(stored_energy[2] == 9.0)
+    for index, value in enumerate(stored_energy_values):
+        solver.addConstr(stored_energy[index] == float(value))
     battery = MockBattery("battery", periods, solver, stored_energy)
     target = DummyElement("target", periods, solver)
     return battery, target
+
+
+def _battery_endpoints_fixed(solver: Highs, periods: NDArray[np.floating[Any]]) -> tuple[Element[Any], Element[Any]]:
+    return _battery_endpoints_with_values(solver, periods, [5.0, 2.0, 9.0])
+
+
+def _battery_endpoints_enter(solver: Highs, periods: NDArray[np.floating[Any]]) -> tuple[Element[Any], Element[Any]]:
+    return _battery_endpoints_with_values(solver, periods, [5.0, 4.0, 3.0, 2.0])
+
+
+def _battery_endpoints_dwell(solver: Highs, periods: NDArray[np.floating[Any]]) -> tuple[Element[Any], Element[Any]]:
+    return _battery_endpoints_with_values(solver, periods, [5.0, 2.0, 2.0, 2.0])
+
+
+def _battery_endpoints_above_cycle(solver: Highs, periods: NDArray[np.floating[Any]]) -> tuple[Element[Any], Element[Any]]:
+    return _battery_endpoints_with_values(solver, periods, [5.0, 4.0, 5.0, 4.0])
 
 
 def _battery_endpoints_free(solver: Highs, periods: NDArray[np.floating[Any]]) -> tuple[Element[Any], Element[Any]]:
@@ -57,49 +76,78 @@ def _battery_endpoints_free(solver: Highs, periods: NDArray[np.floating[Any]]) -
 
 SCENARIOS: list[SegmentScenario] = [
     {
-        "description": "SOC pricing applies costs outside thresholds",
+        "description": "SOC pricing applies inventory costs outside thresholds",
         "factory": SocPricingSegment,
         "spec": {
             "segment_type": "soc_pricing",
-            "discharge_energy_threshold": np.array([3.0, 3.0]),
-            "charge_capacity_threshold": np.array([8.0, 8.0]),
-            "discharge_energy_price": np.array([0.5, 0.5]),
-            "charge_capacity_price": np.array([0.2, 0.2]),
+            "threshold": np.array([3.0, 3.0]),
+            "discharge_violation_price": np.array([0.5, 0.5]),
+            "charge_violation_price": np.array([0.2, 0.2]),
         },
         "periods": np.array([1.0, 1.0]),
         "inputs": {"minimize_cost": True},
         "expected_outputs": {
-            "discharge_energy_slack": (1.0, 0.0),
-            "charge_capacity_slack": (0.0, 1.0),
-            "objective_value": 0.7,
+            "below_slack": (1.0, 0.0),
+            "above_slack": (0.0, 6.0),
+            "objective_value": 1.7,
         },
         "endpoint_factory": _battery_endpoints_fixed,
     },
     {
-        "description": "SOC pricing supports discharge-only penalty",
+        "description": "SOC pricing movement costs only charge on entry not dwell",
         "factory": SocPricingSegment,
         "spec": {
             "segment_type": "soc_pricing",
-            "discharge_energy_threshold": np.array([3.0, 3.0]),
-            "discharge_energy_price": np.array([0.5, 0.5]),
+            "threshold": np.array([3.0, 3.0, 3.0]),
+            "discharge_movement_price": np.array([0.5, 0.5, 0.5]),
         },
-        "periods": np.array([1.0, 1.0]),
+        "periods": np.array([1.0, 1.0, 1.0]),
         "inputs": {"minimize_cost": True},
-        "expected_outputs": {"discharge_energy_slack": (1.0, 0.0), "objective_value": 0.5},
-        "endpoint_factory": _battery_endpoints_fixed,
+        "expected_outputs": {
+            "_below_slack": (1.0, 1.0, 1.0),
+            "_below_enter": (1.0, 0.0, 0.0),
+            "_below_recover": (0.0, 0.0, 0.0),
+            "objective_value": 0.50003,
+        },
+        "endpoint_factory": _battery_endpoints_dwell,
     },
     {
-        "description": "SOC pricing supports charge-only penalty",
+        "description": "SOC pricing movement captures entering below threshold",
         "factory": SocPricingSegment,
         "spec": {
             "segment_type": "soc_pricing",
-            "charge_capacity_threshold": np.array([8.0, 8.0]),
-            "charge_capacity_price": np.array([0.2, 0.2]),
+            "threshold": np.array([3.0, 3.0, 3.0]),
+            "discharge_movement_price": np.array([0.5, 0.5, 0.5]),
         },
-        "periods": np.array([1.0, 1.0]),
+        "periods": np.array([1.0, 1.0, 1.0]),
         "inputs": {"minimize_cost": True},
-        "expected_outputs": {"charge_capacity_slack": (0.0, 1.0), "objective_value": 0.2},
-        "endpoint_factory": _battery_endpoints_fixed,
+        "expected_outputs": {
+            "_below_slack": (0.0, 0.0, 1.0),
+            "_below_enter": (0.0, 0.0, 1.0),
+            "_below_recover": (0.0, 0.0, 0.0),
+            "objective_value": 0.50001,
+        },
+        "endpoint_factory": _battery_endpoints_enter,
+    },
+    {
+        "description": "SOC pricing movement supports above-threshold enter and recover",
+        "factory": SocPricingSegment,
+        "spec": {
+            "segment_type": "soc_pricing",
+            "threshold": np.array([3.0, 3.0, 3.0]),
+            "charge_violation_price": np.array([0.2, 0.2, 0.2]),
+            "charge_movement_price": np.array([0.3, 0.3, 0.3]),
+            "discharge_movement_price": np.array([0.1, 0.1, 0.1]),
+        },
+        "periods": np.array([1.0, 1.0, 1.0]),
+        "inputs": {"minimize_cost": True},
+        "expected_outputs": {
+            "_above_slack": (1.0, 2.0, 1.0),
+            "_above_enter": (1.0, 1.0, 0.0),
+            "_above_recover": (0.0, 0.0, 1.0),
+            "objective_value": 1.50004,
+        },
+        "endpoint_factory": _battery_endpoints_above_cycle,
     },
     {
         "description": "SOC pricing passes through power",
@@ -128,21 +176,12 @@ ERROR_SCENARIOS: list[SegmentErrorScenario] = [
         "match": "SOC pricing segment requires a battery element endpoint",
     },
     {
-        "description": "SOC pricing requires discharge threshold with price",
+        "description": "SOC pricing requires threshold when configured",
         "factory": SocPricingSegment,
-        "spec": {"segment_type": "soc_pricing", "discharge_energy_price": np.array([0.1])},
+        "spec": {"segment_type": "soc_pricing", "discharge_violation_price": np.array([0.1])},
         "periods": np.array([1.0]),
         "error": ValueError,
-        "match": "discharge_energy_threshold is required when discharge_energy_price is set",
-        "endpoint_factory": _battery_endpoints_free,
-    },
-    {
-        "description": "SOC pricing requires charge threshold with price",
-        "factory": SocPricingSegment,
-        "spec": {"segment_type": "soc_pricing", "charge_capacity_price": np.array([0.1])},
-        "periods": np.array([1.0]),
-        "error": ValueError,
-        "match": "charge_capacity_threshold is required when charge_capacity_price is set",
+        "match": "threshold is required when SOC pricing is configured",
         "endpoint_factory": _battery_endpoints_free,
     },
 ]

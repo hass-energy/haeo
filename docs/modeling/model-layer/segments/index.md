@@ -17,7 +17,7 @@ This pattern keeps the connection model simple while making behavior explicit an
 
 ## Segment types
 
-- **[SOC pricing segment](soc-pricing.md)** for battery SOC penalty costs.
+- **[SOC pricing segment](soc-pricing.md)** for combined battery SOC inventory and movement pricing.
 - **[Efficiency segment](efficiency.md)** for direction-specific loss modeling.
 - **[Power limit segment](power-limit.md)** for directional limits and time-slice coupling.
 - **[Pricing segment](pricing.md)** for transfer costs and fees.
