@@ -111,22 +111,30 @@ from custom_components.haeo.const import (
 )
 from custom_components.haeo.model import ModelElementConfig, ModelOutputName
 from custom_components.haeo.model.output_data import ModelOutputValue, OutputData
+from custom_components.haeo.schema.elements.battery import ELEMENT_TYPE as ELEMENT_TYPE_BATTERY
 from custom_components.haeo.schema.elements.battery import OPTIONAL_INPUT_FIELDS as BATTERY_OPTIONAL_INPUT_FIELDS
 from custom_components.haeo.schema.elements.battery import BatteryConfigData, BatteryConfigSchema
+from custom_components.haeo.schema.elements.battery_section import ELEMENT_TYPE as ELEMENT_TYPE_BATTERY_SECTION
 from custom_components.haeo.schema.elements.battery_section import (
     OPTIONAL_INPUT_FIELDS as BATTERY_SECTION_OPTIONAL_INPUT_FIELDS,
 )
 from custom_components.haeo.schema.elements.battery_section import BatterySectionConfigData, BatterySectionConfigSchema
+from custom_components.haeo.schema.elements.connection import ELEMENT_TYPE as ELEMENT_TYPE_CONNECTION
 from custom_components.haeo.schema.elements.connection import OPTIONAL_INPUT_FIELDS as CONNECTION_OPTIONAL_INPUT_FIELDS
 from custom_components.haeo.schema.elements.connection import ConnectionConfigData, ConnectionConfigSchema
+from custom_components.haeo.schema.elements.grid import ELEMENT_TYPE as ELEMENT_TYPE_GRID
 from custom_components.haeo.schema.elements.grid import OPTIONAL_INPUT_FIELDS as GRID_OPTIONAL_INPUT_FIELDS
 from custom_components.haeo.schema.elements.grid import GridConfigData, GridConfigSchema
+from custom_components.haeo.schema.elements.inverter import ELEMENT_TYPE as ELEMENT_TYPE_INVERTER
 from custom_components.haeo.schema.elements.inverter import OPTIONAL_INPUT_FIELDS as INVERTER_OPTIONAL_INPUT_FIELDS
 from custom_components.haeo.schema.elements.inverter import InverterConfigData, InverterConfigSchema
+from custom_components.haeo.schema.elements.load import ELEMENT_TYPE as ELEMENT_TYPE_LOAD
 from custom_components.haeo.schema.elements.load import OPTIONAL_INPUT_FIELDS as LOAD_OPTIONAL_INPUT_FIELDS
 from custom_components.haeo.schema.elements.load import LoadConfigData, LoadConfigSchema
+from custom_components.haeo.schema.elements.node import ELEMENT_TYPE as ELEMENT_TYPE_NODE
 from custom_components.haeo.schema.elements.node import OPTIONAL_INPUT_FIELDS as NODE_OPTIONAL_INPUT_FIELDS
 from custom_components.haeo.schema.elements.node import NodeConfigData, NodeConfigSchema
+from custom_components.haeo.schema.elements.solar import ELEMENT_TYPE as ELEMENT_TYPE_SOLAR
 from custom_components.haeo.schema.elements.solar import OPTIONAL_INPUT_FIELDS as SOLAR_OPTIONAL_INPUT_FIELDS
 from custom_components.haeo.schema.elements.solar import SolarConfigData, SolarConfigSchema
 
@@ -146,14 +154,6 @@ type ElementType = Literal[
     "node",
 ]
 
-ELEMENT_TYPE_INVERTER: Final = "inverter"
-ELEMENT_TYPE_BATTERY: Final = "battery"
-ELEMENT_TYPE_BATTERY_SECTION: Final = "battery_section"
-ELEMENT_TYPE_CONNECTION: Final = "connection"
-ELEMENT_TYPE_SOLAR: Final = "solar"
-ELEMENT_TYPE_GRID: Final = "grid"
-ELEMENT_TYPE_LOAD: Final = "load"
-ELEMENT_TYPE_NODE: Final = "node"
 
 ElementConfigSchema = (
     InverterConfigSchema
