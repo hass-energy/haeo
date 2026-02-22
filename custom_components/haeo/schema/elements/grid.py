@@ -77,5 +77,3 @@ __all__ = [
     "GridPricingConfig",
     "GridPricingData",
 ]
-
-

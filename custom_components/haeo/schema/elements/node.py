@@ -56,5 +56,3 @@ __all__ = [
     "RoleConfig",
     "RoleData",
 ]
-
-

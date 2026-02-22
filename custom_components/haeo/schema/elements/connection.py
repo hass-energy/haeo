@@ -100,5 +100,3 @@ __all__ = [
     "EndpointsConfig",
     "EndpointsData",
 ]
-
-
