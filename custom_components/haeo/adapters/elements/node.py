@@ -13,13 +13,8 @@ from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_NODE
 from custom_components.haeo.model.elements.node import NODE_POWER_BALANCE
 from custom_components.haeo.model.output_data import OutputData
-from custom_components.haeo.schema.elements.node import (
-    CONF_IS_SINK,
-    CONF_IS_SOURCE,
-    ELEMENT_TYPE,
-    SECTION_ROLE,
-    NodeConfigData,
-)
+from custom_components.haeo.schema.elements import ElementType
+from custom_components.haeo.schema.elements.node import CONF_IS_SINK, CONF_IS_SOURCE, SECTION_ROLE, NodeConfigData
 from custom_components.haeo.sections import SECTION_COMMON
 
 # Defaults for absent optional fields (no-op values: pure junction behavior)
@@ -41,7 +36,7 @@ NODE_DEVICE_NAMES: Final[frozenset[NodeDeviceName]] = frozenset(
 class NodeAdapter:
     """Adapter for Node elements."""
 
-    element_type: str = ELEMENT_TYPE
+    element_type = ElementType.NODE
     advanced: bool = True
     connectivity: ConnectivityLevel = ConnectivityLevel.ALWAYS
 
@@ -54,7 +49,7 @@ class NodeAdapter:
                     field_name=CONF_IS_SOURCE,
                     entity_description=SwitchEntityDescription(
                         key=CONF_IS_SOURCE,
-                        translation_key=f"{ELEMENT_TYPE}_{CONF_IS_SOURCE}",
+                        translation_key=f"{ElementType.NODE}_{CONF_IS_SOURCE}",
                     ),
                     output_type=OutputType.STATUS,
                     defaults=InputFieldDefaults(mode="value", value=False),
@@ -63,7 +58,7 @@ class NodeAdapter:
                     field_name=CONF_IS_SINK,
                     entity_description=SwitchEntityDescription(
                         key=CONF_IS_SINK,
-                        translation_key=f"{ELEMENT_TYPE}_{CONF_IS_SINK}",
+                        translation_key=f"{ElementType.NODE}_{CONF_IS_SINK}",
                     ),
                     output_type=OutputType.STATUS,
                     defaults=InputFieldDefaults(mode="value", value=False),

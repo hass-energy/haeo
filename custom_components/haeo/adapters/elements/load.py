@@ -18,7 +18,8 @@ from custom_components.haeo.model.elements.connection import CONNECTION_POWER_TA
 from custom_components.haeo.model.elements.segments import POWER_LIMIT_TARGET_SOURCE
 from custom_components.haeo.model.output_data import OutputData
 from custom_components.haeo.schema import extract_connection_target
-from custom_components.haeo.schema.elements.load import ELEMENT_TYPE, LoadConfigData
+from custom_components.haeo.schema.elements import ElementType
+from custom_components.haeo.schema.elements.load import LoadConfigData
 from custom_components.haeo.sections import (
     CONF_CONNECTION,
     CONF_CURTAILMENT,
@@ -54,7 +55,7 @@ LOAD_DEVICE_NAMES: Final[frozenset[LoadDeviceName]] = frozenset(
 class LoadAdapter:
     """Adapter for Load elements."""
 
-    element_type: str = ELEMENT_TYPE
+    element_type = ElementType.LOAD
     advanced: bool = False
     connectivity: ConnectivityLevel = ConnectivityLevel.ADVANCED
 
@@ -67,7 +68,7 @@ class LoadAdapter:
                     field_name=CONF_FORECAST,
                     entity_description=NumberEntityDescription(
                         key=CONF_FORECAST,
-                        translation_key=f"{ELEMENT_TYPE}_{CONF_FORECAST}",
+                        translation_key=f"{ElementType.LOAD}_{CONF_FORECAST}",
                         native_unit_of_measurement=UnitOfPower.KILO_WATT,
                         device_class=NumberDeviceClass.POWER,
                         native_min_value=0.0,
@@ -84,7 +85,7 @@ class LoadAdapter:
                     field_name=CONF_PRICE_TARGET_SOURCE,
                     entity_description=NumberEntityDescription(
                         key=CONF_PRICE_TARGET_SOURCE,
-                        translation_key=f"{ELEMENT_TYPE}_{CONF_PRICE_TARGET_SOURCE}",
+                        translation_key=f"{ElementType.LOAD}_{CONF_PRICE_TARGET_SOURCE}",
                         native_min_value=-1.0,
                         native_max_value=10.0,
                         native_step=0.001,
@@ -100,7 +101,7 @@ class LoadAdapter:
                     field_name=CONF_CURTAILMENT,
                     entity_description=SwitchEntityDescription(
                         key=CONF_CURTAILMENT,
-                        translation_key=f"{ELEMENT_TYPE}_{CONF_CURTAILMENT}",
+                        translation_key=f"{ElementType.LOAD}_{CONF_CURTAILMENT}",
                     ),
                     output_type=OutputType.STATUS,
                     defaults=InputFieldDefaults(mode="value", value=False),

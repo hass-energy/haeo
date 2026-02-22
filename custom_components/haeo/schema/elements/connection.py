@@ -24,8 +24,6 @@ from custom_components.haeo.sections import (
     PricingData,
 )
 
-ELEMENT_TYPE: Final = "connection"
-
 SECTION_ENDPOINTS: Final = "endpoints"
 
 CONF_SOURCE: Final = "source"
@@ -88,7 +86,6 @@ __all__ = [
     "CONF_PRICE_TARGET_SOURCE",
     "CONF_SOURCE",
     "CONF_TARGET",
-    "ELEMENT_TYPE",
     "OPTIONAL_INPUT_FIELDS",
     "SECTION_COMMON",
     "SECTION_EFFICIENCY",

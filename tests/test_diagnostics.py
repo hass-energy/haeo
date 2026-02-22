@@ -52,7 +52,7 @@ from custom_components.haeo.diagnostics.collector import (
     _fetch_inputs_at,
     _get_last_run_before,
 )
-from custom_components.haeo.elements import ELEMENT_TYPE_BATTERY, ElementConfigSchema
+from custom_components.haeo.elements import ElementConfigSchema, ElementType
 from custom_components.haeo.entities.device import build_device_identifier
 from custom_components.haeo.flows import HUB_SECTION_COMMON, HUB_SECTION_TIERS
 from custom_components.haeo.schema import as_connection_target, as_constant_value, as_entity_value
@@ -124,7 +124,7 @@ def _battery_config(
     }
 
     return {
-        CONF_ELEMENT_TYPE: ELEMENT_TYPE_BATTERY,
+        CONF_ELEMENT_TYPE: ElementType.BATTERY,
         SECTION_COMMON: {
             CONF_NAME: name,
             CONF_CONNECTION: as_connection_target(connection),
@@ -443,7 +443,7 @@ async def test_historical_diagnostics_uses_last_run(hass: HomeAssistant) -> None
                 efficiency_target_source=95.0,
             )
         ),
-        subentry_type=ELEMENT_TYPE_BATTERY,
+        subentry_type=ElementType.BATTERY,
         title="Battery",
         unique_id=None,
     )
@@ -601,7 +601,7 @@ async def test_historical_diagnostics_with_participants(hass: HomeAssistant) -> 
                 efficiency_target_source=95.0,
             )
         ),
-        subentry_type=ELEMENT_TYPE_BATTERY,
+        subentry_type=ElementType.BATTERY,
         title="Battery One",
         unique_id=None,
     )
@@ -634,7 +634,7 @@ async def test_historical_diagnostics_with_participants(hass: HomeAssistant) -> 
 
     participants = result.config["participants"]
     assert "Battery One" in participants
-    assert participants["Battery One"][CONF_ELEMENT_TYPE] == ELEMENT_TYPE_BATTERY
+    assert participants["Battery One"][CONF_ELEMENT_TYPE] == ElementType.BATTERY
     assert participants["Battery One"][SECTION_COMMON][CONF_NAME] == "Battery One"
 
     inputs = result.inputs
@@ -677,7 +677,7 @@ async def test_historical_diagnostics_skips_network_subentry(hass: HomeAssistant
                 efficiency_target_source=95.0,
             )
         ),
-        subentry_type=ELEMENT_TYPE_BATTERY,
+        subentry_type=ElementType.BATTERY,
         title="Battery",
         unique_id=None,
     )
@@ -941,7 +941,7 @@ def test_collect_entity_ids_from_entry_with_battery_subentry(hass: HomeAssistant
                 initial_charge_percentage="sensor.battery_soc",
             )
         ),
-        subentry_type=ELEMENT_TYPE_BATTERY,
+        subentry_type=ElementType.BATTERY,
         title="Battery",
         unique_id=None,
     )
@@ -1013,7 +1013,7 @@ async def test_fetch_inputs_at_returns_states(hass: HomeAssistant) -> None:
                 initial_charge_percentage="sensor.battery_soc",
             )
         ),
-        subentry_type=ELEMENT_TYPE_BATTERY,
+        subentry_type=ElementType.BATTERY,
         title="Battery",
         unique_id=None,
     )
@@ -1066,7 +1066,7 @@ async def test_fetch_inputs_at_reports_missing_entities(hass: HomeAssistant) -> 
                 initial_charge_percentage="sensor.battery_soc",
             )
         ),
-        subentry_type=ELEMENT_TYPE_BATTERY,
+        subentry_type=ElementType.BATTERY,
         title="Battery",
         unique_id=None,
     )

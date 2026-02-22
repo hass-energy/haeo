@@ -19,12 +19,8 @@ from custom_components.haeo.flows.field_schema import (
     preprocess_sectioned_choose_input,
     validate_sectioned_choose_fields,
 )
-from custom_components.haeo.schema.elements.battery_section import (
-    CONF_CAPACITY,
-    CONF_INITIAL_CHARGE,
-    ELEMENT_TYPE,
-    SECTION_STORAGE,
-)
+from custom_components.haeo.schema.elements import ElementType
+from custom_components.haeo.schema.elements.battery_section import CONF_CAPACITY, CONF_INITIAL_CHARGE, SECTION_STORAGE
 from custom_components.haeo.sections import SECTION_COMMON, build_common_fields, common_section
 
 
@@ -50,7 +46,7 @@ class BatterySectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         """Shared logic for user and reconfigure steps."""
         subentry = self._get_subentry()
         subentry_data = dict(subentry.data) if subentry else None
-        default_name = await self._async_get_default_name(ELEMENT_TYPE)
+        default_name = await self._async_get_default_name(ElementType.BATTERY_SECTION)
         input_fields = adapter.inputs(subentry_data)
 
         sections = self._get_sections()
@@ -83,7 +79,7 @@ class BatterySectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         subentry_data: dict[str, Any] | None = None,
     ) -> vol.Schema:
         """Build the schema with name and choose selectors for inputs."""
-        field_schema = get_input_field_schema_info(ELEMENT_TYPE, input_fields)
+        field_schema = get_input_field_schema_info(ElementType.BATTERY_SECTION, input_fields)
         sections = self._get_sections()
         return build_sectioned_choose_schema(
             sections,
@@ -126,7 +122,7 @@ class BatterySectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         errors: dict[str, str] = {}
         common_input = user_input.get(SECTION_COMMON, {})
         self._validate_name(common_input.get(CONF_NAME), errors)
-        field_schema = get_input_field_schema_info(ELEMENT_TYPE, input_fields)
+        field_schema = get_input_field_schema_info(ElementType.BATTERY_SECTION, input_fields)
         errors.update(
             validate_sectioned_choose_fields(
                 user_input,
@@ -147,7 +143,7 @@ class BatterySectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         )
 
         return {
-            CONF_ELEMENT_TYPE: ELEMENT_TYPE,
+            CONF_ELEMENT_TYPE: ElementType.BATTERY_SECTION,
             **config_dict,
         }
 

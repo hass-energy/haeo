@@ -5,6 +5,7 @@ from collections.abc import Mapping, Sequence
 from .const import CONF_ELEMENT_TYPE
 from .elements import ELEMENT_TYPES, ElementConfigData
 from .model.elements import MODEL_ELEMENT_TYPE_CONNECTION
+from .schema.elements import ElementType
 from .util.graph import ConnectivityResult as NetworkConnectivityResult
 from .util.graph import find_connected_components
 
@@ -19,7 +20,7 @@ def _build_adjacency(participants: Mapping[str, ElementConfigData]) -> dict[str,
 
     # Collect all model elements from all configs
     for loaded_config in participants.values():
-        element_type = loaded_config[CONF_ELEMENT_TYPE]
+        element_type = ElementType(loaded_config[CONF_ELEMENT_TYPE])
         adapter = ELEMENT_TYPES[element_type]
 
         # Get model elements including implicit connections

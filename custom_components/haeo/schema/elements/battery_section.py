@@ -13,8 +13,6 @@ from numpy.typing import NDArray
 from custom_components.haeo.schema import ConstantValue, EntityValue
 from custom_components.haeo.sections import SECTION_COMMON, CommonConfig, CommonData
 
-ELEMENT_TYPE: Final = "battery_section"
-
 SECTION_STORAGE: Final = "storage"
 
 CONF_CAPACITY: Final = "capacity"
@@ -56,7 +54,6 @@ class BatterySectionConfigData(TypedDict):
 __all__ = [
     "CONF_CAPACITY",
     "CONF_INITIAL_CHARGE",
-    "ELEMENT_TYPE",
     "OPTIONAL_INPUT_FIELDS",
     "SECTION_COMMON",
     "SECTION_STORAGE",

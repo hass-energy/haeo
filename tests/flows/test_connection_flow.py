@@ -13,13 +13,12 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 from custom_components.haeo.adapters.elements.connection import adapter
 from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.schema import as_connection_target, as_constant_value, as_entity_value
-from custom_components.haeo.schema.elements import battery, grid, node
+from custom_components.haeo.schema.elements import ElementType
 from custom_components.haeo.schema.elements.connection import (
     CONF_MAX_POWER_SOURCE_TARGET,
     CONF_MAX_POWER_TARGET_SOURCE,
     CONF_SOURCE,
     CONF_TARGET,
-    ELEMENT_TYPE,
     SECTION_COMMON,
     SECTION_EFFICIENCY,
     SECTION_ENDPOINTS,
@@ -55,20 +54,20 @@ def _wrap_input(flat: dict[str, Any]) -> dict[str, Any]:
 def _wrap_config(flat: dict[str, Any]) -> dict[str, Any]:
     """Wrap flat connection config values into sectioned config with element type."""
     if SECTION_COMMON in flat:
-        return {CONF_ELEMENT_TYPE: ELEMENT_TYPE, **flat}
+        return {CONF_ELEMENT_TYPE: "connection", **flat}
     config = _wrap_input(flat)
     endpoints = config.get(SECTION_ENDPOINTS, {})
     for key in (CONF_SOURCE, CONF_TARGET):
         if key in endpoints and isinstance(endpoints[key], str):
             endpoints[key] = as_connection_target(endpoints[key])
-    return {CONF_ELEMENT_TYPE: ELEMENT_TYPE, **config}
+    return {CONF_ELEMENT_TYPE: "connection", **config}
 
 
 async def test_flow_source_equals_target_error(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
     """Connection flow should error when source equals target."""
-    add_participant(hass, hub_entry, "Node1", node.ELEMENT_TYPE)
+    add_participant(hass, hub_entry, "Node1", ElementType.NODE)
 
-    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
+    flow = create_flow(hass, hub_entry, ElementType.CONNECTION)
 
     # Submit with source == target
     result = await flow.async_step_user(
@@ -85,8 +84,8 @@ async def test_flow_source_equals_target_error(hass: HomeAssistant, hub_entry: M
 
 async def test_reconfigure_source_equals_target_error(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
     """Connection reconfigure should error when source equals target."""
-    add_participant(hass, hub_entry, "Battery1", battery.ELEMENT_TYPE)
-    add_participant(hass, hub_entry, "Grid1", grid.ELEMENT_TYPE)
+    add_participant(hass, hub_entry, "Battery1", ElementType.BATTERY)
+    add_participant(hass, hub_entry, "Grid1", ElementType.GRID)
 
     existing_config = _wrap_config(
         {
@@ -97,13 +96,13 @@ async def test_reconfigure_source_equals_target_error(hass: HomeAssistant, hub_e
     )
     existing_subentry = ConfigSubentry(
         data=MappingProxyType(existing_config),
-        subentry_type=ELEMENT_TYPE,
+        subentry_type="connection",
         title="Existing Connection",
         unique_id=None,
     )
     hass.config_entries.async_add_subentry(hub_entry, existing_subentry)
 
-    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
+    flow = create_flow(hass, hub_entry, ElementType.CONNECTION)
     flow.context = {"subentry_id": existing_subentry.subentry_id, "source": SOURCE_RECONFIGURE}
     flow._get_reconfigure_subentry = Mock(return_value=existing_subentry)
 
@@ -122,7 +121,7 @@ async def test_reconfigure_source_equals_target_error(hass: HomeAssistant, hub_e
 
 def test_build_config_normalizes_endpoints(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
     """_build_config normalizes endpoint strings into connection targets."""
-    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
+    flow = create_flow(hass, hub_entry, ElementType.CONNECTION)
 
     user_input = _wrap_input(
         {
@@ -189,19 +188,19 @@ async def test_reconfigure_defaults_handle_schema_values(
 ) -> None:
     """Reconfigure defaults reflect schema values and tolerate missing endpoints."""
     if add_source:
-        add_participant(hass, hub_entry, source, battery.ELEMENT_TYPE)
-    add_participant(hass, hub_entry, target, grid.ELEMENT_TYPE)
+        add_participant(hass, hub_entry, source, ElementType.BATTERY)
+    add_participant(hass, hub_entry, target, ElementType.GRID)
 
     existing_config = _wrap_config(config_values)
     existing_subentry = ConfigSubentry(
         data=MappingProxyType(existing_config),
-        subentry_type=ELEMENT_TYPE,
+        subentry_type="connection",
         title="Test Connection",
         unique_id=None,
     )
     hass.config_entries.async_add_subentry(hub_entry, existing_subentry)
 
-    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
+    flow = create_flow(hass, hub_entry, ElementType.CONNECTION)
     flow.context = {"subentry_id": existing_subentry.subentry_id, "source": SOURCE_RECONFIGURE}
     flow._get_reconfigure_subentry = Mock(return_value=existing_subentry)
 
@@ -222,10 +221,10 @@ async def test_user_step_with_constant_creates_entry(
     hub_entry: MockConfigEntry,
 ) -> None:
     """Submitting with constant values should create entry directly."""
-    add_participant(hass, hub_entry, "Battery1", battery.ELEMENT_TYPE)
-    add_participant(hass, hub_entry, "Grid1", grid.ELEMENT_TYPE)
+    add_participant(hass, hub_entry, "Battery1", ElementType.BATTERY)
+    add_participant(hass, hub_entry, "Grid1", ElementType.GRID)
 
-    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
+    flow = create_flow(hass, hub_entry, ElementType.CONNECTION)
     flow.async_create_entry = Mock(
         return_value={
             "type": FlowResultType.CREATE_ENTRY,
@@ -257,10 +256,10 @@ async def test_user_step_with_entity_creates_entry(
     hub_entry: MockConfigEntry,
 ) -> None:
     """Submitting with entity selections should create entry with entity IDs."""
-    add_participant(hass, hub_entry, "Battery1", battery.ELEMENT_TYPE)
-    add_participant(hass, hub_entry, "Grid1", grid.ELEMENT_TYPE)
+    add_participant(hass, hub_entry, "Battery1", ElementType.BATTERY)
+    add_participant(hass, hub_entry, "Grid1", ElementType.GRID)
 
-    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
+    flow = create_flow(hass, hub_entry, ElementType.CONNECTION)
     flow.async_create_entry = Mock(
         return_value={
             "type": FlowResultType.CREATE_ENTRY,

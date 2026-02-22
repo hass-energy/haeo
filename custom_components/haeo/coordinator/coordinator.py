@@ -39,6 +39,7 @@ from custom_components.haeo.elements import (
     ElementConfigSchema,
     ElementDeviceName,
     ElementOutputName,
+    ElementType,
     collect_element_subentries,
     get_input_field_schema_info,
     get_input_fields,
@@ -785,7 +786,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
 
             # Process each config element using its outputs function to transform model outputs into device outputs
             for element_name, element_config in context.participants.items():
-                element_type = element_config[CONF_ELEMENT_TYPE]
+                element_type = ElementType(element_config[CONF_ELEMENT_TYPE])
                 outputs_fn = ELEMENT_TYPES[element_type].outputs
 
                 # outputs function returns {device_name: {output_name: OutputData}}

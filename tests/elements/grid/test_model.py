@@ -18,7 +18,7 @@ from custom_components.haeo.adapters.elements.grid import (
     GRID_POWER_MAX_IMPORT_PRICE,
     GRID_REVENUE_EXPORT,
 )
-from custom_components.haeo.elements import ELEMENT_TYPES
+from custom_components.haeo.elements import ELEMENT_TYPES, ElementType
 from custom_components.haeo.schema.elements.grid import GridConfigData
 from custom_components.haeo.model import ModelOutputName, ModelOutputValue
 from custom_components.haeo.model.const import OutputType
@@ -172,7 +172,7 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
 @pytest.mark.parametrize("case", CREATE_CASES, ids=lambda c: c["description"])
 def test_model_elements(case: CreateCase) -> None:
     """Verify adapter transforms ConfigData into expected model elements."""
-    entry = ELEMENT_TYPES["grid"]
+    entry = ELEMENT_TYPES[ElementType.GRID]
     result = entry.model_elements(case["data"])
     assert normalize_for_compare(result) == normalize_for_compare(case["model"])
 
@@ -180,6 +180,6 @@ def test_model_elements(case: CreateCase) -> None:
 @pytest.mark.parametrize("case", OUTPUTS_CASES, ids=lambda c: c["description"])
 def test_outputs_mapping(case: OutputsCase) -> None:
     """Verify adapter maps model outputs to device outputs with cost calculation."""
-    entry = ELEMENT_TYPES["grid"]
+    entry = ELEMENT_TYPES[ElementType.GRID]
     result = entry.outputs(case["name"], case["model_outputs"], config=case["config"], periods=case["periods"])
     assert result == case["outputs"]

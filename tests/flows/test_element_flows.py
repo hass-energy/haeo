@@ -40,7 +40,7 @@ from custom_components.haeo.elements import ELEMENT_TYPES, ConnectivityLevel, El
 from custom_components.haeo.elements.input_fields import InputFieldInfo
 from custom_components.haeo.flows import HUB_SECTION_COMMON, HUB_SECTION_TIERS, get_element_flow_classes
 from custom_components.haeo.model import OutputData
-from custom_components.haeo.schema.elements import battery, connection, grid, node
+from custom_components.haeo.schema.elements import connection
 from custom_components.haeo.sections import SECTION_COMMON
 from tests.conftest import ElementTestData
 
@@ -81,7 +81,7 @@ def _add_participant_subentry(
     hass: HomeAssistant,
     hub_entry: MockConfigEntry,
     name: str,
-    element_type: ElementType = node.ELEMENT_TYPE,
+    element_type: ElementType = ElementType.NODE,
 ) -> ConfigSubentry:
     """Ensure a participant subentry exists for connection endpoints."""
 
@@ -108,12 +108,12 @@ def _prepare_flow_context(
 ) -> None:
     """Populate dependent participants required by connection flows."""
 
-    if element_type == connection.ELEMENT_TYPE:
+    if element_type == ElementType.CONNECTION:
         endpoints = config.get(connection.SECTION_ENDPOINTS, {})
         for key in (connection.CONF_SOURCE, connection.CONF_TARGET):
             endpoint = endpoints.get(key)
             if isinstance(endpoint, str) and endpoint:
-                inferred_type: ElementType = grid.ELEMENT_TYPE if "grid" in endpoint.lower() else battery.ELEMENT_TYPE
+                inferred_type: ElementType = ElementType.GRID if "grid" in endpoint.lower() else ElementType.BATTERY
                 _add_participant_subentry(hass, hub_entry, endpoint, inferred_type)
 
 

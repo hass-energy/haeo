@@ -13,13 +13,12 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 from custom_components.haeo.adapters.elements.grid import adapter
 from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.schema import as_connection_target, as_constant_value, as_entity_value
-from custom_components.haeo.schema.elements import node
+from custom_components.haeo.schema.elements import ElementType
 from custom_components.haeo.schema.elements.grid import (
     CONF_MAX_POWER_SOURCE_TARGET,
     CONF_MAX_POWER_TARGET_SOURCE,
     CONF_PRICE_SOURCE_TARGET,
     CONF_PRICE_TARGET_SOURCE,
-    ELEMENT_TYPE,
     SECTION_COMMON,
     SECTION_POWER_LIMITS,
     SECTION_PRICING,
@@ -61,12 +60,12 @@ def _wrap_input(flat: dict[str, Any]) -> dict[str, Any]:
 def _wrap_config(flat: dict[str, Any]) -> dict[str, Any]:
     """Wrap flat grid config values into sectioned config with element type."""
     if SECTION_COMMON in flat:
-        return {CONF_ELEMENT_TYPE: ELEMENT_TYPE, **flat}
+        return {CONF_ELEMENT_TYPE: "grid", **flat}
     config = _wrap_input(flat)
     common = config.get(SECTION_COMMON, {})
     if CONF_CONNECTION in common and isinstance(common[CONF_CONNECTION], str):
         common[CONF_CONNECTION] = as_connection_target(common[CONF_CONNECTION])
-    return {CONF_ELEMENT_TYPE: ELEMENT_TYPE, **config}
+    return {CONF_ELEMENT_TYPE: "grid", **config}
 
 
 # --- Tests for validation errors ---
@@ -80,9 +79,9 @@ async def test_user_step_with_constant_creates_entry(
     hub_entry: MockConfigEntry,
 ) -> None:
     """Submitting with constant values should create entry directly."""
-    add_participant(hass, hub_entry, "TestNode", node.ELEMENT_TYPE)
+    add_participant(hass, hub_entry, "TestNode", ElementType.NODE)
 
-    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
+    flow = create_flow(hass, hub_entry, ElementType.GRID)
     flow.async_create_entry = Mock(
         return_value={
             "type": FlowResultType.CREATE_ENTRY,
@@ -130,9 +129,9 @@ async def test_user_step_with_entity_creates_entry(
     hub_entry: MockConfigEntry,
 ) -> None:
     """Submitting with entity selections should create entry with entity IDs."""
-    add_participant(hass, hub_entry, "TestNode", node.ELEMENT_TYPE)
+    add_participant(hass, hub_entry, "TestNode", ElementType.NODE)
 
-    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
+    flow = create_flow(hass, hub_entry, ElementType.GRID)
     flow.async_create_entry = Mock(
         return_value={
             "type": FlowResultType.CREATE_ENTRY,
@@ -170,7 +169,7 @@ async def test_reconfigure_with_constant_updates_entry(
     hub_entry: MockConfigEntry,
 ) -> None:
     """Reconfigure with constant values should update entry."""
-    add_participant(hass, hub_entry, "TestNode", node.ELEMENT_TYPE)
+    add_participant(hass, hub_entry, "TestNode", ElementType.NODE)
 
     # Create existing entry with entity links
     existing_config = _wrap_config(
@@ -183,13 +182,13 @@ async def test_reconfigure_with_constant_updates_entry(
     )
     existing_subentry = ConfigSubentry(
         data=MappingProxyType(existing_config),
-        subentry_type=ELEMENT_TYPE,
+        subentry_type="grid",
         title="Test Grid",
         unique_id=None,
     )
     hass.config_entries.async_add_subentry(hub_entry, existing_subentry)
 
-    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
+    flow = create_flow(hass, hub_entry, ElementType.GRID)
     flow.context = {"subentry_id": existing_subentry.subentry_id, "source": SOURCE_RECONFIGURE}
     flow._get_reconfigure_subentry = Mock(return_value=existing_subentry)
     flow.async_update_and_abort = Mock(return_value={"type": FlowResultType.ABORT, "reason": "reconfigure_successful"})
@@ -279,18 +278,18 @@ async def test_reconfigure_defaults_handle_schema_values(
     expected_defaults: dict[str, object],
 ) -> None:
     """Reconfigure defaults reflect schema values."""
-    add_participant(hass, hub_entry, "TestNode", node.ELEMENT_TYPE)
+    add_participant(hass, hub_entry, "TestNode", ElementType.NODE)
 
     existing_config = _wrap_config(config_values)
     existing_subentry = ConfigSubentry(
         data=MappingProxyType(existing_config),
-        subentry_type=ELEMENT_TYPE,
+        subentry_type="grid",
         title="Test Grid",
         unique_id=None,
     )
     hass.config_entries.async_add_subentry(hub_entry, existing_subentry)
 
-    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
+    flow = create_flow(hass, hub_entry, ElementType.GRID)
     flow.context = {"subentry_id": existing_subentry.subentry_id, "source": SOURCE_RECONFIGURE}
     flow._get_reconfigure_subentry = Mock(return_value=existing_subentry)
 

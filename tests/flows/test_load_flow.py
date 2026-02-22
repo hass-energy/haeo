@@ -13,12 +13,11 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 from custom_components.haeo.adapters.elements.load import adapter
 from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.schema import as_connection_target, as_constant_value, as_entity_value
-from custom_components.haeo.schema.elements import node
+from custom_components.haeo.schema.elements import ElementType
 from custom_components.haeo.schema.elements.load import (
     CONF_CURTAILMENT,
     CONF_FORECAST,
     CONF_PRICE_TARGET_SOURCE,
-    ELEMENT_TYPE,
     SECTION_COMMON,
     SECTION_CURTAILMENT,
     SECTION_FORECAST,
@@ -50,7 +49,7 @@ def _wrap_input(flat: dict[str, Any]) -> dict[str, Any]:
 def _wrap_config(flat: dict[str, Any]) -> dict[str, Any]:
     """Wrap flat load config values into sectioned config with element type."""
     if SECTION_COMMON in flat:
-        data = {CONF_ELEMENT_TYPE: ELEMENT_TYPE, **flat}
+        data = {CONF_ELEMENT_TYPE: "load", **flat}
         data.setdefault(SECTION_PRICING, {})
         data.setdefault(SECTION_CURTAILMENT, {})
         return data
@@ -60,7 +59,7 @@ def _wrap_config(flat: dict[str, Any]) -> dict[str, Any]:
         common[CONF_CONNECTION] = as_connection_target(common[CONF_CONNECTION])
     config.setdefault(SECTION_PRICING, {})
     config.setdefault(SECTION_CURTAILMENT, {})
-    return {CONF_ELEMENT_TYPE: ELEMENT_TYPE, **config}
+    return {CONF_ELEMENT_TYPE: "load", **config}
 
 
 @pytest.mark.parametrize(
@@ -121,7 +120,7 @@ async def test_reconfigure_defaults_handle_schema_values(
 ) -> None:
     """Reconfigure defaults reflect schema values and missing fields."""
     if add_node:
-        add_participant(hass, hub_entry, "TestNode", node.ELEMENT_TYPE)
+        add_participant(hass, hub_entry, "TestNode", ElementType.NODE)
 
     unknown_data = MappingProxyType({CONF_ELEMENT_TYPE: "unknown_type", CONF_NAME: "Unknown"})
     unknown_subentry = ConfigSubentry(
@@ -135,13 +134,13 @@ async def test_reconfigure_defaults_handle_schema_values(
     existing_config = _wrap_config(config_values)
     existing_subentry = ConfigSubentry(
         data=MappingProxyType(existing_config),
-        subentry_type=ELEMENT_TYPE,
+        subentry_type="load",
         title="Test Load",
         unique_id=None,
     )
     hass.config_entries.async_add_subentry(hub_entry, existing_subentry)
 
-    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
+    flow = create_flow(hass, hub_entry, ElementType.LOAD)
     flow.context = {"subentry_id": existing_subentry.subentry_id, "source": SOURCE_RECONFIGURE}
     flow._get_reconfigure_subentry = Mock(return_value=existing_subentry)
 
@@ -162,9 +161,9 @@ async def test_user_step_with_entity_creates_entry(
     hub_entry: MockConfigEntry,
 ) -> None:
     """Submitting with entity selection should create entry with entity ID."""
-    add_participant(hass, hub_entry, "TestNode", node.ELEMENT_TYPE)
+    add_participant(hass, hub_entry, "TestNode", ElementType.NODE)
 
-    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
+    flow = create_flow(hass, hub_entry, ElementType.LOAD)
     flow.async_create_entry = Mock(
         return_value={
             "type": FlowResultType.CREATE_ENTRY,
@@ -210,9 +209,9 @@ async def test_user_step_with_constant_creates_entry(
     hub_entry: MockConfigEntry,
 ) -> None:
     """Submitting with constant value should create entry with value."""
-    add_participant(hass, hub_entry, "TestNode", node.ELEMENT_TYPE)
+    add_participant(hass, hub_entry, "TestNode", ElementType.NODE)
 
-    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
+    flow = create_flow(hass, hub_entry, ElementType.LOAD)
     flow.async_create_entry = Mock(
         return_value={
             "type": FlowResultType.CREATE_ENTRY,

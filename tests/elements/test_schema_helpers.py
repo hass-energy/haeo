@@ -7,7 +7,7 @@ import pytest
 from custom_components.haeo import elements as elements_module
 from custom_components.haeo.adapters.elements.battery import adapter as battery_adapter
 from custom_components.haeo.elements import get_input_field_schema_info
-from custom_components.haeo.schema.elements import battery
+from custom_components.haeo.schema.elements import ElementType, battery
 
 
 class _DummySection(TypedDict):
@@ -25,7 +25,7 @@ class _DummySchema(TypedDict):
 def test_get_input_field_schema_info_marks_optional_fields() -> None:
     """get_input_field_schema_info marks optional fields and sections."""
     input_fields = battery_adapter.inputs(None)
-    schema_info = get_input_field_schema_info(battery.ELEMENT_TYPE, input_fields)
+    schema_info = get_input_field_schema_info(ElementType.BATTERY, input_fields)
 
     assert schema_info[battery.SECTION_STORAGE][battery.CONF_CAPACITY].is_optional is False
     assert schema_info[battery.SECTION_LIMITS][battery.CONF_MIN_CHARGE_PERCENTAGE].is_optional is True
@@ -38,7 +38,7 @@ def test_get_input_field_schema_info_missing_section() -> None:
     input_fields["missing_section"] = {}
 
     with pytest.raises(RuntimeError, match="Section 'missing_section' not found"):
-        get_input_field_schema_info(battery.ELEMENT_TYPE, input_fields)
+        get_input_field_schema_info(ElementType.BATTERY, input_fields)
 
 
 def test_get_input_field_schema_info_section_not_typed_dict() -> None:
@@ -48,7 +48,7 @@ def test_get_input_field_schema_info_section_not_typed_dict() -> None:
 
     with pytest.raises(RuntimeError, match="Section 'element_type'.*not a TypedDict"):
         get_input_field_schema_info(
-            battery.ELEMENT_TYPE,
+            ElementType.BATTERY,
             {"element_type": {"field": sample_field}},
         )
 
@@ -60,7 +60,7 @@ def test_get_input_field_schema_info_missing_field() -> None:
 
     with pytest.raises(RuntimeError, match="Field 'storage.missing_field' not found"):
         get_input_field_schema_info(
-            battery.ELEMENT_TYPE,
+            ElementType.BATTERY,
             {battery.SECTION_STORAGE: {"missing_field": sample_field}},
         )
 
@@ -77,13 +77,13 @@ def test_get_input_field_schema_info_type_alias(monkeypatch: pytest.MonkeyPatch)
         return original_get_type_hints(schema_cls)
 
     monkeypatch.setattr(elements_module, "get_type_hints", _fake_get_type_hints)
-    monkeypatch.setitem(elements_module.ELEMENT_CONFIG_SCHEMAS, battery.ELEMENT_TYPE, _DummySchema)
+    monkeypatch.setitem(elements_module.ELEMENT_CONFIG_SCHEMAS, ElementType.BATTERY, _DummySchema)
 
     input_fields = battery_adapter.inputs(None)
     sample_field = input_fields[battery.SECTION_STORAGE][battery.CONF_CAPACITY]
 
     schema_info = get_input_field_schema_info(
-        battery.ELEMENT_TYPE,
+        ElementType.BATTERY,
         {"dummy": {"field": sample_field}},
     )
 

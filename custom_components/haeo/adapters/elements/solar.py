@@ -18,12 +18,8 @@ from custom_components.haeo.model.elements.connection import CONNECTION_POWER_SO
 from custom_components.haeo.model.elements.segments import POWER_LIMIT_SOURCE_TARGET
 from custom_components.haeo.model.output_data import OutputData
 from custom_components.haeo.schema import extract_connection_target
-from custom_components.haeo.schema.elements.solar import (
-    CONF_CURTAILMENT,
-    ELEMENT_TYPE,
-    SECTION_CURTAILMENT,
-    SolarConfigData,
-)
+from custom_components.haeo.schema.elements import ElementType
+from custom_components.haeo.schema.elements.solar import CONF_CURTAILMENT, SECTION_CURTAILMENT, SolarConfigData
 from custom_components.haeo.sections import (
     CONF_CONNECTION,
     CONF_FORECAST,
@@ -55,7 +51,7 @@ SOLAR_DEVICE_NAMES: Final[frozenset[SolarDeviceName]] = frozenset((SOLAR_DEVICE_
 class SolarAdapter:
     """Adapter for Solar elements."""
 
-    element_type: str = ELEMENT_TYPE
+    element_type = ElementType.SOLAR
     advanced: bool = False
     connectivity: ConnectivityLevel = ConnectivityLevel.ADVANCED
 
@@ -68,7 +64,7 @@ class SolarAdapter:
                     field_name=CONF_FORECAST,
                     entity_description=NumberEntityDescription(
                         key=CONF_FORECAST,
-                        translation_key=f"{ELEMENT_TYPE}_{CONF_FORECAST}",
+                        translation_key=f"{ElementType.SOLAR}_{CONF_FORECAST}",
                         native_unit_of_measurement=UnitOfPower.KILO_WATT,
                         device_class=NumberDeviceClass.POWER,
                         native_min_value=0.0,
@@ -85,7 +81,7 @@ class SolarAdapter:
                     field_name=CONF_PRICE_SOURCE_TARGET,
                     entity_description=NumberEntityDescription(
                         key=CONF_PRICE_SOURCE_TARGET,
-                        translation_key=f"{ELEMENT_TYPE}_{CONF_PRICE_SOURCE_TARGET}",
+                        translation_key=f"{ElementType.SOLAR}_{CONF_PRICE_SOURCE_TARGET}",
                         native_min_value=-1.0,
                         native_max_value=10.0,
                         native_step=0.001,
@@ -101,7 +97,7 @@ class SolarAdapter:
                     field_name=CONF_CURTAILMENT,
                     entity_description=SwitchEntityDescription(
                         key=CONF_CURTAILMENT,
-                        translation_key=f"{ELEMENT_TYPE}_{CONF_CURTAILMENT}",
+                        translation_key=f"{ElementType.SOLAR}_{CONF_CURTAILMENT}",
                     ),
                     output_type=OutputType.STATUS,
                     defaults=InputFieldDefaults(mode="value", value=True),

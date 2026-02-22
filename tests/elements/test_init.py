@@ -253,14 +253,14 @@ def test_is_element_config_data_valid_node() -> None:
 def test_is_element_config_data_optional_type_validation() -> None:
     """Test is_element_config_data validates optional key types."""
     invalid_config = {
-        "element_type": node_schema.ELEMENT_TYPE,
+        "element_type": "node",
         node_schema.SECTION_COMMON: {"name": "test_node"},
         node_schema.SECTION_ROLE: {"is_source": "yes"},
     }
     assert is_element_config_data(invalid_config) is False
 
     valid_config = {
-        "element_type": node_schema.ELEMENT_TYPE,
+        "element_type": "node",
         node_schema.SECTION_COMMON: {"name": "test_node"},
         node_schema.SECTION_ROLE: {"is_source": True},
     }
@@ -284,11 +284,11 @@ def test_collect_element_subentries_skips_invalid_configs(
     subentry = ConfigSubentry(
         data=MappingProxyType(
             {
-                CONF_ELEMENT_TYPE: battery.ELEMENT_TYPE,
+                CONF_ELEMENT_TYPE: "battery",
                 CONF_NAME: "Bad Battery",
             }
         ),
-        subentry_type=battery.ELEMENT_TYPE,
+        subentry_type="battery",
         title="Bad Battery",
         unique_id=None,
     )

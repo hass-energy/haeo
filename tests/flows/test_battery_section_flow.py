@@ -13,10 +13,10 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 from custom_components.haeo.adapters.elements.battery_section import adapter
 from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.schema import as_constant_value, as_entity_value
+from custom_components.haeo.schema.elements import ElementType
 from custom_components.haeo.schema.elements.battery_section import (
     CONF_CAPACITY,
     CONF_INITIAL_CHARGE,
-    ELEMENT_TYPE,
     SECTION_COMMON,
     SECTION_STORAGE,
 )
@@ -40,8 +40,8 @@ def _wrap_input(flat: dict[str, Any]) -> dict[str, Any]:
 def _wrap_config(flat: dict[str, Any]) -> dict[str, Any]:
     """Wrap flat battery section config values into sectioned config with element type."""
     if SECTION_COMMON in flat:
-        return {CONF_ELEMENT_TYPE: ELEMENT_TYPE, **flat}
-    return {CONF_ELEMENT_TYPE: ELEMENT_TYPE, **_wrap_input(flat)}
+        return {CONF_ELEMENT_TYPE: "battery_section", **flat}
+    return {CONF_ELEMENT_TYPE: "battery_section", **_wrap_input(flat)}
 
 
 @pytest.mark.parametrize(
@@ -94,13 +94,13 @@ async def test_reconfigure_defaults_handle_schema_values(
     existing_config = _wrap_config(config_values)
     existing_subentry = ConfigSubentry(
         data=MappingProxyType(existing_config),
-        subentry_type=ELEMENT_TYPE,
+        subentry_type="battery_section",
         title="Test Battery Section",
         unique_id=None,
     )
     hass.config_entries.async_add_subentry(hub_entry, existing_subentry)
 
-    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
+    flow = create_flow(hass, hub_entry, ElementType.BATTERY_SECTION)
     flow.context = {"subentry_id": existing_subentry.subentry_id, "source": SOURCE_RECONFIGURE}
     flow._get_reconfigure_subentry = Mock(return_value=existing_subentry)
 
@@ -120,7 +120,7 @@ async def test_user_step_with_constant_creates_entry(
     hub_entry: MockConfigEntry,
 ) -> None:
     """Submitting with constant values should create entry directly."""
-    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
+    flow = create_flow(hass, hub_entry, ElementType.BATTERY_SECTION)
     flow.async_create_entry = Mock(
         return_value={
             "type": FlowResultType.CREATE_ENTRY,
@@ -163,7 +163,7 @@ async def test_user_step_with_entity_creates_entry(
     hub_entry: MockConfigEntry,
 ) -> None:
     """Submitting with entity selections should create entry with entity IDs."""
-    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
+    flow = create_flow(hass, hub_entry, ElementType.BATTERY_SECTION)
     flow.async_create_entry = Mock(
         return_value={
             "type": FlowResultType.CREATE_ENTRY,

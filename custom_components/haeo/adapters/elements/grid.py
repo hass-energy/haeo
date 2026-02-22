@@ -24,7 +24,8 @@ from custom_components.haeo.model.elements.segments import POWER_LIMIT_SOURCE_TA
 from custom_components.haeo.model.output_data import OutputData
 from custom_components.haeo.model.util import broadcast_to_sequence
 from custom_components.haeo.schema import extract_connection_target
-from custom_components.haeo.schema.elements.grid import ELEMENT_TYPE, GridConfigData
+from custom_components.haeo.schema.elements import ElementType
+from custom_components.haeo.schema.elements.grid import GridConfigData
 from custom_components.haeo.sections import (
     CONF_CONNECTION,
     CONF_MAX_POWER_SOURCE_TARGET,
@@ -73,7 +74,7 @@ GRID_DEVICE_NAMES: Final[frozenset[GridDeviceName]] = frozenset(
 class GridAdapter:
     """Adapter for Grid elements."""
 
-    element_type: str = ELEMENT_TYPE
+    element_type = ElementType.GRID
     advanced: bool = False
     connectivity: ConnectivityLevel = ConnectivityLevel.ADVANCED
 
@@ -86,7 +87,7 @@ class GridAdapter:
                     field_name=CONF_PRICE_SOURCE_TARGET,
                     entity_description=NumberEntityDescription(
                         key=CONF_PRICE_SOURCE_TARGET,
-                        translation_key=f"{ELEMENT_TYPE}_{CONF_PRICE_SOURCE_TARGET}",
+                        translation_key=f"{ElementType.GRID}_{CONF_PRICE_SOURCE_TARGET}",
                         native_min_value=-1.0,
                         native_max_value=10.0,
                         native_step=0.001,
@@ -99,7 +100,7 @@ class GridAdapter:
                     field_name=CONF_PRICE_TARGET_SOURCE,
                     entity_description=NumberEntityDescription(
                         key=CONF_PRICE_TARGET_SOURCE,
-                        translation_key=f"{ELEMENT_TYPE}_{CONF_PRICE_TARGET_SOURCE}",
+                        translation_key=f"{ElementType.GRID}_{CONF_PRICE_TARGET_SOURCE}",
                         native_min_value=-1.0,
                         native_max_value=10.0,
                         native_step=0.001,
@@ -114,7 +115,7 @@ class GridAdapter:
                     field_name=CONF_MAX_POWER_SOURCE_TARGET,
                     entity_description=NumberEntityDescription(
                         key=CONF_MAX_POWER_SOURCE_TARGET,
-                        translation_key=f"{ELEMENT_TYPE}_{CONF_MAX_POWER_SOURCE_TARGET}",
+                        translation_key=f"{ElementType.GRID}_{CONF_MAX_POWER_SOURCE_TARGET}",
                         native_unit_of_measurement=UnitOfPower.KILO_WATT,
                         device_class=NumberDeviceClass.POWER,
                         native_min_value=0.0,
@@ -130,7 +131,7 @@ class GridAdapter:
                     field_name=CONF_MAX_POWER_TARGET_SOURCE,
                     entity_description=NumberEntityDescription(
                         key=CONF_MAX_POWER_TARGET_SOURCE,
-                        translation_key=f"{ELEMENT_TYPE}_{CONF_MAX_POWER_TARGET_SOURCE}",
+                        translation_key=f"{ElementType.GRID}_{CONF_MAX_POWER_TARGET_SOURCE}",
                         native_unit_of_measurement=UnitOfPower.KILO_WATT,
                         device_class=NumberDeviceClass.POWER,
                         native_min_value=0.0,

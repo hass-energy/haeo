@@ -20,7 +20,7 @@ from custom_components.haeo.flows.field_schema import (
     validate_sectioned_choose_fields,
 )
 from custom_components.haeo.schema import get_connection_target_name, normalize_connection_target
-from custom_components.haeo.schema.elements.load import ELEMENT_TYPE
+from custom_components.haeo.schema.elements import ElementType
 from custom_components.haeo.sections import (
     CONF_CONNECTION,
     CONF_CURTAILMENT,
@@ -66,7 +66,7 @@ class LoadSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             if subentry_data
             else None
         )
-        default_name = await self._async_get_default_name(ELEMENT_TYPE)
+        default_name = await self._async_get_default_name(ElementType.LOAD)
         if not isinstance(current_connection, str):
             current_connection = participants[0] if participants else ""
         input_fields = adapter.inputs(subentry_data)
@@ -116,7 +116,7 @@ class LoadSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         subentry_data: dict[str, Any] | None = None,
     ) -> vol.Schema:
         """Build the schema with name, connection, and choose selectors for inputs."""
-        field_schema = get_input_field_schema_info(ELEMENT_TYPE, input_fields)
+        field_schema = get_input_field_schema_info(ElementType.LOAD, input_fields)
         return build_sectioned_choose_schema(
             self._get_sections(),
             input_fields,
@@ -173,7 +173,7 @@ class LoadSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         errors: dict[str, str] = {}
         common_input = user_input.get(SECTION_COMMON, {})
         self._validate_name(common_input.get(CONF_NAME), errors)
-        field_schema = get_input_field_schema_info(ELEMENT_TYPE, input_fields)
+        field_schema = get_input_field_schema_info(ElementType.LOAD, input_fields)
         errors.update(
             validate_sectioned_choose_fields(
                 user_input,
@@ -197,7 +197,7 @@ class LoadSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             common_config[CONF_CONNECTION] = normalize_connection_target(common_config[CONF_CONNECTION])
 
         return {
-            CONF_ELEMENT_TYPE: ELEMENT_TYPE,
+            CONF_ELEMENT_TYPE: ElementType.LOAD,
             **config_dict,
         }
 

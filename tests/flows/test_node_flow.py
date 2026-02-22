@@ -12,13 +12,8 @@ import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME
-from custom_components.haeo.schema.elements.node import (
-    CONF_IS_SINK,
-    CONF_IS_SOURCE,
-    ELEMENT_TYPE,
-    SECTION_COMMON,
-    SECTION_ROLE,
-)
+from custom_components.haeo.schema.elements import ElementType
+from custom_components.haeo.schema.elements.node import CONF_IS_SINK, CONF_IS_SOURCE, SECTION_COMMON, SECTION_ROLE
 
 from .conftest import create_flow
 
@@ -36,8 +31,8 @@ def _wrap_input(flat: dict[str, Any]) -> dict[str, Any]:
 def _wrap_config(flat: dict[str, Any]) -> dict[str, Any]:
     """Wrap flat node config values into sectioned config with element type."""
     if SECTION_COMMON in flat:
-        return {CONF_ELEMENT_TYPE: ELEMENT_TYPE, **flat}
-    return {CONF_ELEMENT_TYPE: ELEMENT_TYPE, **_wrap_input(flat)}
+        return {CONF_ELEMENT_TYPE: "node", **flat}
+    return {CONF_ELEMENT_TYPE: "node", **_wrap_input(flat)}
 
 
 class ValidFlowCase(TypedDict):
@@ -93,13 +88,13 @@ async def test_user_step_shows_error(hass: HomeAssistant, hub_entry: MockConfigE
     if case["existing_name"]:
         existing = ConfigSubentry(
             data=MappingProxyType(_wrap_config({CONF_NAME: case["existing_name"]})),
-            subentry_type=ELEMENT_TYPE,
+            subentry_type="node",
             title=case["existing_name"],
             unique_id=None,
         )
         hass.config_entries.async_add_subentry(hub_entry, existing)
 
-    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
+    flow = create_flow(hass, hub_entry, ElementType.NODE)
 
     form_result = await flow.async_step_user(user_input=None)
     assert form_result.get("type") == FlowResultType.FORM
@@ -118,13 +113,13 @@ async def test_reconfigure_step_updates_entry(
     """Node reconfigure step should update entry with valid input."""
     existing = ConfigSubentry(
         data=MappingProxyType(_wrap_config({CONF_NAME: "OldName"})),
-        subentry_type=ELEMENT_TYPE,
+        subentry_type="node",
         title="OldName",
         unique_id=None,
     )
     hass.config_entries.async_add_subentry(hub_entry, existing)
 
-    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
+    flow = create_flow(hass, hub_entry, ElementType.NODE)
     flow.context = {"subentry_id": existing.subentry_id}
     flow._get_reconfigure_subentry = Mock(return_value=existing)
 

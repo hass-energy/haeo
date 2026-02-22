@@ -6,7 +6,7 @@ from typing import Any, TypedDict
 import pytest
 
 from custom_components.haeo.adapters.elements.node import NODE_DEVICE_NODE
-from custom_components.haeo.elements import ELEMENT_TYPES
+from custom_components.haeo.elements import ELEMENT_TYPES, ElementType
 from custom_components.haeo.schema.elements.node import NodeConfigData
 from custom_components.haeo.model import ModelOutputName, ModelOutputValue
 from custom_components.haeo.model.const import OutputType
@@ -68,7 +68,7 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
 @pytest.mark.parametrize("case", CREATE_CASES, ids=lambda c: c["description"])
 def test_model_elements(case: CreateCase) -> None:
     """Verify adapter transforms ConfigData into expected model elements."""
-    entry = ELEMENT_TYPES["node"]
+    entry = ELEMENT_TYPES[ElementType.NODE]
     result = entry.model_elements(case["data"])
     assert result == case["model"]
 
@@ -76,6 +76,6 @@ def test_model_elements(case: CreateCase) -> None:
 @pytest.mark.parametrize("case", OUTPUTS_CASES, ids=lambda c: c["description"])
 def test_outputs_mapping(case: OutputsCase) -> None:
     """Verify adapter maps model outputs to device outputs."""
-    entry = ELEMENT_TYPES["node"]
+    entry = ELEMENT_TYPES[ElementType.NODE]
     result = entry.outputs(case["name"], case["model_outputs"])
     assert result == case["outputs"]
