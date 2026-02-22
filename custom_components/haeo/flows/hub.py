@@ -19,7 +19,7 @@ from custom_components.haeo.const import (
     ELEMENT_TYPE_NETWORK,
     INTEGRATION_TYPE_HUB,
 )
-from custom_components.haeo.elements import ELEMENT_TYPE_NODE, ELEMENT_TYPES, get_element_flow_classes
+from custom_components.haeo.elements import ELEMENT_TYPE_NODE, ELEMENT_TYPES
 from custom_components.haeo.elements.node import CONF_IS_SINK, CONF_IS_SOURCE
 from custom_components.haeo.elements.node import SECTION_COMMON as NODE_SECTION_COMMON
 from custom_components.haeo.elements.node import SECTION_ROLE as NODE_SECTION_ROLE
@@ -30,6 +30,7 @@ from . import (
     HUB_SECTION_COMMON,
     HUB_SECTION_TIERS,
     get_custom_tiers_schema,
+    get_element_flow_classes,
     get_hub_setup_schema,
     get_tier_config,
 )

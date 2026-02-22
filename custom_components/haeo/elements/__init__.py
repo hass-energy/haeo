@@ -221,34 +221,6 @@ ELEMENT_TYPES: dict[ElementType, ElementAdapter] = {
 }
 
 
-def get_element_flow_classes() -> dict[ElementType, type]:
-    """Return mapping of element types to their config flow handler classes.
-
-    This function performs lazy imports to avoid circular dependencies
-    (flows import adapters, not the other way around).
-    """
-    # Local imports to avoid circular dependencies with flow modules
-    from custom_components.haeo.elements.battery.flow import BatterySubentryFlowHandler  # noqa: PLC0415
-    from custom_components.haeo.elements.battery_section.flow import BatterySectionSubentryFlowHandler  # noqa: PLC0415
-    from custom_components.haeo.elements.connection.flow import ConnectionSubentryFlowHandler  # noqa: PLC0415
-    from custom_components.haeo.elements.grid.flow import GridSubentryFlowHandler  # noqa: PLC0415
-    from custom_components.haeo.elements.inverter.flow import InverterSubentryFlowHandler  # noqa: PLC0415
-    from custom_components.haeo.elements.load.flow import LoadSubentryFlowHandler  # noqa: PLC0415
-    from custom_components.haeo.elements.node.flow import NodeSubentryFlowHandler  # noqa: PLC0415
-    from custom_components.haeo.elements.solar.flow import SolarSubentryFlowHandler  # noqa: PLC0415
-
-    return {
-        "battery": BatterySubentryFlowHandler,
-        "battery_section": BatterySectionSubentryFlowHandler,
-        "connection": ConnectionSubentryFlowHandler,
-        "grid": GridSubentryFlowHandler,
-        "inverter": InverterSubentryFlowHandler,
-        "load": LoadSubentryFlowHandler,
-        "node": NodeSubentryFlowHandler,
-        "solar": SolarSubentryFlowHandler,
-    }
-
-
 class ValidatedElementSubentry(NamedTuple):
     """Validated element subentry with structured configuration."""
 
@@ -603,7 +575,6 @@ __all__ = [
     "ValidatedElementSubentry",
     "collect_element_subentries",
     "find_nested_config_path",
-    "get_element_flow_classes",
     "get_input_field_schema_info",
     "get_input_fields",
     "get_nested_config_value",

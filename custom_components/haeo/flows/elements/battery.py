@@ -9,6 +9,7 @@ import voluptuous as vol
 from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.data.loader.extractors import extract_entity_metadata
 from custom_components.haeo.elements import get_input_field_schema_info
+from custom_components.haeo.elements.battery.adapter import adapter
 from custom_components.haeo.elements.input_fields import InputFieldGroups
 from custom_components.haeo.flows.element_flow import ElementFlowMixin, build_sectioned_inclusion_map
 from custom_components.haeo.flows.field_schema import (
@@ -20,22 +21,7 @@ from custom_components.haeo.flows.field_schema import (
     validate_sectioned_choose_fields,
 )
 from custom_components.haeo.schema import get_connection_target_name, normalize_connection_target
-from custom_components.haeo.sections import (
-    CONF_CONNECTION,
-    CONF_MAX_POWER_SOURCE_TARGET,
-    CONF_MAX_POWER_TARGET_SOURCE,
-    CONF_PRICE_SOURCE_TARGET,
-    CONF_PRICE_TARGET_SOURCE,
-    SECTION_COMMON,
-    build_common_fields,
-    common_section,
-    efficiency_section,
-    power_limits_section,
-    pricing_section,
-)
-
-from .adapter import adapter
-from .schema import (
+from custom_components.haeo.schema.elements.battery import (
     CONF_CAPACITY,
     CONF_CONFIGURE_PARTITIONS,
     CONF_EFFICIENCY_SOURCE_TARGET,
@@ -53,6 +39,19 @@ from .schema import (
     SECTION_PARTITIONING,
     SECTION_STORAGE,
     SECTION_UNDERCHARGE,
+)
+from custom_components.haeo.sections import (
+    CONF_CONNECTION,
+    CONF_MAX_POWER_SOURCE_TARGET,
+    CONF_MAX_POWER_TARGET_SOURCE,
+    CONF_PRICE_SOURCE_TARGET,
+    CONF_PRICE_TARGET_SOURCE,
+    SECTION_COMMON,
+    build_common_fields,
+    common_section,
+    efficiency_section,
+    power_limits_section,
+    pricing_section,
 )
 
 PARTITION_SECTION_DEFINITIONS = (

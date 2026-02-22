@@ -43,12 +43,11 @@ from custom_components.haeo.elements import (
     ElementType,
     battery,
     connection,
-    get_element_flow_classes,
     grid,
     node,
 )
 from custom_components.haeo.elements.input_fields import InputFieldInfo
-from custom_components.haeo.flows import HUB_SECTION_COMMON, HUB_SECTION_TIERS
+from custom_components.haeo.flows import HUB_SECTION_COMMON, HUB_SECTION_TIERS, get_element_flow_classes
 from custom_components.haeo.model import OutputData
 from custom_components.haeo.sections import SECTION_COMMON
 from tests.conftest import ElementTestData

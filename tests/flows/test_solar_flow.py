@@ -25,8 +25,9 @@ from custom_components.haeo.elements.solar import (
     adapter,
 )
 from custom_components.haeo.schema import as_connection_target, as_constant_value, as_entity_value
+from tests.conftest import add_participant
 
-from ..conftest import add_participant, create_flow
+from .conftest import create_flow
 
 
 def _wrap_input(flat: dict[str, Any]) -> dict[str, Any]:

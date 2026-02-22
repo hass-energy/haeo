@@ -24,8 +24,9 @@ from custom_components.haeo.elements.inverter import (
     adapter,
 )
 from custom_components.haeo.schema import as_connection_target, as_constant_value, as_entity_value
+from tests.conftest import add_participant
 
-from ..conftest import add_participant, create_flow
+from .conftest import create_flow
 
 CONF_MAX_POWER_DC_TO_AC = CONF_MAX_POWER_SOURCE_TARGET
 CONF_MAX_POWER_AC_TO_DC = CONF_MAX_POWER_TARGET_SOURCE
@@ -383,8 +384,12 @@ async def test_reconfigure_selecting_entity_stores_entity_id(
 
     # When entity mode is selected, the entity ID is stored
     update_kwargs = flow.async_update_and_abort.call_args.kwargs
-    assert update_kwargs["data"][SECTION_LIMITS][CONF_MAX_POWER_DC_TO_AC] == as_entity_value([dc_to_ac_entity.entity_id])
-    assert update_kwargs["data"][SECTION_LIMITS][CONF_MAX_POWER_AC_TO_DC] == as_entity_value([ac_to_dc_entity.entity_id])
+    assert update_kwargs["data"][SECTION_LIMITS][CONF_MAX_POWER_DC_TO_AC] == as_entity_value(
+        [dc_to_ac_entity.entity_id]
+    )
+    assert update_kwargs["data"][SECTION_LIMITS][CONF_MAX_POWER_AC_TO_DC] == as_entity_value(
+        [ac_to_dc_entity.entity_id]
+    )
 
 
 # --- Tests for _is_valid_choose_value ---
