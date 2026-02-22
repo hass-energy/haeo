@@ -34,6 +34,12 @@ uv run pyright
 git ls-files -z '*.md' '*.mdx' | xargs -0 uv run mdformat --check
 ```
 
+### Import Boundaries
+
+```bash
+uv run lint-imports
+```
+
 ### JSON Formatting
 
 ```bash
@@ -84,6 +90,9 @@ uv run ruff check
 uv run ruff format --check
 uv run pyright
 
+# Import boundaries
+uv run lint-imports
+
 # Markdown check
 git ls-files -z '*.md' '*.mdx' | xargs -0 uv run mdformat --check
 
@@ -104,6 +113,7 @@ Provide a summary of:
 
 - **Ruff** handles both linting and formatting for Python code
 - **Pyright** provides strict type checking (typeCheckingMode = "strict")
+- **import-linter** enforces architectural import boundaries (core and model isolation)
 - **mdformat** ensures markdown follows semantic line breaks
 - **Prettier** formats JSON files consistently
 - All fixes should maintain code functionality while improving quality

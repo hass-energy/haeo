@@ -191,6 +191,21 @@ jobs:
       - name: Markdown format (check)
         if: github.event_name != 'pull_request'
         run: uv run mdformat --check $(git ls-files '*.md' '*.mdx')
+
+  import-linter:
+    name: Import boundaries
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout the repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - uses: astral-sh/setup-uv@61cb8a9741eeb8a550a1b8544337180c0fc8476b # v7.2.0
+
+      - name: Install python dependencies
+        run: uv sync --locked --all-extras --dev
+
+      - name: Check import boundaries
+        run: uv run lint-imports
   #endregion
 
   #region Tests
@@ -314,6 +329,7 @@ jobs:
       - pyright
       - prettier
       - mdformat
+      - import-linter
       - test
       - hassfest
       - version-check

@@ -35,6 +35,7 @@ dev = [
     "setuptools>=80.9.0",
     "syrupy>=5.0.0",
     "zensical>=0.0.15",
+    "import-linter>=2.10",
 ]
 
 [tool.ruff]
@@ -153,6 +154,23 @@ omit = [
 number = true                 # Renumber ordered lists
 end_of_line = "lf"
 exclude = [".venv", "node_modules"]
+
+[tool.importlinter]
+root_packages = ["custom_components.haeo"]
+include_external_packages = true
+contract_types = ["allowlist: tests.import_contracts.AllowlistContract"]
+
+[[tool.importlinter.contracts]]
+name = "Core must not import Home Assistant"
+type = "forbidden"
+source_modules = ["custom_components.haeo.core"]
+forbidden_modules = ["homeassistant"]
+
+[[tool.importlinter.contracts]]
+name = "Model is standalone"
+type = "allowlist"
+source_modules = ["custom_components.haeo.model"]
+allow_modules = ["highspy", "numpy", "typing_extensions"]
 
 [tool.setuptools]
 package-dir = { "" = "." }
