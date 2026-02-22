@@ -5,10 +5,9 @@ from dataclasses import replace
 from typing import Any, Final, Literal
 
 from homeassistant.components.number import NumberDeviceClass, NumberEntityDescription
-from homeassistant.const import PERCENTAGE, UnitOfPower
-
 from custom_components.haeo.adapters.output_utils import expect_output_data
 from custom_components.haeo.const import ConnectivityLevel
+from custom_components.haeo.core.units import UnitOfMeasurement
 from custom_components.haeo.elements.input_fields import InputFieldDefaults, InputFieldInfo
 from custom_components.haeo.model import ModelElementConfig, ModelOutputName, ModelOutputValue
 from custom_components.haeo.model.const import OutputType
@@ -81,7 +80,7 @@ class InverterAdapter:
                     entity_description=NumberEntityDescription(
                         key=CONF_MAX_POWER_SOURCE_TARGET,
                         translation_key=f"{ELEMENT_TYPE}_{CONF_MAX_POWER_SOURCE_TARGET}",
-                        native_unit_of_measurement=UnitOfPower.KILO_WATT,
+                        native_unit_of_measurement=UnitOfMeasurement.KILO_WATT,
                         device_class=NumberDeviceClass.POWER,
                         native_min_value=0.0,
                         native_max_value=1000.0,
@@ -96,7 +95,7 @@ class InverterAdapter:
                     entity_description=NumberEntityDescription(
                         key=CONF_MAX_POWER_TARGET_SOURCE,
                         translation_key=f"{ELEMENT_TYPE}_{CONF_MAX_POWER_TARGET_SOURCE}",
-                        native_unit_of_measurement=UnitOfPower.KILO_WATT,
+                        native_unit_of_measurement=UnitOfMeasurement.KILO_WATT,
                         device_class=NumberDeviceClass.POWER,
                         native_min_value=0.0,
                         native_max_value=1000.0,
@@ -113,7 +112,7 @@ class InverterAdapter:
                     entity_description=NumberEntityDescription(
                         key=CONF_EFFICIENCY_SOURCE_TARGET,
                         translation_key=f"{ELEMENT_TYPE}_{CONF_EFFICIENCY_SOURCE_TARGET}",
-                        native_unit_of_measurement=PERCENTAGE,
+                        native_unit_of_measurement=UnitOfMeasurement.PERCENT,
                         device_class=NumberDeviceClass.POWER_FACTOR,
                         native_min_value=50.0,
                         native_max_value=100.0,
@@ -127,7 +126,7 @@ class InverterAdapter:
                     entity_description=NumberEntityDescription(
                         key=CONF_EFFICIENCY_TARGET_SOURCE,
                         translation_key=f"{ELEMENT_TYPE}_{CONF_EFFICIENCY_TARGET_SOURCE}",
-                        native_unit_of_measurement=PERCENTAGE,
+                        native_unit_of_measurement=UnitOfMeasurement.PERCENT,
                         device_class=NumberDeviceClass.POWER_FACTOR,
                         native_min_value=50.0,
                         native_max_value=100.0,
