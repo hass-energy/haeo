@@ -41,7 +41,6 @@ from custom_components.haeo.migrations.v1_3 import migrate_subentry_data
 from custom_components.haeo.model import Network
 from custom_components.haeo.model.output_data import OutputData
 from custom_components.haeo.schema.constant_value import is_constant_value
-from custom_components.haeo.schema.elements import ElementType
 from custom_components.haeo.schema.entity_value import is_entity_value
 from custom_components.haeo.schema.none_value import is_none_value
 from custom_components.haeo.sections import SECTION_COMMON, SECTION_PRICING
@@ -387,18 +386,10 @@ def get_forecast_by_fields(
 def infer_interval_starts_from_outputs(outputs: dict[str, Any], config: dict[str, Any]) -> list[float]:
     """Infer interval start timestamps from diagnostics outputs."""
     participants = config.get("participants", {})
-    grid_name = next(
-        (name for name, cfg in participants.items() if cfg.get("element_type") == ElementType.GRID), "Grid"
-    )
-    battery_name = next(
-        (name for name, cfg in participants.items() if cfg.get("element_type") == ElementType.BATTERY), "Battery"
-    )
-    load_name = next(
-        (name for name, cfg in participants.items() if cfg.get("element_type") == ElementType.LOAD), "Load"
-    )
-    solar_name = next(
-        (name for name, cfg in participants.items() if cfg.get("element_type") == ElementType.SOLAR), "Solar"
-    )
+    grid_name = next((name for name, cfg in participants.items() if cfg.get("element_type") == "grid"), "Grid")
+    battery_name = next((name for name, cfg in participants.items() if cfg.get("element_type") == "battery"), "Battery")
+    load_name = next((name for name, cfg in participants.items() if cfg.get("element_type") == "load"), "Load")
+    solar_name = next((name for name, cfg in participants.items() if cfg.get("element_type") == "solar"), "Solar")
 
     candidates = (
         get_forecast_by_field(outputs, grid_name, "grid_power_active"),
@@ -437,18 +428,10 @@ def format_output_table_from_diagnostics(outputs: dict[str, Any], timezone_str: 
     """
     # Find element names from config
     participants = config.get("participants", {})
-    grid_name = next(
-        (name for name, cfg in participants.items() if cfg.get("element_type") == ElementType.GRID), "Grid"
-    )
-    battery_name = next(
-        (name for name, cfg in participants.items() if cfg.get("element_type") == ElementType.BATTERY), "Battery"
-    )
-    load_name = next(
-        (name for name, cfg in participants.items() if cfg.get("element_type") == ElementType.LOAD), "Load"
-    )
-    solar_name = next(
-        (name for name, cfg in participants.items() if cfg.get("element_type") == ElementType.SOLAR), "Solar"
-    )
+    grid_name = next((name for name, cfg in participants.items() if cfg.get("element_type") == "grid"), "Grid")
+    battery_name = next((name for name, cfg in participants.items() if cfg.get("element_type") == "battery"), "Battery")
+    load_name = next((name for name, cfg in participants.items() if cfg.get("element_type") == "load"), "Load")
+    solar_name = next((name for name, cfg in participants.items() if cfg.get("element_type") == "solar"), "Solar")
 
     # Extract forecast data using element_name and field_name/output_name attributes
     # Prices use field_name (number.* entities), sensors use output_name (sensor.* entities)
@@ -560,7 +543,7 @@ def format_output_table_from_network(
     grid_import_price_array: np.ndarray | None = None
     grid_export_price_array: np.ndarray | None = None
     for element_config in loaded_participants.values():
-        if element_config.get(CONF_ELEMENT_TYPE) == ElementType.GRID:
+        if element_config.get(CONF_ELEMENT_TYPE) == "grid":
             pricing = element_config.get(SECTION_PRICING, {})
             import_price = pricing.get("price_source_target")
             export_price = pricing.get("price_target_source")
@@ -681,18 +664,10 @@ def extract_rows_from_diagnostics(outputs: dict[str, Any], _timezone_str: str, c
     """Extract row data from pre-computed diagnostics outputs."""
     # Find element names from config
     participants = config.get("participants", {})
-    grid_name = next(
-        (name for name, cfg in participants.items() if cfg.get("element_type") == ElementType.GRID), "Grid"
-    )
-    battery_name = next(
-        (name for name, cfg in participants.items() if cfg.get("element_type") == ElementType.BATTERY), "Battery"
-    )
-    load_name = next(
-        (name for name, cfg in participants.items() if cfg.get("element_type") == ElementType.LOAD), "Load"
-    )
-    solar_name = next(
-        (name for name, cfg in participants.items() if cfg.get("element_type") == ElementType.SOLAR), "Solar"
-    )
+    grid_name = next((name for name, cfg in participants.items() if cfg.get("element_type") == "grid"), "Grid")
+    battery_name = next((name for name, cfg in participants.items() if cfg.get("element_type") == "battery"), "Battery")
+    load_name = next((name for name, cfg in participants.items() if cfg.get("element_type") == "load"), "Load")
+    solar_name = next((name for name, cfg in participants.items() if cfg.get("element_type") == "solar"), "Solar")
 
     # Extract forecast data using element_name and field_name/output_name attributes
     # Prices use field_name (number.* entities), sensors use output_name (sensor.* entities)
@@ -770,7 +745,7 @@ def extract_rows_from_network(
     grid_import_price_array: np.ndarray | None = None
     grid_export_price_array: np.ndarray | None = None
     for element_config in loaded_participants.values():
-        if element_config.get(CONF_ELEMENT_TYPE) == ElementType.GRID:
+        if element_config.get(CONF_ELEMENT_TYPE) == "grid":
             pricing = element_config.get(SECTION_PRICING, {})
             import_price = pricing.get("price_source_target")
             export_price = pricing.get("price_target_source")

@@ -15,7 +15,6 @@ from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMO
 from custom_components.haeo.horizon import HorizonManager
 from custom_components.haeo.number import async_setup_entry
 from custom_components.haeo.schema import as_connection_target, as_constant_value, as_entity_value, as_none_value
-from custom_components.haeo.schema.elements import ElementType
 from custom_components.haeo.schema.elements.grid import (
     CONF_MAX_POWER_SOURCE_TARGET,
     CONF_MAX_POWER_TARGET_SOURCE,
@@ -25,6 +24,7 @@ from custom_components.haeo.schema.elements.grid import (
     SECTION_POWER_LIMITS,
     SECTION_PRICING,
 )
+from custom_components.haeo.schema.elements.grid import ELEMENT_TYPE as GRID_TYPE
 from custom_components.haeo.sections import CONF_CONNECTION
 
 
@@ -93,7 +93,7 @@ def _add_subentry(
         raise TypeError(msg)
 
     payload: dict[str, object] = {CONF_ELEMENT_TYPE: subentry_type}
-    if subentry_type == ElementType.GRID:
+    if subentry_type == GRID_TYPE:
         power_limits = {}
         if data.get("max_power_source_target") is not None:
             power_limits[CONF_MAX_POWER_SOURCE_TARGET] = schema_value(data.get("max_power_source_target"))
@@ -136,7 +136,7 @@ async def test_setup_creates_number_entities_for_grid(
     _add_subentry(
         hass,
         config_entry,
-        ElementType.GRID,
+        GRID_TYPE,
         "Main Grid",
         {
             "connection": "main_bus",
@@ -182,7 +182,7 @@ async def test_setup_skips_missing_fields_in_config(
     _add_subentry(
         hass,
         config_entry,
-        ElementType.GRID,
+        GRID_TYPE,
         "Basic Grid",
         {
             "connection": "main_bus",
@@ -215,7 +215,7 @@ async def test_setup_creates_correct_device_identifiers(
     _add_subentry(
         hass,
         config_entry,
-        ElementType.GRID,
+        GRID_TYPE,
         "My Grid",
         {
             "connection": "main_bus",
@@ -244,7 +244,7 @@ async def test_setup_handles_multiple_elements(
     _add_subentry(
         hass,
         config_entry,
-        ElementType.GRID,
+        GRID_TYPE,
         "Grid 1",
         {
             "connection": "bus1",
@@ -255,7 +255,7 @@ async def test_setup_handles_multiple_elements(
     _add_subentry(
         hass,
         config_entry,
-        ElementType.GRID,
+        GRID_TYPE,
         "Grid 2",
         {
             "connection": "bus2",

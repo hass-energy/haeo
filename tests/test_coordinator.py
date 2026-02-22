@@ -60,7 +60,13 @@ from custom_components.haeo.coordinator import (
     _build_coordinator_output,
 )
 from custom_components.haeo.coordinator.coordinator import _strip_none_schema_values
-from custom_components.haeo.elements import ELEMENT_TYPES, ElementConfigSchema, ElementType
+from custom_components.haeo.elements import (
+    ELEMENT_TYPE_BATTERY,
+    ELEMENT_TYPE_CONNECTION,
+    ELEMENT_TYPE_GRID,
+    ELEMENT_TYPES,
+    ElementConfigSchema,
+)
 from custom_components.haeo.elements.input_fields import InputFieldInfo
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON, HUB_SECTION_TIERS
 from custom_components.haeo.model import Network, OutputData, OutputType
@@ -140,7 +146,7 @@ def mock_battery_subentry(hass: HomeAssistant, mock_hub_entry: MockConfigEntry) 
     subentry = ConfigSubentry(
         data=MappingProxyType(
             {
-                CONF_ELEMENT_TYPE: ElementType.BATTERY,
+                CONF_ELEMENT_TYPE: ELEMENT_TYPE_BATTERY,
                 SECTION_COMMON: {
                     CONF_NAME: "Test Battery",
                     CONF_CONNECTION: as_connection_target("DC Bus"),
@@ -167,7 +173,7 @@ def mock_battery_subentry(hass: HomeAssistant, mock_hub_entry: MockConfigEntry) 
                 SECTION_PARTITIONING: {},
             }
         ),
-        subentry_type=ElementType.BATTERY,
+        subentry_type=ELEMENT_TYPE_BATTERY,
         title="Test Battery",
         unique_id=None,
     )
@@ -181,7 +187,7 @@ def mock_grid_subentry(hass: HomeAssistant, mock_hub_entry: MockConfigEntry) -> 
     subentry = ConfigSubentry(
         data=MappingProxyType(
             {
-                CONF_ELEMENT_TYPE: ElementType.GRID,
+                CONF_ELEMENT_TYPE: ELEMENT_TYPE_GRID,
                 SECTION_COMMON: {
                     CONF_NAME: "Test Grid",
                     CONF_CONNECTION_GRID: as_connection_target("AC Bus"),
@@ -196,7 +202,7 @@ def mock_grid_subentry(hass: HomeAssistant, mock_hub_entry: MockConfigEntry) -> 
                 },
             }
         ),
-        subentry_type=ElementType.GRID,
+        subentry_type=ELEMENT_TYPE_GRID,
         title="Test Grid",
         unique_id=None,
     )
@@ -210,7 +216,7 @@ def mock_connection_subentry(hass: HomeAssistant, mock_hub_entry: MockConfigEntr
     subentry = ConfigSubentry(
         data=MappingProxyType(
             {
-                CONF_ELEMENT_TYPE: ElementType.CONNECTION,
+                CONF_ELEMENT_TYPE: ELEMENT_TYPE_CONNECTION,
                 SECTION_COMMON: {
                     CONF_NAME: "Battery to Grid",
                 },
@@ -223,7 +229,7 @@ def mock_connection_subentry(hass: HomeAssistant, mock_hub_entry: MockConfigEntr
                 SECTION_EFFICIENCY: {},
             }
         ),
-        subentry_type=ElementType.CONNECTION,
+        subentry_type=ELEMENT_TYPE_CONNECTION,
         title="Battery to Grid",
         unique_id=None,
     )
@@ -665,7 +671,7 @@ def test_load_element_config_raises_on_required_none_value(
     """_load_element_config raises when required fields resolve to None."""
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
     coordinator._participant_configs = {
-        "Test Battery": cast("ElementConfigSchema", {CONF_ELEMENT_TYPE: ElementType.BATTERY}),
+        "Test Battery": cast("ElementConfigSchema", {CONF_ELEMENT_TYPE: ELEMENT_TYPE_BATTERY}),
     }
 
     field_info = InputFieldInfo(
@@ -1289,7 +1295,7 @@ def test_load_from_input_entities_raises_for_invalid_config_data(
 
     invalid_config: Any = {
         "Bad Battery": {
-            CONF_ELEMENT_TYPE: ElementType.BATTERY,
+            CONF_ELEMENT_TYPE: ELEMENT_TYPE_BATTERY,
             SECTION_COMMON: {
                 CONF_NAME: "Bad Battery",
                 # Missing required non-input field: connection

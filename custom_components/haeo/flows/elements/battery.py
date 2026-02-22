@@ -21,7 +21,6 @@ from custom_components.haeo.flows.field_schema import (
     validate_sectioned_choose_fields,
 )
 from custom_components.haeo.schema import get_connection_target_name, normalize_connection_target
-from custom_components.haeo.schema.elements import ElementType
 from custom_components.haeo.schema.elements.battery import (
     CONF_CAPACITY,
     CONF_CONFIGURE_PARTITIONS,
@@ -33,6 +32,7 @@ from custom_components.haeo.schema.elements.battery import (
     CONF_PARTITION_COST,
     CONF_PARTITION_PERCENTAGE,
     CONF_SALVAGE_VALUE,
+    ELEMENT_TYPE,
     PARTITION_FIELD_NAMES,
     SECTION_LIMITS,
     SECTION_OVERCHARGE,
@@ -119,7 +119,7 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             if subentry_data
             else None
         )
-        default_name = await self._async_get_default_name(ElementType.BATTERY)
+        default_name = await self._async_get_default_name(ELEMENT_TYPE)
         if not isinstance(current_connection, str):
             current_connection = participants[0] if participants else ""
 
@@ -190,7 +190,7 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         subentry_data: dict[str, Any] | None = None,
     ) -> vol.Schema:
         """Build the schema with name, connection, and choose selectors for main inputs."""
-        field_schema = get_input_field_schema_info(ElementType.BATTERY, input_fields)
+        field_schema = get_input_field_schema_info(ELEMENT_TYPE, input_fields)
         return build_sectioned_choose_schema(
             self._get_sections(),
             input_fields,
@@ -219,7 +219,7 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         subentry_data: dict[str, Any] | None = None,
     ) -> vol.Schema:
         """Build the schema for partition fields."""
-        field_schema = get_input_field_schema_info(ElementType.BATTERY, input_fields)
+        field_schema = get_input_field_schema_info(ELEMENT_TYPE, input_fields)
         return build_sectioned_choose_schema(
             self._get_partition_sections(),
             input_fields,
@@ -292,7 +292,7 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         errors: dict[str, str] = {}
         common_input = user_input.get(SECTION_COMMON, {})
         self._validate_name(common_input.get(CONF_NAME), errors)
-        field_schema = get_input_field_schema_info(ElementType.BATTERY, input_fields)
+        field_schema = get_input_field_schema_info(ELEMENT_TYPE, input_fields)
         errors.update(
             validate_sectioned_choose_fields(
                 user_input,
@@ -345,7 +345,7 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                     config_dict[section_key] = partition_config[section_key]
 
         return {
-            CONF_ELEMENT_TYPE: ElementType.BATTERY,
+            CONF_ELEMENT_TYPE: ELEMENT_TYPE,
             **config_dict,
         }
 

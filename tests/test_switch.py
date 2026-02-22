@@ -17,7 +17,6 @@ from custom_components.haeo.entities.haeo_number import ConfigEntityMode
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON, HUB_SECTION_TIERS
 from custom_components.haeo.horizon import HorizonManager
 from custom_components.haeo.schema import as_connection_target, as_constant_value, as_entity_value, as_none_value
-from custom_components.haeo.schema.elements import ElementType
 from custom_components.haeo.schema.elements.grid import (
     CONF_MAX_POWER_SOURCE_TARGET,
     CONF_MAX_POWER_TARGET_SOURCE,
@@ -27,6 +26,7 @@ from custom_components.haeo.schema.elements.grid import (
     SECTION_POWER_LIMITS,
     SECTION_PRICING,
 )
+from custom_components.haeo.schema.elements.grid import ELEMENT_TYPE as GRID_TYPE
 from custom_components.haeo.schema.elements.solar import (
     CONF_CURTAILMENT,
     CONF_FORECAST,
@@ -34,6 +34,7 @@ from custom_components.haeo.schema.elements.solar import (
     SECTION_FORECAST,
 )
 from custom_components.haeo.schema.elements.solar import CONF_PRICE_SOURCE_TARGET as CONF_SOLAR_PRICE_SOURCE_TARGET
+from custom_components.haeo.schema.elements.solar import ELEMENT_TYPE as SOLAR_TYPE
 from custom_components.haeo.schema.elements.solar import SECTION_COMMON as SOLAR_SECTION_COMMON
 from custom_components.haeo.sections import CONF_CONNECTION
 from custom_components.haeo.switch import async_setup_entry
@@ -107,7 +108,7 @@ def _add_subentry(
         raise TypeError(msg)
 
     payload: dict[str, object] = {CONF_ELEMENT_TYPE: subentry_type}
-    if subentry_type == ElementType.GRID:
+    if subentry_type == GRID_TYPE:
         connection_value = data.get("connection", "Switchboard")
         payload |= {
             SECTION_COMMON: {
@@ -123,7 +124,7 @@ def _add_subentry(
                 CONF_MAX_POWER_TARGET_SOURCE: schema_value(data.get("max_power_target_source")),
             },
         }
-    elif subentry_type == ElementType.SOLAR:
+    elif subentry_type == SOLAR_TYPE:
         connection_value = data.get("connection", "Switchboard")
         curtailment_value = data.get("allow_curtailment", data.get("curtailment"))
         payload |= {
@@ -192,7 +193,7 @@ async def test_setup_creates_auto_optimize_switch_for_network(
     ("subentry_type", "title", "data", "expect_field", "expect_mode"),
     [
         pytest.param(
-            ElementType.GRID,
+            GRID_TYPE,
             "Main Grid",
             {
                 "connection": "main_bus",
@@ -204,7 +205,7 @@ async def test_setup_creates_auto_optimize_switch_for_network(
             id="grid_no_switch_fields",
         ),
         pytest.param(
-            ElementType.SOLAR,
+            SOLAR_TYPE,
             "Basic Solar",
             {
                 "connection": "main_bus",
@@ -215,7 +216,7 @@ async def test_setup_creates_auto_optimize_switch_for_network(
             id="solar_missing_switch_field",
         ),
         pytest.param(
-            ElementType.SOLAR,
+            SOLAR_TYPE,
             "Dynamic Solar",
             {
                 "connection": "main_bus",
@@ -266,7 +267,7 @@ async def test_setup_creates_switch_entities_for_solar_curtailment(
     _add_subentry(
         hass,
         config_entry,
-        ElementType.SOLAR,
+        SOLAR_TYPE,
         "Rooftop Solar",
         {
             "connection": "main_bus",
@@ -296,7 +297,7 @@ async def test_setup_creates_correct_device_identifiers(
     _add_subentry(
         hass,
         config_entry,
-        ElementType.SOLAR,
+        SOLAR_TYPE,
         "My Solar",
         {
             "connection": "main_bus",
@@ -325,7 +326,7 @@ async def test_setup_handles_multiple_solar_elements(
     _add_subentry(
         hass,
         config_entry,
-        ElementType.SOLAR,
+        SOLAR_TYPE,
         "Solar North",
         {
             "connection": "bus1",
@@ -336,7 +337,7 @@ async def test_setup_handles_multiple_solar_elements(
     _add_subentry(
         hass,
         config_entry,
-        ElementType.SOLAR,
+        SOLAR_TYPE,
         "Solar South",
         {
             "connection": "bus2",

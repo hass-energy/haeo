@@ -14,10 +14,11 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 from custom_components.haeo.adapters.elements.inverter import adapter
 from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME, DOMAIN
 from custom_components.haeo.schema import as_connection_target, as_constant_value, as_entity_value
-from custom_components.haeo.schema.elements import ElementType
+from custom_components.haeo.schema.elements import node
 from custom_components.haeo.schema.elements.inverter import (
     CONF_MAX_POWER_SOURCE_TARGET,
     CONF_MAX_POWER_TARGET_SOURCE,
+    ELEMENT_TYPE,
     SECTION_COMMON,
     SECTION_EFFICIENCY,
     SECTION_POWER_LIMITS,
@@ -54,12 +55,12 @@ def _wrap_input(flat: dict[str, Any]) -> dict[str, Any]:
 def _wrap_config(flat: dict[str, Any]) -> dict[str, Any]:
     """Wrap flat inverter config values into sectioned config with element type."""
     if SECTION_COMMON in flat:
-        return {CONF_ELEMENT_TYPE: "inverter", **flat}
+        return {CONF_ELEMENT_TYPE: ELEMENT_TYPE, **flat}
     config = _wrap_input(flat)
     common = config.get(SECTION_COMMON, {})
     if CONF_CONNECTION in common and isinstance(common[CONF_CONNECTION], str):
         common[CONF_CONNECTION] = as_connection_target(common[CONF_CONNECTION])
-    return {CONF_ELEMENT_TYPE: "inverter", **config}
+    return {CONF_ELEMENT_TYPE: ELEMENT_TYPE, **config}
 
 
 @pytest.mark.parametrize(
@@ -132,7 +133,7 @@ async def test_reconfigure_defaults_handle_schema_values(
 ) -> None:
     """Reconfigure defaults reflect schema values and missing participants."""
     if add_node:
-        add_participant(hass, hub_entry, "TestNode", ElementType.NODE)
+        add_participant(hass, hub_entry, "TestNode", node.ELEMENT_TYPE)
 
     unknown_data = MappingProxyType({CONF_ELEMENT_TYPE: "unknown_type", CONF_NAME: "Unknown"})
     unknown_subentry = ConfigSubentry(
@@ -146,13 +147,13 @@ async def test_reconfigure_defaults_handle_schema_values(
     existing_config = _wrap_config(config_values)
     existing_subentry = ConfigSubentry(
         data=MappingProxyType(existing_config),
-        subentry_type="inverter",
+        subentry_type=ELEMENT_TYPE,
         title="Test Inverter",
         unique_id=None,
     )
     hass.config_entries.async_add_subentry(hub_entry, existing_subentry)
 
-    flow = create_flow(hass, hub_entry, ElementType.INVERTER)
+    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
     flow.context = {"subentry_id": existing_subentry.subentry_id, "source": SOURCE_RECONFIGURE}
     flow._get_reconfigure_subentry = Mock(return_value=existing_subentry)
 
@@ -177,9 +178,9 @@ async def test_user_step_with_constant_creates_entry(
     hub_entry: MockConfigEntry,
 ) -> None:
     """Submitting with constant values should create entry directly."""
-    add_participant(hass, hub_entry, "TestNode", ElementType.NODE)
+    add_participant(hass, hub_entry, "TestNode", node.ELEMENT_TYPE)
 
-    flow = create_flow(hass, hub_entry, ElementType.INVERTER)
+    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
     flow.async_create_entry = Mock(
         return_value={
             "type": FlowResultType.CREATE_ENTRY,
@@ -227,9 +228,9 @@ async def test_user_step_with_entity_creates_entry(
     hub_entry: MockConfigEntry,
 ) -> None:
     """Submitting with entity selections should create entry with entity IDs."""
-    add_participant(hass, hub_entry, "TestNode", ElementType.NODE)
+    add_participant(hass, hub_entry, "TestNode", node.ELEMENT_TYPE)
 
-    flow = create_flow(hass, hub_entry, ElementType.INVERTER)
+    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
     flow.async_create_entry = Mock(
         return_value={
             "type": FlowResultType.CREATE_ENTRY,
@@ -265,7 +266,7 @@ async def test_reconfigure_with_constant_updates_entry(
     hub_entry: MockConfigEntry,
 ) -> None:
     """Reconfigure with constant values should update entry."""
-    add_participant(hass, hub_entry, "TestNode", ElementType.NODE)
+    add_participant(hass, hub_entry, "TestNode", node.ELEMENT_TYPE)
 
     # Create existing entry with sensor links
     existing_config = _wrap_config(
@@ -278,13 +279,13 @@ async def test_reconfigure_with_constant_updates_entry(
     )
     existing_subentry = ConfigSubentry(
         data=MappingProxyType(existing_config),
-        subentry_type="inverter",
+        subentry_type=ELEMENT_TYPE,
         title="Test Inverter",
         unique_id=None,
     )
     hass.config_entries.async_add_subentry(hub_entry, existing_subentry)
 
-    flow = create_flow(hass, hub_entry, ElementType.INVERTER)
+    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
     flow.context = {"subentry_id": existing_subentry.subentry_id, "source": SOURCE_RECONFIGURE}
     flow._get_reconfigure_subentry = Mock(return_value=existing_subentry)
     flow.async_update_and_abort = Mock(return_value={"type": FlowResultType.ABORT, "reason": "reconfigure_successful"})
@@ -327,7 +328,7 @@ async def test_reconfigure_selecting_entity_stores_entity_id(
     hub_entry: MockConfigEntry,
 ) -> None:
     """Selecting entity in reconfigure stores the entity ID."""
-    add_participant(hass, hub_entry, "TestNode", ElementType.NODE)
+    add_participant(hass, hub_entry, "TestNode", node.ELEMENT_TYPE)
 
     # Create existing entry with constant schema values
     existing_config = _wrap_config(
@@ -340,7 +341,7 @@ async def test_reconfigure_selecting_entity_stores_entity_id(
     )
     existing_subentry = ConfigSubentry(
         data=MappingProxyType(existing_config),
-        subentry_type="inverter",
+        subentry_type=ELEMENT_TYPE,
         title="Test Inverter",
         unique_id=None,
     )
@@ -361,7 +362,7 @@ async def test_reconfigure_selecting_entity_stores_entity_id(
         suggested_object_id="test_inverter_max_power_ac_to_dc",
     )
 
-    flow = create_flow(hass, hub_entry, ElementType.INVERTER)
+    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
     flow.context = {"subentry_id": existing_subentry.subentry_id, "source": SOURCE_RECONFIGURE}
     flow._get_reconfigure_subentry = Mock(return_value=existing_subentry)
     flow.async_update_and_abort = Mock(return_value={"type": FlowResultType.ABORT, "reason": "reconfigure_successful"})

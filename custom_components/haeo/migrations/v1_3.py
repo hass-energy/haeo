@@ -113,11 +113,12 @@ def migrate_subentry_data(subentry: ConfigSubentry) -> dict[str, Any] | None:
         return None
 
     from custom_components.haeo.schema.elements import (  # noqa: PLC0415
-        ElementType,
         battery,
         battery_section,
         connection,
+        grid,
         inverter,
+        load,
         node,
         solar,
     )
@@ -173,7 +174,7 @@ def migrate_subentry_data(subentry: ConfigSubentry) -> dict[str, Any] | None:
 
     migrated: dict[str, Any] = {CONF_ELEMENT_TYPE: element_type}
 
-    if element_type == ElementType.BATTERY:
+    if element_type == battery.ELEMENT_TYPE:
         common: dict[str, Any] = {}
         storage: dict[str, Any] = {}
         limits: dict[str, Any] = {}
@@ -233,7 +234,7 @@ def migrate_subentry_data(subentry: ConfigSubentry) -> dict[str, Any] | None:
         }
         return migrated
 
-    if element_type == ElementType.BATTERY_SECTION:
+    if element_type == battery_section.ELEMENT_TYPE:
         common: dict[str, Any] = {}
         storage: dict[str, Any] = {}
         add_if_present(common, CONF_NAME)
@@ -245,7 +246,7 @@ def migrate_subentry_data(subentry: ConfigSubentry) -> dict[str, Any] | None:
         }
         return migrated
 
-    if element_type == ElementType.CONNECTION:
+    if element_type == connection.ELEMENT_TYPE:
         common: dict[str, Any] = {}
         endpoints: dict[str, Any] = {}
         power_limits: dict[str, Any] = {}
@@ -272,7 +273,7 @@ def migrate_subentry_data(subentry: ConfigSubentry) -> dict[str, Any] | None:
         }
         return migrated
 
-    if element_type == ElementType.GRID:
+    if element_type == grid.ELEMENT_TYPE:
         common: dict[str, Any] = {}
         pricing: dict[str, Any] = {}
         power_limits: dict[str, Any] = {}
@@ -299,7 +300,7 @@ def migrate_subentry_data(subentry: ConfigSubentry) -> dict[str, Any] | None:
         }
         return migrated
 
-    if element_type == ElementType.INVERTER:
+    if element_type == inverter.ELEMENT_TYPE:
         common: dict[str, Any] = {}
         power_limits: dict[str, Any] = {}
         efficiency: dict[str, Any] = {}
@@ -326,7 +327,7 @@ def migrate_subentry_data(subentry: ConfigSubentry) -> dict[str, Any] | None:
         }
         return migrated
 
-    if element_type == ElementType.LOAD:
+    if element_type == load.ELEMENT_TYPE:
         common: dict[str, Any] = {}
         forecast: dict[str, Any] = {}
         pricing: dict[str, Any] = {}
@@ -361,7 +362,7 @@ def migrate_subentry_data(subentry: ConfigSubentry) -> dict[str, Any] | None:
         }
         return migrated
 
-    if element_type == ElementType.NODE:
+    if element_type == node.ELEMENT_TYPE:
         common: dict[str, Any] = {}
         role: dict[str, Any] = {}
         add_if_present(common, CONF_NAME)
@@ -373,7 +374,7 @@ def migrate_subentry_data(subentry: ConfigSubentry) -> dict[str, Any] | None:
         }
         return migrated
 
-    if element_type == ElementType.SOLAR:
+    if element_type == solar.ELEMENT_TYPE:
         common: dict[str, Any] = {}
         forecast: dict[str, Any] = {}
         pricing: dict[str, Any] = {}

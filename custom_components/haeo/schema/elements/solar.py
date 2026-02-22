@@ -20,6 +20,8 @@ from custom_components.haeo.sections import (
     PricingData,
 )
 
+ELEMENT_TYPE: Final = "solar"
+
 OPTIONAL_INPUT_FIELDS: Final[frozenset[str]] = frozenset({CONF_CURTAILMENT, CONF_PRICE_SOURCE_TARGET})
 
 
@@ -50,6 +52,7 @@ __all__ = [
     "CONF_CURTAILMENT",
     "CONF_FORECAST",
     "CONF_PRICE_SOURCE_TARGET",
+    "ELEMENT_TYPE",
     "OPTIONAL_INPUT_FIELDS",
     "SECTION_COMMON",
     "SECTION_CURTAILMENT",

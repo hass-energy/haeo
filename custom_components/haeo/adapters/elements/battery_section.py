@@ -15,10 +15,10 @@ from custom_components.haeo.model import battery as model_battery
 from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_BATTERY
 from custom_components.haeo.model.output_data import OutputData
-from custom_components.haeo.schema.elements import ElementType
 from custom_components.haeo.schema.elements.battery_section import (
     CONF_CAPACITY,
     CONF_INITIAL_CHARGE,
+    ELEMENT_TYPE,
     SECTION_STORAGE,
     BatterySectionConfigData,
 )
@@ -60,7 +60,7 @@ BATTERY_SECTION_DEVICE_NAMES: Final[frozenset[BatterySectionDeviceName]] = froze
 class BatterySectionAdapter:
     """Adapter for Battery Section elements."""
 
-    element_type = ElementType.BATTERY_SECTION
+    element_type: str = ELEMENT_TYPE
     advanced: bool = True
     connectivity: ConnectivityLevel = ConnectivityLevel.ADVANCED
 
@@ -73,7 +73,7 @@ class BatterySectionAdapter:
                     field_name=CONF_CAPACITY,
                     entity_description=NumberEntityDescription(
                         key=CONF_CAPACITY,
-                        translation_key=f"{ElementType.BATTERY_SECTION}_{CONF_CAPACITY}",
+                        translation_key=f"{ELEMENT_TYPE}_{CONF_CAPACITY}",
                         native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
                         device_class=NumberDeviceClass.ENERGY_STORAGE,
                         native_min_value=0.1,
@@ -87,7 +87,7 @@ class BatterySectionAdapter:
                     field_name=CONF_INITIAL_CHARGE,
                     entity_description=NumberEntityDescription(
                         key=CONF_INITIAL_CHARGE,
-                        translation_key=f"{ElementType.BATTERY_SECTION}_{CONF_INITIAL_CHARGE}",
+                        translation_key=f"{ELEMENT_TYPE}_{CONF_INITIAL_CHARGE}",
                         native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
                         device_class=NumberDeviceClass.ENERGY_STORAGE,
                         native_min_value=0.0,

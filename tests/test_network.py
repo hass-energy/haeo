@@ -19,7 +19,7 @@ from custom_components.haeo.const import (
     DOMAIN,
 )
 from custom_components.haeo.coordinator import evaluate_network_connectivity
-from custom_components.haeo.elements import ElementConfigData
+from custom_components.haeo.elements import ELEMENT_TYPE_CONNECTION, ELEMENT_TYPE_NODE, ElementConfigData
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON, HUB_SECTION_TIERS
 from custom_components.haeo.schema import as_connection_target
 from custom_components.haeo.schema.elements.connection import (
@@ -66,7 +66,7 @@ async def test_evaluate_network_connectivity_connected(
     """Network with a single node should be considered connected."""
 
     node_a: NodeConfigData = {
-        CONF_ELEMENT_TYPE: "node",
+        CONF_ELEMENT_TYPE: ELEMENT_TYPE_NODE,
         SECTION_COMMON: {CONF_NAME: "Node A"},
         SECTION_ROLE: {CONF_IS_SOURCE: False, CONF_IS_SINK: False},
     }
@@ -87,12 +87,12 @@ async def test_evaluate_network_connectivity_disconnected(
     """Network with isolated nodes should create a repair issue."""
 
     node_a: NodeConfigData = {
-        CONF_ELEMENT_TYPE: "node",
+        CONF_ELEMENT_TYPE: ELEMENT_TYPE_NODE,
         SECTION_COMMON: {CONF_NAME: "Node A"},
         SECTION_ROLE: {CONF_IS_SOURCE: False, CONF_IS_SINK: False},
     }
     node_b: NodeConfigData = {
-        CONF_ELEMENT_TYPE: "node",
+        CONF_ELEMENT_TYPE: ELEMENT_TYPE_NODE,
         SECTION_COMMON: {CONF_NAME: "Node B"},
         SECTION_ROLE: {CONF_IS_SOURCE: False, CONF_IS_SINK: False},
     }
@@ -114,12 +114,12 @@ async def test_evaluate_network_connectivity_resolves_issue(
     """Validation should clear the issue when connectivity is restored."""
 
     node_a: NodeConfigData = {
-        CONF_ELEMENT_TYPE: "node",
+        CONF_ELEMENT_TYPE: ELEMENT_TYPE_NODE,
         SECTION_COMMON: {CONF_NAME: "Node A"},
         SECTION_ROLE: {CONF_IS_SOURCE: False, CONF_IS_SINK: False},
     }
     node_b: NodeConfigData = {
-        CONF_ELEMENT_TYPE: "node",
+        CONF_ELEMENT_TYPE: ELEMENT_TYPE_NODE,
         SECTION_COMMON: {CONF_NAME: "Node B"},
         SECTION_ROLE: {CONF_IS_SOURCE: False, CONF_IS_SINK: False},
     }
@@ -129,7 +129,7 @@ async def test_evaluate_network_connectivity_resolves_issue(
 
     # Connect the nodes and re-validate
     connection: ConnectionConfigData = {
-        CONF_ELEMENT_TYPE: "connection",
+        CONF_ELEMENT_TYPE: ELEMENT_TYPE_CONNECTION,
         SECTION_COMMON: {
             CONF_NAME: "A to B",
         },

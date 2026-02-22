@@ -132,7 +132,7 @@ async def _ensure_required_subentries(hass: HomeAssistant, hub_entry: ConfigEntr
     Creates a Network subentry (for optimization sensors) if missing.
     In non-advanced mode, also creates a Switchboard node if missing.
     """
-    from custom_components.haeo.schema.elements import ElementType  # noqa: PLC0415
+    from custom_components.haeo.elements import ELEMENT_TYPE_NODE  # noqa: PLC0415
     from custom_components.haeo.schema.elements.node import (  # noqa: PLC0415
         CONF_IS_SINK,
         CONF_IS_SOURCE,
@@ -147,7 +147,7 @@ async def _ensure_required_subentries(hass: HomeAssistant, hub_entry: ConfigEntr
     for subentry in hub_entry.subentries.values():
         if subentry.subentry_type == ELEMENT_TYPE_NETWORK:
             has_network = True
-        elif subentry.subentry_type == ElementType.NODE:
+        elif subentry.subentry_type == ELEMENT_TYPE_NODE:
             has_node = True
         if has_network and has_node:
             break
@@ -177,7 +177,7 @@ async def _ensure_required_subentries(hass: HomeAssistant, hub_entry: ConfigEntr
         switchboard_subentry = ConfigSubentry(
             data=MappingProxyType(
                 {
-                    CONF_ELEMENT_TYPE: ElementType.NODE,
+                    CONF_ELEMENT_TYPE: ELEMENT_TYPE_NODE,
                     SECTION_COMMON: {CONF_NAME: switchboard_name},
                     SECTION_ROLE: {
                         CONF_IS_SOURCE: False,
@@ -185,7 +185,7 @@ async def _ensure_required_subentries(hass: HomeAssistant, hub_entry: ConfigEntr
                     },
                 }
             ),
-            subentry_type=ElementType.NODE,
+            subentry_type=ELEMENT_TYPE_NODE,
             title=switchboard_name,
             unique_id=None,
         )

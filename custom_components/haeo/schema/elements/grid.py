@@ -20,6 +20,8 @@ from custom_components.haeo.sections import (
     PowerLimitsData,
 )
 
+ELEMENT_TYPE: Final = "grid"
+
 OPTIONAL_INPUT_FIELDS: Final[frozenset[str]] = frozenset(
     {
         CONF_MAX_POWER_SOURCE_TARGET,
@@ -65,6 +67,7 @@ __all__ = [
     "CONF_MAX_POWER_TARGET_SOURCE",
     "CONF_PRICE_SOURCE_TARGET",
     "CONF_PRICE_TARGET_SOURCE",
+    "ELEMENT_TYPE",
     "OPTIONAL_INPUT_FIELDS",
     "SECTION_COMMON",
     "SECTION_POWER_LIMITS",

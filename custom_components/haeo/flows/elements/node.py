@@ -9,8 +9,7 @@ import voluptuous as vol
 from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.flows.element_flow import ElementFlowMixin
 from custom_components.haeo.flows.field_schema import SectionDefinition, build_section_schema
-from custom_components.haeo.schema.elements import ElementType
-from custom_components.haeo.schema.elements.node import CONF_IS_SINK, CONF_IS_SOURCE, SECTION_ROLE
+from custom_components.haeo.schema.elements.node import CONF_IS_SINK, CONF_IS_SOURCE, ELEMENT_TYPE, SECTION_ROLE
 from custom_components.haeo.sections import SECTION_COMMON, build_common_fields, common_section
 
 # Suggested values for first setup (pure junction: no source or sink)
@@ -77,7 +76,7 @@ class NodeSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             name = common_input.get(CONF_NAME)
             if self._validate_name(name, errors):
                 config = {
-                    CONF_ELEMENT_TYPE: ElementType.NODE,
+                    CONF_ELEMENT_TYPE: ELEMENT_TYPE,
                     SECTION_COMMON: {CONF_NAME: name},
                     SECTION_ROLE: {
                         CONF_IS_SOURCE: bool(role_input.get(CONF_IS_SOURCE, False)),

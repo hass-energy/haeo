@@ -15,7 +15,7 @@ from custom_components.haeo.adapters.elements.inverter import (
     INVERTER_POWER_ACTIVE,
     INVERTER_POWER_DC_TO_AC,
 )
-from custom_components.haeo.elements import ELEMENT_TYPES, ElementType
+from custom_components.haeo.elements import ELEMENT_TYPES
 from custom_components.haeo.schema.elements.inverter import InverterConfigData
 from custom_components.haeo.model import ModelOutputName, ModelOutputValue
 from custom_components.haeo.model.const import OutputType
@@ -156,7 +156,7 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
 @pytest.mark.parametrize("case", CREATE_CASES, ids=lambda c: c["description"])
 def test_model_elements(case: CreateCase) -> None:
     """Verify adapter transforms ConfigData into expected model elements."""
-    entry = ELEMENT_TYPES[ElementType.INVERTER]
+    entry = ELEMENT_TYPES["inverter"]
     result = entry.model_elements(case["data"])
     assert normalize_for_compare(result) == normalize_for_compare(case["model"])
 
@@ -164,6 +164,6 @@ def test_model_elements(case: CreateCase) -> None:
 @pytest.mark.parametrize("case", OUTPUTS_CASES, ids=lambda c: c["description"])
 def test_outputs_mapping(case: OutputsCase) -> None:
     """Verify adapter maps model outputs to device outputs."""
-    entry = ELEMENT_TYPES[ElementType.INVERTER]
+    entry = ELEMENT_TYPES["inverter"]
     result = entry.outputs(case["name"], case["model_outputs"])
     assert result == case["outputs"]

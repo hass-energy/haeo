@@ -19,8 +19,7 @@ from custom_components.haeo.const import (
     ELEMENT_TYPE_NETWORK,
     INTEGRATION_TYPE_HUB,
 )
-from custom_components.haeo.elements import ELEMENT_TYPES
-from custom_components.haeo.schema.elements import ElementType
+from custom_components.haeo.elements import ELEMENT_TYPE_NODE, ELEMENT_TYPES
 from custom_components.haeo.schema.elements.node import CONF_IS_SINK, CONF_IS_SOURCE
 from custom_components.haeo.schema.elements.node import SECTION_COMMON as NODE_SECTION_COMMON
 from custom_components.haeo.schema.elements.node import SECTION_ROLE as NODE_SECTION_ROLE
@@ -146,14 +145,14 @@ class HubConfigFlow(ConfigFlow, domain=DOMAIN):
                 # Switchboard node as central connection point
                 {
                     "data": {
-                        CONF_ELEMENT_TYPE: ElementType.NODE,
+                        CONF_ELEMENT_TYPE: ELEMENT_TYPE_NODE,
                         NODE_SECTION_COMMON: {CONF_NAME: switchboard_name},
                         NODE_SECTION_ROLE: {
                             CONF_IS_SOURCE: False,
                             CONF_IS_SINK: False,
                         },
                     },
-                    "subentry_type": ElementType.NODE,
+                    "subentry_type": ELEMENT_TYPE_NODE,
                     "title": switchboard_name,
                     "unique_id": None,
                 },

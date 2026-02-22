@@ -31,7 +31,16 @@ from custom_components.haeo.flows import (
 )
 from custom_components.haeo.migrations import async_migrate_entry, v1_3
 from custom_components.haeo.schema import as_connection_target, as_constant_value, as_entity_value
-from custom_components.haeo.schema.elements import battery, battery_section, connection, inverter, node, solar
+from custom_components.haeo.schema.elements import (
+    battery,
+    battery_section,
+    connection,
+    grid,
+    inverter,
+    load,
+    node,
+    solar,
+)
 from custom_components.haeo.sections import (
     CONF_CONNECTION,
     CONF_CURTAILMENT,
@@ -124,7 +133,7 @@ def test_migrate_subentry_returns_none_for_non_elements(element_type: str | None
 def test_migrate_subentry_battery_with_legacy_fields() -> None:
     """Battery migration should map legacy fields into sections."""
     data = {
-        CONF_ELEMENT_TYPE: "battery",
+        CONF_ELEMENT_TYPE: battery.ELEMENT_TYPE,
         CONF_NAME: "Battery",
         CONF_CONNECTION: "bus",
         battery.CONF_CAPACITY: "sensor.capacity",
@@ -144,7 +153,7 @@ def test_migrate_subentry_battery_with_legacy_fields() -> None:
         battery.SECTION_UNDERCHARGE: {battery.CONF_PARTITION_PERCENTAGE: 0.1},
         battery.SECTION_OVERCHARGE: {battery.CONF_PARTITION_COST: 0.2},
     }
-    subentry = _create_subentry(data, subentry_type="battery")
+    subentry = _create_subentry(data, subentry_type=battery.ELEMENT_TYPE)
 
     migrated = v1_3.migrate_subentry_data(subentry)
 
@@ -164,11 +173,11 @@ def test_migrate_subentry_battery_with_legacy_fields() -> None:
 def test_migrate_subentry_battery_invalid_schema_value_raises() -> None:
     """Battery migration should raise for unsupported schema values."""
     data = {
-        CONF_ELEMENT_TYPE: "battery",
+        CONF_ELEMENT_TYPE: battery.ELEMENT_TYPE,
         CONF_NAME: "Battery",
         battery.CONF_CAPACITY: {"invalid": "value"},
     }
-    subentry = _create_subentry(data, subentry_type="battery")
+    subentry = _create_subentry(data, subentry_type=battery.ELEMENT_TYPE)
 
     with pytest.raises(TypeError, match="Unsupported schema value"):
         v1_3.migrate_subentry_data(subentry)
@@ -177,12 +186,12 @@ def test_migrate_subentry_battery_invalid_schema_value_raises() -> None:
 def test_migrate_subentry_battery_section() -> None:
     """Battery section migration should map storage values."""
     data = {
-        CONF_ELEMENT_TYPE: "battery_section",
+        CONF_ELEMENT_TYPE: battery_section.ELEMENT_TYPE,
         CONF_NAME: "Battery Section",
         battery_section.CONF_CAPACITY: 5.0,
         battery_section.CONF_INITIAL_CHARGE: 2.5,
     }
-    subentry = _create_subentry(data, subentry_type="battery_section")
+    subentry = _create_subentry(data, subentry_type=battery_section.ELEMENT_TYPE)
 
     migrated = v1_3.migrate_subentry_data(subentry)
 
@@ -195,7 +204,7 @@ def test_migrate_subentry_battery_section() -> None:
 def test_migrate_subentry_connection_fields() -> None:
     """Connection migration should map endpoints, limits, pricing, and efficiency."""
     data = {
-        CONF_ELEMENT_TYPE: "connection",
+        CONF_ELEMENT_TYPE: connection.ELEMENT_TYPE,
         CONF_NAME: "Connection",
         connection.SECTION_ENDPOINTS: {connection.CONF_SOURCE: "node_a", connection.CONF_TARGET: "node_b"},
         SECTION_POWER_LIMITS: {
@@ -211,7 +220,7 @@ def test_migrate_subentry_connection_fields() -> None:
             connection.CONF_EFFICIENCY_TARGET_SOURCE: 0.91,
         },
     }
-    subentry = _create_subentry(data, subentry_type="connection")
+    subentry = _create_subentry(data, subentry_type=connection.ELEMENT_TYPE)
 
     migrated = v1_3.migrate_subentry_data(subentry)
 
@@ -226,7 +235,7 @@ def test_migrate_subentry_connection_fields() -> None:
 def test_migrate_subentry_grid_legacy_fields() -> None:
     """Grid migration should map legacy import/export fields."""
     data = {
-        CONF_ELEMENT_TYPE: "grid",
+        CONF_ELEMENT_TYPE: grid.ELEMENT_TYPE,
         CONF_NAME: "Grid",
         CONF_CONNECTION: "bus",
         "import_price": 0.3,
@@ -234,7 +243,7 @@ def test_migrate_subentry_grid_legacy_fields() -> None:
         "import_limit": 5.0,
         "export_limit": 4.0,
     }
-    subentry = _create_subentry(data, subentry_type="grid")
+    subentry = _create_subentry(data, subentry_type=grid.ELEMENT_TYPE)
 
     migrated = v1_3.migrate_subentry_data(subentry)
 
@@ -249,7 +258,7 @@ def test_migrate_subentry_grid_legacy_fields() -> None:
 def test_migrate_subentry_inverter_legacy_fields() -> None:
     """Inverter migration should map power limits and efficiency."""
     data = {
-        CONF_ELEMENT_TYPE: "inverter",
+        CONF_ELEMENT_TYPE: inverter.ELEMENT_TYPE,
         CONF_NAME: "Inverter",
         CONF_CONNECTION: "bus",
         "max_power_dc_to_ac": 7.0,
@@ -257,7 +266,7 @@ def test_migrate_subentry_inverter_legacy_fields() -> None:
         "efficiency_dc_to_ac": 0.95,
         "efficiency_ac_to_dc": 0.94,
     }
-    subentry = _create_subentry(data, subentry_type="inverter")
+    subentry = _create_subentry(data, subentry_type=inverter.ELEMENT_TYPE)
 
     migrated = v1_3.migrate_subentry_data(subentry)
 
@@ -273,12 +282,12 @@ def test_migrate_subentry_load_node_solar() -> None:
     """Load, node, and solar migrations should map sectioned fields."""
     load_subentry = _create_subentry(
         {
-            CONF_ELEMENT_TYPE: "load",
+            CONF_ELEMENT_TYPE: load.ELEMENT_TYPE,
             CONF_NAME: "Load",
             CONF_CONNECTION: "bus",
             CONF_FORECAST: ["sensor.load"],
         },
-        subentry_type="load",
+        subentry_type=load.ELEMENT_TYPE,
     )
     load_migrated = v1_3.migrate_subentry_data(load_subentry)
     assert load_migrated is not None
@@ -289,12 +298,12 @@ def test_migrate_subentry_load_node_solar() -> None:
 
     node_subentry = _create_subentry(
         {
-            CONF_ELEMENT_TYPE: "node",
+            CONF_ELEMENT_TYPE: node.ELEMENT_TYPE,
             CONF_NAME: "Node",
             node.CONF_IS_SOURCE: True,
             node.CONF_IS_SINK: False,
         },
-        subentry_type="node",
+        subentry_type=node.ELEMENT_TYPE,
     )
     node_migrated = v1_3.migrate_subentry_data(node_subentry)
     assert node_migrated is not None
@@ -303,14 +312,14 @@ def test_migrate_subentry_load_node_solar() -> None:
 
     solar_subentry = _create_subentry(
         {
-            CONF_ELEMENT_TYPE: "solar",
+            CONF_ELEMENT_TYPE: solar.ELEMENT_TYPE,
             CONF_NAME: "Solar",
             CONF_CONNECTION: "bus",
             CONF_FORECAST: ["sensor.solar"],
             "price_production": 0.12,
             solar.CONF_CURTAILMENT: True,
         },
-        subentry_type="solar",
+        subentry_type=solar.ELEMENT_TYPE,
     )
     solar_migrated = v1_3.migrate_subentry_data(solar_subentry)
     assert solar_migrated is not None
@@ -324,13 +333,13 @@ def test_migrate_subentry_load_maps_legacy_shedding() -> None:
     """Load migration should map legacy shedding -> curtailment."""
     load_subentry = _create_subentry(
         {
-            CONF_ELEMENT_TYPE: "load",
+            CONF_ELEMENT_TYPE: load.ELEMENT_TYPE,
             CONF_NAME: "Load",
             CONF_CONNECTION: "bus",
             CONF_FORECAST: ["sensor.load"],
             "shedding": {"shedding": True},
         },
-        subentry_type="load",
+        subentry_type=load.ELEMENT_TYPE,
     )
     migrated = v1_3.migrate_subentry_data(load_subentry)
     assert migrated is not None
@@ -354,12 +363,12 @@ async def test_async_migrate_entry_updates_entry_and_subentries(hass: HomeAssist
 
     subentry = _create_subentry(
         {
-            CONF_ELEMENT_TYPE: "grid",
+            CONF_ELEMENT_TYPE: grid.ELEMENT_TYPE,
             CONF_NAME: "Grid",
             CONF_CONNECTION: "bus",
             "import_price": 0.3,
         },
-        subentry_type="grid",
+        subentry_type=grid.ELEMENT_TYPE,
     )
     hass.config_entries.async_add_subentry(entry, subentry)
 

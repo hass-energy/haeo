@@ -9,12 +9,11 @@ from homeassistant.core import HomeAssistant
 import numpy as np
 
 from custom_components.haeo.const import CONF_ELEMENT_TYPE
-from custom_components.haeo.elements import ELEMENT_TYPES, ElementConfigData
+from custom_components.haeo.elements import ELEMENT_TYPE_CONNECTION, ELEMENT_TYPES, ElementConfigData
 from custom_components.haeo.model import Network
 from custom_components.haeo.model.elements import ModelElementConfig
 from custom_components.haeo.model.reactive import TrackedParam
 from custom_components.haeo.repairs import create_disconnected_network_issue, dismiss_disconnected_network_issue
-from custom_components.haeo.schema.elements import ElementType
 from custom_components.haeo.validation import format_component_summary, validate_network_topology
 
 _LOGGER = logging.getLogger(__name__)
@@ -26,14 +25,14 @@ def collect_model_elements(
     """Collect and sort model elements from all participants."""
     all_model_elements: list[ModelElementConfig] = []
     for loaded_params in participants.values():
-        element_type = ElementType(loaded_params[CONF_ELEMENT_TYPE])
+        element_type = loaded_params[CONF_ELEMENT_TYPE]
         model_elements = ELEMENT_TYPES[element_type].model_elements(loaded_params)
         all_model_elements.extend(model_elements)
 
     # Sort so connections are added last
     return sorted(
         all_model_elements,
-        key=lambda e: e.get("element_type") == ElementType.CONNECTION,
+        key=lambda e: e.get("element_type") == ELEMENT_TYPE_CONNECTION,
     )
 
 
@@ -71,7 +70,7 @@ def update_element(
     element_config: ElementConfigData,
 ) -> None:
     """Update TrackedParams for a single element in the network."""
-    element_type = ElementType(element_config[CONF_ELEMENT_TYPE])
+    element_type = element_config[CONF_ELEMENT_TYPE]
     model_elements = ELEMENT_TYPES[element_type].model_elements(element_config)
 
     def _iter_updates(

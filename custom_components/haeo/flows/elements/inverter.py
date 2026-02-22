@@ -20,7 +20,7 @@ from custom_components.haeo.flows.field_schema import (
     validate_sectioned_choose_fields,
 )
 from custom_components.haeo.schema import get_connection_target_name, normalize_connection_target
-from custom_components.haeo.schema.elements import ElementType
+from custom_components.haeo.schema.elements.inverter import ELEMENT_TYPE
 from custom_components.haeo.sections import (
     CONF_CONNECTION,
     CONF_EFFICIENCY_SOURCE_TARGET,
@@ -64,7 +64,7 @@ class InverterSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         """Shared logic for user and reconfigure steps."""
         subentry = self._get_subentry()
         subentry_data = dict(subentry.data) if subentry else None
-        default_name = await self._async_get_default_name(ElementType.INVERTER)
+        default_name = await self._async_get_default_name(ELEMENT_TYPE)
         participants = self._get_participant_names()
         current_connection = (
             get_connection_target_name(subentry_data.get(SECTION_COMMON, {}).get(CONF_CONNECTION))
@@ -116,7 +116,7 @@ class InverterSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         subentry_data: dict[str, Any] | None = None,
     ) -> vol.Schema:
         """Build the schema with name, connection, and choose selectors for inputs."""
-        field_schema = get_input_field_schema_info(ElementType.INVERTER, input_fields)
+        field_schema = get_input_field_schema_info(ELEMENT_TYPE, input_fields)
         return build_sectioned_choose_schema(
             self._get_sections(),
             input_fields,
@@ -171,7 +171,7 @@ class InverterSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         errors: dict[str, str] = {}
         common_input = user_input.get(SECTION_COMMON, {})
         self._validate_name(common_input.get(CONF_NAME), errors)
-        field_schema = get_input_field_schema_info(ElementType.INVERTER, input_fields)
+        field_schema = get_input_field_schema_info(ELEMENT_TYPE, input_fields)
         errors.update(
             validate_sectioned_choose_fields(
                 user_input,
@@ -195,7 +195,7 @@ class InverterSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             common_config[CONF_CONNECTION] = normalize_connection_target(common_config[CONF_CONNECTION])
 
         return {
-            CONF_ELEMENT_TYPE: ElementType.INVERTER,
+            CONF_ELEMENT_TYPE: ELEMENT_TYPE,
             **config_dict,
         }
 

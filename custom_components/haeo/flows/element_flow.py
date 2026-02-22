@@ -174,7 +174,7 @@ class ElementFlowMixin:
             List of element names that can be used as connection targets.
 
         """
-        from custom_components.haeo.elements import ELEMENT_TYPES, ConnectivityLevel, ElementType  # noqa: PLC0415
+        from custom_components.haeo.elements import ELEMENT_TYPES, ConnectivityLevel  # noqa: PLC0415
         from custom_components.haeo.flows import HUB_SECTION_ADVANCED  # noqa: PLC0415
 
         hub_entry: ConfigEntry = self._get_entry()  # type: ignore[attr-defined]
@@ -190,7 +190,7 @@ class ElementFlowMixin:
             if element_type not in ELEMENT_TYPES:
                 continue
 
-            connectivity = ELEMENT_TYPES[ElementType(element_type)].connectivity
+            connectivity = ELEMENT_TYPES[element_type].connectivity
             if connectivity == ConnectivityLevel.ALWAYS.value or (
                 connectivity == ConnectivityLevel.ADVANCED.value and advanced_mode
             ):

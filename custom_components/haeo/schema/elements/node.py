@@ -4,6 +4,8 @@ from typing import Final, Literal, TypedDict
 
 from custom_components.haeo.sections import SECTION_COMMON, CommonConfig, CommonData
 
+ELEMENT_TYPE: Final = "node"
+
 SECTION_ROLE: Final = "role"
 
 CONF_IS_SOURCE: Final = "is_source"
@@ -45,6 +47,7 @@ class NodeConfigData(TypedDict):
 __all__ = [
     "CONF_IS_SINK",
     "CONF_IS_SOURCE",
+    "ELEMENT_TYPE",
     "OPTIONAL_INPUT_FIELDS",
     "SECTION_COMMON",
     "SECTION_ROLE",

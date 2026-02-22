@@ -20,7 +20,6 @@ from custom_components.haeo.model.elements.segments import SegmentSpec, SocPrici
 from custom_components.haeo.model.output_data import OutputData
 from custom_components.haeo.model.util import broadcast_to_sequence
 from custom_components.haeo.schema import extract_connection_target
-from custom_components.haeo.schema.elements import ElementType
 from custom_components.haeo.schema.elements.battery import (
     CONF_CAPACITY,
     CONF_EFFICIENCY_SOURCE_TARGET,
@@ -31,6 +30,7 @@ from custom_components.haeo.schema.elements.battery import (
     CONF_PARTITION_COST,
     CONF_PARTITION_PERCENTAGE,
     CONF_SALVAGE_VALUE,
+    ELEMENT_TYPE,
     SECTION_LIMITS,
     SECTION_OVERCHARGE,
     SECTION_STORAGE,
@@ -91,7 +91,7 @@ BATTERY_DEVICE_NAMES: Final[frozenset[BatteryDeviceName]] = frozenset((BATTERY_D
 class BatteryAdapter:
     """Adapter for Battery elements."""
 
-    element_type = ElementType.BATTERY
+    element_type: str = ELEMENT_TYPE
     advanced: bool = False
     connectivity: ConnectivityLevel = ConnectivityLevel.ADVANCED
 
@@ -104,7 +104,7 @@ class BatteryAdapter:
                     field_name=CONF_CAPACITY,
                     entity_description=NumberEntityDescription(
                         key=CONF_CAPACITY,
-                        translation_key=f"{ElementType.BATTERY}_{CONF_CAPACITY}",
+                        translation_key=f"{ELEMENT_TYPE}_{CONF_CAPACITY}",
                         native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
                         device_class=NumberDeviceClass.ENERGY_STORAGE,
                         native_min_value=0.1,
@@ -119,7 +119,7 @@ class BatteryAdapter:
                     field_name=CONF_INITIAL_CHARGE_PERCENTAGE,
                     entity_description=NumberEntityDescription(
                         key=CONF_INITIAL_CHARGE_PERCENTAGE,
-                        translation_key=f"{ElementType.BATTERY}_{CONF_INITIAL_CHARGE_PERCENTAGE}",
+                        translation_key=f"{ELEMENT_TYPE}_{CONF_INITIAL_CHARGE_PERCENTAGE}",
                         native_unit_of_measurement=PERCENTAGE,
                         device_class=NumberDeviceClass.BATTERY,
                         native_min_value=0.0,
@@ -135,7 +135,7 @@ class BatteryAdapter:
                     field_name=CONF_MAX_POWER_TARGET_SOURCE,
                     entity_description=NumberEntityDescription(
                         key=CONF_MAX_POWER_TARGET_SOURCE,
-                        translation_key=f"{ElementType.BATTERY}_{CONF_MAX_POWER_TARGET_SOURCE}",
+                        translation_key=f"{ELEMENT_TYPE}_{CONF_MAX_POWER_TARGET_SOURCE}",
                         native_unit_of_measurement=UnitOfPower.KILO_WATT,
                         device_class=NumberDeviceClass.POWER,
                         native_min_value=0.0,
@@ -151,7 +151,7 @@ class BatteryAdapter:
                     field_name=CONF_MAX_POWER_SOURCE_TARGET,
                     entity_description=NumberEntityDescription(
                         key=CONF_MAX_POWER_SOURCE_TARGET,
-                        translation_key=f"{ElementType.BATTERY}_{CONF_MAX_POWER_SOURCE_TARGET}",
+                        translation_key=f"{ELEMENT_TYPE}_{CONF_MAX_POWER_SOURCE_TARGET}",
                         native_unit_of_measurement=UnitOfPower.KILO_WATT,
                         device_class=NumberDeviceClass.POWER,
                         native_min_value=0.0,
@@ -169,7 +169,7 @@ class BatteryAdapter:
                     field_name=CONF_MIN_CHARGE_PERCENTAGE,
                     entity_description=NumberEntityDescription(
                         key=CONF_MIN_CHARGE_PERCENTAGE,
-                        translation_key=f"{ElementType.BATTERY}_{CONF_MIN_CHARGE_PERCENTAGE}",
+                        translation_key=f"{ELEMENT_TYPE}_{CONF_MIN_CHARGE_PERCENTAGE}",
                         native_unit_of_measurement=PERCENTAGE,
                         device_class=NumberDeviceClass.BATTERY,
                         native_min_value=0.0,
@@ -185,7 +185,7 @@ class BatteryAdapter:
                     field_name=CONF_MAX_CHARGE_PERCENTAGE,
                     entity_description=NumberEntityDescription(
                         key=CONF_MAX_CHARGE_PERCENTAGE,
-                        translation_key=f"{ElementType.BATTERY}_{CONF_MAX_CHARGE_PERCENTAGE}",
+                        translation_key=f"{ELEMENT_TYPE}_{CONF_MAX_CHARGE_PERCENTAGE}",
                         native_unit_of_measurement=PERCENTAGE,
                         device_class=NumberDeviceClass.BATTERY,
                         native_min_value=0.0,
@@ -203,7 +203,7 @@ class BatteryAdapter:
                     field_name=CONF_EFFICIENCY_SOURCE_TARGET,
                     entity_description=NumberEntityDescription(
                         key=CONF_EFFICIENCY_SOURCE_TARGET,
-                        translation_key=f"{ElementType.BATTERY}_{CONF_EFFICIENCY_SOURCE_TARGET}",
+                        translation_key=f"{ELEMENT_TYPE}_{CONF_EFFICIENCY_SOURCE_TARGET}",
                         native_unit_of_measurement=PERCENTAGE,
                         device_class=NumberDeviceClass.POWER_FACTOR,
                         native_min_value=50.0,
@@ -218,7 +218,7 @@ class BatteryAdapter:
                     field_name=CONF_EFFICIENCY_TARGET_SOURCE,
                     entity_description=NumberEntityDescription(
                         key=CONF_EFFICIENCY_TARGET_SOURCE,
-                        translation_key=f"{ElementType.BATTERY}_{CONF_EFFICIENCY_TARGET_SOURCE}",
+                        translation_key=f"{ELEMENT_TYPE}_{CONF_EFFICIENCY_TARGET_SOURCE}",
                         native_unit_of_measurement=PERCENTAGE,
                         device_class=NumberDeviceClass.POWER_FACTOR,
                         native_min_value=50.0,
@@ -235,7 +235,7 @@ class BatteryAdapter:
                     field_name=CONF_PRICE_SOURCE_TARGET,
                     entity_description=NumberEntityDescription(
                         key=CONF_PRICE_SOURCE_TARGET,
-                        translation_key=f"{ElementType.BATTERY}_{CONF_PRICE_SOURCE_TARGET}",
+                        translation_key=f"{ELEMENT_TYPE}_{CONF_PRICE_SOURCE_TARGET}",
                         native_min_value=-1.0,
                         native_max_value=10.0,
                         native_step=0.001,
@@ -249,7 +249,7 @@ class BatteryAdapter:
                     field_name=CONF_PRICE_TARGET_SOURCE,
                     entity_description=NumberEntityDescription(
                         key=CONF_PRICE_TARGET_SOURCE,
-                        translation_key=f"{ElementType.BATTERY}_{CONF_PRICE_TARGET_SOURCE}",
+                        translation_key=f"{ELEMENT_TYPE}_{CONF_PRICE_TARGET_SOURCE}",
                         native_min_value=-1.0,
                         native_max_value=10.0,
                         native_step=0.001,
@@ -263,7 +263,7 @@ class BatteryAdapter:
                     field_name=CONF_SALVAGE_VALUE,
                     entity_description=NumberEntityDescription(
                         key=CONF_SALVAGE_VALUE,
-                        translation_key=f"{ElementType.BATTERY}_{CONF_SALVAGE_VALUE}",
+                        translation_key=f"{ELEMENT_TYPE}_{CONF_SALVAGE_VALUE}",
                         native_min_value=-1.0,
                         native_max_value=10.0,
                         native_step=0.001,
@@ -503,7 +503,7 @@ def _partition_input_fields(
             field_name=CONF_PARTITION_PERCENTAGE,
             entity_description=NumberEntityDescription(
                 key=CONF_PARTITION_PERCENTAGE,
-                translation_key=f"{ElementType.BATTERY}_{CONF_PARTITION_PERCENTAGE}",
+                translation_key=f"{ELEMENT_TYPE}_{CONF_PARTITION_PERCENTAGE}",
                 native_unit_of_measurement=PERCENTAGE,
                 device_class=NumberDeviceClass.BATTERY,
                 native_min_value=0.0,
@@ -519,7 +519,7 @@ def _partition_input_fields(
             field_name=CONF_PARTITION_COST,
             entity_description=NumberEntityDescription(
                 key=CONF_PARTITION_COST,
-                translation_key=f"{ElementType.BATTERY}_{CONF_PARTITION_COST}",
+                translation_key=f"{ELEMENT_TYPE}_{CONF_PARTITION_COST}",
                 native_min_value=0.0,
                 native_max_value=10.0,
                 native_step=0.001,

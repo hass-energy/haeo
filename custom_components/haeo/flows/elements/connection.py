@@ -24,7 +24,6 @@ from custom_components.haeo.flows.field_schema import (
     validate_sectioned_choose_fields,
 )
 from custom_components.haeo.schema import get_connection_target_name, normalize_connection_target
-from custom_components.haeo.schema.elements import ElementType
 from custom_components.haeo.schema.elements.connection import (
     CONF_EFFICIENCY_SOURCE_TARGET,
     CONF_EFFICIENCY_TARGET_SOURCE,
@@ -34,6 +33,7 @@ from custom_components.haeo.schema.elements.connection import (
     CONF_PRICE_TARGET_SOURCE,
     CONF_SOURCE,
     CONF_TARGET,
+    ELEMENT_TYPE,
     SECTION_ENDPOINTS,
 )
 from custom_components.haeo.sections import (
@@ -100,7 +100,7 @@ class ConnectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             if subentry_data
             else None
         )
-        default_name = await self._async_get_default_name(ElementType.CONNECTION)
+        default_name = await self._async_get_default_name(ELEMENT_TYPE)
         if not isinstance(current_source, str):
             current_source = participants[0] if participants else ""
         if not isinstance(current_target, str):
@@ -150,7 +150,7 @@ class ConnectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         subentry_data: dict[str, Any] | None = None,
     ) -> vol.Schema:
         """Build the schema with name, source, target, and choose selectors for inputs."""
-        field_schema = get_input_field_schema_info(ElementType.CONNECTION, input_fields)
+        field_schema = get_input_field_schema_info(ELEMENT_TYPE, input_fields)
         return build_sectioned_choose_schema(
             self._get_sections(),
             input_fields,
@@ -215,7 +215,7 @@ class ConnectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         common_input = user_input.get(SECTION_COMMON, {})
         endpoints_input = user_input.get(SECTION_ENDPOINTS, {})
         self._validate_name(common_input.get(CONF_NAME), errors)
-        field_schema = get_input_field_schema_info(ElementType.CONNECTION, input_fields)
+        field_schema = get_input_field_schema_info(ELEMENT_TYPE, input_fields)
         errors.update(
             validate_sectioned_choose_fields(
                 user_input,
@@ -248,7 +248,7 @@ class ConnectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             endpoints_config[CONF_TARGET] = normalize_connection_target(endpoints_config[CONF_TARGET])
 
         return {
-            CONF_ELEMENT_TYPE: ElementType.CONNECTION,
+            CONF_ELEMENT_TYPE: ELEMENT_TYPE,
             **config_dict,
         }
 

@@ -18,6 +18,8 @@ from custom_components.haeo.sections import (
     PowerLimitsData,
 )
 
+ELEMENT_TYPE: Final = "inverter"
+
 OPTIONAL_INPUT_FIELDS: Final[frozenset[str]] = frozenset({CONF_EFFICIENCY_SOURCE_TARGET, CONF_EFFICIENCY_TARGET_SOURCE})
 
 
@@ -44,6 +46,7 @@ __all__ = [
     "CONF_EFFICIENCY_TARGET_SOURCE",
     "CONF_MAX_POWER_SOURCE_TARGET",
     "CONF_MAX_POWER_TARGET_SOURCE",
+    "ELEMENT_TYPE",
     "OPTIONAL_INPUT_FIELDS",
     "SECTION_COMMON",
     "SECTION_EFFICIENCY",

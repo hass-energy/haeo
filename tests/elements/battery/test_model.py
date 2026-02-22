@@ -19,7 +19,7 @@ from custom_components.haeo.adapters.elements.battery import (
     BATTERY_SOC_MIN,
     BATTERY_STATE_OF_CHARGE,
 )
-from custom_components.haeo.elements import ELEMENT_TYPES, ElementType
+from custom_components.haeo.elements import ELEMENT_TYPES
 from custom_components.haeo.schema.elements.battery import BatteryConfigData
 from custom_components.haeo.model import ModelOutputName, ModelOutputValue
 from custom_components.haeo.model import battery as battery_model
@@ -401,7 +401,7 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
 @pytest.mark.parametrize("case", CREATE_CASES, ids=lambda c: c["description"])
 def test_model_elements(case: CreateCase) -> None:
     """Verify adapter transforms ConfigData into expected model elements."""
-    entry = ELEMENT_TYPES[ElementType.BATTERY]
+    entry = ELEMENT_TYPES["battery"]
     result = entry.model_elements(case["data"])
     assert normalize_for_compare(result) == normalize_for_compare(case["model"])
 
@@ -409,6 +409,6 @@ def test_model_elements(case: CreateCase) -> None:
 @pytest.mark.parametrize("case", OUTPUTS_CASES, ids=lambda c: c["description"])
 def test_outputs_mapping(case: OutputsCase) -> None:
     """Verify adapter maps model outputs to device outputs."""
-    entry = ELEMENT_TYPES[ElementType.BATTERY]
+    entry = ELEMENT_TYPES["battery"]
     result = entry.outputs(case["name"], case["model_outputs"], config=case["data"])
     assert result == case["outputs"]

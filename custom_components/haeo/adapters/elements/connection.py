@@ -30,7 +30,6 @@ from custom_components.haeo.model.elements.segments import (
 )
 from custom_components.haeo.model.output_data import OutputData
 from custom_components.haeo.schema import extract_connection_target
-from custom_components.haeo.schema.elements import ElementType
 from custom_components.haeo.schema.elements.connection import (
     CONF_EFFICIENCY_SOURCE_TARGET,
     CONF_EFFICIENCY_TARGET_SOURCE,
@@ -38,6 +37,7 @@ from custom_components.haeo.schema.elements.connection import (
     CONF_MAX_POWER_TARGET_SOURCE,
     CONF_PRICE_SOURCE_TARGET,
     CONF_PRICE_TARGET_SOURCE,
+    ELEMENT_TYPE,
     SECTION_ENDPOINTS,
     ConnectionConfigData,
 )
@@ -77,7 +77,7 @@ CONNECTION_DEVICE_NAMES: Final[frozenset[ConnectionDeviceName]] = frozenset(
 class ConnectionAdapter:
     """Adapter for Connection elements."""
 
-    element_type = ElementType.CONNECTION
+    element_type: str = ELEMENT_TYPE
     advanced: bool = True
     connectivity: ConnectivityLevel = ConnectivityLevel.NEVER
 
@@ -90,7 +90,7 @@ class ConnectionAdapter:
                     field_name=CONF_MAX_POWER_SOURCE_TARGET,
                     entity_description=NumberEntityDescription(
                         key=CONF_MAX_POWER_SOURCE_TARGET,
-                        translation_key=f"{ElementType.CONNECTION}_{CONF_MAX_POWER_SOURCE_TARGET}",
+                        translation_key=f"{ELEMENT_TYPE}_{CONF_MAX_POWER_SOURCE_TARGET}",
                         native_unit_of_measurement=UnitOfPower.KILO_WATT,
                         device_class=NumberDeviceClass.POWER,
                         native_min_value=0.0,
@@ -104,7 +104,7 @@ class ConnectionAdapter:
                     field_name=CONF_MAX_POWER_TARGET_SOURCE,
                     entity_description=NumberEntityDescription(
                         key=CONF_MAX_POWER_TARGET_SOURCE,
-                        translation_key=f"{ElementType.CONNECTION}_{CONF_MAX_POWER_TARGET_SOURCE}",
+                        translation_key=f"{ELEMENT_TYPE}_{CONF_MAX_POWER_TARGET_SOURCE}",
                         native_unit_of_measurement=UnitOfPower.KILO_WATT,
                         device_class=NumberDeviceClass.POWER,
                         native_min_value=0.0,
@@ -120,7 +120,7 @@ class ConnectionAdapter:
                     field_name=CONF_EFFICIENCY_SOURCE_TARGET,
                     entity_description=NumberEntityDescription(
                         key=CONF_EFFICIENCY_SOURCE_TARGET,
-                        translation_key=f"{ElementType.CONNECTION}_{CONF_EFFICIENCY_SOURCE_TARGET}",
+                        translation_key=f"{ELEMENT_TYPE}_{CONF_EFFICIENCY_SOURCE_TARGET}",
                         native_unit_of_measurement=PERCENTAGE,
                         device_class=NumberDeviceClass.POWER_FACTOR,
                         native_min_value=50.0,
@@ -134,7 +134,7 @@ class ConnectionAdapter:
                     field_name=CONF_EFFICIENCY_TARGET_SOURCE,
                     entity_description=NumberEntityDescription(
                         key=CONF_EFFICIENCY_TARGET_SOURCE,
-                        translation_key=f"{ElementType.CONNECTION}_{CONF_EFFICIENCY_TARGET_SOURCE}",
+                        translation_key=f"{ELEMENT_TYPE}_{CONF_EFFICIENCY_TARGET_SOURCE}",
                         native_unit_of_measurement=PERCENTAGE,
                         device_class=NumberDeviceClass.POWER_FACTOR,
                         native_min_value=50.0,
@@ -150,7 +150,7 @@ class ConnectionAdapter:
                     field_name=CONF_PRICE_SOURCE_TARGET,
                     entity_description=NumberEntityDescription(
                         key=CONF_PRICE_SOURCE_TARGET,
-                        translation_key=f"{ElementType.CONNECTION}_{CONF_PRICE_SOURCE_TARGET}",
+                        translation_key=f"{ELEMENT_TYPE}_{CONF_PRICE_SOURCE_TARGET}",
                         native_min_value=-1.0,
                         native_max_value=10.0,
                         native_step=0.001,
@@ -163,7 +163,7 @@ class ConnectionAdapter:
                     field_name=CONF_PRICE_TARGET_SOURCE,
                     entity_description=NumberEntityDescription(
                         key=CONF_PRICE_TARGET_SOURCE,
-                        translation_key=f"{ElementType.CONNECTION}_{CONF_PRICE_TARGET_SOURCE}",
+                        translation_key=f"{ELEMENT_TYPE}_{CONF_PRICE_TARGET_SOURCE}",
                         native_min_value=-1.0,
                         native_max_value=10.0,
                         native_step=0.001,

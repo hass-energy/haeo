@@ -13,7 +13,7 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 from custom_components.haeo.adapters.elements.battery import adapter
 from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.schema import as_connection_target, as_constant_value, as_entity_value
-from custom_components.haeo.schema.elements import ElementType
+from custom_components.haeo.schema.elements import node
 from custom_components.haeo.schema.elements.battery import (
     CONF_CAPACITY,
     CONF_CONFIGURE_PARTITIONS,
@@ -29,6 +29,7 @@ from custom_components.haeo.schema.elements.battery import (
     CONF_PRICE_SOURCE_TARGET,
     CONF_PRICE_TARGET_SOURCE,
     CONF_SALVAGE_VALUE,
+    ELEMENT_TYPE,
     SECTION_COMMON,
     SECTION_EFFICIENCY,
     SECTION_LIMITS,
@@ -127,8 +128,8 @@ def _wrap_partition_input(
 
 async def test_user_step_with_constant_values_creates_entry(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
     """Submitting with constant values should create entry directly."""
-    add_participant(hass, hub_entry, "main_bus", ElementType.NODE)
-    flow = create_flow(hass, hub_entry, ElementType.BATTERY)
+    add_participant(hass, hub_entry, "main_bus", node.ELEMENT_TYPE)
+    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
 
     flow.async_create_entry = Mock(
         return_value={
@@ -170,8 +171,8 @@ async def test_user_step_with_constant_values_creates_entry(hass: HomeAssistant,
 
 async def test_user_step_with_entity_values_creates_entry(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
     """Submitting with entity selections should create entry with entity IDs."""
-    add_participant(hass, hub_entry, "main_bus", ElementType.NODE)
-    flow = create_flow(hass, hub_entry, ElementType.BATTERY)
+    add_participant(hass, hub_entry, "main_bus", node.ELEMENT_TYPE)
+    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
 
     flow.async_create_entry = Mock(
         return_value={
@@ -208,8 +209,8 @@ async def test_user_step_with_entity_values_creates_entry(hass: HomeAssistant, h
 
 async def test_partition_flow_enabled_shows_partition_step(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
     """When configure_partitions is True, flow proceeds to partitions step."""
-    add_participant(hass, hub_entry, "main_bus", ElementType.NODE)
-    flow = create_flow(hass, hub_entry, ElementType.BATTERY)
+    add_participant(hass, hub_entry, "main_bus", node.ELEMENT_TYPE)
+    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
 
     step1_input = {
         CONF_NAME: "Test Battery",
@@ -238,8 +239,8 @@ async def test_partition_flow_enabled_shows_partition_step(hass: HomeAssistant, 
 
 async def test_partition_flow_with_entity_links_creates_entry(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
     """Complete flow with entity link partition values creates entry."""
-    add_participant(hass, hub_entry, "main_bus", ElementType.NODE)
-    flow = create_flow(hass, hub_entry, ElementType.BATTERY)
+    add_participant(hass, hub_entry, "main_bus", node.ELEMENT_TYPE)
+    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
 
     flow.async_create_entry = Mock(
         return_value={
@@ -292,8 +293,8 @@ async def test_partition_flow_with_constant_values_creates_entry(
     hass: HomeAssistant, hub_entry: MockConfigEntry
 ) -> None:
     """Complete flow with constant partition values creates entry."""
-    add_participant(hass, hub_entry, "main_bus", ElementType.NODE)
-    flow = create_flow(hass, hub_entry, ElementType.BATTERY)
+    add_participant(hass, hub_entry, "main_bus", node.ELEMENT_TYPE)
+    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
 
     flow.async_create_entry = Mock(
         return_value={
@@ -348,8 +349,8 @@ async def test_build_config_normalizes_connection_target_and_partitions(
     hub_entry: MockConfigEntry,
 ) -> None:
     """_build_config should normalize connection targets and include partitions."""
-    add_participant(hass, hub_entry, "main_bus", ElementType.NODE)
-    flow = create_flow(hass, hub_entry, ElementType.BATTERY)
+    add_participant(hass, hub_entry, "main_bus", node.ELEMENT_TYPE)
+    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
 
     main_input = _wrap_main_input(
         {
@@ -381,8 +382,8 @@ async def test_build_config_normalizes_connection_target_and_partitions(
 
 async def test_partition_disabled_skips_partition_step(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
     """When configure_partitions is False, flow skips directly to create_entry."""
-    add_participant(hass, hub_entry, "main_bus", ElementType.NODE)
-    flow = create_flow(hass, hub_entry, ElementType.BATTERY)
+    add_participant(hass, hub_entry, "main_bus", node.ELEMENT_TYPE)
+    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
 
     flow.async_create_entry = Mock(
         return_value={
@@ -418,10 +419,10 @@ async def test_partition_disabled_skips_partition_step(hass: HomeAssistant, hub_
 
 async def test_reconfigure_with_existing_partitions_shows_form(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
     """Reconfigure with existing partition data shows form."""
-    add_participant(hass, hub_entry, "main_bus", ElementType.NODE)
+    add_participant(hass, hub_entry, "main_bus", node.ELEMENT_TYPE)
 
     existing_config = {
-        CONF_ELEMENT_TYPE: "battery",
+        CONF_ELEMENT_TYPE: ELEMENT_TYPE,
         **_wrap_main_input(
             {
                 CONF_NAME: "Test Battery",
@@ -445,13 +446,13 @@ async def test_reconfigure_with_existing_partitions_shows_form(hass: HomeAssista
     }
     existing_subentry = ConfigSubentry(
         data=MappingProxyType(existing_config),
-        subentry_type="battery",
+        subentry_type=ELEMENT_TYPE,
         title="Test Battery",
         unique_id=None,
     )
     hass.config_entries.async_add_subentry(hub_entry, existing_subentry)
 
-    flow = create_flow(hass, hub_entry, ElementType.BATTERY)
+    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
     flow.context = {
         "subentry_id": existing_subentry.subentry_id,
         "source": SOURCE_RECONFIGURE,
@@ -465,10 +466,10 @@ async def test_reconfigure_with_existing_partitions_shows_form(hass: HomeAssista
 
 async def test_reconfigure_partition_defaults_entity_links(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
     """Reconfigure with entity link partition values shows entity choice."""
-    add_participant(hass, hub_entry, "main_bus", ElementType.NODE)
+    add_participant(hass, hub_entry, "main_bus", node.ELEMENT_TYPE)
 
     existing_config = {
-        CONF_ELEMENT_TYPE: "battery",
+        CONF_ELEMENT_TYPE: ELEMENT_TYPE,
         **_wrap_main_input(
             {
                 CONF_NAME: "Test Battery",
@@ -490,13 +491,13 @@ async def test_reconfigure_partition_defaults_entity_links(hass: HomeAssistant, 
     }
     existing_subentry = ConfigSubentry(
         data=MappingProxyType(existing_config),
-        subentry_type="battery",
+        subentry_type=ELEMENT_TYPE,
         title="Test Battery",
         unique_id=None,
     )
     hass.config_entries.async_add_subentry(hub_entry, existing_subentry)
 
-    flow = create_flow(hass, hub_entry, ElementType.BATTERY)
+    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
     flow.context = {
         "subentry_id": existing_subentry.subentry_id,
         "source": SOURCE_RECONFIGURE,
@@ -512,10 +513,10 @@ async def test_reconfigure_partition_defaults_entity_links(hass: HomeAssistant, 
 
 async def test_reconfigure_partition_defaults_scalar_values(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
     """Reconfigure with scalar partition values shows constant choice."""
-    add_participant(hass, hub_entry, "main_bus", ElementType.NODE)
+    add_participant(hass, hub_entry, "main_bus", node.ELEMENT_TYPE)
 
     existing_config = {
-        CONF_ELEMENT_TYPE: "battery",
+        CONF_ELEMENT_TYPE: ELEMENT_TYPE,
         **_wrap_main_input(
             {
                 CONF_NAME: "Test Battery",
@@ -537,13 +538,13 @@ async def test_reconfigure_partition_defaults_scalar_values(hass: HomeAssistant,
     }
     existing_subentry = ConfigSubentry(
         data=MappingProxyType(existing_config),
-        subentry_type="battery",
+        subentry_type=ELEMENT_TYPE,
         title="Test Battery",
         unique_id=None,
     )
     hass.config_entries.async_add_subentry(hub_entry, existing_subentry)
 
-    flow = create_flow(hass, hub_entry, ElementType.BATTERY)
+    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
     flow.context = {
         "subentry_id": existing_subentry.subentry_id,
         "source": SOURCE_RECONFIGURE,
@@ -559,7 +560,7 @@ async def test_reconfigure_partition_defaults_scalar_values(hass: HomeAssistant,
 
 async def test_build_partition_defaults_no_existing_data(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
     """_build_partition_defaults with no existing data uses field defaults."""
-    flow = create_flow(hass, hub_entry, ElementType.BATTERY)
+    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
 
     input_fields = adapter.inputs(None)
     defaults = flow._build_partition_defaults(input_fields, None)
@@ -636,21 +637,21 @@ async def test_reconfigure_defaults_handle_schema_values(
 ) -> None:
     """Reconfigure defaults reflect schema values and tolerate missing connections."""
     if add_connection:
-        add_participant(hass, hub_entry, connection, ElementType.NODE)
+        add_participant(hass, hub_entry, connection, node.ELEMENT_TYPE)
 
     existing_config = {
-        CONF_ELEMENT_TYPE: "battery",
+        CONF_ELEMENT_TYPE: ELEMENT_TYPE,
         **_wrap_main_input(config_values, as_schema=True),
     }
     existing_subentry = ConfigSubentry(
         data=MappingProxyType(existing_config),
-        subentry_type="battery",
+        subentry_type=ELEMENT_TYPE,
         title="Test Battery",
         unique_id=None,
     )
     hass.config_entries.async_add_subentry(hub_entry, existing_subentry)
 
-    flow = create_flow(hass, hub_entry, ElementType.BATTERY)
+    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
     flow.context = {
         "subentry_id": existing_subentry.subentry_id,
         "source": SOURCE_RECONFIGURE,
@@ -672,10 +673,10 @@ async def test_reconfigure_defaults_handle_schema_values(
 
 async def test_reconfigure_updates_existing_battery(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
     """Reconfigure flow completes and updates existing battery."""
-    add_participant(hass, hub_entry, "main_bus", ElementType.NODE)
+    add_participant(hass, hub_entry, "main_bus", node.ELEMENT_TYPE)
 
     existing_config = {
-        CONF_ELEMENT_TYPE: "battery",
+        CONF_ELEMENT_TYPE: ELEMENT_TYPE,
         **_wrap_main_input(
             {
                 CONF_NAME: "Test Battery",
@@ -689,13 +690,13 @@ async def test_reconfigure_updates_existing_battery(hass: HomeAssistant, hub_ent
     }
     existing_subentry = ConfigSubentry(
         data=MappingProxyType(existing_config),
-        subentry_type="battery",
+        subentry_type=ELEMENT_TYPE,
         title="Test Battery",
         unique_id=None,
     )
     hass.config_entries.async_add_subentry(hub_entry, existing_subentry)
 
-    flow = create_flow(hass, hub_entry, ElementType.BATTERY)
+    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
     flow.context = {
         "subentry_id": existing_subentry.subentry_id,
         "source": SOURCE_RECONFIGURE,

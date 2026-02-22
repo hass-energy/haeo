@@ -31,7 +31,7 @@ from custom_components.haeo.entities import HaeoSensor
 from custom_components.haeo.entities.haeo_sensor import FORECAST_UNRECORDED_ATTRIBUTES
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON, HUB_SECTION_TIERS
 from custom_components.haeo.model import OutputData, OutputType
-from custom_components.haeo.schema.elements import ElementType
+from custom_components.haeo.schema.elements.battery import ELEMENT_TYPE as BATTERY_TYPE
 from custom_components.haeo.schema.elements.battery import SECTION_COMMON as BATTERY_SECTION_COMMON
 from custom_components.haeo.schema.elements.battery import SECTION_LIMITS
 from custom_components.haeo.sensor import async_setup_entry
@@ -152,7 +152,7 @@ def config_entry(hass: HomeAssistant) -> MockConfigEntry:
     battery_subentry = ConfigSubentry(
         data=MappingProxyType(
             {
-                CONF_ELEMENT_TYPE: ElementType.BATTERY,
+                CONF_ELEMENT_TYPE: BATTERY_TYPE,
                 BATTERY_SECTION_COMMON: {
                     CONF_NAME: "Battery",
                     "connection": "Switchboard",
@@ -163,7 +163,7 @@ def config_entry(hass: HomeAssistant) -> MockConfigEntry:
                 "advanced": {},
             }
         ),
-        subentry_type=ElementType.BATTERY,
+        subentry_type=BATTERY_TYPE,
         title="Battery",
         unique_id=None,
     )
@@ -328,7 +328,7 @@ def test_handle_coordinator_update_reapplies_metadata(device_entry: DeviceEntry)
         subentry_key="battery",
         device_key="battery",
         element_title="Battery",
-        element_type=ElementType.BATTERY,
+        element_type=BATTERY_TYPE,
         output_name=LOAD_POWER,
         output_data=initial_output,
         unique_id="sensor-id",
@@ -385,7 +385,7 @@ def test_handle_coordinator_update_scales_percentage_outputs(device_entry: Devic
         subentry_key="battery",
         device_key="battery",
         element_title="Battery",
-        element_type=ElementType.BATTERY,
+        element_type=BATTERY_TYPE,
         output_name=BATTERY_STATE_OF_CHARGE,
         output_data=output,
         unique_id="sensor-id",
@@ -433,7 +433,7 @@ def test_handle_coordinator_update_clears_value_when_missing_data(
         subentry_key="battery",
         device_key="battery",
         element_title="Battery",
-        element_type=ElementType.BATTERY,
+        element_type=BATTERY_TYPE,
         output_name=LOAD_POWER,
         output_data=initial_output,
         unique_id="sensor-id",
@@ -447,7 +447,7 @@ def test_handle_coordinator_update_clears_value_when_missing_data(
     attributes = sensor.extra_state_attributes
     assert attributes == {
         "element_name": "Battery",
-        "element_type": ElementType.BATTERY,
+        "element_type": BATTERY_TYPE,
         "output_name": LOAD_POWER,
         "output_type": OutputType.POWER,
         "advanced": False,
@@ -475,7 +475,7 @@ def test_sensor_availability_follows_coordinator(device_entry: DeviceEntry) -> N
         subentry_key="battery",
         device_key="battery",
         element_title="Battery",
-        element_type=ElementType.BATTERY,
+        element_type=BATTERY_TYPE,
         output_name=LOAD_POWER,
         output_data=output,
         unique_id="sensor-id",
@@ -510,7 +510,7 @@ async def test_sensor_async_added_to_hass_runs_initial_update(device_entry: Devi
         subentry_key="battery",
         device_key="battery",
         element_title="Battery",
-        element_type=ElementType.BATTERY,
+        element_type=BATTERY_TYPE,
         output_name=LOAD_POWER,
         output_data=output,
         unique_id="sensor-id",
@@ -593,7 +593,7 @@ def test_handle_coordinator_update_sets_direction(device_entry: DeviceEntry) -> 
         subentry_key="battery",
         device_key="battery",
         element_title="Battery",
-        element_type=ElementType.BATTERY,
+        element_type=BATTERY_TYPE,
         output_name=LOAD_POWER,
         output_data=initial_output,
         unique_id="sensor-id",
@@ -658,7 +658,7 @@ def test_unrecorded_attributes_based_on_config(
         subentry_key="battery",
         device_key="battery",
         element_title="Battery",
-        element_type=ElementType.BATTERY,
+        element_type=BATTERY_TYPE,
         output_name=LOAD_POWER,
         output_data=output,
         unique_id="sensor-id",

@@ -28,6 +28,8 @@ from custom_components.haeo.sections import (
     PricingData,
 )
 
+ELEMENT_TYPE: Final = "battery"
+
 SECTION_STORAGE: Final = "storage"
 SECTION_UNDERCHARGE: Final = "undercharge"
 SECTION_OVERCHARGE: Final = "overcharge"
@@ -181,6 +183,7 @@ __all__ = [
     "CONF_PRICE_SOURCE_TARGET",
     "CONF_PRICE_TARGET_SOURCE",
     "CONF_SALVAGE_VALUE",
+    "ELEMENT_TYPE",
     "OPTIONAL_INPUT_FIELDS",
     "PARTITION_FIELD_NAMES",
     "SECTION_COMMON",

@@ -22,8 +22,7 @@ from custom_components.haeo.model.elements.node import NODE_POWER_BALANCE
 from custom_components.haeo.model.elements.segments import POWER_LIMIT_SOURCE_TARGET, POWER_LIMIT_TARGET_SOURCE
 from custom_components.haeo.model.output_data import OutputData
 from custom_components.haeo.schema import extract_connection_target
-from custom_components.haeo.schema.elements import ElementType
-from custom_components.haeo.schema.elements.inverter import InverterConfigData
+from custom_components.haeo.schema.elements.inverter import ELEMENT_TYPE, InverterConfigData
 from custom_components.haeo.sections import (
     CONF_CONNECTION,
     CONF_EFFICIENCY_SOURCE_TARGET,
@@ -67,7 +66,7 @@ INVERTER_DEVICE_NAMES: Final[frozenset[InverterDeviceName]] = frozenset(
 class InverterAdapter:
     """Adapter for Inverter elements."""
 
-    element_type = ElementType.INVERTER
+    element_type: str = ELEMENT_TYPE
     advanced: bool = False
     connectivity: ConnectivityLevel = ConnectivityLevel.ALWAYS
 
@@ -80,7 +79,7 @@ class InverterAdapter:
                     field_name=CONF_MAX_POWER_SOURCE_TARGET,
                     entity_description=NumberEntityDescription(
                         key=CONF_MAX_POWER_SOURCE_TARGET,
-                        translation_key=f"{ElementType.INVERTER}_{CONF_MAX_POWER_SOURCE_TARGET}",
+                        translation_key=f"{ELEMENT_TYPE}_{CONF_MAX_POWER_SOURCE_TARGET}",
                         native_unit_of_measurement=UnitOfPower.KILO_WATT,
                         device_class=NumberDeviceClass.POWER,
                         native_min_value=0.0,
@@ -95,7 +94,7 @@ class InverterAdapter:
                     field_name=CONF_MAX_POWER_TARGET_SOURCE,
                     entity_description=NumberEntityDescription(
                         key=CONF_MAX_POWER_TARGET_SOURCE,
-                        translation_key=f"{ElementType.INVERTER}_{CONF_MAX_POWER_TARGET_SOURCE}",
+                        translation_key=f"{ELEMENT_TYPE}_{CONF_MAX_POWER_TARGET_SOURCE}",
                         native_unit_of_measurement=UnitOfPower.KILO_WATT,
                         device_class=NumberDeviceClass.POWER,
                         native_min_value=0.0,
@@ -112,7 +111,7 @@ class InverterAdapter:
                     field_name=CONF_EFFICIENCY_SOURCE_TARGET,
                     entity_description=NumberEntityDescription(
                         key=CONF_EFFICIENCY_SOURCE_TARGET,
-                        translation_key=f"{ElementType.INVERTER}_{CONF_EFFICIENCY_SOURCE_TARGET}",
+                        translation_key=f"{ELEMENT_TYPE}_{CONF_EFFICIENCY_SOURCE_TARGET}",
                         native_unit_of_measurement=PERCENTAGE,
                         device_class=NumberDeviceClass.POWER_FACTOR,
                         native_min_value=50.0,
@@ -126,7 +125,7 @@ class InverterAdapter:
                     field_name=CONF_EFFICIENCY_TARGET_SOURCE,
                     entity_description=NumberEntityDescription(
                         key=CONF_EFFICIENCY_TARGET_SOURCE,
-                        translation_key=f"{ElementType.INVERTER}_{CONF_EFFICIENCY_TARGET_SOURCE}",
+                        translation_key=f"{ELEMENT_TYPE}_{CONF_EFFICIENCY_TARGET_SOURCE}",
                         native_unit_of_measurement=PERCENTAGE,
                         device_class=NumberDeviceClass.POWER_FACTOR,
                         native_min_value=50.0,
