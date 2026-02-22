@@ -1,0 +1,58 @@
+"""Node element schema definitions."""
+
+from typing import Final, Literal, TypedDict
+
+from custom_components.haeo.sections import SECTION_COMMON, CommonConfig, CommonData
+
+ELEMENT_TYPE: Final = "node"
+
+SECTION_ROLE: Final = "role"
+
+CONF_IS_SOURCE: Final = "is_source"
+CONF_IS_SINK: Final = "is_sink"
+
+OPTIONAL_INPUT_FIELDS: Final[frozenset[str]] = frozenset({CONF_IS_SOURCE, CONF_IS_SINK})
+
+
+class RoleConfig(TypedDict, total=False):
+    """Role configuration for node behavior."""
+
+    is_source: bool
+    is_sink: bool
+
+
+class RoleData(TypedDict, total=False):
+    """Loaded role values for node behavior."""
+
+    is_source: bool
+    is_sink: bool
+
+
+class NodeConfigSchema(TypedDict):
+    """Node element configuration as stored in Home Assistant."""
+
+    element_type: Literal["node"]
+    common: CommonConfig
+    role: RoleConfig
+
+
+class NodeConfigData(TypedDict):
+    """Node element configuration with loaded values."""
+
+    element_type: Literal["node"]
+    common: CommonData
+    role: RoleData
+
+
+__all__ = [
+    "CONF_IS_SINK",
+    "CONF_IS_SOURCE",
+    "ELEMENT_TYPE",
+    "OPTIONAL_INPUT_FIELDS",
+    "SECTION_COMMON",
+    "SECTION_ROLE",
+    "NodeConfigData",
+    "NodeConfigSchema",
+    "RoleConfig",
+    "RoleData",
+]

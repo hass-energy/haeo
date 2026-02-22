@@ -1,12 +1,3 @@
-"""Field schema metadata utilities."""
+"""Field schema metadata utilities (re-exported from schema.field_schema)."""
 
-from dataclasses import dataclass
-from typing import Any
-
-
-@dataclass(frozen=True, slots=True)
-class FieldSchemaInfo:
-    """Schema metadata for a config field."""
-
-    value_type: Any
-    is_optional: bool
+from custom_components.haeo.schema.field_schema import *  # noqa: F403
