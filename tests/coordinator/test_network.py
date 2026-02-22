@@ -11,6 +11,7 @@ from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION,
 from custom_components.haeo.model.elements.connection import Connection
 from custom_components.haeo.model.elements.segments import PowerLimitSegment
 from custom_components.haeo.schema import as_connection_target
+from custom_components.haeo.schema.elements import ElementType
 from custom_components.haeo.schema.elements.connection import (
     CONF_MAX_POWER_SOURCE_TARGET,
     CONF_MAX_POWER_TARGET_SOURCE,
@@ -57,7 +58,7 @@ def test_update_element_updates_tracked_params() -> None:
 
     # Update via element config
     config: ElementConfigData = {
-        CONF_ELEMENT_TYPE: MODEL_ELEMENT_TYPE_CONNECTION,
+        CONF_ELEMENT_TYPE: ElementType.CONNECTION,
         SECTION_COMMON: {"name": "conn"},
         SECTION_ENDPOINTS: {
             "source": as_connection_target("source"),
@@ -87,7 +88,7 @@ def test_update_element_raises_for_missing_model_element() -> None:
 
     # Try to update a nonexistent element
     config: ElementConfigData = {
-        CONF_ELEMENT_TYPE: MODEL_ELEMENT_TYPE_CONNECTION,
+        CONF_ELEMENT_TYPE: ElementType.CONNECTION,
         SECTION_COMMON: {"name": "nonexistent_conn"},
         SECTION_ENDPOINTS: {
             "source": as_connection_target("source"),

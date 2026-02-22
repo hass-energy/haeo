@@ -5,8 +5,6 @@ from typing import Any, TypedDict
 
 import numpy as np
 import pytest
-from numpy.typing import NDArray
-
 from custom_components.haeo.adapters.elements.grid import (
     GRID_COST_IMPORT,
     GRID_COST_NET,
@@ -19,13 +17,15 @@ from custom_components.haeo.adapters.elements.grid import (
     GRID_REVENUE_EXPORT,
 )
 from custom_components.haeo.elements import ELEMENT_TYPES
-from custom_components.haeo.schema.elements.grid import GridConfigData
 from custom_components.haeo.model import ModelOutputName, ModelOutputValue
 from custom_components.haeo.model.const import OutputType
-from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE
-from custom_components.haeo.model.elements import connection
+from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE, connection
 from custom_components.haeo.model.output_data import OutputData
 from custom_components.haeo.schema import as_connection_target
+from custom_components.haeo.schema.elements import ElementType
+from custom_components.haeo.schema.elements.grid import GridConfigData
+from numpy.typing import NDArray
+
 from tests.util.normalize import normalize_for_compare
 
 
@@ -52,7 +52,7 @@ CREATE_CASES: Sequence[CreateCase] = [
     {
         "description": "Grid with import and export limits",
         "data": GridConfigData(
-            element_type="grid",
+            element_type=ElementType.GRID,
             common={"name": "grid_main", "connection": as_connection_target("network")},
             pricing={
                 "price_source_target": np.array([0.1]),
@@ -93,7 +93,7 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
         "description": "Grid with import and export - cost/revenue calculated from power × price × period",
         "name": "grid_main",
         "config": GridConfigData(
-            element_type="grid",
+            element_type=ElementType.GRID,
             common={"name": "grid_main", "connection": as_connection_target("network")},
             pricing={
                 "price_source_target": np.array([0.10]),
@@ -136,7 +136,7 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
         "description": "Grid with multiple periods - cumulative cost/revenue",
         "name": "grid_multi",
         "config": GridConfigData(
-            element_type="grid",
+            element_type=ElementType.GRID,
             common={"name": "grid_multi", "connection": as_connection_target("network")},
             pricing={
                 "price_source_target": np.array([0.10, 0.20]),
@@ -172,7 +172,7 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
 @pytest.mark.parametrize("case", CREATE_CASES, ids=lambda c: c["description"])
 def test_model_elements(case: CreateCase) -> None:
     """Verify adapter transforms ConfigData into expected model elements."""
-    entry = ELEMENT_TYPES["grid"]
+    entry = ELEMENT_TYPES[ElementType.GRID]
     result = entry.model_elements(case["data"])
     assert normalize_for_compare(result) == normalize_for_compare(case["model"])
 
@@ -180,6 +180,6 @@ def test_model_elements(case: CreateCase) -> None:
 @pytest.mark.parametrize("case", OUTPUTS_CASES, ids=lambda c: c["description"])
 def test_outputs_mapping(case: OutputsCase) -> None:
     """Verify adapter maps model outputs to device outputs with cost calculation."""
-    entry = ELEMENT_TYPES["grid"]
+    entry = ELEMENT_TYPES[ElementType.GRID]
     result = entry.outputs(case["name"], case["model_outputs"], config=case["config"], periods=case["periods"])
     assert result == case["outputs"]

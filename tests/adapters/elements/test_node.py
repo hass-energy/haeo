@@ -4,13 +4,13 @@ from homeassistant.core import HomeAssistant
 
 from custom_components.haeo.adapters.elements.node import adapter as node_adapter
 from custom_components.haeo.elements.availability import schema_config_available
-from custom_components.haeo.schema.elements import node
+from custom_components.haeo.schema.elements import ElementType, node
 
 
 async def test_available_returns_true(hass: HomeAssistant) -> None:
     """Node available() should return True since nodes have no sensor dependencies."""
     config: node.NodeConfigSchema = {
-        "element_type": "node",
+        "element_type": ElementType.NODE,
         node.SECTION_COMMON: {"name": "test_node"},
         node.SECTION_ROLE: {"is_source": False, "is_sink": False},
     }
@@ -22,7 +22,7 @@ async def test_available_returns_true(hass: HomeAssistant) -> None:
 def test_model_elements_applies_default_flags() -> None:
     """model_elements() should apply default is_source/is_sink flags."""
     config_data: node.NodeConfigData = {
-        "element_type": "node",
+        "element_type": ElementType.NODE,
         node.SECTION_COMMON: {"name": "test_node"},
         node.SECTION_ROLE: {},
     }

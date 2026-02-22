@@ -5,7 +5,6 @@ from typing import Any, TypedDict
 
 import numpy as np
 import pytest
-
 from custom_components.haeo.adapters.elements.inverter import (
     INVERTER_DC_BUS_POWER_BALANCE,
     INVERTER_DEVICE_INVERTER,
@@ -16,14 +15,15 @@ from custom_components.haeo.adapters.elements.inverter import (
     INVERTER_POWER_DC_TO_AC,
 )
 from custom_components.haeo.elements import ELEMENT_TYPES
-from custom_components.haeo.schema.elements.inverter import InverterConfigData
 from custom_components.haeo.model import ModelOutputName, ModelOutputValue
 from custom_components.haeo.model.const import OutputType
-from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE
-from custom_components.haeo.model.elements import connection
+from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE, connection
 from custom_components.haeo.model.elements.node import NODE_POWER_BALANCE
 from custom_components.haeo.model.output_data import OutputData
 from custom_components.haeo.schema import as_connection_target
+from custom_components.haeo.schema.elements import ElementType
+from custom_components.haeo.schema.elements.inverter import InverterConfigData
+
 from tests.util.normalize import normalize_for_compare
 
 
@@ -48,7 +48,7 @@ CREATE_CASES: Sequence[CreateCase] = [
     {
         "description": "Inverter with efficiency",
         "data": InverterConfigData(
-            element_type="inverter",
+            element_type=ElementType.INVERTER,
             common={"name": "inverter_main", "connection": as_connection_target("network")},
             power_limits={
                 "max_power_source_target": np.array([10.0]),
@@ -84,7 +84,7 @@ CREATE_CASES: Sequence[CreateCase] = [
     {
         "description": "Inverter with default efficiency (100%)",
         "data": InverterConfigData(
-            element_type="inverter",
+            element_type=ElementType.INVERTER,
             common={"name": "inverter_simple", "connection": as_connection_target("network")},
             power_limits={
                 "max_power_source_target": np.array([10.0]),
@@ -156,7 +156,7 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
 @pytest.mark.parametrize("case", CREATE_CASES, ids=lambda c: c["description"])
 def test_model_elements(case: CreateCase) -> None:
     """Verify adapter transforms ConfigData into expected model elements."""
-    entry = ELEMENT_TYPES["inverter"]
+    entry = ELEMENT_TYPES[ElementType.INVERTER]
     result = entry.model_elements(case["data"])
     assert normalize_for_compare(result) == normalize_for_compare(case["model"])
 
@@ -164,6 +164,6 @@ def test_model_elements(case: CreateCase) -> None:
 @pytest.mark.parametrize("case", OUTPUTS_CASES, ids=lambda c: c["description"])
 def test_outputs_mapping(case: OutputsCase) -> None:
     """Verify adapter maps model outputs to device outputs."""
-    entry = ELEMENT_TYPES["inverter"]
+    entry = ELEMENT_TYPES[ElementType.INVERTER]
     result = entry.outputs(case["name"], case["model_outputs"])
     assert result == case["outputs"]

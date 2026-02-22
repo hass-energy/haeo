@@ -7,6 +7,7 @@ and the caching system automatically invalidates and rebuilds only the affected 
 import numpy as np
 import pytest
 
+from custom_components.haeo.const import CONF_ELEMENT_TYPE
 from custom_components.haeo.coordinator.network import update_element
 from custom_components.haeo.model import Network
 from custom_components.haeo.model.elements import (
@@ -18,6 +19,7 @@ from custom_components.haeo.model.elements.battery import Battery
 from custom_components.haeo.model.elements.connection import Connection
 from custom_components.haeo.model.elements.segments import PowerLimitSegment, PricingSegment
 from custom_components.haeo.schema import as_connection_target
+from custom_components.haeo.schema.elements import ElementType
 from custom_components.haeo.schema.elements.connection import (
     SECTION_COMMON,
     SECTION_EFFICIENCY,
@@ -486,7 +488,7 @@ def test_network_add_connection_updates_prices() -> None:
     update_element(
         network,
         {
-            "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
+            CONF_ELEMENT_TYPE: ElementType.CONNECTION,
             SECTION_COMMON: {"name": "conn"},
             SECTION_ENDPOINTS: {
                 "source": as_connection_target("source"),

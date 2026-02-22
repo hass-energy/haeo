@@ -5,7 +5,6 @@ from typing import Any, TypedDict
 
 import numpy as np
 import pytest
-
 from custom_components.haeo.adapters.elements.battery import (
     BATTERY_DEVICE_BATTERY,
     BATTERY_ENERGY_IN_FLOW,
@@ -20,7 +19,6 @@ from custom_components.haeo.adapters.elements.battery import (
     BATTERY_STATE_OF_CHARGE,
 )
 from custom_components.haeo.elements import ELEMENT_TYPES
-from custom_components.haeo.schema.elements.battery import BatteryConfigData
 from custom_components.haeo.model import ModelOutputName, ModelOutputValue
 from custom_components.haeo.model import battery as battery_model
 from custom_components.haeo.model.const import OutputType
@@ -30,6 +28,9 @@ from custom_components.haeo.model.elements import (
 )
 from custom_components.haeo.model.output_data import OutputData
 from custom_components.haeo.schema import as_connection_target
+from custom_components.haeo.schema.elements import ElementType
+from custom_components.haeo.schema.elements.battery import BatteryConfigData
+
 from tests.util.normalize import normalize_for_compare
 
 
@@ -55,7 +56,7 @@ CREATE_CASES: Sequence[CreateCase] = [
     {
         "description": "Battery with SOC pricing thresholds",
         "data": BatteryConfigData(
-            element_type="battery",
+            element_type=ElementType.BATTERY,
             common={
                 "name": "battery_main",
                 "connection": as_connection_target("network"),
@@ -134,7 +135,7 @@ CREATE_CASES: Sequence[CreateCase] = [
     {
         "description": "Battery with normal range only",
         "data": BatteryConfigData(
-            element_type="battery",
+            element_type=ElementType.BATTERY,
             common={
                 "name": "battery_normal",
                 "connection": as_connection_target("network"),
@@ -200,7 +201,7 @@ CREATE_CASES: Sequence[CreateCase] = [
     {
         "description": "Battery with salvage value",
         "data": BatteryConfigData(
-            element_type="battery",
+            element_type=ElementType.BATTERY,
             common={
                 "name": "battery_salvage",
                 "connection": as_connection_target("network"),
@@ -271,7 +272,7 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
         "description": "Battery normal range outputs",
         "name": "battery_no_balance",
         "data": BatteryConfigData(
-            element_type="battery",
+            element_type=ElementType.BATTERY,
             common={
                 "name": "battery_no_balance",
                 "connection": as_connection_target("network"),
@@ -332,7 +333,7 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
         "description": "Battery outputs include undercharge offset",
         "name": "battery_with_thresholds",
         "data": BatteryConfigData(
-            element_type="battery",
+            element_type=ElementType.BATTERY,
             common={
                 "name": "battery_with_thresholds",
                 "connection": as_connection_target("network"),
@@ -401,7 +402,7 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
 @pytest.mark.parametrize("case", CREATE_CASES, ids=lambda c: c["description"])
 def test_model_elements(case: CreateCase) -> None:
     """Verify adapter transforms ConfigData into expected model elements."""
-    entry = ELEMENT_TYPES["battery"]
+    entry = ELEMENT_TYPES[ElementType.BATTERY]
     result = entry.model_elements(case["data"])
     assert normalize_for_compare(result) == normalize_for_compare(case["model"])
 
@@ -409,6 +410,6 @@ def test_model_elements(case: CreateCase) -> None:
 @pytest.mark.parametrize("case", OUTPUTS_CASES, ids=lambda c: c["description"])
 def test_outputs_mapping(case: OutputsCase) -> None:
     """Verify adapter maps model outputs to device outputs."""
-    entry = ELEMENT_TYPES["battery"]
+    entry = ELEMENT_TYPES[ElementType.BATTERY]
     result = entry.outputs(case["name"], case["model_outputs"], config=case["data"])
     assert result == case["outputs"]

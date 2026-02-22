@@ -13,6 +13,7 @@ from custom_components.haeo.entities.device import (
     get_or_create_element_device,
     get_or_create_network_device,
 )
+from custom_components.haeo.schema.elements import ElementType
 
 
 @pytest.fixture
@@ -47,7 +48,7 @@ class TestGetOrCreateElementDevice:
         hass.config_entries.async_add_subentry(mock_config_entry, subentry)
 
         # Create main device (device_name == element_type)
-        device = get_or_create_element_device(hass, mock_config_entry, subentry, "battery")
+        device = get_or_create_element_device(hass, mock_config_entry, subentry, ElementType.BATTERY)
 
         expected_identifier = (DOMAIN, f"{mock_config_entry.entry_id}_{subentry.subentry_id}_battery")
         assert expected_identifier in device.identifiers
@@ -66,8 +67,8 @@ class TestGetOrCreateElementDevice:
         )
         hass.config_entries.async_add_subentry(mock_config_entry, subentry)
 
-        device1 = get_or_create_element_device(hass, mock_config_entry, subentry, "battery")
-        device2 = get_or_create_element_device(hass, mock_config_entry, subentry, "battery")
+        device1 = get_or_create_element_device(hass, mock_config_entry, subentry, ElementType.BATTERY)
+        device2 = get_or_create_element_device(hass, mock_config_entry, subentry, ElementType.BATTERY)
 
         assert device1.id == device2.id
 
@@ -115,7 +116,7 @@ class TestBuildDeviceIdentifier:
         )
         hass.config_entries.async_add_subentry(mock_config_entry, subentry)
 
-        identifier = build_device_identifier(mock_config_entry, subentry, "battery")
+        identifier = build_device_identifier(mock_config_entry, subentry, ElementType.BATTERY)
 
         expected = (DOMAIN, f"{mock_config_entry.entry_id}_{subentry.subentry_id}_battery")
         assert identifier == expected
@@ -143,10 +144,10 @@ class TestDeviceConsistency:
         hass.config_entries.async_add_subentry(mock_config_entry, subentry)
 
         # Simulate what number.py/switch.py does (main device)
-        input_device = get_or_create_element_device(hass, mock_config_entry, subentry, "grid")
+        input_device = get_or_create_element_device(hass, mock_config_entry, subentry, ElementType.GRID)
 
         # Simulate what sensor.py does (main device)
-        output_device = get_or_create_element_device(hass, mock_config_entry, subentry, "grid")
+        output_device = get_or_create_element_device(hass, mock_config_entry, subentry, ElementType.GRID)
 
         # They should be the exact same device
         assert input_device.id == output_device.id
@@ -165,8 +166,8 @@ class TestDeviceConsistency:
         )
         hass.config_entries.async_add_subentry(mock_config_entry, subentry)
 
-        device = get_or_create_element_device(hass, mock_config_entry, subentry, "battery")
-        expected_identifier = build_device_identifier(mock_config_entry, subentry, "battery")
+        device = get_or_create_element_device(hass, mock_config_entry, subentry, ElementType.BATTERY)
+        expected_identifier = build_device_identifier(mock_config_entry, subentry, ElementType.BATTERY)
 
         assert expected_identifier in device.identifiers
 
@@ -191,8 +192,8 @@ class TestDeviceConsistency:
         hass.config_entries.async_add_subentry(mock_config_entry, battery_subentry)
         hass.config_entries.async_add_subentry(mock_config_entry, grid_subentry)
 
-        battery_device = get_or_create_element_device(hass, mock_config_entry, battery_subentry, "battery")
-        grid_device = get_or_create_element_device(hass, mock_config_entry, grid_subentry, "grid")
+        battery_device = get_or_create_element_device(hass, mock_config_entry, battery_subentry, ElementType.BATTERY)
+        grid_device = get_or_create_element_device(hass, mock_config_entry, grid_subentry, ElementType.GRID)
 
         assert battery_device.id != grid_device.id
 
@@ -218,6 +219,6 @@ class TestDeviceConsistency:
         hass.config_entries.async_add_subentry(mock_config_entry, battery_subentry)
 
         network_device = get_or_create_network_device(hass, mock_config_entry, network_subentry)
-        battery_device = get_or_create_element_device(hass, mock_config_entry, battery_subentry, "battery")
+        battery_device = get_or_create_element_device(hass, mock_config_entry, battery_subentry, ElementType.BATTERY)
 
         assert network_device.id != battery_device.id

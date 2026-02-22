@@ -4,15 +4,15 @@ from collections.abc import Mapping, Sequence
 from typing import Any, TypedDict
 
 import pytest
-
 from custom_components.haeo.adapters.elements.node import NODE_DEVICE_NODE
 from custom_components.haeo.elements import ELEMENT_TYPES
-from custom_components.haeo.schema.elements.node import NodeConfigData
 from custom_components.haeo.model import ModelOutputName, ModelOutputValue
 from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_NODE
 from custom_components.haeo.model.elements.node import NODE_POWER_BALANCE
 from custom_components.haeo.model.output_data import OutputData
+from custom_components.haeo.schema.elements import ElementType
+from custom_components.haeo.schema.elements.node import NodeConfigData
 
 
 class CreateCase(TypedDict):
@@ -36,7 +36,7 @@ CREATE_CASES: Sequence[CreateCase] = [
     {
         "description": "Node as passthrough",
         "data": NodeConfigData(
-            element_type="node",
+            element_type=ElementType.NODE,
             common={"name": "node_main"},
             role={"is_source": False, "is_sink": False},
         ),
@@ -68,7 +68,7 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
 @pytest.mark.parametrize("case", CREATE_CASES, ids=lambda c: c["description"])
 def test_model_elements(case: CreateCase) -> None:
     """Verify adapter transforms ConfigData into expected model elements."""
-    entry = ELEMENT_TYPES["node"]
+    entry = ELEMENT_TYPES[ElementType.NODE]
     result = entry.model_elements(case["data"])
     assert result == case["model"]
 
@@ -76,6 +76,6 @@ def test_model_elements(case: CreateCase) -> None:
 @pytest.mark.parametrize("case", OUTPUTS_CASES, ids=lambda c: c["description"])
 def test_outputs_mapping(case: OutputsCase) -> None:
     """Verify adapter maps model outputs to device outputs."""
-    entry = ELEMENT_TYPES["node"]
+    entry = ELEMENT_TYPES[ElementType.NODE]
     result = entry.outputs(case["name"], case["model_outputs"])
     assert result == case["outputs"]

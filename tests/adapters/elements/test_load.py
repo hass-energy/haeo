@@ -5,6 +5,7 @@ from homeassistant.core import HomeAssistant
 from custom_components.haeo.adapters.elements.load import adapter as load_adapter
 from custom_components.haeo.elements.availability import schema_config_available
 from custom_components.haeo.schema import as_connection_target, as_entity_value
+from custom_components.haeo.schema.elements import ElementType
 from custom_components.haeo.schema.elements import load as load_element
 
 from .conftest import set_sensor
@@ -15,7 +16,7 @@ async def test_available_returns_true_when_forecast_sensor_exists(hass: HomeAssi
     set_sensor(hass, "sensor.power", "2.5", "kW")
 
     config: load_element.LoadConfigSchema = {
-        "element_type": "load",
+        "element_type": ElementType.LOAD,
         load_element.SECTION_COMMON: {
             "name": "test_load",
             "connection": as_connection_target("main_bus"),
@@ -32,7 +33,7 @@ async def test_available_returns_true_when_forecast_sensor_exists(hass: HomeAssi
 async def test_available_returns_false_when_forecast_sensor_missing(hass: HomeAssistant) -> None:
     """Load available() should return False when forecast sensor is missing."""
     config: load_element.LoadConfigSchema = {
-        "element_type": "load",
+        "element_type": ElementType.LOAD,
         load_element.SECTION_COMMON: {
             "name": "test_load",
             "connection": as_connection_target("main_bus"),
@@ -49,7 +50,7 @@ async def test_available_returns_false_when_forecast_sensor_missing(hass: HomeAs
 def test_inputs_returns_input_fields() -> None:
     """inputs() should return input field definitions for load."""
     config: load_element.LoadConfigSchema = {
-        "element_type": "load",
+        "element_type": ElementType.LOAD,
         load_element.SECTION_COMMON: {
             "name": "test_load",
             "connection": as_connection_target("main_bus"),
