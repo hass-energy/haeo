@@ -111,17 +111,7 @@ from custom_components.haeo.const import (
 )
 from custom_components.haeo.model import ModelElementConfig, ModelOutputName
 from custom_components.haeo.model.output_data import ModelOutputValue, OutputData
-from custom_components.haeo.schema.elements import (
-    ELEMENT_TYPE_BATTERY,
-    ELEMENT_TYPE_BATTERY_SECTION,
-    ELEMENT_TYPE_CONNECTION,
-    ELEMENT_TYPE_GRID,
-    ELEMENT_TYPE_INVERTER,
-    ELEMENT_TYPE_LOAD,
-    ELEMENT_TYPE_NODE,
-    ELEMENT_TYPE_SOLAR,
-    ElementType,
-)
+from custom_components.haeo.schema.elements import ElementType
 from custom_components.haeo.schema.elements.battery import OPTIONAL_INPUT_FIELDS as BATTERY_OPTIONAL_INPUT_FIELDS
 from custom_components.haeo.schema.elements.battery import BatteryConfigData, BatteryConfigSchema
 from custom_components.haeo.schema.elements.battery_section import (
@@ -221,14 +211,14 @@ ELEMENT_DEVICE_NAMES: Final[frozenset[ElementDeviceName]] = frozenset(
 )
 
 ELEMENT_DEVICE_NAMES_BY_TYPE: Final[dict[str, frozenset[ElementDeviceName]]] = {
-    ELEMENT_TYPE_INVERTER: frozenset(INVERTER_DEVICE_NAMES),
-    ELEMENT_TYPE_BATTERY: frozenset(BATTERY_DEVICE_NAMES),
-    ELEMENT_TYPE_BATTERY_SECTION: frozenset(BATTERY_SECTION_DEVICE_NAMES),
-    ELEMENT_TYPE_CONNECTION: frozenset(CONNECTION_DEVICE_NAMES),
-    ELEMENT_TYPE_GRID: frozenset(GRID_DEVICE_NAMES),
-    ELEMENT_TYPE_LOAD: frozenset(LOAD_DEVICE_NAMES),
-    ELEMENT_TYPE_NODE: frozenset(NODE_DEVICE_NAMES),
-    ELEMENT_TYPE_SOLAR: frozenset(SOLAR_DEVICE_NAMES),
+    ElementType.INVERTER: frozenset(INVERTER_DEVICE_NAMES),
+    ElementType.BATTERY: frozenset(BATTERY_DEVICE_NAMES),
+    ElementType.BATTERY_SECTION: frozenset(BATTERY_SECTION_DEVICE_NAMES),
+    ElementType.CONNECTION: frozenset(CONNECTION_DEVICE_NAMES),
+    ElementType.GRID: frozenset(GRID_DEVICE_NAMES),
+    ElementType.LOAD: frozenset(LOAD_DEVICE_NAMES),
+    ElementType.NODE: frozenset(NODE_DEVICE_NAMES),
+    ElementType.SOLAR: frozenset(SOLAR_DEVICE_NAMES),
     ELEMENT_TYPE_NETWORK: frozenset(NETWORK_DEVICE_NAMES),
 }
 
@@ -273,14 +263,14 @@ class ElementAdapter(Protocol):
 
 
 ELEMENT_TYPES: dict[ElementType, ElementAdapter] = {
-    ELEMENT_TYPE_GRID: grid_adapter,
-    ELEMENT_TYPE_LOAD: load_adapter,
-    ELEMENT_TYPE_INVERTER: inverter_adapter,
-    ELEMENT_TYPE_SOLAR: solar_adapter,
-    ELEMENT_TYPE_BATTERY: battery_adapter,
-    ELEMENT_TYPE_CONNECTION: connection_adapter,
-    ELEMENT_TYPE_NODE: node_adapter,
-    ELEMENT_TYPE_BATTERY_SECTION: battery_section_adapter,
+    ElementType.GRID: grid_adapter,
+    ElementType.LOAD: load_adapter,
+    ElementType.INVERTER: inverter_adapter,
+    ElementType.SOLAR: solar_adapter,
+    ElementType.BATTERY: battery_adapter,
+    ElementType.CONNECTION: connection_adapter,
+    ElementType.NODE: node_adapter,
+    ElementType.BATTERY_SECTION: battery_section_adapter,
 }
 
 
@@ -615,14 +605,6 @@ __all__ = [
     "ELEMENT_DEVICE_NAMES_BY_TYPE",
     "ELEMENT_OPTIONAL_INPUT_FIELDS",
     "ELEMENT_TYPES",
-    "ELEMENT_TYPE_BATTERY",
-    "ELEMENT_TYPE_BATTERY_SECTION",
-    "ELEMENT_TYPE_CONNECTION",
-    "ELEMENT_TYPE_GRID",
-    "ELEMENT_TYPE_INVERTER",
-    "ELEMENT_TYPE_LOAD",
-    "ELEMENT_TYPE_NODE",
-    "ELEMENT_TYPE_SOLAR",
     "ConnectivityLevel",
     "ElementAdapter",
     "ElementConfigData",

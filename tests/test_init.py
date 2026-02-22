@@ -45,14 +45,9 @@ from custom_components.haeo.const import (
     DOMAIN,
     INTEGRATION_TYPE_HUB,
 )
-from custom_components.haeo.elements import (
-    ELEMENT_TYPE_BATTERY,
-    ELEMENT_TYPE_CONNECTION,
-    ELEMENT_TYPE_GRID,
-    ELEMENT_TYPE_NODE,
-)
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON, HUB_SECTION_TIERS
 from custom_components.haeo.schema import as_connection_target, as_constant_value, as_entity_value
+from custom_components.haeo.schema.elements import ElementType
 from custom_components.haeo.schema.elements.battery import (
     CONF_CAPACITY,
     CONF_INITIAL_CHARGE_PERCENTAGE,
@@ -109,7 +104,7 @@ def mock_battery_subentry(hass: HomeAssistant, mock_hub_entry: MockConfigEntry) 
     subentry = ConfigSubentry(
         data=MappingProxyType(
             {
-                CONF_ELEMENT_TYPE: ELEMENT_TYPE_BATTERY,
+                CONF_ELEMENT_TYPE: ElementType.BATTERY,
                 SECTION_COMMON: {
                     CONF_NAME: "Test Battery",
                     CONF_CONNECTION: as_connection_target("Switchboard"),
@@ -127,7 +122,7 @@ def mock_battery_subentry(hass: HomeAssistant, mock_hub_entry: MockConfigEntry) 
                 SECTION_PARTITIONING: {},
             }
         ),
-        subentry_type=ELEMENT_TYPE_BATTERY,
+        subentry_type=ElementType.BATTERY,
         title="Test Battery",
         unique_id=None,
     )
@@ -141,7 +136,7 @@ def mock_grid_subentry(hass: HomeAssistant, mock_hub_entry: MockConfigEntry) -> 
     subentry = ConfigSubentry(
         data=MappingProxyType(
             {
-                CONF_ELEMENT_TYPE: ELEMENT_TYPE_GRID,
+                CONF_ELEMENT_TYPE: ElementType.GRID,
                 SECTION_COMMON: {
                     CONF_NAME: "Test Grid",
                     CONF_CONNECTION: as_connection_target("Switchboard"),
@@ -156,7 +151,7 @@ def mock_grid_subentry(hass: HomeAssistant, mock_hub_entry: MockConfigEntry) -> 
                 },
             }
         ),
-        subentry_type=ELEMENT_TYPE_GRID,
+        subentry_type=ElementType.GRID,
         title="Test Grid",
         unique_id=None,
     )
@@ -170,7 +165,7 @@ def mock_connection_subentry(hass: HomeAssistant, mock_hub_entry: MockConfigEntr
     subentry = ConfigSubentry(
         data=MappingProxyType(
             {
-                CONF_ELEMENT_TYPE: ELEMENT_TYPE_CONNECTION,
+                CONF_ELEMENT_TYPE: ElementType.CONNECTION,
                 SECTION_COMMON: {
                     CONF_NAME: "Battery to Grid",
                 },
@@ -183,7 +178,7 @@ def mock_connection_subentry(hass: HomeAssistant, mock_hub_entry: MockConfigEntr
                 SECTION_EFFICIENCY: {},
             }
         ),
-        subentry_type=ELEMENT_TYPE_CONNECTION,
+        subentry_type=ElementType.CONNECTION,
         title="Battery to Grid",
         unique_id=None,
     )
@@ -320,11 +315,11 @@ async def test_ensure_required_subentries_switchboard_handling(
         node_subentry = ConfigSubentry(
             data=MappingProxyType(
                 {
-                    CONF_ELEMENT_TYPE: ELEMENT_TYPE_NODE,
+                    CONF_ELEMENT_TYPE: ElementType.NODE,
                     SECTION_COMMON: {CONF_NAME: "Existing Node"},
                 }
             ),
-            subentry_type=ELEMENT_TYPE_NODE,
+            subentry_type=ElementType.NODE,
             title="Existing Node",
             unique_id=None,
         )
@@ -332,10 +327,10 @@ async def test_ensure_required_subentries_switchboard_handling(
 
     await _ensure_required_subentries(hass, mock_hub_entry)
 
-    node_count = sum(1 for sub in mock_hub_entry.subentries.values() if sub.subentry_type == ELEMENT_TYPE_NODE)
+    node_count = sum(1 for sub in mock_hub_entry.subentries.values() if sub.subentry_type == ElementType.NODE)
     assert node_count == 1
 
-    node_subentry = next(sub for sub in mock_hub_entry.subentries.values() if sub.subentry_type == ELEMENT_TYPE_NODE)
+    node_subentry = next(sub for sub in mock_hub_entry.subentries.values() if sub.subentry_type == ElementType.NODE)
     assert node_subentry.data[SECTION_COMMON][CONF_NAME] == ("Existing Node" if existing_node else "Switchboard")
     if not existing_node:
         assert node_subentry.data[SECTION_ROLE]["is_source"] is False
@@ -361,14 +356,14 @@ async def test_ensure_required_subentries_skips_switchboard_advanced_mode(
     advanced_hub_entry.add_to_hass(hass)
 
     # Verify no node subentry exists initially
-    node_count = sum(1 for sub in advanced_hub_entry.subentries.values() if sub.subentry_type == ELEMENT_TYPE_NODE)
+    node_count = sum(1 for sub in advanced_hub_entry.subentries.values() if sub.subentry_type == ElementType.NODE)
     assert node_count == 0
 
     # Call ensure - should NOT create switchboard node in advanced mode
     await _ensure_required_subentries(hass, advanced_hub_entry)
 
     # Verify no node subentry was created
-    node_count = sum(1 for sub in advanced_hub_entry.subentries.values() if sub.subentry_type == ELEMENT_TYPE_NODE)
+    node_count = sum(1 for sub in advanced_hub_entry.subentries.values() if sub.subentry_type == ElementType.NODE)
     assert node_count == 0
 
 
