@@ -4,7 +4,7 @@ from homeassistant.core import HomeAssistant
 
 from custom_components.haeo.elements.availability import schema_config_available
 from custom_components.haeo.schema import as_connection_target, as_constant_value, as_entity_value
-from custom_components.haeo.schema.elements import connection
+from custom_components.haeo.schema.elements import ElementType, connection
 
 
 def _set_sensor(hass: HomeAssistant, entity_id: str, value: str, unit: str = "kW") -> None:
@@ -15,7 +15,7 @@ def _set_sensor(hass: HomeAssistant, entity_id: str, value: str, unit: str = "kW
 async def test_available_returns_true_with_no_optional_fields(hass: HomeAssistant) -> None:
     """Connection available() should return True with only required fields."""
     config: connection.ConnectionConfigSchema = {
-        "element_type": "connection",
+        "element_type": ElementType.CONNECTION,
         connection.SECTION_COMMON: {"name": "c1"},
         connection.SECTION_ENDPOINTS: {
             "source": as_connection_target("node_a"),
@@ -40,7 +40,7 @@ async def test_available_returns_true_when_optional_sensors_exist(hass: HomeAssi
     _set_sensor(hass, "sensor.price_ts", "0.05", "$/kWh")
 
     config: connection.ConnectionConfigSchema = {
-        "element_type": "connection",
+        "element_type": ElementType.CONNECTION,
         connection.SECTION_COMMON: {"name": "c1"},
         connection.SECTION_ENDPOINTS: {
             "source": as_connection_target("node_a"),
@@ -70,7 +70,7 @@ async def test_available_returns_false_when_optional_sensor_missing(hass: HomeAs
     # max_power_ts sensor is missing
 
     config: connection.ConnectionConfigSchema = {
-        "element_type": "connection",
+        "element_type": ElementType.CONNECTION,
         connection.SECTION_COMMON: {"name": "c1"},
         connection.SECTION_ENDPOINTS: {
             "source": as_connection_target("node_a"),
@@ -91,7 +91,7 @@ async def test_available_returns_false_when_optional_sensor_missing(hass: HomeAs
 async def test_available_returns_false_when_efficiency_sensor_missing(hass: HomeAssistant) -> None:
     """Connection available() should return False when efficiency sensor is missing."""
     config: connection.ConnectionConfigSchema = {
-        "element_type": "connection",
+        "element_type": ElementType.CONNECTION,
         connection.SECTION_COMMON: {"name": "c1"},
         connection.SECTION_ENDPOINTS: {
             "source": as_connection_target("node_a"),
@@ -111,7 +111,7 @@ async def test_available_returns_false_when_efficiency_sensor_missing(hass: Home
 async def test_available_returns_true_with_constant_values(hass: HomeAssistant) -> None:
     """Connection available() should return True when values are constants."""
     config: connection.ConnectionConfigSchema = {
-        "element_type": "connection",
+        "element_type": ElementType.CONNECTION,
         connection.SECTION_COMMON: {"name": "c1"},
         connection.SECTION_ENDPOINTS: {
             "source": as_connection_target("node_a"),

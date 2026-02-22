@@ -15,6 +15,7 @@ from custom_components.haeo.model import battery as model_battery
 from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_BATTERY
 from custom_components.haeo.model.output_data import OutputData
+from custom_components.haeo.schema.elements import ElementType
 from custom_components.haeo.schema.elements.battery_section import (
     CONF_CAPACITY,
     CONF_INITIAL_CHARGE,
@@ -50,10 +51,10 @@ BATTERY_SECTION_OUTPUT_NAMES: Final[frozenset[BatterySectionOutputName]] = froze
     )
 )
 
-type BatterySectionDeviceName = Literal["battery_section"]
+type BatterySectionDeviceName = Literal[ElementType.BATTERY_SECTION]
 
 BATTERY_SECTION_DEVICE_NAMES: Final[frozenset[BatterySectionDeviceName]] = frozenset(
-    (BATTERY_SECTION_DEVICE := "battery_section",),
+    (BATTERY_SECTION_DEVICE := ElementType.BATTERY_SECTION,),
 )
 
 

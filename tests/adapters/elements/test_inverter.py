@@ -4,7 +4,7 @@ from homeassistant.core import HomeAssistant
 
 from custom_components.haeo.elements.availability import schema_config_available
 from custom_components.haeo.schema import as_connection_target, as_entity_value
-from custom_components.haeo.schema.elements import inverter
+from custom_components.haeo.schema.elements import ElementType, inverter
 
 
 def _set_sensor(hass: HomeAssistant, entity_id: str, value: str, unit: str = "kW") -> None:
@@ -18,7 +18,7 @@ async def test_available_returns_true_when_sensors_exist(hass: HomeAssistant) ->
     _set_sensor(hass, "sensor.max_ac_to_dc", "5.0", "kW")
 
     config: inverter.InverterConfigSchema = {
-        "element_type": "inverter",
+        "element_type": ElementType.INVERTER,
         inverter.SECTION_COMMON: {
             "name": "test_inverter",
             "connection": as_connection_target("ac_bus"),
@@ -40,7 +40,7 @@ async def test_available_returns_false_when_first_sensor_missing(hass: HomeAssis
     # max_power_dc_to_ac is missing
 
     config: inverter.InverterConfigSchema = {
-        "element_type": "inverter",
+        "element_type": ElementType.INVERTER,
         inverter.SECTION_COMMON: {
             "name": "test_inverter",
             "connection": as_connection_target("ac_bus"),
@@ -62,7 +62,7 @@ async def test_available_returns_false_when_second_sensor_missing(hass: HomeAssi
     # max_power_ac_to_dc sensor is missing
 
     config: inverter.InverterConfigSchema = {
-        "element_type": "inverter",
+        "element_type": ElementType.INVERTER,
         inverter.SECTION_COMMON: {
             "name": "test_inverter",
             "connection": as_connection_target("ac_bus"),
@@ -81,7 +81,7 @@ async def test_available_returns_false_when_second_sensor_missing(hass: HomeAssi
 async def test_available_returns_true_when_limits_missing(hass: HomeAssistant) -> None:
     """Inverter available() should return True when limits are omitted."""
     config: inverter.InverterConfigSchema = {
-        "element_type": "inverter",
+        "element_type": ElementType.INVERTER,
         inverter.SECTION_COMMON: {
             "name": "test_inverter",
             "connection": as_connection_target("ac_bus"),

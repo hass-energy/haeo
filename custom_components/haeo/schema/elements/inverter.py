@@ -2,6 +2,7 @@
 
 from typing import Final, Literal, TypedDict
 
+from custom_components.haeo.schema.elements import ElementType
 from custom_components.haeo.sections import (
     CONF_EFFICIENCY_SOURCE_TARGET,
     CONF_EFFICIENCY_TARGET_SOURCE,
@@ -18,7 +19,7 @@ from custom_components.haeo.sections import (
     PowerLimitsData,
 )
 
-ELEMENT_TYPE: Final = "inverter"
+ELEMENT_TYPE = ElementType.INVERTER
 
 OPTIONAL_INPUT_FIELDS: Final[frozenset[str]] = frozenset({CONF_EFFICIENCY_SOURCE_TARGET, CONF_EFFICIENCY_TARGET_SOURCE})
 
@@ -26,7 +27,7 @@ OPTIONAL_INPUT_FIELDS: Final[frozenset[str]] = frozenset({CONF_EFFICIENCY_SOURCE
 class InverterConfigSchema(TypedDict):
     """Inverter element configuration as stored in Home Assistant."""
 
-    element_type: Literal["inverter"]
+    element_type: Literal[ElementType.INVERTER]
     common: ConnectedCommonConfig
     power_limits: PowerLimitsConfig
     efficiency: EfficiencyConfig
@@ -35,7 +36,7 @@ class InverterConfigSchema(TypedDict):
 class InverterConfigData(TypedDict):
     """Inverter element configuration with loaded values."""
 
-    element_type: Literal["inverter"]
+    element_type: Literal[ElementType.INVERTER]
     common: ConnectedCommonData
     power_limits: PowerLimitsData
     efficiency: EfficiencyData

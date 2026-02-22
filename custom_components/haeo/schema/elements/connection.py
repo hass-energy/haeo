@@ -3,6 +3,7 @@
 from typing import Final, Literal, TypedDict
 
 from custom_components.haeo.schema import ConnectionTarget
+from custom_components.haeo.schema.elements import ElementType
 from custom_components.haeo.sections import (
     CONF_EFFICIENCY_SOURCE_TARGET,
     CONF_EFFICIENCY_TARGET_SOURCE,
@@ -24,7 +25,7 @@ from custom_components.haeo.sections import (
     PricingData,
 )
 
-ELEMENT_TYPE: Final = "connection"
+ELEMENT_TYPE = ElementType.CONNECTION
 
 SECTION_ENDPOINTS: Final = "endpoints"
 
@@ -60,7 +61,7 @@ class EndpointsData(TypedDict):
 class ConnectionConfigSchema(TypedDict):
     """Connection element configuration as stored in Home Assistant."""
 
-    element_type: Literal["connection"]
+    element_type: Literal[ElementType.CONNECTION]
     common: CommonConfig
     endpoints: EndpointsConfig
     power_limits: PowerLimitsConfig
@@ -71,7 +72,7 @@ class ConnectionConfigSchema(TypedDict):
 class ConnectionConfigData(TypedDict):
     """Connection element configuration with loaded values."""
 
-    element_type: Literal["connection"]
+    element_type: Literal[ElementType.CONNECTION]
     common: CommonData
     endpoints: EndpointsData
     power_limits: PowerLimitsData

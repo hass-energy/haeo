@@ -6,6 +6,7 @@ import pytest
 from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.elements import ElementConfigData
 from custom_components.haeo.schema import as_connection_target
+from custom_components.haeo.schema.elements import ElementType
 from custom_components.haeo.schema.elements.battery import (
     CONF_CAPACITY,
     CONF_INITIAL_CHARGE_PERCENTAGE,
@@ -68,12 +69,12 @@ def test_validate_network_topology_empty() -> None:
 def test_validate_network_topology_with_implicit_connection() -> None:
     """Element with implicit connection field creates edge to target node."""
     main_node: NodeConfigData = {
-        CONF_ELEMENT_TYPE: "node",
+        CONF_ELEMENT_TYPE: ElementType.NODE,
         SECTION_COMMON: {CONF_NAME: "main"},
         SECTION_ROLE: {CONF_IS_SOURCE: False, CONF_IS_SINK: False},
     }
     grid: GridConfigData = {
-        CONF_ELEMENT_TYPE: "grid",
+        CONF_ELEMENT_TYPE: ElementType.GRID,
         SECTION_COMMON: {CONF_NAME: "grid", GRID_CONF_CONNECTION: as_connection_target("main")},
         SECTION_PRICING: {
             CONF_PRICE_SOURCE_TARGET: np.array([0.30, 0.30]),
@@ -92,17 +93,17 @@ def test_validate_network_topology_with_implicit_connection() -> None:
 def test_validate_network_topology_detects_disconnected() -> None:
     """Disconnected components are properly identified."""
     node_a: NodeConfigData = {
-        CONF_ELEMENT_TYPE: "node",
+        CONF_ELEMENT_TYPE: ElementType.NODE,
         SECTION_COMMON: {CONF_NAME: "a"},
         SECTION_ROLE: {CONF_IS_SOURCE: False, CONF_IS_SINK: False},
     }
     node_b: NodeConfigData = {
-        CONF_ELEMENT_TYPE: "node",
+        CONF_ELEMENT_TYPE: ElementType.NODE,
         SECTION_COMMON: {CONF_NAME: "b"},
         SECTION_ROLE: {CONF_IS_SOURCE: False, CONF_IS_SINK: False},
     }
     grid_a: GridConfigData = {
-        CONF_ELEMENT_TYPE: "grid",
+        CONF_ELEMENT_TYPE: ElementType.GRID,
         SECTION_COMMON: {CONF_NAME: "grid_a", GRID_CONF_CONNECTION: as_connection_target("a")},
         SECTION_PRICING: {
             CONF_PRICE_SOURCE_TARGET: np.array([0.30, 0.30]),
@@ -111,7 +112,7 @@ def test_validate_network_topology_detects_disconnected() -> None:
         SECTION_POWER_LIMITS: {},
     }
     grid_b: GridConfigData = {
-        CONF_ELEMENT_TYPE: "grid",
+        CONF_ELEMENT_TYPE: ElementType.GRID,
         SECTION_COMMON: {CONF_NAME: "grid_b", GRID_CONF_CONNECTION: as_connection_target("b")},
         SECTION_PRICING: {
             CONF_PRICE_SOURCE_TARGET: np.array([0.30, 0.30]),
@@ -146,12 +147,12 @@ def test_validate_network_topology_with_battery(
 ) -> None:
     """Battery element validation works with optional grid and partition sections."""
     main_node: NodeConfigData = {
-        CONF_ELEMENT_TYPE: "node",
+        CONF_ELEMENT_TYPE: ElementType.NODE,
         SECTION_COMMON: {CONF_NAME: "main"},
         SECTION_ROLE: {CONF_IS_SOURCE: False, CONF_IS_SINK: False},
     }
     grid: GridConfigData = {
-        CONF_ELEMENT_TYPE: "grid",
+        CONF_ELEMENT_TYPE: ElementType.GRID,
         SECTION_COMMON: {CONF_NAME: "grid", GRID_CONF_CONNECTION: as_connection_target("main")},
         SECTION_PRICING: {
             CONF_PRICE_SOURCE_TARGET: np.array([0.30, 0.30]),
@@ -160,7 +161,7 @@ def test_validate_network_topology_with_battery(
         SECTION_POWER_LIMITS: {},
     }
     battery: BatteryConfigData = {
-        CONF_ELEMENT_TYPE: "battery",
+        CONF_ELEMENT_TYPE: ElementType.BATTERY,
         SECTION_COMMON: {
             CONF_NAME: "battery",
             BATTERY_CONF_CONNECTION: as_connection_target("main"),

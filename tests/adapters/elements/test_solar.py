@@ -4,7 +4,7 @@ from homeassistant.core import HomeAssistant
 
 from custom_components.haeo.elements.availability import schema_config_available
 from custom_components.haeo.schema import as_connection_target, as_constant_value, as_entity_value
-from custom_components.haeo.schema.elements import solar
+from custom_components.haeo.schema.elements import ElementType, solar
 
 from .conftest import set_forecast_sensor
 
@@ -14,7 +14,7 @@ async def test_available_returns_true_when_forecast_sensor_exists(hass: HomeAssi
     set_forecast_sensor(hass, "sensor.forecast", "5.0", [{"datetime": "2024-01-01T00:00:00Z", "value": 5.0}], "kW")
 
     config: solar.SolarConfigSchema = {
-        "element_type": "solar",
+        "element_type": ElementType.SOLAR,
         solar.SECTION_COMMON: {
             "name": "test_solar",
             "connection": as_connection_target("dc_bus"),
@@ -31,7 +31,7 @@ async def test_available_returns_true_when_forecast_sensor_exists(hass: HomeAssi
 async def test_available_returns_false_when_forecast_sensor_missing(hass: HomeAssistant) -> None:
     """Solar available() should return False when forecast sensor is missing."""
     config: solar.SolarConfigSchema = {
-        "element_type": "solar",
+        "element_type": ElementType.SOLAR,
         solar.SECTION_COMMON: {
             "name": "test_solar",
             "connection": as_connection_target("dc_bus"),

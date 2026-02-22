@@ -24,6 +24,7 @@ from custom_components.haeo.model.elements.segments import POWER_LIMIT_SOURCE_TA
 from custom_components.haeo.model.output_data import OutputData
 from custom_components.haeo.model.util import broadcast_to_sequence
 from custom_components.haeo.schema import extract_connection_target
+from custom_components.haeo.schema.elements import ElementType
 from custom_components.haeo.schema.elements.grid import ELEMENT_TYPE, GridConfigData
 from custom_components.haeo.sections import (
     CONF_CONNECTION,
@@ -63,10 +64,10 @@ GRID_OUTPUT_NAMES: Final[frozenset[GridOutputName]] = frozenset(
     )
 )
 
-type GridDeviceName = Literal["grid"]
+type GridDeviceName = Literal[ElementType.GRID]
 
 GRID_DEVICE_NAMES: Final[frozenset[GridDeviceName]] = frozenset(
-    (GRID_DEVICE_GRID := "grid",),
+    (GRID_DEVICE_GRID := ElementType.GRID,),
 )
 
 

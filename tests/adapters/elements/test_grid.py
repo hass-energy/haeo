@@ -4,7 +4,7 @@ from homeassistant.core import HomeAssistant
 
 from custom_components.haeo.elements.availability import schema_config_available
 from custom_components.haeo.schema import as_connection_target, as_constant_value, as_entity_value
-from custom_components.haeo.schema.elements import grid
+from custom_components.haeo.schema.elements import ElementType, grid
 
 
 def _set_sensor(hass: HomeAssistant, entity_id: str, value: str, unit: str = "kW") -> None:
@@ -18,7 +18,7 @@ async def test_available_returns_true_when_sensors_exist(hass: HomeAssistant) ->
     _set_sensor(hass, "sensor.export_price", "0.05", "$/kWh")
 
     config: grid.GridConfigSchema = {
-        "element_type": "grid",
+        "element_type": ElementType.GRID,
         grid.SECTION_COMMON: {
             "name": "test_grid",
             "connection": as_connection_target("main_bus"),
@@ -39,7 +39,7 @@ async def test_available_returns_false_when_import_price_missing(hass: HomeAssis
     _set_sensor(hass, "sensor.export_price", "0.05", "$/kWh")
 
     config: grid.GridConfigSchema = {
-        "element_type": "grid",
+        "element_type": ElementType.GRID,
         grid.SECTION_COMMON: {
             "name": "test_grid",
             "connection": as_connection_target("main_bus"),
@@ -60,7 +60,7 @@ async def test_available_returns_false_when_export_price_missing(hass: HomeAssis
     _set_sensor(hass, "sensor.import_price", "0.30", "$/kWh")
 
     config: grid.GridConfigSchema = {
-        "element_type": "grid",
+        "element_type": ElementType.GRID,
         grid.SECTION_COMMON: {
             "name": "test_grid",
             "connection": as_connection_target("main_bus"),
@@ -79,7 +79,7 @@ async def test_available_returns_false_when_export_price_missing(hass: HomeAssis
 async def test_available_with_constant_prices(hass: HomeAssistant) -> None:
     """Grid available() returns True when prices are constants (no sensors needed)."""
     config: grid.GridConfigSchema = {
-        "element_type": "grid",
+        "element_type": ElementType.GRID,
         grid.SECTION_COMMON: {
             "name": "test_grid",
             "connection": as_connection_target("main_bus"),
@@ -100,7 +100,7 @@ async def test_available_with_entity_schema_value(hass: HomeAssistant) -> None:
     _set_sensor(hass, "sensor.import_price", "0.30", "$/kWh")
 
     config: grid.GridConfigSchema = {
-        "element_type": "grid",
+        "element_type": ElementType.GRID,
         grid.SECTION_COMMON: {
             "name": "test_grid",
             "connection": as_connection_target("main_bus"),

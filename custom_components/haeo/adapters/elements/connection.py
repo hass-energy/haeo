@@ -30,6 +30,7 @@ from custom_components.haeo.model.elements.segments import (
 )
 from custom_components.haeo.model.output_data import OutputData
 from custom_components.haeo.schema import extract_connection_target
+from custom_components.haeo.schema.elements import ElementType
 from custom_components.haeo.schema.elements.connection import (
     CONF_EFFICIENCY_SOURCE_TARGET,
     CONF_EFFICIENCY_TARGET_SOURCE,
@@ -67,10 +68,10 @@ CONNECTION_OUTPUT_NAMES: Final[frozenset[ConnectionOutputName]] = frozenset(
     )
 )
 
-type ConnectionDeviceName = Literal["connection"]
+type ConnectionDeviceName = Literal[ElementType.CONNECTION]
 
 CONNECTION_DEVICE_NAMES: Final[frozenset[ConnectionDeviceName]] = frozenset(
-    (CONNECTION_DEVICE_CONNECTION := "connection",),
+    (CONNECTION_DEVICE_CONNECTION := ElementType.CONNECTION,),
 )
 
 

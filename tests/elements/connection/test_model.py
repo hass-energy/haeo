@@ -5,7 +5,6 @@ from typing import Any, TypedDict
 
 import numpy as np
 import pytest
-
 from custom_components.haeo.adapters.elements.connection import (
     CONNECTION_DEVICE_CONNECTION,
     CONNECTION_POWER_ACTIVE,
@@ -14,17 +13,19 @@ from custom_components.haeo.adapters.elements.connection import (
     CONNECTION_TIME_SLICE,
 )
 from custom_components.haeo.elements import ELEMENT_TYPES
-from custom_components.haeo.model.elements.connection import (
-    CONNECTION_POWER_SOURCE_TARGET,
-    CONNECTION_POWER_TARGET_SOURCE,
-)
-from custom_components.haeo.schema.elements.connection import ConnectionConfigData
 from custom_components.haeo.model import ModelOutputName, ModelOutputValue
 from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION
 from custom_components.haeo.model.elements import connection as model_connection
+from custom_components.haeo.model.elements.connection import (
+    CONNECTION_POWER_SOURCE_TARGET,
+    CONNECTION_POWER_TARGET_SOURCE,
+)
 from custom_components.haeo.model.output_data import OutputData
 from custom_components.haeo.schema import as_connection_target
+from custom_components.haeo.schema.elements import ElementType
+from custom_components.haeo.schema.elements.connection import ConnectionConfigData
+
 from tests.util.normalize import normalize_for_compare
 
 
@@ -49,7 +50,7 @@ CREATE_CASES: Sequence[CreateCase] = [
     {
         "description": "Connection with all optional fields",
         "data": ConnectionConfigData(
-            element_type="connection",
+            element_type=ElementType.CONNECTION,
             common={"name": "c1"},
             endpoints={"source": as_connection_target("s"), "target": as_connection_target("t")},
             power_limits={
@@ -94,7 +95,7 @@ CREATE_CASES: Sequence[CreateCase] = [
     {
         "description": "Connection without optional fields",
         "data": ConnectionConfigData(
-            element_type="connection",
+            element_type=ElementType.CONNECTION,
             common={"name": "c_min"},
             endpoints={"source": as_connection_target("s"), "target": as_connection_target("t")},
             power_limits={},
@@ -181,7 +182,7 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
 @pytest.mark.parametrize("case", CREATE_CASES, ids=lambda c: c["description"])
 def test_model_elements(case: CreateCase) -> None:
     """Verify adapter transforms ConfigData into expected model elements."""
-    entry = ELEMENT_TYPES["connection"]
+    entry = ELEMENT_TYPES[ElementType.CONNECTION]
     result = entry.model_elements(case["data"])
     assert normalize_for_compare(result) == normalize_for_compare(case["model"])
 
@@ -189,6 +190,6 @@ def test_model_elements(case: CreateCase) -> None:
 @pytest.mark.parametrize("case", OUTPUTS_CASES, ids=lambda c: c["description"])
 def test_outputs_mapping(case: OutputsCase) -> None:
     """Verify adapter maps model outputs to device outputs."""
-    entry = ELEMENT_TYPES["connection"]
+    entry = ELEMENT_TYPES[ElementType.CONNECTION]
     result = entry.outputs(case["name"], case["model_outputs"])
     assert result == case["outputs"]

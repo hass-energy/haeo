@@ -15,9 +15,9 @@ from matplotlib.patches import Patch
 import matplotlib.pyplot as plt
 import numpy as np
 
-from custom_components.haeo.elements import ELEMENT_TYPE_SOLAR, ElementType
 from custom_components.haeo.model import Network
 from custom_components.haeo.model.const import OutputType
+from custom_components.haeo.schema.elements import ElementType
 
 from .colors import ColorMapper
 from .graph import create_graph_visualization
@@ -115,7 +115,7 @@ def extract_forecast_data(output_sensors: Mapping[str, Mapping[str, Any]]) -> di
             # Input entities now have direction from schema field metadata
             if output_type == OutputType.POWER:
                 # Solar power inputs are forecasts of available power (limits)
-                if element_type == ELEMENT_TYPE_SOLAR:
+                if element_type == ElementType.SOLAR:
                     entry["available"] = forecast
                 elif direction == "+":
                     # Power production inputs → available power
@@ -152,7 +152,7 @@ def extract_forecast_data(output_sensors: Mapping[str, Mapping[str, Any]]) -> di
                     entry["production"] = forecast
                 elif output_type == OutputType.POWER and direction == "-":
                     entry["consumption"] = forecast
-                elif output_type == OutputType.POWER_LIMIT and direction == "+" and element_type == ELEMENT_TYPE_SOLAR:
+                elif output_type == OutputType.POWER_LIMIT and direction == "+" and element_type == ElementType.SOLAR:
                     entry["available"] = forecast
                 elif output_type == OutputType.PRICE and direction == "+":
                     entry["production_price"] = forecast

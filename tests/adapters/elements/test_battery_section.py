@@ -4,7 +4,7 @@ from homeassistant.core import HomeAssistant
 
 from custom_components.haeo.elements.availability import schema_config_available
 from custom_components.haeo.schema import as_entity_value
-from custom_components.haeo.schema.elements import battery_section
+from custom_components.haeo.schema.elements import ElementType, battery_section
 
 
 def _set_sensor(hass: HomeAssistant, entity_id: str, value: str, unit: str = "kW") -> None:
@@ -18,7 +18,7 @@ async def test_available_returns_true_when_sensors_exist(hass: HomeAssistant) ->
     _set_sensor(hass, "sensor.initial", "50.0", "%")
 
     config: battery_section.BatterySectionConfigSchema = {
-        "element_type": "battery_section",
+        "element_type": ElementType.BATTERY_SECTION,
         battery_section.SECTION_COMMON: {"name": "test_section"},
         battery_section.SECTION_STORAGE: {
             "capacity": as_entity_value(["sensor.capacity"]),
@@ -36,7 +36,7 @@ async def test_available_returns_false_when_sensor_missing(hass: HomeAssistant) 
     # Not setting initial_charge sensor
 
     config: battery_section.BatterySectionConfigSchema = {
-        "element_type": "battery_section",
+        "element_type": ElementType.BATTERY_SECTION,
         battery_section.SECTION_COMMON: {"name": "test_section"},
         battery_section.SECTION_STORAGE: {
             "capacity": as_entity_value(["sensor.capacity"]),

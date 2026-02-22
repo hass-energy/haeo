@@ -31,6 +31,7 @@ from custom_components.haeo.entities import HaeoSensor
 from custom_components.haeo.entities.haeo_sensor import FORECAST_UNRECORDED_ATTRIBUTES
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON, HUB_SECTION_TIERS
 from custom_components.haeo.model import OutputData, OutputType
+from custom_components.haeo.schema.elements import ElementType
 from custom_components.haeo.schema.elements.battery import ELEMENT_TYPE as BATTERY_TYPE
 from custom_components.haeo.schema.elements.battery import SECTION_COMMON as BATTERY_SECTION_COMMON
 from custom_components.haeo.schema.elements.battery import SECTION_LIMITS
@@ -326,7 +327,7 @@ def test_handle_coordinator_update_reapplies_metadata(device_entry: DeviceEntry)
         coordinator,
         device_entry=device_entry,
         subentry_key="battery",
-        device_key="battery",
+        device_key=ElementType.BATTERY,
         element_title="Battery",
         element_type=BATTERY_TYPE,
         output_name=LOAD_POWER,
@@ -383,7 +384,7 @@ def test_handle_coordinator_update_scales_percentage_outputs(device_entry: Devic
         coordinator,
         device_entry=device_entry,
         subentry_key="battery",
-        device_key="battery",
+        device_key=ElementType.BATTERY,
         element_title="Battery",
         element_type=BATTERY_TYPE,
         output_name=BATTERY_STATE_OF_CHARGE,
@@ -431,7 +432,7 @@ def test_handle_coordinator_update_clears_value_when_missing_data(
         coordinator,
         device_entry=device_entry,
         subentry_key="battery",
-        device_key="battery",
+        device_key=ElementType.BATTERY,
         element_title="Battery",
         element_type=BATTERY_TYPE,
         output_name=LOAD_POWER,
@@ -473,7 +474,7 @@ def test_sensor_availability_follows_coordinator(device_entry: DeviceEntry) -> N
         coordinator,
         device_entry=device_entry,
         subentry_key="battery",
-        device_key="battery",
+        device_key=ElementType.BATTERY,
         element_title="Battery",
         element_type=BATTERY_TYPE,
         output_name=LOAD_POWER,
@@ -508,7 +509,7 @@ async def test_sensor_async_added_to_hass_runs_initial_update(device_entry: Devi
         coordinator,
         device_entry=device_entry,
         subentry_key="battery",
-        device_key="battery",
+        device_key=ElementType.BATTERY,
         element_title="Battery",
         element_type=BATTERY_TYPE,
         output_name=LOAD_POWER,
@@ -591,7 +592,7 @@ def test_handle_coordinator_update_sets_direction(device_entry: DeviceEntry) -> 
         coordinator,
         device_entry=device_entry,
         subentry_key="battery",
-        device_key="battery",
+        device_key=ElementType.BATTERY,
         element_title="Battery",
         element_type=BATTERY_TYPE,
         output_name=LOAD_POWER,
@@ -656,7 +657,7 @@ def test_unrecorded_attributes_based_on_config(
         coordinator,
         device_entry=device_entry,
         subentry_key="battery",
-        device_key="battery",
+        device_key=ElementType.BATTERY,
         element_title="Battery",
         element_type=BATTERY_TYPE,
         output_name=LOAD_POWER,
