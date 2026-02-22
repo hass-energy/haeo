@@ -5,12 +5,12 @@ from dataclasses import replace
 from typing import Any, Final, Literal
 
 from homeassistant.components.number import NumberDeviceClass, NumberEntityDescription
-from homeassistant.const import PERCENTAGE, UnitOfEnergy, UnitOfPower
 import numpy as np
 from numpy.typing import NDArray
 
 from custom_components.haeo.adapters.output_utils import expect_output_data
 from custom_components.haeo.const import ConnectivityLevel
+from custom_components.haeo.core.units import UnitOfMeasurement
 from custom_components.haeo.elements.input_fields import InputFieldDefaults, InputFieldInfo
 from custom_components.haeo.model import ModelElementConfig, ModelOutputName, ModelOutputValue
 from custom_components.haeo.model import battery as model_battery
@@ -106,7 +106,7 @@ class BatteryAdapter:
                     entity_description=NumberEntityDescription(
                         key=CONF_CAPACITY,
                         translation_key=f"{ELEMENT_TYPE}_{CONF_CAPACITY}",
-                        native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
+                        native_unit_of_measurement=UnitOfMeasurement.KILO_WATT_HOUR,
                         device_class=NumberDeviceClass.ENERGY_STORAGE,
                         native_min_value=0.1,
                         native_max_value=1000.0,
@@ -121,7 +121,7 @@ class BatteryAdapter:
                     entity_description=NumberEntityDescription(
                         key=CONF_INITIAL_CHARGE_PERCENTAGE,
                         translation_key=f"{ELEMENT_TYPE}_{CONF_INITIAL_CHARGE_PERCENTAGE}",
-                        native_unit_of_measurement=PERCENTAGE,
+                        native_unit_of_measurement=UnitOfMeasurement.PERCENT,
                         device_class=NumberDeviceClass.BATTERY,
                         native_min_value=0.0,
                         native_max_value=100.0,
@@ -137,7 +137,7 @@ class BatteryAdapter:
                     entity_description=NumberEntityDescription(
                         key=CONF_MAX_POWER_TARGET_SOURCE,
                         translation_key=f"{ELEMENT_TYPE}_{CONF_MAX_POWER_TARGET_SOURCE}",
-                        native_unit_of_measurement=UnitOfPower.KILO_WATT,
+                        native_unit_of_measurement=UnitOfMeasurement.KILO_WATT,
                         device_class=NumberDeviceClass.POWER,
                         native_min_value=0.0,
                         native_max_value=1000.0,
@@ -153,7 +153,7 @@ class BatteryAdapter:
                     entity_description=NumberEntityDescription(
                         key=CONF_MAX_POWER_SOURCE_TARGET,
                         translation_key=f"{ELEMENT_TYPE}_{CONF_MAX_POWER_SOURCE_TARGET}",
-                        native_unit_of_measurement=UnitOfPower.KILO_WATT,
+                        native_unit_of_measurement=UnitOfMeasurement.KILO_WATT,
                         device_class=NumberDeviceClass.POWER,
                         native_min_value=0.0,
                         native_max_value=1000.0,
@@ -171,7 +171,7 @@ class BatteryAdapter:
                     entity_description=NumberEntityDescription(
                         key=CONF_MIN_CHARGE_PERCENTAGE,
                         translation_key=f"{ELEMENT_TYPE}_{CONF_MIN_CHARGE_PERCENTAGE}",
-                        native_unit_of_measurement=PERCENTAGE,
+                        native_unit_of_measurement=UnitOfMeasurement.PERCENT,
                         device_class=NumberDeviceClass.BATTERY,
                         native_min_value=0.0,
                         native_max_value=100.0,
@@ -187,7 +187,7 @@ class BatteryAdapter:
                     entity_description=NumberEntityDescription(
                         key=CONF_MAX_CHARGE_PERCENTAGE,
                         translation_key=f"{ELEMENT_TYPE}_{CONF_MAX_CHARGE_PERCENTAGE}",
-                        native_unit_of_measurement=PERCENTAGE,
+                        native_unit_of_measurement=UnitOfMeasurement.PERCENT,
                         device_class=NumberDeviceClass.BATTERY,
                         native_min_value=0.0,
                         native_max_value=100.0,
@@ -205,7 +205,7 @@ class BatteryAdapter:
                     entity_description=NumberEntityDescription(
                         key=CONF_EFFICIENCY_SOURCE_TARGET,
                         translation_key=f"{ELEMENT_TYPE}_{CONF_EFFICIENCY_SOURCE_TARGET}",
-                        native_unit_of_measurement=PERCENTAGE,
+                        native_unit_of_measurement=UnitOfMeasurement.PERCENT,
                         device_class=NumberDeviceClass.POWER_FACTOR,
                         native_min_value=50.0,
                         native_max_value=100.0,
@@ -220,7 +220,7 @@ class BatteryAdapter:
                     entity_description=NumberEntityDescription(
                         key=CONF_EFFICIENCY_TARGET_SOURCE,
                         translation_key=f"{ELEMENT_TYPE}_{CONF_EFFICIENCY_TARGET_SOURCE}",
-                        native_unit_of_measurement=PERCENTAGE,
+                        native_unit_of_measurement=UnitOfMeasurement.PERCENT,
                         device_class=NumberDeviceClass.POWER_FACTOR,
                         native_min_value=50.0,
                         native_max_value=100.0,
@@ -505,7 +505,7 @@ def _partition_input_fields(
             entity_description=NumberEntityDescription(
                 key=CONF_PARTITION_PERCENTAGE,
                 translation_key=f"{ELEMENT_TYPE}_{CONF_PARTITION_PERCENTAGE}",
-                native_unit_of_measurement=PERCENTAGE,
+                native_unit_of_measurement=UnitOfMeasurement.PERCENT,
                 device_class=NumberDeviceClass.BATTERY,
                 native_min_value=0.0,
                 native_max_value=100.0,

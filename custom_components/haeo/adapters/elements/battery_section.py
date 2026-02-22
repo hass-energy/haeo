@@ -5,10 +5,10 @@ from dataclasses import replace
 from typing import Any, Final, Literal
 
 from homeassistant.components.number import NumberDeviceClass, NumberEntityDescription
-from homeassistant.const import UnitOfEnergy
 
 from custom_components.haeo.adapters.output_utils import expect_output_data
 from custom_components.haeo.const import ConnectivityLevel
+from custom_components.haeo.core.units import UnitOfMeasurement
 from custom_components.haeo.elements.input_fields import InputFieldInfo
 from custom_components.haeo.model import ModelElementConfig, ModelOutputName, ModelOutputValue
 from custom_components.haeo.model import battery as model_battery
@@ -75,7 +75,7 @@ class BatterySectionAdapter:
                     entity_description=NumberEntityDescription(
                         key=CONF_CAPACITY,
                         translation_key=f"{ELEMENT_TYPE}_{CONF_CAPACITY}",
-                        native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
+                        native_unit_of_measurement=UnitOfMeasurement.KILO_WATT_HOUR,
                         device_class=NumberDeviceClass.ENERGY_STORAGE,
                         native_min_value=0.1,
                         native_max_value=1000.0,
@@ -89,7 +89,7 @@ class BatterySectionAdapter:
                     entity_description=NumberEntityDescription(
                         key=CONF_INITIAL_CHARGE,
                         translation_key=f"{ELEMENT_TYPE}_{CONF_INITIAL_CHARGE}",
-                        native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
+                        native_unit_of_measurement=UnitOfMeasurement.KILO_WATT_HOUR,
                         device_class=NumberDeviceClass.ENERGY_STORAGE,
                         native_min_value=0.0,
                         native_max_value=1000.0,
