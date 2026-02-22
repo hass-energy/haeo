@@ -1,8 +1,6 @@
 """Solar element for HAEO integration."""
 
-from custom_components.haeo.sections import CONF_CONNECTION
-
-from .adapter import (
+from custom_components.haeo.adapters.elements.solar import (
     SOLAR_DEVICE_NAMES,
     SOLAR_DEVICE_SOLAR,
     SOLAR_FORECAST_LIMIT,
@@ -13,7 +11,7 @@ from .adapter import (
     SolarOutputName,
     adapter,
 )
-from .schema import (
+from custom_components.haeo.schema.elements.solar import (
     CONF_CURTAILMENT,
     CONF_FORECAST,
     CONF_PRICE_SOURCE_TARGET,
@@ -26,6 +24,7 @@ from .schema import (
     SolarConfigData,
     SolarConfigSchema,
 )
+from custom_components.haeo.sections import CONF_CONNECTION
 
 __all__ = [
     "CONF_CONNECTION",

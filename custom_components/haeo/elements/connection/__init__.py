@@ -1,16 +1,7 @@
 """Connection element for HAEO integration."""
 
 # Re-export connection output names from model
-from custom_components.haeo.model.elements.connection import (
-    CONNECTION_POWER_SOURCE_TARGET,
-    CONNECTION_POWER_TARGET_SOURCE,
-    CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET,
-    CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE,
-    CONNECTION_TIME_SLICE,
-)
-from custom_components.haeo.model.elements.connection import ConnectionOutputName as ModelConnectionOutputName
-
-from .adapter import (
+from custom_components.haeo.adapters.elements.connection import (
     CONNECTION_DEVICE_CONNECTION,
     CONNECTION_DEVICE_NAMES,
     CONNECTION_OUTPUT_NAMES,
@@ -20,7 +11,15 @@ from .adapter import (
     ConnectionOutputName,
     adapter,
 )
-from .schema import (
+from custom_components.haeo.model.elements.connection import (
+    CONNECTION_POWER_SOURCE_TARGET,
+    CONNECTION_POWER_TARGET_SOURCE,
+    CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET,
+    CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE,
+    CONNECTION_TIME_SLICE,
+)
+from custom_components.haeo.model.elements.connection import ConnectionOutputName as ModelConnectionOutputName
+from custom_components.haeo.schema.elements.connection import (
     CONF_EFFICIENCY_SOURCE_TARGET,
     CONF_EFFICIENCY_TARGET_SOURCE,
     CONF_MAX_POWER_SOURCE_TARGET,

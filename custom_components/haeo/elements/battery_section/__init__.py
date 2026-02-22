@@ -1,6 +1,6 @@
 """Battery section element for HAEO integration."""
 
-from .adapter import (
+from custom_components.haeo.adapters.elements.battery_section import (
     BATTERY_SECTION_DEVICE,
     BATTERY_SECTION_DEVICE_NAMES,
     BATTERY_SECTION_ENERGY_IN_FLOW,
@@ -18,7 +18,7 @@ from .adapter import (
     BatterySectionOutputName,
     adapter,
 )
-from .schema import (
+from custom_components.haeo.schema.elements.battery_section import (
     CONF_CAPACITY,
     CONF_INITIAL_CHARGE,
     ELEMENT_TYPE,

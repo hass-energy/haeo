@@ -7,16 +7,14 @@ import numpy as np
 
 from custom_components.haeo.elements import battery
 from custom_components.haeo.elements.availability import schema_config_available
-from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_BATTERY, MODEL_ELEMENT_TYPE_CONNECTION
-from custom_components.haeo.model.elements import ModelElementConfig
+from custom_components.haeo.model.elements import (
+    MODEL_ELEMENT_TYPE_BATTERY,
+    MODEL_ELEMENT_TYPE_CONNECTION,
+    ModelElementConfig,
+)
 from custom_components.haeo.model.elements.connection import ConnectionElementConfig
 from custom_components.haeo.model.elements.segments import is_efficiency_spec
-from custom_components.haeo.schema import (
-    as_connection_target,
-    as_constant_value,
-    as_entity_value,
-    as_none_value,
-)
+from custom_components.haeo.schema import as_connection_target, as_constant_value, as_entity_value, as_none_value
 
 
 def _get_connection(elements: Sequence[ModelElementConfig], name: str) -> ConnectionElementConfig:

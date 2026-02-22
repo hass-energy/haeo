@@ -8,9 +8,9 @@ from homeassistant.components.number import NumberDeviceClass, NumberEntityDescr
 from homeassistant.components.switch import SwitchEntityDescription
 from homeassistant.const import UnitOfPower
 
+from custom_components.haeo.adapters.output_utils import expect_output_data
 from custom_components.haeo.const import ConnectivityLevel
 from custom_components.haeo.elements.input_fields import InputFieldDefaults, InputFieldInfo
-from custom_components.haeo.elements.output_utils import expect_output_data
 from custom_components.haeo.model import ModelElementConfig, ModelOutputName, ModelOutputValue
 from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE
@@ -18,6 +18,7 @@ from custom_components.haeo.model.elements.connection import CONNECTION_POWER_TA
 from custom_components.haeo.model.elements.segments import POWER_LIMIT_TARGET_SOURCE
 from custom_components.haeo.model.output_data import OutputData
 from custom_components.haeo.schema import extract_connection_target
+from custom_components.haeo.schema.elements.load import ELEMENT_TYPE, LoadConfigData
 from custom_components.haeo.sections import (
     CONF_CONNECTION,
     CONF_CURTAILMENT,
@@ -28,8 +29,6 @@ from custom_components.haeo.sections import (
     SECTION_FORECAST,
     SECTION_PRICING,
 )
-
-from .schema import ELEMENT_TYPE, LoadConfigData
 
 # Load output names
 type LoadOutputName = Literal[

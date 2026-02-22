@@ -1,6 +1,6 @@
 """Node element for HAEO integration."""
 
-from .adapter import (
+from custom_components.haeo.adapters.elements.node import (
     NODE_DEVICE_NAMES,
     NODE_DEVICE_NODE,
     NODE_OUTPUT_NAMES,
@@ -10,7 +10,7 @@ from .adapter import (
     NodeOutputName,
     adapter,
 )
-from .schema import (
+from custom_components.haeo.schema.elements.node import (
     CONF_IS_SINK,
     CONF_IS_SOURCE,
     ELEMENT_TYPE,

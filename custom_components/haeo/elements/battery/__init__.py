@@ -1,8 +1,6 @@
 """Battery element for HAEO integration."""
 
-from custom_components.haeo.sections import CONF_CONNECTION
-
-from .adapter import (
+from custom_components.haeo.adapters.elements.battery import (
     BATTERY_DEVICE_BATTERY,
     BATTERY_DEVICE_NAMES,
     BATTERY_ENERGY_IN_FLOW,
@@ -21,7 +19,7 @@ from .adapter import (
     BatteryOutputName,
     adapter,
 )
-from .schema import (
+from custom_components.haeo.schema.elements.battery import (
     CONF_CAPACITY,
     CONF_CONFIGURE_PARTITIONS,
     CONF_EFFICIENCY_SOURCE_TARGET,
@@ -53,6 +51,7 @@ from .schema import (
     BatteryPricingConfig,
     BatteryPricingData,
 )
+from custom_components.haeo.sections import CONF_CONNECTION
 
 __all__ = [
     "BATTERY_DEVICE_BATTERY",

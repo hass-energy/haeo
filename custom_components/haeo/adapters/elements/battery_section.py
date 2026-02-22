@@ -7,17 +7,22 @@ from typing import Any, Final, Literal
 from homeassistant.components.number import NumberDeviceClass, NumberEntityDescription
 from homeassistant.const import UnitOfEnergy
 
+from custom_components.haeo.adapters.output_utils import expect_output_data
 from custom_components.haeo.const import ConnectivityLevel
 from custom_components.haeo.elements.input_fields import InputFieldInfo
-from custom_components.haeo.elements.output_utils import expect_output_data
 from custom_components.haeo.model import ModelElementConfig, ModelOutputName, ModelOutputValue
 from custom_components.haeo.model import battery as model_battery
 from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_BATTERY
 from custom_components.haeo.model.output_data import OutputData
+from custom_components.haeo.schema.elements.battery_section import (
+    CONF_CAPACITY,
+    CONF_INITIAL_CHARGE,
+    ELEMENT_TYPE,
+    SECTION_STORAGE,
+    BatterySectionConfigData,
+)
 from custom_components.haeo.sections import SECTION_COMMON
-
-from .schema import CONF_CAPACITY, CONF_INITIAL_CHARGE, ELEMENT_TYPE, SECTION_STORAGE, BatterySectionConfigData
 
 type BatterySectionOutputName = Literal[
     "battery_section_power_charge",
