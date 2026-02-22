@@ -109,37 +109,28 @@ from custom_components.haeo.const import (
     NetworkDeviceName,
     NetworkOutputName,
 )
-from custom_components.haeo.elements.field_hints import build_input_fields
+from custom_components.haeo.elements.field_hints import build_input_fields, extract_field_hints
 from custom_components.haeo.model import ModelElementConfig, ModelOutputName
 from custom_components.haeo.model.output_data import ModelOutputValue, OutputData
 from custom_components.haeo.schema.elements import ElementType
-from custom_components.haeo.schema.elements.battery import FIELD_HINTS as BATTERY_FIELD_HINTS
 from custom_components.haeo.schema.elements.battery import OPTIONAL_INPUT_FIELDS as BATTERY_OPTIONAL_INPUT_FIELDS
 from custom_components.haeo.schema.elements.battery import BatteryConfigData, BatteryConfigSchema
-from custom_components.haeo.schema.elements.battery_section import FIELD_HINTS as BATTERY_SECTION_FIELD_HINTS
 from custom_components.haeo.schema.elements.battery_section import (
     OPTIONAL_INPUT_FIELDS as BATTERY_SECTION_OPTIONAL_INPUT_FIELDS,
 )
 from custom_components.haeo.schema.elements.battery_section import BatterySectionConfigData, BatterySectionConfigSchema
-from custom_components.haeo.schema.elements.connection import FIELD_HINTS as CONNECTION_FIELD_HINTS
 from custom_components.haeo.schema.elements.connection import OPTIONAL_INPUT_FIELDS as CONNECTION_OPTIONAL_INPUT_FIELDS
 from custom_components.haeo.schema.elements.connection import ConnectionConfigData, ConnectionConfigSchema
-from custom_components.haeo.schema.elements.grid import FIELD_HINTS as GRID_FIELD_HINTS
 from custom_components.haeo.schema.elements.grid import OPTIONAL_INPUT_FIELDS as GRID_OPTIONAL_INPUT_FIELDS
 from custom_components.haeo.schema.elements.grid import GridConfigData, GridConfigSchema
-from custom_components.haeo.schema.elements.inverter import FIELD_HINTS as INVERTER_FIELD_HINTS
 from custom_components.haeo.schema.elements.inverter import OPTIONAL_INPUT_FIELDS as INVERTER_OPTIONAL_INPUT_FIELDS
 from custom_components.haeo.schema.elements.inverter import InverterConfigData, InverterConfigSchema
-from custom_components.haeo.schema.elements.load import FIELD_HINTS as LOAD_FIELD_HINTS
 from custom_components.haeo.schema.elements.load import OPTIONAL_INPUT_FIELDS as LOAD_OPTIONAL_INPUT_FIELDS
 from custom_components.haeo.schema.elements.load import LoadConfigData, LoadConfigSchema
-from custom_components.haeo.schema.elements.node import FIELD_HINTS as NODE_FIELD_HINTS
 from custom_components.haeo.schema.elements.node import OPTIONAL_INPUT_FIELDS as NODE_OPTIONAL_INPUT_FIELDS
 from custom_components.haeo.schema.elements.node import NodeConfigData, NodeConfigSchema
-from custom_components.haeo.schema.elements.solar import FIELD_HINTS as SOLAR_FIELD_HINTS
 from custom_components.haeo.schema.elements.solar import OPTIONAL_INPUT_FIELDS as SOLAR_OPTIONAL_INPUT_FIELDS
 from custom_components.haeo.schema.elements.solar import SolarConfigData, SolarConfigSchema
-from custom_components.haeo.schema.field_hints import FieldHint
 
 from .field_schema import FieldSchemaInfo
 from .input_fields import InputFieldGroups, InputFieldInfo, InputFieldPath, InputFieldSection
@@ -322,18 +313,6 @@ ELEMENT_OPTIONAL_INPUT_FIELDS: Final[dict[ElementType, frozenset[str]]] = {
     ElementType.LOAD: LOAD_OPTIONAL_INPUT_FIELDS,
     ElementType.NODE: NODE_OPTIONAL_INPUT_FIELDS,
     ElementType.SOLAR: SOLAR_OPTIONAL_INPUT_FIELDS,
-}
-
-
-ELEMENT_FIELD_HINTS: Final[dict[ElementType, dict[str, dict[str, FieldHint]]]] = {
-    ElementType.BATTERY: BATTERY_FIELD_HINTS,
-    ElementType.BATTERY_SECTION: BATTERY_SECTION_FIELD_HINTS,
-    ElementType.CONNECTION: CONNECTION_FIELD_HINTS,
-    ElementType.GRID: GRID_FIELD_HINTS,
-    ElementType.INVERTER: INVERTER_FIELD_HINTS,
-    ElementType.LOAD: LOAD_FIELD_HINTS,
-    ElementType.NODE: NODE_FIELD_HINTS,
-    ElementType.SOLAR: SOLAR_FIELD_HINTS,
 }
 
 
@@ -539,11 +518,17 @@ def collect_element_subentries(entry: ConfigEntry) -> list[ValidatedElementSuben
 
 def get_input_fields(element_type: str | ElementType | Mapping[str, Any] | None) -> InputFieldGroups:
     """Return input field definitions for an element type."""
-    if isinstance(element_type, Mapping) and CONF_ELEMENT_TYPE in element_type:
-        element_type = element_type[CONF_ELEMENT_TYPE]
+    if isinstance(element_type, Mapping):
+        if CONF_ELEMENT_TYPE in element_type:
+            element_type = element_type[CONF_ELEMENT_TYPE]
+        else:
+            return {}
+            
     if element_type is None:
         return {}
-    return build_input_fields(element_type, ELEMENT_FIELD_HINTS[element_type])  # type: ignore[reportArgumentType]
+
+    schema_cls = ELEMENT_CONFIG_SCHEMAS[element_type]  # type: ignore[index]
+    return build_input_fields(str(element_type), extract_field_hints(schema_cls))
 
 
 def iter_input_field_paths(input_fields: InputFieldGroups) -> list[tuple[InputFieldPath, InputFieldInfo[Any]]]:

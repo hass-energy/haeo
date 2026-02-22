@@ -1,10 +1,10 @@
 """Inverter element schema definitions."""
 
-from typing import Final, Literal, TypedDict
+from typing import Annotated, Final, Literal, TypedDict
 
 from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.schema.elements import ElementType
-from custom_components.haeo.schema.field_hints import FieldHint
+from custom_components.haeo.schema.field_hints import FieldHint, SectionHints
 from custom_components.haeo.sections import (
     CONF_EFFICIENCY_SOURCE_TARGET,
     CONF_EFFICIENCY_TARGET_SOURCE,
@@ -31,12 +31,7 @@ class InverterConfigSchema(TypedDict):
 
     element_type: Literal[ElementType.INVERTER]
     common: ConnectedCommonConfig
-    power_limits: PowerLimitsConfig
-    efficiency: EfficiencyConfig
-
-
-FIELD_HINTS: Final[dict[str, dict[str, FieldHint]]] = {
-    SECTION_POWER_LIMITS: {
+    power_limits: Annotated[PowerLimitsConfig, SectionHints({
         CONF_MAX_POWER_SOURCE_TARGET: FieldHint(
             output_type=OutputType.POWER_LIMIT,
             time_series=True,
@@ -47,8 +42,8 @@ FIELD_HINTS: Final[dict[str, dict[str, FieldHint]]] = {
             time_series=True,
             force_required=True,
         ),
-    },
-    SECTION_EFFICIENCY: {
+    })]
+    efficiency: Annotated[EfficiencyConfig, SectionHints({
         CONF_EFFICIENCY_SOURCE_TARGET: FieldHint(
             output_type=OutputType.EFFICIENCY,
             default_value=100.0,
@@ -57,8 +52,7 @@ FIELD_HINTS: Final[dict[str, dict[str, FieldHint]]] = {
             output_type=OutputType.EFFICIENCY,
             default_value=100.0,
         ),
-    },
-}
+    })]
 
 
 class InverterConfigData(TypedDict):

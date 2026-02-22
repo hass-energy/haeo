@@ -1,6 +1,6 @@
 """Grid element schema definitions."""
 
-from typing import Any, Final, Literal, TypedDict
+from typing import Annotated, Any, Final, Literal, TypedDict
 
 import numpy as np
 from numpy.typing import NDArray
@@ -8,7 +8,7 @@ from numpy.typing import NDArray
 from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.schema import ConstantValue, EntityValue, NoneValue
 from custom_components.haeo.schema.elements import ElementType
-from custom_components.haeo.schema.field_hints import FieldHint
+from custom_components.haeo.schema.field_hints import FieldHint, SectionHints
 from custom_components.haeo.sections import (
     CONF_MAX_POWER_SOURCE_TARGET,
     CONF_MAX_POWER_TARGET_SOURCE,
@@ -52,12 +52,7 @@ class GridConfigSchema(TypedDict):
 
     element_type: Literal[ElementType.GRID]
     common: ConnectedCommonConfig
-    pricing: GridPricingConfig
-    power_limits: PowerLimitsConfig
-
-
-FIELD_HINTS: Final[dict[str, dict[str, FieldHint]]] = {
-    SECTION_PRICING: {
+    pricing: Annotated[GridPricingConfig, SectionHints({
         CONF_PRICE_SOURCE_TARGET: FieldHint(
             output_type=OutputType.PRICE,
             direction="-",
@@ -68,8 +63,8 @@ FIELD_HINTS: Final[dict[str, dict[str, FieldHint]]] = {
             direction="+",
             time_series=True,
         ),
-    },
-    SECTION_POWER_LIMITS: {
+    })]
+    power_limits: Annotated[PowerLimitsConfig, SectionHints({
         CONF_MAX_POWER_SOURCE_TARGET: FieldHint(
             output_type=OutputType.POWER_LIMIT,
             direction="+",
@@ -84,8 +79,7 @@ FIELD_HINTS: Final[dict[str, dict[str, FieldHint]]] = {
             default_mode="value",
             default_value=100.0,
         ),
-    },
-}
+    })]
 
 
 class GridConfigData(TypedDict):

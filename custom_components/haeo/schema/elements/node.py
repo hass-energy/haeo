@@ -1,10 +1,10 @@
 """Node element schema definitions."""
 
-from typing import Final, Literal, TypedDict
+from typing import Annotated, Final, Literal, TypedDict
 
 from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.schema.elements import ElementType
-from custom_components.haeo.schema.field_hints import FieldHint
+from custom_components.haeo.schema.field_hints import FieldHint, SectionHints
 from custom_components.haeo.sections import SECTION_COMMON, CommonConfig, CommonData
 
 ELEMENT_TYPE = ElementType.NODE
@@ -36,11 +36,7 @@ class NodeConfigSchema(TypedDict):
 
     element_type: Literal[ElementType.NODE]
     common: CommonConfig
-    role: RoleConfig
-
-
-FIELD_HINTS: Final[dict[str, dict[str, FieldHint]]] = {
-    SECTION_ROLE: {
+    role: Annotated[RoleConfig, SectionHints({
         CONF_IS_SOURCE: FieldHint(
             output_type=OutputType.STATUS,
             default_mode="value",
@@ -51,8 +47,7 @@ FIELD_HINTS: Final[dict[str, dict[str, FieldHint]]] = {
             default_mode="value",
             default_value=False,
         ),
-    },
-}
+    })]
 
 
 class NodeConfigData(TypedDict):

@@ -42,3 +42,10 @@ class FieldHint:
     default_value: float | bool | None = None
     force_required: bool | None = None
     device_type: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class SectionHints:
+    """Wrapper for field hints to use in Annotated metadata."""
+
+    fields: dict[str, FieldHint]

@@ -78,11 +78,11 @@ def test_get_input_field_schema_info_type_alias(monkeypatch: pytest.MonkeyPatch)
             return {"field": str}
         return original_get_type_hints(schema_cls)
 
-    monkeypatch.setattr(elements_module, "get_type_hints", _fake_get_type_hints)
-    monkeypatch.setitem(elements_module.ELEMENT_CONFIG_SCHEMAS, battery.ELEMENT_TYPE, _DummySchema)
-
     input_fields = get_input_fields(ELEMENT_TYPE)
     sample_field = input_fields[battery.SECTION_STORAGE][battery.CONF_CAPACITY]
+
+    monkeypatch.setattr(elements_module, "get_type_hints", _fake_get_type_hints)
+    monkeypatch.setitem(elements_module.ELEMENT_CONFIG_SCHEMAS, battery.ELEMENT_TYPE, _DummySchema)
 
     schema_info = get_input_field_schema_info(
         battery.ELEMENT_TYPE,
