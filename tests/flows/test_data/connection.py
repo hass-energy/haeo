@@ -1,7 +1,8 @@
 """Test data and validation for connection flow configuration."""
 
 from custom_components.haeo.const import CONF_NAME
-from custom_components.haeo.elements.connection import (
+from custom_components.haeo.schema import as_connection_target, as_constant_value
+from custom_components.haeo.schema.elements.connection import (
     CONF_EFFICIENCY_SOURCE_TARGET,
     CONF_MAX_POWER_SOURCE_TARGET,
     CONF_MAX_POWER_TARGET_SOURCE,
@@ -13,7 +14,6 @@ from custom_components.haeo.elements.connection import (
     SECTION_POWER_LIMITS,
     SECTION_PRICING,
 )
-from custom_components.haeo.schema import as_connection_target, as_constant_value
 
 # Test data for connection flow - single-step with choose selector
 # config: Contains all field values in choose selector format

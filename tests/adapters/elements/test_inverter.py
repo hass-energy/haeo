@@ -2,9 +2,9 @@
 
 from homeassistant.core import HomeAssistant
 
-from custom_components.haeo.elements import inverter
 from custom_components.haeo.elements.availability import schema_config_available
 from custom_components.haeo.schema import as_connection_target, as_entity_value
+from custom_components.haeo.schema.elements import inverter
 
 
 def _set_sensor(hass: HomeAssistant, entity_id: str, value: str, unit: str = "kW") -> None:

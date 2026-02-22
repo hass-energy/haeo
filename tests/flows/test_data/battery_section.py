@@ -1,13 +1,13 @@
 """Test data and validation for battery_section flow configuration."""
 
 from custom_components.haeo.const import CONF_NAME
-from custom_components.haeo.elements.battery_section import (
+from custom_components.haeo.schema import as_constant_value, as_entity_value
+from custom_components.haeo.schema.elements.battery_section import (
     CONF_CAPACITY,
     CONF_INITIAL_CHARGE,
     SECTION_COMMON,
     SECTION_STORAGE,
 )
-from custom_components.haeo.schema import as_constant_value, as_entity_value
 
 # Test data for battery_section flow - single-step with choose selector
 # config: Contains all field values in choose selector format

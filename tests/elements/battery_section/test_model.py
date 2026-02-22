@@ -6,9 +6,20 @@ from typing import Any, TypedDict
 import numpy as np
 import pytest
 
+from custom_components.haeo.adapters.elements.battery_section import (
+    BATTERY_SECTION_DEVICE,
+    BATTERY_SECTION_ENERGY_IN_FLOW,
+    BATTERY_SECTION_ENERGY_OUT_FLOW,
+    BATTERY_SECTION_ENERGY_STORED,
+    BATTERY_SECTION_POWER_ACTIVE,
+    BATTERY_SECTION_POWER_BALANCE,
+    BATTERY_SECTION_POWER_CHARGE,
+    BATTERY_SECTION_POWER_DISCHARGE,
+    BATTERY_SECTION_SOC_MAX,
+    BATTERY_SECTION_SOC_MIN,
+)
 from custom_components.haeo.elements import ELEMENT_TYPES
-from custom_components.haeo.elements import battery_section as battery_section_element
-from custom_components.haeo.elements.battery_section import BatterySectionConfigData
+from custom_components.haeo.schema.elements.battery_section import BatterySectionConfigData
 from custom_components.haeo.model import ModelOutputName, ModelOutputValue
 from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.elements import battery as battery_model
@@ -74,16 +85,16 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
             },
         },
         "outputs": {
-            battery_section_element.BATTERY_SECTION_DEVICE: {
-                battery_section_element.BATTERY_SECTION_POWER_CHARGE: OutputData(type=OutputType.POWER, unit="kW", values=(1.0,), direction="-"),
-                battery_section_element.BATTERY_SECTION_POWER_DISCHARGE: OutputData(type=OutputType.POWER, unit="kW", values=(0.5,), direction="+"),
-                battery_section_element.BATTERY_SECTION_POWER_ACTIVE: OutputData(type=OutputType.POWER, unit="kW", values=(-0.5,), direction=None),
-                battery_section_element.BATTERY_SECTION_ENERGY_STORED: OutputData(type=OutputType.ENERGY, unit="kWh", values=(5.0, 5.5)),
-                battery_section_element.BATTERY_SECTION_POWER_BALANCE: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.01,)),
-                battery_section_element.BATTERY_SECTION_ENERGY_IN_FLOW: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.003,)),
-                battery_section_element.BATTERY_SECTION_ENERGY_OUT_FLOW: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.004,)),
-                battery_section_element.BATTERY_SECTION_SOC_MAX: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.005,)),
-                battery_section_element.BATTERY_SECTION_SOC_MIN: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.006,)),
+            BATTERY_SECTION_DEVICE: {
+                BATTERY_SECTION_POWER_CHARGE: OutputData(type=OutputType.POWER, unit="kW", values=(1.0,), direction="-"),
+                BATTERY_SECTION_POWER_DISCHARGE: OutputData(type=OutputType.POWER, unit="kW", values=(0.5,), direction="+"),
+                BATTERY_SECTION_POWER_ACTIVE: OutputData(type=OutputType.POWER, unit="kW", values=(-0.5,), direction=None),
+                BATTERY_SECTION_ENERGY_STORED: OutputData(type=OutputType.ENERGY, unit="kWh", values=(5.0, 5.5)),
+                BATTERY_SECTION_POWER_BALANCE: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.01,)),
+                BATTERY_SECTION_ENERGY_IN_FLOW: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.003,)),
+                BATTERY_SECTION_ENERGY_OUT_FLOW: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.004,)),
+                BATTERY_SECTION_SOC_MAX: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.005,)),
+                BATTERY_SECTION_SOC_MIN: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.006,)),
             },
         },
     },
@@ -98,11 +109,11 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
             },
         },
         "outputs": {
-            battery_section_element.BATTERY_SECTION_DEVICE: {
-                battery_section_element.BATTERY_SECTION_POWER_CHARGE: OutputData(type=OutputType.POWER, unit="kW", values=(2.0,), direction="-"),
-                battery_section_element.BATTERY_SECTION_POWER_DISCHARGE: OutputData(type=OutputType.POWER, unit="kW", values=(1.0,), direction="+"),
-                battery_section_element.BATTERY_SECTION_POWER_ACTIVE: OutputData(type=OutputType.POWER, unit="kW", values=(-1.0,), direction=None),
-                battery_section_element.BATTERY_SECTION_ENERGY_STORED: OutputData(type=OutputType.ENERGY, unit="kWh", values=(5.0, 4.0)),
+            BATTERY_SECTION_DEVICE: {
+                BATTERY_SECTION_POWER_CHARGE: OutputData(type=OutputType.POWER, unit="kW", values=(2.0,), direction="-"),
+                BATTERY_SECTION_POWER_DISCHARGE: OutputData(type=OutputType.POWER, unit="kW", values=(1.0,), direction="+"),
+                BATTERY_SECTION_POWER_ACTIVE: OutputData(type=OutputType.POWER, unit="kW", values=(-1.0,), direction=None),
+                BATTERY_SECTION_ENERGY_STORED: OutputData(type=OutputType.ENERGY, unit="kWh", values=(5.0, 4.0)),
             },
         },
     },

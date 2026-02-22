@@ -6,9 +6,13 @@ from typing import Any, TypedDict
 import numpy as np
 import pytest
 
+from custom_components.haeo.adapters.elements.solar import (
+    SOLAR_DEVICE_SOLAR,
+    SOLAR_FORECAST_LIMIT,
+    SOLAR_POWER,
+)
 from custom_components.haeo.elements import ELEMENT_TYPES
-from custom_components.haeo.elements import solar as solar_element
-from custom_components.haeo.elements.solar import SolarConfigData
+from custom_components.haeo.schema.elements.solar import SolarConfigData
 from custom_components.haeo.model import ModelOutputName, ModelOutputValue
 from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE
@@ -91,9 +95,9 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
             }
         },
         "outputs": {
-            solar_element.SOLAR_DEVICE_SOLAR: {
-                solar_element.SOLAR_POWER: OutputData(type=OutputType.POWER, unit="kW", values=(2.0,), direction="+"),
-                solar_element.SOLAR_FORECAST_LIMIT: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.02,)),
+            SOLAR_DEVICE_SOLAR: {
+                SOLAR_POWER: OutputData(type=OutputType.POWER, unit="kW", values=(2.0,), direction="+"),
+                SOLAR_FORECAST_LIMIT: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.02,)),
             }
         },
     },
@@ -107,9 +111,9 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
             }
         },
         "outputs": {
-            solar_element.SOLAR_DEVICE_SOLAR: {
-                solar_element.SOLAR_POWER: OutputData(type=OutputType.POWER, unit="kW", values=(1.5,), direction="+"),
-                solar_element.SOLAR_FORECAST_LIMIT: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.0,)),
+            SOLAR_DEVICE_SOLAR: {
+                SOLAR_POWER: OutputData(type=OutputType.POWER, unit="kW", values=(1.5,), direction="+"),
+                SOLAR_FORECAST_LIMIT: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.0,)),
             }
         },
     },

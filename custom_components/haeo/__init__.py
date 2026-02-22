@@ -133,7 +133,7 @@ async def _ensure_required_subentries(hass: HomeAssistant, hub_entry: ConfigEntr
     In non-advanced mode, also creates a Switchboard node if missing.
     """
     from custom_components.haeo.elements import ELEMENT_TYPE_NODE  # noqa: PLC0415
-    from custom_components.haeo.elements.node import (  # noqa: PLC0415
+    from custom_components.haeo.schema.elements.node import (  # noqa: PLC0415
         CONF_IS_SINK,
         CONF_IS_SOURCE,
         SECTION_COMMON,

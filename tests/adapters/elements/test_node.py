@@ -2,8 +2,9 @@
 
 from homeassistant.core import HomeAssistant
 
-from custom_components.haeo.elements import node
+from custom_components.haeo.adapters.elements.node import adapter as node_adapter
 from custom_components.haeo.elements.availability import schema_config_available
+from custom_components.haeo.schema.elements import node
 
 
 async def test_available_returns_true(hass: HomeAssistant) -> None:
@@ -26,7 +27,7 @@ def test_model_elements_applies_default_flags() -> None:
         node.SECTION_ROLE: {},
     }
 
-    elements = node.adapter.model_elements(config_data)
+    elements = node_adapter.model_elements(config_data)
 
     assert len(elements) == 1
     node_element = elements[0]

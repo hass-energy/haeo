@@ -1,8 +1,8 @@
 """Test data and validation for load flow configuration."""
 
 from custom_components.haeo.const import CONF_NAME
-from custom_components.haeo.elements.load import (
-    CONF_CONNECTION,
+from custom_components.haeo.schema import as_connection_target, as_constant_value, as_entity_value, as_none_value
+from custom_components.haeo.schema.elements.load import (
     CONF_CURTAILMENT,
     CONF_FORECAST,
     CONF_PRICE_TARGET_SOURCE,
@@ -11,7 +11,7 @@ from custom_components.haeo.elements.load import (
     SECTION_FORECAST,
     SECTION_PRICING,
 )
-from custom_components.haeo.schema import as_connection_target, as_constant_value, as_entity_value, as_none_value
+from custom_components.haeo.sections import CONF_CONNECTION
 
 # Test data for load flow - single-step with choose selector
 # config: Contains all field values in choose selector format

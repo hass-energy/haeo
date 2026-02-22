@@ -1,8 +1,8 @@
 """Test grid config flow data for choose selector approach."""
 
 from custom_components.haeo.const import CONF_NAME
-from custom_components.haeo.elements.grid import (
-    CONF_CONNECTION,
+from custom_components.haeo.schema import as_connection_target, as_constant_value
+from custom_components.haeo.schema.elements.grid import (
     CONF_MAX_POWER_SOURCE_TARGET,
     CONF_MAX_POWER_TARGET_SOURCE,
     CONF_PRICE_SOURCE_TARGET,
@@ -11,7 +11,7 @@ from custom_components.haeo.elements.grid import (
     SECTION_POWER_LIMITS,
     SECTION_PRICING,
 )
-from custom_components.haeo.schema import as_connection_target, as_constant_value
+from custom_components.haeo.sections import CONF_CONNECTION
 
 # Test data for grid flow - single-step with choose selector
 # config: Contains all field values in choose selector format

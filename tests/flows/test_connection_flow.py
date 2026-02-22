@@ -10,9 +10,11 @@ from homeassistant.data_entry_flow import FlowResultType
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
+from custom_components.haeo.adapters.elements.connection import adapter
 from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME
-from custom_components.haeo.elements import battery, grid, node
-from custom_components.haeo.elements.connection import (
+from custom_components.haeo.schema import as_connection_target, as_constant_value, as_entity_value
+from custom_components.haeo.schema.elements import battery, grid, node
+from custom_components.haeo.schema.elements.connection import (
     CONF_MAX_POWER_SOURCE_TARGET,
     CONF_MAX_POWER_TARGET_SOURCE,
     CONF_SOURCE,
@@ -23,9 +25,7 @@ from custom_components.haeo.elements.connection import (
     SECTION_ENDPOINTS,
     SECTION_POWER_LIMITS,
     SECTION_PRICING,
-    adapter,
 )
-from custom_components.haeo.schema import as_connection_target, as_constant_value, as_entity_value
 from tests.conftest import add_participant
 
 from .conftest import create_flow

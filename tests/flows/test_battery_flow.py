@@ -10,12 +10,13 @@ from homeassistant.data_entry_flow import FlowResultType
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
+from custom_components.haeo.adapters.elements.battery import adapter
 from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME
-from custom_components.haeo.elements import node
-from custom_components.haeo.elements.battery import (
+from custom_components.haeo.schema import as_connection_target, as_constant_value, as_entity_value
+from custom_components.haeo.schema.elements import node
+from custom_components.haeo.schema.elements.battery import (
     CONF_CAPACITY,
     CONF_CONFIGURE_PARTITIONS,
-    CONF_CONNECTION,
     CONF_EFFICIENCY_SOURCE_TARGET,
     CONF_EFFICIENCY_TARGET_SOURCE,
     CONF_INITIAL_CHARGE_PERCENTAGE,
@@ -38,9 +39,8 @@ from custom_components.haeo.elements.battery import (
     SECTION_PRICING,
     SECTION_STORAGE,
     SECTION_UNDERCHARGE,
-    adapter,
 )
-from custom_components.haeo.schema import as_connection_target, as_constant_value, as_entity_value
+from custom_components.haeo.sections import CONF_CONNECTION
 from tests.conftest import add_participant
 
 from .conftest import create_flow
