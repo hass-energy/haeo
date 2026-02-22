@@ -5,14 +5,11 @@ import pytest
 
 from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.elements import ElementConfigData
-from custom_components.haeo.elements.battery import (
+from custom_components.haeo.schema import as_connection_target
+from custom_components.haeo.schema.elements.battery import (
     CONF_CAPACITY,
-    CONF_EFFICIENCY_SOURCE_TARGET,
-    CONF_EFFICIENCY_TARGET_SOURCE,
     CONF_INITIAL_CHARGE_PERCENTAGE,
     CONF_MAX_CHARGE_PERCENTAGE,
-    CONF_MAX_POWER_SOURCE_TARGET,
-    CONF_MAX_POWER_TARGET_SOURCE,
     CONF_MIN_CHARGE_PERCENTAGE,
     CONF_PARTITION_COST,
     CONF_PARTITION_PERCENTAGE,
@@ -24,13 +21,25 @@ from custom_components.haeo.elements.battery import (
     SECTION_UNDERCHARGE,
     BatteryConfigData,
 )
-from custom_components.haeo.elements.battery import CONF_CONNECTION as BATTERY_CONF_CONNECTION
-from custom_components.haeo.elements.grid import CONF_CONNECTION as GRID_CONF_CONNECTION
-from custom_components.haeo.elements.grid import CONF_PRICE_SOURCE_TARGET, CONF_PRICE_TARGET_SOURCE, GridConfigData
-from custom_components.haeo.elements.node import CONF_IS_SINK, CONF_IS_SOURCE, SECTION_ROLE, NodeConfigData
-from custom_components.haeo.schema import as_connection_target
-from custom_components.haeo.sections import SECTION_COMMON, SECTION_EFFICIENCY, SECTION_POWER_LIMITS, SECTION_PRICING
+from custom_components.haeo.schema.elements.grid import GridConfigData
+from custom_components.haeo.schema.elements.node import CONF_IS_SINK, CONF_IS_SOURCE, SECTION_ROLE, NodeConfigData
+from custom_components.haeo.sections import (
+    CONF_CONNECTION,
+    CONF_EFFICIENCY_SOURCE_TARGET,
+    CONF_EFFICIENCY_TARGET_SOURCE,
+    CONF_MAX_POWER_SOURCE_TARGET,
+    CONF_MAX_POWER_TARGET_SOURCE,
+    CONF_PRICE_SOURCE_TARGET,
+    CONF_PRICE_TARGET_SOURCE,
+    SECTION_COMMON,
+    SECTION_EFFICIENCY,
+    SECTION_POWER_LIMITS,
+    SECTION_PRICING,
+)
 from custom_components.haeo.validation import format_component_summary, validate_network_topology
+
+BATTERY_CONF_CONNECTION = CONF_CONNECTION
+GRID_CONF_CONNECTION = CONF_CONNECTION
 
 
 def test_format_component_summary() -> None:

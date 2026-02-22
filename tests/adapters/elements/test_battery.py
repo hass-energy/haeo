@@ -5,7 +5,7 @@ from collections.abc import Sequence
 from homeassistant.core import HomeAssistant
 import numpy as np
 
-from custom_components.haeo.elements import battery
+from custom_components.haeo.adapters.elements.battery import adapter as battery_adapter
 from custom_components.haeo.elements.availability import schema_config_available
 from custom_components.haeo.model import Network
 from custom_components.haeo.model.elements import (
@@ -18,6 +18,7 @@ from custom_components.haeo.model.elements.battery import BATTERY_POWER_CHARGE, 
 from custom_components.haeo.model.elements.connection import ConnectionElementConfig
 from custom_components.haeo.model.elements.segments import is_efficiency_spec
 from custom_components.haeo.schema import as_connection_target, as_constant_value, as_entity_value, as_none_value
+from custom_components.haeo.schema.elements import battery
 
 
 def _get_connection(elements: Sequence[ModelElementConfig], name: str) -> ConnectionElementConfig:
@@ -371,7 +372,7 @@ def test_model_elements_omits_efficiency_when_missing() -> None:
         }
     )
 
-    elements = battery.adapter.model_elements(config_data)
+    elements = battery_adapter.model_elements(config_data)
 
     battery_element = next(
         element
@@ -403,7 +404,7 @@ def test_model_elements_passes_efficiency_when_present() -> None:
         }
     )
 
-    elements = battery.adapter.model_elements(config_data)
+    elements = battery_adapter.model_elements(config_data)
 
     connection = _get_connection(elements, "test_battery:connection")
     segments = connection.get("segments")
@@ -436,7 +437,7 @@ def test_model_elements_overcharge_only_adds_soc_pricing() -> None:
         }
     )
 
-    elements = battery.adapter.model_elements(config_data)
+    elements = battery_adapter.model_elements(config_data)
     connection = _get_connection(elements, "test_battery:connection")
     segments = connection.get("segments")
     assert segments is not None

@@ -10,10 +10,11 @@ from homeassistant.data_entry_flow import FlowResultType
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
+from custom_components.haeo.adapters.elements.solar import adapter
 from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME
-from custom_components.haeo.elements import node
-from custom_components.haeo.elements.solar import (
-    CONF_CONNECTION,
+from custom_components.haeo.schema import as_connection_target, as_constant_value, as_entity_value
+from custom_components.haeo.schema.elements import node
+from custom_components.haeo.schema.elements.solar import (
     CONF_CURTAILMENT,
     CONF_FORECAST,
     CONF_PRICE_SOURCE_TARGET,
@@ -22,9 +23,8 @@ from custom_components.haeo.elements.solar import (
     SECTION_CURTAILMENT,
     SECTION_FORECAST,
     SECTION_PRICING,
-    adapter,
 )
-from custom_components.haeo.schema import as_connection_target, as_constant_value, as_entity_value
+from custom_components.haeo.sections import CONF_CONNECTION
 from tests.conftest import add_participant
 
 from .conftest import create_flow

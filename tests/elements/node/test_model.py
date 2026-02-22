@@ -5,9 +5,9 @@ from typing import Any, TypedDict
 
 import pytest
 
+from custom_components.haeo.adapters.elements.node import NODE_DEVICE_NODE
 from custom_components.haeo.elements import ELEMENT_TYPES
-from custom_components.haeo.elements import node as node_element
-from custom_components.haeo.elements.node import NodeConfigData
+from custom_components.haeo.schema.elements.node import NodeConfigData
 from custom_components.haeo.model import ModelOutputName, ModelOutputValue
 from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_NODE
@@ -57,8 +57,8 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
             }
         },
         "outputs": {
-            node_element.NODE_DEVICE_NODE: {
-                node_element.NODE_POWER_BALANCE: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.0,)),
+            NODE_DEVICE_NODE: {
+                NODE_POWER_BALANCE: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.0,)),
             }
         },
     },

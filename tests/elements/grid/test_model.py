@@ -7,9 +7,19 @@ import numpy as np
 import pytest
 from numpy.typing import NDArray
 
+from custom_components.haeo.adapters.elements.grid import (
+    GRID_COST_IMPORT,
+    GRID_COST_NET,
+    GRID_DEVICE_GRID,
+    GRID_POWER_ACTIVE,
+    GRID_POWER_EXPORT,
+    GRID_POWER_IMPORT,
+    GRID_POWER_MAX_EXPORT_PRICE,
+    GRID_POWER_MAX_IMPORT_PRICE,
+    GRID_REVENUE_EXPORT,
+)
 from custom_components.haeo.elements import ELEMENT_TYPES
-from custom_components.haeo.elements import grid as grid_element
-from custom_components.haeo.elements.grid import GridConfigData
+from custom_components.haeo.schema.elements.grid import GridConfigData
 from custom_components.haeo.model import ModelOutputName, ModelOutputValue
 from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE
@@ -110,15 +120,15 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
         # net_cost = $0.50 - $0.10 = $0.40
         # Cumulative values in chronological order
         "outputs": {
-            grid_element.GRID_DEVICE_GRID: {
-                grid_element.GRID_POWER_EXPORT: OutputData(type=OutputType.POWER, unit="kW", values=(2.0,), direction="-"),
-                grid_element.GRID_POWER_IMPORT: OutputData(type=OutputType.POWER, unit="kW", values=(5.0,), direction="+"),
-                grid_element.GRID_POWER_ACTIVE: OutputData(type=OutputType.POWER, unit="kW", values=(3.0,), direction=None),
-                grid_element.GRID_COST_IMPORT: OutputData(type=OutputType.COST, unit="$", values=(0.50,), direction="-", state_last=True),
-                grid_element.GRID_REVENUE_EXPORT: OutputData(type=OutputType.COST, unit="$", values=(0.10,), direction="+", state_last=True),
-                grid_element.GRID_COST_NET: OutputData(type=OutputType.COST, unit="$", values=(0.40,), direction=None, state_last=True),
-                grid_element.GRID_POWER_MAX_EXPORT_PRICE: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.01,)),
-                grid_element.GRID_POWER_MAX_IMPORT_PRICE: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.02,)),
+            GRID_DEVICE_GRID: {
+                GRID_POWER_EXPORT: OutputData(type=OutputType.POWER, unit="kW", values=(2.0,), direction="-"),
+                GRID_POWER_IMPORT: OutputData(type=OutputType.POWER, unit="kW", values=(5.0,), direction="+"),
+                GRID_POWER_ACTIVE: OutputData(type=OutputType.POWER, unit="kW", values=(3.0,), direction=None),
+                GRID_COST_IMPORT: OutputData(type=OutputType.COST, unit="$", values=(0.50,), direction="-", state_last=True),
+                GRID_REVENUE_EXPORT: OutputData(type=OutputType.COST, unit="$", values=(0.10,), direction="+", state_last=True),
+                GRID_COST_NET: OutputData(type=OutputType.COST, unit="$", values=(0.40,), direction=None, state_last=True),
+                GRID_POWER_MAX_EXPORT_PRICE: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.01,)),
+                GRID_POWER_MAX_IMPORT_PRICE: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.02,)),
             }
         },
     },
@@ -146,13 +156,13 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
         # Period 2: import_cost = 3.0 kW × $0.20/kWh × 0.5h = $0.30
         # Cumulative: [$0.25, $0.55]
         "outputs": {
-            grid_element.GRID_DEVICE_GRID: {
-                grid_element.GRID_POWER_EXPORT: OutputData(type=OutputType.POWER, unit="kW", values=(0.0, 0.0), direction="-"),
-                grid_element.GRID_POWER_IMPORT: OutputData(type=OutputType.POWER, unit="kW", values=(5.0, 3.0), direction="+"),
-                grid_element.GRID_POWER_ACTIVE: OutputData(type=OutputType.POWER, unit="kW", values=(5.0, 3.0), direction=None),
-                grid_element.GRID_COST_IMPORT: OutputData(type=OutputType.COST, unit="$", values=(0.25, 0.55), direction="-", state_last=True),
-                grid_element.GRID_REVENUE_EXPORT: OutputData(type=OutputType.COST, unit="$", values=(0.0, 0.0), direction="+", state_last=True),
-                grid_element.GRID_COST_NET: OutputData(type=OutputType.COST, unit="$", values=(0.25, 0.55), direction=None, state_last=True),
+            GRID_DEVICE_GRID: {
+                GRID_POWER_EXPORT: OutputData(type=OutputType.POWER, unit="kW", values=(0.0, 0.0), direction="-"),
+                GRID_POWER_IMPORT: OutputData(type=OutputType.POWER, unit="kW", values=(5.0, 3.0), direction="+"),
+                GRID_POWER_ACTIVE: OutputData(type=OutputType.POWER, unit="kW", values=(5.0, 3.0), direction=None),
+                GRID_COST_IMPORT: OutputData(type=OutputType.COST, unit="$", values=(0.25, 0.55), direction="-", state_last=True),
+                GRID_REVENUE_EXPORT: OutputData(type=OutputType.COST, unit="$", values=(0.0, 0.0), direction="+", state_last=True),
+                GRID_COST_NET: OutputData(type=OutputType.COST, unit="$", values=(0.25, 0.55), direction=None, state_last=True),
             }
         },
     },

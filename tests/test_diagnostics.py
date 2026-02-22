@@ -12,6 +12,7 @@ import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.haeo import HaeoRuntimeData
+from custom_components.haeo.adapters.elements.grid import GRID_POWER_IMPORT
 from custom_components.haeo.const import (
     CONF_ELEMENT_TYPE,
     CONF_INTEGRATION_TYPE,
@@ -52,26 +53,32 @@ from custom_components.haeo.diagnostics.collector import (
     _get_last_run_before,
 )
 from custom_components.haeo.elements import ELEMENT_TYPE_BATTERY, ElementConfigSchema
-from custom_components.haeo.elements.battery import (
+from custom_components.haeo.entities.device import build_device_identifier
+from custom_components.haeo.flows import HUB_SECTION_COMMON, HUB_SECTION_TIERS
+from custom_components.haeo.schema import as_connection_target, as_constant_value, as_entity_value
+from custom_components.haeo.schema.elements.battery import (
     CONF_CAPACITY,
-    CONF_CONNECTION,
-    CONF_EFFICIENCY_SOURCE_TARGET,
-    CONF_EFFICIENCY_TARGET_SOURCE,
     CONF_INITIAL_CHARGE_PERCENTAGE,
     CONF_MAX_CHARGE_PERCENTAGE,
-    CONF_MAX_POWER_SOURCE_TARGET,
-    CONF_MAX_POWER_TARGET_SOURCE,
     CONF_MIN_CHARGE_PERCENTAGE,
     CONF_SALVAGE_VALUE,
     SECTION_LIMITS,
     SECTION_PARTITIONING,
     SECTION_STORAGE,
 )
-from custom_components.haeo.elements.grid import CONF_PRICE_SOURCE_TARGET, CONF_PRICE_TARGET_SOURCE, GRID_POWER_IMPORT
-from custom_components.haeo.entities.device import build_device_identifier
-from custom_components.haeo.flows import HUB_SECTION_COMMON, HUB_SECTION_TIERS
-from custom_components.haeo.schema import as_connection_target, as_constant_value, as_entity_value
-from custom_components.haeo.sections import SECTION_COMMON, SECTION_EFFICIENCY, SECTION_POWER_LIMITS, SECTION_PRICING
+from custom_components.haeo.sections import (
+    CONF_CONNECTION,
+    CONF_EFFICIENCY_SOURCE_TARGET,
+    CONF_EFFICIENCY_TARGET_SOURCE,
+    CONF_MAX_POWER_SOURCE_TARGET,
+    CONF_MAX_POWER_TARGET_SOURCE,
+    CONF_PRICE_SOURCE_TARGET,
+    CONF_PRICE_TARGET_SOURCE,
+    SECTION_COMMON,
+    SECTION_EFFICIENCY,
+    SECTION_POWER_LIMITS,
+    SECTION_PRICING,
+)
 from custom_components.haeo.sensor_utils import get_duration_sensor_entity_id, get_horizon_sensor_entity_id
 
 

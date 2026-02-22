@@ -20,6 +20,13 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.haeo import HaeoRuntimeData
 from custom_components.haeo import elements as elements_module
+from custom_components.haeo.adapters.elements.battery import BATTERY_DEVICE_BATTERY, BATTERY_POWER_CHARGE
+from custom_components.haeo.adapters.elements.connection import (
+    CONNECTION_DEVICE_CONNECTION,
+    CONNECTION_POWER_SOURCE_TARGET,
+    CONNECTION_POWER_TARGET_SOURCE,
+)
+from custom_components.haeo.adapters.elements.solar import SOLAR_POWER
 from custom_components.haeo.const import (
     CONF_DEBOUNCE_SECONDS,
     CONF_ELEMENT_TYPE,
@@ -60,11 +67,19 @@ from custom_components.haeo.elements import (
     ELEMENT_TYPES,
     ElementConfigSchema,
 )
-from custom_components.haeo.elements.battery import (
-    BATTERY_DEVICE_BATTERY,
-    BATTERY_POWER_CHARGE,
+from custom_components.haeo.elements.input_fields import InputFieldInfo
+from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON, HUB_SECTION_TIERS
+from custom_components.haeo.model import Network, OutputData, OutputType
+from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_NODE
+from custom_components.haeo.schema import (
+    EntityValue,
+    as_connection_target,
+    as_constant_value,
+    as_entity_value,
+    as_none_value,
+)
+from custom_components.haeo.schema.elements.battery import (
     CONF_CAPACITY,
-    CONF_CONNECTION,
     CONF_EFFICIENCY_SOURCE_TARGET,
     CONF_EFFICIENCY_TARGET_SOURCE,
     CONF_INITIAL_CHARGE_PERCENTAGE,
@@ -77,31 +92,22 @@ from custom_components.haeo.elements.battery import (
     SECTION_PARTITIONING,
     SECTION_STORAGE,
 )
-from custom_components.haeo.elements.connection import (
-    CONF_SOURCE,
-    CONF_TARGET,
-    CONNECTION_DEVICE_CONNECTION,
-    CONNECTION_POWER_SOURCE_TARGET,
-    CONNECTION_POWER_TARGET_SOURCE,
-    SECTION_ENDPOINTS,
+from custom_components.haeo.schema.elements.connection import CONF_SOURCE, CONF_TARGET, SECTION_ENDPOINTS
+from custom_components.haeo.schema.elements.grid import (
+    CONF_MAX_POWER_SOURCE_TARGET as CONF_GRID_MAX_POWER_SOURCE_TARGET,
 )
-from custom_components.haeo.elements.grid import CONF_CONNECTION as CONF_CONNECTION_GRID
-from custom_components.haeo.elements.grid import CONF_MAX_POWER_SOURCE_TARGET as CONF_GRID_MAX_POWER_SOURCE_TARGET
-from custom_components.haeo.elements.grid import CONF_MAX_POWER_TARGET_SOURCE as CONF_GRID_MAX_POWER_TARGET_SOURCE
-from custom_components.haeo.elements.grid import CONF_PRICE_SOURCE_TARGET, CONF_PRICE_TARGET_SOURCE
-from custom_components.haeo.elements.input_fields import InputFieldInfo
-from custom_components.haeo.elements.solar import SOLAR_POWER
-from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON, HUB_SECTION_TIERS
-from custom_components.haeo.model import Network, OutputData, OutputType
-from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_NODE
-from custom_components.haeo.schema import (
-    EntityValue,
-    as_connection_target,
-    as_constant_value,
-    as_entity_value,
-    as_none_value,
+from custom_components.haeo.schema.elements.grid import (
+    CONF_MAX_POWER_TARGET_SOURCE as CONF_GRID_MAX_POWER_TARGET_SOURCE,
 )
-from custom_components.haeo.sections import SECTION_COMMON, SECTION_EFFICIENCY, SECTION_POWER_LIMITS, SECTION_PRICING
+from custom_components.haeo.schema.elements.grid import CONF_PRICE_SOURCE_TARGET, CONF_PRICE_TARGET_SOURCE
+from custom_components.haeo.sections import (
+    CONF_CONNECTION,
+    SECTION_COMMON,
+    SECTION_EFFICIENCY,
+    SECTION_POWER_LIMITS,
+    SECTION_PRICING,
+)
+from custom_components.haeo.sections import CONF_CONNECTION as CONF_CONNECTION_GRID
 
 
 @pytest.fixture

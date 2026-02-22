@@ -6,9 +6,13 @@ from typing import Any, TypedDict
 import numpy as np
 import pytest
 
+from custom_components.haeo.adapters.elements.load import (
+    LOAD_DEVICE_LOAD,
+    LOAD_FORECAST_LIMIT_PRICE,
+    LOAD_POWER,
+)
 from custom_components.haeo.elements import ELEMENT_TYPES
-from custom_components.haeo.elements import load as load_element
-from custom_components.haeo.elements.load import LoadConfigData
+from custom_components.haeo.schema.elements.load import LoadConfigData
 from custom_components.haeo.model import ModelOutputName, ModelOutputValue
 from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE
@@ -119,9 +123,9 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
             }
         },
         "outputs": {
-            load_element.LOAD_DEVICE_LOAD: {
-                load_element.LOAD_POWER: OutputData(type=OutputType.POWER, unit="kW", values=(1.0,), direction="+"),
-                load_element.LOAD_FORECAST_LIMIT_PRICE: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.01,)),
+            LOAD_DEVICE_LOAD: {
+                LOAD_POWER: OutputData(type=OutputType.POWER, unit="kW", values=(1.0,), direction="+"),
+                LOAD_FORECAST_LIMIT_PRICE: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.01,)),
             }
         },
     },
