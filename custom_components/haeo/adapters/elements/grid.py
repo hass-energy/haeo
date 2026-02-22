@@ -9,9 +9,9 @@ from homeassistant.const import UnitOfPower
 import numpy as np
 from numpy.typing import NDArray
 
+from custom_components.haeo.adapters.output_utils import expect_output_data
 from custom_components.haeo.const import ConnectivityLevel
 from custom_components.haeo.elements.input_fields import InputFieldDefaults, InputFieldInfo
-from custom_components.haeo.elements.output_utils import expect_output_data
 from custom_components.haeo.model import ModelElementConfig, ModelOutputName, ModelOutputValue
 from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE
@@ -24,6 +24,7 @@ from custom_components.haeo.model.elements.segments import POWER_LIMIT_SOURCE_TA
 from custom_components.haeo.model.output_data import OutputData
 from custom_components.haeo.model.util import broadcast_to_sequence
 from custom_components.haeo.schema import extract_connection_target
+from custom_components.haeo.schema.elements.grid import ELEMENT_TYPE, GridConfigData
 from custom_components.haeo.sections import (
     CONF_CONNECTION,
     CONF_MAX_POWER_SOURCE_TARGET,
@@ -34,8 +35,6 @@ from custom_components.haeo.sections import (
     SECTION_POWER_LIMITS,
     SECTION_PRICING,
 )
-
-from .schema import ELEMENT_TYPE, GridConfigData
 
 # Grid-specific output names for translation/sensor mapping
 type GridOutputName = Literal[

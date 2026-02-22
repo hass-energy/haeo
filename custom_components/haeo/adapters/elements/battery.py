@@ -9,9 +9,9 @@ from homeassistant.const import PERCENTAGE, UnitOfEnergy, UnitOfPower
 import numpy as np
 from numpy.typing import NDArray
 
+from custom_components.haeo.adapters.output_utils import expect_output_data
 from custom_components.haeo.const import ConnectivityLevel
 from custom_components.haeo.elements.input_fields import InputFieldDefaults, InputFieldInfo
-from custom_components.haeo.elements.output_utils import expect_output_data
 from custom_components.haeo.model import ModelElementConfig, ModelOutputName, ModelOutputValue
 from custom_components.haeo.model import battery as model_battery
 from custom_components.haeo.model.const import OutputType
@@ -20,19 +20,7 @@ from custom_components.haeo.model.elements.segments import SegmentSpec, SocPrici
 from custom_components.haeo.model.output_data import OutputData
 from custom_components.haeo.model.util import broadcast_to_sequence
 from custom_components.haeo.schema import extract_connection_target
-from custom_components.haeo.sections import (
-    CONF_CONNECTION,
-    CONF_MAX_POWER_SOURCE_TARGET,
-    CONF_MAX_POWER_TARGET_SOURCE,
-    CONF_PRICE_SOURCE_TARGET,
-    CONF_PRICE_TARGET_SOURCE,
-    SECTION_COMMON,
-    SECTION_EFFICIENCY,
-    SECTION_POWER_LIMITS,
-    SECTION_PRICING,
-)
-
-from .schema import (
+from custom_components.haeo.schema.elements.battery import (
     CONF_CAPACITY,
     CONF_EFFICIENCY_SOURCE_TARGET,
     CONF_EFFICIENCY_TARGET_SOURCE,
@@ -48,6 +36,17 @@ from .schema import (
     SECTION_STORAGE,
     SECTION_UNDERCHARGE,
     BatteryConfigData,
+)
+from custom_components.haeo.sections import (
+    CONF_CONNECTION,
+    CONF_MAX_POWER_SOURCE_TARGET,
+    CONF_MAX_POWER_TARGET_SOURCE,
+    CONF_PRICE_SOURCE_TARGET,
+    CONF_PRICE_TARGET_SOURCE,
+    SECTION_COMMON,
+    SECTION_EFFICIENCY,
+    SECTION_POWER_LIMITS,
+    SECTION_PRICING,
 )
 
 # Default ratio values for optional fields applied by adapter

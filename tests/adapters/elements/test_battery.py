@@ -7,16 +7,17 @@ import numpy as np
 
 from custom_components.haeo.elements import battery
 from custom_components.haeo.elements.availability import schema_config_available
-from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_BATTERY, MODEL_ELEMENT_TYPE_CONNECTION
-from custom_components.haeo.model.elements import ModelElementConfig
+from custom_components.haeo.model import Network
+from custom_components.haeo.model.elements import (
+    MODEL_ELEMENT_TYPE_BATTERY,
+    MODEL_ELEMENT_TYPE_CONNECTION,
+    MODEL_ELEMENT_TYPE_NODE,
+    ModelElementConfig,
+)
+from custom_components.haeo.model.elements.battery import BATTERY_POWER_CHARGE, BATTERY_POWER_DISCHARGE
 from custom_components.haeo.model.elements.connection import ConnectionElementConfig
 from custom_components.haeo.model.elements.segments import is_efficiency_spec
-from custom_components.haeo.schema import (
-    as_connection_target,
-    as_constant_value,
-    as_entity_value,
-    as_none_value,
-)
+from custom_components.haeo.schema import as_connection_target, as_constant_value, as_entity_value, as_none_value
 
 
 def _get_connection(elements: Sequence[ModelElementConfig], name: str) -> ConnectionElementConfig:
@@ -372,7 +373,11 @@ def test_model_elements_omits_efficiency_when_missing() -> None:
 
     elements = battery.adapter.model_elements(config_data)
 
-    battery_element = next(element for element in elements if element["element_type"] == MODEL_ELEMENT_TYPE_BATTERY and element["name"] == "test_battery")
+    battery_element = next(
+        element
+        for element in elements
+        if element["element_type"] == MODEL_ELEMENT_TYPE_BATTERY and element["name"] == "test_battery"
+    )
     np.testing.assert_array_equal(battery_element["capacity"], [10.0, 10.0, 10.0])
 
     connection = _get_connection(elements, "test_battery:connection")
@@ -451,10 +456,6 @@ def test_discharge_respects_power_limit_with_efficiency() -> None:
     Verifies power_limit and efficiency segments interact correctly - power limit
     is enforced regardless of efficiency losses in the chain.
     """
-    from custom_components.haeo.model import Network
-    from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_BATTERY, MODEL_ELEMENT_TYPE_NODE
-    from custom_components.haeo.model.elements.battery import BATTERY_POWER_DISCHARGE
-
     max_discharge_kw = 5.0
     efficiency = 0.9
 
@@ -503,9 +504,13 @@ def test_discharge_respects_power_limit_with_efficiency() -> None:
 
     # Verify battery discharge respects power limit
     battery_discharge = network.elements["battery"].outputs()[BATTERY_POWER_DISCHARGE].values[0]
-    assert battery_discharge <= max_discharge_kw + 0.001, f"Battery discharge {battery_discharge:.3f}kW exceeds {max_discharge_kw}kW limit"
+    assert battery_discharge <= max_discharge_kw + 0.001, (
+        f"Battery discharge {battery_discharge:.3f}kW exceeds {max_discharge_kw}kW limit"
+    )
     # Should discharge at max since it's profitable
-    assert battery_discharge >= max_discharge_kw - 0.001, f"Expected max discharge {max_discharge_kw}kW, got {battery_discharge:.3f}kW"
+    assert battery_discharge >= max_discharge_kw - 0.001, (
+        f"Expected max discharge {max_discharge_kw}kW, got {battery_discharge:.3f}kW"
+    )
 
 
 def test_charge_respects_power_limit_with_efficiency() -> None:
@@ -517,10 +522,6 @@ def test_charge_respects_power_limit_with_efficiency() -> None:
 
     Verifies power_limit and efficiency segments interact correctly.
     """
-    from custom_components.haeo.model import Network
-    from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_BATTERY, MODEL_ELEMENT_TYPE_NODE
-    from custom_components.haeo.model.elements.battery import BATTERY_POWER_CHARGE
-
     max_charge_kw = 3.0
     efficiency = 0.9
 
@@ -569,6 +570,8 @@ def test_charge_respects_power_limit_with_efficiency() -> None:
 
     # Verify battery charge respects power limit
     battery_charge = network.elements["battery"].outputs()[BATTERY_POWER_CHARGE].values[0]
-    assert battery_charge <= max_charge_kw + 0.001, f"Battery charge {battery_charge:.3f}kW exceeds {max_charge_kw}kW limit"
+    assert battery_charge <= max_charge_kw + 0.001, (
+        f"Battery charge {battery_charge:.3f}kW exceeds {max_charge_kw}kW limit"
+    )
     # Should charge since it's profitable (exact amount depends on efficiency interaction)
     assert battery_charge > 0, "Expected battery to charge since it's profitable"

@@ -1,8 +1,6 @@
 """Grid element for HAEO integration."""
 
-from custom_components.haeo.sections import CONF_CONNECTION
-
-from .adapter import (
+from custom_components.haeo.adapters.elements.grid import (
     GRID_COST_IMPORT,
     GRID_COST_NET,
     GRID_DEVICE_GRID,
@@ -19,7 +17,7 @@ from .adapter import (
     GridOutputName,
     adapter,
 )
-from .schema import (
+from custom_components.haeo.schema.elements.grid import (
     CONF_MAX_POWER_SOURCE_TARGET,
     CONF_MAX_POWER_TARGET_SOURCE,
     CONF_PRICE_SOURCE_TARGET,
@@ -32,6 +30,7 @@ from .schema import (
     GridConfigData,
     GridConfigSchema,
 )
+from custom_components.haeo.sections import CONF_CONNECTION
 
 __all__ = [
     "CONF_CONNECTION",

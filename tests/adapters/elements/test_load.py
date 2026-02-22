@@ -6,7 +6,7 @@ from custom_components.haeo.elements import load as load_element
 from custom_components.haeo.elements.availability import schema_config_available
 from custom_components.haeo.schema import as_connection_target, as_entity_value
 
-from ..conftest import set_sensor
+from .conftest import set_sensor
 
 
 async def test_available_returns_true_when_forecast_sensor_exists(hass: HomeAssistant) -> None:

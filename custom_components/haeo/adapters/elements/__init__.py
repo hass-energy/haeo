@@ -1,0 +1,1 @@
+"""Per-element adapter modules."""
