@@ -53,4 +53,8 @@ __all__ = [
     "SECTION_ROLE",
     "NodeConfigData",
     "NodeConfigSchema",
+    "RoleConfig",
+    "RoleData",
 ]
+
+

@@ -74,4 +74,8 @@ __all__ = [
     "SECTION_PRICING",
     "GridConfigData",
     "GridConfigSchema",
+    "GridPricingConfig",
+    "GridPricingData",
 ]
+
+

@@ -61,3 +61,5 @@ __all__ = [
     "SolarConfigData",
     "SolarConfigSchema",
 ]
+
+

@@ -97,4 +97,8 @@ __all__ = [
     "SECTION_PRICING",
     "ConnectionConfigData",
     "ConnectionConfigSchema",
+    "EndpointsConfig",
+    "EndpointsData",
 ]
+
+

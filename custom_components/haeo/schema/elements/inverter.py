@@ -54,3 +54,5 @@ __all__ = [
     "InverterConfigData",
     "InverterConfigSchema",
 ]
+
+
