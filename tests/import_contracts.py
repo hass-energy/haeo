@@ -11,10 +11,7 @@ from importlinter.domain import fields
 from importlinter.domain.contract import Contract, ContractCheck
 from importlinter.domain.imports import Module
 
-_EXTERNAL_PACKAGES_MSG = (
-    "The top level configuration must have include_external_packages=True "
-    "for allowlist contracts."
-)
+_EXTERNAL_PACKAGES_MSG = "The top level configuration must have include_external_packages=True for allowlist contracts."
 
 
 class AllowlistContract(Contract):
@@ -33,7 +30,7 @@ class AllowlistContract(Contract):
     source_modules = fields.SetField(subfield=fields.ModuleExpressionField())
     allow_modules = fields.SetField(subfield=fields.StringField())
 
-    def check(self, graph: ImportGraph, verbose: bool) -> ContractCheck:  # noqa: FBT001
+    def check(self, graph: ImportGraph, verbose: bool) -> ContractCheck:
         """Check that source modules only import from allowed modules."""
         if not self._graph_was_built_with_externals():
             raise ValueError(_EXTERNAL_PACKAGES_MSG)
@@ -52,9 +49,7 @@ class AllowlistContract(Contract):
 
                 import_details = graph.get_import_details(importer=module_name, imported=imported_name)
                 line_numbers = tuple(d["line_number"] for d in import_details)
-                disallowed.setdefault(module_name, []).append(
-                    {"imported": imported_name, "line_numbers": line_numbers}
-                )
+                disallowed.setdefault(module_name, []).append({"imported": imported_name, "line_numbers": line_numbers})
 
         return ContractCheck(
             kept=not disallowed,
@@ -71,9 +66,7 @@ class AllowlistContract(Contract):
 
         for module, imports in sorted(check.metadata["disallowed"].items()):
             for imp in imports:
-                lines = ", ".join(
-                    f"l.{n}" if n is not None else "l.?" for n in imp["line_numbers"]
-                )
+                lines = ", ".join(f"l.{n}" if n is not None else "l.?" for n in imp["line_numbers"])
                 output.print_error(f"  {module} -> {imp['imported']} ({lines})", bold=False)
             output.new_line()
 
