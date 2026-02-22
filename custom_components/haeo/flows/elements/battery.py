@@ -6,10 +6,9 @@ from homeassistant.config_entries import ConfigSubentryFlow, SubentryFlowResult
 from homeassistant.helpers.selector import BooleanSelector, BooleanSelectorConfig
 import voluptuous as vol
 
-from custom_components.haeo.adapters.elements.battery import adapter
 from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.data.loader.extractors import extract_entity_metadata
-from custom_components.haeo.elements import get_input_field_schema_info
+from custom_components.haeo.elements import get_input_field_schema_info, get_input_fields
 from custom_components.haeo.elements.input_fields import InputFieldGroups
 from custom_components.haeo.flows.element_flow import ElementFlowMixin, build_sectioned_inclusion_map
 from custom_components.haeo.flows.field_schema import (
@@ -123,7 +122,7 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         if not isinstance(current_connection, str):
             current_connection = participants[0] if participants else ""
 
-        input_fields = adapter.inputs(subentry_data)
+        input_fields = get_input_fields(ELEMENT_TYPE)
 
         sections = self._get_sections()
         user_input = preprocess_sectioned_choose_input(user_input, input_fields, sections)
@@ -171,7 +170,7 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             config = self._build_config(self._step1_data, user_input)
             return self._finalize(config)
 
-        input_fields = adapter.inputs(subentry_data)
+        input_fields = get_input_fields(ELEMENT_TYPE)
         entity_metadata = extract_entity_metadata(self.hass)
         section_inclusion_map = build_sectioned_inclusion_map(input_fields, entity_metadata)
 
@@ -321,7 +320,7 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         partition_input: dict[str, Any],
     ) -> dict[str, Any]:
         """Build final config dict from user input."""
-        input_fields = adapter.inputs(main_input)
+        input_fields = get_input_fields(ELEMENT_TYPE)
         sections = self._get_sections()
         config_dict = convert_sectioned_choose_data_to_config(
             main_input,

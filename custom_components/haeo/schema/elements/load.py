@@ -2,7 +2,9 @@
 
 from typing import Final, Literal, TypedDict
 
+from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.schema.elements import ElementType
+from custom_components.haeo.schema.field_hints import FieldHint
 from custom_components.haeo.sections import (
     CONF_CURTAILMENT,
     CONF_FORECAST,
@@ -34,6 +36,33 @@ class LoadConfigSchema(TypedDict):
     forecast: ForecastConfig
     pricing: PricingConfig
     curtailment: CurtailmentConfig
+
+
+FIELD_HINTS: Final[dict[str, dict[str, FieldHint]]] = {
+    SECTION_FORECAST: {
+        CONF_FORECAST: FieldHint(
+            output_type=OutputType.POWER,
+            direction="+",
+            time_series=True,
+        ),
+    },
+    SECTION_PRICING: {
+        CONF_PRICE_TARGET_SOURCE: FieldHint(
+            output_type=OutputType.PRICE,
+            direction="+",
+            time_series=True,
+            default_value=0.0,
+        ),
+    },
+    SECTION_CURTAILMENT: {
+        CONF_CURTAILMENT: FieldHint(
+            output_type=OutputType.STATUS,
+            default_mode="value",
+            default_value=False,
+            force_required=True,
+        ),
+    },
+}
 
 
 class LoadConfigData(TypedDict):

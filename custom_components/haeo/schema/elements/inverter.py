@@ -2,7 +2,9 @@
 
 from typing import Final, Literal, TypedDict
 
+from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.schema.elements import ElementType
+from custom_components.haeo.schema.field_hints import FieldHint
 from custom_components.haeo.sections import (
     CONF_EFFICIENCY_SOURCE_TARGET,
     CONF_EFFICIENCY_TARGET_SOURCE,
@@ -31,6 +33,32 @@ class InverterConfigSchema(TypedDict):
     common: ConnectedCommonConfig
     power_limits: PowerLimitsConfig
     efficiency: EfficiencyConfig
+
+
+FIELD_HINTS: Final[dict[str, dict[str, FieldHint]]] = {
+    SECTION_POWER_LIMITS: {
+        CONF_MAX_POWER_SOURCE_TARGET: FieldHint(
+            output_type=OutputType.POWER_LIMIT,
+            time_series=True,
+            force_required=True,
+        ),
+        CONF_MAX_POWER_TARGET_SOURCE: FieldHint(
+            output_type=OutputType.POWER_LIMIT,
+            time_series=True,
+            force_required=True,
+        ),
+    },
+    SECTION_EFFICIENCY: {
+        CONF_EFFICIENCY_SOURCE_TARGET: FieldHint(
+            output_type=OutputType.EFFICIENCY,
+            default_value=100.0,
+        ),
+        CONF_EFFICIENCY_TARGET_SOURCE: FieldHint(
+            output_type=OutputType.EFFICIENCY,
+            default_value=100.0,
+        ),
+    },
+}
 
 
 class InverterConfigData(TypedDict):

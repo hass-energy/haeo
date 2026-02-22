@@ -2,8 +2,10 @@
 
 from typing import Final, Literal, TypedDict
 
+from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.schema import ConnectionTarget
 from custom_components.haeo.schema.elements import ElementType
+from custom_components.haeo.schema.field_hints import FieldHint
 from custom_components.haeo.sections import (
     CONF_EFFICIENCY_SOURCE_TARGET,
     CONF_EFFICIENCY_TARGET_SOURCE,
@@ -67,6 +69,42 @@ class ConnectionConfigSchema(TypedDict):
     power_limits: PowerLimitsConfig
     pricing: PricingConfig
     efficiency: EfficiencyConfig
+
+
+FIELD_HINTS: Final[dict[str, dict[str, FieldHint]]] = {
+    SECTION_POWER_LIMITS: {
+        CONF_MAX_POWER_SOURCE_TARGET: FieldHint(
+            output_type=OutputType.POWER_LIMIT,
+            time_series=True,
+        ),
+        CONF_MAX_POWER_TARGET_SOURCE: FieldHint(
+            output_type=OutputType.POWER_LIMIT,
+            time_series=True,
+        ),
+    },
+    SECTION_EFFICIENCY: {
+        CONF_EFFICIENCY_SOURCE_TARGET: FieldHint(
+            output_type=OutputType.EFFICIENCY,
+            time_series=True,
+        ),
+        CONF_EFFICIENCY_TARGET_SOURCE: FieldHint(
+            output_type=OutputType.EFFICIENCY,
+            time_series=True,
+        ),
+    },
+    SECTION_PRICING: {
+        CONF_PRICE_SOURCE_TARGET: FieldHint(
+            output_type=OutputType.PRICE,
+            direction="-",
+            time_series=True,
+        ),
+        CONF_PRICE_TARGET_SOURCE: FieldHint(
+            output_type=OutputType.PRICE,
+            direction="-",
+            time_series=True,
+        ),
+    },
+}
 
 
 class ConnectionConfigData(TypedDict):

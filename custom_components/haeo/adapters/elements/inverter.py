@@ -4,12 +4,8 @@ from collections.abc import Mapping
 from dataclasses import replace
 from typing import Any, Final, Literal
 
-from homeassistant.components.number import NumberDeviceClass, NumberEntityDescription
-
 from custom_components.haeo.adapters.output_utils import expect_output_data
 from custom_components.haeo.const import ConnectivityLevel
-from custom_components.haeo.core.units import UnitOfMeasurement
-from custom_components.haeo.elements.input_fields import InputFieldDefaults, InputFieldInfo
 from custom_components.haeo.model import ModelElementConfig, ModelOutputName, ModelOutputValue
 from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE
@@ -70,74 +66,6 @@ class InverterAdapter:
     element_type: str = ELEMENT_TYPE
     advanced: bool = False
     connectivity: ConnectivityLevel = ConnectivityLevel.ALWAYS
-
-    def inputs(self, config: Any) -> dict[str, dict[str, InputFieldInfo[Any]]]:
-        """Return input field definitions for inverter elements."""
-        _ = config
-        return {
-            SECTION_POWER_LIMITS: {
-                CONF_MAX_POWER_SOURCE_TARGET: InputFieldInfo(
-                    field_name=CONF_MAX_POWER_SOURCE_TARGET,
-                    entity_description=NumberEntityDescription(
-                        key=CONF_MAX_POWER_SOURCE_TARGET,
-                        translation_key=f"{ELEMENT_TYPE}_{CONF_MAX_POWER_SOURCE_TARGET}",
-                        native_unit_of_measurement=UnitOfMeasurement.KILO_WATT,
-                        device_class=NumberDeviceClass.POWER,
-                        native_min_value=0.0,
-                        native_max_value=1000.0,
-                        native_step=0.1,
-                    ),
-                    output_type=OutputType.POWER_LIMIT,
-                    time_series=True,
-                    force_required=True,
-                ),
-                CONF_MAX_POWER_TARGET_SOURCE: InputFieldInfo(
-                    field_name=CONF_MAX_POWER_TARGET_SOURCE,
-                    entity_description=NumberEntityDescription(
-                        key=CONF_MAX_POWER_TARGET_SOURCE,
-                        translation_key=f"{ELEMENT_TYPE}_{CONF_MAX_POWER_TARGET_SOURCE}",
-                        native_unit_of_measurement=UnitOfMeasurement.KILO_WATT,
-                        device_class=NumberDeviceClass.POWER,
-                        native_min_value=0.0,
-                        native_max_value=1000.0,
-                        native_step=0.1,
-                    ),
-                    output_type=OutputType.POWER_LIMIT,
-                    time_series=True,
-                    force_required=True,
-                ),
-            },
-            SECTION_EFFICIENCY: {
-                CONF_EFFICIENCY_SOURCE_TARGET: InputFieldInfo(
-                    field_name=CONF_EFFICIENCY_SOURCE_TARGET,
-                    entity_description=NumberEntityDescription(
-                        key=CONF_EFFICIENCY_SOURCE_TARGET,
-                        translation_key=f"{ELEMENT_TYPE}_{CONF_EFFICIENCY_SOURCE_TARGET}",
-                        native_unit_of_measurement=UnitOfMeasurement.PERCENT,
-                        device_class=NumberDeviceClass.POWER_FACTOR,
-                        native_min_value=50.0,
-                        native_max_value=100.0,
-                        native_step=0.1,
-                    ),
-                    output_type=OutputType.EFFICIENCY,
-                    defaults=InputFieldDefaults(mode=None, value=100.0),
-                ),
-                CONF_EFFICIENCY_TARGET_SOURCE: InputFieldInfo(
-                    field_name=CONF_EFFICIENCY_TARGET_SOURCE,
-                    entity_description=NumberEntityDescription(
-                        key=CONF_EFFICIENCY_TARGET_SOURCE,
-                        translation_key=f"{ELEMENT_TYPE}_{CONF_EFFICIENCY_TARGET_SOURCE}",
-                        native_unit_of_measurement=UnitOfMeasurement.PERCENT,
-                        device_class=NumberDeviceClass.POWER_FACTOR,
-                        native_min_value=50.0,
-                        native_max_value=100.0,
-                        native_step=0.1,
-                    ),
-                    output_type=OutputType.EFFICIENCY,
-                    defaults=InputFieldDefaults(mode=None, value=100.0),
-                ),
-            },
-        }
 
     def model_elements(self, config: InverterConfigData) -> list[ModelElementConfig]:
         """Return model element parameters for Inverter configuration.

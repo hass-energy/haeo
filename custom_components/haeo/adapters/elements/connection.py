@@ -4,12 +4,8 @@ from collections.abc import Mapping
 from dataclasses import replace
 from typing import Any, Final, Literal
 
-from homeassistant.components.number import NumberDeviceClass, NumberEntityDescription
-
 from custom_components.haeo.adapters.output_utils import expect_output_data
 from custom_components.haeo.const import ConnectivityLevel
-from custom_components.haeo.core.units import UnitOfMeasurement
-from custom_components.haeo.elements.input_fields import InputFieldInfo
 from custom_components.haeo.model import ModelElementConfig, ModelOutputName, ModelOutputValue
 from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION
@@ -81,100 +77,6 @@ class ConnectionAdapter:
     element_type: str = ELEMENT_TYPE
     advanced: bool = True
     connectivity: ConnectivityLevel = ConnectivityLevel.NEVER
-
-    def inputs(self, config: Any) -> dict[str, dict[str, InputFieldInfo[Any]]]:
-        """Return input field definitions for connection elements."""
-        _ = config
-        return {
-            SECTION_POWER_LIMITS: {
-                CONF_MAX_POWER_SOURCE_TARGET: InputFieldInfo(
-                    field_name=CONF_MAX_POWER_SOURCE_TARGET,
-                    entity_description=NumberEntityDescription(
-                        key=CONF_MAX_POWER_SOURCE_TARGET,
-                        translation_key=f"{ELEMENT_TYPE}_{CONF_MAX_POWER_SOURCE_TARGET}",
-                        native_unit_of_measurement=UnitOfMeasurement.KILO_WATT,
-                        device_class=NumberDeviceClass.POWER,
-                        native_min_value=0.0,
-                        native_max_value=1000.0,
-                        native_step=0.1,
-                    ),
-                    output_type=OutputType.POWER_LIMIT,
-                    time_series=True,
-                ),
-                CONF_MAX_POWER_TARGET_SOURCE: InputFieldInfo(
-                    field_name=CONF_MAX_POWER_TARGET_SOURCE,
-                    entity_description=NumberEntityDescription(
-                        key=CONF_MAX_POWER_TARGET_SOURCE,
-                        translation_key=f"{ELEMENT_TYPE}_{CONF_MAX_POWER_TARGET_SOURCE}",
-                        native_unit_of_measurement=UnitOfMeasurement.KILO_WATT,
-                        device_class=NumberDeviceClass.POWER,
-                        native_min_value=0.0,
-                        native_max_value=1000.0,
-                        native_step=0.1,
-                    ),
-                    output_type=OutputType.POWER_LIMIT,
-                    time_series=True,
-                ),
-            },
-            SECTION_EFFICIENCY: {
-                CONF_EFFICIENCY_SOURCE_TARGET: InputFieldInfo(
-                    field_name=CONF_EFFICIENCY_SOURCE_TARGET,
-                    entity_description=NumberEntityDescription(
-                        key=CONF_EFFICIENCY_SOURCE_TARGET,
-                        translation_key=f"{ELEMENT_TYPE}_{CONF_EFFICIENCY_SOURCE_TARGET}",
-                        native_unit_of_measurement=UnitOfMeasurement.PERCENT,
-                        device_class=NumberDeviceClass.POWER_FACTOR,
-                        native_min_value=50.0,
-                        native_max_value=100.0,
-                        native_step=0.1,
-                    ),
-                    output_type=OutputType.EFFICIENCY,
-                    time_series=True,
-                ),
-                CONF_EFFICIENCY_TARGET_SOURCE: InputFieldInfo(
-                    field_name=CONF_EFFICIENCY_TARGET_SOURCE,
-                    entity_description=NumberEntityDescription(
-                        key=CONF_EFFICIENCY_TARGET_SOURCE,
-                        translation_key=f"{ELEMENT_TYPE}_{CONF_EFFICIENCY_TARGET_SOURCE}",
-                        native_unit_of_measurement=UnitOfMeasurement.PERCENT,
-                        device_class=NumberDeviceClass.POWER_FACTOR,
-                        native_min_value=50.0,
-                        native_max_value=100.0,
-                        native_step=0.1,
-                    ),
-                    output_type=OutputType.EFFICIENCY,
-                    time_series=True,
-                ),
-            },
-            SECTION_PRICING: {
-                CONF_PRICE_SOURCE_TARGET: InputFieldInfo(
-                    field_name=CONF_PRICE_SOURCE_TARGET,
-                    entity_description=NumberEntityDescription(
-                        key=CONF_PRICE_SOURCE_TARGET,
-                        translation_key=f"{ELEMENT_TYPE}_{CONF_PRICE_SOURCE_TARGET}",
-                        native_min_value=-1.0,
-                        native_max_value=10.0,
-                        native_step=0.001,
-                    ),
-                    output_type=OutputType.PRICE,
-                    direction="-",
-                    time_series=True,
-                ),
-                CONF_PRICE_TARGET_SOURCE: InputFieldInfo(
-                    field_name=CONF_PRICE_TARGET_SOURCE,
-                    entity_description=NumberEntityDescription(
-                        key=CONF_PRICE_TARGET_SOURCE,
-                        translation_key=f"{ELEMENT_TYPE}_{CONF_PRICE_TARGET_SOURCE}",
-                        native_min_value=-1.0,
-                        native_max_value=10.0,
-                        native_step=0.001,
-                    ),
-                    output_type=OutputType.PRICE,
-                    direction="-",
-                    time_series=True,
-                ),
-            },
-        }
 
     def model_elements(self, config: ConnectionConfigData) -> list[ModelElementConfig]:
         """Return model element parameters for Connection configuration.

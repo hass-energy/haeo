@@ -5,9 +5,11 @@ from typing import Any, Literal, NotRequired, Required, TypeAliasType, TypedDict
 import pytest
 
 from custom_components.haeo import elements as elements_module
-from custom_components.haeo.adapters.elements.battery import adapter as battery_adapter
-from custom_components.haeo.elements import get_input_field_schema_info
+from custom_components.haeo.const import CONF_ELEMENT_TYPE
+from custom_components.haeo.elements import get_input_field_schema_info, get_input_fields
 from custom_components.haeo.schema.elements import ElementType, battery
+
+ELEMENT_TYPE = ElementType.BATTERY
 
 
 class _DummySection(TypedDict):
@@ -24,7 +26,7 @@ class _DummySchema(TypedDict):
 
 def test_get_input_field_schema_info_marks_optional_fields() -> None:
     """get_input_field_schema_info marks optional fields and sections."""
-    input_fields = battery_adapter.inputs(None)
+    input_fields = get_input_fields(ELEMENT_TYPE)
     schema_info = get_input_field_schema_info(battery.ELEMENT_TYPE, input_fields)
 
     assert schema_info[battery.SECTION_STORAGE][battery.CONF_CAPACITY].is_optional is False
@@ -34,7 +36,7 @@ def test_get_input_field_schema_info_marks_optional_fields() -> None:
 
 def test_get_input_field_schema_info_missing_section() -> None:
     """get_input_field_schema_info raises when section is missing."""
-    input_fields = dict(battery_adapter.inputs(None))
+    input_fields = dict(get_input_fields({CONF_ELEMENT_TYPE: ELEMENT_TYPE}))
     input_fields["missing_section"] = {}
 
     with pytest.raises(RuntimeError, match="Section 'missing_section' not found"):
@@ -43,7 +45,7 @@ def test_get_input_field_schema_info_missing_section() -> None:
 
 def test_get_input_field_schema_info_section_not_typed_dict() -> None:
     """get_input_field_schema_info raises when section is not a TypedDict."""
-    input_fields = battery_adapter.inputs(None)
+    input_fields = get_input_fields(ELEMENT_TYPE)
     sample_field = input_fields[battery.SECTION_STORAGE][battery.CONF_CAPACITY]
 
     with pytest.raises(RuntimeError, match="Section 'element_type'.*not a TypedDict"):
@@ -55,7 +57,7 @@ def test_get_input_field_schema_info_section_not_typed_dict() -> None:
 
 def test_get_input_field_schema_info_missing_field() -> None:
     """get_input_field_schema_info raises when a field is missing in schema."""
-    input_fields = battery_adapter.inputs(None)
+    input_fields = get_input_fields(ELEMENT_TYPE)
     sample_field = input_fields[battery.SECTION_STORAGE][battery.CONF_CAPACITY]
 
     with pytest.raises(RuntimeError, match="Field 'storage.missing_field' not found"):
@@ -79,7 +81,7 @@ def test_get_input_field_schema_info_type_alias(monkeypatch: pytest.MonkeyPatch)
     monkeypatch.setattr(elements_module, "get_type_hints", _fake_get_type_hints)
     monkeypatch.setitem(elements_module.ELEMENT_CONFIG_SCHEMAS, battery.ELEMENT_TYPE, _DummySchema)
 
-    input_fields = battery_adapter.inputs(None)
+    input_fields = get_input_fields(ELEMENT_TYPE)
     sample_field = input_fields[battery.SECTION_STORAGE][battery.CONF_CAPACITY]
 
     schema_info = get_input_field_schema_info(

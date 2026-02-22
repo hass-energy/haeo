@@ -1,7 +1,7 @@
 """Tests for solar element config flow."""
 
 from types import MappingProxyType
-from typing import Any
+from typing import Any, cast
 from unittest.mock import Mock
 
 from homeassistant.config_entries import SOURCE_RECONFIGURE, ConfigSubentry
@@ -10,8 +10,8 @@ from homeassistant.data_entry_flow import FlowResultType
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.haeo.adapters.elements.solar import adapter
 from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME
+from custom_components.haeo.elements import get_input_fields
 from custom_components.haeo.schema import as_connection_target, as_constant_value, as_entity_value
 from custom_components.haeo.schema.elements import node
 from custom_components.haeo.schema.elements.solar import (
@@ -151,7 +151,7 @@ async def test_reconfigure_defaults_handle_schema_values(
     assert result.get("type") == FlowResultType.FORM
     assert result.get("step_id") == "user"
 
-    input_fields = adapter.inputs(dict(existing_subentry.data))
+    input_fields = get_input_fields(cast("Any", {CONF_ELEMENT_TYPE: ELEMENT_TYPE}))
     defaults = flow._build_defaults("Test Solar", input_fields, dict(existing_subentry.data))
     assert defaults.get(SECTION_FORECAST, {}).get(CONF_FORECAST) == expected_forecast
 

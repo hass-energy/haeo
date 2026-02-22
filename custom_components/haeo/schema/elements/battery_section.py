@@ -10,8 +10,10 @@ from typing import Any, Final, Literal, TypedDict
 import numpy as np
 from numpy.typing import NDArray
 
+from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.schema import ConstantValue, EntityValue
 from custom_components.haeo.schema.elements import ElementType
+from custom_components.haeo.schema.field_hints import FieldHint
 from custom_components.haeo.sections import SECTION_COMMON, CommonConfig, CommonData
 
 ELEMENT_TYPE = ElementType.BATTERY_SECTION
@@ -44,6 +46,24 @@ class BatterySectionConfigSchema(TypedDict):
     element_type: Literal[ElementType.BATTERY_SECTION]
     common: CommonConfig
     storage: StorageChargeConfig
+
+
+FIELD_HINTS: Final[dict[str, dict[str, FieldHint]]] = {
+    SECTION_STORAGE: {
+        CONF_CAPACITY: FieldHint(
+            output_type=OutputType.ENERGY,
+            time_series=True,
+            boundaries=True,
+            min_value=0.1,
+        ),
+        CONF_INITIAL_CHARGE: FieldHint(
+            output_type=OutputType.ENERGY,
+            time_series=True,
+            boundaries=True,
+            min_value=0.0,
+        ),
+    },
+}
 
 
 class BatterySectionConfigData(TypedDict):

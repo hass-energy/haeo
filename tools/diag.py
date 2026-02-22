@@ -36,7 +36,7 @@ from custom_components.haeo.data.loader.extractors import extract
 from custom_components.haeo.data.loader.extractors.utils.parse_datetime import parse_datetime_to_timestamp
 from custom_components.haeo.data.util.forecast_combiner import combine_sensor_payloads
 from custom_components.haeo.data.util.forecast_fuser import fuse_to_boundaries, fuse_to_intervals
-from custom_components.haeo.elements import ELEMENT_TYPES, ElementConfigData, is_element_type
+from custom_components.haeo.elements import ELEMENT_TYPES, ElementConfigData, get_input_fields, is_element_type
 from custom_components.haeo.migrations.v1_3 import migrate_subentry_data
 from custom_components.haeo.model import Network
 from custom_components.haeo.model.output_data import OutputData
@@ -224,9 +224,7 @@ def load_element_data(
         msg = f"Unknown element type: {element_type}"
         raise ValueError(msg)
 
-    # Get input field definitions for this element type
-    adapter = ELEMENT_TYPES[element_type]
-    input_fields = adapter.inputs(element_config)
+    input_fields = get_input_fields(element_config)
 
     # Start with a shallow copy and clone nested section dictionaries so we can
     # safely mutate loaded values without mutating the original input config.

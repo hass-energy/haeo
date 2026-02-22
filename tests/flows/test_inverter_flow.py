@@ -1,7 +1,7 @@
 """Tests for inverter element config flow."""
 
 from types import MappingProxyType
-from typing import Any
+from typing import Any, cast
 from unittest.mock import Mock
 
 from homeassistant.config_entries import SOURCE_RECONFIGURE, ConfigSubentry
@@ -11,8 +11,8 @@ from homeassistant.helpers import entity_registry as er
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.haeo.adapters.elements.inverter import adapter
 from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME, DOMAIN
+from custom_components.haeo.elements import get_input_fields
 from custom_components.haeo.schema import as_connection_target, as_constant_value, as_entity_value
 from custom_components.haeo.schema.elements import node
 from custom_components.haeo.schema.elements.inverter import (
@@ -164,7 +164,7 @@ async def test_reconfigure_defaults_handle_schema_values(
     assert result.get("type") == FlowResultType.FORM
     assert result.get("step_id") == "user"
 
-    input_fields = adapter.inputs(dict(existing_subentry.data))
+    input_fields = get_input_fields(cast("Any", {CONF_ELEMENT_TYPE: ELEMENT_TYPE}))
     defaults = flow._build_defaults("Test Inverter", input_fields, dict(existing_subentry.data))
     assert defaults[SECTION_LIMITS][CONF_MAX_POWER_DC_TO_AC] == expected_defaults[CONF_MAX_POWER_DC_TO_AC]
     assert defaults[SECTION_LIMITS][CONF_MAX_POWER_AC_TO_DC] == expected_defaults[CONF_MAX_POWER_AC_TO_DC]
