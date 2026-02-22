@@ -575,7 +575,6 @@ __all__ = [
     "ValidatedElementSubentry",
     "collect_element_subentries",
     "find_nested_config_path",
-
     "get_input_field_schema_info",
     "get_input_fields",
     "get_nested_config_value",
