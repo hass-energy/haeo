@@ -32,17 +32,18 @@ from custom_components.haeo.elements.battery import (
     SECTION_COMMON,
     SECTION_EFFICIENCY,
     SECTION_LIMITS,
+    SECTION_OVERCHARGE,
     SECTION_PARTITIONING,
     SECTION_POWER_LIMITS,
-    SECTION_OVERCHARGE,
     SECTION_PRICING,
     SECTION_STORAGE,
     SECTION_UNDERCHARGE,
     adapter,
 )
 from custom_components.haeo.schema import as_connection_target, as_constant_value, as_entity_value
+from tests.conftest import add_participant
 
-from ..conftest import add_participant, create_flow
+from .conftest import create_flow
 
 
 def _wrap_main_input(user_input: dict[str, Any], *, as_schema: bool = False) -> dict[str, Any]:
@@ -96,7 +97,11 @@ def _wrap_main_input(user_input: dict[str, Any], *, as_schema: bool = False) -> 
             if key in user_input
         },
         SECTION_PRICING: pricing,
-        SECTION_EFFICIENCY: {key: user_input[key] for key in (CONF_EFFICIENCY_SOURCE_TARGET, CONF_EFFICIENCY_TARGET_SOURCE) if key in user_input},
+        SECTION_EFFICIENCY: {
+            key: user_input[key]
+            for key in (CONF_EFFICIENCY_SOURCE_TARGET, CONF_EFFICIENCY_TARGET_SOURCE)
+            if key in user_input
+        },
         SECTION_PARTITIONING: {key: user_input[key] for key in (CONF_CONFIGURE_PARTITIONS,) if key in user_input},
     }
 
@@ -108,8 +113,16 @@ def _wrap_partition_input(
     """Wrap partition inputs into sectioned form data."""
     overcharge_input = overcharge_input or {}
     return {
-        SECTION_UNDERCHARGE: {key: undercharge_input[key] for key in (CONF_PARTITION_PERCENTAGE, CONF_PARTITION_COST) if key in undercharge_input},
-        SECTION_OVERCHARGE: {key: overcharge_input[key] for key in (CONF_PARTITION_PERCENTAGE, CONF_PARTITION_COST) if key in overcharge_input},
+        SECTION_UNDERCHARGE: {
+            key: undercharge_input[key]
+            for key in (CONF_PARTITION_PERCENTAGE, CONF_PARTITION_COST)
+            if key in undercharge_input
+        },
+        SECTION_OVERCHARGE: {
+            key: overcharge_input[key]
+            for key in (CONF_PARTITION_PERCENTAGE, CONF_PARTITION_COST)
+            if key in overcharge_input
+        },
     }
 
 
@@ -264,7 +277,9 @@ async def test_partition_flow_with_entity_links_creates_entry(hass: HomeAssistan
         CONF_PARTITION_COST: None,
     }
 
-    result = await flow.async_step_partitions(user_input=_wrap_partition_input(partition_input, partition_input_overcharge))
+    result = await flow.async_step_partitions(
+        user_input=_wrap_partition_input(partition_input, partition_input_overcharge)
+    )
     assert result.get("type") == FlowResultType.CREATE_ENTRY
 
     created_data = flow.async_create_entry.call_args.kwargs["data"]
@@ -274,7 +289,9 @@ async def test_partition_flow_with_entity_links_creates_entry(hass: HomeAssistan
     assert overcharge[CONF_PARTITION_PERCENTAGE] == as_entity_value(["sensor.overcharge_pct"])
 
 
-async def test_partition_flow_with_constant_values_creates_entry(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
+async def test_partition_flow_with_constant_values_creates_entry(
+    hass: HomeAssistant, hub_entry: MockConfigEntry
+) -> None:
     """Complete flow with constant partition values creates entry."""
     add_participant(hass, hub_entry, "main_bus", node.ELEMENT_TYPE)
     flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
@@ -313,7 +330,9 @@ async def test_partition_flow_with_constant_values_creates_entry(hass: HomeAssis
         CONF_PARTITION_COST: 0.10,
     }
 
-    result = await flow.async_step_partitions(user_input=_wrap_partition_input(partition_input, partition_input_overcharge))
+    result = await flow.async_step_partitions(
+        user_input=_wrap_partition_input(partition_input, partition_input_overcharge)
+    )
     assert result.get("type") == FlowResultType.CREATE_ENTRY
 
     created_data = flow.async_create_entry.call_args.kwargs["data"]

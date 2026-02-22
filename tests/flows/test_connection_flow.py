@@ -26,8 +26,9 @@ from custom_components.haeo.elements.connection import (
     adapter,
 )
 from custom_components.haeo.schema import as_connection_target, as_constant_value, as_entity_value
+from tests.conftest import add_participant
 
-from ..conftest import add_participant, create_flow
+from .conftest import create_flow
 
 
 def _wrap_input(flat: dict[str, Any]) -> dict[str, Any]:
@@ -282,5 +283,9 @@ async def test_user_step_with_entity_creates_entry(
 
     # Verify the config contains the entity schema values (single entity)
     create_kwargs = flow.async_create_entry.call_args.kwargs
-    assert create_kwargs["data"][SECTION_POWER_LIMITS][CONF_MAX_POWER_SOURCE_TARGET] == as_entity_value(["sensor.power_st"])
-    assert create_kwargs["data"][SECTION_POWER_LIMITS][CONF_MAX_POWER_TARGET_SOURCE] == as_entity_value(["sensor.power_ts"])
+    assert create_kwargs["data"][SECTION_POWER_LIMITS][CONF_MAX_POWER_SOURCE_TARGET] == as_entity_value(
+        ["sensor.power_st"]
+    )
+    assert create_kwargs["data"][SECTION_POWER_LIMITS][CONF_MAX_POWER_TARGET_SOURCE] == as_entity_value(
+        ["sensor.power_ts"]
+    )

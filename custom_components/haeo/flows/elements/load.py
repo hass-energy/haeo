@@ -1,14 +1,15 @@
-"""Grid element configuration flows."""
+"""Load element configuration flows."""
 
 from typing import Any
 
 from homeassistant.config_entries import ConfigSubentryFlow, SubentryFlowResult
 import voluptuous as vol
 
-from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME
+from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME, URL_HAFO
 from custom_components.haeo.data.loader.extractors import extract_entity_metadata
 from custom_components.haeo.elements import get_input_field_schema_info
 from custom_components.haeo.elements.input_fields import InputFieldGroups
+from custom_components.haeo.elements.load.adapter import adapter
 from custom_components.haeo.flows.element_flow import ElementFlowMixin, build_sectioned_inclusion_map
 from custom_components.haeo.flows.field_schema import (
     SectionDefinition,
@@ -19,35 +20,32 @@ from custom_components.haeo.flows.field_schema import (
     validate_sectioned_choose_fields,
 )
 from custom_components.haeo.schema import get_connection_target_name, normalize_connection_target
+from custom_components.haeo.schema.elements.load import ELEMENT_TYPE
 from custom_components.haeo.sections import (
     CONF_CONNECTION,
-    CONF_MAX_POWER_SOURCE_TARGET,
-    CONF_MAX_POWER_TARGET_SOURCE,
-    CONF_PRICE_SOURCE_TARGET,
+    CONF_CURTAILMENT,
+    CONF_FORECAST,
     CONF_PRICE_TARGET_SOURCE,
     SECTION_COMMON,
+    SECTION_CURTAILMENT,
+    SECTION_PRICING,
     build_common_fields,
     common_section,
-    power_limits_section,
+    forecast_section,
     pricing_section,
 )
 
-from .adapter import adapter
-from .schema import ELEMENT_TYPE
 
-
-class GridSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
-    """Handle grid element configuration flows."""
+class LoadSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
+    """Handle load element configuration flows."""
 
     def _get_sections(self) -> tuple[SectionDefinition, ...]:
         """Return sections for the configuration step."""
         return (
             common_section((CONF_NAME, CONF_CONNECTION), collapsed=False),
-            pricing_section((CONF_PRICE_SOURCE_TARGET, CONF_PRICE_TARGET_SOURCE), collapsed=False),
-            power_limits_section(
-                (CONF_MAX_POWER_SOURCE_TARGET, CONF_MAX_POWER_TARGET_SOURCE),
-                collapsed=True,
-            ),
+            forecast_section((CONF_FORECAST,), collapsed=False),
+            pricing_section((CONF_PRICE_TARGET_SOURCE,), collapsed=True),
+            SectionDefinition(key=SECTION_CURTAILMENT, fields=(CONF_CURTAILMENT,), collapsed=True),
         )
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> SubentryFlowResult:
@@ -73,16 +71,12 @@ class GridSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             current_connection = participants[0] if participants else ""
         input_fields = adapter.inputs(subentry_data)
 
-        # Preprocess to normalize ChooseSelector data before validation
         sections = self._get_sections()
         user_input = preprocess_sectioned_choose_input(user_input, input_fields, sections)
         errors = self._validate_user_input(user_input, input_fields)
 
         if user_input is not None and not errors:
-            config = self._build_config(
-                user_input,
-                dict(subentry_data) if subentry_data is not None else None,
-            )
+            config = self._build_config(user_input)
             return self._finalize(config, user_input)
 
         entity_metadata = extract_entity_metadata(self.hass)
@@ -106,7 +100,12 @@ class GridSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         )
         schema = self.add_suggested_values_to_schema(schema, defaults)
 
-        return self.async_show_form(step_id="user", data_schema=schema, errors=errors)
+        return self.async_show_form(
+            step_id="user",
+            data_schema=schema,
+            errors=errors,
+            description_placeholders={"hafo_url": URL_HAFO},
+        )
 
     def _build_schema(
         self,
@@ -157,7 +156,9 @@ class GridSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                 SECTION_COMMON: {
                     CONF_NAME: default_name if subentry_data is None else common_data.get(CONF_NAME),
                     CONF_CONNECTION: connection_default,
-                }
+                },
+                SECTION_PRICING: {},
+                SECTION_CURTAILMENT: {},
             },
         )
 
@@ -183,13 +184,9 @@ class GridSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         )
         return errors if errors else None
 
-    def _build_config(
-        self,
-        user_input: dict[str, Any],
-        current_data: dict[str, Any] | None = None,
-    ) -> dict[str, Any]:
+    def _build_config(self, user_input: dict[str, Any]) -> dict[str, Any]:
         """Build final config dict from user input."""
-        input_fields = adapter.inputs(current_data or user_input)
+        input_fields = adapter.inputs(user_input)
         config_dict = convert_sectioned_choose_data_to_config(
             user_input,
             input_fields,

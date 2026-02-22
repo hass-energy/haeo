@@ -20,7 +20,7 @@ from custom_components.haeo.elements.node import (
     SECTION_ROLE,
 )
 
-from ..conftest import create_flow
+from .conftest import create_flow
 
 
 def _wrap_input(flat: dict[str, Any]) -> dict[str, Any]:
@@ -112,7 +112,9 @@ async def test_user_step_shows_error(hass: HomeAssistant, hub_entry: MockConfigE
 
 
 @pytest.mark.parametrize("case", VALID_CASES, ids=lambda c: c["description"])
-async def test_reconfigure_step_updates_entry(hass: HomeAssistant, hub_entry: MockConfigEntry, case: ValidFlowCase) -> None:
+async def test_reconfigure_step_updates_entry(
+    hass: HomeAssistant, hub_entry: MockConfigEntry, case: ValidFlowCase
+) -> None:
     """Node reconfigure step should update entry with valid input."""
     existing = ConfigSubentry(
         data=MappingProxyType(_wrap_config({CONF_NAME: "OldName"})),

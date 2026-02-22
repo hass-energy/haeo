@@ -1,7 +1,12 @@
 """Base classes and utilities for HAEO config flows."""
 
+from __future__ import annotations
+
 import logging
-from typing import Any, Final
+from typing import TYPE_CHECKING, Any, Final
+
+if TYPE_CHECKING:
+    from custom_components.haeo.elements import ElementType
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.helpers.selector import (
@@ -334,3 +339,30 @@ def get_hub_options_schema(config_entry: ConfigEntry) -> vol.Schema:
         },
     }
     return vol.Schema(build_section_schema(sections, field_entries))
+
+
+def get_element_flow_classes() -> dict[ElementType, type]:
+    """Return mapping of element types to their config flow handler classes.
+
+    This function performs lazy imports to avoid circular dependencies
+    (flows import adapters, not the other way around).
+    """
+    from custom_components.haeo.flows.elements.battery import BatterySubentryFlowHandler  # noqa: PLC0415
+    from custom_components.haeo.flows.elements.battery_section import BatterySectionSubentryFlowHandler  # noqa: PLC0415
+    from custom_components.haeo.flows.elements.connection import ConnectionSubentryFlowHandler  # noqa: PLC0415
+    from custom_components.haeo.flows.elements.grid import GridSubentryFlowHandler  # noqa: PLC0415
+    from custom_components.haeo.flows.elements.inverter import InverterSubentryFlowHandler  # noqa: PLC0415
+    from custom_components.haeo.flows.elements.load import LoadSubentryFlowHandler  # noqa: PLC0415
+    from custom_components.haeo.flows.elements.node import NodeSubentryFlowHandler  # noqa: PLC0415
+    from custom_components.haeo.flows.elements.solar import SolarSubentryFlowHandler  # noqa: PLC0415
+
+    return {
+        "battery": BatterySubentryFlowHandler,
+        "battery_section": BatterySectionSubentryFlowHandler,
+        "connection": ConnectionSubentryFlowHandler,
+        "grid": GridSubentryFlowHandler,
+        "inverter": InverterSubentryFlowHandler,
+        "load": LoadSubentryFlowHandler,
+        "node": NodeSubentryFlowHandler,
+        "solar": SolarSubentryFlowHandler,
+    }

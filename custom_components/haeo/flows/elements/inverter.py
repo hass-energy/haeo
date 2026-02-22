@@ -1,4 +1,4 @@
-"""Connection element configuration flows."""
+"""Inverter element configuration flows."""
 
 from typing import Any
 
@@ -9,11 +9,8 @@ from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.data.loader.extractors import extract_entity_metadata
 from custom_components.haeo.elements import get_input_field_schema_info
 from custom_components.haeo.elements.input_fields import InputFieldGroups
-from custom_components.haeo.flows.element_flow import (
-    ElementFlowMixin,
-    build_participant_selector,
-    build_sectioned_inclusion_map,
-)
+from custom_components.haeo.elements.inverter.adapter import adapter
+from custom_components.haeo.flows.element_flow import ElementFlowMixin, build_sectioned_inclusion_map
 from custom_components.haeo.flows.field_schema import (
     SectionDefinition,
     build_sectioned_choose_defaults,
@@ -23,89 +20,59 @@ from custom_components.haeo.flows.field_schema import (
     validate_sectioned_choose_fields,
 )
 from custom_components.haeo.schema import get_connection_target_name, normalize_connection_target
+from custom_components.haeo.schema.elements.inverter import ELEMENT_TYPE
 from custom_components.haeo.sections import (
+    CONF_CONNECTION,
+    CONF_EFFICIENCY_SOURCE_TARGET,
+    CONF_EFFICIENCY_TARGET_SOURCE,
+    CONF_MAX_POWER_SOURCE_TARGET,
+    CONF_MAX_POWER_TARGET_SOURCE,
     SECTION_COMMON,
     build_common_fields,
     common_section,
     efficiency_section,
     power_limits_section,
-    pricing_section,
-)
-
-from .adapter import adapter
-from .schema import (
-    CONF_EFFICIENCY_SOURCE_TARGET,
-    CONF_EFFICIENCY_TARGET_SOURCE,
-    CONF_MAX_POWER_SOURCE_TARGET,
-    CONF_MAX_POWER_TARGET_SOURCE,
-    CONF_PRICE_SOURCE_TARGET,
-    CONF_PRICE_TARGET_SOURCE,
-    CONF_SOURCE,
-    CONF_TARGET,
-    ELEMENT_TYPE,
-    SECTION_ENDPOINTS,
 )
 
 
-def _build_endpoints_fields(
-    participants: list[str],
-    current_source: str | None = None,
-    current_target: str | None = None,
-) -> dict[str, tuple[vol.Marker, Any]]:
-    """Build endpoint field entries for config flows."""
-    return {
-        CONF_SOURCE: (
-            vol.Required(CONF_SOURCE),
-            build_participant_selector(participants, current_source),
-        ),
-        CONF_TARGET: (
-            vol.Required(CONF_TARGET),
-            build_participant_selector(participants, current_target),
-        ),
-    }
-
-
-class ConnectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
-    """Handle connection element configuration flows."""
+class InverterSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
+    """Handle inverter element configuration flows."""
 
     def _get_sections(self) -> tuple[SectionDefinition, ...]:
         """Return sections for the configuration step."""
         return (
-            common_section((CONF_NAME,), collapsed=False),
-            SectionDefinition(key=SECTION_ENDPOINTS, fields=(CONF_SOURCE, CONF_TARGET), collapsed=False),
-            power_limits_section((CONF_MAX_POWER_SOURCE_TARGET, CONF_MAX_POWER_TARGET_SOURCE), collapsed=False),
-            pricing_section((CONF_PRICE_SOURCE_TARGET, CONF_PRICE_TARGET_SOURCE), collapsed=False),
-            efficiency_section((CONF_EFFICIENCY_SOURCE_TARGET, CONF_EFFICIENCY_TARGET_SOURCE), collapsed=True),
+            common_section((CONF_NAME, CONF_CONNECTION), collapsed=False),
+            power_limits_section(
+                (CONF_MAX_POWER_SOURCE_TARGET, CONF_MAX_POWER_TARGET_SOURCE),
+                collapsed=False,
+            ),
+            efficiency_section(
+                (CONF_EFFICIENCY_SOURCE_TARGET, CONF_EFFICIENCY_TARGET_SOURCE),
+                collapsed=True,
+            ),
         )
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> SubentryFlowResult:
-        """Handle user step: name, source, target, and input configuration."""
+        """Handle user step: name, connection, and input configuration."""
         return await self._async_step_user(user_input)
 
     async def async_step_reconfigure(self, user_input: dict[str, Any] | None = None) -> SubentryFlowResult:
-        """Handle reconfigure step: name, source, target, and input configuration."""
+        """Handle reconfigure step: name, connection, and input configuration."""
         return await self._async_step_user(user_input)
 
     async def _async_step_user(self, user_input: dict[str, Any] | None) -> SubentryFlowResult:
         """Shared logic for user and reconfigure steps."""
         subentry = self._get_subentry()
         subentry_data = dict(subentry.data) if subentry else None
-        participants = self._get_participant_names()
-        current_source = (
-            get_connection_target_name(subentry_data.get(SECTION_ENDPOINTS, {}).get(CONF_SOURCE))
-            if subentry_data
-            else None
-        )
-        current_target = (
-            get_connection_target_name(subentry_data.get(SECTION_ENDPOINTS, {}).get(CONF_TARGET))
-            if subentry_data
-            else None
-        )
         default_name = await self._async_get_default_name(ELEMENT_TYPE)
-        if not isinstance(current_source, str):
-            current_source = participants[0] if participants else ""
-        if not isinstance(current_target, str):
-            current_target = participants[min(1, len(participants) - 1)] if participants else ""
+        participants = self._get_participant_names()
+        current_connection = (
+            get_connection_target_name(subentry_data.get(SECTION_COMMON, {}).get(CONF_CONNECTION))
+            if subentry_data
+            else None
+        )
+        if not isinstance(current_connection, str):
+            current_connection = participants[0] if participants else ""
         input_fields = adapter.inputs(subentry_data)
 
         sections = self._get_sections()
@@ -118,12 +85,12 @@ class ConnectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
 
         entity_metadata = extract_entity_metadata(self.hass)
         section_inclusion_map = build_sectioned_inclusion_map(input_fields, entity_metadata)
+
         schema = self._build_schema(
             participants,
             input_fields,
             section_inclusion_map,
-            current_source,
-            current_target,
+            current_connection,
             subentry_data,
         )
         defaults = (
@@ -133,8 +100,7 @@ class ConnectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                 default_name,
                 input_fields,
                 subentry_data,
-                current_source,
-                current_target,
+                current_connection,
             )
         )
         schema = self.add_suggested_values_to_schema(schema, defaults)
@@ -146,11 +112,10 @@ class ConnectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         participants: list[str],
         input_fields: InputFieldGroups,
         section_inclusion_map: dict[str, dict[str, list[str]]],
-        current_source: str | None = None,
-        current_target: str | None = None,
+        current_connection: str | None = None,
         subentry_data: dict[str, Any] | None = None,
     ) -> vol.Schema:
-        """Build the schema with name, source, target, and choose selectors for inputs."""
+        """Build the schema with name, connection, and choose selectors for inputs."""
         field_schema = get_input_field_schema_info(ELEMENT_TYPE, input_fields)
         return build_sectioned_choose_schema(
             self._get_sections(),
@@ -159,8 +124,11 @@ class ConnectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             section_inclusion_map,
             current_data=subentry_data,
             extra_field_entries={
-                SECTION_COMMON: build_common_fields(include_connection=False),
-                SECTION_ENDPOINTS: _build_endpoints_fields(participants, current_source, current_target),
+                SECTION_COMMON: build_common_fields(
+                    include_connection=True,
+                    participants=participants,
+                    current_connection=current_connection,
+                )
             },
         )
 
@@ -169,23 +137,14 @@ class ConnectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         default_name: str,
         input_fields: InputFieldGroups,
         subentry_data: dict[str, Any] | None = None,
-        source_default: str | None = None,
-        target_default: str | None = None,
+        connection_default: str | None = None,
     ) -> dict[str, Any]:
         """Build default values for the form."""
         common_data = subentry_data.get(SECTION_COMMON, {}) if subentry_data else {}
-        endpoints_data = subentry_data.get(SECTION_ENDPOINTS, {}) if subentry_data else {}
-        source_default = (
-            source_default
-            if source_default is not None
-            else get_connection_target_name(endpoints_data.get(CONF_SOURCE))
-            if subentry_data
-            else None
-        )
-        target_default = (
-            target_default
-            if target_default is not None
-            else get_connection_target_name(endpoints_data.get(CONF_TARGET))
+        connection_default = (
+            connection_default
+            if connection_default is not None
+            else get_connection_target_name(common_data.get(CONF_CONNECTION))
             if subentry_data
             else None
         )
@@ -196,11 +155,8 @@ class ConnectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             base_defaults={
                 SECTION_COMMON: {
                     CONF_NAME: default_name if subentry_data is None else common_data.get(CONF_NAME),
-                },
-                SECTION_ENDPOINTS: {
-                    CONF_SOURCE: source_default,
-                    CONF_TARGET: target_default,
-                },
+                    CONF_CONNECTION: connection_default,
+                }
             },
         )
 
@@ -214,7 +170,6 @@ class ConnectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             return None
         errors: dict[str, str] = {}
         common_input = user_input.get(SECTION_COMMON, {})
-        endpoints_input = user_input.get(SECTION_ENDPOINTS, {})
         self._validate_name(common_input.get(CONF_NAME), errors)
         field_schema = get_input_field_schema_info(ELEMENT_TYPE, input_fields)
         errors.update(
@@ -225,13 +180,6 @@ class ConnectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                 self._get_sections(),
             )
         )
-        # Validate source != target
-        source = endpoints_input.get(CONF_SOURCE)
-        target = endpoints_input.get(CONF_TARGET)
-        source_name = get_connection_target_name(source)
-        target_name = get_connection_target_name(target)
-        if source_name and target_name and source_name == target_name:
-            errors[CONF_TARGET] = "cannot_connect_to_self"
         return errors if errors else None
 
     def _build_config(self, user_input: dict[str, Any]) -> dict[str, Any]:
@@ -242,11 +190,9 @@ class ConnectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             input_fields,
             self._get_sections(),
         )
-        endpoints_config = config_dict.get(SECTION_ENDPOINTS, {})
-        if CONF_SOURCE in endpoints_config:
-            endpoints_config[CONF_SOURCE] = normalize_connection_target(endpoints_config[CONF_SOURCE])
-        if CONF_TARGET in endpoints_config:
-            endpoints_config[CONF_TARGET] = normalize_connection_target(endpoints_config[CONF_TARGET])
+        common_config = config_dict.get(SECTION_COMMON, {})
+        if CONF_CONNECTION in common_config:
+            common_config[CONF_CONNECTION] = normalize_connection_target(common_config[CONF_CONNECTION])
 
         return {
             CONF_ELEMENT_TYPE: ELEMENT_TYPE,
