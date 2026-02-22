@@ -7,7 +7,7 @@ import pytest
 from custom_components.haeo import elements as elements_module
 from custom_components.haeo.adapters.elements.battery import adapter as battery_adapter
 from custom_components.haeo.elements import get_input_field_schema_info
-from custom_components.haeo.schema.elements import battery
+from custom_components.haeo.schema.elements import ElementType, battery
 
 
 class _DummySection(TypedDict):
@@ -18,7 +18,7 @@ DummySectionAlias = TypeAliasType("DummySectionAlias", _DummySection)
 
 
 class _DummySchema(TypedDict):
-    element_type: Literal["battery"]
+    element_type: Literal[ElementType.BATTERY]
     dummy: DummySectionAlias
 
 

@@ -296,36 +296,36 @@ class ValidatedElementSubentry(NamedTuple):
 # Map element types to their ConfigSchema TypedDict classes for reflection
 # Typed with ElementType keys to enable type-safe indexing after is_element_type check
 ELEMENT_CONFIG_SCHEMAS: Final[dict[ElementType, type]] = {
-    "battery": BatteryConfigSchema,
-    "battery_section": BatterySectionConfigSchema,
-    "connection": ConnectionConfigSchema,
-    "grid": GridConfigSchema,
-    "inverter": InverterConfigSchema,
-    "load": LoadConfigSchema,
-    "node": NodeConfigSchema,
-    "solar": SolarConfigSchema,
+    ElementType.BATTERY: BatteryConfigSchema,
+    ElementType.BATTERY_SECTION: BatterySectionConfigSchema,
+    ElementType.CONNECTION: ConnectionConfigSchema,
+    ElementType.GRID: GridConfigSchema,
+    ElementType.INVERTER: InverterConfigSchema,
+    ElementType.LOAD: LoadConfigSchema,
+    ElementType.NODE: NodeConfigSchema,
+    ElementType.SOLAR: SolarConfigSchema,
 }
 
 ELEMENT_CONFIG_DATA: Final[dict[ElementType, type]] = {
-    "battery": BatteryConfigData,
-    "battery_section": BatterySectionConfigData,
-    "connection": ConnectionConfigData,
-    "grid": GridConfigData,
-    "inverter": InverterConfigData,
-    "load": LoadConfigData,
-    "node": NodeConfigData,
-    "solar": SolarConfigData,
+    ElementType.BATTERY: BatteryConfigData,
+    ElementType.BATTERY_SECTION: BatterySectionConfigData,
+    ElementType.CONNECTION: ConnectionConfigData,
+    ElementType.GRID: GridConfigData,
+    ElementType.INVERTER: InverterConfigData,
+    ElementType.LOAD: LoadConfigData,
+    ElementType.NODE: NodeConfigData,
+    ElementType.SOLAR: SolarConfigData,
 }
 
 ELEMENT_OPTIONAL_INPUT_FIELDS: Final[dict[ElementType, frozenset[str]]] = {
-    "battery": BATTERY_OPTIONAL_INPUT_FIELDS,
-    "battery_section": BATTERY_SECTION_OPTIONAL_INPUT_FIELDS,
-    "connection": CONNECTION_OPTIONAL_INPUT_FIELDS,
-    "grid": GRID_OPTIONAL_INPUT_FIELDS,
-    "inverter": INVERTER_OPTIONAL_INPUT_FIELDS,
-    "load": LOAD_OPTIONAL_INPUT_FIELDS,
-    "node": NODE_OPTIONAL_INPUT_FIELDS,
-    "solar": SOLAR_OPTIONAL_INPUT_FIELDS,
+    ElementType.BATTERY: BATTERY_OPTIONAL_INPUT_FIELDS,
+    ElementType.BATTERY_SECTION: BATTERY_SECTION_OPTIONAL_INPUT_FIELDS,
+    ElementType.CONNECTION: CONNECTION_OPTIONAL_INPUT_FIELDS,
+    ElementType.GRID: GRID_OPTIONAL_INPUT_FIELDS,
+    ElementType.INVERTER: INVERTER_OPTIONAL_INPUT_FIELDS,
+    ElementType.LOAD: LOAD_OPTIONAL_INPUT_FIELDS,
+    ElementType.NODE: NODE_OPTIONAL_INPUT_FIELDS,
+    ElementType.SOLAR: SOLAR_OPTIONAL_INPUT_FIELDS,
 }
 
 
@@ -373,10 +373,11 @@ def get_input_field_schema_info(
 
 
 def is_element_type(value: Any) -> TypeGuard[ElementType]:
-    """Return True when value is a valid ElementType literal.
+    """Return True when value is a valid ElementType string.
 
     Use this to narrow Any values (e.g., from dict.get()) to ElementType,
     enabling type-safe access to ELEMENT_TYPES and ELEMENT_CONFIG_SCHEMAS.
+    Accepts both ElementType members and plain strings matching a member value.
     """
     return value in ELEMENT_TYPES
 

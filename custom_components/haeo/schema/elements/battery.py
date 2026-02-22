@@ -6,6 +6,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 from custom_components.haeo.schema import ConstantValue, EntityValue, NoneValue
+from custom_components.haeo.schema.elements import ElementType
 from custom_components.haeo.sections import (
     CONF_CONNECTION,
     CONF_EFFICIENCY_SOURCE_TARGET,
@@ -28,7 +29,7 @@ from custom_components.haeo.sections import (
     PricingData,
 )
 
-ELEMENT_TYPE: Final = "battery"
+ELEMENT_TYPE = ElementType.BATTERY
 
 SECTION_STORAGE: Final = "storage"
 SECTION_UNDERCHARGE: Final = "undercharge"
@@ -140,7 +141,7 @@ class BatteryPricingData(PricingData):
 class BatteryConfigSchema(TypedDict):
     """Battery element configuration as stored in Home Assistant."""
 
-    element_type: Literal["battery"]
+    element_type: Literal[ElementType.BATTERY]
     common: ConnectedCommonConfig
     storage: StorageSocConfig
     limits: LimitsConfig
@@ -155,7 +156,7 @@ class BatteryConfigSchema(TypedDict):
 class BatteryConfigData(TypedDict):
     """Battery element configuration with loaded values."""
 
-    element_type: Literal["battery"]
+    element_type: Literal[ElementType.BATTERY]
     common: ConnectedCommonData
     storage: StorageSocData
     limits: LimitsData

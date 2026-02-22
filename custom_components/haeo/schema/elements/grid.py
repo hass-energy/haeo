@@ -6,6 +6,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 from custom_components.haeo.schema import ConstantValue, EntityValue, NoneValue
+from custom_components.haeo.schema.elements import ElementType
 from custom_components.haeo.sections import (
     CONF_MAX_POWER_SOURCE_TARGET,
     CONF_MAX_POWER_TARGET_SOURCE,
@@ -20,7 +21,7 @@ from custom_components.haeo.sections import (
     PowerLimitsData,
 )
 
-ELEMENT_TYPE: Final = "grid"
+ELEMENT_TYPE = ElementType.GRID
 
 OPTIONAL_INPUT_FIELDS: Final[frozenset[str]] = frozenset(
     {
@@ -47,7 +48,7 @@ class GridPricingData(TypedDict):
 class GridConfigSchema(TypedDict):
     """Grid element configuration as stored in Home Assistant."""
 
-    element_type: Literal["grid"]
+    element_type: Literal[ElementType.GRID]
     common: ConnectedCommonConfig
     pricing: GridPricingConfig
     power_limits: PowerLimitsConfig
@@ -56,7 +57,7 @@ class GridConfigSchema(TypedDict):
 class GridConfigData(TypedDict):
     """Grid element configuration with loaded values."""
 
-    element_type: Literal["grid"]
+    element_type: Literal[ElementType.GRID]
     common: ConnectedCommonData
     pricing: GridPricingData
     power_limits: PowerLimitsData

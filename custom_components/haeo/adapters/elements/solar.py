@@ -18,6 +18,7 @@ from custom_components.haeo.model.elements.connection import CONNECTION_POWER_SO
 from custom_components.haeo.model.elements.segments import POWER_LIMIT_SOURCE_TARGET
 from custom_components.haeo.model.output_data import OutputData
 from custom_components.haeo.schema import extract_connection_target
+from custom_components.haeo.schema.elements import ElementType
 from custom_components.haeo.schema.elements.solar import (
     CONF_CURTAILMENT,
     ELEMENT_TYPE,
@@ -47,9 +48,9 @@ SOLAR_OUTPUT_NAMES: Final[frozenset[SolarOutputName]] = frozenset(
     )
 )
 
-type SolarDeviceName = Literal["solar"]
+type SolarDeviceName = Literal[ElementType.SOLAR]
 
-SOLAR_DEVICE_NAMES: Final[frozenset[SolarDeviceName]] = frozenset((SOLAR_DEVICE_SOLAR := "solar",))
+SOLAR_DEVICE_NAMES: Final[frozenset[SolarDeviceName]] = frozenset((SOLAR_DEVICE_SOLAR := ElementType.SOLAR,))
 
 
 class SolarAdapter:

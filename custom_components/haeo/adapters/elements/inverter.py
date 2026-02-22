@@ -22,6 +22,7 @@ from custom_components.haeo.model.elements.node import NODE_POWER_BALANCE
 from custom_components.haeo.model.elements.segments import POWER_LIMIT_SOURCE_TARGET, POWER_LIMIT_TARGET_SOURCE
 from custom_components.haeo.model.output_data import OutputData
 from custom_components.haeo.schema import extract_connection_target
+from custom_components.haeo.schema.elements import ElementType
 from custom_components.haeo.schema.elements.inverter import ELEMENT_TYPE, InverterConfigData
 from custom_components.haeo.sections import (
     CONF_CONNECTION,
@@ -56,10 +57,10 @@ INVERTER_OUTPUT_NAMES: Final[frozenset[InverterOutputName]] = frozenset(
     )
 )
 
-type InverterDeviceName = Literal["inverter"]
+type InverterDeviceName = Literal[ElementType.INVERTER]
 
 INVERTER_DEVICE_NAMES: Final[frozenset[InverterDeviceName]] = frozenset(
-    (INVERTER_DEVICE_INVERTER := "inverter",),
+    (INVERTER_DEVICE_INVERTER := ElementType.INVERTER,),
 )
 
 

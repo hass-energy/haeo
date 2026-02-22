@@ -2,9 +2,10 @@
 
 from typing import Final, Literal, TypedDict
 
+from custom_components.haeo.schema.elements import ElementType
 from custom_components.haeo.sections import SECTION_COMMON, CommonConfig, CommonData
 
-ELEMENT_TYPE: Final = "node"
+ELEMENT_TYPE = ElementType.NODE
 
 SECTION_ROLE: Final = "role"
 
@@ -31,7 +32,7 @@ class RoleData(TypedDict, total=False):
 class NodeConfigSchema(TypedDict):
     """Node element configuration as stored in Home Assistant."""
 
-    element_type: Literal["node"]
+    element_type: Literal[ElementType.NODE]
     common: CommonConfig
     role: RoleConfig
 
@@ -39,7 +40,7 @@ class NodeConfigSchema(TypedDict):
 class NodeConfigData(TypedDict):
     """Node element configuration with loaded values."""
 
-    element_type: Literal["node"]
+    element_type: Literal[ElementType.NODE]
     common: CommonData
     role: RoleData
 

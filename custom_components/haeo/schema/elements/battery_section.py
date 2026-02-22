@@ -11,9 +11,10 @@ import numpy as np
 from numpy.typing import NDArray
 
 from custom_components.haeo.schema import ConstantValue, EntityValue
+from custom_components.haeo.schema.elements import ElementType
 from custom_components.haeo.sections import SECTION_COMMON, CommonConfig, CommonData
 
-ELEMENT_TYPE: Final = "battery_section"
+ELEMENT_TYPE = ElementType.BATTERY_SECTION
 
 SECTION_STORAGE: Final = "storage"
 
@@ -40,7 +41,7 @@ class StorageChargeData(TypedDict):
 class BatterySectionConfigSchema(TypedDict):
     """Battery section element configuration as stored in Home Assistant."""
 
-    element_type: Literal["battery_section"]
+    element_type: Literal[ElementType.BATTERY_SECTION]
     common: CommonConfig
     storage: StorageChargeConfig
 
@@ -48,7 +49,7 @@ class BatterySectionConfigSchema(TypedDict):
 class BatterySectionConfigData(TypedDict):
     """Battery section element configuration with loaded values."""
 
-    element_type: Literal["battery_section"]
+    element_type: Literal[ElementType.BATTERY_SECTION]
     common: CommonData
     storage: StorageChargeData
 

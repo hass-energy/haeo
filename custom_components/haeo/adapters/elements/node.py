@@ -13,6 +13,7 @@ from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_NODE
 from custom_components.haeo.model.elements.node import NODE_POWER_BALANCE
 from custom_components.haeo.model.output_data import OutputData
+from custom_components.haeo.schema.elements import ElementType
 from custom_components.haeo.schema.elements.node import (
     CONF_IS_SINK,
     CONF_IS_SOURCE,
@@ -31,10 +32,10 @@ type NodeOutputName = Literal["node_power_balance"]
 
 NODE_OUTPUT_NAMES: Final[frozenset[NodeOutputName]] = frozenset((NODE_POWER_BALANCE,))
 
-type NodeDeviceName = Literal["node"]
+type NodeDeviceName = Literal[ElementType.NODE]
 
 NODE_DEVICE_NAMES: Final[frozenset[NodeDeviceName]] = frozenset(
-    (NODE_DEVICE_NODE := "node",),
+    (NODE_DEVICE_NODE := ElementType.NODE,),
 )
 
 

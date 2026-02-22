@@ -18,6 +18,7 @@ from custom_components.haeo.model.elements.connection import CONNECTION_POWER_TA
 from custom_components.haeo.model.elements.segments import POWER_LIMIT_TARGET_SOURCE
 from custom_components.haeo.model.output_data import OutputData
 from custom_components.haeo.schema import extract_connection_target
+from custom_components.haeo.schema.elements import ElementType
 from custom_components.haeo.schema.elements.load import ELEMENT_TYPE, LoadConfigData
 from custom_components.haeo.sections import (
     CONF_CONNECTION,
@@ -44,10 +45,10 @@ LOAD_OUTPUT_NAMES: Final[frozenset[LoadOutputName]] = frozenset(
     )
 )
 
-type LoadDeviceName = Literal["load"]
+type LoadDeviceName = Literal[ElementType.LOAD]
 
 LOAD_DEVICE_NAMES: Final[frozenset[LoadDeviceName]] = frozenset(
-    (LOAD_DEVICE_LOAD := "load",),
+    (LOAD_DEVICE_LOAD := ElementType.LOAD,),
 )
 
 

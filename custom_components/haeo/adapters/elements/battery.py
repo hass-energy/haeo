@@ -20,6 +20,7 @@ from custom_components.haeo.model.elements.segments import SegmentSpec, SocPrici
 from custom_components.haeo.model.output_data import OutputData
 from custom_components.haeo.model.util import broadcast_to_sequence
 from custom_components.haeo.schema import extract_connection_target
+from custom_components.haeo.schema.elements import ElementType
 from custom_components.haeo.schema.elements.battery import (
     CONF_CAPACITY,
     CONF_EFFICIENCY_SOURCE_TARGET,
@@ -83,9 +84,9 @@ BATTERY_OUTPUT_NAMES: Final[frozenset[BatteryOutputName]] = frozenset(
     )
 )
 
-type BatteryDeviceName = Literal["battery"]
+type BatteryDeviceName = Literal[ElementType.BATTERY]
 
-BATTERY_DEVICE_NAMES: Final[frozenset[BatteryDeviceName]] = frozenset((BATTERY_DEVICE_BATTERY := "battery",))
+BATTERY_DEVICE_NAMES: Final[frozenset[BatteryDeviceName]] = frozenset((BATTERY_DEVICE_BATTERY := ElementType.BATTERY,))
 
 
 class BatteryAdapter:
