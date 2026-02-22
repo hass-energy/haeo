@@ -147,7 +147,6 @@ from .input_fields import InputFieldGroups, InputFieldInfo, InputFieldPath, Inpu
 _LOGGER = logging.getLogger(__name__)
 
 
-
 ElementConfigSchema = (
     InverterConfigSchema
     | BatteryConfigSchema
