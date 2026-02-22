@@ -112,7 +112,7 @@ def migrate_subentry_data(subentry: ConfigSubentry) -> dict[str, Any] | None:
     if not element_type or element_type == ELEMENT_TYPE_NETWORK:
         return None
 
-    from custom_components.haeo.elements import (  # noqa: PLC0415
+    from custom_components.haeo.schema.elements import (  # noqa: PLC0415
         battery,
         battery_section,
         connection,

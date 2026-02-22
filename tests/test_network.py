@@ -20,10 +20,15 @@ from custom_components.haeo.const import (
 )
 from custom_components.haeo.coordinator import evaluate_network_connectivity
 from custom_components.haeo.elements import ELEMENT_TYPE_CONNECTION, ELEMENT_TYPE_NODE, ElementConfigData
-from custom_components.haeo.elements.connection import CONF_SOURCE, CONF_TARGET, SECTION_ENDPOINTS, ConnectionConfigData
-from custom_components.haeo.elements.node import CONF_IS_SINK, CONF_IS_SOURCE, SECTION_ROLE, NodeConfigData
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON, HUB_SECTION_TIERS
 from custom_components.haeo.schema import as_connection_target
+from custom_components.haeo.schema.elements.connection import (
+    CONF_SOURCE,
+    CONF_TARGET,
+    SECTION_ENDPOINTS,
+    ConnectionConfigData,
+)
+from custom_components.haeo.schema.elements.node import CONF_IS_SINK, CONF_IS_SOURCE, SECTION_ROLE, NodeConfigData
 from custom_components.haeo.sections import SECTION_COMMON, SECTION_EFFICIENCY, SECTION_POWER_LIMITS, SECTION_PRICING
 
 

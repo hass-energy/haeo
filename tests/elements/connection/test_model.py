@@ -6,9 +6,19 @@ from typing import Any, TypedDict
 import numpy as np
 import pytest
 
+from custom_components.haeo.adapters.elements.connection import (
+    CONNECTION_DEVICE_CONNECTION,
+    CONNECTION_POWER_ACTIVE,
+    CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET,
+    CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE,
+    CONNECTION_TIME_SLICE,
+)
 from custom_components.haeo.elements import ELEMENT_TYPES
-from custom_components.haeo.elements import connection as connection_element
-from custom_components.haeo.elements.connection import ConnectionConfigData
+from custom_components.haeo.model.elements.connection import (
+    CONNECTION_POWER_SOURCE_TARGET,
+    CONNECTION_POWER_TARGET_SOURCE,
+)
+from custom_components.haeo.schema.elements.connection import ConnectionConfigData
 from custom_components.haeo.model import ModelOutputName, ModelOutputValue
 from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION
@@ -138,13 +148,13 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
             }
         },
         "outputs": {
-            connection_element.CONNECTION_DEVICE_CONNECTION: {
-                connection_element.CONNECTION_POWER_SOURCE_TARGET: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(5.0,), direction="+"),
-                connection_element.CONNECTION_POWER_TARGET_SOURCE: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(7.0,), direction="-"),
-                connection_element.CONNECTION_POWER_ACTIVE: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(-2.0,), direction=None),
-                connection_element.CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.01,)),
-                connection_element.CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.02,)),
-                connection_element.CONNECTION_TIME_SLICE: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.001,)),
+            CONNECTION_DEVICE_CONNECTION: {
+                CONNECTION_POWER_SOURCE_TARGET: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(5.0,), direction="+"),
+                CONNECTION_POWER_TARGET_SOURCE: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(7.0,), direction="-"),
+                CONNECTION_POWER_ACTIVE: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(-2.0,), direction=None),
+                CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.01,)),
+                CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.02,)),
+                CONNECTION_TIME_SLICE: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.001,)),
             }
         },
     },
@@ -158,10 +168,10 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
             }
         },
         "outputs": {
-            connection_element.CONNECTION_DEVICE_CONNECTION: {
-                connection_element.CONNECTION_POWER_SOURCE_TARGET: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(5.0,), direction="+"),
-                connection_element.CONNECTION_POWER_TARGET_SOURCE: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(7.0,), direction="-"),
-                connection_element.CONNECTION_POWER_ACTIVE: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(-2.0,), direction=None),
+            CONNECTION_DEVICE_CONNECTION: {
+                CONNECTION_POWER_SOURCE_TARGET: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(5.0,), direction="+"),
+                CONNECTION_POWER_TARGET_SOURCE: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(7.0,), direction="-"),
+                CONNECTION_POWER_ACTIVE: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(-2.0,), direction=None),
             }
         },
     },

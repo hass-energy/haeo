@@ -2,9 +2,9 @@
 
 from homeassistant.core import HomeAssistant
 
-from custom_components.haeo.elements import battery_section
 from custom_components.haeo.elements.availability import schema_config_available
 from custom_components.haeo.schema import as_entity_value
+from custom_components.haeo.schema.elements import battery_section
 
 
 def _set_sensor(hass: HomeAssistant, entity_id: str, value: str, unit: str = "kW") -> None:

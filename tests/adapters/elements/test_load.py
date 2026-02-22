@@ -2,9 +2,10 @@
 
 from homeassistant.core import HomeAssistant
 
-from custom_components.haeo.elements import load as load_element
+from custom_components.haeo.adapters.elements.load import adapter as load_adapter
 from custom_components.haeo.elements.availability import schema_config_available
 from custom_components.haeo.schema import as_connection_target, as_entity_value
+from custom_components.haeo.schema.elements import load as load_element
 
 from .conftest import set_sensor
 
@@ -58,7 +59,7 @@ def test_inputs_returns_input_fields() -> None:
         load_element.SECTION_CURTAILMENT: {},
     }
 
-    input_fields = load_element.adapter.inputs(config)
+    input_fields = load_adapter.inputs(config)
 
     assert load_element.SECTION_FORECAST in input_fields
     assert "forecast" in input_fields[load_element.SECTION_FORECAST]

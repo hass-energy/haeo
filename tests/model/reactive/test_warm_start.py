@@ -8,13 +8,6 @@ import numpy as np
 import pytest
 
 from custom_components.haeo.coordinator.network import update_element
-from custom_components.haeo.elements.connection import (
-    SECTION_COMMON,
-    SECTION_EFFICIENCY,
-    SECTION_ENDPOINTS,
-    SECTION_POWER_LIMITS,
-    SECTION_PRICING,
-)
 from custom_components.haeo.model import Network
 from custom_components.haeo.model.elements import (
     MODEL_ELEMENT_TYPE_BATTERY,
@@ -25,6 +18,13 @@ from custom_components.haeo.model.elements.battery import Battery
 from custom_components.haeo.model.elements.connection import Connection
 from custom_components.haeo.model.elements.segments import PowerLimitSegment, PricingSegment
 from custom_components.haeo.schema import as_connection_target
+from custom_components.haeo.schema.elements.connection import (
+    SECTION_COMMON,
+    SECTION_EFFICIENCY,
+    SECTION_ENDPOINTS,
+    SECTION_POWER_LIMITS,
+    SECTION_PRICING,
+)
 
 # Battery reactive update tests
 

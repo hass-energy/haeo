@@ -7,8 +7,8 @@ from typing import Any, cast
 import numpy as np
 import pytest
 
-from custom_components.haeo.elements import battery
 from custom_components.haeo.schema import as_constant_value
+from custom_components.haeo.schema.elements import battery
 from tools import diag
 
 

@@ -20,9 +20,9 @@ from custom_components.haeo.const import (
     INTEGRATION_TYPE_HUB,
 )
 from custom_components.haeo.elements import ELEMENT_TYPE_NODE, ELEMENT_TYPES
-from custom_components.haeo.elements.node import CONF_IS_SINK, CONF_IS_SOURCE
-from custom_components.haeo.elements.node import SECTION_COMMON as NODE_SECTION_COMMON
-from custom_components.haeo.elements.node import SECTION_ROLE as NODE_SECTION_ROLE
+from custom_components.haeo.schema.elements.node import CONF_IS_SINK, CONF_IS_SOURCE
+from custom_components.haeo.schema.elements.node import SECTION_COMMON as NODE_SECTION_COMMON
+from custom_components.haeo.schema.elements.node import SECTION_ROLE as NODE_SECTION_ROLE
 
 from . import (
     HORIZON_PRESET_CUSTOM,

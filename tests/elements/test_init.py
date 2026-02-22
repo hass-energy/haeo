@@ -16,8 +16,8 @@ from custom_components.haeo.elements import (
     is_element_config_data,
     is_element_config_schema,
 )
-from custom_components.haeo.elements import battery, battery_section, connection, grid, inverter, load, solar
-from custom_components.haeo.elements import node as node_schema
+from custom_components.haeo.schema.elements import battery, battery_section, connection, grid, inverter, load, solar
+from custom_components.haeo.schema.elements import node as node_schema
 from custom_components.haeo.schema import as_connection_target, as_constant_value, as_entity_value
 
 
