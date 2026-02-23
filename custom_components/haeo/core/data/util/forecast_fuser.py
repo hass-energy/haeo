@@ -6,7 +6,7 @@ from typing import Any
 import numpy as np
 from numpy.typing import NDArray
 
-from custom_components.haeo.data.util.forecast_cycle import normalize_forecast_cycle
+from custom_components.haeo.core.data.util.forecast_cycle import normalize_forecast_cycle
 
 from . import ForecastSeries
 

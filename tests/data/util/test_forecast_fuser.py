@@ -17,7 +17,7 @@ Tests use simple integer timestamps to avoid datetime complexity.
 import numpy as np
 import pytest
 
-from custom_components.haeo.data.util.forecast_fuser import fuse_to_boundaries, fuse_to_intervals
+from custom_components.haeo.core.data.util.forecast_fuser import fuse_to_boundaries, fuse_to_intervals
 
 
 @pytest.mark.parametrize(

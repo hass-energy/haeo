@@ -16,6 +16,7 @@ from homeassistant.util import dt as dt_util
 
 from custom_components.haeo import HaeoConfigEntry
 from custom_components.haeo.const import CONF_RECORD_FORECASTS
+from custom_components.haeo.core.data.loader import ScalarLoader, TimeSeriesLoader
 from custom_components.haeo.core.schema import (
     as_constant_value,
     as_entity_value,
@@ -24,7 +25,6 @@ from custom_components.haeo.core.schema import (
     is_entity_value,
     is_none_value,
 )
-from custom_components.haeo.data.loader import ScalarLoader, TimeSeriesLoader
 from custom_components.haeo.elements import InputFieldPath, find_nested_config_path, get_nested_config_value_by_path
 from custom_components.haeo.elements.input_fields import InputFieldInfo
 from custom_components.haeo.ha_state_machine import HomeAssistantStateMachine

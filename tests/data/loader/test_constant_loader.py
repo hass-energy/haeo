@@ -3,7 +3,7 @@
 from homeassistant.core import HomeAssistant
 import pytest
 
-from custom_components.haeo.data.loader import ConstantLoader
+from custom_components.haeo.core.data.loader import ConstantLoader
 
 
 async def test_constant_loader(hass: HomeAssistant) -> None:

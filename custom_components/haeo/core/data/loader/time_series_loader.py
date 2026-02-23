@@ -3,10 +3,10 @@
 from collections.abc import Sequence
 from typing import Any
 
+from custom_components.haeo.core.data.util.forecast_combiner import combine_sensor_payloads
+from custom_components.haeo.core.data.util.forecast_fuser import fuse_to_boundaries, fuse_to_intervals
 from custom_components.haeo.core.schema import EntityValue
 from custom_components.haeo.core.state import StateMachine
-from custom_components.haeo.data.util.forecast_combiner import combine_sensor_payloads
-from custom_components.haeo.data.util.forecast_fuser import fuse_to_boundaries, fuse_to_intervals
 
 from .sensor_loader import load_sensors
 

@@ -4,8 +4,8 @@ from typing import cast
 
 import pytest
 
+from custom_components.haeo.core.data.loader.scalar_loader import ScalarLoader
 from custom_components.haeo.core.schema import EntityValue, as_entity_value
-from custom_components.haeo.data.loader.scalar_loader import ScalarLoader
 from tests.conftest import FakeEntityState, FakeStateMachine
 
 

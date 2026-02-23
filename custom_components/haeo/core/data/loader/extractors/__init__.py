@@ -8,7 +8,7 @@ from custom_components.haeo.core.state import EntityState
 from custom_components.haeo.core.units import DeviceClass, UnitOfMeasurement, convert_to_base_unit
 
 from . import aemo_nem, amber2mqtt, amberelectric, emhass, flow_power, haeo, open_meteo_solar_forecast, solcast_solar
-from .utils import EntityMetadata, extract_entity_metadata, separate_duplicate_timestamps
+from .utils import EntityMetadata, separate_duplicate_timestamps
 
 # Union of all domain literal types from the extractor modules
 ExtractorFormat = (
@@ -118,5 +118,4 @@ __all__ = [
     "EntityMetadata",
     "ExtractorFormat",
     "extract",
-    "extract_entity_metadata",
 ]

@@ -5,7 +5,7 @@ from typing import Any
 from homeassistant.core import HomeAssistant, State
 import pytest
 
-from custom_components.haeo.data.loader import extractors
+from custom_components.haeo.core.data.loader import extractors
 from tests.test_data.sensors import ALL_INVALID_SENSORS, ALL_VALID_SENSORS
 
 
