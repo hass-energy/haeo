@@ -82,7 +82,9 @@ class AllowlistContract(Contract):
     @staticmethod
     def _is_allowed(imported: str, allowed_prefixes: set[str]) -> bool:
         top_level = imported.split(".")[0]
-        return top_level in allowed_prefixes or top_level in sys.stdlib_module_names
+        if top_level in sys.stdlib_module_names:
+            return True
+        return any(imported == prefix or imported.startswith(prefix + ".") for prefix in allowed_prefixes)
 
     def _graph_was_built_with_externals(self) -> bool:
         return str(self.session_options.get("include_external_packages")).lower() == "true"

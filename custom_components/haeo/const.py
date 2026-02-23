@@ -3,6 +3,7 @@
 from typing import Final, Literal
 
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE as CONF_ELEMENT_TYPE  # noqa: PLC0414
+from custom_components.haeo.core.const import CONF_NAME as CONF_NAME  # noqa: PLC0414
 
 # Integration domain
 DOMAIN: Final = "haeo"
@@ -14,7 +15,6 @@ URL_HAFO: Final = "https://hafo.haeo.io"
 INTEGRATION_TYPE_HUB: Final = "hub"
 
 # Configuration keys
-CONF_NAME: Final = "name"
 CONF_INTEGRATION_TYPE: Final = "integration_type"
 CONF_DEBOUNCE_SECONDS: Final = "debounce_seconds"
 CONF_HORIZON_PRESET: Final = "horizon_preset"

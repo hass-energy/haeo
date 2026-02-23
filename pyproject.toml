@@ -156,7 +156,7 @@ end_of_line = "lf"
 exclude = [".venv", "node_modules"]
 
 [tool.importlinter]
-root_packages = ["custom_components.haeo"]
+root_packages = ["custom_components.haeo", "tools"]
 include_external_packages = true
 contract_types = ["allowlist: tests.import_contracts.AllowlistContract"]
 
@@ -177,6 +177,12 @@ name = "Model is standalone"
 type = "allowlist"
 source_modules = ["custom_components.haeo.core.model"]
 allow_modules = ["highspy", "numpy", "typing_extensions"]
+
+[[tool.importlinter.contracts]]
+name = "diag CLI only uses core"
+type = "allowlist"
+source_modules = ["tools.diag"]
+allow_modules = ["custom_components.haeo.core", "numpy", "tabulate"]
 
 [tool.setuptools]
 package-dir = { "" = "." }
