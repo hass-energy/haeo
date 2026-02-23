@@ -4,14 +4,11 @@ from collections.abc import Mapping
 from dataclasses import replace
 from typing import Any, Final, Literal
 
-from homeassistant.components.number import NumberDeviceClass, NumberEntityDescription
 import numpy as np
 from numpy.typing import NDArray
 
 from custom_components.haeo.adapters.output_utils import expect_output_data
 from custom_components.haeo.const import ConnectivityLevel
-from custom_components.haeo.core.units import UnitOfMeasurement
-from custom_components.haeo.elements.input_fields import InputFieldDefaults, InputFieldInfo
 from custom_components.haeo.model import ModelElementConfig, ModelOutputName, ModelOutputValue
 from custom_components.haeo.model import battery as model_battery
 from custom_components.haeo.model.const import OutputType
@@ -95,196 +92,6 @@ class BatteryAdapter:
     element_type: str = ELEMENT_TYPE
     advanced: bool = False
     connectivity: ConnectivityLevel = ConnectivityLevel.ADVANCED
-
-    def inputs(self, config: Any) -> dict[str, dict[str, InputFieldInfo[Any]]]:
-        """Return input field definitions for battery elements."""
-        _ = config
-        return {
-            SECTION_STORAGE: {
-                CONF_CAPACITY: InputFieldInfo(
-                    field_name=CONF_CAPACITY,
-                    entity_description=NumberEntityDescription(
-                        key=CONF_CAPACITY,
-                        translation_key=f"{ELEMENT_TYPE}_{CONF_CAPACITY}",
-                        native_unit_of_measurement=UnitOfMeasurement.KILO_WATT_HOUR,
-                        device_class=NumberDeviceClass.ENERGY_STORAGE,
-                        native_min_value=0.1,
-                        native_max_value=1000.0,
-                        native_step=0.1,
-                    ),
-                    output_type=OutputType.ENERGY,
-                    time_series=True,
-                    boundaries=True,
-                ),
-                CONF_INITIAL_CHARGE_PERCENTAGE: InputFieldInfo(
-                    field_name=CONF_INITIAL_CHARGE_PERCENTAGE,
-                    entity_description=NumberEntityDescription(
-                        key=CONF_INITIAL_CHARGE_PERCENTAGE,
-                        translation_key=f"{ELEMENT_TYPE}_{CONF_INITIAL_CHARGE_PERCENTAGE}",
-                        native_unit_of_measurement=UnitOfMeasurement.PERCENT,
-                        device_class=NumberDeviceClass.BATTERY,
-                        native_min_value=0.0,
-                        native_max_value=100.0,
-                        native_step=0.1,
-                    ),
-                    output_type=OutputType.STATE_OF_CHARGE,
-                    time_series=False,
-                ),
-            },
-            SECTION_POWER_LIMITS: {
-                CONF_MAX_POWER_TARGET_SOURCE: InputFieldInfo(
-                    field_name=CONF_MAX_POWER_TARGET_SOURCE,
-                    entity_description=NumberEntityDescription(
-                        key=CONF_MAX_POWER_TARGET_SOURCE,
-                        translation_key=f"{ELEMENT_TYPE}_{CONF_MAX_POWER_TARGET_SOURCE}",
-                        native_unit_of_measurement=UnitOfMeasurement.KILO_WATT,
-                        device_class=NumberDeviceClass.POWER,
-                        native_min_value=0.0,
-                        native_max_value=1000.0,
-                        native_step=0.1,
-                    ),
-                    output_type=OutputType.POWER,
-                    direction="+",
-                    time_series=True,
-                    defaults=InputFieldDefaults(mode="entity"),
-                ),
-                CONF_MAX_POWER_SOURCE_TARGET: InputFieldInfo(
-                    field_name=CONF_MAX_POWER_SOURCE_TARGET,
-                    entity_description=NumberEntityDescription(
-                        key=CONF_MAX_POWER_SOURCE_TARGET,
-                        translation_key=f"{ELEMENT_TYPE}_{CONF_MAX_POWER_SOURCE_TARGET}",
-                        native_unit_of_measurement=UnitOfMeasurement.KILO_WATT,
-                        device_class=NumberDeviceClass.POWER,
-                        native_min_value=0.0,
-                        native_max_value=1000.0,
-                        native_step=0.1,
-                    ),
-                    output_type=OutputType.POWER,
-                    direction="-",
-                    time_series=True,
-                    defaults=InputFieldDefaults(mode="entity"),
-                ),
-            },
-            SECTION_LIMITS: {
-                CONF_MIN_CHARGE_PERCENTAGE: InputFieldInfo(
-                    field_name=CONF_MIN_CHARGE_PERCENTAGE,
-                    entity_description=NumberEntityDescription(
-                        key=CONF_MIN_CHARGE_PERCENTAGE,
-                        translation_key=f"{ELEMENT_TYPE}_{CONF_MIN_CHARGE_PERCENTAGE}",
-                        native_unit_of_measurement=UnitOfMeasurement.PERCENT,
-                        device_class=NumberDeviceClass.BATTERY,
-                        native_min_value=0.0,
-                        native_max_value=100.0,
-                        native_step=1.0,
-                    ),
-                    output_type=OutputType.STATE_OF_CHARGE,
-                    time_series=True,
-                    boundaries=True,
-                    defaults=InputFieldDefaults(mode=None, value=0.0),
-                ),
-                CONF_MAX_CHARGE_PERCENTAGE: InputFieldInfo(
-                    field_name=CONF_MAX_CHARGE_PERCENTAGE,
-                    entity_description=NumberEntityDescription(
-                        key=CONF_MAX_CHARGE_PERCENTAGE,
-                        translation_key=f"{ELEMENT_TYPE}_{CONF_MAX_CHARGE_PERCENTAGE}",
-                        native_unit_of_measurement=UnitOfMeasurement.PERCENT,
-                        device_class=NumberDeviceClass.BATTERY,
-                        native_min_value=0.0,
-                        native_max_value=100.0,
-                        native_step=1.0,
-                    ),
-                    output_type=OutputType.STATE_OF_CHARGE,
-                    time_series=True,
-                    boundaries=True,
-                    defaults=InputFieldDefaults(mode=None, value=100.0),
-                ),
-            },
-            SECTION_EFFICIENCY: {
-                CONF_EFFICIENCY_SOURCE_TARGET: InputFieldInfo(
-                    field_name=CONF_EFFICIENCY_SOURCE_TARGET,
-                    entity_description=NumberEntityDescription(
-                        key=CONF_EFFICIENCY_SOURCE_TARGET,
-                        translation_key=f"{ELEMENT_TYPE}_{CONF_EFFICIENCY_SOURCE_TARGET}",
-                        native_unit_of_measurement=UnitOfMeasurement.PERCENT,
-                        device_class=NumberDeviceClass.POWER_FACTOR,
-                        native_min_value=50.0,
-                        native_max_value=100.0,
-                        native_step=0.1,
-                    ),
-                    output_type=OutputType.EFFICIENCY,
-                    time_series=True,
-                    defaults=InputFieldDefaults(mode="value", value=95.0),
-                ),
-                CONF_EFFICIENCY_TARGET_SOURCE: InputFieldInfo(
-                    field_name=CONF_EFFICIENCY_TARGET_SOURCE,
-                    entity_description=NumberEntityDescription(
-                        key=CONF_EFFICIENCY_TARGET_SOURCE,
-                        translation_key=f"{ELEMENT_TYPE}_{CONF_EFFICIENCY_TARGET_SOURCE}",
-                        native_unit_of_measurement=UnitOfMeasurement.PERCENT,
-                        device_class=NumberDeviceClass.POWER_FACTOR,
-                        native_min_value=50.0,
-                        native_max_value=100.0,
-                        native_step=0.1,
-                    ),
-                    output_type=OutputType.EFFICIENCY,
-                    time_series=True,
-                    defaults=InputFieldDefaults(mode="value", value=95.0),
-                ),
-            },
-            SECTION_PRICING: {
-                CONF_PRICE_SOURCE_TARGET: InputFieldInfo(
-                    field_name=CONF_PRICE_SOURCE_TARGET,
-                    entity_description=NumberEntityDescription(
-                        key=CONF_PRICE_SOURCE_TARGET,
-                        translation_key=f"{ELEMENT_TYPE}_{CONF_PRICE_SOURCE_TARGET}",
-                        native_min_value=-1.0,
-                        native_max_value=10.0,
-                        native_step=0.001,
-                    ),
-                    output_type=OutputType.PRICE,
-                    direction="-",
-                    time_series=True,
-                    defaults=InputFieldDefaults(mode=None, value=0.0),
-                ),
-                CONF_PRICE_TARGET_SOURCE: InputFieldInfo(
-                    field_name=CONF_PRICE_TARGET_SOURCE,
-                    entity_description=NumberEntityDescription(
-                        key=CONF_PRICE_TARGET_SOURCE,
-                        translation_key=f"{ELEMENT_TYPE}_{CONF_PRICE_TARGET_SOURCE}",
-                        native_min_value=-1.0,
-                        native_max_value=10.0,
-                        native_step=0.001,
-                    ),
-                    output_type=OutputType.PRICE,
-                    direction="-",
-                    time_series=True,
-                    defaults=InputFieldDefaults(mode=None, value=0.0),
-                ),
-                CONF_SALVAGE_VALUE: InputFieldInfo(
-                    field_name=CONF_SALVAGE_VALUE,
-                    entity_description=NumberEntityDescription(
-                        key=CONF_SALVAGE_VALUE,
-                        translation_key=f"{ELEMENT_TYPE}_{CONF_SALVAGE_VALUE}",
-                        native_min_value=-1.0,
-                        native_max_value=10.0,
-                        native_step=0.001,
-                    ),
-                    output_type=OutputType.PRICE,
-                    time_series=False,
-                    defaults=InputFieldDefaults(mode=None, value=0.0),
-                ),
-            },
-            SECTION_UNDERCHARGE: _partition_input_fields(
-                percentage_default=0,
-                cost_default=0,
-                cost_direction="-",
-            ),
-            SECTION_OVERCHARGE: _partition_input_fields(
-                percentage_default=100,
-                cost_default=0,
-                cost_direction="-",
-            ),
-        }
 
     def model_elements(self, config: BatteryConfigData) -> list[ModelElementConfig]:
         """Create model elements for Battery configuration.
@@ -490,47 +297,6 @@ def _build_discharge_pricing(
     if base is None:
         return discharge_incentive
     return base + discharge_incentive
-
-
-def _partition_input_fields(
-    *,
-    percentage_default: int,
-    cost_default: int,
-    cost_direction: str,
-) -> dict[str, InputFieldInfo[Any]]:
-    """Build shared input field definitions for partition sections."""
-    return {
-        CONF_PARTITION_PERCENTAGE: InputFieldInfo(
-            field_name=CONF_PARTITION_PERCENTAGE,
-            entity_description=NumberEntityDescription(
-                key=CONF_PARTITION_PERCENTAGE,
-                translation_key=f"{ELEMENT_TYPE}_{CONF_PARTITION_PERCENTAGE}",
-                native_unit_of_measurement=UnitOfMeasurement.PERCENT,
-                device_class=NumberDeviceClass.BATTERY,
-                native_min_value=0.0,
-                native_max_value=100.0,
-                native_step=1.0,
-            ),
-            output_type=OutputType.STATE_OF_CHARGE,
-            time_series=True,
-            boundaries=True,
-            defaults=InputFieldDefaults(mode="value", value=percentage_default),
-        ),
-        CONF_PARTITION_COST: InputFieldInfo(
-            field_name=CONF_PARTITION_COST,
-            entity_description=NumberEntityDescription(
-                key=CONF_PARTITION_COST,
-                translation_key=f"{ELEMENT_TYPE}_{CONF_PARTITION_COST}",
-                native_min_value=0.0,
-                native_max_value=10.0,
-                native_step=0.001,
-            ),
-            output_type=OutputType.PRICE,
-            direction=cost_direction,
-            time_series=True,
-            defaults=InputFieldDefaults(mode="value", value=cost_default),
-        ),
-    }
 
 
 def _calculate_total_energy(aggregate_energy: OutputData, config: BatteryConfigData) -> OutputData:

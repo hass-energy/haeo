@@ -3,13 +3,9 @@
 from collections.abc import Mapping
 from typing import Any, Final, Literal
 
-from homeassistant.components.switch import SwitchEntityDescription
-
 from custom_components.haeo.adapters.output_utils import expect_output_data
 from custom_components.haeo.const import ConnectivityLevel
-from custom_components.haeo.elements.input_fields import InputFieldDefaults, InputFieldInfo
 from custom_components.haeo.model import ModelElementConfig, ModelOutputName, ModelOutputValue
-from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_NODE
 from custom_components.haeo.model.elements.node import NODE_POWER_BALANCE
 from custom_components.haeo.model.output_data import OutputData
@@ -45,32 +41,6 @@ class NodeAdapter:
     element_type: str = ELEMENT_TYPE
     advanced: bool = True
     connectivity: ConnectivityLevel = ConnectivityLevel.ALWAYS
-
-    def inputs(self, config: Any) -> dict[str, dict[str, InputFieldInfo[Any]]]:
-        """Return input field definitions for node elements."""
-        _ = config
-        return {
-            SECTION_ROLE: {
-                CONF_IS_SOURCE: InputFieldInfo(
-                    field_name=CONF_IS_SOURCE,
-                    entity_description=SwitchEntityDescription(
-                        key=CONF_IS_SOURCE,
-                        translation_key=f"{ELEMENT_TYPE}_{CONF_IS_SOURCE}",
-                    ),
-                    output_type=OutputType.STATUS,
-                    defaults=InputFieldDefaults(mode="value", value=False),
-                ),
-                CONF_IS_SINK: InputFieldInfo(
-                    field_name=CONF_IS_SINK,
-                    entity_description=SwitchEntityDescription(
-                        key=CONF_IS_SINK,
-                        translation_key=f"{ELEMENT_TYPE}_{CONF_IS_SINK}",
-                    ),
-                    output_type=OutputType.STATUS,
-                    defaults=InputFieldDefaults(mode="value", value=False),
-                ),
-            },
-        }
 
     def model_elements(self, config: NodeConfigData) -> list[ModelElementConfig]:
         """Return model element parameters for Node configuration."""

@@ -109,6 +109,7 @@ from custom_components.haeo.const import (
     NetworkDeviceName,
     NetworkOutputName,
 )
+from custom_components.haeo.elements.field_hints import build_input_fields, extract_field_hints
 from custom_components.haeo.model import ModelElementConfig, ModelOutputName
 from custom_components.haeo.model.output_data import ModelOutputValue, OutputData
 from custom_components.haeo.schema.elements import ElementType
@@ -243,10 +244,6 @@ class ElementAdapter(Protocol):
 
     connectivity: ConnectivityLevel
     """Visibility level in connection selectors."""
-
-    def inputs(self, config: Mapping[str, Any] | None) -> InputFieldGroups:
-        """Return input field definitions for this element."""
-        ...
 
     def model_elements(self, config: Any) -> list[ModelElementConfig]:
         """Return model element parameters for the loaded config."""
@@ -519,11 +516,19 @@ def collect_element_subentries(entry: ConfigEntry) -> list[ValidatedElementSuben
     return result
 
 
-def get_input_fields(element_config: ElementConfigSchema) -> InputFieldGroups:
-    """Return input field definitions for an element config."""
-    element_type = element_config[CONF_ELEMENT_TYPE]
-    adapter = ELEMENT_TYPES[element_type]
-    return adapter.inputs(element_config)
+def get_input_fields(element_type: str | ElementType | Mapping[str, Any] | None) -> InputFieldGroups:
+    """Return input field definitions for an element type."""
+    if isinstance(element_type, Mapping):
+        if CONF_ELEMENT_TYPE in element_type:
+            element_type = element_type[CONF_ELEMENT_TYPE]
+        else:
+            return {}
+
+    if element_type is None:
+        return {}
+
+    schema_cls = ELEMENT_CONFIG_SCHEMAS[element_type]  # type: ignore[index]
+    return build_input_fields(str(element_type), extract_field_hints(schema_cls))
 
 
 def iter_input_field_paths(input_fields: InputFieldGroups) -> list[tuple[InputFieldPath, InputFieldInfo[Any]]]:

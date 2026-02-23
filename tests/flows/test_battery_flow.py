@@ -1,7 +1,7 @@
 """Tests for battery element config flow."""
 
 from types import MappingProxyType
-from typing import Any
+from typing import Any, cast
 from unittest.mock import Mock
 
 from homeassistant.config_entries import SOURCE_RECONFIGURE, ConfigSubentry
@@ -10,8 +10,8 @@ from homeassistant.data_entry_flow import FlowResultType
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.haeo.adapters.elements.battery import adapter
 from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME
+from custom_components.haeo.elements import get_input_fields
 from custom_components.haeo.schema import as_connection_target, as_constant_value, as_entity_value
 from custom_components.haeo.schema.elements import node
 from custom_components.haeo.schema.elements.battery import (
@@ -504,7 +504,7 @@ async def test_reconfigure_partition_defaults_entity_links(hass: HomeAssistant, 
     }
     flow._get_reconfigure_subentry = Mock(return_value=existing_subentry)
 
-    input_fields = adapter.inputs(dict(existing_config))
+    input_fields = get_input_fields(cast("Any", {CONF_ELEMENT_TYPE: ELEMENT_TYPE}))
     defaults = flow._build_partition_defaults(input_fields, dict(existing_config))
 
     assert defaults[SECTION_UNDERCHARGE][CONF_PARTITION_PERCENTAGE] == ["sensor.undercharge"]
@@ -551,7 +551,7 @@ async def test_reconfigure_partition_defaults_scalar_values(hass: HomeAssistant,
     }
     flow._get_reconfigure_subentry = Mock(return_value=existing_subentry)
 
-    input_fields = adapter.inputs(dict(existing_config))
+    input_fields = get_input_fields(cast("Any", {CONF_ELEMENT_TYPE: ELEMENT_TYPE}))
     defaults = flow._build_partition_defaults(input_fields, dict(existing_config))
 
     assert defaults[SECTION_UNDERCHARGE][CONF_PARTITION_PERCENTAGE] == 5.0
@@ -562,7 +562,7 @@ async def test_build_partition_defaults_no_existing_data(hass: HomeAssistant, hu
     """_build_partition_defaults with no existing data uses field defaults."""
     flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
 
-    input_fields = adapter.inputs(None)
+    input_fields = get_input_fields(cast("Any", {CONF_ELEMENT_TYPE: ELEMENT_TYPE}))
     defaults = flow._build_partition_defaults(input_fields, None)
 
     # Partition fields have defaults (mode="value", value=0 or value=100)
@@ -663,7 +663,7 @@ async def test_reconfigure_defaults_handle_schema_values(
     assert result.get("type") == FlowResultType.FORM
     assert result.get("step_id") == "user"
 
-    input_fields = adapter.inputs(dict(existing_subentry.data))
+    input_fields = get_input_fields(cast("Any", {CONF_ELEMENT_TYPE: ELEMENT_TYPE}))
     defaults = flow._build_defaults("Test Battery", input_fields, dict(existing_subentry.data))
 
     for section, values in expected_defaults.items():

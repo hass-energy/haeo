@@ -4,14 +4,11 @@ from collections.abc import Mapping
 from dataclasses import replace
 from typing import Any, Final, Literal
 
-from homeassistant.components.number import NumberDeviceClass, NumberEntityDescription
 import numpy as np
 from numpy.typing import NDArray
 
 from custom_components.haeo.adapters.output_utils import expect_output_data
 from custom_components.haeo.const import ConnectivityLevel
-from custom_components.haeo.core.units import UnitOfMeasurement
-from custom_components.haeo.elements.input_fields import InputFieldDefaults, InputFieldInfo
 from custom_components.haeo.model import ModelElementConfig, ModelOutputName, ModelOutputValue
 from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE
@@ -77,74 +74,6 @@ class GridAdapter:
     element_type: str = ELEMENT_TYPE
     advanced: bool = False
     connectivity: ConnectivityLevel = ConnectivityLevel.ADVANCED
-
-    def inputs(self, config: Any) -> dict[str, dict[str, InputFieldInfo[Any]]]:
-        """Return input field definitions for grid elements."""
-        _ = config
-        return {
-            SECTION_PRICING: {
-                CONF_PRICE_SOURCE_TARGET: InputFieldInfo(
-                    field_name=CONF_PRICE_SOURCE_TARGET,
-                    entity_description=NumberEntityDescription(
-                        key=CONF_PRICE_SOURCE_TARGET,
-                        translation_key=f"{ELEMENT_TYPE}_{CONF_PRICE_SOURCE_TARGET}",
-                        native_min_value=-1.0,
-                        native_max_value=10.0,
-                        native_step=0.001,
-                    ),
-                    output_type=OutputType.PRICE,
-                    time_series=True,
-                    direction="-",  # Import = consuming from grid = cost
-                ),
-                CONF_PRICE_TARGET_SOURCE: InputFieldInfo(
-                    field_name=CONF_PRICE_TARGET_SOURCE,
-                    entity_description=NumberEntityDescription(
-                        key=CONF_PRICE_TARGET_SOURCE,
-                        translation_key=f"{ELEMENT_TYPE}_{CONF_PRICE_TARGET_SOURCE}",
-                        native_min_value=-1.0,
-                        native_max_value=10.0,
-                        native_step=0.001,
-                    ),
-                    output_type=OutputType.PRICE,
-                    time_series=True,
-                    direction="+",  # Export = producing to grid = revenue
-                ),
-            },
-            SECTION_POWER_LIMITS: {
-                CONF_MAX_POWER_SOURCE_TARGET: InputFieldInfo(
-                    field_name=CONF_MAX_POWER_SOURCE_TARGET,
-                    entity_description=NumberEntityDescription(
-                        key=CONF_MAX_POWER_SOURCE_TARGET,
-                        translation_key=f"{ELEMENT_TYPE}_{CONF_MAX_POWER_SOURCE_TARGET}",
-                        native_unit_of_measurement=UnitOfMeasurement.KILO_WATT,
-                        device_class=NumberDeviceClass.POWER,
-                        native_min_value=0.0,
-                        native_max_value=1000.0,
-                        native_step=0.1,
-                    ),
-                    output_type=OutputType.POWER_LIMIT,
-                    time_series=True,
-                    direction="+",
-                    defaults=InputFieldDefaults(mode="value", value=100.0),
-                ),
-                CONF_MAX_POWER_TARGET_SOURCE: InputFieldInfo(
-                    field_name=CONF_MAX_POWER_TARGET_SOURCE,
-                    entity_description=NumberEntityDescription(
-                        key=CONF_MAX_POWER_TARGET_SOURCE,
-                        translation_key=f"{ELEMENT_TYPE}_{CONF_MAX_POWER_TARGET_SOURCE}",
-                        native_unit_of_measurement=UnitOfMeasurement.KILO_WATT,
-                        device_class=NumberDeviceClass.POWER,
-                        native_min_value=0.0,
-                        native_max_value=1000.0,
-                        native_step=0.1,
-                    ),
-                    output_type=OutputType.POWER_LIMIT,
-                    time_series=True,
-                    direction="-",
-                    defaults=InputFieldDefaults(mode="value", value=100.0),
-                ),
-            },
-        }
 
     def model_elements(self, config: GridConfigData) -> list[ModelElementConfig]:
         """Create model elements for Grid configuration."""

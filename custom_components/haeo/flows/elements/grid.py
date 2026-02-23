@@ -5,10 +5,9 @@ from typing import Any
 from homeassistant.config_entries import ConfigSubentryFlow, SubentryFlowResult
 import voluptuous as vol
 
-from custom_components.haeo.adapters.elements.grid import adapter
 from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.data.loader.extractors import extract_entity_metadata
-from custom_components.haeo.elements import get_input_field_schema_info
+from custom_components.haeo.elements import get_input_field_schema_info, get_input_fields
 from custom_components.haeo.elements.input_fields import InputFieldGroups
 from custom_components.haeo.flows.element_flow import ElementFlowMixin, build_sectioned_inclusion_map
 from custom_components.haeo.flows.field_schema import (
@@ -70,7 +69,7 @@ class GridSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         default_name = await self._async_get_default_name(ELEMENT_TYPE)
         if not isinstance(current_connection, str):
             current_connection = participants[0] if participants else ""
-        input_fields = adapter.inputs(subentry_data)
+        input_fields = get_input_fields(ELEMENT_TYPE)
 
         # Preprocess to normalize ChooseSelector data before validation
         sections = self._get_sections()
@@ -78,10 +77,7 @@ class GridSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         errors = self._validate_user_input(user_input, input_fields)
 
         if user_input is not None and not errors:
-            config = self._build_config(
-                user_input,
-                dict(subentry_data) if subentry_data is not None else None,
-            )
+            config = self._build_config(user_input)
             return self._finalize(config, user_input)
 
         entity_metadata = extract_entity_metadata(self.hass)
@@ -182,13 +178,9 @@ class GridSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         )
         return errors if errors else None
 
-    def _build_config(
-        self,
-        user_input: dict[str, Any],
-        current_data: dict[str, Any] | None = None,
-    ) -> dict[str, Any]:
+    def _build_config(self, user_input: dict[str, Any]) -> dict[str, Any]:
         """Build final config dict from user input."""
-        input_fields = adapter.inputs(current_data or user_input)
+        input_fields = get_input_fields(ELEMENT_TYPE)
         config_dict = convert_sectioned_choose_data_to_config(
             user_input,
             input_fields,

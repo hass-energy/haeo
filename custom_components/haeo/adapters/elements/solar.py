@@ -4,13 +4,8 @@ from collections.abc import Mapping
 from dataclasses import replace
 from typing import Any, Final, Literal
 
-from homeassistant.components.number import NumberDeviceClass, NumberEntityDescription
-from homeassistant.components.switch import SwitchEntityDescription
-
 from custom_components.haeo.adapters.output_utils import expect_output_data
 from custom_components.haeo.const import ConnectivityLevel
-from custom_components.haeo.core.units import UnitOfMeasurement
-from custom_components.haeo.elements.input_fields import InputFieldDefaults, InputFieldInfo
 from custom_components.haeo.model import ModelElementConfig, ModelOutputName, ModelOutputValue
 from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE
@@ -59,57 +54,6 @@ class SolarAdapter:
     element_type: str = ELEMENT_TYPE
     advanced: bool = False
     connectivity: ConnectivityLevel = ConnectivityLevel.ADVANCED
-
-    def inputs(self, config: Any) -> dict[str, dict[str, InputFieldInfo[Any]]]:
-        """Return input field definitions for solar elements."""
-        _ = config
-        return {
-            SECTION_FORECAST: {
-                CONF_FORECAST: InputFieldInfo(
-                    field_name=CONF_FORECAST,
-                    entity_description=NumberEntityDescription(
-                        key=CONF_FORECAST,
-                        translation_key=f"{ELEMENT_TYPE}_{CONF_FORECAST}",
-                        native_unit_of_measurement=UnitOfMeasurement.KILO_WATT,
-                        device_class=NumberDeviceClass.POWER,
-                        native_min_value=0.0,
-                        native_max_value=1000.0,
-                        native_step=0.01,
-                    ),
-                    output_type=OutputType.POWER,
-                    direction="-",
-                    time_series=True,
-                ),
-            },
-            SECTION_PRICING: {
-                CONF_PRICE_SOURCE_TARGET: InputFieldInfo(
-                    field_name=CONF_PRICE_SOURCE_TARGET,
-                    entity_description=NumberEntityDescription(
-                        key=CONF_PRICE_SOURCE_TARGET,
-                        translation_key=f"{ELEMENT_TYPE}_{CONF_PRICE_SOURCE_TARGET}",
-                        native_min_value=-1.0,
-                        native_max_value=10.0,
-                        native_step=0.001,
-                    ),
-                    output_type=OutputType.PRICE,
-                    direction="+",
-                    time_series=True,
-                    defaults=InputFieldDefaults(mode=None, value=0.0),
-                ),
-            },
-            SECTION_CURTAILMENT: {
-                CONF_CURTAILMENT: InputFieldInfo(
-                    field_name=CONF_CURTAILMENT,
-                    entity_description=SwitchEntityDescription(
-                        key=CONF_CURTAILMENT,
-                        translation_key=f"{ELEMENT_TYPE}_{CONF_CURTAILMENT}",
-                    ),
-                    output_type=OutputType.STATUS,
-                    defaults=InputFieldDefaults(mode="value", value=True),
-                    force_required=True,
-                ),
-            },
-        }
 
     def model_elements(self, config: SolarConfigData) -> list[ModelElementConfig]:
         """Return model element parameters for Solar configuration."""

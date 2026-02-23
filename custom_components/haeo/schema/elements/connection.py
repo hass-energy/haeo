@@ -1,9 +1,11 @@
 """Connection element schema definitions."""
 
-from typing import Final, Literal, TypedDict
+from typing import Annotated, Final, Literal, TypedDict
 
+from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.schema import ConnectionTarget
 from custom_components.haeo.schema.elements import ElementType
+from custom_components.haeo.schema.field_hints import FieldHint, SectionHints
 from custom_components.haeo.sections import (
     CONF_EFFICIENCY_SOURCE_TARGET,
     CONF_EFFICIENCY_TARGET_SOURCE,
@@ -64,9 +66,53 @@ class ConnectionConfigSchema(TypedDict):
     element_type: Literal[ElementType.CONNECTION]
     common: CommonConfig
     endpoints: EndpointsConfig
-    power_limits: PowerLimitsConfig
-    pricing: PricingConfig
-    efficiency: EfficiencyConfig
+    power_limits: Annotated[
+        PowerLimitsConfig,
+        SectionHints(
+            {
+                CONF_MAX_POWER_SOURCE_TARGET: FieldHint(
+                    output_type=OutputType.POWER_LIMIT,
+                    time_series=True,
+                ),
+                CONF_MAX_POWER_TARGET_SOURCE: FieldHint(
+                    output_type=OutputType.POWER_LIMIT,
+                    time_series=True,
+                ),
+            }
+        ),
+    ]
+    pricing: Annotated[
+        PricingConfig,
+        SectionHints(
+            {
+                CONF_PRICE_SOURCE_TARGET: FieldHint(
+                    output_type=OutputType.PRICE,
+                    direction="-",
+                    time_series=True,
+                ),
+                CONF_PRICE_TARGET_SOURCE: FieldHint(
+                    output_type=OutputType.PRICE,
+                    direction="-",
+                    time_series=True,
+                ),
+            }
+        ),
+    ]
+    efficiency: Annotated[
+        EfficiencyConfig,
+        SectionHints(
+            {
+                CONF_EFFICIENCY_SOURCE_TARGET: FieldHint(
+                    output_type=OutputType.EFFICIENCY,
+                    time_series=True,
+                ),
+                CONF_EFFICIENCY_TARGET_SOURCE: FieldHint(
+                    output_type=OutputType.EFFICIENCY,
+                    time_series=True,
+                ),
+            }
+        ),
+    ]
 
 
 class ConnectionConfigData(TypedDict):
