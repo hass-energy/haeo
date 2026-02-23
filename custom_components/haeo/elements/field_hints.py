@@ -94,11 +94,7 @@ def build_input_fields(
                     translation_key=translation_key,
                 )
             else:
-                defaults = OUTPUT_TYPE_DEFAULTS.get(hint.output_type)
-                if not defaults:
-                    msg = f"No defaults configured for OutputType.{hint.output_type.name}"
-                    raise ValueError(msg)
-
+                defaults = OUTPUT_TYPE_DEFAULTS[hint.output_type]
                 entity_description = NumberEntityDescription(
                     key=key,
                     translation_key=translation_key,
@@ -140,10 +136,7 @@ def extract_field_hints(schema_cls: type) -> dict[str, dict[str, FieldHint]]:
     for section_key, section_type in hints.items():
         origin = get_origin(section_type)
         if origin in (Required, NotRequired):
-            section_args = get_args(section_type)
-            if not section_args:
-                continue
-            unwrapped_type = section_args[0]
+            unwrapped_type = get_args(section_type)[0]
             origin = get_origin(unwrapped_type)
         else:
             unwrapped_type = section_type
