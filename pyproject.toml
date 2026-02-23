@@ -167,6 +167,12 @@ source_modules = ["custom_components.haeo.core"]
 forbidden_modules = ["homeassistant"]
 
 [[tool.importlinter.contracts]]
+name = "Core is standalone"
+type = "allowlist"
+source_modules = ["custom_components.haeo.core"]
+allow_modules = ["highspy", "numpy", "typing_extensions"]
+
+[[tool.importlinter.contracts]]
 name = "Model is standalone"
 type = "allowlist"
 source_modules = ["custom_components.haeo.core.model"]
