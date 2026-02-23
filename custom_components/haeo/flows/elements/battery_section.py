@@ -32,9 +32,7 @@ class BatterySectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
 
     def _get_sections(self) -> tuple[SectionDefinition, ...]:
         """Return sections for the configuration step."""
-        return (
-            SectionDefinition(key=SECTION_STORAGE, fields=(CONF_CAPACITY, CONF_INITIAL_CHARGE), collapsed=False),
-        )
+        return (SectionDefinition(key=SECTION_STORAGE, fields=(CONF_CAPACITY, CONF_INITIAL_CHARGE), collapsed=False),)
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> SubentryFlowResult:
         """Handle user step: name and input configuration."""

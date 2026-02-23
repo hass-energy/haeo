@@ -60,11 +60,7 @@ class InverterSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         subentry_data = dict(subentry.data) if subentry else None
         default_name = await self._async_get_default_name(ELEMENT_TYPE)
         participants = self._get_participant_names()
-        current_connection = (
-            get_connection_target_name(subentry_data.get(CONF_CONNECTION))
-            if subentry_data
-            else None
-        )
+        current_connection = get_connection_target_name(subentry_data.get(CONF_CONNECTION)) if subentry_data else None
         if not isinstance(current_connection, str):
             current_connection = participants[0] if participants else ""
         input_fields = get_input_fields(ELEMENT_TYPE)
