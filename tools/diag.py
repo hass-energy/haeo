@@ -33,7 +33,6 @@ from custom_components.haeo.core.data.loader.extractors import extract
 from custom_components.haeo.core.data.loader.extractors.utils.parse_datetime import parse_datetime_to_timestamp
 from custom_components.haeo.core.data.util.forecast_combiner import combine_sensor_payloads
 from custom_components.haeo.core.data.util.forecast_fuser import fuse_to_boundaries, fuse_to_intervals
-from custom_components.haeo.core.migrations.v1_3 import migrate_element_config
 from custom_components.haeo.core.model import Network
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.model.output_data import OutputData
@@ -41,6 +40,7 @@ from custom_components.haeo.core.schema.constant_value import is_constant_value
 from custom_components.haeo.core.schema.elements import ELEMENT_CONFIG_SCHEMAS, ElementConfigData
 from custom_components.haeo.core.schema.entity_value import is_entity_value
 from custom_components.haeo.core.schema.field_hints import extract_field_hints
+from custom_components.haeo.core.schema.migrations.v1_3 import migrate_element_config
 from custom_components.haeo.core.schema.none_value import is_none_value
 from custom_components.haeo.core.schema.sections import SECTION_COMMON, SECTION_PRICING
 

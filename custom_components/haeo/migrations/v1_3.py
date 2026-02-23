@@ -9,7 +9,7 @@ from homeassistant.config_entries import ConfigEntry, ConfigSubentry
 from homeassistant.core import HomeAssistant
 
 from custom_components.haeo.const import DOMAIN
-from custom_components.haeo.core.migrations.v1_3 import migrate_element_config, migrate_hub_config
+from custom_components.haeo.core.schema.migrations.v1_3 import migrate_element_config, migrate_hub_config
 
 _LOGGER = logging.getLogger(__name__)
 

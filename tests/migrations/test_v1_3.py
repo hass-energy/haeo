@@ -22,7 +22,6 @@ from custom_components.haeo.core.const import (
     CONF_TIER_1_COUNT,
     CONF_TIER_1_DURATION,
 )
-from custom_components.haeo.core.migrations.v1_3 import migrate_hub_config
 from custom_components.haeo.core.schema import as_connection_target, as_constant_value, as_entity_value
 from custom_components.haeo.core.schema.elements import (
     battery,
@@ -34,6 +33,7 @@ from custom_components.haeo.core.schema.elements import (
     node,
     solar,
 )
+from custom_components.haeo.core.schema.migrations.v1_3 import migrate_hub_config
 from custom_components.haeo.core.schema.sections import (
     CONF_CONNECTION,
     CONF_CURTAILMENT,
