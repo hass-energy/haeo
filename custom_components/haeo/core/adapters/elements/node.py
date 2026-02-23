@@ -3,7 +3,7 @@
 from collections.abc import Mapping
 from typing import Any, Final, Literal
 
-from custom_components.haeo.const import ConnectivityLevel
+from custom_components.haeo.core.const import ConnectivityLevel
 from custom_components.haeo.core.adapters.output_utils import expect_output_data
 from custom_components.haeo.core.model import ModelElementConfig, ModelOutputName, ModelOutputValue
 from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_NODE
