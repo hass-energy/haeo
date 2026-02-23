@@ -92,6 +92,16 @@ def test_get_input_field_schema_info_type_alias(monkeypatch: pytest.MonkeyPatch)
     assert schema_info["dummy"]["field"].is_optional is False
 
 
+def test_get_input_fields_returns_empty_for_none() -> None:
+    """get_input_fields returns empty dict for None element type."""
+    assert get_input_fields(None) == {}
+
+
+def test_get_input_fields_returns_empty_for_mapping_without_element_type() -> None:
+    """get_input_fields returns empty dict for mapping without element_type key."""
+    assert get_input_fields({"some_other_key": "value"}) == {}
+
+
 def test_unwrap_required_type_handles_required_wrappers() -> None:
     """Test _unwrap_required_type returns underlying Required types."""
     assert elements_module._unwrap_required_type(NotRequired[bool]) is bool
