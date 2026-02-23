@@ -5,7 +5,7 @@ from typing import Any, TypedDict
 
 import numpy as np
 import pytest
-from custom_components.haeo.adapters.elements.solar import (
+from custom_components.haeo.core.adapters.elements.solar import (
     SOLAR_DEVICE_SOLAR,
     SOLAR_FORECAST_LIMIT,
     SOLAR_POWER,

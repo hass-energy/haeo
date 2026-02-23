@@ -5,7 +5,7 @@ from typing import Any, TypedDict
 
 import numpy as np
 import pytest
-from custom_components.haeo.adapters.elements.grid import (
+from custom_components.haeo.core.adapters.elements.grid import (
     GRID_COST_IMPORT,
     GRID_COST_NET,
     GRID_DEVICE_GRID,

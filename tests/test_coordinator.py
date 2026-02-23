@@ -20,13 +20,6 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.haeo import HaeoRuntimeData
 from custom_components.haeo import elements as elements_module
-from custom_components.haeo.adapters.elements.battery import BATTERY_DEVICE_BATTERY, BATTERY_POWER_CHARGE
-from custom_components.haeo.adapters.elements.connection import (
-    CONNECTION_DEVICE_CONNECTION,
-    CONNECTION_POWER_SOURCE_TARGET,
-    CONNECTION_POWER_TARGET_SOURCE,
-)
-from custom_components.haeo.adapters.elements.solar import SOLAR_POWER
 from custom_components.haeo.const import (
     CONF_DEBOUNCE_SECONDS,
     CONF_ELEMENT_TYPE,
@@ -60,6 +53,13 @@ from custom_components.haeo.coordinator import (
     _build_coordinator_output,
 )
 from custom_components.haeo.coordinator.coordinator import _strip_none_schema_values
+from custom_components.haeo.core.adapters.elements.battery import BATTERY_DEVICE_BATTERY, BATTERY_POWER_CHARGE
+from custom_components.haeo.core.adapters.elements.connection import (
+    CONNECTION_DEVICE_CONNECTION,
+    CONNECTION_POWER_SOURCE_TARGET,
+    CONNECTION_POWER_TARGET_SOURCE,
+)
+from custom_components.haeo.core.adapters.elements.solar import SOLAR_POWER
 from custom_components.haeo.core.model import Network, OutputData, OutputType
 from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_NODE
 from custom_components.haeo.core.schema import (
