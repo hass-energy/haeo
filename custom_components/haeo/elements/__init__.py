@@ -49,7 +49,6 @@ from custom_components.haeo.const import (
     CONF_ELEMENT_TYPE,
     ELEMENT_TYPE_NETWORK,
     NETWORK_OUTPUT_NAMES,
-    ConnectivityLevel,
     NetworkDeviceName,
     NetworkOutputName,
 )
@@ -109,6 +108,7 @@ from custom_components.haeo.core.adapters.elements.solar import (
     SolarOutputName,
 )
 from custom_components.haeo.core.adapters.elements.solar import adapter as solar_adapter
+from custom_components.haeo.core.const import ConnectivityLevel
 from custom_components.haeo.core.model import ModelElementConfig, ModelOutputName
 from custom_components.haeo.core.model.output_data import ModelOutputValue, OutputData
 from custom_components.haeo.core.schema.elements import ElementType
