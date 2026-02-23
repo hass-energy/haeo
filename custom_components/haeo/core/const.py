@@ -4,6 +4,7 @@ import enum
 from typing import Final
 
 CONF_ELEMENT_TYPE: Final = "element_type"
+CONF_NAME: Final = "name"
 
 
 class ConnectivityLevel(enum.StrEnum):

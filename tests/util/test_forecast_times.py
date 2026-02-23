@@ -6,7 +6,7 @@ from typing import TypedDict
 from freezegun import freeze_time
 import pytest
 
-from custom_components.haeo.util.forecast_times import (
+from custom_components.haeo.core.data.forecast_times import (
     calculate_aligned_tier_counts,
     calculate_total_steps,
     generate_forecast_timestamps,

@@ -166,7 +166,7 @@ def test_normalize_participant_config_for_diag_migrates_legacy_flat_config() -> 
         "initial_charge_percentage": 50.0,
     }
 
-    normalized = diag.normalize_participant_config_for_diag("Battery", config)
+    normalized = diag.normalize_participant_config_for_diag(config)
 
     assert "common" in normalized
     assert normalized["common"]["name"] == "Battery"
@@ -182,11 +182,11 @@ def test_normalize_participant_config_for_diag_skips_migration_for_sectioned_con
 
     monkeypatch.setattr(
         diag,
-        "migrate_subentry_data",
-        lambda _subentry: pytest.fail("migration should not run for sectioned config"),
+        "migrate_element_config",
+        lambda _data: pytest.fail("migration should not run for sectioned config"),
     )
 
-    normalized = diag.normalize_participant_config_for_diag("Battery", config)
+    normalized = diag.normalize_participant_config_for_diag(config)
 
     assert normalized is config
 
@@ -202,13 +202,13 @@ def test_normalize_participant_config_for_diag_migrates_mixed_config(monkeypatch
     }
     called: list[Any] = []
 
-    def _fake_migrate(subentry: Any) -> dict[str, Any]:
-        called.append(subentry)
+    def _fake_migrate(data: Any) -> dict[str, Any]:
+        called.append(data)
         return migrated
 
-    monkeypatch.setattr(diag, "migrate_subentry_data", _fake_migrate)
+    monkeypatch.setattr(diag, "migrate_element_config", _fake_migrate)
 
-    normalized = diag.normalize_participant_config_for_diag("Battery", config)
+    normalized = diag.normalize_participant_config_for_diag(config)
 
     assert normalized is migrated
     assert len(called) == 1

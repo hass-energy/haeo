@@ -20,37 +20,48 @@ from datetime import UTC, datetime
 import json
 from pathlib import Path
 import sys
-from types import MappingProxyType
 from typing import Any
 from zoneinfo import ZoneInfo
 
-from homeassistant.config_entries import ConfigSubentry
-from homeassistant.const import PERCENTAGE
-from homeassistant.core import State
 import numpy as np
 from tabulate import tabulate
 
 from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES, collect_model_elements, is_element_type
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE
+from custom_components.haeo.core.data.forecast_times import generate_forecast_timestamps, tiers_to_periods_seconds
 from custom_components.haeo.core.data.loader.extractors import extract
 from custom_components.haeo.core.data.loader.extractors.utils.parse_datetime import parse_datetime_to_timestamp
 from custom_components.haeo.core.data.util.forecast_combiner import combine_sensor_payloads
 from custom_components.haeo.core.data.util.forecast_fuser import fuse_to_boundaries, fuse_to_intervals
+from custom_components.haeo.core.migrations.v1_3 import migrate_element_config
 from custom_components.haeo.core.model import Network
+from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.model.output_data import OutputData
 from custom_components.haeo.core.schema.constant_value import is_constant_value
-from custom_components.haeo.core.schema.elements import ElementConfigData
+from custom_components.haeo.core.schema.elements import ELEMENT_CONFIG_SCHEMAS, ElementConfigData
 from custom_components.haeo.core.schema.entity_value import is_entity_value
+from custom_components.haeo.core.schema.field_hints import extract_field_hints
 from custom_components.haeo.core.schema.none_value import is_none_value
 from custom_components.haeo.core.schema.sections import SECTION_COMMON, SECTION_PRICING
-from custom_components.haeo.elements import get_input_fields
-from custom_components.haeo.migrations.v1_3 import migrate_subentry_data
-from custom_components.haeo.util.forecast_times import generate_forecast_timestamps, tiers_to_periods_seconds
 
 type ForecastSeries = Sequence[tuple[float, float]]
 type SensorPayload = float | ForecastSeries
 
 MIN_INTERVAL_POINTS = 2
+_PERCENT_OUTPUT_TYPES = frozenset({OutputType.STATE_OF_CHARGE, OutputType.EFFICIENCY})
+
+
+@dataclass
+class DiagEntityState:
+    """Lightweight EntityState implementation for diagnostics CLI."""
+
+    entity_id: str
+    state: str
+    attributes: dict[str, Any]
+
+    def as_dict(self) -> dict[str, Any]:
+        """Return serialized state representation."""
+        return {"entity_id": self.entity_id, "state": self.state, "attributes": self.attributes}
 
 
 @dataclass
@@ -134,20 +145,19 @@ class DiagnosticsStateProvider:
 
     def __init__(self, inputs: list[dict[str, Any]]) -> None:
         """Initialize with inputs list from diagnostics."""
-        self._states: dict[str, State] = {}
+        self._states: dict[str, DiagEntityState] = {}
         for entity_state in inputs:
             entity_id = entity_state.get("entity_id")
             if entity_id:
-                # Create a mock Home Assistant State object
                 state_value = str(entity_state.get("state", "unknown"))
                 attributes = entity_state.get("attributes", {})
-                self._states[entity_id] = State(
+                self._states[entity_id] = DiagEntityState(
                     entity_id=entity_id,
                     state=state_value,
                     attributes=attributes,
                 )
 
-    def get(self, entity_id: str) -> State | None:
+    def get(self, entity_id: str) -> DiagEntityState | None:
         """Get entity state by ID."""
         return self._states.get(entity_id)
 
@@ -195,18 +205,12 @@ def _needs_subentry_migration(element_config: dict[str, Any]) -> bool:
     return False
 
 
-def normalize_participant_config_for_diag(element_name: str, element_config: dict[str, Any]) -> dict[str, Any]:
+def normalize_participant_config_for_diag(element_config: dict[str, Any]) -> dict[str, Any]:
     """Normalize a participant config to sectioned format for diagnostics CLI."""
     if not _needs_subentry_migration(element_config):
         return element_config
 
-    subentry = ConfigSubentry(
-        data=MappingProxyType(element_config),
-        subentry_type=element_config.get(CONF_ELEMENT_TYPE, ""),
-        title=element_name,
-        unique_id=None,
-    )
-    migrated = migrate_subentry_data(subentry)
+    migrated = migrate_element_config(element_config)
     return migrated if migrated is not None else element_config
 
 
@@ -225,7 +229,7 @@ def load_element_data(
         msg = f"Unknown element type: {element_type}"
         raise ValueError(msg)
 
-    input_fields = get_input_fields(element_config)
+    field_hints = extract_field_hints(ELEMENT_CONFIG_SCHEMAS[element_type])
 
     # Start with a shallow copy and clone nested section dictionaries so we can
     # safely mutate loaded values without mutating the original input config.
@@ -234,18 +238,16 @@ def load_element_data(
     }
     loaded_config.setdefault(SECTION_COMMON, {})["name"] = element_name
 
-    # Load each input field (nested: section → field → InputFieldInfo)
-    for section_name, section_fields in input_fields.items():
+    for section_name, section_fields in field_hints.items():
         section_config = element_config.get(section_name)
         if not isinstance(section_config, dict):
             continue
 
-        for field_name, field_info in section_fields.items():
+        for field_name, hint in section_fields.items():
             value = section_config.get(field_name)
             if value is None:
                 continue
 
-            # Unwrap structured schema values ({"type": "entity/constant/none", "value": ...})
             if is_none_value(value):
                 loaded_section = loaded_config.get(section_name)
                 if isinstance(loaded_section, dict):
@@ -254,19 +256,17 @@ def load_element_data(
             if is_constant_value(value) or is_entity_value(value):
                 value = value["value"]
 
-            # Handle boolean constants (store directly, no conversion needed)
             if isinstance(value, bool):
                 loaded_config.setdefault(section_name, {})[field_name] = value
                 continue
 
-            # Handle numeric constant values
-            if isinstance(value, (int, float)):
-                # Convert percentage values to ratios (0-1 range)
-                unit = getattr(field_info.entity_description, "native_unit_of_measurement", None)
-                converted_value = float(value) / 100.0 if unit == PERCENTAGE else float(value)
+            is_percent = hint.output_type in _PERCENT_OUTPUT_TYPES
 
-                if field_info.time_series:
-                    if field_info.boundaries:
+            if isinstance(value, (int, float)):
+                converted_value = float(value) / 100.0 if is_percent else float(value)
+
+                if hint.time_series:
+                    if hint.boundaries:
                         loaded_config.setdefault(section_name, {})[field_name] = np.array(
                             [converted_value] * len(forecast_times)
                         )
@@ -278,7 +278,6 @@ def load_element_data(
                     loaded_config.setdefault(section_name, {})[field_name] = converted_value
                 continue
 
-            # Handle entity IDs (string or list of strings)
             entity_ids: list[str] = []
             if isinstance(value, str):
                 entity_ids = [value]
@@ -288,33 +287,25 @@ def load_element_data(
             if not entity_ids:
                 continue
 
-            # Load sensor data from state provider (using extractors)
             payloads = load_sensors(state_provider, entity_ids)
 
             if not payloads:
                 continue
 
-            # Combine sensor payloads (handles multiple sensors, e.g. multi-string solar)
             present_value, forecast_series = combine_sensor_payloads(payloads)
 
-            # Convert percentage values to ratios (0-1 range)
-            # This matches what HaeoInputNumber.get_values() does
-            unit = getattr(field_info.entity_description, "native_unit_of_measurement", None)
-
-            if not field_info.time_series:
-                # Scalar field: use present value directly
+            if not hint.time_series:
                 scalar = present_value if present_value is not None else 0.0
-                if unit == PERCENTAGE:
+                if is_percent:
                     scalar /= 100.0
                 loaded_config.setdefault(section_name, {})[field_name] = scalar
             else:
-                # Time series: fuse to horizon timestamps
-                if field_info.boundaries:
+                if hint.boundaries:
                     values = fuse_to_boundaries(present_value, forecast_series, list(forecast_times))
                 else:
                     values = fuse_to_intervals(present_value, forecast_series, list(forecast_times))
 
-                if unit == PERCENTAGE:
+                if is_percent:
                     values = [v / 100.0 for v in values]
 
                 loaded_config.setdefault(section_name, {})[field_name] = np.array(values)
@@ -1126,7 +1117,7 @@ def run_diagnostics(
     # - migration handles legacy/mixed config layout
     # - load_element_data handles schema value unwrapping and sensor resolution
     for element_name, element_config in list(participants_config.items()):
-        participants_config[element_name] = normalize_participant_config_for_diag(element_name, element_config)
+        participants_config[element_name] = normalize_participant_config_for_diag(element_config)
 
     # Create state provider from inputs (uses HAEO extractors)
     state_provider = DiagnosticsStateProvider(diag.inputs)
