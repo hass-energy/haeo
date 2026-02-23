@@ -17,10 +17,8 @@ async def test_available_returns_true_when_forecast_sensor_exists(hass: HomeAssi
 
     config: load_element.LoadConfigSchema = {
         "element_type": ElementType.LOAD,
-        load_element.SECTION_COMMON: {
-            "name": "test_load",
-            "connection": as_connection_target("main_bus"),
-        },
+        "name": "test_load",
+        "connection": as_connection_target("main_bus"),
         load_element.SECTION_FORECAST: {"forecast": as_entity_value(["sensor.power"])},
         load_element.SECTION_PRICING: {},
         load_element.SECTION_CURTAILMENT: {},
@@ -34,10 +32,8 @@ async def test_available_returns_false_when_forecast_sensor_missing(hass: HomeAs
     """Load available() should return False when forecast sensor is missing."""
     config: load_element.LoadConfigSchema = {
         "element_type": ElementType.LOAD,
-        load_element.SECTION_COMMON: {
-            "name": "test_load",
-            "connection": as_connection_target("main_bus"),
-        },
+        "name": "test_load",
+        "connection": as_connection_target("main_bus"),
         load_element.SECTION_FORECAST: {"forecast": as_entity_value(["sensor.missing"])},
         load_element.SECTION_PRICING: {},
         load_element.SECTION_CURTAILMENT: {},
@@ -51,10 +47,8 @@ def test_inputs_returns_input_fields() -> None:
     """inputs() should return input field definitions for load."""
     config: load_element.LoadConfigSchema = {
         "element_type": ElementType.LOAD,
-        load_element.SECTION_COMMON: {
-            "name": "test_load",
-            "connection": as_connection_target("main_bus"),
-        },
+        "name": "test_load",
+        "connection": as_connection_target("main_bus"),
         load_element.SECTION_FORECAST: {"forecast": as_entity_value(["sensor.power"])},
         load_element.SECTION_PRICING: {},
         load_element.SECTION_CURTAILMENT: {},

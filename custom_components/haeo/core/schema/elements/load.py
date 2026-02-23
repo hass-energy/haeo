@@ -1,6 +1,6 @@
 """Load element schema definitions."""
 
-from typing import Annotated, Final, Literal, TypedDict
+from typing import Annotated, Final, Literal
 
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.schema.elements.element_type import ElementType
@@ -9,7 +9,6 @@ from custom_components.haeo.core.schema.sections import (
     CONF_CURTAILMENT,
     CONF_FORECAST,
     CONF_PRICE_TARGET_SOURCE,
-    SECTION_COMMON,
     SECTION_CURTAILMENT,
     SECTION_FORECAST,
     SECTION_PRICING,
@@ -28,11 +27,10 @@ ELEMENT_TYPE = ElementType.LOAD
 OPTIONAL_INPUT_FIELDS: Final[frozenset[str]] = frozenset({CONF_CURTAILMENT, CONF_PRICE_TARGET_SOURCE})
 
 
-class LoadConfigSchema(TypedDict):
+class LoadConfigSchema(ConnectedCommonConfig):
     """Load element configuration as stored in Home Assistant."""
 
     element_type: Literal[ElementType.LOAD]
-    common: ConnectedCommonConfig
     forecast: Annotated[
         ForecastConfig,
         SectionHints(
@@ -73,11 +71,10 @@ class LoadConfigSchema(TypedDict):
     ]
 
 
-class LoadConfigData(TypedDict):
+class LoadConfigData(ConnectedCommonData):
     """Load element configuration with loaded values."""
 
     element_type: Literal[ElementType.LOAD]
-    common: ConnectedCommonData
     forecast: ForecastData
     pricing: PricingData
     curtailment: CurtailmentData
@@ -89,7 +86,6 @@ __all__ = [
     "CONF_PRICE_TARGET_SOURCE",
     "ELEMENT_TYPE",
     "OPTIONAL_INPUT_FIELDS",
-    "SECTION_COMMON",
     "SECTION_CURTAILMENT",
     "SECTION_FORECAST",
     "SECTION_PRICING",

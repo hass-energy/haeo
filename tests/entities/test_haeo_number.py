@@ -22,7 +22,7 @@ from custom_components.haeo.const import CONF_RECORD_FORECASTS, DOMAIN
 from custom_components.haeo.core.const import CONF_NAME
 from custom_components.haeo.core.model import OutputType
 from custom_components.haeo.core.schema import as_connection_target, as_constant_value, as_entity_value, as_none_value
-from custom_components.haeo.core.schema.sections import CONF_CONNECTION, SECTION_COMMON, SECTION_EFFICIENCY
+from custom_components.haeo.core.schema.sections import CONF_CONNECTION, SECTION_EFFICIENCY
 from custom_components.haeo.elements.input_fields import InputFieldInfo
 from custom_components.haeo.entities.haeo_number import (
     FORECAST_UNRECORDED_ATTRIBUTES,
@@ -193,7 +193,7 @@ def _create_subentry(name: str, data: dict[str, Any]) -> ConfigSubentry:
         data=MappingProxyType(
             {
                 "element_type": "battery",
-                SECTION_COMMON: {CONF_NAME: name},
+                CONF_NAME: name,
                 SECTION_EFFICIENCY: {key: schema_value(value) for key, value in data.items()},
             }
         ),
@@ -483,7 +483,8 @@ async def test_translation_placeholders_include_connection_and_none_values(
         data=MappingProxyType(
             {
                 "element_type": "battery",
-                SECTION_COMMON: {CONF_NAME: "My Battery", CONF_CONNECTION: as_connection_target("Bus")},
+                CONF_NAME: "My Battery",
+                CONF_CONNECTION: as_connection_target("Bus"),
                 SECTION_EFFICIENCY: {power_field_info.field_name: as_none_value()},
             }
         ),

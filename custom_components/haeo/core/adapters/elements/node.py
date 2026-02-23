@@ -17,7 +17,6 @@ from custom_components.haeo.core.schema.elements.node import (
     SECTION_ROLE,
     NodeConfigData,
 )
-from custom_components.haeo.core.schema.sections import SECTION_COMMON
 
 # Defaults for absent optional fields (no-op values: pure junction behavior)
 DEFAULT_IS_SOURCE: Final[bool] = False
@@ -47,7 +46,7 @@ class NodeAdapter:
         return [
             {
                 "element_type": MODEL_ELEMENT_TYPE_NODE,
-                "name": config[SECTION_COMMON]["name"],
+                "name": config["name"],
                 "is_source": config[SECTION_ROLE].get(CONF_IS_SOURCE, DEFAULT_IS_SOURCE),
                 "is_sink": config[SECTION_ROLE].get(CONF_IS_SINK, DEFAULT_IS_SINK),
             }

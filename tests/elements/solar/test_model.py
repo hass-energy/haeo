@@ -44,10 +44,8 @@ CREATE_CASES: Sequence[CreateCase] = [
         "description": "Solar with production price",
         "data": SolarConfigData(
             element_type=ElementType.SOLAR,
-            common={
-                "name": "pv_main",
-                "connection": as_connection_target("network"),
-            },
+            name="pv_main",
+            connection=as_connection_target("network"),
             forecast={
                 "forecast": np.array([2.0, 1.5]),
             },

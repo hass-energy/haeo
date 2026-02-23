@@ -19,7 +19,6 @@ from custom_components.haeo.core.schema.elements.grid import (
     CONF_MAX_POWER_TARGET_SOURCE,
     CONF_PRICE_SOURCE_TARGET,
     CONF_PRICE_TARGET_SOURCE,
-    SECTION_COMMON,
     SECTION_POWER_LIMITS,
     SECTION_PRICING,
 )
@@ -32,7 +31,6 @@ from custom_components.haeo.core.schema.elements.solar import (
 )
 from custom_components.haeo.core.schema.elements.solar import CONF_PRICE_SOURCE_TARGET as CONF_SOLAR_PRICE_SOURCE_TARGET
 from custom_components.haeo.core.schema.elements.solar import ELEMENT_TYPE as SOLAR_TYPE
-from custom_components.haeo.core.schema.elements.solar import SECTION_COMMON as SOLAR_SECTION_COMMON
 from custom_components.haeo.core.schema.sections import CONF_CONNECTION
 from custom_components.haeo.entities.auto_optimize_switch import AutoOptimizeSwitch
 from custom_components.haeo.entities.haeo_number import ConfigEntityMode
@@ -112,10 +110,8 @@ def _add_subentry(
     if subentry_type == GRID_TYPE:
         connection_value = data.get("connection", "Switchboard")
         payload |= {
-            SECTION_COMMON: {
-                CONF_NAME: title,
-                CONF_CONNECTION: as_connection_target(str(connection_value)),
-            },
+            CONF_NAME: title,
+            CONF_CONNECTION: as_connection_target(str(connection_value)),
             SECTION_PRICING: {
                 CONF_PRICE_SOURCE_TARGET: schema_value(data.get("price_source_target")),
                 CONF_PRICE_TARGET_SOURCE: schema_value(data.get("price_target_source")),
@@ -129,10 +125,8 @@ def _add_subentry(
         connection_value = data.get("connection", "Switchboard")
         curtailment_value = data.get("allow_curtailment", data.get("curtailment"))
         payload |= {
-            SOLAR_SECTION_COMMON: {
-                CONF_NAME: title,
-                CONF_CONNECTION: as_connection_target(str(connection_value)),
-            },
+            CONF_NAME: title,
+            CONF_CONNECTION: as_connection_target(str(connection_value)),
             SECTION_FORECAST: {
                 CONF_FORECAST: schema_value(data.get("forecast", ["sensor.solar_forecast"])),
             },

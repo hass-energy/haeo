@@ -24,6 +24,7 @@ from custom_components.haeo.core.schema import (
     is_constant_value,
     is_entity_value,
     is_none_value,
+    is_schema_value,
 )
 from custom_components.haeo.elements import InputFieldPath, find_nested_config_path, get_nested_config_value_by_path
 from custom_components.haeo.elements.input_fields import InputFieldInfo
@@ -128,7 +129,7 @@ class HaeoInputNumber(NumberEntity):
             return str(value)
 
         for key, value in subentry.data.items():
-            if isinstance(value, Mapping):
+            if isinstance(value, Mapping) and not is_schema_value(value) and not is_connection_target(value):
                 for nested_key, nested_value in value.items():
                     placeholders.setdefault(nested_key, format_placeholder(nested_value))
                 continue

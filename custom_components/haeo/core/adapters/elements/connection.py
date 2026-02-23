@@ -40,12 +40,7 @@ from custom_components.haeo.core.schema.elements.connection import (
     SECTION_ENDPOINTS,
     ConnectionConfigData,
 )
-from custom_components.haeo.core.schema.sections import (
-    SECTION_COMMON,
-    SECTION_EFFICIENCY,
-    SECTION_POWER_LIMITS,
-    SECTION_PRICING,
-)
+from custom_components.haeo.core.schema.sections import SECTION_EFFICIENCY, SECTION_POWER_LIMITS, SECTION_PRICING
 
 # Adapter-synthesized output name (computed from model outputs)
 CONNECTION_POWER_ACTIVE: Final = "connection_power_active"
@@ -96,7 +91,7 @@ class ConnectionAdapter:
         return [
             {
                 "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
-                "name": config[SECTION_COMMON]["name"],
+                "name": config["name"],
                 "source": extract_connection_target(config[SECTION_ENDPOINTS]["source"]),
                 "target": extract_connection_target(config[SECTION_ENDPOINTS]["target"]),
                 "segments": {

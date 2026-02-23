@@ -97,7 +97,6 @@ from custom_components.haeo.core.schema.elements.grid import (
 from custom_components.haeo.core.schema.elements.grid import CONF_PRICE_SOURCE_TARGET, CONF_PRICE_TARGET_SOURCE
 from custom_components.haeo.core.schema.sections import (
     CONF_CONNECTION,
-    SECTION_COMMON,
     SECTION_EFFICIENCY,
     SECTION_POWER_LIMITS,
     SECTION_PRICING,
@@ -144,10 +143,8 @@ def mock_battery_subentry(hass: HomeAssistant, mock_hub_entry: MockConfigEntry) 
         data=MappingProxyType(
             {
                 CONF_ELEMENT_TYPE: ElementType.BATTERY,
-                SECTION_COMMON: {
-                    CONF_NAME: "Test Battery",
-                    CONF_CONNECTION: as_connection_target("DC Bus"),
-                },
+                CONF_NAME: "Test Battery",
+                CONF_CONNECTION: as_connection_target("DC Bus"),
                 SECTION_STORAGE: {
                     CONF_CAPACITY: as_entity_value(["sensor.battery_capacity"]),
                     CONF_INITIAL_CHARGE_PERCENTAGE: as_entity_value(["sensor.battery_soc"]),
@@ -185,10 +182,8 @@ def mock_grid_subentry(hass: HomeAssistant, mock_hub_entry: MockConfigEntry) -> 
         data=MappingProxyType(
             {
                 CONF_ELEMENT_TYPE: ElementType.GRID,
-                SECTION_COMMON: {
-                    CONF_NAME: "Test Grid",
-                    CONF_CONNECTION_GRID: as_connection_target("AC Bus"),
-                },
+                CONF_NAME: "Test Grid",
+                CONF_CONNECTION_GRID: as_connection_target("AC Bus"),
                 SECTION_PRICING: {
                     CONF_PRICE_SOURCE_TARGET: as_entity_value(["sensor.import_price"]),
                     CONF_PRICE_TARGET_SOURCE: as_entity_value(["sensor.export_price"]),
@@ -214,9 +209,7 @@ def mock_connection_subentry(hass: HomeAssistant, mock_hub_entry: MockConfigEntr
         data=MappingProxyType(
             {
                 CONF_ELEMENT_TYPE: ElementType.CONNECTION,
-                SECTION_COMMON: {
-                    CONF_NAME: "Battery to Grid",
-                },
+                CONF_NAME: "Battery to Grid",
                 SECTION_ENDPOINTS: {
                     CONF_SOURCE: "Test Battery",
                     CONF_TARGET: "Test Grid",
@@ -375,9 +368,7 @@ async def test_async_update_data_returns_outputs(
         "Test Grid": mock_grid_subentry.data,
         "Battery to Grid": {
             CONF_ELEMENT_TYPE: "connection",
-            SECTION_COMMON: {
-                CONF_NAME: "Battery to Grid",
-            },
+            CONF_NAME: "Battery to Grid",
             SECTION_ENDPOINTS: {
                 CONF_SOURCE: "Test Battery",
                 CONF_TARGET: "Test Grid",
@@ -1293,10 +1284,7 @@ def test_load_from_input_entities_raises_for_invalid_config_data(
     invalid_config: Any = {
         "Bad Battery": {
             CONF_ELEMENT_TYPE: ElementType.BATTERY,
-            SECTION_COMMON: {
-                CONF_NAME: "Bad Battery",
-                # Missing required non-input field: connection
-            },
+            CONF_NAME: "Bad Battery",
             SECTION_STORAGE: {
                 CONF_CAPACITY: as_entity_value(["sensor.battery_capacity"]),
                 CONF_INITIAL_CHARGE_PERCENTAGE: as_entity_value(["sensor.battery_soc"]),

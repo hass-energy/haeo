@@ -16,9 +16,8 @@ def _base_battery_config() -> dict[str, Any]:
     """Build a minimal battery config in diagnostics schema format."""
     return {
         "element_type": "battery",
-        "common": {
-            "connection": {"type": "connection_target", "value": "Inverter"},
-        },
+        "name": "Battery",
+        "connection": {"type": "connection_target", "value": "Inverter"},
         "storage": {},
         "limits": {},
         "power_limits": {},
@@ -50,7 +49,7 @@ def test_load_element_data_unwraps_constant_wrappers() -> None:
 
     np.testing.assert_allclose(loaded["storage"]["capacity"], np.array([13.5, 13.5, 13.5]))
     assert loaded["storage"]["initial_charge_percentage"] == pytest.approx(0.5)
-    assert loaded["common"].get("connection") == {"type": "connection_target", "value": "Inverter"}
+    assert loaded.get("connection") == {"type": "connection_target", "value": "Inverter"}
 
 
 def test_load_element_data_uses_present_value_for_scalar_entities(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -168,8 +167,7 @@ def test_normalize_participant_config_for_diag_migrates_legacy_flat_config() -> 
 
     normalized = diag.normalize_participant_config_for_diag(config)
 
-    assert "common" in normalized
-    assert normalized["common"]["name"] == "Battery"
+    assert normalized["name"] == "Battery"
     assert normalized["storage"]["capacity"] == as_constant_value(13.5)
     assert normalized["storage"]["initial_charge_percentage"] == as_constant_value(50.0)
 

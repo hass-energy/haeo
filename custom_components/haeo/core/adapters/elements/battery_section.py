@@ -19,7 +19,6 @@ from custom_components.haeo.core.schema.elements.battery_section import (
     SECTION_STORAGE,
     BatterySectionConfigData,
 )
-from custom_components.haeo.core.schema.sections import SECTION_COMMON
 
 type BatterySectionOutputName = Literal[
     "battery_section_power_charge",
@@ -69,7 +68,7 @@ class BatterySectionAdapter:
         return [
             {
                 "element_type": MODEL_ELEMENT_TYPE_BATTERY,
-                "name": config[SECTION_COMMON]["name"],
+                "name": config["name"],
                 "capacity": config[SECTION_STORAGE][CONF_CAPACITY],
                 "initial_charge": config[SECTION_STORAGE][CONF_INITIAL_CHARGE][0],
             }

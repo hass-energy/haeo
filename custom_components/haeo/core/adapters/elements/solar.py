@@ -24,7 +24,6 @@ from custom_components.haeo.core.schema.sections import (
     CONF_CONNECTION,
     CONF_FORECAST,
     CONF_PRICE_SOURCE_TARGET,
-    SECTION_COMMON,
     SECTION_FORECAST,
     SECTION_PRICING,
 )
@@ -60,15 +59,15 @@ class SolarAdapter:
         return [
             {
                 "element_type": MODEL_ELEMENT_TYPE_NODE,
-                "name": config[SECTION_COMMON]["name"],
+                "name": config["name"],
                 "is_source": True,
                 "is_sink": False,
             },
             {
                 "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
-                "name": f"{config[SECTION_COMMON]['name']}:connection",
-                "source": config[SECTION_COMMON]["name"],
-                "target": extract_connection_target(config[SECTION_COMMON][CONF_CONNECTION]),
+                "name": f"{config['name']}:connection",
+                "source": config["name"],
+                "target": extract_connection_target(config[CONF_CONNECTION]),
                 "segments": {
                     "power_limit": {
                         "segment_type": "power_limit",

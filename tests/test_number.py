@@ -18,7 +18,6 @@ from custom_components.haeo.core.schema.elements.grid import (
     CONF_MAX_POWER_TARGET_SOURCE,
     CONF_PRICE_SOURCE_TARGET,
     CONF_PRICE_TARGET_SOURCE,
-    SECTION_COMMON,
     SECTION_POWER_LIMITS,
     SECTION_PRICING,
 )
@@ -102,10 +101,8 @@ def _add_subentry(
             power_limits[CONF_MAX_POWER_TARGET_SOURCE] = schema_value(data.get("max_power_target_source"))
         connection_value = data.get("connection", "Switchboard")
         payload |= {
-            SECTION_COMMON: {
-                CONF_NAME: title,
-                CONF_CONNECTION: as_connection_target(str(connection_value)),
-            },
+            CONF_NAME: title,
+            CONF_CONNECTION: as_connection_target(str(connection_value)),
             SECTION_PRICING: {
                 CONF_PRICE_SOURCE_TARGET: schema_value(data.get("price_source_target")),
                 CONF_PRICE_TARGET_SOURCE: schema_value(data.get("price_target_source")),

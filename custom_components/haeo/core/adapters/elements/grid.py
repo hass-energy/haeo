@@ -29,7 +29,6 @@ from custom_components.haeo.core.schema.sections import (
     CONF_MAX_POWER_TARGET_SOURCE,
     CONF_PRICE_SOURCE_TARGET,
     CONF_PRICE_TARGET_SOURCE,
-    SECTION_COMMON,
     SECTION_POWER_LIMITS,
     SECTION_PRICING,
 )
@@ -81,16 +80,16 @@ class GridAdapter:
             # Create Node for the grid (both source and sink - can import and export)
             {
                 "element_type": MODEL_ELEMENT_TYPE_NODE,
-                "name": config[SECTION_COMMON]["name"],
+                "name": config["name"],
                 "is_source": True,
                 "is_sink": True,
             },
             # Create a connection from system node to grid
             {
                 "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
-                "name": f"{config[SECTION_COMMON]['name']}:connection",
-                "source": config[SECTION_COMMON]["name"],
-                "target": extract_connection_target(config[SECTION_COMMON][CONF_CONNECTION]),
+                "name": f"{config['name']}:connection",
+                "source": config["name"],
+                "target": extract_connection_target(config[CONF_CONNECTION]),
                 "segments": {
                     "power_limit": {
                         "segment_type": "power_limit",

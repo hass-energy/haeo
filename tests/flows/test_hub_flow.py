@@ -5,6 +5,7 @@ from typing import Any
 from homeassistant.config_entries import SOURCE_USER
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
+from homeassistant.data_entry_flow import section as ha_section
 from homeassistant.helpers.translation import async_get_translations
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 import voluptuous as vol
@@ -402,12 +403,14 @@ async def test_subentry_translations_exist(hass: HomeAssistant) -> None:
         if schema is None:
             continue
 
-        for section_key, section_schema in schema.schema.items():
-            section_name = section_key.schema
+        for schema_key, schema_value in schema.schema.items():
+            if not isinstance(schema_value, ha_section):
+                continue
+            section_name = schema_key.schema
             assert f"{base_key}.step.user.sections.{section_name}.name" in translations, (
                 f"Missing section name translation for {element_type} section '{section_name}'"
             )
-            for field in section_schema.schema.schema:
+            for field in schema_value.schema.schema:
                 field_name = field.schema
                 assert f"{base_key}.step.user.sections.{section_name}.data.{field_name}" in translations, (
                     f"Missing translation for {element_type} field '{field_name}' in section '{section_name}'"

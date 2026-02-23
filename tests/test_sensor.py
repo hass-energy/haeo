@@ -29,7 +29,6 @@ from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.core.model import OutputData, OutputType
 from custom_components.haeo.core.schema.elements import ElementType
 from custom_components.haeo.core.schema.elements.battery import ELEMENT_TYPE as BATTERY_TYPE
-from custom_components.haeo.core.schema.elements.battery import SECTION_COMMON as BATTERY_SECTION_COMMON
 from custom_components.haeo.core.schema.elements.battery import SECTION_LIMITS
 from custom_components.haeo.entities import HaeoSensor
 from custom_components.haeo.entities.haeo_sensor import FORECAST_UNRECORDED_ATTRIBUTES
@@ -153,12 +152,10 @@ def config_entry(hass: HomeAssistant) -> MockConfigEntry:
         data=MappingProxyType(
             {
                 CONF_ELEMENT_TYPE: BATTERY_TYPE,
-                BATTERY_SECTION_COMMON: {
-                    CONF_NAME: "Battery",
-                    "connection": "Switchboard",
-                    "capacity": 10.0,
-                    "initial_charge_percentage": 50.0,
-                },
+                CONF_NAME: "Battery",
+                "connection": "Switchboard",
+                "capacity": 10.0,
+                "initial_charge_percentage": 50.0,
                 SECTION_LIMITS: {},
                 "advanced": {},
             }

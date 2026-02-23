@@ -53,7 +53,8 @@ CREATE_CASES: Sequence[CreateCase] = [
         "description": "Grid with import and export limits",
         "data": GridConfigData(
             element_type=ElementType.GRID,
-            common={"name": "grid_main", "connection": as_connection_target("network")},
+            name="grid_main",
+            connection=as_connection_target("network"),
             pricing={
                 "price_source_target": np.array([0.1]),
                 "price_target_source": np.array([0.05]),
@@ -94,7 +95,8 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
         "name": "grid_main",
         "config": GridConfigData(
             element_type=ElementType.GRID,
-            common={"name": "grid_main", "connection": as_connection_target("network")},
+            name="grid_main",
+            connection=as_connection_target("network"),
             pricing={
                 "price_source_target": np.array([0.10]),
                 "price_target_source": np.array([0.05]),
@@ -137,7 +139,8 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
         "name": "grid_multi",
         "config": GridConfigData(
             element_type=ElementType.GRID,
-            common={"name": "grid_multi", "connection": as_connection_target("network")},
+            name="grid_multi",
+            connection=as_connection_target("network"),
             pricing={
                 "price_source_target": np.array([0.10, 0.20]),
                 "price_target_source": np.array([0.05, 0.05]),

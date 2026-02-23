@@ -109,7 +109,7 @@ def _wrap_config(flat: dict[str, object]) -> battery.BatteryConfigSchema:
 
     config: dict[str, object] = {
         "element_type": "battery",
-        battery.SECTION_COMMON: common,
+        **common,
         battery.SECTION_STORAGE: storage,
         battery.SECTION_LIMITS: limits,
         battery.SECTION_POWER_LIMITS: power_limits,
@@ -177,7 +177,7 @@ def _wrap_data(flat: dict[str, object]) -> battery.BatteryConfigData:
 
     config: dict[str, object] = {
         "element_type": "battery",
-        battery.SECTION_COMMON: common,
+        **common,
         battery.SECTION_STORAGE: storage,
         battery.SECTION_LIMITS: limits,
         battery.SECTION_POWER_LIMITS: power_limits,

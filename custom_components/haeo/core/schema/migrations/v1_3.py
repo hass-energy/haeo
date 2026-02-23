@@ -59,7 +59,6 @@ from custom_components.haeo.core.schema.sections import (
     CONF_MAX_POWER_TARGET_SOURCE,
     CONF_PRICE_SOURCE_TARGET,
     CONF_PRICE_TARGET_SOURCE,
-    SECTION_COMMON,
     SECTION_CURTAILMENT,
     SECTION_EFFICIENCY,
     SECTION_FORECAST,
@@ -165,7 +164,6 @@ def migrate_element_config(data: Mapping[str, Any]) -> dict[str, Any] | None:
     migrated: dict[str, Any] = {CONF_ELEMENT_TYPE: element_type}
 
     if element_type == battery.ELEMENT_TYPE:
-        common: dict[str, Any] = {}
         storage: dict[str, Any] = {}
         limits: dict[str, Any] = {}
         power_limits: dict[str, Any] = {}
@@ -176,9 +174,9 @@ def migrate_element_config(data: Mapping[str, Any]) -> dict[str, Any] | None:
         overcharge: dict[str, Any] = {}
 
         for key in (CONF_NAME, CONF_CONNECTION):
-            add_if_present(common, key)
-        if CONF_CONNECTION in common:
-            common[CONF_CONNECTION] = normalize_connection_target(common[CONF_CONNECTION])
+            add_if_present(migrated, key)
+        if CONF_CONNECTION in migrated:
+            migrated[CONF_CONNECTION] = normalize_connection_target(migrated[CONF_CONNECTION])
         for key in (battery.CONF_CAPACITY, battery.CONF_INITIAL_CHARGE_PERCENTAGE):
             add_if_present(storage, key, convert=True)
         for key in (
@@ -212,7 +210,6 @@ def migrate_element_config(data: Mapping[str, Any]) -> dict[str, Any] | None:
         convert_section_values(overcharge, (battery.CONF_PARTITION_PERCENTAGE, battery.CONF_PARTITION_COST))
 
         migrated |= {
-            SECTION_COMMON: common,
             battery.SECTION_STORAGE: storage,
             battery.SECTION_LIMITS: limits,
             SECTION_POWER_LIMITS: power_limits,
@@ -225,24 +222,21 @@ def migrate_element_config(data: Mapping[str, Any]) -> dict[str, Any] | None:
         return migrated
 
     if element_type == battery_section.ELEMENT_TYPE:
-        common: dict[str, Any] = {}
         storage: dict[str, Any] = {}
-        add_if_present(common, CONF_NAME)
+        add_if_present(migrated, CONF_NAME)
         add_if_present(storage, battery_section.CONF_CAPACITY, convert=True)
         add_if_present(storage, battery_section.CONF_INITIAL_CHARGE, convert=True)
         migrated |= {
-            SECTION_COMMON: common,
             battery_section.SECTION_STORAGE: storage,
         }
         return migrated
 
     if element_type == connection.ELEMENT_TYPE:
-        common: dict[str, Any] = {}
         endpoints: dict[str, Any] = {}
         power_limits: dict[str, Any] = {}
         pricing: dict[str, Any] = {}
         efficiency: dict[str, Any] = {}
-        add_if_present(common, CONF_NAME)
+        add_if_present(migrated, CONF_NAME)
         for key in (connection.CONF_SOURCE, connection.CONF_TARGET):
             add_if_present(endpoints, key)
         for key in (connection.CONF_SOURCE, connection.CONF_TARGET):
@@ -255,7 +249,6 @@ def migrate_element_config(data: Mapping[str, Any]) -> dict[str, Any] | None:
         for key in (connection.CONF_EFFICIENCY_SOURCE_TARGET, connection.CONF_EFFICIENCY_TARGET_SOURCE):
             add_if_present(efficiency, key, convert=True)
         migrated |= {
-            SECTION_COMMON: common,
             connection.SECTION_ENDPOINTS: endpoints,
             SECTION_POWER_LIMITS: power_limits,
             SECTION_PRICING: pricing,
@@ -264,13 +257,12 @@ def migrate_element_config(data: Mapping[str, Any]) -> dict[str, Any] | None:
         return migrated
 
     if element_type == grid.ELEMENT_TYPE:
-        common: dict[str, Any] = {}
         pricing: dict[str, Any] = {}
         power_limits: dict[str, Any] = {}
         for key in (CONF_NAME, CONF_CONNECTION):
-            add_if_present(common, key)
-        if CONF_CONNECTION in common:
-            common[CONF_CONNECTION] = normalize_connection_target(common[CONF_CONNECTION])
+            add_if_present(migrated, key)
+        if CONF_CONNECTION in migrated:
+            migrated[CONF_CONNECTION] = normalize_connection_target(migrated[CONF_CONNECTION])
         for key in (CONF_PRICE_SOURCE_TARGET, CONF_PRICE_TARGET_SOURCE):
             add_if_present(pricing, key, convert=True)
         if (legacy_import_price := get_value("import_price")) is not None:
@@ -284,20 +276,18 @@ def migrate_element_config(data: Mapping[str, Any]) -> dict[str, Any] | None:
         if (legacy_export_limit := get_value("export_limit")) is not None:
             power_limits.setdefault(CONF_MAX_POWER_TARGET_SOURCE, to_schema_value(legacy_export_limit))
         migrated |= {
-            SECTION_COMMON: common,
             SECTION_PRICING: pricing,
             SECTION_POWER_LIMITS: power_limits,
         }
         return migrated
 
     if element_type == inverter.ELEMENT_TYPE:
-        common: dict[str, Any] = {}
         power_limits: dict[str, Any] = {}
         efficiency: dict[str, Any] = {}
         for key in (CONF_NAME, CONF_CONNECTION):
-            add_if_present(common, key)
-        if CONF_CONNECTION in common:
-            common[CONF_CONNECTION] = normalize_connection_target(common[CONF_CONNECTION])
+            add_if_present(migrated, key)
+        if CONF_CONNECTION in migrated:
+            migrated[CONF_CONNECTION] = normalize_connection_target(migrated[CONF_CONNECTION])
         for key in (CONF_MAX_POWER_SOURCE_TARGET, CONF_MAX_POWER_TARGET_SOURCE):
             add_if_present(power_limits, key, convert=True)
         if (legacy_dc_to_ac := get_value("max_power_dc_to_ac")) is not None:
@@ -311,21 +301,19 @@ def migrate_element_config(data: Mapping[str, Any]) -> dict[str, Any] | None:
         if (legacy_ac_to_dc := get_value("efficiency_ac_to_dc")) is not None:
             efficiency.setdefault(inverter.CONF_EFFICIENCY_TARGET_SOURCE, to_schema_value(legacy_ac_to_dc))
         migrated |= {
-            SECTION_COMMON: common,
             SECTION_POWER_LIMITS: power_limits,
             SECTION_EFFICIENCY: efficiency,
         }
         return migrated
 
     if element_type == load.ELEMENT_TYPE:
-        common: dict[str, Any] = {}
         forecast: dict[str, Any] = {}
         pricing: dict[str, Any] = {}
         curtailment: dict[str, Any] = {}
         for key in (CONF_NAME, CONF_CONNECTION):
-            add_if_present(common, key)
-        if CONF_CONNECTION in common:
-            common[CONF_CONNECTION] = normalize_connection_target(common[CONF_CONNECTION])
+            add_if_present(migrated, key)
+        if CONF_CONNECTION in migrated:
+            migrated[CONF_CONNECTION] = normalize_connection_target(migrated[CONF_CONNECTION])
         add_if_present(forecast, CONF_FORECAST, convert=True)
 
         if isinstance(data.get(SECTION_PRICING), dict):
@@ -341,7 +329,6 @@ def migrate_element_config(data: Mapping[str, Any]) -> dict[str, Any] | None:
         convert_section_values(curtailment, (CONF_CURTAILMENT,))
 
         migrated |= {
-            SECTION_COMMON: common,
             SECTION_FORECAST: forecast,
             SECTION_PRICING: pricing,
             SECTION_CURTAILMENT: curtailment,
@@ -349,33 +336,29 @@ def migrate_element_config(data: Mapping[str, Any]) -> dict[str, Any] | None:
         return migrated
 
     if element_type == node.ELEMENT_TYPE:
-        common: dict[str, Any] = {}
         role: dict[str, Any] = {}
-        add_if_present(common, CONF_NAME)
+        add_if_present(migrated, CONF_NAME)
         for key in (node.CONF_IS_SOURCE, node.CONF_IS_SINK):
             add_if_present(role, key)
         migrated |= {
-            SECTION_COMMON: common,
             node.SECTION_ROLE: role,
         }
         return migrated
 
     if element_type == solar.ELEMENT_TYPE:
-        common: dict[str, Any] = {}
         forecast: dict[str, Any] = {}
         pricing: dict[str, Any] = {}
         curtailment: dict[str, Any] = {}
         for key in (CONF_NAME, CONF_CONNECTION):
-            add_if_present(common, key)
-        if CONF_CONNECTION in common:
-            common[CONF_CONNECTION] = normalize_connection_target(common[CONF_CONNECTION])
+            add_if_present(migrated, key)
+        if CONF_CONNECTION in migrated:
+            migrated[CONF_CONNECTION] = normalize_connection_target(migrated[CONF_CONNECTION])
         add_if_present(forecast, CONF_FORECAST, convert=True)
         add_if_present(pricing, CONF_PRICE_SOURCE_TARGET, convert=True)
         if (legacy_production_price := get_value("price_production")) is not None:
             pricing.setdefault(CONF_PRICE_SOURCE_TARGET, to_schema_value(legacy_production_price))
         add_if_present(curtailment, solar.CONF_CURTAILMENT, convert=True)
         migrated |= {
-            SECTION_COMMON: common,
             SECTION_FORECAST: forecast,
             SECTION_PRICING: pricing,
             solar.SECTION_CURTAILMENT: curtailment,

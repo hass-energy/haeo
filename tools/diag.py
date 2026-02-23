@@ -27,7 +27,7 @@ import numpy as np
 from tabulate import tabulate
 
 from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES, collect_model_elements, is_element_type
-from custom_components.haeo.core.const import CONF_ELEMENT_TYPE
+from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.core.data.forecast_times import generate_forecast_timestamps, tiers_to_periods_seconds
 from custom_components.haeo.core.data.loader.extractors import extract
 from custom_components.haeo.core.data.loader.extractors.utils.parse_datetime import parse_datetime_to_timestamp
@@ -42,7 +42,8 @@ from custom_components.haeo.core.schema.entity_value import is_entity_value
 from custom_components.haeo.core.schema.field_hints import extract_field_hints
 from custom_components.haeo.core.schema.migrations.v1_3 import migrate_element_config
 from custom_components.haeo.core.schema.none_value import is_none_value
-from custom_components.haeo.core.schema.sections import SECTION_COMMON, SECTION_PRICING
+from custom_components.haeo.core.schema.sections import SECTION_PRICING
+from custom_components.haeo.core.schema.sections.common import CONF_CONNECTION
 
 type ForecastSeries = Sequence[tuple[float, float]]
 type SensorPayload = float | ForecastSeries
@@ -192,13 +193,13 @@ def load_sensors(
 
 def _needs_subentry_migration(element_config: dict[str, Any]) -> bool:
     """Return True when a participant config looks legacy or mixed."""
-    if SECTION_COMMON not in element_config:
+    if CONF_NAME not in element_config:
         return True
 
+    flat_keys = {CONF_ELEMENT_TYPE, CONF_NAME, CONF_CONNECTION}
     for key, value in element_config.items():
-        if key == CONF_ELEMENT_TYPE:
+        if key in flat_keys:
             continue
-        # Sectioned configs should store section payloads as dictionaries.
         if not isinstance(value, dict):
             return True
 
@@ -236,7 +237,7 @@ def load_element_data(
     loaded_config: dict[str, Any] = {
         key: dict(value) if isinstance(value, dict) else value for key, value in element_config.items()
     }
-    loaded_config.setdefault(SECTION_COMMON, {})["name"] = element_name
+    loaded_config[CONF_NAME] = element_name
 
     for section_name, section_fields in field_hints.items():
         section_config = element_config.get(section_name)

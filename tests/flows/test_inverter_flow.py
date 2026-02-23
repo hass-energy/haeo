@@ -19,7 +19,6 @@ from custom_components.haeo.core.schema.elements.inverter import (
     CONF_MAX_POWER_SOURCE_TARGET,
     CONF_MAX_POWER_TARGET_SOURCE,
     ELEMENT_TYPE,
-    SECTION_COMMON,
     SECTION_EFFICIENCY,
     SECTION_POWER_LIMITS,
 )
@@ -36,18 +35,15 @@ SECTION_LIMITS = SECTION_POWER_LIMITS
 
 def _wrap_input(flat: dict[str, Any]) -> dict[str, Any]:
     """Wrap flat inverter input values into sectioned config."""
-    if SECTION_COMMON in flat:
+    if SECTION_LIMITS in flat:
         return dict(flat)
-    common = {
-        CONF_NAME: flat[CONF_NAME],
-        CONF_CONNECTION: flat[CONF_CONNECTION],
-    }
     limits = {
         CONF_MAX_POWER_DC_TO_AC: flat[CONF_MAX_POWER_DC_TO_AC],
         CONF_MAX_POWER_AC_TO_DC: flat[CONF_MAX_POWER_AC_TO_DC],
     }
     return {
-        SECTION_COMMON: common,
+        CONF_NAME: flat[CONF_NAME],
+        CONF_CONNECTION: flat[CONF_CONNECTION],
         SECTION_LIMITS: limits,
         SECTION_EFFICIENCY: {},
     }
@@ -55,12 +51,11 @@ def _wrap_input(flat: dict[str, Any]) -> dict[str, Any]:
 
 def _wrap_config(flat: dict[str, Any]) -> dict[str, Any]:
     """Wrap flat inverter config values into sectioned config with element type."""
-    if SECTION_COMMON in flat:
+    if SECTION_LIMITS in flat:
         return {CONF_ELEMENT_TYPE: ELEMENT_TYPE, **flat}
     config = _wrap_input(flat)
-    common = config.get(SECTION_COMMON, {})
-    if CONF_CONNECTION in common and isinstance(common[CONF_CONNECTION], str):
-        common[CONF_CONNECTION] = as_connection_target(common[CONF_CONNECTION])
+    if CONF_CONNECTION in config and isinstance(config[CONF_CONNECTION], str):
+        config[CONF_CONNECTION] = as_connection_target(config[CONF_CONNECTION])
     return {CONF_ELEMENT_TYPE: ELEMENT_TYPE, **config}
 
 

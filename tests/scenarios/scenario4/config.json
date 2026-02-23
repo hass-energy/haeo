@@ -9,8 +9,9 @@
   "tier_4_duration": 60,
   "participants": {
     "Battery": {
+      "name": "Battery",
       "element_type": "battery",
-      "common": { "name": "Battery", "connection": { "type": "connection_target", "value": "Inverter" } },
+      "connection": { "type": "connection_target", "value": "Inverter" },
       "efficiency": {
         "efficiency_source_target": { "type": "constant", "value": 99.0 },
         "efficiency_target_source": { "type": "constant", "value": 99.0 }
@@ -35,15 +36,17 @@
       }
     },
     "Constant Load": {
+      "name": "Constant Load",
       "element_type": "load",
-      "common": { "name": "Constant Load", "connection": { "type": "connection_target", "value": "Switchboard" } },
+      "connection": { "type": "connection_target", "value": "Switchboard" },
       "curtailment": {},
       "forecast": { "forecast": { "type": "constant", "value": 1.0 } },
       "pricing": {}
     },
     "Grid": {
+      "name": "Grid",
       "element_type": "grid",
-      "common": { "name": "Grid", "connection": { "type": "connection_target", "value": "Switchboard" } },
+      "connection": { "type": "connection_target", "value": "Switchboard" },
       "power_limits": {
         "max_power_source_target": { "type": "constant", "value": 55.0 },
         "max_power_target_source": { "type": "constant", "value": 30.0 }
@@ -60,8 +63,9 @@
       }
     },
     "Inverter": {
+      "name": "Inverter",
       "element_type": "inverter",
-      "common": { "name": "Inverter", "connection": { "type": "connection_target", "value": "Switchboard" } },
+      "connection": { "type": "connection_target", "value": "Switchboard" },
       "efficiency": {},
       "power_limits": {
         "max_power_source_target": { "type": "entity", "value": ["sensor.sigen_plant_max_active_power"] },
@@ -69,8 +73,9 @@
       }
     },
     "Solar": {
+      "name": "Solar",
       "element_type": "solar",
-      "common": { "name": "Solar", "connection": { "type": "connection_target", "value": "Inverter" } },
+      "connection": { "type": "connection_target", "value": "Inverter" },
       "curtailment": { "curtailment": { "type": "constant", "value": true } },
       "forecast": {
         "forecast": {
@@ -84,10 +89,6 @@
       },
       "pricing": {}
     },
-    "Switchboard": {
-      "element_type": "node",
-      "common": { "name": "Switchboard" },
-      "role": { "is_sink": false, "is_source": false }
-    }
+    "Switchboard": { "name": "Switchboard", "element_type": "node", "role": { "is_sink": false, "is_source": false } }
   }
 }

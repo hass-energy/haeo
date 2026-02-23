@@ -5,7 +5,6 @@ from custom_components.haeo.core.schema import as_constant_value, as_entity_valu
 from custom_components.haeo.core.schema.elements.battery_section import (
     CONF_CAPACITY,
     CONF_INITIAL_CHARGE,
-    SECTION_COMMON,
     SECTION_STORAGE,
 )
 
@@ -15,9 +14,7 @@ VALID_DATA = [
     {
         "description": "Battery section with sensor entities",
         "config": {
-            SECTION_COMMON: {
-                CONF_NAME: "Test Section",
-            },
+            CONF_NAME: "Test Section",
             SECTION_STORAGE: {
                 CONF_CAPACITY: as_entity_value(["sensor.battery_capacity"]),
                 CONF_INITIAL_CHARGE: as_entity_value(["sensor.battery_charge"]),
@@ -27,9 +24,7 @@ VALID_DATA = [
     {
         "description": "Battery section with constant values",
         "config": {
-            SECTION_COMMON: {
-                CONF_NAME: "Constant Section",
-            },
+            CONF_NAME: "Constant Section",
             SECTION_STORAGE: {
                 CONF_CAPACITY: as_constant_value(10.0),
                 CONF_INITIAL_CHARGE: as_constant_value(5.0),

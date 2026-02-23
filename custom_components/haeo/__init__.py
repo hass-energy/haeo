@@ -137,7 +137,6 @@ async def _ensure_required_subentries(hass: HomeAssistant, hub_entry: ConfigEntr
     from custom_components.haeo.core.schema.elements.node import (  # noqa: PLC0415
         CONF_IS_SINK,
         CONF_IS_SOURCE,
-        SECTION_COMMON,
         SECTION_ROLE,
     )
 
@@ -179,7 +178,7 @@ async def _ensure_required_subentries(hass: HomeAssistant, hub_entry: ConfigEntr
             data=MappingProxyType(
                 {
                     CONF_ELEMENT_TYPE: ElementType.NODE,
-                    SECTION_COMMON: {CONF_NAME: switchboard_name},
+                    CONF_NAME: switchboard_name,
                     SECTION_ROLE: {
                         CONF_IS_SOURCE: False,
                         CONF_IS_SINK: False,
