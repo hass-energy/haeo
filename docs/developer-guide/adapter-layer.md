@@ -100,15 +100,14 @@ This prevents naming collisions and groups related components visually.
 
 To add a new Device Layer element:
 
-1. Create element subfolder `elements/{element_type}/` with:
-    - `schema.py`: Define `ConfigSchema` and `ConfigData` TypedDicts
-    - `flow.py`: Implement config flow with voluptuous schemas
-    - `adapter.py`: Implement `available()`, `load()`, `model_elements()`, `outputs()`
-2. Register `ElementRegistryEntry` in `elements/__init__.py` `ELEMENT_TYPES` dictionary
-3. Add translations in `translations/en.json`
-4. Write tests in `tests/elements/{element_type}/`
+1. Define schema in `core/schema/elements/{element_type}.py` with `ConfigSchema`, `ConfigData`, and `DEFAULTS`
+2. Implement adapter in `core/adapters/elements/{element_type}.py` with `available()`, `inputs()`, `model_elements()`, `outputs()`
+3. Implement config flow in `flows/elements/{element_type}.py`
+4. Register `ElementAdapter` in `elements/__init__.py` `ELEMENT_TYPES` dictionary
+5. Add translations in `translations/en.json`
+6. Write tests colocated with source (adapter tests in `core/adapters/elements/tests/`, flow tests in `flows/elements/tests/`)
 
-See existing element modules in [`custom_components/haeo/elements/`](https://github.com/hass-energy/haeo/tree/main/custom_components/haeo/elements) for implementation patterns.
+See existing adapter modules in [`custom_components/haeo/core/adapters/elements/`](https://github.com/hass-energy/haeo/tree/main/custom_components/haeo/core/adapters/elements) for implementation patterns.
 
 ## Integration Points
 
