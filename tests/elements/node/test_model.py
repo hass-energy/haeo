@@ -4,7 +4,7 @@ from collections.abc import Mapping, Sequence
 from typing import Any, TypedDict
 
 import pytest
-from custom_components.haeo.adapters.elements.node import NODE_DEVICE_NODE
+from custom_components.haeo.core.adapters.elements.node import NODE_DEVICE_NODE
 from custom_components.haeo.elements import ELEMENT_TYPES
 from custom_components.haeo.core.model import ModelOutputName, ModelOutputValue
 from custom_components.haeo.core.model.const import OutputType

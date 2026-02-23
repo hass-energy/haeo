@@ -5,7 +5,7 @@ from typing import Any, TypedDict
 
 import numpy as np
 import pytest
-from custom_components.haeo.adapters.elements.inverter import (
+from custom_components.haeo.core.adapters.elements.inverter import (
     INVERTER_DC_BUS_POWER_BALANCE,
     INVERTER_DEVICE_INVERTER,
     INVERTER_MAX_POWER_AC_TO_DC_PRICE,

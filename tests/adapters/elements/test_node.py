@@ -2,7 +2,7 @@
 
 from homeassistant.core import HomeAssistant
 
-from custom_components.haeo.adapters.elements.node import adapter as node_adapter
+from custom_components.haeo.core.adapters.elements.node import adapter as node_adapter
 from custom_components.haeo.core.schema.elements import ElementType, node
 from custom_components.haeo.elements.availability import schema_config_available
 

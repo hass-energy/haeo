@@ -5,7 +5,7 @@ from typing import Any, TypedDict
 
 import numpy as np
 import pytest
-from custom_components.haeo.adapters.elements.load import (
+from custom_components.haeo.core.adapters.elements.load import (
     LOAD_DEVICE_LOAD,
     LOAD_FORECAST_LIMIT_PRICE,
     LOAD_POWER,

@@ -45,62 +45,6 @@ from typing import (
 
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry
 
-from custom_components.haeo.adapters.elements.battery import (
-    BATTERY_DEVICE_NAMES,
-    BATTERY_OUTPUT_NAMES,
-    BatteryDeviceName,
-    BatteryOutputName,
-)
-from custom_components.haeo.adapters.elements.battery import adapter as battery_adapter
-from custom_components.haeo.adapters.elements.battery_section import (
-    BATTERY_SECTION_DEVICE_NAMES,
-    BATTERY_SECTION_OUTPUT_NAMES,
-    BatterySectionDeviceName,
-    BatterySectionOutputName,
-)
-from custom_components.haeo.adapters.elements.battery_section import adapter as battery_section_adapter
-from custom_components.haeo.adapters.elements.connection import (
-    CONNECTION_DEVICE_NAMES,
-    CONNECTION_OUTPUT_NAMES,
-    ConnectionDeviceName,
-    ConnectionOutputName,
-)
-from custom_components.haeo.adapters.elements.connection import adapter as connection_adapter
-from custom_components.haeo.adapters.elements.grid import (
-    GRID_DEVICE_NAMES,
-    GRID_OUTPUT_NAMES,
-    GridDeviceName,
-    GridOutputName,
-)
-from custom_components.haeo.adapters.elements.grid import adapter as grid_adapter
-from custom_components.haeo.adapters.elements.inverter import (
-    INVERTER_DEVICE_NAMES,
-    INVERTER_OUTPUT_NAMES,
-    InverterDeviceName,
-    InverterOutputName,
-)
-from custom_components.haeo.adapters.elements.inverter import adapter as inverter_adapter
-from custom_components.haeo.adapters.elements.load import (
-    LOAD_DEVICE_NAMES,
-    LOAD_OUTPUT_NAMES,
-    LoadDeviceName,
-    LoadOutputName,
-)
-from custom_components.haeo.adapters.elements.load import adapter as load_adapter
-from custom_components.haeo.adapters.elements.node import (
-    NODE_DEVICE_NAMES,
-    NODE_OUTPUT_NAMES,
-    NodeDeviceName,
-    NodeOutputName,
-)
-from custom_components.haeo.adapters.elements.node import adapter as node_adapter
-from custom_components.haeo.adapters.elements.solar import (
-    SOLAR_DEVICE_NAMES,
-    SOLAR_OUTPUT_NAMES,
-    SolarDeviceName,
-    SolarOutputName,
-)
-from custom_components.haeo.adapters.elements.solar import adapter as solar_adapter
 from custom_components.haeo.const import (
     CONF_ELEMENT_TYPE,
     ELEMENT_TYPE_NETWORK,
@@ -109,6 +53,62 @@ from custom_components.haeo.const import (
     NetworkDeviceName,
     NetworkOutputName,
 )
+from custom_components.haeo.core.adapters.elements.battery import (
+    BATTERY_DEVICE_NAMES,
+    BATTERY_OUTPUT_NAMES,
+    BatteryDeviceName,
+    BatteryOutputName,
+)
+from custom_components.haeo.core.adapters.elements.battery import adapter as battery_adapter
+from custom_components.haeo.core.adapters.elements.battery_section import (
+    BATTERY_SECTION_DEVICE_NAMES,
+    BATTERY_SECTION_OUTPUT_NAMES,
+    BatterySectionDeviceName,
+    BatterySectionOutputName,
+)
+from custom_components.haeo.core.adapters.elements.battery_section import adapter as battery_section_adapter
+from custom_components.haeo.core.adapters.elements.connection import (
+    CONNECTION_DEVICE_NAMES,
+    CONNECTION_OUTPUT_NAMES,
+    ConnectionDeviceName,
+    ConnectionOutputName,
+)
+from custom_components.haeo.core.adapters.elements.connection import adapter as connection_adapter
+from custom_components.haeo.core.adapters.elements.grid import (
+    GRID_DEVICE_NAMES,
+    GRID_OUTPUT_NAMES,
+    GridDeviceName,
+    GridOutputName,
+)
+from custom_components.haeo.core.adapters.elements.grid import adapter as grid_adapter
+from custom_components.haeo.core.adapters.elements.inverter import (
+    INVERTER_DEVICE_NAMES,
+    INVERTER_OUTPUT_NAMES,
+    InverterDeviceName,
+    InverterOutputName,
+)
+from custom_components.haeo.core.adapters.elements.inverter import adapter as inverter_adapter
+from custom_components.haeo.core.adapters.elements.load import (
+    LOAD_DEVICE_NAMES,
+    LOAD_OUTPUT_NAMES,
+    LoadDeviceName,
+    LoadOutputName,
+)
+from custom_components.haeo.core.adapters.elements.load import adapter as load_adapter
+from custom_components.haeo.core.adapters.elements.node import (
+    NODE_DEVICE_NAMES,
+    NODE_OUTPUT_NAMES,
+    NodeDeviceName,
+    NodeOutputName,
+)
+from custom_components.haeo.core.adapters.elements.node import adapter as node_adapter
+from custom_components.haeo.core.adapters.elements.solar import (
+    SOLAR_DEVICE_NAMES,
+    SOLAR_OUTPUT_NAMES,
+    SolarDeviceName,
+    SolarOutputName,
+)
+from custom_components.haeo.core.adapters.elements.solar import adapter as solar_adapter
 from custom_components.haeo.core.model import ModelElementConfig, ModelOutputName
 from custom_components.haeo.core.model.output_data import ModelOutputValue, OutputData
 from custom_components.haeo.core.schema.elements import ElementType

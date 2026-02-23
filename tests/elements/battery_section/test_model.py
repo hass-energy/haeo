@@ -5,7 +5,7 @@ from typing import Any, TypedDict
 
 import numpy as np
 import pytest
-from custom_components.haeo.adapters.elements.battery_section import (
+from custom_components.haeo.core.adapters.elements.battery_section import (
     BATTERY_SECTION_DEVICE,
     BATTERY_SECTION_ENERGY_IN_FLOW,
     BATTERY_SECTION_ENERGY_OUT_FLOW,

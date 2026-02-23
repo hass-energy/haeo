@@ -15,8 +15,6 @@ import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.haeo import HaeoRuntimeData
-from custom_components.haeo.adapters.elements.battery import BATTERY_STATE_OF_CHARGE
-from custom_components.haeo.adapters.elements.load import LOAD_POWER
 from custom_components.haeo.const import (
     CONF_ELEMENT_TYPE,
     CONF_NAME,
@@ -27,6 +25,8 @@ from custom_components.haeo.const import (
     OUTPUT_NAME_OPTIMIZATION_STATUS,
 )
 from custom_components.haeo.coordinator import CoordinatorData, CoordinatorOutput, ForecastPoint, OptimizationContext
+from custom_components.haeo.core.adapters.elements.battery import BATTERY_STATE_OF_CHARGE
+from custom_components.haeo.core.adapters.elements.load import LOAD_POWER
 from custom_components.haeo.core.model import OutputData, OutputType
 from custom_components.haeo.core.schema.elements import ElementType
 from custom_components.haeo.core.schema.elements.battery import ELEMENT_TYPE as BATTERY_TYPE

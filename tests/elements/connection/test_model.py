@@ -5,7 +5,7 @@ from typing import Any, TypedDict
 
 import numpy as np
 import pytest
-from custom_components.haeo.adapters.elements.connection import (
+from custom_components.haeo.core.adapters.elements.connection import (
     CONNECTION_DEVICE_CONNECTION,
     CONNECTION_POWER_ACTIVE,
     CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET,

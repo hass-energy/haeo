@@ -5,7 +5,7 @@ from collections.abc import Sequence
 from homeassistant.core import HomeAssistant
 import numpy as np
 
-from custom_components.haeo.adapters.elements.battery import adapter as battery_adapter
+from custom_components.haeo.core.adapters.elements.battery import adapter as battery_adapter
 from custom_components.haeo.core.model import Network
 from custom_components.haeo.core.model.elements import (
     MODEL_ELEMENT_TYPE_BATTERY,
