@@ -3,8 +3,8 @@
 from collections.abc import Mapping, Sequence
 
 from .const import CONF_ELEMENT_TYPE
-from .elements import ELEMENT_TYPES, ElementConfigData
 from .core.model.elements import MODEL_ELEMENT_TYPE_CONNECTION
+from .elements import ELEMENT_TYPES, ElementConfigData
 from .util.graph import ConnectivityResult as NetworkConnectivityResult
 from .util.graph import find_connected_components
 

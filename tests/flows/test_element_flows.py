@@ -36,10 +36,10 @@ from custom_components.haeo.const import (
     DOMAIN,
     INTEGRATION_TYPE_HUB,
 )
+from custom_components.haeo.core.model import OutputData
 from custom_components.haeo.elements import ELEMENT_TYPES, ConnectivityLevel, ElementOutputName, ElementType
 from custom_components.haeo.elements.input_fields import InputFieldInfo
 from custom_components.haeo.flows import HUB_SECTION_COMMON, HUB_SECTION_TIERS, get_element_flow_classes
-from custom_components.haeo.core.model import OutputData
 from custom_components.haeo.schema.elements import battery, connection, grid, node
 from custom_components.haeo.sections import SECTION_COMMON
 from tests.conftest import ElementTestData

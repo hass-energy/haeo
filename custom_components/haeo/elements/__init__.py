@@ -109,9 +109,9 @@ from custom_components.haeo.const import (
     NetworkDeviceName,
     NetworkOutputName,
 )
-from custom_components.haeo.elements.field_hints import build_input_fields, extract_field_hints
 from custom_components.haeo.core.model import ModelElementConfig, ModelOutputName
 from custom_components.haeo.core.model.output_data import ModelOutputValue, OutputData
+from custom_components.haeo.elements.field_hints import build_input_fields, extract_field_hints
 from custom_components.haeo.schema.elements import ElementType
 from custom_components.haeo.schema.elements.battery import OPTIONAL_INPUT_FIELDS as BATTERY_OPTIONAL_INPUT_FIELDS
 from custom_components.haeo.schema.elements.battery import BatteryConfigData, BatteryConfigSchema

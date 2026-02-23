@@ -6,7 +6,6 @@ from homeassistant.core import HomeAssistant
 import numpy as np
 
 from custom_components.haeo.adapters.elements.battery import adapter as battery_adapter
-from custom_components.haeo.elements.availability import schema_config_available
 from custom_components.haeo.core.model import Network
 from custom_components.haeo.core.model.elements import (
     MODEL_ELEMENT_TYPE_BATTERY,
@@ -17,6 +16,7 @@ from custom_components.haeo.core.model.elements import (
 from custom_components.haeo.core.model.elements.battery import BATTERY_POWER_CHARGE, BATTERY_POWER_DISCHARGE
 from custom_components.haeo.core.model.elements.connection import ConnectionElementConfig
 from custom_components.haeo.core.model.elements.segments import is_efficiency_spec
+from custom_components.haeo.elements.availability import schema_config_available
 from custom_components.haeo.schema import as_connection_target, as_constant_value, as_entity_value, as_none_value
 from custom_components.haeo.schema.elements import battery
 
