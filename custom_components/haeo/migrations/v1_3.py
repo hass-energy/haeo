@@ -112,17 +112,7 @@ def migrate_subentry_data(subentry: ConfigSubentry) -> dict[str, Any] | None:
     if not element_type or element_type == ELEMENT_TYPE_NETWORK:
         return None
 
-    from custom_components.haeo.schema.elements import (  # noqa: PLC0415
-        battery,
-        battery_section,
-        connection,
-        grid,
-        inverter,
-        load,
-        node,
-        solar,
-    )
-    from custom_components.haeo.sections import (  # noqa: PLC0415
+    from custom_components.haeo.core.schema.sections import (  # noqa: PLC0415
         CONF_CONNECTION,
         CONF_CURTAILMENT,
         CONF_FORECAST,
@@ -136,6 +126,16 @@ def migrate_subentry_data(subentry: ConfigSubentry) -> dict[str, Any] | None:
         SECTION_FORECAST,
         SECTION_POWER_LIMITS,
         SECTION_PRICING,
+    )
+    from custom_components.haeo.schema.elements import (  # noqa: PLC0415
+        battery,
+        battery_section,
+        connection,
+        grid,
+        inverter,
+        load,
+        node,
+        solar,
     )
 
     def get_value(key: str) -> Any | None:

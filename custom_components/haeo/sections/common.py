@@ -1,49 +1,21 @@
-"""Shared definitions for common configuration sections."""
+"""Flow builders for common configuration sections."""
 
-from typing import Any, Final, NotRequired, TypedDict
+from typing import Any
 
 from homeassistant.helpers.selector import TextSelector, TextSelectorConfig  # type: ignore[reportUnknownVariableType]
 import voluptuous as vol
 
 from custom_components.haeo.const import CONF_NAME
+from custom_components.haeo.core.schema.sections.common import CONF_CONNECTION
 from custom_components.haeo.flows.element_flow import build_participant_selector
 from custom_components.haeo.flows.field_schema import SectionDefinition
 from custom_components.haeo.schema import ConnectionTarget, get_connection_target_name
 
-SECTION_COMMON: Final = "common"
-CONF_CONNECTION: Final = "connection"
-
-
-class CommonConfig(TypedDict):
-    """Common configuration for element identity and connectivity."""
-
-    name: str
-    connection: NotRequired[ConnectionTarget]
-
-
-class CommonData(TypedDict):
-    """Loaded common values for element identity and connectivity."""
-
-    name: str
-    connection: NotRequired[ConnectionTarget]
-
-
-class ConnectedCommonConfig(TypedDict):
-    """Common configuration with a required connection target."""
-
-    name: str
-    connection: ConnectionTarget
-
-
-class ConnectedCommonData(TypedDict):
-    """Loaded common values with a required connection target."""
-
-    name: str
-    connection: ConnectionTarget
-
 
 def common_section(fields: tuple[str, ...], *, collapsed: bool = False) -> SectionDefinition:
     """Return the standard common section definition."""
+    from custom_components.haeo.core.schema.sections.common import SECTION_COMMON  # noqa: PLC0415
+
     return SectionDefinition(key=SECTION_COMMON, fields=fields, collapsed=collapsed)
 
 
@@ -77,13 +49,6 @@ def build_common_fields(
 
 
 __all__ = [
-    "CONF_CONNECTION",
-    "SECTION_COMMON",
-    "CommonConfig",
-    "CommonData",
-    "ConnectedCommonConfig",
-    "ConnectedCommonData",
-    "ConnectionTarget",
     "build_common_fields",
     "common_section",
 ]

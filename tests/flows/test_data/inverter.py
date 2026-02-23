@@ -1,6 +1,7 @@
 """Test inverter config flow data for choose selector approach."""
 
 from custom_components.haeo.const import CONF_NAME
+from custom_components.haeo.core.schema.sections import CONF_CONNECTION
 from custom_components.haeo.schema import as_connection_target, as_constant_value
 from custom_components.haeo.schema.elements.inverter import (
     CONF_EFFICIENCY_SOURCE_TARGET,
@@ -11,7 +12,6 @@ from custom_components.haeo.schema.elements.inverter import (
     SECTION_EFFICIENCY,
     SECTION_POWER_LIMITS,
 )
-from custom_components.haeo.sections import CONF_CONNECTION
 
 # Test data for inverter flow - single-step with choose selector
 # config: Contains all field values in choose selector format

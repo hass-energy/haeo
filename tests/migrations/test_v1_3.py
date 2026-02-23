@@ -23,6 +23,21 @@ from custom_components.haeo.const import (
     DOMAIN,
     ELEMENT_TYPE_NETWORK,
 )
+from custom_components.haeo.core.schema.sections import (
+    CONF_CONNECTION,
+    CONF_CURTAILMENT,
+    CONF_FORECAST,
+    CONF_MAX_POWER_SOURCE_TARGET,
+    CONF_MAX_POWER_TARGET_SOURCE,
+    CONF_PRICE_SOURCE_TARGET,
+    CONF_PRICE_TARGET_SOURCE,
+    SECTION_COMMON,
+    SECTION_CURTAILMENT,
+    SECTION_EFFICIENCY,
+    SECTION_FORECAST,
+    SECTION_POWER_LIMITS,
+    SECTION_PRICING,
+)
 from custom_components.haeo.flows import (
     HORIZON_PRESET_5_DAYS,
     HUB_SECTION_ADVANCED,
@@ -40,21 +55,6 @@ from custom_components.haeo.schema.elements import (
     load,
     node,
     solar,
-)
-from custom_components.haeo.sections import (
-    CONF_CONNECTION,
-    CONF_CURTAILMENT,
-    CONF_FORECAST,
-    CONF_MAX_POWER_SOURCE_TARGET,
-    CONF_MAX_POWER_TARGET_SOURCE,
-    CONF_PRICE_SOURCE_TARGET,
-    CONF_PRICE_TARGET_SOURCE,
-    SECTION_COMMON,
-    SECTION_CURTAILMENT,
-    SECTION_EFFICIENCY,
-    SECTION_FORECAST,
-    SECTION_POWER_LIMITS,
-    SECTION_PRICING,
 )
 
 

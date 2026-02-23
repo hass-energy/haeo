@@ -1,6 +1,7 @@
 """Test battery config flow data for choose selector approach."""
 
 from custom_components.haeo.const import CONF_NAME
+from custom_components.haeo.core.schema.sections import CONF_CONNECTION
 from custom_components.haeo.schema import as_connection_target, as_constant_value, as_entity_value
 from custom_components.haeo.schema.elements.battery import (
     CONF_CAPACITY,
@@ -23,7 +24,6 @@ from custom_components.haeo.schema.elements.battery import (
     SECTION_PRICING,
     SECTION_STORAGE,
 )
-from custom_components.haeo.sections import CONF_CONNECTION
 
 # Test data for battery flow - single-step with choose selector (plus optional partition step)
 # config: Contains all field values in choose selector format

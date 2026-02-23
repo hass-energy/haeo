@@ -11,6 +11,7 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 from custom_components.haeo import HaeoRuntimeData
 from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME, DOMAIN, ELEMENT_TYPE_NETWORK
 from custom_components.haeo.coordinator import HaeoDataUpdateCoordinator
+from custom_components.haeo.core.schema.sections import CONF_CONNECTION
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON, HUB_SECTION_TIERS
 from custom_components.haeo.horizon import HorizonManager
 from custom_components.haeo.number import async_setup_entry
@@ -25,7 +26,6 @@ from custom_components.haeo.schema.elements.grid import (
     SECTION_PRICING,
 )
 from custom_components.haeo.schema.elements.grid import ELEMENT_TYPE as GRID_TYPE
-from custom_components.haeo.sections import CONF_CONNECTION
 
 
 @pytest.fixture

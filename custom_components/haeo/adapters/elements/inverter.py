@@ -17,10 +17,7 @@ from custom_components.haeo.core.model.elements.connection import (
 from custom_components.haeo.core.model.elements.node import NODE_POWER_BALANCE
 from custom_components.haeo.core.model.elements.segments import POWER_LIMIT_SOURCE_TARGET, POWER_LIMIT_TARGET_SOURCE
 from custom_components.haeo.core.model.output_data import OutputData
-from custom_components.haeo.schema import extract_connection_target
-from custom_components.haeo.schema.elements import ElementType
-from custom_components.haeo.schema.elements.inverter import ELEMENT_TYPE, InverterConfigData
-from custom_components.haeo.sections import (
+from custom_components.haeo.core.schema.sections import (
     CONF_CONNECTION,
     CONF_EFFICIENCY_SOURCE_TARGET,
     CONF_EFFICIENCY_TARGET_SOURCE,
@@ -30,6 +27,9 @@ from custom_components.haeo.sections import (
     SECTION_EFFICIENCY,
     SECTION_POWER_LIMITS,
 )
+from custom_components.haeo.schema import extract_connection_target
+from custom_components.haeo.schema.elements import ElementType
+from custom_components.haeo.schema.elements.inverter import ELEMENT_TYPE, InverterConfigData
 
 # Inverter output names
 type InverterOutputName = Literal[

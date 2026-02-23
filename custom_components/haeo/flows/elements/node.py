@@ -7,10 +7,11 @@ from homeassistant.helpers.selector import BooleanSelector, BooleanSelectorConfi
 import voluptuous as vol
 
 from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME
+from custom_components.haeo.core.schema.sections import SECTION_COMMON
 from custom_components.haeo.flows.element_flow import ElementFlowMixin
 from custom_components.haeo.flows.field_schema import SectionDefinition, build_section_schema
 from custom_components.haeo.schema.elements.node import CONF_IS_SINK, CONF_IS_SOURCE, ELEMENT_TYPE, SECTION_ROLE
-from custom_components.haeo.sections import SECTION_COMMON, build_common_fields, common_section
+from custom_components.haeo.sections import build_common_fields, common_section
 
 # Suggested values for first setup (pure junction: no source or sink)
 _SUGGESTED_DEFAULTS = {

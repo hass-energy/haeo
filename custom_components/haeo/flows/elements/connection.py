@@ -6,6 +6,7 @@ from homeassistant.config_entries import ConfigSubentryFlow, SubentryFlowResult
 import voluptuous as vol
 
 from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME
+from custom_components.haeo.core.schema.sections import SECTION_COMMON
 from custom_components.haeo.data.loader.extractors import extract_entity_metadata
 from custom_components.haeo.elements import get_input_field_schema_info, get_input_fields
 from custom_components.haeo.elements.input_fields import InputFieldGroups
@@ -36,7 +37,6 @@ from custom_components.haeo.schema.elements.connection import (
     SECTION_ENDPOINTS,
 )
 from custom_components.haeo.sections import (
-    SECTION_COMMON,
     build_common_fields,
     common_section,
     efficiency_section,
