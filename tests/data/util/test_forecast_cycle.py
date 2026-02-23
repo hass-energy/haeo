@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 import pytest
 
-from custom_components.haeo.data.util.forecast_cycle import normalize_forecast_cycle
+from custom_components.haeo.core.data.util.forecast_cycle import normalize_forecast_cycle
 
 SECONDS_PER_HOUR = 3600
 

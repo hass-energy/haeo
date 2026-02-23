@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from custom_components.haeo.data.loader.extractors.utils import separate_duplicate_timestamps
+from custom_components.haeo.core.data.loader.extractors.utils import separate_duplicate_timestamps
 
 
 def _prev(v: float) -> float:

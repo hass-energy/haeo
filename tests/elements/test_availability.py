@@ -4,7 +4,7 @@ from typing import Any
 
 import pytest
 
-from custom_components.haeo.data.loader import TimeSeriesLoader
+from custom_components.haeo.core.data.loader import TimeSeriesLoader
 from custom_components.haeo.elements.availability import schema_config_available
 from custom_components.haeo.core.schema import as_connection_target, as_constant_value, as_entity_value, as_none_value
 from tests.conftest import FakeStateMachine

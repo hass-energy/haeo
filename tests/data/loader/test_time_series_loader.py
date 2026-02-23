@@ -20,8 +20,8 @@ from unittest.mock import patch
 import pytest
 
 from custom_components.haeo.core.schema import as_entity_value
-from custom_components.haeo.data.loader.extractors import ExtractedData
-from custom_components.haeo.data.loader.time_series_loader import TimeSeriesLoader
+from custom_components.haeo.core.data.loader.extractors import ExtractedData
+from custom_components.haeo.core.data.loader.time_series_loader import TimeSeriesLoader
 from tests.conftest import FakeEntityState, FakeStateMachine
 
 
@@ -113,7 +113,7 @@ async def test_time_series_loader_loads_mixed_live_and_forecast() -> None:
         }
     )
 
-    with patch("custom_components.haeo.data.loader.sensor_loader.extract", side_effect=mock_extract):
+    with patch("custom_components.haeo.core.data.loader.sensor_loader.extract", side_effect=mock_extract):
         assert (
             loader.available(
                 sm=sm,
@@ -190,7 +190,7 @@ async def test_load_boundaries_returns_n_plus_1_values() -> None:
         }
     )
 
-    with patch("custom_components.haeo.data.loader.sensor_loader.extract", side_effect=mock_extract):
+    with patch("custom_components.haeo.core.data.loader.sensor_loader.extract", side_effect=mock_extract):
         result = await loader.load_boundaries(
             sm=sm,
             value=as_entity_value(["sensor.capacity"]),

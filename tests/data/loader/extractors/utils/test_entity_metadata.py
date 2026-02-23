@@ -4,7 +4,8 @@ from homeassistant.const import UnitOfEnergy, UnitOfPower
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 
-from custom_components.haeo.data.loader.extractors import EntityMetadata, extract_entity_metadata
+from custom_components.haeo.core.data.loader.extractors import EntityMetadata
+from custom_components.haeo.flows.entity_metadata import extract_entity_metadata
 
 
 def test_entity_metadata_is_compatible_with_none_unit() -> None:

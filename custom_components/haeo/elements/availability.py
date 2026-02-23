@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any
 
+from custom_components.haeo.core.data.loader import TimeSeriesLoader
 from custom_components.haeo.core.schema import (
     VALUE_TYPE_CONSTANT,
     VALUE_TYPE_ENTITY,
@@ -13,7 +14,6 @@ from custom_components.haeo.core.schema import (
     is_schema_value,
 )
 from custom_components.haeo.core.state import StateMachine
-from custom_components.haeo.data.loader import TimeSeriesLoader
 
 
 def schema_config_available(config: Mapping[str, Any], *, sm: StateMachine) -> bool:

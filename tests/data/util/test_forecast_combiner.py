@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from custom_components.haeo.data.util.forecast_combiner import combine_sensor_payloads
+from custom_components.haeo.core.data.util.forecast_combiner import combine_sensor_payloads
 
 type Payloads = dict[str, float | list[tuple[float, float]]]
 

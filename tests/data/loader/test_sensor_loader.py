@@ -5,8 +5,8 @@ from unittest.mock import patch
 
 import pytest
 
-from custom_components.haeo.data.loader.extractors import ExtractedData
-from custom_components.haeo.data.loader.sensor_loader import load_sensor, load_sensors, normalize_entity_ids
+from custom_components.haeo.core.data.loader.extractors import ExtractedData
+from custom_components.haeo.core.data.loader.sensor_loader import load_sensor, load_sensors, normalize_entity_ids
 from tests.conftest import FakeEntityState, FakeStateMachine
 
 
@@ -35,7 +35,7 @@ def test_load_sensor_forecast_returns_series() -> None:
     )
 
     with patch(
-        "custom_components.haeo.data.loader.sensor_loader.extract",
+        "custom_components.haeo.core.data.loader.sensor_loader.extract",
         return_value=ExtractedData(
             data=[
                 (int((start + timedelta(hours=1)).timestamp()), 1.5),
