@@ -18,7 +18,7 @@ from custom_components.haeo.core.adapters.elements.battery import (
     BATTERY_SOC_MIN,
     BATTERY_STATE_OF_CHARGE,
 )
-from custom_components.haeo.elements import ELEMENT_TYPES
+from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES
 from custom_components.haeo.core.model import ModelOutputName, ModelOutputValue
 from custom_components.haeo.core.model import battery as battery_model
 from custom_components.haeo.core.model.const import OutputType

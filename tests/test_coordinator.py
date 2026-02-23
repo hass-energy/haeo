@@ -60,6 +60,7 @@ from custom_components.haeo.core.adapters.elements.connection import (
     CONNECTION_POWER_TARGET_SOURCE,
 )
 from custom_components.haeo.core.adapters.elements.solar import SOLAR_POWER
+from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES
 from custom_components.haeo.core.model import Network, OutputData, OutputType
 from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_NODE
 from custom_components.haeo.core.schema import (
@@ -69,7 +70,7 @@ from custom_components.haeo.core.schema import (
     as_entity_value,
     as_none_value,
 )
-from custom_components.haeo.core.schema.elements import ElementType
+from custom_components.haeo.core.schema.elements import ElementConfigSchema, ElementType
 from custom_components.haeo.core.schema.elements.battery import (
     CONF_CAPACITY,
     CONF_EFFICIENCY_SOURCE_TARGET,
@@ -100,7 +101,6 @@ from custom_components.haeo.core.schema.sections import (
     SECTION_PRICING,
 )
 from custom_components.haeo.core.schema.sections import CONF_CONNECTION as CONF_CONNECTION_GRID
-from custom_components.haeo.elements import ELEMENT_TYPES, ElementConfigSchema
 from custom_components.haeo.elements.input_fields import InputFieldInfo
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON, HUB_SECTION_TIERS
 

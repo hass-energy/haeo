@@ -6,7 +6,7 @@ hints into full HA InputFieldInfo and EntityDescription objects.
 """
 
 from dataclasses import dataclass
-from typing import Literal
+from typing import Annotated, Literal, NotRequired, Required, get_args, get_origin, get_type_hints
 
 from custom_components.haeo.core.model.const import OutputType
 
@@ -49,3 +49,25 @@ class SectionHints:
     """Wrapper for field hints to use in Annotated metadata."""
 
     fields: dict[str, FieldHint]
+
+
+def extract_field_hints(schema_cls: type) -> dict[str, dict[str, FieldHint]]:
+    """Extract declarative field hints from a TypedDict's Annotated metadata."""
+    hints = get_type_hints(schema_cls, include_extras=True)
+    result: dict[str, dict[str, FieldHint]] = {}
+
+    for section_key, section_type in hints.items():
+        origin = get_origin(section_type)
+        if origin in (Required, NotRequired):
+            unwrapped_type = get_args(section_type)[0]
+            origin = get_origin(unwrapped_type)
+        else:
+            unwrapped_type = section_type
+
+        if origin is Annotated:
+            for arg in get_args(unwrapped_type)[1:]:
+                if isinstance(arg, SectionHints):
+                    result[section_key] = arg.fields
+                    break
+
+    return result

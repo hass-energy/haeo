@@ -20,7 +20,7 @@ from custom_components.haeo.const import (
     DOMAIN,
     INTEGRATION_TYPE_HUB,
 )
-from custom_components.haeo.elements import ELEMENT_TYPES
+from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON
 
 # Enable custom component for testing

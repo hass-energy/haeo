@@ -10,7 +10,7 @@ from custom_components.haeo.core.adapters.elements.solar import (
     SOLAR_FORECAST_LIMIT,
     SOLAR_POWER,
 )
-from custom_components.haeo.elements import ELEMENT_TYPES
+from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES
 from custom_components.haeo.core.model import ModelOutputName, ModelOutputValue
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE, connection

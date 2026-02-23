@@ -20,7 +20,7 @@ from custom_components.haeo.const import (
 )
 from custom_components.haeo.coordinator import evaluate_network_connectivity
 from custom_components.haeo.core.schema import as_connection_target
-from custom_components.haeo.core.schema.elements import ElementType
+from custom_components.haeo.core.schema.elements import ElementConfigData, ElementType
 from custom_components.haeo.core.schema.elements.connection import (
     CONF_SOURCE,
     CONF_TARGET,
@@ -34,7 +34,6 @@ from custom_components.haeo.core.schema.sections import (
     SECTION_POWER_LIMITS,
     SECTION_PRICING,
 )
-from custom_components.haeo.elements import ElementConfigData
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON, HUB_SECTION_TIERS
 
 

@@ -14,7 +14,7 @@ from custom_components.haeo.core.adapters.elements.inverter import (
     INVERTER_POWER_ACTIVE,
     INVERTER_POWER_DC_TO_AC,
 )
-from custom_components.haeo.elements import ELEMENT_TYPES
+from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES
 from custom_components.haeo.core.model import ModelOutputName, ModelOutputValue
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE, connection

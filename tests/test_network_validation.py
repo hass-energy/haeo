@@ -5,7 +5,7 @@ import pytest
 
 from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.core.schema import as_connection_target
-from custom_components.haeo.core.schema.elements import ElementType
+from custom_components.haeo.core.schema.elements import ElementConfigData, ElementType
 from custom_components.haeo.core.schema.elements.battery import (
     CONF_CAPACITY,
     CONF_INITIAL_CHARGE_PERCENTAGE,
@@ -36,7 +36,6 @@ from custom_components.haeo.core.schema.sections import (
     SECTION_POWER_LIMITS,
     SECTION_PRICING,
 )
-from custom_components.haeo.elements import ElementConfigData
 from custom_components.haeo.validation import format_component_summary, validate_network_topology
 
 BATTERY_CONF_CONNECTION = CONF_CONNECTION

@@ -16,8 +16,9 @@ from custom_components.haeo import HaeoConfigEntry, HaeoRuntimeData
 from custom_components.haeo.const import CONF_ELEMENT_TYPE, ELEMENT_TYPE_NETWORK
 from custom_components.haeo.coordinator.context import OptimizationContext
 from custom_components.haeo.core.schema import SchemaValue, is_schema_value
+from custom_components.haeo.core.schema.elements import ElementConfigSchema
 from custom_components.haeo.core.schema.sections import SECTION_COMMON
-from custom_components.haeo.elements import ElementConfigSchema, is_element_config_schema
+from custom_components.haeo.elements import is_element_config_schema
 from custom_components.haeo.sensor_utils import (
     SensorStateDict,
     get_duration_sensor_entity_id,

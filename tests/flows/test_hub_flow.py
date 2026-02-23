@@ -34,7 +34,7 @@ from custom_components.haeo.const import (
     DOMAIN,
     INTEGRATION_TYPE_HUB,
 )
-from custom_components.haeo.elements import ELEMENT_TYPES
+from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES
 from custom_components.haeo.flows import (
     HORIZON_PRESET_3_DAYS,
     HORIZON_PRESET_5_DAYS,
