@@ -16,6 +16,17 @@ from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_BATTER
 from custom_components.haeo.core.model.elements.segments import SegmentSpec, SocPricingSegmentSpec
 from custom_components.haeo.core.model.output_data import OutputData
 from custom_components.haeo.core.model.util import broadcast_to_sequence
+from custom_components.haeo.core.schema.sections import (
+    CONF_CONNECTION,
+    CONF_MAX_POWER_SOURCE_TARGET,
+    CONF_MAX_POWER_TARGET_SOURCE,
+    CONF_PRICE_SOURCE_TARGET,
+    CONF_PRICE_TARGET_SOURCE,
+    SECTION_COMMON,
+    SECTION_EFFICIENCY,
+    SECTION_POWER_LIMITS,
+    SECTION_PRICING,
+)
 from custom_components.haeo.schema import extract_connection_target
 from custom_components.haeo.schema.elements import ElementType
 from custom_components.haeo.schema.elements.battery import (
@@ -34,17 +45,6 @@ from custom_components.haeo.schema.elements.battery import (
     SECTION_STORAGE,
     SECTION_UNDERCHARGE,
     BatteryConfigData,
-)
-from custom_components.haeo.sections import (
-    CONF_CONNECTION,
-    CONF_MAX_POWER_SOURCE_TARGET,
-    CONF_MAX_POWER_TARGET_SOURCE,
-    CONF_PRICE_SOURCE_TARGET,
-    CONF_PRICE_TARGET_SOURCE,
-    SECTION_COMMON,
-    SECTION_EFFICIENCY,
-    SECTION_POWER_LIMITS,
-    SECTION_PRICING,
 )
 
 # Default ratio values for optional fields applied by adapter

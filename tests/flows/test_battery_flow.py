@@ -11,6 +11,7 @@ import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME
+from custom_components.haeo.core.schema.sections import CONF_CONNECTION
 from custom_components.haeo.elements import get_input_fields
 from custom_components.haeo.schema import as_connection_target, as_constant_value, as_entity_value
 from custom_components.haeo.schema.elements import node
@@ -40,7 +41,6 @@ from custom_components.haeo.schema.elements.battery import (
     SECTION_STORAGE,
     SECTION_UNDERCHARGE,
 )
-from custom_components.haeo.sections import CONF_CONNECTION
 from tests.conftest import add_participant
 
 from .conftest import create_flow

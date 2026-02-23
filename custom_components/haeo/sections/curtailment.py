@@ -1,34 +1,11 @@
-"""Shared definitions for curtailment-style boolean control sections.
-
-This section is used by elements where a forecast can be treated as either:
-- fixed (must be followed exactly), or
-- flexible (can be reduced/curtailed/shedded if economically sensible).
-"""
-
-from typing import Final, TypedDict
+"""Flow builders for curtailment configuration sections."""
 
 import voluptuous as vol
 
+from custom_components.haeo.core.schema.sections.curtailment import SECTION_CURTAILMENT
 from custom_components.haeo.elements.field_schema import FieldSchemaInfo
 from custom_components.haeo.elements.input_fields import InputFieldSection
 from custom_components.haeo.flows.field_schema import SectionDefinition, build_choose_field_entries
-from custom_components.haeo.schema import ConstantValue, EntityValue
-
-SECTION_CURTAILMENT: Final = "curtailment"
-
-CONF_CURTAILMENT: Final = "curtailment"
-
-
-class CurtailmentConfig(TypedDict, total=False):
-    """Curtailment configuration values."""
-
-    curtailment: EntityValue | ConstantValue
-
-
-class CurtailmentData(TypedDict, total=False):
-    """Loaded curtailment values."""
-
-    curtailment: bool
 
 
 def curtailment_section(fields: tuple[str, ...], *, collapsed: bool = False) -> SectionDefinition:
@@ -55,10 +32,6 @@ def build_curtailment_fields(
 
 
 __all__ = [
-    "CONF_CURTAILMENT",
-    "SECTION_CURTAILMENT",
-    "CurtailmentConfig",
-    "CurtailmentData",
     "build_curtailment_fields",
     "curtailment_section",
 ]

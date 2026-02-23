@@ -11,10 +11,10 @@ import numpy as np
 from numpy.typing import NDArray
 
 from custom_components.haeo.core.model.const import OutputType
+from custom_components.haeo.core.schema.sections import SECTION_COMMON, CommonConfig, CommonData
 from custom_components.haeo.schema import ConstantValue, EntityValue
 from custom_components.haeo.schema.elements import ElementType
 from custom_components.haeo.schema.field_hints import FieldHint, SectionHints
-from custom_components.haeo.sections import SECTION_COMMON, CommonConfig, CommonData
 
 ELEMENT_TYPE = ElementType.BATTERY_SECTION
 

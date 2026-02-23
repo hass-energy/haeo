@@ -6,6 +6,14 @@ from homeassistant.config_entries import ConfigSubentryFlow, SubentryFlowResult
 import voluptuous as vol
 
 from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME
+from custom_components.haeo.core.schema.sections import (
+    CONF_CONNECTION,
+    CONF_EFFICIENCY_SOURCE_TARGET,
+    CONF_EFFICIENCY_TARGET_SOURCE,
+    CONF_MAX_POWER_SOURCE_TARGET,
+    CONF_MAX_POWER_TARGET_SOURCE,
+    SECTION_COMMON,
+)
 from custom_components.haeo.data.loader.extractors import extract_entity_metadata
 from custom_components.haeo.elements import get_input_field_schema_info, get_input_fields
 from custom_components.haeo.elements.input_fields import InputFieldGroups
@@ -21,12 +29,6 @@ from custom_components.haeo.flows.field_schema import (
 from custom_components.haeo.schema import get_connection_target_name, normalize_connection_target
 from custom_components.haeo.schema.elements.inverter import ELEMENT_TYPE
 from custom_components.haeo.sections import (
-    CONF_CONNECTION,
-    CONF_EFFICIENCY_SOURCE_TARGET,
-    CONF_EFFICIENCY_TARGET_SOURCE,
-    CONF_MAX_POWER_SOURCE_TARGET,
-    CONF_MAX_POWER_TARGET_SOURCE,
-    SECTION_COMMON,
     build_common_fields,
     common_section,
     efficiency_section,

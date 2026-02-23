@@ -9,6 +9,7 @@ from custom_components.haeo.core.model import ModelElementConfig, ModelOutputNam
 from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_NODE
 from custom_components.haeo.core.model.elements.node import NODE_POWER_BALANCE
 from custom_components.haeo.core.model.output_data import OutputData
+from custom_components.haeo.core.schema.sections import SECTION_COMMON
 from custom_components.haeo.schema.elements import ElementType
 from custom_components.haeo.schema.elements.node import (
     CONF_IS_SINK,
@@ -17,7 +18,6 @@ from custom_components.haeo.schema.elements.node import (
     SECTION_ROLE,
     NodeConfigData,
 )
-from custom_components.haeo.sections import SECTION_COMMON
 
 # Defaults for absent optional fields (no-op values: pure junction behavior)
 DEFAULT_IS_SOURCE: Final[bool] = False

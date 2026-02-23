@@ -11,6 +11,7 @@ from custom_components.haeo.core.model import battery as model_battery
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_BATTERY
 from custom_components.haeo.core.model.output_data import OutputData
+from custom_components.haeo.core.schema.sections import SECTION_COMMON
 from custom_components.haeo.schema.elements import ElementType
 from custom_components.haeo.schema.elements.battery_section import (
     CONF_CAPACITY,
@@ -19,7 +20,6 @@ from custom_components.haeo.schema.elements.battery_section import (
     SECTION_STORAGE,
     BatterySectionConfigData,
 )
-from custom_components.haeo.sections import SECTION_COMMON
 
 type BatterySectionOutputName = Literal[
     "battery_section_power_charge",

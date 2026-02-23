@@ -12,6 +12,14 @@ from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_CONNEC
 from custom_components.haeo.core.model.elements.connection import CONNECTION_POWER_SOURCE_TARGET, CONNECTION_SEGMENTS
 from custom_components.haeo.core.model.elements.segments import POWER_LIMIT_SOURCE_TARGET
 from custom_components.haeo.core.model.output_data import OutputData
+from custom_components.haeo.core.schema.sections import (
+    CONF_CONNECTION,
+    CONF_FORECAST,
+    CONF_PRICE_SOURCE_TARGET,
+    SECTION_COMMON,
+    SECTION_FORECAST,
+    SECTION_PRICING,
+)
 from custom_components.haeo.schema import extract_connection_target
 from custom_components.haeo.schema.elements import ElementType
 from custom_components.haeo.schema.elements.solar import (
@@ -19,14 +27,6 @@ from custom_components.haeo.schema.elements.solar import (
     ELEMENT_TYPE,
     SECTION_CURTAILMENT,
     SolarConfigData,
-)
-from custom_components.haeo.sections import (
-    CONF_CONNECTION,
-    CONF_FORECAST,
-    CONF_PRICE_SOURCE_TARGET,
-    SECTION_COMMON,
-    SECTION_FORECAST,
-    SECTION_PRICING,
 )
 
 # Solar output names
