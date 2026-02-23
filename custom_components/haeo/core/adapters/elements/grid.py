@@ -7,8 +7,8 @@ from typing import Any, Final, Literal
 import numpy as np
 from numpy.typing import NDArray
 
-from custom_components.haeo.core.const import ConnectivityLevel
 from custom_components.haeo.core.adapters.output_utils import expect_output_data
+from custom_components.haeo.core.const import ConnectivityLevel
 from custom_components.haeo.core.model import ModelElementConfig, ModelOutputName, ModelOutputValue
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE
