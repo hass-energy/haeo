@@ -12,10 +12,10 @@ from typing import cast
 
 import pytest
 
-from custom_components.haeo.core.schema import EntityValue, as_entity_value
 from custom_components.haeo.core.data.loader import time_series_loader as tsl
 from custom_components.haeo.core.data.loader.sensor_loader import normalize_entity_ids
 from custom_components.haeo.core.data.loader.time_series_loader import TimeSeriesLoader
+from custom_components.haeo.core.schema import EntityValue, as_entity_value
 from tests.conftest import FakeStateMachine
 
 
