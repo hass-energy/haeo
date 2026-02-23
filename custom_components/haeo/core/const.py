@@ -1,6 +1,9 @@
 """Constants for the HAEO core module."""
 
 import enum
+from typing import Final
+
+CONF_ELEMENT_TYPE: Final = "element_type"
 
 
 class ConnectivityLevel(enum.StrEnum):

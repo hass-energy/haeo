@@ -12,7 +12,7 @@ from custom_components.haeo.core.adapters.elements.connection import (
     CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE,
     CONNECTION_TIME_SLICE,
 )
-from custom_components.haeo.elements import ELEMENT_TYPES
+from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES
 from custom_components.haeo.core.model import ModelOutputName, ModelOutputValue
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_CONNECTION

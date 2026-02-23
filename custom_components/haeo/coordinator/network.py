@@ -8,33 +8,15 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 import numpy as np
 
-from custom_components.haeo.const import CONF_ELEMENT_TYPE
+from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES, collect_model_elements
+from custom_components.haeo.core.const import CONF_ELEMENT_TYPE
 from custom_components.haeo.core.model import Network
-from custom_components.haeo.core.model.elements import ModelElementConfig
 from custom_components.haeo.core.model.reactive import TrackedParam
-from custom_components.haeo.core.schema.elements import ElementType
-from custom_components.haeo.elements import ELEMENT_TYPES, ElementConfigData
+from custom_components.haeo.core.schema.elements import ElementConfigData
 from custom_components.haeo.repairs import create_disconnected_network_issue, dismiss_disconnected_network_issue
 from custom_components.haeo.validation import format_component_summary, validate_network_topology
 
 _LOGGER = logging.getLogger(__name__)
-
-
-def collect_model_elements(
-    participants: Mapping[str, ElementConfigData],
-) -> list[ModelElementConfig]:
-    """Collect and sort model elements from all participants."""
-    all_model_elements: list[ModelElementConfig] = []
-    for loaded_params in participants.values():
-        element_type = loaded_params[CONF_ELEMENT_TYPE]
-        model_elements = ELEMENT_TYPES[element_type].model_elements(loaded_params)
-        all_model_elements.extend(model_elements)
-
-    # Sort so connections are added last
-    return sorted(
-        all_model_elements,
-        key=lambda e: e.get("element_type") == ElementType.CONNECTION,
-    )
 
 
 async def create_network(
@@ -176,7 +158,6 @@ async def evaluate_network_connectivity(
 
 
 __all__ = [
-    "collect_model_elements",
     "create_network",
     "evaluate_network_connectivity",
     "update_element",

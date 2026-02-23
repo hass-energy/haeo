@@ -10,7 +10,7 @@ from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_CONNEC
 from custom_components.haeo.core.model.elements.connection import Connection
 from custom_components.haeo.core.model.elements.segments import PowerLimitSegment
 from custom_components.haeo.core.schema import as_connection_target
-from custom_components.haeo.core.schema.elements import ElementType
+from custom_components.haeo.core.schema.elements import ElementConfigData, ElementType
 from custom_components.haeo.core.schema.elements.connection import (
     CONF_MAX_POWER_SOURCE_TARGET,
     CONF_MAX_POWER_TARGET_SOURCE,
@@ -20,7 +20,6 @@ from custom_components.haeo.core.schema.elements.connection import (
     SECTION_POWER_LIMITS,
     SECTION_PRICING,
 )
-from custom_components.haeo.elements import ElementConfigData
 
 
 def test_update_element_updates_tracked_params() -> None:

@@ -33,12 +33,11 @@ from custom_components.haeo.const import (
     OUTPUT_NAME_OPTIMIZATION_STATUS,
     NetworkOutputName,
 )
+from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES, is_element_type
 from custom_components.haeo.core.model import ModelOutputName, Network, OutputData, OutputType
 from custom_components.haeo.core.schema import is_none_value
+from custom_components.haeo.core.schema.elements import ElementConfigData, ElementConfigSchema
 from custom_components.haeo.elements import (
-    ELEMENT_TYPES,
-    ElementConfigData,
-    ElementConfigSchema,
     ElementDeviceName,
     ElementOutputName,
     collect_element_subentries,
@@ -46,7 +45,6 @@ from custom_components.haeo.elements import (
     get_input_fields,
     get_nested_config_value_by_path,
     is_element_config_data,
-    is_element_type,
     iter_input_field_paths,
     set_nested_config_value_by_path,
 )

@@ -10,8 +10,8 @@ from homeassistant.config_entries import ConfigSubentry
 from homeassistant.core import HomeAssistant
 
 from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_INTEGRATION_TYPE, CONF_NAME, DOMAIN, INTEGRATION_TYPE_HUB
+from custom_components.haeo.core.schema.elements import ELEMENT_CONFIG_SCHEMAS
 from custom_components.haeo.elements import (
-    ELEMENT_CONFIG_SCHEMAS,
     collect_element_subentries,
     is_element_config_data,
     is_element_config_schema,
@@ -301,7 +301,7 @@ def test_collect_element_subentries_skips_invalid_configs(
 
 def test_config_schemas_match_element_types() -> None:
     """Ensure ELEMENT_CONFIG_SCHEMAS has an entry for every registered element type."""
-    from custom_components.haeo.elements import ELEMENT_TYPES
+    from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES
 
     for element_type in ELEMENT_TYPES:
         assert element_type in ELEMENT_CONFIG_SCHEMAS, f"Missing config schema for {element_type}"

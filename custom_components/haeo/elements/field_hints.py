@@ -5,14 +5,14 @@ based on OutputType, and a builder to instantiate them using declarative hints.
 """
 
 from dataclasses import dataclass
-from typing import Annotated, Any, NotRequired, Required, get_args, get_origin, get_type_hints
+from typing import Any
 
 from homeassistant.components.number import NumberDeviceClass, NumberEntityDescription
 from homeassistant.components.switch import SwitchEntityDescription
 from homeassistant.helpers.entity import EntityDescription
 
 from custom_components.haeo.core.model.const import OutputType
-from custom_components.haeo.core.schema.field_hints import FieldHint, SectionHints
+from custom_components.haeo.core.schema.field_hints import FieldHint
 from custom_components.haeo.core.units import UnitOfMeasurement
 from custom_components.haeo.elements.input_fields import InputFieldDefaults, InputFieldInfo
 
@@ -124,27 +124,5 @@ def build_input_fields(
                 force_required=hint.force_required,
                 device_type=hint.device_type,
             )
-
-    return result
-
-
-def extract_field_hints(schema_cls: type) -> dict[str, dict[str, FieldHint]]:
-    """Extract declarative field hints from a TypedDict's Annotated metadata."""
-    hints = get_type_hints(schema_cls, include_extras=True)
-    result: dict[str, dict[str, FieldHint]] = {}
-
-    for section_key, section_type in hints.items():
-        origin = get_origin(section_type)
-        if origin in (Required, NotRequired):
-            unwrapped_type = get_args(section_type)[0]
-            origin = get_origin(unwrapped_type)
-        else:
-            unwrapped_type = section_type
-
-        if origin is Annotated:
-            for arg in get_args(unwrapped_type)[1:]:
-                if isinstance(arg, SectionHints):
-                    result[section_key] = arg.fields
-                    break
 
     return result

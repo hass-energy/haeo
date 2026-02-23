@@ -12,7 +12,7 @@ from numpy.typing import NDArray
 
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.schema import ConstantValue, EntityValue
-from custom_components.haeo.core.schema.elements import ElementType
+from custom_components.haeo.core.schema.elements.element_type import ElementType
 from custom_components.haeo.core.schema.field_hints import FieldHint, SectionHints
 from custom_components.haeo.core.schema.sections import SECTION_COMMON, CommonConfig, CommonData
 

@@ -5,7 +5,7 @@ from typing import Any
 from homeassistant.core import HomeAssistant
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.haeo.elements import ElementType
+from custom_components.haeo.core.schema.elements import ElementType
 from custom_components.haeo.flows import get_element_flow_classes
 
 
