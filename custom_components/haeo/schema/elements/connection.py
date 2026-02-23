@@ -2,7 +2,7 @@
 
 from typing import Annotated, Final, Literal, TypedDict
 
-from custom_components.haeo.model.const import OutputType
+from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.schema import ConnectionTarget
 from custom_components.haeo.schema.elements import ElementType
 from custom_components.haeo.schema.field_hints import FieldHint, SectionHints

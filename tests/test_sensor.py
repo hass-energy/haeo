@@ -30,7 +30,7 @@ from custom_components.haeo.coordinator import CoordinatorData, CoordinatorOutpu
 from custom_components.haeo.entities import HaeoSensor
 from custom_components.haeo.entities.haeo_sensor import FORECAST_UNRECORDED_ATTRIBUTES
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON, HUB_SECTION_TIERS
-from custom_components.haeo.model import OutputData, OutputType
+from custom_components.haeo.core.model import OutputData, OutputType
 from custom_components.haeo.schema.elements import ElementType
 from custom_components.haeo.schema.elements.battery import ELEMENT_TYPE as BATTERY_TYPE
 from custom_components.haeo.schema.elements.battery import SECTION_COMMON as BATTERY_SECTION_COMMON

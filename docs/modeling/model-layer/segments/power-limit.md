@@ -86,6 +86,6 @@ Time-slice coupling models shared hardware constraints that prohibit full flow i
 
     View the source code for the power limit segment.
 
-    [:material-arrow-right: Source code](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/model/elements/segments/power_limit.py)
+    [:material-arrow-right: Source code](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/core/model/elements/segments/power_limit.py)
 
 </div>

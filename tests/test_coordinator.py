@@ -63,8 +63,8 @@ from custom_components.haeo.coordinator.coordinator import _strip_none_schema_va
 from custom_components.haeo.elements import ELEMENT_TYPES, ElementConfigSchema
 from custom_components.haeo.elements.input_fields import InputFieldInfo
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON, HUB_SECTION_TIERS
-from custom_components.haeo.model import Network, OutputData, OutputType
-from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_NODE
+from custom_components.haeo.core.model import Network, OutputData, OutputType
+from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_NODE
 from custom_components.haeo.schema import (
     EntityValue,
     as_connection_target,

@@ -145,7 +145,7 @@ async def test_create_network_add_failure_is_wrapped(hass: HomeAssistant, monkey
         err = RuntimeError("boom")
         raise err
 
-    monkeypatch.setattr("custom_components.haeo.model.Network.add", _raise)
+    monkeypatch.setattr("custom_components.haeo.core.model.Network.add", _raise)
 
     with pytest.raises(ValueError, match="Failed to add model element 'node'"):
         await create_network(

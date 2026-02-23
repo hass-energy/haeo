@@ -7,15 +7,15 @@ invalidating dependent constraints and costs correctly.
 import numpy as np
 import pytest
 
-from custom_components.haeo.model import Network
-from custom_components.haeo.model.elements import (
+from custom_components.haeo.core.model import Network
+from custom_components.haeo.core.model.elements import (
     MODEL_ELEMENT_TYPE_BATTERY,
     MODEL_ELEMENT_TYPE_CONNECTION,
     MODEL_ELEMENT_TYPE_NODE,
 )
-from custom_components.haeo.model.elements.battery import Battery
-from custom_components.haeo.model.elements.connection import Connection
-from custom_components.haeo.model.elements.segments import PricingSegment
+from custom_components.haeo.core.model.elements.battery import Battery
+from custom_components.haeo.core.model.elements.connection import Connection
+from custom_components.haeo.core.model.elements.segments import PricingSegment
 
 
 class TestNetworkUpdatePeriods:

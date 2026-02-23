@@ -49,7 +49,7 @@ from custom_components.haeo.elements import (
     set_nested_config_value_by_path,
 )
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED
-from custom_components.haeo.model import ModelOutputName, Network, OutputData, OutputType
+from custom_components.haeo.core.model import ModelOutputName, Network, OutputData, OutputType
 from custom_components.haeo.repairs import dismiss_optimization_failure_issue
 from custom_components.haeo.schema import is_none_value
 from custom_components.haeo.util.forecast_times import tiers_to_periods_seconds

@@ -7,8 +7,8 @@ from highspy.highs import HighspyArray
 import numpy as np
 from numpy.typing import NDArray
 
-from custom_components.haeo.model.element import Element
-from custom_components.haeo.model.elements.segments import SocPricingSegment
+from custom_components.haeo.core.model.element import Element
+from custom_components.haeo.core.model.elements.segments import SocPricingSegment
 
 from ..segment_types import SegmentErrorScenario, SegmentScenario
 

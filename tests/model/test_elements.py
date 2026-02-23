@@ -7,8 +7,8 @@ from highspy.highs import HighspyArray
 import numpy as np
 import pytest
 
-from custom_components.haeo.model.elements.node import Node
-from custom_components.haeo.model.util import broadcast_to_sequence
+from custom_components.haeo.core.model.elements.node import Node
+from custom_components.haeo.core.model.util import broadcast_to_sequence
 
 from . import test_data
 from .test_data.element_types import ElementTestCase, ElementTestCaseInputs

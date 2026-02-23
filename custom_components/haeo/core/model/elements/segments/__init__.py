@@ -16,7 +16,7 @@ from highspy import Highs
 import numpy as np
 from numpy.typing import NDArray
 
-from custom_components.haeo.model.element import Element
+from custom_components.haeo.core.model.element import Element
 
 from .efficiency import EfficiencySegment, EfficiencySegmentSpec
 from .passthrough import PassthroughSegment, PassthroughSegmentSpec

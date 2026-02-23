@@ -10,7 +10,7 @@ from typing import Annotated, Any, Final, Literal, TypedDict
 import numpy as np
 from numpy.typing import NDArray
 
-from custom_components.haeo.model.const import OutputType
+from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.schema import ConstantValue, EntityValue
 from custom_components.haeo.schema.elements import ElementType
 from custom_components.haeo.schema.field_hints import FieldHint, SectionHints

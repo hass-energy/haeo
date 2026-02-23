@@ -30,12 +30,12 @@ Most new elements will be Device Layer elements that compose `node` and `connect
 ### Adding a Model Layer element
 
 1. Design the mathematical behavior: variables, constraints, cost contributions
-2. Implement the model class in `custom_components/haeo/model/elements/` deriving from `Element`
+2. Implement the model class in `custom_components/haeo/core/model/elements/` deriving from `Element`
 3. Use `TrackedParam` for parameters that can change between optimizations
 4. Use `@constraint` decorator for constraint methods
 5. Use `@cost` decorator for cost contribution methods
 6. Use `@output` decorator for output extraction methods
-7. Register in the `ELEMENTS` registry in `model/elements/__init__.py`
+7. Register in the `ELEMENTS` registry in `core/model/elements/__init__.py`
 8. Update Device Layer elements to use the new model
 9. Write model tests and integration tests
 
@@ -50,7 +50,7 @@ Model elements derive from the `Element` base class and use decorators to declar
 Parameters that can change between optimizations (forecasts, capacities, prices) should use `TrackedParam`:
 
 ```python
-from custom_components.haeo.model.reactive import TrackedParam
+from custom_components.haeo.core.model.reactive import TrackedParam
 
 
 class Battery(Element[BatteryOutputName]):
@@ -82,7 +82,7 @@ Use `@constraint` to declare constraint methods.
 The decorator caches expressions and manages the solver lifecycle:
 
 ```python
-from custom_components.haeo.model.reactive import constraint
+from custom_components.haeo.core.model.reactive import constraint
 
 
 @constraint(output=True, unit="$/kWh")
@@ -104,7 +104,7 @@ Parameters:
 Use `@cost` to declare cost contribution methods:
 
 ```python
-from custom_components.haeo.model.reactive import cost
+from custom_components.haeo.core.model.reactive import cost
 
 
 @cost
@@ -122,9 +122,9 @@ The network automatically sums all `@cost` methods across all elements.
 Use `@output` to declare output extraction methods:
 
 ```python
-from custom_components.haeo.model.reactive import output
-from custom_components.haeo.model.output_data import OutputData
-from custom_components.haeo.model.const import OutputType
+from custom_components.haeo.core.model.reactive import output
+from custom_components.haeo.core.model.output_data import OutputData
+from custom_components.haeo.core.model.const import OutputType
 
 
 @output
@@ -179,7 +179,7 @@ Extract solution values from HiGHS variables using `self.extract_values()`.
 - **Node models**: `power_in`, `power_out` (if applicable)
 
 Keeping the output contract consistent means new model components immediately surface in Home Assistant without changes to the sensor platform.
-See existing implementations in `custom_components/haeo/model/elements/` for examples:
+See existing implementations in `custom_components/haeo/core/model/elements/` for examples:
 
 - `battery.py` - Energy storage with SOC tracking
 - `connection.py` - Composable connection segments for flow and pricing
@@ -190,7 +190,7 @@ See existing implementations in `custom_components/haeo/model/elements/` for exa
 Connections remain responsible for enforcing flow limits and tying elements together through node balance constraints.
 When introducing a new element, ensure it connects through existing nodes or provide a clear reason to add a specialised node variant.
 
-The current implementations are in `custom_components/haeo/model/elements/connection.py` and `custom_components/haeo/model/elements/node.py`.
+The current implementations are in `custom_components/haeo/core/model/elements/connection.py` and `custom_components/haeo/core/model/elements/node.py`.
 
 ## Cost modelling
 

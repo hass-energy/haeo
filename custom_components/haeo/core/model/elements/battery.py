@@ -7,11 +7,11 @@ from highspy.highs import HighspyArray, highs_linear_expression
 import numpy as np
 from numpy.typing import NDArray
 
-from custom_components.haeo.model.const import OutputType
-from custom_components.haeo.model.element import Element
-from custom_components.haeo.model.output_data import OutputData
-from custom_components.haeo.model.reactive import TrackedParam, constraint, cost, output
-from custom_components.haeo.model.util import broadcast_to_sequence
+from custom_components.haeo.core.model.const import OutputType
+from custom_components.haeo.core.model.element import Element
+from custom_components.haeo.core.model.output_data import OutputData
+from custom_components.haeo.core.model.reactive import TrackedParam, constraint, cost, output
+from custom_components.haeo.core.model.util import broadcast_to_sequence
 
 # Model element type for batteries
 ELEMENT_TYPE: Final = "battery"

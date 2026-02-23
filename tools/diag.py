@@ -38,8 +38,8 @@ from custom_components.haeo.data.util.forecast_combiner import combine_sensor_pa
 from custom_components.haeo.data.util.forecast_fuser import fuse_to_boundaries, fuse_to_intervals
 from custom_components.haeo.elements import ELEMENT_TYPES, ElementConfigData, get_input_fields, is_element_type
 from custom_components.haeo.migrations.v1_3 import migrate_subentry_data
-from custom_components.haeo.model import Network
-from custom_components.haeo.model.output_data import OutputData
+from custom_components.haeo.core.model import Network
+from custom_components.haeo.core.model.output_data import OutputData
 from custom_components.haeo.schema.constant_value import is_constant_value
 from custom_components.haeo.schema.entity_value import is_entity_value
 from custom_components.haeo.schema.none_value import is_none_value

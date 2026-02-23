@@ -8,7 +8,7 @@ import voluptuous as vol
 
 from custom_components.haeo.elements.field_schema import FieldSchemaInfo
 from custom_components.haeo.elements.input_fields import InputFieldInfo
-from custom_components.haeo.model.const import OutputType
+from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.schema import ConstantValue, EntityValue
 from custom_components.haeo.sections import (
     CONF_CURTAILMENT,

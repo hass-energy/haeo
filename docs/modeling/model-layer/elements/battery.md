@@ -230,6 +230,6 @@ See the [Battery Device Layer documentation](../../device-layer/battery.md) for 
 
     View the source code for the battery model.
 
-    [:material-arrow-right: Source code](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/model/elements/battery.py)
+    [:material-arrow-right: Source code](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/core/model/elements/battery.py)
 
 </div>

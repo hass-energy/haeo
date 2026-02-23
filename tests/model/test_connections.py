@@ -8,9 +8,9 @@ import numpy as np
 from numpy.typing import NDArray
 import pytest
 
-from custom_components.haeo.model.element import Element
-from custom_components.haeo.model.elements.connection import Connection
-from custom_components.haeo.model.output_data import ModelOutputValue, OutputData
+from custom_components.haeo.core.model.element import Element
+from custom_components.haeo.core.model.elements.connection import Connection
+from custom_components.haeo.core.model.output_data import ModelOutputValue, OutputData
 
 from . import test_data
 from .test_data.connection_types import (

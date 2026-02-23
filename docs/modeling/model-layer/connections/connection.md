@@ -117,6 +117,6 @@ Select the segment chain that matches the physical behavior you need.
 
     View the source code.
 
-    [:material-arrow-right: Source code](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/model/elements/connection.py)
+    [:material-arrow-right: Source code](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/core/model/elements/connection.py)
 
 </div>

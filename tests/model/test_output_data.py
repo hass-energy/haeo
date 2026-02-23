@@ -2,8 +2,8 @@
 
 import numpy as np
 
-from custom_components.haeo.model.const import OutputType
-from custom_components.haeo.model.output_data import OutputData
+from custom_components.haeo.core.model.const import OutputType
+from custom_components.haeo.core.model.output_data import OutputData
 
 
 def test_single_value() -> None:

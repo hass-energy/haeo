@@ -38,7 +38,7 @@ from custom_components.haeo.flows.field_schema import (
     validate_choose_fields,
     validate_sectioned_choose_fields,
 )
-from custom_components.haeo.model.const import OutputType
+from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.schema import (
     ConstantValue,
     EntityValue,

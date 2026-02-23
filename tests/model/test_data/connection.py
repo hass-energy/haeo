@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from custom_components.haeo.model.elements.connection import Connection
+from custom_components.haeo.core.model.elements.connection import Connection
 
 from .connection_types import ConnectionTestCase
 

@@ -9,8 +9,8 @@ This prevents drift between declared outputs and implemented methods.
 
 import pytest
 
-from custom_components.haeo.model.elements import ELEMENTS, ElementSpec
-from custom_components.haeo.model.reactive import OutputMethod, ReactiveConstraint
+from custom_components.haeo.core.model.elements import ELEMENTS, ElementSpec
+from custom_components.haeo.core.model.reactive import OutputMethod, ReactiveConstraint
 
 
 def get_output_methods(cls: type) -> set[str]:

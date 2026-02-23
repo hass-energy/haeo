@@ -36,7 +36,7 @@ from custom_components.haeo.coordinator import (
     HaeoDataUpdateCoordinator,
     OptimizationContext,
 )
-from custom_components.haeo.model.const import OutputType
+from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.system_health import async_register, async_system_health_info
 
 

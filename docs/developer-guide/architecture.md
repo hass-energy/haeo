@@ -118,14 +118,14 @@ Creates optimization model from config:
 - Builds Network container
 - Validates structure
 
-### Network Model (`model/`)
+### Network Model (`core/model/`)
 
 LP representation using HiGHS solver:
 
 - **Element**: Base class with declarative constraint and cost specification
 - **Network**: Container that aggregates element contributions and runs optimization
 
-Model elements are organized in `model/elements/` subdirectory.
+Model elements are organized in `core/model/elements/` subdirectory.
 Elements declare their constraints and costs using decorators, and the network automatically aggregates them.
 
 See [Modeling Documentation](../modeling/index.md) for mathematical formulations and element types.
@@ -150,7 +150,7 @@ See the Home Assistant documentation:
 - [Platform development](https://developers.home-assistant.io/docs/creating_platform_index/)
 - [Device Registry](https://developers.home-assistant.io/docs/device_registry_index/)
 
-### Model Architecture (`model/`)
+### Model Architecture (`core/model/`)
 
 Separate subsystem implementing the optimization model:
 
@@ -165,8 +165,8 @@ Separate subsystem implementing the optimization model:
 **Key components**:
 
 - `Element`: Base class with declarative pattern
-- `model/elements/`: Element implementations
-- `model/reactive/`: Infrastructure for parameter tracking and constraint caching
+- `core/model/elements/`: Element implementations
+- `core/model/reactive/`: Infrastructure for parameter tracking and constraint caching
 - `Network`: Aggregates element contributions and runs optimization
 
 See [Energy Models guide](energy-models.md) for implementing new elements and [Modeling Documentation](../modeling/index.md) for mathematical details.
@@ -180,9 +180,9 @@ Rather than documenting every file, focus on how the major areas collaborate:
 - **Flows (`flows/`)**: Houses hub, element, and options flows; each submodule owns the UI schema for a related group of entries.
 - **Input layer (`inputs/`)**: HorizonManager, Number platform, Switch platform, and InputFieldInfo for intermediate input entities.
 - **Data layer (`data/`)**: Loader modules turn Home Assistant sensors and forecasts into normalized time series. Called by input entities.
-- **Model (`model/`)**: Pure Python optimization layer with declarative constraints and costs.
-    - `model/elements/`: Model element implementations (Battery, Node, Connection types)
-    - `model/reactive/`: Parameter tracking and constraint caching infrastructure
+- **Model (`core/model/`)**: Pure Python optimization layer with declarative constraints and costs.
+    - `core/model/elements/`: Model element implementations (Battery, Node, Connection types)
+    - `core/model/reactive/`: Parameter tracking and constraint caching infrastructure
 - **Metadata (`elements/` and `schema/`)**: Describe configuration defaults, validation, input field mapping, and runtime metadata for every element type.
 - **Presentation (`sensors/`)**: Builds sensor platforms that publish optimization results back to Home Assistant.
 - **Translations (`translations/`)**: Provides user-facing strings for config flows and entity names.
