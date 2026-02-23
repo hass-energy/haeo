@@ -57,10 +57,8 @@ CREATE_CASES: Sequence[CreateCase] = [
         "description": "Battery with SOC pricing thresholds",
         "data": BatteryConfigData(
             element_type=ElementType.BATTERY,
-            common={
-                "name": "battery_main",
-                "connection": as_connection_target("network"),
-            },
+            name="battery_main",
+            connection=as_connection_target("network"),
             storage={
                 "capacity": np.array([10.0, 10.0]),
                 "initial_charge_percentage": 0.5,
@@ -136,10 +134,8 @@ CREATE_CASES: Sequence[CreateCase] = [
         "description": "Battery with normal range only",
         "data": BatteryConfigData(
             element_type=ElementType.BATTERY,
-            common={
-                "name": "battery_normal",
-                "connection": as_connection_target("network"),
-            },
+            name="battery_normal",
+            connection=as_connection_target("network"),
             storage={
                 "capacity": np.array([10.0, 10.0]),
                 "initial_charge_percentage": 0.5,
@@ -202,10 +198,8 @@ CREATE_CASES: Sequence[CreateCase] = [
         "description": "Battery with salvage value",
         "data": BatteryConfigData(
             element_type=ElementType.BATTERY,
-            common={
-                "name": "battery_salvage",
-                "connection": as_connection_target("network"),
-            },
+            name="battery_salvage",
+            connection=as_connection_target("network"),
             storage={
                 "capacity": np.array([8.0, 8.0]),
                 "initial_charge_percentage": 0.5,
@@ -273,10 +267,8 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
         "name": "battery_no_balance",
         "data": BatteryConfigData(
             element_type=ElementType.BATTERY,
-            common={
-                "name": "battery_no_balance",
-                "connection": as_connection_target("network"),
-            },
+            name="battery_no_balance",
+            connection=as_connection_target("network"),
             storage={
                 "capacity": np.array([10.0, 10.0]),
                 "initial_charge_percentage": 0.5,
@@ -334,10 +326,8 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
         "name": "battery_with_thresholds",
         "data": BatteryConfigData(
             element_type=ElementType.BATTERY,
-            common={
-                "name": "battery_with_thresholds",
-                "connection": as_connection_target("network"),
-            },
+            name="battery_with_thresholds",
+            connection=as_connection_target("network"),
             storage={
                 "capacity": np.array([10.0, 10.0]),
                 "initial_charge_percentage": 0.5,

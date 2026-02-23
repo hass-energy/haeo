@@ -29,7 +29,6 @@ from custom_components.haeo.core.schema.elements.battery import (
     CONF_PRICE_TARGET_SOURCE,
     CONF_SALVAGE_VALUE,
     ELEMENT_TYPE,
-    SECTION_COMMON,
     SECTION_EFFICIENCY,
     SECTION_LIMITS,
     SECTION_OVERCHARGE,
@@ -71,7 +70,7 @@ def _wrap_main_input(user_input: dict[str, Any], *, as_schema: bool = False) -> 
     pricing.setdefault(CONF_SALVAGE_VALUE, 0.0)
 
     return {
-        SECTION_COMMON: common,
+        **common,
         SECTION_STORAGE: {
             key: user_input[key]
             for key in (
@@ -375,7 +374,7 @@ async def test_build_config_normalizes_connection_target_and_partitions(
 
     config = flow._build_config(main_input, partition_input)
 
-    assert config[SECTION_COMMON][CONF_CONNECTION] == as_connection_target("main_bus")
+    assert config[CONF_CONNECTION] == as_connection_target("main_bus")
     assert config[SECTION_UNDERCHARGE][CONF_PARTITION_PERCENTAGE] == as_constant_value(5.0)
     assert config[SECTION_OVERCHARGE][CONF_PARTITION_PERCENTAGE] == as_constant_value(95.0)
 

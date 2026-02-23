@@ -1,13 +1,6 @@
 """Section type definitions for HAEO element configuration."""
 
-from .common import (
-    CONF_CONNECTION,
-    SECTION_COMMON,
-    CommonConfig,
-    CommonData,
-    ConnectedCommonConfig,
-    ConnectedCommonData,
-)
+from .common import CONF_CONNECTION, CommonConfig, CommonData, ConnectedCommonConfig, ConnectedCommonData
 from .curtailment import CONF_CURTAILMENT, SECTION_CURTAILMENT, CurtailmentConfig, CurtailmentData
 from .efficiency import (
     CONF_EFFICIENCY_SOURCE_TARGET,
@@ -36,7 +29,6 @@ __all__ = [
     "CONF_MAX_POWER_TARGET_SOURCE",
     "CONF_PRICE_SOURCE_TARGET",
     "CONF_PRICE_TARGET_SOURCE",
-    "SECTION_COMMON",
     "SECTION_CURTAILMENT",
     "SECTION_EFFICIENCY",
     "SECTION_FORECAST",

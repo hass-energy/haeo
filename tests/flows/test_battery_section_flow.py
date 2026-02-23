@@ -16,7 +16,6 @@ from custom_components.haeo.core.schema.elements.battery_section import (
     CONF_CAPACITY,
     CONF_INITIAL_CHARGE,
     ELEMENT_TYPE,
-    SECTION_COMMON,
     SECTION_STORAGE,
 )
 from custom_components.haeo.elements import get_input_fields
@@ -26,10 +25,10 @@ from .conftest import create_flow
 
 def _wrap_input(flat: dict[str, Any]) -> dict[str, Any]:
     """Wrap flat battery section input values into sectioned config."""
-    if SECTION_COMMON in flat:
+    if SECTION_STORAGE in flat:
         return dict(flat)
     return {
-        SECTION_COMMON: {CONF_NAME: flat[CONF_NAME]},
+        CONF_NAME: flat[CONF_NAME],
         SECTION_STORAGE: {
             CONF_CAPACITY: flat[CONF_CAPACITY],
             CONF_INITIAL_CHARGE: flat.get(CONF_INITIAL_CHARGE),
@@ -39,7 +38,7 @@ def _wrap_input(flat: dict[str, Any]) -> dict[str, Any]:
 
 def _wrap_config(flat: dict[str, Any]) -> dict[str, Any]:
     """Wrap flat battery section config values into sectioned config with element type."""
-    if SECTION_COMMON in flat:
+    if SECTION_STORAGE in flat:
         return {CONF_ELEMENT_TYPE: ELEMENT_TYPE, **flat}
     return {CONF_ELEMENT_TYPE: ELEMENT_TYPE, **_wrap_input(flat)}
 

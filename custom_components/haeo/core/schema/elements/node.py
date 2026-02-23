@@ -5,7 +5,7 @@ from typing import Annotated, Final, Literal, TypedDict
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.schema.elements.element_type import ElementType
 from custom_components.haeo.core.schema.field_hints import FieldHint, SectionHints
-from custom_components.haeo.core.schema.sections import SECTION_COMMON, CommonConfig, CommonData
+from custom_components.haeo.core.schema.sections import CommonConfig, CommonData
 
 ELEMENT_TYPE = ElementType.NODE
 
@@ -31,11 +31,10 @@ class RoleData(TypedDict, total=False):
     is_sink: bool
 
 
-class NodeConfigSchema(TypedDict):
+class NodeConfigSchema(CommonConfig):
     """Node element configuration as stored in Home Assistant."""
 
     element_type: Literal[ElementType.NODE]
-    common: CommonConfig
     role: Annotated[
         RoleConfig,
         SectionHints(
@@ -55,11 +54,10 @@ class NodeConfigSchema(TypedDict):
     ]
 
 
-class NodeConfigData(TypedDict):
+class NodeConfigData(CommonData):
     """Node element configuration with loaded values."""
 
     element_type: Literal[ElementType.NODE]
-    common: CommonData
     role: RoleData
 
 
@@ -68,7 +66,6 @@ __all__ = [
     "CONF_IS_SOURCE",
     "ELEMENT_TYPE",
     "OPTIONAL_INPUT_FIELDS",
-    "SECTION_COMMON",
     "SECTION_ROLE",
     "NodeConfigData",
     "NodeConfigSchema",

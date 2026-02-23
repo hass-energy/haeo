@@ -17,7 +17,6 @@ from custom_components.haeo.core.schema.sections import (
     CONF_MAX_POWER_TARGET_SOURCE,
     CONF_PRICE_SOURCE_TARGET,
     CONF_PRICE_TARGET_SOURCE,
-    SECTION_COMMON,
     SECTION_EFFICIENCY,
     SECTION_POWER_LIMITS,
     SECTION_PRICING,
@@ -140,11 +139,10 @@ class BatteryPricingData(PricingData):
     salvage_value: float
 
 
-class BatteryConfigSchema(TypedDict):
+class BatteryConfigSchema(ConnectedCommonConfig):
     """Battery element configuration as stored in Home Assistant."""
 
     element_type: Literal[ElementType.BATTERY]
-    common: ConnectedCommonConfig
     storage: Annotated[
         StorageSocConfig,
         SectionHints(
@@ -302,11 +300,10 @@ class BatteryConfigSchema(TypedDict):
     ]
 
 
-class BatteryConfigData(TypedDict):
+class BatteryConfigData(ConnectedCommonData):
     """Battery element configuration with loaded values."""
 
     element_type: Literal[ElementType.BATTERY]
-    common: ConnectedCommonData
     storage: StorageSocData
     limits: LimitsData
     power_limits: PowerLimitsData
@@ -336,7 +333,6 @@ __all__ = [
     "ELEMENT_TYPE",
     "OPTIONAL_INPUT_FIELDS",
     "PARTITION_FIELD_NAMES",
-    "SECTION_COMMON",
     "SECTION_EFFICIENCY",
     "SECTION_LIMITS",
     "SECTION_OVERCHARGE",

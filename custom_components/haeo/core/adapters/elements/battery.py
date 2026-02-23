@@ -41,7 +41,6 @@ from custom_components.haeo.core.schema.sections import (
     CONF_MAX_POWER_TARGET_SOURCE,
     CONF_PRICE_SOURCE_TARGET,
     CONF_PRICE_TARGET_SOURCE,
-    SECTION_COMMON,
     SECTION_EFFICIENCY,
     SECTION_POWER_LIMITS,
     SECTION_PRICING,
@@ -98,7 +97,6 @@ class BatteryAdapter:
 
         Creates a single battery element and a connection to the target.
         """
-        common = config[SECTION_COMMON]
         storage = config[SECTION_STORAGE]
         limits = config[SECTION_LIMITS]
         power_limits = config[SECTION_POWER_LIMITS]
@@ -107,7 +105,7 @@ class BatteryAdapter:
         undercharge = config.get(SECTION_UNDERCHARGE, {})
         overcharge = config.get(SECTION_OVERCHARGE, {})
 
-        name = common["name"]
+        name = config["name"]
         elements: list[ModelElementConfig] = []
         # capacity is boundaries (n+1 values), so n_periods = len - 1
         n_boundaries = len(storage[CONF_CAPACITY])
@@ -208,7 +206,7 @@ class BatteryAdapter:
                 "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
                 "name": f"{name}:connection",
                 "source": name,
-                "target": extract_connection_target(common[CONF_CONNECTION]),
+                "target": extract_connection_target(config[CONF_CONNECTION]),
                 "segments": segments,
             }
         )

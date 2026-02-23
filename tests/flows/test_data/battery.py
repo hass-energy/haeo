@@ -15,7 +15,6 @@ from custom_components.haeo.core.schema.elements.battery import (
     CONF_PRICE_SOURCE_TARGET,
     CONF_PRICE_TARGET_SOURCE,
     CONF_SALVAGE_VALUE,
-    SECTION_COMMON,
     SECTION_EFFICIENCY,
     SECTION_LIMITS,
     SECTION_PARTITIONING,
@@ -31,10 +30,8 @@ VALID_DATA = [
     {
         "description": "Basic battery configuration",
         "config": {
-            SECTION_COMMON: {
-                CONF_NAME: "Test Battery",
-                CONF_CONNECTION: as_connection_target("main_bus"),
-            },
+            CONF_NAME: "Test Battery",
+            CONF_CONNECTION: as_connection_target("main_bus"),
             SECTION_STORAGE: {
                 CONF_CAPACITY: as_constant_value(10.0),
                 CONF_INITIAL_CHARGE_PERCENTAGE: as_entity_value(["sensor.battery_soc"]),
@@ -63,10 +60,8 @@ VALID_DATA = [
     {
         "description": "Battery with optional discharge cost",
         "config": {
-            SECTION_COMMON: {
-                CONF_NAME: "Advanced Battery",
-                CONF_CONNECTION: as_connection_target("main_bus"),
-            },
+            CONF_NAME: "Advanced Battery",
+            CONF_CONNECTION: as_connection_target("main_bus"),
             SECTION_STORAGE: {
                 CONF_CAPACITY: as_constant_value(10.0),
                 CONF_INITIAL_CHARGE_PERCENTAGE: as_entity_value(["sensor.battery_soc"]),
@@ -99,10 +94,8 @@ INVALID_DATA = [
     {
         "description": "Empty name should fail validation",
         "config": {
-            SECTION_COMMON: {
-                CONF_NAME: "",
-                CONF_CONNECTION: as_connection_target("main_bus"),
-            },
+            CONF_NAME: "",
+            CONF_CONNECTION: as_connection_target("main_bus"),
             SECTION_STORAGE: {
                 CONF_CAPACITY: as_constant_value(10.0),
                 CONF_INITIAL_CHARGE_PERCENTAGE: as_entity_value(["sensor.battery_soc"]),

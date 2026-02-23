@@ -18,7 +18,6 @@ from custom_components.haeo.core.schema.elements.load import (
     CONF_FORECAST,
     CONF_PRICE_TARGET_SOURCE,
     ELEMENT_TYPE,
-    SECTION_COMMON,
     SECTION_CURTAILMENT,
     SECTION_FORECAST,
     SECTION_PRICING,
@@ -32,13 +31,11 @@ from .conftest import create_flow
 
 def _wrap_input(flat: dict[str, Any]) -> dict[str, Any]:
     """Wrap flat load input values into sectioned config."""
-    if SECTION_COMMON in flat:
+    if SECTION_PRICING in flat:
         return dict(flat)
     return {
-        SECTION_COMMON: {
-            CONF_NAME: flat[CONF_NAME],
-            CONF_CONNECTION: flat[CONF_CONNECTION],
-        },
+        CONF_NAME: flat[CONF_NAME],
+        CONF_CONNECTION: flat[CONF_CONNECTION],
         SECTION_FORECAST: {
             CONF_FORECAST: flat[CONF_FORECAST],
         },
@@ -49,15 +46,14 @@ def _wrap_input(flat: dict[str, Any]) -> dict[str, Any]:
 
 def _wrap_config(flat: dict[str, Any]) -> dict[str, Any]:
     """Wrap flat load config values into sectioned config with element type."""
-    if SECTION_COMMON in flat:
+    if SECTION_PRICING in flat:
         data = {CONF_ELEMENT_TYPE: ELEMENT_TYPE, **flat}
         data.setdefault(SECTION_PRICING, {})
         data.setdefault(SECTION_CURTAILMENT, {})
         return data
     config = _wrap_input(flat)
-    common = config.get(SECTION_COMMON, {})
-    if CONF_CONNECTION in common and isinstance(common[CONF_CONNECTION], str):
-        common[CONF_CONNECTION] = as_connection_target(common[CONF_CONNECTION])
+    if CONF_CONNECTION in config and isinstance(config[CONF_CONNECTION], str):
+        config[CONF_CONNECTION] = as_connection_target(config[CONF_CONNECTION])
     config.setdefault(SECTION_PRICING, {})
     config.setdefault(SECTION_CURTAILMENT, {})
     return {CONF_ELEMENT_TYPE: ELEMENT_TYPE, **config}
@@ -88,10 +84,8 @@ def _wrap_config(flat: dict[str, Any]) -> dict[str, Any]:
         ),
         pytest.param(
             {
-                SECTION_COMMON: {
-                    CONF_NAME: "Test Load",
-                    CONF_CONNECTION: as_connection_target("TestNode"),
-                },
+                CONF_NAME: "Test Load",
+                CONF_CONNECTION: as_connection_target("TestNode"),
                 SECTION_FORECAST: {},
                 SECTION_PRICING: {},
                 SECTION_CURTAILMENT: {},

@@ -15,10 +15,9 @@ from homeassistant.util import dt as dt_util
 from custom_components.haeo import HaeoConfigEntry, HaeoRuntimeData
 from custom_components.haeo.const import ELEMENT_TYPE_NETWORK
 from custom_components.haeo.coordinator.context import OptimizationContext
-from custom_components.haeo.core.const import CONF_ELEMENT_TYPE
+from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.core.schema import SchemaValue, is_schema_value
 from custom_components.haeo.core.schema.elements import ElementConfigSchema
-from custom_components.haeo.core.schema.sections import SECTION_COMMON
 from custom_components.haeo.elements import is_element_config_schema
 from custom_components.haeo.sensor_utils import (
     SensorStateDict,
@@ -163,11 +162,7 @@ def _config_from_entry(config_entry: HaeoConfigEntry) -> dict[str, Any]:
         if subentry.subentry_type != ELEMENT_TYPE_NETWORK:
             raw_data = dict(subentry.data)
             raw_data.setdefault(CONF_ELEMENT_TYPE, subentry.subentry_type)
-            common = raw_data.get(SECTION_COMMON)
-            if isinstance(common, dict):
-                common.setdefault("name", subentry.title)
-            else:
-                raw_data.setdefault("name", subentry.title)
+            raw_data.setdefault(CONF_NAME, subentry.title)
             config["participants"][subentry.title] = raw_data
 
     return config

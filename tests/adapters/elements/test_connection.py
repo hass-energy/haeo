@@ -16,7 +16,7 @@ async def test_available_returns_true_with_no_optional_fields(hass: HomeAssistan
     """Connection available() should return True with only required fields."""
     config: connection.ConnectionConfigSchema = {
         "element_type": ElementType.CONNECTION,
-        connection.SECTION_COMMON: {"name": "c1"},
+        "name": "c1",
         connection.SECTION_ENDPOINTS: {
             "source": as_connection_target("node_a"),
             "target": as_connection_target("node_b"),
@@ -41,7 +41,7 @@ async def test_available_returns_true_when_optional_sensors_exist(hass: HomeAssi
 
     config: connection.ConnectionConfigSchema = {
         "element_type": ElementType.CONNECTION,
-        connection.SECTION_COMMON: {"name": "c1"},
+        "name": "c1",
         connection.SECTION_ENDPOINTS: {
             "source": as_connection_target("node_a"),
             "target": as_connection_target("node_b"),
@@ -71,7 +71,7 @@ async def test_available_returns_false_when_optional_sensor_missing(hass: HomeAs
 
     config: connection.ConnectionConfigSchema = {
         "element_type": ElementType.CONNECTION,
-        connection.SECTION_COMMON: {"name": "c1"},
+        "name": "c1",
         connection.SECTION_ENDPOINTS: {
             "source": as_connection_target("node_a"),
             "target": as_connection_target("node_b"),
@@ -92,7 +92,7 @@ async def test_available_returns_false_when_efficiency_sensor_missing(hass: Home
     """Connection available() should return False when efficiency sensor is missing."""
     config: connection.ConnectionConfigSchema = {
         "element_type": ElementType.CONNECTION,
-        connection.SECTION_COMMON: {"name": "c1"},
+        "name": "c1",
         connection.SECTION_ENDPOINTS: {
             "source": as_connection_target("node_a"),
             "target": as_connection_target("node_b"),
@@ -112,7 +112,7 @@ async def test_available_returns_true_with_constant_values(hass: HomeAssistant) 
     """Connection available() should return True when values are constants."""
     config: connection.ConnectionConfigSchema = {
         "element_type": ElementType.CONNECTION,
-        connection.SECTION_COMMON: {"name": "c1"},
+        "name": "c1",
         connection.SECTION_ENDPOINTS: {
             "source": as_connection_target("node_a"),
             "target": as_connection_target("node_b"),

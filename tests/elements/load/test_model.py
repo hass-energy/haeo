@@ -44,7 +44,8 @@ CREATE_CASES: Sequence[CreateCase] = [
         "description": "Load with forecast",
         "data": LoadConfigData(
             element_type=ElementType.LOAD,
-            common={"name": "load_main", "connection": as_connection_target("network")},
+            name="load_main",
+            connection=as_connection_target("network"),
             forecast={"forecast": np.array([1.0, 2.0])},
             pricing={},
             curtailment={},
@@ -76,7 +77,8 @@ CREATE_CASES: Sequence[CreateCase] = [
         "description": "Sheddable load with value",
         "data": LoadConfigData(
             element_type=ElementType.LOAD,
-            common={"name": "load_sheddable", "connection": as_connection_target("network")},
+            name="load_sheddable",
+            connection=as_connection_target("network"),
             forecast={"forecast": np.array([1.0, 2.0])},
             pricing={"price_target_source": 0.5},
             curtailment={"curtailment": True},

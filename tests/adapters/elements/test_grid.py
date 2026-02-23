@@ -19,10 +19,8 @@ async def test_available_returns_true_when_sensors_exist(hass: HomeAssistant) ->
 
     config: grid.GridConfigSchema = {
         "element_type": ElementType.GRID,
-        grid.SECTION_COMMON: {
-            "name": "test_grid",
-            "connection": as_connection_target("main_bus"),
-        },
+        "name": "test_grid",
+        "connection": as_connection_target("main_bus"),
         grid.SECTION_PRICING: {
             "price_source_target": as_entity_value(["sensor.import_price"]),
             "price_target_source": as_entity_value(["sensor.export_price"]),
@@ -40,10 +38,8 @@ async def test_available_returns_false_when_import_price_missing(hass: HomeAssis
 
     config: grid.GridConfigSchema = {
         "element_type": ElementType.GRID,
-        grid.SECTION_COMMON: {
-            "name": "test_grid",
-            "connection": as_connection_target("main_bus"),
-        },
+        "name": "test_grid",
+        "connection": as_connection_target("main_bus"),
         grid.SECTION_PRICING: {
             "price_source_target": as_entity_value(["sensor.missing"]),
             "price_target_source": as_entity_value(["sensor.export_price"]),
@@ -61,10 +57,8 @@ async def test_available_returns_false_when_export_price_missing(hass: HomeAssis
 
     config: grid.GridConfigSchema = {
         "element_type": ElementType.GRID,
-        grid.SECTION_COMMON: {
-            "name": "test_grid",
-            "connection": as_connection_target("main_bus"),
-        },
+        "name": "test_grid",
+        "connection": as_connection_target("main_bus"),
         grid.SECTION_PRICING: {
             "price_source_target": as_entity_value(["sensor.import_price"]),
             "price_target_source": as_entity_value(["sensor.missing"]),
@@ -80,10 +74,8 @@ async def test_available_with_constant_prices(hass: HomeAssistant) -> None:
     """Grid available() returns True when prices are constants (no sensors needed)."""
     config: grid.GridConfigSchema = {
         "element_type": ElementType.GRID,
-        grid.SECTION_COMMON: {
-            "name": "test_grid",
-            "connection": as_connection_target("main_bus"),
-        },
+        "name": "test_grid",
+        "connection": as_connection_target("main_bus"),
         grid.SECTION_PRICING: {
             "price_source_target": as_constant_value(0.30),
             "price_target_source": as_constant_value(0.05),
@@ -101,10 +93,8 @@ async def test_available_with_entity_schema_value(hass: HomeAssistant) -> None:
 
     config: grid.GridConfigSchema = {
         "element_type": ElementType.GRID,
-        grid.SECTION_COMMON: {
-            "name": "test_grid",
-            "connection": as_connection_target("main_bus"),
-        },
+        "name": "test_grid",
+        "connection": as_connection_target("main_bus"),
         grid.SECTION_PRICING: {
             "price_source_target": as_entity_value(["sensor.import_price"]),
             "price_target_source": as_constant_value(0.05),

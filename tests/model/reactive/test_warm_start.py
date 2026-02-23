@@ -21,7 +21,6 @@ from custom_components.haeo.core.model.elements.segments import PowerLimitSegmen
 from custom_components.haeo.core.schema import as_connection_target
 from custom_components.haeo.core.schema.elements import ElementType
 from custom_components.haeo.core.schema.elements.connection import (
-    SECTION_COMMON,
     SECTION_EFFICIENCY,
     SECTION_ENDPOINTS,
     SECTION_POWER_LIMITS,
@@ -489,7 +488,7 @@ def test_network_add_connection_updates_prices() -> None:
         network,
         {
             CONF_ELEMENT_TYPE: ElementType.CONNECTION,
-            SECTION_COMMON: {"name": "conn"},
+            "name": "conn",
             SECTION_ENDPOINTS: {
                 "source": as_connection_target("source"),
                 "target": as_connection_target("sink"),

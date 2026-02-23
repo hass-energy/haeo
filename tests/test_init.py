@@ -61,7 +61,6 @@ from custom_components.haeo.core.schema.sections import (
     CONF_MAX_POWER_TARGET_SOURCE,
     CONF_PRICE_SOURCE_TARGET,
     CONF_PRICE_TARGET_SOURCE,
-    SECTION_COMMON,
     SECTION_EFFICIENCY,
     SECTION_POWER_LIMITS,
     SECTION_PRICING,
@@ -103,10 +102,8 @@ def mock_battery_subentry(hass: HomeAssistant, mock_hub_entry: MockConfigEntry) 
         data=MappingProxyType(
             {
                 CONF_ELEMENT_TYPE: ElementType.BATTERY,
-                SECTION_COMMON: {
-                    CONF_NAME: "Test Battery",
-                    CONF_CONNECTION: as_connection_target("Switchboard"),
-                },
+                CONF_NAME: "Test Battery",
+                CONF_CONNECTION: as_connection_target("Switchboard"),
                 SECTION_STORAGE: {
                     CONF_CAPACITY: as_constant_value(10000.0),
                     CONF_INITIAL_CHARGE_PERCENTAGE: as_entity_value(["sensor.battery_charge"]),
@@ -135,10 +132,8 @@ def mock_grid_subentry(hass: HomeAssistant, mock_hub_entry: MockConfigEntry) -> 
         data=MappingProxyType(
             {
                 CONF_ELEMENT_TYPE: ElementType.GRID,
-                SECTION_COMMON: {
-                    CONF_NAME: "Test Grid",
-                    CONF_CONNECTION: as_connection_target("Switchboard"),
-                },
+                CONF_NAME: "Test Grid",
+                CONF_CONNECTION: as_connection_target("Switchboard"),
                 SECTION_PRICING: {
                     CONF_PRICE_SOURCE_TARGET: as_entity_value(["sensor.import_price"]),
                     CONF_PRICE_TARGET_SOURCE: as_entity_value(["sensor.export_price"]),
@@ -164,9 +159,7 @@ def mock_connection_subentry(hass: HomeAssistant, mock_hub_entry: MockConfigEntr
         data=MappingProxyType(
             {
                 CONF_ELEMENT_TYPE: ElementType.CONNECTION,
-                SECTION_COMMON: {
-                    CONF_NAME: "Battery to Grid",
-                },
+                CONF_NAME: "Battery to Grid",
                 SECTION_ENDPOINTS: {
                     CONF_SOURCE: as_connection_target("Test Battery"),
                     CONF_TARGET: as_connection_target("Test Grid"),
@@ -314,7 +307,7 @@ async def test_ensure_required_subentries_switchboard_handling(
             data=MappingProxyType(
                 {
                     CONF_ELEMENT_TYPE: ElementType.NODE,
-                    SECTION_COMMON: {CONF_NAME: "Existing Node"},
+                    CONF_NAME: "Existing Node",
                 }
             ),
             subentry_type=ElementType.NODE,
@@ -329,7 +322,7 @@ async def test_ensure_required_subentries_switchboard_handling(
     assert node_count == 1
 
     node_subentry = next(sub for sub in mock_hub_entry.subentries.values() if sub.subentry_type == ElementType.NODE)
-    assert node_subentry.data[SECTION_COMMON][CONF_NAME] == ("Existing Node" if existing_node else "Switchboard")
+    assert node_subentry.data[CONF_NAME] == ("Existing Node" if existing_node else "Switchboard")
     if not existing_node:
         assert node_subentry.data[SECTION_ROLE]["is_source"] is False
         assert node_subentry.data[SECTION_ROLE]["is_sink"] is False
@@ -492,7 +485,7 @@ async def test_async_setup_entry_raises_config_entry_not_ready_on_timeout(
     class MockRuntimeData:
         def __init__(self) -> None:
             self.horizon_manager = mock_horizon
-            self.input_entities = {("Test Element", (SECTION_COMMON, "field")): never_ready_entity}
+            self.input_entities = {("Test Element", ("section", "field")): never_ready_entity}
             self.coordinator = None
             self.value_update_in_progress = False
 
@@ -585,7 +578,7 @@ async def test_setup_reentry_after_timeout_failure(
     class MockRuntimeData:
         def __init__(self, horizon_manager: object) -> None:
             self.horizon_manager = horizon_manager
-            self.input_entities = {("Test Element", (SECTION_COMMON, "field")): entity}
+            self.input_entities = {("Test Element", ("section", "field")): entity}
             self.coordinator = None
             self.value_update_in_progress = False
 

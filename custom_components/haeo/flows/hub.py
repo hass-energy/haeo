@@ -19,7 +19,6 @@ from custom_components.haeo.core.const import (
 )
 from custom_components.haeo.core.schema.elements import ElementType
 from custom_components.haeo.core.schema.elements.node import CONF_IS_SINK, CONF_IS_SOURCE
-from custom_components.haeo.core.schema.elements.node import SECTION_COMMON as NODE_SECTION_COMMON
 from custom_components.haeo.core.schema.elements.node import SECTION_ROLE as NODE_SECTION_ROLE
 
 from . import (
@@ -144,7 +143,7 @@ class HubConfigFlow(ConfigFlow, domain=DOMAIN):
                 {
                     "data": {
                         CONF_ELEMENT_TYPE: ElementType.NODE,
-                        NODE_SECTION_COMMON: {CONF_NAME: switchboard_name},
+                        CONF_NAME: switchboard_name,
                         NODE_SECTION_ROLE: {
                             CONF_IS_SOURCE: False,
                             CONF_IS_SINK: False,

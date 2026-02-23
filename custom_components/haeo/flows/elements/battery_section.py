@@ -12,7 +12,6 @@ from custom_components.haeo.core.schema.elements.battery_section import (
     ELEMENT_TYPE,
     SECTION_STORAGE,
 )
-from custom_components.haeo.core.schema.sections import SECTION_COMMON
 from custom_components.haeo.elements import get_input_field_schema_info, get_input_fields
 from custom_components.haeo.elements.input_fields import InputFieldGroups
 from custom_components.haeo.flows.element_flow import ElementFlowMixin, build_sectioned_inclusion_map
@@ -25,7 +24,7 @@ from custom_components.haeo.flows.field_schema import (
     preprocess_sectioned_choose_input,
     validate_sectioned_choose_fields,
 )
-from custom_components.haeo.sections import build_common_fields, common_section
+from custom_components.haeo.sections import build_common_fields
 
 
 class BatterySectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
@@ -34,7 +33,6 @@ class BatterySectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
     def _get_sections(self) -> tuple[SectionDefinition, ...]:
         """Return sections for the configuration step."""
         return (
-            common_section((CONF_NAME,), collapsed=False),
             SectionDefinition(key=SECTION_STORAGE, fields=(CONF_CAPACITY, CONF_INITIAL_CHARGE), collapsed=False),
         )
 
@@ -91,9 +89,7 @@ class BatterySectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             field_schema,
             section_inclusion_map,
             current_data=subentry_data,
-            extra_field_entries={
-                SECTION_COMMON: build_common_fields(include_connection=False),
-            },
+            top_level_entries=build_common_fields(include_connection=False),
         )
 
     def _build_defaults(
@@ -103,17 +99,14 @@ class BatterySectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         subentry_data: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Build default values for the form."""
-        common_data = subentry_data.get(SECTION_COMMON, {}) if subentry_data else {}
-        return build_sectioned_choose_defaults(
-            self._get_sections(),
-            input_fields,
-            current_data=subentry_data,
-            base_defaults={
-                SECTION_COMMON: {
-                    CONF_NAME: default_name if subentry_data is None else common_data.get(CONF_NAME),
-                }
-            },
-        )
+        return {
+            CONF_NAME: default_name if subentry_data is None else subentry_data.get(CONF_NAME),
+            **build_sectioned_choose_defaults(
+                self._get_sections(),
+                input_fields,
+                current_data=subentry_data,
+            ),
+        }
 
     def _validate_user_input(
         self,
@@ -124,8 +117,7 @@ class BatterySectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         if user_input is None:
             return None
         errors: dict[str, str] = {}
-        common_input = user_input.get(SECTION_COMMON, {})
-        self._validate_name(common_input.get(CONF_NAME), errors)
+        self._validate_name(user_input.get(CONF_NAME), errors)
         field_schema = get_input_field_schema_info(ELEMENT_TYPE, input_fields)
         errors.update(
             validate_sectioned_choose_fields(
@@ -148,12 +140,13 @@ class BatterySectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
 
         return {
             CONF_ELEMENT_TYPE: ELEMENT_TYPE,
+            CONF_NAME: user_input[CONF_NAME],
             **config_dict,
         }
 
     def _finalize(self, config: dict[str, Any], user_input: dict[str, Any]) -> SubentryFlowResult:
         """Finalize the flow by creating or updating the entry."""
-        name = str(user_input.get(SECTION_COMMON, {}).get(CONF_NAME))
+        name = str(user_input[CONF_NAME])
         subentry = self._get_subentry()
         if subentry is not None:
             return self.async_update_and_abort(self._get_entry(), subentry, title=name, data=config)

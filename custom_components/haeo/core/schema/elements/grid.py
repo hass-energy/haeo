@@ -14,7 +14,6 @@ from custom_components.haeo.core.schema.sections import (
     CONF_MAX_POWER_TARGET_SOURCE,
     CONF_PRICE_SOURCE_TARGET,
     CONF_PRICE_TARGET_SOURCE,
-    SECTION_COMMON,
     SECTION_POWER_LIMITS,
     SECTION_PRICING,
     ConnectedCommonConfig,
@@ -47,11 +46,10 @@ class GridPricingData(TypedDict):
     price_target_source: NDArray[np.floating[Any]] | float
 
 
-class GridConfigSchema(TypedDict):
+class GridConfigSchema(ConnectedCommonConfig):
     """Grid element configuration as stored in Home Assistant."""
 
     element_type: Literal[ElementType.GRID]
-    common: ConnectedCommonConfig
     pricing: Annotated[
         GridPricingConfig,
         SectionHints(
@@ -92,11 +90,10 @@ class GridConfigSchema(TypedDict):
     ]
 
 
-class GridConfigData(TypedDict):
+class GridConfigData(ConnectedCommonData):
     """Grid element configuration with loaded values."""
 
     element_type: Literal[ElementType.GRID]
-    common: ConnectedCommonData
     pricing: GridPricingData
     power_limits: PowerLimitsData
 
@@ -108,7 +105,6 @@ __all__ = [
     "CONF_PRICE_TARGET_SOURCE",
     "ELEMENT_TYPE",
     "OPTIONAL_INPUT_FIELDS",
-    "SECTION_COMMON",
     "SECTION_POWER_LIMITS",
     "SECTION_PRICING",
     "GridConfigData",

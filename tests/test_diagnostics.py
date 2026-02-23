@@ -62,7 +62,6 @@ from custom_components.haeo.core.schema.sections import (
     CONF_MAX_POWER_TARGET_SOURCE,
     CONF_PRICE_SOURCE_TARGET,
     CONF_PRICE_TARGET_SOURCE,
-    SECTION_COMMON,
     SECTION_EFFICIENCY,
     SECTION_POWER_LIMITS,
     SECTION_PRICING,
@@ -127,10 +126,8 @@ def _battery_config(
 
     return {
         CONF_ELEMENT_TYPE: ElementType.BATTERY,
-        SECTION_COMMON: {
-            CONF_NAME: name,
-            CONF_CONNECTION: as_connection_target(connection),
-        },
+        CONF_NAME: name,
+        CONF_CONNECTION: as_connection_target(connection),
         SECTION_STORAGE: storage,
         SECTION_LIMITS: limits,
         SECTION_POWER_LIMITS: power_limits,
@@ -150,10 +147,8 @@ def _grid_config(
     """Build a sectioned grid config dict for diagnostics tests."""
     return {
         CONF_ELEMENT_TYPE: "grid",
-        SECTION_COMMON: {
-            CONF_NAME: name,
-            CONF_CONNECTION: as_connection_target(connection),
-        },
+        CONF_NAME: name,
+        CONF_CONNECTION: as_connection_target(connection),
         SECTION_PRICING: {
             CONF_PRICE_SOURCE_TARGET: (
                 as_entity_value(price_source_target)
@@ -196,7 +191,8 @@ def test_extract_entity_ids_from_config_collects_nested_entities() -> None:
     """_extract_entity_ids_from_config collects valid entity IDs from nested config."""
     config = {
         CONF_ELEMENT_TYPE: "grid",
-        SECTION_COMMON: {CONF_NAME: "Grid", CONF_CONNECTION: as_connection_target("bus")},
+        CONF_NAME: "Grid",
+        CONF_CONNECTION: as_connection_target("bus"),
         SECTION_PRICING: {
             CONF_PRICE_SOURCE_TARGET: as_entity_value(["sensor.import", "invalid"]),
             CONF_PRICE_TARGET_SOURCE: as_constant_value(0.1),
@@ -637,7 +633,7 @@ async def test_historical_diagnostics_with_participants(hass: HomeAssistant) -> 
     participants = result.config["participants"]
     assert "Battery One" in participants
     assert participants["Battery One"][CONF_ELEMENT_TYPE] == ElementType.BATTERY
-    assert participants["Battery One"][SECTION_COMMON][CONF_NAME] == "Battery One"
+    assert participants["Battery One"][CONF_NAME] == "Battery One"
 
     inputs = result.inputs
     assert len(inputs) == 2

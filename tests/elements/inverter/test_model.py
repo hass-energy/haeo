@@ -49,7 +49,8 @@ CREATE_CASES: Sequence[CreateCase] = [
         "description": "Inverter with efficiency",
         "data": InverterConfigData(
             element_type=ElementType.INVERTER,
-            common={"name": "inverter_main", "connection": as_connection_target("network")},
+            name="inverter_main",
+            connection=as_connection_target("network"),
             power_limits={
                 "max_power_source_target": np.array([10.0]),
                 "max_power_target_source": np.array([10.0]),
@@ -85,7 +86,8 @@ CREATE_CASES: Sequence[CreateCase] = [
         "description": "Inverter with default efficiency (100%)",
         "data": InverterConfigData(
             element_type=ElementType.INVERTER,
-            common={"name": "inverter_simple", "connection": as_connection_target("network")},
+            name="inverter_simple",
+            connection=as_connection_target("network"),
             power_limits={
                 "max_power_source_target": np.array([10.0]),
                 "max_power_target_source": np.array([10.0]),

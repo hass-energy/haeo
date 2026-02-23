@@ -14,9 +14,7 @@ from custom_components.haeo.core.schema.sections import (
     CONF_CURTAILMENT,
     CONF_FORECAST,
     CONF_PRICE_TARGET_SOURCE,
-    SECTION_COMMON,
     SECTION_CURTAILMENT,
-    SECTION_PRICING,
 )
 from custom_components.haeo.elements import get_input_field_schema_info, get_input_fields
 from custom_components.haeo.elements.input_fields import InputFieldGroups
@@ -30,7 +28,7 @@ from custom_components.haeo.flows.field_schema import (
     preprocess_sectioned_choose_input,
     validate_sectioned_choose_fields,
 )
-from custom_components.haeo.sections import build_common_fields, common_section, forecast_section, pricing_section
+from custom_components.haeo.sections import build_common_fields, forecast_section, pricing_section
 
 
 class LoadSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
@@ -39,7 +37,6 @@ class LoadSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
     def _get_sections(self) -> tuple[SectionDefinition, ...]:
         """Return sections for the configuration step."""
         return (
-            common_section((CONF_NAME, CONF_CONNECTION), collapsed=False),
             forecast_section((CONF_FORECAST,), collapsed=False),
             pricing_section((CONF_PRICE_TARGET_SOURCE,), collapsed=True),
             SectionDefinition(key=SECTION_CURTAILMENT, fields=(CONF_CURTAILMENT,), collapsed=True),
@@ -59,7 +56,7 @@ class LoadSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         subentry_data = dict(subentry.data) if subentry else None
         participants = self._get_participant_names()
         current_connection = (
-            get_connection_target_name(subentry_data.get(SECTION_COMMON, {}).get(CONF_CONNECTION))
+            get_connection_target_name(subentry_data.get(CONF_CONNECTION))
             if subentry_data
             else None
         )
@@ -120,13 +117,11 @@ class LoadSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             field_schema,
             section_inclusion_map,
             current_data=subentry_data,
-            extra_field_entries={
-                SECTION_COMMON: build_common_fields(
-                    include_connection=True,
-                    participants=participants,
-                    current_connection=current_connection,
-                )
-            },
+            top_level_entries=build_common_fields(
+                include_connection=True,
+                participants=participants,
+                current_connection=current_connection,
+            ),
         )
 
     def _build_defaults(
@@ -137,27 +132,22 @@ class LoadSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         connection_default: str | None = None,
     ) -> dict[str, Any]:
         """Build default values for the form."""
-        common_data = subentry_data.get(SECTION_COMMON, {}) if subentry_data else {}
         connection_default = (
             connection_default
             if connection_default is not None
-            else get_connection_target_name(common_data.get(CONF_CONNECTION))
+            else get_connection_target_name(subentry_data.get(CONF_CONNECTION))
             if subentry_data
             else None
         )
-        return build_sectioned_choose_defaults(
-            self._get_sections(),
-            input_fields,
-            current_data=subentry_data,
-            base_defaults={
-                SECTION_COMMON: {
-                    CONF_NAME: default_name if subentry_data is None else common_data.get(CONF_NAME),
-                    CONF_CONNECTION: connection_default,
-                },
-                SECTION_PRICING: {},
-                SECTION_CURTAILMENT: {},
-            },
-        )
+        return {
+            CONF_NAME: default_name if subentry_data is None else subentry_data.get(CONF_NAME),
+            CONF_CONNECTION: connection_default,
+            **build_sectioned_choose_defaults(
+                self._get_sections(),
+                input_fields,
+                current_data=subentry_data,
+            ),
+        }
 
     def _validate_user_input(
         self,
@@ -168,8 +158,7 @@ class LoadSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         if user_input is None:
             return None
         errors: dict[str, str] = {}
-        common_input = user_input.get(SECTION_COMMON, {})
-        self._validate_name(common_input.get(CONF_NAME), errors)
+        self._validate_name(user_input.get(CONF_NAME), errors)
         field_schema = get_input_field_schema_info(ELEMENT_TYPE, input_fields)
         errors.update(
             validate_sectioned_choose_fields(
@@ -189,18 +178,16 @@ class LoadSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             input_fields,
             self._get_sections(),
         )
-        common_config = config_dict.get(SECTION_COMMON, {})
-        if CONF_CONNECTION in common_config:
-            common_config[CONF_CONNECTION] = normalize_connection_target(common_config[CONF_CONNECTION])
-
         return {
             CONF_ELEMENT_TYPE: ELEMENT_TYPE,
+            CONF_NAME: user_input[CONF_NAME],
+            CONF_CONNECTION: normalize_connection_target(user_input[CONF_CONNECTION]),
             **config_dict,
         }
 
     def _finalize(self, config: dict[str, Any], user_input: dict[str, Any]) -> SubentryFlowResult:
         """Finalize the flow by creating or updating the entry."""
-        name = str(user_input.get(SECTION_COMMON, {}).get(CONF_NAME))
+        name = str(user_input[CONF_NAME])
         subentry = self._get_subentry()
         if subentry is not None:
             return self.async_update_and_abort(self._get_entry(), subentry, title=name, data=config)

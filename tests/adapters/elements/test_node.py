@@ -11,7 +11,7 @@ async def test_available_returns_true(hass: HomeAssistant) -> None:
     """Node available() should return True since nodes have no sensor dependencies."""
     config: node.NodeConfigSchema = {
         "element_type": ElementType.NODE,
-        node.SECTION_COMMON: {"name": "test_node"},
+        "name": "test_node",
         node.SECTION_ROLE: {"is_source": False, "is_sink": False},
     }
 
@@ -23,7 +23,7 @@ def test_model_elements_applies_default_flags() -> None:
     """model_elements() should apply default is_source/is_sink flags."""
     config_data: node.NodeConfigData = {
         "element_type": ElementType.NODE,
-        node.SECTION_COMMON: {"name": "test_node"},
+        "name": "test_node",
         node.SECTION_ROLE: {},
     }
 

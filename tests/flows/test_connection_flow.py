@@ -19,7 +19,6 @@ from custom_components.haeo.core.schema.elements.connection import (
     CONF_SOURCE,
     CONF_TARGET,
     ELEMENT_TYPE,
-    SECTION_COMMON,
     SECTION_EFFICIENCY,
     SECTION_ENDPOINTS,
     SECTION_POWER_LIMITS,
@@ -33,18 +32,15 @@ from .conftest import create_flow
 
 def _wrap_input(flat: dict[str, Any]) -> dict[str, Any]:
     """Wrap flat connection input values into sectioned config."""
-    if SECTION_COMMON in flat:
+    if SECTION_ENDPOINTS in flat:
         return dict(flat)
-    common = {
-        CONF_NAME: flat[CONF_NAME],
-    }
     endpoints = {
         CONF_SOURCE: flat[CONF_SOURCE],
         CONF_TARGET: flat[CONF_TARGET],
     }
     limits = {key: flat[key] for key in (CONF_MAX_POWER_SOURCE_TARGET, CONF_MAX_POWER_TARGET_SOURCE) if key in flat}
     return {
-        SECTION_COMMON: common,
+        CONF_NAME: flat[CONF_NAME],
         SECTION_ENDPOINTS: endpoints,
         SECTION_POWER_LIMITS: limits,
         SECTION_PRICING: {},
@@ -54,7 +50,7 @@ def _wrap_input(flat: dict[str, Any]) -> dict[str, Any]:
 
 def _wrap_config(flat: dict[str, Any]) -> dict[str, Any]:
     """Wrap flat connection config values into sectioned config with element type."""
-    if SECTION_COMMON in flat:
+    if SECTION_ENDPOINTS in flat:
         return {CONF_ELEMENT_TYPE: ELEMENT_TYPE, **flat}
     config = _wrap_input(flat)
     endpoints = config.get(SECTION_ENDPOINTS, {})

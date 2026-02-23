@@ -8,7 +8,6 @@ from custom_components.haeo.core.schema.elements.connection import (
     CONF_MAX_POWER_TARGET_SOURCE,
     CONF_SOURCE,
     CONF_TARGET,
-    SECTION_COMMON,
     SECTION_EFFICIENCY,
     SECTION_ENDPOINTS,
     SECTION_POWER_LIMITS,
@@ -21,9 +20,7 @@ VALID_DATA = [
     {
         "description": "Basic connection configuration (no optional fields)",
         "config": {
-            SECTION_COMMON: {
-                CONF_NAME: "Battery to Grid",
-            },
+            CONF_NAME: "Battery to Grid",
             SECTION_ENDPOINTS: {
                 CONF_SOURCE: as_connection_target("Battery1"),
                 CONF_TARGET: as_connection_target("Grid1"),
@@ -36,9 +33,7 @@ VALID_DATA = [
     {
         "description": "Connection with power limits and efficiency",
         "config": {
-            SECTION_COMMON: {
-                CONF_NAME: "Battery to Grid",
-            },
+            CONF_NAME: "Battery to Grid",
             SECTION_ENDPOINTS: {
                 CONF_SOURCE: as_connection_target("Battery1"),
                 CONF_TARGET: as_connection_target("Grid1"),

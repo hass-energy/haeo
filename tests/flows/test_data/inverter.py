@@ -7,7 +7,6 @@ from custom_components.haeo.core.schema.elements.inverter import (
     CONF_EFFICIENCY_TARGET_SOURCE,
     CONF_MAX_POWER_SOURCE_TARGET,
     CONF_MAX_POWER_TARGET_SOURCE,
-    SECTION_COMMON,
     SECTION_EFFICIENCY,
     SECTION_POWER_LIMITS,
 )
@@ -19,10 +18,8 @@ VALID_DATA = [
     {
         "description": "Basic inverter with all constant values",
         "config": {
-            SECTION_COMMON: {
-                CONF_NAME: "Test Inverter",
-                CONF_CONNECTION: as_connection_target("main_bus"),
-            },
+            CONF_NAME: "Test Inverter",
+            CONF_CONNECTION: as_connection_target("main_bus"),
             SECTION_POWER_LIMITS: {
                 CONF_MAX_POWER_SOURCE_TARGET: as_constant_value(5.0),
                 CONF_MAX_POWER_TARGET_SOURCE: as_constant_value(5.0),

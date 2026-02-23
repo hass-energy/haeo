@@ -13,7 +13,6 @@ from custom_components.haeo.core.schema.sections import (
     CONF_MAX_POWER_TARGET_SOURCE,
     CONF_PRICE_SOURCE_TARGET,
     CONF_PRICE_TARGET_SOURCE,
-    SECTION_COMMON,
     SECTION_EFFICIENCY,
     SECTION_POWER_LIMITS,
     SECTION_PRICING,
@@ -60,11 +59,10 @@ class EndpointsData(TypedDict):
     target: ConnectionTarget
 
 
-class ConnectionConfigSchema(TypedDict):
+class ConnectionConfigSchema(CommonConfig):
     """Connection element configuration as stored in Home Assistant."""
 
     element_type: Literal[ElementType.CONNECTION]
-    common: CommonConfig
     endpoints: EndpointsConfig
     power_limits: Annotated[
         PowerLimitsConfig,
@@ -115,11 +113,10 @@ class ConnectionConfigSchema(TypedDict):
     ]
 
 
-class ConnectionConfigData(TypedDict):
+class ConnectionConfigData(CommonData):
     """Connection element configuration with loaded values."""
 
     element_type: Literal[ElementType.CONNECTION]
-    common: CommonData
     endpoints: EndpointsData
     power_limits: PowerLimitsData
     pricing: PricingData
@@ -137,7 +134,6 @@ __all__ = [
     "CONF_TARGET",
     "ELEMENT_TYPE",
     "OPTIONAL_INPUT_FIELDS",
-    "SECTION_COMMON",
     "SECTION_EFFICIENCY",
     "SECTION_ENDPOINTS",
     "SECTION_POWER_LIMITS",

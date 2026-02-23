@@ -6,7 +6,6 @@ from custom_components.haeo.core.schema.elements.load import (
     CONF_CURTAILMENT,
     CONF_FORECAST,
     CONF_PRICE_TARGET_SOURCE,
-    SECTION_COMMON,
     SECTION_CURTAILMENT,
     SECTION_FORECAST,
     SECTION_PRICING,
@@ -19,10 +18,8 @@ VALID_DATA = [
     {
         "description": "Load with forecast sensors (variable load)",
         "config": {
-            SECTION_COMMON: {
-                CONF_NAME: "Test Load",
-                CONF_CONNECTION: as_connection_target("main_bus"),
-            },
+            CONF_NAME: "Test Load",
+            CONF_CONNECTION: as_connection_target("main_bus"),
             SECTION_FORECAST: {
                 CONF_FORECAST: as_entity_value(["sensor.forecast1", "sensor.forecast2"]),
             },
@@ -37,10 +34,8 @@ VALID_DATA = [
     {
         "description": "Load with constant value (fixed load pattern)",
         "config": {
-            SECTION_COMMON: {
-                CONF_NAME: "Constant Load",
-                CONF_CONNECTION: as_connection_target("main_bus"),
-            },
+            CONF_NAME: "Constant Load",
+            CONF_CONNECTION: as_connection_target("main_bus"),
             SECTION_FORECAST: {
                 CONF_FORECAST: as_constant_value(1.5),
             },

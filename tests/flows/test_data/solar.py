@@ -6,7 +6,6 @@ from custom_components.haeo.core.schema.elements.solar import (
     CONF_CURTAILMENT,
     CONF_FORECAST,
     CONF_PRICE_SOURCE_TARGET,
-    SECTION_COMMON,
     SECTION_CURTAILMENT,
     SECTION_FORECAST,
     SECTION_PRICING,
@@ -20,10 +19,8 @@ VALID_DATA = [
     {
         "description": "Basic solar configuration with constant forecast",
         "config": {
-            SECTION_COMMON: {
-                CONF_NAME: "Test Solar",
-                CONF_CONNECTION: as_connection_target("main_bus"),
-            },
+            CONF_NAME: "Test Solar",
+            CONF_CONNECTION: as_connection_target("main_bus"),
             SECTION_FORECAST: {
                 CONF_FORECAST: as_constant_value(5.0),
             },
@@ -38,10 +35,8 @@ VALID_DATA = [
     {
         "description": "Curtailable solar with production price",
         "config": {
-            SECTION_COMMON: {
-                CONF_NAME: "Rooftop Solar",
-                CONF_CONNECTION: as_connection_target("main_bus"),
-            },
+            CONF_NAME: "Rooftop Solar",
+            CONF_CONNECTION: as_connection_target("main_bus"),
             SECTION_FORECAST: {
                 CONF_FORECAST: as_entity_value(["sensor.solar_power"]),
             },

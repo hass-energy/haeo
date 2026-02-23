@@ -4,7 +4,6 @@ from typing import Final, NotRequired, TypedDict
 
 from custom_components.haeo.core.schema import ConnectionTarget
 
-SECTION_COMMON: Final = "common"
 CONF_CONNECTION: Final = "connection"
 
 

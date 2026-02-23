@@ -14,7 +14,7 @@ from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.schema import ConstantValue, EntityValue
 from custom_components.haeo.core.schema.elements.element_type import ElementType
 from custom_components.haeo.core.schema.field_hints import FieldHint, SectionHints
-from custom_components.haeo.core.schema.sections import SECTION_COMMON, CommonConfig, CommonData
+from custom_components.haeo.core.schema.sections import CommonConfig, CommonData
 
 ELEMENT_TYPE = ElementType.BATTERY_SECTION
 
@@ -40,11 +40,10 @@ class StorageChargeData(TypedDict):
     initial_charge: NDArray[np.floating[Any]]
 
 
-class BatterySectionConfigSchema(TypedDict):
+class BatterySectionConfigSchema(CommonConfig):
     """Battery section element configuration as stored in Home Assistant."""
 
     element_type: Literal[ElementType.BATTERY_SECTION]
-    common: CommonConfig
     storage: Annotated[
         StorageChargeConfig,
         SectionHints(
@@ -66,11 +65,10 @@ class BatterySectionConfigSchema(TypedDict):
     ]
 
 
-class BatterySectionConfigData(TypedDict):
+class BatterySectionConfigData(CommonData):
     """Battery section element configuration with loaded values."""
 
     element_type: Literal[ElementType.BATTERY_SECTION]
-    common: CommonData
     storage: StorageChargeData
 
 
@@ -79,7 +77,6 @@ __all__ = [
     "CONF_INITIAL_CHARGE",
     "ELEMENT_TYPE",
     "OPTIONAL_INPUT_FIELDS",
-    "SECTION_COMMON",
     "SECTION_STORAGE",
     "BatterySectionConfigData",
     "BatterySectionConfigSchema",

@@ -4,7 +4,7 @@ Type definitions (TypedDicts, constants) live in core.schema.sections.
 This package contains only the HA-dependent flow builder functions.
 """
 
-from .common import build_common_fields, common_section
+from .common import build_common_fields
 from .curtailment import build_curtailment_fields, curtailment_section
 from .efficiency import build_efficiency_fields, efficiency_section
 from .forecast import build_forecast_fields, forecast_section
@@ -18,7 +18,6 @@ __all__ = [
     "build_forecast_fields",
     "build_power_limits_fields",
     "build_pricing_fields",
-    "common_section",
     "curtailment_section",
     "efficiency_section",
     "forecast_section",
