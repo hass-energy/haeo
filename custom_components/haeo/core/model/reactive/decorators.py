@@ -8,7 +8,7 @@ from highspy import Highs
 from highspy.highs import highs_cons, highs_linear_expression
 import numpy as np
 
-from custom_components.haeo.model.output_data import ModelOutputValue, OutputData
+from custom_components.haeo.core.model.output_data import ModelOutputValue, OutputData
 
 from .protocols import ReactiveHost
 from .tracked_param import ensure_decorator_state, tracking_context
@@ -125,7 +125,7 @@ class ReactiveConstraint[R](ReactiveMethod[R]):
             return None
 
         # Import here to avoid circular dependency
-        from custom_components.haeo.model.const import OutputType  # noqa: PLC0415
+        from custom_components.haeo.core.model.const import OutputType  # noqa: PLC0415
 
         # Get the state for this constraint
         state_attr = f"_reactive_state_{self._name}"

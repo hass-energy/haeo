@@ -4,7 +4,7 @@ from collections.abc import Sequence
 
 import numpy as np
 
-from custom_components.haeo.model.elements.segments import PassthroughSegment
+from custom_components.haeo.core.model.elements.segments import PassthroughSegment
 
 from ..segment_types import SegmentScenario
 

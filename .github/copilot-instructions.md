@@ -16,7 +16,7 @@ The integration provides real-time optimization based on energy prices, forecast
 
 The integration follows a layered architecture:
 
-- **Model layer** (`model/`): LP formulation with elements, constraints, and cost functions
+- **Model layer** (`core/model/`): LP formulation with elements, constraints, and cost functions
 - **Elements layer** (`elements/`): Bridges HA configuration with model layer via adapters
 - **Coordinator** (`coordinator.py`): Orchestrates data loading, optimization, and result extraction
 - **Sensors** (`sensors/`): Expose optimization results to Home Assistant
@@ -28,7 +28,8 @@ See [architecture guide](../docs/developer-guide/architecture.md) for detailed c
 
 ```
 custom_components/haeo/     # Home Assistant integration
-├── model/                  # LP model (constraints, variables, optimization)
+├── core/                   # Core infrastructure
+│   └── model/              # LP model (constraints, variables, optimization)
 ├── elements/               # Element adapters (one subfolder per element type)
 ├── schema/                 # Shared utilities (UnitSpec, matches_unit_spec)
 ├── flows/                  # Hub and options config flows
@@ -190,7 +191,7 @@ This repository uses path-specific instruction files in `.github/instructions/` 
 | [integration.instructions.md](.github/instructions/integration.instructions.md)     | `custom_components/haeo/**`                   | Home Assistant integration patterns, coordinator usage, entity development, exception handling |
 | [manifest.instructions.md](.github/instructions/manifest.instructions.md)           | `**/manifest.json`                            | Updating integration metadata, dependencies, version requirements                              |
 | [meta.instructions.md](.github/instructions/meta.instructions.md)                   | `.github/instructions/**`, `.cursor/rules/**` | Maintaining instruction files themselves, updating rules based on feedback                     |
-| [model.instructions.md](.github/instructions/model.instructions.md)                 | `custom_components/haeo/model/**`             | Developing LP model elements, constraints, cost functions, optimization logic                  |
+| [model.instructions.md](.github/instructions/model.instructions.md)                 | `custom_components/haeo/core/model/**`        | Developing LP model elements, constraints, cost functions, optimization logic                  |
 | [python.instructions.md](.github/instructions/python.instructions.md)               | `**/*.py`                                     | All Python code - type hints, async patterns, error handling, code style                       |
 | [scenarios.instructions.md](.github/instructions/scenarios.instructions.md)         | `tests/scenarios/**`                          | Creating or maintaining end-to-end scenario tests with realistic data                          |
 | [tests.instructions.md](.github/instructions/tests.instructions.md)                 | `tests/**`                                    | Writing unit tests, integration tests, test fixtures, coverage requirements                    |

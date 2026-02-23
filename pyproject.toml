@@ -169,7 +169,7 @@ forbidden_modules = ["homeassistant"]
 [[tool.importlinter.contracts]]
 name = "Model is standalone"
 type = "allowlist"
-source_modules = ["custom_components.haeo.model"]
+source_modules = ["custom_components.haeo.core.model"]
 allow_modules = ["highspy", "numpy", "typing_extensions"]
 
 [tool.setuptools]

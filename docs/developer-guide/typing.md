@@ -107,7 +107,7 @@ The `load()` function in each element's `adapter.py` converts from Schema mode t
 
 Adapters output `ModelElementConfig` dictionaries for the model layer.
 These configs are a discriminated union on `element_type`.
-Use the model-layer element type constants from `custom_components/haeo/model/elements/__init__.py` to keep the discriminator consistent.
+Use the model-layer element type constants from `custom_components/haeo/core/model/elements/__init__.py` to keep the discriminator consistent.
 
 ## TypeGuard for narrowing
 

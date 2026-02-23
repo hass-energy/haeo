@@ -5,11 +5,11 @@ import pytest
 
 from custom_components.haeo.const import CONF_ELEMENT_TYPE
 from custom_components.haeo.coordinator.network import update_element
+from custom_components.haeo.core.model import Network
+from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE
+from custom_components.haeo.core.model.elements.connection import Connection
+from custom_components.haeo.core.model.elements.segments import PowerLimitSegment
 from custom_components.haeo.elements import ElementConfigData
-from custom_components.haeo.model import Network
-from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE
-from custom_components.haeo.model.elements.connection import Connection
-from custom_components.haeo.model.elements.segments import PowerLimitSegment
 from custom_components.haeo.schema import as_connection_target
 from custom_components.haeo.schema.elements import ElementType
 from custom_components.haeo.schema.elements.connection import (

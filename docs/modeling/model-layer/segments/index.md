@@ -49,6 +49,6 @@ This pattern keeps the connection model simple while making behavior explicit an
 
     View segment source code.
 
-    [:material-arrow-right: Source code](https://github.com/hass-energy/haeo/tree/main/custom_components/haeo/model/elements/segments)
+    [:material-arrow-right: Source code](https://github.com/hass-energy/haeo/tree/main/custom_components/haeo/core/model/elements/segments)
 
 </div>

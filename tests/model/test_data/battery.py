@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from custom_components.haeo.model.elements.battery import Battery
+from custom_components.haeo.core.model.elements.battery import Battery
 
 from .element_types import ElementTestCase
 

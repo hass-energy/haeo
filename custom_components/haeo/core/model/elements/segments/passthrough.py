@@ -12,7 +12,7 @@ import numpy as np
 from numpy.typing import NDArray
 from typing_extensions import TypedDict
 
-from custom_components.haeo.model.element import Element
+from custom_components.haeo.core.model.element import Element
 
 from .segment import Segment
 

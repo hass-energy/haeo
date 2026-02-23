@@ -2,8 +2,8 @@
 
 import numpy as np
 
-from custom_components.haeo.model import Network
-from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE
+from custom_components.haeo.core.model import Network
+from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE
 
 
 def test_simple_optimization() -> None:

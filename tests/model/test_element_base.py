@@ -6,9 +6,9 @@ from highspy import Highs
 import numpy as np
 import pytest
 
-from custom_components.haeo.model.element import Element
-from custom_components.haeo.model.elements.connection import Connection
-from custom_components.haeo.model.elements.node import Node
+from custom_components.haeo.core.model.element import Element
+from custom_components.haeo.core.model.elements.connection import Connection
+from custom_components.haeo.core.model.elements.node import Node
 
 
 def test_connection_power_with_target_end(solver: Highs) -> None:

@@ -6,8 +6,8 @@ from highspy import Highs
 import numpy as np
 import pytest
 
-from custom_components.haeo.model.element import Element
-from custom_components.haeo.model.reactive import TrackedParam, constraint
+from custom_components.haeo.core.model.element import Element
+from custom_components.haeo.core.model.reactive import TrackedParam, constraint
 
 
 def create_test_element[T: Element[str]](cls: type[T]) -> T:

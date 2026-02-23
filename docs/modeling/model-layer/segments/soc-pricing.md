@@ -115,6 +115,6 @@ It is still a soft signal, so it will not block solutions if other costs dominat
 
     View the source code for the SOC pricing segment.
 
-    [:material-arrow-right: Source code](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/model/elements/segments/soc_pricing.py)
+    [:material-arrow-right: Source code](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/core/model/elements/segments/soc_pricing.py)
 
 </div>

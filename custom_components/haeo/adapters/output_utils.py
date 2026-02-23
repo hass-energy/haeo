@@ -2,8 +2,8 @@
 
 from typing import overload
 
-from custom_components.haeo.model import ModelOutputValue
-from custom_components.haeo.model.output_data import OutputData
+from custom_components.haeo.core.model import ModelOutputValue
+from custom_components.haeo.core.model.output_data import OutputData
 
 
 @overload

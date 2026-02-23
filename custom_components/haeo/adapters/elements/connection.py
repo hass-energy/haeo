@@ -6,11 +6,13 @@ from typing import Any, Final, Literal
 
 from custom_components.haeo.adapters.output_utils import expect_output_data
 from custom_components.haeo.const import ConnectivityLevel
-from custom_components.haeo.model import ModelElementConfig, ModelOutputName, ModelOutputValue
-from custom_components.haeo.model.const import OutputType
-from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION
-from custom_components.haeo.model.elements.connection import CONNECTION_OUTPUT_NAMES as MODEL_CONNECTION_OUTPUT_NAMES
-from custom_components.haeo.model.elements.connection import (
+from custom_components.haeo.core.model import ModelElementConfig, ModelOutputName, ModelOutputValue
+from custom_components.haeo.core.model.const import OutputType
+from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_CONNECTION
+from custom_components.haeo.core.model.elements.connection import (
+    CONNECTION_OUTPUT_NAMES as MODEL_CONNECTION_OUTPUT_NAMES,
+)
+from custom_components.haeo.core.model.elements.connection import (
     CONNECTION_POWER_SOURCE_TARGET,
     CONNECTION_POWER_TARGET_SOURCE,
     CONNECTION_SEGMENTS,
@@ -18,13 +20,13 @@ from custom_components.haeo.model.elements.connection import (
     CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE,
     CONNECTION_TIME_SLICE,
 )
-from custom_components.haeo.model.elements.connection import ConnectionOutputName as ModelConnectionOutputName
-from custom_components.haeo.model.elements.segments import (
+from custom_components.haeo.core.model.elements.connection import ConnectionOutputName as ModelConnectionOutputName
+from custom_components.haeo.core.model.elements.segments import (
     POWER_LIMIT_SOURCE_TARGET,
     POWER_LIMIT_TARGET_SOURCE,
     POWER_LIMIT_TIME_SLICE,
 )
-from custom_components.haeo.model.output_data import OutputData
+from custom_components.haeo.core.model.output_data import OutputData
 from custom_components.haeo.schema import extract_connection_target
 from custom_components.haeo.schema.elements import ElementType
 from custom_components.haeo.schema.elements.connection import (

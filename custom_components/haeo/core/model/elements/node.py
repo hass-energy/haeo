@@ -7,8 +7,8 @@ from highspy.highs import highs_linear_expression
 import numpy as np
 from numpy.typing import NDArray
 
-from custom_components.haeo.model.element import Element
-from custom_components.haeo.model.reactive import constraint
+from custom_components.haeo.core.model.element import Element
+from custom_components.haeo.core.model.reactive import constraint
 
 type NodeElementTypeName = Literal["node"]
 ELEMENT_TYPE: Final[NodeElementTypeName] = "node"

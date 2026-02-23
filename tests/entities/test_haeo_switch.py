@@ -19,12 +19,12 @@ import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.haeo.const import CONF_NAME, CONF_RECORD_FORECASTS, DOMAIN
+from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.elements.input_fields import InputFieldDefaults, InputFieldInfo
 from custom_components.haeo.entities.haeo_number import ConfigEntityMode
 from custom_components.haeo.entities.haeo_switch import FORECAST_UNRECORDED_ATTRIBUTES, HaeoInputSwitch
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON, HUB_SECTION_TIERS
 from custom_components.haeo.horizon import HorizonManager
-from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.schema import as_connection_target, as_constant_value, as_entity_value, as_none_value
 from custom_components.haeo.schema.elements.solar import (
     CONF_FORECAST,

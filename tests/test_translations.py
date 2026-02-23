@@ -8,9 +8,9 @@ from typing import Any, Union, cast, get_args, get_origin, get_type_hints
 
 import pytest
 
+from custom_components.haeo.core.model.elements import ELEMENTS
+from custom_components.haeo.core.model.reactive import OutputMethod
 from custom_components.haeo.elements import ELEMENT_DEVICE_NAMES, ELEMENT_OUTPUT_NAMES
-from custom_components.haeo.model.elements import ELEMENTS
-from custom_components.haeo.model.reactive import OutputMethod
 
 
 def _is_mapping_type(annotation: object) -> bool:

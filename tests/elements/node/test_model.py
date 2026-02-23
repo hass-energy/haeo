@@ -6,11 +6,11 @@ from typing import Any, TypedDict
 import pytest
 from custom_components.haeo.adapters.elements.node import NODE_DEVICE_NODE
 from custom_components.haeo.elements import ELEMENT_TYPES
-from custom_components.haeo.model import ModelOutputName, ModelOutputValue
-from custom_components.haeo.model.const import OutputType
-from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_NODE
-from custom_components.haeo.model.elements.node import NODE_POWER_BALANCE
-from custom_components.haeo.model.output_data import OutputData
+from custom_components.haeo.core.model import ModelOutputName, ModelOutputValue
+from custom_components.haeo.core.model.const import OutputType
+from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_NODE
+from custom_components.haeo.core.model.elements.node import NODE_POWER_BALANCE
+from custom_components.haeo.core.model.output_data import OutputData
 from custom_components.haeo.schema.elements import ElementType
 from custom_components.haeo.schema.elements.node import NodeConfigData
 

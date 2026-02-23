@@ -9,17 +9,17 @@ from numpy.typing import NDArray
 
 from custom_components.haeo.adapters.output_utils import expect_output_data
 from custom_components.haeo.const import ConnectivityLevel
-from custom_components.haeo.model import ModelElementConfig, ModelOutputName, ModelOutputValue
-from custom_components.haeo.model.const import OutputType
-from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE
-from custom_components.haeo.model.elements.connection import (
+from custom_components.haeo.core.model import ModelElementConfig, ModelOutputName, ModelOutputValue
+from custom_components.haeo.core.model.const import OutputType
+from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE
+from custom_components.haeo.core.model.elements.connection import (
     CONNECTION_POWER_SOURCE_TARGET,
     CONNECTION_POWER_TARGET_SOURCE,
     CONNECTION_SEGMENTS,
 )
-from custom_components.haeo.model.elements.segments import POWER_LIMIT_SOURCE_TARGET, POWER_LIMIT_TARGET_SOURCE
-from custom_components.haeo.model.output_data import OutputData
-from custom_components.haeo.model.util import broadcast_to_sequence
+from custom_components.haeo.core.model.elements.segments import POWER_LIMIT_SOURCE_TARGET, POWER_LIMIT_TARGET_SOURCE
+from custom_components.haeo.core.model.output_data import OutputData
+from custom_components.haeo.core.model.util import broadcast_to_sequence
 from custom_components.haeo.schema import extract_connection_target
 from custom_components.haeo.schema.elements import ElementType
 from custom_components.haeo.schema.elements.grid import ELEMENT_TYPE, GridConfigData

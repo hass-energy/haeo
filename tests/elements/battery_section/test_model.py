@@ -18,11 +18,11 @@ from custom_components.haeo.adapters.elements.battery_section import (
     BATTERY_SECTION_SOC_MIN,
 )
 from custom_components.haeo.elements import ELEMENT_TYPES
-from custom_components.haeo.model import ModelOutputName, ModelOutputValue
-from custom_components.haeo.model.const import OutputType
-from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_BATTERY
-from custom_components.haeo.model.elements import battery as battery_model
-from custom_components.haeo.model.output_data import OutputData
+from custom_components.haeo.core.model import ModelOutputName, ModelOutputValue
+from custom_components.haeo.core.model.const import OutputType
+from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_BATTERY
+from custom_components.haeo.core.model.elements import battery as battery_model
+from custom_components.haeo.core.model.output_data import OutputData
 from custom_components.haeo.schema.elements import ElementType
 from custom_components.haeo.schema.elements.battery_section import BatterySectionConfigData
 

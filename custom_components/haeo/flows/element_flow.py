@@ -18,9 +18,9 @@ from homeassistant.helpers.translation import async_get_translations
 import voluptuous as vol
 
 from custom_components.haeo.const import CONF_ADVANCED_MODE, CONF_ELEMENT_TYPE, CONF_NAME, DOMAIN
+from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.data.loader.extractors import EntityMetadata
 from custom_components.haeo.elements.input_fields import InputFieldGroups, InputFieldInfo
-from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.schema.util import UnitSpec
 
 # Price unit pattern: matches any currency divided by energy unit ($/kWh, €/MWh, etc.)

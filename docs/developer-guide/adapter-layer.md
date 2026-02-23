@@ -51,7 +51,7 @@ The adapter layer provides two transformation functions per element type:
 **Configuration → Model** (`model_elements`): Transforms user configuration into model element specifications.
 Called during network construction before optimization.
 The adapter returns `ModelElementConfig` dictionaries with a discriminated `element_type`.
-Use model-layer element type constants from `custom_components/haeo/model/elements/__init__.py`.
+Use model-layer element type constants from `custom_components/haeo/core/model/elements/__init__.py`.
 
 **Model → Devices** (`outputs`): Transforms optimization results into device-specific outputs with user-friendly names.
 Called after optimization to populate sensors.

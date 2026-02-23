@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from custom_components.haeo.model.util import broadcast_to_sequence
+from custom_components.haeo.core.model.util import broadcast_to_sequence
 
 
 def test_truncates_longer_sequence() -> None:

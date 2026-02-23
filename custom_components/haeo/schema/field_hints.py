@@ -8,7 +8,7 @@ hints into full HA InputFieldInfo and EntityDescription objects.
 from dataclasses import dataclass
 from typing import Literal
 
-from custom_components.haeo.model.const import OutputType
+from custom_components.haeo.core.model.const import OutputType
 
 
 @dataclass(frozen=True, slots=True)

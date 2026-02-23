@@ -4,9 +4,9 @@ from highspy import Highs
 import numpy as np
 import pytest
 
-from custom_components.haeo.model.element import Element
-from custom_components.haeo.model.reactive import TrackedParam
-from custom_components.haeo.model.reactive.tracked_param import _values_equal
+from custom_components.haeo.core.model.element import Element
+from custom_components.haeo.core.model.reactive import TrackedParam
+from custom_components.haeo.core.model.reactive.tracked_param import _values_equal
 
 
 def create_test_element[T: Element[str]](cls: type[T]) -> T:

@@ -16,9 +16,9 @@ import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
 import networkx as nx
 
-from custom_components.haeo.model import Network
-from custom_components.haeo.model.element import Element
-from custom_components.haeo.model.elements import Battery, Connection, Node
+from custom_components.haeo.core.model import Network
+from custom_components.haeo.core.model.element import Element
+from custom_components.haeo.core.model.elements import Battery, Connection, Node
 
 from .svg_normalize import normalize_svg_file_clip_paths
 

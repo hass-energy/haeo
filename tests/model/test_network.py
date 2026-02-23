@@ -7,14 +7,14 @@ from highspy import HighsModelStatus
 import numpy as np
 import pytest
 
-from custom_components.haeo.model import Network
-from custom_components.haeo.model import network as network_module
-from custom_components.haeo.model.element import Element
-from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_BATTERY as ELEMENT_TYPE_BATTERY
-from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION as ELEMENT_TYPE_CONNECTION
-from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_NODE as ELEMENT_TYPE_NODE
-from custom_components.haeo.model.elements.connection import Connection
-from custom_components.haeo.model.elements.node import Node
+from custom_components.haeo.core.model import Network
+from custom_components.haeo.core.model import network as network_module
+from custom_components.haeo.core.model.element import Element
+from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_BATTERY as ELEMENT_TYPE_BATTERY
+from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_CONNECTION as ELEMENT_TYPE_CONNECTION
+from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_NODE as ELEMENT_TYPE_NODE
+from custom_components.haeo.core.model.elements.connection import Connection
+from custom_components.haeo.core.model.elements.node import Node
 
 # Test constants
 HOURS_PER_DAY = 24

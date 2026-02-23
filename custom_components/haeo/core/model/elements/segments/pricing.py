@@ -12,9 +12,9 @@ import numpy as np
 from numpy.typing import NDArray
 from typing_extensions import TypedDict
 
-from custom_components.haeo.model.element import Element
-from custom_components.haeo.model.reactive import TrackedParam, cost
-from custom_components.haeo.model.util import broadcast_to_sequence
+from custom_components.haeo.core.model.element import Element
+from custom_components.haeo.core.model.reactive import TrackedParam, cost
+from custom_components.haeo.core.model.util import broadcast_to_sequence
 
 from .segment import Segment
 

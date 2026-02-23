@@ -6,9 +6,9 @@ from highspy import Highs
 from highspy.highs import highs_linear_expression
 import numpy as np
 
-from custom_components.haeo.model.element import Element
-from custom_components.haeo.model.elements.battery import Battery
-from custom_components.haeo.model.reactive import ReactiveConstraint, ReactiveCost, TrackedParam, constraint, cost
+from custom_components.haeo.core.model.element import Element
+from custom_components.haeo.core.model.elements.battery import Battery
+from custom_components.haeo.core.model.reactive import ReactiveConstraint, ReactiveCost, TrackedParam, constraint, cost
 
 
 def create_test_element[T: Element[str]](cls: type[T]) -> T:
