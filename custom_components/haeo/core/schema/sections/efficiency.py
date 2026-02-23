@@ -5,7 +5,7 @@ from typing import Any, Final, TypedDict
 import numpy as np
 from numpy.typing import NDArray
 
-from custom_components.haeo.schema import ConstantValue, EntityValue, NoneValue
+from custom_components.haeo.core.schema import ConstantValue, EntityValue, NoneValue
 
 SECTION_EFFICIENCY: Final = "efficiency"
 

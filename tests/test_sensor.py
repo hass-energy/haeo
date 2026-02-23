@@ -28,13 +28,13 @@ from custom_components.haeo.const import (
 )
 from custom_components.haeo.coordinator import CoordinatorData, CoordinatorOutput, ForecastPoint, OptimizationContext
 from custom_components.haeo.core.model import OutputData, OutputType
+from custom_components.haeo.core.schema.elements import ElementType
+from custom_components.haeo.core.schema.elements.battery import ELEMENT_TYPE as BATTERY_TYPE
+from custom_components.haeo.core.schema.elements.battery import SECTION_COMMON as BATTERY_SECTION_COMMON
+from custom_components.haeo.core.schema.elements.battery import SECTION_LIMITS
 from custom_components.haeo.entities import HaeoSensor
 from custom_components.haeo.entities.haeo_sensor import FORECAST_UNRECORDED_ATTRIBUTES
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON, HUB_SECTION_TIERS
-from custom_components.haeo.schema.elements import ElementType
-from custom_components.haeo.schema.elements.battery import ELEMENT_TYPE as BATTERY_TYPE
-from custom_components.haeo.schema.elements.battery import SECTION_COMMON as BATTERY_SECTION_COMMON
-from custom_components.haeo.schema.elements.battery import SECTION_LIMITS
 from custom_components.haeo.sensor import async_setup_entry
 
 

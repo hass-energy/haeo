@@ -132,8 +132,8 @@ async def _ensure_required_subentries(hass: HomeAssistant, hub_entry: ConfigEntr
     Creates a Network subentry (for optimization sensors) if missing.
     In non-advanced mode, also creates a Switchboard node if missing.
     """
-    from custom_components.haeo.schema.elements import ElementType  # noqa: PLC0415
-    from custom_components.haeo.schema.elements.node import (  # noqa: PLC0415
+    from custom_components.haeo.core.schema.elements import ElementType  # noqa: PLC0415
+    from custom_components.haeo.core.schema.elements.node import (  # noqa: PLC0415
         CONF_IS_SINK,
         CONF_IS_SOURCE,
         SECTION_COMMON,

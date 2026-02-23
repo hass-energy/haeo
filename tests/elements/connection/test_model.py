@@ -22,9 +22,9 @@ from custom_components.haeo.core.model.elements.connection import (
     CONNECTION_POWER_TARGET_SOURCE,
 )
 from custom_components.haeo.core.model.output_data import OutputData
-from custom_components.haeo.schema import as_connection_target
-from custom_components.haeo.schema.elements import ElementType
-from custom_components.haeo.schema.elements.connection import ConnectionConfigData
+from custom_components.haeo.core.schema import as_connection_target
+from custom_components.haeo.core.schema.elements import ElementType
+from custom_components.haeo.core.schema.elements.connection import ConnectionConfigData
 
 from tests.util.normalize import normalize_for_compare
 

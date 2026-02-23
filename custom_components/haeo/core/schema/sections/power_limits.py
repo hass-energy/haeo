@@ -5,7 +5,7 @@ from typing import Any, Final, TypedDict
 import numpy as np
 from numpy.typing import NDArray
 
-from custom_components.haeo.schema import ConstantValue, EntityValue, NoneValue
+from custom_components.haeo.core.schema import ConstantValue, EntityValue, NoneValue
 
 SECTION_POWER_LIMITS: Final = "power_limits"
 CONF_MAX_POWER_SOURCE_TARGET: Final = "max_power_source_target"

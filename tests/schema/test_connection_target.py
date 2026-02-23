@@ -4,7 +4,7 @@ from typing import Any, cast
 
 import pytest
 
-from custom_components.haeo.schema.connection_target import (
+from custom_components.haeo.core.schema.connection_target import (
     VALUE_TYPE_CONNECTION_TARGET,
     as_connection_target,
     get_connection_target_name,

@@ -45,6 +45,18 @@ from custom_components.haeo.const import (
     DOMAIN,
     INTEGRATION_TYPE_HUB,
 )
+from custom_components.haeo.core.schema import as_connection_target, as_constant_value, as_entity_value
+from custom_components.haeo.core.schema.elements import ElementType
+from custom_components.haeo.core.schema.elements.battery import (
+    CONF_CAPACITY,
+    CONF_INITIAL_CHARGE_PERCENTAGE,
+    CONF_SALVAGE_VALUE,
+    SECTION_LIMITS,
+    SECTION_PARTITIONING,
+    SECTION_STORAGE,
+)
+from custom_components.haeo.core.schema.elements.connection import CONF_SOURCE, CONF_TARGET, SECTION_ENDPOINTS
+from custom_components.haeo.core.schema.elements.node import SECTION_ROLE
 from custom_components.haeo.core.schema.sections import (
     CONF_CONNECTION,
     CONF_MAX_POWER_SOURCE_TARGET,
@@ -57,18 +69,6 @@ from custom_components.haeo.core.schema.sections import (
     SECTION_PRICING,
 )
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON, HUB_SECTION_TIERS
-from custom_components.haeo.schema import as_connection_target, as_constant_value, as_entity_value
-from custom_components.haeo.schema.elements import ElementType
-from custom_components.haeo.schema.elements.battery import (
-    CONF_CAPACITY,
-    CONF_INITIAL_CHARGE_PERCENTAGE,
-    CONF_SALVAGE_VALUE,
-    SECTION_LIMITS,
-    SECTION_PARTITIONING,
-    SECTION_STORAGE,
-)
-from custom_components.haeo.schema.elements.connection import CONF_SOURCE, CONF_TARGET, SECTION_ENDPOINTS
-from custom_components.haeo.schema.elements.node import SECTION_ROLE
 
 
 @pytest.fixture

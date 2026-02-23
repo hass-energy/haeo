@@ -3,8 +3,8 @@
 from homeassistant.core import HomeAssistant
 
 from custom_components.haeo.adapters.elements.node import adapter as node_adapter
+from custom_components.haeo.core.schema.elements import ElementType, node
 from custom_components.haeo.elements.availability import schema_config_available
-from custom_components.haeo.schema.elements import ElementType, node
 
 
 async def test_available_returns_true(hass: HomeAssistant) -> None:

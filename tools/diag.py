@@ -34,6 +34,9 @@ from custom_components.haeo.const import CONF_ELEMENT_TYPE
 from custom_components.haeo.coordinator.network import collect_model_elements
 from custom_components.haeo.core.model import Network
 from custom_components.haeo.core.model.output_data import OutputData
+from custom_components.haeo.core.schema.constant_value import is_constant_value
+from custom_components.haeo.core.schema.entity_value import is_entity_value
+from custom_components.haeo.core.schema.none_value import is_none_value
 from custom_components.haeo.core.schema.sections import SECTION_COMMON, SECTION_PRICING
 from custom_components.haeo.data.loader.extractors import extract
 from custom_components.haeo.data.loader.extractors.utils.parse_datetime import parse_datetime_to_timestamp
@@ -41,9 +44,6 @@ from custom_components.haeo.data.util.forecast_combiner import combine_sensor_pa
 from custom_components.haeo.data.util.forecast_fuser import fuse_to_boundaries, fuse_to_intervals
 from custom_components.haeo.elements import ELEMENT_TYPES, ElementConfigData, get_input_fields, is_element_type
 from custom_components.haeo.migrations.v1_3 import migrate_subentry_data
-from custom_components.haeo.schema.constant_value import is_constant_value
-from custom_components.haeo.schema.entity_value import is_entity_value
-from custom_components.haeo.schema.none_value import is_none_value
 from custom_components.haeo.util.forecast_times import generate_forecast_timestamps, tiers_to_periods_seconds
 
 type ForecastSeries = Sequence[tuple[float, float]]

@@ -23,6 +23,17 @@ from custom_components.haeo.const import (
     DOMAIN,
     ELEMENT_TYPE_NETWORK,
 )
+from custom_components.haeo.core.schema import as_connection_target, as_constant_value, as_entity_value
+from custom_components.haeo.core.schema.elements import (
+    battery,
+    battery_section,
+    connection,
+    grid,
+    inverter,
+    load,
+    node,
+    solar,
+)
 from custom_components.haeo.core.schema.sections import (
     CONF_CONNECTION,
     CONF_CURTAILMENT,
@@ -45,17 +56,6 @@ from custom_components.haeo.flows import (
     HUB_SECTION_TIERS,
 )
 from custom_components.haeo.migrations import async_migrate_entry, v1_3
-from custom_components.haeo.schema import as_connection_target, as_constant_value, as_entity_value
-from custom_components.haeo.schema.elements import (
-    battery,
-    battery_section,
-    connection,
-    grid,
-    inverter,
-    load,
-    node,
-    solar,
-)
 
 
 def _create_subentry(data: dict[str, Any], *, subentry_type: str | None = None) -> ConfigSubentry:

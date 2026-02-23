@@ -7,7 +7,7 @@ import pytest
 from custom_components.haeo import elements as elements_module
 from custom_components.haeo.const import CONF_ELEMENT_TYPE
 from custom_components.haeo.elements import get_input_field_schema_info, get_input_fields
-from custom_components.haeo.schema.elements import ElementType, battery
+from custom_components.haeo.core.schema.elements import ElementType, battery
 
 ELEMENT_TYPE = ElementType.BATTERY
 

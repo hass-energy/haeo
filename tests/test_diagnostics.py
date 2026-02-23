@@ -40,6 +40,18 @@ from custom_components.haeo.const import (
     OUTPUT_NAME_OPTIMIZATION_DURATION,
 )
 from custom_components.haeo.coordinator import CoordinatorData, HaeoDataUpdateCoordinator, OptimizationContext
+from custom_components.haeo.core.schema import as_connection_target, as_constant_value, as_entity_value
+from custom_components.haeo.core.schema.elements import ElementType
+from custom_components.haeo.core.schema.elements.battery import (
+    CONF_CAPACITY,
+    CONF_INITIAL_CHARGE_PERCENTAGE,
+    CONF_MAX_CHARGE_PERCENTAGE,
+    CONF_MIN_CHARGE_PERCENTAGE,
+    CONF_SALVAGE_VALUE,
+    SECTION_LIMITS,
+    SECTION_PARTITIONING,
+    SECTION_STORAGE,
+)
 from custom_components.haeo.core.schema.sections import (
     CONF_CONNECTION,
     CONF_EFFICIENCY_SOURCE_TARGET,
@@ -68,18 +80,6 @@ from custom_components.haeo.diagnostics.collector import (
 from custom_components.haeo.elements import ElementConfigSchema
 from custom_components.haeo.entities.device import build_device_identifier
 from custom_components.haeo.flows import HUB_SECTION_COMMON, HUB_SECTION_TIERS
-from custom_components.haeo.schema import as_connection_target, as_constant_value, as_entity_value
-from custom_components.haeo.schema.elements import ElementType
-from custom_components.haeo.schema.elements.battery import (
-    CONF_CAPACITY,
-    CONF_INITIAL_CHARGE_PERCENTAGE,
-    CONF_MAX_CHARGE_PERCENTAGE,
-    CONF_MIN_CHARGE_PERCENTAGE,
-    CONF_SALVAGE_VALUE,
-    SECTION_LIMITS,
-    SECTION_PARTITIONING,
-    SECTION_STORAGE,
-)
 from custom_components.haeo.sensor_utils import get_duration_sensor_entity_id, get_horizon_sensor_entity_id
 
 

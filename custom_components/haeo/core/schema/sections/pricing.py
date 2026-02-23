@@ -5,7 +5,7 @@ from typing import Any, Final, TypedDict
 import numpy as np
 from numpy.typing import NDArray
 
-from custom_components.haeo.schema import ConstantValue, EntityValue, NoneValue
+from custom_components.haeo.core.schema import ConstantValue, EntityValue, NoneValue
 
 SECTION_PRICING: Final = "pricing"
 CONF_PRICE_SOURCE_TARGET: Final = "price_source_target"

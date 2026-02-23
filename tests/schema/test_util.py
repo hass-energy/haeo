@@ -5,7 +5,7 @@ from enum import Enum
 from homeassistant.const import UnitOfPower
 import pytest
 
-from custom_components.haeo.schema.util import UnitSpec, matches_unit_spec
+from custom_components.haeo.core.schema.util import UnitSpec, matches_unit_spec
 
 
 class MockCurrency(Enum):

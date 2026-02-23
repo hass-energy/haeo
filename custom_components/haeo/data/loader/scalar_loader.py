@@ -2,9 +2,9 @@
 
 from typing import Any
 
+from custom_components.haeo.core.schema import EntityValue
 from custom_components.haeo.core.state import StateMachine
 from custom_components.haeo.core.units import convert_to_base_unit
-from custom_components.haeo.schema import EntityValue
 
 from .sensor_loader import normalize_entity_ids
 

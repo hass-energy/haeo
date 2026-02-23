@@ -11,6 +11,14 @@ import voluptuous as vol
 
 from custom_components.haeo.const import DOMAIN
 from custom_components.haeo.core.model.const import OutputType
+from custom_components.haeo.core.schema import (
+    ConstantValue,
+    EntityValue,
+    NoneValue,
+    as_constant_value,
+    as_entity_value,
+    as_none_value,
+)
 from custom_components.haeo.core.schema.sections import SECTION_COMMON
 from custom_components.haeo.elements.field_schema import FieldSchemaInfo
 from custom_components.haeo.elements.input_fields import InputFieldDefaults, InputFieldInfo
@@ -39,14 +47,6 @@ from custom_components.haeo.flows.field_schema import (
     resolve_haeo_input_entity_id,
     validate_choose_fields,
     validate_sectioned_choose_fields,
-)
-from custom_components.haeo.schema import (
-    ConstantValue,
-    EntityValue,
-    NoneValue,
-    as_constant_value,
-    as_entity_value,
-    as_none_value,
 )
 
 # --- Fixtures ---
