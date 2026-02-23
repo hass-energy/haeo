@@ -6,6 +6,8 @@ from homeassistant.config_entries import ConfigSubentryFlow, SubentryFlowResult
 import voluptuous as vol
 
 from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME
+from custom_components.haeo.core.schema import get_connection_target_name, normalize_connection_target
+from custom_components.haeo.core.schema.elements.solar import CONF_CURTAILMENT, ELEMENT_TYPE, SECTION_CURTAILMENT
 from custom_components.haeo.core.schema.sections import (
     CONF_CONNECTION,
     CONF_FORECAST,
@@ -24,8 +26,6 @@ from custom_components.haeo.flows.field_schema import (
     preprocess_sectioned_choose_input,
     validate_sectioned_choose_fields,
 )
-from custom_components.haeo.schema import get_connection_target_name, normalize_connection_target
-from custom_components.haeo.schema.elements.solar import CONF_CURTAILMENT, ELEMENT_TYPE, SECTION_CURTAILMENT
 from custom_components.haeo.sections import build_common_fields, common_section, forecast_section, pricing_section
 
 

@@ -36,18 +36,18 @@ from custom_components.haeo.const import (
     DOMAIN,
     ELEMENT_TYPE_NETWORK,
 )
-from custom_components.haeo.flows import (
-    HORIZON_PRESET_5_DAYS,
-    HUB_SECTION_ADVANCED,
-    HUB_SECTION_COMMON,
-    HUB_SECTION_TIERS,
-)
-from custom_components.haeo.schema import (
+from custom_components.haeo.core.schema import (
     SchemaValue,
     as_constant_value,
     as_entity_value,
     is_schema_value,
     normalize_connection_target,
+)
+from custom_components.haeo.flows import (
+    HORIZON_PRESET_5_DAYS,
+    HUB_SECTION_ADVANCED,
+    HUB_SECTION_COMMON,
+    HUB_SECTION_TIERS,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -112,6 +112,16 @@ def migrate_subentry_data(subentry: ConfigSubentry) -> dict[str, Any] | None:
     if not element_type or element_type == ELEMENT_TYPE_NETWORK:
         return None
 
+    from custom_components.haeo.core.schema.elements import (  # noqa: PLC0415
+        battery,
+        battery_section,
+        connection,
+        grid,
+        inverter,
+        load,
+        node,
+        solar,
+    )
     from custom_components.haeo.core.schema.sections import (  # noqa: PLC0415
         CONF_CONNECTION,
         CONF_CURTAILMENT,
@@ -126,16 +136,6 @@ def migrate_subentry_data(subentry: ConfigSubentry) -> dict[str, Any] | None:
         SECTION_FORECAST,
         SECTION_POWER_LIMITS,
         SECTION_PRICING,
-    )
-    from custom_components.haeo.schema.elements import (  # noqa: PLC0415
-        battery,
-        battery_section,
-        connection,
-        grid,
-        inverter,
-        load,
-        node,
-        solar,
     )
 
     def get_value(key: str) -> Any | None:

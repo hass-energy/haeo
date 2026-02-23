@@ -12,13 +12,8 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.haeo import HaeoRuntimeData
 from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME, DOMAIN, ELEMENT_TYPE_NETWORK
-from custom_components.haeo.core.schema.sections import CONF_CONNECTION
-from custom_components.haeo.entities.auto_optimize_switch import AutoOptimizeSwitch
-from custom_components.haeo.entities.haeo_number import ConfigEntityMode
-from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON, HUB_SECTION_TIERS
-from custom_components.haeo.horizon import HorizonManager
-from custom_components.haeo.schema import as_connection_target, as_constant_value, as_entity_value, as_none_value
-from custom_components.haeo.schema.elements.grid import (
+from custom_components.haeo.core.schema import as_connection_target, as_constant_value, as_entity_value, as_none_value
+from custom_components.haeo.core.schema.elements.grid import (
     CONF_MAX_POWER_SOURCE_TARGET,
     CONF_MAX_POWER_TARGET_SOURCE,
     CONF_PRICE_SOURCE_TARGET,
@@ -27,16 +22,21 @@ from custom_components.haeo.schema.elements.grid import (
     SECTION_POWER_LIMITS,
     SECTION_PRICING,
 )
-from custom_components.haeo.schema.elements.grid import ELEMENT_TYPE as GRID_TYPE
-from custom_components.haeo.schema.elements.solar import (
+from custom_components.haeo.core.schema.elements.grid import ELEMENT_TYPE as GRID_TYPE
+from custom_components.haeo.core.schema.elements.solar import (
     CONF_CURTAILMENT,
     CONF_FORECAST,
     SECTION_CURTAILMENT,
     SECTION_FORECAST,
 )
-from custom_components.haeo.schema.elements.solar import CONF_PRICE_SOURCE_TARGET as CONF_SOLAR_PRICE_SOURCE_TARGET
-from custom_components.haeo.schema.elements.solar import ELEMENT_TYPE as SOLAR_TYPE
-from custom_components.haeo.schema.elements.solar import SECTION_COMMON as SOLAR_SECTION_COMMON
+from custom_components.haeo.core.schema.elements.solar import CONF_PRICE_SOURCE_TARGET as CONF_SOLAR_PRICE_SOURCE_TARGET
+from custom_components.haeo.core.schema.elements.solar import ELEMENT_TYPE as SOLAR_TYPE
+from custom_components.haeo.core.schema.elements.solar import SECTION_COMMON as SOLAR_SECTION_COMMON
+from custom_components.haeo.core.schema.sections import CONF_CONNECTION
+from custom_components.haeo.entities.auto_optimize_switch import AutoOptimizeSwitch
+from custom_components.haeo.entities.haeo_number import ConfigEntityMode
+from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON, HUB_SECTION_TIERS
+from custom_components.haeo.horizon import HorizonManager
 from custom_components.haeo.switch import async_setup_entry
 
 

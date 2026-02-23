@@ -23,8 +23,8 @@ from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_BATTERY
 from custom_components.haeo.core.model.elements import battery as battery_model
 from custom_components.haeo.core.model.output_data import OutputData
-from custom_components.haeo.schema.elements import ElementType
-from custom_components.haeo.schema.elements.battery_section import BatterySectionConfigData
+from custom_components.haeo.core.schema.elements import ElementType
+from custom_components.haeo.core.schema.elements.battery_section import BatterySectionConfigData
 
 from tests.util.normalize import normalize_for_compare
 

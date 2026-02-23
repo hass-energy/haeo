@@ -111,26 +111,31 @@ from custom_components.haeo.const import (
 )
 from custom_components.haeo.core.model import ModelElementConfig, ModelOutputName
 from custom_components.haeo.core.model.output_data import ModelOutputValue, OutputData
-from custom_components.haeo.elements.field_hints import build_input_fields, extract_field_hints
-from custom_components.haeo.schema.elements import ElementType
-from custom_components.haeo.schema.elements.battery import OPTIONAL_INPUT_FIELDS as BATTERY_OPTIONAL_INPUT_FIELDS
-from custom_components.haeo.schema.elements.battery import BatteryConfigData, BatteryConfigSchema
-from custom_components.haeo.schema.elements.battery_section import (
+from custom_components.haeo.core.schema.elements import ElementType
+from custom_components.haeo.core.schema.elements.battery import OPTIONAL_INPUT_FIELDS as BATTERY_OPTIONAL_INPUT_FIELDS
+from custom_components.haeo.core.schema.elements.battery import BatteryConfigData, BatteryConfigSchema
+from custom_components.haeo.core.schema.elements.battery_section import (
     OPTIONAL_INPUT_FIELDS as BATTERY_SECTION_OPTIONAL_INPUT_FIELDS,
 )
-from custom_components.haeo.schema.elements.battery_section import BatterySectionConfigData, BatterySectionConfigSchema
-from custom_components.haeo.schema.elements.connection import OPTIONAL_INPUT_FIELDS as CONNECTION_OPTIONAL_INPUT_FIELDS
-from custom_components.haeo.schema.elements.connection import ConnectionConfigData, ConnectionConfigSchema
-from custom_components.haeo.schema.elements.grid import OPTIONAL_INPUT_FIELDS as GRID_OPTIONAL_INPUT_FIELDS
-from custom_components.haeo.schema.elements.grid import GridConfigData, GridConfigSchema
-from custom_components.haeo.schema.elements.inverter import OPTIONAL_INPUT_FIELDS as INVERTER_OPTIONAL_INPUT_FIELDS
-from custom_components.haeo.schema.elements.inverter import InverterConfigData, InverterConfigSchema
-from custom_components.haeo.schema.elements.load import OPTIONAL_INPUT_FIELDS as LOAD_OPTIONAL_INPUT_FIELDS
-from custom_components.haeo.schema.elements.load import LoadConfigData, LoadConfigSchema
-from custom_components.haeo.schema.elements.node import OPTIONAL_INPUT_FIELDS as NODE_OPTIONAL_INPUT_FIELDS
-from custom_components.haeo.schema.elements.node import NodeConfigData, NodeConfigSchema
-from custom_components.haeo.schema.elements.solar import OPTIONAL_INPUT_FIELDS as SOLAR_OPTIONAL_INPUT_FIELDS
-from custom_components.haeo.schema.elements.solar import SolarConfigData, SolarConfigSchema
+from custom_components.haeo.core.schema.elements.battery_section import (
+    BatterySectionConfigData,
+    BatterySectionConfigSchema,
+)
+from custom_components.haeo.core.schema.elements.connection import (
+    OPTIONAL_INPUT_FIELDS as CONNECTION_OPTIONAL_INPUT_FIELDS,
+)
+from custom_components.haeo.core.schema.elements.connection import ConnectionConfigData, ConnectionConfigSchema
+from custom_components.haeo.core.schema.elements.grid import OPTIONAL_INPUT_FIELDS as GRID_OPTIONAL_INPUT_FIELDS
+from custom_components.haeo.core.schema.elements.grid import GridConfigData, GridConfigSchema
+from custom_components.haeo.core.schema.elements.inverter import OPTIONAL_INPUT_FIELDS as INVERTER_OPTIONAL_INPUT_FIELDS
+from custom_components.haeo.core.schema.elements.inverter import InverterConfigData, InverterConfigSchema
+from custom_components.haeo.core.schema.elements.load import OPTIONAL_INPUT_FIELDS as LOAD_OPTIONAL_INPUT_FIELDS
+from custom_components.haeo.core.schema.elements.load import LoadConfigData, LoadConfigSchema
+from custom_components.haeo.core.schema.elements.node import OPTIONAL_INPUT_FIELDS as NODE_OPTIONAL_INPUT_FIELDS
+from custom_components.haeo.core.schema.elements.node import NodeConfigData, NodeConfigSchema
+from custom_components.haeo.core.schema.elements.solar import OPTIONAL_INPUT_FIELDS as SOLAR_OPTIONAL_INPUT_FIELDS
+from custom_components.haeo.core.schema.elements.solar import SolarConfigData, SolarConfigSchema
+from custom_components.haeo.elements.field_hints import build_input_fields, extract_field_hints
 
 from .field_schema import FieldSchemaInfo
 from .input_fields import InputFieldGroups, InputFieldInfo, InputFieldPath, InputFieldSection

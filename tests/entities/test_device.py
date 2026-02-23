@@ -8,12 +8,12 @@ import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.haeo.const import DOMAIN, ELEMENT_TYPE_NETWORK
+from custom_components.haeo.core.schema.elements import ElementType
 from custom_components.haeo.entities.device import (
     build_device_identifier,
     get_or_create_element_device,
     get_or_create_network_device,
 )
-from custom_components.haeo.schema.elements import ElementType
 
 
 @pytest.fixture

@@ -18,9 +18,9 @@ from custom_components.haeo.core.model.elements import (
 from custom_components.haeo.core.model.elements.battery import Battery
 from custom_components.haeo.core.model.elements.connection import Connection
 from custom_components.haeo.core.model.elements.segments import PowerLimitSegment, PricingSegment
-from custom_components.haeo.schema import as_connection_target
-from custom_components.haeo.schema.elements import ElementType
-from custom_components.haeo.schema.elements.connection import (
+from custom_components.haeo.core.schema import as_connection_target
+from custom_components.haeo.core.schema.elements import ElementType
+from custom_components.haeo.core.schema.elements.connection import (
     SECTION_COMMON,
     SECTION_EFFICIENCY,
     SECTION_ENDPOINTS,

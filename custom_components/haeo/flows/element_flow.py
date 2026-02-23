@@ -19,9 +19,9 @@ import voluptuous as vol
 
 from custom_components.haeo.const import CONF_ADVANCED_MODE, CONF_ELEMENT_TYPE, CONF_NAME, DOMAIN
 from custom_components.haeo.core.model.const import OutputType
+from custom_components.haeo.core.schema.util import UnitSpec
 from custom_components.haeo.data.loader.extractors import EntityMetadata
 from custom_components.haeo.elements.input_fields import InputFieldGroups, InputFieldInfo
-from custom_components.haeo.schema.util import UnitSpec
 
 # Price unit pattern: matches any currency divided by energy unit ($/kWh, €/MWh, etc.)
 PRICE_UNIT_SPEC: Final[list[UnitSpec]] = [("*", "/", unit.value) for unit in UnitOfEnergy]
@@ -174,9 +174,9 @@ class ElementFlowMixin:
             List of element names that can be used as connection targets.
 
         """
+        from custom_components.haeo.core.schema.elements import ElementType  # noqa: PLC0415
         from custom_components.haeo.elements import ELEMENT_TYPES, ConnectivityLevel  # noqa: PLC0415
         from custom_components.haeo.flows import HUB_SECTION_ADVANCED  # noqa: PLC0415
-        from custom_components.haeo.schema.elements import ElementType  # noqa: PLC0415
 
         hub_entry: ConfigEntry = self._get_entry()  # type: ignore[attr-defined]
         advanced_mode = hub_entry.data.get(HUB_SECTION_ADVANCED, {}).get(CONF_ADVANCED_MODE, False)

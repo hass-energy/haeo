@@ -8,6 +8,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from custom_components.haeo import HaeoConfigEntry
 from custom_components.haeo.const import CONF_ELEMENT_TYPE, ELEMENT_TYPE_NETWORK
+from custom_components.haeo.core.schema import is_none_value
 from custom_components.haeo.elements import (
     get_input_fields,
     get_nested_config_value_by_path,
@@ -17,7 +18,6 @@ from custom_components.haeo.elements import (
 from custom_components.haeo.entities.auto_optimize_switch import AutoOptimizeSwitch
 from custom_components.haeo.entities.device import get_or_create_element_device, get_or_create_network_device
 from custom_components.haeo.entities.haeo_switch import HaeoInputSwitch
-from custom_components.haeo.schema import is_none_value
 
 _LOGGER = logging.getLogger(__name__)
 

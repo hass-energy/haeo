@@ -19,6 +19,15 @@ from custom_components.haeo.const import (
     DOMAIN,
 )
 from custom_components.haeo.coordinator import evaluate_network_connectivity
+from custom_components.haeo.core.schema import as_connection_target
+from custom_components.haeo.core.schema.elements import ElementType
+from custom_components.haeo.core.schema.elements.connection import (
+    CONF_SOURCE,
+    CONF_TARGET,
+    SECTION_ENDPOINTS,
+    ConnectionConfigData,
+)
+from custom_components.haeo.core.schema.elements.node import CONF_IS_SINK, CONF_IS_SOURCE, SECTION_ROLE, NodeConfigData
 from custom_components.haeo.core.schema.sections import (
     SECTION_COMMON,
     SECTION_EFFICIENCY,
@@ -27,15 +36,6 @@ from custom_components.haeo.core.schema.sections import (
 )
 from custom_components.haeo.elements import ElementConfigData
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON, HUB_SECTION_TIERS
-from custom_components.haeo.schema import as_connection_target
-from custom_components.haeo.schema.elements import ElementType
-from custom_components.haeo.schema.elements.connection import (
-    CONF_SOURCE,
-    CONF_TARGET,
-    SECTION_ENDPOINTS,
-    ConnectionConfigData,
-)
-from custom_components.haeo.schema.elements.node import CONF_IS_SINK, CONF_IS_SOURCE, SECTION_ROLE, NodeConfigData
 
 
 @pytest.fixture

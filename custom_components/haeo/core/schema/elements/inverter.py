@@ -3,6 +3,8 @@
 from typing import Annotated, Final, Literal, TypedDict
 
 from custom_components.haeo.core.model.const import OutputType
+from custom_components.haeo.core.schema.elements import ElementType
+from custom_components.haeo.core.schema.field_hints import FieldHint, SectionHints
 from custom_components.haeo.core.schema.sections import (
     CONF_EFFICIENCY_SOURCE_TARGET,
     CONF_EFFICIENCY_TARGET_SOURCE,
@@ -18,8 +20,6 @@ from custom_components.haeo.core.schema.sections import (
     PowerLimitsConfig,
     PowerLimitsData,
 )
-from custom_components.haeo.schema.elements import ElementType
-from custom_components.haeo.schema.field_hints import FieldHint, SectionHints
 
 ELEMENT_TYPE = ElementType.INVERTER
 

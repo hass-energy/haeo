@@ -7,6 +7,26 @@ from homeassistant.helpers.selector import BooleanSelector, BooleanSelectorConfi
 import voluptuous as vol
 
 from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME
+from custom_components.haeo.core.schema import get_connection_target_name, normalize_connection_target
+from custom_components.haeo.core.schema.elements.battery import (
+    CONF_CAPACITY,
+    CONF_CONFIGURE_PARTITIONS,
+    CONF_EFFICIENCY_SOURCE_TARGET,
+    CONF_EFFICIENCY_TARGET_SOURCE,
+    CONF_INITIAL_CHARGE_PERCENTAGE,
+    CONF_MAX_CHARGE_PERCENTAGE,
+    CONF_MIN_CHARGE_PERCENTAGE,
+    CONF_PARTITION_COST,
+    CONF_PARTITION_PERCENTAGE,
+    CONF_SALVAGE_VALUE,
+    ELEMENT_TYPE,
+    PARTITION_FIELD_NAMES,
+    SECTION_LIMITS,
+    SECTION_OVERCHARGE,
+    SECTION_PARTITIONING,
+    SECTION_STORAGE,
+    SECTION_UNDERCHARGE,
+)
 from custom_components.haeo.core.schema.sections import (
     CONF_CONNECTION,
     CONF_MAX_POWER_SOURCE_TARGET,
@@ -26,26 +46,6 @@ from custom_components.haeo.flows.field_schema import (
     convert_sectioned_choose_data_to_config,
     preprocess_sectioned_choose_input,
     validate_sectioned_choose_fields,
-)
-from custom_components.haeo.schema import get_connection_target_name, normalize_connection_target
-from custom_components.haeo.schema.elements.battery import (
-    CONF_CAPACITY,
-    CONF_CONFIGURE_PARTITIONS,
-    CONF_EFFICIENCY_SOURCE_TARGET,
-    CONF_EFFICIENCY_TARGET_SOURCE,
-    CONF_INITIAL_CHARGE_PERCENTAGE,
-    CONF_MAX_CHARGE_PERCENTAGE,
-    CONF_MIN_CHARGE_PERCENTAGE,
-    CONF_PARTITION_COST,
-    CONF_PARTITION_PERCENTAGE,
-    CONF_SALVAGE_VALUE,
-    ELEMENT_TYPE,
-    PARTITION_FIELD_NAMES,
-    SECTION_LIMITS,
-    SECTION_OVERCHARGE,
-    SECTION_PARTITIONING,
-    SECTION_STORAGE,
-    SECTION_UNDERCHARGE,
 )
 from custom_components.haeo.sections import (
     build_common_fields,

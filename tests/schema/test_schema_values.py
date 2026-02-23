@@ -1,6 +1,6 @@
 """Tests for schema value utilities."""
 
-from custom_components.haeo.schema import (
+from custom_components.haeo.core.schema import (
     VALUE_TYPE_CONSTANT,
     VALUE_TYPE_ENTITY,
     VALUE_TYPE_NONE,

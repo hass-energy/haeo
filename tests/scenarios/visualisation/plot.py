@@ -17,7 +17,7 @@ import numpy as np
 
 from custom_components.haeo.core.model import Network
 from custom_components.haeo.core.model.const import OutputType
-from custom_components.haeo.schema.elements import ElementType
+from custom_components.haeo.core.schema.elements import ElementType
 
 from .colors import ColorMapper
 from .graph import create_graph_visualization

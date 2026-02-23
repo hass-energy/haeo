@@ -1,12 +1,14 @@
-"""Solar element schema definitions."""
+"""Load element schema definitions."""
 
 from typing import Annotated, Final, Literal, TypedDict
 
 from custom_components.haeo.core.model.const import OutputType
+from custom_components.haeo.core.schema.elements import ElementType
+from custom_components.haeo.core.schema.field_hints import FieldHint, SectionHints
 from custom_components.haeo.core.schema.sections import (
     CONF_CURTAILMENT,
     CONF_FORECAST,
-    CONF_PRICE_SOURCE_TARGET,
+    CONF_PRICE_TARGET_SOURCE,
     SECTION_COMMON,
     SECTION_CURTAILMENT,
     SECTION_FORECAST,
@@ -20,21 +22,16 @@ from custom_components.haeo.core.schema.sections import (
     PricingConfig,
     PricingData,
 )
-from custom_components.haeo.schema.elements import ElementType
-from custom_components.haeo.schema.field_hints import FieldHint, SectionHints
 
-ELEMENT_TYPE = ElementType.SOLAR
+ELEMENT_TYPE = ElementType.LOAD
 
-OPTIONAL_INPUT_FIELDS: Final[frozenset[str]] = frozenset({CONF_CURTAILMENT, CONF_PRICE_SOURCE_TARGET})
+OPTIONAL_INPUT_FIELDS: Final[frozenset[str]] = frozenset({CONF_CURTAILMENT, CONF_PRICE_TARGET_SOURCE})
 
 
-class SolarConfigSchema(TypedDict):
-    """Solar element configuration as stored in Home Assistant.
+class LoadConfigSchema(TypedDict):
+    """Load element configuration as stored in Home Assistant."""
 
-    Schema mode contains entity IDs and constant values from the config flow.
-    """
-
-    element_type: Literal[ElementType.SOLAR]
+    element_type: Literal[ElementType.LOAD]
     common: ConnectedCommonConfig
     forecast: Annotated[
         ForecastConfig,
@@ -42,7 +39,7 @@ class SolarConfigSchema(TypedDict):
             {
                 CONF_FORECAST: FieldHint(
                     output_type=OutputType.POWER,
-                    direction="-",
+                    direction="+",
                     time_series=True,
                 ),
             }
@@ -52,7 +49,7 @@ class SolarConfigSchema(TypedDict):
         PricingConfig,
         SectionHints(
             {
-                CONF_PRICE_SOURCE_TARGET: FieldHint(
+                CONF_PRICE_TARGET_SOURCE: FieldHint(
                     output_type=OutputType.PRICE,
                     direction="+",
                     time_series=True,
@@ -68,7 +65,7 @@ class SolarConfigSchema(TypedDict):
                 CONF_CURTAILMENT: FieldHint(
                     output_type=OutputType.STATUS,
                     default_mode="value",
-                    default_value=True,
+                    default_value=False,
                     force_required=True,
                 ),
             }
@@ -76,10 +73,10 @@ class SolarConfigSchema(TypedDict):
     ]
 
 
-class SolarConfigData(TypedDict):
-    """Solar element configuration with loaded values."""
+class LoadConfigData(TypedDict):
+    """Load element configuration with loaded values."""
 
-    element_type: Literal[ElementType.SOLAR]
+    element_type: Literal[ElementType.LOAD]
     common: ConnectedCommonData
     forecast: ForecastData
     pricing: PricingData
@@ -89,13 +86,13 @@ class SolarConfigData(TypedDict):
 __all__ = [
     "CONF_CURTAILMENT",
     "CONF_FORECAST",
-    "CONF_PRICE_SOURCE_TARGET",
+    "CONF_PRICE_TARGET_SOURCE",
     "ELEMENT_TYPE",
     "OPTIONAL_INPUT_FIELDS",
     "SECTION_COMMON",
     "SECTION_CURTAILMENT",
     "SECTION_FORECAST",
     "SECTION_PRICING",
-    "SolarConfigData",
-    "SolarConfigSchema",
+    "LoadConfigData",
+    "LoadConfigSchema",
 ]

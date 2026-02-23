@@ -7,7 +7,7 @@ from typing import cast
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 
-from custom_components.haeo.schema.util import UnitSpec
+from custom_components.haeo.core.schema.util import UnitSpec
 
 
 @dataclass(frozen=True)
@@ -20,7 +20,7 @@ class EntityMetadata:
     def is_compatible_with(self, accepted_units: "UnitSpec | Sequence[UnitSpec]") -> bool:
         """Check if this entity's unit is compatible with the accepted units."""
         # Import here to avoid circular dependency
-        from custom_components.haeo.schema.util import matches_unit_spec  # noqa: PLC0415
+        from custom_components.haeo.core.schema.util import matches_unit_spec  # noqa: PLC0415
 
         if self.unit_of_measurement is None:
             return False

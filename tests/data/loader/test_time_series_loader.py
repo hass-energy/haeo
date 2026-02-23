@@ -19,9 +19,9 @@ from unittest.mock import patch
 
 import pytest
 
+from custom_components.haeo.core.schema import as_entity_value
 from custom_components.haeo.data.loader.extractors import ExtractedData
 from custom_components.haeo.data.loader.time_series_loader import TimeSeriesLoader
-from custom_components.haeo.schema import as_entity_value
 from tests.conftest import FakeEntityState, FakeStateMachine
 
 

@@ -12,9 +12,9 @@ from custom_components.haeo.const import CONF_ELEMENT_TYPE
 from custom_components.haeo.core.model import Network
 from custom_components.haeo.core.model.elements import ModelElementConfig
 from custom_components.haeo.core.model.reactive import TrackedParam
+from custom_components.haeo.core.schema.elements import ElementType
 from custom_components.haeo.elements import ELEMENT_TYPES, ElementConfigData
 from custom_components.haeo.repairs import create_disconnected_network_issue, dismiss_disconnected_network_issue
-from custom_components.haeo.schema.elements import ElementType
 from custom_components.haeo.validation import format_component_summary, validate_network_topology
 
 _LOGGER = logging.getLogger(__name__)

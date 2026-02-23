@@ -20,9 +20,9 @@ from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE, connection
 from custom_components.haeo.core.model.elements.node import NODE_POWER_BALANCE
 from custom_components.haeo.core.model.output_data import OutputData
-from custom_components.haeo.schema import as_connection_target
-from custom_components.haeo.schema.elements import ElementType
-from custom_components.haeo.schema.elements.inverter import InverterConfigData
+from custom_components.haeo.core.schema import as_connection_target
+from custom_components.haeo.core.schema.elements import ElementType
+from custom_components.haeo.core.schema.elements.inverter import InverterConfigData
 
 from tests.util.normalize import normalize_for_compare
 

@@ -12,9 +12,9 @@ from homeassistant.components.switch import SwitchEntityDescription
 from homeassistant.helpers.entity import EntityDescription
 
 from custom_components.haeo.core.model.const import OutputType
+from custom_components.haeo.core.schema.field_hints import FieldHint, SectionHints
 from custom_components.haeo.core.units import UnitOfMeasurement
 from custom_components.haeo.elements.input_fields import InputFieldDefaults, InputFieldInfo
-from custom_components.haeo.schema.field_hints import FieldHint, SectionHints
 
 
 @dataclass(frozen=True, slots=True)

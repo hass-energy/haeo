@@ -2,7 +2,7 @@
 
 from typing import Final, TypedDict
 
-from custom_components.haeo.schema import ConstantValue, EntityValue
+from custom_components.haeo.core.schema import ConstantValue, EntityValue
 
 SECTION_CURTAILMENT: Final = "curtailment"
 

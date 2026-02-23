@@ -7,6 +7,7 @@ from homeassistant.core import HomeAssistant
 import voluptuous as vol
 
 from custom_components.haeo.core.model.const import OutputType
+from custom_components.haeo.core.schema import ConstantValue, EntityValue
 from custom_components.haeo.core.schema.sections import (
     CONF_CURTAILMENT,
     CONF_EFFICIENCY_SOURCE_TARGET,
@@ -21,7 +22,6 @@ from custom_components.haeo.core.schema.sections import (
 )
 from custom_components.haeo.elements.field_schema import FieldSchemaInfo
 from custom_components.haeo.elements.input_fields import InputFieldInfo
-from custom_components.haeo.schema import ConstantValue, EntityValue
 from custom_components.haeo.sections import (
     build_curtailment_fields,
     build_efficiency_fields,

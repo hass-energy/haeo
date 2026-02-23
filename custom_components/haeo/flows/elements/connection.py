@@ -6,6 +6,19 @@ from homeassistant.config_entries import ConfigSubentryFlow, SubentryFlowResult
 import voluptuous as vol
 
 from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME
+from custom_components.haeo.core.schema import get_connection_target_name, normalize_connection_target
+from custom_components.haeo.core.schema.elements.connection import (
+    CONF_EFFICIENCY_SOURCE_TARGET,
+    CONF_EFFICIENCY_TARGET_SOURCE,
+    CONF_MAX_POWER_SOURCE_TARGET,
+    CONF_MAX_POWER_TARGET_SOURCE,
+    CONF_PRICE_SOURCE_TARGET,
+    CONF_PRICE_TARGET_SOURCE,
+    CONF_SOURCE,
+    CONF_TARGET,
+    ELEMENT_TYPE,
+    SECTION_ENDPOINTS,
+)
 from custom_components.haeo.core.schema.sections import SECTION_COMMON
 from custom_components.haeo.data.loader.extractors import extract_entity_metadata
 from custom_components.haeo.elements import get_input_field_schema_info, get_input_fields
@@ -22,19 +35,6 @@ from custom_components.haeo.flows.field_schema import (
     convert_sectioned_choose_data_to_config,
     preprocess_sectioned_choose_input,
     validate_sectioned_choose_fields,
-)
-from custom_components.haeo.schema import get_connection_target_name, normalize_connection_target
-from custom_components.haeo.schema.elements.connection import (
-    CONF_EFFICIENCY_SOURCE_TARGET,
-    CONF_EFFICIENCY_TARGET_SOURCE,
-    CONF_MAX_POWER_SOURCE_TARGET,
-    CONF_MAX_POWER_TARGET_SOURCE,
-    CONF_PRICE_SOURCE_TARGET,
-    CONF_PRICE_TARGET_SOURCE,
-    CONF_SOURCE,
-    CONF_TARGET,
-    ELEMENT_TYPE,
-    SECTION_ENDPOINTS,
 )
 from custom_components.haeo.sections import (
     build_common_fields,

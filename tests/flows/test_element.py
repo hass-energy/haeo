@@ -11,9 +11,9 @@ from custom_components.haeo.const import (
     DOMAIN,
     INTEGRATION_TYPE_HUB,
 )
+from custom_components.haeo.core.schema.elements import battery, connection, grid
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON
 from custom_components.haeo.flows.hub import HubConfigFlow
-from custom_components.haeo.schema.elements import battery, connection, grid
 
 
 @pytest.fixture

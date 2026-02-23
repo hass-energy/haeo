@@ -31,9 +31,7 @@ from homeassistant.helpers.selector import (
 import voluptuous as vol
 
 from custom_components.haeo.const import DOMAIN
-from custom_components.haeo.elements.field_schema import FieldSchemaInfo
-from custom_components.haeo.elements.input_fields import InputFieldGroups, InputFieldInfo
-from custom_components.haeo.schema import (
+from custom_components.haeo.core.schema import (
     VALUE_TYPE_CONSTANT,
     VALUE_TYPE_ENTITY,
     VALUE_TYPE_NONE,
@@ -46,6 +44,8 @@ from custom_components.haeo.schema import (
     is_none_value,
     is_schema_value,
 )
+from custom_components.haeo.elements.field_schema import FieldSchemaInfo
+from custom_components.haeo.elements.input_fields import InputFieldGroups, InputFieldInfo
 
 # Choose selector choice keys (used for config flow data and translations)
 CHOICE_ENTITY = VALUE_TYPE_ENTITY

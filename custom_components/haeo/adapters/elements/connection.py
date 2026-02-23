@@ -27,15 +27,9 @@ from custom_components.haeo.core.model.elements.segments import (
     POWER_LIMIT_TIME_SLICE,
 )
 from custom_components.haeo.core.model.output_data import OutputData
-from custom_components.haeo.core.schema.sections import (
-    SECTION_COMMON,
-    SECTION_EFFICIENCY,
-    SECTION_POWER_LIMITS,
-    SECTION_PRICING,
-)
-from custom_components.haeo.schema import extract_connection_target
-from custom_components.haeo.schema.elements import ElementType
-from custom_components.haeo.schema.elements.connection import (
+from custom_components.haeo.core.schema import extract_connection_target
+from custom_components.haeo.core.schema.elements import ElementType
+from custom_components.haeo.core.schema.elements.connection import (
     CONF_EFFICIENCY_SOURCE_TARGET,
     CONF_EFFICIENCY_TARGET_SOURCE,
     CONF_MAX_POWER_SOURCE_TARGET,
@@ -45,6 +39,12 @@ from custom_components.haeo.schema.elements.connection import (
     ELEMENT_TYPE,
     SECTION_ENDPOINTS,
     ConnectionConfigData,
+)
+from custom_components.haeo.core.schema.sections import (
+    SECTION_COMMON,
+    SECTION_EFFICIENCY,
+    SECTION_POWER_LIMITS,
+    SECTION_PRICING,
 )
 
 # Adapter-synthesized output name (computed from model outputs)

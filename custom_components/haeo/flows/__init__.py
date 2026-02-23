@@ -6,7 +6,7 @@ import logging
 from typing import TYPE_CHECKING, Any, Final
 
 if TYPE_CHECKING:
-    from custom_components.haeo.schema.elements import ElementType
+    from custom_components.haeo.core.schema.elements import ElementType
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.helpers.selector import (
@@ -347,6 +347,7 @@ def get_element_flow_classes() -> dict[ElementType, type]:
     This function performs lazy imports to avoid circular dependencies
     (flows import adapters, not the other way around).
     """
+    from custom_components.haeo.core.schema.elements import ElementType  # noqa: PLC0415
     from custom_components.haeo.flows.elements.battery import BatterySubentryFlowHandler  # noqa: PLC0415
     from custom_components.haeo.flows.elements.battery_section import BatterySectionSubentryFlowHandler  # noqa: PLC0415
     from custom_components.haeo.flows.elements.connection import ConnectionSubentryFlowHandler  # noqa: PLC0415
@@ -355,7 +356,6 @@ def get_element_flow_classes() -> dict[ElementType, type]:
     from custom_components.haeo.flows.elements.load import LoadSubentryFlowHandler  # noqa: PLC0415
     from custom_components.haeo.flows.elements.node import NodeSubentryFlowHandler  # noqa: PLC0415
     from custom_components.haeo.flows.elements.solar import SolarSubentryFlowHandler  # noqa: PLC0415
-    from custom_components.haeo.schema.elements import ElementType  # noqa: PLC0415
 
     return {
         ElementType.BATTERY: BatterySubentryFlowHandler,
