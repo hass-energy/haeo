@@ -6,7 +6,8 @@ from homeassistant.helpers.translation import async_get_translations
 import pytest
 import voluptuous as vol
 
-from custom_components.haeo.const import (
+from custom_components.haeo.const import DOMAIN
+from custom_components.haeo.core.const import (
     CONF_DEBOUNCE_SECONDS,
     CONF_HORIZON_PRESET,
     CONF_NAME,
@@ -18,7 +19,6 @@ from custom_components.haeo.const import (
     CONF_TIER_3_DURATION,
     CONF_TIER_4_COUNT,
     CONF_TIER_4_DURATION,
-    DOMAIN,
 )
 
 # Import the private function for testing

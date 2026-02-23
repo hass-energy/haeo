@@ -21,10 +21,10 @@ from custom_components.haeo import (
     async_unload_entry,
     async_update_listener,
 )
-from custom_components.haeo.const import (
+from custom_components.haeo.const import CONF_INTEGRATION_TYPE, DOMAIN, INTEGRATION_TYPE_HUB
+from custom_components.haeo.core.const import (
     CONF_ADVANCED_MODE,
     CONF_ELEMENT_TYPE,
-    CONF_INTEGRATION_TYPE,
     CONF_NAME,
     CONF_TIER_1_COUNT,
     CONF_TIER_1_DURATION,
@@ -42,8 +42,6 @@ from custom_components.haeo.const import (
     DEFAULT_TIER_3_DURATION,
     DEFAULT_TIER_4_COUNT,
     DEFAULT_TIER_4_DURATION,
-    DOMAIN,
-    INTEGRATION_TYPE_HUB,
 )
 from custom_components.haeo.core.schema import as_connection_target, as_constant_value, as_entity_value
 from custom_components.haeo.core.schema.elements import ElementType

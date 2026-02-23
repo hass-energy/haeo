@@ -17,7 +17,8 @@ from homeassistant.helpers.selector import SelectOptionDict, SelectSelector, Sel
 from homeassistant.helpers.translation import async_get_translations
 import voluptuous as vol
 
-from custom_components.haeo.const import CONF_ADVANCED_MODE, CONF_ELEMENT_TYPE, CONF_NAME, DOMAIN
+from custom_components.haeo.const import DOMAIN
+from custom_components.haeo.core.const import CONF_ADVANCED_MODE, CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.core.data.loader.extractors import EntityMetadata
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.schema.util import UnitSpec

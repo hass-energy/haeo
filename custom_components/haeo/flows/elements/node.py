@@ -6,7 +6,7 @@ from homeassistant.config_entries import ConfigSubentryFlow, SubentryFlowResult
 from homeassistant.helpers.selector import BooleanSelector, BooleanSelectorConfig
 import voluptuous as vol
 
-from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME
+from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.core.schema.elements.node import CONF_IS_SINK, CONF_IS_SOURCE, ELEMENT_TYPE, SECTION_ROLE
 from custom_components.haeo.core.schema.sections import SECTION_COMMON
 from custom_components.haeo.flows.element_flow import ElementFlowMixin

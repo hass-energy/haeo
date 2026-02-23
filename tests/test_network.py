@@ -5,7 +5,9 @@ from homeassistant.helpers import issue_registry as ir
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.haeo.const import (
+from custom_components.haeo.const import DOMAIN
+from custom_components.haeo.coordinator import evaluate_network_connectivity
+from custom_components.haeo.core.const import (
     CONF_ELEMENT_TYPE,
     CONF_NAME,
     CONF_TIER_1_COUNT,
@@ -16,9 +18,7 @@ from custom_components.haeo.const import (
     CONF_TIER_3_DURATION,
     CONF_TIER_4_COUNT,
     CONF_TIER_4_DURATION,
-    DOMAIN,
 )
-from custom_components.haeo.coordinator import evaluate_network_connectivity
 from custom_components.haeo.core.schema import as_connection_target
 from custom_components.haeo.core.schema.elements import ElementConfigData, ElementType
 from custom_components.haeo.core.schema.elements.connection import (

@@ -1,6 +1,6 @@
 """Test data and validation for battery_section flow configuration."""
 
-from custom_components.haeo.const import CONF_NAME
+from custom_components.haeo.core.const import CONF_NAME
 from custom_components.haeo.core.schema import as_constant_value, as_entity_value
 from custom_components.haeo.core.schema.elements.battery_section import (
     CONF_CAPACITY,

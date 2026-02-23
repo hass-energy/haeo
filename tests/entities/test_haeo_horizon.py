@@ -13,7 +13,8 @@ from homeassistant.util import dt as dt_util
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.haeo.const import CONF_NAME, DOMAIN
+from custom_components.haeo.const import DOMAIN
+from custom_components.haeo.core.const import CONF_NAME
 from custom_components.haeo.entities.haeo_horizon import HaeoHorizonEntity
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON, HUB_SECTION_TIERS
 from custom_components.haeo.horizon import HorizonManager

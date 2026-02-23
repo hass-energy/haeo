@@ -1,6 +1,6 @@
 """Test data and validation for node flow configuration."""
 
-from custom_components.haeo.const import CONF_NAME
+from custom_components.haeo.core.const import CONF_NAME
 from custom_components.haeo.core.schema.elements.node import CONF_IS_SINK, CONF_IS_SOURCE, SECTION_COMMON, SECTION_ROLE
 
 # Test data for node flow

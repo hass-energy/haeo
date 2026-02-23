@@ -5,7 +5,7 @@ from typing import Any
 from homeassistant.helpers.selector import TextSelector, TextSelectorConfig  # type: ignore[reportUnknownVariableType]
 import voluptuous as vol
 
-from custom_components.haeo.const import CONF_NAME
+from custom_components.haeo.core.const import CONF_NAME
 from custom_components.haeo.core.schema import ConnectionTarget, get_connection_target_name
 from custom_components.haeo.core.schema.sections.common import CONF_CONNECTION
 from custom_components.haeo.flows.element_flow import build_participant_selector

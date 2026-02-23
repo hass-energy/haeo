@@ -19,12 +19,12 @@ from homeassistant.helpers.selector import (
 )
 import voluptuous as vol
 
-from custom_components.haeo.const import (
+from custom_components.haeo.const import CONF_RECORD_FORECASTS
+from custom_components.haeo.core.const import (
     CONF_ADVANCED_MODE,
     CONF_DEBOUNCE_SECONDS,
     CONF_HORIZON_PRESET,
     CONF_NAME,
-    CONF_RECORD_FORECASTS,
     CONF_TIER_1_COUNT,
     CONF_TIER_1_DURATION,
     CONF_TIER_2_COUNT,

@@ -12,7 +12,8 @@ import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.haeo import migrations
-from custom_components.haeo.const import (
+from custom_components.haeo.const import DOMAIN, ELEMENT_TYPE_NETWORK
+from custom_components.haeo.core.const import (
     CONF_ADVANCED_MODE,
     CONF_DEBOUNCE_SECONDS,
     CONF_ELEMENT_TYPE,
@@ -20,8 +21,6 @@ from custom_components.haeo.const import (
     CONF_NAME,
     CONF_TIER_1_COUNT,
     CONF_TIER_1_DURATION,
-    DOMAIN,
-    ELEMENT_TYPE_NETWORK,
 )
 from custom_components.haeo.core.migrations.v1_3 import migrate_hub_config
 from custom_components.haeo.core.schema import as_connection_target, as_constant_value, as_entity_value

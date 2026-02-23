@@ -17,8 +17,9 @@ from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.translation import async_get_translations
 from homeassistant.helpers.typing import ConfigType
 
-from custom_components.haeo.const import CONF_ADVANCED_MODE, CONF_ELEMENT_TYPE, CONF_NAME, DOMAIN, ELEMENT_TYPE_NETWORK
+from custom_components.haeo.const import DOMAIN, ELEMENT_TYPE_NETWORK
 from custom_components.haeo.coordinator import HaeoDataUpdateCoordinator
+from custom_components.haeo.core.const import CONF_ADVANCED_MODE, CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.elements import ELEMENT_DEVICE_NAMES_BY_TYPE
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED
 from custom_components.haeo.horizon import HorizonManager

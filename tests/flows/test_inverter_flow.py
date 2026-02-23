@@ -11,7 +11,8 @@ from homeassistant.helpers import entity_registry as er
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME, DOMAIN
+from custom_components.haeo.const import DOMAIN
+from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.core.schema import as_connection_target, as_constant_value, as_entity_value
 from custom_components.haeo.core.schema.elements import node
 from custom_components.haeo.core.schema.elements.inverter import (

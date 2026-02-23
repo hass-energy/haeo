@@ -21,22 +21,7 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 from custom_components.haeo import HaeoRuntimeData
 from custom_components.haeo import elements as elements_module
 from custom_components.haeo.const import (
-    CONF_DEBOUNCE_SECONDS,
-    CONF_ELEMENT_TYPE,
     CONF_INTEGRATION_TYPE,
-    CONF_NAME,
-    CONF_TIER_1_COUNT,
-    CONF_TIER_1_DURATION,
-    CONF_TIER_2_COUNT,
-    CONF_TIER_2_DURATION,
-    CONF_TIER_3_COUNT,
-    CONF_TIER_3_DURATION,
-    CONF_TIER_4_COUNT,
-    CONF_TIER_4_DURATION,
-    DEFAULT_DEBOUNCE_SECONDS,
-    DEFAULT_TIER_2_DURATION,
-    DEFAULT_TIER_3_DURATION,
-    DEFAULT_TIER_4_DURATION,
     DOMAIN,
     ELEMENT_TYPE_NETWORK,
     INTEGRATION_TYPE_HUB,
@@ -61,6 +46,23 @@ from custom_components.haeo.core.adapters.elements.connection import (
 )
 from custom_components.haeo.core.adapters.elements.solar import SOLAR_POWER
 from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES
+from custom_components.haeo.core.const import (
+    CONF_DEBOUNCE_SECONDS,
+    CONF_ELEMENT_TYPE,
+    CONF_NAME,
+    CONF_TIER_1_COUNT,
+    CONF_TIER_1_DURATION,
+    CONF_TIER_2_COUNT,
+    CONF_TIER_2_DURATION,
+    CONF_TIER_3_COUNT,
+    CONF_TIER_3_DURATION,
+    CONF_TIER_4_COUNT,
+    CONF_TIER_4_DURATION,
+    DEFAULT_DEBOUNCE_SECONDS,
+    DEFAULT_TIER_2_DURATION,
+    DEFAULT_TIER_3_DURATION,
+    DEFAULT_TIER_4_DURATION,
+)
 from custom_components.haeo.core.model import Network, OutputData, OutputType
 from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_NODE
 from custom_components.haeo.core.schema import (

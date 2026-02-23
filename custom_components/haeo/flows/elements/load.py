@@ -5,7 +5,8 @@ from typing import Any
 from homeassistant.config_entries import ConfigSubentryFlow, SubentryFlowResult
 import voluptuous as vol
 
-from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME, URL_HAFO
+from custom_components.haeo.const import URL_HAFO
+from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.core.schema import get_connection_target_name, normalize_connection_target
 from custom_components.haeo.core.schema.elements.load import ELEMENT_TYPE
 from custom_components.haeo.core.schema.sections import (

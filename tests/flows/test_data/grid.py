@@ -1,6 +1,6 @@
 """Test grid config flow data for choose selector approach."""
 
-from custom_components.haeo.const import CONF_NAME
+from custom_components.haeo.core.const import CONF_NAME
 from custom_components.haeo.core.schema import as_connection_target, as_constant_value
 from custom_components.haeo.core.schema.elements.grid import (
     CONF_MAX_POWER_SOURCE_TARGET,
