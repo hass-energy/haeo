@@ -44,7 +44,6 @@ from typing import (
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry
 
 from custom_components.haeo.const import (
-    CONF_ELEMENT_TYPE,
     ELEMENT_TYPE_NETWORK,
     NETWORK_OUTPUT_NAMES,
     NetworkDeviceName,
@@ -99,6 +98,7 @@ from custom_components.haeo.core.adapters.elements.solar import (
     SolarOutputName,
 )
 from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES, is_element_type
+from custom_components.haeo.core.const import CONF_ELEMENT_TYPE
 from custom_components.haeo.core.schema.elements import (
     ELEMENT_CONFIG_SCHEMAS,
     ElementConfigData,

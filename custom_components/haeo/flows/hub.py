@@ -8,18 +8,15 @@ from homeassistant.const import CONF_NAME
 from homeassistant.core import callback
 from homeassistant.helpers.translation import async_get_translations
 
-from custom_components.haeo.const import (
+from custom_components.haeo.const import CONF_INTEGRATION_TYPE, DOMAIN, ELEMENT_TYPE_NETWORK, INTEGRATION_TYPE_HUB
+from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES
+from custom_components.haeo.core.const import (
     CONF_ADVANCED_MODE,
     CONF_DEBOUNCE_SECONDS,
     CONF_ELEMENT_TYPE,
     CONF_HORIZON_PRESET,
-    CONF_INTEGRATION_TYPE,
     DEFAULT_DEBOUNCE_SECONDS,
-    DOMAIN,
-    ELEMENT_TYPE_NETWORK,
-    INTEGRATION_TYPE_HUB,
 )
-from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES
 from custom_components.haeo.core.schema.elements import ElementType
 from custom_components.haeo.core.schema.elements.node import CONF_IS_SINK, CONF_IS_SOURCE
 from custom_components.haeo.core.schema.elements.node import SECTION_COMMON as NODE_SECTION_COMMON

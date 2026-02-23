@@ -6,7 +6,34 @@ from collections.abc import Mapping
 from numbers import Real
 from typing import Any, cast
 
-from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
+from custom_components.haeo.core.const import (
+    CONF_ADVANCED_MODE,
+    CONF_DEBOUNCE_SECONDS,
+    CONF_ELEMENT_TYPE,
+    CONF_HORIZON_PRESET,
+    CONF_NAME,
+    CONF_TIER_1_COUNT,
+    CONF_TIER_1_DURATION,
+    CONF_TIER_2_COUNT,
+    CONF_TIER_2_DURATION,
+    CONF_TIER_3_COUNT,
+    CONF_TIER_3_DURATION,
+    CONF_TIER_4_COUNT,
+    CONF_TIER_4_DURATION,
+    DEFAULT_DEBOUNCE_SECONDS,
+    DEFAULT_TIER_1_COUNT,
+    DEFAULT_TIER_1_DURATION,
+    DEFAULT_TIER_2_COUNT,
+    DEFAULT_TIER_2_DURATION,
+    DEFAULT_TIER_3_COUNT,
+    DEFAULT_TIER_3_DURATION,
+    DEFAULT_TIER_4_COUNT,
+    DEFAULT_TIER_4_DURATION,
+    HORIZON_PRESET_5_DAYS,
+    HUB_SECTION_ADVANCED,
+    HUB_SECTION_COMMON,
+    HUB_SECTION_TIERS,
+)
 from custom_components.haeo.core.schema import (
     SchemaValue,
     as_constant_value,
@@ -39,6 +66,55 @@ from custom_components.haeo.core.schema.sections import (
     SECTION_POWER_LIMITS,
     SECTION_PRICING,
 )
+
+
+def migrate_hub_config(
+    data: dict[str, Any], options: dict[str, Any], title: str
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Migrate hub config data/options into sectioned format."""
+    if "basic" in data and HUB_SECTION_COMMON not in data:
+        data[HUB_SECTION_COMMON] = data.pop("basic")
+
+    if HUB_SECTION_COMMON in data and HUB_SECTION_ADVANCED in data and HUB_SECTION_TIERS in data:
+        return data, options
+
+    horizon_preset = options.get(CONF_HORIZON_PRESET) or data.get(CONF_HORIZON_PRESET) or HORIZON_PRESET_5_DAYS
+    tiers = {
+        CONF_TIER_1_COUNT: options.get(CONF_TIER_1_COUNT, DEFAULT_TIER_1_COUNT),
+        CONF_TIER_1_DURATION: options.get(CONF_TIER_1_DURATION, DEFAULT_TIER_1_DURATION),
+        CONF_TIER_2_COUNT: options.get(CONF_TIER_2_COUNT, DEFAULT_TIER_2_COUNT),
+        CONF_TIER_2_DURATION: options.get(CONF_TIER_2_DURATION, DEFAULT_TIER_2_DURATION),
+        CONF_TIER_3_COUNT: options.get(CONF_TIER_3_COUNT, DEFAULT_TIER_3_COUNT),
+        CONF_TIER_3_DURATION: options.get(CONF_TIER_3_DURATION, DEFAULT_TIER_3_DURATION),
+        CONF_TIER_4_COUNT: options.get(CONF_TIER_4_COUNT, DEFAULT_TIER_4_COUNT),
+        CONF_TIER_4_DURATION: options.get(CONF_TIER_4_DURATION, DEFAULT_TIER_4_DURATION),
+    }
+    advanced = {
+        CONF_DEBOUNCE_SECONDS: options.get(CONF_DEBOUNCE_SECONDS, DEFAULT_DEBOUNCE_SECONDS),
+        CONF_ADVANCED_MODE: options.get(CONF_ADVANCED_MODE, False),
+    }
+
+    data[HUB_SECTION_COMMON] = {CONF_NAME: data.get(CONF_NAME, title), CONF_HORIZON_PRESET: horizon_preset}
+    data[HUB_SECTION_TIERS] = tiers
+    data[HUB_SECTION_ADVANCED] = advanced
+
+    for key in (
+        CONF_NAME,
+        CONF_HORIZON_PRESET,
+        CONF_ADVANCED_MODE,
+        CONF_DEBOUNCE_SECONDS,
+        CONF_TIER_1_COUNT,
+        CONF_TIER_1_DURATION,
+        CONF_TIER_2_COUNT,
+        CONF_TIER_2_DURATION,
+        CONF_TIER_3_COUNT,
+        CONF_TIER_3_DURATION,
+        CONF_TIER_4_COUNT,
+        CONF_TIER_4_DURATION,
+    ):
+        data.pop(key, None)
+
+    return data, {}
 
 
 def migrate_element_config(data: Mapping[str, Any]) -> dict[str, Any] | None:

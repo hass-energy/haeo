@@ -4,13 +4,8 @@ from homeassistant.core import HomeAssistant
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.haeo.const import (
-    CONF_ADVANCED_MODE,
-    CONF_INTEGRATION_TYPE,
-    CONF_NAME,
-    DOMAIN,
-    INTEGRATION_TYPE_HUB,
-)
+from custom_components.haeo.const import CONF_INTEGRATION_TYPE, DOMAIN, INTEGRATION_TYPE_HUB
+from custom_components.haeo.core.const import CONF_ADVANCED_MODE, CONF_NAME
 from custom_components.haeo.core.schema.elements import battery, connection, grid
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON
 from custom_components.haeo.flows.hub import HubConfigFlow

@@ -2,7 +2,7 @@
 
 from collections.abc import Mapping, Sequence
 
-from .const import CONF_ELEMENT_TYPE
+from .core.const import CONF_ELEMENT_TYPE
 from .core.model.elements import MODEL_ELEMENT_TYPE_CONNECTION
 from .elements import ELEMENT_TYPES, ElementConfigData
 from .util.graph import ConnectivityResult as NetworkConnectivityResult

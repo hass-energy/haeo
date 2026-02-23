@@ -3,8 +3,8 @@
 import numpy as np
 import pytest
 
-from custom_components.haeo.const import CONF_ELEMENT_TYPE
 from custom_components.haeo.coordinator.network import update_element
+from custom_components.haeo.core.const import CONF_ELEMENT_TYPE
 from custom_components.haeo.core.model import Network
 from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE
 from custom_components.haeo.core.model.elements.connection import Connection

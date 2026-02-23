@@ -13,8 +13,17 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.haeo import HaeoRuntimeData
 from custom_components.haeo.const import (
-    CONF_ELEMENT_TYPE,
     CONF_INTEGRATION_TYPE,
+    DOMAIN,
+    ELEMENT_TYPE_NETWORK,
+    INTEGRATION_TYPE_HUB,
+    OUTPUT_NAME_HORIZON,
+    OUTPUT_NAME_OPTIMIZATION_DURATION,
+)
+from custom_components.haeo.coordinator import CoordinatorData, HaeoDataUpdateCoordinator, OptimizationContext
+from custom_components.haeo.core.adapters.elements.grid import GRID_POWER_IMPORT
+from custom_components.haeo.core.const import (
+    CONF_ELEMENT_TYPE,
     CONF_NAME,
     CONF_TIER_1_COUNT,
     CONF_TIER_1_DURATION,
@@ -32,14 +41,7 @@ from custom_components.haeo.const import (
     DEFAULT_TIER_3_DURATION,
     DEFAULT_TIER_4_COUNT,
     DEFAULT_TIER_4_DURATION,
-    DOMAIN,
-    ELEMENT_TYPE_NETWORK,
-    INTEGRATION_TYPE_HUB,
-    OUTPUT_NAME_HORIZON,
-    OUTPUT_NAME_OPTIMIZATION_DURATION,
 )
-from custom_components.haeo.coordinator import CoordinatorData, HaeoDataUpdateCoordinator, OptimizationContext
-from custom_components.haeo.core.adapters.elements.grid import GRID_POWER_IMPORT
 from custom_components.haeo.core.schema import as_connection_target, as_constant_value, as_entity_value
 from custom_components.haeo.core.schema.elements import ElementConfigSchema, ElementType
 from custom_components.haeo.core.schema.elements.battery import (

@@ -18,7 +18,8 @@ from homeassistant.helpers.entity_platform import EntityPlatform
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.haeo.const import CONF_NAME, CONF_RECORD_FORECASTS, DOMAIN
+from custom_components.haeo.const import CONF_RECORD_FORECASTS, DOMAIN
+from custom_components.haeo.core.const import CONF_NAME
 from custom_components.haeo.core.model import OutputType
 from custom_components.haeo.core.schema import as_connection_target, as_constant_value, as_entity_value, as_none_value
 from custom_components.haeo.core.schema.sections import CONF_CONNECTION, SECTION_COMMON, SECTION_EFFICIENCY

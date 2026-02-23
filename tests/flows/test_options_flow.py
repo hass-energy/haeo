@@ -7,10 +7,10 @@ from homeassistant.data_entry_flow import FlowResultType
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 import voluptuous as vol
 
-from custom_components.haeo.const import (
+from custom_components.haeo.const import CONF_INTEGRATION_TYPE, DOMAIN, INTEGRATION_TYPE_HUB
+from custom_components.haeo.core.const import (
     CONF_DEBOUNCE_SECONDS,
     CONF_HORIZON_PRESET,
-    CONF_INTEGRATION_TYPE,
     CONF_NAME,
     CONF_TIER_1_COUNT,
     CONF_TIER_1_DURATION,
@@ -29,8 +29,6 @@ from custom_components.haeo.const import (
     DEFAULT_TIER_3_DURATION,
     DEFAULT_TIER_4_COUNT,
     DEFAULT_TIER_4_DURATION,
-    DOMAIN,
-    INTEGRATION_TYPE_HUB,
 )
 from custom_components.haeo.flows import (
     HORIZON_PRESET_3_DAYS,

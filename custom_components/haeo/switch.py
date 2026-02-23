@@ -7,7 +7,8 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from custom_components.haeo import HaeoConfigEntry
-from custom_components.haeo.const import CONF_ELEMENT_TYPE, ELEMENT_TYPE_NETWORK
+from custom_components.haeo.const import ELEMENT_TYPE_NETWORK
+from custom_components.haeo.core.const import CONF_ELEMENT_TYPE
 from custom_components.haeo.core.schema import is_none_value
 from custom_components.haeo.elements import (
     get_input_fields,

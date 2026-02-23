@@ -9,7 +9,8 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 from homeassistant.config_entries import ConfigSubentry
 from homeassistant.core import HomeAssistant
 
-from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_INTEGRATION_TYPE, CONF_NAME, DOMAIN, INTEGRATION_TYPE_HUB
+from custom_components.haeo.const import CONF_INTEGRATION_TYPE, DOMAIN, INTEGRATION_TYPE_HUB
+from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.core.schema.elements import ELEMENT_CONFIG_SCHEMAS
 from custom_components.haeo.elements import (
     collect_element_subentries,

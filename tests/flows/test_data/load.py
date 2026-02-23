@@ -1,6 +1,6 @@
 """Test data and validation for load flow configuration."""
 
-from custom_components.haeo.const import CONF_NAME
+from custom_components.haeo.core.const import CONF_NAME
 from custom_components.haeo.core.schema import as_connection_target, as_constant_value, as_entity_value, as_none_value
 from custom_components.haeo.core.schema.elements.load import (
     CONF_CURTAILMENT,

@@ -13,8 +13,8 @@ import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.haeo import HaeoRuntimeData, async_setup
-from custom_components.haeo.const import (
-    CONF_INTEGRATION_TYPE,
+from custom_components.haeo.const import CONF_INTEGRATION_TYPE, DOMAIN, INTEGRATION_TYPE_HUB
+from custom_components.haeo.core.const import (
     CONF_NAME,
     CONF_TIER_1_COUNT,
     CONF_TIER_1_DURATION,
@@ -32,8 +32,6 @@ from custom_components.haeo.const import (
     DEFAULT_TIER_3_DURATION,
     DEFAULT_TIER_4_COUNT,
     DEFAULT_TIER_4_DURATION,
-    DOMAIN,
-    INTEGRATION_TYPE_HUB,
 )
 from custom_components.haeo.diagnostics import DiagnosticsInfo, DiagnosticsResult, EnvironmentInfo
 from custom_components.haeo.services import _format_manifest
