@@ -17,7 +17,7 @@ The integration provides real-time optimization based on energy prices, forecast
 The integration follows a layered architecture:
 
 - **Model layer** (`core/model/`): LP formulation with elements, constraints, and cost functions
-- **Elements layer** (`elements/`): Bridges HA configuration with model layer via adapters
+- **Elements layer** (`elements/`, `core/schema/`, `core/adapters/`): Element registry, schemas, and adapters
 - **Coordinator** (`coordinator.py`): Orchestrates data loading, optimization, and result extraction
 - **Sensors** (`sensors/`): Expose optimization results to Home Assistant
 - **Config flows** (`flows/`): Subentry-based configuration for hub and elements
@@ -28,21 +28,21 @@ See [architecture guide](../docs/developer-guide/architecture.md) for detailed c
 
 ```
 custom_components/haeo/     # Home Assistant integration
-├── core/                   # Core infrastructure
-│   └── model/              # LP model (constraints, variables, optimization)
-├── elements/               # Element adapters (one subfolder per element type)
-├── schema/                 # Shared utilities (UnitSpec, matches_unit_spec)
-├── flows/                  # Hub and options config flows
+├── core/                   # Core infrastructure (no HA dependencies)
+│   ├── model/              # LP model (constraints, variables, optimization)
+│   ├── data/               # Data loading utilities
+│   ├── schema/             # Element schemas, field types, sections, migrations
+│   └── adapters/           # Element adapters (model_elements, outputs)
+├── elements/               # Element registry and availability
+├── flows/                  # Hub, options, and element config flows
+│   └── elements/           # Per-element flow implementations
 ├── sensors/                # Sensor implementations
-├── data/                   # Data loading utilities
 └── translations/           # i18n strings (en.json)
-tests/                      # Test suite
-├── flows/                  # Config flow tests with shared test_data/
-├── elements/               # Element-specific tests (adapter, flow, model)
-├── model/                  # Model layer tests
-└── scenarios/              # End-to-end scenario tests
+tests/scenarios/            # End-to-end scenario tests
 docs/                       # Documentation
 ```
+
+Tests are colocated with source code in `tests/` subdirectories within each package.
 
 ## Development tools
 

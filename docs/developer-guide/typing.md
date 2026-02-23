@@ -79,10 +79,10 @@ HAEO uses a dual TypedDict pattern for element configuration:
 - **Schema mode**: Contains entity IDs as strings (what the user enters in config flow)
 - **Data mode**: Contains loaded values (what the optimizer uses at runtime)
 
-Each element defines these types in its own `schema.py` file:
+Each element defines these types in its own schema module:
 
 ```python
-# elements/battery/schema.py
+# core/schema/elements/battery.py
 
 
 class BatteryConfigSchema(TypedDict):
@@ -101,7 +101,7 @@ class BatteryConfigData(TypedDict):
     capacity: list[float]  # Loaded float values in kWh
 ```
 
-The `load()` function in each element's `adapter.py` converts from Schema mode to Data mode, performing validation and data loading at the boundary.
+The `load()` function in each element's adapter module converts from Schema mode to Data mode, performing validation and data loading at the boundary.
 
 ## Model element configs
 
@@ -130,16 +130,16 @@ def process_element(config: ElementConfigData) -> None:
 
 ## Explicit element schemas
 
-Each element type has its own subfolder under `elements/` with dedicated files:
+Each element type has dedicated modules split across three packages:
 
-- **`schema.py`**: Defines `ConfigSchema` and `ConfigData` TypedDicts with explicit types
-- **`flow.py`**: Implements config flow with voluptuous schemas and selectors
-- **`adapter.py`**: Contains `load()` function to convert Schema to Data mode
+- **`core/schema/elements/{type}.py`**: Defines `ConfigSchema` and `ConfigData` TypedDicts with explicit types
+- **`flows/elements/{type}.py`**: Implements config flow with voluptuous schemas and selectors
+- **`core/adapters/elements/{type}.py`**: Contains `load()` function to convert Schema to Data mode
 
-This explicit approach keeps each element self-contained and makes the types clear at a glance:
+This explicit approach keeps the types clear at a glance:
 
 ```python
-# elements/solar/schema.py
+# core/schema/elements/solar.py
 class SolarConfigSchema(TypedDict):
     element_type: Literal["solar"]
     name: str
@@ -147,7 +147,7 @@ class SolarConfigSchema(TypedDict):
     forecast: str  # Entity ID for forecast sensor
 
 
-# elements/solar/flow.py
+# flows/elements/solar.py
 def async_get_schema(hass: HomeAssistant) -> vol.Schema:
     return vol.Schema(
         {

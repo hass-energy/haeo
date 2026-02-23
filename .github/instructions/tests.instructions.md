@@ -43,7 +43,7 @@ def test_element_outputs(case: ElementTestCase) -> None:
 
 ## Model test data structure
 
-Model element tests use a data-driven pattern in `tests/model/test_data/`:
+Model element tests use a data-driven pattern in `core/model/tests/test_data/`:
 
 - Each element module defines `VALID_CASES` and `INVALID_CASES` lists
 - Cases are aggregated in `__init__.py` for parametrized tests
