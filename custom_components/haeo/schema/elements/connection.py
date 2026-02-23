@@ -66,38 +66,53 @@ class ConnectionConfigSchema(TypedDict):
     element_type: Literal[ElementType.CONNECTION]
     common: CommonConfig
     endpoints: EndpointsConfig
-    power_limits: Annotated[PowerLimitsConfig, SectionHints({
-        CONF_MAX_POWER_SOURCE_TARGET: FieldHint(
-            output_type=OutputType.POWER_LIMIT,
-            time_series=True,
+    power_limits: Annotated[
+        PowerLimitsConfig,
+        SectionHints(
+            {
+                CONF_MAX_POWER_SOURCE_TARGET: FieldHint(
+                    output_type=OutputType.POWER_LIMIT,
+                    time_series=True,
+                ),
+                CONF_MAX_POWER_TARGET_SOURCE: FieldHint(
+                    output_type=OutputType.POWER_LIMIT,
+                    time_series=True,
+                ),
+            }
         ),
-        CONF_MAX_POWER_TARGET_SOURCE: FieldHint(
-            output_type=OutputType.POWER_LIMIT,
-            time_series=True,
+    ]
+    pricing: Annotated[
+        PricingConfig,
+        SectionHints(
+            {
+                CONF_PRICE_SOURCE_TARGET: FieldHint(
+                    output_type=OutputType.PRICE,
+                    direction="-",
+                    time_series=True,
+                ),
+                CONF_PRICE_TARGET_SOURCE: FieldHint(
+                    output_type=OutputType.PRICE,
+                    direction="-",
+                    time_series=True,
+                ),
+            }
         ),
-    })]
-    pricing: Annotated[PricingConfig, SectionHints({
-        CONF_PRICE_SOURCE_TARGET: FieldHint(
-            output_type=OutputType.PRICE,
-            direction="-",
-            time_series=True,
+    ]
+    efficiency: Annotated[
+        EfficiencyConfig,
+        SectionHints(
+            {
+                CONF_EFFICIENCY_SOURCE_TARGET: FieldHint(
+                    output_type=OutputType.EFFICIENCY,
+                    time_series=True,
+                ),
+                CONF_EFFICIENCY_TARGET_SOURCE: FieldHint(
+                    output_type=OutputType.EFFICIENCY,
+                    time_series=True,
+                ),
+            }
         ),
-        CONF_PRICE_TARGET_SOURCE: FieldHint(
-            output_type=OutputType.PRICE,
-            direction="-",
-            time_series=True,
-        ),
-    })]
-    efficiency: Annotated[EfficiencyConfig, SectionHints({
-        CONF_EFFICIENCY_SOURCE_TARGET: FieldHint(
-            output_type=OutputType.EFFICIENCY,
-            time_series=True,
-        ),
-        CONF_EFFICIENCY_TARGET_SOURCE: FieldHint(
-            output_type=OutputType.EFFICIENCY,
-            time_series=True,
-        ),
-    })]
+    ]
 
 
 class ConnectionConfigData(TypedDict):

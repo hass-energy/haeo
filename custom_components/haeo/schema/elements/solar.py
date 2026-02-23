@@ -36,29 +36,44 @@ class SolarConfigSchema(TypedDict):
 
     element_type: Literal[ElementType.SOLAR]
     common: ConnectedCommonConfig
-    forecast: Annotated[ForecastConfig, SectionHints({
-        CONF_FORECAST: FieldHint(
-            output_type=OutputType.POWER,
-            direction="-",
-            time_series=True,
+    forecast: Annotated[
+        ForecastConfig,
+        SectionHints(
+            {
+                CONF_FORECAST: FieldHint(
+                    output_type=OutputType.POWER,
+                    direction="-",
+                    time_series=True,
+                ),
+            }
         ),
-    })]
-    pricing: Annotated[PricingConfig, SectionHints({
-        CONF_PRICE_SOURCE_TARGET: FieldHint(
-            output_type=OutputType.PRICE,
-            direction="+",
-            time_series=True,
-            default_value=0.0,
+    ]
+    pricing: Annotated[
+        PricingConfig,
+        SectionHints(
+            {
+                CONF_PRICE_SOURCE_TARGET: FieldHint(
+                    output_type=OutputType.PRICE,
+                    direction="+",
+                    time_series=True,
+                    default_value=0.0,
+                ),
+            }
         ),
-    })]
-    curtailment: Annotated[CurtailmentConfig, SectionHints({
-        CONF_CURTAILMENT: FieldHint(
-            output_type=OutputType.STATUS,
-            default_mode="value",
-            default_value=True,
-            force_required=True,
+    ]
+    curtailment: Annotated[
+        CurtailmentConfig,
+        SectionHints(
+            {
+                CONF_CURTAILMENT: FieldHint(
+                    output_type=OutputType.STATUS,
+                    default_mode="value",
+                    default_value=True,
+                    force_required=True,
+                ),
+            }
         ),
-    })]
+    ]
 
 
 class SolarConfigData(TypedDict):

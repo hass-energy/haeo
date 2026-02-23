@@ -74,8 +74,6 @@ PARTITION_FIELD_NAMES: Final[frozenset[str]] = frozenset(
 )
 
 
-
-
 class StorageSocConfig(TypedDict):
     """Storage config with required SOC percentage."""
 
@@ -147,122 +145,161 @@ class BatteryConfigSchema(TypedDict):
 
     element_type: Literal[ElementType.BATTERY]
     common: ConnectedCommonConfig
-    storage: Annotated[StorageSocConfig, SectionHints({
-        CONF_CAPACITY: FieldHint(
-            output_type=OutputType.ENERGY,
-            time_series=True,
-            boundaries=True,
+    storage: Annotated[
+        StorageSocConfig,
+        SectionHints(
+            {
+                CONF_CAPACITY: FieldHint(
+                    output_type=OutputType.ENERGY,
+                    time_series=True,
+                    boundaries=True,
+                ),
+                CONF_INITIAL_CHARGE_PERCENTAGE: FieldHint(
+                    output_type=OutputType.STATE_OF_CHARGE,
+                    time_series=False,
+                    step=0.1,
+                ),
+            }
         ),
-        CONF_INITIAL_CHARGE_PERCENTAGE: FieldHint(
-            output_type=OutputType.STATE_OF_CHARGE,
-            time_series=False,
-            step=0.1,
+    ]
+    limits: Annotated[
+        LimitsConfig,
+        SectionHints(
+            {
+                CONF_MIN_CHARGE_PERCENTAGE: FieldHint(
+                    output_type=OutputType.STATE_OF_CHARGE,
+                    time_series=True,
+                    boundaries=True,
+                    default_value=0.0,
+                ),
+                CONF_MAX_CHARGE_PERCENTAGE: FieldHint(
+                    output_type=OutputType.STATE_OF_CHARGE,
+                    time_series=True,
+                    boundaries=True,
+                    default_value=100.0,
+                ),
+            }
         ),
-    })]
-    limits: Annotated[LimitsConfig, SectionHints({
-        CONF_MIN_CHARGE_PERCENTAGE: FieldHint(
-            output_type=OutputType.STATE_OF_CHARGE,
-            time_series=True,
-            boundaries=True,
-            default_value=0.0,
+    ]
+    power_limits: Annotated[
+        PowerLimitsConfig,
+        SectionHints(
+            {
+                CONF_MAX_POWER_TARGET_SOURCE: FieldHint(
+                    output_type=OutputType.POWER,
+                    direction="+",
+                    time_series=True,
+                    step=0.1,
+                    default_mode="entity",
+                ),
+                CONF_MAX_POWER_SOURCE_TARGET: FieldHint(
+                    output_type=OutputType.POWER,
+                    direction="-",
+                    time_series=True,
+                    step=0.1,
+                    default_mode="entity",
+                ),
+            }
         ),
-        CONF_MAX_CHARGE_PERCENTAGE: FieldHint(
-            output_type=OutputType.STATE_OF_CHARGE,
-            time_series=True,
-            boundaries=True,
-            default_value=100.0,
+    ]
+    pricing: Annotated[
+        BatteryPricingConfig,
+        SectionHints(
+            {
+                CONF_PRICE_SOURCE_TARGET: FieldHint(
+                    output_type=OutputType.PRICE,
+                    direction="-",
+                    time_series=True,
+                    default_value=0.0,
+                ),
+                CONF_PRICE_TARGET_SOURCE: FieldHint(
+                    output_type=OutputType.PRICE,
+                    direction="-",
+                    time_series=True,
+                    default_value=0.0,
+                ),
+                CONF_SALVAGE_VALUE: FieldHint(
+                    output_type=OutputType.PRICE,
+                    time_series=False,
+                    default_value=0.0,
+                ),
+            }
         ),
-    })]
-    power_limits: Annotated[PowerLimitsConfig, SectionHints({
-        CONF_MAX_POWER_TARGET_SOURCE: FieldHint(
-            output_type=OutputType.POWER,
-            direction="+",
-            time_series=True,
-            step=0.1,
-            default_mode="entity",
+    ]
+    efficiency: Annotated[
+        EfficiencyConfig,
+        SectionHints(
+            {
+                CONF_EFFICIENCY_SOURCE_TARGET: FieldHint(
+                    output_type=OutputType.EFFICIENCY,
+                    time_series=True,
+                    default_mode="value",
+                    default_value=95.0,
+                ),
+                CONF_EFFICIENCY_TARGET_SOURCE: FieldHint(
+                    output_type=OutputType.EFFICIENCY,
+                    time_series=True,
+                    default_mode="value",
+                    default_value=95.0,
+                ),
+            }
         ),
-        CONF_MAX_POWER_SOURCE_TARGET: FieldHint(
-            output_type=OutputType.POWER,
-            direction="-",
-            time_series=True,
-            step=0.1,
-            default_mode="entity",
-        ),
-    })]
-    pricing: Annotated[BatteryPricingConfig, SectionHints({
-        CONF_PRICE_SOURCE_TARGET: FieldHint(
-            output_type=OutputType.PRICE,
-            direction="-",
-            time_series=True,
-            default_value=0.0,
-        ),
-        CONF_PRICE_TARGET_SOURCE: FieldHint(
-            output_type=OutputType.PRICE,
-            direction="-",
-            time_series=True,
-            default_value=0.0,
-        ),
-        CONF_SALVAGE_VALUE: FieldHint(
-            output_type=OutputType.PRICE,
-            time_series=False,
-            default_value=0.0,
-        ),
-    })]
-    efficiency: Annotated[EfficiencyConfig, SectionHints({
-        CONF_EFFICIENCY_SOURCE_TARGET: FieldHint(
-            output_type=OutputType.EFFICIENCY,
-            time_series=True,
-            default_mode="value",
-            default_value=95.0,
-        ),
-        CONF_EFFICIENCY_TARGET_SOURCE: FieldHint(
-            output_type=OutputType.EFFICIENCY,
-            time_series=True,
-            default_mode="value",
-            default_value=95.0,
-        ),
-    })]
+    ]
     partitioning: PartitioningConfig
-    undercharge: NotRequired[Annotated[PartitionConfig, SectionHints({
-        CONF_PARTITION_PERCENTAGE: FieldHint(
-            output_type=OutputType.STATE_OF_CHARGE,
-            time_series=True,
-            boundaries=True,
-            default_mode="value",
-            default_value=0,
-            force_required=True,
-            device_type="undercharge_partition",
-        ),
-        CONF_PARTITION_COST: FieldHint(
-            output_type=OutputType.PRICE,
-            direction="-",
-            time_series=True,
-            default_mode="value",
-            default_value=0,
-            force_required=True,
-            device_type="undercharge_partition",
-        ),
-    })]]
-    overcharge: NotRequired[Annotated[PartitionConfig, SectionHints({
-        CONF_PARTITION_PERCENTAGE: FieldHint(
-            output_type=OutputType.STATE_OF_CHARGE,
-            time_series=True,
-            boundaries=True,
-            default_mode="value",
-            default_value=100,
-            force_required=True,
-            device_type="overcharge_partition",
-        ),
-        CONF_PARTITION_COST: FieldHint(
-            output_type=OutputType.PRICE,
-            direction="-",
-            time_series=True,
-            default_mode="value",
-            default_value=0,
-            force_required=True,
-            device_type="overcharge_partition",
-        ),
-    })]]
+    undercharge: NotRequired[
+        Annotated[
+            PartitionConfig,
+            SectionHints(
+                {
+                    CONF_PARTITION_PERCENTAGE: FieldHint(
+                        output_type=OutputType.STATE_OF_CHARGE,
+                        time_series=True,
+                        boundaries=True,
+                        default_mode="value",
+                        default_value=0,
+                        force_required=True,
+                        device_type="undercharge_partition",
+                    ),
+                    CONF_PARTITION_COST: FieldHint(
+                        output_type=OutputType.PRICE,
+                        direction="-",
+                        time_series=True,
+                        default_mode="value",
+                        default_value=0,
+                        force_required=True,
+                        device_type="undercharge_partition",
+                    ),
+                }
+            ),
+        ]
+    ]
+    overcharge: NotRequired[
+        Annotated[
+            PartitionConfig,
+            SectionHints(
+                {
+                    CONF_PARTITION_PERCENTAGE: FieldHint(
+                        output_type=OutputType.STATE_OF_CHARGE,
+                        time_series=True,
+                        boundaries=True,
+                        default_mode="value",
+                        default_value=100,
+                        force_required=True,
+                        device_type="overcharge_partition",
+                    ),
+                    CONF_PARTITION_COST: FieldHint(
+                        output_type=OutputType.PRICE,
+                        direction="-",
+                        time_series=True,
+                        default_mode="value",
+                        default_value=0,
+                        force_required=True,
+                        device_type="overcharge_partition",
+                    ),
+                }
+            ),
+        ]
+    ]
 
 
 class BatteryConfigData(TypedDict):

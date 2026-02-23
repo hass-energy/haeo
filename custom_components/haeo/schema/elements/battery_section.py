@@ -45,20 +45,25 @@ class BatterySectionConfigSchema(TypedDict):
 
     element_type: Literal[ElementType.BATTERY_SECTION]
     common: CommonConfig
-    storage: Annotated[StorageChargeConfig, SectionHints({
-        CONF_CAPACITY: FieldHint(
-            output_type=OutputType.ENERGY,
-            time_series=True,
-            boundaries=True,
-            min_value=0.1,
+    storage: Annotated[
+        StorageChargeConfig,
+        SectionHints(
+            {
+                CONF_CAPACITY: FieldHint(
+                    output_type=OutputType.ENERGY,
+                    time_series=True,
+                    boundaries=True,
+                    min_value=0.1,
+                ),
+                CONF_INITIAL_CHARGE: FieldHint(
+                    output_type=OutputType.ENERGY,
+                    time_series=True,
+                    boundaries=True,
+                    min_value=0.0,
+                ),
+            }
         ),
-        CONF_INITIAL_CHARGE: FieldHint(
-            output_type=OutputType.ENERGY,
-            time_series=True,
-            boundaries=True,
-            min_value=0.0,
-        ),
-    })]
+    ]
 
 
 class BatterySectionConfigData(TypedDict):

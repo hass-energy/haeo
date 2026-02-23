@@ -52,34 +52,44 @@ class GridConfigSchema(TypedDict):
 
     element_type: Literal[ElementType.GRID]
     common: ConnectedCommonConfig
-    pricing: Annotated[GridPricingConfig, SectionHints({
-        CONF_PRICE_SOURCE_TARGET: FieldHint(
-            output_type=OutputType.PRICE,
-            direction="-",
-            time_series=True,
+    pricing: Annotated[
+        GridPricingConfig,
+        SectionHints(
+            {
+                CONF_PRICE_SOURCE_TARGET: FieldHint(
+                    output_type=OutputType.PRICE,
+                    direction="-",
+                    time_series=True,
+                ),
+                CONF_PRICE_TARGET_SOURCE: FieldHint(
+                    output_type=OutputType.PRICE,
+                    direction="+",
+                    time_series=True,
+                ),
+            }
         ),
-        CONF_PRICE_TARGET_SOURCE: FieldHint(
-            output_type=OutputType.PRICE,
-            direction="+",
-            time_series=True,
+    ]
+    power_limits: Annotated[
+        PowerLimitsConfig,
+        SectionHints(
+            {
+                CONF_MAX_POWER_SOURCE_TARGET: FieldHint(
+                    output_type=OutputType.POWER_LIMIT,
+                    direction="+",
+                    time_series=True,
+                    default_mode="value",
+                    default_value=100.0,
+                ),
+                CONF_MAX_POWER_TARGET_SOURCE: FieldHint(
+                    output_type=OutputType.POWER_LIMIT,
+                    direction="-",
+                    time_series=True,
+                    default_mode="value",
+                    default_value=100.0,
+                ),
+            }
         ),
-    })]
-    power_limits: Annotated[PowerLimitsConfig, SectionHints({
-        CONF_MAX_POWER_SOURCE_TARGET: FieldHint(
-            output_type=OutputType.POWER_LIMIT,
-            direction="+",
-            time_series=True,
-            default_mode="value",
-            default_value=100.0,
-        ),
-        CONF_MAX_POWER_TARGET_SOURCE: FieldHint(
-            output_type=OutputType.POWER_LIMIT,
-            direction="-",
-            time_series=True,
-            default_mode="value",
-            default_value=100.0,
-        ),
-    })]
+    ]
 
 
 class GridConfigData(TypedDict):

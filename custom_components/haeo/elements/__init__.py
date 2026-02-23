@@ -523,7 +523,7 @@ def get_input_fields(element_type: str | ElementType | Mapping[str, Any] | None)
             element_type = element_type[CONF_ELEMENT_TYPE]
         else:
             return {}
-            
+
     if element_type is None:
         return {}
 

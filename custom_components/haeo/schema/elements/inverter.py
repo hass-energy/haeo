@@ -31,28 +31,38 @@ class InverterConfigSchema(TypedDict):
 
     element_type: Literal[ElementType.INVERTER]
     common: ConnectedCommonConfig
-    power_limits: Annotated[PowerLimitsConfig, SectionHints({
-        CONF_MAX_POWER_SOURCE_TARGET: FieldHint(
-            output_type=OutputType.POWER_LIMIT,
-            time_series=True,
-            force_required=True,
+    power_limits: Annotated[
+        PowerLimitsConfig,
+        SectionHints(
+            {
+                CONF_MAX_POWER_SOURCE_TARGET: FieldHint(
+                    output_type=OutputType.POWER_LIMIT,
+                    time_series=True,
+                    force_required=True,
+                ),
+                CONF_MAX_POWER_TARGET_SOURCE: FieldHint(
+                    output_type=OutputType.POWER_LIMIT,
+                    time_series=True,
+                    force_required=True,
+                ),
+            }
         ),
-        CONF_MAX_POWER_TARGET_SOURCE: FieldHint(
-            output_type=OutputType.POWER_LIMIT,
-            time_series=True,
-            force_required=True,
+    ]
+    efficiency: Annotated[
+        EfficiencyConfig,
+        SectionHints(
+            {
+                CONF_EFFICIENCY_SOURCE_TARGET: FieldHint(
+                    output_type=OutputType.EFFICIENCY,
+                    default_value=100.0,
+                ),
+                CONF_EFFICIENCY_TARGET_SOURCE: FieldHint(
+                    output_type=OutputType.EFFICIENCY,
+                    default_value=100.0,
+                ),
+            }
         ),
-    })]
-    efficiency: Annotated[EfficiencyConfig, SectionHints({
-        CONF_EFFICIENCY_SOURCE_TARGET: FieldHint(
-            output_type=OutputType.EFFICIENCY,
-            default_value=100.0,
-        ),
-        CONF_EFFICIENCY_TARGET_SOURCE: FieldHint(
-            output_type=OutputType.EFFICIENCY,
-            default_value=100.0,
-        ),
-    })]
+    ]
 
 
 class InverterConfigData(TypedDict):

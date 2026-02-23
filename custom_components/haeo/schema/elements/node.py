@@ -36,18 +36,23 @@ class NodeConfigSchema(TypedDict):
 
     element_type: Literal[ElementType.NODE]
     common: CommonConfig
-    role: Annotated[RoleConfig, SectionHints({
-        CONF_IS_SOURCE: FieldHint(
-            output_type=OutputType.STATUS,
-            default_mode="value",
-            default_value=False,
+    role: Annotated[
+        RoleConfig,
+        SectionHints(
+            {
+                CONF_IS_SOURCE: FieldHint(
+                    output_type=OutputType.STATUS,
+                    default_mode="value",
+                    default_value=False,
+                ),
+                CONF_IS_SINK: FieldHint(
+                    output_type=OutputType.STATUS,
+                    default_mode="value",
+                    default_value=False,
+                ),
+            }
         ),
-        CONF_IS_SINK: FieldHint(
-            output_type=OutputType.STATUS,
-            default_mode="value",
-            default_value=False,
-        ),
-    })]
+    ]
 
 
 class NodeConfigData(TypedDict):
