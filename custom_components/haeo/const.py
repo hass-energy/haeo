@@ -2,8 +2,28 @@
 
 from typing import Final, Literal
 
+from custom_components.haeo.core.const import CONF_ADVANCED_MODE as CONF_ADVANCED_MODE  # noqa: PLC0414
+from custom_components.haeo.core.const import CONF_DEBOUNCE_SECONDS as CONF_DEBOUNCE_SECONDS  # noqa: PLC0414
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE as CONF_ELEMENT_TYPE  # noqa: PLC0414
+from custom_components.haeo.core.const import CONF_HORIZON_PRESET as CONF_HORIZON_PRESET  # noqa: PLC0414
 from custom_components.haeo.core.const import CONF_NAME as CONF_NAME  # noqa: PLC0414
+from custom_components.haeo.core.const import CONF_TIER_1_COUNT as CONF_TIER_1_COUNT  # noqa: PLC0414
+from custom_components.haeo.core.const import CONF_TIER_1_DURATION as CONF_TIER_1_DURATION  # noqa: PLC0414
+from custom_components.haeo.core.const import CONF_TIER_2_COUNT as CONF_TIER_2_COUNT  # noqa: PLC0414
+from custom_components.haeo.core.const import CONF_TIER_2_DURATION as CONF_TIER_2_DURATION  # noqa: PLC0414
+from custom_components.haeo.core.const import CONF_TIER_3_COUNT as CONF_TIER_3_COUNT  # noqa: PLC0414
+from custom_components.haeo.core.const import CONF_TIER_3_DURATION as CONF_TIER_3_DURATION  # noqa: PLC0414
+from custom_components.haeo.core.const import CONF_TIER_4_COUNT as CONF_TIER_4_COUNT  # noqa: PLC0414
+from custom_components.haeo.core.const import CONF_TIER_4_DURATION as CONF_TIER_4_DURATION  # noqa: PLC0414
+from custom_components.haeo.core.const import DEFAULT_DEBOUNCE_SECONDS as DEFAULT_DEBOUNCE_SECONDS  # noqa: PLC0414
+from custom_components.haeo.core.const import DEFAULT_TIER_1_COUNT as DEFAULT_TIER_1_COUNT  # noqa: PLC0414
+from custom_components.haeo.core.const import DEFAULT_TIER_1_DURATION as DEFAULT_TIER_1_DURATION  # noqa: PLC0414
+from custom_components.haeo.core.const import DEFAULT_TIER_2_COUNT as DEFAULT_TIER_2_COUNT  # noqa: PLC0414
+from custom_components.haeo.core.const import DEFAULT_TIER_2_DURATION as DEFAULT_TIER_2_DURATION  # noqa: PLC0414
+from custom_components.haeo.core.const import DEFAULT_TIER_3_COUNT as DEFAULT_TIER_3_COUNT  # noqa: PLC0414
+from custom_components.haeo.core.const import DEFAULT_TIER_3_DURATION as DEFAULT_TIER_3_DURATION  # noqa: PLC0414
+from custom_components.haeo.core.const import DEFAULT_TIER_4_COUNT as DEFAULT_TIER_4_COUNT  # noqa: PLC0414
+from custom_components.haeo.core.const import DEFAULT_TIER_4_DURATION as DEFAULT_TIER_4_DURATION  # noqa: PLC0414
 
 # Integration domain
 DOMAIN: Final = "haeo"
@@ -16,41 +36,9 @@ INTEGRATION_TYPE_HUB: Final = "hub"
 
 # Configuration keys
 CONF_INTEGRATION_TYPE: Final = "integration_type"
-CONF_DEBOUNCE_SECONDS: Final = "debounce_seconds"
-CONF_HORIZON_PRESET: Final = "horizon_preset"
-CONF_ADVANCED_MODE: Final = "advanced_mode"
 CONF_RECORD_FORECASTS: Final = "record_forecasts"
 
 ELEMENT_TYPE_NETWORK: Final = "network"
-
-# Interval tier configuration (4 tiers with count and duration each)
-# Each tier specifies: count = number of intervals, duration = minutes per interval
-CONF_TIER_1_COUNT: Final = "tier_1_count"
-CONF_TIER_1_DURATION: Final = "tier_1_duration"
-CONF_TIER_2_COUNT: Final = "tier_2_count"
-CONF_TIER_2_DURATION: Final = "tier_2_duration"
-CONF_TIER_3_COUNT: Final = "tier_3_count"
-CONF_TIER_3_DURATION: Final = "tier_3_duration"
-CONF_TIER_4_COUNT: Final = "tier_4_count"
-CONF_TIER_4_DURATION: Final = "tier_4_duration"
-
-# Default tier values: (count, duration_minutes)
-# Tier 1: 5 intervals of 1 minute = 5 minutes total
-# Tier 2: 11 intervals of 5 minutes = 55 minutes total (60 min cumulative)
-# Tier 3: 46 intervals of 30 minutes = 23 hours total (24 hr cumulative)
-# Tier 4: 48 intervals of 60 minutes = 48 hours total (72 hr cumulative)
-# Total: 110 periods covering ~72 hours
-DEFAULT_TIER_1_COUNT: Final = 5
-DEFAULT_TIER_1_DURATION: Final = 1
-DEFAULT_TIER_2_COUNT: Final = 11
-DEFAULT_TIER_2_DURATION: Final = 5
-DEFAULT_TIER_3_COUNT: Final = 46
-DEFAULT_TIER_3_DURATION: Final = 30
-DEFAULT_TIER_4_COUNT: Final = 48
-DEFAULT_TIER_4_DURATION: Final = 60
-
-# Other defaults
-DEFAULT_DEBOUNCE_SECONDS: Final = 2  # 2 seconds debounce window
 
 # Optimization statuses
 OPTIMIZATION_STATUS_SUCCESS: Final = "success"

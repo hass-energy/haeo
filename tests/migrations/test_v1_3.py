@@ -23,6 +23,7 @@ from custom_components.haeo.const import (
     DOMAIN,
     ELEMENT_TYPE_NETWORK,
 )
+from custom_components.haeo.core.migrations.v1_3 import migrate_hub_config
 from custom_components.haeo.core.schema import as_connection_target, as_constant_value, as_entity_value
 from custom_components.haeo.core.schema.elements import (
     battery,
@@ -70,24 +71,20 @@ def _create_subentry(data: dict[str, Any], *, subentry_type: str | None = None) 
 
 def test_migrate_hub_data_moves_basic_and_builds_sections() -> None:
     """Hub migration should move basic data and build sectioned data."""
-    entry = MockConfigEntry(
-        domain=DOMAIN,
-        title="Test Hub",
-        data={
-            "basic": {CONF_NAME: "Custom Hub"},
-            CONF_HORIZON_PRESET: "custom",
-            CONF_TIER_1_COUNT: 4,
-            CONF_TIER_1_DURATION: 10,
-        },
-        options={
-            CONF_DEBOUNCE_SECONDS: 12,
-            CONF_ADVANCED_MODE: True,
-            CONF_TIER_1_COUNT: 4,
-            CONF_TIER_1_DURATION: 10,
-        },
-    )
+    data: dict[str, Any] = {
+        "basic": {CONF_NAME: "Custom Hub"},
+        CONF_HORIZON_PRESET: "custom",
+        CONF_TIER_1_COUNT: 4,
+        CONF_TIER_1_DURATION: 10,
+    }
+    options: dict[str, Any] = {
+        CONF_DEBOUNCE_SECONDS: 12,
+        CONF_ADVANCED_MODE: True,
+        CONF_TIER_1_COUNT: 4,
+        CONF_TIER_1_DURATION: 10,
+    }
 
-    migrated_data, migrated_options = v1_3._migrate_hub_data(entry)
+    migrated_data, migrated_options = migrate_hub_config(data, options, "Test Hub")
 
     assert HUB_SECTION_COMMON in migrated_data
     assert HUB_SECTION_TIERS in migrated_data
@@ -105,17 +102,17 @@ def test_migrate_hub_data_moves_basic_and_builds_sections() -> None:
 
 def test_migrate_hub_data_skips_when_sections_present() -> None:
     """Hub migration should skip when sections already exist."""
-    data = {
+    data: dict[str, Any] = {
         HUB_SECTION_COMMON: {CONF_NAME: "Hub", CONF_HORIZON_PRESET: HORIZON_PRESET_5_DAYS},
         HUB_SECTION_TIERS: {CONF_TIER_1_COUNT: 2, CONF_TIER_1_DURATION: 5},
         HUB_SECTION_ADVANCED: {CONF_DEBOUNCE_SECONDS: 30, CONF_ADVANCED_MODE: False},
     }
-    entry = MockConfigEntry(domain=DOMAIN, title="Hub", data=data, options={"keep": "value"})
+    options: dict[str, Any] = {"keep": "value"}
 
-    migrated_data, migrated_options = v1_3._migrate_hub_data(entry)
+    migrated_data, migrated_options = migrate_hub_config(data, options, "Hub")
 
     assert migrated_data == data
-    assert migrated_options == entry.options
+    assert migrated_options == options
 
 
 @pytest.mark.parametrize("element_type", [None, ELEMENT_TYPE_NETWORK])
