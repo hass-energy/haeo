@@ -324,6 +324,27 @@ def test_migrate_subentry_load_node_solar() -> None:
     assert solar_migrated[solar.SECTION_CURTAILMENT][solar.CONF_CURTAILMENT] == as_constant_value(True)
 
 
+@pytest.mark.parametrize(
+    ("element_type", "extra_data"),
+    [
+        (grid.ELEMENT_TYPE, {"import_price": 0.3}),
+        (inverter.ELEMENT_TYPE, {"max_power_dc_to_ac": 7.0}),
+        (load.ELEMENT_TYPE, {CONF_FORECAST: ["sensor.load"]}),
+        (solar.ELEMENT_TYPE, {CONF_FORECAST: ["sensor.solar"]}),
+    ],
+)
+def test_migrate_subentry_without_connection(element_type: str, extra_data: dict[str, Any]) -> None:
+    """Elements without a connection should migrate without normalize_connection_target."""
+    data: dict[str, Any] = {CONF_ELEMENT_TYPE: element_type, CONF_NAME: "Test", **extra_data}
+    subentry = _create_subentry(data, subentry_type=element_type)
+
+    migrated = v1_3.migrate_subentry_data(subentry)
+
+    assert migrated is not None
+    assert migrated[CONF_NAME] == "Test"
+    assert CONF_CONNECTION not in migrated
+
+
 def test_migrate_subentry_load_maps_legacy_shedding() -> None:
     """Load migration should map legacy shedding -> curtailment."""
     load_subentry = _create_subentry(
