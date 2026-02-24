@@ -29,27 +29,16 @@ from tabulate import tabulate
 from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES, collect_model_elements, is_element_type
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.core.data.forecast_times import generate_forecast_timestamps, tiers_to_periods_seconds
-from custom_components.haeo.core.data.loader.extractors import extract
+from custom_components.haeo.core.data.loader.config_loader import load_element_config
 from custom_components.haeo.core.data.loader.extractors.utils.parse_datetime import parse_datetime_to_timestamp
-from custom_components.haeo.core.data.util.forecast_combiner import combine_sensor_payloads
-from custom_components.haeo.core.data.util.forecast_fuser import fuse_to_boundaries, fuse_to_intervals
 from custom_components.haeo.core.model import Network
-from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.model.output_data import OutputData
-from custom_components.haeo.core.schema.constant_value import is_constant_value
-from custom_components.haeo.core.schema.elements import ELEMENT_CONFIG_SCHEMAS, ElementConfigData
-from custom_components.haeo.core.schema.entity_value import is_entity_value
-from custom_components.haeo.core.schema.field_hints import extract_field_hints
+from custom_components.haeo.core.schema.elements import ElementConfigData
 from custom_components.haeo.core.schema.migrations.v1_3 import migrate_element_config
-from custom_components.haeo.core.schema.none_value import is_none_value
 from custom_components.haeo.core.schema.sections import SECTION_PRICING
 from custom_components.haeo.core.schema.sections.common import CONF_CONNECTION
 
-type ForecastSeries = Sequence[tuple[float, float]]
-type SensorPayload = float | ForecastSeries
-
 MIN_INTERVAL_POINTS = 2
-_PERCENT_OUTPUT_TYPES = frozenset({OutputType.STATE_OF_CHARGE, OutputType.EFFICIENCY})
 
 
 @dataclass
@@ -142,7 +131,7 @@ class DiagnosticsData:
 
 
 class DiagnosticsStateProvider:
-    """Provides entity states from diagnostics inputs using HAEO extractors."""
+    """StateMachine implementation backed by diagnostics input data."""
 
     def __init__(self, inputs: list[dict[str, Any]]) -> None:
         """Initialize with inputs list from diagnostics."""
@@ -161,34 +150,6 @@ class DiagnosticsStateProvider:
     def get(self, entity_id: str) -> DiagEntityState | None:
         """Get entity state by ID."""
         return self._states.get(entity_id)
-
-    def load_sensor(self, entity_id: str) -> SensorPayload | None:
-        """Load sensor data for an entity ID using HAEO extractors.
-
-        Returns either a float (for simple values) or a list of (timestamp, value)
-        tuples (for forecast data), or None if no data is available.
-        """
-        state = self.get(entity_id)
-        if state is None:
-            return None
-
-        try:
-            return extract(state).data
-        except ValueError:
-            return None
-
-
-def load_sensors(
-    state_provider: DiagnosticsStateProvider,
-    entity_ids: Sequence[str],
-) -> dict[str, SensorPayload]:
-    """Load sensor data for multiple entity IDs."""
-    payloads: dict[str, SensorPayload] = {}
-    for entity_id in entity_ids:
-        payload = state_provider.load_sensor(entity_id)
-        if payload is not None:
-            payloads[entity_id] = payload
-    return payloads
 
 
 def _needs_subentry_migration(element_config: dict[str, Any]) -> bool:
@@ -213,105 +174,6 @@ def normalize_participant_config_for_diag(element_config: dict[str, Any]) -> dic
 
     migrated = migrate_element_config(element_config)
     return migrated if migrated is not None else element_config
-
-
-def load_element_data(
-    element_name: str,
-    element_config: dict[str, Any],
-    state_provider: DiagnosticsStateProvider,
-    forecast_times: tuple[float, ...],
-) -> ElementConfigData:
-    """Load data for a single element from the state provider.
-
-    Uses HAEO extractors to correctly parse all forecast formats (Solcast, HAEO, etc.).
-    """
-    element_type = element_config.get(CONF_ELEMENT_TYPE)
-    if not is_element_type(element_type):
-        msg = f"Unknown element type: {element_type}"
-        raise ValueError(msg)
-
-    field_hints = extract_field_hints(ELEMENT_CONFIG_SCHEMAS[element_type])
-
-    # Start with a shallow copy and clone nested section dictionaries so we can
-    # safely mutate loaded values without mutating the original input config.
-    loaded_config: dict[str, Any] = {
-        key: dict(value) if isinstance(value, dict) else value for key, value in element_config.items()
-    }
-    loaded_config[CONF_NAME] = element_name
-
-    for section_name, section_fields in field_hints.items():
-        section_config = element_config.get(section_name)
-        if not isinstance(section_config, dict):
-            continue
-
-        for field_name, hint in section_fields.items():
-            value = section_config.get(field_name)
-            if value is None:
-                continue
-
-            if is_none_value(value):
-                loaded_section = loaded_config.get(section_name)
-                if isinstance(loaded_section, dict):
-                    loaded_section.pop(field_name, None)
-                continue
-            if is_constant_value(value) or is_entity_value(value):
-                value = value["value"]
-
-            if isinstance(value, bool):
-                loaded_config.setdefault(section_name, {})[field_name] = value
-                continue
-
-            is_percent = hint.output_type in _PERCENT_OUTPUT_TYPES
-
-            if isinstance(value, (int, float)):
-                converted_value = float(value) / 100.0 if is_percent else float(value)
-
-                if hint.time_series:
-                    if hint.boundaries:
-                        loaded_config.setdefault(section_name, {})[field_name] = np.array(
-                            [converted_value] * len(forecast_times)
-                        )
-                    else:
-                        loaded_config.setdefault(section_name, {})[field_name] = np.array(
-                            [converted_value] * (len(forecast_times) - 1)
-                        )
-                else:
-                    loaded_config.setdefault(section_name, {})[field_name] = converted_value
-                continue
-
-            entity_ids: list[str] = []
-            if isinstance(value, str):
-                entity_ids = [value]
-            elif isinstance(value, list):
-                entity_ids = [v for v in value if isinstance(v, str)]
-
-            if not entity_ids:
-                continue
-
-            payloads = load_sensors(state_provider, entity_ids)
-
-            if not payloads:
-                continue
-
-            present_value, forecast_series = combine_sensor_payloads(payloads)
-
-            if not hint.time_series:
-                scalar = present_value if present_value is not None else 0.0
-                if is_percent:
-                    scalar /= 100.0
-                loaded_config.setdefault(section_name, {})[field_name] = scalar
-            else:
-                if hint.boundaries:
-                    values = fuse_to_boundaries(present_value, forecast_series, list(forecast_times))
-                else:
-                    values = fuse_to_intervals(present_value, forecast_series, list(forecast_times))
-
-                if is_percent:
-                    values = [v / 100.0 for v in values]
-
-                loaded_config.setdefault(section_name, {})[field_name] = np.array(values)
-
-    return loaded_config  # type: ignore[return-value]
 
 
 def format_currency(value: float) -> str:
@@ -1114,21 +976,18 @@ def run_diagnostics(
         print("Error: Failed to build forecast timeline")
         sys.exit(1)
 
-    # Normalize participant config shape before loading values:
-    # - migration handles legacy/mixed config layout
-    # - load_element_data handles schema value unwrapping and sensor resolution
+    # Normalize participant config shape before loading values
     for element_name, element_config in list(participants_config.items()):
         participants_config[element_name] = normalize_participant_config_for_diag(element_config)
 
-    # Create state provider from inputs (uses HAEO extractors)
     state_provider = DiagnosticsStateProvider(diag.inputs)
 
-    # Load element data
     loaded_participants: dict[str, ElementConfigData] = {}
     for element_name, element_config in participants_config.items():
         try:
-            loaded_config = load_element_data(element_name, element_config, state_provider, forecast_times)
-            loaded_participants[element_name] = loaded_config
+            loaded_participants[element_name] = load_element_config(
+                element_name, element_config, state_provider, forecast_times
+            )
             print(f"  Loaded: {element_name} ({element_config.get(CONF_ELEMENT_TYPE)})")
         except Exception as e:
             print(f"  Warning: Failed to load {element_name}: {e}")

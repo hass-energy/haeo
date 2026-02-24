@@ -7,6 +7,8 @@ from typing import Any, cast
 import numpy as np
 import pytest
 
+from custom_components.haeo.core.data.loader import config_loader as cl
+from custom_components.haeo.core.data.loader.config_loader import load_element_config
 from custom_components.haeo.core.schema import as_constant_value
 from custom_components.haeo.core.schema.elements import battery
 from tools import diag
@@ -29,7 +31,7 @@ def _base_battery_config() -> dict[str, Any]:
     }
 
 
-def test_load_element_data_unwraps_constant_wrappers() -> None:
+def test_load_element_config_unwraps_constant_wrappers() -> None:
     """Constant wrappers convert to loaded scalar/series values."""
     config = _base_battery_config()
     config["storage"] = {
@@ -39,7 +41,7 @@ def test_load_element_data_unwraps_constant_wrappers() -> None:
 
     loaded = cast(
         "battery.BatteryConfigData",
-        diag.load_element_data(
+        load_element_config(
             "Battery",
             config,
             diag.DiagnosticsStateProvider([]),
@@ -52,7 +54,7 @@ def test_load_element_data_unwraps_constant_wrappers() -> None:
     assert loaded.get("connection") == {"type": "connection_target", "value": "Inverter"}
 
 
-def test_load_element_data_uses_present_value_for_scalar_entities(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_load_element_config_uses_present_value_for_scalar_entities(monkeypatch: pytest.MonkeyPatch) -> None:
     """Entity-backed scalar fields use present value, not fused horizons."""
     config = _base_battery_config()
     config["storage"] = {
@@ -61,29 +63,29 @@ def test_load_element_data_uses_present_value_for_scalar_entities(monkeypatch: p
     }
 
     monkeypatch.setattr(
-        diag,
+        cl,
         "load_sensors",
         lambda _provider, entity_ids: {entity_ids[0]: 75.0},
     )
     monkeypatch.setattr(
-        diag,
+        cl,
         "combine_sensor_payloads",
         lambda _payloads: (75.0, ((0.0, 74.0),)),
     )
     monkeypatch.setattr(
-        diag,
+        cl,
         "fuse_to_boundaries",
         lambda *_args, **_kwargs: pytest.fail("fuse_to_boundaries should not run for scalar fields"),
     )
     monkeypatch.setattr(
-        diag,
+        cl,
         "fuse_to_intervals",
         lambda *_args, **_kwargs: pytest.fail("fuse_to_intervals should not run for scalar fields"),
     )
 
     loaded = cast(
         "battery.BatteryConfigData",
-        diag.load_element_data(
+        load_element_config(
             "Battery",
             config,
             diag.DiagnosticsStateProvider([]),
@@ -94,7 +96,7 @@ def test_load_element_data_uses_present_value_for_scalar_entities(monkeypatch: p
     assert loaded["storage"]["initial_charge_percentage"] == pytest.approx(0.75)
 
 
-def test_load_element_data_unwraps_entity_wrappers_for_time_series(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_load_element_config_unwraps_entity_wrappers_for_time_series(monkeypatch: pytest.MonkeyPatch) -> None:
     """Entity wrappers for time-series fields are loaded into numpy arrays."""
     config = _base_battery_config()
     config["storage"] = {
@@ -103,24 +105,24 @@ def test_load_element_data_unwraps_entity_wrappers_for_time_series(monkeypatch: 
     }
 
     monkeypatch.setattr(
-        diag,
+        cl,
         "load_sensors",
         lambda _provider, entity_ids: {entity_ids[0]: 13.5},
     )
     monkeypatch.setattr(
-        diag,
+        cl,
         "combine_sensor_payloads",
         lambda _payloads: (13.5, ((0.0, 13.5),)),
     )
     monkeypatch.setattr(
-        diag,
+        cl,
         "fuse_to_boundaries",
         lambda *_args, **_kwargs: [13.5, 13.4, 13.3],
     )
 
     loaded = cast(
         "battery.BatteryConfigData",
-        diag.load_element_data(
+        load_element_config(
             "Battery",
             config,
             diag.DiagnosticsStateProvider([]),
@@ -131,7 +133,7 @@ def test_load_element_data_unwraps_entity_wrappers_for_time_series(monkeypatch: 
     np.testing.assert_allclose(loaded["storage"]["capacity"], np.array([13.5, 13.4, 13.3]))
 
 
-def test_load_element_data_drops_none_wrappers() -> None:
+def test_load_element_config_drops_none_wrappers() -> None:
     """Disabled schema values are removed from loaded config."""
     config = _base_battery_config()
     config["storage"] = {
@@ -144,7 +146,7 @@ def test_load_element_data_drops_none_wrappers() -> None:
 
     loaded = cast(
         "battery.BatteryConfigData",
-        diag.load_element_data(
+        load_element_config(
             "Battery",
             config,
             diag.DiagnosticsStateProvider([]),
