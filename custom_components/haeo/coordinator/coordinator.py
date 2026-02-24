@@ -1,7 +1,6 @@
 """Data update coordinator for the Home Assistant Energy Optimizer integration."""
 
 from collections.abc import Callable, Mapping
-from copy import deepcopy
 from dataclasses import dataclass
 from datetime import datetime
 import logging
@@ -30,24 +29,16 @@ from custom_components.haeo.const import (
     OUTPUT_NAME_OPTIMIZATION_STATUS,
     NetworkOutputName,
 )
-from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES, is_element_type
+from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES
 from custom_components.haeo.core.const import CONF_DEBOUNCE_SECONDS, CONF_ELEMENT_TYPE, DEFAULT_DEBOUNCE_SECONDS
 from custom_components.haeo.core.data.forecast_times import tiers_to_periods_seconds
+from custom_components.haeo.core.data.loader.config_loader import load_element_config as _core_load_element_config
+from custom_components.haeo.core.data.loader.config_loader import load_element_configs
 from custom_components.haeo.core.model import ModelOutputName, Network, OutputData, OutputType
-from custom_components.haeo.core.schema import is_none_value
 from custom_components.haeo.core.schema.elements import ElementConfigData, ElementConfigSchema
-from custom_components.haeo.elements import (
-    ElementDeviceName,
-    ElementOutputName,
-    collect_element_subentries,
-    get_input_field_schema_info,
-    get_input_fields,
-    get_nested_config_value_by_path,
-    is_element_config_data,
-    iter_input_field_paths,
-    set_nested_config_value_by_path,
-)
+from custom_components.haeo.elements import ElementDeviceName, ElementOutputName, collect_element_subentries
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED
+from custom_components.haeo.ha_state_machine import HomeAssistantStateMachine
 from custom_components.haeo.repairs import dismiss_optimization_failure_issue
 
 from . import network as network_module
@@ -118,16 +109,6 @@ STATUS_OPTIONS: tuple[str, ...] = tuple(
         }
     )
 )
-
-
-def _strip_none_schema_values(data: dict[str, Any]) -> None:
-    """Remove disabled schema values from a nested config dict."""
-    for key, value in list(data.items()):
-        if is_none_value(value):
-            data.pop(key)
-            continue
-        if isinstance(value, dict):
-            _strip_none_schema_values(value)
 
 
 def _build_coordinator_output(
@@ -543,9 +524,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         return True
 
     def _load_element_config(self, element_name: str) -> ElementConfigData:
-        """Load configuration for a single element from its input entities.
-
-        Collects loaded values from input entities and merges them with config values.
+        """Load configuration for a single element via the core config loader.
 
         Args:
             element_name: Name of the element to load
@@ -554,7 +533,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             Loaded configuration
 
         Raises:
-            ValueError: If element not found, data unavailable, or required field missing
+            ValueError: If element not found or data unavailable
 
         """
         if element_name not in self._participant_configs:
@@ -566,96 +545,24 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             msg = f"Runtime data not available when loading element '{element_name}'"
             raise ValueError(msg)
 
-        element_config = self._participant_configs[element_name]
-        element_type = element_config[CONF_ELEMENT_TYPE]
-
-        if not is_element_type(element_type):
-            msg = f"Invalid element type '{element_type}' for element '{element_name}'"
-            raise ValueError(msg)
-
-        # Get input field definitions for this element type
-        input_field_infos = get_input_fields(element_config)
-
-        # Collect loaded values from input entities
-        loaded_values: dict[tuple[str, ...], Any] = {}
-        missing_entity_values: set[tuple[str, ...]] = set()
-        for field_path, field_info in iter_input_field_paths(input_field_infos):
-            field_name = field_info.field_name
-            key = (element_name, field_path)
-
-            if key not in runtime_data.input_entities:
-                continue
-
-            entity = runtime_data.input_entities[key]
-            values = entity.get_values()
-
-            if values is None:
-                missing_entity_values.add(field_path)
-                continue
-
-            if field_info.time_series:
-                loaded_values[field_path] = np.asarray(values, dtype=float)
-            else:
-                loaded_values[field_path] = values[0] if values else None
-
-        element_values: dict[str, Any] = deepcopy(dict(element_config))
-        for field_path, value in loaded_values.items():
-            set_nested_config_value_by_path(element_values, field_path, value)
-
-        _strip_none_schema_values(element_values)
-
-        field_schema = get_input_field_schema_info(element_type, input_field_infos)
-        optional_keys = {
-            field_name
-            for section_fields in field_schema.values()
-            for field_name, field_info in section_fields.items()
-            if field_info.is_optional
-        }
-        for field_path, field_info in iter_input_field_paths(input_field_infos):
-            field_name = field_info.field_name
-            is_required = field_name not in optional_keys
-            if not is_required:
-                continue
-            key = (element_name, field_path)
-            if key not in runtime_data.input_entities:
-                msg = f"Missing required field '{'.'.join(field_path)}' for element '{element_name}'"
-                raise ValueError(msg)
-            if field_path in missing_entity_values:
-                msg = f"Missing required field '{'.'.join(field_path)}' for element '{element_name}'"
-                raise ValueError(msg)
-            value = get_nested_config_value_by_path(element_values, field_path)
-            if value is None:
-                msg = f"Missing required field '{'.'.join(field_path)}' for element '{element_name}'"
-                raise ValueError(msg)
-
-        if not is_element_config_data(element_values):
-            msg = f"Invalid config data for element '{element_name}'"
-            raise ValueError(msg)
-
-        return element_values
+        forecast_times = runtime_data.horizon_manager.get_forecast_timestamps()
+        sm = HomeAssistantStateMachine(self.hass)
+        return _core_load_element_config(element_name, self._participant_configs[element_name], sm, forecast_times)
 
     def _load_from_input_entities(self) -> dict[str, ElementConfigData]:
-        """Load element configurations from input entities.
+        """Load element configurations via the core config loader.
 
-        Reads forecast values from input entities and constructs ElementConfigData
-        for each element, ready for the optimization model.
+        Resolves raw participant configs against the HA state machine
+        to produce fully loaded ElementConfigData for each element.
         """
         runtime_data = self._get_runtime_data()
         if runtime_data is None:
             msg = "Runtime data not available"
             raise UpdateFailed(msg)
 
-        _LOGGER.debug(
-            "Loading from input entities. runtime_data.input_entities: %s", list(runtime_data.input_entities.keys())
-        )
-
-        loaded_configs: dict[str, ElementConfigData] = {}
-
-        for element_name in self._participant_configs:
-            element_config = self._load_element_config(element_name)
-            loaded_configs[element_name] = element_config
-
-        return loaded_configs
+        forecast_times = runtime_data.horizon_manager.get_forecast_timestamps()
+        sm = HomeAssistantStateMachine(self.hass)
+        return load_element_configs(self._participant_configs, sm, forecast_times)
 
     def cleanup(self) -> None:
         """Clean up coordinator resources when unloading."""
