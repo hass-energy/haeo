@@ -248,6 +248,39 @@ class TestLoadElementConfig:
 
         assert result["pricing"]["salvage_value"] == pytest.approx(0.05)
 
+    def test_constant_boolean_value_passes_through(self) -> None:
+        """Constant-wrapped booleans resolve to the unwrapped boolean."""
+        config: dict[str, Any] = {
+            "element_type": "node",
+            "name": "Hub",
+            "role": {
+                "is_source": {"type": "constant", "value": True},
+                "is_sink": {"type": "constant", "value": False},
+            },
+        }
+        result = cast(
+            "dict[str, Any]",
+            load_element_config("Hub", _as_schema(config), FakeStateMachine({}), FORECAST_TIMES),
+        )
+
+        assert result["role"]["is_source"] is True
+        assert result["role"]["is_sink"] is False
+
+    def test_entity_empty_ids_resolves_to_none(self) -> None:
+        """Entity value with empty entity IDs list resolves to None."""
+        config = _grid_config(import_price={"type": "entity", "value": []})
+        result = _load_grid(config)
+
+        assert result["pricing"]["price_source_target"] is None
+
+    def test_unrecognized_value_type_resolves_to_none(self) -> None:
+        """Values that are not a recognized schema type resolve to None."""
+        config = _grid_config()
+        config["pricing"]["price_source_target"] = 42
+        result = _load_grid(config)
+
+        assert result["pricing"]["price_source_target"] is None
+
     def test_section_not_dict_is_skipped(self) -> None:
         """Non-dict section values are skipped during field resolution."""
         config = _grid_config()
