@@ -276,7 +276,9 @@ class TestLoadElementConfigs:
             "Grid": _grid_config(),
             "Battery": _battery_config(),
         }
-        result = load_element_configs(cast("Mapping[str, ElementConfigSchema]", participants), FakeStateMachine({}), FORECAST_TIMES)
+        result = load_element_configs(
+            cast("Mapping[str, ElementConfigSchema]", participants), FakeStateMachine({}), FORECAST_TIMES
+        )
 
         assert set(result.keys()) == {"Grid", "Battery"}
         assert result["Grid"]["element_type"] == "grid"
@@ -288,7 +290,9 @@ class TestLoadElementConfigs:
             "MyGrid": _grid_config(),
             "MyBattery": _battery_config(),
         }
-        result = load_element_configs(cast("Mapping[str, ElementConfigSchema]", participants), FakeStateMachine({}), FORECAST_TIMES)
+        result = load_element_configs(
+            cast("Mapping[str, ElementConfigSchema]", participants), FakeStateMachine({}), FORECAST_TIMES
+        )
 
         assert result["MyGrid"]["name"] == "MyGrid"
         assert result["MyBattery"]["name"] == "MyBattery"
