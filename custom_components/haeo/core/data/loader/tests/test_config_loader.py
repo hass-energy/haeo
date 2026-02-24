@@ -194,6 +194,79 @@ class TestLoadElementConfig:
         assert isinstance(pricing["price_source_target"], np.ndarray)
         np.testing.assert_array_equal(pricing["price_source_target"], [0.30, 0.30, 0.30])
 
+    def test_entity_percent_scalar_converts(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Entity-backed SOC scalar values are divided by 100."""
+
+        def fake_load_sensors(_sm: Any, entity_ids: Sequence[str]) -> dict[str, float]:
+            return {"sensor.soc": 80.0}
+
+        monkeypatch.setattr(cl, "load_sensors", fake_load_sensors)
+
+        config = _battery_config(initial_soc={"type": "entity", "value": ["sensor.soc"]})
+        result = _load_battery(config)
+
+        assert result["storage"]["initial_charge_percentage"] == pytest.approx(0.8)
+
+    def test_entity_percent_time_series_converts(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Entity-backed SOC boundary values are divided by 100."""
+
+        def fake_load_sensors(_sm: Any, entity_ids: Sequence[str]) -> dict[str, float]:
+            return {"sensor.cap": 10.0}
+
+        monkeypatch.setattr(cl, "load_sensors", fake_load_sensors)
+        monkeypatch.setattr(cl, "fuse_to_boundaries", lambda *_a, **_kw: [50.0, 60.0, 70.0, 80.0])
+
+        config = _battery_config()
+        config["storage"]["capacity"] = {"type": "constant", "value": 10.0}
+        config["limits"] = {"min_charge_percentage": {"type": "entity", "value": ["sensor.cap"]}}
+        result = _load_battery(config)
+
+        np.testing.assert_allclose(result["limits"]["min_charge_percentage"], [0.5, 0.6, 0.7, 0.8])
+
+    def test_boolean_field_passes_through(self) -> None:
+        """Boolean fields (like node is_source) pass through unchanged."""
+        config: dict[str, Any] = {
+            "element_type": "node",
+            "name": "Hub",
+            "role": {"is_source": True, "is_sink": False},
+        }
+        result = cast(
+            "dict[str, Any]",
+            load_element_config("Hub", config, FakeStateMachine({}), FORECAST_TIMES),
+        )
+
+        assert result["role"]["is_source"] is True
+        assert result["role"]["is_sink"] is False
+
+    def test_non_entity_non_numeric_passes_through(self) -> None:
+        """Values that are not entity IDs or numerics pass through as-is."""
+        config = _grid_config(import_price={"unexpected": "structure"})
+        result = _load_grid(config)
+
+        assert result["pricing"]["price_source_target"] == {"unexpected": "structure"}
+
+    def test_entity_non_percent_scalar_resolves(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Non-percent scalar entity values resolve without division."""
+
+        def fake_load_sensors(_sm: Any, entity_ids: Sequence[str]) -> dict[str, float]:
+            return {"sensor.salvage": 0.05}
+
+        monkeypatch.setattr(cl, "load_sensors", fake_load_sensors)
+
+        config = _battery_config()
+        config["pricing"] = {"salvage_value": {"type": "entity", "value": ["sensor.salvage"]}}
+        result = _load_battery(config)
+
+        assert result["pricing"]["salvage_value"] == pytest.approx(0.05)
+
+    def test_section_not_dict_is_skipped(self) -> None:
+        """Non-dict section values are skipped during field resolution."""
+        config = _grid_config()
+        config["pricing"] = "not_a_dict"
+        result = _load_grid(config)
+
+        assert result["pricing"] == "not_a_dict"
+
     def test_original_config_not_mutated(self) -> None:
         """Loading creates a copy and does not mutate the original config."""
         config = _grid_config()
