@@ -7,10 +7,9 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any, Self, cast
 
 from custom_components.haeo.core.state import EntityState
-from custom_components.haeo.elements import ElementConfigSchema, InputFieldPath
+from custom_components.haeo.elements import ElementConfigSchema
 
 if TYPE_CHECKING:
-    from custom_components.haeo import InputEntity
     from custom_components.haeo.horizon import HorizonManager
 
 
@@ -20,7 +19,7 @@ class OptimizationContext:
 
     This class captures all inputs needed to reproduce an optimization run:
     - Element configurations (raw schemas, not processed data)
-    - Source sensor states captured when entities loaded data
+    - Source sensor states at optimization time
     - Horizon reference time used for period alignment
 
     The context is built at the start of each optimization run and stored
@@ -37,34 +36,30 @@ class OptimizationContext:
     """Raw element schemas (not processed ElementConfigData)."""
 
     source_states: Mapping[str, EntityState]
-    """Source sensor states captured when entities loaded data."""
+    """Source sensor states captured at optimization time."""
 
     @classmethod
     def build(
         cls,
         hub_config: Mapping[str, Any],
         participant_configs: Mapping[str, ElementConfigSchema],
-        input_entities: Mapping[tuple[str, InputFieldPath], "InputEntity"],
+        source_states: Mapping[str, EntityState],
         horizon_manager: "HorizonManager",
     ) -> Self:
-        """Build context by pulling from existing sources.
+        """Build context by capturing current state.
 
         Called at start of _async_update_data() before optimization runs.
 
         Args:
             hub_config: Config entry data used for horizon calculation
             participant_configs: Coordinator's _participant_configs dict
-            input_entities: runtime_data.input_entities dict
+            source_states: Source sensor states from the HA state machine
             horizon_manager: runtime_data.horizon_manager
 
         Returns:
             Immutable OptimizationContext with all inputs captured.
 
         """
-        source_states: dict[str, EntityState] = {}
-        for entity in input_entities.values():
-            source_states.update(entity.captured_source_states)
-
         horizon_start = horizon_manager.current_start_time
         if horizon_start is None:
             horizon_start = datetime.now(UTC)

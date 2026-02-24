@@ -32,11 +32,12 @@ from custom_components.haeo.const import (
 from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES
 from custom_components.haeo.core.const import CONF_DEBOUNCE_SECONDS, CONF_ELEMENT_TYPE, DEFAULT_DEBOUNCE_SECONDS
 from custom_components.haeo.core.data.forecast_times import tiers_to_periods_seconds
+from custom_components.haeo.core.data.loader.config_loader import extract_source_entity_ids, load_element_configs
 from custom_components.haeo.core.data.loader.config_loader import load_element_config as _core_load_element_config
-from custom_components.haeo.core.data.loader.config_loader import load_element_configs
 from custom_components.haeo.core.model import ModelOutputName, Network, OutputData, OutputType
 from custom_components.haeo.core.schema.elements import ElementConfigData, ElementConfigSchema
 from custom_components.haeo.elements import ElementDeviceName, ElementOutputName, collect_element_subentries
+from custom_components.haeo.elements.availability import schema_config_available
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED
 from custom_components.haeo.ha_state_machine import HomeAssistantStateMachine
 from custom_components.haeo.repairs import dismiss_optimization_failure_issue
@@ -175,6 +176,16 @@ def _build_coordinator_output(
     )
 
 
+def _extract_nested_value(config: Mapping[str, Any], field_path: tuple[str, ...]) -> Any:
+    """Extract a value from a nested config dict using a field path."""
+    current: Any = config
+    for key in field_path:
+        if not isinstance(current, Mapping):
+            return None
+        current = current.get(key)
+    return current
+
+
 type SubentryDevices = dict[ElementDeviceName, dict[ElementOutputName | NetworkOutputName, CoordinatorOutput]]
 
 
@@ -198,16 +209,14 @@ class CoordinatorData:
 class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
     """Data update coordinator for HAEO integration.
 
-    Reads pre-loaded data from input entities (HaeoInputNumber/HaeoInputSwitch)
-    instead of loading directly from source entities. This provides:
-    - Single source of truth for loaded data
-    - User visibility into intermediate values
-    - Event-driven optimization triggered by input entity changes
+    Subscribes directly to source sensors and loads data via the core config
+    loader. After loading and optimization, pushes display values to input
+    entities for user visibility.
 
     Custom debouncing logic:
-    - Optimize immediately when inputs are valid and aligned
+    - Optimize immediately when inputs change
     - During cooldown period, batch updates and optimize after cooldown expires
-    - No time-based updates - driven entirely by input entity changes
+    - No time-based updates - driven entirely by source sensor changes
     """
 
     # Refine config entry type to not be optional
@@ -237,7 +246,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         self._optimization_in_progress: bool = False  # Prevent concurrent optimizations
         self._pending_element_updates: dict[str, ElementConfigData] = {}
 
-        # No update_interval - we're event-driven from input entities
+        # No update_interval - we're event-driven from source sensor changes
         # No request_refresh_debouncer - we handle debouncing ourselves
         super().__init__(
             hass,
@@ -254,16 +263,19 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         """Initialize the network and set up subscriptions.
 
         Must be called after the coordinator is created but before any optimizations.
-        This is called from async_setup_entry after all input entities are loaded.
+        Checks source sensor availability and raises if not all sources are present.
         """
-        # Create network with loaded configurations
         runtime_data = self._get_runtime_data()
         if runtime_data is None:
             msg = "Runtime data not available"
             raise RuntimeError(msg)
 
+        if not self._are_sources_available():
+            msg = "Not all source sensors are available"
+            raise RuntimeError(msg)
+
         periods_seconds = tiers_to_periods_seconds(self.config_entry.data)
-        loaded_configs = self._load_from_input_entities()
+        loaded_configs = self._load_configs()
 
         _LOGGER.debug("Initializing network with %d participants", len(loaded_configs))
 
@@ -278,8 +290,8 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             participants=loaded_configs,
         )
 
-        # Subscribe to input entity changes
-        self._subscribe_to_input_entities()
+        # Subscribe to source sensor changes
+        self._subscribe_to_source_sensors()
 
     def _get_config_entry(self) -> "HaeoConfigEntry":
         """Get the typed config entry."""
@@ -290,11 +302,11 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         config_entry = self._get_config_entry()
         return getattr(config_entry, "runtime_data", None)
 
-    def _subscribe_to_input_entities(self) -> None:
-        """Subscribe to state changes from input entities.
+    def _subscribe_to_source_sensors(self) -> None:
+        """Subscribe to state changes from source sensors.
 
-        Sets up per-element callbacks so each input entity only updates
-        its specific element's TrackedParams when it changes.
+        Sets up per-element callbacks so each source sensor change only updates
+        its specific element's config when it changes.
 
         Also subscribes to the auto-optimize switch to control horizon manager
         pause/resume and trigger optimization on re-enable.
@@ -324,19 +336,13 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             # Apply initial state from the switch (it may have been restored)
             self._apply_auto_optimize_state(is_enabled=runtime_data.auto_optimize_switch.is_on or False)
 
-        # Group input entities by element name
-        entities_by_element: dict[str, list[str]] = {}
-        for (element_name, _field_path), entity in runtime_data.input_entities.items():
-            if element_name not in entities_by_element:
-                entities_by_element[element_name] = []
-            entities_by_element[element_name].append(entity.entity_id)
-
-        # Subscribe each element's entities to update only that element
-        for element_name, entity_ids in entities_by_element.items():
+        # Subscribe to source sensors grouped by element
+        source_ids_by_element = extract_source_entity_ids(self._participant_configs)
+        for element_name, source_ids in source_ids_by_element.items():
             self._state_change_unsubs.append(
                 async_track_state_change_event(
                     self.hass,
-                    entity_ids,
+                    source_ids,
                     self._create_element_update_callback(element_name),
                 )
             )
@@ -384,7 +390,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         periods_hours = np.asarray(periods_seconds, dtype=float) / 3600
         network.update_periods(periods_hours)
 
-        # Trigger optimization - _are_inputs_aligned will gate until all elements update
+        # Trigger optimization
         self.signal_optimization_stale()
 
     @callback
@@ -433,8 +439,8 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
 
     async def async_run_optimization(self) -> None:
         """Manually trigger optimization, bypassing debouncing and auto-optimize check."""
-        if not self._are_inputs_aligned():
-            _LOGGER.debug("Inputs not aligned, skipping manual optimization")
+        if not self._are_sources_available():
+            _LOGGER.debug("Sources not available, skipping manual optimization")
             return
 
         await self.async_refresh()
@@ -482,46 +488,26 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
 
     @callback
     def _maybe_trigger_refresh(self) -> None:
-        """Trigger a coordinator refresh if inputs are aligned."""
-        if not self._are_inputs_aligned():
-            _LOGGER.debug("Inputs not aligned, skipping optimization")
+        """Trigger a coordinator refresh if all sources are available."""
+        if not self._are_sources_available():
+            _LOGGER.debug("Sources not available, skipping optimization")
             return
 
         # Use create_task to run the async refresh
         self.hass.async_create_task(self.async_refresh())
 
-    def _are_inputs_aligned(self) -> bool:
-        """Check if all forecast input entities have the same horizon start time.
+    def _are_sources_available(self) -> bool:
+        """Check if all source sensors have loadable data.
 
-        Scalar (non-forecast) inputs are alignment-neutral since they have no
-        time-series data to align. Only forecast-based inputs must match the
-        horizon manager's current start time.
-
-        Returns True if all forecast inputs are loaded and aligned to the same horizon.
-        Returns False if any forecast input is missing data or horizons don't match.
+        Walks participant configs and verifies every entity-backed field
+        can be loaded from the HA state machine. Returns False if any
+        source sensor is missing or has no usable state.
         """
-        runtime_data = self._get_runtime_data()
-        if runtime_data is None:
-            return False
-
-        # Get expected horizon from horizon manager
-        expected_horizon = runtime_data.horizon_manager.get_forecast_timestamps()
-        if not expected_horizon:
-            return False
-        expected_start = expected_horizon[0]
-
-        # Check forecast input entities have values and matching horizon
-        for entity in runtime_data.input_entities.values():
-            if not entity.uses_forecast:
-                continue
-            entity_horizon = entity.horizon_start
-            if entity_horizon is None:
-                return False
-            # Allow small floating point tolerance
-            if abs(entity_horizon - expected_start) > 1.0:
-                return False
-
-        return True
+        sm = HomeAssistantStateMachine(self.hass)
+        return all(
+            schema_config_available(config, sm=sm)
+            for config in self._participant_configs.values()
+        )
 
     def _load_element_config(self, element_name: str) -> ElementConfigData:
         """Load configuration for a single element via the core config loader.
@@ -549,7 +535,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         sm = HomeAssistantStateMachine(self.hass)
         return _core_load_element_config(element_name, self._participant_configs[element_name], sm, forecast_times)
 
-    def _load_from_input_entities(self) -> dict[str, ElementConfigData]:
+    def _load_configs(self) -> dict[str, ElementConfigData]:
         """Load element configurations via the core config loader.
 
         Resolves raw participant configs against the HA state machine
@@ -576,6 +562,28 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
 
         self._pending_element_updates.clear()
 
+    def _push_display_values(
+        self,
+        loaded_configs: dict[str, ElementConfigData],
+        forecast_timestamps: tuple[float, ...],
+    ) -> None:
+        """Push loaded values to input entities for display.
+
+        Walks runtime_data.input_entities and extracts matching values from
+        loaded configs using each entity's (element_name, field_path) key.
+        """
+        runtime_data = self._get_runtime_data()
+        if runtime_data is None:
+            return
+
+        for (element_name, field_path), entity in runtime_data.input_entities.items():
+            config = loaded_configs.get(element_name)
+            if config is None:
+                continue
+
+            value = _extract_nested_value(config, field_path)
+            entity.update_display(value, forecast_timestamps)
+
     def _apply_pending_element_updates(self) -> None:
         """Apply all pending element updates to the network.
 
@@ -587,7 +595,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         self._pending_element_updates.clear()
 
     async def _async_update_data(self) -> CoordinatorData:
-        """Update data from input entities and run optimization."""
+        """Load data from source sensors and run optimization."""
         # Check if optimization is already in progress
         # If so, skip this call - we'll use existing data or signal retry
         if self._optimization_in_progress:
@@ -621,17 +629,28 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
 
             forecast_timestamps = runtime_data.horizon_manager.get_forecast_timestamps()
 
+            # Capture source sensor states for reproducibility
+            source_ids_by_element = extract_source_entity_ids(self._participant_configs)
+            source_states = {
+                eid: state
+                for ids in source_ids_by_element.values()
+                for eid in ids
+                if (state := self.hass.states.get(eid)) is not None
+            }
+
             # Build optimization context capturing all inputs for reproducibility
             context = OptimizationContext.build(
                 hub_config=self.config_entry.data,
                 participant_configs=self._participant_configs,
-                input_entities=runtime_data.input_entities,
+                source_states=source_states,
                 horizon_manager=runtime_data.horizon_manager,
             )
 
-            # Load element configurations from input entities
-            # All input entities are guaranteed to be fully loaded by the time we get here
-            loaded_configs = self._load_from_input_entities()
+            # Load element configurations from source sensors via core loader
+            loaded_configs = self._load_configs()
+
+            # Push loaded values to input entities for display
+            self._push_display_values(loaded_configs, forecast_timestamps)
 
             _LOGGER.debug("Running optimization with %d participants", len(loaded_configs))
 

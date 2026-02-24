@@ -457,71 +457,46 @@ async def test_async_update_listener_value_update_in_progress(
         mock_coordinator.signal_optimization_stale.assert_called_once()
 
 
-async def test_async_setup_entry_raises_config_entry_not_ready_on_timeout(
+async def test_async_setup_entry_raises_config_entry_not_ready_when_sources_unavailable(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Setup raises ConfigEntryNotReady when input entities don't become ready in time.
+    """Setup raises ConfigEntryNotReady when source sensors are unavailable.
 
-    Verifies that ConfigEntryNotReady is raised with descriptive translation key.
-    Cleanup is handled via async_on_unload callbacks registered during setup.
+    When coordinator.async_initialize() fails because source sensors don't have
+    state in HA, the error is caught and converted to ConfigEntryNotReady.
     """
 
-    # Create a mock input entity that never becomes ready
-    class NeverReadyEntity:
-        async def wait_ready(self) -> None:
-            # Wait forever - will timeout
-            await asyncio.sleep(100)
-
-        def is_ready(self) -> bool:
-            return False
-
-    # Create mock horizon manager
-    mock_horizon = _create_mock_horizon_manager()
-
-    never_ready_entity = NeverReadyEntity()
-
     class MockRuntimeData:
-        def __init__(self) -> None:
-            self.horizon_manager = mock_horizon
-            self.input_entities = {("Test Element", ("section", "field")): never_ready_entity}
+        def __init__(self, horizon_manager: object) -> None:
+            self.horizon_manager = horizon_manager
+            self.input_entities = {}
             self.coordinator = None
             self.value_update_in_progress = False
 
-    # Patch HaeoRuntimeData to return our mock
-    def create_mock_runtime_data(horizon_manager: object) -> MockRuntimeData:
-        return MockRuntimeData()
+    monkeypatch.setattr("custom_components.haeo.HaeoRuntimeData", MockRuntimeData)
 
-    # Patch the module-level imports to bypass normal setup
-    monkeypatch.setattr("custom_components.haeo.HaeoRuntimeData", create_mock_runtime_data)
-
-    # Patch forward_entry_setups to populate the mock input entities
     async def mock_forward_setups(entry: object, platforms: list[object]) -> None:
-        # After input platform setup, entry should have mock runtime_data
         pass
 
     monkeypatch.setattr(hass.config_entries, "async_forward_entry_setups", mock_forward_setups)
+    monkeypatch.setattr("custom_components.haeo.HorizonManager", lambda **_kw: _create_mock_horizon_manager())
 
-    # Patch asyncio.timeout to use a very short timeout
-    original_timeout = asyncio.timeout
+    class FailingCoordinator:
+        def __init__(self, hass_param: HomeAssistant, entry_param: ConfigEntry) -> None:
+            self.cleanup = Mock()
 
-    def short_timeout(seconds: float) -> asyncio.Timeout:
-        return original_timeout(0.01)  # 10ms timeout
+        async def async_initialize(self) -> None:
+            msg = "Not all source sensors are available"
+            raise RuntimeError(msg)
 
-    monkeypatch.setattr("asyncio.timeout", short_timeout)
+    monkeypatch.setattr("custom_components.haeo.HaeoDataUpdateCoordinator", FailingCoordinator)
 
-    # Run setup - should raise ConfigEntryNotReady
     with pytest.raises(ConfigEntryNotReady) as exc_info:
         await async_setup_entry(hass, mock_hub_entry)
 
-    # Verify the exception has the correct translation key
-    assert exc_info.value.translation_key == "input_entities_not_ready"
-
-    # Note: Platform cleanup is handled via async_on_unload callbacks.
-    # When testing directly (not via hass.config_entries.async_setup), the HA
-    # lifecycle that calls _async_process_on_unload is not exercised.
-    # The async_on_unload mechanism is tested separately via the HA test framework.
+    assert exc_info.value.translation_key == "setup_failed_transient"
 
 
 async def test_async_setup_entry_returns_false_when_network_subentry_missing(
@@ -544,94 +519,58 @@ async def test_async_setup_entry_returns_false_when_network_subentry_missing(
     assert result is False
 
 
-async def test_setup_reentry_after_timeout_failure(
+async def test_setup_reentry_after_sources_unavailable(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """After setup fails with timeout, re-running setup on same entry succeeds.
+    """After setup fails from unavailable sources, re-running setup on same entry succeeds.
 
     This tests the robustness of cleanup on failure - if cleanup is incomplete,
     the second setup attempt would fail with 'entity already exists' or similar.
     """
     attempt_count = 0
 
-    # Create a mock input entity that fails first time, succeeds second time
-    class ConditionalReadyEntity:
-        def __init__(self) -> None:
-            self._ready = False
-
-        async def wait_ready(self) -> None:
-            if attempt_count == 1:
-                # First attempt: timeout
-                await asyncio.sleep(100)
-            else:
-                # Subsequent attempts: succeed immediately
-                self._ready = True
-
-        def is_ready(self) -> bool:
-            return self._ready
-
-    # Create a runtime data factory that uses our conditional entity
-    entity = ConditionalReadyEntity()
-
     class MockRuntimeData:
         def __init__(self, horizon_manager: object) -> None:
             self.horizon_manager = horizon_manager
-            self.input_entities = {("Test Element", ("section", "field")): entity}
+            self.input_entities = {}
             self.coordinator = None
             self.value_update_in_progress = False
 
     monkeypatch.setattr("custom_components.haeo.HaeoRuntimeData", MockRuntimeData)
+    monkeypatch.setattr("custom_components.haeo.HorizonManager", lambda **_kw: _create_mock_horizon_manager())
 
-    # Mock horizon manager - use a real-like one that tracks state
-    def create_horizon_manager(hass: HomeAssistant, config_entry: ConfigEntry) -> Mock:
-        return _create_mock_horizon_manager()
-
-    monkeypatch.setattr("custom_components.haeo.HorizonManager", create_horizon_manager)
-
-    # Patch forward_entry_setups - no-op for this test
     async def mock_forward_setups(entry: object, platforms: list[object]) -> None:
         pass
 
     monkeypatch.setattr(hass.config_entries, "async_forward_entry_setups", mock_forward_setups)
 
-    # Patch asyncio.timeout to use a very short timeout
-    original_timeout = asyncio.timeout
-
-    def short_timeout(seconds: float) -> asyncio.Timeout:
-        return original_timeout(0.01)  # 10ms timeout
-
-    monkeypatch.setattr("asyncio.timeout", short_timeout)
-
-    # First attempt - should fail with timeout
-    attempt_count = 1
-    with pytest.raises(ConfigEntryNotReady) as exc_info:
-        await async_setup_entry(hass, mock_hub_entry)
-
-    # Verify the exception has the correct translation key
-    assert exc_info.value.translation_key == "input_entities_not_ready"
-
-    # Restore normal timeout for second attempt
-    monkeypatch.setattr("asyncio.timeout", original_timeout)
-
-    # Mock coordinator for second attempt
-    class DummyCoordinator:
+    class ConditionalCoordinator:
         def __init__(self, hass_param: HomeAssistant, entry_param: ConfigEntry) -> None:
             self.hass = hass_param
             self.config_entry = entry_param
-            self.async_initialize = AsyncMock()
             self.async_refresh = AsyncMock()
             self.cleanup = Mock()
             self.auto_optimize_enabled = True
 
-    monkeypatch.setattr("custom_components.haeo.HaeoDataUpdateCoordinator", DummyCoordinator)
+        async def async_initialize(self) -> None:
+            nonlocal attempt_count
+            attempt_count += 1
+            if attempt_count == 1:
+                msg = "Not all source sensors are available"
+                raise RuntimeError(msg)
 
-    # Second attempt - should succeed (cleanup on first failure was complete)
-    attempt_count = 2
+    monkeypatch.setattr("custom_components.haeo.HaeoDataUpdateCoordinator", ConditionalCoordinator)
+
+    # First attempt - should fail
+    with pytest.raises(ConfigEntryNotReady):
+        await async_setup_entry(hass, mock_hub_entry)
+
+    # Second attempt - should succeed
     result = await async_setup_entry(hass, mock_hub_entry)
 
-    assert result is True, "Second setup attempt should succeed after cleanup"
+    assert result is True
 
 
 async def test_setup_cleanup_on_coordinator_error(

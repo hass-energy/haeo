@@ -8,7 +8,11 @@ import pytest
 
 from conftest import FakeStateMachine
 from custom_components.haeo.core.data.loader import config_loader as cl
-from custom_components.haeo.core.data.loader.config_loader import load_element_config, load_element_configs
+from custom_components.haeo.core.data.loader.config_loader import (
+    extract_source_entity_ids,
+    load_element_config,
+    load_element_configs,
+)
 
 FORECAST_TIMES = (0.0, 3600.0, 7200.0, 10800.0)
 
@@ -309,3 +313,89 @@ class TestLoadElementConfigs:
         result = load_element_configs({}, FakeStateMachine({}), FORECAST_TIMES)
 
         assert result == {}
+
+
+class TestExtractSourceEntityIds:
+    """Tests for extract_source_entity_ids."""
+
+    def test_entity_values_are_extracted(self) -> None:
+        """Entity-typed schema values yield their entity IDs."""
+        participants: dict[str, dict[str, Any]] = {
+            "Grid": _grid_config(
+                import_price={"type": "entity", "value": ["sensor.import_price"]},
+                export_price={"type": "entity", "value": ["sensor.export_price"]},
+            ),
+        }
+        result = extract_source_entity_ids(participants)
+
+        assert result == {"Grid": ["sensor.import_price", "sensor.export_price"]}
+
+    def test_constant_values_are_ignored(self) -> None:
+        """Constant-typed schema values produce no entity IDs."""
+        participants: dict[str, dict[str, Any]] = {
+            "Grid": _grid_config(),
+        }
+        result = extract_source_entity_ids(participants)
+
+        assert "Grid" not in result
+
+    def test_none_values_are_ignored(self) -> None:
+        """None-typed schema values produce no entity IDs."""
+        participants: dict[str, dict[str, Any]] = {
+            "Grid": _grid_config(export_price={"type": "none"}),
+        }
+        result = extract_source_entity_ids(participants)
+
+        assert "Grid" not in result
+
+    def test_raw_entity_id_strings_are_extracted(self) -> None:
+        """Raw entity ID strings (not wrapped in schema value) are extracted."""
+        participants: dict[str, dict[str, Any]] = {
+            "Grid": _grid_config(import_price="sensor.raw_price"),
+        }
+        result = extract_source_entity_ids(participants)
+
+        assert result == {"Grid": ["sensor.raw_price"]}
+
+    def test_multiple_elements(self) -> None:
+        """Entity IDs are grouped by element name."""
+        participants: dict[str, dict[str, Any]] = {
+            "Grid": _grid_config(
+                import_price={"type": "entity", "value": ["sensor.price"]},
+            ),
+            "Battery": _battery_config(
+                initial_soc={"type": "entity", "value": ["sensor.soc"]},
+            ),
+        }
+        result = extract_source_entity_ids(participants)
+
+        assert set(result.keys()) == {"Grid", "Battery"}
+        assert result["Grid"] == ["sensor.price"]
+        assert result["Battery"] == ["sensor.soc"]
+
+    def test_empty_participants(self) -> None:
+        """Empty participants returns empty result."""
+        result = extract_source_entity_ids({})
+
+        assert result == {}
+
+    def test_unknown_element_type_is_skipped(self) -> None:
+        """Elements with unknown types are silently skipped."""
+        participants: dict[str, dict[str, Any]] = {
+            "Unknown": {"element_type": "nonexistent", "name": "Unknown"},
+        }
+        result = extract_source_entity_ids(participants)
+
+        assert result == {}
+
+    def test_mixed_entity_and_constant_fields(self) -> None:
+        """Only entity-typed fields contribute IDs; constants are skipped."""
+        participants: dict[str, dict[str, Any]] = {
+            "Grid": _grid_config(
+                import_price={"type": "entity", "value": ["sensor.price"]},
+                export_price={"type": "constant", "value": 0.05},
+            ),
+        }
+        result = extract_source_entity_ids(participants)
+
+        assert result == {"Grid": ["sensor.price"]}

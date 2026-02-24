@@ -2,16 +2,15 @@
 
 from __future__ import annotations
 
-import asyncio
-from collections.abc import Awaitable, Mapping
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 import logging
 from types import MappingProxyType
-from typing import TYPE_CHECKING, Protocol
+from typing import TYPE_CHECKING, Any, Protocol
 
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry
 from homeassistant.const import Platform
-from homeassistant.core import HomeAssistant, State
+from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryError, ConfigEntryNotReady
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.translation import async_get_translations
@@ -20,7 +19,7 @@ from homeassistant.helpers.typing import ConfigType
 from custom_components.haeo.const import DOMAIN, ELEMENT_TYPE_NETWORK
 from custom_components.haeo.coordinator import HaeoDataUpdateCoordinator
 from custom_components.haeo.core.const import CONF_ADVANCED_MODE, CONF_ELEMENT_TYPE, CONF_NAME
-from custom_components.haeo.elements import ELEMENT_DEVICE_NAMES_BY_TYPE
+from custom_components.haeo.elements import ELEMENT_DEVICE_NAMES_BY_TYPE, InputFieldPath
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED
 from custom_components.haeo.horizon import HorizonManager
 from custom_components.haeo.services import async_setup_services
@@ -29,7 +28,6 @@ from . import migrations as _migrations
 
 if TYPE_CHECKING:
     from custom_components.haeo.entities.auto_optimize_switch import AutoOptimizeSwitch
-    from custom_components.haeo.entities.haeo_number import ConfigEntityMode
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -38,44 +36,21 @@ MIGRATION_MINOR_VERSION = _migrations.MIGRATION_MINOR_VERSION
 
 
 class InputEntity(Protocol):
-    """Protocol for input entities tracked by the runtime data."""
+    """Protocol for input entities tracked by the runtime data.
+
+    DRIVEN entities are display-only: the coordinator pushes loaded values
+    via update_display(). EDITABLE entities also handle user writes that
+    persist to the config entry and trigger re-optimization.
+    """
 
     entity_id: str
 
-    @property
-    def entity_mode(self) -> ConfigEntityMode:
-        """Return the entity's operating mode."""
-        ...
-
-    @property
-    def uses_forecast(self) -> bool:
-        """Return True if this entity produces time-series forecast data."""
-        ...
-
-    @property
-    def horizon_start(self) -> float | None:
-        """Return the first forecast timestamp, or None if not loaded."""
-        ...
-
-    def is_ready(self) -> bool:
-        """Return True if data has been loaded and entity is ready."""
-        ...
-
-    def wait_ready(self) -> Awaitable[None]:
-        """Wait for data to be ready."""
-        ...
-
-    def get_values(self) -> tuple[float | bool, ...] | None:
-        """Return forecast values or None if not loaded."""
-        ...
-
-    @property
-    def captured_source_states(self) -> Mapping[str, State]:
-        """Source states captured from the last data load."""
+    def update_display(self, value: Any, forecast_times: Sequence[float]) -> None:
+        """Update display state from coordinator-loaded data."""
         ...
 
 
-type InputEntityKey = tuple[str, tuple[str, ...]]
+type InputEntityKey = tuple[str, InputFieldPath]
 type InputEntityMap = dict[InputEntityKey, InputEntity]
 
 
@@ -90,9 +65,6 @@ INPUT_PLATFORMS: list[Platform] = [Platform.NUMBER, Platform.SWITCH]
 
 # Platforms that consume coordinator data (set up after coordinator)
 OUTPUT_PLATFORMS: list[Platform] = [Platform.SENSOR]
-
-# Timeout in seconds for waiting for input entities to be ready
-INPUT_ENTITY_READY_TIMEOUT = 5
 
 
 async def async_setup(hass: HomeAssistant, _config: ConfigType) -> bool:
@@ -239,8 +211,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> bool
     # Create network device using centralized device creation
     get_or_create_network_device(hass, entry, network_subentry)
 
-    # Create horizon manager first - input entities and coordinator depend on it
-    # This is a pure Python object, not an entity
+    # Create horizon manager first - coordinator depends on it
     horizon_manager = HorizonManager(hass=hass, config_entry=entry)
 
     # Create runtime data for this setup
@@ -250,36 +221,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> bool
     # Start horizon manager's scheduled updates - returns stop function
     entry.async_on_unload(horizon_manager.start())
 
-    # Set up input platforms first - they populate runtime_data.input_entities
+    # Set up input platforms - entities are created without loading data
+    # DRIVEN entities are inert, EDITABLE entities initialize from config
     await hass.config_entries.async_forward_entry_setups(entry, INPUT_PLATFORMS)
-    # Register cleanup - will be called on failure or unload
-    # Return the coroutine directly - HA will wrap it in async_create_task
     entry.async_on_unload(
         lambda: hass.config_entries.async_unload_platforms(entry, INPUT_PLATFORMS)  # type: ignore[arg-type]
     )
 
-    # Wait for all input entities to have their data ready
-    # Each entity signals via asyncio.Event when its forecast data is loaded
-    _LOGGER.debug("Waiting for %d input entities to be ready", len(runtime_data.input_entities))
-    try:
-        async with asyncio.timeout(INPUT_ENTITY_READY_TIMEOUT):
-            await asyncio.gather(*[entity.wait_ready() for entity in runtime_data.input_entities.values()])
-    except TimeoutError:
-        not_ready = [key for key, entity in runtime_data.input_entities.items() if not entity.is_ready()]
-        raise ConfigEntryNotReady(
-            translation_domain=DOMAIN,
-            translation_key="input_entities_not_ready",
-            translation_placeholders={
-                "not_ready": str(not_ready),
-                "timeout": str(INPUT_ENTITY_READY_TIMEOUT),
-            },
-        ) from None
-    _LOGGER.debug("All input entities ready")
-
-    # Create coordinator after input entities are ready - it reads from them
+    # Create coordinator - it subscribes to source sensors directly
     coordinator = HaeoDataUpdateCoordinator(hass, entry)
     runtime_data.coordinator = coordinator
-    # Register coordinator cleanup
     entry.async_on_unload(coordinator.cleanup)
 
     # Wrap coordinator operations to provide meaningful HA error messages

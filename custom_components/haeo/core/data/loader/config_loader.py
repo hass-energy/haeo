@@ -200,7 +200,54 @@ def _resolve_entities(
     return np.array(values)
 
 
+def extract_source_entity_ids(
+    participants: Mapping[str, Mapping[str, Any]],
+) -> dict[str, list[str]]:
+    """Extract source entity IDs from participant configs, grouped by element name.
+
+    Walks each element's schema hints and collects entity IDs from entity-typed
+    fields without loading any data. Used by the coordinator to subscribe
+    directly to source sensor state changes.
+
+    Args:
+        participants: Map of element name to raw config dict
+
+    Returns:
+        Map of element name to list of source entity IDs. Elements with no
+        entity-typed fields are omitted.
+
+    """
+    result: dict[str, list[str]] = {}
+    for element_name, element_config in participants.items():
+        element_type = element_config.get(CONF_ELEMENT_TYPE)
+        if not is_element_type(element_type):
+            continue
+
+        field_hints = extract_field_hints(ELEMENT_CONFIG_SCHEMAS[element_type])
+        entity_ids: list[str] = []
+
+        for section_name, section_fields in field_hints.items():
+            section_config = element_config.get(section_name)
+            if not isinstance(section_config, dict):
+                continue
+
+            for field_name in section_fields:
+                value = section_config.get(field_name)
+                if value is None:
+                    continue
+                if is_entity_value(value):
+                    entity_ids.extend(_extract_entity_ids(value["value"]))
+                elif not is_constant_value(value) and not is_none_value(value):
+                    entity_ids.extend(_extract_entity_ids(value))
+
+        if entity_ids:
+            result[element_name] = entity_ids
+
+    return result
+
+
 __all__ = [
+    "extract_source_entity_ids",
     "load_element_config",
     "load_element_configs",
 ]
