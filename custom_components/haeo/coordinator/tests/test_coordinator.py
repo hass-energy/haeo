@@ -4,10 +4,9 @@ from collections.abc import Generator
 from datetime import UTC, datetime, timedelta
 import time
 from types import MappingProxyType
-from typing import Any, cast
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
-from homeassistant.components.number import NumberEntityDescription
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry
 from homeassistant.const import STATE_OFF, STATE_ON, UnitOfEnergy
 from homeassistant.core import HomeAssistant, State
@@ -19,7 +18,6 @@ import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.haeo import HaeoRuntimeData
-from custom_components.haeo import elements as elements_module
 from custom_components.haeo.const import (
     CONF_INTEGRATION_TYPE,
     DOMAIN,
@@ -37,7 +35,6 @@ from custom_components.haeo.coordinator import (
     OptimizationContext,
     _build_coordinator_output,
 )
-from custom_components.haeo.coordinator.coordinator import _strip_none_schema_values
 from custom_components.haeo.core.adapters.elements.battery import BATTERY_DEVICE_BATTERY, BATTERY_POWER_CHARGE
 from custom_components.haeo.core.adapters.elements.connection import (
     CONNECTION_DEVICE_CONNECTION,
@@ -65,14 +62,8 @@ from custom_components.haeo.core.const import (
 )
 from custom_components.haeo.core.model import Network, OutputData, OutputType
 from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_NODE
-from custom_components.haeo.core.schema import (
-    EntityValue,
-    as_connection_target,
-    as_constant_value,
-    as_entity_value,
-    as_none_value,
-)
-from custom_components.haeo.core.schema.elements import ElementConfigSchema, ElementType
+from custom_components.haeo.core.schema import as_connection_target, as_constant_value, as_entity_value
+from custom_components.haeo.core.schema.elements import ElementType
 from custom_components.haeo.core.schema.elements.battery import (
     CONF_CAPACITY,
     CONF_EFFICIENCY_SOURCE_TARGET,
@@ -102,7 +93,6 @@ from custom_components.haeo.core.schema.sections import (
     SECTION_PRICING,
 )
 from custom_components.haeo.core.schema.sections import CONF_CONNECTION as CONF_CONNECTION_GRID
-from custom_components.haeo.elements.input_fields import InputFieldInfo
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON, HUB_SECTION_TIERS
 
 
@@ -636,62 +626,6 @@ def test_build_coordinator_output_handles_empty_values() -> None:
     assert output.forecast is None
 
 
-def test_strip_none_schema_values_removes_disabled_values() -> None:
-    """_strip_none_schema_values removes disabled schema values recursively."""
-    data = {
-        "disabled": as_none_value(),
-        "nested": {"keep": as_constant_value(1.0), "disabled": as_none_value()},
-    }
-
-    _strip_none_schema_values(data)
-
-    assert "disabled" not in data
-    assert "disabled" not in data["nested"]
-
-
-@pytest.mark.usefixtures("mock_battery_subentry")
-def test_load_element_config_raises_on_required_none_value(
-    hass: HomeAssistant,
-    mock_hub_entry: MockConfigEntry,
-    mock_runtime_data: HaeoRuntimeData,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """_load_element_config raises when required fields resolve to None."""
-    coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
-    coordinator._participant_configs = {
-        "Test Battery": cast("ElementConfigSchema", {CONF_ELEMENT_TYPE: ElementType.BATTERY}),
-    }
-
-    field_info = InputFieldInfo(
-        field_name="required",
-        entity_description=NumberEntityDescription(key="required"),
-        output_type=OutputType.POWER,
-        time_series=False,
-    )
-
-    def _fake_input_fields(_config: Any) -> dict[str, dict[str, InputFieldInfo[Any]]]:
-        return {"section": {"required": field_info}}
-
-    def _fake_field_schema(_element_type: Any, _input_fields: Any) -> dict[str, dict[str, Any]]:
-        return {"section": {"required": elements_module.FieldSchemaInfo(value_type=EntityValue, is_optional=False)}}
-
-    monkeypatch.setattr(
-        "custom_components.haeo.coordinator.coordinator.get_input_fields",
-        _fake_input_fields,
-    )
-    monkeypatch.setattr(
-        "custom_components.haeo.coordinator.coordinator.get_input_field_schema_info",
-        _fake_field_schema,
-    )
-
-    mock_entity = MagicMock()
-    mock_entity.get_values.return_value = ()
-    mock_runtime_data.input_entities[("Test Battery", ("section", "required"))] = mock_entity
-
-    with pytest.raises(ValueError, match="Missing required field"):
-        coordinator._load_element_config("Test Battery")
-
-
 def test_coordinator_cleanup_invokes_listener(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
@@ -1171,70 +1105,23 @@ def test_signal_optimization_stale_optimizes_immediately_outside_cooldown(
 
 
 @pytest.mark.usefixtures("mock_battery_subentry")
-def test_load_from_input_entities_raises_when_required_input_missing(
+def test_load_from_input_entities_delegates_to_config_loader(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
     mock_runtime_data: HaeoRuntimeData,
 ) -> None:
-    """Loading raises error when required input entities are missing."""
+    """Loading delegates to core config loader with HA state machine."""
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
 
-    # runtime_data exists but input_entities is empty
-    mock_runtime_data.input_entities = {}
+    mock_configs: dict[str, Any] = {"Test Battery": {"element_type": "battery", "name": "Test Battery"}}
+    with patch(
+        "custom_components.haeo.coordinator.coordinator.load_element_configs",
+        return_value=mock_configs,
+    ) as mock_load:
+        result = coordinator._load_from_input_entities()
 
-    # Should raise when required fields are missing
-    with pytest.raises(ValueError, match="Missing required field 'storage\\.capacity' for element 'Test Battery'"):
-        coordinator._load_from_input_entities()
-
-
-@pytest.mark.usefixtures("mock_battery_subentry")
-def test_load_from_input_entities_loads_time_series_fields(
-    hass: HomeAssistant,
-    mock_hub_entry: MockConfigEntry,
-    mock_runtime_data: HaeoRuntimeData,
-) -> None:
-    """Time series fields are loaded as arrays from input entities."""
-    coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
-
-    # Create mock input entities for all required fields
-    from custom_components.haeo.elements import get_input_fields, iter_input_field_paths  # noqa: PLC0415
-
-    element_config = coordinator._participant_configs["Test Battery"]
-    for field_path, _field_info in iter_input_field_paths(get_input_fields(element_config)):
-        mock_entity = MagicMock()
-        mock_entity.get_values.return_value = (1.0, 2.0, 3.0)
-        mock_runtime_data.input_entities[("Test Battery", field_path)] = mock_entity
-
-    result = coordinator._load_from_input_entities()
-
-    assert "Test Battery" in result
-    # Narrow the discriminated union type using element_type
-    battery_config = result["Test Battery"]
-    assert battery_config["element_type"] == "battery"
-    assert isinstance(battery_config["storage"]["capacity"], np.ndarray)
-    np.testing.assert_array_equal(battery_config["storage"]["capacity"], [1.0, 2.0, 3.0])
-
-
-@pytest.mark.usefixtures("mock_battery_subentry")
-def test_load_from_input_entities_raises_when_required_field_returns_none(
-    hass: HomeAssistant,
-    mock_hub_entry: MockConfigEntry,
-    mock_runtime_data: HaeoRuntimeData,
-) -> None:
-    """Loading raises error when required input entity returns None values."""
-    coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
-
-    # Create mock input entity that returns None for required field (capacity)
-    mock_entity = MagicMock()
-    mock_entity.get_values.return_value = None
-    mock_runtime_data.input_entities[("Test Battery", (SECTION_STORAGE, CONF_CAPACITY))] = mock_entity
-    mock_runtime_data.input_entities[("Test Battery", (SECTION_STORAGE, CONF_INITIAL_CHARGE_PERCENTAGE))] = MagicMock(
-        get_values=Mock(return_value=(50.0,))
-    )
-
-    # Should raise since required field (capacity) returned None
-    with pytest.raises(ValueError, match="Missing required field 'storage\\.capacity' for element 'Test Battery'"):
-        coordinator._load_from_input_entities()
+    mock_load.assert_called_once()
+    assert result == mock_configs
 
 
 @pytest.mark.usefixtures("mock_battery_subentry")
@@ -1258,7 +1145,6 @@ def test_load_from_input_entities_raises_for_invalid_element_type(
     """Loading raises error for elements with invalid element types."""
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
 
-    # Inject an invalid element type into participant configs
     invalid_config: Any = {
         "Invalid Element": {
             CONF_ELEMENT_TYPE: "invalid_type",
@@ -1267,48 +1153,7 @@ def test_load_from_input_entities_raises_for_invalid_element_type(
     }
     coordinator._participant_configs = invalid_config
 
-    # Should raise for invalid element type
-    with pytest.raises(ValueError, match="Invalid element type 'invalid_type' for element 'Invalid Element'"):
-        coordinator._load_from_input_entities()
-
-
-@pytest.mark.usefixtures("mock_battery_subentry")
-def test_load_from_input_entities_raises_for_invalid_config_data(
-    hass: HomeAssistant,
-    mock_hub_entry: MockConfigEntry,
-    mock_runtime_data: HaeoRuntimeData,
-) -> None:
-    """Loading raises error for elements with invalid config data."""
-    coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
-
-    invalid_config: Any = {
-        "Bad Battery": {
-            CONF_ELEMENT_TYPE: ElementType.BATTERY,
-            CONF_NAME: "Bad Battery",
-            SECTION_STORAGE: {
-                CONF_CAPACITY: as_entity_value(["sensor.battery_capacity"]),
-                CONF_INITIAL_CHARGE_PERCENTAGE: as_entity_value(["sensor.battery_soc"]),
-            },
-            SECTION_LIMITS: {},
-            SECTION_POWER_LIMITS: {},
-            SECTION_PRICING: {
-                CONF_SALVAGE_VALUE: as_constant_value(0.0),
-            },
-            SECTION_EFFICIENCY: {},
-            SECTION_PARTITIONING: {},
-        }
-    }
-    coordinator._participant_configs = invalid_config
-
-    from custom_components.haeo.elements import get_input_fields, iter_input_field_paths  # noqa: PLC0415
-
-    element_config = coordinator._participant_configs["Bad Battery"]
-    for field_path, _field_info in iter_input_field_paths(get_input_fields(element_config)):
-        mock_entity = MagicMock()
-        mock_entity.get_values.return_value = (1.0, 2.0, 3.0)
-        mock_runtime_data.input_entities[("Bad Battery", field_path)] = mock_entity
-
-    with pytest.raises(ValueError, match="Invalid config data for element 'Bad Battery'"):
+    with pytest.raises(ValueError, match="Unknown element type: invalid_type"):
         coordinator._load_from_input_entities()
 
 
