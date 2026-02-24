@@ -63,8 +63,7 @@ def load_element_config(
     field_hints = extract_field_hints(ELEMENT_CONFIG_SCHEMAS[element_type])
 
     loaded: dict[str, Any] = {
-        key: dict(value) if isinstance(value, dict) else value
-        for key, value in element_config.items()
+        key: dict(value) if isinstance(value, dict) else value for key, value in element_config.items()
     }
     loaded[CONF_NAME] = element_name
 
@@ -105,10 +104,7 @@ def load_element_configs(
         Map of element name to loaded configuration.
 
     """
-    return {
-        name: load_element_config(name, config, sm, forecast_times)
-        for name, config in participants.items()
-    }
+    return {name: load_element_config(name, config, sm, forecast_times) for name, config in participants.items()}
 
 
 class _Sentinel:
