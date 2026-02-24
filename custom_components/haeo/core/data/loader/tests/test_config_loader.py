@@ -1,6 +1,6 @@
 """Tests for the core config loader."""
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from typing import Any, cast
 
 import numpy as np
@@ -9,6 +9,7 @@ import pytest
 from conftest import FakeStateMachine
 from custom_components.haeo.core.data.loader import config_loader as cl
 from custom_components.haeo.core.data.loader.config_loader import load_element_config, load_element_configs
+from custom_components.haeo.core.schema.elements import ElementConfigSchema
 
 FORECAST_TIMES = (0.0, 3600.0, 7200.0, 10800.0)
 
@@ -54,15 +55,22 @@ def _battery_config(
     }
 
 
+def _as_schema(config: dict[str, Any]) -> ElementConfigSchema:
+    """Cast a test config dict to ElementConfigSchema at the type boundary."""
+    return cast("ElementConfigSchema", config)
+
+
 def _load_grid(config: dict[str, Any] | None = None) -> dict[str, Any]:
     """Load a grid config and return as plain dict for easy assertion."""
-    result = load_element_config("Grid", config or _grid_config(), FakeStateMachine({}), FORECAST_TIMES)
+    result = load_element_config("Grid", _as_schema(config or _grid_config()), FakeStateMachine({}), FORECAST_TIMES)
     return cast("dict[str, Any]", result)
 
 
 def _load_battery(config: dict[str, Any] | None = None) -> dict[str, Any]:
     """Load a battery config and return as plain dict for easy assertion."""
-    result = load_element_config("Battery", config or _battery_config(), FakeStateMachine({}), FORECAST_TIMES)
+    result = load_element_config(
+        "Battery", _as_schema(config or _battery_config()), FakeStateMachine({}), FORECAST_TIMES
+    )
     return cast("dict[str, Any]", result)
 
 
@@ -119,7 +127,10 @@ class TestLoadElementConfig:
         monkeypatch.setattr(cl, "load_sensors", fake_load_sensors)
 
         config = _grid_config(import_price={"type": "entity", "value": ["sensor.import_price"]})
-        result = cast("dict[str, Any]", load_element_config("Grid", config, FakeStateMachine({}), FORECAST_TIMES))
+        result = cast(
+            "dict[str, Any]",
+            load_element_config("Grid", _as_schema(config), FakeStateMachine({}), FORECAST_TIMES),
+        )
 
         pricing = result["pricing"]
         assert isinstance(pricing["price_source_target"], np.ndarray)
@@ -141,24 +152,14 @@ class TestLoadElementConfig:
         monkeypatch.setattr(cl, "load_sensors", fake_load_sensors)
 
         config = _grid_config(import_price={"type": "entity", "value": ["sensor.price"]})
-        result = cast("dict[str, Any]", load_element_config("Grid", config, FakeStateMachine({}), FORECAST_TIMES))
+        result = cast(
+            "dict[str, Any]",
+            load_element_config("Grid", _as_schema(config), FakeStateMachine({}), FORECAST_TIMES),
+        )
 
         pricing = result["pricing"]
         assert isinstance(pricing["price_source_target"], np.ndarray)
         assert len(pricing["price_source_target"]) == 3
-
-    def test_raw_entity_id_string_loads(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """Plain entity ID strings (not wrapped in schema value) also load."""
-
-        def fake_load_sensors(_sm: Any, entity_ids: Sequence[str]) -> dict[str, float]:
-            return {"sensor.price": 0.15}
-
-        monkeypatch.setattr(cl, "load_sensors", fake_load_sensors)
-
-        config = _grid_config(import_price="sensor.price")
-        result = cast("dict[str, Any]", load_element_config("Grid", config, FakeStateMachine({}), FORECAST_TIMES))
-
-        assert isinstance(result["pricing"]["price_source_target"], np.ndarray)
 
     def test_unavailable_entity_leaves_field_as_none(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """When sensors return no data, the field resolves to None."""
@@ -169,13 +170,16 @@ class TestLoadElementConfig:
         monkeypatch.setattr(cl, "load_sensors", fake_load_sensors)
 
         config = _grid_config(import_price={"type": "entity", "value": ["sensor.missing"]})
-        result = cast("dict[str, Any]", load_element_config("Grid", config, FakeStateMachine({}), FORECAST_TIMES))
+        result = cast(
+            "dict[str, Any]",
+            load_element_config("Grid", _as_schema(config), FakeStateMachine({}), FORECAST_TIMES),
+        )
 
         assert result["pricing"]["price_source_target"] is None
 
     def test_element_name_set_on_result(self) -> None:
         """The element name is set on the loaded config."""
-        loaded = load_element_config("MyGrid", _grid_config(), FakeStateMachine({}), FORECAST_TIMES)
+        loaded = load_element_config("MyGrid", _as_schema(_grid_config()), FakeStateMachine({}), FORECAST_TIMES)
         result = cast("dict[str, Any]", loaded)
 
         assert result["name"] == "MyGrid"
@@ -184,15 +188,7 @@ class TestLoadElementConfig:
         """Unknown element types raise ValueError."""
         config: dict[str, Any] = {"element_type": "unknown_type", "name": "X"}
         with pytest.raises(ValueError, match="Unknown element type"):
-            load_element_config("X", config, FakeStateMachine({}), FORECAST_TIMES)
-
-    def test_raw_numeric_value_without_wrapper(self) -> None:
-        """Raw numeric values (not wrapped in schema value dict) resolve correctly."""
-        result = _load_grid(_grid_config(import_price=0.30))
-
-        pricing = result["pricing"]
-        assert isinstance(pricing["price_source_target"], np.ndarray)
-        np.testing.assert_array_equal(pricing["price_source_target"], [0.30, 0.30, 0.30])
+            load_element_config("X", _as_schema(config), FakeStateMachine({}), FORECAST_TIMES)
 
     def test_entity_percent_scalar_converts(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Entity-backed SOC scalar values are divided by 100."""
@@ -232,18 +228,11 @@ class TestLoadElementConfig:
         }
         result = cast(
             "dict[str, Any]",
-            load_element_config("Hub", config, FakeStateMachine({}), FORECAST_TIMES),
+            load_element_config("Hub", _as_schema(config), FakeStateMachine({}), FORECAST_TIMES),
         )
 
         assert result["role"]["is_source"] is True
         assert result["role"]["is_sink"] is False
-
-    def test_non_entity_non_numeric_passes_through(self) -> None:
-        """Values that are not entity IDs or numerics pass through as-is."""
-        config = _grid_config(import_price={"unexpected": "structure"})
-        result = _load_grid(config)
-
-        assert result["pricing"]["price_source_target"] == {"unexpected": "structure"}
 
     def test_entity_non_percent_scalar_resolves(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Non-percent scalar entity values resolve without division."""
@@ -272,7 +261,7 @@ class TestLoadElementConfig:
         config = _grid_config()
         original_pricing = dict(config["pricing"])
 
-        load_element_config("Grid", config, FakeStateMachine({}), FORECAST_TIMES)
+        load_element_config("Grid", _as_schema(config), FakeStateMachine({}), FORECAST_TIMES)
 
         assert config["pricing"] == original_pricing
         assert isinstance(config["pricing"]["price_source_target"], dict)
@@ -283,11 +272,11 @@ class TestLoadElementConfigs:
 
     def test_loads_all_participants(self) -> None:
         """All participants are loaded and returned."""
-        participants: dict[str, dict[str, Any]] = {
+        participants: dict[str, Any] = {
             "Grid": _grid_config(),
             "Battery": _battery_config(),
         }
-        result = load_element_configs(participants, FakeStateMachine({}), FORECAST_TIMES)
+        result = load_element_configs(cast("Mapping[str, ElementConfigSchema]", participants), FakeStateMachine({}), FORECAST_TIMES)
 
         assert set(result.keys()) == {"Grid", "Battery"}
         assert result["Grid"]["element_type"] == "grid"
@@ -295,11 +284,11 @@ class TestLoadElementConfigs:
 
     def test_element_names_match_keys(self) -> None:
         """Element names in loaded configs match the participant keys."""
-        participants: dict[str, dict[str, Any]] = {
+        participants: dict[str, Any] = {
             "MyGrid": _grid_config(),
             "MyBattery": _battery_config(),
         }
-        result = load_element_configs(participants, FakeStateMachine({}), FORECAST_TIMES)
+        result = load_element_configs(cast("Mapping[str, ElementConfigSchema]", participants), FakeStateMachine({}), FORECAST_TIMES)
 
         assert result["MyGrid"]["name"] == "MyGrid"
         assert result["MyBattery"]["name"] == "MyBattery"
