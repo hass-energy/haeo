@@ -16,8 +16,9 @@ from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.core.data.util.forecast_combiner import combine_sensor_payloads
 from custom_components.haeo.core.data.util.forecast_fuser import fuse_to_boundaries, fuse_to_intervals
 from custom_components.haeo.core.model.const import OutputType
+from custom_components.haeo.core.schema import SchemaValue
 from custom_components.haeo.core.schema.constant_value import is_constant_value
-from custom_components.haeo.core.schema.elements import ELEMENT_CONFIG_SCHEMAS, ElementConfigData
+from custom_components.haeo.core.schema.elements import ELEMENT_CONFIG_SCHEMAS, ElementConfigData, ElementConfigSchema
 from custom_components.haeo.core.schema.entity_value import is_entity_value
 from custom_components.haeo.core.schema.field_hints import FieldHint, extract_field_hints
 from custom_components.haeo.core.schema.none_value import is_none_value
@@ -30,7 +31,7 @@ _PERCENT_OUTPUT_TYPES = frozenset({OutputType.STATE_OF_CHARGE, OutputType.EFFICI
 
 def load_element_config(
     element_name: str,
-    element_config: Mapping[str, Any],
+    element_config: ElementConfigSchema,
     sm: StateMachine,
     forecast_times: Sequence[float],
 ) -> ElementConfigData:
@@ -89,7 +90,7 @@ def load_element_config(
 
 
 def load_element_configs(
-    participants: Mapping[str, Mapping[str, Any]],
+    participants: Mapping[str, ElementConfigSchema],
     sm: StateMachine,
     forecast_times: Sequence[float],
 ) -> dict[str, ElementConfigData]:
@@ -115,31 +116,37 @@ _REMOVE = _Sentinel()
 
 
 def _resolve_field(
-    value: Any,
+    value: SchemaValue | bool,  # noqa: FBT001
     hint: FieldHint,
     sm: StateMachine,
     forecast_times: Sequence[float],
-) -> Any:
+) -> _Sentinel | bool | float | np.ndarray | None:
     """Resolve a single field value based on its schema type and hint metadata."""
     if is_none_value(value):
         return _REMOVE
 
-    if is_constant_value(value) or is_entity_value(value):
-        value = value["value"]
-
     if isinstance(value, bool):
         return value
 
+    if is_constant_value(value):
+        unwrapped: float | bool | list[str] = value["value"]
+    elif is_entity_value(value):
+        unwrapped = value["value"]
+    else:
+        return None
+
+    if isinstance(unwrapped, bool):
+        return unwrapped
+
     is_percent = hint.output_type in _PERCENT_OUTPUT_TYPES
 
-    if isinstance(value, (int, float)):
-        return _resolve_numeric(float(value), hint, forecast_times, is_percent=is_percent)
+    if isinstance(unwrapped, (int, float)):
+        return _resolve_numeric(float(unwrapped), hint, forecast_times, is_percent=is_percent)
 
-    entity_ids = _extract_entity_ids(value)
-    if not entity_ids:
-        return value
+    if not unwrapped:
+        return None
 
-    return _resolve_entities(entity_ids, hint, sm, forecast_times, is_percent=is_percent)
+    return _resolve_entities(unwrapped, hint, sm, forecast_times, is_percent=is_percent)
 
 
 def _resolve_numeric(
@@ -159,15 +166,6 @@ def _resolve_numeric(
     return np.array([converted] * count)
 
 
-def _extract_entity_ids(value: Any) -> list[str]:
-    """Extract entity IDs from a raw value (string or list of strings)."""
-    if isinstance(value, str):
-        return [value]
-    if isinstance(value, list):
-        return [v for v in value if isinstance(v, str)]
-    return []
-
-
 def _resolve_entities(
     entity_ids: list[str],
     hint: FieldHint,
@@ -175,7 +173,7 @@ def _resolve_entities(
     forecast_times: Sequence[float],
     *,
     is_percent: bool,
-) -> Any:
+) -> float | np.ndarray | None:
     """Load entity data from state machine and fuse to horizon."""
     payloads = load_sensors(sm, entity_ids)
     if not payloads:

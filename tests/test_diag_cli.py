@@ -10,7 +10,7 @@ import pytest
 from custom_components.haeo.core.data.loader import config_loader as cl
 from custom_components.haeo.core.data.loader.config_loader import load_element_config
 from custom_components.haeo.core.schema import as_constant_value
-from custom_components.haeo.core.schema.elements import battery
+from custom_components.haeo.core.schema.elements import ElementConfigSchema, battery
 from tools import diag
 
 
@@ -43,7 +43,7 @@ def test_load_element_config_unwraps_constant_wrappers() -> None:
         "battery.BatteryConfigData",
         load_element_config(
             "Battery",
-            config,
+            cast("ElementConfigSchema", config),
             diag.DiagnosticsStateProvider([]),
             (0.0, 1800.0, 3600.0),
         ),
@@ -87,7 +87,7 @@ def test_load_element_config_uses_present_value_for_scalar_entities(monkeypatch:
         "battery.BatteryConfigData",
         load_element_config(
             "Battery",
-            config,
+            cast("ElementConfigSchema", config),
             diag.DiagnosticsStateProvider([]),
             (0.0, 1800.0, 3600.0),
         ),
@@ -124,7 +124,7 @@ def test_load_element_config_unwraps_entity_wrappers_for_time_series(monkeypatch
         "battery.BatteryConfigData",
         load_element_config(
             "Battery",
-            config,
+            cast("ElementConfigSchema", config),
             diag.DiagnosticsStateProvider([]),
             (0.0, 1800.0, 3600.0),
         ),
@@ -148,7 +148,7 @@ def test_load_element_config_drops_none_wrappers() -> None:
         "battery.BatteryConfigData",
         load_element_config(
             "Battery",
-            config,
+            cast("ElementConfigSchema", config),
             diag.DiagnosticsStateProvider([]),
             (0.0, 1800.0, 3600.0),
         ),
