@@ -14,8 +14,8 @@ from homeassistant.util import dt as dt_util
 
 from custom_components.haeo import HaeoConfigEntry, HaeoRuntimeData
 from custom_components.haeo.const import ELEMENT_TYPE_NETWORK
-from custom_components.haeo.coordinator.context import OptimizationContext
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
+from custom_components.haeo.core.context import OptimizationContext
 from custom_components.haeo.core.schema import SchemaValue, is_schema_value
 from custom_components.haeo.core.schema.elements import ElementConfigSchema
 from custom_components.haeo.elements import is_element_config_schema

@@ -2,7 +2,7 @@
 
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 import logging
 import time
 from typing import TYPE_CHECKING, Any, Literal, TypedDict
@@ -31,21 +31,23 @@ from custom_components.haeo.const import (
 )
 from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES
 from custom_components.haeo.core.const import CONF_DEBOUNCE_SECONDS, CONF_ELEMENT_TYPE, DEFAULT_DEBOUNCE_SECONDS
+from custom_components.haeo.core.context import OptimizationContext
 from custom_components.haeo.core.data.forecast_times import tiers_to_periods_seconds
 from custom_components.haeo.core.data.loader.config_loader import load_element_config as _core_load_element_config
 from custom_components.haeo.core.data.loader.config_loader import load_element_configs
 from custom_components.haeo.core.model import ModelOutputName, Network, OutputData, OutputType
 from custom_components.haeo.core.schema.elements import ElementConfigData, ElementConfigSchema
+from custom_components.haeo.core.state import EntityState
 from custom_components.haeo.elements import ElementDeviceName, ElementOutputName, collect_element_subentries
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED
 from custom_components.haeo.ha_state_machine import HomeAssistantStateMachine
 from custom_components.haeo.repairs import dismiss_optimization_failure_issue
 
 from . import network as network_module
-from .context import OptimizationContext
 
 if TYPE_CHECKING:
-    from custom_components.haeo import HaeoConfigEntry, HaeoRuntimeData
+    from custom_components.haeo import HaeoConfigEntry, HaeoRuntimeData, InputEntity
+    from custom_components.haeo.horizon import HorizonManager
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -172,6 +174,29 @@ def _build_coordinator_output(
         state_class=STATE_CLASS_MAP.get(output_data.type),
         options=(STATUS_OPTIONS if output_data.type == OutputType.STATUS else None),
         advanced=output_data.advanced,
+    )
+
+
+def _build_optimization_context(
+    hub_config: Mapping[str, Any],
+    participant_configs: Mapping[str, ElementConfigSchema],
+    input_entities: Mapping[Any, "InputEntity"],
+    horizon_manager: "HorizonManager",
+) -> OptimizationContext:
+    """Build an optimization context by pulling from existing sources."""
+    source_states: dict[str, EntityState] = {}
+    for entity in input_entities.values():
+        source_states.update(entity.captured_source_states)
+
+    horizon_start = horizon_manager.current_start_time
+    if horizon_start is None:
+        horizon_start = datetime.now(UTC)
+
+    return OptimizationContext(
+        hub_config=hub_config,
+        horizon_start=horizon_start,
+        participants=dict(participant_configs),
+        source_states=source_states,
     )
 
 
@@ -622,7 +647,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             forecast_timestamps = runtime_data.horizon_manager.get_forecast_timestamps()
 
             # Build optimization context capturing all inputs for reproducibility
-            context = OptimizationContext.build(
+            context = _build_optimization_context(
                 hub_config=self.config_entry.data,
                 participant_configs=self._participant_configs,
                 input_entities=runtime_data.input_entities,
@@ -751,4 +776,5 @@ __all__ = [
     "HaeoDataUpdateCoordinator",
     "OptimizationContext",
     "_build_coordinator_output",
+    "_build_optimization_context",
 ]
