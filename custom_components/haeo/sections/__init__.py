@@ -1,85 +1,24 @@
-"""Shared section definitions for HAEO element configuration."""
+"""Section flow builders for HAEO element configuration.
 
-# ruff: noqa: I001
+Type definitions (TypedDicts, constants) live in core.schema.sections.
+This package contains only the HA-dependent flow builder functions.
+"""
 
-from .common import (
-    CONF_CONNECTION,
-    CommonConfig,
-    CommonData,
-    ConnectedCommonConfig,
-    ConnectedCommonData,
-    SECTION_COMMON,
-    build_common_fields,
-    common_section,
-)
-from .efficiency import (
-    CONF_EFFICIENCY_SOURCE_TARGET,
-    CONF_EFFICIENCY_TARGET_SOURCE,
-    EfficiencyConfig,
-    EfficiencyData,
-    SECTION_EFFICIENCY,
-    build_efficiency_fields,
-    efficiency_section,
-)
-from .forecast import (
-    CONF_FORECAST,
-    ForecastConfig,
-    ForecastData,
-    SECTION_FORECAST,
-    build_forecast_fields,
-    forecast_section,
-)
-from .power_limits import (
-    CONF_MAX_POWER_SOURCE_TARGET,
-    CONF_MAX_POWER_TARGET_SOURCE,
-    PowerLimitsConfig,
-    PowerLimitsData,
-    SECTION_POWER_LIMITS,
-    build_power_limits_fields,
-    power_limits_section,
-)
-from .pricing import (
-    CONF_PRICE_SOURCE_TARGET,
-    CONF_PRICE_TARGET_SOURCE,
-    PricingConfig,
-    PricingData,
-    SECTION_PRICING,
-    build_pricing_fields,
-    pricing_section,
-)
+from .common import build_common_fields
+from .curtailment import build_curtailment_fields, curtailment_section
+from .efficiency import build_efficiency_fields, efficiency_section
+from .forecast import build_forecast_fields, forecast_section
+from .power_limits import build_power_limits_fields, power_limits_section
+from .pricing import build_pricing_fields, pricing_section
 
 __all__ = [
-    "CONF_CONNECTION",
-    "CONF_EFFICIENCY_SOURCE_TARGET",
-    "CONF_EFFICIENCY_TARGET_SOURCE",
-    "CONF_FORECAST",
-    "CONF_MAX_POWER_SOURCE_TARGET",
-    "CONF_MAX_POWER_TARGET_SOURCE",
-    "CONF_PRICE_SOURCE_TARGET",
-    "CONF_PRICE_TARGET_SOURCE",
-    "SECTION_COMMON",
-    "SECTION_EFFICIENCY",
-    "SECTION_FORECAST",
-    "SECTION_POWER_LIMITS",
-    "SECTION_PRICING",
-    "CommonConfig",
-    "CommonData",
-    "ConnectedCommonConfig",
-    "ConnectedCommonData",
-    "EfficiencyConfig",
-    "EfficiencyData",
-    "ForecastConfig",
-    "ForecastData",
-    "PowerLimitsConfig",
-    "PowerLimitsData",
-    "PricingConfig",
-    "PricingData",
     "build_common_fields",
+    "build_curtailment_fields",
     "build_efficiency_fields",
     "build_forecast_fields",
     "build_power_limits_fields",
     "build_pricing_fields",
-    "common_section",
+    "curtailment_section",
     "efficiency_section",
     "forecast_section",
     "power_limits_section",

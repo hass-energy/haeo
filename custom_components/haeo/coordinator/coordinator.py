@@ -1,9 +1,8 @@
 """Data update coordinator for the Home Assistant Energy Optimizer integration."""
 
 from collections.abc import Callable, Mapping
-from copy import deepcopy
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 import logging
 import time
 from typing import TYPE_CHECKING, Any, Literal, TypedDict
@@ -20,9 +19,6 @@ from homeassistant.util import dt as dt_util
 import numpy as np
 
 from custom_components.haeo.const import (
-    CONF_DEBOUNCE_SECONDS,
-    CONF_ELEMENT_TYPE,
-    DEFAULT_DEBOUNCE_SECONDS,
     DOMAIN,
     ELEMENT_TYPE_NETWORK,
     OPTIMIZATION_STATUS_FAILED,
@@ -33,31 +29,25 @@ from custom_components.haeo.const import (
     OUTPUT_NAME_OPTIMIZATION_STATUS,
     NetworkOutputName,
 )
-from custom_components.haeo.elements import (
-    ELEMENT_TYPES,
-    ElementConfigData,
-    ElementConfigSchema,
-    ElementDeviceName,
-    ElementOutputName,
-    collect_element_subentries,
-    get_input_field_schema_info,
-    get_input_fields,
-    get_nested_config_value_by_path,
-    is_element_config_data,
-    is_element_type,
-    iter_input_field_paths,
-    set_nested_config_value_by_path,
-)
+from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES
+from custom_components.haeo.core.const import CONF_DEBOUNCE_SECONDS, CONF_ELEMENT_TYPE, DEFAULT_DEBOUNCE_SECONDS
+from custom_components.haeo.core.context import OptimizationContext
+from custom_components.haeo.core.data.forecast_times import tiers_to_periods_seconds
+from custom_components.haeo.core.data.loader.config_loader import load_element_config as _core_load_element_config
+from custom_components.haeo.core.data.loader.config_loader import load_element_configs
+from custom_components.haeo.core.model import ModelOutputName, Network, OutputData, OutputType
+from custom_components.haeo.core.schema.elements import ElementConfigData, ElementConfigSchema
+from custom_components.haeo.core.state import EntityState
+from custom_components.haeo.elements import ElementDeviceName, ElementOutputName, collect_element_subentries
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED
-from custom_components.haeo.model import ModelOutputName, Network, OutputData, OutputType
+from custom_components.haeo.ha_state_machine import HomeAssistantStateMachine
 from custom_components.haeo.repairs import dismiss_optimization_failure_issue
-from custom_components.haeo.schema import is_none_value
-from custom_components.haeo.util.forecast_times import tiers_to_periods_seconds
 
 from . import network as network_module
 
 if TYPE_CHECKING:
-    from custom_components.haeo import HaeoConfigEntry, HaeoRuntimeData
+    from custom_components.haeo import HaeoConfigEntry, HaeoRuntimeData, InputEntity
+    from custom_components.haeo.horizon import HorizonManager
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -121,16 +111,6 @@ STATUS_OPTIONS: tuple[str, ...] = tuple(
         }
     )
 )
-
-
-def _strip_none_schema_values(data: dict[str, Any]) -> None:
-    """Remove disabled schema values from a nested config dict."""
-    for key, value in list(data.items()):
-        if is_none_value(value):
-            data.pop(key)
-            continue
-        if isinstance(value, dict):
-            _strip_none_schema_values(value)
 
 
 def _build_coordinator_output(
@@ -197,8 +177,47 @@ def _build_coordinator_output(
     )
 
 
+def _build_optimization_context(
+    hub_config: Mapping[str, Any],
+    participant_configs: Mapping[str, ElementConfigSchema],
+    input_entities: Mapping[Any, "InputEntity"],
+    horizon_manager: "HorizonManager",
+) -> OptimizationContext:
+    """Build an optimization context by pulling from existing sources."""
+    source_states: dict[str, EntityState] = {}
+    for entity in input_entities.values():
+        source_states.update(entity.captured_source_states)
+
+    horizon_start = horizon_manager.current_start_time
+    if horizon_start is None:
+        horizon_start = datetime.now(UTC)
+
+    return OptimizationContext(
+        hub_config=hub_config,
+        horizon_start=horizon_start,
+        participants=dict(participant_configs),
+        source_states=source_states,
+    )
+
+
 type SubentryDevices = dict[ElementDeviceName, dict[ElementOutputName | NetworkOutputName, CoordinatorOutput]]
-type CoordinatorData = dict[str, SubentryDevices]
+
+
+@dataclass(slots=True)
+class CoordinatorData:
+    """Result of an optimization run including inputs and outputs."""
+
+    context: OptimizationContext
+    """Immutable snapshot of all inputs used for this optimization."""
+
+    outputs: dict[str, SubentryDevices]
+    """Element outputs organized by element_name -> device_name -> output_name."""
+
+    started_at: datetime
+    """When the optimization started."""
+
+    completed_at: datetime
+    """When the optimization completed."""
 
 
 class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
@@ -497,10 +516,14 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         self.hass.async_create_task(self.async_refresh())
 
     def _are_inputs_aligned(self) -> bool:
-        """Check if all input entities have the same horizon start time.
+        """Check if all forecast input entities have the same horizon start time.
 
-        Returns True if all inputs are loaded and aligned to the same horizon.
-        Returns False if any input is missing data or horizons don't match.
+        Scalar (non-forecast) inputs are alignment-neutral since they have no
+        time-series data to align. Only forecast-based inputs must match the
+        horizon manager's current start time.
+
+        Returns True if all forecast inputs are loaded and aligned to the same horizon.
+        Returns False if any forecast input is missing data or horizons don't match.
         """
         runtime_data = self._get_runtime_data()
         if runtime_data is None:
@@ -512,8 +535,10 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             return False
         expected_start = expected_horizon[0]
 
-        # Check all input entities have values and matching horizon
+        # Check forecast input entities have values and matching horizon
         for entity in runtime_data.input_entities.values():
+            if not entity.uses_forecast:
+                continue
             entity_horizon = entity.horizon_start
             if entity_horizon is None:
                 return False
@@ -524,9 +549,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         return True
 
     def _load_element_config(self, element_name: str) -> ElementConfigData:
-        """Load configuration for a single element from its input entities.
-
-        Collects loaded values from input entities and merges them with config values.
+        """Load configuration for a single element via the core config loader.
 
         Args:
             element_name: Name of the element to load
@@ -535,7 +558,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             Loaded configuration
 
         Raises:
-            ValueError: If element not found, data unavailable, or required field missing
+            ValueError: If element not found or data unavailable
 
         """
         if element_name not in self._participant_configs:
@@ -547,96 +570,24 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             msg = f"Runtime data not available when loading element '{element_name}'"
             raise ValueError(msg)
 
-        element_config = self._participant_configs[element_name]
-        element_type = element_config[CONF_ELEMENT_TYPE]
-
-        if not is_element_type(element_type):
-            msg = f"Invalid element type '{element_type}' for element '{element_name}'"
-            raise ValueError(msg)
-
-        # Get input field definitions for this element type
-        input_field_infos = get_input_fields(element_config)
-
-        # Collect loaded values from input entities
-        loaded_values: dict[tuple[str, ...], Any] = {}
-        missing_entity_values: set[tuple[str, ...]] = set()
-        for field_path, field_info in iter_input_field_paths(input_field_infos):
-            field_name = field_info.field_name
-            key = (element_name, field_path)
-
-            if key not in runtime_data.input_entities:
-                continue
-
-            entity = runtime_data.input_entities[key]
-            values = entity.get_values()
-
-            if values is None:
-                missing_entity_values.add(field_path)
-                continue
-
-            if field_info.time_series:
-                loaded_values[field_path] = np.asarray(values, dtype=float)
-            else:
-                loaded_values[field_path] = values[0] if values else None
-
-        element_values: dict[str, Any] = deepcopy(dict(element_config))
-        for field_path, value in loaded_values.items():
-            set_nested_config_value_by_path(element_values, field_path, value)
-
-        _strip_none_schema_values(element_values)
-
-        field_schema = get_input_field_schema_info(element_type, input_field_infos)
-        optional_keys = {
-            field_name
-            for section_fields in field_schema.values()
-            for field_name, field_info in section_fields.items()
-            if field_info.is_optional
-        }
-        for field_path, field_info in iter_input_field_paths(input_field_infos):
-            field_name = field_info.field_name
-            is_required = field_name not in optional_keys
-            if not is_required:
-                continue
-            key = (element_name, field_path)
-            if key not in runtime_data.input_entities:
-                msg = f"Missing required field '{'.'.join(field_path)}' for element '{element_name}'"
-                raise ValueError(msg)
-            if field_path in missing_entity_values:
-                msg = f"Missing required field '{'.'.join(field_path)}' for element '{element_name}'"
-                raise ValueError(msg)
-            value = get_nested_config_value_by_path(element_values, field_path)
-            if value is None:
-                msg = f"Missing required field '{'.'.join(field_path)}' for element '{element_name}'"
-                raise ValueError(msg)
-
-        if not is_element_config_data(element_values):
-            msg = f"Invalid config data for element '{element_name}'"
-            raise ValueError(msg)
-
-        return element_values
+        forecast_times = runtime_data.horizon_manager.get_forecast_timestamps()
+        sm = HomeAssistantStateMachine(self.hass)
+        return _core_load_element_config(element_name, self._participant_configs[element_name], sm, forecast_times)
 
     def _load_from_input_entities(self) -> dict[str, ElementConfigData]:
-        """Load element configurations from input entities.
+        """Load element configurations via the core config loader.
 
-        Reads forecast values from input entities and constructs ElementConfigData
-        for each element, ready for the optimization model.
+        Resolves raw participant configs against the HA state machine
+        to produce fully loaded ElementConfigData for each element.
         """
         runtime_data = self._get_runtime_data()
         if runtime_data is None:
             msg = "Runtime data not available"
             raise UpdateFailed(msg)
 
-        _LOGGER.debug(
-            "Loading from input entities. runtime_data.input_entities: %s", list(runtime_data.input_entities.keys())
-        )
-
-        loaded_configs: dict[str, ElementConfigData] = {}
-
-        for element_name in self._participant_configs:
-            element_config = self._load_element_config(element_name)
-            loaded_configs[element_name] = element_config
-
-        return loaded_configs
+        forecast_times = runtime_data.horizon_manager.get_forecast_timestamps()
+        sm = HomeAssistantStateMachine(self.hass)
+        return load_element_configs(self._participant_configs, sm, forecast_times)
 
     def cleanup(self) -> None:
         """Clean up coordinator resources when unloading."""
@@ -676,6 +627,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             raise UpdateFailed(msg)
 
         start_time = time.time()
+        started_at = dt_util.utc_from_timestamp(start_time).astimezone()
 
         # Set flag to prevent concurrent optimization triggers from callbacks
         # This is cleared in the finally block
@@ -693,6 +645,14 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
                 raise UpdateFailed(msg)
 
             forecast_timestamps = runtime_data.horizon_manager.get_forecast_timestamps()
+
+            # Build optimization context capturing all inputs for reproducibility
+            context = _build_optimization_context(
+                hub_config=self.config_entry.data,
+                participant_configs=self._participant_configs,
+                input_entities=runtime_data.input_entities,
+                horizon_manager=runtime_data.horizon_manager,
+            )
 
             # Load element configurations from input entities
             # All input entities are guaranteed to be fully loaded by the time we get here
@@ -736,7 +696,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             )
             network_subentry_name = translations[f"component.{DOMAIN}.common.network_subentry_name"]
 
-            result: CoordinatorData = {
+            outputs: dict[str, SubentryDevices] = {
                 # HAEO outputs use network subentry name as key, network element type as device
                 network_subentry_name: {
                     ELEMENT_TYPE_NETWORK: {
@@ -752,7 +712,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             }
 
             # Process each config element using its outputs function to transform model outputs into device outputs
-            for element_name, element_config in self._participant_configs.items():
+            for element_name, element_config in context.participants.items():
                 element_type = element_config[CONF_ELEMENT_TYPE]
                 outputs_fn = ELEMENT_TYPES[element_type].outputs
 
@@ -791,9 +751,16 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
                         subentry_devices[device_name] = processed_outputs
 
                 if subentry_devices:
-                    result[element_name] = subentry_devices
+                    outputs[element_name] = subentry_devices
 
-            return result
+            completed_at = dt_util.utc_from_timestamp(end_time).astimezone()
+
+            return CoordinatorData(
+                context=context,
+                outputs=outputs,
+                started_at=started_at,
+                completed_at=completed_at,
+            )
         finally:
             # Always clear the in-progress flag
             self._optimization_in_progress = False
@@ -807,5 +774,7 @@ __all__ = [
     "CoordinatorOutput",
     "ForecastPoint",
     "HaeoDataUpdateCoordinator",
+    "OptimizationContext",
     "_build_coordinator_output",
+    "_build_optimization_context",
 ]

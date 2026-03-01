@@ -9,25 +9,27 @@ from typing import Any
 from homeassistant.components.number import NumberEntity, NumberEntityDescription
 from homeassistant.config_entries import ConfigSubentry
 from homeassistant.const import PERCENTAGE, EntityCategory
-from homeassistant.core import Event, callback
+from homeassistant.core import Event, State, callback
 from homeassistant.helpers.device_registry import DeviceEntry
 from homeassistant.helpers.event import EventStateChangedData, async_track_state_change_event
 from homeassistant.util import dt as dt_util
 
 from custom_components.haeo import HaeoConfigEntry
 from custom_components.haeo.const import CONF_RECORD_FORECASTS
-from custom_components.haeo.data.loader import ScalarLoader, TimeSeriesLoader
-from custom_components.haeo.elements import InputFieldPath, find_nested_config_path, get_nested_config_value_by_path
-from custom_components.haeo.elements.input_fields import InputFieldInfo
-from custom_components.haeo.horizon import HorizonManager
-from custom_components.haeo.schema import (
+from custom_components.haeo.core.data.loader import ScalarLoader, TimeSeriesLoader
+from custom_components.haeo.core.schema import (
     as_constant_value,
     as_entity_value,
     is_connection_target,
     is_constant_value,
     is_entity_value,
     is_none_value,
+    is_schema_value,
 )
+from custom_components.haeo.elements import InputFieldPath, find_nested_config_path, get_nested_config_value_by_path
+from custom_components.haeo.elements.input_fields import InputFieldInfo
+from custom_components.haeo.ha_state_machine import HomeAssistantStateMachine
+from custom_components.haeo.horizon import HorizonManager
 from custom_components.haeo.util import async_update_subentry_value
 
 # Attributes to exclude from recorder when forecast recording is disabled
@@ -127,7 +129,7 @@ class HaeoInputNumber(NumberEntity):
             return str(value)
 
         for key, value in subentry.data.items():
-            if isinstance(value, Mapping):
+            if isinstance(value, Mapping) and not is_schema_value(value) and not is_connection_target(value):
                 for nested_key, nested_value in value.items():
                     placeholders.setdefault(nested_key, format_placeholder(nested_value))
                 continue
@@ -159,9 +161,10 @@ class HaeoInputNumber(NumberEntity):
         # Event that signals data is ready for coordinator access
         self._data_ready = asyncio.Event()
 
-        # Exclude forecast from recorder unless explicitly enabled
-        if not config_entry.data.get(CONF_RECORD_FORECASTS, False):
-            self._unrecorded_attributes = FORECAST_UNRECORDED_ATTRIBUTES
+        # Captured source states for reproducibility (populated when loading data)
+        self._captured_source_states: Mapping[str, State] = {}
+
+        self._record_forecasts = config_entry.data.get(CONF_RECORD_FORECASTS, False)
 
     def _get_forecast_timestamps(self) -> tuple[float, ...]:
         """Get forecast timestamps from horizon manager."""
@@ -176,6 +179,7 @@ class HaeoInputNumber(NumberEntity):
         access after async_block_till_done() completes.
         """
         await super().async_added_to_hass()
+        self._apply_recorder_attribute_filtering()
 
         # Subscribe to horizon manager for consistent time windows
         if self._uses_forecast:
@@ -195,6 +199,12 @@ class HaeoInputNumber(NumberEntity):
             )
             # Load initial data - await ensures entity is ready when added_to_hass completes
             await self._async_load_data()
+
+    def _apply_recorder_attribute_filtering(self) -> None:
+        """Apply recorder filtering to this entity's runtime state info."""
+        if self._record_forecasts:
+            return
+        self._state_info["unrecorded_attributes"] = FORECAST_UNRECORDED_ATTRIBUTES
 
     @callback
     def _handle_horizon_change(self) -> None:
@@ -230,12 +240,19 @@ class HaeoInputNumber(NumberEntity):
         state. Do not write state from async_added_to_hass(); Home Assistant
         will handle initial state once the entity has been fully added.
         """
+        # Capture source states before loading for reproducibility
+        self._captured_source_states = {
+            eid: state for eid in self._source_entity_ids if (state := self.hass.states.get(eid)) is not None
+        }
+
+        sm = HomeAssistantStateMachine(self.hass)
+
         if not self._uses_forecast:
             if not self._source_entity_ids:
                 return
             try:
                 scalar_value = await self._scalar_loader.load(
-                    hass=self.hass,
+                    sm=sm,
                     value=as_entity_value(self._source_entity_ids),
                 )
             except Exception:
@@ -252,14 +269,14 @@ class HaeoInputNumber(NumberEntity):
             if self._field_info.boundaries:
                 # Boundary fields: n+1 values at time boundaries
                 values = await self._time_series_loader.load_boundaries(
-                    hass=self.hass,
+                    sm=sm,
                     value=as_entity_value(self._source_entity_ids),
                     forecast_times=list(forecast_timestamps),
                 )
             else:
                 # Interval fields: n values for periods between boundaries
                 values = await self._time_series_loader.load_intervals(
-                    hass=self.hass,
+                    sm=sm,
                     value=as_entity_value(self._source_entity_ids),
                     forecast_times=list(forecast_timestamps),
                 )
@@ -338,6 +355,11 @@ class HaeoInputNumber(NumberEntity):
         return self._entity_mode
 
     @property
+    def uses_forecast(self) -> bool:
+        """Return True if this entity produces time-series forecast data."""
+        return self._uses_forecast
+
+    @property
     def horizon_start(self) -> float | None:
         """Return the first forecast timestamp, or None if not loaded."""
         forecast = self._attr_extra_state_attributes.get("forecast")
@@ -365,6 +387,17 @@ class HaeoInputNumber(NumberEntity):
                 return tuple(float(value) / 100.0 for value in values)
             return values
         return None
+
+    @property
+    def captured_source_states(self) -> Mapping[str, State]:
+        """Source states captured when data was last loaded.
+
+        Returns:
+            Dict mapping source entity IDs to their State objects at load time.
+            Empty dict for EDITABLE mode entities (no source entities).
+
+        """
+        return self._captured_source_states
 
     async def async_set_native_value(self, value: float) -> None:
         """Handle user setting a value.
