@@ -15,8 +15,15 @@ from functools import wraps
 from pathlib import Path
 from typing import Any
 
-# Module-level holder for the current context
-_current_context: list[ScreenshotContext | None] = [None]
+
+@dataclass
+class _ContextHolder:
+    """Mutable holder for the module-level screenshot context."""
+
+    current: ScreenshotContext | None = None
+
+
+_holder = _ContextHolder()
 
 
 @dataclass
@@ -42,12 +49,12 @@ class ScreenshotContext:
     @staticmethod
     def current() -> ScreenshotContext | None:
         """Get the current active context."""
-        return _current_context[0]
+        return _holder.current
 
     @staticmethod
     def require() -> ScreenshotContext:
         """Get the current context, raising if none is active."""
-        ctx = _current_context[0]
+        ctx = _holder.current
         if ctx is None:
             msg = "No ScreenshotContext is active"
             raise RuntimeError(msg)
@@ -81,12 +88,12 @@ class ScreenshotContext:
         parts.append(self._sanitize(step))
         name = ".".join(parts)
 
-        # Include step number for ordering
+        # Include step number for ordering and uniqueness
         filename = f"{self._step_number:03d}_{name}.png"
         path = self.output_dir / filename
 
         page.screenshot(path=str(path), animations="disabled")
-        self.screenshots[name] = path
+        self.screenshots[filename] = path
 
         return path
 
@@ -122,12 +129,12 @@ def screenshot_context(output_dir: Path) -> Iterator[ScreenshotContext]:
     output_dir.mkdir(parents=True, exist_ok=True)
     ctx = ScreenshotContext(output_dir=output_dir)
 
-    previous = _current_context[0]
-    _current_context[0] = ctx
+    previous = _holder.current
+    _holder.current = ctx
     try:
         yield ctx
     finally:
-        _current_context[0] = previous
+        _holder.current = previous
 
 
 def guide_step[F: Callable[..., Any]](func: F) -> F:

@@ -13,6 +13,7 @@ from __future__ import annotations
 from collections.abc import Generator
 import datetime
 import logging
+import os
 import shutil
 
 from homeassistant.config_entries import ConfigEntry
@@ -41,6 +42,7 @@ def _restore_timezone() -> Generator[None]:  # pyright: ignore[reportUnusedFunct
 @pytest.mark.guide
 @pytest.mark.enable_socket
 @pytest.mark.timeout(300)  # 5 minutes for full guide run
+@pytest.mark.skipif(os.getenv("CI") == "true", reason="Playwright browsers not installed in CI")
 @pytest.mark.parametrize("dark_mode", [False, True], ids=["light", "dark"])
 def test_sigenergy_guide(dark_mode: bool) -> None:
     """Test the complete Sigenergy setup guide.

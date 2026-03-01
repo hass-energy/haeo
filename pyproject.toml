@@ -12,7 +12,6 @@ diag = "tools.diag:main"
 
 [dependency-groups]
 dev = [
-    "beautifulsoup4>=4.14.3",
     "freezegun>=1.5.2",
     "home-assistant-frontend>=20260107.1",
     "matplotlib>=3.10.8",
@@ -119,17 +118,17 @@ split-on-trailing-comma = false
 ]
 
 "stubs/**/*.pyi" = [
-    'N',      # Naming conventions must match external API
-    'D',      # Docstrings in stubs are optional
-    'A',      # Shadowing builtins is fine for type stubs
-    'PYI',    # Stub-specific rules - we're matching external API
-    'I',      # Import order doesn't matter in stubs
-    'PIE790', # Allow ... in stub classes
+    'N',       # Naming conventions must match external API
+    'D',       # Docstrings in stubs are optional
+    'A',       # Shadowing builtins is fine for type stubs
+    'PYI',     # Stub-specific rules - we're matching external API
+    'I',       # Import order doesn't matter in stubs
+    'PIE790',  # Allow ... in stub classes
 ]
 
 "tools/**/*.py" = [
-    'T201',   # Allow print statements in CLI tools
-    'FBT001', # Boolean positional argument - required by import-linter Contract interface
+    'T201',    # Allow print statements in CLI tools
+    'FBT001',  # Boolean positional argument - required by import-linter Contract interface
 ]
 
 
@@ -170,7 +169,6 @@ addopts = ["--strict-markers", "--strict-config", "--import-mode=importlib"]
 filterwarnings = ["error"]
 markers = [
     "scenario: marks tests as scenario tests (select with '-m \"scenario\"')",
-    "browser: marks tests as browser automation tests (select with '-m \"browser\"')",
     "guide: marks tests as guide screenshot tests (select with '-m \"guide\"')",
     "enable_socket: marks tests that need real socket access",
 ]
@@ -179,7 +177,7 @@ markers = [
 omit = ["**/tests/*"]
 
 [tool.mdformat]
-number = true                       # Renumber ordered lists
+number = true                 # Renumber ordered lists
 end_of_line = "lf"
 exclude = [".venv", "node_modules"]
 

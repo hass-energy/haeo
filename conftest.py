@@ -194,17 +194,6 @@ def configure_logging() -> None:
 
 
 @pytest.fixture(autouse=True)
-def auto_enable_custom_integrations(request: pytest.FixtureRequest) -> bool:
-    """Enable loading custom integrations in all tests.
-
-    Skip for guide tests which use their own HA instance without
-    the pytest-homeassistant-custom-component fixtures.
-    """
-    # Skip for guide tests - they don't use the hass fixture
-    if "guide" in (mark.name for mark in request.node.iter_markers()):
-        return True
-
-    # For non-guide tests, request the enable_custom_integrations fixture
-    # which depends on the hass fixture
-    enable_custom_integrations = request.getfixturevalue("enable_custom_integrations")
+def auto_enable_custom_integrations(enable_custom_integrations: None) -> bool:
+    """Enable loading custom integrations in all tests."""
     return enable_custom_integrations is None
