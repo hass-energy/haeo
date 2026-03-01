@@ -4,13 +4,14 @@ Defines which config fields should become input entities (NumberEntity/SwitchEnt
 and their associated metadata like output type, direction, and time series behavior.
 """
 
+from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Literal
+from typing import Any, Literal
 
 from homeassistant.components.number import NumberEntityDescription
 from homeassistant.components.switch import SwitchEntityDescription
 
-from custom_components.haeo.model.const import OutputType
+from custom_components.haeo.core.model.const import OutputType
 
 
 @dataclass(frozen=True, slots=True)
@@ -49,6 +50,7 @@ class InputFieldInfo[T: (NumberEntityDescription, SwitchEntityDescription)]:
         time_series: Whether this field is time series (list) or scalar
         boundaries: Whether time series values are at boundaries (n+1 values) vs intervals (n values)
         defaults: Default pre-selection behavior for config flow fields
+        device_type: Optional device type override for sub-device inputs
 
     Note:
         Whether a field is optional (can be disabled in config flow) is determined
@@ -64,9 +66,20 @@ class InputFieldInfo[T: (NumberEntityDescription, SwitchEntityDescription)]:
     time_series: bool = False
     boundaries: bool = False
     defaults: InputFieldDefaults | None = None
+    # Force value to be required, even if its optional in the schema
+    force_required: bool | None = None
+    # Optional device type for sub-device association
+    device_type: str | None = None
 
+
+type InputFieldSection = Mapping[str, InputFieldInfo[Any]]
+type InputFieldGroups = Mapping[str, InputFieldSection]
+type InputFieldPath = tuple[str, ...]
 
 __all__ = [
     "InputFieldDefaults",
+    "InputFieldGroups",
     "InputFieldInfo",
+    "InputFieldPath",
+    "InputFieldSection",
 ]

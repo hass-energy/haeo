@@ -9,9 +9,13 @@ For more information on testing Home Assistant integrations, see:
 
 ## Test Organization
 
-- `tests/conftest.py` - Shared fixtures (Home Assistant instance, mock config entries, common scenarios)
-- `tests/model/` - Model element tests with structured test data
-- `tests/flows/` - Config flow tests
+Tests are colocated with source code in `tests/` subdirectories within each package.
+
+- `conftest.py` - Shared fixtures (Home Assistant instance, mock config entries, common scenarios)
+- `core/model/tests/` - Model element tests with structured test data
+- `core/adapters/elements/tests/` - Adapter tests
+- `flows/elements/tests/` - Element flow tests
+- `flows/tests/` - Hub and options flow tests
 - `tests/scenarios/` - Complete system integration tests
 
 ## Test Structure
@@ -60,7 +64,7 @@ For detailed scenario setup instructions, see `tests/scenarios/README.md`.
 
 ## Model Element Testing
 
-Model element tests are organized in `tests/model/` with structured test data:
+Model element tests are organized in `core/model/tests/` with structured test data:
 
 - `test_elements.py` - Parametrized tests for element outputs and validation
 - `test_data/__init__.py` - Utilities and test case aggregation
@@ -95,7 +99,7 @@ VALID_CASES = [
             # etc
         },
         "expected_outputs": {
-            "power_consumed": {
+            "battery_power_charge": {
                 "type": "power",
                 "unit": "kW",
                 "values": (1.0, 2.0),
@@ -121,23 +125,17 @@ INVALID_CASES = [
 
 ### Adding New Element Tests
 
-When adding a new element type, create a parallel test directory:
+Tests are colocated with source code.
+Add adapter tests in `core/adapters/elements/tests/` and flow tests in `flows/elements/tests/`.
 
-```
-tests/elements/{element_type}/
-├── __init__.py
-├── test_adapter.py   # Tests for available() and load() functions
-└── test_flow.py      # Config flow tests for user and reconfigure steps
-```
-
-**For adapter tests** (`test_adapter.py`):
+**For adapter tests** (`core/adapters/elements/tests/test_{element_type}.py`):
 
 1. Test `available()` returns `True` when all required sensors exist
 2. Test `available()` returns `False` when required sensors are missing
 3. Test `load()` correctly transforms `ConfigSchema` to `ConfigData`
 4. Test `load()` handles optional fields appropriately
 
-**For flow tests** (`test_flow.py`):
+**For flow tests** (`flows/elements/tests/test_{element_type}_flow.py`):
 
 1. Test user step creates entry with valid input
 2. Test user step shows form initially (no input)
@@ -146,7 +144,7 @@ tests/elements/{element_type}/
 5. Test reconfigure with participant that no longer exists
 6. Test element-specific validation (e.g., source != target for connections)
 
-Also add test data in `tests/flows/test_data/{element_type}.py` for parametrized flow tests.
+Also add test data in `flows/tests/test_data/{element_type}.py` for parametrized flow tests.
 
 ## Type Safety Philosophy
 
@@ -239,7 +237,7 @@ schema_cls = registry_entry.schema
 When adding new element types:
 
 1. Add to `ELEMENT_TYPES` in `elements/__init__.py`
-2. Add config flow test data in `tests/flows/test_data/`
+2. Add config flow test data in `flows/tests/test_data/`
 3. Parameterized tests automatically include the new type by iterating over `tuple(ELEMENT_TYPES)`
 
 Parameterized tests marked with `@pytest.mark.parametrize` run once per element type.

@@ -3,14 +3,19 @@
 from typing import Any
 
 from homeassistant.components.sensor import SensorEntity, SensorEntityDescription
+from homeassistant.const import PERCENTAGE
 from homeassistant.core import callback
 from homeassistant.helpers.device_registry import DeviceEntry
 from homeassistant.helpers.typing import StateType
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from custom_components.haeo.coordinator import CoordinatorOutput, HaeoDataUpdateCoordinator
+from custom_components.haeo.const import CONF_RECORD_FORECASTS
+from custom_components.haeo.coordinator import CoordinatorOutput, ForecastPoint, HaeoDataUpdateCoordinator
+from custom_components.haeo.core.model import OutputType
 from custom_components.haeo.elements import ElementDeviceName, ElementOutputName
-from custom_components.haeo.model import OutputType
+
+# Attributes to exclude from recorder when forecast recording is disabled
+FORECAST_UNRECORDED_ATTRIBUTES: frozenset[str] = frozenset({"forecast"})
 
 
 class HaeoSensor(CoordinatorEntity[HaeoDataUpdateCoordinator], SensorEntity):
@@ -56,6 +61,8 @@ class HaeoSensor(CoordinatorEntity[HaeoDataUpdateCoordinator], SensorEntity):
             self._attr_translation_placeholders = translation_placeholders
         self._apply_output(output_data)
 
+        self._record_forecasts = coordinator.config_entry.data.get(CONF_RECORD_FORECASTS, False)
+
     @property
     def available(self) -> bool:  # pyright: ignore[reportIncompatibleVariableOverride]
         """Return if sensor is available based on coordinator success."""
@@ -75,7 +82,7 @@ class HaeoSensor(CoordinatorEntity[HaeoDataUpdateCoordinator], SensorEntity):
         native_value: StateType | None = None
 
         # Navigate the nested structure: subentry -> device -> outputs
-        subentry_devices = self.coordinator.data.get(self._subentry_key) if self.coordinator.data else None
+        subentry_devices = self.coordinator.data.outputs.get(self._subentry_key) if self.coordinator.data else None
         outputs = subentry_devices.get(self._device_key) if subentry_devices else None
         if outputs:
             output_data = outputs.get(self._output_name)
@@ -87,10 +94,10 @@ class HaeoSensor(CoordinatorEntity[HaeoDataUpdateCoordinator], SensorEntity):
                 attributes["advanced"] = output_data.advanced
                 self._apply_output(output_data)
                 if output_data.state is not None:
-                    native_value = output_data.state
+                    native_value = self._scale_percentage_state(output_data.unit, output_data.state)
 
                 if output_data.forecast:
-                    attributes["forecast"] = list(output_data.forecast)
+                    attributes["forecast"] = self._scale_percentage_forecast(output_data.unit, output_data.forecast)
 
         self._attr_native_value = native_value
         self._attr_extra_state_attributes = attributes
@@ -99,7 +106,14 @@ class HaeoSensor(CoordinatorEntity[HaeoDataUpdateCoordinator], SensorEntity):
     async def async_added_to_hass(self) -> None:
         """Finalize setup when entity is added to Home Assistant."""
         await super().async_added_to_hass()
+        self._apply_recorder_attribute_filtering()
         self._handle_coordinator_update()
+
+    def _apply_recorder_attribute_filtering(self) -> None:
+        """Apply recorder filtering to this entity's runtime state info."""
+        if self._record_forecasts:
+            return
+        self._state_info["unrecorded_attributes"] = FORECAST_UNRECORDED_ATTRIBUTES
 
     def _apply_output(self, output: CoordinatorOutput) -> None:
         """Apply device class, options, and unit metadata for an output."""
@@ -109,6 +123,21 @@ class HaeoSensor(CoordinatorEntity[HaeoDataUpdateCoordinator], SensorEntity):
         self._attr_device_class = output.device_class
         self._attr_state_class = output.state_class
         self._attr_options = list(output.options) if output.options is not None else None
+
+    @staticmethod
+    def _scale_percentage_state(unit: str | None, value: StateType) -> StateType:
+        if unit != PERCENTAGE or value is None:
+            return value
+        return float(value) * 100.0
+
+    @staticmethod
+    def _scale_percentage_forecast(
+        unit: str | None,
+        forecast: list[ForecastPoint],
+    ) -> list[ForecastPoint]:
+        if unit != PERCENTAGE:
+            return list(forecast)
+        return [{"time": point["time"], "value": float(point["value"]) * 100.0} for point in forecast]
 
 
 __all__ = ["HaeoSensor"]

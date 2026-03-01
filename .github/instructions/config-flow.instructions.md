@@ -49,17 +49,12 @@ self._async_abort_entries_match({CONF_HOST: user_input[CONF_HOST]})
 Users can name their config entries and elements.
 Element names must be unique within a hub and are validated during the flow.
 
-## Data loading validation
+## Validation timing
 
-Validate that entity references work during the config flow.
-The `evaluate_network_connectivity()` function tests that configured sensors can be loaded:
-
-```python
-participant_configs[new_config[CONF_NAME]] = new_config
-await evaluate_network_connectivity(self.hass, hub_entry, participant_configs=participant_configs)
-```
-
-This ensures entity IDs are valid and loaders can extract data before saving the configuration.
+Validate naming, required fields, and schema constraints in the flow.
+Do not load input entities or run network connectivity checks during configuration.
+Connectivity validation runs in the coordinator after input entities are loaded.
+Repair issues are created from the coordinator based on loaded configurations.
 
 ## Error handling
 

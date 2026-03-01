@@ -56,7 +56,6 @@ async def async_setup_entry(
 
     # Create horizon entity that displays horizon manager state
     horizon_entity = HaeoHorizonEntity(
-        hass=hass,
         config_entry=config_entry,
         device_entry=network_device_entry,
         horizon_manager=horizon_manager,
@@ -67,7 +66,7 @@ async def async_setup_entry(
     if coordinator.data:
         for subentry in config_entry.subentries.values():
             # Get all devices under this subentry (may be multiple, e.g., battery regions)
-            subentry_devices = coordinator.data.get(subentry.title, {})
+            subentry_devices = coordinator.data.outputs.get(subentry.title, {})
 
             # Pass subentry data as translation placeholders (convert all values to strings)
             translation_placeholders = {k: str(v) for k, v in subentry.data.items()}

@@ -9,10 +9,11 @@ from datetime import datetime
 from homeassistant.components.sensor import SensorEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import EntityCategory
-from homeassistant.core import HomeAssistant, callback
+from homeassistant.core import callback
 from homeassistant.helpers.device_registry import DeviceEntry
 from homeassistant.util import dt as dt_util
 
+from custom_components.haeo.const import OUTPUT_NAME_HORIZON
 from custom_components.haeo.horizon import HorizonManager
 
 
@@ -35,13 +36,11 @@ class HaeoHorizonEntity(SensorEntity):
 
     def __init__(
         self,
-        hass: HomeAssistant,
         config_entry: ConfigEntry,
         device_entry: DeviceEntry,
         horizon_manager: HorizonManager,
     ) -> None:
         """Initialize the horizon entity."""
-        self._hass = hass
         self._config_entry = config_entry
         self._horizon_manager = horizon_manager
 
@@ -49,7 +48,7 @@ class HaeoHorizonEntity(SensorEntity):
         self.device_entry = device_entry
 
         # Unique ID for multi-hub safety
-        self._attr_unique_id = f"{config_entry.entry_id}_horizon"
+        self._attr_unique_id = f"{config_entry.entry_id}_{OUTPUT_NAME_HORIZON}"
 
         # Initialize state from manager
         self._update_state()

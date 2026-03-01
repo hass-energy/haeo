@@ -6,6 +6,7 @@ created early in the setup process before any platforms are loaded.
 
 The HorizonManager:
 - Computes forecast timestamps based on tier configuration
+- Uses dynamic time alignment when a preset is selected
 - Schedules updates at period boundaries
 - Provides callbacks for dependent components to subscribe to horizon changes
 """
@@ -18,7 +19,7 @@ from homeassistant.core import CALLBACK_TYPE, HomeAssistant, callback
 from homeassistant.helpers.event import async_track_point_in_time
 from homeassistant.util import dt as dt_util
 
-from custom_components.haeo.util.forecast_times import generate_forecast_timestamps, tiers_to_periods_seconds
+from custom_components.haeo.core.data.forecast_times import generate_forecast_timestamps, tiers_to_periods_seconds
 
 
 class HorizonManager:
@@ -60,15 +61,21 @@ class HorizonManager:
 
     def _update_timestamps(self) -> None:
         """Update the cached forecast timestamps."""
+        self._periods_seconds = tiers_to_periods_seconds(self._config_entry.data)
         self._forecast_timestamps = generate_forecast_timestamps(self._periods_seconds)
 
-    def start(self) -> None:
+    def start(self) -> Callable[[], None]:
         """Start the scheduled updates.
 
         Call this after the manager is fully initialized and ready to
         receive timer callbacks.
+
+        Returns:
+            A stop function that can be passed to async_on_unload.
+
         """
         self._schedule_next_update()
+        return self.stop
 
     def stop(self) -> None:
         """Stop scheduled updates and clean up resources."""
@@ -77,6 +84,31 @@ class HorizonManager:
             self._unsub_timer = None
         # Clear all subscribers to prevent stale callbacks during reload
         self._subscribers.clear()
+
+    def pause(self) -> None:
+        """Pause scheduled updates without clearing subscribers.
+
+        Used when auto-optimize is disabled to freeze the horizon in time.
+        Call resume() to restart updates.
+        """
+        if self._unsub_timer is not None:
+            self._unsub_timer()
+            self._unsub_timer = None
+
+    def resume(self) -> None:
+        """Resume scheduled updates after being paused.
+
+        Updates timestamps to current time, notifies all subscribers,
+        and restarts the update timer.
+        """
+        self._update_timestamps()
+
+        # Notify all subscribers of the resumed horizon
+        for subscriber in self._subscribers:
+            subscriber()
+
+        # Restart the timer
+        self._schedule_next_update()
 
     def _schedule_next_update(self) -> None:
         """Schedule the next horizon update at the next period boundary."""

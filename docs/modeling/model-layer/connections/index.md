@@ -1,55 +1,43 @@
 # Connections
 
 Connections model power flow paths between [elements](../elements/index.md).
-They define how power moves through the network and can apply constraints, efficiency losses, and costs to that flow.
+They define how power moves through the network and apply constraints, efficiency losses, and costs through ordered segments.
 
-## Connection class hierarchy
+## Connection composition
 
-HAEO provides a hierarchy of connection types with increasing functionality:
+HAEO uses a single Connection class that composes segment building blocks.
+Connections define an ordered segment chain that transforms power as it moves between elements.
+
+Composition rules:
+
+- Segment configuration is an ordered mapping; keys become segment names.
+- The segment chain is linked by equality constraints between adjacent segments.
+- Segment outputs are grouped under the `segments` output using the configured names.
+- A passthrough segment is created when no segments are provided.
 
 ```mermaid
 classDiagram
-    Connection <|-- PowerConnection
-    Connection <|-- BatteryBalanceConnection
-
-    class Connection {
-        +source: str
-        +target: str
-        +power_source_target
-        +power_target_source
-        +power_into_source
-        +power_into_target
-    }
-
-    class PowerConnection {
-        +max_power_source_target
-        +max_power_target_source
-        +efficiency_source_target
-        +efficiency_target_source
-        +price_source_target
-        +price_target_source
-    }
-
-    class BatteryBalanceConnection {
-        +energy redistribution
-    }
+    Connection *-- Segment
+    Segment <|-- EfficiencySegment
+    Segment <|-- PowerLimitSegment
+    Segment <|-- PricingSegment
+    Segment <|-- SocPricingSegment
+    Segment <|-- PassthroughSegment
 ```
 
-## Connection types
+## Connection type
 
-**[Connection](connection.md)** (base class):
-Lossless bidirectional power flow.
-Provides the fundamental power variables and interface that all connections share.
-Use when no efficiency, limits, or pricing are needed.
+**[Connection](connection.md)**:
+Composable bidirectional connection with ordered segments.
+Use segments to apply limits, efficiency losses, pricing, or SOC penalties.
 
-**[PowerConnection](power-connection.md)** (extends Connection):
-Adds optional power limits, efficiency losses, and transfer costs.
-This is the primary connection type for most user-configured connections.
+## Segment types
 
-**BatteryBalanceConnection**:
-Specialized lossless energy redistribution between battery sections.
-Used internally by the Battery device to balance energy across SOC sections.
-Not typically used directly.
+- **[SOC pricing segment](../segments/soc-pricing.md)** applies SOC penalty costs.
+- **[Efficiency segment](../segments/efficiency.md)** applies direction-specific efficiency multipliers.
+- **[Power limit segment](../segments/power-limit.md)** enforces directional limits and time-slice coupling.
+- **[Pricing segment](../segments/pricing.md)** adds directional cost terms to the objective.
+- **[Passthrough segment](../segments/passthrough.md)** provides lossless flow with no constraints.
 
 ## Common interface
 
@@ -62,14 +50,15 @@ All connection types provide these properties for node power balance calculation
 | `power_into_source` | Effective power flowing into source element |
 | `power_into_target` | Effective power flowing into target element |
 
-The `power_into_*` properties handle efficiency losses internally, so elements don't need to know about connection efficiency.
+The `power_into_*` properties include efficiency losses from the segment chain.
+Elements do not need to account for segment details directly.
 
 ## Design philosophy
 
 Connections are kept separate from elements to enable flexible network topologies:
 
-- Elements define what they do (store energy, generate power, consume power)
-- Connections define how elements interact (power limits, efficiency, cost)
+- Elements define what they do (store energy, generate power, consume power).
+- Connections define how elements interact (limits, efficiency, cost).
 
 This separation allows the same element types to be connected in different ways depending on the physical system being modeled.
 
@@ -77,21 +66,21 @@ This separation allows the same element types to be connected in different ways 
 
 <div class="grid cards" markdown>
 
-- :material-connection:{ .lg .middle } **Connection (base)**
+- :material-connection:{ .lg .middle } **Connection model**
 
     ---
 
-    Lossless bidirectional power flow.
+    Segment-based connection formulation.
 
     [:material-arrow-right: Connection formulation](connection.md)
 
-- :material-power-plug:{ .lg .middle } **PowerConnection**
+- :material-layers:{ .lg .middle } **Segments**
 
     ---
 
-    Power limits, efficiency, and pricing.
+    Segment catalog and formulations.
 
-    [:material-arrow-right: PowerConnection formulation](power-connection.md)
+    [:material-arrow-right: Segment index](../segments/index.md)
 
 - :material-battery-charging:{ .lg .middle } **Elements**
 

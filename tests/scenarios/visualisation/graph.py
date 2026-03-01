@@ -11,13 +11,22 @@ import math
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+import matplotlib as mpl
 import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
 import networkx as nx
 
-from custom_components.haeo.model import Network
-from custom_components.haeo.model.element import Element
-from custom_components.haeo.model.elements import Battery, BatteryBalanceConnection, Connection, Node
+from custom_components.haeo.core.model import Network
+from custom_components.haeo.core.model.element import Element
+from custom_components.haeo.core.model.elements import Battery, Connection, Node
+
+from .svg_normalize import normalize_svg_file_clip_paths
+
+# Use non-GUI backend
+mpl.use("Agg")
+
+# Fix SVG hash salt for consistent output
+mpl.rcParams["svg.hashsalt"] = "42"
 
 if TYPE_CHECKING:
     from matplotlib.axes import Axes
@@ -40,7 +49,6 @@ class StyleConfig:
     group_colors: dict[str, str]
     # Edge colors
     power_edge_color: str = "#555555"
-    balance_edge_color: str = "#9467bd"
     # Text sizing (character-based)
     char_width: float = 0.08
     line_height: float = 0.18
@@ -54,7 +62,6 @@ DEFAULT_STYLE = StyleConfig(
     node_colors={
         "battery": "#98df8a",
         "node": "#c7c7c7",
-        "balance": "#c5b0d5",
         "connection": "#aec7e8",
     },
     group_colors={
@@ -79,8 +86,6 @@ def _get_element_type(element: Element[str]) -> str:
         return "battery"
     if isinstance(element, Node):
         return "node"
-    if isinstance(element, BatteryBalanceConnection):
-        return "balance"
     if isinstance(element, Connection):
         return "connection"
     return "unknown"
@@ -136,8 +141,7 @@ def build_graph(
                 graph.add_node(endpoint, color="lightgray", element_type="unknown")
                 device_groups[parent].append(endpoint)
 
-        edge_style = "balance" if isinstance(element, BatteryBalanceConnection) else "power"
-        graph.add_edge(source, target, name=name, style=edge_style)
+        graph.add_edge(source, target, name=name, style="power")
 
     # Sort device_groups and their node lists for deterministic order
     sorted_groups = {k: sorted(v) for k, v in sorted(device_groups.items())}
@@ -149,25 +153,15 @@ def build_graph(
 # =============================================================================
 
 
-def _compute_spring_or_spectral_layout(
+def _compute_spring_layout(
     graph: "nx.Graph[str] | nx.DiGraph[str]",
     scale: float = 1.0,
 ) -> dict[str, tuple[float, float]]:
-    """Compute layout using spectral (if possible) with spring refinement."""
+    """Compute layout using spring layout with fixed seed for determinism."""
     if len(graph) == 0:
         return {}
     if len(graph) == 1:
         return {next(iter(graph.nodes())): (0.0, 0.0)}
-
-    # Spectral needs 3+ nodes for meaningful eigenvectors
-    if len(graph) >= 3:
-        try:
-            undirected = graph.to_undirected() if graph.is_directed() else graph
-            if nx.is_connected(undirected):
-                pos: dict[str, tuple[float, float]] = nx.spectral_layout(graph, scale=scale)  # type: ignore[no-untyped-call]
-                return nx.spring_layout(graph, pos=pos, k=scale * 0.5, iterations=50, seed=42)  # type: ignore[no-untyped-call]
-        except Exception:
-            pass
 
     return nx.spring_layout(graph, k=scale * 0.5, iterations=100, seed=42)  # type: ignore[no-untyped-call]
 
@@ -182,20 +176,29 @@ def _compute_group_internal_layout(
         Tuple of (positions, radius) where positions are relative to group center.
 
     """
-    if len(nodes) == 1:
-        return {nodes[0]: (0.0, 0.0)}, 0.3
+    # Sort nodes for deterministic layout
+    sorted_nodes = sorted(nodes)
 
-    subgraph = graph.subgraph(nodes).copy()
+    if len(sorted_nodes) == 1:
+        return {sorted_nodes[0]: (0.0, 0.0)}, 0.3
+
+    # Create subgraph with nodes in sorted order for deterministic layout
+    subgraph: nx.DiGraph[str] = nx.DiGraph()
+    for node in sorted_nodes:
+        subgraph.add_node(node, **graph.nodes[node])
+    for u, v in sorted(graph.edges()):
+        if u in sorted_nodes and v in sorted_nodes:
+            subgraph.add_edge(u, v, **graph.edges[u, v])
 
     if subgraph.number_of_edges() > 0:
-        # Has internal structure - use spectral/spring
-        pos = _compute_spring_or_spectral_layout(subgraph, scale=1.0)
+        # Has internal structure - use spring layout
+        pos = _compute_spring_layout(subgraph, scale=1.0)
     else:
         # No internal edges - arrange in a circle
         pos = {}
-        n = len(nodes)
+        n = len(sorted_nodes)
         radius = 0.3 + 0.15 * n
-        for i, node in enumerate(nodes):
+        for i, node in enumerate(sorted_nodes):
             angle = 2 * math.pi * i / n
             pos[node] = (radius * math.cos(angle), radius * math.sin(angle))
 
@@ -206,28 +209,34 @@ def _compute_group_internal_layout(
 def compute_positions(
     graph: "nx.DiGraph[str]",
     device_groups: dict[str, list[str]],
+    node_sizes: dict[str, tuple[float, float]],
 ) -> dict[str, tuple[float, float]]:
     """Compute hierarchical positions with groups and internal layouts."""
     if not device_groups:
         return {}
 
-    # Compute internal layouts for each group
+    # Compute internal layouts for each group (sorted for determinism)
     group_layouts: dict[str, dict[str, tuple[float, float]]] = {}
     group_radii: dict[str, float] = {}
 
-    for device_name, nodes in device_groups.items():
+    for device_name in sorted(device_groups.keys()):
+        nodes = device_groups[device_name]
         internal_pos, radius = _compute_group_internal_layout(nodes, graph)
         group_layouts[device_name] = internal_pos
-        group_radii[device_name] = radius
+        max_node_radius = max(
+            (max(node_sizes[node]) / 2 for node in nodes if node in node_sizes),
+            default=0.0,
+        )
+        group_radii[device_name] = max(radius, max_node_radius)
 
-    # Build metagraph of inter-group connections
+    # Build metagraph of inter-group connections (sorted for determinism)
     group_graph: nx.Graph[str] = nx.Graph()
     node_to_group = {n: d for d, nodes in device_groups.items() for n in nodes}
 
-    for device in device_groups:
+    for device in sorted(device_groups.keys()):
         group_graph.add_node(device)
 
-    for u, v in graph.edges():
+    for u, v in sorted(graph.edges()):
         src_group, dst_group = node_to_group.get(u), node_to_group.get(v)
         if src_group and dst_group and src_group != dst_group:
             if group_graph.has_edge(src_group, dst_group):
@@ -236,16 +245,18 @@ def compute_positions(
                 group_graph.add_edge(src_group, dst_group, weight=1)
 
     # Compute group positions and scale to prevent overlap
-    raw_group_pos = _compute_spring_or_spectral_layout(group_graph, scale=1.0)
+    raw_group_pos = _compute_spring_layout(group_graph, scale=1.0)
     max_radius = max(group_radii.values()) if group_radii else 0.5
-    spacing = max_radius * 3.5
+    spacing = max_radius * 5.0 + 0.5
 
-    # Combine group positions with internal positions
+    # Combine group positions with internal positions (sorted for determinism)
     pos: dict[str, tuple[float, float]] = {}
-    for device_name, internal_pos in group_layouts.items():
+    for device_name in sorted(group_layouts.keys()):
+        internal_pos = group_layouts[device_name]
         gx, gy = raw_group_pos.get(device_name, (0.0, 0.0))
         gx, gy = gx * spacing, gy * spacing
-        for node, (x, y) in internal_pos.items():
+        for node in sorted(internal_pos.keys()):
+            x, y = internal_pos[node]
             pos[node] = (gx + x, gy + y)
 
     return pos
@@ -309,7 +320,9 @@ def _draw_device_groups(
     style: StyleConfig,
 ) -> None:
     """Draw bounding boxes for device groups."""
-    for device_name, nodes in device_groups.items():
+    # Sort for deterministic drawing order
+    for device_name in sorted(device_groups.keys()):
+        nodes = device_groups[device_name]
         node_positions = [pos[n] for n in nodes if n in pos]
         if not node_positions:
             continue
@@ -358,7 +371,8 @@ def _draw_nodes(
     style: StyleConfig,
 ) -> None:
     """Draw nodes as rounded rectangles with labels."""
-    for node in graph.nodes():
+    # Sort nodes for deterministic drawing order
+    for node in sorted(graph.nodes()):
         color = graph.nodes[node].get("color", "lightgray")
         x, y = pos[node]
         width, height = sizes[node]
@@ -394,8 +408,8 @@ def _draw_edges(
     style: StyleConfig,
 ) -> None:
     """Draw edges with arrows."""
-    power_edges = [(u, v) for u, v, d in graph.edges(data=True) if d.get("style") == "power"]
-    balance_edges = [(u, v) for u, v, d in graph.edges(data=True) if d.get("style") == "balance"]
+    # Sort edges for deterministic drawing order
+    power_edges = sorted((u, v) for u, v, d in graph.edges(data=True) if d.get("style") == "power")
 
     if power_edges:
         nx.draw_networkx_edges(  # type: ignore[no-untyped-call]
@@ -414,24 +428,6 @@ def _draw_edges(
             ax=ax,
         )
 
-    if balance_edges:
-        nx.draw_networkx_edges(  # type: ignore[no-untyped-call]
-            graph,
-            pos,
-            edgelist=balance_edges,
-            edge_color=style.balance_edge_color,
-            width=1.2,
-            style="dashed",
-            connectionstyle="arc3,rad=0.15",
-            arrows=True,
-            arrowsize=15,
-            arrowstyle="->",
-            node_size=1500,
-            min_source_margin=15,
-            min_target_margin=15,
-            ax=ax,
-        )
-
 
 def _draw_edge_labels(
     ax: "Axes",
@@ -440,7 +436,8 @@ def _draw_edge_labels(
     style: StyleConfig,
 ) -> None:
     """Draw labels on edges."""
-    for (u, v), label in edge_labels.items():
+    # Sort for deterministic drawing order
+    for (u, v), label in sorted(edge_labels.items()):
         if not label.split("\n")[0] or u not in pos or v not in pos:
             continue
         x = (pos[u][0] + pos[v][0]) / 2
@@ -484,15 +481,15 @@ def create_graph_visualization(
 
     # Build graph
     graph, device_groups = build_graph(network, style)
-    if len(graph.nodes()) == 0:
+    if graph.number_of_nodes() == 0:
         _LOGGER.warning("No nodes to visualize")
         return
 
-    # Compute layout
-    pos = compute_positions(graph, device_groups)
-
     # Compute labels and sizes
     node_labels, node_sizes = compute_node_labels_and_sizes(graph, style)
+
+    # Compute layout (uses node sizes to space groups)
+    pos = compute_positions(graph, device_groups, node_sizes)
     edge_labels = compute_edge_labels(graph)
     max_node_dim = max(max(w, h) for w, h in node_sizes.values()) if node_sizes else 0.3
     node_radius = max_node_dim / 2
@@ -516,7 +513,8 @@ def create_graph_visualization(
     output_dir = Path(output_path).parent
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    plt.savefig(output_path, format="svg", bbox_inches="tight", dpi=300)
+    plt.savefig(output_path, format="svg", bbox_inches="tight", dpi=300, metadata={"Date": None})
+    normalize_svg_file_clip_paths(Path(output_path))
     _LOGGER.info("Graph visualization saved to %s", output_path)
 
     if generate_png:

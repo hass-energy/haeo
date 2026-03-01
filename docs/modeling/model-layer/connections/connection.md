@@ -1,22 +1,30 @@
 # Connection
 
-The base `Connection` class models simple lossless bidirectional power flow between elements.
-It provides the fundamental power variables and interface that all connection types share.
+The `Connection` class models bidirectional power flow between elements.
+It composes ordered segments that apply efficiency, limits, and pricing to the flow.
 
 ## Overview
 
-Connection is the simplest connection type:
+Connection is the primary model for power flow:
 
-- **Lossless**: 100% efficiency in both directions
-- **Unlimited**: No power limits by default
-- **No cost**: Does not contribute to objective function
+- **Composable**: Ordered segment chain defines behavior.
+- **Lossless by default**: A passthrough segment is created when no segments are provided.
+- **Extensible**: Segment outputs are exposed for adapters and diagnostics.
 
-Use Connection when you need a simple power link without efficiency, limits, or pricing.
-For more complex scenarios, use [PowerConnection](power-connection.md).
+Segments are provided as an ordered mapping.
+The mapping keys become segment names and drive the nested `segments` output.
 
-## Model Formulation
+## Segment types
 
-### Decision Variables
+- **[SOC pricing segment](../segments/soc-pricing.md)** applies SOC penalty costs.
+- **[Efficiency segment](../segments/efficiency.md)** applies direction-specific efficiency multipliers.
+- **[Power limit segment](../segments/power-limit.md)** enforces directional limits and time-slice coupling.
+- **[Pricing segment](../segments/pricing.md)** adds directional cost terms to the objective.
+- **[Passthrough segment](../segments/passthrough.md)** forwards flow without constraints or cost.
+
+## Model formulation
+
+### Decision variables
 
 For each time step $t \in \{0, 1, \ldots, T-1\}$:
 
@@ -25,84 +33,75 @@ For each time step $t \in \{0, 1, \ldots, T-1\}$:
 | $P_{s \rightarrow t}$ | $\mathbb{R}_{\geq 0}$ | Power flow from source to target |
 | $P_{t \rightarrow s}$ | $\mathbb{R}_{\geq 0}$ | Power flow from target to source |
 
-Both variables are non-negative.
-Net flow direction is determined by which variable is larger.
+These variables represent the input to the first segment in the chain.
+Each segment may transform the flow before passing it to the next segment.
 
 ### Parameters
 
-| Parameter | Description                   |
-| --------- | ----------------------------- |
-| `source`  | Name of the source element    |
-| `target`  | Name of the target element    |
-| `periods` | Time period durations (hours) |
+| Parameter  | Description                                                |
+| ---------- | ---------------------------------------------------------- |
+| `source`   | Name of the source element                                 |
+| `target`   | Name of the target element                                 |
+| `periods`  | Time period durations (hours)                              |
+| `segments` | Ordered mapping of segment names to segment specifications |
+
+If `segments` is omitted or empty, a passthrough segment is created automatically.
+Segment parameters can be scalars or per-period arrays.
+Scalar values are broadcast across all periods.
 
 ### Constraints
 
-The base Connection class adds no constraints.
-Power variables are unbounded (except non-negativity).
+Connection adds linking constraints between adjacent segments.
+Each segment contributes its own constraints, such as power limits or time-slice coupling.
 
-### Power Balance Interface
+### Power balance interface
 
-Connections provide `power_into_source` and `power_into_target` properties that elements use for power balance:
-
-**At source element:**
-
-$$
-P_{\text{into\_source}}(t) = P_{t \rightarrow s}(t) - P_{s \rightarrow t}(t)
-$$
-
-**At target element:**
+Connections provide `power_into_source` and `power_into_target` properties that elements use for power balance.
+These use the first segment inputs and last segment outputs:
 
 $$
-P_{\text{into\_target}}(t) = P_{s \rightarrow t}(t) - P_{t \rightarrow s}(t)
+P_{\text{into\_source}}(t) = P^{\text{out}}_{t \rightarrow s,\text{last}}(t) - P^{\text{in}}_{s \rightarrow t,\text{first}}(t)
 $$
 
-Positive values indicate power flowing into the element.
-Negative values indicate power flowing out.
+$$
+P_{\text{into\_target}}(t) = P^{\text{out}}_{s \rightarrow t,\text{last}}(t) - P^{\text{in}}_{t \rightarrow s,\text{first}}(t)
+$$
 
-### Cost Contribution
+Efficiency losses are applied inside the segment chain.
+Elements do not need to account for them directly.
 
-The base Connection class contributes no cost to the objective function.
+### Cost contribution
 
-## Physical Interpretation
+Connection aggregates cost expressions from all segments.
+PricingSegment instances contribute directional energy costs.
 
-**Lossless transfer:**
-All power leaving one element arrives at the other.
-No efficiency losses.
+## Outputs
 
-**Bidirectional capability:**
-Power can flow in either direction at each time step.
-The optimizer chooses the optimal direction based on costs elsewhere in the network.
+Connection exposes power flow and segment outputs:
 
-**Interface abstraction:**
-Elements don't need to know connection details.
-They simply query `power_into_source` or `power_into_target` for their power balance.
+- `connection_power_source_target`
+- `connection_power_target_source`
+- `segments` (nested map of segment names to constraint shadow outputs)
 
-## When to Use
+The `segments` output groups segment outputs using the segment names provided in the configuration.
+Adapters use this map to surface segment-specific shadow prices (for example `power_limit.source_target`).
 
-Use the base Connection when:
+## When to use
 
-- Connecting internal model elements with no losses
-- Modeling ideal power transfers
-- Building test fixtures
-
-Use [PowerConnection](power-connection.md) instead when you need:
-
-- Power limits
-- Efficiency losses
-- Transfer pricing
+Use Connection for all power-flow paths.
+Select the segment chain that matches the physical behavior you need.
 
 ## Next Steps
 
 <div class="grid cards" markdown>
 
-- :material-power-plug:{ .lg .middle } **PowerConnection**
+- :material-layers:{ .lg .middle } **Segments**
 
     ---
 
-    Add limits, efficiency, and pricing.
+    Segment catalog and formulations.
 
-    [:material-arrow-right: PowerConnection formulation](power-connection.md)
+    [:material-arrow-right: Segment index](../segments/index.md)
 
 - :material-battery-charging:{ .lg .middle } **Elements**
 
@@ -118,6 +117,6 @@ Use [PowerConnection](power-connection.md) instead when you need:
 
     View the source code.
 
-    [:material-arrow-right: Source code](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/model/elements/connection.py)
+    [:material-arrow-right: Source code](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/core/model/elements/connection.py)
 
 </div>

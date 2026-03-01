@@ -113,6 +113,6 @@ All power flow must be explicitly configured via Connection elements.
 
     Learn how to connect Battery Section to other elements.
 
-    [:material-arrow-right: PowerConnection formulation](../model-layer/connections/power-connection.md)
+    [:material-arrow-right: Connection formulation](../model-layer/connections/connection.md)
 
 </div>

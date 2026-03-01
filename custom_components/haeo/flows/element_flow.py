@@ -2,24 +2,27 @@
 
 This module provides:
 - get_unit_spec_for_output_type(): Map OutputType to UnitSpec for entity filtering
-- build_exclusion_map(): Generate field → incompatible entities mapping from INPUT_FIELDS
-- filter_incompatible_entities(): Filter entity metadata by unit compatibility
+- build_inclusion_map(): Generate field → compatible entities mapping from input fields
+- filter_compatible_entities(): Filter entity metadata by unit compatibility
 - build_participant_selector(): Create dropdown selector for element names
 - ElementFlowMixin: Mixin providing common subentry flow functionality
 """
 
-from typing import Any, ClassVar, Final
+from collections.abc import Mapping
+from typing import Any, Final
 
-from homeassistant.config_entries import ConfigEntry
+from homeassistant.config_entries import ConfigEntry, ConfigSubentry, UnknownSubEntry
 from homeassistant.const import PERCENTAGE, UnitOfEnergy, UnitOfPower
 from homeassistant.helpers.selector import SelectOptionDict, SelectSelector, SelectSelectorConfig, SelectSelectorMode
+from homeassistant.helpers.translation import async_get_translations
 import voluptuous as vol
 
-from custom_components.haeo.const import CONF_ADVANCED_MODE, CONF_ELEMENT_TYPE, CONF_NAME
-from custom_components.haeo.data.loader.extractors import EntityMetadata
-from custom_components.haeo.elements.input_fields import InputFieldInfo
-from custom_components.haeo.model.const import OutputType
-from custom_components.haeo.schema.util import UnitSpec
+from custom_components.haeo.const import DOMAIN
+from custom_components.haeo.core.const import CONF_ADVANCED_MODE, CONF_ELEMENT_TYPE, CONF_NAME
+from custom_components.haeo.core.data.loader.extractors import EntityMetadata
+from custom_components.haeo.core.model.const import OutputType
+from custom_components.haeo.core.schema.util import UnitSpec
+from custom_components.haeo.elements.input_fields import InputFieldGroups, InputFieldInfo
 
 # Price unit pattern: matches any currency divided by energy unit ($/kWh, €/MWh, etc.)
 PRICE_UNIT_SPEC: Final[list[UnitSpec]] = [("*", "/", unit.value) for unit in UnitOfEnergy]
@@ -51,48 +54,59 @@ def get_unit_spec_for_output_type(output_type: OutputType) -> UnitSpec | list[Un
             return None
 
 
-def filter_incompatible_entities(
+def filter_compatible_entities(
     entity_metadata: list[EntityMetadata],
     accepted_units: UnitSpec | list[UnitSpec],
 ) -> list[str]:
-    """Return entity IDs that are NOT compatible with the accepted units.
+    """Return entity IDs that ARE compatible with the accepted units.
 
     Args:
         entity_metadata: List of entity metadata from extract_entity_metadata.
         accepted_units: UnitSpec or list of UnitSpecs to match against.
 
     Returns:
-        List of entity IDs that should be excluded from selection.
+        List of entity IDs that should be included in selection.
 
     """
-    return [v.entity_id for v in entity_metadata if not v.is_compatible_with(accepted_units)]
+    return [v.entity_id for v in entity_metadata if v.is_compatible_with(accepted_units)]
 
 
-def build_exclusion_map(
-    input_fields: tuple[InputFieldInfo[Any], ...],
+def build_inclusion_map(
+    input_fields: Mapping[str, InputFieldInfo[Any]],
     entity_metadata: list[EntityMetadata],
 ) -> dict[str, list[str]]:
-    """Build field name → incompatible entity IDs mapping from INPUT_FIELDS.
+    """Build field name → compatible entity IDs mapping from input fields.
 
-    This dynamically generates the exclusion map by looking up each field's
-    output_type and computing which entities are incompatible.
+    This dynamically generates the inclusion map by looking up each field's
+    output_type and computing which entities are compatible.
 
     Args:
-        input_fields: Tuple of InputFieldInfo from element's schema.
+        input_fields: Mapping of InputFieldInfo from element's schema.
         entity_metadata: List of entity metadata from extract_entity_metadata.
 
     Returns:
-        Dict mapping field names to lists of entity IDs to exclude.
+        Dict mapping field names to lists of entity IDs to include.
 
     """
     result: dict[str, list[str]] = {}
 
-    for field_info in input_fields:
+    for field_info in input_fields.values():
         unit_spec = get_unit_spec_for_output_type(field_info.output_type)
         if unit_spec is not None:
-            result[field_info.field_name] = filter_incompatible_entities(entity_metadata, unit_spec)
+            result[field_info.field_name] = filter_compatible_entities(entity_metadata, unit_spec)
 
     return result
+
+
+def build_sectioned_inclusion_map(
+    input_fields: InputFieldGroups,
+    entity_metadata: list[EntityMetadata],
+) -> dict[str, dict[str, list[str]]]:
+    """Build section -> field name -> compatible entity IDs mapping."""
+    return {
+        section_key: build_inclusion_map(section_fields, entity_metadata)
+        for section_key, section_fields in input_fields.items()
+    }
 
 
 def build_participant_selector(
@@ -136,13 +150,7 @@ class ElementFlowMixin:
     - _get_reconfigure_subentry(): Returns the subentry being reconfigured
     - context: Flow context dict (from ConfigSubentryFlow)
 
-    Class variables that can be set by subclasses:
-    - has_value_source_step: Whether the flow uses a separate step for value sources
-
     """
-
-    # Class variable indicating whether this flow uses a separate value source step
-    has_value_source_step: ClassVar[bool] = False
 
     def _get_used_names(self) -> set[str]:
         """Return all configured element names excluding the current subentry.
@@ -167,10 +175,13 @@ class ElementFlowMixin:
             List of element names that can be used as connection targets.
 
         """
-        from custom_components.haeo.elements import ELEMENT_TYPES, ConnectivityLevel  # noqa: PLC0415
+        from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES  # noqa: PLC0415
+        from custom_components.haeo.core.const import ConnectivityLevel  # noqa: PLC0415
+        from custom_components.haeo.core.schema.elements import ElementType  # noqa: PLC0415
+        from custom_components.haeo.flows import HUB_SECTION_ADVANCED  # noqa: PLC0415
 
         hub_entry: ConfigEntry = self._get_entry()  # type: ignore[attr-defined]
-        advanced_mode = hub_entry.data.get(CONF_ADVANCED_MODE, False)
+        advanced_mode = hub_entry.data.get(HUB_SECTION_ADVANCED, {}).get(CONF_ADVANCED_MODE, False)
         current_id = self._get_current_subentry_id()
 
         result: list[str] = []
@@ -179,7 +190,7 @@ class ElementFlowMixin:
                 continue
 
             element_type = subentry.data.get(CONF_ELEMENT_TYPE)
-            if element_type not in ELEMENT_TYPES:
+            if not isinstance(element_type, ElementType):
                 continue
 
             connectivity = ELEMENT_TYPES[element_type].connectivity
@@ -222,11 +233,28 @@ class ElementFlowMixin:
             return False
         return True
 
+    def _get_subentry(self) -> ConfigSubentry | None:
+        """Get the subentry being reconfigured, or None for new entries."""
+        try:
+            return self._get_reconfigure_subentry()  # type: ignore[attr-defined]
+        except (ValueError, UnknownSubEntry):
+            return None
+
+    async def _async_get_default_name(self, element_type: str) -> str:
+        """Fetch the default name for an element type."""
+        translations = await async_get_translations(
+            self.hass,  # type: ignore[attr-defined]
+            self.hass.config.language,  # type: ignore[attr-defined]
+            "config_subentries",
+            integrations=[DOMAIN],
+        )
+        return translations[f"component.{DOMAIN}.config_subentries.{element_type}.flow_title"]
+
 
 __all__ = [
     "ElementFlowMixin",
-    "build_exclusion_map",
+    "build_inclusion_map",
     "build_participant_selector",
-    "filter_incompatible_entities",
+    "filter_compatible_entities",
     "get_unit_spec_for_output_type",
 ]

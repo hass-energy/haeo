@@ -18,6 +18,7 @@ permissions:
   checks: write
 
 jobs:
+  #region Linting and formatting
   # =============================================================================
   # Linting and formatting checks
   # =============================================================================
@@ -29,9 +30,9 @@ jobs:
       REVIEWDOG_GITHUB_API_TOKEN: ${{ github.token }}
     steps:
       - name: Checkout the repository
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - uses: astral-sh/setup-uv@681c641aba71e4a1c380be3ab5e12ad51f415867 # v7.1.6
+      - uses: astral-sh/setup-uv@61cb8a9741eeb8a550a1b8544337180c0fc8476b # v7.2.0
 
       - name: Install python dependencies
         run: uv sync --locked --all-extras --dev
@@ -59,9 +60,9 @@ jobs:
       REVIEWDOG_GITHUB_API_TOKEN: ${{ github.token }}
     steps:
       - name: Checkout the repository
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - uses: astral-sh/setup-uv@681c641aba71e4a1c380be3ab5e12ad51f415867 # v7.1.6
+      - uses: astral-sh/setup-uv@61cb8a9741eeb8a550a1b8544337180c0fc8476b # v7.2.0
 
       - name: Install python dependencies
         run: uv sync --locked --all-extras --dev
@@ -89,9 +90,9 @@ jobs:
       REVIEWDOG_GITHUB_API_TOKEN: ${{ github.token }}
     steps:
       - name: Checkout the repository
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - uses: astral-sh/setup-uv@681c641aba71e4a1c380be3ab5e12ad51f415867 # v7.1.6
+      - uses: astral-sh/setup-uv@61cb8a9741eeb8a550a1b8544337180c0fc8476b # v7.2.0
 
       - name: Install python dependencies
         run: uv sync --locked --all-extras --dev
@@ -105,8 +106,25 @@ jobs:
       - name: Pyright (reviewdog)
         if: github.event_name == 'pull_request'
         run: |
-          uv run pyright \
-            | reviewdog -efm="%f:%l:%c - %t%*[^:]: %m" -name="pyright type check" -reporter=github-pr-review -filter-mode=nofilter -fail-level=any
+          # Run pyright with JSON output, capturing regardless of exit code
+          uv run pyright --outputjson > pyright_output.json || true
+          # Convert to rdjson format and pipe to reviewdog
+          jq '{
+            source: {name: "pyright", url: "https://github.com/Microsoft/pyright"},
+            severity: "ERROR",
+            diagnostics: [.generalDiagnostics[]? | {
+              message: (if .rule then "\(.message) (\(.rule))" else .message end),
+              severity: (.severity | ascii_upcase),
+              location: {
+                path: .file,
+                range: {
+                  start: {line: (.range.start.line + 1), column: (.range.start.character + 1)},
+                  end: {line: (.range.end.line + 1), column: (.range.end.character + 1)}
+                }
+              }
+            }]
+          }' pyright_output.json \
+            | reviewdog -f=rdjson -name="pyright" -reporter=github-pr-review -filter-mode=nofilter -fail-level=any
 
       - name: Pyright (check)
         if: github.event_name != 'pull_request'
@@ -119,9 +137,9 @@ jobs:
       REVIEWDOG_GITHUB_API_TOKEN: ${{ github.token }}
     steps:
       - name: Checkout the repository
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
+      - uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6.2.0
 
       - name: Setup reviewdog
         if: github.event_name == 'pull_request'
@@ -150,9 +168,9 @@ jobs:
       REVIEWDOG_GITHUB_API_TOKEN: ${{ github.token }}
     steps:
       - name: Checkout the repository
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - uses: astral-sh/setup-uv@681c641aba71e4a1c380be3ab5e12ad51f415867 # v7.1.6
+      - uses: astral-sh/setup-uv@61cb8a9741eeb8a550a1b8544337180c0fc8476b # v7.2.0
 
       - name: Install python dependencies
         run: uv sync --locked --all-extras --dev
@@ -174,6 +192,23 @@ jobs:
         if: github.event_name != 'pull_request'
         run: uv run mdformat --check $(git ls-files '*.md' '*.mdx')
 
+  import-linter:
+    name: Import boundaries
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout the repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - uses: astral-sh/setup-uv@61cb8a9741eeb8a550a1b8544337180c0fc8476b # v7.2.0
+
+      - name: Install python dependencies
+        run: uv sync --locked --all-extras --dev
+
+      - name: Check import boundaries
+        run: uv run lint-imports
+  #endregion
+
+  #region Tests
   # =============================================================================
   # Tests
   # =============================================================================
@@ -183,12 +218,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout the repository
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 0
 
       - name: Install uv
-        uses: astral-sh/setup-uv@681c641aba71e4a1c380be3ab5e12ad51f415867 # v7.1.6
+        uses: astral-sh/setup-uv@61cb8a9741eeb8a550a1b8544337180c0fc8476b # v7.2.0
 
       - name: Install the project
         run: uv sync --locked --all-extras --dev
@@ -209,7 +244,9 @@ jobs:
         with:
           fail_ci_if_error: true
           token: ${{ secrets.CODECOV_TOKEN }}
+  #endregion
 
+  #region Validation
   # =============================================================================
   # Validation checks
   # =============================================================================
@@ -219,7 +256,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout the repository
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Run hassfest validation
         uses: home-assistant/actions/hassfest@87c064c607f3c5cc673a24258d0c98d23033bfc3 # master
@@ -229,10 +266,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout the repository
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Install uv
-        uses: astral-sh/setup-uv@681c641aba71e4a1c380be3ab5e12ad51f415867 # v7.1.6
+        uses: astral-sh/setup-uv@61cb8a9741eeb8a550a1b8544337180c0fc8476b # v7.2.0
 
       - name: Check HAEO version consistency
         run: |
@@ -264,19 +301,21 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 0
 
       - name: Install uv
-        uses: astral-sh/setup-uv@681c641aba71e4a1c380be3ab5e12ad51f415867 # v7.1.6
+        uses: astral-sh/setup-uv@61cb8a9741eeb8a550a1b8544337180c0fc8476b # v7.2.0
 
       - name: Install dependencies
         run: uv sync
 
       - name: Build documentation
         run: uv run zensical build
+  #endregion
 
+  #region CI passed
   # =============================================================================
   # CI passed (single required check)
   # =============================================================================
@@ -290,6 +329,7 @@ jobs:
       - pyright
       - prettier
       - mdformat
+      - import-linter
       - test
       - hassfest
       - version-check
@@ -308,3 +348,4 @@ jobs:
             exit 1
           fi
           echo "All required jobs passed!"
+  #endregion

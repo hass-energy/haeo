@@ -118,14 +118,14 @@ Creates optimization model from config:
 - Builds Network container
 - Validates structure
 
-### Network Model (`model/`)
+### Network Model (`core/model/`)
 
 LP representation using HiGHS solver:
 
 - **Element**: Base class with declarative constraint and cost specification
 - **Network**: Container that aggregates element contributions and runs optimization
 
-Model elements are organized in `model/elements/` subdirectory.
+Model elements are organized in `core/model/elements/` subdirectory.
 Elements declare their constraints and costs using decorators, and the network automatically aggregates them.
 
 See [Modeling Documentation](../modeling/index.md) for mathematical formulations and element types.
@@ -150,7 +150,7 @@ See the Home Assistant documentation:
 - [Platform development](https://developers.home-assistant.io/docs/creating_platform_index/)
 - [Device Registry](https://developers.home-assistant.io/docs/device_registry_index/)
 
-### Model Architecture (`model/`)
+### Model Architecture (`core/model/`)
 
 Separate subsystem implementing the optimization model:
 
@@ -165,8 +165,8 @@ Separate subsystem implementing the optimization model:
 **Key components**:
 
 - `Element`: Base class with declarative pattern
-- `model/elements/`: Element implementations
-- `model/reactive/`: Infrastructure for parameter tracking and constraint caching
+- `core/model/elements/`: Element implementations
+- `core/model/reactive/`: Infrastructure for parameter tracking and constraint caching
 - `Network`: Aggregates element contributions and runs optimization
 
 See [Energy Models guide](energy-models.md) for implementing new elements and [Modeling Documentation](../modeling/index.md) for mathematical details.
@@ -179,11 +179,11 @@ Rather than documenting every file, focus on how the major areas collaborate:
 - **Entry points**: `__init__.py`, `config_flow.py`, and `coordinator/` bootstrap the integration, collect user input, and run optimizations.
 - **Flows (`flows/`)**: Houses hub, element, and options flows; each submodule owns the UI schema for a related group of entries.
 - **Input layer (`inputs/`)**: HorizonManager, Number platform, Switch platform, and InputFieldInfo for intermediate input entities.
-- **Data layer (`data/`)**: Loader modules turn Home Assistant sensors and forecasts into normalized time series. Called by input entities.
-- **Model (`model/`)**: Pure Python optimization layer with declarative constraints and costs.
-    - `model/elements/`: Model element implementations (Battery, Node, Connection types)
-    - `model/reactive/`: Parameter tracking and constraint caching infrastructure
-- **Metadata (`elements/` and `schema/`)**: Describe configuration defaults, validation, INPUT_FIELDS registry, and runtime metadata for every element type.
+- **Data layer (`core/data/`)**: Loader modules turn Home Assistant sensors and forecasts into normalized time series. Called by input entities.
+- **Model (`core/model/`)**: Pure Python optimization layer with declarative constraints and costs.
+    - `core/model/elements/`: Model element implementations (Battery, Node, Connection types)
+    - `core/model/reactive/`: Parameter tracking and constraint caching infrastructure
+- **Metadata (`elements/` and `core/schema/`)**: Element registry, configuration defaults, validation, input field mapping, and runtime metadata for every element type.
 - **Presentation (`sensors/`)**: Builds sensor platforms that publish optimization results back to Home Assistant.
 - **Translations (`translations/`)**: Provides user-facing strings for config flows and entity names.
 
@@ -191,35 +191,41 @@ Rather than documenting every file, focus on how the major areas collaborate:
 
 ### Adding Element Types
 
-1. **Create element subfolder** in `elements/{element_type}/`:
+1. **Define schema** in `core/schema/elements/{element_type}.py`:
 
-    - `__init__.py`: Public exports
-    - `schema.py`: Define `ConfigSchema` and `ConfigData` TypedDicts
-    - `flow.py`: Implement config flow with voluptuous schemas
-    - `adapter.py`: Implement `available()`, `load()`, `create_model_elements()`, `outputs()`, and `INPUT_FIELDS` registry
+    - `ConfigSchema` and `ConfigData` TypedDicts
+    - `DEFAULTS` dict for optional fields
 
-2. **Register element type** in `elements/__init__.py`:
+2. **Implement adapter** in `core/adapters/elements/{element_type}.py`:
 
-    - Add `ElementRegistryEntry` to `ELEMENT_TYPES` mapping
+    - `available()`, `inputs()`, `model_elements()`, `outputs()`
 
-3. **Update translations** in `translations/en.json`:
+3. **Implement config flow** in `flows/elements/{element_type}.py`:
+
+    - Config flow with voluptuous schemas using DEFAULTS for suggested values
+
+4. **Register element type** in `elements/__init__.py`:
+
+    - Add `ElementAdapter` to `ELEMENT_TYPES` mapping
+
+5. **Update translations** in `translations/en.json`:
 
     - Add device and selector entries
 
-4. **Write tests** in `tests/elements/{element_type}/`:
+6. **Write tests** (colocated with source):
 
-    - `test_adapter.py`: Tests for `available()` and `load()` functions
-    - `test_flow.py`: Config flow tests for user and reconfigure steps
-    - Add test data in `tests/flows/test_data/{element_type}.py`
+    - Adapter tests in `core/adapters/elements/tests/`
+    - Flow tests in `flows/elements/tests/`
+    - Flow test data in `flows/tests/test_data/{element_type}.py`
 
-5. **Document** the element:
+7. **Document** the element:
 
     - User guide in `docs/user-guide/elements/{element_type}.md`
     - Modeling docs in `docs/modeling/device-layer/{element_type}.md`
 
 ### Custom Field Types
 
-Extend `schema/fields.py`:
+Extend `core/schema/fields.py`:
 
 - Create new Validator subclass with `create_schema()` method
 - Add LoaderMeta subclass if needed for custom loading behavior

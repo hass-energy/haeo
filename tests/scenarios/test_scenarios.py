@@ -15,7 +15,9 @@ from homeassistant.helpers.event import async_track_state_change_event
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.haeo.const import (
+from custom_components.haeo import MIGRATION_MINOR_VERSION
+from custom_components.haeo.const import DOMAIN, INTEGRATION_TYPE_HUB, OUTPUT_NAME_OPTIMIZATION_STATUS
+from custom_components.haeo.core.const import (
     CONF_ELEMENT_TYPE,
     CONF_NAME,
     CONF_TIER_1_COUNT,
@@ -26,10 +28,8 @@ from custom_components.haeo.const import (
     CONF_TIER_3_DURATION,
     CONF_TIER_4_COUNT,
     CONF_TIER_4_DURATION,
-    DOMAIN,
-    INTEGRATION_TYPE_HUB,
-    OUTPUT_NAME_OPTIMIZATION_STATUS,
 )
+from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON, HUB_SECTION_TIERS
 from custom_components.haeo.sensor_utils import get_output_sensors
 from tests.scenarios.conftest import ScenarioData
 from tests.scenarios.visualization import visualize_scenario_results
@@ -40,7 +40,12 @@ _LOGGER = logging.getLogger(__name__)
 def _discover_scenarios() -> list[Path]:
     """Discover all scenario folders."""
     scenarios_dir = Path(__file__).parent
-    return sorted(scenarios_dir.glob("scenario*/"))
+    required_files = ("config.json", "environment.json", "inputs.json", "outputs.json")
+    return sorted(
+        path
+        for path in scenarios_dir.glob("scenario*/")
+        if all((path / required).exists() for required in required_files)
+    )
 
 
 # Discover scenarios for test parameters
@@ -64,8 +69,12 @@ async def test_scenarios(
     snapshot: Any,
 ) -> None:
     """Test that scenario sets up correctly and optimization matches expected outputs."""
-    # Extract freeze timestamp from scenario data
+    # Extract freeze timestamp and timezone from scenario data
     freeze_timestamp = scenario_data["environment"]["timestamp"]
+    timezone = scenario_data["environment"]["timezone"]
+
+    # Configure HA timezone from scenario environment
+    await hass.config.async_set_time_zone(timezone)
 
     # Apply freeze_time dynamically
     with freeze_time(freeze_timestamp):
@@ -80,23 +89,31 @@ async def test_scenarios(
             domain=DOMAIN,
             data={
                 "integration_type": INTEGRATION_TYPE_HUB,
-                CONF_NAME: "Test Hub",
-                CONF_TIER_1_COUNT: scenario_config["tier_1_count"],
-                CONF_TIER_1_DURATION: scenario_config["tier_1_duration"],
-                CONF_TIER_2_COUNT: scenario_config.get("tier_2_count", 0),
-                CONF_TIER_2_DURATION: scenario_config.get("tier_2_duration", 5),
-                CONF_TIER_3_COUNT: scenario_config.get("tier_3_count", 0),
-                CONF_TIER_3_DURATION: scenario_config.get("tier_3_duration", 30),
-                CONF_TIER_4_COUNT: scenario_config.get("tier_4_count", 0),
-                CONF_TIER_4_DURATION: scenario_config.get("tier_4_duration", 60),
+                HUB_SECTION_COMMON: {CONF_NAME: "Test Hub"},
+                HUB_SECTION_TIERS: {
+                    CONF_TIER_1_COUNT: scenario_config["tier_1_count"],
+                    CONF_TIER_1_DURATION: scenario_config["tier_1_duration"],
+                    CONF_TIER_2_COUNT: scenario_config.get("tier_2_count", 0),
+                    CONF_TIER_2_DURATION: scenario_config.get("tier_2_duration", 5),
+                    CONF_TIER_3_COUNT: scenario_config.get("tier_3_count", 0),
+                    CONF_TIER_3_DURATION: scenario_config.get("tier_3_duration", 30),
+                    CONF_TIER_4_COUNT: scenario_config.get("tier_4_count", 0),
+                    CONF_TIER_4_DURATION: scenario_config.get("tier_4_duration", 60),
+                },
+                HUB_SECTION_ADVANCED: {},
             },
+            version=1,
+            minor_version=MIGRATION_MINOR_VERSION,
         )
         mock_config_entry.add_to_hass(hass)
 
         # Create element subentries from the scenario config
         for name, config in scenario_config["participants"].items():
             subentry = ConfigSubentry(
-                data=MappingProxyType(config), subentry_type=config[CONF_ELEMENT_TYPE], title=name, unique_id=None
+                data=MappingProxyType(config),
+                subentry_type=config[CONF_ELEMENT_TYPE],
+                title=name,
+                unique_id=None,
             )
             hass.config_entries.async_add_subentry(mock_config_entry, subentry)
 

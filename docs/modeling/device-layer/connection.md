@@ -1,14 +1,14 @@
 # Connection Modeling
 
 The Connection device provides explicit user-defined power flow paths between elements.
-Unlike implicit connections created by other devices, Connection allows full control over bidirectional flow, efficiency, and pricing.
+Unlike implicit connections created by other devices, it allows full control over bidirectional flow, efficiency, and pricing.
 
 ## Model Elements Created
 
 ```mermaid
 graph LR
     subgraph "Device"
-        MC["PowerConnection<br/>{name}"]
+        MC["Connection<br/>{name}<br/>(segments)"]
     end
 
     Source[Source Element]
@@ -18,11 +18,12 @@ graph LR
     MC <-->|links to| Target
 ```
 
-| Model Element                                                     | Name     | Parameters From Configuration  |
-| ----------------------------------------------------------------- | -------- | ------------------------------ |
-| [PowerConnection](../model-layer/connections/power-connection.md) | `{name}` | All parameters mapped directly |
+| Model Element                                          | Name     | Parameters From Configuration              |
+| ------------------------------------------------------ | -------- | ------------------------------------------ |
+| [Connection](../model-layer/connections/connection.md) | `{name}` | Source, target, and segment specifications |
 
-The Connection device creates a `PowerConnection` model element, which extends the base `Connection` class to support efficiency, pricing, and power limits.
+The Connection device creates a `Connection` model element with a segment chain.
+The adapter builds power-limit, efficiency, and pricing segments based on configured fields.
 
 ## Devices Created
 
@@ -32,32 +33,36 @@ Connection creates 1 device in Home Assistant:
 | ------- | -------- | ------------ | ------------------------ |
 | Primary | `{name}` | Always       | Explicit power flow path |
 
-## Parameter Mapping
+## Parameter mapping
 
-The adapter passes user configuration directly to the PowerConnection model:
+The adapter maps configuration into connection segments:
 
-| User Configuration         | Model Element   | Model Parameter            | Notes                          |
-| -------------------------- | --------------- | -------------------------- | ------------------------------ |
-| `source`                   | PowerConnection | `source`                   | Source element name            |
-| `target`                   | PowerConnection | `target`                   | Target element name            |
-| `max_power_source_target`  | PowerConnection | `max_power_source_target`  | Optional, unlimited if not set |
-| `max_power_target_source`  | PowerConnection | `max_power_target_source`  | Optional, unlimited if not set |
-| `efficiency_source_target` | PowerConnection | `efficiency_source_target` | Optional, 100% if not set      |
-| `efficiency_target_source` | PowerConnection | `efficiency_target_source` | Optional, 100% if not set      |
-| `price_source_target`      | PowerConnection | `price_source_target`      | Optional, no cost if not set   |
-| `price_target_source`      | PowerConnection | `price_target_source`      | Optional, no cost if not set   |
+| User Configuration         | Segment           | Segment Field              | Notes                          |
+| -------------------------- | ----------------- | -------------------------- | ------------------------------ |
+| `source`                   | Connection        | `source`                   | Source element name            |
+| `target`                   | Connection        | `target`                   | Target element name            |
+| `max_power_source_target`  | PowerLimitSegment | `max_power_source_target`  | Optional, unlimited if not set |
+| `max_power_target_source`  | PowerLimitSegment | `max_power_target_source`  | Optional, unlimited if not set |
+| `efficiency_source_target` | EfficiencySegment | `efficiency_source_target` | Percent converted to ratio     |
+| `efficiency_target_source` | EfficiencySegment | `efficiency_target_source` | Percent converted to ratio     |
+| `price_source_target`      | PricingSegment    | `price_source_target`      | Optional, no cost if not set   |
+| `price_target_source`      | PricingSegment    | `price_target_source`      | Optional, no cost if not set   |
+
+If a field is omitted, the corresponding segment defaults apply.
+Power limits and pricing are skipped when values are `None`.
+Efficiency defaults to 100% via the efficiency segment.
 
 ## Sensors Created
 
 ### Connection Device
 
-| Sensor                    | Unit  | Update    | Description                      |
-| ------------------------- | ----- | --------- | -------------------------------- |
-| `power_source_target`     | kW    | Real-time | Power flow from source to target |
-| `power_target_source`     | kW    | Real-time | Power flow from target to source |
-| `power_max_source_target` | kW    | Real-time | Configured max power (if set)    |
-| `power_max_target_source` | kW    | Real-time | Configured max power (if set)    |
-| `shadow_power_max_*`      | \$/kW | Real-time | Shadow prices for power limits   |
+| Sensor                | Unit  | Update    | Description                                   |
+| --------------------- | ----- | --------- | --------------------------------------------- |
+| `power_source_target` | kW    | Real-time | Power flow from source to target              |
+| `power_target_source` | kW    | Real-time | Power flow from target to source              |
+| `power_active`        | kW    | Real-time | Net power (source→target minus target→source) |
+| `shadow_power_max_*`  | \$/kW | Real-time | Shadow prices for power limits                |
+| `time_slice`          | \$/kW | Real-time | Shadow price for time-slice coupling          |
 
 See [Connection Configuration](../../user-guide/elements/connections.md) for detailed sensor and configuration documentation.
 
@@ -148,7 +153,7 @@ Use explicit Connection devices when you need:
 
     Mathematical formulation for power flow.
 
-    [:material-arrow-right: Connection model](../model-layer/connections/power-connection.md)
+    [:material-arrow-right: Connection model](../model-layer/connections/connection.md)
 
 - :material-network:{ .lg .middle } **Network overview**
 

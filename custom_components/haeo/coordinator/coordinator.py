@@ -1,6 +1,7 @@
 """Data update coordinator for the Home Assistant Energy Optimizer integration."""
 
 from collections.abc import Callable, Mapping
+from copy import deepcopy
 from dataclasses import dataclass
 from datetime import datetime
 import logging
@@ -9,13 +10,14 @@ from typing import TYPE_CHECKING, Any, Literal, TypedDict
 
 from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import EntityCategory, UnitOfTime
+from homeassistant.const import STATE_ON, EntityCategory, UnitOfTime
 from homeassistant.core import CALLBACK_TYPE, Event, HomeAssistant, callback
 from homeassistant.helpers.event import EventStateChangedData, async_call_later, async_track_state_change_event
 from homeassistant.helpers.translation import async_get_translations
 from homeassistant.helpers.typing import StateType
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util import dt as dt_util
+import numpy as np
 
 from custom_components.haeo.const import (
     CONF_DEBOUNCE_SECONDS,
@@ -38,11 +40,18 @@ from custom_components.haeo.elements import (
     ElementDeviceName,
     ElementOutputName,
     collect_element_subentries,
+    get_input_field_schema_info,
     get_input_fields,
+    get_nested_config_value_by_path,
+    is_element_config_data,
     is_element_type,
+    iter_input_field_paths,
+    set_nested_config_value_by_path,
 )
+from custom_components.haeo.flows import HUB_SECTION_ADVANCED
 from custom_components.haeo.model import ModelOutputName, Network, OutputData, OutputType
 from custom_components.haeo.repairs import dismiss_optimization_failure_issue
+from custom_components.haeo.schema import is_none_value
 from custom_components.haeo.util.forecast_times import tiers_to_periods_seconds
 
 from . import network as network_module
@@ -114,6 +123,16 @@ STATUS_OPTIONS: tuple[str, ...] = tuple(
 )
 
 
+def _strip_none_schema_values(data: dict[str, Any]) -> None:
+    """Remove disabled schema values from a nested config dict."""
+    for key, value in list(data.items()):
+        if is_none_value(value):
+            data.pop(key)
+            continue
+        if isinstance(value, dict):
+            _strip_none_schema_values(value)
+
+
 def _build_coordinator_output(
     output_name: ElementOutputName,
     output_data: OutputData,
@@ -143,7 +162,12 @@ def _build_coordinator_output(
     """
 
     values = tuple(output_data.values)
-    state: Any | None = values[0] if values else None
+    if not values:
+        state = None
+    elif output_data.state_last:
+        state = values[-1]
+    else:
+        state = values[0]
     forecast: list[ForecastPoint] | None = None
 
     if forecast_times and len(values) > 1:
@@ -197,9 +221,9 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
 
     def __init__(self, hass: HomeAssistant, config_entry: ConfigEntry) -> None:
         """Initialize the coordinator."""
-        # Network will be created in async_initialize()
-        # Typed as Network (not optional) since it's guaranteed to exist after initialization
-        # For tests that set it manually, or for lazy initialization fallback
+        # Network will be created in async_initialize().
+        # Typed as Network (not optional) since it's guaranteed to exist after initialization.
+        # Tests may set this manually before the first optimization.
         self.network: Network = None  # type: ignore[assignment]
 
         # Build participant configs and track subentry IDs
@@ -211,11 +235,13 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             self._participant_subentry_ids[participant.name] = participant.subentry.subentry_id
 
         # Custom debouncing state
-        self._debounce_seconds = float(config_entry.data.get(CONF_DEBOUNCE_SECONDS, DEFAULT_DEBOUNCE_SECONDS))
+        advanced_data = config_entry.data.get(HUB_SECTION_ADVANCED, {})
+        self._debounce_seconds = float(advanced_data.get(CONF_DEBOUNCE_SECONDS, DEFAULT_DEBOUNCE_SECONDS))
         self._last_optimization_time: float | None = None
         self._debounce_timer: CALLBACK_TYPE | None = None
         self._pending_refresh: bool = False
         self._optimization_in_progress: bool = False  # Prevent concurrent optimizations
+        self._pending_element_updates: dict[str, ElementConfigData] = {}
 
         # No update_interval - we're event-driven from input entities
         # No request_refresh_debouncer - we handle debouncing ourselves
@@ -252,6 +278,11 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             periods_seconds=periods_seconds,
             participants=loaded_configs,
         )
+        await network_module.evaluate_network_connectivity(
+            self.hass,
+            self.config_entry,
+            participants=loaded_configs,
+        )
 
         # Subscribe to input entity changes
         self._subscribe_to_input_entities()
@@ -270,17 +301,38 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
 
         Sets up per-element callbacks so each input entity only updates
         its specific element's TrackedParams when it changes.
+
+        Also subscribes to the auto-optimize switch to control horizon manager
+        pause/resume and trigger optimization on re-enable.
         """
         runtime_data = self._get_runtime_data()
         if runtime_data is None:
             return
 
         # Subscribe to horizon manager changes (requires full re-optimization)
-        runtime_data.horizon_manager.subscribe(self._handle_horizon_change)
+        network = self.network
+
+        @callback
+        def _on_horizon_change() -> None:
+            self._handle_horizon_change(network)
+
+        runtime_data.horizon_manager.subscribe(_on_horizon_change)
+
+        # Subscribe to auto-optimize switch state changes
+        if runtime_data.auto_optimize_switch is not None:
+            self._state_change_unsubs.append(
+                async_track_state_change_event(
+                    self.hass,
+                    [runtime_data.auto_optimize_switch.entity_id],
+                    self._handle_auto_optimize_switch_change,
+                )
+            )
+            # Apply initial state from the switch (it may have been restored)
+            self._apply_auto_optimize_state(is_enabled=runtime_data.auto_optimize_switch.is_on or False)
 
         # Group input entities by element name
         entities_by_element: dict[str, list[str]] = {}
-        for (element_name, _field_name), entity in runtime_data.input_entities.items():
+        for (element_name, _field_path), entity in runtime_data.input_entities.items():
             if element_name not in entities_by_element:
                 entities_by_element[element_name] = []
             entities_by_element[element_name].append(entity.entity_id)
@@ -309,9 +361,6 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
     def _handle_element_update(self, element_name: str) -> None:
         """Handle an update to a specific element's input entities.
 
-        Updates only that element's TrackedParams in the network, then triggers
-        optimization with debouncing.
-
         The network is guaranteed to exist because it's created in async_initialize()
         before this handler is registered.
         """
@@ -322,21 +371,91 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             _LOGGER.exception("Failed to load config for element %s due to invalid input entities", element_name)
             return
 
-        # Update just this element's TrackedParams
-        network_module.update_element(self.network, element_config)
+        # Defer network update until optimization time
+        self._pending_element_updates[element_name] = element_config
 
         # Trigger optimization (with debouncing)
-        self._trigger_optimization()
+        self.signal_optimization_stale()
 
     @callback
-    def _handle_horizon_change(self) -> None:
-        """Handle horizon manager changes."""
-        # Just trigger optimization - _are_inputs_aligned will gate until all elements update
-        self._trigger_optimization()
+    def _handle_horizon_change(self, network: Network) -> None:
+        """Handle horizon manager changes.
+
+        Updates network periods with new durations from the horizon manager,
+        then triggers optimization. The period update propagates to all elements
+        and segments, invalidating dependent constraints and costs.
+        """
+        # Update network periods with new horizon durations
+        periods_seconds = tiers_to_periods_seconds(self.config_entry.data)
+        periods_hours = np.asarray(periods_seconds, dtype=float) / 3600
+        network.update_periods(periods_hours)
+
+        # Trigger optimization - _are_inputs_aligned will gate until all elements update
+        self.signal_optimization_stale()
 
     @callback
-    def _trigger_optimization(self) -> None:
-        """Trigger optimization with debouncing."""
+    def _handle_auto_optimize_switch_change(self, event: Event[EventStateChangedData]) -> None:
+        """Handle auto-optimize switch state change.
+
+        On turn-on: resume horizon manager and trigger optimization.
+        On turn-off: pause horizon manager.
+        """
+        new_state = event.data["new_state"]
+        if new_state is None:
+            return
+
+        is_enabled = new_state.state == STATE_ON
+        self._apply_auto_optimize_state(is_enabled=is_enabled)
+
+        # If turned on, trigger optimization to catch up on any changes while disabled
+        if is_enabled:
+            self.hass.async_create_task(self.async_run_optimization())
+
+    def _apply_auto_optimize_state(self, *, is_enabled: bool) -> None:
+        """Apply auto-optimize state to the horizon manager.
+
+        Pauses/resumes the horizon manager based on the auto-optimize setting.
+        """
+        runtime_data = self._get_runtime_data()
+        if runtime_data is None:
+            return
+
+        if is_enabled:
+            runtime_data.horizon_manager.resume()
+        else:
+            runtime_data.horizon_manager.pause()
+
+    @property
+    def auto_optimize_enabled(self) -> bool:
+        """Return whether automatic optimization is enabled.
+
+        Reads from the auto-optimize switch entity stored in runtime_data.
+        """
+        runtime_data = self._get_runtime_data()
+        if not runtime_data or not runtime_data.auto_optimize_switch:
+            msg = "auto_optimize_switch not available"
+            raise RuntimeError(msg)
+        return runtime_data.auto_optimize_switch.is_on or False
+
+    async def async_run_optimization(self) -> None:
+        """Manually trigger optimization, bypassing debouncing and auto-optimize check."""
+        if not self._are_inputs_aligned():
+            _LOGGER.debug("Inputs not aligned, skipping manual optimization")
+            return
+
+        await self.async_refresh()
+
+    @callback
+    def signal_optimization_stale(self) -> None:
+        """Signal that optimization results are stale and a refresh may be needed.
+
+        Checks auto_optimize_enabled before proceeding. If disabled, does nothing.
+        Handles debouncing to prevent excessive refreshes.
+        """
+        # Skip if auto-optimization is disabled
+        if not self.auto_optimize_enabled:
+            return
+
         # If optimization is in progress, just mark pending
         if self._optimization_in_progress:
             self._pending_refresh = True
@@ -407,8 +526,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
     def _load_element_config(self, element_name: str) -> ElementConfigData:
         """Load configuration for a single element from its input entities.
 
-        Collects loaded values from input entities and delegates to the adapter's
-        build_config_data() method - the single source of truth for ConfigData construction.
+        Collects loaded values from input entities and merges them with config values.
 
         Args:
             element_name: Name of the element to load
@@ -437,13 +555,14 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             raise ValueError(msg)
 
         # Get input field definitions for this element type
-        input_field_infos = get_input_fields(element_type)
+        input_field_infos = get_input_fields(element_config)
 
         # Collect loaded values from input entities
-        loaded_values: dict[str, Any] = {}
-        for field_info in input_field_infos:
+        loaded_values: dict[tuple[str, ...], Any] = {}
+        missing_entity_values: set[tuple[str, ...]] = set()
+        for field_path, field_info in iter_input_field_paths(input_field_infos):
             field_name = field_info.field_name
-            key = (element_name, field_name)
+            key = (element_name, field_path)
 
             if key not in runtime_data.input_entities:
                 continue
@@ -452,21 +571,49 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             values = entity.get_values()
 
             if values is None:
+                missing_entity_values.add(field_path)
                 continue
 
             if field_info.time_series:
-                loaded_values[field_name] = list(values)
+                loaded_values[field_path] = np.asarray(values, dtype=float)
             else:
-                loaded_values[field_name] = values[0] if values else None
+                loaded_values[field_path] = values[0] if values else None
 
-        # Delegate to adapter's build_config_data() - single source of truth
-        adapter = ELEMENT_TYPES[element_type]
-        try:
-            return adapter.build_config_data(loaded_values, element_config)
-        except KeyError as e:
-            field_name = e.args[0] if e.args else "unknown"
-            msg = f"Missing required field '{field_name}' for element '{element_name}'"
-            raise ValueError(msg) from e
+        element_values: dict[str, Any] = deepcopy(dict(element_config))
+        for field_path, value in loaded_values.items():
+            set_nested_config_value_by_path(element_values, field_path, value)
+
+        _strip_none_schema_values(element_values)
+
+        field_schema = get_input_field_schema_info(element_type, input_field_infos)
+        optional_keys = {
+            field_name
+            for section_fields in field_schema.values()
+            for field_name, field_info in section_fields.items()
+            if field_info.is_optional
+        }
+        for field_path, field_info in iter_input_field_paths(input_field_infos):
+            field_name = field_info.field_name
+            is_required = field_name not in optional_keys
+            if not is_required:
+                continue
+            key = (element_name, field_path)
+            if key not in runtime_data.input_entities:
+                msg = f"Missing required field '{'.'.join(field_path)}' for element '{element_name}'"
+                raise ValueError(msg)
+            if field_path in missing_entity_values:
+                msg = f"Missing required field '{'.'.join(field_path)}' for element '{element_name}'"
+                raise ValueError(msg)
+            value = get_nested_config_value_by_path(element_values, field_path)
+            if value is None:
+                msg = f"Missing required field '{'.'.join(field_path)}' for element '{element_name}'"
+                raise ValueError(msg)
+
+        if not is_element_config_data(element_values):
+            msg = f"Invalid config data for element '{element_name}'"
+            raise ValueError(msg)
+
+        return element_values
 
     def _load_from_input_entities(self) -> dict[str, ElementConfigData]:
         """Load element configurations from input entities.
@@ -501,6 +648,18 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             self._debounce_timer()
             self._debounce_timer = None
 
+        self._pending_element_updates.clear()
+
+    def _apply_pending_element_updates(self) -> None:
+        """Apply all pending element updates to the network.
+
+        Called at optimization time to batch-apply updates that were deferred
+        during input entity state changes.
+        """
+        for element_config in self._pending_element_updates.values():
+            network_module.update_element(self.network, element_config)
+        self._pending_element_updates.clear()
+
     async def _async_update_data(self) -> CoordinatorData:
         """Update data from input entities and run optimization."""
         # Check if optimization is already in progress
@@ -527,9 +686,6 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             # This ensures debouncing works even if optimization takes a long time
             self._last_optimization_time = start_time
 
-            # Convert tier configuration to list of period durations in seconds
-            periods_seconds = tiers_to_periods_seconds(self.config_entry.data)
-
             # Get forecast timestamps from horizon manager
             runtime_data = self._get_runtime_data()
             if runtime_data is None:
@@ -544,17 +700,11 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
 
             _LOGGER.debug("Running optimization with %d participants", len(loaded_configs))
 
-            # Network should have been created in async_initialize()
-            # or set manually in tests - create lazily if needed (for test compatibility)
-            if not self.network:  # type: ignore[truthy-bool]
-                network = await network_module.create_network(
-                    self.config_entry,
-                    periods_seconds=periods_seconds,
-                    participants=loaded_configs,
-                )
-                self.network = network
-            else:
-                network = self.network
+            # Network should have been created in async_initialize() or set manually in tests.
+            network = self.network
+
+            # Apply any pending element updates before optimization
+            self._apply_pending_element_updates()
 
             # Perform the optimization
             cost = await self.hass.async_add_executor_job(network.optimize)
@@ -610,7 +760,10 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
                 # May return multiple devices per config element (e.g., battery regions)
                 try:
                     adapter_outputs: Mapping[ElementDeviceName, Mapping[ElementOutputName, OutputData]] = outputs_fn(
-                        element_name, model_outputs, loaded_configs[element_name]
+                        name=element_name,
+                        model_outputs=model_outputs,
+                        config=loaded_configs[element_name],
+                        periods=network.periods,
                     )
                 except KeyError:
                     _LOGGER.exception(

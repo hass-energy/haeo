@@ -90,28 +90,28 @@ Follow HAEO testing standards from `.github/instructions/tests.instructions.md`:
 
 - **Function-style tests**: Use `def test_...()` not class-based tests
 - **Parametrized tests**: Use `@pytest.mark.parametrize` for data-driven tests
-- **Test data modules**: Add cases to `tests/model/test_data/` for model element tests
+- **Test data modules**: Add cases to `core/model/tests/test_data/` for model element tests
 - **Direct property access**: Access properties directly without None checks when you've created the entities
 
 ### Where to Add Tests
 
-1. **Model elements**: Add test cases to `tests/model/test_data/{element}_cases.py`
+1. **Model elements**: Add test cases to `core/model/tests/test_data/{element}_cases.py`
 
     - Add to `VALID_CASES` or `INVALID_CASES` lists
     - Cases are aggregated in `__init__.py` for parametrized tests
 
-2. **Element adapters**: Add tests to `tests/elements/{element_type}/test_adapter.py`
+2. **Element adapters**: Add tests to `core/adapters/elements/tests/`
 
-3. **Config flows**: Add test data to `tests/flows/test_data/`
+3. **Config flows**: Add test data to `flows/tests/test_data/`
 
-4. **Coordinator/data loading**: Add tests to `tests/test_coordinator.py` or `tests/test_data_loading.py`
+4. **Coordinator/data loading**: Add tests to `coordinator/tests/`
 
 5. **New functionality**: Create appropriate test files following existing patterns
 
 ### Example: Adding Model Element Test Cases
 
 ```python
-# In tests/model/test_data/battery_cases.py
+# In core/model/tests/test_data/battery_cases.py
 VALID_CASES = [
     # ... existing cases ...
     {

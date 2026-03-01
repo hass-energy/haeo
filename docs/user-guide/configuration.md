@@ -34,10 +34,16 @@ A unique name for your energy hub (for example, "Home Energy System").
     You can create multiple separate hubs for distinct energy systems (separate buildings, testing configurations, different optimization strategies).
     Each hub manages its own set of element and connection entries independently.
 
-#### Interval Tiers
+#### Planning horizon
+
+Choose a planning horizon preset that matches your forecast coverage.
+Presets automatically populate tier configuration.
+Select **Custom** to define tier counts and durations yourself.
+
+#### Custom tiers
 
 HAEO uses dynamic interval sizing to balance precision and performance.
-Configure up to four tiers, each specifying how many intervals to create and their duration in minutes.
+When you select **Custom**, the next step lets you configure up to four tiers, each specifying how many intervals to create and their duration in minutes.
 
 | Tier | Default Count | Default Duration | Purpose                             |
 | ---- | ------------- | ---------------- | ----------------------------------- |
@@ -46,7 +52,7 @@ Configure up to four tiers, each specifying how many intervals to create and the
 | 3    | 46            | 30 minutes       | Day-ahead planning                  |
 | 4    | 48            | 60 minutes       | Extended horizon                    |
 
-The defaults create approximately 104 intervals spanning roughly 72 hours:
+The custom tier defaults create approximately 104 intervals spanning roughly 72 hours:
 
 - 5 × 1 min = 5 minutes of fine-grained control
 - 5 × 5 min = 25 minutes of responsive planning
@@ -65,6 +71,7 @@ Distant periods can use coarser resolution since forecasts become less reliable 
 - Reduce tier 4 count if optimization takes too long
 - Match tier 1 duration to your fastest-updating price or forecast sensor
 
+Presets automatically adjust the Tier 4 count to match the selected horizon.
 HAEO uses intelligent forecast cycling to extend partial forecast data across the full horizon.
 A 24-hour solar forecast automatically cycles to cover longer horizons with time-of-day alignment preserved.
 
@@ -84,6 +91,7 @@ Enable Advanced Mode only if you need direct control over the underlying model l
 See the [elements overview](elements/index.md) for details on which elements require Advanced Mode.
 
 Click **Submit** to create your hub.
+If you selected **Custom**, complete the custom tier step before the hub is created.
 
 ## Adding Elements
 
@@ -102,18 +110,33 @@ After creating your hub, add elements to represent your devices through the Home
 
 ### Element configuration
 
-Most elements use a two-step configuration process:
+Most elements are configured in a single step where you enter:
 
-**Step 1 - Entity selection**: Enter the element name, select connection targets, and choose entities for each field.
-Select "Configurable Entity" if you want to enter a constant value instead of linking to a sensor.
+1. **Element name**: A unique, descriptive name for the element
+2. **Connection target**: Which element this connects to (for elements that require connections)
+3. **Input fields**: For each field, choose how to provide the value
 
-**Step 2 - Configurable values**: Enter constant values for any fields where you selected "Configurable Entity".
-This step is skipped if all fields are linked to sensors.
+Some elements add a follow-up step when optional settings are enabled.
+For example, the battery flow adds a partitions step when you enable undercharge and overcharge configuration.
 
-!!! tip "Optional fields"
+#### Input field options
 
-    For optional fields like power limits, leave the field empty if you don't need that constraint.
-    The optimization will run without that limit applied.
+Each input field provides a dropdown with these choices:
+
+| Choice       | Use When                                         |
+| ------------ | ------------------------------------------------ |
+| **Entity**   | Value should come from a Home Assistant sensor   |
+| **Constant** | Value is fixed (enter it directly in the form)   |
+| **None**     | Don't use this constraint (optional fields only) |
+
+- Select **Entity** to link the field to one or more sensors (for example, a price forecast sensor)
+- Select **Constant** to enter a fixed value directly (for example, a battery capacity of 10 kWh)
+- Select **None** for optional fields you don't need (for example, no export limit)
+
+!!! tip "Constant values are adjustable"
+
+    Fields configured with "Constant" create input entities in Home Assistant.
+    You can adjust these values at runtime without reconfiguring the element.
 
 !!! note "Network entry"
 
@@ -182,7 +205,7 @@ The hub automatically adjusts optimization for remaining elements.
 
 ### Editing hub settings
 
-Click **Configure** on the hub entry to modify interval tiers or optimizer.
+Click **Configure** on the hub entry to modify the planning horizon, tiers, or advanced settings.
 Changes trigger immediate re-optimization with the new parameters.
 
 ## Best Practices

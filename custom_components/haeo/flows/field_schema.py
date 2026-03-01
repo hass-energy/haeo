@@ -1,20 +1,27 @@
-"""Shared utilities for building entity-first two-step element config flows.
+"""Shared utilities for building element config flows with choose selectors.
 
-This module provides utilities for the entity-first config flow pattern:
-
-- Step 1: Select name, connections, and entities (with HAEO Configurable option)
-- Step 2: Enter configurable values for fields where HAEO Configurable was selected
+This module provides utilities for the unified config flow pattern using
+Home Assistant's ChooseSelector, allowing users to pick between "Entity"
+(select from compatible sensors) or "Constant" (enter a value directly).
 """
 
-from typing import Any, Protocol
+from collections.abc import Collection, Mapping, Sequence
+from dataclasses import dataclass
+from numbers import Real
+from typing import Any
 
 from homeassistant.components.number import NumberEntityDescription
 from homeassistant.core import async_get_hass
-from homeassistant.exceptions import HomeAssistantError
+from homeassistant.data_entry_flow import section
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.selector import (
     BooleanSelector,
     BooleanSelectorConfig,
+    ChooseSelector,
+    ChooseSelectorChoiceConfig,
+    ChooseSelectorConfig,
+    ConstantSelector,
+    ConstantSelectorConfig,
     EntitySelector,
     EntitySelectorConfig,
     NumberSelector,
@@ -23,18 +30,50 @@ from homeassistant.helpers.selector import (
 )
 import voluptuous as vol
 
-from custom_components.haeo.const import CONFIGURABLE_ENTITY_UNIQUE_ID, DOMAIN
-from custom_components.haeo.elements.input_fields import InputFieldInfo
+from custom_components.haeo.const import DOMAIN
+from custom_components.haeo.core.schema import (
+    VALUE_TYPE_CONSTANT,
+    VALUE_TYPE_ENTITY,
+    VALUE_TYPE_NONE,
+    as_constant_value,
+    as_entity_value,
+    as_none_value,
+    get_schema_value_kinds,
+    is_constant_value,
+    is_entity_value,
+    is_none_value,
+    is_schema_value,
+)
+from custom_components.haeo.elements.field_schema import FieldSchemaInfo
+from custom_components.haeo.elements.input_fields import InputFieldGroups, InputFieldInfo
+
+# Choose selector choice keys (used for config flow data and translations)
+CHOICE_ENTITY = VALUE_TYPE_ENTITY
+CHOICE_CONSTANT = VALUE_TYPE_CONSTANT
+CHOICE_NONE = VALUE_TYPE_NONE
 
 
-class ConfigSchemaType(Protocol):
-    """Protocol for TypedDict classes used as config schemas.
+@dataclass(frozen=True, slots=True)
+class SectionDefinition:
+    """Definition of a config flow section for grouping fields."""
 
-    This protocol captures the __optional_keys__ attribute that TypedDict
-    classes provide, allowing functions to inspect which fields are optional.
-    """
+    key: str
+    fields: tuple[str, ...]
+    collapsed: bool = False
 
-    __optional_keys__: frozenset[str]
+
+def _get_nested_value(data: Mapping[str, Any], field_name: str) -> Any | None:
+    """Find a field value in a nested mapping."""
+    if field_name in data:
+        return data[field_name]
+    for value in data.values():
+        if isinstance(value, Mapping):
+            if field_name in value:
+                return value[field_name]
+            nested = _get_nested_value(value, field_name)
+            if nested is not None:
+                return nested
+    return None
 
 
 def number_selector_from_field(
@@ -79,56 +118,36 @@ def boolean_selector_from_field() -> BooleanSelector:  # type: ignore[type-arg]
     return BooleanSelector(BooleanSelectorConfig())
 
 
-def is_configurable_entity(entity_id: str) -> bool:
-    """Check if an entity ID is the HAEO Configurable sentinel entity.
+def get_haeo_input_entity_ids() -> list[str]:
+    """Get all HAEO-created input entity IDs.
 
-    Checks by looking up the entity and comparing its unique_id, since users
-    may rename the entity_id.
-
-    Args:
-        entity_id: Entity ID to check.
+    Returns all entity IDs for HAEO input entities (number/switch) that were
+    created for configurable fields. These should always be included in entity
+    pickers so they can be re-selected during reconfiguration.
 
     Returns:
-        True if the entity is the HAEO Configurable sentinel entity.
+        List of entity IDs for HAEO input entities.
 
     """
     hass = async_get_hass()
     registry = er.async_get(hass)
-    entry = registry.async_get(entity_id)
-    return entry is not None and entry.unique_id == CONFIGURABLE_ENTITY_UNIQUE_ID
+    return [
+        entry.entity_id
+        for entry in registry.entities.values()
+        if entry.platform == DOMAIN and entry.domain in ("number", "switch")
+    ]
 
 
-def get_configurable_entity_id() -> str:
-    """Get the current entity_id for the configurable sentinel entity.
-
-    Uses the stable unique_id to find the entity, since users may rename the entity_id.
-
-    Returns:
-        The current entity_id.
-
-    Raises:
-        RuntimeError: If the entity doesn't exist (should never happen after setup).
-
-    """
-    hass = async_get_hass()
-    registry = er.async_get(hass)
-    entity_id = registry.async_get_entity_id(DOMAIN, DOMAIN, CONFIGURABLE_ENTITY_UNIQUE_ID)
-    if entity_id is None:
-        msg = "Configurable entity not found - sensor platform should have created it during setup"
-        raise RuntimeError(msg)
-    return entity_id
-
-
-def resolve_configurable_entity_id(
+def resolve_haeo_input_entity_id(
     entry_id: str,
     subentry_id: str,
     field_name: str,
 ) -> str | None:
     """Resolve the HAEO-created entity for a configured field.
 
-    When a user configures a field with haeo.configurable_entity and enters
-    a value, HAEO creates an input entity (e.g., number.grid_export_limit).
-    This function looks up that resolved entity.
+    When a user configures a field with a constant value, HAEO creates an
+    input entity (e.g., number.grid_export_limit). This function looks up
+    that resolved entity.
 
     Args:
         entry_id: The config entry ID.
@@ -145,398 +164,719 @@ def resolve_configurable_entity_id(
     return registry.async_get_entity_id("number", DOMAIN, unique_id)
 
 
-def is_haeo_input_entity(entity_id: str) -> bool:
-    """Check if an entity is a HAEO-created input entity.
-
-    HAEO input entities (number/switch) have unique_ids in the pattern:
-    {entry_id}_{subentry_id}_{field_name}
-
-    Args:
-        entity_id: Entity ID to check.
-
-    Returns:
-        True if the entity is a HAEO input entity.
-
-    """
-    hass = async_get_hass()
-    registry = er.async_get(hass)
-    entry = registry.async_get(entity_id)
-    if entry is None or entry.platform != DOMAIN:
-        return False
-    # HAEO input entities have unique_ids with the pattern: entry_id_subentry_id_field_name
-    # They have at least 2 underscores separating 3 parts (minimum for entry_id_subentry_id_field)
-    min_underscores = 2
-    return entry.unique_id.count("_") >= min_underscores
-
-
-def build_entity_selector_with_configurable(
-    field_info: InputFieldInfo[Any],  # noqa: ARG001
+def build_entity_selector(
     *,
-    exclude_entities: list[str] | None = None,
+    include_entities: list[str] | None = None,
+    multiple: bool = True,
 ) -> EntitySelector:  # type: ignore[type-arg]
-    """Build an EntitySelector with compatible entities plus the HAEO Configurable entity.
-
-    Does not filter by device_class because:
-    1. Unit-based exclusion already narrows down compatible entities
-    2. Device class filtering would exclude the configurable sentinel entity
-    3. Many real-world sensors lack proper device_class but have correct units
-
-    The configurable entity is always included via the 'haeo' domain.
+    """Build an EntitySelector for compatible entities.
 
     Args:
-        field_info: Input field metadata (kept for API consistency, may be used for
-            device_class filtering in future).
-        exclude_entities: Entity IDs to exclude from selection (already filtered by unit compatibility).
+        include_entities: Entity IDs to include (compatible entities from unit filtering).
+        multiple: Whether to allow multiple entity selection (for chaining).
 
     Returns:
-        EntitySelector configured for sensor/input_number/haeo domains.
+        EntitySelector configured with include_entities list.
 
     """
-    # WORKAROUND: Remove configurable entity and HAEO input entities from exclude list.
-    # These entities fail unit filtering because:
-    # - Configurable sentinel has unit_of_measurement=None
-    # - HAEO input entities for price/cost fields lack units (monetary units are user-specific
-    #   and HA doesn't provide a standardized way to determine currency at entity definition time)
-    #
-    # A better approach would be to:
-    # - Derive the user's currency from HA core settings and assign proper units to price fields
-    # - Or use a custom unit matching strategy that handles currency-per-energy patterns
-    #
-    # For now, we bypass unit filtering for all HAEO-created entities since they should
-    # always be re-selectable for their original fields during reconfiguration.
-    filtered_exclude = [
-        entity_id
-        for entity_id in (exclude_entities or [])
-        if not is_configurable_entity(entity_id) and not is_haeo_input_entity(entity_id)
-    ]
+    # Start with compatible entities from unit filtering
+    entities_to_include = list(include_entities or [])
 
-    # Build config - no device_class filter, rely on unit-based exclusion
-    # Include 'number' and 'switch' so HAEO input entities can be re-selected during reconfigure
-    # The configurable sentinel is a sensor entity, so it's included via 'sensor' domain
+    # Include all HAEO input entities so they can be re-selected during reconfigure
+    entities_to_include.extend(get_haeo_input_entity_ids())
+
     config_kwargs: dict[str, Any] = {
         "domain": [DOMAIN, "sensor", "input_number", "number", "switch"],
-        "multiple": True,
-        "exclude_entities": filtered_exclude,
+        "multiple": multiple,
     }
+    if entities_to_include:
+        config_kwargs["include_entities"] = entities_to_include
 
     return EntitySelector(EntitySelectorConfig(**config_kwargs))
 
 
-def build_entity_schema_entry(
+def _get_allowed_choices(field_schema: FieldSchemaInfo, field_info: InputFieldInfo[Any]) -> frozenset[str]:
+    kinds = get_schema_value_kinds(field_schema.value_type)
+    choices: set[str] = set()
+    if VALUE_TYPE_ENTITY in kinds:
+        choices.add(CHOICE_ENTITY)
+    if VALUE_TYPE_CONSTANT in kinds:
+        choices.add(CHOICE_CONSTANT)
+    if VALUE_TYPE_NONE in kinds and not field_info.force_required:
+        choices.add(CHOICE_NONE)
+    return frozenset(choices)
+
+
+def get_preferred_choice(
+    field_info: InputFieldInfo[Any],
+    current_data: Mapping[str, Any] | None = None,
+    *,
+    allowed_choices: Collection[str],
+) -> str:
+    """Determine which choice should be first in the ChooseSelector.
+
+    The ChooseSelector always selects the first choice, so we order
+    choices based on what should be pre-selected.
+    """
+    field_name = field_info.field_name
+    choices = set(allowed_choices)
+
+    # Reconfigure: infer from stored value
+    if current_data is not None:
+        value = _get_nested_value(current_data, field_name)
+        if is_entity_value(value) and CHOICE_ENTITY in choices:
+            return CHOICE_ENTITY
+        if is_constant_value(value) and CHOICE_CONSTANT in choices:
+            return CHOICE_CONSTANT
+        if is_none_value(value) and CHOICE_NONE in choices:
+            return CHOICE_NONE
+
+    # New entry: check for explicit default mode
+    if field_info.defaults is not None:
+        if field_info.defaults.mode is None and CHOICE_NONE in choices:
+            return CHOICE_NONE
+        if field_info.defaults.mode:
+            preferred = CHOICE_CONSTANT if field_info.defaults.mode == "value" else CHOICE_ENTITY
+            if preferred in choices:
+                return preferred
+
+    if CHOICE_NONE in choices:
+        return CHOICE_NONE
+    if CHOICE_ENTITY in choices:
+        return CHOICE_ENTITY
+    if CHOICE_CONSTANT in choices:
+        return CHOICE_CONSTANT
+    return CHOICE_NONE
+
+
+class NormalizingChooseSelector(ChooseSelector):  # type: ignore[type-arg]
+    """ChooseSelector wrapper that normalizes raw dict format from frontend.
+
+    Handles the case where frontend sends raw dict format like:
+    {"active_choice": "none", "constant": 100}
+
+    Converts to expected format before delegating to ChooseSelector.
+    """
+
+    def __call__(self, data: Any) -> Any:
+        """Normalize data before validation."""
+        normalized = self._normalize(data)
+        return super().__call__(normalized)  # type: ignore[misc]
+
+    def _normalize(self, value: Any) -> Any:
+        """Normalize raw dict format to expected value."""
+        if isinstance(value, dict) and "active_choice" in value:
+            choice = value.get("active_choice")
+            if choice == CHOICE_NONE:
+                return ""  # ConstantSelector expects empty string
+            if choice == CHOICE_ENTITY:
+                return value.get(CHOICE_ENTITY, [])
+            if choice == CHOICE_CONSTANT:
+                return value.get(CHOICE_CONSTANT)
+        return value
+
+
+def build_choose_selector(
     field_info: InputFieldInfo[Any],
     *,
-    config_schema: ConfigSchemaType,
-    exclude_entities: list[str] | None = None,
-) -> tuple[vol.Marker, Any]:
-    """Build a schema entry for entity selection (step 1).
+    allowed_choices: Collection[str],
+    include_entities: list[str] | None = None,
+    multiple: bool = True,
+    preferred_choice: str = CHOICE_ENTITY,
+) -> Any:
+    """Build a ChooseSelector allowing user to pick Entity, Constant, or Disabled.
 
     Args:
         field_info: Input field metadata.
-        config_schema: The TypedDict class defining the element's configuration.
-        exclude_entities: Entity IDs to exclude from selection.
+        allowed_choices: Choice keys allowed for this field.
+        include_entities: Entity IDs to include (compatible entities from unit filtering).
+        multiple: Whether to allow multiple entity selection (for chaining).
+        preferred_choice: Which choice should appear first (will be pre-selected).
 
     Returns:
-        Tuple of (vol.Required/Optional marker, EntitySelector).
-        Required fields default to the configurable entity.
-        Optional fields default to empty list.
+        ChooseSelector with Entity and Constant options (and Disabled for optional fields).
+
+    Raises:
+        RuntimeError: If ChooseSelector is not available (requires HA 2026.1+).
+
+    """
+    # Build entity selector for the "entity" choice
+    entity_selector = build_entity_selector(
+        include_entities=include_entities,
+        multiple=multiple,
+    )
+
+    # Build value selector for the "constant" choice based on field type
+    if type(field_info.entity_description).__name__ == "SwitchEntityDescription":
+        value_selector = boolean_selector_from_field()
+    else:
+        value_selector = number_selector_from_field(field_info)  # type: ignore[arg-type]
+
+    # Build choice configs - must use serialized dict format for ChooseSelector validation
+    # The ChooseSelector's __call__ uses selector() which expects a dict, not Selector object
+    entity_choice = ChooseSelectorChoiceConfig(selector=entity_selector.serialize()["selector"])
+    constant_choice = ChooseSelectorChoiceConfig(selector=value_selector.serialize()["selector"])
+
+    # Build ordered choices dict with preferred choice first
+    # (ChooseSelector always selects the first option)
+    choices: dict[str, ChooseSelectorChoiceConfig]
+    choice_map: dict[str, ChooseSelectorChoiceConfig] = {}
+
+    if CHOICE_ENTITY in allowed_choices:
+        choice_map[CHOICE_ENTITY] = entity_choice
+    if CHOICE_CONSTANT in allowed_choices:
+        choice_map[CHOICE_CONSTANT] = constant_choice
+    if CHOICE_NONE in allowed_choices:
+        none_selector = ConstantSelector(ConstantSelectorConfig(value=""))
+        choice_map[CHOICE_NONE] = ChooseSelectorChoiceConfig(selector=none_selector.serialize()["selector"])
+
+    choice_order = [choice for choice in (CHOICE_ENTITY, CHOICE_CONSTANT, CHOICE_NONE) if choice in choice_map]
+
+    if not choice_order:
+        msg = f"No allowed choices for field '{field_info.field_name}'"
+        raise RuntimeError(msg)
+
+    # Move preferred choice to the start
+    # Needed in HA version 2026.1.1, as it currently only supports providing a suggested value for the first choice.
+    if preferred_choice in choice_order:
+        choice_order.remove(preferred_choice)
+        choice_order.insert(0, preferred_choice)
+
+    choices = {k: choice_map[k] for k in choice_order}
+
+    return NormalizingChooseSelector(
+        ChooseSelectorConfig(
+            choices=choices,
+            translation_key="input_source",
+        )
+    )
+
+
+def build_choose_schema_entry(
+    field_info: InputFieldInfo[Any],
+    *,
+    is_optional: bool,
+    allowed_choices: Collection[str],
+    include_entities: list[str] | None = None,
+    multiple: bool = True,
+    preferred_choice: str = CHOICE_ENTITY,
+) -> tuple[vol.Marker, Any]:
+    """Build a schema entry using NormalizingChooseSelector.
+
+    Args:
+        field_info: Input field metadata.
+        is_optional: Whether the field is optional (adds "none" choice).
+        allowed_choices: Choice keys allowed for this field.
+        include_entities: Entity IDs to include (compatible entities from unit filtering).
+        multiple: Whether to allow multiple entity selection.
+        preferred_choice: Which choice should appear first (will be pre-selected).
+
+    Returns:
+        Tuple of (vol.Required/Optional marker, NormalizingChooseSelector).
 
     """
     field_name = field_info.field_name
-    is_optional = field_name in config_schema.__optional_keys__
-
-    selector = build_entity_selector_with_configurable(
+    selector = build_choose_selector(
         field_info,
-        exclude_entities=exclude_entities,
+        allowed_choices=allowed_choices,
+        include_entities=include_entities,
+        multiple=multiple,
+        preferred_choice=preferred_choice,
     )
 
-    # Don't set defaults in schema - EntitySelector doesn't respect them
-    # Defaults are applied via add_suggested_values_to_schema() instead
-    # This ensures "Select an entity" placeholder shows for all empty fields
     if is_optional:
         return vol.Optional(field_name), selector
     return vol.Required(field_name), selector
 
 
-def build_configurable_value_schema_entry(
-    field_info: InputFieldInfo[Any],
-) -> tuple[vol.Marker, Any]:
-    """Build a schema entry for configurable value input (step 2).
-
-    Step 2 fields are always Required. The defaults.value is only used
-    for pre-filling the form, not as a fallback.
+def build_choose_field_entries(
+    input_fields: Mapping[str, InputFieldInfo[Any]],
+    *,
+    field_schema: Mapping[str, FieldSchemaInfo],
+    inclusion_map: dict[str, list[str]],
+    current_data: Mapping[str, Any] | None = None,
+) -> dict[str, tuple[vol.Marker, Any]]:
+    """Build choose selector entries for input fields.
 
     Args:
-        field_info: Input field metadata.
+        input_fields: Mapping of InputFieldInfo keyed by field name.
+        field_schema: Mapping of field names to schema metadata.
+        inclusion_map: Mapping of field name -> compatible entity IDs.
+        current_data: Current configuration data (for reconfigure).
 
     Returns:
-        Tuple of (vol.Required marker, Selector) for configurable value input.
+        Mapping of field_name -> (marker, selector) for schema insertion.
 
     """
-    field_name = field_info.field_name
+    entries: dict[str, tuple[vol.Marker, Any]] = {}
 
-    # Build appropriate selector based on entity description type
-    # Note: isinstance doesn't work due to Home Assistant's frozen_dataclass_compat wrapper
-    if type(field_info.entity_description).__name__ == "SwitchEntityDescription":
-        selector = boolean_selector_from_field()
-    else:
-        selector = number_selector_from_field(field_info)  # type: ignore[arg-type]
+    for field_info in input_fields.values():
+        schema_info = field_schema.get(field_info.field_name)
+        if schema_info is None:
+            msg = f"Missing schema metadata for field '{field_info.field_name}'"
+            raise RuntimeError(msg)
+        is_optional = schema_info.is_optional and not field_info.force_required
+        allowed_choices = _get_allowed_choices(schema_info, field_info)
+        include_entities = inclusion_map.get(field_info.field_name)
+        preferred = get_preferred_choice(field_info, current_data, allowed_choices=allowed_choices)
+        marker, selector = build_choose_schema_entry(
+            field_info,
+            is_optional=is_optional,
+            allowed_choices=allowed_choices,
+            include_entities=include_entities,
+            preferred_choice=preferred,
+        )
+        entries[field_info.field_name] = (marker, selector)
 
-    # Always required - user must provide a value when configurable is selected
-    return vol.Required(field_name), selector
+    return entries
 
 
-def build_configurable_value_schema(
-    input_fields: tuple[InputFieldInfo[Any], ...],
-    entity_selections: dict[str, list[str]],
-    current_data: dict[str, Any] | None = None,  # noqa: ARG001
-) -> vol.Schema:
-    """Build schema for step 2 with configurable value inputs.
-
-    Only includes fields where HAEO Configurable sentinel is in the entity selection.
-    When user selects the configurable sentinel, they always want to enter/change a value,
-    so the form is always shown regardless of any stored value.
-
-    Note: If user keeps a resolved HAEO entity selected (e.g., number.grid_import_price),
-    is_configurable_entity() returns False and the field won't be included, so step 2
-    is skipped automatically.
+def build_section_schema(
+    sections: Sequence[SectionDefinition],
+    field_entries: Mapping[str, Mapping[str, tuple[vol.Marker, Any]]],
+    *,
+    top_level_entries: Mapping[str, tuple[vol.Marker, Any]] | None = None,
+) -> dict[vol.Marker, Any]:
+    """Build section-wrapped schema entries from a field entry map.
 
     Args:
-        input_fields: Tuple of input field metadata.
-        entity_selections: Entity selections from step 1 (field_name -> list of entity IDs).
-        current_data: Current configuration data (unused, kept for API compatibility).
+        sections: Section definitions with field order.
+        field_entries: Mapping of field_name -> (marker, selector).
+        top_level_entries: Fields to place before sections, not wrapped in a section.
 
     Returns:
-        Schema with configurable value inputs for fields with HAEO Configurable selected.
+        Schema dict with top-level fields followed by sections.
 
     """
     schema_dict: dict[vol.Marker, Any] = {}
 
-    for field_info in input_fields:
-        field_name = field_info.field_name
-        selected_entities = entity_selections.get(field_name, [])
+    if top_level_entries:
+        schema_dict.update(dict(top_level_entries.values()))
 
-        # Skip fields without configurable sentinel selection
-        # (resolved HAEO entities like number.grid_import_price return False here)
-        if not any(is_configurable_entity(entity_id) for entity_id in selected_entities):
+    for section_def in sections:
+        section_schema: dict[vol.Marker, Any] = {}
+        section_entries = field_entries.get(section_def.key, {})
+        for field_name in section_def.fields:
+            entry = section_entries.get(field_name)
+            if entry is None:
+                continue
+            marker, selector = entry
+            section_schema[marker] = selector
+        if section_schema:
+            schema_dict[vol.Required(section_def.key)] = section(
+                vol.Schema(section_schema),
+                {"collapsed": section_def.collapsed},
+            )
+
+    return schema_dict
+
+
+def build_sectioned_choose_schema(
+    sections: Sequence[SectionDefinition],
+    input_fields: InputFieldGroups,
+    field_schema: Mapping[str, Mapping[str, FieldSchemaInfo]],
+    inclusion_map: Mapping[str, Mapping[str, list[str]]],
+    *,
+    current_data: Mapping[str, Any] | None = None,
+    extra_field_entries: Mapping[str, Mapping[str, tuple[vol.Marker, Any]]] | None = None,
+    top_level_entries: Mapping[str, tuple[vol.Marker, Any]] | None = None,
+) -> vol.Schema:
+    """Build a sectioned schema using choose selectors for input fields."""
+    field_entries: dict[str, dict[str, tuple[vol.Marker, Any]]] = {
+        key: dict(entries) for key, entries in (extra_field_entries or {}).items()
+    }
+
+    for section_def in sections:
+        section_fields = input_fields.get(section_def.key, {})
+        if not section_fields:
             continue
+        field_entries.setdefault(section_def.key, {}).update(
+            build_choose_field_entries(
+                section_fields,
+                field_schema=field_schema.get(section_def.key, {}),
+                inclusion_map=dict(inclusion_map.get(section_def.key, {})),
+                current_data=current_data.get(section_def.key) if current_data else None,
+            )
+        )
 
-        # User selected haeo.configurable_entity - always show form for value entry
-        marker, selector = build_configurable_value_schema_entry(field_info)
-        schema_dict[marker] = selector
-
-    return vol.Schema(schema_dict)
+    return vol.Schema(build_section_schema(sections, field_entries, top_level_entries=top_level_entries))
 
 
-def get_configurable_value_defaults(
-    input_fields: tuple[InputFieldInfo[Any], ...],
-    entity_selections: dict[str, list[str]],
-    current_data: dict[str, Any] | None = None,
+def build_sectioned_choose_defaults(
+    sections: Sequence[SectionDefinition],
+    input_fields: InputFieldGroups,
+    *,
+    current_data: Mapping[str, Any] | None = None,
+    base_defaults: Mapping[str, Mapping[str, Any]] | None = None,
+    exclude_fields: tuple[str, ...] = (),
 ) -> dict[str, Any]:
-    """Get default configurable values for step 2.
+    """Build sectioned defaults for choose selector fields."""
+    defaults: dict[str, dict[str, Any]] = {key: dict(values) for key, values in (base_defaults or {}).items()}
 
-    These values are used to pre-fill the form, not as fallbacks.
-    Step 2 fields are always Required.
+    for section_def in sections:
+        section_defaults = defaults.setdefault(section_def.key, {})
+        section_fields = input_fields.get(section_def.key, {})
+        current_section = current_data.get(section_def.key) if current_data else None
+        section_data = current_section if isinstance(current_section, Mapping) else None
+        for field_info in section_fields.values():
+            if field_info.field_name in exclude_fields:
+                continue
+            choose_default = get_choose_default(field_info, section_data)
+            if choose_default is not None:
+                section_defaults.setdefault(field_info.field_name, choose_default)
+
+    return defaults
+
+
+def preprocess_sectioned_choose_input(
+    user_input: dict[str, Any] | None,
+    input_fields: InputFieldGroups,
+    sections: Sequence[SectionDefinition],
+) -> dict[str, Any] | None:
+    """Preprocess sectioned input to normalize ChooseSelector data."""
+    if user_input is None:
+        return None
+
+    result: dict[str, Any] = dict(user_input)
+    section_keys = {section.key for section in sections}
+    if not section_keys.intersection(result):
+        result = _nest_section_input(result, sections)
+
+    for section_def in sections:
+        section_input = result.get(section_def.key)
+        if not isinstance(section_input, dict):
+            continue
+        section_fields = input_fields.get(section_def.key, {})
+        normalized = preprocess_choose_selector_input(section_input, section_fields)
+        result[section_def.key] = normalized or {}
+    return result
+
+
+def _nest_section_input(user_input: Mapping[str, Any], sections: Sequence[SectionDefinition]) -> dict[str, Any]:
+    """Nest flat input into sectioned input based on section definitions."""
+    result: dict[str, Any] = {section_def.key: {} for section_def in sections}
+    for key, value in user_input.items():
+        matched = False
+        for section_def in sections:
+            if key in section_def.fields:
+                result[section_def.key][key] = value
+                matched = True
+                break
+        if not matched:
+            result[key] = value
+    return result
+
+
+def validate_sectioned_choose_fields(
+    user_input: Mapping[str, Any],
+    input_fields: InputFieldGroups,
+    field_schema: Mapping[str, Mapping[str, FieldSchemaInfo]],
+    sections: Sequence[SectionDefinition],
+    *,
+    exclude_fields: tuple[str, ...] = (),
+) -> dict[str, str]:
+    """Validate choose fields for sectioned input."""
+    errors: dict[str, str] = {}
+    for section_def in sections:
+        section_input = user_input.get(section_def.key, {})
+        if not isinstance(section_input, Mapping):
+            continue
+        section_fields = input_fields.get(section_def.key, {})
+        errors.update(
+            validate_choose_fields(
+                dict(section_input),
+                section_fields,
+                field_schema.get(section_def.key, {}),
+                exclude_fields=exclude_fields,
+            )
+        )
+    return errors
+
+
+def convert_sectioned_choose_data_to_config(
+    user_input: Mapping[str, Any],
+    input_fields: InputFieldGroups,
+    sections: Sequence[SectionDefinition],
+    *,
+    exclude_fields: tuple[str, ...] = (),
+) -> dict[str, Any]:
+    """Convert sectioned choose data into a sectioned config dict."""
+    config: dict[str, Any] = {}
+    for section_def in sections:
+        section_input = user_input.get(section_def.key, {})
+        if not isinstance(section_input, Mapping):
+            config[section_def.key] = {}
+            continue
+        section_fields = input_fields.get(section_def.key, {})
+        section_config: dict[str, Any] = {
+            key: value
+            for key, value in section_input.items()
+            if key not in section_fields and key not in exclude_fields
+        }
+        section_config.update(
+            convert_choose_data_to_config(dict(section_input), section_fields, exclude_keys=exclude_fields)
+        )
+        config[section_def.key] = section_config
+    return config
+
+
+def get_choose_default(
+    field_info: InputFieldInfo[Any],
+    current_data: Mapping[str, Any] | None = None,
+) -> Any:
+    """Get the default value for a choose selector field.
+
+    Since ChooseSelector always selects the first choice (which we order
+    based on get_preferred_choice), we only need to return the raw value
+    for the nested selector - not a {"choice": ..., "value": ...} object.
 
     Args:
-        input_fields: Tuple of input field metadata.
-        entity_selections: Entity selections from step 1.
+        field_info: Input field metadata.
         current_data: Current configuration data (for reconfigure).
 
     Returns:
-        Dict mapping field names to suggested values for pre-filling.
-        Only includes fields where HAEO Configurable is selected.
+        The value for the nested selector (entity list or constant value),
+        or None if no default should be set.
 
     """
-    suggested: dict[str, Any] = {}
+    field_name = field_info.field_name
 
-    for field_info in input_fields:
-        field_name = field_info.field_name
-        selected_entities = entity_selections.get(field_name, [])
+    # Check current stored data first (for reconfigure)
+    current_value = _get_nested_value(current_data, field_name) if current_data is not None else None
 
-        # Only provide suggestions for fields with configurable entity
-        if not any(is_configurable_entity(entity_id) for entity_id in selected_entities):
-            continue
+    if is_entity_value(current_value):
+        return current_value["value"]
+    if is_constant_value(current_value):
+        return current_value["value"]
+    if is_none_value(current_value):
+        return None
 
-        # Priority: current stored value > defaults.value
-        if current_data is not None and field_name in current_data:
-            current_value = current_data[field_name]
-            # If current value is a scalar (float/int/bool), use it
-            if isinstance(current_value, (float, int, bool)):
-                suggested[field_name] = current_value
-                continue
+    # No current data - check defaults
+    if field_info.defaults is not None:
+        if field_info.defaults.mode == "value" and field_info.defaults.value is not None:
+            return field_info.defaults.value
+        if field_info.defaults.mode == "entity":
+            # Entity mode default - leave empty for user to select
+            return []
 
-        # Use defaults.value if available
-        if field_info.defaults is not None and field_info.defaults.value is not None:
-            suggested[field_name] = field_info.defaults.value
-
-    return suggested
-
-
-def has_configurable_selection(entity_selection: list[str]) -> bool:
-    """Check if the HAEO Configurable entity is in the entity selection.
-
-    Args:
-        entity_selection: List of selected entity IDs.
-
-    Returns:
-        True if the configurable entity is in the selection.
-
-    """
-    return any(is_configurable_entity(entity_id) for entity_id in entity_selection)
+    # No default
+    return None
 
 
-def extract_entity_selections(
-    step1_data: dict[str, Any],
-    exclude_keys: tuple[str, ...] = (),
-) -> dict[str, list[str]]:
-    """Extract entity selections (list fields) from step 1 data.
-
-    Args:
-        step1_data: Data from step 1 of the flow.
-        exclude_keys: Keys to exclude (e.g., name, connection fields).
-
-    Returns:
-        Dict mapping field names to entity ID lists.
-
-    """
-    return {k: v for k, v in step1_data.items() if k not in exclude_keys and isinstance(v, list)}
-
-
-def extract_non_entity_fields(
-    step1_data: dict[str, Any],
+def convert_choose_data_to_config(
+    user_input: dict[str, Any],
+    input_fields: Mapping[str, InputFieldInfo[Any]],
     exclude_keys: tuple[str, ...] = (),
 ) -> dict[str, Any]:
-    """Extract non-entity fields (non-list values) from step 1 data.
+    """Convert choose selector user input to final config format.
+
+    After preprocessing, the user input contains:
+    - Entity selection: list of entity IDs (e.g., ["sensor.x"])
+    - Constant: scalar value (e.g., 10.0 or True)
+    - Disabled/None choice: None
 
     Args:
-        step1_data: Data from step 1 of the flow.
-        exclude_keys: Keys to exclude (e.g., name, connection fields).
+        user_input: User input from the form (after preprocessing).
+        input_fields: Mapping of input field metadata keyed by field name.
+        exclude_keys: Keys to exclude from processing (e.g., name, connection).
 
     Returns:
-        Dict mapping field names to their values.
-
-    """
-    return {k: v for k, v in step1_data.items() if k not in exclude_keys and not isinstance(v, list)}
-
-
-def convert_entity_selections_to_config(
-    entity_selections: dict[str, list[str]],
-    configurable_values: dict[str, Any],
-    input_fields: tuple[InputFieldInfo[Any], ...] | None = None,  # noqa: ARG001
-    current_data: dict[str, Any] | None = None,
-    *,
-    entry_id: str | None = None,
-    subentry_id: str | None = None,
-) -> dict[str, Any]:
-    """Convert entity selections and configurable values to final config format.
-
-    Args:
-        entity_selections: Entity selections from step 1.
-        configurable_values: Configurable values from step 2.
-        input_fields: Unused, kept for API compatibility.
-        current_data: Current stored config (for reconfigure). Used to preserve
-            scalar values when self-referential entities are selected.
-        entry_id: Config entry ID (for detecting self-referential selections).
-        subentry_id: Subentry ID (for detecting self-referential selections).
-
-    Returns:
-        Config dict with:
-        - Fields with configurable entity: converted to float (from configurable_values)
-        - Fields with self-referential entity: preserved scalar value from current_data
-        - Fields with single entity: stored as str (single entity ID)
-        - Fields with multiple entities: stored as list[str] (for chaining)
-        - Fields with empty selection: omitted (no default fallback)
+        Config dict with discriminated schema values:
+        - Entity fields: stored as {"type": "entity", "value": list[str]}
+        - Constant fields: stored as {"type": "constant", "value": scalar}
+        - Disabled fields: stored as {"type": "none"}
 
     """
     config: dict[str, Any] = {}
+    field_names = set(input_fields)
 
-    for field_name, entities in entity_selections.items():
-        if not entities:
-            # Empty selection - always omit from config
-            # Requiredness is enforced by schema validation, not here
+    for field_name, value in user_input.items():
+        if field_name in exclude_keys:
+            continue
+        if field_name not in field_names:
             continue
 
-        if any(is_configurable_entity(entity_id) for entity_id in entities):
-            # Configurable sentinel selected - get value from configurable_values
-            if field_name in configurable_values:
-                config[field_name] = configurable_values[field_name]
-            # If configurable entity is selected but no value provided, skip (validation should catch this)
-        elif entry_id and subentry_id and _is_self_referential(entities, entry_id, subentry_id, field_name):
-            # Self-referential selection (this field's own entity is selected)
-            # Preserve the original scalar value from current_data
-            if current_data is None:
-                raise HomeAssistantError(
-                    translation_domain=DOMAIN,
-                    translation_key="self_referential_no_current_data",
-                    translation_placeholders={"field": field_name},
-                )
-            if field_name not in current_data:
-                raise HomeAssistantError(
-                    translation_domain=DOMAIN,
-                    translation_key="self_referential_field_missing",
-                    translation_placeholders={"field": field_name},
-                )
-            current_value = current_data[field_name]
-            if not isinstance(current_value, (float, int, bool)):
-                raise HomeAssistantError(
-                    translation_domain=DOMAIN,
-                    translation_key="self_referential_invalid_value",
-                    translation_placeholders={
-                        "field": field_name,
-                        "value_type": type(current_value).__name__,
-                    },
-                )
-            config[field_name] = current_value
-        else:
-            # Real external entities (including other HAEO entities) - store as entity reference
-            config[field_name] = _normalize_entity_selection(entities)
+        # Disabled/none choice
+        if value is None:
+            config[field_name] = as_none_value()
+            continue
+
+        # Entity selection: list of entity IDs
+        if isinstance(value, list):
+            if not value:
+                config[field_name] = as_none_value()
+                continue
+            config[field_name] = as_entity_value(value)
+            continue
+
+        # Single entity ID
+        if isinstance(value, str):
+            if not value:
+                config[field_name] = as_none_value()
+                continue
+            config[field_name] = as_entity_value([value])
+            continue
+
+        # Handle numeric or boolean constants
+        if isinstance(value, bool):
+            config[field_name] = as_constant_value(value)
+            continue
+        if isinstance(value, Real):
+            config[field_name] = as_constant_value(float(value))
 
     return config
 
 
-def _is_self_referential(
-    entities: list[str],
-    entry_id: str,
-    subentry_id: str,
-    field_name: str,
-) -> bool:
-    """Check if any selected entity is the self-referential entity for this field.
+def preprocess_choose_selector_input(
+    user_input: dict[str, Any] | None,
+    input_fields: Mapping[str, InputFieldInfo[Any]],
+) -> dict[str, Any] | None:
+    """Preprocess user input to normalize ChooseSelector data.
 
-    Returns True if the entity list contains the entity that would be created
-    from this exact entry_id/subentry_id/field_name combination.
+    Handles the case where the frontend sends raw dict format like:
+    {"active_choice": "none", "constant": 100}
+
+    This can occur due to a Home Assistant frontend bug where the previous
+    choice's value is included when submitting a different choice.
+
+    Converts to expected format:
+    - "none" choice -> None (field will be omitted from config)
+    - "entity" choice -> extract entity list
+    - "constant" choice -> extract constant value
+
+    Also converts empty strings "" to None for consistency, since HA's
+    ConstantSelector returns "" but we use None internally.
+
+    Args:
+        user_input: User input from the form submission.
+        input_fields: Mapping of input field metadata keyed by field name.
+
+    Returns:
+        Normalized user input dict, or None if input was None.
+
     """
-    self_entity_id = resolve_configurable_entity_id(entry_id, subentry_id, field_name)
-    if self_entity_id is None:
+    if user_input is None:
+        return None
+
+    result = dict(user_input)
+    field_names = set(input_fields)
+
+    for field_name in field_names:
+        value = result.get(field_name)
+
+        # Handle raw dict format from frontend bug
+        if isinstance(value, dict) and "active_choice" in value:
+            choice = value.get("active_choice")
+            if choice == CHOICE_NONE:
+                result[field_name] = None
+            elif choice == CHOICE_ENTITY:
+                result[field_name] = value.get(CHOICE_ENTITY, [])
+            elif choice == CHOICE_CONSTANT:
+                result[field_name] = value.get(CHOICE_CONSTANT)
+        # Handle discriminated schema values
+        elif is_schema_value(value):
+            if is_entity_value(value) or is_constant_value(value):
+                result[field_name] = value["value"]
+            else:
+                result[field_name] = None
+        # Convert empty string (from ConstantSelector) to None
+        elif value == "":
+            result[field_name] = None
+
+    return result
+
+
+def is_valid_choose_value(value: Any) -> bool:
+    """Check if a choose selector value is valid (has a selection).
+
+    After schema validation, ChooseSelector returns the inner value directly
+    (list for entities, scalar for constants), not the full dict structure.
+
+    Args:
+        value: The value to check.
+
+    Returns:
+        True if the value represents a valid selection, False otherwise.
+
+    """
+    if value is None:
         return False
-    return self_entity_id in entities
+    # Entity selection: list of entity IDs
+    if isinstance(value, list):
+        return bool(value)
+    # Constant value: number or boolean
+    if isinstance(value, (int, float, bool)):
+        return True
+    # String value (single entity or other)
+    if isinstance(value, str):
+        return bool(value)
+    return False
 
 
-def _normalize_entity_selection(entities: list[str]) -> str | list[str]:
-    """Normalize entity selection to str (single) or list[str] (multiple).
+def validate_choose_fields(
+    user_input: dict[str, Any],
+    input_fields: Mapping[str, InputFieldInfo[Any]],
+    field_schema: Mapping[str, FieldSchemaInfo],
+    *,
+    exclude_fields: Collection[str] = (),
+) -> dict[str, str]:
+    """Validate that required choose fields have valid selections.
 
-    Single entity selections are stored as strings for v0.1 format compatibility.
-    Multiple entity selections are stored as lists for chaining support.
+    Args:
+        user_input: User input dictionary from the form.
+        input_fields: Mapping of InputFieldInfo defining the fields.
+        field_schema: Mapping of field names to schema metadata.
+        exclude_fields: Field names to skip validation for.
+
+    Returns:
+        Dictionary of field_name -> error_key for invalid fields.
+
     """
-    if len(entities) == 1:
-        return entities[0]
-    return entities
+    errors: dict[str, str] = {}
+
+    for field_name, field_info in input_fields.items():
+        if field_name in exclude_fields:
+            continue
+        schema_info = field_schema.get(field_name)
+        if schema_info is None:
+            msg = f"Missing schema metadata for field '{field_name}'"
+            raise RuntimeError(msg)
+        is_optional = schema_info.is_optional and not field_info.force_required
+
+        if is_optional:
+            continue
+
+        value = user_input.get(field_name)
+        if not is_valid_choose_value(value):
+            errors[field_name] = "required"
+
+    return errors
 
 
 __all__ = [
-    "ConfigSchemaType",
+    "CHOICE_CONSTANT",
+    "CHOICE_ENTITY",
+    "CHOICE_NONE",
+    "NormalizingChooseSelector",
+    "SectionDefinition",
     "boolean_selector_from_field",
-    "build_configurable_value_schema",
-    "build_configurable_value_schema_entry",
-    "build_entity_schema_entry",
-    "build_entity_selector_with_configurable",
-    "convert_entity_selections_to_config",
-    "extract_entity_selections",
-    "extract_non_entity_fields",
-    "get_configurable_entity_id",
-    "get_configurable_value_defaults",
-    "has_configurable_selection",
-    "is_configurable_entity",
-    "is_haeo_input_entity",
+    "build_choose_field_entries",
+    "build_choose_schema_entry",
+    "build_choose_selector",
+    "build_entity_selector",
+    "build_section_schema",
+    "build_sectioned_choose_defaults",
+    "build_sectioned_choose_schema",
+    "convert_choose_data_to_config",
+    "convert_sectioned_choose_data_to_config",
+    "get_choose_default",
+    "get_haeo_input_entity_ids",
+    "get_preferred_choice",
+    "is_valid_choose_value",
     "number_selector_from_field",
-    "resolve_configurable_entity_id",
+    "preprocess_choose_selector_input",
+    "preprocess_sectioned_choose_input",
+    "resolve_haeo_input_entity_id",
+    "validate_choose_fields",
+    "validate_sectioned_choose_fields",
 ]

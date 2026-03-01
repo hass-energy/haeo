@@ -4,13 +4,15 @@
     "step": {
       "user": {
         "title": "HAEO Setup",
-        "description": "Create a new HAEO energy system.",
-        "data": {
-          "advanced_mode": "Advanced Mode",
-          "debounce_seconds": "Debounce Window (seconds)",
-          "horizon_preset": "Planning Horizon",
-          "name": "System Name",
-          "update_interval_minutes": "Update Interval (minutes)"
+        "description": "Configure your system and choose a planning horizon that matches your forecast data availability.",
+        "data": { "advanced_mode": "Advanced Mode", "horizon_preset": "Planning Horizon", "name": "System Name" },
+        "data_description": { "advanced_mode": "Reveals additional element types for complex energy systems." },
+        "sections": {
+          "advanced": { "data": { "advanced_mode": "Advanced Mode" }, "name": "Advanced settings" },
+          "common": {
+            "data": { "horizon_preset": "Planning Horizon", "name": "System Name" },
+            "name": "Common settings"
+          }
         }
       },
       "custom_tiers": {
@@ -54,7 +56,22 @@
           "advanced_mode": "Advanced Mode",
           "debounce_seconds": "Debounce Window (seconds)",
           "horizon_preset": "Planning Horizon",
-          "update_interval_minutes": "Update Interval (minutes)"
+          "record_forecasts": "Record forecast data"
+        },
+        "data_description": {
+          "advanced_mode": "Reveals additional element types for complex energy systems.",
+          "record_forecasts": "When enabled, forecast attributes are saved to the recorder database. This significantly increases database size but allows debugging historical forecasts. Disabled by default to reduce database load."
+        },
+        "sections": {
+          "advanced": {
+            "data": {
+              "advanced_mode": "Advanced Mode",
+              "debounce_seconds": "Debounce Window (seconds)",
+              "record_forecasts": "Record forecast data"
+            },
+            "name": "Advanced settings"
+          },
+          "common": { "data": { "horizon_preset": "Planning Horizon" }, "name": "Common settings" }
         }
       }
     },
@@ -84,50 +101,74 @@
             "capacity": "Capacity",
             "configure_partitions": "Configure battery partitions",
             "connection": "Connection",
-            "discharge_cost": "Discharge Cost (Optional)",
-            "early_charge_incentive": "Early Charge Incentive (Optional)",
-            "efficiency": "Round-trip Efficiency (Optional)",
+            "efficiency_source_target": "Discharge efficiency",
+            "efficiency_target_source": "Charge efficiency",
             "initial_charge_percentage": "State of Charge",
-            "max_charge_percentage": "Max Charge Level (Optional)",
-            "max_charge_power": "Max Charging Power",
-            "max_discharge_power": "Max Discharging Power",
-            "min_charge_percentage": "Min Charge Level (Optional)",
-            "name": "Battery Name"
+            "max_charge_percentage": "Max Charge Level",
+            "max_power_source_target": "Max discharge power",
+            "max_power_target_source": "Max charge power",
+            "min_charge_percentage": "Min Charge Level",
+            "name": "Battery Name",
+            "price_source_target": "Discharge price",
+            "price_target_source": "Charge price",
+            "salvage_value": "Salvage value"
+          },
+          "sections": {
+            "common": { "data": { "connection": "Connection", "name": "Battery Name" }, "name": "Common settings" },
+            "efficiency": {
+              "data": {
+                "efficiency_source_target": "Discharge efficiency",
+                "efficiency_target_source": "Charge efficiency"
+              },
+              "name": "Battery efficiency"
+            },
+            "limits": {
+              "data": { "max_charge_percentage": "Max Charge Level", "min_charge_percentage": "Min Charge Level" },
+              "name": "Limits"
+            },
+            "partitioning": {
+              "data": { "configure_partitions": "Configure battery partitions" },
+              "name": "Battery partitions"
+            },
+            "power_limits": {
+              "data": {
+                "max_power_source_target": "Max discharge power",
+                "max_power_target_source": "Max charge power"
+              },
+              "name": "Power limits"
+            },
+            "pricing": {
+              "data": {
+                "price_source_target": "Discharge price",
+                "price_target_source": "Charge price",
+                "salvage_value": "Salvage value"
+              },
+              "name": "Pricing"
+            },
+            "storage": {
+              "data": { "capacity": "Capacity", "initial_charge_percentage": "State of Charge" },
+              "name": "Storage"
+            }
           }
         },
         "partition_values": {
           "title": "Battery Partition Values",
           "description": "Enter values for the partition input sources",
-          "data": {
-            "overcharge_cost": "Overcharge Cost",
-            "overcharge_percentage": "Overcharge Percentage",
-            "undercharge_cost": "Undercharge Cost",
-            "undercharge_percentage": "Undercharge Percentage"
-          }
+          "data": { "cost": "Cost", "percentage": "Percentage" }
         },
         "partitions": {
           "title": "Battery Partitions",
           "description": "Select entities for undercharge and overcharge regions",
-          "data": {
-            "overcharge_cost": "Overcharge Cost",
-            "overcharge_percentage": "Overcharge Percentage",
-            "undercharge_cost": "Undercharge Cost",
-            "undercharge_percentage": "Undercharge Percentage"
-          }
-        },
-        "values": {
-          "title": "Battery Values",
-          "description": "Enter values for the selected input sources",
-          "data": {
-            "capacity": "Capacity",
-            "discharge_cost": "Discharge Cost",
-            "early_charge_incentive": "Early Charge Incentive",
-            "efficiency": "Round-trip Efficiency",
-            "initial_charge_percentage": "State of Charge",
-            "max_charge_percentage": "Max Charge Level",
-            "max_charge_power": "Max Charging Power",
-            "max_discharge_power": "Max Discharging Power",
-            "min_charge_percentage": "Min Charge Level"
+          "data": { "cost": "Cost", "percentage": "Percentage" },
+          "sections": {
+            "overcharge": {
+              "data": { "cost": "Overcharge cost", "percentage": "Overcharge percentage" },
+              "name": "Overcharge settings"
+            },
+            "undercharge": {
+              "data": { "cost": "Undercharge cost", "percentage": "Undercharge percentage" },
+              "name": "Undercharge settings"
+            }
           }
         }
       },
@@ -142,12 +183,11 @@
         "user": {
           "title": "Battery Section Configuration",
           "description": "Configure a single battery section with explicit capacity and initial charge. Connect to other elements using Connection elements.",
-          "data": { "capacity": "Capacity", "initial_charge": "Initial Charge", "name": "Battery Section Name" }
-        },
-        "values": {
-          "title": "Battery Section Values",
-          "description": "Enter values for the selected input sources",
-          "data": { "capacity": "Capacity", "initial_charge": "Initial Charge" }
+          "data": { "capacity": "Capacity", "initial_charge": "Initial Charge", "name": "Battery Section Name" },
+          "sections": {
+            "common": { "data": { "name": "Battery Section Name" }, "name": "Common settings" },
+            "storage": { "data": { "capacity": "Capacity", "initial_charge": "Initial Charge" }, "name": "Storage" }
+          }
         }
       },
       "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" },
@@ -171,18 +211,31 @@
             "price_target_source": "Price Target to Source",
             "source": "Source Device",
             "target": "Target Device"
-          }
-        },
-        "values": {
-          "title": "Connection Values",
-          "description": "Enter values for the selected input sources",
-          "data": {
-            "efficiency_source_target": "Efficiency Source to Target",
-            "efficiency_target_source": "Efficiency Target to Source",
-            "max_power_source_target": "Max Power Source to Target",
-            "max_power_target_source": "Max Power Target to Source",
-            "price_source_target": "Price Source to Target",
-            "price_target_source": "Price Target to Source"
+          },
+          "sections": {
+            "common": { "data": { "name": "Connection Name" }, "name": "Common settings" },
+            "efficiency": {
+              "data": {
+                "efficiency_source_target": "Efficiency Source to Target",
+                "efficiency_target_source": "Efficiency Target to Source"
+              },
+              "name": "Connection efficiency"
+            },
+            "endpoints": { "data": { "source": "Source Device", "target": "Target Device" }, "name": "Endpoints" },
+            "power_limits": {
+              "data": {
+                "max_power_source_target": "Max Power Source to Target",
+                "max_power_target_source": "Max Power Target to Source"
+              },
+              "name": "Power limits"
+            },
+            "pricing": {
+              "data": {
+                "price_source_target": "Price Source to Target",
+                "price_target_source": "Price Target to Source"
+              },
+              "name": "Pricing"
+            }
           }
         }
       },
@@ -206,21 +259,22 @@
           "description": "Configure grid import/export parameters and pricing",
           "data": {
             "connection": "Connection",
-            "export_limit": "Export Limit",
-            "export_price": "Export Price",
-            "import_limit": "Import Limit",
-            "import_price": "Import Price",
-            "name": "Grid Name"
-          }
-        },
-        "values": {
-          "title": "Grid Values",
-          "description": "Enter values for the selected input sources",
-          "data": {
-            "export_limit": "Export Limit",
-            "export_price": "Export Price",
-            "import_limit": "Import Limit",
-            "import_price": "Import Price"
+            "max_power_source_target": "Import limit",
+            "max_power_target_source": "Export limit",
+            "name": "Grid Name",
+            "price_source_target": "Import price",
+            "price_target_source": "Export price"
+          },
+          "sections": {
+            "common": { "data": { "connection": "Connection", "name": "Grid Name" }, "name": "Common settings" },
+            "power_limits": {
+              "data": { "max_power_source_target": "Import limit", "max_power_target_source": "Export limit" },
+              "name": "Power limits"
+            },
+            "pricing": {
+              "data": { "price_source_target": "Import price", "price_target_source": "Export price" },
+              "name": "Pricing"
+            }
           }
         }
       },
@@ -237,21 +291,28 @@
           "description": "Configure bidirectional inverter with DC bus for battery and solar connections",
           "data": {
             "connection": "AC Connection",
-            "efficiency_ac_to_dc": "AC to DC Efficiency (Optional)",
-            "efficiency_dc_to_ac": "DC to AC Efficiency (Optional)",
-            "max_power_ac_to_dc": "Max AC to DC Power",
-            "max_power_dc_to_ac": "Max DC to AC Power",
+            "efficiency_source_target": "DC to AC efficiency",
+            "efficiency_target_source": "AC to DC efficiency",
+            "max_power_source_target": "Max DC to AC power",
+            "max_power_target_source": "Max AC to DC power",
             "name": "Inverter Name"
-          }
-        },
-        "values": {
-          "title": "Inverter Values",
-          "description": "Enter values for the selected input sources",
-          "data": {
-            "efficiency_ac_to_dc": "AC to DC Efficiency",
-            "efficiency_dc_to_ac": "DC to AC Efficiency",
-            "max_power_ac_to_dc": "Max AC to DC Power",
-            "max_power_dc_to_ac": "Max DC to AC Power"
+          },
+          "sections": {
+            "common": { "data": { "connection": "AC Connection", "name": "Inverter Name" }, "name": "Common settings" },
+            "efficiency": {
+              "data": {
+                "efficiency_source_target": "DC to AC efficiency",
+                "efficiency_target_source": "AC to DC efficiency"
+              },
+              "name": "Inverter efficiency"
+            },
+            "power_limits": {
+              "data": {
+                "max_power_source_target": "Max DC to AC power",
+                "max_power_target_source": "Max AC to DC power"
+              },
+              "name": "Power limits"
+            }
           }
         }
       },
@@ -266,12 +327,11 @@
         "user": {
           "title": "Load Configuration",
           "description": "Configure a load with forecast or constant power.\n\n[HAFO]({hafo_url}) can be used to generate forecast sensors.",
-          "data": { "connection": "Connection", "forecast": "Forecast", "name": "Load Name" }
-        },
-        "values": {
-          "title": "Load Values",
-          "description": "Enter values for the selected input sources",
-          "data": { "forecast": "Forecast" }
+          "data": { "connection": "Connection", "forecast": "Forecast", "name": "Load Name" },
+          "sections": {
+            "common": { "data": { "connection": "Connection", "name": "Load Name" }, "name": "Common settings" },
+            "forecast": { "data": { "forecast": "Forecast" }, "name": "Forecast" }
+          }
         }
       },
       "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" },
@@ -296,6 +356,16 @@
             "is_sink": "Can consume unlimited power (Sink)",
             "is_source": "Can produce unlimited power (Source)",
             "name": "Node Name"
+          },
+          "sections": {
+            "common": { "data": { "name": "Node Name" }, "name": "Common settings" },
+            "role": {
+              "data": {
+                "is_sink": "Can consume unlimited power (Sink)",
+                "is_source": "Can produce unlimited power (Source)"
+              },
+              "name": "Node role"
+            }
           }
         }
       },
@@ -312,16 +382,17 @@
           "description": "Configure solar forecasting and parameters",
           "data": {
             "connection": "Connection",
-            "curtailment": "Allow Curtailment (Default: On)",
+            "curtailment": "Allow Curtailment",
             "forecast": "Forecast",
             "name": "Solar Name",
-            "price_production": "Production Price (Default: 0)"
+            "price_source_target": "Production price"
+          },
+          "sections": {
+            "common": { "data": { "connection": "Connection", "name": "Solar Name" }, "name": "Common settings" },
+            "curtailment": { "data": { "curtailment": "Allow Curtailment" }, "name": "Curtailment" },
+            "forecast": { "data": { "forecast": "Forecast" }, "name": "Forecast" },
+            "pricing": { "data": { "price_source_target": "Production price" }, "name": "Pricing" }
           }
-        },
-        "values": {
-          "title": "Solar Values",
-          "description": "Enter values for the selected input sources",
-          "data": { "curtailment": "Allow Curtailment", "forecast": "Forecast", "price_production": "Production Price" }
         }
       },
       "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" },
@@ -331,9 +402,6 @@
   "common": { "default_hub_name": "Home", "network_subentry_name": "System", "switchboard_node_name": "Switchboard" },
   "device": {
     "battery": { "name": "{name}" },
-    "battery_device_normal": { "name": "{name} Main Partition" },
-    "battery_device_overcharge": { "name": "{name} Overcharge Partition" },
-    "battery_device_undercharge": { "name": "{name} Undercharge Partition" },
     "battery_section": { "name": "{name}" },
     "connection": { "name": "{name}" },
     "grid": { "name": "{name}" },
@@ -344,42 +412,39 @@
     "solar": { "name": "{name}" }
   },
   "entity": {
-    "haeo": { "configurable_entity": { "name": "Configurable Entity" } },
     "number": {
       "battery_capacity": { "name": "Capacity" },
-      "battery_discharge_cost": { "name": "Discharge cost" },
-      "battery_early_charge_incentive": { "name": "Early charge incentive" },
-      "battery_efficiency": { "name": "Efficiency" },
+      "battery_cost": { "name": "Cost" },
+      "battery_efficiency_source_target": { "name": "Discharge efficiency" },
+      "battery_efficiency_target_source": { "name": "Charge efficiency" },
       "battery_initial_charge_percentage": { "name": "Initial charge" },
       "battery_max_charge_percentage": { "name": "Max charge" },
-      "battery_max_charge_power": { "name": "Max charge power" },
-      "battery_max_discharge_power": { "name": "Max discharge power" },
+      "battery_max_power_source_target": { "name": "Max discharge power" },
+      "battery_max_power_target_source": { "name": "Max charge power" },
       "battery_min_charge_percentage": { "name": "Min charge" },
-      "battery_overcharge_cost": { "name": "Overcharge cost" },
-      "battery_overcharge_percentage": { "name": "Overcharge percentage" },
-      "battery_undercharge_cost": { "name": "Undercharge cost" },
-      "battery_undercharge_percentage": { "name": "Undercharge percentage" },
+      "battery_percentage": { "name": "Percentage" },
+      "battery_price_source_target": { "name": "Discharge price" },
+      "battery_price_target_source": { "name": "Charge price" },
+      "battery_salvage_value": { "name": "Salvage value" },
       "connection_efficiency_source_target": { "name": "Source to target efficiency" },
       "connection_efficiency_target_source": { "name": "Target to source efficiency" },
       "connection_max_power_source_target": { "name": "Max source to target power" },
       "connection_max_power_target_source": { "name": "Max target to source power" },
       "connection_price_source_target": { "name": "Source to target price" },
       "connection_price_target_source": { "name": "Target to source price" },
-      "grid_export_limit": { "name": "Export limit" },
-      "grid_export_price": { "name": "Export price" },
-      "grid_import_limit": { "name": "Import limit" },
-      "grid_import_price": { "name": "Import price" },
-      "inverter_efficiency_ac_to_dc": { "name": "AC to DC efficiency" },
-      "inverter_efficiency_dc_to_ac": { "name": "DC to AC efficiency" },
-      "inverter_max_power_ac_to_dc": { "name": "Max AC to DC power" },
-      "inverter_max_power_dc_to_ac": { "name": "Max DC to AC power" },
+      "grid_max_power_source_target": { "name": "Import limit" },
+      "grid_max_power_target_source": { "name": "Export limit" },
+      "grid_price_source_target": { "name": "Import price" },
+      "grid_price_target_source": { "name": "Export price" },
+      "inverter_efficiency_source_target": { "name": "DC to AC efficiency" },
+      "inverter_efficiency_target_source": { "name": "AC to DC efficiency" },
+      "inverter_max_power_source_target": { "name": "Max DC to AC power" },
+      "inverter_max_power_target_source": { "name": "Max AC to DC power" },
       "load_forecast": { "name": "Forecast" },
       "solar_forecast": { "name": "Forecast" },
-      "solar_price_production": { "name": "Production price" }
+      "solar_price_source_target": { "name": "Production price" }
     },
     "sensor": {
-      "battery_balance_power_down": { "name": "Balance power down" },
-      "battery_balance_power_up": { "name": "Balance power up" },
       "battery_energy_in_flow": { "name": "Energy in flow shadow price" },
       "battery_energy_out_flow": { "name": "Energy out flow shadow price" },
       "battery_energy_stored": { "name": "Energy stored" },
@@ -399,15 +464,12 @@
       "battery_soc_max": { "name": "SOC max shadow price" },
       "battery_soc_min": { "name": "SOC min shadow price" },
       "battery_state_of_charge": { "name": "State of charge" },
-      "connection_cost_source_target": { "name": "{source} to {target} cost" },
-      "connection_cost_target_source": { "name": "{target} to {source} cost" },
       "connection_power_active": { "name": "{source} to {target} active power" },
       "connection_power_source_target": { "name": "{source} to {target} power" },
       "connection_power_target_source": { "name": "{target} to {source} power" },
       "connection_shadow_power_max_source_target": { "name": "Max {source} to {target} power shadow price" },
       "connection_shadow_power_max_target_source": { "name": "Max {target} to {source} power shadow price" },
       "connection_time_slice": { "name": "Time slice shadow price" },
-      "grid_cost_export": { "name": "Export cost" },
       "grid_cost_import": { "name": "Import cost" },
       "grid_cost_net": { "name": "Net cost" },
       "grid_power_active": { "name": "Active power" },
@@ -415,6 +477,7 @@
       "grid_power_import": { "name": "Import power" },
       "grid_power_max_export_price": { "name": "Max export power shadow price" },
       "grid_power_max_import_price": { "name": "Max import power shadow price" },
+      "grid_revenue_export": { "name": "Export revenue" },
       "horizon": { "name": "Forecast horizon" },
       "inverter_dc_bus_power_balance": { "name": "DC bus power balance shadow price" },
       "inverter_max_power_ac_to_dc_price": { "name": "Max AC to DC power shadow price" },
@@ -432,14 +495,24 @@
       "solar_power": { "name": "Power" }
     },
     "switch": {
+      "network_auto_optimize": { "name": "Auto optimize" },
       "node_is_sink": { "name": "Is sink" },
       "node_is_source": { "name": "Is source" },
       "solar_curtailment": { "name": "Curtailment" }
     }
   },
   "exceptions": {
+    "config_entry_not_found": { "message": "Config entry {entry_id} not found" },
+    "config_entry_not_loaded": { "message": "Config entry {entry_id} is not loaded (state: {state})" },
+    "config_entry_wrong_domain": { "message": "Config entry {entry_id} is not a HAEO hub (domain: {domain})" },
+    "input_entities_not_ready": {
+      "message": "Input entities not ready after {timeout} seconds: {not_ready}. Some sensors may not be available yet."
+    },
     "missing_sensors": {
       "message": "HAEO cannot load data for {unavailable_sensors}. Verify each referenced sensor exists and is reporting data."
+    },
+    "no_history_at_time": {
+      "message": "No history available at time {time} for: {missing}. The recorder may not have data this far back."
     },
     "self_referential_field_missing": {
       "message": "Configuration error for field {field}: The entity created by this field was selected, but the field is missing from the stored configuration. This may indicate corrupted configuration data. Please recreate the element."
@@ -449,7 +522,11 @@
     },
     "self_referential_no_current_data": {
       "message": "Configuration error for field {field}: The entity created by this field was selected, but no previous configuration exists. This may indicate corrupted configuration data. Please recreate the element."
-    }
+    },
+    "setup_failed_permanent": {
+      "message": "Setup failed due to configuration error: {error}. Please check your configuration."
+    },
+    "setup_failed_transient": { "message": "Setup failed: {error}. Home Assistant will retry automatically." }
   },
   "issues": {
     "disconnected_network": {
@@ -472,6 +549,25 @@
   "selector": {
     "horizon_preset": {
       "options": { "2_days": "2 days", "3_days": "3 days", "5_days": "5 days", "7_days": "7 days", "custom": "Custom" }
+    },
+    "input_source": { "choices": { "constant": "Constant", "entity": "Entity", "none": "None" } }
+  },
+  "services": {
+    "optimize": {
+      "description": "Runs an optimization for then given system",
+      "fields": { "config_entry": { "description": "The HAEO system to run an optimization for", "name": "System" } },
+      "name": "Optimize"
+    },
+    "save_diagnostics": {
+      "description": "Save a diagnostics file to the config directory",
+      "fields": {
+        "config_entry": { "description": "The HAEO system to save diagnostics for", "name": "System" },
+        "time": {
+          "description": "Generates a diagnostics file based on entity states at this historical time. Uses current state if omitted.",
+          "name": "Time"
+        }
+      },
+      "name": "Save diagnostics"
     }
   }
 }

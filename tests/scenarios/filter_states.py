@@ -85,7 +85,7 @@ def main() -> None:
         epilog="""
           Examples:
             %(prog)s input.json -o output.json sensor.battery sensor.solar sensor.grid
-            %(prog)s full_states.json --output filtered.json --patterns sensor.battery_soc sensor.import_price
+            %(prog)s full_states.json --output filtered.json --patterns sensor.battery_soc sensor.price_source_target
             %(prog)s states.json --output output.json --patterns-from-file sensors.txt
             %(prog)s http://homeassistant.local:8123 -o output.json sensor.battery sensor.solar
                 """,

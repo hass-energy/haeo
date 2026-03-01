@@ -13,7 +13,8 @@ A battery in HAEO's model layer is a single-section energy storage device with:
 
 !!! note "Multi-Section Batteries"
 
-    Complex battery behavior (undercharge/normal/overcharge sections, early charge incentives, cost penalties) is implemented at the [device adapter layer](../../device-layer/battery.md) by composing multiple Battery model instances with connections and a central node.
+    Complex battery behavior (undercharge/overcharge ranges and cost penalties) is implemented at the [device adapter layer](../../device-layer/battery.md) using SOC pricing on the connection.
+    For explicit multi-section modeling, compose [Battery Section](../../device-layer/battery_section.md) elements with Connection elements.
 
 ## Model Formulation
 
@@ -41,6 +42,10 @@ For each time step $t \in \{0, 1, \ldots, T\}$ (note: $T+1$ time points for ener
 - $C(t)$: Battery capacity (kWh) at time boundary $t$ - `capacity`
 - $E_{\text{initial}}$: Initial charge in kWh - `initial_charge`
 - $\Delta t$: Time step duration (hours) - `period`
+
+**Optional parameters**:
+
+- $v_{\text{salvage}}$: Terminal value of stored energy (\$/kWh) - `salvage_value`
 
 ### Constraints
 
@@ -90,7 +95,14 @@ Where:
 
 ### Cost Contribution
 
-The single-section battery model has no inherent costs. Costs (efficiency losses, degradation, early charge incentives, penalties) are applied through [Connection](../connections/index.md) elements in the device adapter layer.
+The battery model can include an optional terminal salvage value.
+When configured, it credits the final stored energy at time $T$:
+
+$$
+-v_{\text{salvage}} \cdot \left(E_{\text{in}}(T) - E_{\text{out}}(T)\right)
+$$
+
+Other costs (efficiency losses, degradation penalties, SOC pricing) are applied through [Connection](../connections/index.md) elements in the device adapter layer.
 
 ## Physical Interpretation
 
@@ -180,7 +192,7 @@ The single-section battery model is a building block for more complex battery be
 - **Efficiency losses**: Applied through Connection efficiency parameters
 - **Power limits**: Applied through Connection max_power constraints
 - **Cost penalties**: Applied through Connection price parameters
-- **Early charge incentives**: Applied through Connection time-varying prices
+- **SOC pricing incentives**: Applied through Connection SOC pricing segments
 
 See the [Battery Device Layer documentation](../../device-layer/battery.md) for how these are composed.
 
@@ -218,6 +230,6 @@ See the [Battery Device Layer documentation](../../device-layer/battery.md) for 
 
     View the source code for the battery model.
 
-    [:material-arrow-right: Source code](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/model/elements/battery.py)
+    [:material-arrow-right: Source code](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/core/model/elements/battery.py)
 
 </div>

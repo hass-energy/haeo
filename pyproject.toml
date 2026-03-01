@@ -1,11 +1,14 @@
 [project]
 name = "haeo"
-version = "0.1.0"
+version = "0.3.0"
 description = "Home Assistant Energy Network Optimizer"
 readme = "README.md"
 requires-python = ">=3.13.2,<3.14"
 
-dependencies = ["homeassistant>=2025.12.2", "numpy>=2.3.2", "highspy>=1.12.0"]
+dependencies = ["homeassistant>=2026.1.1", "numpy>=2.3.2", "highspy>=1.12.0"]
+
+[project.scripts]
+diag = "tools.diag:main"
 
 [dependency-groups]
 dev = [
@@ -14,6 +17,7 @@ dev = [
     "matplotlib>=3.10.8",
     "networkx>=3.4.2",
     "playwright>=1.57.0",
+    "tabulate>=0.9.0",
     "mdformat-beautysh>=1.0.0",
     "mdformat-config>=0.2.1",
     "mdformat-footnote>=0.1.1",
@@ -25,7 +29,7 @@ dev = [
     "mdformat-simple-breaks>=0.0.1",
     "mdformat-tables>=1.0.0",
     "mdformat>=0.7.22",
-    "pyright>=1.1.407",
+    "pyright>=1.1.408",
     "pytest>=9.0.0",
     "pytest-cov>=7.0.0",
     "pytest-homeassistant-custom-component>=0.13.300",
@@ -33,6 +37,7 @@ dev = [
     "setuptools>=80.9.0",
     "syrupy>=5.0.0",
     "zensical>=0.0.15",
+    "import-linter>=2.10",
 ]
 
 [tool.ruff]
@@ -72,6 +77,32 @@ split-on-trailing-comma = false
 
 [tool.ruff.lint.per-file-ignores]
 
+"**/test_*.py" = [
+    'S101',    # Assert is allowed in tests
+    'B011',    # Assert false is allowed in tests
+    'PT015',   # Assert that always fails is fine in a test
+    'SLF001',  # Accessing private methods is ok in testing
+    'ARG001',  # Unused function argument - test fixtures often provide unused parameters for setup
+    'PLR2004', # Magic value used in comparison - test assertions often use simple numeric values
+    'S110',    # Try-except-pass detected - test exception handling patterns differ from production code
+    'SIM105',  # Use contextlib.suppress instead of try-except-pass - test exception handling patterns differ
+    'BLE001',  # Do not catch blind exception - test code needs to handle various exception types
+    'FBT001',  # Boolean positional argument - common in parametrized tests
+    'FBT003',  # Boolean positional value - test assertions often pass literal booleans
+]
+"**/conftest.py" = [
+    'S101',    # Assert is allowed in tests
+    'B011',    # Assert false is allowed in tests
+    'PT015',   # Assert that always fails is fine in a test
+    'SLF001',  # Accessing private methods is ok in testing
+    'ARG001',  # Unused function argument - test fixtures often provide unused parameters for setup
+    'PLR2004', # Magic value used in comparison - test assertions often use simple numeric values
+    'S110',    # Try-except-pass detected - test exception handling patterns differ from production code
+    'SIM105',  # Use contextlib.suppress instead of try-except-pass - test exception handling patterns differ
+    'BLE001',  # Do not catch blind exception - test code needs to handle various exception types
+    'FBT001',  # Boolean positional argument - common in parametrized tests
+    'FBT003',  # Boolean positional value - test assertions often pass literal booleans
+]
 "tests/**/*.py" = [
     'S101',    # Assert is allowed in tests
     'B011',    # Assert false is allowed in tests
@@ -87,12 +118,17 @@ split-on-trailing-comma = false
 ]
 
 "stubs/**/*.pyi" = [
-    'N',       # Naming conventions must match external API
-    'D',       # Docstrings in stubs are optional
-    'A',       # Shadowing builtins is fine for type stubs
-    'PYI',     # Stub-specific rules - we're matching external API
-    'I',       # Import order doesn't matter in stubs
-    'PIE790',  # Allow ... in stub classes
+    'N',      # Naming conventions must match external API
+    'D',      # Docstrings in stubs are optional
+    'A',      # Shadowing builtins is fine for type stubs
+    'PYI',    # Stub-specific rules - we're matching external API
+    'I',      # Import order doesn't matter in stubs
+    'PIE790', # Allow ... in stub classes
+]
+
+"tools/**/*.py" = [
+    'T201',   # Allow print statements in CLI tools
+    'FBT001', # Boolean positional argument - required by import-linter Contract interface
 ]
 
 
@@ -101,8 +137,8 @@ split-on-trailing-comma = false
 pythonVersion = "3.13"
 typeCheckingMode = "strict"
 stubPath = "stubs"
-include = ["tests", "custom_components"]
-exclude = ["custom_components/hacs"]
+include = ["tests", "custom_components", "tools"]
+exclude = ["custom_components/hacs", "**/node_modules"]
 extraPaths = ["."]
 
 # Disable errors that propagate from third-party incomplete types
@@ -115,10 +151,7 @@ reportUnknownParameterType = false
 # Disable missing stubs warning
 reportMissingTypeStubs = false
 
-# Test-specific overrides - allow patterns common in testing
-[[tool.pyright.executionEnvironments]]
-root = "tests"
-reportPrivateUsage = "none"  # Tests intentionally access private methods for testing
+reportPrivateUsage = false
 
 [tool.ruff.lint.pylint]
 max-args = 10
@@ -127,12 +160,12 @@ max-statements = 60
 
 [tool.pytest.ini_options]
 timeout = 5
-testpaths = ["tests"]
+testpaths = ["custom_components/haeo", "tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
 asyncio_mode = "auto"
-addopts = ["--strict-markers", "--strict-config"]
+addopts = ["--strict-markers", "--strict-config", "--import-mode=importlib"]
 filterwarnings = ["error"]
 markers = [
     "scenario: marks tests as scenario tests (select with '-m \"scenario\"')",
@@ -142,21 +175,42 @@ markers = [
 ]
 
 [tool.coverage.run]
-omit = [
-    "tests/*", # Exclude everything in tests/
-]
+omit = ["**/tests/*"]
 
 [tool.mdformat]
-number = true                 # Renumber ordered lists
+number = true                       # Renumber ordered lists
 end_of_line = "lf"
 exclude = [".venv", "node_modules"]
+
+[tool.importlinter]
+root_packages = ["custom_components.haeo", "tools"]
+include_external_packages = true
+contract_types = ["allowlist: tools.import_contracts.AllowlistContract"]
+
+[[tool.importlinter.contracts]]
+name = "Core is standalone"
+type = "allowlist"
+source_modules = ["custom_components.haeo.core"]
+allow_modules = ["highspy", "numpy", "typing_extensions"]
+
+[[tool.importlinter.contracts]]
+name = "Model is standalone"
+type = "allowlist"
+source_modules = ["custom_components.haeo.core.model"]
+allow_modules = ["highspy", "numpy", "typing_extensions"]
+
+[[tool.importlinter.contracts]]
+name = "diag CLI only uses core"
+type = "allowlist"
+source_modules = ["tools.diag"]
+allow_modules = ["custom_components.haeo.core", "numpy", "tabulate"]
 
 [tool.setuptools]
 package-dir = { "" = "." }
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["custom_components*"]
+include = ["custom_components*", "tools*"]
 
 [build-system]
 requires = ["setuptools>=65", "wheel"]

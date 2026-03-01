@@ -123,6 +123,6 @@ Node represents an electrical bus where Kirchhoff's current law applies—total 
 
     Connect nodes to other elements.
 
-    [:material-arrow-right: PowerConnection formulation](../model-layer/connections/power-connection.md)
+    [:material-arrow-right: Connection formulation](../model-layer/connections/connection.md)
 
 </div>
