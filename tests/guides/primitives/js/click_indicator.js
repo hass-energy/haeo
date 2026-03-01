@@ -34,13 +34,10 @@
   }
 
   const entityListItem = el.closest(
-    "ha-list-item, mwc-list-item, md-list-item, " +
-      '[role="listitem"], [role="option"]'
+    "ha-list-item, mwc-list-item, md-list-item, " + '[role="listitem"], [role="option"]'
   );
   if (entityListItem) {
-    const listItemParent = entityListItem.closest(
-      "ha-list-item, mwc-list-item, md-list-item, md-item"
-    );
+    const listItemParent = entityListItem.closest("ha-list-item, mwc-list-item, md-list-item, md-item");
     target = listItemParent || entityListItem;
   }
 
@@ -55,9 +52,7 @@
 
   const roleItem = el.closest('[role="listitem"], [role="option"]');
   if (roleItem) {
-    const haWrapper = roleItem.closest(
-      "ha-list-item, md-item, mwc-list-item, .combo-box-row"
-    );
+    const haWrapper = roleItem.closest("ha-list-item, md-item, mwc-list-item, .combo-box-row");
     target = haWrapper || roleItem;
   }
 

@@ -186,12 +186,72 @@ class HAPage:
 
     # endregion
 
-    # region: Entity Picker
+    # region: Sections
 
-    def select_entity(self, field_label: str, search_term: str, entity_name: str) -> None:
-        """Select entity from HA entity picker dialog."""
-        selector = self.page.locator(f"ha-selector:has-text('{field_label}')")
-        picker = selector.locator("ha-combo-box-item").first
+    def expand_section(self, section_name: str) -> None:
+        """Expand a collapsed form section by clicking its header.
+
+        Sections are rendered as ``ha-expansion-panel`` within ``ha-form-expandable``.
+        If the panel is already expanded, this is a no-op.
+        """
+        panel = self.page.locator("ha-expansion-panel").filter(has_text=section_name)
+        panel.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
+
+        # Check if already expanded by looking for the attribute
+        if panel.get_attribute("expanded") is not None:
+            return
+
+        ctx = ScreenshotContext.current()
+        if ctx:
+            with ctx.scope(f"expand_{section_name}"):
+                self._scroll_into_view(panel)
+                self._capture_with_indicator("collapsed", panel)
+                panel.click()
+                self.page.wait_for_timeout(400)  # Wait for expand animation
+                self._capture("expanded")
+        else:
+            panel.click()
+            self.page.wait_for_timeout(400)
+
+    # endregion
+
+    # region: ChooseSelector
+
+    def choose_select_option(self, field_label: str, choice: str) -> None:
+        """Select a choice in a ChooseSelector field (Entity/Constant/None).
+
+        ChooseSelector renders toggle buttons via ``ha-button-toggle-group``.
+        Each button shows a choice label (e.g., "Entity", "Constant", "None").
+        """
+        choose = self.page.locator("ha-selector-choose").filter(has_text=field_label)
+        choose.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
+        button = choose.get_by_role("button", name=choice)
+        button.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
+
+        ctx = ScreenshotContext.current()
+        if ctx:
+            with ctx.scope(f"choose_{field_label}_{choice}"):
+                self._scroll_into_view(button)
+                self._capture_with_indicator("button", button)
+                button.click(timeout=DEFAULT_TIMEOUT)
+                self._capture("selected")
+        else:
+            button.click(timeout=DEFAULT_TIMEOUT)
+
+    def choose_entity(
+        self,
+        field_label: str,
+        search_term: str,
+        entity_name: str,
+    ) -> None:
+        """Select an entity within a ChooseSelector field.
+
+        Assumes the "Entity" choice is already active (the default for entity-mode fields).
+        The nested entity picker uses the same combo-box-item → dialog → search pattern.
+        """
+        choose = self.page.locator("ha-selector-choose").filter(has_text=field_label)
+        choose.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
+        picker = choose.locator("ha-combo-box-item").first
         picker.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
 
         ctx = ScreenshotContext.current()
@@ -223,10 +283,15 @@ class HAPage:
         else:
             self._select_entity_no_capture(picker, search_term, entity_name)
 
-    def add_another_entity(self, field_label: str, search_term: str, entity_name: str) -> None:
-        """Add another entity to multi-select field."""
-        selector = self.page.locator(f"ha-selector:has-text('{field_label}')")
-        add_btn = selector.get_by_role("button", name="Add entity")
+    def choose_add_entity(
+        self,
+        field_label: str,
+        search_term: str,
+        entity_name: str,
+    ) -> None:
+        """Add another entity to a multi-select ChooseSelector field."""
+        choose = self.page.locator("ha-selector-choose").filter(has_text=field_label)
+        add_btn = choose.get_by_role("button", name="Add entity")
         add_btn.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
 
         ctx = ScreenshotContext.current()
@@ -265,6 +330,31 @@ class HAPage:
                 entity_name,
                 already_in_dialog=True,
             )
+
+    def choose_constant(self, field_label: str, value: str) -> None:
+        """Fill a constant value within a ChooseSelector field.
+
+        Assumes the "Constant" choice is already active. The nested NumberSelector
+        renders as a spinbutton.
+        """
+        choose = self.page.locator("ha-selector-choose").filter(has_text=field_label)
+        choose.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
+        spinbutton = choose.get_by_role("spinbutton")
+        spinbutton.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
+
+        ctx = ScreenshotContext.current()
+        if ctx:
+            with ctx.scope(f"constant_{field_label}"):
+                self._scroll_into_view(spinbutton)
+                self._capture_with_indicator("field", spinbutton)
+                spinbutton.clear()
+                spinbutton.fill(value)
+                self._capture("filled")
+        else:
+            spinbutton.clear()
+            spinbutton.fill(value)
+
+    # endregion
 
     def _select_entity_no_capture(
         self,

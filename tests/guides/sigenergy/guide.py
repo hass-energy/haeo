@@ -12,12 +12,11 @@ the function call stack, e.g. "add_battery.entity_Capacity.search_results"
 
 from __future__ import annotations
 
-import logging
 from collections import OrderedDict
+import logging
 from pathlib import Path
 import shutil
 import sys
-from typing import Any
 
 from playwright.sync_api import sync_playwright
 
@@ -140,7 +139,6 @@ def run_guide(
                     page,
                     name="Constant Load",
                     connection="Switchboard",
-                    forecast=("configurable", "Configurable Entity"),
                     constant_value=1,
                 )
 

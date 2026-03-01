@@ -17,6 +17,7 @@ Example usage:
         # ctx.screenshots contains OrderedDict of all captured images
 """
 
+from tests.guides.primitives.capture import ScreenshotContext, guide_step, screenshot_context
 from tests.guides.primitives.ha_page import HAPage
 from tests.guides.primitives.haeo import (
     Entity,
@@ -30,21 +31,14 @@ from tests.guides.primitives.haeo import (
     login,
     verify_setup,
 )
-from tests.guides.primitives.capture import (
-    ScreenshotContext,
-    guide_step,
-    screenshot_context,
-)
 
 __all__ = [
-    # Screenshot context
-    "ScreenshotContext",
-    "guide_step",
-    "screenshot_context",
-    # Low-level primitives
-    "HAPage",
     # Entity type
     "Entity",
+    # Low-level primitives
+    "HAPage",
+    # Screenshot context
+    "ScreenshotContext",
     # HAEO element primitives
     "add_battery",
     "add_grid",
@@ -53,6 +47,8 @@ __all__ = [
     "add_load",
     "add_node",
     "add_solar",
+    "guide_step",
     "login",
+    "screenshot_context",
     "verify_setup",
 ]

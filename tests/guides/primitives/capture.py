@@ -8,19 +8,15 @@ Screenshots are named based on the function call hierarchy, e.g.:
 from __future__ import annotations
 
 from collections import OrderedDict
+from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from functools import wraps
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, TypeVar
+from typing import Any
 
-if TYPE_CHECKING:
-    from collections.abc import Iterator
-
-# Thread-local storage for the current context
-_current_context: ScreenshotContext | None = None
-
-F = TypeVar("F", bound=Callable[..., Any])
+# Module-level holder for the current context
+_current_context: list[ScreenshotContext | None] = [None]
 
 
 @dataclass
@@ -46,12 +42,12 @@ class ScreenshotContext:
     @staticmethod
     def current() -> ScreenshotContext | None:
         """Get the current active context."""
-        return _current_context
+        return _current_context[0]
 
     @staticmethod
     def require() -> ScreenshotContext:
         """Get the current context, raising if none is active."""
-        ctx = _current_context
+        ctx = _current_context[0]
         if ctx is None:
             msg = "No ScreenshotContext is active"
             raise RuntimeError(msg)
@@ -123,26 +119,24 @@ def screenshot_context(output_dir: Path) -> Iterator[ScreenshotContext]:
             # ctx.screenshots contains all captured screenshots
 
     """
-    global _current_context
-
     output_dir.mkdir(parents=True, exist_ok=True)
     ctx = ScreenshotContext(output_dir=output_dir)
 
-    previous = _current_context
-    _current_context = ctx
+    previous = _current_context[0]
+    _current_context[0] = ctx
     try:
         yield ctx
     finally:
-        _current_context = previous
+        _current_context[0] = previous
 
 
-def guide_step(func: F) -> F:
-    """Decorator for HAEO primitive functions.
+def guide_step[F: Callable[..., Any]](func: F) -> F:
+    """Wrap a guide function to push its name onto the screenshot context stack.
 
-    Wraps the function to push its name onto the screenshot context stack,
-    so all screenshots taken within the function get hierarchical names.
+    All screenshots taken within the function get hierarchical names.
 
-    Usage:
+    Usage::
+
         @guide_step
         def add_battery(page: HAPage, name: str, ...):
             page.fill_textbox("Battery Name", name)  # → "add_battery.fill_textbox.Battery_Name"

@@ -89,6 +89,7 @@ def test_sigenergy_guide(dark_mode: bool) -> None:
         element_names = {se.title for se in subentries}
 
         expected_elements = {
+            "System",
             "Switchboard",
             "Inverter",
             "Battery",

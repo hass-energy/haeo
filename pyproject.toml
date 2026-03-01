@@ -14,6 +14,7 @@ diag = "tools.diag:main"
 dev = [
     "beautifulsoup4>=4.14.3",
     "freezegun>=1.5.2",
+    "home-assistant-frontend>=20260107.1",
     "matplotlib>=3.10.8",
     "networkx>=3.4.2",
     "playwright>=1.57.0",

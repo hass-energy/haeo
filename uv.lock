@@ -1075,6 +1075,7 @@ dependencies = [
 dev = [
     { name = "beautifulsoup4" },
     { name = "freezegun" },
+    { name = "home-assistant-frontend" },
     { name = "import-linter" },
     { name = "matplotlib" },
     { name = "mdformat" },
@@ -1112,6 +1113,7 @@ requires-dist = [
 dev = [
     { name = "beautifulsoup4", specifier = ">=4.14.3" },
     { name = "freezegun", specifier = ">=1.5.2" },
+    { name = "home-assistant-frontend", specifier = ">=20260107.1" },
     { name = "import-linter", specifier = ">=2.10" },
     { name = "matplotlib", specifier = ">=3.10.8" },
     { name = "mdformat", specifier = ">=0.7.22" },
@@ -1219,6 +1221,15 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/b4/0e/c05ee603cab1adb847a305bc8f1034cbdbc0a5d15169fcf68c0d6d21e33f/home_assistant_bluetooth-1.13.1.tar.gz", hash = "sha256:0ae0e2a8491cc762ee9e694b8bc7665f1e2b4618926f63969a23a2e3a48ce55e", size = 7607, upload-time = "2025-02-04T16:11:15.259Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/85/9b/9904cec885cc32c45e8c22cd7e19d9c342e30074fdb7c58f3d5b33ea1adb/home_assistant_bluetooth-1.13.1-py3-none-any.whl", hash = "sha256:cdf13b5b45f7744165677831e309ee78fbaf0c2866c6b5931e14d1e4e7dae5d7", size = 7915, upload-time = "2025-02-04T16:11:13.163Z" },
+]
+
+[[package]]
+name = "home-assistant-frontend"
+version = "20260128.6"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/6a/2a/d259c14ed4d02e5babb277ddde6e579efe9132f5605df0aa7049ec1cb3a8/home_assistant_frontend-20260128.6.tar.gz", hash = "sha256:f1e901b059465e795eaf735281fe81e9a1b7eb2a0255c8c9db4f8cc466b95f9a", size = 110643922, upload-time = "2026-02-04T15:09:37.68Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/9d/64/08c95c32215f533dedbc70c14fac2571620ad55ff53695a1d062c7b136ac/home_assistant_frontend-20260128.6-py3-none-any.whl", hash = "sha256:1fd307078b9584a7cfa3dce2e57443975223c9458a797af795253c3c4726ffbb", size = 110528860, upload-time = "2026-02-04T15:09:31.843Z" },
 ]
 
 [[package]]
