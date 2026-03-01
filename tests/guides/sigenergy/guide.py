@@ -55,14 +55,8 @@ def run_guide(
     Returns an OrderedDict of screenshot names to paths.
     """
     with sync_playwright() as p:
-        browser = p.chromium.launch(
+        browser = p.firefox.launch(
             headless=headless,
-            args=[
-                "--disable-dev-shm-usage",
-                "--disable-gpu",
-                "--no-sandbox",
-                "--disable-setuid-sandbox",
-            ],
         )
         context = browser.new_context(viewport={"width": 1280, "height": 800})
         hass.inject_auth(context, dark_mode=dark_mode)

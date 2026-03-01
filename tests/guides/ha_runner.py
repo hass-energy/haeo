@@ -377,7 +377,11 @@ async def _setup_home_assistant_async(
     # Mark as running
     hass.set_state(CoreState.running)
 
-    # Start the HTTP server
+    # Start the HTTP server explicitly. The http component also registers
+    # a when_setup callback that tries to start the server when frontend
+    # is ready, but it races with this call and fails with RuntimeError
+    # (caught by HA's setup error handler). Our explicit call here
+    # creates the definitive runner and starts the server reliably.
     await hass.http.start()
 
     return hass, access_token, refresh_token_id

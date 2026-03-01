@@ -10,6 +10,13 @@ Run via pytest with:
 
 import pytest
 
+# Guide tests run a full HA instance in a background thread. The global
+# filterwarnings = ["error"] from pyproject.toml turns third-party
+# DeprecationWarnings (aiohttp, HA internals) into RuntimeErrors that
+# crash the background event loop. Reset to "default" for guide tests
+# since we don't control third-party warning behavior.
+pytestmark = [pytest.mark.filterwarnings("default")]
+
 
 def pytest_configure(config: pytest.Config) -> None:
     """Register guide marker."""
