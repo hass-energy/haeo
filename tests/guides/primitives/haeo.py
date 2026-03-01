@@ -225,12 +225,14 @@ def add_grid(
     # Pricing section (expanded by default)
     if import_prices:
         first = import_prices[0]
+        page.choose_select_option("Import price", "Entity")
         page.choose_entity("Import price", first[0], first[1])
         for price in import_prices[1:]:
             page.choose_add_entity("Import price", price[0], price[1])
 
     if export_prices:
         first = export_prices[0]
+        page.choose_select_option("Export price", "Entity")
         page.choose_entity("Export price", first[0], first[1])
         for price in export_prices[1:]:
             page.choose_add_entity("Export price", price[0], price[1])

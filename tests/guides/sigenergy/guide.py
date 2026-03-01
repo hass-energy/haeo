@@ -57,7 +57,12 @@ def run_guide(
     with sync_playwright() as p:
         browser = p.chromium.launch(
             headless=headless,
-            args=["--remote-debugging-port=9222"],
+            args=[
+                "--disable-dev-shm-usage",
+                "--disable-gpu",
+                "--no-sandbox",
+                "--disable-setuid-sandbox",
+            ],
         )
         context = browser.new_context(viewport={"width": 1280, "height": 800})
         hass.inject_auth(context, dark_mode=dark_mode)

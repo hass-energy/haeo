@@ -24,7 +24,6 @@ import json
 from pathlib import Path
 import shutil
 import socket
-import tempfile
 import threading
 from typing import TYPE_CHECKING, Any
 import warnings
@@ -454,19 +453,24 @@ def live_home_assistant(
     """
     port = _find_free_port()
 
-    # Create a temporary config directory (HA requires one even if minimal)
-    with tempfile.TemporaryDirectory(prefix="haeo_guide_") as temp_dir:
-        config_dir = temp_dir
+    # Create a config directory under the workspace (HA requires one even if minimal)
+    guide_config_dir = PROJECT_ROOT / ".ha_guide_config"
+    if guide_config_dir.exists():
+        shutil.rmtree(guide_config_dir)
+    guide_config_dir.mkdir(parents=True)
+
+    try:
+        config_dir = str(guide_config_dir)
 
         # Create custom_components symlink for HAEO
-        custom_components = Path(temp_dir) / "custom_components"
+        custom_components = guide_config_dir / "custom_components"
         custom_components.mkdir()
         haeo_source = PROJECT_ROOT / "custom_components" / "haeo"
         haeo_target = custom_components / "haeo"
         haeo_target.symlink_to(haeo_source)
 
         # Copy SingleFile bundle to www directory for HTML captures
-        www_dir = Path(temp_dir) / "www"
+        www_dir = guide_config_dir / "www"
         www_dir.mkdir()
         singlefile_bundle = PROJECT_ROOT / "node_modules" / "single-file-cli" / "lib" / "single-file-bundle.js"
         if singlefile_bundle.exists():
@@ -532,6 +536,10 @@ def live_home_assistant(
             # Signal stop via thread-safe call to the async event loop
             loop.call_soon_threadsafe(async_stop_event.set)
             thread.join(timeout=10)
+    finally:
+        # Clean up the config directory
+        if guide_config_dir.exists():
+            shutil.rmtree(guide_config_dir)
 
 
 def load_states_from_json(path: Path) -> list[dict[str, Any]]:
