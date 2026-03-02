@@ -26,8 +26,7 @@ function updateSlideTheme(slide) {
 
   const src = mode === "dark" ? slide.dataset.darkSrc : slide.dataset.lightSrc;
   // Fall back to the other mode if preferred isn't available
-  const fallback =
-    mode === "dark" ? slide.dataset.lightSrc : slide.dataset.darkSrc;
+  const fallback = mode === "dark" ? slide.dataset.lightSrc : slide.dataset.darkSrc;
   img.src = src || fallback || "";
 }
 

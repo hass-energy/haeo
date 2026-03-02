@@ -63,7 +63,9 @@
   font-size: 1.2rem;
   line-height: 1;
   cursor: pointer;
-  transition: background 0.15s, border-color 0.15s;
+  transition:
+    background 0.15s,
+    border-color 0.15s;
 }
 
 .guide-prev:hover:not(:disabled),
