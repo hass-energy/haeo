@@ -63,7 +63,6 @@ def _find_free_port() -> int:
         return sock.getsockname()[1]
 
 
-
 @dataclass
 class LiveHomeAssistant:
     """A running Home Assistant instance with HTTP server.
