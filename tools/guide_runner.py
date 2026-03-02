@@ -147,7 +147,7 @@ def extract_guide_blocks(markdown: str) -> list[GuideBlock]:
     blocks: list[GuideBlock] = []
     for i, match in enumerate(_GUIDE_BLOCK_RE.finditer(markdown)):
         source = match.group(1)
-        content_hash = hashlib.sha256(source.encode()).hexdigest()[:16]
+        content_hash = hashlib.sha256(source.strip().encode()).hexdigest()[:16]
         blocks.append(GuideBlock(index=i, source=source, content_hash=content_hash))
     return blocks
 

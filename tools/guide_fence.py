@@ -55,7 +55,7 @@ def _find_block(source: str) -> dict[str, object] | None:
     if _block_index is None:
         _block_index = _load_manifests()
 
-    content_hash = hashlib.sha256(source.encode()).hexdigest()[:16]
+    content_hash = hashlib.sha256(source.strip().encode()).hexdigest()[:16]
     return _block_index.get(content_hash)
 
 
