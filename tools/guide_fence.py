@@ -68,9 +68,7 @@ def _screenshot_label(filename: str) -> str:
     into "Fill Battery Name".
     """
     # Strip numeric prefix and .png extension
-    name = filename
-    if name.endswith(".png"):
-        name = name[:-4]
+    name = filename.removesuffix(".png")
     # Remove leading NNN_ prefix
     parts = name.split("_", 1)
     if len(parts) > 1 and parts[0].isdigit():
@@ -79,10 +77,7 @@ def _screenshot_label(filename: str) -> str:
     # Split on dots to get hierarchy parts, take the meaningful ones
     dot_parts = name.split(".")
     # Skip the top-level step name (e.g., "add_battery") and take the rest
-    if len(dot_parts) > 1:
-        label_parts = dot_parts[1:]
-    else:
-        label_parts = dot_parts
+    label_parts = dot_parts[1:] if len(dot_parts) > 1 else dot_parts
 
     # Join and convert underscores to spaces, title case
     label = " ".join(label_parts).replace("_", " ")
@@ -154,11 +149,11 @@ def _render_placeholder(source: str, message: str) -> str:
 
 def format_guide(
     source: str,
-    language: str,
-    class_name: str,
-    options: dict[str, str],
-    md: object,
-    **kwargs: object,
+    _language: str,
+    _class_name: str,
+    _options: dict[str, str],
+    _md: object,
+    **_kwargs: object,
 ) -> str:
     """Format a ```guide fence block as a screenshot slideshow.
 

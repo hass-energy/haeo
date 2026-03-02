@@ -13,7 +13,6 @@ Usage:
 
 from __future__ import annotations
 
-from collections import OrderedDict
 from dataclasses import dataclass, field
 import hashlib
 import json
@@ -41,7 +40,6 @@ from tests.guides.primitives import (
     screenshot_context,
     verify_setup,
 )
-from tests.guides.primitives.capture import ScreenshotContext
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -322,7 +320,7 @@ def main() -> None:
     """CLI entry point: run guide(s) from markdown files."""
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
-    if len(sys.argv) < 2:
+    if len(sys.argv) < 2:  # noqa: PLR2004
         print("Usage: uv run python -m tools.guide_runner <markdown_file> [--force] [--headed]")
         sys.exit(1)
 
