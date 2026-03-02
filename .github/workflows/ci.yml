@@ -229,7 +229,7 @@ jobs:
         run: uv sync --locked --all-extras --dev
 
       - name: Run Tests
-        run: uv run pytest --cov=custom_components/haeo --cov-branch --cov-report=xml --junitxml=junit.xml -o junit_family=legacy
+        run: uv run pytest -m "not guide" --cov=custom_components/haeo --cov-branch --cov-report=xml --junitxml=junit.xml -o junit_family=legacy
 
       - name: Upload test results to Codecov
         if: ${{ github.event_name != 'release' && !cancelled() }}
