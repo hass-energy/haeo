@@ -89,7 +89,7 @@ type FieldInput = EntityInput | ConstantInput | list[EntityInput]
 def _load_translations() -> dict[str, Any]:
     """Load translations from en.json."""
     path = Path(__file__).parent.parent.parent.parent / "custom_components" / "haeo" / "translations" / "en.json"
-    with path.open() as f:
+    with path.open(encoding="utf-8") as f:
         return json.load(f)
 
 

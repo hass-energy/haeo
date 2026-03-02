@@ -128,7 +128,7 @@ class LiveHomeAssistant:
             states_file: Path to JSON file with state definitions
 
         """
-        with states_file.open() as f:
+        with states_file.open(encoding="utf-8") as f:
             states = json.load(f)
         self.set_states(states)
 
