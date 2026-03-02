@@ -61,6 +61,9 @@ theme:
     edit: material/pencil
     view: material/eye
 
+hooks:
+  - tools/mkdocs_guide_hook.py
+
 plugins:
   - search:
       separator: '[\s\-,:!=\[\]()"`/]+|\.(?!\d)|&[lg]t;|(?!\b)(?=[A-Z][a-z])'
