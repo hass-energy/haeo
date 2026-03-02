@@ -208,7 +208,7 @@ def run_blocks_for_mode(
     mode_dir.mkdir(parents=True)
 
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=headless)
+        browser = p.firefox.launch(headless=headless)
         context = browser.new_context(viewport={"width": 1280, "height": 800})
         hass.inject_auth(context, dark_mode=dark_mode)
         page_obj = context.new_page()
