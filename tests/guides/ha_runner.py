@@ -18,10 +18,11 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Generator
-from contextlib import contextmanager
+from contextlib import closing, contextmanager
 from dataclasses import dataclass
 import json
 from pathlib import Path
+import socket
 import tempfile
 import threading
 from typing import TYPE_CHECKING, Any
@@ -52,6 +53,15 @@ PROJECT_ROOT = Path(__file__).parent.parent.parent
 
 # Client ID for refresh tokens (matches HA frontend)
 CLIENT_ID = "http://127.0.0.1/"
+
+
+def _find_free_port() -> int:
+    """Find a free port on localhost."""
+    with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as sock:
+        sock.bind(("127.0.0.1", 0))
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        return sock.getsockname()[1]
+
 
 
 @dataclass
@@ -446,8 +456,6 @@ def live_home_assistant(
             # Use Playwright to interact with hass.url
 
     """
-    port = 0
-
     # Create a temporary config directory (HA requires one even if minimal)
     with tempfile.TemporaryDirectory(prefix="ha_guide_") as tmp_dir:
         guide_config_dir = Path(tmp_dir)
@@ -460,6 +468,7 @@ def live_home_assistant(
         haeo_target = custom_components / "haeo"
         haeo_target.symlink_to(haeo_source)
 
+        port = _find_free_port()
         hass_holder: list[HomeAssistant] = []
         token_holder: list[tuple[str, str]] = []
         loop_holder: list[asyncio.AbstractEventLoop] = []
@@ -503,7 +512,6 @@ def live_home_assistant(
         access_token, refresh_token_value = token_holder[0]
         loop = loop_holder[0]
         async_stop_event = async_stop_event_holder[0]
-        port = getattr(hass.http, "server_port", port)
 
         instance = LiveHomeAssistant(
             hass=hass,

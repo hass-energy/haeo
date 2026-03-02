@@ -23,9 +23,9 @@ if TYPE_CHECKING:
 
 _LOGGER = logging.getLogger(__name__)
 
-# Timeouts
-DEFAULT_TIMEOUT = 5000  # 5 seconds max
-SEARCH_TIMEOUT = 10000  # 10 seconds for search results
+# Timeouts - kept tight since everything runs locally
+DEFAULT_TIMEOUT = 2000  # 2 seconds max for UI interactions
+SEARCH_TIMEOUT = 5000  # 5 seconds for entity search results
 
 # Load JavaScript from external file
 _JS_DIR = Path(__file__).parent / "js"
@@ -406,8 +406,8 @@ class HAPage:
 
     def wait_for_dialog(self, title: str) -> None:
         """Wait for dialog with given title to appear."""
-        dialog = self.page.get_by_role("dialog", name=title)
-        dialog.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
+        dialog = self.page.locator("ha-dialog").filter(has_text=title)
+        dialog.wait_for(state="attached", timeout=DEFAULT_TIMEOUT)
         self._capture("dialog_opened")
 
     def submit(self) -> None:

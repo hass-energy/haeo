@@ -38,6 +38,7 @@ from custom_components.haeo.core.schema.sections import (
 )
 
 from .capture import guide_step
+from .ha_page import DEFAULT_TIMEOUT
 
 if TYPE_CHECKING:
     from custom_components.haeo.elements.input_fields import InputFieldGroups
@@ -255,7 +256,7 @@ def login(page: HAPage) -> None:
         page.fill_textbox("Username", "testuser")
         page.fill_textbox("Password", "testpass")
         page.click_button("Log in")
-        page.page.wait_for_url("**/lovelace/**", timeout=10000)
+        page.page.wait_for_url("**/lovelace/**", timeout=5000)
 
     _LOGGER.info("Logged in")
 
@@ -499,7 +500,7 @@ def verify_setup(page: HAPage) -> None:
     _LOGGER.info("Verifying setup...")
 
     page.goto("/config/integrations/integration/haeo")
-    page.page.get_by_role("button", name="Inverter").first.wait_for(state="visible", timeout=5000)
+    page.page.get_by_role("button", name="Inverter").first.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
     page._capture("final_overview")
 
     _LOGGER.info("Setup verified")
