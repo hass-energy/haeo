@@ -36,7 +36,7 @@ dev = [
     "ruff>=0.14.10",
     "setuptools>=80.9.0",
     "syrupy>=5.0.0",
-    "zensical>=0.0.15",
+    "zensical>=0.0.24",
     "import-linter>=2.10",
 ]
 
@@ -118,17 +118,17 @@ split-on-trailing-comma = false
 ]
 
 "stubs/**/*.pyi" = [
-    'N',       # Naming conventions must match external API
-    'D',       # Docstrings in stubs are optional
-    'A',       # Shadowing builtins is fine for type stubs
-    'PYI',     # Stub-specific rules - we're matching external API
-    'I',       # Import order doesn't matter in stubs
-    'PIE790',  # Allow ... in stub classes
+    'N',      # Naming conventions must match external API
+    'D',      # Docstrings in stubs are optional
+    'A',      # Shadowing builtins is fine for type stubs
+    'PYI',    # Stub-specific rules - we're matching external API
+    'I',      # Import order doesn't matter in stubs
+    'PIE790', # Allow ... in stub classes
 ]
 
 "tools/**/*.py" = [
-    'T201',    # Allow print statements in CLI tools
-    'FBT001',  # Boolean positional argument - required by import-linter Contract interface
+    'T201',   # Allow print statements in CLI tools
+    'FBT001', # Boolean positional argument - required by import-linter Contract interface
 ]
 
 
@@ -177,7 +177,7 @@ markers = [
 omit = ["**/tests/*"]
 
 [tool.mdformat]
-number = true                 # Renumber ordered lists
+number = true                       # Renumber ordered lists
 end_of_line = "lf"
 exclude = [".venv", "node_modules"]
 
