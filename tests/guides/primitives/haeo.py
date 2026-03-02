@@ -3,26 +3,246 @@
 High-level functions that add elements to an HAEO network.
 Each function is decorated with @guide_step for automatic screenshot naming.
 
-The current config flow uses single-step forms with collapsible sections
-and ChooseSelector widgets (Entity/Constant/None) for each field.
+Field values are typed as EntityInput or ConstantInput to match
+the ChooseSelector pattern used in config flows. Parameter names
+match the schema field name constants (e.g. CONF_CAPACITY), and
+display labels are loaded from translations/en.json at runtime.
 
-All entity parameters are tuples of (search_term, display_name).
+This ensures the primitives stay in sync with the actual schemas
+and the type system catches mismatches.
 """
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+import functools
+import json
 import logging
-from typing import TYPE_CHECKING
+from pathlib import Path
+import types
+from typing import TYPE_CHECKING, Any, get_args
+
+from custom_components.haeo.core.schema.elements.battery import (
+    CONF_CAPACITY,
+    CONF_INITIAL_CHARGE_PERCENTAGE,
+    CONF_MAX_CHARGE_PERCENTAGE,
+    CONF_MIN_CHARGE_PERCENTAGE,
+)
+from custom_components.haeo.core.schema.elements.element_type import ElementType
+from custom_components.haeo.core.schema.sections import (
+    CONF_FORECAST,
+    CONF_MAX_POWER_SOURCE_TARGET,
+    CONF_MAX_POWER_TARGET_SOURCE,
+    CONF_PRICE_SOURCE_TARGET,
+    CONF_PRICE_TARGET_SOURCE,
+)
 
 from .capture import guide_step
 
 if TYPE_CHECKING:
+    from custom_components.haeo.elements.input_fields import InputFieldGroups
+
     from .ha_page import HAPage
 
 _LOGGER = logging.getLogger(__name__)
 
-# Type alias for entity selection: (search_term, display_name)
-Entity = tuple[str, str]
+
+# region: Field value types
+
+
+@dataclass(frozen=True, slots=True)
+class EntityInput:
+    """Entity value for ChooseSelector fields.
+
+    Attributes:
+        search_term: Text to search for in the entity picker dialog.
+        display_name: Display name of the entity to select from results.
+
+    """
+
+    search_term: str
+    display_name: str
+
+
+@dataclass(frozen=True, slots=True)
+class ConstantInput:
+    """Constant value for ChooseSelector fields.
+
+    Attributes:
+        value: The numeric constant value.
+
+    """
+
+    value: float
+
+
+type FieldInput = EntityInput | ConstantInput | list[EntityInput]
+
+# endregion
+
+
+# region: Translation helpers
+
+
+@functools.cache
+def _load_translations() -> dict[str, Any]:
+    """Load translations from en.json."""
+    path = Path(__file__).parent.parent.parent.parent / "custom_components" / "haeo" / "translations" / "en.json"
+    with path.open() as f:
+        return json.load(f)
+
+
+def _subentry(element_type: str) -> dict[str, Any]:
+    """Get config subentry translations for an element type."""
+    return _load_translations()["config_subentries"][element_type]
+
+
+def _step_user(element_type: str) -> dict[str, Any]:
+    """Get the step user translations for an element type."""
+    return _subentry(element_type)["step"]["user"]
+
+
+def _dialog_title(element_type: str) -> str:
+    """Get the dialog title for an element type."""
+    return _step_user(element_type)["title"]
+
+
+def _button_label(element_type: str) -> str:
+    """Get the button label to initiate an element flow."""
+    return _subentry(element_type)["initiate_flow"]["user"]
+
+
+def _name_label(element_type: str) -> str:
+    """Get the display label for the name field."""
+    return _step_user(element_type)["data"]["name"]
+
+
+def _connection_label(element_type: str) -> str:
+    """Get the display label for the connection field."""
+    return _step_user(element_type)["data"]["connection"]
+
+
+def _section_name(element_type: str, section_key: str) -> str:
+    """Get the display name for a collapsible section."""
+    return _step_user(element_type)["sections"][section_key]["name"]
+
+
+def _field_label(element_type: str, section_key: str, field_name: str) -> str:
+    """Get the display label for a field within a section."""
+    return _step_user(element_type)["sections"][section_key]["data"][field_name]
+
+
+# endregion
+
+
+# region: Schema-driven field filling
+
+
+def _has_none_value(value_type: Any) -> bool:
+    """Check if NoneValue is part of a union type annotation."""
+    if isinstance(value_type, types.UnionType):
+        from custom_components.haeo.core.schema import NoneValue  # noqa: PLC0415
+
+        return NoneValue in get_args(value_type)
+    return False
+
+
+def _get_default_mode(field_info: Any, value_type: Any) -> str | None:
+    """Determine the ChooseSelector's default mode for a field.
+
+    The default mode controls whether a mode switch is needed before
+    filling the field. Returns "Entity", "Constant", or None.
+
+    - Fields with explicit default_mode in their FieldHint use that mode.
+    - Fields whose type includes NoneValue default to None (no selection).
+    - All other fields default to Entity (first available choice).
+    """
+    if field_info.defaults and field_info.defaults.mode:
+        return "Entity" if field_info.defaults.mode == "entity" else "Constant"
+    if _has_none_value(value_type):
+        return None
+    return "Entity"
+
+
+def _find_section(input_fields: InputFieldGroups, field_name: str) -> str:
+    """Find the section key that contains a field."""
+    for section_key, fields in input_fields.items():
+        if field_name in fields:
+            return section_key
+    msg = f"Field '{field_name}' not found in input fields"
+    raise KeyError(msg)
+
+
+def _fill_choose_field(
+    page: HAPage,
+    label: str,
+    value: FieldInput,
+    default_mode: str | None,
+) -> None:
+    """Fill a ChooseSelector field based on value type.
+
+    Switches the ChooseSelector mode if needed, then fills the field
+    with the appropriate entity or constant value.
+    """
+    match value:
+        case EntityInput():
+            if default_mode != "Entity":
+                page.choose_select_option(label, "Entity")
+            page.choose_entity(label, value.search_term, value.display_name)
+        case ConstantInput():
+            if default_mode != "Constant":
+                page.choose_select_option(label, "Constant")
+            page.choose_constant(label, str(value.value))
+        case list():
+            first = value[0]
+            if default_mode != "Entity":
+                page.choose_select_option(label, "Entity")
+            page.choose_entity(label, first.search_term, first.display_name)
+            for entity in value[1:]:
+                page.choose_add_entity(label, entity.search_term, entity.display_name)
+
+
+def _fill_element_fields(
+    page: HAPage,
+    element_type: ElementType,
+    fields: dict[str, FieldInput],
+    *,
+    collapsed_sections: frozenset[str] = frozenset(),
+) -> None:
+    """Fill all ChooseSelector fields for an element form.
+
+    Looks up display labels from translations and determines the
+    default ChooseSelector mode from the element schema metadata.
+    Automatically expands collapsed sections when accessing their fields.
+
+    Fields must be ordered by section (matching the form's top-to-bottom
+    layout) to ensure correct section expansion behavior.
+    """
+    from custom_components.haeo.elements import get_input_field_schema_info, get_input_fields  # noqa: PLC0415
+
+    input_fields = get_input_fields(element_type)
+    field_schema = get_input_field_schema_info(element_type, input_fields)
+    expanded: set[str] = set()
+
+    for field_name, field_value in fields.items():
+        section_key = _find_section(input_fields, field_name)
+
+        # Auto-expand collapsed sections on first field access
+        if section_key in collapsed_sections and section_key not in expanded:
+            page.expand_section(_section_name(element_type, section_key))
+            expanded.add(section_key)
+
+        label = _field_label(element_type, section_key, field_name)
+        field_info = input_fields[section_key][field_name]
+        value_type = field_schema[section_key][field_name].value_type
+        default_mode = _get_default_mode(field_info, value_type)
+        _fill_choose_field(page, label, field_value, default_mode)
+
+
+# endregion
+
+
+# region: Element primitives
 
 
 @guide_step
@@ -66,28 +286,28 @@ def add_inverter(
     *,
     name: str,
     connection: str,
-    max_power_dc_to_ac: Entity,
-    max_power_ac_to_dc: Entity,
+    max_power_source_target: EntityInput,
+    max_power_target_source: EntityInput,
 ) -> None:
-    """Add inverter element to HAEO network.
-
-    Inverter form structure:
-    - Top-level: Inverter Name, AC Connection
-    - Power limits section (expanded): Max DC to AC power, Max AC to DC power
-    - Efficiency section (collapsed): DC to AC efficiency, AC to DC efficiency
-    """
+    """Add inverter element to HAEO network."""
+    et = ElementType.INVERTER
     _LOGGER.info("Adding Inverter: %s", name)
 
     page.goto("/config/integrations/integration/haeo")
-    page.click_button("Inverter")
-    page.wait_for_dialog("Inverter Configuration")
+    page.click_button(_button_label(et))
+    page.wait_for_dialog(_dialog_title(et))
 
-    page.fill_textbox("Inverter Name", name)
-    page.select_combobox("AC Connection", connection)
+    page.fill_textbox(_name_label(et), name)
+    page.select_combobox(_connection_label(et), connection)
 
-    # Power limits section is expanded by default
-    page.choose_entity("Max DC to AC power", max_power_dc_to_ac[0], max_power_dc_to_ac[1])
-    page.choose_entity("Max AC to DC power", max_power_ac_to_dc[0], max_power_ac_to_dc[1])
+    _fill_element_fields(
+        page,
+        et,
+        {
+            CONF_MAX_POWER_SOURCE_TARGET: max_power_source_target,
+            CONF_MAX_POWER_TARGET_SOURCE: max_power_target_source,
+        },
+    )
 
     page.submit()
     page.close_element_dialog()
@@ -101,53 +321,44 @@ def add_battery(
     *,
     name: str,
     connection: str,
-    capacity: Entity,
-    initial_soc: Entity,
-    max_charge_power: Entity | None = None,
-    max_discharge_power: Entity | None = None,
-    min_charge_level: int | None = None,
-    max_charge_level: int | None = None,
+    capacity: EntityInput,
+    initial_charge_percentage: EntityInput,
+    max_power_target_source: EntityInput | None = None,
+    max_power_source_target: EntityInput | None = None,
+    min_charge_percentage: EntityInput | ConstantInput | None = None,
+    max_charge_percentage: EntityInput | ConstantInput | None = None,
 ) -> None:
-    """Add battery element to HAEO network.
-
-    Battery form structure (single step with sections):
-    - Top-level: Battery Name, Connection
-    - Storage section (expanded): Capacity, State of Charge
-    - Limits section (expanded): Min Charge Level, Max Charge Level
-    - Power limits section (expanded): Max charge power, Max discharge power
-    - Pricing section (expanded): Discharge price, Charge price, Salvage value
-    - Efficiency section (collapsed): Discharge efficiency, Charge efficiency
-    - Partitioning section (collapsed): Configure battery partitions
-    """
+    """Add battery element to HAEO network."""
+    et = ElementType.BATTERY
     _LOGGER.info("Adding Battery: %s", name)
 
     page.goto("/config/integrations/integration/haeo")
-    page.click_button("Battery")
-    page.wait_for_dialog("Battery Configuration")
+    page.click_button(_button_label(et))
+    page.wait_for_dialog(_dialog_title(et))
 
-    # Top-level fields
-    page.fill_textbox("Battery Name", name)
-    page.select_combobox("Connection", connection)
+    page.fill_textbox(_name_label(et), name)
+    page.select_combobox(_connection_label(et), connection)
 
-    # Storage section (expanded by default)
-    page.choose_entity("Capacity", capacity[0], capacity[1])
-    page.choose_entity("State of Charge", initial_soc[0], initial_soc[1])
+    # Build fields dict in section order: storage → limits → power_limits
+    fields: dict[str, FieldInput] = {
+        CONF_CAPACITY: capacity,
+        CONF_INITIAL_CHARGE_PERCENTAGE: initial_charge_percentage,
+    }
+    if min_charge_percentage is not None:
+        fields[CONF_MIN_CHARGE_PERCENTAGE] = min_charge_percentage
+    if max_charge_percentage is not None:
+        fields[CONF_MAX_CHARGE_PERCENTAGE] = max_charge_percentage
+    if max_power_target_source is not None:
+        fields[CONF_MAX_POWER_TARGET_SOURCE] = max_power_target_source
+    if max_power_source_target is not None:
+        fields[CONF_MAX_POWER_SOURCE_TARGET] = max_power_source_target
 
-    # Limits section (expanded by default) — switch to Constant for percentage values
-    if min_charge_level is not None:
-        page.choose_select_option("Min Charge Level", "Constant")
-        page.choose_constant("Min Charge Level", str(min_charge_level))
-
-    if max_charge_level is not None:
-        page.choose_select_option("Max Charge Level", "Constant")
-        page.choose_constant("Max Charge Level", str(max_charge_level))
-
-    # Power limits section (expanded by default)
-    if max_charge_power:
-        page.choose_entity("Max charge power", max_charge_power[0], max_charge_power[1])
-
-    if max_discharge_power:
-        page.choose_entity("Max discharge power", max_discharge_power[0], max_discharge_power[1])
+    _fill_element_fields(
+        page,
+        et,
+        fields,
+        collapsed_sections=frozenset({"efficiency", "partitioning"}),
+    )
 
     page.submit()
     page.close_element_dialog()
@@ -161,33 +372,25 @@ def add_solar(
     *,
     name: str,
     connection: str,
-    forecasts: list[Entity],
+    forecast: EntityInput | list[EntityInput],
 ) -> None:
-    """Add solar element to HAEO network.
-
-    Solar form structure:
-    - Top-level: Solar Name, Connection
-    - Forecast section (expanded): Forecast
-    - Pricing section (expanded): Production price
-    - Curtailment section (collapsed): Allow Curtailment
-    """
+    """Add solar element to HAEO network."""
+    et = ElementType.SOLAR
     _LOGGER.info("Adding Solar: %s", name)
 
     page.goto("/config/integrations/integration/haeo")
-    page.click_button("Solar")
-    page.wait_for_dialog("Solar Configuration")
+    page.click_button(_button_label(et))
+    page.wait_for_dialog(_dialog_title(et))
 
-    page.fill_textbox("Solar Name", name)
-    page.select_combobox("Connection", connection)
+    page.fill_textbox(_name_label(et), name)
+    page.select_combobox(_connection_label(et), connection)
 
-    # Forecast section (expanded by default)
-    if forecasts:
-        first = forecasts[0]
-        page.choose_entity("Forecast", first[0], first[1])
-
-        # Additional forecasts
-        for forecast in forecasts[1:]:
-            page.choose_add_entity("Forecast", forecast[0], forecast[1])
+    _fill_element_fields(
+        page,
+        et,
+        {CONF_FORECAST: forecast},
+        collapsed_sections=frozenset({"curtailment"}),
+    )
 
     page.submit()
     page.close_element_dialog()
@@ -201,53 +404,38 @@ def add_grid(
     *,
     name: str,
     connection: str,
-    import_prices: list[Entity],
-    export_prices: list[Entity],
-    import_limit: float | None = None,
-    export_limit: float | None = None,
+    price_source_target: EntityInput | list[EntityInput],
+    price_target_source: EntityInput | list[EntityInput],
+    max_power_source_target: ConstantInput | None = None,
+    max_power_target_source: ConstantInput | None = None,
 ) -> None:
-    """Add grid element to HAEO network.
-
-    Grid form structure (single step with sections):
-    - Top-level: Grid Name, Connection
-    - Pricing section (expanded): Import price, Export price
-    - Power limits section (collapsed): Import limit, Export limit
-    """
+    """Add grid element to HAEO network."""
+    et = ElementType.GRID
     _LOGGER.info("Adding Grid: %s", name)
 
     page.goto("/config/integrations/integration/haeo")
-    page.click_button("Grid")
-    page.wait_for_dialog("Grid Configuration")
+    page.click_button(_button_label(et))
+    page.wait_for_dialog(_dialog_title(et))
 
-    page.fill_textbox("Grid Name", name)
-    page.select_combobox("Connection", connection)
+    page.fill_textbox(_name_label(et), name)
+    page.select_combobox(_connection_label(et), connection)
 
-    # Pricing section (expanded by default)
-    if import_prices:
-        first = import_prices[0]
-        page.choose_select_option("Import price", "Entity")
-        page.choose_entity("Import price", first[0], first[1])
-        for price in import_prices[1:]:
-            page.choose_add_entity("Import price", price[0], price[1])
+    # Build fields dict in section order: pricing → power_limits
+    fields: dict[str, FieldInput] = {
+        CONF_PRICE_SOURCE_TARGET: price_source_target,
+        CONF_PRICE_TARGET_SOURCE: price_target_source,
+    }
+    if max_power_source_target is not None:
+        fields[CONF_MAX_POWER_SOURCE_TARGET] = max_power_source_target
+    if max_power_target_source is not None:
+        fields[CONF_MAX_POWER_TARGET_SOURCE] = max_power_target_source
 
-    if export_prices:
-        first = export_prices[0]
-        page.choose_select_option("Export price", "Entity")
-        page.choose_entity("Export price", first[0], first[1])
-        for price in export_prices[1:]:
-            page.choose_add_entity("Export price", price[0], price[1])
-
-    # Power limits section (collapsed by default) — expand if limits are specified
-    if import_limit is not None or export_limit is not None:
-        page.expand_section("Power limits")
-
-        if import_limit is not None:
-            page.choose_select_option("Import limit", "Constant")
-            page.choose_constant("Import limit", str(import_limit))
-
-        if export_limit is not None:
-            page.choose_select_option("Export limit", "Constant")
-            page.choose_constant("Export limit", str(export_limit))
+    _fill_element_fields(
+        page,
+        et,
+        fields,
+        collapsed_sections=frozenset({"power_limits"}),
+    )
 
     page.submit()
     page.close_element_dialog()
@@ -261,33 +449,25 @@ def add_load(
     *,
     name: str,
     connection: str,
-    forecast: Entity | None = None,
-    constant_value: float | None = None,
+    forecast: EntityInput | ConstantInput,
 ) -> None:
-    """Add load element to HAEO network.
-
-    Load form structure:
-    - Top-level: Load Name, Connection
-    - Forecast section (expanded): Forecast (ChooseSelector — Entity or Constant)
-
-    Use ``forecast`` for an entity-based forecast, or ``constant_value`` for a
-    fixed constant forecast. If both are provided, entity takes precedence.
-    """
+    """Add load element to HAEO network."""
+    et = ElementType.LOAD
     _LOGGER.info("Adding Load: %s", name)
 
     page.goto("/config/integrations/integration/haeo")
-    page.click_button("Load")
-    page.wait_for_dialog("Load Configuration")
+    page.click_button(_button_label(et))
+    page.wait_for_dialog(_dialog_title(et))
 
-    page.fill_textbox("Load Name", name)
-    page.select_combobox("Connection", connection)
+    page.fill_textbox(_name_label(et), name)
+    page.select_combobox(_connection_label(et), connection)
 
-    # Forecast section (expanded by default)
-    if forecast:
-        page.choose_entity("Forecast", forecast[0], forecast[1])
-    elif constant_value is not None:
-        page.choose_select_option("Forecast", "Constant")
-        page.choose_constant("Forecast", str(constant_value))
+    _fill_element_fields(
+        page,
+        et,
+        {CONF_FORECAST: forecast},
+        collapsed_sections=frozenset({"pricing", "curtailment"}),
+    )
 
     page.submit()
     page.close_element_dialog()
@@ -297,19 +477,15 @@ def add_load(
 
 @guide_step
 def add_node(page: HAPage, *, name: str) -> None:
-    """Add node element to HAEO network.
-
-    Node form structure:
-    - Top-level: Node Name
-    - Role section (collapsed): Is source, Is sink
-    """
+    """Add node element to HAEO network."""
+    et = ElementType.NODE
     _LOGGER.info("Adding Node: %s", name)
 
     page.goto("/config/integrations/integration/haeo")
-    page.click_button("Node")
-    page.wait_for_dialog("Node Configuration")
+    page.click_button(_button_label(et))
+    page.wait_for_dialog(_dialog_title(et))
 
-    page.fill_textbox("Node Name", name)
+    page.fill_textbox(_name_label(et), name)
 
     page.submit()
     page.close_element_dialog()
@@ -327,3 +503,6 @@ def verify_setup(page: HAPage) -> None:
     page._capture("final_overview")
 
     _LOGGER.info("Setup verified")
+
+
+# endregion

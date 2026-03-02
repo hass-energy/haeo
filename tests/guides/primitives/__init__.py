@@ -20,7 +20,8 @@ Example usage:
 from tests.guides.primitives.capture import ScreenshotContext, guide_step, screenshot_context
 from tests.guides.primitives.ha_page import HAPage
 from tests.guides.primitives.haeo import (
-    Entity,
+    ConstantInput,
+    EntityInput,
     add_battery,
     add_grid,
     add_integration,
@@ -33,8 +34,9 @@ from tests.guides.primitives.haeo import (
 )
 
 __all__ = [
-    # Entity type
-    "Entity",
+    # Field value types
+    "ConstantInput",
+    "EntityInput",
     # Low-level primitives
     "HAPage",
     # Screenshot context

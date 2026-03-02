@@ -22,6 +22,8 @@ from playwright.sync_api import sync_playwright
 
 from tests.guides.ha_runner import LiveHomeAssistant, live_home_assistant
 from tests.guides.primitives import (
+    ConstantInput,
+    EntityInput,
     HAPage,
     add_battery,
     add_grid,
@@ -82,8 +84,8 @@ def run_guide(
                     page,
                     name="Inverter",
                     connection="Switchboard",
-                    max_power_dc_to_ac=("max active power", "Sigen Plant Max Active Power"),
-                    max_power_ac_to_dc=("max active power", "Sigen Plant Max Active Power"),
+                    max_power_source_target=EntityInput("max active power", "Sigen Plant Max Active Power"),
+                    max_power_target_source=EntityInput("max active power", "Sigen Plant Max Active Power"),
                 )
 
                 # Step 4: Add Battery
@@ -92,12 +94,12 @@ def run_guide(
                     page,
                     name="Battery",
                     connection="Inverter",
-                    capacity=("rated energy", "Rated Energy Capacity"),
-                    initial_soc=("state of charge", "Battery State of Charge"),
-                    max_charge_power=("rated charging", "Rated Charging Power"),
-                    max_discharge_power=("rated discharging", "Rated Discharging Power"),
-                    min_charge_level=10,
-                    max_charge_level=100,
+                    capacity=EntityInput("rated energy", "Rated Energy Capacity"),
+                    initial_charge_percentage=EntityInput("state of charge", "Battery State of Charge"),
+                    max_power_target_source=EntityInput("rated charging", "Rated Charging Power"),
+                    max_power_source_target=EntityInput("rated discharging", "Rated Discharging Power"),
+                    min_charge_percentage=ConstantInput(10),
+                    max_charge_percentage=ConstantInput(100),
                 )
 
                 # Step 5: Add Solar
@@ -106,11 +108,11 @@ def run_guide(
                     page,
                     name="Solar",
                     connection="Inverter",
-                    forecasts=[
-                        ("east solar today", "East solar production forecast"),
-                        ("north solar today", "North solar production forecast"),
-                        ("south solar today", "South solar prediction forecast"),
-                        ("west solar today", "West solar production forecast"),
+                    forecast=[
+                        EntityInput("east solar today", "East solar production forecast"),
+                        EntityInput("north solar today", "North solar production forecast"),
+                        EntityInput("south solar today", "South solar prediction forecast"),
+                        EntityInput("west solar today", "West solar production forecast"),
                     ],
                 )
 
@@ -120,16 +122,16 @@ def run_guide(
                     page,
                     name="Grid",
                     connection="Switchboard",
-                    import_prices=[
-                        ("general price", "Home - General Price"),
-                        ("general forecast", "Home - General Forecast"),
+                    price_source_target=[
+                        EntityInput("general price", "Home - General Price"),
+                        EntityInput("general forecast", "Home - General Forecast"),
                     ],
-                    export_prices=[
-                        ("feed in price", "Home - Feed In Price"),
-                        ("feed in forecast", "Home - Feed In Forecast"),
+                    price_target_source=[
+                        EntityInput("feed in price", "Home - Feed In Price"),
+                        EntityInput("feed in forecast", "Home - Feed In Forecast"),
                     ],
-                    import_limit=55,
-                    export_limit=30,
+                    max_power_source_target=ConstantInput(55),
+                    max_power_target_source=ConstantInput(30),
                 )
 
                 # Step 7: Add Load
@@ -138,7 +140,7 @@ def run_guide(
                     page,
                     name="Constant Load",
                     connection="Switchboard",
-                    constant_value=1,
+                    forecast=ConstantInput(1),
                 )
 
                 # Step 8: Verify setup
