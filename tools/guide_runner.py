@@ -45,6 +45,7 @@ _LOGGER = logging.getLogger(__name__)
 
 # Project root for resolving relative paths
 PROJECT_ROOT = Path(__file__).parent.parent
+DOCS_DIR = PROJECT_ROOT / "docs"
 INPUTS_FILE = PROJECT_ROOT / "tests" / "scenarios" / "scenario1" / "inputs.json"
 
 # Regex to extract ```guide blocks from markdown
@@ -77,15 +78,13 @@ class BlockResult:
     Attributes:
         index: Block index matching the GuideBlock.
         content_hash: Hash of the source that produced these screenshots.
-        light: List of screenshot paths (relative to output_dir) for light mode.
-        dark: List of screenshot paths (relative to output_dir) for dark mode.
+        screenshots: List of screenshot filenames (same for both light and dark modes).
 
     """
 
     index: int
     content_hash: str
-    light: list[str] = field(default_factory=list)
-    dark: list[str] = field(default_factory=list)
+    screenshots: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -109,8 +108,7 @@ class GuideManifest:
                 {
                     "index": b.index,
                     "content_hash": b.content_hash,
-                    "light": b.light,
-                    "dark": b.dark,
+                    "screenshots": b.screenshots,
                 }
                 for b in self.blocks
             ],
@@ -134,8 +132,7 @@ class GuideManifest:
                 BlockResult(
                     index=b["index"],
                     content_hash=b["content_hash"],
-                    light=b["light"],
-                    dark=b["dark"],
+                    screenshots=b["screenshots"],
                 )
                 for b in data["blocks"]
             ],
@@ -161,7 +158,7 @@ def compute_page_hash(blocks: list[GuideBlock]) -> str:
     return hashlib.sha256(combined.encode()).hexdigest()[:16]
 
 
-def _build_exec_namespace(page: HAPage) -> dict[str, object]:
+def build_exec_namespace(page: HAPage) -> dict[str, object]:
     """Build the namespace dict available to guide code blocks."""
     return {
         "page": page,
@@ -181,7 +178,17 @@ def _build_exec_namespace(page: HAPage) -> dict[str, object]:
     }
 
 
-def _run_blocks_for_mode(
+def output_dir_for_guide(guide_md: Path) -> Path:
+    """Return the output directory for a guide's screenshots.
+
+    Screenshots go in a directory named after the markdown file stem,
+    as a sibling of the markdown file. This matches MkDocs' directory URL
+    convention so relative image paths work in the rendered HTML.
+    """
+    return guide_md.parent / guide_md.stem
+
+
+def run_blocks_for_mode(
     hass: LiveHomeAssistant,
     blocks: list[GuideBlock],
     output_dir: Path,
@@ -209,7 +216,7 @@ def _run_blocks_for_mode(
 
         try:
             page = HAPage(page=page_obj, url=hass.url)
-            namespace = _build_exec_namespace(page)
+            namespace = build_exec_namespace(page)
 
             # All blocks share one screenshot context (continuous numbering)
             # but we track per-block boundaries
@@ -242,7 +249,6 @@ def _run_blocks_for_mode(
 
 def run_guide_from_markdown(
     markdown_path: Path,
-    output_dir: Path,
     *,
     headless: bool = True,
     force: bool = False,
@@ -254,7 +260,6 @@ def run_guide_from_markdown(
 
     Args:
         markdown_path: Path to the markdown file containing ```guide blocks.
-        output_dir: Directory for screenshots and manifest.json.
         headless: Run browser in headless mode.
         force: Force re-execution even if cache is valid.
 
@@ -270,6 +275,7 @@ def run_guide_from_markdown(
         return GuideManifest(page_hash="empty", blocks=[])
 
     page_hash = compute_page_hash(blocks)
+    output_dir = output_dir_for_guide(markdown_path)
     manifest_path = output_dir / "manifest.json"
 
     # Check cache
@@ -286,7 +292,7 @@ def run_guide_from_markdown(
 
         # Run light mode
         _LOGGER.info("Capturing light mode screenshots...")
-        light_results = _run_blocks_for_mode(hass, blocks, output_dir, "light", headless=headless)
+        light_results = run_blocks_for_mode(hass, blocks, output_dir, "light", headless=headless)
 
     # Need a fresh HA instance for dark mode (different auth/theme state)
     with live_home_assistant(timeout=120) as hass:
@@ -294,15 +300,14 @@ def run_guide_from_markdown(
 
         # Run dark mode
         _LOGGER.info("Capturing dark mode screenshots...")
-        dark_results = _run_blocks_for_mode(hass, blocks, output_dir, "dark", headless=headless)
+        run_blocks_for_mode(hass, blocks, output_dir, "dark", headless=headless)
 
-    # Build manifest
+    # Build manifest (both modes produce the same filenames)
     block_results = [
         BlockResult(
             index=block.index,
             content_hash=block.content_hash,
-            light=light_results[i],
-            dark=dark_results[i],
+            screenshots=light_results[i],
         )
         for i, block in enumerate(blocks)
     ]
@@ -310,8 +315,8 @@ def run_guide_from_markdown(
     manifest = GuideManifest(page_hash=page_hash, blocks=block_results)
     manifest.save(manifest_path)
 
-    total_screenshots = sum(len(b.light) + len(b.dark) for b in block_results)
-    _LOGGER.info("Guide complete: %d blocks, %d total screenshots", len(blocks), total_screenshots)
+    total_screenshots = sum(len(b.screenshots) for b in block_results)
+    _LOGGER.info("Guide complete: %d blocks, %d screenshots per mode", len(blocks), total_screenshots)
 
     return manifest
 
@@ -334,9 +339,7 @@ def main() -> None:
             _LOGGER.error("File not found: %s", md_path)
             continue
 
-        # Output dir is a sibling directory named after the markdown file (without extension)
-        output_dir = md_path.parent / md_path.stem
-        run_guide_from_markdown(md_path, output_dir, headless=not headed, force=force)
+        run_guide_from_markdown(md_path, headless=not headed, force=force)
 
 
 if __name__ == "__main__":

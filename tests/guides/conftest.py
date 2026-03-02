@@ -8,6 +8,12 @@ Run via pytest with:
     uv run pytest tests/guides/ -m guide
 """
 
+from __future__ import annotations
+
+from collections.abc import Generator
+import datetime
+
+from homeassistant.util import dt as dt_util
 import pytest
 
 # Guide tests run a full HA instance in a background thread. The global
@@ -27,7 +33,7 @@ def pytest_configure(config: pytest.Config) -> None:
 
 
 @pytest.fixture(autouse=True)
-def auto_enable_custom_integrations() -> bool:
+def auto_enable_custom_integrations() -> bool:  # pyright: ignore[reportUnusedFunction]
     """Override the global fixture that depends on pytest-homeassistant-custom-component.
 
     Guide tests run their own HA instance and don't use the hass fixture,
@@ -36,3 +42,16 @@ def auto_enable_custom_integrations() -> bool:
     prevents that fixture from being requested.
     """
     return True
+
+
+@pytest.fixture(autouse=True)
+def _restore_timezone() -> Generator[None]:  # pyright: ignore[reportUnusedFunction]
+    """Restore dt_util.DEFAULT_TIME_ZONE after test.
+
+    The live HA instance sets the timezone to ZoneInfo('UTC') via
+    async_set_time_zone(), but pytest-homeassistant-custom-component
+    expects datetime.timezone.utc at teardown.
+    """
+    yield
+    # Reset to datetime.UTC which is what the pytest plugin expects
+    dt_util.set_default_time_zone(datetime.UTC)

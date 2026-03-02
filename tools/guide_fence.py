@@ -1,13 +1,14 @@
 """Custom fence formatter for ``guide`` code blocks.
 
-Renders guide blocks as screenshot slideshows in MkDocs output.
+Renders guide blocks as screenshot slideshows in documentation output.
 Used by pymdownx.superfences as a custom fence format function.
 
-Screenshots are loaded from a pre-built manifest.json file
-(produced by ``tools.guide_runner``) located in a sibling directory
-named after the markdown file.
+Screenshots are loaded from manifest.json files produced by the guide
+test suite (``tests/guides/test_guides.py``) or the CLI runner
+(``tools/guide_runner``). Manifests are discovered by scanning the
+docs directory on first use — no hook or build wrapper needed.
 
-If no manifest exists (e.g., during development without running the guide),
+If no manifest exists (e.g., guide tests haven't been run yet),
 the code block is rendered as a styled placeholder.
 """
 
@@ -21,44 +22,41 @@ from xml.sax.saxutils import escape
 
 _LOGGER = logging.getLogger(__name__)
 
-# Module-level registry: maps markdown source paths to their manifest data.
-# Populated by the mkdocs hook or build script before rendering.
-_manifests: dict[str, dict[str, object]] = {}
+_DOCS_DIR = Path(__file__).parent.parent / "docs"
+
+# Lazy-loaded index: maps content_hash -> block data dict.
+# Populated on first call to _find_block().
+_block_index: dict[str, dict[str, object]] | None = None
 
 
-def register_manifest(md_source_path: str, manifest_path: Path) -> None:
-    """Register a manifest for a markdown source file.
+def _load_manifests() -> dict[str, dict[str, object]]:
+    """Scan docs/ for manifest.json files and index blocks by content hash."""
+    index: dict[str, dict[str, object]] = {}
 
-    Called during docs build setup to make manifests available to the formatter.
+    for manifest_path in _DOCS_DIR.rglob("manifest.json"):
+        try:
+            with manifest_path.open(encoding="utf-8") as f:
+                data = json.load(f)
+        except (json.JSONDecodeError, OSError):
+            _LOGGER.debug("Skipping invalid manifest: %s", manifest_path)
+            continue
 
-    Args:
-        md_source_path: Relative path of the markdown file (e.g., "user-guide/examples/sigenergy-system.md").
-        manifest_path: Absolute path to the manifest.json file.
+        for block in data.get("blocks", []):
+            if isinstance(block, dict) and "content_hash" in block:
+                index[block["content_hash"]] = block
 
-    """
-    if manifest_path.exists():
-        with manifest_path.open(encoding="utf-8") as f:
-            _manifests[md_source_path] = json.load(f)
-        _LOGGER.debug("Registered manifest for %s", md_source_path)
-    else:
-        _LOGGER.debug("No manifest found at %s", manifest_path)
+    _LOGGER.debug("Loaded %d guide blocks from manifests", len(index))
+    return index
 
 
 def _find_block(source: str) -> dict[str, object] | None:
     """Find the manifest block matching this source code by content hash."""
+    global _block_index  # noqa: PLW0603
+    if _block_index is None:
+        _block_index = _load_manifests()
+
     content_hash = hashlib.sha256(source.encode()).hexdigest()[:16]
-
-    for manifest_data in _manifests.values():
-        blocks = manifest_data.get("blocks", [])
-        if not isinstance(blocks, list):
-            continue
-        for block in blocks:
-            if not isinstance(block, dict):
-                continue
-            if block.get("content_hash") == content_hash:
-                return block
-
-    return None
+    return _block_index.get(content_hash)
 
 
 def _screenshot_label(filename: str) -> str:
@@ -92,22 +90,19 @@ def _screenshot_label(filename: str) -> str:
 
 def _render_slideshow(block: dict[str, object], source: str) -> str:
     """Render a screenshot slideshow for a guide block."""
-    light_files: list[str] = block.get("light", [])  # type: ignore[assignment]
-    dark_files: list[str] = block.get("dark", [])  # type: ignore[assignment]
+    screenshots: list[str] = block.get("screenshots", [])  # type: ignore[assignment]
 
-    if not light_files and not dark_files:
+    if not screenshots:
         return _render_placeholder(source, "No screenshots captured for this block")
 
-    # Use light files as the primary set for labels
-    primary_files = light_files or dark_files
-    labels = [_screenshot_label(f) for f in primary_files]
+    labels = [_screenshot_label(f) for f in screenshots]
 
     # Build slide HTML
     slides_html: list[str] = []
     for i, label in enumerate(labels):
         active = ' data-active="true"' if i == 0 else ""
-        light_src = f"light/{light_files[i]}" if i < len(light_files) else ""
-        dark_src = f"dark/{dark_files[i]}" if i < len(dark_files) else ""
+        light_src = f"light/{screenshots[i]}"
+        dark_src = f"dark/{screenshots[i]}"
 
         slides_html.append(
             f'  <div class="guide-slide"{active}'
@@ -119,7 +114,7 @@ def _render_slideshow(block: dict[str, object], source: str) -> str:
         )
 
     slides = "\n".join(slides_html)
-    total = len(primary_files)
+    total = len(screenshots)
 
     return (
         f'<div class="guide-slideshow" data-total="{total}">\n'
@@ -162,11 +157,11 @@ def format_guide(
 
     Args:
         source: The content inside the fenced block.
-        language: The fence language identifier ("guide").
-        class_name: CSS class name from the fence config.
-        options: Fence options (unused).
-        md: The Markdown processor instance.
-        **kwargs: Additional keyword arguments.
+        _language: The fence language identifier ("guide").
+        _class_name: CSS class name from the fence config.
+        _options: Fence options (unused).
+        _md: The Markdown processor instance.
+        **_kwargs: Additional keyword arguments.
 
     Returns:
         HTML string to replace the fenced block.
@@ -175,6 +170,6 @@ def format_guide(
     block = _find_block(source)
 
     if block is None:
-        return _render_placeholder(source, "Run guide runner to generate screenshots")
+        return _render_placeholder(source, "Run guide tests to generate screenshots")
 
     return _render_slideshow(block, source)
