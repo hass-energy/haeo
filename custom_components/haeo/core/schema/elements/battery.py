@@ -219,6 +219,7 @@ class BatteryConfigSchema(ConnectedCommonConfig):
                 CONF_SALVAGE_VALUE: FieldHint(
                     output_type=OutputType.PRICE,
                     time_series=False,
+                    default_mode="value",
                     default_value=0.0,
                 ),
             }
