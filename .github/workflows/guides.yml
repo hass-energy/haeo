@@ -33,3 +33,5 @@ jobs:
 
       - name: Run guide tests
         run: uv run pytest -m guide -v --timeout=300
+        env:
+          RUN_GUIDES: "true"

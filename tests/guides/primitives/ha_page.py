@@ -406,7 +406,7 @@ class HAPage:
 
     def wait_for_dialog(self, title: str) -> None:
         """Wait for dialog with given title to appear."""
-        dialog = self.page.get_by_title(title)
+        dialog = self.page.get_by_role("dialog", name=title)
         dialog.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
         self._capture("dialog_opened")
 

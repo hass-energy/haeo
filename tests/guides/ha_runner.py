@@ -18,11 +18,10 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Generator
-from contextlib import closing, contextmanager
+from contextlib import contextmanager
 from dataclasses import dataclass
 import json
 from pathlib import Path
-import socket
 import tempfile
 import threading
 from typing import TYPE_CHECKING, Any
@@ -55,14 +54,6 @@ PROJECT_ROOT = Path(__file__).parent.parent.parent
 CLIENT_ID = "http://127.0.0.1/"
 
 
-def _find_free_port() -> int:
-    """Find a free port on localhost."""
-    with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as s:
-        s.bind(("127.0.0.1", 0))
-        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        return s.getsockname()[1]
-
-
 @dataclass
 class LiveHomeAssistant:
     """A running Home Assistant instance with HTTP server.
@@ -76,7 +67,7 @@ class LiveHomeAssistant:
     port: int
     loop: asyncio.AbstractEventLoop
     access_token: str
-    refresh_token_id: str
+    refresh_token: str
     _stop_event: asyncio.Event
 
     def set_state(
@@ -177,7 +168,7 @@ class LiveHomeAssistant:
             "hassUrl": self.url,
             "clientId": CLIENT_ID,
             "access_token": self.access_token,
-            "refresh_token": self.refresh_token_id,
+            "refresh_token": self.refresh_token,
             "token_type": "Bearer",
             "expires_in": 1800,  # 30 minutes
         }
@@ -242,7 +233,7 @@ async def _setup_home_assistant_async(
     Onboarding is bypassed by creating an owner user programmatically.
 
     Returns:
-        Tuple of (HomeAssistant instance, access_token, refresh_token_id)
+        Tuple of (HomeAssistant instance, access_token, refresh_token)
 
     """
     # Pre-populate onboarding storage to mark all steps complete
@@ -336,8 +327,8 @@ async def _setup_home_assistant_async(
         credential=credential,
     )
     access_token = hass.auth.async_create_access_token(refresh_token)
-    # Store refresh token ID for frontend auth
-    refresh_token_id = refresh_token.id
+    # Store refresh token value for frontend auth
+    refresh_token_value = refresh_token.token
 
     # Set up HTTP on ephemeral port
     http_config = {
@@ -384,7 +375,7 @@ async def _setup_home_assistant_async(
     # creates the definitive runner and starts the server reliably.
     await hass.http.start()
 
-    return hass, access_token, refresh_token_id
+    return hass, access_token, refresh_token_value
 
 
 def _run_hass_thread(
@@ -408,9 +399,9 @@ def _run_hass_thread(
         async_stop_event_holder.append(async_stop_event)
 
         try:
-            hass, access_token, refresh_token_id = await _setup_home_assistant_async(port, config_dir)
+            hass, access_token, refresh_token_value = await _setup_home_assistant_async(port, config_dir)
             hass_holder.append(hass)
-            token_holder.append((access_token, refresh_token_id))
+            token_holder.append((access_token, refresh_token_value))
             ready_event.set()
 
             # Wait for stop signal from main thread
@@ -455,7 +446,7 @@ def live_home_assistant(
             # Use Playwright to interact with hass.url
 
     """
-    port = _find_free_port()
+    port = 0
 
     # Create a temporary config directory (HA requires one even if minimal)
     with tempfile.TemporaryDirectory(prefix="ha_guide_") as tmp_dir:
@@ -509,9 +500,10 @@ def live_home_assistant(
             raise error_holder[0]
 
         hass = hass_holder[0]
-        access_token, refresh_token_id = token_holder[0]
+        access_token, refresh_token_value = token_holder[0]
         loop = loop_holder[0]
         async_stop_event = async_stop_event_holder[0]
+        port = getattr(hass.http, "server_port", port)
 
         instance = LiveHomeAssistant(
             hass=hass,
@@ -519,7 +511,7 @@ def live_home_assistant(
             port=port,
             loop=loop,
             access_token=access_token,
-            refresh_token_id=refresh_token_id,
+            refresh_token=refresh_token_value,
             _stop_event=async_stop_event,
         )
 

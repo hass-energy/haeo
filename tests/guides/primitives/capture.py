@@ -2,7 +2,7 @@
 
 Provides hierarchical screenshot naming through a context stack.
 Screenshots are named based on the function call hierarchy, e.g.:
-    add_grid.select_entity.Import_Price.search
+    001_add_grid.select_entity.Import_Price.search.png
 """
 
 from __future__ import annotations
@@ -30,15 +30,17 @@ _holder = _ContextHolder()
 class ScreenshotContext:
     """Context for collecting screenshots with hierarchical naming.
 
-    Screenshots are stored in an OrderedDict with keys like:
-        "add_grid.fill_textbox.Grid_Name"
-        "add_grid.select_entity.Import_Price.search"
+    Screenshots are stored in an OrderedDict keyed by filenames like:
+        "001_add_grid.fill_textbox.Grid_Name.png"
+        "002_add_grid.select_entity.Import_Price.search.png"
 
-    The naming hierarchy is built from:
+    The logical naming hierarchy is built from:
     1. The decorated function name (e.g., "add_grid")
     2. The HAPage method name (e.g., "select_entity")
     3. The element/field name (e.g., "Import_Price")
     4. Optional step suffix (e.g., "search", "result")
+
+    Filenames add a numeric prefix and .png extension for ordering.
     """
 
     output_dir: Path
@@ -123,7 +125,7 @@ def screenshot_context(output_dir: Path) -> Iterator[ScreenshotContext]:
         with screenshot_context(output_dir) as ctx:
             add_integration(page, "My System")
             add_battery(page, ...)
-            # ctx.screenshots contains all captured screenshots
+            # ctx.screenshots is keyed by filenames with step prefixes
 
     """
     output_dir.mkdir(parents=True, exist_ok=True)
