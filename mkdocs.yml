@@ -138,6 +138,10 @@ extra_css:
 nav:
   - Home: index.md
 
+  - Walkthroughs:
+      - walkthroughs/index.md
+      - Sigenergy System: walkthroughs/sigenergy-system.md
+
   - User Guide:
       - user-guide/index.md
       - Installation: user-guide/installation.md
@@ -211,7 +215,3 @@ nav:
       - Config Flow: developer-guide/config-flow.md
       - Testing: developer-guide/testing.md
       - Contributing: developer-guide/contributing.md
-
-  - Walkthroughs:
-      - walkthroughs/index.md
-      - Sigenergy System: walkthroughs/sigenergy-system.md
