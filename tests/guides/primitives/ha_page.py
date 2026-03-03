@@ -84,7 +84,8 @@ class HAPage:
 
         clickable_selector = (
             "button, [role='button'], [role='option'], [role='listitem'], a, "
-            "ha-list-item, ha-combo-box-item, mwc-list-item, md-item, "
+            "ha-list-item, ha-combo-box-item, mwc-list-item, "
+            "ha-md-list-item, md-item, "
             "ha-button, ha-icon-button, .mdc-text-field, ha-textfield, "
             "input, select, ha-select, ha-integration-list-item"
         )

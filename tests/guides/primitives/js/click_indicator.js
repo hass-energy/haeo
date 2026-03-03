@@ -12,46 +12,65 @@
     } catch (e) {}
   }
 
-  let target = el;
-
-  // For standard HTML elements, prefer the nearest clickable ancestor
-  if (!el.tagName.includes('-')) {
-    const clickableParent = el.closest(clickableSelector);
-    if (clickableParent) target = clickableParent;
+  // Walk up through shadow DOM boundaries to find the closest matching ancestor.
+  // Unlike Element.closest(), this crosses shadow root boundaries by jumping
+  // from each shadow root to its host element and continuing the search.
+  function closestAcrossShadow(node, selector) {
+    let current = node;
+    while (current) {
+      const match = current.closest ? current.closest(selector) : null;
+      if (match) return match;
+      const root = current.getRootNode();
+      if (root === document || !root.host) return null;
+      current = root.host;
+    }
+    return null;
   }
 
-  const mdcTextField = el.closest("label.mdc-text-field");
+  let target = el;
+
+  // Walk up through shadow DOM to find the nearest clickable ancestor
+  const clickableParent = closestAcrossShadow(el, clickableSelector);
+  if (clickableParent) target = clickableParent;
+
+  // More specific overrides below — these take priority over the generic match
+
+  const mdcTextField = closestAcrossShadow(el, "label.mdc-text-field");
   if (mdcTextField) target = mdcTextField;
 
-  const comboBoxRow = el.closest(".combo-box-row");
+  const comboBoxRow = closestAcrossShadow(el, ".combo-box-row");
   if (comboBoxRow) target = comboBoxRow;
 
-  const comboBoxItem = el.closest("ha-combo-box-item");
+  const comboBoxItem = closestAcrossShadow(el, "ha-combo-box-item");
   if (comboBoxItem) {
-    const row = comboBoxItem.closest(".combo-box-row");
+    const row = closestAcrossShadow(comboBoxItem, ".combo-box-row");
     target = row || comboBoxItem;
   }
 
-  const entityListItem = el.closest(
+  const entityListItem = closestAcrossShadow(el,
     "ha-list-item, mwc-list-item, md-list-item, " + '[role="listitem"], [role="option"]'
   );
   if (entityListItem) {
-    const listItemParent = entityListItem.closest("ha-list-item, mwc-list-item, md-list-item, md-item");
+    const listItemParent = closestAcrossShadow(entityListItem,
+      "ha-list-item, mwc-list-item, md-list-item, md-item"
+    );
     target = listItemParent || entityListItem;
   }
 
-  const haListItem = el.closest("ha-list-item");
+  const haListItem = closestAcrossShadow(el, "ha-list-item");
   if (haListItem) target = haListItem;
 
-  const mdItem = el.closest("md-item");
+  const mdItem = closestAcrossShadow(el, "md-item");
   if (mdItem) target = mdItem;
 
-  const integrationItem = el.closest("ha-integration-list-item");
+  const integrationItem = closestAcrossShadow(el, "ha-integration-list-item");
   if (integrationItem) target = integrationItem;
 
-  const roleItem = el.closest('[role="listitem"], [role="option"]');
+  const roleItem = closestAcrossShadow(el, '[role="listitem"], [role="option"]');
   if (roleItem) {
-    const haWrapper = roleItem.closest("ha-list-item, md-item, mwc-list-item, .combo-box-row");
+    const haWrapper = closestAcrossShadow(roleItem,
+      "ha-list-item, md-item, mwc-list-item, .combo-box-row"
+    );
     target = haWrapper || roleItem;
   }
 
