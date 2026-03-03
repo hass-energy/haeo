@@ -9,13 +9,12 @@ Screenshots are written to the guide's output directory under docs/
 (gitignored) so the docs build serves them as static assets.
 
 Run with:
-    RUN_GUIDES=true uv run pytest tests/guides/test_guides.py -m guide -v
+    uv run pytest tests/guides/test_guides.py -m guide -v
 """
 
 from __future__ import annotations
 
 import logging
-import os
 from pathlib import Path
 
 import pytest
@@ -51,10 +50,6 @@ GUIDE_FILES = _discover_guide_files()
 @pytest.mark.guide
 @pytest.mark.enable_socket
 @pytest.mark.timeout(300)
-@pytest.mark.skipif(
-    os.getenv("RUN_GUIDES") != "true",
-    reason="Guide tests are opt-in; set RUN_GUIDES=true",
-)
 @pytest.mark.parametrize("dark_mode", [False, True], ids=["light", "dark"])
 @pytest.mark.parametrize(
     "guide_md",

@@ -266,7 +266,7 @@ uv run pytest -m guide -v --timeout=300
 uv run python -m tools.guide_runner docs/walkthroughs/sigenergy-system.md
 ```
 
-Guide tests require the `RUN_GUIDES` environment variable or the `-m guide` pytest marker.
+Guide tests are selected via the `-m guide` pytest marker and are not included in default test runs.
 They need a live Home Assistant instance (started automatically by the test fixtures) and Playwright Firefox.
 
 ### CI integration

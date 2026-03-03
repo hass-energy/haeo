@@ -48,8 +48,6 @@ jobs:
 
       - name: Generate guide screenshots
         run: uv run pytest -m guide -v --timeout=300
-        env:
-          RUN_GUIDES: "true"
 
       - name: Optimize screenshots
         run: |
