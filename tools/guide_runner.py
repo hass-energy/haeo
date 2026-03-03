@@ -93,17 +93,20 @@ class GuideManifest:
 
     Attributes:
         page_hash: Combined hash of all block sources for cache invalidation.
+        viewport: Screenshot viewport dimensions {width, height} in pixels.
         blocks: Per-block screenshot results.
 
     """
 
     page_hash: str
+    viewport: dict[str, int]
     blocks: list[BlockResult]
 
     def to_dict(self) -> dict[str, object]:
         """Serialize to a JSON-compatible dict."""
         return {
             "page_hash": self.page_hash,
+            "viewport": self.viewport,
             "blocks": [
                 {
                     "index": b.index,
@@ -128,6 +131,7 @@ class GuideManifest:
             data = json.load(f)
         return GuideManifest(
             page_hash=data["page_hash"],
+            viewport=data.get("viewport", {"width": 1280, "height": 800}),
             blocks=[
                 BlockResult(
                     index=b["index"],
@@ -275,7 +279,7 @@ def run_guide_from_markdown(
 
     if not blocks:
         _LOGGER.warning("No guide blocks found in %s", markdown_path)
-        return GuideManifest(page_hash="empty", blocks=[])
+        return GuideManifest(page_hash="empty", viewport={"width": 1280, "height": 800}, blocks=[])
 
     page_hash = compute_page_hash(blocks)
     output_dir = output_dir_for_guide(markdown_path)
@@ -289,6 +293,8 @@ def run_guide_from_markdown(
             return existing
 
     _LOGGER.info("Running guide from %s (%d blocks)", markdown_path.name, len(blocks))
+
+    viewport = {"width": 1280, "height": 800}
 
     with live_home_assistant(timeout=120) as hass:
         hass.load_states_from_file(INPUTS_FILE)
@@ -315,7 +321,7 @@ def run_guide_from_markdown(
         for i, block in enumerate(blocks)
     ]
 
-    manifest = GuideManifest(page_hash=page_hash, blocks=block_results)
+    manifest = GuideManifest(page_hash=page_hash, viewport=viewport, blocks=block_results)
     manifest.save(manifest_path)
 
     total_screenshots = sum(len(b.screenshots) for b in block_results)

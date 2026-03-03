@@ -142,6 +142,7 @@ class HAPage:
     def click_button(self, name: str) -> None:
         """Click a button by accessible name.
 
+        Waits for the button to be visible and enabled before clicking.
         Captures a screenshot with the target indicator before clicking.
         Does not capture a result screenshot — downstream actions (e.g.,
         wait_for_dialog) capture the resulting state when it is ready.
@@ -149,7 +150,19 @@ class HAPage:
         ctx = ScreenshotContext.current()
 
         button = self.page.get_by_role("button", name=name)
-        button.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
+        button.wait_for(state="visible", timeout=SEARCH_TIMEOUT)
+
+        # Wait for button to become enabled (e.g., after integration loads)
+        self.page.wait_for_function(
+            """(name) => {
+                const btn = [...document.querySelectorAll('[role="button"]')]
+                    .find(b => b.textContent.trim().includes(name));
+                return btn && !btn.disabled
+                    && btn.getAttribute('aria-disabled') !== 'true';
+            }""",
+            arg=name,
+            timeout=SEARCH_TIMEOUT,
+        )
 
         if ctx:
             with ctx.scope(f"click_{name}"):

@@ -30,7 +30,8 @@ _DOCS_DIR = Path(__file__).parent.parent / "docs"
 
 # Lazy-loaded index: maps content_hash -> block data dict.
 # Each block dict is enriched with "_prev_last_screenshot" (str | None)
-# from the preceding block in the same manifest for carry-over slides.
+# from the preceding block in the same manifest for carry-over slides,
+# and "_viewport" (dict) from the manifest-level viewport dimensions.
 _block_index: dict[str, dict[str, object]] | None = None
 
 
@@ -38,8 +39,8 @@ def _load_manifests() -> dict[str, dict[str, object]]:
     """Scan docs/ for manifest.json files and index blocks by content hash.
 
     Enriches each block with ``_prev_last_screenshot`` — the last screenshot
-    filename from the preceding block in the same page manifest. This enables
-    cross-block visual continuity in the rendered slideshows.
+    filename from the preceding block in the same page manifest, and
+    ``_viewport`` — the screenshot viewport dimensions from the manifest.
     """
     index: dict[str, dict[str, object]] = {}
 
@@ -51,6 +52,7 @@ def _load_manifests() -> dict[str, dict[str, object]]:
             _LOGGER.debug("Skipping invalid manifest: %s", manifest_path)
             continue
 
+        viewport = data.get("viewport", {"width": 1280, "height": 800})
         blocks = data.get("blocks", [])
         for i, block in enumerate(blocks):
             if not isinstance(block, dict) or "content_hash" not in block:
@@ -65,6 +67,7 @@ def _load_manifests() -> dict[str, dict[str, object]]:
                     prev_last = prev_screenshots[-1]
 
             block["_prev_last_screenshot"] = prev_last
+            block["_viewport"] = viewport
             index[block["content_hash"]] = block
 
     _LOGGER.debug("Loaded %d guide blocks from manifests", len(index))
@@ -153,9 +156,13 @@ def _render_slideshow(block: dict[str, object], source: str) -> str:
     slides = "\n".join(slides_html)
     total = len(all_screenshots)
 
+    viewport: dict[str, int] = block.get("_viewport", {"width": 1280, "height": 800})  # type: ignore[assignment]
+    vp_width = viewport.get("width", 1280)
+    vp_height = viewport.get("height", 800)
+
     return (
         f'<div class="guide-slideshow" data-total="{total}"'
-        f' data-width="1280" data-height="800">\n'
+        f' data-width="{vp_width}" data-height="{vp_height}">\n'
         f'  <div class="guide-slides">\n{slides}\n  </div>\n'
         f'  <div class="guide-controls">\n'
         f'    <button class="guide-prev" aria-label="Previous step" disabled>&lsaquo;</button>\n'
