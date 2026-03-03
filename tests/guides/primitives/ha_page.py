@@ -444,9 +444,14 @@ class HAPage:
         _LOGGER.info("Dialog closed successfully")
 
     def wait_for_dialog(self, title: str) -> None:
-        """Wait for dialog with given title to appear and be fully rendered."""
+        """Wait for dialog with given title to appear and be fully rendered.
+
+        Uses state="attached" because ha-dialog is a Shadow DOM component
+        whose internal visibility transitions aren't affected by page-level
+        CSS. The open="" attribute on the element is the reliable signal.
+        """
         dialog = self.page.locator("ha-dialog").filter(has_text=title)
-        dialog.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
+        dialog.wait_for(state="attached", timeout=DEFAULT_TIMEOUT)
         self.page.wait_for_load_state("domcontentloaded")
         self._capture("dialog_opened")
 
