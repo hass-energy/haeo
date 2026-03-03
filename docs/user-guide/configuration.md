@@ -258,6 +258,6 @@ Use these resources to expand your configuration and understand the results.
 
     Follow a full walkthrough that combines all configuration steps.
 
-    [:material-arrow-right: Sigenergy example](examples/sigenergy-system.md)
+    [:material-arrow-right: Sigenergy walkthrough](../walkthroughs/sigenergy-system.md)
 
 </div>

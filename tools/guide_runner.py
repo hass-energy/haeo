@@ -8,7 +8,7 @@ Consecutive code blocks share the same HA + browser context so that state
 accumulates across blocks (e.g., add_inverter in block 1, add_battery in block 2).
 
 Usage:
-    uv run python -m tools.guide_runner docs/user-guide/examples/sigenergy-system.md
+    uv run python -m tools.guide_runner docs/walkthroughs/sigenergy-system.md
 """
 
 from __future__ import annotations
@@ -209,10 +209,18 @@ def run_blocks_for_mode(
 
     with sync_playwright() as p:
         browser = p.firefox.launch(headless=headless)
-        context = browser.new_context(viewport={"width": 1280, "height": 800})
+        context = browser.new_context(
+            viewport={"width": 1280, "height": 800},
+            reduced_motion="reduce",
+        )
         hass.inject_auth(context, dark_mode=dark_mode)
         page_obj = context.new_page()
         page_obj.set_default_timeout(5000)
+
+        # Kill all CSS animations and transitions globally
+        page_obj.add_style_tag(
+            content="*, *::before, *::after { animation-duration: 0s !important; transition-duration: 0s !important; }"
+        )
 
         try:
             page = HAPage(page=page_obj, url=hass.url)

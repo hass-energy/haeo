@@ -10,6 +10,10 @@ docs directory on first use — no hook or build wrapper needed.
 
 If no manifest exists (e.g., guide tests haven't been run yet),
 the code block is rendered as a styled placeholder.
+
+Cross-block continuity: blocks after the first in a page automatically
+get the previous block's last screenshot prepended as their first slide,
+providing visual continuity between slideshows.
 """
 
 from __future__ import annotations
@@ -25,12 +29,18 @@ _LOGGER = logging.getLogger(__name__)
 _DOCS_DIR = Path(__file__).parent.parent / "docs"
 
 # Lazy-loaded index: maps content_hash -> block data dict.
-# Populated on first call to _find_block().
+# Each block dict is enriched with "_prev_last_screenshot" (str | None)
+# from the preceding block in the same manifest for carry-over slides.
 _block_index: dict[str, dict[str, object]] | None = None
 
 
 def _load_manifests() -> dict[str, dict[str, object]]:
-    """Scan docs/ for manifest.json files and index blocks by content hash."""
+    """Scan docs/ for manifest.json files and index blocks by content hash.
+
+    Enriches each block with ``_prev_last_screenshot`` — the last screenshot
+    filename from the preceding block in the same page manifest. This enables
+    cross-block visual continuity in the rendered slideshows.
+    """
     index: dict[str, dict[str, object]] = {}
 
     for manifest_path in _DOCS_DIR.rglob("manifest.json"):
@@ -41,9 +51,21 @@ def _load_manifests() -> dict[str, dict[str, object]]:
             _LOGGER.debug("Skipping invalid manifest: %s", manifest_path)
             continue
 
-        for block in data.get("blocks", []):
-            if isinstance(block, dict) and "content_hash" in block:
-                index[block["content_hash"]] = block
+        blocks = data.get("blocks", [])
+        for i, block in enumerate(blocks):
+            if not isinstance(block, dict) or "content_hash" not in block:
+                continue
+
+            # Find the last screenshot of the previous block for carry-over
+            prev_last: str | None = None
+            if i > 0:
+                prev_block = blocks[i - 1]
+                prev_screenshots = prev_block.get("screenshots", [])
+                if prev_screenshots:
+                    prev_last = prev_screenshots[-1]
+
+            block["_prev_last_screenshot"] = prev_last
+            index[block["content_hash"]] = block
 
     _LOGGER.debug("Loaded %d guide blocks from manifests", len(index))
     return index
@@ -89,20 +111,35 @@ def _screenshot_label(filename: str) -> str:
 
 
 def _render_slideshow(block: dict[str, object], source: str) -> str:
-    """Render a screenshot slideshow for a guide block."""
+    """Render a screenshot slideshow for a guide block.
+
+    If the block has a predecessor (non-first block in a page), the
+    previous block's last screenshot is prepended as a carry-over slide
+    for visual continuity.
+    """
     screenshots: list[str] = block.get("screenshots", [])  # type: ignore[assignment]
 
     if not screenshots:
         return _render_placeholder(source, "No screenshots captured for this block")
 
-    labels = [_screenshot_label(f) for f in screenshots]
+    # Build the full slide list with optional carry-over from previous block
+    all_screenshots: list[str] = []
+    all_labels: list[str] = []
+
+    prev_last: str | None = block.get("_prev_last_screenshot")  # type: ignore[assignment]
+    if prev_last:
+        all_screenshots.append(prev_last)
+        all_labels.append(_screenshot_label(prev_last))
+
+    all_screenshots.extend(screenshots)
+    all_labels.extend(_screenshot_label(f) for f in screenshots)
 
     # Build slide HTML
     slides_html: list[str] = []
-    for i, label in enumerate(labels):
+    for i, label in enumerate(all_labels):
         active = ' data-active="true"' if i == 0 else ""
-        light_src = f"light/{screenshots[i]}"
-        dark_src = f"dark/{screenshots[i]}"
+        light_src = f"light/{all_screenshots[i]}"
+        dark_src = f"dark/{all_screenshots[i]}"
 
         slides_html.append(
             f'  <div class="guide-slide"{active}'
@@ -114,7 +151,7 @@ def _render_slideshow(block: dict[str, object], source: str) -> str:
         )
 
     slides = "\n".join(slides_html)
-    total = len(screenshots)
+    total = len(all_screenshots)
 
     return (
         f'<div class="guide-slideshow" data-total="{total}">\n'
@@ -122,7 +159,7 @@ def _render_slideshow(block: dict[str, object], source: str) -> str:
         f'  <div class="guide-controls">\n'
         f'    <button class="guide-prev" aria-label="Previous step" disabled>&lsaquo;</button>\n'
         f'    <span class="guide-counter">1 / {total}</span>\n'
-        f'    <span class="guide-label">{escape(labels[0]) if labels else ""}</span>\n'
+        f'    <span class="guide-label">{escape(all_labels[0]) if all_labels else ""}</span>\n'
         f'    <button class="guide-next" aria-label="Next step">&rsaquo;</button>\n'
         f"  </div>\n"
         f"</div>"

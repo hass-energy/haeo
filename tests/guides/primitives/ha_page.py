@@ -31,6 +31,22 @@ SEARCH_TIMEOUT = 5000  # 5 seconds for entity search results
 _JS_DIR = Path(__file__).parent / "js"
 _CLICK_INDICATOR_JS = (_JS_DIR / "click_indicator.js").read_text()
 
+# JavaScript to find the scroll container for a given element.
+# HA dialogs scroll inside their own container, not the window.
+_GET_SCROLL_TOP_JS = """
+(el) => {
+    let node = el;
+    while (node) {
+        if (node.scrollHeight > node.clientHeight + 1 && node.clientHeight > 0) {
+            return node.scrollTop;
+        }
+        // Walk through shadow roots
+        node = node.parentElement || (node.getRootNode && node.getRootNode()).host;
+    }
+    return window.scrollY;
+}
+"""
+
 
 @dataclass
 class HAPage:
@@ -84,9 +100,26 @@ class HAPage:
             }
         """)
 
-    def _scroll_into_view(self, locator: Any) -> None:
-        """Scroll element into view."""
+    def _scroll_into_view(self, locator: Any) -> bool:
+        """Scroll element into view if needed.
+
+        Returns True if the page actually scrolled, False if the element
+        was already visible.
+        """
+        element = locator.element_handle(timeout=DEFAULT_TIMEOUT)
+        if not element:
+            return False
+
+        before = element.evaluate(_GET_SCROLL_TOP_JS)
         locator.scroll_into_view_if_needed(timeout=DEFAULT_TIMEOUT)
+        after = element.evaluate(_GET_SCROLL_TOP_JS)
+        return abs(after - before) > 1
+
+    def _scroll_and_capture(self, locator: Any) -> None:
+        """Scroll element into view and capture a screenshot if scrolling occurred."""
+        scrolled = self._scroll_into_view(locator)
+        if scrolled:
+            self._capture("scrolled")
 
     # endregion
 
@@ -107,7 +140,12 @@ class HAPage:
     # region: Form Interactions
 
     def click_button(self, name: str) -> None:
-        """Click a button by accessible name."""
+        """Click a button by accessible name.
+
+        Captures a screenshot with the target indicator before clicking.
+        Does not capture a result screenshot — downstream actions (e.g.,
+        wait_for_dialog) capture the resulting state when it is ready.
+        """
         ctx = ScreenshotContext.current()
 
         button = self.page.get_by_role("button", name=name)
@@ -115,11 +153,10 @@ class HAPage:
 
         if ctx:
             with ctx.scope(f"click_{name}"):
-                self._scroll_into_view(button)
+                self._scroll_and_capture(button)
                 self._capture_with_indicator("target", button)
                 button.click(timeout=DEFAULT_TIMEOUT)
                 self.page.wait_for_load_state("domcontentloaded")
-                self._capture("result")
         else:
             button.click(timeout=DEFAULT_TIMEOUT)
 
@@ -134,7 +171,7 @@ class HAPage:
         ctx = ScreenshotContext.current()
         if ctx:
             with ctx.scope(f"fill_{name}"):
-                self._scroll_into_view(textbox)
+                self._scroll_and_capture(textbox)
                 self._capture_with_indicator("field", textbox)
                 textbox.fill(value)
                 self._capture("filled")
@@ -148,7 +185,7 @@ class HAPage:
         ctx = ScreenshotContext.current()
         if ctx:
             with ctx.scope(f"fill_{name}"):
-                self._scroll_into_view(spinbutton)
+                self._scroll_and_capture(spinbutton)
                 self._capture_with_indicator("field", spinbutton)
                 spinbutton.clear()
                 spinbutton.fill(value)
@@ -165,7 +202,7 @@ class HAPage:
         ctx = ScreenshotContext.current()
         if ctx:
             with ctx.scope(f"select_{combobox_name}"):
-                self._scroll_into_view(combobox)
+                self._scroll_and_capture(combobox)
                 self._capture_with_indicator("dropdown", combobox)
                 combobox.click()
 
@@ -204,14 +241,12 @@ class HAPage:
         ctx = ScreenshotContext.current()
         if ctx:
             with ctx.scope(f"expand_{section_name}"):
-                self._scroll_into_view(panel)
+                self._scroll_and_capture(panel)
                 self._capture_with_indicator("collapsed", panel)
                 panel.click()
-                self.page.wait_for_timeout(400)  # Wait for expand animation
                 self._capture("expanded")
         else:
             panel.click()
-            self.page.wait_for_timeout(400)
 
     # endregion
 
@@ -231,7 +266,7 @@ class HAPage:
         ctx = ScreenshotContext.current()
         if ctx:
             with ctx.scope(f"choose_{field_label}_{choice}"):
-                self._scroll_into_view(button)
+                self._scroll_and_capture(choose)
                 self._capture_with_indicator("button", button)
                 button.click(timeout=DEFAULT_TIMEOUT)
                 self._capture("selected")
@@ -247,7 +282,7 @@ class HAPage:
         """Select an entity within a ChooseSelector field.
 
         Assumes the "Entity" choice is already active (the default for entity-mode fields).
-        The nested entity picker uses the same combo-box-item → dialog → search pattern.
+        The nested entity picker uses the same combo-box-item -> dialog -> search pattern.
         """
         choose = self.page.locator("ha-selector-choose").filter(has_text=field_label)
         choose.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
@@ -257,7 +292,7 @@ class HAPage:
         ctx = ScreenshotContext.current()
         if ctx:
             with ctx.scope(f"entity_{field_label}"):
-                self._scroll_into_view(picker)
+                self._scroll_and_capture(choose)
                 self._capture_with_indicator("picker", picker)
 
                 picker.click()
@@ -297,7 +332,7 @@ class HAPage:
         ctx = ScreenshotContext.current()
         if ctx:
             with ctx.scope(f"add_entity_{field_label}"):
-                self._scroll_into_view(add_btn)
+                self._scroll_and_capture(choose)
                 self._capture_with_indicator("add_button", add_btn)
 
                 add_btn.click(timeout=DEFAULT_TIMEOUT)
@@ -345,7 +380,7 @@ class HAPage:
         ctx = ScreenshotContext.current()
         if ctx:
             with ctx.scope(f"constant_{field_label}"):
-                self._scroll_into_view(spinbutton)
+                self._scroll_and_capture(choose)
                 self._capture_with_indicator("field", spinbutton)
                 spinbutton.clear()
                 spinbutton.fill(value)
@@ -387,14 +422,18 @@ class HAPage:
     # region: Dialogs
 
     def close_element_dialog(self) -> None:
-        """Close element creation success dialog."""
+        """Close element creation success dialog.
+
+        Captures the success dialog state (showing Skip and Finish buttons)
+        before indicating and clicking Finish.
+        """
         button = self.page.get_by_role("button", name="Finish")
         button.wait_for(state="visible", timeout=SEARCH_TIMEOUT)
 
         ctx = ScreenshotContext.current()
         if ctx:
             with ctx.scope("finish_dialog"):
-                self._scroll_into_view(button)
+                self._capture("dialog")
                 self._capture_with_indicator("button", button)
                 button.click(timeout=DEFAULT_TIMEOUT)
                 button.wait_for(state="hidden", timeout=DEFAULT_TIMEOUT)
@@ -405,9 +444,10 @@ class HAPage:
         _LOGGER.info("Dialog closed successfully")
 
     def wait_for_dialog(self, title: str) -> None:
-        """Wait for dialog with given title to appear."""
+        """Wait for dialog with given title to appear and be fully rendered."""
         dialog = self.page.locator("ha-dialog").filter(has_text=title)
-        dialog.wait_for(state="attached", timeout=DEFAULT_TIMEOUT)
+        dialog.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
+        self.page.wait_for_load_state("domcontentloaded")
         self._capture("dialog_opened")
 
     def submit(self) -> None:
@@ -434,6 +474,8 @@ class HAPage:
 
                 item = self.page.locator("ha-integration-list-item", has_text=integration_name)
                 item.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
+                # Wait for brand images to load
+                self._wait_for_images(item)
                 self._capture("results")
                 self._capture_with_indicator("select", item)
 
@@ -444,6 +486,23 @@ class HAPage:
             item = self.page.locator("ha-integration-list-item", has_text=integration_name)
             item.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
             item.click(timeout=DEFAULT_TIMEOUT)
+
+    def _wait_for_images(self, locator: Any) -> None:
+        """Wait for all images within a locator to finish loading."""
+        locator.evaluate("""
+            (el) => {
+                const imgs = el.querySelectorAll('img');
+                return Promise.all(
+                    Array.from(imgs).map(img => {
+                        if (img.complete && img.naturalWidth > 0) return;
+                        return new Promise(resolve => {
+                            img.addEventListener('load', resolve, { once: true });
+                            img.addEventListener('error', resolve, { once: true });
+                        });
+                    })
+                );
+            }
+        """)
 
     def click_add_integration(self) -> None:
         """Click the Add integration button."""

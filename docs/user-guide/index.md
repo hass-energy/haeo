@@ -12,7 +12,7 @@ This guide covers everything you need to know as an end user:
 3. **[Elements](elements/index.md)** - Configure batteries, grids, solar, and loads
 4. **[Connections](elements/connections.md)** - Define how energy flows between devices
 5. **[Understanding Results](optimization.md)** - Interpret optimization outputs
-6. **[Examples](examples/sigenergy-system.md)** - Complete system configuration walkthroughs
+6. **[Walkthroughs](../walkthroughs/index.md)** - Step-by-step system configuration guides
 7. **[Troubleshooting](troubleshooting.md)** - Solve common issues
 
 ## Prerequisites
@@ -77,7 +77,7 @@ We recommend installing via HACS for automatic updates, but manual installation 
 
 Not sure where to start? Check out our complete system examples:
 
-- **[Sigenergy System](examples/sigenergy-system.md)** - Battery, solar, grid, and forecast load
+- **[Sigenergy System](../walkthroughs/sigenergy-system.md)** - Battery, solar, grid, and forecast load
 
 These examples show real-world configurations with all the details you need to replicate similar setups.
 
