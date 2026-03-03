@@ -64,7 +64,15 @@ def _load_manifests() -> dict[str, dict[str, object]]:
 
             block["_prev_last_screenshot"] = prev_last
             block["_viewport"] = viewport
-            index[block["content_hash"]] = block
+
+            content_hash = block["content_hash"]
+            if content_hash in index:
+                _LOGGER.warning(
+                    "Duplicate guide block hash %s in %s (already seen in another manifest)",
+                    content_hash,
+                    manifest_path,
+                )
+            index[content_hash] = block
 
     _LOGGER.debug("Loaded %d guide blocks from manifests", len(index))
     return index
