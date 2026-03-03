@@ -217,11 +217,6 @@ def run_blocks_for_mode(
         page_obj = context.new_page()
         page_obj.set_default_timeout(5000)
 
-        # Kill all CSS animations and transitions globally
-        page_obj.add_style_tag(
-            content="*, *::before, *::after { animation-duration: 0s !important; transition-duration: 0s !important; }"
-        )
-
         try:
             page = HAPage(page=page_obj, url=hass.url)
             namespace = build_exec_namespace(page)
