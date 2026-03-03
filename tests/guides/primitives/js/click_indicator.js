@@ -47,13 +47,12 @@
     target = row || comboBoxItem;
   }
 
-  const entityListItem = closestAcrossShadow(el,
+  const entityListItem = closestAcrossShadow(
+    el,
     "ha-list-item, mwc-list-item, md-list-item, " + '[role="listitem"], [role="option"]'
   );
   if (entityListItem) {
-    const listItemParent = closestAcrossShadow(entityListItem,
-      "ha-list-item, mwc-list-item, md-list-item, md-item"
-    );
+    const listItemParent = closestAcrossShadow(entityListItem, "ha-list-item, mwc-list-item, md-list-item, md-item");
     target = listItemParent || entityListItem;
   }
 
@@ -68,9 +67,7 @@
 
   const roleItem = closestAcrossShadow(el, '[role="listitem"], [role="option"]');
   if (roleItem) {
-    const haWrapper = closestAcrossShadow(roleItem,
-      "ha-list-item, md-item, mwc-list-item, .combo-box-row"
-    );
+    const haWrapper = closestAcrossShadow(roleItem, "ha-list-item, md-item, mwc-list-item, .combo-box-row");
     target = haWrapper || roleItem;
   }
 
