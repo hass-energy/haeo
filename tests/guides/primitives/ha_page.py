@@ -126,7 +126,11 @@ class HAPage:
     # region: Navigation
 
     def goto(self, path: str) -> None:
-        """Navigate to a path within Home Assistant."""
+        """Navigate to a path within Home Assistant.
+
+        Only used for the initial page load. All subsequent navigation
+        should use click-based methods to demonstrate the real user flow.
+        """
         full_url = f"{self.url}{path}" if path.startswith("/") else path
         self.page.goto(full_url)
         self.page.wait_for_load_state("networkidle")
@@ -134,6 +138,56 @@ class HAPage:
     def wait_for_load(self) -> None:
         """Wait for page to finish loading."""
         self.page.wait_for_load_state("networkidle")
+
+    def navigate_to_settings(self) -> None:
+        """Navigate to Settings via sidebar click."""
+        ctx = ScreenshotContext.current()
+        settings = self.page.get_by_text("Settings")
+        settings.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
+
+        if ctx:
+            with ctx.scope("navigate_settings"):
+                self._capture("home")
+                self._capture_with_indicator("sidebar", settings)
+                settings.click()
+                self.page.wait_for_load_state("networkidle")
+                self._capture("settings_page")
+        else:
+            settings.click()
+            self.page.wait_for_load_state("networkidle")
+
+    def navigate_to_integrations(self) -> None:
+        """Navigate to Devices & services from Settings page."""
+        ctx = ScreenshotContext.current()
+        ds = self.page.get_by_text("Devices & services")
+        ds.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
+
+        if ctx:
+            with ctx.scope("navigate_integrations"):
+                self._capture_with_indicator("settings_item", ds)
+                ds.click()
+                self.page.wait_for_load_state("networkidle")
+                self._capture("integrations_page")
+        else:
+            ds.click()
+            self.page.wait_for_load_state("networkidle")
+
+    def navigate_to_integration(self, name: str) -> None:
+        """Navigate to a specific integration page by clicking its card."""
+        ctx = ScreenshotContext.current()
+        card = self.page.locator("ha-integration-card").filter(has_text=name)
+        card.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
+
+        if ctx:
+            with ctx.scope("navigate_integration"):
+                self._scroll_and_capture(card)
+                self._capture_with_indicator("card", card)
+                card.click()
+                self.page.wait_for_load_state("networkidle")
+                self._capture("integration_page")
+        else:
+            card.click()
+            self.page.wait_for_load_state("networkidle")
 
     # endregion
 

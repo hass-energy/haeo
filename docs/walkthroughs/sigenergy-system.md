@@ -47,7 +47,7 @@ Before starting this configuration, ensure you have:
 
 ### Step 1: Log In and Add HAEO
 
-Navigate to your Home Assistant instance and search for the HAEO integration.
+Log in to your Home Assistant instance, navigate to **Settings → Devices & services**, and add the HAEO integration.
 Enter a name for your energy network — this example uses "Sigenergy System".
 
 ```guide

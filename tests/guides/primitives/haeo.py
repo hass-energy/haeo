@@ -38,7 +38,6 @@ from custom_components.haeo.core.schema.sections import (
 )
 
 from .capture import guide_step
-from .ha_page import DEFAULT_TIMEOUT
 
 if TYPE_CHECKING:
     from custom_components.haeo.elements.input_fields import InputFieldGroups
@@ -248,7 +247,7 @@ def _fill_element_fields(
 
 @guide_step
 def login(page: HAPage) -> None:
-    """Log in to Home Assistant."""
+    """Log in to Home Assistant and navigate to integrations."""
     _LOGGER.info("Logging in...")
     page.goto("/")
 
@@ -258,6 +257,9 @@ def login(page: HAPage) -> None:
         page.click_button("Log in")
         page.page.wait_for_url("**/lovelace/**", timeout=5000)
 
+    page.navigate_to_settings()
+    page.navigate_to_integrations()
+
     _LOGGER.info("Logged in")
 
 
@@ -266,7 +268,6 @@ def add_integration(page: HAPage, *, network_name: str) -> None:
     """Add HAEO integration to Home Assistant."""
     _LOGGER.info("Adding HAEO integration: %s", network_name)
 
-    page.goto("/config/integrations")
     page.click_add_integration()
     page.search_integration("HAEO")
 
@@ -274,14 +275,13 @@ def add_integration(page: HAPage, *, network_name: str) -> None:
     page.fill_textbox("System Name", network_name)
     page.submit()
 
-    # Wait for the success dialog before navigating away.
+    # Wait for the success dialog before navigating to the integration page.
     # The config entry setup runs inline in the POST handler (HA uses
     # handler_cancellation=True), so navigating before the response
     # arrives cancels the setup task.
     page.close_success_dialog()
 
-    page.goto("/config/integrations/integration/haeo")
-    page._capture("integration_page")
+    page.navigate_to_integration("HAEO")
 
     _LOGGER.info("HAEO integration added")
 
@@ -299,7 +299,6 @@ def add_inverter(
     et = ElementType.INVERTER
     _LOGGER.info("Adding Inverter: %s", name)
 
-    page.goto("/config/integrations/integration/haeo")
     page.click_button(_button_label(et))
     page.wait_for_dialog(_dialog_title(et))
 
@@ -338,7 +337,6 @@ def add_battery(
     et = ElementType.BATTERY
     _LOGGER.info("Adding Battery: %s", name)
 
-    page.goto("/config/integrations/integration/haeo")
     page.click_button(_button_label(et))
     page.wait_for_dialog(_dialog_title(et))
 
@@ -384,7 +382,6 @@ def add_solar(
     et = ElementType.SOLAR
     _LOGGER.info("Adding Solar: %s", name)
 
-    page.goto("/config/integrations/integration/haeo")
     page.click_button(_button_label(et))
     page.wait_for_dialog(_dialog_title(et))
 
@@ -419,7 +416,6 @@ def add_grid(
     et = ElementType.GRID
     _LOGGER.info("Adding Grid: %s", name)
 
-    page.goto("/config/integrations/integration/haeo")
     page.click_button(_button_label(et))
     page.wait_for_dialog(_dialog_title(et))
 
@@ -461,7 +457,6 @@ def add_load(
     et = ElementType.LOAD
     _LOGGER.info("Adding Load: %s", name)
 
-    page.goto("/config/integrations/integration/haeo")
     page.click_button(_button_label(et))
     page.wait_for_dialog(_dialog_title(et))
 
@@ -487,7 +482,6 @@ def add_node(page: HAPage, *, name: str) -> None:
     et = ElementType.NODE
     _LOGGER.info("Adding Node: %s", name)
 
-    page.goto("/config/integrations/integration/haeo")
     page.click_button(_button_label(et))
     page.wait_for_dialog(_dialog_title(et))
 
@@ -504,8 +498,6 @@ def verify_setup(page: HAPage) -> None:
     """Verify the HAEO setup is complete."""
     _LOGGER.info("Verifying setup...")
 
-    page.goto("/config/integrations/integration/haeo")
-    page.page.get_by_role("button", name="Inverter").first.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
     page._capture("final_overview")
 
     _LOGGER.info("Setup verified")
