@@ -69,6 +69,7 @@ class HAPage:
 
     def _capture_with_indicator(self, step: str, locator: Any) -> None:
         """Capture screenshot with click indicator on target element."""
+        self._scroll_into_view(locator)
         self._show_click_indicator(locator)
         self._capture(step)
         self._remove_click_indicator()
@@ -121,6 +122,30 @@ class HAPage:
         if scrolled:
             self._capture("scrolled")
 
+    def _wait_for_stable_layout(self, locator: Any) -> None:
+        """Wait for an element's layout to stabilize across animation frames."""
+        locator.evaluate("""
+            (el) => new Promise((resolve) => {
+                let lastRect = JSON.stringify(el.getBoundingClientRect());
+                let stableFrames = 0;
+                let totalFrames = 0;
+                function check() {
+                    totalFrames++;
+                    if (totalFrames > 30) { resolve(); return; }
+                    const rect = JSON.stringify(el.getBoundingClientRect());
+                    if (rect === lastRect) {
+                        stableFrames++;
+                        if (stableFrames >= 3) { resolve(); return; }
+                    } else {
+                        stableFrames = 0;
+                        lastRect = rect;
+                    }
+                    requestAnimationFrame(check);
+                }
+                requestAnimationFrame(check);
+            })
+        """)
+
     # endregion
 
     # region: Navigation
@@ -167,7 +192,6 @@ class HAPage:
                 self._capture_with_indicator("settings_item", ds)
                 ds.click()
                 self.page.wait_for_load_state("networkidle")
-                self._capture("integrations_page")
         else:
             ds.click()
             self.page.wait_for_load_state("networkidle")
@@ -320,7 +344,7 @@ class HAPage:
         ctx = ScreenshotContext.current()
         if ctx:
             with ctx.scope(f"choose_{field_label}_{choice}"):
-                self._scroll_and_capture(choose)
+                self._scroll_and_capture(button)
                 self._capture_with_indicator("button", button)
                 button.click(timeout=DEFAULT_TIMEOUT)
                 self._capture("selected")
@@ -346,7 +370,7 @@ class HAPage:
         ctx = ScreenshotContext.current()
         if ctx:
             with ctx.scope(f"entity_{field_label}"):
-                self._scroll_and_capture(choose)
+                self._scroll_and_capture(picker)
                 self._capture_with_indicator("picker", picker)
 
                 picker.click()
@@ -386,7 +410,7 @@ class HAPage:
         ctx = ScreenshotContext.current()
         if ctx:
             with ctx.scope(f"add_entity_{field_label}"):
-                self._scroll_and_capture(choose)
+                self._scroll_and_capture(add_btn)
                 self._capture_with_indicator("add_button", add_btn)
 
                 add_btn.click(timeout=DEFAULT_TIMEOUT)
@@ -434,7 +458,7 @@ class HAPage:
         ctx = ScreenshotContext.current()
         if ctx:
             with ctx.scope(f"constant_{field_label}"):
-                self._scroll_and_capture(choose)
+                self._scroll_and_capture(spinbutton)
                 self._capture_with_indicator("field", spinbutton)
                 spinbutton.clear()
                 spinbutton.fill(value)
@@ -491,6 +515,7 @@ class HAPage:
                 self._capture_with_indicator("button", button)
                 button.click(timeout=DEFAULT_TIMEOUT)
                 button.wait_for(state="hidden", timeout=DEFAULT_TIMEOUT)
+                self._capture("result")
         else:
             button.click(timeout=DEFAULT_TIMEOUT)
             button.wait_for(state="hidden", timeout=DEFAULT_TIMEOUT)
@@ -513,6 +538,7 @@ class HAPage:
         if ctx:
             with ctx.scope("success_dialog"):
                 self._capture("dialog")
+                self._capture_with_indicator("finish_button", button)
                 button.click(timeout=DEFAULT_TIMEOUT)
                 button.wait_for(state="hidden", timeout=DEFAULT_TIMEOUT)
         else:
@@ -531,6 +557,7 @@ class HAPage:
         dialog = self.page.locator("ha-dialog").filter(has_text=title)
         dialog.wait_for(state="attached", timeout=DEFAULT_TIMEOUT)
         self.page.wait_for_load_state("domcontentloaded")
+        self._wait_for_stable_layout(dialog)
         self._capture("dialog_opened")
 
     def submit(self) -> None:
@@ -571,19 +598,36 @@ class HAPage:
             item.click(timeout=DEFAULT_TIMEOUT)
 
     def _wait_for_images(self, locator: Any) -> None:
-        """Wait for all images within a locator to finish loading."""
+        """Wait for all images within a locator to finish loading.
+
+        Traverses shadow DOM boundaries to find images inside custom elements.
+        Returns after all images load or after a 2 second timeout.
+        """
         locator.evaluate("""
             (el) => {
-                const imgs = el.querySelectorAll('img');
-                return Promise.all(
-                    Array.from(imgs).map(img => {
-                        if (img.complete && img.naturalWidth > 0) return;
-                        return new Promise(resolve => {
-                            img.addEventListener('load', resolve, { once: true });
-                            img.addEventListener('error', resolve, { once: true });
-                        });
-                    })
-                );
+                function findImages(root) {
+                    const imgs = [...root.querySelectorAll('img')];
+                    for (const child of root.querySelectorAll('*')) {
+                        if (child.shadowRoot) {
+                            imgs.push(...findImages(child.shadowRoot));
+                        }
+                    }
+                    return imgs;
+                }
+                const imgs = findImages(el.shadowRoot || el);
+                return Promise.race([
+                    Promise.all(
+                        imgs.map(img => {
+                            if (!img.src || (img.complete && img.naturalWidth > 0))
+                                return Promise.resolve();
+                            return new Promise(resolve => {
+                                img.addEventListener('load', resolve, { once: true });
+                                img.addEventListener('error', resolve, { once: true });
+                            });
+                        })
+                    ),
+                    new Promise(resolve => setTimeout(resolve, 2000))
+                ]);
             }
         """)
 

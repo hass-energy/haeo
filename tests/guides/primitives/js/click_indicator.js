@@ -13,10 +13,9 @@
   }
 
   let target = el;
-  const minSize = 20;
-  const rect = el.getBoundingClientRect();
 
-  if (rect.width < minSize || rect.height < minSize) {
+  // For standard HTML elements, prefer the nearest clickable ancestor
+  if (!el.tagName.includes('-')) {
     const clickableParent = el.closest(clickableSelector);
     if (clickableParent) target = clickableParent;
   }
