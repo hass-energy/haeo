@@ -142,7 +142,6 @@ class HAPage:
     def click_button(self, name: str) -> None:
         """Click a button by accessible name.
 
-        Waits for the button to be visible and enabled before clicking.
         Captures a screenshot with the target indicator before clicking.
         Does not capture a result screenshot — downstream actions (e.g.,
         wait_for_dialog) capture the resulting state when it is ready.
@@ -150,19 +149,7 @@ class HAPage:
         ctx = ScreenshotContext.current()
 
         button = self.page.get_by_role("button", name=name)
-        button.wait_for(state="visible", timeout=SEARCH_TIMEOUT)
-
-        # Wait for button to become enabled (e.g., after integration loads)
-        self.page.wait_for_function(
-            """(name) => {
-                const btn = [...document.querySelectorAll('[role="button"]')]
-                    .find(b => b.textContent.trim().includes(name));
-                return btn && !btn.disabled
-                    && btn.getAttribute('aria-disabled') !== 'true';
-            }""",
-            arg=name,
-            timeout=SEARCH_TIMEOUT,
-        )
+        button.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
 
         if ctx:
             with ctx.scope(f"click_{name}"):
@@ -455,6 +442,30 @@ class HAPage:
             button.wait_for(state="hidden", timeout=DEFAULT_TIMEOUT)
 
         _LOGGER.info("Dialog closed successfully")
+
+    def close_success_dialog(self) -> None:
+        """Close the config flow success dialog shown after creating an entry.
+
+        HA shows a success dialog with area selection and a Finish button
+        after a config flow creates an entry. The dialog only appears after
+        the POST response is received (entry setup runs inline in the handler).
+        Waiting for this dialog prevents navigating away while the entry
+        setup is still running.
+        """
+        button = self.page.get_by_role("button", name="Finish")
+        button.wait_for(state="visible", timeout=SEARCH_TIMEOUT)
+
+        ctx = ScreenshotContext.current()
+        if ctx:
+            with ctx.scope("success_dialog"):
+                self._capture("dialog")
+                button.click(timeout=DEFAULT_TIMEOUT)
+                button.wait_for(state="hidden", timeout=DEFAULT_TIMEOUT)
+        else:
+            button.click(timeout=DEFAULT_TIMEOUT)
+            button.wait_for(state="hidden", timeout=DEFAULT_TIMEOUT)
+
+        _LOGGER.info("Success dialog closed")
 
     def wait_for_dialog(self, title: str) -> None:
         """Wait for dialog with given title to appear and be fully rendered.

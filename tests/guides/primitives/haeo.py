@@ -273,7 +273,12 @@ def add_integration(page: HAPage, *, network_name: str) -> None:
     page.wait_for_dialog("HAEO Setup")
     page.fill_textbox("System Name", network_name)
     page.submit()
-    page.wait_for_load()
+
+    # Wait for the success dialog before navigating away.
+    # The config entry setup runs inline in the POST handler (HA uses
+    # handler_cancellation=True), so navigating before the response
+    # arrives cancels the setup task.
+    page.close_success_dialog()
 
     page.goto("/config/integrations/integration/haeo")
     page._capture("integration_page")

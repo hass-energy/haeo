@@ -87,7 +87,11 @@ def test_guide(guide_md: Path, dark_mode: bool) -> None:
         )
         for i, block in enumerate(blocks)
     ]
-    manifest = GuideManifest(page_hash=compute_page_hash(blocks), blocks=block_results)
+    manifest = GuideManifest(
+        page_hash=compute_page_hash(blocks),
+        viewport={"width": 1280, "height": 800},
+        blocks=block_results,
+    )
     manifest.save(output_dir / "manifest.json")
 
     total = sum(len(br.screenshots) for br in block_results)
