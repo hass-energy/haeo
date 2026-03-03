@@ -242,7 +242,47 @@ When adding new element types:
 
 Parameterized tests marked with `@pytest.mark.parametrize` run once per element type.
 
-## CI Requirements
+## Guide testing
+
+Guide tests verify the interactive walkthroughs by executing them against a live Home Assistant instance using Playwright.
+Each walkthrough's `guide` code blocks are extracted from the markdown source, executed in order, and screenshots are captured for documentation.
+
+### How it works
+
+Walkthrough pages in `docs/walkthroughs/` contain `guide` fenced code blocks that call primitives defined in `tests/guides/primitives/`.
+The guide runner (`tools/guide_runner.py`) extracts these blocks, executes them sequentially against a live HA instance, and captures screenshots into per-block directories.
+Consecutive blocks share the same browser and HA context so state accumulates across steps.
+
+Screenshots are content-hash cached: a `manifest.json` maps each block's content hash to its screenshot directory.
+If a block's content hasn't changed, its screenshots are reused without re-running.
+
+### Running guide tests
+
+```bash
+# Run all guide tests
+uv run pytest -m guide -v --timeout=300
+
+# Run the guide runner CLI directly for a specific walkthrough
+uv run python -m tools.guide_runner docs/walkthroughs/sigenergy-system.md
+```
+
+Guide tests require the `RUN_GUIDES` environment variable or the `-m guide` pytest marker.
+They need a live Home Assistant instance (started automatically by the test fixtures) and Playwright Firefox.
+
+### CI integration
+
+Guide tests run in two CI workflows:
+
+- **Guides workflow** (`guides.yml`): Runs on push, PR, and merge group to validate guide correctness
+- **Docs workflow** (`docs.yml`): Generates screenshots and optimizes them with optipng before building documentation for deployment
+
+### Screenshot rendering
+
+During documentation build, `tools/guide_fence.py` acts as a custom `pymdownx.superfences` formatter.
+It reads the manifest files and renders each guide block as an interactive screenshot slideshow.
+The slideshow frontend is implemented in `docs/javascripts/guide-slideshow.js` with styling in `docs/stylesheets/guide.css`.
+
+## CI requirements
 
 All PRs must pass:
 

@@ -32,7 +32,7 @@ Before starting this configuration, ensure you have:
 
 ### Required Integrations
 
-- **HAEO**: Installed via HACS (see [Installation guide](../installation.md))
+- **HAEO**: Installed via HACS (see [Installation guide](../user-guide/installation.md))
 - **Sigenergy**: Provides battery capacity and SOC sensors
 - **Solar Forecast**: [Open-Meteo Solar Forecast](https://www.home-assistant.io/integrations/open_meteo_solar_forecast/) integration
 - **Electricity Pricing**: Any integration providing import/export price forecasts
@@ -41,7 +41,7 @@ Before starting this configuration, ensure you have:
 
 - Multiple solar array orientations configured in forecast integration
 - Battery SOC sensor available from Sigenergy integration
-- Constant load value determined (see [Load configuration](../elements/load.md#determining-your-baseline))
+- Constant load value determined (see [Load configuration](../user-guide/elements/load.md#determining-your-baseline))
 
 ## Configuration Steps
 
@@ -271,7 +271,7 @@ The Inverter element simplifies configuration compared to manual DC/AC nets with
 - AC→DC charging cannot exceed inverter rating
 - Battery and solar share the DC bus capacity
 
-See [Node](../elements/node.md) for more on hybrid inverter modeling.
+See [Node](../user-guide/elements/node.md) for more on hybrid inverter modeling.
 
 ## Next Steps
 
@@ -283,7 +283,7 @@ See [Node](../elements/node.md) for more on hybrid inverter modeling.
 
     Review battery settings and partition options.
 
-    [:material-arrow-right: Battery guide](../elements/battery.md)
+    [:material-arrow-right: Battery guide](../user-guide/elements/battery.md)
 
 - :material-flash:{ .lg .middle } **Inverter configuration**
 
@@ -291,7 +291,7 @@ See [Node](../elements/node.md) for more on hybrid inverter modeling.
 
     Tune DC/AC power limits and efficiencies.
 
-    [:material-arrow-right: Inverter guide](../elements/inverter.md)
+    [:material-arrow-right: Inverter guide](../user-guide/elements/inverter.md)
 
 - :material-chart-line:{ .lg .middle } **Forecasts and sensors**
 
@@ -299,7 +299,7 @@ See [Node](../elements/node.md) for more on hybrid inverter modeling.
 
     Ensure pricing and solar forecasts cover your horizon.
 
-    [:material-arrow-right: Forecasts guide](../forecasts-and-sensors.md)
+    [:material-arrow-right: Forecasts guide](../user-guide/forecasts-and-sensors.md)
 
 - :material-graph:{ .lg .middle } **Optimization results**
 
@@ -307,6 +307,6 @@ See [Node](../elements/node.md) for more on hybrid inverter modeling.
 
     Interpret costs, power flows, and shadow prices.
 
-    [:material-arrow-right: Optimization guide](../optimization.md)
+    [:material-arrow-right: Optimization guide](../user-guide/optimization.md)
 
 </div>
