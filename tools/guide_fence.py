@@ -28,12 +28,6 @@ _LOGGER = logging.getLogger(__name__)
 
 _DOCS_DIR = Path(__file__).parent.parent / "docs"
 
-# Lazy-loaded index: maps content_hash -> block data dict.
-# Each block dict is enriched with "_prev_last_screenshot" (str | None)
-# from the preceding block in the same manifest for carry-over slides,
-# and "_viewport" (dict) from the manifest-level viewport dimensions.
-_block_index: dict[str, dict[str, object]] | None = None
-
 
 def _load_manifests() -> dict[str, dict[str, object]]:
     """Scan docs/ for manifest.json files and index blocks by content hash.
@@ -76,12 +70,9 @@ def _load_manifests() -> dict[str, dict[str, object]]:
 
 def _find_block(source: str) -> dict[str, object] | None:
     """Find the manifest block matching this source code by content hash."""
-    global _block_index  # noqa: PLW0603
-    if _block_index is None:
-        _block_index = _load_manifests()
-
+    index = _load_manifests()
     content_hash = hashlib.sha256(source.strip().encode()).hexdigest()[:16]
-    return _block_index.get(content_hash)
+    return index.get(content_hash)
 
 
 def _screenshot_label(filename: str) -> str:
