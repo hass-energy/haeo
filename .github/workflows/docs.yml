@@ -41,7 +41,15 @@ jobs:
           version: "latest"
 
       - name: Install dependencies
-        run: uv sync
+        run: uv sync --locked --all-extras --dev
+
+      - name: Install Playwright browsers
+        run: uv run playwright install --with-deps firefox
+
+      - name: Generate guide screenshots
+        run: uv run pytest -m guide -v --timeout=300
+        env:
+          RUN_GUIDES: "true"
 
       - name: Build documentation
         run: uv run zensical build

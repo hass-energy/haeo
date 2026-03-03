@@ -542,6 +542,7 @@ class HAPage:
                 self._capture_with_indicator("finish_button", button)
                 button.click(timeout=DEFAULT_TIMEOUT)
                 button.wait_for(state="hidden", timeout=DEFAULT_TIMEOUT)
+                self._capture("result")
         else:
             button.click(timeout=DEFAULT_TIMEOUT)
             button.wait_for(state="hidden", timeout=DEFAULT_TIMEOUT)
@@ -573,6 +574,10 @@ class HAPage:
         """Search for and select integration from add dialog."""
         search_box = self.page.get_by_role("textbox", name="Search for a brand name")
         search_box.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
+
+        # Wait for brand images in the dialog to load before screenshots
+        dialog = self.page.locator("ha-dialog")
+        self._wait_for_images(dialog)
 
         ctx = ScreenshotContext.current()
         if ctx:
