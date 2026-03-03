@@ -51,6 +51,11 @@ jobs:
         env:
           RUN_GUIDES: "true"
 
+      - name: Optimize screenshots
+        run: |
+          sudo apt-get install -y optipng
+          find docs -name '*.png' -exec optipng -o5 -quiet {} +
+
       - name: Build documentation
         run: uv run zensical build
 
