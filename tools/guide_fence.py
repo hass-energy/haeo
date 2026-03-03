@@ -154,7 +154,8 @@ def _render_slideshow(block: dict[str, object], source: str) -> str:
     total = len(all_screenshots)
 
     return (
-        f'<div class="guide-slideshow" data-total="{total}">\n'
+        f'<div class="guide-slideshow" data-total="{total}"'
+        f' data-width="1280" data-height="800">\n'
         f'  <div class="guide-slides">\n{slides}\n  </div>\n'
         f'  <div class="guide-controls">\n'
         f'    <button class="guide-prev" aria-label="Previous step" disabled>&lsaquo;</button>\n'

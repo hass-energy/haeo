@@ -5,8 +5,9 @@
  * with automatic light/dark theme switching based on the
  * Material for MkDocs color scheme toggle.
  *
- * Images are preloaded on initialization to prevent flicker
- * when navigating between slides.
+ * Shows a loading spinner while images load, with a fixed-ratio
+ * placeholder matching the screenshot viewport dimensions to
+ * prevent layout shifts.
  */
 
 /**
@@ -31,21 +32,6 @@ function getSlideSrc(slide, mode) {
 }
 
 /**
- * Preload all slide images for a given theme mode.
- * @param {NodeList} slides
- * @param {string} mode - "light" or "dark"
- */
-function preloadAllSlides(slides, mode) {
-  slides.forEach((slide) => {
-    const url = getSlideSrc(slide, mode);
-    if (url) {
-      const img = new Image();
-      img.src = url;
-    }
-  });
-}
-
-/**
  * Initialize a single slideshow element.
  * @param {HTMLElement} slideshow
  */
@@ -56,18 +42,16 @@ function initSlideshow(slideshow) {
 
   let current = 0;
 
+  const slidesContainer = slideshow.querySelector(".guide-slides");
   const counter = slideshow.querySelector(".guide-counter");
   const label = slideshow.querySelector(".guide-label");
   const prevBtn = slideshow.querySelector(".guide-prev");
   const nextBtn = slideshow.querySelector(".guide-next");
 
-  // Preload all images for the current theme
-  const mode = getThemeMode();
-  preloadAllSlides(slides, mode);
-
-  // Set the first slide's image immediately
-  const firstImg = slides[0].querySelector(".guide-slide-img");
-  if (firstImg) firstImg.src = getSlideSrc(slides[0], mode);
+  // Set aspect ratio from data attributes for the placeholder sizing
+  const w = parseInt(slideshow.dataset.width, 10) || 1280;
+  const h = parseInt(slideshow.dataset.height, 10) || 800;
+  slidesContainer.style.aspectRatio = `${w} / ${h}`;
 
   function show(index) {
     // Clamp
@@ -79,32 +63,36 @@ function initSlideshow(slideshow) {
     const targetImg = targetSlide.querySelector(".guide-slide-img");
     const targetSrc = getSlideSrc(targetSlide, getThemeMode());
 
-    // Ensure the target image is loaded before switching
-    function activate() {
-      slides.forEach((slide, i) => {
-        if (i === current) {
-          slide.setAttribute("data-active", "true");
-        } else {
-          slide.removeAttribute("data-active");
-        }
-      });
+    // Switch active slide and show loading state
+    slides.forEach((slide, i) => {
+      if (i === current) {
+        slide.setAttribute("data-active", "true");
+      } else {
+        slide.removeAttribute("data-active");
+      }
+    });
 
-      if (counter) counter.textContent = `${current + 1} / ${total}`;
-      if (label) label.textContent = targetSlide.dataset.label || "";
-      if (prevBtn) prevBtn.disabled = current === 0;
-      if (nextBtn) nextBtn.disabled = current === total - 1;
-    }
+    // Update controls immediately
+    if (counter) counter.textContent = `${current + 1} / ${total}`;
+    if (label) label.textContent = targetSlide.dataset.label || "";
+    if (prevBtn) prevBtn.disabled = current === 0;
+    if (nextBtn) nextBtn.disabled = current === total - 1;
 
+    // Load image - show spinner until ready
     if (targetImg) {
       targetImg.src = targetSrc;
       if (targetImg.complete && targetImg.naturalWidth > 0) {
-        activate();
+        targetSlide.removeAttribute("data-loading");
       } else {
-        targetImg.onload = activate;
-        targetImg.onerror = activate;
+        targetSlide.setAttribute("data-loading", "");
+        const done = () => {
+          targetSlide.removeAttribute("data-loading");
+          targetImg.onload = null;
+          targetImg.onerror = null;
+        };
+        targetImg.onload = done;
+        targetImg.onerror = done;
       }
-    } else {
-      activate();
     }
   }
 
@@ -127,13 +115,9 @@ function initSlideshow(slideshow) {
   // Show first slide
   show(0);
 
-  // Watch for theme changes
+  // Watch for theme changes - reload current slide in new theme
   const observer = new MutationObserver(() => {
-    const newMode = getThemeMode();
-    preloadAllSlides(slides, newMode);
-    // Update current slide to new theme
-    const img = slides[current].querySelector(".guide-slide-img");
-    if (img) img.src = getSlideSrc(slides[current], newMode);
+    show(current);
   });
   observer.observe(document.body, {
     attributes: true,

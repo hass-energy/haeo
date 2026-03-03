@@ -14,10 +14,11 @@
   outline-offset: -2px;
 }
 
-/* Slides container */
+/* Slides container — aspect-ratio set by JS from data attributes */
 .guide-slides {
   position: relative;
   width: 100%;
+  background: var(--md-default-bg-color);
 }
 
 /* Individual slide */
@@ -27,6 +28,39 @@
 
 .guide-slide[data-active="true"] {
   display: block;
+  position: relative;
+}
+
+/* Loading spinner overlay */
+.guide-slide[data-loading]::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--md-default-bg-color);
+}
+
+.guide-slide[data-loading]::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 2rem;
+  height: 2rem;
+  margin: -1rem 0 0 -1rem;
+  border: 3px solid var(--md-default-fg-color--lightest);
+  border-top-color: var(--md-accent-fg-color);
+  border-radius: 50%;
+  animation: guide-spin 0.8s linear infinite;
+  z-index: 1;
+}
+
+@keyframes guide-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* Screenshot image */
