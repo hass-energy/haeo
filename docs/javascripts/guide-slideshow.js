@@ -115,11 +115,23 @@ function initSlideshow(slideshow) {
   // Show first slide
   show(0);
 
-  // Watch for theme changes - reload current slide in new theme
-  const observer = new MutationObserver(() => {
-    show(current);
+  // Register with shared theme observer for light/dark switching
+  activeSlideshows.push(() => show(current));
+}
+
+// Track active slideshows and their update functions for theme changes.
+// A single shared MutationObserver watches for theme changes and updates
+// all active slideshows, avoiding per-slideshow observer accumulation
+// across Material for MkDocs instant navigation page transitions.
+let activeSlideshows = [];
+let themeObserver = null;
+
+function setupThemeObserver() {
+  if (themeObserver) return;
+  themeObserver = new MutationObserver(() => {
+    activeSlideshows.forEach((fn) => fn());
   });
-  observer.observe(document.body, {
+  themeObserver.observe(document.body, {
     attributes: true,
     attributeFilter: ["data-md-color-scheme"],
   });
@@ -127,5 +139,8 @@ function initSlideshow(slideshow) {
 
 // Initialize on page load (Material for MkDocs instant navigation)
 document$.subscribe(({ body }) => {
+  // Clear stale references from previous page
+  activeSlideshows = [];
   body.querySelectorAll(".guide-slideshow").forEach(initSlideshow);
+  setupThemeObserver();
 });

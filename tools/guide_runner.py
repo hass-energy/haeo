@@ -309,9 +309,18 @@ def run_guide_from_markdown(
 
         # Run dark mode
         _LOGGER.info("Capturing dark mode screenshots...")
-        run_blocks_for_mode(hass, blocks, output_dir, "dark", headless=headless)
+        dark_results = run_blocks_for_mode(hass, blocks, output_dir, "dark", headless=headless)
 
-    # Build manifest (both modes produce the same filenames)
+    # Validate screenshot parity between modes
+    for i, (light_names, dark_names) in enumerate(zip(light_results, dark_results, strict=True)):
+        if light_names != dark_names:
+            msg = (
+                f"Block {i} screenshot mismatch between light and dark modes: "
+                f"light={light_names}, dark={dark_names}"
+            )
+            raise RuntimeError(msg)
+
+    # Build manifest (both modes produce identical filenames)
     block_results = [
         BlockResult(
             index=block.index,

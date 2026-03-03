@@ -78,24 +78,26 @@ def test_guide(guide_md: Path, dark_mode: bool) -> None:
 
         screenshots_per_block = run_blocks_for_mode(hass, blocks, output_dir, mode, headless=True)
 
-    # Build and save manifest
-    block_results = [
-        BlockResult(
-            index=block.index,
-            content_hash=block.content_hash,
-            screenshots=screenshots_per_block[i],
-        )
-        for i, block in enumerate(blocks)
-    ]
-    manifest = GuideManifest(
-        page_hash=compute_page_hash(blocks),
-        viewport={"width": 1280, "height": 800},
-        blocks=block_results,
-    )
-    manifest.save(output_dir / "manifest.json")
-
-    total = sum(len(br.screenshots) for br in block_results)
+    total = sum(len(names) for names in screenshots_per_block)
     assert total > 0, f"No screenshots captured for {guide_md.name} ({mode})"
+
+    # Only write the manifest from the light mode run to avoid
+    # the dark mode pass overwriting it with potentially different data.
+    if not dark_mode:
+        block_results = [
+            BlockResult(
+                index=block.index,
+                content_hash=block.content_hash,
+                screenshots=screenshots_per_block[i],
+            )
+            for i, block in enumerate(blocks)
+        ]
+        manifest = GuideManifest(
+            page_hash=compute_page_hash(blocks),
+            viewport={"width": 1280, "height": 800},
+            blocks=block_results,
+        )
+        manifest.save(output_dir / "manifest.json")
 
     _LOGGER.info(
         "Guide %s (%s): %d blocks, %d screenshots",

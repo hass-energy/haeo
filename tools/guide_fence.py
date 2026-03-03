@@ -28,6 +28,8 @@ _LOGGER = logging.getLogger(__name__)
 
 _DOCS_DIR = Path(__file__).parent.parent / "docs"
 
+_manifest_cache: dict[str, dict[str, object]] | None = None
+
 
 def _load_manifests() -> dict[str, dict[str, object]]:
     """Scan docs/ for manifest.json files and index blocks by content hash.
@@ -70,9 +72,11 @@ def _load_manifests() -> dict[str, dict[str, object]]:
 
 def _find_block(source: str) -> dict[str, object] | None:
     """Find the manifest block matching this source code by content hash."""
-    index = _load_manifests()
+    global _manifest_cache  # noqa: PLW0603
+    if _manifest_cache is None:
+        _manifest_cache = _load_manifests()
     content_hash = hashlib.sha256(source.strip().encode()).hexdigest()[:16]
-    return index.get(content_hash)
+    return _manifest_cache.get(content_hash)
 
 
 def _screenshot_label(filename: str) -> str:
