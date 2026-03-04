@@ -206,7 +206,9 @@ class HAPage:
         if ctx:
             with ctx.scope("navigate_integration"):
                 self._scroll_and_capture(card)
-                self._capture_with_indicator("card", card)
+                # Target the inner ha-card which has the visible rounded corners
+                inner_card = card.locator("ha-card")
+                self._capture_with_indicator("card", inner_card)
                 card.click()
                 self.page.wait_for_load_state("networkidle")
                 self._capture("integration_page")
@@ -552,12 +554,13 @@ class HAPage:
     def wait_for_dialog(self, title: str) -> None:
         """Wait for dialog with given title to appear and be fully rendered.
 
-        Waits for an ha-dialog element with the open attribute set, filtering
-        by title text. The open attribute is the reliable signal that the
-        dialog has finished its internal visibility transition.
+        Uses state="attached" because ha-dialog is a Shadow DOM component
+        whose internal visibility transitions aren't detected by Playwright's
+        visibility checks. The [open] attribute selector ensures we only
+        match once the dialog has finished its internal transition.
         """
         dialog = self.page.locator("ha-dialog[open]").filter(has_text=title)
-        dialog.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
+        dialog.wait_for(state="attached", timeout=DEFAULT_TIMEOUT)
         self.page.wait_for_load_state("domcontentloaded")
         self._wait_for_stable_layout(dialog)
         self._capture("dialog_opened")
