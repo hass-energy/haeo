@@ -1,7 +1,12 @@
 """Base classes and utilities for HAEO config flows."""
 
+from __future__ import annotations
+
 import logging
-from typing import Any, Final
+from typing import TYPE_CHECKING, Any, Final
+
+if TYPE_CHECKING:
+    from custom_components.haeo.core.schema.elements import ElementType
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.helpers.selector import (
@@ -14,12 +19,12 @@ from homeassistant.helpers.selector import (
 )
 import voluptuous as vol
 
-from custom_components.haeo.const import (
+from custom_components.haeo.const import CONF_RECORD_FORECASTS
+from custom_components.haeo.core.const import (
     CONF_ADVANCED_MODE,
     CONF_DEBOUNCE_SECONDS,
     CONF_HORIZON_PRESET,
     CONF_NAME,
-    CONF_RECORD_FORECASTS,
     CONF_TIER_1_COUNT,
     CONF_TIER_1_DURATION,
     CONF_TIER_2_COUNT,
@@ -38,6 +43,10 @@ from custom_components.haeo.const import (
     DEFAULT_TIER_4_COUNT,
     DEFAULT_TIER_4_DURATION,
 )
+from custom_components.haeo.core.const import HORIZON_PRESET_5_DAYS as HORIZON_PRESET_5_DAYS
+from custom_components.haeo.core.const import HUB_SECTION_ADVANCED as HUB_SECTION_ADVANCED
+from custom_components.haeo.core.const import HUB_SECTION_COMMON as HUB_SECTION_COMMON
+from custom_components.haeo.core.const import HUB_SECTION_TIERS as HUB_SECTION_TIERS
 from custom_components.haeo.flows.field_schema import SectionDefinition, build_section_schema
 
 _LOGGER = logging.getLogger(__name__)
@@ -45,13 +54,8 @@ _LOGGER = logging.getLogger(__name__)
 # Horizon preset options
 HORIZON_PRESET_2_DAYS: Final = "2_days"
 HORIZON_PRESET_3_DAYS: Final = "3_days"
-HORIZON_PRESET_5_DAYS: Final = "5_days"  # Default
 HORIZON_PRESET_7_DAYS: Final = "7_days"
 HORIZON_PRESET_CUSTOM: Final = "custom"
-
-HUB_SECTION_COMMON: Final = "common"
-HUB_SECTION_ADVANCED: Final = "advanced"
-HUB_SECTION_TIERS: Final = "tiers"
 
 HORIZON_PRESET_OPTIONS: Final = [
     HORIZON_PRESET_2_DAYS,
@@ -334,3 +338,31 @@ def get_hub_options_schema(config_entry: ConfigEntry) -> vol.Schema:
         },
     }
     return vol.Schema(build_section_schema(sections, field_entries))
+
+
+def get_element_flow_classes() -> dict[ElementType, type]:
+    """Return mapping of element types to their config flow handler classes.
+
+    This function performs lazy imports to avoid circular dependencies
+    (flows import adapters, not the other way around).
+    """
+    from custom_components.haeo.core.schema.elements import ElementType  # noqa: PLC0415
+    from custom_components.haeo.flows.elements.battery import BatterySubentryFlowHandler  # noqa: PLC0415
+    from custom_components.haeo.flows.elements.battery_section import BatterySectionSubentryFlowHandler  # noqa: PLC0415
+    from custom_components.haeo.flows.elements.connection import ConnectionSubentryFlowHandler  # noqa: PLC0415
+    from custom_components.haeo.flows.elements.grid import GridSubentryFlowHandler  # noqa: PLC0415
+    from custom_components.haeo.flows.elements.inverter import InverterSubentryFlowHandler  # noqa: PLC0415
+    from custom_components.haeo.flows.elements.load import LoadSubentryFlowHandler  # noqa: PLC0415
+    from custom_components.haeo.flows.elements.node import NodeSubentryFlowHandler  # noqa: PLC0415
+    from custom_components.haeo.flows.elements.solar import SolarSubentryFlowHandler  # noqa: PLC0415
+
+    return {
+        ElementType.BATTERY: BatterySubentryFlowHandler,
+        ElementType.BATTERY_SECTION: BatterySectionSubentryFlowHandler,
+        ElementType.CONNECTION: ConnectionSubentryFlowHandler,
+        ElementType.GRID: GridSubentryFlowHandler,
+        ElementType.INVERTER: InverterSubentryFlowHandler,
+        ElementType.LOAD: LoadSubentryFlowHandler,
+        ElementType.NODE: NodeSubentryFlowHandler,
+        ElementType.SOLAR: SolarSubentryFlowHandler,
+    }

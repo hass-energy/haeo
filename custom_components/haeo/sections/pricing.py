@@ -1,34 +1,14 @@
-"""Shared definitions for pricing configuration sections."""
+"""Flow builders for pricing configuration sections."""
 
 from collections.abc import Mapping
-from typing import Any, Final, TypedDict
+from typing import Any
 
-import numpy as np
-from numpy.typing import NDArray
 import voluptuous as vol
 
+from custom_components.haeo.core.schema.sections.pricing import SECTION_PRICING
 from custom_components.haeo.elements.field_schema import FieldSchemaInfo
 from custom_components.haeo.elements.input_fields import InputFieldSection
 from custom_components.haeo.flows.field_schema import SectionDefinition, build_choose_field_entries
-from custom_components.haeo.schema import ConstantValue, EntityValue, NoneValue
-
-SECTION_PRICING: Final = "pricing"
-CONF_PRICE_SOURCE_TARGET: Final = "price_source_target"
-CONF_PRICE_TARGET_SOURCE: Final = "price_target_source"
-
-
-class PricingConfig(TypedDict, total=False):
-    """Directional pricing configuration for power transfer."""
-
-    price_source_target: EntityValue | ConstantValue | NoneValue
-    price_target_source: EntityValue | ConstantValue | NoneValue
-
-
-class PricingData(TypedDict, total=False):
-    """Loaded directional pricing values."""
-
-    price_source_target: NDArray[np.floating[Any]] | float
-    price_target_source: NDArray[np.floating[Any]] | float
 
 
 def pricing_section(fields: tuple[str, ...], *, collapsed: bool = False) -> SectionDefinition:
@@ -55,11 +35,6 @@ def build_pricing_fields(
 
 
 __all__ = [
-    "CONF_PRICE_SOURCE_TARGET",
-    "CONF_PRICE_TARGET_SOURCE",
-    "SECTION_PRICING",
-    "PricingConfig",
-    "PricingData",
     "build_pricing_fields",
     "pricing_section",
 ]

@@ -74,7 +74,7 @@ Perfect for **end users** who want to install and configure HAEO:
 - [Installation](user-guide/installation.md) - HACS and manual installation
 - [Configuration](user-guide/configuration.md) - Setting up your first network
 - [Element Guides](user-guide/elements/index.md) - Detailed configuration for each device type
-- [Examples](user-guide/examples/sigenergy-system.md) - Complete system walkthroughs
+- [Walkthroughs](walkthroughs/index.md) - Step-by-step system configuration guides
 - [Troubleshooting](user-guide/troubleshooting.md) - Common issues and solutions
 
 ### :material-function: Mathematical Modeling

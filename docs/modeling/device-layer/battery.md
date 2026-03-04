@@ -58,6 +58,12 @@ The pricing segment applies optional per-kWh costs on the battery connection.
 `price_source_target` applies when discharging (battery to network).
 Use positive values to add costs or negative values to create incentives.
 
+### Salvage value
+
+The battery element can include a terminal salvage value.
+This assigns a per-kWh value to the final stored energy at the horizon end.
+It discourages draining the battery to zero when energy is still valuable beyond the forecast window.
+
 ## Devices Created
 
 Battery creates a single Home Assistant device:
@@ -80,6 +86,7 @@ Battery creates a single Home Assistant device:
 | Overcharge cost             | SOC pricing segment   | `charge_capacity_price`                    | Penalty above max SOC          |
 | `price_target_source`       | Pricing segment       | `price_target_source`                      | Charge price                   |
 | `price_source_target`       | Pricing segment       | `price_source_target`                      | Discharge price                |
+| `salvage_value`             | Battery               | `salvage_value`                            | Terminal value for stored kWh  |
 | `efficiency_source_target`  | Efficiency segment    | `efficiency_source_target`                 | Battery to network (discharge) |
 | `efficiency_target_source`  | Efficiency segment    | `efficiency_target_source`                 | Network to battery (charge)    |
 | `max_power_target_source`   | Power-limit segment   | `max_power_target_source`                  | Network to battery             |

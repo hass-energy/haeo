@@ -198,7 +198,7 @@ This approach batches rapid updates while ensuring eventual consistency.
 ## Testing
 
 Coordinator testing uses Home Assistant's [test fixtures](https://developers.home-assistant.io/docs/development_testing/#test-fixtures) and mocks.
-Comprehensive test coverage is in `tests/test_coordinator.py`, including:
+Comprehensive test coverage is in `coordinator/tests/`, including:
 
 - Successful coordinator updates
 - Input alignment verification

@@ -7,7 +7,7 @@ Guide to HAEO's ConfigSubentry-based configuration flow implementation.
 HAEO uses Home Assistant's **ConfigSubentry architecture** where each element is managed as a subentry:
 
 1. **Hub flow** (in `custom_components/haeo/flows/hub.py`): Creates the main hub entry and base subentries
-2. **Element flows** (in `custom_components/haeo/elements/<element>/flow.py`): Create element ConfigSubentries using `ConfigSubentryFlow`
+2. **Element flows** (in `custom_components/haeo/flows/elements/<element>.py`): Create element ConfigSubentries using `ConfigSubentryFlow`
 3. **Network subentry**: Automatically created representing the optimization network itself
 
 This architecture follows Home Assistant's native [subentry pattern](https://developers.home-assistant.io/docs/config_entries_config_flow_handler/).
@@ -180,7 +180,7 @@ See [`custom_components/haeo/elements/__init__.py`](https://github.com/hass-ener
 
 ### Element-specific implementations
 
-Each element type has its own flow class in `custom_components/haeo/elements/<element>/flow.py`:
+Each element type has its own flow class in `custom_components/haeo/flows/elements/<element>.py`:
 
 - `BatterySubentryFlowHandler` - Battery element configuration
 - `BatterySectionSubentryFlowHandler` - Battery Section configuration
@@ -335,7 +335,7 @@ The composable metadata types are:
 
 ### Available Field Types
 
-Field types are defined in `custom_components/haeo/schema/fields.py`:
+Field types are defined in `custom_components/haeo/core/schema/fields.py`:
 
 | Validator Class | Purpose                       | Base Type |
 | --------------- | ----------------------------- | --------- |
@@ -412,7 +412,7 @@ See [user configuration guide](../user-guide/configuration.md) for end-user inst
 
 Config flow testing uses Home Assistant's [testing fixtures](https://developers.home-assistant.io/docs/development_testing/#test-fixtures) and follows standard patterns.
 
-Comprehensive test coverage is in `tests/flows/`, including:
+Comprehensive test coverage is in `flows/tests/`, including:
 
 - Hub flow success and duplicate prevention
 - Element flow with hub selection

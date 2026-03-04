@@ -31,9 +31,7 @@ from homeassistant.helpers.selector import (
 import voluptuous as vol
 
 from custom_components.haeo.const import DOMAIN
-from custom_components.haeo.elements.field_schema import FieldSchemaInfo
-from custom_components.haeo.elements.input_fields import InputFieldGroups, InputFieldInfo
-from custom_components.haeo.schema import (
+from custom_components.haeo.core.schema import (
     VALUE_TYPE_CONSTANT,
     VALUE_TYPE_ENTITY,
     VALUE_TYPE_NONE,
@@ -46,6 +44,8 @@ from custom_components.haeo.schema import (
     is_none_value,
     is_schema_value,
 )
+from custom_components.haeo.elements.field_schema import FieldSchemaInfo
+from custom_components.haeo.elements.input_fields import InputFieldGroups, InputFieldInfo
 
 # Choose selector choice keys (used for config flow data and translations)
 CHOICE_ENTITY = VALUE_TYPE_ENTITY
@@ -434,18 +434,24 @@ def build_choose_field_entries(
 def build_section_schema(
     sections: Sequence[SectionDefinition],
     field_entries: Mapping[str, Mapping[str, tuple[vol.Marker, Any]]],
+    *,
+    top_level_entries: Mapping[str, tuple[vol.Marker, Any]] | None = None,
 ) -> dict[vol.Marker, Any]:
     """Build section-wrapped schema entries from a field entry map.
 
     Args:
         sections: Section definitions with field order.
         field_entries: Mapping of field_name -> (marker, selector).
+        top_level_entries: Fields to place before sections, not wrapped in a section.
 
     Returns:
-        Schema dict with sections (data_entry_flow.section) in order.
+        Schema dict with top-level fields followed by sections.
 
     """
     schema_dict: dict[vol.Marker, Any] = {}
+
+    if top_level_entries:
+        schema_dict.update(dict(top_level_entries.values()))
 
     for section_def in sections:
         section_schema: dict[vol.Marker, Any] = {}
@@ -473,6 +479,7 @@ def build_sectioned_choose_schema(
     *,
     current_data: Mapping[str, Any] | None = None,
     extra_field_entries: Mapping[str, Mapping[str, tuple[vol.Marker, Any]]] | None = None,
+    top_level_entries: Mapping[str, tuple[vol.Marker, Any]] | None = None,
 ) -> vol.Schema:
     """Build a sectioned schema using choose selectors for input fields."""
     field_entries: dict[str, dict[str, tuple[vol.Marker, Any]]] = {
@@ -492,7 +499,7 @@ def build_sectioned_choose_schema(
             )
         )
 
-    return vol.Schema(build_section_schema(sections, field_entries))
+    return vol.Schema(build_section_schema(sections, field_entries, top_level_entries=top_level_entries))
 
 
 def build_sectioned_choose_defaults(

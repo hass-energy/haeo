@@ -41,7 +41,18 @@ jobs:
           version: "latest"
 
       - name: Install dependencies
-        run: uv sync
+        run: uv sync --locked --all-extras --dev
+
+      - name: Install Playwright browsers
+        run: uv run playwright install --with-deps firefox
+
+      - name: Generate guide screenshots
+        run: uv run pytest -m guide -v --timeout=300
+
+      - name: Optimize screenshots
+        run: |
+          sudo apt-get install -y optipng
+          find docs -name '*.png' -exec optipng -o5 -quiet {} +
 
       - name: Build documentation
         run: uv run zensical build

@@ -159,7 +159,7 @@ Explore these guides to act on the optimization outputs.
 
     See how the optimization outputs drive real-world decisions.
 
-    [:material-arrow-right: Sigenergy example](examples/sigenergy-system.md)
+    [:material-arrow-right: Sigenergy walkthrough](../walkthroughs/sigenergy-system.md)
 
 - :material-robot-outline:{ .lg .middle } **Build automations from the results**
 

@@ -6,12 +6,8 @@ from typing import Any
 from homeassistant import config_entries
 from homeassistant.config_entries import ConfigFlowResult
 
-from custom_components.haeo.const import (
-    CONF_ADVANCED_MODE,
-    CONF_DEBOUNCE_SECONDS,
-    CONF_HORIZON_PRESET,
-    CONF_RECORD_FORECASTS,
-)
+from custom_components.haeo.const import CONF_RECORD_FORECASTS
+from custom_components.haeo.core.const import CONF_ADVANCED_MODE, CONF_DEBOUNCE_SECONDS, CONF_HORIZON_PRESET
 
 from . import (
     HORIZON_PRESET_CUSTOM,

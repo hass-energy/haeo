@@ -11,7 +11,7 @@ from typing import Any, Literal
 from homeassistant.components.number import NumberEntityDescription
 from homeassistant.components.switch import SwitchEntityDescription
 
-from custom_components.haeo.model.const import OutputType
+from custom_components.haeo.core.model.const import OutputType
 
 
 @dataclass(frozen=True, slots=True)

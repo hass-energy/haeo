@@ -1,7 +1,7 @@
 ---
-applyTo: custom_components/haeo/model/**
+applyTo: custom_components/haeo/core/model/**
 description: Model layer LP formulation standards
-globs: [custom_components/haeo/model/**]
+globs: [custom_components/haeo/core/model/**]
 alwaysApply: false
 ---
 

@@ -13,3 +13,7 @@
 htmlcov/
 # Ignore hacs, if installed.
 hacs/
+
+# Ignore python caches
+.grimp_cache/
+.import_linter_cache/

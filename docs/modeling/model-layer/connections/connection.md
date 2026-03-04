@@ -13,6 +13,9 @@ Connection is the primary model for power flow:
 
 Segments are provided as an ordered mapping.
 The mapping keys become segment names and drive the nested `segments` output.
+Source→target flow uses the provided order.
+Target→source flow uses the reverse order by default.
+Set `mirror_segment_order` to use the same segment order for both flow directions.
 
 ## Segment types
 
@@ -38,12 +41,13 @@ Each segment may transform the flow before passing it to the next segment.
 
 ### Parameters
 
-| Parameter  | Description                                                |
-| ---------- | ---------------------------------------------------------- |
-| `source`   | Name of the source element                                 |
-| `target`   | Name of the target element                                 |
-| `periods`  | Time period durations (hours)                              |
-| `segments` | Ordered mapping of segment names to segment specifications |
+| Parameter              | Description                                                |
+| ---------------------- | ---------------------------------------------------------- |
+| `source`               | Name of the source element                                 |
+| `target`               | Name of the target element                                 |
+| `periods`              | Time period durations (hours)                              |
+| `segments`             | Ordered mapping of segment names to segment specifications |
+| `mirror_segment_order` | Use the same segment order for both flow directions        |
 
 If `segments` is omitted or empty, a passthrough segment is created automatically.
 Segment parameters can be scalars or per-period arrays.
@@ -119,6 +123,6 @@ Select the segment chain that matches the physical behavior you need.
 
     View the source code.
 
-    [:material-arrow-right: Source code](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/model/elements/connection.py)
+    [:material-arrow-right: Source code](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/core/model/elements/connection.py)
 
 </div>

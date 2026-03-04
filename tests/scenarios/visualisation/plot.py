@@ -15,12 +15,13 @@ from matplotlib.patches import Patch
 import matplotlib.pyplot as plt
 import numpy as np
 
-from custom_components.haeo.elements import ELEMENT_TYPE_SOLAR, ElementType
-from custom_components.haeo.model import Network
-from custom_components.haeo.model.const import OutputType
+from custom_components.haeo.core.model import Network
+from custom_components.haeo.core.model.const import OutputType
+from custom_components.haeo.core.schema.elements import ElementType
 
 from .colors import ColorMapper
 from .graph import create_graph_visualization
+from .svg_normalize import normalize_svg_file_clip_paths
 
 # Use non-GUI backend
 mpl.use("Agg")
@@ -114,7 +115,7 @@ def extract_forecast_data(output_sensors: Mapping[str, Mapping[str, Any]]) -> di
             # Input entities now have direction from schema field metadata
             if output_type == OutputType.POWER:
                 # Solar power inputs are forecasts of available power (limits)
-                if element_type == ELEMENT_TYPE_SOLAR:
+                if element_type == ElementType.SOLAR:
                     entry["available"] = forecast
                 elif direction == "+":
                     # Power production inputs → available power
@@ -151,7 +152,7 @@ def extract_forecast_data(output_sensors: Mapping[str, Mapping[str, Any]]) -> di
                     entry["production"] = forecast
                 elif output_type == OutputType.POWER and direction == "-":
                     entry["consumption"] = forecast
-                elif output_type == OutputType.POWER_LIMIT and direction == "+" and element_type == ELEMENT_TYPE_SOLAR:
+                elif output_type == OutputType.POWER_LIMIT and direction == "+" and element_type == ElementType.SOLAR:
                     entry["available"] = forecast
                 elif output_type == OutputType.PRICE and direction == "+":
                     entry["production_price"] = forecast
@@ -456,6 +457,7 @@ def create_stacked_visualization(output_sensors: Mapping[str, Mapping[str, Any]]
 
     # Save as SVG
     fig.savefig(output_path, format="svg", bbox_inches="tight", pad_inches=0.3, metadata={"Date": None})
+    normalize_svg_file_clip_paths(Path(output_path))
     _LOGGER.info("Visualization saved to %s", output_path)
 
     # Also save as PNG for easier viewing
@@ -510,6 +512,7 @@ def create_shadow_price_visualization(
     fig.subplots_adjust(top=0.90, bottom=0.18, left=0.08, right=0.95)
 
     fig.savefig(output_path, format="svg", bbox_inches="tight", pad_inches=0.3)
+    normalize_svg_file_clip_paths(Path(output_path))
     _LOGGER.info("Shadow price visualization saved to %s", output_path)
 
     png_path = output_path.replace(".svg", ".png")

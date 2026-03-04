@@ -1,6 +1,7 @@
-# Load Modeling
+# Load modeling
 
 The Load device composes a [Node](../model-layer/elements/node.md) (power sink only) with an implicit [Connection](../model-layer/connections/connection.md) to model power consumption based on forecast data.
+The connection includes a power limit segment and an optional pricing segment.
 
 ## Model Elements Created
 
@@ -8,7 +9,7 @@ The Load device composes a [Node](../model-layer/elements/node.md) (power sink o
 graph LR
     subgraph "Device"
         SS["Node<br/>(is_source=false, is_sink=true)"]
-        Conn["Connection<br/>{name}:connection<br/>(power_limit fixed)"]
+        Conn["Connection<br/>{name}:connection<br/>(power_limit + pricing)"]
     end
 
     Node[Connection Target]
@@ -18,10 +19,10 @@ graph LR
     Node -->|connects to| Conn
 ```
 
-| Model Element                                          | Name                | Parameters From Configuration                  |
-| ------------------------------------------------------ | ------------------- | ---------------------------------------------- |
-| [Node](../model-layer/elements/node.md)                | `{name}`            | is_source=false, is_sink=true                  |
-| [Connection](../model-layer/connections/connection.md) | `{name}:connection` | power-limit segment with fixed forecast demand |
+| Model Element                                          | Name                | Parameters From Configuration          |
+| ------------------------------------------------------ | ------------------- | -------------------------------------- |
+| [Node](../model-layer/elements/node.md)                | `{name}`            | is_source=false, is_sink=true          |
+| [Connection](../model-layer/connections/connection.md) | `{name}:connection` | power-limit and pricing segment values |
 
 ## Devices Created
 
@@ -35,14 +36,15 @@ Load creates 1 device in Home Assistant:
 
 The adapter transforms user configuration into connection segments:
 
-| User Configuration | Segment           | Segment Field             | Notes                               |
-| ------------------ | ----------------- | ------------------------- | ----------------------------------- |
-| `forecast`         | PowerLimitSegment | `max_power_target_source` | Required consumption at each time   |
-| `connection`       | Connection        | `source`                  | Node to connect from                |
-| —                  | PowerLimitSegment | `max_power_source_target` | Set to zero to prevent reverse flow |
-| —                  | PowerLimitSegment | `fixed`                   | True to enforce demand equality     |
-| —                  | Node              | `is_source=false`         | Load cannot provide power           |
-| —                  | Node              | `is_sink=true`            | Load consumes power                 |
+| User Configuration       | Segment           | Segment Field             | Notes                                                       |
+| ------------------------ | ----------------- | ------------------------- | ----------------------------------------------------------- |
+| `forecast`               | PowerLimitSegment | `max_power_target_source` | Maximum consumption at each time                            |
+| `curtailment` (shedding) | PowerLimitSegment | `fixed`                   | True when curtailment is disabled (fixed demand)            |
+| `price_target_source`    | PricingSegment    | `price_target_source`     | Negated in adapter to represent a consumption value/benefit |
+| `connection`             | Connection        | `source`                  | Node to connect from                                        |
+| —                        | PowerLimitSegment | `max_power_source_target` | Set to zero to prevent reverse flow                         |
+| —                        | Node              | `is_source=false`         | Load cannot provide power                                   |
+| —                        | Node              | `is_sink=true`            | Load consumes power                                         |
 
 ## Sensors Created
 
@@ -88,7 +90,12 @@ Model predictable loads like pool pumps, HVAC, or EV charging with time-varying 
 
 ## Physical Interpretation
 
-Load represents power consumption that must be satisfied by the system—either from grid, battery discharge, or solar generation.
+Load represents power consumption that the system can choose to satisfy up to a forecast limit.
+When curtailment (shedding) is disabled, the forecast is enforced exactly.
+When enabled, the optimizer may shed the load if that reduces total system cost.
+
+The model represents average power within each optimization period.
+This means reduced power can be interpreted as partial operation in whatever way fits the physical device (duty cycle, throttling, staging, etc.).
 
 ### Configuration Guidelines
 
@@ -103,8 +110,8 @@ Load represents power consumption that must be satisfied by the system—either 
 - **Multiple Loads**:
     Create separate Load elements for different consumption categories (base load, HVAC, EV charging) to track them independently.
 - **Fixed Power**:
-    Loads are NOT controllable—they represent consumption that will occur regardless of optimization decisions.
-    The optimizer determines how to supply the power, not whether to supply it.
+    When curtailment is disabled, consumption equals the forecast exactly.
+    When enabled, consumption may be reduced below the forecast based on economics and constraints.
 
 ## Next Steps
 

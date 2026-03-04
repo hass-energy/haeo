@@ -47,10 +47,14 @@ The adapter maps configuration into connection segments:
 | `efficiency_target_source` | EfficiencySegment | `efficiency_target_source` | Percent converted to ratio     |
 | `price_source_target`      | PricingSegment    | `price_source_target`      | Optional, no cost if not set   |
 | `price_target_source`      | PricingSegment    | `price_target_source`      | Optional, no cost if not set   |
+| `mirror_segment_order`     | Connection        | `mirror_segment_order`     | Optional, default is reversed  |
 
 If a field is omitted, the corresponding segment defaults apply.
 Power limits and pricing are skipped when values are `None`.
 Efficiency defaults to 100% via the efficiency segment.
+Source→target flow uses the segment order provided.
+Target→source flow uses the reverse order by default.
+Set `mirror_segment_order` to use the same segment order for both flow directions.
 
 ## Sensors Created
 

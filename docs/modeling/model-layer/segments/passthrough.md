@@ -48,6 +48,6 @@ It is useful for implicit connections created by device adapters.
 
     View the source code for the passthrough segment.
 
-    [:material-arrow-right: Source code](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/model/elements/segments/passthrough.py)
+    [:material-arrow-right: Source code](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/core/model/elements/segments/passthrough.py)
 
 </div>
