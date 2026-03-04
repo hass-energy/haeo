@@ -3,6 +3,7 @@
 from typing import Any
 
 from homeassistant.config_entries import ConfigSubentryFlow, SubentryFlowResult
+from homeassistant.helpers.selector import BooleanSelector, BooleanSelectorConfig
 import voluptuous as vol
 
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
@@ -12,12 +13,14 @@ from custom_components.haeo.core.schema.elements.connection import (
     CONF_EFFICIENCY_TARGET_SOURCE,
     CONF_MAX_POWER_SOURCE_TARGET,
     CONF_MAX_POWER_TARGET_SOURCE,
+    CONF_MIRROR_SEGMENT_ORDER,
     CONF_PRICE_SOURCE_TARGET,
     CONF_PRICE_TARGET_SOURCE,
     CONF_SOURCE,
     CONF_TARGET,
     ELEMENT_TYPE,
     SECTION_ENDPOINTS,
+    SECTION_SEGMENT_ORDER,
 )
 from custom_components.haeo.elements import get_input_field_schema_info, get_input_fields
 from custom_components.haeo.elements.input_fields import InputFieldGroups
@@ -61,6 +64,19 @@ def _build_endpoints_fields(
     }
 
 
+def _build_segment_order_fields() -> dict[str, tuple[vol.Marker, Any]]:
+    """Build segment order field entries for config flows."""
+    return {
+        CONF_MIRROR_SEGMENT_ORDER: (
+            vol.Optional(CONF_MIRROR_SEGMENT_ORDER),
+            vol.All(
+                vol.Coerce(bool),
+                BooleanSelector(BooleanSelectorConfig()),
+            ),
+        )
+    }
+
+
 class ConnectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
     """Handle connection element configuration flows."""
 
@@ -68,6 +84,7 @@ class ConnectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         """Return sections for the configuration step."""
         return (
             SectionDefinition(key=SECTION_ENDPOINTS, fields=(CONF_SOURCE, CONF_TARGET), collapsed=False),
+            SectionDefinition(key=SECTION_SEGMENT_ORDER, fields=(CONF_MIRROR_SEGMENT_ORDER,), collapsed=True),
             power_limits_section((CONF_MAX_POWER_SOURCE_TARGET, CONF_MAX_POWER_TARGET_SOURCE), collapsed=False),
             pricing_section((CONF_PRICE_SOURCE_TARGET, CONF_PRICE_TARGET_SOURCE), collapsed=False),
             efficiency_section((CONF_EFFICIENCY_SOURCE_TARGET, CONF_EFFICIENCY_TARGET_SOURCE), collapsed=True),
@@ -156,6 +173,7 @@ class ConnectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             top_level_entries=build_common_fields(include_connection=False),
             extra_field_entries={
                 SECTION_ENDPOINTS: _build_endpoints_fields(participants, current_source, current_target),
+                SECTION_SEGMENT_ORDER: _build_segment_order_fields(),
             },
         )
 
@@ -169,6 +187,7 @@ class ConnectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
     ) -> dict[str, Any]:
         """Build default values for the form."""
         endpoints_data = subentry_data.get(SECTION_ENDPOINTS, {}) if subentry_data else {}
+        segment_order_data = subentry_data.get(SECTION_SEGMENT_ORDER, {}) if subentry_data else {}
         source_default = (
             source_default
             if source_default is not None
@@ -193,6 +212,9 @@ class ConnectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                     SECTION_ENDPOINTS: {
                         CONF_SOURCE: source_default,
                         CONF_TARGET: target_default,
+                    },
+                    SECTION_SEGMENT_ORDER: {
+                        CONF_MIRROR_SEGMENT_ORDER: bool(segment_order_data.get(CONF_MIRROR_SEGMENT_ORDER, False)),
                     },
                 },
             ),
@@ -236,10 +258,14 @@ class ConnectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             self._get_sections(),
         )
         endpoints_config = config_dict.get(SECTION_ENDPOINTS, {})
+        segment_order_config = config_dict.get(SECTION_SEGMENT_ORDER, {})
         if CONF_SOURCE in endpoints_config:
             endpoints_config[CONF_SOURCE] = normalize_connection_target(endpoints_config[CONF_SOURCE])
         if CONF_TARGET in endpoints_config:
             endpoints_config[CONF_TARGET] = normalize_connection_target(endpoints_config[CONF_TARGET])
+        config_dict[SECTION_SEGMENT_ORDER] = {
+            CONF_MIRROR_SEGMENT_ORDER: bool(segment_order_config.get(CONF_MIRROR_SEGMENT_ORDER, False)),
+        }
 
         return {
             CONF_ELEMENT_TYPE: ELEMENT_TYPE,
