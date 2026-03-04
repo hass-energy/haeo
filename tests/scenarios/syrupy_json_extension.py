@@ -1,6 +1,6 @@
 """Custom syrupy extension to serialize sensor snapshots into outputs.json files."""
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterator, Mapping, Sequence
 import json
 from numbers import Real
 from pathlib import Path
@@ -9,6 +9,55 @@ from typing import Any
 from syrupy.extensions.json import JSONSnapshotExtension
 from syrupy.location import PyTestLocation
 from syrupy.types import SerializableData, SerializedData, SnapshotIndex
+
+
+def _collect_diffs(
+    received: Any,
+    snapshot: Any,
+    path: str = "",
+    rel_tol: float = 1e-5,
+    abs_tol: float = 1e-9,
+) -> list[tuple[str, Any, Any]]:
+    """Recursively collect paths where received and snapshot values differ."""
+    diffs: list[tuple[str, Any, Any]] = []
+
+    if received is None and snapshot is None:
+        return diffs
+    if received is None or snapshot is None:
+        return [(path or "<root>", received, snapshot)]
+
+    if isinstance(received, Real) and isinstance(snapshot, Real):
+        if not approx_equal(received, snapshot, rel_tol, abs_tol):
+            diffs.append((path or "<root>", received, snapshot))
+        return diffs
+
+    if isinstance(received, Mapping) and isinstance(snapshot, Mapping):
+        all_keys = set(received) | set(snapshot)
+        for key in sorted(all_keys, key=str):
+            key_path = f"{path}.{key}" if path else str(key)
+            if key not in snapshot:
+                diffs.append((key_path, received[key], "<missing>"))
+            elif key not in received:
+                diffs.append((key_path, "<missing>", snapshot[key]))
+            else:
+                diffs.extend(_collect_diffs(received[key], snapshot[key], key_path, rel_tol, abs_tol))
+        return diffs
+
+    if (
+        isinstance(received, Sequence)
+        and isinstance(snapshot, Sequence)
+        and not isinstance(received, str)
+        and not isinstance(snapshot, str)
+    ):
+        if len(received) != len(snapshot):
+            diffs.append((f"{path}(len)", len(received), len(snapshot)))
+        for i, (r, s) in enumerate(zip(received, snapshot, strict=False)):
+            diffs.extend(_collect_diffs(r, s, f"{path}[{i}]", rel_tol, abs_tol))
+        return diffs
+
+    if received != snapshot:
+        diffs.append((path or "<root>", received, snapshot))
+    return diffs
 
 
 def approx_equal(a: Any, b: Any, rel_tol: float = 1e-5, abs_tol: float = 1e-9) -> bool:
@@ -172,3 +221,19 @@ class ScenarioJSONExtension(JSONSnapshotExtension):
     ) -> bool:
         """Compare serialized data with snapshot using approximate float comparison."""
         return approx_equal(serialized_data, snapshot_data)
+
+    def diff_lines(
+        self,
+        serialized_data: SerializedData,
+        snapshot_data: SerializedData,
+    ) -> Iterator[str]:
+        """Produce a structured diff showing only values that differ."""
+        diffs = _collect_diffs(serialized_data, snapshot_data)
+        if not diffs:
+            yield "No differences found (approx_equal passes but exact equality fails)"
+            return
+        yield f"{len(diffs)} difference(s):"
+        for path, received, expected in diffs:
+            yield f"  {path}:"
+            yield f"    snapshot: {expected!r}"
+            yield f"    received: {received!r}"

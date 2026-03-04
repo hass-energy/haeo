@@ -259,7 +259,7 @@ jobs:
         run: uv sync --locked --all-extras --dev
 
       - name: Run scenario tests
-        run: uv run pytest -m scenario -v
+        run: uv run pytest -m scenario -vv
   #endregion
 
   #region Validation
