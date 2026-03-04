@@ -69,6 +69,6 @@ Power leaving a source is not scaled, but power entering the next segment is red
 
     View the source code for the efficiency segment.
 
-    [:material-arrow-right: Source code](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/model/elements/segments/efficiency.py)
+    [:material-arrow-right: Source code](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/core/model/elements/segments/efficiency.py)
 
 </div>

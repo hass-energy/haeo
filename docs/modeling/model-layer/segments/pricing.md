@@ -65,6 +65,6 @@ Costs can vary over time and by direction.
 
     View the source code for the pricing segment.
 
-    [:material-arrow-right: Source code](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/model/elements/segments/pricing.py)
+    [:material-arrow-right: Source code](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/core/model/elements/segments/pricing.py)
 
 </div>

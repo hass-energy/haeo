@@ -1,7 +1,7 @@
 """Historical state provider using the recorder."""
 
 from collections.abc import Iterable
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Any, cast
 
 from homeassistant.components.recorder import history as recorder_history
@@ -69,7 +69,7 @@ class HistoricalStateProvider:
         result: dict[str, list[State | dict[str, Any]]] = recorder_history.get_significant_states(
             self._hass,
             start_time=self._timestamp,
-            end_time=self._timestamp + timedelta(seconds=1),
+            end_time=self._timestamp,
             entity_ids=entity_id_list,
             include_start_time_state=True,
             significant_changes_only=False,  # include attribute-only changes

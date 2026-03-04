@@ -13,7 +13,7 @@ from .const import (
     OUTPUT_NAME_OPTIMIZATION_DURATION,
     OUTPUT_NAME_OPTIMIZATION_STATUS,
 )
-from .util.forecast_times import tiers_to_periods_seconds
+from .core.data.forecast_times import tiers_to_periods_seconds
 
 
 @callback
@@ -52,7 +52,7 @@ async def async_system_health_info(hass: HomeAssistant) -> dict[str, Any]:
         # Coordinator status
         health_info[f"{prefix}status"] = "ok" if coordinator.last_update_success else "update_failed"
 
-        hub_outputs: Mapping[str, Any] = coordinator.data.get(hub_key, {}) if coordinator.data else {}
+        hub_outputs: Mapping[str, Any] = coordinator.data.outputs.get(hub_key, {}) if coordinator.data else {}
 
         status_output = hub_outputs.get(OUTPUT_NAME_OPTIMIZATION_STATUS)
         optimization_status = (
@@ -75,7 +75,7 @@ async def async_system_health_info(hass: HomeAssistant) -> dict[str, Any]:
         outputs_count = 0
         if coordinator.data:
             outputs_count = sum(
-                len(outputs) for element_key, outputs in coordinator.data.items() if element_key != hub_key
+                len(outputs) for element_key, outputs in coordinator.data.outputs.items() if element_key != hub_key
             )
         health_info[f"{prefix}outputs"] = outputs_count
 

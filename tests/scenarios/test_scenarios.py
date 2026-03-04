@@ -16,7 +16,8 @@ import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.haeo import MIGRATION_MINOR_VERSION
-from custom_components.haeo.const import (
+from custom_components.haeo.const import DOMAIN, INTEGRATION_TYPE_HUB, OUTPUT_NAME_OPTIMIZATION_STATUS
+from custom_components.haeo.core.const import (
     CONF_ELEMENT_TYPE,
     CONF_NAME,
     CONF_TIER_1_COUNT,
@@ -27,9 +28,6 @@ from custom_components.haeo.const import (
     CONF_TIER_3_DURATION,
     CONF_TIER_4_COUNT,
     CONF_TIER_4_DURATION,
-    DOMAIN,
-    INTEGRATION_TYPE_HUB,
-    OUTPUT_NAME_OPTIMIZATION_STATUS,
 )
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON, HUB_SECTION_TIERS
 from custom_components.haeo.sensor_utils import get_output_sensors

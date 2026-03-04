@@ -117,6 +117,6 @@ Note any real-world behaviors not captured by the model:
 
     View the source code for this model element.
 
-    [:material-arrow-right: Source code](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/model/element.py)
+    [:material-arrow-right: Source code](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/core/model/element.py)
 
 </div>

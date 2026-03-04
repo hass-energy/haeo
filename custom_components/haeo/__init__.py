@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Awaitable
+from collections.abc import Awaitable, Mapping
 from dataclasses import dataclass, field
 import logging
 from types import MappingProxyType
@@ -11,14 +11,15 @@ from typing import TYPE_CHECKING, Protocol
 
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry
 from homeassistant.const import Platform
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, State
 from homeassistant.exceptions import ConfigEntryError, ConfigEntryNotReady
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.translation import async_get_translations
 from homeassistant.helpers.typing import ConfigType
 
-from custom_components.haeo.const import CONF_ADVANCED_MODE, CONF_ELEMENT_TYPE, CONF_NAME, DOMAIN, ELEMENT_TYPE_NETWORK
+from custom_components.haeo.const import DOMAIN, ELEMENT_TYPE_NETWORK
 from custom_components.haeo.coordinator import HaeoDataUpdateCoordinator
+from custom_components.haeo.core.const import CONF_ADVANCED_MODE, CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.elements import ELEMENT_DEVICE_NAMES_BY_TYPE
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED
 from custom_components.haeo.horizon import HorizonManager
@@ -47,6 +48,11 @@ class InputEntity(Protocol):
         ...
 
     @property
+    def uses_forecast(self) -> bool:
+        """Return True if this entity produces time-series forecast data."""
+        ...
+
+    @property
     def horizon_start(self) -> float | None:
         """Return the first forecast timestamp, or None if not loaded."""
         ...
@@ -61,6 +67,11 @@ class InputEntity(Protocol):
 
     def get_values(self) -> tuple[float | bool, ...] | None:
         """Return forecast values or None if not loaded."""
+        ...
+
+    @property
+    def captured_source_states(self) -> Mapping[str, State]:
+        """Source states captured from the last data load."""
         ...
 
 
@@ -122,11 +133,10 @@ async def _ensure_required_subentries(hass: HomeAssistant, hub_entry: ConfigEntr
     Creates a Network subentry (for optimization sensors) if missing.
     In non-advanced mode, also creates a Switchboard node if missing.
     """
-    from custom_components.haeo.elements import ELEMENT_TYPE_NODE  # noqa: PLC0415
-    from custom_components.haeo.elements.node import (  # noqa: PLC0415
+    from custom_components.haeo.core.schema.elements import ElementType  # noqa: PLC0415
+    from custom_components.haeo.core.schema.elements.node import (  # noqa: PLC0415
         CONF_IS_SINK,
         CONF_IS_SOURCE,
-        SECTION_COMMON,
         SECTION_ROLE,
     )
 
@@ -137,7 +147,7 @@ async def _ensure_required_subentries(hass: HomeAssistant, hub_entry: ConfigEntr
     for subentry in hub_entry.subentries.values():
         if subentry.subentry_type == ELEMENT_TYPE_NETWORK:
             has_network = True
-        elif subentry.subentry_type == ELEMENT_TYPE_NODE:
+        elif subentry.subentry_type == ElementType.NODE:
             has_node = True
         if has_network and has_node:
             break
@@ -167,15 +177,15 @@ async def _ensure_required_subentries(hass: HomeAssistant, hub_entry: ConfigEntr
         switchboard_subentry = ConfigSubentry(
             data=MappingProxyType(
                 {
-                    CONF_ELEMENT_TYPE: ELEMENT_TYPE_NODE,
-                    SECTION_COMMON: {CONF_NAME: switchboard_name},
+                    CONF_ELEMENT_TYPE: ElementType.NODE,
+                    CONF_NAME: switchboard_name,
                     SECTION_ROLE: {
                         CONF_IS_SOURCE: False,
                         CONF_IS_SINK: False,
                     },
                 }
             ),
-            subentry_type=ELEMENT_TYPE_NODE,
+            subentry_type=ElementType.NODE,
             title=switchboard_name,
             unique_id=None,
         )

@@ -11,8 +11,8 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from custom_components.haeo.const import CONF_RECORD_FORECASTS
 from custom_components.haeo.coordinator import CoordinatorOutput, ForecastPoint, HaeoDataUpdateCoordinator
+from custom_components.haeo.core.model import OutputType
 from custom_components.haeo.elements import ElementDeviceName, ElementOutputName
-from custom_components.haeo.model import OutputType
 
 # Attributes to exclude from recorder when forecast recording is disabled
 FORECAST_UNRECORDED_ATTRIBUTES: frozenset[str] = frozenset({"forecast"})
@@ -61,9 +61,7 @@ class HaeoSensor(CoordinatorEntity[HaeoDataUpdateCoordinator], SensorEntity):
             self._attr_translation_placeholders = translation_placeholders
         self._apply_output(output_data)
 
-        # Exclude forecast from recorder unless explicitly enabled
-        if not coordinator.config_entry.data.get(CONF_RECORD_FORECASTS, False):
-            self._unrecorded_attributes = FORECAST_UNRECORDED_ATTRIBUTES
+        self._record_forecasts = coordinator.config_entry.data.get(CONF_RECORD_FORECASTS, False)
 
     @property
     def available(self) -> bool:  # pyright: ignore[reportIncompatibleVariableOverride]
@@ -84,7 +82,7 @@ class HaeoSensor(CoordinatorEntity[HaeoDataUpdateCoordinator], SensorEntity):
         native_value: StateType | None = None
 
         # Navigate the nested structure: subentry -> device -> outputs
-        subentry_devices = self.coordinator.data.get(self._subentry_key) if self.coordinator.data else None
+        subentry_devices = self.coordinator.data.outputs.get(self._subentry_key) if self.coordinator.data else None
         outputs = subentry_devices.get(self._device_key) if subentry_devices else None
         if outputs:
             output_data = outputs.get(self._output_name)
@@ -108,7 +106,14 @@ class HaeoSensor(CoordinatorEntity[HaeoDataUpdateCoordinator], SensorEntity):
     async def async_added_to_hass(self) -> None:
         """Finalize setup when entity is added to Home Assistant."""
         await super().async_added_to_hass()
+        self._apply_recorder_attribute_filtering()
         self._handle_coordinator_update()
+
+    def _apply_recorder_attribute_filtering(self) -> None:
+        """Apply recorder filtering to this entity's runtime state info."""
+        if self._record_forecasts:
+            return
+        self._state_info["unrecorded_attributes"] = FORECAST_UNRECORDED_ATTRIBUTES
 
     def _apply_output(self, output: CoordinatorOutput) -> None:
         """Apply device class, options, and unit metadata for an output."""

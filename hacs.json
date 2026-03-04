@@ -1,5 +1,7 @@
 {
   "name": "HAEO",
   "hacs": "2.0.5",
-  "homeassistant": "2026.1.1"
+  "homeassistant": "2026.1.1",
+  "filename": "haeo.zip",
+  "zip_release": true
 }

@@ -19,7 +19,7 @@ from homeassistant.core import CALLBACK_TYPE, HomeAssistant, callback
 from homeassistant.helpers.event import async_track_point_in_time
 from homeassistant.util import dt as dt_util
 
-from custom_components.haeo.util.forecast_times import generate_forecast_timestamps, tiers_to_periods_seconds
+from custom_components.haeo.core.data.forecast_times import generate_forecast_timestamps, tiers_to_periods_seconds
 
 
 class HorizonManager:

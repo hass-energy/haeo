@@ -280,7 +280,7 @@ Developer documentation explains architecture and design decisions, not implemen
 
 When referencing implementation:
 
-- Link to the specific module on GitHub: [`TimeSeriesLoader`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/data/loader/time_series_loader.py)
+- Link to the specific module on GitHub: [`TimeSeriesLoader`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/core/data/loader/time_series_loader.py)
 - Reference function/class names in text: "The `combine_sensor_payloads()` function merges multiple sensors..."
 - Describe purpose and behavior, not implementation: "combines additively" not "loops through payloads and sums values"
 
@@ -423,6 +423,52 @@ Templates provide a consistent structure, but not every section is required for 
 - Document intentional deviations in pull request descriptions
 
 The goal is consistency where it helps readers, not rigid adherence to structure.
+
+## Walkthroughs
+
+Walkthroughs are step-by-step configuration guides in `docs/walkthroughs/` with embedded `guide` code blocks.
+These blocks are executed against a live Home Assistant instance during CI, producing screenshots that render as interactive slideshows in the published documentation.
+
+### Authoring a walkthrough
+
+Write the walkthrough as a standard markdown page.
+Use `guide` fenced code blocks to call primitives from `tests/guides/primitives/` (such as `login`, `add_integration`, `add_battery`, etc.).
+Surround the code blocks with descriptive prose explaining what the user should do and why.
+
+Each guide block executes in the same browser and HA context, so state accumulates across blocks.
+For example, a block adding a battery in step 3 can reference an inverter added in step 2.
+
+### Available primitives
+
+Primitives are defined in `tests/guides/primitives/` and include:
+
+- `login(page)` — Log in to the HA instance
+- `add_integration(page, network_name=...)` — Add the HAEO integration and create a hub
+- `add_battery(page, name=..., connection=..., ...)` — Add a battery element
+- `add_solar(page, name=..., connection=..., ...)` — Add a solar element
+- `add_grid(page, name=..., ...)` — Add a grid element
+- `add_load(page, name=..., connection=..., ...)` — Add a load element
+- `add_inverter(page, name=..., connection=..., ...)` — Add an inverter element
+- `add_node(page, name=..., connection=..., ...)` — Add a node element
+- `verify_setup(page)` — Navigate to the integration and verify the setup
+
+### Generating screenshots
+
+Run the guide runner to generate screenshots locally:
+
+```bash
+uv run python -m tools.guide_runner docs/walkthroughs/sigenergy-system.md
+```
+
+Screenshots are saved under `docs/walkthroughs/<page>/light/` and `dark/` with a `manifest.json` mapping content hashes to screenshot directories.
+These files are gitignored and generated fresh during CI.
+
+### Rendering
+
+During documentation build, `tools/guide_fence.py` renders `guide` blocks as screenshot slideshows using the manifest data.
+If no manifest exists (screenshots haven't been generated), a styled placeholder is shown instead.
+
+See the [testing guide](testing.md#guide-testing) for CI integration details.
 
 ## Submission checklist
 

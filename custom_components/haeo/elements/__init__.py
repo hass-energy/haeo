@@ -32,7 +32,6 @@ from typing import (
     Literal,
     NamedTuple,
     NotRequired,
-    Protocol,
     Required,
     TypeAliasType,
     TypeGuard,
@@ -40,213 +39,162 @@ from typing import (
     get_args,
     get_origin,
     get_type_hints,
-    runtime_checkable,
 )
 
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry
 
 from custom_components.haeo.const import (
-    CONF_ELEMENT_TYPE,
     ELEMENT_TYPE_NETWORK,
     NETWORK_OUTPUT_NAMES,
-    ConnectivityLevel,
     NetworkDeviceName,
     NetworkOutputName,
 )
-from custom_components.haeo.model import ModelElementConfig, ModelOutputName
-from custom_components.haeo.model.output_data import ModelOutputValue, OutputData
+from custom_components.haeo.core.adapters.elements.battery import (
+    BATTERY_DEVICE_NAMES,
+    BATTERY_OUTPUT_NAMES,
+    BatteryDeviceName,
+    BatteryOutputName,
+)
+from custom_components.haeo.core.adapters.elements.battery_section import (
+    BATTERY_SECTION_DEVICE_NAMES,
+    BATTERY_SECTION_OUTPUT_NAMES,
+    BatterySectionDeviceName,
+    BatterySectionOutputName,
+)
+from custom_components.haeo.core.adapters.elements.connection import (
+    CONNECTION_DEVICE_NAMES,
+    CONNECTION_OUTPUT_NAMES,
+    ConnectionDeviceName,
+    ConnectionOutputName,
+)
+from custom_components.haeo.core.adapters.elements.grid import (
+    GRID_DEVICE_NAMES,
+    GRID_OUTPUT_NAMES,
+    GridDeviceName,
+    GridOutputName,
+)
+from custom_components.haeo.core.adapters.elements.inverter import (
+    INVERTER_DEVICE_NAMES,
+    INVERTER_OUTPUT_NAMES,
+    InverterDeviceName,
+    InverterOutputName,
+)
+from custom_components.haeo.core.adapters.elements.load import (
+    LOAD_DEVICE_NAMES,
+    LOAD_OUTPUT_NAMES,
+    LoadDeviceName,
+    LoadOutputName,
+)
+from custom_components.haeo.core.adapters.elements.node import (
+    NODE_DEVICE_NAMES,
+    NODE_OUTPUT_NAMES,
+    NodeDeviceName,
+    NodeOutputName,
+)
+from custom_components.haeo.core.adapters.elements.solar import (
+    SOLAR_DEVICE_NAMES,
+    SOLAR_OUTPUT_NAMES,
+    SolarDeviceName,
+    SolarOutputName,
+)
+from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES, is_element_type
+from custom_components.haeo.core.const import CONF_ELEMENT_TYPE
+from custom_components.haeo.core.schema.elements import (
+    ELEMENT_CONFIG_SCHEMAS,
+    ElementConfigData,
+    ElementConfigSchema,
+    ElementType,
+)
+from custom_components.haeo.core.schema.elements.battery import OPTIONAL_INPUT_FIELDS as BATTERY_OPTIONAL_INPUT_FIELDS
+from custom_components.haeo.core.schema.elements.battery import BatteryConfigData
+from custom_components.haeo.core.schema.elements.battery_section import (
+    OPTIONAL_INPUT_FIELDS as BATTERY_SECTION_OPTIONAL_INPUT_FIELDS,
+)
+from custom_components.haeo.core.schema.elements.battery_section import BatterySectionConfigData
+from custom_components.haeo.core.schema.elements.connection import (
+    OPTIONAL_INPUT_FIELDS as CONNECTION_OPTIONAL_INPUT_FIELDS,
+)
+from custom_components.haeo.core.schema.elements.connection import ConnectionConfigData
+from custom_components.haeo.core.schema.elements.grid import OPTIONAL_INPUT_FIELDS as GRID_OPTIONAL_INPUT_FIELDS
+from custom_components.haeo.core.schema.elements.grid import GridConfigData
+from custom_components.haeo.core.schema.elements.inverter import OPTIONAL_INPUT_FIELDS as INVERTER_OPTIONAL_INPUT_FIELDS
+from custom_components.haeo.core.schema.elements.inverter import InverterConfigData
+from custom_components.haeo.core.schema.elements.load import OPTIONAL_INPUT_FIELDS as LOAD_OPTIONAL_INPUT_FIELDS
+from custom_components.haeo.core.schema.elements.load import LoadConfigData
+from custom_components.haeo.core.schema.elements.node import OPTIONAL_INPUT_FIELDS as NODE_OPTIONAL_INPUT_FIELDS
+from custom_components.haeo.core.schema.elements.node import NodeConfigData
+from custom_components.haeo.core.schema.elements.solar import OPTIONAL_INPUT_FIELDS as SOLAR_OPTIONAL_INPUT_FIELDS
+from custom_components.haeo.core.schema.elements.solar import SolarConfigData
+from custom_components.haeo.core.schema.field_hints import extract_field_hints
+from custom_components.haeo.elements.field_hints import build_input_fields
 
-from . import battery, battery_section, connection, grid, inverter, load, node, solar
 from .field_schema import FieldSchemaInfo
 from .input_fields import InputFieldGroups, InputFieldInfo, InputFieldPath, InputFieldSection
 
 _LOGGER = logging.getLogger(__name__)
 
-type ElementType = Literal[
-    "battery",
-    "battery_section",
-    "connection",
-    "solar",
-    "grid",
-    "inverter",
-    "load",
-    "node",
-]
-
-ELEMENT_TYPE_INVERTER: Final = inverter.ELEMENT_TYPE
-ELEMENT_TYPE_BATTERY: Final = battery.ELEMENT_TYPE
-ELEMENT_TYPE_BATTERY_SECTION: Final = battery_section.ELEMENT_TYPE
-ELEMENT_TYPE_CONNECTION: Final = connection.ELEMENT_TYPE
-ELEMENT_TYPE_SOLAR: Final = solar.ELEMENT_TYPE
-ELEMENT_TYPE_GRID: Final = grid.ELEMENT_TYPE
-ELEMENT_TYPE_LOAD: Final = load.ELEMENT_TYPE
-ELEMENT_TYPE_NODE: Final = node.ELEMENT_TYPE
-
-ElementConfigSchema = (
-    inverter.InverterConfigSchema
-    | battery.BatteryConfigSchema
-    | battery_section.BatterySectionConfigSchema
-    | grid.GridConfigSchema
-    | load.LoadConfigSchema
-    | solar.SolarConfigSchema
-    | node.NodeConfigSchema
-    | connection.ConnectionConfigSchema
-)
-
-ElementConfigData = (
-    inverter.InverterConfigData
-    | battery.BatteryConfigData
-    | battery_section.BatterySectionConfigData
-    | grid.GridConfigData
-    | load.LoadConfigData
-    | solar.SolarConfigData
-    | node.NodeConfigData
-    | connection.ConnectionConfigData
-)
-
 
 type ElementOutputName = (
-    inverter.InverterOutputName
-    | battery.BatteryOutputName
-    | battery_section.BatterySectionOutputName
-    | connection.ConnectionOutputName
-    | grid.GridOutputName
-    | load.LoadOutputName
-    | node.NodeOutputName
-    | solar.SolarOutputName
+    InverterOutputName
+    | BatteryOutputName
+    | BatterySectionOutputName
+    | ConnectionOutputName
+    | GridOutputName
+    | LoadOutputName
+    | NodeOutputName
+    | SolarOutputName
     | NetworkOutputName
 )
 
 ELEMENT_OUTPUT_NAMES: Final[frozenset[ElementOutputName]] = frozenset(
-    inverter.INVERTER_OUTPUT_NAMES
-    | battery.BATTERY_OUTPUT_NAMES
-    | battery_section.BATTERY_SECTION_OUTPUT_NAMES
-    | connection.CONNECTION_OUTPUT_NAMES
-    | grid.GRID_OUTPUT_NAMES
-    | load.LOAD_OUTPUT_NAMES
-    | node.NODE_OUTPUT_NAMES
-    | solar.SOLAR_OUTPUT_NAMES
+    INVERTER_OUTPUT_NAMES
+    | BATTERY_OUTPUT_NAMES
+    | BATTERY_SECTION_OUTPUT_NAMES
+    | CONNECTION_OUTPUT_NAMES
+    | GRID_OUTPUT_NAMES
+    | LOAD_OUTPUT_NAMES
+    | NODE_OUTPUT_NAMES
+    | SOLAR_OUTPUT_NAMES
     | NETWORK_OUTPUT_NAMES
 )
 
-# Device translation keys for devices
-# These are the translation keys used for devices created by adapters
 type ElementDeviceName = (
-    inverter.InverterDeviceName
-    | battery.BatteryDeviceName
-    | battery_section.BatterySectionDeviceName
-    | connection.ConnectionDeviceName
-    | grid.GridDeviceName
-    | load.LoadDeviceName
-    | node.NodeDeviceName
-    | solar.SolarDeviceName
+    InverterDeviceName
+    | BatteryDeviceName
+    | BatterySectionDeviceName
+    | ConnectionDeviceName
+    | GridDeviceName
+    | LoadDeviceName
+    | NodeDeviceName
+    | SolarDeviceName
     | NetworkDeviceName
 )
 
 NETWORK_DEVICE_NAMES: Final[frozenset[NetworkDeviceName]] = frozenset(("network",))
 
 ELEMENT_DEVICE_NAMES: Final[frozenset[ElementDeviceName]] = frozenset(
-    inverter.INVERTER_DEVICE_NAMES
-    | battery.BATTERY_DEVICE_NAMES
-    | battery_section.BATTERY_SECTION_DEVICE_NAMES
-    | connection.CONNECTION_DEVICE_NAMES
-    | grid.GRID_DEVICE_NAMES
-    | load.LOAD_DEVICE_NAMES
-    | node.NODE_DEVICE_NAMES
-    | solar.SOLAR_DEVICE_NAMES
+    INVERTER_DEVICE_NAMES
+    | BATTERY_DEVICE_NAMES
+    | BATTERY_SECTION_DEVICE_NAMES
+    | CONNECTION_DEVICE_NAMES
+    | GRID_DEVICE_NAMES
+    | LOAD_DEVICE_NAMES
+    | NODE_DEVICE_NAMES
+    | SOLAR_DEVICE_NAMES
     | NETWORK_DEVICE_NAMES
 )
 
 ELEMENT_DEVICE_NAMES_BY_TYPE: Final[dict[str, frozenset[ElementDeviceName]]] = {
-    inverter.ELEMENT_TYPE: frozenset(inverter.INVERTER_DEVICE_NAMES),
-    battery.ELEMENT_TYPE: frozenset(battery.BATTERY_DEVICE_NAMES),
-    battery_section.ELEMENT_TYPE: frozenset(battery_section.BATTERY_SECTION_DEVICE_NAMES),
-    connection.ELEMENT_TYPE: frozenset(connection.CONNECTION_DEVICE_NAMES),
-    grid.ELEMENT_TYPE: frozenset(grid.GRID_DEVICE_NAMES),
-    load.ELEMENT_TYPE: frozenset(load.LOAD_DEVICE_NAMES),
-    node.ELEMENT_TYPE: frozenset(node.NODE_DEVICE_NAMES),
-    solar.ELEMENT_TYPE: frozenset(solar.SOLAR_DEVICE_NAMES),
+    ElementType.INVERTER: frozenset(INVERTER_DEVICE_NAMES),
+    ElementType.BATTERY: frozenset(BATTERY_DEVICE_NAMES),
+    ElementType.BATTERY_SECTION: frozenset(BATTERY_SECTION_DEVICE_NAMES),
+    ElementType.CONNECTION: frozenset(CONNECTION_DEVICE_NAMES),
+    ElementType.GRID: frozenset(GRID_DEVICE_NAMES),
+    ElementType.LOAD: frozenset(LOAD_DEVICE_NAMES),
+    ElementType.NODE: frozenset(NODE_DEVICE_NAMES),
+    ElementType.SOLAR: frozenset(SOLAR_DEVICE_NAMES),
     ELEMENT_TYPE_NETWORK: frozenset(NETWORK_DEVICE_NAMES),
 }
-
-
-@runtime_checkable
-class ElementAdapter(Protocol):
-    """Protocol for element adapters.
-
-    Each element type provides an adapter that bridges Home Assistant
-    configuration with the LP model layer. Adapters must implement this
-    protocol and be registered in the ELEMENT_TYPES registry.
-
-    Note: Attributes are defined as read-only properties in the Protocol,
-    but implementations use class attributes with Final for immutability.
-    """
-
-    element_type: str
-    """The element type identifier."""
-
-    advanced: bool
-    """Whether this element type requires advanced mode."""
-
-    connectivity: ConnectivityLevel
-    """Visibility level in connection selectors."""
-
-    def inputs(self, config: Mapping[str, Any] | None) -> InputFieldGroups:
-        """Return input field definitions for this element."""
-        ...
-
-    def model_elements(self, config: Any) -> list[ModelElementConfig]:
-        """Return model element parameters for the loaded config."""
-        ...
-
-    def outputs(
-        self,
-        name: str,
-        model_outputs: Mapping[str, Mapping[ModelOutputName, ModelOutputValue]],
-        **_kwargs: Any,
-    ) -> Mapping[Any, Mapping[Any, OutputData]]:
-        """Map model outputs to device-specific outputs."""
-        ...
-
-
-ELEMENT_TYPES: dict[ElementType, ElementAdapter] = {
-    grid.ELEMENT_TYPE: grid.adapter,
-    load.ELEMENT_TYPE: load.adapter,
-    inverter.ELEMENT_TYPE: inverter.adapter,
-    solar.ELEMENT_TYPE: solar.adapter,
-    battery.ELEMENT_TYPE: battery.adapter,
-    connection.ELEMENT_TYPE: connection.adapter,
-    node.ELEMENT_TYPE: node.adapter,
-    battery_section.ELEMENT_TYPE: battery_section.adapter,
-}
-
-
-def get_element_flow_classes() -> dict[ElementType, type]:
-    """Return mapping of element types to their config flow handler classes.
-
-    This function performs lazy imports to avoid circular dependencies
-    (flows import adapters, not the other way around).
-    """
-    # Local imports to avoid circular dependencies with flow modules
-    from custom_components.haeo.elements.battery.flow import BatterySubentryFlowHandler  # noqa: PLC0415
-    from custom_components.haeo.elements.battery_section.flow import BatterySectionSubentryFlowHandler  # noqa: PLC0415
-    from custom_components.haeo.elements.connection.flow import ConnectionSubentryFlowHandler  # noqa: PLC0415
-    from custom_components.haeo.elements.grid.flow import GridSubentryFlowHandler  # noqa: PLC0415
-    from custom_components.haeo.elements.inverter.flow import InverterSubentryFlowHandler  # noqa: PLC0415
-    from custom_components.haeo.elements.load.flow import LoadSubentryFlowHandler  # noqa: PLC0415
-    from custom_components.haeo.elements.node.flow import NodeSubentryFlowHandler  # noqa: PLC0415
-    from custom_components.haeo.elements.solar.flow import SolarSubentryFlowHandler  # noqa: PLC0415
-
-    return {
-        "battery": BatterySubentryFlowHandler,
-        "battery_section": BatterySectionSubentryFlowHandler,
-        "connection": ConnectionSubentryFlowHandler,
-        "grid": GridSubentryFlowHandler,
-        "inverter": InverterSubentryFlowHandler,
-        "load": LoadSubentryFlowHandler,
-        "node": NodeSubentryFlowHandler,
-        "solar": SolarSubentryFlowHandler,
-    }
 
 
 class ValidatedElementSubentry(NamedTuple):
@@ -258,41 +206,26 @@ class ValidatedElementSubentry(NamedTuple):
     config: ElementConfigSchema
 
 
-# Map element types to their ConfigSchema TypedDict classes for reflection
-# Typed with ElementType keys to enable type-safe indexing after is_element_type check
-ELEMENT_CONFIG_SCHEMAS: Final[dict[ElementType, type]] = {
-    "battery": battery.BatteryConfigSchema,
-    "battery_section": battery_section.BatterySectionConfigSchema,
-    "connection": connection.ConnectionConfigSchema,
-    "grid": grid.GridConfigSchema,
-    "inverter": inverter.InverterConfigSchema,
-    "load": load.LoadConfigSchema,
-    "node": node.NodeConfigSchema,
-    "solar": solar.SolarConfigSchema,
-}
-
-# Map element types to their ConfigData TypedDict classes for reflection
 ELEMENT_CONFIG_DATA: Final[dict[ElementType, type]] = {
-    "battery": battery.BatteryConfigData,
-    "battery_section": battery_section.BatterySectionConfigData,
-    "connection": connection.ConnectionConfigData,
-    "grid": grid.GridConfigData,
-    "inverter": inverter.InverterConfigData,
-    "load": load.LoadConfigData,
-    "node": node.NodeConfigData,
-    "solar": solar.SolarConfigData,
+    ElementType.BATTERY: BatteryConfigData,
+    ElementType.BATTERY_SECTION: BatterySectionConfigData,
+    ElementType.CONNECTION: ConnectionConfigData,
+    ElementType.GRID: GridConfigData,
+    ElementType.INVERTER: InverterConfigData,
+    ElementType.LOAD: LoadConfigData,
+    ElementType.NODE: NodeConfigData,
+    ElementType.SOLAR: SolarConfigData,
 }
 
-# Optional input fields per element type (used for required field checks)
 ELEMENT_OPTIONAL_INPUT_FIELDS: Final[dict[ElementType, frozenset[str]]] = {
-    "battery": battery.OPTIONAL_INPUT_FIELDS,
-    "battery_section": battery_section.OPTIONAL_INPUT_FIELDS,
-    "connection": connection.OPTIONAL_INPUT_FIELDS,
-    "grid": grid.OPTIONAL_INPUT_FIELDS,
-    "inverter": inverter.OPTIONAL_INPUT_FIELDS,
-    "load": load.OPTIONAL_INPUT_FIELDS,
-    "node": node.OPTIONAL_INPUT_FIELDS,
-    "solar": solar.OPTIONAL_INPUT_FIELDS,
+    ElementType.BATTERY: BATTERY_OPTIONAL_INPUT_FIELDS,
+    ElementType.BATTERY_SECTION: BATTERY_SECTION_OPTIONAL_INPUT_FIELDS,
+    ElementType.CONNECTION: CONNECTION_OPTIONAL_INPUT_FIELDS,
+    ElementType.GRID: GRID_OPTIONAL_INPUT_FIELDS,
+    ElementType.INVERTER: INVERTER_OPTIONAL_INPUT_FIELDS,
+    ElementType.LOAD: LOAD_OPTIONAL_INPUT_FIELDS,
+    ElementType.NODE: NODE_OPTIONAL_INPUT_FIELDS,
+    ElementType.SOLAR: SOLAR_OPTIONAL_INPUT_FIELDS,
 }
 
 
@@ -337,15 +270,6 @@ def get_input_field_schema_info(
         results[section_key] = section_info
 
     return results
-
-
-def is_element_type(value: Any) -> TypeGuard[ElementType]:
-    """Return True when value is a valid ElementType literal.
-
-    Use this to narrow Any values (e.g., from dict.get()) to ElementType,
-    enabling type-safe access to ELEMENT_TYPES and ELEMENT_CONFIG_SCHEMAS.
-    """
-    return value in ELEMENT_TYPES
 
 
 def _unwrap_required_type(expected_type: Any) -> Any:
@@ -495,11 +419,19 @@ def collect_element_subentries(entry: ConfigEntry) -> list[ValidatedElementSuben
     return result
 
 
-def get_input_fields(element_config: ElementConfigSchema) -> InputFieldGroups:
-    """Return input field definitions for an element config."""
-    element_type = element_config[CONF_ELEMENT_TYPE]
-    adapter = ELEMENT_TYPES[element_type]
-    return adapter.inputs(element_config)
+def get_input_fields(element_type: str | ElementType | Mapping[str, Any] | None) -> InputFieldGroups:
+    """Return input field definitions for an element type."""
+    if isinstance(element_type, Mapping):
+        if CONF_ELEMENT_TYPE in element_type:
+            element_type = element_type[CONF_ELEMENT_TYPE]
+        else:
+            return {}
+
+    if element_type is None:
+        return {}
+
+    schema_cls = ELEMENT_CONFIG_SCHEMAS[element_type]  # type: ignore[index]
+    return build_input_fields(str(element_type), extract_field_hints(schema_cls))
 
 
 def iter_input_field_paths(input_fields: InputFieldGroups) -> list[tuple[InputFieldPath, InputFieldInfo[Any]]]:
@@ -576,25 +508,11 @@ def set_nested_config_value_by_path(config: dict[str, Any], field_path: InputFie
 
 
 __all__ = [
-    "ELEMENT_CONFIG_SCHEMAS",
     "ELEMENT_DEVICE_NAMES",
     "ELEMENT_DEVICE_NAMES_BY_TYPE",
     "ELEMENT_OPTIONAL_INPUT_FIELDS",
-    "ELEMENT_TYPES",
-    "ELEMENT_TYPE_BATTERY",
-    "ELEMENT_TYPE_BATTERY_SECTION",
-    "ELEMENT_TYPE_CONNECTION",
-    "ELEMENT_TYPE_GRID",
-    "ELEMENT_TYPE_INVERTER",
-    "ELEMENT_TYPE_LOAD",
-    "ELEMENT_TYPE_NODE",
-    "ELEMENT_TYPE_SOLAR",
-    "ConnectivityLevel",
-    "ElementAdapter",
-    "ElementConfigData",
-    "ElementConfigSchema",
     "ElementDeviceName",
-    "ElementType",
+    "ElementOutputName",
     "FieldSchemaInfo",
     "InputFieldGroups",
     "InputFieldInfo",
@@ -603,14 +521,12 @@ __all__ = [
     "ValidatedElementSubentry",
     "collect_element_subentries",
     "find_nested_config_path",
-    "get_element_flow_classes",
     "get_input_field_schema_info",
     "get_input_fields",
     "get_nested_config_value",
     "get_nested_config_value_by_path",
     "is_element_config_data",
     "is_element_config_schema",
-    "is_element_type",
     "iter_input_field_paths",
     "set_nested_config_value",
     "set_nested_config_value_by_path",

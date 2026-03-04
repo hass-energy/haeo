@@ -8,24 +8,25 @@ from typing import Any
 from homeassistant.components.switch import SwitchEntity, SwitchEntityDescription
 from homeassistant.config_entries import ConfigSubentry
 from homeassistant.const import STATE_ON, EntityCategory
-from homeassistant.core import Event, callback
+from homeassistant.core import Event, State, callback
 from homeassistant.helpers.device_registry import DeviceEntry
 from homeassistant.helpers.event import EventStateChangedData, async_track_state_change_event
 from homeassistant.util import dt as dt_util
 
 from custom_components.haeo import HaeoConfigEntry
 from custom_components.haeo.const import CONF_RECORD_FORECASTS
-from custom_components.haeo.elements import InputFieldPath, find_nested_config_path, get_nested_config_value_by_path
-from custom_components.haeo.elements.input_fields import InputFieldInfo
-from custom_components.haeo.entities.haeo_number import ConfigEntityMode
-from custom_components.haeo.horizon import HorizonManager
-from custom_components.haeo.schema import (
+from custom_components.haeo.core.schema import (
     as_constant_value,
     is_connection_target,
     is_constant_value,
     is_entity_value,
     is_none_value,
+    is_schema_value,
 )
+from custom_components.haeo.elements import InputFieldPath, find_nested_config_path, get_nested_config_value_by_path
+from custom_components.haeo.elements.input_fields import InputFieldInfo
+from custom_components.haeo.entities.haeo_number import ConfigEntityMode
+from custom_components.haeo.horizon import HorizonManager
 from custom_components.haeo.util import async_update_subentry_value
 
 # Attributes to exclude from recorder when forecast recording is disabled
@@ -68,6 +69,7 @@ class HaeoInputSwitch(SwitchEntity):
             field_path or find_nested_config_path(subentry.data, field_info.field_name) or (field_info.field_name,)
         )
         self._horizon_manager = horizon_manager
+        self._uses_forecast = field_info.time_series
 
         # Set device_entry to link entity to device
         self.device_entry = device_entry
@@ -121,7 +123,7 @@ class HaeoInputSwitch(SwitchEntity):
             return str(value)
 
         for key, value in subentry.data.items():
-            if isinstance(value, Mapping):
+            if isinstance(value, Mapping) and not is_schema_value(value) and not is_connection_target(value):
                 for nested_key, nested_value in value.items():
                     placeholders.setdefault(nested_key, format_placeholder(nested_value))
                 continue
@@ -145,10 +147,10 @@ class HaeoInputSwitch(SwitchEntity):
         # Event that signals data is ready for coordinator access
         self._data_ready = asyncio.Event()
 
-        # Exclude forecast from recorder unless explicitly enabled
-        if not config_entry.data.get(CONF_RECORD_FORECASTS, False):
-            self._unrecorded_attributes = FORECAST_UNRECORDED_ATTRIBUTES
+        # Captured source states for reproducibility (populated when loading data)
+        self._captured_source_states: Mapping[str, State] = {}
 
+        self._record_forecasts = config_entry.data.get(CONF_RECORD_FORECASTS, False)
         # Initialize forecast immediately for EDITABLE mode entities
         # This ensures get_values() returns data before async_added_to_hass() is called
         # DRIVEN mode entities load data in async_added_to_hass() - the coordinator
@@ -169,6 +171,7 @@ class HaeoInputSwitch(SwitchEntity):
         access after async_block_till_done() completes.
         """
         await super().async_added_to_hass()
+        self._apply_recorder_attribute_filtering()
 
         # Subscribe to horizon manager for time window changes
         self.async_on_remove(self._horizon_manager.subscribe(self._handle_horizon_change))
@@ -193,6 +196,12 @@ class HaeoInputSwitch(SwitchEntity):
             # Load initial state from source
             self._load_source_state()
 
+    def _apply_recorder_attribute_filtering(self) -> None:
+        """Apply recorder filtering to this entity's runtime state info."""
+        if self._record_forecasts:
+            return
+        self._state_info["unrecorded_attributes"] = FORECAST_UNRECORDED_ATTRIBUTES
+
     @callback
     def _handle_horizon_change(self) -> None:
         """Handle horizon change - refresh forecast with new time windows."""
@@ -208,7 +217,9 @@ class HaeoInputSwitch(SwitchEntity):
     def _handle_source_state_change(self, event: Event[EventStateChangedData]) -> None:
         """Handle source entity state change."""
         new_state = event.data["new_state"]
-        if new_state is not None:
+        if new_state is not None and self._source_entity_id is not None:
+            # Capture source state for reproducibility
+            self._captured_source_states = {self._source_entity_id: new_state}
             self._attr_is_on = new_state.state == STATE_ON
             self._update_forecast()
             self.async_write_ha_state()
@@ -220,6 +231,8 @@ class HaeoInputSwitch(SwitchEntity):
 
         state = self.hass.states.get(self._source_entity_id)
         if state is not None:
+            # Capture source state for reproducibility
+            self._captured_source_states = {self._source_entity_id: state}
             self._attr_is_on = state.state == STATE_ON
             self._update_forecast()
 
@@ -257,6 +270,11 @@ class HaeoInputSwitch(SwitchEntity):
         return self._entity_mode
 
     @property
+    def uses_forecast(self) -> bool:
+        """Return True if this entity produces time-series forecast data."""
+        return self._uses_forecast
+
+    @property
     def horizon_start(self) -> float | None:
         """Return the first forecast timestamp, or None if not loaded."""
         forecast = self._attr_extra_state_attributes.get("forecast")
@@ -274,6 +292,17 @@ class HaeoInputSwitch(SwitchEntity):
         if forecast:
             return tuple(point["value"] for point in forecast if isinstance(point, dict) and "value" in point)
         return None
+
+    @property
+    def captured_source_states(self) -> Mapping[str, State]:
+        """Source states captured when data was last loaded.
+
+        Returns:
+            Dict mapping source entity IDs to their State objects at load time.
+            Empty dict for EDITABLE mode entities (no source entities).
+
+        """
+        return self._captured_source_states
 
     async def async_turn_on(self, **_kwargs: Any) -> None:
         """Handle user turning switch on.

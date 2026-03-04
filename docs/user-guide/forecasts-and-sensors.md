@@ -37,6 +37,12 @@ state: 0.25
 HAEO reads the value (0.25 \$/kWh) and repeats it for every time step in your optimization horizon.
 When you configure a sensor that only provides a present value, that value is used for all optimization periods.
 
+### Scalar-only fields
+
+Some configuration fields are scalar-only and do not create forecasts.
+For example, the [Current charge percentage field](elements/battery.md#current-charge-percentage) uses the present value at optimization start to set the initial battery SOC.
+HAEO reads the current sensor state and does not repeat it across the horizon for these fields.
+
 ## Forecast Sensors
 
 Some sensors provide structured forecast data instead of a simple current value.

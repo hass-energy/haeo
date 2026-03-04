@@ -9,9 +9,13 @@ For more information on testing Home Assistant integrations, see:
 
 ## Test Organization
 
-- `tests/conftest.py` - Shared fixtures (Home Assistant instance, mock config entries, common scenarios)
-- `tests/model/` - Model element tests with structured test data
-- `tests/flows/` - Config flow tests
+Tests are colocated with source code in `tests/` subdirectories within each package.
+
+- `conftest.py` - Shared fixtures (Home Assistant instance, mock config entries, common scenarios)
+- `core/model/tests/` - Model element tests with structured test data
+- `core/adapters/elements/tests/` - Adapter tests
+- `flows/elements/tests/` - Element flow tests
+- `flows/tests/` - Hub and options flow tests
 - `tests/scenarios/` - Complete system integration tests
 
 ## Test Structure
@@ -60,7 +64,7 @@ For detailed scenario setup instructions, see `tests/scenarios/README.md`.
 
 ## Model Element Testing
 
-Model element tests are organized in `tests/model/` with structured test data:
+Model element tests are organized in `core/model/tests/` with structured test data:
 
 - `test_elements.py` - Parametrized tests for element outputs and validation
 - `test_data/__init__.py` - Utilities and test case aggregation
@@ -121,23 +125,17 @@ INVALID_CASES = [
 
 ### Adding New Element Tests
 
-When adding a new element type, create a parallel test directory:
+Tests are colocated with source code.
+Add adapter tests in `core/adapters/elements/tests/` and flow tests in `flows/elements/tests/`.
 
-```
-tests/elements/{element_type}/
-├── __init__.py
-├── test_adapter.py   # Tests for available() and load() functions
-└── test_flow.py      # Config flow tests for user and reconfigure steps
-```
-
-**For adapter tests** (`test_adapter.py`):
+**For adapter tests** (`core/adapters/elements/tests/test_{element_type}.py`):
 
 1. Test `available()` returns `True` when all required sensors exist
 2. Test `available()` returns `False` when required sensors are missing
 3. Test `load()` correctly transforms `ConfigSchema` to `ConfigData`
 4. Test `load()` handles optional fields appropriately
 
-**For flow tests** (`test_flow.py`):
+**For flow tests** (`flows/elements/tests/test_{element_type}_flow.py`):
 
 1. Test user step creates entry with valid input
 2. Test user step shows form initially (no input)
@@ -146,7 +144,7 @@ tests/elements/{element_type}/
 5. Test reconfigure with participant that no longer exists
 6. Test element-specific validation (e.g., source != target for connections)
 
-Also add test data in `tests/flows/test_data/{element_type}.py` for parametrized flow tests.
+Also add test data in `flows/tests/test_data/{element_type}.py` for parametrized flow tests.
 
 ## Type Safety Philosophy
 
@@ -239,12 +237,52 @@ schema_cls = registry_entry.schema
 When adding new element types:
 
 1. Add to `ELEMENT_TYPES` in `elements/__init__.py`
-2. Add config flow test data in `tests/flows/test_data/`
+2. Add config flow test data in `flows/tests/test_data/`
 3. Parameterized tests automatically include the new type by iterating over `tuple(ELEMENT_TYPES)`
 
 Parameterized tests marked with `@pytest.mark.parametrize` run once per element type.
 
-## CI Requirements
+## Guide testing
+
+Guide tests verify the interactive walkthroughs by executing them against a live Home Assistant instance using Playwright.
+Each walkthrough's `guide` code blocks are extracted from the markdown source, executed in order, and screenshots are captured for documentation.
+
+### How it works
+
+Walkthrough pages in `docs/walkthroughs/` contain `guide` fenced code blocks that call primitives defined in `tests/guides/primitives/`.
+The guide runner (`tools/guide_runner.py`) extracts these blocks, executes them sequentially against a live HA instance, and captures screenshots into per-block directories.
+Consecutive blocks share the same browser and HA context so state accumulates across steps.
+
+Screenshots are content-hash cached: a `manifest.json` maps each block's content hash to its screenshot directory.
+If a block's content hasn't changed, its screenshots are reused without re-running.
+
+### Running guide tests
+
+```bash
+# Run all guide tests
+uv run pytest -m guide -v --timeout=300
+
+# Run the guide runner CLI directly for a specific walkthrough
+uv run python -m tools.guide_runner docs/walkthroughs/sigenergy-system.md
+```
+
+Guide tests are selected via the `-m guide` pytest marker and are not included in default test runs.
+They need a live Home Assistant instance (started automatically by the test fixtures) and Playwright Firefox.
+
+### CI integration
+
+Guide tests run in two CI workflows:
+
+- **Guides workflow** (`guides.yml`): Runs on push, PR, and merge group to validate guide correctness
+- **Docs workflow** (`docs.yml`): Generates screenshots and optimizes them with optipng before building documentation for deployment
+
+### Screenshot rendering
+
+During documentation build, `tools/guide_fence.py` acts as a custom `pymdownx.superfences` formatter.
+It reads the manifest files and renders each guide block as an interactive screenshot slideshow.
+The slideshow frontend is implemented in `docs/javascripts/guide-slideshow.js` with styling in `docs/stylesheets/guide.css`.
+
+## CI requirements
 
 All PRs must pass:
 
