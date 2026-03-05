@@ -275,7 +275,7 @@ class Connection[TOutputName: str](Element[TOutputName]):
 
         return result
 
-    def cost(self) -> list[Any] | None:  # type: ignore[override]  # Intentionally override Element's @cost with segment delegation
+    def cost(self) -> list[highs_linear_expression | None] | None:  # type: ignore[override]  # Intentionally override Element's @cost with segment delegation
         """Return aggregated objective expressions from this connection.
 
         Collects costs from all segments and adds a time-preference objective to
@@ -396,12 +396,15 @@ class Connection[TOutputName: str](Element[TOutputName]):
         return segment_outputs or None
 
 
-def _combine_objective_lists(objectives: list[list[Any]]) -> list[Any]:
+def _combine_objective_lists(
+    objectives: list[list[highs_linear_expression | None]],
+) -> list[highs_linear_expression | None]:
     """Combine objective expression lists by summing expressions at each index."""
     max_len = max((len(items) for items in objectives), default=0)
-    combined: list[Any] = []
+    combined: list[highs_linear_expression | None] = []
     for index in range(max_len):
-        terms = [items[index] for items in objectives if len(items) > index and items[index] is not None]
+        candidates = [items[index] for items in objectives if len(items) > index]
+        terms = [t for t in candidates if t is not None]
         if not terms:
             combined.append(None)
         elif len(terms) == 1:

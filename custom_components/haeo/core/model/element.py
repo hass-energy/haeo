@@ -4,7 +4,7 @@ from collections.abc import Mapping, Sequence
 from typing import Any, Literal
 
 from highspy import Highs
-from highspy.highs import HighspyArray, highs_cons
+from highspy.highs import HighspyArray, highs_cons, highs_linear_expression
 import numpy as np
 from numpy.typing import NDArray
 
@@ -227,7 +227,7 @@ class Element[OutputNameT: str]:
         return result
 
     @cost
-    def cost(self) -> list[Any] | None:
+    def cost(self) -> list[highs_linear_expression | None] | None:
         """Return aggregated objective expressions from this element.
 
         Discovers and calls all @cost decorated methods, combining their results into
@@ -242,7 +242,7 @@ class Element[OutputNameT: str]:
         this_method_name = type(self).cost._name  # type: ignore[attr-defined]  # noqa: SLF001 (intentional access to decorator's name)
 
         # Collect all cost expressions from @cost methods (excluding this one)
-        costs: list[list[Any]] = []
+        costs: list[list[highs_linear_expression]] = []
         for name in dir(type(self)):
             # Skip self to avoid infinite recursion
             if name == this_method_name:
@@ -266,12 +266,14 @@ class Element[OutputNameT: str]:
         return combined or None
 
 
-def _combine_objective_lists(objectives: list[list[Any]]) -> list[Any]:
+def _combine_objective_lists(
+    objectives: list[list[highs_linear_expression]],
+) -> list[highs_linear_expression | None]:
     """Combine objective expression lists by summing expressions at each index."""
     max_len = max((len(items) for items in objectives), default=0)
-    combined: list[Any] = []
+    combined: list[highs_linear_expression | None] = []
     for index in range(max_len):
-        terms = [items[index] for items in objectives if len(items) > index and items[index] is not None]
+        terms = [items[index] for items in objectives if len(items) > index]
         if not terms:
             combined.append(None)
         elif len(terms) == 1:

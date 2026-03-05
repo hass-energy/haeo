@@ -19,7 +19,7 @@ from abc import ABC, abstractmethod
 from typing import Any
 
 from highspy import Highs
-from highspy.highs import HighspyArray, highs_cons
+from highspy.highs import HighspyArray, highs_cons, highs_linear_expression
 import numpy as np
 from numpy.typing import NDArray
 
@@ -160,7 +160,7 @@ class Segment(ABC):
                 result[output_name] = output_data
         return result
 
-    def cost(self) -> list[Any] | None:
+    def cost(self) -> list[highs_linear_expression | None] | None:
         """Return aggregated objective expressions from this segment.
 
         Discovers and calls all @cost decorated methods, combining their results
@@ -170,7 +170,7 @@ class Segment(ABC):
             List of objective expressions or None if no costs
 
         """
-        costs: list[list[Any]] = []
+        costs: list[list[highs_linear_expression]] = []
         for name in dir(type(self)):
             attr = getattr(type(self), name, None)
             if not isinstance(attr, ReactiveCost):
@@ -191,12 +191,14 @@ class Segment(ABC):
         return combined or None
 
 
-def _combine_objective_lists(objectives: list[list[Any]]) -> list[Any]:
+def _combine_objective_lists(
+    objectives: list[list[highs_linear_expression]],
+) -> list[highs_linear_expression | None]:
     """Combine objective expression lists by summing expressions at each index."""
     max_len = max((len(items) for items in objectives), default=0)
-    combined: list[Any] = []
+    combined: list[highs_linear_expression | None] = []
     for index in range(max_len):
-        terms = [items[index] for items in objectives if len(items) > index and items[index] is not None]
+        terms = [items[index] for items in objectives if len(items) > index]
         if not terms:
             combined.append(None)
         elif len(terms) == 1:

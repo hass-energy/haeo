@@ -2,10 +2,10 @@
 
 from dataclasses import dataclass, field
 import logging
-from typing import Any, cast, overload
+from typing import Any, overload
 
 from highspy import Highs, HighsModelStatus, ObjSense
-from highspy.highs import highs_cons, highs_linear_expression, highs_var
+from highspy.highs import highs_cons, highs_linear_expression
 import numpy as np
 from numpy.typing import NDArray
 
@@ -147,7 +147,7 @@ class Network:
 
         return element_instance
 
-    def cost(self) -> list[Any] | None:
+    def cost(self) -> list[highs_linear_expression | None] | None:
         """Return aggregated objective expressions from all elements in the network.
 
         Discovers and calls all element cost() methods, combining their results into
@@ -158,7 +158,7 @@ class Network:
             List of objective expressions or None if no objectives are defined
 
         """
-        objectives = [
+        objectives: list[list[highs_linear_expression | None]] = [
             element_cost for element in self.elements.values() if (element_cost := element.cost()) is not None
         ]
 
@@ -276,13 +276,12 @@ class Network:
 
     def _constrain_objective(
         self,
-        objective: highs_linear_expression | highs_var,
+        objective: highs_linear_expression,
         optimal_value: float,
     ) -> None:
         """Set the single lex constraint to bound the given objective."""
         epsilon = _objective_epsilon(optimal_value)
-        expression = _as_linear_expression(objective)
-        constraint_expr = expression <= (optimal_value + epsilon)
+        constraint_expr = objective <= (optimal_value + epsilon)
 
         if self._lex_constraint is None:
             self._lex_constraint = self._solver.addConstr(constraint_expr)
@@ -353,12 +352,15 @@ class Network:
         return result
 
 
-def _combine_objective_lists(objectives: list[list[Any]]) -> list[Any]:
+def _combine_objective_lists(
+    objectives: list[list[highs_linear_expression | None]],
+) -> list[highs_linear_expression | None]:
     """Combine objective expression lists by summing expressions at each index."""
     max_len = max((len(items) for items in objectives), default=0)
-    combined: list[Any] = []
+    combined: list[highs_linear_expression | None] = []
     for index in range(max_len):
-        terms = [items[index] for items in objectives if len(items) > index and items[index] is not None]
+        candidates = [items[index] for items in objectives if len(items) > index]
+        terms = [t for t in candidates if t is not None]
         if not terms:
             combined.append(None)
         elif len(terms) == 1:
@@ -373,20 +375,13 @@ def _objective_epsilon(value: float) -> float:
     return max(1e-6, abs(value) * 1e-9)
 
 
-def _as_linear_expression(expression: highs_linear_expression | highs_var) -> highs_linear_expression:
-    """Coerce a variable to a linear expression when needed."""
-    if isinstance(expression, highs_linear_expression):
-        return expression
-    return Highs.qsum([expression])
-
-
 def _clear_linear_objectives(solver: Highs) -> None:
-    """Clear any multiobjective state if the API is available."""
-    cast("Any", solver).clearLinearObjectives()
+    """Clear any multiobjective state."""
+    solver.clearLinearObjectives()
 
 
 def _build_cost_vectors(
-    objectives: list[Any],
+    objectives: list[highs_linear_expression | None],
     n_vars: int,
 ) -> list[NDArray[np.float64]]:
     """Convert objective expressions to dense cost vectors.
@@ -400,8 +395,7 @@ def _build_cost_vectors(
     for obj in objectives:
         vec = np.zeros(n_vars, dtype=np.float64)
         if obj is not None:
-            expr = highs_linear_expression(obj) if isinstance(obj, highs_var) else obj
-            idxs, vals = expr.unique_elements()
+            idxs, vals = obj.unique_elements()
             vec[idxs] = vals
         vectors.append(vec)
     return vectors
