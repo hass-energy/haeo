@@ -17,6 +17,9 @@ from .elements.node import Node, NodeElementConfig
 
 _LOGGER = logging.getLogger(__name__)
 
+# HiGHS default simplex iteration limit (max int32)
+_SIMPLEX_ITERATION_LIMIT = 2147483647
+
 
 @dataclass
 class Network:
@@ -226,16 +229,24 @@ class Network:
         # Fast path: after phase 3 of the previous optimization, the solver
         # state is primary-optimal with the lex constraint binding the
         # secondary. HiGHS preserves this basis across model coefficient
-        # updates, so running verifies optimality in zero simplex iterations
-        # when nothing has changed.
-        if self._cached_primary_value is not None:
-            h.run()
-            status = h.getModelStatus()
+        # updates, so running with iteration limit 0 verifies optimality
+        # without doing any work when nothing has changed.
+        #
+        # The iteration limit prevents wasted work on cache miss. The value
+        # comparison catches cases where constraint/bound changes leave the
+        # current vertex feasible but the stale lex constraint masks a
+        # changed optimum.
+        if (cached := self._cached_primary_value) is not None:
+            h.setOptionValue("simplex_iteration_limit", 0)
+            try:
+                h.run()
+            finally:
+                h.setOptionValue("simplex_iteration_limit", _SIMPLEX_ITERATION_LIMIT)
 
-            if status == HighsModelStatus.kOptimal:
-                value = h.getObjectiveValue()
-                if abs(value - self._cached_primary_value) < _objective_epsilon(value):
-                    return value
+            if h.getModelStatus() == HighsModelStatus.kOptimal and abs(
+                (value := h.getObjectiveValue()) - cached
+            ) < _objective_epsilon(value):
+                return value
 
         # --- Phase 1: Minimize primary (lex constraint relaxed) ---
         self._relax_lex_constraint()
@@ -258,9 +269,7 @@ class Network:
             h.run()
             _ensure_optimal(h)
 
-            # Cache the primary value for fast warm re-solves.
-            # The solver is now primary-optimal with the lex constraint
-            # binding the secondary — HiGHS preserves this basis internally.
+            # Cache the primary value for the warm-start check.
             self._cached_primary_value = primary_value
 
         return primary_value
