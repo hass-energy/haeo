@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 import logging
 from typing import Any, cast, overload
 
-from highspy import Highs, HighsModelStatus
+from highspy import Highs, HighsModelStatus, ObjSense
 from highspy.highs import highs_cons, highs_linear_expression, highs_var
 import numpy as np
 from numpy.typing import NDArray
@@ -35,7 +35,9 @@ class Network:
     periods: NDArray[np.floating[Any]]  # Period durations in hours (one per optimization interval)
     elements: dict[str, Element[Any]] = field(default_factory=dict)
     _solver: Highs = field(default_factory=Highs, repr=False)
-    _lexicographic_constraints: list[highs_cons] = field(default_factory=list, init=False, repr=False)
+    _lex_constraint: highs_cons | None = field(default=None, init=False, repr=False)
+    _cached_primary_value: float | None = field(default=None, init=False, repr=False)
+    _cached_lex_basis: Any = field(default=None, init=False, repr=False)
 
     def __post_init__(self) -> None:
         """Set up the solver with logging callback."""
@@ -197,57 +199,97 @@ class Network:
         _clear_linear_objectives(h)
 
         if objectives is None:
+            self._relax_lex_constraint()
             h.run()
-            self._clear_lexicographic_constraints()
             return _ensure_optimal(h)
 
-        primary_value = None
-        required_constraints = max(len(objectives) - 1, 0)
-        if len(self._lexicographic_constraints) > required_constraints:
-            self._clear_lexicographic_constraints(required_constraints)
+        # Pre-compute cost vectors for each objective as dense arrays.
+        # This avoids repeated Python→C FFI overhead from expression-based
+        # setObjective() which zeros all columns then sets non-zero ones.
+        n_vars = h.numVariables
+        all_col_indices = np.arange(n_vars, dtype=np.int32)
+        cost_vectors = _build_cost_vectors(objectives, n_vars)
 
-        for index, objective in enumerate(objectives):
-            if objective is None:
-                continue
-            h.minimize(objective)
-            value = _ensure_optimal(h)
-            if index == 0:
-                primary_value = value
-            if index < len(objectives) - 1:
-                self._apply_objective_constraint(index, objective, value)
+        h.changeObjectiveSense(ObjSense.kMinimize)
 
-        return 0.0 if primary_value is None else primary_value
+        primary = objectives[0]
+        secondary = objectives[1] if len(objectives) > 1 else None
 
-    def _apply_objective_constraint(
+        if primary is None:
+            self._relax_lex_constraint()
+            h.run()
+            _ensure_optimal(h)
+            return 0.0
+
+        # Set primary objective
+        _set_cost_vector(h, all_col_indices, cost_vectors[0])
+
+        # Try cached basis for fast warm re-solve. If nothing changed since
+        # the last optimization, HiGHS verifies optimality in zero simplex
+        # iterations and the duals are already correct for the primary
+        # objective at the lex-determined point.
+        if self._cached_lex_basis is not None:
+            h.setBasis(self._cached_lex_basis)
+            h.run()
+            status = h.getModelStatus()
+
+            if status == HighsModelStatus.kOptimal:
+                value = h.getObjectiveValue()
+                if abs(value - (self._cached_primary_value or float("inf"))) < _objective_epsilon(value):
+                    return value
+
+            # Basis stale — fall through to full solve
+            self._cached_lex_basis = None
+            self._cached_primary_value = None
+
+        # --- Phase 1: Minimize primary (lex constraint relaxed) ---
+        self._relax_lex_constraint()
+        h.run()
+        primary_value = _ensure_optimal(h)
+
+        if secondary is not None:
+            # --- Phase 2: Minimize secondary (constrain primary) ---
+            self._constrain_objective(primary, primary_value)
+            _set_cost_vector(h, all_col_indices, cost_vectors[1])
+            h.run()
+            secondary_value = _ensure_optimal(h)
+
+            # --- Phase 3: Re-minimize primary (swap constraint to secondary) ---
+            # Pinning the secondary value fixes the primal at the lex-optimal
+            # point. Re-minimizing the primary gives duals that represent
+            # primary objective sensitivities at that point.
+            self._constrain_objective(secondary, secondary_value)
+            _set_cost_vector(h, all_col_indices, cost_vectors[0])
+            h.run()
+            _ensure_optimal(h)
+
+            # Cache the lex-optimal basis for fast warm re-solves.
+            # This basis is primary-optimal with the lex constraint active,
+            # so restoring it and verifying takes zero simplex iterations.
+            self._cached_lex_basis = h.getBasis()
+            self._cached_primary_value = primary_value
+
+        return primary_value
+
+    def _constrain_objective(
         self,
-        index: int,
         objective: highs_linear_expression | highs_var,
         optimal_value: float,
     ) -> None:
-        """Constrain an objective value for lexicographic optimization."""
+        """Set the single lex constraint to bound the given objective."""
         epsilon = _objective_epsilon(optimal_value)
         expression = _as_linear_expression(objective)
         constraint_expr = expression <= (optimal_value + epsilon)
 
-        if index >= len(self._lexicographic_constraints):
-            cons = self._solver.addConstr(constraint_expr)
-            self._lexicographic_constraints.append(cons)
-            return
+        if self._lex_constraint is None:
+            self._lex_constraint = self._solver.addConstr(constraint_expr)
+        else:
+            self._update_constraint(self._lex_constraint, constraint_expr)
 
-        self._update_constraint(self._lexicographic_constraints[index], constraint_expr)
-
-    def _clear_lexicographic_constraints(self, keep: int = 0) -> None:
-        """Disable lexicographic constraints beyond the count to keep."""
-        if len(self._lexicographic_constraints) <= keep:
-            return
-
-        for cons in self._lexicographic_constraints[keep:]:
-            expr = self._solver.getExpr(cons)
-            self._solver.changeRowBounds(cons.index, float("-inf"), float("inf"))
-            for var_idx in expr.idxs:
-                self._solver.changeCoeff(cons.index, var_idx, 0.0)
-
-        del self._lexicographic_constraints[keep:]
+    def _relax_lex_constraint(self) -> None:
+        """Relax the lex constraint bounds so it is inactive."""
+        if self._lex_constraint is not None:
+            self._solver.changeRowBounds(self._lex_constraint.index, float("-inf"), float("inf"))
 
     def _update_constraint(
         self,
@@ -338,6 +380,38 @@ def _as_linear_expression(expression: highs_linear_expression | highs_var) -> hi
 def _clear_linear_objectives(solver: Highs) -> None:
     """Clear any multiobjective state if the API is available."""
     cast("Any", solver).clearLinearObjectives()
+
+
+def _build_cost_vectors(
+    objectives: list[Any],
+    n_vars: int,
+) -> list[NDArray[np.float64]]:
+    """Convert objective expressions to dense cost vectors.
+
+    Pre-computing dense arrays enables single-call objective switching via
+    ``changeColsCost`` instead of the expression-based ``setObjective``
+    which zeros all columns then sets non-zero ones (two FFI round-trips
+    per objective switch).
+    """
+    vectors: list[NDArray[np.float64]] = []
+    for obj in objectives:
+        vec = np.zeros(n_vars, dtype=np.float64)
+        if obj is not None:
+            expr = highs_linear_expression(obj) if isinstance(obj, highs_var) else obj
+            idxs, vals = expr.unique_elements()
+            vec[idxs] = vals
+        vectors.append(vec)
+    return vectors
+
+
+def _set_cost_vector(
+    solver: Highs,
+    col_indices: NDArray[np.int32],
+    costs: NDArray[np.float64],
+) -> None:
+    """Set the full objective cost vector in a single C call."""
+    solver.changeColsCost(len(col_indices), col_indices, costs)
+    solver.changeObjectiveOffset(0.0)
 
 
 def _ensure_optimal(solver: Highs) -> float:
