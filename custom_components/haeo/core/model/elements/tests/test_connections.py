@@ -107,8 +107,8 @@ def _solve_connection_scenario(element: Connection[str], inputs: ConnectionTestC
     # Collect cost from element (aggregates all @cost methods)
     element_cost = element.cost()
     cost_terms: list[highs_linear_expression] = []
-    if element_cost is not None and element_cost:
-        cost_terms.append(element_cost[0])
+    if element_cost is not None:
+        cost_terms.extend(term for term in element_cost if term is not None)
 
     if source_cost != 0.0:
         cost_terms.append(Highs.qsum(source_vars[i] * source_cost * periods[i] for i in range(n_periods)))

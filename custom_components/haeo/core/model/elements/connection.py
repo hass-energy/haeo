@@ -280,6 +280,10 @@ class Connection[TOutputName: str](Element[TOutputName]):
         Collects costs from all segments and adds a time-preference objective to
         prefer earlier energy transfer when primary costs are equal.
 
+        Time preference is always placed at SECONDARY_OBJECTIVE_INDEX so it
+        participates in the secondary lexicographic solve regardless of whether
+        this connection has a pricing segment.
+
         Returns:
             List of objective expressions or None if no objectives are defined
 
@@ -289,9 +293,13 @@ class Connection[TOutputName: str](Element[TOutputName]):
         ]
         combined = _combine_objective_lists(segment_objectives)
 
-        # Add time preference objective as the next objective
+        # Place time preference at the secondary objective index
         if (time_preference := self._time_preference_objective()) is not None:
-            if len(combined) <= SECONDARY_OBJECTIVE_INDEX:
+            # Pad with None so time preference lands at SECONDARY_OBJECTIVE_INDEX
+            while len(combined) < SECONDARY_OBJECTIVE_INDEX:
+                combined.append(None)
+
+            if len(combined) == SECONDARY_OBJECTIVE_INDEX:
                 combined.append(time_preference)
             else:
                 combined[SECONDARY_OBJECTIVE_INDEX] = Highs.qsum([combined[SECONDARY_OBJECTIVE_INDEX], time_preference])
@@ -391,10 +399,10 @@ def _combine_objective_lists(objectives: list[list[Any]]) -> list[Any]:
     max_len = max((len(items) for items in objectives), default=0)
     combined: list[Any] = []
     for index in range(max_len):
-        terms = [items[index] for items in objectives if len(items) > index]
+        terms = [items[index] for items in objectives if len(items) > index and items[index] is not None]
         if not terms:
-            continue
-        if len(terms) == 1:
+            combined.append(None)
+        elif len(terms) == 1:
             combined.append(terms[0])
         else:
             combined.append(Highs.qsum(terms))

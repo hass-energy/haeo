@@ -203,6 +203,8 @@ class Network:
             self._clear_lexicographic_constraints(required_constraints)
 
         for index, objective in enumerate(objectives):
+            if objective is None:
+                continue
             h.minimize(objective)
             value = _ensure_optimal(h)
             if index == 0:
@@ -307,10 +309,10 @@ def _combine_objective_lists(objectives: list[list[Any]]) -> list[Any]:
     max_len = max((len(items) for items in objectives), default=0)
     combined: list[Any] = []
     for index in range(max_len):
-        terms = [items[index] for items in objectives if len(items) > index]
+        terms = [items[index] for items in objectives if len(items) > index and items[index] is not None]
         if not terms:
-            continue
-        if len(terms) == 1:
+            combined.append(None)
+        elif len(terms) == 1:
             combined.append(terms[0])
         else:
             combined.append(Highs.qsum(terms))
