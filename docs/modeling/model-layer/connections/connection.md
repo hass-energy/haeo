@@ -77,9 +77,26 @@ Elements do not need to account for them directly.
 ### Cost contribution
 
 Connection aggregates cost expressions from all segments.
-PricingSegment instances contribute directional energy costs.
-Connections also contribute a secondary time-preference objective that weights energy transfer with a linear ramp.
-This secondary ordering prefers earlier transfers when primary costs are equal.
+PricingSegment instances contribute directional energy costs to the primary objective (index 0).
+
+Connections also contribute a time-preference term to the secondary objective (index 1).
+This term weights energy transfer with monotonically increasing per-period weights:
+
+$$
+w_{c,t} = c \cdot T + (t + 1)
+$$
+
+Where $c$ is the connection index, $T$ is the number of periods, and $t$ is the time step.
+The time-preference objective for connection $c$ is:
+
+$$
+\sum_{t=0}^{T-1} w_{c,t} \cdot \bigl(P_{s \rightarrow t}(t) + P_{t \rightarrow s}(t)\bigr) \cdot \Delta t_t
+$$
+
+Each connection receives a unique range of weights, preventing primal degeneracy when multiple connections share a node and have equal marginal cost at the same time step.
+
+The secondary objective does not affect the minimum cost—it only selects among cost-equivalent solutions.
+The network solves this lexicographically: primary cost is minimized first, then the secondary objective is minimized subject to the primary remaining optimal.
 
 ## Outputs
 
