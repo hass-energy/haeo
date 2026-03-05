@@ -37,7 +37,6 @@ class Network:
     _solver: Highs = field(default_factory=Highs, repr=False)
     _lex_constraint: highs_cons | None = field(default=None, init=False, repr=False)
     _cached_primary_value: float | None = field(default=None, init=False, repr=False)
-    _cached_lex_basis: Any = field(default=None, init=False, repr=False)
 
     def __post_init__(self) -> None:
         """Set up the solver with logging callback."""
@@ -224,23 +223,19 @@ class Network:
         # Set primary objective
         _set_cost_vector(h, all_col_indices, cost_vectors[0])
 
-        # Try cached basis for fast warm re-solve. If nothing changed since
-        # the last optimization, HiGHS verifies optimality in zero simplex
-        # iterations and the duals are already correct for the primary
-        # objective at the lex-determined point.
-        if self._cached_lex_basis is not None:
-            h.setBasis(self._cached_lex_basis)
+        # Fast path: after phase 3 of the previous optimization, the solver
+        # state is primary-optimal with the lex constraint binding the
+        # secondary. HiGHS preserves this basis across model coefficient
+        # updates, so running verifies optimality in zero simplex iterations
+        # when nothing has changed.
+        if self._cached_primary_value is not None:
             h.run()
             status = h.getModelStatus()
 
             if status == HighsModelStatus.kOptimal:
                 value = h.getObjectiveValue()
-                if abs(value - (self._cached_primary_value or float("inf"))) < _objective_epsilon(value):
+                if abs(value - self._cached_primary_value) < _objective_epsilon(value):
                     return value
-
-            # Basis stale — fall through to full solve
-            self._cached_lex_basis = None
-            self._cached_primary_value = None
 
         # --- Phase 1: Minimize primary (lex constraint relaxed) ---
         self._relax_lex_constraint()
@@ -263,10 +258,9 @@ class Network:
             h.run()
             _ensure_optimal(h)
 
-            # Cache the lex-optimal basis for fast warm re-solves.
-            # This basis is primary-optimal with the lex constraint active,
-            # so restoring it and verifying takes zero simplex iterations.
-            self._cached_lex_basis = h.getBasis()
+            # Cache the primary value for fast warm re-solves.
+            # The solver is now primary-optimal with the lex constraint
+            # binding the secondary — HiGHS preserves this basis internally.
             self._cached_primary_value = primary_value
 
         return primary_value
