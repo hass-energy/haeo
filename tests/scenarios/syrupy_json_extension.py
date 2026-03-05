@@ -15,8 +15,6 @@ def _collect_diffs(
     received: Any,
     snapshot: Any,
     path: str = "",
-    rel_tol: float = 1e-5,
-    abs_tol: float = 1e-9,
 ) -> list[tuple[str, Any, Any]]:
     """Recursively collect paths where received and snapshot values differ."""
     diffs: list[tuple[str, Any, Any]] = []
@@ -27,7 +25,7 @@ def _collect_diffs(
         return [(path or "<root>", received, snapshot)]
 
     if isinstance(received, Real) and isinstance(snapshot, Real):
-        if not approx_equal(received, snapshot, rel_tol, abs_tol):
+        if not approx_equal(received, snapshot):
             diffs.append((path or "<root>", received, snapshot))
         return diffs
 
@@ -40,7 +38,7 @@ def _collect_diffs(
             elif key not in received:
                 diffs.append((key_path, "<missing>", snapshot[key]))
             else:
-                diffs.extend(_collect_diffs(received[key], snapshot[key], key_path, rel_tol, abs_tol))
+                diffs.extend(_collect_diffs(received[key], snapshot[key], key_path))
         return diffs
 
     if (
@@ -52,7 +50,7 @@ def _collect_diffs(
         if len(received) != len(snapshot):
             diffs.append((f"{path}(len)", len(received), len(snapshot)))
         for i, (r, s) in enumerate(zip(received, snapshot, strict=False)):
-            diffs.extend(_collect_diffs(r, s, f"{path}[{i}]", rel_tol, abs_tol))
+            diffs.extend(_collect_diffs(r, s, f"{path}[{i}]"))
         return diffs
 
     if received != snapshot:

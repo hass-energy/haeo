@@ -126,6 +126,7 @@ class Connection[TOutputName: str](Element[TOutputName]):
         self._source_element: Element[Any] | None = None
         self._target_element: Element[Any] | None = None
         self._mirror_segment_order = mirror_segment_order
+        self.connection_index = 0
 
         # Segments stored in OrderedDict for name-based and index-based access
         self._segment_specs: OrderedDict[str, SegmentSpec] = OrderedDict(segments or {})
@@ -311,7 +312,7 @@ class Connection[TOutputName: str](Element[TOutputName]):
         if self.n_periods == 0:
             return None
 
-        weights = time_preference_weights(self.periods)
+        weights = time_preference_weights(self.periods, self.connection_index)
         energy_st = self.power_source_target * self.periods
         energy_ts = self.power_target_source * self.periods
 
