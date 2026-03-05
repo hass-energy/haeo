@@ -17,8 +17,6 @@ def time_preference_weights(periods: NDArray[np.floating[Any]], connection_index
     Weight for connection *c* at time *t* is ``c * n + (t + 1)``.
     """
     n_periods = len(periods)
-    if n_periods <= 0:
-        return np.zeros(0, dtype=np.float64)
     return connection_index * n_periods + np.arange(1, n_periods + 1, dtype=np.float64)
 
 

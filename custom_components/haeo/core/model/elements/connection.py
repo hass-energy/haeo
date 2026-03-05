@@ -309,9 +309,6 @@ class Connection[TOutputName: str](Element[TOutputName]):
 
     def _time_preference_objective(self) -> highs_linear_expression | None:
         """Return secondary objective that prefers earlier energy transfer."""
-        if self.n_periods == 0:
-            return None
-
         weights = time_preference_weights(self.periods, self.connection_index)
         energy_st = self.power_source_target * self.periods
         energy_ts = self.power_target_source * self.periods
