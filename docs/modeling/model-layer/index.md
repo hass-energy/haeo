@@ -41,8 +41,9 @@ Each element contributes constraints governing its operation.
 The complete constraint set is the union of all element constraints plus network-wide power balance.
 
 **Objective function**:
-Each element may contribute cost terms.
-The total objective is the sum of all element cost contributions.
+Each element may contribute cost terms as a positional list of objective expressions.
+Index 0 is the primary (cost) objective, index 1 is the secondary (time preference) objective.
+The network sums contributions at each index across all elements, then solves lexicographically.
 
 ## Declarative constraint aggregation
 
