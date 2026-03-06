@@ -275,7 +275,7 @@ class Connection[TOutputName: str](Element[TOutputName]):
 
         return result
 
-    def cost(self) -> list[highs_linear_expression | None] | None:  # type: ignore[override]  # Intentionally override Element's @cost with segment delegation
+    def cost(self) -> list[highs_linear_expression | None] | None:
         """Return aggregated objective expressions from this connection.
 
         Collects costs from all segments and adds a time-preference objective to

@@ -9,7 +9,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 from .output_data import OutputData
-from .reactive import OutputMethod, ReactiveConstraint, ReactiveCost, TrackedParam, cost
+from .reactive import OutputMethod, ReactiveConstraint, ReactiveCost, TrackedParam
 
 
 class Element[OutputNameT: str]:
@@ -226,27 +226,19 @@ class Element[OutputNameT: str]:
                     result[name] = cons
         return result
 
-    @cost
     def cost(self) -> list[highs_linear_expression | None] | None:
         """Return aggregated objective expressions from this element.
 
         Discovers and calls all @cost decorated methods, combining their results into
-        a list of objective expressions. The result is cached by the @cost decorator,
-        which automatically tracks dependencies on all underlying @cost methods.
+        a list of objective expressions.
 
         Returns:
             List of objective expressions or None if no costs are defined
 
         """
-        # Get this method's name from the decorator to avoid hardcoding
-        this_method_name = type(self).cost._name  # type: ignore[attr-defined]  # noqa: SLF001 (intentional access to decorator's name)
-
-        # Collect all cost expressions from @cost methods (excluding this one)
+        # Collect all cost expressions from @cost methods
         costs: list[list[highs_linear_expression]] = []
         for name in dir(type(self)):
-            # Skip self to avoid infinite recursion
-            if name == this_method_name:
-                continue
             attr = getattr(type(self), name, None)
             if not isinstance(attr, ReactiveCost):
                 continue
