@@ -133,7 +133,7 @@ See [Modeling Documentation](../modeling/index.md) for mathematical formulations
 ### Optimization
 
 Uses the HiGHS linear programming solver directly via the `highspy` Python bindings to solve the energy optimization problem.
-Minimizes cost while respecting all constraints, returning optimal cost and decision variable values.
+The network uses a three-phase lexicographic solve: minimize cost first, then minimize a time-preference secondary objective to break ties deterministically, and finally re-minimize cost to restore accurate shadow prices.
 
 Elements use decorators to declare constraints and costs, which the network automatically aggregates.
 When parameters update (like forecast changes), only affected constraints are rebuilt (warm start optimization).

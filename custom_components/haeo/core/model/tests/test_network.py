@@ -259,7 +259,7 @@ def test_network_constraint_generation_error() -> None:
     mock_element.power_balance_constraints = {}
     mock_element.power_consumption = None
     mock_element.power_production = None
-    mock_element.cost = Mock(return_value=[])
+    mock_element.cost = Mock(return_value=None)
     mock_element.constraints.side_effect = RuntimeError("Constraint generation failed")
     network.elements["failing_element"] = mock_element
 
@@ -301,7 +301,7 @@ def test_network_optimize_constraints_error() -> None:
     # Mock an element that raises an exception during constraints
     mock_element = Mock(spec=Element)
     mock_element.constraints.side_effect = RuntimeError("Build failed")
-    mock_element.cost = Mock(return_value=[])
+    mock_element.cost = Mock(return_value=None)
     network.elements["failing_element"] = mock_element
 
     # Should wrap the error with context about which element failed
@@ -443,7 +443,7 @@ def test_add_soc_pricing_connection_without_battery() -> None:
 
 
 def test_network_cost_with_multiple_elements() -> None:
-    """Test Network.cost() aggregates costs from multiple elements using Highs.qsum."""
+    """Test Network.cost() aggregates costs from multiple elements."""
     network = Network(name="test", periods=np.array([1.0, 1.0]))
 
     # Add two nodes
@@ -477,12 +477,13 @@ def test_network_cost_with_multiple_elements() -> None:
     # Get aggregated cost - should use Highs.qsum for multiple costs
     cost = network.cost()
 
-    # Should return a single expression
+    # Should return a combined objective list
     assert cost is not None
+    assert cost
 
 
 def test_network_cost_returns_none_when_no_costs() -> None:
-    """Test Network.cost() returns None when network has no cost terms."""
+    """Test Network.cost() returns None when network has no objective terms."""
     network = Network(name="test", periods=np.array([1.0]))
 
     # Add a node (has no costs)

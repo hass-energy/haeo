@@ -13,19 +13,13 @@ HAEO creates three main network sensors:
 Total cost over the optimization horizon in dollars.
 
 - **Lower is better**: HAEO minimizes this value
-- **Includes**: Grid import/export costs, virtual incentive costs for battery/solar usage, connection transfer costs
+- **Includes**: Grid import/export costs, configured SOC pricing costs, connection transfer costs
 - **Unit**: \$ (or your configured currency)
 
-!!! info "Virtual Costs"
+!!! info "Lexicographic ordering"
 
-    The optimization cost includes small virtual costs to guide decision-making:
-
-    - Battery discharge: Encourages using stored energy at optimal times
-    - Solar generation: Encourages self-consumption over export when economically similar
-    - Undercharge/overcharge: Penalty costs for operating outside normal SOC range
-
-    These virtual costs ensure stable optimization behavior but don't represent actual utility charges.
-    Your real electricity bill depends primarily on grid import/export and your configured prices.
+When multiple schedules share the same primary cost, HAEO applies a secondary time-preference objective.
+This ordering favors earlier energy transfers without changing the reported optimization cost.
 
 ### Optimization Status
 

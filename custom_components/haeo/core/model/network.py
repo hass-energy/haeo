@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 import logging
 from typing import Any, overload
 
-from highspy import Highs, HighsModelStatus
+from highspy import Highs, HighsModelStatus, ObjSense
 from highspy.highs import highs_cons, highs_linear_expression
 import numpy as np
 from numpy.typing import NDArray
@@ -16,6 +16,9 @@ from .elements.connection import Connection, ConnectionElementConfig, Connection
 from .elements.node import Node, NodeElementConfig
 
 _LOGGER = logging.getLogger(__name__)
+
+# HiGHS default simplex iteration limit (max int32)
+_SIMPLEX_ITERATION_LIMIT = 2147483647
 
 
 @dataclass
@@ -35,6 +38,8 @@ class Network:
     periods: NDArray[np.floating[Any]]  # Period durations in hours (one per optimization interval)
     elements: dict[str, Element[Any]] = field(default_factory=dict)
     _solver: Highs = field(default_factory=Highs, repr=False)
+    _lex_constraint: highs_cons | None = field(default=None, init=False, repr=False)
+    _cached_primary_value: float | None = field(default=None, init=False, repr=False)
 
     def __post_init__(self) -> None:
         """Set up the solver with logging callback."""
@@ -134,33 +139,37 @@ class Network:
                     f"Failed to register connection {name} with target {element_instance.target}: Not found or invalid"
                 )
                 raise ValueError(msg)
+            # Assign unique connection index for deterministic time preference
+            element_instance.connection_index = sum(
+                1 for e in self.elements.values() if isinstance(e, Connection) and e is not element_instance
+            )
             element_instance.set_endpoints(source_element, target_element)
 
         return element_instance
 
-    def cost(self) -> highs_linear_expression | None:
-        """Return aggregated cost expression from all elements in the network.
+    def cost(self) -> list[highs_linear_expression | None] | None:
+        """Return aggregated objective expressions from all elements in the network.
 
-        Discovers and calls all element cost() methods, summing their results into
-        a single expression. Element costs are cached individually, so this aggregation
-        is inexpensive.
+        Discovers and calls all element cost() methods, combining their results into
+        a list of objective expressions. Element costs are cached individually, so this
+        aggregation is inexpensive.
 
         Returns:
-            Single aggregated cost expression or None if no costs
+            List of objective expressions or None if no objectives are defined
 
         """
-        # Collect costs from all elements
-        costs = [element_cost for element in self.elements.values() if (element_cost := element.cost()) is not None]
+        objectives: list[list[highs_linear_expression | None]] = [
+            element_cost for element in self.elements.values() if (element_cost := element.cost()) is not None
+        ]
 
-        # Aggregate into a single expression
-        if not costs:
+        if not objectives:
             return None
-        if len(costs) == 1:
-            return costs[0]
-        return Highs.qsum(costs)
+
+        combined = _combine_objective_lists(objectives)
+        return combined or None
 
     def optimize(self) -> float:
-        """Solve the optimization problem and return the cost.
+        """Solve the optimization problem and return the primary objective value.
 
         After optimization, access optimized values directly from elements and connections.
 
@@ -186,20 +195,129 @@ class Network:
                 msg = f"Failed to apply constraints for element '{element_name}'"
                 raise ValueError(msg) from e
 
-        # Get aggregated cost from network (reactive - only rebuilds if any element cost invalidated)
-        if (total_cost := self.cost()) is not None:
-            h.minimize(total_cost)
-        else:
-            # No cost terms - just run to check feasibility
+        # Get aggregated objectives from network (reactive - only rebuilds if any element cost invalidated)
+        objectives = self.cost()
+
+        _clear_linear_objectives(h)
+
+        if objectives is None:
+            self._relax_lex_constraint()
             h.run()
+            return _ensure_optimal(h)
 
-        # Check optimization status
-        status = h.getModelStatus()
-        if status == HighsModelStatus.kOptimal:
-            return h.getObjectiveValue()
+        # Pre-compute cost vectors for each objective as dense arrays.
+        # This avoids repeated Python→C FFI overhead from expression-based
+        # setObjective() which zeros all columns then sets non-zero ones.
+        n_vars = h.numVariables
+        all_col_indices = np.arange(n_vars, dtype=np.int32)
+        cost_vectors = _build_cost_vectors(objectives, n_vars)
 
-        msg = f"Optimization failed with status: {h.modelStatusToString(status)}"
-        raise ValueError(msg)
+        h.changeObjectiveSense(ObjSense.kMinimize)
+
+        primary = objectives[0]
+        secondary = objectives[1] if len(objectives) > 1 else None
+
+        if primary is None:
+            self._relax_lex_constraint()
+            h.run()
+            _ensure_optimal(h)
+            return 0.0
+
+        # Set primary objective
+        _set_cost_vector(h, all_col_indices, cost_vectors[0])
+
+        # Fast path: after phase 3 of the previous optimization, the solver
+        # state is primary-optimal with the lex constraint binding the
+        # secondary. HiGHS preserves this basis across model coefficient
+        # updates, so running with iteration limit 0 verifies optimality
+        # without doing any work when nothing has changed.
+        #
+        # The iteration limit prevents wasted work on cache miss. The value
+        # comparison catches cases where constraint/bound changes leave the
+        # current vertex feasible but the stale lex constraint masks a
+        # changed optimum.
+        if (cached := self._cached_primary_value) is not None:
+            h.setOptionValue("simplex_iteration_limit", 0)
+            try:
+                h.run()
+            finally:
+                h.setOptionValue("simplex_iteration_limit", _SIMPLEX_ITERATION_LIMIT)
+
+            if h.getModelStatus() == HighsModelStatus.kOptimal and abs(
+                (value := h.getObjectiveValue()) - cached
+            ) < _objective_epsilon(value):
+                return value
+
+        # --- Phase 1: Minimize primary (lex constraint relaxed) ---
+        self._relax_lex_constraint()
+        h.run()
+        primary_value = _ensure_optimal(h)
+
+        if secondary is not None:
+            # --- Phase 2: Minimize secondary (constrain primary) ---
+            self._constrain_objective(primary, primary_value)
+            _set_cost_vector(h, all_col_indices, cost_vectors[1])
+            h.run()
+            secondary_value = _ensure_optimal(h)
+
+            # --- Phase 3: Re-minimize primary (swap constraint to secondary) ---
+            # Pinning the secondary value fixes the primal at the lex-optimal
+            # point. Re-minimizing the primary gives duals that represent
+            # primary objective sensitivities at that point.
+            self._constrain_objective(secondary, secondary_value)
+            _set_cost_vector(h, all_col_indices, cost_vectors[0])
+            h.run()
+            _ensure_optimal(h)
+
+            # Cache the primary value for the warm-start check.
+            self._cached_primary_value = primary_value
+
+        return primary_value
+
+    def _constrain_objective(
+        self,
+        objective: highs_linear_expression,
+        optimal_value: float,
+    ) -> None:
+        """Set the single lex constraint to bound the given objective."""
+        epsilon = _objective_epsilon(optimal_value)
+        constraint_expr = objective <= (optimal_value + epsilon)
+
+        if self._lex_constraint is None:
+            self._lex_constraint = self._solver.addConstr(constraint_expr)
+        else:
+            self._update_constraint(self._lex_constraint, constraint_expr)
+
+    def _relax_lex_constraint(self) -> None:
+        """Relax the lex constraint bounds so it is inactive."""
+        if self._lex_constraint is not None:
+            self._solver.changeRowBounds(self._lex_constraint.index, float("-inf"), float("inf"))
+
+    def _update_constraint(
+        self,
+        cons: highs_cons,
+        expr: highs_linear_expression,
+    ) -> None:
+        """Update an existing constraint with a new expression."""
+        old_expr = self._solver.getExpr(cons)
+        old_bounds = old_expr.bounds
+        new_bounds = expr.bounds
+
+        if old_bounds != new_bounds:
+            if new_bounds is not None:
+                self._solver.changeRowBounds(cons.index, new_bounds[0], new_bounds[1])
+            elif old_bounds is not None:
+                self._solver.changeRowBounds(cons.index, float("-inf"), float("inf"))
+
+        old_coeffs = dict(zip(old_expr.idxs, old_expr.vals, strict=True))
+        new_coeffs = dict(zip(expr.idxs, expr.vals, strict=True))
+        all_vars = set(old_coeffs) | set(new_coeffs)
+
+        for var_idx in all_vars:
+            old_val = old_coeffs.get(var_idx, 0.0)
+            new_val = new_coeffs.get(var_idx, 0.0)
+            if old_val != new_val:
+                self._solver.changeCoeff(cons.index, var_idx, new_val)
 
     def validate(self) -> None:
         """Validate the network."""
@@ -232,3 +350,71 @@ class Network:
             if element_constraints := element.constraints():
                 result[element_name] = element_constraints
         return result
+
+
+def _combine_objective_lists(
+    objectives: list[list[highs_linear_expression | None]],
+) -> list[highs_linear_expression | None]:
+    """Combine objective expression lists by summing expressions at each index."""
+    max_len = max((len(items) for items in objectives), default=0)
+    combined: list[highs_linear_expression | None] = []
+    for index in range(max_len):
+        candidates = [items[index] for items in objectives if len(items) > index]
+        terms = [t for t in candidates if t is not None]
+        if not terms:
+            combined.append(None)
+        elif len(terms) == 1:
+            combined.append(terms[0])
+        else:
+            combined.append(Highs.qsum(terms))
+    return combined
+
+
+def _objective_epsilon(value: float) -> float:
+    """Return a small epsilon for lexicographic objective constraints."""
+    return max(1e-6, abs(value) * 1e-9)
+
+
+def _clear_linear_objectives(solver: Highs) -> None:
+    """Clear any multiobjective state."""
+    solver.clearLinearObjectives()
+
+
+def _build_cost_vectors(
+    objectives: list[highs_linear_expression | None],
+    n_vars: int,
+) -> list[NDArray[np.float64]]:
+    """Convert objective expressions to dense cost vectors.
+
+    Pre-computing dense arrays enables single-call objective switching via
+    ``changeColsCost`` instead of the expression-based ``setObjective``
+    which zeros all columns then sets non-zero ones (two FFI round-trips
+    per objective switch).
+    """
+    vectors: list[NDArray[np.float64]] = []
+    for obj in objectives:
+        vec = np.zeros(n_vars, dtype=np.float64)
+        if obj is not None:
+            idxs, vals = obj.unique_elements()
+            vec[idxs] = vals
+        vectors.append(vec)
+    return vectors
+
+
+def _set_cost_vector(
+    solver: Highs,
+    col_indices: NDArray[np.int32],
+    costs: NDArray[np.float64],
+) -> None:
+    """Set the full objective cost vector in a single C call."""
+    solver.changeColsCost(len(col_indices), col_indices, costs)
+    solver.changeObjectiveOffset(0.0)
+
+
+def _ensure_optimal(solver: Highs) -> float:
+    """Validate solver status and return the objective value."""
+    status = solver.getModelStatus()
+    if status != HighsModelStatus.kOptimal:
+        msg = f"Optimization failed with status: {solver.modelStatusToString(status)}"
+        raise ValueError(msg)
+    return solver.getObjectiveValue()

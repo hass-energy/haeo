@@ -19,7 +19,7 @@ from abc import ABC, abstractmethod
 from typing import Any
 
 from highspy import Highs
-from highspy.highs import HighspyArray, highs_cons
+from highspy.highs import HighspyArray, highs_cons, highs_linear_expression
 import numpy as np
 from numpy.typing import NDArray
 
@@ -160,16 +160,17 @@ class Segment(ABC):
                 result[output_name] = output_data
         return result
 
-    def cost(self) -> Any:
-        """Return aggregated cost expression from this segment.
+    def cost(self) -> list[highs_linear_expression | None] | None:
+        """Return aggregated objective expressions from this segment.
 
-        Discovers and calls all @cost decorated methods, summing their results.
+        Discovers and calls all @cost decorated methods, combining their results
+        into a list of objective expressions.
 
         Returns:
-            Cost expression or None if no costs
+            List of objective expressions or None if no costs
 
         """
-        costs: list[Any] = []
+        costs: list[list[highs_linear_expression]] = []
         for name in dir(type(self)):
             attr = getattr(type(self), name, None)
             if not isinstance(attr, ReactiveCost):
@@ -179,15 +180,32 @@ class Segment(ABC):
             method = getattr(self, name)
             if (cost_value := method()) is not None:
                 if isinstance(cost_value, list):
-                    costs.extend(cost_value)
+                    costs.append([item for item in cost_value if item is not None])
                 else:
-                    costs.append(cost_value)
+                    costs.append([cost_value])
 
         if not costs:
             return None
-        if len(costs) == 1:
-            return costs[0]
-        return sum(costs[1:], costs[0])
+
+        combined = _combine_objective_lists(costs)
+        return combined or None
+
+
+def _combine_objective_lists(
+    objectives: list[list[highs_linear_expression]],
+) -> list[highs_linear_expression | None]:
+    """Combine objective expression lists by summing expressions at each index."""
+    max_len = max((len(items) for items in objectives), default=0)
+    combined: list[highs_linear_expression | None] = []
+    for index in range(max_len):
+        terms = [items[index] for items in objectives if len(items) > index]
+        if not terms:
+            combined.append(None)
+        elif len(terms) == 1:
+            combined.append(terms[0])
+        else:
+            combined.append(Highs.qsum(terms))
+    return combined
 
 
 __all__ = ["Segment"]

@@ -4,12 +4,12 @@ from collections.abc import Mapping, Sequence
 from typing import Any, Literal
 
 from highspy import Highs
-from highspy.highs import HighspyArray, highs_cons
+from highspy.highs import HighspyArray, highs_cons, highs_linear_expression
 import numpy as np
 from numpy.typing import NDArray
 
 from .output_data import OutputData
-from .reactive import OutputMethod, ReactiveConstraint, ReactiveCost, TrackedParam, cost
+from .reactive import OutputMethod, ReactiveConstraint, ReactiveCost, TrackedParam
 
 
 class Element[OutputNameT: str]:
@@ -226,27 +226,19 @@ class Element[OutputNameT: str]:
                     result[name] = cons
         return result
 
-    @cost
-    def cost(self) -> Any:
-        """Return aggregated cost expression from this element.
+    def cost(self) -> list[highs_linear_expression | None] | None:
+        """Return aggregated objective expressions from this element.
 
-        Discovers and calls all @cost decorated methods, summing their results into
-        a single expression. The result is cached by the @cost decorator, which
-        automatically tracks dependencies on all underlying @cost methods.
+        Discovers and calls all @cost decorated methods, combining their results into
+        a list of objective expressions.
 
         Returns:
-            Single aggregated cost expression (highs_linear_expression) or None if no costs
+            List of objective expressions or None if no costs are defined
 
         """
-        # Get this method's name from the decorator to avoid hardcoding
-        this_method_name = type(self).cost._name  # type: ignore[attr-defined]  # noqa: SLF001 (intentional access to decorator's name)
-
-        # Collect all cost expressions from @cost methods (excluding this one)
-        costs: list[Any] = []
+        # Collect all cost expressions from @cost methods
+        costs: list[list[highs_linear_expression]] = []
         for name in dir(type(self)):
-            # Skip self to avoid infinite recursion
-            if name == this_method_name:
-                continue
             attr = getattr(type(self), name, None)
             if not isinstance(attr, ReactiveCost):
                 continue
@@ -255,14 +247,29 @@ class Element[OutputNameT: str]:
             method = getattr(self, name)
             if (cost_value := method()) is not None:
                 if isinstance(cost_value, list):
-                    costs.extend(cost_value)
+                    costs.append([item for item in cost_value if item is not None])
                 else:
-                    costs.append(cost_value)
+                    costs.append([cost_value])
 
-        # Aggregate costs into a single expression
         if not costs:
             return None
-        if len(costs) == 1:
-            return costs[0]
-        # Sum all cost expressions
-        return sum(costs[1:], costs[0])
+
+        combined = _combine_objective_lists(costs)
+        return combined or None
+
+
+def _combine_objective_lists(
+    objectives: list[list[highs_linear_expression]],
+) -> list[highs_linear_expression | None]:
+    """Combine objective expression lists by summing expressions at each index."""
+    max_len = max((len(items) for items in objectives), default=0)
+    combined: list[highs_linear_expression | None] = []
+    for index in range(max_len):
+        terms = [items[index] for items in objectives if len(items) > index]
+        if not terms:
+            combined.append(None)
+        elif len(terms) == 1:
+            combined.append(terms[0])
+        else:
+            combined.append(Highs.qsum(terms))
+    return combined
