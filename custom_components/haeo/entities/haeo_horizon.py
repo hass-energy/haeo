@@ -57,9 +57,8 @@ class HaeoHorizonEntity(SensorEntity):
         """Update state from the horizon manager."""
         forecast_timestamps = self._horizon_manager.get_forecast_timestamps()
 
-        # Build forecast as list of ForecastPoint-style dicts
         local_tz = dt_util.get_default_time_zone()
-        forecast = [{"time": datetime.fromtimestamp(ts, tz=local_tz), "value": None} for ts in forecast_timestamps]
+        forecast = [{"time": datetime.fromtimestamp(ts, tz=local_tz)} for ts in forecast_timestamps]
 
         # State is the current period start time
         if forecast_timestamps:
