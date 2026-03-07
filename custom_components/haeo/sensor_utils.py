@@ -89,7 +89,7 @@ def _apply_smart_rounding(output_sensors: dict[str, SensorStateDict]) -> None:
 
         # Collect forecast values
         for item in entity_data["attributes"].get("forecast", []):
-            val = _try_parse_float(item["value"])
+            val = _try_parse_float(item.get("value"))
             if val is not None:
                 unit_values[unit].append(abs(val))
 
@@ -112,7 +112,7 @@ def _apply_smart_rounding(output_sensors: dict[str, SensorStateDict]) -> None:
 
         # Round forecast values
         for item in entity_data["attributes"].get("forecast", []):
-            val = _try_parse_float(item["value"])
+            val = _try_parse_float(item.get("value"))
             if val is not None:
                 item["value"] = round(val, decimal_places) + 0.0  # Makes -0.0 into 0.0
 
