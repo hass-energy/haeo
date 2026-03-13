@@ -7,6 +7,7 @@ DOMAIN: Final = "haeo"
 
 # External URLs
 URL_HAFO: Final = "https://hafo.haeo.io"
+URL_DOCS_FORECAST_CARD: Final = "https://github.com/hass-energy/haeo/blob/main/docs/user-guide/lovelace-card.md"
 
 # Integration types
 INTEGRATION_TYPE_HUB: Final = "hub"
@@ -16,6 +17,10 @@ CONF_INTEGRATION_TYPE: Final = "integration_type"
 CONF_RECORD_FORECASTS: Final = "record_forecasts"
 
 ELEMENT_TYPE_NETWORK: Final = "network"
+
+# Static frontend resources
+STATIC_FORECAST_CARD_URL_PATH: Final = "/haeo-static/haeo-forecast-card.js"
+STATIC_FORECAST_CARD_FILE_PATH: Final = "www/haeo-forecast-card.js"
 
 # Optimization statuses
 OPTIMIZATION_STATUS_SUCCESS: Final = "success"

@@ -6,9 +6,11 @@ import asyncio
 from collections.abc import Awaitable, Mapping
 from dataclasses import dataclass, field
 import logging
+from pathlib import Path
 from types import MappingProxyType
 from typing import TYPE_CHECKING, Protocol
 
+from homeassistant.components.http import StaticPathConfig
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant, State
@@ -17,7 +19,12 @@ from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.translation import async_get_translations
 from homeassistant.helpers.typing import ConfigType
 
-from custom_components.haeo.const import DOMAIN, ELEMENT_TYPE_NETWORK
+from custom_components.haeo.const import (
+    DOMAIN,
+    ELEMENT_TYPE_NETWORK,
+    STATIC_FORECAST_CARD_FILE_PATH,
+    STATIC_FORECAST_CARD_URL_PATH,
+)
 from custom_components.haeo.coordinator import HaeoDataUpdateCoordinator
 from custom_components.haeo.core.const import CONF_ADVANCED_MODE, CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.elements import ELEMENT_DEVICE_NAMES_BY_TYPE
@@ -100,8 +107,20 @@ async def async_setup(hass: HomeAssistant, _config: ConfigType) -> bool:
 
     Registers domain-level services that are available even before any config entries are loaded.
     """
+    await _async_register_static_frontend_resources(hass)
     await async_setup_services(hass)
     return True
+
+
+async def _async_register_static_frontend_resources(hass: HomeAssistant) -> None:
+    """Register static frontend resources used by custom Lovelace cards."""
+    card_path = Path(__file__).parent / STATIC_FORECAST_CARD_FILE_PATH
+    if not card_path.exists():
+        _LOGGER.debug("Static forecast card bundle not found at %s", card_path)
+        return
+    await hass.http.async_register_static_paths(
+        [StaticPathConfig(STATIC_FORECAST_CARD_URL_PATH, str(card_path), cache_headers=False)]
+    )
 
 
 @dataclass(slots=True)

@@ -1,0 +1,35 @@
+{
+  "name": "@haeo/forecast-card",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "build": "node ./scripts/build.mjs",
+    "dev": "node ./scripts/build.mjs --watch",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --check .",
+    "format:fix": "prettier --write .",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "check": "npm run typecheck && npm run lint && npm run format && npm run test:coverage"
+  },
+  "dependencies": {
+    "lit": "^3.3.1",
+    "mobx": "^6.15.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.38.0",
+    "@types/node": "^24.6.1",
+    "@vitest/coverage-v8": "^3.2.4",
+    "eslint": "^9.38.0",
+    "eslint-config-prettier": "^10.1.8",
+    "esbuild": "^0.25.11",
+    "jsdom": "^27.0.0",
+    "prettier": "^3.6.2",
+    "typescript": "^5.9.2",
+    "typescript-eslint": "^8.46.1",
+    "vitest": "^3.2.4"
+  }
+}

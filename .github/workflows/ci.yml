@@ -206,6 +206,23 @@ jobs:
 
       - name: Check import boundaries
         run: uv run lint-imports
+
+  frontend-card-check:
+    name: Frontend card checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout the repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Setup Node
+        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6.2.0
+        with:
+          node-version: 22
+
+      - name: Run frontend card quality checks
+        run: |
+          npm --prefix frontend/haeo-forecast-card ci
+          npm --prefix frontend/haeo-forecast-card run check
   #endregion
 
   #region Tests
@@ -330,6 +347,7 @@ jobs:
       - prettier
       - mdformat
       - import-linter
+      - frontend-card-check
       - test
       - hassfest
       - version-check
