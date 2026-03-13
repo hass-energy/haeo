@@ -42,6 +42,13 @@ export class ForecastCardStore {
     this.height = Math.max(220, height);
   }
 
+  responsiveHeight(width: number): number {
+    if (this.config.height !== undefined) {
+      return this.config.height;
+    }
+    return Math.max(260, Math.min(520, Math.round(width * 0.52)));
+  }
+
   setPointer(x: number | null, y: number | null): void {
     this.pointerX = x;
     this.pointerY = y;

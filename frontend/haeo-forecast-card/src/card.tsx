@@ -82,7 +82,7 @@ export class HaeoForecastCard extends HTMLElement {
       if (!rect) {
         return;
       }
-      this.store.setSize(rect.width, this.store.chartHeight);
+      this.store.setSize(rect.width, this.store.responsiveHeight(rect.width));
       this.renderCard();
     });
     this.resizeObserver.observe(mount);
