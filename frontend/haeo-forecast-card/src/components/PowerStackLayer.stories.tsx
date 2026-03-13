@@ -16,7 +16,7 @@ type Story = StoryObj<typeof PowerStackLayer>;
 export const Default: Story = {
   render: () => {
     const store = new ForecastCardStore();
-    store.setConfig({ type: "custom:haeo-forecast-card" });
+    store.setConfig({ type: "custom:haeo-forecast-card", animation_mode: "off" });
     store.setHass(scenarioFixture);
     store.setSize(1000, 320);
     return (

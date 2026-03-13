@@ -6,7 +6,14 @@ export default defineConfig({
       provider: "v8",
       reporter: ["text", "html", "lcov"],
       include: ["src/**/*.ts", "src/**/*.tsx"],
-      exclude: ["src/index.ts", "src/custom-elements.d.ts", "src/types.ts", "src/**/*.stories.tsx"],
+      exclude: [
+        "src/index.ts",
+        "src/custom-elements.d.ts",
+        "src/types.ts",
+        "src/**/*.stories.tsx",
+        "src/fixtures/**",
+        "src/components/ResponsiveStoryFrame.tsx",
+      ],
       thresholds: {
         lines: 80,
         functions: 85,

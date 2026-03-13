@@ -64,12 +64,7 @@ export function AxesGrid(props: AxesGridProps): JSX.Element {
             x2={props.xScale(time)}
             y2={props.bottom}
           />
-          <text
-            className="axisTickLabel"
-            x={props.xScale(time)}
-            y={props.height - props.bottom + 18}
-            textAnchor="middle"
-          >
+          <text className="axisTickLabel" x={props.xScale(time)} y={props.bottom + 18} textAnchor="middle">
             {new Date(time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
           </text>
         </g>
@@ -89,6 +84,9 @@ export function AxesGrid(props: AxesGridProps): JSX.Element {
           </text>
         </g>
       ))}
+
+      <line className="axisBase" x1={props.left} y1={props.bottom} x2={props.width - props.right} y2={props.bottom} />
+      <line className="axisBase" x1={props.left} y1={props.top} x2={props.left} y2={props.bottom} />
 
       <text className="axisLabelStrong" x={props.left} y={props.top - 6} textAnchor="start">
         Power (kW)

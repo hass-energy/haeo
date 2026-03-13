@@ -114,23 +114,53 @@ export class ForecastCardStore {
       const now = this.nowMs;
       return { min: now, max: now + 60_000, step: 60_000 };
     }
-    const firstSeries = this.visibleSeries[0];
-    if (!firstSeries) {
+    const series = this.visibleSeries;
+    if (series.length === 0) {
       const now = this.nowMs;
       return { min: now, max: now + 60_000, step: 60_000 };
     }
-    const points = firstSeries.points;
-    const firstPoint = points[0];
-    const secondPoint = points[1];
-    const lastPoint = points[points.length - 1];
-    if (!firstPoint || !lastPoint) {
+
+    let min = Number.POSITIVE_INFINITY;
+    let max = Number.NEGATIVE_INFINITY;
+    let step = Number.POSITIVE_INFINITY;
+    for (const item of series) {
+      if (item.times.length < 2) {
+        continue;
+      }
+      const first = item.times[0];
+      const second = item.times[1];
+      const last = item.times[item.times.length - 1];
+      if (first === undefined || second === undefined || last === undefined) {
+        continue;
+      }
+      min = Math.min(min, first);
+      max = Math.max(max, last);
+      step = Math.min(step, Math.max(1, second - first));
+    }
+    if (!Number.isFinite(min) || !Number.isFinite(max) || !Number.isFinite(step)) {
       const now = this.nowMs;
       return { min: now, max: now + 60_000, step: 60_000 };
     }
-    const min = firstPoint.time;
-    const max = lastPoint.time;
-    const step = secondPoint ? Math.max(1, secondPoint.time - firstPoint.time) : 60_000;
     return { min, max, step };
+  }
+
+  get hasUniformTimeline(): boolean {
+    const firstSeries = this.visibleSeries[0];
+    if (!firstSeries || firstSeries.times.length < 3) {
+      return true;
+    }
+    const base = (firstSeries.times[1] ?? 0) - (firstSeries.times[0] ?? 0);
+    if (base <= 0) {
+      return false;
+    }
+    for (let idx = 2; idx < firstSeries.times.length; idx += 1) {
+      const prev = firstSeries.times[idx - 1] ?? 0;
+      const curr = firstSeries.times[idx] ?? 0;
+      if (Math.abs(curr - prev - base) > 1) {
+        return false;
+      }
+    }
+    return true;
   }
 
   get animatedOffsetMs(): number {
@@ -139,6 +169,9 @@ export class ForecastCardStore {
     }
     const prefersReducedMotion = globalThis.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches ?? false;
     if (this.motionMode === "reduced" || prefersReducedMotion) {
+      return 0;
+    }
+    if (!this.hasUniformTimeline) {
       return 0;
     }
     const { min, step } = this.xDomain;

@@ -62,6 +62,11 @@ export const CARD_STYLES = `
     stroke-dasharray: 1 4;
   }
 
+  .axisBase {
+    stroke: color-mix(in oklab, var(--primary-text-color) 35%, transparent);
+    stroke-width: 1.1;
+  }
+
   .hoverLine {
     stroke: var(--primary-color);
     stroke-width: 1;

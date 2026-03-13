@@ -13,7 +13,11 @@ type Story = StoryObj;
 
 function makeStore(): ForecastCardStore {
   const store = new ForecastCardStore();
-  store.setConfig({ type: "custom:haeo-forecast-card", title: "Storybook forecast" });
+  store.setConfig({
+    type: "custom:haeo-forecast-card",
+    title: "Scenario 4 forecast",
+    animation_mode: "off",
+  });
   store.setHass(scenarioFixture);
   return store;
 }
