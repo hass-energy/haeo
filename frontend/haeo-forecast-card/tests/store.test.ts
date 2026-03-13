@@ -4,13 +4,14 @@ import { ForecastCardStore } from "../src/store";
 import { loadScenarioHassState } from "./helpers/scenarioOutputs";
 
 describe("ForecastCardStore", () => {
-  it("builds lane groupings from real scenario outputs", () => {
+  it("builds filtered visible series from real scenario outputs", () => {
     const store = new ForecastCardStore();
     store.setHass(loadScenarioHassState("scenario2"));
     store.setConfig({ type: "custom:haeo-forecast-card" });
 
     expect(store.hasData).toBe(true);
-    expect(store.laneSeries.size).toBeGreaterThan(1);
+    expect(store.visibleSeries.length).toBeGreaterThan(1);
+    expect(store.visibleSeries.some((series) => series.lane === "shadow")).toBe(false);
     expect(store.xDomain.max).toBeGreaterThan(store.xDomain.min);
   });
 

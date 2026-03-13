@@ -19,12 +19,12 @@ At least one HAEO output sensor must expose a `forecast` attribute.
 
 The integration serves the card bundle at:
 
-`/haeo-static/haeo-forecast-card.js`
+`/haeo-static/haeo-forecast-card.min.js`
 
 Add this as a Lovelace resource:
 
 1. Open **Settings -> Dashboards -> Resources**.
-2. Add a new resource URL: `/haeo-static/haeo-forecast-card.js`.
+2. Add a new resource URL: `/haeo-static/haeo-forecast-card.min.js`.
 3. Set resource type to **JavaScript module**.
 
 ## Basic card config
@@ -62,7 +62,7 @@ If no data appears:
 
 - Confirm your selected entity IDs exist.
 - Confirm each entity has a populated `forecast` attribute.
-- Confirm the Lovelace resource URL is exactly `/haeo-static/haeo-forecast-card.js`.
+- Confirm the Lovelace resource URL is exactly `/haeo-static/haeo-forecast-card.min.js`.
 
 ## Next steps
 

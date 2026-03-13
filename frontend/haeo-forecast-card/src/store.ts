@@ -6,7 +6,7 @@ import type { HassLike } from "./series";
 import type { ChartMargins, ForecastCardConfig, ForecastSeries, LaneBounds, MotionMode } from "./types";
 
 const DEFAULT_HEIGHT = 360;
-const LANE_ORDER = ["power", "price", "soc", "shadow", "other"] as const;
+const VISIBLE_LANES = new Set(["power", "price", "soc"]);
 
 export class ForecastCardStore {
   hass: HassLike | null = null;
@@ -21,8 +21,10 @@ export class ForecastCardStore {
   constructor() {
     makeAutoObservable(this, {
       margins: computed.struct,
-      laneSeries: computed.struct,
-      laneBounds: computed.struct,
+      visibleSeries: computed.struct,
+      powerBounds: computed.struct,
+      priceBounds: computed.struct,
+      socBounds: computed.struct,
       tooltipRows: computed.struct,
     });
   }
@@ -80,22 +82,24 @@ export class ForecastCardStore {
     return normalizeSeries(this.hass, this.config);
   }
 
-  get hasData(): boolean {
-    return this.normalizedSeries.length > 0;
+  get visibleSeries(): ForecastSeries[] {
+    return this.normalizedSeries.filter((series) => VISIBLE_LANES.has(series.lane));
   }
 
-  get laneSeries(): Map<string, ForecastSeries[]> {
-    const groups = new Map<string, ForecastSeries[]>();
-    for (const lane of LANE_ORDER) {
-      groups.set(lane, []);
-    }
-    for (const series of this.normalizedSeries) {
-      if (!groups.has(series.lane)) {
-        groups.set(series.lane, []);
-      }
-      groups.get(series.lane)?.push(series);
-    }
-    return new Map([...groups.entries()].filter((entry) => entry[1].length > 0));
+  get powerSeries(): ForecastSeries[] {
+    return this.visibleSeries.filter((series) => series.lane === "power");
+  }
+
+  get priceSeries(): ForecastSeries[] {
+    return this.visibleSeries.filter((series) => series.lane === "price");
+  }
+
+  get socSeries(): ForecastSeries[] {
+    return this.visibleSeries.filter((series) => series.lane === "soc");
+  }
+
+  get hasData(): boolean {
+    return this.visibleSeries.length > 0;
   }
 
   get xDomain(): { min: number; max: number; step: number } {
@@ -103,7 +107,7 @@ export class ForecastCardStore {
       const now = this.nowMs;
       return { min: now, max: now + 60_000, step: 60_000 };
     }
-    const firstSeries = this.normalizedSeries[0];
+    const firstSeries = this.visibleSeries[0];
     if (!firstSeries) {
       const now = this.nowMs;
       return { min: now, max: now + 60_000, step: 60_000 };
@@ -144,55 +148,58 @@ export class ForecastCardStore {
     return linearScale(time - this.animatedOffsetMs, min, max, this.margins.left, this.margins.left + innerWidth);
   }
 
-  get laneRects(): Map<string, { top: number; bottom: number }> {
-    const count = this.laneSeries.size || 1;
-    const innerTop = this.margins.top;
-    const innerBottom = this.height - this.margins.bottom;
-    const laneHeight = (innerBottom - innerTop) / count;
-    let laneIndex = 0;
-    const result = new Map<string, { top: number; bottom: number }>();
-    for (const lane of this.laneSeries.keys()) {
-      const top = innerTop + laneIndex * laneHeight;
-      result.set(lane, { top, bottom: top + laneHeight });
-      laneIndex += 1;
-    }
-    return result;
-  }
-
-  get laneBounds(): Map<string, LaneBounds> {
-    const result = new Map<string, LaneBounds>();
-    for (const [lane, seriesList] of this.laneSeries.entries()) {
-      let min = Number.POSITIVE_INFINITY;
-      let max = Number.NEGATIVE_INFINITY;
-      for (const series of seriesList) {
-        for (let i = 0; i < series.values.length; i += 1) {
-          const value = series.values[i];
-          if (value === undefined) {
-            continue;
-          }
-          min = Math.min(min, value);
-          max = Math.max(max, value);
-        }
-      }
-      if (!Number.isFinite(min) || !Number.isFinite(max)) {
-        result.set(lane, { min: 0, max: 1 });
-        continue;
-      }
-      if (min === max) {
-        const delta = Math.max(1, Math.abs(min) * 0.15);
-        result.set(lane, { min: min - delta, max: max + delta });
-      } else {
-        const padding = Math.max(0.1, (max - min) * 0.08);
-        result.set(lane, { min: min - padding, max: max + padding });
+  private _bounds(seriesList: ForecastSeries[], fallback: LaneBounds): LaneBounds {
+    let min = Number.POSITIVE_INFINITY;
+    let max = Number.NEGATIVE_INFINITY;
+    for (const series of seriesList) {
+      for (const value of series.values) {
+        min = Math.min(min, value);
+        max = Math.max(max, value);
       }
     }
-    return result;
+    if (!Number.isFinite(min) || !Number.isFinite(max)) {
+      return fallback;
+    }
+    if (min === max) {
+      const delta = Math.max(1, Math.abs(min) * 0.15);
+      return { min: min - delta, max: max + delta };
+    }
+    const padding = Math.max(0.1, (max - min) * 0.08);
+    return { min: min - padding, max: max + padding };
   }
 
-  yScale(lane: string, value: number): number {
-    const bounds = this.laneBounds.get(lane) ?? { min: 0, max: 1 };
-    const rect = this.laneRects.get(lane) ?? { top: this.margins.top, bottom: this.height - this.margins.bottom };
-    return linearScale(value, bounds.min, bounds.max, rect.bottom, rect.top);
+  get plotTop(): number {
+    return this.margins.top;
+  }
+
+  get plotBottom(): number {
+    return this.height - this.margins.bottom;
+  }
+
+  get powerBounds(): LaneBounds {
+    return this._bounds(this.powerSeries, { min: 0, max: 1 });
+  }
+
+  get priceBounds(): LaneBounds {
+    return this._bounds(this.priceSeries, { min: 0, max: 1 });
+  }
+
+  get socBounds(): LaneBounds {
+    return this._bounds(this.socSeries, { min: 0, max: 100 });
+  }
+
+  yScalePower(value: number): number {
+    return linearScale(value, this.powerBounds.min, this.powerBounds.max, this.plotBottom, this.plotTop);
+  }
+
+  yScalePrice(value: number): number {
+    const topBandBottom = this.plotTop + (this.plotBottom - this.plotTop) * 0.45;
+    return linearScale(value, this.priceBounds.min, this.priceBounds.max, topBandBottom, this.plotTop + 6);
+  }
+
+  yScaleSoc(value: number): number {
+    const bottomBandTop = this.plotTop + (this.plotBottom - this.plotTop) * 0.5;
+    return linearScale(value, this.socBounds.min, this.socBounds.max, this.plotBottom - 6, bottomBandTop);
   }
 
   get hoverTimeMs(): number | null {
@@ -217,7 +224,7 @@ export class ForecastCardStore {
       return [];
     }
     const rows: Array<{ key: string; label: string; value: number; unit: string; color: string }> = [];
-    for (const series of this.normalizedSeries) {
+    for (const series of this.visibleSeries) {
       const idx = nearestArrayIndex(series.times, time);
       rows.push({
         key: series.key,
@@ -236,7 +243,7 @@ export class ForecastCardStore {
       return [];
     }
     const totals = new Map<string, { value: number; unit: string }>();
-    for (const series of this.normalizedSeries) {
+    for (const series of this.visibleSeries) {
       const idx = nearestArrayIndex(series.times, time);
       const existing = totals.get(series.lane) ?? { value: 0, unit: series.unit };
       totals.set(series.lane, {

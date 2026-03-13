@@ -33,15 +33,33 @@ export const CARD_STYLES = `
     dominant-baseline: middle;
   }
 
+  .axisLabelStrong {
+    fill: var(--secondary-text-color);
+    font-size: 11px;
+    font-weight: 600;
+  }
+
+  .axisTickLabel {
+    fill: var(--secondary-text-color);
+    font-size: 10px;
+    dominant-baseline: middle;
+  }
+
   .laneDivider {
     stroke: color-mix(in oklab, var(--divider-color) 70%, transparent);
     stroke-width: 1;
   }
 
-  .grid {
+  .gridMajor {
     stroke: color-mix(in oklab, var(--divider-color) 50%, transparent);
     stroke-width: 1;
-    stroke-dasharray: 2 4;
+    stroke-dasharray: 3 4;
+  }
+
+  .gridMinor {
+    stroke: color-mix(in oklab, var(--divider-color) 32%, transparent);
+    stroke-width: 0.8;
+    stroke-dasharray: 1 4;
   }
 
   .hoverLine {
@@ -53,8 +71,17 @@ export const CARD_STYLES = `
 
   .lineSeries {
     fill: none;
-    stroke-width: 2;
+    stroke-width: 2.2;
     pointer-events: none;
+  }
+
+  .priceLine {
+    stroke-width: 2.4;
+  }
+
+  .socLine {
+    stroke-width: 1.8;
+    stroke-dasharray: 6 4;
   }
 
   .areaSeries {

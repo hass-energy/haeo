@@ -6,7 +6,7 @@ import { JSDOM } from "jsdom";
 
 const rootDir = resolve(import.meta.dirname, "..");
 const workspaceRoot = resolve(rootDir, "..", "..");
-const bundlePath = resolve(workspaceRoot, "custom_components", "haeo", "www", "haeo-forecast-card.js");
+const bundlePath = resolve(workspaceRoot, "custom_components", "haeo", "www", "haeo-forecast-card.min.js");
 const outputDir = resolve(rootDir, "previews");
 const scenarioPath = resolve(workspaceRoot, "tests", "scenarios", "scenario4", "outputs.json");
 const outputSvg = resolve(outputDir, "card-preview.svg");

@@ -29,7 +29,7 @@ export function ForecastCardView(props: ForecastCardViewProps): JSX.Element {
       <div className="title">{title}</div>
       <ChartSvg store={props.store} onPointerMove={props.onPointerMove} onPointerLeave={props.onPointerLeave} />
       <Legend
-        series={props.store.normalizedSeries}
+        series={props.store.visibleSeries}
         highlightedSeries={props.store.highlightedSeries}
         onHighlight={(key) => props.store.setHighlightedSeries(key)}
       />

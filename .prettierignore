@@ -17,3 +17,7 @@ hacs/
 # Ignore python caches
 .grimp_cache/
 .import_linter_cache/
+
+# Ignore generated frontend card bundles
+custom_components/haeo/www/haeo-forecast-card.min.js
+custom_components/haeo/www/haeo-forecast-card.min.js.map

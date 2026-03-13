@@ -8,7 +8,7 @@ const __dirname = fileURLToPath(new URL(".", import.meta.url));
 const rootDir = resolve(__dirname, "..");
 const workspaceRoot = resolve(rootDir, "..", "..");
 const outDir = resolve(workspaceRoot, "custom_components", "haeo", "www");
-const outFile = resolve(outDir, "haeo-forecast-card.js");
+const outFile = resolve(outDir, "haeo-forecast-card.min.js");
 const watch = process.argv.includes("--watch");
 
 const shared = {
