@@ -14,6 +14,7 @@ This package builds the `haeo-forecast-card` Lovelace custom card bundle.
 - `npm run check` runs the full quality gate (`typecheck`, `lint`, `format`, coverage tests).
 - `npm run storybook` runs isolated component stories.
 - `npm run build-storybook` builds static Storybook output.
+- `npm run preview:svg` exports an actual rendered card SVG preview to `previews/card-preview.svg`.
 
 ## Test data strategy
 

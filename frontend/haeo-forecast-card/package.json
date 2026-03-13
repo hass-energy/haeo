@@ -15,7 +15,8 @@
     "test:coverage": "vitest run --coverage",
     "check": "npm run typecheck && npm run lint && npm run format && npm run test:coverage",
     "storybook": "storybook dev -p 6006",
-    "build-storybook": "storybook build"
+    "build-storybook": "storybook build",
+    "preview:svg": "node ./scripts/export-preview.mjs"
   },
   "dependencies": {
     "mobx": "^6.15.0",

@@ -92,7 +92,9 @@ export class HaeoForecastCard extends HTMLElement {
     const tick = () => {
       this.store.setNow(Date.now());
       this.renderCard();
-      this.frameHandle = requestAnimationFrame(tick);
+      if (this.store.motionMode === "smooth") {
+        this.frameHandle = requestAnimationFrame(tick);
+      }
     };
     this.frameHandle = requestAnimationFrame(tick);
   }
