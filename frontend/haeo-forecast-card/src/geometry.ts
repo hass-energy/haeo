@@ -127,3 +127,49 @@ export function linePath(points: ForecastPoint[], x: (time: number) => number, y
   }
   return path;
 }
+
+export function stepAreaPath(
+  times: Float64Array,
+  lower: Float64Array,
+  upper: Float64Array,
+  x: (time: number) => number,
+  y: (value: number) => number
+): string {
+  if (times.length === 0) {
+    return "";
+  }
+  const firstTime = times[0];
+  const firstUpper = upper[0];
+  if (firstTime === undefined || firstUpper === undefined) {
+    return "";
+  }
+
+  let path = `M ${x(firstTime)} ${y(firstUpper)}`;
+  for (let idx = 1; idx < times.length; idx += 1) {
+    const currTime = times[idx];
+    const prevUpper = upper[idx - 1];
+    const currUpper = upper[idx];
+    if (currTime === undefined || prevUpper === undefined || currUpper === undefined) {
+      continue;
+    }
+    path += ` L ${x(currTime)} ${y(prevUpper)} L ${x(currTime)} ${y(currUpper)}`;
+  }
+
+  const lastTime = times[times.length - 1];
+  const lastLower = lower[times.length - 1];
+  if (lastTime === undefined || lastLower === undefined) {
+    return "";
+  }
+  path += ` L ${x(lastTime)} ${y(lastLower)}`;
+
+  for (let idx = times.length - 1; idx >= 1; idx -= 1) {
+    const currTime = times[idx];
+    const prevTime = times[idx - 1];
+    const prevLower = lower[idx - 1];
+    if (currTime === undefined || prevTime === undefined || prevLower === undefined) {
+      continue;
+    }
+    path += ` L ${x(currTime)} ${y(prevLower)} L ${x(prevTime)} ${y(prevLower)}`;
+  }
+  return `${path} Z`;
+}

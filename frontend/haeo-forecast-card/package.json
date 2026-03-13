@@ -13,13 +13,17 @@
     "format:fix": "prettier --write .",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
-    "check": "npm run typecheck && npm run lint && npm run format && npm run test:coverage"
+    "check": "npm run typecheck && npm run lint && npm run format && npm run test:coverage",
+    "storybook": "storybook dev -p 6006",
+    "build-storybook": "storybook build"
   },
   "dependencies": {
-    "lit": "^3.3.1",
-    "mobx": "^6.15.0"
+    "mobx": "^6.15.0",
+    "preact": "^10.27.2"
   },
   "devDependencies": {
+    "@storybook/addon-essentials": "^8.6.14",
+    "@storybook/preact-vite": "^8.6.14",
     "@eslint/js": "^9.38.0",
     "@types/node": "^24.6.1",
     "@vitest/coverage-v8": "^3.2.4",

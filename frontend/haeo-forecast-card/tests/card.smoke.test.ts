@@ -4,9 +4,14 @@ import { describe, expect, it } from "vitest";
 
 import "../src/card";
 
+interface HaeoCardElement extends HTMLElement {
+  setConfig: (config: { type: "custom:haeo-forecast-card"; entities?: string[] }) => void;
+  hass: unknown;
+}
+
 describe("haeo-forecast-card smoke", () => {
   it("defines the custom element and accepts config", () => {
-    const element = document.createElement("haeo-forecast-card");
+    const element = document.createElement("haeo-forecast-card") as HaeoCardElement;
     element.setConfig({
       type: "custom:haeo-forecast-card" as const,
       entities: ["sensor.haeo_grid_import_power"],
@@ -18,7 +23,7 @@ describe("haeo-forecast-card smoke", () => {
   });
 
   it("renders svg when forecast data is provided", async () => {
-    const element = document.createElement("haeo-forecast-card");
+    const element = document.createElement("haeo-forecast-card") as HaeoCardElement;
     element.setConfig({
       type: "custom:haeo-forecast-card" as const,
       entities: ["sensor.haeo_grid_import_power"],
@@ -42,9 +47,27 @@ describe("haeo-forecast-card smoke", () => {
       },
     };
     document.body.appendChild(element);
-    await element.updateComplete;
+    await new Promise((resolve) => {
+      setTimeout(resolve, 20);
+    });
 
     const svg = element.shadowRoot?.querySelector("svg");
     expect(svg).toBeTruthy();
+    svg?.dispatchEvent(new PointerEvent("pointermove", { bubbles: true, clientX: 200, clientY: 120 }));
+    svg?.dispatchEvent(new PointerEvent("pointerleave", { bubbles: true }));
+    element.remove();
+  });
+
+  it("renders empty state when hass data is not set", async () => {
+    const element = document.createElement("haeo-forecast-card") as HaeoCardElement;
+    element.setConfig({
+      type: "custom:haeo-forecast-card",
+    });
+    document.body.appendChild(element);
+    await new Promise((resolve) => {
+      setTimeout(resolve, 20);
+    });
+    expect(element.shadowRoot?.textContent).toContain("No forecast data found");
+    element.remove();
   });
 });

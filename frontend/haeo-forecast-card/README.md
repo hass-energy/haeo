@@ -12,3 +12,10 @@ This package builds the `haeo-forecast-card` Lovelace custom card bundle.
 - `npm run lint` runs ESLint.
 - `npm run format` runs Prettier format checks.
 - `npm run check` runs the full quality gate (`typecheck`, `lint`, `format`, coverage tests).
+- `npm run storybook` runs isolated component stories.
+- `npm run build-storybook` builds static Storybook output.
+
+## Test data strategy
+
+Behavioral tests use real HAEO scenario outputs from `tests/scenarios/*/outputs.json`.
+This keeps the frontend ingestion model aligned with real integration payloads.

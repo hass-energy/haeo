@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { normalizeSeries } from "../src/series";
+import { loadScenarioHassState } from "./helpers/scenarioOutputs";
 
 describe("normalizeSeries", () => {
   it("builds typed arrays and inferred lane metadata", () => {
@@ -54,5 +55,16 @@ describe("normalizeSeries", () => {
 
     const output = normalizeSeries(hass, { type: "custom:haeo-forecast-card" });
     expect(output).toHaveLength(0);
+  });
+
+  it("ingests scenario outputs emitted by HAEO integration", () => {
+    const hass = loadScenarioHassState("scenario1");
+    const output = normalizeSeries(hass, { type: "custom:haeo-forecast-card" });
+
+    expect(output.length).toBeGreaterThan(20);
+    expect(output.some((series) => series.lane === "power")).toBe(true);
+    expect(output.some((series) => series.lane === "price")).toBe(true);
+    expect(output.some((series) => series.lane === "soc")).toBe(true);
+    expect(output.every((series) => series.times.length === series.values.length)).toBe(true);
   });
 });

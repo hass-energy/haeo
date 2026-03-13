@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { linearScale, nearestArrayIndex } from "../src/geometry";
+import { linearScale, nearestArrayIndex, stepAreaPath } from "../src/geometry";
 
 describe("geometry helpers", () => {
   it("scales values linearly between domains", () => {
@@ -15,5 +15,11 @@ describe("geometry helpers", () => {
     expect(nearestArrayIndex(times, 900)).toBe(0);
     expect(nearestArrayIndex(times, 2600)).toBe(2);
     expect(nearestArrayIndex(times, 3900)).toBe(3);
+  });
+
+  it("returns empty area path for empty times", () => {
+    const x = (value: number) => value;
+    const y = (value: number) => value;
+    expect(stepAreaPath(new Float64Array(), new Float64Array(), new Float64Array(), x, y)).toBe("");
   });
 });

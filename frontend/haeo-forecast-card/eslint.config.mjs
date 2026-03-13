@@ -7,7 +7,7 @@ export default tseslint.config(
     ignores: ["node_modules", "coverage"],
   },
   {
-    files: ["**/*.ts"],
+    files: ["**/*.ts", "**/*.tsx"],
     extends: [
       js.configs.recommended,
       ...tseslint.configs.recommendedTypeChecked,
@@ -42,7 +42,7 @@ export default tseslint.config(
     },
   },
   {
-    files: ["tests/**/*.ts"],
+    files: ["tests/**/*.ts", "tests/**/*.tsx", "**/*.stories.tsx"],
     rules: {
       "@typescript-eslint/no-explicit-any": "off",
     },
