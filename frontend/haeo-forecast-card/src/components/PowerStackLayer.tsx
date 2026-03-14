@@ -25,11 +25,16 @@ export function PowerStackLayer(props: PowerStackLayerProps): JSX.Element {
         if (props.highlightedSeries) {
           opacity = props.highlightedSeries === shape.key ? 0.76 : 0.14;
         }
+        const className = isHovered || props.highlightedSeries === shape.key ? "areaSeries active" : "areaSeries";
         return (
-          <g key={shape.key}>
-            <path className="areaSeries" fill={shape.color} stroke={shape.color} opacity={opacity} d={shape.d} />
-            {isHovered && <path className="areaSeriesGlow" fill="none" stroke={shape.color} d={shape.d} />}
-          </g>
+          <path
+            key={shape.key}
+            className={className}
+            fill={shape.color}
+            stroke={shape.color}
+            opacity={opacity}
+            d={shape.d}
+          />
         );
       })}
     </>

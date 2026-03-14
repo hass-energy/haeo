@@ -16,28 +16,35 @@ interface LegendProps {
   onTogglePowerDisplayMode: () => void;
 }
 
-function powerGlyph(group: "production" | "consumption", subgroup: "potential" | "utilization"): string {
-  if (group === "production" && subgroup === "potential") {
-    return "◌↑";
-  }
-  if (group === "production") {
-    return "↑";
-  }
-  if (subgroup === "potential") {
-    return "◌↓";
-  }
-  return "↓";
-}
-
-function seriesGlyph(series: ForecastSeries): string {
-  if (series.lane === "price") {
-    return "$";
+function seriesIcon(series: ForecastSeries): string {
+  if (series.lane === "price" || series.outputName.includes("price")) {
+    return "mdi:currency-usd";
   }
   if (series.lane === "soc") {
-    return "%";
+    return "mdi:battery-medium";
   }
+  const output = series.outputName.toLowerCase();
+  const element = series.elementName.toLowerCase();
   const category = classifyPowerSeries(series);
-  return powerGlyph(category.group === "unknown" ? "consumption" : category.group, category.subgroup);
+  if (element.includes("solar")) {
+    return category.subgroup === "potential" ? "mdi:weather-sunny-alert" : "mdi:weather-sunny";
+  }
+  if (element.includes("battery")) {
+    return category.group === "production" ? "mdi:battery-arrow-up" : "mdi:battery-arrow-down";
+  }
+  if (element.includes("grid")) {
+    if (category.subgroup === "potential") {
+      return category.group === "production" ? "mdi:transmission-tower-export" : "mdi:transmission-tower-import";
+    }
+    return category.group === "production" ? "mdi:transmission-tower-off" : "mdi:transmission-tower";
+  }
+  if (output.includes("import") || category.group === "consumption") {
+    return category.subgroup === "potential" ? "mdi:arrow-down-circle-outline" : "mdi:arrow-down-circle";
+  }
+  if (output.includes("export") || category.group === "production") {
+    return category.subgroup === "potential" ? "mdi:arrow-up-circle-outline" : "mdi:arrow-up-circle";
+  }
+  return "mdi:chart-line";
 }
 
 export function Legend(props: LegendProps): JSX.Element {
@@ -60,10 +67,10 @@ export function Legend(props: LegendProps): JSX.Element {
       onMouseEnter={() => props.onHighlight(series.key)}
       onMouseLeave={() => props.onHighlight(null)}
       onClick={() => props.onToggleSeries(series.key)}
+      title={series.label}
+      style={{ borderColor: series.color, color: series.color }}
     >
-      <span className="legendSwatch" style={{ background: series.color }} />
-      <span className="legendKind">{seriesGlyph(series)}</span>
-      <span className="legendText">{series.label}</span>
+      <ha-icon className="legendIcon" icon={seriesIcon(series)} />
     </button>
   );
 
@@ -87,11 +94,9 @@ export function Legend(props: LegendProps): JSX.Element {
                 onMouseEnter={() => props.onElementHover(elementName)}
                 onMouseLeave={() => props.onElementHover(null)}
                 onClick={() => props.onToggleElement(elementName)}
+                title={`Toggle ${elementName} series`}
               >
-                <div className="legendGroupTitle">
-                  {elementName}
-                  {hiddenCount > 0 ? ` (${elementSeries.length - hiddenCount}/${elementSeries.length})` : ""}
-                </div>
+                <div className="legendGroupTitle">{elementName}</div>
               </button>
               <div className="legendSubgroup">{elementSeries.map((series) => renderSeriesItem(series))}</div>
             </div>

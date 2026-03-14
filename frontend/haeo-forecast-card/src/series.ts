@@ -1,18 +1,5 @@
 import type { ForecastCardConfig, ForecastSeries, LaneType } from "./types";
 
-const COLORS = [
-  "#4f46e5",
-  "#059669",
-  "#d97706",
-  "#db2777",
-  "#0ea5e9",
-  "#7c3aed",
-  "#16a34a",
-  "#f43f5e",
-  "#ea580c",
-  "#0284c7",
-];
-
 type HassEntityState = {
   entity_id: string;
   attributes: Record<string, unknown>;
@@ -81,6 +68,21 @@ function fallbackLabel(elementName: string, outputName: string, outputType: stri
   return `${elementName} ${normalizedOutput}`.trim();
 }
 
+function hashString(value: string): number {
+  let hash = 0;
+  for (let idx = 0; idx < value.length; idx += 1) {
+    hash = (hash * 31 + value.charCodeAt(idx)) >>> 0;
+  }
+  return hash;
+}
+
+function colorForElement(elementName: string, variant: number): string {
+  const hue = hashString(elementName) % 360;
+  const lightVariants = [46, 54, 38, 62];
+  const lightness = lightVariants[variant % lightVariants.length] ?? 50;
+  return `hsl(${hue} 72% ${lightness}%)`;
+}
+
 export function normalizeSeries(hass: HassLike | null, config: ForecastCardConfig): ForecastSeries[] {
   if (!hass) {
     return [];
@@ -95,7 +97,7 @@ export function normalizeSeries(hass: HassLike | null, config: ForecastCardConfi
         });
 
   const result: ForecastSeries[] = [];
-  let colorIndex = 0;
+  const elementVariantCount = new Map<string, number>();
 
   for (const entityId of entityIds) {
     const state = hass.states[entityId];
@@ -143,6 +145,8 @@ export function normalizeSeries(hass: HassLike | null, config: ForecastCardConfi
     const outputName = String(attrs["output_name"] ?? outputType);
     const unit = String(attrs["unit_of_measurement"] ?? "");
     const friendlyName = String(attrs["friendly_name"] ?? "");
+    const variant = elementVariantCount.get(elementName) ?? 0;
+    elementVariantCount.set(elementName, variant + 1);
 
     result.push({
       key: `${entityId}:${outputName}`,
@@ -154,12 +158,11 @@ export function normalizeSeries(hass: HassLike | null, config: ForecastCardConfi
       lane: inferLane(outputType),
       drawType: inferDrawType(outputType),
       unit,
-      color: COLORS[colorIndex % COLORS.length] ?? "#4f46e5",
+      color: colorForElement(elementName, variant),
       times,
       values,
       points: sortedPoints,
     });
-    colorIndex += 1;
   }
 
   return result.sort((a, b) => a.label.localeCompare(b.label));

@@ -119,26 +119,13 @@ export const CARD_STYLES = `
   .areaSeries {
     stroke-width: 1;
     pointer-events: none;
-    transition: opacity 90ms linear;
+    transition:
+      opacity 90ms linear,
+      stroke-width 90ms linear;
   }
 
-  .areaSeriesGlow {
-    stroke-width: 2.3;
-    stroke-linejoin: round;
-    opacity: 0.88;
-    pointer-events: none;
-    animation: areaGlowPulse 240ms ease-out;
-  }
-
-  @keyframes areaGlowPulse {
-    from {
-      opacity: 0.25;
-      stroke-width: 1.2;
-    }
-    to {
-      opacity: 0.88;
-      stroke-width: 2.3;
-    }
+  .areaSeries.active {
+    stroke-width: 2;
   }
 
   .legendWrap {
@@ -239,7 +226,7 @@ export const CARD_STYLES = `
     border: 1px solid color-mix(in oklab, var(--haeo-divider) 62%, transparent);
     background: color-mix(in oklab, var(--haeo-bg) 93%, #000 7%);
     border-radius: 999px;
-    padding: 3px 8px 3px 6px;
+    padding: 3px 6px;
     display: flex;
     align-items: center;
     gap: 6px;
@@ -248,7 +235,9 @@ export const CARD_STYLES = `
     color: var(--haeo-text);
     font: inherit;
     opacity: 0.72;
-    max-width: 100%;
+    width: 28px;
+    height: 28px;
+    justify-content: center;
   }
 
   .legendItem.active {
@@ -269,16 +258,16 @@ export const CARD_STYLES = `
   }
 
   .legendKind {
-    font-size: 10px;
+    font-size: 8px;
     color: var(--haeo-subtext);
-    min-width: 16px;
+    min-width: 10px;
     text-align: center;
   }
 
-  .legendText {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+  .legendIcon {
+    width: 14px;
+    height: 14px;
+    color: currentColor;
   }
 
   .tooltip {
@@ -314,6 +303,17 @@ export const CARD_STYLES = `
   .tooltipRow.active {
     opacity: 1;
     font-weight: 600;
+  }
+
+  .tooltipGroup {
+    margin-bottom: 6px;
+  }
+
+  .tooltipGroupTitle {
+    color: var(--haeo-subtext);
+    font-size: 11px;
+    font-weight: 600;
+    margin-bottom: 3px;
   }
 
   .tooltipDot {
