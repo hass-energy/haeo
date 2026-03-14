@@ -471,18 +471,6 @@ export class ForecastCardStore {
       }
     }
 
-    // Also highlight "potential" sources at this timestamp when they contribute.
-    for (const series of powerSeries) {
-      const category = classifyPowerSeries(series);
-      if (category.subgroup !== "potential") {
-        continue;
-      }
-      const idx = idxBySeries.get(series.key) ?? 0;
-      const value = Math.abs(series.values[idx] ?? 0);
-      if (Math.abs(value) > 1e-6) {
-        hovered.add(series.key);
-      }
-    }
     return hovered;
   }
 
