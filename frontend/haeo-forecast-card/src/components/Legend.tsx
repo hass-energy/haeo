@@ -106,15 +106,17 @@ export function Legend(props: LegendProps): JSX.Element {
               onMouseEnter={() => props.onElementHover(elementName)}
               onMouseLeave={() => props.onElementHover(null)}
             >
-              <button
-                type="button"
-                className="legendElementLabel"
-                onClick={() => props.onToggleElement(elementName)}
-                title={`Toggle ${elementName} series`}
-              >
-                <span className="legendGroupTitle">{elementName}</span>
-              </button>
-              <div className="legendIconRow">{elementSeries.map((series) => renderSeriesItem(series))}</div>
+              <div className="legendElementMain">
+                <button
+                  type="button"
+                  className="legendElementLabel"
+                  onClick={() => props.onToggleElement(elementName)}
+                  title={`Toggle ${elementName} series`}
+                >
+                  <span className="legendGroupTitle">{elementName}</span>
+                </button>
+                <div className="legendIconRow">{elementSeries.map((series) => renderSeriesItem(series))}</div>
+              </div>
             </div>
           );
         })}

@@ -161,13 +161,15 @@ export const CARD_STYLES = `
 
   .legend {
     display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, max-content));
     gap: 6px;
     font-size: 12px;
+    align-items: start;
+    justify-content: start;
   }
 
   .legendElement {
-    display: grid;
-    gap: 6px;
+    display: inline-flex;
     border: 1px solid color-mix(in oklab, var(--haeo-divider) 62%, transparent);
     border-radius: 999px;
     padding: 4px 8px;
@@ -187,6 +189,12 @@ export const CARD_STYLES = `
     opacity: 0.45;
   }
 
+  .legendElementMain {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+
   .legendElementLabel {
     appearance: none;
     border: none;
@@ -196,6 +204,7 @@ export const CARD_STYLES = `
     font: inherit;
     cursor: pointer;
     text-align: left;
+    white-space: nowrap;
   }
 
   .legendGroupTitle {
@@ -210,6 +219,7 @@ export const CARD_STYLES = `
     flex-wrap: nowrap;
     gap: 4px;
     align-items: center;
+    max-width: 100%;
   }
 
   .legendItem {
