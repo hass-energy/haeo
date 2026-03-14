@@ -15,7 +15,7 @@
     "skipLibCheck": true,
     "strict": true,
     "target": "ES2022",
-    "types": ["preact"],
+    "types": ["preact", "vite/client"],
     "useDefineForClassFields": false
   },
   "include": ["src", "tests", "vitest.config.ts", ".storybook/**/*.ts"]
