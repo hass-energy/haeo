@@ -1,23 +1,42 @@
 import type { Meta, StoryObj } from "@storybook/preact";
 
-import { scenarioFixture } from "../fixtures/scenarioFixture";
+import { getScenarioFixture } from "../fixtures/scenarioFixtures";
 import { ForecastCardStore } from "../store";
 import { CARD_STYLES } from "../styles";
 import { PowerStackLayer } from "./PowerStackLayer";
+import type { StoryDataMode, StoryScenario } from "../fixtures/scenarioFixtures";
 
-const meta: Meta<typeof PowerStackLayer> = {
+interface StoryArgs {
+  scenario: StoryScenario;
+  dataMode: StoryDataMode;
+}
+
+const meta: Meta<StoryArgs> = {
   title: "ForecastCard/PowerStackLayer",
-  component: PowerStackLayer,
+  args: {
+    scenario: "scenario1",
+    dataMode: "mixed",
+  },
+  argTypes: {
+    scenario: {
+      control: { type: "inline-radio" },
+      options: ["scenario1", "scenario2", "scenario3", "scenario4", "scenario5"],
+    },
+    dataMode: {
+      control: { type: "inline-radio" },
+      options: ["mixed", "inputs", "outputs"],
+    },
+  },
 };
 
 export default meta;
-type Story = StoryObj<typeof PowerStackLayer>;
+type Story = StoryObj<StoryArgs>;
 
 export const Default: Story = {
-  render: () => {
+  render: (args) => {
     const store = new ForecastCardStore();
     store.setConfig({ type: "custom:haeo-forecast-card", animation_mode: "off" });
-    store.setHass(scenarioFixture);
+    store.setHass(getScenarioFixture(args.scenario, args.dataMode));
     store.setSize(1000, 320);
     return (
       <div>
