@@ -160,7 +160,12 @@ export function normalizeSeries(hass: HassLike | null, config: ForecastCardConfi
 
     const outputType = String(attrs["output_type"] ?? "other");
     const elementName = String(attrs["element_name"] ?? entityId);
+    const elementType = String(attrs["element_type"] ?? "");
     const outputName = String(attrs["output_name"] ?? outputType);
+    const directionRaw = attrs["direction"];
+    const direction = directionRaw === "+" || directionRaw === "-" ? directionRaw : null;
+    const configModeRaw = attrs["config_mode"];
+    const configMode = typeof configModeRaw === "string" ? configModeRaw : null;
     const unit = String(attrs["unit_of_measurement"] ?? "");
     const friendlyName = String(attrs["friendly_name"] ?? "");
     const variant = elementVariantCount.get(elementName) ?? 0;
@@ -171,8 +176,11 @@ export function normalizeSeries(hass: HassLike | null, config: ForecastCardConfi
       entityId,
       label: friendlyName || fallbackLabel(elementName, outputName, outputType),
       elementName,
+      elementType,
       outputName,
       outputType,
+      direction,
+      configMode,
       lane: inferLane(outputType),
       drawType: inferDrawType(outputType),
       unit,

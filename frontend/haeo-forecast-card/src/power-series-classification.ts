@@ -19,38 +19,41 @@ function hasToken(value: string, tokens: string[]): boolean {
 export function classifyPowerSeries(series: ForecastSeries): PowerSeriesCategory {
   const output = series.outputName.toLowerCase();
   const element = series.elementName.toLowerCase();
+  const elementType = series.elementType.toLowerCase();
   const entity = series.entityId.toLowerCase();
   const label = series.label.toLowerCase();
   const haystack = `${output} ${element} ${entity} ${label}`;
+  const hasConfigInput = series.configMode !== null;
 
-  // Explicit HAEO flow semantics: grid export is system consumption; grid import is system production.
-  if (output.includes("grid_power_export")) {
-    return { group: "consumption", subgroup: "utilization" };
-  }
-  if (output.includes("grid_power_import")) {
-    return { group: "production", subgroup: "utilization" };
-  }
-  if (output.includes("battery_power_charge")) {
-    return { group: "consumption", subgroup: "utilization" };
-  }
-  if (output.includes("battery_power_discharge")) {
-    return { group: "production", subgroup: "utilization" };
-  }
-  if (output.includes("load_power")) {
-    return { group: "consumption", subgroup: "utilization" };
-  }
-  if (entity.includes("solar_forecast") || output.includes("solar_forecast")) {
-    return { group: "production", subgroup: "potential" };
-  }
-  if (output.includes("solar_power")) {
-    return { group: "production", subgroup: "utilization" };
+  let subgroup: PowerSubgroup =
+    hasConfigInput || series.outputType === "power_limit" || hasToken(haystack, POTENTIAL_TOKENS)
+      ? "potential"
+      : "utilization";
+
+  // Mirror scenario visualizer semantics: use direction metadata as the source of truth.
+  // "+" means production/supply, "-" means consumption/demand.
+  let group: PowerGroup = "unknown";
+  if (series.direction === "+") {
+    group = "production";
+  } else if (series.direction === "-") {
+    group = "consumption";
   }
 
-  const group: PowerGroup = hasToken(haystack, PRODUCTION_TOKENS)
-    ? "production"
-    : hasToken(haystack, CONSUMPTION_TOKENS)
-      ? "consumption"
-      : "unknown";
-  const subgroup: PowerSubgroup = hasToken(haystack, POTENTIAL_TOKENS) ? "potential" : "utilization";
+  // Input power entities (config_mode set) represent potential forecasts.
+  if (hasConfigInput && series.outputType === "power") {
+    subgroup = "potential";
+    if (elementType === "solar") {
+      group = "production";
+    }
+  }
+
+  if (group === "unknown") {
+    group = hasToken(haystack, PRODUCTION_TOKENS)
+      ? "production"
+      : hasToken(haystack, CONSUMPTION_TOKENS)
+        ? "consumption"
+        : "unknown";
+  }
+
   return { group, subgroup };
 }

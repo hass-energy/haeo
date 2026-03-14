@@ -24,8 +24,11 @@ export interface ForecastSeries {
   entityId: string;
   label: string;
   elementName: string;
+  elementType: string;
   outputName: string;
   outputType: string;
+  direction: string | null;
+  configMode: string | null;
   lane: LaneType;
   drawType: DrawType;
   unit: string;
