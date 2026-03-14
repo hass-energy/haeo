@@ -33,7 +33,11 @@ export function classifyPowerSeries(series: ForecastSeries): PowerSeriesCategory
   // - input power with - direction is consumption (not potential)
   // - output power_limit remains potential
   if (hasConfigInput && series.outputType === "power") {
-    if (group === "production") {
+    // Solar input power is forecast availability by definition.
+    if (series.elementType.toLowerCase() === "solar") {
+      group = "production";
+      subgroup = "potential";
+    } else if (group === "production") {
       subgroup = "potential";
     } else {
       subgroup = "utilization";
