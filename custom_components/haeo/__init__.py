@@ -114,14 +114,17 @@ async def async_setup(hass: HomeAssistant, _config: ConfigType) -> bool:
 
 async def _async_register_static_frontend_resources(hass: HomeAssistant) -> None:
     """Register static frontend resources used by custom Lovelace cards."""
-    if hass.http is None:
+    # Some test/headless contexts do not initialize the HTTP component.
+    # Use getattr instead of direct access so static registration can be skipped safely.
+    http = getattr(hass, "http", None)
+    if http is None:
         _LOGGER.debug("HTTP component unavailable; skipping static forecast card registration")
         return
     card_path = Path(__file__).parent / STATIC_FORECAST_CARD_FILE_PATH
     if not card_path.exists():
         _LOGGER.debug("Static forecast card bundle not found at %s", card_path)
         return
-    await hass.http.async_register_static_paths(
+    await http.async_register_static_paths(
         [StaticPathConfig(STATIC_FORECAST_CARD_URL_PATH, str(card_path), cache_headers=False)]
     )
 

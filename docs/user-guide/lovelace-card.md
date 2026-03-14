@@ -43,7 +43,7 @@ entities:
 - `type`: Must be `custom:haeo-forecast-card`.
 - `title`: Optional card title.
 - `entities`: Optional list of forecast sensor entities.
-  If omitted, the card auto-discovers entities with a `forecast` attribute.
+    If omitted, the card auto-discovers entities with a `forecast` attribute.
 - `height`: Optional chart height in pixels.
 - `animation_mode`: `off`, `reduced`, or `smooth`.
 - `animation_speed`: Relative timeline slide speed (default `1`).
@@ -68,7 +68,7 @@ If no data appears:
 
 <div class="grid cards" markdown>
 
--   :material-chart-timeline-variant:{ .lg .middle } **Understand forecast sensors**
+- :material-chart-timeline-variant:{ .lg .middle } **Understand forecast sensors**
 
     ---
 
@@ -76,7 +76,7 @@ If no data appears:
 
     [:material-arrow-right: Forecasts and sensors](forecasts-and-sensors.md)
 
--   :material-robot:{ .lg .middle } **Automate with HAEO outputs**
+- :material-robot:{ .lg .middle } **Automate with HAEO outputs**
 
     ---
 

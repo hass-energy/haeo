@@ -11,6 +11,8 @@
 
 # Ignore generated coverage reports
 htmlcov/
+frontend/haeo-forecast-card/coverage/
+frontend/haeo-forecast-card/storybook-static/
 # Ignore hacs, if installed.
 hacs/
 
