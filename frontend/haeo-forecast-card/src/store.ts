@@ -519,11 +519,35 @@ export class ForecastCardStore {
     if (time === null) {
       return new Map();
     }
+    const sharedTimeline = this.sharedTimeline;
+    if (sharedTimeline) {
+      const idx = nearestArrayIndex(sharedTimeline, time);
+      return new Map(this.visibleSeries.map((series) => [series.key, idx]));
+    }
     const indices = new Map<string, number>();
     for (const series of this.visibleSeries) {
       indices.set(series.key, nearestArrayIndex(series.times, time));
     }
     return indices;
+  }
+
+  get sharedTimeline(): Float64Array | null {
+    const first = this.visibleSeries[0];
+    if (!first) {
+      return null;
+    }
+    for (let seriesIdx = 1; seriesIdx < this.visibleSeries.length; seriesIdx += 1) {
+      const series = this.visibleSeries[seriesIdx];
+      if (series?.times.length !== first.times.length) {
+        return null;
+      }
+      for (let idx = 0; idx < first.times.length; idx += 1) {
+        if (series.times[idx] !== first.times[idx]) {
+          return null;
+        }
+      }
+    }
+    return first.times;
   }
 
   get tooltipRows(): Array<{ key: string; label: string; value: number; unit: string; color: string; lane: string }> {
@@ -578,24 +602,30 @@ export class ForecastCardStore {
       return [];
     }
     const hoverIndices = this.hoverIndices;
+    const sectionOrder = new Map<string, number>([
+      ["Produced", 0],
+      ["Available", 1],
+      ["Consumed", 2],
+      ["Possible", 3],
+    ]);
     const totals = new Map<string, { value: number; unit: string }>();
     for (const series of this.visibleSeries) {
+      if (series.lane !== "power") {
+        continue;
+      }
       const idx = hoverIndices.get(series.key) ?? 0;
-      const existing = totals.get(series.lane) ?? { value: 0, unit: series.unit };
-      const value =
-        series.lane === "power"
-          ? this.powerValueForDisplay(series, series.values[idx] ?? 0)
-          : (series.values[idx] ?? 0);
-      totals.set(series.lane, {
+      const section = this.tooltipSection(series);
+      const existing = totals.get(section) ?? { value: 0, unit: series.unit };
+      const value = this.powerValueForDisplay(series, series.values[idx] ?? 0);
+      totals.set(section, {
         value: existing.value + value,
         unit: existing.unit || series.unit,
       });
     }
-    return [...totals.entries()].map(([lane, total]) => ({
-      lane: lane === "soc" ? "State of charge" : lane === "price" ? "Price" : lane === "power" ? "Power" : lane,
-      value: total.value,
-      unit: total.unit,
-    }));
+    return [...totals.entries()]
+      .filter(([, total]) => Math.abs(total.value) > 1e-9)
+      .sort((a, b) => (sectionOrder.get(a[0]) ?? 9) - (sectionOrder.get(b[0]) ?? 9))
+      .map(([lane, total]) => ({ lane, value: total.value, unit: total.unit }));
   }
 
   get tooltipEmphasisKeys(): Set<string> {

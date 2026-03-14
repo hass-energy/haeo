@@ -15,14 +15,28 @@ export const Default: Story = {
     <Tooltip
       hoverTimeMs={Date.parse("2025-10-06T10:55:00.000000+0000")}
       rows={[
-        { key: "grid-power", label: "Grid import power", value: 2.1, unit: "kW", color: "#4f46e5", lane: "power" },
-        { key: "battery-soc", label: "Battery SOC", value: 64.2, unit: "%", color: "#16a34a", lane: "soc" },
+        {
+          key: "load-actual",
+          label: "Constant load power",
+          value: 2.1,
+          unit: "kW",
+          color: "#4f46e5",
+          lane: "Consumed",
+        },
+        {
+          key: "load-forecast",
+          label: "Constant load forecast",
+          value: 2.8,
+          unit: "kW",
+          color: "#818cf8",
+          lane: "Possible",
+        },
       ]}
       totals={[
-        { lane: "power", value: 2.1, unit: "kW" },
-        { lane: "soc", value: 64.2, unit: "%" },
+        { lane: "Consumed", value: 2.1, unit: "kW" },
+        { lane: "Possible", value: 2.8, unit: "kW" },
       ]}
-      emphasizedKeys={new Set(["grid-power"])}
+      emphasizedKeys={new Set(["load-actual"])}
     />
   ),
 };

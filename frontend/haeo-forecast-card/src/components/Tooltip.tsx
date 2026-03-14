@@ -52,13 +52,15 @@ export function Tooltip(props: TooltipProps): JSX.Element | null {
           ))}
         </div>
       ))}
-      <div className="tooltipTotals">
-        {props.totals.map((total) => (
-          <div key={total.lane}>
-            <strong>{total.lane} total:</strong> {total.value.toFixed(2)} {total.unit}
-          </div>
-        ))}
-      </div>
+      {props.totals.length > 0 && (
+        <div className="tooltipTotals">
+          {props.totals.map((total) => (
+            <div key={total.lane}>
+              <strong>{total.lane} total:</strong> {total.value.toFixed(2)} {total.unit}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
