@@ -4,6 +4,7 @@ export type PowerDisplayMode = "opposed" | "overlay";
 export interface ForecastCardConfig {
   type: "custom:haeo-forecast-card";
   title?: string;
+  hub_entry_id?: string;
   entities?: string[];
   height?: number;
   animation_mode?: MotionMode;

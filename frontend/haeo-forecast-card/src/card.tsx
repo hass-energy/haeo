@@ -23,6 +23,16 @@ export class HaeoForecastCard extends HTMLElement {
     this.store.setConfig(config);
   }
 
+  static getConfigElement(): HTMLElement {
+    return document.createElement("haeo-forecast-card-editor");
+  }
+
+  static getStubConfig(): Omit<ForecastCardConfig, "type"> {
+    return {
+      title: "HAEO forecast",
+    };
+  }
+
   set hass(hass: HassLike | null) {
     this._hass = hass;
     if (hass) {
