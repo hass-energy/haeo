@@ -22,6 +22,7 @@ export const Default: Story = {
         { lane: "power", value: 2.1, unit: "kW" },
         { lane: "soc", value: 64.2, unit: "%" },
       ]}
+      emphasizedKeys={new Set(["grid-power"])}
     />
   ),
 };

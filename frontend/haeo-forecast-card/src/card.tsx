@@ -147,6 +147,7 @@ export class HaeoForecastCard extends HTMLElement {
         store={this.store}
         onPointerMove={(event) => this.onPointerMove(event)}
         onPointerLeave={() => this.onPointerLeave()}
+        onStateChange={() => this.requestRender()}
       />,
       mount
     );

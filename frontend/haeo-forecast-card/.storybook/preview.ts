@@ -37,6 +37,10 @@ const preview: Preview = {
         theme === "auto" && globalThis.matchMedia?.("(prefers-color-scheme: dark)")?.matches ? "dark" : theme;
       const appliedTheme = resolvedTheme === "auto" ? "light" : resolvedTheme;
       const wrapperBackground = appliedTheme === "dark" ? "#12151a" : "#f5f7fa";
+      if (globalThis.document?.body) {
+        globalThis.document.body.style.background = wrapperBackground;
+        globalThis.document.body.style.color = appliedTheme === "dark" ? "#e3e8ef" : "#18202a";
+      }
       return h(
         "div",
         {

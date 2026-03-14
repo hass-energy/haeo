@@ -15,6 +15,19 @@ interface LegendProps {
   onTogglePowerDisplayMode: () => void;
 }
 
+function categoryGlyph(group: "production" | "consumption", subgroup: "potential" | "utilization"): string {
+  if (group === "production" && subgroup === "potential") {
+    return "◌↑";
+  }
+  if (group === "production") {
+    return "↑";
+  }
+  if (subgroup === "potential") {
+    return "◌↓";
+  }
+  return "↓";
+}
+
 export function Legend(props: LegendProps): JSX.Element {
   const productionPotential: ForecastSeries[] = [];
   const productionUtilization: ForecastSeries[] = [];
@@ -47,8 +60,13 @@ export function Legend(props: LegendProps): JSX.Element {
     consumptionUtilization.push(series);
   }
 
-  const renderItem = (series: ForecastSeries): JSX.Element => (
-    <div
+  const renderItem = (
+    series: ForecastSeries,
+    group: "production" | "consumption",
+    subgroup: "potential" | "utilization"
+  ): JSX.Element => (
+    <button
+      type="button"
       key={series.key}
       className={`legendItem ${props.highlightedSeries === series.key ? "active" : ""} ${
         props.hiddenSeriesKeys.has(series.key) ? "disabled" : ""
@@ -58,21 +76,46 @@ export function Legend(props: LegendProps): JSX.Element {
       onClick={() => props.onToggleSeries(series.key)}
     >
       <span className="legendSwatch" style={{ background: series.color }} />
+      <span className="legendKind" title={`${group} ${subgroup}`}>
+        {categoryGlyph(group, subgroup)}
+      </span>
       <span className="legendText">{series.label}</span>
-    </div>
+    </button>
   );
 
-  const renderSection = (title: string, series: ForecastSeries[]): JSX.Element | null => {
+  const renderSection = (
+    title: string,
+    series: ForecastSeries[],
+    group: "production" | "consumption",
+    subgroup: "potential" | "utilization"
+  ): JSX.Element | null => {
     if (series.length === 0) {
       return null;
     }
     return (
       <div className="legendSubgroup">
         <div className="legendSubgroupTitle">{title}</div>
-        {series.map((item) => renderItem(item))}
+        {series.map((item) => renderItem(item, group, subgroup))}
       </div>
     );
   };
+
+  const renderReferenceItem = (series: ForecastSeries): JSX.Element => (
+    <button
+      type="button"
+      key={series.key}
+      className={`legendItem ${props.highlightedSeries === series.key ? "active" : ""} ${
+        props.hiddenSeriesKeys.has(series.key) ? "disabled" : ""
+      }`}
+      onMouseEnter={() => props.onHighlight(series.key)}
+      onMouseLeave={() => props.onHighlight(null)}
+      onClick={() => props.onToggleSeries(series.key)}
+    >
+      <span className="legendSwatch" style={{ background: series.color }} />
+      <span className="legendKind">•</span>
+      <span className="legendText">{series.label}</span>
+    </button>
+  );
 
   return (
     <div className="legendWrap">
@@ -82,33 +125,40 @@ export function Legend(props: LegendProps): JSX.Element {
         </button>
       </div>
       <div className="legend">
-        <div
-          className={`legendGroup ${props.hoveredGroup === null || props.hoveredGroup === "production" ? "active" : "dimmed"}`}
-          onMouseEnter={() => props.onGroupHover("production")}
-          onMouseLeave={() => props.onGroupHover(null)}
-        >
-          <div className="legendGroupTitle">Production</div>
-          {renderSection("Potential output", productionPotential)}
-          {renderSection("Delivered output", productionUtilization)}
-        </div>
-        <div
-          className={`legendGroup ${props.hoveredGroup === null || props.hoveredGroup === "consumption" ? "active" : "dimmed"}`}
-          onMouseEnter={() => props.onGroupHover("consumption")}
-          onMouseLeave={() => props.onGroupHover(null)}
-        >
-          <div className="legendGroupTitle">Consumption</div>
-          {renderSection("Potential demand", consumptionPotential)}
-          {renderSection("Active demand", consumptionUtilization)}
-        </div>
-        {contextSeries.length > 0 && (
-          <div
-            className={`legendGroup ${props.hoveredGroup === null || props.hoveredGroup === "reference" ? "active" : "dimmed"}`}
-            onMouseEnter={() => props.onGroupHover("reference")}
+        <div className="legendGroups">
+          <button
+            type="button"
+            className={`legendGroup ${props.hoveredGroup === null || props.hoveredGroup === "production" ? "active" : "dimmed"}`}
+            onMouseEnter={() => props.onGroupHover("production")}
             onMouseLeave={() => props.onGroupHover(null)}
           >
-            <div className="legendGroupTitle">Reference</div>
-            <div className="legendSubgroup">{contextSeries.map((series) => renderItem(series))}</div>
-          </div>
+            <div className="legendGroupTitle">Production</div>
+          </button>
+          <button
+            type="button"
+            className={`legendGroup ${props.hoveredGroup === null || props.hoveredGroup === "consumption" ? "active" : "dimmed"}`}
+            onMouseEnter={() => props.onGroupHover("consumption")}
+            onMouseLeave={() => props.onGroupHover(null)}
+          >
+            <div className="legendGroupTitle">Consumption</div>
+          </button>
+          {contextSeries.length > 0 && (
+            <button
+              type="button"
+              className={`legendGroup ${props.hoveredGroup === null || props.hoveredGroup === "reference" ? "active" : "dimmed"}`}
+              onMouseEnter={() => props.onGroupHover("reference")}
+              onMouseLeave={() => props.onGroupHover(null)}
+            >
+              <div className="legendGroupTitle">Reference</div>
+            </button>
+          )}
+        </div>
+        {renderSection("Potential output", productionPotential, "production", "potential")}
+        {renderSection("Delivered output", productionUtilization, "production", "utilization")}
+        {renderSection("Potential demand", consumptionPotential, "consumption", "potential")}
+        {renderSection("Active demand", consumptionUtilization, "consumption", "utilization")}
+        {contextSeries.length > 0 && (
+          <div className="legendSubgroup">{contextSeries.map((series) => renderReferenceItem(series))}</div>
         )}
       </div>
     </div>

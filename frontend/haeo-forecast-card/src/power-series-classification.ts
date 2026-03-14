@@ -10,7 +10,7 @@ export interface PowerSeriesCategory {
 
 const PRODUCTION_TOKENS = ["export", "discharge", "solar", "pv", "generation", "produce", "feed", "supply"];
 const CONSUMPTION_TOKENS = ["import", "load", "demand", "charge", "consume", "use", "request"];
-const POTENTIAL_TOKENS = ["available", "limit", "max", "capacity", "potential", "cap", "solar", "pv", "forecast"];
+const POTENTIAL_TOKENS = ["available", "limit", "max", "capacity", "potential", "cap", "forecast"];
 
 function hasToken(value: string, tokens: string[]): boolean {
   return tokens.some((token) => value.includes(token));

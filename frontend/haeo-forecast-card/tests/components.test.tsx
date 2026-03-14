@@ -70,7 +70,15 @@ describe("ForecastCardView components", () => {
     store.setHass(testFixture);
     store.setSize(900, 380);
 
-    render(<ForecastCardView store={store} onPointerMove={() => undefined} onPointerLeave={() => undefined} />, root);
+    render(
+      <ForecastCardView
+        store={store}
+        onPointerMove={() => undefined}
+        onPointerLeave={() => undefined}
+        onStateChange={() => undefined}
+      />,
+      root
+    );
 
     expect(root.querySelectorAll(".legendItem").length).toBeGreaterThan(0);
     expect(root.querySelectorAll("svg .areaSeries").length).toBeGreaterThan(0);
@@ -84,7 +92,15 @@ describe("ForecastCardView components", () => {
     store.setSize(900, 380);
     store.setPointer(300, 110);
 
-    render(<ForecastCardView store={store} onPointerMove={() => undefined} onPointerLeave={() => undefined} />, root);
+    render(
+      <ForecastCardView
+        store={store}
+        onPointerMove={() => undefined}
+        onPointerLeave={() => undefined}
+        onStateChange={() => undefined}
+      />,
+      root
+    );
 
     expect(root.querySelector(".tooltip")).toBeTruthy();
     expect(root.querySelectorAll(".tooltipRow").length).toBeGreaterThan(0);
@@ -94,7 +110,15 @@ describe("ForecastCardView components", () => {
     const store = new ForecastCardStore();
     store.setConfig({ type: "custom:haeo-forecast-card" });
     store.setSize(800, 300);
-    render(<ForecastCardView store={store} onPointerMove={() => undefined} onPointerLeave={() => undefined} />, root);
+    render(
+      <ForecastCardView
+        store={store}
+        onPointerMove={() => undefined}
+        onPointerLeave={() => undefined}
+        onStateChange={() => undefined}
+      />,
+      root
+    );
     expect(root.textContent).toContain("No forecast data found");
   });
 
@@ -137,5 +161,35 @@ describe("ForecastCardView components", () => {
     expect(toggles.length).toBe(1);
     expect(groups.length).toBeGreaterThanOrEqual(2);
     expect(groups[groups.length - 1]).toBeNull();
+  });
+
+  it("triggers state changes from forecast view interactions", () => {
+    const store = new ForecastCardStore();
+    store.setConfig({ type: "custom:haeo-forecast-card", animation_mode: "off" });
+    store.setHass(testFixture);
+    store.setSize(900, 380);
+    store.setPointer(300, 120);
+    let updates = 0;
+    render(
+      <ForecastCardView
+        store={store}
+        onPointerMove={() => undefined}
+        onPointerLeave={() => undefined}
+        onStateChange={() => {
+          updates += 1;
+        }}
+      />,
+      root
+    );
+
+    const modeButton = root.querySelector<HTMLButtonElement>(".legendModeToggle");
+    const firstLegendItem = root.querySelector<HTMLButtonElement>(".legendItem");
+    expect(modeButton).toBeTruthy();
+    expect(firstLegendItem).toBeTruthy();
+    modeButton?.click();
+    firstLegendItem?.click();
+    firstLegendItem?.dispatchEvent(new MouseEvent("mouseenter", { bubbles: true }));
+    expect(updates).toBeGreaterThanOrEqual(3);
+    expect(root.querySelector(".tooltipRow.active") || root.querySelector(".tooltip")).toBeTruthy();
   });
 });

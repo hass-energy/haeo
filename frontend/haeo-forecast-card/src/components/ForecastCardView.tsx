@@ -9,6 +9,7 @@ interface ForecastCardViewProps {
   store: ForecastCardStore;
   onPointerMove: (event: PointerEvent) => void;
   onPointerLeave: () => void;
+  onStateChange: () => void;
 }
 
 export function ForecastCardView(props: ForecastCardViewProps): JSX.Element {
@@ -34,15 +35,28 @@ export function ForecastCardView(props: ForecastCardViewProps): JSX.Element {
         hoveredGroup={props.store.hoveredLegendGroup}
         hiddenSeriesKeys={props.store.hiddenSeriesKeys}
         powerDisplayMode={props.store.powerDisplayMode}
-        onHighlight={(key) => props.store.setHighlightedSeries(key)}
-        onGroupHover={(group) => props.store.setHoveredLegendGroup(group)}
-        onToggleSeries={(key) => props.store.toggleSeriesVisibility(key)}
-        onTogglePowerDisplayMode={() => props.store.togglePowerDisplayMode()}
+        onHighlight={(key) => {
+          props.store.setHighlightedSeries(key);
+          props.onStateChange();
+        }}
+        onGroupHover={(group) => {
+          props.store.setHoveredLegendGroup(group);
+          props.onStateChange();
+        }}
+        onToggleSeries={(key) => {
+          props.store.toggleSeriesVisibility(key);
+          props.onStateChange();
+        }}
+        onTogglePowerDisplayMode={() => {
+          props.store.togglePowerDisplayMode();
+          props.onStateChange();
+        }}
       />
       <Tooltip
         hoverTimeMs={props.store.hoverTimeMs}
         rows={props.store.tooltipRows}
         totals={props.store.tooltipTotals}
+        emphasizedKeys={props.store.tooltipEmphasisKeys}
       />
     </ha-card>
   );

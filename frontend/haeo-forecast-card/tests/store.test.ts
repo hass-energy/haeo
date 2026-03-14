@@ -47,4 +47,33 @@ describe("ForecastCardStore", () => {
     store.setNow(store.xDomain.min + store.xDomain.step * 2);
     expect(store.animatedOffsetMs).toBeGreaterThanOrEqual(0);
   });
+
+  it("toggles display mode and series visibility controls", () => {
+    const store = new ForecastCardStore();
+    store.setHass(loadScenarioHassState("scenario4"));
+    store.setConfig({ type: "custom:haeo-forecast-card", power_display_mode: "opposed" });
+    store.setSize(1000, 420);
+
+    expect(store.powerDisplayMode).toBe("opposed");
+    store.togglePowerDisplayMode();
+    expect(store.powerDisplayMode).toBe("overlay");
+
+    const first = store.legendSeries[0];
+    expect(first).toBeTruthy();
+    if (!first) {
+      return;
+    }
+    const before = store.visibleSeries.length;
+    store.toggleSeriesVisibility(first.key);
+    expect(store.visibleSeries.length).toBeLessThan(before);
+    store.toggleSeriesVisibility(first.key);
+    expect(store.visibleSeries.length).toBe(before);
+
+    store.setHoveredLegendGroup("production");
+    expect(store.focusedGroupSeriesKeys.size).toBeGreaterThanOrEqual(0);
+    store.setHoveredLegendGroup("reference");
+    expect(store.focusedGroupSeriesKeys.size).toBeGreaterThanOrEqual(0);
+    store.setHoveredLegendGroup(null);
+    expect(store.focusedGroupSeriesKeys.size).toBe(0);
+  });
 });

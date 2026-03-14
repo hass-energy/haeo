@@ -562,6 +562,17 @@ export class ForecastCardStore {
     }));
   }
 
+  get tooltipEmphasisKeys(): Set<string> {
+    const keys = new Set<string>();
+    for (const key of this.hoveredPowerSeriesKeys) {
+      keys.add(key);
+    }
+    if (this.highlightedSeries) {
+      keys.add(this.highlightedSeries);
+    }
+    return keys;
+  }
+
   private powerValueForDisplay(series: ForecastSeries, value: number): number {
     const magnitude = Math.abs(value);
     if (this.powerDisplayMode === "overlay") {

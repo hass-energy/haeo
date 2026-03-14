@@ -34,7 +34,7 @@ export function ResponsiveStoryFrame(props: ResponsiveStoryFrameProps): JSX.Elem
   }, [props]);
 
   return (
-    <div ref={ref} style={{ width: "100%", maxWidth: "1200px", minHeight: "520px" }}>
+    <div ref={ref} className="haeoThemeRoot" style={{ width: "100%", maxWidth: "1200px", minHeight: "520px" }}>
       <ForecastCardView
         store={props.store}
         onPointerMove={(event) => {
@@ -48,6 +48,9 @@ export function ResponsiveStoryFrame(props: ResponsiveStoryFrameProps): JSX.Elem
         }}
         onPointerLeave={() => {
           props.store.setPointer(null, null);
+          setVersion((value) => value + 1);
+        }}
+        onStateChange={() => {
           setVersion((value) => value + 1);
         }}
       />

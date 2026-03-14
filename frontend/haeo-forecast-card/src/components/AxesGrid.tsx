@@ -214,6 +214,13 @@ export function AxesGrid(props: AxesGridProps): JSX.Element {
         </text>
       ))}
 
+      <line
+        className="axisZero"
+        x1={props.left}
+        y1={props.yScalePower(0)}
+        x2={props.width - props.right}
+        y2={props.yScalePower(0)}
+      />
       <line className="axisBase" x1={props.left} y1={props.bottom} x2={props.width - props.right} y2={props.bottom} />
       <line className="axisBase" x1={props.left} y1={props.top} x2={props.left} y2={props.bottom} />
       <line

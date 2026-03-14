@@ -18,6 +18,7 @@ interface TooltipProps {
   hoverTimeMs: number | null;
   rows: TooltipRow[];
   totals: TooltipTotal[];
+  emphasizedKeys: Set<string>;
 }
 
 export function Tooltip(props: TooltipProps): JSX.Element | null {
@@ -28,7 +29,7 @@ export function Tooltip(props: TooltipProps): JSX.Element | null {
     <div className="tooltip">
       <div className="tooltipTime">{new Date(props.hoverTimeMs).toLocaleString()}</div>
       {props.rows.slice(0, 10).map((row) => (
-        <div key={row.key} className="tooltipRow">
+        <div key={row.key} className={`tooltipRow ${props.emphasizedKeys.has(row.key) ? "active" : ""}`}>
           <span className="tooltipDot" style={{ background: row.color }} />
           <span>{row.label}</span>
           <span>
