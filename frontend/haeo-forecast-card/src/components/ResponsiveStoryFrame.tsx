@@ -1,5 +1,5 @@
 import type { JSX } from "preact";
-import { useLayoutEffect, useRef, useState } from "preact/hooks";
+import { useLayoutEffect, useRef } from "preact/hooks";
 
 import { ForecastCardView } from "./ForecastCardView";
 import type { ForecastCardStore } from "../store";
@@ -11,7 +11,6 @@ interface ResponsiveStoryFrameProps {
 
 export function ResponsiveStoryFrame(props: ResponsiveStoryFrameProps): JSX.Element {
   const ref = useRef<HTMLDivElement>(null);
-  const [, setVersion] = useState(0);
 
   useLayoutEffect(() => {
     const element = ref.current;
@@ -27,7 +26,6 @@ export function ResponsiveStoryFrame(props: ResponsiveStoryFrameProps): JSX.Elem
       if (props.initialPointer) {
         props.store.setPointer(props.initialPointer.x, props.initialPointer.y);
       }
-      setVersion((value) => value + 1);
     });
     observer.observe(element);
     return () => observer.disconnect();
@@ -38,20 +36,21 @@ export function ResponsiveStoryFrame(props: ResponsiveStoryFrameProps): JSX.Elem
       <ForecastCardView
         store={props.store}
         onPointerMove={(event) => {
-          const svg = event.currentTarget as SVGElement | null;
+          const svg = event.currentTarget as SVGSVGElement | null;
           if (!svg) {
             return;
           }
-          const rect = svg.getBoundingClientRect();
-          props.store.setPointer(event.clientX - rect.left, event.clientY - rect.top);
-          setVersion((value) => value + 1);
+          const screenCtm = svg.getScreenCTM();
+          if (!screenCtm) {
+            throw new Error("Expected non-null SVG screen CTM for pointer mapping");
+          }
+          const inverse = screenCtm.inverse();
+          const x = event.clientX * inverse.a + event.clientY * inverse.c + inverse.e;
+          const y = event.clientX * inverse.b + event.clientY * inverse.d + inverse.f;
+          props.store.setPointer(x, y);
         }}
         onPointerLeave={() => {
           props.store.setPointer(null, null);
-          setVersion((value) => value + 1);
-        }}
-        onStateChange={() => {
-          setVersion((value) => value + 1);
         }}
       />
     </div>

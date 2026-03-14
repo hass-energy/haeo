@@ -9,10 +9,10 @@ export const CARD_STYLES = `
     --haeo-text: var(--primary-text-color, #18202a);
     --haeo-subtext: var(--secondary-text-color, #5d6878);
     --haeo-accent: var(--primary-color, #1c63e9);
-    --haeo-load-0: #1f2937;
-    --haeo-load-1: #111827;
-    --haeo-load-2: #374151;
-    --haeo-load-3: #4b5563;
+    --haeo-load-0: color-mix(in oklab, var(--haeo-text) 92%, var(--haeo-bg) 8%);
+    --haeo-load-1: color-mix(in oklab, var(--haeo-text) 84%, var(--haeo-bg) 16%);
+    --haeo-load-2: color-mix(in oklab, var(--haeo-text) 74%, var(--haeo-bg) 26%);
+    --haeo-load-3: color-mix(in oklab, var(--haeo-text) 64%, var(--haeo-bg) 36%);
     font-family:
       "Segoe UI",
       "Roboto",
@@ -30,10 +30,6 @@ export const CARD_STYLES = `
       --haeo-text: var(--primary-text-color, #e3e8ef);
       --haeo-subtext: var(--secondary-text-color, #a8b1c0);
       --haeo-accent: var(--primary-color, #8ab4ff);
-      --haeo-load-0: #f9fafb;
-      --haeo-load-1: #e5e7eb;
-      --haeo-load-2: #d1d5db;
-      --haeo-load-3: #9ca3af;
     }
   }
 

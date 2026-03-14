@@ -20,6 +20,9 @@ type PowerSection = "available" | "produced" | "consumed" | "possible";
 export class ForecastCardStore {
   hass: HassLike | null = null;
   config: ForecastCardConfig = { type: "custom:haeo-forecast-card" };
+  normalizedSeriesCache: ForecastSeries[] = [];
+  bidirectionalSeriesCache = new Map<string, boolean>();
+  powerBoundsCache: LaneBounds = { min: -1, max: 1 };
   width = 640;
   height = DEFAULT_HEIGHT;
   pointerX: number | null = null;
@@ -29,11 +32,13 @@ export class ForecastCardStore {
   hoveredLegendElement: string | null = null;
   hiddenSeriesKeys = new Set<string>();
   forcedVisibleSeriesKeys = new Set<string>();
+  visibilityRevision = 0;
   powerDisplayModeOverride: PowerDisplayMode | null = null;
 
   constructor() {
     makeAutoObservable(this, {
       margins: computed.struct,
+      normalizedSeries: computed.struct,
       visibleSeries: computed.struct,
       powerBounds: computed.struct,
       priceBounds: computed.struct,
@@ -44,10 +49,12 @@ export class ForecastCardStore {
 
   setHass(hass: HassLike): void {
     this.hass = hass;
+    this.refreshNormalizedSeries();
   }
 
   setConfig(config: ForecastCardConfig): void {
     this.config = config;
+    this.refreshNormalizedSeries();
   }
 
   setSize(width: number, height: number): void {
@@ -83,10 +90,14 @@ export class ForecastCardStore {
     if (this.hiddenSeriesKeys.has(key)) {
       this.hiddenSeriesKeys.delete(key);
       this.forcedVisibleSeriesKeys.add(key);
+      this.visibilityRevision += 1;
+      this.recomputePowerBounds();
       return;
     }
     this.hiddenSeriesKeys.add(key);
     this.forcedVisibleSeriesKeys.delete(key);
+    this.visibilityRevision += 1;
+    this.recomputePowerBounds();
     if (this.highlightedSeries === key) {
       this.highlightedSeries = null;
     }
@@ -103,6 +114,8 @@ export class ForecastCardStore {
         this.hiddenSeriesKeys.delete(key);
         this.forcedVisibleSeriesKeys.add(key);
       }
+      this.visibilityRevision += 1;
+      this.recomputePowerBounds();
       return;
     }
     for (const key of keys) {
@@ -112,10 +125,13 @@ export class ForecastCardStore {
         this.highlightedSeries = null;
       }
     }
+    this.visibilityRevision += 1;
+    this.recomputePowerBounds();
   }
 
   togglePowerDisplayMode(): void {
     this.powerDisplayModeOverride = this.powerDisplayMode === "opposed" ? "overlay" : "opposed";
+    this.recomputePowerBounds();
   }
 
   get powerDisplayMode(): PowerDisplayMode {
@@ -146,11 +162,10 @@ export class ForecastCardStore {
   }
 
   get normalizedSeries(): ForecastSeries[] {
-    return normalizeSeries(this.hass, this.config);
+    return this.normalizedSeriesCache;
   }
 
   get legendSeries(): ForecastSeries[] {
-    this.applyDefaultHiddenSeries();
     return this.normalizedSeries.filter((series) => VISIBLE_LANES.has(series.lane));
   }
 
@@ -287,10 +302,16 @@ export class ForecastCardStore {
     return elapsed % step;
   }
 
-  xScale(time: number): number {
+  private buildXScale(): (time: number) => number {
     const { min, max } = this.xDomain;
     const innerWidth = this.width - this.margins.left - this.margins.right;
-    return linearScale(time - this.animatedOffsetMs, min, max, this.margins.left, this.margins.left + innerWidth);
+    const left = this.margins.left;
+    const offset = this.animatedOffsetMs;
+    return (time: number) => linearScale(time - offset, min, max, left, left + innerWidth);
+  }
+
+  xScale(time: number): number {
+    return this.buildXScale()(time);
   }
 
   private _bounds(seriesList: ForecastSeries[], fallback: LaneBounds): LaneBounds {
@@ -324,6 +345,10 @@ export class ForecastCardStore {
   }
 
   get powerBounds(): LaneBounds {
+    return this.powerBoundsCache;
+  }
+
+  private calculatePowerBounds(): LaneBounds {
     let min = Number.POSITIVE_INFINITY;
     let max = Number.NEGATIVE_INFINITY;
     const firstSeries = this.orderedPowerSeries[0];
@@ -400,6 +425,11 @@ export class ForecastCardStore {
     if (!firstSeries) {
       return [];
     }
+    const xScale = this.buildXScale();
+    const { min: powerMin, max: powerMax } = this.powerBounds;
+    const plotBottom = this.plotBottom;
+    const plotTop = this.plotTop;
+    const yScalePower = (value: number): number => linearScale(value, powerMin, powerMax, plotBottom, plotTop);
     const horizonCount = firstSeries.times.length;
     const stacks = this.emptySectionStacks(horizonCount);
 
@@ -424,8 +454,8 @@ export class ForecastCardStore {
           series.times,
           lower,
           upper,
-          (time) => this.xScale(time),
-          (value) => this.yScalePower(value)
+          (time) => xScale(time),
+          (value) => yScalePower(value)
         ),
       };
     });
@@ -444,6 +474,10 @@ export class ForecastCardStore {
     if (powerSeries.length === 0) {
       return hovered;
     }
+    const { min: powerMin, max: powerMax } = this.powerBounds;
+    const plotBottom = this.plotBottom;
+    const plotTop = this.plotTop;
+    const yScalePower = (value: number): number => linearScale(value, powerMin, powerMax, plotBottom, plotTop);
     const idxBySeries = this.hoverIndices;
     const stackedAtHover = new Map<PowerSection, number>([
       ["available", 0],
@@ -462,8 +496,8 @@ export class ForecastCardStore {
       const lower = stackedAtHover.get(section) ?? 0;
       const upper = lower + value;
       stackedAtHover.set(section, upper);
-      const y1 = this.yScalePower(lower);
-      const y2 = this.yScalePower(upper);
+      const y1 = yScalePower(lower);
+      const y2 = yScalePower(upper);
       const top = Math.min(y1, y2);
       const bottom = Math.max(y1, y2);
       if (this.pointerY >= top && this.pointerY <= bottom) {
@@ -475,25 +509,49 @@ export class ForecastCardStore {
   }
 
   get pricePaths(): Array<{ key: string; color: string; d: string }> {
+    const xScale = this.buildXScale();
+    const { min: powerMin, max: powerMax } = this.powerBounds;
+    const { min: priceMin, max: priceMax } = this.priceBounds;
+    const plotBottom = this.plotBottom;
+    const plotTop = this.plotTop;
+    const yScalePower = (value: number): number => linearScale(value, powerMin, powerMax, plotBottom, plotTop);
+    const zeroY = yScalePower(0);
+    const yScalePrice = (value: number): number => {
+      if (value >= 0) {
+        const positiveMax = Math.max(priceMax, 0.001);
+        return linearScale(value, 0, positiveMax, zeroY, plotTop);
+      }
+      const negativeMin = Math.min(priceMin, -0.001);
+      return linearScale(value, negativeMin, 0, plotBottom, zeroY);
+    };
     return this.priceSeries.map((series) => ({
       key: series.key,
       color: series.color,
       d: stepPath(
         series.points,
-        (time) => this.xScale(time),
-        (value) => this.yScalePrice(value)
+        (time) => xScale(time),
+        (value) => yScalePrice(value)
       ),
     }));
   }
 
   get socPaths(): Array<{ key: string; color: string; d: string }> {
+    const xScale = this.buildXScale();
+    const { min: powerMin, max: powerMax } = this.powerBounds;
+    const plotBottom = this.plotBottom;
+    const plotTop = this.plotTop;
+    const yScalePower = (value: number): number => linearScale(value, powerMin, powerMax, plotBottom, plotTop);
+    const zeroY = yScalePower(0);
+    const socMin = this.socBounds.min;
+    const socMax = this.socBounds.max;
+    const yScaleSoc = (value: number): number => linearScale(value, socMin, socMax, zeroY, plotTop);
     return this.socSeries.map((series) => ({
       key: series.key,
       color: series.color,
       d: linePath(
         series.points,
-        (time) => this.xScale(time),
-        (value) => this.yScaleSoc(value)
+        (time) => xScale(time),
+        (value) => yScaleSoc(value)
       ),
     }));
   }
@@ -644,7 +702,7 @@ export class ForecastCardStore {
     if (this.powerDisplayMode === "overlay") {
       return magnitude;
     }
-    if (this.isBidirectionalSeries(series)) {
+    if (this.bidirectionalSeriesCache.get(series.key)) {
       return value;
     }
     const category = classifyPowerSeries(series);
@@ -654,23 +712,8 @@ export class ForecastCardStore {
     return magnitude;
   }
 
-  private isBidirectionalSeries(series: ForecastSeries): boolean {
-    let hasPositive = false;
-    let hasNegative = false;
-    for (const value of series.values) {
-      if (value > 0) {
-        hasPositive = true;
-      } else if (value < 0) {
-        hasNegative = true;
-      }
-      if (hasPositive && hasNegative) {
-        return true;
-      }
-    }
-    return false;
-  }
-
   private applyDefaultHiddenSeries(): void {
+    let hiddenChanged = false;
     const directionalByElement = new Map<string, { hasProd: boolean; hasCons: boolean }>();
     for (const series of this.normalizedSeries) {
       if (series.lane !== "power") {
@@ -699,9 +742,60 @@ export class ForecastCardStore {
         ((output.includes("active") || output.includes("balance")) &&
           Boolean(hasDirectionalPair?.hasProd && hasDirectionalPair.hasCons));
       if (hideByDefault && !this.forcedVisibleSeriesKeys.has(series.key)) {
+        const before = this.hiddenSeriesKeys.size;
         this.hiddenSeriesKeys.add(series.key);
+        hiddenChanged ||= this.hiddenSeriesKeys.size !== before;
       }
     }
+    if (hiddenChanged) {
+      this.visibilityRevision += 1;
+    }
+  }
+
+  private refreshNormalizedSeries(): void {
+    const nextSeries = normalizeSeries(this.hass, this.config);
+    this.normalizedSeriesCache = nextSeries;
+    this.rebuildBidirectionalSeriesCache(nextSeries);
+
+    const seriesKeys = new Set(nextSeries.map((series) => series.key));
+    this.hiddenSeriesKeys = new Set([...this.hiddenSeriesKeys].filter((key) => seriesKeys.has(key)));
+    this.forcedVisibleSeriesKeys = new Set([...this.forcedVisibleSeriesKeys].filter((key) => seriesKeys.has(key)));
+    if (this.highlightedSeries && !seriesKeys.has(this.highlightedSeries)) {
+      this.highlightedSeries = null;
+    }
+    if (this.hoveredLegendElement) {
+      const hasHoveredElement = nextSeries.some((series) => series.elementName === this.hoveredLegendElement);
+      if (!hasHoveredElement) {
+        this.hoveredLegendElement = null;
+      }
+    }
+
+    this.applyDefaultHiddenSeries();
+    this.recomputePowerBounds();
+  }
+
+  private rebuildBidirectionalSeriesCache(seriesList: ForecastSeries[]): void {
+    const byKey = new Map<string, boolean>();
+    for (const series of seriesList) {
+      let hasPositive = false;
+      let hasNegative = false;
+      for (const value of series.values) {
+        if (value > 0) {
+          hasPositive = true;
+        } else if (value < 0) {
+          hasNegative = true;
+        }
+        if (hasPositive && hasNegative) {
+          break;
+        }
+      }
+      byKey.set(series.key, hasPositive && hasNegative);
+    }
+    this.bidirectionalSeriesCache = byKey;
+  }
+
+  private recomputePowerBounds(): void {
+    this.powerBoundsCache = this.calculatePowerBounds();
   }
 
   private tooltipSection(series: ForecastSeries): string {

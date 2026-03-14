@@ -1,5 +1,6 @@
 import type { JSX } from "preact";
 import * as mdi from "@mdi/js";
+import { memo } from "preact/compat";
 
 import { classifyPowerSeries } from "../power-series-classification";
 import type { ForecastSeries, PowerDisplayMode } from "../types";
@@ -9,6 +10,7 @@ interface LegendProps {
   highlightedSeries: string | null;
   hoveredElement: string | null;
   hiddenSeriesKeys: Set<string>;
+  visibilityRevision: number;
   powerDisplayMode: PowerDisplayMode;
   onHighlight: (key: string | null) => void;
   onElementHover: (elementName: string | null) => void;
@@ -67,7 +69,7 @@ function MdiIcon(props: { path: string }): JSX.Element {
   );
 }
 
-export function Legend(props: LegendProps): JSX.Element {
+function LegendView(props: LegendProps): JSX.Element {
   const byElement = new Map<string, ForecastSeries[]>();
   for (const series of props.series) {
     const key = series.elementName;
@@ -160,6 +162,18 @@ export function Legend(props: LegendProps): JSX.Element {
     </div>
   );
 }
+
+function areLegendPropsEqual(prev: LegendProps, next: LegendProps): boolean {
+  return (
+    prev.series === next.series &&
+    prev.highlightedSeries === next.highlightedSeries &&
+    prev.hoveredElement === next.hoveredElement &&
+    prev.visibilityRevision === next.visibilityRevision &&
+    prev.powerDisplayMode === next.powerDisplayMode
+  );
+}
+
+export const Legend = memo(LegendView, areLegendPropsEqual);
 
 function seriesTooltip(series: ForecastSeries): string {
   if (series.lane === "price") {

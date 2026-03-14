@@ -47,6 +47,7 @@ export const Default: Story = {
           highlightedSeries={null}
           hoveredElement={null}
           hiddenSeriesKeys={new Set()}
+          visibilityRevision={0}
           powerDisplayMode="opposed"
           onHighlight={() => undefined}
           onElementHover={() => undefined}
