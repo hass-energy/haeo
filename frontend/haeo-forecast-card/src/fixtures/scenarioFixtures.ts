@@ -6,8 +6,6 @@ export const SCENARIO_FIXTURES = {
   scenario1: {
     states: {
       "sensor.grid_import_power": {
-        entity_id: "sensor.grid_import_power",
-        state: "0.0",
         attributes: {
           advanced: false,
           device_class: "power",
@@ -462,10 +460,10 @@ export const SCENARIO_FIXTURES = {
           state_class: "measurement",
           unit_of_measurement: "kW",
         },
+        entity_id: "sensor.grid_import_power",
+        state: "0.0",
       },
       "sensor.grid_export_power": {
-        entity_id: "sensor.grid_export_power",
-        state: "18.2",
         attributes: {
           advanced: false,
           device_class: "power",
@@ -920,10 +918,10 @@ export const SCENARIO_FIXTURES = {
           state_class: "measurement",
           unit_of_measurement: "kW",
         },
+        entity_id: "sensor.grid_export_power",
+        state: "18.2",
       },
       "sensor.solar_power": {
-        entity_id: "sensor.solar_power",
-        state: "0.0",
         attributes: {
           advanced: false,
           device_class: "power",
@@ -1378,10 +1376,10 @@ export const SCENARIO_FIXTURES = {
           state_class: "measurement",
           unit_of_measurement: "kW",
         },
+        entity_id: "sensor.solar_power",
+        state: "0.0",
       },
       "number.solar_forecast": {
-        entity_id: "number.solar_forecast",
-        state: "0.0",
         attributes: {
           config_mode: "driven",
           device_class: "power",
@@ -1874,10 +1872,10 @@ export const SCENARIO_FIXTURES = {
           time_series: true,
           unit_of_measurement: "kW",
         },
+        entity_id: "number.solar_forecast",
+        state: "0.0",
       },
       "sensor.constant_load_power": {
-        entity_id: "sensor.constant_load_power",
-        state: "1.0",
         attributes: {
           advanced: false,
           device_class: "power",
@@ -2332,14 +2330,14 @@ export const SCENARIO_FIXTURES = {
           state_class: "measurement",
           unit_of_measurement: "kW",
         },
+        entity_id: "sensor.constant_load_power",
+        state: "1.0",
       },
       "number.constant_load_forecast": {
-        entity_id: "number.constant_load_forecast",
-        state: "1.0",
         attributes: {
           config_mode: "editable",
           device_class: "power",
-          direction: "+",
+          direction: "-",
           element_name: "Constant Load",
           element_type: "load",
           field_name: "forecast",
@@ -2794,10 +2792,10 @@ export const SCENARIO_FIXTURES = {
           time_series: true,
           unit_of_measurement: "kW",
         },
+        entity_id: "number.constant_load_forecast",
+        state: "1.0",
       },
       "sensor.battery_charge_power": {
-        entity_id: "sensor.battery_charge_power",
-        state: "0.0",
         attributes: {
           advanced: false,
           device_class: "power",
@@ -3252,10 +3250,10 @@ export const SCENARIO_FIXTURES = {
           state_class: "measurement",
           unit_of_measurement: "kW",
         },
+        entity_id: "sensor.battery_charge_power",
+        state: "0.0",
       },
       "sensor.battery_discharge_power": {
-        entity_id: "sensor.battery_discharge_power",
-        state: "19.39",
         attributes: {
           advanced: false,
           device_class: "power",
@@ -3710,10 +3708,10 @@ export const SCENARIO_FIXTURES = {
           state_class: "measurement",
           unit_of_measurement: "kW",
         },
+        entity_id: "sensor.battery_discharge_power",
+        state: "19.39",
       },
       "number.grid_import_price": {
-        entity_id: "number.grid_import_price",
-        state: "0.15",
         attributes: {
           config_mode: "driven",
           direction: "-",
@@ -4171,10 +4169,10 @@ export const SCENARIO_FIXTURES = {
           step: 0.001,
           time_series: true,
         },
+        entity_id: "number.grid_import_price",
+        state: "0.15",
       },
       "number.grid_export_price": {
-        entity_id: "number.grid_export_price",
-        state: "0.06",
         attributes: {
           config_mode: "driven",
           direction: "+",
@@ -4632,10 +4630,10 @@ export const SCENARIO_FIXTURES = {
           step: 0.001,
           time_series: true,
         },
+        entity_id: "number.grid_export_price",
+        state: "0.06",
       },
       "sensor.battery_state_of_charge": {
-        entity_id: "sensor.battery_state_of_charge",
-        state: "85.2",
         attributes: {
           advanced: false,
           device_class: "battery",
@@ -5093,14 +5091,14 @@ export const SCENARIO_FIXTURES = {
           state_class: "measurement",
           unit_of_measurement: "%",
         },
+        entity_id: "sensor.battery_state_of_charge",
+        state: "85.2",
       },
     },
   },
   scenario2: {
     states: {
       "sensor.grid_import_power": {
-        entity_id: "sensor.grid_import_power",
-        state: "0.0",
         attributes: {
           advanced: false,
           device_class: "power",
@@ -5555,10 +5553,10 @@ export const SCENARIO_FIXTURES = {
           state_class: "measurement",
           unit_of_measurement: "kW",
         },
+        entity_id: "sensor.grid_import_power",
+        state: "0.0",
       },
       "sensor.grid_export_power": {
-        entity_id: "sensor.grid_export_power",
-        state: "0.0",
         attributes: {
           advanced: false,
           device_class: "power",
@@ -6013,10 +6011,10 @@ export const SCENARIO_FIXTURES = {
           state_class: "measurement",
           unit_of_measurement: "kW",
         },
+        entity_id: "sensor.grid_export_power",
+        state: "0.0",
       },
       "sensor.solar_power": {
-        entity_id: "sensor.solar_power",
-        state: "17.8",
         attributes: {
           advanced: false,
           device_class: "power",
@@ -6471,10 +6469,10 @@ export const SCENARIO_FIXTURES = {
           state_class: "measurement",
           unit_of_measurement: "kW",
         },
+        entity_id: "sensor.solar_power",
+        state: "17.8",
       },
       "number.solar_forecast": {
-        entity_id: "number.solar_forecast",
-        state: "18.47",
         attributes: {
           config_mode: "driven",
           device_class: "power",
@@ -6967,10 +6965,10 @@ export const SCENARIO_FIXTURES = {
           time_series: true,
           unit_of_measurement: "kW",
         },
+        entity_id: "number.solar_forecast",
+        state: "18.47",
       },
       "sensor.constant_load_power": {
-        entity_id: "sensor.constant_load_power",
-        state: "1.0",
         attributes: {
           advanced: false,
           device_class: "power",
@@ -7425,14 +7423,14 @@ export const SCENARIO_FIXTURES = {
           state_class: "measurement",
           unit_of_measurement: "kW",
         },
+        entity_id: "sensor.constant_load_power",
+        state: "1.0",
       },
       "number.constant_load_forecast": {
-        entity_id: "number.constant_load_forecast",
-        state: "1.0",
         attributes: {
           config_mode: "editable",
           device_class: "power",
-          direction: "+",
+          direction: "-",
           element_name: "Constant Load",
           element_type: "load",
           field_name: "forecast",
@@ -7887,10 +7885,10 @@ export const SCENARIO_FIXTURES = {
           time_series: true,
           unit_of_measurement: "kW",
         },
+        entity_id: "number.constant_load_forecast",
+        state: "1.0",
       },
       "sensor.battery_charge_power": {
-        entity_id: "sensor.battery_charge_power",
-        state: "16.63",
         attributes: {
           advanced: false,
           device_class: "power",
@@ -8345,10 +8343,10 @@ export const SCENARIO_FIXTURES = {
           state_class: "measurement",
           unit_of_measurement: "kW",
         },
+        entity_id: "sensor.battery_charge_power",
+        state: "16.63",
       },
       "sensor.battery_discharge_power": {
-        entity_id: "sensor.battery_discharge_power",
-        state: "0.0",
         attributes: {
           advanced: false,
           device_class: "power",
@@ -8803,10 +8801,10 @@ export const SCENARIO_FIXTURES = {
           state_class: "measurement",
           unit_of_measurement: "kW",
         },
+        entity_id: "sensor.battery_discharge_power",
+        state: "0.0",
       },
       "number.grid_import_price": {
-        entity_id: "number.grid_import_price",
-        state: "0.08",
         attributes: {
           config_mode: "driven",
           direction: "-",
@@ -9264,10 +9262,10 @@ export const SCENARIO_FIXTURES = {
           step: 0.001,
           time_series: true,
         },
+        entity_id: "number.grid_import_price",
+        state: "0.08",
       },
       "number.grid_export_price": {
-        entity_id: "number.grid_export_price",
-        state: "-0.02",
         attributes: {
           config_mode: "driven",
           direction: "+",
@@ -9725,10 +9723,10 @@ export const SCENARIO_FIXTURES = {
           step: 0.001,
           time_series: true,
         },
+        entity_id: "number.grid_export_price",
+        state: "-0.02",
       },
       "sensor.battery_state_of_charge": {
-        entity_id: "sensor.battery_state_of_charge",
-        state: "97.0",
         attributes: {
           advanced: false,
           device_class: "battery",
@@ -10186,14 +10184,14 @@ export const SCENARIO_FIXTURES = {
           state_class: "measurement",
           unit_of_measurement: "%",
         },
+        entity_id: "sensor.battery_state_of_charge",
+        state: "97.0",
       },
     },
   },
   scenario3: {
     states: {
       "sensor.grid_import_power": {
-        entity_id: "sensor.grid_import_power",
-        state: "0.0",
         attributes: {
           advanced: false,
           device_class: "power",
@@ -10648,10 +10646,10 @@ export const SCENARIO_FIXTURES = {
           state_class: "measurement",
           unit_of_measurement: "kW",
         },
+        entity_id: "sensor.grid_import_power",
+        state: "0.0",
       },
       "sensor.grid_export_power": {
-        entity_id: "sensor.grid_export_power",
-        state: "0.0",
         attributes: {
           advanced: false,
           device_class: "power",
@@ -11106,10 +11104,10 @@ export const SCENARIO_FIXTURES = {
           state_class: "measurement",
           unit_of_measurement: "kW",
         },
+        entity_id: "sensor.grid_export_power",
+        state: "0.0",
       },
       "sensor.solar_power": {
-        entity_id: "sensor.solar_power",
-        state: "0.0",
         attributes: {
           advanced: false,
           device_class: "power",
@@ -11564,10 +11562,10 @@ export const SCENARIO_FIXTURES = {
           state_class: "measurement",
           unit_of_measurement: "kW",
         },
+        entity_id: "sensor.solar_power",
+        state: "0.0",
       },
       "number.solar_forecast": {
-        entity_id: "number.solar_forecast",
-        state: "0.0",
         attributes: {
           config_mode: "driven",
           device_class: "power",
@@ -12060,10 +12058,10 @@ export const SCENARIO_FIXTURES = {
           time_series: true,
           unit_of_measurement: "kW",
         },
+        entity_id: "number.solar_forecast",
+        state: "0.0",
       },
       "sensor.constant_load_power": {
-        entity_id: "sensor.constant_load_power",
-        state: "1.0",
         attributes: {
           advanced: false,
           device_class: "power",
@@ -12518,14 +12516,14 @@ export const SCENARIO_FIXTURES = {
           state_class: "measurement",
           unit_of_measurement: "kW",
         },
+        entity_id: "sensor.constant_load_power",
+        state: "1.0",
       },
       "number.constant_load_forecast": {
-        entity_id: "number.constant_load_forecast",
-        state: "1.0",
         attributes: {
           config_mode: "editable",
           device_class: "power",
-          direction: "+",
+          direction: "-",
           element_name: "Constant Load",
           element_type: "load",
           field_name: "forecast",
@@ -12980,10 +12978,10 @@ export const SCENARIO_FIXTURES = {
           time_series: true,
           unit_of_measurement: "kW",
         },
+        entity_id: "number.constant_load_forecast",
+        state: "1.0",
       },
       "sensor.battery_charge_power": {
-        entity_id: "sensor.battery_charge_power",
-        state: "0.0",
         attributes: {
           advanced: false,
           device_class: "power",
@@ -13438,10 +13436,10 @@ export const SCENARIO_FIXTURES = {
           state_class: "measurement",
           unit_of_measurement: "kW",
         },
+        entity_id: "sensor.battery_charge_power",
+        state: "0.0",
       },
       "sensor.battery_discharge_power": {
-        entity_id: "sensor.battery_discharge_power",
-        state: "1.01",
         attributes: {
           advanced: false,
           device_class: "power",
@@ -13896,10 +13894,10 @@ export const SCENARIO_FIXTURES = {
           state_class: "measurement",
           unit_of_measurement: "kW",
         },
+        entity_id: "sensor.battery_discharge_power",
+        state: "1.01",
       },
       "number.grid_import_price": {
-        entity_id: "number.grid_import_price",
-        state: "0.55",
         attributes: {
           config_mode: "driven",
           direction: "-",
@@ -14357,10 +14355,10 @@ export const SCENARIO_FIXTURES = {
           step: 0.001,
           time_series: true,
         },
+        entity_id: "number.grid_import_price",
+        state: "0.55",
       },
       "number.grid_export_price": {
-        entity_id: "number.grid_export_price",
-        state: "0.21",
         attributes: {
           config_mode: "driven",
           direction: "+",
@@ -14818,10 +14816,10 @@ export const SCENARIO_FIXTURES = {
           step: 0.001,
           time_series: true,
         },
+        entity_id: "number.grid_export_price",
+        state: "0.21",
       },
       "sensor.battery_state_of_charge": {
-        entity_id: "sensor.battery_state_of_charge",
-        state: "61.5",
         attributes: {
           advanced: false,
           device_class: "battery",
@@ -15279,14 +15277,14 @@ export const SCENARIO_FIXTURES = {
           state_class: "measurement",
           unit_of_measurement: "%",
         },
+        entity_id: "sensor.battery_state_of_charge",
+        state: "61.5",
       },
     },
   },
   scenario4: {
     states: {
       "sensor.grid_import_power": {
-        entity_id: "sensor.grid_import_power",
-        state: "0.0",
         attributes: {
           advanced: false,
           device_class: "power",
@@ -15741,10 +15739,10 @@ export const SCENARIO_FIXTURES = {
           state_class: "measurement",
           unit_of_measurement: "kW",
         },
+        entity_id: "sensor.grid_import_power",
+        state: "0.0",
       },
       "sensor.grid_export_power": {
-        entity_id: "sensor.grid_export_power",
-        state: "0.0",
         attributes: {
           advanced: false,
           device_class: "power",
@@ -16199,10 +16197,10 @@ export const SCENARIO_FIXTURES = {
           state_class: "measurement",
           unit_of_measurement: "kW",
         },
+        entity_id: "sensor.grid_export_power",
+        state: "0.0",
       },
       "sensor.solar_power": {
-        entity_id: "sensor.solar_power",
-        state: "0.0",
         attributes: {
           advanced: false,
           device_class: "power",
@@ -16657,10 +16655,10 @@ export const SCENARIO_FIXTURES = {
           state_class: "measurement",
           unit_of_measurement: "kW",
         },
+        entity_id: "sensor.solar_power",
+        state: "0.0",
       },
       "number.solar_forecast": {
-        entity_id: "number.solar_forecast",
-        state: "0.0",
         attributes: {
           config_mode: "driven",
           device_class: "power",
@@ -17124,10 +17122,10 @@ export const SCENARIO_FIXTURES = {
           time_series: true,
           unit_of_measurement: "kW",
         },
+        entity_id: "number.solar_forecast",
+        state: "0.0",
       },
       "sensor.constant_load_power": {
-        entity_id: "sensor.constant_load_power",
-        state: "1.0",
         attributes: {
           advanced: false,
           device_class: "power",
@@ -17582,14 +17580,14 @@ export const SCENARIO_FIXTURES = {
           state_class: "measurement",
           unit_of_measurement: "kW",
         },
+        entity_id: "sensor.constant_load_power",
+        state: "1.0",
       },
       "number.constant_load_forecast": {
-        entity_id: "number.constant_load_forecast",
-        state: "1.0",
         attributes: {
           config_mode: "editable",
           device_class: "power",
-          direction: "+",
+          direction: "-",
           element_name: "Constant Load",
           element_type: "load",
           field_name: "forecast",
@@ -18044,10 +18042,10 @@ export const SCENARIO_FIXTURES = {
           time_series: true,
           unit_of_measurement: "kW",
         },
+        entity_id: "number.constant_load_forecast",
+        state: "1.0",
       },
       "sensor.battery_charge_power": {
-        entity_id: "sensor.battery_charge_power",
-        state: "0.0",
         attributes: {
           advanced: false,
           device_class: "power",
@@ -18502,10 +18500,10 @@ export const SCENARIO_FIXTURES = {
           state_class: "measurement",
           unit_of_measurement: "kW",
         },
+        entity_id: "sensor.battery_charge_power",
+        state: "0.0",
       },
       "sensor.battery_discharge_power": {
-        entity_id: "sensor.battery_discharge_power",
-        state: "1.01",
         attributes: {
           advanced: false,
           device_class: "power",
@@ -18960,10 +18958,10 @@ export const SCENARIO_FIXTURES = {
           state_class: "measurement",
           unit_of_measurement: "kW",
         },
+        entity_id: "sensor.battery_discharge_power",
+        state: "1.01",
       },
       "number.grid_import_price": {
-        entity_id: "number.grid_import_price",
-        state: "0.22",
         attributes: {
           config_mode: "driven",
           direction: "-",
@@ -19421,10 +19419,10 @@ export const SCENARIO_FIXTURES = {
           step: 0.001,
           time_series: true,
         },
+        entity_id: "number.grid_import_price",
+        state: "0.22",
       },
       "number.grid_export_price": {
-        entity_id: "number.grid_export_price",
-        state: "0.12",
         attributes: {
           config_mode: "driven",
           direction: "+",
@@ -19882,10 +19880,10 @@ export const SCENARIO_FIXTURES = {
           step: 0.001,
           time_series: true,
         },
+        entity_id: "number.grid_export_price",
+        state: "0.12",
       },
       "sensor.battery_state_of_charge": {
-        entity_id: "sensor.battery_state_of_charge",
-        state: "61.5",
         attributes: {
           advanced: false,
           device_class: "battery",
@@ -20343,14 +20341,14 @@ export const SCENARIO_FIXTURES = {
           state_class: "measurement",
           unit_of_measurement: "%",
         },
+        entity_id: "sensor.battery_state_of_charge",
+        state: "61.5",
       },
     },
   },
   scenario5: {
     states: {
       "sensor.grid_import_power": {
-        entity_id: "sensor.grid_import_power",
-        state: "0.0",
         attributes: {
           advanced: false,
           device_class: "power",
@@ -20805,10 +20803,10 @@ export const SCENARIO_FIXTURES = {
           state_class: "measurement",
           unit_of_measurement: "kW",
         },
+        entity_id: "sensor.grid_import_power",
+        state: "0.0",
       },
       "sensor.grid_export_power": {
-        entity_id: "sensor.grid_export_power",
-        state: "0.0",
         attributes: {
           advanced: false,
           device_class: "power",
@@ -21263,10 +21261,10 @@ export const SCENARIO_FIXTURES = {
           state_class: "measurement",
           unit_of_measurement: "kW",
         },
+        entity_id: "sensor.grid_export_power",
+        state: "0.0",
       },
       "sensor.solar_power": {
-        entity_id: "sensor.solar_power",
-        state: "0.0",
         attributes: {
           advanced: false,
           device_class: "power",
@@ -21721,10 +21719,10 @@ export const SCENARIO_FIXTURES = {
           state_class: "measurement",
           unit_of_measurement: "kW",
         },
+        entity_id: "sensor.solar_power",
+        state: "0.0",
       },
       "number.solar_forecast": {
-        entity_id: "number.solar_forecast",
-        state: "0.0",
         attributes: {
           config_mode: "driven",
           device_class: "power",
@@ -22188,10 +22186,10 @@ export const SCENARIO_FIXTURES = {
           time_series: true,
           unit_of_measurement: "kW",
         },
+        entity_id: "number.solar_forecast",
+        state: "0.0",
       },
       "sensor.constant_load_power": {
-        entity_id: "sensor.constant_load_power",
-        state: "1.0",
         attributes: {
           advanced: false,
           device_class: "power",
@@ -22646,14 +22644,14 @@ export const SCENARIO_FIXTURES = {
           state_class: "measurement",
           unit_of_measurement: "kW",
         },
+        entity_id: "sensor.constant_load_power",
+        state: "1.0",
       },
       "number.constant_load_forecast": {
-        entity_id: "number.constant_load_forecast",
-        state: "1.0",
         attributes: {
           config_mode: "editable",
           device_class: "power",
-          direction: "+",
+          direction: "-",
           element_name: "Constant Load",
           element_type: "load",
           field_name: "forecast",
@@ -23108,10 +23106,10 @@ export const SCENARIO_FIXTURES = {
           time_series: true,
           unit_of_measurement: "kW",
         },
+        entity_id: "number.constant_load_forecast",
+        state: "1.0",
       },
       "sensor.battery_charge_power": {
-        entity_id: "sensor.battery_charge_power",
-        state: "0.0",
         attributes: {
           advanced: false,
           device_class: "power",
@@ -23566,10 +23564,10 @@ export const SCENARIO_FIXTURES = {
           state_class: "measurement",
           unit_of_measurement: "kW",
         },
+        entity_id: "sensor.battery_charge_power",
+        state: "0.0",
       },
       "sensor.battery_discharge_power": {
-        entity_id: "sensor.battery_discharge_power",
-        state: "1.01",
         attributes: {
           advanced: false,
           device_class: "power",
@@ -24024,10 +24022,10 @@ export const SCENARIO_FIXTURES = {
           state_class: "measurement",
           unit_of_measurement: "kW",
         },
+        entity_id: "sensor.battery_discharge_power",
+        state: "1.01",
       },
       "number.grid_import_price": {
-        entity_id: "number.grid_import_price",
-        state: "0.21",
         attributes: {
           config_mode: "driven",
           direction: "-",
@@ -24485,10 +24483,10 @@ export const SCENARIO_FIXTURES = {
           step: 0.001,
           time_series: true,
         },
+        entity_id: "number.grid_import_price",
+        state: "0.21",
       },
       "number.grid_export_price": {
-        entity_id: "number.grid_export_price",
-        state: "0.11",
         attributes: {
           config_mode: "driven",
           direction: "+",
@@ -24946,10 +24944,10 @@ export const SCENARIO_FIXTURES = {
           step: 0.001,
           time_series: true,
         },
+        entity_id: "number.grid_export_price",
+        state: "0.11",
       },
       "sensor.battery_state_of_charge": {
-        entity_id: "sensor.battery_state_of_charge",
-        state: "37.5",
         attributes: {
           advanced: false,
           device_class: "battery",
@@ -25407,6 +25405,8 @@ export const SCENARIO_FIXTURES = {
           state_class: "measurement",
           unit_of_measurement: "%",
         },
+        entity_id: "sensor.battery_state_of_charge",
+        state: "37.5",
       },
     },
   },
