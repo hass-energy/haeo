@@ -17,7 +17,7 @@ export function classifyPowerSeries(series: ForecastSeries): PowerSeriesCategory
     return { group: "unknown", subgroup: "utilization" };
   }
 
-  let subgroup: PowerSubgroup = hasConfigInput || series.outputType === "power_limit" ? "potential" : "utilization";
+  let subgroup: PowerSubgroup = "utilization";
 
   // Mirror scenario visualizer semantics: use direction metadata as the source of truth.
   // "+" means production/supply, "-" means consumption/demand.
@@ -28,8 +28,17 @@ export function classifyPowerSeries(series: ForecastSeries): PowerSeriesCategory
     group = "consumption";
   }
 
-  // Input power entities (config_mode set) represent potential forecasts.
+  // Mirror scenario plot semantics:
+  // - input power with + direction is available potential
+  // - input power with - direction is consumption (not potential)
+  // - output power_limit remains potential
   if (hasConfigInput && series.outputType === "power") {
+    if (group === "production") {
+      subgroup = "potential";
+    } else {
+      subgroup = "utilization";
+    }
+  } else if (series.outputType === "power_limit") {
     subgroup = "potential";
   }
 
