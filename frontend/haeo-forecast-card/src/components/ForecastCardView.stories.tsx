@@ -29,7 +29,7 @@ function makeStore(powerDisplayMode: PowerDisplayMode): ForecastCardStore {
   const store = new ForecastCardStore();
   store.setConfig({
     type: "custom:haeo-forecast-card",
-    title: "Scenario 4 forecast",
+    title: "Scenario 1 forecast",
     animation_mode: "off",
     power_display_mode: powerDisplayMode,
   });
