@@ -28,19 +28,14 @@ export function classifyPowerSeries(series: ForecastSeries): PowerSeriesCategory
     group = "consumption";
   }
 
-  // Mirror scenario plot semantics:
-  // - input power with + direction is available potential
-  // - input power with - direction is consumption (not potential)
-  // - output power_limit remains potential
+  // Input power entities represent forecast/potential series.
+  // Direction still defines production vs consumption; subgroup is potential.
+  // Output power_limit remains potential as well.
   if (hasConfigInput && series.outputType === "power") {
-    // Solar input power is forecast availability by definition.
+    subgroup = "potential";
+    // Keep solar input forecasts on production side even if metadata regresses.
     if (series.elementType.toLowerCase() === "solar") {
       group = "production";
-      subgroup = "potential";
-    } else if (group === "production") {
-      subgroup = "potential";
-    } else {
-      subgroup = "utilization";
     }
   } else if (series.outputType === "power_limit") {
     subgroup = "potential";
