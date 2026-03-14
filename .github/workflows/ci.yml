@@ -224,7 +224,6 @@ jobs:
           npm --prefix frontend/haeo-forecast-card ci
           npm --prefix frontend/haeo-forecast-card run check
   #endregion
-
   #region Tests
   # =============================================================================
   # Tests
