@@ -609,11 +609,30 @@ export class ForecastCardStore {
     if (this.powerDisplayMode === "overlay") {
       return magnitude;
     }
+    if (this.isBidirectionalSeries(series)) {
+      return value;
+    }
     const category = classifyPowerSeries(series);
     if (category.group === "consumption") {
       return -magnitude;
     }
     return magnitude;
+  }
+
+  private isBidirectionalSeries(series: ForecastSeries): boolean {
+    let hasPositive = false;
+    let hasNegative = false;
+    for (const value of series.values) {
+      if (value > 0) {
+        hasPositive = true;
+      } else if (value < 0) {
+        hasNegative = true;
+      }
+      if (hasPositive && hasNegative) {
+        return true;
+      }
+    }
+    return false;
   }
 
   private applyDefaultHiddenSeries(): void {

@@ -77,6 +77,23 @@ function hashString(value: string): number {
 }
 
 function colorForElement(elementName: string, variant: number): string {
+  const name = elementName.toLowerCase();
+  if (name.includes("battery")) {
+    const green = ["#22c55e", "#16a34a", "#15803d", "#4ade80"];
+    return green[variant % green.length] ?? "#22c55e";
+  }
+  if (name.includes("grid")) {
+    const blue = ["#60a5fa", "#3b82f6", "#2563eb", "#1d4ed8", "#93c5fd"];
+    return blue[variant % blue.length] ?? "#3b82f6";
+  }
+  if (name.includes("solar")) {
+    const solar = ["#f59e0b", "#fbbf24", "#f97316", "#facc15", "#ea580c"];
+    return solar[variant % solar.length] ?? "#f59e0b";
+  }
+  if (name.includes("load")) {
+    const load = ["var(--haeo-load-0)", "var(--haeo-load-1)", "var(--haeo-load-2)", "var(--haeo-load-3)"];
+    return load[variant % load.length] ?? "var(--haeo-load-0)";
+  }
   const hue = hashString(elementName) % 360;
   const lightVariants = [46, 54, 38, 62];
   const lightness = lightVariants[variant % lightVariants.length] ?? 50;

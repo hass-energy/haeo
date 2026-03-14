@@ -152,14 +152,14 @@ describe("ForecastCardView components", () => {
       root
     );
     const firstItem = root.querySelector<HTMLElement>(".legendItem");
-    const firstGroup = root.querySelector<HTMLElement>(".legendGroup");
+    const firstGroup = root.querySelector<HTMLElement>(".legendElementLabel");
     expect(firstItem).toBeTruthy();
     expect(firstGroup).toBeTruthy();
     firstItem?.dispatchEvent(new MouseEvent("mouseenter", { bubbles: true }));
     firstItem?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     firstItem?.dispatchEvent(new MouseEvent("mouseleave", { bubbles: true }));
-    firstGroup?.dispatchEvent(new MouseEvent("mouseenter", { bubbles: true }));
-    firstGroup?.dispatchEvent(new MouseEvent("mouseleave", { bubbles: true }));
+    root.querySelector<HTMLElement>(".legendElement")?.dispatchEvent(new MouseEvent("mouseenter", { bubbles: true }));
+    root.querySelector<HTMLElement>(".legendElement")?.dispatchEvent(new MouseEvent("mouseleave", { bubbles: true }));
     expect(hits.length).toBeGreaterThanOrEqual(2);
     expect(hits[hits.length - 1]).toBeNull();
     expect(toggles.length).toBe(1);

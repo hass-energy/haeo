@@ -1,4 +1,5 @@
 import type { JSX } from "preact";
+import * as mdi from "@mdi/js";
 
 import { classifyPowerSeries } from "../power-series-classification";
 import type { ForecastSeries, PowerDisplayMode } from "../types";
@@ -16,35 +17,47 @@ interface LegendProps {
   onTogglePowerDisplayMode: () => void;
 }
 
-function seriesIcon(series: ForecastSeries): string {
+function seriesIconPath(series: ForecastSeries): string {
+  const icons = mdi as Record<string, string>;
+  const fallback = icons["mdiChartLine"] ?? "";
   if (series.lane === "price" || series.outputName.includes("price")) {
-    return "mdi:currency-usd";
+    return icons["mdiCurrencyUsd"] ?? fallback;
   }
   if (series.lane === "soc") {
-    return "mdi:battery-medium";
+    return icons["mdiBatteryMedium"] ?? fallback;
   }
   const output = series.outputName.toLowerCase();
   const element = series.elementName.toLowerCase();
   const category = classifyPowerSeries(series);
   if (element.includes("solar")) {
-    return category.subgroup === "potential" ? "mdi:weather-sunny-alert" : "mdi:weather-sunny";
+    return category.subgroup === "potential"
+      ? (icons["mdiWeatherSunnyAlert"] ?? fallback)
+      : (icons["mdiSolarPowerVariant"] ?? icons["mdiWeatherSunny"] ?? fallback);
   }
   if (element.includes("battery")) {
-    return category.group === "production" ? "mdi:battery-arrow-up" : "mdi:battery-arrow-down";
-  }
-  if (element.includes("grid")) {
-    if (category.subgroup === "potential") {
-      return category.group === "production" ? "mdi:transmission-tower-export" : "mdi:transmission-tower-import";
-    }
-    return category.group === "production" ? "mdi:transmission-tower-off" : "mdi:transmission-tower";
+    return category.group === "production"
+      ? (icons["mdiBatteryArrowUp"] ?? icons["mdiBatteryPlus"] ?? fallback)
+      : (icons["mdiBatteryArrowDown"] ?? icons["mdiBatteryMinus"] ?? fallback);
   }
   if (output.includes("import") || category.group === "consumption") {
-    return category.subgroup === "potential" ? "mdi:arrow-down-circle-outline" : "mdi:arrow-down-circle";
+    return category.subgroup === "potential"
+      ? (icons["mdiArrowDownBoldCircleOutline"] ?? fallback)
+      : (icons["mdiArrowDownBoldCircle"] ?? fallback);
   }
   if (output.includes("export") || category.group === "production") {
-    return category.subgroup === "potential" ? "mdi:arrow-up-circle-outline" : "mdi:arrow-up-circle";
+    return category.subgroup === "potential"
+      ? (icons["mdiArrowUpBoldCircleOutline"] ?? fallback)
+      : (icons["mdiArrowUpBoldCircle"] ?? fallback);
   }
-  return "mdi:chart-line";
+  return fallback;
+}
+
+function MdiIcon(props: { path: string }): JSX.Element {
+  return (
+    <svg className="legendIcon" viewBox="0 0 24 24" aria-hidden="true">
+      <path d={props.path} />
+    </svg>
+  );
 }
 
 export function Legend(props: LegendProps): JSX.Element {
@@ -70,7 +83,7 @@ export function Legend(props: LegendProps): JSX.Element {
       title={series.label}
       style={{ borderColor: series.color, color: series.color }}
     >
-      <ha-icon className="legendIcon" icon={seriesIcon(series)} />
+      <MdiIcon path={seriesIconPath(series)} />
     </button>
   );
 
@@ -87,18 +100,21 @@ export function Legend(props: LegendProps): JSX.Element {
           const allHidden = hiddenCount === elementSeries.length;
           const active = props.hoveredElement === null || props.hoveredElement === elementName;
           return (
-            <div key={elementName} className={`legendElement ${active ? "active" : "dimmed"}`}>
+            <div
+              key={elementName}
+              className={`legendElement ${active ? "active" : "dimmed"} ${allHidden ? "disabled" : ""}`}
+              onMouseEnter={() => props.onElementHover(elementName)}
+              onMouseLeave={() => props.onElementHover(null)}
+            >
               <button
                 type="button"
-                className={`legendGroup ${allHidden ? "disabled" : "active"}`}
-                onMouseEnter={() => props.onElementHover(elementName)}
-                onMouseLeave={() => props.onElementHover(null)}
+                className="legendElementLabel"
                 onClick={() => props.onToggleElement(elementName)}
                 title={`Toggle ${elementName} series`}
               >
-                <div className="legendGroupTitle">{elementName}</div>
+                <span className="legendGroupTitle">{elementName}</span>
               </button>
-              <div className="legendSubgroup">{elementSeries.map((series) => renderSeriesItem(series))}</div>
+              <div className="legendIconRow">{elementSeries.map((series) => renderSeriesItem(series))}</div>
             </div>
           );
         })}
