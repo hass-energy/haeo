@@ -1,9 +1,8 @@
 import type { HassEntityState, HassLike } from "../series";
 
-export type StoryScenario = "scenario1" | "scenario2" | "scenario3" | "scenario4" | "scenario5";
 export type StoryDataMode = "mixed" | "inputs" | "outputs";
 
-export const SCENARIO_FIXTURES: Record<StoryScenario, HassLike> = {
+export const SCENARIO_FIXTURES = {
   scenario1: {
     states: {
       "sensor.grid_import_power": {
@@ -25411,7 +25410,13 @@ export const SCENARIO_FIXTURES: Record<StoryScenario, HassLike> = {
       },
     },
   },
-};
+} as const satisfies Record<string, HassLike>;
+
+export type StoryScenario = keyof typeof SCENARIO_FIXTURES;
+
+export const STORY_SCENARIOS = Object.keys(SCENARIO_FIXTURES).sort(
+  (a, b) => Number(a.replace("scenario", "")) - Number(b.replace("scenario", ""))
+) as StoryScenario[];
 
 export function getScenarioFixture(scenario: StoryScenario, mode: StoryDataMode): HassLike {
   const fixture = SCENARIO_FIXTURES[scenario];
@@ -25422,13 +25427,13 @@ export function getScenarioFixture(scenario: StoryScenario, mode: StoryDataMode)
     return fixture;
   }
   const states = Object.fromEntries(
-    Object.entries(fixture.states).filter(([, state]) => {
-      const attrs = state?.attributes ?? {};
-      const hasForecast = Array.isArray(attrs["forecast"]) && attrs["forecast"].length > 1;
+    Object.entries(fixture.states as Record<string, HassEntityState | undefined>).filter(([, state]) => {
+      const attrs = (state?.attributes ?? {}) as { forecast?: unknown; config_mode?: unknown };
+      const hasForecast = Array.isArray(attrs.forecast) && attrs.forecast.length > 1;
       if (!hasForecast) {
         return false;
       }
-      const isInput = attrs["config_mode"] !== undefined && attrs["config_mode"] !== null;
+      const isInput = attrs.config_mode !== undefined && attrs.config_mode !== null;
       return mode === "inputs" ? isInput : !isInput;
     })
   ) as Record<string, HassEntityState | undefined>;

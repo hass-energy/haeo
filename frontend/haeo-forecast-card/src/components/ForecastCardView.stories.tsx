@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/preact";
 
-import { getScenarioFixture } from "../fixtures/scenarioFixtures";
+import { STORY_SCENARIOS, getScenarioFixture } from "../fixtures/scenarioFixtures";
 import { ForecastCardStore } from "../store";
 import type { PowerDisplayMode } from "../types";
 import { ResponsiveStoryFrame } from "./ResponsiveStoryFrame";
@@ -12,11 +12,13 @@ interface StoryArgs {
   dataMode: StoryDataMode;
 }
 
+const defaultScenario = STORY_SCENARIOS[0] ?? "scenario1";
+
 const meta: Meta<StoryArgs> = {
   title: "ForecastCard/ForecastCardView",
   args: {
     powerDisplayMode: "opposed",
-    scenario: "scenario1",
+    scenario: defaultScenario,
     dataMode: "mixed",
   },
   argTypes: {
@@ -26,7 +28,7 @@ const meta: Meta<StoryArgs> = {
     },
     scenario: {
       control: { type: "inline-radio" },
-      options: ["scenario1", "scenario2", "scenario3", "scenario4", "scenario5"],
+      options: STORY_SCENARIOS,
     },
     dataMode: {
       control: { type: "inline-radio" },
