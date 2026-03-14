@@ -1,40 +1,29 @@
 import type { JSX } from "preact";
 
-import { linePath, stepPath } from "../geometry";
-import type { ForecastSeries } from "../types";
-
 interface OverlayLineLayerProps {
-  seriesList: ForecastSeries[];
+  paths: Array<{ key: string; color: string; d: string }>;
   highlightedSeries: string | null;
-  xScale: (time: number) => number;
-  yScale: (value: number) => number;
+  focusedSeriesKeys: Set<string>;
   cssClass: string;
-  forceStep?: boolean;
 }
 
 export function OverlayLineLayer(props: OverlayLineLayerProps): JSX.Element {
   return (
     <>
-      {props.seriesList.map((series) => {
-        const opacity = props.highlightedSeries && props.highlightedSeries !== series.key ? 0.28 : 0.92;
-        const d = props.forceStep
-          ? stepPath(
-              series.points,
-              (time) => props.xScale(time),
-              (value) => props.yScale(value)
-            )
-          : linePath(
-              series.points,
-              (time) => props.xScale(time),
-              (value) => props.yScale(value)
-            );
+      {props.paths.map((series) => {
+        const hasGroupFocus = props.focusedSeriesKeys.size > 0;
+        const groupFocused = props.focusedSeriesKeys.has(series.key);
+        let opacity = hasGroupFocus ? (groupFocused ? 0.92 : 0.2) : 0.92;
+        if (props.highlightedSeries && props.highlightedSeries !== series.key) {
+          opacity = 0.22;
+        }
         return (
           <path
             key={series.key}
             className={`lineSeries ${props.cssClass}`}
             stroke={series.color}
             opacity={opacity}
-            d={d}
+            d={series.d}
           />
         );
       })}

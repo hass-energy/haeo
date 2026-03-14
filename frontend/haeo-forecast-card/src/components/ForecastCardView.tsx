@@ -29,9 +29,15 @@ export function ForecastCardView(props: ForecastCardViewProps): JSX.Element {
       <div className="title">{title}</div>
       <ChartSvg store={props.store} onPointerMove={props.onPointerMove} onPointerLeave={props.onPointerLeave} />
       <Legend
-        series={props.store.visibleSeries}
+        series={props.store.legendSeries}
         highlightedSeries={props.store.highlightedSeries}
+        hoveredGroup={props.store.hoveredLegendGroup}
+        hiddenSeriesKeys={props.store.hiddenSeriesKeys}
+        powerDisplayMode={props.store.powerDisplayMode}
         onHighlight={(key) => props.store.setHighlightedSeries(key)}
+        onGroupHover={(group) => props.store.setHoveredLegendGroup(group)}
+        onToggleSeries={(key) => props.store.toggleSeriesVisibility(key)}
+        onTogglePowerDisplayMode={() => props.store.togglePowerDisplayMode()}
       />
       <Tooltip
         hoverTimeMs={props.store.hoverTimeMs}

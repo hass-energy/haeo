@@ -3,16 +3,55 @@ import { h } from "preact";
 
 import { CARD_STYLES } from "../src/styles";
 
+type ThemeChoice = "auto" | "light" | "dark";
+
+function parseTheme(value: unknown): ThemeChoice {
+  return value === "light" || value === "dark" ? value : "auto";
+}
+
 const preview: Preview = {
+  globalTypes: {
+    theme: {
+      name: "Theme",
+      description: "Story preview theme",
+      defaultValue: "auto",
+      toolbar: {
+        icon: "mirror",
+        items: [
+          { value: "auto", title: "Auto" },
+          { value: "light", title: "Light" },
+          { value: "dark", title: "Dark" },
+        ],
+      },
+    },
+  },
   parameters: {
     layout: "padded",
     controls: { expanded: true },
   },
   decorators: [
-    (Story) =>
-      h("div", { style: { width: "100%", maxWidth: "1280px", margin: "0 auto", padding: "12px" } }, [
-        h("style", {
-          children: `
+    (Story, context) => {
+      const globals = context.globals as Record<string, unknown>;
+      const theme = parseTheme(globals["theme"]);
+      const resolvedTheme =
+        theme === "auto" && globalThis.matchMedia?.("(prefers-color-scheme: dark)")?.matches ? "dark" : theme;
+      const appliedTheme = resolvedTheme === "auto" ? "light" : resolvedTheme;
+      const wrapperBackground = appliedTheme === "dark" ? "#12151a" : "#f5f7fa";
+      return h(
+        "div",
+        {
+          "data-theme": appliedTheme,
+          style: {
+            width: "100%",
+            maxWidth: "1280px",
+            margin: "0 auto",
+            padding: "12px",
+            background: wrapperBackground,
+          },
+        },
+        [
+          h("style", {
+            children: `
             :root {
               --card-background-color: #ffffff;
               --divider-color: #d9dde6;
@@ -22,7 +61,13 @@ const preview: Preview = {
             }
             body {
               margin: 0;
-              background: #f5f7fa;
+            }
+            [data-theme='dark'] {
+              --card-background-color: #1f232b;
+              --divider-color: #414a59;
+              --primary-color: #8ab4ff;
+              --primary-text-color: #e3e8ef;
+              --secondary-text-color: #a8b1c0;
             }
             ha-card {
               display: block;
@@ -33,9 +78,11 @@ const preview: Preview = {
             }
             ${CARD_STYLES}
           `,
-        }),
-        h(Story, {}),
-      ]),
+          }),
+          h(Story, {}),
+        ]
+      );
+    },
   ],
 };
 

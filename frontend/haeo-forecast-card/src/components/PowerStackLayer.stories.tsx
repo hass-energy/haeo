@@ -24,10 +24,10 @@ export const Default: Story = {
         <style>{CARD_STYLES}</style>
         <svg viewBox={`0 0 ${store.width} ${store.height}`} height={store.height}>
           <PowerStackLayer
-            seriesList={store.powerSeries}
+            shapes={store.powerShapes}
             highlightedSeries={null}
-            xScale={(time) => store.xScale(time)}
-            yScalePower={(value) => store.yScalePower(value)}
+            hoveredSeriesKeys={new Set(store.powerSeries.slice(0, 2).map((series) => series.key))}
+            focusedSeriesKeys={new Set()}
           />
         </svg>
       </div>

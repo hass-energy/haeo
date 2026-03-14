@@ -19,7 +19,17 @@ export const Default: Story = {
   render: () => (
     <div>
       <style>{CARD_STYLES}</style>
-      <Legend series={series} highlightedSeries={null} onHighlight={() => undefined} />
+      <Legend
+        series={series}
+        highlightedSeries={null}
+        hoveredGroup={null}
+        hiddenSeriesKeys={new Set()}
+        powerDisplayMode="opposed"
+        onHighlight={() => undefined}
+        onGroupHover={() => undefined}
+        onToggleSeries={() => undefined}
+        onTogglePowerDisplayMode={() => undefined}
+      />
     </div>
   ),
 };

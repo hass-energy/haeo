@@ -10,12 +10,13 @@ export class HaeoForecastCard extends HTMLElement {
   private readonly store = new ForecastCardStore();
   private resizeObserver: ResizeObserver | null = null;
   private frameHandle = 0;
+  private renderScheduled = false;
   private hasRenderedHost = false;
   private _hass: HassLike | null = null;
 
   setConfig(config: ForecastCardConfig): void {
     this.store.setConfig(config);
-    this.renderCard();
+    this.requestRender();
   }
 
   set hass(hass: HassLike | null) {
@@ -23,7 +24,7 @@ export class HaeoForecastCard extends HTMLElement {
     if (hass) {
       this.store.setHass(hass);
     }
-    this.renderCard();
+    this.requestRender();
   }
 
   get hass(): HassLike | null {
@@ -37,7 +38,7 @@ export class HaeoForecastCard extends HTMLElement {
     this.ensureHostElements();
     this.startAnimationLoop();
     this.observeCardResize();
-    this.renderCard();
+    this.requestRender();
   }
 
   disconnectedCallback(): void {
@@ -83,7 +84,7 @@ export class HaeoForecastCard extends HTMLElement {
         return;
       }
       this.store.setSize(rect.width, this.store.responsiveHeight(rect.width));
-      this.renderCard();
+      this.requestRender();
     });
     this.resizeObserver.observe(mount);
   }
@@ -91,7 +92,7 @@ export class HaeoForecastCard extends HTMLElement {
   private startAnimationLoop(): void {
     const tick = () => {
       this.store.setNow(Date.now());
-      this.renderCard();
+      this.requestRender();
       if (this.store.motionMode === "smooth") {
         this.frameHandle = requestAnimationFrame(tick);
       }
@@ -105,13 +106,32 @@ export class HaeoForecastCard extends HTMLElement {
       return;
     }
     const rect = svgElement.getBoundingClientRect();
-    this.store.setPointer(event.clientX - rect.left, event.clientY - rect.top);
-    this.renderCard();
+    const x = Math.round(event.clientX - rect.left);
+    const y = Math.round(event.clientY - rect.top);
+    if (this.store.pointerX === x && this.store.pointerY === y) {
+      return;
+    }
+    this.store.setPointer(x, y);
+    this.requestRender();
   }
 
   private onPointerLeave(): void {
+    if (this.store.pointerX === null && this.store.pointerY === null) {
+      return;
+    }
     this.store.setPointer(null, null);
-    this.renderCard();
+    this.requestRender();
+  }
+
+  private requestRender(): void {
+    if (this.renderScheduled) {
+      return;
+    }
+    this.renderScheduled = true;
+    requestAnimationFrame(() => {
+      this.renderScheduled = false;
+      this.renderCard();
+    });
   }
 
   private renderCard(): void {

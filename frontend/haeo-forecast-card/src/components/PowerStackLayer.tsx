@@ -1,58 +1,39 @@
 import type { JSX } from "preact";
 
-import { stepAreaPath } from "../geometry";
-import type { ForecastSeries } from "../types";
-
 interface PowerStackLayerProps {
-  seriesList: ForecastSeries[];
+  shapes: Array<{ key: string; color: string; d: string }>;
   highlightedSeries: string | null;
-  xScale: (time: number) => number;
-  yScalePower: (value: number) => number;
+  hoveredSeriesKeys: Set<string>;
+  focusedSeriesKeys: Set<string>;
 }
 
 export function PowerStackLayer(props: PowerStackLayerProps): JSX.Element {
-  const firstSeries = props.seriesList[0];
-  if (!firstSeries) {
+  if (props.shapes.length === 0) {
     return <></>;
   }
-  const horizonCount = firstSeries.times.length;
-  const positive = new Float64Array(horizonCount);
-  const negative = new Float64Array(horizonCount);
 
   return (
     <>
-      {props.seriesList.map((series) => {
-        const lower = new Float64Array(horizonCount);
-        const upper = new Float64Array(horizonCount);
-
-        for (let idx = 0; idx < horizonCount; idx += 1) {
-          const value = series.values[idx] ?? 0;
-          if (value >= 0) {
-            lower[idx] = positive[idx] ?? 0;
-            upper[idx] = (positive[idx] ?? 0) + value;
-            positive[idx] = (positive[idx] ?? 0) + value;
-          } else {
-            lower[idx] = negative[idx] ?? 0;
-            upper[idx] = (negative[idx] ?? 0) + value;
-            negative[idx] = (negative[idx] ?? 0) + value;
-          }
+      {props.shapes.map((shape) => {
+        const isHovered = props.hoveredSeriesKeys.has(shape.key);
+        const hasGroupFocus = props.focusedSeriesKeys.size > 0;
+        const groupFocused = props.focusedSeriesKeys.has(shape.key);
+        let opacity = isHovered ? 0.8 : 0.52;
+        if (hasGroupFocus) {
+          opacity = groupFocused ? Math.max(opacity, 0.68) : 0.12;
         }
-
-        const opacity = props.highlightedSeries && props.highlightedSeries !== series.key ? 0.18 : 0.58;
+        if (props.highlightedSeries) {
+          opacity = props.highlightedSeries === shape.key ? 0.76 : 0.14;
+        }
+        const className = isHovered ? "areaSeries areaSeriesHover" : "areaSeries";
         return (
           <path
-            key={series.key}
-            className="areaSeries"
-            fill={series.color}
-            stroke={series.color}
+            key={shape.key}
+            className={className}
+            fill={shape.color}
+            stroke={shape.color}
             opacity={opacity}
-            d={stepAreaPath(
-              series.times,
-              lower,
-              upper,
-              (time) => props.xScale(time),
-              (value) => props.yScalePower(value)
-            )}
+            d={shape.d}
           />
         );
       })}

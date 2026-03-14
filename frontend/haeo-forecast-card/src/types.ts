@@ -1,4 +1,5 @@
 export type MotionMode = "off" | "reduced" | "smooth";
+export type PowerDisplayMode = "opposed" | "overlay";
 
 export interface ForecastCardConfig {
   type: "custom:haeo-forecast-card";
@@ -7,6 +8,7 @@ export interface ForecastCardConfig {
   height?: number;
   animation_mode?: MotionMode;
   animation_speed?: number;
+  power_display_mode?: PowerDisplayMode;
 }
 
 export interface ForecastPoint {
@@ -21,6 +23,8 @@ export interface ForecastSeries {
   key: string;
   entityId: string;
   label: string;
+  elementName: string;
+  outputName: string;
   outputType: string;
   lane: LaneType;
   drawType: DrawType;

@@ -11,6 +11,8 @@ interface AxesGridProps {
   xMax: number;
   xScale: (time: number) => number;
   yScalePower: (value: number) => number;
+  yScalePrice: (value: number) => number;
+  yScaleSoc: (value: number) => number;
   powerMin: number;
   powerMax: number;
   priceMin: number;
@@ -19,18 +21,121 @@ interface AxesGridProps {
   socMax: number;
 }
 
-function ticks(min: number, max: number, count: number): number[] {
-  if (count < 2 || max <= min) {
+const TIME_STEPS_MS = [
+  60_000,
+  2 * 60_000,
+  5 * 60_000,
+  10 * 60_000,
+  15 * 60_000,
+  30 * 60_000,
+  60 * 60_000,
+  2 * 60 * 60_000,
+  4 * 60 * 60_000,
+  6 * 60 * 60_000,
+  12 * 60 * 60_000,
+  24 * 60 * 60_000,
+];
+
+function niceStep(rawStep: number): number {
+  if (!Number.isFinite(rawStep) || rawStep <= 0) {
+    return 1;
+  }
+  const power = 10 ** Math.floor(Math.log10(rawStep));
+  const scaled = rawStep / power;
+  if (scaled <= 1) {
+    return power;
+  }
+  if (scaled <= 2) {
+    return 2 * power;
+  }
+  if (scaled <= 5) {
+    return 5 * power;
+  }
+  return 10 * power;
+}
+
+function niceLinearTicks(min: number, max: number, targetCount: number, includeZero: boolean): number[] {
+  if (!Number.isFinite(min) || !Number.isFinite(max)) {
+    return [0];
+  }
+  if (min === max) {
     return [min];
   }
-  return Array.from({ length: count }, (_, idx) => min + (idx / (count - 1)) * (max - min));
+  const lo = includeZero ? Math.min(min, 0) : min;
+  const hi = includeZero ? Math.max(max, 0) : max;
+  const step = niceStep((hi - lo) / Math.max(1, targetCount));
+  const start = Math.floor(lo / step) * step;
+  const end = Math.ceil(hi / step) * step;
+  const out: number[] = [];
+  for (let value = start; value <= end + step * 0.25; value += step) {
+    out.push(Math.abs(value) < step * 1e-6 ? 0 : value);
+  }
+  return out;
+}
+
+function minorFromMajor(major: number[]): number[] {
+  if (major.length < 2) {
+    return [];
+  }
+  const first = major[0];
+  const second = major[1];
+  if (first === undefined || second === undefined) {
+    return [];
+  }
+  const step = second - first;
+  const minorStep = step / 5;
+  const start = first;
+  const end = major[major.length - 1];
+  if (!Number.isFinite(minorStep) || minorStep <= 0 || start === undefined || end === undefined) {
+    return [];
+  }
+  const out: number[] = [];
+  for (let value = start; value <= end + minorStep * 0.25; value += minorStep) {
+    out.push(Math.abs(value) < minorStep * 1e-6 ? 0 : value);
+  }
+  return out.filter((value) => !major.some((tick) => Math.abs(tick - value) < minorStep * 0.1));
+}
+
+function chooseTimeStep(min: number, max: number, targetCount: number): number {
+  const range = max - min;
+  const desired = range / Math.max(2, targetCount);
+  for (const step of TIME_STEPS_MS) {
+    if (step >= desired) {
+      return step;
+    }
+  }
+  return TIME_STEPS_MS[TIME_STEPS_MS.length - 1] ?? 60 * 60_000;
+}
+
+function timeTicks(min: number, max: number, targetCount: number): number[] {
+  if (max <= min) {
+    return [min];
+  }
+  const step = chooseTimeStep(min, max, targetCount);
+  const start = Math.floor(min / step) * step;
+  const end = Math.ceil(max / step) * step;
+  const out: number[] = [];
+  for (let time = start; time <= end + step * 0.25; time += step) {
+    if (time >= min - step * 0.01 && time <= max + step * 0.01) {
+      out.push(time);
+    }
+  }
+  return out;
+}
+
+function hasNearbyLabel(y: number, others: number[], spacing: number): boolean {
+  return others.some((other) => Math.abs(other - y) < spacing);
 }
 
 export function AxesGrid(props: AxesGridProps): JSX.Element {
-  const xMajor = ticks(props.xMin, props.xMax, 7);
-  const xMinor = ticks(props.xMin, props.xMax, 13);
-  const yMajor = ticks(props.powerMin, props.powerMax, 6);
-  const yMinor = ticks(props.powerMin, props.powerMax, 11);
+  const xMajor = timeTicks(props.xMin, props.xMax, 7);
+  const xMinor = timeTicks(props.xMin, props.xMax, 13);
+  const yMajor = niceLinearTicks(props.powerMin, props.powerMax, 6, true);
+  const yMinor = minorFromMajor(yMajor);
+  const priceMajor = niceLinearTicks(props.priceMin, props.priceMax, 4, true);
+  const socMajor = [0, 20, 40, 60, 80, 100];
+  const priceLabelYs = priceMajor.map((value) => props.yScalePrice(value));
+  const socVisible = socMajor.filter((value) => !hasNearbyLabel(props.yScaleSoc(value), priceLabelYs, 12));
 
   return (
     <>
@@ -64,7 +169,7 @@ export function AxesGrid(props: AxesGridProps): JSX.Element {
             x2={props.xScale(time)}
             y2={props.bottom}
           />
-          <text className="axisTickLabel" x={props.xScale(time)} y={props.bottom + 18} textAnchor="middle">
+          <text className="axisTickLabel" x={props.xScale(time) + 2} y={props.bottom + 16} textAnchor="start">
             {new Date(time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
           </text>
         </g>
@@ -79,23 +184,54 @@ export function AxesGrid(props: AxesGridProps): JSX.Element {
             x2={props.width - props.right}
             y2={props.yScalePower(value)}
           />
-          <text className="axisTickLabel" x={props.left - 8} y={props.yScalePower(value)} textAnchor="end">
-            {value.toFixed(1)}
+          <text className="axisTickLabel" x={props.left - 8} y={props.yScalePower(value) + 9} textAnchor="end">
+            {value.toFixed(Math.abs(value) >= 10 ? 0 : 1)}
           </text>
         </g>
       ))}
 
+      {priceMajor.map((value, idx) => (
+        <text
+          key={`price-major-${idx}`}
+          className="axisTickLabel"
+          x={props.width - props.right + 6}
+          y={props.yScalePrice(value) + 9}
+          textAnchor="start"
+        >
+          {value.toFixed(Math.abs(value) >= 10 ? 0 : 2)}
+        </text>
+      ))}
+
+      {socVisible.map((value, idx) => (
+        <text
+          key={`soc-major-${idx}`}
+          className="axisTickLabel"
+          x={props.width - props.right - 6}
+          y={props.yScaleSoc(value) + 9}
+          textAnchor="end"
+        >
+          {value}%
+        </text>
+      ))}
+
       <line className="axisBase" x1={props.left} y1={props.bottom} x2={props.width - props.right} y2={props.bottom} />
       <line className="axisBase" x1={props.left} y1={props.top} x2={props.left} y2={props.bottom} />
+      <line
+        className="axisBase"
+        x1={props.width - props.right}
+        y1={props.top}
+        x2={props.width - props.right}
+        y2={props.bottom}
+      />
 
       <text className="axisLabelStrong" x={props.left} y={props.top - 6} textAnchor="start">
         Power (kW)
       </text>
-      <text className="axisLabelStrong" x={props.width - props.right} y={props.top - 6} textAnchor="end">
-        Price ({props.priceMin.toFixed(2)} to {props.priceMax.toFixed(2)})
+      <text className="axisLabelStrong" x={props.width - props.right + 6} y={props.top - 6} textAnchor="start">
+        Price
       </text>
-      <text className="axisLabelStrong" x={props.width - props.right} y={props.bottom + 26} textAnchor="end">
-        SOC ({props.socMin.toFixed(0)} to {props.socMax.toFixed(0)})
+      <text className="axisLabelStrong" x={props.width - props.right + 6} y={props.bottom + 20} textAnchor="start">
+        SOC
       </text>
     </>
   );

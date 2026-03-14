@@ -100,22 +100,42 @@ describe("ForecastCardView components", () => {
 
   it("handles legend enter and leave callbacks", () => {
     const hits: Array<string | null> = [];
+    const groups: Array<"production" | "consumption" | "reference" | null> = [];
+    const toggles: string[] = [];
     const series = normalizeSeries(testFixture, { type: "custom:haeo-forecast-card" });
     render(
       <Legend
         series={series}
         highlightedSeries={null}
+        hoveredGroup={null}
+        hiddenSeriesKeys={new Set()}
+        powerDisplayMode="opposed"
         onHighlight={(key) => {
           hits.push(key);
         }}
+        onGroupHover={(group) => {
+          groups.push(group);
+        }}
+        onToggleSeries={(key) => {
+          toggles.push(key);
+        }}
+        onTogglePowerDisplayMode={() => undefined}
       />,
       root
     );
     const firstItem = root.querySelector<HTMLElement>(".legendItem");
+    const firstGroup = root.querySelector<HTMLElement>(".legendGroup");
     expect(firstItem).toBeTruthy();
+    expect(firstGroup).toBeTruthy();
     firstItem?.dispatchEvent(new MouseEvent("mouseenter", { bubbles: true }));
+    firstItem?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     firstItem?.dispatchEvent(new MouseEvent("mouseleave", { bubbles: true }));
+    firstGroup?.dispatchEvent(new MouseEvent("mouseenter", { bubbles: true }));
+    firstGroup?.dispatchEvent(new MouseEvent("mouseleave", { bubbles: true }));
     expect(hits.length).toBeGreaterThanOrEqual(2);
     expect(hits[hits.length - 1]).toBeNull();
+    expect(toggles.length).toBe(1);
+    expect(groups.length).toBeGreaterThanOrEqual(2);
+    expect(groups[groups.length - 1]).toBeNull();
   });
 });

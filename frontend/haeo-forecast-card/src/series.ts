@@ -57,6 +57,30 @@ function inferDrawType(outputType: string): "step" | "line" {
   return outputType === "state_of_charge" ? "line" : "step";
 }
 
+function fallbackLabel(elementName: string, outputName: string, outputType: string): string {
+  const normalizedOutput = outputName.replace(/_/g, " ").trim();
+  if (outputType === "state_of_charge") {
+    return `${elementName} state of charge`.trim();
+  }
+  if (outputType === "power") {
+    const stem = normalizedOutput.replace(/\bpower\b/gi, "").trim();
+    if (!stem) {
+      return elementName;
+    }
+    const el = elementName.toLowerCase();
+    const st = stem.toLowerCase();
+    if (el.includes(st) || st.includes(el)) {
+      return elementName;
+    }
+    return `${elementName} ${stem}`.trim();
+  }
+  if (outputType === "price") {
+    const stem = normalizedOutput.replace(/\bprice\b/gi, "").trim();
+    return stem ? `${elementName} ${stem} price`.trim() : `${elementName} price`;
+  }
+  return `${elementName} ${normalizedOutput}`.trim();
+}
+
 export function normalizeSeries(hass: HassLike | null, config: ForecastCardConfig): ForecastSeries[] {
   if (!hass) {
     return [];
@@ -118,11 +142,14 @@ export function normalizeSeries(hass: HassLike | null, config: ForecastCardConfi
     const elementName = String(attrs["element_name"] ?? entityId);
     const outputName = String(attrs["output_name"] ?? outputType);
     const unit = String(attrs["unit_of_measurement"] ?? "");
+    const friendlyName = String(attrs["friendly_name"] ?? "");
 
     result.push({
       key: `${entityId}:${outputName}`,
       entityId,
-      label: `${elementName} ${outputName}`.trim(),
+      label: friendlyName || fallbackLabel(elementName, outputName, outputType),
+      elementName,
+      outputName,
       outputType,
       lane: inferLane(outputType),
       drawType: inferDrawType(outputType),

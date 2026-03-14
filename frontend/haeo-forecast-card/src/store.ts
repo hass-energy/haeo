@@ -1,9 +1,17 @@
 import { computed, makeAutoObservable } from "mobx";
 
-import { clamp, linearScale, nearestArrayIndex } from "./geometry";
+import { clamp, linearScale, linePath, nearestArrayIndex, stepAreaPath, stepPath } from "./geometry";
+import { classifyPowerSeries } from "./power-series-classification";
 import { normalizeSeries } from "./series";
 import type { HassLike } from "./series";
-import type { ChartMargins, ForecastCardConfig, ForecastSeries, LaneBounds, MotionMode } from "./types";
+import type {
+  ChartMargins,
+  ForecastCardConfig,
+  ForecastSeries,
+  LaneBounds,
+  MotionMode,
+  PowerDisplayMode,
+} from "./types";
 
 const DEFAULT_HEIGHT = 360;
 const VISIBLE_LANES = new Set(["power", "price", "soc"]);
@@ -17,6 +25,9 @@ export class ForecastCardStore {
   pointerY: number | null = null;
   nowMs = Date.now();
   highlightedSeries: string | null = null;
+  hoveredLegendGroup: "production" | "consumption" | "reference" | null = null;
+  hiddenSeriesKeys = new Set<string>();
+  powerDisplayModeOverride: PowerDisplayMode | null = null;
 
   constructor() {
     makeAutoObservable(this, {
@@ -62,6 +73,29 @@ export class ForecastCardStore {
     this.highlightedSeries = key;
   }
 
+  setHoveredLegendGroup(group: "production" | "consumption" | "reference" | null): void {
+    this.hoveredLegendGroup = group;
+  }
+
+  toggleSeriesVisibility(key: string): void {
+    if (this.hiddenSeriesKeys.has(key)) {
+      this.hiddenSeriesKeys.delete(key);
+      return;
+    }
+    this.hiddenSeriesKeys.add(key);
+    if (this.highlightedSeries === key) {
+      this.highlightedSeries = null;
+    }
+  }
+
+  togglePowerDisplayMode(): void {
+    this.powerDisplayModeOverride = this.powerDisplayMode === "opposed" ? "overlay" : "opposed";
+  }
+
+  get powerDisplayMode(): PowerDisplayMode {
+    return this.powerDisplayModeOverride ?? this.config.power_display_mode ?? "opposed";
+  }
+
   get motionMode(): MotionMode {
     return this.config.animation_mode ?? "smooth";
   }
@@ -78,10 +112,10 @@ export class ForecastCardStore {
   get margins(): ChartMargins {
     const compact = this.width < 400;
     return {
-      top: 16,
-      right: compact ? 10 : 16,
-      bottom: compact ? 34 : 40,
-      left: compact ? 40 : 54,
+      top: compact ? 20 : 26,
+      right: compact ? 46 : 74,
+      bottom: compact ? 42 : 50,
+      left: compact ? 44 : 58,
     };
   }
 
@@ -89,12 +123,34 @@ export class ForecastCardStore {
     return normalizeSeries(this.hass, this.config);
   }
 
-  get visibleSeries(): ForecastSeries[] {
+  get legendSeries(): ForecastSeries[] {
     return this.normalizedSeries.filter((series) => VISIBLE_LANES.has(series.lane));
+  }
+
+  get visibleSeries(): ForecastSeries[] {
+    return this.legendSeries.filter((series) => !this.hiddenSeriesKeys.has(series.key));
   }
 
   get powerSeries(): ForecastSeries[] {
     return this.visibleSeries.filter((series) => series.lane === "power");
+  }
+
+  get orderedPowerSeries(): ForecastSeries[] {
+    return [...this.powerSeries].sort((a, b) => {
+      const ca = classifyPowerSeries(a);
+      const cb = classifyPowerSeries(b);
+      const aSub = ca.subgroup === "potential" ? 0 : 1;
+      const bSub = cb.subgroup === "potential" ? 0 : 1;
+      if (aSub !== bSub) {
+        return aSub - bSub;
+      }
+      const aGroup = ca.group === "production" ? 0 : ca.group === "consumption" ? 1 : 2;
+      const bGroup = cb.group === "production" ? 0 : cb.group === "consumption" ? 1 : 2;
+      if (aGroup !== bGroup) {
+        return aGroup - bGroup;
+      }
+      return a.label.localeCompare(b.label);
+    });
   }
 
   get priceSeries(): ForecastSeries[] {
@@ -106,11 +162,36 @@ export class ForecastCardStore {
   }
 
   get hasData(): boolean {
+    return this.legendSeries.length > 0;
+  }
+
+  get hasPlottedData(): boolean {
     return this.visibleSeries.length > 0;
   }
 
+  legendGroupForSeries(series: ForecastSeries): "production" | "consumption" | "reference" {
+    if (series.lane !== "power") {
+      return "reference";
+    }
+    const category = classifyPowerSeries(series);
+    return category.group === "production" ? "production" : "consumption";
+  }
+
+  get focusedGroupSeriesKeys(): Set<string> {
+    if (this.hoveredLegendGroup === null) {
+      return new Set();
+    }
+    const focused = new Set<string>();
+    for (const series of this.visibleSeries) {
+      if (this.legendGroupForSeries(series) === this.hoveredLegendGroup) {
+        focused.add(series.key);
+      }
+    }
+    return focused;
+  }
+
   get xDomain(): { min: number; max: number; step: number } {
-    if (!this.hasData) {
+    if (!this.hasPlottedData) {
       const now = this.nowMs;
       return { min: now, max: now + 60_000, step: 60_000 };
     }
@@ -200,6 +281,8 @@ export class ForecastCardStore {
     if (!Number.isFinite(min) || !Number.isFinite(max)) {
       return fallback;
     }
+    min = Math.min(min, 0);
+    max = Math.max(max, 0);
     if (min === max) {
       const delta = Math.max(1, Math.abs(min) * 0.15);
       return { min: min - delta, max: max + delta };
@@ -217,7 +300,26 @@ export class ForecastCardStore {
   }
 
   get powerBounds(): LaneBounds {
-    return this._bounds(this.powerSeries, { min: 0, max: 1 });
+    let min = Number.POSITIVE_INFINITY;
+    let max = Number.NEGATIVE_INFINITY;
+    for (const series of this.orderedPowerSeries) {
+      for (const value of series.values) {
+        const transformed = this.powerValueForDisplay(series, value);
+        min = Math.min(min, transformed);
+        max = Math.max(max, transformed);
+      }
+    }
+    if (!Number.isFinite(min) || !Number.isFinite(max)) {
+      return { min: -1, max: 1 };
+    }
+    min = Math.min(min, 0);
+    max = Math.max(max, 0);
+    if (min === max) {
+      const delta = Math.max(1, Math.abs(min) * 0.15);
+      return { min: min - delta, max: max + delta };
+    }
+    const padding = Math.max(0.1, (max - min) * 0.08);
+    return { min: min - padding, max: max + padding };
   }
 
   get priceBounds(): LaneBounds {
@@ -225,7 +327,7 @@ export class ForecastCardStore {
   }
 
   get socBounds(): LaneBounds {
-    return this._bounds(this.socSeries, { min: 0, max: 100 });
+    return { min: 0, max: 100 };
   }
 
   yScalePower(value: number): number {
@@ -233,13 +335,154 @@ export class ForecastCardStore {
   }
 
   yScalePrice(value: number): number {
-    const topBandBottom = this.plotTop + (this.plotBottom - this.plotTop) * 0.45;
-    return linearScale(value, this.priceBounds.min, this.priceBounds.max, topBandBottom, this.plotTop + 6);
+    const zeroY = this.yScalePower(0);
+    if (value >= 0) {
+      const positiveMax = Math.max(this.priceBounds.max, 0.001);
+      return linearScale(value, 0, positiveMax, zeroY, this.plotTop);
+    }
+    const negativeMin = Math.min(this.priceBounds.min, -0.001);
+    return linearScale(value, negativeMin, 0, this.plotBottom, zeroY);
   }
 
   yScaleSoc(value: number): number {
-    const bottomBandTop = this.plotTop + (this.plotBottom - this.plotTop) * 0.5;
-    return linearScale(value, this.socBounds.min, this.socBounds.max, this.plotBottom - 6, bottomBandTop);
+    const zeroY = this.yScalePower(0);
+    return linearScale(value, this.socBounds.min, this.socBounds.max, zeroY, this.plotTop);
+  }
+
+  get isHoverInPlot(): boolean {
+    if (this.pointerX === null || this.pointerY === null) {
+      return false;
+    }
+    return (
+      this.pointerX >= this.margins.left &&
+      this.pointerX <= this.width - this.margins.right &&
+      this.pointerY >= this.plotTop &&
+      this.pointerY <= this.plotBottom
+    );
+  }
+
+  get powerShapes(): Array<{ key: string; color: string; d: string }> {
+    const seriesList = this.orderedPowerSeries;
+    const firstSeries = seriesList[0];
+    if (!firstSeries) {
+      return [];
+    }
+    const horizonCount = firstSeries.times.length;
+    const positive = new Float64Array(horizonCount);
+    const negative = new Float64Array(horizonCount);
+
+    return seriesList.map((series) => {
+      const lower = new Float64Array(horizonCount);
+      const upper = new Float64Array(horizonCount);
+      for (let idx = 0; idx < horizonCount; idx += 1) {
+        const raw = series.values[idx] ?? 0;
+        const value = this.powerValueForDisplay(series, raw);
+        if (value >= 0) {
+          lower[idx] = positive[idx] ?? 0;
+          const next = (positive[idx] ?? 0) + value;
+          upper[idx] = next;
+          positive[idx] = next;
+        } else {
+          lower[idx] = negative[idx] ?? 0;
+          const next = (negative[idx] ?? 0) + value;
+          upper[idx] = next;
+          negative[idx] = next;
+        }
+      }
+      return {
+        key: series.key,
+        color: series.color,
+        d: stepAreaPath(
+          series.times,
+          lower,
+          upper,
+          (time) => this.xScale(time),
+          (value) => this.yScalePower(value)
+        ),
+      };
+    });
+  }
+
+  get hoveredPowerSeriesKeys(): Set<string> {
+    if (!this.isHoverInPlot) {
+      return new Set();
+    }
+    const time = this.hoverTimeMs;
+    if (time === null || this.pointerY === null) {
+      return new Set();
+    }
+    const hovered = new Set<string>();
+    const powerSeries = this.orderedPowerSeries;
+    if (powerSeries.length === 0) {
+      return hovered;
+    }
+    const idxBySeries = this.hoverIndices;
+    let positiveStack = 0;
+    let negativeStack = 0;
+    for (const series of powerSeries) {
+      const idx = idxBySeries.get(series.key) ?? 0;
+      const raw = series.values[idx] ?? 0;
+      const value = this.powerValueForDisplay(series, raw);
+      if (Math.abs(value) < 1e-6) {
+        continue;
+      }
+      let lower = 0;
+      let upper = 0;
+      if (value >= 0) {
+        lower = positiveStack;
+        upper = positiveStack + value;
+        positiveStack = upper;
+      } else {
+        lower = negativeStack;
+        upper = negativeStack + value;
+        negativeStack = upper;
+      }
+      const y1 = this.yScalePower(lower);
+      const y2 = this.yScalePower(upper);
+      const top = Math.min(y1, y2);
+      const bottom = Math.max(y1, y2);
+      if (this.pointerY >= top && this.pointerY <= bottom) {
+        hovered.add(series.key);
+      }
+    }
+
+    // Also highlight "potential" sources at this timestamp when they contribute.
+    for (const series of powerSeries) {
+      const category = classifyPowerSeries(series);
+      if (category.subgroup !== "potential") {
+        continue;
+      }
+      const idx = idxBySeries.get(series.key) ?? 0;
+      const value = Math.abs(series.values[idx] ?? 0);
+      if (Math.abs(value) > 1e-6) {
+        hovered.add(series.key);
+      }
+    }
+    return hovered;
+  }
+
+  get pricePaths(): Array<{ key: string; color: string; d: string }> {
+    return this.priceSeries.map((series) => ({
+      key: series.key,
+      color: series.color,
+      d: stepPath(
+        series.points,
+        (time) => this.xScale(time),
+        (value) => this.yScalePrice(value)
+      ),
+    }));
+  }
+
+  get socPaths(): Array<{ key: string; color: string; d: string }> {
+    return this.socSeries.map((series) => ({
+      key: series.key,
+      color: series.color,
+      d: linePath(
+        series.points,
+        (time) => this.xScale(time),
+        (value) => this.yScaleSoc(value)
+      ),
+    }));
   }
 
   get hoverTimeMs(): number | null {
@@ -258,23 +501,39 @@ export class ForecastCardStore {
     return time === null ? null : this.xScale(time);
   }
 
+  get hoverIndices(): Map<string, number> {
+    const time = this.hoverTimeMs;
+    if (time === null) {
+      return new Map();
+    }
+    const indices = new Map<string, number>();
+    for (const series of this.visibleSeries) {
+      indices.set(series.key, nearestArrayIndex(series.times, time));
+    }
+    return indices;
+  }
+
   get tooltipRows(): Array<{ key: string; label: string; value: number; unit: string; color: string }> {
     const time = this.hoverTimeMs;
     if (time === null) {
       return [];
     }
+    const hoverIndices = this.hoverIndices;
     const rows: Array<{ key: string; label: string; value: number; unit: string; color: string }> = [];
     for (const series of this.visibleSeries) {
-      const idx = nearestArrayIndex(series.times, time);
+      const idx = hoverIndices.get(series.key) ?? 0;
       rows.push({
         key: series.key,
         label: series.label,
-        value: series.values[idx] ?? 0,
+        value:
+          series.lane === "power"
+            ? this.powerValueForDisplay(series, series.values[idx] ?? 0)
+            : (series.values[idx] ?? 0),
         unit: series.unit,
         color: series.color,
       });
     }
-    return rows.sort((a, b) => b.value - a.value);
+    return rows.sort((a, b) => Math.abs(b.value) - Math.abs(a.value));
   }
 
   get tooltipTotals(): Array<{ lane: string; value: number; unit: string }> {
@@ -282,12 +541,17 @@ export class ForecastCardStore {
     if (time === null) {
       return [];
     }
+    const hoverIndices = this.hoverIndices;
     const totals = new Map<string, { value: number; unit: string }>();
     for (const series of this.visibleSeries) {
-      const idx = nearestArrayIndex(series.times, time);
+      const idx = hoverIndices.get(series.key) ?? 0;
       const existing = totals.get(series.lane) ?? { value: 0, unit: series.unit };
+      const value =
+        series.lane === "power"
+          ? this.powerValueForDisplay(series, series.values[idx] ?? 0)
+          : (series.values[idx] ?? 0);
       totals.set(series.lane, {
-        value: existing.value + (series.values[idx] ?? 0),
+        value: existing.value + value,
         unit: existing.unit || series.unit,
       });
     }
@@ -296,5 +560,17 @@ export class ForecastCardStore {
       value: total.value,
       unit: total.unit,
     }));
+  }
+
+  private powerValueForDisplay(series: ForecastSeries, value: number): number {
+    const magnitude = Math.abs(value);
+    if (this.powerDisplayMode === "overlay") {
+      return magnitude;
+    }
+    const category = classifyPowerSeries(series);
+    if (category.group === "consumption") {
+      return -magnitude;
+    }
+    return magnitude;
   }
 }

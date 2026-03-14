@@ -2,23 +2,42 @@ export const CARD_STYLES = `
   :host {
     display: block;
     position: relative;
+    --haeo-bg: var(--card-background-color, #ffffff);
+    --haeo-divider: var(--divider-color, #d9dde6);
+    --haeo-text: var(--primary-text-color, #18202a);
+    --haeo-subtext: var(--secondary-text-color, #5d6878);
+    --haeo-accent: var(--primary-color, #1c63e9);
     font-family:
       "Segoe UI",
       "Roboto",
       system-ui,
       sans-serif;
+    color: var(--haeo-text);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :host {
+      --haeo-bg: var(--card-background-color, #1f232b);
+      --haeo-divider: var(--divider-color, #414a59);
+      --haeo-text: var(--primary-text-color, #e3e8ef);
+      --haeo-subtext: var(--secondary-text-color, #a8b1c0);
+      --haeo-accent: var(--primary-color, #8ab4ff);
+    }
   }
 
   ha-card {
     overflow: hidden;
     position: relative;
     min-height: 220px;
+    background: var(--haeo-bg);
+    color: var(--haeo-text);
   }
 
   .title {
     font-size: 1rem;
     font-weight: 600;
     padding: 16px 16px 0;
+    color: var(--haeo-text);
   }
 
   svg {
@@ -28,47 +47,46 @@ export const CARD_STYLES = `
   }
 
   .axisLabel {
-    fill: var(--secondary-text-color);
+    fill: var(--haeo-subtext);
     font-size: 11px;
     dominant-baseline: middle;
   }
 
   .axisLabelStrong {
-    fill: var(--secondary-text-color);
+    fill: var(--haeo-subtext);
     font-size: 11px;
     font-weight: 600;
   }
 
   .axisTickLabel {
-    fill: var(--secondary-text-color);
+    fill: var(--haeo-subtext);
     font-size: 10px;
-    dominant-baseline: middle;
   }
 
   .laneDivider {
-    stroke: color-mix(in oklab, var(--divider-color) 70%, transparent);
+    stroke: color-mix(in oklab, var(--haeo-divider) 70%, transparent);
     stroke-width: 1;
   }
 
   .gridMajor {
-    stroke: color-mix(in oklab, var(--divider-color) 50%, transparent);
+    stroke: color-mix(in oklab, var(--haeo-divider) 50%, transparent);
     stroke-width: 1;
     stroke-dasharray: 3 4;
   }
 
   .gridMinor {
-    stroke: color-mix(in oklab, var(--divider-color) 32%, transparent);
+    stroke: color-mix(in oklab, var(--haeo-divider) 32%, transparent);
     stroke-width: 0.8;
     stroke-dasharray: 1 4;
   }
 
   .axisBase {
-    stroke: color-mix(in oklab, var(--primary-text-color) 35%, transparent);
+    stroke: color-mix(in oklab, var(--haeo-text) 35%, transparent);
     stroke-width: 1.1;
   }
 
   .hoverLine {
-    stroke: var(--primary-color);
+    stroke: var(--haeo-accent);
     stroke-width: 1;
     stroke-dasharray: 4 4;
     pointer-events: none;
@@ -92,14 +110,83 @@ export const CARD_STYLES = `
   .areaSeries {
     stroke-width: 1;
     pointer-events: none;
+    transition:
+      opacity 120ms ease-out,
+      filter 120ms ease-out;
+  }
+
+  .areaSeriesHover {
+    filter: drop-shadow(0 0 4px color-mix(in oklab, currentColor 55%, white));
+  }
+
+  .legendWrap {
+    padding: 0 16px 14px;
+  }
+
+  .legendControls {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 8px;
+  }
+
+  .legendModeToggle {
+    border: 1px solid color-mix(in oklab, var(--haeo-divider) 70%, transparent);
+    background: color-mix(in oklab, var(--haeo-bg) 90%, #000 10%);
+    color: var(--haeo-text);
+    border-radius: 999px;
+    padding: 4px 10px;
+    font-size: 11px;
+    line-height: 1.2;
+    cursor: pointer;
   }
 
   .legend {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    gap: 6px 10px;
-    padding: 0 16px 14px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
     font-size: 12px;
+  }
+
+  .legendGroup {
+    min-width: 220px;
+    flex: 1 1 260px;
+    border: 1px solid color-mix(in oklab, var(--haeo-divider) 62%, transparent);
+    border-radius: 10px;
+    padding: 8px 10px;
+    background: color-mix(in oklab, var(--haeo-bg) 94%, #000 6%);
+    transition: opacity 120ms ease-out;
+  }
+
+  .legendGroup.active {
+    opacity: 1;
+  }
+
+  .legendGroup.dimmed {
+    opacity: 0.4;
+  }
+
+  .legendGroupTitle {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--haeo-text);
+    margin-bottom: 6px;
+  }
+
+  .legendSubgroup {
+    display: grid;
+    gap: 4px;
+    margin-bottom: 6px;
+  }
+
+  .legendSubgroup:last-child {
+    margin-bottom: 0;
+  }
+
+  .legendSubgroupTitle {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--haeo-subtext);
+    margin-top: 2px;
   }
 
   .legendItem {
@@ -108,13 +195,18 @@ export const CARD_STYLES = `
     gap: 8px;
     min-width: 0;
     cursor: pointer;
-    color: var(--primary-text-color);
+    color: var(--haeo-text);
     opacity: 0.72;
   }
 
   .legendItem.active {
     opacity: 1;
     font-weight: 600;
+  }
+
+  .legendItem.disabled {
+    opacity: 0.3;
+    text-decoration: line-through;
   }
 
   .legendSwatch {
@@ -135,13 +227,14 @@ export const CARD_STYLES = `
     right: 14px;
     top: 14px;
     max-width: min(320px, calc(100% - 28px));
-    background: color-mix(in oklab, var(--card-background-color) 86%, #000 14%);
-    border: 1px solid color-mix(in oklab, var(--divider-color) 70%, transparent);
+    background: color-mix(in oklab, var(--haeo-bg) 86%, #000 14%);
+    border: 1px solid color-mix(in oklab, var(--haeo-divider) 70%, transparent);
     border-radius: 10px;
     padding: 10px 11px;
     backdrop-filter: blur(6px);
     font-size: 12px;
     pointer-events: none;
+    color: var(--haeo-text);
   }
 
   .tooltipTime {
@@ -167,14 +260,14 @@ export const CARD_STYLES = `
   .tooltipTotals {
     margin-top: 6px;
     padding-top: 6px;
-    border-top: 1px solid color-mix(in oklab, var(--divider-color) 70%, transparent);
+    border-top: 1px solid color-mix(in oklab, var(--haeo-divider) 70%, transparent);
     display: grid;
     gap: 3px;
   }
 
   .empty {
     padding: 20px 16px 18px;
-    color: var(--secondary-text-color);
+    color: var(--haeo-subtext);
     font-size: 0.9rem;
   }
 `;

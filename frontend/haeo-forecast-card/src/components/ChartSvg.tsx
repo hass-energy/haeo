@@ -13,6 +13,7 @@ interface ChartSvgProps {
 
 export function ChartSvg(props: ChartSvgProps): JSX.Element {
   const { store } = props;
+  const clipId = "haeo-plot-clip";
 
   return (
     <svg
@@ -21,6 +22,17 @@ export function ChartSvg(props: ChartSvgProps): JSX.Element {
       onPointerMove={(event) => props.onPointerMove(event as unknown as PointerEvent)}
       onPointerLeave={props.onPointerLeave}
     >
+      <defs>
+        <clipPath id={clipId}>
+          <rect
+            x={store.margins.left}
+            y={store.plotTop}
+            width={store.width - store.margins.left - store.margins.right}
+            height={store.plotBottom - store.plotTop}
+          />
+        </clipPath>
+      </defs>
+
       <AxesGrid
         width={store.width}
         height={store.height}
@@ -38,31 +50,32 @@ export function ChartSvg(props: ChartSvgProps): JSX.Element {
         priceMax={store.priceBounds.max}
         socMin={store.socBounds.min}
         socMax={store.socBounds.max}
+        yScalePrice={(value) => store.yScalePrice(value)}
+        yScaleSoc={(value) => store.yScaleSoc(value)}
       />
 
-      <PowerStackLayer
-        seriesList={store.powerSeries}
-        highlightedSeries={store.highlightedSeries}
-        xScale={(time) => store.xScale(time)}
-        yScalePower={(value) => store.yScalePower(value)}
-      />
+      <g clipPath={`url(#${clipId})`}>
+        <PowerStackLayer
+          shapes={store.powerShapes}
+          highlightedSeries={store.highlightedSeries}
+          hoveredSeriesKeys={store.hoveredPowerSeriesKeys}
+          focusedSeriesKeys={store.focusedGroupSeriesKeys}
+        />
 
-      <OverlayLineLayer
-        seriesList={store.priceSeries}
-        highlightedSeries={store.highlightedSeries}
-        xScale={(time) => store.xScale(time)}
-        yScale={(value) => store.yScalePrice(value)}
-        cssClass="priceLine"
-        forceStep={true}
-      />
+        <OverlayLineLayer
+          paths={store.pricePaths}
+          highlightedSeries={store.highlightedSeries}
+          focusedSeriesKeys={store.focusedGroupSeriesKeys}
+          cssClass="priceLine"
+        />
 
-      <OverlayLineLayer
-        seriesList={store.socSeries}
-        highlightedSeries={store.highlightedSeries}
-        xScale={(time) => store.xScale(time)}
-        yScale={(value) => store.yScaleSoc(value)}
-        cssClass="socLine"
-      />
+        <OverlayLineLayer
+          paths={store.socPaths}
+          highlightedSeries={store.highlightedSeries}
+          focusedSeriesKeys={store.focusedGroupSeriesKeys}
+          cssClass="socLine"
+        />
+      </g>
 
       {store.hoverX !== null && (
         <line className="hoverLine" x1={store.hoverX} y1={store.plotTop} x2={store.hoverX} y2={store.plotBottom} />
