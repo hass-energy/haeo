@@ -32,7 +32,7 @@ export function classifyPowerSeries(series: ForecastSeries): PowerSeriesCategory
   // Input power entities (config_mode set) represent potential forecasts.
   if (hasConfigInput && series.outputType === "power") {
     subgroup = "potential";
-    if (elementType === "solar" && group === "unknown") {
+    if (elementType === "solar") {
       group = "production";
     }
   }

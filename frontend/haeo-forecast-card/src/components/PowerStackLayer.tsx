@@ -1,7 +1,7 @@
 import type { JSX } from "preact";
 
 interface PowerStackLayerProps {
-  shapes: Array<{ key: string; color: string; d: string }>;
+  shapes: Array<{ key: string; color: string; d: string; isPotential: boolean }>;
   highlightedSeries: string | null;
   hoveredSeriesKeys: Set<string>;
   focusedSeriesKeys: Set<string>;
@@ -18,12 +18,15 @@ export function PowerStackLayer(props: PowerStackLayerProps): JSX.Element {
         const isHovered = props.hoveredSeriesKeys.has(shape.key);
         const hasGroupFocus = props.focusedSeriesKeys.size > 0;
         const groupFocused = props.focusedSeriesKeys.has(shape.key);
-        let opacity = isHovered ? 0.8 : 0.52;
+        let opacity = shape.isPotential ? 0.24 : 0.52;
+        if (isHovered) {
+          opacity = shape.isPotential ? 0.38 : 0.8;
+        }
         if (hasGroupFocus) {
-          opacity = groupFocused ? Math.max(opacity, 0.68) : 0.12;
+          opacity = groupFocused ? Math.max(opacity, shape.isPotential ? 0.32 : 0.68) : 0.12;
         }
         if (props.highlightedSeries) {
-          opacity = props.highlightedSeries === shape.key ? 0.76 : 0.14;
+          opacity = props.highlightedSeries === shape.key ? (shape.isPotential ? 0.34 : 0.76) : 0.14;
         }
         const className = isHovered || props.highlightedSeries === shape.key ? "areaSeries active" : "areaSeries";
         return (

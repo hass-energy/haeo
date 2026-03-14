@@ -394,7 +394,7 @@ export class ForecastCardStore {
     );
   }
 
-  get powerShapes(): Array<{ key: string; color: string; d: string }> {
+  get powerShapes(): Array<{ key: string; color: string; d: string; isPotential: boolean }> {
     const seriesList = this.orderedPowerSeries;
     const firstSeries = seriesList[0];
     if (!firstSeries) {
@@ -404,6 +404,7 @@ export class ForecastCardStore {
     const stacks = this.emptySectionStacks(horizonCount);
 
     return seriesList.map((series) => {
+      const category = classifyPowerSeries(series);
       const section = this.powerSection(series);
       const stack = stacks[section];
       const lower = new Float64Array(horizonCount);
@@ -418,6 +419,7 @@ export class ForecastCardStore {
       return {
         key: series.key,
         color: series.color,
+        isPotential: category.subgroup === "potential",
         d: stepAreaPath(
           series.times,
           lower,
