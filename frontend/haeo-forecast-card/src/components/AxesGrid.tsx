@@ -107,12 +107,39 @@ function chooseTimeStep(min: number, max: number, targetCount: number): number {
   return TIME_STEPS_MS[TIME_STEPS_MS.length - 1] ?? 60 * 60_000;
 }
 
+function alignTickStart(min: number, step: number): number {
+  const date = new Date(min);
+  date.setSeconds(0, 0);
+  const minuteMs = 60_000;
+  const hourMs = 60 * minuteMs;
+  const dayMs = 24 * hourMs;
+
+  if (step >= dayMs) {
+    date.setHours(0, 0, 0, 0);
+  } else if (step >= hourMs) {
+    const hoursPerStep = Math.max(1, Math.round(step / hourMs));
+    const hour = date.getHours();
+    date.setMinutes(0, 0, 0);
+    date.setHours(hour - (hour % hoursPerStep));
+  } else {
+    const minutesPerStep = Math.max(1, Math.round(step / minuteMs));
+    const minute = date.getMinutes();
+    date.setMinutes(minute - (minute % minutesPerStep), 0, 0);
+  }
+
+  let aligned = date.getTime();
+  while (aligned < min) {
+    aligned += step;
+  }
+  return aligned;
+}
+
 function timeTicks(min: number, max: number, targetCount: number): number[] {
   if (max <= min) {
     return [min];
   }
   const step = chooseTimeStep(min, max, targetCount);
-  const start = Math.floor(min / step) * step;
+  const start = alignTickStart(min, step);
   const end = Math.ceil(max / step) * step;
   const out: number[] = [];
   for (let time = start; time <= end + step * 0.25; time += step) {
@@ -127,12 +154,42 @@ function hasNearbyLabel(y: number, others: number[], spacing: number): boolean {
   return others.some((other) => Math.abs(other - y) < spacing);
 }
 
+function priceAtY(y: number, top: number, bottom: number, zeroY: number, priceMin: number, priceMax: number): number {
+  const positiveMax = Math.max(priceMax, 0.001);
+  const negativeMin = Math.min(priceMin, -0.001);
+  if (y <= zeroY) {
+    const span = Math.max(1e-6, zeroY - top);
+    const t = (y - top) / span;
+    return positiveMax * (1 - t);
+  }
+  const span = Math.max(1e-6, bottom - zeroY);
+  const t = (y - zeroY) / span;
+  return negativeMin * t;
+}
+
+function dedupeClose(values: number[], epsilon: number): number[] {
+  const out: number[] = [];
+  for (const value of values) {
+    if (!out.some((existing) => Math.abs(existing - value) < epsilon)) {
+      out.push(value);
+    }
+  }
+  return out;
+}
+
 export function AxesGrid(props: AxesGridProps): JSX.Element {
   const xMajor = timeTicks(props.xMin, props.xMax, 7);
   const xMinor = timeTicks(props.xMin, props.xMax, 13);
   const yMajor = niceLinearTicks(props.powerMin, props.powerMax, 6, true);
   const yMinor = minorFromMajor(yMajor);
-  const priceMajor = niceLinearTicks(props.priceMin, props.priceMax, 4, true);
+  const zeroY = props.yScalePower(0);
+  const priceMajor = dedupeClose(
+    yMajor
+      .map((value) => props.yScalePower(value))
+      .map((y) => priceAtY(y, props.top, props.bottom, zeroY, props.priceMin, props.priceMax))
+      .filter((value) => value >= props.priceMin - 1e-6 && value <= props.priceMax + 1e-6),
+    1e-3
+  );
   const socMajor = [0, 20, 40, 60, 80, 100];
   const priceLabelYs = priceMajor.map((value) => props.yScalePrice(value));
   const socVisible = socMajor.filter((value) => !hasNearbyLabel(props.yScaleSoc(value), priceLabelYs, 12));
