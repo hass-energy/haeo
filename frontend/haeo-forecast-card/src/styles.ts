@@ -161,11 +161,10 @@ export const CARD_STYLES = `
 
   .legend {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, max-content));
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
     gap: 6px;
     font-size: 12px;
     align-items: start;
-    justify-content: start;
   }
 
   .legendElement {
@@ -190,9 +189,11 @@ export const CARD_STYLES = `
   }
 
   .legendElementMain {
-    display: inline-flex;
+    display: flex;
     align-items: center;
+    justify-content: space-between;
     gap: 6px;
+    width: 100%;
   }
 
   .legendElementLabel {
@@ -219,13 +220,14 @@ export const CARD_STYLES = `
     flex-wrap: nowrap;
     gap: 4px;
     align-items: center;
-    max-width: 100%;
+    justify-content: flex-end;
+    max-width: 65%;
   }
 
   .legendItem {
     appearance: none;
     border: 1px solid color-mix(in oklab, currentColor 50%, transparent);
-    background: color-mix(in oklab, var(--haeo-bg) 93%, #000 7%);
+    background: transparent;
     border-radius: 999px;
     padding: 3px 6px;
     display: flex;
@@ -242,12 +244,16 @@ export const CARD_STYLES = `
   }
 
   .legendItem.active {
-    opacity: 1;
-    box-shadow: 0 0 0 1px color-mix(in oklab, currentColor 60%, transparent);
+    box-shadow: 0 0 0 1px color-mix(in oklab, currentColor 30%, transparent);
   }
 
   .legendItem.disabled {
-    opacity: 0.3;
+    opacity: 0.95;
+    background: transparent;
+  }
+
+  .legendItem:not(.disabled) {
+    background: currentColor;
   }
 
   .legendIcon {
@@ -255,6 +261,11 @@ export const CARD_STYLES = `
     height: 13px;
     color: currentColor;
     fill: currentColor;
+  }
+
+  .legendItem:not(.disabled) .legendIcon {
+    color: var(--haeo-bg);
+    fill: var(--haeo-bg);
   }
 
   .tooltip {

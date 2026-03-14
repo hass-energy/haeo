@@ -33,15 +33,6 @@ export function Tooltip(props: TooltipProps): JSX.Element | null {
     groups.set(row.lane, rows);
   }
   const laneLabel = (lane: string): string => {
-    if (lane === "power") {
-      return "Power";
-    }
-    if (lane === "price") {
-      return "Price";
-    }
-    if (lane === "soc") {
-      return "State of charge";
-    }
     return lane;
   };
   return (

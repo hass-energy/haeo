@@ -540,22 +540,26 @@ export class ForecastCardStore {
     const rows: Array<{ key: string; label: string; value: number; unit: string; color: string; lane: string }> = [];
     for (const series of this.visibleSeries) {
       const idx = hoverIndices.get(series.key) ?? 0;
+      const section = this.tooltipSection(series);
       rows.push({
         key: series.key,
-        label: series.label,
+        label: this.tooltipDisplayLabel(series, section),
         value:
           series.lane === "power"
             ? this.powerValueForDisplay(series, series.values[idx] ?? 0)
             : (series.values[idx] ?? 0),
         unit: series.unit,
         color: series.color,
-        lane: series.lane,
+        lane: section,
       });
     }
     const laneOrder = new Map<string, number>([
-      ["power", 0],
-      ["price", 1],
-      ["soc", 2],
+      ["Produced", 0],
+      ["Available", 1],
+      ["Consumed", 2],
+      ["Possible", 3],
+      ["Price", 4],
+      ["State of charge", 5],
     ]);
     return rows.sort((a, b) => {
       const la = laneOrder.get(a.lane) ?? 9;
@@ -587,7 +591,7 @@ export class ForecastCardStore {
       });
     }
     return [...totals.entries()].map(([lane, total]) => ({
-      lane,
+      lane: lane === "soc" ? "State of charge" : lane === "price" ? "Price" : lane === "power" ? "Power" : lane,
       value: total.value,
       unit: total.unit,
     }));
@@ -649,5 +653,49 @@ export class ForecastCardStore {
         this.hiddenSeriesKeys.add(series.key);
       }
     }
+  }
+
+  private tooltipSection(series: ForecastSeries): string {
+    if (series.lane === "price") {
+      return "Price";
+    }
+    if (series.lane === "soc") {
+      return "State of charge";
+    }
+    const category = classifyPowerSeries(series);
+    if (category.group === "production") {
+      return category.subgroup === "potential" ? "Available" : "Produced";
+    }
+    if (category.group === "consumption") {
+      return category.subgroup === "potential" ? "Possible" : "Consumed";
+    }
+    return "Consumed";
+  }
+
+  private tooltipDisplayLabel(series: ForecastSeries, section: string): string {
+    const name = series.label.trim();
+    if (section === "Price") {
+      const output = series.outputName.toLowerCase();
+      if (output.includes("import")) {
+        return `${name} (import)`;
+      }
+      if (output.includes("export")) {
+        return `${name} (export)`;
+      }
+      return name;
+    }
+    if (series.lane !== "power") {
+      return name;
+    }
+    const lower = name.toLowerCase();
+    if (
+      lower.includes("import") ||
+      lower.includes("export") ||
+      lower.includes("charge") ||
+      lower.includes("discharge")
+    ) {
+      return name;
+    }
+    return `${name} (${section.toLowerCase()})`;
   }
 }

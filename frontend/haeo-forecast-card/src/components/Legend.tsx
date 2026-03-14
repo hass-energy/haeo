@@ -21,6 +21,13 @@ function seriesIconPath(series: ForecastSeries): string {
   const icons = mdi as Record<string, string>;
   const fallback = icons["mdiChartLine"] ?? "";
   if (series.lane === "price" || series.outputName.includes("price")) {
+    const output = series.outputName.toLowerCase();
+    if (output.includes("import")) {
+      return icons["mdiCashPlus"] ?? icons["mdiCurrencyUsd"] ?? fallback;
+    }
+    if (output.includes("export")) {
+      return icons["mdiCashMinus"] ?? icons["mdiCurrencyUsd"] ?? fallback;
+    }
     return icons["mdiCurrencyUsd"] ?? fallback;
   }
   if (series.lane === "soc") {
@@ -80,7 +87,7 @@ export function Legend(props: LegendProps): JSX.Element {
       onMouseEnter={() => props.onHighlight(series.key)}
       onMouseLeave={() => props.onHighlight(null)}
       onClick={() => props.onToggleSeries(series.key)}
-      title={series.label}
+      title={seriesTooltip(series)}
       style={{ borderColor: series.color, color: series.color }}
     >
       <MdiIcon path={seriesIconPath(series)} />
@@ -96,6 +103,35 @@ export function Legend(props: LegendProps): JSX.Element {
       </div>
       <div className="legend">
         {elements.map(([elementName, elementSeries]) => {
+          const sortedSeries = [...elementSeries].sort((a, b) => {
+            const laneOrder = (series: ForecastSeries): number => {
+              if (series.lane === "power") {
+                const c = classifyPowerSeries(series);
+                if (c.group === "production" && c.subgroup === "utilization") {
+                  return 0;
+                }
+                if (c.group === "production" && c.subgroup === "potential") {
+                  return 1;
+                }
+                if (c.group === "consumption" && c.subgroup === "utilization") {
+                  return 2;
+                }
+                if (c.group === "consumption" && c.subgroup === "potential") {
+                  return 3;
+                }
+                return 4;
+              }
+              if (series.lane === "price") {
+                return 5;
+              }
+              if (series.lane === "soc") {
+                return 6;
+              }
+              return 7;
+            };
+            const byLane = laneOrder(a) - laneOrder(b);
+            return byLane !== 0 ? byLane : a.label.localeCompare(b.label);
+          });
           const hiddenCount = elementSeries.filter((series) => props.hiddenSeriesKeys.has(series.key)).length;
           const allHidden = hiddenCount === elementSeries.length;
           const active = props.hoveredElement === null || props.hoveredElement === elementName;
@@ -115,7 +151,7 @@ export function Legend(props: LegendProps): JSX.Element {
                 >
                   <span className="legendGroupTitle">{elementName}</span>
                 </button>
-                <div className="legendIconRow">{elementSeries.map((series) => renderSeriesItem(series))}</div>
+                <div className="legendIconRow">{sortedSeries.map((series) => renderSeriesItem(series))}</div>
               </div>
             </div>
           );
@@ -123,4 +159,32 @@ export function Legend(props: LegendProps): JSX.Element {
       </div>
     </div>
   );
+}
+
+function seriesTooltip(series: ForecastSeries): string {
+  if (series.lane === "price") {
+    const output = series.outputName.toLowerCase();
+    if (output.includes("import")) {
+      return `${series.label} (import price)`;
+    }
+    if (output.includes("export")) {
+      return `${series.label} (export price)`;
+    }
+  }
+  if (series.lane === "power") {
+    const category = classifyPowerSeries(series);
+    if (category.group === "production" && category.subgroup === "potential") {
+      return `${series.label} (available)`;
+    }
+    if (category.group === "production") {
+      return `${series.label} (produced)`;
+    }
+    if (category.group === "consumption" && category.subgroup === "potential") {
+      return `${series.label} (possible)`;
+    }
+    if (category.group === "consumption") {
+      return `${series.label} (consumed)`;
+    }
+  }
+  return series.label;
 }
