@@ -16,7 +16,7 @@ function pickEntities(states) {
     "sensor.grid_import_power",
     "sensor.grid_export_power",
     "sensor.solar_power",
-    "sensor.solar_forecast_limit",
+    "number.solar_forecast",
     "sensor.constant_load_power",
     "sensor.battery_charge_power",
     "sensor.battery_discharge_power",
