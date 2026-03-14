@@ -9,7 +9,6 @@ export interface PowerSeriesCategory {
 }
 
 export function classifyPowerSeries(series: ForecastSeries): PowerSeriesCategory {
-  const elementType = series.elementType.toLowerCase();
   const hasConfigInput = series.configMode !== null;
   const isPowerLike =
     series.outputType === "power" || series.outputType === "power_flow" || series.outputType === "power_limit";
@@ -32,9 +31,6 @@ export function classifyPowerSeries(series: ForecastSeries): PowerSeriesCategory
   // Input power entities (config_mode set) represent potential forecasts.
   if (hasConfigInput && series.outputType === "power") {
     subgroup = "potential";
-    if (elementType === "solar") {
-      group = "production";
-    }
   }
 
   return { group, subgroup };
