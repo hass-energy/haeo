@@ -218,10 +218,10 @@ export const CARD_STYLES = `
   .legendIconRow {
     display: flex;
     flex-wrap: nowrap;
-    gap: 4px;
+    gap: 6px;
     align-items: center;
     justify-content: flex-end;
-    max-width: 65%;
+    max-width: 70%;
   }
 
   .legendItem {
@@ -229,7 +229,7 @@ export const CARD_STYLES = `
     border: 1px solid color-mix(in oklab, currentColor 50%, transparent);
     background: transparent;
     border-radius: 999px;
-    padding: 3px 6px;
+    padding: 4px 7px;
     display: flex;
     align-items: center;
     gap: 6px;
@@ -238,8 +238,8 @@ export const CARD_STYLES = `
     color: var(--haeo-text);
     font: inherit;
     opacity: 0.72;
-    width: 24px;
-    height: 24px;
+    width: 30px;
+    height: 30px;
     justify-content: center;
   }
 
@@ -257,8 +257,8 @@ export const CARD_STYLES = `
   }
 
   .legendIcon {
-    width: 13px;
-    height: 13px;
+    width: 18px;
+    height: 18px;
     color: currentColor;
     fill: currentColor;
   }

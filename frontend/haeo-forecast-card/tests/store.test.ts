@@ -58,7 +58,7 @@ describe("ForecastCardStore", () => {
     store.togglePowerDisplayMode();
     expect(store.powerDisplayMode).toBe("overlay");
 
-    const first = store.legendSeries[0];
+    const first = store.visibleSeries[0] ?? store.legendSeries[0];
     expect(first).toBeTruthy();
     if (!first) {
       return;
