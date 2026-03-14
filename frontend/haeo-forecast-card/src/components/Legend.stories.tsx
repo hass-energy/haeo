@@ -22,12 +22,13 @@ export const Default: Story = {
       <Legend
         series={series}
         highlightedSeries={null}
-        hoveredGroup={null}
+        hoveredElement={null}
         hiddenSeriesKeys={new Set()}
         powerDisplayMode="opposed"
         onHighlight={() => undefined}
-        onGroupHover={() => undefined}
+        onElementHover={() => undefined}
         onToggleSeries={() => undefined}
+        onToggleElement={() => undefined}
         onTogglePowerDisplayMode={() => undefined}
       />
     </div>

@@ -69,11 +69,10 @@ describe("ForecastCardStore", () => {
     store.toggleSeriesVisibility(first.key);
     expect(store.visibleSeries.length).toBe(before);
 
-    store.setHoveredLegendGroup("production");
-    expect(store.focusedGroupSeriesKeys.size).toBeGreaterThanOrEqual(0);
-    store.setHoveredLegendGroup("reference");
-    expect(store.focusedGroupSeriesKeys.size).toBeGreaterThanOrEqual(0);
-    store.setHoveredLegendGroup(null);
-    expect(store.focusedGroupSeriesKeys.size).toBe(0);
+    const firstElement = store.legendSeries[0]?.elementName ?? null;
+    store.setHoveredLegendElement(firstElement);
+    expect(store.focusedElementSeriesKeys.size).toBeGreaterThanOrEqual(0);
+    store.setHoveredLegendElement(null);
+    expect(store.focusedElementSeriesKeys.size).toBe(0);
   });
 });

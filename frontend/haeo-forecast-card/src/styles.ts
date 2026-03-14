@@ -119,13 +119,26 @@ export const CARD_STYLES = `
   .areaSeries {
     stroke-width: 1;
     pointer-events: none;
-    transition:
-      opacity 120ms ease-out,
-      filter 120ms ease-out;
+    transition: opacity 90ms linear;
   }
 
-  .areaSeriesHover {
-    filter: drop-shadow(0 0 4px color-mix(in oklab, currentColor 55%, white));
+  .areaSeriesGlow {
+    stroke-width: 2.3;
+    stroke-linejoin: round;
+    opacity: 0.88;
+    pointer-events: none;
+    animation: areaGlowPulse 240ms ease-out;
+  }
+
+  @keyframes areaGlowPulse {
+    from {
+      opacity: 0.25;
+      stroke-width: 1.2;
+    }
+    to {
+      opacity: 0.88;
+      stroke-width: 2.3;
+    }
   }
 
   .legendWrap {
@@ -143,6 +156,7 @@ export const CARD_STYLES = `
     border: 1px solid color-mix(in oklab, var(--haeo-divider) 70%, transparent);
     background: color-mix(in oklab, var(--haeo-bg) 90%, #000 10%);
     color: var(--haeo-text);
+    font: inherit;
     border-radius: 999px;
     padding: 4px 10px;
     font-size: 11px;
@@ -154,6 +168,20 @@ export const CARD_STYLES = `
     display: grid;
     gap: 6px;
     font-size: 12px;
+  }
+
+  .legendElement {
+    display: grid;
+    gap: 4px;
+    transition: opacity 120ms ease-out;
+  }
+
+  .legendElement.active {
+    opacity: 1;
+  }
+
+  .legendElement.dimmed {
+    opacity: 0.4;
   }
 
   .legendGroups {
@@ -172,15 +200,12 @@ export const CARD_STYLES = `
     background: color-mix(in oklab, var(--haeo-bg) 94%, #000 6%);
     transition: opacity 120ms ease-out;
     color: var(--haeo-text);
+    font: inherit;
     cursor: pointer;
   }
 
   .legendGroup.active {
     opacity: 1;
-  }
-
-  .legendGroup.dimmed {
-    opacity: 0.4;
   }
 
   .legendGroupTitle {
@@ -221,6 +246,7 @@ export const CARD_STYLES = `
     min-width: 0;
     cursor: pointer;
     color: var(--haeo-text);
+    font: inherit;
     opacity: 0.72;
     max-width: 100%;
   }

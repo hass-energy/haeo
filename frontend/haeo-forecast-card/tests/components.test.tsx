@@ -124,24 +124,28 @@ describe("ForecastCardView components", () => {
 
   it("handles legend enter and leave callbacks", () => {
     const hits: Array<string | null> = [];
-    const groups: Array<"production" | "consumption" | "reference" | null> = [];
+    const groups: Array<string | null> = [];
     const toggles: string[] = [];
+    const elementToggles: string[] = [];
     const series = normalizeSeries(testFixture, { type: "custom:haeo-forecast-card" });
     render(
       <Legend
         series={series}
         highlightedSeries={null}
-        hoveredGroup={null}
+        hoveredElement={null}
         hiddenSeriesKeys={new Set()}
         powerDisplayMode="opposed"
         onHighlight={(key) => {
           hits.push(key);
         }}
-        onGroupHover={(group) => {
+        onElementHover={(group) => {
           groups.push(group);
         }}
         onToggleSeries={(key) => {
           toggles.push(key);
+        }}
+        onToggleElement={(elementName) => {
+          elementToggles.push(elementName);
         }}
         onTogglePowerDisplayMode={() => undefined}
       />,
@@ -161,6 +165,7 @@ describe("ForecastCardView components", () => {
     expect(toggles.length).toBe(1);
     expect(groups.length).toBeGreaterThanOrEqual(2);
     expect(groups[groups.length - 1]).toBeNull();
+    expect(elementToggles.length).toBeGreaterThanOrEqual(0);
   });
 
   it("triggers state changes from forecast view interactions", () => {

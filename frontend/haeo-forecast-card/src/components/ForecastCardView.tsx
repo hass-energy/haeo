@@ -32,19 +32,23 @@ export function ForecastCardView(props: ForecastCardViewProps): JSX.Element {
       <Legend
         series={props.store.legendSeries}
         highlightedSeries={props.store.highlightedSeries}
-        hoveredGroup={props.store.hoveredLegendGroup}
+        hoveredElement={props.store.hoveredLegendElement}
         hiddenSeriesKeys={props.store.hiddenSeriesKeys}
         powerDisplayMode={props.store.powerDisplayMode}
         onHighlight={(key) => {
           props.store.setHighlightedSeries(key);
           props.onStateChange();
         }}
-        onGroupHover={(group) => {
-          props.store.setHoveredLegendGroup(group);
+        onElementHover={(elementName) => {
+          props.store.setHoveredLegendElement(elementName);
           props.onStateChange();
         }}
         onToggleSeries={(key) => {
           props.store.toggleSeriesVisibility(key);
+          props.onStateChange();
+        }}
+        onToggleElement={(elementName) => {
+          props.store.toggleElementVisibility(elementName);
           props.onStateChange();
         }}
         onTogglePowerDisplayMode={() => {

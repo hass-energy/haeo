@@ -25,8 +25,9 @@ export class ForecastCardStore {
   pointerY: number | null = null;
   nowMs = Date.now();
   highlightedSeries: string | null = null;
-  hoveredLegendGroup: "production" | "consumption" | "reference" | null = null;
+  hoveredLegendElement: string | null = null;
   hiddenSeriesKeys = new Set<string>();
+  forcedVisibleSeriesKeys = new Set<string>();
   powerDisplayModeOverride: PowerDisplayMode | null = null;
 
   constructor() {
@@ -73,18 +74,42 @@ export class ForecastCardStore {
     this.highlightedSeries = key;
   }
 
-  setHoveredLegendGroup(group: "production" | "consumption" | "reference" | null): void {
-    this.hoveredLegendGroup = group;
+  setHoveredLegendElement(elementName: string | null): void {
+    this.hoveredLegendElement = elementName;
   }
 
   toggleSeriesVisibility(key: string): void {
     if (this.hiddenSeriesKeys.has(key)) {
       this.hiddenSeriesKeys.delete(key);
+      this.forcedVisibleSeriesKeys.add(key);
       return;
     }
     this.hiddenSeriesKeys.add(key);
+    this.forcedVisibleSeriesKeys.delete(key);
     if (this.highlightedSeries === key) {
       this.highlightedSeries = null;
+    }
+  }
+
+  toggleElementVisibility(elementName: string): void {
+    const keys = this.legendSeries.filter((series) => series.elementName === elementName).map((series) => series.key);
+    if (keys.length === 0) {
+      return;
+    }
+    const allHidden = keys.every((key) => this.hiddenSeriesKeys.has(key));
+    if (allHidden) {
+      for (const key of keys) {
+        this.hiddenSeriesKeys.delete(key);
+        this.forcedVisibleSeriesKeys.add(key);
+      }
+      return;
+    }
+    for (const key of keys) {
+      this.hiddenSeriesKeys.add(key);
+      this.forcedVisibleSeriesKeys.delete(key);
+      if (this.highlightedSeries === key) {
+        this.highlightedSeries = null;
+      }
     }
   }
 
@@ -124,6 +149,7 @@ export class ForecastCardStore {
   }
 
   get legendSeries(): ForecastSeries[] {
+    this.applyDefaultHiddenSeries();
     return this.normalizedSeries.filter((series) => VISIBLE_LANES.has(series.lane));
   }
 
@@ -169,21 +195,13 @@ export class ForecastCardStore {
     return this.visibleSeries.length > 0;
   }
 
-  legendGroupForSeries(series: ForecastSeries): "production" | "consumption" | "reference" {
-    if (series.lane !== "power") {
-      return "reference";
-    }
-    const category = classifyPowerSeries(series);
-    return category.group === "production" ? "production" : "consumption";
-  }
-
-  get focusedGroupSeriesKeys(): Set<string> {
-    if (this.hoveredLegendGroup === null) {
+  get focusedElementSeriesKeys(): Set<string> {
+    if (this.hoveredLegendElement === null) {
       return new Set();
     }
     const focused = new Set<string>();
     for (const series of this.visibleSeries) {
-      if (this.legendGroupForSeries(series) === this.hoveredLegendGroup) {
+      if (series.elementName === this.hoveredLegendElement) {
         focused.add(series.key);
       }
     }
@@ -513,13 +531,13 @@ export class ForecastCardStore {
     return indices;
   }
 
-  get tooltipRows(): Array<{ key: string; label: string; value: number; unit: string; color: string }> {
+  get tooltipRows(): Array<{ key: string; label: string; value: number; unit: string; color: string; lane: string }> {
     const time = this.hoverTimeMs;
     if (time === null) {
       return [];
     }
     const hoverIndices = this.hoverIndices;
-    const rows: Array<{ key: string; label: string; value: number; unit: string; color: string }> = [];
+    const rows: Array<{ key: string; label: string; value: number; unit: string; color: string; lane: string }> = [];
     for (const series of this.visibleSeries) {
       const idx = hoverIndices.get(series.key) ?? 0;
       rows.push({
@@ -531,9 +549,22 @@ export class ForecastCardStore {
             : (series.values[idx] ?? 0),
         unit: series.unit,
         color: series.color,
+        lane: series.lane,
       });
     }
-    return rows.sort((a, b) => Math.abs(b.value) - Math.abs(a.value));
+    const laneOrder = new Map<string, number>([
+      ["power", 0],
+      ["price", 1],
+      ["soc", 2],
+    ]);
+    return rows.sort((a, b) => {
+      const la = laneOrder.get(a.lane) ?? 9;
+      const lb = laneOrder.get(b.lane) ?? 9;
+      if (la !== lb) {
+        return la - lb;
+      }
+      return Math.abs(b.value) - Math.abs(a.value);
+    });
   }
 
   get tooltipTotals(): Array<{ lane: string; value: number; unit: string }> {
@@ -583,5 +614,21 @@ export class ForecastCardStore {
       return -magnitude;
     }
     return magnitude;
+  }
+
+  private applyDefaultHiddenSeries(): void {
+    for (const series of this.normalizedSeries) {
+      if (series.lane !== "power") {
+        continue;
+      }
+      const isGrid = series.elementName.toLowerCase().includes("grid");
+      const category = classifyPowerSeries(series);
+      if (!isGrid || category.subgroup !== "potential") {
+        continue;
+      }
+      if (!this.forcedVisibleSeriesKeys.has(series.key)) {
+        this.hiddenSeriesKeys.add(series.key);
+      }
+    }
   }
 }

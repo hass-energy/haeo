@@ -59,20 +59,20 @@ export function ChartSvg(props: ChartSvgProps): JSX.Element {
           shapes={store.powerShapes}
           highlightedSeries={store.highlightedSeries}
           hoveredSeriesKeys={store.hoveredPowerSeriesKeys}
-          focusedSeriesKeys={store.focusedGroupSeriesKeys}
+          focusedSeriesKeys={store.focusedElementSeriesKeys}
         />
 
         <OverlayLineLayer
           paths={store.pricePaths}
           highlightedSeries={store.highlightedSeries}
-          focusedSeriesKeys={store.focusedGroupSeriesKeys}
+          focusedSeriesKeys={store.focusedElementSeriesKeys}
           cssClass="priceLine"
         />
 
         <OverlayLineLayer
           paths={store.socPaths}
           highlightedSeries={store.highlightedSeries}
-          focusedSeriesKeys={store.focusedGroupSeriesKeys}
+          focusedSeriesKeys={store.focusedElementSeriesKeys}
           cssClass="socLine"
         />
       </g>

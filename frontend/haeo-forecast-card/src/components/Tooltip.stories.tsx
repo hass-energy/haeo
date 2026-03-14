@@ -15,8 +15,8 @@ export const Default: Story = {
     <Tooltip
       hoverTimeMs={Date.parse("2025-10-06T10:55:00.000000+0000")}
       rows={[
-        { key: "grid-power", label: "Grid import power", value: 2.1, unit: "kW", color: "#4f46e5" },
-        { key: "battery-soc", label: "Battery SOC", value: 64.2, unit: "%", color: "#16a34a" },
+        { key: "grid-power", label: "Grid import power", value: 2.1, unit: "kW", color: "#4f46e5", lane: "power" },
+        { key: "battery-soc", label: "Battery SOC", value: 64.2, unit: "%", color: "#16a34a", lane: "soc" },
       ]}
       totals={[
         { lane: "power", value: 2.1, unit: "kW" },
