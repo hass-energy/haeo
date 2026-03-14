@@ -2,6 +2,7 @@ import type { ForecastCardConfig, ForecastSeries, LaneType } from "./types";
 
 type HassEntityState = {
   entity_id: string;
+  state?: unknown;
   attributes: Record<string, unknown>;
 };
 

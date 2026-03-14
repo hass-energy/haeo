@@ -4,11 +4,13 @@ export const scenarioFixture: HassLike = {
   states: {
     "sensor.grid_import_power": {
       entity_id: "sensor.grid_import_power",
+      state: "0.0",
       attributes: {
+        advanced: false,
+        device_class: "power",
+        direction: "+",
         element_name: "Grid",
-        output_name: "grid_power_import",
-        output_type: "power",
-        unit_of_measurement: "kW",
+        element_type: "grid",
         forecast: [
           {
             time: "2025-10-06T10:50:00.000000+0000",
@@ -451,15 +453,22 @@ export const scenarioFixture: HassLike = {
             value: 0,
           },
         ],
+        friendly_name: "Grid Import power",
+        output_name: "grid_power_import",
+        output_type: "power",
+        state_class: "measurement",
+        unit_of_measurement: "kW",
       },
     },
     "sensor.grid_export_power": {
       entity_id: "sensor.grid_export_power",
+      state: "0.0",
       attributes: {
+        advanced: false,
+        device_class: "power",
+        direction: "-",
         element_name: "Grid",
-        output_name: "grid_power_export",
-        output_type: "power",
-        unit_of_measurement: "kW",
+        element_type: "grid",
         forecast: [
           {
             time: "2025-10-06T10:50:00.000000+0000",
@@ -902,15 +911,22 @@ export const scenarioFixture: HassLike = {
             value: 15.2,
           },
         ],
+        friendly_name: "Grid Export power",
+        output_name: "grid_power_export",
+        output_type: "power",
+        state_class: "measurement",
+        unit_of_measurement: "kW",
       },
     },
     "sensor.solar_power": {
       entity_id: "sensor.solar_power",
+      state: "0.0",
       attributes: {
+        advanced: false,
+        device_class: "power",
+        direction: "+",
         element_name: "Solar",
-        output_name: "solar_power",
-        output_type: "power",
-        unit_of_measurement: "kW",
+        element_type: "solar",
         forecast: [
           {
             time: "2025-10-06T10:50:00.000000+0000",
@@ -1353,15 +1369,22 @@ export const scenarioFixture: HassLike = {
             value: 0,
           },
         ],
+        friendly_name: "Solar Power",
+        output_name: "solar_power",
+        output_type: "power",
+        state_class: "measurement",
+        unit_of_measurement: "kW",
       },
     },
     "sensor.constant_load_power": {
       entity_id: "sensor.constant_load_power",
+      state: "1.0",
       attributes: {
+        advanced: false,
+        device_class: "power",
+        direction: "-",
         element_name: "Constant Load",
-        output_name: "load_power",
-        output_type: "power",
-        unit_of_measurement: "kW",
+        element_type: "load",
         forecast: [
           {
             time: "2025-10-06T10:50:00.000000+0000",
@@ -1804,15 +1827,938 @@ export const scenarioFixture: HassLike = {
             value: 1,
           },
         ],
+        friendly_name: "Constant Load Power",
+        output_name: "load_power",
+        output_type: "power",
+        state_class: "measurement",
+        unit_of_measurement: "kW",
+      },
+    },
+    "sensor.battery_charge_power": {
+      entity_id: "sensor.battery_charge_power",
+      state: "0.0",
+      attributes: {
+        advanced: false,
+        device_class: "power",
+        direction: "-",
+        element_name: "Battery",
+        element_type: "battery",
+        forecast: [
+          {
+            time: "2025-10-06T10:50:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-06T10:51:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-06T10:52:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-06T10:53:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-06T10:54:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-06T10:55:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-06T11:00:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-06T11:05:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-06T11:10:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-06T11:15:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-06T11:20:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-06T11:25:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-06T11:30:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-06T11:35:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-06T11:40:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-06T11:45:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-06T11:50:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-06T12:20:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-06T12:50:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-06T13:20:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-06T13:50:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-06T14:20:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-06T14:50:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-06T15:20:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-06T15:50:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-06T16:20:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-06T16:50:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-06T17:20:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-06T17:50:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-06T18:20:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-06T18:50:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-06T19:20:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-06T19:50:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-06T20:20:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-06T20:50:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-06T21:20:00.000000+0000",
+            value: 4.03,
+          },
+          {
+            time: "2025-10-06T21:50:00.000000+0000",
+            value: 5.17,
+          },
+          {
+            time: "2025-10-06T22:20:00.000000+0000",
+            value: 6.38,
+          },
+          {
+            time: "2025-10-06T22:50:00.000000+0000",
+            value: 7.22,
+          },
+          {
+            time: "2025-10-06T23:20:00.000000+0000",
+            value: 7.65,
+          },
+          {
+            time: "2025-10-06T23:50:00.000000+0000",
+            value: 8.43,
+          },
+          {
+            time: "2025-10-07T00:20:00.000000+0000",
+            value: 9.64,
+          },
+          {
+            time: "2025-10-07T00:50:00.000000+0000",
+            value: 10.68,
+          },
+          {
+            time: "2025-10-07T01:20:00.000000+0000",
+            value: 23.87,
+          },
+          {
+            time: "2025-10-07T01:50:00.000000+0000",
+            value: 11.74,
+          },
+          {
+            time: "2025-10-07T02:20:00.000000+0000",
+            value: 11.65,
+          },
+          {
+            time: "2025-10-07T02:50:00.000000+0000",
+            value: 11.02,
+          },
+          {
+            time: "2025-10-07T03:20:00.000000+0000",
+            value: 10.05,
+          },
+          {
+            time: "2025-10-07T03:50:00.000000+0000",
+            value: 9.06,
+          },
+          {
+            time: "2025-10-07T04:20:00.000000+0000",
+            value: 7.93,
+          },
+          {
+            time: "2025-10-07T04:50:00.000000+0000",
+            value: 6.43,
+          },
+          {
+            time: "2025-10-07T05:20:00.000000+0000",
+            value: 4.73,
+          },
+          {
+            time: "2025-10-07T05:50:00.000000+0000",
+            value: 2.89,
+          },
+          {
+            time: "2025-10-07T06:20:00.000000+0000",
+            value: 1.03,
+          },
+          {
+            time: "2025-10-07T06:50:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-07T07:20:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-07T07:50:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-07T08:20:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-07T08:50:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-07T09:20:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-07T09:50:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-07T10:20:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-07T10:50:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-07T11:50:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-07T12:50:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-07T13:50:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-07T14:50:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-07T15:50:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-07T16:50:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-07T17:50:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-07T18:50:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-07T19:50:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-07T20:50:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-07T21:50:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-07T22:50:00.000000+0000",
+            value: 15.63,
+          },
+          {
+            time: "2025-10-07T23:50:00.000000+0000",
+            value: 17.47,
+          },
+          {
+            time: "2025-10-08T00:50:00.000000+0000",
+            value: 17.14,
+          },
+          {
+            time: "2025-10-08T01:50:00.000000+0000",
+            value: 15.45,
+          },
+          {
+            time: "2025-10-08T02:50:00.000000+0000",
+            value: 12.92,
+          },
+          {
+            time: "2025-10-08T03:50:00.000000+0000",
+            value: 1.19,
+          },
+          {
+            time: "2025-10-08T04:50:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-08T05:50:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-08T06:50:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-08T07:50:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-08T08:50:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-08T09:50:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-08T10:50:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-08T11:50:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-08T12:50:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-08T13:50:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-08T14:50:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-08T15:50:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-08T16:50:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-08T17:50:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-08T18:50:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-08T19:50:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-08T20:50:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-08T21:50:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-08T22:50:00.000000+0000",
+            value: 0.18,
+          },
+          {
+            time: "2025-10-08T23:50:00.000000+0000",
+            value: 16.93,
+          },
+          {
+            time: "2025-10-09T00:50:00.000000+0000",
+            value: 22.12,
+          },
+          {
+            time: "2025-10-09T01:50:00.000000+0000",
+            value: 21.19,
+          },
+          {
+            time: "2025-10-09T02:50:00.000000+0000",
+            value: 19.37,
+          },
+          {
+            time: "2025-10-09T03:50:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-09T04:50:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-09T05:50:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-09T06:50:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-09T07:50:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-09T08:50:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-09T09:50:00.000000+0000",
+            value: 0,
+          },
+        ],
+        friendly_name: "Battery Charge power",
+        output_name: "battery_power_charge",
+        output_type: "power",
+        state_class: "measurement",
+        unit_of_measurement: "kW",
+      },
+    },
+    "sensor.battery_discharge_power": {
+      entity_id: "sensor.battery_discharge_power",
+      state: "1.01",
+      attributes: {
+        advanced: false,
+        device_class: "power",
+        direction: "+",
+        element_name: "Battery",
+        element_type: "battery",
+        forecast: [
+          {
+            time: "2025-10-06T10:50:00.000000+0000",
+            value: 1.01,
+          },
+          {
+            time: "2025-10-06T10:51:00.000000+0000",
+            value: 1.01,
+          },
+          {
+            time: "2025-10-06T10:52:00.000000+0000",
+            value: 1.01,
+          },
+          {
+            time: "2025-10-06T10:53:00.000000+0000",
+            value: 1.01,
+          },
+          {
+            time: "2025-10-06T10:54:00.000000+0000",
+            value: 1.01,
+          },
+          {
+            time: "2025-10-06T10:55:00.000000+0000",
+            value: 1.01,
+          },
+          {
+            time: "2025-10-06T11:00:00.000000+0000",
+            value: 1.01,
+          },
+          {
+            time: "2025-10-06T11:05:00.000000+0000",
+            value: 1.01,
+          },
+          {
+            time: "2025-10-06T11:10:00.000000+0000",
+            value: 1.01,
+          },
+          {
+            time: "2025-10-06T11:15:00.000000+0000",
+            value: 1.01,
+          },
+          {
+            time: "2025-10-06T11:20:00.000000+0000",
+            value: 1.01,
+          },
+          {
+            time: "2025-10-06T11:25:00.000000+0000",
+            value: 1.01,
+          },
+          {
+            time: "2025-10-06T11:30:00.000000+0000",
+            value: 1.01,
+          },
+          {
+            time: "2025-10-06T11:35:00.000000+0000",
+            value: 1.01,
+          },
+          {
+            time: "2025-10-06T11:40:00.000000+0000",
+            value: 1.01,
+          },
+          {
+            time: "2025-10-06T11:45:00.000000+0000",
+            value: 1.01,
+          },
+          {
+            time: "2025-10-06T11:50:00.000000+0000",
+            value: 1.01,
+          },
+          {
+            time: "2025-10-06T12:20:00.000000+0000",
+            value: 1.01,
+          },
+          {
+            time: "2025-10-06T12:50:00.000000+0000",
+            value: 1.01,
+          },
+          {
+            time: "2025-10-06T13:20:00.000000+0000",
+            value: 1.01,
+          },
+          {
+            time: "2025-10-06T13:50:00.000000+0000",
+            value: 1.01,
+          },
+          {
+            time: "2025-10-06T14:20:00.000000+0000",
+            value: 1.01,
+          },
+          {
+            time: "2025-10-06T14:50:00.000000+0000",
+            value: 1.01,
+          },
+          {
+            time: "2025-10-06T15:20:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-06T15:50:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-06T16:20:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-06T16:50:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-06T17:20:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-06T17:50:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-06T18:20:00.000000+0000",
+            value: 1.01,
+          },
+          {
+            time: "2025-10-06T18:50:00.000000+0000",
+            value: 0.99,
+          },
+          {
+            time: "2025-10-06T19:20:00.000000+0000",
+            value: 31.14,
+          },
+          {
+            time: "2025-10-06T19:50:00.000000+0000",
+            value: 30.55,
+          },
+          {
+            time: "2025-10-06T20:20:00.000000+0000",
+            value: 18.54,
+          },
+          {
+            time: "2025-10-06T20:50:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-06T21:20:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-06T21:50:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-06T22:20:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-06T22:50:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-06T23:20:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-06T23:50:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-07T00:20:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-07T00:50:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-07T01:20:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-07T01:50:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-07T02:20:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-07T02:50:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-07T03:20:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-07T03:50:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-07T04:20:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-07T04:50:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-07T05:20:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-07T05:50:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-07T06:20:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-07T06:50:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-07T07:20:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-07T07:50:00.000000+0000",
+            value: 1,
+          },
+          {
+            time: "2025-10-07T08:20:00.000000+0000",
+            value: 31.31,
+          },
+          {
+            time: "2025-10-07T08:50:00.000000+0000",
+            value: 31.31,
+          },
+          {
+            time: "2025-10-07T09:20:00.000000+0000",
+            value: 23.52,
+          },
+          {
+            time: "2025-10-07T09:50:00.000000+0000",
+            value: 1.01,
+          },
+          {
+            time: "2025-10-07T10:20:00.000000+0000",
+            value: 1.01,
+          },
+          {
+            time: "2025-10-07T10:50:00.000000+0000",
+            value: 1.01,
+          },
+          {
+            time: "2025-10-07T11:50:00.000000+0000",
+            value: 1.01,
+          },
+          {
+            time: "2025-10-07T12:50:00.000000+0000",
+            value: 1.01,
+          },
+          {
+            time: "2025-10-07T13:50:00.000000+0000",
+            value: 1.01,
+          },
+          {
+            time: "2025-10-07T14:50:00.000000+0000",
+            value: 1.01,
+          },
+          {
+            time: "2025-10-07T15:50:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-07T16:50:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-07T17:50:00.000000+0000",
+            value: 1.01,
+          },
+          {
+            time: "2025-10-07T18:50:00.000000+0000",
+            value: 0.76,
+          },
+          {
+            time: "2025-10-07T19:50:00.000000+0000",
+            value: 28.38,
+          },
+          {
+            time: "2025-10-07T20:50:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-07T21:50:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-07T22:50:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-07T23:50:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-08T00:50:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-08T01:50:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-08T02:50:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-08T03:50:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-08T04:50:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-08T05:50:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-08T06:50:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-08T07:50:00.000000+0000",
+            value: 16.34,
+          },
+          {
+            time: "2025-10-08T08:50:00.000000+0000",
+            value: 31.31,
+          },
+          {
+            time: "2025-10-08T09:50:00.000000+0000",
+            value: 1.01,
+          },
+          {
+            time: "2025-10-08T10:50:00.000000+0000",
+            value: 1.01,
+          },
+          {
+            time: "2025-10-08T11:50:00.000000+0000",
+            value: 1.01,
+          },
+          {
+            time: "2025-10-08T12:50:00.000000+0000",
+            value: 1.01,
+          },
+          {
+            time: "2025-10-08T13:50:00.000000+0000",
+            value: 1.01,
+          },
+          {
+            time: "2025-10-08T14:50:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-08T15:50:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-08T16:50:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-08T17:50:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-08T18:50:00.000000+0000",
+            value: 0.66,
+          },
+          {
+            time: "2025-10-08T19:50:00.000000+0000",
+            value: 26.44,
+          },
+          {
+            time: "2025-10-08T20:50:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-08T21:50:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-08T22:50:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-08T23:50:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-09T00:50:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-09T01:50:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-09T02:50:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-09T03:50:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-09T04:50:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-09T05:50:00.000000+0000",
+            value: 0,
+          },
+          {
+            time: "2025-10-09T06:50:00.000000+0000",
+            value: 0.81,
+          },
+          {
+            time: "2025-10-09T07:50:00.000000+0000",
+            value: 31.31,
+          },
+          {
+            time: "2025-10-09T08:50:00.000000+0000",
+            value: 31.31,
+          },
+          {
+            time: "2025-10-09T09:50:00.000000+0000",
+            value: 16.36,
+          },
+        ],
+        friendly_name: "Battery Discharge power",
+        output_name: "battery_power_discharge",
+        output_type: "power",
+        state_class: "measurement",
+        unit_of_measurement: "kW",
       },
     },
     "number.grid_import_price": {
       entity_id: "number.grid_import_price",
+      state: "0.22",
       attributes: {
+        config_mode: "driven",
+        direction: "-",
         element_name: "Grid",
-        output_name: "grid_import_price",
-        output_type: "price",
-        unit_of_measurement: "",
+        element_type: "grid",
+        field_name: "price_source_target",
         forecast: [
           {
             time: "2025-10-06T10:50:00.000000+0000",
@@ -2255,15 +3201,25 @@ export const scenarioFixture: HassLike = {
             value: 0.237,
           },
         ],
+        friendly_name: "Grid Import price",
+        max: 10,
+        min: -1,
+        mode: "auto",
+        output_type: "price",
+        source_entities: ["sensor.home_general_price", "sensor.home_general_forecast"],
+        step: 0.001,
+        time_series: true,
       },
     },
     "number.grid_export_price": {
       entity_id: "number.grid_export_price",
+      state: "0.12",
       attributes: {
+        config_mode: "driven",
+        direction: "+",
         element_name: "Grid",
-        output_name: "grid_export_price",
-        output_type: "price",
-        unit_of_measurement: "",
+        element_type: "grid",
+        field_name: "price_target_source",
         forecast: [
           {
             time: "2025-10-06T10:50:00.000000+0000",
@@ -2706,15 +3662,24 @@ export const scenarioFixture: HassLike = {
             value: 0.142,
           },
         ],
+        friendly_name: "Grid Export price",
+        max: 10,
+        min: -1,
+        mode: "auto",
+        output_type: "price",
+        source_entities: ["sensor.home_feed_in_price", "sensor.home_feed_in_forecast"],
+        step: 0.001,
+        time_series: true,
       },
     },
     "sensor.battery_state_of_charge": {
       entity_id: "sensor.battery_state_of_charge",
+      state: "61.5",
       attributes: {
+        advanced: false,
+        device_class: "battery",
         element_name: "Battery",
-        output_name: "battery_state_of_charge",
-        output_type: "state_of_charge",
-        unit_of_measurement: "%",
+        element_type: "battery",
         forecast: [
           {
             time: "2025-10-06T10:50:00.000000+0000",
@@ -3161,6 +4126,11 @@ export const scenarioFixture: HassLike = {
             value: 10,
           },
         ],
+        friendly_name: "Battery State of charge",
+        output_name: "battery_state_of_charge",
+        output_type: "state_of_charge",
+        state_class: "measurement",
+        unit_of_measurement: "%",
       },
     },
   },

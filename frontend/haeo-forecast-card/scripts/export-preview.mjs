@@ -12,39 +12,32 @@ const scenarioPath = resolve(workspaceRoot, "tests", "scenarios", "scenario4", "
 const outputSvg = resolve(outputDir, "card-preview.svg");
 
 function pickEntities(states) {
-  const values = Object.values(states);
-  const wanted = [];
-  const categories = {
-    power: 0,
-    price: 0,
-    state_of_charge: 0,
-    shadow_price: 0,
-  };
-
-  for (const state of values) {
-    const attrs = state?.attributes ?? {};
-    if (!Array.isArray(attrs.forecast) || attrs.forecast.length < 2) {
-      continue;
-    }
-    const outputType = String(attrs.output_type ?? "");
-    if (outputType in categories) {
-      if (outputType === "power" && categories.power < 4) {
-        categories.power += 1;
-        wanted.push(state.entity_id);
-      } else if (outputType === "price" && categories.price < 3) {
-        categories.price += 1;
-        wanted.push(state.entity_id);
-      } else if (outputType === "state_of_charge" && categories.state_of_charge < 2) {
-        categories.state_of_charge += 1;
-        wanted.push(state.entity_id);
-      } else if (outputType === "shadow_price" && categories.shadow_price < 2) {
-        categories.shadow_price += 1;
-        wanted.push(state.entity_id);
-      }
-    }
+  const preferred = [
+    "sensor.grid_import_power",
+    "sensor.grid_export_power",
+    "sensor.solar_power",
+    "sensor.solar_forecast_limit",
+    "sensor.constant_load_power",
+    "sensor.battery_charge_power",
+    "sensor.battery_discharge_power",
+    "number.grid_import_price",
+    "number.grid_export_price",
+    "sensor.battery_state_of_charge",
+  ];
+  const selected = preferred.filter((entityId) => {
+    const state = states[entityId];
+    const forecast = state?.attributes?.forecast;
+    return Array.isArray(forecast) && forecast.length > 1;
+  });
+  if (selected.length > 0) {
+    return selected;
   }
-
-  return wanted;
+  return Object.values(states)
+    .filter((state) => {
+      const forecast = state?.attributes?.forecast;
+      return Array.isArray(forecast) && forecast.length > 1;
+    })
+    .map((state) => state.entity_id);
 }
 
 async function main() {
