@@ -44,6 +44,7 @@ export const Default: Story = {
         <style>{CARD_STYLES}</style>
         <Legend
           series={series}
+          locale="en"
           highlightedSeries={null}
           hoveredElement={null}
           hiddenSeriesKeys={new Set()}

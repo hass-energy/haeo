@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { ForecastCardStore } from "../src/store";
 import { loadScenarioHassState } from "./helpers/scenarioOutputs";
+import type { HassLike } from "../src/series";
 
 describe("ForecastCardStore", () => {
   it("builds filtered visible series from real scenario outputs", () => {
@@ -74,5 +75,42 @@ describe("ForecastCardStore", () => {
     expect(store.focusedElementSeriesKeys.size).toBeGreaterThanOrEqual(0);
     store.setHoveredLegendElement(null);
     expect(store.focusedElementSeriesKeys.size).toBe(0);
+  });
+
+  it("uses step interval index before midpoint switch", () => {
+    const store = new ForecastCardStore();
+    const hass: HassLike = {
+      states: {
+        "sensor.test_power": {
+          entity_id: "sensor.test_power",
+          attributes: {
+            output_type: "power",
+            output_name: "load_power",
+            element_name: "Load",
+            unit_of_measurement: "kW",
+            forecast: [
+              { time: "2026-03-14T00:00:00Z", value: 1 },
+              { time: "2026-03-14T00:10:00Z", value: 2 },
+              { time: "2026-03-14T00:20:00Z", value: 3 },
+            ],
+          },
+        },
+      },
+    };
+    store.setHass(hass);
+    store.setConfig({ type: "custom:haeo-forecast-card", animation_mode: "off" });
+    store.setSize(900, 380);
+
+    const series = store.visibleSeries[0];
+    expect(series).toBeTruthy();
+    if (!series) {
+      return;
+    }
+    const first = series.times[0] ?? 0;
+    const second = series.times[1] ?? first;
+    const midpoint = first + (second - first) * 0.5;
+    store.setPointer(store.xScale(midpoint), 120);
+
+    expect(store.hoverIndices.get(series.key)).toBe(0);
   });
 });

@@ -8,6 +8,8 @@ type HassEntityState = {
 
 type HassLike = {
   states: Record<string, HassEntityState | undefined>;
+  language?: string;
+  locale?: { language?: string };
 };
 
 export type { HassEntityState, HassLike };

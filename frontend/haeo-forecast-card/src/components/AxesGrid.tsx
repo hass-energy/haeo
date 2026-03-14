@@ -1,6 +1,8 @@
 import type { JSX } from "preact";
+import { t } from "../i18n";
 
 interface AxesGridProps {
+  locale: string;
   width: number;
   height: number;
   left: number;
@@ -289,13 +291,13 @@ export function AxesGrid(props: AxesGridProps): JSX.Element {
       />
 
       <text className="axisLabelStrong" x={props.left} y={props.top - 6} textAnchor="start">
-        Power (kW)
+        {t(props.locale, "axis.power")}
       </text>
       <text className="axisLabelStrong" x={props.width - props.right + 6} y={props.top - 6} textAnchor="start">
-        Price
+        {t(props.locale, "axis.price")}
       </text>
       <text className="axisLabelStrong" x={props.width - props.right + 6} y={props.bottom + 20} textAnchor="start">
-        SOC
+        {t(props.locale, "axis.soc")}
       </text>
     </>
   );

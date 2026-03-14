@@ -1,4 +1,5 @@
 import type { ForecastCardConfig } from "./types";
+import { t } from "./i18n";
 
 type EntityRegistryEntry = {
   entity_id: string;
@@ -10,6 +11,8 @@ type EntityRegistryEntry = {
 type HassEditorLike = {
   states: Record<string, { attributes?: Record<string, unknown> } | undefined>;
   callWS?: <T>(message: Record<string, unknown>) => Promise<T>;
+  language?: string;
+  locale?: { language?: string };
 };
 
 type HubOption = {
@@ -24,6 +27,10 @@ export class HaeoForecastCardEditor extends HTMLElement {
   private hubOptions: HubOption[] = [];
   private loading = false;
   private error: string | null = null;
+
+  private get locale(): string {
+    return this._hass?.language ?? this._hass?.locale?.language ?? navigator.language ?? "en";
+  }
 
   setConfig(config: ForecastCardConfig): void {
     this._config = { ...config };
@@ -46,7 +53,7 @@ export class HaeoForecastCardEditor extends HTMLElement {
   private async refreshDiscovery(): Promise<void> {
     if (!this._hass?.callWS) {
       this.hubOptions = [];
-      this.error = "Home Assistant websocket API unavailable in editor.";
+      this.error = t(this.locale, "editor.error.ws_unavailable");
       this.render();
       return;
     }
@@ -174,15 +181,15 @@ export class HaeoForecastCardEditor extends HTMLElement {
       </style>
       <div class="wrap">
         <label>
-          Title
-          <input id="titleInput" type="text" value="${this._config.title ?? ""}" placeholder="HAEO forecast" />
+          ${t(this.locale, "editor.title.label")}
+          <input id="titleInput" type="text" value="${this._config.title ?? ""}" placeholder="${t(this.locale, "editor.title.placeholder")}" />
         </label>
         <label>
-          HAEO hub entry
+          ${t(this.locale, "editor.hub.label")}
           <select id="hubSelect" ${this.hubOptions.length === 0 ? "disabled" : ""}>
             ${
               this.hubOptions.length === 0
-                ? `<option value="">No HAEO hubs with forecast entities found</option>`
+                ? `<option value="">${t(this.locale, "editor.hub.none")}</option>`
                 : this.hubOptions
                     .map((option) => {
                       const selected = option.entryId === selectedHub ? "selected" : "";
@@ -195,14 +202,18 @@ export class HaeoForecastCardEditor extends HTMLElement {
         <div class="meta">
           ${
             this.loading
-              ? "Discovering HAEO hubs and forecast entities..."
-              : `Discovered entities for selected hub: ${selectedEntityCount}`
+              ? t(this.locale, "editor.discovery.loading")
+              : t(this.locale, "editor.discovery.count", { count: selectedEntityCount })
           }
         </div>
-        ${selectedElementNames.length > 0 ? `<div class="meta">Elements: ${selectedElementNames.join(", ")}</div>` : ""}
+        ${
+          selectedElementNames.length > 0
+            ? `<div class="meta">${t(this.locale, "editor.elements.label", { elements: selectedElementNames.join(", ") })}</div>`
+            : ""
+        }
         <label>
-          Chart height (optional)
-          <input id="heightInput" type="number" min="220" step="10" value="${this._config.height ?? ""}" placeholder="auto" />
+          ${t(this.locale, "editor.height.label")}
+          <input id="heightInput" type="number" min="220" step="10" value="${this._config.height ?? ""}" placeholder="${t(this.locale, "editor.height.placeholder")}" />
         </label>
         ${this.error ? `<div class="error">${this.error}</div>` : ""}
       </div>

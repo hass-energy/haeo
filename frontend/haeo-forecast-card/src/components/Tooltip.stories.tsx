@@ -13,6 +13,7 @@ type Story = StoryObj<typeof Tooltip>;
 export const Default: Story = {
   render: () => (
     <Tooltip
+      locale="en"
       hoverTimeMs={Date.parse("2025-10-06T10:55:00.000000+0000")}
       rows={[
         {

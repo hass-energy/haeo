@@ -3,6 +3,7 @@ import type { JSX } from "preact";
 import { ChartSvg } from "./ChartSvg";
 import { Legend } from "./Legend";
 import { Tooltip } from "./Tooltip";
+import { t } from "../i18n";
 import { observer } from "../mobx-observer";
 import type { ForecastCardStore } from "../store";
 
@@ -13,7 +14,7 @@ interface ForecastCardViewProps {
 }
 
 const CardTitle = observer(function CardTitle(props: { store: ForecastCardStore }): JSX.Element {
-  return <div className="title">{props.store.config.title ?? "HAEO forecast"}</div>;
+  return <div className="title">{props.store.config.title ?? t(props.store.locale, "card.title.default")}</div>;
 });
 
 const ChartSection = observer(function ChartSection(props: ForecastCardViewProps): JSX.Element {
@@ -24,6 +25,7 @@ const LegendSection = observer(function LegendSection(props: { store: ForecastCa
   return (
     <Legend
       series={props.store.legendSeries}
+      locale={props.store.locale}
       highlightedSeries={props.store.highlightedSeries}
       hoveredElement={props.store.hoveredLegendElement}
       hiddenSeriesKeys={props.store.hiddenSeriesKeys}
@@ -51,6 +53,7 @@ const LegendSection = observer(function LegendSection(props: { store: ForecastCa
 const TooltipSection = observer(function TooltipSection(props: { store: ForecastCardStore }): JSX.Element | null {
   return (
     <Tooltip
+      locale={props.store.locale}
       hoverTimeMs={props.store.hoverTimeMs}
       rows={props.store.tooltipRows}
       totals={props.store.tooltipTotals}
@@ -64,9 +67,7 @@ export const ForecastCardView = observer(function ForecastCardView(props: Foreca
     return (
       <ha-card>
         <CardTitle store={props.store} />
-        <div className="empty">
-          No forecast data found. Add forecast entities in card config or ensure HAEO output sensors are available.
-        </div>
+        <div className="empty">{t(props.store.locale, "card.empty.message")}</div>
       </ha-card>
     );
   }

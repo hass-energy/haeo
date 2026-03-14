@@ -216,6 +216,10 @@ export class ForecastCardStore {
     return this.visibleSeries.length > 0;
   }
 
+  get locale(): string {
+    return this.hass?.language ?? this.hass?.locale?.language ?? "en";
+  }
+
   get focusedElementSeriesKeys(): Set<string> {
     if (this.hoveredLegendElement === null) {
       return new Set();
@@ -579,12 +583,17 @@ export class ForecastCardStore {
     }
     const sharedTimeline = this.sharedTimeline;
     if (sharedTimeline) {
-      const idx = nearestArrayIndex(sharedTimeline, time);
-      return new Map(this.visibleSeries.map((series) => [series.key, idx]));
+      const nearestIdx = nearestArrayIndex(sharedTimeline, time);
+      const stepIdx = this.stepArrayIndex(sharedTimeline, time);
+      return new Map(
+        this.visibleSeries.map((series) => [series.key, series.drawType === "step" ? stepIdx : nearestIdx])
+      );
     }
     const indices = new Map<string, number>();
     for (const series of this.visibleSeries) {
-      indices.set(series.key, nearestArrayIndex(series.times, time));
+      const idx =
+        series.drawType === "step" ? this.stepArrayIndex(series.times, time) : nearestArrayIndex(series.times, time);
+      indices.set(series.key, idx);
     }
     return indices;
   }
@@ -846,6 +855,32 @@ export class ForecastCardStore {
 
   private prettifyOutput(outputName: string): string {
     return outputName.replace(/_/g, " ").trim().toLowerCase();
+  }
+
+  private stepArrayIndex(times: Float64Array, time: number): number {
+    const length = times.length;
+    if (length <= 1) {
+      return 0;
+    }
+    let low = 0;
+    let high = length;
+    while (low < high) {
+      const mid = (low + high) >>> 1;
+      const midValue = times[mid] ?? 0;
+      if (midValue <= time) {
+        low = mid + 1;
+      } else {
+        high = mid;
+      }
+    }
+    const idx = low - 1;
+    if (idx < 0) {
+      return 0;
+    }
+    if (idx >= length) {
+      return length - 1;
+    }
+    return idx;
   }
 
   private powerSection(series: ForecastSeries): PowerSection {

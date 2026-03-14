@@ -107,6 +107,7 @@ describe("ForecastCardView components", () => {
     render(
       <Legend
         series={series}
+        locale="en"
         highlightedSeries={null}
         hoveredElement={null}
         hiddenSeriesKeys={new Set()}

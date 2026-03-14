@@ -2,11 +2,13 @@ import type { JSX } from "preact";
 import * as mdi from "@mdi/js";
 import { memo } from "preact/compat";
 
+import { t } from "../i18n";
 import { classifyPowerSeries } from "../power-series-classification";
 import type { ForecastSeries, PowerDisplayMode } from "../types";
 
 interface LegendProps {
   series: ForecastSeries[];
+  locale: string;
   highlightedSeries: string | null;
   hoveredElement: string | null;
   hiddenSeriesKeys: Set<string>;
@@ -89,7 +91,7 @@ function LegendView(props: LegendProps): JSX.Element {
       onMouseEnter={() => props.onHighlight(series.key)}
       onMouseLeave={() => props.onHighlight(null)}
       onClick={() => props.onToggleSeries(series.key)}
-      title={seriesTooltip(series)}
+      title={seriesTooltip(series, props.locale)}
       style={{ borderColor: series.color, color: series.color }}
     >
       <MdiIcon path={seriesIconPath(series)} />
@@ -100,7 +102,10 @@ function LegendView(props: LegendProps): JSX.Element {
     <div className="legendWrap">
       <div className="legendControls">
         <button type="button" className="legendModeToggle" onClick={props.onTogglePowerDisplayMode}>
-          Mode: {props.powerDisplayMode === "opposed" ? "Opposed" : "Overlay"}
+          {t(props.locale, "legend.mode")}:{" "}
+          {props.powerDisplayMode === "opposed"
+            ? t(props.locale, "legend.mode.opposed")
+            : t(props.locale, "legend.mode.overlay")}
         </button>
       </div>
       <div className="legend">
@@ -149,7 +154,7 @@ function LegendView(props: LegendProps): JSX.Element {
                   type="button"
                   className="legendElementLabel"
                   onClick={() => props.onToggleElement(elementName)}
-                  title={`Toggle ${elementName} series`}
+                  title={t(props.locale, "legend.toggle.element", { element: elementName })}
                 >
                   <span className="legendGroupTitle">{elementName}</span>
                 </button>
@@ -166,6 +171,7 @@ function LegendView(props: LegendProps): JSX.Element {
 function areLegendPropsEqual(prev: LegendProps, next: LegendProps): boolean {
   return (
     prev.series === next.series &&
+    prev.locale === next.locale &&
     prev.highlightedSeries === next.highlightedSeries &&
     prev.hoveredElement === next.hoveredElement &&
     prev.visibilityRevision === next.visibilityRevision &&
@@ -175,29 +181,29 @@ function areLegendPropsEqual(prev: LegendProps, next: LegendProps): boolean {
 
 export const Legend = memo(LegendView, areLegendPropsEqual);
 
-function seriesTooltip(series: ForecastSeries): string {
+function seriesTooltip(series: ForecastSeries, locale: string): string {
   if (series.lane === "price") {
     const output = series.outputName.toLowerCase();
     if (output.includes("import")) {
-      return `${series.label} (import price)`;
+      return t(locale, "legend.series.import_price", { label: series.label });
     }
     if (output.includes("export")) {
-      return `${series.label} (export price)`;
+      return t(locale, "legend.series.export_price", { label: series.label });
     }
   }
   if (series.lane === "power") {
     const category = classifyPowerSeries(series);
     if (category.group === "production" && category.subgroup === "potential") {
-      return `${series.label} (available)`;
+      return t(locale, "legend.series.available", { label: series.label });
     }
     if (category.group === "production") {
-      return `${series.label} (produced)`;
+      return t(locale, "legend.series.produced", { label: series.label });
     }
     if (category.group === "consumption" && category.subgroup === "potential") {
-      return `${series.label} (possible)`;
+      return t(locale, "legend.series.possible", { label: series.label });
     }
     if (category.group === "consumption") {
-      return `${series.label} (consumed)`;
+      return t(locale, "legend.series.consumed", { label: series.label });
     }
   }
   return series.label;
