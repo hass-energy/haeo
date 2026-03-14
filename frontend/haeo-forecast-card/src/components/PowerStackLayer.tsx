@@ -18,6 +18,7 @@ export function PowerStackLayer(props: PowerStackLayerProps): JSX.Element {
         const isHovered = props.hoveredSeriesKeys.has(shape.key);
         const hasGroupFocus = props.focusedSeriesKeys.size > 0;
         const groupFocused = props.focusedSeriesKeys.has(shape.key);
+        const isActiveStroke = isHovered || props.highlightedSeries === shape.key;
         let opacity = shape.isPotential ? 0.24 : 0.52;
         if (isHovered) {
           opacity = shape.isPotential ? 0.38 : 0.8;
@@ -28,13 +29,13 @@ export function PowerStackLayer(props: PowerStackLayerProps): JSX.Element {
         if (props.highlightedSeries) {
           opacity = props.highlightedSeries === shape.key ? (shape.isPotential ? 0.34 : 0.76) : 0.14;
         }
-        const className = isHovered || props.highlightedSeries === shape.key ? "areaSeries active" : "areaSeries";
+        const className = isActiveStroke ? "areaSeries active" : "areaSeries";
         return (
           <path
             key={shape.key}
             className={className}
             fill={shape.color}
-            stroke={shape.color}
+            stroke={isActiveStroke ? shape.color : "none"}
             opacity={opacity}
             d={shape.d}
           />
