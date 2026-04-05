@@ -109,15 +109,30 @@ export const CARD_STYLES = `
     fill: none;
     stroke-width: 2.2;
     pointer-events: none;
+    transition:
+      opacity 90ms linear,
+      stroke-width 90ms linear;
+  }
+
+  .lineSeries.active {
+    stroke-width: 3;
   }
 
   .priceLine {
     stroke-width: 2.4;
   }
 
+  .priceLine.active {
+    stroke-width: 3.2;
+  }
+
   .socLine {
     stroke-width: 1.8;
     stroke-dasharray: 6 4;
+  }
+
+  .socLine.active {
+    stroke-width: 2.6;
   }
 
   .areaSeries {

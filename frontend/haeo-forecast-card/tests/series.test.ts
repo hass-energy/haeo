@@ -16,6 +16,7 @@ describe("normalizeSeries", () => {
             ],
             output_type: "power",
             output_name: "import_power",
+            direction: "-",
             element_name: "Grid",
             unit_of_measurement: "kW",
           },
@@ -31,6 +32,8 @@ describe("normalizeSeries", () => {
       return;
     }
     expect(first.lane).toBe("power");
+    expect(first.sourceRole).toBe("output");
+    expect(first.fieldName).toBe(null);
     expect(first.drawType).toBe("step");
     expect(first.times[0]).toBeLessThan(first.times[1] ?? Number.POSITIVE_INFINITY);
     expect(first.values[0]).toBe(1.2);
@@ -61,10 +64,16 @@ describe("normalizeSeries", () => {
     const hass = loadScenarioHassState("scenario1");
     const output = normalizeSeries(hass, { type: "custom:haeo-forecast-card" });
 
-    expect(output.length).toBeGreaterThan(20);
+    expect(output.length).toBeGreaterThanOrEqual(15);
     expect(output.some((series) => series.lane === "power")).toBe(true);
     expect(output.some((series) => series.lane === "price")).toBe(true);
     expect(output.some((series) => series.lane === "soc")).toBe(true);
+    expect(output.some((series) => series.outputType === "power_flow")).toBe(false);
+    expect(output.some((series) => series.outputName.includes("inverter_max_power"))).toBe(false);
+    expect(output.some((series) => series.entityId === "number.battery_max_discharge_power")).toBe(false);
+    expect(output.some((series) => series.outputName.endsWith("_power_active"))).toBe(false);
+    expect(output.some((series) => series.sourceRole === "forecast")).toBe(true);
+    expect(output.some((series) => series.sourceRole === "limit")).toBe(true);
     expect(output.every((series) => series.times.length === series.values.length)).toBe(true);
   });
 });

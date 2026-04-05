@@ -15,6 +15,7 @@ interface LegendProps {
   visibilityRevision: number;
   powerDisplayMode: PowerDisplayMode;
   onHighlight: (key: string | null) => void;
+  onHighlightGroup: (keys: string[] | null) => void;
   onElementHover: (elementName: string | null) => void;
   onToggleSeries: (key: string) => void;
   onToggleElement: (elementName: string) => void;
@@ -98,6 +99,52 @@ function LegendView(props: LegendProps): JSX.Element {
     </button>
   );
 
+  const toggleSeriesGroup = (seriesGroup: ForecastSeries[]): void => {
+    if (seriesGroup.length === 0) {
+      return;
+    }
+    const allHidden = seriesGroup.every((series) => props.hiddenSeriesKeys.has(series.key));
+    for (const series of seriesGroup) {
+      const isHidden = props.hiddenSeriesKeys.has(series.key);
+      const shouldToggle = allHidden ? isHidden : !isHidden;
+      if (shouldToggle) {
+        props.onToggleSeries(series.key);
+      }
+    }
+  };
+
+  const renderBatteryGroupItem = (
+    seriesGroup: ForecastSeries[],
+    elementName: string,
+    groupKey: string,
+    groupLabel: string,
+    iconPath: string
+  ): JSX.Element | null => {
+    if (seriesGroup.length === 0) {
+      return null;
+    }
+    const allHidden = seriesGroup.every((series) => props.hiddenSeriesKeys.has(series.key));
+    const firstVisibleSeries = seriesGroup.find((series) => !props.hiddenSeriesKeys.has(series.key));
+    const color = firstVisibleSeries?.color ?? seriesGroup[0]?.color ?? "var(--haeo-text)";
+    return (
+      <button
+        type="button"
+        key={`${elementName}:${groupKey}`}
+        className={`legendItem ${allHidden ? "disabled" : ""}`}
+        onMouseEnter={() => props.onHighlightGroup(seriesGroup.map((series) => series.key))}
+        onMouseLeave={() => props.onHighlightGroup(null)}
+        onClick={() => toggleSeriesGroup(seriesGroup)}
+        title={t(props.locale, "legend.group.toggle", {
+          element: elementName,
+          group: groupLabel,
+        })}
+        style={{ borderColor: color, color }}
+      >
+        <MdiIcon path={iconPath} />
+      </button>
+    );
+  };
+
   return (
     <div className="legendWrap">
       <div className="legendControls">
@@ -142,6 +189,10 @@ function LegendView(props: LegendProps): JSX.Element {
           const hiddenCount = elementSeries.filter((series) => props.hiddenSeriesKeys.has(series.key)).length;
           const allHidden = hiddenCount === elementSeries.length;
           const active = props.hoveredElement === null || props.hoveredElement === elementName;
+          const isBatteryElement = elementSeries.some((series) => series.elementType === "battery");
+          const icons = mdi as Record<string, string>;
+          const batterySocSeriesGroup = isBatteryElement ? sortedSeries.filter((series) => series.lane === "soc") : [];
+          const batteryNonSocSeries = isBatteryElement ? sortedSeries.filter((series) => series.lane !== "soc") : [];
           return (
             <div
               key={elementName}
@@ -158,7 +209,22 @@ function LegendView(props: LegendProps): JSX.Element {
                 >
                   <span className="legendGroupTitle">{elementName}</span>
                 </button>
-                <div className="legendIconRow">{sortedSeries.map((series) => renderSeriesItem(series))}</div>
+                <div className="legendIconRow">
+                  {isBatteryElement ? (
+                    <>
+                      {batteryNonSocSeries.map((series) => renderSeriesItem(series))}
+                      {renderBatteryGroupItem(
+                        batterySocSeriesGroup,
+                        elementName,
+                        "battery-soc",
+                        t(props.locale, "legend.group.battery_soc"),
+                        icons["mdiBatteryMedium"] ?? icons["mdiBattery"] ?? ""
+                      )}
+                    </>
+                  ) : (
+                    sortedSeries.map((series) => renderSeriesItem(series))
+                  )}
+                </div>
               </div>
             </div>
           );

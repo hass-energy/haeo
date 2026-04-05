@@ -53,6 +53,7 @@ describe("haeo-forecast-card smoke", () => {
           attributes: {
             output_type: "power",
             output_name: "import_power",
+            direction: "-",
             element_name: "Grid",
             unit_of_measurement: "kW",
             forecast: [

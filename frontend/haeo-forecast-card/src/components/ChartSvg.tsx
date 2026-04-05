@@ -46,7 +46,7 @@ const PowerLayer = observer(function PowerLayer(props: { store: ForecastCardStor
       shapes={store.powerShapes}
       highlightedSeries={store.highlightedSeries}
       hoveredSeriesKeys={store.hoveredPowerSeriesKeys}
-      focusedSeriesKeys={store.focusedElementSeriesKeys}
+      focusedSeriesKeys={store.focusedLegendSeriesKeys}
     />
   );
 });
@@ -58,14 +58,14 @@ const OverlayLayers = observer(function OverlayLayers(props: { store: ForecastCa
       <OverlayLineLayer
         paths={store.pricePaths}
         highlightedSeries={store.highlightedSeries}
-        focusedSeriesKeys={store.focusedElementSeriesKeys}
+        focusedSeriesKeys={store.focusedLegendSeriesKeys}
         cssClass="priceLine"
       />
 
       <OverlayLineLayer
         paths={store.socPaths}
         highlightedSeries={store.highlightedSeries}
-        focusedSeriesKeys={store.focusedElementSeriesKeys}
+        focusedSeriesKeys={store.focusedLegendSeriesKeys}
         cssClass="socLine"
       />
     </>

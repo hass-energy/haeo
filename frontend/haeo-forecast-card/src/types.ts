@@ -19,6 +19,7 @@ export interface ForecastPoint {
 
 export type LaneType = "power" | "price" | "soc" | "shadow" | "other";
 export type DrawType = "step" | "line";
+export type SeriesSourceRole = "output" | "forecast" | "limit";
 
 export interface ForecastSeries {
   key: string;
@@ -30,6 +31,10 @@ export interface ForecastSeries {
   outputType: string;
   direction: string | null;
   configMode: string | null;
+  fieldName: string | null;
+  sourceRole: SeriesSourceRole;
+  plotStream: string | null;
+  plotPriority: number | null;
   lane: LaneType;
   drawType: DrawType;
   unit: string;

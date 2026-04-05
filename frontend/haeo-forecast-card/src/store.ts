@@ -29,6 +29,7 @@ export class ForecastCardStore {
   pointerY: number | null = null;
   nowMs = Date.now();
   highlightedSeries: string | null = null;
+  highlightedSeriesGroupKeys = new Set<string>();
   hoveredLegendElement: string | null = null;
   hiddenSeriesKeys = new Set<string>();
   forcedVisibleSeriesKeys = new Set<string>();
@@ -80,6 +81,10 @@ export class ForecastCardStore {
 
   setHighlightedSeries(key: string | null): void {
     this.highlightedSeries = key;
+  }
+
+  setHighlightedSeriesGroup(keys: string[] | null): void {
+    this.highlightedSeriesGroupKeys = new Set(keys ?? []);
   }
 
   setHoveredLegendElement(elementName: string | null): void {
@@ -196,6 +201,11 @@ export class ForecastCardStore {
       if (order !== 0) {
         return order;
       }
+      const aPriority = a.plotPriority ?? Number.POSITIVE_INFINITY;
+      const bPriority = b.plotPriority ?? Number.POSITIVE_INFINITY;
+      if (aPriority !== bPriority) {
+        return aPriority - bPriority;
+      }
       return a.label.localeCompare(b.label);
     });
   }
@@ -231,6 +241,16 @@ export class ForecastCardStore {
       }
     }
     return focused;
+  }
+
+  get focusedLegendSeriesKeys(): Set<string> {
+    if (this.highlightedSeriesGroupKeys.size > 0) {
+      return new Set(this.highlightedSeriesGroupKeys);
+    }
+    if (this.highlightedSeries !== null) {
+      return new Set([this.highlightedSeries]);
+    }
+    return this.focusedElementSeriesKeys;
   }
 
   get xDomain(): { min: number; max: number; step: number } {
@@ -700,6 +720,9 @@ export class ForecastCardStore {
     for (const key of this.hoveredPowerSeriesKeys) {
       keys.add(key);
     }
+    for (const key of this.highlightedSeriesGroupKeys) {
+      keys.add(key);
+    }
     if (this.highlightedSeries) {
       keys.add(this.highlightedSeries);
     }
@@ -772,6 +795,9 @@ export class ForecastCardStore {
     if (this.highlightedSeries && !seriesKeys.has(this.highlightedSeries)) {
       this.highlightedSeries = null;
     }
+    this.highlightedSeriesGroupKeys = new Set(
+      [...this.highlightedSeriesGroupKeys].filter((key) => seriesKeys.has(key))
+    );
     if (this.hoveredLegendElement) {
       const hasHoveredElement = nextSeries.some((series) => series.elementName === this.hoveredLegendElement);
       if (!hasHoveredElement) {

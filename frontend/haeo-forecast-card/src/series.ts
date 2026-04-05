@@ -1,4 +1,4 @@
-import type { ForecastCardConfig, ForecastSeries, LaneType } from "./types";
+import type { ForecastCardConfig, ForecastSeries, LaneType, SeriesSourceRole } from "./types";
 
 type HassEntityState = {
   entity_id: string;
@@ -28,7 +28,7 @@ function asNumber(value: unknown): number | null {
 }
 
 function inferLane(outputType: string): LaneType {
-  if (outputType === "power" || outputType === "power_flow" || outputType === "power_limit") {
+  if (outputType === "power" || outputType === "power_limit") {
     return "power";
   }
   if (outputType === "price" || outputType === "cost") {
@@ -103,6 +103,59 @@ function colorForElement(elementName: string, variant: number): string {
   return `hsl(${hue} 72% ${lightness}%)`;
 }
 
+function includeOutputType(
+  outputType: string,
+  elementType: string,
+  configMode: string | null,
+  fieldName: string | null,
+  direction: string | null
+): boolean {
+  if (outputType === "power") {
+    // Plot power streams only when explicit directional metadata is present.
+    // Aggregate "active power" streams do not have directional semantics.
+    if (direction !== "+" && direction !== "-") {
+      return false;
+    }
+  }
+  if (outputType === "power" && configMode !== null) {
+    // Input power entities should only appear when they are explicit forecasts.
+    return fieldName === "forecast";
+  }
+  if (outputType === "power_limit") {
+    // Keep parity with scenario plotting semantics: only solar power limits are visualized.
+    return elementType === "solar";
+  }
+  return outputType === "power" || outputType === "price" || outputType === "state_of_charge";
+}
+
+function sourceRoleForSeries(configMode: string | null, fieldName: string | null): SeriesSourceRole {
+  if (configMode === null) {
+    return "output";
+  }
+  return fieldName === "forecast" ? "forecast" : "limit";
+}
+
+function fallbackPlotPriority(
+  elementType: string,
+  direction: string | null,
+  outputType: string,
+  sourceRole: SeriesSourceRole
+): number | null {
+  if (outputType !== "power" || sourceRole === "limit" || direction === null) {
+    return null;
+  }
+  const key = `${elementType}:${direction}`;
+  const byKey: Record<string, number> = {
+    "load:-": 1,
+    "solar:+": 2,
+    "battery:-": 3,
+    "battery:+": 4,
+    "grid:+": 5,
+    "grid:-": 6,
+  };
+  return byKey[key] ?? null;
+}
+
 export function normalizeSeries(hass: HassLike | null, config: ForecastCardConfig): ForecastSeries[] {
   if (!hass) {
     return [];
@@ -160,14 +213,30 @@ export function normalizeSeries(hass: HassLike | null, config: ForecastCardConfi
       values[idx] = point.value;
     }
 
+    const elementType = String(attrs["element_type"] ?? "");
+    const configModeRaw = attrs["config_mode"];
+    const configMode = typeof configModeRaw === "string" ? configModeRaw : null;
+    const fieldNameRaw = attrs["field_name"];
+    const fieldName = typeof fieldNameRaw === "string" ? fieldNameRaw : null;
+    const sourceRoleRaw = attrs["source_role"];
+    const sourceRole =
+      sourceRoleRaw === "output" || sourceRoleRaw === "forecast" || sourceRoleRaw === "limit"
+        ? sourceRoleRaw
+        : sourceRoleForSeries(configMode, fieldName);
+    const plotStreamRaw = attrs["plot_stream"];
+    const plotStream = typeof plotStreamRaw === "string" ? plotStreamRaw : null;
+    const plotPriorityRaw = attrs["plot_priority"];
+    const plotPriorityFromMetadata = asNumber(plotPriorityRaw);
     const outputType = String(attrs["output_type"] ?? "other");
     const elementName = String(attrs["element_name"] ?? entityId);
-    const elementType = String(attrs["element_type"] ?? "");
     const outputName = String(attrs["output_name"] ?? outputType);
     const directionRaw = attrs["direction"];
     const direction = directionRaw === "+" || directionRaw === "-" ? directionRaw : null;
-    const configModeRaw = attrs["config_mode"];
-    const configMode = typeof configModeRaw === "string" ? configModeRaw : null;
+    if (!includeOutputType(outputType, elementType, configMode, fieldName, direction)) {
+      continue;
+    }
+    const plotPriority =
+      plotPriorityFromMetadata ?? fallbackPlotPriority(elementType, direction, outputType, sourceRole);
     const unit = String(attrs["unit_of_measurement"] ?? "");
     const friendlyName = String(attrs["friendly_name"] ?? "");
     const variant = elementVariantCount.get(elementName) ?? 0;
@@ -183,6 +252,10 @@ export function normalizeSeries(hass: HassLike | null, config: ForecastCardConfi
       outputType,
       direction,
       configMode,
+      fieldName,
+      sourceRole,
+      plotStream,
+      plotPriority,
       lane: inferLane(outputType),
       drawType: inferDrawType(outputType),
       unit,

@@ -32,7 +32,12 @@ const LegendSection = observer(function LegendSection(props: { store: ForecastCa
       visibilityRevision={props.store.visibilityRevision}
       powerDisplayMode={props.store.powerDisplayMode}
       onHighlight={(key) => {
+        props.store.setHighlightedSeriesGroup(null);
         props.store.setHighlightedSeries(key);
+      }}
+      onHighlightGroup={(keys) => {
+        props.store.setHighlightedSeries(null);
+        props.store.setHighlightedSeriesGroup(keys);
       }}
       onElementHover={(elementName) => {
         props.store.setHoveredLegendElement(elementName);

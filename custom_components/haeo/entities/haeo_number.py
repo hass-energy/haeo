@@ -28,6 +28,11 @@ from custom_components.haeo.core.schema import (
 )
 from custom_components.haeo.elements import InputFieldPath, find_nested_config_path, get_nested_config_value_by_path
 from custom_components.haeo.elements.input_fields import InputFieldInfo
+from custom_components.haeo.entities.plot_metadata import (
+    SOURCE_ROLE_KEY,
+    classify_source_role,
+    build_plot_metadata,
+)
 from custom_components.haeo.ha_state_machine import HomeAssistantStateMachine
 from custom_components.haeo.horizon import HorizonManager
 from custom_components.haeo.util import async_update_subentry_value
@@ -138,12 +143,15 @@ class HaeoInputNumber(NumberEntity):
         self._attr_translation_placeholders = placeholders
 
         # Build base extra state attributes (static values)
+        source_role = classify_source_role(self._entity_mode.value, field_info.field_name)
         self._base_extra_attrs: dict[str, Any] = {
             "config_mode": self._entity_mode.value,
+            SOURCE_ROLE_KEY: source_role,
             "element_name": subentry.title,
             "element_type": subentry.subentry_type,
             "field_name": field_info.field_name,
             "field_path": field_path_key,
+            "output_name": field_info.field_name,
             "output_type": field_info.output_type,
             "time_series": field_info.time_series,
         }
@@ -151,6 +159,14 @@ class HaeoInputNumber(NumberEntity):
             self._base_extra_attrs["source_entities"] = self._source_entity_ids
         if field_info.direction:
             self._base_extra_attrs["direction"] = field_info.direction
+        self._base_extra_attrs.update(
+            build_plot_metadata(
+                element_type=subentry.subentry_type,
+                output_type=field_info.output_type,
+                direction=field_info.direction,
+                source_role=source_role,
+            )
+        )
         self._attr_extra_state_attributes = dict(self._base_extra_attrs)
 
         # Loaders for time series and scalar data

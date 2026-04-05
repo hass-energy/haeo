@@ -51,6 +51,7 @@ export const Default: Story = {
           visibilityRevision={0}
           powerDisplayMode="opposed"
           onHighlight={() => undefined}
+          onHighlightGroup={() => undefined}
           onElementHover={() => undefined}
           onToggleSeries={() => undefined}
           onToggleElement={() => undefined}

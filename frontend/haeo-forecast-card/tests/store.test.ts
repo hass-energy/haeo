@@ -86,6 +86,7 @@ describe("ForecastCardStore", () => {
           attributes: {
             output_type: "power",
             output_name: "load_power",
+            direction: "-",
             element_name: "Load",
             unit_of_measurement: "kW",
             forecast: [

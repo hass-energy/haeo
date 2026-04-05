@@ -13,14 +13,16 @@ export function OverlayLineLayer(props: OverlayLineLayerProps): JSX.Element {
       {props.paths.map((series) => {
         const hasGroupFocus = props.focusedSeriesKeys.size > 0;
         const groupFocused = props.focusedSeriesKeys.has(series.key);
-        let opacity = hasGroupFocus ? (groupFocused ? 0.92 : 0.2) : 0.92;
-        if (props.highlightedSeries && props.highlightedSeries !== series.key) {
-          opacity = 0.22;
+        const isHighlighted = props.highlightedSeries === series.key;
+        const isActive = isHighlighted || groupFocused;
+        let opacity = hasGroupFocus ? (groupFocused ? 1 : 0.14) : 0.9;
+        if (props.highlightedSeries) {
+          opacity = isHighlighted ? 1 : 0.14;
         }
         return (
           <path
             key={series.key}
-            className={`lineSeries ${props.cssClass}`}
+            className={`lineSeries ${props.cssClass} ${isActive ? "active" : ""}`}
             stroke={series.color}
             opacity={opacity}
             d={series.d}

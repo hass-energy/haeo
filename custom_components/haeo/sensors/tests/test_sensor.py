@@ -447,6 +447,7 @@ def test_handle_coordinator_update_clears_value_when_missing_data(
         "element_type": BATTERY_TYPE,
         "output_name": LOAD_POWER,
         "output_type": OutputType.POWER,
+        "source_role": "output",
         "advanced": False,
     }
 
@@ -615,6 +616,8 @@ def test_handle_coordinator_update_sets_direction(device_entry: DeviceEntry) -> 
     attributes = sensor.extra_state_attributes
     assert attributes is not None
     assert attributes["direction"] == "+"
+    assert attributes["plot_stream"] == "battery_discharge"
+    assert attributes["plot_priority"] == 4
 
 
 # --- Recorder Filtering Tests ---

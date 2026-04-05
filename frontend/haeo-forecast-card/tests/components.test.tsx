@@ -17,6 +17,7 @@ const testFixture: HassLike = {
         element_name: "Grid",
         output_name: "import_power",
         output_type: "power",
+        direction: "-",
         unit_of_measurement: "kW",
         forecast: [
           { time: "2025-10-06T10:50:00.000000+0000", value: 2.2 },
@@ -116,6 +117,7 @@ describe("ForecastCardView components", () => {
         onHighlight={(key) => {
           hits.push(key);
         }}
+        onHighlightGroup={() => undefined}
         onElementHover={(group) => {
           groups.push(group);
         }}
@@ -136,8 +138,8 @@ describe("ForecastCardView components", () => {
     firstItem?.dispatchEvent(new MouseEvent("mouseenter", { bubbles: true }));
     firstItem?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     firstItem?.dispatchEvent(new MouseEvent("mouseleave", { bubbles: true }));
-    root.querySelector<HTMLElement>(".legendElement")?.dispatchEvent(new MouseEvent("mouseenter", { bubbles: true }));
-    root.querySelector<HTMLElement>(".legendElement")?.dispatchEvent(new MouseEvent("mouseleave", { bubbles: true }));
+    firstGroup?.dispatchEvent(new MouseEvent("mouseenter", { bubbles: true }));
+    firstGroup?.dispatchEvent(new MouseEvent("mouseleave", { bubbles: true }));
     expect(hits.length).toBeGreaterThanOrEqual(2);
     expect(hits[hits.length - 1]).toBeNull();
     expect(toggles.length).toBe(1);
