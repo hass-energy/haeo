@@ -1,7 +1,7 @@
 import type { JSX } from "preact";
 
 interface PowerStackLayerProps {
-  shapes: Array<{ key: string; color: string; d: string; isPotential: boolean }>;
+  shapes: Array<{ key: string; color: string; d: string; isPotential: boolean; strokePaths: string[] }>;
   highlightedSeries: string | null;
   hoveredSeriesKeys: Set<string>;
   focusedSeriesKeys: Set<string>;
@@ -18,7 +18,7 @@ export function PowerStackLayer(props: PowerStackLayerProps): JSX.Element {
         const isHovered = props.hoveredSeriesKeys.has(shape.key);
         const hasGroupFocus = props.focusedSeriesKeys.size > 0;
         const groupFocused = props.focusedSeriesKeys.has(shape.key);
-        const isActiveStroke = isHovered || props.highlightedSeries === shape.key;
+        const isActiveStroke = isHovered && shape.strokePaths.length > 0;
         let opacity = shape.isPotential ? 0.24 : 0.52;
         if (isHovered) {
           opacity = shape.isPotential ? 0.38 : 0.8;
@@ -31,14 +31,20 @@ export function PowerStackLayer(props: PowerStackLayerProps): JSX.Element {
         }
         const className = isActiveStroke ? "areaSeries active" : "areaSeries";
         return (
-          <path
-            key={shape.key}
-            className={className}
-            fill={shape.color}
-            stroke={isActiveStroke ? shape.color : "none"}
-            opacity={opacity}
-            d={shape.d}
-          />
+          <g key={shape.key}>
+            <path className={className} fill={shape.color} stroke="none" opacity={opacity} d={shape.d} />
+            {isActiveStroke &&
+              shape.strokePaths.map((pathD, pathIdx) => (
+                <path
+                  key={`${shape.key}:stroke:${pathIdx}`}
+                  className="areaSeries active"
+                  fill="none"
+                  stroke={shape.color}
+                  opacity={opacity}
+                  d={pathD}
+                />
+              ))}
+          </g>
         );
       })}
     </>

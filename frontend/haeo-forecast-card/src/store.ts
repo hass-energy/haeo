@@ -18,6 +18,7 @@ const VISIBLE_LANES = new Set(["power", "price", "soc"]);
 type PowerSection = "available" | "produced" | "consumed" | "possible";
 
 export class ForecastCardStore {
+  private static readonly POWER_EPSILON = 1e-6;
   hass: HassLike | null = null;
   config: ForecastCardConfig = { type: "custom:haeo-forecast-card" };
   normalizedSeriesCache: ForecastSeries[] = [];
@@ -443,7 +444,7 @@ export class ForecastCardStore {
     );
   }
 
-  get powerShapes(): Array<{ key: string; color: string; d: string; isPotential: boolean }> {
+  get powerShapes(): Array<{ key: string; color: string; d: string; isPotential: boolean; strokePaths: string[] }> {
     const seriesList = this.orderedPowerSeries;
     const firstSeries = seriesList[0];
     if (!firstSeries) {
@@ -463,8 +464,10 @@ export class ForecastCardStore {
       const stack = stacks[section];
       const lower = new Float64Array(horizonCount);
       const upper = new Float64Array(horizonCount);
+      const displayValues = new Float64Array(horizonCount);
       for (let idx = 0; idx < horizonCount; idx += 1) {
         const value = this.powerValueForDisplay(series, series.values[idx] ?? 0);
+        displayValues[idx] = value;
         lower[idx] = stack[idx] ?? 0;
         const next = (stack[idx] ?? 0) + value;
         upper[idx] = next;
@@ -474,6 +477,7 @@ export class ForecastCardStore {
         key: series.key,
         color: series.color,
         isPotential: category.subgroup === "potential",
+        strokePaths: this.stepTopStrokePaths(series.times, upper, displayValues, xScale, yScalePower),
         d: stepAreaPath(
           series.times,
           lower,
@@ -483,6 +487,53 @@ export class ForecastCardStore {
         ),
       };
     });
+  }
+
+  private stepTopStrokePaths(
+    times: Float64Array,
+    upper: Float64Array,
+    values: Float64Array,
+    x: (time: number) => number,
+    y: (value: number) => number
+  ): string[] {
+    if (times.length < 2 || upper.length !== times.length || values.length !== times.length) {
+      return [];
+    }
+
+    const paths: string[] = [];
+    const intervalCount = times.length - 1;
+    let idx = 0;
+    while (idx < intervalCount) {
+      while (idx < intervalCount && Math.abs(values[idx] ?? 0) <= ForecastCardStore.POWER_EPSILON) {
+        idx += 1;
+      }
+      if (idx >= intervalCount) {
+        break;
+      }
+      const start = idx;
+      while (idx < intervalCount && Math.abs(values[idx] ?? 0) > ForecastCardStore.POWER_EPSILON) {
+        idx += 1;
+      }
+      const end = idx - 1;
+
+      const startTime = times[start];
+      const startUpper = upper[start];
+      if (startTime === undefined || startUpper === undefined) {
+        continue;
+      }
+      let path = `M ${x(startTime)} ${y(startUpper)}`;
+      for (let i = start + 1; i <= end + 1; i += 1) {
+        const currTime = times[i];
+        const prevUpper = upper[i - 1];
+        const currUpper = upper[i];
+        if (currTime === undefined || prevUpper === undefined || currUpper === undefined) {
+          continue;
+        }
+        path += ` L ${x(currTime)} ${y(prevUpper)} L ${x(currTime)} ${y(currUpper)}`;
+      }
+      paths.push(path);
+    }
+    return paths;
   }
 
   get hoveredPowerSeriesKeys(): Set<string> {
