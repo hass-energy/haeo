@@ -4,7 +4,7 @@ import { memo } from "preact/compat";
 
 import { t } from "../i18n";
 import { classifyPowerSeries } from "../power-series-classification";
-import type { ForecastSeries, PowerDisplayMode } from "../types";
+import type { ForecastSeries } from "../types";
 
 interface LegendProps {
   series: ForecastSeries[];
@@ -13,13 +13,11 @@ interface LegendProps {
   hoveredElement: string | null;
   hiddenSeriesKeys: Set<string>;
   visibilityRevision: number;
-  powerDisplayMode: PowerDisplayMode;
   onHighlight: (key: string | null) => void;
   onHighlightGroup: (keys: string[] | null) => void;
   onElementHover: (elementName: string | null) => void;
   onToggleSeries: (key: string) => void;
   onToggleElement: (elementName: string) => void;
-  onTogglePowerDisplayMode: () => void;
 }
 
 function seriesIconPath(series: ForecastSeries): string {
@@ -147,14 +145,6 @@ function LegendView(props: LegendProps): JSX.Element {
 
   return (
     <div className="legendWrap">
-      <div className="legendControls">
-        <button type="button" className="legendModeToggle" onClick={props.onTogglePowerDisplayMode}>
-          {t(props.locale, "legend.mode")}:{" "}
-          {props.powerDisplayMode === "opposed"
-            ? t(props.locale, "legend.mode.opposed")
-            : t(props.locale, "legend.mode.overlay")}
-        </button>
-      </div>
       <div className="legend">
         {elements.map(([elementName, elementSeries]) => {
           const sortedSeries = [...elementSeries].sort((a, b) => {
@@ -240,8 +230,7 @@ function areLegendPropsEqual(prev: LegendProps, next: LegendProps): boolean {
     prev.locale === next.locale &&
     prev.highlightedSeries === next.highlightedSeries &&
     prev.hoveredElement === next.hoveredElement &&
-    prev.visibilityRevision === next.visibilityRevision &&
-    prev.powerDisplayMode === next.powerDisplayMode
+    prev.visibilityRevision === next.visibilityRevision
   );
 }
 

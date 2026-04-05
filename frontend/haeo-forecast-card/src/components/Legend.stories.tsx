@@ -49,13 +49,11 @@ export const Default: Story = {
           hoveredElement={null}
           hiddenSeriesKeys={new Set()}
           visibilityRevision={0}
-          powerDisplayMode="opposed"
           onHighlight={() => undefined}
           onHighlightGroup={() => undefined}
           onElementHover={() => undefined}
           onToggleSeries={() => undefined}
           onToggleElement={() => undefined}
-          onTogglePowerDisplayMode={() => undefined}
         />
       </div>
     );

@@ -1,4 +1,5 @@
 import type { JSX } from "preact";
+import * as mdi from "@mdi/js";
 
 import { ChartSvg } from "./ChartSvg";
 import { Legend } from "./Legend";
@@ -14,7 +15,28 @@ interface ForecastCardViewProps {
 }
 
 const CardTitle = observer(function CardTitle(props: { store: ForecastCardStore }): JSX.Element {
-  return <div className="title">{props.store.config.title ?? t(props.store.locale, "card.title.default")}</div>;
+  const icons = mdi as Record<string, string>;
+  const modeIconPath = icons["mdiSwapVertical"] ?? icons["mdiSwapHorizontal"] ?? icons["mdiSwapVerticalVariant"] ?? "";
+  const modeLabel =
+    props.store.powerDisplayMode === "opposed"
+      ? t(props.store.locale, "legend.mode.opposed")
+      : t(props.store.locale, "legend.mode.overlay");
+  return (
+    <div className="cardHeader">
+      <div className="title">{props.store.config.title ?? t(props.store.locale, "card.title.default")}</div>
+      <button
+        type="button"
+        className="modeToggleButton"
+        onClick={() => props.store.togglePowerDisplayMode()}
+        title={`${t(props.store.locale, "legend.mode")}: ${modeLabel}`}
+        aria-label={`${t(props.store.locale, "legend.mode")}: ${modeLabel}`}
+      >
+        <svg className="modeToggleIcon" viewBox="0 0 24 24" aria-hidden="true">
+          <path d={modeIconPath} />
+        </svg>
+      </button>
+    </div>
+  );
 });
 
 const ChartSection = observer(function ChartSection(props: ForecastCardViewProps): JSX.Element {
@@ -30,7 +52,6 @@ const LegendSection = observer(function LegendSection(props: { store: ForecastCa
       hoveredElement={props.store.hoveredLegendElement}
       hiddenSeriesKeys={props.store.hiddenSeriesKeys}
       visibilityRevision={props.store.visibilityRevision}
-      powerDisplayMode={props.store.powerDisplayMode}
       onHighlight={(key) => {
         props.store.setHighlightedSeriesGroup(null);
         props.store.setHighlightedSeries(key);
@@ -47,9 +68,6 @@ const LegendSection = observer(function LegendSection(props: { store: ForecastCa
       }}
       onToggleElement={(elementName) => {
         props.store.toggleElementVisibility(elementName);
-      }}
-      onTogglePowerDisplayMode={() => {
-        props.store.togglePowerDisplayMode();
       }}
     />
   );

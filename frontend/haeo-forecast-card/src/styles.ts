@@ -41,11 +41,40 @@ export const CARD_STYLES = `
     color: var(--haeo-text);
   }
 
+  .cardHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 12px 12px 0;
+  }
+
   .title {
     font-size: 1rem;
     font-weight: 600;
-    padding: 16px 16px 0;
+    padding: 0 4px;
     color: var(--haeo-text);
+  }
+
+  .modeToggleButton {
+    appearance: none;
+    border: 1px solid color-mix(in oklab, var(--haeo-divider) 70%, transparent);
+    background: color-mix(in oklab, var(--haeo-bg) 90%, #000 10%);
+    color: var(--haeo-text);
+    border-radius: 999px;
+    width: 30px;
+    height: 30px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex: 0 0 auto;
+  }
+
+  .modeToggleIcon {
+    width: 18px;
+    height: 18px;
+    fill: currentColor;
   }
 
   svg {
@@ -149,25 +178,6 @@ export const CARD_STYLES = `
 
   .legendWrap {
     padding: 0 16px 14px;
-  }
-
-  .legendControls {
-    display: flex;
-    justify-content: flex-end;
-    margin-bottom: 8px;
-  }
-
-  .legendModeToggle {
-    appearance: none;
-    border: 1px solid color-mix(in oklab, var(--haeo-divider) 70%, transparent);
-    background: color-mix(in oklab, var(--haeo-bg) 90%, #000 10%);
-    color: var(--haeo-text);
-    font: inherit;
-    border-radius: 999px;
-    padding: 4px 10px;
-    font-size: 11px;
-    line-height: 1.2;
-    cursor: pointer;
   }
 
   .legend {

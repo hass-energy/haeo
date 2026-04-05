@@ -180,10 +180,14 @@ function dedupeClose(values: number[], epsilon: number): number[] {
 }
 
 export function AxesGrid(props: AxesGridProps): JSX.Element {
+  const clampYAxisLabelY = (y: number): number => Math.min(props.bottom - 2, Math.max(props.top + 10, y));
+  const isVisibleY = (y: number): boolean => y >= props.top - 0.5 && y <= props.bottom + 0.5;
   const xMajor = timeTicks(props.xMin, props.xMax, 7);
   const xMinor = timeTicks(props.xMin, props.xMax, 13);
-  const yMajor = niceLinearTicks(props.powerMin, props.powerMax, 6, true);
-  const yMinor = minorFromMajor(yMajor);
+  const yMajor = niceLinearTicks(props.powerMin, props.powerMax, 6, true).filter((value) =>
+    isVisibleY(props.yScalePower(value))
+  );
+  const yMinor = minorFromMajor(yMajor).filter((value) => isVisibleY(props.yScalePower(value)));
   const zeroY = props.yScalePower(0);
   const priceMajor = dedupeClose(
     yMajor
@@ -228,7 +232,7 @@ export function AxesGrid(props: AxesGridProps): JSX.Element {
             x2={props.xScale(time)}
             y2={props.bottom}
           />
-          <text className="axisTickLabel" x={props.xScale(time) + 2} y={props.bottom + 16} textAnchor="start">
+          <text className="axisTickLabel" x={props.xScale(time)} y={props.bottom + 16} textAnchor="middle">
             {new Date(time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
           </text>
         </g>
@@ -243,7 +247,13 @@ export function AxesGrid(props: AxesGridProps): JSX.Element {
             x2={props.width - props.right}
             y2={props.yScalePower(value)}
           />
-          <text className="axisTickLabel" x={props.left - 8} y={props.yScalePower(value) + 9} textAnchor="end">
+          <text
+            className="axisTickLabel"
+            x={props.left - 8}
+            y={clampYAxisLabelY(props.yScalePower(value))}
+            textAnchor="end"
+            dominantBaseline="middle"
+          >
             {value.toFixed(Math.abs(value) >= 10 ? 0 : 1)}
           </text>
         </g>
@@ -254,8 +264,9 @@ export function AxesGrid(props: AxesGridProps): JSX.Element {
           key={`price-major-${idx}`}
           className="axisTickLabel"
           x={props.width - props.right + 6}
-          y={props.yScalePrice(value) + 9}
+          y={clampYAxisLabelY(props.yScalePrice(value))}
           textAnchor="start"
+          dominantBaseline="middle"
         >
           {value.toFixed(Math.abs(value) >= 10 ? 0 : 2)}
         </text>
@@ -266,8 +277,9 @@ export function AxesGrid(props: AxesGridProps): JSX.Element {
           key={`soc-major-${idx}`}
           className="axisTickLabel"
           x={props.width - props.right - 6}
-          y={props.yScaleSoc(value) + 9}
+          y={clampYAxisLabelY(props.yScaleSoc(value))}
           textAnchor="end"
+          dominantBaseline="middle"
         >
           {value}%
         </text>

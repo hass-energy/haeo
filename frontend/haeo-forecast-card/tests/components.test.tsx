@@ -113,7 +113,6 @@ describe("ForecastCardView components", () => {
         hoveredElement={null}
         hiddenSeriesKeys={new Set()}
         visibilityRevision={0}
-        powerDisplayMode="opposed"
         onHighlight={(key) => {
           hits.push(key);
         }}
@@ -127,7 +126,6 @@ describe("ForecastCardView components", () => {
         onToggleElement={(elementName) => {
           elementToggles.push(elementName);
         }}
-        onTogglePowerDisplayMode={() => undefined}
       />,
       root
     );
@@ -156,7 +154,7 @@ describe("ForecastCardView components", () => {
     store.setPointer(300, 120);
     render(<ForecastCardView store={store} onPointerMove={() => undefined} onPointerLeave={() => undefined} />, root);
 
-    const modeButton = root.querySelector<HTMLButtonElement>(".legendModeToggle");
+    const modeButton = root.querySelector<HTMLButtonElement>(".modeToggleButton");
     const firstLegendItem = root.querySelector<HTMLButtonElement>(".legendItem");
     expect(modeButton).toBeTruthy();
     expect(firstLegendItem).toBeTruthy();
