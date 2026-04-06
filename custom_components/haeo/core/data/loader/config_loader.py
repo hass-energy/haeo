@@ -76,13 +76,20 @@ def load_element_config(
         for field_name, hint in section_fields.items():
             value = section_config.get(field_name)
             if value is None:
+                if (default := _default_for_hint(hint, forecast_times)) is not _REMOVE:
+                    loaded.setdefault(section_name, {})[field_name] = default
                 continue
 
             resolved = _resolve_field(value, hint, sm, forecast_times)
             if resolved is _REMOVE:
-                loaded_section = loaded.get(section_name)
-                if isinstance(loaded_section, dict):
-                    loaded_section.pop(field_name, None)
+                if (default := _default_for_hint(hint, forecast_times)) is not _REMOVE:
+                    loaded.setdefault(section_name, {})[field_name] = default
+                else:
+                    loaded_section = loaded.get(section_name)
+                    if isinstance(loaded_section, dict):
+                        loaded_section.pop(field_name, None)
+            elif resolved is None and (default := _default_for_hint(hint, forecast_times)) is not _REMOVE:
+                loaded.setdefault(section_name, {})[field_name] = default
             else:
                 loaded.setdefault(section_name, {})[field_name] = resolved
 
@@ -113,6 +120,13 @@ class _Sentinel:
 
 
 _REMOVE = _Sentinel()
+
+
+def _default_for_hint(hint: FieldHint, forecast_times: Sequence[float]) -> _Sentinel | float | np.ndarray:
+    """Return a type-driven default value for optional fields."""
+    if hint.output_type is not OutputType.EFFICIENCY:
+        return _REMOVE
+    return _resolve_numeric(100.0, hint, forecast_times, is_percent=True)
 
 
 def _resolve_field(
