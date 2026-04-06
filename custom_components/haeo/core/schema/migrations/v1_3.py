@@ -146,12 +146,16 @@ def _migrate_hub_to_sectioned(
 
 def migrate_element_config(data: Mapping[str, Any]) -> dict[str, Any] | None:
     """Migrate element config through all schema migration steps."""
-    migrated: dict[str, Any] | None = dict(data)
+    if not ELEMENT_MIGRATION_STEPS:
+        return dict(data)
+
+    migrated: Mapping[str, Any] = data
     for step in ELEMENT_MIGRATION_STEPS:
-        if migrated is None:
+        transformed = step.transform(migrated)
+        if transformed is None:
             return None
-        migrated = step.transform(migrated)
-    return migrated
+        migrated = transformed
+    return dict(migrated)
 
 
 def _migrate_element_to_sectioned(data: Mapping[str, Any]) -> dict[str, Any] | None:
