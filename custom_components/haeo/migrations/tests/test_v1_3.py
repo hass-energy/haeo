@@ -537,6 +537,22 @@ def test_migrate_element_config_short_circuits_when_step_returns_none(
     assert migrated is None
 
 
+def test_migrate_element_config_returns_copy_when_no_steps(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Pipeline returns a fresh dict unchanged when no steps are configured."""
+    monkeypatch.setattr(schema_migrations, "ELEMENT_MIGRATION_STEPS", ())
+    original = {
+        CONF_ELEMENT_TYPE: battery.ELEMENT_TYPE,
+        CONF_NAME: "Battery",
+    }
+
+    migrated = schema_migrations.migrate_element_config(original)
+
+    assert migrated == original
+    assert migrated is not original
+
+
 @pytest.mark.parametrize(
     ("element_type", "extra_data"),
     [
