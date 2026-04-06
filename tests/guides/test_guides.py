@@ -46,6 +46,8 @@ def _discover_guide_files() -> list[Path]:
 
 GUIDE_FILES = _discover_guide_files()
 
+pytestmark = [pytest.mark.usefixtures("socket_enabled")]
+
 
 @pytest.mark.guide
 @pytest.mark.enable_socket
