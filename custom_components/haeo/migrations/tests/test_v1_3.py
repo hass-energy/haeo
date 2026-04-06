@@ -35,7 +35,8 @@ from custom_components.haeo.core.schema.elements import (
     node,
     solar,
 )
-from custom_components.haeo.core.schema.migrations.v1_3 import migrate_hub_config
+from custom_components.haeo.core.schema.migrations import v1_3 as schema_migrations
+from custom_components.haeo.core.schema.migrations.v1_3 import ElementMigrationStep, migrate_hub_config
 from custom_components.haeo.core.schema.sections import (
     CONF_CONNECTION,
     CONF_CURTAILMENT,
@@ -508,6 +509,32 @@ def test_migrate_v033_scenario_configs_to_current_schema(scenario_name: str) -> 
     battery_pricing = migrated_participants["Battery"][SECTION_PRICING]
     assert isinstance(battery_pricing, dict)
     assert battery.CONF_SALVAGE_VALUE not in battery_pricing
+
+
+def test_migrate_element_config_short_circuits_when_step_returns_none(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Migration pipeline returns None when an intermediate step drops config."""
+    steps = (
+        ElementMigrationStep(
+            name="drop_all",
+            transform=lambda _data: None,
+        ),
+        ElementMigrationStep(
+            name="should_not_run",
+            transform=lambda data: dict(data),
+        ),
+    )
+    monkeypatch.setattr(schema_migrations, "ELEMENT_MIGRATION_STEPS", steps)
+
+    migrated = schema_migrations.migrate_element_config(
+        {
+            CONF_ELEMENT_TYPE: battery.ELEMENT_TYPE,
+            CONF_NAME: "Battery",
+        }
+    )
+
+    assert migrated is None
 
 
 @pytest.mark.parametrize(
