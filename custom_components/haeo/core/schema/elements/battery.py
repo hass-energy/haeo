@@ -130,13 +130,13 @@ class PartitionData(TypedDict, total=False):
 class BatteryPricingConfig(PricingConfig):
     """Battery pricing configuration values."""
 
-    salvage_value: EntityValue | ConstantValue | NoneValue
+    salvage_value: NotRequired[EntityValue | ConstantValue | NoneValue]
 
 
 class BatteryPricingData(PricingData):
     """Loaded battery pricing values."""
 
-    salvage_value: float
+    salvage_value: NotRequired[float]
 
 
 class BatteryConfigSchema(ConnectedCommonConfig):

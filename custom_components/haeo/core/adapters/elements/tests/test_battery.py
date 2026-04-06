@@ -391,6 +391,33 @@ def test_model_elements_omits_efficiency_when_missing() -> None:
     assert efficiency_segment.get("efficiency_target_source") is None
 
 
+def test_model_elements_defaults_salvage_value_when_missing() -> None:
+    """model_elements() defaults salvage_value to 0.0 when omitted."""
+    config_data: battery.BatteryConfigData = {
+        "element_type": battery.ELEMENT_TYPE,
+        "name": "test_battery",
+        "connection": as_connection_target("main_bus"),
+        battery.SECTION_STORAGE: {
+            "capacity": np.array([10.0, 10.0, 10.0]),
+            "initial_charge_percentage": 0.5,
+        },
+        battery.SECTION_LIMITS: {},
+        battery.SECTION_POWER_LIMITS: {},
+        battery.SECTION_PRICING: {},
+        battery.SECTION_EFFICIENCY: {},
+        battery.SECTION_PARTITIONING: {},
+    }
+
+    elements = battery_adapter.model_elements(config_data)
+    battery_element = next(
+        element
+        for element in elements
+        if element["element_type"] == MODEL_ELEMENT_TYPE_BATTERY and element["name"] == "test_battery"
+    )
+
+    assert battery_element.get("salvage_value") == 0.0
+
+
 def test_model_elements_passes_efficiency_when_present() -> None:
     """model_elements() should pass through provided efficiency values."""
     config_data: battery.BatteryConfigData = _wrap_data(
