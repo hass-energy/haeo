@@ -39,8 +39,8 @@ class EfficiencySegment(Segment):
     Efficiency values are fractions in range (0, 1].
     """
 
-    efficiency_source_target: TrackedParam[NDArray[np.float64]] = TrackedParam()
-    efficiency_target_source: TrackedParam[NDArray[np.float64]] = TrackedParam()
+    efficiency_source_target: TrackedParam[NDArray[np.float64] | None] = TrackedParam()
+    efficiency_target_source: TrackedParam[NDArray[np.float64] | None] = TrackedParam()
 
     def __init__(
         self,
@@ -76,13 +76,9 @@ class EfficiencySegment(Segment):
 
         # Store efficiency values
         efficiency_source_target = spec.get("efficiency_source_target")
-        self.efficiency_source_target = broadcast_to_sequence(
-            1.0 if efficiency_source_target is None else efficiency_source_target, self._n_periods
-        )
+        self.efficiency_source_target = broadcast_to_sequence(efficiency_source_target, self._n_periods)
         efficiency_target_source = spec.get("efficiency_target_source")
-        self.efficiency_target_source = broadcast_to_sequence(
-            1.0 if efficiency_target_source is None else efficiency_target_source, self._n_periods
-        )
+        self.efficiency_target_source = broadcast_to_sequence(efficiency_target_source, self._n_periods)
 
         # Single variable per direction - efficiency applied via properties
         self._power_st = solver.addVariables(n_periods, lb=0, name_prefix=f"{segment_id}_st_", out_array=True)
@@ -96,7 +92,11 @@ class EfficiencySegment(Segment):
     @property
     def power_out_st(self) -> HighspyArray:
         """Power leaving segment in source→target direction (after efficiency loss)."""
-        return self._power_st * self.efficiency_source_target
+        efficiency = self.efficiency_source_target
+        if efficiency is None:
+            # Missing optional efficiency means no losses (100%).
+            return self._power_st
+        return self._power_st * efficiency
 
     @property
     def power_in_ts(self) -> HighspyArray:
@@ -106,7 +106,11 @@ class EfficiencySegment(Segment):
     @property
     def power_out_ts(self) -> HighspyArray:
         """Power leaving segment in target→source direction (after efficiency loss)."""
-        return self._power_ts * self.efficiency_target_source
+        efficiency = self.efficiency_target_source
+        if efficiency is None:
+            # Missing optional efficiency means no losses (100%).
+            return self._power_ts
+        return self._power_ts * efficiency
 
 
 __all__ = ["EfficiencySegment", "EfficiencySegmentSpec"]
