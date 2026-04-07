@@ -13,6 +13,7 @@ from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.model.element import Element
 from custom_components.haeo.core.model.elements.connection import Connection
 from custom_components.haeo.core.model.elements.segments import (
+    EfficiencySegment,
     PowerLimitSegment,
     PricingSegment,
     SocPricingSegment,
@@ -386,3 +387,51 @@ def test_soc_pricing_cost_none_without_prices() -> None:
     )
 
     assert segment.cost() is None
+
+
+def test_efficiency_segment_treats_none_as_unity_after_update() -> None:
+    """Efficiency segment should treat None values as 100% efficiency."""
+    h = create_solver()
+    periods = np.asarray([1.0], dtype=np.float64)
+    source = DummyElement("source", periods, h)
+    target = DummyElement("target", periods, h)
+    segment = EfficiencySegment(
+        "seg",
+        len(periods),
+        periods,
+        h,
+        spec={"segment_type": "efficiency", "efficiency_target_source": np.array([0.9], dtype=np.float64)},
+        source_element=source,
+        target_element=target,
+    )
+
+    # Simulate coordinator update path clearing optional efficiency.
+    segment.efficiency_target_source = None
+    h.addConstrs(segment.power_in_ts == np.asarray([10.0], dtype=np.float64))
+    h.run()
+
+    np.testing.assert_allclose(h.vals(segment.power_out_ts), [10.0], rtol=1e-6, atol=1e-6)
+
+
+def test_efficiency_segment_treats_missing_values_as_unity_both_directions() -> None:
+    """Missing efficiency values should keep both directions lossless."""
+    h = create_solver()
+    periods = np.asarray([1.0], dtype=np.float64)
+    source = DummyElement("source", periods, h)
+    target = DummyElement("target", periods, h)
+    segment = EfficiencySegment(
+        "seg",
+        len(periods),
+        periods,
+        h,
+        spec={"segment_type": "efficiency"},
+        source_element=source,
+        target_element=target,
+    )
+
+    h.addConstrs(segment.power_in_st == np.asarray([7.5], dtype=np.float64))
+    h.addConstrs(segment.power_in_ts == np.asarray([3.5], dtype=np.float64))
+    h.run()
+
+    np.testing.assert_allclose(h.vals(segment.power_out_st), [7.5], rtol=1e-6, atol=1e-6)
+    np.testing.assert_allclose(h.vals(segment.power_out_ts), [3.5], rtol=1e-6, atol=1e-6)

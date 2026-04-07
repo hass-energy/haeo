@@ -8,7 +8,7 @@ from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.core.model import Network
 from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE
 from custom_components.haeo.core.model.elements.connection import Connection
-from custom_components.haeo.core.model.elements.segments import PowerLimitSegment
+from custom_components.haeo.core.model.elements.segments import EfficiencySegment, PowerLimitSegment
 from custom_components.haeo.core.schema import as_connection_target
 from custom_components.haeo.core.schema.elements import ElementConfigData, ElementType
 from custom_components.haeo.core.schema.elements.connection import (
@@ -102,3 +102,56 @@ def test_update_element_raises_for_missing_model_element() -> None:
 
     with pytest.raises(ValueError, match="Model element 'nonexistent_conn' not found in network during update"):
         update_element(network, config)
+
+
+def test_update_element_allows_empty_efficiency_section() -> None:
+    """Clearing optional efficiency should behave as 100% and not crash optimization."""
+    network = Network(name="test", periods=np.array([1.0, 1.0]))
+    network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "source", "is_source": True, "is_sink": False})
+    network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "target", "is_source": False, "is_sink": True})
+    network.add(
+        {
+            "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
+            "name": "conn",
+            "source": "source",
+            "target": "target",
+            "segments": {
+                "efficiency": {
+                    "segment_type": "efficiency",
+                    "efficiency_source_target": np.array([0.95, 0.95]),
+                    "efficiency_target_source": np.array([0.95, 0.95]),
+                },
+                "power_limit": {
+                    "segment_type": "power_limit",
+                    "max_power_source_target": np.array([10.0, 10.0]),
+                    "max_power_target_source": np.array([10.0, 10.0]),
+                },
+            },
+        }
+    )
+
+    config: ElementConfigData = {
+        CONF_ELEMENT_TYPE: ElementType.CONNECTION,
+        CONF_NAME: "conn",
+        SECTION_ENDPOINTS: {
+            "source": as_connection_target("source"),
+            "target": as_connection_target("target"),
+        },
+        SECTION_POWER_LIMITS: {
+            CONF_MAX_POWER_SOURCE_TARGET: np.array([10.0, 10.0]),
+            CONF_MAX_POWER_TARGET_SOURCE: np.array([10.0, 10.0]),
+        },
+        SECTION_PRICING: {},
+        SECTION_EFFICIENCY: {},
+    }
+    update_element(network, config)
+
+    conn = network.elements["conn"]
+    assert isinstance(conn, Connection)
+    efficiency = conn.segments["efficiency"]
+    assert isinstance(efficiency, EfficiencySegment)
+    assert efficiency.efficiency_source_target is None
+    assert efficiency.efficiency_target_source is None
+
+    # Regression check: this previously raised HiGHS "Unexpected parameters".
+    network.optimize()

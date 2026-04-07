@@ -9,6 +9,7 @@ import pytest
 from conftest import FakeStateMachine
 from custom_components.haeo.core.data.loader import config_loader as cl
 from custom_components.haeo.core.data.loader.config_loader import load_element_config, load_element_configs
+from custom_components.haeo.core.schema import as_connection_target
 from custom_components.haeo.core.schema.elements import ElementConfigSchema
 
 FORECAST_TIMES = (0.0, 3600.0, 7200.0, 10800.0)
@@ -55,6 +56,36 @@ def _battery_config(
     }
 
 
+def _inverter_config(*, efficiency_source_target: Any = None, efficiency_target_source: Any = None) -> dict[str, Any]:
+    return {
+        "element_type": "inverter",
+        "name": "Inverter",
+        "connection": as_connection_target("node_a"),
+        "power_limits": {
+            "max_power_source_target": {"type": "constant", "value": 10.0},
+            "max_power_target_source": {"type": "constant", "value": 10.0},
+        },
+        "efficiency": {
+            **({"efficiency_source_target": efficiency_source_target} if efficiency_source_target is not None else {}),
+            **({"efficiency_target_source": efficiency_target_source} if efficiency_target_source is not None else {}),
+        },
+    }
+
+
+def _connection_config(*, efficiency_source_target: Any = None, efficiency_target_source: Any = None) -> dict[str, Any]:
+    return {
+        "element_type": "connection",
+        "name": "Connection",
+        "endpoints": {"source": as_connection_target("node_a"), "target": as_connection_target("node_b")},
+        "pricing": {},
+        "power_limits": {},
+        "efficiency": {
+            **({"efficiency_source_target": efficiency_source_target} if efficiency_source_target is not None else {}),
+            **({"efficiency_target_source": efficiency_target_source} if efficiency_target_source is not None else {}),
+        },
+    }
+
+
 def _as_schema(config: dict[str, Any]) -> ElementConfigSchema:
     """Cast a test config dict to ElementConfigSchema at the type boundary."""
     return cast("ElementConfigSchema", config)
@@ -71,6 +102,12 @@ def _load_battery(config: dict[str, Any] | None = None) -> dict[str, Any]:
     result = load_element_config(
         "Battery", _as_schema(config or _battery_config()), FakeStateMachine({}), FORECAST_TIMES
     )
+    return cast("dict[str, Any]", result)
+
+
+def _load_element(name: str, config: dict[str, Any]) -> dict[str, Any]:
+    """Load an element config and return as plain dict for assertion."""
+    result = load_element_config(name, _as_schema(config), FakeStateMachine({}), FORECAST_TIMES)
     return cast("dict[str, Any]", result)
 
 
@@ -117,6 +154,79 @@ class TestLoadElementConfig:
         result = _load_grid(_grid_config(export_price={"type": "none"}))
 
         assert "price_target_source" not in result["pricing"]
+
+    def test_missing_non_efficiency_optional_field_is_not_defaulted(self) -> None:
+        """Missing non-efficiency optional fields remain absent."""
+        config = _grid_config()
+        config["pricing"].pop("price_target_source")
+
+        result = _load_grid(config)
+        assert "price_target_source" not in result["pricing"]
+
+    @pytest.mark.parametrize(
+        ("element_name", "config"),
+        [
+            ("Inverter", _inverter_config()),
+            ("Battery", {**_battery_config(), "efficiency": {}}),
+            ("Connection", _connection_config()),
+        ],
+        ids=("inverter", "battery", "connection"),
+    )
+    def test_missing_efficiency_fields_default_to_unity_by_type(
+        self,
+        element_name: str,
+        config: dict[str, Any],
+    ) -> None:
+        """Efficiency-typed optional fields default to 100% for all element types."""
+        result = _load_element(element_name, config)
+        np.testing.assert_allclose(result["efficiency"]["efficiency_source_target"], [1.0, 1.0, 1.0])
+        np.testing.assert_allclose(result["efficiency"]["efficiency_target_source"], [1.0, 1.0, 1.0])
+
+    @pytest.mark.parametrize(
+        ("element_name", "config"),
+        [
+            (
+                "Inverter",
+                _inverter_config(
+                    efficiency_source_target={"type": "none"},
+                    efficiency_target_source={"type": "none"},
+                ),
+            ),
+            (
+                "Connection",
+                _connection_config(
+                    efficiency_source_target={"type": "none"},
+                    efficiency_target_source={"type": "none"},
+                ),
+            ),
+        ],
+        ids=("inverter_none", "connection_none"),
+    )
+    def test_none_efficiency_values_default_to_unity_by_type(
+        self,
+        element_name: str,
+        config: dict[str, Any],
+    ) -> None:
+        """None-typed efficiency values resolve to 100% defaults."""
+        result = _load_element(element_name, config)
+        np.testing.assert_allclose(result["efficiency"]["efficiency_source_target"], [1.0, 1.0, 1.0])
+        np.testing.assert_allclose(result["efficiency"]["efficiency_target_source"], [1.0, 1.0, 1.0])
+
+    def test_unavailable_efficiency_entity_defaults_to_unity(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Unavailable efficiency entity data falls back to 100% defaults."""
+
+        def fake_load_sensors(_sm: Any, entity_ids: Sequence[str]) -> dict[str, float]:
+            return {}
+
+        monkeypatch.setattr(cl, "load_sensors", fake_load_sensors)
+
+        config = _inverter_config(
+            efficiency_source_target={"type": "entity", "value": ["sensor.missing_eff_st"]},
+            efficiency_target_source={"type": "entity", "value": ["sensor.missing_eff_ts"]},
+        )
+        result = _load_element("Inverter", config)
+        np.testing.assert_allclose(result["efficiency"]["efficiency_source_target"], [1.0, 1.0, 1.0])
+        np.testing.assert_allclose(result["efficiency"]["efficiency_target_source"], [1.0, 1.0, 1.0])
 
     def test_entity_value_loads_from_state_machine(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Entity values resolve through sensor loading pipeline."""
