@@ -66,16 +66,8 @@ def _inverter_config(*, efficiency_source_target: Any = None, efficiency_target_
             "max_power_target_source": {"type": "constant", "value": 10.0},
         },
         "efficiency": {
-            **(
-                {"efficiency_source_target": efficiency_source_target}
-                if efficiency_source_target is not None
-                else {}
-            ),
-            **(
-                {"efficiency_target_source": efficiency_target_source}
-                if efficiency_target_source is not None
-                else {}
-            ),
+            **({"efficiency_source_target": efficiency_source_target} if efficiency_source_target is not None else {}),
+            **({"efficiency_target_source": efficiency_target_source} if efficiency_target_source is not None else {}),
         },
     }
 
@@ -88,16 +80,8 @@ def _connection_config(*, efficiency_source_target: Any = None, efficiency_targe
         "pricing": {},
         "power_limits": {},
         "efficiency": {
-            **(
-                {"efficiency_source_target": efficiency_source_target}
-                if efficiency_source_target is not None
-                else {}
-            ),
-            **(
-                {"efficiency_target_source": efficiency_target_source}
-                if efficiency_target_source is not None
-                else {}
-            ),
+            **({"efficiency_source_target": efficiency_source_target} if efficiency_source_target is not None else {}),
+            **({"efficiency_target_source": efficiency_target_source} if efficiency_target_source is not None else {}),
         },
     }
 
@@ -169,6 +153,14 @@ class TestLoadElementConfig:
         """None-typed values remove the field from loaded config."""
         result = _load_grid(_grid_config(export_price={"type": "none"}))
 
+        assert "price_target_source" not in result["pricing"]
+
+    def test_missing_non_efficiency_optional_field_is_not_defaulted(self) -> None:
+        """Missing non-efficiency optional fields remain absent."""
+        config = _grid_config()
+        config["pricing"].pop("price_target_source")
+
+        result = _load_grid(config)
         assert "price_target_source" not in result["pricing"]
 
     @pytest.mark.parametrize(

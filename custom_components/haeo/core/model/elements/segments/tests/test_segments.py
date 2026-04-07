@@ -411,3 +411,27 @@ def test_efficiency_segment_treats_none_as_unity_after_update() -> None:
     h.run()
 
     np.testing.assert_allclose(h.vals(segment.power_out_ts), [10.0], rtol=1e-6, atol=1e-6)
+
+
+def test_efficiency_segment_treats_missing_values_as_unity_both_directions() -> None:
+    """Missing efficiency values should keep both directions lossless."""
+    h = create_solver()
+    periods = np.asarray([1.0], dtype=np.float64)
+    source = DummyElement("source", periods, h)
+    target = DummyElement("target", periods, h)
+    segment = EfficiencySegment(
+        "seg",
+        len(periods),
+        periods,
+        h,
+        spec={"segment_type": "efficiency"},
+        source_element=source,
+        target_element=target,
+    )
+
+    h.addConstrs(segment.power_in_st == np.asarray([7.5], dtype=np.float64))
+    h.addConstrs(segment.power_in_ts == np.asarray([3.5], dtype=np.float64))
+    h.run()
+
+    np.testing.assert_allclose(h.vals(segment.power_out_st), [7.5], rtol=1e-6, atol=1e-6)
+    np.testing.assert_allclose(h.vals(segment.power_out_ts), [3.5], rtol=1e-6, atol=1e-6)
