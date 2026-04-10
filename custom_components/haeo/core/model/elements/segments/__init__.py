@@ -31,13 +31,21 @@ from .power_limit import (
 from .pricing import PricingSegment, PricingSegmentSpec
 from .segment import Segment
 from .soc_pricing import SocPricingSegment, SocPricingSegmentSpec
+from .tag_filter import TagFilterSegment, TagFilterSegmentSpec
+from .tag_pricing import TagPricingSegment, TagPricingSegmentSpec
 
 # Discriminated union of segment type strings
-type SegmentType = Literal["efficiency", "passthrough", "power_limit", "pricing", "soc_pricing"]
+type SegmentType = Literal["efficiency", "passthrough", "power_limit", "pricing", "soc_pricing", "tag_pricing", "tag_filter"]
 
 # Union type for all segment specifications
 type SegmentSpec = (
-    EfficiencySegmentSpec | PassthroughSegmentSpec | PowerLimitSegmentSpec | PricingSegmentSpec | SocPricingSegmentSpec
+    EfficiencySegmentSpec
+    | PassthroughSegmentSpec
+    | PowerLimitSegmentSpec
+    | PricingSegmentSpec
+    | SocPricingSegmentSpec
+    | TagPricingSegmentSpec
+    | TagFilterSegmentSpec
 )
 
 
@@ -66,6 +74,16 @@ def is_soc_pricing_spec(spec: SegmentSpec) -> TypeGuard[SocPricingSegmentSpec]:
     return spec["segment_type"] == "soc_pricing"
 
 
+def is_tag_pricing_spec(spec: SegmentSpec) -> TypeGuard[TagPricingSegmentSpec]:
+    """Return True when spec is for a tag pricing segment."""
+    return spec["segment_type"] == "tag_pricing"
+
+
+def is_tag_filter_spec(spec: SegmentSpec) -> TypeGuard[TagFilterSegmentSpec]:
+    """Return True when spec is for a tag filter segment."""
+    return spec["segment_type"] == "tag_filter"
+
+
 @dataclass(frozen=True, slots=True)
 class SegmentSpecEntry:
     """Specification for a segment type."""
@@ -80,6 +98,8 @@ SEGMENTS: Final[dict[SegmentType, SegmentSpecEntry]] = {
     "power_limit": SegmentSpecEntry(factory=PowerLimitSegment),
     "pricing": SegmentSpecEntry(factory=PricingSegment),
     "soc_pricing": SegmentSpecEntry(factory=SocPricingSegment),
+    "tag_pricing": SegmentSpecEntry(factory=TagPricingSegment),
+    "tag_filter": SegmentSpecEntry(factory=TagFilterSegment),
 }
 
 
@@ -133,4 +153,10 @@ __all__ = [
     "is_power_limit_spec",
     "is_pricing_spec",
     "is_soc_pricing_spec",
+    "is_tag_filter_spec",
+    "is_tag_pricing_spec",
+    "TagFilterSegment",
+    "TagFilterSegmentSpec",
+    "TagPricingSegment",
+    "TagPricingSegmentSpec",
 ]
