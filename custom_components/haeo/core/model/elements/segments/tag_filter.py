@@ -1,10 +1,14 @@
 """Tag filter segment that constrains power flow for a specific tag.
 
-Limits or blocks power flow for a named tag:
-    power_st <= max_power_source_target (for the specific tag)
-    power_ts <= max_power_target_source (for the specific tag)
+Limits or blocks tagged power flow:
+    tagged_power_st[tag] <= max_power_source_target
+    tagged_power_ts[tag] <= max_power_target_source
 
 Set max_power to 0 to block flow for a tag entirely.
+
+This segment constrains the per-tag power variables from the base Segment class.
+The total power flow is unaffected by this constraint (it's controlled by the
+regular PowerLimitSegment). Tag filter constraints are additive.
 """
 
 from typing import Any, Literal, NotRequired
@@ -35,15 +39,10 @@ class TagFilterSegment(Segment):
     """Segment that limits power flow for a specific tag.
 
     Creates single power variables for each direction (no losses, so in == out).
+    When tagged power is active, constrains the per-tag variables.
+    When no tags are configured, constrains the total power flow.
 
-    Constraints:
-        power_st <= max_power_source_target
-        power_ts <= max_power_target_source
-
-    The tag field identifies which category of power flow this filter applies to.
-    Set max_power to 0 to completely block a tagged power flow.
-
-    Uses TrackedParam for max_power values to enable warm-start optimization.
+    Tag filter constraints are additive to the total power constraints.
     """
 
     # TrackedParams for warm-start support
@@ -61,18 +60,7 @@ class TagFilterSegment(Segment):
         source_element: Element[Any],
         target_element: Element[Any],
     ) -> None:
-        """Initialize tag filter segment.
-
-        Args:
-            segment_id: Unique identifier for naming LP variables
-            n_periods: Number of optimization periods
-            periods: Time period durations in hours
-            solver: HiGHS solver instance
-            spec: Tag filter segment specification.
-            source_element: Connected source element reference
-            target_element: Connected target element reference
-
-        """
+        """Initialize tag filter segment."""
         super().__init__(
             segment_id,
             n_periods,
@@ -87,7 +75,7 @@ class TagFilterSegment(Segment):
         self._power_st = solver.addVariables(n_periods, lb=0, name_prefix=f"{segment_id}_st_", out_array=True)
         self._power_ts = solver.addVariables(n_periods, lb=0, name_prefix=f"{segment_id}_ts_", out_array=True)
 
-        # Set tracked params (these trigger reactive infrastructure)
+        # Set tracked params
         self.max_power_source_target = broadcast_to_sequence(spec.get("max_power_source_target"), self._n_periods)
         self.max_power_target_source = broadcast_to_sequence(spec.get("max_power_target_source"), self._n_periods)
 
@@ -118,17 +106,25 @@ class TagFilterSegment(Segment):
 
     @constraint(output=True, unit="$/kW")
     def source_target(self) -> list[highs_linear_expression] | None:
-        """Power limit constraint for source→target direction."""
+        """Power limit constraint for source→target direction on the specific tag."""
         if self.max_power_source_target is None:
             return None
-        return list(self._power_st <= self.max_power_source_target)
+        if self.has_tags and self._tag in self._tagged_power:
+            power = self.tagged_power_in_st(self._tag)
+        else:
+            power = self._power_st
+        return list(power <= self.max_power_source_target)
 
     @constraint(output=True, unit="$/kW")
     def target_source(self) -> list[highs_linear_expression] | None:
-        """Power limit constraint for target→source direction."""
+        """Power limit constraint for target→source direction on the specific tag."""
         if self.max_power_target_source is None:
             return None
-        return list(self._power_ts <= self.max_power_target_source)
+        if self.has_tags and self._tag in self._tagged_power:
+            power = self.tagged_power_in_ts(self._tag)
+        else:
+            power = self._power_ts
+        return list(power <= self.max_power_target_source)
 
 
 __all__ = ["TagFilterSegment", "TagFilterSegmentSpec"]

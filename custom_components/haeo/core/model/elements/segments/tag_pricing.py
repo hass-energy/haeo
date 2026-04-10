@@ -1,10 +1,12 @@
 """Tag pricing segment that adds transfer costs for tagged power flows.
 
-Adds cost proportional to power flow for a specific tag:
-    cost = power * price * period_duration
+Adds cost proportional to tagged power flow:
+    cost = tagged_power[tag] * price * period_duration
 
-This is similar to PricingSegment but is intended to price a specific
-category of power flow (e.g., "grid_import", "solar") rather than all flow.
+This segment prices a specific tag of power flow within a connection's
+native tagged power decomposition. The segment still has its own total
+power variables (lossless passthrough), but the cost is computed from
+the per-tag variables inherited from the base Segment class.
 """
 
 from typing import Any, Literal, NotRequired
@@ -35,18 +37,17 @@ class TagPricingSegment(Segment):
     """Segment that adds transfer pricing costs for a specific power flow tag.
 
     Creates single power variables for each direction (lossless, in == out).
+    When tagged power is active, the cost is computed from the per-tag variables.
 
-    Cost contribution:
+    Cost contribution (when tags active):
+        cost_st = sum(tagged_power_st[tag] * price_source_target * periods)
+        cost_ts = sum(tagged_power_ts[tag] * price_target_source * periods)
+
+    Cost contribution (when no tags):
         cost_st = sum(power_st * price_source_target * periods)
         cost_ts = sum(power_ts * price_target_source * periods)
 
     Prices are in $/kWh, power in kW, periods in hours.
-
-    The tag field identifies which category of power flow this pricing applies to.
-    This enables tariff-based pricing where different power sources or destinations
-    are charged at different rates.
-
-    Uses TrackedParam for prices to enable warm-start optimization.
     """
 
     # TrackedParams for warm-start support
@@ -64,18 +65,7 @@ class TagPricingSegment(Segment):
         source_element: Element[Any],
         target_element: Element[Any],
     ) -> None:
-        """Initialize tag pricing segment.
-
-        Args:
-            segment_id: Unique identifier for naming LP variables
-            n_periods: Number of optimization periods
-            periods: Time period durations in hours
-            solver: HiGHS solver instance
-            spec: Tag pricing segment specification.
-            source_element: Connected source element reference
-            target_element: Connected target element reference
-
-        """
+        """Initialize tag pricing segment."""
         super().__init__(
             segment_id,
             n_periods,
@@ -90,7 +80,7 @@ class TagPricingSegment(Segment):
         self._power_st = solver.addVariables(n_periods, lb=0, name_prefix=f"{segment_id}_st_", out_array=True)
         self._power_ts = solver.addVariables(n_periods, lb=0, name_prefix=f"{segment_id}_ts_", out_array=True)
 
-        # Set tracked params (these trigger reactive infrastructure)
+        # Set tracked params
         self.price_source_target = broadcast_to_sequence(spec.get("price_source_target"), self._n_periods)
         self.price_target_source = broadcast_to_sequence(spec.get("price_target_source"), self._n_periods)
 
@@ -121,14 +111,26 @@ class TagPricingSegment(Segment):
 
     @cost
     def transfer_cost(self) -> highs_linear_expression | None:
-        """Return cost expression for tagged transfer pricing."""
+        """Return cost expression for tagged transfer pricing.
+
+        When tagged power is active, prices the specific tag's power flow.
+        When no tags are configured, prices the total power flow.
+        """
         cost_terms = []
 
         if self.price_source_target is not None:
-            cost_terms.append(Highs.qsum(self._power_st * self.price_source_target * self.periods))
+            if self.has_tags and self._tag in self._tagged_power:
+                power_st = self.tagged_power_in_st(self._tag)
+            else:
+                power_st = self._power_st
+            cost_terms.append(Highs.qsum(power_st * self.price_source_target * self.periods))
 
         if self.price_target_source is not None:
-            cost_terms.append(Highs.qsum(self._power_ts * self.price_target_source * self.periods))
+            if self.has_tags and self._tag in self._tagged_power:
+                power_ts = self.tagged_power_in_ts(self._tag)
+            else:
+                power_ts = self._power_ts
+            cost_terms.append(Highs.qsum(power_ts * self.price_target_source * self.periods))
 
         if not cost_terms:
             return None

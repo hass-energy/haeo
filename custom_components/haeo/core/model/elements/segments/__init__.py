@@ -112,11 +112,12 @@ def create_segment(
     spec: SegmentSpec,
     source_element: Element[Any],
     target_element: Element[Any],
+    tags: list[str] | None = None,
 ) -> Segment:
     """Create a segment instance from a segment specification."""
     segment_type = spec["segment_type"]
     entry = SEGMENTS[segment_type]
-    return entry.factory(
+    segment = entry.factory(
         segment_id,
         n_periods,
         periods,
@@ -125,6 +126,11 @@ def create_segment(
         source_element=source_element,
         target_element=target_element,
     )
+    # Set tags on the segment (must be done after construction
+    # because subclass constructors create the total power variables first)
+    if tags:
+        segment._tags = list(tags)  # noqa: SLF001
+    return segment
 
 
 __all__ = [

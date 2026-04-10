@@ -1,8 +1,12 @@
 """Tariff element adapter for model layer integration.
 
-A tariff creates a parallel connection between two nodes with a tag_pricing
-segment. This adds cost to power flowing between the specified nodes for a
-specific tagged power category.
+A tariff configures tagged power flow pricing on a connection between two nodes.
+It adds tags to the connection and includes a tag_pricing segment to add cost
+to the tagged power flow.
+
+Unlike other adapters that create new model elements, a tariff modifies how
+connections between the specified nodes behave by adding tags and tag-specific
+pricing segments.
 """
 
 from collections.abc import Mapping
@@ -52,9 +56,10 @@ TARIFF_DEVICE_NAMES: Final[frozenset[TariffDeviceName]] = frozenset(
 class TariffAdapter:
     """Adapter for Tariff elements.
 
-    Creates a connection with a tag_pricing segment between the specified
-    source and target nodes. The tag_pricing segment adds cost to power
-    flow for the specified tag.
+    Creates a connection between the specified source and target nodes
+    with both a passthrough segment (for total power flow) and a tag_pricing
+    segment (for tagged power pricing). The connection is configured with
+    the tariff's tag so all segments get per-tag power variables.
     """
 
     element_type: str = ELEMENT_TYPE
@@ -64,8 +69,9 @@ class TariffAdapter:
     def model_elements(self, config: TariffConfigData) -> list[ModelElementConfig]:
         """Return model element parameters for Tariff configuration.
 
-        Creates a connection between the tariff's source and target nodes
-        with a tag_pricing segment.
+        Creates a connection with tags enabled and a tag_pricing segment.
+        The connection includes a passthrough segment for basic power flow
+        and a tag_pricing segment for the tagged pricing.
         """
         tag_pricing = config[SECTION_TAG_PRICING]
         tag = tag_pricing[CONF_TAG]
@@ -76,7 +82,11 @@ class TariffAdapter:
                 "name": f"{config['name']}:tariff_connection",
                 "source": extract_connection_target(config[SECTION_ENDPOINTS]["source"]),
                 "target": extract_connection_target(config[SECTION_ENDPOINTS]["target"]),
+                "tags": [tag],
                 "segments": {
+                    "passthrough": {
+                        "segment_type": "passthrough",
+                    },
                     "tag_pricing": {
                         "segment_type": "tag_pricing",
                         "tag": tag,

@@ -113,4 +113,19 @@ class EfficiencySegment(Segment):
         return self._power_ts * efficiency
 
 
+    def tagged_power_out_st(self, tag: str) -> HighspyArray:
+        """Return per-tag power leaving segment in source→target direction (after efficiency loss)."""
+        efficiency = self.efficiency_source_target
+        if efficiency is None:
+            return self.tagged_power_in_st(tag)
+        return self.tagged_power_in_st(tag) * efficiency
+
+    def tagged_power_out_ts(self, tag: str) -> HighspyArray:
+        """Return per-tag power leaving segment in target→source direction (after efficiency loss)."""
+        efficiency = self.efficiency_target_source
+        if efficiency is None:
+            return self.tagged_power_in_ts(tag)
+        return self.tagged_power_in_ts(tag) * efficiency
+
+
 __all__ = ["EfficiencySegment", "EfficiencySegmentSpec"]
