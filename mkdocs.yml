@@ -199,6 +199,7 @@ nav:
           - Connection: modeling/device-layer/connection.md
           - Tariff: modeling/device-layer/tariff.md
       - Shadow Prices: modeling/shadow-prices.md
+      - Tagged Power Flow: modeling/tagged-power.md
 
   - Developer Guide:
       - developer-guide/index.md
@@ -215,6 +216,7 @@ nav:
       - Typing Philosophy: developer-guide/typing.md
       - Units & Stability: developer-guide/units.md
       - Energy Models: developer-guide/energy-models.md
+      - Tariff Compilation: developer-guide/tariff-compilation.md
       - Coordinator: developer-guide/coordinator.md
       - Data Loading: developer-guide/data-loading.md
       - Config Flow: developer-guide/config-flow.md

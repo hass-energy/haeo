@@ -283,4 +283,12 @@ See [units documentation](../developer-guide/units.md) for details.
 
     [:material-arrow-right: Shadow prices guide](shadow-prices.md)
 
+- :material-tag:{ .lg .middle } **Tagged Power Flow**
+
+    ---
+
+    Power provenance tracking and tariff-based pricing.
+
+    [:material-arrow-right: Tagged power flow](tagged-power.md)
+
 </div>
