@@ -159,6 +159,37 @@ class Element[OutputNameT: str]:
 
         return total_power
 
+    def connection_power_for_tag(self, tag: int) -> HighspyArray | NDArray[Any]:
+        """Return the net power from connections for a specific tag.
+
+        Same as connection_power() but for a single tag's flow.
+        """
+        if not self._connections:
+            return self._solver.addVariables(
+                self.n_periods, lb=0, ub=0, name_prefix=f"{self.name}_no_conn_t{tag}_", out_array=True
+            )
+
+        total_power: HighspyArray | NDArray[Any] = np.zeros(self.n_periods, dtype=object)
+
+        for conn, end in self._connections:
+            # Only connections with this tag contribute
+            if not hasattr(conn, 'connection_tags') or tag not in conn.connection_tags:
+                continue
+            if end == "source":
+                total_power = total_power + conn.power_into_source_for_tag(tag)
+            elif end == "target":
+                total_power = total_power + conn.power_into_target_for_tag(tag)
+
+        return total_power
+
+    def connection_tags(self) -> set[int]:
+        """Return the union of all tags from all connected connections."""
+        tags: set[int] = set()
+        for conn, _end in self._connections:
+            if hasattr(conn, 'connection_tags'):
+                tags.update(conn.connection_tags)
+        return tags
+
     def extract_values(
         self, sequence: Sequence[Any] | HighspyArray | NDArray[Any] | highs_cons | None
     ) -> tuple[float, ...]:

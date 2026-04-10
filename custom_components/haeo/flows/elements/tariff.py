@@ -10,20 +10,15 @@ from homeassistant.helpers.selector import (
     SelectSelector,
     SelectSelectorConfig,
     SelectSelectorMode,
-    TextSelector,
-    TextSelectorConfig,
-    TextSelectorType,
 )
 import voluptuous as vol
 
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
-from custom_components.haeo.core.schema import normalize_connection_target
 from custom_components.haeo.core.schema.elements.tariff import (
+    CONF_DESTINATIONS,
     CONF_PRICE_SOURCE_TARGET,
     CONF_PRICE_TARGET_SOURCE,
-    CONF_SOURCE,
-    CONF_TAG,
-    CONF_TARGET,
+    CONF_SOURCES,
     ELEMENT_TYPE,
     SECTION_ENDPOINTS,
     SECTION_TAG_PRICING,
@@ -31,6 +26,9 @@ from custom_components.haeo.core.schema.elements.tariff import (
 from custom_components.haeo.flows.element_flow import ElementFlowMixin
 from custom_components.haeo.flows.field_schema import SectionDefinition, build_section_schema
 from custom_components.haeo.sections import build_common_fields
+
+# Special value for "any node"
+ANY_NODE = "*"
 
 
 class TariffSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
@@ -41,45 +39,49 @@ class TariffSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         return (
             SectionDefinition(
                 key=SECTION_ENDPOINTS,
-                fields=(CONF_SOURCE, CONF_TARGET),
+                fields=(CONF_SOURCES, CONF_DESTINATIONS),
                 collapsed=False,
             ),
             SectionDefinition(
                 key=SECTION_TAG_PRICING,
-                fields=(CONF_TAG, CONF_PRICE_SOURCE_TARGET, CONF_PRICE_TARGET_SOURCE),
+                fields=(CONF_PRICE_SOURCE_TARGET, CONF_PRICE_TARGET_SOURCE),
                 collapsed=False,
             ),
         )
 
     def _build_schema(self, participants: list[str]) -> vol.Schema:
         """Build the voluptuous schema for tariff configuration."""
+        # Add "Any" option to participant list
+        source_options = [ANY_NODE, *participants]
+        dest_options = [ANY_NODE, *participants]
+
         sections = self._get_sections()
         field_entries: dict[str, dict[str, tuple[vol.Marker, Any]]] = {
             SECTION_ENDPOINTS: {
-                CONF_SOURCE: (
-                    vol.Required(CONF_SOURCE),
+                CONF_SOURCES: (
+                    vol.Required(CONF_SOURCES),
                     SelectSelector(
                         SelectSelectorConfig(
-                            options=participants,
+                            options=source_options,
                             mode=SelectSelectorMode.DROPDOWN,
+                            multiple=True,
+                            translation_key="tariff_sources",
                         )
                     ),
                 ),
-                CONF_TARGET: (
-                    vol.Required(CONF_TARGET),
+                CONF_DESTINATIONS: (
+                    vol.Required(CONF_DESTINATIONS),
                     SelectSelector(
                         SelectSelectorConfig(
-                            options=participants,
+                            options=dest_options,
                             mode=SelectSelectorMode.DROPDOWN,
+                            multiple=True,
+                            translation_key="tariff_destinations",
                         )
                     ),
                 ),
             },
             SECTION_TAG_PRICING: {
-                CONF_TAG: (
-                    vol.Required(CONF_TAG),
-                    TextSelector(TextSelectorConfig(type=TextSelectorType.TEXT)),
-                ),
                 CONF_PRICE_SOURCE_TARGET: (
                     vol.Optional(CONF_PRICE_SOURCE_TARGET),
                     NumberSelector(
@@ -134,25 +136,29 @@ class TariffSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             endpoints = user_input.get(SECTION_ENDPOINTS, {})
             tag_pricing = user_input.get(SECTION_TAG_PRICING, {})
 
-            if self._validate_name(name, errors):
-                source = endpoints.get(CONF_SOURCE)
-                target = endpoints.get(CONF_TARGET)
+            sources = endpoints.get(CONF_SOURCES, [])
+            destinations = endpoints.get(CONF_DESTINATIONS, [])
 
-                if source == target:
-                    errors["base"] = "source_target_same"
-                elif not source or not target:
-                    errors["base"] = "missing_endpoints"
+            if self._validate_name(name, errors):
+                if not sources:
+                    errors["base"] = "missing_sources"
+                elif not destinations:
+                    errors["base"] = "missing_destinations"
                 else:
+                    # Normalize "any" selections
+                    if ANY_NODE in sources:
+                        sources = [ANY_NODE]
+                    if ANY_NODE in destinations:
+                        destinations = [ANY_NODE]
+
                     config: dict[str, Any] = {
                         CONF_ELEMENT_TYPE: ELEMENT_TYPE,
                         CONF_NAME: name,
                         SECTION_ENDPOINTS: {
-                            CONF_SOURCE: normalize_connection_target(source),
-                            CONF_TARGET: normalize_connection_target(target),
+                            CONF_SOURCES: sources,
+                            CONF_DESTINATIONS: destinations,
                         },
-                        SECTION_TAG_PRICING: {
-                            CONF_TAG: tag_pricing.get(CONF_TAG, "default"),
-                        },
+                        SECTION_TAG_PRICING: {},
                     }
                     if CONF_PRICE_SOURCE_TARGET in tag_pricing and tag_pricing[CONF_PRICE_SOURCE_TARGET] is not None:
                         config[SECTION_TAG_PRICING][CONF_PRICE_SOURCE_TARGET] = {

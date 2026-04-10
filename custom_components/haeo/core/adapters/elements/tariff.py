@@ -1,32 +1,21 @@
 """Tariff element adapter for model layer integration.
 
-A tariff configures tagged power flow pricing on a connection between two nodes.
-It adds tags to the connection and includes a tag_pricing segment to add cost
-to the tagged power flow.
-
-Unlike other adapters that create new model elements, a tariff modifies how
-connections between the specified nodes behave by adding tags and tag-specific
-pricing segments.
+A tariff configures pricing rules for tagged power flow between source and
+destination nodes. Unlike other adapters that produce model elements directly,
+the tariff adapter produces tariff rule configs that are compiled into
+tag assignments and scoped segments during the collect_model_elements step.
 """
 
 from collections.abc import Mapping
 from typing import Any, Final, Literal
 
-from custom_components.haeo.core.adapters.output_utils import expect_output_data
 from custom_components.haeo.core.const import ConnectivityLevel
 from custom_components.haeo.core.model import ModelElementConfig, ModelOutputName, ModelOutputValue
-from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_CONNECTION
-from custom_components.haeo.core.model.elements.connection import (
-    CONNECTION_POWER_SOURCE_TARGET,
-    CONNECTION_POWER_TARGET_SOURCE,
-)
 from custom_components.haeo.core.model.output_data import OutputData
-from custom_components.haeo.core.schema import extract_connection_target
 from custom_components.haeo.core.schema.elements import ElementType
 from custom_components.haeo.core.schema.elements.tariff import (
     CONF_PRICE_SOURCE_TARGET,
     CONF_PRICE_TARGET_SOURCE,
-    CONF_TAG,
     ELEMENT_TYPE,
     SECTION_ENDPOINTS,
     SECTION_TAG_PRICING,
@@ -56,10 +45,9 @@ TARIFF_DEVICE_NAMES: Final[frozenset[TariffDeviceName]] = frozenset(
 class TariffAdapter:
     """Adapter for Tariff elements.
 
-    Creates a connection between the specified source and target nodes
-    with both a passthrough segment (for total power flow) and a tag_pricing
-    segment (for tagged power pricing). The connection is configured with
-    the tariff's tag so all segments get per-tag power variables.
+    Does not produce model elements directly. Instead, produces tariff rule
+    configs that the compilation step uses to inject tags and scoped segments
+    into existing connections.
     """
 
     element_type: str = ELEMENT_TYPE
@@ -67,35 +55,28 @@ class TariffAdapter:
     connectivity: ConnectivityLevel = ConnectivityLevel.NEVER
 
     def model_elements(self, config: TariffConfigData) -> list[ModelElementConfig]:
-        """Return model element parameters for Tariff configuration.
+        """Return empty list — tariffs don't create model elements directly.
 
-        Produces a connection config with the tariff's tag and a tag-scoped
-        pricing segment. The collect_model_elements merge step will fold this
-        into the existing connection between the same endpoints, adding the
-        tag and scoped pricing segment to that connection.
-
-        If no existing connection matches, this becomes a standalone connection.
+        Tariff compilation is handled separately in collect_model_elements.
         """
-        tag_pricing = config[SECTION_TAG_PRICING]
-        tag = tag_pricing[CONF_TAG]
+        return []
 
-        return [
-            {
-                "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
-                "name": f"{config['name']}:tariff_connection",
-                "source": extract_connection_target(config[SECTION_ENDPOINTS]["source"]),
-                "target": extract_connection_target(config[SECTION_ENDPOINTS]["target"]),
-                "tags": [tag],
-                "segments": {
-                    f"{config['name']}_pricing": {
-                        "segment_type": "pricing",
-                        "tag": tag,
-                        "price_source_target": tag_pricing.get(CONF_PRICE_SOURCE_TARGET),
-                        "price_target_source": tag_pricing.get(CONF_PRICE_TARGET_SOURCE),
-                    },
-                },
-            }
-        ]
+    def tariff_rule(self, config: TariffConfigData) -> dict[str, Any]:
+        """Extract a tariff rule from the config for compilation.
+
+        Returns:
+            Dict with sources, destinations, and pricing.
+        """
+        endpoints = config[SECTION_ENDPOINTS]
+        tag_pricing = config[SECTION_TAG_PRICING]
+
+        return {
+            "name": config["name"],
+            "sources": endpoints.get("sources", ["*"]),
+            "destinations": endpoints.get("destinations", ["*"]),
+            "price_source_target": tag_pricing.get(CONF_PRICE_SOURCE_TARGET),
+            "price_target_source": tag_pricing.get(CONF_PRICE_TARGET_SOURCE),
+        }
 
     def outputs(
         self,
@@ -105,24 +86,10 @@ class TariffAdapter:
     ) -> Mapping[TariffDeviceName, Mapping[TariffOutputName, OutputData]]:
         """Map model outputs to tariff-specific output names.
 
-        When the tariff's connection was merged into an existing connection,
-        the tariff connection name won't exist in model_outputs. In that case
-        we return empty outputs (the power flow is visible on the base connection).
+        Tariffs don't have their own model elements, so outputs are empty.
+        Tagged power flows are visible on the connection sensors.
         """
-        tariff_conn_name = f"{name}:tariff_connection"
-        tariff_outputs: dict[TariffOutputName, OutputData] = {}
-
-        if tariff_conn_name in model_outputs:
-            connection = model_outputs[tariff_conn_name]
-            power_st = expect_output_data(connection[CONNECTION_POWER_SOURCE_TARGET])
-            power_ts = expect_output_data(connection[CONNECTION_POWER_TARGET_SOURCE])
-
-            if power_st is not None:
-                tariff_outputs[TARIFF_POWER_SOURCE_TARGET] = power_st
-            if power_ts is not None:
-                tariff_outputs[TARIFF_POWER_TARGET_SOURCE] = power_ts
-
-        return {TARIFF_DEVICE_TARIFF: tariff_outputs}
+        return {TARIFF_DEVICE_TARIFF: {}}
 
 
 adapter = TariffAdapter()

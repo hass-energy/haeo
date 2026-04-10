@@ -266,6 +266,14 @@ class Connection[TOutputName: str](Element[TOutputName]):
         """
         return self._last.power_out_st - self._first_ts.power_in_ts
 
+    def power_into_source_for_tag(self, tag: int) -> HighspyArray:
+        """Return per-tag power flowing into the source element."""
+        return self._last_ts.tag_power_out_ts(tag) - self._first.tag_power_in_st(tag)
+
+    def power_into_target_for_tag(self, tag: int) -> HighspyArray:
+        """Return per-tag power flowing into the target element."""
+        return self._last.tag_power_out_st(tag) - self._first_ts.tag_power_in_ts(tag)
+
     # --- Constraint and cost delegation to segments ---
 
     def constraints(self) -> dict[str, highs_cons | list[highs_cons]]:

@@ -75,19 +75,44 @@ class Node(Element[NodeOutputName]):
 
         Output: shadow price indicating the marginal cost/value of power at this node.
         """
-        # We don't need power variables explicitly defined here, a source is a lack of upper bound on power out,
-        # and a sink is a lack of upper bound on power in. We just need to enforce power balance with connection power.
-
         conn_power = self.connection_power()
 
         if not self.is_source and not self.is_sink:
-            # Power balance is that connection power must be zero
             return list(conn_power == 0)
         if self.is_source and not self.is_sink:
-            # Only produce power therefore connection power can be less than or equal to zero
             return list(conn_power <= 0)
         if not self.is_source and self.is_sink:
-            # Only consume power therefore connection power can be >= 0
             return list(conn_power >= 0)
-        # Can both produce and consume power so there are no bounds
         return None
+
+    @constraint
+    def node_tag_power_balance(self) -> list[highs_linear_expression] | None:
+        """Per-tag power balance at this node.
+
+        Each tag's power must independently satisfy the same source/sink
+        constraints as the total. This ensures tagged power cannot be
+        "laundered" by mixing tags at intermediate nodes.
+
+        For junction nodes (not source, not sink): each tag balances to zero.
+        For source-only nodes: each tag can flow out independently.
+        For sink-only nodes: each tag can flow in independently.
+        For source+sink nodes: no per-tag constraint (free to mix).
+        """
+        tags = self.connection_tags()
+        if not tags or len(tags) <= 1:
+            # Single tag — per-tag balance is redundant with total balance
+            return None
+
+        constraints = []
+        for tag in tags:
+            tag_power = self.connection_power_for_tag(tag)
+
+            if not self.is_source and not self.is_sink:
+                constraints.extend(list(tag_power == 0))
+            elif self.is_source and not self.is_sink:
+                constraints.extend(list(tag_power <= 0))
+            elif not self.is_source and self.is_sink:
+                constraints.extend(list(tag_power >= 0))
+            # source+sink: no constraint per tag
+
+        return constraints if constraints else None
