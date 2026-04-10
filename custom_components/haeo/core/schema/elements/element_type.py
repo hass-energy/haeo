@@ -14,3 +14,4 @@ class ElementType(StrEnum):
     LOAD = "load"
     NODE = "node"
     SOLAR = "solar"
+    TARIFF = "tariff"

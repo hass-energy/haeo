@@ -97,6 +97,12 @@ from custom_components.haeo.core.adapters.elements.solar import (
     SolarDeviceName,
     SolarOutputName,
 )
+from custom_components.haeo.core.adapters.elements.tariff import (
+    TARIFF_DEVICE_NAMES,
+    TARIFF_OUTPUT_NAMES,
+    TariffDeviceName,
+    TariffOutputName,
+)
 from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES, is_element_type
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE
 from custom_components.haeo.core.schema.elements import (
@@ -125,6 +131,8 @@ from custom_components.haeo.core.schema.elements.node import OPTIONAL_INPUT_FIEL
 from custom_components.haeo.core.schema.elements.node import NodeConfigData
 from custom_components.haeo.core.schema.elements.solar import OPTIONAL_INPUT_FIELDS as SOLAR_OPTIONAL_INPUT_FIELDS
 from custom_components.haeo.core.schema.elements.solar import SolarConfigData
+from custom_components.haeo.core.schema.elements.tariff import OPTIONAL_INPUT_FIELDS as TARIFF_OPTIONAL_INPUT_FIELDS
+from custom_components.haeo.core.schema.elements.tariff import TariffConfigData
 from custom_components.haeo.core.schema.field_hints import extract_field_hints
 from custom_components.haeo.elements.field_hints import build_input_fields
 
@@ -143,6 +151,7 @@ type ElementOutputName = (
     | LoadOutputName
     | NodeOutputName
     | SolarOutputName
+    | TariffOutputName
     | NetworkOutputName
 )
 
@@ -155,6 +164,7 @@ ELEMENT_OUTPUT_NAMES: Final[frozenset[ElementOutputName]] = frozenset(
     | LOAD_OUTPUT_NAMES
     | NODE_OUTPUT_NAMES
     | SOLAR_OUTPUT_NAMES
+    | TARIFF_OUTPUT_NAMES
     | NETWORK_OUTPUT_NAMES
 )
 
@@ -167,6 +177,7 @@ type ElementDeviceName = (
     | LoadDeviceName
     | NodeDeviceName
     | SolarDeviceName
+    | TariffDeviceName
     | NetworkDeviceName
 )
 
@@ -181,6 +192,7 @@ ELEMENT_DEVICE_NAMES: Final[frozenset[ElementDeviceName]] = frozenset(
     | LOAD_DEVICE_NAMES
     | NODE_DEVICE_NAMES
     | SOLAR_DEVICE_NAMES
+    | TARIFF_DEVICE_NAMES
     | NETWORK_DEVICE_NAMES
 )
 
@@ -193,6 +205,7 @@ ELEMENT_DEVICE_NAMES_BY_TYPE: Final[dict[str, frozenset[ElementDeviceName]]] = {
     ElementType.LOAD: frozenset(LOAD_DEVICE_NAMES),
     ElementType.NODE: frozenset(NODE_DEVICE_NAMES),
     ElementType.SOLAR: frozenset(SOLAR_DEVICE_NAMES),
+    ElementType.TARIFF: frozenset(TARIFF_DEVICE_NAMES),
     ELEMENT_TYPE_NETWORK: frozenset(NETWORK_DEVICE_NAMES),
 }
 
@@ -215,6 +228,7 @@ ELEMENT_CONFIG_DATA: Final[dict[ElementType, type]] = {
     ElementType.LOAD: LoadConfigData,
     ElementType.NODE: NodeConfigData,
     ElementType.SOLAR: SolarConfigData,
+    ElementType.TARIFF: TariffConfigData,
 }
 
 ELEMENT_OPTIONAL_INPUT_FIELDS: Final[dict[ElementType, frozenset[str]]] = {
@@ -226,6 +240,7 @@ ELEMENT_OPTIONAL_INPUT_FIELDS: Final[dict[ElementType, frozenset[str]]] = {
     ElementType.LOAD: LOAD_OPTIONAL_INPUT_FIELDS,
     ElementType.NODE: NODE_OPTIONAL_INPUT_FIELDS,
     ElementType.SOLAR: SOLAR_OPTIONAL_INPUT_FIELDS,
+    ElementType.TARIFF: TARIFF_OPTIONAL_INPUT_FIELDS,
 }
 
 

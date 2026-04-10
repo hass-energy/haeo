@@ -355,6 +355,7 @@ def get_element_flow_classes() -> dict[ElementType, type]:
     from custom_components.haeo.flows.elements.load import LoadSubentryFlowHandler  # noqa: PLC0415
     from custom_components.haeo.flows.elements.node import NodeSubentryFlowHandler  # noqa: PLC0415
     from custom_components.haeo.flows.elements.solar import SolarSubentryFlowHandler  # noqa: PLC0415
+    from custom_components.haeo.flows.elements.tariff import TariffSubentryFlowHandler  # noqa: PLC0415
 
     return {
         ElementType.BATTERY: BatterySubentryFlowHandler,
@@ -365,4 +366,5 @@ def get_element_flow_classes() -> dict[ElementType, type]:
         ElementType.LOAD: LoadSubentryFlowHandler,
         ElementType.NODE: NodeSubentryFlowHandler,
         ElementType.SOLAR: SolarSubentryFlowHandler,
+        ElementType.TARIFF: TariffSubentryFlowHandler,
     }

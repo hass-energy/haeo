@@ -14,6 +14,7 @@ from custom_components.haeo.core.schema.elements.inverter import InverterConfigD
 from custom_components.haeo.core.schema.elements.load import LoadConfigData, LoadConfigSchema
 from custom_components.haeo.core.schema.elements.node import NodeConfigData, NodeConfigSchema
 from custom_components.haeo.core.schema.elements.solar import SolarConfigData, SolarConfigSchema
+from custom_components.haeo.core.schema.elements.tariff import TariffConfigData, TariffConfigSchema
 
 ElementConfigSchema = (
     InverterConfigSchema
@@ -24,6 +25,7 @@ ElementConfigSchema = (
     | SolarConfigSchema
     | NodeConfigSchema
     | ConnectionConfigSchema
+    | TariffConfigSchema
 )
 
 ElementConfigData = (
@@ -35,6 +37,7 @@ ElementConfigData = (
     | SolarConfigData
     | NodeConfigData
     | ConnectionConfigData
+    | TariffConfigData
 )
 
 ELEMENT_CONFIG_SCHEMAS: Final[dict[ElementType, type]] = {
@@ -46,6 +49,7 @@ ELEMENT_CONFIG_SCHEMAS: Final[dict[ElementType, type]] = {
     ElementType.LOAD: LoadConfigSchema,
     ElementType.NODE: NodeConfigSchema,
     ElementType.SOLAR: SolarConfigSchema,
+    ElementType.TARIFF: TariffConfigSchema,
 }
 
 
