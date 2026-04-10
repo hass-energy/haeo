@@ -29,6 +29,7 @@ class NodeElementConfig(TypedDict):
     name: str
     is_source: NotRequired[bool]
     is_sink: NotRequired[bool]
+    source_tag: NotRequired[int | None]
 
 
 class Node(Element[NodeOutputName]):
@@ -42,6 +43,11 @@ class Node(Element[NodeOutputName]):
     - is_source=False, is_sink=True: Can only consume (Load)
     - is_source=True, is_sink=False: Can only produce (Solar)
     - is_source=False, is_sink=False: Pure junction with no generation/consumption (Node)
+
+    Tagged power:
+    When source_tag is set, only that tag can carry outbound (produced) power
+    from this node. Other tags can only flow inbound or be zero. This is the
+    source enforcement mechanism for the policy/VLAN system.
     """
 
     def __init__(
@@ -52,6 +58,7 @@ class Node(Element[NodeOutputName]):
         solver: Highs,
         is_source: bool = True,
         is_sink: bool = True,
+        source_tag: int | None = None,
     ) -> None:
         """Initialize a node entity.
 
@@ -61,13 +68,24 @@ class Node(Element[NodeOutputName]):
             solver: The HiGHS solver instance for creating variables and constraints
             is_source: Whether this element can produce power (source behavior)
             is_sink: Whether this element can consume power (sink behavior)
+            source_tag: If set, only this tag can carry outbound power from this node.
 
         """
         super().__init__(name=name, periods=periods, solver=solver, output_names=NODE_OUTPUT_NAMES)
 
-        # Store if we are a source and/or sink
         self.is_source = is_source
         self.is_sink = is_sink
+        self._source_tag = source_tag
+
+    @property
+    def source_tag(self) -> int | None:
+        """Return the source tag for this node, or None."""
+        return self._source_tag
+
+    @source_tag.setter
+    def source_tag(self, value: int | None) -> None:
+        """Set the source tag."""
+        self._source_tag = value
 
     @constraint(output=True, unit="$/kW")
     def node_power_balance(self) -> list[highs_linear_expression] | None:
@@ -87,32 +105,38 @@ class Node(Element[NodeOutputName]):
 
     @constraint
     def node_tag_power_balance(self) -> list[highs_linear_expression] | None:
-        """Per-tag power balance at this node.
+        """Per-tag power balance and source enforcement at this node.
 
-        Each tag's power must independently satisfy the same source/sink
-        constraints as the total. This ensures tagged power cannot be
-        "laundered" by mixing tags at intermediate nodes.
+        Two purposes:
+        1. Each tag independently satisfies source/sink constraints at junction nodes.
+        2. Source enforcement: when source_tag is set, only that tag can carry
+           outbound power. Other tags must have tag_power >= 0 (no outflow).
 
-        For junction nodes (not source, not sink): each tag balances to zero.
-        For source-only nodes: each tag can flow out independently.
-        For sink-only nodes: each tag can flow in independently.
-        For source+sink nodes: no per-tag constraint (free to mix).
+        This prevents tagged power from being "laundered" at intermediate nodes
+        and ensures power provenance is tracked correctly.
         """
         tags = self.connection_tags()
         if not tags or len(tags) <= 1:
-            # Single tag — per-tag balance is redundant with total balance
             return None
 
         constraints = []
         for tag in tags:
             tag_power = self.connection_power_for_tag(tag)
 
-            if not self.is_source and not self.is_sink:
+            if self._source_tag is not None and tag != self._source_tag:
+                # Source enforcement: non-source tags cannot flow outbound.
+                # tag_power >= 0 means power can only flow INTO this node for this tag.
+                constraints.extend(list(tag_power >= 0))
+            elif not self.is_source and not self.is_sink:
+                # Junction: each tag must balance to zero
                 constraints.extend(list(tag_power == 0))
             elif self.is_source and not self.is_sink:
+                # Source-only: each tag can flow out
                 constraints.extend(list(tag_power <= 0))
             elif not self.is_source and self.is_sink:
+                # Sink-only: each tag can flow in
                 constraints.extend(list(tag_power >= 0))
-            # source+sink: no constraint per tag
+            # source+sink with source_tag: the source_tag has no per-tag constraint
+            # (it can flow freely in/out), other tags are constrained above
 
         return constraints if constraints else None

@@ -13,7 +13,7 @@ from custom_components.haeo.core.adapters.elements.node import adapter as node_a
 from custom_components.haeo.core.adapters.elements.solar import adapter as solar_adapter
 from custom_components.haeo.core.adapters.elements.tariff import TariffAdapter
 from custom_components.haeo.core.adapters.elements.tariff import adapter as tariff_adapter
-from custom_components.haeo.core.adapters.tariff_compilation import compile_tariffs
+from custom_components.haeo.core.adapters.tariff_compilation import compile_policies
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, ConnectivityLevel
 from custom_components.haeo.core.model import ModelElementConfig, ModelOutputName
 from custom_components.haeo.core.model.output_data import ModelOutputValue, OutputData
@@ -96,9 +96,9 @@ def collect_model_elements(
             model_elements = adapter.model_elements(loaded_params)
             all_model_elements.extend(model_elements)
 
-    # Compile tariffs into tags and scoped segments on connections
+    # Compile policies into tags and scoped segments on connections
     if tariff_rules:
-        compiled = compile_tariffs(
+        compiled = compile_policies(
             [dict(e) for e in all_model_elements],
             tariff_rules,
         )

@@ -236,6 +236,26 @@ class Segment(ABC):
         if not self._tag_power:
             self.initialize_tags([DEFAULT_TAG])
 
+    def total_power_in_st(self) -> HighspyArray:
+        """Total power entering segment in s→t (sum across all tags, ignoring scope)."""
+        self._ensure_tags_initialized()
+        return self._sum_across_tags("in_st")
+
+    def total_power_out_st(self) -> HighspyArray:
+        """Total power leaving segment in s→t (sum across all tags, ignoring scope)."""
+        self._ensure_tags_initialized()
+        return self._sum_across_tags("out_st")
+
+    def total_power_in_ts(self) -> HighspyArray:
+        """Total power entering segment in t→s (sum across all tags, ignoring scope)."""
+        self._ensure_tags_initialized()
+        return self._sum_across_tags("in_ts")
+
+    def total_power_out_ts(self) -> HighspyArray:
+        """Total power leaving segment in t→s (sum across all tags, ignoring scope)."""
+        self._ensure_tags_initialized()
+        return self._sum_across_tags("out_ts")
+
     def constraints(self) -> dict[str, highs_cons | list[highs_cons]]:
         """Return all constraints from this segment.
 

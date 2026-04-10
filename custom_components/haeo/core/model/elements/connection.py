@@ -240,31 +240,23 @@ class Connection[TOutputName: str](Element[TOutputName]):
 
     @property
     def power_source_target(self) -> HighspyArray:
-        """Return power flowing from source to target (input to first segment)."""
-        return self._first.power_in_st
+        """Return total power flowing from source to target (input to first segment)."""
+        return self._first.total_power_in_st()
 
     @property
     def power_target_source(self) -> HighspyArray:
-        """Return power flowing from target to source (input to first segment from t→s direction)."""
-        return self._first_ts.power_in_ts
+        """Return total power flowing from target to source (input to first ts segment)."""
+        return self._first_ts.total_power_in_ts()
 
     @property
     def power_into_source(self) -> HighspyArray:
-        """Return effective power flowing into the source element.
-
-        This is the t→s output from the last segment minus the s→t input to the first segment.
-
-        """
-        return self._last_ts.power_out_ts - self._first.power_in_st
+        """Return effective total power flowing into the source element."""
+        return self._last_ts.total_power_out_ts() - self._first.total_power_in_st()
 
     @property
     def power_into_target(self) -> HighspyArray:
-        """Return effective power flowing into the target element.
-
-        This is the s→t output from the last segment minus the t→s input to the first segment.
-
-        """
-        return self._last.power_out_st - self._first_ts.power_in_ts
+        """Return effective total power flowing into the target element."""
+        return self._last.total_power_out_st() - self._first_ts.total_power_in_ts()
 
     def power_into_source_for_tag(self, tag: int) -> HighspyArray:
         """Return per-tag power flowing into the source element."""

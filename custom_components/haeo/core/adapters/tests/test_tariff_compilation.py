@@ -12,7 +12,7 @@ from typing import Any
 import numpy as np
 import pytest
 
-from custom_components.haeo.core.adapters.tariff_compilation import compile_tariffs
+from custom_components.haeo.core.adapters.tariff_compilation import compile_policies
 from custom_components.haeo.core.model.elements.segments.segment import DEFAULT_TAG
 from custom_components.haeo.core.model.network import Network
 
@@ -44,14 +44,14 @@ def _make_connection(
 class TestTagAssignment:
     """Tag IDs are assigned correctly from tariff rules."""
 
-    def test_single_tariff_assigns_one_tag(self) -> None:
+    def test_single_policy_assigns_one_tag(self) -> None:
         elements = [
             _make_node("grid", is_source=True, is_sink=True),
             _make_node("load", is_sink=True),
             _make_connection("conn", "grid", "load"),
         ]
         tariffs = [{"sources": ["grid"], "destinations": ["load"], "price_source_target": 0.05}]
-        result = compile_tariffs(elements, tariffs)
+        result = compile_policies(elements, tariffs)
 
         connections = [e for e in result if e.get("element_type") == "connection"]
         assert len(connections) == 1
@@ -71,7 +71,7 @@ class TestTagAssignment:
             {"sources": ["grid"], "destinations": ["*"], "price_source_target": 0.05},
             {"sources": ["solar"], "destinations": ["*"], "price_source_target": 0.01},
         ]
-        result = compile_tariffs(elements, tariffs)
+        result = compile_policies(elements, tariffs)
 
         connections = [e for e in result if e.get("element_type") == "connection"]
         # Both connections should have the same tag set
@@ -89,7 +89,7 @@ class TestTagAssignment:
             _make_connection("c2", "solar", "sw"),
         ]
         tariffs = [{"sources": ["*"], "destinations": ["sw"], "price_source_target": 0.05}]
-        result = compile_tariffs(elements, tariffs)
+        result = compile_policies(elements, tariffs)
 
         connections = [e for e in result if e.get("element_type") == "connection"]
         tags = set(connections[0].get("tags", []))
@@ -101,35 +101,30 @@ class TestTagAssignment:
             _make_node("grid"),
             _make_connection("conn", "grid", "load"),
         ]
-        result = compile_tariffs(elements, [])
+        result = compile_policies(elements, [])
         assert result == elements
 
 
 class TestSourceEnforcement:
     """Source nodes can only produce power on their own tag."""
 
-    def test_source_enforcement_blocks_other_tags(self) -> None:
+    def test_source_enforcement_sets_source_tag(self) -> None:
         elements = [
             _make_node("grid"),
             _make_node("load"),
             _make_connection("conn", "grid", "load"),
         ]
         tariffs = [{"sources": ["grid"], "destinations": ["load"], "price_source_target": 0.05}]
-        result = compile_tariffs(elements, tariffs)
+        result = compile_policies(elements, tariffs)
 
-        conn = [e for e in result if e.get("element_type") == "connection"][0]
-        segments = conn.get("segments", {})
+        # Grid node should have source_tag set
+        grid_node = [e for e in result if e.get("name") == "grid"][0]
+        assert grid_node.get("source_tag") is not None
+        assert grid_node["source_tag"] != DEFAULT_TAG
 
-        # Should have enforcement segments blocking tag 0 outbound from grid
-        enforce_segments = {k: v for k, v in segments.items() if k.startswith("_enforce_")}
-        assert len(enforce_segments) > 0
-
-        # Tag 0 should be blocked from source→target (grid's outbound)
-        has_block_t0 = any(
-            s.get("tag") == DEFAULT_TAG and s.get("max_power_source_target") == 0.0
-            for s in enforce_segments.values()
-        )
-        assert has_block_t0
+        # Load node should NOT have source_tag
+        load_node = [e for e in result if e.get("name") == "load"][0]
+        assert load_node.get("source_tag") is None
 
 
 class TestScopedPricingInjection:
@@ -142,13 +137,13 @@ class TestScopedPricingInjection:
             _make_connection("conn", "grid", "load"),
         ]
         tariffs = [{"sources": ["grid"], "destinations": ["load"], "price_source_target": 0.05}]
-        result = compile_tariffs(elements, tariffs)
+        result = compile_policies(elements, tariffs)
 
         conn = [e for e in result if e.get("element_type") == "connection"][0]
         segments = conn.get("segments", {})
 
         # Should have a tariff pricing segment
-        tariff_segments = {k: v for k, v in segments.items() if k.startswith("_tariff_")}
+        tariff_segments = {k: v for k, v in segments.items() if k.startswith("_policy_")}
         assert len(tariff_segments) >= 1
 
         # The pricing segment should be scoped to grid's tag
@@ -161,7 +156,7 @@ class TestScopedPricingInjection:
 class TestEndToEndOptimization:
     """Full network optimization with compiled tariffs."""
 
-    def test_grid_to_load_tariff_adds_cost(self) -> None:
+    def test_grid_to_load_policy_adds_cost(self) -> None:
         """Tariff pricing increases cost of grid→load power flow."""
         periods = np.array([1.0])
 
@@ -188,7 +183,7 @@ class TestEndToEndOptimization:
         ]
 
         tariffs = [{"sources": ["grid"], "destinations": ["load"], "price_source_target": 0.05}]
-        compiled = compile_tariffs(elements, tariffs)
+        compiled = compile_policies(elements, tariffs)
 
         network = Network(name="test", periods=periods)
         sorted_elements = sorted(compiled, key=lambda e: e.get("element_type") == "connection")
@@ -209,7 +204,6 @@ class TestEndToEndOptimization:
         # Total: $1.25
         assert cost == pytest.approx(1.25, abs=0.01)
 
-    @pytest.mark.skip(reason="Multi-source tariff infeasibility under investigation")
     def test_cheaper_source_preferred_with_tariffs(self) -> None:
         """Optimizer prefers cheaper source when tariffs differ."""
         periods = np.array([1.0])
@@ -248,7 +242,7 @@ class TestEndToEndOptimization:
             {"sources": ["grid"], "destinations": ["load"], "price_source_target": 0.10},
             {"sources": ["solar"], "destinations": ["load"], "price_source_target": 0.01},
         ]
-        compiled = compile_tariffs(elements, tariffs)
+        compiled = compile_policies(elements, tariffs)
 
         network = Network(name="test", periods=periods)
         sorted_elements = sorted(compiled, key=lambda e: e.get("element_type") == "connection")
@@ -269,7 +263,7 @@ class TestEndToEndOptimization:
         # Total: $0.83
         assert cost == pytest.approx(0.83, abs=0.01)
 
-    def test_no_tariff_no_extra_cost(self) -> None:
+    def test_no_policy_no_extra_cost(self) -> None:
         """Without tariffs, optimization behaves normally."""
         periods = np.array([1.0])
         network = Network(name="test", periods=periods)

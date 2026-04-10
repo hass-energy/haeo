@@ -132,5 +132,27 @@ class EfficiencySegment(Segment):
             result = result + arr
         return result
 
+    def total_power_out_st(self) -> HighspyArray:
+        """Total power leaving segment in s→t (with efficiency, summed across all tags)."""
+        self._ensure_tags_initialized()
+        arrays = [self.tag_power_out_st(tag) for tag in self._tags]
+        if len(arrays) == 1:
+            return arrays[0]
+        result = arrays[0]
+        for arr in arrays[1:]:
+            result = result + arr
+        return result
+
+    def total_power_out_ts(self) -> HighspyArray:
+        """Total power leaving segment in t→s (with efficiency, summed across all tags)."""
+        self._ensure_tags_initialized()
+        arrays = [self.tag_power_out_ts(tag) for tag in self._tags]
+        if len(arrays) == 1:
+            return arrays[0]
+        result = arrays[0]
+        for arr in arrays[1:]:
+            result = result + arr
+        return result
+
 
 __all__ = ["EfficiencySegment", "EfficiencySegmentSpec"]

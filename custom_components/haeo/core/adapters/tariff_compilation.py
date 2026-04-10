@@ -1,8 +1,8 @@
-"""Tariff compilation: converts tariff configs into tagged power flow constraints.
+"""Policy compilation: converts policy configs into tagged power flow constraints.
 
 This module implements the compilation pipeline that transforms user-configured
-tariff rules into model-layer constructs: tag IDs on connections and scoped
-pricing/filtering segments.
+policy rules into model-layer constructs: tag IDs on connections, source_tag
+on nodes, and scoped pricing segments.
 
 The pipeline runs as a post-processing step in collect_model_elements(),
 after all adapters have produced their model element configs but before
@@ -14,15 +14,15 @@ from typing import Any
 from custom_components.haeo.core.model.elements.segments.segment import DEFAULT_TAG
 
 
-def compile_tariffs(
+def compile_policies(
     elements: list[dict[str, Any]],
-    tariff_configs: list[dict[str, Any]],
+    policy_configs: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
-    """Compile tariff rules into tagged power flow constraints on connections.
+    """Compile policy rules into tagged power flow constraints.
 
     Args:
         elements: All model element configs (nodes and connections).
-        tariff_configs: List of tariff rule configs, each with:
+        policy_configs: List of policy rule configs, each with:
             - sources: list of node names, or ["*"] for any
             - destinations: list of node names, or ["*"] for any
             - price_source_target: $/kWh or None
@@ -32,26 +32,26 @@ def compile_tariffs(
         Modified elements list with tags and scoped segments injected.
 
     """
-    if not tariff_configs:
+    if not policy_configs:
         return elements
 
-    # Separate connections from other elements (work with mutable copies)
+    # Separate connections and nodes (work with mutable copies)
     connections: list[dict[str, Any]] = []
-    non_connections: list[dict[str, Any]] = []
+    nodes: list[dict[str, Any]] = []
+    other: list[dict[str, Any]] = []
     for elem in elements:
         if elem.get("element_type") == "connection":
-            connections.append(dict(elem))  # mutable copy
+            connections.append(dict(elem))
+        elif elem.get("element_type") == "node":
+            nodes.append(dict(elem))
         else:
-            non_connections.append(elem)
+            other.append(elem)
 
     if not connections:
         return elements
 
-    # Build node set and connection adjacency
-    node_names: set[str] = set()
-    for elem in non_connections:
-        if elem.get("element_type") == "node":
-            node_names.add(elem["name"])
+    # Build node name set
+    node_names: set[str] = {n["name"] for n in nodes}
 
     # Build connection index: node_name -> list of connections touching that node
     conn_by_node: dict[str, list[dict[str, Any]]] = {}
@@ -61,14 +61,13 @@ def compile_tariffs(
         conn_by_node.setdefault(source, []).append(conn)
         conn_by_node.setdefault(target, []).append(conn)
 
-    # Step 1: Tag assignment — each source node in any tariff gets a unique tag
+    # Step 1: Tag assignment — each source node in any policy gets a unique tag
     tag_counter = 1
     tag_map: dict[str, int] = {}  # node_name -> tag_id
 
-    for tariff in tariff_configs:
-        sources = tariff.get("sources", [])
+    for policy in policy_configs:
+        sources = policy.get("sources", [])
         if sources == ["*"]:
-            # "any" source: assign tags to all nodes
             for name in node_names:
                 if name not in tag_map:
                     tag_map[name] = tag_counter
@@ -89,57 +88,19 @@ def compile_tariffs(
     for conn in connections:
         conn["tags"] = list(all_tags)
 
-    # Step 3: Source enforcement — at each source node's connections,
-    # only that source's tag can flow outbound. Block other tags.
+    # Step 3: Source enforcement — set source_tag on source nodes
+    # This tells the Node to enforce that only its tag can carry outbound power
+    node_by_name: dict[str, dict[str, Any]] = {n["name"]: n for n in nodes}
     for source_name, tag_id in tag_map.items():
-        source_connections = conn_by_node.get(source_name, [])
-        for conn in source_connections:
-            segments = dict(conn.get("segments", {}))
+        if source_name in node_by_name:
+            node_by_name[source_name]["source_tag"] = tag_id
 
-            # For each tag that is NOT this source's tag, block outbound flow
-            other_tags = [t for t in all_tags if t != tag_id and t != DEFAULT_TAG]
-            for other_tag in other_tags:
-                seg_name = f"_enforce_{source_name}_block_t{other_tag}"
-                # Determine direction: if this source is the connection's source,
-                # block source→target for other tags. If target, block target→source.
-                if conn.get("source") == source_name:
-                    segments[seg_name] = {
-                        "segment_type": "power_limit",
-                        "tag": other_tag,
-                        "max_power_source_target": 0.0,
-                    }
-                elif conn.get("target") == source_name:
-                    segments[seg_name] = {
-                        "segment_type": "power_limit",
-                        "tag": other_tag,
-                        "max_power_target_source": 0.0,
-                    }
-
-            # Also block tag 0 (default) from carrying source power outbound
-            # — all power from this source must be on its own tag
-            seg_name_default = f"_enforce_{source_name}_block_t0"
-            if conn.get("source") == source_name:
-                segments[seg_name_default] = {
-                    "segment_type": "power_limit",
-                    "tag": DEFAULT_TAG,
-                    "max_power_source_target": 0.0,
-                }
-            elif conn.get("target") == source_name:
-                segments[seg_name_default] = {
-                    "segment_type": "power_limit",
-                    "tag": DEFAULT_TAG,
-                    "max_power_target_source": 0.0,
-                }
-
-            conn["segments"] = segments
-
-    # Step 4: Segment injection — for each tariff, add scoped pricing
-    # at the destination connection (the discriminating point)
-    for idx, tariff in enumerate(tariff_configs):
-        sources = tariff.get("sources", [])
-        destinations = tariff.get("destinations", [])
-        price_st = tariff.get("price_source_target")
-        price_ts = tariff.get("price_target_source")
+    # Step 4: Scoped pricing injection at destination connections
+    for idx, policy in enumerate(policy_configs):
+        sources = policy.get("sources", [])
+        destinations = policy.get("destinations", [])
+        price_st = policy.get("price_source_target")
+        price_ts = policy.get("price_target_source")
 
         if price_st is None and price_ts is None:
             continue
@@ -162,7 +123,7 @@ def compile_tariffs(
                 dest_connections = conn_by_node.get(dest_node, [])
                 for conn in dest_connections:
                     segments = dict(conn.get("segments", {}))
-                    seg_name = f"_tariff_{idx}_t{source_tag}_to_{dest_node}"
+                    seg_name = f"_policy_{idx}_t{source_tag}_to_{dest_node}"
 
                     # Ensure unique segment name
                     final_name = seg_name
@@ -179,17 +140,14 @@ def compile_tariffs(
 
                     # Determine pricing direction based on connection orientation
                     if conn.get("target") == dest_node:
-                        # Power flowing source→target reaches the dest node
                         if price_st is not None:
                             pricing_spec["price_source_target"] = price_st
                     elif conn.get("source") == dest_node:
-                        # Power flowing target→source reaches the dest node
                         if price_st is not None:
                             pricing_spec["price_target_source"] = price_st
 
-                    # Only add if there's actually a price to apply
                     if "price_source_target" in pricing_spec or "price_target_source" in pricing_spec:
                         segments[final_name] = pricing_spec
                         conn["segments"] = segments
 
-    return [*non_connections, *connections]
+    return [*other, *nodes, *connections]
