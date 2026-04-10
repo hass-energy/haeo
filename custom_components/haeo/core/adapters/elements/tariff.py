@@ -69,9 +69,12 @@ class TariffAdapter:
     def model_elements(self, config: TariffConfigData) -> list[ModelElementConfig]:
         """Return model element parameters for Tariff configuration.
 
-        Creates a connection with tags enabled and a tag_pricing segment.
-        The connection includes a passthrough segment for basic power flow
-        and a tag_pricing segment for the tagged pricing.
+        Produces a connection config with the tariff's tag and a tag-scoped
+        pricing segment. The collect_model_elements merge step will fold this
+        into the existing connection between the same endpoints, adding the
+        tag and scoped pricing segment to that connection.
+
+        If no existing connection matches, this becomes a standalone connection.
         """
         tag_pricing = config[SECTION_TAG_PRICING]
         tag = tag_pricing[CONF_TAG]
@@ -84,10 +87,7 @@ class TariffAdapter:
                 "target": extract_connection_target(config[SECTION_ENDPOINTS]["target"]),
                 "tags": [tag],
                 "segments": {
-                    "passthrough": {
-                        "segment_type": "passthrough",
-                    },
-                    "tag_pricing": {
+                    f"{config['name']}_pricing": {
                         "segment_type": "pricing",
                         "tag": tag,
                         "price_source_target": tag_pricing.get(CONF_PRICE_SOURCE_TARGET),
@@ -103,18 +103,24 @@ class TariffAdapter:
         model_outputs: Mapping[str, Mapping[ModelOutputName, ModelOutputValue]],
         **_kwargs: Any,
     ) -> Mapping[TariffDeviceName, Mapping[TariffOutputName, OutputData]]:
-        """Map model outputs to tariff-specific output names."""
-        connection = model_outputs[f"{name}:tariff_connection"]
+        """Map model outputs to tariff-specific output names.
 
+        When the tariff's connection was merged into an existing connection,
+        the tariff connection name won't exist in model_outputs. In that case
+        we return empty outputs (the power flow is visible on the base connection).
+        """
+        tariff_conn_name = f"{name}:tariff_connection"
         tariff_outputs: dict[TariffOutputName, OutputData] = {}
 
-        power_st = expect_output_data(connection[CONNECTION_POWER_SOURCE_TARGET])
-        power_ts = expect_output_data(connection[CONNECTION_POWER_TARGET_SOURCE])
+        if tariff_conn_name in model_outputs:
+            connection = model_outputs[tariff_conn_name]
+            power_st = expect_output_data(connection[CONNECTION_POWER_SOURCE_TARGET])
+            power_ts = expect_output_data(connection[CONNECTION_POWER_TARGET_SOURCE])
 
-        if power_st is not None:
-            tariff_outputs[TARIFF_POWER_SOURCE_TARGET] = power_st
-        if power_ts is not None:
-            tariff_outputs[TARIFF_POWER_TARGET_SOURCE] = power_ts
+            if power_st is not None:
+                tariff_outputs[TARIFF_POWER_SOURCE_TARGET] = power_st
+            if power_ts is not None:
+                tariff_outputs[TARIFF_POWER_TARGET_SOURCE] = power_ts
 
         return {TARIFF_DEVICE_TARIFF: tariff_outputs}
 
