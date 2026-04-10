@@ -43,11 +43,13 @@ MIN_SEGMENTS_FOR_LINKING = 2
 type ConnectionOutputName = Literal[
     "connection_power_source_target",
     "connection_power_target_source",
+    "connection_tagged_power",
     "segments",
 ]
 
 CONNECTION_POWER_SOURCE_TARGET: Final = "connection_power_source_target"
 CONNECTION_POWER_TARGET_SOURCE: Final = "connection_power_target_source"
+CONNECTION_TAGGED_POWER: Final = "connection_tagged_power"
 CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET: Final = "connection_shadow_power_max_source_target"
 CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE: Final = "connection_shadow_power_max_target_source"
 CONNECTION_TIME_SLICE: Final = "connection_time_slice"
@@ -60,6 +62,7 @@ CONNECTION_OUTPUT_NAMES: Final[frozenset[ConnectionOutputName]] = frozenset(
     (
         CONNECTION_POWER_SOURCE_TARGET,
         CONNECTION_POWER_TARGET_SOURCE,
+        CONNECTION_TAGGED_POWER,
         CONNECTION_SEGMENTS,
     )
 )
@@ -389,6 +392,36 @@ class Connection[TOutputName: str](Element[TOutputName]):
             direction="-",
         )
 
+    @output(name=CONNECTION_TAGGED_POWER)
+    def connection_tagged_power(self) -> dict[int, dict[str, OutputData]] | None:
+        """Per-tag power flow decomposition.
+
+        Returns a map of tag_id -> {"source_target": OutputData, "target_source": OutputData}
+        showing the power flow for each tag in each direction.
+        """
+        if len(self._tags) <= 1:
+            return None  # Single tag — no decomposition needed
+
+        result: dict[int, dict[str, OutputData]] = {}
+        for tag in self._tags:
+            first = self._first
+            first_ts = self._first_ts
+            result[tag] = {
+                "source_target": OutputData(
+                    type=OutputType.POWER_FLOW,
+                    unit="kW",
+                    values=self.extract_values(first.tag_power_in_st(tag)),
+                    direction="+",
+                ),
+                "target_source": OutputData(
+                    type=OutputType.POWER_FLOW,
+                    unit="kW",
+                    values=self.extract_values(first_ts.tag_power_in_ts(tag)),
+                    direction="-",
+                ),
+            }
+        return result
+
     @output(name=CONNECTION_SEGMENTS)
     def segment_outputs(self) -> ConnectionSegmentOutputs | None:
         """Return outputs grouped by segment."""
@@ -403,6 +436,7 @@ __all__ = [
     "CONNECTION_SEGMENTS",
     "CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET",
     "CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE",
+    "CONNECTION_TAGGED_POWER",
     "CONNECTION_TIME_SLICE",
     "ELEMENT_TYPE",
     "Connection",

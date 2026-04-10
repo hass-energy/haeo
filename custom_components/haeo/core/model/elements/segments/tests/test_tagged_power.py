@@ -263,3 +263,62 @@ class TestNetworkIntegrationWithTags:
         cost = network.optimize()
         # No load → no forced flow → cost 0
         assert cost == pytest.approx(0.0)
+
+
+class TestTaggedPowerOutputs:
+    """Test that connection outputs include per-tag power decomposition."""
+
+    def test_tagged_power_output_contains_per_tag_flows(self) -> None:
+        """Connection outputs include tagged_power map when tags > 1."""
+        h = create_solver()
+        periods = np.array([1.0])
+
+        conn = Connection(
+            name="conn", periods=periods, solver=h,
+            source="src", target="tgt",
+            tags=[0, 1],
+        )
+        source = DummyElement("src", periods, h)
+        target = DummyElement("tgt", periods, h)
+        conn.set_endpoints(source, target)
+        conn.constraints()
+
+        # Fix flow: 10 kW st, split 7/3 between tags
+        first = list(conn.segments.values())[0]
+        h.addConstrs(first.tag_power_in_st(0) == np.array([7.0]))
+        h.addConstrs(first.tag_power_in_st(1) == np.array([3.0]))
+        h.run()
+
+        outputs = conn.outputs()
+        assert "connection_tagged_power" in outputs
+
+        tagged = outputs["connection_tagged_power"]
+        assert isinstance(tagged, dict)
+        assert 0 in tagged
+        assert 1 in tagged
+
+        # Tag 0: 7 kW st
+        tag0_st = tagged[0]["source_target"]
+        assert tag0_st.values == pytest.approx((7.0,))
+
+        # Tag 1: 3 kW st
+        tag1_st = tagged[1]["source_target"]
+        assert tag1_st.values == pytest.approx((3.0,))
+
+    def test_single_tag_omits_tagged_output(self) -> None:
+        """Single-tag connections don't include tagged_power output."""
+        h = create_solver()
+        periods = np.array([1.0])
+
+        conn = Connection(
+            name="conn", periods=periods, solver=h,
+            source="src", target="tgt",
+        )
+        source = DummyElement("src", periods, h)
+        target = DummyElement("tgt", periods, h)
+        conn.set_endpoints(source, target)
+        conn.constraints()
+        h.run()
+
+        outputs = conn.outputs()
+        assert "connection_tagged_power" not in outputs

@@ -188,6 +188,36 @@ When no tariffs are configured:
 :material-github: [`core/model/elements/segments/segment.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/core/model/elements/segments/segment.py)
 :material-github: [`core/model/elements/connection.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/core/model/elements/connection.py)
 
+## Connection Outputs
+
+Connections expose per-tag power decomposition via the `connection_tagged_power` output:
+
+```python
+{
+    0: {"source_target": OutputData(...), "target_source": OutputData(...)},
+    1: {"source_target": OutputData(...), "target_source": OutputData(...)},
+    2: {"source_target": OutputData(...), "target_source": OutputData(...)},
+}
+```
+
+Each tag maps to its directional power flow arrays.
+The total power (`connection_power_source_target`) is the sum across all tags.
+When only tag 0 exists (no policies), the tagged output is omitted.
+
+## Future: Path-Based VLAN Optimization
+
+The current implementation assigns one VLAN per source node and propagates all VLANs
+across all connections. This is correct but creates more variables than necessary when
+many nodes don't interact.
+
+A future optimization could assign VLANs per source→destination path combination,
+collapsing identically-treated flows into shared VLANs. This would minimize variables
+to only the connections that actually carry each flow, with "mapping segments" to
+translate between VLANs at routing points.
+
+For typical home systems (<10 nodes), the current approach is adequate.
+The optimization becomes important for larger or more complex networks.
+
 ## Next Steps
 
 <div class="grid cards" markdown>
