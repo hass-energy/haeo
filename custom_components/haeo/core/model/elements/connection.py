@@ -33,7 +33,7 @@ class ConnectionElementConfig(TypedDict):
     target: str
     mirror_segment_order: NotRequired[bool]
     segments: NotRequired[dict[str, SegmentSpec]]
-    tags: NotRequired[list[str]]
+    tags: NotRequired[list[int]]
 
 
 # Minimum segments needed before linking is required
@@ -97,7 +97,7 @@ class Connection[TOutputName: str](Element[TOutputName]):
         segments: dict[str, SegmentSpec] | None = None,
         mirror_segment_order: bool = False,
         output_names: frozenset[TOutputName] | None = None,
-        tags: list[str] | None = None,
+        tags: list[int] | None = None,
     ) -> None:
         """Initialize a connection.
 
@@ -111,9 +111,8 @@ class Connection[TOutputName: str](Element[TOutputName]):
                 Each spec has segment_type plus segment-specific parameters.
             mirror_segment_order: Use the same segment order for both flow directions.
             output_names: Output names for this connection type
-            tags: Optional list of tag names for tagged power decomposition.
-                When provided, each segment creates per-tag power variables
-                that decompose the total power flow.
+            tags: List of tag IDs for tagged power decomposition.
+                Defaults to [0] (untagged). Tag 0 is always included.
 
         """
         # Use provided output_names or default to CONNECTION_OUTPUT_NAMES
@@ -129,7 +128,13 @@ class Connection[TOutputName: str](Element[TOutputName]):
         self._source_element: Element[Any] | None = None
         self._target_element: Element[Any] | None = None
         self._mirror_segment_order = mirror_segment_order
-        self._tags: list[str] = list(tags) if tags else []
+
+        # Tags: always include DEFAULT_TAG (0). Additional tags for tariffs etc.
+        from .segments.segment import DEFAULT_TAG  # noqa: PLC0415
+        raw_tags = list(tags) if tags else []
+        if DEFAULT_TAG not in raw_tags:
+            raw_tags.insert(0, DEFAULT_TAG)
+        self._tags: list[int] = raw_tags
 
         # Segments stored in OrderedDict for name-based and index-based access
         self._segment_specs: OrderedDict[str, SegmentSpec] = OrderedDict(segments or {})
@@ -165,7 +170,6 @@ class Connection[TOutputName: str](Element[TOutputName]):
                 spec=segment_spec,
                 source_element=source_element,
                 target_element=target_element,
-                tags=self._tags if self._tags else None,
             )
             self._segments[resolved_name] = segment
 
@@ -179,13 +183,11 @@ class Connection[TOutputName: str](Element[TOutputName]):
                 spec={"segment_type": "passthrough"},
                 source_element=source_element,
                 target_element=target_element,
-                tags=self._tags if self._tags else None,
             )
 
-        # Initialize tagged power variables on all segments
-        if self._tags:
-            for segment in self._segments.values():
-                segment.initialize_tags()
+        # Initialize per-tag power variables on all segments
+        for segment in self._segments.values():
+            segment.initialize_tags(self._tags)
 
     @property
     def _first(self) -> Segment:
@@ -232,7 +234,7 @@ class Connection[TOutputName: str](Element[TOutputName]):
         return self._target
 
     @property
-    def connection_tags(self) -> list[str]:
+    def connection_tags(self) -> list[int]:
         """Return the list of configured tags for this connection."""
         return self._tags
 
@@ -314,7 +316,11 @@ class Connection[TOutputName: str](Element[TOutputName]):
 
     @constraint
     def segment_link_st(self) -> list[highs_linear_expression] | None:
-        """Link s→t power between adjacent segments."""
+        """Link s→t power between adjacent segments (per-tag).
+
+        Links each tag's output from one segment to the next segment's input.
+        When only tag 0 exists, this is equivalent to total power linking.
+        """
         if len(self._segments) < MIN_SEGMENTS_FOR_LINKING:
             return None
 
@@ -323,48 +329,20 @@ class Connection[TOutputName: str](Element[TOutputName]):
         for i in range(len(segment_list) - 1):
             curr = segment_list[i]
             next_seg = segment_list[i + 1]
-            # Output of current segment feeds input of next segment (total power)
-            constraints.extend(list(curr.power_out_st == next_seg.power_in_st))
-        return constraints
-
-    @constraint
-    def segment_link_ts(self) -> list[highs_linear_expression] | None:
-        """Link t→s power between adjacent segments."""
-        if len(self._segments) < MIN_SEGMENTS_FOR_LINKING:
-            return None
-
-        constraints = []
-        segment_list = self._segment_list_ts()
-        for i in range(len(segment_list) - 1):
-            curr = segment_list[i]
-            next_seg = segment_list[i + 1]
-            # Output of current segment feeds input of next segment (total power)
-            constraints.extend(list(curr.power_out_ts == next_seg.power_in_ts))
-        return constraints
-
-    @constraint
-    def segment_link_tagged_st(self) -> list[highs_linear_expression] | None:
-        """Link per-tag s→t power between adjacent segments."""
-        if not self._tags or len(self._segments) < MIN_SEGMENTS_FOR_LINKING:
-            return None
-
-        constraints = []
-        segment_list = self._segment_list_st()
-        for i in range(len(segment_list) - 1):
-            curr = segment_list[i]
-            next_seg = segment_list[i + 1]
-            if not curr.has_tags or not next_seg.has_tags:
-                continue
             for tag in self._tags:
                 constraints.extend(list(
-                    curr.tagged_power_out_st(tag) == next_seg.tagged_power_in_st(tag)
+                    curr.tag_power_out_st(tag) == next_seg.tag_power_in_st(tag)
                 ))
         return constraints
 
     @constraint
-    def segment_link_tagged_ts(self) -> list[highs_linear_expression] | None:
-        """Link per-tag t→s power between adjacent segments."""
-        if not self._tags or len(self._segments) < MIN_SEGMENTS_FOR_LINKING:
+    def segment_link_ts(self) -> list[highs_linear_expression] | None:
+        """Link t→s power between adjacent segments (per-tag).
+
+        Links each tag's output from one segment to the next segment's input.
+        When only tag 0 exists, this is equivalent to total power linking.
+        """
+        if len(self._segments) < MIN_SEGMENTS_FOR_LINKING:
             return None
 
         constraints = []
@@ -372,11 +350,9 @@ class Connection[TOutputName: str](Element[TOutputName]):
         for i in range(len(segment_list) - 1):
             curr = segment_list[i]
             next_seg = segment_list[i + 1]
-            if not curr.has_tags or not next_seg.has_tags:
-                continue
             for tag in self._tags:
                 constraints.extend(list(
-                    curr.tagged_power_out_ts(tag) == next_seg.tagged_power_in_ts(tag)
+                    curr.tag_power_out_ts(tag) == next_seg.tag_power_in_ts(tag)
                 ))
         return constraints
 

@@ -88,7 +88,7 @@ class TariffAdapter:
                         "segment_type": "passthrough",
                     },
                     "tag_pricing": {
-                        "segment_type": "tag_pricing",
+                        "segment_type": "pricing",
                         "tag": tag,
                         "price_source_target": tag_pricing.get(CONF_PRICE_SOURCE_TARGET),
                         "price_target_source": tag_pricing.get(CONF_PRICE_TARGET_SOURCE),

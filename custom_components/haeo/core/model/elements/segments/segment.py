@@ -4,30 +4,31 @@ Segments are modular components that can be chained together to form
 connections. Each segment exposes power flow properties that the Connection
 uses to link segments together.
 
+Power flow model:
+- All power is tagged. Every connection has at least tag 0 (untagged/default).
+- Each segment creates per-tag LP variables for each direction.
+- power_in_st / power_out_st return the sum across all tags (total power).
+- Segments can be scoped to a specific tag via the `tag` spec parameter.
+  Scoped segments' constraints/costs apply only to that tag's variables.
+  Their power_in/out properties return that tag's variables, not the sum.
+
 The linking protocol:
-- power_in_st / power_in_ts: Power entering this segment
-- power_out_st / power_out_ts: Power leaving this segment
-
-For simple segments (no losses), in == out (same variable).
-For segments with losses (efficiency), out = in * factor (separate variables with constraint).
-
-Tagged power:
-- When tags are configured, the segment creates per-tag power variables
-  that decompose the total power flow.
-- Constraint: sum(tagged_power[tag]) == total_power for each period/direction
-- Existing constraints operate on total power (unchanged).
-- Tag-specific constraints are additive (via TagPricingSegment, TagFilterSegment).
+- power_in_st / power_in_ts: Power entering this segment (sum or tag-scoped)
+- power_out_st / power_out_ts: Power leaving this segment (sum or tag-scoped)
 - Per-tag linking between adjacent segments is handled by Connection.
+
+For simple segments (no losses), in == out per tag (same variable).
+For segments with losses (efficiency), out = in * factor per tag.
 
 Segments are reactive-aware: they can use TrackedParam for parameters and
 @constraint/@cost decorators for methods.
 """
 
-from abc import ABC, abstractmethod
+from abc import ABC
 from typing import Any
 
 from highspy import Highs
-from highspy.highs import HighspyArray, highs_cons, highs_linear_expression
+from highspy.highs import HighspyArray, highs_cons
 import numpy as np
 from numpy.typing import NDArray
 
@@ -35,24 +36,26 @@ from custom_components.haeo.core.model.element import Element
 from custom_components.haeo.core.model.output_data import OutputData
 from custom_components.haeo.core.model.reactive import OutputMethod, ReactiveConstraint, ReactiveCost, TrackedParam
 
+# Default tag for untagged power (like VLAN 0)
+DEFAULT_TAG: int = 0
+
 
 class Segment(ABC):
     """Abstract base class for connection segments.
 
-    Defines the interface that all segments must implement. Subclasses create
-    their own variables and implement the power properties as needed.
+    All power flow is decomposed into tags. Each segment creates LP variables
+    per tag per direction. The "total" power is the sum across all tags.
 
-    Required properties (subclasses must implement):
-    - power_in_st / power_out_st: Power flow in source→target direction
-    - power_in_ts / power_out_ts: Power flow in target→source direction
+    Segments can be scoped to a specific tag. When scoped:
+    - power_in_st/ts return that tag's variables (not the sum)
+    - constraints and costs apply to that tag only
 
-    For simple segments, power_in and power_out can return the same variable.
-    For segments with losses, power_out = power_in * efficiency (via constraint).
+    When unscoped (tag=None):
+    - power_in_st/ts return the sum across all tags
+    - constraints and costs apply to the total
 
-    Tagged power:
-    When tags are provided, the segment creates per-tag variables that decompose
-    the total power flow. Access via tagged_power_in_st(tag), etc.
-    A constraint ensures sum(tagged) == total for each period and direction.
+    Subclasses implement _create_tag_variables() to define how per-tag
+    variables relate (lossless: in == out, or efficiency: out = in * eff).
     """
 
     # TrackedParam for periods - enables reactive invalidation when periods change
@@ -67,7 +70,6 @@ class Segment(ABC):
         *,
         source_element: Element[Any],
         target_element: Element[Any],
-        tags: list[str] | None = None,
     ) -> None:
         """Initialize segment with common attributes.
 
@@ -78,7 +80,6 @@ class Segment(ABC):
             solver: HiGHS solver instance
             source_element: Connected source element reference
             target_element: Connected target element reference
-            tags: Optional list of tag names for tagged power decomposition
 
         """
         self._segment_id = segment_id
@@ -88,11 +89,12 @@ class Segment(ABC):
         self._source_element = source_element
         self._target_element = target_element
 
-        # Tagged power variables: tag -> {"st": HighspyArray, "ts": HighspyArray}
-        self._tags: list[str] = list(tags) if tags else []
-        self._tagged_power: dict[str, dict[str, HighspyArray]] = {}
-        # Decomposition constraints stored for solver management
-        self._tag_decomposition_constraints: list[highs_cons] = []
+        # Per-tag power variables: tag_id -> {"in_st", "out_st", "in_ts", "out_ts"}
+        self._tag_power: dict[int, dict[str, HighspyArray]] = {}
+        # The list of tags this segment knows about
+        self._tags: list[int] = []
+        # Optional: scope this segment to a specific tag (None = apply to sum)
+        self._scoped_tag: int | None = None
 
     @property
     def segment_id(self) -> str:
@@ -115,105 +117,124 @@ class Segment(ABC):
         return self._target_element
 
     @property
-    def tags(self) -> list[str]:
-        """Return the list of configured tags."""
+    def tags(self) -> list[int]:
+        """Return the list of tag IDs for this segment."""
         return self._tags
 
     @property
-    def has_tags(self) -> bool:
-        """Return True when tagged power decomposition is active."""
-        return len(self._tags) > 0
+    def scoped_tag(self) -> int | None:
+        """Return the tag this segment is scoped to, or None for all."""
+        return self._scoped_tag
 
-    def initialize_tags(self) -> None:
-        """Create per-tag power variables and decomposition constraints.
+    def initialize_tags(self, tags: list[int]) -> None:
+        """Create per-tag power variables.
 
-        Must be called AFTER the subclass constructor has created the total
-        power variables (power_in_st, power_in_ts, etc.).
-        This is called by the Connection after segment creation.
+        Called by the Connection after segment creation. Creates LP variables
+        for each tag. Subclasses control the in/out relationship via
+        _create_tag_variables().
+
+        Args:
+            tags: List of tag IDs (always includes DEFAULT_TAG).
+
         """
-        if not self._tags or self._tagged_power:
-            return  # No tags or already initialized
+        if self._tag_power:
+            return  # Already initialized
+        self._tags = list(tags)
+        for tag in tags:
+            self._tag_power[tag] = self._create_tag_variables(tag)
 
-        for tag in self._tags:
-            st_vars = self._solver.addVariables(
-                self._n_periods, lb=0,
-                name_prefix=f"{self._segment_id}_tag_{tag}_st_",
-                out_array=True,
-            )
-            ts_vars = self._solver.addVariables(
-                self._n_periods, lb=0,
-                name_prefix=f"{self._segment_id}_tag_{tag}_ts_",
-                out_array=True,
-            )
-            self._tagged_power[tag] = {"st": st_vars, "ts": ts_vars}
+    def _create_tag_variables(self, tag: int) -> dict[str, HighspyArray]:
+        """Create LP variables for a single tag.
 
-        # Decomposition constraint: sum of tagged == total for each period/direction
-        tag_sum_st = sum(self._tagged_power[tag]["st"] for tag in self._tags)
-        tag_sum_ts = sum(self._tagged_power[tag]["ts"] for tag in self._tags)
+        Default implementation: lossless (in == out, same variable).
+        Subclasses override for losses (e.g., efficiency creates separate in/out).
 
-        # Constrain tag sum == total power input
-        self._tag_decomposition_constraints.extend(
-            self._solver.addConstrs(tag_sum_st == self.power_in_st)
+        Returns:
+            Dict with keys "in_st", "out_st", "in_ts", "out_ts" -> HighspyArray.
+
+        """
+        st = self._solver.addVariables(
+            self._n_periods, lb=0,
+            name_prefix=f"{self._segment_id}_t{tag}_st_",
+            out_array=True,
         )
-        self._tag_decomposition_constraints.extend(
-            self._solver.addConstrs(tag_sum_ts == self.power_in_ts)
+        ts = self._solver.addVariables(
+            self._n_periods, lb=0,
+            name_prefix=f"{self._segment_id}_t{tag}_ts_",
+            out_array=True,
         )
+        return {"in_st": st, "out_st": st, "in_ts": ts, "out_ts": ts}
 
-    def tagged_power_in_st(self, tag: str) -> HighspyArray:
-        """Return per-tag power entering segment in source→target direction.
+    # --- Per-tag access ---
 
-        Raises KeyError if the tag is not configured.
-        """
-        return self._tagged_power[tag]["st"]
+    def tag_power_in_st(self, tag: int) -> HighspyArray:
+        """Return power entering segment in s→t direction for a specific tag."""
+        return self._tag_power[tag]["in_st"]
 
-    def tagged_power_in_ts(self, tag: str) -> HighspyArray:
-        """Return per-tag power entering segment in target→source direction.
+    def tag_power_out_st(self, tag: int) -> HighspyArray:
+        """Return power leaving segment in s→t direction for a specific tag."""
+        return self._tag_power[tag]["out_st"]
 
-        Raises KeyError if the tag is not configured.
-        """
-        return self._tagged_power[tag]["ts"]
+    def tag_power_in_ts(self, tag: int) -> HighspyArray:
+        """Return power entering segment in t→s direction for a specific tag."""
+        return self._tag_power[tag]["in_ts"]
 
-    def tagged_power_out_st(self, tag: str) -> HighspyArray:
-        """Return per-tag power leaving segment in source→target direction.
+    def tag_power_out_ts(self, tag: int) -> HighspyArray:
+        """Return power leaving segment in t→s direction for a specific tag."""
+        return self._tag_power[tag]["out_ts"]
 
-        For lossless segments (in == out), returns the same as tagged_power_in_st.
-        For efficiency segments, subclasses should override to apply efficiency.
-        """
-        # Default: lossless (in == out). Subclasses with losses override.
-        return self.tagged_power_in_st(tag)
+    # --- Aggregate / scoped access (used by constraints and linking) ---
 
-    def tagged_power_out_ts(self, tag: str) -> HighspyArray:
-        """Return per-tag power leaving segment in target→source direction.
-
-        For lossless segments (in == out), returns the same as tagged_power_in_ts.
-        For efficiency segments, subclasses should override to apply efficiency.
-        """
-        # Default: lossless (in == out). Subclasses with losses override.
-        return self.tagged_power_in_ts(tag)
+    def _sum_across_tags(self, key: str) -> HighspyArray:
+        """Sum a specific power key across all tags."""
+        arrays = [self._tag_power[tag][key] for tag in self._tags]
+        if len(arrays) == 1:
+            return arrays[0]
+        result = arrays[0]
+        for arr in arrays[1:]:
+            result = result + arr
+        return result
 
     @property
-    @abstractmethod
     def power_in_st(self) -> HighspyArray:
-        """Power entering segment in source→target direction."""
-        ...
+        """Power entering segment in source→target direction.
+
+        If scoped to a tag, returns that tag's variables.
+        Otherwise returns the sum across all tags.
+        """
+        self._ensure_tags_initialized()
+        if self._scoped_tag is not None:
+            return self._tag_power[self._scoped_tag]["in_st"]
+        return self._sum_across_tags("in_st")
 
     @property
-    @abstractmethod
     def power_out_st(self) -> HighspyArray:
         """Power leaving segment in source→target direction."""
-        ...
+        self._ensure_tags_initialized()
+        if self._scoped_tag is not None:
+            return self._tag_power[self._scoped_tag]["out_st"]
+        return self._sum_across_tags("out_st")
 
     @property
-    @abstractmethod
     def power_in_ts(self) -> HighspyArray:
         """Power entering segment in target→source direction."""
-        ...
+        self._ensure_tags_initialized()
+        if self._scoped_tag is not None:
+            return self._tag_power[self._scoped_tag]["in_ts"]
+        return self._sum_across_tags("in_ts")
 
     @property
-    @abstractmethod
     def power_out_ts(self) -> HighspyArray:
         """Power leaving segment in target→source direction."""
-        ...
+        self._ensure_tags_initialized()
+        if self._scoped_tag is not None:
+            return self._tag_power[self._scoped_tag]["out_ts"]
+        return self._sum_across_tags("out_ts")
+
+    def _ensure_tags_initialized(self) -> None:
+        """Auto-initialize with DEFAULT_TAG if no tags have been set."""
+        if not self._tag_power:
+            self.initialize_tags([DEFAULT_TAG])
 
     def constraints(self) -> dict[str, highs_cons | list[highs_cons]]:
         """Return all constraints from this segment.
@@ -288,4 +309,4 @@ class Segment(ABC):
         return sum(costs[1:], costs[0])
 
 
-__all__ = ["Segment"]
+__all__ = ["DEFAULT_TAG", "Segment"]

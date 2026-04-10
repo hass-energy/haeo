@@ -50,10 +50,6 @@ class SocPricingSegment(Segment):
         )
         self._battery = self._get_battery()
 
-        # Power variables (lossless segment, in == out)
-        self._power_st = solver.addVariables(n_periods, lb=0, name_prefix=f"{segment_id}_st_", out_array=True)
-        self._power_ts = solver.addVariables(n_periods, lb=0, name_prefix=f"{segment_id}_ts_", out_array=True)
-
         self._discharge_energy_threshold = broadcast_to_sequence(spec.get("discharge_energy_threshold"), n_periods)
         self._charge_capacity_threshold = broadcast_to_sequence(spec.get("charge_capacity_threshold"), n_periods)
         self._discharge_energy_price = broadcast_to_sequence(spec.get("discharge_energy_price"), n_periods)
@@ -93,26 +89,6 @@ class SocPricingSegment(Segment):
     def charge_capacity_slack(self) -> HighspyArray | None:
         """Return slack for energy above charge capacity threshold."""
         return self._charge_capacity_slack
-
-    @property
-    def power_in_st(self) -> HighspyArray:
-        """Power entering segment in source→target direction."""
-        return self._power_st
-
-    @property
-    def power_out_st(self) -> HighspyArray:
-        """Power leaving segment in source→target direction (lossless)."""
-        return self._power_st
-
-    @property
-    def power_in_ts(self) -> HighspyArray:
-        """Power entering segment in target→source direction."""
-        return self._power_ts
-
-    @property
-    def power_out_ts(self) -> HighspyArray:
-        """Power leaving segment in target→source direction (lossless)."""
-        return self._power_ts
 
     @constraint
     def discharge_energy_slack_bound(self) -> list[highs_linear_expression] | None:

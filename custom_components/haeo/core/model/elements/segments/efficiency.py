@@ -4,6 +4,7 @@ Efficiency reduces output power relative to input:
     power_out = power_in * efficiency
 
 This models inverter losses, transformer losses, etc.
+Efficiency is applied per-tag: each tag's output = input * efficiency.
 """
 
 from typing import Any, Literal, NotRequired
@@ -32,11 +33,12 @@ class EfficiencySegmentSpec(TypedDict):
 class EfficiencySegment(Segment):
     """Segment that applies efficiency losses to power flow.
 
-    Uses a single variable per direction with efficiency applied via properties:
-        power_out_st = power_in_st * efficiency_source_target
-        power_out_ts = power_in_ts * efficiency_target_source
+    Uses per-tag variables with efficiency applied:
+        power_out_st[tag] = power_in_st[tag] * efficiency_source_target
+        power_out_ts[tag] = power_in_ts[tag] * efficiency_target_source
 
     Efficiency values are fractions in range (0, 1].
+    None means no losses (100% efficiency).
     """
 
     efficiency_source_target: TrackedParam[NDArray[np.float64] | None] = TrackedParam()
@@ -53,18 +55,7 @@ class EfficiencySegment(Segment):
         source_element: Element[Any],
         target_element: Element[Any],
     ) -> None:
-        """Initialize efficiency segment.
-
-        Args:
-            segment_id: Unique identifier for naming LP variables
-            n_periods: Number of optimization periods
-            periods: Time period durations in hours
-            solver: HiGHS solver instance
-            spec: Efficiency segment specification.
-            source_element: Connected source element reference
-            target_element: Connected target element reference
-
-        """
+        """Initialize efficiency segment."""
         super().__init__(
             segment_id,
             n_periods,
@@ -75,57 +66,71 @@ class EfficiencySegment(Segment):
         )
 
         # Store efficiency values
-        efficiency_source_target = spec.get("efficiency_source_target")
-        self.efficiency_source_target = broadcast_to_sequence(efficiency_source_target, self._n_periods)
-        efficiency_target_source = spec.get("efficiency_target_source")
-        self.efficiency_target_source = broadcast_to_sequence(efficiency_target_source, self._n_periods)
+        self.efficiency_source_target = broadcast_to_sequence(spec.get("efficiency_source_target"), self._n_periods)
+        self.efficiency_target_source = broadcast_to_sequence(spec.get("efficiency_target_source"), self._n_periods)
 
-        # Single variable per direction - efficiency applied via properties
-        self._power_st = solver.addVariables(n_periods, lb=0, name_prefix=f"{segment_id}_st_", out_array=True)
-        self._power_ts = solver.addVariables(n_periods, lb=0, name_prefix=f"{segment_id}_ts_", out_array=True)
+    def _create_tag_variables(self, tag: int) -> dict[str, HighspyArray]:
+        """Create per-tag variables with efficiency-scaled outputs.
 
-    @property
-    def power_in_st(self) -> HighspyArray:
-        """Power entering segment in source→target direction."""
-        return self._power_st
+        Input and output are the same variable per direction.
+        Efficiency is applied via property overrides (power_out = power_in * eff).
+        """
+        # Single variable per tag per direction — efficiency applied in properties
+        st = self._solver.addVariables(
+            self._n_periods, lb=0,
+            name_prefix=f"{self._segment_id}_t{tag}_st_",
+            out_array=True,
+        )
+        ts = self._solver.addVariables(
+            self._n_periods, lb=0,
+            name_prefix=f"{self._segment_id}_t{tag}_ts_",
+            out_array=True,
+        )
+        # out_st and out_ts will be computed dynamically via tag_power_out_st/ts
+        # Store in_st == the variable, out_st == in_st (placeholder, overridden by properties)
+        return {"in_st": st, "out_st": st, "in_ts": ts, "out_ts": ts}
+
+    def tag_power_out_st(self, tag: int) -> HighspyArray:
+        """Per-tag output in s→t with efficiency applied."""
+        efficiency = self.efficiency_source_target
+        if efficiency is None:
+            return self._tag_power[tag]["in_st"]
+        return self._tag_power[tag]["in_st"] * efficiency
+
+    def tag_power_out_ts(self, tag: int) -> HighspyArray:
+        """Per-tag output in t→s with efficiency applied."""
+        efficiency = self.efficiency_target_source
+        if efficiency is None:
+            return self._tag_power[tag]["in_ts"]
+        return self._tag_power[tag]["in_ts"] * efficiency
 
     @property
     def power_out_st(self) -> HighspyArray:
-        """Power leaving segment in source→target direction (after efficiency loss)."""
-        efficiency = self.efficiency_source_target
-        if efficiency is None:
-            # Missing optional efficiency means no losses (100%).
-            return self._power_st
-        return self._power_st * efficiency
-
-    @property
-    def power_in_ts(self) -> HighspyArray:
-        """Power entering segment in target→source direction."""
-        return self._power_ts
+        """Total power leaving segment in s→t (with efficiency)."""
+        self._ensure_tags_initialized()
+        if self._scoped_tag is not None:
+            return self.tag_power_out_st(self._scoped_tag)
+        arrays = [self.tag_power_out_st(tag) for tag in self._tags]
+        if len(arrays) == 1:
+            return arrays[0]
+        result = arrays[0]
+        for arr in arrays[1:]:
+            result = result + arr
+        return result
 
     @property
     def power_out_ts(self) -> HighspyArray:
-        """Power leaving segment in target→source direction (after efficiency loss)."""
-        efficiency = self.efficiency_target_source
-        if efficiency is None:
-            # Missing optional efficiency means no losses (100%).
-            return self._power_ts
-        return self._power_ts * efficiency
-
-
-    def tagged_power_out_st(self, tag: str) -> HighspyArray:
-        """Return per-tag power leaving segment in source→target direction (after efficiency loss)."""
-        efficiency = self.efficiency_source_target
-        if efficiency is None:
-            return self.tagged_power_in_st(tag)
-        return self.tagged_power_in_st(tag) * efficiency
-
-    def tagged_power_out_ts(self, tag: str) -> HighspyArray:
-        """Return per-tag power leaving segment in target→source direction (after efficiency loss)."""
-        efficiency = self.efficiency_target_source
-        if efficiency is None:
-            return self.tagged_power_in_ts(tag)
-        return self.tagged_power_in_ts(tag) * efficiency
+        """Total power leaving segment in t→s (with efficiency)."""
+        self._ensure_tags_initialized()
+        if self._scoped_tag is not None:
+            return self.tag_power_out_ts(self._scoped_tag)
+        arrays = [self.tag_power_out_ts(tag) for tag in self._tags]
+        if len(arrays) == 1:
+            return arrays[0]
+        result = arrays[0]
+        for arr in arrays[1:]:
+            result = result + arr
+        return result
 
 
 __all__ = ["EfficiencySegment", "EfficiencySegmentSpec"]

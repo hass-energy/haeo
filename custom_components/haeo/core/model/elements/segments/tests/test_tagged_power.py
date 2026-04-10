@@ -1,4 +1,8 @@
-"""Tests for native tagged power flow on connections."""
+"""Tests for native tagged power flow on connections.
+
+All power is decomposed into integer tags (like VLANs).
+Tag 0 is untagged/default. Segments can scope to specific tags.
+"""
 
 from typing import Any
 
@@ -9,7 +13,8 @@ import pytest
 
 from custom_components.haeo.core.model.element import Element
 from custom_components.haeo.core.model.elements.connection import Connection
-from custom_components.haeo.core.model.elements.segments import TagFilterSegment, TagPricingSegment
+from custom_components.haeo.core.model.elements.segments import PricingSegment, PowerLimitSegment
+from custom_components.haeo.core.model.elements.segments.segment import DEFAULT_TAG
 from custom_components.haeo.core.model.network import Network
 
 
@@ -27,8 +32,50 @@ def create_solver() -> Highs:
     return h
 
 
-class TestTaggedPowerDecomposition:
-    """Test that tagged power variables decompose total power correctly."""
+class TestSingleTagDefault:
+    """With no explicit tags, connections use tag 0 only."""
+
+    def test_default_tag_only(self) -> None:
+        """Connection with no tags has only DEFAULT_TAG."""
+        h = create_solver()
+        periods = np.array([1.0])
+        conn = Connection(name="c", periods=periods, solver=h, source="s", target="t")
+        source = DummyElement("s", periods, h)
+        target = DummyElement("t", periods, h)
+        conn.set_endpoints(source, target)
+
+        assert conn.connection_tags == [DEFAULT_TAG]
+        # power_in_st should work (returns tag 0's variable)
+        first = list(conn.segments.values())[0]
+        assert first.tags == [DEFAULT_TAG]
+
+    def test_single_tag_optimization_unchanged(self) -> None:
+        """Single tag behaves identically to the old untagged system."""
+        periods = np.array([1.0, 1.0])
+        network = Network(name="test", periods=periods)
+
+        network.add({"element_type": "node", "name": "grid", "is_source": True, "is_sink": True})
+        network.add({"element_type": "node", "name": "load", "is_source": False, "is_sink": True})
+        network.add({
+            "element_type": "connection",
+            "name": "conn",
+            "source": "grid",
+            "target": "load",
+            "segments": {
+                "pricing": {
+                    "segment_type": "pricing",
+                    "price_source_target": np.array([0.30, 0.30]),
+                },
+            },
+        })
+
+        cost = network.optimize()
+        # No load, no forced flow => cost should be 0
+        assert cost == pytest.approx(0.0)
+
+
+class TestMultiTagDecomposition:
+    """Test that tagged power decomposes correctly across multiple tags."""
 
     def test_tagged_power_sum_equals_total(self) -> None:
         """Sum of per-tag power equals total power flow."""
@@ -36,12 +83,9 @@ class TestTaggedPowerDecomposition:
         periods = np.array([1.0, 1.0])
 
         conn = Connection(
-            name="conn",
-            periods=periods,
-            solver=h,
-            source="src",
-            target="tgt",
-            tags=["solar", "grid"],
+            name="conn", periods=periods, solver=h,
+            source="src", target="tgt",
+            tags=[0, 1],  # tag 0 (default) + tag 1
         )
         source = DummyElement("src", periods, h)
         target = DummyElement("tgt", periods, h)
@@ -51,37 +95,29 @@ class TestTaggedPowerDecomposition:
         # Fix total power
         h.addConstrs(conn.power_source_target == np.array([10.0, 10.0]))
 
-        # Maximize solar tag to force decomposition
-        first = conn._first  # noqa: SLF001
-        h.minimize(-Highs.qsum(first.tagged_power_in_st("solar")))
+        # Maximize tag 1 flow to force decomposition
+        first = list(conn.segments.values())[0]
+        h.minimize(-Highs.qsum(first.tag_power_in_st(1)))
         h.run()
 
-        # Solar should take as much as possible (all 10)
-        solar_vals = tuple(float(v) for v in h.vals(first.tagged_power_in_st("solar")))
-        grid_vals = tuple(float(v) for v in h.vals(first.tagged_power_in_st("grid")))
+        tag0 = tuple(float(v) for v in h.vals(first.tag_power_in_st(0)))
+        tag1 = tuple(float(v) for v in h.vals(first.tag_power_in_st(1)))
 
-        # Sum must equal total
-        for s, g in zip(solar_vals, grid_vals, strict=True):
-            assert s + g == pytest.approx(10.0)
+        for t0, t1 in zip(tag0, tag1, strict=True):
+            assert t0 + t1 == pytest.approx(10.0)
 
-    def test_tagged_power_linked_between_segments(self) -> None:
+    def test_per_tag_linked_between_segments(self) -> None:
         """Per-tag power is linked between adjacent segments."""
         h = create_solver()
         periods = np.array([1.0])
 
         conn = Connection(
-            name="conn",
-            periods=periods,
-            solver=h,
-            source="src",
-            target="tgt",
-            tags=["solar", "grid"],
+            name="conn", periods=periods, solver=h,
+            source="src", target="tgt",
+            tags=[0, 1],
             segments={
                 "passthrough": {"segment_type": "passthrough"},
-                "pricing": {
-                    "segment_type": "pricing",
-                    "price_source_target": np.array([0.1]),
-                },
+                "pricing": {"segment_type": "pricing", "price_source_target": np.array([0.1])},
             },
         )
         source = DummyElement("src", periods, h)
@@ -89,48 +125,45 @@ class TestTaggedPowerDecomposition:
         conn.set_endpoints(source, target)
         conn.constraints()
 
-        # Fix total and solar tag on first segment
         first = list(conn.segments.values())[0]
         second = list(conn.segments.values())[1]
 
+        # Fix total and tag 1 on first segment
         h.addConstrs(conn.power_source_target == np.array([10.0]))
-        h.addConstrs(first.tagged_power_in_st("solar") == np.array([7.0]))
+        h.addConstrs(first.tag_power_in_st(1) == np.array([7.0]))
 
         h.minimize(conn.cost())
         h.run()
 
-        # Solar tag should be linked to second segment
-        solar_second = tuple(float(v) for v in h.vals(second.tagged_power_in_st("solar")))
-        assert solar_second == pytest.approx((7.0,))
+        # Tag 1 should be linked to second segment
+        tag1_second = tuple(float(v) for v in h.vals(second.tag_power_in_st(1)))
+        assert tag1_second == pytest.approx((7.0,))
 
-        # Grid tag should fill the rest
-        grid_second = tuple(float(v) for v in h.vals(second.tagged_power_in_st("grid")))
-        assert grid_second == pytest.approx((3.0,))
+        # Tag 0 fills the rest
+        tag0_second = tuple(float(v) for v in h.vals(second.tag_power_in_st(0)))
+        assert tag0_second == pytest.approx((3.0,))
 
 
-class TestTagPricingOnConnection:
-    """Test tag_pricing segment within a tagged connection."""
+class TestScopedPricing:
+    """Test pricing segment scoped to a specific tag."""
 
-    def test_tag_pricing_affects_tagged_flow(self) -> None:
-        """Tag pricing adds cost only to the tagged power flow."""
+    def test_scoped_pricing_only_charges_tagged_flow(self) -> None:
+        """Pricing with tag=1 only charges tag 1's power, not tag 0."""
         h = create_solver()
         periods = np.array([1.0, 1.0])
 
         conn = Connection(
-            name="conn",
-            periods=periods,
-            solver=h,
-            source="src",
-            target="tgt",
-            tags=["solar", "grid"],
+            name="conn", periods=periods, solver=h,
+            source="src", target="tgt",
+            tags=[0, 1],
             segments={
                 "power_limit": {
                     "segment_type": "power_limit",
                     "max_power_source_target": np.array([10.0, 10.0]),
                 },
-                "tag_pricing": {
-                    "segment_type": "tag_pricing",
-                    "tag": "grid",
+                "scoped_pricing": {
+                    "segment_type": "pricing",
+                    "tag": 1,
                     "price_source_target": np.array([0.50, 0.50]),
                 },
             },
@@ -140,7 +173,7 @@ class TestTagPricingOnConnection:
         conn.set_endpoints(source, target)
         conn.constraints()
 
-        # Fix total power at 10 kW
+        # Fix total power
         h.addConstrs(conn.power_source_target == np.array([10.0, 10.0]))
 
         cost = conn.cost()
@@ -148,40 +181,33 @@ class TestTagPricingOnConnection:
         h.minimize(cost)
         h.run()
 
-        # Optimizer should minimize grid tag (expensive) and maximize solar tag (free)
-        tag_pricing_seg = conn["tag_pricing"]
-        assert isinstance(tag_pricing_seg, TagPricingSegment)
+        # Optimizer minimizes cost: all power goes to tag 0 (free), none to tag 1 (expensive)
+        first = list(conn.segments.values())[0]
+        tag0 = tuple(float(v) for v in h.vals(first.tag_power_in_st(0)))
+        tag1 = tuple(float(v) for v in h.vals(first.tag_power_in_st(1)))
 
-        # All power should be solar (free) not grid (expensive)
-        solar_first = list(conn.segments.values())[0]
-        solar_vals = tuple(float(v) for v in h.vals(solar_first.tagged_power_in_st("solar")))
-        grid_vals = tuple(float(v) for v in h.vals(solar_first.tagged_power_in_st("grid")))
-
-        assert solar_vals == pytest.approx((10.0, 10.0))
-        assert grid_vals == pytest.approx((0.0, 0.0))
+        assert tag0 == pytest.approx((10.0, 10.0))
+        assert tag1 == pytest.approx((0.0, 0.0))
         assert h.getObjectiveValue() == pytest.approx(0.0)
 
 
-class TestTagFilterOnConnection:
-    """Test tag_filter segment within a tagged connection."""
+class TestScopedPowerLimit:
+    """Test power limit segment scoped to a specific tag."""
 
-    def test_tag_filter_limits_tagged_flow(self) -> None:
-        """Tag filter limits power for a specific tag only."""
+    def test_scoped_limit_only_constrains_tagged_flow(self) -> None:
+        """Power limit with tag=1 limits only tag 1, not the total."""
         h = create_solver()
         periods = np.array([1.0, 1.0])
 
         conn = Connection(
-            name="conn",
-            periods=periods,
-            solver=h,
-            source="src",
-            target="tgt",
-            tags=["solar", "grid"],
+            name="conn", periods=periods, solver=h,
+            source="src", target="tgt",
+            tags=[0, 1],
             segments={
                 "passthrough": {"segment_type": "passthrough"},
-                "tag_filter": {
-                    "segment_type": "tag_filter",
-                    "tag": "grid",
+                "tag1_limit": {
+                    "segment_type": "power_limit",
+                    "tag": 1,
                     "max_power_source_target": np.array([3.0, 3.0]),
                 },
             },
@@ -191,56 +217,49 @@ class TestTagFilterOnConnection:
         conn.set_endpoints(source, target)
         conn.constraints()
 
-        # Try to push 10 kW total
+        # Maximize total flow — tag 1 limited to 3, tag 0 unconstrained
         h.minimize(-Highs.qsum(conn.power_source_target))
         h.run()
 
-        # Grid should be capped at 3 kW
-        tag_filter_seg = conn["tag_filter"]
-        assert isinstance(tag_filter_seg, TagFilterSegment)
-
-        grid_vals = tuple(float(v) for v in h.vals(tag_filter_seg.tagged_power_in_st("grid")))
-        assert grid_vals == pytest.approx((3.0, 3.0))
+        first = list(conn.segments.values())[0]
+        tag1 = tuple(float(v) for v in h.vals(first.tag_power_in_st(1)))
+        assert tag1 == pytest.approx((3.0, 3.0))
 
 
-class TestTaggedNetworkIntegration:
-    """Test tagged power flow in a full network optimization."""
+class TestNetworkIntegrationWithTags:
+    """Test tagged power in full network optimizations."""
 
-    def test_tariff_adds_cost_in_network(self) -> None:
-        """Tariff connection adds cost to power flow in a network with tagged power."""
+    def test_tags_with_pricing_in_network(self) -> None:
+        """Network with tagged connection and scoped pricing optimizes correctly."""
         periods = np.array([1.0, 1.0])
         network = Network(name="test", periods=periods)
 
-        # Grid (source + sink)
         network.add({"element_type": "node", "name": "grid", "is_source": True, "is_sink": True})
-        # Load (sink only)
         network.add({"element_type": "node", "name": "load", "is_source": False, "is_sink": True})
 
-        # Connection with tags and tag pricing
         network.add({
             "element_type": "connection",
             "name": "grid_to_load",
             "source": "grid",
             "target": "load",
-            "tags": ["import"],
+            "tags": [0, 1],
             "segments": {
                 "power_limit": {
                     "segment_type": "power_limit",
                     "max_power_source_target": np.array([10.0, 10.0]),
                 },
-                "pricing": {
+                "base_pricing": {
                     "segment_type": "pricing",
                     "price_source_target": np.array([0.20, 0.20]),
                 },
-                "tag_pricing": {
-                    "segment_type": "tag_pricing",
-                    "tag": "import",
+                "surcharge": {
+                    "segment_type": "pricing",
+                    "tag": 1,
                     "price_source_target": np.array([0.05, 0.05]),
                 },
             },
         })
 
         cost = network.optimize()
-
-        # With 0 load, cost should be 0 (no power flows)
+        # No load → no forced flow → cost 0
         assert cost == pytest.approx(0.0)

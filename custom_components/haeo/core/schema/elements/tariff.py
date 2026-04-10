@@ -53,7 +53,7 @@ class TariffEndpointsData(TypedDict):
 class TariffTagConfig(TypedDict):
     """Tag and pricing configuration for a tariff."""
 
-    tag: str
+    tag: int
     price_source_target: NotRequired[EntityValue | ConstantValue | NoneValue]
     price_target_source: NotRequired[EntityValue | ConstantValue | NoneValue]
 
@@ -61,7 +61,7 @@ class TariffTagConfig(TypedDict):
 class TariffTagData(TypedDict):
     """Loaded tag and pricing values for a tariff."""
 
-    tag: str
+    tag: int
     price_source_target: NotRequired[NDArray[np.floating[Any]] | float]
     price_target_source: NotRequired[NDArray[np.floating[Any]] | float]
 

@@ -1,11 +1,15 @@
 """Connection segment types for composable connection architecture.
 
 Each segment type applies a specific transformation or constraint to power flow:
-- EfficiencySegment: Applies efficiency losses
+- EfficiencySegment: Applies efficiency losses per tag
 - PassthroughSegment: Lossless passthrough (no constraints)
-- PowerLimitSegment: Limits power flow with optional time-slice constraint
-- PricingSegment: Adds transfer pricing costs
+- PowerLimitSegment: Limits power flow with optional tag scoping
+- PricingSegment: Adds transfer pricing costs with optional tag scoping
 - SocPricingSegment: Adds SOC-based pricing penalties
+
+All power flow is decomposed into integer tags (like VLANs).
+Tag 0 is untagged/default power. Segments can scope to a specific tag
+or operate on the total (sum across all tags).
 """
 
 from collections.abc import Callable
@@ -29,13 +33,11 @@ from .power_limit import (
     PowerLimitSegmentSpec,
 )
 from .pricing import PricingSegment, PricingSegmentSpec
-from .segment import Segment
+from .segment import DEFAULT_TAG, Segment
 from .soc_pricing import SocPricingSegment, SocPricingSegmentSpec
-from .tag_filter import TagFilterSegment, TagFilterSegmentSpec
-from .tag_pricing import TagPricingSegment, TagPricingSegmentSpec
 
 # Discriminated union of segment type strings
-type SegmentType = Literal["efficiency", "passthrough", "power_limit", "pricing", "soc_pricing", "tag_pricing", "tag_filter"]
+type SegmentType = Literal["efficiency", "passthrough", "power_limit", "pricing", "soc_pricing"]
 
 # Union type for all segment specifications
 type SegmentSpec = (
@@ -44,8 +46,6 @@ type SegmentSpec = (
     | PowerLimitSegmentSpec
     | PricingSegmentSpec
     | SocPricingSegmentSpec
-    | TagPricingSegmentSpec
-    | TagFilterSegmentSpec
 )
 
 
@@ -74,16 +74,6 @@ def is_soc_pricing_spec(spec: SegmentSpec) -> TypeGuard[SocPricingSegmentSpec]:
     return spec["segment_type"] == "soc_pricing"
 
 
-def is_tag_pricing_spec(spec: SegmentSpec) -> TypeGuard[TagPricingSegmentSpec]:
-    """Return True when spec is for a tag pricing segment."""
-    return spec["segment_type"] == "tag_pricing"
-
-
-def is_tag_filter_spec(spec: SegmentSpec) -> TypeGuard[TagFilterSegmentSpec]:
-    """Return True when spec is for a tag filter segment."""
-    return spec["segment_type"] == "tag_filter"
-
-
 @dataclass(frozen=True, slots=True)
 class SegmentSpecEntry:
     """Specification for a segment type."""
@@ -98,8 +88,6 @@ SEGMENTS: Final[dict[SegmentType, SegmentSpecEntry]] = {
     "power_limit": SegmentSpecEntry(factory=PowerLimitSegment),
     "pricing": SegmentSpecEntry(factory=PricingSegment),
     "soc_pricing": SegmentSpecEntry(factory=SocPricingSegment),
-    "tag_pricing": SegmentSpecEntry(factory=TagPricingSegment),
-    "tag_filter": SegmentSpecEntry(factory=TagFilterSegment),
 }
 
 
@@ -112,12 +100,11 @@ def create_segment(
     spec: SegmentSpec,
     source_element: Element[Any],
     target_element: Element[Any],
-    tags: list[str] | None = None,
 ) -> Segment:
     """Create a segment instance from a segment specification."""
     segment_type = spec["segment_type"]
     entry = SEGMENTS[segment_type]
-    segment = entry.factory(
+    return entry.factory(
         segment_id,
         n_periods,
         periods,
@@ -126,14 +113,10 @@ def create_segment(
         source_element=source_element,
         target_element=target_element,
     )
-    # Set tags on the segment (must be done after construction
-    # because subclass constructors create the total power variables first)
-    if tags:
-        segment._tags = list(tags)  # noqa: SLF001
-    return segment
 
 
 __all__ = [
+    "DEFAULT_TAG",
     "POWER_LIMIT_SOURCE_TARGET",
     "POWER_LIMIT_TARGET_SOURCE",
     "POWER_LIMIT_TIME_SLICE",
@@ -159,10 +142,4 @@ __all__ = [
     "is_power_limit_spec",
     "is_pricing_spec",
     "is_soc_pricing_spec",
-    "is_tag_filter_spec",
-    "is_tag_pricing_spec",
-    "TagFilterSegment",
-    "TagFilterSegmentSpec",
-    "TagPricingSegment",
-    "TagPricingSegmentSpec",
 ]
