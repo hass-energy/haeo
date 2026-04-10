@@ -116,4 +116,10 @@ Explore detailed configuration for each element type:
 
     [:material-arrow-right: Connections guide](connections.md)
 
+- :material-cash:{ .lg .middle } __Tariff configuration__ (Advanced)
+
+    Tagged power flow pricing between nodes.
+
+    [:material-arrow-right: Tariff guide](tariff.md)
+
 </div>

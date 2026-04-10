@@ -18,6 +18,15 @@ Walkthroughs are generated from a live Home Assistant instance, so the screensho
 
     [:material-arrow-right: Sigenergy walkthrough](sigenergy-system.md)
 
+- :material-cash:{ .lg .middle } **Adding a Tariff**
+
+    ---
+
+    Add tagged power flow pricing between nodes in your energy system.
+    Covers configuring tariff endpoints, tags, and per-kWh pricing.
+
+    [:material-arrow-right: Tariff walkthrough](adding-a-tariff.md)
+
 </div>
 
 ## Next steps

@@ -86,4 +86,12 @@ This prevents naming collisions and groups related components visually in Home A
 
     [:material-arrow-right: Battery Section modeling](battery_section.md)
 
+- :material-cash:{ .lg .middle } **Tariff**
+
+    ---
+
+    Tagged power flow pricing between nodes.
+
+    [:material-arrow-right: Tariff modeling](tariff.md)
+
 </div>

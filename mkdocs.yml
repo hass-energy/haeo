@@ -141,6 +141,7 @@ nav:
   - Walkthroughs:
       - walkthroughs/index.md
       - Sigenergy System: walkthroughs/sigenergy-system.md
+      - Adding a Tariff: walkthroughs/adding-a-tariff.md
 
   - User Guide:
       - user-guide/index.md
@@ -159,6 +160,7 @@ nav:
           - Solar: user-guide/elements/solar.md
           - Node: user-guide/elements/node.md
           - Connections: user-guide/elements/connections.md
+          - Tariff: user-guide/elements/tariff.md
       - Understanding Results: user-guide/optimization.md
       - Data Updates: user-guide/data-updates.md
       - Automation Examples: user-guide/automations.md
@@ -183,6 +185,8 @@ nav:
               - Power limit segment: modeling/model-layer/segments/power-limit.md
               - Pricing segment: modeling/model-layer/segments/pricing.md
               - Passthrough segment: modeling/model-layer/segments/passthrough.md
+              - Tag pricing segment: modeling/model-layer/segments/tag-pricing.md
+              - Tag filter segment: modeling/model-layer/segments/tag-filter.md
       - Device Layer:
           - modeling/device-layer/index.md
           - Battery: modeling/device-layer/battery.md
@@ -193,6 +197,7 @@ nav:
           - Load: modeling/device-layer/loads.md
           - Node: modeling/device-layer/node.md
           - Connection: modeling/device-layer/connection.md
+          - Tariff: modeling/device-layer/tariff.md
       - Shadow Prices: modeling/shadow-prices.md
 
   - Developer Guide:
