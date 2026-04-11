@@ -153,8 +153,8 @@ def compile_policies(
         if name in elements_by_name:
             elements_by_name[name]["access_list"] = sorted(allowed_vlans)
 
-    # --- Step 8: Pricing injection ---
-    for idx, policy in enumerate(policy_configs):
+    # --- Step 8: Pricing injection via tag_costs (not separate segments) ---
+    for policy in policy_configs:
         sources = _resolve_wildcard(policy.get("sources", []), element_names)
         destinations = _resolve_wildcard(policy.get("destinations", []), element_names)
         price_st = policy.get("price_source_target")
@@ -176,29 +176,17 @@ def compile_policies(
                     if source_vlan not in conn.get("tags", []):
                         continue
 
-                    segments = dict(conn.get("segments", {}))
-                    seg_name = f"_policy_{idx}_v{source_vlan}_to_{dest_node}"
-
-                    # Deduplicate segment names
-                    final_name = seg_name
-                    counter = 0
-                    while final_name in segments:
-                        counter += 1
-                        final_name = f"{seg_name}_{counter}"
-
-                    pricing_spec: dict[str, Any] = {
-                        "segment_type": "pricing",
-                        "tag": source_vlan,
-                    }
+                    # Build tag cost entry
+                    tag_cost: dict[str, Any] = {"tag": source_vlan}
 
                     if conn.get("target") == dest_node and price_st is not None:
-                        pricing_spec["price_source_target"] = price_st
+                        tag_cost["price_source_target"] = price_st
                     elif conn.get("source") == dest_node and price_st is not None:
-                        pricing_spec["price_target_source"] = price_st
+                        tag_cost["price_target_source"] = price_st
 
-                    if "price_source_target" in pricing_spec or "price_target_source" in pricing_spec:
-                        segments[final_name] = pricing_spec
-                        conn["segments"] = segments
+                    if "price_source_target" in tag_cost or "price_target_source" in tag_cost:
+                        tag_costs = conn.setdefault("tag_costs", [])
+                        tag_costs.append(tag_cost)
 
     return [*other, *connections]
 

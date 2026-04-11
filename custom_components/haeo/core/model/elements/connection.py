@@ -34,6 +34,7 @@ class ConnectionElementConfig(TypedDict):
     mirror_segment_order: NotRequired[bool]
     segments: NotRequired[dict[str, SegmentSpec]]
     tags: NotRequired[list[int]]
+    tag_costs: NotRequired[list[dict[str, Any]]]
 
 
 # Minimum segments needed before linking is required
@@ -101,6 +102,7 @@ class Connection[TOutputName: str](Element[TOutputName]):
         mirror_segment_order: bool = False,
         output_names: frozenset[TOutputName] | None = None,
         tags: list[int] | None = None,
+        tag_costs: list[dict[str, Any]] | None = None,
     ) -> None:
         """Initialize a connection.
 
@@ -116,6 +118,9 @@ class Connection[TOutputName: str](Element[TOutputName]):
             output_names: Output names for this connection type
             tags: List of tag IDs for tagged power decomposition.
                 Defaults to [0] (untagged). Tag 0 is always included.
+            tag_costs: List of per-tag pricing dicts from policy compilation.
+                Each has {tag: int, price_source_target: float, price_target_source: float}.
+                Applied as cost terms directly on per-tag variables.
 
         """
         # Use provided output_names or default to CONNECTION_OUTPUT_NAMES
@@ -143,6 +148,10 @@ class Connection[TOutputName: str](Element[TOutputName]):
         # Segments stored in OrderedDict for name-based and index-based access
         self._segment_specs: OrderedDict[str, SegmentSpec] = OrderedDict(segments or {})
         self._segments: OrderedDict[str, Segment] = OrderedDict()
+
+        # Tag-scoped pricing: list of {tag: int, price_source_target: array, price_target_source: array}
+        # Applied as cost terms directly on per-tag variables, not as separate segments.
+        self._tag_costs: list[dict[str, Any]] = list(tag_costs) if tag_costs else []
 
     @property
     def segments(self) -> OrderedDict[str, Segment]:
@@ -297,11 +306,10 @@ class Connection[TOutputName: str](Element[TOutputName]):
         return result
 
     def cost(self) -> Any:  # type: ignore[override]  # Intentionally override Element's @cost with segment delegation
-        """Return aggregated cost expression from this connection's segments.
+        """Return aggregated cost expression from this connection's segments and tag costs.
 
-        Collects costs from all segments and aggregates them.
-
-        Note: Specialized connections can override to include their own costs.
+        Collects costs from all segments, then adds tag-scoped pricing costs
+        directly from per-tag variables on the first segment.
 
         Returns:
             Aggregated cost expression or None if no costs
@@ -309,6 +317,30 @@ class Connection[TOutputName: str](Element[TOutputName]):
         """
         # Collect costs from all segments
         costs = [segment_cost for segment in self._segments.values() if (segment_cost := segment.cost()) is not None]
+
+        # Add tag-scoped pricing costs (from policy compilation)
+        for tc in self._tag_costs:
+            tag = tc["tag"]
+            first = self._first
+            first_ts = self._first_ts
+            price_st = tc.get("price_source_target")
+            price_ts = tc.get("price_target_source")
+
+            if price_st is not None and tag in first._tag_power:  # noqa: SLF001
+                from custom_components.haeo.core.model.util import broadcast_to_sequence  # noqa: PLC0415
+
+                price_arr = broadcast_to_sequence(price_st, self.n_periods)
+                if price_arr is not None:
+                    power = first.tag_power_in_st(tag)
+                    costs.append(Highs.qsum(power * price_arr * self.periods))
+
+            if price_ts is not None and tag in first_ts._tag_power:  # noqa: SLF001
+                from custom_components.haeo.core.model.util import broadcast_to_sequence  # noqa: PLC0415
+
+                price_arr = broadcast_to_sequence(price_ts, self.n_periods)
+                if price_arr is not None:
+                    power = first_ts.tag_power_in_ts(tag)
+                    costs.append(Highs.qsum(power * price_arr * self.periods))
 
         if not costs:
             return None
