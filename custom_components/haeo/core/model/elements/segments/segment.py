@@ -1,15 +1,20 @@
 """Base class for connection segments.
 
-Segments are modular components that can be chained together to form
-connections. Each segment exposes power flow properties that the Connection
-uses to link segments together.
+Segments are functional transforms on power flow expressions.
+They receive input power (per-direction HighspyArrays), add constraints
+and costs, and return output power (which may be the same expression
+or a transformed one like input * efficiency).
 
-The linking protocol:
-- power_in_st / power_in_ts: Power entering this segment
-- power_out_st / power_out_ts: Power leaving this segment
+The Connection creates the only LP variables — one set per direction.
+Segments chain: connection_vars → segment1 → segment2 → ... → final output.
 
-For simple segments (no losses), in == out (same variable).
-For segments with losses (efficiency), out = in * factor (separate variables with constraint).
+Most segments are identity transforms (return input unchanged):
+- PassthroughSegment: no-op
+- PricingSegment: adds cost, returns input
+- PowerLimitSegment: adds constraint, returns input
+
+Only EfficiencySegment transforms: returns input * efficiency.
+SocPricingSegment creates auxiliary slack variables for its penalty.
 
 Segments are reactive-aware: they can use TrackedParam for parameters and
 @constraint/@cost decorators for methods.
@@ -29,17 +34,13 @@ from custom_components.haeo.core.model.reactive import OutputMethod, ReactiveCon
 
 
 class Segment(ABC):
-    """Abstract base class for connection segments.
+    """Base class for connection segments.
 
-    Defines the interface that all segments must implement. Subclasses create
-    their own variables and implement the power properties as needed.
+    Segments receive input power expressions and return output power expressions.
+    They may add constraints (power limits) or costs (pricing) to the solver.
 
-    Required properties (subclasses must implement):
-    - power_in_st / power_out_st: Power flow in source→target direction
-    - power_in_ts / power_out_ts: Power flow in target→source direction
-
-    For simple segments, power_in and power_out can return the same variable.
-    For segments with losses, power_out = power_in * efficiency (via constraint).
+    Subclasses implement apply() which receives per-direction power and returns
+    the (possibly transformed) output power.
     """
 
     # TrackedParam for periods - enables reactive invalidation when periods change
@@ -73,6 +74,12 @@ class Segment(ABC):
         self._source_element = source_element
         self._target_element = target_element
 
+        # Set by apply() — the power expressions this segment operates on
+        self._power_in_st: HighspyArray | None = None
+        self._power_out_st: HighspyArray | None = None
+        self._power_in_ts: HighspyArray | None = None
+        self._power_out_ts: HighspyArray | None = None
+
     @property
     def segment_id(self) -> str:
         """Return the segment identifier."""
@@ -94,34 +101,51 @@ class Segment(ABC):
         return self._target_element
 
     @property
-    @abstractmethod
     def power_in_st(self) -> HighspyArray:
         """Power entering segment in source→target direction."""
-        ...
+        return self._power_in_st  # type: ignore[return-value]  # Set by apply()
 
     @property
-    @abstractmethod
     def power_out_st(self) -> HighspyArray:
         """Power leaving segment in source→target direction."""
-        ...
+        return self._power_out_st  # type: ignore[return-value]  # Set by apply()
 
     @property
-    @abstractmethod
     def power_in_ts(self) -> HighspyArray:
         """Power entering segment in target→source direction."""
-        ...
+        return self._power_in_ts  # type: ignore[return-value]  # Set by apply()
 
     @property
-    @abstractmethod
     def power_out_ts(self) -> HighspyArray:
         """Power leaving segment in target→source direction."""
+        return self._power_out_ts  # type: ignore[return-value]  # Set by apply()
+
+    @abstractmethod
+    def apply(
+        self,
+        power_st: HighspyArray,
+        power_ts: HighspyArray,
+    ) -> tuple[HighspyArray, HighspyArray]:
+        """Apply this segment to the power flow.
+
+        Receives input power expressions for each direction.
+        Returns output power expressions (may be same or transformed).
+        May add constraints and costs to the solver as side effects.
+
+        Args:
+            power_st: Power flow in source→target direction
+            power_ts: Power flow in target→source direction
+
+        Returns:
+            Tuple of (output_st, output_ts) power expressions
+
+        """
         ...
 
     def constraints(self) -> dict[str, highs_cons | list[highs_cons]]:
         """Return all constraints from this segment.
 
-        Discovers and calls all @constraint decorated methods. Calling the methods
-        triggers automatic constraint creation/updating in the solver via decorators.
+        Discovers and calls all @constraint decorated methods.
 
         Returns:
             Dictionary mapping constraint method names to constraint objects
@@ -131,11 +155,9 @@ class Segment(ABC):
         for name in dir(type(self)):
             attr = getattr(type(self), name, None)
             if isinstance(attr, ReactiveConstraint):
-                # Call the constraint method to trigger decorator lifecycle
                 method = getattr(self, name)
                 method()
 
-                # Get the state after calling to collect constraints
                 state_attr = f"_reactive_state_{name}"
                 state = getattr(self, state_attr, None)
                 if state is not None and "constraint" in state:
@@ -175,7 +197,6 @@ class Segment(ABC):
             if not isinstance(attr, ReactiveCost):
                 continue
 
-            # Call the cost method
             method = getattr(self, name)
             if (cost_value := method()) is not None:
                 if isinstance(cost_value, list):

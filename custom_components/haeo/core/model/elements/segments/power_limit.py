@@ -1,7 +1,6 @@
 """Power limit segment that constrains maximum power flow.
 
-Limits power flow in each direction and optionally prevents simultaneous
-bidirectional flow at full capacity (time-slice constraint).
+Identity transform with constraint side-effects.
 """
 
 from typing import Any, Final, Literal, NotRequired
@@ -37,21 +36,10 @@ class PowerLimitSegmentSpec(TypedDict):
 class PowerLimitSegment(Segment):
     """Segment that limits maximum power flow.
 
-    Creates single power variables for each direction (no losses, so in == out).
-
-    Constraints:
-        power_st <= max_power_source_target  (or == if fixed)
-        power_ts <= max_power_target_source  (or == if fixed)
-
-    Time-slice constraint (when both limits set):
-        (power_st / max_power_source_target) + (power_ts / max_power_target_source) <= 1
-
-    This prevents simultaneous bidirectional flow at full capacity.
-
-    Uses TrackedParam for max_power values to enable warm-start optimization.
+    Identity transform — returns input power unchanged.
+    Adds constraints on the input power expressions.
     """
 
-    # TrackedParams for warm-start support
     max_power_source_target: TrackedParam[NDArray[np.float64] | None] = TrackedParam()
     max_power_target_source: TrackedParam[NDArray[np.float64] | None] = TrackedParam()
 
@@ -66,18 +54,7 @@ class PowerLimitSegment(Segment):
         source_element: Element[Any],
         target_element: Element[Any],
     ) -> None:
-        """Initialize power limit segment.
-
-        Args:
-            segment_id: Unique identifier for naming LP variables
-            n_periods: Number of optimization periods
-            periods: Time period durations in hours
-            solver: HiGHS solver instance
-            spec: Power limit segment specification.
-            source_element: Connected source element reference
-            target_element: Connected target element reference
-
-        """
+        """Initialize power limit segment."""
         super().__init__(
             segment_id,
             n_periods,
@@ -87,66 +64,44 @@ class PowerLimitSegment(Segment):
             target_element=target_element,
         )
         self._fixed = spec.get("fixed", False)
-
-        # Create single power variable per direction (lossless segment, in == out)
-        self._power_st = solver.addVariables(n_periods, lb=0, name_prefix=f"{segment_id}_st_", out_array=True)
-        self._power_ts = solver.addVariables(n_periods, lb=0, name_prefix=f"{segment_id}_ts_", out_array=True)
-
-        # Set tracked params (these trigger reactive infrastructure)
         self.max_power_source_target = broadcast_to_sequence(spec.get("max_power_source_target"), self._n_periods)
         self.max_power_target_source = broadcast_to_sequence(spec.get("max_power_target_source"), self._n_periods)
 
-    @property
-    def power_in_st(self) -> HighspyArray:
-        """Power entering segment in source→target direction."""
-        return self._power_st
-
-    @property
-    def power_out_st(self) -> HighspyArray:
-        """Power leaving segment in source→target direction (same as in, lossless)."""
-        return self._power_st
-
-    @property
-    def power_in_ts(self) -> HighspyArray:
-        """Power entering segment in target→source direction."""
-        return self._power_ts
-
-    @property
-    def power_out_ts(self) -> HighspyArray:
-        """Power leaving segment in target→source direction (same as in, lossless)."""
-        return self._power_ts
+    def apply(self, power_st: HighspyArray, power_ts: HighspyArray) -> tuple[HighspyArray, HighspyArray]:
+        """Identity: return input unchanged. Constraints reference these expressions."""
+        self._power_in_st = self._power_out_st = power_st
+        self._power_in_ts = self._power_out_ts = power_ts
+        return power_st, power_ts
 
     @constraint(output=True, unit="$/kW")
     def source_target(self) -> list[highs_linear_expression] | None:
         """Power limit constraint for source→target direction."""
-        if self.max_power_source_target is None:
+        if self.max_power_source_target is None or self._power_in_st is None:
             return None
-
         if self._fixed:
-            return list(self._power_st == self.max_power_source_target)
-        return list(self._power_st <= self.max_power_source_target)
+            return list(self._power_in_st == self.max_power_source_target)
+        return list(self._power_in_st <= self.max_power_source_target)
 
     @constraint(output=True, unit="$/kW")
     def target_source(self) -> list[highs_linear_expression] | None:
         """Power limit constraint for target→source direction."""
-        if self.max_power_target_source is None:
+        if self.max_power_target_source is None or self._power_in_ts is None:
             return None
-
         if self._fixed:
-            return list(self._power_ts == self.max_power_target_source)
-        return list(self._power_ts <= self.max_power_target_source)
+            return list(self._power_in_ts == self.max_power_target_source)
+        return list(self._power_in_ts <= self.max_power_target_source)
 
     @constraint(output=True, unit="$/kW")
     def time_slice(self) -> list[highs_linear_expression] | None:
-        """Time-slice constraint: prevent simultaneous bidirectional flow at capacity.
-
-        Constraint: (power_st / max_power_source_target) + (power_ts / max_power_target_source) <= 1
-        """
-        if self.max_power_source_target is None or self.max_power_target_source is None:
+        """Time-slice constraint: prevent simultaneous bidirectional flow at capacity."""
+        if (
+            self.max_power_source_target is None
+            or self.max_power_target_source is None
+            or self._power_in_st is None
+            or self._power_in_ts is None
+        ):
             return None
 
-        # Normalize power to [0, 1] range based on capacity
-        # Handle zero capacity by setting coefficient to 0
         coeff_st = np.divide(
             1.0,
             self.max_power_source_target,
@@ -159,9 +114,8 @@ class PowerLimitSegment(Segment):
             out=np.zeros(self._n_periods),
             where=self.max_power_target_source > 0,
         )
-
-        normalized_st = self._power_st * coeff_st
-        normalized_ts = self._power_ts * coeff_ts
+        normalized_st = self._power_in_st * coeff_st
+        normalized_ts = self._power_in_ts * coeff_ts
         return list(normalized_st + normalized_ts <= 1.0)
 
 

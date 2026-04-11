@@ -1,9 +1,7 @@
 """Efficiency segment that applies losses to power flow.
 
-Efficiency reduces output power relative to input:
-    power_out = power_in * efficiency
-
-This models inverter losses, transformer losses, etc.
+Transform: output = input * efficiency.
+Returns expressions, not new variables.
 """
 
 from typing import Any, Literal, NotRequired
@@ -32,11 +30,7 @@ class EfficiencySegmentSpec(TypedDict):
 class EfficiencySegment(Segment):
     """Segment that applies efficiency losses to power flow.
 
-    Uses a single variable per direction with efficiency applied via properties:
-        power_out_st = power_in_st * efficiency_source_target
-        power_out_ts = power_in_ts * efficiency_target_source
-
-    Efficiency values are fractions in range (0, 1].
+    Transform: output = input * efficiency (an expression, not a new variable).
     """
 
     efficiency_source_target: TrackedParam[NDArray[np.float64] | None] = TrackedParam()
@@ -53,18 +47,7 @@ class EfficiencySegment(Segment):
         source_element: Element[Any],
         target_element: Element[Any],
     ) -> None:
-        """Initialize efficiency segment.
-
-        Args:
-            segment_id: Unique identifier for naming LP variables
-            n_periods: Number of optimization periods
-            periods: Time period durations in hours
-            solver: HiGHS solver instance
-            spec: Efficiency segment specification.
-            source_element: Connected source element reference
-            target_element: Connected target element reference
-
-        """
+        """Initialize efficiency segment."""
         super().__init__(
             segment_id,
             n_periods,
@@ -73,44 +56,24 @@ class EfficiencySegment(Segment):
             source_element=source_element,
             target_element=target_element,
         )
+        self.efficiency_source_target = broadcast_to_sequence(spec.get("efficiency_source_target"), self._n_periods)
+        self.efficiency_target_source = broadcast_to_sequence(spec.get("efficiency_target_source"), self._n_periods)
 
-        # Store efficiency values
-        efficiency_source_target = spec.get("efficiency_source_target")
-        self.efficiency_source_target = broadcast_to_sequence(efficiency_source_target, self._n_periods)
-        efficiency_target_source = spec.get("efficiency_target_source")
-        self.efficiency_target_source = broadcast_to_sequence(efficiency_target_source, self._n_periods)
+    def apply(self, power_st: HighspyArray, power_ts: HighspyArray) -> tuple[HighspyArray, HighspyArray]:
+        """Apply efficiency: output = input * efficiency."""
+        self._power_in_st = power_st
+        self._power_in_ts = power_ts
 
-        # Single variable per direction - efficiency applied via properties
-        self._power_st = solver.addVariables(n_periods, lb=0, name_prefix=f"{segment_id}_st_", out_array=True)
-        self._power_ts = solver.addVariables(n_periods, lb=0, name_prefix=f"{segment_id}_ts_", out_array=True)
+        # Apply efficiency as expression (no new variables)
+        eff_st = self.efficiency_source_target
+        out_st = power_st if eff_st is None else power_st * eff_st
 
-    @property
-    def power_in_st(self) -> HighspyArray:
-        """Power entering segment in source→target direction."""
-        return self._power_st
+        eff_ts = self.efficiency_target_source
+        out_ts = power_ts if eff_ts is None else power_ts * eff_ts
 
-    @property
-    def power_out_st(self) -> HighspyArray:
-        """Power leaving segment in source→target direction (after efficiency loss)."""
-        efficiency = self.efficiency_source_target
-        if efficiency is None:
-            # Missing optional efficiency means no losses (100%).
-            return self._power_st
-        return self._power_st * efficiency
-
-    @property
-    def power_in_ts(self) -> HighspyArray:
-        """Power entering segment in target→source direction."""
-        return self._power_ts
-
-    @property
-    def power_out_ts(self) -> HighspyArray:
-        """Power leaving segment in target→source direction (after efficiency loss)."""
-        efficiency = self.efficiency_target_source
-        if efficiency is None:
-            # Missing optional efficiency means no losses (100%).
-            return self._power_ts
-        return self._power_ts * efficiency
+        self._power_out_st = out_st
+        self._power_out_ts = out_ts
+        return out_st, out_ts
 
 
 __all__ = ["EfficiencySegment", "EfficiencySegmentSpec"]

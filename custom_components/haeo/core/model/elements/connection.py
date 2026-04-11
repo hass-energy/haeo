@@ -8,14 +8,14 @@ from collections import OrderedDict
 from typing import Any, Final, Literal, NotRequired, TypedDict
 
 from highspy import Highs
-from highspy.highs import HighspyArray, highs_cons, highs_linear_expression
+from highspy.highs import HighspyArray, highs_cons
 import numpy as np
 from numpy.typing import NDArray
 
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.model.element import Element
 from custom_components.haeo.core.model.output_data import OutputData
-from custom_components.haeo.core.model.reactive import constraint, output
+from custom_components.haeo.core.model.reactive import output
 
 from .segments import Segment, SegmentSpec, create_segment
 
@@ -129,6 +129,10 @@ class Connection[TOutputName: str](Element[TOutputName]):
         self._segment_specs: OrderedDict[str, SegmentSpec] = OrderedDict(segments or {})
         self._segments: OrderedDict[str, Segment] = OrderedDict()
 
+        # Connection-owned power variables (created during initialization)
+        self._power_st: HighspyArray | None = None
+        self._power_ts: HighspyArray | None = None
+
     @property
     def segments(self) -> OrderedDict[str, Segment]:
         """Return the ordered dict of segments."""
@@ -144,12 +148,10 @@ class Connection[TOutputName: str](Element[TOutputName]):
     def _initialize_segments(self, source_element: Element[Any], target_element: Element[Any]) -> None:
         segment_specs = self._segment_specs
         for idx, (segment_name, segment_spec) in enumerate(segment_specs.items()):
-            # Ensure unique segment names
             resolved_name = segment_name
             if resolved_name in self._segments:
                 resolved_name = f"{resolved_name}_{idx}"
 
-            # Create segment with standard args plus spec
             segment_id = f"{self.name}_{resolved_name}"
             segment = create_segment(
                 segment_id=segment_id,
@@ -162,7 +164,6 @@ class Connection[TOutputName: str](Element[TOutputName]):
             )
             self._segments[resolved_name] = segment
 
-        # If no segments provided, create a passthrough segment
         if not self._segments:
             self._segments["passthrough"] = create_segment(
                 segment_id=f"{self.name}_passthrough",
@@ -173,6 +174,20 @@ class Connection[TOutputName: str](Element[TOutputName]):
                 source_element=source_element,
                 target_element=target_element,
             )
+
+        # Create the connection's power variables
+        self._power_st = self._solver.addVariables(self.n_periods, lb=0, name_prefix=f"{self.name}_st_", out_array=True)
+        self._power_ts = self._solver.addVariables(self.n_periods, lb=0, name_prefix=f"{self.name}_ts_", out_array=True)
+
+        # Chain segments: apply in source→target order
+        flow_st, flow_ts = self._power_st, self._power_ts
+        for segment in self._segment_list_st():
+            flow_st, _ = segment.apply(flow_st, flow_ts)
+
+        # Chain segments: apply in target→source order
+        flow_st2, flow_ts2 = self._power_st, self._power_ts
+        for segment in self._segment_list_ts():
+            _, flow_ts2 = segment.apply(flow_st2, flow_ts2)
 
     @property
     def _first(self) -> Segment:
@@ -220,31 +235,29 @@ class Connection[TOutputName: str](Element[TOutputName]):
 
     @property
     def power_source_target(self) -> HighspyArray:
-        """Return power flowing from source to target (input to first segment)."""
-        return self._first.power_in_st
+        """Return total power flowing from source to target (connection variable)."""
+        return self._power_st  # type: ignore[return-value]  # Set during _initialize_segments
 
     @property
     def power_target_source(self) -> HighspyArray:
-        """Return power flowing from target to source (input to first segment from t→s direction)."""
-        return self._first_ts.power_in_ts
+        """Return total power flowing from target to source (connection variable)."""
+        return self._power_ts  # type: ignore[return-value]  # Set during _initialize_segments
 
     @property
     def power_into_source(self) -> HighspyArray:
         """Return effective power flowing into the source element.
 
-        This is the t→s output from the last segment minus the s→t input to the first segment.
-
+        t→s output from last segment minus s→t input.
         """
-        return self._last_ts.power_out_ts - self._first.power_in_st
+        return self._last_ts.power_out_ts - self._power_st
 
     @property
     def power_into_target(self) -> HighspyArray:
         """Return effective power flowing into the target element.
 
-        This is the s→t output from the last segment minus the t→s input to the first segment.
-
+        s→t output from last segment minus t→s input.
         """
-        return self._last.power_out_st - self._first_ts.power_in_ts
+        return self._last.power_out_st - self._power_ts
 
     # --- Constraint and cost delegation to segments ---
 
@@ -294,35 +307,9 @@ class Connection[TOutputName: str](Element[TOutputName]):
 
     # --- Segment linking constraints ---
 
-    @constraint
-    def segment_link_st(self) -> list[highs_linear_expression] | None:
-        """Link s→t power between adjacent segments."""
-        if len(self._segments) < MIN_SEGMENTS_FOR_LINKING:
-            return None
-
-        constraints = []
-        segment_list = self._segment_list_st()
-        for i in range(len(segment_list) - 1):
-            curr = segment_list[i]
-            next_seg = segment_list[i + 1]
-            # Output of current segment feeds input of next segment
-            constraints.extend(list(curr.power_out_st == next_seg.power_in_st))
-        return constraints
-
-    @constraint
-    def segment_link_ts(self) -> list[highs_linear_expression] | None:
-        """Link t→s power between adjacent segments."""
-        if len(self._segments) < MIN_SEGMENTS_FOR_LINKING:
-            return None
-
-        constraints = []
-        segment_list = self._segment_list_ts()
-        for i in range(len(segment_list) - 1):
-            curr = segment_list[i]
-            next_seg = segment_list[i + 1]
-            # Output of current segment feeds input of next segment
-            constraints.extend(list(curr.power_out_ts == next_seg.power_in_ts))
-        return constraints
+    # Segment linking is no longer needed — segments chain via apply().
+    # The Connection creates variables, passes them through segments,
+    # and segments add constraints/costs as side effects.
 
     # --- Output methods ---
 
