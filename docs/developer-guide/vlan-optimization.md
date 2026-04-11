@@ -1,212 +1,166 @@
 # VLAN Optimization
 
-This document analyzes the minimum number of VLANs (tags) required to correctly
-model a set of power policies, and the algorithms to achieve that minimum.
+This document describes the algorithms for minimizing the number of LP variables
+in the power policy system. See [Power Policies](../modeling/tagged-power.md) for
+the full design.
 
-## Problem Statement
+## Problem
 
-Each VLAN adds `S × 2 × T` LP variables per connection (`S` segments, 2 directions,
-`T` time periods). With `C` connections, the total variable cost is `C × K × S × 2 × T`
-where `K` is the number of VLANs. Minimizing `K` directly improves solve time.
+Each VLAN (tag) on a connection creates `S × 2 × T` LP variables (segments × directions × periods).
+Naive approaches (one VLAN per source node) create unnecessarily many variables when
+sources receive identical treatment from policies.
 
-## Policy Signatures
+## Signature-Based Merging
 
-The key insight: **VLANs distinguish sources, not destinations.** Destination-specific
-pricing is handled by scoped segments at the destination connection. A VLAN only needs
-to track *where power came from*.
-
-Two source nodes need separate VLANs **only if** at least one policy treats them
-differently. We formalize this as a **policy signature**.
-
-### Definition
-
-For a source node `s`, its policy signature is the set of `(destination, price_st, price_ts)`
-tuples from all policies that match `s` as a source:
-
-$$
-\text{sig}(s) = \{(d, \pi_{st}, \pi_{ts}) \mid \text{policy}(s \to d, \pi_{st}, \pi_{ts}) \text{ exists}\}
-$$
-
-### Equivalence Classes
-
-Sources with identical policy signatures are treated identically by all policies.
-They can share a single VLAN without loss of information.
-
-The set of VLANs is the set of **distinct non-empty signatures** plus VLAN 0 (default).
-
-### Proof of Optimality
-
-- **Necessary**: Two sources with different signatures must have different VLANs,
-  because at some destination node, the optimizer needs to apply different pricing
-  to their power. If they shared a VLAN, the optimizer couldn't distinguish them.
-
-- **Sufficient**: Two sources with identical signatures can share a VLAN. Every
-  policy that applies to one also applies to the other with the same parameters.
-  The optimizer doesn't need to distinguish between them.
-
-Therefore: **number of VLANs = number of distinct non-empty signatures + 1** is optimal.
-
-## Algorithm
+### Algorithm
 
 ```python
-def compute_optimal_vlans(nodes, policies):
-    """Compute minimum VLAN assignment from policy rules.
-    
-    Returns:
-        tag_map: dict[node_name, vlan_id] (0 = default/untagged)
+def compute_optimal_vlans(nodes: list[str], policies: list[Policy]) -> dict[str, int]:
+    """Assign VLANs based on policy signature equivalence classes.
+
+    Returns: node_name -> vlan_id (0 = default/no policy)
     """
-    # Step 1: Compute policy signature per node
+    # Compute signature per source node
     signatures: dict[str, frozenset] = {}
     for node in nodes:
         sig = set()
         for policy in policies:
-            if matches_source(node, policy.sources):
+            if node in resolve_sources(policy.sources, nodes):
                 for dest in resolve_destinations(policy.destinations, nodes):
                     sig.add((dest, policy.price_st, policy.price_ts))
         signatures[node] = frozenset(sig)
-    
-    # Step 2: Group by identical signatures
+
+    # Group nodes by identical signatures → shared VLAN
     sig_to_vlan: dict[frozenset, int] = {}
     vlan_counter = 1
     tag_map: dict[str, int] = {}
-    
+
     for node, sig in signatures.items():
         if not sig:
-            tag_map[node] = 0  # No policies → default VLAN
+            tag_map[node] = 0  # No policies apply
             continue
         if sig not in sig_to_vlan:
             sig_to_vlan[sig] = vlan_counter
             vlan_counter += 1
         tag_map[node] = sig_to_vlan[sig]
-    
+
     return tag_map
 ```
 
-## Examples
+### Correctness
 
-### Example 1: Simple Grid Surcharge
+**Necessary**: Sources with different signatures have at least one policy that treats
+them differently. If they shared a VLAN, the optimizer couldn't apply the correct price
+at the discriminating destination. The solution would be suboptimal or incorrect.
+
+**Sufficient**: Sources with identical signatures are treated the same by every policy.
+Sharing a VLAN loses no information — the optimizer doesn't need to distinguish them.
+
+### Optimality
+
+The number of VLANs equals the number of distinct non-empty signatures plus one (for
+VLAN 0). This is the theoretical minimum for any correct implementation.
+
+## Reachability Pruning
+
+### Algorithm
+
+After VLAN assignment, compute which connections actually need each VLAN:
+
+```python
+def compute_reachable_connections(
+    vlan_id: int,
+    source_nodes: set[str],
+    dest_nodes: set[str],
+    graph: NetworkGraph,
+) -> set[str]:
+    """Find connections on any path from sources to destinations."""
+    reachable = set()
+    for source in source_nodes:
+        for dest in dest_nodes:
+            path_connections = graph.find_path_connections(source, dest)
+            reachable.update(path_connections)
+    return reachable
+```
+
+For tree topologies, `find_path_connections` is O(N) per pair.
+
+### Savings
+
+| Topology | Naive | With pruning |
+|----------|-------|-------------|
+| Star (all connected to hub) | C × K | varies by VLAN reachability |
+| Linear chain | C × K | K × path_length |
+| Tree | C × K | K × avg_path_length |
+
+The savings are largest when VLANs only need to traverse a fraction of the network.
+
+## Combined Pipeline
+
+```python
+def optimize_vlan_assignment(nodes, policies, connections):
+    # 1. Signature-based merging
+    tag_map = compute_optimal_vlans(nodes, policies)
+
+    # 2. Reachability pruning
+    all_tags = set(tag_map.values()) - {0}
+    connection_tags = {conn.name: {0} for conn in connections}  # default VLAN 0
+
+    for vlan_id in all_tags:
+        source_nodes = {n for n, v in tag_map.items() if v == vlan_id}
+        dest_nodes = get_destinations_for_vlan(vlan_id, policies, tag_map)
+        reachable = compute_reachable_connections(vlan_id, source_nodes, dest_nodes, graph)
+        for conn_name in reachable:
+            connection_tags[conn_name].add(vlan_id)
+
+    return tag_map, connection_tags
+```
+
+## Worked Examples
+
+### 4 Nodes, 1 Policy
 
 ```
 Nodes: Grid, Solar, Battery, Load
-Policy: Grid → Load: $0.05/kWh
+Policy: Grid → Load: $0.05
 ```
 
-| Node | Signature | VLAN |
-|------|-----------|------|
-| Grid | {(Load, 0.05, None)} | 1 |
-| Solar | {} | 0 |
-| Battery | {} | 0 |
-| Load | {} | 0 |
+| Step | Result |
+|------|--------|
+| Signatures | Grid={(Load,0.05,None)}, Solar={}, Battery={}, Load={} |
+| VLANs | Grid=1, others=0. **K=2** |
+| Naive would give | K=5 (one per node + default) |
+| Reachability | VLAN 1 only on Grid→SW, SW→Load connections |
 
-**Result: 2 VLANs** (0 and 1). Solar and Battery share VLAN 0.
-
-### Example 2: Different Source Prices
+### 4 Nodes, 2 Policies, Same Price
 
 ```
-Policy 1: Grid → Load: $0.05/kWh
-Policy 2: Solar → Load: $0.02/kWh
+Policy 1: Grid → Load: $0.05
+Policy 2: Solar → Load: $0.05
 ```
 
-| Node | Signature | VLAN |
-|------|-----------|------|
-| Grid | {(Load, 0.05, None)} | 1 |
-| Solar | {(Load, 0.02, None)} | 2 |
-| Battery | {} | 0 |
+| Step | Result |
+|------|--------|
+| Signatures | Grid={(Load,0.05,None)}, Solar={(Load,0.05,None)} — **identical!** |
+| VLANs | Grid=Solar=1, Battery=0. **K=2** |
+| Savings | 1 VLAN eliminated vs naive (Grid and Solar merged) |
 
-**Result: 3 VLANs**. Each source has unique treatment.
-
-### Example 3: Same Price, Different Sources
+### Wildcard Policy
 
 ```
-Policy 1: Grid → Load: $0.05/kWh
-Policy 2: Solar → Load: $0.05/kWh
+Policy: * → Load: $0.05
 ```
 
-| Node | Signature | VLAN |
-|------|-----------|------|
-| Grid | {(Load, 0.05, None)} | 1 |
-| Solar | {(Load, 0.05, None)} | 1 |
-| Battery | {} | 0 |
+All sources get signature {(Load,0.05,None)}. All merge into VLAN 1.
+**K=2** regardless of node count.
 
-**Result: 2 VLANs**. Grid and Solar share VLAN 1 (identical treatment).
+## Complexity
 
-### Example 4: Wildcard Source
+| Operation | Time | Notes |
+|-----------|------|-------|
+| Signature computation | O(N × P × D) | N nodes, P policies, D destinations |
+| VLAN assignment | O(N) | Hash-based grouping |
+| Reachability (tree) | O(K × N) | K VLANs, N nodes per path search |
+| Reachability (general) | O(K × (N + E)) | BFS per VLAN |
 
-```
-Policy: * → Load: $0.05/kWh
-```
-
-| Node | Signature | VLAN |
-|------|-----------|------|
-| Grid | {(Load, 0.05, None)} | 1 |
-| Solar | {(Load, 0.05, None)} | 1 |
-| Battery | {(Load, 0.05, None)} | 1 |
-
-**Result: 2 VLANs**. All sources share VLAN 1 (all treated identically).
-
-### Example 5: Complex Policies
-
-```
-Policy 1: Grid → Load: $0.05/kWh
-Policy 2: Grid → Battery: $0.03/kWh
-Policy 3: Solar → Load: $0.02/kWh
-```
-
-| Node | Signature | VLAN |
-|------|-----------|------|
-| Grid | {(Load, 0.05, None), (Battery, 0.03, None)} | 1 |
-| Solar | {(Load, 0.02, None)} | 2 |
-| Battery | {} | 0 |
-
-**Result: 3 VLANs**. Grid and Solar have different signatures.
-
-## Connection-Level Optimization
-
-A further optimization: **not all connections need all VLANs.**
-
-If a VLAN can never flow through a connection (no path exists from any source
-with that VLAN to any destination that consumes it), the connection doesn't need
-variables for that VLAN.
-
-### Reachability Analysis
-
-For each VLAN `v`:
-1. Find source nodes: `{n | tag_map[n] == v}`
-2. Find destination nodes: all destinations referenced by policies matching this VLAN
-3. Compute connections on paths between source and destination nodes
-4. Only these connections need VLAN `v`
-
-For **tree topologies** (most home energy systems), the path between any two nodes
-is unique and can be found in O(N) time. For general graphs, BFS/DFS from each
-source set gives reachable connections.
-
-### Variable Savings
-
-With `C` connections and `K` VLANs, the naive approach uses `C × K` tag-connection pairs.
-After reachability pruning, only the reachable pairs need variables. For sparse policy
-sets (few source→destination pairs relative to the full graph), this can dramatically
-reduce variable count.
-
-## Comparison
-
-| Approach | VLANs | Variables per connection | Total variables |
-|----------|-------|------------------------|-----------------|
-| Naive (1 per source) | N_sources + 1 | (N_sources + 1) × S × 2 × T | C × (N_sources + 1) × S × 2 × T |
-| Signature merging | N_signatures + 1 | (N_signatures + 1) × S × 2 × T | C × (N_signatures + 1) × S × 2 × T |
-| + Reachability pruning | N_signatures + 1 | varies per connection | Σ_c K_c × S × 2 × T |
-
-Where `N_signatures ≤ N_sources`, and `K_c ≤ K` is the number of VLANs reaching connection `c`.
-
-## Implementation Notes
-
-The signature-based VLAN assignment replaces the current per-source assignment in
-`compile_policies()`. The change is localized to the tag assignment step — the rest
-of the pipeline (connection tagging, source enforcement, pricing injection) works
-the same way with the reduced VLAN set.
-
-Reachability pruning requires access to the network graph topology, which is available
-from the connection configs. It can be implemented as an additional step after VLAN
-assignment but before connection tagging.
-
-Both optimizations are **semantically equivalent** to the naive approach — the optimizer
-produces the same optimal cost. They only affect solve time.
+All steps are polynomial and fast for home energy systems (N < 20, P < 10).

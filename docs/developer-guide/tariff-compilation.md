@@ -1,135 +1,130 @@
-# Tariff Compilation
+# Policy Compilation
 
-This guide explains how user-configured tariffs compile into tagged power flow constraints in the LP model.
+This guide explains how user-configured power policies compile into the LP model.
+See [Power Policies](../modeling/tagged-power.md) for the design rationale and
+[VLAN Optimization](vlan-optimization.md) for the variable minimization algorithms.
 
 ## Overview
 
-Tariffs are a device-layer concept.
-Users configure source–destination pairs and prices.
-The system compiles these into model-layer constructs: tag IDs on connections and scoped pricing segments.
+Policies are a device-layer concept. Users configure source–destination pairs with
+prices and limits. The compilation pipeline transforms these into model-layer constructs:
+optimized VLAN assignments, connection tagging, node access lists, and scoped segments.
 
-The compilation happens in `collect_model_elements()` after all adapters have produced their model element configs and before the network is built.
-
-## Compilation Pipeline
+## Pipeline
 
 ```mermaid
 graph TD
-    A[User Tariff Configs] --> B[Adapter: model_elements]
-    B --> C[collect_model_elements]
-    C --> D[Tag Assignment]
-    D --> E[Connection Merge]
-    E --> F[Source Enforcement]
-    F --> G[Network.add for each element]
+    A[Policy Configs] --> B[Flow Enumeration]
+    B --> C[Signature Computation]
+    C --> D[VLAN Assignment]
+    D --> E[Reachability Analysis]
+    E --> F[Connection Tagging]
+    F --> G[Node Source Tags]
+    G --> H[Node Access Lists]
+    H --> I[Pricing Injection]
+    I --> J[Model Elements]
 ```
 
-### Step 1: Tag Assignment
+### Step 1: Flow Enumeration
 
-Each source device referenced by any tariff gets a unique integer tag ID.
-Tag 0 is reserved for untagged/default power.
+Each policy expands into concrete `(source, destination, price_st, price_ts)` tuples.
+Wildcards (`*`) expand to all nodes.
 
-```python
-# Pseudo-code
-tag_counter = 1
-for tariff in tariffs:
-    for source in tariff.sources:
-        if source not in tag_map:
-            tag_map[source] = tag_counter
-            tag_counter += 1
-```
+### Step 2: Signature Computation
 
-### Step 2: Connection Tagging
+Per source node, collect the set of `(destination, price)` tuples from all matching policies.
+This is the node's **policy signature**.
 
-Every connection in the network receives the full set of active tag IDs.
-This ensures tagged power can flow through any path.
+### Step 3: VLAN Assignment
 
-When no tariffs exist, connections only have tag 0 — identical to the untagged model.
+Group sources by identical signature → assign one VLAN per group.
+This is the **minimum** number of VLANs (see [VLAN Optimization](vlan-optimization.md)).
 
-### Step 3: Segment Injection
+### Step 4: Reachability Analysis
 
-For each tariff, a pricing segment scoped to the relevant tag is added to the destination connection.
-The **discriminating point** is the connection adjacent to the destination node where all tagged flow must pass.
+For each VLAN, find connections on paths from source nodes to destination nodes.
+Only reachable connections get that VLAN's variables.
 
-For "any → Load" tariffs, the pricing segment goes on the Load's connection.
-For "Grid → any" tariffs, the pricing segment goes on the Grid's connection.
-For "Grid → Load" tariffs, the system picks the destination side (Load's connection).
+### Step 5: Connection Tagging
 
-### Step 4: Source Enforcement
+Apply the reachability results: each connection gets its set of reachable VLANs.
 
-At each source device's connection, a tag-scoped power limit ensures only that source's tag can carry outbound power.
-Other tags get `max_power = 0` in the source→target direction.
+### Step 6: Node Source Tags
 
-This prevents the optimizer from "laundering" power by putting Grid power on the Solar tag to avoid tariffs.
+Set `source_tag` on each source node that has a VLAN assigned.
+The Node's `node_tag_power_balance` constraint enforces that only the source's own tag
+carries outbound power.
+
+### Step 7: Node Access Lists
+
+Compute which VLANs each node can consume:
+- A node can consume VLAN `v` if any policy has that node as a destination and
+  the source matches VLAN `v`.
+
+Power on non-consumable VLANs can still **flow through** the node (routing)
+but cannot terminate there.
+
+### Step 8: Pricing Injection
+
+For each policy, add a scoped pricing segment at the destination connection.
+The segment's `tag` parameter matches the source VLAN.
 
 ## Architecture
 
 ### Where Compilation Lives
 
-The compilation step is a post-processing phase in `collect_model_elements()` (in `core/adapters/registry.py`).
-It runs after all adapters have produced their model element configs, but before the configs are passed to `Network.add()`.
+`core/adapters/tariff_compilation.py` (to be renamed `policy_compilation.py`).
+Post-processing step in `collect_model_elements()`.
 
-This placement:
-- Keeps adapters simple — each produces its own configs independently
-- Centralizes cross-element logic (tariff → connection interaction)
-- Runs before network construction, so the Network sees fully resolved configs
+### Adapter Interaction
 
-### What Adapters Produce
+The policy adapter produces **rule configs**, not model elements.
+`collect_model_elements()` extracts rules from policy adapters and passes them
+to the compilation pipeline. The pipeline modifies the other adapters' model
+element configs (adding tags to connections, source_tag to nodes, segments).
 
-The tariff adapter produces a connection config with:
-- Tags: the tariff's assigned tag ID
-- Segments: a pricing segment scoped to that tag
+### Model Layer Isolation
 
-The merge step folds this into the existing connection between the same endpoints.
-
-### Model Layer Awareness
-
-The model layer (Segment, Connection, Network) is tag-aware but tariff-unaware.
-It operates on integer tag IDs and scoped segments without knowing about tariff rules.
-All tariff semantics are resolved at the adapter/compilation layer.
+The model layer (Segment, Connection, Node, Network) is **policy-unaware**.
+It operates on integer tags and scoped segments. All policy semantics are
+resolved at the compilation layer.
 
 ## Example
 
-User configures:
-
 ```
-Grid → Load: $0.05/kWh
-Solar → Load: $0.02/kWh
+Nodes: Grid, Solar, Battery, Switchboard, Load
+Policies:
+  Grid → Load: $0.05/kWh
+  Solar → Load: $0.02/kWh
 ```
-
-Network topology:
-```
-Grid ←→ Switchboard ←→ Load
-Solar → Switchboard
-Battery ←→ Switchboard
-```
-
-Compilation produces:
 
 | Step | Result |
 |------|--------|
-| Tag assignment | Grid=1, Solar=2, Battery=3 |
-| Connection tagging | All connections get tags [0, 1, 2, 3] |
-| Segment injection | Load's connection gets `pricing(tag=1, price=0.05)` and `pricing(tag=2, price=0.02)` |
-| Source enforcement | Grid's connection: `power_limit(tag=0, max_st=0)`, `power_limit(tag=2, max_st=0)`, `power_limit(tag=3, max_st=0)` — only tag 1 (grid) can flow out |
+| Flow enumeration | {(Grid,Load,0.05), (Solar,Load,0.02)} |
+| Signatures | Grid={(Load,0.05)}, Solar={(Load,0.02)}, Battery={}, SW={}, Load={} |
+| VLANs | Grid=1, Solar=2, others=0. K=3 |
+| Reachability | VLAN 1: Grid→SW, SW→Load. VLAN 2: Solar→SW, SW→Load |
+| Connection tags | Grid→SW: {0,1}. Solar→SW: {0,2}. SW→Load: {0,1,2}. Battery→SW: {0} |
+| Source tags | Grid: source_tag=1, Solar: source_tag=2 |
+| Access lists | Load: consumes {1,2}. SW: forwards all. Battery: consumes {0} |
+| Pricing | SW→Load: pricing(tag=1,$0.05), pricing(tag=2,$0.02) |
 
-The optimizer then:
-- Routes Grid power on tag 1 through Switchboard to Load, paying $0.05/kWh
-- Routes Solar power on tag 2 through Switchboard to Load, paying $0.02/kWh
-- Prefers Solar (cheaper) when available
-- Battery can charge from any tag, discharges on tag 3
+Result: Solar power ($0.02) preferred over Grid ($0.05). Battery power (no policy)
+can't reach Load (VLAN 0 not in Load's access list). Battery can only consume
+non-policy power (VLAN 0).
 
 ## Testing
 
-Test tariff compilation with unit tests that verify:
+Tests in `core/adapters/tests/test_tariff_compilation.py`:
 
-1. **Tag assignment**: Unique IDs per source, tag 0 always present
-2. **Connection merge**: Tariff segments folded into existing connections
-3. **Source enforcement**: Only source's own tag flows outbound
-4. **End-to-end**: Network with tariffs optimizes to expected cost
-
-Tests live in `core/adapters/elements/tests/test_tariff_merge.py`.
+1. **Signature computation**: Correct merging of identical signatures
+2. **VLAN assignment**: Minimum VLANs for various policy sets
+3. **Reachability**: Correct connection tagging for tree topologies
+4. **Source enforcement**: `source_tag` set on correct nodes
+5. **End-to-end**: Full network optimization with policies produces correct costs
 
 ## Related
 
-- [Tagged Power Flow](../modeling/tagged-power.md) — mathematical formulation
-- [Tariff Element](../user-guide/elements/tariff.md) — user guide
+- [Power Policies](../modeling/tagged-power.md) — design and mathematical formulation
+- [VLAN Optimization](vlan-optimization.md) — variable minimization algorithms
 - [Adapter Layer](adapter-layer.md) — adapter architecture
