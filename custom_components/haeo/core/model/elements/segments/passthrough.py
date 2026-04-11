@@ -1,19 +1,15 @@
-"""Passthrough segment with no constraints or costs.
-
-Identity transform: returns input power unchanged.
-"""
+"""Passthrough segment — identity transform."""
 
 from typing import Any, Literal
 
 from highspy import Highs
-from highspy.highs import HighspyArray
 import numpy as np
 from numpy.typing import NDArray
 from typing_extensions import TypedDict
 
 from custom_components.haeo.core.model.element import Element
 
-from .segment import Segment
+from .segment import Segment, TagPowerMap
 
 
 class PassthroughSegmentSpec(TypedDict):
@@ -36,19 +32,12 @@ class PassthroughSegment(Segment):
         source_element: Element[Any],
         target_element: Element[Any],
     ) -> None:
-        """Initialize passthrough segment."""
         _ = spec
         super().__init__(
-            segment_id,
-            n_periods,
-            periods,
-            solver,
-            source_element=source_element,
-            target_element=target_element,
+            segment_id, n_periods, periods, solver, source_element=source_element, target_element=target_element
         )
 
-    def apply(self, power_st: HighspyArray, power_ts: HighspyArray) -> tuple[HighspyArray, HighspyArray]:
-        """Identity: return input unchanged."""
+    def apply(self, power_st: TagPowerMap, power_ts: TagPowerMap) -> tuple[TagPowerMap, TagPowerMap]:
         self._power_in_st = self._power_out_st = power_st
         self._power_in_ts = self._power_out_ts = power_ts
         return power_st, power_ts

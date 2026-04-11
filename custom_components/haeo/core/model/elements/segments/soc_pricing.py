@@ -1,8 +1,4 @@
-"""SOC-based pricing segment for battery level penalties.
-
-Identity transform with slack variable side-effects.
-Creates auxiliary slack variables for SOC penalty computation.
-"""
+"""SOC-based pricing segment — identity transform with slack variable penalties."""
 
 from typing import Any, Literal, NotRequired
 
@@ -16,12 +12,10 @@ from custom_components.haeo.core.model.element import Element
 from custom_components.haeo.core.model.reactive import constraint, cost
 from custom_components.haeo.core.model.util import broadcast_to_sequence
 
-from .segment import Segment
+from .segment import Segment, TagPowerMap
 
 
 class SocPricingSegmentSpec(TypedDict):
-    """Specification for creating a SocPricingSegment."""
-
     segment_type: Literal["soc_pricing"]
     discharge_energy_threshold: NotRequired[NDArray[np.floating[Any]] | float | None]
     charge_capacity_threshold: NotRequired[NDArray[np.floating[Any]] | float | None]
@@ -30,11 +24,7 @@ class SocPricingSegmentSpec(TypedDict):
 
 
 class SocPricingSegment(Segment):
-    """Segment that penalizes discharging energy or charging capacity outside thresholds.
-
-    Identity transform — returns input unchanged.
-    Creates slack variables for penalty computation.
-    """
+    """Identity transform with slack variables for SOC penalty computation."""
 
     def __init__(
         self,
@@ -47,14 +37,8 @@ class SocPricingSegment(Segment):
         source_element: Element[Any],
         target_element: Element[Any],
     ) -> None:
-        """Initialize SOC pricing segment."""
         super().__init__(
-            segment_id,
-            n_periods,
-            periods,
-            solver,
-            source_element=source_element,
-            target_element=target_element,
+            segment_id, n_periods, periods, solver, source_element=source_element, target_element=target_element
         )
         self._battery = self._get_battery()
 
@@ -90,23 +74,19 @@ class SocPricingSegment(Segment):
 
     @property
     def discharge_energy_slack(self) -> HighspyArray | None:
-        """Return slack for energy below discharge threshold."""
         return self._discharge_energy_slack
 
     @property
     def charge_capacity_slack(self) -> HighspyArray | None:
-        """Return slack for energy above charge capacity threshold."""
         return self._charge_capacity_slack
 
-    def apply(self, power_st: HighspyArray, power_ts: HighspyArray) -> tuple[HighspyArray, HighspyArray]:
-        """Identity: return input unchanged. Slack constraints added via @constraint."""
+    def apply(self, power_st: TagPowerMap, power_ts: TagPowerMap) -> tuple[TagPowerMap, TagPowerMap]:
         self._power_in_st = self._power_out_st = power_st
         self._power_in_ts = self._power_out_ts = power_ts
         return power_st, power_ts
 
     @constraint
     def discharge_energy_slack_bound(self) -> list[highs_linear_expression] | None:
-        """Slack constraint for energy below discharge threshold."""
         if self._discharge_energy_slack is None or self._discharge_energy_threshold is None:
             return None
         stored_energy = np.asarray(self._battery.stored_energy, dtype=object)
@@ -114,7 +94,6 @@ class SocPricingSegment(Segment):
 
     @constraint
     def charge_capacity_slack_bound(self) -> list[highs_linear_expression] | None:
-        """Slack constraint for energy above charge capacity threshold."""
         if self._charge_capacity_slack is None or self._charge_capacity_threshold is None:
             return None
         stored_energy = np.asarray(self._battery.stored_energy, dtype=object)
@@ -122,7 +101,6 @@ class SocPricingSegment(Segment):
 
     @cost
     def soc_pricing_cost(self) -> highs_linear_expression | None:
-        """Return cost contribution from SOC pricing."""
         cost_terms = []
         if self._discharge_energy_slack is not None and self._discharge_energy_price is not None:
             cost_terms.append(Highs.qsum(self._discharge_energy_slack * self._discharge_energy_price))

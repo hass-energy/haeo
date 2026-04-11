@@ -33,6 +33,8 @@ class ConnectionElementConfig(TypedDict):
     target: str
     mirror_segment_order: NotRequired[bool]
     segments: NotRequired[dict[str, SegmentSpec]]
+    tags: NotRequired[list[int]]
+    tag_costs: NotRequired[list[dict[str, Any]]]
 
 
 # Minimum segments needed before linking is required
@@ -96,6 +98,8 @@ class Connection[TOutputName: str](Element[TOutputName]):
         segments: dict[str, SegmentSpec] | None = None,
         mirror_segment_order: bool = False,
         output_names: frozenset[TOutputName] | None = None,
+        tags: list[int] | None = None,
+        tag_costs: list[dict[str, Any]] | None = None,
     ) -> None:
         """Initialize a connection.
 
@@ -129,9 +133,20 @@ class Connection[TOutputName: str](Element[TOutputName]):
         self._segment_specs: OrderedDict[str, SegmentSpec] = OrderedDict(segments or {})
         self._segments: OrderedDict[str, Segment] = OrderedDict()
 
-        # Connection-owned power variables (created during initialization)
-        self._power_st: HighspyArray | None = None
-        self._power_ts: HighspyArray | None = None
+        # Tags: always include DEFAULT_TAG. Additional tags from policies.
+        from .segments.segment import DEFAULT_TAG  # noqa: PLC0415
+
+        raw_tags = list(tags) if tags else []
+        if DEFAULT_TAG not in raw_tags:
+            raw_tags.insert(0, DEFAULT_TAG)
+        self._tags: list[int] = raw_tags
+
+        # Per-tag power variables (created during initialization)
+        self._power_st_tags: dict[int, HighspyArray] = {}
+        self._power_ts_tags: dict[int, HighspyArray] = {}
+
+        # Tag-scoped pricing from policies (applied directly, not as segments)
+        self._tag_costs: list[dict[str, Any]] = list(tag_costs) if tag_costs else []
 
     @property
     def segments(self) -> OrderedDict[str, Segment]:
@@ -175,17 +190,23 @@ class Connection[TOutputName: str](Element[TOutputName]):
                 target_element=target_element,
             )
 
-        # Create the connection's power variables
-        self._power_st = self._solver.addVariables(self.n_periods, lb=0, name_prefix=f"{self.name}_st_", out_array=True)
-        self._power_ts = self._solver.addVariables(self.n_periods, lb=0, name_prefix=f"{self.name}_ts_", out_array=True)
+        # Create per-tag power variables
+        for tag in self._tags:
+            self._power_st_tags[tag] = self._solver.addVariables(
+                self.n_periods, lb=0, name_prefix=f"{self.name}_t{tag}_st_", out_array=True
+            )
+            self._power_ts_tags[tag] = self._solver.addVariables(
+                self.n_periods, lb=0, name_prefix=f"{self.name}_t{tag}_ts_", out_array=True
+            )
 
-        # Chain segments: apply in source→target order
-        flow_st, flow_ts = self._power_st, self._power_ts
+        # Chain segments with per-tag power maps
+        flow_st = dict(self._power_st_tags)
+        flow_ts = dict(self._power_ts_tags)
         for segment in self._segment_list_st():
             flow_st, _ = segment.apply(flow_st, flow_ts)
 
-        # Chain segments: apply in target→source order
-        flow_st2, flow_ts2 = self._power_st, self._power_ts
+        flow_st2 = dict(self._power_st_tags)
+        flow_ts2 = dict(self._power_ts_tags)
         for segment in self._segment_list_ts():
             _, flow_ts2 = segment.apply(flow_st2, flow_ts2)
 
@@ -234,30 +255,41 @@ class Connection[TOutputName: str](Element[TOutputName]):
         return self._target
 
     @property
+    def connection_tags(self) -> list[int]:
+        """Return the list of configured tags."""
+        return self._tags
+
+    @property
     def power_source_target(self) -> HighspyArray:
-        """Return total power flowing from source to target (connection variable)."""
-        return self._power_st  # type: ignore[return-value]  # Set during _initialize_segments
+        """Return total power flowing from source to target (sum of all tags)."""
+        from .segments.segment import _sum_tag_map  # noqa: PLC0415
+
+        return _sum_tag_map(self._power_st_tags)
 
     @property
     def power_target_source(self) -> HighspyArray:
-        """Return total power flowing from target to source (connection variable)."""
-        return self._power_ts  # type: ignore[return-value]  # Set during _initialize_segments
+        """Return total power flowing from target to source (sum of all tags)."""
+        from .segments.segment import _sum_tag_map  # noqa: PLC0415
+
+        return _sum_tag_map(self._power_ts_tags)
 
     @property
     def power_into_source(self) -> HighspyArray:
-        """Return effective power flowing into the source element.
-
-        t→s output from last segment minus s→t input.
-        """
-        return self._last_ts.power_out_ts - self._power_st
+        """Return effective total power flowing into the source element."""
+        return self._last_ts.power_out_ts - self.power_source_target
 
     @property
     def power_into_target(self) -> HighspyArray:
-        """Return effective power flowing into the target element.
+        """Return effective total power flowing into the target element."""
+        return self._last.power_out_st - self.power_target_source
 
-        s→t output from last segment minus t→s input.
-        """
-        return self._last.power_out_st - self._power_ts
+    def power_into_source_for_tag(self, tag: int) -> HighspyArray:
+        """Return per-tag power flowing into the source element."""
+        return self._last_ts.tag_power_out_ts(tag) - self._power_st_tags[tag]
+
+    def power_into_target_for_tag(self, tag: int) -> HighspyArray:
+        """Return per-tag power flowing into the target element."""
+        return self._last.tag_power_out_st(tag) - self._power_ts_tags[tag]
 
     # --- Constraint and cost delegation to segments ---
 
@@ -285,19 +317,27 @@ class Connection[TOutputName: str](Element[TOutputName]):
 
         return result
 
-    def cost(self) -> Any:  # type: ignore[override]  # Intentionally override Element's @cost with segment delegation
-        """Return aggregated cost expression from this connection's segments.
-
-        Collects costs from all segments and aggregates them.
-
-        Note: Specialized connections can override to include their own costs.
-
-        Returns:
-            Aggregated cost expression or None if no costs
-
-        """
-        # Collect costs from all segments
+    def cost(self) -> Any:  # type: ignore[override]
+        """Return aggregated cost from segments and tag-scoped policy costs."""
         costs = [segment_cost for segment in self._segments.values() if (segment_cost := segment.cost()) is not None]
+
+        # Add tag-scoped pricing from policies
+        for tc in self._tag_costs:
+            tag = tc["tag"]
+            if tag not in self._power_st_tags:
+                continue
+            from custom_components.haeo.core.model.util import broadcast_to_sequence  # noqa: PLC0415
+
+            price_st = tc.get("price_source_target")
+            if price_st is not None:
+                price_arr = broadcast_to_sequence(price_st, self.n_periods)
+                if price_arr is not None:
+                    costs.append(Highs.qsum(self._power_st_tags[tag] * price_arr * self.periods))
+            price_ts = tc.get("price_target_source")
+            if price_ts is not None:
+                price_arr = broadcast_to_sequence(price_ts, self.n_periods)
+                if price_arr is not None:
+                    costs.append(Highs.qsum(self._power_ts_tags[tag] * price_arr * self.periods))
 
         if not costs:
             return None

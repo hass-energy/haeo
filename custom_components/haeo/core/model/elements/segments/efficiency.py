@@ -1,13 +1,8 @@
-"""Efficiency segment that applies losses to power flow.
-
-Transform: output = input * efficiency.
-Returns expressions, not new variables.
-"""
+"""Efficiency segment — transform: output = input * efficiency."""
 
 from typing import Any, Literal, NotRequired
 
 from highspy import Highs
-from highspy.highs import HighspyArray
 import numpy as np
 from numpy.typing import NDArray
 from typing_extensions import TypedDict
@@ -16,7 +11,7 @@ from custom_components.haeo.core.model.element import Element
 from custom_components.haeo.core.model.reactive import TrackedParam
 from custom_components.haeo.core.model.util import broadcast_to_sequence
 
-from .segment import Segment
+from .segment import Segment, TagPowerMap
 
 
 class EfficiencySegmentSpec(TypedDict):
@@ -28,10 +23,7 @@ class EfficiencySegmentSpec(TypedDict):
 
 
 class EfficiencySegment(Segment):
-    """Segment that applies efficiency losses to power flow.
-
-    Transform: output = input * efficiency (an expression, not a new variable).
-    """
+    """Transform: output = input * efficiency (expression, not new variable)."""
 
     efficiency_source_target: TrackedParam[NDArray[np.float64] | None] = TrackedParam()
     efficiency_target_source: TrackedParam[NDArray[np.float64] | None] = TrackedParam()
@@ -47,29 +39,22 @@ class EfficiencySegment(Segment):
         source_element: Element[Any],
         target_element: Element[Any],
     ) -> None:
-        """Initialize efficiency segment."""
         super().__init__(
-            segment_id,
-            n_periods,
-            periods,
-            solver,
-            source_element=source_element,
-            target_element=target_element,
+            segment_id, n_periods, periods, solver, source_element=source_element, target_element=target_element
         )
         self.efficiency_source_target = broadcast_to_sequence(spec.get("efficiency_source_target"), self._n_periods)
         self.efficiency_target_source = broadcast_to_sequence(spec.get("efficiency_target_source"), self._n_periods)
 
-    def apply(self, power_st: HighspyArray, power_ts: HighspyArray) -> tuple[HighspyArray, HighspyArray]:
-        """Apply efficiency: output = input * efficiency."""
+    def apply(self, power_st: TagPowerMap, power_ts: TagPowerMap) -> tuple[TagPowerMap, TagPowerMap]:
+        """Apply efficiency per tag: output = input * efficiency."""
         self._power_in_st = power_st
         self._power_in_ts = power_ts
 
-        # Apply efficiency as expression (no new variables)
         eff_st = self.efficiency_source_target
-        out_st = power_st if eff_st is None else power_st * eff_st
-
         eff_ts = self.efficiency_target_source
-        out_ts = power_ts if eff_ts is None else power_ts * eff_ts
+
+        out_st = {tag: (v if eff_st is None else v * eff_st) for tag, v in power_st.items()}
+        out_ts = {tag: (v if eff_ts is None else v * eff_ts) for tag, v in power_ts.items()}
 
         self._power_out_st = out_st
         self._power_out_ts = out_ts

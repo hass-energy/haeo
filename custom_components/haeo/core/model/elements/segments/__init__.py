@@ -29,7 +29,7 @@ from .power_limit import (
     PowerLimitSegmentSpec,
 )
 from .pricing import PricingSegment, PricingSegmentSpec
-from .segment import Segment
+from .segment import DEFAULT_TAG, Segment, TagPowerMap
 from .soc_pricing import SocPricingSegment, SocPricingSegmentSpec
 
 # Discriminated union of segment type strings
@@ -108,6 +108,7 @@ def create_segment(
 
 
 __all__ = [
+    "DEFAULT_TAG",
     "POWER_LIMIT_SOURCE_TARGET",
     "POWER_LIMIT_TARGET_SOURCE",
     "POWER_LIMIT_TIME_SLICE",
@@ -125,6 +126,7 @@ __all__ = [
     "SegmentSpec",
     "SegmentSpecEntry",
     "SegmentType",
+    "TagPowerMap",
     "SocPricingSegment",
     "SocPricingSegmentSpec",
     "create_segment",

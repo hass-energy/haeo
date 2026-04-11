@@ -4,7 +4,7 @@ from collections.abc import Sequence
 from typing import Any
 
 from highspy import Highs
-from highspy.highs import HighspyArray, highs_linear_expression
+from highspy.highs import highs_linear_expression
 import numpy as np
 from numpy.typing import NDArray
 import pytest
@@ -75,7 +75,7 @@ class DummySegment(Segment):
         )
         self._cost_var = solver.addVariables(1, lb=0, name_prefix=f"{segment_id}_c_", out_array=True)
 
-    def apply(self, power_st: HighspyArray, power_ts: HighspyArray) -> tuple[HighspyArray, HighspyArray]:
+    def apply(self, power_st, power_ts):
         """Identity: return input unchanged."""
         self._power_in_st = self._power_out_st = power_st
         self._power_in_ts = self._power_out_ts = power_ts
@@ -143,7 +143,7 @@ def _solve_segment_scenario(case: SegmentScenario) -> dict[str, ExpectedValue]:
     n = len(periods)
     power_st = h.addVariables(n, lb=0, name_prefix="test_st_", out_array=True)
     power_ts = h.addVariables(n, lb=0, name_prefix="test_ts_", out_array=True)
-    seg.apply(power_st, power_ts)
+    seg.apply({0: power_st}, {0: power_ts})
 
     seg.constraints()
 
@@ -353,7 +353,7 @@ def test_segment_outputs_and_cost_coverage() -> None:
 
     # Apply with dummy variables
     power = h.addVariables(len(periods), lb=0, name_prefix="dummy_", out_array=True)
-    segment.apply(power, power)
+    segment.apply({0: power}, {0: power})
 
     np.testing.assert_array_equal(segment.periods, periods)
 
@@ -384,7 +384,7 @@ def test_soc_pricing_cost_none_without_prices() -> None:
 
     # Apply with dummy variables
     pv = h.addVariables(len(periods), lb=0, name_prefix="soc_test_", out_array=True)
-    segment.apply(pv, pv)
+    segment.apply({0: pv}, {0: pv})
 
     assert segment.cost() is None
 
@@ -408,12 +408,12 @@ def test_efficiency_segment_treats_none_as_unity_after_update() -> None:
     # Create variables and apply
     pst = h.addVariables(len(periods), lb=0, name_prefix="eff_st_", out_array=True)
     pts = h.addVariables(len(periods), lb=0, name_prefix="eff_ts_", out_array=True)
-    segment.apply(pst, pts)
+    segment.apply({0: pst}, {0: pts})
 
     # Simulate coordinator update path clearing optional efficiency.
     segment.efficiency_target_source = None
     # Re-apply to update output expressions
-    segment.apply(pst, pts)
+    segment.apply({0: pst}, {0: pts})
     h.addConstrs(segment.power_in_ts == np.asarray([10.0], dtype=np.float64))
     h.run()
 
@@ -439,7 +439,7 @@ def test_efficiency_segment_treats_missing_values_as_unity_both_directions() -> 
     # Create variables and apply
     pst = h.addVariables(len(periods), lb=0, name_prefix="eff2_st_", out_array=True)
     pts = h.addVariables(len(periods), lb=0, name_prefix="eff2_ts_", out_array=True)
-    segment.apply(pst, pts)
+    segment.apply({0: pst}, {0: pts})
 
     h.addConstrs(segment.power_in_st == np.asarray([7.5], dtype=np.float64))
     h.addConstrs(segment.power_in_ts == np.asarray([3.5], dtype=np.float64))
