@@ -173,7 +173,7 @@ class Element[OutputNameT: str]:
 
         for conn, end in self._connections:
             # Only connections with this tag contribute
-            if not hasattr(conn, 'connection_tags') or tag not in conn.connection_tags:
+            if not hasattr(conn, "connection_tags") or tag not in conn.connection_tags:
                 continue
             if end == "source":
                 total_power = total_power + conn.power_into_source_for_tag(tag)
@@ -186,7 +186,7 @@ class Element[OutputNameT: str]:
         """Return the union of all tags from all connected connections."""
         tags: set[int] = set()
         for conn, _end in self._connections:
-            if hasattr(conn, 'connection_tags'):
+            if hasattr(conn, "connection_tags"):
                 tags.update(conn.connection_tags)
         return tags
 

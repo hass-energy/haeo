@@ -134,6 +134,7 @@ class Connection[TOutputName: str](Element[TOutputName]):
 
         # Tags: always include DEFAULT_TAG (0). Additional tags for tariffs etc.
         from .segments.segment import DEFAULT_TAG  # noqa: PLC0415
+
         raw_tags = list(tags) if tags else []
         if DEFAULT_TAG not in raw_tags:
             raw_tags.insert(0, DEFAULT_TAG)
@@ -333,9 +334,7 @@ class Connection[TOutputName: str](Element[TOutputName]):
             curr = segment_list[i]
             next_seg = segment_list[i + 1]
             for tag in self._tags:
-                constraints.extend(list(
-                    curr.tag_power_out_st(tag) == next_seg.tag_power_in_st(tag)
-                ))
+                constraints.extend(list(curr.tag_power_out_st(tag) == next_seg.tag_power_in_st(tag)))
         return constraints
 
     @constraint
@@ -354,9 +353,7 @@ class Connection[TOutputName: str](Element[TOutputName]):
             curr = segment_list[i]
             next_seg = segment_list[i + 1]
             for tag in self._tags:
-                constraints.extend(list(
-                    curr.tag_power_out_ts(tag) == next_seg.tag_power_in_ts(tag)
-                ))
+                constraints.extend(list(curr.tag_power_out_ts(tag) == next_seg.tag_power_in_ts(tag)))
         return constraints
 
     # --- Output methods ---

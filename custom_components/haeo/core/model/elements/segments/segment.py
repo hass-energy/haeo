@@ -24,7 +24,6 @@ Segments are reactive-aware: they can use TrackedParam for parameters and
 @constraint/@cost decorators for methods.
 """
 
-from abc import ABC
 from typing import Any
 
 from highspy import Highs
@@ -40,7 +39,7 @@ from custom_components.haeo.core.model.reactive import OutputMethod, ReactiveCon
 DEFAULT_TAG: int = 0
 
 
-class Segment(ABC):
+class Segment:
     """Abstract base class for connection segments.
 
     All power flow is decomposed into tags. Each segment creates LP variables
@@ -158,12 +157,14 @@ class Segment(ABC):
 
         """
         st = self._solver.addVariables(
-            self._n_periods, lb=0,
+            self._n_periods,
+            lb=0,
             name_prefix=f"{self._segment_id}_t{tag}_st_",
             out_array=True,
         )
         ts = self._solver.addVariables(
-            self._n_periods, lb=0,
+            self._n_periods,
+            lb=0,
             name_prefix=f"{self._segment_id}_t{tag}_ts_",
             out_array=True,
         )

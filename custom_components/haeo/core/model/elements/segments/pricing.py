@@ -10,7 +10,7 @@ When unscoped, prices the total (sum across all tags).
 from typing import Any, Literal, NotRequired
 
 from highspy import Highs
-from highspy.highs import HighspyArray, highs_linear_expression
+from highspy.highs import highs_linear_expression
 import numpy as np
 from numpy.typing import NDArray
 from typing_extensions import TypedDict

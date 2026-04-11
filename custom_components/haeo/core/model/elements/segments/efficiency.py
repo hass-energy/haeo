@@ -77,12 +77,14 @@ class EfficiencySegment(Segment):
         """
         # Single variable per tag per direction — efficiency applied in properties
         st = self._solver.addVariables(
-            self._n_periods, lb=0,
+            self._n_periods,
+            lb=0,
             name_prefix=f"{self._segment_id}_t{tag}_st_",
             out_array=True,
         )
         ts = self._solver.addVariables(
-            self._n_periods, lb=0,
+            self._n_periods,
+            lb=0,
             name_prefix=f"{self._segment_id}_t{tag}_ts_",
             out_array=True,
         )

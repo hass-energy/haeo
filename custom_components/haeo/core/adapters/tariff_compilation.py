@@ -86,9 +86,7 @@ def compile_policies(
         price_st = policy.get("price_source_target")
         price_ts = policy.get("price_target_source")
         for src in sources:
-            for dst in destinations:
-                if src != dst:
-                    flows.append((src, dst, price_st, price_ts))
+            flows.extend((src, dst, price_st, price_ts) for dst in destinations if src != dst)
 
     if not flows:
         return elements
@@ -226,7 +224,6 @@ def _find_reachable_connections(
     for source in source_nodes:
         # BFS to find paths to all destinations
         visited: set[str] = set()
-        # Queue: (current_node, connections_on_path)
         queue: list[tuple[str, list[str]]] = [(source, [])]
         visited.add(source)
 

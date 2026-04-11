@@ -54,7 +54,7 @@ class TariffAdapter:
     advanced: bool = True
     connectivity: ConnectivityLevel = ConnectivityLevel.NEVER
 
-    def model_elements(self, config: TariffConfigData) -> list[ModelElementConfig]:
+    def model_elements(self, config: TariffConfigData) -> list[ModelElementConfig]:  # noqa: ARG002
         """Return empty list — tariffs don't create model elements directly.
 
         Tariff compilation is handled separately in collect_model_elements.
@@ -66,6 +66,7 @@ class TariffAdapter:
 
         Returns:
             Dict with sources, destinations, and pricing.
+
         """
         endpoints = config[SECTION_ENDPOINTS]
         tag_pricing = config[SECTION_TAG_PRICING]
@@ -80,8 +81,8 @@ class TariffAdapter:
 
     def outputs(
         self,
-        name: str,
-        model_outputs: Mapping[str, Mapping[ModelOutputName, ModelOutputValue]],
+        name: str,  # noqa: ARG002
+        model_outputs: Mapping[str, Mapping[ModelOutputName, ModelOutputValue]],  # noqa: ARG002
         **_kwargs: Any,
     ) -> Mapping[TariffDeviceName, Mapping[TariffOutputName, OutputData]]:
         """Map model outputs to tariff-specific output names.
