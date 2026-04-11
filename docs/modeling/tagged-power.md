@@ -302,3 +302,46 @@ after all adapters produce their model element configs.
 
 The model layer (segments, connections, nodes) is policy-unaware — it operates on
 integer tags and scoped segments without understanding the policy semantics.
+
+## External vs Internal Pricing
+
+HAEO distinguishes between two types of costs:
+
+**External prices** are real market costs from sensors — what you actually pay or earn.
+These stay on the element that interfaces with the external system:
+
+- Grid import/export prices (from your energy retailer)
+- Feed-in tariff rates
+
+External prices are configured on the Grid element's pricing segment and driven by
+external sensor data. They are NOT policies.
+
+**Internal policies** are valuations you choose to apply — they guide the optimizer
+without representing real money changing hands:
+
+- Battery discharge wear cost ($0.02/kWh)
+- Battery charge incentive ($0.001/kWh)
+- Solar export surcharge
+- Source-destination routing costs
+
+Internal policies should be configured as **power policies**, not as pricing segments
+on individual elements. This eliminates dual configuration and makes the cost structure
+explicit: "Battery to anything costs $0.02/kWh because of wear."
+
+!!! note "Migration path"
+
+    Battery pricing segments (`price_source_target`, `price_target_source`) are candidates
+    for migration to the policy system. The equivalent policy configuration:
+
+    - Battery discharge cost → `Battery → *: $0.02/kWh`
+    - Battery charge incentive → `* → Battery: -$0.001/kWh`
+
+    SOC-based pricing (state-dependent penalties) remains a specialised segment because
+    it depends on dynamic battery state, not flat per-kWh rates.
+
+## Future: SOC-Based VLANs
+
+Battery partitions (SOC ranges) could be modelled as separate VLANs, where power
+from different SOC levels carries different tags. This would enable SOC-dependent
+pricing through the standard policy system rather than specialised segments.
+This is a challenging LP modelling problem and is tracked separately.
