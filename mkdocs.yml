@@ -217,6 +217,7 @@ nav:
       - Units & Stability: developer-guide/units.md
       - Energy Models: developer-guide/energy-models.md
       - Tariff Compilation: developer-guide/tariff-compilation.md
+      - VLAN Optimization: developer-guide/vlan-optimization.md
       - Coordinator: developer-guide/coordinator.md
       - Data Loading: developer-guide/data-loading.md
       - Config Flow: developer-guide/config-flow.md
