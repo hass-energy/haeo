@@ -1,10 +1,11 @@
-"""Tests for the tariff compilation pipeline.
+"""Tests for the optimized policy compilation pipeline.
 
 Tests cover:
-- Tag assignment from tariff rules
-- Source enforcement (only own tag flows outbound)
-- Scoped pricing injection at destination
-- End-to-end network optimization with tariffs
+- Signature-based VLAN merging (minimum tag count)
+- Reachability pruning (per-connection tag sets)
+- Node access lists
+- Source enforcement
+- End-to-end network optimization with policies
 """
 
 from typing import Any
@@ -22,7 +23,6 @@ def _make_node(name: str, *, is_source: bool = False, is_sink: bool = False) -> 
 
 
 def _make_junction(name: str) -> dict[str, Any]:
-    """Make a pure junction node (no source, no sink)."""
     return {"element_type": "node", "name": name, "is_source": False, "is_sink": False}
 
 
@@ -30,138 +30,173 @@ def _make_connection(
     name: str, source: str, target: str,
     segments: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    conn: dict[str, Any] = {
-        "element_type": "connection",
-        "name": name,
-        "source": source,
-        "target": target,
-    }
+    conn: dict[str, Any] = {"element_type": "connection", "name": name, "source": source, "target": target}
     if segments:
         conn["segments"] = segments
     return conn
 
 
-class TestTagAssignment:
-    """Tag IDs are assigned correctly from tariff rules."""
+def _get_connections(result: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return [e for e in result if e.get("element_type") == "connection"]
 
-    def test_single_policy_assigns_one_tag(self) -> None:
+
+def _get_node(result: list[dict[str, Any]], name: str) -> dict[str, Any]:
+    return next(e for e in result if e.get("name") == name and e.get("element_type") == "node")
+
+
+class TestSignatureMerging:
+    """Sources with identical policy signatures share a VLAN."""
+
+    def test_identical_prices_merge(self) -> None:
+        """Grid and Solar with same price to Load share one VLAN."""
         elements = [
-            _make_node("grid", is_source=True, is_sink=True),
-            _make_node("load", is_sink=True),
-            _make_connection("conn", "grid", "load"),
+            _make_node("grid"), _make_node("solar"), _make_node("load"),
+            _make_connection("c1", "grid", "load"),
+            _make_connection("c2", "solar", "load"),
         ]
-        tariffs = [{"sources": ["grid"], "destinations": ["load"], "price_source_target": 0.05}]
-        result = compile_policies(elements, tariffs)
+        policies = [
+            {"sources": ["grid"], "destinations": ["load"], "price_source_target": 0.05},
+            {"sources": ["solar"], "destinations": ["load"], "price_source_target": 0.05},
+        ]
+        result = compile_policies(elements, policies)
 
-        connections = [e for e in result if e.get("element_type") == "connection"]
-        assert len(connections) == 1
-        tags = connections[0].get("tags", [])
-        assert DEFAULT_TAG in tags
-        assert len(tags) == 2  # tag 0 + grid's tag
+        grid = _get_node(result, "grid")
+        solar = _get_node(result, "solar")
+        # Same signature → same VLAN
+        assert grid["source_tag"] == solar["source_tag"]
 
-    def test_multiple_sources_get_unique_tags(self) -> None:
+        # Only 2 VLANs total (default + merged)
+        conns = _get_connections(result)
+        all_tags = set()
+        for c in conns:
+            all_tags.update(c.get("tags", []))
+        assert len(all_tags) == 2
+
+    def test_different_prices_separate(self) -> None:
+        """Grid and Solar with different prices get separate VLANs."""
         elements = [
-            _make_node("grid", is_source=True, is_sink=True),
-            _make_node("solar", is_source=True),
-            _make_junction("sw"),
-            _make_connection("c1", "grid", "sw"),
-            _make_connection("c2", "solar", "sw"),
+            _make_node("grid"), _make_node("solar"), _make_node("load"),
+            _make_connection("c1", "grid", "load"),
+            _make_connection("c2", "solar", "load"),
         ]
-        tariffs = [
-            {"sources": ["grid"], "destinations": ["*"], "price_source_target": 0.05},
-            {"sources": ["solar"], "destinations": ["*"], "price_source_target": 0.01},
+        policies = [
+            {"sources": ["grid"], "destinations": ["load"], "price_source_target": 0.05},
+            {"sources": ["solar"], "destinations": ["load"], "price_source_target": 0.02},
         ]
-        result = compile_policies(elements, tariffs)
+        result = compile_policies(elements, policies)
 
-        connections = [e for e in result if e.get("element_type") == "connection"]
-        # Both connections should have the same tag set
-        tags0 = set(connections[0].get("tags", []))
-        tags1 = set(connections[1].get("tags", []))
-        assert tags0 == tags1
-        assert len(tags0) == 3  # tag 0, grid tag, solar tag
+        grid = _get_node(result, "grid")
+        solar = _get_node(result, "solar")
+        assert grid["source_tag"] != solar["source_tag"]
 
-    def test_any_source_assigns_tags_to_all_nodes(self) -> None:
+    def test_wildcard_all_same_merges(self) -> None:
+        """Wildcard source with single policy → all sources share one VLAN."""
         elements = [
-            _make_node("grid"),
-            _make_node("solar"),
-            _make_junction("sw"),
-            _make_connection("c1", "grid", "sw"),
-            _make_connection("c2", "solar", "sw"),
+            _make_node("grid"), _make_node("solar"), _make_node("battery"), _make_node("load"),
+            _make_connection("c1", "grid", "load"),
+            _make_connection("c2", "solar", "load"),
+            _make_connection("c3", "battery", "load"),
         ]
-        tariffs = [{"sources": ["*"], "destinations": ["sw"], "price_source_target": 0.05}]
-        result = compile_policies(elements, tariffs)
+        policies = [{"sources": ["*"], "destinations": ["load"], "price_source_target": 0.05}]
+        result = compile_policies(elements, policies)
 
-        connections = [e for e in result if e.get("element_type") == "connection"]
-        tags = set(connections[0].get("tags", []))
-        # tag 0 + one tag per node (grid, solar, sw)
-        assert len(tags) == 4
+        grid = _get_node(result, "grid")
+        solar = _get_node(result, "solar")
+        battery = _get_node(result, "battery")
+        # All three share the same VLAN
+        assert grid["source_tag"] == solar["source_tag"] == battery["source_tag"]
 
-    def test_no_tariffs_returns_unchanged(self) -> None:
+    def test_no_policies_no_vlans(self) -> None:
+        """Without policies, elements pass through unchanged."""
         elements = [
-            _make_node("grid"),
-            _make_connection("conn", "grid", "load"),
+            _make_node("grid"), _make_connection("c1", "grid", "load"),
         ]
         result = compile_policies(elements, [])
         assert result == elements
 
-
-class TestSourceEnforcement:
-    """Source nodes can only produce power on their own tag."""
-
-    def test_source_enforcement_sets_source_tag(self) -> None:
+    def test_node_without_policy_gets_default(self) -> None:
+        """Nodes not referenced by any policy stay on VLAN 0."""
         elements = [
-            _make_node("grid"),
-            _make_node("load"),
-            _make_connection("conn", "grid", "load"),
+            _make_node("grid"), _make_node("solar"), _make_node("battery"), _make_node("load"),
+            _make_connection("c1", "grid", "load"),
         ]
-        tariffs = [{"sources": ["grid"], "destinations": ["load"], "price_source_target": 0.05}]
-        result = compile_policies(elements, tariffs)
+        policies = [{"sources": ["grid"], "destinations": ["load"], "price_source_target": 0.05}]
+        result = compile_policies(elements, policies)
 
-        # Grid node should have source_tag set
-        grid_node = [e for e in result if e.get("name") == "grid"][0]
-        assert grid_node.get("source_tag") is not None
-        assert grid_node["source_tag"] != DEFAULT_TAG
-
-        # Load node should NOT have source_tag
-        load_node = [e for e in result if e.get("name") == "load"][0]
-        assert load_node.get("source_tag") is None
+        battery = _get_node(result, "battery")
+        assert battery.get("source_tag") is None  # No source_tag for default
 
 
-class TestScopedPricingInjection:
-    """Tariff pricing segments are injected at destination connections."""
+class TestReachability:
+    """VLANs only appear on connections in the path from source to destination."""
 
-    def test_pricing_injected_at_destination(self) -> None:
+    def test_vlan_only_on_path(self) -> None:
+        """VLAN only appears on connections between source and destination."""
         elements = [
-            _make_node("grid"),
-            _make_node("load"),
-            _make_connection("conn", "grid", "load"),
+            _make_node("grid"), _make_node("solar"),
+            _make_junction("sw"),
+            _make_node("load", is_sink=True),
+            _make_connection("grid_sw", "grid", "sw"),
+            _make_connection("solar_sw", "solar", "sw"),
+            _make_connection("sw_load", "sw", "load"),
         ]
-        tariffs = [{"sources": ["grid"], "destinations": ["load"], "price_source_target": 0.05}]
-        result = compile_policies(elements, tariffs)
+        policies = [{"sources": ["grid"], "destinations": ["load"], "price_source_target": 0.05}]
+        result = compile_policies(elements, policies)
 
-        conn = [e for e in result if e.get("element_type") == "connection"][0]
-        segments = conn.get("segments", {})
+        conns = {c["name"]: c for c in _get_connections(result)}
+        grid_vlan = _get_node(result, "grid")["source_tag"]
 
-        # Should have a tariff pricing segment
-        tariff_segments = {k: v for k, v in segments.items() if k.startswith("_policy_")}
-        assert len(tariff_segments) >= 1
+        # Grid VLAN on the path: grid→sw and sw→load
+        assert grid_vlan in conns["grid_sw"]["tags"]
+        assert grid_vlan in conns["sw_load"]["tags"]
+        # Grid VLAN NOT on solar→sw (not on the path)
+        assert grid_vlan not in conns["solar_sw"]["tags"]
 
-        # The pricing segment should be scoped to grid's tag
-        tariff_seg = list(tariff_segments.values())[0]
-        assert tariff_seg["segment_type"] == "pricing"
-        assert tariff_seg.get("tag") is not None
-        assert tariff_seg["tag"] != DEFAULT_TAG
+
+class TestNodeAccessLists:
+    """Nodes can only consume VLANs from their access list."""
+
+    def test_access_list_set_on_destination(self) -> None:
+        """Destination nodes get access lists from policies."""
+        elements = [
+            _make_node("grid"), _make_node("solar"), _make_node("load"),
+            _make_connection("c1", "grid", "load"),
+            _make_connection("c2", "solar", "load"),
+        ]
+        policies = [
+            {"sources": ["grid"], "destinations": ["load"], "price_source_target": 0.05},
+            {"sources": ["solar"], "destinations": ["load"], "price_source_target": 0.02},
+        ]
+        result = compile_policies(elements, policies)
+
+        load = _get_node(result, "load")
+        grid_vlan = _get_node(result, "grid")["source_tag"]
+        solar_vlan = _get_node(result, "solar")["source_tag"]
+
+        assert "access_list" in load
+        assert grid_vlan in load["access_list"]
+        assert solar_vlan in load["access_list"]
+
+    def test_no_access_list_on_unaffected_nodes(self) -> None:
+        """Nodes not destinations in any policy don't get access lists."""
+        elements = [
+            _make_node("grid"), _make_junction("sw"), _make_node("load"),
+            _make_connection("c1", "grid", "sw"),
+            _make_connection("c2", "sw", "load"),
+        ]
+        policies = [{"sources": ["grid"], "destinations": ["load"], "price_source_target": 0.05}]
+        result = compile_policies(elements, policies)
+
+        sw = _get_node(result, "sw")
+        assert sw.get("access_list") is None
 
 
 class TestEndToEndOptimization:
-    """Full network optimization with compiled tariffs."""
+    """Full network optimization with compiled policies."""
 
-    def test_grid_to_load_policy_adds_cost(self) -> None:
-        """Tariff pricing increases cost of grid→load power flow."""
+    def test_single_source_policy_adds_cost(self) -> None:
+        """Policy pricing adds cost to power flow."""
         periods = np.array([1.0])
-
-        # Simple two-node test: grid (source+sink) connected to load (sink only)
-        # Load connection has pricing + tariff surcharge
         elements: list[dict[str, Any]] = [
             {"element_type": "node", "name": "grid", "is_source": True, "is_sink": True},
             {"element_type": "node", "name": "load", "is_source": False, "is_sink": True},
@@ -171,44 +206,28 @@ class TestEndToEndOptimization:
                 "segments": {
                     "power_limit": {
                         "segment_type": "power_limit",
-                        "max_power_source_target": np.array([5.0]),
-                        "max_power_target_source": np.array([5.0]),
-                    },
-                    "pricing": {
-                        "segment_type": "pricing",
-                        "price_source_target": np.array([0.20]),
+                        "max_power_source_target": np.array([10.0]),
+                        "max_power_target_source": np.array([10.0]),
                     },
                 },
             },
         ]
-
-        tariffs = [{"sources": ["grid"], "destinations": ["load"], "price_source_target": 0.05}]
-        compiled = compile_policies(elements, tariffs)
+        policies = [{"sources": ["grid"], "destinations": ["load"], "price_source_target": 0.10}]
+        compiled = compile_policies(elements, policies)
 
         network = Network(name="test", periods=periods)
-        sorted_elements = sorted(compiled, key=lambda e: e.get("element_type") == "connection")
-        for elem in sorted_elements:
+        for elem in sorted(compiled, key=lambda e: e.get("element_type") == "connection"):
             network.add(elem)
 
-        # Manually force load consumption by adding a constraint
-        # The load node's connection power must be exactly 5 kW
-        load_node = network.elements["load"]
         h = network._solver
-        h.addConstrs(load_node.connection_power() == np.array([5.0]))
+        h.addConstrs(network.elements["load"].connection_power() == np.array([5.0]))
 
         cost = network.optimize()
+        assert cost == pytest.approx(0.50, abs=0.01)  # 5 kW × $0.10
 
-        # Load draws 5 kW from grid.
-        # Base pricing: 5 * 0.20 * 1 = $1.00
-        # Tariff surcharge: 5 * 0.05 * 1 = $0.25
-        # Total: $1.25
-        assert cost == pytest.approx(1.25, abs=0.01)
-
-    def test_cheaper_source_preferred_with_tariffs(self) -> None:
-        """Optimizer prefers cheaper source when tariffs differ."""
+    def test_cheaper_source_preferred(self) -> None:
+        """Optimizer uses cheaper source when policies differentiate."""
         periods = np.array([1.0])
-
-        # Direct connections: grid->load and solar->load (no intermediate sw)
         elements: list[dict[str, Any]] = [
             {"element_type": "node", "name": "grid", "is_source": True, "is_sink": True},
             {"element_type": "node", "name": "solar", "is_source": True, "is_sink": False},
@@ -232,39 +251,32 @@ class TestEndToEndOptimization:
                     "power_limit": {
                         "segment_type": "power_limit",
                         "max_power_source_target": np.array([3.0]),
-                        "max_power_target_source": np.array([0.0]),
+                        "max_power_target_source": np.array([3.0]),
                     },
                 },
             },
         ]
-
-        tariffs = [
+        policies = [
             {"sources": ["grid"], "destinations": ["load"], "price_source_target": 0.10},
             {"sources": ["solar"], "destinations": ["load"], "price_source_target": 0.01},
         ]
-        compiled = compile_policies(elements, tariffs)
+        compiled = compile_policies(elements, policies)
 
         network = Network(name="test", periods=periods)
-        sorted_elements = sorted(compiled, key=lambda e: e.get("element_type") == "connection")
-        for elem in sorted_elements:
+        for elem in sorted(compiled, key=lambda e: e.get("element_type") == "connection"):
             network.add(elem)
 
-        # Force load to consume 5 kW
-        load_node = network.elements["load"]
         h = network._solver
-        h.addConstrs(load_node.connection_power() == np.array([5.0]))
+        h.addConstrs(network.elements["load"].connection_power() == np.array([5.0]))
 
         cost = network.optimize()
-
-        # Load needs 5 kW. Solar provides 3 kW ($0.01/kWh tariff).
-        # Grid provides 2 kW ($0.30 base + $0.10 tariff = $0.40/kWh).
-        # Solar cost: 3 * 0.01 = $0.03
-        # Grid cost: 2 * 0.40 = $0.80
+        # Solar: 3 kW × $0.01 = $0.03
+        # Grid: 2 kW × ($0.30 + $0.10) = $0.80
         # Total: $0.83
         assert cost == pytest.approx(0.83, abs=0.01)
 
     def test_no_policy_no_extra_cost(self) -> None:
-        """Without tariffs, optimization behaves normally."""
+        """Without policies, optimization behaves normally."""
         periods = np.array([1.0])
         network = Network(name="test", periods=periods)
 
@@ -278,11 +290,13 @@ class TestEndToEndOptimization:
                 "power_limit": {
                     "segment_type": "power_limit",
                     "max_power_source_target": np.array([5.0]),
-                    "fixed": True,
+                    "max_power_target_source": np.array([5.0]),
                 },
             },
         })
 
+        h = network._solver
+        h.addConstrs(network.elements["load"].connection_power() == np.array([5.0]))
+
         cost = network.optimize()
-        # 5 kW * $0.20 * 1h = $1.00
-        assert cost == pytest.approx(1.00)
+        assert cost == pytest.approx(1.00)  # 5 kW × $0.20
