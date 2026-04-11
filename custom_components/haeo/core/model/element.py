@@ -4,12 +4,12 @@ from collections.abc import Mapping, Sequence
 from typing import Any, Literal
 
 from highspy import Highs
-from highspy.highs import HighspyArray, highs_cons
+from highspy.highs import HighspyArray, highs_cons, highs_linear_expression
 import numpy as np
 from numpy.typing import NDArray
 
 from .output_data import OutputData
-from .reactive import OutputMethod, ReactiveConstraint, ReactiveCost, TrackedParam, cost
+from .reactive import OutputMethod, ReactiveConstraint, ReactiveCost, TrackedParam, constraint, cost
 
 
 class Element[OutputNameT: str]:
@@ -36,6 +36,8 @@ class Element[OutputNameT: str]:
         *,
         solver: Highs,
         output_names: frozenset[OutputNameT],
+        source_tag: int | None = None,
+        access_list: list[int] | None = None,
     ) -> None:
         """Initialize an element.
 
@@ -44,12 +46,16 @@ class Element[OutputNameT: str]:
             periods: Array of time period durations in hours (one per optimization interval)
             solver: The HiGHS solver instance for creating variables and constraints
             output_names: Frozenset of valid output names for this element type (used for type narrowing)
+            source_tag: If set, only this tag can carry outbound power from this element.
+            access_list: If set, only these tags can be consumed at this element.
 
         """
         self.name = name
         self.periods = np.asarray(periods, dtype=float)
         self._solver = solver
         self._output_names = output_names
+        self._source_tag = source_tag
+        self._access_list: set[int] | None = set(access_list) if access_list else None
 
         # Track connections for power balance
         self._connections: list[tuple[Any, Literal["source", "target"]]] = []
@@ -119,6 +125,26 @@ class Element[OutputNameT: str]:
         """Return the number of optimization periods."""
         return len(self.periods)
 
+    @property
+    def source_tag(self) -> int | None:
+        """Return the source tag for this element, or None."""
+        return self._source_tag
+
+    @source_tag.setter
+    def source_tag(self, value: int | None) -> None:
+        """Set the source tag."""
+        self._source_tag = value
+
+    @property
+    def access_list(self) -> set[int] | None:
+        """Return the set of tags this element can consume, or None for all."""
+        return self._access_list
+
+    @access_list.setter
+    def access_list(self, value: set[int] | list[int] | None) -> None:
+        """Set the access list."""
+        self._access_list = set(value) if value else None
+
     def register_connection(self, connection: Any, end: Literal["source", "target"]) -> None:
         """Register a connection to this element.
 
@@ -158,6 +184,31 @@ class Element[OutputNameT: str]:
                 total_power = total_power + conn.power_into_target
 
         return total_power
+
+    def connection_power_for_tag(self, tag: int) -> HighspyArray | NDArray[Any]:
+        """Return the net power from connections for a specific tag."""
+        if not self._connections:
+            return self._solver.addVariables(
+                self.n_periods, lb=0, ub=0, name_prefix=f"{self.name}_no_conn_t{tag}_", out_array=True
+            )
+
+        total_power: HighspyArray | NDArray[Any] = np.zeros(self.n_periods, dtype=object)
+        for conn, end in self._connections:
+            if not hasattr(conn, "connection_tags") or tag not in conn.connection_tags:
+                continue
+            if end == "source":
+                total_power = total_power + conn.power_into_source_for_tag(tag)
+            elif end == "target":
+                total_power = total_power + conn.power_into_target_for_tag(tag)
+        return total_power
+
+    def connection_tags(self) -> set[int]:
+        """Return the union of all tags from all connected connections."""
+        tags: set[int] = set()
+        for conn, _end in self._connections:
+            if hasattr(conn, "connection_tags"):
+                tags.update(conn.connection_tags)
+        return tags
 
     def extract_values(
         self, sequence: Sequence[Any] | HighspyArray | NDArray[Any] | highs_cons | None
@@ -225,6 +276,31 @@ class Element[OutputNameT: str]:
                     cons = state["constraint"]
                     result[name] = cons
         return result
+
+    @constraint
+    def element_tag_enforcement(self) -> list[highs_linear_expression] | None:
+        """Enforce source_tag and access_list constraints per-tag.
+
+        - source_tag: non-source tags cannot have net outbound power (tag_power >= 0).
+        - access_list: non-allowed tags cannot be consumed (tag_power <= 0).
+        """
+        if self._source_tag is None and self._access_list is None:
+            return None
+
+        tags = self.connection_tags()
+        if not tags or len(tags) <= 1:
+            return None
+
+        constraints = []
+        for tag in tags:
+            tag_power = self.connection_power_for_tag(tag)
+
+            if self._source_tag is not None and tag != self._source_tag:
+                constraints.extend(list(tag_power >= 0))
+            elif self._access_list is not None and tag not in self._access_list and tag != self._source_tag:
+                constraints.extend(list(tag_power <= 0))
+
+        return constraints if constraints else None
 
     @cost
     def cost(self) -> Any:

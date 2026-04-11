@@ -87,6 +87,8 @@ class Battery(Element[BatteryOutputName]):
         capacity: NDArray[np.floating[Any]] | float,
         initial_charge: float,
         salvage_value: float = 0.0,
+        source_tag: int | None = None,
+        access_list: list[int] | None = None,
     ) -> None:
         """Initialize a battery entity.
 
@@ -99,7 +101,14 @@ class Battery(Element[BatteryOutputName]):
             salvage_value: Terminal value applied to stored energy in $/kWh
 
         """
-        super().__init__(name=name, periods=periods, solver=solver, output_names=BATTERY_OUTPUT_NAMES)
+        super().__init__(
+            name=name,
+            periods=periods,
+            solver=solver,
+            output_names=BATTERY_OUTPUT_NAMES,
+            source_tag=source_tag,
+            access_list=access_list,
+        )
         n_periods = self.n_periods
 
         # Set tracked parameters (broadcasts capacity to n_periods + 1)
