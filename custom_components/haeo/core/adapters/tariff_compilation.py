@@ -45,22 +45,23 @@ def compile_policies(
 
     # Separate element types (mutable copies)
     connections: list[dict[str, Any]] = []
-    nodes: list[dict[str, Any]] = []
+    elements_by_name: dict[str, dict[str, Any]] = {}
     other: list[dict[str, Any]] = []
     for elem in elements:
         etype = elem.get("element_type")
+        copy = dict(elem)
         if etype == "connection":
-            connections.append(dict(elem))
-        elif etype == "node":
-            nodes.append(dict(elem))
+            connections.append(copy)
         else:
-            other.append(elem)
+            # All non-connection elements (nodes, batteries, etc.) can be tagged
+            elements_by_name[copy["name"]] = copy
+            other.append(copy)
 
     if not connections:
         return elements
 
-    node_names: set[str] = {n["name"] for n in nodes}
-    node_by_name: dict[str, dict[str, Any]] = {n["name"]: n for n in nodes}
+    # All element names (anything a connection can connect to)
+    element_names: set[str] = set(elements_by_name.keys())
 
     # Build adjacency: node_name -> list of (connection, "source"|"target")
     conn_by_node: dict[str, list[dict[str, Any]]] = defaultdict(list)
@@ -81,8 +82,8 @@ def compile_policies(
     # --- Step 1: Flow enumeration ---
     flows: list[tuple[str, str, Any, Any]] = []  # (source, dest, price_st, price_ts)
     for policy in policy_configs:
-        sources = _resolve_wildcard(policy.get("sources", []), node_names)
-        destinations = _resolve_wildcard(policy.get("destinations", []), node_names)
+        sources = _resolve_wildcard(policy.get("sources", []), element_names)
+        destinations = _resolve_wildcard(policy.get("destinations", []), element_names)
         price_st = policy.get("price_source_target")
         price_ts = policy.get("price_target_source")
         for src in sources:
@@ -94,7 +95,7 @@ def compile_policies(
     # --- Step 2: Signature computation ---
     # Per source node: frozenset of (dest, price_st, price_ts) tuples
     signatures: dict[str, frozenset[tuple[str, Any, Any]]] = {}
-    for name in node_names:
+    for name in element_names:
         sig = frozenset((dst, pst, pts) for src, dst, pst, pts in flows if src == name)
         signatures[name] = sig
 
@@ -137,8 +138,8 @@ def compile_policies(
 
     # --- Step 6: Node source tags ---
     for name, vlan_id in tag_map.items():
-        if vlan_id != DEFAULT_TAG and name in node_by_name:
-            node_by_name[name]["source_tag"] = vlan_id
+        if vlan_id != DEFAULT_TAG and name in elements_by_name:
+            elements_by_name[name]["source_tag"] = vlan_id
 
     # --- Step 7: Node access lists ---
     # Which VLANs each node can consume
@@ -149,13 +150,13 @@ def compile_policies(
             access_lists[dst].add(vlan_id)
 
     for name, allowed_vlans in access_lists.items():
-        if name in node_by_name:
-            node_by_name[name]["access_list"] = sorted(allowed_vlans)
+        if name in elements_by_name:
+            elements_by_name[name]["access_list"] = sorted(allowed_vlans)
 
     # --- Step 8: Pricing injection ---
     for idx, policy in enumerate(policy_configs):
-        sources = _resolve_wildcard(policy.get("sources", []), node_names)
-        destinations = _resolve_wildcard(policy.get("destinations", []), node_names)
+        sources = _resolve_wildcard(policy.get("sources", []), element_names)
+        destinations = _resolve_wildcard(policy.get("destinations", []), element_names)
         price_st = policy.get("price_source_target")
         price_ts = policy.get("price_target_source")
 
@@ -167,7 +168,7 @@ def compile_policies(
 
         for source_vlan in source_vlans:
             for dest_node in destinations:
-                if dest_node not in node_names:
+                if dest_node not in element_names:
                     continue
                 dest_conns = conn_by_node.get(dest_node, [])
                 for conn in dest_conns:
@@ -199,7 +200,7 @@ def compile_policies(
                         segments[final_name] = pricing_spec
                         conn["segments"] = segments
 
-    return [*other, *nodes, *connections]
+    return [*other, *connections]
 
 
 def _resolve_wildcard(names: list[str], all_names: set[str]) -> list[str]:
