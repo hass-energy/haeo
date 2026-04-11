@@ -146,6 +146,25 @@ class Segment:
         for tag in tags:
             self._tag_power[tag] = self._create_tag_variables(tag)
 
+    @property
+    def is_lossless(self) -> bool:
+        """Return True if this segment is lossless (in == out, no transformation).
+
+        Lossless segments can share variables with adjacent segments instead of
+        creating their own, eliminating unnecessary LP variables and linking constraints.
+        Override in subclasses that transform power (e.g., EfficiencySegment).
+        """
+        return True
+
+    def share_tag_variables(self, source: "Segment") -> None:
+        """Share another segment's per-tag variables instead of creating new ones.
+
+        Used by Connection to eliminate unnecessary variables for lossless segments.
+        The source segment's tag_power dict is shared directly — no copies.
+        """
+        self._tags = source._tags  # noqa: SLF001
+        self._tag_power = source._tag_power  # noqa: SLF001
+
     def _create_tag_variables(self, tag: int) -> dict[str, HighspyArray]:
         """Create LP variables for a single tag.
 

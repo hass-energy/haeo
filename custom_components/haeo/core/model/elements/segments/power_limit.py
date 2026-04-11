@@ -54,6 +54,11 @@ class PowerLimitSegment(Segment):
     When unscoped, constraints apply to the sum across all tags.
     """
 
+    @property
+    def is_lossless(self) -> bool:
+        """Power limit segments need their own variables for bound constraints."""
+        return False
+
     # TrackedParams for warm-start support
     max_power_source_target: TrackedParam[NDArray[np.float64] | None] = TrackedParam()
     max_power_target_source: TrackedParam[NDArray[np.float64] | None] = TrackedParam()

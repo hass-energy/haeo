@@ -69,6 +69,11 @@ class EfficiencySegment(Segment):
         self.efficiency_source_target = broadcast_to_sequence(spec.get("efficiency_source_target"), self._n_periods)
         self.efficiency_target_source = broadcast_to_sequence(spec.get("efficiency_target_source"), self._n_periods)
 
+    @property
+    def is_lossless(self) -> bool:
+        """Efficiency segments transform power (not lossless)."""
+        return False
+
     def _create_tag_variables(self, tag: int) -> dict[str, HighspyArray]:
         """Create per-tag variables with efficiency-scaled outputs.
 

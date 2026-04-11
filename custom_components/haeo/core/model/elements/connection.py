@@ -198,9 +198,17 @@ class Connection[TOutputName: str](Element[TOutputName]):
                 target_element=target_element,
             )
 
-        # Initialize per-tag power variables on all segments
+        # Initialize per-tag power variables on all segments.
+        # Lossless segments share variables with the previous non-lossless segment
+        # to avoid creating unnecessary LP variables.
+        last_var_segment: Segment | None = None
         for segment in self._segments.values():
-            segment.initialize_tags(self._tags)
+            if segment.is_lossless and last_var_segment is not None:
+                # Share variables from the previous segment that owns them
+                segment.share_tag_variables(last_var_segment)
+            else:
+                segment.initialize_tags(self._tags)
+                last_var_segment = segment
 
     @property
     def _first(self) -> Segment:
@@ -354,8 +362,7 @@ class Connection[TOutputName: str](Element[TOutputName]):
     def segment_link_st(self) -> list[highs_linear_expression] | None:
         """Link s→t power between adjacent segments (per-tag).
 
-        Links each tag's output from one segment to the next segment's input.
-        When only tag 0 exists, this is equivalent to total power linking.
+        Skips linking when adjacent segments share variables (lossless optimization).
         """
         if len(self._segments) < MIN_SEGMENTS_FOR_LINKING:
             return None
@@ -365,16 +372,17 @@ class Connection[TOutputName: str](Element[TOutputName]):
         for i in range(len(segment_list) - 1):
             curr = segment_list[i]
             next_seg = segment_list[i + 1]
+            if curr._tag_power is next_seg._tag_power:  # noqa: SLF001
+                continue
             for tag in self._tags:
                 constraints.extend(list(curr.tag_power_out_st(tag) == next_seg.tag_power_in_st(tag)))
-        return constraints
+        return constraints if constraints else None
 
     @constraint
     def segment_link_ts(self) -> list[highs_linear_expression] | None:
         """Link t→s power between adjacent segments (per-tag).
 
-        Links each tag's output from one segment to the next segment's input.
-        When only tag 0 exists, this is equivalent to total power linking.
+        Skips linking when adjacent segments share variables (lossless optimization).
         """
         if len(self._segments) < MIN_SEGMENTS_FOR_LINKING:
             return None
@@ -384,9 +392,11 @@ class Connection[TOutputName: str](Element[TOutputName]):
         for i in range(len(segment_list) - 1):
             curr = segment_list[i]
             next_seg = segment_list[i + 1]
+            if curr._tag_power is next_seg._tag_power:  # noqa: SLF001
+                continue
             for tag in self._tags:
                 constraints.extend(list(curr.tag_power_out_ts(tag) == next_seg.tag_power_in_ts(tag)))
-        return constraints
+        return constraints if constraints else None
 
     # --- Output methods ---
 
