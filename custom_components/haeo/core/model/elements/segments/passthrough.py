@@ -1,7 +1,6 @@
 """Passthrough segment with no constraints or costs.
 
-A simple segment that creates power variables but applies no transformations.
-Power in equals power out (lossless).
+Identity transform: returns input power unchanged.
 """
 
 from typing import Any, Literal
@@ -24,11 +23,7 @@ class PassthroughSegmentSpec(TypedDict):
 
 
 class PassthroughSegment(Segment):
-    """Lossless segment that passes power through unchanged.
-
-    Creates single power variables for each direction (in == out).
-    Applies no constraints or costs.
-    """
+    """Lossless segment that passes power through unchanged."""
 
     def __init__(
         self,
@@ -41,18 +36,7 @@ class PassthroughSegment(Segment):
         source_element: Element[Any],
         target_element: Element[Any],
     ) -> None:
-        """Initialize passthrough segment.
-
-        Args:
-            segment_id: Unique identifier for naming LP variables
-            n_periods: Number of optimization periods
-            periods: Time period durations in hours
-            solver: HiGHS solver instance
-            spec: Passthrough segment specification (unused).
-            source_element: Connected source element reference
-            target_element: Connected target element reference
-
-        """
+        """Initialize passthrough segment."""
         _ = spec
         super().__init__(
             segment_id,
@@ -63,29 +47,11 @@ class PassthroughSegment(Segment):
             target_element=target_element,
         )
 
-        # Create single power variable per direction (lossless, in == out)
-        self._power_st = solver.addVariables(n_periods, lb=0, name_prefix=f"{segment_id}_st_", out_array=True)
-        self._power_ts = solver.addVariables(n_periods, lb=0, name_prefix=f"{segment_id}_ts_", out_array=True)
-
-    @property
-    def power_in_st(self) -> HighspyArray:
-        """Power entering segment in source→target direction."""
-        return self._power_st
-
-    @property
-    def power_out_st(self) -> HighspyArray:
-        """Power leaving segment in source→target direction (same as in, lossless)."""
-        return self._power_st
-
-    @property
-    def power_in_ts(self) -> HighspyArray:
-        """Power entering segment in target→source direction."""
-        return self._power_ts
-
-    @property
-    def power_out_ts(self) -> HighspyArray:
-        """Power leaving segment in target→source direction (same as in, lossless)."""
-        return self._power_ts
+    def apply(self, power_st: HighspyArray, power_ts: HighspyArray) -> tuple[HighspyArray, HighspyArray]:
+        """Identity: return input unchanged."""
+        self._power_in_st = self._power_out_st = power_st
+        self._power_in_ts = self._power_out_ts = power_ts
+        return power_st, power_ts
 
 
 __all__ = ["PassthroughSegment"]

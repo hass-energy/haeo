@@ -1,6 +1,6 @@
 """Pricing segment that adds transfer costs to the objective.
 
-Adds cost proportional to power flow:
+Identity transform with cost side-effect:
     cost = power * price * period_duration
 """
 
@@ -30,18 +30,10 @@ class PricingSegmentSpec(TypedDict):
 class PricingSegment(Segment):
     """Segment that adds transfer pricing costs.
 
-    Creates single power variables for each direction (lossless, in == out).
-
-    Cost contribution:
-        cost_st = sum(power_st * price_source_target * periods)
-        cost_ts = sum(power_ts * price_target_source * periods)
-
-    Prices are in $/kWh, power in kW, periods in hours.
-
-    Uses TrackedParam for prices to enable warm-start optimization.
+    Identity transform — returns input power unchanged.
+    Adds cost = power * price * period to the objective.
     """
 
-    # TrackedParams for warm-start support
     price_source_target: TrackedParam[NDArray[np.float64] | None] = TrackedParam()
     price_target_source: TrackedParam[NDArray[np.float64] | None] = TrackedParam()
 
@@ -56,18 +48,7 @@ class PricingSegment(Segment):
         source_element: Element[Any],
         target_element: Element[Any],
     ) -> None:
-        """Initialize pricing segment.
-
-        Args:
-            segment_id: Unique identifier for naming LP variables
-            n_periods: Number of optimization periods
-            periods: Time period durations in hours
-            solver: HiGHS solver instance
-            spec: Pricing segment specification.
-            source_element: Connected source element reference
-            target_element: Connected target element reference
-
-        """
+        """Initialize pricing segment."""
         super().__init__(
             segment_id,
             n_periods,
@@ -76,53 +57,30 @@ class PricingSegment(Segment):
             source_element=source_element,
             target_element=target_element,
         )
-        # Create single power variable per direction (lossless segment, in == out)
-        self._power_st = solver.addVariables(n_periods, lb=0, name_prefix=f"{segment_id}_st_", out_array=True)
-        self._power_ts = solver.addVariables(n_periods, lb=0, name_prefix=f"{segment_id}_ts_", out_array=True)
-
-        # Set tracked params (these trigger reactive infrastructure)
-
         self.price_source_target = broadcast_to_sequence(spec.get("price_source_target"), self._n_periods)
         self.price_target_source = broadcast_to_sequence(spec.get("price_target_source"), self._n_periods)
 
-    @property
-    def power_in_st(self) -> HighspyArray:
-        """Power entering segment in source→target direction."""
-        return self._power_st
-
-    @property
-    def power_out_st(self) -> HighspyArray:
-        """Power leaving segment in source→target direction (same as in, lossless)."""
-        return self._power_st
-
-    @property
-    def power_in_ts(self) -> HighspyArray:
-        """Power entering segment in target→source direction."""
-        return self._power_ts
-
-    @property
-    def power_out_ts(self) -> HighspyArray:
-        """Power leaving segment in target→source direction (same as in, lossless)."""
-        return self._power_ts
+    def apply(self, power_st: HighspyArray, power_ts: HighspyArray) -> tuple[HighspyArray, HighspyArray]:
+        """Identity: return input unchanged. Cost computed from stored references."""
+        self._power_in_st = self._power_out_st = power_st
+        self._power_in_ts = self._power_out_ts = power_ts
+        return power_st, power_ts
 
     @cost
     def transfer_cost(self) -> highs_linear_expression | None:
         """Return cost expression for transfer pricing."""
         cost_terms = []
 
-        if self.price_source_target is not None:
-            # Cost = power * price * period duration
-            cost_terms.append(Highs.qsum(self._power_st * self.price_source_target * self.periods))
+        if self.price_source_target is not None and self._power_in_st is not None:
+            cost_terms.append(Highs.qsum(self._power_in_st * self.price_source_target * self.periods))
 
-        if self.price_target_source is not None:
-            cost_terms.append(Highs.qsum(self._power_ts * self.price_target_source * self.periods))
+        if self.price_target_source is not None and self._power_in_ts is not None:
+            cost_terms.append(Highs.qsum(self._power_in_ts * self.price_target_source * self.periods))
 
         if not cost_terms:
             return None
-
         if len(cost_terms) == 1:
             return cost_terms[0]
-
         return Highs.qsum(cost_terms)
 
 
