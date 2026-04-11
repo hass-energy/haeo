@@ -198,17 +198,24 @@ class Connection[TOutputName: str](Element[TOutputName]):
                 target_element=target_element,
             )
 
-        # Initialize per-tag power variables on all segments.
-        # Lossless segments share variables with the previous non-lossless segment
-        # to avoid creating unnecessary LP variables.
-        last_var_segment: Segment | None = None
-        for segment in self._segments.values():
-            if segment.is_lossless and last_var_segment is not None:
-                # Share variables from the previous segment that owns them
-                segment.share_tag_variables(last_var_segment)
-            else:
+        # Initialize per-tag power variables.
+        # Most segments share a single set of variables. Only create fresh
+        # variables for the first segment and for any segment that follows
+        # a non-lossless one (e.g., efficiency) where the output is an
+        # expression, not the same variable.
+        segments_list = list(self._segments.values())
+        need_fresh = True  # First segment always gets fresh variables
+        for i, segment in enumerate(segments_list):
+            if need_fresh:
                 segment.initialize_tags(self._tags)
-                last_var_segment = segment
+                need_fresh = False
+            else:
+                segment.share_tag_variables(segments_list[i - 1])
+
+            # If this segment is non-lossless (efficiency), the NEXT segment
+            # needs fresh variables because this segment's output is an expression.
+            if not segment.is_lossless:
+                need_fresh = True
 
     @property
     def _first(self) -> Segment:

@@ -56,8 +56,8 @@ class PowerLimitSegment(Segment):
 
     @property
     def is_lossless(self) -> bool:
-        """Power limit segments need their own variables for bound constraints."""
-        return False
+        """Power limit is lossless — constraints, not transformation."""
+        return True
 
     # TrackedParams for warm-start support
     max_power_source_target: TrackedParam[NDArray[np.float64] | None] = TrackedParam()

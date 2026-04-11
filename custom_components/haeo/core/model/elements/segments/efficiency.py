@@ -71,31 +71,13 @@ class EfficiencySegment(Segment):
 
     @property
     def is_lossless(self) -> bool:
-        """Efficiency segments transform power (not lossless)."""
-        return False
+        """Efficiency transforms power — breaks the variable sharing chain.
 
-    def _create_tag_variables(self, tag: int) -> dict[str, HighspyArray]:
-        """Create per-tag variables with efficiency-scaled outputs.
-
-        Input and output are the same variable per direction.
-        Efficiency is applied via property overrides (power_out = power_in * eff).
+        Efficiency shares the previous segment's input variables, but the
+        segment after efficiency needs new variables because the output
+        is an expression (input * efficiency), not the same variable.
         """
-        # Single variable per tag per direction — efficiency applied in properties
-        st = self._solver.addVariables(
-            self._n_periods,
-            lb=0,
-            name_prefix=f"{self._segment_id}_t{tag}_st_",
-            out_array=True,
-        )
-        ts = self._solver.addVariables(
-            self._n_periods,
-            lb=0,
-            name_prefix=f"{self._segment_id}_t{tag}_ts_",
-            out_array=True,
-        )
-        # out_st and out_ts will be computed dynamically via tag_power_out_st/ts
-        # Store in_st == the variable, out_st == in_st (placeholder, overridden by properties)
-        return {"in_st": st, "out_st": st, "in_ts": ts, "out_ts": ts}
+        return False
 
     def tag_power_out_st(self, tag: int) -> HighspyArray:
         """Per-tag output in s→t with efficiency applied."""
