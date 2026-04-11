@@ -111,11 +111,6 @@ CREATE_CASES: Sequence[CreateCase] = [
                         "max_power_source_target": [5.0],
                         "max_power_target_source": [5.0],
                     },
-                    "pricing": {
-                        "segment_type": "pricing",
-                        "price_source_target": [0.04],
-                        "price_target_source": [-0.01],
-                    },
                     "soc_pricing": {
                         "segment_type": "soc_pricing",
                         "discharge_energy_threshold": [0.5],
@@ -182,11 +177,6 @@ CREATE_CASES: Sequence[CreateCase] = [
                         "max_power_source_target": [5.0],
                         "max_power_target_source": [5.0],
                     },
-                    "pricing": {
-                        "segment_type": "pricing",
-                        "price_source_target": [0.004],
-                        "price_target_source": [-0.001],
-                    },
                 },
             },
         ],
@@ -245,11 +235,6 @@ CREATE_CASES: Sequence[CreateCase] = [
                         "segment_type": "power_limit",
                         "max_power_source_target": [4.0],
                         "max_power_target_source": [4.0],
-                    },
-                    "pricing": {
-                        "segment_type": "pricing",
-                        "price_source_target": [0.03],
-                        "price_target_source": [-0.01],
                     },
                 },
             },

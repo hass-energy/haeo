@@ -23,9 +23,7 @@ from custom_components.haeo.core.schema.elements.solar import (
 from custom_components.haeo.core.schema.sections import (
     CONF_CONNECTION,
     CONF_FORECAST,
-    CONF_PRICE_SOURCE_TARGET,
     SECTION_FORECAST,
-    SECTION_PRICING,
 )
 
 # Solar output names
@@ -74,11 +72,6 @@ class SolarAdapter:
                         "max_power_source_target": config[SECTION_FORECAST][CONF_FORECAST],
                         "max_power_target_source": 0.0,
                         "fixed": not config[SECTION_CURTAILMENT].get(CONF_CURTAILMENT, True),
-                    },
-                    "pricing": {
-                        "segment_type": "pricing",
-                        "price_source_target": config[SECTION_PRICING].get(CONF_PRICE_SOURCE_TARGET),
-                        "price_target_source": None,
                     },
                 },
             },
