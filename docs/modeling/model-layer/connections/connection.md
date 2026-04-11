@@ -29,15 +29,16 @@ Set `mirror_segment_order` to use the same segment order for both flow direction
 
 ### Decision variables
 
-For each time step $t \in \{0, 1, \ldots, T-1\}$:
+The Connection creates the **only LP variables** for the power flow — one pair per time step:
 
 | Variable              | Domain                | Description                      |
 | --------------------- | --------------------- | -------------------------------- |
 | $P_{s \rightarrow t}$ | $\mathbb{R}_{\geq 0}$ | Power flow from source to target |
 | $P_{t \rightarrow s}$ | $\mathbb{R}_{\geq 0}$ | Power flow from target to source |
 
-These variables represent the input to the first segment in the chain.
-Each segment may transform the flow before passing it to the next segment.
+Segments do **not** create their own variables (except SOC pricing, which creates auxiliary slack variables).
+Instead, the Connection passes its power variables through the segment chain via `apply()`.
+Each segment receives power expressions and returns (possibly transformed) output expressions.
 
 ### Parameters
 
@@ -53,10 +54,27 @@ If `segments` is omitted or empty, a passthrough segment is created automaticall
 Segment parameters can be scalars or per-period arrays.
 Scalar values are broadcast across all periods.
 
+### Functional segment composition
+
+Segments are **functional transforms** on power expressions. The Connection chains them:
+
+```python
+flow_st, flow_ts = connection_variables  # The only LP variables
+for segment in chain:
+    flow_st, flow_ts = segment.apply(flow_st, flow_ts)
+    # Segments add constraints/costs as side effects
+    # Most return input unchanged (identity transforms)
+    # Efficiency returns input * factor (an expression, not a new variable)
+```
+
+This eliminates all inter-segment linking constraints. The variable count equals
+the connection flow decisions (2 × T) plus any auxiliary variables (e.g., SOC slack).
+
 ### Constraints
 
-Connection adds linking constraints between adjacent segments.
-Each segment contributes its own constraints, such as power limits or time-slice coupling.
+Each segment contributes constraints as side effects of `apply()`.
+Power limits constrain the input expressions. Time-slice coupling constrains both directions.
+No linking constraints between segments are needed.
 
 ### Power balance interface
 
