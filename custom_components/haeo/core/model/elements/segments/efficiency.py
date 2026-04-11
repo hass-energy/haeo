@@ -106,31 +106,39 @@ class EfficiencySegment(Segment):
 
     @property
     def power_out_st(self) -> HighspyArray:
-        """Total power leaving segment in s→t (with efficiency)."""
+        """Total power leaving segment in s→t (with efficiency, respecting scope)."""
         self._ensure_tags_initialized()
         if self._scoped_tag is not None:
             return self.tag_power_out_st(self._scoped_tag)
-        arrays = [self.tag_power_out_st(tag) for tag in self._tags]
-        if len(arrays) == 1:
-            return arrays[0]
-        result = arrays[0]
-        for arr in arrays[1:]:
-            result = result + arr
-        return result
+        if self._scoped_tags is not None:
+            arrays = [self.tag_power_out_st(tag) for tag in self._scoped_tags if tag in self._tag_power]
+            if not arrays:
+                return self.total_power_out_st()
+            if len(arrays) == 1:
+                return arrays[0]
+            result = arrays[0]
+            for arr in arrays[1:]:
+                result = result + arr
+            return result
+        return self.total_power_out_st()
 
     @property
     def power_out_ts(self) -> HighspyArray:
-        """Total power leaving segment in t→s (with efficiency)."""
+        """Total power leaving segment in t→s (with efficiency, respecting scope)."""
         self._ensure_tags_initialized()
         if self._scoped_tag is not None:
             return self.tag_power_out_ts(self._scoped_tag)
-        arrays = [self.tag_power_out_ts(tag) for tag in self._tags]
-        if len(arrays) == 1:
-            return arrays[0]
-        result = arrays[0]
-        for arr in arrays[1:]:
-            result = result + arr
-        return result
+        if self._scoped_tags is not None:
+            arrays = [self.tag_power_out_ts(tag) for tag in self._scoped_tags if tag in self._tag_power]
+            if not arrays:
+                return self.total_power_out_ts()
+            if len(arrays) == 1:
+                return arrays[0]
+            result = arrays[0]
+            for arr in arrays[1:]:
+                result = result + arr
+            return result
+        return self.total_power_out_ts()
 
     def total_power_out_st(self) -> HighspyArray:
         """Total power leaving segment in s→t (with efficiency, summed across all tags)."""

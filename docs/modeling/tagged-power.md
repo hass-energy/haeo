@@ -75,10 +75,54 @@ When any policy is configured, the system switches to **whitelist mode**:
 This is a **default-deny** model — policies grant permission. To allow all flows with no
 restrictions, configure `* → *: $0`.
 
-### Policy Replacement
+### Policy Stacking
 
-If multiple policies match the same source→destination pair, they combine additively.
-A source→destination pair with a policy replaces the implicit denial for that pair.
+Policies are **always additive**. When multiple policies match the same source→destination
+pair, all of them apply independently:
+
+- **Pricing**: Each matching policy adds its price. Battery paying $0.05 (group policy) and
+  $0.03 (individual policy) pays $0.08 total.
+- **Limits**: Each matching policy adds its constraint. A group limit of 5 kW AND an
+  individual limit of 2 kW both apply — the effective limit is the most restrictive
+  combination.
+
+Policies never replace each other. A more specific policy doesn't override a broader one —
+it stacks on top.
+
+**Example:**
+
+```
+Policy 1: Battery+Solar → Load: $0.05/kWh     (group)
+Policy 2: Battery → Load: $0.03/kWh           (individual)
+```
+
+| Source | Policies matched | Total price |
+|--------|-----------------|-------------|
+| Solar → Load | Policy 1 | $0.05/kWh |
+| Battery → Load | Policy 1 + Policy 2 | $0.08/kWh |
+
+Battery and Solar get separate VLANs because their policy signatures differ.
+Each VLAN receives all applicable pricing segments.
+
+### Group Constraints
+
+Policies that apply to a **group** of sources create constraints on the **sum** of those
+sources' VLANs. Individual policies create constraints on single VLANs.
+Both coexist:
+
+```
+Policy 1: Battery+Solar → Load: limit 5 kW    (group)
+Policy 2: Battery → Load: limit 2 kW          (individual)
+```
+
+| Constraint | Tags | Limit |
+|-----------|------|-------|
+| Group | VLAN_solar + VLAN_battery | ≤ 5 kW |
+| Individual | VLAN_battery | ≤ 2 kW |
+
+Result: Solar up to 5 kW, Battery up to 2 kW, combined maximum 5 kW.
+This uses multi-tag scoping on the power limit segment: `power_limit(tags={1,2}, max=5kW)`
+constrains the sum of VLANs 1+2.
 
 ## Compilation Pipeline
 

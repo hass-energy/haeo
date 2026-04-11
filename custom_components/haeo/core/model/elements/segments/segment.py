@@ -93,8 +93,12 @@ class Segment(ABC):
         self._tag_power: dict[int, dict[str, HighspyArray]] = {}
         # The list of tags this segment knows about
         self._tags: list[int] = []
-        # Optional: scope this segment to a specific tag (None = apply to sum)
+        # Optional: scope this segment to a specific tag or set of tags
+        # None = apply to total (sum of all tags)
+        # int = apply to a single tag
+        # set[int] = apply to the sum of the specified tags
         self._scoped_tag: int | None = None
+        self._scoped_tags: frozenset[int] | None = None
 
     @property
     def segment_id(self) -> str:
@@ -195,41 +199,50 @@ class Segment(ABC):
             result = result + arr
         return result
 
+    def _get_scoped_power(self, key: str) -> HighspyArray:
+        """Return power for the configured scope.
+
+        - _scoped_tag set: returns that single tag's variable
+        - _scoped_tags set: returns sum of those tags' variables
+        - neither set: returns sum across ALL tags (total)
+        """
+        if self._scoped_tag is not None:
+            return self._tag_power[self._scoped_tag][key]
+        if self._scoped_tags is not None:
+            arrays = [self._tag_power[tag][key] for tag in self._scoped_tags if tag in self._tag_power]
+            if not arrays:
+                return self._sum_across_tags(key)
+            if len(arrays) == 1:
+                return arrays[0]
+            result = arrays[0]
+            for arr in arrays[1:]:
+                result = result + arr
+            return result
+        return self._sum_across_tags(key)
+
     @property
     def power_in_st(self) -> HighspyArray:
-        """Power entering segment in source→target direction.
-
-        If scoped to a tag, returns that tag's variables.
-        Otherwise returns the sum across all tags.
-        """
+        """Power entering segment in source→target direction."""
         self._ensure_tags_initialized()
-        if self._scoped_tag is not None:
-            return self._tag_power[self._scoped_tag]["in_st"]
-        return self._sum_across_tags("in_st")
+        return self._get_scoped_power("in_st")
 
     @property
     def power_out_st(self) -> HighspyArray:
         """Power leaving segment in source→target direction."""
         self._ensure_tags_initialized()
-        if self._scoped_tag is not None:
-            return self._tag_power[self._scoped_tag]["out_st"]
-        return self._sum_across_tags("out_st")
+        return self._get_scoped_power("out_st")
 
     @property
     def power_in_ts(self) -> HighspyArray:
         """Power entering segment in target→source direction."""
         self._ensure_tags_initialized()
-        if self._scoped_tag is not None:
-            return self._tag_power[self._scoped_tag]["in_ts"]
-        return self._sum_across_tags("in_ts")
+        return self._get_scoped_power("in_ts")
 
     @property
     def power_out_ts(self) -> HighspyArray:
         """Power leaving segment in target→source direction."""
         self._ensure_tags_initialized()
-        if self._scoped_tag is not None:
-            return self._tag_power[self._scoped_tag]["out_ts"]
-        return self._sum_across_tags("out_ts")
+        return self._get_scoped_power("out_ts")
 
     def _ensure_tags_initialized(self) -> None:
         """Auto-initialize with DEFAULT_TAG if no tags have been set."""

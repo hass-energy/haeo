@@ -322,3 +322,89 @@ class TestTaggedPowerOutputs:
 
         outputs = conn.outputs()
         assert "connection_tagged_power" not in outputs
+
+
+class TestMultiTagScoping:
+    """Test segments scoped to a set of tags (group constraints)."""
+
+    def test_multi_tag_power_limit(self) -> None:
+        """Power limit scoped to tags {1,2} constrains their sum."""
+        h = create_solver()
+        periods = np.array([1.0])
+
+        conn = Connection(
+            name="conn", periods=periods, solver=h,
+            source="src", target="tgt",
+            tags=[0, 1, 2],
+            segments={
+                "passthrough": {"segment_type": "passthrough"},
+                "group_limit": {
+                    "segment_type": "power_limit",
+                    "tag": [1, 2],  # Multi-tag: sum of tags 1+2
+                    "max_power_source_target": np.array([5.0]),
+                },
+                "individual_limit": {
+                    "segment_type": "power_limit",
+                    "tag": 2,  # Single tag: just tag 2
+                    "max_power_source_target": np.array([2.0]),
+                },
+            },
+        )
+        source = DummyElement("src", periods, h)
+        target = DummyElement("tgt", periods, h)
+        conn.set_endpoints(source, target)
+        conn.constraints()
+
+        # Maximize total flow
+        h.minimize(-Highs.qsum(conn.power_source_target))
+        h.run()
+
+        first = list(conn.segments.values())[0]
+        tag0 = float(h.vals(first.tag_power_in_st(0))[0])
+        tag1 = float(h.vals(first.tag_power_in_st(1))[0])
+        tag2 = float(h.vals(first.tag_power_in_st(2))[0])
+
+        # Tag 2 limited to 2 kW (individual)
+        assert tag2 == pytest.approx(2.0, abs=0.01)
+        # Tag 1 + Tag 2 limited to 5 kW (group), so Tag 1 ≤ 3
+        assert tag1 + tag2 == pytest.approx(5.0, abs=0.01)
+        # Tag 0 unconstrained
+        assert tag0 >= 0
+
+    def test_multi_tag_pricing_adds_combined_cost(self) -> None:
+        """Pricing scoped to tags {1,2} prices their combined flow."""
+        h = create_solver()
+        periods = np.array([1.0])
+
+        conn = Connection(
+            name="conn", periods=periods, solver=h,
+            source="src", target="tgt",
+            tags=[0, 1, 2],
+            segments={
+                "passthrough": {"segment_type": "passthrough"},
+                "group_pricing": {
+                    "segment_type": "pricing",
+                    "tag": [1, 2],  # Multi-tag
+                    "price_source_target": np.array([0.10]),
+                },
+            },
+        )
+        source = DummyElement("src", periods, h)
+        target = DummyElement("tgt", periods, h)
+        conn.set_endpoints(source, target)
+        conn.constraints()
+
+        # Fix: 3 kW on tag 1, 2 kW on tag 2, 1 kW on tag 0
+        first = list(conn.segments.values())[0]
+        h.addConstrs(first.tag_power_in_st(0) == np.array([1.0]))
+        h.addConstrs(first.tag_power_in_st(1) == np.array([3.0]))
+        h.addConstrs(first.tag_power_in_st(2) == np.array([2.0]))
+
+        cost = conn.cost()
+        assert cost is not None
+        h.minimize(cost)
+        h.run()
+
+        # Group pricing: (3 + 2) × $0.10 × 1h = $0.50
+        # Tag 0 not priced
+        assert h.getObjectiveValue() == pytest.approx(0.50, abs=0.01)

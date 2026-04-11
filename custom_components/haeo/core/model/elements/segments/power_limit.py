@@ -32,7 +32,7 @@ class PowerLimitSegmentSpec(TypedDict):
     """Specification for creating a PowerLimitSegment."""
 
     segment_type: Literal["power_limit"]
-    tag: NotRequired[int | None]
+    tag: NotRequired[int | list[int] | None]
     max_power_source_target: NotRequired[NDArray[np.floating[Any]] | float | None]
     max_power_target_source: NotRequired[NDArray[np.floating[Any]] | float | None]
     fixed: NotRequired[bool | None]
@@ -79,7 +79,13 @@ class PowerLimitSegment(Segment):
             target_element=target_element,
         )
         self._fixed = spec.get("fixed", False)
-        self._scoped_tag = spec.get("tag")
+
+        # Optional tag scope (int = single tag, list = sum of tags, None = all)
+        tag = spec.get("tag")
+        if isinstance(tag, list):
+            self._scoped_tags = frozenset(tag)
+        elif isinstance(tag, int):
+            self._scoped_tag = tag
 
         # Set tracked params (these trigger reactive infrastructure)
         self.max_power_source_target = broadcast_to_sequence(spec.get("max_power_source_target"), self._n_periods)

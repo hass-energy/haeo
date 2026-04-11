@@ -26,7 +26,7 @@ class PricingSegmentSpec(TypedDict):
     """Specification for creating a PricingSegment."""
 
     segment_type: Literal["pricing"]
-    tag: NotRequired[int | None]
+    tag: NotRequired[int | list[int] | None]
     price_source_target: NotRequired[NDArray[np.floating[Any]] | float | None]
     price_target_source: NotRequired[NDArray[np.floating[Any]] | float | None]
 
@@ -71,7 +71,11 @@ class PricingSegment(Segment):
             target_element=target_element,
         )
         # Optional tag scope
-        self._scoped_tag = spec.get("tag")
+        tag = spec.get("tag")
+        if isinstance(tag, list):
+            self._scoped_tags = frozenset(tag)
+        elif isinstance(tag, int):
+            self._scoped_tag = tag
 
         # Set tracked params (these trigger reactive infrastructure)
         self.price_source_target = broadcast_to_sequence(spec.get("price_source_target"), self._n_periods)
