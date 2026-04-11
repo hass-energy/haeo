@@ -5,15 +5,23 @@ Each connection composes an ordered segment chain to apply limits, efficiency lo
 
 ## Composing connections
 
-Connection composition follows a few rules:
+Segments are **functional transforms** on power flow expressions.
+The Connection creates the only LP variables and passes them through its segment chain.
 
-- Segments are provided as an ordered mapping in the connection configuration.
-- Mapping keys become segment names and appear under the `segments` output.
-- If no segments are provided, a passthrough segment is created automatically.
-- Adjacent segments are linked by equality constraints on their in/out flows.
-- Segments receive references to the source and target elements for context.
+Each segment's `apply(power_st, power_ts)` receives input power expressions and returns
+output expressions. Most segments are **identity transforms** — they return the input unchanged
+and add constraints or costs as side effects:
 
-This pattern keeps the connection model simple while making behavior explicit and reusable.
+- **Identity segments** (passthrough, pricing, power limit): return input, add constraint/cost.
+- **Transform segments** (efficiency): return `input * factor` as an expression.
+- **Auxiliary segments** (SOC pricing): return input, create slack variables for penalties.
+
+This design means:
+
+- Segments do not create LP variables (except auxiliary slack variables).
+- No linking constraints between segments are needed.
+- Variable count = connection flow decisions + auxiliary variables only.
+- Segments are composable and order-independent for identity transforms.
 
 ## Segment types
 
