@@ -18,13 +18,12 @@ from custom_components.haeo.core.schema.sections import (
     CurtailmentData,
     ForecastConfig,
     ForecastData,
-    PricingConfig,
     PricingData,
 )
 
 ELEMENT_TYPE = ElementType.SOLAR
 
-OPTIONAL_INPUT_FIELDS: Final[frozenset[str]] = frozenset({CONF_CURTAILMENT, CONF_PRICE_SOURCE_TARGET})
+OPTIONAL_INPUT_FIELDS: Final[frozenset[str]] = frozenset({CONF_CURTAILMENT})
 
 
 class SolarConfigSchema(ConnectedCommonConfig):
@@ -42,19 +41,6 @@ class SolarConfigSchema(ConnectedCommonConfig):
                     output_type=OutputType.POWER,
                     direction="-",
                     time_series=True,
-                ),
-            }
-        ),
-    ]
-    pricing: Annotated[
-        PricingConfig,
-        SectionHints(
-            {
-                CONF_PRICE_SOURCE_TARGET: FieldHint(
-                    output_type=OutputType.PRICE,
-                    direction="+",
-                    time_series=True,
-                    default_value=0.0,
                 ),
             }
         ),
@@ -86,12 +72,10 @@ class SolarConfigData(ConnectedCommonData):
 __all__ = [
     "CONF_CURTAILMENT",
     "CONF_FORECAST",
-    "CONF_PRICE_SOURCE_TARGET",
     "ELEMENT_TYPE",
     "OPTIONAL_INPUT_FIELDS",
     "SECTION_CURTAILMENT",
     "SECTION_FORECAST",
-    "SECTION_PRICING",
     "SolarConfigData",
     "SolarConfigSchema",
 ]

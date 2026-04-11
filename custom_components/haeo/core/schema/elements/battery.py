@@ -26,8 +26,6 @@ from custom_components.haeo.core.schema.sections import (
     EfficiencyData,
     PowerLimitsConfig,
     PowerLimitsData,
-    PricingConfig,
-    PricingData,
 )
 
 ELEMENT_TYPE = ElementType.BATTERY
@@ -57,8 +55,6 @@ OPTIONAL_INPUT_FIELDS: Final[frozenset[str]] = frozenset(
         CONF_MAX_POWER_TARGET_SOURCE,
         CONF_EFFICIENCY_SOURCE_TARGET,
         CONF_EFFICIENCY_TARGET_SOURCE,
-        CONF_PRICE_SOURCE_TARGET,
-        CONF_PRICE_TARGET_SOURCE,
         CONF_PARTITION_PERCENTAGE,
         CONF_PARTITION_COST,
     }
@@ -127,16 +123,16 @@ class PartitionData(TypedDict, total=False):
     cost: NDArray[np.floating[Any]] | float
 
 
-class BatteryPricingConfig(PricingConfig):
-    """Battery pricing configuration values."""
+class BatteryPricingConfig(TypedDict, total=False):
+    """Battery pricing configuration — salvage value only."""
 
-    salvage_value: NotRequired[EntityValue | ConstantValue | NoneValue]
+    salvage_value: EntityValue | ConstantValue | NoneValue
 
 
-class BatteryPricingData(PricingData):
-    """Loaded battery pricing values."""
+class BatteryPricingData(TypedDict, total=False):
+    """Loaded battery pricing values — salvage value only."""
 
-    salvage_value: NotRequired[float]
+    salvage_value: float
 
 
 class BatteryConfigSchema(ConnectedCommonConfig):
@@ -204,18 +200,6 @@ class BatteryConfigSchema(ConnectedCommonConfig):
         BatteryPricingConfig,
         SectionHints(
             {
-                CONF_PRICE_SOURCE_TARGET: FieldHint(
-                    output_type=OutputType.PRICE,
-                    direction="-",
-                    time_series=True,
-                    default_value=0.0,
-                ),
-                CONF_PRICE_TARGET_SOURCE: FieldHint(
-                    output_type=OutputType.PRICE,
-                    direction="-",
-                    time_series=True,
-                    default_value=0.0,
-                ),
                 CONF_SALVAGE_VALUE: FieldHint(
                     output_type=OutputType.PRICE,
                     time_series=False,
