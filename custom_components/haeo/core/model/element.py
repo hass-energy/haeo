@@ -80,9 +80,6 @@ class Element[OutputNameT: str]:
 
         if isinstance(segments, Mapping) and key in segments:
             return segments[key]
-        # Fallback: try with _st suffix (for directional segment naming)
-        if isinstance(segments, Mapping) and f"{key}_st" in segments:
-            return segments[f"{key}_st"]
 
         # Look up the descriptor on the class
         descriptor = getattr(type(self), key, None)

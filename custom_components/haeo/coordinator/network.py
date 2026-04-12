@@ -80,23 +80,52 @@ def update_element(
 
     def _resolve_path(obj: Any, path: tuple[str, ...], *, element_name: str | None) -> Any:
         current = obj
-        for part in path[:-1]:
+        for i, part in enumerate(path[:-1]):
             if isinstance(current, Mapping):
                 if part in current:
                     current = current[part]
-                elif f"{part}_st" in current:
-                    # Fallback for directional segment naming
-                    current = current[f"{part}_st"]
-                else:
-                    msg = f"Invalid update path {path!r} for element {element_name!r}: missing key {part!r}"
-                    raise ValueError(msg)
-                continue
+                    continue
+                msg = f"Invalid update path {path!r} for element {element_name!r}: missing key {part!r}"
+                raise ValueError(msg)
             if hasattr(current, part):
                 current = getattr(current, part)
                 continue
             msg = f"Invalid update path {path!r} for element {element_name!r}: missing attribute {part!r}"
             raise ValueError(msg)
         return current
+
+    def _resolve_segment_update(
+        element: Any, path: tuple[str, ...], value: object
+    ) -> list[tuple[Any, str, object]] | None:
+        """Resolve a directional segment update to the correct segment and param.
+
+        When the path goes through segments with directional keys (e.g.,
+        'pricing', 'price_source_target'), map to the actual segment names
+        and unified param names (e.g., 'pricing_st', 'price').
+        """
+        from custom_components.haeo.core.model.elements.connection import Connection  # noqa: PLC0415
+
+        if not isinstance(element, Connection) or len(path) < 3:
+            return None
+        if path[0] != "segments":
+            return None
+
+        segment_base_name = path[1]  # e.g., "pricing"
+        directional_key = path[2]  # e.g., "price_source_target"
+
+        mapping = Connection._DIRECTIONAL_KEYS.get(directional_key)
+        if mapping is None:
+            return None
+
+        unified_key, direction = mapping
+        suffix = "_st" if direction == "st" else "_ts"
+        segment_name = f"{segment_base_name}{suffix}"
+
+        segments = element.segments
+        if segment_name not in segments:
+            return None
+
+        return [(segments[segment_name], unified_key, value)]
 
     def _set_value(obj: Any, key: str, value: object, *, path: tuple[str, ...], element_name: str | None) -> None:
         if isinstance(obj, MutableMapping):
@@ -106,17 +135,13 @@ def update_element(
             obj[key] = value
             return
 
-        # Check for param alias (directional -> unified name mapping)
-        alias_map = getattr(type(obj), "_PARAM_ALIASES", None)
-        resolved_key = alias_map.get(key, key) if isinstance(alias_map, dict) else key
-
-        descriptor = getattr(type(obj), resolved_key, None)
+        descriptor = getattr(type(obj), key, None)
         if isinstance(descriptor, TrackedParam):
-            setattr(obj, resolved_key, value)
+            setattr(obj, key, value)
             return
-        if hasattr(obj, resolved_key):
+        if hasattr(obj, key):
             try:
-                setattr(obj, resolved_key, value)
+                setattr(obj, key, value)
             except (AttributeError, TypeError) as exc:
                 msg = f"Failed to update {path!r} for element {element_name!r}: {exc}"
                 raise ValueError(msg) from exc
@@ -134,8 +159,14 @@ def update_element(
         element = network.elements[element_name]
         for path, value, strict in _iter_updates(cast("Mapping[object, object]", model_element_config)):
             try:
-                target = _resolve_path(element, path, element_name=element_name)
-                _set_value(target, path[-1], value, path=path, element_name=element_name)
+                # Try directional segment resolution first
+                segment_updates = _resolve_segment_update(element, path, value)
+                if segment_updates is not None:
+                    for target_obj, key, val in segment_updates:
+                        _set_value(target_obj, key, val, path=path, element_name=element_name)
+                else:
+                    target = _resolve_path(element, path, element_name=element_name)
+                    _set_value(target, path[-1], value, path=path, element_name=element_name)
             except ValueError:
                 if strict:
                     raise

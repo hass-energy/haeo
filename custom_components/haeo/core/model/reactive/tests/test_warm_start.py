@@ -367,7 +367,6 @@ def test_connection_update_with_sequence_values() -> None:
 # Network warm start tests
 
 
-@pytest.mark.skip(reason="update_element adapter path needs updating for single-direction segments")
 def test_warm_start_produces_same_result() -> None:
     """Test that warm start optimization produces same result as cold start."""
     # Create first network (cold start)
@@ -447,14 +446,16 @@ def test_warm_start_produces_same_result() -> None:
 
     connection = network2.elements["conn"]
     assert isinstance(connection, Connection)
-    power_limit = connection.segments["power_limit_st"]
-    pricing = connection.segments["pricing_st"]
-    assert isinstance(power_limit, PowerLimitSegment)
-    assert isinstance(pricing, PricingSegment)
-    power_limit.max_power = np.array([5.0, 5.0, 5.0])
-    power_limit.max_power = np.array([5.0, 5.0, 5.0])
-    pricing.price = np.array([-0.10, -0.10, -0.10])
-    pricing.price = np.array([0.15, 0.15, 0.15])
+    power_limit_st = connection.segments["power_limit_st"]
+    power_limit_ts = connection.segments["power_limit_ts"]
+    pricing_st = connection.segments["pricing_st"]
+    pricing_ts = connection.segments["pricing_ts"]
+    assert isinstance(power_limit_st, PowerLimitSegment)
+    assert isinstance(pricing_st, PricingSegment)
+    power_limit_st.max_power = np.array([5.0, 5.0, 5.0])
+    power_limit_ts.max_power = np.array([5.0, 5.0, 5.0])
+    pricing_st.price = np.array([-0.10, -0.10, -0.10])
+    pricing_ts.price = np.array([0.15, 0.15, 0.15])
 
     # Second optimization (warm start)
     cost2 = network2.optimize()
@@ -463,7 +464,6 @@ def test_warm_start_produces_same_result() -> None:
     assert pytest.approx(cost1, rel=1e-6) == cost2
 
 
-@pytest.mark.skip(reason="update_element adapter path needs updating for single-direction segments")
 def test_network_add_connection_updates_prices() -> None:
     """Test that updating connection via network.add updates prices correctly."""
     network = Network(name="test", periods=np.array([1.0]))
