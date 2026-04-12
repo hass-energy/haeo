@@ -91,10 +91,7 @@ def _manifests_changed() -> bool:
     detected until the cache is next cleared — this is fine for mkdocs
     build where all manifests exist at build start.
     """
-    return any(
-        not p.exists() or p.stat().st_mtime != mtime
-        for p, mtime in _manifest_mtimes.items()
-    )
+    return any(not p.exists() or p.stat().st_mtime != mtime for p, mtime in _manifest_mtimes.items())
 
 
 def _get_page_hash(md: object) -> str:
