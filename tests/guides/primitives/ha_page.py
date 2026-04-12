@@ -547,20 +547,13 @@ class HAPage:
 
                 picker.click()
 
-                # Entity picker opens an inline dropdown with a search box
-                combo_selector = "vaadin-combo-box-overlay input, ha-combo-box input[type='search']"
-                search_input = self.page.locator(combo_selector).first
-                if not search_input.is_visible(timeout=1000):
-                    # Fallback: find the search textbox that appeared
-                    search_input = self.page.get_by_role("textbox", name="Search")
+                search_input = self.page.locator("vaadin-combo-box-overlay input").first
                 search_input.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
                 self._capture_with_indicator("search_box", search_input)
 
                 search_input.fill(search_term)
 
                 result_item = self.page.locator(f"ha-combo-box-item:has-text('{entity_name}')").first
-                if not result_item.is_visible(timeout=1000):
-                    result_item = self.page.locator(f":text('{entity_name}')").first
                 result_item.wait_for(state="visible", timeout=SEARCH_TIMEOUT)
                 self._capture("search_results")
                 self._capture_with_indicator("select", result_item)
@@ -570,15 +563,10 @@ class HAPage:
                 self._capture("selected")
         else:
             picker.click()
-            combo_selector = "vaadin-combo-box-overlay input, ha-combo-box input[type='search']"
-            search_input = self.page.locator(combo_selector).first
-            if not search_input.is_visible(timeout=1000):
-                search_input = self.page.get_by_role("textbox", name="Search")
+            search_input = self.page.locator("vaadin-combo-box-overlay input").first
             search_input.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
             search_input.fill(search_term)
             result_item = self.page.locator(f"ha-combo-box-item:has-text('{entity_name}')").first
-            if not result_item.is_visible(timeout=1000):
-                result_item = self.page.locator(f":text('{entity_name}')").first
             result_item.wait_for(state="visible", timeout=SEARCH_TIMEOUT)
             result_item.click(timeout=DEFAULT_TIMEOUT)
             self.page.wait_for_timeout(500)
@@ -728,14 +716,8 @@ class HAPage:
         """)
 
     def click_add_integration(self) -> None:
-        """Click the Add integration button.
-
-        The button may be rendered as ha-button or ha-fab depending on
-        context. Try ha-fab first (integrations list), then ha-button.
-        """
+        """Click the Add integration FAB on the integrations list page."""
         add_btn = self.page.locator("ha-fab").get_by_role("button", name="Add integration")
-        if not add_btn.is_visible(timeout=1000):
-            add_btn = self.page.locator("ha-button").get_by_role("button", name="Add integration")
         add_btn.wait_for(state="visible", timeout=SEARCH_TIMEOUT)
 
         ctx = ScreenshotContext.current()
@@ -792,10 +774,7 @@ class HAPage:
         ctx = ScreenshotContext.current()
 
         # Click the add event FAB
-        add_btn = self.page.locator("ha-fab, ha-assist-chip").filter(has_text="event").first
-        if not add_btn.is_visible(timeout=1000):
-            # Try the material FAB button
-            add_btn = self.page.get_by_role("button", name="event")
+        add_btn = self.page.locator("ha-fab").first
         add_btn.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
 
         if ctx:
@@ -812,8 +791,6 @@ class HAPage:
 
                 # Fill title
                 title_input = dialog.get_by_role("textbox", name="Title")
-                if not title_input.is_visible(timeout=1000):
-                    title_input = dialog.get_by_role("textbox").first
                 title_input.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
                 self._capture_with_indicator("title_field", title_input)
                 title_input.fill(title)
@@ -832,9 +809,8 @@ class HAPage:
                     self._set_event_recurrence(dialog, recurrence)
 
                 # Save the event
-                save_btn = dialog.locator("mwc-button[slot='primaryAction'], ha-button[slot='primaryAction']").first
-                if not save_btn.is_visible(timeout=1000):
-                    save_btn = dialog.get_by_text("Add event").last
+                save_btn = dialog.locator("ha-button[slot='primaryAction']").first
+                save_btn.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
                 # Use the inner button for proper border-radius highlighting
                 inner_btn = save_btn.locator("button").first
                 if inner_btn.is_visible(timeout=500):
@@ -852,8 +828,6 @@ class HAPage:
             dialog = self.page.locator("ha-dialog[open]")
             dialog.wait_for(state="attached", timeout=DEFAULT_TIMEOUT)
             title_input = dialog.get_by_role("textbox", name="Title")
-            if not title_input.is_visible(timeout=1000):
-                title_input = dialog.get_by_role("textbox").first
             title_input.fill(title)
             if location:
                 location_input = dialog.get_by_role("textbox", name="Location")
@@ -861,9 +835,7 @@ class HAPage:
             self._fill_event_times(dialog, start_time, end_time)
             if recurrence:
                 self._set_event_recurrence(dialog, recurrence)
-            save_btn = dialog.locator("mwc-button[slot='primaryAction'], ha-button[slot='primaryAction']").first
-            if not save_btn.is_visible(timeout=1000):
-                save_btn = dialog.get_by_text("Add event").last
+            save_btn = dialog.locator("ha-button[slot='primaryAction']").first
             save_btn.click()
             dialog.wait_for(state="hidden", timeout=SEARCH_TIMEOUT)
 
@@ -886,17 +858,14 @@ class HAPage:
         # Toggle off all-day if we're setting specific times
         if start_time or end_time:
             all_day_toggle = dialog.locator("ha-formfield").filter(has_text="All day")
-            if not all_day_toggle.is_visible(timeout=500):
-                all_day_toggle = dialog.locator("label").filter(has_text="All day")
-            if all_day_toggle.is_visible(timeout=1000):
-                # Check if the toggle is currently ON by inspecting the switch state
-                switch = all_day_toggle.locator("ha-switch")
-                is_checked = switch.evaluate("(el) => el.checked === true") if switch.is_visible(timeout=500) else False
-                if is_checked:
-                    if ctx:
-                        self._capture_with_indicator("all_day_toggle", all_day_toggle)
-                    all_day_toggle.click()
-                    self.page.wait_for_timeout(500)
+            all_day_toggle.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
+            switch = all_day_toggle.locator("ha-switch")
+            is_checked = switch.evaluate("(el) => el.checked === true")
+            if is_checked:
+                if ctx:
+                    self._capture_with_indicator("all_day_toggle", all_day_toggle)
+                all_day_toggle.click()
+                self.page.wait_for_timeout(500)
 
         time_inputs = dialog.locator("ha-time-input")
 
@@ -939,38 +908,30 @@ class HAPage:
 
         # Set AM/PM first to avoid HA auto-adjusting end time
         # when the period changes mid-edit.
-        period_select = time_input.locator("ha-select, select, [role='listbox']").first
-        if not period_select.is_visible(timeout=500):
-            period_select = time_input.locator("mwc-select").first
-        if period_select.is_visible(timeout=500):
-            # Check current period by reading the selected value attribute
-            current_period = period_select.evaluate("(el) => el.value || el.textContent.trim().split('\\n')[0].trim()")
-            if current_period != period:
-                period_select.click()
-                option = self.page.get_by_role("option", name=period)
-                if not option.is_visible(timeout=1000):
-                    option = self.page.locator(f"mwc-list-item:text('{period}')").first
-                option.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
-                if ctx:
-                    self._capture_with_indicator(f"{screenshot_prefix}_period", option)
-                option.click()
-                self.page.wait_for_timeout(300)
+        period_select = time_input.locator("ha-select").first
+        current_period = period_select.evaluate("(el) => el.value || el.textContent.trim().split('\\n')[0].trim()")
+        if current_period != period:
+            period_select.click()
+            option = self.page.get_by_role("option", name=period)
+            option.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
+            if ctx:
+                self._capture_with_indicator(f"{screenshot_prefix}_period", option)
+            option.click()
+            self.page.wait_for_timeout(300)
 
         # Fill hour
-        if hour_field.is_visible(timeout=1000):
-            hour_field.click()
-            hour_field.fill(str(hour_12))
-            self.page.wait_for_timeout(200)
-            if ctx:
-                self._capture_with_indicator(f"{screenshot_prefix}_hour", hour_field)
+        hour_field.click()
+        hour_field.fill(str(hour_12))
+        self.page.wait_for_timeout(200)
+        if ctx:
+            self._capture_with_indicator(f"{screenshot_prefix}_hour", hour_field)
 
         # Fill minute
-        if minute_field.is_visible(timeout=1000):
-            minute_field.click()
-            minute_field.fill(f"{minute:02d}")
-            self.page.wait_for_timeout(200)
-            if ctx:
-                self._capture_with_indicator(f"{screenshot_prefix}_minute", minute_field)
+        minute_field.click()
+        minute_field.fill(f"{minute:02d}")
+        self.page.wait_for_timeout(200)
+        if ctx:
+            self._capture_with_indicator(f"{screenshot_prefix}_minute", minute_field)
 
     def _set_event_recurrence(self, dialog: Any, recurrence: str) -> None:
         """Set event recurrence in the event dialog.
@@ -982,28 +943,21 @@ class HAPage:
         """
         ctx = ScreenshotContext.current()
 
-        # Look for recurrence dropdown/selector
-        repeat_selector = dialog.locator("ha-select, select").filter(has_text="repeat")
-        if not repeat_selector.is_visible(timeout=1000):
-            repeat_selector = dialog.get_by_role("combobox").filter(has_text="Does not repeat")
-        if not repeat_selector.is_visible(timeout=1000):
-            repeat_selector = dialog.locator("text='Does not repeat'").first
+        repeat_selector = dialog.locator("ha-select").filter(has_text="repeat")
+        repeat_selector.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
 
-        if repeat_selector.is_visible(timeout=1000):
-            if ctx:
-                self._capture_with_indicator("recurrence_selector", repeat_selector)
-            repeat_selector.click()
+        if ctx:
+            self._capture_with_indicator("recurrence_selector", repeat_selector)
+        repeat_selector.click()
 
-            option = self.page.get_by_role("option", name=recurrence)
-            if not option.is_visible(timeout=1000):
-                option = self.page.locator(f":text('{recurrence}')").first
-            option.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
-            if ctx:
-                self._capture_with_indicator("recurrence_option", option)
-            option.click()
-            self.page.wait_for_timeout(300)
+        option = self.page.get_by_role("option", name=recurrence)
+        option.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
+        if ctx:
+            self._capture_with_indicator("recurrence_option", option)
+        option.click()
+        self.page.wait_for_timeout(300)
 
-            if ctx:
-                self._capture("recurrence_set")
+        if ctx:
+            self._capture("recurrence_set")
 
     # endregion
