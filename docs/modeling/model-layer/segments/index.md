@@ -12,14 +12,13 @@ Each segment's `apply(power_st, power_ts)` receives input power expressions and 
 output expressions. Most segments are **identity transforms** — they return the input unchanged
 and add constraints or costs as side effects:
 
-- **Identity segments** (passthrough, pricing, power limit): return input, add constraint/cost.
-- **Transform segments** (efficiency): return `input * factor` as an expression.
-- **Auxiliary segments** (SOC pricing): return input, create slack variables for penalties.
+- **Identity segments**: return input, add constraint/cost.
+- **Transform segments**: return a modified expression (e.g., input * efficiency).
+- **Auxiliary segments**: return input, create auxiliary LP variables for penalties.
 
 This design means:
 
-- Segments do not create LP variables (except auxiliary slack variables).
-- No linking constraints between segments are needed.
+- Segments do not create power flow LP variables.
 - Variable count = connection flow decisions + auxiliary variables only.
 - Segments are composable and order-independent for identity transforms.
 

@@ -190,11 +190,13 @@ See existing implementations in `custom_components/haeo/core/model/elements/` fo
 Connections create the **only LP variables** for power flow (one pair per time step per direction).
 Segments are functional transforms that receive power expressions via `apply()` and return
 (possibly transformed) output expressions. Most segments are identity transforms that add
-constraints or costs as side effects. Only efficiency transforms the expression (`input * factor`).
+constraints or costs as side effects. Subclasses that transform the flow
+override the output expression.
 
-When adding a new segment type, implement `apply(power_st, power_ts) -> (out_st, out_ts)`.
-Store the inputs for constraint/cost methods to reference. Avoid creating LP variables
-unless auxiliary variables are genuinely needed (e.g., slack variables for penalty terms).
+When adding a new segment type, implement `__init__` accepting `power_in`.
+Store the input for constraint/cost methods to reference. Avoid creating
+power flow LP variables — the Connection owns those. Auxiliary variables
+(e.g., slack variables for penalty terms) are acceptable.
 
 When introducing a new element, ensure it connects through existing nodes or provide a clear reason to add a specialised node variant.
 
