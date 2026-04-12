@@ -114,7 +114,7 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
         },
         "outputs": {
             LOAD_DEVICE_LOAD: {
-                LOAD_POWER: OutputData(type=OutputType.POWER, unit="kW", values=(1.0,), direction="+"),
+                LOAD_POWER: OutputData(type=OutputType.POWER, unit="kW", values=(1.0,), direction="-"),
                 LOAD_FORECAST_LIMIT_PRICE: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.01,)),
             }
         },

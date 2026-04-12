@@ -3660,7 +3660,7 @@
     "attributes": {
       "advanced": false,
       "device_class": "power",
-      "direction": "+",
+      "direction": "-",
       "element_name": "Constant Load",
       "element_type": "load",
       "forecast": [
