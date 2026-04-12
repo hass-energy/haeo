@@ -23,38 +23,45 @@ from custom_components.haeo.core.schema.elements.connection import (
 
 def test_update_element_updates_tracked_params() -> None:
     """Test update_element updates TrackedParams on existing elements."""
-    # Create network with nodes and connection
     network = Network(name="test", periods=np.array([1.0, 1.0]))
     network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "source", "is_source": True, "is_sink": False})
     network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "target", "is_source": False, "is_sink": True})
     network.add(
         {
             "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
-            "name": "conn",
+            "name": "conn:forward",
             "source": "source",
             "target": "target",
             "segments": {
-                "power_limit": {
-                    "segment_type": "power_limit",
-                    "max_power_source_target": np.array([10.0, 10.0]),
-                    "max_power_target_source": np.array([5.0, 5.0]),
-                }
+                "power_limit": {"segment_type": "power_limit", "max_power": np.array([10.0, 10.0])},
+            },
+        }
+    )
+    network.add(
+        {
+            "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
+            "name": "conn:reverse",
+            "source": "target",
+            "target": "source",
+            "segments": {
+                "power_limit": {"segment_type": "power_limit", "max_power": np.array([5.0, 5.0])},
             },
         }
     )
 
-    # Verify initial state with type narrowing
-    conn = network.elements["conn"]
-    assert isinstance(conn, Connection)
-    # Check initial TrackedParam values
-    power_limit = conn.segments["power_limit"]
-    assert isinstance(power_limit, PowerLimitSegment)
-    assert power_limit.max_power_source_target is not None
-    assert power_limit.max_power_target_source is not None
-    assert power_limit.max_power_source_target[0] == 10.0
-    assert power_limit.max_power_target_source[0] == 5.0
+    fwd = network.elements["conn:forward"]
+    rev = network.elements["conn:reverse"]
+    assert isinstance(fwd, Connection)
+    assert isinstance(rev, Connection)
+    fwd_pl = fwd.segments["power_limit"]
+    rev_pl = rev.segments["power_limit"]
+    assert isinstance(fwd_pl, PowerLimitSegment)
+    assert isinstance(rev_pl, PowerLimitSegment)
+    assert fwd_pl.max_power is not None
+    assert rev_pl.max_power is not None
+    assert fwd_pl.max_power[0] == 10.0
+    assert rev_pl.max_power[0] == 5.0
 
-    # Update via element config
     config: ElementConfigData = {
         CONF_ELEMENT_TYPE: ElementType.CONNECTION,
         CONF_NAME: "conn",
@@ -71,20 +78,16 @@ def test_update_element_updates_tracked_params() -> None:
     }
     update_element(network, config)
 
-    # Verify updated state - TrackedParams should be updated
-    assert power_limit.max_power_source_target[0] == 20.0
-    assert power_limit.max_power_target_source[0] == 15.0
+    assert fwd_pl.max_power[0] == 20.0
+    assert rev_pl.max_power[0] == 15.0
 
 
 def test_update_element_raises_for_missing_model_element() -> None:
     """Test update_element raises ValueError when model element is not found."""
-    # Create network with only nodes
     network = Network(name="test", periods=np.array([1.0, 1.0]))
     network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "source", "is_source": True, "is_sink": False})
     network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "target", "is_source": False, "is_sink": True})
-    # Connection "nonexistent_conn" does NOT exist
 
-    # Try to update a nonexistent element
     config: ElementConfigData = {
         CONF_ELEMENT_TYPE: ElementType.CONNECTION,
         CONF_NAME: "nonexistent_conn",
@@ -100,7 +103,7 @@ def test_update_element_raises_for_missing_model_element() -> None:
         SECTION_EFFICIENCY: {},
     }
 
-    with pytest.raises(ValueError, match="Model element 'nonexistent_conn' not found in network during update"):
+    with pytest.raises(ValueError, match="Model element 'nonexistent_conn:forward' not found in network during update"):
         update_element(network, config)
 
 
@@ -112,20 +115,24 @@ def test_update_element_allows_empty_efficiency_section() -> None:
     network.add(
         {
             "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
-            "name": "conn",
+            "name": "conn:forward",
             "source": "source",
             "target": "target",
             "segments": {
-                "efficiency": {
-                    "segment_type": "efficiency",
-                    "efficiency_source_target": np.array([0.95, 0.95]),
-                    "efficiency_target_source": np.array([0.95, 0.95]),
-                },
-                "power_limit": {
-                    "segment_type": "power_limit",
-                    "max_power_source_target": np.array([10.0, 10.0]),
-                    "max_power_target_source": np.array([10.0, 10.0]),
-                },
+                "efficiency": {"segment_type": "efficiency", "efficiency": np.array([0.95, 0.95])},
+                "power_limit": {"segment_type": "power_limit", "max_power": np.array([10.0, 10.0])},
+            },
+        }
+    )
+    network.add(
+        {
+            "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
+            "name": "conn:reverse",
+            "source": "target",
+            "target": "source",
+            "segments": {
+                "efficiency": {"segment_type": "efficiency", "efficiency": np.array([0.95, 0.95])},
+                "power_limit": {"segment_type": "power_limit", "max_power": np.array([10.0, 10.0])},
             },
         }
     )
@@ -146,12 +153,10 @@ def test_update_element_allows_empty_efficiency_section() -> None:
     }
     update_element(network, config)
 
-    conn = network.elements["conn"]
+    conn = network.elements["conn:forward"]
     assert isinstance(conn, Connection)
     efficiency = conn.segments["efficiency"]
     assert isinstance(efficiency, EfficiencySegment)
-    assert efficiency.efficiency_source_target is None
-    assert efficiency.efficiency_target_source is None
+    assert efficiency.efficiency is None
 
-    # Regression check: this previously raised HiGHS "Unexpected parameters".
     network.optimize()

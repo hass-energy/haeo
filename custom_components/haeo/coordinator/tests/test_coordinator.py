@@ -37,11 +37,7 @@ from custom_components.haeo.coordinator import (
     _build_optimization_context,
 )
 from custom_components.haeo.core.adapters.elements.battery import BATTERY_DEVICE_BATTERY, BATTERY_POWER_CHARGE
-from custom_components.haeo.core.adapters.elements.connection import (
-    CONNECTION_DEVICE_CONNECTION,
-    CONNECTION_POWER_SOURCE_TARGET,
-    CONNECTION_POWER_TARGET_SOURCE,
-)
+from custom_components.haeo.core.adapters.elements.connection import CONNECTION_DEVICE_CONNECTION, CONNECTION_POWER
 from custom_components.haeo.core.adapters.elements.solar import SOLAR_POWER
 from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES
 from custom_components.haeo.core.const import (
@@ -315,16 +311,20 @@ async def test_async_update_data_returns_outputs(
     empty_element.outputs.return_value = {}
 
     # Add connection element (config name is slugified to "battery_to_grid")
-    fake_connection = MagicMock()
-    fake_connection.outputs.return_value = {
-        CONNECTION_POWER_SOURCE_TARGET: OutputData(type=OutputType.POWER, unit="kW", values=(0.5,)),
-        CONNECTION_POWER_TARGET_SOURCE: OutputData(type=OutputType.POWER, unit="kW", values=(0.3,)),
+    fake_fwd_connection = MagicMock()
+    fake_fwd_connection.outputs.return_value = {
+        CONNECTION_POWER: OutputData(type=OutputType.POWER, unit="kW", values=(0.5,), direction="+"),
+    }
+    fake_rev_connection = MagicMock()
+    fake_rev_connection.outputs.return_value = {
+        CONNECTION_POWER: OutputData(type=OutputType.POWER, unit="kW", values=(0.3,), direction="+"),
     }
 
     fake_network.elements = {
         "Test Battery": fake_element,
         "empty": empty_element,
-        "Battery to Grid": fake_connection,
+        "Battery to Grid:forward": fake_fwd_connection,
+        "Battery to Grid:reverse": fake_rev_connection,
     }
 
     # Mock battery adapter
@@ -345,8 +345,7 @@ async def test_async_update_data_returns_outputs(
     mock_connection_adapter = MagicMock()
     mock_connection_adapter.outputs.return_value = {
         CONNECTION_DEVICE_CONNECTION: {
-            CONNECTION_POWER_SOURCE_TARGET: OutputData(type=OutputType.POWER, unit="kW", values=(0.5,)),
-            CONNECTION_POWER_TARGET_SOURCE: OutputData(type=OutputType.POWER, unit="kW", values=(0.3,)),
+            CONNECTION_POWER: OutputData(type=OutputType.POWER, unit="kW", values=(0.5,), direction="+"),
         }
     }
 
