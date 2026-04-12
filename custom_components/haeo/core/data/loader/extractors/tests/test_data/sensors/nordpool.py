@@ -100,6 +100,7 @@ INVALID: list[dict[str, Any]] = [
         "state": "0.10",
         "attributes": {
             "currency": "EUR",
+            "raw_tomorrow": [],
             "today": [0.10, 0.08],
         },
         "expected_format": None,
@@ -111,6 +112,7 @@ INVALID: list[dict[str, Any]] = [
         "attributes": {
             "currency": "EUR",
             "raw_today": [],
+            "raw_tomorrow": [],
         },
         "expected_format": None,
         "description": "Nordpool sensor with empty raw_today list",
@@ -121,6 +123,7 @@ INVALID: list[dict[str, Any]] = [
         "attributes": {
             "currency": "EUR",
             "raw_today": "not a list",
+            "raw_tomorrow": [],
         },
         "expected_format": None,
         "description": "Nordpool sensor with raw_today not being a list",
@@ -131,6 +134,7 @@ INVALID: list[dict[str, Any]] = [
         "attributes": {
             "currency": "EUR",
             "raw_today": [{"start": "2025-10-05T00:00:00+02:00", "value": 0.10}],
+            "raw_tomorrow": [],
         },
         "expected_format": None,
         "description": "Nordpool sensor with entry missing end field",
@@ -147,8 +151,92 @@ INVALID: list[dict[str, Any]] = [
                     "value": "not_a_number",
                 },
             ],
+            "raw_tomorrow": [],
         },
         "expected_format": None,
         "description": "Nordpool sensor with non-numeric value",
+    },
+    {
+        "entity_id": "sensor.nordpool_missing_currency",
+        "state": "0.10",
+        "attributes": {
+            "raw_today": [
+                {
+                    "start": "2025-10-05T00:00:00+02:00",
+                    "end": "2025-10-05T01:00:00+02:00",
+                    "value": 0.10,
+                },
+            ],
+            "raw_tomorrow": [],
+        },
+        "expected_format": None,
+        "description": "Nordpool sensor missing currency attribute",
+    },
+    {
+        "entity_id": "sensor.nordpool_non_string_currency",
+        "state": "0.10",
+        "attributes": {
+            "currency": 123,
+            "raw_today": [
+                {
+                    "start": "2025-10-05T00:00:00+02:00",
+                    "end": "2025-10-05T01:00:00+02:00",
+                    "value": 0.10,
+                },
+            ],
+            "raw_tomorrow": [],
+        },
+        "expected_format": None,
+        "description": "Nordpool sensor with non-string currency",
+    },
+    {
+        "entity_id": "sensor.nordpool_missing_raw_tomorrow",
+        "state": "0.10",
+        "attributes": {
+            "currency": "EUR",
+            "raw_today": [
+                {
+                    "start": "2025-10-05T00:00:00+02:00",
+                    "end": "2025-10-05T01:00:00+02:00",
+                    "value": 0.10,
+                },
+            ],
+        },
+        "expected_format": None,
+        "description": "Nordpool sensor missing raw_tomorrow attribute",
+    },
+    {
+        "entity_id": "sensor.nordpool_malformed_raw_tomorrow",
+        "state": "0.10",
+        "attributes": {
+            "currency": "EUR",
+            "raw_today": [
+                {
+                    "start": "2025-10-05T00:00:00+02:00",
+                    "end": "2025-10-05T01:00:00+02:00",
+                    "value": 0.10,
+                },
+            ],
+            "raw_tomorrow": [{"start": "bad", "end": "bad", "value": "not_a_number"}],
+        },
+        "expected_format": None,
+        "description": "Nordpool sensor with malformed raw_tomorrow entries",
+    },
+    {
+        "entity_id": "sensor.nordpool_string_raw_tomorrow",
+        "state": "0.10",
+        "attributes": {
+            "currency": "EUR",
+            "raw_today": [
+                {
+                    "start": "2025-10-05T00:00:00+02:00",
+                    "end": "2025-10-05T01:00:00+02:00",
+                    "value": 0.10,
+                },
+            ],
+            "raw_tomorrow": "not a list",
+        },
+        "expected_format": None,
+        "description": "Nordpool sensor with non-sequence raw_tomorrow",
     },
 ]

@@ -56,13 +56,9 @@ class Parser:
     DEVICE_CLASS: DeviceClass = DeviceClass.MONETARY
 
     @staticmethod
-    def detect(state: EntityState) -> TypeGuard[NordpoolState]:
-        """Check if data matches Nordpool format and narrow type."""
-        if "raw_today" not in state.attributes:
-            return False
-
-        raw_today = state.attributes["raw_today"]
-        if not (isinstance(raw_today, Sequence) and not isinstance(raw_today, (str, bytes))) or not raw_today:
+    def _is_valid_entries(entries: object) -> bool:
+        """Check if entries are a valid non-empty sequence of Nordpool forecast items."""
+        if not (isinstance(entries, Sequence) and not isinstance(entries, (str, bytes))) or not entries:
             return False
 
         return all(
@@ -73,14 +69,32 @@ class Parser:
             and isinstance(item["value"], (int, float))
             and is_parsable_to_datetime(item["start"])
             and is_parsable_to_datetime(item["end"])
-            for item in raw_today
+            for item in entries
         )
+
+    @staticmethod
+    def detect(state: EntityState) -> TypeGuard[NordpoolState]:
+        """Check if data matches Nordpool format and narrow type."""
+        attrs = state.attributes
+        if "raw_today" not in attrs or "raw_tomorrow" not in attrs or "currency" not in attrs:
+            return False
+
+        if not isinstance(attrs["currency"], str):
+            return False
+
+        if not Parser._is_valid_entries(attrs["raw_today"]):
+            return False
+
+        raw_tomorrow = attrs["raw_tomorrow"]
+        if not isinstance(raw_tomorrow, Sequence) or isinstance(raw_tomorrow, (str, bytes)):
+            return False
+
+        return not raw_tomorrow or Parser._is_valid_entries(raw_tomorrow)
 
     @staticmethod
     def _unit(state: NordpoolState) -> str:
         """Derive the unit string from the currency attribute."""
-        currency = state.attributes.get("currency", "EUR")
-        return f"{currency}/kWh"
+        return f"{state.attributes['currency']}/kWh"
 
     @staticmethod
     def _parse_entries(entries: Sequence[NordpoolForecastEntry]) -> list[tuple[int, float]]:
@@ -107,8 +121,7 @@ class Parser:
         """
         parsed = Parser._parse_entries(state.attributes["raw_today"])
 
-        # Include tomorrow's data when available
-        raw_tomorrow = state.attributes.get("raw_tomorrow")
+        raw_tomorrow = state.attributes["raw_tomorrow"]
         if raw_tomorrow:
             parsed.extend(Parser._parse_entries(raw_tomorrow))
 
