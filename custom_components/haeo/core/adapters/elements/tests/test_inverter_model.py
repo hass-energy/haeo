@@ -135,10 +135,10 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
                 NODE_POWER_BALANCE: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.0,)),
             },
             "inverter_main:connection": {
-                connection.CONNECTION_POWER_SOURCE_TARGET: OutputData(
+                connection.CONNECTION_POWER: OutputData(
                     type=OutputType.POWER_FLOW, unit="kW", values=(5.0,), direction="+"
                 ),
-                connection.CONNECTION_POWER_TARGET_SOURCE: OutputData(
+                connection.CONNECTION_POWER: OutputData(
                     type=OutputType.POWER_FLOW, unit="kW", values=(3.0,), direction="-"
                 ),
                 connection.CONNECTION_SEGMENTS: {

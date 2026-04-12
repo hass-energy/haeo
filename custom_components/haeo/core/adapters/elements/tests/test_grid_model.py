@@ -109,10 +109,10 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
         ),
         "model_outputs": {
             "grid_main:connection": {
-                connection.CONNECTION_POWER_TARGET_SOURCE: OutputData(
+                connection.CONNECTION_POWER: OutputData(
                     type=OutputType.POWER_FLOW, unit="kW", values=(2.0,), direction="-"
                 ),
-                connection.CONNECTION_POWER_SOURCE_TARGET: OutputData(
+                connection.CONNECTION_POWER: OutputData(
                     type=OutputType.POWER_FLOW, unit="kW", values=(5.0,), direction="+"
                 ),
                 connection.CONNECTION_SEGMENTS: {
@@ -163,10 +163,10 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
         ),
         "model_outputs": {
             "grid_multi:connection": {
-                connection.CONNECTION_POWER_TARGET_SOURCE: OutputData(
+                connection.CONNECTION_POWER: OutputData(
                     type=OutputType.POWER_FLOW, unit="kW", values=(0.0, 0.0), direction="-"
                 ),
-                connection.CONNECTION_POWER_SOURCE_TARGET: OutputData(
+                connection.CONNECTION_POWER: OutputData(
                     type=OutputType.POWER_FLOW, unit="kW", values=(5.0, 3.0), direction="+"
                 ),
             }

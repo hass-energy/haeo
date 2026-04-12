@@ -15,7 +15,7 @@ VALID_CASES: list[ConnectionTestCase] = [
             "periods": np.array([1.0] * 3),
             "source": "battery",
             "target": "load",
-            "segments": {"power_limit": {"segment_type": "power_limit", "max_power_source_target": 5.0}},
+            "segments": {"power_limit": {"segment_type": "power_limit", "max_power": 5.0}},
         },
         "inputs": {
             "source_power": [None, None, None],  # Infinite source
@@ -37,7 +37,7 @@ VALID_CASES: list[ConnectionTestCase] = [
             "periods": np.array([1.0] * 3),
             "source": "grid",
             "target": "solar",
-            "segments": {"power_limit": {"segment_type": "power_limit", "max_power_target_source": 3.0}},
+            "segments": {"power_limit": {"segment_type": "power_limit", "max_power": 3.0}},
         },
         "inputs": {
             "source_power": [None, None, None],  # Infinite
@@ -59,7 +59,7 @@ VALID_CASES: list[ConnectionTestCase] = [
             "periods": np.array([1.0] * 2),
             "source": "gen",
             "target": "net",
-            "segments": {"power_limit": {"segment_type": "power_limit", "max_power_source_target": 4.0}},
+            "segments": {"power_limit": {"segment_type": "power_limit", "max_power": 4.0}},
         },
         "inputs": {
             "source_power": [None, None],
@@ -84,11 +84,11 @@ VALID_CASES: list[ConnectionTestCase] = [
             "segments": {
                 "efficiency": {
                     "segment_type": "efficiency",
-                    "efficiency_source_target": 0.95,
+                    "efficiency": 0.95,
                 },
                 "power_limit": {
                     "segment_type": "power_limit",
-                    "max_power_source_target": 10.0,
+                    "max_power": 10.0,
                 },
             },
         },
@@ -113,8 +113,8 @@ VALID_CASES: list[ConnectionTestCase] = [
             "source": "cheap_grid",
             "target": "load_node",
             "segments": {
-                "power_limit": {"segment_type": "power_limit", "max_power_source_target": 5.0},
-                "pricing": {"segment_type": "pricing", "price_source_target": np.array([0.10, 0.20])},  # Transfer pricing
+                "power_limit": {"segment_type": "power_limit", "max_power": 5.0},
+                "pricing": {"segment_type": "pricing", "price": np.array([0.10, 0.20])},  # Transfer pricing
             },
         },
         "inputs": {
@@ -137,7 +137,7 @@ VALID_CASES: list[ConnectionTestCase] = [
             "periods": np.array([1.0] * 3),
             "source": "grid",
             "target": "net",
-            "segments": {"power_limit": {"segment_type": "power_limit", "max_power_source_target": np.array([10.0, 5.0, 8.0])}},
+            "segments": {"power_limit": {"segment_type": "power_limit", "max_power": np.array([10.0, 5.0, 8.0])}},
         },
         "inputs": {
             "source_power": [None, None, None],
@@ -162,13 +162,13 @@ VALID_CASES: list[ConnectionTestCase] = [
             "segments": {
                 "power_limit": {
                     "segment_type": "power_limit",
-                    "max_power_source_target": 4.0,
-                    "max_power_target_source": 3.0,
+                    "max_power": 4.0,
+                    "max_power": 3.0,
                 },
                 "pricing": {
                     "segment_type": "pricing",
-                    "price_source_target": np.array([0.10, 0.20]),
-                    "price_target_source": np.array([0.15, 0.25]),
+                    "price": np.array([0.10, 0.20]),
+                    "price": np.array([0.15, 0.25]),
                 },
             },
         },
@@ -198,13 +198,13 @@ VALID_CASES: list[ConnectionTestCase] = [
             "segments": {
                 "efficiency": {
                     "segment_type": "efficiency",
-                    "efficiency_source_target": 0.95,
-                    "efficiency_target_source": 0.93,
+                    "efficiency": 0.95,
+                    "efficiency": 0.93,
                 },
                 "power_limit": {
                     "segment_type": "power_limit",
-                    "max_power_source_target": 10.0,
-                    "max_power_target_source": 10.0,
+                    "max_power": 10.0,
+                    "max_power": 10.0,
                 },
             },
         },
@@ -234,7 +234,7 @@ VALID_CASES: list[ConnectionTestCase] = [
             "segments": {
                 "power_limit": {
                     "segment_type": "power_limit",
-                    "max_power_target_source": 4.0,
+                    "max_power": 4.0,
                     "fixed": True,
                 }
             },

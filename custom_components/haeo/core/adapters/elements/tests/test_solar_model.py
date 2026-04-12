@@ -88,7 +88,7 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
         "name": "pv_main",
         "model_outputs": {
             "pv_main:connection": {
-                connection.CONNECTION_POWER_SOURCE_TARGET: OutputData(
+                connection.CONNECTION_POWER: OutputData(
                     type=OutputType.POWER_FLOW, unit="kW", values=(2.0,), direction="+"
                 ),
                 connection.CONNECTION_SEGMENTS: {
@@ -110,7 +110,7 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
         "name": "pv_with_price",
         "model_outputs": {
             "pv_with_price:connection": {
-                connection.CONNECTION_POWER_SOURCE_TARGET: OutputData(
+                connection.CONNECTION_POWER: OutputData(
                     type=OutputType.POWER_FLOW, unit="kW", values=(1.5,), direction="+"
                 ),
                 connection.CONNECTION_SEGMENTS: {

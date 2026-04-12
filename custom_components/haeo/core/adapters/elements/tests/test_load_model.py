@@ -120,7 +120,7 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
         "name": "load_main",
         "model_outputs": {
             "load_main:connection": {
-                connection.CONNECTION_POWER_TARGET_SOURCE: OutputData(
+                connection.CONNECTION_POWER: OutputData(
                     type=OutputType.POWER_FLOW, unit="kW", values=(1.0,), direction="+"
                 ),
                 connection.CONNECTION_SEGMENTS: {

@@ -69,7 +69,7 @@ class TestNetworkUpdatePeriods:
                 "source": "source",
                 "target": "sink",
                 "segments": {
-                    "pricing": {"segment_type": "pricing", "price_source_target": 0.10},
+                    "pricing": {"segment_type": "pricing", "price": 0.10},
                 },
             }
         )
@@ -112,13 +112,13 @@ class TestPeriodUpdateInvalidation:
                 "segments": {
                     "power_limit": {
                         "segment_type": "power_limit",
-                        "max_power_source_target": 5.0,
-                        "max_power_target_source": 5.0,
+                        "max_power": 5.0,
+                        "max_power": 5.0,
                     },
                     "pricing": {
                         "segment_type": "pricing",
-                        "price_source_target": -0.10,
-                        "price_target_source": 0.15,
+                        "price": -0.10,
+                        "price": 0.15,
                     },
                 },
             }
@@ -159,10 +159,10 @@ class TestPeriodUpdateInvalidation:
                 "segments": {
                     "power_limit": {
                         "segment_type": "power_limit",
-                        "max_power_source_target": 5.0,
+                        "max_power": 5.0,
                         "fixed": True,  # Force max flow
                     },
-                    "pricing": {"segment_type": "pricing", "price_source_target": 0.10},
+                    "pricing": {"segment_type": "pricing", "price": 0.10},
                 },
             }
         )
@@ -215,13 +215,13 @@ class TestPeriodUpdateInvalidation:
                 "segments": {
                     "power_limit": {
                         "segment_type": "power_limit",
-                        "max_power_source_target": 5.0,
-                        "max_power_target_source": 5.0,
+                        "max_power": 5.0,
+                        "max_power": 5.0,
                     },
                     "pricing": {
                         "segment_type": "pricing",
-                        "price_source_target": -0.10,
-                        "price_target_source": 0.15,
+                        "price": -0.10,
+                        "price": 0.15,
                     },
                 },
             }
@@ -271,10 +271,10 @@ class TestPeriodUpdateWithOtherParams:
                 "segments": {
                     "power_limit": {
                         "segment_type": "power_limit",
-                        "max_power_source_target": 5.0,
+                        "max_power": 5.0,
                         "fixed": True,
                     },
-                    "pricing": {"segment_type": "pricing", "price_source_target": 0.10},
+                    "pricing": {"segment_type": "pricing", "price": 0.10},
                 },
             }
         )
@@ -318,13 +318,13 @@ class TestPeriodUpdateWithOtherParams:
                 "segments": {
                     "power_limit": {
                         "segment_type": "power_limit",
-                        "max_power_source_target": 5.0,
-                        "max_power_target_source": 5.0,
+                        "max_power": 5.0,
+                        "max_power": 5.0,
                     },
                     "pricing": {
                         "segment_type": "pricing",
-                        "price_source_target": -0.10,
-                        "price_target_source": 0.15,
+                        "price": -0.10,
+                        "price": 0.15,
                     },
                 },
             }

@@ -122,14 +122,15 @@ class GridAdapter:
         **_kwargs: Any,
     ) -> Mapping[GridDeviceName, Mapping[GridOutputName, OutputData]]:
         """Map model outputs to grid-specific output names."""
-        connection = model_outputs[f"{name}:connection"]
+        import_conn = model_outputs[f"{name}:import"]
+        export_conn = model_outputs[f"{name}:export"]
 
         grid_outputs: dict[GridOutputName, OutputData] = {}
 
         # source_target = grid to system = IMPORT
         # target_source = system to grid = EXPORT
-        power_import = expect_output_data(connection[CONNECTION_POWER])
-        power_export = expect_output_data(connection[CONNECTION_POWER])
+        power_import = expect_output_data(import_conn[CONNECTION_POWER])
+        power_export = expect_output_data(export_conn[CONNECTION_POWER])
 
         grid_outputs[GRID_POWER_EXPORT] = replace(power_export, type=OutputType.POWER)
         grid_outputs[GRID_POWER_IMPORT] = replace(power_import, type=OutputType.POWER)
@@ -175,7 +176,7 @@ class GridAdapter:
         )
 
         # Output the shadow prices from power_limit segment
-        if isinstance(segments_output := connection.get(CONNECTION_SEGMENTS), Mapping) and isinstance(
+        if isinstance(segments_output := import_conn.get(CONNECTION_SEGMENTS), Mapping) and isinstance(
             power_limit_outputs := segments_output.get("power_limit"), Mapping
         ):
             shadow_mappings: tuple[tuple[GridOutputName, str], ...] = (

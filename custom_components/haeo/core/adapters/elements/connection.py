@@ -14,13 +14,8 @@ from custom_components.haeo.core.model.elements.connection import (
 )
 from custom_components.haeo.core.model.elements.connection import (
     CONNECTION_POWER,
-    CONNECTION_SEGMENTS,
 )
 from custom_components.haeo.core.model.elements.connection import ConnectionOutputName as ModelConnectionOutputName
-from custom_components.haeo.core.model.elements.segments import (
-    POWER_LIMIT_SOURCE_TARGET,
-    POWER_LIMIT_TARGET_SOURCE,
-)
 from custom_components.haeo.core.model.output_data import OutputData
 from custom_components.haeo.core.schema import extract_connection_target
 from custom_components.haeo.core.schema.elements import ElementType
@@ -79,13 +74,16 @@ class ConnectionAdapter:
         """
         # Build segments using explicit None for missing parameters.
         # Efficiency values are ratios (0-1) after input normalization.
+        source_name = extract_connection_target(config[SECTION_ENDPOINTS]["source"])
+        target_name = extract_connection_target(config[SECTION_ENDPOINTS]["target"])
         return [
+            # Source -> Target
             {
                 "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
-                "name": config["name"],
-                "source": extract_connection_target(config[SECTION_ENDPOINTS]["source"]),
-                "target": extract_connection_target(config[SECTION_ENDPOINTS]["target"]),
-                "segments_st": {
+                "name": f"{config['name']}:forward",
+                "source": source_name,
+                "target": target_name,
+                "segments": {
                     "efficiency": {
                         "segment_type": "efficiency",
                         "efficiency": config[SECTION_EFFICIENCY].get(CONF_EFFICIENCY_SOURCE_TARGET),
@@ -99,7 +97,14 @@ class ConnectionAdapter:
                         "price": config[SECTION_PRICING].get(CONF_PRICE_SOURCE_TARGET),
                     },
                 },
-                "segments_ts": {
+            },
+            # Target -> Source
+            {
+                "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
+                "name": f"{config['name']}:reverse",
+                "source": target_name,
+                "target": source_name,
+                "segments": {
                     "efficiency": {
                         "segment_type": "efficiency",
                         "efficiency": config[SECTION_EFFICIENCY].get(CONF_EFFICIENCY_TARGET_SOURCE),
@@ -113,7 +118,7 @@ class ConnectionAdapter:
                         "price": config[SECTION_PRICING].get(CONF_PRICE_TARGET_SOURCE),
                     },
                 },
-            }
+            },
         ]
 
     def outputs(
@@ -123,41 +128,24 @@ class ConnectionAdapter:
         **_kwargs: Any,
     ) -> Mapping[ConnectionDeviceName, Mapping[ConnectionOutputName, OutputData]]:
         """Map model outputs to connection-specific output names."""
-        connection = model_outputs[name]
-        power_source_target = expect_output_data(connection[CONNECTION_POWER])
-        power_target_source = expect_output_data(connection[CONNECTION_POWER])
+        forward_conn = model_outputs[f"{name}:forward"]
+        reverse_conn = model_outputs[f"{name}:reverse"]
 
-        connection_outputs: dict[ConnectionOutputName, OutputData] = {
-            CONNECTION_POWER: power_source_target,
-            CONNECTION_POWER: power_target_source,
-        }
+        connection_outputs: dict[ConnectionOutputName, OutputData] = {}
 
-        # Active connection power (source_target - target_source)
-        connection_outputs[CONNECTION_POWER_ACTIVE] = replace(
-            power_source_target,
-            values=[
-                st - ts
-                for st, ts in zip(
-                    power_source_target.values,
-                    power_target_source.values,
-                    strict=True,
-                )
-            ],
-            direction=None,
-            type=OutputType.POWER_FLOW,
-        )
+        power_forward = expect_output_data(forward_conn[CONNECTION_POWER])
+        power_reverse = expect_output_data(reverse_conn[CONNECTION_POWER])
 
-        # Shadow prices are exposed under the model's `segments` output map.
-        if isinstance(segments_output := connection.get(CONNECTION_SEGMENTS), Mapping) and isinstance(
-            power_limit_outputs := segments_output.get("power_limit"), Mapping
-        ):
-            shadow_mappings: tuple[tuple[ConnectionOutputName, str], ...] = (
-                (CONNECTION_POWER, POWER_LIMIT_SOURCE_TARGET),
-                (CONNECTION_POWER, POWER_LIMIT_TARGET_SOURCE),
+        if power_forward is not None:
+            connection_outputs[CONNECTION_POWER] = power_forward
+
+        if power_forward is not None and power_reverse is not None:
+            connection_outputs[CONNECTION_POWER_ACTIVE] = replace(
+                power_forward,
+                values=[fwd - rev for fwd, rev in zip(power_forward.values, power_reverse.values, strict=True)],
+                direction=None,
+                type=OutputType.POWER_FLOW,
             )
-            for output_name, shadow_key in shadow_mappings:
-                if (shadow := expect_output_data(power_limit_outputs.get(shadow_key))) is not None:
-                    connection_outputs[output_name] = shadow
 
         return {CONNECTION_DEVICE_CONNECTION: connection_outputs}
 

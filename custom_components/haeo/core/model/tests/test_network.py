@@ -78,7 +78,7 @@ def test_connect_entities() -> None:
             "segments": {
                 "power_limit": {
                     "segment_type": "power_limit",
-                    "max_power_source_target": 5000.0,
+                    "max_power": 5000.0,
                 }
             },
         }
@@ -458,7 +458,7 @@ def test_network_cost_with_multiple_elements() -> None:
             "source": "source",
             "target": "target",
             "segments": {
-                "pricing": {"segment_type": "pricing", "price_source_target": np.array([10.0, 20.0])},
+                "pricing": {"segment_type": "pricing", "price": np.array([10.0, 20.0])},
             },
         }
     )
@@ -469,7 +469,7 @@ def test_network_cost_with_multiple_elements() -> None:
             "source": "target",
             "target": "source",
             "segments": {
-                "pricing": {"segment_type": "pricing", "price_source_target": np.array([5.0, 10.0])},
+                "pricing": {"segment_type": "pricing", "price": np.array([5.0, 10.0])},
             },
         }
     )

@@ -23,9 +23,7 @@ from custom_components.haeo.core.schema.elements.solar import (
 from custom_components.haeo.core.schema.sections import (
     CONF_CONNECTION,
     CONF_FORECAST,
-    CONF_PRICE_SOURCE_TARGET,
     SECTION_FORECAST,
-    SECTION_PRICING,
 )
 
 # Solar output names
@@ -71,14 +69,8 @@ class SolarAdapter:
                 "segments": {
                     "power_limit": {
                         "segment_type": "power_limit",
-                        "max_power_source_target": config[SECTION_FORECAST][CONF_FORECAST],
-                        "max_power_target_source": 0.0,
+                        "max_power": config[SECTION_FORECAST][CONF_FORECAST],
                         "fixed": not config[SECTION_CURTAILMENT].get(CONF_CURTAILMENT, True),
-                    },
-                    "pricing": {
-                        "segment_type": "pricing",
-                        "price_source_target": config[SECTION_PRICING].get(CONF_PRICE_SOURCE_TARGET),
-                        "price_target_source": None,
                     },
                 },
             },
@@ -93,9 +85,9 @@ class SolarAdapter:
         """Map model outputs to solar-specific output names."""
         connection = model_outputs[f"{name}:connection"]
 
-        power_source_target = expect_output_data(connection[CONNECTION_POWER])
+        power = expect_output_data(connection[CONNECTION_POWER])
         solar_outputs: dict[SolarOutputName, OutputData] = {
-            SOLAR_POWER: replace(power_source_target, type=OutputType.POWER),
+            SOLAR_POWER: replace(power, type=OutputType.POWER),
         }
 
         # Shadow price from power_limit segment (if present)

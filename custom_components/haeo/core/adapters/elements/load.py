@@ -96,9 +96,9 @@ class LoadAdapter:
         """Map model outputs to load-specific output names."""
         connection = model_outputs[f"{name}:connection"]
 
-        power_target_source = expect_output_data(connection[CONNECTION_POWER])
+        power = expect_output_data(connection[CONNECTION_POWER])
         load_outputs: dict[LoadOutputName, OutputData] = {
-            LOAD_POWER: replace(power_target_source, type=OutputType.POWER),
+            LOAD_POWER: replace(power, type=OutputType.POWER),
         }
 
         # Shadow price from power_limit segment (if present)

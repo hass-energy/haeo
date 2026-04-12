@@ -159,7 +159,7 @@ def _solve_segment_scenario(case: SegmentScenario) -> dict[str, ExpectedValue]:
             len(periods),
             periods,
             h,
-            spec=ts_spec,
+            spec=case["spec"],
             source_element=source,
             target_element=target,
             power_in=power_ts,
@@ -221,26 +221,10 @@ def _solve_connection_scenario(case: ConnectionScenario) -> dict[str, ExpectedVa
     h = create_solver()
     periods = np.asarray(case["periods"], dtype=np.float64)
     segments = case["segments"]
-    mirror_segment_order = bool(case.get("mirror_segment_order", False))
     if segments is None:
-        conn = Connection(
-            name="conn",
-            periods=periods,
-            solver=h,
-            source="src",
-            target="tgt",
-            mirror_segment_order=mirror_segment_order,
-        )
+        conn = Connection(name="conn", periods=periods, solver=h, source="src", target="tgt")
     else:
-        conn = Connection(
-            name="conn",
-            periods=periods,
-            solver=h,
-            source="src",
-            target="tgt",
-            segments=segments,
-            mirror_segment_order=mirror_segment_order,
-        )
+        conn = Connection(name="conn", periods=periods, solver=h, source="src", target="tgt", segments=segments)
     source = DummyElement("src", periods, h)
     target = DummyElement("tgt", periods, h)
     conn.set_endpoints(source, target)
@@ -252,10 +236,8 @@ def _solve_connection_scenario(case: ConnectionScenario) -> dict[str, ExpectedVa
 
     conn.constraints()
 
-    if "power_source_target" in inputs:
-        h.addConstrs(conn.power_source_target == np.asarray(inputs["power_source_target"], dtype=np.float64))
-    if "power_target_source" in inputs:
-        h.addConstrs(conn.power_target_source == np.asarray(inputs["power_target_source"], dtype=np.float64))
+    if "power_in" in inputs:
+        h.addConstrs(conn.power_in == np.asarray(inputs["power_in"], dtype=np.float64))
 
     objective_terms = []
     if inputs.get("minimize_cost"):
@@ -268,26 +250,14 @@ def _solve_connection_scenario(case: ConnectionScenario) -> dict[str, ExpectedVa
         flow = getattr(conn, name)
         objective_terms.append(-float(weight) * Highs.qsum(flow))
 
-    expected_outputs = case["expected_outputs"]
-    needs_solver = any(
-        key
-        in {
-            "power_source_target",
-            "power_target_source",
-            "power_into_source",
-            "power_into_target",
-            "objective_value",
-        }
-        for key in expected_outputs
-    )
-
     if objective_terms:
         h.minimize(Highs.qsum(objective_terms))
+    needs_solver = any(key in {"power_in", "power_out", "objective_value"} for key in case["expected_outputs"])
     if objective_terms or needs_solver:
         h.run()
 
     outputs: dict[str, ExpectedValue] = {}
-    for key in expected_outputs:
+    for key in case["expected_outputs"]:
         if key == "objective_value":
             outputs[key] = float(h.getObjectiveValue())
             continue
@@ -295,35 +265,26 @@ def _solve_connection_scenario(case: ConnectionScenario) -> dict[str, ExpectedVa
             outputs[key] = list(conn.segments.keys())
             continue
         if key == "segment_types":
-            outputs[key] = [type(segment).__name__ for segment in conn.segments.values()]
+            outputs[key] = [type(seg).__name__ for seg in conn.segments.values()]
             continue
         if key == "segment_types_by_index":
             outputs[key] = [type(conn[idx]).__name__ for idx in range(len(conn.segments))]
             continue
-        if key == "power_limit_max_power_source_target":
-            power_limit = conn["power_limit_st"]
-            assert isinstance(power_limit, PowerLimitSegment)
-            max_power = power_limit.max_power
-            assert max_power is not None
-            outputs[key] = tuple(float(value) for value in max_power)
+        if key == "power_limit_max_power":
+            pl = conn["power_limit"]
+            assert isinstance(pl, PowerLimitSegment)
+            assert pl.max_power is not None
+            outputs[key] = tuple(float(v) for v in pl.max_power)
             continue
-        if key == "pricing_price_source_target":
-            pricing = conn["pricing_st"]
-            assert isinstance(pricing, PricingSegment)
-            prices = pricing.price
-            assert prices is not None
-            outputs[key] = tuple(float(value) for value in prices)
+        if key == "pricing_price":
+            pr = conn["pricing"]
+            assert isinstance(pr, PricingSegment)
+            assert pr.price is not None
+            outputs[key] = tuple(float(v) for v in pr.price)
             continue
         flow = getattr(conn, key)
-        outputs[key] = tuple(float(value) for value in h.vals(flow))
+        outputs[key] = tuple(float(v) for v in h.vals(flow))
     return outputs
-
-
-@pytest.mark.parametrize("case", test_data.SEGMENT_SCENARIOS, ids=lambda c: c["description"])
-def test_segment_scenarios(case: SegmentScenario) -> None:
-    """Segments should match expected inputs/outputs."""
-    outputs = _solve_segment_scenario(case)
-    _assert_expected_outputs(outputs, case["expected_outputs"])
 
 
 @pytest.mark.parametrize("case", test_data.CONNECTION_SEGMENT_SCENARIOS, ids=lambda c: c["description"])
@@ -346,10 +307,7 @@ def test_segment_error_scenarios(case: SegmentErrorScenario) -> None:
         source, target = endpoint_factory(h, periods)
 
     match = case["match"]
-    from custom_components.haeo.core.model.elements.connection import Connection  # noqa: PLC0415
-
     pv = h.addVariables(len(periods), lb=0, name_prefix="err_", out_array=True)
-    resolved_spec = Connection._resolve_spec_for_direction(case["spec"], "st")
     if match is None:
         with pytest.raises(case["error"]):
             case["factory"](
@@ -357,7 +315,7 @@ def test_segment_error_scenarios(case: SegmentErrorScenario) -> None:
                 len(periods),
                 periods,
                 h,
-                spec=resolved_spec,
+                spec=case["spec"],
                 source_element=source,
                 target_element=target,
                 power_in=pv,
@@ -369,7 +327,7 @@ def test_segment_error_scenarios(case: SegmentErrorScenario) -> None:
                 len(periods),
                 periods,
                 h,
-                spec=resolved_spec,
+                spec=case["spec"],
                 source_element=source,
                 target_element=target,
                 power_in=pv,

@@ -72,9 +72,9 @@ class InverterAdapter:
         efficiency and power limits for bidirectional power conversion.
         """
         power_limits = config[SECTION_POWER_LIMITS]
-        max_power_source_target = power_limits.get(CONF_MAX_POWER_SOURCE_TARGET)
-        max_power_target_source = power_limits.get(CONF_MAX_POWER_TARGET_SOURCE)
-        if max_power_source_target is None or max_power_target_source is None:
+        max_power_forward = power_limits.get(CONF_MAX_POWER_SOURCE_TARGET)
+        max_power_reverse = power_limits.get(CONF_MAX_POWER_TARGET_SOURCE)
+        if max_power_forward is None or max_power_reverse is None:
             msg = "Inverter power limits missing - config flow validation failed"
             raise RuntimeError(msg)
 
@@ -99,14 +99,14 @@ class InverterAdapter:
                         "segment_type": "efficiency",
                         "efficiency": config[SECTION_EFFICIENCY].get(CONF_EFFICIENCY_SOURCE_TARGET),
                     },
-                    "power_limit": {"segment_type": "power_limit", "max_power": max_power_source_target},
+                    "power_limit": {"segment_type": "power_limit", "max_power": max_power_forward},
                 },
                 "segments_ts": {
                     "efficiency": {
                         "segment_type": "efficiency",
                         "efficiency": config[SECTION_EFFICIENCY].get(CONF_EFFICIENCY_TARGET_SOURCE),
                     },
-                    "power_limit": {"segment_type": "power_limit", "max_power": max_power_target_source},
+                    "power_limit": {"segment_type": "power_limit", "max_power": max_power_reverse},
                 },
             },
         ]
@@ -118,26 +118,27 @@ class InverterAdapter:
         **_kwargs: Any,
     ) -> Mapping[InverterDeviceName, Mapping[InverterOutputName, OutputData]]:
         """Map model outputs to inverter-specific output names."""
-        connection = model_outputs[f"{name}:connection"]
+        forward_conn = model_outputs[f"{name}:connection"]
+        reverse_conn = model_outputs[f"{name}:reverse"]
         dc_bus = model_outputs[name]
-        power_source_target = expect_output_data(connection[CONNECTION_POWER])
-        power_target_source = expect_output_data(connection[CONNECTION_POWER])
+        power_forward = expect_output_data(forward_conn[CONNECTION_POWER])
+        power_reverse = expect_output_data(reverse_conn[CONNECTION_POWER])
 
         inverter_outputs: dict[InverterOutputName, OutputData] = {}
 
         # source_target = DC to AC (inverting)
         # target_source = AC to DC (rectifying)
-        inverter_outputs[INVERTER_POWER_DC_TO_AC] = power_source_target
-        inverter_outputs[INVERTER_POWER_AC_TO_DC] = power_target_source
+        inverter_outputs[INVERTER_POWER_DC_TO_AC] = power_forward
+        inverter_outputs[INVERTER_POWER_AC_TO_DC] = power_reverse
 
         # Active inverter power (DC to AC - AC to DC)
         inverter_outputs[INVERTER_POWER_ACTIVE] = replace(
-            power_source_target,
+            power_forward,
             values=[
                 dc_to_ac - ac_to_dc
                 for dc_to_ac, ac_to_dc in zip(
-                    power_source_target.values,
-                    power_target_source.values,
+                    power_forward.values,
+                    power_reverse.values,
                     strict=True,
                 )
             ],
@@ -149,7 +150,7 @@ class InverterAdapter:
         inverter_outputs[INVERTER_DC_BUS_POWER_BALANCE] = expect_output_data(dc_bus[NODE_POWER_BALANCE])
 
         # Shadow prices from power_limit segment
-        if isinstance(segments_output := connection.get(CONNECTION_SEGMENTS), Mapping) and isinstance(
+        if isinstance(segments_output := forward_conn.get(CONNECTION_SEGMENTS), Mapping) and isinstance(
             power_limit_outputs := segments_output.get("power_limit"), Mapping
         ):
             shadow_mappings: tuple[tuple[InverterOutputName, str], ...] = (

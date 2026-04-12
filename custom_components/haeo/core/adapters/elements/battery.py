@@ -181,27 +181,36 @@ class BatteryAdapter:
                     "charge_capacity_price": overcharge_cost,
                 }
 
-        segments_st: dict[str, SegmentSpec] = {
+        discharge_segments: dict[str, SegmentSpec] = {
             "efficiency": {"segment_type": "efficiency", "efficiency": efficiency_source_target},
             "power_limit": {"segment_type": "power_limit", "max_power": max_discharge},
             "pricing": {"segment_type": "pricing", "price": discharge_pricing},
         }
-        segments_ts: dict[str, SegmentSpec] = {
-            "efficiency": {"segment_type": "efficiency", "efficiency": efficiency_target_source},
-            "power_limit": {"segment_type": "power_limit", "max_power": max_charge},
-            "pricing": {"segment_type": "pricing", "price": charge_early_incentive},
-        }
         if soc_pricing_spec is not None:
-            segments_st["soc_pricing"] = soc_pricing_spec
+            discharge_segments["soc_pricing"] = soc_pricing_spec
 
+        # Discharge: battery -> network
         elements.append(
             {
                 "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
-                "name": f"{name}:connection",
+                "name": f"{name}:discharge",
                 "source": name,
                 "target": extract_connection_target(config[CONF_CONNECTION]),
-                "segments_st": segments_st,
-                "segments_ts": segments_ts,
+                "segments": discharge_segments,
+            }
+        )
+        # Charge: network -> battery
+        elements.append(
+            {
+                "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
+                "name": f"{name}:charge",
+                "source": extract_connection_target(config[CONF_CONNECTION]),
+                "target": name,
+                "segments": {
+                    "efficiency": {"segment_type": "efficiency", "efficiency": efficiency_target_source},
+                    "power_limit": {"segment_type": "power_limit", "max_power": max_charge},
+                    "pricing": {"segment_type": "pricing", "price": charge_early_incentive},
+                },
             }
         )
 
