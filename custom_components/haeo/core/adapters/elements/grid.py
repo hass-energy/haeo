@@ -75,39 +75,39 @@ class GridAdapter:
 
     def model_elements(self, config: GridConfigData) -> list[ModelElementConfig]:
         """Create model elements for Grid configuration."""
+        grid_name = config["name"]
+        target_name = extract_connection_target(config[CONF_CONNECTION])
         return [
-            # Create Node for the grid (both source and sink - can import and export)
             {
                 "element_type": MODEL_ELEMENT_TYPE_NODE,
-                "name": config["name"],
+                "name": grid_name,
                 "is_source": True,
                 "is_sink": True,
             },
-            # Create a connection from system node to grid
             {
                 "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
-                "name": f"{config['name']}:connection",
-                "source": config["name"],
-                "target": extract_connection_target(config[CONF_CONNECTION]),
-                "segments_st": {
+                "name": f"{grid_name}:import",
+                "source": grid_name,
+                "target": target_name,
+                "segments": {
                     "power_limit": {
                         "segment_type": "power_limit",
                         "max_power": config[SECTION_POWER_LIMITS].get(CONF_MAX_POWER_SOURCE_TARGET),
                     },
-                    "pricing": {
-                        "segment_type": "pricing",
-                        "price": config[SECTION_PRICING][CONF_PRICE_SOURCE_TARGET],
-                    },
+                    "pricing": {"segment_type": "pricing", "price": config[SECTION_PRICING][CONF_PRICE_SOURCE_TARGET]},
                 },
-                "segments_ts": {
+            },
+            {
+                "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
+                "name": f"{grid_name}:export",
+                "source": target_name,
+                "target": grid_name,
+                "segments": {
                     "power_limit": {
                         "segment_type": "power_limit",
                         "max_power": config[SECTION_POWER_LIMITS].get(CONF_MAX_POWER_TARGET_SOURCE),
                     },
-                    "pricing": {
-                        "segment_type": "pricing",
-                        "price": -config[SECTION_PRICING][CONF_PRICE_TARGET_SOURCE],
-                    },
+                    "pricing": {"segment_type": "pricing", "price": -config[SECTION_PRICING][CONF_PRICE_TARGET_SOURCE]},
                 },
             },
         ]

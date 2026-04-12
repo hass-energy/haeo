@@ -66,47 +66,42 @@ class InverterAdapter:
     connectivity: ConnectivityLevel = ConnectivityLevel.ALWAYS
 
     def model_elements(self, config: InverterConfigData) -> list[ModelElementConfig]:
-        """Return model element parameters for Inverter configuration.
-
-        Creates a DC bus (Node junction) and a connection to the AC side with
-        efficiency and power limits for bidirectional power conversion.
-        """
-        power_limits = config[SECTION_POWER_LIMITS]
-        max_power_forward = power_limits.get(CONF_MAX_POWER_SOURCE_TARGET)
-        max_power_reverse = power_limits.get(CONF_MAX_POWER_TARGET_SOURCE)
-        if max_power_forward is None or max_power_reverse is None:
-            msg = "Inverter power limits missing - config flow validation failed"
-            raise RuntimeError(msg)
-
+        """Return model element parameters for Inverter configuration."""
+        max_power_st = config[SECTION_POWER_LIMITS].get(CONF_MAX_POWER_SOURCE_TARGET)
+        max_power_ts = config[SECTION_POWER_LIMITS].get(CONF_MAX_POWER_TARGET_SOURCE)
+        inv_name = config["name"]
+        target_name = extract_connection_target(config[CONF_CONNECTION])
         return [
-            # Create Node for the DC bus (pure junction - neither source nor sink)
             {
                 "element_type": MODEL_ELEMENT_TYPE_NODE,
-                "name": config["name"],
+                "name": inv_name,
                 "is_source": False,
                 "is_sink": False,
             },
-            # Create a connection from DC bus to AC node
-            # source_target = DC to AC (inverting)
-            # target_source = AC to DC (rectifying)
             {
                 "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
-                "name": f"{config['name']}:connection",
-                "source": config["name"],
-                "target": extract_connection_target(config[CONF_CONNECTION]),
-                "segments_st": {
+                "name": f"{inv_name}:connection",
+                "source": inv_name,
+                "target": target_name,
+                "segments": {
                     "efficiency": {
                         "segment_type": "efficiency",
                         "efficiency": config[SECTION_EFFICIENCY].get(CONF_EFFICIENCY_SOURCE_TARGET),
                     },
-                    "power_limit": {"segment_type": "power_limit", "max_power": max_power_forward},
+                    "power_limit": {"segment_type": "power_limit", "max_power": max_power_st},
                 },
-                "segments_ts": {
+            },
+            {
+                "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
+                "name": f"{inv_name}:reverse",
+                "source": target_name,
+                "target": inv_name,
+                "segments": {
                     "efficiency": {
                         "segment_type": "efficiency",
                         "efficiency": config[SECTION_EFFICIENCY].get(CONF_EFFICIENCY_TARGET_SOURCE),
                     },
-                    "power_limit": {"segment_type": "power_limit", "max_power": max_power_reverse},
+                    "power_limit": {"segment_type": "power_limit", "max_power": max_power_ts},
                 },
             },
         ]

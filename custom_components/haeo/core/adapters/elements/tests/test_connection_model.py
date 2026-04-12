@@ -155,21 +155,13 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
         },
         "outputs": {
             CONNECTION_DEVICE_CONNECTION: {
-                CONNECTION_POWER: OutputData(
-                    type=OutputType.POWER_FLOW, unit="kW", values=(5.0,), direction="+"
-                ),
-                CONNECTION_POWER: OutputData(
-                    type=OutputType.POWER_FLOW, unit="kW", values=(7.0,), direction="-"
-                ),
+                CONNECTION_POWER: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(5.0,), direction="+"),
+                CONNECTION_POWER: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(7.0,), direction="-"),
                 CONNECTION_POWER_ACTIVE: OutputData(
                     type=OutputType.POWER_FLOW, unit="kW", values=(-2.0,), direction=None
                 ),
-                CONNECTION_POWER: OutputData(
-                    type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.01,)
-                ),
-                CONNECTION_POWER: OutputData(
-                    type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.02,)
-                ),
+                CONNECTION_POWER: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.01,)),
+                CONNECTION_POWER: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.02,)),
             }
         },
     },
@@ -188,12 +180,8 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
         },
         "outputs": {
             CONNECTION_DEVICE_CONNECTION: {
-                CONNECTION_POWER: OutputData(
-                    type=OutputType.POWER_FLOW, unit="kW", values=(5.0,), direction="+"
-                ),
-                CONNECTION_POWER: OutputData(
-                    type=OutputType.POWER_FLOW, unit="kW", values=(7.0,), direction="-"
-                ),
+                CONNECTION_POWER: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(5.0,), direction="+"),
+                CONNECTION_POWER: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(7.0,), direction="-"),
                 CONNECTION_POWER_ACTIVE: OutputData(
                     type=OutputType.POWER_FLOW, unit="kW", values=(-2.0,), direction=None
                 ),
