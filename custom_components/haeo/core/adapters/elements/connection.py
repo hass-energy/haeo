@@ -18,7 +18,6 @@ from custom_components.haeo.core.model.elements.connection import (
     CONNECTION_SEGMENTS,
     CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET,
     CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE,
-    CONNECTION_TIME_SLICE,
 )
 from custom_components.haeo.core.model.elements.connection import ConnectionOutputName as ModelConnectionOutputName
 from custom_components.haeo.core.model.elements.segments import (
@@ -54,7 +53,6 @@ type ConnectionOutputName = (
         "connection_power_active",
         "connection_shadow_power_max_source_target",
         "connection_shadow_power_max_target_source",
-        "connection_time_slice",
     ]
 )
 
@@ -64,7 +62,6 @@ CONNECTION_OUTPUT_NAMES: Final[frozenset[ConnectionOutputName]] = frozenset(
         CONNECTION_POWER_ACTIVE,
         CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET,
         CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE,
-        CONNECTION_TIME_SLICE,
     )
 )
 
@@ -157,7 +154,6 @@ class ConnectionAdapter:
             shadow_mappings: tuple[tuple[ConnectionOutputName, str], ...] = (
                 (CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET, POWER_LIMIT_SOURCE_TARGET),
                 (CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE, POWER_LIMIT_TARGET_SOURCE),
-                (CONNECTION_TIME_SLICE, 'time_slice'),  # TODO: time-slice now on Connection
             )
             for output_name, shadow_key in shadow_mappings:
                 if (shadow := expect_output_data(power_limit_outputs.get(shadow_key))) is not None:

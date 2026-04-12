@@ -3,7 +3,7 @@
 Each segment type applies a specific transformation or constraint to power flow:
 - EfficiencySegment: Applies efficiency losses
 - PassthroughSegment: Lossless passthrough (no constraints)
-- PowerLimitSegment: Limits power flow with optional time-slice constraint
+- PowerLimitSegment: Limits power flow
 - PricingSegment: Adds transfer pricing costs
 - SocPricingSegment: Adds SOC-based pricing penalties
 """

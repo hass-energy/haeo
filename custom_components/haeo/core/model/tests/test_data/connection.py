@@ -185,7 +185,6 @@ VALID_CASES: list[ConnectionTestCase] = [
                 "power_limit": {
                     "source_target": {"type": "shadow_price", "unit": "$/kW", "values": (-0.9, -0.8)},
                     "target_source": {"type": "shadow_price", "unit": "$/kW", "values": (0.0, 0.0)},
-                    "time_slice": {"type": "shadow_price", "unit": "$/kW", "values": (0.0, 0.0)},
                 }
             },
         },
@@ -224,7 +223,6 @@ VALID_CASES: list[ConnectionTestCase] = [
                 "power_limit": {
                     "source_target": {"type": "shadow_price", "unit": "$/kW", "values": (0.0, 0.0)},
                     "target_source": {"type": "shadow_price", "unit": "$/kW", "values": (0.0, 0.0)},
-                    "time_slice": {"type": "shadow_price", "unit": "$/kW", "values": (0.0, 0.0)},
                 }
             },
         },

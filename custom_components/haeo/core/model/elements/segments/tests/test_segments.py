@@ -146,34 +146,40 @@ def _solve_segment_scenario(case: SegmentScenario) -> dict[str, ExpectedValue]:
         power_in=power_st,
         direction="st",
     )
-    # Create ts-direction segment
-    seg_ts = case["factory"](
-        "seg_ts",
-        len(periods),
-        periods,
-        h,
-        spec=case["spec"],
-        source_element=source,
-        target_element=target,
-        power_in=power_ts,
-        direction="ts",
-    )
     seg_st.constraints()
-    seg_ts.constraints()
 
-    
+    # Create ts-direction segment only if test uses ts inputs/outputs
+    inputs = case["inputs"]
+    expected_outputs = case["expected_outputs"]
+    needs_ts = any(k.endswith("_ts") for k in (*inputs, *expected_outputs, *inputs.get("maximize", {})))
+    seg_ts = None
+    if needs_ts or "power_in_ts" in inputs:
+        seg_ts = case["factory"](
+            "seg_ts",
+            len(periods),
+            periods,
+            h,
+            spec=case["spec"],
+            source_element=source,
+            target_element=target,
+            power_in=power_ts,
+            direction="ts",
+        )
+        seg_ts.constraints()
 
     inputs = case["inputs"]
     if "power_in_st" in inputs:
         h.addConstrs(seg_st.power_in == np.asarray(inputs["power_in_st"], dtype=np.float64))
-    if "power_in_ts" in inputs:
+    if "power_in_ts" in inputs and seg_ts is not None:
         h.addConstrs(seg_ts.power_in == np.asarray(inputs["power_in_ts"], dtype=np.float64))
 
     objective_terms = []
     if inputs.get("minimize_cost"):
-        # Collect costs from both direction segments
-        for s in (seg_st, seg_ts):
-            c = s.cost()
+        c = seg_st.cost()
+        if c is not None:
+            objective_terms.append(c)
+        if seg_ts is not None:
+            c = seg_ts.cost()
             if c is not None:
                 objective_terms.append(c)
 
@@ -341,6 +347,7 @@ def test_segment_error_scenarios(case: SegmentErrorScenario) -> None:
         source, target = endpoint_factory(h, periods)
 
     match = case["match"]
+    pv = h.addVariables(len(periods), lb=0, name_prefix="err_", out_array=True)
     if match is None:
         with pytest.raises(case["error"]):
             case["factory"](
@@ -351,6 +358,8 @@ def test_segment_error_scenarios(case: SegmentErrorScenario) -> None:
                 spec=case["spec"],
                 source_element=source,
                 target_element=target,
+                power_in=pv,
+                direction="st",
             )
     else:
         with pytest.raises(case["error"], match=match):
@@ -362,6 +371,8 @@ def test_segment_error_scenarios(case: SegmentErrorScenario) -> None:
                 spec=case["spec"],
                 source_element=source,
                 target_element=target,
+                power_in=pv,
+                direction="st",
             )
 
 

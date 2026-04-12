@@ -49,7 +49,6 @@ CONNECTION_POWER_SOURCE_TARGET: Final = "connection_power_source_target"
 CONNECTION_POWER_TARGET_SOURCE: Final = "connection_power_target_source"
 CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET: Final = "connection_shadow_power_max_source_target"
 CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE: Final = "connection_shadow_power_max_target_source"
-CONNECTION_TIME_SLICE: Final = "connection_time_slice"
 CONNECTION_SEGMENTS: Final = "segments"
 
 type ConnectionSegmentOutputs = dict[str, dict[str, OutputData]]
@@ -189,8 +188,13 @@ class Connection[TOutputName: str](Element[TOutputName]):
         self._st_output = flow
 
         # Build target→source chain
+        # Skip segment types that are not directional (e.g., soc_pricing operates
+        # on battery state, not power direction) to avoid duplicate costs.
+        _NON_DIRECTIONAL = {"soc_pricing"}
         flow = self._power_ts
         for segment_name, segment_spec in ts_specs:
+            if segment_spec["segment_type"] in _NON_DIRECTIONAL:
+                continue
             resolved = self._resolve_segment_name(segment_name, "ts")
             seg = create_segment(
                 segment_id=f"{self.name}_{resolved}",
@@ -289,7 +293,6 @@ __all__ = [
     "CONNECTION_SEGMENTS",
     "CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET",
     "CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE",
-    "CONNECTION_TIME_SLICE",
     "ELEMENT_TYPE",
     "Connection",
     "ConnectionElementConfig",
