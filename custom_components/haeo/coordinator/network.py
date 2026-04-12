@@ -80,7 +80,7 @@ def update_element(
 
     def _resolve_path(obj: Any, path: tuple[str, ...], *, element_name: str | None) -> Any:
         current = obj
-        for i, part in enumerate(path[:-1]):
+        for part in path[:-1]:
             if isinstance(current, Mapping):
                 if part in current:
                     current = current[part]
