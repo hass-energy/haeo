@@ -4,8 +4,9 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
 import logging
+import re
 import time
-from typing import TYPE_CHECKING, Any, Literal, TypedDict
+from typing import TYPE_CHECKING, Any, Final, Literal, TypedDict
 
 from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass
 from homeassistant.config_entries import ConfigEntry
@@ -113,11 +114,42 @@ STATUS_OPTIONS: tuple[str, ...] = tuple(
 )
 
 
+# Matches a price-like unit: <currency>/<energy_unit> (e.g. "£/kWh", "$/MWh", "€/Wh")
+_PRICE_UNIT_RE: Final = re.compile(r"^(.+)/(?:Wh|kWh|MWh|GWh)$")
+
+
+def detect_currency_symbol(source_states: Mapping[str, "EntityState"]) -> str:
+    """Detect the user's currency symbol from source entity units.
+
+    Scans entity states for a price-like unit (e.g. ``£/kWh``) and returns the
+    currency prefix. Falls back to ``$`` when no price entity is found.
+    """
+    for state in source_states.values():
+        unit = state.attributes.get("unit_of_measurement")
+        if isinstance(unit, str) and (m := _PRICE_UNIT_RE.match(unit)):
+            return m.group(1)
+    return "$"
+
+
+def _localize_currency(unit: str | None, currency_sym: str) -> str | None:
+    """Replace the ``$`` placeholder in a unit string with the detected currency symbol.
+
+    The model and adapter layers use ``$`` as a conventional placeholder for
+    monetary values (e.g. ``$/kWh``, ``$/kW``, ``$``).  At the coordinator
+    boundary we substitute it with the currency symbol detected from the
+    user's price sensor data so that sensors display correctly.
+    """
+    if unit is None:
+        return None
+    return unit.replace("$", currency_sym)
+
+
 def _build_coordinator_output(
     output_name: ElementOutputName,
     output_data: OutputData,
     *,
     forecast_times: tuple[float, ...] | None,
+    currency_sym: str,
 ) -> CoordinatorOutput:
     """Convert model output values into coordinator state and forecast.
 
@@ -165,7 +197,7 @@ def _build_coordinator_output(
 
     return CoordinatorOutput(
         type=output_data.type,
-        unit=output_data.unit,
+        unit=_localize_currency(output_data.unit, currency_sym),
         state=state,
         forecast=forecast,
         direction=output_data.direction,
@@ -680,7 +712,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
 
             network_output_data: dict[NetworkOutputName, OutputData] = {
                 OUTPUT_NAME_OPTIMIZATION_COST: OutputData(
-                    type=OutputType.COST, unit=self.hass.config.currency, values=(cost,)
+                    type=OutputType.COST, unit="$", values=(cost,)
                 ),
                 OUTPUT_NAME_OPTIMIZATION_STATUS: OutputData(
                     type=OutputType.STATUS, unit=None, values=(OPTIMIZATION_STATUS_SUCCESS,)
@@ -696,11 +728,15 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             )
             network_subentry_name = translations[f"component.{DOMAIN}.common.network_subentry_name"]
 
+            currency_sym = detect_currency_symbol(context.source_states)
+
             outputs: dict[str, SubentryDevices] = {
                 # HAEO outputs use network subentry name as key, network element type as device
                 network_subentry_name: {
                     ELEMENT_TYPE_NETWORK: {
-                        name: _build_coordinator_output(name, output, forecast_times=None)
+                        name: _build_coordinator_output(
+                            name, output, forecast_times=None, currency_sym=currency_sym
+                        )
                         for name, output in network_output_data.items()
                     }
                 }
@@ -743,6 +779,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
                             output_name,
                             output_data,
                             forecast_times=forecast_timestamps,
+                            currency_sym=currency_sym,
                         )
                         for output_name, output_data in device_outputs.items()
                     }
