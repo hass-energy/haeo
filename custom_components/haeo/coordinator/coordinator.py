@@ -711,9 +711,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             dismiss_optimization_failure_issue(self.hass, self.config_entry.entry_id)
 
             network_output_data: dict[NetworkOutputName, OutputData] = {
-                OUTPUT_NAME_OPTIMIZATION_COST: OutputData(
-                    type=OutputType.COST, unit="$", values=(cost,)
-                ),
+                OUTPUT_NAME_OPTIMIZATION_COST: OutputData(type=OutputType.COST, unit="$", values=(cost,)),
                 OUTPUT_NAME_OPTIMIZATION_STATUS: OutputData(
                     type=OutputType.STATUS, unit=None, values=(OPTIMIZATION_STATUS_SUCCESS,)
                 ),
@@ -734,9 +732,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
                 # HAEO outputs use network subentry name as key, network element type as device
                 network_subentry_name: {
                     ELEMENT_TYPE_NETWORK: {
-                        name: _build_coordinator_output(
-                            name, output, forecast_times=None, currency_sym=currency_sym
-                        )
+                        name: _build_coordinator_output(name, output, forecast_times=None, currency_sym=currency_sym)
                         for name, output in network_output_data.items()
                     }
                 }

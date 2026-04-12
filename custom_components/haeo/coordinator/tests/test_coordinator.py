@@ -650,10 +650,15 @@ def test_detect_currency_symbol_from_price_entity() -> None:
 
 def test_detect_currency_symbol_ignores_non_price_entities() -> None:
     """Non-price units should be skipped, falling back to $."""
-    assert detect_currency_symbol({
-        "s1": _make_source_state("kW"),
-        "s2": _make_source_state("kWh"),
-    }) == "$"
+    assert (
+        detect_currency_symbol(
+            {
+                "s1": _make_source_state("kW"),
+                "s2": _make_source_state("kWh"),
+            }
+        )
+        == "$"
+    )
 
 
 def test_detect_currency_symbol_falls_back_to_dollar() -> None:
