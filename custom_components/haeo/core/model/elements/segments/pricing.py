@@ -1,8 +1,4 @@
-"""Pricing segment that adds transfer costs to the objective.
-
-Identity transform with cost side-effect:
-    cost = power * price * period_duration
-"""
+"""Pricing segment — adds transfer cost proportional to power flow."""
 
 from typing import Any, Literal, NotRequired
 
@@ -28,14 +24,9 @@ class PricingSegmentSpec(TypedDict):
 
 
 class PricingSegment(Segment):
-    """Segment that adds transfer pricing costs.
+    """Adds transfer pricing cost proportional to power flow."""
 
-    Identity transform — returns input power unchanged.
-    Adds cost = power * price * period to the objective.
-    """
-
-    price_source_target: TrackedParam[NDArray[np.float64] | None] = TrackedParam()
-    price_target_source: TrackedParam[NDArray[np.float64] | None] = TrackedParam()
+    price: TrackedParam[NDArray[np.float64] | None] = TrackedParam()
 
     def __init__(
         self,
@@ -47,8 +38,16 @@ class PricingSegment(Segment):
         spec: PricingSegmentSpec,
         source_element: Element[Any],
         target_element: Element[Any],
+        power_in: HighspyArray,
+        direction: str,
     ) -> None:
-        """Initialize pricing segment."""
+        """Initialize pricing segment.
+
+        Args:
+            spec: Segment specification with directional prices.
+            direction: "st" or "ts" — determines which price to use.
+
+        """
         super().__init__(
             segment_id,
             n_periods,
@@ -56,32 +55,19 @@ class PricingSegment(Segment):
             solver,
             source_element=source_element,
             target_element=target_element,
+            power_in=power_in,
         )
-        self.price_source_target = broadcast_to_sequence(spec.get("price_source_target"), self._n_periods)
-        self.price_target_source = broadcast_to_sequence(spec.get("price_target_source"), self._n_periods)
-
-    def apply(self, power_st: HighspyArray, power_ts: HighspyArray) -> tuple[HighspyArray, HighspyArray]:
-        """Identity: return input unchanged. Cost computed from stored references."""
-        self._power_in_st = self._power_out_st = power_st
-        self._power_in_ts = self._power_out_ts = power_ts
-        return power_st, power_ts
+        if direction == "st":
+            self.price = broadcast_to_sequence(spec.get("price_source_target"), self._n_periods)
+        else:
+            self.price = broadcast_to_sequence(spec.get("price_target_source"), self._n_periods)
 
     @cost
     def transfer_cost(self) -> highs_linear_expression | None:
-        """Return cost expression for transfer pricing."""
-        cost_terms = []
-
-        if self.price_source_target is not None and self._power_in_st is not None:
-            cost_terms.append(Highs.qsum(self._power_in_st * self.price_source_target * self.periods))
-
-        if self.price_target_source is not None and self._power_in_ts is not None:
-            cost_terms.append(Highs.qsum(self._power_in_ts * self.price_target_source * self.periods))
-
-        if not cost_terms:
+        """Cost proportional to power flow."""
+        if self.price is None:
             return None
-        if len(cost_terms) == 1:
-            return cost_terms[0]
-        return Highs.qsum(cost_terms)
+        return Highs.qsum(self._power_in * self.price * self.periods)
 
 
 __all__ = ["PricingSegment", "PricingSegmentSpec"]

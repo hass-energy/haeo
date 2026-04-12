@@ -1,7 +1,4 @@
-"""Passthrough segment with no constraints or costs.
-
-Identity transform: returns input power unchanged.
-"""
+"""Passthrough segment — identity transform."""
 
 from typing import Any, Literal
 
@@ -23,7 +20,7 @@ class PassthroughSegmentSpec(TypedDict):
 
 
 class PassthroughSegment(Segment):
-    """Lossless segment that passes power through unchanged."""
+    """Identity segment with no constraints or costs."""
 
     def __init__(
         self,
@@ -35,9 +32,12 @@ class PassthroughSegment(Segment):
         spec: PassthroughSegmentSpec,
         source_element: Element[Any],
         target_element: Element[Any],
+        power_in: HighspyArray,
+        direction: str = "",
     ) -> None:
         """Initialize passthrough segment."""
         _ = spec
+        _ = direction
         super().__init__(
             segment_id,
             n_periods,
@@ -45,13 +45,8 @@ class PassthroughSegment(Segment):
             solver,
             source_element=source_element,
             target_element=target_element,
+            power_in=power_in,
         )
-
-    def apply(self, power_st: HighspyArray, power_ts: HighspyArray) -> tuple[HighspyArray, HighspyArray]:
-        """Identity: return input unchanged."""
-        self._power_in_st = self._power_out_st = power_st
-        self._power_in_ts = self._power_out_ts = power_ts
-        return power_st, power_ts
 
 
 __all__ = ["PassthroughSegment"]

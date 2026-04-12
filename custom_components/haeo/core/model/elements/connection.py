@@ -8,7 +8,7 @@ from collections import OrderedDict
 from typing import Any, Final, Literal, NotRequired, TypedDict
 
 from highspy import Highs
-from highspy.highs import HighspyArray, highs_cons
+from highspy.highs import HighspyArray
 import numpy as np
 from numpy.typing import NDArray
 
@@ -129,9 +129,9 @@ class Connection[TOutputName: str](Element[TOutputName]):
         self._segment_specs: OrderedDict[str, SegmentSpec] = OrderedDict(segments or {})
         self._segments: OrderedDict[str, Segment] = OrderedDict()
 
-        # Connection-owned power variables (created during initialization)
-        self._power_st: HighspyArray | None = None
-        self._power_ts: HighspyArray | None = None
+        # Outputs of each directional chain (set during initialization)
+        self._st_output: HighspyArray | None = None
+        self._ts_output: HighspyArray | None = None
 
     @property
     def segments(self) -> OrderedDict[str, Segment]:
@@ -146,164 +146,95 @@ class Connection[TOutputName: str](Element[TOutputName]):
             self._initialize_segments(source_element, target_element)
 
     def _initialize_segments(self, source_element: Element[Any], target_element: Element[Any]) -> None:
-        segment_specs = self._segment_specs
-        for idx, (segment_name, segment_spec) in enumerate(segment_specs.items()):
-            resolved_name = segment_name
-            if resolved_name in self._segments:
-                resolved_name = f"{resolved_name}_{idx}"
+        # Create the connection's power flow variables
+        self._power_st = self._solver.addVariables(
+            self.n_periods,
+            lb=0,
+            name_prefix=f"{self.name}_st_",
+            out_array=True,
+        )
+        self._power_ts = self._solver.addVariables(
+            self.n_periods,
+            lb=0,
+            name_prefix=f"{self.name}_ts_",
+            out_array=True,
+        )
 
-            segment_id = f"{self.name}_{resolved_name}"
-            segment = create_segment(
-                segment_id=segment_id,
+        # Build segment specs list
+        specs = list(self._segment_specs.items())
+        if not specs:
+            specs = [("passthrough", {"segment_type": "passthrough"})]
+
+        # Determine segment order for each direction
+        st_specs = specs
+        ts_specs = specs if self._mirror_segment_order else list(reversed(specs))
+
+        # Build source→target chain
+        flow = self._power_st
+        for segment_name, segment_spec in st_specs:
+            resolved = self._resolve_segment_name(segment_name, "st")
+            seg = create_segment(
+                segment_id=f"{self.name}_{resolved}",
                 n_periods=self.n_periods,
                 periods=self.periods,
                 solver=self._solver,
                 spec=segment_spec,
                 source_element=source_element,
                 target_element=target_element,
+                power_in=flow,
+                direction="st",
             )
-            self._segments[resolved_name] = segment
+            self._segments[resolved] = seg
+            flow = seg.power_out
+        self._st_output = flow
 
-        if not self._segments:
-            self._segments["passthrough"] = create_segment(
-                segment_id=f"{self.name}_passthrough",
+        # Build target→source chain
+        flow = self._power_ts
+        for segment_name, segment_spec in ts_specs:
+            resolved = self._resolve_segment_name(segment_name, "ts")
+            seg = create_segment(
+                segment_id=f"{self.name}_{resolved}",
                 n_periods=self.n_periods,
                 periods=self.periods,
                 solver=self._solver,
-                spec={"segment_type": "passthrough"},
+                spec=segment_spec,
                 source_element=source_element,
                 target_element=target_element,
+                power_in=flow,
+                direction="ts",
             )
+            self._segments[resolved] = seg
+            flow = seg.power_out
+        self._ts_output = flow
 
-        # Create the connection's power variables
-        self._power_st = self._solver.addVariables(self.n_periods, lb=0, name_prefix=f"{self.name}_st_", out_array=True)
-        self._power_ts = self._solver.addVariables(self.n_periods, lb=0, name_prefix=f"{self.name}_ts_", out_array=True)
-
-        # Chain segments: apply in source→target order
-        flow_st, flow_ts = self._power_st, self._power_ts
-        for segment in self._segment_list_st():
-            flow_st, _ = segment.apply(flow_st, flow_ts)
-
-        # Chain segments: apply in target→source order
-        flow_st2, flow_ts2 = self._power_st, self._power_ts
-        for segment in self._segment_list_ts():
-            _, flow_ts2 = segment.apply(flow_st2, flow_ts2)
-
-    @property
-    def _first(self) -> Segment:
-        """Return the first segment in the chain."""
-        return self._segment_list_st()[0]
-
-    @property
-    def _last(self) -> Segment:
-        """Return the last segment in the chain."""
-        return self._segment_list_st()[-1]
-
-    def _segment_list_st(self) -> list[Segment]:
-        """Return the segment list for source→target flow."""
-        if not self._segments:
-            msg = f"{type(self).__name__} has no segments configured"
-            raise RuntimeError(msg)
-        return list(self._segments.values())
-
-    def _segment_list_ts(self) -> list[Segment]:
-        """Return the segment list for target→source flow."""
-        segment_list = self._segment_list_st()
-        if self._mirror_segment_order:
-            return segment_list
-        return list(reversed(segment_list))
-
-    @property
-    def _first_ts(self) -> Segment:
-        """Return the first segment for target→source flow."""
-        return self._segment_list_ts()[0]
-
-    @property
-    def _last_ts(self) -> Segment:
-        """Return the last segment for target→source flow."""
-        return self._segment_list_ts()[-1]
-
-    @property
-    def source(self) -> str:
-        """Return the name of the source element."""
-        return self._source
-
-    @property
-    def target(self) -> str:
-        """Return the name of the target element."""
-        return self._target
+    def _resolve_segment_name(self, base_name: str, suffix: str) -> str:
+        """Generate a unique segment name."""
+        name = f"{base_name}_{suffix}"
+        counter = 0
+        while name in self._segments:
+            counter += 1
+            name = f"{base_name}_{suffix}_{counter}"
+        return name
 
     @property
     def power_source_target(self) -> HighspyArray:
-        """Return total power flowing from source to target (connection variable)."""
-        return self._power_st  # type: ignore[return-value]  # Set during _initialize_segments
+        """Total power flowing from source to target."""
+        return self._power_st
 
     @property
     def power_target_source(self) -> HighspyArray:
-        """Return total power flowing from target to source (connection variable)."""
-        return self._power_ts  # type: ignore[return-value]  # Set during _initialize_segments
+        """Total power flowing from target to source."""
+        return self._power_ts
 
     @property
     def power_into_source(self) -> HighspyArray:
-        """Return effective power flowing into the source element.
-
-        t→s output from last segment minus s→t input.
-        """
-        return self._last_ts.power_out_ts - self._power_st
+        """Effective power flowing into the source element."""
+        return self._ts_output - self._power_st
 
     @property
     def power_into_target(self) -> HighspyArray:
-        """Return effective power flowing into the target element.
-
-        s→t output from last segment minus t→s input.
-        """
-        return self._last.power_out_st - self._power_ts
-
-    # --- Constraint and cost delegation to segments ---
-
-    def constraints(self) -> dict[str, highs_cons | list[highs_cons]]:
-        """Return all constraints from this connection and its segments.
-
-        Calls constraints() on each segment to collect their reactive constraints,
-        then adds the connection's own constraints (segment linking).
-
-        Returns:
-            Dictionary mapping constraint method names to constraint objects
-
-        """
-        # Collect constraints from all segments
-        result: dict[str, highs_cons | list[highs_cons]] = {}
-        for segment in self._segments.values():
-            segment_constraints = segment.constraints()
-            for name, cons in segment_constraints.items():
-                # Prefix with segment id to avoid collisions
-                result[f"{segment.segment_id}_{name}"] = cons
-
-        # Add our own constraints (segment linking)
-        own_constraints = super().constraints()
-        result.update(own_constraints)
-
-        return result
-
-    def cost(self) -> Any:  # type: ignore[override]  # Intentionally override Element's @cost with segment delegation
-        """Return aggregated cost expression from this connection's segments.
-
-        Collects costs from all segments and aggregates them.
-
-        Note: Specialized connections can override to include their own costs.
-
-        Returns:
-            Aggregated cost expression or None if no costs
-
-        """
-        # Collect costs from all segments
-        costs = [segment_cost for segment in self._segments.values() if (segment_cost := segment.cost()) is not None]
-
-        if not costs:
-            return None
-        if len(costs) == 1:
-            return costs[0]
-        return Highs.qsum(costs)
+        """Effective power flowing into the target element."""
+        return self._st_output - self._power_ts
 
     # --- Segment linking constraints ---
 

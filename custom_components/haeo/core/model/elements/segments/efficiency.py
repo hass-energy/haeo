@@ -1,8 +1,4 @@
-"""Efficiency segment that applies losses to power flow.
-
-Transform: output = input * efficiency.
-Returns expressions, not new variables.
-"""
+"""Efficiency segment — applies losses to power flow."""
 
 from typing import Any, Literal, NotRequired
 
@@ -28,13 +24,9 @@ class EfficiencySegmentSpec(TypedDict):
 
 
 class EfficiencySegment(Segment):
-    """Segment that applies efficiency losses to power flow.
+    """Applies efficiency losses: output = input * efficiency."""
 
-    Transform: output = input * efficiency (an expression, not a new variable).
-    """
-
-    efficiency_source_target: TrackedParam[NDArray[np.float64] | None] = TrackedParam()
-    efficiency_target_source: TrackedParam[NDArray[np.float64] | None] = TrackedParam()
+    efficiency: TrackedParam[NDArray[np.float64] | None] = TrackedParam()
 
     def __init__(
         self,
@@ -46,8 +38,16 @@ class EfficiencySegment(Segment):
         spec: EfficiencySegmentSpec,
         source_element: Element[Any],
         target_element: Element[Any],
+        power_in: HighspyArray,
+        direction: str,
     ) -> None:
-        """Initialize efficiency segment."""
+        """Initialize efficiency segment.
+
+        Args:
+            spec: Segment specification with directional efficiencies.
+            direction: "st" or "ts" — determines which efficiency to use.
+
+        """
         super().__init__(
             segment_id,
             n_periods,
@@ -55,25 +55,19 @@ class EfficiencySegment(Segment):
             solver,
             source_element=source_element,
             target_element=target_element,
+            power_in=power_in,
         )
-        self.efficiency_source_target = broadcast_to_sequence(spec.get("efficiency_source_target"), self._n_periods)
-        self.efficiency_target_source = broadcast_to_sequence(spec.get("efficiency_target_source"), self._n_periods)
+        if direction == "st":
+            self.efficiency = broadcast_to_sequence(spec.get("efficiency_source_target"), self._n_periods)
+        else:
+            self.efficiency = broadcast_to_sequence(spec.get("efficiency_target_source"), self._n_periods)
 
-    def apply(self, power_st: HighspyArray, power_ts: HighspyArray) -> tuple[HighspyArray, HighspyArray]:
-        """Apply efficiency: output = input * efficiency."""
-        self._power_in_st = power_st
-        self._power_in_ts = power_ts
-
-        # Apply efficiency as expression (no new variables)
-        eff_st = self.efficiency_source_target
-        out_st = power_st if eff_st is None else power_st * eff_st
-
-        eff_ts = self.efficiency_target_source
-        out_ts = power_ts if eff_ts is None else power_ts * eff_ts
-
-        self._power_out_st = out_st
-        self._power_out_ts = out_ts
-        return out_st, out_ts
+    @property
+    def power_out(self) -> HighspyArray:
+        """Output with efficiency applied."""
+        if self.efficiency is None:
+            return self._power_in
+        return self._power_in * self.efficiency
 
 
 __all__ = ["EfficiencySegment", "EfficiencySegmentSpec"]

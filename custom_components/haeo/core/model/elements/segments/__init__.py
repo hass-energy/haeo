@@ -13,6 +13,7 @@ from dataclasses import dataclass
 from typing import Any, Final, Literal, TypeGuard
 
 from highspy import Highs
+from highspy.highs import HighspyArray
 import numpy as np
 from numpy.typing import NDArray
 
@@ -23,7 +24,6 @@ from .passthrough import PassthroughSegment, PassthroughSegmentSpec
 from .power_limit import (
     POWER_LIMIT_SOURCE_TARGET,
     POWER_LIMIT_TARGET_SOURCE,
-    POWER_LIMIT_TIME_SLICE,
     PowerLimitOutputName,
     PowerLimitSegment,
     PowerLimitSegmentSpec,
@@ -92,8 +92,16 @@ def create_segment(
     spec: SegmentSpec,
     source_element: Element[Any],
     target_element: Element[Any],
+    power_in: HighspyArray,
+    direction: str,
 ) -> Segment:
-    """Create a segment instance from a segment specification."""
+    """Create a segment instance from a segment specification.
+
+    Args:
+        direction: "st" or "ts" — determines which directional parameters to use.
+        power_in: Input power flow expression for this direction.
+
+    """
     segment_type = spec["segment_type"]
     entry = SEGMENTS[segment_type]
     return entry.factory(
@@ -104,13 +112,14 @@ def create_segment(
         spec=spec,
         source_element=source_element,
         target_element=target_element,
+        power_in=power_in,
+        direction=direction,
     )
 
 
 __all__ = [
     "POWER_LIMIT_SOURCE_TARGET",
     "POWER_LIMIT_TARGET_SOURCE",
-    "POWER_LIMIT_TIME_SLICE",
     "SEGMENTS",
     "EfficiencySegment",
     "EfficiencySegmentSpec",

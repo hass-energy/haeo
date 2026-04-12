@@ -129,39 +129,64 @@ def _solve_segment_scenario(case: SegmentScenario) -> dict[str, ExpectedValue]:
         target = DummyElement("target", periods, h)
     else:
         source, target = endpoint_factory(h, periods)
-    seg = case["factory"](
-        "seg",
+    # Create variables and pass to segment (single direction - "st" for testing)
+    n = len(periods)
+    power_st = h.addVariables(n, lb=0, name_prefix="test_st_", out_array=True)
+    power_ts = h.addVariables(n, lb=0, name_prefix="test_ts_", out_array=True)
+
+    # Create st-direction segment
+    seg_st = case["factory"](
+        "seg_st",
         len(periods),
         periods,
         h,
         spec=case["spec"],
         source_element=source,
         target_element=target,
+        power_in=power_st,
+        direction="st",
     )
+    # Create ts-direction segment
+    seg_ts = case["factory"](
+        "seg_ts",
+        len(periods),
+        periods,
+        h,
+        spec=case["spec"],
+        source_element=source,
+        target_element=target,
+        power_in=power_ts,
+        direction="ts",
+    )
+    seg_st.constraints()
+    seg_ts.constraints()
 
-    # Create variables (normally done by Connection) and apply segment
-    n = len(periods)
-    power_st = h.addVariables(n, lb=0, name_prefix="test_st_", out_array=True)
-    power_ts = h.addVariables(n, lb=0, name_prefix="test_ts_", out_array=True)
-    seg.apply(power_st, power_ts)
-
-    seg.constraints()
+    
 
     inputs = case["inputs"]
     if "power_in_st" in inputs:
-        h.addConstrs(seg.power_in_st == np.asarray(inputs["power_in_st"], dtype=np.float64))
+        h.addConstrs(seg_st.power_in == np.asarray(inputs["power_in_st"], dtype=np.float64))
     if "power_in_ts" in inputs:
-        h.addConstrs(seg.power_in_ts == np.asarray(inputs["power_in_ts"], dtype=np.float64))
+        h.addConstrs(seg_ts.power_in == np.asarray(inputs["power_in_ts"], dtype=np.float64))
 
     objective_terms = []
     if inputs.get("minimize_cost"):
-        cost = seg.cost()
-        assert cost is not None
-        objective_terms.append(cost)
+        # Collect costs from both direction segments
+        for s in (seg_st, seg_ts):
+            c = s.cost()
+            if c is not None:
+                objective_terms.append(c)
 
     maximize = inputs.get("maximize", {})
     for name, weight in maximize.items():
-        flow = getattr(seg, name)
+        if name.endswith("_st"):
+            attr = name.removesuffix("_st")
+            flow = getattr(seg_st, attr)
+        elif name.endswith("_ts"):
+            attr = name.removesuffix("_ts")
+            flow = getattr(seg_ts, attr)
+        else:
+            flow = getattr(seg_st, name)
         objective_terms.append(-float(weight) * Highs.qsum(flow))
 
     if objective_terms:
@@ -174,7 +199,15 @@ def _solve_segment_scenario(case: SegmentScenario) -> dict[str, ExpectedValue]:
         if key == "objective_value":
             outputs[key] = float(h.getObjectiveValue())
             continue
-        flow = getattr(seg, key)
+        # Map directional keys to the correct single-direction segment
+        if key.endswith("_st"):
+            attr = key.removesuffix("_st")
+            flow = getattr(seg_st, attr.replace("power_in", "power_in").replace("power_out", "power_out"))
+        elif key.endswith("_ts"):
+            attr = key.removesuffix("_ts")
+            flow = getattr(seg_ts, attr.replace("power_in", "power_in").replace("power_out", "power_out"))
+        else:
+            flow = getattr(seg_st, key)
         outputs[key] = tuple(float(value) for value in h.vals(flow))
     return outputs
 
@@ -351,10 +384,6 @@ def test_segment_outputs_and_cost_coverage() -> None:
     target = DummyElement("target", periods, h)
     segment = DummySegment("seg", len(periods), periods, h, source_element=source, target_element=target)
 
-    # Apply with dummy variables
-    power = h.addVariables(len(periods), lb=0, name_prefix="dummy_", out_array=True)
-    segment.apply(power, power)
-
     np.testing.assert_array_equal(segment.periods, periods)
 
     outputs = segment.outputs()
@@ -372,6 +401,7 @@ def test_soc_pricing_cost_none_without_prices() -> None:
     battery = DummyElement("battery", periods, h)
     battery.stored_energy = stored_energy  # type: ignore[attr-defined]
     target = DummyElement("target", periods, h)
+    pv = h.addVariables(len(periods), lb=0, name_prefix="soc_test_", out_array=True)
     segment = SocPricingSegment(
         "seg",
         len(periods),
@@ -380,11 +410,12 @@ def test_soc_pricing_cost_none_without_prices() -> None:
         spec={"segment_type": "soc_pricing"},
         source_element=battery,
         target_element=target,
+        power_in=pv,
+        direction="st",
     )
 
     # Apply with dummy variables
     pv = h.addVariables(len(periods), lb=0, name_prefix="soc_test_", out_array=True)
-    segment.apply(pv, pv)
 
     assert segment.cost() is None
 
@@ -395,6 +426,8 @@ def test_efficiency_segment_treats_none_as_unity_after_update() -> None:
     periods = np.asarray([1.0], dtype=np.float64)
     source = DummyElement("source", periods, h)
     target = DummyElement("target", periods, h)
+
+    pts = h.addVariables(len(periods), lb=0, name_prefix="eff_ts_", out_array=True)
     segment = EfficiencySegment(
         "seg",
         len(periods),
@@ -403,21 +436,16 @@ def test_efficiency_segment_treats_none_as_unity_after_update() -> None:
         spec={"segment_type": "efficiency", "efficiency_target_source": np.array([0.9], dtype=np.float64)},
         source_element=source,
         target_element=target,
+        power_in=pts,
+        direction="ts",
     )
-
-    # Create variables and apply
-    pst = h.addVariables(len(periods), lb=0, name_prefix="eff_st_", out_array=True)
-    pts = h.addVariables(len(periods), lb=0, name_prefix="eff_ts_", out_array=True)
-    segment.apply(pst, pts)
 
     # Simulate coordinator update path clearing optional efficiency.
     segment.efficiency_target_source = None
-    # Re-apply to update output expressions
-    segment.apply(pst, pts)
-    h.addConstrs(segment.power_in_ts == np.asarray([10.0], dtype=np.float64))
+    h.addConstrs(segment.power_in == np.asarray([10.0], dtype=np.float64))
     h.run()
 
-    np.testing.assert_allclose(h.vals(segment.power_out_ts), [10.0], rtol=1e-6, atol=1e-6)
+    np.testing.assert_allclose(h.vals(segment.power_out), [10.0], rtol=1e-6, atol=1e-6)
 
 
 def test_efficiency_segment_treats_missing_values_as_unity_both_directions() -> None:
@@ -426,24 +454,34 @@ def test_efficiency_segment_treats_missing_values_as_unity_both_directions() -> 
     periods = np.asarray([1.0], dtype=np.float64)
     source = DummyElement("source", periods, h)
     target = DummyElement("target", periods, h)
-    segment = EfficiencySegment(
-        "seg",
+    pst = h.addVariables(len(periods), lb=0, name_prefix="eff2_st_", out_array=True)
+    pts = h.addVariables(len(periods), lb=0, name_prefix="eff2_ts_", out_array=True)
+    seg_st = EfficiencySegment(
+        "seg_st",
         len(periods),
         periods,
         h,
         spec={"segment_type": "efficiency"},
         source_element=source,
         target_element=target,
+        power_in=pst,
+        direction="st",
+    )
+    seg_ts = EfficiencySegment(
+        "seg_ts",
+        len(periods),
+        periods,
+        h,
+        spec={"segment_type": "efficiency"},
+        source_element=source,
+        target_element=target,
+        power_in=pts,
+        direction="ts",
     )
 
-    # Create variables and apply
-    pst = h.addVariables(len(periods), lb=0, name_prefix="eff2_st_", out_array=True)
-    pts = h.addVariables(len(periods), lb=0, name_prefix="eff2_ts_", out_array=True)
-    segment.apply(pst, pts)
-
-    h.addConstrs(segment.power_in_st == np.asarray([7.5], dtype=np.float64))
-    h.addConstrs(segment.power_in_ts == np.asarray([3.5], dtype=np.float64))
+    h.addConstrs(seg_st.power_in == np.asarray([7.5], dtype=np.float64))
+    h.addConstrs(seg_ts.power_in == np.asarray([3.5], dtype=np.float64))
     h.run()
 
-    np.testing.assert_allclose(h.vals(segment.power_out_st), [7.5], rtol=1e-6, atol=1e-6)
-    np.testing.assert_allclose(h.vals(segment.power_out_ts), [3.5], rtol=1e-6, atol=1e-6)
+    np.testing.assert_allclose(h.vals(seg_st.power_out), [7.5], rtol=1e-6, atol=1e-6)
+    np.testing.assert_allclose(h.vals(seg_ts.power_out), [3.5], rtol=1e-6, atol=1e-6)
