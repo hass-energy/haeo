@@ -135,7 +135,6 @@ VALID_CASES: list[ConnectionTestCase] = [
                 "power_limit": {"segment_type": "power_limit", "max_power": 4.0, "fixed": True},
             },
         },
-        "inputs": None,
         "expected_outputs": {
             "connection_power": {"type": "power_flow", "unit": "kW", "values": (4.0, 4.0)},
         },

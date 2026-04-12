@@ -155,7 +155,7 @@ class Connection[TOutputName: str](Element[TOutputName]):
         For unidirectional connections, the source node loses power_in
         (power flows away from source into the connection).
         """
-        return -self._power_in
+        return -self.power_in
 
     @property
     def power_into_target(self) -> HighspyArray:
@@ -164,9 +164,7 @@ class Connection[TOutputName: str](Element[TOutputName]):
         For unidirectional connections, the target node gains power_out
         (power flows from the connection into the target).
         """
-        return self._power_out
-
-    # --- Constraint and cost delegation to segments ---
+        return self.power_out
 
     def constraints(self) -> dict[str, highs_cons | list[highs_cons]]:
         """Collect constraints from all segments."""
@@ -198,8 +196,8 @@ class Connection[TOutputName: str](Element[TOutputName]):
                 result[seg_name] = seg_outputs
         return result
 
-    @output
-    def connection_power(self) -> OutputData:
+    @output(name=CONNECTION_POWER)
+    def _connection_power_output(self) -> OutputData:
         """Power flow through this connection."""
         return OutputData(
             type=OutputType.POWER_FLOW,

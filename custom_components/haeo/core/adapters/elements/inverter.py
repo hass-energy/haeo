@@ -141,10 +141,11 @@ class InverterAdapter:
         inverter_outputs[INVERTER_DC_BUS_POWER_BALANCE] = expect_output_data(dc_bus[NODE_POWER_BALANCE])
 
         # Shadow prices from power_limit segments on each connection
-        for conn, output_name in (
+        shadow_price_mappings: tuple[tuple[Mapping[ModelOutputName, ModelOutputValue], InverterOutputName], ...] = (
             (forward_conn, INVERTER_MAX_POWER_DC_TO_AC_PRICE),
             (reverse_conn, INVERTER_MAX_POWER_AC_TO_DC_PRICE),
-        ):
+        )
+        for conn, output_name in shadow_price_mappings:
             if (
                 isinstance(segments_output := conn.get(CONNECTION_SEGMENTS), Mapping)
                 and isinstance(power_limit_outputs := segments_output.get("power_limit"), Mapping)

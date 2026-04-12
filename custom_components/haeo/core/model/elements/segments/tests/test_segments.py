@@ -282,6 +282,13 @@ def _solve_connection_scenario(case: ConnectionScenario) -> dict[str, ExpectedVa
     return outputs
 
 
+@pytest.mark.parametrize("case", test_data.SEGMENT_SCENARIOS, ids=lambda c: c["description"])
+def test_segment_scenarios(case: SegmentScenario) -> None:
+    """Segments should match expected inputs/outputs."""
+    outputs = _solve_segment_scenario(case)
+    _assert_expected_outputs(outputs, case["expected_outputs"])
+
+
 @pytest.mark.parametrize("case", test_data.CONNECTION_SEGMENT_SCENARIOS, ids=lambda c: c["description"])
 def test_connection_scenarios(case: ConnectionScenario) -> None:
     """Connections should match expected inputs/outputs."""

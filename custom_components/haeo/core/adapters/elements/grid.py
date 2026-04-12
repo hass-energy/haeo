@@ -172,10 +172,11 @@ class GridAdapter:
         )
 
         # Output the shadow prices from power_limit segments on each connection
-        for conn, output_name in (
+        shadow_price_mappings: tuple[tuple[Mapping[ModelOutputName, ModelOutputValue], GridOutputName], ...] = (
             (export_conn, GRID_POWER_MAX_EXPORT_PRICE),
             (import_conn, GRID_POWER_MAX_IMPORT_PRICE),
-        ):
+        )
+        for conn, output_name in shadow_price_mappings:
             if (
                 isinstance(segments_output := conn.get(CONNECTION_SEGMENTS), Mapping)
                 and isinstance(power_limit_outputs := segments_output.get("power_limit"), Mapping)

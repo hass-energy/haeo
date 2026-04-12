@@ -15,15 +15,14 @@ SCENARIOS: Sequence[SegmentScenario] = [
         "factory": PricingSegment,
         "spec": {
             "segment_type": "pricing",
-            "price_source_target": np.array([0.1, 0.1]),
-            "price_target_source": np.array([0.2, 0.2]),
+            "price": np.array([0.1, 0.1]),
         },
         "periods": np.array([1.0, 0.5]),
         "inputs": {
             "power_in_st": [10.0, 10.0],
-            "power_in_ts": [5.0, 5.0],
             "minimize_cost": True,
         },
-        "expected_outputs": {"objective_value": 3.0},
+        # cost = 10 * 0.1 * 1.0 + 10 * 0.1 * 0.5 = 1.0 + 0.5 = 1.5
+        "expected_outputs": {"objective_value": 1.5},
     },
 ]

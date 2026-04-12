@@ -134,16 +134,13 @@ class ConnectionAdapter:
         power_forward = expect_output_data(forward_conn[CONNECTION_POWER])
         power_reverse = expect_output_data(reverse_conn[CONNECTION_POWER])
 
-        if power_forward is not None:
-            connection_outputs[CONNECTION_POWER] = power_forward
-
-        if power_forward is not None and power_reverse is not None:
-            connection_outputs[CONNECTION_POWER_ACTIVE] = replace(
-                power_forward,
-                values=[fwd - rev for fwd, rev in zip(power_forward.values, power_reverse.values, strict=True)],
-                direction=None,
-                type=OutputType.POWER_FLOW,
-            )
+        connection_outputs[CONNECTION_POWER] = power_forward
+        connection_outputs[CONNECTION_POWER_ACTIVE] = replace(
+            power_forward,
+            values=[fwd - rev for fwd, rev in zip(power_forward.values, power_reverse.values, strict=True)],
+            direction=None,
+            type=OutputType.POWER_FLOW,
+        )
 
         return {CONNECTION_DEVICE_CONNECTION: connection_outputs}
 
