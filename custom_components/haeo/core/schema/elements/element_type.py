@@ -9,6 +9,7 @@ class ElementType(StrEnum):
     BATTERY = "battery"
     BATTERY_SECTION = "battery_section"
     CONNECTION = "connection"
+    EV = "ev"
     GRID = "grid"
     INVERTER = "inverter"
     LOAD = "load"

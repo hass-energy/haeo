@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 2
 requires-python = ">=3.13.2, <3.14"
 
 [[package]]
@@ -1062,6 +1062,7 @@ dependencies = [
 dev = [
     { name = "freezegun" },
     { name = "home-assistant-frontend" },
+    { name = "ical" },
     { name = "import-linter" },
     { name = "matplotlib" },
     { name = "mdformat" },
@@ -1099,6 +1100,7 @@ requires-dist = [
 dev = [
     { name = "freezegun", specifier = ">=1.5.2" },
     { name = "home-assistant-frontend", specifier = ">=20260107.1" },
+    { name = "ical", specifier = ">=13.2.2" },
     { name = "import-linter", specifier = ">=2.10" },
     { name = "matplotlib", specifier = ">=3.10.8" },
     { name = "mdformat", specifier = ">=0.7.22" },
@@ -1325,6 +1327,20 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/a7/c8/9cd2fcb670ba0e708bfdf95a1177b34ca62de2d3821df0773bc30559af80/huggingface_hub-1.2.3.tar.gz", hash = "sha256:4ba57f17004fd27bb176a6b7107df579865d4cde015112db59184c51f5602ba7", size = 614605, upload-time = "2025-12-12T15:31:42.161Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/df/8d/7ca723a884d55751b70479b8710f06a317296b1fa1c1dec01d0420d13e43/huggingface_hub-1.2.3-py3-none-any.whl", hash = "sha256:c9b7a91a9eedaa2149cdc12bdd8f5a11780e10de1f1024718becf9e41e5a4642", size = 520953, upload-time = "2025-12-12T15:31:40.339Z" },
+]
+
+[[package]]
+name = "ical"
+version = "13.2.2"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pydantic" },
+    { name = "python-dateutil" },
+    { name = "tzdata" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/5c/da/810acf4d830cfe6a7fc05da04d993106c832dc70d3de81567706d704e877/ical-13.2.2.tar.gz", hash = "sha256:160e4f33903d2a5b4e4c4304b2bf31f4b9050f86ff7c55dc937a998ac021f271", size = 130219, upload-time = "2026-03-16T04:22:45.204Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/8d/7c/50e9a34bc42dc0523b833cd0de090c1aa1ee98e9b40c327542cbf51c53f5/ical-13.2.2-py3-none-any.whl", hash = "sha256:a00ba88d9154cd9bf3609249f3bef65a90eb462c19137e3e546fdd237b89ea2d", size = 128235, upload-time = "2026-03-16T04:22:42.979Z" },
 ]
 
 [[package]]

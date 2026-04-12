@@ -18,6 +18,15 @@ Walkthroughs are generated from a live Home Assistant instance, so the screensho
 
     [:material-arrow-right: Sigenergy walkthrough](sigenergy-system.md)
 
+- :material-car-electric:{ .lg .middle } **Adding an EV**
+
+    ---
+
+    Add an electric vehicle with calendar-based trip scheduling to an existing system.
+    Covers base system setup, EV configuration, and weekday commute scheduling.
+
+    [:material-arrow-right: EV walkthrough](adding-an-ev.md)
+
 </div>
 
 ## Next steps

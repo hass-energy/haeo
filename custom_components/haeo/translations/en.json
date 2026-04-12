@@ -251,6 +251,68 @@
       },
       "abort": { "reconfigure_successful": "Configuration updated successfully" }
     },
+    "ev": {
+      "flow_title": "EV",
+      "entry_type": "EV",
+      "initiate_flow": { "user": "EV", "reconfigure": "EV" },
+      "step": {
+        "user": {
+          "title": "EV Configuration",
+          "description": "Configure your electric vehicle with battery details and charging rates",
+          "data": {
+            "capacity": "Battery capacity",
+            "connected": "Connected",
+            "connection": "Connection",
+            "current_soc": "Current state of charge",
+            "efficiency_source_target": "Discharge efficiency",
+            "efficiency_target_source": "Charge efficiency",
+            "energy_per_distance": "Energy per distance",
+            "max_charge_rate": "Max charge rate",
+            "max_discharge_rate": "Max discharge rate",
+            "max_power_source_target": "Max discharge power",
+            "max_power_target_source": "Max charge power",
+            "name": "EV Name",
+            "public_charging_price": "Public charging price"
+          },
+          "sections": {
+            "charging": {
+              "data": { "max_charge_rate": "Max charge rate", "max_discharge_rate": "Max discharge rate" },
+              "name": "Charging"
+            },
+            "common": { "data": { "connection": "Connection", "name": "EV Name" }, "name": "Common settings" },
+            "efficiency": {
+              "data": {
+                "efficiency_source_target": "Discharge efficiency",
+                "efficiency_target_source": "Charge efficiency"
+              },
+              "name": "Efficiency"
+            },
+            "power_limits": {
+              "data": {
+                "max_power_source_target": "Max discharge power",
+                "max_power_target_source": "Max charge power"
+              },
+              "name": "Power limits"
+            },
+            "public_charging": {
+              "data": { "public_charging_price": "Public charging price" },
+              "name": "Public charging"
+            },
+            "trip": { "data": { "connected": "Connected" }, "name": "Trip" },
+            "vehicle": {
+              "data": {
+                "capacity": "Battery capacity",
+                "current_soc": "Current state of charge",
+                "energy_per_distance": "Energy per distance"
+              },
+              "name": "Vehicle"
+            }
+          }
+        }
+      },
+      "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" },
+      "abort": { "reconfigure_successful": "Configuration updated successfully" }
+    },
     "grid": {
       "flow_title": "Grid",
       "entry_type": "Grid",
@@ -414,6 +476,7 @@
     "battery": { "name": "{name}" },
     "battery_section": { "name": "{name}" },
     "connection": { "name": "{name}" },
+    "ev": { "name": "{name}" },
     "grid": { "name": "{name}" },
     "inverter": { "name": "{name}" },
     "load": { "name": "{name}" },
@@ -442,6 +505,16 @@
       "connection_max_power_target_source": { "name": "Max target to source power" },
       "connection_price_source_target": { "name": "Source to target price" },
       "connection_price_target_source": { "name": "Target to source price" },
+      "ev_capacity": { "name": "Battery capacity" },
+      "ev_current_soc": { "name": "Current state of charge" },
+      "ev_efficiency_source_target": { "name": "Discharge efficiency" },
+      "ev_efficiency_target_source": { "name": "Charge efficiency" },
+      "ev_energy_per_distance": { "name": "Energy per distance" },
+      "ev_max_charge_rate": { "name": "Max charge rate" },
+      "ev_max_discharge_rate": { "name": "Max discharge rate" },
+      "ev_max_power_source_target": { "name": "Max discharge power" },
+      "ev_max_power_target_source": { "name": "Max charge power" },
+      "ev_public_charging_price": { "name": "Public charging price" },
       "grid_max_power_source_target": { "name": "Import limit" },
       "grid_max_power_target_source": { "name": "Export limit" },
       "grid_price_source_target": { "name": "Import price" },
@@ -481,6 +554,16 @@
       "connection_shadow_power_max_source_target": { "name": "Max {source} to {target} power shadow price" },
       "connection_shadow_power_max_target_source": { "name": "Max {target} to {source} power shadow price" },
       "connection_time_slice": { "name": "Time slice shadow price" },
+      "ev_energy_stored": { "name": "Energy stored" },
+      "ev_power_active": { "name": "Active power" },
+      "ev_power_balance": { "name": "Power balance shadow price" },
+      "ev_power_charge": { "name": "Charge power" },
+      "ev_power_discharge": { "name": "Discharge power" },
+      "ev_power_max_charge_price": { "name": "Max charge power shadow price" },
+      "ev_power_max_discharge_price": { "name": "Max discharge power shadow price" },
+      "ev_public_charge_power": { "name": "Public charge power" },
+      "ev_state_of_charge": { "name": "State of charge" },
+      "ev_trip_energy_required": { "name": "Trip energy required" },
       "grid_cost_import": { "name": "Import cost" },
       "grid_cost_net": { "name": "Net cost" },
       "grid_power_active": { "name": "Active power" },
