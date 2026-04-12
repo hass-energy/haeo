@@ -90,16 +90,24 @@ class GridAdapter:
                 "name": f"{config['name']}:connection",
                 "source": config["name"],
                 "target": extract_connection_target(config[CONF_CONNECTION]),
-                "segments": {
+                "segments_st": {
                     "power_limit": {
                         "segment_type": "power_limit",
-                        "max_power_source_target": config[SECTION_POWER_LIMITS].get(CONF_MAX_POWER_SOURCE_TARGET),
-                        "max_power_target_source": config[SECTION_POWER_LIMITS].get(CONF_MAX_POWER_TARGET_SOURCE),
+                        "max_power": config[SECTION_POWER_LIMITS].get(CONF_MAX_POWER_SOURCE_TARGET),
                     },
                     "pricing": {
                         "segment_type": "pricing",
-                        "price_source_target": config[SECTION_PRICING][CONF_PRICE_SOURCE_TARGET],
-                        "price_target_source": -config[SECTION_PRICING][CONF_PRICE_TARGET_SOURCE],
+                        "price": config[SECTION_PRICING][CONF_PRICE_SOURCE_TARGET],
+                    },
+                },
+                "segments_ts": {
+                    "power_limit": {
+                        "segment_type": "power_limit",
+                        "max_power": config[SECTION_POWER_LIMITS].get(CONF_MAX_POWER_TARGET_SOURCE),
+                    },
+                    "pricing": {
+                        "segment_type": "pricing",
+                        "price": -config[SECTION_PRICING][CONF_PRICE_TARGET_SOURCE],
                     },
                 },
             },

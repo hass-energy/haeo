@@ -181,25 +181,18 @@ class BatteryAdapter:
                     "charge_capacity_price": overcharge_cost,
                 }
 
-        segments: dict[str, SegmentSpec] = {
-            "efficiency": {
-                "segment_type": "efficiency",
-                "efficiency_source_target": efficiency_source_target,  # Battery to network (discharge)
-                "efficiency_target_source": efficiency_target_source,  # Network to battery (charge)
-            },
-            "power_limit": {
-                "segment_type": "power_limit",
-                "max_power_source_target": max_discharge,
-                "max_power_target_source": max_charge,
-            },
-            "pricing": {
-                "segment_type": "pricing",
-                "price_source_target": discharge_pricing,
-                "price_target_source": charge_early_incentive,
-            },
+        segments_st: dict[str, SegmentSpec] = {
+            "efficiency": {"segment_type": "efficiency", "efficiency": efficiency_source_target},
+            "power_limit": {"segment_type": "power_limit", "max_power": max_discharge},
+            "pricing": {"segment_type": "pricing", "price": discharge_pricing},
+        }
+        segments_ts: dict[str, SegmentSpec] = {
+            "efficiency": {"segment_type": "efficiency", "efficiency": efficiency_target_source},
+            "power_limit": {"segment_type": "power_limit", "max_power": max_charge},
+            "pricing": {"segment_type": "pricing", "price": charge_early_incentive},
         }
         if soc_pricing_spec is not None:
-            segments["soc_pricing"] = soc_pricing_spec
+            segments_st["soc_pricing"] = soc_pricing_spec
 
         elements.append(
             {
@@ -207,7 +200,8 @@ class BatteryAdapter:
                 "name": f"{name}:connection",
                 "source": name,
                 "target": extract_connection_target(config[CONF_CONNECTION]),
-                "segments": segments,
+                "segments_st": segments_st,
+                "segments_ts": segments_ts,
             }
         )
 

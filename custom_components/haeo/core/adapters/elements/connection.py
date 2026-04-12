@@ -32,12 +32,10 @@ from custom_components.haeo.core.schema.elements.connection import (
     CONF_EFFICIENCY_TARGET_SOURCE,
     CONF_MAX_POWER_SOURCE_TARGET,
     CONF_MAX_POWER_TARGET_SOURCE,
-    CONF_MIRROR_SEGMENT_ORDER,
     CONF_PRICE_SOURCE_TARGET,
     CONF_PRICE_TARGET_SOURCE,
     ELEMENT_TYPE,
     SECTION_ENDPOINTS,
-    SECTION_SEGMENT_ORDER,
     ConnectionConfigData,
 )
 from custom_components.haeo.core.schema.sections import SECTION_EFFICIENCY, SECTION_POWER_LIMITS, SECTION_PRICING
@@ -86,30 +84,38 @@ class ConnectionAdapter:
         """
         # Build segments using explicit None for missing parameters.
         # Efficiency values are ratios (0-1) after input normalization.
-        segment_order = config.get(SECTION_SEGMENT_ORDER, {})
-        mirror_segment_order = bool(segment_order.get(CONF_MIRROR_SEGMENT_ORDER, False))
         return [
             {
                 "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
                 "name": config["name"],
                 "source": extract_connection_target(config[SECTION_ENDPOINTS]["source"]),
                 "target": extract_connection_target(config[SECTION_ENDPOINTS]["target"]),
-                "mirror_segment_order": mirror_segment_order,
-                "segments": {
+                "segments_st": {
                     "efficiency": {
                         "segment_type": "efficiency",
-                        "efficiency_source_target": config[SECTION_EFFICIENCY].get(CONF_EFFICIENCY_SOURCE_TARGET),
-                        "efficiency_target_source": config[SECTION_EFFICIENCY].get(CONF_EFFICIENCY_TARGET_SOURCE),
+                        "efficiency": config[SECTION_EFFICIENCY].get(CONF_EFFICIENCY_SOURCE_TARGET),
                     },
                     "power_limit": {
                         "segment_type": "power_limit",
-                        "max_power_source_target": config[SECTION_POWER_LIMITS].get(CONF_MAX_POWER_SOURCE_TARGET),
-                        "max_power_target_source": config[SECTION_POWER_LIMITS].get(CONF_MAX_POWER_TARGET_SOURCE),
+                        "max_power": config[SECTION_POWER_LIMITS].get(CONF_MAX_POWER_SOURCE_TARGET),
                     },
                     "pricing": {
                         "segment_type": "pricing",
-                        "price_source_target": config[SECTION_PRICING].get(CONF_PRICE_SOURCE_TARGET),
-                        "price_target_source": config[SECTION_PRICING].get(CONF_PRICE_TARGET_SOURCE),
+                        "price": config[SECTION_PRICING].get(CONF_PRICE_SOURCE_TARGET),
+                    },
+                },
+                "segments_ts": {
+                    "efficiency": {
+                        "segment_type": "efficiency",
+                        "efficiency": config[SECTION_EFFICIENCY].get(CONF_EFFICIENCY_TARGET_SOURCE),
+                    },
+                    "power_limit": {
+                        "segment_type": "power_limit",
+                        "max_power": config[SECTION_POWER_LIMITS].get(CONF_MAX_POWER_TARGET_SOURCE),
+                    },
+                    "pricing": {
+                        "segment_type": "pricing",
+                        "price": config[SECTION_PRICING].get(CONF_PRICE_TARGET_SOURCE),
                     },
                 },
             }

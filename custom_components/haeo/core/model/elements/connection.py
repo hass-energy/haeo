@@ -31,8 +31,8 @@ class ConnectionElementConfig(TypedDict):
     name: str
     source: str
     target: str
-    mirror_segment_order: NotRequired[bool]
-    segments: NotRequired[dict[str, SegmentSpec]]
+    segments_st: NotRequired[dict[str, SegmentSpec]]
+    segments_ts: NotRequired[dict[str, SegmentSpec]]
 
 
 # Minimum segments needed before linking is required
@@ -92,8 +92,8 @@ class Connection[TOutputName: str](Element[TOutputName]):
         solver: Highs,
         source: str,
         target: str,
-        segments: dict[str, SegmentSpec] | None = None,
-        mirror_segment_order: bool = False,
+        segments_st: dict[str, SegmentSpec] | None = None,
+        segments_ts: dict[str, SegmentSpec] | None = None,
         output_names: frozenset[TOutputName] | None = None,
     ) -> None:
         """Initialize a connection.
@@ -104,13 +104,11 @@ class Connection[TOutputName: str](Element[TOutputName]):
             solver: The HiGHS solver instance for creating variables and constraints
             source: Name of the source element
             target: Name of the target element
-            segments: Dict of segment names to SegmentSpec TypedDicts.
-                Each spec has segment_type plus segment-specific parameters.
-            mirror_segment_order: Use the same segment order for both flow directions.
+            segments_st: Segment specs for source→target direction.
+            segments_ts: Segment specs for target→source direction.
             output_names: Output names for this connection type
 
         """
-        # Use provided output_names or default to CONNECTION_OUTPUT_NAMES
         actual_output_names: frozenset[Any] = output_names if output_names is not None else CONNECTION_OUTPUT_NAMES
         super().__init__(
             name=name,
@@ -122,10 +120,9 @@ class Connection[TOutputName: str](Element[TOutputName]):
         self._target = target
         self._source_element: Element[Any] | None = None
         self._target_element: Element[Any] | None = None
-        self._mirror_segment_order = mirror_segment_order
 
-        # Segments stored in OrderedDict for name-based and index-based access
-        self._segment_specs: OrderedDict[str, SegmentSpec] = OrderedDict(segments or {})
+        self._specs_st: OrderedDict[str, SegmentSpec] = OrderedDict(segments_st or {})
+        self._specs_ts: OrderedDict[str, SegmentSpec] = OrderedDict(segments_ts or {})
         self._segments: OrderedDict[str, Segment] = OrderedDict()
 
         # Outputs of each directional chain (set during initialization)
@@ -154,17 +151,58 @@ class Connection[TOutputName: str](Element[TOutputName]):
         if not self._segments:
             self._initialize_segments(source_element, target_element)
 
-    # Mapping from directional spec keys to unified segment keys
-    _DIRECTIONAL_KEYS: dict[str, tuple[str, str]] = {
-        # (st_key, ts_key) -> unified_key
-        "price_source_target": ("price", "st"),
-        "price_target_source": ("price", "ts"),
-        "max_power_source_target": ("max_power", "st"),
-        "max_power_target_source": ("max_power", "ts"),
-        "efficiency_source_target": ("efficiency", "st"),
-        "efficiency_target_source": ("efficiency", "ts"),
-    }
+    def _initialize_segments(self, source_element: Element[Any], target_element: Element[Any]) -> None:
+        self._power_st = self._solver.addVariables(
+            self.n_periods,
+            lb=0,
+            name_prefix=f"{self.name}_st_",
+            out_array=True,
+        )
+        self._power_ts = self._solver.addVariables(
+            self.n_periods,
+            lb=0,
+            name_prefix=f"{self.name}_ts_",
+            out_array=True,
+        )
 
+        # Build source→target chain
+        st_specs = list(self._specs_st.items()) or [("passthrough", {"segment_type": "passthrough"})]
+        flow = self._power_st
+        for seg_name, seg_spec in st_specs:
+            seg = create_segment(
+                segment_id=f"{self.name}_{seg_name}",
+                n_periods=self.n_periods,
+                periods=self.periods,
+                solver=self._solver,
+                spec=seg_spec,
+                source_element=source_element,
+                target_element=target_element,
+                power_in=flow,
+            )
+            self._segments[seg_name] = seg
+            flow = seg.power_out
+        self._st_output = flow
+
+        # Build target→source chain
+        ts_specs = list(self._specs_ts.items()) or [("passthrough", {"segment_type": "passthrough"})]
+        flow = self._power_ts
+        for seg_name, seg_spec in ts_specs:
+            seg = create_segment(
+                segment_id=f"{self.name}_{seg_name}",
+                n_periods=self.n_periods,
+                periods=self.periods,
+                solver=self._solver,
+                spec=seg_spec,
+                source_element=source_element,
+                target_element=target_element,
+                power_in=flow,
+            )
+            self._segments[seg_name] = seg
+            flow = seg.power_out
+        self._ts_output = flow
+
+    @property
+    @property
     @staticmethod
     def _resolve_spec_for_direction(spec: dict[str, Any], direction: str) -> dict[str, Any]:
         """Resolve directional spec keys into unified keys for a specific direction."""

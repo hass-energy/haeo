@@ -95,17 +95,19 @@ class InverterAdapter:
                 "name": f"{config['name']}:connection",
                 "source": config["name"],
                 "target": extract_connection_target(config[CONF_CONNECTION]),
-                "segments": {
+                "segments_st": {
                     "efficiency": {
                         "segment_type": "efficiency",
-                        "efficiency_source_target": config[SECTION_EFFICIENCY].get(CONF_EFFICIENCY_SOURCE_TARGET),
-                        "efficiency_target_source": config[SECTION_EFFICIENCY].get(CONF_EFFICIENCY_TARGET_SOURCE),
+                        "efficiency": config[SECTION_EFFICIENCY].get(CONF_EFFICIENCY_SOURCE_TARGET),
                     },
-                    "power_limit": {
-                        "segment_type": "power_limit",
-                        "max_power_source_target": max_power_source_target,
-                        "max_power_target_source": max_power_target_source,
+                    "power_limit": {"segment_type": "power_limit", "max_power": max_power_source_target},
+                },
+                "segments_ts": {
+                    "efficiency": {
+                        "segment_type": "efficiency",
+                        "efficiency": config[SECTION_EFFICIENCY].get(CONF_EFFICIENCY_TARGET_SOURCE),
                     },
+                    "power_limit": {"segment_type": "power_limit", "max_power": max_power_target_source},
                 },
             },
         ]
