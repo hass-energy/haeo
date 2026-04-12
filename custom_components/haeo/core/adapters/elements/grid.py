@@ -16,7 +16,7 @@ from custom_components.haeo.core.model.elements.connection import (
     CONNECTION_POWER,
     CONNECTION_SEGMENTS,
 )
-from custom_components.haeo.core.model.elements.segments import POWER_LIMIT_SOURCE_TARGET, POWER_LIMIT_TARGET_SOURCE
+
 from custom_components.haeo.core.model.output_data import OutputData
 from custom_components.haeo.core.model.util import broadcast_to_sequence
 from custom_components.haeo.core.schema import extract_connection_target
@@ -175,16 +175,15 @@ class GridAdapter:
             type=OutputType.COST, unit="$", values=net_cumsum, direction=None, state_last=True
         )
 
-        # Output the shadow prices from power_limit segment
-        if isinstance(segments_output := import_conn.get(CONNECTION_SEGMENTS), Mapping) and isinstance(
-            power_limit_outputs := segments_output.get("power_limit"), Mapping
+        # Output the shadow prices from power_limit segments on each connection
+        for conn, output_name in (
+            (export_conn, GRID_POWER_MAX_EXPORT_PRICE),
+            (import_conn, GRID_POWER_MAX_IMPORT_PRICE),
         ):
-            shadow_mappings: tuple[tuple[GridOutputName, str], ...] = (
-                (GRID_POWER_MAX_EXPORT_PRICE, POWER_LIMIT_TARGET_SOURCE),
-                (GRID_POWER_MAX_IMPORT_PRICE, POWER_LIMIT_SOURCE_TARGET),
-            )
-            for output_name, shadow_key in shadow_mappings:
-                if (shadow := expect_output_data(power_limit_outputs.get(shadow_key))) is not None:
+            if isinstance(segments_output := conn.get(CONNECTION_SEGMENTS), Mapping) and isinstance(
+                power_limit_outputs := segments_output.get("power_limit"), Mapping
+            ):
+                if (shadow := expect_output_data(power_limit_outputs.get("power_limit"))) is not None:
                     grid_outputs[output_name] = shadow
 
         return {GRID_DEVICE_GRID: grid_outputs}

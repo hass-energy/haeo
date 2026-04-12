@@ -88,10 +88,10 @@ def test_connect_entities() -> None:
     assert connection.name == "battery1_to_grid1"
     assert connection.source == "battery1"
     assert connection.target == "grid1"
-    assert connection.power_source_target is not None
-    assert connection.power_target_source is not None
-    assert len(connection.power_source_target) == CONNECTION_PERIODS
-    assert len(connection.power_target_source) == CONNECTION_PERIODS
+    assert connection.power_in is not None
+    assert connection.power_out is not None
+    assert len(connection.power_in) == CONNECTION_PERIODS
+    assert len(connection.power_out) == CONNECTION_PERIODS
     # Check that the connection element was added
     connection_name = "battery1_to_grid1"
     assert connection_name in network.elements

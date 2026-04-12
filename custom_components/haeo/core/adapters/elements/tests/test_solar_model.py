@@ -66,14 +66,8 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "segments": {
                     "power_limit": {
                         "segment_type": "power_limit",
-                        "max_power_source_target": [2.0, 1.5],
-                        "max_power_target_source": 0.0,
+                        "max_power": [2.0, 1.5],
                         "fixed": True,
-                    },
-                    "pricing": {
-                        "segment_type": "pricing",
-                        "price_source_target": [0.15, 0.15],
-                        "price_target_source": None,
                     },
                 },
             },
@@ -93,7 +87,7 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
                 ),
                 connection.CONNECTION_SEGMENTS: {
                     "power_limit": {
-                        "source_target": OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.02,))
+                        "power_limit": OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.02,))
                     }
                 },
             }
@@ -115,7 +109,7 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
                 ),
                 connection.CONNECTION_SEGMENTS: {
                     "power_limit": {
-                        "source_target": OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.0,))
+                        "power_limit": OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.0,))
                     }
                 },
             }

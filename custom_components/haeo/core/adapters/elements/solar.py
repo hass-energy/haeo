@@ -10,7 +10,7 @@ from custom_components.haeo.core.model import ModelElementConfig, ModelOutputNam
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE
 from custom_components.haeo.core.model.elements.connection import CONNECTION_POWER, CONNECTION_SEGMENTS
-from custom_components.haeo.core.model.elements.segments import POWER_LIMIT_SOURCE_TARGET
+
 from custom_components.haeo.core.model.output_data import OutputData
 from custom_components.haeo.core.schema import extract_connection_target
 from custom_components.haeo.core.schema.elements import ElementType
@@ -94,7 +94,7 @@ class SolarAdapter:
         if (
             isinstance(segments_output := connection.get(CONNECTION_SEGMENTS), Mapping)
             and isinstance(power_limit_outputs := segments_output.get("power_limit"), Mapping)
-            and (shadow := expect_output_data(power_limit_outputs.get(POWER_LIMIT_SOURCE_TARGET))) is not None
+            and (shadow := expect_output_data(power_limit_outputs.get("power_limit"))) is not None
         ):
             solar_outputs[SOLAR_FORECAST_LIMIT] = shadow
 

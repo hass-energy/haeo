@@ -57,7 +57,7 @@ CREATE_CASES: Sequence[CreateCase] = [
             connection=as_connection_target("network"),
             power_limits={
                 "max_power_source_target": np.array([10.0]),
-                "max_power_target_source": np.array([10.0]),
+                "max_power_target_source": np.array([8.0]),
             },
             efficiency={
                 "efficiency_source_target": np.array(1.0),
@@ -72,16 +72,18 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "source": "inverter_main",
                 "target": "network",
                 "segments": {
-                    "efficiency": {
-                        "segment_type": "efficiency",
-                        "efficiency_source_target": 1.0,
-                        "efficiency_target_source": 1.0,
-                    },
-                    "power_limit": {
-                        "segment_type": "power_limit",
-                        "max_power_source_target": [10.0],
-                        "max_power_target_source": [10.0],
-                    },
+                    "efficiency": {"segment_type": "efficiency", "efficiency": 1.0},
+                    "power_limit": {"segment_type": "power_limit", "max_power": [10.0]},
+                },
+            },
+            {
+                "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
+                "name": "inverter_main:reverse",
+                "source": "network",
+                "target": "inverter_main",
+                "segments": {
+                    "efficiency": {"segment_type": "efficiency", "efficiency": 1.0},
+                    "power_limit": {"segment_type": "power_limit", "max_power": [8.0]},
                 },
             },
         ],
@@ -109,16 +111,18 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "source": "inverter_simple",
                 "target": "network",
                 "segments": {
-                    "efficiency": {
-                        "segment_type": "efficiency",
-                        "efficiency_source_target": 1.0,
-                        "efficiency_target_source": 1.0,
-                    },
-                    "power_limit": {
-                        "segment_type": "power_limit",
-                        "max_power_source_target": [10.0],
-                        "max_power_target_source": [10.0],
-                    },
+                    "efficiency": {"segment_type": "efficiency", "efficiency": 1.0},
+                    "power_limit": {"segment_type": "power_limit", "max_power": [10.0]},
+                },
+            },
+            {
+                "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
+                "name": "inverter_simple:reverse",
+                "source": "network",
+                "target": "inverter_simple",
+                "segments": {
+                    "efficiency": {"segment_type": "efficiency", "efficiency": 1.0},
+                    "power_limit": {"segment_type": "power_limit", "max_power": [10.0]},
                 },
             },
         ],
@@ -138,13 +142,19 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
                 connection.CONNECTION_POWER: OutputData(
                     type=OutputType.POWER_FLOW, unit="kW", values=(5.0,), direction="+"
                 ),
+                connection.CONNECTION_SEGMENTS: {
+                    "power_limit": {
+                        "power_limit": OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.01,)),
+                    }
+                },
+            },
+            "inverter_main:reverse": {
                 connection.CONNECTION_POWER: OutputData(
                     type=OutputType.POWER_FLOW, unit="kW", values=(3.0,), direction="-"
                 ),
                 connection.CONNECTION_SEGMENTS: {
                     "power_limit": {
-                        "source_target": OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.01,)),
-                        "target_source": OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.02,)),
+                        "power_limit": OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.02,)),
                     }
                 },
             },

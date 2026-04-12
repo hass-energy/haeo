@@ -72,20 +72,22 @@ CREATE_CASES: Sequence[CreateCase] = [
             {"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "grid_main", "is_source": True, "is_sink": True},
             {
                 "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
-                "name": "grid_main:connection",
+                "name": "grid_main:import",
                 "source": "grid_main",
                 "target": "network",
                 "segments": {
-                    "power_limit": {
-                        "segment_type": "power_limit",
-                        "max_power_source_target": [5.0],
-                        "max_power_target_source": [3.0],
-                    },
-                    "pricing": {
-                        "segment_type": "pricing",
-                        "price_source_target": [0.1],
-                        "price_target_source": [-0.05],
-                    },
+                    "power_limit": {"segment_type": "power_limit", "max_power": [5.0]},
+                    "pricing": {"segment_type": "pricing", "price": [0.1]},
+                },
+            },
+            {
+                "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
+                "name": "grid_main:export",
+                "source": "network",
+                "target": "grid_main",
+                "segments": {
+                    "power_limit": {"segment_type": "power_limit", "max_power": [3.0]},
+                    "pricing": {"segment_type": "pricing", "price": [-0.05]},
                 },
             },
         ],
@@ -108,27 +110,28 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
             power_limits={},
         ),
         "model_outputs": {
-            "grid_main:connection": {
-                connection.CONNECTION_POWER: OutputData(
-                    type=OutputType.POWER_FLOW, unit="kW", values=(2.0,), direction="-"
-                ),
+            "grid_main:import": {
                 connection.CONNECTION_POWER: OutputData(
                     type=OutputType.POWER_FLOW, unit="kW", values=(5.0,), direction="+"
                 ),
                 connection.CONNECTION_SEGMENTS: {
                     "power_limit": {
-                        "target_source": OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.01,)),
-                        "source_target": OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.02,)),
+                        "power_limit": OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.02,)),
                     }
                 },
-            }
+            },
+            "grid_main:export": {
+                connection.CONNECTION_POWER: OutputData(
+                    type=OutputType.POWER_FLOW, unit="kW", values=(2.0,), direction="-"
+                ),
+                connection.CONNECTION_SEGMENTS: {
+                    "power_limit": {
+                        "power_limit": OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.01,)),
+                    }
+                },
+            },
         },
-        "periods": np.array([1.0]),  # 1 hour period
-        # Cost/revenue calculations:
-        # import_cost = 5.0 kW x $0.10/kWh x 1h = $0.50
-        # export_revenue = 2.0 kW x $0.05/kWh x 1h = $0.10 (positive!)
-        # net_cost = $0.50 - $0.10 = $0.40
-        # Cumulative values in chronological order
+        "periods": np.array([1.0]),
         "outputs": {
             GRID_DEVICE_GRID: {
                 GRID_POWER_EXPORT: OutputData(type=OutputType.POWER, unit="kW", values=(2.0,), direction="-"),
@@ -162,20 +165,18 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
             power_limits={},
         ),
         "model_outputs": {
-            "grid_multi:connection": {
-                connection.CONNECTION_POWER: OutputData(
-                    type=OutputType.POWER_FLOW, unit="kW", values=(0.0, 0.0), direction="-"
-                ),
+            "grid_multi:import": {
                 connection.CONNECTION_POWER: OutputData(
                     type=OutputType.POWER_FLOW, unit="kW", values=(5.0, 3.0), direction="+"
                 ),
-            }
+            },
+            "grid_multi:export": {
+                connection.CONNECTION_POWER: OutputData(
+                    type=OutputType.POWER_FLOW, unit="kW", values=(0.0, 0.0), direction="-"
+                ),
+            },
         },
-        "periods": np.array([0.5, 0.5]),  # 30 min periods
-        # Cost/revenue calculations (per period, then cumulative):
-        # Period 1: import_cost = 5.0 kW x $0.10/kWh x 0.5h = $0.25
-        # Period 2: import_cost = 3.0 kW x $0.20/kWh x 0.5h = $0.30
-        # Cumulative: [$0.25, $0.55]
+        "periods": np.array([0.5, 0.5]),
         "outputs": {
             GRID_DEVICE_GRID: {
                 GRID_POWER_EXPORT: OutputData(type=OutputType.POWER, unit="kW", values=(0.0, 0.0), direction="-"),

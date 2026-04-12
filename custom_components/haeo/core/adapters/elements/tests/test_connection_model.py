@@ -8,14 +8,16 @@ import pytest
 
 from custom_components.haeo.core.adapters.elements.connection import (
     CONNECTION_DEVICE_CONNECTION,
-    CONNECTION_POWER_ACTIVE,
     CONNECTION_POWER,
+    CONNECTION_POWER_ACTIVE,
 )
 from custom_components.haeo.core.adapters.elements.tests.normalize import normalize_for_compare
 from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES
 from custom_components.haeo.core.model import ModelOutputName, ModelOutputValue
 from custom_components.haeo.core.model.const import OutputType
-from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_CONNECTION
+from custom_components.haeo.core.model.elements import (
+    MODEL_ELEMENT_TYPE_CONNECTION,
+)
 from custom_components.haeo.core.model.elements import connection as model_connection
 from custom_components.haeo.core.model.output_data import OutputData
 from custom_components.haeo.core.schema import as_connection_target
@@ -45,83 +47,79 @@ CREATE_CASES: Sequence[CreateCase] = [
         "description": "Connection with all optional fields",
         "data": ConnectionConfigData(
             element_type=ElementType.CONNECTION,
-            name="c1",
+            name="conn",
             endpoints={"source": as_connection_target("s"), "target": as_connection_target("t")},
             power_limits={
                 "max_power_source_target": np.array([4.0]),
                 "max_power_target_source": np.array([2.0]),
             },
-            pricing={
-                "price_source_target": np.array([0.1]),
-                "price_target_source": np.array([0.05]),
-            },
             efficiency={
                 "efficiency_source_target": np.array([0.95]),
                 "efficiency_target_source": np.array([0.90]),
             },
+            pricing={
+                "price_source_target": np.array([0.1]),
+                "price_target_source": np.array([0.05]),
+            },
         ),
         "model": [
             {
                 "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
-                "name": "c1",
+                "name": "conn:forward",
                 "source": "s",
                 "target": "t",
-                "mirror_segment_order": False,
                 "segments": {
-                    "efficiency": {
-                        "segment_type": "efficiency",
-                        "efficiency_source_target": [0.95],
-                        "efficiency_target_source": [0.90],
-                    },
-                    "power_limit": {
-                        "segment_type": "power_limit",
-                        "max_power_source_target": [4.0],
-                        "max_power_target_source": [2.0],
-                    },
-                    "pricing": {
-                        "segment_type": "pricing",
-                        "price_source_target": [0.1],
-                        "price_target_source": [0.05],
-                    },
+                    "efficiency": {"segment_type": "efficiency", "efficiency": [0.95]},
+                    "power_limit": {"segment_type": "power_limit", "max_power": [4.0]},
+                    "pricing": {"segment_type": "pricing", "price": [0.1]},
                 },
-            }
+            },
+            {
+                "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
+                "name": "conn:reverse",
+                "source": "t",
+                "target": "s",
+                "segments": {
+                    "efficiency": {"segment_type": "efficiency", "efficiency": [0.90]},
+                    "power_limit": {"segment_type": "power_limit", "max_power": [2.0]},
+                    "pricing": {"segment_type": "pricing", "price": [0.05]},
+                },
+            },
         ],
     },
     {
-        "description": "Connection without optional fields",
+        "description": "Connection with minimal fields",
         "data": ConnectionConfigData(
             element_type=ElementType.CONNECTION,
-            name="c_min",
+            name="conn_min",
             endpoints={"source": as_connection_target("s"), "target": as_connection_target("t")},
             power_limits={},
-            pricing={},
             efficiency={},
+            pricing={},
         ),
         "model": [
             {
                 "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
-                "name": "c_min",
+                "name": "conn_min:forward",
                 "source": "s",
                 "target": "t",
-                "mirror_segment_order": False,
                 "segments": {
-                    "efficiency": {
-                        "segment_type": "efficiency",
-                        "efficiency_source_target": None,
-                        "efficiency_target_source": None,
-                    },
-                    "power_limit": {
-                        "segment_type": "power_limit",
-                        "max_power_source_target": None,
-                        "max_power_target_source": None,
-                    },
-                    "pricing": {
-                        "segment_type": "pricing",
-                        "price_source_target": None,
-                        "price_target_source": None,
-                    },
+                    "efficiency": {"segment_type": "efficiency", "efficiency": None},
+                    "power_limit": {"segment_type": "power_limit", "max_power": None},
+                    "pricing": {"segment_type": "pricing", "price": None},
                 },
-            }
+            },
+            {
+                "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
+                "name": "conn_min:reverse",
+                "source": "t",
+                "target": "s",
+                "segments": {
+                    "efficiency": {"segment_type": "efficiency", "efficiency": None},
+                    "power_limit": {"segment_type": "power_limit", "max_power": None},
+                    "pricing": {"segment_type": "pricing", "price": None},
+                },
+            },
         ],
     },
 ]
@@ -132,21 +130,16 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
         "description": "Connection with all optional fields",
         "name": "c1",
         "model_outputs": {
-            "c1": {
+            "c1:forward": {
                 model_connection.CONNECTION_POWER: OutputData(
                     type=OutputType.POWER_FLOW, unit="kW", values=(5.0,), direction="+"
                 ),
+            },
+            "c1:reverse": {
                 model_connection.CONNECTION_POWER: OutputData(
                     type=OutputType.POWER_FLOW, unit="kW", values=(7.0,), direction="-"
                 ),
-                model_connection.CONNECTION_SEGMENTS: {
-                    "power_limit": {
-                        "source_target": OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.01,)),
-                        "target_source": OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.02,)),
-                        "time_slice": OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.001,)),
-                    }
-                },
-            }
+            },
         },
         "outputs": {
             CONNECTION_DEVICE_CONNECTION: {
@@ -161,14 +154,16 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
         "description": "Connection without optional fields",
         "name": "c_min",
         "model_outputs": {
-            "c_min": {
+            "c_min:forward": {
                 model_connection.CONNECTION_POWER: OutputData(
                     type=OutputType.POWER_FLOW, unit="kW", values=(5.0,), direction="+"
                 ),
+            },
+            "c_min:reverse": {
                 model_connection.CONNECTION_POWER: OutputData(
                     type=OutputType.POWER_FLOW, unit="kW", values=(7.0,), direction="-"
                 ),
-            }
+            },
         },
         "outputs": {
             CONNECTION_DEVICE_CONNECTION: {

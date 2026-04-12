@@ -14,7 +14,7 @@ from custom_components.haeo.core.model.elements.connection import (
     CONNECTION_SEGMENTS,
 )
 from custom_components.haeo.core.model.elements.node import NODE_POWER_BALANCE
-from custom_components.haeo.core.model.elements.segments import POWER_LIMIT_SOURCE_TARGET, POWER_LIMIT_TARGET_SOURCE
+
 from custom_components.haeo.core.model.output_data import OutputData
 from custom_components.haeo.core.schema import extract_connection_target
 from custom_components.haeo.core.schema.elements import ElementType
@@ -144,17 +144,17 @@ class InverterAdapter:
         # DC bus power balance shadow price
         inverter_outputs[INVERTER_DC_BUS_POWER_BALANCE] = expect_output_data(dc_bus[NODE_POWER_BALANCE])
 
-        # Shadow prices from power_limit segment
-        if isinstance(segments_output := forward_conn.get(CONNECTION_SEGMENTS), Mapping) and isinstance(
-            power_limit_outputs := segments_output.get("power_limit"), Mapping
+        # Shadow prices from power_limit segments on each connection
+        for conn, output_name in (
+            (forward_conn, INVERTER_MAX_POWER_DC_TO_AC_PRICE),
+            (reverse_conn, INVERTER_MAX_POWER_AC_TO_DC_PRICE),
         ):
-            shadow_mappings: tuple[tuple[InverterOutputName, str], ...] = (
-                (INVERTER_MAX_POWER_DC_TO_AC_PRICE, POWER_LIMIT_SOURCE_TARGET),
-                (INVERTER_MAX_POWER_AC_TO_DC_PRICE, POWER_LIMIT_TARGET_SOURCE),
-            )
-            for output_name, shadow_key in shadow_mappings:
-                if (shadow := expect_output_data(power_limit_outputs.get(shadow_key))) is not None:
-                    inverter_outputs[output_name] = shadow
+            if (
+                isinstance(segments_output := conn.get(CONNECTION_SEGMENTS), Mapping)
+                and isinstance(power_limit_outputs := segments_output.get("power_limit"), Mapping)
+                and (shadow := expect_output_data(power_limit_outputs.get("power_limit"))) is not None
+            ):
+                inverter_outputs[output_name] = shadow
 
         return {INVERTER_DEVICE_INVERTER: inverter_outputs}
 
