@@ -188,12 +188,12 @@ def test_connection_update_max_power_source_target() -> None:
     assert isinstance(connection, Connection)
 
     # Update max power via TrackedParam
-    power_limit = connection.segments["power_limit"]
+    power_limit = connection.segments["power_limit_st"]
     assert isinstance(power_limit, PowerLimitSegment)
-    power_limit.max_power_source_target = np.array([10.0, 10.0, 10.0])
+    power_limit.max_power = np.array([10.0, 10.0, 10.0])
 
     # Verify max power was updated
-    np.testing.assert_array_equal(power_limit.max_power_source_target, [10.0, 10.0, 10.0])
+    np.testing.assert_array_equal(power_limit.max_power, [10.0, 10.0, 10.0])
 
     # Second optimization should work with new bounds
     cost2 = network.optimize()
@@ -230,9 +230,9 @@ def test_connection_update_price_source_target() -> None:
     assert isinstance(connection, Connection)
 
     # Update price via TrackedParam
-    pricing = connection.segments["pricing"]
+    pricing = connection.segments["pricing_st"]
     assert isinstance(pricing, PricingSegment)
-    pricing.price_source_target = np.array([0.20, 0.20, 0.20])
+    pricing.price = np.array([0.20, 0.20, 0.20])
 
     # Second optimization - cost = 5 kW * 3 hours * $0.20/kWh = $3.00
     cost2 = network.optimize()
@@ -268,10 +268,10 @@ def test_connection_update_max_power_target_source() -> None:
     connection = network.elements["conn"]
     assert isinstance(connection, Connection)
 
-    power_limit = connection.segments["power_limit"]
+    power_limit = connection.segments["power_limit_st"]
     assert isinstance(power_limit, PowerLimitSegment)
-    power_limit.max_power_target_source = np.array([7.0])
-    np.testing.assert_array_equal(power_limit.max_power_target_source, [7.0])
+    power_limit.max_power = np.array([7.0])
+    np.testing.assert_array_equal(power_limit.max_power, [7.0])
 
 
 def test_connection_update_price_target_source() -> None:
@@ -318,16 +318,16 @@ def test_connection_update_price_target_source() -> None:
     assert isinstance(connection, Connection)
 
     # Double the import price via TrackedParam
-    pricing = connection.segments["pricing"]
+    pricing = connection.segments["pricing_st"]
     assert isinstance(pricing, PricingSegment)
-    pricing.price_target_source = np.array([0.30])
+    pricing.price = np.array([0.30])
 
     cost2 = network.optimize()
     # Still no incentive to charge, so no cost
     assert pytest.approx(cost2) == 0.0
 
     # Verify the price was updated
-    np.testing.assert_array_equal(pricing.price_target_source, [0.30])
+    np.testing.assert_array_equal(pricing.price, [0.30])
 
 
 def test_connection_update_with_sequence_values() -> None:
@@ -358,10 +358,10 @@ def test_connection_update_with_sequence_values() -> None:
     assert isinstance(connection, Connection)
 
     # Update with varying prices per period via TrackedParam
-    pricing = connection.segments["pricing"]
+    pricing = connection.segments["pricing_st"]
     assert isinstance(pricing, PricingSegment)
-    pricing.price_source_target = np.array([0.05, 0.10, 0.15])
-    np.testing.assert_array_equal(pricing.price_source_target, [0.05, 0.10, 0.15])
+    pricing.price = np.array([0.05, 0.10, 0.15])
+    np.testing.assert_array_equal(pricing.price, [0.05, 0.10, 0.15])
 
 
 # Network warm start tests
@@ -446,14 +446,14 @@ def test_warm_start_produces_same_result() -> None:
 
     connection = network2.elements["conn"]
     assert isinstance(connection, Connection)
-    power_limit = connection.segments["power_limit"]
-    pricing = connection.segments["pricing"]
+    power_limit = connection.segments["power_limit_st"]
+    pricing = connection.segments["pricing_st"]
     assert isinstance(power_limit, PowerLimitSegment)
     assert isinstance(pricing, PricingSegment)
-    power_limit.max_power_source_target = np.array([5.0, 5.0, 5.0])
-    power_limit.max_power_target_source = np.array([5.0, 5.0, 5.0])
-    pricing.price_source_target = np.array([-0.10, -0.10, -0.10])
-    pricing.price_target_source = np.array([0.15, 0.15, 0.15])
+    power_limit.max_power = np.array([5.0, 5.0, 5.0])
+    power_limit.max_power = np.array([5.0, 5.0, 5.0])
+    pricing.price = np.array([-0.10, -0.10, -0.10])
+    pricing.price = np.array([0.15, 0.15, 0.15])
 
     # Second optimization (warm start)
     cost2 = network2.optimize()
@@ -556,9 +556,9 @@ def test_solver_structure_unchanged_after_update() -> None:
 
     connection = network.elements["conn"]
     assert isinstance(connection, Connection)
-    pricing = connection.segments["pricing"]
+    pricing = connection.segments["pricing_st"]
     assert isinstance(pricing, PricingSegment)
-    pricing.price_source_target = np.array([-0.20, -0.20, -0.20])
+    pricing.price = np.array([-0.20, -0.20, -0.20])
 
     network.optimize()
     num_vars_2 = network._solver.numVariables
@@ -570,9 +570,9 @@ def test_solver_structure_unchanged_after_update() -> None:
 
     # Update again and optimize a third time
     battery.capacity = np.array([15.0, 15.0, 15.0, 15.0])
-    power_limit = connection.segments["power_limit"]
+    power_limit = connection.segments["power_limit_st"]
     assert isinstance(power_limit, PowerLimitSegment)
-    power_limit.max_power_source_target = np.array([10.0, 10.0, 10.0])
+    power_limit.max_power = np.array([10.0, 10.0, 10.0])
 
     network.optimize()
     num_vars_3 = network._solver.numVariables

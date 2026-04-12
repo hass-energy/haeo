@@ -11,7 +11,6 @@ from custom_components.haeo.core.adapters.elements.connection import (
     CONNECTION_POWER_ACTIVE,
     CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET,
     CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE,
-    CONNECTION_TIME_SLICE,
 )
 from custom_components.haeo.core.adapters.elements.tests.normalize import normalize_for_compare
 from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES
@@ -171,7 +170,6 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
                 CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE: OutputData(
                     type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.02,)
                 ),
-                CONNECTION_TIME_SLICE: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.001,)),
             }
         },
     },

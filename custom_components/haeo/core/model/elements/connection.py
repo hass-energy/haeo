@@ -8,7 +8,7 @@ from collections import OrderedDict
 from typing import Any, Final, Literal, NotRequired, TypedDict
 
 from highspy import Highs
-from highspy.highs import HighspyArray
+from highspy.highs import HighspyArray, highs_cons
 import numpy as np
 from numpy.typing import NDArray
 
@@ -133,6 +133,16 @@ class Connection[TOutputName: str](Element[TOutputName]):
         self._ts_output: HighspyArray | None = None
 
     @property
+    def source(self) -> str:
+        """Return the name of the source element."""
+        return self._source
+
+    @property
+    def target(self) -> str:
+        """Return the name of the target element."""
+        return self._target
+
+    @property
     def segments(self) -> OrderedDict[str, Segment]:
         """Return the ordered dict of segments."""
         return self._segments
@@ -240,11 +250,30 @@ class Connection[TOutputName: str](Element[TOutputName]):
         """Effective power flowing into the target element."""
         return self._st_output - self._power_ts
 
-    # --- Segment linking constraints ---
+    # --- Constraint and cost delegation to segments ---
 
-    # Segment linking is no longer needed — segments chain via apply().
-    # The Connection creates variables, passes them through segments,
-    # and segments add constraints/costs as side effects.
+    def constraints(self) -> dict[str, highs_cons | list[highs_cons]]:
+        """Collect constraints from all segments."""
+        result: dict[str, highs_cons | list[highs_cons]] = {}
+        for segment in self._segments.values():
+            segment_constraints = segment.constraints()
+            for name, cons in segment_constraints.items():
+                result[f"{segment.segment_id}_{name}"] = cons
+
+        # Add our own constraints (from Element base)
+        own_constraints = super().constraints()
+        result.update(own_constraints)
+        return result
+
+    def cost(self) -> Any:  # type: ignore[override]
+        """Aggregate costs from all segments and tag-scoped policy costs."""
+        costs = [sc for seg in self._segments.values() if (sc := seg.cost()) is not None]
+
+        if not costs:
+            return None
+        if len(costs) == 1:
+            return costs[0]
+        return Highs.qsum(costs)
 
     # --- Output methods ---
 

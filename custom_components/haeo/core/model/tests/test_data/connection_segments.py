@@ -13,14 +13,14 @@ CONNECTION_SCENARIOS: Sequence[ConnectionScenario] = [
         "periods": np.array([1.0]),
         "segments": {"efficiency": {"segment_type": "efficiency", "efficiency_source_target": np.array([0.90])}},
         "inputs": {},
-        "expected_outputs": {"segment_names": ["efficiency"], "segment_types": ["EfficiencySegment"]},
+        "expected_outputs": {"segment_names": ["efficiency_st", "efficiency_ts"], "segment_types": ["EfficiencySegment", "EfficiencySegment"]},
     },
     {
         "description": "Connection defaults to passthrough segment",
         "periods": np.array([1.0, 1.0]),
         "segments": None,
         "inputs": {},
-        "expected_outputs": {"segment_names": ["passthrough"], "segment_types": ["PassthroughSegment"]},
+        "expected_outputs": {"segment_names": ["passthrough_st", "passthrough_ts"], "segment_types": ["PassthroughSegment", "PassthroughSegment"]},
     },
     {
         "description": "Connection caps source-to-target flow",
@@ -80,14 +80,14 @@ CONNECTION_SCENARIOS: Sequence[ConnectionScenario] = [
         },
         "inputs": {
             "updates": [
-                ("power_limit", "max_power_source_target", [10.0, 10.0]),
-                ("pricing", "price_source_target", [0.2, 0.2]),
+                ("power_limit_st", "max_power", [10.0, 10.0]),
+                ("pricing_st", "price", [0.2, 0.2]),
             ]
         },
         "expected_outputs": {
-            "segment_names": ["power_limit", "pricing"],
-            "segment_types": ["PowerLimitSegment", "PricingSegment"],
-            "segment_types_by_index": ["PowerLimitSegment", "PricingSegment"],
+            "segment_names": ["power_limit_st", "pricing_st", "pricing_ts", "power_limit_ts"],
+            "segment_types": ["PowerLimitSegment", "PricingSegment", "PricingSegment", "PowerLimitSegment"],
+            "segment_types_by_index": ["PowerLimitSegment", "PricingSegment", "PricingSegment", "PowerLimitSegment"],
             "power_limit_max_power_source_target": [10.0, 10.0],
             "pricing_price_source_target": [0.2, 0.2],
         },

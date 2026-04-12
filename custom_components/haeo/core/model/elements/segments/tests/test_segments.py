@@ -63,8 +63,11 @@ class DummySegment(Segment):
         *,
         source_element: Element[Any],
         target_element: Element[Any],
+        power_in: HighspyArray,
+        direction: str = "",
     ) -> None:
-        """Initialize a dummy segment with a shared power variable."""
+        """Initialize a dummy segment."""
+        _ = direction
         super().__init__(
             segment_id,
             n_periods,
@@ -72,14 +75,9 @@ class DummySegment(Segment):
             solver,
             source_element=source_element,
             target_element=target_element,
+            power_in=power_in,
         )
         self._cost_var = solver.addVariables(1, lb=0, name_prefix=f"{segment_id}_c_", out_array=True)
-
-    def apply(self, power_st: HighspyArray, power_ts: HighspyArray) -> tuple[HighspyArray, HighspyArray]:
-        """Identity: return input unchanged."""
-        self._power_in_st = self._power_out_st = power_st
-        self._power_in_ts = self._power_out_ts = power_ts
-        return power_st, power_ts
 
     @output
     def coverage_output(self) -> OutputData:
@@ -302,16 +300,16 @@ def _solve_connection_scenario(case: ConnectionScenario) -> dict[str, ExpectedVa
             outputs[key] = [type(conn[idx]).__name__ for idx in range(len(conn.segments))]
             continue
         if key == "power_limit_max_power_source_target":
-            power_limit = conn["power_limit"]
+            power_limit = conn["power_limit_st"]
             assert isinstance(power_limit, PowerLimitSegment)
-            max_power = power_limit.max_power_source_target
+            max_power = power_limit.max_power
             assert max_power is not None
             outputs[key] = tuple(float(value) for value in max_power)
             continue
         if key == "pricing_price_source_target":
-            pricing = conn["pricing"]
+            pricing = conn["pricing_st"]
             assert isinstance(pricing, PricingSegment)
-            prices = pricing.price_source_target
+            prices = pricing.price
             assert prices is not None
             outputs[key] = tuple(float(value) for value in prices)
             continue
@@ -393,7 +391,10 @@ def test_segment_outputs_and_cost_coverage() -> None:
     periods = np.asarray([1.0, 1.0], dtype=np.float64)
     source = DummyElement("source", periods, h)
     target = DummyElement("target", periods, h)
-    segment = DummySegment("seg", len(periods), periods, h, source_element=source, target_element=target)
+    power = h.addVariables(len(periods), lb=0, name_prefix="dummy_", out_array=True)
+    segment = DummySegment(
+        "seg", len(periods), periods, h, source_element=source, target_element=target, power_in=power
+    )
 
     np.testing.assert_array_equal(segment.periods, periods)
 
@@ -452,7 +453,7 @@ def test_efficiency_segment_treats_none_as_unity_after_update() -> None:
     )
 
     # Simulate coordinator update path clearing optional efficiency.
-    segment.efficiency_target_source = None
+    segment.efficiency = None
     h.addConstrs(segment.power_in == np.asarray([10.0], dtype=np.float64))
     h.run()
 
