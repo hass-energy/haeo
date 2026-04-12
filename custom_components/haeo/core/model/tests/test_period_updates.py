@@ -113,12 +113,10 @@ class TestPeriodUpdateInvalidation:
                     "power_limit": {
                         "segment_type": "power_limit",
                         "max_power": 5.0,
-                        "max_power": 5.0,
                     },
                     "pricing": {
                         "segment_type": "pricing",
                         "price": -0.10,
-                        "price": 0.15,
                     },
                 },
             }
@@ -216,12 +214,10 @@ class TestPeriodUpdateInvalidation:
                     "power_limit": {
                         "segment_type": "power_limit",
                         "max_power": 5.0,
-                        "max_power": 5.0,
                     },
                     "pricing": {
                         "segment_type": "pricing",
                         "price": -0.10,
-                        "price": 0.15,
                     },
                 },
             }
@@ -319,12 +315,10 @@ class TestPeriodUpdateWithOtherParams:
                     "power_limit": {
                         "segment_type": "power_limit",
                         "max_power": 5.0,
-                        "max_power": 5.0,
                     },
                     "pricing": {
                         "segment_type": "pricing",
                         "price": -0.10,
-                        "price": 0.15,
                     },
                 },
             }

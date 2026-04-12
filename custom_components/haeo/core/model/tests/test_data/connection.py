@@ -163,12 +163,10 @@ VALID_CASES: list[ConnectionTestCase] = [
                 "power_limit": {
                     "segment_type": "power_limit",
                     "max_power": 4.0,
-                    "max_power": 3.0,
                 },
                 "pricing": {
                     "segment_type": "pricing",
                     "price": np.array([0.10, 0.20]),
-                    "price": np.array([0.15, 0.25]),
                 },
             },
         },
@@ -199,11 +197,9 @@ VALID_CASES: list[ConnectionTestCase] = [
                 "efficiency": {
                     "segment_type": "efficiency",
                     "efficiency": 0.95,
-                    "efficiency": 0.93,
                 },
                 "power_limit": {
                     "segment_type": "power_limit",
-                    "max_power": 10.0,
                     "max_power": 10.0,
                 },
             },

@@ -23,12 +23,10 @@ def test_simple_optimization() -> None:
                 "power_limit": {
                     "segment_type": "power_limit",
                     "max_power": np.array([10000.0, 10000.0, 10000.0]),
-                    "max_power": np.array([5000.0, 5000.0, 5000.0]),
                 },
                 "pricing": {
                     "segment_type": "pricing",
                     "price": np.array([0.1, 0.2, 0.15]),
-                    "price": np.array([0.05, 0.08, 0.06]),
                 },
             },
         }

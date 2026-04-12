@@ -130,18 +130,13 @@ def _solve_segment_scenario(case: SegmentScenario) -> dict[str, ExpectedValue]:
     power_st = h.addVariables(n, lb=0, name_prefix="test_st_", out_array=True)
     power_ts = h.addVariables(n, lb=0, name_prefix="test_ts_", out_array=True)
 
-    from custom_components.haeo.core.model.elements.connection import Connection  # noqa: PLC0415
-
-    st_spec = Connection._resolve_spec_for_direction(case["spec"], "st")
-    ts_spec = Connection._resolve_spec_for_direction(case["spec"], "ts")
-
     # Create st-direction segment
     seg_st = case["factory"](
         "seg_st",
         len(periods),
         periods,
         h,
-        spec=st_spec,
+        spec=case["spec"],
         source_element=source,
         target_element=target,
         power_in=power_st,

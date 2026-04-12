@@ -54,12 +54,10 @@ def test_battery_update_capacity_modifies_soc_constraints() -> None:
                 "power_limit": {
                     "segment_type": "power_limit",
                     "max_power": 5.0,
-                    "max_power": 5.0,
                 },
                 "pricing": {
                     "segment_type": "pricing",
                     "price": -0.10,  # Export pays
-                    "price": 0.15,  # Import costs
                 },
             },
         }
@@ -257,7 +255,6 @@ def test_connection_update_max_power_target_source() -> None:
                 "power_limit": {
                     "segment_type": "power_limit",
                     "max_power": 5.0,
-                    "max_power": 3.0,
                 }
             },
         }
@@ -298,12 +295,10 @@ def test_connection_update_price_target_source() -> None:
                 "power_limit": {
                     "segment_type": "power_limit",
                     "max_power": 5.0,
-                    "max_power": 5.0,
                 },
                 "pricing": {
                     "segment_type": "pricing",
                     "price": 0.0,
-                    "price": 0.15,  # Cost to import from grid to battery
                 },
             },
         }
@@ -390,12 +385,10 @@ def test_warm_start_produces_same_result() -> None:
                 "power_limit": {
                     "segment_type": "power_limit",
                     "max_power": 5.0,
-                    "max_power": 5.0,
                 },
                 "pricing": {
                     "segment_type": "pricing",
                     "price": -0.10,
-                    "price": 0.15,
                 },
             },
         }
@@ -424,12 +417,10 @@ def test_warm_start_produces_same_result() -> None:
                 "power_limit": {
                     "segment_type": "power_limit",
                     "max_power": 2.0,
-                    "max_power": 2.0,
                 },
                 "pricing": {
                     "segment_type": "pricing",
                     "price": -0.05,
-                    "price": 0.08,
                 },
             },
         }
@@ -534,12 +525,10 @@ def test_solver_structure_unchanged_after_update() -> None:
                 "power_limit": {
                     "segment_type": "power_limit",
                     "max_power": 5.0,
-                    "max_power": 5.0,
                 },
                 "pricing": {
                     "segment_type": "pricing",
                     "price": -0.10,
-                    "price": 0.15,
                 },
             },
         }

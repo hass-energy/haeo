@@ -10,7 +10,6 @@ from custom_components.haeo.core.adapters.elements.connection import (
     CONNECTION_DEVICE_CONNECTION,
     CONNECTION_POWER_ACTIVE,
     CONNECTION_POWER,
-    CONNECTION_POWER,
 )
 from custom_components.haeo.core.adapters.elements.tests.normalize import normalize_for_compare
 from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES
@@ -18,10 +17,6 @@ from custom_components.haeo.core.model import ModelOutputName, ModelOutputValue
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_CONNECTION
 from custom_components.haeo.core.model.elements import connection as model_connection
-from custom_components.haeo.core.model.elements.connection import (
-    CONNECTION_POWER,
-    CONNECTION_POWER,
-)
 from custom_components.haeo.core.model.output_data import OutputData
 from custom_components.haeo.core.schema import as_connection_target
 from custom_components.haeo.core.schema.elements import ElementType
@@ -156,12 +151,9 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
         "outputs": {
             CONNECTION_DEVICE_CONNECTION: {
                 CONNECTION_POWER: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(5.0,), direction="+"),
-                CONNECTION_POWER: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(7.0,), direction="-"),
                 CONNECTION_POWER_ACTIVE: OutputData(
                     type=OutputType.POWER_FLOW, unit="kW", values=(-2.0,), direction=None
                 ),
-                CONNECTION_POWER: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.01,)),
-                CONNECTION_POWER: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.02,)),
             }
         },
     },
@@ -181,7 +173,6 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
         "outputs": {
             CONNECTION_DEVICE_CONNECTION: {
                 CONNECTION_POWER: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(5.0,), direction="+"),
-                CONNECTION_POWER: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(7.0,), direction="-"),
                 CONNECTION_POWER_ACTIVE: OutputData(
                     type=OutputType.POWER_FLOW, unit="kW", values=(-2.0,), direction=None
                 ),
