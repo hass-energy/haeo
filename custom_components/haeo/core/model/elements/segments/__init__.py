@@ -21,13 +21,7 @@ from custom_components.haeo.core.model.element import Element
 
 from .efficiency import EfficiencySegment, EfficiencySegmentSpec
 from .passthrough import PassthroughSegment, PassthroughSegmentSpec
-from .power_limit import (
-    POWER_LIMIT_SOURCE_TARGET,
-    POWER_LIMIT_TARGET_SOURCE,
-    PowerLimitOutputName,
-    PowerLimitSegment,
-    PowerLimitSegmentSpec,
-)
+from .power_limit import PowerLimitSegment, PowerLimitSegmentSpec
 from .pricing import PricingSegment, PricingSegmentSpec
 from .segment import Segment
 from .soc_pricing import SocPricingSegment, SocPricingSegmentSpec
@@ -110,14 +104,11 @@ def create_segment(
 
 
 __all__ = [
-    "POWER_LIMIT_SOURCE_TARGET",
-    "POWER_LIMIT_TARGET_SOURCE",
     "SEGMENTS",
     "EfficiencySegment",
     "EfficiencySegmentSpec",
     "PassthroughSegment",
     "PassthroughSegmentSpec",
-    "PowerLimitOutputName",
     "PowerLimitSegment",
     "PowerLimitSegmentSpec",
     "PricingSegment",

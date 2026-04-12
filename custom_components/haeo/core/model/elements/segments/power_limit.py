@@ -1,6 +1,6 @@
 """Power limit segment — constrains maximum power flow."""
 
-from typing import Any, Final, Literal, NotRequired
+from typing import Any, Literal, NotRequired
 
 from highspy import Highs
 from highspy.highs import HighspyArray, highs_linear_expression
@@ -13,11 +13,6 @@ from custom_components.haeo.core.model.reactive import TrackedParam, constraint
 from custom_components.haeo.core.model.util import broadcast_to_sequence
 
 from .segment import Segment
-
-type PowerLimitOutputName = Literal["source_target", "target_source"]
-
-POWER_LIMIT_SOURCE_TARGET: Final = "source_target"
-POWER_LIMIT_TARGET_SOURCE: Final = "target_source"
 
 
 class PowerLimitSegmentSpec(TypedDict):
@@ -75,9 +70,6 @@ class PowerLimitSegment(Segment):
 
 
 __all__ = [
-    "POWER_LIMIT_SOURCE_TARGET",
-    "POWER_LIMIT_TARGET_SOURCE",
-    "PowerLimitOutputName",
     "PowerLimitSegment",
     "PowerLimitSegmentSpec",
 ]

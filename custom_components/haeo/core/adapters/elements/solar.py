@@ -20,6 +20,7 @@ from custom_components.haeo.core.schema.elements.solar import (
     SolarConfigData,
 )
 from custom_components.haeo.core.schema.sections import CONF_CONNECTION, CONF_FORECAST, SECTION_FORECAST
+from custom_components.haeo.core.schema.sections.pricing import CONF_PRICE_SOURCE_TARGET, SECTION_PRICING
 
 # Solar output names
 type SolarOutputName = Literal[
@@ -49,25 +50,31 @@ class SolarAdapter:
 
     def model_elements(self, config: SolarConfigData) -> list[ModelElementConfig]:
         """Return model element parameters for Solar configuration."""
+        solar_name = config["name"]
+        target_name = extract_connection_target(config[CONF_CONNECTION])
+        price = config[SECTION_PRICING].get(CONF_PRICE_SOURCE_TARGET)
+        segments: dict[str, Any] = {
+            "power_limit": {
+                "segment_type": "power_limit",
+                "max_power": config[SECTION_FORECAST][CONF_FORECAST],
+                "fixed": not config[SECTION_CURTAILMENT].get(CONF_CURTAILMENT, True),
+            },
+        }
+        if price is not None:
+            segments["pricing"] = {"segment_type": "pricing", "price": price}
         return [
             {
                 "element_type": MODEL_ELEMENT_TYPE_NODE,
-                "name": config["name"],
+                "name": solar_name,
                 "is_source": True,
                 "is_sink": False,
             },
             {
                 "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
-                "name": f"{config['name']}:connection",
-                "source": config["name"],
-                "target": extract_connection_target(config[CONF_CONNECTION]),
-                "segments": {
-                    "power_limit": {
-                        "segment_type": "power_limit",
-                        "max_power": config[SECTION_FORECAST][CONF_FORECAST],
-                        "fixed": not config[SECTION_CURTAILMENT].get(CONF_CURTAILMENT, True),
-                    },
-                },
+                "name": f"{solar_name}:connection",
+                "source": solar_name,
+                "target": target_name,
+                "segments": segments,
             },
         ]
 

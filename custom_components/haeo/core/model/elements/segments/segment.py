@@ -5,8 +5,9 @@ Each segment receives an input power expression at construction time
 and exposes an output power expression. Segments may add constraints
 and costs to the solver.
 
-The Connection creates two chains (source→target and target→source),
-each built from the same segment specs but potentially in different order.
+A segment instance belongs to one directional connection chain.
+Bidirectional paths are modelled as two separate Connection elements,
+each with its own segment chain.
 """
 
 from typing import Any

@@ -187,9 +187,10 @@ See existing implementations in `custom_components/haeo/core/model/elements/` fo
 
 ## Connections and segments
 
-Connections create the **only LP variables** for power flow (one pair per time step per direction).
-Segments are functional transforms that receive power expressions via `apply()` and return
-(possibly transformed) output expressions. Most segments are identity transforms that add
+Connections create the **only LP variables** for power flow (one per time step).
+Each connection is unidirectional (source → target). Bidirectional paths use two connections.
+Segments are functional transforms that receive a `power_in` expression at construction
+and expose a `power_out` expression. Most segments are identity transforms that add
 constraints or costs as side effects. Subclasses that transform the flow
 override the output expression.
 

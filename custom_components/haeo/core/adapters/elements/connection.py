@@ -34,14 +34,7 @@ from custom_components.haeo.core.schema.sections import SECTION_EFFICIENCY, SECT
 CONNECTION_POWER_ACTIVE: Final = "connection_power_active"
 
 # Connection adapter output names include model outputs + adapter-synthesized outputs
-type ConnectionOutputName = (
-    ModelConnectionOutputName
-    | Literal[
-        "connection_power_active",
-        "connection_shadow_power_max_source_target",
-        "connection_shadow_power_max_target_source",
-    ]
-)
+type ConnectionOutputName = ModelConnectionOutputName | Literal["connection_power_active",]
 
 CONNECTION_OUTPUT_NAMES: Final[frozenset[ConnectionOutputName]] = frozenset(
     (
