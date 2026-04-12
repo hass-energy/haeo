@@ -39,10 +39,8 @@ class SocPricingSegment(Segment):
         source_element: Element[Any],
         target_element: Element[Any],
         power_in: HighspyArray,
-        direction: str,
     ) -> None:
         """Initialize SOC pricing segment."""
-        _ = direction  # SOC pricing operates on battery state, not direction-specific
         super().__init__(
             segment_id,
             n_periods,

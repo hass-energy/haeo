@@ -16,9 +16,14 @@ from .segment import Segment
 
 
 class EfficiencySegmentSpec(TypedDict):
-    """Specification for creating an EfficiencySegment."""
+    """Specification for creating an EfficiencySegment.
+
+    Directional fields are resolved by the Connection into `efficiency`.
+    """
 
     segment_type: Literal["efficiency"]
+    efficiency: NotRequired[NDArray[np.floating[Any]] | float | None]
+    # Directional aliases — resolved by Connection, not used by segment directly
     efficiency_source_target: NotRequired[NDArray[np.floating[Any]] | float | None]
     efficiency_target_source: NotRequired[NDArray[np.floating[Any]] | float | None]
 
@@ -39,15 +44,8 @@ class EfficiencySegment(Segment):
         source_element: Element[Any],
         target_element: Element[Any],
         power_in: HighspyArray,
-        direction: str,
     ) -> None:
-        """Initialize efficiency segment.
-
-        Args:
-            spec: Segment specification with directional efficiencies.
-            direction: "st" or "ts" — determines which efficiency to use.
-
-        """
+        """Initialize efficiency segment."""
         super().__init__(
             segment_id,
             n_periods,
@@ -57,10 +55,7 @@ class EfficiencySegment(Segment):
             target_element=target_element,
             power_in=power_in,
         )
-        if direction == "st":
-            self.efficiency = broadcast_to_sequence(spec.get("efficiency_source_target"), self._n_periods)
-        else:
-            self.efficiency = broadcast_to_sequence(spec.get("efficiency_target_source"), self._n_periods)
+        self.efficiency = broadcast_to_sequence(spec.get("efficiency"), self._n_periods)
 
     @property
     def power_out(self) -> HighspyArray:

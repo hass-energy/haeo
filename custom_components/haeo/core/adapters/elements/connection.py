@@ -23,7 +23,6 @@ from custom_components.haeo.core.model.elements.connection import ConnectionOutp
 from custom_components.haeo.core.model.elements.segments import (
     POWER_LIMIT_SOURCE_TARGET,
     POWER_LIMIT_TARGET_SOURCE,
-
 )
 from custom_components.haeo.core.model.output_data import OutputData
 from custom_components.haeo.core.schema import extract_connection_target

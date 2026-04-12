@@ -64,10 +64,8 @@ class DummySegment(Segment):
         source_element: Element[Any],
         target_element: Element[Any],
         power_in: HighspyArray,
-        direction: str = "",
     ) -> None:
         """Initialize a dummy segment."""
-        _ = direction
         super().__init__(
             segment_id,
             n_periods,
@@ -132,17 +130,21 @@ def _solve_segment_scenario(case: SegmentScenario) -> dict[str, ExpectedValue]:
     power_st = h.addVariables(n, lb=0, name_prefix="test_st_", out_array=True)
     power_ts = h.addVariables(n, lb=0, name_prefix="test_ts_", out_array=True)
 
+    from custom_components.haeo.core.model.elements.connection import Connection  # noqa: PLC0415
+
+    st_spec = Connection._resolve_spec_for_direction(case["spec"], "st")
+    ts_spec = Connection._resolve_spec_for_direction(case["spec"], "ts")
+
     # Create st-direction segment
     seg_st = case["factory"](
         "seg_st",
         len(periods),
         periods,
         h,
-        spec=case["spec"],
+        spec=st_spec,
         source_element=source,
         target_element=target,
         power_in=power_st,
-        direction="st",
     )
     seg_st.constraints()
 
@@ -157,11 +159,10 @@ def _solve_segment_scenario(case: SegmentScenario) -> dict[str, ExpectedValue]:
             len(periods),
             periods,
             h,
-            spec=case["spec"],
+            spec=ts_spec,
             source_element=source,
             target_element=target,
             power_in=power_ts,
-            direction="ts",
         )
         seg_ts.constraints()
 
@@ -345,7 +346,10 @@ def test_segment_error_scenarios(case: SegmentErrorScenario) -> None:
         source, target = endpoint_factory(h, periods)
 
     match = case["match"]
+    from custom_components.haeo.core.model.elements.connection import Connection  # noqa: PLC0415
+
     pv = h.addVariables(len(periods), lb=0, name_prefix="err_", out_array=True)
+    resolved_spec = Connection._resolve_spec_for_direction(case["spec"], "st")
     if match is None:
         with pytest.raises(case["error"]):
             case["factory"](
@@ -353,11 +357,10 @@ def test_segment_error_scenarios(case: SegmentErrorScenario) -> None:
                 len(periods),
                 periods,
                 h,
-                spec=case["spec"],
+                spec=resolved_spec,
                 source_element=source,
                 target_element=target,
                 power_in=pv,
-                direction="st",
             )
     else:
         with pytest.raises(case["error"], match=match):
@@ -366,11 +369,10 @@ def test_segment_error_scenarios(case: SegmentErrorScenario) -> None:
                 len(periods),
                 periods,
                 h,
-                spec=case["spec"],
+                spec=resolved_spec,
                 source_element=source,
                 target_element=target,
                 power_in=pv,
-                direction="st",
             )
 
 
@@ -423,7 +425,6 @@ def test_soc_pricing_cost_none_without_prices() -> None:
         source_element=battery,
         target_element=target,
         power_in=pv,
-        direction="st",
     )
 
     # Apply with dummy variables
@@ -445,11 +446,10 @@ def test_efficiency_segment_treats_none_as_unity_after_update() -> None:
         len(periods),
         periods,
         h,
-        spec={"segment_type": "efficiency", "efficiency_target_source": np.array([0.9], dtype=np.float64)},
+        spec={"segment_type": "efficiency", "efficiency": np.array([0.9], dtype=np.float64)},
         source_element=source,
         target_element=target,
         power_in=pts,
-        direction="ts",
     )
 
     # Simulate coordinator update path clearing optional efficiency.
@@ -477,7 +477,6 @@ def test_efficiency_segment_treats_missing_values_as_unity_both_directions() -> 
         source_element=source,
         target_element=target,
         power_in=pst,
-        direction="st",
     )
     seg_ts = EfficiencySegment(
         "seg_ts",
@@ -488,7 +487,6 @@ def test_efficiency_segment_treats_missing_values_as_unity_both_directions() -> 
         source_element=source,
         target_element=target,
         power_in=pts,
-        direction="ts",
     )
 
     h.addConstrs(seg_st.power_in == np.asarray([7.5], dtype=np.float64))

@@ -154,6 +154,35 @@ class Connection[TOutputName: str](Element[TOutputName]):
         if not self._segments:
             self._initialize_segments(source_element, target_element)
 
+    # Mapping from directional spec keys to unified segment keys
+    _DIRECTIONAL_KEYS: dict[str, tuple[str, str]] = {
+        # (st_key, ts_key) -> unified_key
+        "price_source_target": ("price", "st"),
+        "price_target_source": ("price", "ts"),
+        "max_power_source_target": ("max_power", "st"),
+        "max_power_target_source": ("max_power", "ts"),
+        "efficiency_source_target": ("efficiency", "st"),
+        "efficiency_target_source": ("efficiency", "ts"),
+    }
+
+    @staticmethod
+    def _resolve_spec_for_direction(spec: dict[str, Any], direction: str) -> dict[str, Any]:
+        """Resolve directional spec keys into unified keys for a specific direction."""
+        resolved: dict[str, Any] = {"segment_type": spec["segment_type"]}
+        # Copy non-directional keys
+        for key, value in spec.items():
+            if key == "segment_type":
+                continue
+            mapping = Connection._DIRECTIONAL_KEYS.get(key)
+            if mapping is None:
+                # Non-directional key (e.g., fixed) — copy as-is
+                resolved[key] = value
+            else:
+                unified_key, key_direction = mapping
+                if key_direction == direction:
+                    resolved[unified_key] = value
+        return resolved
+
     def _initialize_segments(self, source_element: Element[Any], target_element: Element[Any]) -> None:
         # Create the connection's power flow variables
         self._power_st = self._solver.addVariables(
@@ -178,46 +207,46 @@ class Connection[TOutputName: str](Element[TOutputName]):
         st_specs = specs
         ts_specs = specs if self._mirror_segment_order else list(reversed(specs))
 
+        # Non-directional segment types (only created once, on st chain)
+        _NON_DIRECTIONAL = {"soc_pricing"}
+
         # Build source→target chain
         flow = self._power_st
         for segment_name, segment_spec in st_specs:
-            resolved = self._resolve_segment_name(segment_name, "st")
+            resolved_name = self._resolve_segment_name(segment_name, "st")
+            resolved_spec = self._resolve_spec_for_direction(segment_spec, "st")
             seg = create_segment(
-                segment_id=f"{self.name}_{resolved}",
+                segment_id=f"{self.name}_{resolved_name}",
                 n_periods=self.n_periods,
                 periods=self.periods,
                 solver=self._solver,
-                spec=segment_spec,
+                spec=resolved_spec,
                 source_element=source_element,
                 target_element=target_element,
                 power_in=flow,
-                direction="st",
             )
-            self._segments[resolved] = seg
+            self._segments[resolved_name] = seg
             flow = seg.power_out
         self._st_output = flow
 
         # Build target→source chain
-        # Skip segment types that are not directional (e.g., soc_pricing operates
-        # on battery state, not power direction) to avoid duplicate costs.
-        _NON_DIRECTIONAL = {"soc_pricing"}
         flow = self._power_ts
         for segment_name, segment_spec in ts_specs:
             if segment_spec["segment_type"] in _NON_DIRECTIONAL:
                 continue
-            resolved = self._resolve_segment_name(segment_name, "ts")
+            resolved_name = self._resolve_segment_name(segment_name, "ts")
+            resolved_spec = self._resolve_spec_for_direction(segment_spec, "ts")
             seg = create_segment(
-                segment_id=f"{self.name}_{resolved}",
+                segment_id=f"{self.name}_{resolved_name}",
                 n_periods=self.n_periods,
                 periods=self.periods,
                 solver=self._solver,
-                spec=segment_spec,
+                spec=resolved_spec,
                 source_element=source_element,
                 target_element=target_element,
                 power_in=flow,
-                direction="ts",
             )
-            self._segments[resolved] = seg
+            self._segments[resolved_name] = seg
             flow = seg.power_out
         self._ts_output = flow
 

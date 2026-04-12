@@ -21,12 +21,17 @@ POWER_LIMIT_TARGET_SOURCE: Final = "target_source"
 
 
 class PowerLimitSegmentSpec(TypedDict):
-    """Specification for creating a PowerLimitSegment."""
+    """Specification for creating a PowerLimitSegment.
+
+    Directional fields are resolved by the Connection into `max_power`.
+    """
 
     segment_type: Literal["power_limit"]
+    max_power: NotRequired[NDArray[np.floating[Any]] | float | None]
+    fixed: NotRequired[bool | None]
+    # Directional aliases — resolved by Connection, not used by segment directly
     max_power_source_target: NotRequired[NDArray[np.floating[Any]] | float | None]
     max_power_target_source: NotRequired[NDArray[np.floating[Any]] | float | None]
-    fixed: NotRequired[bool | None]
 
 
 class PowerLimitSegment(Segment):
@@ -45,15 +50,8 @@ class PowerLimitSegment(Segment):
         source_element: Element[Any],
         target_element: Element[Any],
         power_in: HighspyArray,
-        direction: str,
     ) -> None:
-        """Initialize power limit segment.
-
-        Args:
-            spec: Segment specification with directional limits.
-            direction: "st" or "ts" — determines which limit to use.
-
-        """
+        """Initialize power limit segment."""
         super().__init__(
             segment_id,
             n_periods,
@@ -64,10 +62,7 @@ class PowerLimitSegment(Segment):
             power_in=power_in,
         )
         self._fixed = spec.get("fixed", False)
-        if direction == "st":
-            self.max_power = broadcast_to_sequence(spec.get("max_power_source_target"), self._n_periods)
-        else:
-            self.max_power = broadcast_to_sequence(spec.get("max_power_target_source"), self._n_periods)
+        self.max_power = broadcast_to_sequence(spec.get("max_power"), self._n_periods)
 
     @constraint(output=True, unit="$/kW")
     def power_limit(self) -> list[highs_linear_expression] | None:

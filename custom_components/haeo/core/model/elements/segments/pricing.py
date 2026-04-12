@@ -16,9 +16,15 @@ from .segment import Segment
 
 
 class PricingSegmentSpec(TypedDict):
-    """Specification for creating a PricingSegment."""
+    """Specification for creating a PricingSegment.
+
+    Directional fields (price_source_target, price_target_source) are resolved
+    by the Connection into a single `price` value before construction.
+    """
 
     segment_type: Literal["pricing"]
+    price: NotRequired[NDArray[np.floating[Any]] | float | None]
+    # Directional aliases — resolved by Connection, not used by segment directly
     price_source_target: NotRequired[NDArray[np.floating[Any]] | float | None]
     price_target_source: NotRequired[NDArray[np.floating[Any]] | float | None]
 
@@ -39,15 +45,8 @@ class PricingSegment(Segment):
         source_element: Element[Any],
         target_element: Element[Any],
         power_in: HighspyArray,
-        direction: str,
     ) -> None:
-        """Initialize pricing segment.
-
-        Args:
-            spec: Segment specification with directional prices.
-            direction: "st" or "ts" — determines which price to use.
-
-        """
+        """Initialize pricing segment."""
         super().__init__(
             segment_id,
             n_periods,
@@ -57,10 +56,7 @@ class PricingSegment(Segment):
             target_element=target_element,
             power_in=power_in,
         )
-        if direction == "st":
-            self.price = broadcast_to_sequence(spec.get("price_source_target"), self._n_periods)
-        else:
-            self.price = broadcast_to_sequence(spec.get("price_target_source"), self._n_periods)
+        self.price = broadcast_to_sequence(spec.get("price"), self._n_periods)
 
     @cost
     def transfer_cost(self) -> highs_linear_expression | None:

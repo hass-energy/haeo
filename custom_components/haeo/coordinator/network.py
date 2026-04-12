@@ -82,10 +82,14 @@ def update_element(
         current = obj
         for part in path[:-1]:
             if isinstance(current, Mapping):
-                if part not in current:
+                if part in current:
+                    current = current[part]
+                elif f"{part}_st" in current:
+                    # Fallback for directional segment naming
+                    current = current[f"{part}_st"]
+                else:
                     msg = f"Invalid update path {path!r} for element {element_name!r}: missing key {part!r}"
                     raise ValueError(msg)
-                current = current[part]
                 continue
             if hasattr(current, part):
                 current = getattr(current, part)
@@ -102,13 +106,17 @@ def update_element(
             obj[key] = value
             return
 
-        descriptor = getattr(type(obj), key, None)
+        # Check for param alias (directional -> unified name mapping)
+        alias_map = getattr(type(obj), "_PARAM_ALIASES", None)
+        resolved_key = alias_map.get(key, key) if isinstance(alias_map, dict) else key
+
+        descriptor = getattr(type(obj), resolved_key, None)
         if isinstance(descriptor, TrackedParam):
-            setattr(obj, key, value)
+            setattr(obj, resolved_key, value)
             return
-        if hasattr(obj, key):
+        if hasattr(obj, resolved_key):
             try:
-                setattr(obj, key, value)
+                setattr(obj, resolved_key, value)
             except (AttributeError, TypeError) as exc:
                 msg = f"Failed to update {path!r} for element {element_name!r}: {exc}"
                 raise ValueError(msg) from exc

@@ -33,11 +33,9 @@ class PassthroughSegment(Segment):
         source_element: Element[Any],
         target_element: Element[Any],
         power_in: HighspyArray,
-        direction: str = "",
     ) -> None:
         """Initialize passthrough segment."""
         _ = spec
-        _ = direction
         super().__init__(
             segment_id,
             n_periods,

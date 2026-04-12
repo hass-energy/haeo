@@ -29,6 +29,17 @@ class Segment:
     to transform the flow.
     """
 
+    # Mapping from directional param names to unified names.
+    # Used by the update path to translate adapter-produced directional keys.
+    _PARAM_ALIASES: dict[str, str] = {
+        "price_source_target": "price",
+        "price_target_source": "price",
+        "max_power_source_target": "max_power",
+        "max_power_target_source": "max_power",
+        "efficiency_source_target": "efficiency",
+        "efficiency_target_source": "efficiency",
+    }
+
     periods: TrackedParam[NDArray[np.floating[Any]]] = TrackedParam()
 
     def __init__(

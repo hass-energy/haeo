@@ -93,15 +93,8 @@ def create_segment(
     source_element: Element[Any],
     target_element: Element[Any],
     power_in: HighspyArray,
-    direction: str,
 ) -> Segment:
-    """Create a segment instance from a segment specification.
-
-    Args:
-        direction: "st" or "ts" — determines which directional parameters to use.
-        power_in: Input power flow expression for this direction.
-
-    """
+    """Create a segment instance from a segment specification."""
     segment_type = spec["segment_type"]
     entry = SEGMENTS[segment_type]
     return entry.factory(
@@ -113,7 +106,6 @@ def create_segment(
         source_element=source_element,
         target_element=target_element,
         power_in=power_in,
-        direction=direction,
     )
 
 
