@@ -1,7 +1,10 @@
-"""Connection element for power flow between nodes.
+"""Connection element for unidirectional power flow between nodes.
 
-Connection composes multiple segments (efficiency, power limits, pricing)
-to model various connection behaviors.
+A Connection represents a single direction of power flow from source to target.
+Bidirectional paths are modelled as two separate connections.
+
+Connection creates LP variables for the power flow, then chains them through
+segments. Each segment may add constraints, costs, or transform the expression.
 """
 
 from collections import OrderedDict
@@ -20,8 +23,18 @@ from custom_components.haeo.core.model.reactive import output
 from .segments import Segment, SegmentSpec, create_segment
 
 type ConnectionElementTypeName = Literal["connection"]
-# Model element type for connections
+# Model element type for connection strings
 ELEMENT_TYPE: Final[ConnectionElementTypeName] = "connection"
+
+type ConnectionOutputName = Literal[
+    "connection_power",
+    "segments",
+]
+
+CONNECTION_POWER: Final = "connection_power"
+CONNECTION_SEGMENTS: Final = "segments"
+
+CONNECTION_OUTPUT_NAMES: Final[frozenset[ConnectionOutputName]] = frozenset((CONNECTION_POWER, CONNECTION_SEGMENTS))
 
 
 class ConnectionElementConfig(TypedDict):
@@ -31,57 +44,15 @@ class ConnectionElementConfig(TypedDict):
     name: str
     source: str
     target: str
-    segments_st: NotRequired[dict[str, SegmentSpec]]
-    segments_ts: NotRequired[dict[str, SegmentSpec]]
-
-
-# Minimum segments needed before linking is required
-MIN_SEGMENTS_FOR_LINKING = 2
-
-
-type ConnectionOutputName = Literal[
-    "connection_power_source_target",
-    "connection_power_target_source",
-    "segments",
-]
-
-CONNECTION_POWER_SOURCE_TARGET: Final = "connection_power_source_target"
-CONNECTION_POWER_TARGET_SOURCE: Final = "connection_power_target_source"
-CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET: Final = "connection_shadow_power_max_source_target"
-CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE: Final = "connection_shadow_power_max_target_source"
-CONNECTION_SEGMENTS: Final = "segments"
-
-type ConnectionSegmentOutputs = dict[str, dict[str, OutputData]]
-type ConnectionOutputValue = OutputData | ConnectionSegmentOutputs
-
-CONNECTION_OUTPUT_NAMES: Final[frozenset[ConnectionOutputName]] = frozenset(
-    (
-        CONNECTION_POWER_SOURCE_TARGET,
-        CONNECTION_POWER_TARGET_SOURCE,
-        CONNECTION_SEGMENTS,
-    )
-)
+    segments: NotRequired[dict[str, SegmentSpec]]
 
 
 class Connection[TOutputName: str](Element[TOutputName]):
-    """Connection element for power flow between nodes.
+    """Unidirectional power flow from source to target.
 
-    Segments are provided as a mapping of segment names to specifications:
-    - segment name (dict key): Used to name the segment in the connection
-    - segment_type: One of "efficiency", "passthrough", "power_limit", "pricing"
-    - Additional kwargs specific to the segment type
-
-    Segments are chained in the order provided. The connection links adjacent
-    segments by constraining their output to the next segment's input.
-
-    Source→target flow always uses the order provided.
-    Target→source flow uses the reverse order by default.
-    Enable `mirror_segment_order` to use the same segment order for both flow directions.
-
-    For parameter updates, access segments via indexing:
-        connection["power_limit"].max_power_source_target = new_value
-        connection[0].max_power_source_target = new_value  # by index
-
+    Creates LP variables for the flow, chains them through segments.
+    power_in is the flow entering the connection at the source end.
+    power_out is the flow exiting at the target end (after segment transforms).
     """
 
     def __init__(
@@ -92,23 +63,10 @@ class Connection[TOutputName: str](Element[TOutputName]):
         solver: Highs,
         source: str,
         target: str,
-        segments_st: dict[str, SegmentSpec] | None = None,
-        segments_ts: dict[str, SegmentSpec] | None = None,
+        segments: dict[str, SegmentSpec] | None = None,
         output_names: frozenset[TOutputName] | None = None,
     ) -> None:
-        """Initialize a connection.
-
-        Args:
-            name: Name of the connection
-            periods: Array of time period durations in hours (one per optimization interval)
-            solver: The HiGHS solver instance for creating variables and constraints
-            source: Name of the source element
-            target: Name of the target element
-            segments_st: Segment specs for source→target direction.
-            segments_ts: Segment specs for target→source direction.
-            output_names: Output names for this connection type
-
-        """
+        """Initialize a unidirectional connection."""
         actual_output_names: frozenset[Any] = output_names if output_names is not None else CONNECTION_OUTPUT_NAMES
         super().__init__(
             name=name,
@@ -121,13 +79,17 @@ class Connection[TOutputName: str](Element[TOutputName]):
         self._source_element: Element[Any] | None = None
         self._target_element: Element[Any] | None = None
 
-        self._specs_st: OrderedDict[str, SegmentSpec] = OrderedDict(segments_st or {})
-        self._specs_ts: OrderedDict[str, SegmentSpec] = OrderedDict(segments_ts or {})
+        self._segment_specs: OrderedDict[str, SegmentSpec] = OrderedDict(segments or {})
         self._segments: OrderedDict[str, Segment] = OrderedDict()
 
-        # Outputs of each directional chain (set during initialization)
-        self._st_output: HighspyArray | None = None
-        self._ts_output: HighspyArray | None = None
+        # Power flow variables and chain output (set during initialization)
+        self._power_in: HighspyArray | None = None
+        self._power_out: HighspyArray | None = None
+
+    @property
+    def segments(self) -> OrderedDict[str, Segment]:
+        """Return the ordered dict of segments."""
+        return self._segments
 
     @property
     def source(self) -> str:
@@ -139,36 +101,25 @@ class Connection[TOutputName: str](Element[TOutputName]):
         """Return the name of the target element."""
         return self._target
 
-    @property
-    def segments(self) -> OrderedDict[str, Segment]:
-        """Return the ordered dict of segments."""
-        return self._segments
-
     def set_endpoints(self, source_element: Element[Any], target_element: Element[Any]) -> None:
-        """Set source/target element references on the connection segments."""
+        """Set source/target element references and build the segment chain."""
         self._source_element = source_element
         self._target_element = target_element
         if not self._segments:
             self._initialize_segments(source_element, target_element)
 
     def _initialize_segments(self, source_element: Element[Any], target_element: Element[Any]) -> None:
-        self._power_st = self._solver.addVariables(
+        self._power_in = self._solver.addVariables(
             self.n_periods,
             lb=0,
-            name_prefix=f"{self.name}_st_",
-            out_array=True,
-        )
-        self._power_ts = self._solver.addVariables(
-            self.n_periods,
-            lb=0,
-            name_prefix=f"{self.name}_ts_",
+            name_prefix=f"{self.name}_",
             out_array=True,
         )
 
-        # Build source→target chain
-        st_specs = list(self._specs_st.items()) or [("passthrough", {"segment_type": "passthrough"})]
-        flow = self._power_st
-        for seg_name, seg_spec in st_specs:
+        specs = list(self._segment_specs.items()) or [("passthrough", {"segment_type": "passthrough"})]
+
+        flow = self._power_in
+        for seg_name, seg_spec in specs:
             seg = create_segment(
                 segment_id=f"{self.name}_{seg_name}",
                 n_periods=self.n_periods,
@@ -181,141 +132,39 @@ class Connection[TOutputName: str](Element[TOutputName]):
             )
             self._segments[seg_name] = seg
             flow = seg.power_out
-        self._st_output = flow
-
-        # Build target→source chain
-        ts_specs = list(self._specs_ts.items()) or [("passthrough", {"segment_type": "passthrough"})]
-        flow = self._power_ts
-        for seg_name, seg_spec in ts_specs:
-            seg = create_segment(
-                segment_id=f"{self.name}_{seg_name}",
-                n_periods=self.n_periods,
-                periods=self.periods,
-                solver=self._solver,
-                spec=seg_spec,
-                source_element=source_element,
-                target_element=target_element,
-                power_in=flow,
-            )
-            self._segments[seg_name] = seg
-            flow = seg.power_out
-        self._ts_output = flow
+        self._power_out = flow
 
     @property
-    @property
-    @staticmethod
-    def _resolve_spec_for_direction(spec: dict[str, Any], direction: str) -> dict[str, Any]:
-        """Resolve directional spec keys into unified keys for a specific direction."""
-        resolved: dict[str, Any] = {"segment_type": spec["segment_type"]}
-        # Copy non-directional keys
-        for key, value in spec.items():
-            if key == "segment_type":
-                continue
-            mapping = Connection._DIRECTIONAL_KEYS.get(key)
-            if mapping is None:
-                # Non-directional key (e.g., fixed) — copy as-is
-                resolved[key] = value
-            else:
-                unified_key, key_direction = mapping
-                if key_direction == direction:
-                    resolved[unified_key] = value
-        return resolved
-
-    def _initialize_segments(self, source_element: Element[Any], target_element: Element[Any]) -> None:
-        # Create the connection's power flow variables
-        self._power_st = self._solver.addVariables(
-            self.n_periods,
-            lb=0,
-            name_prefix=f"{self.name}_st_",
-            out_array=True,
-        )
-        self._power_ts = self._solver.addVariables(
-            self.n_periods,
-            lb=0,
-            name_prefix=f"{self.name}_ts_",
-            out_array=True,
-        )
-
-        # Build segment specs list
-        specs = list(self._segment_specs.items())
-        if not specs:
-            specs = [("passthrough", {"segment_type": "passthrough"})]
-
-        # Determine segment order for each direction
-        st_specs = specs
-        ts_specs = specs if self._mirror_segment_order else list(reversed(specs))
-
-        # Non-directional segment types (only created once, on st chain)
-        _NON_DIRECTIONAL = {"soc_pricing"}
-
-        # Build source→target chain
-        flow = self._power_st
-        for segment_name, segment_spec in st_specs:
-            resolved_name = self._resolve_segment_name(segment_name, "st")
-            resolved_spec = self._resolve_spec_for_direction(segment_spec, "st")
-            seg = create_segment(
-                segment_id=f"{self.name}_{resolved_name}",
-                n_periods=self.n_periods,
-                periods=self.periods,
-                solver=self._solver,
-                spec=resolved_spec,
-                source_element=source_element,
-                target_element=target_element,
-                power_in=flow,
-            )
-            self._segments[resolved_name] = seg
-            flow = seg.power_out
-        self._st_output = flow
-
-        # Build target→source chain
-        flow = self._power_ts
-        for segment_name, segment_spec in ts_specs:
-            if segment_spec["segment_type"] in _NON_DIRECTIONAL:
-                continue
-            resolved_name = self._resolve_segment_name(segment_name, "ts")
-            resolved_spec = self._resolve_spec_for_direction(segment_spec, "ts")
-            seg = create_segment(
-                segment_id=f"{self.name}_{resolved_name}",
-                n_periods=self.n_periods,
-                periods=self.periods,
-                solver=self._solver,
-                spec=resolved_spec,
-                source_element=source_element,
-                target_element=target_element,
-                power_in=flow,
-            )
-            self._segments[resolved_name] = seg
-            flow = seg.power_out
-        self._ts_output = flow
-
-    def _resolve_segment_name(self, base_name: str, suffix: str) -> str:
-        """Generate a unique segment name."""
-        name = f"{base_name}_{suffix}"
-        counter = 0
-        while name in self._segments:
-            counter += 1
-            name = f"{base_name}_{suffix}_{counter}"
-        return name
+    def power_in(self) -> HighspyArray:
+        """Power entering the connection at the source end (LP variables)."""
+        assert self._power_in is not None  # noqa: S101
+        return self._power_in
 
     @property
-    def power_source_target(self) -> HighspyArray:
-        """Total power flowing from source to target."""
-        return self._power_st
+    def power_out(self) -> HighspyArray:
+        """Power exiting the connection at the target end (after transforms)."""
+        assert self._power_out is not None  # noqa: S101
+        return self._power_out
 
-    @property
-    def power_target_source(self) -> HighspyArray:
-        """Total power flowing from target to source."""
-        return self._power_ts
+    # --- Node power balance interface ---
 
     @property
     def power_into_source(self) -> HighspyArray:
-        """Effective power flowing into the source element."""
-        return self._ts_output - self._power_st
+        """Power flowing into the source node from this connection.
+
+        For unidirectional connections, the source node loses power_in
+        (power flows away from source into the connection).
+        """
+        return -self._power_in
 
     @property
     def power_into_target(self) -> HighspyArray:
-        """Effective power flowing into the target element."""
-        return self._st_output - self._power_ts
+        """Power flowing into the target node from this connection.
+
+        For unidirectional connections, the target node gains power_out
+        (power flows from the connection into the target).
+        """
+        return self._power_out
 
     # --- Constraint and cost delegation to segments ---
 
@@ -323,19 +172,15 @@ class Connection[TOutputName: str](Element[TOutputName]):
         """Collect constraints from all segments."""
         result: dict[str, highs_cons | list[highs_cons]] = {}
         for segment in self._segments.values():
-            segment_constraints = segment.constraints()
-            for name, cons in segment_constraints.items():
+            for name, cons in segment.constraints().items():
                 result[f"{segment.segment_id}_{name}"] = cons
-
-        # Add our own constraints (from Element base)
         own_constraints = super().constraints()
         result.update(own_constraints)
         return result
 
     def cost(self) -> Any:  # type: ignore[override]
-        """Aggregate costs from all segments and tag-scoped policy costs."""
+        """Aggregate costs from all segments."""
         costs = [sc for seg in self._segments.values() if (sc := seg.cost()) is not None]
-
         if not costs:
             return None
         if len(costs) == 1:
@@ -344,56 +189,50 @@ class Connection[TOutputName: str](Element[TOutputName]):
 
     # --- Output methods ---
 
-    def _segment_outputs(self) -> ConnectionSegmentOutputs:
+    def _segment_outputs(self) -> dict[str, dict[str, OutputData]]:
         """Collect outputs from all segments."""
-        segment_outputs: ConnectionSegmentOutputs = {}
-
-        for segment_name, segment in self._segments.items():
-            outputs = segment.outputs()
-            if outputs:
-                segment_outputs[segment_name] = outputs
-
-        return segment_outputs
+        result: dict[str, dict[str, OutputData]] = {}
+        for seg_name, segment in self._segments.items():
+            seg_outputs = segment.outputs()
+            if seg_outputs:
+                result[seg_name] = seg_outputs
+        return result
 
     @output
-    def connection_power_source_target(self) -> OutputData:
-        """Power flow from source to target."""
+    def connection_power(self) -> OutputData:
+        """Power flow through this connection."""
         return OutputData(
             type=OutputType.POWER_FLOW,
             unit="kW",
-            values=self.extract_values(self.power_source_target),
-            direction="+",
-        )
-
-    @output
-    def connection_power_target_source(self) -> OutputData:
-        """Power flow from target to source."""
-        return OutputData(
-            type=OutputType.POWER_FLOW,
-            unit="kW",
-            values=self.extract_values(self.power_target_source),
-            direction="-",
+            values=self.extract_values(self.power_in),
         )
 
     @output(name=CONNECTION_SEGMENTS)
-    def segment_outputs(self) -> ConnectionSegmentOutputs | None:
+    def segment_outputs(self) -> dict[str, dict[str, OutputData]] | None:
         """Return outputs grouped by segment."""
-        segment_outputs = self._segment_outputs()
-        return segment_outputs or None
+        outputs = self._segment_outputs()
+        return outputs or None
+
+    def __getitem__(self, key: str | int) -> Any:
+        """Look up segments by name or index."""
+        if isinstance(key, int):
+            try:
+                return list(self._segments.values())[key]
+            except IndexError as exc:
+                msg = f"No segment at index {key}"
+                raise KeyError(msg) from exc
+        if key in self._segments:
+            return self._segments[key]
+        return super().__getitem__(key)
 
 
 __all__ = [
     "CONNECTION_OUTPUT_NAMES",
-    "CONNECTION_POWER_SOURCE_TARGET",
-    "CONNECTION_POWER_TARGET_SOURCE",
+    "CONNECTION_POWER",
     "CONNECTION_SEGMENTS",
-    "CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET",
-    "CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE",
-    "ELEMENT_TYPE",
     "Connection",
     "ConnectionElementConfig",
     "ConnectionElementTypeName",
     "ConnectionOutputName",
-    "ConnectionOutputValue",
-    "ConnectionSegmentOutputs",
+    "ELEMENT_TYPE",
 ]
