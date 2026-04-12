@@ -18,17 +18,19 @@ providing visual continuity between slideshows.
 
 from __future__ import annotations
 
-import hashlib
 import json
 import logging
 from pathlib import Path
 from xml.sax.saxutils import escape
+
+from tools.guide_hashing import compute_content_hash, compute_page_hash, extract_sources
 
 _LOGGER = logging.getLogger(__name__)
 
 _DOCS_DIR = Path(__file__).parent.parent / "docs"
 
 _manifest_cache: dict[str, dict[str, object]] | None = None
+_manifest_mtimes: dict[Path, float] = {}
 
 
 def _load_manifests() -> dict[str, dict[str, object]]:
@@ -39,6 +41,7 @@ def _load_manifests() -> dict[str, dict[str, object]]:
     ``_viewport`` — the screenshot viewport dimensions from the manifest.
     """
     index: dict[str, dict[str, object]] = {}
+    _manifest_mtimes.clear()
 
     for manifest_path in _DOCS_DIR.rglob("manifest.json"):
         try:
@@ -47,6 +50,8 @@ def _load_manifests() -> dict[str, dict[str, object]]:
         except (json.JSONDecodeError, OSError):
             _LOGGER.debug("Skipping invalid manifest: %s", manifest_path)
             continue
+
+        _manifest_mtimes[manifest_path] = manifest_path.stat().st_mtime
 
         viewport = data.get("viewport", {"width": 1280, "height": 800})
         blocks = data.get("blocks", [])
@@ -68,7 +73,7 @@ def _load_manifests() -> dict[str, dict[str, object]]:
             content_hash = block["content_hash"]
             if content_hash in index:
                 _LOGGER.warning(
-                    "Duplicate guide block hash %s in %s (already seen in another manifest)",
+                    "Duplicate guide block hash %s in %s",
                     content_hash,
                     manifest_path,
                 )
@@ -78,12 +83,43 @@ def _load_manifests() -> dict[str, dict[str, object]]:
     return index
 
 
-def _find_block(source: str) -> dict[str, object] | None:
+def _manifests_changed() -> bool:
+    """Check whether any manifest file has been added, removed, or modified."""
+    current_paths = set(_DOCS_DIR.rglob("manifest.json"))
+    cached_paths = set(_manifest_mtimes)
+
+    if current_paths != cached_paths:
+        return True
+
+    return any(p.stat().st_mtime != _manifest_mtimes[p] for p in current_paths if p.exists())
+
+
+def _get_page_hash(md: object) -> str:
+    """Get or compute the page hash for this Markdown processor instance.
+
+    Each page gets a fresh ``Markdown`` instance. On first call, the
+    page hash is computed from all guide block sources in ``md.lines``
+    and cached on the instance for subsequent blocks on the same page.
+    """
+    cached: str | None = getattr(md, "_guide_page_hash", None)
+    if cached is not None:
+        return cached
+
+    lines: list[str] = getattr(md, "lines", [])
+    markdown = "\n".join(lines)
+    sources = extract_sources(markdown)
+    page_hash = compute_page_hash(sources)
+
+    md._guide_page_hash = page_hash  # type: ignore[attr-defined]  # noqa: SLF001
+    return page_hash
+
+
+def _find_block(source: str, page_hash: str) -> dict[str, object] | None:
     """Find the manifest block matching this source code by content hash."""
     global _manifest_cache  # noqa: PLW0603
-    if _manifest_cache is None:
+    if _manifest_cache is None or _manifests_changed():
         _manifest_cache = _load_manifests()
-    content_hash = hashlib.sha256(source.strip().encode()).hexdigest()[:16]
+    content_hash = compute_content_hash(page_hash, source)
     return _manifest_cache.get(content_hash)
 
 
@@ -215,9 +251,26 @@ def format_guide(
         HTML string to replace the fenced block.
 
     """
-    block = _find_block(source)
+    page_hash = _get_page_hash(_md)
+    block = _find_block(source, page_hash)
 
     if block is None:
         return _render_placeholder(source, "Run guide tests to generate screenshots")
 
     return _render_slideshow(block, source)
+
+
+def format_guide_setup(
+    _source: str,
+    _language: str,
+    _class_name: str,
+    _options: dict[str, str],
+    _md: object,
+    **_kwargs: object,
+) -> str:
+    """Format a ```guide-setup fence block as hidden content.
+
+    Setup blocks run prerequisite guide steps during test execution
+    but are not rendered in the documentation output.
+    """
+    return ""

@@ -373,6 +373,8 @@ async def _setup_home_assistant_async(
 
     assert await async_setup_component(hass, "frontend", {})
     assert await async_setup_component(hass, "config", {})
+    assert await async_setup_component(hass, "calendar", {})
+    assert await async_setup_component(hass, "local_calendar", {})
 
     # Mark as running
     hass.set_state(CoreState.running)
