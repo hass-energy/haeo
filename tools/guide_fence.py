@@ -84,14 +84,17 @@ def _load_manifests() -> dict[str, dict[str, object]]:
 
 
 def _manifests_changed() -> bool:
-    """Check whether any manifest file has been added, removed, or modified."""
-    current_paths = set(_DOCS_DIR.rglob("manifest.json"))
-    cached_paths = set(_manifest_mtimes)
+    """Check whether any cached manifest file has been modified.
 
-    if current_paths != cached_paths:
-        return True
-
-    return any(p.stat().st_mtime != _manifest_mtimes[p] for p in current_paths if p.exists())
+    Only checks mtimes of previously discovered manifests (no filesystem
+    traversal). New manifests added after the initial scan won't be
+    detected until the cache is next cleared — this is fine for mkdocs
+    build where all manifests exist at build start.
+    """
+    return any(
+        not p.exists() or p.stat().st_mtime != mtime
+        for p, mtime in _manifest_mtimes.items()
+    )
 
 
 def _get_page_hash(md: object) -> str:

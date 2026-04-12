@@ -570,12 +570,18 @@ class HAPage:
                 self._capture("selected")
         else:
             picker.click()
-            search_input = self.page.get_by_role("textbox", name="Search")
+            combo_selector = "vaadin-combo-box-overlay input, ha-combo-box input[type='search']"
+            search_input = self.page.locator(combo_selector).first
+            if not search_input.is_visible(timeout=1000):
+                search_input = self.page.get_by_role("textbox", name="Search")
             search_input.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
             search_input.fill(search_term)
-            result_item = self.page.locator(f":text('{entity_name}')").first
+            result_item = self.page.locator(f"ha-combo-box-item:has-text('{entity_name}')").first
+            if not result_item.is_visible(timeout=1000):
+                result_item = self.page.locator(f":text('{entity_name}')").first
             result_item.wait_for(state="visible", timeout=SEARCH_TIMEOUT)
             result_item.click(timeout=DEFAULT_TIMEOUT)
+            self.page.wait_for_timeout(500)
 
     # endregion
 
