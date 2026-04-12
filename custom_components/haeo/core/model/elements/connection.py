@@ -203,6 +203,7 @@ class Connection[TOutputName: str](Element[TOutputName]):
             type=OutputType.POWER_FLOW,
             unit="kW",
             values=self.extract_values(self.power_in),
+            direction="+",
         )
 
     @output(name=CONNECTION_SEGMENTS)

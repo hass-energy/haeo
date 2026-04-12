@@ -98,7 +98,7 @@ class LoadAdapter:
 
         power = expect_output_data(connection[CONNECTION_POWER])
         load_outputs: dict[LoadOutputName, OutputData] = {
-            LOAD_POWER: replace(power, type=OutputType.POWER),
+            LOAD_POWER: replace(power, type=OutputType.POWER, direction="+"),
         }
 
         # Shadow price from power_limit segment (if present)

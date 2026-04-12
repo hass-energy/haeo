@@ -119,8 +119,8 @@ class InverterAdapter:
 
         # source_target = DC to AC (inverting)
         # target_source = AC to DC (rectifying)
-        inverter_outputs[INVERTER_POWER_DC_TO_AC] = power_forward
-        inverter_outputs[INVERTER_POWER_AC_TO_DC] = power_reverse
+        inverter_outputs[INVERTER_POWER_DC_TO_AC] = replace(power_forward, direction="+")
+        inverter_outputs[INVERTER_POWER_AC_TO_DC] = replace(power_reverse, direction="-")
 
         # Active inverter power (DC to AC - AC to DC)
         inverter_outputs[INVERTER_POWER_ACTIVE] = replace(

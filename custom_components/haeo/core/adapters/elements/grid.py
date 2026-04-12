@@ -128,8 +128,8 @@ class GridAdapter:
         power_import = expect_output_data(import_conn[CONNECTION_POWER])
         power_export = expect_output_data(export_conn[CONNECTION_POWER])
 
-        grid_outputs[GRID_POWER_EXPORT] = replace(power_export, type=OutputType.POWER)
-        grid_outputs[GRID_POWER_IMPORT] = replace(power_import, type=OutputType.POWER)
+        grid_outputs[GRID_POWER_EXPORT] = replace(power_export, type=OutputType.POWER, direction="-")
+        grid_outputs[GRID_POWER_IMPORT] = replace(power_import, type=OutputType.POWER, direction="+")
 
         # Active grid power (export - import)
         grid_outputs[GRID_POWER_ACTIVE] = replace(

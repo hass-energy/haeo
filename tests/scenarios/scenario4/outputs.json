@@ -3660,6 +3660,7 @@
     "attributes": {
       "advanced": false,
       "device_class": "power",
+      "direction": "+",
       "element_name": "Constant Load",
       "element_type": "load",
       "forecast": [
@@ -3914,6 +3915,7 @@
     "attributes": {
       "advanced": false,
       "device_class": "power",
+      "direction": "-",
       "element_name": "Grid",
       "element_type": "grid",
       "forecast": [
@@ -4295,6 +4297,7 @@
     "attributes": {
       "advanced": false,
       "device_class": "power",
+      "direction": "+",
       "element_name": "Grid",
       "element_type": "grid",
       "forecast": [
@@ -4800,6 +4803,7 @@
     "attributes": {
       "advanced": false,
       "device_class": "power",
+      "direction": "-",
       "element_name": "Inverter",
       "element_type": "inverter",
       "forecast": [
@@ -5180,6 +5184,7 @@
     "attributes": {
       "advanced": false,
       "device_class": "power",
+      "direction": "+",
       "element_name": "Inverter",
       "element_type": "inverter",
       "forecast": [
@@ -5810,6 +5815,7 @@
     "attributes": {
       "advanced": false,
       "device_class": "power",
+      "direction": "+",
       "element_name": "Solar",
       "element_type": "solar",
       "forecast": [
