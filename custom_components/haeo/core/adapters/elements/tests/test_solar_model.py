@@ -108,9 +108,7 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
                     type=OutputType.POWER_FLOW, unit="kW", values=(1.5,), direction="+"
                 ),
                 connection.CONNECTION_SEGMENTS: {
-                    "power_limit": {
-                        "power_limit": OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.0,))
-                    }
+                    "power_limit": {"power_limit": OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.0,))}
                 },
             }
         },

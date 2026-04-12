@@ -12,11 +12,7 @@ from custom_components.haeo.core.const import ConnectivityLevel
 from custom_components.haeo.core.model import ModelElementConfig, ModelOutputName, ModelOutputValue
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE
-from custom_components.haeo.core.model.elements.connection import (
-    CONNECTION_POWER,
-    CONNECTION_SEGMENTS,
-)
-
+from custom_components.haeo.core.model.elements.connection import CONNECTION_POWER, CONNECTION_SEGMENTS
 from custom_components.haeo.core.model.output_data import OutputData
 from custom_components.haeo.core.model.util import broadcast_to_sequence
 from custom_components.haeo.core.schema import extract_connection_target
@@ -180,11 +176,12 @@ class GridAdapter:
             (export_conn, GRID_POWER_MAX_EXPORT_PRICE),
             (import_conn, GRID_POWER_MAX_IMPORT_PRICE),
         ):
-            if isinstance(segments_output := conn.get(CONNECTION_SEGMENTS), Mapping) and isinstance(
-                power_limit_outputs := segments_output.get("power_limit"), Mapping
+            if (
+                isinstance(segments_output := conn.get(CONNECTION_SEGMENTS), Mapping)
+                and isinstance(power_limit_outputs := segments_output.get("power_limit"), Mapping)
+                and (shadow := expect_output_data(power_limit_outputs.get("power_limit"))) is not None
             ):
-                if (shadow := expect_output_data(power_limit_outputs.get("power_limit"))) is not None:
-                    grid_outputs[output_name] = shadow
+                grid_outputs[output_name] = shadow
 
         return {GRID_DEVICE_GRID: grid_outputs}
 

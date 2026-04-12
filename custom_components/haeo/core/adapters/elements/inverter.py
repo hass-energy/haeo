@@ -9,12 +9,8 @@ from custom_components.haeo.core.const import ConnectivityLevel
 from custom_components.haeo.core.model import ModelElementConfig, ModelOutputName, ModelOutputValue
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE
-from custom_components.haeo.core.model.elements.connection import (
-    CONNECTION_POWER,
-    CONNECTION_SEGMENTS,
-)
+from custom_components.haeo.core.model.elements.connection import CONNECTION_POWER, CONNECTION_SEGMENTS
 from custom_components.haeo.core.model.elements.node import NODE_POWER_BALANCE
-
 from custom_components.haeo.core.model.output_data import OutputData
 from custom_components.haeo.core.schema import extract_connection_target
 from custom_components.haeo.core.schema.elements import ElementType

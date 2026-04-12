@@ -10,7 +10,6 @@ from custom_components.haeo.core.model import ModelElementConfig, ModelOutputNam
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE
 from custom_components.haeo.core.model.elements.connection import CONNECTION_POWER, CONNECTION_SEGMENTS
-
 from custom_components.haeo.core.model.output_data import OutputData
 from custom_components.haeo.core.schema import extract_connection_target
 from custom_components.haeo.core.schema.elements import ElementType
@@ -20,11 +19,7 @@ from custom_components.haeo.core.schema.elements.solar import (
     SECTION_CURTAILMENT,
     SolarConfigData,
 )
-from custom_components.haeo.core.schema.sections import (
-    CONF_CONNECTION,
-    CONF_FORECAST,
-    SECTION_FORECAST,
-)
+from custom_components.haeo.core.schema.sections import CONF_CONNECTION, CONF_FORECAST, SECTION_FORECAST
 
 # Solar output names
 type SolarOutputName = Literal[

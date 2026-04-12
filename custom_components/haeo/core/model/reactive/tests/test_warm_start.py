@@ -186,7 +186,7 @@ def test_connection_update_max_power_source_target() -> None:
     assert isinstance(connection, Connection)
 
     # Update max power via TrackedParam
-    power_limit = connection.segments["power_limit_st"]
+    power_limit = connection.segments["power_limit"]
     assert isinstance(power_limit, PowerLimitSegment)
     power_limit.max_power = np.array([10.0, 10.0, 10.0])
 
@@ -228,7 +228,7 @@ def test_connection_update_price_source_target() -> None:
     assert isinstance(connection, Connection)
 
     # Update price via TrackedParam
-    pricing = connection.segments["pricing_st"]
+    pricing = connection.segments["pricing"]
     assert isinstance(pricing, PricingSegment)
     pricing.price = np.array([0.20, 0.20, 0.20])
 
@@ -265,7 +265,7 @@ def test_connection_update_max_power_target_source() -> None:
     connection = network.elements["conn"]
     assert isinstance(connection, Connection)
 
-    power_limit = connection.segments["power_limit_st"]
+    power_limit = connection.segments["power_limit"]
     assert isinstance(power_limit, PowerLimitSegment)
     power_limit.max_power = np.array([7.0])
     np.testing.assert_array_equal(power_limit.max_power, [7.0])
@@ -313,7 +313,7 @@ def test_connection_update_price_target_source() -> None:
     assert isinstance(connection, Connection)
 
     # Double the import price via TrackedParam
-    pricing = connection.segments["pricing_st"]
+    pricing = connection.segments["pricing"]
     assert isinstance(pricing, PricingSegment)
     pricing.price = np.array([0.30])
 
@@ -353,7 +353,7 @@ def test_connection_update_with_sequence_values() -> None:
     assert isinstance(connection, Connection)
 
     # Update with varying prices per period via TrackedParam
-    pricing = connection.segments["pricing_st"]
+    pricing = connection.segments["pricing"]
     assert isinstance(pricing, PricingSegment)
     pricing.price = np.array([0.05, 0.10, 0.15])
     np.testing.assert_array_equal(pricing.price, [0.05, 0.10, 0.15])
@@ -364,7 +364,7 @@ def test_connection_update_with_sequence_values() -> None:
 
 def test_warm_start_produces_same_result() -> None:
     """Test that warm start optimization produces same result as cold start."""
-    # Create first network (cold start)
+    # Create first network (cold start) with two unidirectional connections
     network1 = Network(name="test1", periods=np.array([1.0, 1.0, 1.0]))
     network1.add(
         {
@@ -378,18 +378,24 @@ def test_warm_start_produces_same_result() -> None:
     network1.add(
         {
             "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
-            "name": "conn",
+            "name": "conn:discharge",
             "source": "battery",
             "target": "grid",
             "segments": {
-                "power_limit": {
-                    "segment_type": "power_limit",
-                    "max_power": 5.0,
-                },
-                "pricing": {
-                    "segment_type": "pricing",
-                    "price": -0.10,
-                },
+                "power_limit": {"segment_type": "power_limit", "max_power": 5.0},
+                "pricing": {"segment_type": "pricing", "price": -0.10},
+            },
+        }
+    )
+    network1.add(
+        {
+            "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
+            "name": "conn:charge",
+            "source": "grid",
+            "target": "battery",
+            "segments": {
+                "power_limit": {"segment_type": "power_limit", "max_power": 5.0},
+                "pricing": {"segment_type": "pricing", "price": 0.15},
             },
         }
     )
@@ -397,7 +403,6 @@ def test_warm_start_produces_same_result() -> None:
 
     # Create second network (warm start simulation)
     network2 = Network(name="test2", periods=np.array([1.0, 1.0, 1.0]))
-    # First add with initial parameters
     network2.add(
         {
             "element_type": MODEL_ELEMENT_TYPE_BATTERY,
@@ -410,43 +415,52 @@ def test_warm_start_produces_same_result() -> None:
     network2.add(
         {
             "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
-            "name": "conn",
+            "name": "conn:discharge",
             "source": "battery",
             "target": "grid",
             "segments": {
-                "power_limit": {
-                    "segment_type": "power_limit",
-                    "max_power": 2.0,
-                },
-                "pricing": {
-                    "segment_type": "pricing",
-                    "price": -0.05,
-                },
+                "power_limit": {"segment_type": "power_limit", "max_power": 2.0},
+                "pricing": {"segment_type": "pricing", "price": -0.05},
             },
         }
     )
-    # First optimization
+    network2.add(
+        {
+            "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
+            "name": "conn:charge",
+            "source": "grid",
+            "target": "battery",
+            "segments": {
+                "power_limit": {"segment_type": "power_limit", "max_power": 2.0},
+                "pricing": {"segment_type": "pricing", "price": 0.08},
+            },
+        }
+    )
     network2.optimize()
 
     # Update to same parameters as network1 via TrackedParam
-    # (capacity must be sequence for T+1 boundaries)
     battery = network2.elements["battery"]
     assert isinstance(battery, Battery)
     battery.capacity = np.array([10.0, 10.0, 10.0, 10.0])
     battery.initial_charge = 5.0
 
-    connection = network2.elements["conn"]
-    assert isinstance(connection, Connection)
-    power_limit_st = connection.segments["power_limit_st"]
-    power_limit_ts = connection.segments["power_limit_ts"]
-    pricing_st = connection.segments["pricing_st"]
-    pricing_ts = connection.segments["pricing_ts"]
-    assert isinstance(power_limit_st, PowerLimitSegment)
-    assert isinstance(pricing_st, PricingSegment)
-    power_limit_st.max_power = np.array([5.0, 5.0, 5.0])
-    power_limit_ts.max_power = np.array([5.0, 5.0, 5.0])
-    pricing_st.price = np.array([-0.10, -0.10, -0.10])
-    pricing_ts.price = np.array([0.15, 0.15, 0.15])
+    discharge_conn = network2.elements["conn:discharge"]
+    assert isinstance(discharge_conn, Connection)
+    discharge_pl = discharge_conn.segments["power_limit"]
+    assert isinstance(discharge_pl, PowerLimitSegment)
+    discharge_pl.max_power = np.array([5.0, 5.0, 5.0])
+    discharge_pr = discharge_conn.segments["pricing"]
+    assert isinstance(discharge_pr, PricingSegment)
+    discharge_pr.price = np.array([-0.10, -0.10, -0.10])
+
+    charge_conn = network2.elements["conn:charge"]
+    assert isinstance(charge_conn, Connection)
+    charge_pl = charge_conn.segments["power_limit"]
+    assert isinstance(charge_pl, PowerLimitSegment)
+    charge_pl.max_power = np.array([5.0, 5.0, 5.0])
+    charge_pr = charge_conn.segments["pricing"]
+    assert isinstance(charge_pr, PricingSegment)
+    charge_pr.price = np.array([0.15, 0.15, 0.15])
 
     # Second optimization (warm start)
     cost2 = network2.optimize()
@@ -464,12 +478,24 @@ def test_network_add_connection_updates_prices() -> None:
     network.add(
         {
             "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
-            "name": "conn",
+            "name": "conn:forward",
             "source": "source",
             "target": "sink",
             "segments": {
                 "power_limit": {"segment_type": "power_limit", "max_power": 5.0},
                 "pricing": {"segment_type": "pricing", "price": -0.10},
+            },
+        }
+    )
+    network.add(
+        {
+            "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
+            "name": "conn:reverse",
+            "source": "sink",
+            "target": "source",
+            "segments": {
+                "power_limit": {"segment_type": "power_limit", "max_power": 5.0},
+                "pricing": {"segment_type": "pricing", "price": 0.10},
             },
         }
     )
@@ -486,8 +512,8 @@ def test_network_add_connection_updates_prices() -> None:
                 "source": as_connection_target("source"),
                 "target": as_connection_target("sink"),
             },
-            SECTION_POWER_LIMITS: {"max_power": 5.0},
-            SECTION_PRICING: {"price": -0.20},
+            SECTION_POWER_LIMITS: {"max_power_source_target": 5.0, "max_power_target_source": 5.0},
+            SECTION_PRICING: {"price_source_target": -0.20, "price_target_source": 0.20},
             SECTION_EFFICIENCY: {},
         },
     )
@@ -547,7 +573,7 @@ def test_solver_structure_unchanged_after_update() -> None:
 
     connection = network.elements["conn"]
     assert isinstance(connection, Connection)
-    pricing = connection.segments["pricing_st"]
+    pricing = connection.segments["pricing"]
     assert isinstance(pricing, PricingSegment)
     pricing.price = np.array([-0.20, -0.20, -0.20])
 
@@ -561,7 +587,7 @@ def test_solver_structure_unchanged_after_update() -> None:
 
     # Update again and optimize a third time
     battery.capacity = np.array([15.0, 15.0, 15.0, 15.0])
-    power_limit = connection.segments["power_limit_st"]
+    power_limit = connection.segments["power_limit"]
     assert isinstance(power_limit, PowerLimitSegment)
     power_limit.max_power = np.array([10.0, 10.0, 10.0])
 

@@ -230,9 +230,9 @@ __all__ = [
     "CONNECTION_OUTPUT_NAMES",
     "CONNECTION_POWER",
     "CONNECTION_SEGMENTS",
+    "ELEMENT_TYPE",
     "Connection",
     "ConnectionElementConfig",
     "ConnectionElementTypeName",
     "ConnectionOutputName",
-    "ELEMENT_TYPE",
 ]

@@ -12,9 +12,7 @@ from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_CONNEC
 from custom_components.haeo.core.model.elements.connection import (
     CONNECTION_OUTPUT_NAMES as MODEL_CONNECTION_OUTPUT_NAMES,
 )
-from custom_components.haeo.core.model.elements.connection import (
-    CONNECTION_POWER,
-)
+from custom_components.haeo.core.model.elements.connection import CONNECTION_POWER
 from custom_components.haeo.core.model.elements.connection import ConnectionOutputName as ModelConnectionOutputName
 from custom_components.haeo.core.model.output_data import OutputData
 from custom_components.haeo.core.schema import extract_connection_target

@@ -55,20 +55,11 @@ CREATE_CASES: Sequence[CreateCase] = [
             {
                 "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
                 "name": "load_main:connection",
-                "source": "load_main",
-                "target": "network",
+                "source": "network",
+                "target": "load_main",
                 "segments": {
-                    "power_limit": {
-                        "segment_type": "power_limit",
-                        "max_power_source_target": 0.0,
-                        "max_power_target_source": [1.0, 2.0],
-                        "fixed": True,
-                    },
-                    "pricing": {
-                        "segment_type": "pricing",
-                        "price_source_target": None,
-                        "price_target_source": None,
-                    },
+                    "power_limit": {"segment_type": "power_limit", "max_power": [1.0, 2.0], "fixed": True},
+                    "pricing": {"segment_type": "pricing", "price": None},
                 },
             },
         ],
@@ -93,20 +84,11 @@ CREATE_CASES: Sequence[CreateCase] = [
             {
                 "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
                 "name": "load_sheddable:connection",
-                "source": "load_sheddable",
-                "target": "network",
+                "source": "network",
+                "target": "load_sheddable",
                 "segments": {
-                    "power_limit": {
-                        "segment_type": "power_limit",
-                        "max_power_source_target": 0.0,
-                        "max_power_target_source": [1.0, 2.0],
-                        "fixed": False,
-                    },
-                    "pricing": {
-                        "segment_type": "pricing",
-                        "price_source_target": None,
-                        "price_target_source": -0.5,
-                    },
+                    "power_limit": {"segment_type": "power_limit", "max_power": [1.0, 2.0], "fixed": False},
+                    "pricing": {"segment_type": "pricing", "price": -0.5},
                 },
             },
         ],
@@ -125,7 +107,7 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
                 ),
                 connection.CONNECTION_SEGMENTS: {
                     "power_limit": {
-                        "target_source": OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.01,))
+                        "power_limit": OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.01,))
                     }
                 },
             }

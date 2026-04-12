@@ -82,7 +82,7 @@ class TestNetworkUpdatePeriods:
         connection = network.elements["conn"]
         assert isinstance(connection, Connection)
 
-        pricing = connection.segments["pricing_st"]
+        pricing = connection.segments["pricing"]
         assert isinstance(pricing, PricingSegment)
         np.testing.assert_array_almost_equal(pricing.periods, [0.5, 1.0, 1.5])
 
@@ -284,7 +284,7 @@ class TestPeriodUpdateWithOtherParams:
 
         connection = network.elements["conn"]
         assert isinstance(connection, Connection)
-        pricing = connection.segments["pricing_st"]
+        pricing = connection.segments["pricing"]
         assert isinstance(pricing, PricingSegment)
         pricing.price = np.array([0.20, 0.20, 0.20])
 
