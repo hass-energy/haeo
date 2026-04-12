@@ -10,8 +10,7 @@ from custom_components.haeo.core.model import ModelElementConfig, ModelOutputNam
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE
 from custom_components.haeo.core.model.elements.connection import (
-    CONNECTION_POWER_SOURCE_TARGET,
-    CONNECTION_POWER_TARGET_SOURCE,
+    CONNECTION_POWER,
     CONNECTION_SEGMENTS,
 )
 from custom_components.haeo.core.model.elements.node import NODE_POWER_BALANCE
@@ -121,8 +120,8 @@ class InverterAdapter:
         """Map model outputs to inverter-specific output names."""
         connection = model_outputs[f"{name}:connection"]
         dc_bus = model_outputs[name]
-        power_source_target = expect_output_data(connection[CONNECTION_POWER_SOURCE_TARGET])
-        power_target_source = expect_output_data(connection[CONNECTION_POWER_TARGET_SOURCE])
+        power_source_target = expect_output_data(connection[CONNECTION_POWER])
+        power_target_source = expect_output_data(connection[CONNECTION_POWER])
 
         inverter_outputs: dict[InverterOutputName, OutputData] = {}
 

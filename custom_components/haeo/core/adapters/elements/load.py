@@ -9,7 +9,7 @@ from custom_components.haeo.core.const import ConnectivityLevel
 from custom_components.haeo.core.model import ModelElementConfig, ModelOutputName, ModelOutputValue
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE
-from custom_components.haeo.core.model.elements.connection import CONNECTION_POWER_TARGET_SOURCE, CONNECTION_SEGMENTS
+from custom_components.haeo.core.model.elements.connection import CONNECTION_POWER, CONNECTION_SEGMENTS
 from custom_components.haeo.core.model.elements.segments import POWER_LIMIT_TARGET_SOURCE
 from custom_components.haeo.core.model.output_data import OutputData
 from custom_components.haeo.core.schema import extract_connection_target
@@ -96,7 +96,7 @@ class LoadAdapter:
         """Map model outputs to load-specific output names."""
         connection = model_outputs[f"{name}:connection"]
 
-        power_target_source = expect_output_data(connection[CONNECTION_POWER_TARGET_SOURCE])
+        power_target_source = expect_output_data(connection[CONNECTION_POWER])
         load_outputs: dict[LoadOutputName, OutputData] = {
             LOAD_POWER: replace(power_target_source, type=OutputType.POWER),
         }

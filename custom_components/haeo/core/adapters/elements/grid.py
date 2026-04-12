@@ -13,8 +13,7 @@ from custom_components.haeo.core.model import ModelElementConfig, ModelOutputNam
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE
 from custom_components.haeo.core.model.elements.connection import (
-    CONNECTION_POWER_SOURCE_TARGET,
-    CONNECTION_POWER_TARGET_SOURCE,
+    CONNECTION_POWER,
     CONNECTION_SEGMENTS,
 )
 from custom_components.haeo.core.model.elements.segments import POWER_LIMIT_SOURCE_TARGET, POWER_LIMIT_TARGET_SOURCE
@@ -129,8 +128,8 @@ class GridAdapter:
 
         # source_target = grid to system = IMPORT
         # target_source = system to grid = EXPORT
-        power_import = expect_output_data(connection[CONNECTION_POWER_SOURCE_TARGET])
-        power_export = expect_output_data(connection[CONNECTION_POWER_TARGET_SOURCE])
+        power_import = expect_output_data(connection[CONNECTION_POWER])
+        power_export = expect_output_data(connection[CONNECTION_POWER])
 
         grid_outputs[GRID_POWER_EXPORT] = replace(power_export, type=OutputType.POWER)
         grid_outputs[GRID_POWER_IMPORT] = replace(power_import, type=OutputType.POWER)

@@ -13,11 +13,8 @@ from custom_components.haeo.core.model.elements.connection import (
     CONNECTION_OUTPUT_NAMES as MODEL_CONNECTION_OUTPUT_NAMES,
 )
 from custom_components.haeo.core.model.elements.connection import (
-    CONNECTION_POWER_SOURCE_TARGET,
-    CONNECTION_POWER_TARGET_SOURCE,
+    CONNECTION_POWER,
     CONNECTION_SEGMENTS,
-    CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET,
-    CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE,
 )
 from custom_components.haeo.core.model.elements.connection import ConnectionOutputName as ModelConnectionOutputName
 from custom_components.haeo.core.model.elements.segments import (
@@ -57,8 +54,6 @@ CONNECTION_OUTPUT_NAMES: Final[frozenset[ConnectionOutputName]] = frozenset(
     (
         *MODEL_CONNECTION_OUTPUT_NAMES,
         CONNECTION_POWER_ACTIVE,
-        CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET,
-        CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE,
     )
 )
 
@@ -129,12 +124,12 @@ class ConnectionAdapter:
     ) -> Mapping[ConnectionDeviceName, Mapping[ConnectionOutputName, OutputData]]:
         """Map model outputs to connection-specific output names."""
         connection = model_outputs[name]
-        power_source_target = expect_output_data(connection[CONNECTION_POWER_SOURCE_TARGET])
-        power_target_source = expect_output_data(connection[CONNECTION_POWER_TARGET_SOURCE])
+        power_source_target = expect_output_data(connection[CONNECTION_POWER])
+        power_target_source = expect_output_data(connection[CONNECTION_POWER])
 
         connection_outputs: dict[ConnectionOutputName, OutputData] = {
-            CONNECTION_POWER_SOURCE_TARGET: power_source_target,
-            CONNECTION_POWER_TARGET_SOURCE: power_target_source,
+            CONNECTION_POWER: power_source_target,
+            CONNECTION_POWER: power_target_source,
         }
 
         # Active connection power (source_target - target_source)
@@ -157,8 +152,8 @@ class ConnectionAdapter:
             power_limit_outputs := segments_output.get("power_limit"), Mapping
         ):
             shadow_mappings: tuple[tuple[ConnectionOutputName, str], ...] = (
-                (CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET, POWER_LIMIT_SOURCE_TARGET),
-                (CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE, POWER_LIMIT_TARGET_SOURCE),
+                (CONNECTION_POWER, POWER_LIMIT_SOURCE_TARGET),
+                (CONNECTION_POWER, POWER_LIMIT_TARGET_SOURCE),
             )
             for output_name, shadow_key in shadow_mappings:
                 if (shadow := expect_output_data(power_limit_outputs.get(shadow_key))) is not None:
