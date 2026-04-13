@@ -35,9 +35,12 @@ from custom_components.haeo.coordinator import (
     OptimizationContext,
     _build_coordinator_output,
     _build_optimization_context,
+    _localize_currency,
+    detect_currency_symbol,
 )
 from custom_components.haeo.core.adapters.elements.battery import BATTERY_DEVICE_BATTERY, BATTERY_POWER_CHARGE
 from custom_components.haeo.core.adapters.elements.connection import CONNECTION_DEVICE_CONNECTION, CONNECTION_POWER
+from custom_components.haeo.core.adapters.elements.grid import GRID_COST_NET, GRID_POWER_MAX_IMPORT_PRICE
 from custom_components.haeo.core.adapters.elements.solar import SOLAR_POWER
 from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES
 from custom_components.haeo.core.const import (
@@ -548,6 +551,7 @@ def test_build_coordinator_output_emits_forecast_entries() -> None:
         SOLAR_POWER,
         OutputData(type=OutputType.POWER, unit="kW", values=(1.2, 3.4)),
         forecast_times=forecast_times,
+        currency_sym="$",
     )
 
     assert output.forecast is not None
@@ -568,6 +572,7 @@ def test_build_coordinator_output_handles_timestamp_errors(monkeypatch: pytest.M
         SOLAR_POWER,
         OutputData(type=OutputType.POWER, unit="kW", values=(1.0, 2.0)),
         forecast_times=(1, 2),
+        currency_sym="$",
     )
 
     assert output.forecast is None
@@ -580,6 +585,7 @@ def test_build_coordinator_output_sets_status_options() -> None:
         OUTPUT_NAME_OPTIMIZATION_STATUS,
         OutputData(type=OutputType.STATUS, unit=None, values=("success",)),
         forecast_times=None,
+        currency_sym="$",
     )
 
     assert output.options == STATUS_OPTIONS
@@ -594,6 +600,7 @@ def test_build_coordinator_output_skips_forecast_for_single_value() -> None:
         SOLAR_POWER,
         OutputData(type=OutputType.POWER, unit="kW", values=(5.0,)),
         forecast_times=(1, 2),
+        currency_sym="$",
     )
 
     assert output.state == 5.0
@@ -607,6 +614,7 @@ def test_build_coordinator_output_uses_last_value_when_state_last() -> None:
         SOLAR_POWER,
         OutputData(type=OutputType.POWER, unit="kW", values=(1.0, 2.0, 3.0), state_last=True),
         forecast_times=(1, 2, 3),
+        currency_sym="$",
     )
 
     assert output.state == 3.0  # Last value, not first
@@ -620,10 +628,100 @@ def test_build_coordinator_output_handles_empty_values() -> None:
         SOLAR_POWER,
         OutputData(type=OutputType.POWER, unit="kW", values=()),
         forecast_times=(1, 2),
+        currency_sym="$",
     )
 
     assert output.state is None
     assert output.forecast is None
+
+
+def _make_source_state(unit: str) -> Mock:
+    """Create a mock source entity state with a unit_of_measurement attribute."""
+    return Mock(attributes={"unit_of_measurement": unit})
+
+
+def test_detect_currency_symbol_from_price_entity() -> None:
+    """Currency symbol should be extracted from price sensor units."""
+    assert detect_currency_symbol({"s1": _make_source_state("£/kWh")}) == "£"
+    assert detect_currency_symbol({"s1": _make_source_state("€/MWh")}) == "€"
+    assert detect_currency_symbol({"s1": _make_source_state("$/kWh")}) == "$"
+    assert detect_currency_symbol({"s1": _make_source_state("A$/kWh")}) == "A$"
+
+
+def test_detect_currency_symbol_ignores_non_price_entities() -> None:
+    """Non-price units should be skipped, falling back to $."""
+    assert (
+        detect_currency_symbol(
+            {
+                "s1": _make_source_state("kW"),
+                "s2": _make_source_state("kWh"),
+            }
+        )
+        == "$"
+    )
+
+
+def test_detect_currency_symbol_falls_back_to_dollar() -> None:
+    """When no price entities exist, fall back to $."""
+    assert detect_currency_symbol({}, fallback_currency=None) == "$"
+
+
+def test_detect_currency_symbol_falls_back_to_configured_currency() -> None:
+    """When no price entities exist, use the configured currency fallback."""
+    assert detect_currency_symbol({}, fallback_currency="AUD") == "AUD"
+
+
+def test_detect_currency_symbol_uses_first_price_entity() -> None:
+    """When multiple price entities exist, the first match is used."""
+    states = {
+        "s1": _make_source_state("kW"),
+        "s2": _make_source_state("£/kWh"),
+        "s3": _make_source_state("€/kWh"),
+    }
+    # The first price entity is s2, so the detected symbol should be £
+    assert detect_currency_symbol(states) == "£"
+
+
+def test_localize_currency_replaces_dollar_placeholder() -> None:
+    """The $ placeholder in units should be replaced with the detected currency symbol."""
+    assert _localize_currency("$/kWh", "£") == "£/kWh"
+    assert _localize_currency("$/kW", "€") == "€/kW"
+    assert _localize_currency("$", "A$") == "A$"
+    assert _localize_currency("$", "$") == "$"
+
+
+def test_localize_currency_passes_through_non_monetary_units() -> None:
+    """Units without $ should pass through unchanged."""
+    assert _localize_currency("kW", "£") == "kW"
+    assert _localize_currency("kWh", "€") == "kWh"
+    assert _localize_currency("%", "A$") == "%"
+
+
+def test_localize_currency_handles_none() -> None:
+    """None units should remain None."""
+    assert _localize_currency(None, "£") is None
+
+
+def test_build_coordinator_output_localizes_shadow_price_currency() -> None:
+    """Shadow price units should use the detected currency symbol instead of $."""
+    output = _build_coordinator_output(
+        GRID_POWER_MAX_IMPORT_PRICE,
+        OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.05,)),
+        forecast_times=None,
+        currency_sym="£",
+    )
+    assert output.unit == "£/kWh"
+
+
+def test_build_coordinator_output_localizes_cost_currency() -> None:
+    """Cost units should use the detected currency symbol instead of $."""
+    output = _build_coordinator_output(
+        GRID_COST_NET,
+        OutputData(type=OutputType.COST, unit="$", values=(42.0,)),
+        forecast_times=None,
+        currency_sym="€",
+    )
+    assert output.unit == "€"
 
 
 def test_coordinator_cleanup_invokes_listener(

@@ -105,6 +105,9 @@ markdown_extensions:
         - name: guide
           class: guide
           format: !!python/name:tools.guide_fence.format_guide
+        - name: guide-setup
+          class: guide-setup
+          format: !!python/name:tools.guide_fence.format_guide_setup
   - pymdownx.tabbed:
       alternate_style: true
   - pymdownx.tasklist:

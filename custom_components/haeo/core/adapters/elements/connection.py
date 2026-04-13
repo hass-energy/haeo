@@ -7,11 +7,7 @@ from custom_components.haeo.core.adapters.output_utils import expect_output_data
 from custom_components.haeo.core.const import ConnectivityLevel
 from custom_components.haeo.core.model import ModelElementConfig, ModelOutputName, ModelOutputValue
 from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_CONNECTION
-from custom_components.haeo.core.model.elements.connection import (
-    CONNECTION_OUTPUT_NAMES as MODEL_CONNECTION_OUTPUT_NAMES,
-)
-from custom_components.haeo.core.model.elements.connection import CONNECTION_POWER
-from custom_components.haeo.core.model.elements.connection import ConnectionOutputName as ModelConnectionOutputName
+from custom_components.haeo.core.model.elements.connection import CONNECTION_POWER, CONNECTION_SEGMENTS
 from custom_components.haeo.core.model.output_data import OutputData
 from custom_components.haeo.core.schema import extract_connection_target
 from custom_components.haeo.core.schema.elements import ElementType
@@ -25,13 +21,16 @@ from custom_components.haeo.core.schema.elements.connection import (
 )
 from custom_components.haeo.core.schema.sections import SECTION_EFFICIENCY, SECTION_POWER_LIMITS, SECTION_PRICING
 
-# Adapter-synthesized output name (computed from model outputs)
-CONNECTION_POWER_ACTIVE: Final = "connection_power_active"
+type ConnectionOutputName = Literal[
+    "connection_power",
+    "connection_shadow_power_max",
+]
 
-# Connection adapter output names include model outputs + adapter-synthesized outputs
-type ConnectionOutputName = ModelConnectionOutputName | Literal["connection_power_active",]
+CONNECTION_SHADOW_POWER_MAX: Final[ConnectionOutputName] = "connection_shadow_power_max"
 
-CONNECTION_OUTPUT_NAMES: Final[frozenset[ConnectionOutputName]] = MODEL_CONNECTION_OUTPUT_NAMES
+CONNECTION_OUTPUT_NAMES: Final[frozenset[ConnectionOutputName]] = frozenset(
+    (CONNECTION_POWER, CONNECTION_SHADOW_POWER_MAX)
+)
 
 type ConnectionDeviceName = Literal[ElementType.CONNECTION]
 
@@ -80,11 +79,18 @@ class ConnectionAdapter:
     ) -> Mapping[ConnectionDeviceName, Mapping[ConnectionOutputName, OutputData]]:
         """Map model outputs to connection-specific output names."""
         conn = model_outputs[name]
-        return {
-            CONNECTION_DEVICE_CONNECTION: {
-                CONNECTION_POWER: expect_output_data(conn[CONNECTION_POWER]),
-            }
+        connection_outputs: dict[ConnectionOutputName, OutputData] = {
+            CONNECTION_POWER: expect_output_data(conn[CONNECTION_POWER]),
         }
+
+        if (
+            isinstance(segments_output := conn.get(CONNECTION_SEGMENTS), Mapping)
+            and isinstance(power_limit_outputs := segments_output.get("power_limit"), Mapping)
+            and (shadow := expect_output_data(power_limit_outputs.get("power_limit"))) is not None
+        ):
+            connection_outputs[CONNECTION_SHADOW_POWER_MAX] = shadow
+
+        return {CONNECTION_DEVICE_CONNECTION: connection_outputs}
 
 
 adapter = ConnectionAdapter()

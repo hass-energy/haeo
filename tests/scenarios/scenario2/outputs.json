@@ -5591,7 +5591,7 @@
       "unit_of_measurement": "$/kW"
     }
   },
-  "sensor.optimizer_cost": { "entity_id": "sensor.optimizer_cost", "state": "-17.27", "attributes": { "advanced": false, "device_class": "monetary", "element_name": "System", "element_type": "network", "friendly_name": "Optimizer Cost", "output_name": "network_optimization_cost", "output_type": "cost", "unit_of_measurement": "EUR" } },
+  "sensor.optimizer_cost": { "entity_id": "sensor.optimizer_cost", "state": "-17.27", "attributes": { "advanced": false, "device_class": "monetary", "element_name": "System", "element_type": "network", "friendly_name": "Optimizer Cost", "output_name": "network_optimization_cost", "output_type": "cost", "unit_of_measurement": "$" } },
   "sensor.optimizer_duration": { "entity_id": "sensor.optimizer_duration", "state": "0.0", "attributes": { "advanced": false, "device_class": "duration", "element_name": "System", "element_type": "network", "friendly_name": "Optimizer Duration", "output_name": "network_optimization_duration", "output_type": "duration", "state_class": "measurement", "unit_of_measurement": "s" } },
   "sensor.optimizer_forecast_horizon": {
     "entity_id": "sensor.optimizer_forecast_horizon",
