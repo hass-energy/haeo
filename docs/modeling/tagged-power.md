@@ -297,7 +297,7 @@ All sources get the same signature: {(every_dest, 0, None)}. All merge into VLAN
 
 ## Implementation Location
 
-The compilation pipeline lives in `core/adapters/tariff_compilation.py` (to be renamed
+The compilation pipeline lives in `core/adapters/policy_compilation.py` (to be renamed
 `policy_compilation.py`). It runs as a post-processing step in `collect_model_elements()`
 after all adapters produce their model element configs.
 

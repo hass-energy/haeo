@@ -69,10 +69,6 @@ CREATE_CASES: Sequence[CreateCase] = [
                         "max_power": [2.0, 1.5],
                         "fixed": True,
                     },
-                    "pricing": {
-                        "segment_type": "pricing",
-                        "price": [0.15, 0.15],
-                    },
                 },
             },
         ],

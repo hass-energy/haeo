@@ -419,6 +419,7 @@
     "load": { "name": "{name}" },
     "network": { "name": "Optimizer" },
     "node": { "name": "{name}" },
+    "policy": { "name": "Policy" },
     "solar": { "name": "{name}" }
   },
   "entity": {

@@ -74,7 +74,7 @@ The segment's `tag` parameter matches the source VLAN.
 
 ### Where Compilation Lives
 
-`core/adapters/tariff_compilation.py` (to be renamed `policy_compilation.py`).
+`core/adapters/policy_compilation.py` (to be renamed `policy_compilation.py`).
 Post-processing step in `collect_model_elements()`.
 
 ### Adapter Interaction
@@ -116,7 +116,7 @@ non-policy power (VLAN 0).
 
 ## Testing
 
-Tests in `core/adapters/tests/test_tariff_compilation.py`:
+Tests in `core/adapters/tests/test_policy_compilation.py`:
 
 1. **Signature computation**: Correct merging of identical signatures
 2. **VLAN assignment**: Minimum VLANs for various policy sets

@@ -91,6 +91,7 @@ from custom_components.haeo.core.adapters.elements.node import (
     NodeDeviceName,
     NodeOutputName,
 )
+from custom_components.haeo.core.adapters.elements.policy import POLICY_DEVICE_NAMES, PolicyDeviceName
 from custom_components.haeo.core.adapters.elements.solar import (
     SOLAR_DEVICE_NAMES,
     SOLAR_OUTPUT_NAMES,
@@ -167,6 +168,7 @@ type ElementDeviceName = (
     | LoadDeviceName
     | NodeDeviceName
     | SolarDeviceName
+    | PolicyDeviceName
     | NetworkDeviceName
 )
 
@@ -181,6 +183,7 @@ ELEMENT_DEVICE_NAMES: Final[frozenset[ElementDeviceName]] = frozenset(
     | LOAD_DEVICE_NAMES
     | NODE_DEVICE_NAMES
     | SOLAR_DEVICE_NAMES
+    | POLICY_DEVICE_NAMES
     | NETWORK_DEVICE_NAMES
 )
 

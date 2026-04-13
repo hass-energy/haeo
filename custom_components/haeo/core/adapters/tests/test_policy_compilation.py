@@ -15,7 +15,7 @@ from typing import Any, cast
 import numpy as np
 import pytest
 
-from custom_components.haeo.core.adapters.tariff_compilation import compile_policies
+from custom_components.haeo.core.adapters.policy_compilation import compile_policies
 from custom_components.haeo.core.model import ModelElementConfig
 from custom_components.haeo.core.model.network import Network
 

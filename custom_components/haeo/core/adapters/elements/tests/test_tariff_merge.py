@@ -1,1 +1,0 @@
-"""Tariff merge tests."""

@@ -20,7 +20,6 @@ from custom_components.haeo.core.schema.elements.solar import (
     SolarConfigData,
 )
 from custom_components.haeo.core.schema.sections import CONF_CONNECTION, CONF_FORECAST, SECTION_FORECAST
-from custom_components.haeo.core.schema.sections.pricing import CONF_PRICE_SOURCE_TARGET, SECTION_PRICING
 
 # Solar output names
 type SolarOutputName = Literal[
@@ -57,8 +56,6 @@ class SolarAdapter:
                 "fixed": not config[SECTION_CURTAILMENT].get(CONF_CURTAILMENT, True),
             },
         }
-        if (price := config[SECTION_PRICING].get(CONF_PRICE_SOURCE_TARGET)) is not None:
-            segments["pricing"] = {"segment_type": "pricing", "price": price}
         return [
             {
                 "element_type": MODEL_ELEMENT_TYPE_NODE,
