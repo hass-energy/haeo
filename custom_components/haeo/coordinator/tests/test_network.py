@@ -13,7 +13,6 @@ from custom_components.haeo.core.schema import as_connection_target
 from custom_components.haeo.core.schema.elements import ElementConfigData, ElementType
 from custom_components.haeo.core.schema.elements.connection import (
     CONF_MAX_POWER_SOURCE_TARGET,
-    CONF_MAX_POWER_TARGET_SOURCE,
     SECTION_EFFICIENCY,
     SECTION_ENDPOINTS,
     SECTION_POWER_LIMITS,
@@ -29,7 +28,7 @@ def test_update_element_updates_tracked_params() -> None:
     network.add(
         {
             "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
-            "name": "conn:forward",
+            "name": "conn",
             "source": "source",
             "target": "target",
             "segments": {
@@ -37,30 +36,13 @@ def test_update_element_updates_tracked_params() -> None:
             },
         }
     )
-    network.add(
-        {
-            "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
-            "name": "conn:reverse",
-            "source": "target",
-            "target": "source",
-            "segments": {
-                "power_limit": {"segment_type": "power_limit", "max_power": np.array([5.0, 5.0])},
-            },
-        }
-    )
 
-    fwd = network.elements["conn:forward"]
-    rev = network.elements["conn:reverse"]
-    assert isinstance(fwd, Connection)
-    assert isinstance(rev, Connection)
-    fwd_pl = fwd.segments["power_limit"]
-    rev_pl = rev.segments["power_limit"]
-    assert isinstance(fwd_pl, PowerLimitSegment)
-    assert isinstance(rev_pl, PowerLimitSegment)
-    assert fwd_pl.max_power is not None
-    assert rev_pl.max_power is not None
-    assert fwd_pl.max_power[0] == 10.0
-    assert rev_pl.max_power[0] == 5.0
+    conn = network.elements["conn"]
+    assert isinstance(conn, Connection)
+    pl = conn.segments["power_limit"]
+    assert isinstance(pl, PowerLimitSegment)
+    assert pl.max_power is not None
+    assert pl.max_power[0] == 10.0
 
     config: ElementConfigData = {
         CONF_ELEMENT_TYPE: ElementType.CONNECTION,
@@ -71,15 +53,13 @@ def test_update_element_updates_tracked_params() -> None:
         },
         SECTION_POWER_LIMITS: {
             CONF_MAX_POWER_SOURCE_TARGET: np.array([20.0, 20.0]),
-            CONF_MAX_POWER_TARGET_SOURCE: np.array([15.0, 15.0]),
         },
         SECTION_PRICING: {},
         SECTION_EFFICIENCY: {},
     }
     update_element(network, config)
 
-    assert fwd_pl.max_power[0] == 20.0
-    assert rev_pl.max_power[0] == 15.0
+    assert pl.max_power[0] == 20.0
 
 
 def test_update_element_raises_for_missing_model_element() -> None:
@@ -97,13 +77,12 @@ def test_update_element_raises_for_missing_model_element() -> None:
         },
         SECTION_POWER_LIMITS: {
             CONF_MAX_POWER_SOURCE_TARGET: np.array([20.0, 20.0]),
-            CONF_MAX_POWER_TARGET_SOURCE: np.array([15.0, 15.0]),
         },
         SECTION_PRICING: {},
         SECTION_EFFICIENCY: {},
     }
 
-    with pytest.raises(ValueError, match="Model element 'nonexistent_conn:forward' not found in network during update"):
+    with pytest.raises(ValueError, match="Model element 'nonexistent_conn' not found in network during update"):
         update_element(network, config)
 
 
@@ -115,21 +94,9 @@ def test_update_element_allows_empty_efficiency_section() -> None:
     network.add(
         {
             "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
-            "name": "conn:forward",
+            "name": "conn",
             "source": "source",
             "target": "target",
-            "segments": {
-                "efficiency": {"segment_type": "efficiency", "efficiency": np.array([0.95, 0.95])},
-                "power_limit": {"segment_type": "power_limit", "max_power": np.array([10.0, 10.0])},
-            },
-        }
-    )
-    network.add(
-        {
-            "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
-            "name": "conn:reverse",
-            "source": "target",
-            "target": "source",
             "segments": {
                 "efficiency": {"segment_type": "efficiency", "efficiency": np.array([0.95, 0.95])},
                 "power_limit": {"segment_type": "power_limit", "max_power": np.array([10.0, 10.0])},
@@ -146,14 +113,13 @@ def test_update_element_allows_empty_efficiency_section() -> None:
         },
         SECTION_POWER_LIMITS: {
             CONF_MAX_POWER_SOURCE_TARGET: np.array([10.0, 10.0]),
-            CONF_MAX_POWER_TARGET_SOURCE: np.array([10.0, 10.0]),
         },
         SECTION_PRICING: {},
         SECTION_EFFICIENCY: {},
     }
     update_element(network, config)
 
-    conn = network.elements["conn:forward"]
+    conn = network.elements["conn"]
     assert isinstance(conn, Connection)
     efficiency = conn.segments["efficiency"]
     assert isinstance(efficiency, EfficiencySegment)

@@ -119,7 +119,7 @@ async def test_create_network_sorts_connections_after_elements(hass: HomeAssista
     )
 
     # Nodes should be added before the connection even though the connection was listed first
-    assert list(network.elements.keys()) == ["node_a", "node_b", "line:forward", "line:reverse"]
+    assert list(network.elements.keys()) == ["node_a", "node_b", "line"]
 
 
 async def test_create_network_add_failure_is_wrapped(hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch) -> None:

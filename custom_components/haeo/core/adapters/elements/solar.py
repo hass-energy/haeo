@@ -50,9 +50,6 @@ class SolarAdapter:
 
     def model_elements(self, config: SolarConfigData) -> list[ModelElementConfig]:
         """Return model element parameters for Solar configuration."""
-        solar_name = config["name"]
-        target_name = extract_connection_target(config[CONF_CONNECTION])
-        price = config[SECTION_PRICING].get(CONF_PRICE_SOURCE_TARGET)
         segments: dict[str, Any] = {
             "power_limit": {
                 "segment_type": "power_limit",
@@ -60,20 +57,20 @@ class SolarAdapter:
                 "fixed": not config[SECTION_CURTAILMENT].get(CONF_CURTAILMENT, True),
             },
         }
-        if price is not None:
+        if (price := config[SECTION_PRICING].get(CONF_PRICE_SOURCE_TARGET)) is not None:
             segments["pricing"] = {"segment_type": "pricing", "price": price}
         return [
             {
                 "element_type": MODEL_ELEMENT_TYPE_NODE,
-                "name": solar_name,
+                "name": config["name"],
                 "is_source": True,
                 "is_sink": False,
             },
             {
                 "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
-                "name": f"{solar_name}:connection",
-                "source": solar_name,
-                "target": target_name,
+                "name": f"{config['name']}:connection",
+                "source": config["name"],
+                "target": extract_connection_target(config[CONF_CONNECTION]),
                 "segments": segments,
             },
         ]

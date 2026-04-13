@@ -63,41 +63,43 @@ class InverterAdapter:
 
     def model_elements(self, config: InverterConfigData) -> list[ModelElementConfig]:
         """Return model element parameters for Inverter configuration."""
-        max_power_st = config[SECTION_POWER_LIMITS].get(CONF_MAX_POWER_SOURCE_TARGET)
-        max_power_ts = config[SECTION_POWER_LIMITS].get(CONF_MAX_POWER_TARGET_SOURCE)
-        inv_name = config["name"]
-        target_name = extract_connection_target(config[CONF_CONNECTION])
         return [
             {
                 "element_type": MODEL_ELEMENT_TYPE_NODE,
-                "name": inv_name,
+                "name": config["name"],
                 "is_source": False,
                 "is_sink": False,
             },
             {
                 "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
-                "name": f"{inv_name}:connection",
-                "source": inv_name,
-                "target": target_name,
+                "name": f"{config['name']}:dc_to_ac",
+                "source": config["name"],
+                "target": extract_connection_target(config[CONF_CONNECTION]),
                 "segments": {
                     "efficiency": {
                         "segment_type": "efficiency",
                         "efficiency": config[SECTION_EFFICIENCY].get(CONF_EFFICIENCY_SOURCE_TARGET),
                     },
-                    "power_limit": {"segment_type": "power_limit", "max_power": max_power_st},
+                    "power_limit": {
+                        "segment_type": "power_limit",
+                        "max_power": config[SECTION_POWER_LIMITS].get(CONF_MAX_POWER_SOURCE_TARGET),
+                    },
                 },
             },
             {
                 "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
-                "name": f"{inv_name}:reverse",
-                "source": target_name,
-                "target": inv_name,
+                "name": f"{config['name']}:ac_to_dc",
+                "source": extract_connection_target(config[CONF_CONNECTION]),
+                "target": config["name"],
                 "segments": {
                     "efficiency": {
                         "segment_type": "efficiency",
                         "efficiency": config[SECTION_EFFICIENCY].get(CONF_EFFICIENCY_TARGET_SOURCE),
                     },
-                    "power_limit": {"segment_type": "power_limit", "max_power": max_power_ts},
+                    "power_limit": {
+                        "segment_type": "power_limit",
+                        "max_power": config[SECTION_POWER_LIMITS].get(CONF_MAX_POWER_TARGET_SOURCE),
+                    },
                 },
             },
         ]
@@ -109,8 +111,8 @@ class InverterAdapter:
         **_kwargs: Any,
     ) -> Mapping[InverterDeviceName, Mapping[InverterOutputName, OutputData]]:
         """Map model outputs to inverter-specific output names."""
-        forward_conn = model_outputs[f"{name}:connection"]
-        reverse_conn = model_outputs[f"{name}:reverse"]
+        forward_conn = model_outputs[f"{name}:dc_to_ac"]
+        reverse_conn = model_outputs[f"{name}:ac_to_dc"]
         dc_bus = model_outputs[name]
         power_forward = expect_output_data(forward_conn[CONNECTION_POWER])
         power_reverse = expect_output_data(reverse_conn[CONNECTION_POWER])

@@ -1,7 +1,7 @@
 """Test data types for segment scenarios."""
 
 from collections.abc import Callable, Sequence
-from typing import Any, Literal, NotRequired, TypedDict
+from typing import Any, NotRequired, TypedDict
 
 from highspy import Highs
 import numpy as np
@@ -17,9 +17,8 @@ type SegmentEndpointFactory = Callable[[Highs, NDArray[np.floating[Any]]], tuple
 class SegmentScenarioInputs(TypedDict, total=False):
     """Inputs for segment optimization scenarios."""
 
-    power_in_st: Sequence[float]
-    power_in_ts: Sequence[float]
-    maximize: dict[Literal["power_in_st", "power_in_ts"], float]
+    power_in: Sequence[float]
+    maximize: dict[str, float]
     minimize_cost: bool
 
 

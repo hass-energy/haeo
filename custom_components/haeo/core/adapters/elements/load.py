@@ -55,29 +55,23 @@ class LoadAdapter:
     def model_elements(self, config: LoadConfigData) -> list[ModelElementConfig]:
         """Create model elements for Load configuration."""
         value = config[SECTION_PRICING].get(CONF_PRICE_TARGET_SOURCE)
-
-        load_name = config["name"]
-        target_name = extract_connection_target(config[CONF_CONNECTION])
-        forecast = config[SECTION_FORECAST][CONF_FORECAST]
-        fixed = not config[SECTION_CURTAILMENT].get(CONF_CURTAILMENT, False)
-        value = config[SECTION_PRICING].get(CONF_PRICE_TARGET_SOURCE)
         return [
             {
                 "element_type": MODEL_ELEMENT_TYPE_NODE,
-                "name": load_name,
+                "name": config["name"],
                 "is_source": False,
                 "is_sink": True,
             },
             {
                 "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
-                "name": f"{load_name}:connection",
-                "source": target_name,
-                "target": load_name,
+                "name": f"{config['name']}:connection",
+                "source": extract_connection_target(config[CONF_CONNECTION]),
+                "target": config["name"],
                 "segments": {
                     "power_limit": {
                         "segment_type": "power_limit",
-                        "max_power": forecast,
-                        "fixed": fixed,
+                        "max_power": config[SECTION_FORECAST][CONF_FORECAST],
+                        "fixed": not config[SECTION_CURTAILMENT].get(CONF_CURTAILMENT, False),
                     },
                     "pricing": {
                         "segment_type": "pricing",

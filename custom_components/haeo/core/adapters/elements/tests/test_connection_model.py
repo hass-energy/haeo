@@ -6,11 +6,7 @@ from typing import Any, TypedDict
 import numpy as np
 import pytest
 
-from custom_components.haeo.core.adapters.elements.connection import (
-    CONNECTION_DEVICE_CONNECTION,
-    CONNECTION_POWER,
-    CONNECTION_POWER_ACTIVE,
-)
+from custom_components.haeo.core.adapters.elements.connection import CONNECTION_DEVICE_CONNECTION, CONNECTION_POWER
 from custom_components.haeo.core.adapters.elements.tests.normalize import normalize_for_compare
 from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES
 from custom_components.haeo.core.model import ModelOutputName, ModelOutputValue
@@ -63,24 +59,13 @@ CREATE_CASES: Sequence[CreateCase] = [
         "model": [
             {
                 "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
-                "name": "conn:forward",
+                "name": "conn",
                 "source": "s",
                 "target": "t",
                 "segments": {
                     "efficiency": {"segment_type": "efficiency", "efficiency": [0.95]},
                     "power_limit": {"segment_type": "power_limit", "max_power": [4.0]},
                     "pricing": {"segment_type": "pricing", "price": [0.1]},
-                },
-            },
-            {
-                "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
-                "name": "conn:reverse",
-                "source": "t",
-                "target": "s",
-                "segments": {
-                    "efficiency": {"segment_type": "efficiency", "efficiency": [0.90]},
-                    "power_limit": {"segment_type": "power_limit", "max_power": [2.0]},
-                    "pricing": {"segment_type": "pricing", "price": [0.05]},
                 },
             },
         ],
@@ -98,20 +83,9 @@ CREATE_CASES: Sequence[CreateCase] = [
         "model": [
             {
                 "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
-                "name": "conn_min:forward",
+                "name": "conn_min",
                 "source": "s",
                 "target": "t",
-                "segments": {
-                    "efficiency": {"segment_type": "efficiency", "efficiency": None},
-                    "power_limit": {"segment_type": "power_limit", "max_power": None},
-                    "pricing": {"segment_type": "pricing", "price": None},
-                },
-            },
-            {
-                "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
-                "name": "conn_min:reverse",
-                "source": "t",
-                "target": "s",
                 "segments": {
                     "efficiency": {"segment_type": "efficiency", "efficiency": None},
                     "power_limit": {"segment_type": "power_limit", "max_power": None},
@@ -125,50 +99,18 @@ CREATE_CASES: Sequence[CreateCase] = [
 
 OUTPUTS_CASES: Sequence[OutputsCase] = [
     {
-        "description": "Connection with all optional fields",
+        "description": "Connection outputs",
         "name": "c1",
         "model_outputs": {
-            "c1:forward": {
+            "c1": {
                 model_connection.CONNECTION_POWER: OutputData(
                     type=OutputType.POWER_FLOW, unit="kW", values=(5.0,), direction="+"
-                ),
-            },
-            "c1:reverse": {
-                model_connection.CONNECTION_POWER: OutputData(
-                    type=OutputType.POWER_FLOW, unit="kW", values=(7.0,), direction="-"
                 ),
             },
         },
         "outputs": {
             CONNECTION_DEVICE_CONNECTION: {
                 CONNECTION_POWER: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(5.0,), direction="+"),
-                CONNECTION_POWER_ACTIVE: OutputData(
-                    type=OutputType.POWER_FLOW, unit="kW", values=(-2.0,), direction=None
-                ),
-            }
-        },
-    },
-    {
-        "description": "Connection without optional fields",
-        "name": "c_min",
-        "model_outputs": {
-            "c_min:forward": {
-                model_connection.CONNECTION_POWER: OutputData(
-                    type=OutputType.POWER_FLOW, unit="kW", values=(5.0,), direction="+"
-                ),
-            },
-            "c_min:reverse": {
-                model_connection.CONNECTION_POWER: OutputData(
-                    type=OutputType.POWER_FLOW, unit="kW", values=(7.0,), direction="-"
-                ),
-            },
-        },
-        "outputs": {
-            CONNECTION_DEVICE_CONNECTION: {
-                CONNECTION_POWER: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(5.0,), direction="+"),
-                CONNECTION_POWER_ACTIVE: OutputData(
-                    type=OutputType.POWER_FLOW, unit="kW", values=(-2.0,), direction=None
-                ),
             }
         },
     },

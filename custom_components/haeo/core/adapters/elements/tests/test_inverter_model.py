@@ -68,7 +68,7 @@ CREATE_CASES: Sequence[CreateCase] = [
             {"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "inverter_main", "is_source": False, "is_sink": False},
             {
                 "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
-                "name": "inverter_main:connection",
+                "name": "inverter_main:dc_to_ac",
                 "source": "inverter_main",
                 "target": "network",
                 "segments": {
@@ -78,7 +78,7 @@ CREATE_CASES: Sequence[CreateCase] = [
             },
             {
                 "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
-                "name": "inverter_main:reverse",
+                "name": "inverter_main:ac_to_dc",
                 "source": "network",
                 "target": "inverter_main",
                 "segments": {
@@ -107,7 +107,7 @@ CREATE_CASES: Sequence[CreateCase] = [
             {"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "inverter_simple", "is_source": False, "is_sink": False},
             {
                 "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
-                "name": "inverter_simple:connection",
+                "name": "inverter_simple:dc_to_ac",
                 "source": "inverter_simple",
                 "target": "network",
                 "segments": {
@@ -117,7 +117,7 @@ CREATE_CASES: Sequence[CreateCase] = [
             },
             {
                 "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
-                "name": "inverter_simple:reverse",
+                "name": "inverter_simple:ac_to_dc",
                 "source": "network",
                 "target": "inverter_simple",
                 "segments": {
@@ -138,7 +138,7 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
             "inverter_main": {
                 NODE_POWER_BALANCE: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.0,)),
             },
-            "inverter_main:connection": {
+            "inverter_main:dc_to_ac": {
                 connection.CONNECTION_POWER: OutputData(
                     type=OutputType.POWER_FLOW, unit="kW", values=(5.0,), direction="+"
                 ),
@@ -148,7 +148,7 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
                     }
                 },
             },
-            "inverter_main:reverse": {
+            "inverter_main:ac_to_dc": {
                 connection.CONNECTION_POWER: OutputData(
                     type=OutputType.POWER_FLOW, unit="kW", values=(3.0,), direction="-"
                 ),

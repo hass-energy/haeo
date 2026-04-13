@@ -388,7 +388,6 @@ def test_model_elements_omits_efficiency_when_missing() -> None:
     assert efficiency_segment is not None
     assert is_efficiency_spec(efficiency_segment)
     assert efficiency_segment.get("efficiency") is None
-    assert efficiency_segment.get("efficiency") is None
 
 
 def test_model_elements_defaults_salvage_value_when_missing() -> None:

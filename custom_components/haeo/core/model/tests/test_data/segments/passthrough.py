@@ -15,10 +15,9 @@ SCENARIOS: Sequence[SegmentScenario] = [
         "factory": PassthroughSegment,
         "spec": {"segment_type": "passthrough"},
         "periods": np.array([1.0, 1.0]),
-        "inputs": {"power_in_st": [4.0, 6.0], "power_in_ts": [1.0, 2.0]},
+        "inputs": {"power_in": [4.0, 6.0]},
         "expected_outputs": {
-            "power_out_st": [4.0, 6.0],
-            "power_out_ts": [1.0, 2.0],
+            "power_out": [4.0, 6.0],
         },
     },
 ]

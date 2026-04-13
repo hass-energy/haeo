@@ -10,6 +10,8 @@ import pytest
 
 from custom_components.haeo.core.model.element import Element
 from custom_components.haeo.core.model.elements.connection import Connection
+from custom_components.haeo.core.model.elements.segments.power_limit import PowerLimitSegment
+from custom_components.haeo.core.model.elements.segments.pricing import PricingSegment
 from custom_components.haeo.core.model.output_data import ModelOutputValue, OutputData
 from custom_components.haeo.core.model.tests import test_data
 from custom_components.haeo.core.model.tests.test_data.connection_types import (
@@ -186,9 +188,6 @@ def test_connection_getitem_integer_index(solver: Highs) -> None:
     source = DummyElement("a", conn.periods, solver)
     target = DummyElement("b", conn.periods, solver)
     conn.set_endpoints(source, target)
-
-    from custom_components.haeo.core.model.elements.segments.power_limit import PowerLimitSegment
-    from custom_components.haeo.core.model.elements.segments.pricing import PricingSegment
 
     assert isinstance(conn[0], PowerLimitSegment)
     assert isinstance(conn[1], PricingSegment)

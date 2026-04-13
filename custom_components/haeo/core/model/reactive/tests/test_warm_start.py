@@ -478,7 +478,7 @@ def test_network_add_connection_updates_prices() -> None:
     network.add(
         {
             "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
-            "name": "conn:forward",
+            "name": "conn",
             "source": "source",
             "target": "sink",
             "segments": {
@@ -487,22 +487,9 @@ def test_network_add_connection_updates_prices() -> None:
             },
         }
     )
-    network.add(
-        {
-            "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
-            "name": "conn:reverse",
-            "source": "sink",
-            "target": "source",
-            "segments": {
-                "power_limit": {"segment_type": "power_limit", "max_power": 5.0},
-                "pricing": {"segment_type": "pricing", "price": 0.10},
-            },
-        }
-    )
 
     cost1 = network.optimize()
 
-    # Update via update_element (simulating coordinator flow)
     update_element(
         network,
         {
@@ -512,15 +499,14 @@ def test_network_add_connection_updates_prices() -> None:
                 "source": as_connection_target("source"),
                 "target": as_connection_target("sink"),
             },
-            SECTION_POWER_LIMITS: {"max_power_source_target": 5.0, "max_power_target_source": 5.0},
-            SECTION_PRICING: {"price_source_target": -0.20, "price_target_source": 0.20},
+            SECTION_POWER_LIMITS: {"max_power_source_target": 5.0},
+            SECTION_PRICING: {"price_source_target": -0.20},
             SECTION_EFFICIENCY: {},
         },
     )
 
     cost2 = network.optimize()
 
-    # Price doubled, cost should double
     assert pytest.approx(cost2 / cost1, rel=1e-6) == 2.0
 
 

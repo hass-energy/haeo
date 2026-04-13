@@ -18,9 +18,9 @@ SCENARIOS: Sequence[SegmentScenario] = [
             "efficiency": np.array([0.9, 0.9]),
         },
         "periods": np.array([1.0, 1.0]),
-        "inputs": {"power_in_st": [10.0, 10.0]},
+        "inputs": {"power_in": [10.0, 10.0]},
         "expected_outputs": {
-            "power_out_st": [9.0, 9.0],
+            "power_out": [9.0, 9.0],
         },
     },
 ]
