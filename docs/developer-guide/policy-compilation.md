@@ -1,131 +1,125 @@
-# Policy Compilation
+# Policy compilation
 
 This guide explains how user-configured power policies compile into the LP model.
-See [Power Policies](../modeling/tagged-power.md) for the design rationale and
-[VLAN Optimization](vlan-optimization.md) for the variable minimization algorithms.
+See [Power policies](../modeling/tagged-power.md) for the design rationale.
+See [VLAN optimization](vlan-optimization.md) for variable minimization algorithms.
 
 ## Overview
 
-Policies are a device-layer concept. Users configure source–destination pairs with
-prices and limits. The compilation pipeline transforms these into model-layer constructs:
-optimized VLAN assignments, connection tagging, node access lists, and scoped segments.
+Policies are a device-layer concept.
+Users configure source-destination pairs with prices and limits.
+The compilation pipeline transforms those rules into model-layer constructs.
+Those constructs include optimized VLAN assignments, connection tagging, node access lists, and scoped segments.
 
 ## Pipeline
 
 ```mermaid
 graph TD
-    A[Policy Configs] --> B[Flow Enumeration]
-    B --> C[Signature Computation]
-    C --> D[VLAN Assignment]
-    D --> E[Reachability Analysis]
-    E --> F[Connection Tagging]
-    F --> G[Node Source Tags]
-    G --> H[Node Access Lists]
-    H --> I[Pricing Injection]
-    I --> J[Model Elements]
+    A[Policy configs] --> B[Flow enumeration]
+    B --> C[Signature computation]
+    C --> D[VLAN assignment]
+    D --> E[Reachability analysis]
+    E --> F[Connection tagging]
+    F --> G[Node source tags]
+    G --> H[Node access lists]
+    H --> I[Pricing injection]
+    I --> J[Model elements]
 ```
 
-### Step 1: Flow Enumeration
+### Step 1: Flow enumeration
 
 Each policy expands into concrete `(source, destination, price_st, price_ts)` tuples.
 Wildcards (`*`) expand to all nodes.
 
-### Step 2: Signature Computation
+### Step 2: Signature computation
 
-Per source node, collect the set of `(destination, price)` tuples from all matching policies.
-This is the node's **policy signature**.
+For each source node, collect the set of `(destination, price)` tuples from all matching policies.
+This set is the node's **policy signature**.
 
-### Step 3: VLAN Assignment
+### Step 3: VLAN assignment
 
-Group sources by identical signature → assign one VLAN per group.
-This is the **minimum** number of VLANs (see [VLAN Optimization](vlan-optimization.md)).
+Group sources by identical signature.
+Assign one VLAN per group.
+This yields the minimum VLAN count for correct policy behavior.
 
-### Step 4: Reachability Analysis
+### Step 4: Reachability analysis
 
 For each VLAN, find connections on paths from source nodes to destination nodes.
-Only reachable connections get that VLAN's variables.
+Only reachable connections receive variables for that VLAN.
 
-### Step 5: Connection Tagging
+### Step 5: Connection tagging
 
-Apply the reachability results: each connection gets its set of reachable VLANs.
+Apply reachability results so each connection gets the set of VLANs that can traverse it.
 
-### Step 6: Node Source Tags
+### Step 6: Node source tags
 
-Set `source_tag` on each source node that has a VLAN assigned.
-The Node's `node_tag_power_balance` constraint enforces that only the source's own tag
-carries outbound power.
+Set `source_tag` on each source node with an assigned VLAN.
+The node's `node_tag_power_balance` constraint enforces that only the source tag carries outbound power.
 
-### Step 7: Node Access Lists
+### Step 7: Node access lists
 
-Compute which VLANs each node can consume:
+Compute which VLANs each node can consume.
 
-- A node can consume VLAN `v` if any policy has that node as a destination and
-    the source matches VLAN `v`.
+- A node can consume VLAN `v` if any policy has that node as a destination and the source matches VLAN `v`.
 
-Power on non-consumable VLANs can still **flow through** the node (routing)
-but cannot terminate there.
+Power on non-consumable VLANs can still flow through the node for routing.
+That power cannot terminate at the node.
 
-### Step 8: Pricing Injection
+### Step 8: Pricing injection
 
 For each policy, add a scoped pricing segment at the destination connection.
-The segment's `tag` parameter matches the source VLAN.
+The segment's `tag` matches the source VLAN.
 
 ## Architecture
 
-### Where Compilation Lives
+### Where compilation runs
 
-`core/adapters/policy_compilation.py` (to be renamed `policy_compilation.py`).
-Post-processing step in `collect_model_elements()`.
+Compilation lives in `custom_components/haeo/core/adapters/policy_compilation.py`.
+It runs as a post-processing step in `collect_model_elements()`.
 
-### Adapter Interaction
+### Adapter interaction
 
-The policy adapter produces **rule configs**, not model elements.
-`collect_model_elements()` extracts rules from policy adapters and passes them
-to the compilation pipeline. The pipeline modifies the other adapters' model
-element configs (adding tags to connections, source_tag to nodes, segments).
+The policy adapter produces rule configs, not model elements.
+`collect_model_elements()` extracts those rules and passes them to the compilation pipeline.
+The pipeline updates other adapters' model element configs by adding connection tags, node `source_tag` values, and scoped segments.
 
-### Model Layer Isolation
+### Model layer isolation
 
-The model layer (Segment, Connection, Node, Network) is **policy-unaware**.
-It operates on integer tags and scoped segments. All policy semantics are
-resolved at the compilation layer.
+The model layer is policy-unaware.
+It operates on integer tags and scoped segments.
+All policy semantics are resolved in the compilation layer.
 
 ## Example
 
 ```
 Nodes: Grid, Solar, Battery, Switchboard, Load
 Policies:
-  Grid → Load: $0.05/kWh
-  Solar → Load: $0.02/kWh
+  Grid -> Load: $0.05/kWh
+  Solar -> Load: $0.02/kWh
 ```
 
-| Step             | Result                                                              |
-| ---------------- | ------------------------------------------------------------------- |
-| Flow enumeration | {(Grid,Load,0.05), (Solar,Load,0.02)}                               |
-| Signatures       | Grid={(Load,0.05)}, Solar={(Load,0.02)}, Battery={}, SW={}, Load={} |
-| VLANs            | Grid=1, Solar=2, others=0. K=3                                      |
-| Reachability     | VLAN 1: Grid→SW, SW→Load. VLAN 2: Solar→SW, SW→Load                 |
-| Connection tags  | Grid→SW: {0,1}. Solar→SW: {0,2}. SW→Load: {0,1,2}. Battery→SW: \{0} |
-| Source tags      | Grid: source_tag=1, Solar: source_tag=2                             |
-| Access lists     | Load: consumes {1,2}. SW: forwards all. Battery: consumes \{0}      |
-| Pricing          | SW→Load: pricing(tag=1,$0.05), pricing(tag=2,$0.02)                 |
+| Step             | Result                                                                  |
+| ---------------- | ----------------------------------------------------------------------- |
+| Flow enumeration | {(Grid,Load,0.05), (Solar,Load,0.02)}                                   |
+| Signatures       | Grid={(Load,0.05)}, Solar={(Load,0.02)}, Battery={}, SW={}, Load={}     |
+| VLANs            | Grid=1, Solar=2, others=0, K=3                                          |
+| Reachability     | VLAN 1: Grid->SW, SW->Load. VLAN 2: Solar->SW, SW->Load                 |
+| Connection tags  | Grid->SW: {0,1}, Solar->SW: {0,2}, SW->Load: {0,1,2}, Battery->SW: \{0} |
+| Source tags      | Grid: source_tag=1, Solar: source_tag=2                                 |
+| Access lists     | Load consumes {1,2}, SW forwards all, Battery consumes \{0}             |
+| Pricing          | SW->Load: pricing(tag=1,$0.05), pricing(tag=2,$0.02)                    |
 
-Result: Solar power ($0.02) preferred over Grid ($0.05). Battery power (no policy)
-can't reach Load (VLAN 0 not in Load's access list). Battery can only consume
-non-policy power (VLAN 0).
+Result: Solar power is preferred over grid power because it has lower policy cost.
+Battery power without matching policy cannot reach `Load` because VLAN 0 is not in `Load`'s access list.
+Battery can still consume non-policy power on VLAN 0.
 
 ## Testing
 
-Tests in `core/adapters/tests/test_policy_compilation.py`:
-
-1. **Signature computation**: Correct merging of identical signatures
-2. **VLAN assignment**: Minimum VLANs for various policy sets
-3. **Reachability**: Correct connection tagging for tree topologies
-4. **Source enforcement**: `source_tag` set on correct nodes
-5. **End-to-end**: Full network optimization with policies produces correct costs
+Tests live in `custom_components/haeo/core/adapters/tests/test_policy_compilation.py`.
+They cover signature computation, VLAN assignment, reachability tagging, source enforcement, and end-to-end optimization behavior.
 
 ## Related
 
-- [Power Policies](../modeling/tagged-power.md) — design and mathematical formulation
-- [VLAN Optimization](vlan-optimization.md) — variable minimization algorithms
-- [Adapter Layer](adapter-layer.md) — adapter architecture
+- [Power policies](../modeling/tagged-power.md) for design and mathematical formulation.
+- [VLAN optimization](vlan-optimization.md) for variable minimization algorithms.
+- [Adapter layer](adapter-layer.md) for adapter architecture.
