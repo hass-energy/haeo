@@ -390,30 +390,17 @@
         "user": {
           "title": "Add policy",
           "description": "Create a policy rule to control how power flows between elements",
-          "data": {
-            "name": "Policy name",
-            "price": "Price",
-            "source": "Source",
-            "target": "Target"
-          }
+          "data": { "name": "Policy name", "price": "Price", "source": "Source", "target": "Target" }
         },
         "reconfigure": {
           "title": "Policies",
           "description": "Select a policy to edit or delete",
-          "data": {
-            "rule": "Policy",
-            "action": "Action"
-          }
+          "data": { "action": "Action", "rule": "Policy" }
         },
         "edit_rule": {
           "title": "Edit policy",
           "description": "Modify this policy rule",
-          "data": {
-            "name": "Policy name",
-            "price": "Price",
-            "source": "Source",
-            "target": "Target"
-          }
+          "data": { "name": "Policy name", "price": "Price", "source": "Source", "target": "Target" }
         }
       },
       "error": {
@@ -421,10 +408,7 @@
         "name_exists": "A policy with this name already exists",
         "source_target_same": "Source and target cannot be the same element"
       },
-      "abort": {
-        "reconfigure_successful": "Policies updated successfully",
-        "no_rules": "No policy rules configured"
-      }
+      "abort": { "no_rules": "No policy rules configured", "reconfigure_successful": "Policies updated successfully" }
     },
     "solar": {
       "flow_title": "Solar",
