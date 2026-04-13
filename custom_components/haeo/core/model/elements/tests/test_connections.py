@@ -168,3 +168,75 @@ def test_connection_power_properties(solver: Highs) -> None:
 
     assert conn.source == "source_element"
     assert conn.target == "target_element"
+
+
+def test_connection_getitem_integer_index(solver: Highs) -> None:
+    """Connection supports integer indexing into segments."""
+    conn: Connection[str] = Connection(
+        name="idx_conn",
+        periods=np.array([1.0]),
+        solver=solver,
+        source="a",
+        target="b",
+        segments={
+            "power_limit": {"segment_type": "power_limit", "max_power": 5.0},
+            "pricing": {"segment_type": "pricing", "price": 0.10},
+        },
+    )
+    source = DummyElement("a", conn.periods, solver)
+    target = DummyElement("b", conn.periods, solver)
+    conn.set_endpoints(source, target)
+
+    from custom_components.haeo.core.model.elements.segments.power_limit import PowerLimitSegment
+    from custom_components.haeo.core.model.elements.segments.pricing import PricingSegment
+
+    assert isinstance(conn[0], PowerLimitSegment)
+    assert isinstance(conn[1], PricingSegment)
+    assert conn["power_limit"] is conn[0]
+
+    with pytest.raises(KeyError, match="No segment at index"):
+        conn[99]
+
+
+def test_connection_getitem_fallback(solver: Highs) -> None:
+    """Connection falls back to Element.__getitem__ for unknown keys."""
+    conn: Connection[str] = Connection(
+        name="fallback_conn",
+        periods=np.array([1.0]),
+        solver=solver,
+        source="a",
+        target="b",
+    )
+    source = DummyElement("a", conn.periods, solver)
+    target = DummyElement("b", conn.periods, solver)
+    conn.set_endpoints(source, target)
+
+    with pytest.raises(KeyError):
+        conn["nonexistent_key"]
+
+
+def test_connection_multiple_cost_sources(solver: Highs) -> None:
+    """Connection aggregates costs from multiple segments."""
+    conn: Connection[str] = Connection(
+        name="multi_cost",
+        periods=np.array([1.0]),
+        solver=solver,
+        source="a",
+        target="b",
+        segments={
+            "pricing1": {"segment_type": "pricing", "price": 0.10},
+            "pricing2": {"segment_type": "pricing", "price": 0.20},
+        },
+    )
+    source = DummyElement("a", conn.periods, solver)
+    target = DummyElement("b", conn.periods, solver)
+    conn.set_endpoints(source, target)
+    conn.constraints()
+
+    cost = conn.cost()
+    assert cost is not None
+
+    solver.addConstr(conn.power_in[0] == 5.0)
+    solver.minimize(cost)
+    # Cost = 5 kW * (0.10 + 0.20) $/kWh * 1 h = 1.50
+    assert solver.getObjectiveValue() == pytest.approx(1.50)

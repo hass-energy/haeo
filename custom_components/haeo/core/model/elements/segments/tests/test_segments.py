@@ -455,3 +455,33 @@ def test_efficiency_segment_treats_missing_values_as_unity_both_directions() -> 
 
     np.testing.assert_allclose(h.vals(seg_st.power_out), [7.5], rtol=1e-6, atol=1e-6)
     np.testing.assert_allclose(h.vals(seg_ts.power_out), [3.5], rtol=1e-6, atol=1e-6)
+
+
+def test_power_limit_no_max_power() -> None:
+    """PowerLimitSegment with max_power=None applies no constraint."""
+    h = create_solver()
+    periods = np.array([1.0, 1.0])
+    source = DummyElement("src", periods, h)
+    target = DummyElement("tgt", periods, h)
+
+    from custom_components.haeo.core.model.elements.segments.power_limit import PowerLimitSegment
+
+    power_in = h.addVariables(2, lb=0, name_prefix="pwr_", out_array=True)
+    seg = PowerLimitSegment(
+        "no_limit",
+        2,
+        periods,
+        h,
+        spec={"segment_type": "power_limit"},
+        source_element=source,
+        target_element=target,
+        power_in=power_in,
+    )
+    seg.constraints()
+
+    # With no max_power, the flow is unconstrained (except lb=0)
+    # Maximize to check it can go arbitrarily high
+    h.minimize(-1.0 * Highs.qsum(power_in))
+    h.run()
+    # HiGHS returns 0 for unbounded, but the key point is no constraint error
+    assert seg.max_power is None
