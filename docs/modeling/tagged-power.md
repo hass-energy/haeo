@@ -37,8 +37,9 @@ Power policies use integer tags that are analogous to VLAN IDs in Ethernet.
 ### Multi-commodity flow
 
 Tagged power flow is a multi-commodity flow formulation.
-Each tag acts as a separate commodity with dedicated variables.
+Each tag acts as a separate commodity with its own flow variables.
 All commodities share the same physical network capacities.
+This is a standard LP formulation that HiGHS solves natively.
 
 ### MPLS label optimization
 
@@ -48,9 +49,9 @@ HAEO applies the same principle by letting sources with identical policy signatu
 
 ### SDN and OpenFlow
 
-The compilation pipeline follows software-defined networking patterns.
-A central compiler derives flow rules from high-level policies.
-The LP model executes those rules without understanding policy semantics.
+The compilation pipeline mirrors software-defined networking patterns.
+A central controller (the compilation step) derives flow rules from high-level policies and installs them on switches (connections and nodes).
+The data plane (the LP model) executes those rules without understanding the policies themselves.
 
 ## Semantics
 
@@ -77,15 +78,15 @@ To allow all flows with no extra cost, configure `* -> *: $0`.
 Policies are additive.
 When multiple policies match the same source-destination pair, all matching rules apply.
 
-- **Pricing**: Matching prices sum.
+- **Pricing**: Matching prices sum — Battery paying `$0.05` (group policy) and `$0.03` (individual policy) pays `$0.08` total.
 - **Limits**: Matching constraints all apply, and the effective limit is their combined feasible region.
 
 Policies do not override one another.
 A specific policy stacks on top of broader policies.
 
 ```
-Policy 1: Battery+Solar -> Load: $0.05/kWh
-Policy 2: Battery -> Load: $0.03/kWh
+Policy 1: Battery+Solar -> Load: $0.05/kWh   (group)
+Policy 2: Battery -> Load: $0.03/kWh         (individual)
 ```
 
 | Source          | Policies matched    | Total price |
@@ -112,8 +113,8 @@ Policy 2: Battery -> Load: limit 2 kW
 | Group      | `VLAN_solar + VLAN_battery` | `<= 5 kW` |
 | Individual | `VLAN_battery`              | `<= 2 kW` |
 
-This yields a combined cap of 5 kW and a battery-specific cap of 2 kW.
-It maps to scoped segment constraints such as `power_limit(tags={1,2}, max=5kW)`.
+Result: Solar can draw up to 5 kW, Battery up to 2 kW, combined maximum 5 kW.
+This uses multi-tag scoping: `power_limit(tags={1,2}, max=5kW)` constrains the sum of VLANs 1 and 2.
 
 ## Compilation pipeline
 
@@ -151,11 +152,11 @@ $$
 ### Step 3: VLAN assignment
 
 Sources with identical signatures share one VLAN.
-Sources with different signatures must use different VLANs.
-The resulting VLAN count is minimal and equals distinct non-empty signatures plus tag 0.
+Sources with different signatures must use different VLANs — at least one policy treats them differently, so the optimizer must be able to distinguish them.
+The resulting VLAN count is the provably minimum: the number of distinct non-empty signatures, plus tag 0.
 
 Nodes with empty signatures use tag 0.
-If no policies exist, only tag 0 exists.
+When no policies exist at all, only tag 0 exists — identical to standard HAEO.
 
 ### Step 4: Reachability analysis
 
@@ -167,12 +168,13 @@ For each VLAN, compute which connections can carry it.
 4. Assign variables only on reachable connections.
 
 This avoids creating variables on impossible routes.
+For tree topologies, which cover most home energy systems, paths between any two nodes are unique and the computation is linear in the node count.
 
 ### Step 5: Connection tagging
 
 Each connection receives all VLANs that can traverse it.
-Interior connections can carry many VLANs.
-Endpoint connections typically carry a smaller subset.
+Interior connections (trunks) can carry many VLANs.
+Endpoint connections carry only the VLANs their node produces or consumes.
 
 ### Step 6: Node access lists
 
@@ -216,9 +218,9 @@ $$
 
 Node balance applies independently for each tag.
 
-- Junction nodes route flow and enforce per-tag conservation.
-- Source nodes allow net outflow only on their source tag.
-- Sink behavior is limited by each node's consumption set.
+- Junction nodes: $\sum_c P^{tag}_{c,t} = 0$ for each tag (routing).
+- Source nodes: only the source's own tag can have net outflow.
+- Sink nodes: only tags in the consumption set can have net inflow.
 
 ### Policy pricing term
 
@@ -283,13 +285,22 @@ The model layer remains policy-unaware and operates only on tags and scoped segm
 
 HAEO separates external market pricing from internal valuation policies.
 
-**External pricing** represents real market costs or credits.
-Examples include grid import prices and feed-in tariffs.
-These belong on element pricing segments that map to sensor data.
+**External pricing** represents real market costs or credits — what you actually pay or earn.
+These belong on the element that interfaces with the external system:
 
-**Internal policies** represent optimization preferences.
-Examples include battery wear valuation or route-specific penalties.
-These should be configured as power policies so pricing intent stays explicit and centralized.
+- Grid import and export prices from your energy retailer.
+- Feed-in tariff rates.
+
+External prices are configured on pricing segments and driven by sensor data.
+They are not policies.
+
+**Internal policies** are valuations you choose to apply to guide the optimizer, without representing real money changing hands:
+
+- Battery discharge wear cost (`$0.02/kWh`).
+- Battery charge incentive (`-$0.001/kWh`).
+- Source-destination routing penalties.
+
+These should be configured as power policies so the cost structure is explicit: "Battery to anything costs `$0.02/kWh` because of wear."
 
 !!! note "Migration path"
 

@@ -116,7 +116,12 @@ Battery can still consume non-policy power on VLAN 0.
 ## Testing
 
 Tests live in `custom_components/haeo/core/adapters/tests/test_policy_compilation.py`.
-They cover signature computation, VLAN assignment, reachability tagging, source enforcement, and end-to-end optimization behavior.
+
+- **Signature computation**: correct merging of identical signatures.
+- **VLAN assignment**: minimum VLANs for various policy sets.
+- **Reachability**: correct connection tagging for tree topologies.
+- **Source enforcement**: `source_tag` set on correct nodes.
+- **End-to-end**: full network optimization with policies produces correct costs.
 
 ## Related
 

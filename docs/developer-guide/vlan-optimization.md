@@ -111,5 +111,4 @@ All sources merge into VLAN 1.
 | Reachability (tree)          | $O(K \times N)$          | `K` VLANs, one path search per node pair  |
 | Reachability (general graph) | $O(K \times (N + E))$    | graph traversal per VLAN                  |
 
-All steps are polynomial.
-In practice, signature merging and reachability pruning significantly reduce variable growth versus naive tagging.
+All steps are polynomial and fast for typical home energy systems, where N < 20 and P < 10.
