@@ -476,7 +476,6 @@
       "battery_soc_min": { "name": "SOC min shadow price" },
       "battery_state_of_charge": { "name": "State of charge" },
       "connection_power": { "name": "{source} to {target} power" },
-      "connection_shadow_power_max": { "name": "{source} to {target} max power shadow price" },
       "grid_cost_import": { "name": "Import cost" },
       "grid_cost_net": { "name": "Net cost" },
       "grid_power_active": { "name": "Active power" },
