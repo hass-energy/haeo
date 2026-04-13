@@ -1,7 +1,7 @@
 """Test data types for segment scenarios."""
 
 from collections.abc import Callable, Sequence
-from typing import Any, Literal, NotRequired, TypedDict
+from typing import Any, NotRequired, TypedDict
 
 from highspy import Highs
 import numpy as np
@@ -17,9 +17,8 @@ type SegmentEndpointFactory = Callable[[Highs, NDArray[np.floating[Any]]], tuple
 class SegmentScenarioInputs(TypedDict, total=False):
     """Inputs for segment optimization scenarios."""
 
-    power_in_st: Sequence[float]
-    power_in_ts: Sequence[float]
-    maximize: dict[Literal["power_in_st", "power_in_ts"], float]
+    power_in: Sequence[float]
+    maximize: dict[str, float]
     minimize_cost: bool
 
 
@@ -50,9 +49,8 @@ class SegmentErrorScenario(TypedDict):
 class ConnectionScenarioInputs(TypedDict, total=False):
     """Inputs for connection scenarios."""
 
-    power_source_target: Sequence[float]
-    power_target_source: Sequence[float]
-    maximize: dict[Literal["power_source_target", "power_target_source"], float]
+    power_in: Sequence[float]
+    maximize: dict[str, float]
     minimize_cost: bool
     updates: Sequence[tuple[str, str, Sequence[float] | NDArray[np.floating[Any]]]]
 
@@ -63,6 +61,5 @@ class ConnectionScenario(TypedDict):
     description: str
     periods: NDArray[np.floating[Any]]
     segments: dict[str, SegmentSpec] | None
-    mirror_segment_order: NotRequired[bool]
     inputs: ConnectionScenarioInputs
     expected_outputs: dict[str, ExpectedValue]

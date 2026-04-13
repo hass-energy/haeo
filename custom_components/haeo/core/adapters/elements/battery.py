@@ -181,33 +181,36 @@ class BatteryAdapter:
                     "charge_capacity_price": overcharge_cost,
                 }
 
-        segments: dict[str, SegmentSpec] = {
-            "efficiency": {
-                "segment_type": "efficiency",
-                "efficiency_source_target": efficiency_source_target,  # Battery to network (discharge)
-                "efficiency_target_source": efficiency_target_source,  # Network to battery (charge)
-            },
-            "power_limit": {
-                "segment_type": "power_limit",
-                "max_power_source_target": max_discharge,
-                "max_power_target_source": max_charge,
-            },
-            "pricing": {
-                "segment_type": "pricing",
-                "price_source_target": discharge_pricing,
-                "price_target_source": charge_early_incentive,
-            },
+        discharge_segments: dict[str, SegmentSpec] = {
+            "efficiency": {"segment_type": "efficiency", "efficiency": efficiency_source_target},
+            "power_limit": {"segment_type": "power_limit", "max_power": max_discharge},
+            "pricing": {"segment_type": "pricing", "price": discharge_pricing},
         }
         if soc_pricing_spec is not None:
-            segments["soc_pricing"] = soc_pricing_spec
+            discharge_segments["soc_pricing"] = soc_pricing_spec
 
+        # Discharge: battery -> network
         elements.append(
             {
                 "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
-                "name": f"{name}:connection",
+                "name": f"{name}:discharge",
                 "source": name,
                 "target": extract_connection_target(config[CONF_CONNECTION]),
-                "segments": segments,
+                "segments": discharge_segments,
+            }
+        )
+        # Charge: network -> battery
+        elements.append(
+            {
+                "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
+                "name": f"{name}:charge",
+                "source": extract_connection_target(config[CONF_CONNECTION]),
+                "target": name,
+                "segments": {
+                    "efficiency": {"segment_type": "efficiency", "efficiency": efficiency_target_source},
+                    "power_limit": {"segment_type": "power_limit", "max_power": max_charge},
+                    "pricing": {"segment_type": "pricing", "price": charge_early_incentive},
+                },
             }
         )
 

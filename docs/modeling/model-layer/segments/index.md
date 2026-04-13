@@ -5,21 +5,27 @@ Each connection composes an ordered segment chain to apply limits, efficiency lo
 
 ## Composing connections
 
-Connection composition follows a few rules:
+Segments are **functional transforms** on power flow expressions.
+The Connection creates LP variables for `power_in` and passes them through its segment chain.
 
-- Segments are provided as an ordered mapping in the connection configuration.
-- Mapping keys become segment names and appear under the `segments` output.
-- If no segments are provided, a passthrough segment is created automatically.
-- Adjacent segments are linked by equality constraints on their in/out flows.
-- Segments receive references to the source and target elements for context.
+Each segment receives a `power_in` expression at construction time and exposes a `power_out` expression.
+Most segments are **identity transforms** — they return the input unchanged and add constraints or costs as side effects:
 
-This pattern keeps the connection model simple while making behavior explicit and reusable.
+- **Identity segments**: `power_out = power_in`, add constraint/cost.
+- **Transform segments**: `power_out = power_in * factor` (e.g., efficiency).
+- **Auxiliary segments**: `power_out = power_in`, create auxiliary LP variables for penalties.
+
+This design means:
+
+- Segments do not create power flow LP variables.
+- Variable count = connection flow decisions (T) + auxiliary variables only.
+- Segments are composable and order-independent for identity transforms.
 
 ## Segment types
 
 - **[SOC pricing segment](soc-pricing.md)** for battery SOC penalty costs.
-- **[Efficiency segment](efficiency.md)** for direction-specific loss modeling.
-- **[Power limit segment](power-limit.md)** for directional limits and time-slice coupling.
+- **[Efficiency segment](efficiency.md)** for loss modeling.
+- **[Power limit segment](power-limit.md)** for power limits.
 - **[Pricing segment](pricing.md)** for transfer costs and fees.
 - **[Passthrough segment](passthrough.md)** for lossless flow with no constraints or cost.
 

@@ -82,11 +82,11 @@ def update_element(
         current = obj
         for part in path[:-1]:
             if isinstance(current, Mapping):
-                if part not in current:
-                    msg = f"Invalid update path {path!r} for element {element_name!r}: missing key {part!r}"
-                    raise ValueError(msg)
-                current = current[part]
-                continue
+                if part in current:
+                    current = current[part]
+                    continue
+                msg = f"Invalid update path {path!r} for element {element_name!r}: missing key {part!r}"
+                raise ValueError(msg)
             if hasattr(current, part):
                 current = getattr(current, part)
                 continue

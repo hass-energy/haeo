@@ -381,14 +381,13 @@ def test_model_elements_omits_efficiency_when_missing() -> None:
     )
     np.testing.assert_array_equal(battery_element["capacity"], [10.0, 10.0, 10.0])
 
-    connection = _get_connection(elements, "test_battery:connection")
+    connection = _get_connection(elements, "test_battery:discharge")
     segments = connection.get("segments")
     assert segments is not None
     efficiency_segment = segments.get("efficiency")
     assert efficiency_segment is not None
     assert is_efficiency_spec(efficiency_segment)
-    assert efficiency_segment.get("efficiency_source_target") is None
-    assert efficiency_segment.get("efficiency_target_source") is None
+    assert efficiency_segment.get("efficiency") is None
 
 
 def test_model_elements_defaults_salvage_value_when_missing() -> None:
@@ -433,16 +432,16 @@ def test_model_elements_passes_efficiency_when_present() -> None:
 
     elements = battery_adapter.model_elements(config_data)
 
-    connection = _get_connection(elements, "test_battery:connection")
+    connection = _get_connection(elements, "test_battery:discharge")
     segments = connection.get("segments")
     assert segments is not None
     efficiency_segment = segments.get("efficiency")
     assert efficiency_segment is not None
     assert is_efficiency_spec(efficiency_segment)
-    efficiency_source_target = efficiency_segment.get("efficiency_source_target")
+    efficiency_source_target = efficiency_segment.get("efficiency")
     assert efficiency_source_target is not None
     np.testing.assert_array_equal(efficiency_source_target, [0.95, 0.95])
-    efficiency_target_source = efficiency_segment.get("efficiency_target_source")
+    efficiency_target_source = efficiency_segment.get("efficiency")
     assert efficiency_target_source is not None
     np.testing.assert_array_equal(efficiency_target_source, [0.95, 0.95])
 
@@ -465,7 +464,7 @@ def test_model_elements_overcharge_only_adds_soc_pricing() -> None:
     )
 
     elements = battery_adapter.model_elements(config_data)
-    connection = _get_connection(elements, "test_battery:connection")
+    connection = _get_connection(elements, "test_battery:discharge")
     segments = connection.get("segments")
     assert segments is not None
     soc_pricing = segments.get("soc_pricing")
@@ -501,29 +500,31 @@ def test_discharge_respects_power_limit_with_efficiency() -> None:
 
     network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "grid", "is_source": True, "is_sink": True})
 
-    # Connection with power limit, efficiency, and pricing
+    # Discharge connection: battery -> grid
     network.add(
         {
             "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
-            "name": "battery_grid",
+            "name": "battery_grid:discharge",
             "source": "battery",
             "target": "grid",
             "segments": {
-                "power_limit": {
-                    "segment_type": "power_limit",
-                    "max_power_source_target": np.array([max_discharge_kw]),
-                    "max_power_target_source": np.array([5.0]),
-                },
-                "efficiency": {
-                    "segment_type": "efficiency",
-                    "efficiency_source_target": np.array([efficiency]),
-                    "efficiency_target_source": np.array([efficiency]),
-                },
-                "pricing": {
-                    "segment_type": "pricing",
-                    "price_source_target": np.array([-0.50]),  # Discharge pays
-                    "price_target_source": np.array([0.10]),
-                },
+                "power_limit": {"segment_type": "power_limit", "max_power": np.array([max_discharge_kw])},
+                "efficiency": {"segment_type": "efficiency", "efficiency": np.array([efficiency])},
+                "pricing": {"segment_type": "pricing", "price": np.array([-0.50])},
+            },
+        }
+    )
+    # Charge connection: grid -> battery
+    network.add(
+        {
+            "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
+            "name": "battery_grid:charge",
+            "source": "grid",
+            "target": "battery",
+            "segments": {
+                "power_limit": {"segment_type": "power_limit", "max_power": np.array([5.0])},
+                "efficiency": {"segment_type": "efficiency", "efficiency": np.array([efficiency])},
+                "pricing": {"segment_type": "pricing", "price": np.array([0.10])},
             },
         }
     )
@@ -567,29 +568,31 @@ def test_charge_respects_power_limit_with_efficiency() -> None:
 
     network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "grid", "is_source": True, "is_sink": True})
 
-    # Connection with power limit, efficiency, and pricing
+    # Discharge connection: battery -> grid
     network.add(
         {
             "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
-            "name": "battery_grid",
+            "name": "battery_grid:discharge",
             "source": "battery",
             "target": "grid",
             "segments": {
-                "power_limit": {
-                    "segment_type": "power_limit",
-                    "max_power_source_target": np.array([5.0]),
-                    "max_power_target_source": np.array([max_charge_kw]),
-                },
-                "efficiency": {
-                    "segment_type": "efficiency",
-                    "efficiency_source_target": np.array([efficiency]),
-                    "efficiency_target_source": np.array([efficiency]),
-                },
-                "pricing": {
-                    "segment_type": "pricing",
-                    "price_source_target": np.array([0.50]),  # Discharge costs
-                    "price_target_source": np.array([-0.10]),  # Charging pays
-                },
+                "power_limit": {"segment_type": "power_limit", "max_power": np.array([5.0])},
+                "efficiency": {"segment_type": "efficiency", "efficiency": np.array([efficiency])},
+                "pricing": {"segment_type": "pricing", "price": np.array([0.50])},
+            },
+        }
+    )
+    # Charge connection: grid -> battery
+    network.add(
+        {
+            "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
+            "name": "battery_grid:charge",
+            "source": "grid",
+            "target": "battery",
+            "segments": {
+                "power_limit": {"segment_type": "power_limit", "max_power": np.array([max_charge_kw])},
+                "efficiency": {"segment_type": "efficiency", "efficiency": np.array([efficiency])},
+                "pricing": {"segment_type": "pricing", "price": np.array([-0.10])},
             },
         }
     )

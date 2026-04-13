@@ -182,12 +182,23 @@ Keeping the output contract consistent means new model components immediately su
 See existing implementations in `custom_components/haeo/core/model/elements/` for examples:
 
 - `battery.py` - Energy storage with SOC tracking
-- `connection.py` - Composable connection segments for flow and pricing
+- `connection.py` - Functional segment composition for flow, pricing, and limits
 - `node.py` - Power balance points
 
-## Connections and nodes
+## Connections and segments
 
-Connections remain responsible for enforcing flow limits and tying elements together through node balance constraints.
+Connections create the **only LP variables** for power flow (one per time step).
+Each connection is unidirectional (source → target). Bidirectional paths use two connections.
+Segments are functional transforms that receive a `power_in` expression at construction
+and expose a `power_out` expression. Most segments are identity transforms that add
+constraints or costs as side effects. Subclasses that transform the flow
+override the output expression.
+
+When adding a new segment type, implement `__init__` accepting `power_in`.
+Store the input for constraint/cost methods to reference. Avoid creating
+power flow LP variables — the Connection owns those. Auxiliary variables
+(e.g., slack variables for penalty terms) are acceptable.
+
 When introducing a new element, ensure it connects through existing nodes or provide a clear reason to add a specialised node variant.
 
 The current implementations are in `custom_components/haeo/core/model/elements/connection.py` and `custom_components/haeo/core/model/elements/node.py`.

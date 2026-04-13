@@ -15,8 +15,7 @@ from .battery import BatteryElementConfig as BatteryElementConfig
 from .battery import BatteryElementTypeName as BatteryElementTypeName
 from .battery import BatteryOutputName as BatteryOutputName
 from .connection import CONNECTION_OUTPUT_NAMES as CONNECTION_OUTPUT_NAMES
-from .connection import CONNECTION_POWER_SOURCE_TARGET as CONNECTION_POWER_SOURCE_TARGET
-from .connection import CONNECTION_POWER_TARGET_SOURCE as CONNECTION_POWER_TARGET_SOURCE
+from .connection import CONNECTION_POWER as CONNECTION_POWER
 from .connection import ELEMENT_TYPE as MODEL_ELEMENT_TYPE_CONNECTION
 from .connection import Connection as Connection
 from .connection import ConnectionElementConfig as ConnectionElementConfig
@@ -74,8 +73,7 @@ __all__ = [
     "BATTERY_OUTPUT_NAMES",
     "BATTERY_POWER_CONSTRAINTS",
     "CONNECTION_OUTPUT_NAMES",
-    "CONNECTION_POWER_SOURCE_TARGET",
-    "CONNECTION_POWER_TARGET_SOURCE",
+    "CONNECTION_POWER",
     "ELEMENTS",
     "MODEL_ELEMENT_TYPE_BATTERY",
     "MODEL_ELEMENT_TYPE_CONNECTION",

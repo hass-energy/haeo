@@ -78,7 +78,7 @@ def test_connect_entities() -> None:
             "segments": {
                 "power_limit": {
                     "segment_type": "power_limit",
-                    "max_power_source_target": 5000.0,
+                    "max_power": 5000.0,
                 }
             },
         }
@@ -88,10 +88,10 @@ def test_connect_entities() -> None:
     assert connection.name == "battery1_to_grid1"
     assert connection.source == "battery1"
     assert connection.target == "grid1"
-    assert connection.power_source_target is not None
-    assert connection.power_target_source is not None
-    assert len(connection.power_source_target) == CONNECTION_PERIODS
-    assert len(connection.power_target_source) == CONNECTION_PERIODS
+    assert connection.power_in is not None
+    assert connection.power_out is not None
+    assert len(connection.power_in) == CONNECTION_PERIODS
+    assert len(connection.power_out) == CONNECTION_PERIODS
     # Check that the connection element was added
     connection_name = "battery1_to_grid1"
     assert connection_name in network.elements
@@ -458,7 +458,7 @@ def test_network_cost_with_multiple_elements() -> None:
             "source": "source",
             "target": "target",
             "segments": {
-                "pricing": {"segment_type": "pricing", "price_source_target": np.array([10.0, 20.0])},
+                "pricing": {"segment_type": "pricing", "price": np.array([10.0, 20.0])},
             },
         }
     )
@@ -469,7 +469,7 @@ def test_network_cost_with_multiple_elements() -> None:
             "source": "target",
             "target": "source",
             "segments": {
-                "pricing": {"segment_type": "pricing", "price_source_target": np.array([5.0, 10.0])},
+                "pricing": {"segment_type": "pricing", "price": np.array([5.0, 10.0])},
             },
         }
     )
