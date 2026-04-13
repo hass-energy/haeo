@@ -150,6 +150,7 @@ nav:
       - Installation: user-guide/installation.md
       - Configuration: user-guide/configuration.md
       - Forecasts & Sensors: user-guide/forecasts-and-sensors.md
+      - Lovelace Forecast Card: user-guide/lovelace-card.md
       - Historical Load Forecast: user-guide/historical-load-forecast.md
       - HAEO vs Alternatives: user-guide/alternatives.md
       - Elements:
