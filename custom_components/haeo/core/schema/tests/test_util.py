@@ -5,7 +5,7 @@ from enum import Enum
 from homeassistant.const import UnitOfPower
 import pytest
 
-from custom_components.haeo.core.schema.util import UnitSpec, extract_unit_wildcard, matches_unit_spec
+from custom_components.haeo.core.schema.util import UnitSpec, extract_unit_parts, matches_unit_spec
 
 
 class MockCurrency(Enum):
@@ -111,26 +111,25 @@ def test_price_patterns_match_common_currencies(price_pattern: tuple[str, ...]) 
         assert matches_unit_spec(unit, price_pattern), f"{unit} should match {price_pattern}"
 
 
-EXTRACT_WILDCARD_TEST_CASES = [
-    # Basic price units
-    ("£/kWh", [("*", "/", "kWh")], "£"),
-    ("€/MWh", [("*", "/", "MWh")], "€"),
-    ("$/kWh", [("*", "/", "kWh")], "$"),
-    ("A$/kWh", [("*", "/", "kWh")], "A$"),
-    # First matching spec wins
-    ("€/kWh", [("*", "/", "kWh"), ("*", "/", "MWh")], "€"),
-    ("€/MWh", [("*", "/", "kWh"), ("*", "/", "MWh")], "€"),
-    # Non-price units return None
-    ("kW", [("*", "/", "kWh")], None),
-    ("kWh", [("*", "/", "kWh")], None),
-    # No matching specs
-    ("$/kWh", [("*", "/", "MWh")], None),
-    # Empty specs
-    ("$/kWh", [], None),
+EXTRACT_PARTS_TEST_CASES = [
+    # Basic price units — wildcard resolved to currency symbol
+    ("£/kWh", ("*", "/", "kWh"), ("£", "/", "kWh")),
+    ("€/MWh", ("*", "/", "MWh"), ("€", "/", "MWh")),
+    ("$/kWh", ("*", "/", "kWh"), ("$", "/", "kWh")),
+    ("A$/kWh", ("*", "/", "kWh"), ("A$", "/", "kWh")),
+    # Non-matching units return None
+    ("kW", ("*", "/", "kWh"), None),
+    ("kWh", ("*", "/", "kWh"), None),
+    ("$/kWh", ("*", "/", "MWh"), None),
+    # Multiple wildcards
+    ("ABC_DEF", ("*", "_", "*"), ("ABC", "_", "DEF")),
+    # Exact parts (no wildcards)
+    ("$/kWh", ("$", "/", "kWh"), ("$", "/", "kWh")),
+    ("$/kWh", ("€", "/", "kWh"), None),
 ]
 
 
-@pytest.mark.parametrize(("unit", "specs", "expected"), EXTRACT_WILDCARD_TEST_CASES)
-def test_extract_unit_wildcard(unit: str, specs: list[tuple[str, ...]], *, expected: str | None) -> None:
-    """Wildcard extraction should return the matched text or None."""
-    assert extract_unit_wildcard(unit, specs) == expected
+@pytest.mark.parametrize(("unit", "spec", "expected"), EXTRACT_PARTS_TEST_CASES)
+def test_extract_unit_parts(unit: str, spec: tuple[str, ...], *, expected: tuple[str, ...] | None) -> None:
+    """Extraction should return the resolved parts tuple or None."""
+    assert extract_unit_parts(unit, spec) == expected

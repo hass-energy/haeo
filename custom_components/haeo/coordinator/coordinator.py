@@ -37,11 +37,11 @@ from custom_components.haeo.core.data.loader.config_loader import load_element_c
 from custom_components.haeo.core.data.loader.config_loader import load_element_configs
 from custom_components.haeo.core.model import ModelOutputName, Network, OutputData, OutputType
 from custom_components.haeo.core.schema.elements import ElementConfigData, ElementConfigSchema
-from custom_components.haeo.core.schema.util import extract_unit_wildcard
+from custom_components.haeo.core.schema.util import extract_unit_parts
 from custom_components.haeo.core.state import EntityState
+from custom_components.haeo.core.units import PRICE_UNIT_SPEC
 from custom_components.haeo.elements import ElementDeviceName, ElementOutputName, collect_element_subentries
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED
-from custom_components.haeo.flows.element_flow import PRICE_UNIT_SPEC
 from custom_components.haeo.ha_state_machine import HomeAssistantStateMachine
 from custom_components.haeo.repairs import dismiss_optimization_failure_issue
 
@@ -123,8 +123,11 @@ def detect_currency_symbol(source_states: Mapping[str, "EntityState"]) -> str:
     """
     for state in source_states.values():
         unit = state.attributes.get("unit_of_measurement")
-        if isinstance(unit, str) and (sym := extract_unit_wildcard(unit, PRICE_UNIT_SPEC)):
-            return sym
+        if isinstance(unit, str):
+            for spec in PRICE_UNIT_SPEC:
+                parts = extract_unit_parts(unit, spec)
+                if parts is not None:
+                    return parts[0]
     return "$"
 
 
