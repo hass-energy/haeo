@@ -25,11 +25,12 @@ run_guide("sigenergy-system")
 
 ## Adding policies
 
-### Step 1: Create the Policies subentry
+Each policy controls one direction of power flow between elements.
+Click **Policies** to add each rule — subsequent rules are appended to the same subentry.
 
-Navigate to the HAEO integration page and click **Policies** to add the first policy rule.
+### Step 1: Solar export pricing
 
-The first policy controls solar export pricing — solar power sent to the grid earns only the feed-in tariff rate of $0.02/kWh, while solar power used locally by loads is free.
+Solar power sent to the grid earns only the feed-in tariff rate of $0.02/kWh, while solar power used locally by loads is free.
 
 ```guide
 add_policies(
@@ -37,7 +38,7 @@ add_policies(
     name="Solar to Grid",
     source="Solar",
     target="Grid",
-    price_source_target=0.02,
+    price=0.02,
 )
 ```
 
@@ -46,22 +47,17 @@ add_policies(
     Without a policy, the optimizer has no way to distinguish solar power used locally from solar power exported.
     By pricing the Solar → Grid flow at $0.02/kWh (the feed-in tariff), the optimizer prefers local consumption over export when both options are available.
 
-### Step 2: Add battery export policy
+### Step 2: Battery export policy
 
-Open the Policies subentry to add more rules.
 This policy makes battery discharge to the grid expensive, encouraging the optimizer to save battery power for local use.
 
 ```guide
-reconfigure_policies(page)
-
-select_policy_menu_option(page, option="Add new policy")
-
-fill_policy_rule(
+add_policies(
     page,
     name="Battery to Grid",
     source="Battery",
     target="Grid",
-    price_source_target=0.10,
+    price=0.10,
 )
 ```
 
@@ -70,37 +66,31 @@ fill_policy_rule(
     Setting a high price ($0.10/kWh) on Battery → Grid flow means the optimizer will only export battery power when it is profitable enough to justify the cost.
     Battery power is better used to offset grid imports.
 
-### Step 3: Add battery to load policy
+### Step 3: Battery to load policy
 
-While still in the policy menu, add a policy for battery discharge to loads.
-This low price indicates that using battery power for loads is preferred.
+A low price indicates that using battery power for loads is preferred.
 
 ```guide
-select_policy_menu_option(page, option="Add new policy")
-
-fill_policy_rule(
+add_policies(
     page,
     name="Battery to Load",
     source="Battery",
     target="Constant Load",
-    price_source_target=0.02,
+    price=0.02,
 )
 ```
 
-### Step 4: Add grid charging policy
+### Step 4: Grid charging policy
 
-Add a final policy that prices grid power flowing to the battery.
-This discourages charging the battery from the grid unless prices are low enough.
+Price grid power flowing to the battery to discourage charging unless prices are low enough.
 
 ```guide
-select_policy_menu_option(page, option="Add new policy")
-
-fill_policy_rule(
+add_policies(
     page,
     name="Grid to Battery",
     source="Grid",
     target="Battery",
-    price_source_target=0.05,
+    price=0.05,
 )
 ```
 
@@ -109,13 +99,11 @@ fill_policy_rule(
     A $0.05/kWh surcharge on Grid → Battery means the optimizer only charges from the grid when the round-trip savings exceed this cost.
     This models the real efficiency losses and wear costs of grid charging.
 
-### Step 5: Save and verify
+### Step 5: Verify
 
-Save the policy configuration and verify the setup.
+Validate that all four policies were saved correctly.
 
 ```guide
-select_policy_menu_option(page, option="Save and close")
-
 validate_policies(hass, expected_rules=[
     "Solar to Grid",
     "Battery to Grid",

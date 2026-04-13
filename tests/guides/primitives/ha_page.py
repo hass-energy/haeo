@@ -220,16 +220,25 @@ class HAPage:
 
     # region: Form Interactions
 
-    def click_button(self, name: str) -> None:
+    def click_button(self, name: str, *, first: bool = False) -> None:
         """Click a button by accessible name.
 
         Captures a screenshot with the target indicator before clicking.
         Does not capture a result screenshot — downstream actions (e.g.,
         wait_for_dialog) capture the resulting state when it is ready.
+
+        Args:
+            name: Accessible name of the button to click.
+            first: If True, use the first matching button when multiple
+                buttons share the same accessible name (e.g., an add-subentry
+                button and a gear icon on an existing subentry row).
+
         """
         ctx = ScreenshotContext.current()
 
         button = self.page.get_by_role("button", name=name, exact=True)
+        if first:
+            button = button.first
         button.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
 
         if ctx:

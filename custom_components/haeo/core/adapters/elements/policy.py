@@ -14,11 +14,11 @@ from custom_components.haeo.core.model import ModelElementConfig, ModelOutputNam
 from custom_components.haeo.core.model.output_data import OutputData
 from custom_components.haeo.core.schema.elements import ElementType
 from custom_components.haeo.core.schema.elements.policy import (
-    CONF_PRICE_SOURCE_TARGET,
-    CONF_PRICE_TARGET_SOURCE,
+    CONF_PRICE,
     CONF_SOURCE,
     CONF_TARGET,
     ELEMENT_TYPE,
+    WILDCARD,
     PolicyConfigData,
 )
 
@@ -35,13 +35,6 @@ POLICY_DEVICE_NAMES: Final[frozenset[PolicyDeviceName]] = frozenset(
 )
 
 
-def _to_name_list(value: str | list[str]) -> list[str]:
-    """Normalize a source/target value to a list of element names or wildcard."""
-    if isinstance(value, str):
-        return [value]
-    return value
-
-
 def extract_policy_rules(config: PolicyConfigData) -> list[dict[str, Any]]:
     """Transform loaded policy rules into the format compile_policies() expects.
 
@@ -49,18 +42,17 @@ def extract_policy_rules(config: PolicyConfigData) -> list[dict[str, Any]]:
         sources: list of element names, or ["*"] for wildcard
         destinations: list of element names, or ["*"] for wildcard
         price_source_target: float or None
-        price_target_source: float or None
     """
     result: list[dict[str, Any]] = []
     for rule in config.get("rules", []):
+        source = rule.get(CONF_SOURCE, WILDCARD)
+        target = rule.get(CONF_TARGET, WILDCARD)
         compiled: dict[str, Any] = {
-            "sources": _to_name_list(rule[CONF_SOURCE]),
-            "destinations": _to_name_list(rule[CONF_TARGET]),
+            "sources": [source],
+            "destinations": [target],
         }
-        if CONF_PRICE_SOURCE_TARGET in rule:
-            compiled["price_source_target"] = rule[CONF_PRICE_SOURCE_TARGET]
-        if CONF_PRICE_TARGET_SOURCE in rule:
-            compiled["price_target_source"] = rule[CONF_PRICE_TARGET_SOURCE]
+        if CONF_PRICE in rule:
+            compiled["price_source_target"] = rule[CONF_PRICE]
         result.append(compiled)
     return result
 

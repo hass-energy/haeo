@@ -36,12 +36,10 @@ from tests.guides.primitives import (
     add_node,
     add_policies,
     add_solar,
-    fill_policy_rule,
     login,
     pause_screenshots,
     reconfigure_policies,
     screenshot_context,
-    select_policy_menu_option,
     validate_policies,
     verify_setup,
 )
@@ -224,9 +222,7 @@ def build_exec_namespace(page: HAPage, hass: LiveHomeAssistant) -> dict[str, obj
         "add_load": add_load,
         "add_node": add_node,
         "add_policies": add_policies,
-        "fill_policy_rule": fill_policy_rule,
         "reconfigure_policies": reconfigure_policies,
-        "select_policy_menu_option": select_policy_menu_option,
         "validate_policies": validate_policies,
         "verify_setup": verify_setup,
         # Guide chaining

@@ -392,39 +392,28 @@
           "description": "Create a policy rule to control how power flows between elements",
           "data": {
             "name": "Policy name",
-            "price_source_target": "Source to target price",
-            "price_target_source": "Target to source price",
+            "price": "Price",
             "source": "Source",
             "target": "Target"
           }
         },
-        "add_rule": {
-          "title": "Add policy",
-          "description": "Create a new policy rule",
+        "reconfigure": {
+          "title": "Policies",
+          "description": "Select a policy to edit or delete",
           "data": {
-            "name": "Policy name",
-            "price_source_target": "Source to target price",
-            "price_target_source": "Target to source price",
-            "source": "Source",
-            "target": "Target"
+            "rule": "Policy",
+            "action": "Action"
           }
         },
         "edit_rule": {
           "title": "Edit policy",
-          "description": "Modify or delete this policy rule",
+          "description": "Modify this policy rule",
           "data": {
-            "delete": "Delete this policy",
             "name": "Policy name",
-            "price_source_target": "Source to target price",
-            "price_target_source": "Target to source price",
+            "price": "Price",
             "source": "Source",
             "target": "Target"
           }
-        },
-        "menu": {
-          "title": "Policies",
-          "description": "Select a policy to edit, add a new policy, or save changes",
-          "data": { "action": "Select an option" }
         }
       },
       "error": {
@@ -432,7 +421,10 @@
         "name_exists": "A policy with this name already exists",
         "source_target_same": "Source and target cannot be the same element"
       },
-      "abort": { "reconfigure_successful": "Policies updated successfully" }
+      "abort": {
+        "reconfigure_successful": "Policies updated successfully",
+        "no_rules": "No policy rules configured"
+      }
     },
     "solar": {
       "flow_title": "Solar",
@@ -610,8 +602,7 @@
     "horizon_preset": {
       "options": { "2_days": "2 days", "3_days": "3 days", "5_days": "5 days", "7_days": "7 days", "custom": "Custom" }
     },
-    "input_source": { "choices": { "constant": "Constant", "entity": "Entity", "none": "None" } },
-    "policy_endpoint": { "options": { "*": "Any" } }
+    "input_source": { "choices": { "constant": "Constant", "entity": "Entity", "none": "None" } }
   },
   "services": {
     "optimize": {

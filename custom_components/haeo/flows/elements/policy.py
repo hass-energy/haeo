@@ -1,16 +1,18 @@
 """Policy element configuration flows.
 
 A single Policies subentry stores multiple policy rules.
-The flow uses a menu-driven pattern:
-- New subentry: adds the first rule, then creates the entry.
-- Reconfigure: shows a menu of existing rules with add/save options.
+
+Flow design:
+- async_step_user: Adds a new rule. If a Policies subentry already exists,
+  appends to it; otherwise creates one.
+- async_step_reconfigure: Shows existing rules for edit or delete.
+- async_step_edit_rule: Edits a selected rule.
 """
 
 from typing import Any
 
 from homeassistant.config_entries import ConfigSubentryFlow, SubentryFlowResult
 from homeassistant.helpers.selector import (
-    BooleanSelector,
     NumberSelector,
     NumberSelectorConfig,
     NumberSelectorMode,
@@ -23,8 +25,7 @@ import voluptuous as vol
 
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.core.schema.elements.policy import (
-    CONF_PRICE_SOURCE_TARGET,
-    CONF_PRICE_TARGET_SOURCE,
+    CONF_PRICE,
     CONF_RULE_NAME,
     CONF_RULES,
     CONF_SOURCE,
@@ -36,9 +37,9 @@ from custom_components.haeo.core.schema.elements.policy import (
 from custom_components.haeo.flows.element_flow import ElementFlowMixin
 
 CONF_ACTION: str = "action"
-CONF_DELETE: str = "delete"
-ACTION_ADD: str = "add"
-ACTION_DONE: str = "done"
+CONF_RULE: str = "rule"
+ACTION_EDIT: str = "edit"
+ACTION_DELETE: str = "delete"
 
 POLICIES_TITLE: str = "Policies"
 
@@ -73,39 +74,45 @@ class PolicySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             if not isinstance(element_type, ElementType):
                 continue
 
-            # Policies can target any model element except other policies and connections
             if element_type not in (ElementType.POLICY, ElementType.CONNECTION):
                 result.append(subentry.title)
 
         return result
 
-    def _build_rule_schema(
-        self,
-        participants: list[str],
-        *,
-        is_edit: bool = False,
-    ) -> vol.Schema:
-        """Build the schema for adding or editing a policy rule."""
-        source_options = [WILDCARD, *participants]
-        target_options = [WILDCARD, *participants]
+    def _find_existing_policy_subentry(self) -> Any | None:
+        """Find the existing Policies subentry if one exists."""
+        hub_entry = self._get_entry()
+        for subentry in hub_entry.subentries.values():
+            if subentry.subentry_type == str(ELEMENT_TYPE):
+                return subentry
+        return None
 
-        schema: dict[vol.Marker, Any] = {
+    def _build_rule_schema(self, participants: list[str]) -> vol.Schema:
+        """Build the schema for adding or editing a policy rule."""
+        source_options = [
+            SelectOptionDict(value=WILDCARD, label="None"),
+            *[SelectOptionDict(value=p, label=p) for p in participants],
+        ]
+        target_options = [
+            SelectOptionDict(value=WILDCARD, label="None"),
+            *[SelectOptionDict(value=p, label=p) for p in participants],
+        ]
+
+        return vol.Schema({
             vol.Required(CONF_RULE_NAME): str,
-            vol.Required(CONF_SOURCE): SelectSelector(
+            vol.Optional(CONF_SOURCE, default=WILDCARD): SelectSelector(
                 SelectSelectorConfig(
                     options=source_options,
                     mode=SelectSelectorMode.DROPDOWN,
-                    translation_key="policy_endpoint",
                 )
             ),
-            vol.Required(CONF_TARGET): SelectSelector(
+            vol.Optional(CONF_TARGET, default=WILDCARD): SelectSelector(
                 SelectSelectorConfig(
                     options=target_options,
                     mode=SelectSelectorMode.DROPDOWN,
-                    translation_key="policy_endpoint",
                 )
             ),
-            vol.Optional(CONF_PRICE_SOURCE_TARGET): NumberSelector(
+            vol.Optional(CONF_PRICE): NumberSelector(
                 NumberSelectorConfig(
                     min=0,
                     max=100,
@@ -114,64 +121,55 @@ class PolicySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                     unit_of_measurement="$/kWh",
                 )
             ),
-            vol.Optional(CONF_PRICE_TARGET_SOURCE): NumberSelector(
-                NumberSelectorConfig(
-                    min=0,
-                    max=100,
-                    step=0.001,
-                    mode=NumberSelectorMode.BOX,
-                    unit_of_measurement="$/kWh",
-                )
-            ),
-        }
+        })
 
-        if is_edit:
-            schema[vol.Optional(CONF_DELETE, default=False)] = BooleanSelector()
-
-        return vol.Schema(schema)
-
-    def _build_menu_schema(self) -> vol.Schema:
-        """Build the schema for the rule selection menu."""
-        options: list[SelectOptionDict] = [
-            *[SelectOptionDict(value=str(i), label=rule["name"]) for i, rule in enumerate(self._rules)],
-            SelectOptionDict(value=ACTION_ADD, label="Add new policy"),
-            SelectOptionDict(value=ACTION_DONE, label="Save and close"),
+    def _build_reconfigure_schema(self) -> vol.Schema:
+        """Build the schema for the reconfigure menu."""
+        rule_options: list[SelectOptionDict] = [
+            SelectOptionDict(value=str(i), label=rule["name"])
+            for i, rule in enumerate(self._rules)
         ]
-        return vol.Schema(
-            {
-                vol.Required(CONF_ACTION): SelectSelector(
-                    SelectSelectorConfig(
-                        options=options,
-                        mode=SelectSelectorMode.LIST,
-                    )
-                ),
-            }
-        )
+        action_options: list[SelectOptionDict] = [
+            SelectOptionDict(value=ACTION_EDIT, label="Edit"),
+            SelectOptionDict(value=ACTION_DELETE, label="Delete"),
+        ]
+        return vol.Schema({
+            vol.Required(CONF_RULE): SelectSelector(
+                SelectSelectorConfig(
+                    options=rule_options,
+                    mode=SelectSelectorMode.LIST,
+                )
+            ),
+            vol.Required(CONF_ACTION): SelectSelector(
+                SelectSelectorConfig(
+                    options=action_options,
+                    mode=SelectSelectorMode.LIST,
+                )
+            ),
+        })
 
     def _parse_rule_input(self, user_input: dict[str, Any]) -> PolicyRuleConfig:
         """Convert form input into a PolicyRuleConfig."""
-        rule: PolicyRuleConfig = {
-            "name": user_input[CONF_RULE_NAME],
-            "source": user_input[CONF_SOURCE],
-            "target": user_input[CONF_TARGET],
-        }
-        if (price_st := user_input.get(CONF_PRICE_SOURCE_TARGET)) is not None:
-            rule["price_source_target"] = float(price_st)
-        if (price_ts := user_input.get(CONF_PRICE_TARGET_SOURCE)) is not None:
-            rule["price_target_source"] = float(price_ts)
+        rule: PolicyRuleConfig = {"name": user_input[CONF_RULE_NAME]}
+        source = user_input.get(CONF_SOURCE, WILDCARD)
+        target = user_input.get(CONF_TARGET, WILDCARD)
+        if source != WILDCARD:
+            rule["source"] = source
+        if target != WILDCARD:
+            rule["target"] = target
+        if (price := user_input.get(CONF_PRICE)) is not None:
+            rule["price"] = float(price)
         return rule
 
     def _rule_to_defaults(self, rule: PolicyRuleConfig) -> dict[str, Any]:
         """Convert a stored rule back to form defaults."""
         defaults: dict[str, Any] = {
             CONF_RULE_NAME: rule["name"],
-            CONF_SOURCE: rule["source"],
-            CONF_TARGET: rule["target"],
+            CONF_SOURCE: rule.get("source", WILDCARD),
+            CONF_TARGET: rule.get("target", WILDCARD),
         }
-        if "price_source_target" in rule:
-            defaults[CONF_PRICE_SOURCE_TARGET] = rule["price_source_target"]
-        if "price_target_source" in rule:
-            defaults[CONF_PRICE_TARGET_SOURCE] = rule["price_target_source"]
+        if "price" in rule:
+            defaults[CONF_PRICE] = rule["price"]
         return defaults
 
     def _validate_rule(
@@ -196,8 +194,8 @@ class PolicySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             errors[CONF_RULE_NAME] = "name_exists"
             return False
 
-        source = user_input.get(CONF_SOURCE)
-        target = user_input.get(CONF_TARGET)
+        source = user_input.get(CONF_SOURCE, WILDCARD)
+        target = user_input.get(CONF_TARGET, WILDCARD)
         if source == target and source != WILDCARD:
             errors["base"] = "source_target_same"
             return False
@@ -217,17 +215,34 @@ class PolicySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None,
     ) -> SubentryFlowResult:
-        """Handle adding the Policies subentry with the first rule."""
+        """Handle adding a new policy rule.
+
+        If a Policies subentry already exists, appends the rule to it.
+        Otherwise creates a new Policies subentry.
+        """
         errors: dict[str, str] = {}
         participants = self._get_participant_options()
 
-        if user_input is not None and self._validate_rule(user_input, errors):
-            rule = self._parse_rule_input(user_input)
-            self._rules = [rule]
-            return self.async_create_entry(
-                title=POLICIES_TITLE,
-                data=self._build_entry_data(),
-            )
+        if user_input is not None:
+            existing = self._find_existing_policy_subentry()
+            if existing is not None and not self._rules:
+                self._rules = list(existing.data.get(CONF_RULES, []))
+
+            if self._validate_rule(user_input, errors):
+                rule = self._parse_rule_input(user_input)
+                self._rules.append(rule)
+
+                if existing is not None:
+                    return self.async_update_and_abort(
+                        self._get_entry(),
+                        existing,
+                        title=POLICIES_TITLE,
+                        data=self._build_entry_data(),
+                    )
+                return self.async_create_entry(
+                    title=POLICIES_TITLE,
+                    data=self._build_entry_data(),
+                )
 
         schema = self._build_rule_schema(participants)
         if user_input is not None:
@@ -242,24 +257,21 @@ class PolicySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
     async def async_step_reconfigure(
         self, user_input: dict[str, Any] | None = None,
     ) -> SubentryFlowResult:
-        """Handle opening the policy menu for an existing subentry."""
+        """Handle the reconfigure menu for managing existing rules."""
         subentry = self._get_subentry()
         if subentry is not None and not self._rules:
             self._rules = list(subentry.data.get(CONF_RULES, []))
-        return await self.async_step_menu(user_input)
 
-    async def async_step_menu(
-        self, user_input: dict[str, Any] | None = None,
-    ) -> SubentryFlowResult:
-        """Show the policy rule menu."""
+        if not self._rules:
+            return self.async_abort(reason="no_rules")
+
         if user_input is not None:
-            action = user_input.get(CONF_ACTION, "")
+            rule_index = int(user_input[CONF_RULE])
+            action = user_input[CONF_ACTION]
 
-            if action == ACTION_ADD:
-                return await self.async_step_add_rule()
-
-            if action == ACTION_DONE:
-                subentry = self._get_subentry()
+            if action == ACTION_DELETE:
+                if 0 <= rule_index < len(self._rules):
+                    self._rules.pop(rule_index)
                 if subentry is not None:
                     return self.async_update_and_abort(
                         self._get_entry(),
@@ -267,67 +279,43 @@ class PolicySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                         title=POLICIES_TITLE,
                         data=self._build_entry_data(),
                     )
-                return self.async_create_entry(
-                    title=POLICIES_TITLE,
-                    data=self._build_entry_data(),
-                )
 
-            # Numeric action = edit a specific rule
-            if action.isdigit():
-                self._editing_index = int(action)
+            if action == ACTION_EDIT and 0 <= rule_index < len(self._rules):
+                self._editing_index = rule_index
                 return await self.async_step_edit_rule()
 
-        schema = self._build_menu_schema()
+        schema = self._build_reconfigure_schema()
         return self.async_show_form(
-            step_id="menu",
+            step_id="reconfigure",
             data_schema=schema,
-        )
-
-    async def async_step_add_rule(
-        self, user_input: dict[str, Any] | None = None,
-    ) -> SubentryFlowResult:
-        """Handle adding a new policy rule."""
-        errors: dict[str, str] = {}
-        participants = self._get_participant_options()
-
-        if user_input is not None and self._validate_rule(user_input, errors):
-            rule = self._parse_rule_input(user_input)
-            self._rules.append(rule)
-            return await self.async_step_menu()
-
-        schema = self._build_rule_schema(participants)
-        if user_input is not None:
-            schema = self.add_suggested_values_to_schema(schema, user_input)
-
-        return self.async_show_form(
-            step_id="add_rule",
-            data_schema=schema,
-            errors=errors,
         )
 
     async def async_step_edit_rule(
         self, user_input: dict[str, Any] | None = None,
     ) -> SubentryFlowResult:
-        """Handle editing or deleting an existing policy rule."""
+        """Handle editing an existing policy rule."""
         errors: dict[str, str] = {}
         participants = self._get_participant_options()
         idx = self._editing_index
 
-        if user_input is not None:
-            if user_input.get(CONF_DELETE):
-                if idx is not None and 0 <= idx < len(self._rules):
-                    self._rules.pop(idx)
-                self._editing_index = None
-                return await self.async_step_menu()
+        if user_input is not None and self._validate_rule(
+            user_input, errors, exclude_index=idx,
+        ):
+            rule = self._parse_rule_input(user_input)
+            if idx is not None and 0 <= idx < len(self._rules):
+                self._rules[idx] = rule
+            self._editing_index = None
 
-            if self._validate_rule(user_input, errors, exclude_index=idx):
-                rule = self._parse_rule_input(user_input)
-                if idx is not None and 0 <= idx < len(self._rules):
-                    self._rules[idx] = rule
-                self._editing_index = None
-                return await self.async_step_menu()
+            subentry = self._get_subentry()
+            if subentry is not None:
+                return self.async_update_and_abort(
+                    self._get_entry(),
+                    subentry,
+                    title=POLICIES_TITLE,
+                    data=self._build_entry_data(),
+                )
 
-        schema = self._build_rule_schema(participants, is_edit=True)
+        schema = self._build_rule_schema(participants)
         if user_input is not None:
             defaults = user_input
         elif idx is not None and 0 <= idx < len(self._rules):

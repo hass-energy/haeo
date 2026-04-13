@@ -1,8 +1,9 @@
 """Policy element schema definitions.
 
 A single Policies subentry stores a list of policy rules.
-Each rule specifies a source, target, and optional pricing that controls
-how the optimizer routes power between elements.
+Each rule specifies a source, target, and a price that controls
+how the optimizer costs power flowing from source to target.
+Source/target can be omitted to mean "any element".
 Tags are auto-assigned by the compilation pipeline.
 """
 
@@ -20,8 +21,7 @@ CONF_RULES: Final = "rules"
 CONF_RULE_NAME: Final = "name"
 CONF_SOURCE: Final = "source"
 CONF_TARGET: Final = "target"
-CONF_PRICE_SOURCE_TARGET: Final = "price_source_target"
-CONF_PRICE_TARGET_SOURCE: Final = "price_target_source"
+CONF_PRICE: Final = "price"
 
 # Wildcard sentinel for "any element"
 WILDCARD: Final = "*"
@@ -31,20 +31,18 @@ class PolicyRuleConfig(TypedDict):
     """A single policy rule as stored in Home Assistant config."""
 
     name: str
-    source: str | list[str]
-    target: str | list[str]
-    price_source_target: NotRequired[float]
-    price_target_source: NotRequired[float]
+    source: NotRequired[str]
+    target: NotRequired[str]
+    price: NotRequired[float]
 
 
 class PolicyRuleData(TypedDict):
     """A single policy rule with loaded values."""
 
     name: str
-    source: str | list[str]
-    target: str | list[str]
-    price_source_target: NotRequired[NDArray[np.floating[Any]] | float]
-    price_target_source: NotRequired[NDArray[np.floating[Any]] | float]
+    source: NotRequired[str]
+    target: NotRequired[str]
+    price: NotRequired[NDArray[np.floating[Any]] | float]
 
 
 class PolicyConfigSchema(TypedDict):
@@ -64,8 +62,7 @@ class PolicyConfigData(TypedDict):
 
 
 __all__ = [
-    "CONF_PRICE_SOURCE_TARGET",
-    "CONF_PRICE_TARGET_SOURCE",
+    "CONF_PRICE",
     "CONF_RULES",
     "CONF_RULE_NAME",
     "CONF_SOURCE",

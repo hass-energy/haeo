@@ -41,7 +41,6 @@ from .capture import guide_step
 
 if TYPE_CHECKING:
     from custom_components.haeo.elements.input_fields import InputFieldGroups
-    from tests.guides.ha_runner import LiveHomeAssistant
 
     from .ha_page import HAPage
 
@@ -509,142 +508,79 @@ def add_policies(
     page: HAPage,
     *,
     name: str,
-    source: str,
-    target: str,
-    price_source_target: float | None = None,
-    price_target_source: float | None = None,
+    source: str | None = None,
+    target: str | None = None,
+    price: float | None = None,
 ) -> None:
-    """Add the Policies subentry with the first rule.
+    """Add a policy rule via the Policies subentry flow.
 
-    Creates the Policies subentry by filling the initial rule form.
-    Subsequent rules are added via add_policy_rule().
+    Works for both the first rule (creates subentry) and subsequent
+    rules (appends to existing subentry).
     """
     et = "policy"
-    _LOGGER.info("Adding Policies with first rule: %s", name)
+    _LOGGER.info("Adding policy rule: %s", name)
 
-    page.click_button(_button_label(et))
+    page.click_button(_button_label(et), first=True)
     page.wait_for_dialog(_dialog_title(et))
 
-    _fill_policy_rule_form(page, et, name, source, target, price_source_target, price_target_source)
+    step_data = _step_user(et)["data"]
+    page.fill_textbox(step_data["name"], name)
+    if source is not None:
+        page.select_dropdown(step_data["source"], source)
+    if target is not None:
+        page.select_dropdown(step_data["target"], target)
+    if price is not None:
+        page.fill_spinbutton(step_data["price"], str(price))
 
     page.submit()
-    page.close_element_dialog()
 
-    _LOGGER.info("Policies subentry created with rule: %s", name)
+    # First add: async_create_entry shows a Finish dialog.
+    # Subsequent adds: async_update_and_abort shows an abort dialog
+    # with a close button in the header (Escape/scrim are disabled).
+    finish = page.page.get_by_role("button", name="Finish")
+    try:
+        finish.wait_for(state="visible", timeout=2000)
+    except Exception:  # noqa: BLE001
+        # Close the abort dialog via the header X button
+        close_btn = page.page.locator(
+            "dialog-data-entry-flow ha-icon-button[dialogaction='close']",
+        )
+        close_btn.click(timeout=2000)
+        page.page.locator("dialog-data-entry-flow ha-dialog[open]").wait_for(
+            state="detached", timeout=5000,
+        )
+        _LOGGER.info("Policy appended to existing subentry")
+    else:
+        page.close_element_dialog()
+
+    _LOGGER.info("Policy rule added: %s", name)
 
 
 @guide_step
 def reconfigure_policies(page: HAPage) -> None:
     """Open the reconfigure flow for the Policies subentry.
 
-    Clicks the gear icon on the Policies subentry row to open the
-    reconfigure flow. After calling this, the policy menu dialog is shown.
+    Scrolls to and clicks the gear icon on the Policies subentry row.
     """
-    _LOGGER.info("Opening policy reconfigure menu...")
+    _LOGGER.info("Opening policy reconfigure...")
 
     et = "policy"
     policies_row = page.page.locator("ha-md-list-item.sub-entry").filter(has_text="Policies")
     policies_row.wait_for(state="visible", timeout=5000)
+    policies_row.scroll_into_view_if_needed()
 
-    # Click the gear (configure) icon button on the subentry row
-    # The gear icon is the first ha-icon-button, the three-dot menu is the second
     gear_button = policies_row.locator("ha-icon-button").first
     page._capture("reconfigure_gear")
     gear_button.click(timeout=2000)
 
-    page.wait_for_dialog(_step_title(et, "menu"))
+    page.wait_for_dialog(_step_title(et, "reconfigure"))
 
-    _LOGGER.info("Policy reconfigure menu opened")
-
-
-@guide_step
-def select_policy_menu_option(page: HAPage, *, option: str) -> None:
-    """Select an option from the policy menu.
-
-    Args:
-        page: The HAPage instance to interact with.
-        option: The display text of the option to select (e.g., rule name,
-                "Add new policy", "Save and close").
-
-    """
-    _LOGGER.info("Selecting policy menu option: %s", option)
-
-    page.select_list_option(option)
-    page.submit()
-
-    _LOGGER.info("Selected: %s", option)
-
-
-@guide_step
-def fill_policy_rule(
-    page: HAPage,
-    *,
-    name: str,
-    source: str,
-    target: str,
-    price_source_target: float | None = None,
-    price_target_source: float | None = None,
-) -> None:
-    """Fill and submit a policy rule form (add_rule or edit_rule step)."""
-    et = "policy"
-    _LOGGER.info("Filling policy rule: %s", name)
-
-    _fill_policy_rule_form(page, et, name, source, target, price_source_target, price_target_source)
-
-    page.submit()
-
-    _LOGGER.info("Policy rule submitted: %s", name)
-
-
-def _fill_policy_rule_form(
-    page: HAPage,
-    et: str,
-    name: str,
-    source: str,
-    target: str,
-    price_source_target: float | None,
-    price_target_source: float | None,
-) -> None:
-    """Fill the policy rule form fields without submitting."""
-    step_data = _step_user(et)["data"]
-    page.fill_textbox(step_data["name"], name)
-    page.select_dropdown(step_data["source"], source)
-    page.select_dropdown(step_data["target"], target)
-
-    if price_source_target is not None:
-        page.fill_spinbutton(step_data["price_source_target"], str(price_source_target))
-    if price_target_source is not None:
-        page.fill_spinbutton(step_data["price_target_source"], str(price_target_source))
+    _LOGGER.info("Policy reconfigure opened")
 
 
 def _step_title(element_type: str, step: str) -> str:
     """Get the title for a specific flow step."""
     return _subentry(element_type)["step"][step]["title"]
-
-
-def validate_policies(hass: LiveHomeAssistant, *, expected_rules: list[str]) -> None:
-    """Validate that the Policies subentry has the expected rules saved.
-
-    Accesses the HA config entries directly via the Python API to verify
-    that the policy subentry contains the expected rules.
-    """
-    from homeassistant.config_entries import ConfigEntry  # noqa: PLC0415
-
-    async def _get_policy_rules() -> list[str]:
-        ha = hass.hass
-        entry: ConfigEntry = next(
-            e for e in ha.config_entries.async_entries("haeo")
-        )
-        policy_sub = next(
-            s for s in entry.subentries.values() if s.subentry_type == "policy"
-        )
-        return [r["name"] for r in policy_sub.data.get("rules", [])]
-
-    actual_names = hass.run_coro(_get_policy_rules())
-    assert actual_names == expected_rules, (
-        f"Policy rules mismatch: expected {expected_rules}, got {actual_names}"
-    )
-    _LOGGER.info("Policy validation passed: %s", actual_names)
 
 
 # endregion
