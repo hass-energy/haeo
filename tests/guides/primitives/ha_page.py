@@ -303,6 +303,43 @@ class HAPage:
             option.click()
             option.wait_for(state="hidden", timeout=DEFAULT_TIMEOUT)
 
+    def select_dropdown(self, label: str, option_text: str) -> None:
+        """Select an option from a SelectSelector in DROPDOWN mode.
+
+        HA renders SelectSelector DROPDOWN as ``ha-select`` wrapping
+        ``ha-md-select-option`` items. Clicking the select element opens
+        a menu of options.
+        """
+        # ha-selector-select wraps the ha-select component
+        selector = self.page.locator("ha-selector-select").filter(has_text=label)
+        selector.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
+
+        # The ha-select element is the clickable trigger
+        ha_select = selector.locator("ha-select")
+        ha_select.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
+
+        ctx = ScreenshotContext.current()
+        if ctx:
+            with ctx.scope(f"select_{label}"):
+                self._scroll_and_capture(ha_select)
+                self._capture_with_indicator("dropdown", ha_select)
+                ha_select.click()
+
+                option = self.page.get_by_role("option", name=option_text)
+                option.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
+                self._scroll_into_view(option)
+                self._capture_with_indicator("option", option)
+
+                option.click()
+                self.page.wait_for_timeout(300)
+                self._capture("selected")
+        else:
+            ha_select.click()
+            option = self.page.get_by_role("option", name=option_text)
+            option.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
+            option.click()
+            self.page.wait_for_timeout(300)
+
     # endregion
 
     # region: Sections
@@ -643,6 +680,45 @@ class HAPage:
     def submit(self) -> None:
         """Click Submit button."""
         self.click_button("Submit")
+
+    def select_list_option(self, option_text: str) -> None:
+        """Select an option from a SelectSelector in LIST mode.
+
+        LIST mode renders as a group of radio-style list items.
+        Clicking the list item container doesn't always toggle the radio
+        input, so we target the radio button by its value or the list
+        item's inner interactive element.
+        """
+        ctx = ScreenshotContext.current()
+        option = self.page.get_by_role("radio", name=option_text)
+        option.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
+
+        if ctx:
+            with ctx.scope(f"select_list_{option_text}"):
+                self._scroll_and_capture(option)
+                self._capture_with_indicator("option", option)
+                option.click(timeout=DEFAULT_TIMEOUT)
+                self._capture("selected")
+        else:
+            option.click(timeout=DEFAULT_TIMEOUT)
+
+    def toggle_switch(self, name: str) -> None:
+        """Toggle a switch/checkbox by accessible name.
+
+        BooleanSelector fields render as ``ha-switch`` toggle elements.
+        """
+        switch = self.page.locator("ha-switch").filter(has_text=name)
+        switch.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
+
+        ctx = ScreenshotContext.current()
+        if ctx:
+            with ctx.scope(f"toggle_{name}"):
+                self._scroll_and_capture(switch)
+                self._capture_with_indicator("switch", switch)
+                switch.click(timeout=DEFAULT_TIMEOUT)
+                self._capture("toggled")
+        else:
+            switch.click(timeout=DEFAULT_TIMEOUT)
 
     # endregion
 

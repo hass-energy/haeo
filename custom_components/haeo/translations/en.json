@@ -382,6 +382,58 @@
       "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" },
       "abort": { "reconfigure_successful": "Configuration updated successfully" }
     },
+    "policy": {
+      "flow_title": "Policies",
+      "entry_type": "Policies",
+      "initiate_flow": { "user": "Policies", "reconfigure": "Policies" },
+      "step": {
+        "user": {
+          "title": "Add policy",
+          "description": "Create a policy rule to control how power flows between elements",
+          "data": {
+            "name": "Policy name",
+            "price_source_target": "Source to target price",
+            "price_target_source": "Target to source price",
+            "source": "Source",
+            "target": "Target"
+          }
+        },
+        "add_rule": {
+          "title": "Add policy",
+          "description": "Create a new policy rule",
+          "data": {
+            "name": "Policy name",
+            "price_source_target": "Source to target price",
+            "price_target_source": "Target to source price",
+            "source": "Source",
+            "target": "Target"
+          }
+        },
+        "edit_rule": {
+          "title": "Edit policy",
+          "description": "Modify or delete this policy rule",
+          "data": {
+            "delete": "Delete this policy",
+            "name": "Policy name",
+            "price_source_target": "Source to target price",
+            "price_target_source": "Target to source price",
+            "source": "Source",
+            "target": "Target"
+          }
+        },
+        "menu": {
+          "title": "Policies",
+          "description": "Select a policy to edit, add a new policy, or save changes",
+          "data": { "action": "Select an option" }
+        }
+      },
+      "error": {
+        "missing_name": "Policy name is required",
+        "name_exists": "A policy with this name already exists",
+        "source_target_same": "Source and target cannot be the same element"
+      },
+      "abort": { "reconfigure_successful": "Policies updated successfully" }
+    },
     "solar": {
       "flow_title": "Solar",
       "entry_type": "Solar",
@@ -419,7 +471,7 @@
     "load": { "name": "{name}" },
     "network": { "name": "Optimizer" },
     "node": { "name": "{name}" },
-    "policy": { "name": "Policy" },
+    "policy": { "name": "Policies" },
     "solar": { "name": "{name}" }
   },
   "entity": {
@@ -558,7 +610,8 @@
     "horizon_preset": {
       "options": { "2_days": "2 days", "3_days": "3 days", "5_days": "5 days", "7_days": "7 days", "custom": "Custom" }
     },
-    "input_source": { "choices": { "constant": "Constant", "entity": "Entity", "none": "None" } }
+    "input_source": { "choices": { "constant": "Constant", "entity": "Entity", "none": "None" } },
+    "policy_endpoint": { "options": { "*": "Any" } }
   },
   "services": {
     "optimize": {

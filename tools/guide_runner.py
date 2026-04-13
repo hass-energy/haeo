@@ -34,10 +34,15 @@ from tests.guides.primitives import (
     add_inverter,
     add_load,
     add_node,
+    add_policies,
     add_solar,
+    fill_policy_rule,
     login,
     pause_screenshots,
+    reconfigure_policies,
     screenshot_context,
+    select_policy_menu_option,
+    validate_policies,
     verify_setup,
 )
 from tools.guide_hashing import compute_content_hash, compute_page_hash, extract_sources
@@ -175,7 +180,7 @@ def get_page_hash(blocks: list[GuideBlock]) -> str:
     return compute_page_hash([b.source for b in blocks])
 
 
-def _run_guide_silently(page: HAPage, guide_name: str) -> None:
+def _run_guide_silently(page: HAPage, hass: LiveHomeAssistant, guide_name: str) -> None:
     """Execute all guide blocks from another walkthrough without screenshots.
 
     Loads the referenced guide's markdown, extracts its guide blocks
@@ -194,17 +199,18 @@ def _run_guide_silently(page: HAPage, guide_name: str) -> None:
     markdown = guide_path.read_text(encoding="utf-8")
     ref_blocks = extract_guide_blocks(markdown)
 
-    namespace = build_exec_namespace(page)
+    namespace = build_exec_namespace(page, hass)
     with pause_screenshots():
         for block in ref_blocks:
             if block.captures:
                 exec(compile(block.source, f"<{guide_name} block {block.index}>", "exec"), namespace)  # noqa: S102
 
 
-def build_exec_namespace(page: HAPage) -> dict[str, object]:
+def build_exec_namespace(page: HAPage, hass: LiveHomeAssistant) -> dict[str, object]:
     """Build the namespace dict available to guide code blocks."""
     return {
         "page": page,
+        "hass": hass,
         # Field value types
         "EntityInput": EntityInput,
         "ConstantInput": ConstantInput,
@@ -217,9 +223,14 @@ def build_exec_namespace(page: HAPage) -> dict[str, object]:
         "add_grid": add_grid,
         "add_load": add_load,
         "add_node": add_node,
+        "add_policies": add_policies,
+        "fill_policy_rule": fill_policy_rule,
+        "reconfigure_policies": reconfigure_policies,
+        "select_policy_menu_option": select_policy_menu_option,
+        "validate_policies": validate_policies,
         "verify_setup": verify_setup,
         # Guide chaining
-        "run_guide": lambda guide_name: _run_guide_silently(page, guide_name),
+        "run_guide": lambda guide_name: _run_guide_silently(page, hass, guide_name),
     }
 
 
@@ -264,7 +275,7 @@ def run_blocks_for_mode(
 
         try:
             page = HAPage(page=page_obj, url=hass.url)
-            namespace = build_exec_namespace(page)
+            namespace = build_exec_namespace(page, hass)
 
             # All blocks share one screenshot context (continuous numbering)
             # but we track per-block boundaries

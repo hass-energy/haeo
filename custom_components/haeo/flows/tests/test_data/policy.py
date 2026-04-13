@@ -1,29 +1,38 @@
 """Test data and validation for policy flow configuration."""
 
-from custom_components.haeo.core.const import CONF_NAME
-from custom_components.haeo.core.schema import as_connection_target
 from custom_components.haeo.core.schema.elements.policy import (
     CONF_PRICE_SOURCE_TARGET,
+    CONF_RULES,
     CONF_SOURCE,
-    CONF_TAG,
     CONF_TARGET,
-    SECTION_ENDPOINTS,
-    SECTION_TAG_PRICING,
+    WILDCARD,
 )
 
 VALID_DATA = [
     {
-        "description": "Basic policy configuration",
+        "description": "Basic policy configuration with one rule",
         "config": {
-            CONF_NAME: "Solar Export Policy",
-            SECTION_ENDPOINTS: {
-                CONF_SOURCE: as_connection_target("Solar"),
-                CONF_TARGET: as_connection_target("Grid"),
-            },
-            SECTION_TAG_PRICING: {
-                CONF_TAG: 1,
-                CONF_PRICE_SOURCE_TARGET: 0.02,
-            },
+            CONF_RULES: [
+                {
+                    "name": "Solar Export Policy",
+                    CONF_SOURCE: "Solar",
+                    CONF_TARGET: "Grid",
+                    CONF_PRICE_SOURCE_TARGET: 0.02,
+                },
+            ],
+        },
+    },
+    {
+        "description": "Policy with wildcard source",
+        "config": {
+            CONF_RULES: [
+                {
+                    "name": "Any to Load",
+                    CONF_SOURCE: WILDCARD,
+                    CONF_TARGET: "Load",
+                    CONF_PRICE_SOURCE_TARGET: 0.05,
+                },
+            ],
         },
     },
 ]

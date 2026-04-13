@@ -18,6 +18,15 @@ Walkthroughs are generated from a live Home Assistant instance, so the screensho
 
     [:material-arrow-right: Sigenergy walkthrough](sigenergy-system.md)
 
+- :material-shield-check:{ .lg .middle } **Power Policies**
+
+    ---
+
+    Control how energy flows between elements using source-to-target pricing.
+    Covers solar export, battery discharge, and grid charging policies.
+
+    [:material-arrow-right: Power Policies walkthrough](power-policies.md)
+
 </div>
 
 ## Next steps

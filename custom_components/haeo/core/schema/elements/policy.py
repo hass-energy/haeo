@@ -1,117 +1,79 @@
 """Policy element schema definitions.
 
-A policy defines tagged power flow pricing between two nodes.
-When configured, it creates a parallel connection with tag_pricing segments
-that add costs to power flowing between the specified nodes.
+A single Policies subentry stores a list of policy rules.
+Each rule specifies a source, target, and optional pricing that controls
+how the optimizer routes power between elements.
+Tags are auto-assigned by the compilation pipeline.
 """
 
-from typing import Annotated, Any, Final, Literal, NotRequired, TypedDict
+from typing import Any, Final, Literal, NotRequired, TypedDict
 
 import numpy as np
 from numpy.typing import NDArray
 
-from custom_components.haeo.core.model.const import OutputType
-from custom_components.haeo.core.schema import ConnectionTarget, ConstantValue, EntityValue, NoneValue
 from custom_components.haeo.core.schema.elements.element_type import ElementType
-from custom_components.haeo.core.schema.field_hints import FieldHint, SectionHints
-from custom_components.haeo.core.schema.sections import CommonConfig, CommonData
 
 ELEMENT_TYPE = ElementType.POLICY
 
 # Config keys
-SECTION_ENDPOINTS: Final = "endpoints"
-SECTION_TAG_PRICING: Final = "tag_pricing"
-
+CONF_RULES: Final = "rules"
+CONF_RULE_NAME: Final = "name"
 CONF_SOURCE: Final = "source"
 CONF_TARGET: Final = "target"
-CONF_TAG: Final = "tag"
 CONF_PRICE_SOURCE_TARGET: Final = "price_source_target"
 CONF_PRICE_TARGET_SOURCE: Final = "price_target_source"
 
-OPTIONAL_INPUT_FIELDS: Final[frozenset[str]] = frozenset(
-    {
-        CONF_PRICE_SOURCE_TARGET,
-        CONF_PRICE_TARGET_SOURCE,
-    }
-)
+# Wildcard sentinel for "any element"
+WILDCARD: Final = "*"
 
 
-class PolicyEndpointsConfig(TypedDict):
-    """Endpoint configuration for policy source/target pairs."""
+class PolicyRuleConfig(TypedDict):
+    """A single policy rule as stored in Home Assistant config."""
 
-    source: ConnectionTarget
-    target: ConnectionTarget
-
-
-class PolicyEndpointsData(TypedDict):
-    """Loaded endpoint values."""
-
-    source: ConnectionTarget
-    target: ConnectionTarget
+    name: str
+    source: str | list[str]
+    target: str | list[str]
+    price_source_target: NotRequired[float]
+    price_target_source: NotRequired[float]
 
 
-class PolicyTagConfig(TypedDict):
-    """Tag and pricing configuration for a policy."""
+class PolicyRuleData(TypedDict):
+    """A single policy rule with loaded values."""
 
-    tag: int
-    price_source_target: NotRequired[EntityValue | ConstantValue | NoneValue]
-    price_target_source: NotRequired[EntityValue | ConstantValue | NoneValue]
-
-
-class PolicyTagData(TypedDict):
-    """Loaded tag and pricing values for a policy."""
-
-    tag: int
+    name: str
+    source: str | list[str]
+    target: str | list[str]
     price_source_target: NotRequired[NDArray[np.floating[Any]] | float]
     price_target_source: NotRequired[NDArray[np.floating[Any]] | float]
 
 
-class PolicyConfigSchema(CommonConfig):
+class PolicyConfigSchema(TypedDict):
     """Policy element configuration as stored in Home Assistant."""
 
     element_type: Literal[ElementType.POLICY]
-    endpoints: PolicyEndpointsConfig
-    tag_pricing: Annotated[
-        PolicyTagConfig,
-        SectionHints(
-            {
-                CONF_PRICE_SOURCE_TARGET: FieldHint(
-                    output_type=OutputType.PRICE,
-                    direction="-",
-                    time_series=True,
-                ),
-                CONF_PRICE_TARGET_SOURCE: FieldHint(
-                    output_type=OutputType.PRICE,
-                    direction="+",
-                    time_series=True,
-                ),
-            }
-        ),
-    ]
+    name: str
+    rules: list[PolicyRuleConfig]
 
 
-class PolicyConfigData(CommonData):
+class PolicyConfigData(TypedDict):
     """Policy element configuration with loaded values."""
 
     element_type: Literal[ElementType.POLICY]
-    endpoints: PolicyEndpointsData
-    tag_pricing: PolicyTagData
+    name: str
+    rules: list[PolicyRuleData]
 
 
 __all__ = [
     "CONF_PRICE_SOURCE_TARGET",
     "CONF_PRICE_TARGET_SOURCE",
+    "CONF_RULES",
+    "CONF_RULE_NAME",
     "CONF_SOURCE",
-    "CONF_TAG",
     "CONF_TARGET",
     "ELEMENT_TYPE",
-    "OPTIONAL_INPUT_FIELDS",
-    "SECTION_ENDPOINTS",
-    "SECTION_TAG_PRICING",
+    "WILDCARD",
     "PolicyConfigData",
     "PolicyConfigSchema",
-    "PolicyEndpointsConfig",
-    "PolicyEndpointsData",
-    "PolicyTagConfig",
-    "PolicyTagData",
+    "PolicyRuleConfig",
+    "PolicyRuleData",
 ]
