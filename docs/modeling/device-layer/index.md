@@ -46,6 +46,14 @@ This prevents naming collisions and groups related components visually in Home A
 
     [:material-arrow-right: Battery modeling](battery.md)
 
+- :material-car-electric:{ .lg .middle } **EV**
+
+    ---
+
+    Electric vehicle with trip calendar and V2G support.
+
+    [:material-arrow-right: EV modeling](ev.md)
+
 - :material-power-plug:{ .lg .middle } **Grid**
 
     ---

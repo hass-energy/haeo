@@ -80,6 +80,12 @@ Explore detailed configuration for each element type:
 
     [:material-arrow-right: Battery guide](battery.md)
 
+- :material-car-electric:{ .lg .middle } __EV configuration__
+
+    Electric vehicle with calendar-based trip scheduling.
+
+    [:material-arrow-right: EV guide](ev.md)
+
 - :material-power-plug:{ .lg .middle } __Grid configuration__
 
     Import/export with dynamic or fixed pricing.

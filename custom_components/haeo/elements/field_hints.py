@@ -71,6 +71,13 @@ OUTPUT_TYPE_DEFAULTS: dict[OutputType, OutputTypeMetadata] = {
         max_value=10.0,
         step=0.001,
     ),
+    OutputType.AVAILABILITY: OutputTypeMetadata(
+        unit=None,
+        device_class=None,
+        min_value=0.0,
+        max_value=1.0,
+        step=1.0,
+    ),
 }
 
 

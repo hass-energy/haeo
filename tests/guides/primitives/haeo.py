@@ -29,6 +29,14 @@ from custom_components.haeo.core.schema.elements.battery import (
     CONF_MIN_CHARGE_PERCENTAGE,
 )
 from custom_components.haeo.core.schema.elements.element_type import ElementType
+from custom_components.haeo.core.schema.elements.ev import (
+    CONF_CONNECTED,
+    CONF_CURRENT_SOC,
+    CONF_ENERGY_PER_DISTANCE,
+    CONF_MAX_CHARGE_RATE,
+    CONF_MAX_DISCHARGE_RATE,
+    CONF_PUBLIC_CHARGING_PRICE,
+)
 from custom_components.haeo.core.schema.sections import (
     CONF_FORECAST,
     CONF_MAX_POWER_SOURCE_TARGET,
@@ -491,6 +499,109 @@ def add_node(page: HAPage, *, name: str) -> None:
     page.close_element_dialog()
 
     _LOGGER.info("Node added: %s", name)
+
+
+@guide_step
+def add_local_calendar(page: HAPage, *, calendar_name: str) -> None:
+    """Add Local Calendar integration to Home Assistant.
+
+    Navigates to integrations, adds the Local Calendar integration,
+    and configures it with the given calendar name.
+    """
+    _LOGGER.info("Adding Local Calendar: %s", calendar_name)
+
+    page.navigate_to_settings()
+    page.navigate_to_integrations()
+    page.click_add_integration()
+    page.search_integration("Local calendar")
+
+    page.wait_for_dialog("Local calendar")
+    page.fill_textbox("Calendar name", calendar_name)
+    page.submit()
+
+    page.close_success_dialog()
+
+    _LOGGER.info("Local Calendar added: %s", calendar_name)
+
+
+@guide_step
+def create_calendar_event(
+    page: HAPage,
+    *,
+    title: str,
+    location: str | None = None,
+    start_time: str | None = None,
+    end_time: str | None = None,
+    recurrence: str | None = None,
+) -> None:
+    """Create a calendar event via the HA calendar UI.
+
+    Navigates to the Calendar page, creates an event with the given
+    details, and captures screenshots of the process.
+    """
+    _LOGGER.info("Creating calendar event: %s", title)
+
+    page.navigate_to_calendar()
+    page.create_calendar_event(
+        title=title,
+        location=location,
+        start_time=start_time,
+        end_time=end_time,
+        recurrence=recurrence,
+    )
+
+    _LOGGER.info("Calendar event created: %s", title)
+
+
+@guide_step
+def add_ev(
+    page: HAPage,
+    *,
+    name: str,
+    connection: str,
+    capacity: EntityInput | ConstantInput,
+    energy_per_distance: EntityInput | ConstantInput,
+    current_soc: EntityInput,
+    max_charge_rate: EntityInput | ConstantInput,
+    max_discharge_rate: EntityInput | ConstantInput | None = None,
+    connected: EntityInput | ConstantInput | None = None,
+    public_charging_price: ConstantInput | None = None,
+) -> None:
+    """Add EV element to HAEO network."""
+    et = ElementType.EV
+    _LOGGER.info("Adding EV: %s", name)
+
+    page.click_button(_button_label(et))
+    page.wait_for_dialog(_dialog_title(et))
+
+    page.fill_textbox(_name_label(et), name)
+    page.select_combobox(_connection_label(et), connection)
+
+    # Build choose-selector fields in section order: vehicle → charging → trip → public_charging
+    fields: dict[str, FieldInput] = {
+        CONF_CAPACITY: capacity,
+        CONF_ENERGY_PER_DISTANCE: energy_per_distance,
+        CONF_CURRENT_SOC: current_soc,
+        CONF_MAX_CHARGE_RATE: max_charge_rate,
+    }
+    if max_discharge_rate is not None:
+        fields[CONF_MAX_DISCHARGE_RATE] = max_discharge_rate
+    if connected is not None:
+        fields[CONF_CONNECTED] = connected
+    if public_charging_price is not None:
+        fields[CONF_PUBLIC_CHARGING_PRICE] = public_charging_price
+
+    _fill_element_fields(
+        page,
+        et,
+        fields,
+        collapsed_sections=frozenset({"trip", "public_charging", "power_limits", "efficiency"}),
+    )
+
+    page.submit()
+    page.close_element_dialog()
+
+    _LOGGER.info("EV added: %s", name)
 
 
 @guide_step

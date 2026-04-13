@@ -38,6 +38,7 @@ dev = [
     "syrupy>=5.0.0",
     "zensical>=0.0.24",
     "import-linter>=2.10",
+    "ical>=13.2.2",
 ]
 
 [tool.ruff]
