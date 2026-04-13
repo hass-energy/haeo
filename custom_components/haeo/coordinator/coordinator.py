@@ -4,9 +4,8 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
 import logging
-import re
 import time
-from typing import TYPE_CHECKING, Any, Final, Literal, TypedDict
+from typing import TYPE_CHECKING, Any, Literal, TypedDict
 
 from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass
 from homeassistant.config_entries import ConfigEntry
@@ -38,9 +37,11 @@ from custom_components.haeo.core.data.loader.config_loader import load_element_c
 from custom_components.haeo.core.data.loader.config_loader import load_element_configs
 from custom_components.haeo.core.model import ModelOutputName, Network, OutputData, OutputType
 from custom_components.haeo.core.schema.elements import ElementConfigData, ElementConfigSchema
+from custom_components.haeo.core.schema.util import extract_unit_wildcard
 from custom_components.haeo.core.state import EntityState
 from custom_components.haeo.elements import ElementDeviceName, ElementOutputName, collect_element_subentries
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED
+from custom_components.haeo.flows.element_flow import PRICE_UNIT_SPEC
 from custom_components.haeo.ha_state_machine import HomeAssistantStateMachine
 from custom_components.haeo.repairs import dismiss_optimization_failure_issue
 
@@ -114,10 +115,6 @@ STATUS_OPTIONS: tuple[str, ...] = tuple(
 )
 
 
-# Matches a price-like unit: <currency>/<energy_unit> (e.g. "£/kWh", "$/MWh", "€/Wh")
-_PRICE_UNIT_RE: Final = re.compile(r"^(.+)/(?:Wh|kWh|MWh|GWh)$")
-
-
 def detect_currency_symbol(source_states: Mapping[str, "EntityState"]) -> str:
     """Detect the user's currency symbol from source entity units.
 
@@ -126,8 +123,8 @@ def detect_currency_symbol(source_states: Mapping[str, "EntityState"]) -> str:
     """
     for state in source_states.values():
         unit = state.attributes.get("unit_of_measurement")
-        if isinstance(unit, str) and (m := _PRICE_UNIT_RE.match(unit)):
-            return m.group(1)
+        if isinstance(unit, str) and (sym := extract_unit_wildcard(unit, PRICE_UNIT_SPEC)):
+            return sym
     return "$"
 
 

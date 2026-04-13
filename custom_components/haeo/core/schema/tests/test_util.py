@@ -5,7 +5,7 @@ from enum import Enum
 from homeassistant.const import UnitOfPower
 import pytest
 
-from custom_components.haeo.core.schema.util import UnitSpec, matches_unit_spec
+from custom_components.haeo.core.schema.util import UnitSpec, extract_unit_wildcard, matches_unit_spec
 
 
 class MockCurrency(Enum):
@@ -109,3 +109,28 @@ def test_price_patterns_match_common_currencies(price_pattern: tuple[str, ...]) 
     for currency in currencies:
         unit = f"{currency}/{energy_suffix}"
         assert matches_unit_spec(unit, price_pattern), f"{unit} should match {price_pattern}"
+
+
+EXTRACT_WILDCARD_TEST_CASES = [
+    # Basic price units
+    ("£/kWh", [("*", "/", "kWh")], "£"),
+    ("€/MWh", [("*", "/", "MWh")], "€"),
+    ("$/kWh", [("*", "/", "kWh")], "$"),
+    ("A$/kWh", [("*", "/", "kWh")], "A$"),
+    # First matching spec wins
+    ("€/kWh", [("*", "/", "kWh"), ("*", "/", "MWh")], "€"),
+    ("€/MWh", [("*", "/", "kWh"), ("*", "/", "MWh")], "€"),
+    # Non-price units return None
+    ("kW", [("*", "/", "kWh")], None),
+    ("kWh", [("*", "/", "kWh")], None),
+    # No matching specs
+    ("$/kWh", [("*", "/", "MWh")], None),
+    # Empty specs
+    ("$/kWh", [], None),
+]
+
+
+@pytest.mark.parametrize(("unit", "specs", "expected"), EXTRACT_WILDCARD_TEST_CASES)
+def test_extract_unit_wildcard(unit: str, specs: list[tuple[str, ...]], *, expected: str | None) -> None:
+    """Wildcard extraction should return the matched text or None."""
+    assert extract_unit_wildcard(unit, specs) == expected
