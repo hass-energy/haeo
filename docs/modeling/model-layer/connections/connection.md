@@ -30,9 +30,9 @@ The mapping keys become segment names and drive the nested `segments` output.
 
 The Connection creates LP variables for the input power flow — one per time step:
 
-| Variable              | Domain                 | Description                      |
-| --------------------- | ---------------------- | -------------------------------- |
-| $P_{\text{in}}$       | $\mathbb{R}_{\geq 0}$ | Power entering the connection    |
+| Variable        | Domain                | Description                   |
+| --------------- | --------------------- | ----------------------------- |
+| $P_{\text{in}}$ | $\mathbb{R}_{\geq 0}$ | Power entering the connection |
 
 Segments do **not** create their own variables (except SOC pricing, which creates auxiliary slack variables).
 Instead, the Connection passes its power variables through the segment chain.
