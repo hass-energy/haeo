@@ -7,7 +7,17 @@ from typing import NamedTuple
 from custom_components.haeo.core.state import EntityState
 from custom_components.haeo.core.units import DeviceClass, UnitOfMeasurement, convert_to_base_unit
 
-from . import aemo_nem, amber2mqtt, amberelectric, emhass, flow_power, haeo, open_meteo_solar_forecast, solcast_solar
+from . import (
+    aemo_nem,
+    amber2mqtt,
+    amberelectric,
+    emhass,
+    flow_power,
+    haeo,
+    nordpool,
+    open_meteo_solar_forecast,
+    solcast_solar,
+)
 from .utils import EntityMetadata, separate_duplicate_timestamps
 
 # Union of all domain literal types from the extractor modules
@@ -18,6 +28,7 @@ ExtractorFormat = (
     | emhass.Format
     | flow_power.Format
     | haeo.Format
+    | nordpool.Format
     | open_meteo_solar_forecast.Format
     | solcast_solar.Format
 )
@@ -30,6 +41,7 @@ DataExtractor = (
     | type[emhass.Parser]
     | type[flow_power.Parser]
     | type[haeo.Parser]
+    | type[nordpool.Parser]
     | type[open_meteo_solar_forecast.Parser]
     | type[solcast_solar.Parser]
 )
@@ -43,6 +55,7 @@ FORMATS: dict[ExtractorFormat, DataExtractor] = {
     emhass.DOMAIN: emhass.Parser,
     flow_power.DOMAIN: flow_power.Parser,
     haeo.DOMAIN: haeo.Parser,
+    nordpool.DOMAIN: nordpool.Parser,
     open_meteo_solar_forecast.DOMAIN: open_meteo_solar_forecast.Parser,
     solcast_solar.DOMAIN: solcast_solar.Parser,
 }
@@ -77,6 +90,8 @@ def extract(state: EntityState) -> ExtractedData:
         data, unit, device_class = flow_power.Parser.extract(state)
     elif haeo.Parser.detect(state):
         data, unit, device_class = haeo.Parser.extract(state)
+    elif nordpool.Parser.detect(state):
+        data, unit, device_class = nordpool.Parser.extract(state)
     elif open_meteo_solar_forecast.Parser.detect(state):
         data, unit, device_class = open_meteo_solar_forecast.Parser.extract(state)
     elif solcast_solar.Parser.detect(state):
