@@ -44,6 +44,7 @@ from custom_components.haeo.core.adapters.elements.connection import (
     CONNECTION_POWER_SOURCE_TARGET,
     CONNECTION_POWER_TARGET_SOURCE,
 )
+from custom_components.haeo.core.adapters.elements.grid import GRID_COST_NET, GRID_POWER_MAX_IMPORT_PRICE
 from custom_components.haeo.core.adapters.elements.solar import SOLAR_POWER
 from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES
 from custom_components.haeo.core.const import (
@@ -673,8 +674,8 @@ def test_detect_currency_symbol_uses_first_price_entity() -> None:
         "s2": _make_source_state("£/kWh"),
         "s3": _make_source_state("€/kWh"),
     }
-    # Should find the first price entity
-    assert detect_currency_symbol(states) in ("£", "€")
+    # The first price entity is s2, so the detected symbol should be £
+    assert detect_currency_symbol(states) == "£"
 
 
 def test_localize_currency_replaces_dollar_placeholder() -> None:
@@ -700,7 +701,7 @@ def test_localize_currency_handles_none() -> None:
 def test_build_coordinator_output_localizes_shadow_price_currency() -> None:
     """Shadow price units should use the detected currency symbol instead of $."""
     output = _build_coordinator_output(
-        "some_shadow_price",
+        GRID_POWER_MAX_IMPORT_PRICE,
         OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.05,)),
         forecast_times=None,
         currency_sym="£",
@@ -711,7 +712,7 @@ def test_build_coordinator_output_localizes_shadow_price_currency() -> None:
 def test_build_coordinator_output_localizes_cost_currency() -> None:
     """Cost units should use the detected currency symbol instead of $."""
     output = _build_coordinator_output(
-        "some_cost",
+        GRID_COST_NET,
         OutputData(type=OutputType.COST, unit="$", values=(42.0,)),
         forecast_times=None,
         currency_sym="€",
