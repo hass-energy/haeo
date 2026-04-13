@@ -98,7 +98,7 @@ async def test_system_health_reports_coordinator_state(hass: HomeAssistant) -> N
                     type=OutputType.STATUS, unit=None, state="success", forecast=None
                 ),
                 OUTPUT_NAME_OPTIMIZATION_COST: CoordinatorOutput(
-                    type=OutputType.COST, unit="AUD", state=42.75, forecast=None
+                    type=OutputType.COST, unit="$", state=42.75, forecast=None
                 ),
                 OUTPUT_NAME_OPTIMIZATION_DURATION: CoordinatorOutput(
                     type=OutputType.DURATION, unit="s", state=1.234, forecast=None

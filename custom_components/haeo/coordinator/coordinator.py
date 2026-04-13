@@ -115,11 +115,16 @@ STATUS_OPTIONS: tuple[str, ...] = tuple(
 )
 
 
-def detect_currency_symbol(source_states: Mapping[str, "EntityState"]) -> str:
+def detect_currency_symbol(
+    source_states: Mapping[str, "EntityState"],
+    *,
+    fallback_currency: str | None = None,
+) -> str:
     """Detect the user's currency symbol from source entity units.
 
     Scans entity states for a price-like unit (e.g. ``£/kWh``) and returns the
-    currency prefix. Falls back to ``$`` when no price entity is found.
+    currency prefix. Falls back to the configured currency when no price entity
+    is found, and then ``$`` if no configured currency is available.
     """
     for state in source_states.values():
         unit = state.attributes.get("unit_of_measurement")
@@ -128,7 +133,7 @@ def detect_currency_symbol(source_states: Mapping[str, "EntityState"]) -> str:
                 parts = extract_unit_parts(unit, spec)
                 if parts is not None:
                     return parts[0]
-    return "$"
+    return fallback_currency or "$"
 
 
 def _localize_currency(unit: str | None, currency_sym: str) -> str | None:
@@ -726,7 +731,10 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             )
             network_subentry_name = translations[f"component.{DOMAIN}.common.network_subentry_name"]
 
-            currency_sym = detect_currency_symbol(context.source_states)
+            currency_sym = detect_currency_symbol(
+                context.source_states,
+                fallback_currency=self.hass.config.currency,
+            )
 
             outputs: dict[str, SubentryDevices] = {
                 # HAEO outputs use network subentry name as key, network element type as device

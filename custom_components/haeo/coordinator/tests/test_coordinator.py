@@ -413,7 +413,7 @@ async def test_async_update_data_returns_outputs(
     network_outputs = result.outputs["System"][ELEMENT_TYPE_NETWORK]
     cost_output = network_outputs[OUTPUT_NAME_OPTIMIZATION_COST]
     assert cost_output.type == OutputType.COST
-    assert cost_output.unit == "$"
+    assert cost_output.unit == hass.config.currency
     assert cost_output.state == 123.45
     assert cost_output.forecast is None
 
@@ -664,7 +664,12 @@ def test_detect_currency_symbol_ignores_non_price_entities() -> None:
 
 def test_detect_currency_symbol_falls_back_to_dollar() -> None:
     """When no price entities exist, fall back to $."""
-    assert detect_currency_symbol({}) == "$"
+    assert detect_currency_symbol({}, fallback_currency=None) == "$"
+
+
+def test_detect_currency_symbol_falls_back_to_configured_currency() -> None:
+    """When no price entities exist, use the configured currency fallback."""
+    assert detect_currency_symbol({}, fallback_currency="AUD") == "AUD"
 
 
 def test_detect_currency_symbol_uses_first_price_entity() -> None:
