@@ -349,40 +349,6 @@ class HAPage:
             option.click()
             self.page.wait_for_timeout(300)
 
-    def select_dropdown_multi(self, label: str, options: list[str]) -> None:
-        """Select multiple options from a SelectSelector in DROPDOWN mode with multiple=True.
-
-        HA renders multi-select DROPDOWN as a combo-box within ``ha-selector-select``.
-        Clicking the combo-box opens an overlay with selectable items.
-        """
-        selector = self.page.locator("ha-selector-select").filter(has_text=label)
-        selector.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
-
-        combobox = selector.get_by_role("combobox")
-        combobox.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
-
-        ctx = ScreenshotContext.current()
-        if ctx:
-            with ctx.scope(f"select_multi_{label}"):
-                self._scroll_and_capture(combobox)
-                self._capture_with_indicator("dropdown", combobox)
-
-                for option_text in options:
-                    combobox.click()
-                    option = self.page.get_by_role("option", name=option_text)
-                    option.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
-                    option.click()
-                    self.page.wait_for_timeout(300)
-
-                self._capture("selected")
-        else:
-            for option_text in options:
-                combobox.click()
-                option = self.page.get_by_role("option", name=option_text)
-                option.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
-                option.click()
-                self.page.wait_for_timeout(300)
-
     # endregion
 
     # region: Sections
@@ -555,34 +521,39 @@ class HAPage:
         """Select multiple options from a SelectSelector nested inside a ChooseSelector.
 
         Assumes a choice with a multi-select DROPDOWN is already active.
-        The nested SelectSelector renders a combobox within ``ha-selector-choose``.
+        HA renders multi-select DROPDOWN as ``ha-generic-picker`` which opens
+        a "Select option" dialog when clicked. For each option after the first,
+        re-open the picker since HA may close the dialog after each selection.
         """
         choose = self.page.locator("ha-selector-choose").filter(has_text=field_label)
         choose.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
-        combobox = choose.get_by_role("combobox")
-        combobox.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
+
+        picker = choose.locator("ha-picker-field")
+        picker.wait_for(state="attached", timeout=DEFAULT_TIMEOUT)
+
+        select_dialog = self.page.get_by_role("dialog", name="Select option")
+
+        def _select_option(option_text: str) -> None:
+            picker.click()
+            select_dialog.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
+            item = select_dialog.locator(f":text('{option_text}')").first
+            item.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
+            item.click()
+            self.page.wait_for_timeout(300)
 
         ctx = ScreenshotContext.current()
         if ctx:
             with ctx.scope(f"dropdown_{field_label}"):
-                self._scroll_and_capture(combobox)
-                self._capture_with_indicator("dropdown", combobox)
+                self._scroll_and_capture(picker)
+                self._capture_with_indicator("picker", picker)
 
                 for option_text in options:
-                    combobox.click()
-                    option = self.page.get_by_role("option", name=option_text)
-                    option.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
-                    option.click()
-                    self.page.wait_for_timeout(300)
+                    _select_option(option_text)
 
                 self._capture("selected")
         else:
             for option_text in options:
-                combobox.click()
-                option = self.page.get_by_role("option", name=option_text)
-                option.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
-                option.click()
-                self.page.wait_for_timeout(300)
+                _select_option(option_text)
 
     # endregion
 
@@ -795,32 +766,6 @@ class HAPage:
                 self._capture("toggled")
         else:
             switch.click(timeout=DEFAULT_TIMEOUT)
-
-    def toggle_checkbox(self, group_label: str, option_label: str) -> None:
-        """Toggle a checkbox option within a multi-select list field.
-
-        SelectSelector with ``multiple=True`` and ``mode=LIST`` renders
-        ``ha-checkbox`` elements inside ``ha-formfield`` wrappers within
-        ``ha-selector-select``.
-        """
-        selector = self.page.locator("ha-selector-select").filter(has_text=group_label)
-        selector.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
-
-        formfield = selector.locator("ha-formfield").filter(has_text=option_label)
-        checkbox = formfield.locator("ha-checkbox")
-        checkbox.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
-
-        ctx = ScreenshotContext.current()
-        if ctx:
-            with ctx.scope(f"checkbox_{group_label}_{option_label}"):
-                self._scroll_and_capture(checkbox)
-                self._capture_with_indicator("checkbox", checkbox)
-                checkbox.click(timeout=DEFAULT_TIMEOUT)
-                self.page.wait_for_timeout(300)
-                self._capture("checked")
-        else:
-            checkbox.click(timeout=DEFAULT_TIMEOUT)
-            self.page.wait_for_timeout(300)
 
     # endregion
 
