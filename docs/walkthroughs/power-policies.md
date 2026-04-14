@@ -99,9 +99,9 @@ add_policies(
     A $0.05/kWh surcharge on Grid → Battery means the optimizer only charges from the grid when the round-trip savings exceed this cost.
     This models the real efficiency losses and wear costs of grid charging.
 
-### Step 5: Verify
+### Step 5: Verify and review
 
-Validate that all four policies were saved correctly.
+Validate that all four policies were saved correctly, then open the reconfigure view to see them.
 
 ```guide
 validate_policies(hass, expected_rules=[
@@ -110,6 +110,10 @@ validate_policies(hass, expected_rules=[
     "Battery to Load",
     "Grid to Battery",
 ])
+```
+
+```guide
+reconfigure_policies(page)
 ```
 
 ## How policies affect optimization

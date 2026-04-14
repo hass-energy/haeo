@@ -22,6 +22,8 @@ from custom_components.haeo.core.model.element import Element
 from custom_components.haeo.core.model.output_data import OutputData
 from custom_components.haeo.core.model.reactive import output
 
+from custom_components.haeo.core.model.util.broadcast_to_sequence import broadcast_to_sequence
+
 from .segments import Segment, SegmentSpec, create_segment
 
 type ConnectionElementTypeName = Literal["connection"]
@@ -209,6 +211,15 @@ class Connection[TOutputName: str](Element[TOutputName]):
     def cost(self) -> Any:  # type: ignore[override]
         """Aggregate costs from all segments."""
         costs = [sc for seg in self._segments.values() if (sc := seg.cost()) is not None]
+
+        # Per-tag pricing from compile_policies
+        for tc in self._tag_costs:
+            tag = tc["tag"]
+            price = broadcast_to_sequence(tc.get("price"), self.n_periods)
+            if price is not None and tag in self._tag_power_in:
+                tag_flow = self._tag_power_in[tag]
+                costs.append(Highs.qsum(tag_flow * price * self.periods))
+
         if not costs:
             return None
         if len(costs) == 1:

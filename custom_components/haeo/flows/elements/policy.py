@@ -13,9 +13,11 @@ from typing import Any
 
 from homeassistant.config_entries import ConfigSubentryFlow, SubentryFlowResult
 from homeassistant.helpers.selector import (
-    NumberSelector,
-    NumberSelectorConfig,
-    NumberSelectorMode,
+    ChooseSelector,
+    ChooseSelectorChoiceConfig,
+    ChooseSelectorConfig,
+    ConstantSelector,
+    ConstantSelectorConfig,
     SelectOptionDict,
     SelectSelector,
     SelectSelectorConfig,
@@ -24,6 +26,7 @@ from homeassistant.helpers.selector import (
 import voluptuous as vol
 
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
+from custom_components.haeo.core.schema.constant_value import as_constant_value
 from custom_components.haeo.core.schema.elements.element_type import ElementType
 from custom_components.haeo.core.schema.elements.policy import (
     CONF_PRICE,
@@ -32,17 +35,47 @@ from custom_components.haeo.core.schema.elements.policy import (
     CONF_SOURCE,
     CONF_TARGET,
     ELEMENT_TYPE,
-    WILDCARD,
     PolicyRuleConfig,
 )
+from custom_components.haeo.core.schema.entity_value import as_entity_value
+from custom_components.haeo.core.schema.none_value import as_none_value
+from custom_components.haeo.elements import get_list_input_fields
+from custom_components.haeo.elements.input_fields import InputFieldInfo
 from custom_components.haeo.flows.element_flow import ElementFlowMixin
+from custom_components.haeo.flows.field_schema import (
+    CHOICE_CONSTANT,
+    CHOICE_ENTITY,
+    CHOICE_NONE,
+    NormalizingChooseSelector,
+    build_choose_selector,
+)
 
 CONF_ACTION: str = "action"
 CONF_RULE: str = "rule"
 ACTION_EDIT: str = "edit"
 ACTION_DELETE: str = "delete"
 
+CHOICE_NODES: str = "nodes"
+
 POLICIES_TITLE: str = "Policies"
+
+
+class _EndpointChooseSelector(ChooseSelector):  # type: ignore[type-arg]
+    """ChooseSelector for policy endpoints that normalizes to list[str] or empty.
+
+    - "none" choice (any element): normalizes to empty string (vol.Optional omits it)
+    - "nodes" choice (specific elements): normalizes to list[str]
+    """
+
+    def __call__(self, data: Any) -> Any:
+        """Normalize endpoint data before validation."""
+        if isinstance(data, dict) and "active_choice" in data:
+            choice = data.get("active_choice")
+            if choice == CHOICE_NONE:
+                return ""
+            if choice == CHOICE_NODES:
+                return data.get(CHOICE_NODES, [])
+        return super().__call__(data)  # type: ignore[misc]
 
 
 class PolicySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
@@ -86,87 +119,122 @@ class PolicySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                 return subentry
         return None
 
+    def _get_price_field_info(self) -> InputFieldInfo[Any]:
+        """Get the InputFieldInfo for the price field from list field hints."""
+        dummy_config: dict[str, Any] = {
+            CONF_ELEMENT_TYPE: ELEMENT_TYPE,
+            CONF_RULES: [{"name": "_", CONF_PRICE: {"type": "constant", "value": 0}}],
+        }
+        list_fields = get_list_input_fields(dummy_config)
+        section = next(iter(list_fields.values()))
+        return section[CONF_PRICE]
+
+    def _build_price_selector(self) -> NormalizingChooseSelector:
+        """Build a ChooseSelector for the price field (entity/constant/none)."""
+        field_info = self._get_price_field_info()
+        return build_choose_selector(
+            field_info,
+            allowed_choices={CHOICE_ENTITY, CHOICE_CONSTANT, CHOICE_NONE},
+            multiple=True,
+            preferred_choice=CHOICE_CONSTANT,
+        )
+
+    def _build_endpoint_selector(self, participants: list[str]) -> _EndpointChooseSelector:
+        """Build a ChooseSelector for endpoint with none (any) and nodes (specific) choices."""
+        options = [SelectOptionDict(value=p, label=p) for p in participants]
+        nodes_selector = SelectSelector(
+            SelectSelectorConfig(
+                options=options,
+                mode=SelectSelectorMode.DROPDOWN,
+                multiple=True,
+            )
+        )
+        none_selector = ConstantSelector(ConstantSelectorConfig(value=""))
+        return _EndpointChooseSelector(
+            ChooseSelectorConfig(
+                choices={
+                    CHOICE_NONE: ChooseSelectorChoiceConfig(
+                        selector=none_selector.serialize()["selector"],
+                    ),
+                    CHOICE_NODES: ChooseSelectorChoiceConfig(
+                        selector=nodes_selector.serialize()["selector"],
+                    ),
+                },
+                translation_key="policy_endpoint",
+            )
+        )
+
     def _build_rule_schema(self, participants: list[str]) -> vol.Schema:
         """Build the schema for adding or editing a policy rule."""
-        source_options = [
-            SelectOptionDict(value=WILDCARD, label="None"),
-            *[SelectOptionDict(value=p, label=p) for p in participants],
-        ]
-        target_options = [
-            SelectOptionDict(value=WILDCARD, label="None"),
-            *[SelectOptionDict(value=p, label=p) for p in participants],
-        ]
+        endpoint_selector = self._build_endpoint_selector(participants)
+        price_selector = self._build_price_selector()
 
-        return vol.Schema({
-            vol.Required(CONF_RULE_NAME): str,
-            vol.Optional(CONF_SOURCE, default=WILDCARD): SelectSelector(
-                SelectSelectorConfig(
-                    options=source_options,
-                    mode=SelectSelectorMode.DROPDOWN,
-                )
-            ),
-            vol.Optional(CONF_TARGET, default=WILDCARD): SelectSelector(
-                SelectSelectorConfig(
-                    options=target_options,
-                    mode=SelectSelectorMode.DROPDOWN,
-                )
-            ),
-            vol.Optional(CONF_PRICE): NumberSelector(
-                NumberSelectorConfig(
-                    min=0,
-                    max=100,
-                    step=0.001,
-                    mode=NumberSelectorMode.BOX,
-                    unit_of_measurement="$/kWh",
-                )
-            ),
-        })
+        return vol.Schema(
+            {
+                vol.Required(CONF_RULE_NAME): str,
+                vol.Optional(CONF_SOURCE): endpoint_selector,
+                vol.Optional(CONF_TARGET): endpoint_selector,
+                vol.Optional(CONF_PRICE): price_selector,
+            }
+        )
 
     def _build_reconfigure_schema(self) -> vol.Schema:
         """Build the schema for the reconfigure menu."""
         rule_options: list[SelectOptionDict] = [
-            SelectOptionDict(value=str(i), label=rule["name"])
-            for i, rule in enumerate(self._rules)
+            SelectOptionDict(value=str(i), label=rule["name"]) for i, rule in enumerate(self._rules)
         ]
         action_options: list[SelectOptionDict] = [
             SelectOptionDict(value=ACTION_EDIT, label="Edit"),
             SelectOptionDict(value=ACTION_DELETE, label="Delete"),
         ]
-        return vol.Schema({
-            vol.Required(CONF_RULE): SelectSelector(
-                SelectSelectorConfig(
-                    options=rule_options,
-                    mode=SelectSelectorMode.LIST,
-                )
-            ),
-            vol.Required(CONF_ACTION): SelectSelector(
-                SelectSelectorConfig(
-                    options=action_options,
-                    mode=SelectSelectorMode.LIST,
-                )
-            ),
-        })
+        return vol.Schema(
+            {
+                vol.Required(CONF_RULE): SelectSelector(
+                    SelectSelectorConfig(
+                        options=rule_options,
+                        mode=SelectSelectorMode.DROPDOWN,
+                    )
+                ),
+                vol.Required(CONF_ACTION): SelectSelector(
+                    SelectSelectorConfig(
+                        options=action_options,
+                        mode=SelectSelectorMode.DROPDOWN,
+                    )
+                ),
+            }
+        )
 
     def _parse_rule_input(self, user_input: dict[str, Any]) -> PolicyRuleConfig:
         """Convert form input into a PolicyRuleConfig."""
         rule: PolicyRuleConfig = {"name": user_input[CONF_RULE_NAME]}
-        source = user_input.get(CONF_SOURCE, WILDCARD)
-        target = user_input.get(CONF_TARGET, WILDCARD)
-        if source != WILDCARD:
+
+        source = user_input.get(CONF_SOURCE)
+        if isinstance(source, list) and source:
             rule["source"] = source
-        if target != WILDCARD:
+
+        target = user_input.get(CONF_TARGET)
+        if isinstance(target, list) and target:
             rule["target"] = target
-        if (price := user_input.get(CONF_PRICE)) is not None:
-            rule["price"] = float(price)
+
+        price = user_input.get(CONF_PRICE)
+        if price is not None:
+            if isinstance(price, list):
+                rule["price"] = as_entity_value(price)
+            elif isinstance(price, str) and price == "":
+                rule["price"] = as_none_value()
+            elif isinstance(price, (int, float)):
+                rule["price"] = as_constant_value(float(price))
         return rule
 
     def _rule_to_defaults(self, rule: PolicyRuleConfig) -> dict[str, Any]:
         """Convert a stored rule back to form defaults."""
         defaults: dict[str, Any] = {
             CONF_RULE_NAME: rule["name"],
-            CONF_SOURCE: rule.get("source", WILDCARD),
-            CONF_TARGET: rule.get("target", WILDCARD),
         }
+        if "source" in rule:
+            defaults[CONF_SOURCE] = rule["source"]
+        if "target" in rule:
+            defaults[CONF_TARGET] = rule["target"]
         if "price" in rule:
             defaults[CONF_PRICE] = rule["price"]
         return defaults
@@ -184,18 +252,14 @@ class PolicySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             errors[CONF_RULE_NAME] = "missing_name"
             return False
 
-        existing_names = {
-            rule["name"]
-            for i, rule in enumerate(self._rules)
-            if i != exclude_index
-        }
+        existing_names = {rule["name"] for i, rule in enumerate(self._rules) if i != exclude_index}
         if name in existing_names:
             errors[CONF_RULE_NAME] = "name_exists"
             return False
 
-        source = user_input.get(CONF_SOURCE, WILDCARD)
-        target = user_input.get(CONF_TARGET, WILDCARD)
-        if source == target and source != WILDCARD:
+        source = user_input.get(CONF_SOURCE) or []
+        target = user_input.get(CONF_TARGET) or []
+        if source and target and source == target:
             errors["base"] = "source_target_same"
             return False
 
@@ -212,7 +276,8 @@ class PolicySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
     # --- Flow steps ---
 
     async def async_step_user(
-        self, user_input: dict[str, Any] | None = None,
+        self,
+        user_input: dict[str, Any] | None = None,
     ) -> SubentryFlowResult:
         """Handle adding a new policy rule.
 
@@ -254,7 +319,8 @@ class PolicySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         )
 
     async def async_step_reconfigure(
-        self, user_input: dict[str, Any] | None = None,
+        self,
+        user_input: dict[str, Any] | None = None,
     ) -> SubentryFlowResult:
         """Handle the reconfigure menu for managing existing rules."""
         subentry = self._get_subentry()
@@ -290,7 +356,8 @@ class PolicySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         )
 
     async def async_step_edit_rule(
-        self, user_input: dict[str, Any] | None = None,
+        self,
+        user_input: dict[str, Any] | None = None,
     ) -> SubentryFlowResult:
         """Handle editing an existing policy rule."""
         errors: dict[str, str] = {}
@@ -298,7 +365,9 @@ class PolicySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         idx = self._editing_index
 
         if user_input is not None and self._validate_rule(
-            user_input, errors, exclude_index=idx,
+            user_input,
+            errors,
+            exclude_index=idx,
         ):
             rule = self._parse_rule_input(user_input)
             if idx is not None and 0 <= idx < len(self._rules):

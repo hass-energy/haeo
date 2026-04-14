@@ -510,14 +510,19 @@ def add_policies(
     page: HAPage,
     *,
     name: str,
-    source: str | None = None,
-    target: str | None = None,
+    source: str | list[str] | None = None,
+    target: str | list[str] | None = None,
     price: float | None = None,
 ) -> None:
     """Add a policy rule via the Policies subentry flow.
 
     Works for both the first rule (creates subentry) and subsequent
     rules (appends to existing subentry).
+
+    Source and target use a ChooseSelector with Any/Nodes choices.
+    When nodes are specified, the nested dropdown multi-select is used.
+    Pass a string for a single node, a list for multiple nodes, or None for "Any".
+    Price uses a ChooseSelector with Constant/Entity/None choices.
     """
     et = "policy"
     _LOGGER.info("Adding policy rule: %s", name)
@@ -527,12 +532,18 @@ def add_policies(
 
     step_data = _step_user(et)["data"]
     page.fill_textbox(step_data["name"], name)
+
     if source is not None:
-        page.select_dropdown(step_data["source"], source)
+        nodes = [source] if isinstance(source, str) else source
+        page.choose_select_option(step_data["source"], "Nodes")
+        page.choose_dropdown_multi(step_data["source"], nodes)
     if target is not None:
-        page.select_dropdown(step_data["target"], target)
+        nodes = [target] if isinstance(target, str) else target
+        page.choose_select_option(step_data["target"], "Nodes")
+        page.choose_dropdown_multi(step_data["target"], nodes)
     if price is not None:
-        page.fill_spinbutton(step_data["price"], str(price))
+        page.choose_select_option(step_data["price"], "Constant")
+        page.choose_constant(step_data["price"], str(price))
 
     page.submit()
 
@@ -549,7 +560,8 @@ def add_policies(
         )
         close_btn.click(timeout=2000)
         page.page.locator("dialog-data-entry-flow ha-dialog[open]").wait_for(
-            state="detached", timeout=5000,
+            state="detached",
+            timeout=5000,
         )
         _LOGGER.info("Policy appended to existing subentry")
     else:
@@ -571,7 +583,9 @@ def reconfigure_policies(page: HAPage) -> None:
     policies_row.wait_for(state="visible", timeout=5000)
     policies_row.scroll_into_view_if_needed()
 
-    gear_button = policies_row.locator("ha-icon-button").first
+    # The first ha-icon-button in a subentry row is the expand/collapse chevron
+    # (class="expand-button", slot="start"). The gear button comes after it.
+    gear_button = policies_row.locator("ha-icon-button:not([slot='start'])").first
     page._capture("reconfigure_gear")
     gear_button.click(timeout=2000)
 

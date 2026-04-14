@@ -19,7 +19,6 @@ from custom_components.haeo.core.schema.elements.policy import (
     CONF_RULES,
     CONF_SOURCE,
     CONF_TARGET,
-    WILDCARD,
 )
 from custom_components.haeo.core.schema.elements.policy import ELEMENT_TYPE as POLICY_ELEMENT_TYPE
 from custom_components.haeo.flows.elements.policy import (
@@ -65,11 +64,13 @@ def _create_flow(hass: HomeAssistant, hub_entry: MockConfigEntry) -> PolicySuben
 
 def _make_policy_subentry(rules: list[dict[str, Any]]) -> ConfigSubentry:
     """Create a policy subentry with the provided rules."""
-    data = MappingProxyType({
-        CONF_ELEMENT_TYPE: POLICY_ELEMENT_TYPE,
-        CONF_NAME: POLICIES_TITLE,
-        CONF_RULES: rules,
-    })
+    data = MappingProxyType(
+        {
+            CONF_ELEMENT_TYPE: POLICY_ELEMENT_TYPE,
+            CONF_NAME: POLICIES_TITLE,
+            CONF_RULES: rules,
+        }
+    )
     return ConfigSubentry(
         data=data,
         subentry_type=POLICY_ELEMENT_TYPE,
@@ -104,20 +105,22 @@ async def test_user_step_creates_entry_when_none_exists(
         return_value={"type": FlowResultType.CREATE_ENTRY, "title": POLICIES_TITLE, "data": {}},
     )
 
-    result = await flow.async_step_user(user_input={
-        CONF_RULE_NAME: "Solar Export",
-        CONF_SOURCE: "Solar",
-        CONF_TARGET: "Grid",
-        CONF_PRICE: 0.02,
-    })
+    result = await flow.async_step_user(
+        user_input={
+            CONF_RULE_NAME: "Solar Export",
+            CONF_SOURCE: ["Solar"],
+            CONF_TARGET: ["Grid"],
+            CONF_PRICE: 0.02,
+        }
+    )
 
     assert result.get("type") == FlowResultType.CREATE_ENTRY
     created_data = flow.async_create_entry.call_args.kwargs["data"]
     assert created_data[CONF_ELEMENT_TYPE] == POLICY_ELEMENT_TYPE
     assert len(created_data[CONF_RULES]) == 1
     assert created_data[CONF_RULES][0]["name"] == "Solar Export"
-    assert created_data[CONF_RULES][0]["source"] == "Solar"
-    assert created_data[CONF_RULES][0].get("price") == 0.02
+    assert created_data[CONF_RULES][0]["source"] == ["Solar"]
+    assert created_data[CONF_RULES][0]["price"] == {"type": "constant", "value": 0.02}
 
 
 async def test_user_step_appends_to_existing_subentry(
@@ -126,7 +129,7 @@ async def test_user_step_appends_to_existing_subentry(
 ) -> None:
     """Submitting a rule when a policy subentry exists appends to it."""
     existing_rules: list[dict[str, Any]] = [
-        {"name": "Solar Export", "source": "Solar", "target": "Grid", "price": 0.02},
+        {"name": "Solar Export", "source": ["Solar"], "target": ["Grid"], "price": {"type": "constant", "value": 0.02}},
     ]
     subentry = _make_policy_subentry(existing_rules)
     hass.config_entries.async_add_subentry(hub_entry, subentry)
@@ -136,12 +139,14 @@ async def test_user_step_appends_to_existing_subentry(
         return_value={"type": FlowResultType.ABORT, "reason": "reconfigure_successful"},
     )
 
-    result = await flow.async_step_user(user_input={
-        CONF_RULE_NAME: "Grid Charge",
-        CONF_SOURCE: "Grid",
-        CONF_TARGET: "Battery",
-        CONF_PRICE: 0.05,
-    })
+    result = await flow.async_step_user(
+        user_input={
+            CONF_RULE_NAME: "Grid Charge",
+            CONF_SOURCE: ["Grid"],
+            CONF_TARGET: ["Battery"],
+            CONF_PRICE: 0.05,
+        }
+    )
 
     assert result.get("type") == FlowResultType.ABORT
     update_data = flow.async_update_and_abort.call_args.kwargs["data"]
@@ -150,22 +155,24 @@ async def test_user_step_appends_to_existing_subentry(
     assert update_data[CONF_RULES][1]["name"] == "Grid Charge"
 
 
-async def test_user_step_wildcard_defaults(
+async def test_user_step_any_defaults(
     hass: HomeAssistant,
     hub_entry: MockConfigEntry,
 ) -> None:
-    """Source/target defaulting to wildcard omits them from stored config."""
+    """Source/target defaulting to 'any' omits them from stored config."""
     flow = _create_flow(hass, hub_entry)
     flow.async_create_entry = Mock(
         return_value={"type": FlowResultType.CREATE_ENTRY, "title": POLICIES_TITLE, "data": {}},
     )
 
-    await flow.async_step_user(user_input={
-        CONF_RULE_NAME: "Global Policy",
-        CONF_SOURCE: WILDCARD,
-        CONF_TARGET: WILDCARD,
-        CONF_PRICE: 0.05,
-    })
+    await flow.async_step_user(
+        user_input={
+            CONF_RULE_NAME: "Global Policy",
+            CONF_SOURCE: "",
+            CONF_TARGET: "",
+            CONF_PRICE: 0.05,
+        }
+    )
 
     created_data = flow.async_create_entry.call_args.kwargs["data"]
     rule = created_data[CONF_RULES][0]
@@ -180,11 +187,13 @@ async def test_user_step_rejects_missing_name(
     """Submitting a rule without a name shows an error."""
     flow = _create_flow(hass, hub_entry)
 
-    result = await flow.async_step_user(user_input={
-        CONF_RULE_NAME: "",
-        CONF_SOURCE: "Solar",
-        CONF_TARGET: "Grid",
-    })
+    result = await flow.async_step_user(
+        user_input={
+            CONF_RULE_NAME: "",
+            CONF_SOURCE: ["Solar"],
+            CONF_TARGET: ["Grid"],
+        }
+    )
 
     assert result.get("type") == FlowResultType.FORM
     assert result.get("errors") == {CONF_RULE_NAME: "missing_name"}
@@ -197,11 +206,13 @@ async def test_user_step_rejects_same_source_target(
     """Submitting source == target (non-wildcard) shows an error."""
     flow = _create_flow(hass, hub_entry)
 
-    result = await flow.async_step_user(user_input={
-        CONF_RULE_NAME: "Self Loop",
-        CONF_SOURCE: "Solar",
-        CONF_TARGET: "Solar",
-    })
+    result = await flow.async_step_user(
+        user_input={
+            CONF_RULE_NAME: "Self Loop",
+            CONF_SOURCE: ["Solar"],
+            CONF_TARGET: ["Solar"],
+        }
+    )
 
     assert result.get("type") == FlowResultType.FORM
     assert result.get("errors") == {"base": "source_target_same"}
@@ -216,7 +227,7 @@ async def test_reconfigure_shows_form(
 ) -> None:
     """Reconfigure loads existing rules and shows the selection form."""
     existing_rules: list[dict[str, Any]] = [
-        {"name": "Solar Export", "source": "Solar", "target": "Grid", "price": 0.02},
+        {"name": "Solar Export", "source": ["Solar"], "target": ["Grid"], "price": {"type": "constant", "value": 0.02}},
     ]
     subentry = _make_policy_subentry(existing_rules)
     hass.config_entries.async_add_subentry(hub_entry, subentry)
@@ -255,7 +266,7 @@ async def test_reconfigure_edit_shows_edit_form(
 ) -> None:
     """Selecting edit navigates to the edit_rule step."""
     existing_rules: list[dict[str, Any]] = [
-        {"name": "Solar Export", "source": "Solar", "target": "Grid", "price": 0.02},
+        {"name": "Solar Export", "source": ["Solar"], "target": ["Grid"], "price": {"type": "constant", "value": 0.02}},
     ]
     subentry = _make_policy_subentry(existing_rules)
     hass.config_entries.async_add_subentry(hub_entry, subentry)
@@ -266,10 +277,12 @@ async def test_reconfigure_edit_shows_edit_form(
 
     await flow.async_step_reconfigure(user_input=None)
 
-    result = await flow.async_step_reconfigure(user_input={
-        CONF_RULE: "0",
-        CONF_ACTION: ACTION_EDIT,
-    })
+    result = await flow.async_step_reconfigure(
+        user_input={
+            CONF_RULE: "0",
+            CONF_ACTION: ACTION_EDIT,
+        }
+    )
 
     assert result.get("type") == FlowResultType.FORM
     assert result.get("step_id") == "edit_rule"
@@ -281,8 +294,13 @@ async def test_reconfigure_delete_updates_subentry(
 ) -> None:
     """Selecting delete removes the rule and saves."""
     existing_rules: list[dict[str, Any]] = [
-        {"name": "Solar Export", "source": "Solar", "target": "Grid", "price": 0.02},
-        {"name": "Grid Charge", "source": "Grid", "target": "Battery", "price": 0.05},
+        {"name": "Solar Export", "source": ["Solar"], "target": ["Grid"], "price": {"type": "constant", "value": 0.02}},
+        {
+            "name": "Grid Charge",
+            "source": ["Grid"],
+            "target": ["Battery"],
+            "price": {"type": "constant", "value": 0.05},
+        },
     ]
     subentry = _make_policy_subentry(existing_rules)
     hass.config_entries.async_add_subentry(hub_entry, subentry)
@@ -296,10 +314,12 @@ async def test_reconfigure_delete_updates_subentry(
 
     await flow.async_step_reconfigure(user_input=None)
 
-    result = await flow.async_step_reconfigure(user_input={
-        CONF_RULE: "0",
-        CONF_ACTION: ACTION_DELETE,
-    })
+    result = await flow.async_step_reconfigure(
+        user_input={
+            CONF_RULE: "0",
+            CONF_ACTION: ACTION_DELETE,
+        }
+    )
 
     assert result.get("type") == FlowResultType.ABORT
     update_data = flow.async_update_and_abort.call_args.kwargs["data"]
@@ -316,7 +336,7 @@ async def test_edit_rule_updates_and_saves(
 ) -> None:
     """Editing a rule updates it and saves the subentry."""
     existing_rules: list[dict[str, Any]] = [
-        {"name": "Solar Export", "source": "Solar", "target": "Grid", "price": 0.02},
+        {"name": "Solar Export", "source": ["Solar"], "target": ["Grid"], "price": {"type": "constant", "value": 0.02}},
     ]
     subentry = _make_policy_subentry(existing_rules)
     hass.config_entries.async_add_subentry(hub_entry, subentry)
@@ -329,22 +349,26 @@ async def test_edit_rule_updates_and_saves(
     )
 
     await flow.async_step_reconfigure(user_input=None)
-    await flow.async_step_reconfigure(user_input={
-        CONF_RULE: "0",
-        CONF_ACTION: ACTION_EDIT,
-    })
+    await flow.async_step_reconfigure(
+        user_input={
+            CONF_RULE: "0",
+            CONF_ACTION: ACTION_EDIT,
+        }
+    )
 
-    result = await flow.async_step_edit_rule(user_input={
-        CONF_RULE_NAME: "Solar Export Updated",
-        CONF_SOURCE: "Solar",
-        CONF_TARGET: "Grid",
-        CONF_PRICE: 0.03,
-    })
+    result = await flow.async_step_edit_rule(
+        user_input={
+            CONF_RULE_NAME: "Solar Export Updated",
+            CONF_SOURCE: ["Solar"],
+            CONF_TARGET: ["Grid"],
+            CONF_PRICE: 0.03,
+        }
+    )
 
     assert result.get("type") == FlowResultType.ABORT
     update_data = flow.async_update_and_abort.call_args.kwargs["data"]
     assert update_data[CONF_RULES][0]["name"] == "Solar Export Updated"
-    assert update_data[CONF_RULES][0].get("price") == 0.03
+    assert update_data[CONF_RULES][0]["price"] == {"type": "constant", "value": 0.03}
 
 
 async def test_edit_rule_rejects_duplicate_name(
@@ -353,8 +377,13 @@ async def test_edit_rule_rejects_duplicate_name(
 ) -> None:
     """Editing a rule to a name that already exists shows an error."""
     existing_rules: list[dict[str, Any]] = [
-        {"name": "Solar Export", "source": "Solar", "target": "Grid", "price": 0.02},
-        {"name": "Grid Charge", "source": "Grid", "target": "Battery", "price": 0.05},
+        {"name": "Solar Export", "source": ["Solar"], "target": ["Grid"], "price": {"type": "constant", "value": 0.02}},
+        {
+            "name": "Grid Charge",
+            "source": ["Grid"],
+            "target": ["Battery"],
+            "price": {"type": "constant", "value": 0.05},
+        },
     ]
     subentry = _make_policy_subentry(existing_rules)
     hass.config_entries.async_add_subentry(hub_entry, subentry)
@@ -364,16 +393,20 @@ async def test_edit_rule_rejects_duplicate_name(
     flow._get_reconfigure_subentry = Mock(return_value=subentry)
 
     await flow.async_step_reconfigure(user_input=None)
-    await flow.async_step_reconfigure(user_input={
-        CONF_RULE: "0",
-        CONF_ACTION: ACTION_EDIT,
-    })
+    await flow.async_step_reconfigure(
+        user_input={
+            CONF_RULE: "0",
+            CONF_ACTION: ACTION_EDIT,
+        }
+    )
 
-    result = await flow.async_step_edit_rule(user_input={
-        CONF_RULE_NAME: "Grid Charge",
-        CONF_SOURCE: "Solar",
-        CONF_TARGET: "Grid",
-    })
+    result = await flow.async_step_edit_rule(
+        user_input={
+            CONF_RULE_NAME: "Grid Charge",
+            CONF_SOURCE: ["Solar"],
+            CONF_TARGET: ["Grid"],
+        }
+    )
 
     assert result.get("type") == FlowResultType.FORM
     assert result.get("errors") == {CONF_RULE_NAME: "name_exists"}

@@ -18,7 +18,16 @@ from collections import defaultdict
 from collections.abc import Mapping
 from typing import Any
 
+import numpy as np
+
 from custom_components.haeo.core.model.elements.segments.segment import DEFAULT_TAG
+
+
+def _make_hashable(value: Any) -> Any:
+    """Convert a value to a hashable form for signature computation."""
+    if isinstance(value, np.ndarray):
+        return tuple(value.flat)
+    return value
 
 
 def compile_policies(
@@ -96,7 +105,7 @@ def compile_policies(
     # Per source node: frozenset of (dest, price_st, price_ts) tuples
     signatures: dict[str, frozenset[tuple[str, Any, Any]]] = {}
     for name in element_names:
-        sig = frozenset((dst, pst, pts) for src, dst, pst, pts in flows if src == name)
+        sig = frozenset((dst, _make_hashable(pst), _make_hashable(pts)) for src, dst, pst, pts in flows if src == name)
         signatures[name] = sig
 
     # --- Step 3: VLAN assignment (signature merging) ---

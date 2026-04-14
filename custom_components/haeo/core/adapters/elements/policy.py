@@ -41,15 +41,18 @@ def extract_policy_rules(config: PolicyConfigData) -> list[dict[str, Any]]:
     Each rule becomes a dict with:
         sources: list of element names, or ["*"] for wildcard
         destinations: list of element names, or ["*"] for wildcard
-        price_source_target: float or None
+        price_source_target: float, NDArray, or None
+
+    Prices are already resolved by the config loader (entity values loaded,
+    constants unwrapped) so they arrive as float or NDArray.
     """
     result: list[dict[str, Any]] = []
     for rule in config.get("rules", []):
-        source = rule.get(CONF_SOURCE, WILDCARD)
-        target = rule.get(CONF_TARGET, WILDCARD)
+        source = rule.get(CONF_SOURCE, [])
+        target = rule.get(CONF_TARGET, [])
         compiled: dict[str, Any] = {
-            "sources": [source],
-            "destinations": [target],
+            "sources": source if source else [WILDCARD],
+            "destinations": target if target else [WILDCARD],
         }
         if CONF_PRICE in rule:
             compiled["price_source_target"] = rule[CONF_PRICE]

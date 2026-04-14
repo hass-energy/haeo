@@ -3,16 +3,22 @@
 A single Policies subentry stores a list of policy rules.
 Each rule specifies a source, target, and a price that controls
 how the optimizer costs power flowing from source to target.
-Source/target can be omitted to mean "any element".
+Source/target can be omitted to mean "any element", or a list
+of element names to restrict the rule to specific nodes.
 Tags are auto-assigned by the compilation pipeline.
 """
 
-from typing import Any, Final, Literal, NotRequired, TypedDict
+from typing import Annotated, Any, Final, Literal, NotRequired, TypedDict
 
 import numpy as np
 from numpy.typing import NDArray
 
+from custom_components.haeo.core.model.const import OutputType
+from custom_components.haeo.core.schema.constant_value import ConstantValue
 from custom_components.haeo.core.schema.elements.element_type import ElementType
+from custom_components.haeo.core.schema.entity_value import EntityValue
+from custom_components.haeo.core.schema.field_hints import FieldHint, ListFieldHints
+from custom_components.haeo.core.schema.none_value import NoneValue
 
 ELEMENT_TYPE = ElementType.POLICY
 
@@ -31,17 +37,17 @@ class PolicyRuleConfig(TypedDict):
     """A single policy rule as stored in Home Assistant config."""
 
     name: str
-    source: NotRequired[str]
-    target: NotRequired[str]
-    price: NotRequired[float]
+    source: NotRequired[list[str]]
+    target: NotRequired[list[str]]
+    price: NotRequired[EntityValue | ConstantValue | NoneValue]
 
 
 class PolicyRuleData(TypedDict):
     """A single policy rule with loaded values."""
 
     name: str
-    source: NotRequired[str]
-    target: NotRequired[str]
+    source: NotRequired[list[str]]
+    target: NotRequired[list[str]]
     price: NotRequired[NDArray[np.floating[Any]] | float]
 
 
@@ -50,7 +56,18 @@ class PolicyConfigSchema(TypedDict):
 
     element_type: Literal[ElementType.POLICY]
     name: str
-    rules: list[PolicyRuleConfig]
+    rules: Annotated[
+        list[PolicyRuleConfig],
+        ListFieldHints(
+            item_name_field="name",
+            fields={
+                CONF_PRICE: FieldHint(
+                    output_type=OutputType.PRICE,
+                    time_series=True,
+                ),
+            },
+        ),
+    ]
 
 
 class PolicyConfigData(TypedDict):
