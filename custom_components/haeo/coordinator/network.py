@@ -12,9 +12,10 @@ from custom_components.haeo.core.adapters.elements.policy import extract_policy_
 from custom_components.haeo.core.adapters.policy_compilation import compile_policies
 from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES, collect_model_elements
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE
-from custom_components.haeo.core.model import Network
+from custom_components.haeo.core.model import ModelElementConfig, Network
 from custom_components.haeo.core.model.reactive import TrackedParam
 from custom_components.haeo.core.schema.elements import ElementConfigData, ElementType
+from custom_components.haeo.core.schema.elements.policy import PolicyConfigData
 from custom_components.haeo.repairs import create_disconnected_network_issue, dismiss_disconnected_network_issue
 from custom_components.haeo.validation import format_component_summary, validate_network_topology
 
@@ -28,7 +29,7 @@ def _collect_policy_rules(
     all_rules: list[dict[str, Any]] = []
     for config in participants.values():
         if config.get(CONF_ELEMENT_TYPE) == ElementType.POLICY:
-            all_rules.extend(extract_policy_rules(config))  # type: ignore[arg-type]
+            all_rules.extend(extract_policy_rules(cast("PolicyConfigData", config)))
     return all_rules
 
 
@@ -59,7 +60,7 @@ async def create_network(
     for model_element_config in compiled_elements:
         element_name = model_element_config.get("name")
         try:
-            net.add(model_element_config)  # type: ignore[arg-type]
+            net.add(cast("ModelElementConfig", model_element_config))
         except Exception as e:
             msg = f"Failed to add model element '{element_name}' (type={model_element_config.get('element_type')})"
             _LOGGER.exception(msg)

@@ -24,6 +24,7 @@ from homeassistant.helpers.selector import (
 import voluptuous as vol
 
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
+from custom_components.haeo.core.schema.elements.element_type import ElementType
 from custom_components.haeo.core.schema.elements.policy import (
     CONF_PRICE,
     CONF_RULE_NAME,
@@ -60,8 +61,6 @@ class PolicySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         reference any element that participates in the model. This includes
         all element types except other policies and connections.
         """
-        from custom_components.haeo.core.schema.elements import ElementType  # noqa: PLC0415
-
         hub_entry = self._get_entry()
         current_id = self._get_current_subentry_id()
 

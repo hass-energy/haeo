@@ -22,6 +22,8 @@ from pathlib import Path
 import types
 from typing import TYPE_CHECKING, Any, get_args
 
+from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
+
 from custom_components.haeo.core.schema.elements.battery import (
     CONF_CAPACITY,
     CONF_INITIAL_CHARGE_PERCENTAGE,
@@ -540,7 +542,7 @@ def add_policies(
     finish = page.page.get_by_role("button", name="Finish")
     try:
         finish.wait_for(state="visible", timeout=2000)
-    except Exception:  # noqa: BLE001
+    except PlaywrightTimeoutError:
         # Close the abort dialog via the header X button
         close_btn = page.page.locator(
             "dialog-data-entry-flow ha-icon-button[dialogaction='close']",
