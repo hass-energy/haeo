@@ -40,12 +40,14 @@ Each segment receives a `power_in` expression and exposes a `power_out` expressi
 
 ### Parameters
 
-| Parameter  | Description                                                |
-| ---------- | ---------------------------------------------------------- |
-| `source`   | Name of the source element                                 |
-| `target`   | Name of the target element                                 |
-| `periods`  | Time period durations (hours)                              |
-| `segments` | Ordered mapping of segment names to segment specifications |
+| Parameter    | Description                                                |
+| ------------ | ---------------------------------------------------------- |
+| `source`     | Name of the source element                                 |
+| `target`     | Name of the target element                                 |
+| `periods`    | Time period durations (hours)                              |
+| `segments`   | Ordered mapping of segment names to segment specifications |
+| `tags`       | Set of tag IDs for per-source power decomposition (see [Tagged Power](../../tagged-power.md)) |
+| `tag_costs`  | Per-tag cost adjustments (list of `{tag, price}` dicts)    |
 
 If `segments` is omitted or empty, a passthrough segment is created automatically.
 Segment parameters can be scalars or per-period arrays.
@@ -99,6 +101,54 @@ Connection exposes power flow and segment outputs:
 
 The `segments` output groups segment outputs using the segment names provided in the configuration.
 Adapters use this map to surface segment-specific shadow prices.
+
+## Tag decomposition
+
+When `tags` are provided, the connection decomposes its power flow into per-tag LP variables.
+This enables [tagged power](../../tagged-power.md) tracking and per-source cost differentiation.
+
+### Per-tag variables
+
+For each tag $k$ in the tag set, a per-tag flow variable is created:
+
+$$
+P_{\text{in},k}(t) \geq 0 \quad \forall k \in \text{tags}, \; t \in [0, T-1]
+$$
+
+A sum constraint ensures the per-tag flows equal the total flow:
+
+$$
+P_{\text{in}}(t) = \sum_{k \in \text{tags}} P_{\text{in},k}(t)
+$$
+
+### Per-tag segment transforms
+
+Segments that transform power (e.g., efficiency) are applied proportionally to each tag flow.
+For an efficiency segment with factor $\eta$:
+
+$$
+P_{\text{out},k}(t) = P_{\text{in},k}(t) \cdot \eta
+$$
+
+The sum of per-tag outputs equals the segment's total output.
+
+### Tag costs
+
+Each entry in `tag_costs` adds a cost for power flowing on a specific tag:
+
+$$
+\text{Cost}_k = \sum_t c_k \cdot P_{\text{in},k}(t) \cdot \Delta t
+$$
+
+This enables per-source pricing (e.g., charging a premium for battery-sourced power exported to the grid).
+
+### Per-tag power balance interface
+
+Connections provide per-tag versions of the power balance interface used by elements:
+
+$$P_{\text{into\_source},k}(t) = -P_{\text{in},k}(t)$$
+
+$$P_{\text{into\_target},k}(t) = P_{\text{out},k}(t)$$
 
 ## Bidirectional paths
 

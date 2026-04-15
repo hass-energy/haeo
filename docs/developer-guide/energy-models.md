@@ -185,6 +185,23 @@ See existing implementations in `custom_components/haeo/core/model/elements/` fo
 - `connection.py` - Functional segment composition for flow, pricing, and limits
 - `node.py` - Power balance points
 
+## Element power protocol
+
+Every model element can declare its external power via two methods:
+
+- `element_power_produced()`: Power injected into the network (≥ 0). Default returns 0.
+- `element_power_consumed()`: Power absorbed from the network (≥ 0). Default returns 0.
+
+The Element base class uses these to build per-tag power balance constraints when connections carry [tagged power](../modeling/tagged-power.md).
+Elements also accept `source_tag` and `access_list` parameters that control how production and consumption map to tags.
+
+Elements that produce and consume power (e.g., Battery) override both methods.
+Source-only elements (e.g., solar Node) override `element_power_produced()`.
+Sink-only elements (e.g., load Node) override `element_power_consumed()`.
+Junctions return 0 for both (the default).
+
+See the [tagged power formulation](../modeling/tagged-power.md) for the mathematical details.
+
 ## Connections and segments
 
 Connections create the **only LP variables** for power flow (one per time step).
