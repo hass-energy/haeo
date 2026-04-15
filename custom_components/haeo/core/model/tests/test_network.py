@@ -14,7 +14,6 @@ from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_BATTER
 from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_CONNECTION as ELEMENT_TYPE_CONNECTION
 from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_NODE as ELEMENT_TYPE_NODE
 from custom_components.haeo.core.model.elements.connection import Connection
-from custom_components.haeo.core.model.elements.node import Node
 
 # Test constants
 HOURS_PER_DAY = 24
@@ -104,7 +103,7 @@ def test_connect_nonexistent_entities() -> None:
         name="test_network",
         periods=np.array([1.0] * 3),
     )
-    with pytest.raises(ValueError, match="Failed to register connection bad_connection with source nonexistent"):
+    with pytest.raises(ValueError, match="Source element 'nonexistent' is not a network participant"):
         network.add(
             {
                 "element_type": ELEMENT_TYPE_CONNECTION,
@@ -124,7 +123,7 @@ def test_connect_nonexistent_target_entity() -> None:
     # Add only source entity
     network.add({"element_type": ELEMENT_TYPE_BATTERY, "name": "battery1", "capacity": 10000, "initial_charge": 5000})
     # Try to connect to nonexistent target
-    with pytest.raises(ValueError, match="Failed to register connection bad_connection with target nonexistent"):
+    with pytest.raises(ValueError, match="Target element 'nonexistent' is not a network participant"):
         network.add(
             {
                 "element_type": ELEMENT_TYPE_CONNECTION,
@@ -147,12 +146,15 @@ def test_connect_source_is_connection() -> None:
     network.add({"element_type": ELEMENT_TYPE_CONNECTION, "name": "conn1", "source": "battery1", "target": "grid1"})
 
     # Try to create another connection using the connection as source
-    network.add(
-        {"element_type": ELEMENT_TYPE_CONNECTION, "name": "bad_connection", "source": "conn1", "target": "battery1"}
-    )
-
-    with pytest.raises(ValueError, match="Source element 'conn1' is a connection"):
-        network.validate()
+    with pytest.raises(ValueError, match="Source element 'conn1' is not a network participant"):
+        network.add(
+            {
+                "element_type": ELEMENT_TYPE_CONNECTION,
+                "name": "bad_connection",
+                "source": "conn1",
+                "target": "battery1",
+            }
+        )
 
 
 def test_connect_target_is_connection() -> None:
@@ -167,72 +169,15 @@ def test_connect_target_is_connection() -> None:
     network.add({"element_type": ELEMENT_TYPE_CONNECTION, "name": "conn1", "source": "battery1", "target": "grid1"})
 
     # Try to create another connection using the connection as target
-    network.add(
-        {"element_type": ELEMENT_TYPE_CONNECTION, "name": "bad_connection", "source": "battery1", "target": "conn1"}
-    )
-
-    with pytest.raises(ValueError, match="Target element 'conn1' is a connection"):
-        network.validate()
-
-
-def test_validate_raises_when_source_missing() -> None:
-    """Validate should raise when a connection source is missing."""
-    net = Network(name="net", periods=np.array([1.0]))
-    net.elements["conn"] = Connection(
-        name="conn",
-        periods=np.array([1.0]),
-        solver=net._solver,
-        source="missing",
-        target="also_missing",
-    )
-
-    with pytest.raises(ValueError, match="Source element 'missing' not found"):
-        net.validate()
-
-
-def test_validate_raises_when_target_missing() -> None:
-    """Validate should raise when a connection target is missing."""
-    net = Network(name="net", periods=np.array([1.0]))
-    net.elements["source_node"] = Node(
-        name="source_node", periods=np.array([1.0]), solver=net._solver, is_source=True, is_sink=True
-    )
-    net.elements["conn"] = Connection(
-        name="conn",
-        periods=np.array([1.0]),
-        solver=net._solver,
-        source="source_node",
-        target="missing_target",
-    )
-
-    with pytest.raises(ValueError, match="Target element 'missing_target' not found"):
-        net.validate()
-
-
-def test_validate_raises_when_endpoints_are_connections() -> None:
-    """Validate should reject connections that point to connection elements."""
-    net = Network(name="net", periods=np.array([1.0]))
-    # Non-connection element to satisfy target for conn2
-    net.elements["node"] = Node(name="node", periods=np.array([1.0]), solver=net._solver, is_source=True, is_sink=True)
-
-    net.elements["conn2"] = Connection(
-        name="conn2",
-        periods=np.array([1.0]),
-        solver=net._solver,
-        source="node",
-        target="node",
-    )
-
-    # conn1 references conn2 as source and target to hit both connection checks
-    net.elements["conn1"] = Connection(
-        name="conn1",
-        periods=np.array([1.0]),
-        solver=net._solver,
-        source="conn2",
-        target="conn2",
-    )
-
-    with pytest.raises(ValueError, match="Source element 'conn2' is a connection"):
-        net.validate()
+    with pytest.raises(ValueError, match="Target element 'conn1' is not a network participant"):
+        network.add(
+            {
+                "element_type": ELEMENT_TYPE_CONNECTION,
+                "name": "bad_connection",
+                "source": "battery1",
+                "target": "conn1",
+            }
+        )
 
 
 def test_constraints_returns_empty_when_no_elements() -> None:
@@ -265,26 +210,6 @@ def test_network_constraint_generation_error() -> None:
 
     # Should wrap the error with context about which element failed
     with pytest.raises(ValueError, match="Failed to apply constraints for element 'failing_element'"):
-        network.optimize()
-
-
-def test_network_optimize_validates_before_running() -> None:
-    """Test that optimize() calls validate() and catches validation errors."""
-    network = Network(
-        name="test_network",
-        periods=np.array([1.0] * 3),
-    )
-
-    # Add elements but create an invalid connection (connection to connection)
-    network.add({"element_type": ELEMENT_TYPE_NODE, "name": "node1", "is_sink": True, "is_source": True})
-    network.add({"element_type": ELEMENT_TYPE_NODE, "name": "node2", "is_sink": True, "is_source": True})
-    network.add({"element_type": ELEMENT_TYPE_CONNECTION, "name": "conn1", "source": "node1", "target": "node2"})
-
-    # Connect conn2 to conn1 (invalid)
-    network.add({"element_type": ELEMENT_TYPE_CONNECTION, "name": "conn2", "source": "conn1", "target": "node2"})
-
-    # Should raise validation error when trying to optimize
-    with pytest.raises(ValueError, match="Source element 'conn1' is a connection"):
         network.optimize()
 
 
@@ -339,8 +264,6 @@ def test_network_optimize_raises_on_solver_failure(
     network.add({"element_type": ELEMENT_TYPE_NODE, "name": "node", "is_sink": True, "is_source": True})
 
     def mock_optimize() -> float:
-        # Call constraints to set up the model
-        network.validate()
         for element in network.elements.values():
             element.constraints()
         # Mock the model status to indicate failure

@@ -25,10 +25,8 @@ class Element[OutputNameT: str]:
     - Time (periods): hours (variable-width intervals)
     - Price: $/kWh
 
-    Subclasses implement ``element_power_produced()`` and
-    ``element_power_consumed()`` to declare their external power.  The base
-    class uses these to build power balance constraints with per-tag routing
-    controlled by ``outbound_tags`` and ``inbound_tags``.
+    Provides the generic lifecycle: naming, solver access, constraint/cost/output
+    discovery via reactive decorators, and parameter access helpers.
     """
 
     # TrackedParam for periods - enables reactive invalidation when periods change
@@ -41,8 +39,6 @@ class Element[OutputNameT: str]:
         *,
         solver: Highs,
         output_names: frozenset[OutputNameT],
-        outbound_tags: set[int] | None = None,
-        inbound_tags: set[int] | None = None,
     ) -> None:
         """Initialize an element.
 
@@ -51,22 +47,12 @@ class Element[OutputNameT: str]:
             periods: Array of time period durations in hours (one per optimization interval)
             solver: The HiGHS solver instance for creating variables and constraints
             output_names: Frozenset of valid output names for this element type (used for type narrowing)
-            outbound_tags: Tags that produced power can be placed on (None = all tags)
-            inbound_tags: Tags that consumed power can draw from (None = all tags)
 
         """
         self.name = name
         self.periods = np.asarray(periods, dtype=float)
         self._solver = solver
         self._output_names = output_names
-        self.outbound_tags: set[int] | None = outbound_tags
-        self.inbound_tags: set[int] | None = inbound_tags
-
-        # Track connections for power balance
-        self._connections: list[tuple[Any, Literal["source", "target"]]] = []
-
-        # Lazily-created per-tag consumption decomposition variables
-        self._consumed_by_tag: dict[int, HighspyArray] | None = None
 
     def __getitem__(self, key: str | int) -> Any:
         """Get a value by name or index.
@@ -132,6 +118,159 @@ class Element[OutputNameT: str]:
     def n_periods(self) -> int:
         """Return the number of optimization periods."""
         return len(self.periods)
+
+    def extract_values(
+        self, sequence: Sequence[Any] | HighspyArray | NDArray[Any] | highs_cons | None
+    ) -> tuple[float, ...]:
+        """Convert a sequence of HiGHS types to resolved values."""
+        if sequence is None:
+            return ()
+
+        # Convert to numpy array for batch processing
+        arr = np.asarray(sequence, dtype=object)
+
+        # Check first item to determine type and use batch methods
+        first_item = arr.flat[0]
+        if isinstance(first_item, highs_cons):
+            # Use batch constraint dual extraction
+            return tuple(self._solver.constrDuals(arr).flat)
+
+        # Default: use batch value extraction (handles highs_var and highs_linear_expression)
+        return tuple(self._solver.vals(arr).flat)
+
+    def outputs(self) -> Mapping[OutputNameT, OutputData]:
+        """Return output specifications for the element.
+
+        Discovers all @output and @constraint(output=True) decorated methods via
+        reflection and calls their get_output() method to retrieve OutputData.
+        The method name is used as the output name (dictionary key).
+        """
+        result: dict[OutputNameT, OutputData] = {}
+        for name in dir(type(self)):
+            attr = getattr(type(self), name, None)
+            # Resolve output name for OutputMethod (supports custom names).
+            if isinstance(attr, OutputMethod):
+                output_name = attr.output_name
+            elif isinstance(attr, ReactiveConstraint):
+                output_name = name
+            else:
+                continue
+
+            if output_name in self._output_names and (output_data := attr.get_output(self)) is not None:
+                result[output_name] = output_data  # type: ignore[assignment]  # name validated by `in` check at runtime
+        return result
+
+    def constraints(self) -> dict[str, highs_cons | list[highs_cons]]:
+        """Return all constraints from this element.
+
+        Discovers and calls all @constraint decorated methods. Calling the methods
+        triggers automatic constraint creation/updating in the solver via decorators.
+
+        Returns:
+            Dictionary mapping constraint method names to constraint objects
+
+        """
+        result: dict[str, highs_cons | list[highs_cons]] = {}
+        for name in dir(type(self)):
+            attr = getattr(type(self), name, None)
+            if isinstance(attr, ReactiveConstraint):
+                # Call the constraint method to trigger decorator lifecycle
+                method = getattr(self, name)
+                method()
+
+                # Get the state after calling to collect constraints
+                state_attr = f"_reactive_state_{name}"
+                state = getattr(self, state_attr, None)
+                if state is not None and "constraint" in state:
+                    cons = state["constraint"]
+                    result[name] = cons
+        return result
+
+    @cost
+    def cost(self) -> Any:
+        """Return aggregated cost expression from this element.
+
+        Discovers and calls all @cost decorated methods, summing their results into
+        a single expression. The result is cached by the @cost decorator, which
+        automatically tracks dependencies on all underlying @cost methods.
+
+        Returns:
+            Single aggregated cost expression (highs_linear_expression) or None if no costs
+
+        """
+        # Get this method's name from the decorator to avoid hardcoding
+        this_method_name = type(self).cost._name  # type: ignore[attr-defined]  # noqa: SLF001 (intentional access to decorator's name)
+
+        # Collect all cost expressions from @cost methods (excluding this one)
+        costs: list[Any] = []
+        for name in dir(type(self)):
+            # Skip self to avoid infinite recursion
+            if name == this_method_name:
+                continue
+            attr = getattr(type(self), name, None)
+            if not isinstance(attr, ReactiveCost):
+                continue
+
+            # Call the cost method - this establishes dependency tracking
+            method = getattr(self, name)
+            if (cost_value := method()) is not None:
+                if isinstance(cost_value, list):
+                    costs.extend(cost_value)
+                else:
+                    costs.append(cost_value)
+
+        # Aggregate costs into a single expression
+        if not costs:
+            return None
+        if len(costs) == 1:
+            return costs[0]
+        # Sum all cost expressions
+        return sum(costs[1:], costs[0])
+
+
+class NetworkElement[OutputNameT: str](Element[OutputNameT]):
+    """Element that participates in network power balance.
+
+    Extends Element with connection tracking, power production/consumption
+    protocol, and per-tag power balance constraints. Node and Battery inherit
+    from this class. Connection inherits directly from Element.
+    """
+
+    def __init__(
+        self,
+        name: str,
+        periods: NDArray[np.floating[Any]],
+        *,
+        solver: Highs,
+        output_names: frozenset[OutputNameT],
+        outbound_tags: set[int] | None = None,
+        inbound_tags: set[int] | None = None,
+    ) -> None:
+        """Initialize a network element.
+
+        Args:
+            name: Name of the entity
+            periods: Array of time period durations in hours (one per optimization interval)
+            solver: The HiGHS solver instance for creating variables and constraints
+            output_names: Frozenset of valid output names for this element type (used for type narrowing)
+            outbound_tags: Tags that produced power can be placed on (None = all tags)
+            inbound_tags: Tags that consumed power can draw from (None = all tags)
+
+        """
+        super().__init__(
+            name=name,
+            periods=periods,
+            solver=solver,
+            output_names=output_names,
+        )
+        self.outbound_tags: set[int] | None = outbound_tags
+        self.inbound_tags: set[int] | None = inbound_tags
+
+        # Track connections for power balance
+        self._connections: list[tuple[Any, Literal["source", "target"]]] = []
+
+        # Lazily-created per-tag consumption decomposition variables
+        self._consumed_by_tag: dict[int, HighspyArray] | None = None
 
     def register_connection(self, connection: Any, end: Literal["source", "target"]) -> None:
         """Register a connection to this element.
@@ -274,25 +413,6 @@ class Element[OutputNameT: str]:
             constraints.extend(list(conn_tag + tag_prod - tag_cons == 0))
 
         return constraints if constraints else None
-
-    def extract_values(
-        self, sequence: Sequence[Any] | HighspyArray | NDArray[Any] | highs_cons | None
-    ) -> tuple[float, ...]:
-        """Convert a sequence of HiGHS types to resolved values."""
-        if sequence is None:
-            return ()
-
-        # Convert to numpy array for batch processing
-        arr = np.asarray(sequence, dtype=object)
-
-        # Check first item to determine type and use batch methods
-        first_item = arr.flat[0]
-        if isinstance(first_item, highs_cons):
-            # Use batch constraint dual extraction
-            return tuple(self._solver.constrDuals(arr).flat)
-
-        # Default: use batch value extraction (handles highs_var and highs_linear_expression)
-        return tuple(self._solver.vals(arr).flat)
 
     def outputs(self) -> Mapping[OutputNameT, OutputData]:
         """Return output specifications for the element.

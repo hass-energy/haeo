@@ -13,14 +13,14 @@ import operator
 from typing import Any, Final, Literal, NotRequired, TypedDict
 
 from highspy import Highs
-from highspy.highs import HighspyArray, highs_cons, highs_linear_expression
+from highspy.highs import HighspyArray, highs_cons
 import numpy as np
 from numpy.typing import NDArray
 
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.model.element import Element
 from custom_components.haeo.core.model.output_data import OutputData
-from custom_components.haeo.core.model.reactive import constraint, output
+from custom_components.haeo.core.model.reactive import output
 
 from .segments import Segment, SegmentSpec, create_segment
 
@@ -195,11 +195,6 @@ class Connection[TOutputName: str](Element[TOutputName]):
         (power flows from the connection into the target).
         """
         return self.total_power_out
-
-    @constraint
-    def element_power_balance(self) -> list[highs_linear_expression] | None:
-        """Skip power balance for connections — power balance is on nodes."""
-        return None
 
     def constraints(self) -> dict[str, highs_cons | list[highs_cons]]:
         """Collect constraints from all segments."""

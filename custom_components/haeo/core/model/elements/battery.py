@@ -8,7 +8,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 from custom_components.haeo.core.model.const import OutputType
-from custom_components.haeo.core.model.element import ELEMENT_POWER_BALANCE, Element
+from custom_components.haeo.core.model.element import ELEMENT_POWER_BALANCE, NetworkElement
 from custom_components.haeo.core.model.output_data import OutputData
 from custom_components.haeo.core.model.reactive import TrackedParam, constraint, cost, output
 from custom_components.haeo.core.model.util import broadcast_to_sequence
@@ -68,7 +68,7 @@ class BatteryElementConfig(TypedDict):
     inbound_tags: NotRequired[set[int] | None]
 
 
-class Battery(Element[BatteryOutputName]):
+class Battery(NetworkElement[BatteryOutputName]):
     """Battery entity for electrical system modeling.
 
     Represents a single battery section with cumulative energy tracking.

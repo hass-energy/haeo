@@ -7,7 +7,7 @@ from highspy.highs import HighspyArray
 import numpy as np
 from numpy.typing import NDArray
 
-from custom_components.haeo.core.model.element import ELEMENT_POWER_BALANCE, Element
+from custom_components.haeo.core.model.element import ELEMENT_POWER_BALANCE, NetworkElement
 
 type NodeElementTypeName = Literal["node"]
 ELEMENT_TYPE: Final[NodeElementTypeName] = "node"
@@ -30,7 +30,7 @@ class NodeElementConfig(TypedDict):
     inbound_tags: NotRequired[set[int] | None]
 
 
-class Node(Element[NodeOutputName]):
+class Node(NetworkElement[NodeOutputName]):
     """Node entity for electrical system modeling.
 
     Node acts as an infinite source and/or sink. Power limits and pricing are
