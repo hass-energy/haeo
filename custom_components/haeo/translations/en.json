@@ -481,7 +481,7 @@
       "inverter_max_power_target_source": { "name": "Max AC to DC power" },
       "load_forecast": { "name": "Forecast" },
       "load_price_target_source": { "name": "Consumption value" },
-      "policy_price": { "name": "Price" },
+      "policy_price": { "name": "{rule_name} price" },
       "solar_forecast": { "name": "Forecast" },
       "solar_price_source_target": { "name": "Production price" }
     },
