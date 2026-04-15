@@ -7,12 +7,12 @@ not as enum instances. The participant name resolution must handle both.
 from types import MappingProxyType
 from typing import Any
 
-import pytest
 from homeassistant.config_entries import ConfigSubentry
 from homeassistant.core import HomeAssistant
+import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.haeo.core.const import CONF_ELEMENT_TYPE
+from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.core.schema.elements import ElementType
 from custom_components.haeo.flows.conftest import create_flow
 
@@ -32,7 +32,7 @@ def hub_entry(hass: HomeAssistant) -> MockConfigEntry:
 def _add_subentry(hass: HomeAssistant, hub_entry: MockConfigEntry, *, element_type: Any, title: str) -> None:
     """Add a subentry with the given element_type value."""
     subentry = ConfigSubentry(
-        data=MappingProxyType({CONF_ELEMENT_TYPE: element_type, "name": title}),
+        data=MappingProxyType({CONF_ELEMENT_TYPE: element_type, CONF_NAME: title}),
         subentry_type=str(element_type),
         title=title,
         unique_id=None,
