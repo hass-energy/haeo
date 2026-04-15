@@ -552,11 +552,11 @@ def set_nested_config_value_by_path(config: dict[str, Any], field_path: InputFie
     for key in field_path[:-1]:
         if isinstance(current, dict):
             next_value = current.get(key)
-            if isinstance(next_value, (dict, list)):
+            if isinstance(next_value, (dict, list, tuple)):
                 current = next_value
             else:
                 return False
-        elif isinstance(current, list):
+        elif isinstance(current, (list, tuple)):
             try:
                 current = current[int(key)]
             except (ValueError, IndexError):

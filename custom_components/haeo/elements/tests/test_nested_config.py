@@ -113,6 +113,15 @@ def test_set_nested_config_value_by_path_list_traversal() -> None:
     # Intermediate path hits non-dict, non-list value
     assert set_nested_config_value_by_path(config, ("rules", "0", "name", "extra"), 1) is False
 
+    # Tuple intermediate is traversable to reach a mutable dict
+    config_tuple: dict[str, Any] = {"items": ({"x": 1}, {"x": 2})}
+    assert set_nested_config_value_by_path(config_tuple, ("items", "0", "x"), 99) is True
+    assert config_tuple["items"][0]["x"] == 99
+
+    # Tuple as final target is immutable — cannot assign
+    config_tuple2: dict[str, Any] = {"vals": (10, 20)}
+    assert set_nested_config_value_by_path(config_tuple2, ("vals", "0"), 99) is False
+
     # Final path hits non-dict, non-list value
     config3: dict[str, Any] = {"x": 42}
     assert set_nested_config_value_by_path(config3, ("x",), 99) is True

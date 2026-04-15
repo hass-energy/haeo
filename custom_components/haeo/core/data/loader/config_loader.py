@@ -231,9 +231,13 @@ def _resolve_list_items(
     hints: ListFieldHints,
     sm: StateMachine,
     forecast_times: Sequence[float],
-) -> list[dict[str, Any]]:
-    """Resolve hinted fields within each item of a list config field."""
-    loaded_items: list[dict[str, Any]] = []
+) -> list[Any]:
+    """Resolve hinted fields within each item of a list config field.
+
+    Non-mapping items are passed through unchanged, so the return type is
+    ``list[Any]`` rather than ``list[dict[str, Any]]``.
+    """
+    loaded_items: list[Any] = []
     for item in items:
         if not isinstance(item, Mapping):
             loaded_items.append(item)
