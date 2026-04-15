@@ -14,15 +14,24 @@ from custom_components.haeo.core.model.reactive import OutputMethod, ReactiveCon
 
 
 def get_output_methods(cls: type) -> set[str]:
-    """Get all @output method names and @constraint(output=True) names from a class."""
+    """Get all @output/@constraint(output=True) names available on a class (including inherited)."""
     output_names = set()
     for name in dir(cls):
         attr = getattr(cls, name, None)
-        # Check for @output decorated methods
         if isinstance(attr, OutputMethod):
             output_names.add(attr.output_name)
-            continue
-        if isinstance(attr, ReactiveConstraint) and attr.output:
+        elif isinstance(attr, ReactiveConstraint) and attr.output:
+            output_names.add(name)
+    return output_names
+
+
+def get_own_output_methods(cls: type) -> set[str]:
+    """Get @output/@constraint(output=True) names defined directly on this class (not inherited)."""
+    output_names = set()
+    for name, attr in cls.__dict__.items():
+        if isinstance(attr, OutputMethod):
+            output_names.add(attr.output_name)
+        elif isinstance(attr, ReactiveConstraint) and attr.output:
             output_names.add(name)
     return output_names
 
@@ -43,15 +52,18 @@ def test_output_methods_match_declarations(element_type: str, element_spec: Elem
     element_class = element_spec.factory
     output_names_constant = element_spec.output_names
 
-    # Get actual output methods from the class
-    actual_methods = get_output_methods(element_class)
+    # Get actual output methods from the class (including inherited, for "missing" check)
+    all_methods = get_output_methods(element_class)
+    # Get only methods defined on this class (for "extra" check)
+    own_methods = get_own_output_methods(element_class)
 
     # Get declared output names from the constant
     declared_names = set(output_names_constant)
 
-    # Check that actual methods match declared names
-    missing_methods = declared_names - actual_methods
-    extra_methods = actual_methods - declared_names
+    # Missing: declared in output_names but no method exists (including inherited)
+    missing_methods = declared_names - all_methods
+    # Extra: defined directly on this class but not in output_names
+    extra_methods = own_methods - declared_names
 
     error_parts = []
     if missing_methods:

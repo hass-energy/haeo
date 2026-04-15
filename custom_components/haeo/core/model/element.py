@@ -1,7 +1,7 @@
 """Generic electrical entity for energy system modeling."""
 
 from collections.abc import Mapping, Sequence
-from typing import Any, Literal
+from typing import Any, Final, Literal
 
 from highspy import Highs
 from highspy.highs import HighspyArray, highs_cons, highs_linear_expression
@@ -10,6 +10,8 @@ from numpy.typing import NDArray
 
 from .output_data import OutputData
 from .reactive import OutputMethod, ReactiveConstraint, ReactiveCost, TrackedParam, constraint, cost
+
+ELEMENT_POWER_BALANCE: Final = "element_power_balance"
 
 
 class Element[OutputNameT: str]:
@@ -231,6 +233,24 @@ class Element[OutputNameT: str]:
         return tags
 
     # --- Per-tag element power decomposition ---
+
+    @constraint(output=True, unit="$/kW")
+    def element_power_balance(self) -> list[highs_linear_expression] | None:
+        """Total power balance: connection_power + produced - consumed == 0.
+
+        Output: shadow price indicating the marginal value of power at this element.
+        Skipped when there are no connections and no external power.
+        """
+        produced = self.element_power_produced()
+        consumed = self.element_power_consumed()
+
+        is_zero_prod = isinstance(produced, (int, float)) and produced == 0
+        is_zero_cons = isinstance(consumed, (int, float)) and consumed == 0
+
+        if not self._connections and is_zero_prod and is_zero_cons:
+            return None
+
+        return list(self.connection_power() + produced - consumed == 0)
 
     @constraint
     def element_tag_balance(self) -> list[highs_linear_expression] | None:

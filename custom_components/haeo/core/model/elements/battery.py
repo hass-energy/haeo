@@ -8,7 +8,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 from custom_components.haeo.core.model.const import OutputType
-from custom_components.haeo.core.model.element import Element
+from custom_components.haeo.core.model.element import ELEMENT_POWER_BALANCE, Element
 from custom_components.haeo.core.model.output_data import OutputData
 from custom_components.haeo.core.model.reactive import TrackedParam, constraint, cost, output
 from custom_components.haeo.core.model.util import broadcast_to_sequence
@@ -19,7 +19,7 @@ type BatteryElementTypeName = Literal["battery"]
 
 # Type for battery constraint names (shadow prices exposed as outputs)
 type BatteryConstraintName = Literal[
-    "battery_power_balance",
+    "element_power_balance",
     "battery_energy_in_flow",
     "battery_energy_out_flow",
     "battery_soc_max",
@@ -44,7 +44,7 @@ BATTERY_OUTPUT_NAMES: Final[frozenset[BatteryOutputName]] = frozenset(
         BATTERY_POWER_DISCHARGE := "battery_power_discharge",
         BATTERY_ENERGY_STORED := "battery_energy_stored",
         # Constraint shadow prices
-        BATTERY_POWER_BALANCE := "battery_power_balance",
+        BATTERY_POWER_BALANCE := ELEMENT_POWER_BALANCE,
         BATTERY_ENERGY_IN_FLOW := "battery_energy_in_flow",
         BATTERY_ENERGY_OUT_FLOW := "battery_energy_out_flow",
         BATTERY_SOC_MAX := "battery_soc_max",
@@ -53,7 +53,7 @@ BATTERY_OUTPUT_NAMES: Final[frozenset[BatteryOutputName]] = frozenset(
 )
 
 # Battery power constraints (subset of outputs that relate to power balance)
-BATTERY_POWER_CONSTRAINTS: Final[frozenset[BatteryConstraintName]] = frozenset((BATTERY_POWER_BALANCE,))
+BATTERY_POWER_CONSTRAINTS: Final[frozenset[str]] = frozenset((BATTERY_POWER_BALANCE,))
 
 
 class BatteryElementConfig(TypedDict):
@@ -182,19 +182,6 @@ class Battery(Element[BatteryOutputName]):
     def element_power_consumed(self) -> HighspyArray:
         """Return power consumed by charging the battery."""
         return self.power_consumption
-
-    @constraint(output=True, unit="$/kW")
-    def battery_power_balance(self) -> list[highs_linear_expression]:
-        """Constraint: connection_power + produced - consumed == 0.
-
-        Output: shadow price indicating the marginal value of power balance constraint.
-        """
-        return list(
-            self.connection_power()
-            + self.element_power_produced()
-            - self.element_power_consumed()
-            == 0
-        )
 
     @cost
     def battery_salvage_value(self) -> highs_linear_expression:

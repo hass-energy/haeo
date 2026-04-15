@@ -3,21 +3,18 @@
 from typing import Any, Final, Literal, NotRequired, TypedDict
 
 from highspy import Highs
-from highspy.highs import HighspyArray, highs_linear_expression
+from highspy.highs import HighspyArray
 import numpy as np
 from numpy.typing import NDArray
 
-from custom_components.haeo.core.model.element import Element
-from custom_components.haeo.core.model.reactive import constraint
+from custom_components.haeo.core.model.element import ELEMENT_POWER_BALANCE, Element
 
 type NodeElementTypeName = Literal["node"]
 ELEMENT_TYPE: Final[NodeElementTypeName] = "node"
 
-type NodeConstraintName = Literal["node_power_balance"]
+type NodeOutputName = Literal["element_power_balance"]
 
-type NodeOutputName = NodeConstraintName
-
-NODE_POWER_BALANCE: Final[NodeOutputName] = "node_power_balance"
+NODE_POWER_BALANCE: Final[str] = ELEMENT_POWER_BALANCE
 
 NODE_OUTPUT_NAMES: Final[frozenset[NodeOutputName]] = frozenset((NODE_POWER_BALANCE,))
 
@@ -86,15 +83,3 @@ class Node(Element[NodeOutputName]):
     def element_power_consumed(self) -> HighspyArray | int:
         """Return consumption: bounded [0, inf] for sinks, 0 otherwise."""
         return self._consumed if self._consumed is not None else 0
-
-    @constraint(output=True, unit="$/kW")
-    def node_power_balance(self) -> list[highs_linear_expression] | None:
-        """Total power balance: connection_power + produced - consumed == 0."""
-        if self.is_source and self.is_sink:
-            return None
-        return list(
-            self.connection_power()
-            + self.element_power_produced()
-            - self.element_power_consumed()
-            == 0
-        )
