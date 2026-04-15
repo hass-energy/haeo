@@ -2,7 +2,7 @@
 
 from typing import Any, Final, Literal, NotRequired, TypedDict
 
-from highspy import Highs, kHighsInf
+from highspy import Highs
 from highspy.highs import HighspyArray, highs_linear_expression
 import numpy as np
 from numpy.typing import NDArray
@@ -175,21 +175,26 @@ class Battery(Element[BatteryOutputName]):
         """
         return list(self.stored_energy[1:] >= 0)
 
-    def element_power(self) -> HighspyArray:
-        """Return net power injected by the battery (discharge - charge)."""
-        return self.power_production - self.power_consumption
+    def element_power_produced(self) -> HighspyArray:
+        """Return power produced by discharging the battery."""
+        return self.power_production
 
-    def element_power_bounds(self) -> tuple[float, float]:
-        """Battery can both charge (absorb) and discharge (inject)."""
-        return (-kHighsInf, kHighsInf)
+    def element_power_consumed(self) -> HighspyArray:
+        """Return power consumed by charging the battery."""
+        return self.power_consumption
 
     @constraint(output=True, unit="$/kW")
     def battery_power_balance(self) -> list[highs_linear_expression]:
-        """Constraint: connection_power + element_power == 0.
+        """Constraint: connection_power + produced - consumed == 0.
 
         Output: shadow price indicating the marginal value of power balance constraint.
         """
-        return list(self.connection_power() + self.element_power() == 0)
+        return list(
+            self.connection_power()
+            + self.element_power_produced()
+            - self.element_power_consumed()
+            == 0
+        )
 
     @cost
     def battery_salvage_value(self) -> highs_linear_expression:

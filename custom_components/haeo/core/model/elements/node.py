@@ -2,7 +2,7 @@
 
 from typing import Any, Final, Literal, NotRequired, TypedDict
 
-from highspy import Highs, kHighsInf
+from highspy import Highs
 from highspy.highs import HighspyArray, highs_linear_expression
 import numpy as np
 from numpy.typing import NDArray
@@ -39,13 +39,13 @@ class Node(Element[NodeOutputName]):
     Node acts as an infinite source and/or sink. Power limits and pricing are
     configured on the Connection to/from the node.
 
-    The node's ``element_power()`` returns an LP variable whose bounds encode
-    the source/sink behavior:
+    The node returns separate produced/consumed power expressions whose bounds
+    encode the source/sink behavior:
 
-    - source+sink: ``None`` (unconstrained — no total balance needed)
-    - source only: variable ≥ 0 (can only produce)
-    - sink only: variable ≤ 0 (can only consume)
-    - junction: zeros (no external power)
+    - source+sink: produced ≥ 0, consumed ≥ 0 (no total balance constraint)
+    - source only: produced ≥ 0
+    - sink only: consumed ≥ 0
+    - junction: both 0 (conservation only)
     """
 
     def __init__(
@@ -72,33 +72,29 @@ class Node(Element[NodeOutputName]):
         self.is_sink = is_sink
 
         n = self.n_periods
-        if is_source and is_sink:
-            self._external_power: HighspyArray | NDArray[Any] | None = None
-        elif is_source:
-            self._external_power = solver.addVariables(
-                n, lb=0, name_prefix=f"{name}_ep_", out_array=True,
-            )
-        elif is_sink:
-            self._external_power = solver.addVariables(
-                n, lb=-kHighsInf, ub=0, name_prefix=f"{name}_ep_", out_array=True,
-            )
-        else:
-            self._external_power = np.zeros(n, dtype=object)
+        self._produced: HighspyArray | None = None
+        self._consumed: HighspyArray | None = None
+        if is_source:
+            self._produced = solver.addVariables(n, lb=0, name_prefix=f"{name}_prod_", out_array=True)
+        if is_sink:
+            self._consumed = solver.addVariables(n, lb=0, name_prefix=f"{name}_cons_", out_array=True)
 
-    def element_power(self) -> HighspyArray | NDArray[Any] | None:
-        """Return this node's external power injection."""
-        return self._external_power
+    def element_power_produced(self) -> HighspyArray | int:
+        """Return production: bounded [0, inf] for sources, 0 otherwise."""
+        return self._produced if self._produced is not None else 0
 
-    def element_power_bounds(self) -> tuple[float, float]:
-        """Return conceptual bounds: source can produce, sink can consume."""
-        lb = -kHighsInf if self.is_sink else 0.0
-        ub = kHighsInf if self.is_source else 0.0
-        return (lb, ub)
+    def element_power_consumed(self) -> HighspyArray | int:
+        """Return consumption: bounded [0, inf] for sinks, 0 otherwise."""
+        return self._consumed if self._consumed is not None else 0
 
     @constraint(output=True, unit="$/kW")
     def node_power_balance(self) -> list[highs_linear_expression] | None:
-        """Total power balance: connection_power + element_power == 0."""
-        ep = self.element_power()
-        if ep is None:
+        """Total power balance: connection_power + produced - consumed == 0."""
+        if self.is_source and self.is_sink:
             return None
-        return list(self.connection_power() + ep == 0)
+        return list(
+            self.connection_power()
+            + self.element_power_produced()
+            - self.element_power_consumed()
+            == 0
+        )

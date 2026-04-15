@@ -21,11 +21,10 @@ class Element[OutputNameT: str]:
     - Time (periods): hours (variable-width intervals)
     - Price: $/kWh
 
-    Subclasses implement ``element_power()`` to declare their external power
-    injection/absorption and ``element_power_bounds()`` to declare the
-    conceptual bounds.  The base class uses these to build both the total
-    power balance and, when tagged connections exist, per-tag power balance
-    constraints with source_tag/access_list enforcement.
+    Subclasses implement ``element_power_produced()`` and
+    ``element_power_consumed()`` to declare their external power.  The base
+    class uses these to build per-tag power balance constraints with
+    source_tag/access_list enforcement when tagged connections exist.
     """
 
     # TrackedParam for periods - enables reactive invalidation when periods change
@@ -61,10 +60,6 @@ class Element[OutputNameT: str]:
 
         # Track connections for power balance
         self._connections: list[tuple[Any, Literal["source", "target"]]] = []
-
-        # Per-tag element power variables (created lazily by _init_element_power_tags)
-        self._element_power_tags: dict[int, HighspyArray] = {}
-        self._element_power_tags_initialized: bool = False
 
     def __getitem__(self, key: str | int) -> Any:
         """Get a value by name or index.
@@ -163,30 +158,23 @@ class Element[OutputNameT: str]:
 
     # --- Element power protocol ---
 
-    def element_power(self) -> HighspyArray | NDArray[Any] | None:
-        """Return this element's external power injection expression.
+    def element_power_produced(self) -> HighspyArray | NDArray[Any] | int:
+        """Return this element's power production expression.
 
-        Positive = power injected into the network (production).
-        Negative = power absorbed from the network (consumption).
-        None = unconstrained (no total power balance needed).
-
-        Override in subclasses.  The default returns None (unconstrained).
+        Positive values represent power injected into the network.
+        Production is tagged with this element's ``source_tag``.
+        Override in subclasses.  Default returns 0.
         """
-        return None
+        return 0
 
-    def element_power_bounds(self) -> tuple[float, float]:
-        """Return conceptual (lb, ub) bounds on external power.
+    def element_power_consumed(self) -> HighspyArray | NDArray[Any] | int:
+        """Return this element's power consumption expression.
 
-        Used by ``element_tag_balance`` to create per-tag element power
-        variables with matching directionality.  The bounds encode the
-        element's fundamental behavior (source, sink, junction, or both).
-
-        Returns:
-            (lower_bound, upper_bound) using ``float('-inf')``/``float('inf')`` for unbounded.
-            Default: ``(0.0, 0.0)`` (junction — no external power).
-
+        Positive values represent power absorbed from the network.
+        Consumption is distributed across allowed tags (per ``access_list``).
+        Override in subclasses.  Default returns 0.
         """
-        return (0.0, 0.0)
+        return 0
 
     # --- Connection power queries ---
 
@@ -244,65 +232,55 @@ class Element[OutputNameT: str]:
 
     # --- Per-tag element power decomposition ---
 
-    def _init_element_power_tags(self) -> None:
-        """Create per-tag element power variables and sum constraint.
-
-        Called once (lazily) before per-tag constraints are built.
-        Creates one LP variable per tag per period, with bounds derived from
-        ``element_power_bounds()`` intersected with source_tag/access_list.
-        """
-        if self._element_power_tags_initialized:
-            return
-        self._element_power_tags_initialized = True
-
-        tags = self.connection_tags()
-        if not tags:
-            return
-
-        el_lb, el_ub = self.element_power_bounds()
-
-        for tag in sorted(tags):
-            lb = el_lb
-            ub = el_ub
-            # source_tag: non-source tags cannot inject power
-            if self._source_tag is not None and tag != self._source_tag:
-                ub = min(ub, 0.0)
-            # access_list: excluded tags cannot absorb power
-            if self._access_list is not None and tag not in self._access_list:
-                lb = max(lb, 0.0)
-
-            self._element_power_tags[tag] = self._solver.addVariables(
-                self.n_periods,
-                lb=lb,
-                ub=ub,
-                name_prefix=f"{self.name}_ep_t{tag}_",
-                out_array=True,
-            )
-
-        # Sum of per-tag element power must equal total element power
-        ep = self.element_power()
-        if ep is not None and self._element_power_tags:
-            self._solver.addConstrs(
-                sum(self._element_power_tags.values()) == ep  # type: ignore[arg-type]
-            )
-
     @constraint
     def element_tag_balance(self) -> list[highs_linear_expression] | None:
-        """Per-tag power balance: connection_power_for_tag + ep_tag == 0.
+        """Per-tag power balance using produced/consumed decomposition.
 
-        Creates per-tag element power variables (lazy, once) with bounds from
-        ``element_power_bounds()`` intersected with source_tag/access_list.
-        For each tag, constrains the per-tag connection power to balance against
-        the per-tag element power.
+        For each tag:
+        - source_tag: ``conn_tag + produced - consumed_from_tag == 0``
+        - allowed tag: ``conn_tag - consumed_from_tag == 0``
+        - other tag: ``conn_tag == 0``
+
+        Sum constraint: ``sum(consumed_from_tag) == consumed``
         """
-        self._init_element_power_tags()
-        if not self._element_power_tags:
+        tags = self.connection_tags()
+        if not tags:
             return None
 
+        produced = self.element_power_produced()
+        consumed = self.element_power_consumed()
+
+        # Determine which tags can carry consumed power
+        allowed_tags = set(tags)
+        if self._access_list is not None:
+            allowed_tags &= self._access_list
+
+        # Create per-tag consumption variables (skip if no consumption)
+        has_consumption = not (isinstance(consumed, (int, float)) and consumed == 0)
+        consumed_by_tag: dict[int, HighspyArray] = {}
+        if has_consumption:
+            for tag in sorted(allowed_tags):
+                consumed_by_tag[tag] = self._solver.addVariables(
+                    self.n_periods, lb=0, name_prefix=f"{self.name}_ct{tag}_", out_array=True,
+                )
+            if consumed_by_tag:
+                self._solver.addConstrs(
+                    sum(consumed_by_tag.values()) == consumed  # type: ignore[arg-type]
+                )
+
+        # Per-tag power balance
         constraints: list[highs_linear_expression] = []
-        for tag, ep_tag in self._element_power_tags.items():
-            tag_power = self.connection_power_for_tag(tag)
-            constraints.extend(list(tag_power + ep_tag == 0))
+        for tag in sorted(tags):
+            conn_tag = self.connection_power_for_tag(tag)
+
+            # Production appears only on source_tag
+            tag_prod = produced if (self._source_tag is not None and tag == self._source_tag) else 0
+
+            # Consumption from this tag (if allowed)
+            tag_cons = consumed_by_tag.get(tag, 0)
+
+            constraints.extend(list(conn_tag + tag_prod - tag_cons == 0))
+
         return constraints if constraints else None
 
     def extract_values(
