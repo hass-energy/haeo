@@ -248,6 +248,8 @@ def _resolve_list_items(
                 loaded_item.pop(field_name, None)
             elif resolved is not None:
                 loaded_item[field_name] = resolved
+            else:
+                loaded_item[field_name] = None
         loaded_items.append(loaded_item)
     return loaded_items
 

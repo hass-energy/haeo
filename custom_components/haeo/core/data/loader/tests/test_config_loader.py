@@ -8,9 +8,15 @@ import pytest
 
 from conftest import FakeStateMachine
 from custom_components.haeo.core.data.loader import config_loader as cl
-from custom_components.haeo.core.data.loader.config_loader import load_element_config, load_element_configs
+from custom_components.haeo.core.data.loader.config_loader import (
+    _resolve_list_items,
+    load_element_config,
+    load_element_configs,
+)
+from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.schema import as_connection_target
 from custom_components.haeo.core.schema.elements import ElementConfigSchema
+from custom_components.haeo.core.schema.field_hints import FieldHint, ListFieldHints
 
 FORECAST_TIMES = (0.0, 3600.0, 7200.0, 10800.0)
 
@@ -445,3 +451,111 @@ class TestLoadElementConfigs:
         result = load_element_configs({}, FakeStateMachine({}), FORECAST_TIMES)
 
         assert result == {}
+
+
+class TestResolveListItems:
+    """Tests for _resolve_list_items."""
+
+    def test_constant_values_resolve(self) -> None:
+        """Constant values in list items are resolved to their unwrapped form."""
+        hints = ListFieldHints(
+            fields={"price": FieldHint(output_type=OutputType.PRICE, time_series=True)},
+        )
+        items: list[dict[str, Any]] = [
+            {"name": "rule1", "price": {"type": "constant", "value": 0.05}},
+        ]
+
+        result = _resolve_list_items(items, hints, FakeStateMachine({}), FORECAST_TIMES)
+
+        assert len(result) == 1
+        assert result[0]["name"] == "rule1"
+        assert isinstance(result[0]["price"], np.ndarray)
+        np.testing.assert_array_equal(result[0]["price"], [0.05, 0.05, 0.05])
+
+    def test_none_value_removes_field(self) -> None:
+        """None-typed values remove the field from the loaded item."""
+        hints = ListFieldHints(
+            fields={"price": FieldHint(output_type=OutputType.PRICE, time_series=True)},
+        )
+        items: list[dict[str, Any]] = [
+            {"name": "rule1", "price": {"type": "none"}},
+        ]
+
+        result = _resolve_list_items(items, hints, FakeStateMachine({}), FORECAST_TIMES)
+
+        assert "price" not in result[0]
+
+    def test_unavailable_entity_sets_none(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """When entity resolution returns None, the field is set to None."""
+
+        def fake_load_sensors(_sm: Any, entity_ids: Sequence[str]) -> dict[str, float]:
+            return {}
+
+        monkeypatch.setattr(cl, "load_sensors", fake_load_sensors)
+
+        hints = ListFieldHints(
+            fields={"price": FieldHint(output_type=OutputType.PRICE, time_series=True)},
+        )
+        items: list[dict[str, Any]] = [
+            {"name": "rule1", "price": {"type": "entity", "value": ["sensor.missing"]}},
+        ]
+
+        result = _resolve_list_items(items, hints, FakeStateMachine({}), FORECAST_TIMES)
+
+        assert result[0]["price"] is None
+
+    def test_non_mapping_items_pass_through(self) -> None:
+        """Non-mapping items are appended unchanged."""
+        hints = ListFieldHints(
+            fields={"price": FieldHint(output_type=OutputType.PRICE)},
+        )
+        items: list[Any] = ["not_a_dict", 42]
+
+        result = _resolve_list_items(items, hints, FakeStateMachine({}), FORECAST_TIMES)
+
+        assert result == ["not_a_dict", 42]
+
+    def test_missing_hinted_field_is_skipped(self) -> None:
+        """Items without the hinted field leave it absent."""
+        hints = ListFieldHints(
+            fields={"price": FieldHint(output_type=OutputType.PRICE)},
+        )
+        items: list[dict[str, Any]] = [{"name": "rule1"}]
+
+        result = _resolve_list_items(items, hints, FakeStateMachine({}), FORECAST_TIMES)
+
+        assert "price" not in result[0]
+        assert result[0]["name"] == "rule1"
+
+    def test_load_element_config_resolves_list_fields(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """List fields in element config are resolved through the list pipeline."""
+        hints = ListFieldHints(
+            fields={"price": FieldHint(output_type=OutputType.PRICE, time_series=True)},
+        )
+
+        monkeypatch.setattr(cl, "extract_list_field_hints", lambda _cls: {"rules": hints})
+
+        config: dict[str, Any] = {
+            "element_type": "grid",
+            "name": "Grid",
+            "common": {"connection": "node_a"},
+            "pricing": {
+                "price_source_target": {"type": "constant", "value": 0.30},
+                "price_target_source": {"type": "constant", "value": 0.05},
+            },
+            "power_limits": {
+                "max_power_source_target": {"type": "constant", "value": 10.0},
+                "max_power_target_source": {"type": "constant", "value": 10.0},
+            },
+            "rules": [{"name": "solar", "price": {"type": "constant", "value": 0.02}}],
+        }
+
+        result = cast(
+            "dict[str, Any]",
+            load_element_config("Grid", _as_schema(config), FakeStateMachine({}), FORECAST_TIMES),
+        )
+
+        assert "rules" in result
+        assert len(result["rules"]) == 1
+        assert isinstance(result["rules"][0]["price"], np.ndarray)
+        np.testing.assert_array_equal(result["rules"][0]["price"], [0.02, 0.02, 0.02])

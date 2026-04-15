@@ -117,6 +117,8 @@ def build_list_input_fields(
     result: dict[str, dict[str, InputFieldInfo[Any]]] = {}
 
     for i, item in enumerate(items):
+        if not isinstance(item, Mapping):  # type: ignore[reportUnnecessaryIsInstance]
+            continue
         section: dict[str, InputFieldInfo[Any]] = {}
         for field_name, hint in list_hints.fields.items():
             if field_name not in item:

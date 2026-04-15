@@ -61,8 +61,6 @@ class ListFieldHints:
     at runtime based on the actual config data.
 
     Attributes:
-        item_name_field: Key within each item used to derive entity names
-            (e.g. ``"name"`` for policy rules).
         fields: Mapping of field name to ``FieldHint`` for each item field
             that should become an input entity.
 
@@ -70,13 +68,11 @@ class ListFieldHints:
 
         class PolicyConfigSchema(TypedDict):
             rules: Annotated[list[PolicyRuleConfig], ListFieldHints(
-                item_name_field="name",
                 fields={"price": FieldHint(output_type=OutputType.PRICE, time_series=True)},
             )]
 
     """
 
-    item_name_field: str
     fields: dict[str, FieldHint]
 
 
