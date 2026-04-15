@@ -522,8 +522,10 @@ class HAPage:
 
         Assumes a choice with a multi-select DROPDOWN is already active.
         HA renders multi-select DROPDOWN as ``ha-generic-picker`` which opens
-        a "Select option" dialog when clicked. For each option after the first,
-        re-open the picker since HA may close the dialog after each selection.
+        a "Select option" dialog when clicked. HA closes the dialog after
+        each selection, so we re-open the picker for each option.
+
+        Screenshots per option: dialog open, option indicator, result chip.
         """
         choose = self.page.locator("ha-selector-choose").filter(has_text=field_label)
         choose.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
@@ -533,27 +535,28 @@ class HAPage:
 
         select_dialog = self.page.get_by_role("dialog", name="Select option")
 
-        def _select_option(option_text: str) -> None:
-            picker.click()
-            select_dialog.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
-            item = select_dialog.locator(f":text('{option_text}')").first
-            item.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
-            item.click()
-            self.page.wait_for_timeout(300)
-
         ctx = ScreenshotContext.current()
         if ctx:
             with ctx.scope(f"dropdown_{field_label}"):
-                self._scroll_and_capture(picker)
-                self._capture_with_indicator("picker", picker)
-
                 for option_text in options:
-                    _select_option(option_text)
-
-                self._capture("selected")
+                    with ctx.scope(option_text):
+                        picker.click()
+                        select_dialog.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
+                        item = select_dialog.locator(f":text('{option_text}')").first
+                        item.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
+                        self._capture("dialog")
+                        self._capture_with_indicator("select", item)
+                        item.click()
+                        self.page.wait_for_timeout(300)
+                        self._capture("selected")
         else:
             for option_text in options:
-                _select_option(option_text)
+                picker.click()
+                select_dialog.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
+                item = select_dialog.locator(f":text('{option_text}')").first
+                item.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
+                item.click()
+                self.page.wait_for_timeout(300)
 
     # endregion
 
