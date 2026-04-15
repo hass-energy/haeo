@@ -7,8 +7,8 @@ Connection creates LP variables for the power flow, then chains them through
 segments. Each segment may add constraints, costs, or transform the expression.
 
 When tags are provided, the flow is decomposed into per-tag LP variables that
-sum to the total power. This enables per-source cost differentiation via
-power policies. Without tags, the connection uses plain total flow variables.
+sum to the total power. Segments are tag-aware and handle per-tag transforms
+and costs internally.
 """
 
 from collections import OrderedDict
@@ -24,10 +24,7 @@ from custom_components.haeo.core.model.element import Element
 from custom_components.haeo.core.model.output_data import OutputData
 from custom_components.haeo.core.model.reactive import output
 
-from custom_components.haeo.core.model.util.broadcast_to_sequence import broadcast_to_sequence
-
 from .segments import Segment, SegmentSpec, create_segment
-from .segments.efficiency import EfficiencySegment
 
 type ConnectionElementTypeName = Literal["connection"]
 # Model element type for connection strings
@@ -74,7 +71,6 @@ class Connection[TOutputName: str](Element[TOutputName]):
         segments: dict[str, SegmentSpec] | None = None,
         output_names: frozenset[TOutputName] | None = None,
         tags: set[int] | None = None,
-        tag_costs: list[dict[str, Any]] | None = None,
     ) -> None:
         """Initialize a unidirectional connection."""
         actual_output_names: frozenset[Any] = output_names if output_names is not None else CONNECTION_OUTPUT_NAMES
@@ -100,7 +96,6 @@ class Connection[TOutputName: str](Element[TOutputName]):
         self._tags: set[int] = tags if tags else set()
         self._tag_power_in: dict[int, HighspyArray] = {}
         self._tag_power_out: dict[int, HighspyArray] = {}
-        self._tag_costs: list[dict[str, Any]] = tag_costs or []
 
     @property
     def segments(self) -> OrderedDict[str, Segment]:
@@ -126,39 +121,31 @@ class Connection[TOutputName: str](Element[TOutputName]):
 
     def _initialize_segments(self, source_element: Element[Any], target_element: Element[Any]) -> None:
         # Create per-tag LP variables when tags are present
+        tag_flows: dict[int, HighspyArray] = {}
         if self._tags:
             for tag in sorted(self._tags):
-                tag_vars = self._solver.addVariables(
-                    self.n_periods,
-                    lb=0,
-                    name_prefix=f"{self.name}_t{tag}_",
-                    out_array=True,
+                tag_flows[tag] = self._solver.addVariables(
+                    self.n_periods, lb=0, name_prefix=f"{self.name}_t{tag}_", out_array=True,
                 )
-                self._tag_power_in[tag] = tag_vars
 
             # Total power_in is the sum of all tag flows
             self._power_in = self._solver.addVariables(
-                self.n_periods,
-                lb=0,
-                name_prefix=f"{self.name}_",
-                out_array=True,
+                self.n_periods, lb=0, name_prefix=f"{self.name}_", out_array=True,
             )
             self._solver.addConstrs(
-                self._power_in == sum(self._tag_power_in.values())  # type: ignore[arg-type]
+                self._power_in == sum(tag_flows.values())  # type: ignore[arg-type]
             )
         else:
             # No tags: plain total flow variables
             self._power_in = self._solver.addVariables(
-                self.n_periods,
-                lb=0,
-                name_prefix=f"{self.name}_",
-                out_array=True,
+                self.n_periods, lb=0, name_prefix=f"{self.name}_", out_array=True,
             )
+
+        self._tag_power_in = dict(tag_flows)
 
         specs = list(self._segment_specs.items()) or [("passthrough", {"segment_type": "passthrough"})]
 
         flow = self._power_in
-        tag_flows = dict(self._tag_power_in)
         for seg_name, seg_spec in specs:
             seg = create_segment(
                 segment_id=f"{self.name}_{seg_name}",
@@ -169,34 +156,12 @@ class Connection[TOutputName: str](Element[TOutputName]):
                 source_element=source_element,
                 target_element=target_element,
                 power_in=flow,
+                tag_flows_in=tag_flows if tag_flows else None,
             )
             self._segments[seg_name] = seg
-
-            # Apply segment transform to per-tag flows
-            if tag_flows and seg.power_out is not seg.power_in:
-                # Transform segment (e.g., efficiency): create per-tag output variables
-
-                new_tag_flows: dict[int, HighspyArray] = {}
-                for tag in tag_flows:
-                    tag_out = self._solver.addVariables(
-                        self.n_periods,
-                        lb=0,
-                        name_prefix=f"{self.name}_{seg_name}_t{tag}_out_",
-                        out_array=True,
-                    )
-                    new_tag_flows[tag] = tag_out
-                # Sum of tag outputs must equal segment output
-                self._solver.addConstrs(
-                    seg.power_out == sum(new_tag_flows.values())  # type: ignore[arg-type]
-                )
-                # Apply efficiency factor to each tag proportionally
-                if isinstance(seg, EfficiencySegment) and seg.efficiency is not None:
-                    eff = seg.efficiency
-                    for tag, tag_flow in tag_flows.items():
-                        self._solver.addConstrs(new_tag_flows[tag] == tag_flow * eff)
-                tag_flows = new_tag_flows
-
             flow = seg.power_out
+            tag_flows = seg.tag_flows_out
+
         self._power_out = flow
         self._tag_power_out = tag_flows
 
@@ -255,17 +220,8 @@ class Connection[TOutputName: str](Element[TOutputName]):
         return result
 
     def cost(self) -> Any:  # type: ignore[override]
-        """Aggregate costs from all segments plus per-tag pricing."""
+        """Aggregate costs from all segments."""
         costs = [sc for seg in self._segments.values() if (sc := seg.cost()) is not None]
-
-        # Per-tag pricing from compile_policies
-        for tc in self._tag_costs:
-            tag = tc["tag"]
-            price = broadcast_to_sequence(tc.get("price"), self.n_periods)
-            if price is not None and tag in self._tag_power_in:
-                tag_flow = self._tag_power_in[tag]
-                costs.append(Highs.qsum(tag_flow * price * self.periods))
-
         if not costs:
             return None
         if len(costs) == 1:

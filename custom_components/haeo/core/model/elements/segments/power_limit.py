@@ -45,6 +45,7 @@ class PowerLimitSegment(Segment):
         source_element: Element[Any],
         target_element: Element[Any],
         power_in: HighspyArray,
+        tag_flows_in: dict[int, HighspyArray] | None = None,
     ) -> None:
         """Initialize power limit segment."""
         super().__init__(
@@ -55,6 +56,7 @@ class PowerLimitSegment(Segment):
             source_element=source_element,
             target_element=target_element,
             power_in=power_in,
+            tag_flows_in=tag_flows_in,
         )
         self._fixed = spec.get("fixed", False)
         self.max_power = broadcast_to_sequence(spec.get("max_power"), self._n_periods)

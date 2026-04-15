@@ -42,6 +42,7 @@ class Segment:
         source_element: Element[Any],
         target_element: Element[Any],
         power_in: HighspyArray,
+        tag_flows_in: dict[int, HighspyArray] | None = None,
     ) -> None:
         """Initialize segment with input power expression.
 
@@ -53,6 +54,7 @@ class Segment:
             source_element: Connected source element reference
             target_element: Connected target element reference
             power_in: Input power flow expression
+            tag_flows_in: Per-tag input power flows (empty dict if no tags)
 
         """
         self._segment_id = segment_id
@@ -62,6 +64,7 @@ class Segment:
         self._source_element = source_element
         self._target_element = target_element
         self._power_in = power_in
+        self._tag_flows_in: dict[int, HighspyArray] = tag_flows_in if tag_flows_in is not None else {}
 
     @property
     def segment_id(self) -> str:
@@ -92,6 +95,11 @@ class Segment:
     def power_out(self) -> HighspyArray:
         """Output power flow expression. Identity by default."""
         return self._power_in
+
+    @property
+    def tag_flows_out(self) -> dict[int, HighspyArray]:
+        """Per-tag output power flows. Passthrough by default."""
+        return self._tag_flows_in
 
     def constraints(self) -> dict[str, highs_cons | list[highs_cons]]:
         """Return all constraints from this segment."""

@@ -27,6 +27,7 @@ class PricingSegmentSpec(TypedDict):
     # Directional aliases — resolved by Connection, not used by segment directly
     price_source_target: NotRequired[NDArray[np.floating[Any]] | float | None]
     price_target_source: NotRequired[NDArray[np.floating[Any]] | float | None]
+    tag_costs: NotRequired[list[dict[str, Any]]]
 
 
 class PricingSegment(Segment):
@@ -45,6 +46,7 @@ class PricingSegment(Segment):
         source_element: Element[Any],
         target_element: Element[Any],
         power_in: HighspyArray,
+        tag_flows_in: dict[int, HighspyArray] | None = None,
     ) -> None:
         """Initialize pricing segment."""
         super().__init__(
@@ -55,8 +57,10 @@ class PricingSegment(Segment):
             source_element=source_element,
             target_element=target_element,
             power_in=power_in,
+            tag_flows_in=tag_flows_in,
         )
         self.price = broadcast_to_sequence(spec.get("price"), self._n_periods)
+        self._tag_costs: list[dict[str, Any]] = spec.get("tag_costs") or []
 
     @cost
     def transfer_cost(self) -> highs_linear_expression | None:
@@ -64,6 +68,22 @@ class PricingSegment(Segment):
         if self.price is None:
             return None
         return Highs.qsum(self._power_in * self.price * self.periods)
+
+    @cost
+    def tag_transfer_cost(self) -> highs_linear_expression | None:
+        """Per-tag surcharge cost."""
+        if not self._tag_costs or not self._tag_flows_in:
+            return None
+        costs: list[highs_linear_expression] = []
+        for tc in self._tag_costs:
+            tag = tc["tag"]
+            price = broadcast_to_sequence(tc.get("price"), self._n_periods)
+            if price is not None and tag in self._tag_flows_in:
+                tag_flow = self._tag_flows_in[tag]
+                costs.append(Highs.qsum(tag_flow * price * self.periods))
+        if not costs:
+            return None
+        return Highs.qsum(costs) if len(costs) > 1 else costs[0]
 
 
 __all__ = ["PricingSegment", "PricingSegmentSpec"]

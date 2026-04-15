@@ -44,6 +44,7 @@ class EfficiencySegment(Segment):
         source_element: Element[Any],
         target_element: Element[Any],
         power_in: HighspyArray,
+        tag_flows_in: dict[int, HighspyArray] | None = None,
     ) -> None:
         """Initialize efficiency segment."""
         super().__init__(
@@ -54,6 +55,7 @@ class EfficiencySegment(Segment):
             source_element=source_element,
             target_element=target_element,
             power_in=power_in,
+            tag_flows_in=tag_flows_in,
         )
         self.efficiency = broadcast_to_sequence(spec.get("efficiency"), self._n_periods)
 
@@ -63,6 +65,13 @@ class EfficiencySegment(Segment):
         if self.efficiency is None:
             return self._power_in
         return self._power_in * self.efficiency
+
+    @property
+    def tag_flows_out(self) -> dict[int, HighspyArray]:
+        """Per-tag output with efficiency applied to each tag flow."""
+        if self.efficiency is None or not self._tag_flows_in:
+            return self._tag_flows_in
+        return {tag: flow * self.efficiency for tag, flow in self._tag_flows_in.items()}
 
 
 __all__ = ["EfficiencySegment", "EfficiencySegmentSpec"]

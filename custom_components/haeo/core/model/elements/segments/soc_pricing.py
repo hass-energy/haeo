@@ -39,6 +39,7 @@ class SocPricingSegment(Segment):
         source_element: Element[Any],
         target_element: Element[Any],
         power_in: HighspyArray,
+        tag_flows_in: dict[int, HighspyArray] | None = None,
     ) -> None:
         """Initialize SOC pricing segment."""
         super().__init__(
@@ -49,6 +50,7 @@ class SocPricingSegment(Segment):
             source_element=source_element,
             target_element=target_element,
             power_in=power_in,
+            tag_flows_in=tag_flows_in,
         )
         self._battery = self._get_battery()
 

@@ -107,13 +107,16 @@ def _build_tagged_system(
             "source": "sw",
             "target": "grid",
             "tags": ALL_TAGS,
-            "tag_costs": [
-                {"tag": TAG_SOLAR, "price": 0.02},
-                {"tag": TAG_BATTERY, "price": 0.10},
-            ],
             "segments": {
                 "power_limit": {"segment_type": "power_limit", "max_power": np.full(n, 100.0)},
-                "pricing": {"segment_type": "pricing", "price": -grid_export_price},
+                "pricing": {
+                    "segment_type": "pricing",
+                    "price": -grid_export_price,
+                    "tag_costs": [
+                        {"tag": TAG_SOLAR, "price": 0.02},
+                        {"tag": TAG_BATTERY, "price": 0.10},
+                    ],
+                },
             },
         },
         # Solar -> Switchboard
@@ -134,11 +137,12 @@ def _build_tagged_system(
             "source": "battery",
             "target": "sw",
             "tags": ALL_TAGS,
-            "tag_costs": [
-                {"tag": TAG_BATTERY, "price": 0.01},
-            ],
             "segments": {
                 "power_limit": {"segment_type": "power_limit", "max_power": np.full(n, battery_max_power)},
+                "pricing": {
+                    "segment_type": "pricing",
+                    "tag_costs": [{"tag": TAG_BATTERY, "price": 0.01}],
+                },
             },
         },
         # Switchboard -> Battery (charge)
