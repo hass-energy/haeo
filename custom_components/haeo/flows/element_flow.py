@@ -190,7 +190,7 @@ class ElementFlowMixin:
             element_type_raw = subentry.data.get(CONF_ELEMENT_TYPE)
             try:
                 element_type = ElementType(element_type_raw)
-            except (ValueError, KeyError):
+            except (TypeError, ValueError):
                 continue
 
             connectivity = ELEMENT_TYPES[element_type].connectivity
