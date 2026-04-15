@@ -346,6 +346,62 @@ def test_cheaper_source_preferred() -> None:
     assert cost == pytest.approx(0.83, abs=0.01)
 
 
+def test_diamond_multi_path_all_branches_tagged() -> None:
+    """Redundant parallel paths: every edge on some source→sink route gets the VLAN."""
+    elements = [
+        _node("a", is_source=True),
+        _junction("b"),
+        _junction("c"),
+        _node("d", is_sink=True),
+        _conn("ab", "a", "b"),
+        _conn("ac", "a", "c"),
+        _conn("bd", "b", "d"),
+        _conn("cd", "c", "d"),
+    ]
+    policies = [{"sources": ["a"], "destinations": ["d"], "price_source_target": 0.04}]
+    result = compile_policies(elements, policies)
+    vlan = _outbound_tag(result, "a")
+    conns = {c["name"]: c for c in _connections(result)}
+    for name in ("ab", "ac", "bd", "cd"):
+        assert vlan in conns[name]["tags"]
+        assert isinstance(conns[name]["tags"], set)
+
+
+def test_duplicate_policies_merge_tag_costs() -> None:
+    """Identical policy rows should sum into one tag_cost per tag on a connection."""
+    elements = [_node("grid"), _node("load"), _conn("c1", "grid", "load")]
+    policies = [
+        {"sources": ["grid"], "destinations": ["load"], "price_source_target": 0.05},
+        {"sources": ["grid"], "destinations": ["load"], "price_source_target": 0.05},
+    ]
+    result = compile_policies(elements, policies)
+    conn = _find(result, "c1")
+    assert conn.get("tag_costs") is not None
+    assert len(conn["tag_costs"]) == 1
+    assert conn["tag_costs"][0]["price"] == pytest.approx(0.10)
+
+
+def test_price_target_source_on_connection_where_policy_dest_is_source_endpoint() -> None:
+    """price_target_source applies to power leaving the policy destination node on an incident edge."""
+    elements = [
+        _node("grid", is_source=True, is_sink=True),
+        _node("load", is_sink=True),
+        _conn("export", "load", "grid"),
+    ]
+    policies = [
+        {
+            "sources": ["load"],
+            "destinations": ["grid"],
+            "price_target_source": 0.07,
+        },
+    ]
+    result = compile_policies(elements, policies)
+    conn = _find(result, "export")
+    assert conn.get("tag_costs") is not None
+    assert len(conn["tag_costs"]) == 1
+    assert conn["tag_costs"][0]["price"] == pytest.approx(0.07)
+
+
 def test_no_policy_no_extra_cost() -> None:
     """Without policies, optimization behaves normally."""
     network = Network(name="test", periods=np.array([1.0]))

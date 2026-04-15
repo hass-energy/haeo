@@ -81,13 +81,11 @@ def compile_policies(
 
     # Build graph edges for reachability: node -> set of (neighbor, connection_name)
     graph: dict[str, set[tuple[str, str]]] = defaultdict(set)
-    conn_by_name: dict[str, dict[str, Any]] = {}
     for conn in connections:
         src, tgt = conn["source"], conn["target"]
         name = conn["name"]
         graph[src].add((tgt, name))
         graph[tgt].add((src, name))
-        conn_by_name[name] = conn
 
     # --- Step 1: Flow enumeration ---
     flows: list[tuple[str, str, Any, Any]] = []  # (source, dest, price_st, price_ts)
@@ -153,16 +151,16 @@ def compile_policies(
                 src, tgt = conn["source"], conn["target"]
                 for reverse_name in conn_pair_lookup.get((tgt, src), []):
                     vlan_connections[vlan_id].add(reverse_name)
-        conn["tags"] = sorted(tags)
+        conn["tags"] = tags
 
     # Second pass: pick up tags added by reverse-direction tagging above
     for conn in connections:
         conn_name = conn["name"]
-        tags = set(conn.get("tags", [DEFAULT_TAG]))
+        tags = set(conn.get("tags", {DEFAULT_TAG}))
         for vlan_id in active_vlans:
             if conn_name in vlan_connections.get(vlan_id, set()):
                 tags.add(vlan_id)
-        conn["tags"] = sorted(tags)
+        conn["tags"] = tags
 
     # --- Step 6: Node outbound tags (source provenance) ---
     for name, vlan_id in tag_map.items():
@@ -194,25 +192,27 @@ def compile_policies(
         # Collect unique source VLANs for this policy
         source_vlans = {tag_map[s] for s in sources if tag_map.get(s, DEFAULT_TAG) != DEFAULT_TAG}
 
+        nodes_for_pricing = set(destinations)
+        if price_ts is not None:
+            nodes_for_pricing |= set(sources)
+
         for source_vlan in source_vlans:
-            for dest_node in destinations:
-                if dest_node not in element_names:
+            for node_name in nodes_for_pricing:
+                if node_name not in element_names:
                     continue
-                dest_conns = conn_by_node.get(dest_node, [])
-                for conn in dest_conns:
-                    # Only add pricing if this connection has the VLAN
-                    if source_vlan not in conn.get("tags", []):
+                incident = conn_by_node.get(node_name, [])
+                for conn in incident:
+                    if source_vlan not in conn.get("tags", {DEFAULT_TAG}):
                         continue
 
-                    # Build tag cost entry — only on connections flowing toward destination
-                    tag_cost: dict[str, Any] = {"tag": source_vlan}
+                    if conn.get("target") == node_name and price_st is not None:
+                        conn.setdefault("tag_costs", []).append({"tag": source_vlan, "price": price_st})
 
-                    if conn.get("target") == dest_node and price_st is not None:
-                        tag_cost["price"] = price_st
+                    if conn.get("source") == node_name and price_ts is not None:
+                        conn.setdefault("tag_costs", []).append({"tag": source_vlan, "price": price_ts})
 
-                    if "price" in tag_cost:
-                        tag_costs = conn.setdefault("tag_costs", [])
-                        tag_costs.append(tag_cost)
+    for conn in connections:
+        _merge_tag_costs_on_connection(conn)
 
     return [*other, *connections]
 
@@ -224,34 +224,44 @@ def _resolve_wildcard(names: list[str], all_names: set[str]) -> list[str]:
     return [n for n in names if n in all_names]
 
 
+def _merge_tag_costs_on_connection(conn: dict[str, Any]) -> None:
+    """Sum duplicate tag_cost rows per tag so identical policies do not double-count."""
+    raw = conn.get("tag_costs")
+    if not raw:
+        return
+    merged_price: dict[int, Any] = {}
+    for tc in raw:
+        if "price" not in tc:
+            continue
+        tag = tc["tag"]
+        p = tc["price"]
+        merged_price[tag] = p if tag not in merged_price else merged_price[tag] + p
+    conn["tag_costs"] = [{"tag": t, "price": p} for t, p in sorted(merged_price.items())]
+
+
 def _find_reachable_connections(
     source_nodes: set[str],
     dest_nodes: set[str],
     graph: Mapping[str, set[tuple[str, str]]],
 ) -> set[str]:
-    """Find all connections on any path from source nodes to destination nodes.
+    """Find all connections that lie on any simple path from a source to a destination.
 
-    Uses BFS from each source node, collecting connections on paths to destinations.
-    For tree topologies (no cycles), each path is unique and optimal.
+    DFS explores all simple paths (no repeated nodes on a path) so redundant routes
+    and cycles do not omit edges that participate in some s→t route.
     """
     reachable_connections: set[str] = set()
 
+    def dfs(source: str, current: str, path_conns: list[str], visited_on_path: set[str]) -> None:
+        visited_on_path.add(current)
+        if current in dest_nodes and current != source:
+            reachable_connections.update(path_conns)
+        for neighbor, conn_name in graph.get(current, set()):
+            if neighbor in visited_on_path:
+                continue
+            dfs(source, neighbor, [*path_conns, conn_name], visited_on_path)
+        visited_on_path.remove(current)
+
     for source in source_nodes:
-        # BFS to find paths to all destinations
-        visited: set[str] = set()
-        queue: list[tuple[str, list[str]]] = [(source, [])]
-        visited.add(source)
-
-        while queue:
-            current, path_conns = queue.pop(0)
-
-            if current in dest_nodes and current != source:
-                # Found a destination — all connections on this path are reachable
-                reachable_connections.update(path_conns)
-
-            for neighbor, conn_name in graph.get(current, set()):
-                if neighbor not in visited:
-                    visited.add(neighbor)
-                    queue.append((neighbor, [*path_conns, conn_name]))
+        dfs(source, source, [], set())
 
     return reachable_connections

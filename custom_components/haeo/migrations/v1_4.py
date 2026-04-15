@@ -5,6 +5,7 @@ Migrates internal pricing from battery and solar elements to power policy subent
 Battery:
 - price_source_target (discharge wear) -> policy: Battery -> *: $X/kWh
 - price_target_source (charge incentive) -> policy: * -> Battery: $X/kWh
+- Legacy top-level discharge_cost / early_charge_incentive (pre-v1.3 layout) are migrated the same way
 
 Solar:
 - price_source_target (production cost) -> policy: Solar -> *: $X/kWh
@@ -19,6 +20,8 @@ from homeassistant.config_entries import ConfigEntry, ConfigSubentry
 from homeassistant.core import HomeAssistant
 
 from custom_components.haeo.const import DOMAIN
+from custom_components.haeo.core.schema.elements.policy import CONF_RULES
+from custom_components.haeo.core.schema.sections import CONF_PRICE_SOURCE_TARGET, CONF_PRICE_TARGET_SOURCE
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -27,67 +30,111 @@ MINOR_VERSION = 4
 # Element types that have pricing to migrate
 _BATTERY_TYPE = "battery"
 _SOLAR_TYPE = "solar"
-_POLICY_TYPE = "policy"  # The element type for policies in the schema
+_POLICY_TYPE = "policy"
+
+# Pre-sectioned battery configs (v1.2 and earlier) stored these at the top level;
+# v1.3 maps them into pricing, but entries that never ran element migration may still
+# have only these keys.
+_LEGACY_BATTERY_DISCHARGE_COST = "discharge_cost"
+_LEGACY_BATTERY_CHARGE_INCENTIVE = "early_charge_incentive"
+
+_NONE_VALUE: dict[str, str] = {"type": "none"}
+
+
+def _coalesce_pricing_field(primary: Any, fallback: Any) -> Any | None:
+    """Return the first usable price value (skip missing and explicit none)."""
+    for candidate in (primary, fallback):
+        if candidate is None:
+            continue
+        if candidate == _NONE_VALUE:
+            continue
+        return candidate
+    return None
+
+
+def _policy_subentry(*, name: str, rules: list[dict[str, Any]]) -> dict[str, Any]:
+    """Build stored policy subentry data matching PolicyConfigSchema."""
+    return {
+        "element_type": _POLICY_TYPE,
+        "name": name,
+        CONF_RULES: rules,
+    }
 
 
 def _extract_pricing_policies(subentry: ConfigSubentry) -> list[dict[str, Any]]:
-    """Extract policy configs from an element's pricing section.
-
-    Returns a list of policy config dicts to create as new subentries.
-    """
+    """Extract policy subentry dicts from an element's pricing section."""
     data = dict(subentry.data)
     element_type = data.get("element_type")
     element_name = data.get("name", subentry.title)
     pricing = data.get("pricing", {})
+    if not isinstance(pricing, dict):
+        pricing = {}
     policies: list[dict[str, Any]] = []
 
     if element_type == _BATTERY_TYPE:
-        # Battery discharge cost -> Battery -> *
-        price_st = pricing.get("price_source_target")
-        if price_st is not None and price_st != {"type": "none"}:
+        discharge_price = _coalesce_pricing_field(
+            pricing.get(CONF_PRICE_SOURCE_TARGET),
+            data.get(_LEGACY_BATTERY_DISCHARGE_COST),
+        )
+        if discharge_price is not None:
             policies.append(
-                {
-                    "element_type": _POLICY_TYPE,
-                    "name": f"{element_name} Discharge Cost",
-                    "endpoints": {"sources": [element_name], "destinations": ["*"]},
-                    "tag_pricing": {"price_source_target": price_st},
-                }
+                _policy_subentry(
+                    name=f"{element_name} Discharge Cost",
+                    rules=[
+                        {
+                            "name": "Discharge",
+                            "source": [element_name],
+                            "price": discharge_price,
+                        },
+                    ],
+                ),
             )
 
-        # Battery charge incentive -> * -> Battery
-        price_ts = pricing.get("price_target_source")
-        if price_ts is not None and price_ts != {"type": "none"}:
+        charge_price = _coalesce_pricing_field(
+            pricing.get(CONF_PRICE_TARGET_SOURCE),
+            data.get(_LEGACY_BATTERY_CHARGE_INCENTIVE),
+        )
+        if charge_price is not None:
             policies.append(
-                {
-                    "element_type": _POLICY_TYPE,
-                    "name": f"{element_name} Charge Incentive",
-                    "endpoints": {"sources": ["*"], "destinations": [element_name]},
-                    "tag_pricing": {"price_source_target": price_ts},
-                }
+                _policy_subentry(
+                    name=f"{element_name} Charge Incentive",
+                    rules=[
+                        {
+                            "name": "Charge",
+                            "target": [element_name],
+                            "price": charge_price,
+                        },
+                    ],
+                ),
             )
 
     elif element_type == _SOLAR_TYPE:
-        # Solar production cost -> Solar -> *
-        price_st = pricing.get("price_source_target")
-        if price_st is not None and price_st != {"type": "none"}:
+        price_st = _coalesce_pricing_field(pricing.get(CONF_PRICE_SOURCE_TARGET), None)
+        if price_st is not None:
             policies.append(
-                {
-                    "element_type": _POLICY_TYPE,
-                    "name": f"{element_name} Production Cost",
-                    "endpoints": {"sources": [element_name], "destinations": ["*"]},
-                    "tag_pricing": {"price_source_target": price_st},
-                }
+                _policy_subentry(
+                    name=f"{element_name} Production Cost",
+                    rules=[
+                        {
+                            "name": "Production",
+                            "source": [element_name],
+                            "price": price_st,
+                        },
+                    ],
+                ),
             )
 
     return policies
 
 
 def _strip_pricing_from_battery(data: dict[str, Any]) -> dict[str, Any]:
-    """Remove price_source_target and price_target_source from battery config."""
-    pricing = dict(data.get("pricing", {}))
-    pricing.pop("price_source_target", None)
-    pricing.pop("price_target_source", None)
+    """Remove migrated battery pricing from the pricing section and legacy top-level keys."""
+    pricing = dict(data.get("pricing", {})) if isinstance(data.get("pricing"), dict) else {}
+    pricing.pop(CONF_PRICE_SOURCE_TARGET, None)
+    pricing.pop(CONF_PRICE_TARGET_SOURCE, None)
     data["pricing"] = pricing
+    data.pop(_LEGACY_BATTERY_DISCHARGE_COST, None)
+    data.pop(_LEGACY_BATTERY_CHARGE_INCENTIVE, None)
     return data
 
 
@@ -112,7 +159,6 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         MINOR_VERSION,
     )
 
-    # Collect policy configs from existing subentries
     new_policies: list[dict[str, Any]] = []
     subentries_to_update: list[tuple[ConfigSubentry, dict[str, Any]]] = []
 
@@ -130,11 +176,9 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             new_policies.extend(policies)
             subentries_to_update.append((subentry, _strip_pricing_from_solar(data)))
 
-    # Update existing subentries (strip pricing)
     for subentry, new_data in subentries_to_update:
         hass.config_entries.async_update_subentry(entry, subentry, data=new_data)
 
-    # Create new policy subentries
     for policy_config in new_policies:
         from types import MappingProxyType  # noqa: PLC0415
 
@@ -147,7 +191,6 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         hass.config_entries.async_add_subentry(entry, subentry)
         _LOGGER.info("Created policy subentry: %s", policy_config["name"])
 
-    # Update entry version
     hass.config_entries.async_update_entry(
         entry,
         minor_version=MINOR_VERSION,
