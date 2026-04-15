@@ -2,7 +2,7 @@
 
 from typing import Any, Final, Literal, NotRequired, TypedDict
 
-from highspy import Highs
+from highspy import Highs, kHighsInf
 from highspy.highs import HighspyArray, highs_linear_expression
 import numpy as np
 from numpy.typing import NDArray
@@ -64,6 +64,8 @@ class BatteryElementConfig(TypedDict):
     capacity: NDArray[np.floating[Any]] | float
     initial_charge: float
     salvage_value: NotRequired[float]
+    source_tag: NotRequired[int | None]
+    access_list: NotRequired[list[int] | None]
 
 
 class Battery(Element[BatteryOutputName]):
@@ -87,19 +89,18 @@ class Battery(Element[BatteryOutputName]):
         capacity: NDArray[np.floating[Any]] | float,
         initial_charge: float,
         salvage_value: float = 0.0,
+        source_tag: int | None = None,
+        access_list: list[int] | None = None,
     ) -> None:
-        """Initialize a battery entity.
-
-        Args:
-            name: Name of the battery
-            periods: Array of time period durations in hours
-            solver: The HiGHS solver instance for creating variables and constraints
-            capacity: Battery capacity in kWh per period (T+1 values for energy boundaries)
-            initial_charge: Initial charge in kWh
-            salvage_value: Terminal value applied to stored energy in $/kWh
-
-        """
-        super().__init__(name=name, periods=periods, solver=solver, output_names=BATTERY_OUTPUT_NAMES)
+        """Initialize a battery entity."""
+        super().__init__(
+            name=name,
+            periods=periods,
+            solver=solver,
+            output_names=BATTERY_OUTPUT_NAMES,
+            source_tag=source_tag,
+            access_list=access_list,
+        )
         n_periods = self.n_periods
 
         # Set tracked parameters (broadcasts capacity to n_periods + 1)
@@ -174,13 +175,21 @@ class Battery(Element[BatteryOutputName]):
         """
         return list(self.stored_energy[1:] >= 0)
 
+    def element_power(self) -> HighspyArray:
+        """Return net power injected by the battery (discharge - charge)."""
+        return self.power_production - self.power_consumption
+
+    def element_power_bounds(self) -> tuple[float, float]:
+        """Battery can both charge (absorb) and discharge (inject)."""
+        return (-kHighsInf, kHighsInf)
+
     @constraint(output=True, unit="$/kW")
     def battery_power_balance(self) -> list[highs_linear_expression]:
-        """Constraint: connection_power equals net battery power.
+        """Constraint: connection_power + element_power == 0.
 
         Output: shadow price indicating the marginal value of power balance constraint.
         """
-        return list(self.connection_power() == self.power_consumption - self.power_production)
+        return list(self.connection_power() + self.element_power() == 0)
 
     @cost
     def battery_salvage_value(self) -> highs_linear_expression:

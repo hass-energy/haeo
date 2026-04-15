@@ -2,8 +2,8 @@
 
 from typing import Any, Final, Literal, NotRequired, TypedDict
 
-from highspy import Highs
-from highspy.highs import highs_linear_expression
+from highspy import Highs, kHighsInf
+from highspy.highs import HighspyArray, highs_linear_expression
 import numpy as np
 from numpy.typing import NDArray
 
@@ -29,19 +29,23 @@ class NodeElementConfig(TypedDict):
     name: str
     is_source: NotRequired[bool]
     is_sink: NotRequired[bool]
+    source_tag: NotRequired[int | None]
+    access_list: NotRequired[list[int] | None]
 
 
 class Node(Element[NodeOutputName]):
     """Node entity for electrical system modeling.
 
-    Node acts as an infinite source and/or sink. Power limits and pricing are configured
-    on the Connection to/from the node.
+    Node acts as an infinite source and/or sink. Power limits and pricing are
+    configured on the Connection to/from the node.
 
-    Behavior is controlled by is_source and is_sink flags:
-    - is_source=True, is_sink=True: Can both produce and consume (Grid)
-    - is_source=False, is_sink=True: Can only consume (Load)
-    - is_source=True, is_sink=False: Can only produce (Solar)
-    - is_source=False, is_sink=False: Pure junction with no generation/consumption (Node)
+    The node's ``element_power()`` returns an LP variable whose bounds encode
+    the source/sink behavior:
+
+    - source+sink: ``None`` (unconstrained — no total balance needed)
+    - source only: variable ≥ 0 (can only produce)
+    - sink only: variable ≤ 0 (can only consume)
+    - junction: zeros (no external power)
     """
 
     def __init__(
@@ -52,42 +56,49 @@ class Node(Element[NodeOutputName]):
         solver: Highs,
         is_source: bool = True,
         is_sink: bool = True,
+        source_tag: int | None = None,
+        access_list: list[int] | None = None,
     ) -> None:
-        """Initialize a node entity.
-
-        Args:
-            name: Name of the node
-            periods: Array of time period durations in hours
-            solver: The HiGHS solver instance for creating variables and constraints
-            is_source: Whether this element can produce power (source behavior)
-            is_sink: Whether this element can consume power (sink behavior)
-
-        """
-        super().__init__(name=name, periods=periods, solver=solver, output_names=NODE_OUTPUT_NAMES)
-
-        # Store if we are a source and/or sink
+        """Initialize a node entity."""
+        super().__init__(
+            name=name,
+            periods=periods,
+            solver=solver,
+            output_names=NODE_OUTPUT_NAMES,
+            source_tag=source_tag,
+            access_list=access_list,
+        )
         self.is_source = is_source
         self.is_sink = is_sink
 
+        n = self.n_periods
+        if is_source and is_sink:
+            self._external_power: HighspyArray | NDArray[Any] | None = None
+        elif is_source:
+            self._external_power = solver.addVariables(
+                n, lb=0, name_prefix=f"{name}_ep_", out_array=True,
+            )
+        elif is_sink:
+            self._external_power = solver.addVariables(
+                n, lb=-kHighsInf, ub=0, name_prefix=f"{name}_ep_", out_array=True,
+            )
+        else:
+            self._external_power = np.zeros(n, dtype=object)
+
+    def element_power(self) -> HighspyArray | NDArray[Any] | None:
+        """Return this node's external power injection."""
+        return self._external_power
+
+    def element_power_bounds(self) -> tuple[float, float]:
+        """Return conceptual bounds: source can produce, sink can consume."""
+        lb = -kHighsInf if self.is_sink else 0.0
+        ub = kHighsInf if self.is_source else 0.0
+        return (lb, ub)
+
     @constraint(output=True, unit="$/kW")
     def node_power_balance(self) -> list[highs_linear_expression] | None:
-        """Bound the connection power based on source/sink behavior.
-
-        Output: shadow price indicating the marginal cost/value of power at this node.
-        """
-        # We don't need power variables explicitly defined here, a source is a lack of upper bound on power out,
-        # and a sink is a lack of upper bound on power in. We just need to enforce power balance with connection power.
-
-        conn_power = self.connection_power()
-
-        if not self.is_source and not self.is_sink:
-            # Power balance is that connection power must be zero
-            return list(conn_power == 0)
-        if self.is_source and not self.is_sink:
-            # Only produce power therefore connection power can be less than or equal to zero
-            return list(conn_power <= 0)
-        if not self.is_source and self.is_sink:
-            # Only consume power therefore connection power can be >= 0
-            return list(conn_power >= 0)
-        # Can both produce and consume power so there are no bounds
-        return None
+        """Total power balance: connection_power + element_power == 0."""
+        ep = self.element_power()
+        if ep is None:
+            return None
+        return list(self.connection_power() + ep == 0)
