@@ -49,39 +49,37 @@ See [Connection tag decomposition](model-layer/connections/connection.md#tag-dec
 
 ### Per-tag balance
 
-The Element base class creates per-tag power balance constraints at each element.
+The `NetworkElement` base class creates per-tag power balance constraints at each element.
+Production and consumption are each decomposed into per-tag variables with sum constraints:
+
+$$
+\sum_{k \in \text{outbound}} P_k(t) = P_{\text{produced}}(t), \quad
+\sum_{k \in \text{inbound}} C_k(t) = P_{\text{consumed}}(t)
+$$
+
 For each tag $k$ present on connected connections:
 
-**If $k$ is in `outbound_tags`**:
+**If $k$ is in `outbound_tags` or `inbound_tags`**:
 
 $$
-P_{\text{conn},k}(t) + P_{\text{produced}}(t) - C_k(t) = 0
+P_{\text{conn},k}(t) + P_k(t) - C_k(t) = 0
 $$
 
-Production appears on outbound tags, plus any consumption routed from this tag.
+Where $P_k(t)$ is the per-tag production variable (zero if $k \notin$ `outbound_tags`)
+and $C_k(t)$ is the per-tag consumption variable (zero if $k \notin$ `inbound_tags`).
 
-**If $k$ is in `inbound_tags`** (but not in `outbound_tags`):
+**If $k$ is in neither set (blocked)**:
 
-$$
-P_{\text{conn},k}(t) - C_k(t) = 0
-$$
-
-Only consumption can be routed from inbound tags.
-
-**If $k$ is in neither set**:
+Each connection's per-tag flow at this element is individually forced to zero:
 
 $$
-P_{\text{conn},k}(t) = 0
+P_{\text{conn},k,i}(t) = 0 \quad \forall i \in \text{connections}
 $$
 
-No power on this tag can enter or leave the element.
+This prevents pass-through of blocked tags even across multiple connections.
 
-Where $C_k(t) \geq 0$ are per-tag consumption variables.
-A sum constraint ensures all consumption is accounted for:
-
-$$
-\sum_{k \in \text{allowed}} C_k(t) = P_{\text{consumed}}(t)
-$$
+If an element has production but no outbound tags overlap with connection tags,
+production is forced to zero. Likewise for consumption with no inbound overlap.
 
 ### Tag costs on connections
 

@@ -272,6 +272,9 @@ class NetworkElement[OutputNameT: str](Element[OutputNameT]):
         # Lazily-created per-tag consumption decomposition variables
         self._consumed_by_tag: dict[int, HighspyArray] | None = None
 
+        # Lazily-created per-tag production decomposition variables
+        self._produced_by_tag: dict[int, HighspyArray] | None = None
+
     def register_connection(self, connection: Any, end: Literal["source", "target"]) -> None:
         """Register a connection to this element.
 
@@ -365,13 +368,26 @@ class NetworkElement[OutputNameT: str](Element[OutputNameT]):
                 )
         return self._consumed_by_tag
 
+    def _get_produced_by_tag(self, outbound: set[int]) -> dict[int, HighspyArray]:
+        """Return per-tag production variables, creating them once on first call."""
+        if self._produced_by_tag is None:
+            self._produced_by_tag = {}
+            for tag in sorted(outbound):
+                self._produced_by_tag[tag] = self._solver.addVariables(
+                    self.n_periods,
+                    lb=0,
+                    name_prefix=f"{self.name}_pt{tag}_",
+                    out_array=True,
+                )
+        return self._produced_by_tag
+
     @constraint(output=True, unit="$/kW")
     def element_power_balance(self) -> list[highs_linear_expression] | None:
         """Per-tag power balance: for each tag, connection + produced - consumed == 0.
 
-        Production appears only on ``outbound_tags``.
-        Consumption draws only from ``inbound_tags``.
-        Tags outside both sets are blocked (connection flow == 0).
+        Production is decomposed across ``outbound_tags`` via per-tag variables.
+        Consumption is decomposed across ``inbound_tags`` via per-tag variables.
+        Tags outside both sets are blocked (each connection's per-tag flow == 0).
 
         Output: shadow price indicating the marginal value of power at this element.
         Skipped when there are no connections and no external power.
@@ -393,24 +409,48 @@ class NetworkElement[OutputNameT: str](Element[OutputNameT]):
         outbound = set(tags) if self.outbound_tags is None else (self.outbound_tags & tags)
         inbound = set(tags) if self.inbound_tags is None else (self.inbound_tags & tags)
 
-        # Get or create per-tag consumption variables
+        has_production = not (isinstance(produced, (int, float)) and produced == 0)
         has_consumption = not (isinstance(consumed, (int, float)) and consumed == 0)
-        consumed_by_tag: dict[int, HighspyArray] = {}
-        if has_consumption:
-            consumed_by_tag = self._get_consumed_by_tag(inbound)
 
-        # Per-tag power balance
         constraints: list[highs_linear_expression] = []
 
-        # Sum constraint: consumed_by_tag values must equal total consumed
-        if consumed_by_tag:
-            constraints.extend(list(reduce(operator.add, consumed_by_tag.values()) == consumed))
+        # Decompose production across outbound tags
+        produced_by_tag: dict[int, HighspyArray] = {}
+        if has_production:
+            if outbound:
+                produced_by_tag = self._get_produced_by_tag(outbound)
+                constraints.extend(list(reduce(operator.add, produced_by_tag.values()) == produced))
+            else:
+                # Element produces but no outbound tags available — force production to 0
+                constraints.extend(list(produced == 0))  # type: ignore[arg-type]  # HighspyArray __eq__ returns iterable
 
+        # Decompose consumption across inbound tags
+        consumed_by_tag: dict[int, HighspyArray] = {}
+        if has_consumption:
+            if inbound:
+                consumed_by_tag = self._get_consumed_by_tag(inbound)
+                constraints.extend(list(reduce(operator.add, consumed_by_tag.values()) == consumed))
+            else:
+                # Element consumes but no inbound tags available — force consumption to 0
+                constraints.extend(list(consumed == 0))  # type: ignore[arg-type]  # HighspyArray __eq__ returns iterable
+
+        # Per-tag power balance
         for tag in sorted(tags):
-            conn_tag = self.connection_power_for_tag(tag)
-            tag_prod = produced if tag in outbound else 0
+            tag_prod = produced_by_tag.get(tag, 0)
             tag_cons = consumed_by_tag.get(tag, 0)
-            constraints.extend(list(conn_tag + tag_prod - tag_cons == 0))
+            if tag in outbound or tag in inbound:
+                # Allowed tag: balance connection flow with production/consumption
+                conn_tag = self.connection_power_for_tag(tag)
+                constraints.extend(list(conn_tag + tag_prod - tag_cons == 0))
+            else:
+                # Blocked tag: force each connection's per-tag flow to 0 individually
+                for conn, end in self._connections:
+                    if tag not in conn.connection_tags():
+                        continue
+                    if end == "source":
+                        constraints.extend(list(conn.power_into_source_for_tag(tag) == 0))
+                    elif end == "target":
+                        constraints.extend(list(conn.power_into_target_for_tag(tag) == 0))
 
         return constraints if constraints else None
 

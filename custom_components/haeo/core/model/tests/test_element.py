@@ -1,8 +1,11 @@
 """Tests to improve coverage for element.py edge cases."""
 
+from functools import reduce
+import operator
 from unittest.mock import Mock
 
-from highspy import Highs
+from highspy import Highs, HighsModelStatus
+from highspy.highs import HighspyArray
 import numpy as np
 import pytest
 
@@ -146,3 +149,149 @@ def test_element_default_outputs(solver: Highs) -> None:
 
     element = MinimalElement("test", np.array([1.0]), solver=solver, output_names=frozenset())
     assert element.outputs() == {}
+
+
+# ---------------------------------------------------------------------------
+# Helpers for tagged power balance tests
+# ---------------------------------------------------------------------------
+
+
+def _make_mock_connection(
+    solver: Highs,
+    n_periods: int,
+    tags: set[int],
+    name: str,
+) -> Mock:
+    """Create a mock connection with per-tag LP variables."""
+    mock = Mock(spec=Connection)
+    mock.connection_tags.return_value = tags
+
+    power_in: dict[int, HighspyArray] = {}
+    power_out: dict[int, HighspyArray] = {}
+    for tag in tags:
+        p_in = solver.addVariables(n_periods, lb=0, ub=100, name_prefix=f"{name}_pin{tag}_", out_array=True)
+        p_out = solver.addVariables(n_periods, lb=0, ub=100, name_prefix=f"{name}_pout{tag}_", out_array=True)
+        power_in[tag] = p_in
+        power_out[tag] = p_out
+        # Efficiency 1:1 for simplicity
+        solver.addConstrs(p_out == p_in)
+
+    mock.power_into_source_for_tag = Mock(side_effect=lambda t: -power_in[t])
+    mock.power_into_target_for_tag = Mock(side_effect=lambda t: power_out[t])
+    mock.power_into_source = -reduce(operator.add, power_in.values())
+    mock.power_into_target = reduce(operator.add, power_out.values())
+
+    return mock
+
+
+# ---------------------------------------------------------------------------
+# #66 - Production duplication on multi-tag outbound
+# ---------------------------------------------------------------------------
+
+
+def test_multi_tag_outbound_does_not_duplicate_production(solver: Highs) -> None:
+    """Production should be decomposed across outbound tags, not duplicated.
+
+    When a source element has outbound_tags={1, 2} and produces 10 kW,
+    the total production across all tags must sum to 10 kW, not 10 kW per tag.
+    """
+    n = 1
+    # Source node with multi-tag outbound, no consumption
+    node = Node(
+        name="src",
+        periods=np.array([1.0] * n),
+        solver=solver,
+        is_source=True,
+        is_sink=False,
+        outbound_tags={1, 2},
+    )
+
+    # Two connections, one per tag
+    conn1 = _make_mock_connection(solver, n, {1}, "c1")
+    conn2 = _make_mock_connection(solver, n, {2}, "c2")
+    node.register_connection(conn1, "source")
+    node.register_connection(conn2, "source")
+
+    # Apply constraints and optimize: minimize production cost
+    node.constraints()
+    # Force total outflow = 10 kW via connections
+    solver.addConstr(-conn1.power_into_source_for_tag(1)[0] + (-conn2.power_into_source_for_tag(2)[0]) == 10)
+    solver.minimize(node._produced[0])
+    assert solver.val(node._produced[0]) == pytest.approx(10.0, abs=0.01)
+
+
+# ---------------------------------------------------------------------------
+# #63 - Empty inbound leaves consumption unconstrained
+# ---------------------------------------------------------------------------
+
+
+def test_empty_inbound_forces_consumption_to_zero(solver: Highs) -> None:
+    """When inbound_tags has no overlap with connection tags, consumption must be zero.
+
+    If a sink element has inbound_tags={99} but all connections carry tag {1},
+    the element cannot consume any power. Even when the optimizer has incentive
+    to consume (negative cost), consumption should be constrained to 0 and the
+    model should remain feasible (not unbounded).
+    """
+    n = 1
+    # Sink node that can only consume tag 99
+    node = Node(
+        name="sink",
+        periods=np.array([1.0] * n),
+        solver=solver,
+        is_source=False,
+        is_sink=True,
+        inbound_tags={99},
+    )
+
+    # Connection carries tag 1 (no overlap with inbound_tags={99})
+    conn = _make_mock_connection(solver, n, {1}, "c1")
+    node.register_connection(conn, "target")
+
+    node.constraints()
+    # Give incentive to consume: minimize -consumed (i.e. maximize consumption)
+    # If consumption is properly constrained, it should be 0 and model should be optimal
+    solver.minimize(-node._consumed[0])
+    status = solver.getModelStatus()
+    assert status == HighsModelStatus.kOptimal, f"Expected Optimal but got {solver.modelStatusToString(status)}"
+    assert solver.val(node._consumed[0]) == pytest.approx(0.0, abs=0.01)
+
+
+# ---------------------------------------------------------------------------
+# #61 - Per-connection tag blocking (not just net-zero)
+# ---------------------------------------------------------------------------
+
+
+def test_blocked_tag_forces_per_connection_flow_to_zero(solver: Highs) -> None:
+    """Tags outside outbound/inbound must have zero flow per-connection, not just net-zero.
+
+    If a node has outbound_tags={1} and inbound_tags={1}, tag 2 should be
+    fully blocked — no flow on any connection for tag 2, not just net zero.
+    """
+    n = 1
+    # Node that only allows tag 1
+    node = Node(
+        name="hub",
+        periods=np.array([1.0] * n),
+        solver=solver,
+        is_source=True,
+        is_sink=True,
+        outbound_tags={1},
+        inbound_tags={1},
+    )
+
+    # Two connections, both carry tags {1, 2}
+    conn_in = _make_mock_connection(solver, n, {1, 2}, "cin")
+    conn_out = _make_mock_connection(solver, n, {1, 2}, "cout")
+    node.register_connection(conn_in, "target")
+    node.register_connection(conn_out, "source")
+
+    node.constraints()
+
+    # Try to push tag-2 power through: conn_in feeds 5 kW tag-2 in,
+    # conn_out sends 5 kW tag-2 out. Net zero at node, but should be blocked.
+    # We maximize tag-2 inflow on conn_in; if blocking works, it should be 0.
+    tag2_in = conn_in.power_into_target_for_tag(2)
+    solver.minimize(-tag2_in[0])
+
+    assert solver.val(tag2_in[0]) == pytest.approx(0.0, abs=0.01)
