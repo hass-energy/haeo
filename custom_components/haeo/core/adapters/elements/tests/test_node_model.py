@@ -63,6 +63,12 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
             }
         },
     },
+    {
+        "description": "Unconstrained node without power balance",
+        "name": "node_main",
+        "model_outputs": {"node_main": {}},
+        "outputs": {NODE_DEVICE_NODE: {}},
+    },
 ]
 
 

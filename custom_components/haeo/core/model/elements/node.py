@@ -71,18 +71,18 @@ class Node(NetworkElement[NodeOutputName]):
         self._produced = (
             solver.addVariables(n, lb=0, name_prefix=f"{name}_prod_", out_array=True)
             if is_source
-            else solver.addVariables(n, lb=0, ub=0, name_prefix=f"{name}_prod_", out_array=True)
+            else None
         )
         self._consumed = (
             solver.addVariables(n, lb=0, name_prefix=f"{name}_cons_", out_array=True)
             if is_sink
-            else solver.addVariables(n, lb=0, ub=0, name_prefix=f"{name}_cons_", out_array=True)
+            else None
         )
 
-    def element_power_produced(self) -> HighspyArray:
-        """Return production: bounded [0, inf] for sources, fixed at 0 otherwise."""
+    def element_power_produced(self) -> HighspyArray | None:
+        """Return production: bounded [0, inf] for sources, None otherwise."""
         return self._produced
 
-    def element_power_consumed(self) -> HighspyArray:
-        """Return consumption: bounded [0, inf] for sinks, fixed at 0 otherwise."""
+    def element_power_consumed(self) -> HighspyArray | None:
+        """Return consumption: bounded [0, inf] for sinks, None otherwise."""
         return self._consumed

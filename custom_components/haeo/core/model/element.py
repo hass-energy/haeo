@@ -119,9 +119,7 @@ class Element[OutputNameT: str]:
         """Return the number of optimization periods."""
         return len(self.periods)
 
-    def extract_values(
-        self, sequence: Sequence[Any] | HighspyArray | NDArray[Any] | highs_cons | None
-    ) -> tuple[float, ...]:
+    def extract_values(self, sequence: Sequence[Any] | HighspyArray | NDArray[Any] | None) -> tuple[float, ...]:
         """Convert a sequence of HiGHS types to resolved values."""
         if sequence is None:
             return ()
@@ -129,13 +127,7 @@ class Element[OutputNameT: str]:
         # Convert to numpy array for batch processing
         arr = np.asarray(sequence, dtype=object)
 
-        # Check first item to determine type and use batch methods
-        first_item = arr.flat[0]
-        if isinstance(first_item, highs_cons):
-            # Use batch constraint dual extraction
-            return tuple(self._solver.constrDuals(arr).flat)
-
-        # Default: use batch value extraction (handles highs_var and highs_linear_expression)
+        # Use batch value extraction (handles highs_var and highs_linear_expression)
         return tuple(self._solver.vals(arr).flat)
 
     def outputs(self) -> Mapping[OutputNameT, OutputData]:
@@ -214,18 +206,12 @@ class Element[OutputNameT: str]:
             # Call the cost method - this establishes dependency tracking
             method = getattr(self, name)
             if (cost_value := method()) is not None:
-                if isinstance(cost_value, list):
-                    costs.extend(cost_value)
-                else:
-                    costs.append(cost_value)
+                costs.append(cost_value)
 
         # Aggregate costs into a single expression
         if not costs:
             return None
-        if len(costs) == 1:
-            return costs[0]
-        # Sum all cost expressions
-        return sum(costs[1:], costs[0])
+        return reduce(operator.add, costs)
 
 
 class NetworkElement[OutputNameT: str](Element[OutputNameT]):
@@ -287,23 +273,23 @@ class NetworkElement[OutputNameT: str](Element[OutputNameT]):
 
     # --- Element power protocol ---
 
-    def element_power_produced(self) -> HighspyArray | NDArray[Any] | int:
+    def element_power_produced(self) -> HighspyArray | NDArray[Any] | None:
         """Return this element's power production expression.
 
         Positive values represent power injected into the network.
         Production is placed on ``outbound_tags``.
-        Override in subclasses.  Default returns 0.
+        Override in subclasses.  Default returns None (no production).
         """
-        return 0
+        return None
 
-    def element_power_consumed(self) -> HighspyArray | NDArray[Any] | int:
+    def element_power_consumed(self) -> HighspyArray | NDArray[Any] | None:
         """Return this element's power consumption expression.
 
         Positive values represent power absorbed from the network.
         Consumption draws from ``inbound_tags``.
-        Override in subclasses.  Default returns 0.
+        Override in subclasses.  Default returns None (no consumption).
         """
-        return 0
+        return None
 
     # --- Connection power queries ---
 
@@ -326,23 +312,20 @@ class NetworkElement[OutputNameT: str](Element[OutputNameT]):
         for conn, end in self._connections:
             if end == "source":
                 total_power = total_power + conn.power_into_source
-            elif end == "target":
+            else:
                 total_power = total_power + conn.power_into_target
 
         return total_power
 
     def connection_power_for_tag(self, tag: int) -> HighspyArray | NDArray[Any]:
         """Return the net power from connections for a specific tag."""
-        if not self._connections:
-            return np.zeros(self.n_periods)
-
         total_power: HighspyArray | NDArray[Any] = np.zeros(self.n_periods, dtype=object)
         for conn, end in self._connections:
             if tag not in conn.connection_tags():
                 continue
             if end == "source":
                 total_power = total_power + conn.power_into_source_for_tag(tag)
-            elif end == "target":
+            else:
                 total_power = total_power + conn.power_into_target_for_tag(tag)
         return total_power
 
@@ -396,11 +379,14 @@ class NetworkElement[OutputNameT: str](Element[OutputNameT]):
         if not tags:
             produced = self.element_power_produced()
             consumed = self.element_power_consumed()
-            is_zero_prod = isinstance(produced, (int, float)) and produced == 0
-            is_zero_cons = isinstance(consumed, (int, float)) and consumed == 0
-            if not self._connections and is_zero_prod and is_zero_cons:
+            if not self._connections and produced is None and consumed is None:
                 return None
-            return list(self.connection_power() + produced - consumed == 0)
+            balance = self.connection_power()
+            if produced is not None:
+                balance = balance + produced
+            if consumed is not None:
+                balance = balance - consumed
+            return list(balance == 0)
 
         produced = self.element_power_produced()
         consumed = self.element_power_consumed()
@@ -409,30 +395,27 @@ class NetworkElement[OutputNameT: str](Element[OutputNameT]):
         outbound = set(tags) if self.outbound_tags is None else (self.outbound_tags & tags)
         inbound = set(tags) if self.inbound_tags is None else (self.inbound_tags & tags)
 
-        has_production = not (isinstance(produced, (int, float)) and produced == 0)
-        has_consumption = not (isinstance(consumed, (int, float)) and consumed == 0)
-
         constraints: list[highs_linear_expression] = []
 
         # Decompose production across outbound tags
         produced_by_tag: dict[int, HighspyArray] = {}
-        if has_production:
+        if produced is not None:
             if outbound:
                 produced_by_tag = self._get_produced_by_tag(outbound)
                 constraints.extend(list(reduce(operator.add, produced_by_tag.values()) == produced))
             else:
                 # Element produces but no outbound tags available — force production to 0
-                constraints.extend(list(produced == 0))  # type: ignore[arg-type]  # HighspyArray __eq__ returns iterable
+                constraints.extend(list(produced == 0))
 
         # Decompose consumption across inbound tags
         consumed_by_tag: dict[int, HighspyArray] = {}
-        if has_consumption:
+        if consumed is not None:
             if inbound:
                 consumed_by_tag = self._get_consumed_by_tag(inbound)
                 constraints.extend(list(reduce(operator.add, consumed_by_tag.values()) == consumed))
             else:
                 # Element consumes but no inbound tags available — force consumption to 0
-                constraints.extend(list(consumed == 0))  # type: ignore[arg-type]  # HighspyArray __eq__ returns iterable
+                constraints.extend(list(consumed == 0))
 
         # Per-tag power balance
         for tag in sorted(tags):
@@ -449,96 +432,7 @@ class NetworkElement[OutputNameT: str](Element[OutputNameT]):
                         continue
                     if end == "source":
                         constraints.extend(list(conn.power_into_source_for_tag(tag) == 0))
-                    elif end == "target":
+                    else:
                         constraints.extend(list(conn.power_into_target_for_tag(tag) == 0))
 
         return constraints if constraints else None
-
-    def outputs(self) -> Mapping[OutputNameT, OutputData]:
-        """Return output specifications for the element.
-
-        Discovers all @output and @constraint(output=True) decorated methods via
-        reflection and calls their get_output() method to retrieve OutputData.
-        The method name is used as the output name (dictionary key).
-        """
-        result: dict[OutputNameT, OutputData] = {}
-        for name in dir(type(self)):
-            attr = getattr(type(self), name, None)
-            # Resolve output name for OutputMethod (supports custom names).
-            if isinstance(attr, OutputMethod):
-                output_name = attr.output_name
-            elif isinstance(attr, ReactiveConstraint):
-                output_name = name
-            else:
-                continue
-
-            if output_name in self._output_names and (output_data := attr.get_output(self)) is not None:
-                result[output_name] = output_data  # type: ignore[assignment]  # name validated by `in` check at runtime
-        return result
-
-    def constraints(self) -> dict[str, highs_cons | list[highs_cons]]:
-        """Return all constraints from this element.
-
-        Discovers and calls all @constraint decorated methods. Calling the methods
-        triggers automatic constraint creation/updating in the solver via decorators.
-
-        Returns:
-            Dictionary mapping constraint method names to constraint objects
-
-        """
-        result: dict[str, highs_cons | list[highs_cons]] = {}
-        for name in dir(type(self)):
-            attr = getattr(type(self), name, None)
-            if isinstance(attr, ReactiveConstraint):
-                # Call the constraint method to trigger decorator lifecycle
-                method = getattr(self, name)
-                method()
-
-                # Get the state after calling to collect constraints
-                state_attr = f"_reactive_state_{name}"
-                state = getattr(self, state_attr, None)
-                if state is not None and "constraint" in state:
-                    cons = state["constraint"]
-                    result[name] = cons
-        return result
-
-    @cost
-    def cost(self) -> Any:
-        """Return aggregated cost expression from this element.
-
-        Discovers and calls all @cost decorated methods, summing their results into
-        a single expression. The result is cached by the @cost decorator, which
-        automatically tracks dependencies on all underlying @cost methods.
-
-        Returns:
-            Single aggregated cost expression (highs_linear_expression) or None if no costs
-
-        """
-        # Get this method's name from the decorator to avoid hardcoding
-        this_method_name = type(self).cost._name  # type: ignore[attr-defined]  # noqa: SLF001 (intentional access to decorator's name)
-
-        # Collect all cost expressions from @cost methods (excluding this one)
-        costs: list[Any] = []
-        for name in dir(type(self)):
-            # Skip self to avoid infinite recursion
-            if name == this_method_name:
-                continue
-            attr = getattr(type(self), name, None)
-            if not isinstance(attr, ReactiveCost):
-                continue
-
-            # Call the cost method - this establishes dependency tracking
-            method = getattr(self, name)
-            if (cost_value := method()) is not None:
-                if isinstance(cost_value, list):
-                    costs.extend(cost_value)
-                else:
-                    costs.append(cost_value)
-
-        # Aggregate costs into a single expression
-        if not costs:
-            return None
-        if len(costs) == 1:
-            return costs[0]
-        # Sum all cost expressions
-        return sum(costs[1:], costs[0])

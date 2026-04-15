@@ -360,6 +360,27 @@ def test_soc_pricing_cost_none_without_prices() -> None:
     assert segment.cost() is None
 
 
+def test_tag_transfer_cost_none_when_no_tags_match() -> None:
+    """Tag transfer cost returns None when tag_prices references tags not in power_in."""
+    h = create_solver()
+    periods = np.asarray([1.0], dtype=np.float64)
+    source = DummyElement("source", periods, h)
+    target = DummyElement("target", periods, h)
+    power_in = h.addVariables(len(periods), lb=0, name_prefix="tag_", out_array=True)
+    segment = PricingSegment(
+        "seg",
+        len(periods),
+        periods,
+        h,
+        spec={"segment_type": "pricing", "tag_prices": [{"tag": 99, "price": 0.05}]},
+        source_element=source,
+        target_element=target,
+        power_in={0: power_in},
+    )
+
+    assert segment.tag_transfer_cost() is None
+
+
 def test_efficiency_segment_treats_none_as_unity_after_update() -> None:
     """Efficiency segment should treat None values as 100% efficiency."""
     h = create_solver()
