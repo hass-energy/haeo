@@ -69,15 +69,9 @@ class Node(NetworkElement[NodeOutputName]):
 
         n = self.n_periods
         self._produced = (
-            solver.addVariables(n, lb=0, name_prefix=f"{name}_prod_", out_array=True)
-            if is_source
-            else None
+            solver.addVariables(n, lb=0, name_prefix=f"{name}_prod_", out_array=True) if is_source else None
         )
-        self._consumed = (
-            solver.addVariables(n, lb=0, name_prefix=f"{name}_cons_", out_array=True)
-            if is_sink
-            else None
-        )
+        self._consumed = solver.addVariables(n, lb=0, name_prefix=f"{name}_cons_", out_array=True) if is_sink else None
 
     def element_power_produced(self) -> HighspyArray | None:
         """Return production: bounded [0, inf] for sources, None otherwise."""

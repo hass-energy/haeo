@@ -176,8 +176,10 @@ def test_multi_tag_outbound_does_not_duplicate_production(solver: Highs) -> None
     node.constraints()
     # Force total outflow = 10 kW via connections
     solver.addConstr(-conn1.power_into_source_for_tag(1)[0] + (-conn2.power_into_source_for_tag(2)[0]) == 10)
-    solver.minimize(node._produced[0])
-    assert solver.val(node._produced[0]) == pytest.approx(10.0, abs=0.01)
+    produced = node.element_power_produced()
+    assert produced is not None
+    solver.minimize(produced[0])
+    assert solver.val(produced[0]) == pytest.approx(10.0, abs=0.01)
 
 
 # ---------------------------------------------------------------------------
@@ -301,8 +303,10 @@ def test_untagged_connection_uses_simple_balance(solver: Highs) -> None:
 
     # Force outflow of 5 kW and verify production matches
     solver.addConstr(power_into_source[0] == -5.0)
-    solver.minimize(node._produced[0])
-    assert solver.val(node._produced[0]) == pytest.approx(5.0, abs=0.01)
+    produced = node.element_power_produced()
+    assert produced is not None
+    solver.minimize(produced[0])
+    assert solver.val(produced[0]) == pytest.approx(5.0, abs=0.01)
 
 
 def test_disconnected_element_returns_no_constraints(solver: Highs) -> None:
