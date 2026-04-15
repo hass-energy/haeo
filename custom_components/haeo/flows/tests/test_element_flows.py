@@ -44,9 +44,7 @@ from custom_components.haeo.elements.input_fields import InputFieldInfo
 from custom_components.haeo.flows import HUB_SECTION_COMMON, HUB_SECTION_TIERS, get_element_flow_classes
 
 # Policy uses a multi-step menu-driven flow incompatible with the generic single-step tests
-SINGLE_STEP_ELEMENT_TYPES: tuple[ElementType, ...] = tuple(
-    et for et in ELEMENT_TYPES if et != ElementType.POLICY
-)
+SINGLE_STEP_ELEMENT_TYPES: tuple[ElementType, ...] = tuple(et for et in ELEMENT_TYPES if et != ElementType.POLICY)
 
 ALL_ELEMENT_TYPES: tuple[ElementType, ...] = tuple(ELEMENT_TYPES)
 

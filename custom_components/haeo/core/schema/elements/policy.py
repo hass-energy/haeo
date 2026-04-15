@@ -1,11 +1,8 @@
 """Policy element schema definitions.
 
-A single Policies subentry stores a list of policy rules.
-Each rule specifies a source, target, and a price that controls
-how the optimizer costs power flowing from source to target.
-Source/target can be omitted to mean "any element", or a list
-of element names to restrict the rule to specific nodes.
-Tags are auto-assigned by the compilation pipeline.
+A policy defines tagged directional pricing for power flow between nodes.
+When configured, its rules are compiled into tag_costs on existing connections
+rather than creating separate model elements.
 """
 
 from typing import Annotated, Any, Final, Literal, NotRequired, TypedDict

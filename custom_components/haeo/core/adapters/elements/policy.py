@@ -35,7 +35,7 @@ POLICY_DEVICE_NAMES: Final[frozenset[PolicyDeviceName]] = frozenset(
 )
 
 
-def extract_policy_rules(config: PolicyConfigData) -> list[dict[str, Any]]:
+def extract_policy_rules(config: Mapping[str, Any]) -> list[dict[str, Any]]:
     """Transform loaded policy rules into the format compile_policies() expects.
 
     Each rule becomes a dict with:

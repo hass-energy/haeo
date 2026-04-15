@@ -6,7 +6,7 @@ Policies let the optimizer make better decisions by distinguishing the value of 
 ## What are power policies?
 
 Without policies, the optimizer treats all power flows equally — a kilowatt from solar feeding the grid is the same as a kilowatt from the battery feeding a load.
-Policies add source-to-target pricing that tells the optimizer "power flowing from Solar to Grid costs $0.02/kWh" while "power flowing from Solar to Load costs $0.00/kWh."
+Policies add source-to-target pricing that tells the optimizer "power flowing from Solar to Grid costs \$0.02/kWh" while "power flowing from Solar to Load costs \$0.00/kWh."
 
 This lets you model real-world scenarios like:
 
@@ -30,7 +30,7 @@ Click **Policies** to add each rule — subsequent rules are appended to the sam
 
 ### Step 1: Solar export pricing
 
-Solar power sent to the grid earns only the feed-in tariff rate of $0.02/kWh, while solar power used locally by loads is free.
+Solar power sent to the grid earns only the feed-in tariff rate of \$0.02/kWh, while solar power used locally by loads is free.
 
 ```guide
 add_policies(
@@ -45,7 +45,7 @@ add_policies(
 !!! info "Why price solar exports?"
 
     Without a policy, the optimizer has no way to distinguish solar power used locally from solar power exported.
-    By pricing the Solar → Grid flow at $0.02/kWh (the feed-in tariff), the optimizer prefers local consumption over export when both options are available.
+    By pricing the Solar → Grid flow at \$0.02/kWh (the feed-in tariff), the optimizer prefers local consumption over export when both options are available.
 
 ### Step 2: Battery export policy
 
@@ -63,7 +63,7 @@ add_policies(
 
 !!! tip "Battery export pricing"
 
-    Setting a high price ($0.10/kWh) on Battery → Grid flow means the optimizer will only export battery power when it is profitable enough to justify the cost.
+    Setting a high price (\$0.10/kWh) on Battery → Grid flow means the optimizer will only export battery power when it is profitable enough to justify the cost.
     Battery power is better used to offset grid imports.
 
 ### Step 3: Battery to load policy
@@ -96,7 +96,7 @@ add_policies(
 
 !!! info "Grid charging costs"
 
-    A $0.05/kWh surcharge on Grid → Battery means the optimizer only charges from the grid when the round-trip savings exceed this cost.
+    A \$0.05/kWh surcharge on Grid → Battery means the optimizer only charges from the grid when the round-trip savings exceed this cost.
     This models the real efficiency losses and wear costs of grid charging.
 
 ### Step 5: Verify and review
@@ -122,14 +122,14 @@ With these four policies configured, the optimizer now has detailed cost signals
 
 | Flow | Price | Effect |
 |------|-------|--------|
-| Solar → Grid | $0.02/kWh | Solar exports earn feed-in tariff |
+| Solar → Grid | \$0.02/kWh | Solar exports earn feed-in tariff |
 | Solar → Load | Free | Local solar consumption is preferred |
-| Battery → Grid | $0.10/kWh | Battery export is expensive — save for local use |
-| Battery → Load | $0.02/kWh | Battery-to-load is cheap and preferred |
-| Grid → Battery | $0.05/kWh | Grid charging has a surcharge for efficiency losses |
+| Battery → Grid | \$0.10/kWh | Battery export is expensive — save for local use |
+| Battery → Load | \$0.02/kWh | Battery-to-load is cheap and preferred |
+| Grid → Battery | \$0.05/kWh | Grid charging has a surcharge for efficiency losses |
 
 The optimizer uses these costs alongside grid import/export prices to find the cheapest overall schedule.
-For example, if grid import costs $0.25/kWh, shipping solar to a load (free) is strongly preferred over importing from the grid.
+For example, if grid import costs \$0.25/kWh, shipping solar to a load (free) is strongly preferred over importing from the grid.
 
 ## Next steps
 

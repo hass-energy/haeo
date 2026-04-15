@@ -50,6 +50,7 @@ class ConnectionElementConfig(TypedDict):
     segments: NotRequired[dict[str, SegmentSpec]]
     tags: NotRequired[set[int]]
     tag_costs: NotRequired[list[dict[str, Any]]]
+    tag_costs: NotRequired[list[dict[str, Any]]]
 
 
 class Connection[TOutputName: str](Element[TOutputName]):
