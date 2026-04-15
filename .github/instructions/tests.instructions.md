@@ -12,6 +12,24 @@ alwaysApply: false
 Coverage is enforced by codecov which ensures coverage does not decrease from main on changed lines.
 Focus on testing behavior and edge cases, not achieving arbitrary coverage percentages.
 
+### Addressing uncovered lines
+
+When encountering uncovered lines, work through this decision tree in order:
+
+1. **Can this code be removed?** Dead code, unreachable branches, or defensive checks that upstream validation already prevents should be deleted rather than tested.
+2. **Can stricter types eliminate this code?** If a branch exists only because a type is too wide, fix the types — even if the fix is far up the call chain. Removing code is better than testing unnecessary code.
+3. **Can I add a parametrized case to an existing test?** If there is already a `@pytest.mark.parametrize` test covering similar behavior, add another case to it.
+4. **Can I combine related tests into a new parametrized test?** Especially for stateless I/O-driven tests, grouping similar assertions into one parametrized test reduces duplication.
+5. **Finally, write a bespoke test.** Only when none of the above apply, add a standalone test function that exercises a realistic behavioral scenario.
+
+## Bug-fix TDD
+
+When fixing a bug, follow red/green TDD:
+
+1. **RED**: Write a failing test that reproduces the bug. Verify it fails for the expected reason.
+2. **GREEN**: Make the minimal code change to pass the test.
+3. **Verify**: Confirm all existing tests still pass.
+
 ## Test style
 
 Use function-style pytest tests, not class-based test organization:

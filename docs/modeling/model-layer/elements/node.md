@@ -23,18 +23,22 @@ This design separates the element's role (source, sink, or junction) from its op
 
 For each time step $t \in \{0, 1, \ldots, T-1\}$:
 
-| Variable            | Created When     | Domain                | Description                      |
-| ------------------- | ---------------- | --------------------- | -------------------------------- |
-| $P_{\text{in}}(t)$  | `is_sink=true`   | $\mathbb{R}_{\geq 0}$ | Power accepted from network (kW) |
-| $P_{\text{out}}(t)$ | `is_source=true` | $\mathbb{R}_{\geq 0}$ | Power provided to network (kW)   |
+| Variable                 | Created When     | Domain                | Description                      |
+| ------------------------ | ---------------- | --------------------- | -------------------------------- |
+| $P_{\text{produced}}(t)$ | `is_source=true` | $\mathbb{R}_{\geq 0}$ | Power provided to network (kW)   |
+| $P_{\text{consumed}}(t)$ | `is_sink=true`   | $\mathbb{R}_{\geq 0}$ | Power accepted from network (kW) |
 
-**Note**: Variables are only created when needed based on the flags.
-A pure junction (`is_source=false, is_sink=false`) creates no power variables.
+Variables are always created for both production and consumption.
+Non-source nodes create zero-bounded production variables; non-sink nodes create zero-bounded consumption variables.
 
 ### Parameters
 
-Node has no direct parameters.
-All operational parameters (power limits, efficiency, pricing) are configured on the connected [Connection](../connections/index.md) elements.
+| Parameter       | Type               | Description                                                                           |
+| --------------- | ------------------ | ------------------------------------------------------------------------------------- |
+| `outbound_tags` | `set[int] \| None` | Tags that produced power can be placed on (see [Tagged Power](../../tagged-power.md)) |
+| `inbound_tags`  | `set[int] \| None` | Tags that consumed power can draw from (None = all tags)                              |
+
+Operational parameters (power limits, efficiency, pricing) are configured on the connected [Connection](../connections/index.md) elements.
 
 ### Constraints
 
@@ -44,24 +48,21 @@ The power balance constraint depends on the Node configuration:
 
 **Source and Sink** (`is_source=true, is_sink=true`):
 
-$$
-P_{\text{connection}}(t) + P_{\text{out}}(t) - P_{\text{in}}(t) = 0
-$$
-
-Power from connections plus generated power minus consumed power equals zero.
+Per-tag power balance is enforced by the [tag balance constraint](../../tagged-power.md#per-tag-balance).
+Both $P_{\text{produced}}$ and $P_{\text{consumed}}$ are unbounded.
 
 **Source Only** (`is_source=true, is_sink=false`):
 
 $$
-P_{\text{connection}}(t) + P_{\text{out}}(t) = 0
+P_{\text{connection}}(t) + P_{\text{produced}}(t) = 0
 $$
 
-All generated power must flow out through connections.
+All produced power must flow out through connections.
 
 **Sink Only** (`is_source=false, is_sink=true`):
 
 $$
-P_{\text{connection}}(t) - P_{\text{in}}(t) = 0
+P_{\text{connection}}(t) - P_{\text{consumed}}(t) = 0
 $$
 
 All consumed power must flow in through connections.
@@ -76,6 +77,11 @@ Net connection power must be zero (Kirchhoff's law).
 
 Where $P_{\text{connection}}(t)$ is the sum of power flows from all connected [Connection](../connections/index.md) elements, accounting for efficiency losses.
 
+#### Tag Balance
+
+The Element base class creates per-tag power balance constraints for all elements with tagged connections.
+See the [tagged power formulation](../../tagged-power.md#per-tag-balance) for details.
+
 ### Cost Contribution
 
 Node contributes no direct cost to the objective function.
@@ -85,9 +91,11 @@ Costs are applied through the connected [Connection](../connections/index.md) el
 
 **Source behavior**: Represents power generation capacity.
 The actual generation is bounded by the Connection's `max_power_source_target` parameter (the forecast for PV, or import limit for Grid).
+Production is placed on `outbound_tags` for [tagged power](../../tagged-power.md) routing.
 
 **Sink behavior**: Represents power consumption capacity.
 The actual consumption is bounded by the Connection's `max_power_target_source` parameter (the forecast for Load, or export limit for Grid).
+Consumption draws from `inbound_tags` for tagged power routing.
 
 **Junction behavior**: Represents an electrical bus or node where power must balance.
 Used to connect multiple elements at a common point (Kirchhoff's law).

@@ -3,6 +3,7 @@
 # Re-export submodules for backwards compatibility with adapters
 from .const import OutputType
 from .element import Element as Element
+from .element import NetworkElement as NetworkElement
 from .elements import ModelElementConfig as ModelElementConfig
 from .elements import ModelElementType as ModelElementType
 from .elements import battery as battery
@@ -37,6 +38,7 @@ __all__ = [
     "ModelOutputName",
     "ModelOutputValue",
     "Network",
+    "NetworkElement",
     "Node",
     "NodeOutputName",
     "OutputData",

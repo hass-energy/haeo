@@ -32,7 +32,7 @@ class PassthroughSegment(Segment):
         spec: PassthroughSegmentSpec,
         source_element: Element[Any],
         target_element: Element[Any],
-        power_in: HighspyArray,
+        power_in: dict[int, HighspyArray],
     ) -> None:
         """Initialize passthrough segment."""
         _ = spec

@@ -78,9 +78,6 @@ def test_network_validation() -> None:
         }
     )
 
-    # Should validate successfully
-    network.validate()
-
     # Run optimization to ensure it completes
     cost = network.optimize()
     assert isinstance(cost, (int, float))

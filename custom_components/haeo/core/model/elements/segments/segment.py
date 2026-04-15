@@ -10,6 +10,8 @@ Bidirectional paths are modelled as two separate Connection elements,
 each with its own segment chain.
 """
 
+from functools import reduce
+import operator
 from typing import Any
 
 from highspy import Highs
@@ -41,7 +43,7 @@ class Segment:
         *,
         source_element: Element[Any],
         target_element: Element[Any],
-        power_in: HighspyArray,
+        power_in: dict[int, HighspyArray],
     ) -> None:
         """Initialize segment with input power expression.
 
@@ -52,7 +54,7 @@ class Segment:
             solver: HiGHS solver instance
             source_element: Connected source element reference
             target_element: Connected target element reference
-            power_in: Input power flow expression
+            power_in: Per-tag input power flows
 
         """
         self._segment_id = segment_id
@@ -84,14 +86,24 @@ class Segment:
         return self._target_element
 
     @property
-    def power_in(self) -> HighspyArray:
-        """Input power flow expression."""
+    def power_in(self) -> dict[int, HighspyArray]:
+        """Per-tag input power flows."""
         return self._power_in
 
     @property
-    def power_out(self) -> HighspyArray:
-        """Output power flow expression. Identity by default."""
+    def total_power_in(self) -> HighspyArray:
+        """Sum of all tag input flows."""
+        return reduce(operator.add, self._power_in.values())
+
+    @property
+    def power_out(self) -> dict[int, HighspyArray]:
+        """Per-tag output power flows. Identity by default."""
         return self._power_in
+
+    @property
+    def total_power_out(self) -> HighspyArray:
+        """Sum of all tag output flows."""
+        return reduce(operator.add, self.power_out.values())
 
     def constraints(self) -> dict[str, highs_cons | list[highs_cons]]:
         """Return all constraints from this segment."""

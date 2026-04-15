@@ -7,6 +7,8 @@ from typing import Any, Literal, overload
 import numpy as np
 from numpy.typing import NDArray
 
+kHighsInf: float
+
 class HighspyArray(np.ndarray[Any, np.dtype[np.object_]]):
     def __mul__(self, other: float | NDArray[Any] | tuple[float, ...]) -> HighspyArray: ...
     def __rmul__(self, other: float | NDArray[Any] | tuple[float, ...]) -> HighspyArray: ...
