@@ -29,12 +29,12 @@ Consumption draws from the element's `inbound_tags`.
 
 ### Tag parameters
 
-| Parameter       | Scope      | Description                                            |
-| --------------- | ---------- | ------------------------------------------------------ |
-| `outbound_tags` | Element    | Tags that produced power can be placed on (None = all) |
-| `inbound_tags`  | Element    | Tags that consumed power can draw from (None = all)    |
-| `tags`          | Connection | Set of tags carried on this connection                 |
-| `tag_prices`    | Connection | Per-tag price adjustments (`{tag, price}` entries)     |
+| Parameter       | Scope           | Description                                            |
+| --------------- | --------------- | ------------------------------------------------------ |
+| `outbound_tags` | Element         | Tags that produced power can be placed on (None = all) |
+| `inbound_tags`  | Element         | Tags that consumed power can draw from (None = all)    |
+| `tags`          | Connection      | Set of tags carried on this connection                 |
+| `tag_prices`    | Pricing segment | Per-tag price adjustments (`{tag, price}` entries)     |
 
 ### Connection tag decomposition
 

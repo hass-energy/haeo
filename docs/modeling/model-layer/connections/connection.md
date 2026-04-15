@@ -38,14 +38,13 @@ Each segment receives a `power_in` expression and exposes a `power_out` expressi
 
 ### Parameters
 
-| Parameter    | Description                                                                                   |
-| ------------ | --------------------------------------------------------------------------------------------- |
-| `source`     | Name of the source element                                                                    |
-| `target`     | Name of the target element                                                                    |
-| `periods`    | Time period durations (hours)                                                                 |
-| `segments`   | Ordered mapping of segment names to segment specifications                                    |
-| `tags`       | Set of tag IDs for per-source power decomposition (see [Tagged Power](../../tagged-power.md)) |
-| `tag_prices` | Per-tag price adjustments (list of `{tag, price}` dicts)                                      |
+| Parameter  | Description                                                                                   |
+| ---------- | --------------------------------------------------------------------------------------------- |
+| `source`   | Name of the source element                                                                    |
+| `target`   | Name of the target element                                                                    |
+| `periods`  | Time period durations (hours)                                                                 |
+| `segments` | Ordered mapping of segment names to segment specifications                                    |
+| `tags`     | Set of tag IDs for per-source power decomposition (see [Tagged Power](../../tagged-power.md)) |
 
 If `segments` is omitted or empty, a passthrough segment is created automatically.
 Segment parameters can be scalars or per-period arrays.

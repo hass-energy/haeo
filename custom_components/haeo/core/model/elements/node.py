@@ -14,7 +14,7 @@ ELEMENT_TYPE: Final[NodeElementTypeName] = "node"
 
 type NodeOutputName = Literal["element_power_balance"]
 
-NODE_POWER_BALANCE: Final[NodeOutputName] = ELEMENT_POWER_BALANCE  # type: ignore[assignment]
+NODE_POWER_BALANCE: Final[NodeOutputName] = ELEMENT_POWER_BALANCE
 
 NODE_OUTPUT_NAMES: Final[frozenset[NodeOutputName]] = frozenset((NODE_POWER_BALANCE,))
 

@@ -211,7 +211,7 @@ def test_tagged_power_flow_scenario() -> None:
     grid_export_flow = tuple(float(v) for v in h.vals(grid_exp.total_power_in))
     bat_discharge_flow = tuple(float(v) for v in h.vals(bat_dis.total_power_in))
 
-    # Period 1: Solar surplus, cheap export ($0.01) + tag cost $0.02 = negative
+    # Period 1: Solar surplus, cheap export ($0.01) + tag surcharge $0.02 = positive net cost
     assert grid_export_flow[1] == pytest.approx(0.0, abs=0.1)
 
     # Period 2: Grid very cheap ($0.005), battery->load costs $0.01
