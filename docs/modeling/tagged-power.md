@@ -24,17 +24,17 @@ Every element declares its power production and consumption separately:
 - `element_power_produced()`: Power injected into the network (positive, ≥ 0)
 - `element_power_consumed()`: Power absorbed from the network (positive, ≥ 0)
 
-Production is tagged with the element's `source_tag`.
-Consumption is distributed across the element's `access_list` tags.
+Production is placed on the element's `outbound_tags`.
+Consumption draws from the element's `inbound_tags`.
 
 ### Tag parameters
 
-| Parameter     | Scope      | Description                                                    |
-| ------------- | ---------- | -------------------------------------------------------------- |
-| `source_tag`  | Element    | Tag carried by power produced at this element                  |
-| `access_list` | Element    | Set of tags this element can consume (None = all)              |
-| `tags`        | Connection | Set of tags carried on this connection                         |
-| `tag_costs`   | Connection | Per-tag cost adjustments (`{tag, price}` entries)              |
+| Parameter       | Scope      | Description                                            |
+| --------------- | ---------- | ------------------------------------------------------ |
+| `outbound_tags` | Element    | Tags that produced power can be placed on (None = all) |
+| `inbound_tags`  | Element    | Tags that consumed power can draw from (None = all)    |
+| `tags`          | Connection | Set of tags carried on this connection                 |
+| `tag_prices`    | Connection | Per-tag price adjustments (`{tag, price}` entries)     |
 
 ### Connection tag decomposition
 
@@ -52,23 +52,23 @@ See [Connection tag decomposition](model-layer/connections/connection.md#tag-dec
 The Element base class creates per-tag power balance constraints at each element.
 For each tag $k$ present on connected connections:
 
-**If $k$ is the element's `source_tag`**:
+**If $k$ is in `outbound_tags`**:
 
 $$
 P_{\text{conn},k}(t) + P_{\text{produced}}(t) - C_k(t) = 0
 $$
 
-Production appears on this tag, plus any consumption routed from this tag.
+Production appears on outbound tags, plus any consumption routed from this tag.
 
-**If $k$ is in the element's `access_list`** (but not the source tag):
+**If $k$ is in `inbound_tags`** (but not in `outbound_tags`):
 
 $$
 P_{\text{conn},k}(t) - C_k(t) = 0
 $$
 
-Only consumption can be routed from allowed tags.
+Only consumption can be routed from inbound tags.
 
-**If $k$ is not in the `access_list`**:
+**If $k$ is in neither set**:
 
 $$
 P_{\text{conn},k}(t) = 0
@@ -85,8 +85,8 @@ $$
 
 ### Tag costs on connections
 
-Each `tag_costs` entry adds a per-tag surcharge to the connection.
-For tag $k$ with cost $c_k$:
+Each `tag_prices` entry adds a per-tag surcharge to the connection.
+For tag $k$ with price $c_k$:
 
 $$
 \text{Cost}_k = \sum_t c_k \cdot P_{\text{in},k}(t) \cdot \Delta t
@@ -98,17 +98,17 @@ This is additive with the connection's base pricing segment.
 
 Consider a system with solar, battery, grid, and load connected through a switchboard:
 
-| Element   | `source_tag` | `access_list` | Role                         |
-| --------- | ------------ | ------------- | ---------------------------- |
-| Solar     | 1            | —             | Source only, produces tag 1  |
-| Battery   | 2            | {1, 2, 3}    | Produces tag 2, consumes all |
-| Grid      | 3            | {1, 2, 3}    | Produces tag 3, consumes all |
-| Load      | —            | {1, 2, 3}    | Sink only, consumes all      |
+| Element | `outbound_tags` | `inbound_tags` | Role                         |
+| ------- | --------------- | -------------- | ---------------------------- |
+| Solar   | \{1}            | —              | Source only, produces tag 1  |
+| Battery | \{2}            | {1, 2, 3}      | Produces tag 2, consumes all |
+| Grid    | \{3}            | {1, 2, 3}      | Produces tag 3, consumes all |
+| Load    | —               | {1, 2, 3}      | Sink only, consumes all      |
 
-With `tag_costs` on the grid export connection:
+With `tag_prices` on the grid export connection:
 
-- Solar export (tag 1): +$0.02/kWh surcharge
-- Battery export (tag 2): +$0.10/kWh surcharge
+- Solar export (tag 1): +\$0.02/kWh surcharge
+- Battery export (tag 2): +\$0.10/kWh surcharge
 
 The optimizer can now distinguish the cost of exporting solar-sourced vs battery-sourced power, routing exports to minimize total cost.
 

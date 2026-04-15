@@ -6,7 +6,7 @@ from highspy import Highs
 import numpy as np
 import pytest
 
-from custom_components.haeo.core.model.element import Element
+from custom_components.haeo.core.model.element import ELEMENT_POWER_BALANCE, Element
 from custom_components.haeo.core.model.elements.connection import Connection
 from custom_components.haeo.core.model.elements.node import Node
 
@@ -92,8 +92,8 @@ def test_constraints_populates_constraint_state(solver: Highs) -> None:
 
     # After calling, constraint state should exist
     # Node has element_power_balance from Element base (creates constraints when not both source+sink)
-    assert "element_power_balance" in constraints_dict
-    assert constraints_dict["element_power_balance"] is not None
+    assert ELEMENT_POWER_BALANCE in constraints_dict
+    assert constraints_dict[ELEMENT_POWER_BALANCE] is not None
 
 
 def test_connection_power_with_multiple_connections(solver: Highs) -> None:

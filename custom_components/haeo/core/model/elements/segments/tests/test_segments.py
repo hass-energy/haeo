@@ -127,6 +127,7 @@ def _solve_segment_scenario(case: SegmentScenario) -> dict[str, ExpectedValue]:
         source, target = endpoint_factory(h, periods)
 
     power_in = h.addVariables(len(periods), lb=0, name_prefix="test_", out_array=True)
+    power_in_dict: dict[int, HighspyArray] = {0: power_in}
     seg = case["factory"](
         "seg",
         len(periods),
@@ -135,13 +136,13 @@ def _solve_segment_scenario(case: SegmentScenario) -> dict[str, ExpectedValue]:
         spec=case["spec"],
         source_element=source,
         target_element=target,
-        power_in=power_in,
+        power_in=power_in_dict,
     )
     seg.constraints()
 
     inputs = case["inputs"]
     if "power_in" in inputs:
-        h.addConstrs(seg.power_in == np.asarray(inputs["power_in"], dtype=np.float64))
+        h.addConstrs(seg.total_power_in == np.asarray(inputs["power_in"], dtype=np.float64))
 
     objective_terms = []
     if inputs.get("minimize_cost"):
@@ -150,7 +151,10 @@ def _solve_segment_scenario(case: SegmentScenario) -> dict[str, ExpectedValue]:
             objective_terms.append(c)
 
     for name, weight in inputs.get("maximize", {}).items():
-        objective_terms.append(-float(weight) * Highs.qsum(getattr(seg, name)))
+        attr_val = getattr(seg, name)
+        if isinstance(attr_val, dict):
+            attr_val = sum(attr_val.values())
+        objective_terms.append(-float(weight) * Highs.qsum(attr_val))
 
     if objective_terms:
         h.minimize(Highs.qsum(objective_terms))
@@ -161,7 +165,10 @@ def _solve_segment_scenario(case: SegmentScenario) -> dict[str, ExpectedValue]:
         if key == "objective_value":
             outputs[key] = float(h.getObjectiveValue())
         else:
-            outputs[key] = tuple(float(v) for v in h.vals(getattr(seg, key)))
+            attr_val = getattr(seg, key)
+            if isinstance(attr_val, dict):
+                attr_val = sum(attr_val.values())
+            outputs[key] = tuple(float(v) for v in h.vals(attr_val))
     return outputs
 
 
@@ -185,7 +192,7 @@ def _solve_connection_scenario(case: ConnectionScenario) -> dict[str, ExpectedVa
     conn.constraints()
 
     if "power_in" in inputs:
-        h.addConstrs(conn.power_in == np.asarray(inputs["power_in"], dtype=np.float64))
+        h.addConstrs(conn.total_power_in == np.asarray(inputs["power_in"], dtype=np.float64))
 
     objective_terms = []
     if inputs.get("minimize_cost"):
@@ -196,6 +203,8 @@ def _solve_connection_scenario(case: ConnectionScenario) -> dict[str, ExpectedVa
     maximize = inputs.get("maximize", {})
     for name, weight in maximize.items():
         flow = getattr(conn, name)
+        if isinstance(flow, dict):
+            flow = sum(flow.values())
         objective_terms.append(-float(weight) * Highs.qsum(flow))
 
     if objective_terms:
@@ -231,6 +240,8 @@ def _solve_connection_scenario(case: ConnectionScenario) -> dict[str, ExpectedVa
             outputs[key] = tuple(float(v) for v in pr.price)
             continue
         flow = getattr(conn, key)
+        if isinstance(flow, dict):
+            flow = sum(flow.values())
         outputs[key] = tuple(float(v) for v in h.vals(flow))
     return outputs
 

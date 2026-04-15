@@ -14,7 +14,7 @@ ELEMENT_TYPE: Final[NodeElementTypeName] = "node"
 
 type NodeOutputName = Literal["element_power_balance"]
 
-NODE_POWER_BALANCE: Final[str] = ELEMENT_POWER_BALANCE
+NODE_POWER_BALANCE: Final[NodeOutputName] = ELEMENT_POWER_BALANCE  # type: ignore[assignment]
 
 NODE_OUTPUT_NAMES: Final[frozenset[NodeOutputName]] = frozenset((NODE_POWER_BALANCE,))
 
@@ -26,8 +26,8 @@ class NodeElementConfig(TypedDict):
     name: str
     is_source: NotRequired[bool]
     is_sink: NotRequired[bool]
-    source_tag: NotRequired[int | None]
-    access_list: NotRequired[list[int] | None]
+    outbound_tags: NotRequired[set[int] | None]
+    inbound_tags: NotRequired[set[int] | None]
 
 
 class Node(Element[NodeOutputName]):
@@ -36,12 +36,11 @@ class Node(Element[NodeOutputName]):
     Node acts as an infinite source and/or sink. Power limits and pricing are
     configured on the Connection to/from the node.
 
-    The node returns separate produced/consumed power expressions whose bounds
-    encode the source/sink behavior:
+    Behavior is controlled by is_source and is_sink flags:
 
-    - source+sink: produced ≥ 0, consumed ≥ 0 (no total balance constraint)
-    - source only: produced ≥ 0
-    - sink only: consumed ≥ 0
+    - source+sink: produced ≥ 0, consumed ≥ 0
+    - source only: produced ≥ 0, consumed = 0
+    - sink only: produced = 0, consumed ≥ 0
     - junction: both 0 (conservation only)
     """
 
@@ -53,8 +52,8 @@ class Node(Element[NodeOutputName]):
         solver: Highs,
         is_source: bool = True,
         is_sink: bool = True,
-        source_tag: int | None = None,
-        access_list: list[int] | None = None,
+        outbound_tags: set[int] | None = None,
+        inbound_tags: set[int] | None = None,
     ) -> None:
         """Initialize a node entity."""
         super().__init__(
@@ -62,24 +61,28 @@ class Node(Element[NodeOutputName]):
             periods=periods,
             solver=solver,
             output_names=NODE_OUTPUT_NAMES,
-            source_tag=source_tag,
-            access_list=access_list,
+            outbound_tags=outbound_tags,
+            inbound_tags=inbound_tags,
         )
         self.is_source = is_source
         self.is_sink = is_sink
 
         n = self.n_periods
-        self._produced: HighspyArray | None = None
-        self._consumed: HighspyArray | None = None
-        if is_source:
-            self._produced = solver.addVariables(n, lb=0, name_prefix=f"{name}_prod_", out_array=True)
-        if is_sink:
-            self._consumed = solver.addVariables(n, lb=0, name_prefix=f"{name}_cons_", out_array=True)
+        self._produced = (
+            solver.addVariables(n, lb=0, name_prefix=f"{name}_prod_", out_array=True)
+            if is_source
+            else solver.addVariables(n, lb=0, ub=0, name_prefix=f"{name}_prod_", out_array=True)
+        )
+        self._consumed = (
+            solver.addVariables(n, lb=0, name_prefix=f"{name}_cons_", out_array=True)
+            if is_sink
+            else solver.addVariables(n, lb=0, ub=0, name_prefix=f"{name}_cons_", out_array=True)
+        )
 
-    def element_power_produced(self) -> HighspyArray | int:
-        """Return production: bounded [0, inf] for sources, 0 otherwise."""
-        return self._produced if self._produced is not None else 0
+    def element_power_produced(self) -> HighspyArray:
+        """Return production: bounded [0, inf] for sources, fixed at 0 otherwise."""
+        return self._produced
 
-    def element_power_consumed(self) -> HighspyArray | int:
-        """Return consumption: bounded [0, inf] for sinks, 0 otherwise."""
-        return self._consumed if self._consumed is not None else 0
+    def element_power_consumed(self) -> HighspyArray:
+        """Return consumption: bounded [0, inf] for sinks, fixed at 0 otherwise."""
+        return self._consumed

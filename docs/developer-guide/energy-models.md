@@ -192,8 +192,8 @@ Every model element can declare its external power via two methods:
 - `element_power_produced()`: Power injected into the network (≥ 0). Default returns 0.
 - `element_power_consumed()`: Power absorbed from the network (≥ 0). Default returns 0.
 
-The Element base class uses these to build per-tag power balance constraints when connections carry [tagged power](../modeling/tagged-power.md).
-Elements also accept `source_tag` and `access_list` parameters that control how production and consumption map to tags.
+The Element base class uses these to build per-tag power balance constraints with [tagged power](../modeling/tagged-power.md) routing.
+Elements accept `outbound_tags` and `inbound_tags` parameters that control how production and consumption map to tags.
 
 Elements that produce and consume power (e.g., Battery) override both methods.
 Source-only elements (e.g., solar Node) override `element_power_produced()`.

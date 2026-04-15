@@ -44,8 +44,7 @@ class PowerLimitSegment(Segment):
         spec: PowerLimitSegmentSpec,
         source_element: Element[Any],
         target_element: Element[Any],
-        power_in: HighspyArray,
-        tag_flows_in: dict[int, HighspyArray] | None = None,
+        power_in: dict[int, HighspyArray],
     ) -> None:
         """Initialize power limit segment."""
         super().__init__(
@@ -56,7 +55,6 @@ class PowerLimitSegment(Segment):
             source_element=source_element,
             target_element=target_element,
             power_in=power_in,
-            tag_flows_in=tag_flows_in,
         )
         self._fixed = spec.get("fixed", False)
         self.max_power = broadcast_to_sequence(spec.get("max_power"), self._n_periods)
@@ -66,9 +64,10 @@ class PowerLimitSegment(Segment):
         """Directional power limit constraint."""
         if self.max_power is None:
             return None
+        total = self.total_power_in
         if self._fixed:
-            return list(self._power_in == self.max_power)
-        return list(self._power_in <= self.max_power)
+            return list(total == self.max_power)
+        return list(total <= self.max_power)
 
 
 __all__ = [

@@ -25,8 +25,8 @@ class Element[OutputNameT: str]:
 
     Subclasses implement ``element_power_produced()`` and
     ``element_power_consumed()`` to declare their external power.  The base
-    class uses these to build per-tag power balance constraints with
-    source_tag/access_list enforcement when tagged connections exist.
+    class uses these to build power balance constraints with per-tag routing
+    controlled by ``outbound_tags`` and ``inbound_tags``.
     """
 
     # TrackedParam for periods - enables reactive invalidation when periods change
@@ -39,8 +39,8 @@ class Element[OutputNameT: str]:
         *,
         solver: Highs,
         output_names: frozenset[OutputNameT],
-        source_tag: int | None = None,
-        access_list: list[int] | None = None,
+        outbound_tags: set[int] | None = None,
+        inbound_tags: set[int] | None = None,
     ) -> None:
         """Initialize an element.
 
@@ -49,19 +49,22 @@ class Element[OutputNameT: str]:
             periods: Array of time period durations in hours (one per optimization interval)
             solver: The HiGHS solver instance for creating variables and constraints
             output_names: Frozenset of valid output names for this element type (used for type narrowing)
-            source_tag: If set, only this tag can carry outbound power from this element.
-            access_list: If set, only these tags can be consumed at this element.
+            outbound_tags: Tags that produced power can be placed on (None = all tags)
+            inbound_tags: Tags that consumed power can draw from (None = all tags)
 
         """
         self.name = name
         self.periods = np.asarray(periods, dtype=float)
         self._solver = solver
         self._output_names = output_names
-        self._source_tag = source_tag
-        self._access_list: set[int] | None = set(access_list) if access_list else None
+        self.outbound_tags: set[int] | None = outbound_tags
+        self.inbound_tags: set[int] | None = inbound_tags
 
         # Track connections for power balance
         self._connections: list[tuple[Any, Literal["source", "target"]]] = []
+
+        # Lazily-created per-tag consumption decomposition variables
+        self._consumed_by_tag: dict[int, HighspyArray] | None = None
 
     def __getitem__(self, key: str | int) -> Any:
         """Get a value by name or index.
@@ -128,26 +131,6 @@ class Element[OutputNameT: str]:
         """Return the number of optimization periods."""
         return len(self.periods)
 
-    @property
-    def source_tag(self) -> int | None:
-        """Return the source tag for this element, or None."""
-        return self._source_tag
-
-    @source_tag.setter
-    def source_tag(self, value: int | None) -> None:
-        """Set the source tag."""
-        self._source_tag = value
-
-    @property
-    def access_list(self) -> set[int] | None:
-        """Return the set of tags this element can consume, or None for all."""
-        return self._access_list
-
-    @access_list.setter
-    def access_list(self, value: set[int] | list[int] | None) -> None:
-        """Set the access list."""
-        self._access_list = set(value) if value else None
-
     def register_connection(self, connection: Any, end: Literal["source", "target"]) -> None:
         """Register a connection to this element.
 
@@ -164,7 +147,7 @@ class Element[OutputNameT: str]:
         """Return this element's power production expression.
 
         Positive values represent power injected into the network.
-        Production is tagged with this element's ``source_tag``.
+        Production is placed on ``outbound_tags``.
         Override in subclasses.  Default returns 0.
         """
         return 0
@@ -173,7 +156,7 @@ class Element[OutputNameT: str]:
         """Return this element's power consumption expression.
 
         Positive values represent power absorbed from the network.
-        Consumption is distributed across allowed tags (per ``access_list``).
+        Consumption draws from ``inbound_tags``.
         Override in subclasses.  Default returns 0.
         """
         return 0
@@ -191,11 +174,7 @@ class Element[OutputNameT: str]:
 
         """
         if not self._connections:
-            # No connections - create zero-valued variables for all periods
-            # This ensures comparisons work properly with addConstrs
-            return self._solver.addVariables(
-                self.n_periods, lb=0, ub=0, name_prefix=f"{self.name}_no_conn_", out_array=True
-            )
+            return np.zeros(self.n_periods)
 
         # Accumulate power flows from all connections
         total_power: HighspyArray | NDArray[Any] = np.zeros(self.n_periods, dtype=object)
@@ -211,9 +190,7 @@ class Element[OutputNameT: str]:
     def connection_power_for_tag(self, tag: int) -> HighspyArray | NDArray[Any]:
         """Return the net power from connections for a specific tag."""
         if not self._connections:
-            return self._solver.addVariables(
-                self.n_periods, lb=0, ub=0, name_prefix=f"{self.name}_no_conn_t{tag}_", out_array=True
-            )
+            return np.zeros(self.n_periods)
 
         total_power: HighspyArray | NDArray[Any] = np.zeros(self.n_periods, dtype=object)
         for conn, end in self._connections:
@@ -232,73 +209,63 @@ class Element[OutputNameT: str]:
             tags.update(conn.connection_tags())
         return tags
 
-    # --- Per-tag element power decomposition ---
+    # --- Power balance ---
+
+    def _get_consumed_by_tag(self, inbound: set[int]) -> dict[int, HighspyArray]:
+        """Return per-tag consumption variables, creating them once on first call."""
+        if self._consumed_by_tag is None:
+            self._consumed_by_tag = {}
+            for tag in sorted(inbound):
+                self._consumed_by_tag[tag] = self._solver.addVariables(
+                    self.n_periods, lb=0, name_prefix=f"{self.name}_ct{tag}_", out_array=True,
+                )
+        return self._consumed_by_tag
 
     @constraint(output=True, unit="$/kW")
     def element_power_balance(self) -> list[highs_linear_expression] | None:
-        """Total power balance: connection_power + produced - consumed == 0.
+        """Per-tag power balance: for each tag, connection + produced - consumed == 0.
+
+        Production appears only on ``outbound_tags``.
+        Consumption draws only from ``inbound_tags``.
+        Tags outside both sets are blocked (connection flow == 0).
 
         Output: shadow price indicating the marginal value of power at this element.
         Skipped when there are no connections and no external power.
         """
-        produced = self.element_power_produced()
-        consumed = self.element_power_consumed()
-
-        is_zero_prod = isinstance(produced, (int, float)) and produced == 0
-        is_zero_cons = isinstance(consumed, (int, float)) and consumed == 0
-
-        if not self._connections and is_zero_prod and is_zero_cons:
-            return None
-
-        return list(self.connection_power() + produced - consumed == 0)
-
-    @constraint
-    def element_tag_balance(self) -> list[highs_linear_expression] | None:
-        """Per-tag power balance using produced/consumed decomposition.
-
-        For each tag:
-        - source_tag: ``conn_tag + produced - consumed_from_tag == 0``
-        - allowed tag: ``conn_tag - consumed_from_tag == 0``
-        - other tag: ``conn_tag == 0``
-
-        Sum constraint: ``sum(consumed_from_tag) == consumed``
-        """
         tags = self.connection_tags()
         if not tags:
-            return None
+            produced = self.element_power_produced()
+            consumed = self.element_power_consumed()
+            is_zero_prod = isinstance(produced, (int, float)) and produced == 0
+            is_zero_cons = isinstance(consumed, (int, float)) and consumed == 0
+            if not self._connections and is_zero_prod and is_zero_cons:
+                return None
+            return list(self.connection_power() + produced - consumed == 0)
 
         produced = self.element_power_produced()
         consumed = self.element_power_consumed()
 
-        # Determine which tags can carry consumed power
-        allowed_tags = set(tags)
-        if self._access_list is not None:
-            allowed_tags &= self._access_list
+        # Determine which tags can carry produced/consumed power
+        outbound = set(tags) if self.outbound_tags is None else (self.outbound_tags & tags)
+        inbound = set(tags) if self.inbound_tags is None else (self.inbound_tags & tags)
 
-        # Create per-tag consumption variables (skip if no consumption)
+        # Get or create per-tag consumption variables
         has_consumption = not (isinstance(consumed, (int, float)) and consumed == 0)
         consumed_by_tag: dict[int, HighspyArray] = {}
         if has_consumption:
-            for tag in sorted(allowed_tags):
-                consumed_by_tag[tag] = self._solver.addVariables(
-                    self.n_periods, lb=0, name_prefix=f"{self.name}_ct{tag}_", out_array=True,
-                )
-            if consumed_by_tag:
-                self._solver.addConstrs(
-                    sum(consumed_by_tag.values()) == consumed  # type: ignore[arg-type]
-                )
+            consumed_by_tag = self._get_consumed_by_tag(inbound)
 
         # Per-tag power balance
         constraints: list[highs_linear_expression] = []
+
+        # Sum constraint: consumed_by_tag values must equal total consumed
+        if consumed_by_tag:
+            constraints.extend(list(sum(consumed_by_tag.values()) == consumed))  # type: ignore[arg-type]
+
         for tag in sorted(tags):
             conn_tag = self.connection_power_for_tag(tag)
-
-            # Production appears only on source_tag
-            tag_prod = produced if (self._source_tag is not None and tag == self._source_tag) else 0
-
-            # Consumption from this tag (if allowed)
+            tag_prod = produced if tag in outbound else 0
             tag_cons = consumed_by_tag.get(tag, 0)
-
             constraints.extend(list(conn_tag + tag_prod - tag_cons == 0))
 
         return constraints if constraints else None

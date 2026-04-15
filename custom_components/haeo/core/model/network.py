@@ -195,7 +195,7 @@ class Network:
 
         # Check optimization status
         status = h.getModelStatus()
-        if status in (HighsModelStatus.kOptimal, HighsModelStatus.kModelEmpty):
+        if status == HighsModelStatus.kOptimal:
             return h.getObjectiveValue()
 
         msg = f"Optimization failed with status: {h.modelStatusToString(status)}"

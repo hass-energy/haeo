@@ -53,7 +53,7 @@ BATTERY_OUTPUT_NAMES: Final[frozenset[BatteryOutputName]] = frozenset(
 )
 
 # Battery power constraints (subset of outputs that relate to power balance)
-BATTERY_POWER_CONSTRAINTS: Final[frozenset[str]] = frozenset((BATTERY_POWER_BALANCE,))
+BATTERY_POWER_CONSTRAINTS: Final[frozenset[BatteryConstraintName]] = frozenset((BATTERY_POWER_BALANCE,))
 
 
 class BatteryElementConfig(TypedDict):
@@ -64,8 +64,8 @@ class BatteryElementConfig(TypedDict):
     capacity: NDArray[np.floating[Any]] | float
     initial_charge: float
     salvage_value: NotRequired[float]
-    source_tag: NotRequired[int | None]
-    access_list: NotRequired[list[int] | None]
+    outbound_tags: NotRequired[set[int] | None]
+    inbound_tags: NotRequired[set[int] | None]
 
 
 class Battery(Element[BatteryOutputName]):
@@ -89,8 +89,8 @@ class Battery(Element[BatteryOutputName]):
         capacity: NDArray[np.floating[Any]] | float,
         initial_charge: float,
         salvage_value: float = 0.0,
-        source_tag: int | None = None,
-        access_list: list[int] | None = None,
+        outbound_tags: set[int] | None = None,
+        inbound_tags: set[int] | None = None,
     ) -> None:
         """Initialize a battery entity."""
         super().__init__(
@@ -98,8 +98,8 @@ class Battery(Element[BatteryOutputName]):
             periods=periods,
             solver=solver,
             output_names=BATTERY_OUTPUT_NAMES,
-            source_tag=source_tag,
-            access_list=access_list,
+            outbound_tags=outbound_tags,
+            inbound_tags=inbound_tags,
         )
         n_periods = self.n_periods
 

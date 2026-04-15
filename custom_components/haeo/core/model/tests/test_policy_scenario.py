@@ -6,9 +6,9 @@ System topology:
     Battery <-> Switchboard
 
 Tag assignment (simulating compile_policies output):
-    Tag 1 = Solar power (source_tag on solar node)
-    Tag 2 = Battery power (source_tag on battery)
-    Tag 3 = Grid power (source_tag on grid)
+    Tag 1 = Solar power (outbound_tags on solar node)
+    Tag 2 = Battery power (outbound_tags on battery)
+    Tag 3 = Grid power (outbound_tags on grid)
 
 Per-tag pricing on connections:
     Solar -> Grid export: $0.02/kWh on tag 1
@@ -49,44 +49,44 @@ def _build_tagged_system(
     """Build model elements with pre-assigned tags."""
     n = len(periods)
     return [
-        # Nodes with source tags and access lists
+        # Nodes with outbound_tags and inbound_tags
         {
             "element_type": "node",
             "name": "grid",
             "is_source": True,
             "is_sink": True,
-            "source_tag": TAG_GRID,
-            "access_list": list(ALL_TAGS),
+            "outbound_tags": {TAG_GRID},
+            "inbound_tags": ALL_TAGS,
         },
         {
             "element_type": "node",
             "name": "solar",
             "is_source": True,
             "is_sink": False,
-            "source_tag": TAG_SOLAR,
+            "outbound_tags": {TAG_SOLAR},
         },
         {
             "element_type": "node",
             "name": "sw",
             "is_source": False,
             "is_sink": False,
-            "access_list": list(ALL_TAGS),
+            "inbound_tags": ALL_TAGS,
         },
         {
             "element_type": "node",
             "name": "load",
             "is_source": False,
             "is_sink": True,
-            "access_list": list(ALL_TAGS),
+            "inbound_tags": ALL_TAGS,
         },
-        # Battery with source tag
+        # Battery with outbound_tags
         {
             "element_type": "battery",
             "name": "battery",
             "capacity": battery_capacity,
             "initial_charge": battery_initial_kwh,
-            "source_tag": TAG_BATTERY,
-            "access_list": list(ALL_TAGS),
+            "outbound_tags": {TAG_BATTERY},
+            "inbound_tags": ALL_TAGS,
         },
         # Grid -> Switchboard (import)
         {
@@ -112,7 +112,7 @@ def _build_tagged_system(
                 "pricing": {
                     "segment_type": "pricing",
                     "price": -grid_export_price,
-                    "tag_costs": [
+                    "tag_prices": [
                         {"tag": TAG_SOLAR, "price": 0.02},
                         {"tag": TAG_BATTERY, "price": 0.10},
                     ],
@@ -141,7 +141,7 @@ def _build_tagged_system(
                 "power_limit": {"segment_type": "power_limit", "max_power": np.full(n, battery_max_power)},
                 "pricing": {
                     "segment_type": "pricing",
-                    "tag_costs": [{"tag": TAG_BATTERY, "price": 0.01}],
+                    "tag_prices": [{"tag": TAG_BATTERY, "price": 0.01}],
                 },
             },
         },
@@ -207,9 +207,9 @@ def test_tagged_power_flow_scenario() -> None:
     assert isinstance(grid_exp, Connection)
     assert isinstance(bat_dis, Connection)
 
-    grid_import_flow = tuple(float(v) for v in h.vals(grid_imp.power_in))
-    grid_export_flow = tuple(float(v) for v in h.vals(grid_exp.power_in))
-    bat_discharge_flow = tuple(float(v) for v in h.vals(bat_dis.power_in))
+    grid_import_flow = tuple(float(v) for v in h.vals(grid_imp.total_power_in))
+    grid_export_flow = tuple(float(v) for v in h.vals(grid_exp.total_power_in))
+    bat_discharge_flow = tuple(float(v) for v in h.vals(bat_dis.total_power_in))
 
     # Period 1: Solar surplus, cheap export ($0.01) + tag cost $0.02 = negative
     assert grid_export_flow[1] == pytest.approx(0.0, abs=0.1)

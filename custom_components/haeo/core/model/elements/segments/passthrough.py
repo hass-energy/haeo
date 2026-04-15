@@ -32,8 +32,7 @@ class PassthroughSegment(Segment):
         spec: PassthroughSegmentSpec,
         source_element: Element[Any],
         target_element: Element[Any],
-        power_in: HighspyArray,
-        tag_flows_in: dict[int, HighspyArray] | None = None,
+        power_in: dict[int, HighspyArray],
     ) -> None:
         """Initialize passthrough segment."""
         _ = spec
@@ -45,7 +44,6 @@ class PassthroughSegment(Segment):
             source_element=source_element,
             target_element=target_element,
             power_in=power_in,
-            tag_flows_in=tag_flows_in,
         )
 
 

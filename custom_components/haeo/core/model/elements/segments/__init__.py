@@ -86,8 +86,7 @@ def create_segment(
     spec: SegmentSpec,
     source_element: Element[Any],
     target_element: Element[Any],
-    power_in: HighspyArray,
-    tag_flows_in: dict[int, HighspyArray] | None = None,
+    power_in: dict[int, HighspyArray],
 ) -> Segment:
     """Create a segment instance from a segment specification."""
     segment_type = spec["segment_type"]
@@ -101,7 +100,6 @@ def create_segment(
         source_element=source_element,
         target_element=target_element,
         power_in=power_in,
-        tag_flows_in=tag_flows_in,
     )
 
 

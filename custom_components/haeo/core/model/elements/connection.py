@@ -3,12 +3,8 @@
 A Connection represents a single direction of power flow from source to target.
 Bidirectional paths are modelled as two separate connections.
 
-Connection creates LP variables for the power flow, then chains them through
-segments. Each segment may add constraints, costs, or transform the expression.
-
-When tags are provided, the flow is decomposed into per-tag LP variables that
-sum to the total power. Segments are tag-aware and handle per-tag transforms
-and costs internally.
+Connection creates per-tag LP variables for the power flow, then chains them
+through segments. Each segment receives and returns a dict of per-tag flows.
 """
 
 from collections import OrderedDict
@@ -55,9 +51,9 @@ class ConnectionElementConfig(TypedDict):
 class Connection[TOutputName: str](Element[TOutputName]):
     """Unidirectional power flow from source to target.
 
-    Creates LP variables for the flow, chains them through segments.
-    power_in is the flow entering the connection at the source end.
-    power_out is the flow exiting at the target end (after segment transforms).
+    Creates per-tag LP variables for the flow and chains them through segments.
+    power_in is the per-tag flow entering the connection at the source end.
+    power_out is the per-tag flow exiting at the target end (after segment transforms).
     """
 
     def __init__(
@@ -88,14 +84,11 @@ class Connection[TOutputName: str](Element[TOutputName]):
         self._segment_specs: OrderedDict[str, SegmentSpec] = OrderedDict(segments or {})
         self._segments: OrderedDict[str, Segment] = OrderedDict()
 
-        # Power flow variables and chain output (set during initialization)
-        self._power_in: HighspyArray | None = None
-        self._power_out: HighspyArray | None = None
-
-        # Per-tag power decomposition (empty = no tag decomposition)
-        self._tags: set[int] = tags if tags else set()
-        self._tag_power_in: dict[int, HighspyArray] = {}
-        self._tag_power_out: dict[int, HighspyArray] = {}
+        # Per-tag power flows (set during initialization)
+        # Default to a single tag (0) when no tags specified — always-tagged paradigm
+        self._tags: set[int] = tags if tags else {0}
+        self._power_in: dict[int, HighspyArray] = {}
+        self._power_out: dict[int, HighspyArray] = {}
 
     @property
     def segments(self) -> OrderedDict[str, Segment]:
@@ -120,32 +113,16 @@ class Connection[TOutputName: str](Element[TOutputName]):
             self._initialize_segments(source_element, target_element)
 
     def _initialize_segments(self, source_element: Element[Any], target_element: Element[Any]) -> None:
-        # Create per-tag LP variables when tags are present
-        tag_flows: dict[int, HighspyArray] = {}
-        if self._tags:
-            for tag in sorted(self._tags):
-                tag_flows[tag] = self._solver.addVariables(
-                    self.n_periods, lb=0, name_prefix=f"{self.name}_t{tag}_", out_array=True,
-                )
-
-            # Total power_in is the sum of all tag flows
-            self._power_in = self._solver.addVariables(
-                self.n_periods, lb=0, name_prefix=f"{self.name}_", out_array=True,
+        # Create per-tag LP variables
+        flows: dict[int, HighspyArray] = {}
+        for tag in sorted(self._tags):
+            flows[tag] = self._solver.addVariables(
+                self.n_periods, lb=0, name_prefix=f"{self.name}_t{tag}_", out_array=True,
             )
-            self._solver.addConstrs(
-                self._power_in == sum(tag_flows.values())  # type: ignore[arg-type]
-            )
-        else:
-            # No tags: plain total flow variables
-            self._power_in = self._solver.addVariables(
-                self.n_periods, lb=0, name_prefix=f"{self.name}_", out_array=True,
-            )
-
-        self._tag_power_in = dict(tag_flows)
+        self._power_in = dict(flows)
 
         specs = list(self._segment_specs.items()) or [("passthrough", {"segment_type": "passthrough"})]
 
-        flow = self._power_in
         for seg_name, seg_spec in specs:
             seg = create_segment(
                 segment_id=f"{self.name}_{seg_name}",
@@ -155,27 +132,32 @@ class Connection[TOutputName: str](Element[TOutputName]):
                 spec=seg_spec,
                 source_element=source_element,
                 target_element=target_element,
-                power_in=flow,
-                tag_flows_in=tag_flows if tag_flows else None,
+                power_in=flows,
             )
             self._segments[seg_name] = seg
-            flow = seg.power_out
-            tag_flows = seg.tag_flows_out
+            flows = seg.power_out
 
-        self._power_out = flow
-        self._tag_power_out = tag_flows
+        self._power_out = flows
 
     @property
-    def power_in(self) -> HighspyArray:
-        """Power entering the connection at the source end (LP variables)."""
-        assert self._power_in is not None  # noqa: S101
+    def power_in(self) -> dict[int, HighspyArray]:
+        """Per-tag power entering the connection at the source end."""
         return self._power_in
 
     @property
-    def power_out(self) -> HighspyArray:
-        """Power exiting the connection at the target end (after transforms)."""
-        assert self._power_out is not None  # noqa: S101
+    def total_power_in(self) -> HighspyArray:
+        """Total power entering the connection (sum of all tags)."""
+        return sum(self._power_in.values())  # type: ignore[return-value]
+
+    @property
+    def power_out(self) -> dict[int, HighspyArray]:
+        """Per-tag power exiting the connection at the target end."""
         return self._power_out
+
+    @property
+    def total_power_out(self) -> HighspyArray:
+        """Total power exiting the connection (sum of all tags)."""
+        return sum(self._power_out.values())  # type: ignore[return-value]
 
     def connection_tags(self) -> set[int]:
         """Return the set of tags on this connection."""
@@ -183,11 +165,11 @@ class Connection[TOutputName: str](Element[TOutputName]):
 
     def power_into_source_for_tag(self, tag: int) -> HighspyArray:
         """Power flowing into the source node for a specific tag."""
-        return -self._tag_power_in[tag]
+        return -self._power_in[tag]
 
     def power_into_target_for_tag(self, tag: int) -> HighspyArray:
         """Power flowing into the target node for a specific tag."""
-        return self._tag_power_out[tag]
+        return self._power_out[tag]
 
     # --- Node power balance interface ---
 
@@ -198,7 +180,7 @@ class Connection[TOutputName: str](Element[TOutputName]):
         For unidirectional connections, the source node loses power_in
         (power flows away from source into the connection).
         """
-        return -self.power_in
+        return -self.total_power_in
 
     @property
     def power_into_target(self) -> HighspyArray:
@@ -207,7 +189,11 @@ class Connection[TOutputName: str](Element[TOutputName]):
         For unidirectional connections, the target node gains power_out
         (power flows from the connection into the target).
         """
-        return self.power_out
+        return self.total_power_out
+
+    def element_power_balance(self) -> None:
+        """Connections have no external power balance — power balance is on nodes."""
+        return None
 
     def constraints(self) -> dict[str, highs_cons | list[highs_cons]]:
         """Collect constraints from all segments."""
@@ -245,7 +231,7 @@ class Connection[TOutputName: str](Element[TOutputName]):
         return OutputData(
             type=OutputType.POWER_FLOW,
             unit="kW",
-            values=self.extract_values(self.power_in),
+            values=self.extract_values(self.total_power_in),
             direction="+",
         )
 

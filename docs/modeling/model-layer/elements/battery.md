@@ -46,8 +46,8 @@ For each time step $t \in \{0, 1, \ldots, T\}$ (note: $T+1$ time points for ener
 **Optional parameters**:
 
 - $v_{\text{salvage}}$: Terminal value of stored energy (\$/kWh) - `salvage_value`
-- `source_tag`: Tag assigned to power produced (discharged) by this battery (see [Tagged Power](../../tagged-power.md))
-- `access_list`: Tags this battery can consume (charge from) — None means all tags
+- `outbound_tags`: Tags that discharged power can be placed on (see [Tagged Power](../../tagged-power.md))
+- `inbound_tags`: Tags this battery can consume (charge from) — None means all tags
 
 ### Constraints
 
@@ -97,8 +97,8 @@ Where:
 
 #### 4. Tag Balance
 
-When connections carry [tagged power](../../tagged-power.md), the Element base class creates per-tag power balance constraints.
-Discharge power is tagged with `source_tag`; charge power is distributed across `access_list` tags.
+The Element base class creates per-tag power balance constraints for all elements with tagged connections.
+Discharge power is placed on `outbound_tags`; charge power draws from `inbound_tags`.
 See the [tagged power formulation](../../tagged-power.md#per-tag-balance) for details.
 
 ### Cost Contribution
