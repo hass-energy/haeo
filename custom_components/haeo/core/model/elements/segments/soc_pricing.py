@@ -38,7 +38,7 @@ class SocPricingSegment(Segment):
         spec: SocPricingSegmentSpec,
         source_element: Element[Any],
         target_element: Element[Any],
-        power_in: HighspyArray,
+        power_in: dict[int, HighspyArray],
     ) -> None:
         """Initialize SOC pricing segment."""
         super().__init__(

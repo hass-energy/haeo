@@ -9,7 +9,7 @@ from highspy.highs import highs_cons, highs_linear_expression
 import numpy as np
 from numpy.typing import NDArray
 
-from .element import Element
+from .element import Element, NetworkElement
 from .elements import ELEMENTS, ModelElementConfig
 from .elements.battery import Battery, BatteryElementConfig
 from .elements.connection import Connection, ConnectionElementConfig, ConnectionOutputName
@@ -115,25 +115,20 @@ class Network:
 
         # Register connections immediately when adding Connection elements
         if isinstance(element_instance, Connection):
-            # Get source and target elements
+            # Get source and target elements (must be NetworkElements for power balance)
             source_element = self.elements.get(element_instance.source)
             target_element = self.elements.get(element_instance.target)
 
-            if source_element is not None:
-                source_element.register_connection(element_instance, "source")
-            else:
-                msg = (
-                    f"Failed to register connection {name} with source {element_instance.source}: Not found or invalid"
-                )
-                raise ValueError(msg)
+            if not isinstance(source_element, NetworkElement):
+                msg = f"Source element '{element_instance.source}' is not a network participant"
+                raise ValueError(msg)  # noqa: TRY004 value error is appropriate here
 
-            if target_element is not None:
-                target_element.register_connection(element_instance, "target")
-            else:
-                msg = (
-                    f"Failed to register connection {name} with target {element_instance.target}: Not found or invalid"
-                )
-                raise ValueError(msg)
+            if not isinstance(target_element, NetworkElement):
+                msg = f"Target element '{element_instance.target}' is not a network participant"
+                raise ValueError(msg)  # noqa: TRY004 value error is appropriate here
+
+            source_element.register_connection(element_instance, "source")
+            target_element.register_connection(element_instance, "target")
             element_instance.set_endpoints(source_element, target_element)
 
         return element_instance
@@ -173,9 +168,6 @@ class Network:
             The total optimization cost
 
         """
-        # Validate network before optimization
-        self.validate()
-
         h = self._solver
 
         # Collect constraints from all elements (reactive - calling triggers decorator lifecycle)
@@ -200,24 +192,6 @@ class Network:
 
         msg = f"Optimization failed with status: {h.modelStatusToString(status)}"
         raise ValueError(msg)
-
-    def validate(self) -> None:
-        """Validate the network."""
-        # Check that all connection elements have valid source and target elements
-        for element in self.elements.values():
-            if isinstance(element, Connection):
-                if element.source not in self.elements:
-                    msg = f"Source element '{element.source}' not found"
-                    raise ValueError(msg)
-                if element.target not in self.elements:
-                    msg = f"Target element '{element.target}' not found"
-                    raise ValueError(msg)
-                if isinstance(self.elements[element.source], Connection):
-                    msg = f"Source element '{element.source}' is a connection"
-                    raise ValueError(msg)  # noqa: TRY004 value error is appropriate here
-                if isinstance(self.elements[element.target], Connection):
-                    msg = f"Target element '{element.target}' is a connection"
-                    raise ValueError(msg)  # noqa: TRY004 value error is appropriate here
 
     def constraints(self) -> dict[str, dict[str, highs_cons | list[highs_cons]]]:
         """Return all constraints from all elements in the network.

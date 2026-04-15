@@ -65,11 +65,13 @@ def _solve_connection_scenario(element: Connection[str], inputs: ConnectionTestC
 
     if "fix_power_in" in inputs:
         values = inputs["fix_power_in"]
+        total_power_in = element.total_power_in
         for i, val in enumerate(values):
-            h.addConstr(element.power_in[i] == val)
+            h.addConstr(total_power_in[i] == val)
 
     if inputs.get("maximize_power_out"):
-        cost_terms.append(-Highs.qsum(element.power_out[i] * periods[i] for i in range(n_periods)))
+        total_power_out = element.total_power_out
+        cost_terms.append(-Highs.qsum(total_power_out[i] * periods[i] for i in range(n_periods)))
 
     element_cost = element.cost()
     if element_cost is not None:
@@ -151,15 +153,17 @@ def test_connection_power_properties(solver: Highs) -> None:
     conn.set_endpoints(source, target)
     conn.constraints()
 
-    solver.addConstr(conn.power_in[0] == 5.0)
-    solver.addConstr(conn.power_in[1] == 3.0)
+    total_in = conn.total_power_in
+    solver.addConstr(total_in[0] == 5.0)
+    solver.addConstr(total_in[1] == 3.0)
 
     solver.run()
 
-    power_in = [solver.val(conn.power_in[i]) for i in range(2)]
+    power_in = [solver.val(total_in[i]) for i in range(2)]
     assert power_in == pytest.approx([5.0, 3.0])
 
-    power_out = [solver.val(conn.power_out[i]) for i in range(2)]
+    total_out = conn.total_power_out
+    power_out = [solver.val(total_out[i]) for i in range(2)]
     assert power_out == pytest.approx([5.0, 3.0])
 
     power_into_source = [solver.val(conn.power_into_source[i]) for i in range(2)]
@@ -235,7 +239,7 @@ def test_connection_multiple_cost_sources(solver: Highs) -> None:
     cost = conn.cost()
     assert cost is not None
 
-    solver.addConstr(conn.power_in[0] == 5.0)
+    solver.addConstr(conn.total_power_in[0] == 5.0)
     solver.minimize(cost)
     # Cost = 5 kW * (0.10 + 0.20) $/kWh * 1 h = 1.50
     assert solver.getObjectiveValue() == pytest.approx(1.50)
