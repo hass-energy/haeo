@@ -10,7 +10,6 @@ from typing import Any
 
 from homeassistant.components.number import NumberDeviceClass, NumberEntityDescription
 from homeassistant.components.switch import SwitchEntityDescription
-from homeassistant.helpers.entity import EntityDescription
 
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.schema.field_hints import FieldHint, ListFieldHints
@@ -23,7 +22,7 @@ class OutputTypeMetadata:
     """Default metadata for creating NumberEntityDescription for an OutputType."""
 
     unit: str | None
-    device_class: str | None
+    device_class: NumberDeviceClass | None
     min_value: float
     max_value: float
     step: float
@@ -95,7 +94,7 @@ def build_list_input_fields(
     element_type: str,
     list_key: str,
     list_hints: ListFieldHints,
-    items: Sequence[Mapping[str, Any]],
+    items: Sequence[Any],
 ) -> dict[str, dict[str, InputFieldInfo[Any]]]:
     """Transform a list config field into per-item InputFieldInfo groups.
 
@@ -117,7 +116,7 @@ def build_list_input_fields(
     result: dict[str, dict[str, InputFieldInfo[Any]]] = {}
 
     for i, item in enumerate(items):
-        if not isinstance(item, Mapping):  # type: ignore[reportUnnecessaryIsInstance]
+        if not isinstance(item, Mapping):
             continue
         section: dict[str, InputFieldInfo[Any]] = {}
         for field_name, hint in list_hints.fields.items():
@@ -137,25 +136,8 @@ def _build_field_info(
     field_name: str,
     hint: FieldHint,
     translation_key: str,
-) -> InputFieldInfo[Any]:
+) -> InputFieldInfo[NumberEntityDescription] | InputFieldInfo[SwitchEntityDescription]:
     """Build an InputFieldInfo from a FieldHint."""
-    if hint.output_type == OutputType.STATUS:
-        entity_description: EntityDescription = SwitchEntityDescription(
-            key=field_name,
-            translation_key=translation_key,
-        )
-    else:
-        defaults = OUTPUT_TYPE_DEFAULTS[hint.output_type]
-        entity_description = NumberEntityDescription(
-            key=field_name,
-            translation_key=translation_key,
-            native_unit_of_measurement=defaults.unit,
-            device_class=defaults.device_class,  # type: ignore[reportArgumentType]
-            native_min_value=hint.min_value if hint.min_value is not None else defaults.min_value,
-            native_max_value=hint.max_value if hint.max_value is not None else defaults.max_value,
-            native_step=hint.step if hint.step is not None else defaults.step,
-        )
-
     input_defaults = None
     if hint.default_mode is not None or hint.default_value is not None:
         input_defaults = InputFieldDefaults(
@@ -163,9 +145,34 @@ def _build_field_info(
             value=hint.default_value,
         )
 
+    if hint.output_type == OutputType.STATUS:
+        return InputFieldInfo(
+            field_name=field_name,
+            entity_description=SwitchEntityDescription(
+                key=field_name,
+                translation_key=translation_key,
+            ),
+            output_type=hint.output_type,
+            direction=hint.direction,
+            time_series=hint.time_series,
+            boundaries=hint.boundaries,
+            defaults=input_defaults,
+            force_required=hint.force_required,
+            device_type=hint.device_type,
+        )
+
+    defaults = OUTPUT_TYPE_DEFAULTS[hint.output_type]
     return InputFieldInfo(
         field_name=field_name,
-        entity_description=entity_description,  # type: ignore[reportArgumentType]
+        entity_description=NumberEntityDescription(
+            key=field_name,
+            translation_key=translation_key,
+            native_unit_of_measurement=defaults.unit,
+            device_class=defaults.device_class,
+            native_min_value=hint.min_value if hint.min_value is not None else defaults.min_value,
+            native_max_value=hint.max_value if hint.max_value is not None else defaults.max_value,
+            native_step=hint.step if hint.step is not None else defaults.step,
+        ),
         output_type=hint.output_type,
         direction=hint.direction,
         time_series=hint.time_series,
