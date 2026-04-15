@@ -1,6 +1,6 @@
 """Tests for nested config helper utilities."""
 
-from typing import Any, cast
+from typing import Any
 
 from custom_components.haeo.elements import (
     find_nested_config_path,
@@ -49,7 +49,7 @@ def test_nested_config_value_by_path_and_setters() -> None:
     assert config["nested"]["inner"]["value"] == 20
     assert set_nested_config_value_by_path(config, ("common", "name", "extra"), 1) is False
 
-    invalid_config = cast(dict[str, Any], "not-a-dict")
+    invalid_config: Any = "not-a-dict"
     assert set_nested_config_value_by_path(invalid_config, ("field",), 1) is False
     assert set_nested_config_value_by_path(invalid_config, ("field", "inner"), 1) is False
 
