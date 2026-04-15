@@ -23,7 +23,7 @@ Sub-element Naming Convention:
         - "home_battery:connection" (implicit connection to network)
 """
 
-from collections.abc import Mapping
+from collections.abc import Mapping, MutableSequence
 import logging
 import types
 from typing import (
@@ -567,7 +567,7 @@ def set_nested_config_value_by_path(config: dict[str, Any], field_path: InputFie
     if isinstance(current, dict):
         current[last_key] = value
         return True
-    if isinstance(current, list):
+    if isinstance(current, MutableSequence):
         try:
             current[int(last_key)] = value
             return True
