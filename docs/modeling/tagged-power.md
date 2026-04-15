@@ -110,7 +110,7 @@ With `tag_prices` on the grid export connection:
 
 The optimizer can now distinguish the cost of exporting solar-sourced vs battery-sourced power, routing exports to minimize total cost.
 
-## Next Steps
+## Next steps
 
 <div class="grid cards" markdown>
 
