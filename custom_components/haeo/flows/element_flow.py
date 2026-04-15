@@ -187,8 +187,10 @@ class ElementFlowMixin:
             if subentry.subentry_id == current_id:
                 continue
 
-            element_type = subentry.data.get(CONF_ELEMENT_TYPE)
-            if not isinstance(element_type, ElementType):
+            element_type_raw = subentry.data.get(CONF_ELEMENT_TYPE)
+            try:
+                element_type = ElementType(element_type_raw)
+            except (ValueError, KeyError):
                 continue
 
             connectivity = ELEMENT_TYPES[element_type].connectivity

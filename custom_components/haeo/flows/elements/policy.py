@@ -88,12 +88,7 @@ class PolicySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         self._editing_index: int | None = None
 
     def _get_participant_options(self) -> list[str]:
-        """Return all element names available as policy endpoints.
-
-        Unlike connection flows that filter by connectivity, policies can
-        reference any element that participates in the model. This includes
-        all element types except other policies and connections.
-        """
+        """Return all element names available as policy endpoints."""
         hub_entry = self._get_entry()
         current_id = self._get_current_subentry_id()
 
@@ -102,8 +97,9 @@ class PolicySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             if subentry.subentry_id == current_id:
                 continue
 
-            element_type = subentry.data.get(CONF_ELEMENT_TYPE)
-            if not isinstance(element_type, ElementType):
+            try:
+                element_type = ElementType(subentry.data.get(CONF_ELEMENT_TYPE))
+            except (ValueError, KeyError):
                 continue
 
             if element_type not in (ElementType.POLICY, ElementType.CONNECTION):
