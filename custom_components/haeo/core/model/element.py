@@ -1,6 +1,8 @@
 """Generic electrical entity for energy system modeling."""
 
 from collections.abc import Mapping, Sequence
+from functools import reduce
+import operator
 from typing import Any, Final, Literal
 
 from highspy import Highs
@@ -217,7 +219,10 @@ class Element[OutputNameT: str]:
             self._consumed_by_tag = {}
             for tag in sorted(inbound):
                 self._consumed_by_tag[tag] = self._solver.addVariables(
-                    self.n_periods, lb=0, name_prefix=f"{self.name}_ct{tag}_", out_array=True,
+                    self.n_periods,
+                    lb=0,
+                    name_prefix=f"{self.name}_ct{tag}_",
+                    out_array=True,
                 )
         return self._consumed_by_tag
 
@@ -260,7 +265,7 @@ class Element[OutputNameT: str]:
 
         # Sum constraint: consumed_by_tag values must equal total consumed
         if consumed_by_tag:
-            constraints.extend(list(sum(consumed_by_tag.values()) == consumed))  # type: ignore[arg-type]
+            constraints.extend(list(reduce(operator.add, consumed_by_tag.values()) == consumed))
 
         for tag in sorted(tags):
             conn_tag = self.connection_power_for_tag(tag)

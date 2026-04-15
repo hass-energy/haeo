@@ -10,6 +10,8 @@ Bidirectional paths are modelled as two separate Connection elements,
 each with its own segment chain.
 """
 
+from functools import reduce
+import operator
 from typing import Any
 
 from highspy import Highs
@@ -91,7 +93,7 @@ class Segment:
     @property
     def total_power_in(self) -> HighspyArray:
         """Sum of all tag input flows."""
-        return sum(self._power_in.values())  # type: ignore[return-value]
+        return reduce(operator.add, self._power_in.values())
 
     @property
     def power_out(self) -> dict[int, HighspyArray]:
@@ -101,7 +103,7 @@ class Segment:
     @property
     def total_power_out(self) -> HighspyArray:
         """Sum of all tag output flows."""
-        return sum(self.power_out.values())  # type: ignore[return-value]
+        return reduce(operator.add, self.power_out.values())
 
     def constraints(self) -> dict[str, highs_cons | list[highs_cons]]:
         """Return all constraints from this segment."""

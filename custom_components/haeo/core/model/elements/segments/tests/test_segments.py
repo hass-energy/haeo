@@ -1,6 +1,8 @@
 """Tests for connection segments and Connection class."""
 
 from collections.abc import Sequence
+from functools import reduce
+import operator
 from typing import Any
 
 from highspy import Highs
@@ -63,7 +65,7 @@ class DummySegment(Segment):
         *,
         source_element: Element[Any],
         target_element: Element[Any],
-        power_in: HighspyArray,
+        power_in: dict[int, HighspyArray],
     ) -> None:
         """Initialize a dummy segment."""
         super().__init__(
@@ -127,7 +129,7 @@ def _solve_segment_scenario(case: SegmentScenario) -> dict[str, ExpectedValue]:
         source, target = endpoint_factory(h, periods)
 
     power_in = h.addVariables(len(periods), lb=0, name_prefix="test_", out_array=True)
-    power_in_dict: dict[int, HighspyArray] = {0: power_in}
+    tagged_power = {0: power_in}
     seg = case["factory"](
         "seg",
         len(periods),
@@ -136,7 +138,7 @@ def _solve_segment_scenario(case: SegmentScenario) -> dict[str, ExpectedValue]:
         spec=case["spec"],
         source_element=source,
         target_element=target,
-        power_in=power_in_dict,
+        power_in=tagged_power,
     )
     seg.constraints()
 
@@ -153,7 +155,7 @@ def _solve_segment_scenario(case: SegmentScenario) -> dict[str, ExpectedValue]:
     for name, weight in inputs.get("maximize", {}).items():
         attr_val = getattr(seg, name)
         if isinstance(attr_val, dict):
-            attr_val = sum(attr_val.values())
+            attr_val = reduce(operator.add, attr_val.values())
         objective_terms.append(-float(weight) * Highs.qsum(attr_val))
 
     if objective_terms:
@@ -167,7 +169,7 @@ def _solve_segment_scenario(case: SegmentScenario) -> dict[str, ExpectedValue]:
         else:
             attr_val = getattr(seg, key)
             if isinstance(attr_val, dict):
-                attr_val = sum(attr_val.values())
+                attr_val = reduce(operator.add, attr_val.values())
             outputs[key] = tuple(float(v) for v in h.vals(attr_val))
     return outputs
 
@@ -204,7 +206,7 @@ def _solve_connection_scenario(case: ConnectionScenario) -> dict[str, ExpectedVa
     for name, weight in maximize.items():
         flow = getattr(conn, name)
         if isinstance(flow, dict):
-            flow = sum(flow.values())
+            flow = reduce(operator.add, flow.values())
         objective_terms.append(-float(weight) * Highs.qsum(flow))
 
     if objective_terms:
@@ -241,7 +243,7 @@ def _solve_connection_scenario(case: ConnectionScenario) -> dict[str, ExpectedVa
             continue
         flow = getattr(conn, key)
         if isinstance(flow, dict):
-            flow = sum(flow.values())
+            flow = reduce(operator.add, flow.values())
         outputs[key] = tuple(float(v) for v in h.vals(flow))
     return outputs
 
@@ -274,6 +276,7 @@ def test_segment_error_scenarios(case: SegmentErrorScenario) -> None:
 
     match = case["match"]
     pv = h.addVariables(len(periods), lb=0, name_prefix="err_", out_array=True)
+    tagged_pv: dict[int, HighspyArray] = {0: pv}
     if match is None:
         with pytest.raises(case["error"]):
             case["factory"](
@@ -284,7 +287,7 @@ def test_segment_error_scenarios(case: SegmentErrorScenario) -> None:
                 spec=case["spec"],
                 source_element=source,
                 target_element=target,
-                power_in=pv,
+                power_in=tagged_pv,
             )
     else:
         with pytest.raises(case["error"], match=match):
@@ -296,7 +299,7 @@ def test_segment_error_scenarios(case: SegmentErrorScenario) -> None:
                 spec=case["spec"],
                 source_element=source,
                 target_element=target,
-                power_in=pv,
+                power_in=tagged_pv,
             )
 
 
@@ -319,7 +322,7 @@ def test_segment_outputs_and_cost_coverage() -> None:
     target = DummyElement("target", periods, h)
     power = h.addVariables(len(periods), lb=0, name_prefix="dummy_", out_array=True)
     segment = DummySegment(
-        "seg", len(periods), periods, h, source_element=source, target_element=target, power_in=power
+        "seg", len(periods), periods, h, source_element=source, target_element=target, power_in={0: power}
     )
 
     np.testing.assert_array_equal(segment.periods, periods)
@@ -348,7 +351,7 @@ def test_soc_pricing_cost_none_without_prices() -> None:
         spec={"segment_type": "soc_pricing"},
         source_element=battery,
         target_element=target,
-        power_in=pv,
+        power_in={0: pv},
     )
 
     # Apply with dummy variables
@@ -373,15 +376,15 @@ def test_efficiency_segment_treats_none_as_unity_after_update() -> None:
         spec={"segment_type": "efficiency", "efficiency": np.array([0.9], dtype=np.float64)},
         source_element=source,
         target_element=target,
-        power_in=power_in,
+        power_in={0: power_in},
     )
 
     # Simulate coordinator update path clearing optional efficiency.
     segment.efficiency = None
-    h.addConstrs(segment.power_in == np.asarray([10.0], dtype=np.float64))
+    h.addConstrs(segment.total_power_in == np.asarray([10.0], dtype=np.float64))
     h.run()
 
-    np.testing.assert_allclose(h.vals(segment.power_out), [10.0], rtol=1e-6, atol=1e-6)
+    np.testing.assert_allclose(h.vals(segment.total_power_out), [10.0], rtol=1e-6, atol=1e-6)
 
 
 def test_efficiency_segment_treats_missing_values_as_unity_both_directions() -> None:
@@ -400,7 +403,7 @@ def test_efficiency_segment_treats_missing_values_as_unity_both_directions() -> 
         spec={"segment_type": "efficiency"},
         source_element=source,
         target_element=target,
-        power_in=power_a,
+        power_in={0: power_a},
     )
     seg_b = EfficiencySegment(
         "seg_b",
@@ -410,15 +413,15 @@ def test_efficiency_segment_treats_missing_values_as_unity_both_directions() -> 
         spec={"segment_type": "efficiency"},
         source_element=source,
         target_element=target,
-        power_in=power_b,
+        power_in={0: power_b},
     )
 
-    h.addConstrs(seg_a.power_in == np.asarray([7.5], dtype=np.float64))
-    h.addConstrs(seg_b.power_in == np.asarray([3.5], dtype=np.float64))
+    h.addConstrs(seg_a.total_power_in == np.asarray([7.5], dtype=np.float64))
+    h.addConstrs(seg_b.total_power_in == np.asarray([3.5], dtype=np.float64))
     h.run()
 
-    np.testing.assert_allclose(h.vals(seg_a.power_out), [7.5], rtol=1e-6, atol=1e-6)
-    np.testing.assert_allclose(h.vals(seg_b.power_out), [3.5], rtol=1e-6, atol=1e-6)
+    np.testing.assert_allclose(h.vals(seg_a.total_power_out), [7.5], rtol=1e-6, atol=1e-6)
+    np.testing.assert_allclose(h.vals(seg_b.total_power_out), [3.5], rtol=1e-6, atol=1e-6)
 
 
 def test_power_limit_no_max_power() -> None:
@@ -437,7 +440,7 @@ def test_power_limit_no_max_power() -> None:
         spec={"segment_type": "power_limit"},
         source_element=source,
         target_element=target,
-        power_in=power_in,
+        power_in={0: power_in},
     )
     seg.constraints()
 
