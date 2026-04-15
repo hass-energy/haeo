@@ -51,6 +51,35 @@ class SectionHints:
     fields: dict[str, FieldHint]
 
 
+@dataclass(frozen=True, slots=True)
+class ListFieldHints:
+    """Wrapper for field hints within items of a list config field.
+
+    Used with ``Annotated`` on list-typed TypedDict fields to declare that
+    each item in the list has configurable input fields.  The extraction
+    pipeline reads these hints and generates per-item input field definitions
+    at runtime based on the actual config data.
+
+    Attributes:
+        item_name_field: Key within each item used to derive entity names
+            (e.g. ``"name"`` for policy rules).
+        fields: Mapping of field name to ``FieldHint`` for each item field
+            that should become an input entity.
+
+    Example::
+
+        class PolicyConfigSchema(TypedDict):
+            rules: Annotated[list[PolicyRuleConfig], ListFieldHints(
+                item_name_field="name",
+                fields={"price": FieldHint(output_type=OutputType.PRICE, time_series=True)},
+            )]
+
+    """
+
+    item_name_field: str
+    fields: dict[str, FieldHint]
+
+
 def extract_field_hints(schema_cls: type) -> dict[str, dict[str, FieldHint]]:
     """Extract declarative field hints from a TypedDict's Annotated metadata."""
     hints = get_type_hints(schema_cls, include_extras=True)
@@ -68,6 +97,33 @@ def extract_field_hints(schema_cls: type) -> dict[str, dict[str, FieldHint]]:
             for arg in get_args(unwrapped_type)[1:]:
                 if isinstance(arg, SectionHints):
                     result[section_key] = arg.fields
+                    break
+
+    return result
+
+
+def extract_list_field_hints(schema_cls: type) -> dict[str, ListFieldHints]:
+    """Extract list field hints from a TypedDict's Annotated metadata.
+
+    Finds fields annotated with ``ListFieldHints`` and returns them keyed
+    by their field name.  This is the list-based counterpart to
+    ``extract_field_hints`` which handles section-based hints.
+    """
+    hints = get_type_hints(schema_cls, include_extras=True)
+    result: dict[str, ListFieldHints] = {}
+
+    for field_key, field_type in hints.items():
+        origin = get_origin(field_type)
+        if origin in (Required, NotRequired):
+            unwrapped_type = get_args(field_type)[0]
+            origin = get_origin(unwrapped_type)
+        else:
+            unwrapped_type = field_type
+
+        if origin is Annotated:
+            for arg in get_args(unwrapped_type)[1:]:
+                if isinstance(arg, ListFieldHints):
+                    result[field_key] = arg
                     break
 
     return result

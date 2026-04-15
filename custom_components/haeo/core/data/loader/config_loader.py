@@ -20,7 +20,12 @@ from custom_components.haeo.core.schema import SchemaValue
 from custom_components.haeo.core.schema.constant_value import is_constant_value
 from custom_components.haeo.core.schema.elements import ELEMENT_CONFIG_SCHEMAS, ElementConfigData, ElementConfigSchema
 from custom_components.haeo.core.schema.entity_value import is_entity_value
-from custom_components.haeo.core.schema.field_hints import FieldHint, extract_field_hints
+from custom_components.haeo.core.schema.field_hints import (
+    FieldHint,
+    ListFieldHints,
+    extract_field_hints,
+    extract_list_field_hints,
+)
 from custom_components.haeo.core.schema.none_value import is_none_value
 from custom_components.haeo.core.state import StateMachine
 
@@ -92,6 +97,15 @@ def load_element_config(
                 loaded.setdefault(section_name, {})[field_name] = default
             else:
                 loaded.setdefault(section_name, {})[field_name] = resolved
+
+    # Resolve list-based input fields (e.g. policy rules with entity prices)
+    list_hints = extract_list_field_hints(ELEMENT_CONFIG_SCHEMAS[element_type])
+    for list_key, hints in list_hints.items():
+        items = element_config.get(list_key)
+        if not isinstance(items, (list, tuple)):
+            continue
+        loaded_items = _resolve_list_items(items, hints, sm, forecast_times)
+        loaded[list_key] = loaded_items
 
     return loaded  # type: ignore[return-value]
 
@@ -210,6 +224,32 @@ def _resolve_entities(
         values = [v / 100.0 for v in values]
 
     return np.array(values)
+
+
+def _resolve_list_items(
+    items: Sequence[Any],
+    hints: ListFieldHints,
+    sm: StateMachine,
+    forecast_times: Sequence[float],
+) -> list[dict[str, Any]]:
+    """Resolve hinted fields within each item of a list config field."""
+    loaded_items: list[dict[str, Any]] = []
+    for item in items:
+        if not isinstance(item, Mapping):
+            loaded_items.append(item)
+            continue
+        loaded_item = dict(item)
+        for field_name, hint in hints.fields.items():
+            value = item.get(field_name)
+            if value is None:
+                continue
+            resolved = _resolve_field(value, hint, sm, forecast_times)
+            if isinstance(resolved, _Sentinel):
+                loaded_item.pop(field_name, None)
+            elif resolved is not None:
+                loaded_item[field_name] = resolved
+        loaded_items.append(loaded_item)
+    return loaded_items
 
 
 __all__ = [
