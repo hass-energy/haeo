@@ -20,7 +20,8 @@ from typing import Any
 
 import numpy as np
 
-from custom_components.haeo.core.model.elements.segments.segment import DEFAULT_TAG
+# Tag 0 is used for untagged/default power flows
+DEFAULT_TAG = 0
 
 
 def _make_hashable(value: Any) -> Any:
@@ -45,8 +46,8 @@ def compile_policies(
             - price_target_source: $/kWh or None
 
     Returns:
-        Modified elements list with tags, source_tags, access_lists, and
-        scoped segments injected.
+        Modified elements list with tags, outbound_tags, inbound_tags, and
+        tag_costs injected.
 
     """
     if not policy_configs:
@@ -163,12 +164,12 @@ def compile_policies(
                 tags.add(vlan_id)
         conn["tags"] = sorted(tags)
 
-    # --- Step 6: Node source tags ---
+    # --- Step 6: Node outbound tags (source provenance) ---
     for name, vlan_id in tag_map.items():
         if vlan_id != DEFAULT_TAG and name in elements_by_name:
-            elements_by_name[name]["source_tag"] = vlan_id
+            elements_by_name[name]["outbound_tags"] = {vlan_id}
 
-    # --- Step 7: Node access lists ---
+    # --- Step 7: Node inbound tags (consumption access) ---
     # Which VLANs each node can consume
     access_lists: dict[str, set[int]] = defaultdict(set)
     for src, dst, _, _ in flows:
@@ -178,7 +179,7 @@ def compile_policies(
 
     for name, allowed_vlans in access_lists.items():
         if name in elements_by_name:
-            elements_by_name[name]["access_list"] = sorted(allowed_vlans)
+            elements_by_name[name]["inbound_tags"] = allowed_vlans
 
     # --- Step 8: Pricing injection via tag_costs (not separate segments) ---
     for policy in policy_configs:

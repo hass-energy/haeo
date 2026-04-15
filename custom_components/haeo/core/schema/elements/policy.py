@@ -59,7 +59,6 @@ class PolicyConfigSchema(TypedDict):
     rules: Annotated[
         list[PolicyRuleConfig],
         ListFieldHints(
-            item_name_field="name",
             fields={
                 CONF_PRICE: FieldHint(
                     output_type=OutputType.PRICE,

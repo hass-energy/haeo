@@ -51,12 +51,12 @@ Only reachable connections receive variables for that VLAN.
 
 Apply reachability results so each connection gets the set of VLANs that can traverse it.
 
-### Step 6: Node source tags
+### Step 6: Node outbound tags
 
-Set `source_tag` on each source node with an assigned VLAN.
-The node's `node_tag_power_balance` constraint enforces that only the source tag carries outbound power.
+Set `outbound_tags` on each source node with an assigned VLAN.
+The node's `element_power_balance` constraint enforces that only the outbound tags carry produced power.
 
-### Step 7: Node access lists
+### Step 7: Node inbound tags
 
 Compute which VLANs each node can consume.
 
@@ -81,7 +81,7 @@ It runs as a post-processing step in `collect_model_elements()`.
 
 The policy adapter produces rule configs, not model elements.
 `collect_model_elements()` extracts those rules and passes them to the compilation pipeline.
-The pipeline updates other adapters' model element configs by adding connection tags, node `source_tag` values, and scoped segments.
+The pipeline updates other adapters' model element configs by adding connection tags, node `outbound_tags` values, and tag costs.
 
 ### Model layer isolation
 
@@ -105,8 +105,8 @@ Policies:
 | VLANs            | Grid=1, Solar=2, others=0, K=3                                          |
 | Reachability     | VLAN 1: Grid->SW, SW->Load. VLAN 2: Solar->SW, SW->Load                 |
 | Connection tags  | Grid->SW: {0,1}, Solar->SW: {0,2}, SW->Load: {0,1,2}, Battery->SW: \{0} |
-| Source tags      | Grid: source_tag=1, Solar: source_tag=2                                 |
-| Access lists     | Load consumes {1,2}, SW forwards all, Battery consumes \{0}             |
+| Outbound tags    | Grid: outbound_tags={1}, Solar: outbound_tags={2}                      |
+| Inbound tags     | Load consumes {1,2}, SW forwards all, Battery consumes \{0}             |
 | Pricing          | SW->Load: pricing(tag=1,$0.05), pricing(tag=2,$0.02)                    |
 
 Result: Solar power is preferred over grid power because it has lower policy cost.
@@ -120,7 +120,7 @@ Tests live in `custom_components/haeo/core/adapters/tests/test_policy_compilatio
 - **Signature computation**: correct merging of identical signatures.
 - **VLAN assignment**: minimum VLANs for various policy sets.
 - **Reachability**: correct connection tagging for tree topologies.
-- **Source enforcement**: `source_tag` set on correct nodes.
+- **Source enforcement**: `outbound_tags` set on correct nodes.
 - **End-to-end**: full network optimization with policies produces correct costs.
 
 ## Related

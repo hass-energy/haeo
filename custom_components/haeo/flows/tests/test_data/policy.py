@@ -1,11 +1,6 @@
 """Test data and validation for policy flow configuration."""
 
-from custom_components.haeo.core.schema.elements.policy import (
-    CONF_PRICE,
-    CONF_RULES,
-    CONF_SOURCE,
-    CONF_TARGET,
-)
+from custom_components.haeo.core.schema.elements.policy import CONF_PRICE, CONF_RULES, CONF_SOURCE, CONF_TARGET
 
 VALID_DATA = [
     {
