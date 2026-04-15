@@ -107,6 +107,13 @@ def _load_battery(config: dict[str, Any] | None = None) -> dict[str, Any]:
     return _load_config("Battery", config or _battery_config())
 
 
+def _grid_config_without_export() -> dict[str, Any]:
+    """Grid config with the export price field removed entirely."""
+    config = _grid_config()
+    config["pricing"].pop("price_target_source")
+    return config
+
+
 # -- load_element_config tests --
 
 
@@ -123,11 +130,16 @@ def test_constant_values_resolve_to_time_series() -> None:
     np.testing.assert_array_equal(pricing["price_target_source"], [0.05, 0.05, 0.05])
 
 
-def test_constant_scalar_stays_scalar() -> None:
-    """Non-time-series constant values resolve to plain floats."""
-    result = _load_battery(_battery_config(initial_soc={"type": "constant", "value": 80.0}))
+@pytest.mark.parametrize(
+    ("input_percent", "expected"),
+    [(80.0, 0.8), (100.0, 1.0), (50.0, 0.5), (0.0, 0.0)],
+    ids=["80%", "100%", "50%", "0%"],
+)
+def test_constant_soc_percent_conversion(input_percent: float, expected: float) -> None:
+    """Constant SOC percentage values are divided by 100."""
+    result = _load_battery(_battery_config(initial_soc={"type": "constant", "value": input_percent}))
 
-    assert result["storage"]["initial_charge_percentage"] == pytest.approx(0.8)
+    assert result["storage"]["initial_charge_percentage"] == pytest.approx(expected)
 
 
 def test_constant_boundary_field_has_n_plus_1_values() -> None:
@@ -140,26 +152,17 @@ def test_constant_boundary_field_has_n_plus_1_values() -> None:
     np.testing.assert_array_equal(capacity, [10.0, 10.0, 10.0, 10.0])
 
 
-def test_percent_conversion_for_soc() -> None:
-    """STATE_OF_CHARGE fields are divided by 100."""
-    result = _load_battery(_battery_config(initial_soc={"type": "constant", "value": 100.0}))
-
-    assert result["storage"]["initial_charge_percentage"] == pytest.approx(1.0)
-
-
-def test_none_value_removes_field() -> None:
-    """None-typed values remove the field from loaded config."""
-    result = _load_grid(_grid_config(export_price={"type": "none"}))
-
-    assert "price_target_source" not in result["pricing"]
-
-
-def test_missing_non_efficiency_optional_field_is_not_defaulted() -> None:
-    """Missing non-efficiency optional fields remain absent."""
-    config = _grid_config()
-    config["pricing"].pop("price_target_source")
-
+@pytest.mark.parametrize(
+    "config",
+    [
+        pytest.param(_grid_config(export_price={"type": "none"}), id="none_type"),
+        pytest.param(_grid_config_without_export(), id="field_missing"),
+    ],
+)
+def test_optional_pricing_field_is_absent(config: dict[str, Any]) -> None:
+    """Optional pricing fields are absent when set to none or not provided."""
     result = _load_grid(config)
+
     assert "price_target_source" not in result["pricing"]
 
 
@@ -169,22 +172,6 @@ def test_missing_non_efficiency_optional_field_is_not_defaulted() -> None:
         ("Inverter", _inverter_config()),
         ("Battery", {**_battery_config(), "efficiency": {}}),
         ("Connection", _connection_config()),
-    ],
-    ids=("inverter", "battery", "connection"),
-)
-def test_missing_efficiency_fields_default_to_unity_by_type(
-    element_name: str,
-    config: dict[str, Any],
-) -> None:
-    """Efficiency-typed optional fields default to 100% for all element types."""
-    result = _load_config(element_name, config)
-    np.testing.assert_allclose(result["efficiency"]["efficiency_source_target"], [1.0, 1.0, 1.0])
-    np.testing.assert_allclose(result["efficiency"]["efficiency_target_source"], [1.0, 1.0, 1.0])
-
-
-@pytest.mark.parametrize(
-    ("element_name", "config"),
-    [
         (
             "Inverter",
             _inverter_config(
@@ -200,13 +187,19 @@ def test_missing_efficiency_fields_default_to_unity_by_type(
             ),
         ),
     ],
-    ids=("inverter_none", "connection_none"),
+    ids=(
+        "inverter_missing",
+        "battery_missing",
+        "connection_missing",
+        "inverter_none",
+        "connection_none",
+    ),
 )
-def test_none_efficiency_values_default_to_unity_by_type(
+def test_efficiency_defaults_to_unity(
     element_name: str,
     config: dict[str, Any],
 ) -> None:
-    """None-typed efficiency values resolve to 100% defaults."""
+    """Missing or none-typed efficiency fields default to 100%."""
     result = _load_config(element_name, config)
     np.testing.assert_allclose(result["efficiency"]["efficiency_source_target"], [1.0, 1.0, 1.0])
     np.testing.assert_allclose(result["efficiency"]["efficiency_target_source"], [1.0, 1.0, 1.0])
@@ -229,38 +222,40 @@ def test_unavailable_efficiency_entity_defaults_to_unity(monkeypatch: pytest.Mon
     np.testing.assert_allclose(result["efficiency"]["efficiency_target_source"], [1.0, 1.0, 1.0])
 
 
-def test_entity_value_loads_from_state_machine(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Entity values resolve through sensor loading pipeline."""
-
-    def fake_load_sensors(_sm: Any, entity_ids: Sequence[str]) -> dict[str, float]:
-        return {"sensor.import_price": 0.25}
-
-    monkeypatch.setattr(cl, "load_sensors", fake_load_sensors)
-
-    config = _grid_config(import_price={"type": "entity", "value": ["sensor.import_price"]})
-    result = _load_grid(config)
-
-    pricing = result["pricing"]
-    assert isinstance(pricing["price_source_target"], np.ndarray)
-    assert len(pricing["price_source_target"]) == 3
-
-
-def test_entity_value_with_forecast_series(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Entity values with forecast data fuse to interval arrays."""
+@pytest.mark.parametrize(
+    ("sensor_data", "import_price_config"),
+    [
+        (
+            {"sensor.import_price": 0.25},
+            {"type": "entity", "value": ["sensor.import_price"]},
+        ),
+        (
+            {
+                "sensor.price": [
+                    (0.0, 0.20),
+                    (3600.0, 0.30),
+                    (7200.0, 0.40),
+                    (10800.0, 0.50),
+                ],
+            },
+            {"type": "entity", "value": ["sensor.price"]},
+        ),
+    ],
+    ids=["scalar_sensor", "forecast_series"],
+)
+def test_entity_value_resolves_to_time_series(
+    monkeypatch: pytest.MonkeyPatch,
+    sensor_data: dict[str, object],
+    import_price_config: dict[str, Any],
+) -> None:
+    """Entity values resolve to time series arrays regardless of sensor data shape."""
 
     def fake_load_sensors(_sm: Any, entity_ids: Sequence[str]) -> dict[str, object]:
-        return {
-            "sensor.price": [
-                (0.0, 0.20),
-                (3600.0, 0.30),
-                (7200.0, 0.40),
-                (10800.0, 0.50),
-            ],
-        }
+        return sensor_data
 
     monkeypatch.setattr(cl, "load_sensors", fake_load_sensors)
 
-    config = _grid_config(import_price={"type": "entity", "value": ["sensor.price"]})
+    config = _grid_config(import_price=import_price_config)
     result = _load_grid(config)
 
     pricing = result["pricing"]
@@ -268,15 +263,26 @@ def test_entity_value_with_forecast_series(monkeypatch: pytest.MonkeyPatch) -> N
     assert len(pricing["price_source_target"]) == 3
 
 
-def test_unavailable_entity_leaves_field_as_none(monkeypatch: pytest.MonkeyPatch) -> None:
-    """When sensors return no data, the field resolves to None."""
+@pytest.mark.parametrize(
+    "import_price",
+    [
+        pytest.param({"type": "entity", "value": ["sensor.missing"]}, id="unavailable_entity"),
+        pytest.param({"type": "entity", "value": []}, id="empty_entity_ids"),
+        pytest.param(42, id="unrecognized_value_type"),
+    ],
+)
+def test_price_field_resolves_to_none(
+    monkeypatch: pytest.MonkeyPatch,
+    import_price: Any,
+) -> None:
+    """Price field resolves to None for unavailable, empty, or unrecognized values."""
 
     def fake_load_sensors(_sm: Any, entity_ids: Sequence[str]) -> dict[str, float]:
         return {}
 
     monkeypatch.setattr(cl, "load_sensors", fake_load_sensors)
 
-    config = _grid_config(import_price={"type": "entity", "value": ["sensor.missing"]})
+    config = _grid_config(import_price=import_price)
     result = _load_grid(config)
 
     assert result["pricing"]["price_source_target"] is None
@@ -327,12 +333,25 @@ def test_entity_percent_time_series_converts(monkeypatch: pytest.MonkeyPatch) ->
     np.testing.assert_allclose(result["limits"]["min_charge_percentage"], [0.5, 0.6, 0.7, 0.8])
 
 
-def test_boolean_field_passes_through() -> None:
-    """Boolean fields (like node is_source) pass through unchanged."""
+@pytest.mark.parametrize(
+    "role_input",
+    [
+        pytest.param({"is_source": True, "is_sink": False}, id="raw_booleans"),
+        pytest.param(
+            {
+                "is_source": {"type": "constant", "value": True},
+                "is_sink": {"type": "constant", "value": False},
+            },
+            id="constant_wrapped",
+        ),
+    ],
+)
+def test_boolean_values_pass_through(role_input: dict[str, Any]) -> None:
+    """Boolean fields pass through unchanged whether raw or constant-wrapped."""
     config: dict[str, Any] = {
         "element_type": "node",
         "name": "Hub",
-        "role": {"is_source": True, "is_sink": False},
+        "role": role_input,
     }
     result = _load_config("Hub", config)
 
@@ -353,39 +372,6 @@ def test_entity_non_percent_scalar_resolves(monkeypatch: pytest.MonkeyPatch) -> 
     result = _load_battery(config)
 
     assert result["pricing"]["salvage_value"] == pytest.approx(0.05)
-
-
-def test_constant_boolean_value_passes_through() -> None:
-    """Constant-wrapped booleans resolve to the unwrapped boolean."""
-    config: dict[str, Any] = {
-        "element_type": "node",
-        "name": "Hub",
-        "role": {
-            "is_source": {"type": "constant", "value": True},
-            "is_sink": {"type": "constant", "value": False},
-        },
-    }
-    result = _load_config("Hub", config)
-
-    assert result["role"]["is_source"] is True
-    assert result["role"]["is_sink"] is False
-
-
-def test_entity_empty_ids_resolves_to_none() -> None:
-    """Entity value with empty entity IDs list resolves to None."""
-    config = _grid_config(import_price={"type": "entity", "value": []})
-    result = _load_grid(config)
-
-    assert result["pricing"]["price_source_target"] is None
-
-
-def test_unrecognized_value_type_resolves_to_none() -> None:
-    """Values that are not a recognized schema type resolve to None."""
-    config = _grid_config()
-    config["pricing"]["price_source_target"] = 42
-    result = _load_grid(config)
-
-    assert result["pricing"]["price_source_target"] is None
 
 
 def test_section_not_dict_is_skipped() -> None:
@@ -463,18 +449,23 @@ def test_resolve_list_items_constant_values() -> None:
     np.testing.assert_array_equal(result[0]["price"], [0.05, 0.05, 0.05])
 
 
-def test_resolve_list_items_none_value_removes_field() -> None:
-    """None-typed values remove the field from the loaded item."""
+@pytest.mark.parametrize(
+    "items",
+    [
+        pytest.param([{"name": "rule1", "price": {"type": "none"}}], id="none_type"),
+        pytest.param([{"name": "rule1"}], id="field_missing"),
+    ],
+)
+def test_resolve_list_items_field_absent(items: list[dict[str, Any]]) -> None:
+    """Price field is absent when set to none or not provided in list items."""
     hints = ListFieldHints(
         fields={"price": FieldHint(output_type=OutputType.PRICE, time_series=True)},
     )
-    items: list[dict[str, Any]] = [
-        {"name": "rule1", "price": {"type": "none"}},
-    ]
 
     result = _resolve_list_items(items, hints, FakeStateMachine({}), FORECAST_TIMES)
 
     assert "price" not in result[0]
+    assert result[0]["name"] == "rule1"
 
 
 def test_resolve_list_items_unavailable_entity_sets_none(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -507,19 +498,6 @@ def test_resolve_list_items_non_mapping_pass_through() -> None:
     result = _resolve_list_items(items, hints, FakeStateMachine({}), FORECAST_TIMES)
 
     assert result == ["not_a_dict", 42]
-
-
-def test_resolve_list_items_missing_hinted_field_is_skipped() -> None:
-    """Items without the hinted field leave it absent."""
-    hints = ListFieldHints(
-        fields={"price": FieldHint(output_type=OutputType.PRICE)},
-    )
-    items: list[dict[str, Any]] = [{"name": "rule1"}]
-
-    result = _resolve_list_items(items, hints, FakeStateMachine({}), FORECAST_TIMES)
-
-    assert "price" not in result[0]
-    assert result[0]["name"] == "rule1"
 
 
 def test_load_element_config_resolves_list_fields(monkeypatch: pytest.MonkeyPatch) -> None:
