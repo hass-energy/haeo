@@ -34,11 +34,6 @@ def _make_hashable(value: Any) -> Any:
     return value
 
 
-def _is_connection(elem: ModelElementConfig) -> bool:
-    """Check if an element config is a connection."""
-    return elem.get("element_type") == "connection"
-
-
 def compile_policies(
     elements: list[ModelElementConfig],
     policy_configs: list[dict[str, Any]],
@@ -67,9 +62,8 @@ def compile_policies(
     non_connections: list[ModelElementConfig] = []
     by_name: dict[str, ModelElementConfig] = {}
     for elem in elements:
-        if _is_connection(elem):
-            conn: ConnectionElementConfig = elem  # type: ignore[assignment]
-            connections.append(conn)
+        if elem["element_type"] == "connection":
+            connections.append(elem)
         else:
             by_name[elem["name"]] = elem
             non_connections.append(elem)
@@ -156,7 +150,9 @@ def compile_policies(
     # --- Step 6: Node outbound tags ---
     for name, vlan_id in tag_map.items():
         if vlan_id != DEFAULT_TAG and name in by_name:
-            by_name[name]["outbound_tags"] = {vlan_id}  # type: ignore[literal-required]
+            node = by_name[name]
+            if node["element_type"] != "connection":
+                node["outbound_tags"] = {vlan_id}
 
     # --- Step 7: Node inbound tags ---
     inbound: dict[str, set[int]] = defaultdict(set)
@@ -167,7 +163,9 @@ def compile_policies(
 
     for name, allowed in inbound.items():
         if name in by_name:
-            by_name[name]["inbound_tags"] = allowed  # type: ignore[literal-required]
+            node = by_name[name]
+            if node["element_type"] != "connection":
+                node["inbound_tags"] = allowed
 
     # --- Step 8: Pricing injection ---
     for policy in policy_configs:
