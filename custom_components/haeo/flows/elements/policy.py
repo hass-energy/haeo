@@ -11,7 +11,7 @@ Flow design:
 
 from typing import Any
 
-from homeassistant.config_entries import ConfigSubentryFlow, SubentryFlowResult
+from homeassistant.config_entries import ConfigSubentry, ConfigSubentryFlow, SubentryFlowResult
 from homeassistant.helpers.selector import (
     ChooseSelector,
     ChooseSelectorChoiceConfig,
@@ -63,7 +63,7 @@ POLICIES_TITLE: str = "Policies"
 class _EndpointChooseSelector(ChooseSelector):  # type: ignore[type-arg]
     """ChooseSelector for policy endpoints that normalizes to list[str] or empty.
 
-    - "none" choice (any element): normalizes to empty string (vol.Optional omits it)
+    - "none" choice (any element): normalizes to empty string
     - "nodes" choice (specific elements): normalizes to list[str]
     """
 
@@ -107,7 +107,7 @@ class PolicySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
 
         return result
 
-    def _find_existing_policy_subentry(self) -> Any | None:
+    def _find_existing_policy_subentry(self) -> ConfigSubentry | None:
         """Find the existing Policies subentry if one exists."""
         hub_entry = self._get_entry()
         for subentry in hub_entry.subentries.values():

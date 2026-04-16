@@ -18,11 +18,7 @@ import pytest
 from custom_components.haeo.core.adapters.policy_compilation import _merge_tag_costs, compile_policies
 from custom_components.haeo.core.model import ModelElementConfig
 from custom_components.haeo.core.model.element import NetworkElement
-from custom_components.haeo.core.model.elements import (
-    MODEL_ELEMENT_TYPE_BATTERY,
-    MODEL_ELEMENT_TYPE_CONNECTION,
-    MODEL_ELEMENT_TYPE_NODE,
-)
+from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE
 from custom_components.haeo.core.model.elements.battery import BatteryElementConfig
 from custom_components.haeo.core.model.elements.connection import ConnectionElementConfig
 from custom_components.haeo.core.model.elements.node import NodeElementConfig
@@ -61,7 +57,9 @@ def _find(result: list[ModelElementConfig], name: str) -> ModelElementConfig: ..
 
 
 def _find(result: list[ModelElementConfig], name: str, *, element_type: str | None = None) -> ModelElementConfig:
-    return next(e for e in result if e.get("name") == name)
+    return next(
+        e for e in result if e.get("name") == name and (element_type is None or e.get("element_type") == element_type)
+    )
 
 
 def _outbound_tag(result: list[ModelElementConfig], name: str) -> int:
@@ -132,7 +130,7 @@ def test_node_without_policy_gets_default() -> None:
     elements = [_node("grid"), _node("battery"), _node("load"), _conn("c1", "grid", "load")]
     policies = [{"sources": ["grid"], "destinations": ["load"], "price": 0.05}]
     result = compile_policies(elements, policies)
-    assert _find(result, "battery", element_type=MODEL_ELEMENT_TYPE_BATTERY).get("outbound_tags") is None
+    assert _find(result, "battery", element_type=MODEL_ELEMENT_TYPE_NODE).get("outbound_tags") is None
 
 
 # --- Reachability ---
@@ -238,7 +236,7 @@ def test_additive_pricing_stacking() -> None:
     compiled = compile_policies(elements, policies)
 
     # Battery and Solar should have different VLANs (different signatures)
-    bat = _find(compiled, "battery", element_type=MODEL_ELEMENT_TYPE_BATTERY)
+    bat = _find(compiled, "battery", element_type=MODEL_ELEMENT_TYPE_NODE)
     sol = _find(compiled, "solar", element_type=MODEL_ELEMENT_TYPE_NODE)
     assert bat.get("outbound_tags") != sol.get("outbound_tags")
 

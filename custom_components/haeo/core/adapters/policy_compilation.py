@@ -15,8 +15,8 @@ See docs/developer-guide/vlan-optimization.md for optimization proofs.
 """
 
 from collections import defaultdict
-from collections.abc import Mapping
-from typing import Any
+from collections.abc import Mapping, Sequence
+from typing import Any, NotRequired, TypedDict
 
 import numpy as np
 
@@ -27,6 +27,14 @@ from custom_components.haeo.core.model.elements.connection import ConnectionElem
 DEFAULT_TAG = 0
 
 
+class CompiledPolicyRule(TypedDict):
+    """Normalized policy rule consumed by the compiler."""
+
+    sources: list[str]
+    destinations: list[str]
+    price: NotRequired[object]
+
+
 def _make_hashable(value: Any) -> Any:
     """Convert a value to a hashable form for signature computation."""
     if isinstance(value, np.ndarray):
@@ -34,9 +42,16 @@ def _make_hashable(value: Any) -> Any:
     return value
 
 
+def _as_name_list(value: object) -> list[str]:
+    """Normalize a wildcard/list endpoint field to list[str]."""
+    if isinstance(value, list):
+        return [name for name in value if isinstance(name, str)]
+    return []
+
+
 def compile_policies(
     elements: list[ModelElementConfig],
-    policy_configs: list[dict[str, Any]],
+    policy_configs: Sequence[Mapping[str, object]],
 ) -> list[ModelElementConfig]:
     """Compile policy rules into tagged power flow constraints on model elements.
 
@@ -86,8 +101,8 @@ def compile_policies(
     # --- Step 1: Flow enumeration ---
     flows: list[tuple[str, str, Any]] = []
     for policy in policy_configs:
-        sources = _resolve_wildcard(policy.get("sources", []), names)
-        destinations = _resolve_wildcard(policy.get("destinations", []), names)
+        sources = _resolve_wildcard(_as_name_list(policy.get("sources")), names)
+        destinations = _resolve_wildcard(_as_name_list(policy.get("destinations")), names)
         price = policy.get("price")
         for src in sources:
             flows.extend((src, dst, price) for dst in destinations if src != dst)
@@ -129,19 +144,21 @@ def compile_policies(
     for conn in connections:
         pair_lookup[(conn["source"], conn["target"])].append(conn["name"])
 
+    final_vlan_connections: dict[int, set[str]] = {}
+    for vlan_id in active_vlans:
+        tagged_connections = set(vlan_connections.get(vlan_id, set()))
+        reverse_connections = {
+            rev
+            for conn in connections
+            if conn["name"] in tagged_connections
+            for rev in pair_lookup.get((conn["target"], conn["source"]), [])
+        }
+        final_vlan_connections[vlan_id] = tagged_connections | reverse_connections
+
     for conn in connections:
         tags: set[int] = {DEFAULT_TAG}
         for vlan_id in active_vlans:
-            if conn["name"] in vlan_connections.get(vlan_id, set()):
-                tags.add(vlan_id)
-                for rev in pair_lookup.get((conn["target"], conn["source"]), []):
-                    vlan_connections[vlan_id].add(rev)
-        conn["tags"] = tags
-
-    for conn in connections:
-        tags = set(conn.get("tags", {DEFAULT_TAG}))
-        for vlan_id in active_vlans:
-            if conn["name"] in vlan_connections.get(vlan_id, set()):
+            if conn["name"] in final_vlan_connections.get(vlan_id, set()):
                 tags.add(vlan_id)
         conn["tags"] = tags
 
@@ -167,8 +184,8 @@ def compile_policies(
 
     # --- Step 8: Pricing injection ---
     for policy in policy_configs:
-        sources = _resolve_wildcard(policy.get("sources", []), names)
-        destinations = _resolve_wildcard(policy.get("destinations", []), names)
+        sources = _resolve_wildcard(_as_name_list(policy.get("sources")), names)
+        destinations = _resolve_wildcard(_as_name_list(policy.get("destinations")), names)
         price = policy.get("price")
         if price is None:
             continue
@@ -217,17 +234,14 @@ def _find_reachable_connections(
 ) -> set[str]:
     """Find all connections on any simple path from sources to destinations."""
     result: set[str] = set()
-
-    def dfs(source: str, current: str, path: list[str], visited: set[str]) -> None:
-        visited.add(current)
-        if current in dest_nodes and current != source:
-            result.update(path)
-        for neighbor, conn_name in graph.get(current, set()):
-            if neighbor not in visited:
-                dfs(source, neighbor, [*path, conn_name], visited)
-        visited.remove(current)
-
     for source in source_nodes:
-        dfs(source, source, [], set())
-
+        stack: list[tuple[str, list[str], set[str]]] = [(source, [], {source})]
+        while stack:
+            current, path, visited = stack.pop()
+            if current in dest_nodes and current != source:
+                result.update(path)
+            for neighbor, conn_name in graph.get(current, set()):
+                if neighbor in visited:
+                    continue
+                stack.append((neighbor, [*path, conn_name], {*visited, neighbor}))
     return result

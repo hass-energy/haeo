@@ -94,9 +94,7 @@ def _wrap_config(flat: dict[str, object]) -> battery.BatteryConfigSchema:
             "max_power_target_source",
         ):
             power_limits[key] = to_schema_value(value)
-        elif key in (
-            "salvage_value",
-        ):
+        elif key in ("salvage_value",):
             pricing[key] = to_schema_value(value)
         elif key == "undercharge" and isinstance(value, dict):
             undercharge.update({subkey: to_schema_value(subvalue) for subkey, subvalue in value.items()})
@@ -160,9 +158,7 @@ def _wrap_data(flat: dict[str, object]) -> battery.BatteryConfigData:
             "max_power_target_source",
         ):
             power_limits[key] = value
-        elif key in (
-            "salvage_value",
-        ):
+        elif key in ("salvage_value",):
             pricing[key] = value
         elif key == "undercharge" and isinstance(value, dict):
             undercharge.update(value)

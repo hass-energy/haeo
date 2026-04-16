@@ -91,7 +91,7 @@ class Connection[TOutputName: str](Element[TOutputName]):
 
         # Per-tag power flows (set during initialization)
         # Default to a single tag (0) when no tags specified — always-tagged paradigm
-        self._tags: set[int] = tags if tags else {0}
+        self._tags: set[int] = set(tags) if tags else {0}
         self._tag_costs: list[dict[str, Any]] = tag_costs or []
         self._power_in: dict[int, HighspyArray] = {}
         self._power_out: dict[int, HighspyArray] = {}
@@ -214,7 +214,6 @@ class Connection[TOutputName: str](Element[TOutputName]):
         """Aggregate costs from all segments."""
         costs = [sc for seg in self._segments.values() if (sc := seg.cost()) is not None]
 
-        # Per-tag pricing from compile_policies
         for tc in self._tag_costs:
             tag = tc["tag"]
             price = broadcast_to_sequence(tc.get("price"), self.n_periods)

@@ -9,7 +9,7 @@ from homeassistant.core import HomeAssistant
 import numpy as np
 
 from custom_components.haeo.core.adapters.elements.policy import extract_policy_rules
-from custom_components.haeo.core.adapters.policy_compilation import compile_policies
+from custom_components.haeo.core.adapters.policy_compilation import CompiledPolicyRule, compile_policies
 from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES, collect_model_elements
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE
 from custom_components.haeo.core.model import Network
@@ -24,13 +24,16 @@ _LOGGER = logging.getLogger(__name__)
 
 def _collect_policy_rules(
     participants: Mapping[str, ElementConfigData],
-) -> list[dict[str, Any]]:
-    """Extract compiled policy rules from all policy participants."""
-    all_rules: list[dict[str, Any]] = []
-    for config in participants.values():
-        if config.get(CONF_ELEMENT_TYPE) == ElementType.POLICY:
-            all_rules.extend(extract_policy_rules(config))
-    return all_rules
+) -> list[CompiledPolicyRule]:
+    """Extract compiled policy rules from the single policy participant."""
+    policy_participants = [
+        config for config in participants.values() if config.get(CONF_ELEMENT_TYPE) == ElementType.POLICY
+    ]
+    if not policy_participants:
+        return []
+    if len(policy_participants) > 1:
+        _LOGGER.warning("Expected one policy participant, found %d; merging all policy rules", len(policy_participants))
+    return [rule for config in policy_participants for rule in extract_policy_rules(config)]
 
 
 async def create_network(

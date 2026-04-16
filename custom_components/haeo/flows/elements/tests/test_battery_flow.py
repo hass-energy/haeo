@@ -54,11 +54,7 @@ def _wrap_main_input(user_input: dict[str, Any], *, as_schema: bool = False) -> 
     }
     if as_schema and isinstance(common.get(CONF_CONNECTION), str):
         common[CONF_CONNECTION] = as_connection_target(common[CONF_CONNECTION])
-    pricing = {
-        key: user_input[key]
-        for key in (CONF_SALVAGE_VALUE,)
-        if key in user_input
-    }
+    pricing = {key: user_input[key] for key in (CONF_SALVAGE_VALUE,) if key in user_input}
     pricing.setdefault(CONF_SALVAGE_VALUE, 0.0)
 
     return {

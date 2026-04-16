@@ -25,13 +25,9 @@ def validate_policies(hass: LiveHomeAssistant, *, expected_rules: list[str]) -> 
     async def _get_policy_rules() -> list[str]:
         ha = hass.hass
         entry = next(e for e in ha.config_entries.async_entries("haeo"))
-        policy_sub = next(
-            s for s in entry.subentries.values() if s.subentry_type == "policy"
-        )
+        policy_sub = next(s for s in entry.subentries.values() if s.subentry_type == "policy")
         return [r["name"] for r in policy_sub.data.get("rules", [])]
 
     actual_names = hass.run_coro(_get_policy_rules())
-    assert actual_names == expected_rules, (
-        f"Policy rules mismatch: expected {expected_rules}, got {actual_names}"
-    )
+    assert actual_names == expected_rules, f"Policy rules mismatch: expected {expected_rules}, got {actual_names}"
     _LOGGER.info("Policy validation passed: %s", actual_names)

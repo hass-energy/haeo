@@ -1,4 +1,4 @@
-# Power Policies
+# Power policies
 
 This guide demonstrates configuring power policies to control how energy flows between elements and at what cost.
 Policies let the optimizer make better decisions by distinguishing the value of power based on where it comes from and where it goes.
@@ -120,19 +120,43 @@ reconfigure_policies(page)
 
 With these four policies configured, the optimizer now has detailed cost signals:
 
-| Flow | Price | Effect |
-|------|-------|--------|
-| Solar → Grid | \$0.02/kWh | Solar exports earn feed-in tariff |
-| Solar → Load | Free | Local solar consumption is preferred |
-| Battery → Grid | \$0.10/kWh | Battery export is expensive — save for local use |
-| Battery → Load | \$0.02/kWh | Battery-to-load is cheap and preferred |
+| Flow           | Price      | Effect                                              |
+| -------------- | ---------- | --------------------------------------------------- |
+| Solar → Grid   | \$0.02/kWh | Solar exports earn feed-in tariff                   |
+| Solar → Load   | Free       | Local solar consumption is preferred                |
+| Battery → Grid | \$0.10/kWh | Battery export is expensive — save for local use    |
+| Battery → Load | \$0.02/kWh | Battery-to-load is cheap and preferred              |
 | Grid → Battery | \$0.05/kWh | Grid charging has a surcharge for efficiency losses |
 
 The optimizer uses these costs alongside grid import/export prices to find the cheapest overall schedule.
 For example, if grid import costs \$0.25/kWh, shipping solar to a load (free) is strongly preferred over importing from the grid.
 
-## Next steps
+## Next Steps
 
-- Explore [shadow prices](../modeling/shadow-prices.md) to see how policies affect constraint costs
-- Read about the [policy compilation pipeline](../developer-guide/policy-compilation.md) for technical details
-- Add more granular policies as your system grows
+<div class="grid cards" markdown>
+
+- :material-chart-line:{ .lg .middle } **Shadow prices**
+
+    ---
+
+    See how policy constraints influence optimization marginal costs.
+
+    [:material-arrow-right: Shadow prices](../modeling/shadow-prices.md)
+
+- :material-cog-transfer:{ .lg .middle } **Policy compilation**
+
+    ---
+
+    Understand how rules compile into tags and destination pricing.
+
+    [:material-arrow-right: Compilation pipeline](../developer-guide/policy-compilation.md)
+
+- :material-tune:{ .lg .middle } **Expand your policy set**
+
+    ---
+
+    Add finer-grained source-to-target pricing as your system evolves.
+
+    [:material-arrow-right: Modeling guide](../modeling/tagged-power.md)
+
+</div>

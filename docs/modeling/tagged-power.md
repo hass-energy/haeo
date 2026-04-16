@@ -314,3 +314,33 @@ These should be configured as power policies so the cost structure is explicit: 
 Battery SOC partitions could be modeled as separate VLANs so different SOC regions carry different tags.
 That approach could enable SOC-dependent valuation through the same policy machinery.
 This remains an open modeling topic.
+
+## Next Steps
+
+<div class="grid cards" markdown>
+
+- :material-cog-play:{ .lg .middle } **Policy walkthrough**
+
+    ---
+
+    Configure policy rules end to end in Home Assistant.
+
+    [:material-arrow-right: Power policies walkthrough](../walkthroughs/power-policies.md)
+
+- :material-wrench:{ .lg .middle } **Compilation internals**
+
+    ---
+
+    Review implementation details and compiler behavior.
+
+    [:material-arrow-right: Policy compilation](../developer-guide/policy-compilation.md)
+
+- :material-network:{ .lg .middle } **VLAN optimization**
+
+    ---
+
+    Dive into signature merging and tag minimization rationale.
+
+    [:material-arrow-right: VLAN optimization](../developer-guide/vlan-optimization.md)
+
+</div>

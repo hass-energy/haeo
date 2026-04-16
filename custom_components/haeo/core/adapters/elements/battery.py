@@ -5,7 +5,6 @@ from dataclasses import replace
 from typing import Any, Final, Literal
 
 import numpy as np
-from numpy.typing import NDArray
 
 from custom_components.haeo.core.adapters.output_utils import expect_output_data
 from custom_components.haeo.core.const import ConnectivityLevel

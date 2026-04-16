@@ -105,7 +105,7 @@ Policies:
 | VLANs            | Grid=1, Solar=2, others=0, K=3                                          |
 | Reachability     | VLAN 1: Grid->SW, SW->Load. VLAN 2: Solar->SW, SW->Load                 |
 | Connection tags  | Grid->SW: {0,1}, Solar->SW: {0,2}, SW->Load: {0,1,2}, Battery->SW: \{0} |
-| Outbound tags    | Grid: outbound_tags={1}, Solar: outbound_tags={2}                      |
+| Outbound tags    | Grid: outbound_tags=\{1}, Solar: outbound_tags=\{2}                     |
 | Inbound tags     | Load consumes {1,2}, SW forwards all, Battery consumes \{0}             |
 | Pricing          | SW->Load: pricing(tag=1,$0.05), pricing(tag=2,$0.02)                    |
 

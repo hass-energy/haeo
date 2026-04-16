@@ -14,6 +14,7 @@ Solar:
 from __future__ import annotations
 
 import logging
+from types import MappingProxyType
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry
@@ -34,109 +35,70 @@ _LOAD_TYPE = "load"
 _CONNECTION_TYPE = "connection"
 _POLICY_TYPE = "policy"
 
-# Pre-sectioned battery configs (v1.2 and earlier) stored these at the top level;
-# v1.3 maps them into pricing, but entries that never ran element migration may still
-# have only these keys.
-_LEGACY_BATTERY_DISCHARGE_COST = "discharge_cost"
-_LEGACY_BATTERY_CHARGE_INCENTIVE = "early_charge_incentive"
-
 _NONE_VALUE: dict[str, str] = {"type": "none"}
+_POLICIES_TITLE = "Policies"
 
 
-def _coalesce_pricing_field(primary: Any, fallback: Any) -> Any | None:
-    """Return the first usable price value (skip missing and explicit none)."""
-    for candidate in (primary, fallback):
-        if candidate is None:
-            continue
-        if candidate == _NONE_VALUE:
-            continue
-        return candidate
-    return None
-
-
-def _policy_subentry(*, name: str, rules: list[dict[str, Any]]) -> dict[str, Any]:
+def _policy_subentry(*, rules: list[dict[str, Any]]) -> dict[str, Any]:
     """Build stored policy subentry data matching PolicyConfigSchema."""
     return {
         "element_type": _POLICY_TYPE,
-        "name": name,
+        "name": _POLICIES_TITLE,
         CONF_RULES: rules,
     }
 
 
-def _extract_pricing_policies(subentry: ConfigSubentry) -> list[dict[str, Any]]:
-    """Extract policy subentry dicts from an element's pricing section."""
+def _extract_pricing_rules(subentry: ConfigSubentry) -> list[dict[str, Any]]:
+    """Extract policy rules from an element's pricing section."""
     data = dict(subentry.data)
     element_type = data.get("element_type")
     element_name = data.get("name", subentry.title)
     pricing = data.get("pricing", {})
     if not isinstance(pricing, dict):
         pricing = {}
-    policies: list[dict[str, Any]] = []
+    rules: list[dict[str, Any]] = []
 
     if element_type == _BATTERY_TYPE:
-        discharge_price = _coalesce_pricing_field(
-            pricing.get(CONF_PRICE_SOURCE_TARGET),
-            data.get(_LEGACY_BATTERY_DISCHARGE_COST),
-        )
+        discharge_price = pricing.get(CONF_PRICE_SOURCE_TARGET)
         if discharge_price is not None:
-            policies.append(
-                _policy_subentry(
-                    name=f"{element_name} Discharge Cost",
-                    rules=[
-                        {
-                            "name": "Discharge",
-                            "source": [element_name],
-                            "price": discharge_price,
-                        },
-                    ],
-                ),
+            rules.append(
+                {
+                    "name": f"{element_name} Discharge",
+                    "source": [element_name],
+                    "price": discharge_price,
+                },
             )
 
-        charge_price = _coalesce_pricing_field(
-            pricing.get(CONF_PRICE_TARGET_SOURCE),
-            data.get(_LEGACY_BATTERY_CHARGE_INCENTIVE),
-        )
+        charge_price = pricing.get(CONF_PRICE_TARGET_SOURCE)
         if charge_price is not None:
-            policies.append(
-                _policy_subentry(
-                    name=f"{element_name} Charge Incentive",
-                    rules=[
-                        {
-                            "name": "Charge",
-                            "target": [element_name],
-                            "price": charge_price,
-                        },
-                    ],
-                ),
+            rules.append(
+                {
+                    "name": f"{element_name} Charge",
+                    "target": [element_name],
+                    "price": charge_price,
+                },
             )
 
     elif element_type == _SOLAR_TYPE:
-        price_st = _coalesce_pricing_field(pricing.get(CONF_PRICE_SOURCE_TARGET), None)
+        price_st = pricing.get(CONF_PRICE_SOURCE_TARGET)
         if price_st is not None:
-            policies.append(
-                _policy_subentry(
-                    name=f"{element_name} Production Cost",
-                    rules=[
-                        {
-                            "name": "Production",
-                            "source": [element_name],
-                            "price": price_st,
-                        },
-                    ],
-                ),
+            rules.append(
+                {
+                    "name": f"{element_name} Production",
+                    "source": [element_name],
+                    "price": price_st,
+                },
             )
 
-    return policies
+    return [rule for rule in rules if rule.get("price") != _NONE_VALUE]
 
 
 def _strip_pricing_from_battery(data: dict[str, Any]) -> dict[str, Any]:
-    """Remove migrated battery pricing from the pricing section and legacy top-level keys."""
+    """Remove migrated battery pricing from the pricing section."""
     pricing = dict(data.get("pricing", {})) if isinstance(data.get("pricing"), dict) else {}
     pricing.pop(CONF_PRICE_SOURCE_TARGET, None)
     pricing.pop(CONF_PRICE_TARGET_SOURCE, None)
     data["pricing"] = pricing
-    data.pop(_LEGACY_BATTERY_DISCHARGE_COST, None)
-    data.pop(_LEGACY_BATTERY_CHARGE_INCENTIVE, None)
     return data
 
 
@@ -173,21 +135,23 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         MINOR_VERSION,
     )
 
-    new_policies: list[dict[str, Any]] = []
+    new_rules: list[dict[str, Any]] = []
     subentries_to_update: list[tuple[ConfigSubentry, dict[str, Any]]] = []
+    existing_policy_subentry: ConfigSubentry | None = None
 
     for subentry in entry.subentries.values():
         data = dict(subentry.data)
         element_type = data.get("element_type")
+        if element_type == _POLICY_TYPE and existing_policy_subentry is None:
+            existing_policy_subentry = subentry
+            continue
 
         if element_type == _BATTERY_TYPE:
-            policies = _extract_pricing_policies(subentry)
-            new_policies.extend(policies)
+            new_rules.extend(_extract_pricing_rules(subentry))
             subentries_to_update.append((subentry, _strip_pricing_from_battery(data)))
 
         elif element_type == _SOLAR_TYPE:
-            policies = _extract_pricing_policies(subentry)
-            new_policies.extend(policies)
+            new_rules.extend(_extract_pricing_rules(subentry))
             subentries_to_update.append((subentry, _strip_pricing_from_solar(data)))
 
         elif element_type == _LOAD_TYPE:
@@ -199,17 +163,28 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     for subentry, new_data in subentries_to_update:
         hass.config_entries.async_update_subentry(entry, subentry, data=new_data)
 
-    for policy_config in new_policies:
-        from types import MappingProxyType  # noqa: PLC0415
-
-        subentry = ConfigSubentry(
-            data=MappingProxyType(policy_config),
-            subentry_type=_POLICY_TYPE,
-            title=policy_config["name"],
-            unique_id=None,
+    if new_rules:
+        existing_rules: list[dict[str, Any]] = []
+        if existing_policy_subentry is not None:
+            existing_rules = list(existing_policy_subentry.data.get(CONF_RULES, []))
+            hass.config_entries.async_update_subentry(
+                entry,
+                existing_policy_subentry,
+                data=_policy_subentry(rules=[*existing_rules, *new_rules]),
+            )
+        else:
+            subentry = ConfigSubentry(
+                data=MappingProxyType(_policy_subentry(rules=new_rules)),
+                subentry_type=_POLICY_TYPE,
+                title=_POLICIES_TITLE,
+                unique_id=None,
+            )
+            hass.config_entries.async_add_subentry(entry, subentry)
+        _LOGGER.info(
+            "Stored %d migrated policy rule(s) in %s subentry",
+            len(new_rules),
+            _POLICIES_TITLE,
         )
-        hass.config_entries.async_add_subentry(entry, subentry)
-        _LOGGER.info("Created policy subentry: %s", policy_config["name"])
 
     hass.config_entries.async_update_entry(
         entry,
@@ -220,6 +195,6 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         "Migration complete for %s entry %s: %d policies created",
         DOMAIN,
         entry.entry_id,
-        len(new_policies),
+        len(new_rules),
     )
     return True

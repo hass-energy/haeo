@@ -9,11 +9,11 @@ The Load element uses forecast data to model any type of consumption pattern fro
 
 ## Configuration
 
-| Field                             | Type                                     | Required | Default | Description                                                                 |
-| --------------------------------- | ---------------------------------------- | -------- | ------- | --------------------------------------------------------------------------- |
-| **[Name](#name)**                 | String                                   | Yes      | -       | Unique identifier for this load                                             |
-| **[Forecast](#forecast)**         | [sensor(s)](../forecasts-and-sensors.md) | Yes      | -       | Power consumption forecast sensor(s) (kW)                                   |
-| **[Shedding](#shedding)**         | Boolean                                  | No       | false   | Allow the optimizer to reduce load below the forecast when it is uneconomic |
+| Field                     | Type                                     | Required | Default | Description                                                                 |
+| ------------------------- | ---------------------------------------- | -------- | ------- | --------------------------------------------------------------------------- |
+| **[Name](#name)**         | String                                   | Yes      | -       | Unique identifier for this load                                             |
+| **[Forecast](#forecast)** | [sensor(s)](../forecasts-and-sensors.md) | Yes      | -       | Power consumption forecast sensor(s) (kW)                                   |
+| **[Shedding](#shedding)** | Boolean                                  | No       | false   | Allow the optimizer to reduce load below the forecast when it is uneconomic |
 
 ## Name
 
@@ -211,10 +211,10 @@ Combine multiple consumption sources:
 Each configuration field creates a corresponding input entity in Home Assistant.
 Input entities appear as Number or Switch entities with the `config` entity category.
 
-| Input                        | Unit | Description                                   |
-| ---------------------------- | ---- | --------------------------------------------- |
-| `number.{name}_forecast`     | kW   | Load power forecast from configured sensor(s) |
-| `switch.{name}_curtailment`  | -    | Whether shedding is permitted                 |
+| Input                       | Unit | Description                                   |
+| --------------------------- | ---- | --------------------------------------------- |
+| `number.{name}_forecast`    | kW   | Load power forecast from configured sensor(s) |
+| `switch.{name}_curtailment` | -    | Whether shedding is permitted                 |
 
 Input entities include a `forecast` attribute showing values for each optimization period.
 See the [Input Entities developer guide](../../developer-guide/inputs.md) for details on input entity behavior.

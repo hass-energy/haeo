@@ -9,6 +9,7 @@ compile_policies() pipeline in policy_compilation.py.
 from collections.abc import Mapping
 from typing import Any, Final, Literal
 
+from custom_components.haeo.core.adapters.policy_compilation import CompiledPolicyRule
 from custom_components.haeo.core.const import ConnectivityLevel
 from custom_components.haeo.core.model import ModelElementConfig, ModelOutputName, ModelOutputValue
 from custom_components.haeo.core.model.output_data import OutputData
@@ -35,7 +36,7 @@ POLICY_DEVICE_NAMES: Final[frozenset[PolicyDeviceName]] = frozenset(
 )
 
 
-def extract_policy_rules(config: Mapping[str, Any]) -> list[dict[str, Any]]:
+def extract_policy_rules(config: Mapping[str, Any]) -> list[CompiledPolicyRule]:
     """Transform loaded policy rules into the format compile_policies() expects.
 
     Each rule becomes a dict with:
@@ -43,14 +44,14 @@ def extract_policy_rules(config: Mapping[str, Any]) -> list[dict[str, Any]]:
         destinations: list of element names, or ["*"] for wildcard
         price: float, NDArray, or None
     """
-    result: list[dict[str, Any]] = []
+    result: list[CompiledPolicyRule] = []
     for rule in config.get("rules", []):
         source = rule.get(CONF_SOURCE, [])
         target = rule.get(CONF_TARGET, [])
-        compiled: dict[str, Any] = {
-            "sources": source if source else [WILDCARD],
-            "destinations": target if target else [WILDCARD],
-        }
+        compiled = CompiledPolicyRule(
+            sources=source if source else [WILDCARD],
+            destinations=target if target else [WILDCARD],
+        )
         if CONF_PRICE in rule:
             compiled["price"] = rule[CONF_PRICE]
         result.append(compiled)

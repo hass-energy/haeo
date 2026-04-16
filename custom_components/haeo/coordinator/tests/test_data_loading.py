@@ -32,7 +32,6 @@ async def test_create_network_successful_loads_load_participant(hass: HomeAssist
         "name": "Baseload",
         "connection": as_connection_target("main_bus"),
         "forecast": {"forecast": np.asarray([2.5, 2.5, 2.5, 2.5], dtype=float)},
-        "pricing": {},
         "curtailment": {},
     }
     loaded_configs: dict[str, ElementConfigData] = {

@@ -22,11 +22,7 @@ from custom_components.haeo.const import CONF_RECORD_FORECASTS, DOMAIN
 from custom_components.haeo.core.const import CONF_NAME
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.schema import as_connection_target, as_constant_value, as_entity_value, as_none_value
-from custom_components.haeo.core.schema.elements.solar import (
-    CONF_FORECAST,
-    SECTION_CURTAILMENT,
-    SECTION_FORECAST,
-)
+from custom_components.haeo.core.schema.elements.solar import CONF_FORECAST, SECTION_CURTAILMENT, SECTION_FORECAST
 from custom_components.haeo.core.schema.sections import CONF_CONNECTION
 from custom_components.haeo.elements.input_fields import InputFieldDefaults, InputFieldInfo
 from custom_components.haeo.entities.haeo_number import ConfigEntityMode

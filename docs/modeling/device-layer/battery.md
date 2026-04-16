@@ -18,11 +18,11 @@ graph LR
 
 The adapter creates two model elements:
 
-| Model Element                                          | Name                | Parameters From Configuration                       |
-| ------------------------------------------------------ | ------------------- | --------------------------------------------------- |
-| [Battery](../model-layer/elements/battery.md)          | `{name}`            | Capacity range, initial charge, salvage value       |
-| [Connection](../model-layer/connections/connection.md) | `{name}:discharge`  | Efficiency, power limits, SOC pricing (optional)    |
-| [Connection](../model-layer/connections/connection.md) | `{name}:charge`     | Efficiency, power limits                            |
+| Model Element                                          | Name               | Parameters From Configuration                    |
+| ------------------------------------------------------ | ------------------ | ------------------------------------------------ |
+| [Battery](../model-layer/elements/battery.md)          | `{name}`           | Capacity range, initial charge, salvage value    |
+| [Connection](../model-layer/connections/connection.md) | `{name}:discharge` | Efficiency, power limits, SOC pricing (optional) |
+| [Connection](../model-layer/connections/connection.md) | `{name}:charge`    | Efficiency, power limits                         |
 
 ## Architecture Details
 
