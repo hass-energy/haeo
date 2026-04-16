@@ -487,8 +487,8 @@ async def test_editable_mode_set_native_value_with_runtime_data(
     assert entity.native_value == 15.0
     entity.async_write_ha_state.assert_called_once()
     hass.config_entries.async_update_subentry.assert_called_once()
-    # Flag should be cleared after update
-    assert mock_runtime_data.value_update_in_progress is False
+    # Flag stays set — the update listener is responsible for clearing it
+    assert mock_runtime_data.value_update_in_progress is True
 
 
 # --- Tests for DRIVEN mode ---
