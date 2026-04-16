@@ -20,7 +20,7 @@ from typing import Any
 
 import numpy as np
 
-from custom_components.haeo.core.model.elements import ModelElementConfig
+from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, ModelElementConfig
 from custom_components.haeo.core.model.elements.connection import ConnectionElementConfig
 
 # Tag 0 is used for untagged/default power flows
@@ -62,7 +62,7 @@ def compile_policies(
     non_connections: list[ModelElementConfig] = []
     by_name: dict[str, ModelElementConfig] = {}
     for elem in elements:
-        if elem["element_type"] == "connection":
+        if elem["element_type"] == MODEL_ELEMENT_TYPE_CONNECTION:
             connections.append(elem)
         else:
             by_name[elem["name"]] = elem
@@ -151,7 +151,7 @@ def compile_policies(
     for name, vlan_id in tag_map.items():
         if vlan_id != DEFAULT_TAG and name in by_name:
             node = by_name[name]
-            if node["element_type"] != "connection":
+            if node["element_type"] != MODEL_ELEMENT_TYPE_CONNECTION:
                 node["outbound_tags"] = {vlan_id}
 
     # --- Step 7: Node inbound tags ---
@@ -164,7 +164,7 @@ def compile_policies(
     for name, allowed in inbound.items():
         if name in by_name:
             node = by_name[name]
-            if node["element_type"] != "connection":
+            if node["element_type"] != MODEL_ELEMENT_TYPE_CONNECTION:
                 node["inbound_tags"] = allowed
 
     # --- Step 8: Pricing injection ---
