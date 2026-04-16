@@ -382,6 +382,46 @@
       "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" },
       "abort": { "reconfigure_successful": "Configuration updated successfully" }
     },
+    "policy": {
+      "flow_title": "Policies",
+      "entry_type": "Policy",
+      "initiate_flow": { "user": "Policy", "reconfigure": "Policies" },
+      "step": {
+        "user": {
+          "title": "Add policy",
+          "description": "Create a policy rule to control how power flows between elements",
+          "data": {
+            "enabled": "Enabled",
+            "name": "Policy name",
+            "price": "Price",
+            "source": "Source",
+            "target": "Target"
+          }
+        },
+        "reconfigure": {
+          "title": "Policies",
+          "description": "Select a policy to edit or delete",
+          "data": { "action": "Action", "rule": "Policy" }
+        },
+        "edit_rule": {
+          "title": "Edit policy",
+          "description": "Modify this policy rule",
+          "data": {
+            "enabled": "Enabled",
+            "name": "Policy name",
+            "price": "Price",
+            "source": "Source",
+            "target": "Target"
+          }
+        }
+      },
+      "error": {
+        "missing_name": "Policy name is required",
+        "name_exists": "A policy with this name already exists",
+        "source_target_same": "Source and target cannot be the same element"
+      },
+      "abort": { "no_rules": "No policy rules configured", "reconfigure_successful": "Policies updated successfully" }
+    },
     "solar": {
       "flow_title": "Solar",
       "entry_type": "Solar",
@@ -419,6 +459,7 @@
     "load": { "name": "{name}" },
     "network": { "name": "Optimizer" },
     "node": { "name": "{name}" },
+    "policy": { "name": "Policies" },
     "solar": { "name": "{name}" }
   },
   "entity": {
@@ -452,6 +493,7 @@
       "inverter_max_power_target_source": { "name": "Max AC to DC power" },
       "load_forecast": { "name": "Forecast" },
       "load_price_target_source": { "name": "Consumption value" },
+      "policy_price": { "name": "{rule_name} price" },
       "solar_forecast": { "name": "Forecast" },
       "solar_price_source_target": { "name": "Production price" }
     },
@@ -475,12 +517,7 @@
       "battery_soc_max": { "name": "SOC max shadow price" },
       "battery_soc_min": { "name": "SOC min shadow price" },
       "battery_state_of_charge": { "name": "State of charge" },
-      "connection_power_active": { "name": "{source} to {target} active power" },
-      "connection_power_source_target": { "name": "{source} to {target} power" },
-      "connection_power_target_source": { "name": "{target} to {source} power" },
-      "connection_shadow_power_max_source_target": { "name": "Max {source} to {target} power shadow price" },
-      "connection_shadow_power_max_target_source": { "name": "Max {target} to {source} power shadow price" },
-      "connection_time_slice": { "name": "Time slice shadow price" },
+      "connection_power": { "name": "{source} to {target} power" },
       "grid_cost_import": { "name": "Import cost" },
       "grid_cost_net": { "name": "Net cost" },
       "grid_power_active": { "name": "Active power" },
@@ -562,7 +599,8 @@
     "horizon_preset": {
       "options": { "2_days": "2 days", "3_days": "3 days", "5_days": "5 days", "7_days": "7 days", "custom": "Custom" }
     },
-    "input_source": { "choices": { "constant": "Constant", "entity": "Entity", "none": "None" } }
+    "input_source": { "choices": { "constant": "Constant", "entity": "Entity", "none": "None" } },
+    "policy_endpoint": { "choices": { "elements": "Elements", "none": "Any" } }
   },
   "services": {
     "optimize": {

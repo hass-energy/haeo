@@ -43,3 +43,32 @@ def matches_unit_spec(unit: str, spec: UnitSpec) -> bool:
     pattern_parts = [("[^/]+" if part == "*" else re.escape(part)) for part in spec]
     pattern = f"^{''.join(pattern_parts)}$"
     return bool(re.match(pattern, unit))
+
+
+def extract_unit_parts(unit: str, spec: Iterable[str]) -> tuple[str, ...] | None:
+    """Match *unit* against a tuple-style spec and return the resolved parts.
+
+    Returns the spec tuple with each ``*`` wildcard replaced by the text it
+    matched, or ``None`` if the unit doesn't match.
+
+    Examples:
+        >>> extract_unit_parts("£/kWh", ("*", "/", "kWh"))
+        ('£', '/', 'kWh')
+        >>> extract_unit_parts("kW", ("*", "/", "kWh"))
+        None
+
+    """
+    parts = list(spec)
+    pattern_parts = [("([^/]+)" if p == "*" else re.escape(p)) for p in parts]
+    m = re.match(f"^{''.join(pattern_parts)}$", unit)
+    if m is None:
+        return None
+    group_idx = 1
+    result: list[str] = []
+    for p in parts:
+        if p == "*":
+            result.append(m.group(group_idx))
+            group_idx += 1
+        else:
+            result.append(p)
+    return tuple(result)

@@ -178,12 +178,10 @@ def test_forecast_attribute_contains_timestamps(
     assert isinstance(forecast, list)
     assert len(forecast) == 4  # 4 boundaries
 
-    # Each entry should have time and value keys
     for entry in forecast:
         assert "time" in entry
-        assert "value" in entry
+        assert "value" not in entry
         assert isinstance(entry["time"], datetime)
-        assert entry["value"] is None  # Horizon doesn't have values
 
 
 def test_native_value_is_start_time_iso(

@@ -1,6 +1,8 @@
 """Tests for connection segments and Connection class."""
 
 from collections.abc import Sequence
+from functools import reduce
+import operator
 from typing import Any
 
 from highspy import Highs
@@ -13,6 +15,7 @@ from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.model.element import Element
 from custom_components.haeo.core.model.elements.connection import Connection
 from custom_components.haeo.core.model.elements.segments import (
+    EfficiencySegment,
     PowerLimitSegment,
     PricingSegment,
     SocPricingSegment,
@@ -62,8 +65,9 @@ class DummySegment(Segment):
         *,
         source_element: Element[Any],
         target_element: Element[Any],
+        power_in: dict[int, HighspyArray],
     ) -> None:
-        """Initialize a dummy segment with a shared power variable."""
+        """Initialize a dummy segment."""
         super().__init__(
             segment_id,
             n_periods,
@@ -71,29 +75,9 @@ class DummySegment(Segment):
             solver,
             source_element=source_element,
             target_element=target_element,
+            power_in=power_in,
         )
-        self._power = solver.addVariables(n_periods, lb=0, name_prefix=f"{segment_id}_p_", out_array=True)
         self._cost_var = solver.addVariables(1, lb=0, name_prefix=f"{segment_id}_c_", out_array=True)
-
-    @property
-    def power_in_st(self) -> HighspyArray:
-        """Return power entering the segment source to target."""
-        return self._power
-
-    @property
-    def power_out_st(self) -> HighspyArray:
-        """Return power leaving the segment source to target."""
-        return self._power
-
-    @property
-    def power_in_ts(self) -> HighspyArray:
-        """Return power entering the segment target to source."""
-        return self._power
-
-    @property
-    def power_out_ts(self) -> HighspyArray:
-        """Return power leaving the segment target to source."""
-        return self._power
 
     @output
     def coverage_output(self) -> OutputData:
@@ -143,6 +127,9 @@ def _solve_segment_scenario(case: SegmentScenario) -> dict[str, ExpectedValue]:
         target = DummyElement("target", periods, h)
     else:
         source, target = endpoint_factory(h, periods)
+
+    power_in = h.addVariables(len(periods), lb=0, name_prefix="test_", out_array=True)
+    tagged_power = {0: power_in}
     seg = case["factory"](
         "seg",
         len(periods),
@@ -151,14 +138,13 @@ def _solve_segment_scenario(case: SegmentScenario) -> dict[str, ExpectedValue]:
         spec=case["spec"],
         source_element=source,
         target_element=target,
+        power_in=tagged_power,
     )
     seg.constraints()
 
     inputs = case["inputs"]
-    if "power_in_st" in inputs:
-        h.addConstrs(seg.power_in_st == np.asarray(inputs["power_in_st"], dtype=np.float64))
-    if "power_in_ts" in inputs:
-        h.addConstrs(seg.power_in_ts == np.asarray(inputs["power_in_ts"], dtype=np.float64))
+    if "power_in" in inputs:
+        h.addConstrs(seg.total_power_in == np.asarray(inputs["power_in"], dtype=np.float64))
 
     objective_terms = []
     if inputs.get("minimize_cost"):
@@ -167,23 +153,25 @@ def _solve_segment_scenario(case: SegmentScenario) -> dict[str, ExpectedValue]:
         if cost:
             objective_terms.append(cost[0])
 
-    maximize = inputs.get("maximize", {})
-    for name, weight in maximize.items():
-        flow = getattr(seg, name)
-        objective_terms.append(-float(weight) * Highs.qsum(flow))
+    for name, weight in inputs.get("maximize", {}).items():
+        attr_val = getattr(seg, name)
+        if isinstance(attr_val, dict):
+            attr_val = reduce(operator.add, attr_val.values())
+        objective_terms.append(-float(weight) * Highs.qsum(attr_val))
 
     if objective_terms:
         h.minimize(Highs.qsum(objective_terms))
     h.run()
 
-    expected_outputs = case["expected_outputs"]
     outputs: dict[str, ExpectedValue] = {}
-    for key in expected_outputs:
+    for key in case["expected_outputs"]:
         if key == "objective_value":
             outputs[key] = float(h.getObjectiveValue())
-            continue
-        flow = getattr(seg, key)
-        outputs[key] = tuple(float(value) for value in h.vals(flow))
+        else:
+            attr_val = getattr(seg, key)
+            if isinstance(attr_val, dict):
+                attr_val = reduce(operator.add, attr_val.values())
+            outputs[key] = tuple(float(v) for v in h.vals(attr_val))
     return outputs
 
 
@@ -191,26 +179,10 @@ def _solve_connection_scenario(case: ConnectionScenario) -> dict[str, ExpectedVa
     h = create_solver()
     periods = np.asarray(case["periods"], dtype=np.float64)
     segments = case["segments"]
-    mirror_segment_order = bool(case.get("mirror_segment_order", False))
     if segments is None:
-        conn = Connection(
-            name="conn",
-            periods=periods,
-            solver=h,
-            source="src",
-            target="tgt",
-            mirror_segment_order=mirror_segment_order,
-        )
+        conn = Connection(name="conn", periods=periods, solver=h, source="src", target="tgt")
     else:
-        conn = Connection(
-            name="conn",
-            periods=periods,
-            solver=h,
-            source="src",
-            target="tgt",
-            segments=segments,
-            mirror_segment_order=mirror_segment_order,
-        )
+        conn = Connection(name="conn", periods=periods, solver=h, source="src", target="tgt", segments=segments)
     source = DummyElement("src", periods, h)
     target = DummyElement("tgt", periods, h)
     conn.set_endpoints(source, target)
@@ -222,10 +194,8 @@ def _solve_connection_scenario(case: ConnectionScenario) -> dict[str, ExpectedVa
 
     conn.constraints()
 
-    if "power_source_target" in inputs:
-        h.addConstrs(conn.power_source_target == np.asarray(inputs["power_source_target"], dtype=np.float64))
-    if "power_target_source" in inputs:
-        h.addConstrs(conn.power_target_source == np.asarray(inputs["power_target_source"], dtype=np.float64))
+    if "power_in" in inputs:
+        h.addConstrs(conn.total_power_in == np.asarray(inputs["power_in"], dtype=np.float64))
 
     objective_terms = []
     if inputs.get("minimize_cost"):
@@ -237,28 +207,18 @@ def _solve_connection_scenario(case: ConnectionScenario) -> dict[str, ExpectedVa
     maximize = inputs.get("maximize", {})
     for name, weight in maximize.items():
         flow = getattr(conn, name)
+        if isinstance(flow, dict):
+            flow = reduce(operator.add, flow.values())
         objective_terms.append(-float(weight) * Highs.qsum(flow))
-
-    expected_outputs = case["expected_outputs"]
-    needs_solver = any(
-        key
-        in {
-            "power_source_target",
-            "power_target_source",
-            "power_into_source",
-            "power_into_target",
-            "objective_value",
-        }
-        for key in expected_outputs
-    )
 
     if objective_terms:
         h.minimize(Highs.qsum(objective_terms))
+    needs_solver = any(key in {"power_in", "power_out", "objective_value"} for key in case["expected_outputs"])
     if objective_terms or needs_solver:
         h.run()
 
     outputs: dict[str, ExpectedValue] = {}
-    for key in expected_outputs:
+    for key in case["expected_outputs"]:
         if key == "objective_value":
             outputs[key] = float(h.getObjectiveValue())
             continue
@@ -266,27 +226,27 @@ def _solve_connection_scenario(case: ConnectionScenario) -> dict[str, ExpectedVa
             outputs[key] = list(conn.segments.keys())
             continue
         if key == "segment_types":
-            outputs[key] = [type(segment).__name__ for segment in conn.segments.values()]
+            outputs[key] = [type(seg).__name__ for seg in conn.segments.values()]
             continue
         if key == "segment_types_by_index":
             outputs[key] = [type(conn[idx]).__name__ for idx in range(len(conn.segments))]
             continue
-        if key == "power_limit_max_power_source_target":
-            power_limit = conn["power_limit"]
-            assert isinstance(power_limit, PowerLimitSegment)
-            max_power = power_limit.max_power_source_target
-            assert max_power is not None
-            outputs[key] = tuple(float(value) for value in max_power)
+        if key == "power_limit_max_power":
+            pl = conn["power_limit"]
+            assert isinstance(pl, PowerLimitSegment)
+            assert pl.max_power is not None
+            outputs[key] = tuple(float(v) for v in pl.max_power)
             continue
-        if key == "pricing_price_source_target":
-            pricing = conn["pricing"]
-            assert isinstance(pricing, PricingSegment)
-            prices = pricing.price_source_target
-            assert prices is not None
-            outputs[key] = tuple(float(value) for value in prices)
+        if key == "pricing_price":
+            pr = conn["pricing"]
+            assert isinstance(pr, PricingSegment)
+            assert pr.price is not None
+            outputs[key] = tuple(float(v) for v in pr.price)
             continue
         flow = getattr(conn, key)
-        outputs[key] = tuple(float(value) for value in h.vals(flow))
+        if isinstance(flow, dict):
+            flow = reduce(operator.add, flow.values())
+        outputs[key] = tuple(float(v) for v in h.vals(flow))
     return outputs
 
 
@@ -317,6 +277,8 @@ def test_segment_error_scenarios(case: SegmentErrorScenario) -> None:
         source, target = endpoint_factory(h, periods)
 
     match = case["match"]
+    pv = h.addVariables(len(periods), lb=0, name_prefix="err_", out_array=True)
+    tagged_pv: dict[int, HighspyArray] = {0: pv}
     if match is None:
         with pytest.raises(case["error"]):
             case["factory"](
@@ -327,6 +289,7 @@ def test_segment_error_scenarios(case: SegmentErrorScenario) -> None:
                 spec=case["spec"],
                 source_element=source,
                 target_element=target,
+                power_in=tagged_pv,
             )
     else:
         with pytest.raises(case["error"], match=match):
@@ -338,6 +301,7 @@ def test_segment_error_scenarios(case: SegmentErrorScenario) -> None:
                 spec=case["spec"],
                 source_element=source,
                 target_element=target,
+                power_in=tagged_pv,
             )
 
 
@@ -358,7 +322,10 @@ def test_segment_outputs_and_cost_coverage() -> None:
     periods = np.asarray([1.0, 1.0], dtype=np.float64)
     source = DummyElement("source", periods, h)
     target = DummyElement("target", periods, h)
-    segment = DummySegment("seg", len(periods), periods, h, source_element=source, target_element=target)
+    power = h.addVariables(len(periods), lb=0, name_prefix="dummy_", out_array=True)
+    segment = DummySegment(
+        "seg", len(periods), periods, h, source_element=source, target_element=target, power_in={0: power}
+    )
 
     np.testing.assert_array_equal(segment.periods, periods)
 
@@ -377,6 +344,7 @@ def test_soc_pricing_cost_none_without_prices() -> None:
     battery = DummyElement("battery", periods, h)
     battery.stored_energy = stored_energy  # type: ignore[attr-defined]
     target = DummyElement("target", periods, h)
+    pv = h.addVariables(len(periods), lb=0, name_prefix="soc_test_", out_array=True)
     segment = SocPricingSegment(
         "seg",
         len(periods),
@@ -385,6 +353,123 @@ def test_soc_pricing_cost_none_without_prices() -> None:
         spec={"segment_type": "soc_pricing"},
         source_element=battery,
         target_element=target,
+        power_in={0: pv},
     )
 
+    # Apply with dummy variables
+    pv = h.addVariables(len(periods), lb=0, name_prefix="soc_test_", out_array=True)
+
     assert segment.cost() is None
+
+
+def test_tag_transfer_cost_none_when_no_tags_match() -> None:
+    """Tag transfer cost returns None when tag_prices references tags not in power_in."""
+    h = create_solver()
+    periods = np.asarray([1.0], dtype=np.float64)
+    source = DummyElement("source", periods, h)
+    target = DummyElement("target", periods, h)
+    power_in = h.addVariables(len(periods), lb=0, name_prefix="tag_", out_array=True)
+    segment = PricingSegment(
+        "seg",
+        len(periods),
+        periods,
+        h,
+        spec={"segment_type": "pricing", "tag_prices": [{"tag": 99, "price": 0.05}]},
+        source_element=source,
+        target_element=target,
+        power_in={0: power_in},
+    )
+
+    assert segment.tag_transfer_cost() is None
+
+
+def test_efficiency_segment_treats_none_as_unity_after_update() -> None:
+    """Efficiency segment should treat None values as 100% efficiency."""
+    h = create_solver()
+    periods = np.asarray([1.0], dtype=np.float64)
+    source = DummyElement("source", periods, h)
+    target = DummyElement("target", periods, h)
+
+    power_in = h.addVariables(len(periods), lb=0, name_prefix="eff_", out_array=True)
+    segment = EfficiencySegment(
+        "seg",
+        len(periods),
+        periods,
+        h,
+        spec={"segment_type": "efficiency", "efficiency": np.array([0.9], dtype=np.float64)},
+        source_element=source,
+        target_element=target,
+        power_in={0: power_in},
+    )
+
+    # Simulate coordinator update path clearing optional efficiency.
+    segment.efficiency = None
+    h.addConstrs(segment.total_power_in == np.asarray([10.0], dtype=np.float64))
+    h.run()
+
+    np.testing.assert_allclose(h.vals(segment.total_power_out), [10.0], rtol=1e-6, atol=1e-6)
+
+
+def test_efficiency_segment_treats_missing_values_as_unity_both_directions() -> None:
+    """Missing efficiency values should keep both segments lossless."""
+    h = create_solver()
+    periods = np.asarray([1.0], dtype=np.float64)
+    source = DummyElement("source", periods, h)
+    target = DummyElement("target", periods, h)
+    power_a = h.addVariables(len(periods), lb=0, name_prefix="eff_a_", out_array=True)
+    power_b = h.addVariables(len(periods), lb=0, name_prefix="eff_b_", out_array=True)
+    seg_a = EfficiencySegment(
+        "seg_a",
+        len(periods),
+        periods,
+        h,
+        spec={"segment_type": "efficiency"},
+        source_element=source,
+        target_element=target,
+        power_in={0: power_a},
+    )
+    seg_b = EfficiencySegment(
+        "seg_b",
+        len(periods),
+        periods,
+        h,
+        spec={"segment_type": "efficiency"},
+        source_element=source,
+        target_element=target,
+        power_in={0: power_b},
+    )
+
+    h.addConstrs(seg_a.total_power_in == np.asarray([7.5], dtype=np.float64))
+    h.addConstrs(seg_b.total_power_in == np.asarray([3.5], dtype=np.float64))
+    h.run()
+
+    np.testing.assert_allclose(h.vals(seg_a.total_power_out), [7.5], rtol=1e-6, atol=1e-6)
+    np.testing.assert_allclose(h.vals(seg_b.total_power_out), [3.5], rtol=1e-6, atol=1e-6)
+
+
+def test_power_limit_no_max_power() -> None:
+    """PowerLimitSegment with max_power=None applies no constraint."""
+    h = create_solver()
+    periods = np.array([1.0, 1.0])
+    source = DummyElement("src", periods, h)
+    target = DummyElement("tgt", periods, h)
+
+    power_in = h.addVariables(2, lb=0, name_prefix="pwr_", out_array=True)
+    seg = PowerLimitSegment(
+        "no_limit",
+        2,
+        periods,
+        h,
+        spec={"segment_type": "power_limit"},
+        source_element=source,
+        target_element=target,
+        power_in={0: power_in},
+    )
+    seg.constraints()
+
+    # With no max_power, the flow is unconstrained (except lb=0)
+    # Maximize to check it can go arbitrarily high
+    h.minimize(-1.0 * Highs.qsum(power_in))
+    h.run()
+    # HiGHS returns 0 for unbounded, but the key point is no constraint error
+    assert seg.max_power is None

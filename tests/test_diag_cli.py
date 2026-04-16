@@ -141,7 +141,7 @@ def test_load_element_config_drops_none_wrappers() -> None:
         "initial_charge_percentage": {"type": "constant", "value": 50.0},
     }
     config["pricing"] = {
-        "price_target_source": {"type": "none"},
+        "salvage_value": {"type": "none"},
     }
 
     loaded = cast(
@@ -154,7 +154,7 @@ def test_load_element_config_drops_none_wrappers() -> None:
         ),
     )
 
-    assert "price_target_source" not in loaded["pricing"]
+    assert "salvage_value" not in loaded["pricing"]
 
 
 def test_normalize_participant_config_for_diag_migrates_legacy_flat_config() -> None:

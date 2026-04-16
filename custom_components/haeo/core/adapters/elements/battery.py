@@ -38,8 +38,6 @@ from custom_components.haeo.core.schema.sections import (
     CONF_CONNECTION,
     CONF_MAX_POWER_SOURCE_TARGET,
     CONF_MAX_POWER_TARGET_SOURCE,
-    CONF_PRICE_SOURCE_TARGET,
-    CONF_PRICE_TARGET_SOURCE,
     SECTION_EFFICIENCY,
     SECTION_POWER_LIMITS,
     SECTION_PRICING,
@@ -145,8 +143,6 @@ class BatteryAdapter:
         )
 
         # Create connection from battery to target
-        price_source_target = pricing.get(CONF_PRICE_SOURCE_TARGET)
-        price_target_source = pricing.get(CONF_PRICE_TARGET_SOURCE)
         max_discharge = power_limits.get(CONF_MAX_POWER_SOURCE_TARGET)
         max_charge = power_limits.get(CONF_MAX_POWER_TARGET_SOURCE)
 
@@ -178,33 +174,34 @@ class BatteryAdapter:
                     "charge_capacity_price": overcharge_cost,
                 }
 
-        segments: dict[str, SegmentSpec] = {
-            "efficiency": {
-                "segment_type": "efficiency",
-                "efficiency_source_target": efficiency_source_target,  # Battery to network (discharge)
-                "efficiency_target_source": efficiency_target_source,  # Network to battery (charge)
-            },
-            "power_limit": {
-                "segment_type": "power_limit",
-                "max_power_source_target": max_discharge,
-                "max_power_target_source": max_charge,
-            },
-            "pricing": {
-                "segment_type": "pricing",
-                "price_source_target": price_source_target,
-                "price_target_source": price_target_source,
-            },
+        discharge_segments: dict[str, SegmentSpec] = {
+            "efficiency": {"segment_type": "efficiency", "efficiency": efficiency_source_target},
+            "power_limit": {"segment_type": "power_limit", "max_power": max_discharge},
         }
         if soc_pricing_spec is not None:
-            segments["soc_pricing"] = soc_pricing_spec
+            discharge_segments["soc_pricing"] = soc_pricing_spec
 
+        # Discharge: battery -> network
         elements.append(
             {
                 "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
-                "name": f"{name}:connection",
+                "name": f"{name}:discharge",
                 "source": name,
                 "target": extract_connection_target(config[CONF_CONNECTION]),
-                "segments": segments,
+                "segments": discharge_segments,
+            }
+        )
+        # Charge: network -> battery
+        elements.append(
+            {
+                "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
+                "name": f"{name}:charge",
+                "source": extract_connection_target(config[CONF_CONNECTION]),
+                "target": name,
+                "segments": {
+                    "efficiency": {"segment_type": "efficiency", "efficiency": efficiency_target_source},
+                    "power_limit": {"segment_type": "power_limit", "max_power": max_charge},
+                },
             }
         )
 

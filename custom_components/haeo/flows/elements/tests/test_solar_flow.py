@@ -17,11 +17,9 @@ from custom_components.haeo.core.schema.elements import node
 from custom_components.haeo.core.schema.elements.solar import (
     CONF_CURTAILMENT,
     CONF_FORECAST,
-    CONF_PRICE_SOURCE_TARGET,
     ELEMENT_TYPE,
     SECTION_CURTAILMENT,
     SECTION_FORECAST,
-    SECTION_PRICING,
 )
 from custom_components.haeo.core.schema.sections import CONF_CONNECTION
 from custom_components.haeo.elements import get_input_fields
@@ -30,29 +28,25 @@ from custom_components.haeo.flows.conftest import create_flow
 
 def _wrap_input(flat: dict[str, Any]) -> dict[str, Any]:
     """Wrap flat solar input values into sectioned config."""
-    if SECTION_PRICING in flat:
-        return dict(flat)
     forecast = {
         CONF_FORECAST: flat[CONF_FORECAST],
     }
-    pricing = {key: flat[key] for key in (CONF_PRICE_SOURCE_TARGET,) if key in flat}
     curtailment = {key: flat[key] for key in (CONF_CURTAILMENT,) if key in flat}
     return {
         CONF_NAME: flat[CONF_NAME],
         CONF_CONNECTION: flat[CONF_CONNECTION],
         SECTION_FORECAST: forecast,
-        SECTION_PRICING: pricing,
         SECTION_CURTAILMENT: curtailment,
     }
 
 
 def _wrap_config(flat: dict[str, Any]) -> dict[str, Any]:
     """Wrap flat solar config values into sectioned config with element type."""
-    if SECTION_PRICING in flat:
+    # Already-sectioned data has CONF_CONNECTION as a ConnectionTarget dict
+    if isinstance(flat.get(CONF_CONNECTION), dict):
         return {CONF_ELEMENT_TYPE: ELEMENT_TYPE, **flat}
     config = _wrap_input(flat)
-    if CONF_CONNECTION in config and isinstance(config[CONF_CONNECTION], str):
-        config[CONF_CONNECTION] = as_connection_target(config[CONF_CONNECTION])
+    config[CONF_CONNECTION] = as_connection_target(config[CONF_CONNECTION])
     return {CONF_ELEMENT_TYPE: ELEMENT_TYPE, **config}
 
 
@@ -84,7 +78,6 @@ def _wrap_config(flat: dict[str, Any]) -> dict[str, Any]:
                 CONF_NAME: "Test Solar",
                 CONF_CONNECTION: as_connection_target("TestNode"),
                 SECTION_FORECAST: {},
-                SECTION_PRICING: {},
                 SECTION_CURTAILMENT: {},
             },
             None,
@@ -171,7 +164,6 @@ async def test_user_step_with_entity_creates_entry(
             CONF_NAME: "Test Solar",
             CONF_CONNECTION: "TestNode",
             CONF_FORECAST: [],
-            CONF_PRICE_SOURCE_TARGET: 0.0,
             CONF_CURTAILMENT: True,
         }
     )
@@ -180,13 +172,12 @@ async def test_user_step_with_entity_creates_entry(
     assert CONF_FORECAST in invalid_result.get("errors", {})
 
     # Submit with entity selection using choose selector format
-    # price_source_target and curtailment are force_required, so must be included
+    # curtailment is force_required, so must be included
     user_input = _wrap_input(
         {
             CONF_NAME: "Test Solar",
             CONF_CONNECTION: "TestNode",
             CONF_FORECAST: ["sensor.solar_forecast"],
-            CONF_PRICE_SOURCE_TARGET: 0.0,
             CONF_CURTAILMENT: True,
         }
     )
@@ -216,13 +207,12 @@ async def test_user_step_with_constant_creates_entry(
     )
 
     # Submit with constant value using choose selector format
-    # price_source_target and curtailment are force_required, so must be included
+    # curtailment is force_required, so must be included
     user_input = _wrap_input(
         {
             CONF_NAME: "Test Solar",
             CONF_CONNECTION: "TestNode",
             CONF_FORECAST: 5.0,
-            CONF_PRICE_SOURCE_TARGET: 0.0,
             CONF_CURTAILMENT: True,
         }
     )

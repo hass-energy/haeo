@@ -135,6 +135,19 @@ class HaeoInputNumber(NumberEntity):
                 continue
             placeholders[key] = format_placeholder(value)
         placeholders.setdefault("name", subentry.title)
+
+        # For list item fields (e.g., rules.0.price), add the item's name as a placeholder
+        if len(self._field_path) > 1:
+            list_key, index_str, *_ = self._field_path
+            try:
+                items = subentry.data.get(list_key)
+                if isinstance(items, (list, tuple)):
+                    item = items[int(index_str)]
+                    if isinstance(item, Mapping) and "name" in item:
+                        placeholders["rule_name"] = str(item["name"])
+            except (ValueError, IndexError, KeyError):
+                pass
+
         self._attr_translation_placeholders = placeholders
 
         # Build base extra state attributes (static values)
@@ -151,6 +164,16 @@ class HaeoInputNumber(NumberEntity):
             self._base_extra_attrs["source_entities"] = self._source_entity_ids
         if field_info.direction:
             self._base_extra_attrs["direction"] = field_info.direction
+
+        # For list item fields, expose sibling fields from the list item
+        if len(self._field_path) > 2:  # noqa: PLR2004
+            own_field = self._field_path[2]
+            item = get_nested_config_value_by_path(subentry.data, self._field_path[:2])
+            if isinstance(item, Mapping):
+                for key, value in item.items():
+                    if key != own_field:
+                        self._base_extra_attrs[key] = value
+
         self._attr_extra_state_attributes = dict(self._base_extra_attrs)
 
         # Loaders for time series and scalar data

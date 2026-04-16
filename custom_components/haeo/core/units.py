@@ -3,6 +3,8 @@
 from enum import StrEnum
 from typing import Final
 
+from custom_components.haeo.core.schema.util import UnitSpec
+
 
 class DeviceClass(StrEnum):
     """Supported device classes used by core unit conversion."""
@@ -63,6 +65,16 @@ _ENERGY_TO_KWH: Final[dict[UnitOfMeasurement, float]] = {
     UnitOfMeasurement.MEGA_WATT_HOUR: 1000.0,
     UnitOfMeasurement.GIGA_WATT_HOUR: 1_000_000.0,
 }
+
+ENERGY_UNITS: Final[tuple[UnitOfMeasurement, ...]] = (
+    UnitOfMeasurement.WATT_HOUR,
+    UnitOfMeasurement.KILO_WATT_HOUR,
+    UnitOfMeasurement.MEGA_WATT_HOUR,
+    UnitOfMeasurement.GIGA_WATT_HOUR,
+)
+
+# Matches any currency followed by / and an energy unit (e.g. "£/kWh", "€/MWh")
+PRICE_UNIT_SPEC: Final[list[UnitSpec]] = [("*", "/", u.value) for u in ENERGY_UNITS]
 
 
 def _infer_device_class_from_unit(unit: UnitOfMeasurement | None) -> DeviceClass | None:

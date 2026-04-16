@@ -5,12 +5,12 @@ from typing import Any, TypedDict
 
 import pytest
 
-from custom_components.haeo.core.adapters.elements.node import NODE_DEVICE_NODE
+from custom_components.haeo.core.adapters.elements.node import NODE_DEVICE_NODE, NODE_POWER_BALANCE
 from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES
 from custom_components.haeo.core.model import ModelOutputName, ModelOutputValue
 from custom_components.haeo.core.model.const import OutputType
+from custom_components.haeo.core.model.element import ELEMENT_POWER_BALANCE
 from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_NODE
-from custom_components.haeo.core.model.elements.node import NODE_POWER_BALANCE
 from custom_components.haeo.core.model.output_data import OutputData
 from custom_components.haeo.core.schema.elements import ElementType
 from custom_components.haeo.core.schema.elements.node import NodeConfigData
@@ -54,7 +54,7 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
         "name": "node_main",
         "model_outputs": {
             "node_main": {
-                NODE_POWER_BALANCE: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.0,)),
+                ELEMENT_POWER_BALANCE: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.0,)),
             }
         },
         "outputs": {
@@ -62,6 +62,12 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
                 NODE_POWER_BALANCE: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.0,)),
             }
         },
+    },
+    {
+        "description": "Unconstrained node without power balance",
+        "name": "node_main",
+        "model_outputs": {"node_main": {}},
+        "outputs": {NODE_DEVICE_NODE: {}},
     },
 ]
 

@@ -1,83 +1,93 @@
 # Connection
 
-The `Connection` class models bidirectional power flow between elements.
+The `Connection` class models unidirectional power flow between elements.
 It composes ordered segments that apply efficiency, limits, and pricing to the flow.
+Bidirectional paths are modelled as two separate Connection elements.
 
 ## Overview
 
 Connection is the primary model for power flow:
 
+- **Unidirectional**: Each connection flows from `source` to `target`.
 - **Composable**: Ordered segment chain defines behavior.
 - **Lossless by default**: A passthrough segment is created when no segments are provided.
 - **Extensible**: Segment outputs are exposed for adapters and diagnostics.
 
 Segments are provided as an ordered mapping.
 The mapping keys become segment names and drive the nested `segments` output.
-Source→target flow uses the provided order.
-Target→source flow uses the reverse order by default.
-Set `mirror_segment_order` to use the same segment order for both flow directions.
 
 ## Segment types
 
-- **[SOC pricing segment](../segments/soc-pricing.md)** applies SOC penalty costs.
-- **[Efficiency segment](../segments/efficiency.md)** applies direction-specific efficiency multipliers.
-- **[Power limit segment](../segments/power-limit.md)** enforces directional limits and time-slice coupling.
-- **[Pricing segment](../segments/pricing.md)** adds directional cost terms to the objective.
-- **[Passthrough segment](../segments/passthrough.md)** forwards flow without constraints or cost.
+Connections compose ordered segments. See [segments](../segments/) for details on each type.
 
 ## Model formulation
 
 ### Decision variables
 
-For each time step $t \in \{0, 1, \ldots, T-1\}$:
+The Connection creates per-tag LP variables for the input power flow — one per tag per time step:
 
-| Variable              | Domain                | Description                      |
-| --------------------- | --------------------- | -------------------------------- |
-| $P_{s \rightarrow t}$ | $\mathbb{R}_{\geq 0}$ | Power flow from source to target |
-| $P_{t \rightarrow s}$ | $\mathbb{R}_{\geq 0}$ | Power flow from target to source |
+| Variable              | Domain                  | Description                               |
+| --------------------- | ----------------------- | ----------------------------------------- |
+| $P_{\\text{in},k}(t)$ | $\\mathbb{R}_{\\geq 0}$ | Power entering the connection for tag $k$ |
 
-These variables represent the input to the first segment in the chain.
-Each segment may transform the flow before passing it to the next segment.
+When no tags are specified, a single default tag is used (always-tagged paradigm).
+
+Segments do **not** create their own variables (except SOC pricing, which creates auxiliary slack variables).
+Instead, the Connection passes its power variables through the segment chain.
+Each segment receives a `power_in` expression and exposes a `power_out` expression.
 
 ### Parameters
 
-| Parameter              | Description                                                |
-| ---------------------- | ---------------------------------------------------------- |
-| `source`               | Name of the source element                                 |
-| `target`               | Name of the target element                                 |
-| `periods`              | Time period durations (hours)                              |
-| `segments`             | Ordered mapping of segment names to segment specifications |
-| `mirror_segment_order` | Use the same segment order for both flow directions        |
+| Parameter  | Description                                                                                   |
+| ---------- | --------------------------------------------------------------------------------------------- |
+| `source`   | Name of the source element                                                                    |
+| `target`   | Name of the target element                                                                    |
+| `periods`  | Time period durations (hours)                                                                 |
+| `segments` | Ordered mapping of segment names to segment specifications                                    |
+| `tags`     | Set of tag IDs for per-source power decomposition (see [Tagged Power](../../tagged-power.md)) |
 
 If `segments` is omitted or empty, a passthrough segment is created automatically.
 Segment parameters can be scalars or per-period arrays.
 Scalar values are broadcast across all periods.
 
+### Functional segment composition
+
+Segments are **functional transforms** on power expressions. The Connection chains them:
+
+```python
+flow = power_in  # The only LP variables (one per time step)
+for segment in chain:
+    flow = segment.power_out  # Each segment transforms the flow
+    # Segments add constraints/costs as side effects
+    # Most return input unchanged (identity transforms)
+    # Efficiency returns input * factor (an expression, not a new variable)
+power_out = flow  # Final output expression
+```
+
+This eliminates all inter-segment linking constraints. The variable count equals
+the connection flow decisions (T) plus any auxiliary variables (e.g., SOC slack).
+
 ### Constraints
 
-Connection adds linking constraints between adjacent segments.
-Each segment contributes its own constraints, such as power limits or time-slice coupling.
+Each segment contributes constraints during construction.
+Power limits constrain the input expressions.
+No linking constraints between segments are needed.
 
 ### Power balance interface
 
-Connections provide `power_into_source` and `power_into_target` properties that elements use for power balance.
-These use the first segment inputs and last segment outputs:
+Connections provide `power_into_source` and `power_into_target` properties that elements use for power balance:
 
-$$
-P_{\text{into\_source}}(t) = P^{\text{out}}_{t \rightarrow s,\text{last}}(t) - P^{\text{in}}_{s \rightarrow t,\text{first}}(t)
-$$
+$$P_{\text{into\_source}}(t) = -P_{\text{in}}(t)$$
 
-$$
-P_{\text{into\_target}}(t) = P^{\text{out}}_{s \rightarrow t,\text{last}}(t) - P^{\text{in}}_{t \rightarrow s,\text{first}}(t)
-$$
+$$P_{\text{into\_target}}(t) = P_{\text{out}}(t)$$
 
+Power leaves the source and enters the target.
 Efficiency losses are applied inside the segment chain.
-Elements do not need to account for them directly.
 
 ### Cost contribution
 
 Connection aggregates cost expressions from all segments.
-PricingSegment instances contribute directional energy costs to the primary objective (index 0).
+PricingSegment instances contribute energy costs to the primary objective (index 0).
 
 Connections also contribute a time-preference term to the secondary objective (index 1).
 This term weights energy transfer with monotonically increasing per-period weights:
@@ -90,7 +100,7 @@ Where $c$ is the connection index, $T$ is the number of periods, and $t$ is the 
 The time-preference objective for connection $c$ is:
 
 $$
-\sum_{t=0}^{T-1} w_{c,t} \cdot \bigl(P_{s \rightarrow t}(t) + P_{t \rightarrow s}(t)\bigr) \cdot \Delta t_t
+\sum_{t=0}^{T-1} w_{c,t} \cdot P_{\text{in}}(t) \cdot \Delta t_t
 $$
 
 Each connection receives a unique range of weights, preventing primal degeneracy when multiple connections share a node and have equal marginal cost at the same time step.
@@ -102,12 +112,70 @@ The network solves this lexicographically: primary cost is minimized first, then
 
 Connection exposes power flow and segment outputs:
 
-- `connection_power_source_target`
-- `connection_power_target_source`
-- `segments` (nested map of segment names to constraint shadow outputs)
+- `connection_power` — power flow through this connection
+- `segments` — nested map of segment names to constraint shadow outputs
 
 The `segments` output groups segment outputs using the segment names provided in the configuration.
-Adapters use this map to surface segment-specific shadow prices (for example `power_limit.source_target`).
+Adapters use this map to surface segment-specific shadow prices.
+
+## Tag decomposition
+
+The connection decomposes its power flow into per-tag LP variables.
+This enables [tagged power](../../tagged-power.md) tracking and per-source cost differentiation.
+
+### Per-tag variables
+
+For each tag $k$ in the tag set, a per-tag flow variable is created:
+
+$$
+P_{\text{in},k}(t) \geq 0 \quad \forall k \in \text{tags}, \; t \in [0, T-1]
+$$
+
+The total flow is the sum of all per-tag flows:
+
+$$
+P_{\text{in}}(t) = \sum_{k \in \text{tags}} P_{\text{in},k}(t)
+$$
+
+### Per-tag segment transforms
+
+Segments that transform power (e.g., efficiency) are applied proportionally to each tag flow.
+For an efficiency segment with factor $\eta$:
+
+$$
+P_{\text{out},k}(t) = P_{\text{in},k}(t) \cdot \eta
+$$
+
+The sum of per-tag outputs equals the segment's total output.
+
+### Tag prices
+
+Each entry in `tag_prices` adds a price for power flowing on a specific tag:
+
+$$
+\text{Cost}_k = \sum_t c_k \cdot P_{\text{in},k}(t) \cdot \Delta t
+$$
+
+This enables per-source pricing (e.g., charging a premium for battery-sourced power exported to the grid).
+
+### Per-tag power balance interface
+
+Connections provide per-tag versions of the power balance interface used by elements:
+
+$$P_{\text{into\_source},k}(t) = -P_{\text{in},k}(t)$$
+
+$$P_{\text{into\_target},k}(t) = P_{\text{out},k}(t)$$
+
+## Bidirectional paths
+
+To model bidirectional flow (e.g., grid import/export), create two connections:
+
+- A **forward** connection from source to target
+- A **reverse** connection from target to source
+
+Each connection has its own segment chain with independent parameters.
+The adapter layer is responsible for combining outputs from both connections
+into the appropriate device-level outputs (e.g., grid import power, grid export power).
 
 ## When to use
 

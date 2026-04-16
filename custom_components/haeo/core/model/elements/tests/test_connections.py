@@ -3,13 +3,15 @@
 from typing import Any, TypeGuard, cast
 
 from highspy import Highs
-from highspy.highs import highs_linear_expression, highs_var
+from highspy.highs import highs_linear_expression
 import numpy as np
 from numpy.typing import NDArray
 import pytest
 
 from custom_components.haeo.core.model.element import Element
 from custom_components.haeo.core.model.elements.connection import Connection
+from custom_components.haeo.core.model.elements.segments.power_limit import PowerLimitSegment
+from custom_components.haeo.core.model.elements.segments.pricing import PricingSegment
 from custom_components.haeo.core.model.output_data import ModelOutputValue, OutputData
 from custom_components.haeo.core.model.tests import test_data
 from custom_components.haeo.core.model.tests.test_data.connection_types import (
@@ -44,80 +46,42 @@ class DummyElement(Element[str]):
 
 
 def _solve_connection_scenario(element: Connection[str], inputs: ConnectionTestCaseInputs | None) -> ExpectedOutputs:
-    """Set up and solve an optimization scenario for a connection.
-
-    Args:
-        element: The connection to test (must have _solver set)
-        inputs: Configuration dict with power values and parameters, or None for no optimization
-
-    Returns:
-        Dict mapping output names to {type, unit, values}
-
-    """
-    # Use the element's solver instance (set in constructor)
+    """Set up and solve an optimization scenario for a unidirectional connection."""
     h = element._solver
     source = DummyElement(element.source, element.periods, h)
     target = DummyElement(element.target, element.periods, h)
     element.set_endpoints(source, target)
-
-    # Always call constraints to set up constraints (variables already exist)
     element.constraints()
 
     if inputs is None:
-        # No optimization - just solve with no objective and get outputs directly
         h.run()
         outputs = element.outputs()
         return {name: _serialize_output_value(output_data) for name, output_data in outputs.items()}
 
-    # Get n_periods and periods from element
     n_periods = element.n_periods
     periods = element.periods
 
-    source_power = inputs.get("source_power", [None] * n_periods)
-    target_power = inputs.get("target_power", [None] * n_periods)
-    source_cost = inputs.get("source_cost", 0.0)
-    target_cost = inputs.get("target_cost", 0.0)
+    cost_terms: list[highs_linear_expression] = []
 
-    # Create power variables: None = unbounded (free), float = fixed value
-    # Note: HiGHS defaults to lb=0, so we must explicitly set lb=-inf for free variables
-    neginf = float("-inf")
-    source_vars: list[highs_var] = []
-    target_vars: list[highs_var] = []
+    if "fix_power_in" in inputs:
+        values = inputs["fix_power_in"]
+        total_power_in = element.total_power_in
+        for i, val in enumerate(values):
+            h.addConstr(total_power_in[i] == val)
 
-    for i, val in enumerate(source_power):
-        if val is None:
-            source_vars.append(h.addVariable(lb=neginf, name=f"source_power_{i}"))
-        else:
-            source_vars.append(h.addVariable(lb=val, ub=val, name=f"source_power_{i}"))
-
-    for i, val in enumerate(target_power):
-        if val is None:
-            target_vars.append(h.addVariable(lb=neginf, name=f"target_power_{i}"))
-        else:
-            target_vars.append(h.addVariable(lb=val, ub=val, name=f"target_power_{i}"))
-
-    # Power balance: net flow at each side
-    for i in range(n_periods):
-        h.addConstr(source_vars[i] == element.power_source_target[i] - element.power_target_source[i])
-        h.addConstr(target_vars[i] == element.power_source_target[i] - element.power_target_source[i])
-
-    # Apply constraints via reactive pattern
-    element.constraints()
+    if inputs.get("maximize_power_out"):
+        total_power_out = element.total_power_out
+        cost_terms.append(-Highs.qsum(total_power_out[i] * periods[i] for i in range(n_periods)))
 
     # Collect primary cost from element (index 0 only, skip secondary time preference)
     element_cost = element.cost()
-    cost_terms: list[highs_linear_expression] = []
     if element_cost is not None and element_cost[0] is not None:
         cost_terms.append(element_cost[0])
 
-    if source_cost != 0.0:
-        cost_terms.append(Highs.qsum(source_vars[i] * source_cost * periods[i] for i in range(n_periods)))
-    if target_cost != 0.0:
-        cost_terms.append(Highs.qsum(target_vars[i] * target_cost * periods[i] for i in range(n_periods)))
+    if cost_terms:
+        h.minimize(Highs.qsum(cost_terms))
+    h.run()
 
-    h.minimize(Highs.qsum(cost_terms))
-
-    # Extract and return outputs
     outputs = element.outputs()
     return {name: _serialize_output_value(output_data) for name, output_data in outputs.items()}
 
@@ -140,8 +104,8 @@ def _assert_outputs_match(actual: ExpectedOutputFixture, expected: ExpectedOutpu
     assert not _is_expected_output(actual)
     actual_map = cast("ExpectedOutputs", actual)
     expected_map = cast("ExpectedOutputs", expected)
-    assert set(actual_map.keys()) == set(expected_map.keys())
     for output_name, expected_value in expected_map.items():
+        assert output_name in actual_map, f"Missing expected key: {output_name}"
         _assert_outputs_match(actual_map[output_name], expected_value)
 
 
@@ -151,19 +115,15 @@ def _assert_outputs_match(actual: ExpectedOutputFixture, expected: ExpectedOutpu
     ids=lambda case: case["description"].lower().replace(" ", "_"),
 )
 def test_connection_outputs(case: ConnectionTestCase, solver: Highs) -> None:
-    """Connection.get_outputs should report expected series for each connection type."""
-
-    # Create element using the factory with the solver
+    """Connection outputs should match expected values for unidirectional flows."""
     factory = case["factory"]
     data = case["data"].copy()
     data["solver"] = solver
     element = factory(**data)
     assert isinstance(element, Connection)
 
-    # Run optimization scenario (or get outputs directly if no inputs)
     outputs = _solve_connection_scenario(element, case.get("inputs"))
 
-    # Validate outputs match expected
     assert "expected_outputs" in case
     expected_outputs = case["expected_outputs"]
     _assert_outputs_match(outputs, expected_outputs)
@@ -176,7 +136,6 @@ def test_connection_outputs(case: ConnectionTestCase, solver: Highs) -> None:
 )
 def test_connection_validation(case: ConnectionTestCase, solver: Highs) -> None:
     """Connection classes should validate input sequence lengths match n_periods."""
-
     assert "expected_error" in case
     data = case["data"].copy()
     data["solver"] = solver
@@ -184,9 +143,8 @@ def test_connection_validation(case: ConnectionTestCase, solver: Highs) -> None:
         case["factory"](**data)
 
 
-def test_base_connection_power_into_properties(solver: Highs) -> None:
-    """Base Connection class power_into_source and power_into_target properties."""
-    # Create a base Connection (lossless bidirectional)
+def test_connection_power_properties(solver: Highs) -> None:
+    """Connection power_in, power_out, power_into_source, power_into_target."""
     conn: Connection[str] = Connection(
         name="test_conn",
         periods=np.array([1.0, 1.0]),
@@ -197,27 +155,126 @@ def test_base_connection_power_into_properties(solver: Highs) -> None:
     source = DummyElement("source_element", conn.periods, solver)
     target = DummyElement("target_element", conn.periods, solver)
     conn.set_endpoints(source, target)
+    conn.constraints()
 
-    # Fix power values: 5 kW source->target in period 0, 3 kW target->source in period 1
-    solver.addConstr(conn.power_source_target[0] == 5.0)
-    solver.addConstr(conn.power_target_source[0] == 0.0)
-    solver.addConstr(conn.power_source_target[1] == 0.0)
-    solver.addConstr(conn.power_target_source[1] == 3.0)
+    total_in = conn.total_power_in
+    solver.addConstr(total_in[0] == 5.0)
+    solver.addConstr(total_in[1] == 3.0)
 
     solver.run()
 
-    # power_into_source = target->source minus source->target
-    # Period 0: 0 - 5 = -5 (power flows out of source)
-    # Period 1: 3 - 0 = 3 (power flows into source)
+    power_in = [solver.val(total_in[i]) for i in range(2)]
+    assert power_in == pytest.approx([5.0, 3.0])
+
+    total_out = conn.total_power_out
+    power_out = [solver.val(total_out[i]) for i in range(2)]
+    assert power_out == pytest.approx([5.0, 3.0])
+
     power_into_source = [solver.val(conn.power_into_source[i]) for i in range(2)]
-    assert power_into_source == pytest.approx([-5.0, 3.0])
+    assert power_into_source == pytest.approx([-5.0, -3.0])
 
-    # power_into_target = source->target minus target->source
-    # Period 0: 5 - 0 = 5 (power flows into target)
-    # Period 1: 0 - 3 = -3 (power flows out of target)
     power_into_target = [solver.val(conn.power_into_target[i]) for i in range(2)]
-    assert power_into_target == pytest.approx([5.0, -3.0])
+    assert power_into_target == pytest.approx([5.0, 3.0])
 
-    # Verify source and target properties
     assert conn.source == "source_element"
     assert conn.target == "target_element"
+
+
+def test_connection_getitem_integer_index(solver: Highs) -> None:
+    """Connection supports integer indexing into segments."""
+    conn: Connection[str] = Connection(
+        name="idx_conn",
+        periods=np.array([1.0]),
+        solver=solver,
+        source="a",
+        target="b",
+        segments={
+            "power_limit": {"segment_type": "power_limit", "max_power": 5.0},
+            "pricing": {"segment_type": "pricing", "price": 0.10},
+        },
+    )
+    source = DummyElement("a", conn.periods, solver)
+    target = DummyElement("b", conn.periods, solver)
+    conn.set_endpoints(source, target)
+
+    assert isinstance(conn[0], PowerLimitSegment)
+    assert isinstance(conn[1], PricingSegment)
+    assert conn["power_limit"] is conn[0]
+
+    with pytest.raises(KeyError, match="No segment at index"):
+        conn[99]
+
+
+def test_connection_getitem_fallback(solver: Highs) -> None:
+    """Connection falls back to Element.__getitem__ for unknown keys."""
+    conn: Connection[str] = Connection(
+        name="fallback_conn",
+        periods=np.array([1.0]),
+        solver=solver,
+        source="a",
+        target="b",
+    )
+    source = DummyElement("a", conn.periods, solver)
+    target = DummyElement("b", conn.periods, solver)
+    conn.set_endpoints(source, target)
+
+    with pytest.raises(KeyError):
+        conn["nonexistent_key"]
+
+
+def test_connection_multiple_cost_sources(solver: Highs) -> None:
+    """Connection aggregates costs from multiple segments."""
+    conn: Connection[str] = Connection(
+        name="multi_cost",
+        periods=np.array([1.0]),
+        solver=solver,
+        source="a",
+        target="b",
+        segments={
+            "pricing1": {"segment_type": "pricing", "price": 0.10},
+            "pricing2": {"segment_type": "pricing", "price": 0.20},
+        },
+    )
+    source = DummyElement("a", conn.periods, solver)
+    target = DummyElement("b", conn.periods, solver)
+    conn.set_endpoints(source, target)
+    conn.constraints()
+
+    cost = conn.cost()
+    assert cost is not None
+    assert cost[0] is not None
+
+    solver.addConstr(conn.total_power_in[0] == 5.0)
+    solver.minimize(cost[0])
+    # Cost = 5 kW * (0.10 + 0.20) $/kWh * 1 h = 1.50
+    assert solver.getObjectiveValue() == pytest.approx(1.50)
+
+
+def test_connection_tag_cost_ignores_unknown_tag_and_missing_price(solver: Highs) -> None:
+    """Per-tag policy costs skip tags not on the connection and rows without price."""
+    conn: Connection[str] = Connection(
+        name="tag_cost_skip",
+        periods=np.array([1.0]),
+        solver=solver,
+        source="a",
+        target="b",
+        tags={1},
+        tag_costs=[
+            {"tag": 999, "price": 0.99},
+            {"tag": 1},
+            {"tag": 1, "price": 0.10},
+        ],
+        segments={"pl": {"segment_type": "power_limit", "max_power": 10.0}},
+    )
+    source = DummyElement("a", conn.periods, solver)
+    target = DummyElement("b", conn.periods, solver)
+    conn.set_endpoints(source, target)
+    conn.constraints()
+
+    cost = conn.cost()
+    assert cost is not None
+    assert cost[0] is not None
+
+    solver.addConstr(conn.total_power_in[0] == 4.0)
+    solver.minimize(cost[0])
+    assert solver.getObjectiveValue() == pytest.approx(0.40)

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
 from types import MappingProxyType
 from typing import Any
 from unittest.mock import AsyncMock
@@ -33,7 +35,8 @@ from custom_components.haeo.core.schema.elements import (
     node,
     solar,
 )
-from custom_components.haeo.core.schema.migrations.v1_3 import migrate_hub_config
+from custom_components.haeo.core.schema.migrations import v1_3 as schema_migrations
+from custom_components.haeo.core.schema.migrations.v1_3 import ElementMigrationStep, migrate_hub_config
 from custom_components.haeo.core.schema.sections import (
     CONF_CONNECTION,
     CONF_CURTAILMENT,
@@ -48,6 +51,7 @@ from custom_components.haeo.core.schema.sections import (
     SECTION_POWER_LIMITS,
     SECTION_PRICING,
 )
+from custom_components.haeo.elements import is_element_config_schema
 from custom_components.haeo.flows import (
     HORIZON_PRESET_5_DAYS,
     HUB_SECTION_ADVANCED,
@@ -55,6 +59,14 @@ from custom_components.haeo.flows import (
     HUB_SECTION_TIERS,
 )
 from custom_components.haeo.migrations import async_migrate_entry, v1_3
+
+V033_SCENARIO_FIXTURES_DIR = Path(__file__).parent / "test_data" / "v0_3_3" / "scenarios"
+
+
+def _load_v033_scenario_config(name: str) -> dict[str, Any]:
+    """Load a v0.3.3 scenario config fixture."""
+    with (V033_SCENARIO_FIXTURES_DIR / f"{name}_config.json").open() as fixture:
+        return json.load(fixture)  # type: ignore[no-any-return]
 
 
 def _create_subentry(data: dict[str, Any], *, subentry_type: str | None = None) -> ConfigSubentry:
@@ -163,6 +175,27 @@ def test_migrate_subentry_battery_with_legacy_fields() -> None:
     assert migrated[SECTION_EFFICIENCY][battery.CONF_EFFICIENCY_TARGET_SOURCE] == as_constant_value(0.88)
     assert migrated[battery.SECTION_UNDERCHARGE][battery.CONF_PARTITION_PERCENTAGE] == as_constant_value(0.1)
     assert migrated[battery.SECTION_OVERCHARGE][battery.CONF_PARTITION_COST] == as_constant_value(0.2)
+
+
+def test_migrate_subentry_battery_without_salvage_value_stays_valid() -> None:
+    """Migrated legacy battery without salvage_value still validates."""
+    data = {
+        CONF_ELEMENT_TYPE: battery.ELEMENT_TYPE,
+        CONF_NAME: "Battery",
+        CONF_CONNECTION: "bus",
+        battery.CONF_CAPACITY: "sensor.capacity",
+        battery.CONF_INITIAL_CHARGE_PERCENTAGE: "sensor.initial",
+        "early_charge_incentive": 0.15,
+    }
+    subentry = _create_subentry(data, subentry_type=battery.ELEMENT_TYPE)
+
+    migrated = v1_3.migrate_subentry_data(subentry)
+
+    assert migrated is not None
+    pricing = migrated[SECTION_PRICING]
+    assert isinstance(pricing, dict)
+    assert battery.CONF_SALVAGE_VALUE not in pricing
+    assert is_element_config_schema(migrated) is True
 
 
 def test_migrate_subentry_battery_invalid_schema_value_raises() -> None:
@@ -322,6 +355,202 @@ def test_migrate_subentry_load_node_solar() -> None:
     assert solar_migrated[SECTION_FORECAST][CONF_FORECAST] == as_entity_value(["sensor.solar"])
     assert solar_migrated[SECTION_PRICING][CONF_PRICE_SOURCE_TARGET] == as_constant_value(0.12)
     assert solar_migrated[solar.SECTION_CURTAILMENT][solar.CONF_CURTAILMENT] == as_constant_value(True)
+
+
+@pytest.mark.parametrize(
+    ("element_type", "legacy_data"),
+    [
+        pytest.param(
+            battery.ELEMENT_TYPE,
+            {
+                CONF_NAME: "Battery",
+                CONF_CONNECTION: "main",
+                battery.CONF_CAPACITY: "sensor.battery_capacity",
+                battery.CONF_INITIAL_CHARGE_PERCENTAGE: "sensor.battery_soc",
+                "max_charge_power": 4.0,
+                "max_discharge_power": 5.0,
+                "early_charge_incentive": 0.01,
+            },
+            id="battery-flat-v033",
+        ),
+        pytest.param(
+            battery_section.ELEMENT_TYPE,
+            {
+                CONF_NAME: "Battery section",
+                battery_section.CONF_CAPACITY: 5.0,
+                battery_section.CONF_INITIAL_CHARGE: 2.0,
+            },
+            id="battery-section-flat-v033",
+        ),
+        pytest.param(
+            connection.ELEMENT_TYPE,
+            {
+                CONF_NAME: "Connection",
+                connection.CONF_SOURCE: "node_a",
+                connection.CONF_TARGET: "node_b",
+                connection.CONF_MAX_POWER_SOURCE_TARGET: 4.0,
+                connection.CONF_MAX_POWER_TARGET_SOURCE: 4.0,
+                connection.CONF_PRICE_SOURCE_TARGET: 0.1,
+                connection.CONF_PRICE_TARGET_SOURCE: 0.2,
+            },
+            id="connection-flat-v033",
+        ),
+        pytest.param(
+            grid.ELEMENT_TYPE,
+            {
+                CONF_NAME: "Grid",
+                CONF_CONNECTION: "main",
+                "import_price": 0.3,
+                "export_price": 0.1,
+                "import_limit": 6.0,
+                "export_limit": 5.0,
+            },
+            id="grid-flat-v033",
+        ),
+        pytest.param(
+            inverter.ELEMENT_TYPE,
+            {
+                CONF_NAME: "Inverter",
+                CONF_CONNECTION: "main",
+                "max_power_dc_to_ac": 8.0,
+                "max_power_ac_to_dc": 6.0,
+                "efficiency_dc_to_ac": 0.95,
+                "efficiency_ac_to_dc": 0.94,
+            },
+            id="inverter-flat-v033",
+        ),
+        pytest.param(
+            load.ELEMENT_TYPE,
+            {
+                CONF_NAME: "Load",
+                CONF_CONNECTION: "main",
+                CONF_FORECAST: ["sensor.load_forecast"],
+                "shedding": {"shedding": True},
+            },
+            id="load-flat-v033",
+        ),
+        pytest.param(
+            node.ELEMENT_TYPE,
+            {
+                CONF_NAME: "Node",
+                node.CONF_IS_SOURCE: True,
+                node.CONF_IS_SINK: False,
+            },
+            id="node-flat-v033",
+        ),
+        pytest.param(
+            solar.ELEMENT_TYPE,
+            {
+                CONF_NAME: "Solar",
+                CONF_CONNECTION: "main",
+                CONF_FORECAST: ["sensor.solar_forecast"],
+                "price_production": 0.0,
+                solar.CONF_CURTAILMENT: False,
+            },
+            id="solar-flat-v033",
+        ),
+    ],
+)
+def test_migrate_subentry_v033_legacy_shape_is_schema_valid(
+    element_type: str,
+    legacy_data: dict[str, Any],
+) -> None:
+    """v0.3.3-style flat subentry data migrates to valid main-branch schema."""
+    subentry = _create_subentry(
+        {
+            CONF_ELEMENT_TYPE: element_type,
+            **legacy_data,
+        },
+        subentry_type=element_type,
+    )
+
+    migrated = v1_3.migrate_subentry_data(subentry)
+
+    assert migrated is not None
+    assert is_element_config_schema(migrated) is True
+
+
+@pytest.mark.parametrize(
+    "scenario_name",
+    [
+        pytest.param("scenario1", id="scenario1"),
+        pytest.param("scenario2", id="scenario2"),
+        pytest.param("scenario3", id="scenario3"),
+        pytest.param("scenario4", id="scenario4"),
+        pytest.param("scenario5", id="scenario5"),
+    ],
+)
+def test_migrate_v033_scenario_configs_to_current_schema(scenario_name: str) -> None:
+    """v0.3.3 scenario fixtures migrate end-to-end to current schema shapes."""
+    legacy_config = _load_v033_scenario_config(scenario_name)
+    participants = legacy_config["participants"]
+    assert isinstance(participants, dict)
+
+    legacy_hub = dict(legacy_config)
+    del legacy_hub["participants"]
+
+    migrated_hub, migrated_options = migrate_hub_config(legacy_hub, {}, f"Scenario {scenario_name}")
+
+    assert HUB_SECTION_COMMON in migrated_hub
+    assert HUB_SECTION_TIERS in migrated_hub
+    assert HUB_SECTION_ADVANCED in migrated_hub
+    assert migrated_options == {}
+
+    migrated_participants: dict[str, dict[str, Any]] = {}
+    for participant_name, participant_data in participants.items():
+        assert isinstance(participant_name, str)
+        assert isinstance(participant_data, dict)
+        migrated = v1_3.migrate_subentry_data(_create_subentry(participant_data))
+        assert migrated is not None
+        assert is_element_config_schema(migrated) is True
+        migrated_participants[participant_name] = migrated
+
+    assert set(migrated_participants) == set(participants)
+    battery_pricing = migrated_participants["Battery"][SECTION_PRICING]
+    assert isinstance(battery_pricing, dict)
+    assert battery.CONF_SALVAGE_VALUE not in battery_pricing
+
+
+def test_migrate_element_config_short_circuits_when_step_returns_none(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Migration pipeline returns None when an intermediate step drops config."""
+    steps = (
+        ElementMigrationStep(
+            name="drop_all",
+            transform=lambda _data: None,
+        ),
+        ElementMigrationStep(
+            name="should_not_run",
+            transform=lambda data: dict(data),
+        ),
+    )
+    monkeypatch.setattr(schema_migrations, "ELEMENT_MIGRATION_STEPS", steps)
+
+    migrated = schema_migrations.migrate_element_config(
+        {
+            CONF_ELEMENT_TYPE: battery.ELEMENT_TYPE,
+            CONF_NAME: "Battery",
+        }
+    )
+
+    assert migrated is None
+
+
+def test_migrate_element_config_returns_copy_when_no_steps(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Pipeline returns a fresh dict unchanged when no steps are configured."""
+    monkeypatch.setattr(schema_migrations, "ELEMENT_MIGRATION_STEPS", ())
+    original = {
+        CONF_ELEMENT_TYPE: battery.ELEMENT_TYPE,
+        CONF_NAME: "Battery",
+    }
+
+    migrated = schema_migrations.migrate_element_config(original)
+
+    assert migrated == original
+    assert migrated is not original
 
 
 @pytest.mark.parametrize(

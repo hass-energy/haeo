@@ -20,7 +20,6 @@ async def test_available_returns_true_when_forecast_sensor_exists(hass: HomeAssi
         "name": "test_load",
         "connection": as_connection_target("main_bus"),
         load_element.SECTION_FORECAST: {"forecast": as_entity_value(["sensor.power"])},
-        load_element.SECTION_PRICING: {},
         load_element.SECTION_CURTAILMENT: {},
     }
 
@@ -35,7 +34,6 @@ async def test_available_returns_false_when_forecast_sensor_missing(hass: HomeAs
         "name": "test_load",
         "connection": as_connection_target("main_bus"),
         load_element.SECTION_FORECAST: {"forecast": as_entity_value(["sensor.missing"])},
-        load_element.SECTION_PRICING: {},
         load_element.SECTION_CURTAILMENT: {},
     }
 
@@ -50,7 +48,6 @@ def test_inputs_returns_input_fields() -> None:
         "name": "test_load",
         "connection": as_connection_target("main_bus"),
         load_element.SECTION_FORECAST: {"forecast": as_entity_value(["sensor.power"])},
-        load_element.SECTION_PRICING: {},
         load_element.SECTION_CURTAILMENT: {},
     }
 
@@ -58,9 +55,6 @@ def test_inputs_returns_input_fields() -> None:
 
     assert load_element.SECTION_FORECAST in input_fields
     assert "forecast" in input_fields[load_element.SECTION_FORECAST]
-
-    assert load_element.SECTION_PRICING in input_fields
-    assert "price_target_source" in input_fields[load_element.SECTION_PRICING]
 
     assert load_element.SECTION_CURTAILMENT in input_fields
     assert "curtailment" in input_fields[load_element.SECTION_CURTAILMENT]
