@@ -25,6 +25,8 @@ from custom_components.haeo.core.model.elements.connection import ConnectionElem
 
 # Tag 0 is used for untagged/default power flows
 DEFAULT_TAG = 0
+
+
 class CompiledPolicyRule(TypedDict):
     """Normalized policy rule consumed by the compiler."""
 
