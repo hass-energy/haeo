@@ -88,10 +88,7 @@ class Network:
     @overload
     def add(self, element_config: ConnectionElementConfig) -> Connection[ConnectionOutputName]: ...
 
-    @overload
-    def add(self, element_config: dict[str, Any]) -> Element[Any]: ...
-
-    def add(self, element_config: ModelElementConfig | dict[str, Any]) -> Element[Any]:
+    def add(self, element_config: ModelElementConfig) -> Element[Any]:
         """Add a new element to the network.
 
         Creates the element and registers connections. For parameter updates,

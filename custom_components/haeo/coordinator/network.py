@@ -13,6 +13,7 @@ from custom_components.haeo.core.adapters.policy_compilation import compile_poli
 from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES, collect_model_elements
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE
 from custom_components.haeo.core.model import Network
+from custom_components.haeo.core.model.elements import ModelElementConfig
 from custom_components.haeo.core.model.reactive import TrackedParam
 from custom_components.haeo.core.schema.elements import ElementConfigData, ElementType
 from custom_components.haeo.repairs import create_disconnected_network_issue, dismiss_disconnected_network_issue
@@ -47,14 +48,11 @@ async def create_network(
         _LOGGER.info("No participants configured for hub - returning empty network")
         return net
 
-    sorted_model_elements = collect_model_elements(participants)
+    sorted_model_elements: list[ModelElementConfig] = list(collect_model_elements(participants))
 
     # Compile policy rules into tagged power flow constraints
     policy_rules = _collect_policy_rules(participants)
-    compiled_elements = compile_policies(
-        [dict(e) for e in sorted_model_elements],
-        policy_rules,
-    )
+    compiled_elements = compile_policies(sorted_model_elements, policy_rules)
 
     for model_element_config in compiled_elements:
         element_name = model_element_config.get("name")

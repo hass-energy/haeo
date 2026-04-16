@@ -20,6 +20,9 @@ from typing import Any
 
 import numpy as np
 
+from custom_components.haeo.core.model.elements import ModelElementConfig
+from custom_components.haeo.core.model.elements.connection import ConnectionElementConfig
+
 # Tag 0 is used for untagged/default power flows
 DEFAULT_TAG = 0
 
@@ -31,11 +34,19 @@ def _make_hashable(value: Any) -> Any:
     return value
 
 
+def _is_connection(elem: ModelElementConfig) -> bool:
+    """Check if an element config is a connection."""
+    return elem.get("element_type") == "connection"
+
+
 def compile_policies(
-    elements: list[dict[str, Any]],
+    elements: list[ModelElementConfig],
     policy_configs: list[dict[str, Any]],
-) -> list[dict[str, Any]]:
+) -> list[ModelElementConfig]:
     """Compile policy rules into tagged power flow constraints on model elements.
+
+    Mutates element configs in-place, adding tags, outbound_tags,
+    inbound_tags, and tag_costs fields as needed.
 
     Args:
         elements: All model element configs (nodes and connections).
@@ -45,48 +56,44 @@ def compile_policies(
             - price: $/kWh or None
 
     Returns:
-        Modified elements list with tags, outbound_tags, inbound_tags, and
-        tag_costs injected.
+        The input elements with policy fields injected.
 
     """
     if not policy_configs:
         return elements
 
-    # Separate element types (mutable copies)
-    connections: list[dict[str, Any]] = []
-    elements_by_name: dict[str, dict[str, Any]] = {}
-    other: list[dict[str, Any]] = []
+    # Partition by element type — connections have source/target fields
+    connections: list[ConnectionElementConfig] = []
+    non_connections: list[ModelElementConfig] = []
+    by_name: dict[str, ModelElementConfig] = {}
     for elem in elements:
-        etype = elem.get("element_type")
-        copy = dict(elem)
-        if etype == "connection":
-            connections.append(copy)
+        if _is_connection(elem):
+            conn: ConnectionElementConfig = elem  # type: ignore[assignment]
+            connections.append(conn)
         else:
-            elements_by_name[copy["name"]] = copy
-            other.append(copy)
+            by_name[elem["name"]] = elem
+            non_connections.append(elem)
 
     if not connections:
         return elements
 
-    element_names: set[str] = set(elements_by_name.keys())
+    names: set[str] = set(by_name.keys())
 
-    conn_by_node: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    conn_by_node: dict[str, list[ConnectionElementConfig]] = defaultdict(list)
     for conn in connections:
         conn_by_node[conn["source"]].append(conn)
         conn_by_node[conn["target"]].append(conn)
 
     graph: dict[str, set[tuple[str, str]]] = defaultdict(set)
     for conn in connections:
-        src, tgt = conn["source"], conn["target"]
-        name = conn["name"]
-        graph[src].add((tgt, name))
-        graph[tgt].add((src, name))
+        graph[conn["source"]].add((conn["target"], conn["name"]))
+        graph[conn["target"]].add((conn["source"], conn["name"]))
 
     # --- Step 1: Flow enumeration ---
     flows: list[tuple[str, str, Any]] = []
     for policy in policy_configs:
-        sources = _resolve_wildcard(policy.get("sources", []), element_names)
-        destinations = _resolve_wildcard(policy.get("destinations", []), element_names)
+        sources = _resolve_wildcard(policy.get("sources", []), names)
+        destinations = _resolve_wildcard(policy.get("destinations", []), names)
         price = policy.get("price")
         for src in sources:
             flows.extend((src, dst, price) for dst in destinations if src != dst)
@@ -96,7 +103,7 @@ def compile_policies(
 
     # --- Step 2: Signature computation ---
     signatures: dict[str, frozenset[tuple[str, Any]]] = {}
-    for name in element_names:
+    for name in names:
         sig = frozenset((dst, _make_hashable(p)) for src, dst, p in flows if src == name)
         signatures[name] = sig
 
@@ -123,76 +130,68 @@ def compile_policies(
     for vlan_id in active_vlans:
         source_nodes = {n for n, v in tag_map.items() if v == vlan_id}
         dest_nodes = {dst for src, dst, _ in flows if tag_map.get(src) == vlan_id}
-        reachable = _find_reachable_connections(source_nodes, dest_nodes, graph)
-        vlan_connections[vlan_id] = reachable
+        vlan_connections[vlan_id] = _find_reachable_connections(source_nodes, dest_nodes, graph)
 
     # --- Step 5: Connection tagging ---
-    conn_pair_lookup: dict[tuple[str, str], list[str]] = defaultdict(list)
+    pair_lookup: dict[tuple[str, str], list[str]] = defaultdict(list)
     for conn in connections:
-        conn_pair_lookup[(conn["source"], conn["target"])].append(conn["name"])
+        pair_lookup[(conn["source"], conn["target"])].append(conn["name"])
 
     for conn in connections:
-        conn_name = conn["name"]
-        tags = {DEFAULT_TAG}
+        tags: set[int] = {DEFAULT_TAG}
         for vlan_id in active_vlans:
-            if conn_name in vlan_connections.get(vlan_id, set()):
+            if conn["name"] in vlan_connections.get(vlan_id, set()):
                 tags.add(vlan_id)
-                src, tgt = conn["source"], conn["target"]
-                for reverse_name in conn_pair_lookup.get((tgt, src), []):
-                    vlan_connections[vlan_id].add(reverse_name)
+                for rev in pair_lookup.get((conn["target"], conn["source"]), []):
+                    vlan_connections[vlan_id].add(rev)
         conn["tags"] = tags
 
-    # Second pass: pick up tags added by reverse-direction tagging
     for conn in connections:
-        conn_name = conn["name"]
         tags = set(conn.get("tags", {DEFAULT_TAG}))
         for vlan_id in active_vlans:
-            if conn_name in vlan_connections.get(vlan_id, set()):
+            if conn["name"] in vlan_connections.get(vlan_id, set()):
                 tags.add(vlan_id)
         conn["tags"] = tags
 
-    # --- Step 6: Node outbound tags (source provenance) ---
+    # --- Step 6: Node outbound tags ---
     for name, vlan_id in tag_map.items():
-        if vlan_id != DEFAULT_TAG and name in elements_by_name:
-            elements_by_name[name]["outbound_tags"] = {vlan_id}
+        if vlan_id != DEFAULT_TAG and name in by_name:
+            by_name[name]["outbound_tags"] = {vlan_id}  # type: ignore[literal-required]
 
-    # --- Step 7: Node inbound tags (consumption access) ---
-    access_lists: dict[str, set[int]] = defaultdict(set)
+    # --- Step 7: Node inbound tags ---
+    inbound: dict[str, set[int]] = defaultdict(set)
     for src, dst, _ in flows:
         vlan_id = tag_map.get(src, DEFAULT_TAG)
         if vlan_id != DEFAULT_TAG:
-            access_lists[dst].add(vlan_id)
+            inbound[dst].add(vlan_id)
 
-    for name, allowed_vlans in access_lists.items():
-        if name in elements_by_name:
-            elements_by_name[name]["inbound_tags"] = allowed_vlans
+    for name, allowed in inbound.items():
+        if name in by_name:
+            by_name[name]["inbound_tags"] = allowed  # type: ignore[literal-required]
 
-    # --- Step 8: Pricing injection via tag_costs ---
+    # --- Step 8: Pricing injection ---
     for policy in policy_configs:
-        sources = _resolve_wildcard(policy.get("sources", []), element_names)
-        destinations = _resolve_wildcard(policy.get("destinations", []), element_names)
+        sources = _resolve_wildcard(policy.get("sources", []), names)
+        destinations = _resolve_wildcard(policy.get("destinations", []), names)
         price = policy.get("price")
-
         if price is None:
             continue
 
         source_vlans = {tag_map[s] for s in sources if tag_map.get(s, DEFAULT_TAG) != DEFAULT_TAG}
-
         for source_vlan in source_vlans:
-            for dest_node in destinations:
-                if dest_node not in element_names:
+            for dest in destinations:
+                if dest not in names:
                     continue
-                for conn in conn_by_node.get(dest_node, []):
+                for conn in conn_by_node.get(dest, []):
                     if source_vlan not in conn.get("tags", {DEFAULT_TAG}):
                         continue
-                    # Price applies on connections flowing toward the destination
-                    if conn.get("target") == dest_node:
+                    if conn["target"] == dest:
                         conn.setdefault("tag_costs", []).append({"tag": source_vlan, "price": price})
 
     for conn in connections:
-        _merge_tag_costs_on_connection(conn)
+        _merge_tag_costs(conn)
 
-    return [*other, *connections]
+    return [*non_connections, *connections]
 
 
 def _resolve_wildcard(names: list[str], all_names: set[str]) -> list[str]:
@@ -202,19 +201,19 @@ def _resolve_wildcard(names: list[str], all_names: set[str]) -> list[str]:
     return [n for n in names if n in all_names]
 
 
-def _merge_tag_costs_on_connection(conn: dict[str, Any]) -> None:
-    """Sum duplicate tag_cost rows per tag so identical policies do not double-count."""
+def _merge_tag_costs(conn: ConnectionElementConfig) -> None:
+    """Sum duplicate tag_cost rows per tag."""
     raw = conn.get("tag_costs")
     if not raw:
         return
-    merged_price: dict[int, Any] = {}
+    merged: dict[int, Any] = {}
     for tc in raw:
         if "price" not in tc:
             continue
         tag = tc["tag"]
         p = tc["price"]
-        merged_price[tag] = p if tag not in merged_price else merged_price[tag] + p
-    conn["tag_costs"] = [{"tag": t, "price": p} for t, p in sorted(merged_price.items())]
+        merged[tag] = p if tag not in merged else merged[tag] + p
+    conn["tag_costs"] = [{"tag": t, "price": p} for t, p in sorted(merged.items())]
 
 
 def _find_reachable_connections(
@@ -222,24 +221,19 @@ def _find_reachable_connections(
     dest_nodes: set[str],
     graph: Mapping[str, set[tuple[str, str]]],
 ) -> set[str]:
-    """Find all connections that lie on any simple path from a source to a destination.
+    """Find all connections on any simple path from sources to destinations."""
+    result: set[str] = set()
 
-    DFS explores all simple paths (no repeated nodes on a path) so redundant routes
-    and cycles do not omit edges that participate in some s→t route.
-    """
-    reachable_connections: set[str] = set()
-
-    def dfs(source: str, current: str, path_conns: list[str], visited_on_path: set[str]) -> None:
-        visited_on_path.add(current)
+    def dfs(source: str, current: str, path: list[str], visited: set[str]) -> None:
+        visited.add(current)
         if current in dest_nodes and current != source:
-            reachable_connections.update(path_conns)
+            result.update(path)
         for neighbor, conn_name in graph.get(current, set()):
-            if neighbor in visited_on_path:
-                continue
-            dfs(source, neighbor, [*path_conns, conn_name], visited_on_path)
-        visited_on_path.remove(current)
+            if neighbor not in visited:
+                dfs(source, neighbor, [*path, conn_name], visited)
+        visited.remove(current)
 
     for source in source_nodes:
         dfs(source, source, [], set())
 
-    return reachable_connections
+    return result
