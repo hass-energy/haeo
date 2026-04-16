@@ -15,7 +15,7 @@ from typing import Any, Literal, overload
 import numpy as np
 import pytest
 
-from custom_components.haeo.core.adapters.policy_compilation import compile_policies
+from custom_components.haeo.core.adapters.policy_compilation import _merge_tag_costs, compile_policies
 from custom_components.haeo.core.model import ModelElementConfig
 from custom_components.haeo.core.model.element import NetworkElement
 from custom_components.haeo.core.model.elements import (
@@ -444,6 +444,68 @@ def test_price_target_source_on_connection_where_policy_dest_is_source_endpoint(
     _tc = conn.get("tag_costs")
     assert _tc is not None
     assert _tc[0]["price"] == pytest.approx(0.07)
+
+
+def test_compile_policies_without_connections_returns_unchanged() -> None:
+    """Policies with only nodes do not mutate elements (no connections to tag)."""
+    elements = [_node("a"), _node("b")]
+    policies = [{"sources": ["a"], "destinations": ["b"], "price": 0.05}]
+    assert compile_policies(elements, policies) is elements
+
+
+def test_compile_policies_resolves_to_no_flows() -> None:
+    """Unknown endpoint names yield no flows and leave elements unchanged."""
+    elements = [_node("grid"), _node("load"), _conn("c1", "grid", "load")]
+    policies = [{"sources": ["nosuch"], "destinations": ["alsomissing"], "price": 0.05}]
+    assert compile_policies(elements, policies) is elements
+
+
+def test_wildcard_destination_tags_each_sources_paths() -> None:
+    """Wildcard destination applies separate VLANs per source when signatures differ."""
+    elements = [
+        _node("a"),
+        _node("b"),
+        _node("c"),
+        _conn("ac", "a", "c"),
+        _conn("bc", "b", "c"),
+    ]
+    policies = [{"sources": ["a", "b"], "destinations": ["*"], "price": 0.04}]
+    result = compile_policies(elements, policies)
+    conns = {x["name"]: x for x in _connections(result)}
+    vlan_a = _outbound_tag(result, "a")
+    vlan_b = _outbound_tag(result, "b")
+    assert vlan_a in conns["ac"].get("tags", set())
+    assert vlan_b in conns["bc"].get("tags", set())
+
+
+def test_policies_without_price_apply_tags_only() -> None:
+    """Rules with no price still assign VLANs; pricing step is skipped."""
+    elements = [_node("grid"), _node("load"), _conn("c1", "grid", "load")]
+    policies = [{"sources": ["grid"], "destinations": ["load"]}]
+    result = compile_policies(elements, policies)
+    conn = _find(result, "c1", element_type=MODEL_ELEMENT_TYPE_CONNECTION)
+    assert conn.get("tag_costs") in (None, [])
+    assert _outbound_tag(result, "grid") in conn.get("tags", set())
+
+
+def test_identical_numpy_prices_merge_vlans() -> None:
+    """Per-period price arrays that match element-wise share one VLAN."""
+    elements = [_node("grid"), _node("solar"), _node("load"), _conn("c1", "grid", "load"), _conn("c2", "solar", "load")]
+    price = np.array([0.05, 0.05])
+    policies = [
+        {"sources": ["grid"], "destinations": ["load"], "price": price},
+        {"sources": ["solar"], "destinations": ["load"], "price": price.copy()},
+    ]
+    result = compile_policies(elements, policies)
+    assert _outbound_tag(result, "grid") == _outbound_tag(result, "solar")
+
+
+def test_merge_tag_costs_ignores_rows_without_price() -> None:
+    """Rows missing a price key do not contribute to merged totals."""
+    conn = ConnectionElementConfig(element_type=MODEL_ELEMENT_TYPE_CONNECTION, name="c", source="a", target="b")
+    conn["tag_costs"] = [{"tag": 1, "price": 0.05}, {"tag": 1}, {"tag": 2, "price": 0.10}]
+    _merge_tag_costs(conn)
+    assert conn["tag_costs"] == [{"tag": 1, "price": pytest.approx(0.05)}, {"tag": 2, "price": pytest.approx(0.10)}]
 
 
 def test_no_policy_no_extra_cost() -> None:

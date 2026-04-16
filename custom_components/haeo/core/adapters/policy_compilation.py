@@ -116,8 +116,6 @@ def compile_policies(
         tag_map[name] = sig_to_vlan[sig]
 
     active_vlans = sorted({v for v in tag_map.values() if v != DEFAULT_TAG})
-    if not active_vlans:
-        return elements
 
     # --- Step 4: Reachability analysis ---
     vlan_connections: dict[int, set[str]] = {}
@@ -178,8 +176,6 @@ def compile_policies(
         source_vlans = {tag_map[s] for s in sources if tag_map.get(s, DEFAULT_TAG) != DEFAULT_TAG}
         for source_vlan in source_vlans:
             for dest in destinations:
-                if dest not in names:
-                    continue
                 for conn in conn_by_node.get(dest, []):
                     if source_vlan not in conn.get("tags", {DEFAULT_TAG}):
                         continue

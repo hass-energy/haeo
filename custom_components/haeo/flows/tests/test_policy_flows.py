@@ -1,7 +1,6 @@
 """Tests for the policy element config flow."""
 
 from types import MappingProxyType
-from typing import Any
 from unittest.mock import Mock
 
 from homeassistant.config_entries import ConfigSubentry
@@ -9,9 +8,11 @@ from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
+import voluptuous as vol
 
 from custom_components.haeo.const import CONF_INTEGRATION_TYPE, DOMAIN, INTEGRATION_TYPE_HUB
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
+from custom_components.haeo.core.schema.constant_value import as_constant_value
 from custom_components.haeo.core.schema.elements.node import ELEMENT_TYPE as NODE_ELEMENT_TYPE
 from custom_components.haeo.core.schema.elements.policy import (
     CONF_PRICE,
@@ -19,16 +20,21 @@ from custom_components.haeo.core.schema.elements.policy import (
     CONF_RULES,
     CONF_SOURCE,
     CONF_TARGET,
+    PolicyRuleConfig,
 )
 from custom_components.haeo.core.schema.elements.policy import ELEMENT_TYPE as POLICY_ELEMENT_TYPE
+from custom_components.haeo.core.schema.entity_value import as_entity_value
+from custom_components.haeo.core.schema.none_value import as_none_value
 from custom_components.haeo.flows.elements.policy import (
     ACTION_DELETE,
     ACTION_EDIT,
+    CHOICE_NODES,
     CONF_ACTION,
     CONF_RULE,
     POLICIES_TITLE,
     PolicySubentryFlowHandler,
 )
+from custom_components.haeo.flows.field_schema import CHOICE_NONE
 
 
 @pytest.fixture
@@ -62,7 +68,7 @@ def _create_flow(hass: HomeAssistant, hub_entry: MockConfigEntry) -> PolicySuben
     return flow
 
 
-def _make_policy_subentry(rules: list[dict[str, Any]]) -> ConfigSubentry:
+def _make_policy_subentry(rules: list[PolicyRuleConfig]) -> ConfigSubentry:
     """Create a policy subentry with the provided rules."""
     data = MappingProxyType(
         {
@@ -120,7 +126,7 @@ async def test_user_step_creates_entry_when_none_exists(
     assert len(created_data[CONF_RULES]) == 1
     assert created_data[CONF_RULES][0]["name"] == "Solar Export"
     assert created_data[CONF_RULES][0]["source"] == ["Solar"]
-    assert created_data[CONF_RULES][0]["price"] == {"type": "constant", "value": 0.02}
+    assert created_data[CONF_RULES][0]["price"] == as_constant_value(0.02)
 
 
 async def test_user_step_appends_to_existing_subentry(
@@ -128,8 +134,13 @@ async def test_user_step_appends_to_existing_subentry(
     hub_entry: MockConfigEntry,
 ) -> None:
     """Submitting a rule when a policy subentry exists appends to it."""
-    existing_rules: list[dict[str, Any]] = [
-        {"name": "Solar Export", "source": ["Solar"], "target": ["Grid"], "price": {"type": "constant", "value": 0.02}},
+    existing_rules: list[PolicyRuleConfig] = [
+        {
+            "name": "Solar Export",
+            "source": ["Solar"],
+            "target": ["Grid"],
+            "price": as_constant_value(0.02),
+        },
     ]
     subentry = _make_policy_subentry(existing_rules)
     hass.config_entries.async_add_subentry(hub_entry, subentry)
@@ -226,8 +237,13 @@ async def test_reconfigure_shows_form(
     hub_entry: MockConfigEntry,
 ) -> None:
     """Reconfigure loads existing rules and shows the selection form."""
-    existing_rules: list[dict[str, Any]] = [
-        {"name": "Solar Export", "source": ["Solar"], "target": ["Grid"], "price": {"type": "constant", "value": 0.02}},
+    existing_rules: list[PolicyRuleConfig] = [
+        {
+            "name": "Solar Export",
+            "source": ["Solar"],
+            "target": ["Grid"],
+            "price": as_constant_value(0.02),
+        },
     ]
     subentry = _make_policy_subentry(existing_rules)
     hass.config_entries.async_add_subentry(hub_entry, subentry)
@@ -265,8 +281,13 @@ async def test_reconfigure_edit_shows_edit_form(
     hub_entry: MockConfigEntry,
 ) -> None:
     """Selecting edit navigates to the edit_rule step."""
-    existing_rules: list[dict[str, Any]] = [
-        {"name": "Solar Export", "source": ["Solar"], "target": ["Grid"], "price": {"type": "constant", "value": 0.02}},
+    existing_rules: list[PolicyRuleConfig] = [
+        {
+            "name": "Solar Export",
+            "source": ["Solar"],
+            "target": ["Grid"],
+            "price": as_constant_value(0.02),
+        },
     ]
     subentry = _make_policy_subentry(existing_rules)
     hass.config_entries.async_add_subentry(hub_entry, subentry)
@@ -293,13 +314,18 @@ async def test_reconfigure_delete_updates_subentry(
     hub_entry: MockConfigEntry,
 ) -> None:
     """Selecting delete removes the rule and saves."""
-    existing_rules: list[dict[str, Any]] = [
-        {"name": "Solar Export", "source": ["Solar"], "target": ["Grid"], "price": {"type": "constant", "value": 0.02}},
+    existing_rules: list[PolicyRuleConfig] = [
+        {
+            "name": "Solar Export",
+            "source": ["Solar"],
+            "target": ["Grid"],
+            "price": as_constant_value(0.02),
+        },
         {
             "name": "Grid Charge",
             "source": ["Grid"],
             "target": ["Battery"],
-            "price": {"type": "constant", "value": 0.05},
+            "price": as_constant_value(0.05),
         },
     ]
     subentry = _make_policy_subentry(existing_rules)
@@ -335,8 +361,13 @@ async def test_edit_rule_updates_and_saves(
     hub_entry: MockConfigEntry,
 ) -> None:
     """Editing a rule updates it and saves the subentry."""
-    existing_rules: list[dict[str, Any]] = [
-        {"name": "Solar Export", "source": ["Solar"], "target": ["Grid"], "price": {"type": "constant", "value": 0.02}},
+    existing_rules: list[PolicyRuleConfig] = [
+        {
+            "name": "Solar Export",
+            "source": ["Solar"],
+            "target": ["Grid"],
+            "price": as_constant_value(0.02),
+        },
     ]
     subentry = _make_policy_subentry(existing_rules)
     hass.config_entries.async_add_subentry(hub_entry, subentry)
@@ -368,7 +399,7 @@ async def test_edit_rule_updates_and_saves(
     assert result.get("type") == FlowResultType.ABORT
     update_data = flow.async_update_and_abort.call_args.kwargs["data"]
     assert update_data[CONF_RULES][0]["name"] == "Solar Export Updated"
-    assert update_data[CONF_RULES][0]["price"] == {"type": "constant", "value": 0.03}
+    assert update_data[CONF_RULES][0]["price"] == as_constant_value(0.03)
 
 
 async def test_edit_rule_rejects_duplicate_name(
@@ -376,13 +407,18 @@ async def test_edit_rule_rejects_duplicate_name(
     hub_entry: MockConfigEntry,
 ) -> None:
     """Editing a rule to a name that already exists shows an error."""
-    existing_rules: list[dict[str, Any]] = [
-        {"name": "Solar Export", "source": ["Solar"], "target": ["Grid"], "price": {"type": "constant", "value": 0.02}},
+    existing_rules: list[PolicyRuleConfig] = [
+        {
+            "name": "Solar Export",
+            "source": ["Solar"],
+            "target": ["Grid"],
+            "price": as_constant_value(0.02),
+        },
         {
             "name": "Grid Charge",
             "source": ["Grid"],
             "target": ["Battery"],
-            "price": {"type": "constant", "value": 0.05},
+            "price": as_constant_value(0.05),
         },
     ]
     subentry = _make_policy_subentry(existing_rules)
@@ -410,3 +446,78 @@ async def test_edit_rule_rejects_duplicate_name(
 
     assert result.get("type") == FlowResultType.FORM
     assert result.get("errors") == {CONF_RULE_NAME: "name_exists"}
+
+
+def test_endpoint_selector_normalizes_wildcard_and_node_lists(
+    hass: HomeAssistant,
+    hub_entry: MockConfigEntry,
+) -> None:
+    """Policy endpoint ChooseSelector maps none/nodes choices to list or empty string."""
+    flow = _create_flow(hass, hub_entry)
+    sel = flow._build_endpoint_selector(["Solar", "Grid"])
+    assert sel({"active_choice": CHOICE_NONE}) == ""
+    assert sel({"active_choice": CHOICE_NODES, CHOICE_NODES: ["Solar"]}) == ["Solar"]
+
+
+def test_parse_rule_input_empty_string_price_becomes_none_value() -> None:
+    """Empty price string in the form is stored as explicit none pricing."""
+    flow = PolicySubentryFlowHandler()
+    rule = flow._parse_rule_input(
+        {
+            CONF_RULE_NAME: "Free flow",
+            CONF_PRICE: "",
+        }
+    )
+    assert rule.get("price") == as_none_value()
+
+
+def test_parse_rule_input_list_price_becomes_entity_value() -> None:
+    """Entity list price input maps to schema entity value."""
+    flow = PolicySubentryFlowHandler()
+    rule = flow._parse_rule_input(
+        {
+            CONF_RULE_NAME: "Tracked",
+            CONF_PRICE: ["sensor.a", "sensor.b"],
+        }
+    )
+    assert rule.get("price") == as_entity_value(["sensor.a", "sensor.b"])
+
+
+async def test_edit_rule_index_out_of_range_uses_empty_defaults(
+    hass: HomeAssistant,
+    hub_entry: MockConfigEntry,
+) -> None:
+    """Invalid editing index falls back to empty suggested values."""
+    existing_rules: list[PolicyRuleConfig] = [
+        {
+            "name": "Solar Export",
+            "source": ["Solar"],
+            "target": ["Grid"],
+            "price": as_constant_value(0.02),
+        },
+    ]
+    subentry = _make_policy_subentry(existing_rules)
+    hass.config_entries.async_add_subentry(hub_entry, subentry)
+
+    flow = _create_flow(hass, hub_entry)
+    flow.context = {"subentry_id": subentry.subentry_id}
+    flow._get_reconfigure_subentry = Mock(return_value=subentry)
+    flow._get_subentry = Mock(return_value=subentry)
+    flow._editing_index = 99
+    flow._rules = list(existing_rules)
+
+    result = await flow.async_step_edit_rule(user_input=None)
+
+    assert result.get("type") == FlowResultType.FORM
+    assert result.get("step_id") == "edit_rule"
+
+
+def test_endpoint_selector_delegates_to_super_without_active_choice(
+    hass: HomeAssistant,
+    hub_entry: MockConfigEntry,
+) -> None:
+    """Payloads without active_choice are validated by the base ChooseSelector."""
+    flow = _create_flow(hass, hub_entry)
+    sel = flow._build_endpoint_selector(["Solar"])
+    with pytest.raises(vol.Invalid):
+        sel({"unexpected": "shape"})

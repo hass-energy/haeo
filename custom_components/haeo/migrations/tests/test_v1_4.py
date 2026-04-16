@@ -15,6 +15,7 @@ from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.core.schema.constant_value import as_constant_value
 from custom_components.haeo.core.schema.elements import battery, solar
 from custom_components.haeo.core.schema.elements.policy import CONF_RULES
+from custom_components.haeo.core.schema.none_value import as_none_value
 from custom_components.haeo.core.schema.sections import (
     CONF_CONNECTION,
     CONF_PRICE_SOURCE_TARGET,
@@ -132,3 +133,65 @@ async def test_v1_4_migrates_solar_pricing_to_policy_rules(hass: HomeAssistant) 
 
     updated_solar = next(s for s in entry.subentries.values() if s.subentry_type == solar.ELEMENT_TYPE)
     assert SECTION_PRICING not in updated_solar.data
+
+
+@pytest.mark.asyncio
+async def test_v1_4_no_op_when_already_current(hass: HomeAssistant) -> None:
+    """Migration short-circuits when the entry is already at minor version 1.4."""
+    entry = MockConfigEntry(domain=DOMAIN, title="Hub", data={CONF_NAME: "Hub"})
+    entry.add_to_hass(hass)
+    hass.config_entries.async_update_entry(entry, minor_version=v1_4.MINOR_VERSION)
+
+    assert await v1_4.async_migrate_entry(hass, entry) is True
+
+
+@pytest.mark.asyncio
+async def test_v1_4_battery_discharge_falls_back_past_explicit_none_price(hass: HomeAssistant) -> None:
+    """Discharge price that is explicitly none still allows legacy discharge_cost to migrate."""
+    entry = MockConfigEntry(domain=DOMAIN, title="Hub", data={CONF_NAME: "Hub"})
+    entry.add_to_hass(hass)
+    hass.config_entries.async_update_entry(entry, minor_version=v1_3.MINOR_VERSION)
+
+    bat = _create_subentry(
+        {
+            CONF_ELEMENT_TYPE: battery.ELEMENT_TYPE,
+            CONF_NAME: "Bat",
+            CONF_CONNECTION: "bus",
+            SECTION_PRICING: {
+                CONF_PRICE_SOURCE_TARGET: as_none_value(),
+            },
+            "discharge_cost": as_constant_value(0.08),
+        },
+        subentry_type=battery.ELEMENT_TYPE,
+    )
+    hass.config_entries.async_add_subentry(entry, bat)
+
+    assert await v1_4.async_migrate_entry(hass, entry) is True
+
+    policy_subs = [s for s in entry.subentries.values() if s.subentry_type == "policy"]
+    assert len(policy_subs) == 1
+    assert policy_subs[0].data[CONF_RULES][0]["price"] == as_constant_value(0.08)
+
+
+@pytest.mark.asyncio
+async def test_v1_4_battery_ignores_non_mapping_pricing_section(hass: HomeAssistant) -> None:
+    """Malformed pricing data is treated as empty; legacy keys can still migrate."""
+    entry = MockConfigEntry(domain=DOMAIN, title="Hub", data={CONF_NAME: "Hub"})
+    entry.add_to_hass(hass)
+    hass.config_entries.async_update_entry(entry, minor_version=v1_3.MINOR_VERSION)
+
+    malformed_battery: dict[str, Any] = {
+        CONF_ELEMENT_TYPE: battery.ELEMENT_TYPE,
+        CONF_NAME: "Bat",
+        CONF_CONNECTION: "bus",
+        SECTION_PRICING: "not-a-mapping",
+        "discharge_cost": as_constant_value(0.11),
+    }
+    bat = _create_subentry(malformed_battery, subentry_type=battery.ELEMENT_TYPE)
+    hass.config_entries.async_add_subentry(entry, bat)
+
+    assert await v1_4.async_migrate_entry(hass, entry) is True
+
+    policy_subs = [s for s in entry.subentries.values() if s.subentry_type == "policy"]
+    assert len(policy_subs) == 1
+    assert policy_subs[0].data[CONF_RULES][0]["price"] == as_constant_value(0.11)
