@@ -46,6 +46,8 @@ def extract_policy_rules(config: Mapping[str, Any]) -> list[CompiledPolicyRule]:
     """
     result: list[CompiledPolicyRule] = []
     for rule in config.get("rules", []):
+        if not rule.get("enabled", True):
+            continue
         source = rule.get(CONF_SOURCE, [])
         target = rule.get(CONF_TARGET, [])
         compiled = CompiledPolicyRule(

@@ -13,6 +13,7 @@ from typing import Any
 
 from homeassistant.config_entries import ConfigSubentry, ConfigSubentryFlow, SubentryFlowResult
 from homeassistant.helpers.selector import (
+    BooleanSelector,
     ChooseSelector,
     ChooseSelectorChoiceConfig,
     ChooseSelectorConfig,
@@ -26,9 +27,10 @@ from homeassistant.helpers.selector import (
 import voluptuous as vol
 
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
-from custom_components.haeo.core.schema.constant_value import as_constant_value
+from custom_components.haeo.core.schema.constant_value import as_constant_value, is_constant_value
 from custom_components.haeo.core.schema.elements.element_type import ElementType
 from custom_components.haeo.core.schema.elements.policy import (
+    CONF_ENABLED,
     CONF_PRICE,
     CONF_RULE_NAME,
     CONF_RULES,
@@ -37,8 +39,8 @@ from custom_components.haeo.core.schema.elements.policy import (
     ELEMENT_TYPE,
     PolicyRuleConfig,
 )
-from custom_components.haeo.core.schema.entity_value import as_entity_value
-from custom_components.haeo.core.schema.none_value import as_none_value
+from custom_components.haeo.core.schema.entity_value import as_entity_value, is_entity_value
+from custom_components.haeo.core.schema.none_value import as_none_value, is_none_value
 from custom_components.haeo.elements import get_list_input_fields
 from custom_components.haeo.elements.input_fields import InputFieldInfo
 from custom_components.haeo.flows.element_flow import ElementFlowMixin
@@ -74,7 +76,10 @@ class _EndpointChooseSelector(ChooseSelector):  # type: ignore[type-arg]
             if choice == CHOICE_NONE:
                 return ""
             if choice == CHOICE_NODES:
-                return data.get(CHOICE_NODES, [])
+                nodes = data.get(CHOICE_NODES, [])
+                if not nodes:
+                    return ""
+                return nodes
         return super().__call__(data)  # type: ignore[misc]
 
 
@@ -167,6 +172,7 @@ class PolicySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
 
         return vol.Schema(
             {
+                vol.Optional(CONF_ENABLED, default=True): BooleanSelector(),
                 vol.Required(CONF_RULE_NAME): str,
                 vol.Optional(CONF_SOURCE): endpoint_selector,
                 vol.Optional(CONF_TARGET): endpoint_selector,
@@ -204,6 +210,9 @@ class PolicySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         """Convert form input into a PolicyRuleConfig."""
         rule: PolicyRuleConfig = {"name": user_input[CONF_RULE_NAME]}
 
+        if CONF_ENABLED in user_input:
+            rule["enabled"] = user_input[CONF_ENABLED]
+
         source = user_input.get(CONF_SOURCE)
         if isinstance(source, list) and source:
             rule["source"] = source
@@ -227,12 +236,25 @@ class PolicySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         defaults: dict[str, Any] = {
             CONF_RULE_NAME: rule["name"],
         }
+        if CONF_ENABLED in rule:
+            defaults[CONF_ENABLED] = rule[CONF_ENABLED]
+
         if "source" in rule:
-            defaults[CONF_SOURCE] = rule["source"]
+            defaults[CONF_SOURCE] = {"active_choice": CHOICE_NODES, CHOICE_NODES: rule["source"]}
+        else:
+            defaults[CONF_SOURCE] = ""
+
         if "target" in rule:
-            defaults[CONF_TARGET] = rule["target"]
+            defaults[CONF_TARGET] = {"active_choice": CHOICE_NODES, CHOICE_NODES: rule["target"]}
+        else:
+            defaults[CONF_TARGET] = ""
+
         if "price" in rule:
-            defaults[CONF_PRICE] = rule["price"]
+            price = rule["price"]
+            if is_constant_value(price) or is_entity_value(price):
+                defaults[CONF_PRICE] = price["value"]
+            elif is_none_value(price):
+                defaults[CONF_PRICE] = ""
         return defaults
 
     def _validate_rule(
