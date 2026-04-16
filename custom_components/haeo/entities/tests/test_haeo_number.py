@@ -310,6 +310,64 @@ async def test_nested_policy_rule_price_sets_rule_name_placeholder(
     assert entity._attr_translation_placeholders["rule_name"] == "Grid export fee"
 
 
+async def test_list_item_sibling_fields_in_extra_state_attributes(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    device_entry: Mock,
+    horizon_manager: Mock,
+) -> None:
+    """List item fields expose sibling fields from the same list item as extra state attributes."""
+    price_field = InputFieldInfo(
+        field_name="price",
+        entity_description=NumberEntityDescription(
+            key="price",
+            translation_key="policy_rule_price",
+            native_unit_of_measurement="USD/kWh",
+            native_min_value=-100.0,
+            native_max_value=100.0,
+            native_step=0.001,
+        ),
+        output_type=OutputType.PRICE,
+        time_series=True,
+    )
+    subentry = ConfigSubentry(
+        data=MappingProxyType(
+            {
+                "element_type": POLICY_ELEMENT_TYPE,
+                "name": "Policies",
+                CONF_RULES: [
+                    {
+                        "name": "Solar Export",
+                        "source": ["Solar"],
+                        "target": ["Grid"],
+                        "price": as_constant_value(0.02),
+                    },
+                ],
+            }
+        ),
+        subentry_type=POLICY_ELEMENT_TYPE,
+        title="Policies",
+        unique_id=None,
+    )
+    config_entry.runtime_data = None
+
+    entity = HaeoInputNumber(
+        config_entry=config_entry,
+        subentry=subentry,
+        field_info=price_field,
+        device_entry=device_entry,
+        horizon_manager=horizon_manager,
+        field_path=("rules", "0", "price"),
+    )
+
+    attrs = entity.extra_state_attributes
+    assert attrs["name"] == "Solar Export"
+    assert attrs["source"] == ["Solar"]
+    assert attrs["target"] == ["Grid"]
+    # The entity's own field should NOT be included
+    assert "price" not in attrs
+
+
 async def test_invalid_field_config_raises_runtime_error(
     hass: HomeAssistant,
     config_entry: MockConfigEntry,
