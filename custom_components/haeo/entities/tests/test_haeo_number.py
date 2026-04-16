@@ -361,6 +361,7 @@ async def test_list_item_sibling_fields_in_extra_state_attributes(
     )
 
     attrs = entity.extra_state_attributes
+    assert attrs is not None
     assert attrs["name"] == "Solar Export"
     assert attrs["source"] == ["Solar"]
     assert attrs["target"] == ["Grid"]
