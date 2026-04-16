@@ -13,6 +13,8 @@ from typing import Any
 
 from homeassistant.config_entries import ConfigSubentry, ConfigSubentryFlow, SubentryFlowResult
 from homeassistant.helpers.selector import (
+    BooleanSelector,
+    BooleanSelectorConfig,
     ChooseSelector,
     ChooseSelectorChoiceConfig,
     ChooseSelectorConfig,
@@ -26,9 +28,10 @@ from homeassistant.helpers.selector import (
 import voluptuous as vol
 
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
-from custom_components.haeo.core.schema.constant_value import as_constant_value
+from custom_components.haeo.core.schema.constant_value import as_constant_value, is_constant_value
 from custom_components.haeo.core.schema.elements.element_type import ElementType
 from custom_components.haeo.core.schema.elements.policy import (
+    CONF_ENABLED,
     CONF_PRICE,
     CONF_RULE_NAME,
     CONF_RULES,
@@ -37,8 +40,8 @@ from custom_components.haeo.core.schema.elements.policy import (
     ELEMENT_TYPE,
     PolicyRuleConfig,
 )
-from custom_components.haeo.core.schema.entity_value import as_entity_value
-from custom_components.haeo.core.schema.none_value import as_none_value
+from custom_components.haeo.core.schema.entity_value import as_entity_value, is_entity_value
+from custom_components.haeo.core.schema.none_value import as_none_value, is_none_value
 from custom_components.haeo.elements import get_list_input_fields
 from custom_components.haeo.elements.input_fields import InputFieldInfo
 from custom_components.haeo.flows.element_flow import ElementFlowMixin
@@ -55,7 +58,7 @@ CONF_RULE: str = "rule"
 ACTION_EDIT: str = "edit"
 ACTION_DELETE: str = "delete"
 
-CHOICE_NODES: str = "nodes"
+CHOICE_ELEMENTS: str = "elements"
 
 POLICIES_TITLE: str = "Policies"
 
@@ -64,7 +67,7 @@ class _EndpointChooseSelector(ChooseSelector):  # type: ignore[type-arg]
     """ChooseSelector for policy endpoints that normalizes to list[str] or empty.
 
     - "none" choice (any element): normalizes to empty string
-    - "nodes" choice (specific elements): normalizes to list[str]
+    - "elements" choice (specific elements): normalizes to list[str]
     """
 
     def __call__(self, data: Any) -> Any:
@@ -73,8 +76,12 @@ class _EndpointChooseSelector(ChooseSelector):  # type: ignore[type-arg]
             choice = data.get("active_choice")
             if choice == CHOICE_NONE:
                 return ""
-            if choice == CHOICE_NODES:
-                return data.get(CHOICE_NODES, [])
+            if choice == CHOICE_ELEMENTS:
+                elements = data.get(CHOICE_ELEMENTS, [])
+                if not elements:
+                    msg = "At least one element must be selected"
+                    raise vol.Invalid(msg)
+                return elements
         return super().__call__(data)  # type: ignore[misc]
 
 
@@ -136,9 +143,9 @@ class PolicySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         )
 
     def _build_endpoint_selector(self, participants: list[str]) -> _EndpointChooseSelector:
-        """Build a ChooseSelector for endpoint with none (any) and nodes (specific) choices."""
+        """Build a ChooseSelector for endpoint with none (any) and elements (specific) choices."""
         options = [SelectOptionDict(value=p, label=p) for p in participants]
-        nodes_selector = SelectSelector(
+        elements_selector = SelectSelector(
             SelectSelectorConfig(
                 options=options,
                 mode=SelectSelectorMode.DROPDOWN,
@@ -152,8 +159,8 @@ class PolicySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                     CHOICE_NONE: ChooseSelectorChoiceConfig(
                         selector=none_selector.serialize()["selector"],
                     ),
-                    CHOICE_NODES: ChooseSelectorChoiceConfig(
-                        selector=nodes_selector.serialize()["selector"],
+                    CHOICE_ELEMENTS: ChooseSelectorChoiceConfig(
+                        selector=elements_selector.serialize()["selector"],
                     ),
                 },
                 translation_key="policy_endpoint",
@@ -168,6 +175,7 @@ class PolicySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         return vol.Schema(
             {
                 vol.Required(CONF_RULE_NAME): str,
+                vol.Required(CONF_ENABLED, default=True): BooleanSelector(BooleanSelectorConfig()),
                 vol.Optional(CONF_SOURCE): endpoint_selector,
                 vol.Optional(CONF_TARGET): endpoint_selector,
                 vol.Optional(CONF_PRICE): price_selector,
@@ -203,6 +211,7 @@ class PolicySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
     def _parse_rule_input(self, user_input: dict[str, Any]) -> PolicyRuleConfig:
         """Convert form input into a PolicyRuleConfig."""
         rule: PolicyRuleConfig = {"name": user_input[CONF_RULE_NAME]}
+        rule["enabled"] = user_input[CONF_ENABLED]
 
         source = user_input.get(CONF_SOURCE)
         if isinstance(source, list) and source:
@@ -226,13 +235,21 @@ class PolicySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         """Convert a stored rule back to form defaults."""
         defaults: dict[str, Any] = {
             CONF_RULE_NAME: rule["name"],
+            CONF_ENABLED: rule.get(CONF_ENABLED, True),
         }
-        if "source" in rule:
-            defaults[CONF_SOURCE] = rule["source"]
-        if "target" in rule:
-            defaults[CONF_TARGET] = rule["target"]
-        if "price" in rule:
-            defaults[CONF_PRICE] = rule["price"]
+
+        source = rule.get(CONF_SOURCE)
+        defaults[CONF_SOURCE] = {"active_choice": CHOICE_ELEMENTS, CHOICE_ELEMENTS: source} if source else ""
+
+        target = rule.get(CONF_TARGET)
+        defaults[CONF_TARGET] = {"active_choice": CHOICE_ELEMENTS, CHOICE_ELEMENTS: target} if target else ""
+
+        if CONF_PRICE in rule:
+            price = rule[CONF_PRICE]
+            if is_constant_value(price) or is_entity_value(price):
+                defaults[CONF_PRICE] = price["value"]
+            elif is_none_value(price):
+                defaults[CONF_PRICE] = ""
         return defaults
 
     def _validate_rule(

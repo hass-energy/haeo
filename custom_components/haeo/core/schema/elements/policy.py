@@ -25,6 +25,7 @@ CONF_RULE_NAME: Final = "name"
 CONF_SOURCE: Final = "source"
 CONF_TARGET: Final = "target"
 CONF_PRICE: Final = "price"
+CONF_ENABLED: Final = "enabled"
 
 # Wildcard sentinel for "any element"
 WILDCARD: Final = "*"
@@ -34,6 +35,7 @@ class PolicyRuleConfig(TypedDict):
     """A single policy rule as stored in Home Assistant config."""
 
     name: str
+    enabled: NotRequired[bool]
     source: NotRequired[list[str]]
     target: NotRequired[list[str]]
     price: NotRequired[EntityValue | ConstantValue | NoneValue]
@@ -43,6 +45,7 @@ class PolicyRuleData(TypedDict):
     """A single policy rule with loaded values."""
 
     name: str
+    enabled: NotRequired[bool]
     source: NotRequired[list[str]]
     target: NotRequired[list[str]]
     price: NotRequired[NDArray[np.floating[Any]] | float]
@@ -75,6 +78,7 @@ class PolicyConfigData(TypedDict):
 
 
 __all__ = [
+    "CONF_ENABLED",
     "CONF_PRICE",
     "CONF_RULES",
     "CONF_RULE_NAME",
