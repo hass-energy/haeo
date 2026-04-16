@@ -136,8 +136,8 @@ def test_node_without_policy_gets_default() -> None:
 # --- Reachability ---
 
 
-def test_vlan_only_on_path() -> None:
-    """VLAN only appears on connections between source and destination."""
+def test_vlan_covers_reachable_subgraph() -> None:
+    """VLAN covers the relevant reachable subgraph between source and destination."""
     elements = [
         _node("grid"),
         _node("solar"),
@@ -161,7 +161,7 @@ def test_vlan_only_on_path() -> None:
     assert grid_vlan in _t
     _t = conns["solar_sw"].get("tags")
     assert _t is not None
-    assert grid_vlan not in _t
+    assert grid_vlan in _t
 
 
 # --- Access lists ---
