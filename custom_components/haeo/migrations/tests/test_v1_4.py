@@ -7,6 +7,7 @@ from typing import Any
 
 from homeassistant.config_entries import ConfigSubentry
 from homeassistant.core import HomeAssistant
+import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.haeo.const import DOMAIN
@@ -189,3 +190,80 @@ async def test_v1_4_strips_pricing_from_connection(hass: HomeAssistant) -> None:
     assert updated_conn.data.get(SECTION_PRICING) == {
         CONF_PRICE_SOURCE_TARGET: {"type": "constant", "value": 0.05},
     }
+
+
+async def test_v1_4_appends_migrated_rules_to_existing_policy_subentry(hass: HomeAssistant) -> None:
+    """Migrated rules are appended to existing policy rules in the Policies subentry."""
+    entry = MockConfigEntry(domain=DOMAIN, title="Hub", data={CONF_NAME: "Hub"})
+    entry.add_to_hass(hass)
+    hass.config_entries.async_update_entry(entry, minor_version=v1_3.MINOR_VERSION)
+
+    existing_policy = _create_subentry(
+        {
+            CONF_ELEMENT_TYPE: "policy",
+            CONF_NAME: "Policies",
+            CONF_RULES: [
+                {
+                    "name": "Existing Rule",
+                    "source": ["Grid"],
+                    "target": ["Load"],
+                    "price": {"type": "constant", "value": 0.11},
+                }
+            ],
+        },
+        subentry_type="policy",
+    )
+    hass.config_entries.async_add_subentry(entry, existing_policy)
+
+    bat = _create_subentry(
+        {
+            CONF_ELEMENT_TYPE: battery.ELEMENT_TYPE,
+            CONF_NAME: "Bat",
+            CONF_CONNECTION: "bus",
+            SECTION_PRICING: {
+                CONF_PRICE_SOURCE_TARGET: {"type": "constant", "value": 0.04},
+            },
+        },
+        subentry_type=battery.ELEMENT_TYPE,
+    )
+    hass.config_entries.async_add_subentry(entry, bat)
+
+    assert await v1_4.async_migrate_entry(hass, entry) is True
+
+    updated_policy = next(s for s in entry.subentries.values() if s.subentry_type == "policy")
+    rules = updated_policy.data[CONF_RULES]
+    assert len(rules) == 2
+    assert rules[0]["name"] == "Existing Rule"
+    assert rules[1]["name"] == "Bat Discharge"
+
+
+@pytest.mark.parametrize(
+    "pricing_value",
+    [
+        {"type": "none"},
+        None,
+    ],
+)
+async def test_v1_4_solar_pricing_without_migratable_value_creates_no_policy(
+    hass: HomeAssistant,
+    pricing_value: object,
+) -> None:
+    """Solar pricing values of none/None are skipped during rule extraction."""
+    entry = MockConfigEntry(domain=DOMAIN, title="Hub", data={CONF_NAME: "Hub"})
+    entry.add_to_hass(hass)
+    hass.config_entries.async_update_entry(entry, minor_version=v1_3.MINOR_VERSION)
+
+    solar_data: dict[str, Any] = {
+        CONF_ELEMENT_TYPE: solar.ELEMENT_TYPE,
+        CONF_NAME: "PV",
+        CONF_CONNECTION: "bus",
+        SECTION_PRICING: {
+            CONF_PRICE_SOURCE_TARGET: pricing_value,
+        },
+    }
+    hass.config_entries.async_add_subentry(entry, _create_subentry(solar_data, subentry_type=solar.ELEMENT_TYPE))
+
+    assert await v1_4.async_migrate_entry(hass, entry) is True
+
+    policy_subs = [s for s in entry.subentries.values() if s.subentry_type == "policy"]
+    assert policy_subs == []

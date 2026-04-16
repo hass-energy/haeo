@@ -15,7 +15,12 @@ from typing import Any, Literal, overload
 import numpy as np
 import pytest
 
-from custom_components.haeo.core.adapters.policy_compilation import _merge_tag_costs, compile_policies
+from custom_components.haeo.core.adapters import policy_compilation
+from custom_components.haeo.core.adapters.policy_compilation import (
+    _find_reachable_connections,
+    _merge_tag_costs,
+    compile_policies,
+)
 from custom_components.haeo.core.model import ModelElementConfig
 from custom_components.haeo.core.model.element import NetworkElement
 from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE
@@ -458,6 +463,13 @@ def test_compile_policies_resolves_to_no_flows() -> None:
     assert compile_policies(elements, policies) is elements
 
 
+def test_compile_policies_non_list_endpoints_resolve_to_no_flows() -> None:
+    """Non-list sources/destinations are ignored and produce no policy flows."""
+    elements = [_node("grid"), _node("load"), _conn("c1", "grid", "load")]
+    policies = [{"sources": "grid", "destinations": ("load",), "price": 0.05}]
+    assert compile_policies(elements, policies) is elements
+
+
 def test_wildcard_destination_tags_each_sources_paths() -> None:
     """Wildcard destination applies separate VLANs per source when signatures differ."""
     elements = [
@@ -486,6 +498,31 @@ def test_policies_without_price_apply_tags_only() -> None:
     assert _outbound_tag(result, "grid") in conn.get("tags", set())
 
 
+def test_pricing_injection_skips_non_tagged_incident_connections(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Destination-adjacent edges without the source VLAN are ignored for pricing injection."""
+    elements = [
+        _node("source"),
+        _node("dest"),
+        _node("other"),
+        _conn("source_dest", "source", "dest"),
+        _conn("other_dest", "other", "dest"),
+    ]
+    monkeypatch.setattr(
+        policy_compilation,
+        "_find_reachable_connections",
+        lambda _source_nodes, _dest_nodes, _graph: {"source_dest"},
+    )
+    policies = [{"sources": ["source"], "destinations": ["dest"], "price": 0.07}]
+    result = compile_policies(elements, policies)
+
+    priced = _find(result, "source_dest", element_type=MODEL_ELEMENT_TYPE_CONNECTION)
+    unpriced = _find(result, "other_dest", element_type=MODEL_ELEMENT_TYPE_CONNECTION)
+    assert priced.get("tag_costs") is not None
+    assert unpriced.get("tag_costs") in (None, [])
+
+
 def test_identical_numpy_prices_merge_vlans() -> None:
     """Per-period price arrays that match element-wise share one VLAN."""
     elements = [_node("grid"), _node("solar"), _node("load"), _conn("c1", "grid", "load"), _conn("c2", "solar", "load")]
@@ -504,6 +541,24 @@ def test_merge_tag_costs_ignores_rows_without_price() -> None:
     conn["tag_costs"] = [{"tag": 1, "price": 0.05}, {"tag": 1}, {"tag": 2, "price": 0.10}]
     _merge_tag_costs(conn)
     assert conn["tag_costs"] == [{"tag": 1, "price": pytest.approx(0.05)}, {"tag": 2, "price": pytest.approx(0.10)}]
+
+
+def test_find_reachable_connections_returns_empty_for_missing_endpoints() -> None:
+    """Empty source or destination sets short-circuit reachability."""
+    graph = {"a": {("b", "ab")}, "b": {("a", "ab")}}
+    assert _find_reachable_connections(set(), {"b"}, graph) == set()
+    assert _find_reachable_connections({"a"}, set(), graph) == set()
+
+
+def test_find_reachable_connections_returns_empty_for_disjoint_reachability() -> None:
+    """Disjoint source/destination components produce no relevant connections."""
+    graph = {
+        "a": {("b", "ab")},
+        "b": {("a", "ab")},
+        "x": {("y", "xy")},
+        "y": {("x", "xy")},
+    }
+    assert _find_reachable_connections({"a"}, {"y"}, graph) == set()
 
 
 def test_no_policy_no_extra_cost() -> None:

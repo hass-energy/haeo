@@ -521,3 +521,78 @@ def test_endpoint_selector_delegates_to_super_without_active_choice(
     sel = flow._build_endpoint_selector(["Solar"])
     with pytest.raises(vol.Invalid):
         sel({"unexpected": "shape"})
+
+
+def test_get_participant_options_skips_invalid_element_type_values(
+    hass: HomeAssistant,
+    hub_entry: MockConfigEntry,
+) -> None:
+    """Participant options ignore subentries with invalid element_type payloads."""
+    invalid_subentry = ConfigSubentry(
+        data=MappingProxyType({CONF_ELEMENT_TYPE: "not-a-real-type", CONF_NAME: "Broken"}),
+        subentry_type="broken",
+        title="Broken",
+        unique_id=None,
+    )
+    hass.config_entries.async_add_subentry(hub_entry, invalid_subentry)
+
+    flow = _create_flow(hass, hub_entry)
+    options = flow._get_participant_options()
+    assert "Broken" not in options
+
+
+async def test_reconfigure_delete_invalid_index_keeps_rules_and_saves(
+    hass: HomeAssistant,
+    hub_entry: MockConfigEntry,
+) -> None:
+    """Deleting an out-of-range index does not mutate rules but still persists current state."""
+    existing_rules: list[PolicyRuleConfig] = [
+        {
+            "name": "Solar Export",
+            "source": ["Solar"],
+            "target": ["Grid"],
+            "price": as_constant_value(0.02),
+        },
+    ]
+    subentry = _make_policy_subentry(existing_rules)
+    hass.config_entries.async_add_subentry(hub_entry, subentry)
+
+    flow = _create_flow(hass, hub_entry)
+    flow.context = {"subentry_id": subentry.subentry_id}
+    flow._get_reconfigure_subentry = Mock(return_value=subentry)
+    flow.async_update_and_abort = Mock(
+        return_value={"type": FlowResultType.ABORT, "reason": "reconfigure_successful"},
+    )
+
+    await flow.async_step_reconfigure(user_input=None)
+    result = await flow.async_step_reconfigure(
+        user_input={
+            CONF_RULE: "5",
+            CONF_ACTION: ACTION_DELETE,
+        }
+    )
+
+    assert result.get("type") == FlowResultType.ABORT
+    update_data = flow.async_update_and_abort.call_args.kwargs["data"]
+    assert update_data[CONF_RULES] == existing_rules
+
+
+async def test_edit_rule_valid_input_without_subentry_returns_form(
+    hass: HomeAssistant,
+    hub_entry: MockConfigEntry,
+) -> None:
+    """When no subentry is available during edit save, flow returns to form instead of aborting."""
+    flow = _create_flow(hass, hub_entry)
+    flow._rules = [{"name": "Existing"}]
+    flow._editing_index = 0
+    flow._get_subentry = Mock(return_value=None)
+
+    result = await flow.async_step_edit_rule(
+        user_input={
+            CONF_RULE_NAME: "Renamed",
+            CONF_PRICE: 0.01,
+        }
+    )
+
+    assert result.get("type") == FlowResultType.FORM
+    assert result.get("step_id") == "edit_rule"
