@@ -10,43 +10,60 @@ Tests cover:
 - End-to-end network optimization with policies
 """
 
-from typing import Any, cast
+from typing import Any, Literal, overload
 
 import numpy as np
 import pytest
 
 from custom_components.haeo.core.adapters.policy_compilation import compile_policies
-from custom_components.haeo.core.model import ModelElementConfig, NetworkElement
+from custom_components.haeo.core.model import ModelElementConfig
+from custom_components.haeo.core.model.element import NetworkElement
+from custom_components.haeo.core.model.elements.battery import BatteryElementConfig
+from custom_components.haeo.core.model.elements.connection import ConnectionElementConfig
+from custom_components.haeo.core.model.elements.node import NodeElementConfig
 from custom_components.haeo.core.model.network import Network
 
 
-def _node(name: str, *, is_source: bool = False, is_sink: bool = False) -> dict[str, Any]:
-    return {"element_type": "node", "name": name, "is_source": is_source, "is_sink": is_sink}
+def _node(name: str, *, is_source: bool = False, is_sink: bool = False) -> ModelElementConfig:
+    return NodeElementConfig(element_type="node", name=name, is_source=is_source, is_sink=is_sink)
 
 
-def _junction(name: str) -> dict[str, Any]:
-    return {"element_type": "node", "name": name, "is_source": False, "is_sink": False}
+def _junction(name: str) -> ModelElementConfig:
+    return NodeElementConfig(element_type="node", name=name, is_source=False, is_sink=False)
 
 
-def _conn(name: str, source: str, target: str, segments: dict[str, Any] | None = None) -> dict[str, Any]:
-    c: dict[str, Any] = {"element_type": "connection", "name": name, "source": source, "target": target}
+def _conn(name: str, source: str, target: str, segments: dict[str, Any] | None = None) -> ModelElementConfig:
+    c = ConnectionElementConfig(element_type="connection", name=name, source=source, target=target)
     if segments:
         c["segments"] = segments
     return c
 
 
-def _connections(result: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    return [e for e in result if e.get("element_type") == "connection"]
+def _connections(result: list[ModelElementConfig]) -> list[ConnectionElementConfig]:
+    return [e for e in result if e["element_type"] == "connection"]
 
 
-def _find(result: list[dict[str, Any]], name: str) -> dict[str, Any]:
+@overload
+def _find(
+    result: list[ModelElementConfig], name: str, *, element_type: Literal["connection"]
+) -> ConnectionElementConfig: ...
+@overload
+def _find(result: list[ModelElementConfig], name: str, *, element_type: Literal["node"]) -> NodeElementConfig: ...
+@overload
+def _find(result: list[ModelElementConfig], name: str, *, element_type: Literal["battery"]) -> BatteryElementConfig: ...
+@overload
+def _find(result: list[ModelElementConfig], name: str) -> ModelElementConfig: ...
+
+
+def _find(result: list[ModelElementConfig], name: str, *, element_type: str | None = None) -> ModelElementConfig:
     return next(e for e in result if e.get("name") == name)
 
 
-def _outbound_tag(result: list[dict[str, Any]], name: str) -> int:
+def _outbound_tag(result: list[ModelElementConfig], name: str) -> int:
     """Get the single outbound tag for a source node."""
-    tags = _find(result, name)["outbound_tags"]
-    assert len(tags) == 1
+    node = _find(result, name, element_type="node")
+    tags = node.get("outbound_tags")
+    assert tags is not None and len(tags) == 1
     return next(iter(tags))
 
 
@@ -109,7 +126,7 @@ def test_node_without_policy_gets_default() -> None:
     elements = [_node("grid"), _node("battery"), _node("load"), _conn("c1", "grid", "load")]
     policies = [{"sources": ["grid"], "destinations": ["load"], "price": 0.05}]
     result = compile_policies(elements, policies)
-    assert _find(result, "battery").get("outbound_tags") is None
+    assert _find(result, "battery", element_type="battery").get("outbound_tags") is None
 
 
 # --- Reachability ---
@@ -132,9 +149,15 @@ def test_vlan_only_on_path() -> None:
     conns = {c["name"]: c for c in _connections(result)}
     grid_vlan = _outbound_tag(result, "grid")
 
-    assert grid_vlan in conns["grid_sw"]["tags"]
-    assert grid_vlan in conns["sw_load"]["tags"]
-    assert grid_vlan not in conns["solar_sw"]["tags"]
+    _t = conns["grid_sw"].get("tags")
+    assert _t is not None
+    assert grid_vlan in _t
+    _t = conns["sw_load"].get("tags")
+    assert _t is not None
+    assert grid_vlan in _t
+    _t = conns["solar_sw"].get("tags")
+    assert _t is not None
+    assert grid_vlan not in _t
 
 
 # --- Access lists ---
@@ -149,11 +172,15 @@ def test_inbound_tags_set_on_destination() -> None:
     ]
     result = compile_policies(elements, policies)
 
-    load = _find(result, "load")
+    load = _find(result, "load", element_type="node")
     grid_vlan = _outbound_tag(result, "grid")
     solar_vlan = _outbound_tag(result, "solar")
-    assert grid_vlan in load["inbound_tags"]
-    assert solar_vlan in load["inbound_tags"]
+    _it = load.get("inbound_tags")
+    assert _it is not None
+    assert grid_vlan in _it
+    _it = load.get("inbound_tags")
+    assert _it is not None
+    assert solar_vlan in _it
 
 
 def test_no_inbound_tags_on_routing_nodes() -> None:
@@ -161,7 +188,7 @@ def test_no_inbound_tags_on_routing_nodes() -> None:
     elements = [_node("grid"), _junction("sw"), _node("load"), _conn("c1", "grid", "sw"), _conn("c2", "sw", "load")]
     policies = [{"sources": ["grid"], "destinations": ["load"], "price": 0.05}]
     result = compile_policies(elements, policies)
-    assert _find(result, "sw").get("inbound_tags") is None
+    assert _find(result, "sw", element_type="node").get("inbound_tags") is None
 
 
 # --- Additive stacking ---
@@ -205,14 +232,14 @@ def test_additive_pricing_stacking() -> None:
     compiled = compile_policies(elements, policies)
 
     # Battery and Solar should have different VLANs (different signatures)
-    bat = _find(compiled, "battery")
-    sol = _find(compiled, "solar")
-    assert bat["outbound_tags"] != sol["outbound_tags"]
+    bat = _find(compiled, "battery", element_type="battery")
+    sol = _find(compiled, "solar", element_type="node")
+    assert bat.get("outbound_tags") != sol.get("outbound_tags")
 
     # Build and optimize
     network = Network(name="test", periods=np.array([1.0]))
     for elem in sorted(compiled, key=lambda e: e.get("element_type") == "connection"):
-        network.add(cast("ModelElementConfig", elem))
+        network.add(elem)
 
     h = network._solver
     h.addConstrs(_network_element(network, "load").connection_power() == np.array([5.0]))
@@ -262,7 +289,7 @@ def test_multi_hop_policy_through_switchboard() -> None:
 
     network = Network(name="test", periods=np.array([1.0]))
     for elem in sorted(compiled, key=lambda e: e.get("element_type") == "connection"):
-        network.add(cast("ModelElementConfig", elem))
+        network.add(elem)
 
     h = network._solver
     h.addConstrs(_network_element(network, "load").connection_power() == np.array([5.0]))
@@ -298,7 +325,7 @@ def test_single_source_policy_adds_cost() -> None:
 
     network = Network(name="test", periods=np.array([1.0]))
     for elem in sorted(compiled, key=lambda e: e.get("element_type") == "connection"):
-        network.add(cast("ModelElementConfig", elem))
+        network.add(elem)
     h = network._solver
     h.addConstrs(_network_element(network, "load").connection_power() == np.array([5.0]))
     cost = network.optimize()
@@ -337,7 +364,7 @@ def test_cheaper_source_preferred() -> None:
 
     network = Network(name="test", periods=np.array([1.0]))
     for elem in sorted(compiled, key=lambda e: e.get("element_type") == "connection"):
-        network.add(cast("ModelElementConfig", elem))
+        network.add(elem)
     h = network._solver
     h.addConstrs(_network_element(network, "load").connection_power() == np.array([5.0]))
     cost = network.optimize()
@@ -363,8 +390,11 @@ def test_diamond_multi_path_all_branches_tagged() -> None:
     vlan = _outbound_tag(result, "a")
     conns = {c["name"]: c for c in _connections(result)}
     for name in ("ab", "ac", "bd", "cd"):
-        assert vlan in conns[name]["tags"]
-        assert isinstance(conns[name]["tags"], set)
+        _t = conns[name].get("tags")
+        assert _t is not None
+        assert vlan in _t
+        _t = conns[name].get("tags")
+        assert isinstance(_t, set)
 
 
 def test_duplicate_policies_merge_tag_costs() -> None:
@@ -375,10 +405,14 @@ def test_duplicate_policies_merge_tag_costs() -> None:
         {"sources": ["grid"], "destinations": ["load"], "price": 0.05},
     ]
     result = compile_policies(elements, policies)
-    conn = _find(result, "c1")
+    conn = _find(result, "c1", element_type="connection")
     assert conn.get("tag_costs") is not None
-    assert len(conn["tag_costs"]) == 1
-    assert conn["tag_costs"][0]["price"] == pytest.approx(0.10)
+    _tc = conn.get("tag_costs")
+    assert _tc is not None
+    assert len(_tc) == 1
+    _tc = conn.get("tag_costs")
+    assert _tc is not None
+    assert _tc[0]["price"] == pytest.approx(0.10)
 
 
 def test_price_target_source_on_connection_where_policy_dest_is_source_endpoint() -> None:
@@ -396,10 +430,14 @@ def test_price_target_source_on_connection_where_policy_dest_is_source_endpoint(
         },
     ]
     result = compile_policies(elements, policies)
-    conn = _find(result, "export")
+    conn = _find(result, "export", element_type="connection")
     assert conn.get("tag_costs") is not None
-    assert len(conn["tag_costs"]) == 1
-    assert conn["tag_costs"][0]["price"] == pytest.approx(0.07)
+    _tc = conn.get("tag_costs")
+    assert _tc is not None
+    assert len(_tc) == 1
+    _tc = conn.get("tag_costs")
+    assert _tc is not None
+    assert _tc[0]["price"] == pytest.approx(0.07)
 
 
 def test_no_policy_no_extra_cost() -> None:
