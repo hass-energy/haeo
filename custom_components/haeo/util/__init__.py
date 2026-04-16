@@ -41,11 +41,16 @@ async def async_update_subentry_value(
     new_data = dict(subentry.data)
     set_nested_config_value_by_path(new_data, field_path, value)
 
-    hass.config_entries.async_update_subentry(
-        entry,
-        subentry,
-        data=new_data,
-    )
+    try:
+        hass.config_entries.async_update_subentry(
+            entry,
+            subentry,
+            data=new_data,
+        )
+    except Exception:
+        if runtime_data is not None:
+            runtime_data.value_update_in_progress = False
+        raise
 
 
 __all__ = [

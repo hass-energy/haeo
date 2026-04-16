@@ -48,3 +48,39 @@ async def test_flag_remains_set_after_call(
     )
 
     assert mock_runtime_data.value_update_in_progress is True
+    hass.config_entries.async_update_subentry.assert_called_once()
+    call_args = hass.config_entries.async_update_subentry.call_args
+    assert call_args is not None
+    assert call_args.kwargs["data"]["power_limit"] == 10.0
+
+
+async def test_flag_cleared_on_exception(
+    hass: HomeAssistant,
+    mock_runtime_data: Mock,
+) -> None:
+    """Flag is cleared if async_update_subentry raises an exception."""
+    entry = Mock()
+    entry.runtime_data = mock_runtime_data
+
+    subentry = ConfigSubentry(
+        data=MappingProxyType({"power_limit": 5.0}),
+        subentry_type="battery",
+        title="Test Battery",
+        subentry_id="test_id",
+        unique_id=None,
+    )
+
+    hass.config_entries.async_update_subentry = Mock(
+        side_effect=RuntimeError("update failed"),
+    )
+
+    with pytest.raises(RuntimeError, match="update failed"):
+        await async_update_subentry_value(
+            hass=hass,
+            entry=entry,
+            subentry=subentry,
+            field_path=("power_limit",),
+            value=10.0,
+        )
+
+    assert mock_runtime_data.value_update_in_progress is False
