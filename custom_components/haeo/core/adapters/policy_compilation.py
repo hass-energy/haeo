@@ -25,6 +25,8 @@ from custom_components.haeo.core.model.elements.connection import ConnectionElem
 
 # Tag 0 is used for untagged/default power flows
 DEFAULT_TAG = 0
+# Guardrail against exponential simple-path expansion on dense cyclic graphs.
+MAX_PATH_STATES = 100_000
 
 
 class CompiledPolicyRule(TypedDict):
@@ -233,15 +235,63 @@ def _find_reachable_connections(
     graph: Mapping[str, set[tuple[str, str]]],
 ) -> set[str]:
     """Find all connections on any simple path from sources to destinations."""
+    if not source_nodes or not dest_nodes:
+        return set()
+
+    reverse_graph: dict[str, set[str]] = defaultdict(set)
+    for current, neighbors in graph.items():
+        for neighbor, _conn_name in neighbors:
+            reverse_graph[neighbor].add(current)
+
+    forward_reachable: set[str] = set()
+    forward_stack: list[str] = list(source_nodes)
+    while forward_stack:
+        current = forward_stack.pop()
+        if current in forward_reachable:
+            continue
+        forward_reachable.add(current)
+        for neighbor, _conn_name in graph.get(current, set()):
+            if neighbor not in forward_reachable:
+                forward_stack.append(neighbor)
+
+    backward_reachable: set[str] = set()
+    backward_stack: list[str] = list(dest_nodes)
+    while backward_stack:
+        current = backward_stack.pop()
+        if current in backward_reachable:
+            continue
+        backward_reachable.add(current)
+        backward_stack.extend(
+            predecessor for predecessor in reverse_graph.get(current, set()) if predecessor not in backward_reachable
+        )
+
+    relevant_nodes = forward_reachable & backward_reachable
+    if not relevant_nodes:
+        return set()
+
     result: set[str] = set()
+    explored_states = 0
     for source in source_nodes:
+        if source not in relevant_nodes:
+            continue
         stack: list[tuple[str, list[str], set[str]]] = [(source, [], {source})]
         while stack:
+            explored_states += 1
+            if explored_states > MAX_PATH_STATES:
+                # Fallback approximation: include edges whose endpoints remain
+                # in the forward/backward reachable overlap. This keeps runtime
+                # bounded on large cyclic graphs.
+                return {
+                    conn_name
+                    for current in relevant_nodes
+                    for neighbor, conn_name in graph.get(current, set())
+                    if neighbor in relevant_nodes
+                }
             current, path, visited = stack.pop()
             if current in dest_nodes and current != source:
                 result.update(path)
             for neighbor, conn_name in graph.get(current, set()):
-                if neighbor in visited:
+                if neighbor in visited or neighbor not in relevant_nodes:
                     continue
                 stack.append((neighbor, [*path, conn_name], {*visited, neighbor}))
     return result

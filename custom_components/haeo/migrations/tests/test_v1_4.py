@@ -162,7 +162,7 @@ async def test_v1_4_strips_pricing_from_load(hass: HomeAssistant) -> None:
 
 
 async def test_v1_4_strips_pricing_from_connection(hass: HomeAssistant) -> None:
-    """Connection pricing section is stripped during migration."""
+    """Connection pricing section is preserved during migration."""
     entry = MockConfigEntry(domain=DOMAIN, title="Hub", data={CONF_NAME: "Hub"})
     entry.add_to_hass(hass)
     hass.config_entries.async_update_entry(entry, minor_version=v1_3.MINOR_VERSION)
@@ -186,4 +186,6 @@ async def test_v1_4_strips_pricing_from_connection(hass: HomeAssistant) -> None:
     assert len(policy_subs) == 0
 
     updated_conn = next(s for s in entry.subentries.values() if s.subentry_type == CONNECTION_ELEMENT_TYPE)
-    assert SECTION_PRICING not in updated_conn.data
+    assert updated_conn.data.get(SECTION_PRICING) == {
+        CONF_PRICE_SOURCE_TARGET: {"type": "constant", "value": 0.05},
+    }

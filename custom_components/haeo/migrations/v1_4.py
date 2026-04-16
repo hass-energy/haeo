@@ -115,8 +115,12 @@ def _strip_pricing_from_load(data: dict[str, Any]) -> dict[str, Any]:
 
 
 def _strip_pricing_from_connection(data: dict[str, Any]) -> dict[str, Any]:
-    """Remove pricing section from connection config."""
-    data.pop("pricing", None)
+    """Keep connection pricing unchanged during v1.4 migration.
+
+    Connection elements still support direct pricing. v1.4 only migrates battery
+    and solar element pricing into policy rules, so connection pricing must be
+    preserved.
+    """
     return data
 
 
