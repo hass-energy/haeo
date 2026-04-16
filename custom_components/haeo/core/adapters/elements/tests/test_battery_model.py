@@ -69,8 +69,6 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "max_power_target_source": np.array([5.0]),
             },
             pricing={
-                "price_source_target": np.array([0.03]),
-                "price_target_source": np.array([0.01]),
                 "salvage_value": 0.0,
             },
             efficiency={
@@ -103,7 +101,6 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "segments": {
                     "efficiency": {"segment_type": "efficiency", "efficiency": [0.95]},
                     "power_limit": {"segment_type": "power_limit", "max_power": [5.0]},
-                    "pricing": {"segment_type": "pricing", "price": [0.04]},
                     "soc_pricing": {
                         "segment_type": "soc_pricing",
                         "discharge_energy_threshold": [0.5],
@@ -121,7 +118,6 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "segments": {
                     "efficiency": {"segment_type": "efficiency", "efficiency": [0.95]},
                     "power_limit": {"segment_type": "power_limit", "max_power": [5.0]},
-                    "pricing": {"segment_type": "pricing", "price": [-0.01]},
                 },
             },
         ],
@@ -145,8 +141,6 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "max_power_target_source": np.array([5.0]),
             },
             pricing={
-                "price_source_target": np.array([0.003]),
-                "price_target_source": np.array([0.001]),
                 "salvage_value": 0.0,
             },
             efficiency={
@@ -173,7 +167,6 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "segments": {
                     "efficiency": {"segment_type": "efficiency", "efficiency": [0.95]},
                     "power_limit": {"segment_type": "power_limit", "max_power": [5.0]},
-                    "pricing": {"segment_type": "pricing", "price": [0.004]},
                 },
             },
             {
@@ -184,7 +177,6 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "segments": {
                     "efficiency": {"segment_type": "efficiency", "efficiency": [0.95]},
                     "power_limit": {"segment_type": "power_limit", "max_power": [5.0]},
-                    "pricing": {"segment_type": "pricing", "price": [-0.001]},
                 },
             },
         ],
@@ -208,8 +200,6 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "max_power_target_source": np.array([4.0]),
             },
             pricing={
-                "price_source_target": np.array([0.02]),
-                "price_target_source": np.array([0.01]),
                 "salvage_value": 0.05,
             },
             efficiency={
@@ -236,7 +226,6 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "segments": {
                     "efficiency": {"segment_type": "efficiency", "efficiency": [0.95]},
                     "power_limit": {"segment_type": "power_limit", "max_power": [4.0]},
-                    "pricing": {"segment_type": "pricing", "price": [0.03]},
                 },
             },
             {
@@ -247,7 +236,6 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "segments": {
                     "efficiency": {"segment_type": "efficiency", "efficiency": [0.95]},
                     "power_limit": {"segment_type": "power_limit", "max_power": [4.0]},
-                    "pricing": {"segment_type": "pricing", "price": [-0.01]},
                 },
             },
         ],
@@ -276,8 +264,6 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
                 "max_power_target_source": np.array([5.0]),
             },
             pricing={
-                "price_source_target": np.array([0.003]),
-                "price_target_source": np.array([0.001]),
                 "salvage_value": 0.0,
             },
             efficiency={
@@ -349,8 +335,6 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
                 "max_power_target_source": np.array([5.0]),
             },
             pricing={
-                "price_source_target": np.array([0.003]),
-                "price_target_source": np.array([0.001]),
                 "salvage_value": 0.0,
             },
             efficiency={

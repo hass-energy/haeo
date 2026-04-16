@@ -102,8 +102,8 @@ async def test_scenarios(
                 },
                 HUB_SECTION_ADVANCED: {},
             },
-            version=1,
-            minor_version=MIGRATION_MINOR_VERSION,
+            version=scenario_config.get("version", 1),
+            minor_version=scenario_config.get("minor_version", MIGRATION_MINOR_VERSION),
         )
         mock_config_entry.add_to_hass(hass)
 

@@ -18,10 +18,8 @@ from custom_components.haeo.core.schema.sections import (
     CONF_CONNECTION,
     CONF_CURTAILMENT,
     CONF_FORECAST,
-    CONF_PRICE_TARGET_SOURCE,
     SECTION_CURTAILMENT,
     SECTION_FORECAST,
-    SECTION_PRICING,
 )
 
 # Load output names
@@ -54,7 +52,6 @@ class LoadAdapter:
 
     def model_elements(self, config: LoadConfigData) -> list[ModelElementConfig]:
         """Create model elements for Load configuration."""
-        value = config[SECTION_PRICING].get(CONF_PRICE_TARGET_SOURCE)
         return [
             {
                 "element_type": MODEL_ELEMENT_TYPE_NODE,
@@ -72,10 +69,6 @@ class LoadAdapter:
                         "segment_type": "power_limit",
                         "max_power": config[SECTION_FORECAST][CONF_FORECAST],
                         "fixed": not config[SECTION_CURTAILMENT].get(CONF_CURTAILMENT, False),
-                    },
-                    "pricing": {
-                        "segment_type": "pricing",
-                        "price": -value if value is not None else None,
                     },
                 },
             },

@@ -14,6 +14,8 @@ from custom_components.haeo.const import DOMAIN
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.core.schema.constant_value import as_constant_value
 from custom_components.haeo.core.schema.elements import battery, solar
+from custom_components.haeo.core.schema.elements.connection import ELEMENT_TYPE as CONNECTION_ELEMENT_TYPE
+from custom_components.haeo.core.schema.elements.load import ELEMENT_TYPE as LOAD_ELEMENT_TYPE
 from custom_components.haeo.core.schema.elements.policy import CONF_RULES
 from custom_components.haeo.core.schema.none_value import as_none_value
 from custom_components.haeo.core.schema.sections import (
@@ -195,3 +197,62 @@ async def test_v1_4_battery_ignores_non_mapping_pricing_section(hass: HomeAssist
     policy_subs = [s for s in entry.subentries.values() if s.subentry_type == "policy"]
     assert len(policy_subs) == 1
     assert policy_subs[0].data[CONF_RULES][0]["price"] == as_constant_value(0.11)
+
+
+@pytest.mark.asyncio
+async def test_v1_4_strips_pricing_from_load(hass: HomeAssistant) -> None:
+    """Load pricing section is stripped during migration."""
+    entry = MockConfigEntry(domain=DOMAIN, title="Hub", data={CONF_NAME: "Hub"})
+    entry.add_to_hass(hass)
+    hass.config_entries.async_update_entry(entry, minor_version=v1_3.MINOR_VERSION)
+
+    load_sub = _create_subentry(
+        {
+            CONF_ELEMENT_TYPE: LOAD_ELEMENT_TYPE,
+            CONF_NAME: "Constant Load",
+            CONF_CONNECTION: "bus",
+            SECTION_PRICING: {
+                CONF_PRICE_TARGET_SOURCE: as_constant_value(0.02),
+            },
+        },
+        subentry_type=LOAD_ELEMENT_TYPE,
+    )
+    hass.config_entries.async_add_subentry(entry, load_sub)
+
+    assert await v1_4.async_migrate_entry(hass, entry) is True
+
+    assert entry.minor_version == v1_4.MINOR_VERSION
+    policy_subs = [s for s in entry.subentries.values() if s.subentry_type == "policy"]
+    assert len(policy_subs) == 0
+
+    updated_load = next(s for s in entry.subentries.values() if s.subentry_type == LOAD_ELEMENT_TYPE)
+    assert SECTION_PRICING not in updated_load.data
+
+
+@pytest.mark.asyncio
+async def test_v1_4_strips_pricing_from_connection(hass: HomeAssistant) -> None:
+    """Connection pricing section is stripped during migration."""
+    entry = MockConfigEntry(domain=DOMAIN, title="Hub", data={CONF_NAME: "Hub"})
+    entry.add_to_hass(hass)
+    hass.config_entries.async_update_entry(entry, minor_version=v1_3.MINOR_VERSION)
+
+    conn_sub = _create_subentry(
+        {
+            CONF_ELEMENT_TYPE: CONNECTION_ELEMENT_TYPE,
+            CONF_NAME: "Battery to Grid",
+            SECTION_PRICING: {
+                CONF_PRICE_SOURCE_TARGET: as_constant_value(0.05),
+            },
+        },
+        subentry_type=CONNECTION_ELEMENT_TYPE,
+    )
+    hass.config_entries.async_add_subentry(entry, conn_sub)
+
+    assert await v1_4.async_migrate_entry(hass, entry) is True
+
+    assert entry.minor_version == v1_4.MINOR_VERSION
+    policy_subs = [s for s in entry.subentries.values() if s.subentry_type == "policy"]
+    assert len(policy_subs) == 0
+
+    updated_conn = next(s for s in entry.subentries.values() if s.subentry_type == CONNECTION_ELEMENT_TYPE)
+    assert SECTION_PRICING not in updated_conn.data

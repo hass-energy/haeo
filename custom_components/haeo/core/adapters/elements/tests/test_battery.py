@@ -95,8 +95,6 @@ def _wrap_config(flat: dict[str, object]) -> battery.BatteryConfigSchema:
         ):
             power_limits[key] = to_schema_value(value)
         elif key in (
-            "price_source_target",
-            "price_target_source",
             "salvage_value",
         ):
             pricing[key] = to_schema_value(value)
@@ -163,8 +161,6 @@ def _wrap_data(flat: dict[str, object]) -> battery.BatteryConfigData:
         ):
             power_limits[key] = value
         elif key in (
-            "price_source_target",
-            "price_target_source",
             "salvage_value",
         ):
             pricing[key] = value
@@ -278,8 +274,8 @@ async def test_available_with_list_entity_ids_all_exist(hass: HomeAssistant) -> 
     """Battery available() returns True when list[str] entity IDs all exist."""
     _set_sensor(hass, "sensor.capacity", "10.0", "kWh")
     _set_sensor(hass, "sensor.initial", "50.0", "%")
-    _set_sensor(hass, "sensor.price_source_target_1", "0.05", "$/kWh")
-    _set_sensor(hass, "sensor.price_source_target_2", "0.06", "$/kWh")
+    _set_sensor(hass, "sensor.max_discharge_1", "5.0", "kW")
+    _set_sensor(hass, "sensor.max_discharge_2", "4.0", "kW")
 
     config: battery.BatteryConfigSchema = _wrap_config(
         {
@@ -287,8 +283,7 @@ async def test_available_with_list_entity_ids_all_exist(hass: HomeAssistant) -> 
             "connection": "main_bus",
             "capacity": "sensor.capacity",
             "initial_charge_percentage": "sensor.initial",
-            # List of entity IDs for chained forecasts
-            "price_source_target": ["sensor.price_source_target_1", "sensor.price_source_target_2"],
+            "max_power_source_target": ["sensor.max_discharge_1", "sensor.max_discharge_2"],
         }
     )
 
@@ -300,8 +295,8 @@ async def test_available_with_list_entity_ids_one_missing(hass: HomeAssistant) -
     """Battery available() returns False when list[str] entity ID has one missing."""
     _set_sensor(hass, "sensor.capacity", "10.0", "kWh")
     _set_sensor(hass, "sensor.initial", "50.0", "%")
-    _set_sensor(hass, "sensor.price_source_target_1", "0.05", "$/kWh")
-    # sensor.price_source_target_2 is missing
+    _set_sensor(hass, "sensor.max_discharge_1", "5.0", "kW")
+    # sensor.max_discharge_missing is missing
 
     config: battery.BatteryConfigSchema = _wrap_config(
         {
@@ -309,8 +304,7 @@ async def test_available_with_list_entity_ids_one_missing(hass: HomeAssistant) -
             "connection": "main_bus",
             "capacity": "sensor.capacity",
             "initial_charge_percentage": "sensor.initial",
-            # List of entity IDs where one is missing
-            "price_source_target": ["sensor.price_source_target_1", "sensor.missing"],
+            "max_power_source_target": ["sensor.max_discharge_1", "sensor.max_discharge_missing"],
         }
     )
 
@@ -323,14 +317,13 @@ async def test_available_with_empty_list_returns_true(hass: HomeAssistant) -> No
     _set_sensor(hass, "sensor.capacity", "10.0", "kWh")
     _set_sensor(hass, "sensor.initial", "50.0", "%")
 
-    # This tests the `if value else True` branch for empty lists
     config: battery.BatteryConfigSchema = _wrap_config(
         {
             "name": "test_battery",
             "connection": "main_bus",
             "capacity": "sensor.capacity",
             "initial_charge_percentage": "sensor.initial",
-            "price_source_target": [],  # Empty list
+            "max_power_source_target": [],
         }
     )
 
@@ -348,8 +341,7 @@ async def test_available_returns_true_with_constant_values(hass: HomeAssistant) 
             "initial_charge_percentage": 0.5,
             "max_power_target_source": 5.0,
             "max_power_source_target": 4.0,
-            "price_source_target": 0.15,
-            "price_target_source": 0.05,
+            "salvage_value": 0.01,
             "efficiency_source_target": 0.95,
             "efficiency_target_source": 0.94,
             "undercharge": {"partition_percentage": 0.1, "partition_cost": 0.2},

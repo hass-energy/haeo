@@ -30,6 +30,8 @@ MINOR_VERSION = 4
 # Element types that have pricing to migrate
 _BATTERY_TYPE = "battery"
 _SOLAR_TYPE = "solar"
+_LOAD_TYPE = "load"
+_CONNECTION_TYPE = "connection"
 _POLICY_TYPE = "policy"
 
 # Pre-sectioned battery configs (v1.2 and earlier) stored these at the top level;
@@ -144,6 +146,18 @@ def _strip_pricing_from_solar(data: dict[str, Any]) -> dict[str, Any]:
     return data
 
 
+def _strip_pricing_from_load(data: dict[str, Any]) -> dict[str, Any]:
+    """Remove pricing section from load config."""
+    data.pop("pricing", None)
+    return data
+
+
+def _strip_pricing_from_connection(data: dict[str, Any]) -> dict[str, Any]:
+    """Remove pricing section from connection config."""
+    data.pop("pricing", None)
+    return data
+
+
 async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Migrate existing config entries to version 1.4.
 
@@ -175,6 +189,12 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             policies = _extract_pricing_policies(subentry)
             new_policies.extend(policies)
             subentries_to_update.append((subentry, _strip_pricing_from_solar(data)))
+
+        elif element_type == _LOAD_TYPE:
+            subentries_to_update.append((subentry, _strip_pricing_from_load(data)))
+
+        elif element_type == _CONNECTION_TYPE:
+            subentries_to_update.append((subentry, _strip_pricing_from_connection(data)))
 
     for subentry, new_data in subentries_to_update:
         hass.config_entries.async_update_subentry(entry, subentry, data=new_data)

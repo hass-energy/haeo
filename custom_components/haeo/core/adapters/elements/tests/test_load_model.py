@@ -47,7 +47,6 @@ CREATE_CASES: Sequence[CreateCase] = [
             name="load_main",
             connection=as_connection_target("network"),
             forecast={"forecast": np.array([1.0, 2.0])},
-            pricing={},
             curtailment={},
         ),
         "model": [
@@ -59,19 +58,17 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "target": "load_main",
                 "segments": {
                     "power_limit": {"segment_type": "power_limit", "max_power": [1.0, 2.0], "fixed": True},
-                    "pricing": {"segment_type": "pricing", "price": None},
                 },
             },
         ],
     },
     {
-        "description": "Sheddable load with value",
+        "description": "Sheddable load",
         "data": LoadConfigData(
             element_type=ElementType.LOAD,
             name="load_sheddable",
             connection=as_connection_target("network"),
             forecast={"forecast": np.array([1.0, 2.0])},
-            pricing={"price_target_source": 0.5},
             curtailment={"curtailment": True},
         ),
         "model": [
@@ -88,7 +85,6 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "target": "load_sheddable",
                 "segments": {
                     "power_limit": {"segment_type": "power_limit", "max_power": [1.0, 2.0], "fixed": False},
-                    "pricing": {"segment_type": "pricing", "price": -0.5},
                 },
             },
         ],

@@ -39,8 +39,6 @@ from custom_components.haeo.core.schema.sections import (
     CONF_CONNECTION,
     CONF_MAX_POWER_SOURCE_TARGET,
     CONF_MAX_POWER_TARGET_SOURCE,
-    CONF_PRICE_SOURCE_TARGET,
-    CONF_PRICE_TARGET_SOURCE,
     SECTION_EFFICIENCY,
     SECTION_POWER_LIMITS,
     SECTION_PRICING,
@@ -146,10 +144,6 @@ class BatteryAdapter:
         )
 
         # Create connection from battery to target
-        price_source_target = pricing.get(CONF_PRICE_SOURCE_TARGET)
-        price_target_source = pricing.get(CONF_PRICE_TARGET_SOURCE)
-        charge_early_incentive = _build_charge_early_incentive(price_target_source, n_periods)
-        discharge_pricing = _build_discharge_pricing(price_source_target, price_target_source, n_periods)
         max_discharge = power_limits.get(CONF_MAX_POWER_SOURCE_TARGET)
         max_charge = power_limits.get(CONF_MAX_POWER_TARGET_SOURCE)
 
@@ -184,7 +178,6 @@ class BatteryAdapter:
         discharge_segments: dict[str, SegmentSpec] = {
             "efficiency": {"segment_type": "efficiency", "efficiency": efficiency_source_target},
             "power_limit": {"segment_type": "power_limit", "max_power": max_discharge},
-            "pricing": {"segment_type": "pricing", "price": discharge_pricing},
         }
         if soc_pricing_spec is not None:
             discharge_segments["soc_pricing"] = soc_pricing_spec
@@ -209,7 +202,6 @@ class BatteryAdapter:
                 "segments": {
                     "efficiency": {"segment_type": "efficiency", "efficiency": efficiency_target_source},
                     "power_limit": {"segment_type": "power_limit", "max_power": max_charge},
-                    "pricing": {"segment_type": "pricing", "price": charge_early_incentive},
                 },
             }
         )
@@ -264,40 +256,6 @@ class BatteryAdapter:
 
 
 adapter = BatteryAdapter()
-
-
-def _build_charge_early_incentive(
-    value: NDArray[np.floating[Any]] | float | None,
-    n_periods: int,
-) -> NDArray[np.float64] | None:
-    """Build the decaying charge incentive series."""
-    if value is None or n_periods <= 0:
-        return None
-
-    values = broadcast_to_sequence(value, n_periods)
-    ramp = np.arange(n_periods, dtype=np.float64) / max(n_periods - 1, 1)
-    return values * (ramp - 1.0)
-
-
-def _build_discharge_pricing(
-    price_source_target: NDArray[np.floating[Any]] | float | None,
-    early_charge_incentive: NDArray[np.floating[Any]] | float | None,
-    n_periods: int,
-) -> NDArray[np.float64] | None:
-    """Build discharge pricing with early incentive ramp."""
-    if n_periods <= 0:
-        return None
-
-    base = broadcast_to_sequence(price_source_target, n_periods) if price_source_target is not None else None
-    if early_charge_incentive is None:
-        return base
-
-    incentive = broadcast_to_sequence(early_charge_incentive, n_periods)
-    ramp = np.arange(n_periods, dtype=np.float64) / max(n_periods - 1, 1)
-    discharge_incentive = incentive * (1.0 + ramp)
-    if base is None:
-        return discharge_incentive
-    return base + discharge_incentive
 
 
 def _calculate_total_energy(aggregate_energy: OutputData, config: BatteryConfigData) -> OutputData:

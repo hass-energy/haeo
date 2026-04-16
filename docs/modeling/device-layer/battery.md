@@ -18,10 +18,11 @@ graph LR
 
 The adapter creates two model elements:
 
-| Model Element                                          | Name                | Parameters From Configuration                             |
-| ------------------------------------------------------ | ------------------- | --------------------------------------------------------- |
-| [Battery](../model-layer/elements/battery.md)          | `{name}`            | Capacity range, initial charge                            |
-| [Connection](../model-layer/connections/connection.md) | `{name}:connection` | Efficiency, power limits, pricing, SOC pricing (optional) |
+| Model Element                                          | Name                | Parameters From Configuration                       |
+| ------------------------------------------------------ | ------------------- | --------------------------------------------------- |
+| [Battery](../model-layer/elements/battery.md)          | `{name}`            | Capacity range, initial charge, salvage value       |
+| [Connection](../model-layer/connections/connection.md) | `{name}:discharge`  | Efficiency, power limits, SOC pricing (optional)    |
+| [Connection](../model-layer/connections/connection.md) | `{name}:charge`     | Efficiency, power limits                            |
 
 ## Architecture Details
 
@@ -51,13 +52,6 @@ When undercharge or overcharge costs are configured, the connection includes the
 These are soft constraints driven by cost.
 The battery can operate outside the preferred range when prices justify it, but it will never exceed the configured lower/upper bounds.
 
-### Charge and discharge pricing
-
-The pricing segment applies optional per-kWh costs on the battery connection.
-`price_target_source` applies when charging (network to battery).
-`price_source_target` applies when discharging (battery to network).
-Use positive values to add costs or negative values to create incentives.
-
 ### Salvage value
 
 The battery element can include a terminal salvage value.
@@ -84,8 +78,6 @@ Battery creates a single Home Assistant device:
 | Overcharge percentage       | Battery               | Upper bound for SOC range                  | Hard maximum                   |
 | Undercharge cost            | SOC pricing segment   | `discharge_energy_price`                   | Penalty below min SOC          |
 | Overcharge cost             | SOC pricing segment   | `charge_capacity_price`                    | Penalty above max SOC          |
-| `price_target_source`       | Pricing segment       | `price_target_source`                      | Charge price                   |
-| `price_source_target`       | Pricing segment       | `price_source_target`                      | Discharge price                |
 | `salvage_value`             | Battery               | `salvage_value`                            | Terminal value for stored kWh  |
 | `efficiency_source_target`  | Efficiency segment    | `efficiency_source_target`                 | Battery to network (discharge) |
 | `efficiency_target_source`  | Efficiency segment    | `efficiency_target_source`                 | Network to battery (charge)    |

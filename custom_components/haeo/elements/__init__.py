@@ -124,6 +124,7 @@ from custom_components.haeo.core.schema.elements.load import OPTIONAL_INPUT_FIEL
 from custom_components.haeo.core.schema.elements.load import LoadConfigData
 from custom_components.haeo.core.schema.elements.node import OPTIONAL_INPUT_FIELDS as NODE_OPTIONAL_INPUT_FIELDS
 from custom_components.haeo.core.schema.elements.node import NodeConfigData
+from custom_components.haeo.core.schema.elements.policy import PolicyConfigData
 from custom_components.haeo.core.schema.elements.solar import OPTIONAL_INPUT_FIELDS as SOLAR_OPTIONAL_INPUT_FIELDS
 from custom_components.haeo.core.schema.elements.solar import SolarConfigData
 from custom_components.haeo.core.schema.field_hints import extract_field_hints, extract_list_field_hints
@@ -195,6 +196,7 @@ ELEMENT_DEVICE_NAMES_BY_TYPE: Final[dict[str, frozenset[ElementDeviceName]]] = {
     ElementType.GRID: frozenset(GRID_DEVICE_NAMES),
     ElementType.LOAD: frozenset(LOAD_DEVICE_NAMES),
     ElementType.NODE: frozenset(NODE_DEVICE_NAMES),
+    ElementType.POLICY: frozenset(POLICY_DEVICE_NAMES),
     ElementType.SOLAR: frozenset(SOLAR_DEVICE_NAMES),
     ELEMENT_TYPE_NETWORK: frozenset(NETWORK_DEVICE_NAMES),
 }
@@ -217,6 +219,7 @@ ELEMENT_CONFIG_DATA: Final[dict[ElementType, type]] = {
     ElementType.INVERTER: InverterConfigData,
     ElementType.LOAD: LoadConfigData,
     ElementType.NODE: NodeConfigData,
+    ElementType.POLICY: PolicyConfigData,
     ElementType.SOLAR: SolarConfigData,
 }
 

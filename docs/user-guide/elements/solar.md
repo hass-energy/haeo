@@ -9,12 +9,11 @@ HAEO optimizes how generated power flows through your energy network.
 
 ## Configuration
 
-| Field                                     | Type                                     | Required | Default | Description                                                     |
-| ----------------------------------------- | ---------------------------------------- | -------- | ------- | --------------------------------------------------------------- |
-| **[Name](#name)**                         | String                                   | Yes      | -       | Unique identifier for this solar system                         |
-| **[Forecast](#forecast)**                 | [sensor(s)](../forecasts-and-sensors.md) | Yes      | -       | Solar generation forecast sensor(s) providing power output (kW) |
-| **[Production Price](#production-price)** | Number (\$/kWh)                          | No       | 0       | Cost or value per kWh of electricity generated                  |
-| **[Curtailment](#curtailment)**           | Boolean                                  | No       | true    | Allow optimizer to reduce generation below forecast             |
+| Field                           | Type                                     | Required | Default | Description                                                     |
+| ------------------------------- | ---------------------------------------- | -------- | ------- | --------------------------------------------------------------- |
+| **[Name](#name)**               | String                                   | Yes      | -       | Unique identifier for this solar system                         |
+| **[Forecast](#forecast)**       | [sensor(s)](../forecasts-and-sensors.md) | Yes      | -       | Solar generation forecast sensor(s) providing power output (kW) |
+| **[Curtailment](#curtailment)** | Boolean                                  | No       | true    | Allow optimizer to reduce generation below forecast             |
 
 ## Name
 
@@ -42,23 +41,6 @@ Specify one or more Home Assistant sensors providing solar generation data.
 Provide all solar array forecasts to get accurate total generation predictions.
 See the [Forecasts and Sensors guide](../forecasts-and-sensors.md) for details on how HAEO processes sensor data.
 
-## Production Price
-
-Cost or value per kWh of electricity generated.
-
-**Default**: Leave empty for zero cost (most common case)
-
-**When to use non-zero values**:
-
-- Modeling opportunity cost of generation
-- Accounting for maintenance costs per kWh
-- Rare specialized scenarios
-
-!!! note
-
-    Production price is NOT the same as export price.
-    Export revenue is configured on the Grid element.
-
 ## Curtailment
 
 Allow HAEO to reduce generation below the forecast level.
@@ -84,34 +66,31 @@ Allow HAEO to reduce generation below the forecast level.
 
 Single solar array with forecast:
 
-| Field                | Value                      |
-| -------------------- | -------------------------- |
-| **Name**             | Rooftop Solar              |
-| **Forecast**         | sensor.solcast_pv_forecast |
-| **Production Price** | 0                          |
-| **Curtailment**      | false                      |
+| Field           | Value                      |
+| --------------- | -------------------------- |
+| **Name**        | Rooftop Solar              |
+| **Forecast**    | sensor.solcast_pv_forecast |
+| **Curtailment** | false                      |
 
 ### Multiple Arrays
 
 Combine multiple solar arrays or forecast sources:
 
-| Field                | Value                                                  |
-| -------------------- | ------------------------------------------------------ |
-| **Name**             | Combined Solar                                         |
-| **Forecast**         | sensor.east_array_forecast, sensor.west_array_forecast |
-| **Production Price** | 0                                                      |
-| **Curtailment**      | true                                                   |
+| Field           | Value                                                  |
+| --------------- | ------------------------------------------------------ |
+| **Name**        | Combined Solar                                         |
+| **Forecast**    | sensor.east_array_forecast, sensor.west_array_forecast |
+| **Curtailment** | true                                                   |
 
 ### Input Entities
 
 Each configuration field creates a corresponding input entity in Home Assistant.
 Input entities appear as Number or Switch entities with the `config` entity category.
 
-| Input                               | Unit   | Description                                    |
-| ----------------------------------- | ------ | ---------------------------------------------- |
-| `number.{name}_forecast`            | kW     | Solar power forecast from configured sensor(s) |
-| `number.{name}_price_source_target` | \$/kWh | Production price from configured value/sensor  |
-| `switch.{name}_curtailment`         | -      | Whether curtailment is permitted               |
+| Input                    | Unit | Description                                    |
+| ------------------------ | ---- | ---------------------------------------------- |
+| `number.{name}_forecast` | kW   | Solar power forecast from configured sensor(s) |
+| `switch.{name}_curtailment` | -  | Whether curtailment is permitted               |
 
 Input entities include a `forecast` attribute showing values for each optimization period.
 See the [Input Entities developer guide](../../developer-guide/inputs.md) for details on input entity behavior.

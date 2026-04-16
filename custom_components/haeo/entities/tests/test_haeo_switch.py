@@ -24,10 +24,8 @@ from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.schema import as_connection_target, as_constant_value, as_entity_value, as_none_value
 from custom_components.haeo.core.schema.elements.solar import (
     CONF_FORECAST,
-    CONF_PRICE_SOURCE_TARGET,
     SECTION_CURTAILMENT,
     SECTION_FORECAST,
-    SECTION_PRICING,
 )
 from custom_components.haeo.core.schema.sections import CONF_CONNECTION
 from custom_components.haeo.elements.input_fields import InputFieldDefaults, InputFieldInfo
@@ -123,9 +121,6 @@ def _create_subentry(name: str, data: dict[str, Any]) -> ConfigSubentry:
                 SECTION_FORECAST: {
                     CONF_FORECAST: as_entity_value(["sensor.solar_forecast"]),
                 },
-                SECTION_PRICING: {
-                    CONF_PRICE_SOURCE_TARGET: as_constant_value(0.0),
-                },
                 SECTION_CURTAILMENT: {key: schema_value(value) for key, value in data.items()},
             }
         ),
@@ -199,7 +194,6 @@ async def test_editable_mode_with_raw_boolean(
                 CONF_NAME: "Raw Bool",
                 CONF_CONNECTION: as_connection_target("Switchboard"),
                 SECTION_FORECAST: {CONF_FORECAST: as_entity_value(["sensor.solar_forecast"])},
-                SECTION_PRICING: {CONF_PRICE_SOURCE_TARGET: as_constant_value(0.0)},
                 SECTION_CURTAILMENT: {curtailment_field_info.field_name: True},
             }
         ),
