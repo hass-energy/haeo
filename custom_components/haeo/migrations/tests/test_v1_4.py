@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from types import MappingProxyType
 from typing import Any
 
@@ -265,31 +266,41 @@ async def test_v1_4_battery_charge_price_is_negated(hass: HomeAssistant) -> None
     assert charge_rule["price"] == {"type": "constant", "value": -0.01}
 
 
-async def test_v1_4_battery_charge_entity_price_not_negated(hass: HomeAssistant) -> None:
+async def test_v1_4_battery_charge_entity_price_not_negated(
+    hass: HomeAssistant,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
     """Battery charge with entity price type is preserved as-is (cannot negate at migration)."""
-    entry = MockConfigEntry(domain=DOMAIN, title="Hub", data={CONF_NAME: "Hub"})
-    entry.add_to_hass(hass)
-    hass.config_entries.async_update_entry(entry, minor_version=v1_3.MINOR_VERSION)
+    haeo_logger = logging.getLogger("custom_components.haeo")
+    haeo_logger.propagate = True
+    try:
+        with caplog.at_level(logging.WARNING, logger=v1_4.__name__):
+            entry = MockConfigEntry(domain=DOMAIN, title="Hub", data={CONF_NAME: "Hub"})
+            entry.add_to_hass(hass)
+            hass.config_entries.async_update_entry(entry, minor_version=v1_3.MINOR_VERSION)
 
-    bat = _create_subentry(
-        {
-            CONF_ELEMENT_TYPE: battery.ELEMENT_TYPE,
-            CONF_NAME: "Bat",
-            CONF_CONNECTION: "bus",
-            SECTION_PRICING: {
-                CONF_PRICE_TARGET_SOURCE: {"type": "entity", "value": ["sensor.price"]},
-            },
-        },
-        subentry_type=battery.ELEMENT_TYPE,
-    )
-    hass.config_entries.async_add_subentry(entry, bat)
+            bat = _create_subentry(
+                {
+                    CONF_ELEMENT_TYPE: battery.ELEMENT_TYPE,
+                    CONF_NAME: "Bat",
+                    CONF_CONNECTION: "bus",
+                    SECTION_PRICING: {
+                        CONF_PRICE_TARGET_SOURCE: {"type": "entity", "value": ["sensor.price"]},
+                    },
+                },
+                subentry_type=battery.ELEMENT_TYPE,
+            )
+            hass.config_entries.async_add_subentry(entry, bat)
 
-    assert await v1_4.async_migrate_entry(hass, entry) is True
+            assert await v1_4.async_migrate_entry(hass, entry) is True
 
-    policy_subs = [s for s in entry.subentries.values() if s.subentry_type == "policy"]
-    assert len(policy_subs) == 1
-    charge_rule = policy_subs[0].data[CONF_RULES][0]
-    assert charge_rule["price"] == {"type": "entity", "value": ["sensor.price"]}
+            policy_subs = [s for s in entry.subentries.values() if s.subentry_type == "policy"]
+            assert len(policy_subs) == 1
+            charge_rule = policy_subs[0].data[CONF_RULES][0]
+            assert charge_rule["price"] == {"type": "entity", "value": ["sensor.price"]}
+            assert "Cannot negate non-constant charge price" in caplog.text
+    finally:
+        haeo_logger.propagate = False
 
 
 @pytest.mark.parametrize(

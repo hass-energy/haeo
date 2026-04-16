@@ -60,7 +60,8 @@ def _negate_price_value(price: dict[str, Any]) -> dict[str, Any]:
         return {**price, "value": -price["value"]}
     _LOGGER.warning(
         "Cannot negate non-constant charge price during migration; "
-        "value will be preserved as-is: %s",
+        "a positive entity price will behave as a cost in the new policy system. "
+        "To preserve incentive semantics, use a template sensor that outputs a negated value: %s",
         price,
     )
     return price
