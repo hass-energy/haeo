@@ -51,6 +51,15 @@ from custom_components.haeo.core.schema.elements.policy import (
             },
             [{"sources": ["g"], "destinations": ["l"], "price": np.array([0.1, 0.2])}],
         ),
+        (
+            {
+                "rules": [
+                    {"enabled": False, "source": ["a"], "target": ["b"], "price": 0.1},
+                    {"source": ["c"], "target": ["d"], "price": 0.2},
+                ],
+            },
+            [{"sources": ["c"], "destinations": ["d"], "price": 0.2}],
+        ),
     ],
 )
 def test_extract_policy_rules(config: dict[str, Any], expected: list[dict[str, Any]]) -> None:

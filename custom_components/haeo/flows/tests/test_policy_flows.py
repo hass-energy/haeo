@@ -31,7 +31,7 @@ from custom_components.haeo.core.schema.none_value import as_none_value
 from custom_components.haeo.flows.elements.policy import (
     ACTION_DELETE,
     ACTION_EDIT,
-    CHOICE_NODES,
+    CHOICE_ELEMENTS,
     CONF_ACTION,
     CONF_RULE,
     POLICIES_TITLE,
@@ -129,6 +129,7 @@ async def test_user_step_creates_entry_when_none_exists(
     result = await flow.async_step_user(
         user_input={
             CONF_RULE_NAME: "Solar Export",
+            CONF_ENABLED: True,
             CONF_SOURCE: ["Solar"],
             CONF_TARGET: ["Grid"],
             CONF_PRICE: 0.02,
@@ -168,6 +169,7 @@ async def test_user_step_appends_to_existing_subentry(
     result = await flow.async_step_user(
         user_input={
             CONF_RULE_NAME: "Grid Charge",
+            CONF_ENABLED: True,
             CONF_SOURCE: ["Grid"],
             CONF_TARGET: ["Battery"],
             CONF_PRICE: 0.05,
@@ -194,6 +196,7 @@ async def test_user_step_any_defaults(
     await flow.async_step_user(
         user_input={
             CONF_RULE_NAME: "Global Policy",
+            CONF_ENABLED: True,
             CONF_SOURCE: "",
             CONF_TARGET: "",
             CONF_PRICE: 0.05,
@@ -405,6 +408,7 @@ async def test_edit_rule_updates_and_saves(
     result = await flow.async_step_edit_rule(
         user_input={
             CONF_RULE_NAME: "Solar Export Updated",
+            CONF_ENABLED: True,
             CONF_SOURCE: ["Solar"],
             CONF_TARGET: ["Grid"],
             CONF_PRICE: 0.03,
@@ -467,11 +471,11 @@ def test_endpoint_selector_normalizes_wildcard_and_node_lists(
     hass: HomeAssistant,
     hub_entry: MockConfigEntry,
 ) -> None:
-    """Policy endpoint ChooseSelector maps none/nodes choices to list or empty string."""
+    """Policy endpoint ChooseSelector maps none/elements choices to list or empty string."""
     flow = _create_flow(hass, hub_entry)
     sel = flow._build_endpoint_selector(["Solar", "Grid"])
     assert sel({"active_choice": CHOICE_NONE}) == ""
-    assert sel({"active_choice": CHOICE_NODES, CHOICE_NODES: ["Solar"]}) == ["Solar"]
+    assert sel({"active_choice": CHOICE_ELEMENTS, CHOICE_ELEMENTS: ["Solar"]}) == ["Solar"]
 
 
 def test_parse_rule_input_empty_string_price_becomes_none_value() -> None:
@@ -480,6 +484,7 @@ def test_parse_rule_input_empty_string_price_becomes_none_value() -> None:
     rule = flow._parse_rule_input(
         {
             CONF_RULE_NAME: "Free flow",
+            CONF_ENABLED: True,
             CONF_PRICE: "",
         }
     )
@@ -492,6 +497,7 @@ def test_parse_rule_input_list_price_becomes_entity_value() -> None:
     rule = flow._parse_rule_input(
         {
             CONF_RULE_NAME: "Tracked",
+            CONF_ENABLED: True,
             CONF_PRICE: ["sensor.a", "sensor.b"],
         }
     )
@@ -605,6 +611,7 @@ async def test_edit_rule_valid_input_without_subentry_returns_form(
     result = await flow.async_step_edit_rule(
         user_input={
             CONF_RULE_NAME: "Renamed",
+            CONF_ENABLED: True,
             CONF_PRICE: 0.01,
         }
     )
@@ -639,16 +646,14 @@ async def test_edit_rule_shows_previous_values_for_source_target(
 
     # Load rules and select rule 0 for editing
     await flow.async_step_reconfigure(user_input=None)
-    await flow.async_step_reconfigure(
-        user_input={CONF_RULE: "0", CONF_ACTION: ACTION_EDIT}
-    )
+    await flow.async_step_reconfigure(user_input={CONF_RULE: "0", CONF_ACTION: ACTION_EDIT})
 
     # Open the edit form without submitting
     result = await flow.async_step_edit_rule(user_input=None)
 
     assert result.get("type") == FlowResultType.FORM
-    assert _get_suggested_value(result, CONF_SOURCE) == {"active_choice": CHOICE_NODES, CHOICE_NODES: ["Solar"]}
-    assert _get_suggested_value(result, CONF_TARGET) == {"active_choice": CHOICE_NODES, CHOICE_NODES: ["Grid"]}
+    assert _get_suggested_value(result, CONF_SOURCE) == {"active_choice": CHOICE_ELEMENTS, CHOICE_ELEMENTS: ["Solar"]}
+    assert _get_suggested_value(result, CONF_TARGET) == {"active_choice": CHOICE_ELEMENTS, CHOICE_ELEMENTS: ["Grid"]}
 
 
 async def test_edit_rule_shows_any_for_missing_source_target(
@@ -671,9 +676,7 @@ async def test_edit_rule_shows_any_for_missing_source_target(
     flow._get_subentry = Mock(return_value=subentry)
 
     await flow.async_step_reconfigure(user_input=None)
-    await flow.async_step_reconfigure(
-        user_input={CONF_RULE: "0", CONF_ACTION: ACTION_EDIT}
-    )
+    await flow.async_step_reconfigure(user_input={CONF_RULE: "0", CONF_ACTION: ACTION_EDIT})
 
     result = await flow.async_step_edit_rule(user_input=None)
 
@@ -703,9 +706,7 @@ async def test_edit_rule_shows_previous_constant_price(
     flow._get_subentry = Mock(return_value=subentry)
 
     await flow.async_step_reconfigure(user_input=None)
-    await flow.async_step_reconfigure(
-        user_input={CONF_RULE: "0", CONF_ACTION: ACTION_EDIT}
-    )
+    await flow.async_step_reconfigure(user_input={CONF_RULE: "0", CONF_ACTION: ACTION_EDIT})
 
     result = await flow.async_step_edit_rule(user_input=None)
 
@@ -732,9 +733,7 @@ async def test_edit_rule_shows_previous_entity_price(
     flow._get_subentry = Mock(return_value=subentry)
 
     await flow.async_step_reconfigure(user_input=None)
-    await flow.async_step_reconfigure(
-        user_input={CONF_RULE: "0", CONF_ACTION: ACTION_EDIT}
-    )
+    await flow.async_step_reconfigure(user_input={CONF_RULE: "0", CONF_ACTION: ACTION_EDIT})
 
     result = await flow.async_step_edit_rule(user_input=None)
 
@@ -812,12 +811,59 @@ def test_extract_policy_rules_skips_disabled() -> None:
 # --- Issue 5: Empty node list normalizes to 'any' ---
 
 
-def test_endpoint_selector_empty_nodes_normalizes_to_any(
+def test_endpoint_selector_empty_elements_raises_invalid(
     hass: HomeAssistant,
     hub_entry: MockConfigEntry,
 ) -> None:
-    """Selecting 'Elements' choice with empty list normalizes to 'any' (empty string)."""
+    """Selecting 'Elements' choice with empty list raises vol.Invalid."""
     flow = _create_flow(hass, hub_entry)
     sel = flow._build_endpoint_selector(["Solar", "Grid"])
-    result = sel({"active_choice": CHOICE_NODES, CHOICE_NODES: []})
-    assert result == ""
+    with pytest.raises(vol.Invalid):
+        sel({"active_choice": CHOICE_ELEMENTS, CHOICE_ELEMENTS: []})
+
+
+async def test_edit_rule_shows_previous_none_price(
+    hass: HomeAssistant,
+    hub_entry: MockConfigEntry,
+) -> None:
+    """Editing a rule with none price pre-fills empty string."""
+    existing_rules: list[PolicyRuleConfig] = [
+        {
+            "name": "Free Flow",
+            "price": as_none_value(),
+        },
+    ]
+    subentry = _make_policy_subentry(existing_rules)
+    hass.config_entries.async_add_subentry(hub_entry, subentry)
+
+    flow = _create_flow(hass, hub_entry)
+    flow.context = {"subentry_id": subentry.subentry_id}
+    flow._get_reconfigure_subentry = Mock(return_value=subentry)
+    flow._get_subentry = Mock(return_value=subentry)
+
+    await flow.async_step_reconfigure(user_input=None)
+    await flow.async_step_reconfigure(user_input={CONF_RULE: "0", CONF_ACTION: ACTION_EDIT})
+
+    result = await flow.async_step_edit_rule(user_input=None)
+
+    assert _get_suggested_value(result, CONF_PRICE) == ""
+
+
+def test_rule_to_defaults_enabled_always_present() -> None:
+    """Enabled is always present in defaults, defaulting to True when missing."""
+    flow = PolicySubentryFlowHandler()
+    defaults = flow._rule_to_defaults({"name": "Test"})
+    assert defaults[CONF_ENABLED] is True
+
+    defaults_disabled = flow._rule_to_defaults({"name": "Test", "enabled": False})
+    assert defaults_disabled[CONF_ENABLED] is False
+
+
+def test_parse_rule_input_stores_enabled() -> None:
+    """Enabled field is always stored in the rule."""
+    flow = PolicySubentryFlowHandler()
+    rule = flow._parse_rule_input({CONF_RULE_NAME: "Test", CONF_ENABLED: True})
+    assert rule.get("enabled") is True
+
+    rule_disabled = flow._parse_rule_input({CONF_RULE_NAME: "Test", CONF_ENABLED: False})
+    assert rule_disabled.get("enabled") is False

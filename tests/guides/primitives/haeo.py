@@ -535,11 +535,11 @@ def add_policies(
 
     if source is not None:
         nodes = [source] if isinstance(source, str) else source
-        page.choose_select_option(step_data["source"], "Nodes")
+        page.choose_select_option(step_data["source"], "Elements")
         page.choose_dropdown_multi(step_data["source"], nodes)
     if target is not None:
         nodes = [target] if isinstance(target, str) else target
-        page.choose_select_option(step_data["target"], "Nodes")
+        page.choose_select_option(step_data["target"], "Elements")
         page.choose_dropdown_multi(step_data["target"], nodes)
     if price is not None:
         page.choose_select_option(step_data["price"], "Constant")

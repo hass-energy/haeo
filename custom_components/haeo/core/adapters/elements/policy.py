@@ -15,6 +15,7 @@ from custom_components.haeo.core.model import ModelElementConfig, ModelOutputNam
 from custom_components.haeo.core.model.output_data import OutputData
 from custom_components.haeo.core.schema.elements import ElementType
 from custom_components.haeo.core.schema.elements.policy import (
+    CONF_ENABLED,
     CONF_PRICE,
     CONF_SOURCE,
     CONF_TARGET,
@@ -46,7 +47,7 @@ def extract_policy_rules(config: Mapping[str, Any]) -> list[CompiledPolicyRule]:
     """
     result: list[CompiledPolicyRule] = []
     for rule in config.get("rules", []):
-        if not rule.get("enabled", True):
+        if not rule.get(CONF_ENABLED, True):
             continue
         source = rule.get(CONF_SOURCE, [])
         target = rule.get(CONF_TARGET, [])
