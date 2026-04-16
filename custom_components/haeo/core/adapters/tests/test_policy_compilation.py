@@ -64,8 +64,8 @@ def test_identical_prices_merge() -> None:
     """Grid and Solar with same price to Load share one VLAN."""
     elements = [_node("grid"), _node("solar"), _node("load"), _conn("c1", "grid", "load"), _conn("c2", "solar", "load")]
     policies = [
-        {"sources": ["grid"], "destinations": ["load"], "price_source_target": 0.05},
-        {"sources": ["solar"], "destinations": ["load"], "price_source_target": 0.05},
+        {"sources": ["grid"], "destinations": ["load"], "price": 0.05},
+        {"sources": ["solar"], "destinations": ["load"], "price": 0.05},
     ]
     result = compile_policies(elements, policies)
     assert _outbound_tag(result, "grid") == _outbound_tag(result, "solar")
@@ -75,8 +75,8 @@ def test_different_prices_separate() -> None:
     """Grid and Solar with different prices get separate VLANs."""
     elements = [_node("grid"), _node("solar"), _node("load"), _conn("c1", "grid", "load"), _conn("c2", "solar", "load")]
     policies = [
-        {"sources": ["grid"], "destinations": ["load"], "price_source_target": 0.05},
-        {"sources": ["solar"], "destinations": ["load"], "price_source_target": 0.02},
+        {"sources": ["grid"], "destinations": ["load"], "price": 0.05},
+        {"sources": ["solar"], "destinations": ["load"], "price": 0.02},
     ]
     result = compile_policies(elements, policies)
     assert _outbound_tag(result, "grid") != _outbound_tag(result, "solar")
@@ -93,7 +93,7 @@ def test_wildcard_all_same_merges() -> None:
         _conn("c2", "b", "d"),
         _conn("c3", "c", "d"),
     ]
-    policies = [{"sources": ["*"], "destinations": ["d"], "price_source_target": 0.05}]
+    policies = [{"sources": ["*"], "destinations": ["d"], "price": 0.05}]
     result = compile_policies(elements, policies)
     assert _outbound_tag(result, "a") == _outbound_tag(result, "b") == _outbound_tag(result, "c")
 
@@ -107,7 +107,7 @@ def test_no_policies_no_vlans() -> None:
 def test_node_without_policy_gets_default() -> None:
     """Nodes not referenced by any policy stay on VLAN 0."""
     elements = [_node("grid"), _node("battery"), _node("load"), _conn("c1", "grid", "load")]
-    policies = [{"sources": ["grid"], "destinations": ["load"], "price_source_target": 0.05}]
+    policies = [{"sources": ["grid"], "destinations": ["load"], "price": 0.05}]
     result = compile_policies(elements, policies)
     assert _find(result, "battery").get("outbound_tags") is None
 
@@ -126,7 +126,7 @@ def test_vlan_only_on_path() -> None:
         _conn("solar_sw", "solar", "sw"),
         _conn("sw_load", "sw", "load"),
     ]
-    policies = [{"sources": ["grid"], "destinations": ["load"], "price_source_target": 0.05}]
+    policies = [{"sources": ["grid"], "destinations": ["load"], "price": 0.05}]
     result = compile_policies(elements, policies)
 
     conns = {c["name"]: c for c in _connections(result)}
@@ -144,8 +144,8 @@ def test_inbound_tags_set_on_destination() -> None:
     """Destination nodes get inbound tags from policies."""
     elements = [_node("grid"), _node("solar"), _node("load"), _conn("c1", "grid", "load"), _conn("c2", "solar", "load")]
     policies = [
-        {"sources": ["grid"], "destinations": ["load"], "price_source_target": 0.05},
-        {"sources": ["solar"], "destinations": ["load"], "price_source_target": 0.02},
+        {"sources": ["grid"], "destinations": ["load"], "price": 0.05},
+        {"sources": ["solar"], "destinations": ["load"], "price": 0.02},
     ]
     result = compile_policies(elements, policies)
 
@@ -159,7 +159,7 @@ def test_inbound_tags_set_on_destination() -> None:
 def test_no_inbound_tags_on_routing_nodes() -> None:
     """Routing nodes (not destinations) don't get inbound tags."""
     elements = [_node("grid"), _junction("sw"), _node("load"), _conn("c1", "grid", "sw"), _conn("c2", "sw", "load")]
-    policies = [{"sources": ["grid"], "destinations": ["load"], "price_source_target": 0.05}]
+    policies = [{"sources": ["grid"], "destinations": ["load"], "price": 0.05}]
     result = compile_policies(elements, policies)
     assert _find(result, "sw").get("inbound_tags") is None
 
@@ -199,8 +199,8 @@ def test_additive_pricing_stacking() -> None:
         ),
     ]
     policies = [
-        {"sources": ["battery", "solar"], "destinations": ["load"], "price_source_target": 0.05},
-        {"sources": ["battery"], "destinations": ["load"], "price_source_target": 0.03},
+        {"sources": ["battery", "solar"], "destinations": ["load"], "price": 0.05},
+        {"sources": ["battery"], "destinations": ["load"], "price": 0.03},
     ]
     compiled = compile_policies(elements, policies)
 
@@ -257,7 +257,7 @@ def test_multi_hop_policy_through_switchboard() -> None:
             },
         ),
     ]
-    policies = [{"sources": ["grid"], "destinations": ["load"], "price_source_target": 0.10}]
+    policies = [{"sources": ["grid"], "destinations": ["load"], "price": 0.10}]
     compiled = compile_policies(elements, policies)
 
     network = Network(name="test", periods=np.array([1.0]))
@@ -293,7 +293,7 @@ def test_single_source_policy_adds_cost() -> None:
             },
         ),
     ]
-    policies = [{"sources": ["grid"], "destinations": ["load"], "price_source_target": 0.10}]
+    policies = [{"sources": ["grid"], "destinations": ["load"], "price": 0.10}]
     compiled = compile_policies(elements, policies)
 
     network = Network(name="test", periods=np.array([1.0]))
@@ -330,8 +330,8 @@ def test_cheaper_source_preferred() -> None:
         ),
     ]
     policies = [
-        {"sources": ["grid"], "destinations": ["load"], "price_source_target": 0.10},
-        {"sources": ["solar"], "destinations": ["load"], "price_source_target": 0.01},
+        {"sources": ["grid"], "destinations": ["load"], "price": 0.10},
+        {"sources": ["solar"], "destinations": ["load"], "price": 0.01},
     ]
     compiled = compile_policies(elements, policies)
 
@@ -358,7 +358,7 @@ def test_diamond_multi_path_all_branches_tagged() -> None:
         _conn("bd", "b", "d"),
         _conn("cd", "c", "d"),
     ]
-    policies = [{"sources": ["a"], "destinations": ["d"], "price_source_target": 0.04}]
+    policies = [{"sources": ["a"], "destinations": ["d"], "price": 0.04}]
     result = compile_policies(elements, policies)
     vlan = _outbound_tag(result, "a")
     conns = {c["name"]: c for c in _connections(result)}
@@ -371,8 +371,8 @@ def test_duplicate_policies_merge_tag_costs() -> None:
     """Identical policy rows should sum into one tag_cost per tag on a connection."""
     elements = [_node("grid"), _node("load"), _conn("c1", "grid", "load")]
     policies = [
-        {"sources": ["grid"], "destinations": ["load"], "price_source_target": 0.05},
-        {"sources": ["grid"], "destinations": ["load"], "price_source_target": 0.05},
+        {"sources": ["grid"], "destinations": ["load"], "price": 0.05},
+        {"sources": ["grid"], "destinations": ["load"], "price": 0.05},
     ]
     result = compile_policies(elements, policies)
     conn = _find(result, "c1")
@@ -392,7 +392,7 @@ def test_price_target_source_on_connection_where_policy_dest_is_source_endpoint(
         {
             "sources": ["load"],
             "destinations": ["grid"],
-            "price_target_source": 0.07,
+            "price": 0.07,
         },
     ]
     result = compile_policies(elements, policies)

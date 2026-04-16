@@ -42,8 +42,7 @@ def compile_policies(
         policy_configs: List of policy rule configs, each with:
             - sources: list of node names, or ["*"] for any
             - destinations: list of node names, or ["*"] for any
-            - price_source_target: $/kWh or None
-            - price_target_source: $/kWh or None
+            - price: $/kWh or None
 
     Returns:
         Modified elements list with tags, outbound_tags, inbound_tags, and
@@ -63,23 +62,19 @@ def compile_policies(
         if etype == "connection":
             connections.append(copy)
         else:
-            # All non-connection elements (nodes, batteries, etc.) can be tagged
             elements_by_name[copy["name"]] = copy
             other.append(copy)
 
     if not connections:
         return elements
 
-    # All element names (anything a connection can connect to)
     element_names: set[str] = set(elements_by_name.keys())
 
-    # Build adjacency: node_name -> list of (connection, "source"|"target")
     conn_by_node: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for conn in connections:
         conn_by_node[conn["source"]].append(conn)
         conn_by_node[conn["target"]].append(conn)
 
-    # Build graph edges for reachability: node -> set of (neighbor, connection_name)
     graph: dict[str, set[tuple[str, str]]] = defaultdict(set)
     for conn in connections:
         src, tgt = conn["source"], conn["target"]
@@ -88,29 +83,27 @@ def compile_policies(
         graph[tgt].add((src, name))
 
     # --- Step 1: Flow enumeration ---
-    flows: list[tuple[str, str, Any, Any]] = []  # (source, dest, price_st, price_ts)
+    flows: list[tuple[str, str, Any]] = []
     for policy in policy_configs:
         sources = _resolve_wildcard(policy.get("sources", []), element_names)
         destinations = _resolve_wildcard(policy.get("destinations", []), element_names)
-        price_st = policy.get("price_source_target")
-        price_ts = policy.get("price_target_source")
+        price = policy.get("price")
         for src in sources:
-            flows.extend((src, dst, price_st, price_ts) for dst in destinations if src != dst)
+            flows.extend((src, dst, price) for dst in destinations if src != dst)
 
     if not flows:
         return elements
 
     # --- Step 2: Signature computation ---
-    # Per source node: frozenset of (dest, price_st, price_ts) tuples
-    signatures: dict[str, frozenset[tuple[str, Any, Any]]] = {}
+    signatures: dict[str, frozenset[tuple[str, Any]]] = {}
     for name in element_names:
-        sig = frozenset((dst, _make_hashable(pst), _make_hashable(pts)) for src, dst, pst, pts in flows if src == name)
+        sig = frozenset((dst, _make_hashable(p)) for src, dst, p in flows if src == name)
         signatures[name] = sig
 
     # --- Step 3: VLAN assignment (signature merging) ---
-    sig_to_vlan: dict[frozenset[tuple[str, Any, Any]], int] = {}
+    sig_to_vlan: dict[frozenset[tuple[str, Any]], int] = {}
     vlan_counter = 1
-    tag_map: dict[str, int] = {}  # node_name -> vlan_id
+    tag_map: dict[str, int] = {}
 
     for name, sig in signatures.items():
         if not sig:
@@ -126,17 +119,14 @@ def compile_policies(
         return elements
 
     # --- Step 4: Reachability analysis ---
-    # For each VLAN, find connections on paths from source nodes to destination nodes
     vlan_connections: dict[int, set[str]] = {}
     for vlan_id in active_vlans:
         source_nodes = {n for n, v in tag_map.items() if v == vlan_id}
-        # Destinations for this VLAN: all dests from flows where source has this VLAN
-        dest_nodes = {dst for src, dst, _, _ in flows if tag_map.get(src) == vlan_id}
+        dest_nodes = {dst for src, dst, _ in flows if tag_map.get(src) == vlan_id}
         reachable = _find_reachable_connections(source_nodes, dest_nodes, graph)
         vlan_connections[vlan_id] = reachable
 
     # --- Step 5: Connection tagging ---
-    # Build a lookup: (src, tgt) -> list of connection names
     conn_pair_lookup: dict[tuple[str, str], list[str]] = defaultdict(list)
     for conn in connections:
         conn_pair_lookup[(conn["source"], conn["target"])].append(conn["name"])
@@ -147,13 +137,12 @@ def compile_policies(
         for vlan_id in active_vlans:
             if conn_name in vlan_connections.get(vlan_id, set()):
                 tags.add(vlan_id)
-                # Also tag the reverse direction connection (if it exists)
                 src, tgt = conn["source"], conn["target"]
                 for reverse_name in conn_pair_lookup.get((tgt, src), []):
                     vlan_connections[vlan_id].add(reverse_name)
         conn["tags"] = tags
 
-    # Second pass: pick up tags added by reverse-direction tagging above
+    # Second pass: pick up tags added by reverse-direction tagging
     for conn in connections:
         conn_name = conn["name"]
         tags = set(conn.get("tags", {DEFAULT_TAG}))
@@ -168,9 +157,8 @@ def compile_policies(
             elements_by_name[name]["outbound_tags"] = {vlan_id}
 
     # --- Step 7: Node inbound tags (consumption access) ---
-    # Which VLANs each node can consume
     access_lists: dict[str, set[int]] = defaultdict(set)
-    for src, dst, _, _ in flows:
+    for src, dst, _ in flows:
         vlan_id = tag_map.get(src, DEFAULT_TAG)
         if vlan_id != DEFAULT_TAG:
             access_lists[dst].add(vlan_id)
@@ -179,37 +167,27 @@ def compile_policies(
         if name in elements_by_name:
             elements_by_name[name]["inbound_tags"] = allowed_vlans
 
-    # --- Step 8: Pricing injection via tag_costs (not separate segments) ---
+    # --- Step 8: Pricing injection via tag_costs ---
     for policy in policy_configs:
         sources = _resolve_wildcard(policy.get("sources", []), element_names)
         destinations = _resolve_wildcard(policy.get("destinations", []), element_names)
-        price_st = policy.get("price_source_target")
-        price_ts = policy.get("price_target_source")
+        price = policy.get("price")
 
-        if price_st is None and price_ts is None:
+        if price is None:
             continue
 
-        # Collect unique source VLANs for this policy
         source_vlans = {tag_map[s] for s in sources if tag_map.get(s, DEFAULT_TAG) != DEFAULT_TAG}
 
-        nodes_for_pricing = set(destinations)
-        if price_ts is not None:
-            nodes_for_pricing |= set(sources)
-
         for source_vlan in source_vlans:
-            for node_name in nodes_for_pricing:
-                if node_name not in element_names:
+            for dest_node in destinations:
+                if dest_node not in element_names:
                     continue
-                incident = conn_by_node.get(node_name, [])
-                for conn in incident:
+                for conn in conn_by_node.get(dest_node, []):
                     if source_vlan not in conn.get("tags", {DEFAULT_TAG}):
                         continue
-
-                    if conn.get("target") == node_name and price_st is not None:
-                        conn.setdefault("tag_costs", []).append({"tag": source_vlan, "price": price_st})
-
-                    if conn.get("source") == node_name and price_ts is not None:
-                        conn.setdefault("tag_costs", []).append({"tag": source_vlan, "price": price_ts})
+                    # Price applies on connections flowing toward the destination
+                    if conn.get("target") == dest_node:
+                        conn.setdefault("tag_costs", []).append({"tag": source_vlan, "price": price})
 
     for conn in connections:
         _merge_tag_costs_on_connection(conn)
