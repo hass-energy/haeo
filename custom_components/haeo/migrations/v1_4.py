@@ -48,6 +48,25 @@ def _policy_subentry(*, rules: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
+def _negate_price_value(price: dict[str, Any]) -> dict[str, Any]:
+    """Negate a constant price value for charge incentive migration.
+
+    The old battery adapter produced a negative incentive internally. The new
+    policy system uses ``power * price * period`` where positive = cost, so the
+    stored positive value must be negated to preserve the original incentive
+    semantics.
+    """
+    if price.get("type") == "constant":
+        return {**price, "value": -price["value"]}
+    _LOGGER.warning(
+        "Cannot negate non-constant charge price during migration; "
+        "a positive entity price will behave as a cost in the new policy system. "
+        "To preserve incentive semantics, use a template sensor that outputs a negated value: %s",
+        price,
+    )
+    return price
+
+
 def _extract_pricing_rules(subentry: ConfigSubentry) -> list[dict[str, Any]]:
     """Extract policy rules from an element's pricing section."""
     data = dict(subentry.data)
@@ -75,7 +94,7 @@ def _extract_pricing_rules(subentry: ConfigSubentry) -> list[dict[str, Any]]:
                 {
                     "name": f"{element_name} Charge",
                     "target": [element_name],
-                    "price": charge_price,
+                    "price": _negate_price_value(charge_price),
                 },
             )
 
