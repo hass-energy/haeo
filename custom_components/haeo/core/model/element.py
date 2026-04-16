@@ -364,6 +364,44 @@ class NetworkElement[OutputNameT: str](Element[OutputNameT]):
                 )
         return self._produced_by_tag
 
+    @constraint
+    def _element_power_decomposition(self) -> list[highs_linear_expression] | None:
+        """Decompose element production and consumption across connection tags.
+
+        For each tag set, creates auxiliary per-tag variables and constrains their
+        sum to equal total production/consumption. Skipped when there are no
+        connection tags (simple path handled by element_power_balance).
+        """
+        tags = self.connection_tags()
+        if not tags:
+            return None
+
+        produced = self.element_power_produced()
+        consumed = self.element_power_consumed()
+
+        outbound = set(tags) if self.outbound_tags is None else (self.outbound_tags & tags)
+        inbound = set(tags) if self.inbound_tags is None else (self.inbound_tags & tags)
+
+        constraints: list[highs_linear_expression] = []
+
+        if produced is not None:
+            if outbound:
+                produced_by_tag = self._get_produced_by_tag(outbound)
+                constraints.extend(list(reduce(operator.add, produced_by_tag.values()) == produced))
+            else:
+                # Element produces but no outbound tags available — force production to 0
+                constraints.extend(list(produced == 0))
+
+        if consumed is not None:
+            if inbound:
+                consumed_by_tag = self._get_consumed_by_tag(inbound)
+                constraints.extend(list(reduce(operator.add, consumed_by_tag.values()) == consumed))
+            else:
+                # Element consumes but no inbound tags available — force consumption to 0
+                constraints.extend(list(consumed == 0))
+
+        return constraints if constraints else None
+
     @constraint(output=True, unit="$/kW")
     def element_power_balance(self) -> list[highs_linear_expression] | None:
         """Per-tag power balance: for each tag, connection + produced - consumed == 0.
@@ -395,29 +433,16 @@ class NetworkElement[OutputNameT: str](Element[OutputNameT]):
         outbound = set(tags) if self.outbound_tags is None else (self.outbound_tags & tags)
         inbound = set(tags) if self.inbound_tags is None else (self.inbound_tags & tags)
 
+        # Access decomposition variables (created lazily; also created by _element_power_decomposition)
+        produced_by_tag: dict[int, HighspyArray] = (
+            self._get_produced_by_tag(outbound) if produced is not None and outbound else {}
+        )
+        consumed_by_tag: dict[int, HighspyArray] = (
+            self._get_consumed_by_tag(inbound) if consumed is not None and inbound else {}
+        )
+
+        # Per-tag power balance only (decomposition constraints are in _element_power_decomposition)
         constraints: list[highs_linear_expression] = []
-
-        # Decompose production across outbound tags
-        produced_by_tag: dict[int, HighspyArray] = {}
-        if produced is not None:
-            if outbound:
-                produced_by_tag = self._get_produced_by_tag(outbound)
-                constraints.extend(list(reduce(operator.add, produced_by_tag.values()) == produced))
-            else:
-                # Element produces but no outbound tags available — force production to 0
-                constraints.extend(list(produced == 0))
-
-        # Decompose consumption across inbound tags
-        consumed_by_tag: dict[int, HighspyArray] = {}
-        if consumed is not None:
-            if inbound:
-                consumed_by_tag = self._get_consumed_by_tag(inbound)
-                constraints.extend(list(reduce(operator.add, consumed_by_tag.values()) == consumed))
-            else:
-                # Element consumes but no inbound tags available — force consumption to 0
-                constraints.extend(list(consumed == 0))
-
-        # Per-tag power balance
         for tag in sorted(tags):
             tag_prod = produced_by_tag.get(tag, 0)
             tag_cons = consumed_by_tag.get(tag, 0)
