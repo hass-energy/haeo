@@ -468,7 +468,7 @@ def _build_priced_network(options: SolveOptions | None = None) -> Network:
 def test_solve_options_defaults() -> None:
     """SolveOptions default values match HiGHS defaults."""
     opts = SolveOptions()
-    assert opts.mode == "lex"
+    assert opts.mode == "calibrated"
     assert opts.simplex_strategy == 1
     assert opts.solver == "choose"
 
@@ -560,7 +560,7 @@ def test_calibrated_mode_subsequent_calls_use_blended() -> None:
 def test_lex_mode_with_secondary_objective() -> None:
     """Lex mode with a secondary objective executes all three phases."""
     # Build a network with both primary and secondary objectives
-    network = Network(name="test", periods=np.array([1.0, 1.0]))
+    network = Network(name="test", periods=np.array([1.0, 1.0]), options=SolveOptions(mode="lex"))
     network.add({"element_type": ELEMENT_TYPE_BATTERY, "name": "battery", "capacity": 10.0, "initial_charge": 5.0})
     network.add({"element_type": ELEMENT_TYPE_NODE, "name": "grid", "is_source": True, "is_sink": True})
     network.add(
@@ -581,7 +581,7 @@ def test_lex_mode_with_secondary_objective() -> None:
 
 def test_lex_mode_no_secondary() -> None:
     """Lex mode without secondary objective skips Phase 2 and Phase 3."""
-    network = Network(name="test", periods=np.array([1.0]))
+    network = Network(name="test", periods=np.array([1.0]), options=SolveOptions(mode="lex"))
     network.add({"element_type": ELEMENT_TYPE_NODE, "name": "node", "is_source": True, "is_sink": True})
     result = network.optimize()
     assert result == 0.0

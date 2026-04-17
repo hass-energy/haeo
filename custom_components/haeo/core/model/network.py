@@ -35,12 +35,13 @@ class SolveOptions:
     """
 
     # --- Multi-objective strategy (HAEO) ---
-    # "lex" runs three solves (P1 primary, P2 secondary | P1, P3 primary | P2+e).
+    # "lex" runs three solves for exact lexicographic optimization with
+    # clean shadow prices (P1 primary, P2 secondary|P1, P3 primary|P2+e).
     # "blended" runs a single solve on (primary + blend_weight * secondary).
-    # "calibrated" does a lex solve on first call, then binary-searches for
-    # the largest blend weight that reproduces the lex primary within
-    # tolerance. Subsequent calls use blended mode with that weight.
-    mode: ObjectiveMode = "lex"
+    # "calibrated" does a two-phase lex on the first call (P1, P2|P1),
+    # then binary-searches for a blend weight that reproduces the lex
+    # primary within tolerance. Subsequent calls use blended fast path.
+    mode: ObjectiveMode = "calibrated"
     # Weight applied to the secondary objective in blended mode. Ignored
     # in calibrated mode (auto-determined). Should be small enough that
     # the secondary never overrides the primary at the scale of typical
@@ -233,12 +234,12 @@ class Network:
         Uses a lexicographic approach for multi-objective problems:
         1. Phase 1: minimize primary objective (lex constraint relaxed)
         2. Phase 2: minimize secondary objective (primary constrained to optimal)
-        3. Phase 3: re-minimize primary (secondary constrained with epsilon slack)
+        3. Phase 3 (lex mode only): re-minimize primary with secondary
+           constrained (epsilon slack), restoring clean shadow prices
 
-        Phase 3 adds a small epsilon to the secondary bound so the lex
-        constraint has guaranteed slack at the optimum. This makes the lex
-        dual structurally zero: shadow prices reflect pure primary
-        sensitivities without lex constraint contamination.
+        In calibrated mode, Phase 3 is skipped because the solution is only
+        used to calibrate a blend weight; subsequent calls use blended mode
+        which produces proper duals from a single solve.
 
         Returns:
             The total optimization cost
@@ -309,12 +310,15 @@ class Network:
             h.run()
             secondary_value = _ensure_optimal(h)
 
-            # --- Phase 3: Re-minimize primary (swap constraint to secondary) ---
-            epsilon = _lex_epsilon(secondary_value)
-            self._constrain_objective(secondary, secondary_value + epsilon)
-            _set_cost_vector(h, all_col_indices, cost_vectors[0])
-            h.run()
-            _ensure_optimal(h)
+            if self.options.mode == "lex":
+                # --- Phase 3: Re-minimize primary (swap constraint to secondary) ---
+                # Restores shadow prices that reflect pure primary sensitivities.
+                # Skipped in calibrated mode where only variable values are needed.
+                epsilon = _lex_epsilon(secondary_value)
+                self._constrain_objective(secondary, secondary_value + epsilon)
+                _set_cost_vector(h, all_col_indices, cost_vectors[0])
+                h.run()
+                _ensure_optimal(h)
 
         # After lex solve, calibrate the blend weight for future calls.
         if self.options.mode == "calibrated" and secondary is not None:

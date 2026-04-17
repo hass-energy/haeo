@@ -75,7 +75,7 @@ The objective minimizes the sum of all element costs.
 
 ### Solution Process
 
-Optimization uses a three-phase lexicographic solve:
+Optimization uses a two-phase lexicographic solve with calibrated blending:
 
 **Phase 1: Minimize primary objective**
 
@@ -87,10 +87,13 @@ The network collects these contributions and minimizes total cost (the primary o
 The primary objective is constrained to its optimal value, and the solver minimizes the secondary time-preference objective.
 This breaks ties among cost-equivalent solutions by preferring earlier energy transfers.
 
-**Phase 3: Restore primary duals**
+**Calibration**
 
-The secondary objective is constrained to its optimal value (with a small epsilon slack), and the solver re-minimizes the primary objective.
-The epsilon ensures the lexicographic constraint has guaranteed slack at the optimum, making shadow prices reflect pure primary-cost sensitivities without constraint contamination.
+After the first lexicographic solve, a binary search finds a blend weight that reproduces the lex decision variables in a single weighted-sum solve.
+Subsequent optimizations use this blended objective (`primary + weight * secondary`) in a single solve, which warm-starts efficiently and produces proper dual values (shadow prices).
+
+A full three-phase lexicographic mode is also available (`mode="lex"`) that adds a Phase 3 re-minimization of the primary with the secondary constrained.
+This restores shadow prices that reflect pure primary-cost sensitivities, at the cost of an additional solve per optimization.
 
 ### Solution Outcomes
 
