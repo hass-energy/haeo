@@ -379,6 +379,10 @@ class Network:
         pri_mask = cost_vectors[0] != 0
         lex_pri = lex_values[pri_mask]
 
+        # If no variables have primary cost, any weight is safe.
+        if lex_pri.size == 0:
+            return self.options.blend_weight
+
         # Absolute tolerance scaled to variable magnitudes.
         abs_tol = max(1e-8, float(np.max(np.abs(lex_pri))) * tolerance)
 

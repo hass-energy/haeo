@@ -4,6 +4,7 @@ from collections.abc import Iterator, Mapping, Sequence
 import json
 from numbers import Real
 from pathlib import Path
+import subprocess
 from typing import Any
 
 from syrupy.extensions.json import JSONSnapshotExtension
@@ -11,6 +12,22 @@ from syrupy.location import PyTestLocation
 from syrupy.types import SerializableData, SerializedData, SnapshotIndex
 
 from custom_components.haeo.core.model.const import OutputType
+
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+
+
+def _prettier_format(file: Path) -> None:
+    """Run prettier on a file to match committed formatting style."""
+    try:
+        subprocess.run(  # noqa: S603
+            ["npx", "prettier", "--write", str(file)],  # noqa: S607
+            cwd=_REPO_ROOT,
+            capture_output=True,
+            timeout=30,
+            check=False,
+        )
+    except FileNotFoundError:
+        pass  # npx not available (e.g. CI without node)
 
 
 def _collect_diffs(
@@ -196,6 +213,9 @@ class ScenarioJSONExtension(JSONSnapshotExtension):
         with outputs_file.open("w") as f:
             json.dump(output_data, f, indent=2)
             f.write("\n")  # POSIX trailing newline
+
+        # Format with prettier so the snapshot matches the committed style
+        _prettier_format(outputs_file)
 
     def read_snapshot(
         self,
