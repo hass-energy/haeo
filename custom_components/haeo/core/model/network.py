@@ -55,10 +55,10 @@ class SolveOptions:
     # --- HiGHS algorithm selection ---
     # "simplex" is best for warm-starts; "ipm" / "pdlp" do not warm-start.
     solver: SolverChoice = "choose"
-    # 1=dual, 2=dual+task, 3=dual+multi, 4=primal.
-    # Primal simplex re-optimizes faster between lex phases since the
-    # basis remains primal-feasible across constraint relaxations.
-    simplex_strategy: int = 4
+    # 1=dual, 4=primal. Primal simplex re-optimizes faster when the
+    # objective changes (blended/calibrated warm-starts), but dual is
+    # the HiGHS default and produces consistent results across platforms.
+    simplex_strategy: int = 1
     # \"choose\" lets HiGHS skip presolve on warm-starts; \"on\" forces it.
     presolve: OnOffChoose = "choose"
     # \"choose\" enables parallel only for large problems.
@@ -287,19 +287,14 @@ class Network:
             return 0.0
 
         # Calibrated mode with an existing weight uses blended fast path.
-        use_blended = (
-            self.options.mode == "blended"
-            or (self.options.mode == "calibrated" and self._calibrated_weight is not None)
+        use_blended = self.options.mode == "blended" or (
+            self.options.mode == "calibrated" and self._calibrated_weight is not None
         )
 
         if use_blended and secondary is not None:
-            weight = (
-                self._calibrated_weight
-                if self.options.mode == "calibrated"
-                else self.options.blend_weight
-            )
-            assert weight is not None  # guarded by use_blended condition
-            return self._solve_blended(h, all_col_indices, cost_vectors, weight)
+            if self.options.mode == "calibrated" and self._calibrated_weight is not None:
+                return self._solve_blended(h, all_col_indices, cost_vectors, self._calibrated_weight)
+            return self._solve_blended(h, all_col_indices, cost_vectors, self.options.blend_weight)
 
         # --- Lexicographic solve (also used for calibrated-mode first call) ---
         _set_cost_vector(h, all_col_indices, cost_vectors[0])
@@ -327,7 +322,9 @@ class Network:
         if self.options.mode == "calibrated" and secondary is not None:
             lex_values = np.asarray(h.allVariableValues())
             self._calibrated_weight = self._calibrate_blend_weight(
-                all_col_indices, cost_vectors, lex_values,
+                all_col_indices,
+                cost_vectors,
+                lex_values,
                 self.options.calibration_tolerance,
             )
 
@@ -403,7 +400,8 @@ class Network:
             upper = hi
         elif not _primary_vars_match(lo):
             _LOGGER.warning(
-                "Calibration: primary vars don't match even at w=1e%g", lo,
+                "Calibration: primary vars don't match even at w=1e%g",
+                lo,
             )
             # Restore lex solution and fall back.
             _set_cost_vector(h, all_col_indices, cost_vectors[0])
@@ -445,7 +443,10 @@ class Network:
 
         _LOGGER.debug(
             "Calibrated blend weight: %.2e (log10=%.2f, safe zone [%.1f, %.1f])",
-            weight, center, lower, upper,
+            weight,
+            center,
+            lower,
+            upper,
         )
 
         # Final solve at center weight to warm-start future blended calls.
@@ -597,5 +598,3 @@ _CAL_LOG_LO = -12.0
 _CAL_LOG_HI = -1.0
 _CAL_MAX_STEPS = 40  # total bisection budget split across upper/lower searches
 _CAL_CONVERGENCE = 0.01  # stop bisection when interval < this (log10 decades)
-
-

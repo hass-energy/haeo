@@ -3,7 +3,7 @@
 import logging
 from unittest.mock import Mock
 
-from highspy import HighsModelStatus
+from highspy import Highs, HighsModelStatus
 import numpy as np
 import pytest
 
@@ -14,6 +14,7 @@ from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_BATTER
 from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_CONNECTION as ELEMENT_TYPE_CONNECTION
 from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_NODE as ELEMENT_TYPE_NODE
 from custom_components.haeo.core.model.elements.connection import Connection
+from custom_components.haeo.core.model.network import SolveOptions, _lex_epsilon
 
 # Test constants
 HOURS_PER_DAY = 24
@@ -424,3 +425,163 @@ def test_network_constraints_empty_when_no_elements() -> None:
     # No elements added - should return empty dict
     constraints = network.constraints()
     assert constraints == {}
+
+
+# ---------------------------------------------------------------------------
+# Helpers for multi-objective tests
+# ---------------------------------------------------------------------------
+
+
+def _build_priced_network(options: SolveOptions | None = None) -> Network:
+    """Build a small network with primary (cost) and secondary (time pref) objectives.
+
+    Topology: source --[conn]--> sink
+    The connection has pricing so it generates a primary cost objective,
+    and the bidirectional flow gives the solver a nontrivial decision.
+    """
+    kwargs: dict[str, object] = {"name": "test", "periods": np.array([1.0, 1.0])}
+    if options is not None:
+        kwargs["options"] = options
+    network = Network(**kwargs)  # type: ignore[arg-type]
+
+    network.add({"element_type": ELEMENT_TYPE_NODE, "name": "source", "is_source": True, "is_sink": False})
+    network.add({"element_type": ELEMENT_TYPE_NODE, "name": "sink", "is_source": False, "is_sink": True})
+    network.add(
+        {
+            "element_type": ELEMENT_TYPE_CONNECTION,
+            "name": "conn",
+            "source": "source",
+            "target": "sink",
+            "segments": {
+                "pricing": {"segment_type": "pricing", "price": np.array([10.0, 20.0])},
+            },
+        }
+    )
+    return network
+
+
+# ---------------------------------------------------------------------------
+# SolveOptions tests
+# ---------------------------------------------------------------------------
+
+
+def test_solve_options_defaults() -> None:
+    """SolveOptions default values match HiGHS defaults."""
+    opts = SolveOptions()
+    assert opts.mode == "lex"
+    assert opts.simplex_strategy == 1
+    assert opts.solver == "choose"
+
+
+def test_solve_options_apply() -> None:
+    """SolveOptions.apply() sets all HiGHS options on the solver."""
+    opts = SolveOptions(simplex_strategy=4, presolve="on")
+    h = Highs()
+    h.setOptionValue("output_flag", False)
+    opts.apply(h)
+    assert h.getOptionValue("simplex_strategy")[1] == 4
+    assert h.getOptionValue("presolve")[1] == "on"
+
+
+def test_solve_options_propagated_to_network() -> None:
+    """Network.__post_init__ applies SolveOptions to the solver."""
+    opts = SolveOptions(simplex_strategy=4)
+    network = Network(name="test", periods=np.array([1.0]), options=opts)
+    assert network._solver.getOptionValue("simplex_strategy")[1] == 4
+
+
+# ---------------------------------------------------------------------------
+# _lex_epsilon tests
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        (0.0, 1e-6),  # floor at 1e-6
+        (1.0, 1e-6),  # floor dominates for small values
+        (1e6, 1.0),  # relative scaling for large values
+        (-500.0, 5e-4),  # absolute value used
+    ],
+)
+def test_lex_epsilon(value: float, expected: float) -> None:
+    """_lex_epsilon returns relative or floor epsilon."""
+    assert _lex_epsilon(value) == pytest.approx(expected)
+
+
+# ---------------------------------------------------------------------------
+# Blended mode tests
+# ---------------------------------------------------------------------------
+
+
+def test_blended_mode_single_solve() -> None:
+    """Blended mode solves the weighted sum in a single call."""
+    network = _build_priced_network(SolveOptions(mode="blended", blend_weight=1e-6))
+    result = network.optimize()
+    assert result == pytest.approx(0.0, abs=1e-6)
+
+
+def test_blended_mode_reentrant() -> None:
+    """Blended mode works on repeated optimize() calls."""
+    network = _build_priced_network(SolveOptions(mode="blended", blend_weight=1e-6))
+    r1 = network.optimize()
+    r2 = network.optimize()
+    assert r1 == pytest.approx(r2)
+
+
+# ---------------------------------------------------------------------------
+# Calibrated mode tests
+# ---------------------------------------------------------------------------
+
+
+def test_calibrated_mode_first_call_uses_lex() -> None:
+    """First call in calibrated mode performs lex then calibrates."""
+    network = _build_priced_network(SolveOptions(mode="calibrated"))
+    assert network._calibrated_weight is None
+    network.optimize()
+    # After first call, weight should be calibrated
+    assert network._calibrated_weight is not None
+    assert network._calibrated_weight > 0
+
+
+def test_calibrated_mode_subsequent_calls_use_blended() -> None:
+    """After calibration, optimize() uses blended fast path."""
+    network = _build_priced_network(SolveOptions(mode="calibrated"))
+    r1 = network.optimize()  # lex + calibrate
+    r2 = network.optimize()  # blended with calibrated weight
+    assert r1 == pytest.approx(r2)
+
+
+# ---------------------------------------------------------------------------
+# Lex mode Phase 3 epsilon tests
+# ---------------------------------------------------------------------------
+
+
+def test_lex_mode_with_secondary_objective() -> None:
+    """Lex mode with a secondary objective executes all three phases."""
+    # Build a network with both primary and secondary objectives
+    network = Network(name="test", periods=np.array([1.0, 1.0]))
+    network.add({"element_type": ELEMENT_TYPE_BATTERY, "name": "battery", "capacity": 10.0, "initial_charge": 5.0})
+    network.add({"element_type": ELEMENT_TYPE_NODE, "name": "grid", "is_source": True, "is_sink": True})
+    network.add(
+        {
+            "element_type": ELEMENT_TYPE_CONNECTION,
+            "name": "bat_grid",
+            "source": "battery",
+            "target": "grid",
+            "segments": {
+                "pricing": {"segment_type": "pricing", "price": np.array([10.0, 20.0])},
+            },
+        }
+    )
+    result = network.optimize()
+    # Should complete without error and return a finite value
+    assert np.isfinite(result)
+
+
+def test_lex_mode_no_secondary() -> None:
+    """Lex mode without secondary objective skips Phase 2 and Phase 3."""
+    network = Network(name="test", periods=np.array([1.0]))
+    network.add({"element_type": ELEMENT_TYPE_NODE, "name": "node", "is_source": True, "is_sink": True})
+    result = network.optimize()
+    assert result == 0.0

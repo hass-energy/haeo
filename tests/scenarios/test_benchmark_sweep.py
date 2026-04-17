@@ -10,6 +10,7 @@ Run with:
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -21,15 +22,8 @@ import pytest
 
 from custom_components.haeo.coordinator.network import update_element
 from custom_components.haeo.core.data.forecast_times import tiers_to_periods_seconds
-from custom_components.haeo.core.model.network import Network, SolveOptions
-
-from tests.scenarios.test_benchmark import (
-    _ScenarioStateMachine,
-    _build_network,
-    _load_scenario,
-    _load_shifted_configs,
-)
-
+from custom_components.haeo.core.model.network import SolveOptions
+from tests.scenarios.test_benchmark import _build_network, _load_scenario, _load_shifted_configs, _ScenarioStateMachine
 
 SWEEP_SCENARIO = "scenario1"
 WARMUP = 1
@@ -101,15 +95,15 @@ SWEEP_CASES = _build_sweep()
 CONFIG_TIMEOUT_SECONDS = 30
 
 
-class _ConfigTimeout(Exception):
+class _ConfigTimeoutError(Exception):
     """Raised when a single sweep configuration exceeds its time budget."""
 
 
 def _alarm_handler(_signum: int, _frame: object) -> None:
-    raise _ConfigTimeout
+    raise _ConfigTimeoutError
 
 
-def _bench(callable_, n: int) -> float:
+def _bench(callable_: Callable[[], object], n: int) -> float:
     """Run callable_ n times and return mean wall time in milliseconds."""
     times: list[int] = []
     for _ in range(n):
@@ -163,9 +157,9 @@ def _measure(
             "warm_ms": _bench(warm_reentrant, ITERATIONS),
             "shift_ms": _bench(warm_shift, ITERATIONS),
         }
-    except _ConfigTimeout:
+    except _ConfigTimeoutError:
         return {"status": f"TIMEOUT after {CONFIG_TIMEOUT_SECONDS}s"}
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         return {"status": f"FAIL: {type(exc).__name__}: {exc}"[:80]}
     finally:
         signal.alarm(0)
@@ -178,6 +172,7 @@ _results: list[tuple[str, dict[str, float | str]]] = []
 
 @pytest.fixture(scope="module")
 def sweep_data() -> tuple[dict[str, Any], _ScenarioStateMachine, datetime]:
+    """Load sweep scenario data once per module."""
     path = Path(__file__).parent / SWEEP_SCENARIO
     if not (path / "config.json").exists():
         pytest.skip(f"Sweep scenario {SWEEP_SCENARIO} not present")
@@ -222,14 +217,14 @@ def test_zsweep_summary() -> None:
     bar = "=" * len(header)
     sep = "-" * len(header)
 
-    print()
-    print(bar)
-    print(f"  Parametric sweep: {SWEEP_SCENARIO} ({len(ok_results)} ok / {len(failed)} failed, sorted by warm)")
-    print(bar)
-    print(header)
-    print(sep)
+    print()  # noqa: T201
+    print(bar)  # noqa: T201
+    print(f"  Parametric sweep: {SWEEP_SCENARIO} ({len(ok_results)} ok / {len(failed)} failed, sorted by warm)")  # noqa: T201
+    print(bar)  # noqa: T201
+    print(header)  # noqa: T201
+    print(sep)  # noqa: T201
     for lbl, r in ok_results:
-        print(
+        print(  # noqa: T201
             f"{lbl:<{width}}"
             f"  {float(r['cold_ms']):>6.2f}ms"
             f"  {float(r['warm_ms']):>6.2f}ms"
@@ -237,8 +232,8 @@ def test_zsweep_summary() -> None:
         )
 
     if failed:
-        print()
-        print(f"Failed configurations ({len(failed)}):")
+        print()  # noqa: T201
+        print(f"Failed configurations ({len(failed)}):")  # noqa: T201
         for lbl, r in failed:
-            print(f"  {lbl}: {r['status']}")
-    print()
+            print(f"  {lbl}: {r['status']}")  # noqa: T201
+    print()  # noqa: T201

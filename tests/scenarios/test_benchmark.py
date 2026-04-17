@@ -10,24 +10,24 @@ Run with:
 
 from __future__ import annotations
 
-import json
-import time
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
+import json
 from pathlib import Path
+import time
 from typing import Any
 
 import numpy as np
 import pytest
 
+from custom_components.haeo.coordinator.network import update_element
 from custom_components.haeo.core.adapters.registry import collect_model_elements
 from custom_components.haeo.core.data.forecast_times import generate_forecast_timestamps, tiers_to_periods_seconds
 from custom_components.haeo.core.data.loader.config_loader import load_element_configs
 from custom_components.haeo.core.model.network import Network, SolveOptions
 from custom_components.haeo.core.schema.elements import ElementConfigData, ElementConfigSchema
 from custom_components.haeo.core.state import EntityState
-
 
 # ---------------------------------------------------------------------------
 # Lightweight StateMachine backed by scenario inputs.json
@@ -87,26 +87,32 @@ class PhaseTimings:
 
     @property
     def total_ms(self) -> float:
+        """Total time in milliseconds."""
         return self.total_ns / 1_000_000
 
     @property
     def constraint_ms(self) -> float:
+        """Constraint generation time in milliseconds."""
         return self.constraint_ns / 1_000_000
 
     @property
     def cost_ms(self) -> float:
+        """Cost computation time in milliseconds."""
         return self.cost_ns / 1_000_000
 
     @property
     def phase1_ms(self) -> float:
+        """Phase 1 solve time in milliseconds."""
         return self.phase1_ns / 1_000_000
 
     @property
     def phase2_ms(self) -> float:
+        """Phase 2 solve time in milliseconds."""
         return self.phase2_ns / 1_000_000
 
     @property
     def phase3_ms(self) -> float:
+        """Phase 3 solve time in milliseconds."""
         return self.phase3_ns / 1_000_000
 
 
@@ -239,11 +245,7 @@ def _load_shifted_configs(
 def _discover_scenarios() -> list[Path]:
     scenarios_dir = Path(__file__).parent
     required_files = ("config.json", "environment.json", "inputs.json")
-    return sorted(
-        path
-        for path in scenarios_dir.glob("scenario*/")
-        if all((path / f).exists() for f in required_files)
-    )
+    return sorted(path for path in scenarios_dir.glob("scenario*/") if all((path / f).exists() for f in required_files))
 
 
 _scenarios = _discover_scenarios()
@@ -287,8 +289,6 @@ def _format_timings(label: str, timings_list: list[PhaseTimings]) -> str:
 )
 def test_benchmark(scenario_path: Path) -> None:
     """Benchmark optimization performance using real scenario data."""
-    from custom_components.haeo.coordinator.network import update_element
-
     config, inputs, freeze_timestamp = _load_scenario(scenario_path)
     frozen_dt = datetime.fromisoformat(freeze_timestamp)
     sm = _ScenarioStateMachine(inputs)
@@ -300,9 +300,9 @@ def test_benchmark(scenario_path: Path) -> None:
     n_vars = network._solver.numVariables
     n_rows = network._solver.getNumRow()
 
-    print(f"\n{'='*80}")
-    print(f"  {scenario_path.name}: {n_elements} elements, {n_vars} vars, {n_rows} constraints")
-    print(f"{'='*80}")
+    print(f"\n{'=' * 80}")  # noqa: T201
+    print(f"  {scenario_path.name}: {n_elements} elements, {n_vars} vars, {n_rows} constraints")  # noqa: T201
+    print(f"{'=' * 80}")  # noqa: T201
 
     # --- 1. Initial optimization (cold start) ---
     initial_timings: list[PhaseTimings] = []
@@ -311,7 +311,7 @@ def test_benchmark(scenario_path: Path) -> None:
         t = _timed_optimize(net)
         if i >= WARMUP_ITERATIONS:
             initial_timings.append(t)
-    print(_format_timings("initial (cold)", initial_timings))
+    print(_format_timings("initial (cold)", initial_timings))  # noqa: T201
 
     # --- 2. Reentrant optimization (no changes) ---
     network = _build_network(config, sm, frozen_dt)
@@ -322,7 +322,7 @@ def test_benchmark(scenario_path: Path) -> None:
         t = _timed_optimize(network)
         if i >= WARMUP_ITERATIONS:
             reentrant_timings.append(t)
-    print(_format_timings("reentrant (no-op)", reentrant_timings))
+    print(_format_timings("reentrant (no-op)", reentrant_timings))  # noqa: T201
 
     # --- 3. Update first participant's tracked params ---
     loaded_configs = _load_configs(config, sm, frozen_dt)
@@ -338,7 +338,7 @@ def test_benchmark(scenario_path: Path) -> None:
         t = _timed_optimize(network)
         if i >= WARMUP_ITERATIONS:
             update_timings.append(t)
-    print(_format_timings(f"update ({first_name})", update_timings))
+    print(_format_timings(f"update ({first_name})", update_timings))  # noqa: T201
 
     # --- 4. Full re-update of all elements ---
     network = _build_network(config, sm, frozen_dt)
@@ -351,7 +351,7 @@ def test_benchmark(scenario_path: Path) -> None:
         t = _timed_optimize(network)
         if i >= WARMUP_ITERATIONS:
             all_update_timings.append(t)
-    print(_format_timings("update (all elements)", all_update_timings))
+    print(_format_timings("update (all elements)", all_update_timings))  # noqa: T201
 
     # --- 5. Time shift (shifted forecast times, all params updated) ---
     periods_seconds = tiers_to_periods_seconds(config, start_time=frozen_dt)
@@ -368,6 +368,6 @@ def test_benchmark(scenario_path: Path) -> None:
         t = _timed_optimize(network)
         if i >= WARMUP_ITERATIONS:
             shift_timings.append(t)
-    print(_format_timings("time shift (+1 tick)", shift_timings))
+    print(_format_timings("time shift (+1 tick)", shift_timings))  # noqa: T201
 
-    print(f"{'='*80}\n")
+    print(f"{'=' * 80}\n")  # noqa: T201
