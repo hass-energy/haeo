@@ -62,7 +62,6 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "name": "conn",
                 "source": "s",
                 "target": "t",
-                "priority": 0,
                 "segments": {
                     "efficiency": {"segment_type": "efficiency", "efficiency": [0.95]},
                     "power_limit": {"segment_type": "power_limit", "max_power": [4.0]},
@@ -87,7 +86,6 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "name": "conn_min",
                 "source": "s",
                 "target": "t",
-                "priority": 0,
                 "segments": {
                     "efficiency": {"segment_type": "efficiency", "efficiency": None},
                     "power_limit": {"segment_type": "power_limit", "max_power": None},

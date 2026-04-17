@@ -3,13 +3,7 @@
 from typing import Any
 
 from homeassistant.config_entries import ConfigSubentryFlow, SubentryFlowResult
-from homeassistant.helpers.selector import (
-    BooleanSelector,
-    BooleanSelectorConfig,
-    NumberSelector,
-    NumberSelectorConfig,
-    NumberSelectorMode,
-)
+from homeassistant.helpers.selector import BooleanSelector, BooleanSelectorConfig
 import voluptuous as vol
 
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
@@ -22,13 +16,10 @@ from custom_components.haeo.core.schema.elements.connection import (
     CONF_MIRROR_SEGMENT_ORDER,
     CONF_PRICE_SOURCE_TARGET,
     CONF_PRICE_TARGET_SOURCE,
-    CONF_PRIORITY,
     CONF_SOURCE,
     CONF_TARGET,
-    DEFAULTS,
     ELEMENT_TYPE,
     SECTION_ENDPOINTS,
-    SECTION_PRIORITY,
     SECTION_SEGMENT_ORDER,
 )
 from custom_components.haeo.elements import get_input_field_schema_info, get_input_fields
@@ -86,16 +77,6 @@ def _build_segment_order_fields() -> dict[str, tuple[vol.Marker, Any]]:
     }
 
 
-def _build_priority_fields() -> dict[str, tuple[vol.Marker, Any]]:
-    """Build priority field entries for config flows."""
-    return {
-        CONF_PRIORITY: (
-            vol.Optional(CONF_PRIORITY),
-            NumberSelector(NumberSelectorConfig(min=0, step=1, mode=NumberSelectorMode.BOX)),
-        )
-    }
-
-
 class ConnectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
     """Handle connection element configuration flows."""
 
@@ -103,7 +84,6 @@ class ConnectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         """Return sections for the configuration step."""
         return (
             SectionDefinition(key=SECTION_ENDPOINTS, fields=(CONF_SOURCE, CONF_TARGET), collapsed=False),
-            SectionDefinition(key=SECTION_PRIORITY, fields=(CONF_PRIORITY,), collapsed=True),
             SectionDefinition(key=SECTION_SEGMENT_ORDER, fields=(CONF_MIRROR_SEGMENT_ORDER,), collapsed=True),
             power_limits_section((CONF_MAX_POWER_SOURCE_TARGET, CONF_MAX_POWER_TARGET_SOURCE), collapsed=False),
             pricing_section((CONF_PRICE_SOURCE_TARGET, CONF_PRICE_TARGET_SOURCE), collapsed=False),
@@ -193,7 +173,6 @@ class ConnectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             top_level_entries=build_common_fields(include_connection=False),
             extra_field_entries={
                 SECTION_ENDPOINTS: _build_endpoints_fields(participants, current_source, current_target),
-                SECTION_PRIORITY: _build_priority_fields(),
                 SECTION_SEGMENT_ORDER: _build_segment_order_fields(),
             },
         )
@@ -209,7 +188,6 @@ class ConnectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         """Build default values for the form."""
         endpoints_data = subentry_data.get(SECTION_ENDPOINTS, {}) if subentry_data else {}
         segment_order_data = subentry_data.get(SECTION_SEGMENT_ORDER, {}) if subentry_data else {}
-        priority_data = subentry_data.get(SECTION_PRIORITY, {}) if subentry_data else {}
         source_default = (
             source_default
             if source_default is not None
@@ -237,9 +215,6 @@ class ConnectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                     },
                     SECTION_SEGMENT_ORDER: {
                         CONF_MIRROR_SEGMENT_ORDER: bool(segment_order_data.get(CONF_MIRROR_SEGMENT_ORDER, False)),
-                    },
-                    SECTION_PRIORITY: {
-                        CONF_PRIORITY: priority_data.get(CONF_PRIORITY, DEFAULTS[CONF_PRIORITY]),
                     },
                 },
             ),
@@ -291,9 +266,6 @@ class ConnectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         config_dict[SECTION_SEGMENT_ORDER] = {
             CONF_MIRROR_SEGMENT_ORDER: bool(segment_order_config.get(CONF_MIRROR_SEGMENT_ORDER, False)),
         }
-        priority_config = config_dict.get(SECTION_PRIORITY, {})
-        if CONF_PRIORITY in priority_config:
-            priority_config[CONF_PRIORITY] = int(priority_config[CONF_PRIORITY])
 
         return {
             CONF_ELEMENT_TYPE: ELEMENT_TYPE,

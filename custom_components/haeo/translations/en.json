@@ -237,7 +237,6 @@
               },
               "name": "Pricing"
             },
-            "priority": { "data": { "priority": "Priority" }, "name": "Priority" },
             "segment_order": { "data": { "mirror_segment_order": "Mirror segment order" }, "name": "Segment order" }
           }
         }
