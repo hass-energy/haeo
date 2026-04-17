@@ -91,6 +91,8 @@ class HaeoSensor(CoordinatorEntity[HaeoDataUpdateCoordinator], SensorEntity):
                 attributes["output_type"] = self._output_type
                 if output_data.direction is not None:
                     attributes["direction"] = output_data.direction
+                if output_data.priority is not None:
+                    attributes["priority"] = output_data.priority
                 attributes["advanced"] = output_data.advanced
                 self._apply_output(output_data)
                 if output_data.state is not None:

@@ -195,10 +195,6 @@ class Network:
 
             source_element.register_connection(element_instance, "source")
             target_element.register_connection(element_instance, "target")
-            # Assign unique connection index for deterministic time preference
-            element_instance.connection_index = sum(
-                1 for e in self.elements.values() if isinstance(e, Connection) and e is not element_instance
-            )
             element_instance.set_endpoints(source_element, target_element)
 
         return element_instance

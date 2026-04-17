@@ -48,6 +48,7 @@ class ConnectionElementConfig(TypedDict):
     name: str
     source: str
     target: str
+    priority: NotRequired[int]
     segments: NotRequired[dict[str, SegmentSpec]]
     tags: NotRequired[set[int]]
     tag_costs: NotRequired[list[dict[str, Any]]]
@@ -69,6 +70,7 @@ class Connection[TOutputName: str](Element[TOutputName]):
         solver: Highs,
         source: str,
         target: str,
+        priority: int = 0,
         segments: dict[str, SegmentSpec] | None = None,
         output_names: frozenset[TOutputName] | None = None,
         tags: set[int] | None = None,
@@ -86,7 +88,7 @@ class Connection[TOutputName: str](Element[TOutputName]):
         self._target = target
         self._source_element: Element[Any] | None = None
         self._target_element: Element[Any] | None = None
-        self.connection_index = 0
+        self.priority = priority
 
         self._segment_specs: OrderedDict[str, SegmentSpec] = OrderedDict(segments or {})
         self._segments: OrderedDict[str, Segment] = OrderedDict()
@@ -258,7 +260,7 @@ class Connection[TOutputName: str](Element[TOutputName]):
 
     def _time_preference_objective(self) -> highs_linear_expression | None:
         """Return secondary objective that prefers earlier energy transfer."""
-        weights = time_preference_weights(self.periods, self.connection_index)
+        weights = time_preference_weights(self.periods, self.priority)
         energy = self.total_power_in * self.periods
         return Highs.qsum(energy * weights)
 
@@ -281,6 +283,7 @@ class Connection[TOutputName: str](Element[TOutputName]):
             unit="kW",
             values=self.extract_values(self.total_power_in),
             direction="+",
+            priority=self.priority,
         )
 
     @output(name=CONNECTION_SEGMENTS)

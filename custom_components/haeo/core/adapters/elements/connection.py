@@ -15,8 +15,11 @@ from custom_components.haeo.core.schema.elements.connection import (
     CONF_EFFICIENCY_SOURCE_TARGET,
     CONF_MAX_POWER_SOURCE_TARGET,
     CONF_PRICE_SOURCE_TARGET,
+    CONF_PRIORITY,
+    DEFAULTS,
     ELEMENT_TYPE,
     SECTION_ENDPOINTS,
+    SECTION_PRIORITY,
     ConnectionConfigData,
 )
 from custom_components.haeo.core.schema.sections import SECTION_EFFICIENCY, SECTION_POWER_LIMITS, SECTION_PRICING
@@ -41,12 +44,15 @@ class ConnectionAdapter:
 
     def model_elements(self, config: ConnectionConfigData) -> list[ModelElementConfig]:
         """Return model element parameters for Connection configuration."""
+        priority_section = config.get(SECTION_PRIORITY, {})
+        priority = priority_section.get(CONF_PRIORITY, DEFAULTS[CONF_PRIORITY])
         return [
             {
                 "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
                 "name": config["name"],
                 "source": extract_connection_target(config[SECTION_ENDPOINTS]["source"]),
                 "target": extract_connection_target(config[SECTION_ENDPOINTS]["target"]),
+                "priority": priority,
                 "segments": {
                     "efficiency": {
                         "segment_type": "efficiency",

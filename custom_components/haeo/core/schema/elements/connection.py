@@ -29,11 +29,17 @@ from custom_components.haeo.core.schema.sections import (
 ELEMENT_TYPE = ElementType.CONNECTION
 
 SECTION_ENDPOINTS: Final = "endpoints"
+SECTION_PRIORITY: Final = "priority"
 SECTION_SEGMENT_ORDER: Final = "segment_order"
 
 CONF_SOURCE: Final = "source"
 CONF_TARGET: Final = "target"
+CONF_PRIORITY: Final = "priority"
 CONF_MIRROR_SEGMENT_ORDER: Final = "mirror_segment_order"
+
+DEFAULTS: Final[dict[str, int]] = {
+    CONF_PRIORITY: 0,
+}
 
 OPTIONAL_INPUT_FIELDS: Final[frozenset[str]] = frozenset(
     {
@@ -61,6 +67,18 @@ class EndpointsData(TypedDict):
     target: ConnectionTarget
 
 
+class PriorityConfig(TypedDict, total=False):
+    """Priority configuration for time-preference ordering."""
+
+    priority: int
+
+
+class PriorityData(TypedDict, total=False):
+    """Loaded priority values."""
+
+    priority: int
+
+
 class SegmentOrderConfig(TypedDict, total=False):
     """Segment order configuration values."""
 
@@ -78,6 +96,7 @@ class ConnectionConfigSchema(CommonConfig):
 
     element_type: Literal[ElementType.CONNECTION]
     endpoints: EndpointsConfig
+    priority: NotRequired[PriorityConfig]
     segment_order: NotRequired[SegmentOrderConfig]
     power_limits: Annotated[
         PowerLimitsConfig,
@@ -133,6 +152,7 @@ class ConnectionConfigData(CommonData):
 
     element_type: Literal[ElementType.CONNECTION]
     endpoints: EndpointsData
+    priority: NotRequired[PriorityData]
     segment_order: NotRequired[SegmentOrderData]
     power_limits: PowerLimitsData
     pricing: PricingData
@@ -147,19 +167,24 @@ __all__ = [
     "CONF_MIRROR_SEGMENT_ORDER",
     "CONF_PRICE_SOURCE_TARGET",
     "CONF_PRICE_TARGET_SOURCE",
+    "CONF_PRIORITY",
     "CONF_SOURCE",
     "CONF_TARGET",
+    "DEFAULTS",
     "ELEMENT_TYPE",
     "OPTIONAL_INPUT_FIELDS",
     "SECTION_EFFICIENCY",
     "SECTION_ENDPOINTS",
     "SECTION_POWER_LIMITS",
     "SECTION_PRICING",
+    "SECTION_PRIORITY",
     "SECTION_SEGMENT_ORDER",
     "ConnectionConfigData",
     "ConnectionConfigSchema",
     "EndpointsConfig",
     "EndpointsData",
+    "PriorityConfig",
+    "PriorityData",
     "SegmentOrderConfig",
     "SegmentOrderData",
 ]
