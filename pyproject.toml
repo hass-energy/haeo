@@ -169,6 +169,7 @@ addopts = ["--strict-markers", "--strict-config", "--import-mode=importlib"]
 filterwarnings = ["error"]
 markers = [
     "scenario: marks tests as scenario tests (select with '-m \"scenario\"')",
+    "benchmark: marks tests as benchmark tests (select with '-m \"benchmark\"')",
     "guide: marks tests as guide screenshot tests (select with '-m \"guide\"')",
     "enable_socket: marks tests that need real socket access",
 ]

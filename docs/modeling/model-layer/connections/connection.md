@@ -93,17 +93,19 @@ Connections also contribute a time-preference term to the secondary objective (i
 This term weights energy transfer with monotonically increasing per-period weights:
 
 $$
-w_{c,t} = c \cdot T + (t + 1)
+w_{p,t} = p \cdot T + (t + 1)
 $$
 
-Where $c$ is the connection index, $T$ is the number of periods, and $t$ is the time step.
-The time-preference objective for connection $c$ is:
+Where $p$ is the connection's priority (auto-computed from endpoint element types), $T$ is the number of periods, and $t$ is the time step.
+The time-preference objective for a connection with priority $p$ is:
 
 $$
-\sum_{t=0}^{T-1} w_{c,t} \cdot P_{\text{in}}(t) \cdot \Delta t_t
+\sum_{t=0}^{T-1} w_{p,t} \cdot P_{\text{in}}(t) \cdot \Delta t_t
 $$
 
-Each connection receives a unique range of weights, preventing primal degeneracy when multiple connections share a node and have equal marginal cost at the same time step.
+Connections with different priorities receive non-overlapping weight ranges.
+Lower-priority connections are preferred when breaking ties, which the optimizer uses to select among cost-equivalent solutions.
+Connections with the same priority share a weight range, so ties between them are broken by time step only.
 
 The secondary objective does not affect the minimum cost—it only selects among cost-equivalent solutions.
 The network solves this lexicographically: primary cost is minimized first, then the secondary objective is minimized subject to the primary remaining optimal.

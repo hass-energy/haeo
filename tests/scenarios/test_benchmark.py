@@ -279,7 +279,7 @@ def _format_timings(label: str, timings_list: list[PhaseTimings]) -> str:
     )
 
 
-@pytest.mark.scenario
+@pytest.mark.benchmark
 @pytest.mark.timeout(120)
 @pytest.mark.parametrize(
     "scenario_path",

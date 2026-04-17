@@ -180,7 +180,7 @@ def sweep_data() -> tuple[dict[str, Any], _ScenarioStateMachine, datetime]:
     return config, _ScenarioStateMachine(inputs), datetime.fromisoformat(freeze_timestamp)
 
 
-@pytest.mark.scenario
+@pytest.mark.benchmark
 @pytest.mark.timeout(60)
 @pytest.mark.parametrize(
     "case",
@@ -197,7 +197,7 @@ def test_sweep_case(
     _results.append((case.label, result))
 
 
-@pytest.mark.scenario
+@pytest.mark.benchmark
 def test_zsweep_summary() -> None:
     """Print accumulated sweep results as a sortable table.
 

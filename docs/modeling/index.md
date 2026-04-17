@@ -84,16 +84,13 @@ The network collects these contributions and minimizes total cost (the primary o
 
 **Phase 2: Minimize secondary objective**
 
-The primary objective is constrained to its optimal value (within a small epsilon), and the solver minimizes the secondary time-preference objective.
+The primary objective is constrained to its optimal value, and the solver minimizes the secondary time-preference objective.
 This breaks ties among cost-equivalent solutions by preferring earlier energy transfers.
 
 **Phase 3: Restore primary duals**
 
-The secondary objective is constrained to its optimal value, and the solver re-minimizes the primary objective.
-This restores dual values (shadow prices) that reflect primary-cost sensitivities at the lexicographically optimal point.
-
-After the initial three-phase solve, subsequent optimizations use a warm-start check.
-If the solver confirms that the current basis is still optimal with no iterations needed and the primary objective value is unchanged, all three phases are skipped.
+The secondary objective is constrained to its optimal value (with a small epsilon slack), and the solver re-minimizes the primary objective.
+The epsilon ensures the lexicographic constraint has guaranteed slack at the optimum, making shadow prices reflect pure primary-cost sensitivities without constraint contamination.
 
 ### Solution Outcomes
 
@@ -251,8 +248,8 @@ $$
 \text{minimize} \sum_{\text{connections}} \sum_{t=0}^{T-1} w_{c,t} \cdot E_c(t)
 $$
 
-Where $w_{c,t} = c \cdot T + (t + 1)$ assigns monotonically increasing weights per connection $c$ and time step $t$, and $E_c(t)$ is the energy transferred through connection $c$ at time $t$.
-The unique-per-connection weighting prevents primal degeneracy when multiple connections share a node.
+Where $w_{p,t} = p \cdot T + (t + 1)$ assigns monotonically increasing weights per priority level $p$ and time step $t$, and $E_c(t)$ is the energy transferred through connection $c$ at time $t$.
+Priority is auto-computed from endpoint element types so that connections with different roles receive non-overlapping weight ranges.
 
 The secondary objective does not affect the optimal cost—it only selects among cost-equivalent solutions for deterministic, physically intuitive schedules.
 
