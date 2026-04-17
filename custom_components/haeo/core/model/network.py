@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass, field
 import logging
-from typing import Any, overload
+from typing import Any, Literal, overload
 
 from highspy import Highs, HighsModelStatus, ObjSense
 from highspy.highs import highs_cons, highs_linear_expression
@@ -17,8 +17,65 @@ from .elements.node import Node, NodeElementConfig
 
 _LOGGER = logging.getLogger(__name__)
 
-# HiGHS default simplex iteration limit (max int32)
-_SIMPLEX_ITERATION_LIMIT = 2147483647
+
+ObjectiveMode = Literal["lex", "blended", "calibrated"]
+SolverChoice = Literal["simplex", "ipm", "pdlp", "choose"]
+OnOffChoose = Literal["on", "off", "choose"]
+
+
+@dataclass(frozen=True)
+class SolveOptions:
+    """Options controlling Network optimization behavior.
+
+    Combines our own multi-objective strategy with a curated set of HiGHS
+    solver options that influence performance on this LP.
+
+    See https://www.gams.com/latest/docs/S_HIGHS.html#HIGHS_OPTIONS for
+    the underlying HiGHS option semantics.
+    """
+
+    # --- Multi-objective strategy (HAEO) ---
+    # "lex" runs three solves (P1 primary, P2 secondary | P1, P3 primary | P2+e).
+    # "blended" runs a single solve on (primary + blend_weight * secondary).
+    # "calibrated" does a lex solve on first call, then binary-searches for
+    # the largest blend weight that reproduces the lex primary within
+    # tolerance. Subsequent calls use blended mode with that weight.
+    mode: ObjectiveMode = "lex"
+    # Weight applied to the secondary objective in blended mode. Ignored
+    # in calibrated mode (auto-determined). Should be small enough that
+    # the secondary never overrides the primary at the scale of typical
+    # problem coefficients.
+    blend_weight: float = 1e-3
+    # Relative tolerance on primary decision variable values for
+    # calibrated mode's weight search. The calibration checks that
+    # blended mode reproduces lex primary variable values within this
+    # fraction of the largest variable magnitude.
+    calibration_tolerance: float = 1e-4
+
+    # --- HiGHS algorithm selection ---
+    # "simplex" is best for warm-starts; "ipm" / "pdlp" do not warm-start.
+    solver: SolverChoice = "choose"
+    # 1=dual, 2=dual+task, 3=dual+multi, 4=primal.
+    # Primal simplex re-optimizes faster between lex phases since the
+    # basis remains primal-feasible across constraint relaxations.
+    simplex_strategy: int = 4
+    # \"choose\" lets HiGHS skip presolve on warm-starts; \"on\" forces it.
+    presolve: OnOffChoose = "choose"
+    # \"choose\" enables parallel only for large problems.
+    parallel: OnOffChoose = "choose"
+    # 0=off, 1=basic, 2=equilibration, 4=forced equilibration.
+    simplex_scale_strategy: int = 2
+    # Crossover from interior point to a basic solution (ipm/pdlp only).
+    run_crossover: OnOffChoose = "on"
+
+    def apply(self, solver: Highs) -> None:
+        """Apply HiGHS-tunable options to the given solver."""
+        solver.setOptionValue("solver", self.solver)
+        solver.setOptionValue("simplex_strategy", self.simplex_strategy)
+        solver.setOptionValue("presolve", self.presolve)
+        solver.setOptionValue("parallel", self.parallel)
+        solver.setOptionValue("simplex_scale_strategy", self.simplex_scale_strategy)
+        solver.setOptionValue("run_crossover", self.run_crossover)
 
 
 @dataclass
@@ -37,12 +94,13 @@ class Network:
     name: str
     periods: NDArray[np.floating[Any]]  # Period durations in hours (one per optimization interval)
     elements: dict[str, Element[Any]] = field(default_factory=dict)
+    options: SolveOptions = field(default_factory=SolveOptions)
     _solver: Highs = field(default_factory=Highs, repr=False)
     _lex_constraint: highs_cons | None = field(default=None, init=False, repr=False)
-    _cached_primary_value: float | None = field(default=None, init=False, repr=False)
+    _calibrated_weight: float | None = field(default=None, init=False, repr=False)
 
     def __post_init__(self) -> None:
-        """Set up the solver with logging callback."""
+        """Set up the solver with logging callback and configured options."""
         self.periods = np.asarray(self.periods, dtype=float)
         # Redirect HiGHS logging to Python logger at debug level
         self._solver.cbLogging += self._log_callback
@@ -51,6 +109,9 @@ class Network:
         output_off = False
         self._solver.setOptionValue("output_flag", output_off)
         self._solver.setOptionValue("log_to_console", output_off)
+
+        # Apply tunable solver options
+        self.options.apply(self._solver)
 
     @staticmethod
     def _log_callback(_log_type: int, message: str) -> None:
@@ -173,6 +234,16 @@ class Network:
         this builds all constraints. On subsequent calls, only invalidated constraints are
         rebuilt (those whose TrackedParam dependencies have changed).
 
+        Uses a lexicographic approach for multi-objective problems:
+        1. Phase 1: minimize primary objective (lex constraint relaxed)
+        2. Phase 2: minimize secondary objective (primary constrained to optimal)
+        3. Phase 3: re-minimize primary (secondary constrained with epsilon slack)
+
+        Phase 3 adds a small epsilon to the secondary bound so the lex
+        constraint has guaranteed slack at the optimum. This makes the lex
+        dual structurally zero: shadow prices reflect pure primary
+        sensitivities without lex constraint contamination.
+
         Returns:
             The total optimization cost
 
@@ -215,30 +286,23 @@ class Network:
             _ensure_optimal(h)
             return 0.0
 
-        # Set primary objective
+        # Calibrated mode with an existing weight uses blended fast path.
+        use_blended = (
+            self.options.mode == "blended"
+            or (self.options.mode == "calibrated" and self._calibrated_weight is not None)
+        )
+
+        if use_blended and secondary is not None:
+            weight = (
+                self._calibrated_weight
+                if self.options.mode == "calibrated"
+                else self.options.blend_weight
+            )
+            assert weight is not None  # guarded by use_blended condition
+            return self._solve_blended(h, all_col_indices, cost_vectors, weight)
+
+        # --- Lexicographic solve (also used for calibrated-mode first call) ---
         _set_cost_vector(h, all_col_indices, cost_vectors[0])
-
-        # Fast path: after phase 3 of the previous optimization, the solver
-        # state is primary-optimal with the lex constraint binding the
-        # secondary. HiGHS preserves this basis across model coefficient
-        # updates, so running with iteration limit 0 verifies optimality
-        # without doing any work when nothing has changed.
-        #
-        # The iteration limit prevents wasted work on cache miss. The value
-        # comparison catches cases where constraint/bound changes leave the
-        # current vertex feasible but the stale lex constraint masks a
-        # changed optimum.
-        if (cached := self._cached_primary_value) is not None:
-            h.setOptionValue("simplex_iteration_limit", 0)
-            try:
-                h.run()
-            finally:
-                h.setOptionValue("simplex_iteration_limit", _SIMPLEX_ITERATION_LIMIT)
-
-            if h.getModelStatus() == HighsModelStatus.kOptimal and abs(
-                (value := h.getObjectiveValue()) - cached
-            ) < _objective_epsilon(value):
-                return value
 
         # --- Phase 1: Minimize primary (lex constraint relaxed) ---
         self._relax_lex_constraint()
@@ -253,18 +317,145 @@ class Network:
             secondary_value = _ensure_optimal(h)
 
             # --- Phase 3: Re-minimize primary (swap constraint to secondary) ---
-            # Pinning the secondary value fixes the primal at the lex-optimal
-            # point. Re-minimizing the primary gives duals that represent
-            # primary objective sensitivities at that point.
-            self._constrain_objective(secondary, secondary_value)
+            epsilon = _lex_epsilon(secondary_value)
+            self._constrain_objective(secondary, secondary_value + epsilon)
             _set_cost_vector(h, all_col_indices, cost_vectors[0])
             h.run()
             _ensure_optimal(h)
 
-            # Cache the primary value for the warm-start check.
-            self._cached_primary_value = primary_value
+        # After lex solve, calibrate the blend weight for future calls.
+        if self.options.mode == "calibrated" and secondary is not None:
+            lex_values = np.asarray(h.allVariableValues())
+            self._calibrated_weight = self._calibrate_blend_weight(
+                all_col_indices, cost_vectors, lex_values,
+                self.options.calibration_tolerance,
+            )
 
         return primary_value
+
+    def _solve_blended(
+        self,
+        h: Highs,
+        all_col_indices: NDArray[np.int32],
+        cost_vectors: list[NDArray[np.float64]],
+        weight: float,
+    ) -> float:
+        """Single-solve weighted sum: primary + weight * secondary."""
+        self._relax_lex_constraint()
+        blended = cost_vectors[0] + weight * cost_vectors[1]
+        _set_cost_vector(h, all_col_indices, blended)
+        h.run()
+        _ensure_optimal(h)
+        return float(cost_vectors[0] @ np.asarray(h.allVariableValues()))
+
+    def _calibrate_blend_weight(
+        self,
+        all_col_indices: NDArray[np.int32],
+        cost_vectors: list[NDArray[np.float64]],
+        lex_values: NDArray[np.float64],
+        tolerance: float,
+    ) -> float:
+        """Find the center of the safe weight zone for blended mode.
+
+        Performs two binary searches in log10 space to locate the upper
+        and lower boundaries where blended mode reproduces the lex
+        primary decision variable values.  Returns the geometric mean
+        (midpoint in log space) to maximize robustness against problem
+        perturbations.
+
+        The blended objective for variable *i* is
+        ``c1_i + w * c2_i``.  Since the perturbation scales linearly
+        with *w*, equal multiplicative changes in *w* produce equal
+        effects on the solution — so log space is the natural coordinate
+        for both searching and centering.
+
+        The "safe zone" is the weight range where the LP solver lands on
+        the same vertex as lex for all primary variables.  Centering
+        within this zone provides maximum margin against coefficient
+        changes shifting the boundary.
+        """
+        h = self._solver
+
+        # Primary variable indices: nonzero coefficient in primary cost vector.
+        pri_mask = cost_vectors[0] != 0
+        lex_pri = lex_values[pri_mask]
+
+        # Absolute tolerance scaled to variable magnitudes.
+        abs_tol = max(1e-8, float(np.max(np.abs(lex_pri))) * tolerance)
+
+        def _primary_vars_match(log_w: float) -> bool:
+            w = 10.0**log_w
+            self._relax_lex_constraint()
+            blended = cost_vectors[0] + w * cost_vectors[1]
+            _set_cost_vector(h, all_col_indices, blended)
+            h.run()
+            if h.getModelStatus() != HighsModelStatus.kOptimal:
+                return False
+            bl_vals = np.asarray(h.allVariableValues())
+            max_diff = float(np.max(np.abs(bl_vals[pri_mask] - lex_pri)))
+            return max_diff <= abs_tol
+
+        lo, hi = _CAL_LOG_LO, _CAL_LOG_HI
+        half_budget = _CAL_MAX_STEPS // 2
+
+        # --- Find upper edge: highest weight where primary vars match ---
+        if _primary_vars_match(hi):
+            upper = hi
+        elif not _primary_vars_match(lo):
+            _LOGGER.warning(
+                "Calibration: primary vars don't match even at w=1e%g", lo,
+            )
+            # Restore lex solution and fall back.
+            _set_cost_vector(h, all_col_indices, cost_vectors[0])
+            self._relax_lex_constraint()
+            h.run()
+            _ensure_optimal(h)
+            return 10.0**lo
+        else:
+            # lo is good, hi is bad — bisect to find upper boundary.
+            u_lo, u_hi = lo, hi
+            for _ in range(half_budget):
+                if u_hi - u_lo < _CAL_CONVERGENCE:
+                    break
+                mid = (u_lo + u_hi) / 2
+                if _primary_vars_match(mid):
+                    u_lo = mid
+                else:
+                    u_hi = mid
+            upper = u_lo
+
+        # --- Find lower edge: lowest weight where primary vars match ---
+        if upper == lo or _primary_vars_match(lo):
+            lower = lo
+        else:
+            # upper is good, lo is bad — bisect to find lower boundary.
+            l_lo, l_hi = lo, upper
+            for _ in range(half_budget):
+                if l_hi - l_lo < _CAL_CONVERGENCE:
+                    break
+                mid = (l_lo + l_hi) / 2
+                if _primary_vars_match(mid):
+                    l_hi = mid
+                else:
+                    l_lo = mid
+            lower = l_hi
+
+        center = (upper + lower) / 2
+        weight = 10.0**center
+
+        _LOGGER.debug(
+            "Calibrated blend weight: %.2e (log10=%.2f, safe zone [%.1f, %.1f])",
+            weight, center, lower, upper,
+        )
+
+        # Final solve at center weight to warm-start future blended calls.
+        self._relax_lex_constraint()
+        blended = cost_vectors[0] + weight * cost_vectors[1]
+        _set_cost_vector(h, all_col_indices, blended)
+        h.run()
+        _ensure_optimal(h)
+
+        return weight
 
     def _constrain_objective(
         self,
@@ -272,8 +463,7 @@ class Network:
         optimal_value: float,
     ) -> None:
         """Set the single lex constraint to bound the given objective."""
-        epsilon = _objective_epsilon(optimal_value)
-        constraint_expr = objective <= (optimal_value + epsilon)
+        constraint_expr = objective <= optimal_value
 
         if self._lex_constraint is None:
             self._lex_constraint = self._solver.addConstr(constraint_expr)
@@ -344,11 +534,6 @@ def _combine_objective_lists(
     return combined
 
 
-def _objective_epsilon(value: float) -> float:
-    """Return a small epsilon for lexicographic objective constraints."""
-    return max(1e-6, abs(value) * 1e-9)
-
-
 def _clear_linear_objectives(solver: Highs) -> None:
     """Clear any multiobjective state."""
     solver.clearLinearObjectives()
@@ -392,3 +577,25 @@ def _ensure_optimal(solver: Highs) -> float:
         msg = f"Optimization failed with status: {solver.modelStatusToString(status)}"
         raise ValueError(msg)
     return solver.getObjectiveValue()
+
+
+def _lex_epsilon(value: float) -> float:
+    """Compute a small slack for the Phase 3 lex constraint.
+
+    The epsilon must be large enough to guarantee the constraint has slack
+    (making the dual structurally zero) but small enough not to
+    meaningfully shift the optimal vertex. A relative tolerance scaled by
+    the objective magnitude achieves this.
+    """
+    return max(1e-6, abs(value) * 1e-6)
+
+
+# Calibration search bounds in log10 space.  The secondary objective can
+# be many orders of magnitude larger than the primary, so we need a wide
+# range.  1e-12 is effectively zero influence; 1e-1 would dominate.
+_CAL_LOG_LO = -12.0
+_CAL_LOG_HI = -1.0
+_CAL_MAX_STEPS = 40  # total bisection budget split across upper/lower searches
+_CAL_CONVERGENCE = 0.01  # stop bisection when interval < this (log10 decades)
+
+
