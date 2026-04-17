@@ -10,11 +10,15 @@ from syrupy.extensions.json import JSONSnapshotExtension
 from syrupy.location import PyTestLocation
 from syrupy.types import SerializableData, SerializedData, SnapshotIndex
 
+from custom_components.haeo.core.model.const import OutputType
+
 
 def _collect_diffs(
     received: Any,
     snapshot: Any,
     path: str = "",
+    *,
+    skip_keys: frozenset[str] | None = None,
 ) -> list[tuple[str, Any, Any]]:
     """Recursively collect paths where received and snapshot values differ."""
     diffs: list[tuple[str, Any, Any]] = []
@@ -31,6 +35,8 @@ def _collect_diffs(
 
     if isinstance(received, Mapping) and isinstance(snapshot, Mapping):
         all_keys = set(received) | set(snapshot)
+        if skip_keys:
+            all_keys -= skip_keys
         for key in sorted(all_keys, key=str):
             key_path = f"{path}.{key}" if path else str(key)
             if key not in snapshot:
@@ -211,14 +217,40 @@ class ScenarioJSONExtension(JSONSnapshotExtension):
         with outputs_file.open() as f:
             return json.load(f)
 
+    @staticmethod
+    def _unstable_output_keys(*datasets: SerializableData) -> frozenset[str]:
+        """Collect top-level keys whose output_type is numerically unstable across platforms.
+
+        Shadow prices (LP dual values) depend on the solver basis and can
+        differ between platforms even when primal variables are identical.
+        """
+        unstable_types = frozenset({OutputType.SHADOW_PRICE})
+        keys: set[str] = set()
+        for data in datasets:
+            if isinstance(data, Mapping):
+                for key, value in data.items():
+                    if (
+                        isinstance(value, Mapping)
+                        and isinstance(value.get("attributes"), Mapping)
+                        and value["attributes"].get("output_type") in unstable_types
+                    ):
+                        keys.add(key)
+        return frozenset(keys)
+
     def matches(
         self,
         *,
         serialized_data: SerializableData,
         snapshot_data: SerializableData,
     ) -> bool:
-        """Compare serialized data with snapshot using approximate float comparison."""
-        return approx_equal(serialized_data, snapshot_data)
+        """Compare serialized data with snapshot using approximate float comparison.
+
+        Sensors with numerically unstable output types (e.g. shadow prices)
+        are excluded because dual values depend on solver internals and can
+        differ across platforms.
+        """
+        skip = self._unstable_output_keys(serialized_data, snapshot_data)
+        return not _collect_diffs(serialized_data, snapshot_data, skip_keys=skip)
 
     def diff_lines(
         self,
@@ -226,7 +258,8 @@ class ScenarioJSONExtension(JSONSnapshotExtension):
         snapshot_data: SerializedData,
     ) -> Iterator[str]:
         """Produce a structured diff showing only values that differ."""
-        diffs = _collect_diffs(serialized_data, snapshot_data)
+        skip = self._unstable_output_keys(serialized_data, snapshot_data)
+        diffs = _collect_diffs(serialized_data, snapshot_data, skip_keys=skip)
         if not diffs:
             yield "No differences found (approx_equal passes but exact equality fails)"
             return
