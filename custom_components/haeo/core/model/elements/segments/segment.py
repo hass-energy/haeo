@@ -19,7 +19,7 @@ from highspy.highs import HighspyArray, highs_cons, highs_linear_expression
 import numpy as np
 from numpy.typing import NDArray
 
-from custom_components.haeo.core.model.element import Element
+from custom_components.haeo.core.model.element import Element, _combine_objective_lists
 from custom_components.haeo.core.model.output_data import OutputData
 from custom_components.haeo.core.model.reactive import OutputMethod, ReactiveConstraint, ReactiveCost, TrackedParam
 
@@ -145,7 +145,7 @@ class Segment:
             List of objective expressions or None if no costs
 
         """
-        costs: list[list[highs_linear_expression]] = []
+        costs: list[list[highs_linear_expression | None]] = []
         for name in dir(type(self)):
             attr = getattr(type(self), name, None)
             if not isinstance(attr, ReactiveCost):
@@ -153,7 +153,7 @@ class Segment:
             method = getattr(self, name)
             if (cost_value := method()) is not None:
                 if isinstance(cost_value, list):
-                    costs.append([item for item in cost_value if item is not None])
+                    costs.append(cost_value)
                 else:
                     costs.append([cost_value])
 
@@ -162,23 +162,6 @@ class Segment:
 
         combined = _combine_objective_lists(costs)
         return combined or None
-
-
-def _combine_objective_lists(
-    objectives: list[list[highs_linear_expression]],
-) -> list[highs_linear_expression | None]:
-    """Combine objective expression lists by summing expressions at each index."""
-    max_len = max((len(items) for items in objectives), default=0)
-    combined: list[highs_linear_expression | None] = []
-    for index in range(max_len):
-        terms = [items[index] for items in objectives if len(items) > index]
-        if not terms:
-            combined.append(None)
-        elif len(terms) == 1:
-            combined.append(terms[0])
-        else:
-            combined.append(Highs.qsum(terms))
-    return combined
 
 
 __all__ = ["Segment"]

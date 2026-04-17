@@ -18,7 +18,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 from custom_components.haeo.core.model.const import OutputType
-from custom_components.haeo.core.model.element import Element
+from custom_components.haeo.core.model.element import Element, _combine_objective_lists
 from custom_components.haeo.core.model.output_data import OutputData
 from custom_components.haeo.core.model.reactive import output
 from custom_components.haeo.core.model.util import broadcast_to_sequence, time_preference_weights
@@ -303,24 +303,6 @@ class Connection[TOutputName: str](Element[TOutputName]):
         if key in self._segments:
             return self._segments[key]
         return super().__getitem__(key)
-
-
-def _combine_objective_lists(
-    objectives: list[list[highs_linear_expression | None]],
-) -> list[highs_linear_expression | None]:
-    """Combine objective expression lists by summing expressions at each index."""
-    max_len = max((len(items) for items in objectives), default=0)
-    combined: list[highs_linear_expression | None] = []
-    for index in range(max_len):
-        candidates = [items[index] for items in objectives if len(items) > index]
-        terms = [t for t in candidates if t is not None]
-        if not terms:
-            combined.append(None)
-        elif len(terms) == 1:
-            combined.append(terms[0])
-        else:
-            combined.append(Highs.qsum(terms))
-    return combined
 
 
 __all__ = [

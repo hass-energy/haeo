@@ -9,7 +9,7 @@ from highspy.highs import highs_cons, highs_linear_expression
 import numpy as np
 from numpy.typing import NDArray
 
-from .element import Element, NetworkElement
+from .element import Element, NetworkElement, _combine_objective_lists
 from .elements import ELEMENTS, ModelElementConfig
 from .elements.battery import Battery, BatteryElementConfig
 from .elements.connection import Connection, ConnectionElementConfig, ConnectionOutputName
@@ -277,6 +277,8 @@ class Network:
         secondary = objectives[1] if len(objectives) > 1 else None
 
         if primary is None:
+            if secondary is not None:
+                _set_cost_vector(h, all_col_indices, cost_vectors[1])
             self._relax_lex_constraint()
             h.run()
             _ensure_optimal(h)
@@ -511,24 +513,6 @@ class Network:
             if element_constraints := element.constraints():
                 result[element_name] = element_constraints
         return result
-
-
-def _combine_objective_lists(
-    objectives: list[list[highs_linear_expression | None]],
-) -> list[highs_linear_expression | None]:
-    """Combine objective expression lists by summing expressions at each index."""
-    max_len = max((len(items) for items in objectives), default=0)
-    combined: list[highs_linear_expression | None] = []
-    for index in range(max_len):
-        candidates = [items[index] for items in objectives if len(items) > index]
-        terms = [t for t in candidates if t is not None]
-        if not terms:
-            combined.append(None)
-        elif len(terms) == 1:
-            combined.append(terms[0])
-        else:
-            combined.append(Highs.qsum(terms))
-    return combined
 
 
 def _clear_linear_objectives(solver: Highs) -> None:
