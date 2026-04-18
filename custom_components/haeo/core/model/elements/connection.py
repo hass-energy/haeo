@@ -21,7 +21,7 @@ from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.model.element import Element, _combine_objective_lists
 from custom_components.haeo.core.model.output_data import OutputData
 from custom_components.haeo.core.model.reactive import output
-from custom_components.haeo.core.model.util import broadcast_to_sequence, time_preference_weights
+from custom_components.haeo.core.model.util import broadcast_to_sequence
 
 from .segments import Segment, SegmentSpec, create_segment
 
@@ -260,9 +260,9 @@ class Connection[TOutputName: str](Element[TOutputName]):
 
     def _time_preference_objective(self) -> highs_linear_expression | None:
         """Return secondary objective that prefers earlier energy transfer."""
-        weights = time_preference_weights(self.periods, self.priority)
-        energy = self.total_power_in * self.periods
-        return Highs.qsum(energy * weights)
+        n = self.n_periods
+        weights = self.priority * n + np.arange(1, n + 1, dtype=np.float64)
+        return Highs.qsum(self.total_power_in * self.periods * weights)
 
     # --- Output methods ---
 

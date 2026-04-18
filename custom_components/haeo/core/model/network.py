@@ -23,6 +23,15 @@ SolverChoice = Literal["simplex", "ipm", "pdlp", "choose"]
 OnOffChoose = Literal["on", "off", "choose"]
 
 
+# Calibration search bounds in log10 space.  The secondary objective can
+# be many orders of magnitude larger than the primary, so we need a wide
+# range.  1e-12 is effectively zero influence; 1e-1 would dominate.
+_CAL_LOG_LO = -12.0
+_CAL_LOG_HI = -1.0
+_CAL_MAX_STEPS = 40  # total bisection budget split across upper/lower searches
+_CAL_CONVERGENCE = 0.01  # stop bisection when interval < this (log10 decades)
+
+
 @dataclass(frozen=True)
 class SolveOptions:
     """Options controlling Network optimization behavior.
@@ -34,7 +43,7 @@ class SolveOptions:
     the underlying HiGHS option semantics.
     """
 
-    # --- Multi-objective strategy (HAEO) ---
+    # --- Multi-objective strategy ---
     # "lex" runs three solves for exact lexicographic optimization with
     # clean shadow prices (P1 primary, P2 secondary|P1, P3 primary|P2+e).
     # "blended" runs a single solve on (primary + blend_weight * secondary).
@@ -78,6 +87,15 @@ class SolveOptions:
         solver.setOptionValue("parallel", self.parallel)
         solver.setOptionValue("simplex_scale_strategy", self.simplex_scale_strategy)
         solver.setOptionValue("run_crossover", self.run_crossover)
+
+
+# Calibration search bounds in log10 space.  The secondary objective can
+# be many orders of magnitude larger than the primary, so we need a wide
+# range.  1e-12 is effectively zero influence; 1e-1 would dominate.
+_CAL_LOG_LO = -12.0
+_CAL_LOG_HI = -1.0
+_CAL_MAX_STEPS = 40  # total bisection budget split across upper/lower searches
+_CAL_CONVERGENCE = 0.01  # stop bisection when interval < this (log10 decades)
 
 
 @dataclass
@@ -315,7 +333,7 @@ class Network:
                 # --- Phase 3: Re-minimize primary (swap constraint to secondary) ---
                 # Restores shadow prices that reflect pure primary sensitivities.
                 # Skipped in calibrated mode where only variable values are needed.
-                epsilon = _lex_epsilon(secondary_value)
+                epsilon = max(1e-6, abs(secondary_value) * 1e-6)
                 self._constrain_objective(secondary, secondary_value + epsilon)
                 _set_cost_vector(h, all_col_indices, cost_vectors[0])
                 h.run()
@@ -567,23 +585,3 @@ def _ensure_optimal(solver: Highs) -> float:
         msg = f"Optimization failed with status: {solver.modelStatusToString(status)}"
         raise ValueError(msg)
     return solver.getObjectiveValue()
-
-
-def _lex_epsilon(value: float) -> float:
-    """Compute a small slack for the Phase 3 lex constraint.
-
-    The epsilon must be large enough to guarantee the constraint has slack
-    (making the dual structurally zero) but small enough not to
-    meaningfully shift the optimal vertex. A relative tolerance scaled by
-    the objective magnitude achieves this.
-    """
-    return max(1e-6, abs(value) * 1e-6)
-
-
-# Calibration search bounds in log10 space.  The secondary objective can
-# be many orders of magnitude larger than the primary, so we need a wide
-# range.  1e-12 is effectively zero influence; 1e-1 would dominate.
-_CAL_LOG_LO = -12.0
-_CAL_LOG_HI = -1.0
-_CAL_MAX_STEPS = 40  # total bisection budget split across upper/lower searches
-_CAL_CONVERGENCE = 0.01  # stop bisection when interval < this (log10 decades)

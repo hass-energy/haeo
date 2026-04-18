@@ -14,7 +14,7 @@ from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_BATTER
 from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_CONNECTION as ELEMENT_TYPE_CONNECTION
 from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_NODE as ELEMENT_TYPE_NODE
 from custom_components.haeo.core.model.elements.connection import Connection
-from custom_components.haeo.core.model.network import SolveOptions, _lex_epsilon
+from custom_components.haeo.core.model.network import SolveOptions
 
 # Test constants
 HOURS_PER_DAY = 24
@@ -491,23 +491,6 @@ def test_solve_options_propagated_to_network() -> None:
 
 
 # ---------------------------------------------------------------------------
-# _lex_epsilon tests
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.parametrize(
-    ("value", "expected"),
-    [
-        (0.0, 1e-6),  # floor at 1e-6
-        (1.0, 1e-6),  # floor dominates for small values
-        (1e6, 1.0),  # relative scaling for large values
-        (-500.0, 5e-4),  # absolute value used
-    ],
-)
-def test_lex_epsilon(value: float, expected: float) -> None:
-    """_lex_epsilon returns relative or floor epsilon."""
-    assert _lex_epsilon(value) == pytest.approx(expected)
-
 
 # ---------------------------------------------------------------------------
 # Blended mode tests
