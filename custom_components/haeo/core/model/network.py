@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 import logging
 from typing import Any, Literal, overload
 
-from highspy import Highs, HighsModelStatus, ObjSense
+from highspy import Highs, HighsModelStatus
 from highspy.highs import highs_cons, highs_linear_expression
 import numpy as np
 from numpy.typing import NDArray
@@ -92,10 +92,6 @@ class SolveOptions:
 # Calibration search bounds in log10 space.  The secondary objective can
 # be many orders of magnitude larger than the primary, so we need a wide
 # range.  1e-12 is effectively zero influence; 1e-1 would dominate.
-_CAL_LOG_LO = -12.0
-_CAL_LOG_HI = -1.0
-_CAL_MAX_STEPS = 40  # total bisection budget split across upper/lower searches
-_CAL_CONVERGENCE = 0.01  # stop bisection when interval < this (log10 decades)
 
 
 @dataclass
@@ -250,32 +246,9 @@ class Network:
         return (primary, secondary)
 
     def optimize(self) -> float:
-        """Solve the optimization problem and return the primary objective value.
-
-        After optimization, access optimized values directly from elements and connections.
-
-        Collects constraints and costs from all elements. Calling element.constraints()
-        automatically triggers constraint creation/updating via decorators. On first call,
-        this builds all constraints. On subsequent calls, only invalidated constraints are
-        rebuilt (those whose TrackedParam dependencies have changed).
-
-        Uses a lexicographic approach for multi-objective problems:
-        1. Phase 1: minimize primary objective (lex constraint relaxed)
-        2. Phase 2: minimize secondary objective (primary constrained to optimal)
-        3. Phase 3 (lex mode only): re-minimize primary with secondary
-           constrained (epsilon slack), restoring clean shadow prices
-
-        In calibrated mode, Phase 3 is skipped because the solution is only
-        used to calibrate a blend weight; subsequent calls use blended mode
-        which produces proper duals from a single solve.
-
-        Returns:
-            The total optimization cost
-
-        """
+        """Solve the optimization problem and return the primary objective value."""
         h = self._solver
 
-        # Collect constraints from all elements (reactive - calling triggers decorator lifecycle)
         for element_name, element in self.elements.items():
             try:
                 element.constraints()
@@ -283,72 +256,89 @@ class Network:
                 msg = f"Failed to apply constraints for element '{element_name}'"
                 raise ValueError(msg) from e
 
-        # Get aggregated objectives from network (reactive - only rebuilds if any element cost invalidated)
         objectives = self.cost()
 
-        _clear_linear_objectives(h)
-
         if objectives is None:
+            # No objectives at all — feasibility solve only
+            _clear_linear_objectives(self._solver)
             self._relax_lex_constraint()
             h.run()
             return _ensure_optimal(h)
 
-        # Pre-compute cost vectors for each objective as dense arrays.
-        # This avoids repeated Python→C FFI overhead from expression-based
-        # setObjective() which zeros all columns then sets non-zero ones.
-        n_vars = h.numVariables
-        all_col_indices = np.arange(n_vars, dtype=np.int32)
-        cost_vectors = _build_cost_vectors(objectives, n_vars)
-
-        h.changeObjectiveSense(ObjSense.kMinimize)
-
         primary, secondary = objectives
 
-        if primary is None:
-            if secondary is not None:
-                _set_cost_vector(h, all_col_indices, cost_vectors[1])
-            self._relax_lex_constraint()
-            h.run()
-            _ensure_optimal(h)
-            return 0.0
+        n_vars = h.numVariables
+        all_col_indices = np.arange(n_vars, dtype=np.int32)
+        cost_vectors = _build_cost_vectors((primary, secondary), n_vars)
 
-        # Calibrated mode with an existing weight uses blended fast path.
-        use_blended = self.options.mode == "blended" or (
-            self.options.mode == "calibrated" and self._calibrated_weight is not None
-        )
+        # Without both objectives, lex/blended degrade to single-phase
+        if primary is None or secondary is None:
+            return self._solve_single(h, all_col_indices, cost_vectors, has_primary=primary is not None)
 
-        if use_blended and secondary is not None:
-            if self.options.mode == "calibrated" and self._calibrated_weight is not None:
-                return self._solve_blended(h, all_col_indices, cost_vectors, self._calibrated_weight)
+        if self.options.mode == "blended":
             return self._solve_blended(h, all_col_indices, cost_vectors, self.options.blend_weight)
 
-        # --- Lexicographic solve (also used for calibrated-mode first call) ---
-        _set_cost_vector(h, all_col_indices, cost_vectors[0])
+        if self.options.mode == "calibrated" and self._calibrated_weight is not None:
+            return self._solve_blended(h, all_col_indices, cost_vectors, self._calibrated_weight)
 
-        # --- Phase 1: Minimize primary (lex constraint relaxed) ---
+        return self._solve_lex(h, all_col_indices, cost_vectors, primary, secondary)
+
+    def _solve_single(
+        self,
+        h: Highs,
+        all_col_indices: NDArray[np.int32],
+        cost_vectors: list[NDArray[np.float64]],
+        *,
+        has_primary: bool,
+    ) -> float:
+        """Single-phase solve when only one objective exists."""
+        _clear_linear_objectives(h)
+        self._relax_lex_constraint()
+
+        if has_primary:
+            _set_cost_vector(h, all_col_indices, cost_vectors[0])
+            h.run()
+            return _ensure_optimal(h)
+
+        # Secondary only — minimize it, return 0.0 as primary value
+        _set_cost_vector(h, all_col_indices, cost_vectors[1])
+        h.run()
+        _ensure_optimal(h)
+        return 0.0
+
+    def _solve_lex(
+        self,
+        h: Highs,
+        all_col_indices: NDArray[np.int32],
+        cost_vectors: list[NDArray[np.float64]],
+        primary: Any,
+        secondary: Any,
+    ) -> float:
+        """Lexicographic solve: Phase 1 primary, Phase 2 secondary, Phase 3 restore."""
+        _clear_linear_objectives(h)
+
+        # Phase 1: minimize primary
+        _set_cost_vector(h, all_col_indices, cost_vectors[0])
         self._relax_lex_constraint()
         h.run()
         primary_value = _ensure_optimal(h)
 
-        if secondary is not None:
-            # --- Phase 2: Minimize secondary (constrain primary) ---
-            self._constrain_objective(primary, primary_value)
-            _set_cost_vector(h, all_col_indices, cost_vectors[1])
+        # Phase 2: minimize secondary with primary constrained
+        self._constrain_objective(primary, primary_value)
+        _set_cost_vector(h, all_col_indices, cost_vectors[1])
+        h.run()
+        secondary_value = _ensure_optimal(h)
+
+        if self.options.mode == "lex":
+            # Phase 3: re-minimize primary with secondary constrained (restore duals)
+            epsilon = max(1e-6, abs(secondary_value) * 1e-6)
+            self._constrain_objective(secondary, secondary_value + epsilon)
+            _set_cost_vector(h, all_col_indices, cost_vectors[0])
             h.run()
-            secondary_value = _ensure_optimal(h)
+            _ensure_optimal(h)
 
-            if self.options.mode == "lex":
-                # --- Phase 3: Re-minimize primary (swap constraint to secondary) ---
-                # Restores shadow prices that reflect pure primary sensitivities.
-                # Skipped in calibrated mode where only variable values are needed.
-                epsilon = max(1e-6, abs(secondary_value) * 1e-6)
-                self._constrain_objective(secondary, secondary_value + epsilon)
-                _set_cost_vector(h, all_col_indices, cost_vectors[0])
-                h.run()
-                _ensure_optimal(h)
-
-        # After lex solve, calibrate the blend weight for future calls.
-        if self.options.mode == "calibrated" and secondary is not None:
+        # Calibrate blend weight for future calls
+        if self.options.mode == "calibrated":
             lex_values = np.asarray(h.allVariableValues())
             self._calibrated_weight = self._calibrate_blend_weight(
                 all_col_indices,
@@ -367,6 +357,7 @@ class Network:
         weight: float,
     ) -> float:
         """Single-solve weighted sum: primary + weight * secondary."""
+        _clear_linear_objectives(h)
         self._relax_lex_constraint()
         blended = cost_vectors[0] + weight * cost_vectors[1]
         _set_cost_vector(h, all_col_indices, blended)
@@ -556,7 +547,7 @@ def _clear_linear_objectives(solver: Highs) -> None:
 
 
 def _build_cost_vectors(
-    objectives: list[highs_linear_expression | None],
+    objectives: tuple[Any, Any],
     n_vars: int,
 ) -> list[NDArray[np.float64]]:
     """Convert objective expressions to dense cost vectors.

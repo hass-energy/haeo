@@ -284,9 +284,19 @@ def test_network_optimize_raises_on_infeasible_network(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Test optimize() raises ValueError when network optimization fails."""
-    # Create a valid network
+    # Create a network with objectives (needs connections for secondary)
     network = Network(name="test_network", periods=np.array([1.0]))
-    network.add({"element_type": ELEMENT_TYPE_NODE, "name": "node", "is_sink": True, "is_source": True})
+    network.add({"element_type": ELEMENT_TYPE_NODE, "name": "src", "is_source": True, "is_sink": False})
+    network.add({"element_type": ELEMENT_TYPE_NODE, "name": "dst", "is_source": False, "is_sink": True})
+    network.add(
+        {
+            "element_type": "connection",
+            "name": "conn",
+            "source": "src",
+            "target": "dst",
+            "segments": {"pricing": {"segment_type": "pricing", "price": 0.10}},
+        }
+    )
 
     # Track if run() has been called
     run_called = False
@@ -563,7 +573,7 @@ def test_lex_mode_with_secondary_objective() -> None:
 
 
 def test_lex_mode_no_secondary() -> None:
-    """Lex mode without secondary objective skips Phase 2 and Phase 3."""
+    """Lex mode without secondary objective degrades to single-phase solve."""
     network = Network(name="test", periods=np.array([1.0]), options=SolveOptions(mode="lex"))
     network.add({"element_type": ELEMENT_TYPE_NODE, "name": "node", "is_source": True, "is_sink": True})
     result = network.optimize()

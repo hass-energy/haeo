@@ -142,6 +142,16 @@ def test_battery_update_with_sequence_capacity() -> None:
             "initial_charge": 5.0,
         }
     )
+    network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "grid", "is_source": True, "is_sink": True})
+    network.add(
+        {
+            "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
+            "name": "conn",
+            "source": "battery",
+            "target": "grid",
+            "segments": {"pricing": {"segment_type": "pricing", "price": 0.01}},
+        }
+    )
     network.optimize()
 
     battery = network.elements["battery"]
@@ -240,7 +250,7 @@ def test_connection_update_price_source_target() -> None:
 
 
 def test_connection_update_max_power_target_source() -> None:
-    """Test setting max_power_target_source invalidates constraint bounds."""
+    """Test setting max_power invalidates constraint bounds."""
     network = Network(name="test", periods=np.array([1.0]))
 
     network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "source", "is_source": True, "is_sink": True})
