@@ -47,7 +47,8 @@ class ConnectionElementConfig(TypedDict):
     name: str
     source: str
     target: str
-    priority: NotRequired[int]
+    is_external: NotRequired[bool]
+    is_time_sensitive: NotRequired[bool]
     segments: NotRequired[dict[str, SegmentSpec]]
     tags: NotRequired[set[int]]
     tag_costs: NotRequired[list[dict[str, Any]]]
@@ -69,7 +70,8 @@ class Connection[TOutputName: str](Element[TOutputName]):
         solver: Highs,
         source: str,
         target: str,
-        priority: int = 0,
+        is_external: bool = False,
+        is_time_sensitive: bool = False,
         segments: dict[str, SegmentSpec] | None = None,
         output_names: frozenset[TOutputName] | None = None,
         tags: set[int] | None = None,
@@ -87,7 +89,9 @@ class Connection[TOutputName: str](Element[TOutputName]):
         self._target = target
         self._source_element: Element[Any] | None = None
         self._target_element: Element[Any] | None = None
-        self.priority = priority
+        self.is_external = is_external
+        self.is_time_sensitive = is_time_sensitive
+        self.priority = 0  # assigned by Network from sort_key
 
         self._segment_specs: OrderedDict[str, SegmentSpec] = OrderedDict(segments or {})
         self._segments: OrderedDict[str, Segment] = OrderedDict()
@@ -105,14 +109,13 @@ class Connection[TOutputName: str](Element[TOutputName]):
         return self._segments
 
     @property
-    def sort_key(self) -> tuple[int, str, str, str]:
+    def sort_key(self) -> tuple[bool, bool, str, str, str]:
         """Deterministic sort key for time-preference ordering.
 
-        Sorts by adapter-assigned priority first (from endpoint element types
-        and directions), then by source, target, and name for deterministic
-        tiebreaking between connections at the same priority level.
+        Prefers own power over external, then time-sensitive over invariant,
+        then alphabetical by source/target/name for tiebreaking.
         """
-        return (self.priority, self._source, self._target, self.name)
+        return (self.is_external, not self.is_time_sensitive, self._source, self._target, self.name)
 
     @property
     def source(self) -> str:

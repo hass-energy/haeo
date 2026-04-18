@@ -19,21 +19,16 @@ from custom_components.haeo.core.model.elements.connection import ConnectionElem
 from custom_components.haeo.core.model.output_data import ModelOutputValue, OutputData
 from custom_components.haeo.core.schema.elements import ElementConfigData, ElementType
 
-# Time preference priority for (element_type, direction) pairs.
-# Lower values are preferred by the solver when breaking ties.
-# Direction is relative to the element: "out" = power leaves, "in" = power enters.
-_ENDPOINT_PRIORITY: Final[dict[tuple[ElementType, str], int]] = {
-    (ElementType.LOAD, "in"): 0,
-    (ElementType.SOLAR, "out"): 1,
-    (ElementType.BATTERY, "in"): 2,
-    (ElementType.GRID, "in"): 3,
-    (ElementType.BATTERY, "out"): 4,
-    (ElementType.GRID, "out"): 5,
-    (ElementType.INVERTER, "out"): 6,
-    (ElementType.INVERTER, "in"): 7,
-}
+# Element types that represent external power sources/sinks.
+_EXTERNAL_TYPES: Final[frozenset[ElementType]] = frozenset({ElementType.GRID})
 
-_DEFAULT_PRIORITY: Final = max(_ENDPOINT_PRIORITY.values()) + 1
+# Element types whose power output is time-sensitive (must be consumed now).
+_TIME_SENSITIVE_TYPES: Final[frozenset[ElementType]] = frozenset(
+    {
+        ElementType.SOLAR,
+        ElementType.LOAD,
+    }
+)
 
 
 @runtime_checkable
@@ -103,20 +98,16 @@ def collect_model_elements(
         model_elements = ELEMENT_TYPES[element_type].model_elements(loaded_params)
         all_model_elements.extend(model_elements)
 
-    # Auto-compute connection priorities from endpoint element types
+    # Derive connection properties from endpoint element types
     name_to_type = {name: config[CONF_ELEMENT_TYPE] for name, config in participants.items()}
     for model_element in all_model_elements:
         if model_element.get("element_type") == MODEL_ELEMENT_TYPE_CONNECTION:
             conn = _as_connection_config(model_element)
             source_type = name_to_type.get(conn["source"])
             target_type = name_to_type.get(conn["target"])
-            source_pri = (
-                _ENDPOINT_PRIORITY.get((source_type, "out"), _DEFAULT_PRIORITY) if source_type else _DEFAULT_PRIORITY
-            )
-            target_pri = (
-                _ENDPOINT_PRIORITY.get((target_type, "in"), _DEFAULT_PRIORITY) if target_type else _DEFAULT_PRIORITY
-            )
-            conn["priority"] = min(source_pri, target_pri)
+            endpoint_types = {t for t in (source_type, target_type) if t is not None}
+            conn["is_external"] = bool(endpoint_types & _EXTERNAL_TYPES)
+            conn["is_time_sensitive"] = bool(endpoint_types & _TIME_SENSITIVE_TYPES)
 
     return sorted(
         all_model_elements,
