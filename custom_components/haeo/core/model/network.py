@@ -1,6 +1,6 @@
 """Network class for electrical system modeling and optimization."""
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 import logging
 from typing import Any, Final, Literal, overload
 
@@ -98,7 +98,6 @@ SolveOptions = LexOptions | BlendedOptions | CalibratedOptions
 # range.  1e-12 is effectively zero influence; 1e-1 would dominate.
 
 
-@dataclass
 class Network:
     """Network class for electrical system modeling.
 
@@ -108,20 +107,26 @@ class Network:
     - Time: hours (variable-width intervals)
     - Price: $/kWh
 
-    Note: Periods should be provided in hours (conversion from seconds happens at the data loading boundary layer).
+    Note: Periods should be provided in hours (conversion from seconds
+    happens at the data loading boundary layer).
     """
 
-    name: str
-    periods: NDArray[np.floating[Any]]  # Period durations in hours (one per optimization interval)
-    elements: dict[str, Element[Any]] = field(default_factory=dict)
-    options: SolveOptions = field(default_factory=CalibratedOptions)
-    _solver: Highs = field(default_factory=Highs, repr=False)
-    _lex_constraint: highs_cons | None = field(default=None, init=False, repr=False)
-    _calibrated_weight: float | None = field(default=None, init=False, repr=False)
+    def __init__(
+        self,
+        name: str,
+        periods: NDArray[np.floating[Any]],
+        *,
+        options: SolveOptions | None = None,
+    ) -> None:
+        """Create a network with the given period durations and solver options."""
+        self.name = name
+        self.periods = np.asarray(periods, dtype=float)
+        self.elements: dict[str, Element[Any]] = {}
+        self.options: SolveOptions = options or CalibratedOptions()
+        self._solver = Highs()
+        self._lex_constraint: highs_cons | None = None
+        self._calibrated_weight: float | None = None
 
-    def __post_init__(self) -> None:
-        """Set up the solver with logging callback and configured options."""
-        self.periods = np.asarray(self.periods, dtype=float)
         # Redirect HiGHS logging to Python logger at debug level
         self._solver.cbLogging += self._log_callback
 
