@@ -129,6 +129,18 @@ class HaeoInputSwitch(SwitchEntity):
                 continue
             placeholders[key] = format_placeholder(value)
         placeholders.setdefault("name", subentry.title)
+
+        # For list item fields (e.g., rules.0.enabled), expose item name.
+        if len(self._field_path) > 1:
+            list_key, index_str, *_ = self._field_path
+            try:
+                items = subentry.data.get(list_key)
+                if isinstance(items, (list, tuple)):
+                    item = items[int(index_str)]
+                    if isinstance(item, Mapping) and "name" in item:
+                        placeholders["rule_name"] = str(item["name"])
+            except (ValueError, IndexError, KeyError):
+                pass
         self._attr_translation_placeholders = placeholders
 
         # Build base extra state attributes (static values)

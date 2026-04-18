@@ -3,7 +3,7 @@
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE
 from custom_components.haeo.core.schema.constant_value import as_constant_value
 from custom_components.haeo.core.schema.elements import ElementType
-from custom_components.haeo.core.schema.elements.policy import CONF_RULES
+from custom_components.haeo.core.schema.elements.policy import CONF_ENABLED, CONF_RULES
 from custom_components.haeo.elements import get_list_input_fields
 
 
@@ -28,9 +28,10 @@ def test_get_list_input_fields_builds_policy_rule_fields() -> None:
         CONF_ELEMENT_TYPE: ElementType.POLICY,
         "name": "Policies",
         CONF_RULES: [
-            {"name": "Export", "price": as_constant_value(0.05)},
+            {"name": "Export", CONF_ENABLED: True, "price": as_constant_value(0.05)},
         ],
     }
     groups = get_list_input_fields(cfg)
     assert f"{CONF_RULES}.0" in groups
+    assert CONF_ENABLED in groups[f"{CONF_RULES}.0"]
     assert "price" in groups[f"{CONF_RULES}.0"]
