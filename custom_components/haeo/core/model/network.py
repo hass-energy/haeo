@@ -20,7 +20,6 @@ _LOGGER = logging.getLogger(__name__)
 
 
 ObjectiveMode = Literal["lex", "blended", "calibrated"]
-SolverChoice = Literal["simplex", "ipm", "pdlp", "choose"]
 OnOffChoose = Literal["on", "off", "choose"]
 
 
@@ -34,32 +33,54 @@ _CAL_CONVERGENCE: Final = 0.01  # stop bisection when interval < this (log10 dec
 
 
 @dataclass(frozen=True, kw_only=True)
-class _SolverTuning:
-    """HiGHS solver options shared across all objective modes.
+class _SolverBase:
+    """Shared HiGHS options applicable to all solver algorithms."""
 
-    See https://www.gams.com/latest/docs/S_HIGHS.html#HIGHS_OPTIONS for
-    the underlying HiGHS option semantics.
-    """
-
-    solver: SolverChoice = "simplex"
-    simplex_strategy: int = 4
     presolve: OnOffChoose = "choose"
     parallel: OnOffChoose = "choose"
-    simplex_scale_strategy: int = 0
-    run_crossover: OnOffChoose = "on"
 
-    def apply(self, h: Highs) -> None:
-        """Apply HiGHS-tunable options to the given solver."""
-        h.setOptionValue("solver", self.solver)
-        h.setOptionValue("simplex_strategy", self.simplex_strategy)
+    def _apply_common(self, h: Highs) -> None:
         h.setOptionValue("presolve", self.presolve)
         h.setOptionValue("parallel", self.parallel)
-        h.setOptionValue("simplex_scale_strategy", self.simplex_scale_strategy)
-        h.setOptionValue("run_crossover", self.run_crossover)
 
 
 @dataclass(frozen=True, kw_only=True)
-class LexOptions(_SolverTuning):
+class SimplexTuning(_SolverBase):
+    """HiGHS simplex solver options.
+
+    simplex_strategy: 1=dual, 4=primal. Primal is ~25-30% faster on cold starts.
+    simplex_scale_strategy: 0=off, 1=basic, 2=equilibration, 3=forced.
+    """
+
+    simplex_strategy: int = 4
+    simplex_scale_strategy: int = 0
+
+    def apply(self, h: Highs) -> None:
+        """Apply simplex-specific options."""
+        h.setOptionValue("solver", "simplex")
+        self._apply_common(h)
+        h.setOptionValue("simplex_strategy", self.simplex_strategy)
+        h.setOptionValue("simplex_scale_strategy", self.simplex_scale_strategy)
+
+
+@dataclass(frozen=True, kw_only=True)
+class IpmTuning(_SolverBase):
+    """HiGHS interior point method options."""
+
+    run_crossover: OnOffChoose = "on"
+
+    def apply(self, h: Highs) -> None:
+        """Apply IPM-specific options."""
+        h.setOptionValue("solver", "ipm")
+        self._apply_common(h)
+        h.setOptionValue("run_crossover", self.run_crossover)
+
+
+SolverTuning = SimplexTuning | IpmTuning
+
+
+@dataclass(frozen=True, kw_only=True)
+class LexOptions(SimplexTuning):
     """Three-phase lexicographic optimization with clean shadow prices.
 
     Phase 1: minimize primary.
@@ -71,7 +92,7 @@ class LexOptions(_SolverTuning):
 
 
 @dataclass(frozen=True, kw_only=True)
-class BlendedOptions(_SolverTuning):
+class BlendedOptions(SimplexTuning):
     """Single-solve weighted sum: primary + blend_weight * secondary."""
 
     mode: Literal["blended"] = "blended"
@@ -79,7 +100,7 @@ class BlendedOptions(_SolverTuning):
 
 
 @dataclass(frozen=True, kw_only=True)
-class CalibratedOptions(_SolverTuning):
+class CalibratedOptions(SimplexTuning):
     """Two-phase lex on first call, then calibrated blended fast path.
 
     The first call runs phases 1 and 2 of lex, then binary-searches for
@@ -138,8 +159,6 @@ class Network:
 
         # Apply tunable solver options
         self.options.apply(self._solver)
-
-
 
     @staticmethod
     def _log_callback(_log_type: int, message: str) -> None:

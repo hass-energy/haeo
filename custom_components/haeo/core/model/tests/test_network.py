@@ -14,7 +14,13 @@ from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_BATTER
 from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_CONNECTION as ELEMENT_TYPE_CONNECTION
 from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_NODE as ELEMENT_TYPE_NODE
 from custom_components.haeo.core.model.elements.connection import Connection
-from custom_components.haeo.core.model.network import BlendedOptions, CalibratedOptions, LexOptions, SolveOptions
+from custom_components.haeo.core.model.network import (
+    BlendedOptions,
+    CalibratedOptions,
+    LexOptions,
+    SimplexTuning,
+    SolveOptions,
+)
 
 # Test constants
 HOURS_PER_DAY = 24
@@ -490,7 +496,7 @@ def test_solve_options_defaults() -> None:
     opts = CalibratedOptions()
     assert opts.mode == "calibrated"
     assert opts.simplex_strategy == 4
-    assert opts.solver == "simplex"
+    assert isinstance(opts, SimplexTuning)
 
 
 def test_solve_options_apply() -> None:

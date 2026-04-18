@@ -95,10 +95,8 @@ def _assert_outputs_match(actual: ExpectedOutputFixture, expected: ExpectedOutpu
         assert _is_expected_output(actual)
         assert actual["type"] == expected["type"]
         assert actual["unit"] == expected["unit"]
-        if expected["type"] == "shadow_price":
-            assert actual["values"] == pytest.approx(expected["values"], rel=2e-4, abs=2e-4)
-        else:
-            assert actual["values"] == pytest.approx(expected["values"], rel=1e-9, abs=1e-9)
+        tol = (2e-4, 2e-4) if expected["type"] == "shadow_price" else (1e-9, 1e-9)
+        assert actual["values"] == pytest.approx(expected["values"], rel=tol[0], abs=tol[1])
         return
 
     assert not _is_expected_output(actual)
