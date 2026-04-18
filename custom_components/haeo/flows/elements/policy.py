@@ -179,7 +179,12 @@ class PolicySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             preferred_choice=CHOICE_CONSTANT,
         )
 
-    def _build_endpoint_selector(self, participants: list[str]) -> _EndpointChooseSelector:
+    def _build_endpoint_selector(
+        self,
+        participants: list[str],
+        *,
+        preferred_choice: str = CHOICE_NONE,
+    ) -> _EndpointChooseSelector:
         """Build a ChooseSelector for endpoint with none (any) and elements (specific) choices."""
         options = [SelectOptionDict(value=p, label=p) for p in participants]
         elements_selector = SelectSelector(
@@ -190,28 +195,51 @@ class PolicySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             )
         )
         none_selector = ConstantSelector(ConstantSelectorConfig(value=""))
+        choice_map = {
+            CHOICE_NONE: ChooseSelectorChoiceConfig(
+                selector=none_selector.serialize()["selector"],
+            ),
+            CHOICE_ELEMENTS: ChooseSelectorChoiceConfig(
+                selector=elements_selector.serialize()["selector"],
+            ),
+        }
+        choice_order = [CHOICE_NONE, CHOICE_ELEMENTS]
+        if preferred_choice in choice_order:
+            choice_order.remove(preferred_choice)
+            choice_order.insert(0, preferred_choice)
+
         return _EndpointChooseSelector(
             ChooseSelectorConfig(
-                choices={
-                    CHOICE_NONE: ChooseSelectorChoiceConfig(
-                        selector=none_selector.serialize()["selector"],
-                    ),
-                    CHOICE_ELEMENTS: ChooseSelectorChoiceConfig(
-                        selector=elements_selector.serialize()["selector"],
-                    ),
-                },
+                choices={k: choice_map[k] for k in choice_order},
                 translation_key="policy_endpoint",
             )
         )
+
+    def _get_preferred_endpoint_choice(self, value: Any) -> str:
+        """Return endpoint choice key to place first in selector ordering."""
+        if isinstance(value, dict) and value.get("active_choice") == CHOICE_ELEMENTS:
+            return CHOICE_ELEMENTS
+        if isinstance(value, list) and value:
+            return CHOICE_ELEMENTS
+        return CHOICE_NONE
 
     def _build_rule_schema(
         self,
         source_options: list[str],
         target_options: list[str],
+        *,
+        source_preferred_choice: str = CHOICE_NONE,
+        target_preferred_choice: str = CHOICE_NONE,
     ) -> vol.Schema:
         """Build the schema for adding or editing a policy rule."""
-        source_selector = self._build_endpoint_selector(source_options)
-        target_selector = self._build_endpoint_selector(target_options)
+        source_selector = self._build_endpoint_selector(
+            source_options,
+            preferred_choice=source_preferred_choice,
+        )
+        target_selector = self._build_endpoint_selector(
+            target_options,
+            preferred_choice=target_preferred_choice,
+        )
         price_selector = self._build_price_selector()
 
         return vol.Schema(
@@ -389,7 +417,18 @@ class PolicySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                     data=self._build_entry_data(),
                 )
 
-        schema = self._build_rule_schema(source_options, target_options)
+        source_preferred_choice = CHOICE_NONE
+        target_preferred_choice = CHOICE_NONE
+        if user_input is not None:
+            source_preferred_choice = self._get_preferred_endpoint_choice(user_input.get(CONF_SOURCE))
+            target_preferred_choice = self._get_preferred_endpoint_choice(user_input.get(CONF_TARGET))
+
+        schema = self._build_rule_schema(
+            source_options,
+            target_options,
+            source_preferred_choice=source_preferred_choice,
+            target_preferred_choice=target_preferred_choice,
+        )
         if user_input is not None:
             schema = self.add_suggested_values_to_schema(schema, user_input)
 
@@ -470,13 +509,20 @@ class PolicySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                     data=self._build_entry_data(),
                 )
 
-        schema = self._build_rule_schema(source_options, target_options)
         if merged_input is not None:
             defaults = merged_input
         elif idx is not None and 0 <= idx < len(self._rules):
             defaults = self._rule_to_defaults(self._rules[idx])
         else:
             defaults = {}
+        source_preferred_choice = self._get_preferred_endpoint_choice(defaults.get(CONF_SOURCE))
+        target_preferred_choice = self._get_preferred_endpoint_choice(defaults.get(CONF_TARGET))
+        schema = self._build_rule_schema(
+            source_options,
+            target_options,
+            source_preferred_choice=source_preferred_choice,
+            target_preferred_choice=target_preferred_choice,
+        )
         schema = self.add_suggested_values_to_schema(schema, defaults)
 
         return self.async_show_form(

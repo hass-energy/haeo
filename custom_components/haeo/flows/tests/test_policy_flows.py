@@ -117,6 +117,16 @@ def _get_suggested_value(result: Any, field_name: str) -> Any:
     return None
 
 
+def _get_selector(result: Any, field_name: str) -> Any:
+    """Extract selector instance for a field from a flow result's data_schema."""
+    data_schema = result.get("data_schema")
+    assert data_schema is not None
+    for key, selector in data_schema.schema.items():
+        if getattr(key, "schema", None) == field_name:
+            return selector
+    return None
+
+
 # --- User step (adding a policy rule) ---
 
 
@@ -804,6 +814,18 @@ def test_endpoint_selector_unknown_active_choice_delegates_to_super(
         sel({"active_choice": "unknown"})
 
 
+def test_endpoint_selector_elements_first_when_preferred(
+    hass: HomeAssistant,
+    hub_entry: MockConfigEntry,
+) -> None:
+    """Elements choice is placed first when preferred for restore behavior."""
+    flow = _create_flow(hass, hub_entry)
+    sel = flow._build_endpoint_selector(["Solar"], preferred_choice=CHOICE_ELEMENTS)
+    choices_keys = list(sel.config["choices"].keys())
+    assert choices_keys[0] == CHOICE_ELEMENTS
+    assert choices_keys[1] == CHOICE_NONE
+
+
 def test_get_participant_options_skips_invalid_element_type_values(
     hass: HomeAssistant,
     hub_entry: MockConfigEntry,
@@ -1083,6 +1105,47 @@ async def test_edit_rule_shows_previous_values_for_source_target(
     assert result.get("type") == FlowResultType.FORM
     assert _get_suggested_value(result, CONF_SOURCE) == {"active_choice": CHOICE_ELEMENTS, CHOICE_ELEMENTS: ["Solar"]}
     assert _get_suggested_value(result, CONF_TARGET) == {"active_choice": CHOICE_ELEMENTS, CHOICE_ELEMENTS: ["Grid"]}
+    source_selector = _get_selector(result, CONF_SOURCE)
+    target_selector = _get_selector(result, CONF_TARGET)
+    assert source_selector is not None
+    assert target_selector is not None
+    assert next(iter(source_selector.config["choices"].keys())) == CHOICE_ELEMENTS
+    assert next(iter(target_selector.config["choices"].keys())) == CHOICE_ELEMENTS
+
+
+async def test_edit_rule_ui_restore_contract_for_elements_endpoints(
+    hass: HomeAssistant,
+    hub_entry: MockConfigEntry,
+) -> None:
+    """UI restore works by aligning suggested value with first choose choice."""
+    existing_rules: list[PolicyRuleConfig] = [
+        {
+            "name": "Solar Export",
+            "source": ["Solar"],
+            "target": ["Grid"],
+            "price": as_constant_value(0.02),
+        },
+    ]
+    subentry = _make_policy_subentry(existing_rules)
+    hass.config_entries.async_add_subentry(hub_entry, subentry)
+
+    flow = _create_flow(hass, hub_entry)
+    flow.context = {"subentry_id": subentry.subentry_id}
+    flow._get_reconfigure_subentry = Mock(return_value=subentry)
+    flow._get_subentry = Mock(return_value=subentry)
+
+    await flow.async_step_reconfigure(user_input=None)
+    await flow.async_step_reconfigure(user_input={CONF_RULE: "0", CONF_ACTION: ACTION_EDIT})
+    result = await flow.async_step_edit_rule(user_input=None)
+
+    source_selector = _get_selector(result, CONF_SOURCE)
+    target_selector = _get_selector(result, CONF_TARGET)
+    assert source_selector is not None
+    assert target_selector is not None
+    assert next(iter(source_selector.config["choices"].keys())) == CHOICE_ELEMENTS
+    assert next(iter(target_selector.config["choices"].keys())) == CHOICE_ELEMENTS
+    assert _get_suggested_value(result, CONF_SOURCE) == {"active_choice": CHOICE_ELEMENTS, CHOICE_ELEMENTS: ["Solar"]}
+    assert _get_suggested_value(result, CONF_TARGET) == {"active_choice": CHOICE_ELEMENTS, CHOICE_ELEMENTS: ["Grid"]}
 
 
 async def test_edit_rule_shows_any_for_missing_source_target(
@@ -1111,6 +1174,13 @@ async def test_edit_rule_shows_any_for_missing_source_target(
 
     assert _get_suggested_value(result, CONF_SOURCE) == ""
     assert _get_suggested_value(result, CONF_TARGET) == ""
+
+    source_selector = _get_selector(result, CONF_SOURCE)
+    target_selector = _get_selector(result, CONF_TARGET)
+    assert source_selector is not None
+    assert target_selector is not None
+    assert next(iter(source_selector.config["choices"].keys())) == CHOICE_NONE
+    assert next(iter(target_selector.config["choices"].keys())) == CHOICE_NONE
 
 
 async def test_edit_rule_shows_previous_constant_price(
