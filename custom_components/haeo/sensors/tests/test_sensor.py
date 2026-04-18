@@ -650,6 +650,7 @@ def test_optimization_status_sensor_tracks_last_run(device_entry: DeviceEntry) -
         output_data=output,
         unique_id="status-sensor-id",
     )
+    sensor.async_write_ha_state = Mock()
 
     first_completed_at = datetime(2024, 1, 1, 12, 0, tzinfo=UTC)
     second_completed_at = datetime(2024, 1, 1, 12, 5, tzinfo=UTC)
