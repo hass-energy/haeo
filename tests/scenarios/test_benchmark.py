@@ -25,7 +25,7 @@ from custom_components.haeo.coordinator.network import update_element
 from custom_components.haeo.core.adapters.registry import collect_model_elements
 from custom_components.haeo.core.data.forecast_times import generate_forecast_timestamps, tiers_to_periods_seconds
 from custom_components.haeo.core.data.loader.config_loader import load_element_configs
-from custom_components.haeo.core.model.network import Network, SolveOptions
+from custom_components.haeo.core.model.network import CalibratedOptions, LexOptions, Network, SolveOptions
 from custom_components.haeo.core.schema.elements import ElementConfigData, ElementConfigSchema
 from custom_components.haeo.core.state import EntityState
 
@@ -142,9 +142,7 @@ def _load_shifted_configs(
 def _discover_scenarios() -> list[Path]:
     scenarios_dir = Path(__file__).parent
     required_files = ("config.json", "environment.json", "inputs.json")
-    return sorted(
-        path for path in scenarios_dir.glob("scenario*/") if all((path / f).exists() for f in required_files)
-    )
+    return sorted(path for path in scenarios_dir.glob("scenario*/") if all((path / f).exists() for f in required_files))
 
 
 _scenarios = _discover_scenarios()
@@ -156,8 +154,8 @@ _scenarios = _discover_scenarios()
 
 
 _MODES: list[SolveOptions] = [
-    SolveOptions(mode="calibrated"),
-    SolveOptions(mode="lex"),
+    CalibratedOptions(),
+    LexOptions(),
 ]
 
 

@@ -30,63 +30,65 @@ _CAL_LOG_LO = -12.0
 _CAL_LOG_HI = -1.0
 _CAL_MAX_STEPS = 40  # total bisection budget split across upper/lower searches
 _CAL_CONVERGENCE = 0.01  # stop bisection when interval < this (log10 decades)
-
-
-@dataclass(frozen=True)
-class SolveOptions:
-    """Options controlling Network optimization behavior.
-
-    Combines our own multi-objective strategy with a curated set of HiGHS
-    solver options that influence performance on this LP.
+@dataclass(frozen=True, kw_only=True)
+class _SolverTuning:
+    """HiGHS solver options shared across all objective modes.
 
     See https://www.gams.com/latest/docs/S_HIGHS.html#HIGHS_OPTIONS for
     the underlying HiGHS option semantics.
     """
 
-    # --- Multi-objective strategy ---
-    # "lex" runs three solves for exact lexicographic optimization with
-    # clean shadow prices (P1 primary, P2 secondary|P1, P3 primary|P2+e).
-    # "blended" runs a single solve on (primary + blend_weight * secondary).
-    # "calibrated" does a two-phase lex on the first call (P1, P2|P1),
-    # then binary-searches for a blend weight that reproduces the lex
-    # primary within tolerance. Subsequent calls use blended fast path.
-    mode: ObjectiveMode = "calibrated"
-    # Weight applied to the secondary objective in blended mode. Ignored
-    # in calibrated mode (auto-determined). Should be small enough that
-    # the secondary never overrides the primary at the scale of typical
-    # problem coefficients.
-    blend_weight: float = 1e-3
-    # Relative tolerance on primary decision variable values for
-    # calibrated mode's weight search. The calibration checks that
-    # blended mode reproduces lex primary variable values within this
-    # fraction of the largest variable magnitude.
-    calibration_tolerance: float = 1e-4
-
-    # --- HiGHS algorithm selection ---
-    # "simplex" is best for warm-starts; "ipm" / "pdlp" do not warm-start.
     solver: SolverChoice = "simplex"
-    # 1=dual, 4=primal. Primal simplex is ~25-30% faster on cold starts
-    # (benchmarked across all scenarios) and equivalent on warm-starts.
     simplex_strategy: int = 4
-    # "choose" lets HiGHS skip presolve on warm-starts; "on" forces it.
     presolve: OnOffChoose = "choose"
-    # "choose" enables parallel only for large problems.
     parallel: OnOffChoose = "choose"
-    # 0=off, 1=basic, 2=equilibration, 3=forced equilibration.
-    # Scaling off gives a small additional cold-start improvement since
-    # the LP coefficients are already well-conditioned (kW-based units).
     simplex_scale_strategy: int = 0
-    # Crossover from interior point to a basic solution (ipm/pdlp only).
     run_crossover: OnOffChoose = "on"
 
-    def apply(self, solver: Highs) -> None:
+    def apply(self, h: Highs) -> None:
         """Apply HiGHS-tunable options to the given solver."""
-        solver.setOptionValue("solver", self.solver)
-        solver.setOptionValue("simplex_strategy", self.simplex_strategy)
-        solver.setOptionValue("presolve", self.presolve)
-        solver.setOptionValue("parallel", self.parallel)
-        solver.setOptionValue("simplex_scale_strategy", self.simplex_scale_strategy)
-        solver.setOptionValue("run_crossover", self.run_crossover)
+        h.setOptionValue("solver", self.solver)
+        h.setOptionValue("simplex_strategy", self.simplex_strategy)
+        h.setOptionValue("presolve", self.presolve)
+        h.setOptionValue("parallel", self.parallel)
+        h.setOptionValue("simplex_scale_strategy", self.simplex_scale_strategy)
+        h.setOptionValue("run_crossover", self.run_crossover)
+
+
+@dataclass(frozen=True, kw_only=True)
+class LexOptions(_SolverTuning):
+    """Three-phase lexicographic optimization with clean shadow prices.
+
+    Phase 1: minimize primary.
+    Phase 2: minimize secondary with primary constrained.
+    Phase 3: re-minimize primary with secondary constrained (epsilon slack).
+    """
+
+    mode: Literal["lex"] = "lex"
+
+
+@dataclass(frozen=True, kw_only=True)
+class BlendedOptions(_SolverTuning):
+    """Single-solve weighted sum: primary + blend_weight * secondary."""
+
+    mode: Literal["blended"] = "blended"
+    blend_weight: float = 1e-3
+
+
+@dataclass(frozen=True, kw_only=True)
+class CalibratedOptions(_SolverTuning):
+    """Two-phase lex on first call, then calibrated blended fast path.
+
+    The first call runs phases 1 and 2 of lex, then binary-searches for
+    a blend weight that reproduces the lex primary variable values within
+    tolerance. Subsequent calls use the blended fast path.
+    """
+
+    mode: Literal["calibrated"] = "calibrated"
+    calibration_tolerance: float = 1e-4
+
+
+SolveOptions = LexOptions | BlendedOptions | CalibratedOptions
 
 
 # Calibration search bounds in log10 space.  The secondary objective can
@@ -110,7 +112,7 @@ class Network:
     name: str
     periods: NDArray[np.floating[Any]]  # Period durations in hours (one per optimization interval)
     elements: dict[str, Element[Any]] = field(default_factory=dict)
-    options: SolveOptions = field(default_factory=SolveOptions)
+    options: SolveOptions = field(default_factory=CalibratedOptions)
     _solver: Highs = field(default_factory=Highs, repr=False)
     _lex_constraint: highs_cons | None = field(default=None, init=False, repr=False)
     _calibrated_weight: float | None = field(default=None, init=False, repr=False)
@@ -283,10 +285,10 @@ class Network:
         if primary is None or secondary is None:
             return self._solve_single(h, all_col_indices, cost_vectors, has_primary=primary is not None)
 
-        if self.options.mode == "blended":
+        if isinstance(self.options, BlendedOptions):
             return self._solve_blended(h, all_col_indices, cost_vectors, self.options.blend_weight)
 
-        if self.options.mode == "calibrated" and self._calibrated_weight is not None:
+        if isinstance(self.options, CalibratedOptions) and self._calibrated_weight is not None:
             return self._solve_blended(h, all_col_indices, cost_vectors, self._calibrated_weight)
 
         return self._solve_lex(h, all_col_indices, cost_vectors, primary, secondary)
@@ -337,7 +339,7 @@ class Network:
         h.run()
         secondary_value = _ensure_optimal(h)
 
-        if self.options.mode == "lex":
+        if isinstance(self.options, LexOptions):
             # Phase 3: re-minimize primary with secondary constrained (restore duals)
             epsilon = max(1e-6, abs(secondary_value) * 1e-6)
             self._constrain_objective(secondary, secondary_value + epsilon)
@@ -346,7 +348,7 @@ class Network:
             _ensure_optimal(h)
 
         # Calibrate blend weight for future calls
-        if self.options.mode == "calibrated":
+        if isinstance(self.options, CalibratedOptions):
             lex_values = np.asarray(h.allVariableValues())
             self._calibrated_weight = self._calibrate_blend_weight(
                 all_col_indices,
@@ -407,7 +409,7 @@ class Network:
 
         # If no variables have primary cost, any weight is safe.
         if lex_pri.size == 0:
-            return self.options.blend_weight
+            return 1e-3  # safe default — no primary cost to distort
 
         # Absolute tolerance scaled to variable magnitudes.
         abs_tol = max(1e-8, float(np.max(np.abs(lex_pri))) * tolerance)
