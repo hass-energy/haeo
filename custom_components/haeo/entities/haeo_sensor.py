@@ -99,7 +99,7 @@ class HaeoSensor(CoordinatorEntity[HaeoDataUpdateCoordinator], SensorEntity):
                 if output_data.forecast:
                     attributes["forecast"] = self._scale_percentage_forecast(output_data.unit, output_data.forecast)
 
-        if self._output_name == OUTPUT_NAME_OPTIMIZATION_STATUS and self.coordinator.data is not None:
+        if self._output_name == OUTPUT_NAME_OPTIMIZATION_STATUS:
             attributes["last_run"] = self.coordinator.data.completed_at.isoformat()
 
         self._attr_native_value = native_value

@@ -46,6 +46,8 @@ def _make_coordinator_data(
 
     Args:
         outputs: Dict of outputs. If None, returns None to simulate no data.
+        started_at: Optimization start time; defaults to current UTC time.
+        completed_at: Optimization completion time; defaults to current UTC time.
 
     Returns:
         CoordinatorData with the given outputs, or None.
