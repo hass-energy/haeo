@@ -484,6 +484,69 @@ async def test_edit_rule_preserves_source_target_when_omitted_from_submission(
     assert update_data[CONF_RULES][0]["price"] == as_constant_value(0.03)
 
 
+async def test_edit_rule_updates_only_selected_rule_without_losing_others(
+    hass: HomeAssistant,
+    hub_entry: MockConfigEntry,
+) -> None:
+    """Editing one rule preserves all other rules and total rule count."""
+    existing_rules: list[PolicyRuleConfig] = [
+        {
+            "name": "Rule A",
+            "source": ["Solar"],
+            "target": ["Grid"],
+            "price": as_constant_value(0.02),
+        },
+        {
+            "name": "Rule B",
+            "source": ["Grid"],
+            "target": ["Battery"],
+            "price": as_constant_value(0.05),
+        },
+        {
+            "name": "Rule C",
+            "source": ["Battery"],
+            "target": ["Load"],
+            "price": as_constant_value(0.01),
+        },
+    ]
+    subentry = _make_policy_subentry(existing_rules)
+    hass.config_entries.async_add_subentry(hub_entry, subentry)
+
+    flow = _create_flow(hass, hub_entry)
+    flow.context = {"subentry_id": subentry.subentry_id}
+    flow._get_reconfigure_subentry = Mock(return_value=subentry)
+    flow.async_update_and_abort = Mock(
+        return_value={"type": FlowResultType.ABORT, "reason": "reconfigure_successful"},
+    )
+
+    await flow.async_step_reconfigure(user_input=None)
+    await flow.async_step_reconfigure(
+        user_input={
+            CONF_RULE: "1",
+            CONF_ACTION: ACTION_EDIT,
+        }
+    )
+
+    result = await flow.async_step_edit_rule(
+        user_input={
+            CONF_RULE_NAME: "Rule B Updated",
+            CONF_ENABLED: True,
+            CONF_PRICE: 0.07,
+        }
+    )
+
+    assert result.get("type") == FlowResultType.ABORT
+    update_data = flow.async_update_and_abort.call_args.kwargs["data"]
+    rules = update_data[CONF_RULES]
+    assert len(rules) == 3
+    assert rules[0] == existing_rules[0]
+    assert rules[2] == existing_rules[2]
+    assert rules[1]["name"] == "Rule B Updated"
+    assert rules[1]["source"] == ["Grid"]
+    assert rules[1]["target"] == ["Battery"]
+    assert rules[1]["price"] == as_constant_value(0.07)
+
+
 async def test_edit_rule_rejects_duplicate_name(
     hass: HomeAssistant,
     hub_entry: MockConfigEntry,
@@ -528,6 +591,78 @@ async def test_edit_rule_rejects_duplicate_name(
 
     assert result.get("type") == FlowResultType.FORM
     assert result.get("errors") == {CONF_RULE_NAME: "name_exists"}
+
+
+async def test_edit_rule_saved_values_restore_when_reopened(
+    hass: HomeAssistant,
+    hub_entry: MockConfigEntry,
+) -> None:
+    """Saved rule edits appear as defaults when opening edit again."""
+    existing_rules: list[PolicyRuleConfig] = [
+        {
+            "name": "Solar Export",
+            "source": ["Solar"],
+            "target": ["Grid"],
+            "price": as_constant_value(0.02),
+        },
+    ]
+    subentry = _make_policy_subentry(existing_rules)
+    hass.config_entries.async_add_subentry(hub_entry, subentry)
+
+    # First edit/save pass
+    save_flow = _create_flow(hass, hub_entry)
+    save_flow.context = {"subentry_id": subentry.subentry_id}
+    save_flow._get_reconfigure_subentry = Mock(return_value=subentry)
+    save_flow.async_update_and_abort = Mock(
+        return_value={"type": FlowResultType.ABORT, "reason": "reconfigure_successful"},
+    )
+
+    await save_flow.async_step_reconfigure(user_input=None)
+    await save_flow.async_step_reconfigure(
+        user_input={
+            CONF_RULE: "0",
+            CONF_ACTION: ACTION_EDIT,
+        }
+    )
+    await save_flow.async_step_edit_rule(
+        user_input={
+            CONF_RULE_NAME: "Solar Export Updated",
+            CONF_ENABLED: True,
+            CONF_SOURCE: ["Solar"],
+            CONF_TARGET: ["Battery"],
+            CONF_PRICE: 0.06,
+        }
+    )
+
+    saved_data = save_flow.async_update_and_abort.call_args.kwargs["data"]
+    saved_subentry = _make_policy_subentry(saved_data[CONF_RULES])
+    hass.config_entries.async_add_subentry(hub_entry, saved_subentry)
+
+    # Re-open edit using saved values
+    reopen_flow = _create_flow(hass, hub_entry)
+    reopen_flow.context = {"subentry_id": saved_subentry.subentry_id}
+    reopen_flow._get_reconfigure_subentry = Mock(return_value=saved_subentry)
+    reopen_flow._get_subentry = Mock(return_value=saved_subentry)
+
+    await reopen_flow.async_step_reconfigure(user_input=None)
+    await reopen_flow.async_step_reconfigure(
+        user_input={
+            CONF_RULE: "0",
+            CONF_ACTION: ACTION_EDIT,
+        }
+    )
+    reopen_result = await reopen_flow.async_step_edit_rule(user_input=None)
+
+    assert _get_suggested_value(reopen_result, CONF_RULE_NAME) == "Solar Export Updated"
+    assert _get_suggested_value(reopen_result, CONF_SOURCE) == {
+        "active_choice": CHOICE_ELEMENTS,
+        CHOICE_ELEMENTS: ["Solar"],
+    }
+    assert _get_suggested_value(reopen_result, CONF_TARGET) == {
+        "active_choice": CHOICE_ELEMENTS,
+        CHOICE_ELEMENTS: ["Battery"],
+    }
+    assert _get_suggested_value(reopen_result, CONF_PRICE) == 0.06
 
 
 async def test_edit_rule_rejects_duplicate_name_preserves_omitted_source_target_defaults(
