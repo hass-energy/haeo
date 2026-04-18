@@ -262,14 +262,8 @@ def test_connection_update_max_power_target_source() -> None:
             "source": "source",
             "target": "sink",
             "segments": {
-                "power_limit": {
-                    "segment_type": "power_limit",
-                    "max_power": 5.0,
-                },
-                "pricing": {
-                    "segment_type": "pricing",
-                    "price": 0.01,
-                },
+                "power_limit": {"segment_type": "power_limit", "max_power": 5.0},
+                "pricing": {"segment_type": "pricing", "price": 0.01},
             },
         }
     )

@@ -223,13 +223,15 @@ class Connection[TOutputName: str](Element[TOutputName]):
         result.update(own_constraints)
         return result
 
-    def cost(self) -> tuple[Any, Any] | None:  # type: ignore[override]
+    def cost(self) -> tuple[highs_linear_expression | None, highs_linear_expression]:  # type: ignore[override]
         """Return (primary_cost, secondary_cost) for this connection.
 
         Primary: segment costs + tag costs.
         Secondary: time-preference objective for deterministic ordering.
         """
-        primary_costs: list[Any] = [sc for seg in self._segments.values() if (sc := seg.cost()) is not None]
+        primary_costs: list[highs_linear_expression] = [
+            sc for seg in self._segments.values() if (sc := seg.cost()) is not None
+        ]
 
         for tc in self._tag_costs:
             tag = tc["tag"]
@@ -241,17 +243,14 @@ class Connection[TOutputName: str](Element[TOutputName]):
         if primary_costs:
             primary = primary_costs[0] if len(primary_costs) == 1 else Highs.qsum(primary_costs)
 
-        secondary = self._time_preference_objective()
-
-        if primary is None and secondary is None:
-            return None
-        return (primary, secondary)
-
-    def _time_preference_objective(self) -> highs_linear_expression | None:
-        """Return secondary objective that prefers earlier energy transfer."""
+        # Time-preference objective: prefer earlier energy transfer
         n = self.n_periods
         weights = self.priority * n + np.arange(1, n + 1, dtype=np.float64)
-        return Highs.qsum(self.total_power_in * self.periods * weights)
+        secondary = Highs.qsum(self.total_power_in * self.periods * weights)
+
+        if primary is None:
+            return (None, secondary)
+        return (primary, secondary)
 
     # --- Output methods ---
 

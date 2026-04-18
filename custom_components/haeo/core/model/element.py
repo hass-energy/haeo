@@ -179,20 +179,18 @@ class Element[OutputNameT: str]:
         return result
 
     @cost
-    def cost(self) -> Any:
+    def cost(self) -> highs_linear_expression | None:
         """Return aggregated primary cost expression from this element.
 
         Discovers and calls all @cost decorated methods, summing their results
         into a single expression. Cached by the @cost decorator — only
         recomputes when underlying @cost method dependencies change.
-
-        Returns:
-            Single cost expression or None if no costs are defined
-
         """
+        # Access the decorator's internal name to skip self in the dir() loop.
+        # _name is set by ReactiveCost.__set_name__ and is not part of the public API.
         this_method_name = type(self).cost._name  # type: ignore[attr-defined]  # noqa: SLF001
 
-        costs: list[Any] = []
+        costs: list[highs_linear_expression] = []
         for name in dir(type(self)):
             if name == this_method_name:
                 continue

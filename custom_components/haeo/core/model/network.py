@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass, field
 import logging
-from typing import Any, Literal, overload
+from typing import Any, Final, Literal, overload
 
 from highspy import Highs, HighsModelStatus, ObjSense
 from highspy.highs import highs_cons, highs_linear_expression
@@ -26,10 +26,10 @@ OnOffChoose = Literal["on", "off", "choose"]
 # Calibration search bounds in log10 space.  The secondary objective can
 # be many orders of magnitude larger than the primary, so we need a wide
 # range.  1e-12 is effectively zero influence; 1e-1 would dominate.
-_CAL_LOG_LO = -12.0
-_CAL_LOG_HI = -1.0
-_CAL_MAX_STEPS = 40  # total bisection budget split across upper/lower searches
-_CAL_CONVERGENCE = 0.01  # stop bisection when interval < this (log10 decades)
+_CAL_LOG_LO: Final = -12.0
+_CAL_LOG_HI: Final = -1.0
+_CAL_MAX_STEPS: Final = 40  # total bisection budget split across upper/lower searches
+_CAL_CONVERGENCE: Final = 0.01  # stop bisection when interval < this (log10 decades)
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -222,15 +222,15 @@ class Network:
 
         return element_instance
 
-    def cost(self) -> tuple[Any, Any] | None:
+    def cost(self) -> tuple[highs_linear_expression | None, highs_linear_expression | None] | None:
         """Aggregate (primary, secondary) costs from all elements.
 
         Elements return either a single expression (primary only) or a
         (primary, secondary) tuple. Single expressions are promoted to
         the primary slot.
         """
-        primaries: list[Any] = []
-        secondaries: list[Any] = []
+        primaries: list[highs_linear_expression] = []
+        secondaries: list[highs_linear_expression] = []
 
         for element in self.elements.values():
             element_cost = element.cost()
@@ -278,7 +278,7 @@ class Network:
 
         primary, secondary = objectives
         if primary is None:
-            msg = "Network has no primary cost — add pricing segments to connections"
+            msg = "Network has no primary cost — add pricing to connections or nodes"
             raise ValueError(msg)
         if secondary is None:
             msg = "Network has no secondary cost — connections must generate time-preference objectives"
@@ -301,11 +301,11 @@ class Network:
         h: Highs,
         all_col_indices: NDArray[np.int32],
         cost_vectors: list[NDArray[np.float64]],
-        primary: Any,
-        secondary: Any,
+        primary: highs_linear_expression,
+        secondary: highs_linear_expression,
     ) -> float:
         """Lexicographic solve: Phase 1 primary, Phase 2 secondary, Phase 3 restore."""
-        _clear_linear_objectives(h)
+        h.clearLinearObjectives()
 
         # Phase 1: minimize primary
         _set_cost_vector(h, all_col_indices, cost_vectors[0])
@@ -347,7 +347,7 @@ class Network:
         weight: float,
     ) -> float:
         """Single-solve weighted sum: primary + weight * secondary."""
-        _clear_linear_objectives(h)
+        h.clearLinearObjectives()
         self._relax_lex_constraint()
         blended = cost_vectors[0] + weight * cost_vectors[1]
         _set_cost_vector(h, all_col_indices, blended)
@@ -531,13 +531,8 @@ class Network:
         return result
 
 
-def _clear_linear_objectives(solver: Highs) -> None:
-    """Clear any multiobjective state."""
-    solver.clearLinearObjectives()
-
-
 def _build_cost_vectors(
-    objectives: tuple[Any, Any],
+    objectives: tuple[highs_linear_expression | None, highs_linear_expression | None],
     n_vars: int,
 ) -> list[NDArray[np.float64]]:
     """Convert objective expressions to dense cost vectors.

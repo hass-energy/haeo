@@ -15,7 +15,7 @@ import operator
 from typing import Any
 
 from highspy import Highs
-from highspy.highs import HighspyArray, highs_cons
+from highspy.highs import HighspyArray, highs_cons, highs_linear_expression
 import numpy as np
 from numpy.typing import NDArray
 
@@ -142,11 +142,12 @@ class Segment:
         return result
 
     @cost
-    def cost(self) -> Any:
+    def cost(self) -> highs_linear_expression | None:
         """Return aggregated primary cost expression from this segment."""
+        # Access decorator's internal name to skip self in dir() loop
         this_method_name = type(self).cost._name  # type: ignore[attr-defined]  # noqa: SLF001
 
-        costs: list[Any] = []
+        costs: list[highs_linear_expression] = []
         for name in dir(type(self)):
             if name == this_method_name:
                 continue
