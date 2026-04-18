@@ -75,20 +75,28 @@ The objective minimizes the sum of all element costs.
 
 ### Solution Process
 
-Optimization proceeds in two phases:
+Optimization uses lexicographic multiobjective solving with calibrated blending:
 
-**Phase 1: Problem Formulation**
+**Phase 1: Minimize primary objective**
 
-Elements construct their decision variables and constraints.
-The network collects these contributions into matrices forming the standard LP problem.
+The network minimizes total cost (the primary objective).
 
-**Phase 2: Solution**
+**Phase 2: Minimize secondary objective**
 
-The LP solver finds optimal values for all decision variables that minimize total cost while satisfying all constraints.
+The primary objective is constrained to equal its optimal value, and the solver minimizes the secondary time-preference objective.
+This breaks ties among cost-equivalent solutions by preferring earlier energy transfers.
+
+**Calibration (default mode)**
+
+After the first lexicographic solve, a binary search finds a blend weight that reproduces the lex decision variables in a single weighted-sum solve.
+Subsequent optimizations use this blended objective (`primary + weight * secondary`) in a single solve, which warm-starts efficiently.
+
+A full three-phase lexicographic mode is also available (`mode="lex"`) that adds a Phase 3 re-minimization of the primary with the secondary constrained.
+This restores dual values (shadow prices) that reflect pure primary-cost sensitivities, at the cost of an additional solve per optimization.
 
 ### Solution Outcomes
 
-- **Optimal solution**: Satisfies all constraints with minimum total cost
+- **Optimal solution**: Satisfies all constraints with minimum total cost and deterministic tie-breaking
 - **Infeasible**: No solution exists that satisfies all constraints simultaneously
 
 ## Network Structure
@@ -212,7 +220,9 @@ The complete constraint set ensures physically feasible operation while allowing
 
 ## Objective Function
 
-The optimization minimizes total system cost over the horizon:
+The optimization uses a lexicographic two-objective formulation.
+
+### Primary objective: minimize cost
 
 $$
 \text{minimize} \sum_{\text{elements}} \sum_{t=0}^{T-1} C_{\text{element}}(t)
@@ -230,6 +240,22 @@ Each element defines its own cost terms based on its role:
 - Elements without direct costs (loads, nodes) affect costs indirectly through energy balance
 
 See individual element pages for specific cost formulations.
+
+### Secondary objective: time preference
+
+When multiple solutions achieve the same minimum cost, the optimizer prefers earlier energy transfers.
+Each connection contributes a time-preference term to the secondary objective:
+
+$$
+\text{minimize} \sum_{\text{connections}} \sum_{t=0}^{T-1} w_{p,t} \cdot E_c(t)
+$$
+
+Where $p$ is the connection priority derived from endpoint element types, $w_{p,t} = p \cdot T + (t + 1)$ assigns monotonically increasing weights by priority group and time step, and $E_c(t)$ is the energy transferred through connection $c$ at time $t$.
+Connections with different priorities receive non-overlapping weight ranges.
+Connections with the same priority share the same per-period weight sequence.
+
+The secondary objective does not affect the optimal cost.
+It only selects among cost-equivalent solutions for deterministic, physically intuitive schedules.
 
 ## Solver
 

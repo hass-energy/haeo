@@ -3,7 +3,7 @@
 Each segment type applies a specific transformation or constraint to power flow:
 - EfficiencySegment: Applies efficiency losses
 - PassthroughSegment: Lossless passthrough (no constraints)
-- PowerLimitSegment: Limits power flow with optional time-slice constraint
+- PowerLimitSegment: Limits power flow
 - PricingSegment: Adds transfer pricing costs
 - SocPricingSegment: Adds SOC-based pricing penalties
 """
@@ -13,6 +13,7 @@ from dataclasses import dataclass
 from typing import Any, Final, Literal, TypeGuard
 
 from highspy import Highs
+from highspy.highs import HighspyArray
 import numpy as np
 from numpy.typing import NDArray
 
@@ -20,14 +21,7 @@ from custom_components.haeo.core.model.element import Element
 
 from .efficiency import EfficiencySegment, EfficiencySegmentSpec
 from .passthrough import PassthroughSegment, PassthroughSegmentSpec
-from .power_limit import (
-    POWER_LIMIT_SOURCE_TARGET,
-    POWER_LIMIT_TARGET_SOURCE,
-    POWER_LIMIT_TIME_SLICE,
-    PowerLimitOutputName,
-    PowerLimitSegment,
-    PowerLimitSegmentSpec,
-)
+from .power_limit import PowerLimitSegment, PowerLimitSegmentSpec
 from .pricing import PricingSegment, PricingSegmentSpec
 from .segment import Segment
 from .soc_pricing import SocPricingSegment, SocPricingSegmentSpec
@@ -92,6 +86,7 @@ def create_segment(
     spec: SegmentSpec,
     source_element: Element[Any],
     target_element: Element[Any],
+    power_in: dict[int, HighspyArray],
 ) -> Segment:
     """Create a segment instance from a segment specification."""
     segment_type = spec["segment_type"]
@@ -104,19 +99,16 @@ def create_segment(
         spec=spec,
         source_element=source_element,
         target_element=target_element,
+        power_in=power_in,
     )
 
 
 __all__ = [
-    "POWER_LIMIT_SOURCE_TARGET",
-    "POWER_LIMIT_TARGET_SOURCE",
-    "POWER_LIMIT_TIME_SLICE",
     "SEGMENTS",
     "EfficiencySegment",
     "EfficiencySegmentSpec",
     "PassthroughSegment",
     "PassthroughSegmentSpec",
-    "PowerLimitOutputName",
     "PowerLimitSegment",
     "PowerLimitSegmentSpec",
     "PricingSegment",

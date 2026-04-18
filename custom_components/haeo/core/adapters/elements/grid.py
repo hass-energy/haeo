@@ -12,12 +12,7 @@ from custom_components.haeo.core.const import ConnectivityLevel
 from custom_components.haeo.core.model import ModelElementConfig, ModelOutputName, ModelOutputValue
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE
-from custom_components.haeo.core.model.elements.connection import (
-    CONNECTION_POWER_SOURCE_TARGET,
-    CONNECTION_POWER_TARGET_SOURCE,
-    CONNECTION_SEGMENTS,
-)
-from custom_components.haeo.core.model.elements.segments import POWER_LIMIT_SOURCE_TARGET, POWER_LIMIT_TARGET_SOURCE
+from custom_components.haeo.core.model.elements.connection import CONNECTION_POWER, CONNECTION_SEGMENTS
 from custom_components.haeo.core.model.output_data import OutputData
 from custom_components.haeo.core.model.util import broadcast_to_sequence
 from custom_components.haeo.core.schema import extract_connection_target
@@ -76,31 +71,41 @@ class GridAdapter:
 
     def model_elements(self, config: GridConfigData) -> list[ModelElementConfig]:
         """Create model elements for Grid configuration."""
+        grid_name = config["name"]
+        target_name = extract_connection_target(config[CONF_CONNECTION])
         return [
-            # Create Node for the grid (both source and sink - can import and export)
             {
                 "element_type": MODEL_ELEMENT_TYPE_NODE,
-                "name": config["name"],
+                "name": grid_name,
                 "is_source": True,
                 "is_sink": True,
             },
-            # Create a connection from system node to grid
             {
                 "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
-                "name": f"{config['name']}:connection",
-                "source": config["name"],
-                "target": extract_connection_target(config[CONF_CONNECTION]),
+                "name": f"{grid_name}:import",
+                "source": grid_name,
+                "target": target_name,
+                "is_external": True,
                 "segments": {
                     "power_limit": {
                         "segment_type": "power_limit",
-                        "max_power_source_target": config[SECTION_POWER_LIMITS].get(CONF_MAX_POWER_SOURCE_TARGET),
-                        "max_power_target_source": config[SECTION_POWER_LIMITS].get(CONF_MAX_POWER_TARGET_SOURCE),
+                        "max_power": config[SECTION_POWER_LIMITS].get(CONF_MAX_POWER_SOURCE_TARGET),
                     },
-                    "pricing": {
-                        "segment_type": "pricing",
-                        "price_source_target": config[SECTION_PRICING][CONF_PRICE_SOURCE_TARGET],
-                        "price_target_source": -config[SECTION_PRICING][CONF_PRICE_TARGET_SOURCE],
+                    "pricing": {"segment_type": "pricing", "price": config[SECTION_PRICING][CONF_PRICE_SOURCE_TARGET]},
+                },
+            },
+            {
+                "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
+                "name": f"{grid_name}:export",
+                "source": target_name,
+                "target": grid_name,
+                "is_external": True,
+                "segments": {
+                    "power_limit": {
+                        "segment_type": "power_limit",
+                        "max_power": config[SECTION_POWER_LIMITS].get(CONF_MAX_POWER_TARGET_SOURCE),
                     },
+                    "pricing": {"segment_type": "pricing", "price": -config[SECTION_PRICING][CONF_PRICE_TARGET_SOURCE]},
                 },
             },
         ]
@@ -115,17 +120,18 @@ class GridAdapter:
         **_kwargs: Any,
     ) -> Mapping[GridDeviceName, Mapping[GridOutputName, OutputData]]:
         """Map model outputs to grid-specific output names."""
-        connection = model_outputs[f"{name}:connection"]
+        import_conn = model_outputs[f"{name}:import"]
+        export_conn = model_outputs[f"{name}:export"]
 
         grid_outputs: dict[GridOutputName, OutputData] = {}
 
         # source_target = grid to system = IMPORT
         # target_source = system to grid = EXPORT
-        power_import = expect_output_data(connection[CONNECTION_POWER_SOURCE_TARGET])
-        power_export = expect_output_data(connection[CONNECTION_POWER_TARGET_SOURCE])
+        power_import = expect_output_data(import_conn[CONNECTION_POWER])
+        power_export = expect_output_data(export_conn[CONNECTION_POWER])
 
-        grid_outputs[GRID_POWER_EXPORT] = replace(power_export, type=OutputType.POWER)
-        grid_outputs[GRID_POWER_IMPORT] = replace(power_import, type=OutputType.POWER)
+        grid_outputs[GRID_POWER_EXPORT] = replace(power_export, type=OutputType.POWER, direction="-")
+        grid_outputs[GRID_POWER_IMPORT] = replace(power_import, type=OutputType.POWER, direction="+")
 
         # Active grid power (export - import)
         grid_outputs[GRID_POWER_ACTIVE] = replace(
@@ -167,17 +173,18 @@ class GridAdapter:
             type=OutputType.COST, unit="$", values=net_cumsum, direction=None, state_last=True
         )
 
-        # Output the shadow prices from power_limit segment
-        if isinstance(segments_output := connection.get(CONNECTION_SEGMENTS), Mapping) and isinstance(
-            power_limit_outputs := segments_output.get("power_limit"), Mapping
-        ):
-            shadow_mappings: tuple[tuple[GridOutputName, str], ...] = (
-                (GRID_POWER_MAX_EXPORT_PRICE, POWER_LIMIT_TARGET_SOURCE),
-                (GRID_POWER_MAX_IMPORT_PRICE, POWER_LIMIT_SOURCE_TARGET),
-            )
-            for output_name, shadow_key in shadow_mappings:
-                if (shadow := expect_output_data(power_limit_outputs.get(shadow_key))) is not None:
-                    grid_outputs[output_name] = shadow
+        # Output the shadow prices from power_limit segments on each connection
+        shadow_price_mappings: tuple[tuple[Mapping[ModelOutputName, ModelOutputValue], GridOutputName], ...] = (
+            (export_conn, GRID_POWER_MAX_EXPORT_PRICE),
+            (import_conn, GRID_POWER_MAX_IMPORT_PRICE),
+        )
+        for conn, output_name in shadow_price_mappings:
+            if (
+                isinstance(segments_output := conn.get(CONNECTION_SEGMENTS), Mapping)
+                and isinstance(power_limit_outputs := segments_output.get("power_limit"), Mapping)
+                and (shadow := expect_output_data(power_limit_outputs.get("power_limit"))) is not None
+            ):
+                grid_outputs[output_name] = shadow
 
         return {GRID_DEVICE_GRID: grid_outputs}
 

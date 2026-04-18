@@ -43,6 +43,9 @@ from custom_components.haeo.elements import ElementOutputName
 from custom_components.haeo.elements.input_fields import InputFieldInfo
 from custom_components.haeo.flows import HUB_SECTION_COMMON, HUB_SECTION_TIERS, get_element_flow_classes
 
+# Policy uses a multi-step menu-driven flow incompatible with the generic single-step tests
+SINGLE_STEP_ELEMENT_TYPES: tuple[ElementType, ...] = tuple(et for et in ELEMENT_TYPES if et != ElementType.POLICY)
+
 ALL_ELEMENT_TYPES: tuple[ElementType, ...] = tuple(ELEMENT_TYPES)
 
 TEST_ELEMENT_TYPE = "flow_test_element"
@@ -234,7 +237,7 @@ def hub_entry(hass: HomeAssistant) -> MockConfigEntry:
     return entry
 
 
-@pytest.mark.parametrize("element_type", ALL_ELEMENT_TYPES)
+@pytest.mark.parametrize("element_type", SINGLE_STEP_ELEMENT_TYPES)
 async def test_element_flow_user_step_success(
     hass: HomeAssistant,
     hub_entry: MockConfigEntry,
@@ -273,7 +276,7 @@ async def test_element_flow_user_step_success(
     assert _get_element_name(created_kwargs["data"], element_type) == _get_element_name(user_input, element_type)
 
 
-@pytest.mark.parametrize("element_type", ALL_ELEMENT_TYPES)
+@pytest.mark.parametrize("element_type", SINGLE_STEP_ELEMENT_TYPES)
 async def test_element_flow_user_step_missing_name(
     hass: HomeAssistant,
     hub_entry: MockConfigEntry,
@@ -293,7 +296,7 @@ async def test_element_flow_user_step_missing_name(
     assert result.get("errors") == {CONF_NAME: "missing_name"}
 
 
-@pytest.mark.parametrize("element_type", ALL_ELEMENT_TYPES)
+@pytest.mark.parametrize("element_type", SINGLE_STEP_ELEMENT_TYPES)
 async def test_element_flow_user_step_duplicate_name(
     hass: HomeAssistant,
     hub_entry: MockConfigEntry,
@@ -316,7 +319,7 @@ async def test_element_flow_user_step_duplicate_name(
     assert result.get("errors") == {CONF_NAME: "name_exists"}
 
 
-@pytest.mark.parametrize("element_type", ALL_ELEMENT_TYPES)
+@pytest.mark.parametrize("element_type", SINGLE_STEP_ELEMENT_TYPES)
 async def test_element_flow_reconfigure_success(
     hass: HomeAssistant,
     hub_entry: MockConfigEntry,
@@ -353,7 +356,7 @@ async def test_element_flow_reconfigure_success(
     assert update_kwargs["data"][CONF_ELEMENT_TYPE] == element_type
 
 
-@pytest.mark.parametrize("element_type", ALL_ELEMENT_TYPES)
+@pytest.mark.parametrize("element_type", SINGLE_STEP_ELEMENT_TYPES)
 async def test_element_flow_reconfigure_rename(
     hass: HomeAssistant,
     hub_entry: MockConfigEntry,
@@ -387,7 +390,7 @@ async def test_element_flow_reconfigure_rename(
     assert update_kwargs["title"] == renamed_input[CONF_NAME]
 
 
-@pytest.mark.parametrize("element_type", ALL_ELEMENT_TYPES)
+@pytest.mark.parametrize("element_type", SINGLE_STEP_ELEMENT_TYPES)
 async def test_element_flow_reconfigure_missing_name(
     hass: HomeAssistant,
     hub_entry: MockConfigEntry,
@@ -415,7 +418,7 @@ async def test_element_flow_reconfigure_missing_name(
     assert result.get("errors") == {CONF_NAME: "missing_name"}
 
 
-@pytest.mark.parametrize("element_type", ALL_ELEMENT_TYPES)
+@pytest.mark.parametrize("element_type", SINGLE_STEP_ELEMENT_TYPES)
 async def test_element_flow_reconfigure_duplicate_name(
     hass: HomeAssistant,
     hub_entry: MockConfigEntry,

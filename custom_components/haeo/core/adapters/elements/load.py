@@ -9,8 +9,7 @@ from custom_components.haeo.core.const import ConnectivityLevel
 from custom_components.haeo.core.model import ModelElementConfig, ModelOutputName, ModelOutputValue
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE
-from custom_components.haeo.core.model.elements.connection import CONNECTION_POWER_TARGET_SOURCE, CONNECTION_SEGMENTS
-from custom_components.haeo.core.model.elements.segments import POWER_LIMIT_TARGET_SOURCE
+from custom_components.haeo.core.model.elements.connection import CONNECTION_POWER, CONNECTION_SEGMENTS
 from custom_components.haeo.core.model.output_data import OutputData
 from custom_components.haeo.core.schema import extract_connection_target
 from custom_components.haeo.core.schema.elements import ElementType
@@ -19,10 +18,8 @@ from custom_components.haeo.core.schema.sections import (
     CONF_CONNECTION,
     CONF_CURTAILMENT,
     CONF_FORECAST,
-    CONF_PRICE_TARGET_SOURCE,
     SECTION_CURTAILMENT,
     SECTION_FORECAST,
-    SECTION_PRICING,
 )
 
 # Load output names
@@ -55,33 +52,24 @@ class LoadAdapter:
 
     def model_elements(self, config: LoadConfigData) -> list[ModelElementConfig]:
         """Create model elements for Load configuration."""
-        value = config[SECTION_PRICING].get(CONF_PRICE_TARGET_SOURCE)
-
         return [
-            # Create Node for the load (sink only - consumes power)
             {
                 "element_type": MODEL_ELEMENT_TYPE_NODE,
                 "name": config["name"],
                 "is_source": False,
                 "is_sink": True,
             },
-            # Create Connection from node to load (power flows TO the load)
             {
                 "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
                 "name": f"{config['name']}:connection",
-                "source": config["name"],
-                "target": extract_connection_target(config[CONF_CONNECTION]),
+                "source": extract_connection_target(config[CONF_CONNECTION]),
+                "target": config["name"],
+                "is_time_sensitive": True,
                 "segments": {
                     "power_limit": {
                         "segment_type": "power_limit",
-                        "max_power_source_target": 0.0,
-                        "max_power_target_source": config[SECTION_FORECAST][CONF_FORECAST],
+                        "max_power": config[SECTION_FORECAST][CONF_FORECAST],
                         "fixed": not config[SECTION_CURTAILMENT].get(CONF_CURTAILMENT, False),
-                    },
-                    "pricing": {
-                        "segment_type": "pricing",
-                        "price_source_target": None,
-                        "price_target_source": -value if value is not None else None,
                     },
                 },
             },
@@ -96,16 +84,16 @@ class LoadAdapter:
         """Map model outputs to load-specific output names."""
         connection = model_outputs[f"{name}:connection"]
 
-        power_target_source = expect_output_data(connection[CONNECTION_POWER_TARGET_SOURCE])
+        power = expect_output_data(connection[CONNECTION_POWER])
         load_outputs: dict[LoadOutputName, OutputData] = {
-            LOAD_POWER: replace(power_target_source, type=OutputType.POWER),
+            LOAD_POWER: replace(power, type=OutputType.POWER, direction="-"),
         }
 
         # Shadow price from power_limit segment (if present)
         if (
             isinstance(segments_output := connection.get(CONNECTION_SEGMENTS), Mapping)
             and isinstance(power_limit_outputs := segments_output.get("power_limit"), Mapping)
-            and (shadow := expect_output_data(power_limit_outputs.get(POWER_LIMIT_TARGET_SOURCE))) is not None
+            and (shadow := expect_output_data(power_limit_outputs.get("power_limit"))) is not None
         ):
             load_outputs[LOAD_FORECAST_LIMIT_PRICE] = shadow
 

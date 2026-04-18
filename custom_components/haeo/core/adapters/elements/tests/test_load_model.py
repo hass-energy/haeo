@@ -47,7 +47,6 @@ CREATE_CASES: Sequence[CreateCase] = [
             name="load_main",
             connection=as_connection_target("network"),
             forecast={"forecast": np.array([1.0, 2.0])},
-            pricing={},
             curtailment={},
         ),
         "model": [
@@ -55,32 +54,22 @@ CREATE_CASES: Sequence[CreateCase] = [
             {
                 "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
                 "name": "load_main:connection",
-                "source": "load_main",
-                "target": "network",
+                "source": "network",
+                "target": "load_main",
+                "is_time_sensitive": True,
                 "segments": {
-                    "power_limit": {
-                        "segment_type": "power_limit",
-                        "max_power_source_target": 0.0,
-                        "max_power_target_source": [1.0, 2.0],
-                        "fixed": True,
-                    },
-                    "pricing": {
-                        "segment_type": "pricing",
-                        "price_source_target": None,
-                        "price_target_source": None,
-                    },
+                    "power_limit": {"segment_type": "power_limit", "max_power": [1.0, 2.0], "fixed": True},
                 },
             },
         ],
     },
     {
-        "description": "Sheddable load with value",
+        "description": "Sheddable load",
         "data": LoadConfigData(
             element_type=ElementType.LOAD,
             name="load_sheddable",
             connection=as_connection_target("network"),
             forecast={"forecast": np.array([1.0, 2.0])},
-            pricing={"price_target_source": 0.5},
             curtailment={"curtailment": True},
         ),
         "model": [
@@ -93,20 +82,11 @@ CREATE_CASES: Sequence[CreateCase] = [
             {
                 "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
                 "name": "load_sheddable:connection",
-                "source": "load_sheddable",
-                "target": "network",
+                "source": "network",
+                "target": "load_sheddable",
+                "is_time_sensitive": True,
                 "segments": {
-                    "power_limit": {
-                        "segment_type": "power_limit",
-                        "max_power_source_target": 0.0,
-                        "max_power_target_source": [1.0, 2.0],
-                        "fixed": False,
-                    },
-                    "pricing": {
-                        "segment_type": "pricing",
-                        "price_source_target": None,
-                        "price_target_source": -0.5,
-                    },
+                    "power_limit": {"segment_type": "power_limit", "max_power": [1.0, 2.0], "fixed": False},
                 },
             },
         ],
@@ -120,19 +100,19 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
         "name": "load_main",
         "model_outputs": {
             "load_main:connection": {
-                connection.CONNECTION_POWER_TARGET_SOURCE: OutputData(
+                connection.CONNECTION_POWER: OutputData(
                     type=OutputType.POWER_FLOW, unit="kW", values=(1.0,), direction="+"
                 ),
                 connection.CONNECTION_SEGMENTS: {
                     "power_limit": {
-                        "target_source": OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.01,))
+                        "power_limit": OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.01,))
                     }
                 },
             }
         },
         "outputs": {
             LOAD_DEVICE_LOAD: {
-                LOAD_POWER: OutputData(type=OutputType.POWER, unit="kW", values=(1.0,), direction="+"),
+                LOAD_POWER: OutputData(type=OutputType.POWER, unit="kW", values=(1.0,), direction="-"),
                 LOAD_FORECAST_LIMIT_PRICE: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.01,)),
             }
         },

@@ -17,10 +17,10 @@ graph LR
     Conn -->|connects to| Node
 ```
 
-| Model Element                                          | Name                | Parameters From Configuration          |
-| ------------------------------------------------------ | ------------------- | -------------------------------------- |
-| [Node](../model-layer/elements/node.md)                | `{name}`            | is_source=true, is_sink=false          |
-| [Connection](../model-layer/connections/connection.md) | `{name}:connection` | power-limit and pricing segment values |
+| Model Element                                          | Name                | Parameters From Configuration |
+| ------------------------------------------------------ | ------------------- | ----------------------------- |
+| [Node](../model-layer/elements/node.md)                | `{name}`            | is_source=true, is_sink=false |
+| [Connection](../model-layer/connections/connection.md) | `{name}:connection` | power-limit segment values    |
 
 ## Devices Created
 
@@ -34,14 +34,13 @@ Solar creates 1 device in Home Assistant:
 
 The adapter transforms user configuration into connection segments:
 
-| User Configuration    | Segment           | Segment Field             | Notes                                       |
-| --------------------- | ----------------- | ------------------------- | ------------------------------------------- |
-| `forecast`            | PowerLimitSegment | `max_power_source_target` | Upper bound on generation                   |
-| `curtailment`         | PowerLimitSegment | `fixed`                   | True when curtailment is disabled           |
-| `price_source_target` | PricingSegment    | `price_source_target`     | Cost/revenue per kWh generated (default: 0) |
-| `connection`          | Connection        | `target`                  | Node to connect to                          |
-| —                     | Node              | `is_source=true`          | Solar provides power                        |
-| —                     | Node              | `is_sink=false`           | Solar cannot consume power                  |
+| User Configuration | Segment           | Segment Field             | Notes                             |
+| ------------------ | ----------------- | ------------------------- | --------------------------------- |
+| `forecast`         | PowerLimitSegment | `max_power_source_target` | Upper bound on generation         |
+| `curtailment`      | PowerLimitSegment | `fixed`                   | True when curtailment is disabled |
+| `connection`       | Connection        | `target`                  | Node to connect to                |
+| —                  | Node              | `is_source=true`          | Solar provides power              |
+| —                  | Node              | `is_sink=false`           | Solar cannot consume power        |
 
 ## Sensors Created
 
@@ -67,13 +66,12 @@ See [Solar Configuration](../../user-guide/elements/solar.md) for detailed senso
 
 ### With Curtailment Enabled
 
-| Field                | Value                                |
-| -------------------- | ------------------------------------ |
-| **Name**             | Curtailable Solar                    |
-| **Forecast**         | sensor.solcast_pv_forecast_power_now |
-| **Curtailment**      | true                                 |
-| **Price Production** | 0.0                                  |
-| **Connection**       | Home Bus                             |
+| Field           | Value                                |
+| --------------- | ------------------------------------ |
+| **Name**        | Curtailable Solar                    |
+| **Forecast**    | sensor.solcast_pv_forecast_power_now |
+| **Curtailment** | true                                 |
+| **Connection**  | Home Bus                             |
 
 ## Typical Use Cases
 
@@ -100,10 +98,6 @@ Solar represents a solar generation system that produces power based on weather 
     See [Forecasts and Sensors](../../user-guide/forecasts-and-sensors.md).
 - **Curtailment**:
     Only enable if your inverter supports active power limiting.
-- **Production Price**:
-    Usually 0 (solar has no marginal cost).
-    Set negative only if you have solar lease/contract costs that make generation costly.
-    Set positive only for feed-in tariff modeling (rare).
 - **Fixed Power**:
     When curtailment is disabled,
     generation equals forecast exactly.

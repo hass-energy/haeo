@@ -2,7 +2,6 @@
 
 import asyncio
 import logging
-import os
 from pathlib import Path
 from types import MappingProxyType
 from typing import Any
@@ -52,8 +51,6 @@ def _discover_scenarios() -> list[Path]:
 _scenarios = _discover_scenarios()
 
 
-# Skip if in CI
-@pytest.mark.skipif(os.getenv("CI") == "true", reason="Skipping scenario tests in CI")
 @pytest.mark.scenario
 @pytest.mark.timeout(30)
 @pytest.mark.parametrize(
@@ -102,8 +99,8 @@ async def test_scenarios(
                 },
                 HUB_SECTION_ADVANCED: {},
             },
-            version=1,
-            minor_version=MIGRATION_MINOR_VERSION,
+            version=scenario_config.get("version", 1),
+            minor_version=scenario_config.get("minor_version", MIGRATION_MINOR_VERSION),
         )
         mock_config_entry.add_to_hass(hass)
 

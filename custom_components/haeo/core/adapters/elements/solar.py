@@ -9,8 +9,7 @@ from custom_components.haeo.core.const import ConnectivityLevel
 from custom_components.haeo.core.model import ModelElementConfig, ModelOutputName, ModelOutputValue
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE
-from custom_components.haeo.core.model.elements.connection import CONNECTION_POWER_SOURCE_TARGET, CONNECTION_SEGMENTS
-from custom_components.haeo.core.model.elements.segments import POWER_LIMIT_SOURCE_TARGET
+from custom_components.haeo.core.model.elements.connection import CONNECTION_POWER, CONNECTION_SEGMENTS
 from custom_components.haeo.core.model.output_data import OutputData
 from custom_components.haeo.core.schema import extract_connection_target
 from custom_components.haeo.core.schema.elements import ElementType
@@ -20,13 +19,7 @@ from custom_components.haeo.core.schema.elements.solar import (
     SECTION_CURTAILMENT,
     SolarConfigData,
 )
-from custom_components.haeo.core.schema.sections import (
-    CONF_CONNECTION,
-    CONF_FORECAST,
-    CONF_PRICE_SOURCE_TARGET,
-    SECTION_FORECAST,
-    SECTION_PRICING,
-)
+from custom_components.haeo.core.schema.sections import CONF_CONNECTION, CONF_FORECAST, SECTION_FORECAST
 
 # Solar output names
 type SolarOutputName = Literal[
@@ -56,6 +49,13 @@ class SolarAdapter:
 
     def model_elements(self, config: SolarConfigData) -> list[ModelElementConfig]:
         """Return model element parameters for Solar configuration."""
+        segments: dict[str, Any] = {
+            "power_limit": {
+                "segment_type": "power_limit",
+                "max_power": config[SECTION_FORECAST][CONF_FORECAST],
+                "fixed": not config[SECTION_CURTAILMENT].get(CONF_CURTAILMENT, True),
+            },
+        }
         return [
             {
                 "element_type": MODEL_ELEMENT_TYPE_NODE,
@@ -68,19 +68,8 @@ class SolarAdapter:
                 "name": f"{config['name']}:connection",
                 "source": config["name"],
                 "target": extract_connection_target(config[CONF_CONNECTION]),
-                "segments": {
-                    "power_limit": {
-                        "segment_type": "power_limit",
-                        "max_power_source_target": config[SECTION_FORECAST][CONF_FORECAST],
-                        "max_power_target_source": 0.0,
-                        "fixed": not config[SECTION_CURTAILMENT].get(CONF_CURTAILMENT, True),
-                    },
-                    "pricing": {
-                        "segment_type": "pricing",
-                        "price_source_target": config[SECTION_PRICING].get(CONF_PRICE_SOURCE_TARGET),
-                        "price_target_source": None,
-                    },
-                },
+                "is_time_sensitive": True,
+                "segments": segments,
             },
         ]
 
@@ -93,16 +82,16 @@ class SolarAdapter:
         """Map model outputs to solar-specific output names."""
         connection = model_outputs[f"{name}:connection"]
 
-        power_source_target = expect_output_data(connection[CONNECTION_POWER_SOURCE_TARGET])
+        power = expect_output_data(connection[CONNECTION_POWER])
         solar_outputs: dict[SolarOutputName, OutputData] = {
-            SOLAR_POWER: replace(power_source_target, type=OutputType.POWER),
+            SOLAR_POWER: replace(power, type=OutputType.POWER),
         }
 
         # Shadow price from power_limit segment (if present)
         if (
             isinstance(segments_output := connection.get(CONNECTION_SEGMENTS), Mapping)
             and isinstance(power_limit_outputs := segments_output.get("power_limit"), Mapping)
-            and (shadow := expect_output_data(power_limit_outputs.get(POWER_LIMIT_SOURCE_TARGET))) is not None
+            and (shadow := expect_output_data(power_limit_outputs.get("power_limit"))) is not None
         ):
             solar_outputs[SOLAR_FORECAST_LIMIT] = shadow
 

@@ -1,4 +1,5 @@
 {
+  "minor_version": 3,
   "tier_1_count": 5,
   "tier_1_duration": 1,
   "tier_2_count": 11,
@@ -7,6 +8,7 @@
   "tier_3_duration": 30,
   "tier_4_count": 48,
   "tier_4_duration": 60,
+  "version": 1,
   "participants": {
     "Battery": {
       "name": "Battery",

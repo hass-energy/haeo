@@ -118,6 +118,22 @@ class ScreenshotContext:
 
 
 @contextmanager
+def pause_screenshots() -> Iterator[None]:
+    """Temporarily suppress screenshot capture.
+
+    All guide primitives called within this context will execute normally
+    but skip screenshot capture. Used by run_guide() to replay a
+    prerequisite guide silently.
+    """
+    previous = _holder.current
+    _holder.current = None
+    try:
+        yield
+    finally:
+        _holder.current = previous
+
+
+@contextmanager
 def screenshot_context(output_dir: Path) -> Iterator[ScreenshotContext]:
     """Create a screenshot collection context.
 

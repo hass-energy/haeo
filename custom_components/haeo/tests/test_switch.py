@@ -29,7 +29,6 @@ from custom_components.haeo.core.schema.elements.solar import (
     SECTION_CURTAILMENT,
     SECTION_FORECAST,
 )
-from custom_components.haeo.core.schema.elements.solar import CONF_PRICE_SOURCE_TARGET as CONF_SOLAR_PRICE_SOURCE_TARGET
 from custom_components.haeo.core.schema.elements.solar import ELEMENT_TYPE as SOLAR_TYPE
 from custom_components.haeo.core.schema.sections import CONF_CONNECTION
 from custom_components.haeo.entities.auto_optimize_switch import AutoOptimizeSwitch
@@ -129,9 +128,6 @@ def _add_subentry(
             CONF_CONNECTION: as_connection_target(str(connection_value)),
             SECTION_FORECAST: {
                 CONF_FORECAST: schema_value(data.get("forecast", ["sensor.solar_forecast"])),
-            },
-            SECTION_PRICING: {
-                CONF_SOLAR_PRICE_SOURCE_TARGET: schema_value(data.get("price_source_target")),
             },
             SECTION_CURTAILMENT: {
                 CONF_CURTAILMENT: schema_value(curtailment_value),

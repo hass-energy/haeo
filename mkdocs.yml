@@ -105,6 +105,9 @@ markdown_extensions:
         - name: guide
           class: guide
           format: !!python/name:tools.guide_fence.format_guide
+        - name: guide-setup
+          class: guide-setup
+          format: !!python/name:tools.guide_fence.format_guide_setup
   - pymdownx.tabbed:
       alternate_style: true
   - pymdownx.tasklist:
@@ -141,6 +144,7 @@ nav:
   - Walkthroughs:
       - walkthroughs/index.md
       - Sigenergy System: walkthroughs/sigenergy-system.md
+      - Power Policies: walkthroughs/power-policies.md
 
   - User Guide:
       - user-guide/index.md
@@ -194,6 +198,7 @@ nav:
           - Node: modeling/device-layer/node.md
           - Connection: modeling/device-layer/connection.md
       - Shadow Prices: modeling/shadow-prices.md
+      - Tagged Power: modeling/tagged-power.md
 
   - Developer Guide:
       - developer-guide/index.md

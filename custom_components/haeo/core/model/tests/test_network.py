@@ -3,7 +3,7 @@
 import logging
 from unittest.mock import Mock
 
-from highspy import HighsModelStatus
+from highspy import Highs, HighsModelStatus
 import numpy as np
 import pytest
 
@@ -14,7 +14,14 @@ from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_BATTER
 from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_CONNECTION as ELEMENT_TYPE_CONNECTION
 from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_NODE as ELEMENT_TYPE_NODE
 from custom_components.haeo.core.model.elements.connection import Connection
-from custom_components.haeo.core.model.elements.node import Node
+from custom_components.haeo.core.model.network import (
+    BlendedOptions,
+    CalibratedOptions,
+    LexOptions,
+    SimplexTuning,
+    SolveOptions,
+    _bisect_boundary,
+)
 
 # Test constants
 HOURS_PER_DAY = 24
@@ -78,7 +85,7 @@ def test_connect_entities() -> None:
             "segments": {
                 "power_limit": {
                     "segment_type": "power_limit",
-                    "max_power_source_target": 5000.0,
+                    "max_power": 5000.0,
                 }
             },
         }
@@ -88,10 +95,10 @@ def test_connect_entities() -> None:
     assert connection.name == "battery1_to_grid1"
     assert connection.source == "battery1"
     assert connection.target == "grid1"
-    assert connection.power_source_target is not None
-    assert connection.power_target_source is not None
-    assert len(connection.power_source_target) == CONNECTION_PERIODS
-    assert len(connection.power_target_source) == CONNECTION_PERIODS
+    assert connection.power_in is not None
+    assert connection.power_out is not None
+    assert len(connection.total_power_in) == CONNECTION_PERIODS
+    assert len(connection.total_power_out) == CONNECTION_PERIODS
     # Check that the connection element was added
     connection_name = "battery1_to_grid1"
     assert connection_name in network.elements
@@ -104,7 +111,7 @@ def test_connect_nonexistent_entities() -> None:
         name="test_network",
         periods=np.array([1.0] * 3),
     )
-    with pytest.raises(ValueError, match="Failed to register connection bad_connection with source nonexistent"):
+    with pytest.raises(ValueError, match="Source element 'nonexistent' is not a network participant"):
         network.add(
             {
                 "element_type": ELEMENT_TYPE_CONNECTION,
@@ -124,7 +131,7 @@ def test_connect_nonexistent_target_entity() -> None:
     # Add only source entity
     network.add({"element_type": ELEMENT_TYPE_BATTERY, "name": "battery1", "capacity": 10000, "initial_charge": 5000})
     # Try to connect to nonexistent target
-    with pytest.raises(ValueError, match="Failed to register connection bad_connection with target nonexistent"):
+    with pytest.raises(ValueError, match="Target element 'nonexistent' is not a network participant"):
         network.add(
             {
                 "element_type": ELEMENT_TYPE_CONNECTION,
@@ -147,12 +154,15 @@ def test_connect_source_is_connection() -> None:
     network.add({"element_type": ELEMENT_TYPE_CONNECTION, "name": "conn1", "source": "battery1", "target": "grid1"})
 
     # Try to create another connection using the connection as source
-    network.add(
-        {"element_type": ELEMENT_TYPE_CONNECTION, "name": "bad_connection", "source": "conn1", "target": "battery1"}
-    )
-
-    with pytest.raises(ValueError, match="Source element 'conn1' is a connection"):
-        network.validate()
+    with pytest.raises(ValueError, match="Source element 'conn1' is not a network participant"):
+        network.add(
+            {
+                "element_type": ELEMENT_TYPE_CONNECTION,
+                "name": "bad_connection",
+                "source": "conn1",
+                "target": "battery1",
+            }
+        )
 
 
 def test_connect_target_is_connection() -> None:
@@ -167,72 +177,15 @@ def test_connect_target_is_connection() -> None:
     network.add({"element_type": ELEMENT_TYPE_CONNECTION, "name": "conn1", "source": "battery1", "target": "grid1"})
 
     # Try to create another connection using the connection as target
-    network.add(
-        {"element_type": ELEMENT_TYPE_CONNECTION, "name": "bad_connection", "source": "battery1", "target": "conn1"}
-    )
-
-    with pytest.raises(ValueError, match="Target element 'conn1' is a connection"):
-        network.validate()
-
-
-def test_validate_raises_when_source_missing() -> None:
-    """Validate should raise when a connection source is missing."""
-    net = Network(name="net", periods=np.array([1.0]))
-    net.elements["conn"] = Connection(
-        name="conn",
-        periods=np.array([1.0]),
-        solver=net._solver,
-        source="missing",
-        target="also_missing",
-    )
-
-    with pytest.raises(ValueError, match="Source element 'missing' not found"):
-        net.validate()
-
-
-def test_validate_raises_when_target_missing() -> None:
-    """Validate should raise when a connection target is missing."""
-    net = Network(name="net", periods=np.array([1.0]))
-    net.elements["source_node"] = Node(
-        name="source_node", periods=np.array([1.0]), solver=net._solver, is_source=True, is_sink=True
-    )
-    net.elements["conn"] = Connection(
-        name="conn",
-        periods=np.array([1.0]),
-        solver=net._solver,
-        source="source_node",
-        target="missing_target",
-    )
-
-    with pytest.raises(ValueError, match="Target element 'missing_target' not found"):
-        net.validate()
-
-
-def test_validate_raises_when_endpoints_are_connections() -> None:
-    """Validate should reject connections that point to connection elements."""
-    net = Network(name="net", periods=np.array([1.0]))
-    # Non-connection element to satisfy target for conn2
-    net.elements["node"] = Node(name="node", periods=np.array([1.0]), solver=net._solver, is_source=True, is_sink=True)
-
-    net.elements["conn2"] = Connection(
-        name="conn2",
-        periods=np.array([1.0]),
-        solver=net._solver,
-        source="node",
-        target="node",
-    )
-
-    # conn1 references conn2 as source and target to hit both connection checks
-    net.elements["conn1"] = Connection(
-        name="conn1",
-        periods=np.array([1.0]),
-        solver=net._solver,
-        source="conn2",
-        target="conn2",
-    )
-
-    with pytest.raises(ValueError, match="Source element 'conn2' is a connection"):
-        net.validate()
+    with pytest.raises(ValueError, match="Target element 'conn1' is not a network participant"):
+        network.add(
+            {
+                "element_type": ELEMENT_TYPE_CONNECTION,
+                "name": "bad_connection",
+                "source": "battery1",
+                "target": "conn1",
+            }
+        )
 
 
 def test_constraints_returns_empty_when_no_elements() -> None:
@@ -259,32 +212,12 @@ def test_network_constraint_generation_error() -> None:
     mock_element.power_balance_constraints = {}
     mock_element.power_consumption = None
     mock_element.power_production = None
-    mock_element.cost = Mock(return_value=[])
+    mock_element.cost = Mock(return_value=None)
     mock_element.constraints.side_effect = RuntimeError("Constraint generation failed")
     network.elements["failing_element"] = mock_element
 
     # Should wrap the error with context about which element failed
     with pytest.raises(ValueError, match="Failed to apply constraints for element 'failing_element'"):
-        network.optimize()
-
-
-def test_network_optimize_validates_before_running() -> None:
-    """Test that optimize() calls validate() and catches validation errors."""
-    network = Network(
-        name="test_network",
-        periods=np.array([1.0] * 3),
-    )
-
-    # Add elements but create an invalid connection (connection to connection)
-    network.add({"element_type": ELEMENT_TYPE_NODE, "name": "node1", "is_sink": True, "is_source": True})
-    network.add({"element_type": ELEMENT_TYPE_NODE, "name": "node2", "is_sink": True, "is_source": True})
-    network.add({"element_type": ELEMENT_TYPE_CONNECTION, "name": "conn1", "source": "node1", "target": "node2"})
-
-    # Connect conn2 to conn1 (invalid)
-    network.add({"element_type": ELEMENT_TYPE_CONNECTION, "name": "conn2", "source": "conn1", "target": "node2"})
-
-    # Should raise validation error when trying to optimize
-    with pytest.raises(ValueError, match="Source element 'conn1' is a connection"):
         network.optimize()
 
 
@@ -301,7 +234,7 @@ def test_network_optimize_constraints_error() -> None:
     # Mock an element that raises an exception during constraints
     mock_element = Mock(spec=Element)
     mock_element.constraints.side_effect = RuntimeError("Build failed")
-    mock_element.cost = Mock(return_value=[])
+    mock_element.cost = Mock(return_value=None)
     network.elements["failing_element"] = mock_element
 
     # Should wrap the error with context about which element failed
@@ -317,7 +250,17 @@ def test_network_optimize_success_logs_solver_output(
     caplog.set_level(logging.DEBUG, logger=network_module.__name__)
 
     network = Network(name="test_network", periods=np.array([1.0] * 2))
-    network.add({"element_type": ELEMENT_TYPE_NODE, "name": "node", "is_sink": True, "is_source": True})
+    network.add({"element_type": ELEMENT_TYPE_NODE, "name": "src", "is_source": True, "is_sink": False})
+    network.add({"element_type": ELEMENT_TYPE_NODE, "name": "dst", "is_source": False, "is_sink": True})
+    network.add(
+        {
+            "element_type": ELEMENT_TYPE_CONNECTION,
+            "name": "conn",
+            "source": "src",
+            "target": "dst",
+            "segments": {"pricing": {"segment_type": "pricing", "price": 0.0}},
+        }
+    )
 
     result = network.optimize()
 
@@ -339,8 +282,6 @@ def test_network_optimize_raises_on_solver_failure(
     network.add({"element_type": ELEMENT_TYPE_NODE, "name": "node", "is_sink": True, "is_source": True})
 
     def mock_optimize() -> float:
-        # Call constraints to set up the model
-        network.validate()
         for element in network.elements.values():
             element.constraints()
         # Mock the model status to indicate failure
@@ -360,9 +301,19 @@ def test_network_optimize_raises_on_infeasible_network(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Test optimize() raises ValueError when network optimization fails."""
-    # Create a valid network
+    # Create a network with objectives (needs connections for secondary)
     network = Network(name="test_network", periods=np.array([1.0]))
-    network.add({"element_type": ELEMENT_TYPE_NODE, "name": "node", "is_sink": True, "is_source": True})
+    network.add({"element_type": ELEMENT_TYPE_NODE, "name": "src", "is_source": True, "is_sink": False})
+    network.add({"element_type": ELEMENT_TYPE_NODE, "name": "dst", "is_source": False, "is_sink": True})
+    network.add(
+        {
+            "element_type": "connection",
+            "name": "conn",
+            "source": "src",
+            "target": "dst",
+            "segments": {"pricing": {"segment_type": "pricing", "price": 0.10}},
+        }
+    )
 
     # Track if run() has been called
     run_called = False
@@ -443,7 +394,7 @@ def test_add_soc_pricing_connection_without_battery() -> None:
 
 
 def test_network_cost_with_multiple_elements() -> None:
-    """Test Network.cost() aggregates costs from multiple elements using Highs.qsum."""
+    """Test Network.cost() aggregates costs from multiple elements."""
     network = Network(name="test", periods=np.array([1.0, 1.0]))
 
     # Add two nodes
@@ -458,7 +409,7 @@ def test_network_cost_with_multiple_elements() -> None:
             "source": "source",
             "target": "target",
             "segments": {
-                "pricing": {"segment_type": "pricing", "price_source_target": np.array([10.0, 20.0])},
+                "pricing": {"segment_type": "pricing", "price": np.array([10.0, 20.0])},
             },
         }
     )
@@ -469,7 +420,7 @@ def test_network_cost_with_multiple_elements() -> None:
             "source": "target",
             "target": "source",
             "segments": {
-                "pricing": {"segment_type": "pricing", "price_source_target": np.array([5.0, 10.0])},
+                "pricing": {"segment_type": "pricing", "price": np.array([5.0, 10.0])},
             },
         }
     )
@@ -477,12 +428,12 @@ def test_network_cost_with_multiple_elements() -> None:
     # Get aggregated cost - should use Highs.qsum for multiple costs
     cost = network.cost()
 
-    # Should return a single expression
+    # Should return a combined objective tuple
     assert cost is not None
 
 
 def test_network_cost_returns_none_when_no_costs() -> None:
-    """Test Network.cost() returns None when network has no cost terms."""
+    """Test Network.cost() returns None when network has no objective terms."""
     network = Network(name="test", periods=np.array([1.0]))
 
     # Add a node (has no costs)
@@ -500,3 +451,206 @@ def test_network_constraints_empty_when_no_elements() -> None:
     # No elements added - should return empty dict
     constraints = network.constraints()
     assert constraints == {}
+
+
+# ---------------------------------------------------------------------------
+# Helpers for multi-objective tests
+# ---------------------------------------------------------------------------
+
+
+def _build_priced_network(options: SolveOptions | None = None) -> Network:
+    """Build a small network with primary (cost) and secondary (time pref) objectives.
+
+    Topology: source --[conn]--> sink
+    The connection has pricing so it generates a primary cost objective,
+    and the bidirectional flow gives the solver a nontrivial decision.
+    """
+    kwargs: dict[str, object] = {"name": "test", "periods": np.array([1.0, 1.0])}
+    if options is not None:
+        kwargs["options"] = options
+    network = Network(**kwargs)  # type: ignore[arg-type]
+
+    network.add({"element_type": ELEMENT_TYPE_NODE, "name": "source", "is_source": True, "is_sink": False})
+    network.add({"element_type": ELEMENT_TYPE_NODE, "name": "sink", "is_source": False, "is_sink": True})
+    network.add(
+        {
+            "element_type": ELEMENT_TYPE_CONNECTION,
+            "name": "conn",
+            "source": "source",
+            "target": "sink",
+            "segments": {
+                "pricing": {"segment_type": "pricing", "price": np.array([10.0, 20.0])},
+            },
+        }
+    )
+    return network
+
+
+# ---------------------------------------------------------------------------
+# SolveOptions tests
+# ---------------------------------------------------------------------------
+
+
+def test_solve_options_defaults() -> None:
+    """SolveOptions default values match HiGHS defaults."""
+    opts = CalibratedOptions()
+    assert opts.mode == "calibrated"
+    assert opts.simplex_strategy == 4
+    assert isinstance(opts, SimplexTuning)
+
+
+def test_solve_options_apply() -> None:
+    """SolveOptions.apply() sets all HiGHS options on the solver."""
+    opts = CalibratedOptions(simplex_strategy=4, presolve="on")
+    h = Highs()
+    h.setOptionValue("output_flag", False)
+    opts.apply(h)
+    assert h.getOptionValue("simplex_strategy")[1] == 4
+    assert h.getOptionValue("presolve")[1] == "on"
+
+
+def test_solve_options_propagated_to_network() -> None:
+    """Network.__post_init__ applies SolveOptions to the solver."""
+    opts = CalibratedOptions(simplex_strategy=4)
+    network = Network(name="test", periods=np.array([1.0]), options=opts)
+    assert network._solver.getOptionValue("simplex_strategy")[1] == 4
+
+
+# ---------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------
+# Blended mode tests
+# ---------------------------------------------------------------------------
+
+
+def test_blended_mode_single_solve() -> None:
+    """Blended mode solves the weighted sum in a single call."""
+    network = _build_priced_network(BlendedOptions(blend_weight=1e-6))
+    result = network.optimize()
+    assert result == pytest.approx(0.0, abs=1e-6)
+
+
+def test_blended_mode_reentrant() -> None:
+    """Blended mode works on repeated optimize() calls."""
+    network = _build_priced_network(BlendedOptions(blend_weight=1e-6))
+    r1 = network.optimize()
+    r2 = network.optimize()
+    assert r1 == pytest.approx(r2)
+
+
+# ---------------------------------------------------------------------------
+# Calibrated mode tests
+# ---------------------------------------------------------------------------
+
+
+def test_calibrated_mode_first_call_uses_lex() -> None:
+    """First call in calibrated mode performs lex then calibrates."""
+    network = _build_priced_network(CalibratedOptions())
+    assert network._calibrated_weight is None
+    network.optimize()
+    # After first call, weight should be calibrated
+    assert network._calibrated_weight is not None
+    assert network._calibrated_weight > 0
+
+
+def test_calibrated_mode_subsequent_calls_use_blended() -> None:
+    """After calibration, optimize() uses blended fast path."""
+    network = _build_priced_network(CalibratedOptions())
+    r1 = network.optimize()  # lex + calibrate
+    r2 = network.optimize()  # blended with calibrated weight
+    assert r1 == pytest.approx(r2)
+
+
+# ---------------------------------------------------------------------------
+# Lex mode Phase 3 epsilon tests
+# ---------------------------------------------------------------------------
+
+
+def test_lex_mode_with_secondary_objective() -> None:
+    """Lex mode with a secondary objective executes all three phases."""
+    # Build a network with both primary and secondary objectives
+    network = Network(name="test", periods=np.array([1.0, 1.0]), options=LexOptions())
+    network.add({"element_type": ELEMENT_TYPE_BATTERY, "name": "battery", "capacity": 10.0, "initial_charge": 5.0})
+    network.add({"element_type": ELEMENT_TYPE_NODE, "name": "grid", "is_source": True, "is_sink": True})
+    network.add(
+        {
+            "element_type": ELEMENT_TYPE_CONNECTION,
+            "name": "bat_grid",
+            "source": "battery",
+            "target": "grid",
+            "segments": {
+                "pricing": {"segment_type": "pricing", "price": np.array([10.0, 20.0])},
+            },
+        }
+    )
+    result = network.optimize()
+    # Should complete without error and return a finite value
+    assert np.isfinite(result)
+
+
+def test_optimize_requires_objectives() -> None:
+    """Network without cost objectives raises ValueError."""
+    network = Network(name="test", periods=np.array([1.0]))
+    network.add({"element_type": ELEMENT_TYPE_NODE, "name": "node", "is_source": True, "is_sink": True})
+    with pytest.raises(ValueError, match="no cost objectives"):
+        network.optimize()
+
+
+def test_optimize_raises_no_primary_cost() -> None:
+    """Network with secondary but no primary cost raises ValueError."""
+    network = Network(name="test", periods=np.array([1.0]))
+    network.add({"element_type": ELEMENT_TYPE_NODE, "name": "src", "is_source": True, "is_sink": False})
+    network.add({"element_type": ELEMENT_TYPE_NODE, "name": "dst", "is_source": False, "is_sink": True})
+    # Connection without pricing — has secondary (time preference) but no primary
+    network.add(
+        {
+            "element_type": ELEMENT_TYPE_CONNECTION,
+            "name": "conn",
+            "source": "src",
+            "target": "dst",
+            "segments": {"power_limit": {"segment_type": "power_limit", "max_power": 5.0}},
+        }
+    )
+    with pytest.raises(ValueError, match="no primary cost"):
+        network.optimize()
+
+
+def test_optimize_raises_no_secondary_cost() -> None:
+    """Network without connections has no secondary cost."""
+    network = Network(name="test", periods=np.array([1.0]))
+    network.add({"element_type": ELEMENT_TYPE_NODE, "name": "node", "is_source": True, "is_sink": True})
+    with pytest.raises(ValueError, match="no cost objectives"):
+        network.optimize()
+
+
+def test_bisect_boundary_converges() -> None:
+    """_bisect_boundary finds the transition point."""
+    result = _bisect_boundary(0.0, 10.0, lambda x: x < 5.0, max_steps=50, convergence=0.01)
+    assert abs(result - 5.0) < 0.02
+
+
+def test_bisect_boundary_respects_max_steps() -> None:
+    """_bisect_boundary stops at max_steps."""
+    calls = [0]
+
+    def pred(x: float) -> bool:
+        calls[0] += 1
+        return x < 5.0
+
+    _bisect_boundary(0.0, 10.0, pred, max_steps=3, convergence=0.001)
+    assert calls[0] == 3
+
+
+def test_calibrated_mode_fallback_on_impossible_match(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Calibration falls back when tight tolerance makes all weights fail."""
+    network = _build_priced_network(CalibratedOptions(calibration_tolerance=1e-30))
+
+    # First call triggers calibration with impossibly tight tolerance.
+    # This exercises the fallback path where _primary_vars_match returns
+    # False even at the lowest weight.
+    result = network.optimize()
+    assert np.isfinite(result)
+    # Should still produce a calibrated weight (the fallback value)
+    assert network._calibrated_weight is not None

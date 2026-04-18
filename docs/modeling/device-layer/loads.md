@@ -1,7 +1,7 @@
 # Load modeling
 
 The Load device composes a [Node](../model-layer/elements/node.md) (power sink only) with an implicit [Connection](../model-layer/connections/connection.md) to model power consumption based on forecast data.
-The connection includes a power limit segment and an optional pricing segment.
+The connection includes a power limit segment.
 
 ## Model Elements Created
 
@@ -9,7 +9,7 @@ The connection includes a power limit segment and an optional pricing segment.
 graph LR
     subgraph "Device"
         SS["Node<br/>(is_source=false, is_sink=true)"]
-        Conn["Connection<br/>{name}:connection<br/>(power_limit + pricing)"]
+        Conn["Connection<br/>{name}:connection<br/>(power_limit)"]
     end
 
     Node[Connection Target]
@@ -19,10 +19,10 @@ graph LR
     Node -->|connects to| Conn
 ```
 
-| Model Element                                          | Name                | Parameters From Configuration          |
-| ------------------------------------------------------ | ------------------- | -------------------------------------- |
-| [Node](../model-layer/elements/node.md)                | `{name}`            | is_source=false, is_sink=true          |
-| [Connection](../model-layer/connections/connection.md) | `{name}:connection` | power-limit and pricing segment values |
+| Model Element                                          | Name                | Parameters From Configuration |
+| ------------------------------------------------------ | ------------------- | ----------------------------- |
+| [Node](../model-layer/elements/node.md)                | `{name}`            | is_source=false, is_sink=true |
+| [Connection](../model-layer/connections/connection.md) | `{name}:connection` | power-limit segment values    |
 
 ## Devices Created
 
@@ -36,15 +36,14 @@ Load creates 1 device in Home Assistant:
 
 The adapter transforms user configuration into connection segments:
 
-| User Configuration       | Segment           | Segment Field             | Notes                                                       |
-| ------------------------ | ----------------- | ------------------------- | ----------------------------------------------------------- |
-| `forecast`               | PowerLimitSegment | `max_power_target_source` | Maximum consumption at each time                            |
-| `curtailment` (shedding) | PowerLimitSegment | `fixed`                   | True when curtailment is disabled (fixed demand)            |
-| `price_target_source`    | PricingSegment    | `price_target_source`     | Negated in adapter to represent a consumption value/benefit |
-| `connection`             | Connection        | `source`                  | Node to connect from                                        |
-| —                        | PowerLimitSegment | `max_power_source_target` | Set to zero to prevent reverse flow                         |
-| —                        | Node              | `is_source=false`         | Load cannot provide power                                   |
-| —                        | Node              | `is_sink=true`            | Load consumes power                                         |
+| User Configuration       | Segment           | Segment Field             | Notes                                            |
+| ------------------------ | ----------------- | ------------------------- | ------------------------------------------------ |
+| `forecast`               | PowerLimitSegment | `max_power_target_source` | Maximum consumption at each time                 |
+| `curtailment` (shedding) | PowerLimitSegment | `fixed`                   | True when curtailment is disabled (fixed demand) |
+| `connection`             | Connection        | `source`                  | Node to connect from                             |
+| —                        | PowerLimitSegment | `max_power_source_target` | Set to zero to prevent reverse flow              |
+| —                        | Node              | `is_source=false`         | Load cannot provide power                        |
+| —                        | Node              | `is_sink=true`            | Load consumes power                              |
 
 ## Sensors Created
 

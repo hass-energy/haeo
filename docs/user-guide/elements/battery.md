@@ -50,9 +50,12 @@ Optional fields set to "None" are omitted from the optimization entirely.
 | **[Charge efficiency](#charge-and-discharge-efficiency)**         | Percentage | No       | 95      | Efficiency when charging (network to battery)              |
 | **[Max Charge Power](#max-charge-and-discharge-power)**           | Power      | No       | -       | Maximum charging power                                     |
 | **[Max Discharge Power](#max-charge-and-discharge-power)**        | Power      | No       | -       | Maximum discharging power                                  |
-| **[Charge Price](#charge-price)**                                 | Price      | No       | 0       | Base price applied when charging                           |
-| **[Discharge Price](#discharge-price)**                           | Price      | No       | 0       | Base price applied when discharging                        |
 | **[Salvage Value](#salvage-value)**                               | Price      | No       | 0       | Value assigned to stored energy at the horizon end         |
+
+!!! tip "Charge and discharge pricing"
+
+    To apply a per-kWh cost or incentive for charging or discharging, use a [Power Policy](../../walkthroughs/power-policies.md).
+    Policies let you set directional pricing rules between elements, replacing the older per-element charge/discharge price fields.
 
 If not specified, power is unconstrained (limited only by other system constraints).
 
@@ -102,20 +105,6 @@ Leave the fields blank when no practical limit applies.
 
     Use the battery charge/discharge rating, not the inverter rating.
     Hybrid inverters often have separate ratings for battery power and inverter output power.
-
-### Charge Price
-
-Base price in \$/kWh applied to all battery charging operations.
-Use positive values to discourage charging or negative values to incentivize charging.
-
-**Default**: 0 \$/kWh (no added cost)
-
-### Discharge Price
-
-Base price in \$/kWh applied to all battery discharge operations.
-Models battery degradation or other discharge penalties.
-
-**Default**: 0 \$/kWh (no added cost)
 
 ### Salvage Value
 
@@ -190,7 +179,6 @@ This allows operation between 90-95% SOC with an added overcharge cost penalty w
 
 Economic penalty in \$/kWh for **discharging** below `min_charge_percentage`.
 Required when the undercharge percentage is configured.
-This penalty applies **in addition to** the configured `price_source_target` (discharge price).
 
 **Setting the cost**: Consider the economic value of avoiding deep discharge:
 
@@ -200,9 +188,9 @@ This penalty applies **in addition to** the configured `price_source_target` (di
 
 Typical values: \$0.50-\$2.00/kWh
 
-**How it works**: The optimizer compares grid revenue against the combined penalties (`price_source_target` + undercharge cost).
-If grid prices are \$0.40/kWh and total cost is \$0.50/kWh (e.g., \$0.02 discharge + \$0.48 undercharge), the battery won't discharge into the undercharge range.
-If grid prices spike to \$0.80/kWh, the optimizer will economically justify deep discharge because the \$0.30/kWh profit (\$0.80 - \$0.50) makes it worthwhile.
+**How it works**: The optimizer compares grid revenue against the undercharge cost penalty.
+If grid prices are \$0.40/kWh and the undercharge cost is \$0.50/kWh, the battery won't discharge into the undercharge range.
+If grid prices spike to \$0.80/kWh, the optimizer will economically justify deep discharge because the \$0.30/kWh profit makes it worthwhile.
 
 **Applies to**: Energy discharged below `min_charge_percentage`.
 The battery will not discharge below the undercharge percentage under any circumstance.
@@ -272,12 +260,11 @@ Enable **Configure battery partitions** to access the undercharge and overcharge
 | **Charge Efficiency**         | 99%                |
 | **Max Charge Power**          | 6 kW               |
 | **Max Discharge Power**       | 6 kW               |
-| **Discharge Price**           | 0.02 \$/kWh        |
 
 In this example:
 
 - **Undercharge range**: 5-10% (available with \$1.50/kWh discharge penalty)
-- **Normal range**: 10-90% (preferred operation, only \$0.02/kWh discharge price for degradation)
+- **Normal range**: 10-90% (preferred operation)
 - **Overcharge range**: 90-95% (available with \$1.00/kWh charge penalty)
 - Total usable range: 5-95% (90%)
 - Higher undercharge cost reflects greater degradation risk at low SOC
@@ -296,8 +283,6 @@ Input entities appear as Number entities with the `config` entity category.
 | `number.{name}_max_charge_percentage`     | %      | Preferred maximum SOC (normal range ceiling) |
 | `number.{name}_max_power_target_source`   | kW     | Maximum charging power                       |
 | `number.{name}_max_power_source_target`   | kW     | Maximum discharging power                    |
-| `number.{name}_price_target_source`       | \$/kWh | Charge price (if configured)                 |
-| `number.{name}_price_source_target`       | \$/kWh | Discharge price (if configured)              |
 | `number.{name}_efficiency_source_target`  | %      | Discharge efficiency (if configured)         |
 | `number.{name}_efficiency_target_source`  | %      | Charge efficiency (if configured)            |
 | `number.{name}_percentage`                | %      | Undercharge or overcharge percentage         |
@@ -388,11 +373,11 @@ Each sensor includes forecast attributes with future timestamped values for visu
 
 ## How It Works Internally
 
-HAEO models batteries using a single storage element with an SOC-aware connection:
+HAEO models batteries using a single storage element with SOC-aware connections:
 
 1. **Battery element**: Tracks stored energy within the configured SOC bounds
 2. **SOC pricing**: Applies undercharge and overcharge penalties when enabled
-3. **Network connection**: The connection applies efficiency, limits, and pricing
+3. **Network connections**: Separate charge and discharge connections apply efficiency and power limits
 
 This architecture allows HAEO to:
 

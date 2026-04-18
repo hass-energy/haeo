@@ -337,6 +337,8 @@ async def collect_diagnostics(
 
         started_at, completed_at, horizon_start = run
         config = _config_from_entry(config_entry)
+        config["version"] = config_entry.version
+        config["minor_version"] = config_entry.minor_version
         inputs, missing = await _fetch_inputs_at(hass, config_entry, started_at)
         info = DiagnosticsInfo(
             diagnostic_request_time=now,
@@ -358,6 +360,8 @@ async def collect_diagnostics(
 
         coordinator_data = runtime_data.coordinator.data
         config = _config_from_context(coordinator_data.context)
+        config["version"] = config_entry.version
+        config["minor_version"] = config_entry.minor_version
         inputs = _inputs_from_context(coordinator_data.context)
         missing = []
         info = DiagnosticsInfo(
