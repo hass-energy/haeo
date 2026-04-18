@@ -178,36 +178,31 @@ class Element[OutputNameT: str]:
                     result[name] = cons
         return result
 
-    def cost(self) -> list[highs_linear_expression | None] | None:
-        """Return aggregated objective expressions from this element.
+    def cost(self) -> Any:
+        """Return aggregated primary cost expression from this element.
 
-        Discovers and calls all @cost decorated methods, combining their results into
-        a list of objective expressions.
+        Discovers and calls all @cost decorated methods, summing their results
+        into a single expression.
 
         Returns:
-            List of objective expressions or None if no costs are defined
+            Single cost expression or None if no costs are defined
 
         """
-        # Collect all cost expressions from @cost methods
-        costs: list[list[highs_linear_expression | None]] = []
+        costs: list[Any] = []
         for name in dir(type(self)):
             attr = getattr(type(self), name, None)
             if not isinstance(attr, ReactiveCost):
                 continue
 
-            # Call the cost method - this establishes dependency tracking
             method = getattr(self, name)
             if (cost_value := method()) is not None:
-                if isinstance(cost_value, list):
-                    costs.append(cost_value)
-                else:
-                    costs.append([cost_value])
+                costs.append(cost_value)
 
         if not costs:
             return None
-
-        combined = _combine_objective_lists(costs)
-        return combined or None
+        if len(costs) == 1:
+            return costs[0]
+        return sum(costs[1:], costs[0])
 
 
 class NetworkElement[OutputNameT: str](Element[OutputNameT]):
@@ -432,21 +427,3 @@ class NetworkElement[OutputNameT: str](Element[OutputNameT]):
                         constraints.extend(list(conn.power_into_target_for_tag(tag) == 0))
 
         return constraints if constraints else None
-
-
-def _combine_objective_lists(
-    objectives: list[list[highs_linear_expression | None]],
-) -> list[highs_linear_expression | None]:
-    """Combine objective expression lists by summing expressions at each index."""
-    max_len = max((len(items) for items in objectives), default=0)
-    combined: list[highs_linear_expression | None] = []
-    for index in range(max_len):
-        candidates = [items[index] for items in objectives if len(items) > index]
-        terms = [t for t in candidates if t is not None]
-        if not terms:
-            combined.append(None)
-        elif len(terms) == 1:
-            combined.append(terms[0])
-        else:
-            combined.append(Highs.qsum(terms))
-    return combined

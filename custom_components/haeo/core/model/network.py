@@ -9,7 +9,7 @@ from highspy.highs import highs_cons, highs_linear_expression
 import numpy as np
 from numpy.typing import NDArray
 
-from .element import Element, NetworkElement, _combine_objective_lists
+from .element import Element, NetworkElement
 from .elements import ELEMENTS, ModelElementConfig
 from .elements.battery import Battery, BatteryElementConfig
 from .elements.connection import Connection, ConnectionElementConfig, ConnectionOutputName
@@ -219,26 +219,35 @@ class Network:
 
         return element_instance
 
-    def cost(self) -> list[highs_linear_expression | None] | None:
-        """Return aggregated objective expressions from all elements in the network.
+    def cost(self) -> tuple[Any, Any] | None:
+        """Aggregate (primary, secondary) costs from all elements.
 
-        Discovers and calls all element cost() methods, combining their results into
-        a list of objective expressions. Element costs are cached individually, so this
-        aggregation is inexpensive.
-
-        Returns:
-            List of objective expressions or None if no objectives are defined
-
+        Elements return either a single expression (primary only) or a
+        (primary, secondary) tuple. Single expressions are promoted to
+        the primary slot.
         """
-        objectives: list[list[highs_linear_expression | None]] = [
-            element_cost for element in self.elements.values() if (element_cost := element.cost()) is not None
-        ]
+        primaries: list[Any] = []
+        secondaries: list[Any] = []
 
-        if not objectives:
+        for element in self.elements.values():
+            element_cost = element.cost()
+            if element_cost is None:
+                continue
+            if isinstance(element_cost, tuple):
+                pri, sec = element_cost
+                if pri is not None:
+                    primaries.append(pri)
+                if sec is not None:
+                    secondaries.append(sec)
+            else:
+                primaries.append(element_cost)
+
+        if not primaries and not secondaries:
             return None
 
-        combined = _combine_objective_lists(objectives)
-        return combined or None
+        primary = Highs.qsum(primaries) if primaries else None
+        secondary = Highs.qsum(secondaries) if secondaries else None
+        return (primary, secondary)
 
     def optimize(self) -> float:
         """Solve the optimization problem and return the primary objective value.
@@ -293,8 +302,7 @@ class Network:
 
         h.changeObjectiveSense(ObjSense.kMinimize)
 
-        primary = objectives[0]
-        secondary = objectives[1] if len(objectives) > 1 else None
+        primary, secondary = objectives
 
         if primary is None:
             if secondary is not None:

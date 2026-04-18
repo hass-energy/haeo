@@ -85,12 +85,9 @@ class DummySegment(Segment):
         return OutputData(type=OutputType.POWER, unit="kW", values=tuple(0.0 for _ in range(self.n_periods)))
 
     @cost
-    def list_cost(self) -> list[highs_linear_expression]:
-        """Return multiple cost terms to exercise cost aggregation."""
-        return [
-            Highs.qsum(self._cost_var),
-            Highs.qsum(self._cost_var),
-        ]
+    def list_cost(self) -> highs_linear_expression:
+        """Return a cost term for cost aggregation testing."""
+        return Highs.qsum(self._cost_var)
 
 
 def _assert_expected_value(actual: ExpectedValue, expected: ExpectedValue) -> None:
@@ -149,9 +146,8 @@ def _solve_segment_scenario(case: SegmentScenario) -> dict[str, ExpectedValue]:
     objective_terms = []
     if inputs.get("minimize_cost"):
         cost = seg.cost()
-        assert cost is not None
-        if cost:
-            objective_terms.append(cost[0])
+        if cost is not None:
+            objective_terms.append(cost)
 
     for name, weight in inputs.get("maximize", {}).items():
         attr_val = getattr(seg, name)

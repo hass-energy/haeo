@@ -18,7 +18,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 from custom_components.haeo.core.model.const import OutputType
-from custom_components.haeo.core.model.element import Element, _combine_objective_lists
+from custom_components.haeo.core.model.element import Element
 from custom_components.haeo.core.model.output_data import OutputData
 from custom_components.haeo.core.model.reactive import output
 from custom_components.haeo.core.model.util import broadcast_to_sequence
@@ -36,7 +36,6 @@ type ConnectionOutputName = Literal[
 
 CONNECTION_POWER: Final = "connection_power"
 CONNECTION_SEGMENTS: Final = "segments"
-SECONDARY_OBJECTIVE_INDEX: Final = 1
 
 CONNECTION_OUTPUT_NAMES: Final[frozenset[ConnectionOutputName]] = frozenset((CONNECTION_POWER, CONNECTION_SEGMENTS))
 
@@ -214,49 +213,29 @@ class Connection[TOutputName: str](Element[TOutputName]):
         result.update(own_constraints)
         return result
 
-    def cost(self) -> list[highs_linear_expression | None] | None:
-        """Aggregate costs from all segments with multi-objective support.
+    def cost(self) -> tuple[Any, Any] | None:  # type: ignore[override]
+        """Return (primary_cost, secondary_cost) for this connection.
 
-        Collects costs from all segments and adds tag costs and a time-preference
-        objective to prefer earlier energy transfer when primary costs are equal.
-
-        Time preference is always placed at SECONDARY_OBJECTIVE_INDEX so it
-        participates in the secondary lexicographic solve.
-
-        Returns:
-            List of objective expressions or None if no objectives are defined
-
+        Primary: segment costs + tag costs.
+        Secondary: time-preference objective for deterministic ordering.
         """
-        segment_objectives = [
-            segment_cost for segment in self._segments.values() if (segment_cost := segment.cost()) is not None
-        ]
+        primary_costs: list[Any] = [sc for seg in self._segments.values() if (sc := seg.cost()) is not None]
 
-        # Add tag costs as primary objectives
         for tc in self._tag_costs:
             tag = tc["tag"]
             price = broadcast_to_sequence(tc.get("price"), self.n_periods)
             if price is not None and tag in self._power_in:
-                tag_flow = self._power_in[tag]
-                segment_objectives.append([Highs.qsum(tag_flow * price * self.periods)])
+                primary_costs.append(Highs.qsum(self._power_in[tag] * price * self.periods))
 
-        combined = _combine_objective_lists(segment_objectives)
+        primary = None
+        if primary_costs:
+            primary = primary_costs[0] if len(primary_costs) == 1 else Highs.qsum(primary_costs)
 
-        # Place time preference at the secondary objective index
-        if (time_preference := self._time_preference_objective()) is not None:
-            # Pad with None so time preference lands at SECONDARY_OBJECTIVE_INDEX
-            while len(combined) < SECONDARY_OBJECTIVE_INDEX:
-                combined.append(None)
+        secondary = self._time_preference_objective()
 
-            if len(combined) == SECONDARY_OBJECTIVE_INDEX:
-                combined.append(time_preference)
-            else:
-                existing = combined[SECONDARY_OBJECTIVE_INDEX]
-                if existing is None:
-                    combined[SECONDARY_OBJECTIVE_INDEX] = time_preference
-                else:
-                    combined[SECONDARY_OBJECTIVE_INDEX] = Highs.qsum([existing, time_preference])
-
-        return combined or None
+        if primary is None and secondary is None:
+            return None
+        return (primary, secondary)
 
     def _time_preference_objective(self) -> highs_linear_expression | None:
         """Return secondary objective that prefers earlier energy transfer."""

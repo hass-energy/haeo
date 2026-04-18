@@ -15,11 +15,11 @@ import operator
 from typing import Any
 
 from highspy import Highs
-from highspy.highs import HighspyArray, highs_cons, highs_linear_expression
+from highspy.highs import HighspyArray, highs_cons
 import numpy as np
 from numpy.typing import NDArray
 
-from custom_components.haeo.core.model.element import Element, _combine_objective_lists
+from custom_components.haeo.core.model.element import Element
 from custom_components.haeo.core.model.output_data import OutputData
 from custom_components.haeo.core.model.reactive import OutputMethod, ReactiveConstraint, ReactiveCost, TrackedParam
 
@@ -135,33 +135,22 @@ class Segment:
                 result[output_name] = output_data
         return result
 
-    def cost(self) -> list[highs_linear_expression | None] | None:
-        """Return aggregated objective expressions from this segment.
-
-        Discovers and calls all @cost decorated methods, combining their results
-        into a list of objective expressions.
-
-        Returns:
-            List of objective expressions or None if no costs
-
-        """
-        costs: list[list[highs_linear_expression | None]] = []
+    def cost(self) -> Any:
+        """Return aggregated primary cost expression from this segment."""
+        costs: list[Any] = []
         for name in dir(type(self)):
             attr = getattr(type(self), name, None)
             if not isinstance(attr, ReactiveCost):
                 continue
             method = getattr(self, name)
             if (cost_value := method()) is not None:
-                if isinstance(cost_value, list):
-                    costs.append(cost_value)
-                else:
-                    costs.append([cost_value])
+                costs.append(cost_value)
 
         if not costs:
             return None
-
-        combined = _combine_objective_lists(costs)
-        return combined or None
+        if len(costs) == 1:
+            return costs[0]
+        return sum(costs[1:], costs[0])
 
 
 __all__ = ["Segment"]
