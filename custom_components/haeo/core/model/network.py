@@ -249,6 +249,14 @@ class Network:
         """Solve the optimization problem and return the primary objective value."""
         h = self._solver
 
+        # Assign deterministic priorities to connections based on sorted properties
+        connections = sorted(
+            (e for e in self.elements.values() if isinstance(e, Connection)),
+            key=lambda c: c.sort_key,
+        )
+        for i, conn in enumerate(connections):
+            conn.priority = i
+
         for element_name, element in self.elements.items():
             try:
                 element.constraints()

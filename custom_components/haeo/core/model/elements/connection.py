@@ -105,6 +105,16 @@ class Connection[TOutputName: str](Element[TOutputName]):
         return self._segments
 
     @property
+    def sort_key(self) -> tuple[int, str, str, str]:
+        """Deterministic sort key for time-preference ordering.
+
+        Sorts by adapter-assigned priority first (from endpoint element types
+        and directions), then by source, target, and name for deterministic
+        tiebreaking between connections at the same priority level.
+        """
+        return (self.priority, self._source, self._target, self.name)
+
+    @property
     def source(self) -> str:
         """Return the name of the source element."""
         return self._source
