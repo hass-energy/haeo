@@ -11,7 +11,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 from .output_data import OutputData
-from .reactive import OutputMethod, ReactiveConstraint, ReactiveCost, TrackedParam, constraint
+from .reactive import OutputMethod, ReactiveConstraint, ReactiveCost, TrackedParam, constraint, cost
 
 ELEMENT_POWER_BALANCE: Final = "element_power_balance"
 
@@ -178,18 +178,24 @@ class Element[OutputNameT: str]:
                     result[name] = cons
         return result
 
+    @cost
     def cost(self) -> Any:
         """Return aggregated primary cost expression from this element.
 
         Discovers and calls all @cost decorated methods, summing their results
-        into a single expression.
+        into a single expression. Cached by the @cost decorator — only
+        recomputes when underlying @cost method dependencies change.
 
         Returns:
             Single cost expression or None if no costs are defined
 
         """
+        this_method_name = type(self).cost._name  # type: ignore[attr-defined]  # noqa: SLF001
+
         costs: list[Any] = []
         for name in dir(type(self)):
+            if name == this_method_name:
+                continue
             attr = getattr(type(self), name, None)
             if not isinstance(attr, ReactiveCost):
                 continue

@@ -21,7 +21,13 @@ from numpy.typing import NDArray
 
 from custom_components.haeo.core.model.element import Element
 from custom_components.haeo.core.model.output_data import OutputData
-from custom_components.haeo.core.model.reactive import OutputMethod, ReactiveConstraint, ReactiveCost, TrackedParam
+from custom_components.haeo.core.model.reactive import (
+    OutputMethod,
+    ReactiveConstraint,
+    ReactiveCost,
+    TrackedParam,
+    cost,
+)
 
 
 class Segment:
@@ -135,10 +141,15 @@ class Segment:
                 result[output_name] = output_data
         return result
 
+    @cost
     def cost(self) -> Any:
         """Return aggregated primary cost expression from this segment."""
+        this_method_name = type(self).cost._name  # type: ignore[attr-defined]  # noqa: SLF001
+
         costs: list[Any] = []
         for name in dir(type(self)):
+            if name == this_method_name:
+                continue
             attr = getattr(type(self), name, None)
             if not isinstance(attr, ReactiveCost):
                 continue
