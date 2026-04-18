@@ -46,6 +46,8 @@ class SolarAdapter:
     element_type: str = ELEMENT_TYPE
     advanced: bool = False
     connectivity: ConnectivityLevel = ConnectivityLevel.ADVANCED
+    can_source: bool = True
+    can_sink: bool = False
 
     def model_elements(self, config: SolarConfigData) -> list[ModelElementConfig]:
         """Return model element parameters for Solar configuration."""

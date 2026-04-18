@@ -91,6 +91,12 @@ def compile_policies(
 
     names: set[str] = set(by_name.keys())
 
+    # Capability sets for wildcard expansion: nodes that can only produce
+    # should not appear as destinations, and nodes that can only consume
+    # should not appear as sources. Batteries default to both.
+    source_names = {name for name, elem in by_name.items() if elem.get("is_source", True)}
+    sink_names = {name for name, elem in by_name.items() if elem.get("is_sink", True)}
+
     conn_by_node: dict[str, list[ConnectionElementConfig]] = defaultdict(list)
     for conn in connections:
         conn_by_node[conn["source"]].append(conn)
@@ -104,8 +110,8 @@ def compile_policies(
     # --- Step 1: Flow enumeration ---
     flows: list[tuple[str, str, Any]] = []
     for policy in policy_configs:
-        sources = _resolve_wildcard(_as_name_list(policy.get("sources")), names)
-        destinations = _resolve_wildcard(_as_name_list(policy.get("destinations")), names)
+        sources = _resolve_wildcard(_as_name_list(policy.get("sources")), names, wildcard_set=source_names)
+        destinations = _resolve_wildcard(_as_name_list(policy.get("destinations")), names, wildcard_set=sink_names)
         price = policy.get("price")
         for src in sources:
             flows.extend((src, dst, price) for dst in destinations if src != dst)
@@ -187,8 +193,8 @@ def compile_policies(
 
     # --- Step 8: Pricing injection ---
     for policy in policy_configs:
-        sources = _resolve_wildcard(_as_name_list(policy.get("sources")), names)
-        destinations = _resolve_wildcard(_as_name_list(policy.get("destinations")), names)
+        sources = _resolve_wildcard(_as_name_list(policy.get("sources")), names, wildcard_set=source_names)
+        destinations = _resolve_wildcard(_as_name_list(policy.get("destinations")), names, wildcard_set=sink_names)
         price = policy.get("price")
         if price is None:
             continue
@@ -208,10 +214,20 @@ def compile_policies(
     return [*non_connections, *connections]
 
 
-def _resolve_wildcard(names: list[str], all_names: set[str]) -> list[str]:
-    """Resolve wildcard sources/destinations."""
+def _resolve_wildcard(
+    names: list[str],
+    all_names: set[str],
+    *,
+    wildcard_set: set[str] | None = None,
+) -> list[str]:
+    """Resolve wildcard sources/destinations.
+
+    When wildcard_set is provided, ["*"] expands to that set instead of
+    all_names. This filters wildcards to only capability-matching nodes
+    (e.g., sources that can actually produce power).
+    """
     if names == ["*"]:
-        return sorted(all_names)
+        return sorted(wildcard_set if wildcard_set is not None else all_names)
     return [n for n in names if n in all_names]
 
 

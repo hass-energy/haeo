@@ -98,8 +98,8 @@ Policy 2: Solar -> Load: $0.05
 Policy: * -> Load: $0.05
 ```
 
-All sources get signature `{(Load,0.05,None)}`.
-All sources merge into VLAN 1.
+All source-capable nodes get signature `{(Load,0.05,None)}`.
+All source-capable nodes merge into VLAN 1.
 `K=2` regardless of node count.
 
 ## Complexity

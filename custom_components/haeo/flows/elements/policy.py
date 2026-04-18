@@ -27,9 +27,12 @@ from homeassistant.helpers.selector import (
 )
 import voluptuous as vol
 
+from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.core.schema.constant_value import as_constant_value, is_constant_value
 from custom_components.haeo.core.schema.elements.element_type import ElementType
+from custom_components.haeo.core.schema.elements.node import CONF_IS_SINK, CONF_IS_SOURCE, SECTION_ROLE
+from custom_components.haeo.core.schema.elements.node import ELEMENT_TYPE as NODE_ELEMENT_TYPE
 from custom_components.haeo.core.schema.elements.policy import (
     CONF_ENABLED,
     CONF_PRICE,
@@ -94,8 +97,19 @@ class PolicySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         self._rules: list[PolicyRuleConfig] = []
         self._editing_index: int | None = None
 
-    def _get_participant_options(self) -> list[str]:
-        """Return all element names available as policy endpoints."""
+    def _get_participant_options(
+        self,
+        *,
+        can_source: bool = False,
+        can_sink: bool = False,
+    ) -> list[str]:
+        """Return element names available as policy endpoints.
+
+        Filters by adapter capability: only elements whose adapter declares
+        can_source (for source endpoints) or can_sink (for target endpoints)
+        are included. For Node elements, additionally checks instance-specific
+        role flags from the subentry data.
+        """
         hub_entry = self._get_entry()
         current_id = self._get_current_subentry_id()
 
@@ -109,8 +123,31 @@ class PolicySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             except (ValueError, KeyError):
                 continue
 
-            if element_type not in (ElementType.POLICY, ElementType.CONNECTION):
-                result.append(subentry.title)
+            adapter = ELEMENT_TYPES.get(element_type)
+            if adapter is None:
+                continue
+
+            if not adapter.can_source and not adapter.can_sink:
+                continue
+
+            # Node elements have instance-specific capabilities via role flags
+            if element_type == NODE_ELEMENT_TYPE:
+                role = subentry.data.get(SECTION_ROLE, {})
+                node_can_source = role.get(CONF_IS_SOURCE, False)
+                node_can_sink = role.get(CONF_IS_SINK, False)
+                if can_source and not node_can_source:
+                    continue
+                if can_sink and not node_can_sink:
+                    continue
+                if not node_can_source and not node_can_sink:
+                    continue
+            else:
+                if can_source and not adapter.can_source:
+                    continue
+                if can_sink and not adapter.can_sink:
+                    continue
+
+            result.append(subentry.title)
 
         return result
 
@@ -167,17 +204,22 @@ class PolicySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             )
         )
 
-    def _build_rule_schema(self, participants: list[str]) -> vol.Schema:
+    def _build_rule_schema(
+        self,
+        source_options: list[str],
+        target_options: list[str],
+    ) -> vol.Schema:
         """Build the schema for adding or editing a policy rule."""
-        endpoint_selector = self._build_endpoint_selector(participants)
+        source_selector = self._build_endpoint_selector(source_options)
+        target_selector = self._build_endpoint_selector(target_options)
         price_selector = self._build_price_selector()
 
         return vol.Schema(
             {
                 vol.Required(CONF_RULE_NAME): str,
                 vol.Required(CONF_ENABLED, default=True): BooleanSelector(BooleanSelectorConfig()),
-                vol.Optional(CONF_SOURCE): endpoint_selector,
-                vol.Optional(CONF_TARGET): endpoint_selector,
+                vol.Optional(CONF_SOURCE): source_selector,
+                vol.Optional(CONF_TARGET): target_selector,
                 vol.Optional(CONF_PRICE): price_selector,
             }
         )
@@ -298,7 +340,8 @@ class PolicySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         Otherwise creates a new Policies subentry.
         """
         errors: dict[str, str] = {}
-        participants = self._get_participant_options()
+        source_options = self._get_participant_options(can_source=True)
+        target_options = self._get_participant_options(can_sink=True)
 
         if user_input is not None:
             existing = self._find_existing_policy_subentry()
@@ -321,7 +364,7 @@ class PolicySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                     data=self._build_entry_data(),
                 )
 
-        schema = self._build_rule_schema(participants)
+        schema = self._build_rule_schema(source_options, target_options)
         if user_input is not None:
             schema = self.add_suggested_values_to_schema(schema, user_input)
 
@@ -374,7 +417,8 @@ class PolicySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
     ) -> SubentryFlowResult:
         """Handle editing an existing policy rule."""
         errors: dict[str, str] = {}
-        participants = self._get_participant_options()
+        source_options = self._get_participant_options(can_source=True)
+        target_options = self._get_participant_options(can_sink=True)
         idx = self._editing_index
 
         if user_input is not None and self._validate_rule(
@@ -396,7 +440,7 @@ class PolicySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                     data=self._build_entry_data(),
                 )
 
-        schema = self._build_rule_schema(participants)
+        schema = self._build_rule_schema(source_options, target_options)
         if user_input is not None:
             defaults = user_input
         elif idx is not None and 0 <= idx < len(self._rules):

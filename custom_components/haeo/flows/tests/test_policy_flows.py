@@ -15,6 +15,9 @@ from custom_components.haeo.const import CONF_INTEGRATION_TYPE, DOMAIN, INTEGRAT
 from custom_components.haeo.core.adapters.elements.policy import extract_policy_rules
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.core.schema.constant_value import as_constant_value
+from custom_components.haeo.core.schema.elements.inverter import ELEMENT_TYPE as INVERTER_ELEMENT_TYPE
+from custom_components.haeo.core.schema.elements.load import ELEMENT_TYPE as LOAD_ELEMENT_TYPE
+from custom_components.haeo.core.schema.elements.node import CONF_IS_SINK, CONF_IS_SOURCE, SECTION_ROLE
 from custom_components.haeo.core.schema.elements.node import ELEMENT_TYPE as NODE_ELEMENT_TYPE
 from custom_components.haeo.core.schema.elements.policy import (
     CONF_ENABLED,
@@ -26,6 +29,7 @@ from custom_components.haeo.core.schema.elements.policy import (
     PolicyRuleConfig,
 )
 from custom_components.haeo.core.schema.elements.policy import ELEMENT_TYPE as POLICY_ELEMENT_TYPE
+from custom_components.haeo.core.schema.elements.solar import ELEMENT_TYPE as SOLAR_ELEMENT_TYPE
 from custom_components.haeo.core.schema.entity_value import as_entity_value
 from custom_components.haeo.core.schema.none_value import as_none_value
 from custom_components.haeo.flows.elements.policy import (
@@ -51,9 +55,21 @@ def hub_entry(hass: HomeAssistant) -> MockConfigEntry:
     )
     entry.add_to_hass(hass)
 
-    for name in ("Solar", "Grid", "Battery", "Load"):
+    nodes = [
+        ("Solar", True, False),
+        ("Grid", True, True),
+        ("Battery", True, True),
+        ("Load", False, True),
+    ]
+    for name, is_source, is_sink in nodes:
         subentry = ConfigSubentry(
-            data=MappingProxyType({CONF_ELEMENT_TYPE: NODE_ELEMENT_TYPE, CONF_NAME: name}),
+            data=MappingProxyType(
+                {
+                    CONF_ELEMENT_TYPE: NODE_ELEMENT_TYPE,
+                    CONF_NAME: name,
+                    SECTION_ROLE: {CONF_IS_SOURCE: is_source, CONF_IS_SINK: is_sink},
+                }
+            ),
             subentry_type=NODE_ELEMENT_TYPE,
             title=name,
             unique_id=None,
@@ -560,6 +576,98 @@ def test_get_participant_options_skips_invalid_element_type_values(
     flow = _create_flow(hass, hub_entry)
     options = flow._get_participant_options()
     assert "Broken" not in options
+
+
+def test_get_participant_options_filters_source_capability(
+    hass: HomeAssistant,
+    hub_entry: MockConfigEntry,
+) -> None:
+    """Source filtering only returns elements whose adapter has can_source=True."""
+    # Add a load (sink-only) and solar (source-only) subentry
+    for name, etype in [("My Load", LOAD_ELEMENT_TYPE), ("My Solar", SOLAR_ELEMENT_TYPE)]:
+        subentry = ConfigSubentry(
+            data=MappingProxyType({CONF_ELEMENT_TYPE: etype, CONF_NAME: name}),
+            subentry_type=etype,
+            title=name,
+            unique_id=None,
+        )
+        hass.config_entries.async_add_subentry(hub_entry, subentry)
+
+    flow = _create_flow(hass, hub_entry)
+    source_options = flow._get_participant_options(can_source=True)
+    # Solar adapter has can_source=True
+    assert "My Solar" in source_options
+    # Load (sink-only) should be excluded
+    assert "My Load" not in source_options
+
+
+def test_get_participant_options_filters_sink_capability(
+    hass: HomeAssistant,
+    hub_entry: MockConfigEntry,
+) -> None:
+    """Sink filtering only returns elements whose adapter has can_sink=True."""
+    for name, etype in [("My Load", LOAD_ELEMENT_TYPE), ("My Solar", SOLAR_ELEMENT_TYPE)]:
+        subentry = ConfigSubentry(
+            data=MappingProxyType({CONF_ELEMENT_TYPE: etype, CONF_NAME: name}),
+            subentry_type=etype,
+            title=name,
+            unique_id=None,
+        )
+        hass.config_entries.async_add_subentry(hub_entry, subentry)
+
+    flow = _create_flow(hass, hub_entry)
+    target_options = flow._get_participant_options(can_sink=True)
+    # Load adapter has can_sink=True
+    assert "My Load" in target_options
+    # Solar (source-only) should be excluded
+    assert "My Solar" not in target_options
+
+
+def test_get_participant_options_excludes_passthrough_elements(
+    hass: HomeAssistant,
+    hub_entry: MockConfigEntry,
+) -> None:
+    """Elements with neither can_source nor can_sink (e.g., inverter) are excluded."""
+    inverter_subentry = ConfigSubentry(
+        data=MappingProxyType({CONF_ELEMENT_TYPE: INVERTER_ELEMENT_TYPE, CONF_NAME: "Inverter"}),
+        subentry_type=INVERTER_ELEMENT_TYPE,
+        title="Inverter",
+        unique_id=None,
+    )
+    hass.config_entries.async_add_subentry(hub_entry, inverter_subentry)
+
+    flow = _create_flow(hass, hub_entry)
+    # Inverter excluded from source options
+    assert "Inverter" not in flow._get_participant_options(can_source=True)
+    # Inverter excluded from sink options
+    assert "Inverter" not in flow._get_participant_options(can_sink=True)
+    # Inverter excluded from unfiltered options too (neither source nor sink)
+    assert "Inverter" not in flow._get_participant_options()
+
+
+def test_get_participant_options_excludes_junction_nodes(
+    hass: HomeAssistant,
+    hub_entry: MockConfigEntry,
+) -> None:
+    """Node elements with is_source=False and is_sink=False are excluded as junctions."""
+    junction_subentry = ConfigSubentry(
+        data=MappingProxyType(
+            {
+                CONF_ELEMENT_TYPE: NODE_ELEMENT_TYPE,
+                CONF_NAME: "Switchboard",
+                SECTION_ROLE: {CONF_IS_SOURCE: False, CONF_IS_SINK: False},
+            }
+        ),
+        subentry_type=NODE_ELEMENT_TYPE,
+        title="Switchboard",
+        unique_id=None,
+    )
+    hass.config_entries.async_add_subentry(hub_entry, junction_subentry)
+
+    flow = _create_flow(hass, hub_entry)
+    assert "Switchboard" not in flow._get_participant_options(can_source=True)
+    assert "Switchboard" not in flow._get_participant_options(can_sink=True)
+    assert "Switchboard" not in flow._get_participant_options()
 
 
 async def test_reconfigure_delete_invalid_index_keeps_rules_and_saves(

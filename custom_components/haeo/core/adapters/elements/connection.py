@@ -38,6 +38,8 @@ class ConnectionAdapter:
     element_type: str = ELEMENT_TYPE
     advanced: bool = True
     connectivity: ConnectivityLevel = ConnectivityLevel.NEVER
+    can_source: bool = False
+    can_sink: bool = False
 
     def model_elements(self, config: ConnectionConfigData) -> list[ModelElementConfig]:
         """Return model element parameters for Connection configuration."""
