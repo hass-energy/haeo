@@ -30,6 +30,8 @@ _CAL_LOG_LO = -12.0
 _CAL_LOG_HI = -1.0
 _CAL_MAX_STEPS = 40  # total bisection budget split across upper/lower searches
 _CAL_CONVERGENCE = 0.01  # stop bisection when interval < this (log10 decades)
+
+
 @dataclass(frozen=True, kw_only=True)
 class _SolverTuning:
     """HiGHS solver options shared across all objective modes.
@@ -267,23 +269,21 @@ class Network:
                 raise ValueError(msg) from e
 
         objectives = self.cost()
-
         if objectives is None:
-            # No objectives at all — feasibility solve only
-            _clear_linear_objectives(self._solver)
-            self._relax_lex_constraint()
-            h.run()
-            return _ensure_optimal(h)
+            msg = "Network has no cost objectives — add connections with pricing segments"
+            raise ValueError(msg)
 
         primary, secondary = objectives
+        if primary is None:
+            msg = "Network has no primary cost — add pricing segments to connections"
+            raise ValueError(msg)
+        if secondary is None:
+            msg = "Network has no secondary cost — connections must generate time-preference objectives"
+            raise ValueError(msg)
 
         n_vars = h.numVariables
         all_col_indices = np.arange(n_vars, dtype=np.int32)
         cost_vectors = _build_cost_vectors((primary, secondary), n_vars)
-
-        # Without both objectives, lex/blended degrade to single-phase
-        if primary is None or secondary is None:
-            return self._solve_single(h, all_col_indices, cost_vectors, has_primary=primary is not None)
 
         if isinstance(self.options, BlendedOptions):
             return self._solve_blended(h, all_col_indices, cost_vectors, self.options.blend_weight)
@@ -292,29 +292,6 @@ class Network:
             return self._solve_blended(h, all_col_indices, cost_vectors, self._calibrated_weight)
 
         return self._solve_lex(h, all_col_indices, cost_vectors, primary, secondary)
-
-    def _solve_single(
-        self,
-        h: Highs,
-        all_col_indices: NDArray[np.int32],
-        cost_vectors: list[NDArray[np.float64]],
-        *,
-        has_primary: bool,
-    ) -> float:
-        """Single-phase solve when only one objective exists."""
-        _clear_linear_objectives(h)
-        self._relax_lex_constraint()
-
-        if has_primary:
-            _set_cost_vector(h, all_col_indices, cost_vectors[0])
-            h.run()
-            return _ensure_optimal(h)
-
-        # Secondary only — minimize it, return 0.0 as primary value
-        _set_cost_vector(h, all_col_indices, cost_vectors[1])
-        h.run()
-        _ensure_optimal(h)
-        return 0.0
 
     def _solve_lex(
         self,

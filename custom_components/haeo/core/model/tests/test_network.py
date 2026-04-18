@@ -243,7 +243,17 @@ def test_network_optimize_success_logs_solver_output(
     caplog.set_level(logging.DEBUG, logger=network_module.__name__)
 
     network = Network(name="test_network", periods=np.array([1.0] * 2))
-    network.add({"element_type": ELEMENT_TYPE_NODE, "name": "node", "is_sink": True, "is_source": True})
+    network.add({"element_type": ELEMENT_TYPE_NODE, "name": "src", "is_source": True, "is_sink": False})
+    network.add({"element_type": ELEMENT_TYPE_NODE, "name": "dst", "is_source": False, "is_sink": True})
+    network.add(
+        {
+            "element_type": ELEMENT_TYPE_CONNECTION,
+            "name": "conn",
+            "source": "src",
+            "target": "dst",
+            "segments": {"pricing": {"segment_type": "pricing", "price": 0.0}},
+        }
+    )
 
     result = network.optimize()
 
@@ -572,9 +582,9 @@ def test_lex_mode_with_secondary_objective() -> None:
     assert np.isfinite(result)
 
 
-def test_lex_mode_no_secondary() -> None:
-    """Lex mode without secondary objective degrades to single-phase solve."""
-    network = Network(name="test", periods=np.array([1.0]), options=LexOptions())
+def test_optimize_requires_objectives() -> None:
+    """Network without cost objectives raises ValueError."""
+    network = Network(name="test", periods=np.array([1.0]))
     network.add({"element_type": ELEMENT_TYPE_NODE, "name": "node", "is_source": True, "is_sink": True})
-    result = network.optimize()
-    assert result == 0.0
+    with pytest.raises(ValueError, match="no cost objectives"):
+        network.optimize()
