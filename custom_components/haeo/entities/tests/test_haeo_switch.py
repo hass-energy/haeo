@@ -635,6 +635,81 @@ async def test_translation_placeholders_include_rule_name_for_list_field(
     assert placeholders.get("rule_name") == "Export"
 
 
+async def test_translation_placeholders_skip_invalid_list_index(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    device_entry: Mock,
+    horizon_manager: Mock,
+) -> None:
+    """Invalid list index in field_path does not raise and omits rule_name."""
+    field_info = InputFieldInfo(
+        field_name=CONF_ENABLED,
+        entity_description=SwitchEntityDescription(
+            key=CONF_ENABLED,
+            translation_key="policy_enabled",
+        ),
+        output_type=OutputType.STATUS,
+    )
+    subentry = ConfigSubentry(
+        data=MappingProxyType(
+            {
+                CONF_ELEMENT_TYPE: ElementType.POLICY,
+                CONF_NAME: "Policies",
+                CONF_RULES: [
+                    {"name": "Export", CONF_ENABLED: True},
+                ],
+            }
+        ),
+        subentry_type=ElementType.POLICY,
+        title="Policies",
+        unique_id=None,
+    )
+    config_entry.runtime_data = None
+
+    entity = HaeoInputSwitch(
+        config_entry=config_entry,
+        subentry=subentry,
+        field_info=field_info,
+        device_entry=device_entry,
+        horizon_manager=horizon_manager,
+        field_path=(CONF_RULES, "not-an-index", CONF_ENABLED),
+    )
+
+    placeholders = entity._attr_translation_placeholders
+    assert placeholders is not None
+    assert "rule_name" not in placeholders
+
+
+async def test_invalid_config_value_raises_runtime_error(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    device_entry: Mock,
+    curtailment_field_info: InputFieldInfo[SwitchEntityDescription],
+    horizon_manager: Mock,
+) -> None:
+    """Unknown switch config value types fail loudly."""
+    subentry = _create_subentry("Test Solar", {"allow_curtailment": True})
+    # Inject an invalid nested value shape for this field
+    invalid_data = dict(subentry.data)
+    invalid_data[SECTION_CURTAILMENT] = {curtailment_field_info.field_name: {"type": "invalid"}}
+    invalid_subentry = ConfigSubentry(
+        data=MappingProxyType(invalid_data),
+        subentry_type=subentry.subentry_type,
+        title=subentry.title,
+        unique_id=subentry.unique_id,
+    )
+    config_entry.runtime_data = None
+
+    with pytest.raises(RuntimeError, match="Invalid config value"):
+        HaeoInputSwitch(
+            config_entry=config_entry,
+            subentry=invalid_subentry,
+            field_info=curtailment_field_info,
+            device_entry=device_entry,
+            horizon_manager=horizon_manager,
+        )
+
+
 # --- Tests for horizon_start and get_values properties ---
 
 

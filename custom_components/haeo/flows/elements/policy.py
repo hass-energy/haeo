@@ -471,8 +471,8 @@ class PolicySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                 )
 
         schema = self._build_rule_schema(source_options, target_options)
-        if user_input is not None:
-            defaults = user_input
+        if merged_input is not None:
+            defaults = merged_input
         elif idx is not None and 0 <= idx < len(self._rules):
             defaults = self._rule_to_defaults(self._rules[idx])
         else:
