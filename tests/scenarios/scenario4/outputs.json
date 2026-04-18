@@ -5685,7 +5685,7 @@
   "sensor.optimizer_status": {
     "entity_id": "sensor.optimizer_status",
     "state": "success",
-    "attributes": { "advanced": false, "device_class": "enum", "element_name": "System", "element_type": "network", "friendly_name": "Optimizer Status", "last_run": "2025-10-06T21:50:21.031796+11:00", "options": ["failed", "pending", "success"], "output_name": "network_optimization_status", "output_type": "status" }
+    "attributes": { "advanced": false, "device_class": "enum", "element_name": "System", "element_type": "network", "friendly_name": "Optimizer Status", "last_run": "2025-10-06T10:50:21.031796+00:00", "options": ["failed", "pending", "success"], "output_name": "network_optimization_status", "output_type": "status" }
   },
   "sensor.solar_forecast_limit_shadow_price": {
     "entity_id": "sensor.solar_forecast_limit_shadow_price",

@@ -662,7 +662,7 @@ def test_optimization_status_sensor_tracks_last_run(device_entry: DeviceEntry) -
     sensor._handle_coordinator_update()
     first_attributes = sensor.extra_state_attributes
     assert first_attributes is not None
-    assert first_attributes["last_run"] == first_completed_at.isoformat()
+    assert first_attributes["last_run"] == dt_util.as_utc(first_completed_at).isoformat()
 
     coordinator.data = _make_coordinator_data(
         {"Network": {"network": {OUTPUT_NAME_OPTIMIZATION_STATUS: output}}},
@@ -671,7 +671,7 @@ def test_optimization_status_sensor_tracks_last_run(device_entry: DeviceEntry) -
     sensor._handle_coordinator_update()
     second_attributes = sensor.extra_state_attributes
     assert second_attributes is not None
-    assert second_attributes["last_run"] == second_completed_at.isoformat()
+    assert second_attributes["last_run"] == dt_util.as_utc(second_completed_at).isoformat()
 
 
 # --- Recorder Filtering Tests ---
