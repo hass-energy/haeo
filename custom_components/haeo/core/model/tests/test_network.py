@@ -469,8 +469,8 @@ def test_solve_options_defaults() -> None:
     """SolveOptions default values match HiGHS defaults."""
     opts = SolveOptions()
     assert opts.mode == "calibrated"
-    assert opts.simplex_strategy == 1
-    assert opts.solver == "choose"
+    assert opts.simplex_strategy == 4
+    assert opts.solver == "simplex"
 
 
 def test_solve_options_apply() -> None:

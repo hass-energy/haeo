@@ -75,25 +75,24 @@ The objective minimizes the sum of all element costs.
 
 ### Solution Process
 
-Optimization uses a two-phase lexicographic solve with calibrated blending:
+Optimization uses lexicographic multiobjective solving with calibrated blending:
 
 **Phase 1: Minimize primary objective**
 
-Elements construct their decision variables and constraints.
-The network collects these contributions and minimizes total cost (the primary objective).
+The network minimizes total cost (the primary objective).
 
 **Phase 2: Minimize secondary objective**
 
-The primary objective is constrained to its optimal value, and the solver minimizes the secondary time-preference objective.
+The primary objective is constrained to equal its optimal value, and the solver minimizes the secondary time-preference objective.
 This breaks ties among cost-equivalent solutions by preferring earlier energy transfers.
 
-**Calibration**
+**Calibration (default mode)**
 
 After the first lexicographic solve, a binary search finds a blend weight that reproduces the lex decision variables in a single weighted-sum solve.
-Subsequent optimizations use this blended objective (`primary + weight * secondary`) in a single solve, which warm-starts efficiently and produces proper dual values (shadow prices).
+Subsequent optimizations use this blended objective (`primary + weight * secondary`) in a single solve, which warm-starts efficiently.
 
 A full three-phase lexicographic mode is also available (`mode="lex"`) that adds a Phase 3 re-minimization of the primary with the secondary constrained.
-This restores shadow prices that reflect pure primary-cost sensitivities, at the cost of an additional solve per optimization.
+This restores dual values (shadow prices) that reflect pure primary-cost sensitivities, at the cost of an additional solve per optimization.
 
 ### Solution Outcomes
 
@@ -248,13 +247,15 @@ When multiple solutions achieve the same minimum cost, the optimizer prefers ear
 Each connection contributes a time-preference term to the secondary objective:
 
 $$
-\text{minimize} \sum_{\text{connections}} \sum_{t=0}^{T-1} w_{c,t} \cdot E_c(t)
+\text{minimize} \sum_{\text{connections}} \sum_{t=0}^{T-1} w_{p,t} \cdot E_c(t)
 $$
 
-Where $w_{p,t} = p \cdot T + (t + 1)$ assigns monotonically increasing weights per priority level $p$ and time step $t$, and $E_c(t)$ is the energy transferred through connection $c$ at time $t$.
-Priority is auto-computed from endpoint element types so that connections with different roles receive non-overlapping weight ranges.
+Where $p$ is the connection priority derived from endpoint element types, $w_{p,t} = p \cdot T + (t + 1)$ assigns monotonically increasing weights by priority group and time step, and $E_c(t)$ is the energy transferred through connection $c$ at time $t$.
+Connections with different priorities receive non-overlapping weight ranges.
+Connections with the same priority share the same per-period weight sequence.
 
-The secondary objective does not affect the optimal cost—it only selects among cost-equivalent solutions for deterministic, physically intuitive schedules.
+The secondary objective does not affect the optimal cost.
+It only selects among cost-equivalent solutions for deterministic, physically intuitive schedules.
 
 ## Solver
 
