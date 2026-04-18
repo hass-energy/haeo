@@ -115,10 +115,10 @@ def test_different_prices_separate() -> None:
 def test_wildcard_all_same_merges() -> None:
     """Wildcard source with single policy -> all sources get VLANs."""
     elements = [
-        _node("a"),
-        _node("b"),
-        _node("c"),
-        _node("d"),
+        _node("a", is_source=True),
+        _node("b", is_source=True),
+        _node("c", is_source=True),
+        _node("d", is_sink=True),
         _conn("c1", "a", "d"),
         _conn("c2", "b", "d"),
         _conn("c3", "c", "d"),
@@ -137,12 +137,60 @@ def test_no_policies_no_vlans() -> None:
 
 
 def test_node_without_policy_gets_outbound_tags() -> None:
-    """All nodes get outbound tags from the implicit allow-all rule."""
-    elements = [_node("grid"), _node("battery"), _node("load"), _conn("c1", "grid", "load")]
+    """All source-capable nodes get outbound tags from the implicit allow-all rule."""
+    elements = [
+        _node("grid", is_source=True),
+        _node("battery", is_source=True),
+        _node("load", is_sink=True),
+        _conn("c1", "grid", "load"),
+    ]
     policies = [{"sources": ["grid"], "destinations": ["load"], "price": 0.05}]
     result = compile_policies(elements, policies)
     battery = _find(result, "battery", element_type=MODEL_ELEMENT_TYPE_NODE)
     assert battery.get("outbound_tags") is not None
+
+
+def test_wildcard_excludes_sink_only_from_sources() -> None:
+    """Wildcard source expansion excludes nodes that can only consume."""
+    elements = [
+        _node("solar", is_source=True),
+        _node("load", is_sink=True),
+        _junction("sw"),
+        _conn("solar_sw", "solar", "sw"),
+        _conn("sw_load", "sw", "load"),
+    ]
+    policies = [{"sources": ["*"], "destinations": ["load"], "price": 0.05}]
+    result = compile_policies(elements, policies)
+    # Solar is a source — gets a VLAN
+    assert _outbound_tag(result, "solar") != 0
+    # Load is sink-only — not expanded as source, no outbound tag
+    load = _find(result, "load", element_type=MODEL_ELEMENT_TYPE_NODE)
+    assert load.get("outbound_tags") is None
+    # Junction is neither — not expanded as source, no outbound tag
+    sw = _find(result, "sw", element_type=MODEL_ELEMENT_TYPE_NODE)
+    assert sw.get("outbound_tags") is None
+
+
+def test_wildcard_excludes_source_only_from_destinations() -> None:
+    """Wildcard destination expansion excludes nodes that can only produce."""
+    elements = [
+        _node("grid", is_source=True, is_sink=True),
+        _node("solar", is_source=True),
+        _node("load", is_sink=True),
+        _conn("grid_load", "grid", "load"),
+        _conn("grid_solar", "grid", "solar"),
+    ]
+    policies = [{"sources": ["grid"], "destinations": ["*"], "price": 0.05}]
+    result = compile_policies(elements, policies)
+    # Load (sink) gets inbound tag from grid
+    load = _find(result, "load", element_type=MODEL_ELEMENT_TYPE_NODE)
+    assert load.get("inbound_tags") is not None
+    # Solar (source-only) is not a wildcard destination — no inbound tag from grid policy
+    solar = _find(result, "solar", element_type=MODEL_ELEMENT_TYPE_NODE)
+    solar_inbound = solar.get("inbound_tags")
+    grid_vlan = _outbound_tag(result, "grid")
+    # Grid's policy VLAN should not appear in solar's inbound tags
+    assert solar_inbound is None or grid_vlan not in solar_inbound
 
 
 # --- Reachability ---
@@ -198,12 +246,22 @@ def test_inbound_tags_set_on_destination() -> None:
 
 
 def test_routing_nodes_get_inbound_tags() -> None:
-    """Routing nodes get inbound tags from the implicit allow-all rule."""
-    elements = [_node("grid"), _junction("sw"), _node("load"), _conn("c1", "grid", "sw"), _conn("c2", "sw", "load")]
+    """Junctions (non-sinks) don't get inbound tags — they pass power through without consuming."""
+    elements = [
+        _node("grid", is_source=True),
+        _junction("sw"),
+        _node("load", is_sink=True),
+        _conn("c1", "grid", "sw"),
+        _conn("c2", "sw", "load"),
+    ]
     policies = [{"sources": ["grid"], "destinations": ["load"], "price": 0.05}]
     result = compile_policies(elements, policies)
     sw = _find(result, "sw", element_type=MODEL_ELEMENT_TYPE_NODE)
-    assert sw.get("inbound_tags") is not None
+    # Junction doesn't consume, so no inbound_tags needed
+    assert sw.get("inbound_tags") is None
+    # But load (the actual sink) does get inbound tags
+    load = _find(result, "load", element_type=MODEL_ELEMENT_TYPE_NODE)
+    assert load.get("inbound_tags") is not None
 
 
 # --- Default-allow ---
@@ -595,9 +653,22 @@ def test_compile_policies_without_connections_returns_unchanged() -> None:
     assert compile_policies(elements, policies) is elements
 
 
+def test_compile_policies_junctions_only_returns_unchanged() -> None:
+    """Wildcards that resolve to no source/sink nodes produce no flows."""
+    elements = [_junction("sw1"), _junction("sw2"), _conn("c1", "sw1", "sw2")]
+    policies = [{"sources": ["*"], "destinations": ["*"], "price": 0.05}]
+    result = compile_policies(elements, policies)
+    # No source or sink nodes, so wildcard expansion yields no flows — elements unchanged
+    assert result is elements
+
+
 def test_compile_policies_resolves_to_no_flows() -> None:
     """Unknown endpoint names resolve to no explicit flows but hidden rule still applies."""
-    elements = [_node("grid"), _node("load"), _conn("c1", "grid", "load")]
+    elements = [
+        _node("grid", is_source=True),
+        _node("load", is_sink=True),
+        _conn("c1", "grid", "load"),
+    ]
     policies = [{"sources": ["nosuch"], "destinations": ["alsomissing"], "price": 0.05}]
     result = compile_policies(elements, policies)
     # Hidden * -> * still generates VLANs for existing nodes
@@ -606,7 +677,11 @@ def test_compile_policies_resolves_to_no_flows() -> None:
 
 def test_compile_policies_non_list_endpoints_resolve_to_no_flows() -> None:
     """Non-list sources/destinations are ignored but hidden rule still applies."""
-    elements = [_node("grid"), _node("load"), _conn("c1", "grid", "load")]
+    elements = [
+        _node("grid", is_source=True),
+        _node("load", is_sink=True),
+        _conn("c1", "grid", "load"),
+    ]
     policies = [{"sources": "grid", "destinations": ("load",), "price": 0.05}]
     result = compile_policies(elements, policies)
     # Hidden * -> * still generates VLANs for existing nodes
@@ -616,9 +691,9 @@ def test_compile_policies_non_list_endpoints_resolve_to_no_flows() -> None:
 def test_wildcard_destination_tags_each_sources_paths() -> None:
     """Wildcard destination applies separate VLANs per source when signatures differ."""
     elements = [
-        _node("a"),
-        _node("b"),
-        _node("c"),
+        _node("a", is_source=True),
+        _node("b", is_source=True),
+        _node("c", is_sink=True),
         _conn("ac", "a", "c"),
         _conn("bc", "b", "c"),
     ]

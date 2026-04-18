@@ -33,7 +33,8 @@ graph TD
 ### Step 1: Flow enumeration
 
 Each policy expands into concrete `(source, destination, price_st, price_ts)` tuples.
-Wildcards (`*`) expand to all nodes.
+Wildcards (`*`) expand to capability-matching nodes only: source wildcards expand to
+nodes with `is_source=True`, and destination wildcards expand to nodes with `is_sink=True`.
 
 ### Step 2: Signature computation
 

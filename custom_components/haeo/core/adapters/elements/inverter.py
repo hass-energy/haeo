@@ -60,6 +60,8 @@ class InverterAdapter:
     element_type: str = ELEMENT_TYPE
     advanced: bool = False
     connectivity: ConnectivityLevel = ConnectivityLevel.ALWAYS
+    can_source: bool = False
+    can_sink: bool = False
 
     def model_elements(self, config: InverterConfigData) -> list[ModelElementConfig]:
         """Return model element parameters for Inverter configuration."""

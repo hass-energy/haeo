@@ -67,6 +67,8 @@ class PolicyAdapter:
     element_type: str = ELEMENT_TYPE
     advanced: bool = False
     connectivity: ConnectivityLevel = ConnectivityLevel.NEVER
+    can_source: bool = False
+    can_sink: bool = False
 
     def model_elements(self, config: PolicyConfigData) -> list[ModelElementConfig]:  # noqa: ARG002
         """Policy does not create model elements — policies are compiled separately."""
