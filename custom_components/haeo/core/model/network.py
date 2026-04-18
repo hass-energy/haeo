@@ -1,5 +1,6 @@
 """Network class for electrical system modeling and optimization."""
 
+from collections.abc import Callable
 from dataclasses import dataclass
 import logging
 from typing import Any, Final, Literal, overload
@@ -429,33 +430,29 @@ class Network:
             _ensure_optimal(h)
             return 10.0**lo
         else:
-            # lo is good, hi is bad — bisect to find upper boundary.
-            u_lo, u_hi = lo, hi
-            for _ in range(half_budget):
-                if u_hi - u_lo < _CAL_CONVERGENCE:
-                    break
-                mid = (u_lo + u_hi) / 2
-                if _primary_vars_match(mid):
-                    u_lo = mid
-                else:
-                    u_hi = mid
-            upper = u_lo
+            upper = _bisect_boundary(
+                lo,
+                hi,
+                _primary_vars_match,
+                max_steps=half_budget,
+                convergence=_CAL_CONVERGENCE,
+            )
 
         # --- Find lower edge: lowest weight where primary vars match ---
         if upper == lo or _primary_vars_match(lo):
             lower = lo
         else:
-            # upper is good, lo is bad — bisect to find lower boundary.
-            l_lo, l_hi = lo, upper
-            for _ in range(half_budget):
-                if l_hi - l_lo < _CAL_CONVERGENCE:
-                    break
-                mid = (l_lo + l_hi) / 2
-                if _primary_vars_match(mid):
-                    l_hi = mid
-                else:
-                    l_lo = mid
-            lower = l_hi
+            # Search from below: find lowest weight where match holds.
+            # Invert predicate so _bisect_boundary finds highest "not match",
+            # then step up to the first "match".
+            not_match_upper = _bisect_boundary(
+                lo,
+                upper,
+                lambda mid: not _primary_vars_match(mid),
+                max_steps=half_budget,
+                convergence=_CAL_CONVERGENCE,
+            )
+            lower = not_match_upper + _CAL_CONVERGENCE
 
         center = (upper + lower) / 2
         weight = 10.0**center
@@ -534,6 +531,30 @@ class Network:
             if element_constraints := element.constraints():
                 result[element_name] = element_constraints
         return result
+
+
+def _bisect_boundary(
+    lo: float,
+    hi: float,
+    predicate: Callable[[float], bool],
+    *,
+    max_steps: int,
+    convergence: float,
+) -> float:
+    """Binary search for boundary where predicate changes from True to False.
+
+    Assumes predicate(lo) is True and predicate(hi) is False.
+    Returns the highest value where predicate holds.
+    """
+    for _ in range(max_steps):
+        if hi - lo < convergence:
+            break
+        mid = (lo + hi) / 2
+        if predicate(mid):
+            lo = mid
+        else:
+            hi = mid
+    return lo
 
 
 def _build_cost_vectors(
