@@ -60,6 +60,9 @@ class PolicyConfigSchema(TypedDict):
         list[PolicyRuleConfig],
         ListFieldHints(
             fields={
+                CONF_ENABLED: FieldHint(
+                    output_type=OutputType.STATUS,
+                ),
                 CONF_PRICE: FieldHint(
                     output_type=OutputType.PRICE,
                     time_series=True,

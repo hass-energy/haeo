@@ -23,6 +23,11 @@ from custom_components.haeo.core.schema.elements.grid import (
     SECTION_PRICING,
 )
 from custom_components.haeo.core.schema.elements.grid import ELEMENT_TYPE as GRID_TYPE
+from custom_components.haeo.core.schema.elements.policy import (
+    CONF_ENABLED as CONF_POLICY_ENABLED,
+    CONF_RULES,
+)
+from custom_components.haeo.core.schema.elements.policy import ELEMENT_TYPE as POLICY_TYPE
 from custom_components.haeo.core.schema.elements.solar import (
     CONF_CURTAILMENT,
     CONF_FORECAST,
@@ -277,6 +282,39 @@ async def test_setup_creates_switch_entities_for_solar_curtailment(
         # Check if any switch entity was created for curtailment
         field_names = {e._field_info.field_name for e in input_switches}
         assert CONF_CURTAILMENT in field_names
+
+
+async def test_setup_creates_switch_entities_for_policy_rule_enabled(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+) -> None:
+    """Setup creates policy enabled switches from list-based rule fields."""
+    _add_subentry(hass, config_entry, ELEMENT_TYPE_NETWORK, "Test Network", {})
+    _add_subentry(
+        hass,
+        config_entry,
+        POLICY_TYPE,
+        "Policies",
+        {
+            CONF_RULES: [
+                {
+                    "name": "Export policy",
+                    CONF_POLICY_ENABLED: True,
+                    "price": as_constant_value(0.05),
+                }
+            ]
+        },
+    )
+
+    async_add_entities = Mock()
+    await async_setup_entry(hass, config_entry, async_add_entities)
+
+    assert async_add_entities.called
+    entities = list(async_add_entities.call_args.args[0])
+    input_switches = [e for e in entities if hasattr(e, "_field_info")]
+    enabled_switches = [e for e in input_switches if e._field_info.field_name == CONF_POLICY_ENABLED]
+    assert enabled_switches
+    assert enabled_switches[0]._field_path == (CONF_RULES, "0", CONF_POLICY_ENABLED)
 
 
 async def test_setup_creates_correct_device_identifiers(

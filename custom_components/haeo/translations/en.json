@@ -547,6 +547,7 @@
       "network_auto_optimize": { "name": "Auto optimize" },
       "node_is_sink": { "name": "Is sink" },
       "node_is_source": { "name": "Is source" },
+      "policy_enabled": { "name": "{rule_name} enabled" },
       "solar_curtailment": { "name": "Curtailment" }
     }
   },
