@@ -64,22 +64,6 @@ class SimplexTuning(_SolverBase):
 
 
 @dataclass(frozen=True, kw_only=True)
-class IpmTuning(_SolverBase):
-    """HiGHS interior point method options."""
-
-    run_crossover: OnOffChoose = "on"
-
-    def apply(self, h: Highs) -> None:
-        """Apply IPM-specific options."""
-        h.setOptionValue("solver", "ipm")
-        self._apply_common(h)
-        h.setOptionValue("run_crossover", self.run_crossover)
-
-
-SolverTuning = SimplexTuning | IpmTuning
-
-
-@dataclass(frozen=True, kw_only=True)
 class LexOptions(SimplexTuning):
     """Three-phase lexicographic optimization with clean shadow prices.
 

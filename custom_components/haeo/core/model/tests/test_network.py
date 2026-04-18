@@ -17,7 +17,6 @@ from custom_components.haeo.core.model.elements.connection import Connection
 from custom_components.haeo.core.model.network import (
     BlendedOptions,
     CalibratedOptions,
-    IpmTuning,
     LexOptions,
     SimplexTuning,
     SolveOptions,
@@ -640,16 +639,6 @@ def test_bisect_boundary_respects_max_steps() -> None:
 
     _bisect_boundary(0.0, 10.0, pred, max_steps=3, convergence=0.001)
     assert calls[0] == 3
-
-
-def test_ipm_tuning_applies_options() -> None:
-    """IpmTuning.apply() sets IPM-specific HiGHS options."""
-    opts = IpmTuning(run_crossover="on")
-    h = Highs()
-    h.setOptionValue("output_flag", False)
-    opts.apply(h)
-    assert h.getOptionValue("solver")[1] == "ipm"
-    assert h.getOptionValue("run_crossover")[1] == "on"
 
 
 def test_calibrated_mode_fallback_on_impossible_match(
