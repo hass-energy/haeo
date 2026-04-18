@@ -25,14 +25,14 @@ The policy system borrows concepts from networking, where tagged flow control is
 
 Power policies use integer tags that are analogous to VLAN IDs in Ethernet.
 
-| Network concept  | HAEO equivalent          | Purpose                                            |
-| ---------------- | ------------------------ | -------------------------------------------------- |
-| VLAN ID          | Power tag (integer)      | Identifies power provenance                        |
-| Trunk port       | Interior connection      | Carries multiple tags between nodes                |
-| Access port      | Endpoint connection      | Node produces or consumes specific tags            |
-| VLAN access list | Node consumption set     | Defines which tags a node can consume              |
-| Firewall rule    | Policy rule              | Allows or prices specific source-destination flows |
-| Default deny     | Implicit policy behavior | No policy means no tag means no flow               |
+| Network concept  | HAEO equivalent          | Purpose                                  |
+| ---------------- | ------------------------ | ---------------------------------------- |
+| VLAN ID          | Power tag (integer)      | Identifies power provenance              |
+| Trunk port       | Interior connection      | Carries multiple tags between nodes      |
+| Access port      | Endpoint connection      | Node produces or consumes specific tags  |
+| VLAN access list | Node consumption set     | Defines which tags a node can consume    |
+| Firewall rule    | Policy rule              | Prices specific source-destination flows |
+| Default allow    | Implicit policy behavior | No policy means free flow on tag 0       |
 
 ### Multi-commodity flow
 
@@ -61,17 +61,18 @@ When no policies are configured, behavior matches standard HAEO.
 All connections carry only tag 0.
 Power is fungible and provenance is not tracked.
 
-### Whitelist model
+### Default-allow model
 
-When any policy is configured, the system uses a whitelist model.
+When any policy is configured, the compiler prepends an implicit `* -> *` rule with no price.
+This ensures every source-destination pair has a VLAN path.
 
-- **Covered flows**: Matched source-destination pairs are allowed with configured prices or limits.
-- **Uncovered flows**: Unmatched pairs are implicitly disallowed because required tags do not exist on the path.
+- **Covered flows**: Matched source-destination pairs carry the configured policy costs.
+- **Uncovered flows**: Unmatched pairs flow freely at zero cost through the implicit rule's VLANs.
 - **Wildcard matching**: `sources: ["*"]` or `destinations: ["*"]` matches all nodes in that dimension.
 
-This is a default-deny model.
-Policies grant permission.
-To allow all flows with no extra cost, configure `* -> *: $0`.
+Policies add costs to specific flows.
+Flows without a matching policy are unrestricted.
+The implicit rule follows the same compilation pipeline as user-configured policies.
 
 ### Policy stacking
 
@@ -179,13 +180,15 @@ Endpoint connections carry only the VLANs their node produces or consumes.
 ### Step 6: Node access lists
 
 Each node gets a consumption set that lists which VLANs it can terminate.
+The implicit `* -> *` rule ensures every node appears as both source and destination,
+so all nodes can consume VLANs from all sources.
 
 $$
 \text{consume}(n) = \{v \mid \exists \text{ policy where } n \in \text{destinations and VLAN } v \text{ matches source}\}
 $$
 
 Power can still pass through a node on other VLANs.
-Only VLANs in the consumption set can be consumed at that node.
+VLANs in the consumption set can be consumed at that node.
 Source nodes emit only their assigned source tag.
 
 ### Step 7: Pricing injection
@@ -255,25 +258,28 @@ Policy: Grid -> Load: $0.05/kWh
 
 Compilation summary:
 
-1. Flows: `{(Grid, Load, 0.05)}`.
-2. Signatures: Grid has one priced destination and others are empty.
-3. VLANs: Grid gets tag 1 and others get tag 0.
-4. Reachability: Tag 1 appears only on the Grid-to-Load path.
-5. Access: `Load` can consume tag 1.
-6. Pricing: Destination connection gets `pricing(tag=1, $0.05)`.
+1. Flows: implicit `* -> *` plus `{(Grid, Load, 0.05)}`.
+2. Signatures: Grid has `{(Load, None), (Load, 0.05), ...}`, others have `{(..., None)}`.
+3. VLANs: each node gets a VLAN; Grid's differs from others due to the priced entry.
+4. Reachability: all VLANs reach all connections.
+5. Access: all nodes can consume all VLANs.
+6. Pricing: destination connection gets `pricing(tag=grid_vlan, $0.05)`.
 
 Result:
 Grid power carries the surcharge to `Load`.
-Solar power remains unaffected by that policy and is preferred when cheaper.
+Solar power flows freely at zero policy cost and is preferred when cheaper.
 
-### Default-allow equivalent
+### Selective pricing
 
 ```
-Policy: * -> *: $0
+System: Grid <-> Switchboard <-> Load, Solar -> Switchboard, Battery <-> Switchboard
+Policy: Battery -> *: $0.02/kWh
 ```
 
-All sources share one non-zero signature and merge into one non-zero VLAN.
-That setup behaves like unrestricted routing, while still keeping provenance tags available.
+Battery gets a VLAN with a discharge wear cost.
+Solar and Grid get separate VLANs from the implicit `* -> *` rule at zero cost.
+All destinations can consume all VLANs, so Solar and Grid power reaches them freely.
+Battery power carries the `$0.02/kWh` wear cost everywhere it flows.
 
 ## Implementation location
 
