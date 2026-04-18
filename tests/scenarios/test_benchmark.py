@@ -172,7 +172,7 @@ _benchmark_params = [
 ]
 
 
-def _apply_marks[F](fn: F) -> F:
+def _apply_marks(fn: Any) -> Any:
     for mark in reversed(_benchmark_params):
         fn = mark(fn)
     return fn

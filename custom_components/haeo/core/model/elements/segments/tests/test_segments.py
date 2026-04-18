@@ -332,6 +332,38 @@ def test_segment_outputs_and_cost_coverage() -> None:
     assert cost_value is not None
 
 
+def test_multiple_cost_methods_aggregate() -> None:
+    """Element with multiple @cost methods sums them into a single expression."""
+
+    class MultiCostElement(Element[str]):
+        def __init__(self, solver: Highs) -> None:
+            super().__init__(
+                name="multi",
+                periods=np.array([1.0]),
+                solver=solver,
+                output_names=frozenset(),
+            )
+            self._v1 = solver.addVariables(1, lb=0, name_prefix="v1_", out_array=True)
+            self._v2 = solver.addVariables(1, lb=0, name_prefix="v2_", out_array=True)
+
+        @cost
+        def cost_a(self) -> highs_linear_expression:
+            return Highs.qsum(self._v1)
+
+        @cost
+        def cost_b(self) -> highs_linear_expression:
+            return Highs.qsum(self._v2)
+
+    solver = Highs()
+    solver.setOptionValue("output_flag", False)
+    elem = MultiCostElement(solver)
+    result = elem.cost()
+    assert result is not None
+    # Expression should reference indices from both variables
+    idxs = set(result.idxs)
+    assert len(idxs) >= 2
+
+
 def test_soc_pricing_cost_none_without_prices() -> None:
     """SOC pricing cost returns None when no prices are configured."""
     h = create_solver()

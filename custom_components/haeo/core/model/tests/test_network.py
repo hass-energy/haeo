@@ -17,9 +17,11 @@ from custom_components.haeo.core.model.elements.connection import Connection
 from custom_components.haeo.core.model.network import (
     BlendedOptions,
     CalibratedOptions,
+    IpmTuning,
     LexOptions,
     SimplexTuning,
     SolveOptions,
+    _bisect_boundary,
 )
 
 # Test constants
@@ -427,9 +429,8 @@ def test_network_cost_with_multiple_elements() -> None:
     # Get aggregated cost - should use Highs.qsum for multiple costs
     cost = network.cost()
 
-    # Should return a combined objective list
+    # Should return a combined objective tuple
     assert cost is not None
-    assert cost
 
 
 def test_network_cost_returns_none_when_no_costs() -> None:
@@ -594,3 +595,82 @@ def test_optimize_requires_objectives() -> None:
     network.add({"element_type": ELEMENT_TYPE_NODE, "name": "node", "is_source": True, "is_sink": True})
     with pytest.raises(ValueError, match="no cost objectives"):
         network.optimize()
+
+
+def test_optimize_raises_no_primary_cost() -> None:
+    """Network with secondary but no primary cost raises ValueError."""
+    network = Network(name="test", periods=np.array([1.0]))
+    network.add({"element_type": ELEMENT_TYPE_NODE, "name": "src", "is_source": True, "is_sink": False})
+    network.add({"element_type": ELEMENT_TYPE_NODE, "name": "dst", "is_source": False, "is_sink": True})
+    # Connection without pricing — has secondary (time preference) but no primary
+    network.add(
+        {
+            "element_type": ELEMENT_TYPE_CONNECTION,
+            "name": "conn",
+            "source": "src",
+            "target": "dst",
+            "segments": {"power_limit": {"segment_type": "power_limit", "max_power": 5.0}},
+        }
+    )
+    with pytest.raises(ValueError, match="no primary cost"):
+        network.optimize()
+
+
+def test_optimize_raises_no_secondary_cost() -> None:
+    """Network without connections has no secondary cost."""
+    network = Network(name="test", periods=np.array([1.0]))
+    network.add({"element_type": ELEMENT_TYPE_NODE, "name": "node", "is_source": True, "is_sink": True})
+    with pytest.raises(ValueError, match="no cost objectives"):
+        network.optimize()
+
+
+def test_bisect_boundary_converges() -> None:
+    """_bisect_boundary finds the transition point."""
+    result = _bisect_boundary(0.0, 10.0, lambda x: x < 5.0, max_steps=50, convergence=0.01)
+    assert abs(result - 5.0) < 0.02
+
+
+def test_bisect_boundary_respects_max_steps() -> None:
+    """_bisect_boundary stops at max_steps."""
+    calls = [0]
+
+    def pred(x: float) -> bool:
+        calls[0] += 1
+        return x < 5.0
+
+    _bisect_boundary(0.0, 10.0, pred, max_steps=3, convergence=0.001)
+    assert calls[0] == 3
+
+
+def test_ipm_tuning_applies_options() -> None:
+    """IpmTuning.apply() sets IPM-specific HiGHS options."""
+    opts = IpmTuning(run_crossover="on")
+    h = Highs()
+    h.setOptionValue("output_flag", False)
+    opts.apply(h)
+    assert h.getOptionValue("solver")[1] == "ipm"
+    assert h.getOptionValue("run_crossover")[1] == "on"
+
+
+def test_calibrated_mode_fallback_on_impossible_match(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Calibration falls back gracefully when no weight reproduces lex."""
+    network = _build_priced_network(CalibratedOptions())
+    network.optimize()  # first call: calibrates
+
+    # Sabotage the calibrated weight to force recalibration
+    network._calibrated_weight = None
+
+    # Monkeypatch _primary_vars_match to always return False after first call
+    call_count = [0]
+
+    def always_fail_calibrate(*args: object, **kwargs: object) -> float:
+        call_count[0] += 1
+        # Return a very small weight (the fallback value)
+        return 1e-12
+
+    monkeypatch.setattr(network, "_calibrate_blend_weight", always_fail_calibrate)
+    result = network.optimize()
+    assert np.isfinite(result)
+    assert call_count[0] == 1

@@ -14,7 +14,6 @@ from custom_components.haeo.core.adapters.elements.policy import adapter as poli
 from custom_components.haeo.core.adapters.elements.solar import adapter as solar_adapter
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, ConnectivityLevel
 from custom_components.haeo.core.model import ModelElementConfig, ModelOutputName
-from custom_components.haeo.core.model.elements.connection import ConnectionElementConfig
 from custom_components.haeo.core.model.output_data import ModelOutputValue, OutputData
 from custom_components.haeo.core.schema.elements import ElementConfigData, ElementType
 
@@ -69,11 +68,6 @@ def is_element_type(value: Any) -> TypeGuard[ElementType]:
     Accepts both ElementType members and plain strings matching a member value.
     """
     return value in ELEMENT_TYPES
-
-
-def _as_connection_config(config: ModelElementConfig) -> ConnectionElementConfig:
-    """Narrow a model element config to ConnectionElementConfig."""
-    return config  # type: ignore[return-value]
 
 
 def collect_model_elements(

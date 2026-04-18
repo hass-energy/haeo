@@ -75,7 +75,7 @@ def _solve_connection_scenario(element: Connection[str], inputs: ConnectionTestC
 
     # Collect primary cost from element (index 0 only, skip secondary time preference)
     element_cost = element.cost()
-    if element_cost is not None and element_cost[0] is not None:
+    if element_cost[0] is not None:
         cost_terms.append(element_cost[0])
 
     if cost_terms:
