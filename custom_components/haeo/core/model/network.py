@@ -5,7 +5,7 @@ from dataclasses import dataclass
 import logging
 from typing import Any, Final, Literal, overload
 
-from highspy import Highs, HighsModelStatus, ObjSense
+from highspy import Highs, HighsModelStatus
 from highspy.highs import highs_cons, highs_linear_expression
 import numpy as np
 from numpy.typing import NDArray
@@ -139,8 +139,7 @@ class Network:
         # Apply tunable solver options
         self.options.apply(self._solver)
 
-        # Always minimize — set once, never changed
-        self._solver.changeObjectiveSense(ObjSense.kMinimize)
+
 
     @staticmethod
     def _log_callback(_log_type: int, message: str) -> None:
@@ -583,7 +582,11 @@ def _set_cost_vector(
     col_indices: NDArray[np.int32],
     costs: NDArray[np.float64],
 ) -> None:
-    """Set the full objective cost vector in a single C call."""
+    """Set the full objective cost vector in a single C call.
+
+    col_indices covers ALL variables (np.arange(n_vars)), so every column's
+    cost is replaced — no stale costs from a previous objective can persist.
+    """
     solver.changeColsCost(len(col_indices), col_indices, costs)
     solver.changeObjectiveOffset(0.0)
 
