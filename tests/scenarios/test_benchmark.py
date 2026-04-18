@@ -155,6 +155,12 @@ _scenarios = _discover_scenarios()
 # ---------------------------------------------------------------------------
 
 
+_MODES: list[SolveOptions] = [
+    SolveOptions(mode="calibrated"),
+    SolveOptions(mode="lex"),
+]
+
+
 @pytest.mark.benchmark
 @pytest.mark.timeout(120)
 @pytest.mark.parametrize(
@@ -163,28 +169,15 @@ _scenarios = _discover_scenarios()
     ids=[s.name for s in _scenarios],
     indirect=["scenario_path"],
 )
+@pytest.mark.parametrize("options", _MODES, ids=[m.mode for m in _MODES])
 class TestBenchmark:
-    """Optimization benchmarks for each scenario."""
+    """Optimization benchmarks for each scenario and solve mode."""
 
-    def test_cold_start(self, scenario_path: Path, benchmark: BenchmarkFixture) -> None:
-        """Build network from scratch and optimize (calibrated mode)."""
+    def test_cold_start(self, scenario_path: Path, options: SolveOptions, benchmark: BenchmarkFixture) -> None:
+        """Build network from scratch and optimize."""
         config, inputs, freeze_timestamp = _load_scenario(scenario_path)
         frozen_dt = datetime.fromisoformat(freeze_timestamp)
         sm = _ScenarioStateMachine(inputs)
-
-        def run() -> float:
-            net = _build_network(config, sm, frozen_dt)
-            return net.optimize()
-
-        result = benchmark(run)
-        assert np.isfinite(result)
-
-    def test_cold_start_lex(self, scenario_path: Path, benchmark: BenchmarkFixture) -> None:
-        """Build network from scratch and optimize (lex mode)."""
-        config, inputs, freeze_timestamp = _load_scenario(scenario_path)
-        frozen_dt = datetime.fromisoformat(freeze_timestamp)
-        sm = _ScenarioStateMachine(inputs)
-        options = SolveOptions(mode="lex")
 
         def run() -> float:
             net = _build_network(config, sm, frozen_dt, options=options)
@@ -193,26 +186,14 @@ class TestBenchmark:
         result = benchmark(run)
         assert np.isfinite(result)
 
-    def test_warm_reentrant(self, scenario_path: Path, benchmark: BenchmarkFixture) -> None:
-        """Re-optimize with no parameter changes (warm start)."""
-        config, inputs, freeze_timestamp = _load_scenario(scenario_path)
-        frozen_dt = datetime.fromisoformat(freeze_timestamp)
-        sm = _ScenarioStateMachine(inputs)
-
-        network = _build_network(config, sm, frozen_dt)
-        network.optimize()  # prime (calibrates blend weight)
-
-        result = benchmark(network.optimize)
-        assert np.isfinite(result)
-
-    def test_update_all_elements(self, scenario_path: Path, benchmark: BenchmarkFixture) -> None:
+    def test_update_all(self, scenario_path: Path, options: SolveOptions, benchmark: BenchmarkFixture) -> None:
         """Update all element parameters and re-optimize."""
         config, inputs, freeze_timestamp = _load_scenario(scenario_path)
         frozen_dt = datetime.fromisoformat(freeze_timestamp)
         sm = _ScenarioStateMachine(inputs)
 
         loaded_configs = _load_configs(config, sm, frozen_dt)
-        network = _build_network(config, sm, frozen_dt)
+        network = _build_network(config, sm, frozen_dt, options=options)
         network.optimize()  # prime
 
         def run() -> float:
@@ -223,7 +204,7 @@ class TestBenchmark:
         result = benchmark(run)
         assert np.isfinite(result)
 
-    def test_time_shift(self, scenario_path: Path, benchmark: BenchmarkFixture) -> None:
+    def test_time_shift(self, scenario_path: Path, options: SolveOptions, benchmark: BenchmarkFixture) -> None:
         """Shift forecast times forward one tick and re-optimize."""
         config, inputs, freeze_timestamp = _load_scenario(scenario_path)
         frozen_dt = datetime.fromisoformat(freeze_timestamp)
@@ -233,12 +214,25 @@ class TestBenchmark:
         shift_seconds = periods_seconds[0]
         shifted_configs = _load_shifted_configs(config, sm, frozen_dt, shift_seconds)
 
+        network = _build_network(config, sm, frozen_dt, options=options)
+        network.optimize()  # prime
+
         def run() -> float:
-            network = _build_network(config, sm, frozen_dt)
-            network.optimize()
             for elem_config in shifted_configs.values():
                 update_element(network, elem_config)
             return network.optimize()
 
         result = benchmark(run)
+        assert np.isfinite(result)
+
+    def test_warm_reentrant(self, scenario_path: Path, options: SolveOptions, benchmark: BenchmarkFixture) -> None:
+        """Re-optimize with no parameter changes (warm start)."""
+        config, inputs, freeze_timestamp = _load_scenario(scenario_path)
+        frozen_dt = datetime.fromisoformat(freeze_timestamp)
+        sm = _ScenarioStateMachine(inputs)
+
+        network = _build_network(config, sm, frozen_dt, options=options)
+        network.optimize()  # prime
+
+        result = benchmark(network.optimize)
         assert np.isfinite(result)
