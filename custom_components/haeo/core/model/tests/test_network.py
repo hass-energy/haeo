@@ -644,22 +644,13 @@ def test_bisect_boundary_respects_max_steps() -> None:
 def test_calibrated_mode_fallback_on_impossible_match(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Calibration falls back gracefully when no weight reproduces lex."""
-    network = _build_priced_network(CalibratedOptions())
-    network.optimize()  # first call: calibrates
+    """Calibration falls back when tight tolerance makes all weights fail."""
+    network = _build_priced_network(CalibratedOptions(calibration_tolerance=1e-30))
 
-    # Sabotage the calibrated weight to force recalibration
-    network._calibrated_weight = None
-
-    # Monkeypatch _primary_vars_match to always return False after first call
-    call_count = [0]
-
-    def always_fail_calibrate(*args: object, **kwargs: object) -> float:
-        call_count[0] += 1
-        # Return a very small weight (the fallback value)
-        return 1e-12
-
-    monkeypatch.setattr(network, "_calibrate_blend_weight", always_fail_calibrate)
+    # First call triggers calibration with impossibly tight tolerance.
+    # This exercises the fallback path where _primary_vars_match returns
+    # False even at the lowest weight.
     result = network.optimize()
     assert np.isfinite(result)
-    assert call_count[0] == 1
+    # Should still produce a calibrated weight (the fallback value)
+    assert network._calibrated_weight is not None
