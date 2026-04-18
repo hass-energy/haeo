@@ -23,10 +23,8 @@ from custom_components.haeo.core.schema.elements.grid import (
     SECTION_PRICING,
 )
 from custom_components.haeo.core.schema.elements.grid import ELEMENT_TYPE as GRID_TYPE
-from custom_components.haeo.core.schema.elements.policy import (
-    CONF_ENABLED as CONF_POLICY_ENABLED,
-    CONF_RULES,
-)
+from custom_components.haeo.core.schema.elements.policy import CONF_ENABLED as CONF_POLICY_ENABLED
+from custom_components.haeo.core.schema.elements.policy import CONF_RULES
 from custom_components.haeo.core.schema.elements.policy import ELEMENT_TYPE as POLICY_TYPE
 from custom_components.haeo.core.schema.elements.solar import (
     CONF_CURTAILMENT,

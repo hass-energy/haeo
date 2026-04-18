@@ -445,10 +445,8 @@ class PolicySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         source_options = self._get_participant_options(can_source=True)
         target_options = self._get_participant_options(can_sink=True)
         idx = self._editing_index
-        existing_rule_defaults: dict[str, Any] = {}
         existing_rule_input: dict[str, Any] = {}
         if idx is not None and 0 <= idx < len(self._rules):
-            existing_rule_defaults = self._rule_to_defaults(self._rules[idx])
             existing_rule_input = self._rule_to_edit_input(self._rules[idx])
 
         merged_input = {**existing_rule_input, **user_input} if user_input is not None else None
