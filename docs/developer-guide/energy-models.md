@@ -102,7 +102,7 @@ Parameters:
 ### @cost decorator
 
 Use `@cost` to declare cost contribution methods.
-A cost method returns a single expression for the primary objective, or a list of expressions for lexicographic multi-objective optimization:
+Each `@cost` method returns a single expression for the primary objective:
 
 ```python
 from custom_components.haeo.core.model.reactive import cost
@@ -116,9 +116,9 @@ def cost_source_target(self) -> highs_linear_expression | None:
     return Highs.qsum(self.power_source_target * self.price_source_target * self.periods)
 ```
 
-The element's `cost()` aggregator collects all `@cost` methods and combines them into a positional list.
-The network sums these lists across all elements: index 0 is the primary (cost minimization) objective, index 1 is the secondary (time preference) objective.
-Most elements only contribute to the primary objective; Connection handles the secondary objective internally.
+The element's `cost()` aggregator collects all `@cost` methods and sums them into a single primary expression.
+Connection overrides `cost()` to return a `(primary, secondary)` tuple, adding the time-preference objective.
+The network sums primary and secondary contributions separately across all elements and solves lexicographically.
 
 ### @output decorator
 
