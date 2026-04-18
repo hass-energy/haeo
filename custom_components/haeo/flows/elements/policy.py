@@ -44,7 +44,7 @@ from custom_components.haeo.core.schema.elements.policy import (
     PolicyRuleConfig,
 )
 from custom_components.haeo.core.schema.entity_value import as_entity_value, is_entity_value
-from custom_components.haeo.core.schema.none_value import as_none_value, is_none_value
+from custom_components.haeo.core.schema.none_value import is_none_value
 from custom_components.haeo.elements import get_list_input_fields
 from custom_components.haeo.elements.input_fields import InputFieldInfo
 from custom_components.haeo.flows.element_flow import ElementFlowMixin
@@ -170,11 +170,11 @@ class PolicySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         return section[CONF_PRICE]
 
     def _build_price_selector(self) -> NormalizingChooseSelector:
-        """Build a ChooseSelector for the price field (entity/constant/none)."""
+        """Build a ChooseSelector for the price field (entity/constant)."""
         field_info = self._get_price_field_info()
         return build_choose_selector(
             field_info,
-            allowed_choices={CHOICE_ENTITY, CHOICE_CONSTANT, CHOICE_NONE},
+            allowed_choices={CHOICE_ENTITY, CHOICE_CONSTANT},
             multiple=True,
             preferred_choice=CHOICE_CONSTANT,
         )
@@ -220,7 +220,7 @@ class PolicySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                 vol.Required(CONF_ENABLED, default=True): BooleanSelector(BooleanSelectorConfig()),
                 vol.Optional(CONF_SOURCE): source_selector,
                 vol.Optional(CONF_TARGET): target_selector,
-                vol.Optional(CONF_PRICE): price_selector,
+                vol.Required(CONF_PRICE): price_selector,
             }
         )
 
@@ -267,8 +267,6 @@ class PolicySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         if price is not None:
             if isinstance(price, list):
                 rule["price"] = as_entity_value(price)
-            elif isinstance(price, str) and price == "":
-                rule["price"] = as_none_value()
             elif isinstance(price, (int, float)):
                 rule["price"] = as_constant_value(float(price))
         return rule
@@ -290,9 +288,25 @@ class PolicySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             price = rule[CONF_PRICE]
             if is_constant_value(price) or is_entity_value(price):
                 defaults[CONF_PRICE] = price["value"]
-            elif is_none_value(price):
-                defaults[CONF_PRICE] = ""
         return defaults
+
+    def _rule_to_edit_input(self, rule: PolicyRuleConfig) -> dict[str, Any]:
+        """Convert a stored rule into parse-ready form input values."""
+        input_values: dict[str, Any] = {
+            CONF_RULE_NAME: rule["name"],
+            CONF_ENABLED: rule.get(CONF_ENABLED, True),
+            CONF_SOURCE: rule.get(CONF_SOURCE, ""),
+            CONF_TARGET: rule.get(CONF_TARGET, ""),
+        }
+
+        if CONF_PRICE in rule:
+            price = rule[CONF_PRICE]
+            if is_constant_value(price) or is_entity_value(price):
+                input_values[CONF_PRICE] = price["value"]
+            elif is_none_value(price):
+                input_values[CONF_PRICE] = ""
+
+        return input_values
 
     def _validate_rule(
         self,
@@ -316,6 +330,17 @@ class PolicySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         target = user_input.get(CONF_TARGET) or []
         if source and target and source == target:
             errors["base"] = "source_target_same"
+            return False
+
+        price = user_input.get(CONF_PRICE)
+        if isinstance(price, str) and price == "":
+            errors[CONF_PRICE] = "required"
+            return False
+        if price is None:
+            errors[CONF_PRICE] = "required"
+            return False
+        if isinstance(price, list) and not price:
+            errors[CONF_PRICE] = "required"
             return False
 
         return True
@@ -420,13 +445,20 @@ class PolicySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         source_options = self._get_participant_options(can_source=True)
         target_options = self._get_participant_options(can_sink=True)
         idx = self._editing_index
+        existing_rule_defaults: dict[str, Any] = {}
+        existing_rule_input: dict[str, Any] = {}
+        if idx is not None and 0 <= idx < len(self._rules):
+            existing_rule_defaults = self._rule_to_defaults(self._rules[idx])
+            existing_rule_input = self._rule_to_edit_input(self._rules[idx])
 
-        if user_input is not None and self._validate_rule(
-            user_input,
+        merged_input = {**existing_rule_input, **user_input} if user_input is not None else None
+
+        if merged_input is not None and self._validate_rule(
+            merged_input,
             errors,
             exclude_index=idx,
         ):
-            rule = self._parse_rule_input(user_input)
+            rule = self._parse_rule_input(merged_input)
             if idx is not None and 0 <= idx < len(self._rules):
                 self._rules[idx] = rule
             self._editing_index = None
