@@ -38,6 +38,7 @@ dev = [
     "syrupy>=5.0.0",
     "zensical>=0.0.24",
     "import-linter>=2.10",
+    "pytest-benchmark>=5.2.3",
 ]
 
 [tool.ruff]
@@ -165,10 +166,11 @@ python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
 asyncio_mode = "auto"
-addopts = ["--strict-markers", "--strict-config", "--import-mode=importlib"]
+addopts = ["--strict-markers", "--strict-config", "--import-mode=importlib", "--benchmark-disable", "--benchmark-group-by=param", "--benchmark-sort=mean"]
 filterwarnings = ["error"]
 markers = [
     "scenario: marks tests as scenario tests (select with '-m \"scenario\"')",
+    "benchmark: marks tests as benchmark tests (select with '-m \"benchmark\"')",
     "guide: marks tests as guide screenshot tests (select with '-m \"guide\"')",
     "enable_socket: marks tests that need real socket access",
 ]

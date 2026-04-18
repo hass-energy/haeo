@@ -85,12 +85,9 @@ class DummySegment(Segment):
         return OutputData(type=OutputType.POWER, unit="kW", values=tuple(0.0 for _ in range(self.n_periods)))
 
     @cost
-    def list_cost(self) -> list[highs_linear_expression]:
-        """Return multiple cost terms to exercise cost aggregation."""
-        return [
-            Highs.qsum(self._cost_var),
-            Highs.qsum(self._cost_var),
-        ]
+    def list_cost(self) -> highs_linear_expression:
+        """Return a cost term for cost aggregation testing."""
+        return Highs.qsum(self._cost_var)
 
 
 def _assert_expected_value(actual: ExpectedValue, expected: ExpectedValue) -> None:
@@ -148,9 +145,9 @@ def _solve_segment_scenario(case: SegmentScenario) -> dict[str, ExpectedValue]:
 
     objective_terms = []
     if inputs.get("minimize_cost"):
-        c = seg.cost()
-        if c is not None:
-            objective_terms.append(c)
+        cost = seg.cost()
+        if cost is not None:
+            objective_terms.append(cost)
 
     for name, weight in inputs.get("maximize", {}).items():
         attr_val = getattr(seg, name)
@@ -200,7 +197,8 @@ def _solve_connection_scenario(case: ConnectionScenario) -> dict[str, ExpectedVa
     if inputs.get("minimize_cost"):
         cost = conn.cost()
         assert cost is not None
-        objective_terms.append(cost)
+        if cost:
+            objective_terms.append(cost[0])
 
     maximize = inputs.get("maximize", {})
     for name, weight in maximize.items():
@@ -332,6 +330,38 @@ def test_segment_outputs_and_cost_coverage() -> None:
 
     cost_value = segment.cost()
     assert cost_value is not None
+
+
+def test_multiple_cost_methods_aggregate() -> None:
+    """Element with multiple @cost methods sums them into a single expression."""
+
+    class MultiCostElement(Element[str]):
+        def __init__(self, solver: Highs) -> None:
+            super().__init__(
+                name="multi",
+                periods=np.array([1.0]),
+                solver=solver,
+                output_names=frozenset(),
+            )
+            self._v1 = solver.addVariables(1, lb=0, name_prefix="v1_", out_array=True)
+            self._v2 = solver.addVariables(1, lb=0, name_prefix="v2_", out_array=True)
+
+        @cost
+        def cost_a(self) -> highs_linear_expression:
+            return Highs.qsum(self._v1)
+
+        @cost
+        def cost_b(self) -> highs_linear_expression:
+            return Highs.qsum(self._v2)
+
+    solver = Highs()
+    solver.setOptionValue("output_flag", False)
+    elem = MultiCostElement(solver)
+    result = elem.cost()
+    assert result is not None
+    # Expression should reference indices from both variables
+    idxs = set(result.idxs)
+    assert len(idxs) >= 2
 
 
 def test_soc_pricing_cost_none_without_prices() -> None:

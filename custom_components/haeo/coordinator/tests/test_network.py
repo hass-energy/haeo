@@ -16,6 +16,7 @@ from custom_components.haeo.core.schema import as_connection_target
 from custom_components.haeo.core.schema.elements import ElementConfigData, ElementType
 from custom_components.haeo.core.schema.elements.connection import (
     CONF_MAX_POWER_SOURCE_TARGET,
+    CONF_PRICE_SOURCE_TARGET,
     SECTION_EFFICIENCY,
     SECTION_ENDPOINTS,
     SECTION_POWER_LIMITS,
@@ -103,6 +104,7 @@ def test_update_element_allows_empty_efficiency_section() -> None:
             "segments": {
                 "efficiency": {"segment_type": "efficiency", "efficiency": np.array([0.95, 0.95])},
                 "power_limit": {"segment_type": "power_limit", "max_power": np.array([10.0, 10.0])},
+                "pricing": {"segment_type": "pricing", "price": np.array([0.10, 0.10])},
             },
         }
     )
@@ -117,7 +119,9 @@ def test_update_element_allows_empty_efficiency_section() -> None:
         SECTION_POWER_LIMITS: {
             CONF_MAX_POWER_SOURCE_TARGET: np.array([10.0, 10.0]),
         },
-        SECTION_PRICING: {},
+        SECTION_PRICING: {
+            CONF_PRICE_SOURCE_TARGET: np.array([0.10, 0.10]),
+        },
         SECTION_EFFICIENCY: {},
     }
     update_element(network, config)

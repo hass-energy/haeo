@@ -15,13 +15,19 @@ import operator
 from typing import Any
 
 from highspy import Highs
-from highspy.highs import HighspyArray, highs_cons
+from highspy.highs import HighspyArray, highs_cons, highs_linear_expression
 import numpy as np
 from numpy.typing import NDArray
 
 from custom_components.haeo.core.model.element import Element
 from custom_components.haeo.core.model.output_data import OutputData
-from custom_components.haeo.core.model.reactive import OutputMethod, ReactiveConstraint, ReactiveCost, TrackedParam
+from custom_components.haeo.core.model.reactive import (
+    OutputMethod,
+    ReactiveConstraint,
+    ReactiveCost,
+    TrackedParam,
+    cost,
+)
 
 
 class Segment:
@@ -135,19 +141,23 @@ class Segment:
                 result[output_name] = output_data
         return result
 
-    def cost(self) -> Any:
-        """Return aggregated cost expression from this segment."""
-        costs: list[Any] = []
+    @cost
+    def cost(self) -> highs_linear_expression | None:
+        """Return aggregated primary cost expression from this segment."""
+        # Access decorator's internal name to skip self in dir() loop
+        this_method_name = type(self).cost._name  # type: ignore[attr-defined]  # noqa: SLF001
+
+        costs: list[highs_linear_expression] = []
         for name in dir(type(self)):
+            if name == this_method_name:
+                continue
             attr = getattr(type(self), name, None)
             if not isinstance(attr, ReactiveCost):
                 continue
             method = getattr(self, name)
             if (cost_value := method()) is not None:
-                if isinstance(cost_value, list):
-                    costs.extend(cost_value)
-                else:
-                    costs.append(cost_value)
+                costs.append(cost_value)
+
         if not costs:
             return None
         if len(costs) == 1:

@@ -179,39 +179,34 @@ class Element[OutputNameT: str]:
         return result
 
     @cost
-    def cost(self) -> Any:
-        """Return aggregated cost expression from this element.
+    def cost(self) -> highs_linear_expression | None:
+        """Return aggregated primary cost expression from this element.
 
-        Discovers and calls all @cost decorated methods, summing their results into
-        a single expression. The result is cached by the @cost decorator, which
-        automatically tracks dependencies on all underlying @cost methods.
-
-        Returns:
-            Single aggregated cost expression (highs_linear_expression) or None if no costs
-
+        Discovers and calls all @cost decorated methods, summing their results
+        into a single expression. Cached by the @cost decorator — only
+        recomputes when underlying @cost method dependencies change.
         """
-        # Get this method's name from the decorator to avoid hardcoding
-        this_method_name = type(self).cost._name  # type: ignore[attr-defined]  # noqa: SLF001 (intentional access to decorator's name)
+        # Access the decorator's internal name to skip self in the dir() loop.
+        # _name is set by ReactiveCost.__set_name__ and is not part of the public API.
+        this_method_name = type(self).cost._name  # type: ignore[attr-defined]  # noqa: SLF001
 
-        # Collect all cost expressions from @cost methods (excluding this one)
-        costs: list[Any] = []
+        costs: list[highs_linear_expression] = []
         for name in dir(type(self)):
-            # Skip self to avoid infinite recursion
             if name == this_method_name:
                 continue
             attr = getattr(type(self), name, None)
             if not isinstance(attr, ReactiveCost):
                 continue
 
-            # Call the cost method - this establishes dependency tracking
             method = getattr(self, name)
             if (cost_value := method()) is not None:
                 costs.append(cost_value)
 
-        # Aggregate costs into a single expression
         if not costs:
             return None
-        return reduce(operator.add, costs)
+        if len(costs) == 1:
+            return costs[0]
+        return sum(costs[1:], costs[0])
 
 
 class NetworkElement[OutputNameT: str](Element[OutputNameT]):

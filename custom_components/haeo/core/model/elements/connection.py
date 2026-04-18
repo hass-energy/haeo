@@ -13,7 +13,7 @@ import operator
 from typing import Any, Final, Literal, NotRequired, TypedDict
 
 from highspy import Highs
-from highspy.highs import HighspyArray, highs_cons
+from highspy.highs import HighspyArray, highs_cons, highs_linear_expression
 import numpy as np
 from numpy.typing import NDArray
 
@@ -21,7 +21,7 @@ from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.model.element import Element
 from custom_components.haeo.core.model.output_data import OutputData
 from custom_components.haeo.core.model.reactive import output
-from custom_components.haeo.core.model.util.broadcast_to_sequence import broadcast_to_sequence
+from custom_components.haeo.core.model.util import broadcast_to_sequence
 
 from .segments import Segment, SegmentSpec, create_segment
 
@@ -47,6 +47,8 @@ class ConnectionElementConfig(TypedDict):
     name: str
     source: str
     target: str
+    is_external: NotRequired[bool]
+    is_time_sensitive: NotRequired[bool]
     segments: NotRequired[dict[str, SegmentSpec]]
     tags: NotRequired[set[int]]
     tag_costs: NotRequired[list[dict[str, Any]]]
@@ -68,6 +70,8 @@ class Connection[TOutputName: str](Element[TOutputName]):
         solver: Highs,
         source: str,
         target: str,
+        is_external: bool = False,
+        is_time_sensitive: bool = False,
         segments: dict[str, SegmentSpec] | None = None,
         output_names: frozenset[TOutputName] | None = None,
         tags: set[int] | None = None,
@@ -85,6 +89,9 @@ class Connection[TOutputName: str](Element[TOutputName]):
         self._target = target
         self._source_element: Element[Any] | None = None
         self._target_element: Element[Any] | None = None
+        self.is_external = is_external
+        self.is_time_sensitive = is_time_sensitive
+        self.priority = 0  # assigned by Network from sort_key
 
         self._segment_specs: OrderedDict[str, SegmentSpec] = OrderedDict(segments or {})
         self._segments: OrderedDict[str, Segment] = OrderedDict()
@@ -100,6 +107,15 @@ class Connection[TOutputName: str](Element[TOutputName]):
     def segments(self) -> OrderedDict[str, Segment]:
         """Return the ordered dict of segments."""
         return self._segments
+
+    @property
+    def sort_key(self) -> tuple[bool, bool, str, str, str]:
+        """Deterministic sort key for time-preference ordering.
+
+        Prefers own power over external, then time-sensitive over invariant,
+        then alphabetical by source/target/name for tiebreaking.
+        """
+        return (self.is_external, not self.is_time_sensitive, self._source, self._target, self.name)
 
     @property
     def source(self) -> str:
@@ -210,22 +226,34 @@ class Connection[TOutputName: str](Element[TOutputName]):
         result.update(own_constraints)
         return result
 
-    def cost(self) -> Any:  # type: ignore[override]
-        """Aggregate costs from all segments."""
-        costs = [sc for seg in self._segments.values() if (sc := seg.cost()) is not None]
+    def cost(self) -> tuple[highs_linear_expression | None, highs_linear_expression]:  # type: ignore[override]
+        """Return (primary_cost, secondary_cost) for this connection.
+
+        Primary: segment costs + tag costs.
+        Secondary: time-preference objective for deterministic ordering.
+        """
+        primary_costs: list[highs_linear_expression] = [
+            sc for seg in self._segments.values() if (sc := seg.cost()) is not None
+        ]
 
         for tc in self._tag_costs:
             tag = tc["tag"]
             price = broadcast_to_sequence(tc.get("price"), self.n_periods)
             if price is not None and tag in self._power_in:
-                tag_flow = self._power_in[tag]
-                costs.append(Highs.qsum(tag_flow * price * self.periods))
+                primary_costs.append(Highs.qsum(self._power_in[tag] * price * self.periods))
 
-        if not costs:
-            return None
-        if len(costs) == 1:
-            return costs[0]
-        return Highs.qsum(costs)
+        primary = None
+        if primary_costs:
+            primary = primary_costs[0] if len(primary_costs) == 1 else Highs.qsum(primary_costs)
+
+        # Time-preference objective: prefer earlier energy transfer
+        n = self.n_periods
+        weights = self.priority * n + np.arange(1, n + 1, dtype=np.float64)
+        secondary = Highs.qsum(self.total_power_in * self.periods * weights)
+
+        if primary is None:
+            return (None, secondary)
+        return (primary, secondary)
 
     # --- Output methods ---
 
@@ -246,6 +274,7 @@ class Connection[TOutputName: str](Element[TOutputName]):
             unit="kW",
             values=self.extract_values(self.total_power_in),
             direction="+",
+            priority=self.priority,
         )
 
     @output(name=CONNECTION_SEGMENTS)

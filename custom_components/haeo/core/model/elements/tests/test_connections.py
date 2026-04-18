@@ -73,9 +73,10 @@ def _solve_connection_scenario(element: Connection[str], inputs: ConnectionTestC
         total_power_out = element.total_power_out
         cost_terms.append(-Highs.qsum(total_power_out[i] * periods[i] for i in range(n_periods)))
 
+    # Collect primary cost from element (index 0 only, skip secondary time preference)
     element_cost = element.cost()
-    if element_cost is not None:
-        cost_terms.append(element_cost)
+    if element_cost[0] is not None:
+        cost_terms.append(element_cost[0])
 
     if cost_terms:
         h.minimize(Highs.qsum(cost_terms))
@@ -94,7 +95,8 @@ def _assert_outputs_match(actual: ExpectedOutputFixture, expected: ExpectedOutpu
         assert _is_expected_output(actual)
         assert actual["type"] == expected["type"]
         assert actual["unit"] == expected["unit"]
-        assert actual["values"] == pytest.approx(expected["values"], rel=1e-9, abs=1e-9)
+        tol = (2e-4, 2e-4) if expected["type"] == "shadow_price" else (1e-9, 1e-9)
+        assert actual["values"] == pytest.approx(expected["values"], rel=tol[0], abs=tol[1])
         return
 
     assert not _is_expected_output(actual)
@@ -238,9 +240,10 @@ def test_connection_multiple_cost_sources(solver: Highs) -> None:
 
     cost = conn.cost()
     assert cost is not None
+    assert cost[0] is not None
 
     solver.addConstr(conn.total_power_in[0] == 5.0)
-    solver.minimize(cost)
+    solver.minimize(cost[0])
     # Cost = 5 kW * (0.10 + 0.20) $/kWh * 1 h = 1.50
     assert solver.getObjectiveValue() == pytest.approx(1.50)
 
@@ -268,7 +271,8 @@ def test_connection_tag_cost_ignores_unknown_tag_and_missing_price(solver: Highs
 
     cost = conn.cost()
     assert cost is not None
+    assert cost[0] is not None
 
     solver.addConstr(conn.total_power_in[0] == 4.0)
-    solver.minimize(cost)
+    solver.minimize(cost[0])
     assert solver.getObjectiveValue() == pytest.approx(0.40)

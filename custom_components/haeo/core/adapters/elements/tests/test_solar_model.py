@@ -62,6 +62,7 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "name": "pv_main:connection",
                 "source": "pv_main",
                 "target": "network",
+                "is_time_sensitive": True,
                 "segments": {
                     "power_limit": {
                         "segment_type": "power_limit",

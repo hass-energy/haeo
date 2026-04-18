@@ -64,6 +64,7 @@ class LoadAdapter:
                 "name": f"{config['name']}:connection",
                 "source": extract_connection_target(config[CONF_CONNECTION]),
                 "target": config["name"],
+                "is_time_sensitive": True,
                 "segments": {
                     "power_limit": {
                         "segment_type": "power_limit",

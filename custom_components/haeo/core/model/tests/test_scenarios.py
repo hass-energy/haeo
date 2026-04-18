@@ -73,7 +73,11 @@ def test_network_validation() -> None:
                 "power_limit": {
                     "segment_type": "power_limit",
                     "max_power": np.array([1000.0, 1000.0, 1000.0]),
-                }
+                },
+                "pricing": {
+                    "segment_type": "pricing",
+                    "price": 0.0,
+                },
             },
         }
     )

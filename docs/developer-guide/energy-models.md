@@ -101,7 +101,8 @@ Parameters:
 
 ### @cost decorator
 
-Use `@cost` to declare cost contribution methods:
+Use `@cost` to declare cost contribution methods.
+Each `@cost` method returns a single expression for the primary objective:
 
 ```python
 from custom_components.haeo.core.model.reactive import cost
@@ -115,7 +116,9 @@ def cost_source_target(self) -> highs_linear_expression | None:
     return Highs.qsum(self.power_source_target * self.price_source_target * self.periods)
 ```
 
-The network automatically sums all `@cost` methods across all elements.
+The element's `cost()` aggregator collects all `@cost` methods and sums them into a single primary expression.
+Connection overrides `cost()` to return a `(primary, secondary)` tuple, adding the time-preference objective.
+The network sums primary and secondary contributions separately across all elements and solves lexicographically.
 
 ### @output decorator
 
@@ -220,10 +223,15 @@ When introducing a new element, ensure it connects through existing nodes or pro
 
 The current implementations are in `custom_components/haeo/core/model/elements/connection.py` and `custom_components/haeo/core/model/elements/node.py`.
 
-## Cost modelling
+## Cost modeling
 
 Only add costs that reflect real trade-offs.
 If the element interacts with external tariffs or degradation models, expose the relevant coefficients through configuration and ensure the objective contribution uses each period's duration for scaling (available via `self.periods[t]`).
+
+Costs are aggregated into a lexicographic multi-objective framework.
+The primary objective (index 0) captures real monetary costs.
+The secondary objective (index 1) handles tie-breaking via time-preference weights.
+When adding new cost terms, contribute them to the primary objective unless they are explicitly for tie-breaking.
 
 ## Related Documentation
 
