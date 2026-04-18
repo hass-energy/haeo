@@ -307,10 +307,10 @@ class PolicySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         }
 
         source = rule.get(CONF_SOURCE)
-        defaults[CONF_SOURCE] = {"active_choice": CHOICE_ELEMENTS, CHOICE_ELEMENTS: source} if source else ""
+        defaults[CONF_SOURCE] = source if source else ""
 
         target = rule.get(CONF_TARGET)
-        defaults[CONF_TARGET] = {"active_choice": CHOICE_ELEMENTS, CHOICE_ELEMENTS: target} if target else ""
+        defaults[CONF_TARGET] = target if target else ""
 
         if CONF_PRICE in rule:
             price = rule[CONF_PRICE]

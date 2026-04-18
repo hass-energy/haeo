@@ -664,14 +664,8 @@ async def test_edit_rule_saved_values_restore_when_reopened(
     reopen_result = await reopen_flow.async_step_edit_rule(user_input=None)
 
     assert _get_suggested_value(reopen_result, CONF_RULE_NAME) == "Solar Export Updated"
-    assert _get_suggested_value(reopen_result, CONF_SOURCE) == {
-        "active_choice": CHOICE_ELEMENTS,
-        CHOICE_ELEMENTS: ["Solar"],
-    }
-    assert _get_suggested_value(reopen_result, CONF_TARGET) == {
-        "active_choice": CHOICE_ELEMENTS,
-        CHOICE_ELEMENTS: ["Battery"],
-    }
+    assert _get_suggested_value(reopen_result, CONF_SOURCE) == ["Solar"]
+    assert _get_suggested_value(reopen_result, CONF_TARGET) == ["Battery"]
     assert _get_suggested_value(reopen_result, CONF_PRICE) == 0.06
 
 
@@ -1103,8 +1097,8 @@ async def test_edit_rule_shows_previous_values_for_source_target(
     result = await flow.async_step_edit_rule(user_input=None)
 
     assert result.get("type") == FlowResultType.FORM
-    assert _get_suggested_value(result, CONF_SOURCE) == {"active_choice": CHOICE_ELEMENTS, CHOICE_ELEMENTS: ["Solar"]}
-    assert _get_suggested_value(result, CONF_TARGET) == {"active_choice": CHOICE_ELEMENTS, CHOICE_ELEMENTS: ["Grid"]}
+    assert _get_suggested_value(result, CONF_SOURCE) == ["Solar"]
+    assert _get_suggested_value(result, CONF_TARGET) == ["Grid"]
     source_selector = _get_selector(result, CONF_SOURCE)
     target_selector = _get_selector(result, CONF_TARGET)
     assert source_selector is not None
@@ -1144,8 +1138,8 @@ async def test_edit_rule_ui_restore_contract_for_elements_endpoints(
     assert target_selector is not None
     assert next(iter(source_selector.config["choices"].keys())) == CHOICE_ELEMENTS
     assert next(iter(target_selector.config["choices"].keys())) == CHOICE_ELEMENTS
-    assert _get_suggested_value(result, CONF_SOURCE) == {"active_choice": CHOICE_ELEMENTS, CHOICE_ELEMENTS: ["Solar"]}
-    assert _get_suggested_value(result, CONF_TARGET) == {"active_choice": CHOICE_ELEMENTS, CHOICE_ELEMENTS: ["Grid"]}
+    assert _get_suggested_value(result, CONF_SOURCE) == ["Solar"]
+    assert _get_suggested_value(result, CONF_TARGET) == ["Grid"]
 
 
 async def test_edit_rule_shows_any_for_missing_source_target(
