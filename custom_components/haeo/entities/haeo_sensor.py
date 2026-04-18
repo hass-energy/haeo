@@ -9,7 +9,7 @@ from homeassistant.helpers.device_registry import DeviceEntry
 from homeassistant.helpers.typing import StateType
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from custom_components.haeo.const import CONF_RECORD_FORECASTS
+from custom_components.haeo.const import CONF_RECORD_FORECASTS, OUTPUT_NAME_OPTIMIZATION_STATUS
 from custom_components.haeo.coordinator import CoordinatorOutput, ForecastPoint, HaeoDataUpdateCoordinator
 from custom_components.haeo.core.model import OutputType
 from custom_components.haeo.elements import ElementDeviceName, ElementOutputName
@@ -98,6 +98,9 @@ class HaeoSensor(CoordinatorEntity[HaeoDataUpdateCoordinator], SensorEntity):
 
                 if output_data.forecast:
                     attributes["forecast"] = self._scale_percentage_forecast(output_data.unit, output_data.forecast)
+
+        if self._output_name == OUTPUT_NAME_OPTIMIZATION_STATUS and self.coordinator.data is not None:
+            attributes["last_run"] = self.coordinator.data.completed_at.isoformat()
 
         self._attr_native_value = native_value
         self._attr_extra_state_attributes = attributes
