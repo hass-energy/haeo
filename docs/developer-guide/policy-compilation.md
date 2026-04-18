@@ -11,6 +11,10 @@ Users configure source-destination pairs with prices and limits.
 The compilation pipeline transforms those rules into model-layer constructs.
 Those constructs include optimized VLAN assignments, connection tagging, node access lists, and scoped segments.
 
+When any policy exists, the compiler prepends an implicit `* -> *` rule with no price.
+This ensures all source-destination pairs have VLAN paths, making unpolicied flows free.
+The implicit rule follows the same compilation pipeline as user-configured policies.
+
 ## Pipeline
 
 ```mermaid
@@ -61,6 +65,7 @@ The node's `element_power_balance` constraint enforces that only the outbound ta
 Compute which VLANs each node can consume.
 
 - A node can consume VLAN `v` if any policy has that node as a destination and the source matches VLAN `v`.
+- The implicit `* -> *` rule ensures every node is a destination for every source VLAN.
 
 Power on non-consumable VLANs can still flow through the node for routing.
 That power cannot terminate at the node.
@@ -98,29 +103,30 @@ Policies:
   Solar -> Load: $0.02/kWh
 ```
 
-| Step             | Result                                                                  |
-| ---------------- | ----------------------------------------------------------------------- |
-| Flow enumeration | {(Grid,Load,0.05), (Solar,Load,0.02)}                                   |
-| Signatures       | Grid={(Load,0.05)}, Solar={(Load,0.02)}, Battery={}, SW={}, Load={}     |
-| VLANs            | Grid=1, Solar=2, others=0, K=3                                          |
-| Reachability     | VLAN 1: Grid->SW, SW->Load. VLAN 2: Solar->SW, SW->Load                 |
-| Connection tags  | Grid->SW: {0,1}, Solar->SW: {0,2}, SW->Load: {0,1,2}, Battery->SW: \{0} |
-| Outbound tags    | Grid: outbound_tags=\{1}, Solar: outbound_tags=\{2}                     |
-| Inbound tags     | Load consumes {1,2}, SW forwards all, Battery consumes \{0}             |
-| Pricing          | SW->Load: pricing(tag=1,$0.05), pricing(tag=2,$0.02)                    |
+| Step             | Result                                                                |
+| ---------------- | --------------------------------------------------------------------- |
+| Flow enumeration | Implicit `* -> *` (no price) + {(Grid,Load,0.05), (Solar,Load,0.02)}  |
+| Signatures       | Each node has a unique signature (implicit rule + explicit policies)  |
+| VLANs            | Each node gets a distinct VLAN                                        |
+| Reachability     | All VLANs reach all connections                                       |
+| Connection tags  | All connections carry all VLANs                                       |
+| Outbound tags    | Each node emits only its own VLAN                                     |
+| Inbound tags     | Each node consumes all VLANs                                          |
+| Pricing          | SW->Load: pricing(tag=grid_vlan,$0.05), pricing(tag=solar_vlan,$0.02) |
 
 Result: Solar power is preferred over grid power because it has lower policy cost.
-Battery power without matching policy cannot reach `Load` because VLAN 0 is not in `Load`'s access list.
-Battery can still consume non-policy power on VLAN 0.
+Battery power flows freely at zero policy cost through its implicit rule VLAN.
 
 ## Testing
 
 Tests live in `custom_components/haeo/core/adapters/tests/test_policy_compilation.py`.
 
-- **Signature computation**: correct merging of identical signatures.
-- **VLAN assignment**: minimum VLANs for various policy sets.
+- **Signature computation**: correct signatures with implicit allow-all rule.
+- **VLAN assignment**: all nodes get non-zero VLANs.
 - **Reachability**: correct connection tagging for tree topologies.
-- **Source enforcement**: `outbound_tags` set on correct nodes.
+- **Source enforcement**: `outbound_tags` set on all nodes.
+- **Default-allow**: unpolicied sources flow to policied destinations at zero cost.
+- **No bypass**: policied sources cannot avoid policy costs.
 - **End-to-end**: full network optimization with policies produces correct costs.
 
 ## Related

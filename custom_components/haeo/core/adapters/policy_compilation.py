@@ -72,6 +72,9 @@ def compile_policies(
     if not policy_configs:
         return elements
 
+    # Implicit allow-all: unpolicied flows carry no cost but still get VLANs
+    policy_configs = [{"sources": ["*"], "destinations": ["*"]}, *policy_configs]
+
     # Partition by element type — connections have source/target fields
     connections: list[ConnectionElementConfig] = []
     non_connections: list[ModelElementConfig] = []
